@@ -2,6 +2,8 @@
 
 	.text
 foo:
+	.rept 2
+
 	vmcall
 	vmlaunch
 	vmresume
@@ -18,4 +20,7 @@ foo:
 	vmwritel %eax,%ebx
 	vmwrite (%eax),%ebx
 	vmwritel (%eax),%ebx
+
+	.code16
+	.endr
 	.p2align	4,0

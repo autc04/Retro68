@@ -1,6 +1,6 @@
 // { dg-do compile { target c++11 } }
 
-// Copyright (C) 2007-2019 Free Software Foundation, Inc.
+// Copyright (C) 2007-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,7 +18,7 @@
 // <http://www.gnu.org/licenses/>.
 
 // NB: parallel-mode uses TR1 bits...
-#undef _GLIBCXX_PARALLEL
+// { dg-skip-if "" { *-*-* } { "-D_GLIBCXX_PARALLEL" } }
 
 #include <algorithm>
 #include <array>

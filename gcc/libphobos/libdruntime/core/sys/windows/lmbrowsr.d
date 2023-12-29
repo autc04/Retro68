@@ -4,12 +4,13 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lmbrowsr.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lmbrowsr.d)
  */
 module core.sys.windows.lmbrowsr;
 version (Windows):
+@system:
 
-private import core.sys.windows.lmcons, core.sys.windows.windef;
+import core.sys.windows.lmcons, core.sys.windows.windef;
 
 enum BROWSER_ROLE_PDC = 1;
 enum BROWSER_ROLE_BDC = 2;

@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -34,6 +28,9 @@
 --  of the nodes is used as the forward pointer for these lists. See also
 --  package Elists which provides another form of lists that are not threaded
 --  through the nodes (and therefore allow nodes to be on multiple lists).
+
+--  WARNING: There is a C version of this package. Any changes to this
+--  source file must be properly reflected in the C header file nlists.h
 
 with System;
 with Types; use Types;
@@ -149,9 +146,9 @@ package Nlists is
    --  No_List. (No_List is not considered to be the same as an empty list).
 
    function List_Length (List : List_Id) return Nat;
-   --  Returns number of items in the given list. It is an error to call
-   --  this function with No_List (No_List is not considered to be the same
-   --  as an empty list).
+   --  Returns number of items in the given list. If called on No_List it
+   --  returns 0, even though No_List is not considered to be the same as an
+   --  empty list.
 
    function Next (Node : Node_Or_Entity_Id) return Node_Or_Entity_Id;
    pragma Inline (Next);
@@ -334,8 +331,7 @@ package Nlists is
 
    procedure Initialize;
    --  Called at the start of compilation of each new main source file to
-   --  initialize the allocation of the list table. Note that Initialize
-   --  must not be called if Tree_Read is used.
+   --  initialize the allocation of the list table.
 
    procedure Lock;
    --  Called to lock tables before back end is called
@@ -351,15 +347,6 @@ package Nlists is
    procedure Unlock_Lists;
    --  Called to unlock list contents when assertions are enabled; if
    --  assertions are not enabled calling this subprogram has no effect.
-
-   procedure Tree_Read;
-   --  Initializes internal tables from current tree file using the relevant
-   --  Table.Tree_Read routines. Note that Initialize should not be called if
-   --  Tree_Read is used. Tree_Read includes all necessary initialization.
-
-   procedure Tree_Write;
-   --  Writes out internal tables to current tree file using the relevant
-   --  Table.Tree_Write routines.
 
    function Parent (List : List_Id) return Node_Or_Entity_Id;
    pragma Inline (Parent);
@@ -384,6 +371,7 @@ package Nlists is
    --  "if Present (Statements)" as opposed to "if Statements /= No_List".
 
    procedure Allocate_List_Tables (N : Node_Or_Entity_Id);
+   pragma Inline (Allocate_List_Tables);
    --  Called when nodes table is expanded to include node N. This call
    --  makes sure that list structures internal to Nlists are adjusted
    --  appropriately to reflect this increase in the size of the nodes table.

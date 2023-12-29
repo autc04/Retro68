@@ -2,17 +2,17 @@
 #name: Unwind table generation
 # This is the VxWorks variant of this file.
 #source: unwind.s
-#not-skip: *-*-vxworks*
+#noskip: *-*-vxworks*
 
 .*:     file format.*
 
 RELOCATION RECORDS FOR \[.ARM.extab\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0000000c R_ARM_PREL31      .text
 
 
 RELOCATION RECORDS FOR \[.ARM.exidx\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000000 R_ARM_PREL31      .text
 00000000 R_ARM_NONE        __aeabi_unwind_cpp_pr0
 00000008 R_ARM_PREL31      .text.*\+0x00000004

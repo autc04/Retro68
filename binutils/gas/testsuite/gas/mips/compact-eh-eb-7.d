@@ -7,12 +7,12 @@
 
 
 RELOCATION RECORDS FOR \[.eh_frame\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0000001c R_MIPS_PC32       .text.*
 
 
 RELOCATION RECORDS FOR \[.eh_frame_entry\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000000 R_MIPS_PC32       .text.*
 00000004 R_MIPS_PC32       .eh_frame.*
 

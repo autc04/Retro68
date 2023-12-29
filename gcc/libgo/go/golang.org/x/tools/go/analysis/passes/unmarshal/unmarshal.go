@@ -14,21 +14,29 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
-const doc = `report passing non-pointer or non-interface values to unmarshal
+const Doc = `report passing non-pointer or non-interface values to unmarshal
 
 The unmarshal analysis reports calls to functions such as json.Unmarshal
 in which the argument type is not a pointer or an interface.`
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "unmarshal",
-	Doc:      doc,
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	switch pass.Pkg.Path() {
+	case "encoding/gob", "encoding/json", "encoding/xml", "encoding/asn1":
+		// These packages know how to use their own APIs.
+		// Sometimes they are testing what happens to incorrect programs.
+		return nil, nil
+	}
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -46,9 +54,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		recv := fn.Type().(*types.Signature).Recv()
 		if fn.Name() == "Unmarshal" && recv == nil {
 			// "encoding/json".Unmarshal
-			//  "encoding/xml".Unmarshal
+			// "encoding/xml".Unmarshal
+			// "encoding/asn1".Unmarshal
 			switch fn.Pkg().Path() {
-			case "encoding/json", "encoding/xml":
+			case "encoding/json", "encoding/xml", "encoding/asn1":
 				argidx = 1 // func([]byte, interface{})
 			}
 		} else if fn.Name() == "Decode" && recv != nil {
@@ -77,7 +86,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		t := pass.TypesInfo.Types[call.Args[argidx]].Type
 		switch t.Underlying().(type) {
-		case *types.Pointer, *types.Interface:
+		case *types.Pointer, *types.Interface, *typeparams.TypeParam:
 			return
 		}
 

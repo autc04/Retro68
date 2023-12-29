@@ -1,2 +1,2 @@
 .*: Assembler messages:
-.*:153: Warning: redundant segment overrides
+.*:155: Warning: redundant segment overrides

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,27 +23,39 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Checks;   use Checks;
-with Einfo;    use Einfo;
+with Atree;          use Atree;
+with Checks;         use Checks;
+with Einfo;          use Einfo;
+with Einfo.Entities; use Einfo.Entities;
+with Einfo.Utils;    use Einfo.Utils;
+with Exp_Attr;
+with Exp_Ch3;
 with Exp_Ch4;
-with Exp_Ch5;  use Exp_Ch5;
-with Exp_Dbug; use Exp_Dbug;
-with Exp_Util; use Exp_Util;
-with Namet;    use Namet;
-with Nlists;   use Nlists;
-with Nmake;    use Nmake;
-with Rtsfind;  use Rtsfind;
-with Sem;      use Sem;
-with Sem_Eval; use Sem_Eval;
-with Sem_Prag; use Sem_Prag;
-with Sem_Res;  use Sem_Res;
-with Sem_Util; use Sem_Util;
-with Sinfo;    use Sinfo;
-with Snames;   use Snames;
-with Stand;    use Stand;
-with Tbuild;   use Tbuild;
-with Uintp;    use Uintp;
+with Exp_Ch5;        use Exp_Ch5;
+with Exp_Dbug;       use Exp_Dbug;
+with Exp_Util;       use Exp_Util;
+with Ghost;          use Ghost;
+with Namet;          use Namet;
+with Nlists;         use Nlists;
+with Nmake;          use Nmake;
+with Opt;            use Opt;
+with Restrict;       use Restrict;
+with Rident;         use Rident;
+with Rtsfind;        use Rtsfind;
+with Sem;            use Sem;
+with Sem_Aux;        use Sem_Aux;
+with Sem_Ch7;        use Sem_Ch7;
+with Sem_Ch8;        use Sem_Ch8;
+with Sem_Prag;       use Sem_Prag;
+with Sem_Res;        use Sem_Res;
+with Sem_Util;       use Sem_Util;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Sinfo.Utils;    use Sinfo.Utils;
+with Snames;         use Snames;
+with Stand;          use Stand;
+with Tbuild;         use Tbuild;
+with Uintp;          use Uintp;
 
 package body Exp_SPARK is
 
@@ -52,17 +64,18 @@ package body Exp_SPARK is
    -----------------------
 
    procedure Expand_SPARK_N_Attribute_Reference (N : Node_Id);
-   --  Replace occurrences of System'To_Address by calls to
-   --  System.Storage_Elements.To_Address
+   --  Perform attribute-reference-specific expansion
 
-   procedure Expand_SPARK_N_Freeze_Type (E : Entity_Id);
-   --  Build the DIC procedure of a type when needed, if not already done
+   procedure Expand_SPARK_N_Delta_Aggregate (N : Node_Id);
+   --  Perform delta-aggregate-specific expansion
 
-   procedure Expand_SPARK_N_Indexed_Component (N : Node_Id);
-   --  Insert explicit dereference if required
+   procedure Expand_SPARK_N_Freeze_Entity (N : Node_Id);
+   --  Do a minimal expansion of freeze entities required by GNATprove. It is
+   --  a subset of what is done for GNAT in Exp_Ch13.Expand_N_Freeze_Entity.
+   --  Those two routines should be kept in sync.
 
    procedure Expand_SPARK_N_Loop_Statement (N : Node_Id);
-   --  Perform loop statement-specific expansion
+   --  Perform loop-statement-specific expansion
 
    procedure Expand_SPARK_N_Object_Declaration (N : Node_Id);
    --  Perform object-declaration-specific expansion
@@ -73,8 +86,22 @@ package body Exp_SPARK is
    procedure Expand_SPARK_N_Op_Ne (N : Node_Id);
    --  Rewrite operator /= based on operator = when defined explicitly
 
-   procedure Expand_SPARK_N_Selected_Component (N : Node_Id);
-   --  Insert explicit dereference if required
+   procedure Expand_SPARK_Delta_Or_Update (Typ : Entity_Id; Aggr : Node_Id);
+   --  Common expansion for attribute Update and delta aggregates
+
+   procedure SPARK_Freeze_Type (N : Node_Id);
+   --  Do a minimal type freezing required by GNATprove. It is a subset of what
+   --  is done for GNAT in Exp_Ch3.Freeze_Type. Those two routines should be
+   --  kept in sync.
+   --
+   --  Currently in freezing we build the spec of dispatching equality. This
+   --  spec is needed to properly resolve references to the equality operator.
+   --  The body is not needed, because proof knows how to directly synthesize a
+   --  logical meaning for it. Also, for tagged types with extension the
+   --  expanded body would compare the _parent component, which is
+   --  intentionally not generated in the GNATprove mode.
+   --
+   --  We build the DIC procedure body here as well.
 
    ------------------
    -- Expand_SPARK --
@@ -108,6 +135,9 @@ package body Exp_SPARK is
          when N_Attribute_Reference =>
             Expand_SPARK_N_Attribute_Reference (N);
 
+         when N_Delta_Aggregate =>
+            Expand_SPARK_N_Delta_Aggregate (N);
+
          when N_Expanded_Name
             | N_Identifier
          =>
@@ -133,15 +163,13 @@ package body Exp_SPARK is
             Expand_SPARK_N_Op_Ne (N);
 
          when N_Freeze_Entity =>
+            --  Currently we only expand type freeze entities, so ignore other
+            --  freeze entites, because it is expensive to create a suitable
+            --  freezing environment.
+
             if Is_Type (Entity (N)) then
-               Expand_SPARK_N_Freeze_Type (Entity (N));
+               Expand_SPARK_N_Freeze_Entity (N);
             end if;
-
-         when N_Indexed_Component =>
-            Expand_SPARK_N_Indexed_Component (N);
-
-         when N_Selected_Component =>
-            Expand_SPARK_N_Selected_Component (N);
 
          --  In SPARK mode, no other constructs require expansion
 
@@ -150,20 +178,375 @@ package body Exp_SPARK is
       end case;
    end Expand_SPARK;
 
-   --------------------------------
-   -- Expand_SPARK_N_Freeze_Type --
-   --------------------------------
+   ----------------------------------
+   -- Expand_SPARK_Delta_Or_Update --
+   ----------------------------------
 
-   procedure Expand_SPARK_N_Freeze_Type (E : Entity_Id) is
+   procedure Expand_SPARK_Delta_Or_Update
+     (Typ  : Entity_Id;
+      Aggr : Node_Id)
+   is
+      Assoc     : Node_Id;
+      Comp      : Node_Id;
+      Comp_Id   : Entity_Id;
+      Comp_Type : Entity_Id;
+      Expr      : Node_Id;
+      Index     : Node_Id;
+      Index_Typ : Entity_Id;
+      New_Assoc : Node_Id;
+
    begin
-      --  When a DIC is inherited by a tagged type, it may need to be
-      --  specialized to the descendant type, hence build a separate DIC
-      --  procedure for it as done during regular expansion for compilation.
+      --  Apply scalar range checks on the updated components, if needed
 
-      if Has_DIC (E) and then Is_Tagged_Type (E) then
-         Build_DIC_Procedure_Body (E, For_Freeze => True);
+      if Is_Array_Type (Typ) then
+
+         --  Multidimensional arrays
+
+         if Present (Next_Index (First_Index (Typ))) then
+            Assoc := First (Component_Associations (Aggr));
+
+            while Present (Assoc) loop
+               Expr      := Expression (Assoc);
+               Comp_Type := Component_Type (Typ);
+
+               if Is_Scalar_Type (Comp_Type) then
+                  Apply_Scalar_Range_Check (Expr, Comp_Type);
+               end if;
+
+               --  The current association contains a sequence of indexes
+               --  denoting an element of a multidimensional array:
+               --
+               --    (Index_1, ..., Index_N)
+
+               Expr := First (Choices (Assoc));
+
+               pragma Assert (Nkind (Aggr) = N_Aggregate);
+
+               while Present (Expr) loop
+                  Index     := First (Expressions (Expr));
+                  Index_Typ := First_Index (Typ);
+
+                  while Present (Index_Typ) loop
+                     Apply_Scalar_Range_Check (Index, Etype (Index_Typ));
+                     Next (Index);
+                     Next_Index (Index_Typ);
+                  end loop;
+
+                  Next (Expr);
+               end loop;
+
+               Next (Assoc);
+            end loop;
+
+         --  One-dimensional arrays
+
+         else
+            Assoc := First (Component_Associations (Aggr));
+
+            while Present (Assoc) loop
+               Expr      := Expression (Assoc);
+               Comp_Type := Component_Type (Typ);
+
+               --  Analyze expression of the iterated_component_association
+               --  with its index parameter in scope.
+
+               if Nkind (Assoc) = N_Iterated_Component_Association then
+                  Push_Scope (Scope (Defining_Identifier (Assoc)));
+                  Enter_Name (Defining_Identifier (Assoc));
+                  Analyze_And_Resolve (Expr, Comp_Type);
+               end if;
+
+               if Is_Scalar_Type (Comp_Type) then
+                  Apply_Scalar_Range_Check (Expr, Comp_Type);
+               end if;
+
+               --  Restore scope of the iterated_component_association
+
+               if Nkind (Assoc) = N_Iterated_Component_Association then
+                  End_Scope;
+               end if;
+
+               Index     := First (Choice_List (Assoc));
+               Index_Typ := First_Index (Typ);
+
+               while Present (Index) loop
+                  --  If the index denotes a range of elements or a constrained
+                  --  subtype indication, then their low and high bounds
+                  --  already have range checks applied.
+
+                  if Nkind (Index) in N_Range | N_Subtype_Indication then
+                     null;
+
+                  --  Otherwise the index denotes a single expression where
+                  --  range checks need to be applied or a subtype name
+                  --  (without range constraints) where applying checks is
+                  --  harmless.
+                  --
+                  --  In delta_aggregate and Update attribute on array the
+                  --  others_choice is not allowed.
+
+                  else pragma Assert (Nkind (Index) in N_Subexpr);
+                     Apply_Scalar_Range_Check (Index, Etype (Index_Typ));
+                  end if;
+
+                  Next (Index);
+               end loop;
+
+               Next (Assoc);
+            end loop;
+         end if;
+
+      else pragma Assert (Is_Record_Type (Typ));
+
+         --  If the aggregate has multiple component choices, e.g.:
+         --
+         --    X'Update (A | B | C => 123)
+         --
+         --  then each component might be of a different type and might or
+         --  might not require a range check. We first rewrite associations
+         --  into single-component choices, e.g.:
+         --
+         --    X'Update (A => 123, B => 123, C => 123)
+         --
+         --  and then apply range checks to individual copies of the
+         --  expressions. We do the same for delta aggregates, accordingly.
+
+         --  Iterate over associations of the original aggregate
+
+         Assoc := First (Component_Associations (Aggr));
+
+         --  Rewrite into a new aggregate and decorate
+
+         case Nkind (Aggr) is
+            when N_Aggregate =>
+               Rewrite
+                 (Aggr,
+                  Make_Aggregate
+                    (Sloc                   => Sloc (Aggr),
+                     Component_Associations => New_List));
+
+            when N_Delta_Aggregate =>
+               Rewrite
+                 (Aggr,
+                  Make_Delta_Aggregate
+                    (Sloc                   => Sloc (Aggr),
+                     Expression             => Expression (Aggr),
+                     Component_Associations => New_List));
+
+            when others =>
+               raise Program_Error;
+         end case;
+
+         Set_Etype (Aggr, Typ);
+
+         --  Populate the new aggregate with component associations
+
+         while Present (Assoc) loop
+            Expr := Expression (Assoc);
+            Comp := First (Choices (Assoc));
+
+            while Present (Comp) loop
+               Comp_Id   := Entity (Comp);
+               Comp_Type := Etype (Comp_Id);
+
+               New_Assoc :=
+                 Make_Component_Association
+                   (Sloc       => Sloc (Assoc),
+                    Choices    =>
+                      New_List
+                        (New_Occurrence_Of (Comp_Id, Sloc (Comp))),
+                    Expression => New_Copy_Tree (Expr));
+
+               --  New association must be attached to the aggregate before we
+               --  analyze it.
+
+               Append (New_Assoc, Component_Associations (Aggr));
+
+               Analyze_And_Resolve (Expression (New_Assoc), Comp_Type);
+
+               if Is_Scalar_Type (Comp_Type) then
+                  Apply_Scalar_Range_Check
+                    (Expression (New_Assoc), Comp_Type);
+               end if;
+
+               Next (Comp);
+            end loop;
+
+            Next (Assoc);
+         end loop;
       end if;
-   end Expand_SPARK_N_Freeze_Type;
+   end Expand_SPARK_Delta_Or_Update;
+
+   ----------------------------------
+   -- Expand_SPARK_N_Freeze_Entity --
+   ----------------------------------
+
+   procedure Expand_SPARK_N_Freeze_Entity (N : Entity_Id) is
+      E : constant Entity_Id := Entity (N);
+
+      Action         : Node_Id;
+      E_Scope        : Entity_Id;
+      In_Other_Scope : Boolean;
+      In_Outer_Scope : Boolean;
+
+   begin
+      --  Here E is a type or a subprogram
+
+      E_Scope := Scope (E);
+
+      --  This is an error protection against previous errors
+
+      if No (E_Scope) then
+         Check_Error_Detected;
+         return;
+      end if;
+
+      --  The entity may be a subtype declared for a constrained record
+      --  component, in which case the relevant scope is the scope of
+      --  the record. This happens for class-wide subtypes created for
+      --  a constrained type extension with inherited discriminants.
+
+      if Is_Type (E_Scope)
+        and then not Is_Concurrent_Type (E_Scope)
+      then
+         E_Scope := Scope (E_Scope);
+
+      --  The entity may be a subtype declared for an iterator
+
+      elsif Ekind (E_Scope) = E_Loop then
+         E_Scope := Scope (E_Scope);
+      end if;
+
+      --  If we are freezing entities defined in protected types, they belong
+      --  in the enclosing scope, given that the original type has been
+      --  expanded away. The same is true for entities in task types, in
+      --  particular the parameter records of entries (Entities in bodies are
+      --  all frozen within the body). If we are in the task body, this is a
+      --  proper scope. If we are within a subprogram body, the proper scope
+      --  is the corresponding spec. This may happen for itypes generated in
+      --  the bodies of protected operations.
+
+      if Ekind (E_Scope) = E_Protected_Type
+        or else (Ekind (E_Scope) = E_Task_Type
+                  and then not Has_Completion (E_Scope))
+      then
+         E_Scope := Scope (E_Scope);
+
+      elsif Ekind (E_Scope) = E_Subprogram_Body then
+         E_Scope := Corresponding_Spec (Unit_Declaration_Node (E_Scope));
+      end if;
+
+      --  If the scope of the entity is in open scopes, it is the current one
+      --  or an enclosing one, including a loop, a block, or a subprogram.
+
+      if In_Open_Scopes (E_Scope) then
+         In_Other_Scope := False;
+         In_Outer_Scope := E_Scope /= Current_Scope;
+
+      --  Otherwise it is a local package or a different compilation unit
+
+      else
+         In_Other_Scope := True;
+         In_Outer_Scope := False;
+      end if;
+
+      --  If the entity being frozen is defined in a scope that is not
+      --  currently on the scope stack, we must establish the proper
+      --  visibility before freezing the entity and related subprograms.
+
+      if In_Other_Scope then
+         Push_Scope (E_Scope);
+
+         --  Finalizers are little odd in terms of freezing. The spec of the
+         --  procedure appears in the declarations while the body appears in
+         --  the statement part of a single construct. Since the finalizer must
+         --  be called by the At_End handler of the construct, the spec is
+         --  manually frozen right after its declaration. The only side effect
+         --  of this action appears in contexts where the construct is not in
+         --  its final resting place. These contexts are:
+
+         --    * Entry bodies - The declarations and statements are moved to
+         --      the procedure equivalen of the entry.
+         --    * Protected subprograms - The declarations and statements are
+         --      moved to the non-protected version of the subprogram.
+         --    * Task bodies - The declarations and statements are moved to the
+         --      task body procedure.
+         --    * Blocks that will be rewritten as subprograms when unnesting
+         --      is in effect.
+
+         --  Visible declarations do not need to be installed in these three
+         --  cases since it does not make semantic sense to do so. All entities
+         --  referenced by a finalizer are visible and already resolved, plus
+         --  the enclosing scope may not have visible declarations at all.
+
+         if Ekind (E) = E_Procedure
+           and then Is_Finalizer (E)
+           and then
+             (Is_Entry (E_Scope)
+                or else (Is_Subprogram (E_Scope)
+                          and then Is_Protected_Type (Scope (E_Scope)))
+                or else Is_Task_Type (E_Scope)
+                or else Ekind (E_Scope) = E_Block)
+         then
+            null;
+         else
+            Install_Visible_Declarations (E_Scope);
+         end if;
+
+         if Is_Concurrent_Type (E_Scope)
+           or else Is_Package_Or_Generic_Package (E_Scope)
+         then
+            Install_Private_Declarations (E_Scope);
+         end if;
+
+      --  If the entity is in an outer scope, then that scope needs to
+      --  temporarily become the current scope so that operations created
+      --  during type freezing will be declared in the right scope and
+      --  can properly override any corresponding inherited operations.
+
+      elsif In_Outer_Scope then
+         Push_Scope (E_Scope);
+      end if;
+
+      --  Remember that we are processing a freezing entity and its freezing
+      --  nodes. This flag (non-zero = set) is used to avoid the need of
+      --  climbing through the tree while processing the freezing actions (ie.
+      --  to avoid generating spurious warnings or to avoid killing constant
+      --  indications while processing the code associated with freezing
+      --  actions). We use a counter to deal with nesting.
+
+      Inside_Freezing_Actions := Inside_Freezing_Actions + 1;
+
+      --  Currently only types require freezing in SPARK
+
+      SPARK_Freeze_Type (N);
+
+      --  Analyze actions in freeze node, if any
+
+      Action := First (Actions (N));
+      while Present (Action) loop
+         Analyze (Action);
+         Next (Action);
+      end loop;
+
+      --  Pop scope if we installed one for the analysis
+
+      if In_Other_Scope then
+         if Ekind (Current_Scope) = E_Package then
+            End_Package_Scope (E_Scope);
+         else
+            End_Scope;
+         end if;
+
+      elsif In_Outer_Scope then
+         Pop_Scope;
+      end if;
+
+      --  Restore previous value of the nesting-level counter that records
+      --  whether we are inside a (possibly nested) call to this procedure.
+
+      Inside_Freezing_Actions := Inside_Freezing_Actions - 1;
+   end Expand_SPARK_N_Freeze_Entity;
 
    ----------------------------------------
    -- Expand_SPARK_N_Attribute_Reference --
@@ -173,101 +556,121 @@ package body Exp_SPARK is
       Aname   : constant Name_Id      := Attribute_Name (N);
       Attr_Id : constant Attribute_Id := Get_Attribute_Id (Aname);
       Loc     : constant Source_Ptr   := Sloc (N);
+      Pref    : constant Node_Id      := Prefix (N);
       Typ     : constant Entity_Id    := Etype (N);
       Expr    : Node_Id;
 
    begin
-      if Attr_Id = Attribute_To_Address then
+      case Attr_Id is
+         when Attribute_To_Address =>
 
-         --  Extract and convert argument to expected type for call
+            --  Extract and convert argument to expected type for call
 
-         Expr :=
-           Make_Type_Conversion (Loc,
-             Subtype_Mark =>
-               New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
-             Expression   => Relocate_Node (First (Expressions (N))));
+            Expr :=
+              Make_Type_Conversion (Loc,
+                Subtype_Mark =>
+                  New_Occurrence_Of (RTE (RE_Integer_Address), Loc),
+                Expression   => Relocate_Node (First (Expressions (N))));
 
-         --  Replace attribute reference with call
+            --  Replace attribute reference with call
 
-         Rewrite (N,
-           Make_Function_Call (Loc,
-             Name                   =>
-               New_Occurrence_Of (RTE (RE_To_Address), Loc),
-             Parameter_Associations => New_List (Expr)));
-         Analyze_And_Resolve (N, Typ);
+            Rewrite
+              (N,
+               Make_Function_Call (Loc,
+                 Name                   =>
+                   New_Occurrence_Of (RTE (RE_To_Address), Loc),
+                 Parameter_Associations => New_List (Expr)));
+            Analyze_And_Resolve (N, Typ);
 
-      --  For attributes which return Universal_Integer, introduce a conversion
-      --  to the expected type with the appropriate check flags set.
+         when Attribute_Object_Size
+            | Attribute_Size
+            | Attribute_Value_Size
+            | Attribute_VADS_Size
+         =>
+            Exp_Attr.Expand_Size_Attribute (N);
 
-      elsif Attr_Id = Attribute_Alignment
-        or else Attr_Id = Attribute_Bit
-        or else Attr_Id = Attribute_Bit_Position
-        or else Attr_Id = Attribute_Descriptor_Size
-        or else Attr_Id = Attribute_First_Bit
-        or else Attr_Id = Attribute_Last_Bit
-        or else Attr_Id = Attribute_Length
-        or else Attr_Id = Attribute_Max_Size_In_Storage_Elements
-        or else Attr_Id = Attribute_Pos
-        or else Attr_Id = Attribute_Position
-        or else Attr_Id = Attribute_Range_Length
-        or else Attr_Id = Attribute_Object_Size
-        or else Attr_Id = Attribute_Size
-        or else Attr_Id = Attribute_Value_Size
-        or else Attr_Id = Attribute_VADS_Size
-        or else Attr_Id = Attribute_Aft
-        or else Attr_Id = Attribute_Max_Alignment_For_Allocation
-      then
-         --  If the expected type is Long_Long_Integer, there will be no check
-         --  flag as the compiler assumes attributes always fit in this type.
-         --  Since in SPARK_Mode we do not take Storage_Error into account, we
-         --  cannot make this assumption and need to produce a check.
-         --  ??? It should be enough to add this check for attributes 'Length
-         --  and 'Range_Length when the type is as big as Long_Long_Integer.
+         --  For attributes which return Universal_Integer, introduce a
+         --  conversion to the expected type with the appropriate check flags
+         --  set.
 
-         declare
-            Typ : Entity_Id := Empty;
-         begin
-            if Attr_Id = Attribute_Range_Length then
-               Typ := Etype (Prefix (N));
+         when Attribute_Aft
+            | Attribute_Alignment
+            | Attribute_Bit
+            | Attribute_Bit_Position
+            | Attribute_Descriptor_Size
+            | Attribute_First_Bit
+            | Attribute_Last_Bit
+            | Attribute_Length
+            | Attribute_Max_Alignment_For_Allocation
+            | Attribute_Max_Size_In_Storage_Elements
+            | Attribute_Pos
+            | Attribute_Position
+            | Attribute_Range_Length
+         =>
+            --  If the expected type is Long_Long_Integer, there will be no
+            --  check flag as the compiler assumes attributes always fit in
+            --  this type. Since in SPARK_Mode we do not take Storage_Error
+            --  into account, we cannot make this assumption and need to
+            --  produce a check. ??? It should be enough to add this check for
+            --  attributes 'Length, 'Range_Length and 'Pos when the type is as
+            --  big as Long_Long_Integer.
 
-            elsif Attr_Id = Attribute_Length then
-               Typ := Etype (Prefix (N));
+            declare
+               Typ : Entity_Id;
+            begin
+               if Attr_Id in Attribute_Pos | Attribute_Range_Length then
+                  Typ := Etype (Prefix (N));
 
-               declare
-                  Indx : Node_Id;
-                  J    : Int;
+               elsif Attr_Id = Attribute_Length then
+                  Typ := Get_Index_Subtype (N);
 
-               begin
-                  if Is_Access_Type (Typ) then
-                     Typ := Designated_Type (Typ);
-                  end if;
+               else
+                  Typ := Empty;
+               end if;
 
-                  if No (Expressions (N)) then
-                     J := 1;
-                  else
-                     J := UI_To_Int (Expr_Value (First (Expressions (N))));
-                  end if;
+               Apply_Universal_Integer_Attribute_Checks (N);
 
-                  Indx := First_Index (Typ);
-                  while J > 1 loop
-                     Next_Index (Indx);
-                     J := J - 1;
-                  end loop;
+               if Present (Typ)
+                 and then Known_RM_Size (Typ)
+                 and then RM_Size (Typ) = RM_Size (Standard_Long_Long_Integer)
+               then
+                  --  ??? This should rather be a range check, but this would
+                  --  crash GNATprove which somehow recovers the proper kind
+                  --  of check anyway.
+                  Set_Do_Overflow_Check (N);
+               end if;
+            end;
 
-                  Typ := Etype (Indx);
-               end;
-            end if;
+         when Attribute_Constrained =>
 
-            Apply_Universal_Integer_Attribute_Checks (N);
+            --  If the prefix is an access to object, the attribute applies to
+            --  the designated object, so rewrite with an explicit dereference.
 
-            if Present (Typ)
-              and then RM_Size (Typ) = RM_Size (Standard_Long_Long_Integer)
+            if Is_Access_Type (Etype (Pref))
+              and then
+              (not Is_Entity_Name (Pref) or else Is_Object (Entity (Pref)))
             then
-               Set_Do_Overflow_Check (N);
+               Rewrite (Pref,
+                        Make_Explicit_Dereference (Loc, Relocate_Node (Pref)));
+               Analyze_And_Resolve (N, Standard_Boolean);
             end if;
-         end;
-      end if;
+
+         when Attribute_Update =>
+            Expand_SPARK_Delta_Or_Update (Typ, First (Expressions (N)));
+
+         when others =>
+            null;
+      end case;
    end Expand_SPARK_N_Attribute_Reference;
+
+   ------------------------------------
+   -- Expand_SPARK_N_Delta_Aggregate --
+   ------------------------------------
+
+   procedure Expand_SPARK_N_Delta_Aggregate (N : Node_Id) is
+   begin
+      Expand_SPARK_Delta_Or_Update (Etype (N), N);
+   end Expand_SPARK_N_Delta_Aggregate;
 
    -----------------------------------
    -- Expand_SPARK_N_Loop_Statement --
@@ -292,21 +695,6 @@ package body Exp_SPARK is
       end if;
    end Expand_SPARK_N_Loop_Statement;
 
-   --------------------------------------
-   -- Expand_SPARK_N_Indexed_Component --
-   --------------------------------------
-
-   procedure Expand_SPARK_N_Indexed_Component (N : Node_Id) is
-      Pref : constant Node_Id    := Prefix (N);
-      Typ  : constant Entity_Id  := Etype (Pref);
-
-   begin
-      if Is_Access_Type (Typ) then
-         Insert_Explicit_Dereference (Pref);
-         Analyze_And_Resolve (Pref, Designated_Type (Typ));
-      end if;
-   end Expand_SPARK_N_Indexed_Component;
-
    ---------------------------------------
    -- Expand_SPARK_N_Object_Declaration --
    ---------------------------------------
@@ -330,7 +718,7 @@ package body Exp_SPARK is
         and then Present (DIC_Procedure (Typ))
         and then not Has_Init_Expression (N)
       then
-         Call := Build_DIC_Call (Loc, Obj_Id, Typ);
+         Call := Build_DIC_Call (Loc, New_Occurrence_Of (Obj_Id, Loc), Typ);
 
          --  Partially insert the call into the tree by setting its parent
          --  pointer.
@@ -464,7 +852,7 @@ package body Exp_SPARK is
    begin
       --  Replace a reference to a renaming with the actual renamed object
 
-      if Ekind (Obj_Id) in Object_Kind then
+      if Is_Object (Obj_Id) then
          Ren := Renamed_Object (Obj_Id);
 
          if Present (Ren) then
@@ -497,31 +885,115 @@ package body Exp_SPARK is
       end if;
    end Expand_SPARK_Potential_Renaming;
 
-   ---------------------------------------
-   -- Expand_SPARK_N_Selected_Component --
-   ---------------------------------------
+   -----------------------
+   -- SPARK_Freeze_Type --
+   -----------------------
 
-   procedure Expand_SPARK_N_Selected_Component (N : Node_Id) is
-      Pref : constant Node_Id   := Prefix (N);
-      Typ  : constant Entity_Id := Underlying_Type (Etype (Pref));
+   procedure SPARK_Freeze_Type (N : Entity_Id) is
+      Typ : constant Entity_Id := Entity (N);
+
+      Renamed_Eq : Node_Id;
+      --  Defining unit name for the predefined equality function in the case
+      --  where the type has a primitive operation that is a renaming of
+      --  predefined equality (but only if there is also an overriding
+      --  user-defined equality function). Used to pass this entity from
+      --  Make_Predefined_Primitive_Specs to Predefined_Primitive_Bodies.
+
+      Decl        : Node_Id;
+      Eq_Spec     : Node_Id := Empty;
+      Predef_List : List_Id;
+
+      Wrapper_Decl_List : List_Id;
+      Wrapper_Body_List : List_Id := No_List;
+
+      Saved_GM  : constant Ghost_Mode_Type := Ghost_Mode;
+      Saved_IGR : constant Node_Id         := Ignored_Ghost_Region;
+      --  Save the Ghost-related attributes to restore on exit
 
    begin
-      if Present (Typ) and then Is_Access_Type (Typ) then
+      --  The type being frozen may be subject to pragma Ghost. Set the mode
+      --  now to ensure that any nodes generated during freezing are properly
+      --  marked as Ghost.
 
-         --  First set prefix type to proper access type, in case it currently
-         --  has a private (non-access) view of this type.
+      Set_Ghost_Mode (Typ);
 
-         Set_Etype (Pref, Typ);
+      --  When a DIC is inherited by a tagged type, it may need to be
+      --  specialized to the descendant type, hence build a separate DIC
+      --  procedure for it as done during regular expansion for compilation.
 
-         Insert_Explicit_Dereference (Pref);
-         Analyze_And_Resolve (Pref, Designated_Type (Typ));
+      if Has_DIC (Typ) and then Is_Tagged_Type (Typ) then
+         --  Why is this needed for DIC, but not for other aspects (such as
+         --  Type_Invariant)???
 
-         if Ekind (Etype (Pref)) = E_Private_Subtype
-           and then Is_For_Access_Subtype (Etype (Pref))
+         Build_DIC_Procedure_Body (Typ);
+      end if;
+
+      if Ekind (Typ) = E_Record_Type
+        and then Is_Tagged_Type (Typ)
+        and then not Is_Interface (Typ)
+        and then not Is_Limited_Type (Typ)
+      then
+         if Is_CPP_Class (Root_Type (Typ))
+           and then Convention (Typ) = Convention_CPP
          then
-            Set_Etype (Pref, Base_Type (Etype (Pref)));
+            null;
+
+         --  Do not add the spec of the predefined primitives if we are
+         --  compiling under restriction No_Dispatching_Calls.
+
+         elsif not Restriction_Active (No_Dispatching_Calls) then
+            Set_Is_Frozen (Typ, False);
+
+            Predef_List := New_List;
+            Exp_Ch3.Make_Predefined_Primitive_Eq_Spec
+              (Typ, Predef_List, Renamed_Eq);
+            Eq_Spec := First (Predef_List);
+            Insert_List_Before_And_Analyze (N, Predef_List);
+
+            Set_Is_Frozen (Typ);
+
+            --  Remove link from the parent list to the spec and body of
+            --  the dispatching equality, but keep the link in the opposite
+            --  direction, to allow up-traversal of the AST.
+
+            if Present (Eq_Spec) then
+               Decl := Parent (Eq_Spec);
+               Remove (Eq_Spec);
+               Set_Parent (Eq_Spec, Decl);
+            end if;
          end if;
       end if;
-   end Expand_SPARK_N_Selected_Component;
+
+      if Ekind (Typ) = E_Record_Type
+        and then Is_Tagged_Type (Typ)
+        and then not Is_CPP_Class (Typ)
+      then
+         --  Ada 2005 (AI-391): For a nonabstract null extension, create
+         --  wrapper functions for each nonoverridden inherited function
+         --  with a controlling result of the type. The wrapper for such
+         --  a function returns an extension aggregate that invokes the
+         --  parent function.
+
+         if Ada_Version >= Ada_2005
+           and then not Is_Abstract_Type (Typ)
+           and then Is_Null_Extension (Typ)
+         then
+            Exp_Ch3.Make_Controlling_Function_Wrappers
+              (Typ, Wrapper_Decl_List, Wrapper_Body_List);
+            Insert_List_Before_And_Analyze (N, Wrapper_Decl_List);
+         end if;
+
+         --  Ada 2005 (AI-391): If any wrappers were created for nonoverridden
+         --  inherited functions, then add their bodies to the AST, so they
+         --  will be processed like ordinary subprogram bodies (even though the
+         --  compiler adds them into the freezing action).
+
+         if not Is_Interface (Typ) then
+            Insert_List_Before_And_Analyze (N, Wrapper_Body_List);
+         end if;
+      end if;
+
+      Restore_Ghost_Region (Saved_GM, Saved_IGR);
+   end SPARK_Freeze_Type;
 
 end Exp_SPARK;

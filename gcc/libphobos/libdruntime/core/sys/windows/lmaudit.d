@@ -4,13 +4,14 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lmaudit.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lmaudit.d)
  */
 // COMMENT: This file may be deprecated.
 module core.sys.windows.lmaudit;
 version (Windows):
+@system:
 
-private import core.sys.windows.lmcons, core.sys.windows.windef;
+import core.sys.windows.lmcons, core.sys.windows.windef;
 
 enum LOGFLAGS_FORWARD  = 0;
 enum LOGFLAGS_BACKWARD = 1;

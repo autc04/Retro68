@@ -5,12 +5,13 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_pbt.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_pbt.d)
  */
 module core.sys.windows.pbt;
 version (Windows):
+@system:
 
-private import core.sys.windows.windef;
+import core.sys.windows.windef;
 
 enum : WPARAM {
     PBT_APMQUERYSUSPEND,

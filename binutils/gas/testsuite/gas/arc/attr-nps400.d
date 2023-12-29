@@ -9,3 +9,4 @@ File Attributes
   Tag_ARC_CPU_name: "nps400"
   Tag_ARC_ABI_osver: v4
   Tag_ARC_ISA_config: "NPS400"
+  Tag_ARC_ATR_version: 1

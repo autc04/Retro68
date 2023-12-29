@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 2001-2019, AdaCore                     --
+--                     Copyright (C) 2001-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -22,15 +22,16 @@
 
 --  This is the version of the Back_End package for back ends written in Ada
 
-with Atree;    use Atree;
+with Atree;         use Atree;
+with Backend_Utils; use Backend_Utils;
 with Debug;
 with Lib;
-with Opt;      use Opt;
-with Output;   use Output;
-with Osint;    use Osint;
-with Osint.C;  use Osint.C;
-with Switch.C; use Switch.C;
-with Types;    use Types;
+with Opt;           use Opt;
+with Output;        use Output;
+with Osint;         use Osint;
+with Osint.C;       use Osint.C;
+with Switch.C;      use Switch.C;
+with Types;         use Types;
 
 with System.OS_Lib; use System.OS_Lib;
 
@@ -117,9 +118,11 @@ package body Adabkend is
 
          --  Set optimization indicators appropriately. In gcc-based GNAT this
          --  is picked up from imported variables set by the gcc driver, but
-         --  for compilers with non-gcc back ends we do it here to allow use
-         --  of these switches by the front end. Allowed optimization switches
-         --  are -Os (optimize for size), -O[0123], and -O (same as -O1).
+         --  for compilers with non-gcc back ends we do it here to allow use of
+         --  these switches by the front end. Allowed optimization switches are
+         --  -Os (optimize for size), -O[0123], -O (same as -O1), -Ofast
+         --  (disregard strict standards compliance), and -Og (optimize
+         --  debugging experience).
 
          elsif Switch_Chars (First) = 'O' then
             if First = Last then
@@ -134,9 +137,20 @@ package body Adabkend is
                   Optimization_Level :=
                     Character'Pos (Switch_Chars (Last)) - Character'Pos ('0');
 
+               --  Switch -Og is between -O0 and -O1 in GCC. Consider it like
+               --  -O0 for other back ends.
+
+               elsif Switch_Chars (Last) = 'g' then
+                  Optimization_Level := 0;
+
                else
                   Fail ("invalid switch: " & Switch_Chars);
                end if;
+
+            --  Switch -Ofast enables -O3
+
+            elsif Switch_Chars (First + 1 .. Last) = "fast" then
+               Optimization_Level := 3;
 
             else
                Fail ("invalid switch: " & Switch_Chars);
@@ -169,46 +183,11 @@ package body Adabkend is
 
             return;
 
-         --  Special check, the back end switch -fno-inline also sets the
-         --  front end flags to entirely inhibit all inlining. So we store it
-         --  and set the appropriate flags.
+         --  Ignore all other back-end switches
 
-         elsif Switch_Chars (First .. Last) = "fno-inline" then
-            Lib.Store_Compilation_Switch (Switch_Chars);
-            Opt.Disable_FE_Inline := True;
-            Opt.Disable_FE_Inline_Always := True;
-            return;
-
-         --  Similar processing for -fpreserve-control-flow
-
-         elsif Switch_Chars (First .. Last) = "fpreserve-control-flow" then
-            Lib.Store_Compilation_Switch (Switch_Chars);
-            Opt.Suppress_Control_Flow_Optimizations := True;
-            return;
-
-         --  Recognize -gxxx switches
-
-         elsif Switch_Chars (First) = 'g' then
-            Debugger_Level := 2;
-
-            if First < Last then
-               case Switch_Chars (First + 1) is
-                  when '0' =>
-                     Debugger_Level := 0;
-                  when '1' =>
-                     Debugger_Level := 1;
-                  when '2' =>
-                     Debugger_Level := 2;
-                  when '3' =>
-                     Debugger_Level := 3;
-                  when others =>
-                     null;
-               end case;
-            end if;
-
-         --  Ignore all other back end switches
-
-         elsif Is_Back_End_Switch (Switch_Chars) then
+         elsif Scan_Common_Back_End_Switch (Switch_Chars)
+            or else Is_Back_End_Switch (Switch_Chars)
+         then
             null;
 
          --  Give error for junk switch

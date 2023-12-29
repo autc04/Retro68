@@ -1,7 +1,7 @@
 // { dg-do compile { target c++11 } }
 // { dg-require-gthreads "" }
 
-// Copyright (C) 2009-2019 Free Software Foundation, Inc.
+// Copyright (C) 2009-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,16 +20,26 @@
 
 #include <thread>
 
+template<typename Expected, typename T>
+  struct check_type
+  : std::false_type
+  { };
+
+template<typename Expected>
+  struct check_type<Expected, Expected>
+  : std::true_type
+  { };
+
 void test01()
 {
   // thread::id operators
   std::thread::id id1;
   std::thread::id id2;
 
-  id1 == id2;
-  id1 != id2;
-  id1 < id2;
-  id1 > id2;
-  id1 >= id2;
-  id1 <= id2;
+  static_assert( check_type<bool, decltype(id1 == id2)>{} );
+  static_assert( check_type<bool, decltype(id1 != id2)>{} );
+  static_assert( check_type<bool, decltype(id1 < id2)>{} );
+  static_assert( check_type<bool, decltype(id1 > id2)>{} );
+  static_assert( check_type<bool, decltype(id1 >= id2)>{} );
+  static_assert( check_type<bool, decltype(id1 <= id2)>{} );
 }

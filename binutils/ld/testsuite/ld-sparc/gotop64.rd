@@ -23,7 +23,7 @@ Section Headers:
 #...
 
 Elf file type is DYN \(Shared object file\)
-Entry point 0x1000
+Entry point 0x[0-9a-f]+
 There are [0-9]+ program headers, starting at offset [0-9]+
 
 Program Headers:
@@ -40,22 +40,22 @@ Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 1 entry:
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
-.* SECTION +LOCAL +DEFAULT +5 *
-.* SECTION +LOCAL +DEFAULT +7 *
+.* SECTION +LOCAL +DEFAULT +5.*
+.* SECTION +LOCAL +DEFAULT +7.*
 .* FUNC +GLOBAL +DEFAULT +5 foo
 .* NOTYPE +GLOBAL +DEFAULT +8 sym
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
-.* SECTION +LOCAL +DEFAULT +1 *
-.* SECTION +LOCAL +DEFAULT +2 *
-.* SECTION +LOCAL +DEFAULT +3 *
-.* SECTION +LOCAL +DEFAULT +4 *
-.* SECTION +LOCAL +DEFAULT +5 *
-.* SECTION +LOCAL +DEFAULT +6 *
-.* SECTION +LOCAL +DEFAULT +7 *
-.* SECTION +LOCAL +DEFAULT +8 *
+.* SECTION +LOCAL +DEFAULT +1.*
+.* SECTION +LOCAL +DEFAULT +2.*
+.* SECTION +LOCAL +DEFAULT +3.*
+.* SECTION +LOCAL +DEFAULT +4.*
+.* SECTION +LOCAL +DEFAULT +5.*
+.* SECTION +LOCAL +DEFAULT +6.*
+.* SECTION +LOCAL +DEFAULT +7.*
+.* SECTION +LOCAL +DEFAULT +8.*
 .* FILE +LOCAL +DEFAULT +ABS .*
 .* NOTYPE +LOCAL +DEFAULT +8 local_sym
 .* FILE +LOCAL +DEFAULT +ABS .*

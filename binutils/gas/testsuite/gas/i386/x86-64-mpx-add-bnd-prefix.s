@@ -8,6 +8,9 @@
 	jmp	*(%rbx)
 	ret
 foo:
+	# Use of REP/REPE prefix - converted to BND with warning
+	rep ret
+	repe ret
 	# Use of REPNE prefix - we shouldn't get any error
 	repne ret
 	# BND prefix already exists - we shouldn't get any error here

@@ -8,7 +8,7 @@
 .*: *file format elf32-tic6x-le
 
 RELOCATION RECORDS FOR \[\.data\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+ R_C6000_ABS32     \.data
 0+4 R_C6000_ABS32     \.data\+0x00000004
 0+8 R_C6000_ABS32     \.data\+0x0000000c

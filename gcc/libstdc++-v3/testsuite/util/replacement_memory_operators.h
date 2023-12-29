@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2007-2019 Free Software Foundation, Inc.
+// Copyright (C) 2007-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,6 +29,7 @@ namespace __gnu_test
   struct counter
   {
     std::size_t _M_count;
+    std::size_t _M_increments, _M_decrements;
     bool	_M_throw;
 
     counter() : _M_count(0), _M_throw(true) { }
@@ -40,10 +41,20 @@ namespace __gnu_test
     }
 
     static void
-    increment() { get()._M_count++; }
+    increment()
+    {
+      counter& cntr = get();
+      cntr._M_count++;
+      cntr._M_increments++;
+    }
 
     static void
-    decrement() { get()._M_count--; }
+    decrement()
+    {
+      counter& cntr = get();
+      cntr._M_count--;
+      cntr._M_decrements++;
+    }
 
     static counter&
     get()
@@ -57,6 +68,13 @@ namespace __gnu_test
 
     static void
     exceptions(bool __b) { get()._M_throw = __b; }
+
+    static void
+    reset()
+    {
+      counter& cntr = get();
+      cntr._M_increments = cntr._M_decrements = 0;
+    }
   };
 
   template<typename Alloc, bool uses_global_new>
@@ -76,7 +94,11 @@ namespace __gnu_test
     check_delete(Alloc a = Alloc())
     {
       __gnu_test::counter::exceptions(false);
+#if __cplusplus >= 201103L
+      auto p = a.allocate(10);
+#else
       typename Alloc::pointer p = a.allocate(10);
+#endif
       const std::size_t count1 = __gnu_test::counter::count();
       a.deallocate(p, 10);
       const std::size_t count2 = __gnu_test::counter::count();
@@ -112,3 +134,7 @@ void operator delete(void* p) throw()
 	std::printf("%lu allocations to be released \n", (unsigned long)count);
     }
 }
+
+#if __cpp_sized_deallocation
+void operator delete(void* p, std::size_t) throw() { ::operator delete(p); }
+#endif

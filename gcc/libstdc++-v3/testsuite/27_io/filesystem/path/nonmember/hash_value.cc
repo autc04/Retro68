@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,11 +35,20 @@ test01()
 void
 test02()
 {
-  for (const path& p : __gnu_test::test_paths)
+  for (const path p : __gnu_test::test_paths)
   {
     path pp = p.native();
     VERIFY( hash_value(p) == hash_value(pp) );
   }
+}
+
+void
+test03()
+{
+  std::hash<path> h;
+  // LWG 3657. std::hash<std::filesystem::path> is not enabled
+  for (const path p : __gnu_test::test_paths)
+    VERIFY( h(p) == hash_value(p) );
 }
 
 int
@@ -48,4 +56,5 @@ main()
 {
   test01();
   test02();
+  test03();
 }

@@ -1,3 +1,3 @@
 # name: Bad shape for vmov
 # as: -mfpu=neon
-# error-output: neon-vmov-bad.l
+# error_output: neon-vmov-bad.l

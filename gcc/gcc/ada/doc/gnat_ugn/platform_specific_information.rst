@@ -217,7 +217,10 @@ this in a library package body in your application:
        (if geteuid = 0 then True else raise Program_Error with "must be root");
 
 It gets the effective user id, and if it's not 0 (i.e. root), it raises
-Program_Error.
+Program_Error. Note that if you re running the code in a container, this may
+not be sufficient, as you may have sufficient priviledge on the container,
+but not on the host machine running the container, so check that you also
+have sufficient priviledge for running the container image.
 
 .. index:: Linux
 .. index:: GNU/Linux
@@ -230,6 +233,7 @@ GNU/Linux Topics
 This section describes topics that are specific to GNU/Linux platforms.
 
 .. _Required_packages_on_GNU_Linux:
+.. _A_GNU_Linux_debug_quirk:
 
 Required Packages on GNU/Linux
 ------------------------------
@@ -249,6 +253,22 @@ you'll need the 32-bit version of the following packages:
 Other GNU/Linux distributions might be choosing a different name
 for those packages.
 
+A GNU/Linux Debug Quirk
+-----------------------
+
+On SuSE 15, some kernels have a defect causing issues when debugging
+programs using threads or Ada tasks. Due to the lack of documentation
+found regarding this kernel issue, we can only provide limited
+information about which kernels are impacted: kernel version 5.3.18 is
+known to be impacted, and kernels in the 5.14 range or newer are
+believed to fix this problem.
+
+The bug affects the debugging of 32-bit processes on a 64-bit system.
+Symptoms can vary: Unexpected ``SIGABRT`` signals being received by
+the program, "The futex facility returned an unexpected error code"
+error message, and inferior programs hanging indefinitely range among
+the symptoms most commonly observed.
+
 .. index:: Windows
 
 .. _Microsoft_Windows_Topics:
@@ -260,7 +280,7 @@ This section describes topics that are specific to the Microsoft Windows
 platforms.
 
 
-.. only:: PRO or GPL
+.. only:: PRO
 
   .. rubric:: Installing from the Command Line
 
@@ -273,38 +293,20 @@ platforms.
   line you should pass parameter :switch:`/S` (and, optionally,
   :switch:`/D=<directory>`) as command-line arguments.
 
-.. only:: PRO
-
    For example, for an unattended installation of
-   GNAT 7.0.2 into the default directory
-   ``C:\\GNATPRO\\7.0.2`` you would run:
+   GNAT 19.2 into the default directory :file:`C:\\GNATPRO\\19.2` you
+   would run::
 
-     ::
+        gnatpro-19.2-x86-windows-bin /S
 
-        gnatpro-7.0.2-i686-pc-mingw32-bin.exe /S
+   To install into a custom directory, say, :file:`C:\\TOOLS\\GNATPRO\\19.2`::
 
-   To install into a custom directory, say, ``C:\\TOOLS\\GNATPRO\\7.0.2``:
-
-     ::
-
-        gnatpro-7.0.2-i686-pc-mingw32-bin /S /D=C:\TOOLS\GNATPRO\7.0.2
-
-.. only:: GPL
-
-   For example, for an unattended installation of
-   GNAT 2012 into ``C:\\GNAT\\2012``:
-
-     ::
-
-        gnat-gpl-2012-i686-pc-mingw32-bin /S /D=C:\GNAT\2012
-
-.. only:: PRO or GPL
+        gnatpro-19.2-x86-windows-bin /S /D=C:\TOOLS\GNATPRO\19.2
 
    You can use the same syntax for all installers.
 
    Note that unattended installations don't modify system path, nor create file
    associations, so such activities need to be done by hand.
-
 
 
 .. _Using_GNAT_on_Windows:
@@ -486,6 +488,49 @@ The results of previous examples will be respectively::
 and::
 
    Ada.Command_Line.Argument (1) -> "'*.txt'"
+
+
+Windows Socket Timeouts
+-----------------------
+
+Microsoft Windows desktops older than ``8.0`` and Microsoft Windows Servers
+older than ``2019`` set a socket timeout 500 milliseconds longer than the value
+set by setsockopt with ``SO_RCVTIMEO`` and ``SO_SNDTIMEO`` options. The GNAT
+runtime makes a correction for the difference in the corresponding Windows
+versions. For Windows Server starting with version ``2019``, the user must
+provide a manifest file for the GNAT runtime to be able to recognize that
+the Windows version does not need the timeout correction. The manifest file
+should be located in the same directory as the executable file, and its file
+name must match the executable name suffixed by ``.manifest``. For example,
+if the executable name is :file:`sock_wto.exe`, then the manifest file name
+has to be :file:`sock_wto.exe.manifest`. The manifest file must contain at
+least the following data::
+
+   <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+   <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+   <application>
+      <!-- Windows Vista -->
+      <supportedOS Id="{e2011457-1546-43c5-a5fe-008deee3d3f0}"/>
+      <!-- Windows 7 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}"/>
+      <!-- Windows 8 -->
+      <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}"/>
+      <!-- Windows 8.1 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}"/>
+      <!-- Windows 10 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+   </application>
+   </compatibility>
+   </assembly>
+
+Without the manifest file, the socket timeout is going to be overcorrected on
+these Windows Server versions and the actual time is going to be 500
+milliseconds shorter than what was set with GNAT.Sockets.Set_Socket_Option.
+Note that on Microsoft Windows versions where correction is necessary, there
+is no way to set a socket timeout shorter than 500 ms. If a socket timeout
+shorter than 500 ms is needed on these Windows versions, a call to
+Check_Selector should be added before any socket read or write operations.
 
 
 .. _Mixed-Language_Programming_on_Windows:

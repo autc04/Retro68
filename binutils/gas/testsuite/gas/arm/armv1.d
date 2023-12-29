@@ -1,7 +1,7 @@
-#objdump: -dr --prefix-addresses --show-raw-insn
+#objdump: -dr --prefix-addresses --show-raw-insn -marmv2
 #name: ARM v1 instructions
-#as: -mcpu=arm7t
-#error-output: armv1.l
+#as: -march=armv1
+#warning_output: armv1.l
 
 # Test the ARM v1 instructions
 
@@ -30,29 +30,29 @@ Disassembly of section .text:
 0+4c <[^>]*> e1d00000 ?	bics	r0, r0, r0
 0+50 <[^>]*> e1100000 ?	tst	r0, r0
 0+54 <[^>]*> e1100000 ?	tst	r0, r0
-0+58 <[^>]*> e110f000 ?	tst	r0, r0
+0+58 <[^>]*> e110f000 ?	tstp	r0, r0
 0+5c <[^>]*> e1300000 ?	teq	r0, r0
 0+60 <[^>]*> e1300000 ?	teq	r0, r0
-0+64 <[^>]*> e130f000 ?	teq	r0, r0
+0+64 <[^>]*> e130f000 ?	teqp	r0, r0
 0+68 <[^>]*> e1500000 ?	cmp	r0, r0
 0+6c <[^>]*> e1500000 ?	cmp	r0, r0
-0+70 <[^>]*> e150f000 ?	cmp	r0, r0
+0+70 <[^>]*> e150f000 ?	cmpp	r0, r0
 0+74 <[^>]*> e1700000 ?	cmn	r0, r0
 0+78 <[^>]*> e1700000 ?	cmn	r0, r0
-0+7c <[^>]*> e170f000 ?	cmn	r0, r0
-0+80 <[^>]*> e1a00000 ?	nop[ 	]+\(mov r0,r0\)
+0+7c <[^>]*> e170f000 ?	cmnp	r0, r0
+0+80 <[^>]*> e1a00000 ?	nop[\s]+; \(mov r0, r0\)
 0+84 <[^>]*> e1b00000 ?	movs	r0, r0
 0+88 <[^>]*> e1e00000 ?	mvn	r0, r0
 0+8c <[^>]*> e1f00000 ?	mvns	r0, r0
 0+90 <[^>]*> ef000000 ?	(swi|svc)	0x00000000
-0+94 <[^>]*> e5900000 ?	ldr	r0, \[r0\]
-0+98 <[^>]*> e5d00000 ?	ldrb	r0, \[r0\]
-0+9c <[^>]*> e4b10000 ?	ldrt	r0, \[r1\]
-0+a0 <[^>]*> e4f10000 ?	ldrbt	r0, \[r1\]
-0+a4 <[^>]*> e5800000 ?	str	r0, \[r0\]
-0+a8 <[^>]*> e5c00000 ?	strb	r0, \[r0\]
-0+ac <[^>]*> e4a10000 ?	strt	r0, \[r1\]
-0+b0 <[^>]*> e4e10000 ?	strbt	r0, \[r1\]
+0+94 <[^>]*> e5100000 ?	ldr	r0, \[r0, #-0\]
+0+98 <[^>]*> e5500000 ?	ldrb	r0, \[r0, #-0\]
+0+9c <[^>]*> e4b10000 ?	ldrt	r0, \[r1\], #0
+0+a0 <[^>]*> e4f10000 ?	ldrbt	r0, \[r1\], #0
+0+a4 <[^>]*> e5000000 ?	str	r0, \[r0, #-0\]
+0+a8 <[^>]*> e5400000 ?	strb	r0, \[r0, #-0\]
+0+ac <[^>]*> e4a10000 ?	strt	r0, \[r1\], #0
+0+b0 <[^>]*> e4e10000 ?	strbt	r0, \[r1\], #0
 0+b4 <[^>]*> e8800001 ?	stm	r0, {r0}
 0+b8 <[^>]*> e9800001 ?	stmib	r0, {r0}
 0+bc <[^>]*> e8000001 ?	stmda	r0, {r0}
@@ -69,6 +69,6 @@ Disassembly of section .text:
 0+e8 <[^>]*> e8100001 ?	ldmda	r0, {r0}
 0+ec <[^>]*> e9100001 ?	ldmdb	r0, {r0}
 0+f0 <[^>]*> e9900001 ?	ldmib	r0, {r0}
-0+f4 <[^>]*> e1a00000 ?	nop[ 	]+\(mov r0,r0\)
-0+f8 <[^>]*> e1a00000 ?	nop[ 	]+\(mov r0,r0\)
-0+fc <[^>]*> e1a00000 ?	nop[ 	]+\(mov r0,r0\)
+0+f4 <[^>]*> e1a00000 ?	nop[\s]+; \(mov r0, r0\)
+0+f8 <[^>]*> e1a00000 ?	nop[\s]+; \(mov r0, r0\)
+0+fc <[^>]*> e1a00000 ?	nop[\s]+; \(mov r0, r0\)

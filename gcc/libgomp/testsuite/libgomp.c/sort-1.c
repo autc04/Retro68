@@ -1,5 +1,5 @@
 /* Test and benchmark of a couple of parallel sorting algorithms.
-   Copyright (C) 2008-2019 Free Software Foundation, Inc.
+   Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
    GCC is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free
@@ -14,6 +14,8 @@
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING3.  If not see
    <http://www.gnu.org/licenses/>.  */
+
+/* { dg-additional-options "-Wno-deprecated-declarations" } */
 
 #include <limits.h>
 #include <omp.h>

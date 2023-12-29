@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler.
    Matsushita MN10300 series
-   Copyright (C) 1996-2019 Free Software Foundation, Inc.
+   Copyright (C) 1996-2022 Free Software Foundation, Inc.
    Contributed by Jeff Law (law@cygnus.com).
 
    This file is part of GCC.
@@ -197,7 +197,7 @@ extern enum processor_type mn10300_tune_cpu;
    Aside from that, you can include as many other registers as you
    like.  */
 
-#define CALL_USED_REGISTERS \
+#define CALL_REALLY_USED_REGISTERS \
   { 1, 1, 0, 0,				/* data regs */		\
     1, 1, 0, 0,				/* addr regs */		\
     1,					/* arg reg */		\
@@ -210,13 +210,6 @@ extern enum processor_type mn10300_tune_cpu;
     1,					/* mdr reg */		\
     1					/* cc reg */		\
   }
-
-/* Note: The definition of CALL_REALLY_USED_REGISTERS is not
-   redundant.  It is needed when compiling in PIC mode because
-   the a2 register becomes fixed (and hence must be marked as
-   call_used) but in order to preserve the ABI it is not marked
-   as call_really_used.  */
-#define CALL_REALLY_USED_REGISTERS CALL_USED_REGISTERS
 
 #define REG_ALLOC_ORDER \
   { 0, 1, 4, 5, 2, 3, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 8, 9 \
@@ -325,7 +318,7 @@ enum reg_class
    They give nonzero only if REGNO is a hard reg of the suitable class
    or a pseudo reg currently allocated to a suitable hard reg.
    Since they use reg_renumber, they are safe only once reg_renumber
-   has been allocated, which happens in reginfo.c during register
+   has been allocated, which happens in reginfo.cc during register
    allocation.  */
 
 #ifndef REG_OK_STRICT
@@ -553,7 +546,7 @@ do {									     \
 
 #define NO_FUNCTION_CSE 1
 
-/* According expr.c, a value of around 6 should minimize code size, and
+/* According expr.cc, a value of around 6 should minimize code size, and
    for the MN10300 series, that's our primary concern.  */
 #define MOVE_RATIO(speed) 6
 
@@ -631,7 +624,7 @@ do {									     \
 }
 
 /* Print an instruction operand X on file FILE.
-   look in mn10300.c for details */
+   look in mn10300.cc for details */
 
 #define PRINT_OPERAND(FILE, X, CODE) \
   mn10300_print_operand (FILE, X, CODE)
@@ -655,9 +648,6 @@ do {									     \
 #define ASM_OUTPUT_ALIGN(FILE,LOG)	\
   if ((LOG) != 0)			\
     fprintf (FILE, "\t.align %d\n", (LOG))
-
-/* We don't have to worry about dbx compatibility for the mn10300.  */
-#define DEFAULT_GDB_EXTENSIONS 1
 
 /* Use dwarf2 debugging info by default.  */
 #undef  PREFERRED_DEBUGGING_TYPE

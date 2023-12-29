@@ -7,7 +7,7 @@ package work
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -169,14 +169,15 @@ func TestSharedLibName(t *testing.T) {
 	for _, data := range testData {
 		func() {
 			if data.rootedAt != "" {
-				tmpGopath, err := ioutil.TempDir("", "gopath")
+				tmpGopath, err := os.MkdirTemp("", "gopath")
 				if err != nil {
 					t.Fatal(err)
 				}
+				cwd := base.Cwd()
 				oldGopath := cfg.BuildContext.GOPATH
 				defer func() {
 					cfg.BuildContext.GOPATH = oldGopath
-					os.Chdir(base.Cwd)
+					os.Chdir(cwd)
 					err := os.RemoveAll(tmpGopath)
 					if err != nil {
 						t.Error(err)
@@ -221,14 +222,10 @@ func pkgImportPath(pkgpath string) *load.Package {
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl":
-		t.Skip("can't set SetGID bit with chmod on nacl")
-	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			t.Skip("can't set SetGID bit with chmod on iOS")
-		}
-	case "windows", "plan9", "js":
-		t.Skip("chown/chmod setgid are not supported on Windows, Plan 9, or JS")
+	case "ios":
+		t.Skip("can't set SetGID bit with chmod on iOS")
+	case "windows", "plan9":
+		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
 	}
 
 	var b Builder
@@ -237,11 +234,11 @@ func TestRespectSetgidDir(t *testing.T) {
 	// of `(*Builder).ShowCmd` afterwards as a sanity check.
 	cfg.BuildX = true
 	var cmdBuf bytes.Buffer
-	b.Print = func(a ...interface{}) (int, error) {
+	b.Print = func(a ...any) (int, error) {
 		return cmdBuf.WriteString(fmt.Sprint(a...))
 	}
 
-	setgiddir, err := ioutil.TempDir("", "SetGroupID")
+	setgiddir, err := os.MkdirTemp("", "SetGroupID")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,13 +254,13 @@ func TestRespectSetgidDir(t *testing.T) {
 	}
 
 	// Change setgiddir's permissions to include the SetGID bit.
-	if err := os.Chmod(setgiddir, 0755|os.ModeSetgid); err != nil {
+	if err := os.Chmod(setgiddir, 0755|fs.ModeSetgid); err != nil {
 		t.Fatal(err)
 	}
 
-	pkgfile, err := ioutil.TempFile("", "pkgfile")
+	pkgfile, err := os.CreateTemp("", "pkgfile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile(\"\", \"pkgfile\"): %v", err)
+		t.Fatalf("os.CreateTemp(\"\", \"pkgfile\"): %v", err)
 	}
 	defer os.Remove(pkgfile.Name())
 	defer pkgfile.Close()

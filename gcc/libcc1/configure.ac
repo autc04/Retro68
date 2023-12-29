@@ -1,4 +1,4 @@
-dnl   Copyright (C) 2014-2019 Free Software Foundation, Inc.
+dnl   Copyright (C) 2014-2022 Free Software Foundation, Inc.
 dnl
 dnl This file is part of GCC.
 dnl
@@ -44,6 +44,9 @@ if test "$GXX" = yes; then
   visibility=-fvisibility=hidden
 fi
 AC_SUBST(visibility)
+
+GCC_CET_HOST_FLAGS(CET_HOST_FLAGS)
+AC_SUBST(CET_HOST_FLAGS)
 
 AC_CHECK_DECLS([basename])
 
@@ -100,6 +103,12 @@ AC_CACHE_CHECK([for socket libraries], libcc1_cv_lib_sockets,
    LIBS=$libcc1_old_libs
 ])
 LIBS="$LIBS $libcc1_cv_lib_sockets"
+
+case "$host" in
+  *-*-darwin*) darwin_dynamic_lookup=yes ;;
+  *) darwin_dynamic_lookup=no ;;
+esac
+AM_CONDITIONAL(DARWIN_DYNAMIC_LOOKUP, test $darwin_dynamic_lookup = yes)
 
 # If any of these functions are missing, simply don't bother building
 # this plugin.

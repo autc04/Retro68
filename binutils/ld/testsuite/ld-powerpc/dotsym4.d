@@ -1,7 +1,7 @@
 #source: dotsymref.s
 #source: nodotsym.s
 #as: -a64
-#ld: -melf64ppc -Ttext=0x1000 -shared
+#ld: -melf64ppc -Ttext=0x1000 -shared -z notext
 #objdump: -dR
 
 .*:     file format .*

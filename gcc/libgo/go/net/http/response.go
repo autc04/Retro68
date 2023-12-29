@@ -12,12 +12,13 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"internal/x/net/http/httpguts"
 	"io"
 	"net/textproto"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 var respExcludeHeader = map[string]bool{
@@ -65,8 +66,8 @@ type Response struct {
 	// The Body is automatically dechunked if the server replied
 	// with a "chunked" Transfer-Encoding.
 	//
-	// As of Go 1.12, the Body will be also implement io.Writer
-	// on a successful "101 Switching Protocols" responses,
+	// As of Go 1.12, the Body will also implement io.Writer
+	// on a successful "101 Switching Protocols" response,
 	// as used by WebSockets and HTTP/2's "h2c" mode.
 	Body io.ReadCloser
 
@@ -164,26 +165,23 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 		}
 		return nil, err
 	}
-	if i := strings.IndexByte(line, ' '); i == -1 {
-		return nil, &badStringError{"malformed HTTP response", line}
-	} else {
-		resp.Proto = line[:i]
-		resp.Status = strings.TrimLeft(line[i+1:], " ")
+	proto, status, ok := strings.Cut(line, " ")
+	if !ok {
+		return nil, badStringError("malformed HTTP response", line)
 	}
-	statusCode := resp.Status
-	if i := strings.IndexByte(resp.Status, ' '); i != -1 {
-		statusCode = resp.Status[:i]
-	}
+	resp.Proto = proto
+	resp.Status = strings.TrimLeft(status, " ")
+
+	statusCode, _, _ := strings.Cut(resp.Status, " ")
 	if len(statusCode) != 3 {
-		return nil, &badStringError{"malformed HTTP status code", statusCode}
+		return nil, badStringError("malformed HTTP status code", statusCode)
 	}
 	resp.StatusCode, err = strconv.Atoi(statusCode)
 	if err != nil || resp.StatusCode < 0 {
-		return nil, &badStringError{"malformed HTTP status code", statusCode}
+		return nil, badStringError("malformed HTTP status code", statusCode)
 	}
-	var ok bool
 	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {
-		return nil, &badStringError{"malformed HTTP version", resp.Proto}
+		return nil, badStringError("malformed HTTP version", resp.Proto)
 	}
 
 	// Parse the response headers.
@@ -351,10 +349,21 @@ func (r *Response) bodyIsWritable() bool {
 	return ok
 }
 
-// isProtocolSwitch reports whether r is a response to a successful
-// protocol upgrade.
+// isProtocolSwitch reports whether the response code and header
+// indicate a successful protocol upgrade response.
 func (r *Response) isProtocolSwitch() bool {
-	return r.StatusCode == StatusSwitchingProtocols &&
-		r.Header.Get("Upgrade") != "" &&
-		httpguts.HeaderValuesContainsToken(r.Header["Connection"], "Upgrade")
+	return isProtocolSwitchResponse(r.StatusCode, r.Header)
+}
+
+// isProtocolSwitchResponse reports whether the response code and
+// response header indicate a successful protocol upgrade response.
+func isProtocolSwitchResponse(code int, h Header) bool {
+	return code == StatusSwitchingProtocols && isProtocolSwitchHeader(h)
+}
+
+// isProtocolSwitchHeader reports whether the request or response header
+// is for a protocol switch.
+func isProtocolSwitchHeader(h Header) bool {
+	return h.Get("Upgrade") != "" &&
+		httpguts.HeaderValuesContainsToken(h["Connection"], "Upgrade")
 }

@@ -6,7 +6,7 @@
 .*: +file format .*mips.*
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0000000000000000 R_MIPS_JALR       \$bar
 0000000000000000 R_MIPS_NONE       \*ABS\*
 0000000000000000 R_MIPS_NONE       \*ABS\*

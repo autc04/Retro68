@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -38,7 +32,6 @@ package Namet is
 
 --  WARNING: There is a C version of this package. Any changes to this
 --  source file must be properly reflected in the C header file namet.h
---  which is created manually from namet.ads and namet.adb.
 
 --  This package contains routines for handling the names table. The table
 --  is used to store character strings for identifiers and operator symbols,
@@ -204,129 +197,9 @@ package Namet is
    subtype Valid_Name_Id is Name_Id range First_Name_Id .. Name_Id'Last;
    --  All but No_Name and Error_Name
 
-   ------------------------------
-   -- Name_Id Membership Tests --
-   ------------------------------
-
-   --  The following functions allow a convenient notation for testing whether
-   --  a Name_Id value matches any one of a list of possible values. In each
-   --  case True is returned if the given T argument is equal to any of the V
-   --  arguments. These essentially duplicate the Ada 2012 membership tests,
-   --  but we cannot use the latter (yet) in the compiler front end, because
-   --  of bootstrap considerations
-
-   function Nam_In
-     (T  : Name_Id;
-      V1 : Name_Id;
-      V2 : Name_Id) return Boolean;
-
-   function Nam_In
-     (T  : Name_Id;
-      V1 : Name_Id;
-      V2 : Name_Id;
-      V3 : Name_Id) return Boolean;
-
-   function Nam_In
-     (T  : Name_Id;
-      V1 : Name_Id;
-      V2 : Name_Id;
-      V3 : Name_Id;
-      V4 : Name_Id) return Boolean;
-
-   function Nam_In
-     (T  : Name_Id;
-      V1 : Name_Id;
-      V2 : Name_Id;
-      V3 : Name_Id;
-      V4 : Name_Id;
-      V5 : Name_Id) return Boolean;
-
-   function Nam_In
-     (T  : Name_Id;
-      V1 : Name_Id;
-      V2 : Name_Id;
-      V3 : Name_Id;
-      V4 : Name_Id;
-      V5 : Name_Id;
-      V6 : Name_Id) return Boolean;
-
-   function Nam_In
-     (T  : Name_Id;
-      V1 : Name_Id;
-      V2 : Name_Id;
-      V3 : Name_Id;
-      V4 : Name_Id;
-      V5 : Name_Id;
-      V6 : Name_Id;
-      V7 : Name_Id) return Boolean;
-
-   function Nam_In
-     (T  : Name_Id;
-      V1 : Name_Id;
-      V2 : Name_Id;
-      V3 : Name_Id;
-      V4 : Name_Id;
-      V5 : Name_Id;
-      V6 : Name_Id;
-      V7 : Name_Id;
-      V8 : Name_Id) return Boolean;
-
-   function Nam_In
-     (T  : Name_Id;
-      V1 : Name_Id;
-      V2 : Name_Id;
-      V3 : Name_Id;
-      V4 : Name_Id;
-      V5 : Name_Id;
-      V6 : Name_Id;
-      V7 : Name_Id;
-      V8 : Name_Id;
-      V9 : Name_Id) return Boolean;
-
-   function Nam_In
-     (T   : Name_Id;
-      V1  : Name_Id;
-      V2  : Name_Id;
-      V3  : Name_Id;
-      V4  : Name_Id;
-      V5  : Name_Id;
-      V6  : Name_Id;
-      V7  : Name_Id;
-      V8  : Name_Id;
-      V9  : Name_Id;
-      V10 : Name_Id) return Boolean;
-
-   function Nam_In
-     (T   : Name_Id;
-      V1  : Name_Id;
-      V2  : Name_Id;
-      V3  : Name_Id;
-      V4  : Name_Id;
-      V5  : Name_Id;
-      V6  : Name_Id;
-      V7  : Name_Id;
-      V8  : Name_Id;
-      V9  : Name_Id;
-      V10 : Name_Id;
-      V11 : Name_Id) return Boolean;
-
-   function Nam_In
-     (T   : Name_Id;
-      V1  : Name_Id;
-      V2  : Name_Id;
-      V3  : Name_Id;
-      V4  : Name_Id;
-      V5  : Name_Id;
-      V6  : Name_Id;
-      V7  : Name_Id;
-      V8  : Name_Id;
-      V9  : Name_Id;
-      V10 : Name_Id;
-      V11 : Name_Id;
-      V12 : Name_Id) return Boolean;
-
-   pragma Inline (Nam_In);
-   --  Inline all above functions
+   function Present (Nam : Name_Id) return Boolean;
+   pragma Inline (Present);
+   --  Determine whether name Nam exists
 
    -----------------
    -- Subprograms --
@@ -412,9 +285,7 @@ package Namet is
    --  also the suffixes used to indicate package body entities and to
    --  distinguish between overloaded entities). Note that names are not
    --  qualified until just before the call to gigi, so this routine is only
-   --  needed by processing that occurs after gigi has been called. This
-   --  includes all ASIS processing, since ASIS works on the tree written
-   --  after gigi has been called.
+   --  needed by processing that occurs after gigi has been called.
 
    procedure Append_Unqualified_Decoded
      (Buf : in out Bounded_String;
@@ -427,7 +298,7 @@ package Namet is
    --  Uhh encoding (hh = hex code), other 16-bit wide character values are
    --  stored using the Whhhh (hhhh = hex code) encoding, and other 32-bit wide
    --  wide character values are stored using the WWhhhhhhhh (hhhhhhhh = hex
-   --  code).  Note that this procedure does not fold upper case letters (they
+   --  code). Note that this procedure does not fold upper case letters (they
    --  are stored using the Uhh encoding).
 
    procedure Set_Character_Literal_Name
@@ -547,15 +418,6 @@ package Namet is
    --  Unlocks the name table to allow use of the extra space reserved by the
    --  call to Lock. See gnat1drv for details of the need for this.
 
-   procedure Tree_Read;
-   --  Initializes internal tables from current tree file using the relevant
-   --  Table.Tree_Read routines. Note that Initialize should not be called if
-   --  Tree_Read is used. Tree_Read includes all necessary initialization.
-
-   procedure Tree_Write;
-   --  Writes out internal tables to current tree file using the relevant
-   --  Table.Tree_Write routines.
-
    procedure Write_Name (Id : Valid_Name_Id);
    --  Write_Name writes the characters of the specified name using the
    --  standard output procedures in package Output. The name is written
@@ -569,6 +431,10 @@ package Namet is
    function Name_Entries_Count return Nat;
    --  Return current number of entries in the names table
 
+   function Last_Name_Id return Name_Id;
+   --  Return the last Name_Id in the table. This information is valid until
+   --  new names have been added.
+
    --------------------------
    -- Obsolete Subprograms --
    --------------------------
@@ -576,7 +442,7 @@ package Namet is
    --  The following routines operate on Global_Name_Buffer. New code should
    --  use the routines above, and declare Bounded_Strings as local
    --  variables. Existing code can be improved incrementally by removing calls
-   --  to the following. ???If we eliminate all of these, we can remove
+   --  to the following. If we eliminate all of these, we can remove
    --  Global_Name_Buffer. But be sure to look at namet.h first.
 
    --  To see what these do, look at the bodies. They are all trivially defined
@@ -626,6 +492,10 @@ package Namet is
    --  Constant used to indicate no file is present (this is used for example
    --  when a search for a file indicates that no file of the name exists).
 
+   function Present (Nam : File_Name_Type) return Boolean;
+   pragma Inline (Present);
+   --  Determine whether file name Nam exists
+
    Error_File_Name : constant File_Name_Type := File_Name_Type (Error_Name);
    --  The special File_Name_Type value Error_File_Name is used to indicate
    --  a unit name where some previous processing has found an error.
@@ -649,6 +519,10 @@ package Namet is
 
    No_Unit_Name : constant Unit_Name_Type := Unit_Name_Type (No_Name);
    --  Constant used to indicate no file name present
+
+   function Present (Nam : Unit_Name_Type) return Boolean;
+   pragma Inline (Present);
+   --  Determine whether unit name Nam exists
 
    Error_Unit_Name : constant Unit_Name_Type := Unit_Name_Type (Error_Name);
    --  The special Unit_Name_Type value Error_Unit_Name is used to indicate
@@ -696,22 +570,17 @@ private
      Table_Name           => "Name_Chars");
 
    type Name_Entry is record
-      Name_Chars_Index : Int;
+      Name_Chars_Index : aliased Int;
       --  Starting location of characters in the Name_Chars table minus one
       --  (i.e. pointer to character just before first character). The reason
       --  for the bias of one is that indexes in Name_Buffer are one's origin,
       --  so this avoids unnecessary adds and subtracts of 1.
 
-      Name_Len : Short;
+      Name_Len : aliased Short;
       --  Length of this name in characters
 
-      Byte_Info : Byte;
+      Byte_Info : aliased Byte;
       --  Byte value associated with this name
-
-      Boolean1_Info : Boolean;
-      Boolean2_Info : Boolean;
-      Boolean3_Info : Boolean;
-      --  Boolean values associated with the name
 
       Name_Has_No_Encodings : Boolean;
       --  This flag is set True if the name entry is known not to contain any
@@ -719,10 +588,18 @@ private
       --  to Append_Decoded. A value of False means that it is not known
       --  whether the name contains any such encodings.
 
-      Hash_Link : Name_Id;
+      Boolean1_Info : Boolean;
+      Boolean2_Info : Boolean;
+      Boolean3_Info : Boolean;
+      --  Boolean values associated with the name
+
+      Spare : Boolean;
+      --  Four remaining bits in the current byte
+
+      Hash_Link : aliased Name_Id;
       --  Link to next entry in names table for same hash code
 
-      Int_Info : Int;
+      Int_Info : aliased Int;
       --  Int Value associated with this name
 
    end record;
@@ -731,10 +608,11 @@ private
       Name_Chars_Index      at  0 range 0 .. 31;
       Name_Len              at  4 range 0 .. 15;
       Byte_Info             at  6 range 0 .. 7;
-      Boolean1_Info         at  7 range 0 .. 0;
-      Boolean2_Info         at  7 range 1 .. 1;
-      Boolean3_Info         at  7 range 2 .. 2;
-      Name_Has_No_Encodings at  7 range 3 .. 7;
+      Name_Has_No_Encodings at  7 range 0 .. 0;
+      Boolean1_Info         at  7 range 1 .. 1;
+      Boolean2_Info         at  7 range 2 .. 2;
+      Boolean3_Info         at  7 range 3 .. 3;
+      Spare                 at  7 range 4 .. 7;
       Hash_Link             at  8 range 0 .. 31;
       Int_Info              at 12 range 0 .. 31;
    end record;

@@ -1,5 +1,5 @@
 /* Target definitions for x86 running Darwin.
-   Copyright (C) 2001-2019 Free Software Foundation, Inc.
+   Copyright (C) 2001-2022 Free Software Foundation, Inc.
    Contributed by Apple Computer Inc.
 
 This file is part of GCC.
@@ -25,46 +25,6 @@ along with GCC; see the file COPYING3.  If not see
 #undef DARWIN_X86
 #define DARWIN_X86 1
 
-#undef TARGET_64BIT
-#define TARGET_64BIT TARGET_ISA_64BIT
-#undef TARGET_64BIT_P
-#define TARGET_64BIT_P(x) TARGET_ISA_64BIT_P(x)
-
-#ifdef IN_LIBGCC2
-#undef TARGET_64BIT
-#ifdef __x86_64__
-#define TARGET_64BIT 1
-#else
-#define TARGET_64BIT 0
-#endif
-#endif
-
-/* WORKAROUND pr80556:
-   For x86_64 Darwin10 and later, the unwinder is in libunwind (redirected
-   from libSystem).  This doesn't use the keymgr (see keymgr.c) and therefore
-   the calls that libgcc makes to obtain the KEYMGR_GCC3_DW2_OBJ_LIST are not
-   updated to include new images, and might not even be valid for a single
-   image.
-   Therefore, for 64b exes at least, we must use the libunwind implementation,
-   even when static-libgcc is specified.  We put libSystem first so that
-   unwinder symbols are satisfied from there. */
-#undef REAL_LIBGCC_SPEC
-#define REAL_LIBGCC_SPEC						   \
-   "%{static-libgcc|static: 						   \
-      %{m64:%:version-compare(>= 10.6 mmacosx-version-min= -lSystem)}	   \
-        -lgcc_eh -lgcc;							   \
-      shared-libgcc|fexceptions|fgnu-runtime:				   \
-       %:version-compare(!> 10.5 mmacosx-version-min= -lgcc_s.10.4)	   \
-       %:version-compare(>< 10.5 10.6 mmacosx-version-min= -lgcc_s.10.5)   \
-       %:version-compare(!> 10.5 mmacosx-version-min= -lgcc_ext.10.4)	   \
-       %:version-compare(>= 10.5 mmacosx-version-min= -lgcc_ext.10.5)	   \
-       -lgcc ;								   \
-      :%:version-compare(>< 10.3.9 10.5 mmacosx-version-min= -lgcc_s.10.4) \
-       %:version-compare(>< 10.5 10.6 mmacosx-version-min= -lgcc_s.10.5)   \
-       %:version-compare(!> 10.5 mmacosx-version-min= -lgcc_ext.10.4)	   \
-       %:version-compare(>= 10.5 mmacosx-version-min= -lgcc_ext.10.5)	   \
-       -lgcc }"
-
 /* Size of the Obj-C jump buffer.  */
 #define OBJC_JBLEN ((TARGET_64BIT) ? ((9 * 2) + 3 + 16) : (18))
 
@@ -89,14 +49,12 @@ along with GCC; see the file COPYING3.  If not see
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 32
 
-/* Generate branch islands stubs if this is true.  */
-extern int darwin_emit_branch_islands;
-
-#undef TARGET_MACHO_BRANCH_ISLANDS
-#define TARGET_MACHO_BRANCH_ISLANDS darwin_emit_branch_islands
+/* Generate pic symbol indirection stubs if this is true.  */
+#undef TARGET_MACHO_SYMBOL_STUBS
+#define TARGET_MACHO_SYMBOL_STUBS (darwin_symbol_stubs)
 
 /* For compatibility with OSX system tools, use the new style of pic stub
-   if this is set.  */
+   if this is set (default).  */
 #undef  MACHOPIC_ATT_STUB
 #define MACHOPIC_ATT_STUB (darwin_macho_att_stub)
 
@@ -131,16 +89,24 @@ extern int darwin_emit_branch_islands;
 #undef CC1_SPEC
 #define CC1_SPEC "%(cc1_cpu) \
   %{!mkernel:%{!static:%{!mdynamic-no-pic:-fPIC}}} \
-  %{g: %{!fno-eliminate-unused-debug-symbols: -feliminate-unused-debug-symbols }} " \
+  %{g: %{!fno-eliminate-unused-debug-symbols: -feliminate-unused-debug-symbols }} \
+  %{mx32:%eDarwin is not an mx32 platform} \
+  %{mfentry*:%eDarwin does not support -mfentry or associated options}" \
   DARWIN_CC1_SPEC
 
-#undef ASM_SPEC
-#define ASM_SPEC "-arch %(darwin_arch) \
-  " ASM_OPTIONS " -force_cpusubtype_ALL \
-  %{static}" ASM_MMACOSX_VERSION_MIN_SPEC
+/* This is a workaround for a tool bug: see PR100340.  */
 
-#define DARWIN_ARCH_SPEC "%{m64:x86_64;:i386}"
-#define DARWIN_SUBARCH_SPEC DARWIN_ARCH_SPEC
+#ifdef HAVE_AS_MLLVM_X86_PAD_FOR_ALIGN
+#define EXTRA_ASM_OPTS " -mllvm -x86-pad-for-align=false "
+#else
+#define EXTRA_ASM_OPTS ""
+#endif
+
+#undef ASM_SPEC
+#define ASM_SPEC \
+"%{static} -arch %(darwin_arch) " \
+ ASM_OPTIONS ASM_MMACOSX_VERSION_MIN_SPEC EXTRA_ASM_OPTS \
+"%{!force_cpusubtype_ALL:-force_cpusubtype_ALL} "
 
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC \
@@ -149,12 +115,18 @@ extern int darwin_emit_branch_islands;
    %{mpc64:crtprec64.o%s} \
    %{mpc80:crtprec80.o%s}" TM_DESTRUCTOR
 
+#ifndef DARWIN_ARCH_SPEC
+/* We default to x86_64 for single-arch builds, bi-arch overrides.  */
+#define DARWIN_ARCH_SPEC "x86_64"
+#define DARWIN_SUBARCH_SPEC DARWIN_ARCH_SPEC
+#endif
+
 #undef SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS                                   \
   DARWIN_EXTRA_SPECS                                            \
-  { "darwin_arch", DARWIN_ARCH_SPEC },                          \
+  { "darwin_arch", DARWIN_ARCH_SPEC },				\
   { "darwin_crt2", "" },                                        \
-  { "darwin_subarch", DARWIN_SUBARCH_SPEC },
+  { "darwin_subarch", DARWIN_ARCH_SPEC },
 
 /* The Darwin assembler mostly follows AT&T syntax.  */
 #undef ASSEMBLER_DIALECT
@@ -226,16 +198,26 @@ extern int darwin_emit_branch_islands;
 #undef TARGET_ASM_OUTPUT_IDENT
 #define TARGET_ASM_OUTPUT_IDENT default_asm_output_ident_directive
 
-/* Darwin profiling -- call mcount.  */
+/* We always want jump tables in the text section:
+   * for PIC code, we need the subtracted symbol to be defined at
+     assembly-time.
+   * for mdynamic-no-pic, we cannot support jump tables in the .const
+     section for weak functions, this looks to ld64 like direct access
+     to the weak symbol from an anonymous atom.  */
+
+#undef JUMP_TABLES_IN_TEXT_SECTION
+#define JUMP_TABLES_IN_TEXT_SECTION 1
+
+/* Darwin profiling -- call mcount.
+   If we need a stub, then we unconditionally mark it as used.  */
 #undef FUNCTION_PROFILER
 #define FUNCTION_PROFILER(FILE, LABELNO)				\
   do {									\
-    if (TARGET_MACHO_BRANCH_ISLANDS 					\
+    if (TARGET_MACHO_SYMBOL_STUBS 					\
 	&& MACHOPIC_INDIRECT && !TARGET_64BIT)				\
       {									\
 	const char *name = machopic_mcount_stub_name ();		\
 	fprintf (FILE, "\tcall %s\n", name+1);  /*  skip '&'  */	\
-	machopic_validate_stub_or_non_lazy_ptr (name);			\
       }									\
     else fprintf (FILE, "\tcall mcount\n");				\
   } while (0)
@@ -252,30 +234,19 @@ extern int darwin_emit_branch_islands;
       target_flags &= ~MASK_MACHO_DYNAMIC_NO_PIC;			\
   } while (0)
 
-/* Darwin on x86_64 uses dwarf-2 by default.  Pre-darwin9 32-bit
-   compiles default to stabs+.  darwin9+ defaults to dwarf-2.  */
-#ifndef DARWIN_PREFER_DWARF
-#undef PREFERRED_DEBUGGING_TYPE
-#ifdef HAVE_AS_STABS_DIRECTIVE
-#define PREFERRED_DEBUGGING_TYPE (TARGET_64BIT ? DWARF2_DEBUG : DBX_DEBUG)
-#else
-#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
-#endif
-#endif
-
 /* Darwin uses the standard DWARF register numbers but the default
    register numbers for STABS.  Fortunately for 64-bit code the
    default and the standard are the same.  */
 #undef DBX_REGISTER_NUMBER
 #define DBX_REGISTER_NUMBER(n) 					\
   (TARGET_64BIT ? dbx64_register_map[n]				\
-   : write_symbols == DWARF2_DEBUG ? svr4_dbx_register_map[n]	\
+   : dwarf_debuginfo_p () ? svr4_dbx_register_map[n]		\
    : dbx_register_map[n])
 
 /* Unfortunately, the 32-bit EH information also doesn't use the standard
    DWARF register numbers.  */
 #define DWARF2_FRAME_REG_OUT(n, for_eh)					\
-  (! (for_eh) || write_symbols != DWARF2_DEBUG || TARGET_64BIT ? (n)	\
+  (! (for_eh) || !dwarf_debuginfo_p () || TARGET_64BIT ? (n)	\
    : (n) == 5 ? 4							\
    : (n) == 4 ? 5							\
    : (n) >= 11 && (n) <= 18 ? (n) + 1					\
@@ -311,10 +282,8 @@ extern int darwin_emit_branch_islands;
         }								\
     }
 
-/* This needs to move since i386 uses the first flag and other flags are
-   used in Mach-O.  */
-#undef MACHO_SYMBOL_FLAG_VARIABLE
-#define MACHO_SYMBOL_FLAG_VARIABLE ((SYMBOL_FLAG_MACH_DEP) << 3)
+/* First available SYMBOL flag bit for use by subtargets.  */
+#define SYMBOL_FLAG_SUBT_DEP (SYMBOL_FLAG_MACH_DEP << 5)
 
 #undef MACHOPIC_NL_SYMBOL_PTR_SECTION
 #define MACHOPIC_NL_SYMBOL_PTR_SECTION \
@@ -329,3 +298,13 @@ extern int darwin_emit_branch_islands;
       = darwin_init_cfstring_builtins ((unsigned) (IX86_BUILTIN_CFSTRING)); \
     darwin_rename_builtins ();						\
   } while(0)
+
+/* Define the shadow offset for asan.  */
+#undef SUBTARGET_SHADOW_OFFSET
+#define SUBTARGET_SHADOW_OFFSET	\
+  (TARGET_LP64 ? HOST_WIDE_INT_1 << 44 : HOST_WIDE_INT_1 << 29)
+
+#undef CLEAR_INSN_CACHE
+#define CLEAR_INSN_CACHE(beg, end)				\
+  extern void sys_icache_invalidate(void *start, size_t len);	\
+  sys_icache_invalidate ((beg), (size_t)((end)-(beg)))

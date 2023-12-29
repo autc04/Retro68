@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1992-2019, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2022, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,10 +33,6 @@
 
 --  This package contains all the GNULL primitives that interface directly with
 --  the underlying OS.
-
-pragma Polling (Off);
---  Turn off polling, we do not want ATC polling to take place during tasking
---  operations. It causes infinite loops and other problems.
 
 with Interfaces.C;
 
@@ -91,7 +87,7 @@ package body System.Task_Primitives.Operations is
    Single_RTS_Lock : aliased RTS_Lock;
    --  This is a lock to allow only one thread of control in the RTS at
    --  a time; it is used to execute in mutual exclusion from all other tasks.
-   --  Used mainly in Single_Lock mode, but also to protect All_Tasks_List
+   --  Used to protect All_Tasks_List
 
    Next_Serial_Number : Task_Serial_Number := 100;
    --  We start at 100, to reserve some special values for
@@ -132,13 +128,13 @@ package body System.Task_Primitives.Operations is
    -- External Configuration Values --
    -----------------------------------
 
-   Time_Slice_Val : Integer;
+   Time_Slice_Val : constant Integer;
    pragma Import (C, Time_Slice_Val, "__gl_time_slice_val");
 
-   Locking_Policy : Character;
+   Locking_Policy : constant Character;
    pragma Import (C, Locking_Policy, "__gl_locking_policy");
 
-   Dispatching_Policy : Character;
+   Dispatching_Policy : constant Character;
    pragma Import (C, Dispatching_Policy, "__gl_task_dispatching_policy");
 
    Foreign_Task_Elaborated : aliased Boolean := True;
@@ -653,29 +649,22 @@ package body System.Task_Primitives.Operations is
       pragma Assert (Record_Lock (Lock_Ptr (L)));
    end Write_Lock;
 
-   procedure Write_Lock
-     (L          : not null access RTS_Lock;
-     Global_Lock : Boolean := False)
-   is
+   procedure Write_Lock (L : not null access RTS_Lock) is
       Result : Interfaces.C.int;
    begin
-      if not Single_Lock or else Global_Lock then
-         pragma Assert (Check_Lock (To_Lock_Ptr (RTS_Lock_Ptr (L))));
-         Result := mutex_lock (L.L'Access);
-         pragma Assert (Result = 0);
-         pragma Assert (Record_Lock (To_Lock_Ptr (RTS_Lock_Ptr (L))));
-      end if;
+      pragma Assert (Check_Lock (To_Lock_Ptr (RTS_Lock_Ptr (L))));
+      Result := mutex_lock (L.L'Access);
+      pragma Assert (Result = 0);
+      pragma Assert (Record_Lock (To_Lock_Ptr (RTS_Lock_Ptr (L))));
    end Write_Lock;
 
    procedure Write_Lock (T : Task_Id) is
       Result : Interfaces.C.int;
    begin
-      if not Single_Lock then
-         pragma Assert (Check_Lock (To_Lock_Ptr (T.Common.LL.L'Access)));
-         Result := mutex_lock (T.Common.LL.L.L'Access);
-         pragma Assert (Result = 0);
-         pragma Assert (Record_Lock (To_Lock_Ptr (T.Common.LL.L'Access)));
-      end if;
+      pragma Assert (Check_Lock (To_Lock_Ptr (T.Common.LL.L'Access)));
+      Result := mutex_lock (T.Common.LL.L.L'Access);
+      pragma Assert (Result = 0);
+      pragma Assert (Record_Lock (To_Lock_Ptr (T.Common.LL.L'Access)));
    end Write_Lock;
 
    ---------------
@@ -717,27 +706,20 @@ package body System.Task_Primitives.Operations is
       end if;
    end Unlock;
 
-   procedure Unlock
-     (L           : not null access RTS_Lock;
-      Global_Lock : Boolean := False)
-   is
+   procedure Unlock (L : not null access RTS_Lock) is
       Result : Interfaces.C.int;
    begin
-      if not Single_Lock or else Global_Lock then
-         pragma Assert (Check_Unlock (To_Lock_Ptr (RTS_Lock_Ptr (L))));
-         Result := mutex_unlock (L.L'Access);
-         pragma Assert (Result = 0);
-      end if;
+      pragma Assert (Check_Unlock (To_Lock_Ptr (RTS_Lock_Ptr (L))));
+      Result := mutex_unlock (L.L'Access);
+      pragma Assert (Result = 0);
    end Unlock;
 
    procedure Unlock (T : Task_Id) is
       Result : Interfaces.C.int;
    begin
-      if not Single_Lock then
-         pragma Assert (Check_Unlock (To_Lock_Ptr (T.Common.LL.L'Access)));
-         Result := mutex_unlock (T.Common.LL.L.L'Access);
-         pragma Assert (Result = 0);
-      end if;
+      pragma Assert (Check_Unlock (To_Lock_Ptr (T.Common.LL.L'Access)));
+      Result := mutex_unlock (T.Common.LL.L.L'Access);
+      pragma Assert (Result = 0);
    end Unlock;
 
    -----------------
@@ -929,14 +911,12 @@ package body System.Task_Primitives.Operations is
 
       Self_ID.Common.LL.Thread := Null_Thread_Id;
 
-      if not Single_Lock then
-         Result :=
-           mutex_init
-             (Self_ID.Common.LL.L.L'Access, USYNC_THREAD, System.Null_Address);
-         Self_ID.Common.LL.L.Level :=
-           Private_Task_Serial_Number (Self_ID.Serial_Number);
-         pragma Assert (Result = 0 or else Result = ENOMEM);
-      end if;
+      Result :=
+        mutex_init
+          (Self_ID.Common.LL.L.L'Access, USYNC_THREAD, System.Null_Address);
+      Self_ID.Common.LL.L.Level :=
+        Private_Task_Serial_Number (Self_ID.Serial_Number);
+      pragma Assert (Result = 0 or else Result = ENOMEM);
 
       if Result = 0 then
          Result := cond_init (Self_ID.Common.LL.CV'Access, USYNC_THREAD, 0);
@@ -946,10 +926,8 @@ package body System.Task_Primitives.Operations is
       if Result = 0 then
          Succeeded := True;
       else
-         if not Single_Lock then
-            Result := mutex_destroy (Self_ID.Common.LL.L.L'Access);
-            pragma Assert (Result = 0);
-         end if;
+         Result := mutex_destroy (Self_ID.Common.LL.L.L'Access);
+         pragma Assert (Result = 0);
 
          Succeeded := False;
       end if;
@@ -1049,10 +1027,8 @@ package body System.Task_Primitives.Operations is
    begin
       T.Common.LL.Thread := Null_Thread_Id;
 
-      if not Single_Lock then
-         Result := mutex_destroy (T.Common.LL.L.L'Access);
-         pragma Assert (Result = 0);
-      end if;
+      Result := mutex_destroy (T.Common.LL.L.L'Access);
+      pragma Assert (Result = 0);
 
       Result := cond_destroy (T.Common.LL.CV'Access);
       pragma Assert (Result = 0);
@@ -1107,15 +1083,9 @@ package body System.Task_Primitives.Operations is
    begin
       pragma Assert (Check_Sleep (Reason));
 
-      if Single_Lock then
-         Result :=
-           cond_wait
-             (Self_ID.Common.LL.CV'Access, Single_RTS_Lock.L'Access);
-      else
-         Result :=
-           cond_wait
-             (Self_ID.Common.LL.CV'Access, Self_ID.Common.LL.L.L'Access);
-      end if;
+      Result :=
+        cond_wait
+          (Self_ID.Common.LL.CV'Access, Self_ID.Common.LL.L.L'Access);
 
       pragma Assert
         (Record_Wakeup (To_Lock_Ptr (Self_ID.Common.LL.L'Access), Reason));
@@ -1221,21 +1191,13 @@ package body System.Task_Primitives.Operations is
          loop
             exit when Self_ID.Pending_ATC_Level < Self_ID.ATC_Nesting_Level;
 
-            if Single_Lock then
-               Result :=
-                 cond_timedwait
-                   (Self_ID.Common.LL.CV'Access,
-                    Single_RTS_Lock.L'Access, Request'Access);
-            else
-               Result :=
-                 cond_timedwait
-                   (Self_ID.Common.LL.CV'Access,
-                    Self_ID.Common.LL.L.L'Access, Request'Access);
-            end if;
-
+            Result :=
+              cond_timedwait
+                (Self_ID.Common.LL.CV'Access,
+                 Self_ID.Common.LL.L.L'Access, Request'Access);
             Yielded := True;
-
             Check_Time := Monotonic_Clock;
+
             exit when Abs_Time <= Check_Time or else Check_Time < Base_Time;
 
             if Result = 0 or Result = EINTR then
@@ -1271,10 +1233,6 @@ package body System.Task_Primitives.Operations is
       Yielded    : Boolean := False;
 
    begin
-      if Single_Lock then
-         Lock_RTS;
-      end if;
-
       Write_Lock (Self_ID);
 
       Abs_Time :=
@@ -1291,23 +1249,14 @@ package body System.Task_Primitives.Operations is
          loop
             exit when Self_ID.Pending_ATC_Level < Self_ID.ATC_Nesting_Level;
 
-            if Single_Lock then
-               Result :=
-                 cond_timedwait
-                   (Self_ID.Common.LL.CV'Access,
-                    Single_RTS_Lock.L'Access,
-                    Request'Access);
-            else
-               Result :=
-                 cond_timedwait
-                   (Self_ID.Common.LL.CV'Access,
-                    Self_ID.Common.LL.L.L'Access,
-                    Request'Access);
-            end if;
-
+            Result :=
+              cond_timedwait
+                (Self_ID.Common.LL.CV'Access,
+                 Self_ID.Common.LL.L.L'Access,
+                 Request'Access);
             Yielded := True;
-
             Check_Time := Monotonic_Clock;
+
             exit when Abs_Time <= Check_Time or else Check_Time < Base_Time;
 
             pragma Assert
@@ -1324,10 +1273,6 @@ package body System.Task_Primitives.Operations is
       end if;
 
       Unlock (Self_ID);
-
-      if Single_Lock then
-         Unlock_RTS;
-      end if;
 
       if not Yielded then
          thr_yield;
@@ -1412,10 +1357,6 @@ package body System.Task_Primitives.Operations is
          return False;
       end if;
 
-      if Single_Lock then
-         return True;
-      end if;
-
       --  Check that TCB lock order rules are satisfied
 
       P := Self_ID.Common.LL.Locks;
@@ -1451,10 +1392,6 @@ package body System.Task_Primitives.Operations is
 
       L.Owner := To_Owner_ID (To_Address (Self_ID));
 
-      if Single_Lock then
-         return True;
-      end if;
-
       --  Check that TCB lock order rules are satisfied
 
       P := Self_ID.Common.LL.Locks;
@@ -1483,10 +1420,6 @@ package body System.Task_Primitives.Operations is
 
       if Self_ID.Deferral_Level = 0 then
          return False;
-      end if;
-
-      if Single_Lock then
-         return True;
       end if;
 
       --  Check that caller is holding own lock, on top of list
@@ -1527,10 +1460,6 @@ package body System.Task_Primitives.Operations is
       --  Record new owner
 
       L.Owner := To_Owner_ID (To_Address (Self_ID));
-
-      if Single_Lock then
-         return True;
-      end if;
 
       --  Check that TCB lock order rules are satisfied
 
@@ -1880,7 +1809,7 @@ package body System.Task_Primitives.Operations is
 
    procedure Lock_RTS is
    begin
-      Write_Lock (Single_RTS_Lock'Access, Global_Lock => True);
+      Write_Lock (Single_RTS_Lock'Access);
    end Lock_RTS;
 
    ----------------
@@ -1889,7 +1818,7 @@ package body System.Task_Primitives.Operations is
 
    procedure Unlock_RTS is
    begin
-      Unlock (Single_RTS_Lock'Access, Global_Lock => True);
+      Unlock (Single_RTS_Lock'Access);
    end Unlock_RTS;
 
    ------------------

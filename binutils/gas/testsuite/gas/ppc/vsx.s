@@ -162,3 +162,7 @@ start:
 	lxvd2x     40,10,20
 	stxvd2x    40,0,20
 	stxvd2x    40,10,20
+	xxlnot     40,50
+	xxlnor     40,50,50
+	xxmr       40,50
+	xxlor      40,50,50

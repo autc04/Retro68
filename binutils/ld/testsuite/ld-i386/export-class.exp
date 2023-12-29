@@ -1,6 +1,6 @@
 # Expect script for symbol export classes, i386 variation.
 #
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -32,7 +32,6 @@ if { ![is_elf_format] } {
 # Exclude some more targets; feel free to include your favorite one
 # if you like.
 if { !([istarget i?86-*-linux*]
-       || [istarget i?86-*-nacl*]
        || [istarget i?86-*-gnu*]) } {
     return
 }
@@ -75,7 +74,7 @@ run_ld_link_tests [list \
 run_ld_link_tests [list \
     [list \
 	"$testname (final shared object)" \
-	"-shared -Tdata=0x12340000 tmpdir/i386-export-class-ref-r.o tmpdir/i386-export-class-lib.so" "" \
+	"-shared $NO_DT_RELR_LDFLAGS -Tdata=0x12340000 tmpdir/i386-export-class-ref-r.o tmpdir/i386-export-class-lib.so" "" \
 	"" \
 	{ ../ld-elf/export-class-dep.s ../ld-elf/export-class-def.s } \
 	{ \

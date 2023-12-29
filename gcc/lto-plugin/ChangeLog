@@ -1,6 +1,201 @@
-2019-05-03  Release Manager
+2022-08-19  Release Manager
 
-	* GCC 9.1.0 released.
+	* GCC 12.2.0 released.
+
+2022-05-06  Release Manager
+
+	* GCC 12.1.0 released.
+
+2022-03-22  Jakub Jelinek  <jakub@redhat.com>
+
+	PR lto/102426
+	* configure.ac (LTO_PLUGIN_USE_SYMVER, LTO_PLUGIN_USE_SYMVER_GNU,
+	LTO_PLUGIN_USE_SYMVER_SUN): New test for symbol versioning support.
+	* Makefile.am (version_arg, version_dep): Set conditionally based
+	on LTO_PLUGIN_USE_SYMVER*.
+	(liblto_plugin_la_LDFLAGS): Use $(version_arg) instead of
+	-export-symbols-regex onload.
+	(liblto_plugin_la_DEPENDENCIES): Depend on $(version_dep).
+	* lto-plugin.map: New file.
+	* configure: Regenerated.
+	* Makefile.in: Regenerated.
+
+2022-03-11  Tobias Burnus  <tobias@codesourcery.com>
+
+	* lto-plugin.c (all_symbols_read_handler): With -save-temps, use
+	link_output_name for -foffload-objects's file name, if available.
+
+2022-03-01  Martin Liska  <mliska@suse.cz>
+
+	* lto-plugin.c (process_offload_section): Use a linker as many
+	comments are connected to gold linker.
+	(process_option): Likewise.
+
+2021-12-02  Rasmus Villemoes  <rasmus.villemoes@prevas.dk>
+
+	* lto-plugin.c: Fix -linker-output-auto-notlo-rel ->
+	-linker-output-auto-nolto-rel typo.
+	(process_option): Adjust accordingly, accepting both old and
+	new spelling.
+
+2021-09-13  Andrew Pinski  <apinski@marvell.com>
+
+	PR lto/49664
+	* Makefile.am: Export only onload.
+	* Makefile.in: Regenerate.
+
+2021-06-25  Richard Biener  <rguenther@suse.de>
+
+	* lto-plugin.c (ltrans_objects): New global.
+	(all_symbols_read_handler): If -ltrans-objects was specified,
+	add the output files from the specified file directly.
+	(process_option): Handle -ltrans-objects.
+
+2021-05-10  Martin Liska  <mliska@suse.cz>
+
+	* lto-plugin.c (LTO_SEGMENT_NAME): Remove.
+	(LTO_SYMTAB_PREFIX): Likewise.
+	(LTO_SYMTAB_PREFIX_LEN): Likewise.
+	(LTO_SYMTAB_EXT_PREFIX): Likewise.
+	(LTO_SYMTAB_EXT_PREFIX_LEN): Likewise.
+	(LTO_LTO_PREFIX): Likewise.
+	(LTO_LTO_PREFIX_LEN): Likewise.
+	(OFFLOAD_SECTION): Likewise.
+	(OFFLOAD_SECTION_LEN): Likewise.
+	(startswith): New function.
+	(all_symbols_read_handler): Use it.
+	(process_symtab): Likewise.
+	(process_symtab_extension): Likewise.
+	(process_offload_section): Likewise.
+	(process_option): Likewise.
+
+2021-05-03  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR bootstrap/99703
+	* configure: Regenerated.
+
+2021-04-21  Martin Liska  <mliska@suse.cz>
+
+	* lto-plugin.c (exec_lto_wrapper): Make a temp variable.
+
+2021-01-05  Samuel Thibault  <samuel.thibault@ens-lyon.org>
+
+	* configure: Re-generate.
+
+2020-11-29  John David Anglin  <danglin@gcc.gnu.org>
+
+	* configure: Regenerate.
+
+2020-11-25  Matthew Malcomson  <matthew.malcomson@arm.com>
+
+	* Makefile.am: Avoid using sanitizer.
+	* Makefile.in: Regenerate.
+
+2020-09-10  Jonathan Yong  <10walls@gmail.com>
+
+	* Makefile.am: drop versioning from libtool completely.
+	* Makefile.in: regenerate.
+
+2020-09-09  Nick Clifton  <nickc@redhat.com>
+
+	* lto-plugin.c (struct plugin_symtab): Add last_sym field.
+	(parse_symtab_extension): Only read as many entries as are
+	available in the buffer.  Store the data read into the symbol
+	table indexed from last_sym.  Increment last_sym.
+
+2020-07-30  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR bootstrap/96202
+	* configure: Regenerated.
+
+2020-05-29  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR bootstrap/95413
+	* configure: Regenerated.
+
+2020-05-26  Alexandre Oliva  <oliva@adacore.com>
+
+	* lto-plugin.c (skip_in_suffix): New.
+	(exec_lto_wrapper): Use skip_in_suffix and concat to build
+	non-temporary output names.
+	(onload): Look for -dumpdir in COLLECT_GCC_OPTIONS, and
+	override link_output_name with it.
+
+2020-05-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/94998
+	* configure: Regenerated.
+
+2020-05-05  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* lto-plugin.c: Document -linker-output-auto-notlo-rel option.
+	(linker_output_set): Change type to bool.
+	(linker_output_known): Likewise.
+	(linker_output_auto_nolto_rel): New variable.
+	(all_symbols_read_handler): Take it into account.
+	<LDPO_REL>: Do not issue the warning if it is set.
+	(process_option): Process -linker-output-auto-notlo-rel.
+	(cleanup_handler): Remove unused variable.
+	(onload) <LDPT_LINKER_OUTPUT>: Adjust to above type change.
+
+2020-04-28  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/94739
+	* configure: Regenerated.
+
+2020-04-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/94739
+	* Makefile.am (AM_CFLAGS): Add $(CET_HOST_FLAGS).
+	* configure.ac: Add GCC_CET_HOST_FLAGS(CET_HOST_FLAGS) and
+	AC_SUBST(CET_HOST_FLAGS).
+	* Makefile.in: Regenerated.
+	* aclocal.m4: Likewise.
+	* configure: Likewise.
+
+2020-03-19  Martin Liska  <mliska@suse.cz>
+
+	* lto-plugin.c (LTO_SECTION_PREFIX): Rename to ...
+	(LTO_SYMTAB_PREFIX): ... this.
+	(LTO_SECTION_PREFIX_LEN): Rename to ...
+	(LTO_SYMTAB_PREFIX_LEN): ... this.
+	(LTO_SYMTAB_EXT_PREFIX): New.
+	(LTO_SYMTAB_EXT_PREFIX_LEN): New.
+	(LTO_LTO_PREFIX): New.
+	(LTO_LTO_PREFIX_LEN): New.
+	(parse_table_entry): Fill up unused to zero.
+	(parse_table_entry_extension): New.
+	(parse_symtab_extension): New.
+	(finish_conflict_resolution): Change type
+	for resolution.
+	(process_symtab): Use new macro name.
+	(process_symtab_extension): New.
+	(claim_file_handler): Parse also process_symtab_extension.
+	(onload): Call new add_symbols_v2.
+
+2020-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+2019-09-27  Maciej W. Rozycki  <macro@wdc.com>
+
+	* configure: Regenerate.
+
+2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* lto-plugin.c (cleanup_handler): Remove unused var.
+
+2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* lto-plugin.c (exec_lto_wrapper): Make the wrapper
+	arguments filename more user-friendly.
+	(file_exists, maybe_unlink): New.
+	(cleanup_handler): Use maybe unlink to handle the
+	case when temps should be saved.
+	(process_option): Look for -v, —-version, -save-temps.
+	(onload): Record the linker output file name.
+	Check for -v, —-version, -save-temps in the GCC collect
+	options environment.
 
 2019-02-26  Martin Liska  <mliska@suse.cz>
 

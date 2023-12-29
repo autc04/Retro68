@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2000-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2000-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,14 +23,18 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Einfo;    use Einfo;
-with Lib;      use Lib;
-with Nlists;   use Nlists;
-with Sem_Aux;  use Sem_Aux;
-with Sem_Util; use Sem_Util;
-with Sinfo;    use Sinfo;
-with Types;    use Types;
+with Atree;          use Atree;
+with Einfo;          use Einfo;
+with Einfo.Entities; use Einfo.Entities;
+with Einfo.Utils;    use Einfo.Utils;
+with Lib;            use Lib;
+with Nlists;         use Nlists;
+with Sem_Aux;        use Sem_Aux;
+with Sem_Util;       use Sem_Util;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Sinfo.Utils;    use Sinfo.Utils;
+with Types;          use Types;
 
 package body Live is
 
@@ -41,7 +45,8 @@ package body Live is
    --  any valuable per-node space and possibly results in better locality and
    --  cache usage.
 
-   type Name_Set is array (Node_Id range <>) of Boolean;
+   type Name_Set is array (Node_Id'Base range <>) of Boolean;
+   --  We use 'Base here, in case we want to add a predicate to Node_Id
    pragma Pack (Name_Set);
 
    function Marked (Marks : Name_Set; Name : Node_Id) return Boolean;
@@ -81,9 +86,6 @@ package body Live is
 
    function Spec_Of (N : Node_Id) return Entity_Id;
    --  Given a subprogram body N, return defining identifier of its declaration
-
-   --  ??? the body of this package contains no comments at all, this
-   --  should be fixed.
 
    -------------
    -- Body_Of --

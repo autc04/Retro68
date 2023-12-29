@@ -199,11 +199,11 @@ former provides improved compatibility with other implementations
 supporting this type.  The latter corresponds to the highest precision
 floating-point type supported by the hardware.  On most machines, this
 will be the same as ``Long_Float``, but on some machines, it will
-correspond to the IEEE extended form.  The notable case is all ia32
-(x86) implementations, where ``Long_Long_Float`` corresponds to
-the 80-bit extended precision format supported in hardware on this
-processor.  Note that the 128-bit format on SPARC is not supported,
-since this is a software rather than a hardware format.
+correspond to the IEEE extended form.  The notable case is all x86
+implementations, where ``Long_Long_Float`` corresponds to the 80-bit
+extended precision format supported in hardware on this processor.
+Note that the 128-bit format on SPARC is not supported, since this
+is a software rather than a hardware format.
 
 .. index:: Multidimensional arrays
 
@@ -703,51 +703,28 @@ Followed.
 
 .. index:: Stream oriented attributes
 
-RM 13.13.2(17): Stream Oriented Attributes
-==========================================
+RM 13.13.2(1.6): Stream Oriented Attributes
+===========================================
 
-  "If a stream element is the same size as a storage element, then the
-  normal in-memory representation should be used by ``Read`` and
-  ``Write`` for scalar objects.  Otherwise, ``Read`` and ``Write``
-  should use the smallest number of stream elements needed to represent
-  all values in the base range of the scalar type."
+  "If not specified, the value of Stream_Size for an elementary type
+  should be the number of bits that corresponds to the minimum number of
+  stream elements required by the first subtype of the type, rounded up
+  to the nearest factor or multiple of the word size that is also a
+  multiple of the stream element size."
 
-Followed.  By default, GNAT uses the interpretation suggested by AI-195,
-which specifies using the size of the first subtype.
-However, such an implementation is based on direct binary
-representations and is therefore target- and endianness-dependent.
-To address this issue, GNAT also supplies an alternate implementation
-of the stream attributes ``Read`` and ``Write``,
-which uses the target-independent XDR standard representation
-for scalar types.
+Followed, except that the number of stream elements is 1, 2, 3, 4 or 8.
+The Stream_Size may be used to override the default choice.
+
+The default implementation is based on direct binary representations and is
+therefore target- and endianness-dependent.  To address this issue, GNAT also
+supplies an alternate implementation of the stream attributes ``Read`` and
+``Write``, which uses the target-independent XDR standard representation for
+scalar types. This XDR alternative can be enabled via the binder switch -xdr.
 
 .. index:: XDR representation
-
 .. index:: Read attribute
-
 .. index:: Write attribute
-
 .. index:: Stream oriented attributes
-
-The XDR implementation is provided as an alternative body of the
-``System.Stream_Attributes`` package, in the file
-:file:`s-stratt-xdr.adb` in the GNAT library.
-There is no :file:`s-stratt-xdr.ads` file.
-In order to install the XDR implementation, do the following:
-
-* Replace the default implementation of the
-  ``System.Stream_Attributes`` package with the XDR implementation.
-  For example on a Unix platform issue the commands:
-
-  .. code-block:: sh
-
-    $ mv s-stratt.adb s-stratt-default.adb
-    $ mv s-stratt-xdr.adb s-stratt.adb
-
-
-*
-  Rebuild the GNAT run-time library as documented in
-  the *GNAT and Libraries* section of the :title:`GNAT User's Guide`.
 
 RM A.1(52): Names of Predefined Numeric Types
 =============================================
@@ -821,6 +798,22 @@ provide this functionality that does not result in the input buffer being
 flushed before the ``Get_Immediate`` call. A special unit
 ``Interfaces.Vxworks.IO`` is provided that contains routines to enable
 this functionality.
+
+.. index:: Containers
+
+RM A.18: ``Containers``
+================================
+
+All implementation advice pertaining to Ada.Containers and its
+child units (that is, all implementation advice occurring within
+section A.18 and its subsections) is followed except for A.18.24(17):
+
+   "Bounded ordered set objects should be implemented without implicit pointers or dynamic allocation. "
+
+The implementations of the two Reference_Preserving_Key functions of
+the generic package Ada.Containers.Bounded_Ordered_Sets each currently make
+use of dynamic allocation; other operations on bounded ordered set objects
+follow the implementation advice.
 
 .. index:: Export
 

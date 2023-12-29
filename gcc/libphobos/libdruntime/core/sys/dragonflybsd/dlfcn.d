@@ -15,18 +15,6 @@ public import core.sys.posix.dlfcn;
 extern (C) nothrow @nogc @system:
 
 /*
- * Modes and flags for dlopen().
- */
-static assert(RTLD_LAZY   == 1);
-static assert(RTLD_NOW    == 2);
-enum RTLD_MODEMASK        =  0x3;
-static assert(RTLD_GLOBAL == 0x100);
-static assert(RTLD_LOCAL  == 0);
-enum RTLD_TRACE           =  0x200;
-enum RTLD_NODELETE        =  0x01000;
-enum RTLD_NOLOAD          =  0x02000;
-
-/*
  * Request arguments for dlinfo().
  */
 enum RTLD_DI_LINKMAP     = 2;    /* Obtain link map. */
@@ -43,29 +31,18 @@ enum RTLD_DEFAULT = cast(void *)-2;    /* Use default search algorithm. */
 enum RTLD_SELF    = cast(void *)-3;    /* Search the caller itself. */
 
 /*
- * Structure filled in by dladdr().
- */
-struct Dl_info {
-    const(char)     *dli_fname;     /* Pathname of shared object. */
-    void            *dli_fbase;     /* Base address of shared object. */
-    const(char)     *dli_sname;     /* Name of nearest symbol. */
-    void            *dli_saddr;     /* Address of nearest symbol. */
-};
-
-
-/*
  * Structures, returned by the RTLD_DI_SERINFO dlinfo() request.
  */
 struct Dl_serpath {
     char *          dls_name;       /* single search path entry */
     uint            dls_flags;      /* path information */
-};
+}
 
 struct Dl_serinfo {
     size_t          dls_size;       /* total buffer size */
     uint            dls_cnt;        /* number of path entries */
     Dl_serpath[1]   dls_serpath;    /* there may be more than one */
-};
+}
 
 /*-
  * The actual type declared by this typedef is immaterial, provided that
@@ -78,23 +55,19 @@ struct Dl_serinfo {
  */
 struct __dlfunc_arg {
     int     __dlfunc_dummy;
-};
+}
 
 alias dlfunc_t = void function(__dlfunc_arg);
 
-private template __externC(RT, P...)
-{
-    alias __externC = extern(C) RT function(P) nothrow @nogc @system;
+/* XSI functions first. */
+extern(C) {
+    static assert(is(typeof(&dlclose) == int function(void*)));
+    static assert(is(typeof(&dlerror) == char* function()));
+    static assert(is(typeof(&dlopen)  == void* function(const scope char*, int)));
+    static assert(is(typeof(&dlsym)   == void* function(void*, const scope char*)));
 }
 
-/* XSI functions first. */
-static assert(is(typeof(&dlclose) == __externC!(int, void*)));
-static assert(is(typeof(&dlerror) == __externC!(char*)));
-static assert(is(typeof(&dlopen)  == __externC!(void*, const char*, int)));
-static assert(is(typeof(&dlsym)   == __externC!(void*, void*, const char*)));
-
 void*    fdlopen(int, int);
-int      dladdr(const(void)*, Dl_info*);
 dlfunc_t dlfunc(void*, const(char)*);
 int      dlinfo(void*, int, void*);
 /*void     dllockinit(void* _context,

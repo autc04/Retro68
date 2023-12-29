@@ -2,7 +2,7 @@
 // { dg-require-string-conversions "" }
 // 2008-06-15  Paolo Carlini  <paolo.carlini@oracle.com>
 
-// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+// Copyright (C) 2008-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -37,9 +37,9 @@ test01()
   try
     {
       wstring one;
-      stoi(one);      
+      stoi(one);
     }
-  catch(std::invalid_argument)
+  catch(const std::invalid_argument&)
     {
       test = true;
     }
@@ -52,9 +52,9 @@ test01()
   try
     {
       wstring one(L"a");
-      stoi(one);      
+      stoi(one);
     }
-  catch(std::invalid_argument)
+  catch(const std::invalid_argument&)
     {
       test = true;
     }
@@ -67,7 +67,7 @@ test01()
   try
     {
       wstring one(L"a");
-      i1 = stoi(one, 0, 16);      
+      i1 = stoi(one, 0, 16);
     }
   catch(...)
     {
@@ -80,7 +80,7 @@ test01()
   try
     {
       wstring one(L"78");
-      i1 = stoi(one, &idx1, 8);      
+      i1 = stoi(one, &idx1, 8);
     }
   catch(...)
     {
@@ -93,7 +93,7 @@ test01()
   try
     {
       wstring one(L"10112");
-      i1 = stoi(one, &idx1, 2);      
+      i1 = stoi(one, &idx1, 2);
     }
   catch(...)
     {
@@ -106,7 +106,7 @@ test01()
   try
     {
       wstring one(L"0XE");
-      i1 = stoi(one, &idx1, 0);      
+      i1 = stoi(one, &idx1, 0);
     }
   catch(...)
     {
@@ -122,7 +122,7 @@ test01()
       wstring one(1000, L'9');
       i1 = stoi(one);
     }
-  catch(std::out_of_range)
+  catch(const std::out_of_range&)
     {
       test = true;
     }
@@ -167,7 +167,7 @@ test01()
       wstring one(to_wstring(ll0));
       i1 = stoi(one);
     }
-  catch(std::out_of_range)
+  catch(const std::out_of_range&)
     {
       test = true;
     }
@@ -185,7 +185,7 @@ test01()
       wstring one(to_wstring(ll1));
       i1 = stoi(one);
     }
-  catch(std::out_of_range)
+  catch(const std::out_of_range&)
     {
       test = true;
     }

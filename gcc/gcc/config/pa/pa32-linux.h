@@ -1,5 +1,5 @@
 /* Definitions for PA_RISC with ELF-32 format
-   Copyright (C) 2000-2019 Free Software Foundation, Inc.
+   Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -57,6 +57,11 @@ call_ ## FUNC (void)					\
 }
 #endif
 
+/* We need to link against libgcc.a for __canonicalize_funcptr_for_compare
+   and $$dyncall.  */
+#undef  ENDFILE_SPEC
+#define ENDFILE_SPEC GNU_USER_TARGET_ENDFILE_SPEC "libgcc.a%s"
+
 #undef  WCHAR_TYPE
 #define WCHAR_TYPE "long int"
 
@@ -76,3 +81,8 @@ call_ ## FUNC (void)					\
    rodata when generating non-PIC code.  */
 #undef JUMP_TABLES_IN_TEXT_SECTION
 #define JUMP_TABLES_IN_TEXT_SECTION (flag_pic)
+
+/* We need to override default selection to put references to functions
+   in COMDAT groups in .data.rel.ro.local.  */
+#undef TARGET_ASM_SELECT_RTX_SECTION
+#define TARGET_ASM_SELECT_RTX_SECTION pa_elf_select_rtx_section

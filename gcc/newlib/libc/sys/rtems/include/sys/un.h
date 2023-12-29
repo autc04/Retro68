@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -27,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.3 (Berkeley) 2/19/95
- * $FreeBSD: head/sys/sys/un.h 314436 2017-02-28 23:42:47Z imp $
+ * $FreeBSD: head/sys/sys/un.h 326023 2017-11-20 19:43:44Z pfg $
  */
 
 #ifndef _SYS_UN_H_

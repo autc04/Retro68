@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -69,7 +63,7 @@ package body Debug is
    --  dC   Output debugging information on check suppression
    --  dD   Delete elaboration checks in inner level routines
    --  dE   Apply elaboration checks to predefined units
-   --  dF   Perform the new SPARK checking rules for pointer aliasing
+   --  dF   Alternative display for messages over multiple lines
    --  dG   Generate all warnings including those normally suppressed
    --  dH   Hold (kill) call to gigi
    --  dI   Inhibit internal name numbering in gnatG listing
@@ -80,7 +74,7 @@ package body Debug is
    --  dN   No file name information in exception messages
    --  dO   Output immediate error messages
    --  dP   Do not check for controlled objects in preelaborable packages
-   --  dQ   Use old secondary stack method
+   --  dQ
    --  dR   Bypass check for correct version of s-rpc
    --  dS   Never convert numbers to machine numbers in Sem_Eval
    --  dT   Convert to machine numbers only for constant declarations
@@ -118,20 +112,20 @@ package body Debug is
    --  d.y  Disable implicit pragma Elaborate_All on task bodies
    --  d.z  Restore previous support for frontend handling of Inline_Always
 
-   --  d.A  Read/write Aspect_Specifications hash table to tree
+   --  d.A  Enable statistics printing in Atree
    --  d.B  Generate a bug box on abort_statement
    --  d.C  Generate concatenation call, do not generate inline code
    --  d.D  Disable errors on use of overriding keyword in Ada 95 mode
    --  d.E  Turn selected errors into warnings
    --  d.F  Debug mode for GNATprove
    --  d.G  Ignore calls through generic formal parameters for elaboration
-   --  d.H  GNSA mode for ASIS
+   --  d.H  Disable the support for 128-bit integer types on 64-bit platforms
    --  d.I  Do not ignore enum representation clauses in CodePeer mode
    --  d.J  Relaxed rules for pragma No_Return
-   --  d.K  Enable generation of contract-only procedures in CodePeer mode
+   --  d.K  Do not reject components in extensions overlapping with parent
    --  d.L  Depend on back end for limited types in if and case expressions
    --  d.M  Relaxed RM semantics
-   --  d.N  Add node to all entities
+   --  d.N
    --  d.O  Dump internal SCO tables
    --  d.P  Previous (non-optimized) handling of length comparisons
    --  d.Q  Previous (incomplete) style check for binary operators
@@ -146,15 +140,15 @@ package body Debug is
    --  d.Z  Do not enable expansion in configurable run-time mode
 
    --  d_a  Stop elaboration checks on accept or select statement
-   --  d_b
-   --  d_c
+   --  d_b  Use designated type model under No_Dynamic_Accessibility_Checks
+   --  d_c  CUDA compilation : compile for the host
    --  d_d
    --  d_e  Ignore entry calls and requeue statements for elaboration
    --  d_f  Issue info messages related to GNATprove usage
-   --  d_g
-   --  d_h
+   --  d_g  Disable large static aggregates
+   --  d_h  Disable the use of (perfect) hash functions for enumeration Value
    --  d_i  Ignore activations and calls to instances for elaboration
-   --  d_j
+   --  d_j  Read JSON files and populate Repinfo tables (opposite of -gnatRjs)
    --  d_k
    --  d_l
    --  d_m
@@ -164,36 +158,36 @@ package body Debug is
    --  d_q
    --  d_r
    --  d_s  Stop elaboration checks on synchronous suspension
-   --  d_t
-   --  d_u
-   --  d_v
+   --  d_t  In LLVM-based CCG, dump LLVM IR after transformations are done
+   --  d_u  In LLVM-based CCG, dump flows
+   --  d_v  Enable additional checks and debug printouts in Atree
    --  d_w
-   --  d_x
+   --  d_x  Disable inline expansion of Image attribute for enumeration types
    --  d_y
    --  d_z
 
    --  d_A  Stop generation of ALI file
-   --  d_B
+   --  d_B  Warn on build-in-place function calls
    --  d_C
    --  d_D
    --  d_E
-   --  d_F
+   --  d_F  Encode full invocation paths in ALI files
    --  d_G
    --  d_H
    --  d_I
    --  d_J
-   --  d_K
+   --  d_K  (Reserved) Enable reporting a warning on known-problem issues
    --  d_L  Output trace information on elaboration checking
    --  d_M
    --  d_N
    --  d_O
    --  d_P
    --  d_Q
-   --  d_R
+   --  d_R  For LLVM, dump the representation of records
    --  d_S
-   --  d_T
-   --  d_U
-   --  d_V
+   --  d_T  Output trace information on invocation path recording
+   --  d_U  Disable prepending messages with "error:".
+   --  d_V  Enable verifications on the expanded tree
    --  d_W
    --  d_X
    --  d_Y
@@ -216,7 +210,7 @@ package body Debug is
    --  d.5  Do not generate imported subprogram definitions in C code
    --  d.6  Do not avoid declaring unreferenced types in C code
    --  d.7  Disable unsound heuristics in gnat2scil (for CP as SPARK prover)
-   --  d.8
+   --  d.8  Disable unconditional inlining of expression functions
    --  d.9  Disable build-in-place for nonlimited types
 
    --  d_1
@@ -257,6 +251,161 @@ package body Debug is
    --  dx  Force binder to read xref information from ali files
    --  dy
    --  dz
+
+   --  dA
+   --  dB
+   --  dC
+   --  dD
+   --  dE
+   --  dF
+   --  dG
+   --  dH
+   --  dI
+   --  dJ
+   --  dK
+   --  dL
+   --  dM
+   --  dN
+   --  dO
+   --  dP
+   --  dQ
+   --  dR
+   --  dS
+   --  dT
+   --  dU
+   --  dV
+   --  dW
+   --  dX
+   --  dY
+   --  dZ
+
+   --  d.a
+   --  d.b
+   --  d.c
+   --  d.d
+   --  d.e
+   --  d.f
+   --  d.g
+   --  d.h
+   --  d.i
+   --  d.j
+   --  d.k
+   --  d.l
+   --  d.m
+   --  d.n
+   --  d.o
+   --  d.p
+   --  d.q
+   --  d.r
+   --  d.s
+   --  d.t
+   --  d.u
+   --  d.v
+   --  d.w
+   --  d.x
+   --  d.y
+   --  d.z
+
+   --  d.A
+   --  d.B
+   --  d.C
+   --  d.D
+   --  d.E
+   --  d.F
+   --  d.G
+   --  d.H
+   --  d.I
+   --  d.J
+   --  d.K
+   --  d.L
+   --  d.M
+   --  d.N
+   --  d.O
+   --  d.P
+   --  d.Q
+   --  d.R
+   --  d.S
+   --  d.T
+   --  d.U
+   --  d.V
+   --  d.W
+   --  d.X
+   --  d.Y
+   --  d.Z
+
+   --  d.1
+   --  d.2
+   --  d.3
+   --  d.4
+   --  d.5
+   --  d.6
+   --  d.7
+   --  d.8
+   --  d.9
+
+   --  d_a  Ignore the effects of pragma Elaborate_All
+   --  d_b  Ignore the effects of pragma Elaborate_Body
+   --  d_c
+   --  d_d
+   --  d_e  Ignore the effects of pragma Elaborate
+   --  d_f
+   --  d_g
+   --  d_h
+   --  d_i
+   --  d_j
+   --  d_k
+   --  d_l
+   --  d_m
+   --  d_n
+   --  d_o
+   --  d_p
+   --  d_q
+   --  d_r
+   --  d_s
+   --  d_t  Output cycle-detection trace information
+   --  d_u
+   --  d_v
+   --  d_w
+   --  d_x
+   --  d_y
+   --  d_z
+
+   --  d_A  Output ALI invocation tables
+   --  d_B
+   --  d_C  Diagnose all cycles
+   --  d_D
+   --  d_E
+   --  d_F
+   --  d_G
+   --  d_H
+   --  d_I  Output invocation graph
+   --  d_J
+   --  d_K
+   --  d_L  Output library graph
+   --  d_M
+   --  d_N
+   --  d_O
+   --  d_P  Output cycle paths
+   --  d_Q
+   --  d_R
+   --  d_S  Output elaboration-order status
+   --  d_T  Output elaboration-order trace information
+   --  d_U
+   --  d_V  Validate bindo cycles, graphs, and order
+   --  d_W
+   --  d_X
+   --  d_Y
+   --  d_Z
+
+   --  d_1
+   --  d_2
+   --  d_3
+   --  d_4
+   --  d_5
+   --  d_6
+   --  d_7
+   --  d_8
+   --  d_9
 
    --  Debug flags used in package Make and its clients (e.g. GNATMAKE)
 
@@ -447,11 +596,6 @@ package body Debug is
    --  dE   Apply compile time elaboration checking for with relations between
    --       predefined units. Normally no checks are made.
 
-   --  dF   Perform the new SPARK checking rules for pointer aliasing. This is
-   --       only activated in GNATprove mode and on SPARK code. These rules are
-   --       not yet part of the official SPARK language, but are expected to be
-   --       included in a future version of SPARK.
-
    --  dG   Generate all warnings. Normally Errout suppresses warnings on
    --       units that are not part of the main extended source, and also
    --       suppresses warnings on instantiations in the main extended
@@ -498,11 +642,6 @@ package body Debug is
    --       RM 10.2.1(9) forbids the use of library level controlled objects
    --       in preelaborable packages, but this restriction is a huge pain,
    --       especially in the predefined library units.
-
-   --  dQ   Use old method for determining what goes on the secondary stack.
-   --       This disables some newer optimizations. The intent is to use this
-   --       temporarily to measure before/after efficiency. ???Remove this
-   --       when we are done (see Sem_Util.Requires_Transient_Scope).
 
    --  dR   Bypass the check for a proper version of s-rpc being present
    --       to use the -gnatz? switch. This allows debugging of the use
@@ -691,10 +830,10 @@ package body Debug is
    --       handling of Inline_Always by the front end on such targets. For the
    --       targets that do not use the GCC back end, this switch is ignored.
 
-   --  d.A  There seems to be a problem with ASIS if we activate the circuit
-   --       for reading and writing the aspect specification hash table, so
-   --       for now, this is controlled by the debug flag d.A. The hash table
-   --       is only written and read if this flag is set.
+   --  d.A  Enable statistics printing in Atree. First set Statistics_Enabled
+   --       in gen_il-gen.adb to True, then rebuild, then run the compiler
+   --       with -gnatd.A. You might want to apply "sort -nr" to parts of the
+   --       output.
 
    --  d.B  Generate a bug box when we see an abort_statement, even though
    --       there is no bug. Useful for testing Comperr.Compiler_Abort: write
@@ -736,8 +875,9 @@ package body Debug is
    --       now fixed, but we provide this debug flag to revert to the previous
    --       situation of ignoring such calls to aid in transition.
 
-   --  d.H  Sets ASIS_GNSA_Mode to True. This signals the front end to suppress
-   --       the call to gigi in ASIS_Mode.
+   --  d.H  Disable the support for 128-bit integer types on 64-bit platforms.
+   --       This makes it easier to mimic the behavior of the current compiler
+   --       on 32-bit platforms or of older compilers on 64-bit platforms.
 
    --  d.I  Do not ignore enum representation clauses in CodePeer mode.
    --       The default of ignoring representation clauses for enumeration
@@ -750,12 +890,10 @@ package body Debug is
    --       for that. If the procedure does in fact return normally, execution
    --       is erroneous, and therefore unpredictable.
 
-   --  d.K  Enable generation of contract-only procedures in CodePeer mode and
-   --       report a warning on subprograms for which the contract-only body
-   --       cannot be built. Currently reported on subprograms defined in
-   --       nested package specs that have some formal (or return type) whose
-   --       type is a private type defined in some enclosing package and that
-   --       have pre/postconditions.
+   --  d.K  Do not reject components in extensions overlapping with the parent
+   --       component. Such components can be specified by means of a component
+   --       clause but they cannot be fully supported by the GCC type system.
+   --       This switch nevertheless allows them for the sake of compatibility.
 
    --  d.L  Normally the front end generates special expansion for conditional
    --       expressions of a limited type. This debug flag removes this special
@@ -764,10 +902,6 @@ package body Debug is
 
    --  d.M  Relaxed RM semantics. This flag sets Opt.Relaxed_RM_Semantics
    --       See Opt.Relaxed_RM_Semantics for more details.
-
-   --  d.N  Enlarge entities by one node (but don't attempt to use this extra
-   --       node for storage of any flags or fields). This can be used to do
-   --       experiments on the impact of increasing entity sizes.
 
    --  d.O  Dump internal SCO tables. Before outputting the SCO information to
    --       the ALI file, the internal SCO tables (SCO_Table/SCO_Unit_Table)
@@ -827,6 +961,10 @@ package body Debug is
    --       behavior is similar to that of No_Entry_Calls_In_Elaboration_Code,
    --       but does not penalize actual entry calls in elaboration code.
 
+   --  d_b  When the restriction No_Dynamic_Accessibility_Checks is enabled,
+   --       use the simple "designated type" accessibility model, instead of
+   --       using the implicit level of the anonymous access type declaration.
+
    --  d_e  The compiler ignores simple entry calls, asynchronous transfer of
    --       control, conditional entry calls, timed entry calls, and requeue
    --       statements in both the static and dynamic elaboration models.
@@ -836,9 +974,20 @@ package body Debug is
    --       beginners find them confusing. Set automatically by GNATprove when
    --       switch --info is used.
 
+   --  d_g  Disable large static aggregates. The maximum size for a static
+   --       aggregate will be fairly modest, which is useful if the compiler
+   --       is using too much memory and time at compile time.
+
+   --  d_h  The compiler does not make use of (perfect) hash functions in the
+   --       implementation of the Value attribute for enumeration types.
+
    --  d_i  The compiler ignores calls and task activations when they target a
    --       subprogram or task type defined in an external instance for both
    --       the static and dynamic elaboration models.
+
+   --  d_j  The compiler reads JSON files that would be generated by the same
+   --       compilation session if -gnatRjs was passed, in order to populate
+   --       the internal tables of the Repinfo unit from them.
 
    --  d_p  The compiler ignores calls to subprograms which verify the run-time
    --       semantics of invariants and postconditions in both the static and
@@ -848,12 +997,47 @@ package body Debug is
    --       a call to routine Ada.Synchronous_Task_Control.Suspend_Until_True
    --       or Ada.Synchronous_Barriers.Wait_For_Release.
 
+   --  d_t  In the LLVM-based CCG, do an additional dump of the LLVM IR
+   --       after the pass that does transformations to the IR into a
+   --       filename ending with .trans.ll.
+
+   --  d_u  In the LLVM-based CCG, dump flows, both when originally created
+   --       and after transformations.
+
+   --  d_v  Enable additional checks and debug printouts in Atree
+
+   --  d_x  The compiler does not expand in line the Image attribute for user-
+   --       defined enumeration types and the standard boolean type.
+
    --  d_A  Do not generate ALI files by setting Opt.Disable_ALI_File.
+
+   --  d_B  Warn on build-in-place function calls. This allows users to
+   --       inspect their code in case it triggers compiler bugs related
+   --       to build-in-place calls. See known-problem entries for details.
+
+   --  d_F  The compiler encodes the full path from an invocation construct to
+   --       an external target, offering additional information to GNATBIND for
+   --       purposes of error diagnostics.
+
+   --  d_K  (Reserved) Enable reporting a warning on known-problem issues of
+   --       previous releases. No action performed in the wavefront.
 
    --  d_L  Output trace information on elaboration checking. This debug switch
    --       causes output to be generated showing each call or instantiation as
    --       it is checked, and the progress of the recursive trace through
    --       elaboration calls at compile time.
+
+   --  d_R  In the LLVM backend, output the internal representation of
+   --       each record
+
+   --  d_T  The compiler outputs trace information to standard output whenever
+   --       an invocation path is recorded.
+
+   --  d_U  Disable prepending 'error:' to error messages. This used to be the
+   --       default and can be seen as the opposite of -gnatU.
+
+   --  d_V  Enable verification of the expanded code before calling the backend
+   --       and generate error messages on each inconsistency found.
 
    --  d1   Error messages have node numbers where possible. Normally error
    --       messages have only source locations. This option is useful when
@@ -868,6 +1052,9 @@ package body Debug is
    --       flag also suppresses the additional messages explaining why a
    --       non-static expression is non-static (see Sem_Eval.Why_Not_Static).
    --       This avoids having to worry about these messages in ACATS testing.
+   --       Finally, this flag is also used for strict legality check, in
+   --       particular it will generate an error instead a warning when
+   --       encountering an unknown pragma.
 
    --  d3   Causes Comperr to dump the contents of the node for which an abort
    --       was detected (normally only the Node_Id of the node is output).
@@ -929,7 +1116,11 @@ package body Debug is
    --       issues (e.g., assuming that a low bound of an array parameter
    --       of an unconstrained subtype belongs to the index subtype).
 
-   --  d.9  Enable build-in-place for function calls returning some nonlimited
+   --  d.8  By default calls to expression functions are always inlined.
+   --       This debug flag turns off this behavior, making them subject
+   --       to the usual inlining heuristics of the code generator.
+
+   --  d.9  Disable build-in-place for function calls returning nonlimited
    --       types.
 
    ------------------------------------------
@@ -954,11 +1145,10 @@ package body Debug is
    --      dependencies) except that internal units are included in the
    --      listing.
 
-   --  di  Normally gnatbind calls Read_Ali with Ignore_Errors set to
-   --      False, since the binder really needs correct version ALI
-   --      files to do its job. This debug flag causes Ignore_Errors
-   --      mode to be set for the binder (and is particularly useful
-   --      for testing ignore errors mode).
+   --  di  Normally GNATBIND calls Read_Ali with Ignore_Errors set to False,
+   --      since the binder really needs correct version ALI files to do its
+   --      job. This debug flag causes Ignore_Errors mode to be set for the
+   --      binder (and is particularly useful for testing ignore errors mode).
 
    --  dn  List details of manipulation of Num_Pred values during execution of
    --      the algorithm used to determine a correct order of elaboration. This
@@ -984,6 +1174,43 @@ package body Debug is
 
    --  dx  Force the binder to read (and then ignore) the xref information
    --      in ali files (used to check that read circuit is working OK).
+
+   --  d_a  GNATBIND ignores the effects of pragma Elaborate_All in the case of
+   --       elaboration order and treats the associated dependency as a regular
+   --       with edge.
+
+   --  d_b  GNATBIND ignores the effects of pragma Elaborate_Body in the case
+   --       of elaboration order and treats the spec and body as decoupled.
+
+   --  d_e  GNATBIND ignores the effects of pragma Elaborate in the case of
+   --       elaboration order and no longer creates an implicit dependency on
+   --       the body of the argument.
+
+   --  d_t  GNATBIND output trace information of cycle-detection activities to
+   --       standard output.
+
+   --  d_A  GNATBIND output the contents of all ALI invocation-related tables
+   --       in textual format to standard output.
+
+   --  d_C  GNATBIND diagnoses all unique cycles within the bind, rather than
+   --       just the most important one.
+
+   --  d_I  GNATBIND outputs the contents of the invocation graph in textual
+   --       format to standard output.
+
+   --  d_L  GNATBIND outputs the contents of the library graph in textual
+   --       format to standard output.
+
+   --  d_P  GNATBIND outputs the cycle paths to standard output
+
+   --  d_S  GNATBIND outputs trace information concerning the status of its
+   --       various phases to standard output.
+
+   --  d_T  GNATBIND outputs trace information of elaboration order detection
+   --       activities to standard output.
+
+   --  d_V  GNATBIND validates the invocation graph, library graph along with
+   --       its cycles, and the elaboration order.
 
    --------------------------------------------
    -- Documentation for gnatmake Debug Flags --

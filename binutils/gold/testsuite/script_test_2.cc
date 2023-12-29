@@ -1,6 +1,6 @@
 // script_test_2.cc -- linker script test 2 for gold  -*- C++ -*-
 
-// Copyright (C) 2008-2017 Free Software Foundation, Inc.
+// Copyright (C) 2008-2022 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -61,12 +61,12 @@ main(int, char**)
   assert(end_data == start_data + 15);
 
   // Check that FILL works as expected.
-  assert(start_fill == end_data);
+  assert(&start_fill[0] == &end_data[0]);
   assert(memcmp(start_fill, "\x12\x34\x56\x78\x12\x34\x56\0", 8) == 0);
   assert(end_fill == start_fill + 8);
 
-  assert(end_test_area == end_fill);
+  assert(&end_test_area[0] == &end_fill[0]);
 
-  assert(test_addr == start_test_area_1);
-  assert(test_addr_alias == test_addr);
+  assert(&test_addr[0] == &start_test_area_1[0]);
+  assert(&test_addr_alias[0] == &test_addr[0]);
 }

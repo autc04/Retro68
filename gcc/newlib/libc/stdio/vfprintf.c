@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -521,10 +517,7 @@ extern int _ldcheck (_LONG_DOUBLE *);
 
 #  define _PRINTF_FLOAT_TYPE _LONG_DOUBLE
 #  define _DTOA_R _ldtoa_r
-/* FIXME - frexpl is not yet supported; and cvt infloops if (double)f
-   converts a finite value into infinity.  */
-/* #  define FREXP frexpl */
-#  define FREXP(f,e) ((_LONG_DOUBLE) frexp ((double)f, e))
+#  define FREXP frexpl
 # endif /* !_NO_LONGDBL */
 
 static char *cvt(struct _reent *, _PRINTF_FLOAT_TYPE, int, int, char *, int *,

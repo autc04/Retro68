@@ -29,6 +29,6 @@ Disassembly of section .text:
  +[a-f0-9]+:	ff 93 ([0-9a-f]{2} ){4}[ 	]+call +\*-0x[0-9a-f]+\(%ebx\)
  +[a-f0-9]+:	83 c4 18             	add    \$0x18,%esp
  +[a-f0-9]+:	5b                   	pop    %ebx
- +[a-f0-9]+:	c3                   	ret    
+ +[a-f0-9]+:	c3                   	ret
  +[a-f0-9]+:	ff 93 ([0-9a-f]{2} ){4}[ 	]+call +\*-0x[0-9a-f]+\(%ebx\)
 #pass

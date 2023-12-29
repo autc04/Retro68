@@ -1,5 +1,5 @@
 /* Part of CPP library.
-   Copyright (C) 1997-2019 Free Software Foundation, Inc.
+   Copyright (C) 1997-2022 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -48,6 +48,8 @@ struct cset_converter
   convert_f func;
   iconv_t cd;
   int width;
+  const char* from;
+  const char* to;
 };
 
 #define BITS_PER_CPPCHAR_T (CHAR_BIT * sizeof (cppchar_t))
@@ -67,16 +69,12 @@ struct cset_converter
 #define CPP_BUF_COL(BUF) CPP_BUF_COLUMN(BUF, (BUF)->cur)
 
 #define CPP_INCREMENT_LINE(PFILE, COLS_HINT) do { \
-    const struct line_maps *line_table = PFILE->line_table; \
+    const class line_maps *line_table = PFILE->line_table; \
     const struct line_map_ordinary *map = \
       LINEMAPS_LAST_ORDINARY_MAP (line_table); \
     linenum_type line = SOURCE_LINE (map, line_table->highest_line); \
     linemap_line_start (PFILE->line_table, line + 1, COLS_HINT); \
   } while (0)
-
-/* Maximum nesting of cpp_buffers.  We use a static limit, partly for
-   efficiency, and partly to limit runaway recursion.  */
-#define CPP_STACK_MAX 200
 
 /* Host alignment handling.  */
 struct dummy
@@ -117,7 +115,23 @@ extern unsigned char *_cpp_unaligned_alloc (cpp_reader *, size_t);
 #define BUFF_LIMIT(BUFF) ((BUFF)->limit)
 
 /* #include types.  */
-enum include_type {IT_INCLUDE, IT_INCLUDE_NEXT, IT_IMPORT, IT_CMDLINE, IT_DEFAULT};
+enum include_type
+  {
+   /* Directive-based including mechanisms.  */
+   IT_INCLUDE,  /* #include */
+   IT_INCLUDE_NEXT,  /* #include_next */
+   IT_IMPORT,   /* #import  */
+
+   /* Non-directive including mechanisms.  */
+   IT_CMDLINE,  /* -include */
+   IT_DEFAULT,  /* forced header  */
+   IT_MAIN,     /* main, start on line 1 */
+   IT_PRE_MAIN,  /* main, but there will be a preamble before line
+		    1 */
+
+   IT_DIRECTIVE_HWM = IT_IMPORT + 1,  /* Directives below this.  */
+   IT_HEADER_HWM = IT_DEFAULT + 1     /* Header files below this.  */
+  };
 
 union utoken
 {
@@ -224,7 +238,8 @@ struct cpp_context
 
 struct lexer_state
 {
-  /* Nonzero if first token on line is CPP_HASH.  */
+  /* 1 if we're handling a directive.  2 if it's an include-like
+     directive.  */
   unsigned char in_directive;
 
   /* Nonzero if in a directive that will handle padding tokens itself.
@@ -257,9 +272,6 @@ struct lexer_state
   /* Nonzero when parsing arguments to a function-like macro.  */
   unsigned char parsing_args;
 
-  /* Nonzero if in a __has_include__ or __has_include_next__ statement.  */
-  unsigned char in__has_include__;
-
   /* Nonzero if prevent_expansion is true only because output is
      being discarded.  */
   unsigned char discarding_output;
@@ -267,11 +279,17 @@ struct lexer_state
   /* Nonzero to skip evaluating part of an expression.  */
   unsigned int skip_eval;
 
-  /* Nonzero when handling a deferred pragma.  */
+  /* Nonzero when tokenizing a deferred pragma.  */
   unsigned char in_deferred_pragma;
+
+  /* Count to token that is a header-name.  */
+  unsigned char directive_file_token;
 
   /* Nonzero if the deferred pragma being handled allows macro expansion.  */
   unsigned char pragma_allow_expansion;
+
+  /* Nonzero if _Pragma should not be interpreted.  */
+  unsigned char ignore__Pragma;
 };
 
 /* Special nodes - identifiers with predefined significance.  */
@@ -282,8 +300,12 @@ struct spec_nodes
   cpp_hashnode *n_false;		/* C++ keyword false */
   cpp_hashnode *n__VA_ARGS__;		/* C99 vararg macros */
   cpp_hashnode *n__VA_OPT__;		/* C++ vararg macros */
-  cpp_hashnode *n__has_include__;	/* __has_include__ operator */
-  cpp_hashnode *n__has_include_next__;	/* __has_include_next__ operator */
+
+  enum {M_EXPORT, M_MODULE, M_IMPORT, M__IMPORT, M_HWM};
+  
+  /* C++20 modules, only set when module_directives is in effect.
+     incoming variants [0], outgoing ones [1] */
+  cpp_hashnode *n_modules[M_HWM][2];
 };
 
 typedef struct _cpp_line_note _cpp_line_note;
@@ -331,23 +353,23 @@ struct cpp_buffer
   struct if_stack *if_stack;
 
   /* True if we need to get the next clean line.  */
-  bool need_line;
+  bool need_line : 1;
 
   /* True if we have already warned about C++ comments in this file.
      The warning happens only for C89 extended mode with -pedantic on,
      or for -Wtraditional, and only once per file (otherwise it would
      be far too noisy).  */
-  unsigned int warned_cplusplus_comments : 1;
+  bool warned_cplusplus_comments : 1;
 
   /* True if we don't process trigraphs and escaped newlines.  True
      for preprocessed input, command line directives, and _Pragma
      buffers.  */
-  unsigned int from_stage3 : 1;
+  bool from_stage3 : 1;
 
   /* At EOF, a buffer is automatically popped.  If RETURN_AT_EOF is
      true, a CPP_EOF token is then returned.  Otherwise, the next
      token from the enclosing buffer is returned.  */
-  unsigned int return_at_eof : 1;
+  bool return_at_eof : 1;
 
   /* One for a system header, two for a C system header file that therefore
      needs to be extern "C" protected in C++, and zero otherwise.  */
@@ -380,6 +402,8 @@ struct def_pragma_macro {
 
   /* Mark if we save an undefined macro.  */
   unsigned int is_undef : 1;
+  /* Nonzero if it was a builtin macro.  */
+  unsigned int is_builtin : 1;
 };
 
 /* A cpp_reader encapsulates the "state" of a pre-processor run.
@@ -397,7 +421,7 @@ struct cpp_reader
   struct lexer_state state;
 
   /* Source line tracking.  */
-  struct line_maps *line_table;
+  class line_maps *line_table;
 
   /* The line of the '#' of the current directive.  */
   location_t directive_line;
@@ -423,13 +447,13 @@ struct cpp_reader
 
   /* This is the node representing the macro being expanded at
      top-level.  The value of this data member is valid iff
-     in_macro_expansion_p() returns TRUE.  */
+     cpp_in_macro_expansion_p() returns TRUE.  */
   cpp_hashnode *top_most_macro_node;
 
   /* Nonzero if we are about to expand a macro.  Note that if we are
      really expanding a macro, the function macro_of_context returns
      the macro being expanded and this flag is set to false.  Client
-     code should use the function in_macro_expansion_p to know if we
+     code should use the function cpp_in_macro_expansion_p to know if we
      are either about to expand a macro, or are actually expanding
      one.  */
   bool about_to_expand_macro_p;
@@ -502,24 +526,23 @@ struct cpp_reader
   const unsigned char *date;
   const unsigned char *time;
 
-  /* Externally set timestamp to replace current date and time useful for
-     reproducibility.  It should be initialized to -2 (not yet set) and
-     set to -1 to disable it or to a non-negative value to enable it.  */
-  time_t source_date_epoch;
+  /* Time stamp, set idempotently lazily.  */
+  time_t time_stamp;
+  int time_stamp_kind; /* Or errno.  */
 
-  /* EOF token, and a token forcing paste avoidance.  */
+  /* A token forcing paste avoidance, and one demarking macro arguments.  */
   cpp_token avoid_paste;
-  cpp_token eof;
+  cpp_token endarg;
 
-  /* Opaque handle to the dependencies of mkdeps.c.  */
-  struct deps *deps;
+  /* Opaque handle to the dependencies of mkdeps.cc.  */
+  class mkdeps *deps;
 
   /* Obstack holding all macro hash nodes.  This never shrinks.
-     See identifiers.c */
+     See identifiers.cc */
   struct obstack hash_ob;
 
   /* Obstack holding buffer and conditional structures.  This is a
-     real stack.  See directives.c.  */
+     real stack.  See directives.cc.  */
   struct obstack buffer_ob;
 
   /* Pragma table - dynamic, because a library user can add to the
@@ -554,7 +577,7 @@ struct cpp_reader
     location_t first_line;
   } out;
 
-  /* Used for buffer overlays by traditional.c.  */
+  /* Used for buffer overlays by traditional.cc.  */
   const unsigned char *saved_cur, *saved_rlimit, *saved_line_base;
 
   /* A saved list of the defined macros, for dependency checking
@@ -573,6 +596,18 @@ struct cpp_reader
   /* If non-zero, the lexer will use this location for the next token
      instead of getting a location from the linemap.  */
   location_t forced_token_location;
+
+  /* Location identifying the main source file -- intended to be line
+     zero of said file.  */
+  location_t main_loc;
+
+  /* Returns true iff we should warn about UTF-8 bidirectional control
+     characters.  */
+  bool warn_bidi_p () const
+  {
+    return (CPP_OPTION (this, cpp_warn_bidirectional)
+	    & (bidirectional_unpaired|bidirectional_any));
+  }
 };
 
 /* Character classes.  Based on the more primitive macros in safe-ctype.h.
@@ -580,7 +615,7 @@ struct cpp_reader
    definition of a pp-number in the C standard [section 6.4.8 of C99].
 
    In the unlikely event that characters other than \r and \n enter
-   the set is_vspace, the macro handle_newline() in lex.c must be
+   the set is_vspace, the macro handle_newline() in lex.cc must be
    updated.  */
 #define _dollar_ok(x)	((x) == '$' && CPP_OPTION (pfile, dollars_in_ident))
 
@@ -610,30 +645,44 @@ typedef unsigned char uchar;
 
 #define UC (const uchar *)  /* Intended use: UC"string" */
 
-/* Macros.  */
+/* Accessors.  */
 
-static inline int cpp_in_system_header (cpp_reader *);
-static inline int
-cpp_in_system_header (cpp_reader *pfile)
+inline int
+_cpp_in_system_header (cpp_reader *pfile)
 {
   return pfile->buffer ? pfile->buffer->sysp : 0;
 }
 #define CPP_PEDANTIC(PF) CPP_OPTION (PF, cpp_pedantic)
 #define CPP_WTRADITIONAL(PF) CPP_OPTION (PF, cpp_warn_traditional)
 
-static inline int cpp_in_primary_file (cpp_reader *);
-static inline int
-cpp_in_primary_file (cpp_reader *pfile)
+/* Return true if we're in the main file (unless it's considered to be
+   an include file in its own right.  */
+inline int
+_cpp_in_main_source_file (cpp_reader *pfile)
 {
-  return pfile->line_table->depth == 1;
+  return (!CPP_OPTION (pfile, main_search)
+	  && pfile->buffer->file == pfile->main_file);
 }
 
-/* In macro.c */
-extern void _cpp_notify_macro_use (cpp_reader *pfile, cpp_hashnode *node);
-inline void _cpp_maybe_notify_macro_use (cpp_reader *pfile, cpp_hashnode *node)
+/* True if NODE is a macro for the purposes of ifdef, defined etc.  */
+inline bool _cpp_defined_macro_p (cpp_hashnode *node)
+{
+  /* Do not treat conditional macros as being defined.  This is due to
+     the powerpc port using conditional macros for 'vector', 'bool',
+     and 'pixel' to act as conditional keywords.  This messes up tests
+     like #ifndef bool.  */
+  return cpp_macro_p (node) && !(node->flags & NODE_CONDITIONAL);
+}
+
+/* In macro.cc */
+extern bool _cpp_notify_macro_use (cpp_reader *pfile, cpp_hashnode *node,
+				   location_t);
+inline bool _cpp_maybe_notify_macro_use (cpp_reader *pfile, cpp_hashnode *node,
+					 location_t loc)
 {
   if (!(node->flags & NODE_USED))
-    _cpp_notify_macro_use (pfile, node);
+    return _cpp_notify_macro_use (pfile, node, loc);
+  return true;
 }
 extern cpp_macro *_cpp_new_macro (cpp_reader *, cpp_macro_kind, void *);
 extern void _cpp_free_definition (cpp_hashnode *);
@@ -654,19 +703,21 @@ extern void _cpp_push_token_context (cpp_reader *, cpp_hashnode *,
 				     const cpp_token *, unsigned int);
 extern void _cpp_backup_tokens_direct (cpp_reader *, unsigned int);
 
-/* In identifiers.c */
+/* In identifiers.cc */
 extern void _cpp_init_hashtable (cpp_reader *, cpp_hash_table *);
 extern void _cpp_destroy_hashtable (cpp_reader *);
 
-/* In files.c */
-typedef struct _cpp_file _cpp_file;
+/* In files.cc */
+enum _cpp_find_file_kind
+  { _cpp_FFK_NORMAL, _cpp_FFK_FAKE, _cpp_FFK_PRE_INCLUDE, _cpp_FFK_HAS_INCLUDE };
 extern _cpp_file *_cpp_find_file (cpp_reader *, const char *, cpp_dir *,
-				  bool, int, bool, location_t);
+				  int angle, _cpp_find_file_kind, location_t);
 extern bool _cpp_find_failed (_cpp_file *);
 extern void _cpp_mark_file_once_only (cpp_reader *, struct _cpp_file *);
+extern const char *_cpp_find_header_unit (cpp_reader *, const char *file,
+					  bool angle_p,  location_t);
 extern void _cpp_fake_include (cpp_reader *, const char *);
-extern bool _cpp_stack_file (cpp_reader *, _cpp_file*, bool,
-			     location_t);
+extern bool _cpp_stack_file (cpp_reader *, _cpp_file*, include_type, location_t);
 extern bool _cpp_stack_include (cpp_reader *, const char *, int,
 				enum include_type, location_t);
 extern int _cpp_compare_file_date (cpp_reader *, const char *, int);
@@ -682,11 +733,11 @@ extern struct stat *_cpp_get_file_stat (_cpp_file *);
 extern bool _cpp_has_header (cpp_reader *, const char *, int,
 			     enum include_type);
 
-/* In expr.c */
+/* In expr.cc */
 extern bool _cpp_parse_expr (cpp_reader *, bool);
 extern struct op *_cpp_expand_op_stack (cpp_reader *);
 
-/* In lex.c */
+/* In lex.cc */
 extern void _cpp_process_line_notes (cpp_reader *, int);
 extern void _cpp_clean_line (cpp_reader *);
 extern bool _cpp_get_fresh_line (cpp_reader *);
@@ -709,13 +760,15 @@ static inline void *_cpp_reserve_room (cpp_reader *pfile, size_t have,
 }
 extern void *_cpp_commit_buff (cpp_reader *pfile, size_t size);
 
-/* In init.c.  */
+/* In init.cc.  */
 extern void _cpp_maybe_push_include_file (cpp_reader *);
 extern const char *cpp_named_operator2name (enum cpp_ttype type);
+extern void _cpp_restore_special_builtin (cpp_reader *pfile,
+					  struct def_pragma_macro *);
 
-/* In directives.c */
+/* In directives.cc */
 extern int _cpp_test_assertion (cpp_reader *, unsigned int *);
-extern int _cpp_handle_directive (cpp_reader *, int);
+extern int _cpp_handle_directive (cpp_reader *, bool);
 extern void _cpp_define_builtin (cpp_reader *, const char *);
 extern char ** _cpp_save_pragma_names (cpp_reader *);
 extern void _cpp_restore_pragma_names (cpp_reader *, char **);
@@ -727,18 +780,10 @@ extern void _cpp_do_file_change (cpp_reader *, enum lc_reason, const char *,
 extern void _cpp_pop_buffer (cpp_reader *);
 extern char *_cpp_bracket_include (cpp_reader *);
 
-/* In directives.c */
-struct _cpp_dir_only_callbacks
-{
-  /* Called to print a block of lines. */
-  void (*print_lines) (int, const void *, size_t);
-  bool (*maybe_print_line) (location_t);
-};
+/* In errors.cc  */
+extern location_t cpp_diagnostic_get_current_location (cpp_reader *);
 
-extern void _cpp_preprocess_dir_only (cpp_reader *,
-				      const struct _cpp_dir_only_callbacks *);
-
-/* In traditional.c.  */
+/* In traditional.cc.  */
 extern bool _cpp_scan_out_logical_line (cpp_reader *, cpp_macro *, bool);
 extern bool _cpp_read_logical_line_trad (cpp_reader *);
 extern void _cpp_overlay_buffer (cpp_reader *pfile, const unsigned char *,
@@ -751,7 +796,7 @@ extern unsigned char *_cpp_copy_replacement_text (const cpp_macro *,
 						  unsigned char *);
 extern size_t _cpp_replacement_text_len (const cpp_macro *);
 
-/* In charset.c.  */
+/* In charset.cc.  */
 
 /* The normalization state at this point in the sequence.
    It starts initialized to all zeros, and at the end
@@ -781,6 +826,14 @@ extern bool _cpp_valid_ucn (cpp_reader *, const unsigned char **,
 			    cppchar_t *,
 			    source_range *char_range,
 			    cpp_string_location_reader *loc_reader);
+
+extern bool _cpp_valid_utf8 (cpp_reader *pfile,
+			     const uchar **pstr,
+			     const uchar *limit,
+			     int identifier_pos,
+			     struct normalize_state *nst,
+			     cppchar_t *cp);
+
 extern void _cpp_destroy_iconv (cpp_reader *);
 extern unsigned char *_cpp_convert_input (cpp_reader *, const char *,
 					  unsigned char *, size_t, size_t,
@@ -848,29 +901,7 @@ ufputs (const unsigned char *s, FILE *f)
   return fputs ((const char *)s, f);
 }
 
-  /* In line-map.c.  */
-
-/* Create a macro map.  A macro map encodes source locations of tokens
-   that are part of a macro replacement-list, at a macro expansion
-   point. See the extensive comments of struct line_map and struct
-   line_map_macro, in line-map.h.
-
-   This map shall be created when the macro is expanded. The map
-   encodes the source location of the expansion point of the macro as
-   well as the "original" source location of each token that is part
-   of the macro replacement-list. If a macro is defined but never
-   expanded, it has no macro map.  SET is the set of maps the macro
-   map should be part of.  MACRO_NODE is the macro which the new macro
-   map should encode source locations for.  EXPANSION is the location
-   of the expansion point of MACRO. For function-like macros
-   invocations, it's best to make it point to the closing parenthesis
-   of the macro, rather than the the location of the first character
-   of the macro.  NUM_TOKENS is the number of tokens that are part of
-   the replacement-list of MACRO.  */
-const line_map_macro *linemap_enter_macro (struct line_maps *,
-					   struct cpp_hashnode*,
-					   location_t,
-					   unsigned int);
+/* In line-map.cc.  */
 
 /* Create and return a virtual location for a token that is part of a
    macro expansion-list at a macro expansion point.  See the comment
@@ -904,7 +935,7 @@ location_t linemap_add_macro_token (const line_map_macro *,
    LOCATION is the location of token that is part of the
    expansion-list of a macro expansion return the line number of the
    macro expansion point.  */
-int linemap_get_expansion_line (struct line_maps *,
+int linemap_get_expansion_line (class line_maps *,
 				location_t);
 
 /* Return the path of the file corresponding to source code location
@@ -915,8 +946,28 @@ int linemap_get_expansion_line (struct line_maps *,
    macro expansion point.
 
    SET is the line map set LOCATION comes from.  */
-const char* linemap_get_expansion_filename (struct line_maps *,
+const char* linemap_get_expansion_filename (class line_maps *,
 					    location_t);
+
+/* A subclass of rich_location for emitting a diagnostic
+   at the current location of the reader, but flagging
+   it with set_escape_on_output (true).  */
+class encoding_rich_location : public rich_location
+{
+ public:
+  encoding_rich_location (cpp_reader *pfile)
+  : rich_location (pfile->line_table,
+		   cpp_diagnostic_get_current_location (pfile))
+  {
+    set_escape_on_output (true);
+  }
+
+  encoding_rich_location (cpp_reader *pfile, location_t loc)
+  : rich_location (pfile->line_table, loc)
+  {
+    set_escape_on_output (true);
+  }
+};
 
 #ifdef __cplusplus
 }

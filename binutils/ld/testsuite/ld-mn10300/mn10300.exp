@@ -1,5 +1,5 @@
 # Expect script for ld-mn10300 tests
-#   Copyright (C) 2007-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2007-2022 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -126,7 +126,7 @@ set am33_tests {
 run_ld_link_tests $am33_tests
 
 proc i126256-test { } {
-    global CC
+    global CC_FOR_TARGET
     global ld
     global srcdir
     global subdir
@@ -134,28 +134,28 @@ proc i126256-test { } {
     set tmpdir tmpdir
     set testname "Seg fault whilst linking one shared library into another when relaxation is enabled."
 
-    if {![is_remote host] && [which $CC] == 0} then {
+    if { ![check_compiler_available] } then {
 	return
     }
 
-    if { ![ld_compile "$CC -mrelax -fPIC" $srcdir/$subdir/i126256-1.c $tmpdir/i126256-1.o] } {
-	unresolved $testname
-    	return
+    if { ![ld_compile "$CC_FOR_TARGET -mrelax -fPIC" $srcdir/$subdir/i126256-1.c $tmpdir/i126256-1.o] } {
+	unsupported $testname
+	return
     }
 
-    if { ![ld_compile "$CC -mrelax -fPIC" $srcdir/$subdir/i126256-2.c $tmpdir/i126256-2.o] } {
-	unresolved $testname
-    	return
+    if { ![ld_compile "$CC_FOR_TARGET -mrelax -fPIC" $srcdir/$subdir/i126256-2.c $tmpdir/i126256-2.o] } {
+	unsupported $testname
+	return
     }
     
     if { ![ld_link $ld $tmpdir/i126256-1.so "-shared $tmpdir/i126256-1.o -e 0"]} {
-        unresolved $testname
-    	return
+	fail $testname
+	return
     }
 
     if { ![ld_link $ld $tmpdir/i126256-2.so "--relax -shared $tmpdir/i126256-2.o $tmpdir/i126256-1.so -e 0"]} {
-        fail $testname
-    	return
+	fail $testname
+	return
     }
 
     pass $testname

@@ -3,4 +3,4 @@
 
 void foo()                                                                                                                              
 {                                                                                                                                       
-  if (struct A{}// { dg-error "types may not be defined|expected" }
+  if (struct A{}// { dg-error "" }

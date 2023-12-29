@@ -1,7 +1,8 @@
 // -*- C++ -*-
-// { dg-options "-std=gnu++17 -ltbb" }
+// { dg-options "-ltbb" }
 // { dg-do run { target c++17 } }
-// { dg-require-effective-target tbb-backend }
+// { dg-timeout-factor 3 }
+// { dg-require-effective-target tbb_backend }
 
 //===-- reduce.pass.cpp ---------------------------------------------------===//
 //
@@ -61,7 +62,7 @@ test_long_form(T init, BinaryOp binary_op, F f)
 struct test_two_short_forms
 {
 
-#if __PSTL_ICC_16_VC14_TEST_PAR_TBB_RT_RELEASE_64_BROKEN //dummy specialization by policy type, in case of broken configuration
+#if _PSTL_ICC_16_VC14_TEST_PAR_TBB_RT_RELEASE_64_BROKEN //dummy specialization by policy type, in case of broken configuration
     template <typename Iterator>
     void
     operator()(__pstl::execution::parallel_policy, Iterator first, Iterator last, Sum init, Sum expected)

@@ -14,9 +14,6 @@ This chapter describes a number of utility programs:
 
   * :ref:`The_File_Cleanup_Utility_gnatclean`
   * :ref:`The_GNAT_Library_Browser_gnatls`
-  * :ref:`The_Cross-Referencing_Tools_gnatxref_and_gnatfind`
-  * :ref:`The_Ada_to_HTML_Converter_gnathtml`
-  * :ref:`The_Ada-to-XML_Converter_gnat2xml`
   * :ref:`The_Coding_Standard_Verifier_gnatcheck`
   * :ref:`The_GNAT_Metrics_Tool_gnatmetric`
   * :ref:`The_GNAT_Pretty_Printer_gnatpp`
@@ -31,8 +28,6 @@ This chapter describes a number of utility programs:
 
   * :ref:`The_File_Cleanup_Utility_gnatclean`
   * :ref:`The_GNAT_Library_Browser_gnatls`
-  * :ref:`The_Cross-Referencing_Tools_gnatxref_and_gnatfind`
-  * :ref:`The_Ada_to_HTML_Converter_gnathtml`
 
 Other GNAT utilities are described elsewhere in this manual:
 
@@ -472,1299 +467,6 @@ building specialized scripts.
       /home/comar/local/adainclude/unchconv.ads
 
 
-.. _The_Cross-Referencing_Tools_gnatxref_and_gnatfind:
-
-The Cross-Referencing Tools ``gnatxref`` and ``gnatfind``
-=========================================================
-
-.. index:: ! gnatxref
-.. index:: ! gnatfind
-
-The compiler generates cross-referencing information (unless
-you set the :switch:`-gnatx` switch), which are saved in the :file:`.ali` files.
-This information indicates where in the source each entity is declared and
-referenced. Note that entities in package Standard are not included, but
-entities in all other predefined units are included in the output.
-
-Before using any of these two tools, you need to compile successfully your
-application, so that GNAT gets a chance to generate the cross-referencing
-information.
-
-The two tools ``gnatxref`` and ``gnatfind`` take advantage of this
-information to provide the user with the capability to easily locate the
-declaration and references to an entity. These tools are quite similar,
-the difference being that ``gnatfind`` is intended for locating
-definitions and/or references to a specified entity or entities, whereas
-``gnatxref`` is oriented to generating a full report of all
-cross-references.
-
-To use these tools, you must not compile your application using the
-:switch:`-gnatx` switch on the ``gnatmake`` command line
-(see :ref:`The_GNAT_Make_Program_gnatmake`). Otherwise, cross-referencing
-information will not be generated.
-
-.. _gnatxref_Switches:
-
-``gnatxref`` Switches
----------------------
-
-The command invocation for ``gnatxref`` is:
-
-  ::
-
-      $ gnatxref [ switches ] sourcefile1 [ sourcefile2 ... ]
-
-where
-
-``sourcefile1`` [, ``sourcefile2`` ...]
-  identify the source files for which a report is to be generated. The
-  ``with``\ ed units will be processed too. You must provide at least one file.
-
-  These file names are considered to be regular expressions, so for instance
-  specifying :file:`source\*.adb` is the same as giving every file in the current
-  directory whose name starts with :file:`source` and whose extension is
-  :file:`adb`.
-
-  You shouldn't specify any directory name, just base names. ``gnatxref``
-  and ``gnatfind`` will be able to locate these files by themselves using
-  the source path. If you specify directories, no result is produced.
-
-The following switches are available for ``gnatxref``:
-
-
-.. index:: --version (gnatxref)
-
-:switch:`--version`
-  Display copyright and version, then exit disregarding all other options.
-
-
-.. index:: --help (gnatxref)
-
-:switch:`--help`
-  If :switch:`--version` was not used, display usage, then exit disregarding
-  all other options.
-
-
-.. index:: -a (gnatxref)
-
-:switch:`-a`
-  If this switch is present, ``gnatfind`` and ``gnatxref`` will parse
-  the read-only files found in the library search path. Otherwise, these files
-  will be ignored. This option can be used to protect Gnat sources or your own
-  libraries from being parsed, thus making ``gnatfind`` and ``gnatxref``
-  much faster, and their output much smaller. Read-only here refers to access
-  or permissions status in the file system for the current user.
-
-
-.. index:: -aIDIR (gnatxref)
-
-:switch:`-aI{DIR}`
-  When looking for source files also look in directory DIR. The order in which
-  source file search is undertaken is the same as for ``gnatmake``.
-
-
-.. index:: -aODIR (gnatxref)
-
-:switch:`aO{DIR}`
-  When -searching for library and object files, look in directory
-  DIR. The order in which library files are searched is the same as for
-  ``gnatmake``.
-
-
-.. index:: -nostdinc (gnatxref)
-
-:switch:`-nostdinc`
-  Do not look for sources in the system default directory.
-
-
-.. index:: -nostdlib (gnatxref)
-
-:switch:`-nostdlib`
-  Do not look for library files in the system default directory.
-
-
-.. index:: --ext (gnatxref)
-
-:switch:`--ext={extension}`
-  Specify an alternate ali file extension. The default is ``ali`` and other
-  extensions (e.g. ``gli`` for C/C++ sources) may be specified via this switch.
-  Note that if this switch overrides the default, only the new extension will
-  be considered.
-
-
-.. index:: --RTS (gnatxref)
-
-:switch:`--RTS={rts-path}`
-  Specifies the default location of the runtime library. Same meaning as the
-  equivalent ``gnatmake`` flag (:ref:`Switches_for_gnatmake`).
-
-
-.. index:: -d (gnatxref)
-
-:switch:`-d`
-  If this switch is set ``gnatxref`` will output the parent type
-  reference for each matching derived types.
-
-
-.. index:: -f (gnatxref)
-
-:switch:`-f`
-  If this switch is set, the output file names will be preceded by their
-  directory (if the file was found in the search path). If this switch is
-  not set, the directory will not be printed.
-
-
-.. index:: -g (gnatxref)
-
-:switch:`-g`
-  If this switch is set, information is output only for library-level
-  entities, ignoring local entities. The use of this switch may accelerate
-  ``gnatfind`` and ``gnatxref``.
-
-
-.. index:: -IDIR (gnatxref)
-
-:switch:`-I{DIR}`
-  Equivalent to :switch:`-aODIR -aIDIR`.
-
-
-.. index:: -pFILE (gnatxref)
-
-:switch:`-p{FILE}`
-  Specify a configuration file to use to list the source and object directories.
-
-  If a file is specified, then the content of the source directory and object
-  directory lines are added as if they had been specified respectively
-  by :switch:`-aI` and :switch:`-aO`.
-
-  See :ref:`Configuration_Files_for_gnatxref_and_gnatfind` for the syntax
-  of this configuration file.
-
-:switch:`-u`
-  Output only unused symbols. This may be really useful if you give your
-  main compilation unit on the command line, as ``gnatxref`` will then
-  display every unused entity and 'with'ed package.
-
-:switch:`-v`
-  Instead of producing the default output, ``gnatxref`` will generate a
-  :file:`tags` file that can be used by vi. For examples how to use this
-  feature, see :ref:`Examples_of_gnatxref_Usage`. The tags file is output
-  to the standard output, thus you will have to redirect it to a file.
-
-All these switches may be in any order on the command line, and may even
-appear after the file names. They need not be separated by spaces, thus
-you can say ``gnatxref -ag`` instead of ``gnatxref -a -g``.
-
-.. _gnatfind_Switches:
-
-``gnatfind`` Switches
----------------------
-
-The command invocation for ``gnatfind`` is:
-
-  ::
-
-    $ gnatfind [ switches ]  pattern[:sourcefile[:line[:column]]]
-          [file1 file2 ...]
-
-with the following iterpretation of the command arguments:
-
-*pattern*
-  An entity will be output only if it matches the regular expression found
-  in *pattern*, see :ref:`Regular_Expressions_in_gnatfind_and_gnatxref`.
-
-  Omitting the pattern is equivalent to specifying ``*``, which
-  will match any entity. Note that if you do not provide a pattern, you
-  have to provide both a sourcefile and a line.
-
-  Entity names are given in Latin-1, with uppercase/lowercase equivalence
-  for matching purposes. At the current time there is no support for
-  8-bit codes other than Latin-1, or for wide characters in identifiers.
-
-*sourcefile*
-  ``gnatfind`` will look for references, bodies or declarations
-  of symbols referenced in :file:`sourcefile`, at line ``line``
-  and column ``column``. See :ref:`Examples_of_gnatfind_Usage`
-  for syntax examples.
-
-*line*
-  A decimal integer identifying the line number containing
-  the reference to the entity (or entities) to be located.
-
-
-*column*
-  A decimal integer identifying the exact location on the
-  line of the first character of the identifier for the
-  entity reference. Columns are numbered from 1.
-
-
-*file1 file2 ...*
-  The search will be restricted to these source files. If none are given, then
-  the search will be conducted for every library file in the search path.
-  These files must appear only after the pattern or sourcefile.
-
-  These file names are considered to be regular expressions, so for instance
-  specifying :file:`source\*.adb` is the same as giving every file in the current
-  directory whose name starts with :file:`source` and whose extension is
-  :file:`adb`.
-
-  The location of the spec of the entity will always be displayed, even if it
-  isn't in one of :file:`file1`, :file:`file2`, ... The
-  occurrences of the entity in the separate units of the ones given on the
-  command line will also be displayed.
-
-  Note that if you specify at least one file in this part, ``gnatfind`` may
-  sometimes not be able to find the body of the subprograms.
-
-At least one of 'sourcefile' or 'pattern' has to be present on
-the command line.
-
-The following switches are available:
-
-.. index:: --version (gnatfind)
-
-:switch:`--version`
-  Display copyright and version, then exit disregarding all other options.
-
-
-.. index:: --help (gnatfind)
-
-:switch:`--help`
-  If :switch:`--version` was not used, display usage, then exit disregarding
-  all other options.
-
-
-.. index:: -a (gnatfind)
-
-:switch:`-a`
-  If this switch is present, ``gnatfind`` and ``gnatxref`` will parse
-  the read-only files found in the library search path. Otherwise, these files
-  will be ignored. This option can be used to protect Gnat sources or your own
-  libraries from being parsed, thus making ``gnatfind`` and ``gnatxref``
-  much faster, and their output much smaller. Read-only here refers to access
-  or permission status in the file system for the current user.
-
-
-.. index:: -aIDIR (gnatfind)
-
-:switch:`-aI{DIR}`
-  When looking for source files also look in directory DIR. The order in which
-  source file search is undertaken is the same as for ``gnatmake``.
-
-
-.. index:: -aODIR (gnatfind)
-
-:switch:`-aO{DIR}`
-  When searching for library and object files, look in directory
-  DIR. The order in which library files are searched is the same as for
-  ``gnatmake``.
-
-
-.. index:: -nostdinc (gnatfind)
-
-:switch:`-nostdinc`
-  Do not look for sources in the system default directory.
-
-
-.. index:: -nostdlib (gnatfind)
-
-:switch:`-nostdlib`
-  Do not look for library files in the system default directory.
-
-
-.. index:: --ext (gnatfind)
-
-:switch:`--ext={extension}`
-  Specify an alternate ali file extension. The default is ``ali`` and other
-  extensions may be specified via this switch. Note that if this switch
-  overrides the default, only the new extension will be considered.
-
-
-.. index:: --RTS (gnatfind)
-
-:switch:`--RTS={rts-path}`
-  Specifies the default location of the runtime library. Same meaning as the
-  equivalent ``gnatmake`` flag (:ref:`Switches_for_gnatmake`).
-
-
-.. index:: -d (gnatfind)
-
-:switch:`-d`
-  If this switch is set, then ``gnatfind`` will output the parent type
-  reference for each matching derived types.
-
-
-.. index:: -e (gnatfind)
-
-:switch:`-e`
-  By default, ``gnatfind`` accept the simple regular expression set for
-  ``pattern``. If this switch is set, then the pattern will be
-  considered as full Unix-style regular expression.
-
-
-.. index:: -f (gnatfind)
-
-:switch:`-f`
-  If this switch is set, the output file names will be preceded by their
-  directory (if the file was found in the search path). If this switch is
-  not set, the directory will not be printed.
-
-
-.. index:: -g (gnatfind)
-
-:switch:`-g`
-  If this switch is set, information is output only for library-level
-  entities, ignoring local entities. The use of this switch may accelerate
-  ``gnatfind`` and ``gnatxref``.
-
-
-.. index:: -IDIR (gnatfind)
-
-:switch:`-I{DIR}`
-  Equivalent to :switch:`-aODIR -aIDIR`.
-
-
-.. index:: -pFILE (gnatfind)
-
-:switch:`-p{FILE}`
-  Specify a configuration file to use to list the source and object directories.
-
-  If a file is specified, then the content of the source directory and object
-  directory lines are added as if they had been specified respectively
-  by :switch:`-aI` and :switch:`-aO`.
-
-  See :ref:`Configuration_Files_for_gnatxref_and_gnatfind` for the syntax
-  of this configuration file.
-
-.. index:: -r (gnatfind)
-
-:switch:`-r`
-  By default, ``gnatfind`` will output only the information about the
-  declaration, body or type completion of the entities. If this switch is
-  set, the ``gnatfind`` will locate every reference to the entities in
-  the files specified on the command line (or in every file in the search
-  path if no file is given on the command line).
-
-
-.. index:: -s (gnatfind)
-
-:switch:`-s`
-  If this switch is set, then ``gnatfind`` will output the content
-  of the Ada source file lines were the entity was found.
-
-
-.. index:: -t (gnatfind)
-
-:switch:`-t`
-  If this switch is set, then ``gnatfind`` will output the type hierarchy for
-  the specified type. It act like -d option but recursively from parent
-  type to parent type. When this switch is set it is not possible to
-  specify more than one file.
-
-
-All these switches may be in any order on the command line, and may even
-appear after the file names. They need not be separated by spaces, thus
-you can say ``gnatxref -ag`` instead of
-``gnatxref -a -g``.
-
-As stated previously, ``gnatfind`` will search in every directory in the
-search path. You can force it to look only in the current directory if
-you specify ``*`` at the end of the command line.
-
-.. _Configuration_Files_for_gnatxref_and_gnatfind:
-
-Configuration Files for ``gnatxref`` and ``gnatfind``
------------------------------------------------------
-
-Configuration files are used by ``gnatxref`` and ``gnatfind`` to specify
-the list of source and object directories to consider. They can be
-specified via the :switch:`-p` switch.
-
-The following lines can be included, in any order in the file:
-
-* *src_dir=DIR*
-    [default: ``"./"``].
-    Specifies a directory where to look for source files. Multiple ``src_dir``
-    lines can be specified and they will be searched in the order they
-    are specified.
-
-* *obj_dir=DIR*
-    [default: ``"./"``].
-    Specifies a directory where to look for object and library files. Multiple
-    ``obj_dir`` lines can be specified, and they will be searched in the order
-    they are specified
-
-Any other line will be silently ignored.
-
-.. _Regular_Expressions_in_gnatfind_and_gnatxref:
-
-Regular Expressions in ``gnatfind`` and ``gnatxref``
-----------------------------------------------------
-
-As specified in the section about ``gnatfind``, the pattern can be a
-regular expression. Two kinds of regular expressions
-are recognized:
-
-* *Globbing pattern*
-    These are the most common regular expression. They are the same as are
-    generally used in a Unix shell command line, or in a DOS session.
-
-    Here is a more formal grammar:
-
-    ::
-
-        regexp ::= term
-        term   ::= elmt            -- matches elmt
-        term   ::= elmt elmt       -- concatenation (elmt then elmt)
-        term   ::= *               -- any string of 0 or more characters
-        term   ::= ?               -- matches any character
-        term   ::= [char {char}]   -- matches any character listed
-        term   ::= [char - char]   -- matches any character in range
-
-* *Full regular expression*
-    The second set of regular expressions is much more powerful. This is the
-    type of regular expressions recognized by utilities such as ``grep``.
-
-    The following is the form of a regular expression, expressed in same BNF
-    style as is found in the Ada Reference Manual:
-
-    ::
-
-        regexp ::= term {| term}   -- alternation (term or term ...)
-
-        term ::= item {item}       -- concatenation (item then item)
-
-        item ::= elmt              -- match elmt
-        item ::= elmt *            -- zero or more elmt's
-        item ::= elmt +            -- one or more elmt's
-        item ::= elmt ?            -- matches elmt or nothing
-
-        elmt ::= nschar            -- matches given character
-        elmt ::= [nschar {nschar}]   -- matches any character listed
-        elmt ::= [^ nschar {nschar}] -- matches any character not listed
-        elmt ::= [char - char]     -- matches chars in given range
-        elmt ::= \\ char            -- matches given character
-        elmt ::= .                 -- matches any single character
-        elmt ::= ( regexp )        -- parens used for grouping
-
-        char ::= any character, including special characters
-        nschar ::= any character except ()[].*+?^
-
-    Here are a few examples:
-
-      ``abcde|fghi``
-          will match any of the two strings ``abcde`` and ``fghi``,
-
-      ``abc*d``
-          will match any string like ``abd``, ``abcd``, ``abccd``,
-          ``abcccd``, and so on,
-
-      ``[a-z]+``
-          will match any string which has only lowercase characters in it (and at
-          least one character.
-
-
-.. _Examples_of_gnatxref_Usage:
-
-Examples of ``gnatxref`` Usage
-------------------------------
-
-General Usage
-^^^^^^^^^^^^^
-
-For the following examples, we will consider the following units:
-
-  .. code-block:: ada
-
-     main.ads:
-     1: with Bar;
-     2: package Main is
-     3:     procedure Foo (B : in Integer);
-     4:     C : Integer;
-     5: private
-     6:     D : Integer;
-     7: end Main;
-
-     main.adb:
-     1: package body Main is
-     2:     procedure Foo (B : in Integer) is
-     3:     begin
-     4:        C := B;
-     5:        D := B;
-     6:        Bar.Print (B);
-     7:        Bar.Print (C);
-     8:     end Foo;
-     9: end Main;
-
-     bar.ads:
-     1: package Bar is
-     2:     procedure Print (B : Integer);
-     3: end bar;
-
-The first thing to do is to recompile your application (for instance, in
-that case just by doing a ``gnatmake main``, so that GNAT generates
-the cross-referencing information.
-You can then issue any of the following commands:
-
-  * ``gnatxref main.adb``
-    ``gnatxref`` generates cross-reference information for main.adb
-    and every unit 'with'ed by main.adb.
-
-    The output would be:
-
-      ::
-
-          B                                                      Type: Integer
-            Decl: bar.ads           2:22
-          B                                                      Type: Integer
-            Decl: main.ads          3:20
-            Body: main.adb          2:20
-            Ref:  main.adb          4:13     5:13     6:19
-          Bar                                                    Type: Unit
-            Decl: bar.ads           1:9
-            Ref:  main.adb          6:8      7:8
-                 main.ads           1:6
-          C                                                      Type: Integer
-            Decl: main.ads          4:5
-            Modi: main.adb          4:8
-            Ref:  main.adb          7:19
-          D                                                      Type: Integer
-            Decl: main.ads          6:5
-            Modi: main.adb          5:8
-          Foo                                                    Type: Unit
-            Decl: main.ads          3:15
-            Body: main.adb          2:15
-          Main                                                    Type: Unit
-            Decl: main.ads          2:9
-            Body: main.adb          1:14
-          Print                                                   Type: Unit
-            Decl: bar.ads           2:15
-            Ref:  main.adb          6:12     7:12
-
-
-    This shows that the entity ``Main`` is declared in main.ads, line 2, column 9,
-    its body is in main.adb, line 1, column 14 and is not referenced any where.
-
-    The entity ``Print`` is declared in :file:`bar.ads`, line 2, column 15 and it
-    is referenced in :file:`main.adb`, line 6 column 12 and line 7 column 12.
-
-
-  * ``gnatxref package1.adb package2.ads``
-    ``gnatxref`` will generates cross-reference information for
-    :file:`package1.adb`, :file:`package2.ads` and any other package ``with``\ ed by any
-    of these.
-
-
-Using ``gnatxref`` with ``vi``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-``gnatxref`` can generate a tags file output, which can be used
-directly from ``vi``. Note that the standard version of ``vi``
-will not work properly with overloaded symbols. Consider using another
-free implementation of ``vi``, such as ``vim``.
-
-  ::
-
-     $ gnatxref -v gnatfind.adb > tags
-
-
-The following command will generate the tags file for ``gnatfind`` itself
-(if the sources are in the search path!):
-
-  ::
-
-     $ gnatxref -v gnatfind.adb > tags
-
-From ``vi``, you can then use the command :samp:`:tag {entity}`
-(replacing ``entity`` by whatever you are looking for), and vi will
-display a new file with the corresponding declaration of entity.
-
-
-.. _Examples_of_gnatfind_Usage:
-
-Examples of ``gnatfind`` Usage
-------------------------------
-
-* ``gnatfind -f xyz:main.adb``
-  Find declarations for all entities xyz referenced at least once in
-  main.adb. The references are search in every library file in the search
-  path.
-
-  The directories will be printed as well (as the ``-f``
-  switch is set)
-
-  The output will look like:
-
-    ::
-
-       directory/main.ads:106:14: xyz <= declaration
-       directory/main.adb:24:10: xyz <= body
-       directory/foo.ads:45:23: xyz <= declaration
-
-  I.e., one of the entities xyz found in main.adb is declared at
-  line 12 of main.ads (and its body is in main.adb), and another one is
-  declared at line 45 of foo.ads
-
-* ``gnatfind -fs xyz:main.adb``
-  This is the same command as the previous one, but ``gnatfind`` will
-  display the content of the Ada source file lines.
-
-  The output will look like:
-
-  ::
-
-      directory/main.ads:106:14: xyz <= declaration
-         procedure xyz;
-      directory/main.adb:24:10: xyz <= body
-         procedure xyz is
-      directory/foo.ads:45:23: xyz <= declaration
-         xyz : Integer;
-
-  This can make it easier to find exactly the location your are looking
-  for.
-
-
-* ``gnatfind -r "*x*":main.ads:123 foo.adb``
-  Find references to all entities containing an x that are
-  referenced on line 123 of main.ads.
-  The references will be searched only in main.ads and foo.adb.
-
-
-* ``gnatfind main.ads:123``
-  Find declarations and bodies for all entities that are referenced on
-  line 123 of main.ads.
-
-  This is the same as ``gnatfind "*":main.adb:123```
-
-* ``gnatfind mydir/main.adb:123:45``
-  Find the declaration for the entity referenced at column 45 in
-  line 123 of file main.adb in directory mydir. Note that it
-  is usual to omit the identifier name when the column is given,
-  since the column position identifies a unique reference.
-
-  The column has to be the beginning of the identifier, and should not
-  point to any character in the middle of the identifier.
-
-
-.. _The_Ada_to_HTML_Converter_gnathtml:
-
-The Ada to HTML Converter ``gnathtml``
-======================================
-
-.. index:: ! gnathtml
-
-``gnathtml`` is a Perl script that allows Ada source files to be browsed using
-standard Web browsers. For installation information, see :ref:`Installing_gnathtml`.
-
-Ada reserved keywords are highlighted in a bold font and Ada comments in
-a blue font. Unless your program was compiled with the gcc :switch:`-gnatx`
-switch to suppress the generation of cross-referencing information, user
-defined variables and types will appear in a different color; you will
-be able to click on any identifier and go to its declaration.
-
-.. _Invoking_gnathtml:
-
-Invoking ``gnathtml``
----------------------
-
-The command line is as follows:
-
-  ::
-
-      $ perl gnathtml.pl [ switches ] ada-files
-
-You can specify as many Ada files as you want. ``gnathtml`` will generate
-an html file for every ada file, and a global file called :file:`index.htm`.
-This file is an index of every identifier defined in the files.
-
-The following switches are available:
-
-.. index:: -83 (gnathtml)
-
-:samp:`83`
-  Only the Ada 83 subset of keywords will be highlighted.
-
-.. index:: -cc (gnathtml)
-
-:samp:`cc {color}`
-  This option allows you to change the color used for comments. The default
-  value is green. The color argument can be any name accepted by html.
-
-.. index:: -d (gnathtml)
-
-:samp:`d`
-  If the Ada files depend on some other files (for instance through
-  ``with`` clauses, the latter files will also be converted to html.
-  Only the files in the user project will be converted to html, not the files
-  in the run-time library itself.
-
-.. index:: -D (gnathtml)
-
-:samp:`D`
-  This command is the same as :switch:`-d` above, but ``gnathtml`` will
-  also look for files in the run-time library, and generate html files for them.
-
-.. index:: -ext (gnathtml)
-
-:samp:`ext {extension}`
-  This option allows you to change the extension of the generated HTML files.
-  If you do not specify an extension, it will default to :file:`htm`.
-
-.. index:: -f (gnathtml)
-
-:samp:`f`
-  By default, gnathtml will generate html links only for global entities
-  ('with'ed units, global variables and types,...).  If you specify
-  :switch:`-f` on the command line, then links will be generated for local
-  entities too.
-
-.. index:: -l (gnathtml)
-
-:samp:`l {number}`
-  If this switch is provided and ``number`` is not 0, then
-  ``gnathtml`` will number the html files every ``number`` line.
-
-.. index:: -I (gnathtml)
-
-:samp:`I {dir}`
-  Specify a directory to search for library files (:file:`.ALI` files) and
-  source files. You can provide several -I switches on the command line,
-  and the directories will be parsed in the order of the command line.
-
-.. index:: -o (gnathtml)
-
-:samp:`o {dir}`
-  Specify the output directory for html files. By default, gnathtml will
-  saved the generated html files in a subdirectory named :file:`html/`.
-
-.. index:: -p (gnathtml)
-
-:samp:`p {file}`
-  If you are using Emacs and the most recent Emacs Ada mode, which provides
-  a full Integrated Development Environment for compiling, checking,
-  running and debugging applications, you may use :file:`.gpr` files
-  to give the directories where Emacs can find sources and object files.
-
-  Using this switch, you can tell gnathtml to use these files.
-  This allows you to get an html version of your application, even if it
-  is spread over multiple directories.
-
-.. index:: -sc (gnathtml)
-
-:samp:`sc {color}`
-  This switch allows you to change the color used for symbol
-  definitions.
-  The default value is red. The color argument can be any name accepted by html.
-
-.. index:: -t (gnathtml)
-
-:samp:`t {file}`
-  This switch provides the name of a file. This file contains a list of
-  file names to be converted, and the effect is exactly as though they had
-  appeared explicitly on the command line. This
-  is the recommended way to work around the command line length limit on some
-  systems.
-
-.. _Installing_gnathtml:
-
-Installing ``gnathtml``
------------------------
-
-``Perl`` needs to be installed on your machine to run this script.
-``Perl`` is freely available for almost every architecture and
-operating system via the Internet.
-
-On Unix systems, you  may want to modify  the  first line of  the script
-``gnathtml``,  to explicitly  specify  where Perl
-is located. The syntax of this line is:
-
-  ::
-
-     #!full_path_name_to_perl
-
-Alternatively, you may run the script using the following command line:
-
-  ::
-
-     $ perl gnathtml.pl [ switches ] files
-
-
-
-
-.. -- +---------------------------------------------------------------------+
-.. -- | The following sections are present only in the PRO and GPL editions |
-.. -- +---------------------------------------------------------------------+
-
-.. only:: PRO or GPL
-
-  .. _The_Ada-to-XML_converter_gnat2xml:
-
-  The Ada-to-XML converter ``gnat2xml``
-  =====================================
-
-  .. index:: ! gnat2xml
-  .. index:: XML generation
-
-  The ``gnat2xml`` tool is an ASIS-based utility that converts
-  Ada source code into XML.
-
-  ``gnat2xml`` is a project-aware tool
-  (see :ref:`Using_Project_Files_with_GNAT_Tools` for a description of
-  the project-related switches).  The project file package that can specify
-  ``gnat2xml`` switches is named ``gnat2xml``.
-
-  .. _Switches_for_``gnat2xml``:
-
-  Switches for ``gnat2xml``
-  -------------------------
-
-  ``gnat2xml`` takes Ada source code as input, and produces XML
-  that conforms to the schema.
-
-  Usage:
-
-    ::
-
-       $ gnat2xml [options] filenames [-files filename] [-cargs gcc_switches]
-
-  Options:
-
-     :switch:`--help`
-          Generate usage information and quit, ignoring all other options
-
-     :switch:`-h`
-          Same as ``--help``
-
-     :switch:`--version`
-          Print version and quit, ignoring all other options
-
-     :switch:`-P{file}`
-          indicates the name of the project file that describes
-          the set of sources to be processed. The exact set of argument
-          sources depends on other options specified, see below.
-
-     :switch:`-U`
-          If a project file is specified and no argument source is explicitly
-          specified, process all the units of the closure of the argument project.
-          Otherwise this option has no effect.
-
-     :switch:`-U {main_unit}`
-          If a project file is specified and no argument source
-          is explicitly specified (either directly or by means of :switch:`-files`
-          option), process the closure of units rooted at ``main_unit``.
-          Otherwise this option has no effect.
-
-     :switch:`-X{name}={value}`
-          Indicates that external variable ``name`` in
-          the argument project has the value ``value``. Has no effect if no
-          project is specified.
-
-     :switch:`--RTS={rts-path}`
-          Specifies the default location of the runtime
-          library. Same meaning as the equivalent ``gnatmake`` flag
-          (:ref:`Switches_for_gnatmake`).
-
-     :switch:`--incremental`
-          Incremental processing on a per-file basis. Source files are
-          only processed if they have been modified, or if files they depend
-          on have been modified. This is similar to the way gnatmake/gprbuild
-          only compiles files that need to be recompiled. A project file
-          is required in this mode.
-
-     :switch:`-j{n}`
-           In :switch:`--incremental` mode, use ``n`` ``gnat2xml``
-           processes to perform XML generation in parallel. If ``n`` is 0, then
-           the maximum number of parallel tree creations is the number of core
-           processors on the platform.
-
-     :switch:`--output-dir={dir}`
-          Generate one .xml file for each Ada source file, in
-          directory :file:`dir`. (Default is to generate the XML to standard
-          output.)
-
-     :switch:`-I{include-dir}`
-          Directories to search for dependencies.
-          You can also set the ADA_INCLUDE_PATH environment variable for this.
-
-     :switch:`--compact`
-          Debugging version, with interspersed source, and a more
-          compact representation of "sloc". This version does not conform
-          to any schema.
-
-     :switch:`--rep-clauses`
-          generate representation clauses (see :ref:`Generating_Representation_Clauses`).
-
-     :switch:`-files={filename}`
-         Take as arguments the files listed in text file ``file``.
-         Text file ``file`` may contain empty lines that are ignored.
-         Each nonempty line should contain the name of an existing file.
-         Several such switches may be specified simultaneously.
-
-     :switch:`--ignore={filename}`
-         Do not process the sources listed in a specified file. This option cannot
-         be used in incremental mode.
-
-     :switch:`-q`
-         Quiet
-
-     :switch:`-v`
-         Verbose
-
-     :switch:`-cargs` ...
-         Options to pass to gcc
-
-  If a project file is specified and no argument source is explicitly
-  specified, and no :switch:`-U` is specified, then the set of processed
-  sources is all the immediate units of the argument project.
-
-  Example:
-
-    ::
-
-       $ gnat2xml -v -output-dir=xml-files *.ad[sb]
-
-  The above will create \*.xml files in the :file:`xml-files` subdirectory.
-  For example, if there is an Ada package Mumble.Dumble, whose spec and
-  body source code lives in mumble-dumble.ads and mumble-dumble.adb,
-  the above will produce xml-files/mumble-dumble.ads.xml and
-  xml-files/mumble-dumble.adb.xml.
-
-  .. _Other_Programs:
-
-  Other Programs
-  --------------
-
-  The distribution includes two other programs that are related to
-  ``gnat2xml``:
-
-  ``gnat2xsd`` is the schema generator, which generates the schema
-  to standard output, based on the structure of Ada as encoded by
-  ASIS. You don't need to run ``gnat2xsd`` in order to use
-  ``gnat2xml``. To generate the schema, type:
-
-
-    ::
-
-        $ gnat2xsd > ada-schema.xsd
-
-
-  ``gnat2xml`` generates XML files that will validate against
-  :file:`ada-schema.xsd`.
-
-  ``xml2gnat`` is a back-translator that translates the XML back into
-  Ada source code. This is primarily for the purpose of testing
-  ``gnat2xml``, rather than for users. The Ada generated by ``xml2gnat``
-  has identical semantics to the original Ada code passed to
-  ``gnat2xml``. It is not textually identical, however --- for example,
-  no attempt is made to preserve the original indentation.
-
-  The ``xml2gnat`` command line contains a list of the same Ada files
-  passed to gnat2xml (not the names of xml files). The xml files are
-  assumed to be in an 'xml' subdirectory of the directory in which the
-  Ada source files are. So for example, if the Ada source file is
-  some/dir/mumble.adb, then the xml file is found in
-  some/dir/xml/mumble.adb.xml. You should use the :switch:`--output-dir`
-  switch of ``gnat2xml`` to tell it to generate the output in the xml
-  subdirectory, so ``xml2gnat`` can find it.
-
-  Output goes into subdirectories "generated_ada" and "self_rep" of the
-  output directory, which is the current directory by default, but can
-  be overridden with --output-dir=dir on the command line.
-
-  .. _Structure_of_the_XML:
-
-  Structure of the XML
-  --------------------
-
-  The primary documentation for the structure of the XML generated by
-  ``gnat2xml`` is the schema (see ``gnat2xsd`` above). The
-  following documentation gives additional details needed to understand
-  the schema and therefore the XML.
-
-  The elements listed under Defining Occurrences, Usage Occurrences, and
-  Other Elements represent the syntactic structure of the Ada program.
-  Element names are given in lower case, with the corresponding element
-  type Capitalized_Like_This. The element and element type names are
-  derived directly from the ASIS enumeration type Flat_Element_Kinds,
-  declared in Asis.Extensions.Flat_Kinds, with the leading ``An_`` or ``A_``
-  removed. For example, the ASIS enumeration literal
-  An_Assignment_Statement corresponds to the XML element
-  assignment_statement of XML type Assignment_Statement.
-
-  To understand the details of the schema and the corresponding XML, it is
-  necessary to understand the ASIS standard, as well as the GNAT-specific
-  extension to ASIS.
-
-  A defining occurrence is an identifier (or character literal or operator
-  symbol) declared by a declaration. A usage occurrence is an identifier
-  (or ...) that references such a declared entity. For example, in:
-
-
-    .. code-block:: ada
-
-       type T is range 1..10;
-       X, Y : constant T := 1;
-
-
-  The first 'T' is the defining occurrence of a type. The 'X' is the
-  defining occurrence of a constant, as is the 'Y', and the second 'T' is
-  a usage occurrence referring to the defining occurrence of T.
-
-  Each element has a 'sloc' (source location), and subelements for each
-  syntactic subtree, reflecting the Ada grammar as implemented by ASIS.
-  The types of subelements are as defined in the ASIS standard. For
-  example, for the right-hand side of an assignment_statement we have
-  the following comment in asis-statements.ads:
-
-    .. code-block:: ada
-
-        ------------------------------------------------------------------------------
-        --  18.3  function Assignment_Expression
-        ------------------------------------------------------------------------------
-
-           function Assignment_Expression
-             (Statement : Asis.Statement)
-              return      Asis.Expression;
-
-        ------------------------------------------------------------------------------
-        ...
-        --  Returns the expression from the right hand side of the assignment.
-        ...
-        --  Returns Element_Kinds:
-        --       An_Expression
-
-
-  The corresponding sub-element of type Assignment_Statement is:
-
-    ::
-
-        <xsd:element name="assignment_expression_q" type="Expression_Class"/>
-
-  where Expression_Class is defined by an xsd:choice of all the
-  various kinds of expression.
-
-  The 'sloc' of each element indicates the starting and ending line and
-  column numbers. Column numbers are character counts; that is, a tab
-  counts as 1, not as however many spaces it might expand to.
-
-  Subelements of type Element have names ending in '_q' (for ASIS
-  "Query"), and those of type Element_List end in '_ql'
-  ("Query returning  List").
-
-  Some subelements are 'Boolean'. For example, Private_Type_Definition
-  has has_abstract_q and has_limited_q, to indicate whether those
-  keywords are present, as in ``type T is abstract limited private;``.
-  False is represented by a Nil_Element. True is represented
-  by an element type specific to that query (for example, Abstract and
-  Limited).
-
-  The root of the tree is a Compilation_Unit, with attributes:
-
-  * unit_kind, unit_class, and unit_origin. These are strings that match the
-    enumeration literals of types Unit_Kinds, Unit_Classes, and Unit_Origins
-    in package Asis.
-
-  * unit_full_name is the full expanded name of the unit, starting from a
-    root library unit. So for ``package P.Q.R is ...``,
-    ``unit_full_name="P.Q.R"``. Same for ``separate (P.Q) package R is ...``.
-
-  * def_name is the same as unit_full_name for library units; for subunits,
-    it is just the simple name.
-
-  * source_file is the name of the Ada source file. For example, for
-    the spec of ``P.Q.R``, ``source_file="p-q-r.ads"``. This allows one to
-    interpret the source locations --- the 'sloc' of all elements
-    within this Compilation_Unit refers to line and column numbers
-    within the named file.
-
-  Defining occurrences have these attributes:
-
-  * def_name is the simple name of the declared entity, as written in the Ada
-    source code.
-
-  * def is a unique URI of the form:
-
-    ::
-
-        ada://kind/fully/qualified/name
-
-    where:
-
-    * kind indicates the kind of Ada entity being declared (see below), and
-
-    * fully/qualified/name, is the fully qualified name of the Ada
-      entity, with each of 'fully', 'qualified', and 'name' being
-      mangled for uniqueness. We do not document the mangling
-      algorithm, which is subject to change; we just guarantee that the
-      names are unique in the face of overloading.
-
-    * type is the type of the declared object, or ``null`` for
-      declarations of things other than objects.
-
-  Usage occurrences have these attributes:
-
-  * ref_name is the same as the def_name of the corresponding defining
-    occurrence. This attribute is not of much use, because of
-    overloading; use ref for lookups, instead.
-
-  * ref is the same as the def of the corresponding defining
-    occurrence.
-
-  In summary, ``def_name`` and ``ref_name`` are as in the source
-  code of the declaration, possibly overloaded, whereas ``def`` and
-  ``ref`` are unique-ified.
-
-  Literal elements have this attribute:
-
-  * lit_val is the value of the literal as written in the source text,
-    appropriately escaped (e.g. ``"`` |rightarrow| ``&quot;``). This applies
-    only to numeric and string literals. Enumeration literals in Ada are
-    not really "literals" in the usual sense; they are usage occurrences,
-    and have ref_name and ref as described above. Note also that string
-    literals used as operator symbols are treated as defining or usage
-    occurrences, not as literals.
-
-  Elements that can syntactically represent names and expressions (which
-  includes usage occurrences, plus function calls and so forth) have this
-  attribute:
-
-  * type. If the element represents an expression or the name of an object,
-    'type' is the 'def' for the defining occurrence of the type of that
-    expression or name. Names of other kinds of entities, such as package
-    names and type names, do not have a type in Ada; these have type="null"
-    in the XML.
-
-  Pragma elements have this attribute:
-
-  *  pragma_name is the name of the pragma. For language-defined pragmas, the
-     pragma name is redundant with the element kind (for example, an
-     assert_pragma element necessarily has pragma_name="Assert"). However, all
-     implementation-defined pragmas are lumped together in ASIS as a single
-     element kind (for example, the GNAT-specific pragma Unreferenced is
-     represented by an implementation_defined_pragma element with
-     pragma_name="Unreferenced").
-
-  Defining occurrences of formal parameters and generic formal objects have this
-  attribute:
-
-  * mode indicates that the parameter is of mode 'in', 'in out', or 'out'.
-
-  All elements other than Not_An_Element have this attribute:
-
-  * checks is a comma-separated list of run-time checks that are needed
-    for that element. The possible checks are: do_accessibility_check,
-    do_discriminant_check,do_division_check,do_length_check,
-    do_overflow_check,do_range_check,do_storage_check,do_tag_check.
-
-  The "kind" part of the "def" and "ref" attributes is taken from the ASIS
-  enumeration type Flat_Declaration_Kinds, declared in
-  Asis.Extensions.Flat_Kinds, with the leading ``An_`` or ``A_`` removed, and
-  any trailing ``_Declaration`` or ``_Specification`` removed. Thus, the
-  possible kinds are as follows:
-
-    ::
-
-        ordinary_type
-        task_type
-        protected_type
-        incomplete_type
-        tagged_incomplete_type
-        private_type
-        private_extension
-        subtype
-        variable
-        constant
-        deferred_constant
-        single_task
-        single_protected
-        integer_number
-        real_number
-        enumeration_literal
-        discriminant
-        component
-        loop_parameter
-        generalized_iterator
-        element_iterator
-        procedure
-        function
-        parameter
-        procedure_body
-        function_body
-        return_variable
-        return_constant
-        null_procedure
-        expression_function
-        package
-        package_body
-        object_renaming
-        exception_renaming
-        package_renaming
-        procedure_renaming
-        function_renaming
-        generic_package_renaming
-        generic_procedure_renaming
-        generic_function_renaming
-        task_body
-        protected_body
-        entry
-        entry_body
-        entry_index
-        procedure_body_stub
-        function_body_stub
-        package_body_stub
-        task_body_stub
-        protected_body_stub
-        exception
-        choice_parameter
-        generic_procedure
-        generic_function
-        generic_package
-        package_instantiation
-        procedure_instantiation
-        function_instantiation
-        formal_object
-        formal_type
-        formal_incomplete_type
-        formal_procedure
-        formal_function
-        formal_package
-        formal_package_declaration_with_box
-
-  .. _Generating_Representation_Clauses:
-
-  Generating Representation Clauses
-  ---------------------------------
-
-  If the :switch:`--rep-clauses` switch is given, ``gnat2xml`` will
-  generate representation clauses for certain types showing the
-  representation chosen by the compiler. The information is produced by
-  the ASIS 'Data Decomposition' facility --- see the
-  ``Asis.Data_Decomposition`` package for details.
-
-  Not all types are supported. For example, ``Type_Model_Kind`` must
-  be ``A_Simple_Static_Model``. Types declared within generic units
-  have no representation. The clauses that are generated include
-  ``attribute_definition_clauses`` for ``Size`` and
-  ``Component_Size``, as well as
-  ``record_representation_clauses``.
-
-  There is no guarantee that the generated representation clauses could
-  have actually come from legal Ada code; Ada has some restrictions that
-  are not necessarily obeyed by the generated clauses.
-
-  The representation clauses are surrounded by comment elements to
-  indicate that they are automatically generated, something like this:
-
-    ::
-
-        <comment text="--gen+">
-        ...
-        <attribute_definition_clause>
-        ...
-        <comment text="--gen-">
-        ...
-
-
 .. only:: PRO or GPL
 
   .. _The_Coding_Standard_Verifier_gnatcheck:
@@ -1780,7 +482,7 @@ Alternatively, you may run the script using the following command line:
 
   ``gnatcheck`` is a project-aware tool
   (see :ref:`Using_Project_Files_with_GNAT_Tools` for a description of
-  the project-related switches).  The project file package that can specify
+  the project-related switches). The project file package that can specify
   ``gnatcheck`` switches is named ``Check``.
 
   For full details, plese refer to :title:`GNATcheck Reference Manual`.
@@ -1797,18 +499,15 @@ Alternatively, you may run the script using the following command line:
   .. index:: ! gnatmetric
   .. index:: Metric tool
 
-  This documentation is for the new libadalang-based version
-  of ``gnatmetric``, which replaces the ASIS-based version.
-
   The ``gnatmetric`` tool is a utility
   for computing various program metrics.
   It takes an Ada source file as input and generates a file containing the
   metrics data as output. Various switches control which
-  metrics are computed and output.
+  metrics are reported.
 
   ``gnatmetric`` is a project-aware tool
   (see :ref:`Using_Project_Files_with_GNAT_Tools` for a description of
-  the project-related switches).  The project file package that can specify
+  the project-related switches). The project file package that can specify
   ``gnatmetric`` switches is named ``Metrics``.
 
   The ``gnatmetric`` command has the form
@@ -1822,14 +521,16 @@ Alternatively, you may run the script using the following command line:
   * ``switches`` specify the metrics to compute and define the destination for
     the output
 
-  * Each ``filename`` is the name (including the extension) of a source
-    file to process. 'Wildcards' are allowed, and
-    the file name may contain path information.
-    If no ``filename`` is supplied, then the ``switches`` list must contain
-    at least one
-    :switch:`--files` switch (see :ref:`Other_gnatmetric_Switches`).
-    Including both a :switch:`--files` switch and one or more
-    ``filename`` arguments is permitted.
+  * Each ``filename`` is the name of a source file to process. 'Wildcards' are
+    allowed, and the file name may contain path information.  If no
+    ``filename`` is supplied, then the ``switches`` list must contain at least
+    one :switch:`--files` switch (see :ref:`Other_gnatmetric_Switches`).
+    Including both a :switch:`--files` switch and one or more ``filename``
+    arguments is permitted.
+
+    Note that it is no longer necessary to specify the Ada language version;
+    ``gnatmetric`` can process Ada source code written in any version from
+    Ada 83 onward without specifying any language version switch.
 
   The following subsections describe the various switches accepted by
   ``gnatmetric``, organized by category.
@@ -1921,12 +622,22 @@ Alternatively, you may run the script using the following command line:
   .. index:: --short-file-names (gnatmetric)
 
   :switch:`--short-file-names`
-    Use 'short' source file names in the output.  (The ``gnatmetric``
+    Use 'short' source file names in the output. (The ``gnatmetric``
     output includes the name(s) of the Ada source file(s) from which the
-    metrics are computed.  By default each name includes the absolute
+    metrics are computed. By default each name includes the absolute
     path. The :switch:`--short-file-names` switch causes ``gnatmetric``
     to exclude all directory information from the file names that are
     output.)
+
+   .. index:: --wide-character-encoding (gnatmetric)
+
+   :switch:`--wide-character-encoding={e}`
+     Specify the wide character encoding method for the input and output
+     files. ``e`` is one of the following:
+
+     * *8* - UTF-8 encoding
+
+     * *b* - Brackets encoding (default value)
 
 
   .. index:: Disable Metrics For Local Units in gnatmetric
@@ -1980,12 +691,11 @@ Alternatively, you may run the script using the following command line:
   Specifying a set of metrics to compute
   --------------------------------------
 
-  By default all the metrics are computed and reported. The switches
-  described in this subsection allow you to control, on an individual
-  basis, whether metrics are computed and reported. If at least one
-  positive metric switch is specified (that is, a switch that defines
-  that a given metric or set of metrics is to be computed), then only
-  explicitly specified metrics are reported.
+  By default all the metrics are reported. The switches described in this
+  subsection allow you to control, on an individual basis, whether metrics are
+  reported. If at least one positive metric switch is specified (that is, a
+  switch that defines that a given metric or set of metrics is to be computed),
+  then only explicitly specified metrics are reported.
 
   .. _Line_Metrics_Control:
 
@@ -2014,8 +724,7 @@ Alternatively, you may run the script using the following command line:
     and/or format effectors (blank lines)
 
   * the average number of code lines in subprogram bodies, task bodies,
-    entry bodies and statement sequences in package bodies (this metric
-    is only computed across the whole set of the analyzed units)
+    entry bodies and statement sequences in package bodies
 
   ``gnatmetric`` sums the values of the line metrics for all the files
   being processed and then generates the cumulative results. The tool
@@ -2023,7 +732,7 @@ Alternatively, you may run the script using the following command line:
   code lines in bodies.
 
   You can use the following switches to select the specific line metrics
-  to be computed and reported.
+  to be reported.
 
 
   .. index:: --lines (gnatmetric)
@@ -2089,15 +798,21 @@ Alternatively, you may run the script using the following command line:
 
 
   :switch:`--lines-average`
-    Report the average number of code lines in subprogram bodies, task
-    bodies, entry bodies and statement sequences in package bodies. The
-    metric is computed and reported for the whole set of processed Ada
-    sources only.
+    Report the average number of code lines in subprogram bodies, task bodies,
+    entry bodies and statement sequences in package bodies.
 
 
   :switch:`--no-lines-average`
     Do not report the average number of code lines in subprogram bodies,
     task bodies, entry bodies and statement sequences in package bodies.
+
+
+  :switch:`--lines-spark`
+    Report the number of lines written in SPARK.
+
+
+  :switch:`--no-lines-spark`
+    Do not report the number of lines written in SPARK.
 
 
   .. _Syntax_Metrics_Control:
@@ -2173,7 +888,7 @@ Alternatively, you may run the script using the following command line:
       declarations. It is the total number of types that can be
       referenced from outside this compilation unit, plus the number of
       types from all the visible parts of all the visible generic
-      packages. Generic formal types are not counted.  Only types, not
+      packages. Generic formal types are not counted. Only types, not
       subtypes, are included.
 
       Along with the total number of public types, the following
@@ -2193,14 +908,14 @@ Alternatively, you may run the script using the following command line:
   * *All types*
       This metric is computed for any compilation unit. It is equal to
       the total number of the declarations of different types given in
-      the compilation unit.  The private and the corresponding full type
+      the compilation unit. The private and the corresponding full type
       declaration are counted as one type declaration. Incomplete type
       declarations and generic formal types are not counted.
       No distinction is made among different kinds of types (abstract,
-      private etc.); the total number of types is computed and reported.
+      private etc.); the total number of types is reported.
 
-  By default, all the syntax metrics are computed and reported. You can
-  use the following switches to select specific syntax metrics.
+  By default, all the syntax metrics are reported. You can use the following
+  switches to select specific syntax metrics.
 
 
   .. index:: --syntax (gnatmetric)
@@ -2286,6 +1001,53 @@ Alternatively, you may run the script using the following command line:
     Do not report the number of subprogram parameters
 
 
+  .. _Contract_Metrics_Control:
+
+  Contract Metrics Control
+  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+  .. index:: Contract metrics control in gnatmetric
+
+  :switch:`--contract-all`
+    Report all the contract metrics
+
+
+  :switch:`--no-contract-all`
+    Do not report any of the contract metrics
+
+
+  :switch:`--contract`
+    Report the number of public subprograms with contracts
+
+
+  :switch:`--no-contract`
+    Do not report the number of public subprograms with contracts
+
+
+  :switch:`--post`
+    Report the number of public subprograms with postconditions
+
+
+  :switch:`--no-post`
+    Do not report the number of public subprograms with postconditions
+
+
+  :switch:`--contract-complete`
+    Report the number of public subprograms with complete contracts
+
+
+  :switch:`--no-contract-complete`
+    Do not report the number of public subprograms with complete contracts
+
+
+  :switch:`--contract-cyclomatic`
+    Report the McCabe complexity of public subprograms
+
+
+  :switch:`--no-contract-cyclomatic`
+    Do not report the McCabe complexity of public subprograms
+
+
   .. _Complexity_Metrics_Control:
 
   Complexity Metrics Control
@@ -2311,7 +1073,7 @@ Alternatively, you may run the script using the following command line:
 
   According to McCabe, both control statements and short-circuit control
   forms should be taken into account when computing cyclomatic
-  complexity.  For Ada 2012 we have also take into account conditional
+  complexity. For Ada 2012 we have also take into account conditional
   expressions and quantified expressions. For each body, we compute
   three metric values:
 
@@ -2364,9 +1126,8 @@ Alternatively, you may run the script using the following command line:
   code of assertions and predicates (that is, subprogram preconditions and
   postconditions, subtype predicates and type invariants) is also skipped.
 
-  By default, all the complexity metrics are computed and reported.
-  For more fine-grained control you can use
-  the following switches:
+  By default, all the complexity metrics are reported. For more fine-grained
+  control you can use the following switches:
 
 
   .. index:: --complexity (gnatmetric)
@@ -2378,7 +1139,7 @@ Alternatively, you may run the script using the following command line:
 
 
   :switch:`--no-complexity-all`
-    Do not report any of complexity metrics
+    Do not report any of the complexity metrics
 
 
   :switch:`--complexity-cyclomatic`
@@ -2408,8 +1169,7 @@ Alternatively, you may run the script using the following command line:
   :switch:`--complexity-average`
     Report the average McCabe Cyclomatic Complexity for all the subprogram bodies,
     task bodies, entry bodies and statement sequences in package bodies.
-    The metric is computed and reported for whole set of processed Ada sources
-    only.
+    The metric is reported for whole set of processed Ada sources only.
 
 
   :switch:`--no-complexity-average`
@@ -2623,8 +1383,8 @@ Alternatively, you may run the script using the following command line:
   by invoking ``gnatmetric`` with the corresponding project file
   and with the :switch:`-U` option.
 
-  By default, all the coupling metrics are disabled. You can use the following
-  switches to specify the coupling metrics to be computed and reported:
+  By default, all the coupling metrics are reported. You can use the following
+  switches to select specific syntax metrics.
 
   .. index:: --tagged-coupling (gnatmetric)
   .. index:: --hierarchy-coupling (gnatmetric)
@@ -2732,7 +1492,7 @@ Alternatively, you may run the script using the following command line:
     Use the specified subdirectory of the project objects file (or of the
     project file directory if the project does not specify an object directory)
     for tool output files. Has no effect if no project is specified as
-    tool argument r if :switch:`--no_objects_dir` is specified.
+    tool argument r if :switch:`--no-objects-dir` is specified.
 
 
   .. index:: --files (gnatmetric)
@@ -2815,6 +1575,11 @@ Alternatively, you may run the script using the following command line:
   :switch:`-sfn`
     :switch:`--short-file-names`
 
+  .. index:: -W (gnatsmetric)
+
+  :switch:`-W{e}`
+    :switch:`--wide-character-encoding={e}`
+
   .. index:: -nolocal (gnatmetric)
 
   :switch:`-nolocal`
@@ -2850,18 +1615,15 @@ Alternatively, you may run the script using the following command line:
    .. index:: ! gnatpp
    .. index:: pretty printer
 
-   This documentation is for the new libadalang-based version
-   of ``gnatpp``, which replaces the ASIS-based version.
-
    The ``gnatpp`` tool is a utility for source reformatting / pretty
-   printing.  It takes an Ada source file as input and generates a
-   reformatted version as output.  You can specify various style
+   printing. It takes an Ada source file as input and generates a
+   reformatted version as output. You can specify various style
    directives via switches; e.g., identifier case conventions, rules of
    indentation, and comment layout.
 
    ``gnatpp`` is a project-aware tool
    (see :ref:`Using_Project_Files_with_GNAT_Tools` for a description of
-   the project-related switches).  The project file package that can specify
+   the project-related switches). The project file package that can specify
    ``gnatpp`` switches is named ``Pretty_Printer``.
 
    ``gnatpp`` cannot process sources that contain preprocessing
@@ -2883,6 +1645,10 @@ Alternatively, you may run the script using the following command line:
      or several file names on the same gnatpp command are allowed. The
      file name may contain path information; it does not have to follow
      the GNAT file naming rules
+
+     Note that it is no longer necessary to specify the Ada language version;
+     ``gnatpp`` can process Ada source code written in any version from
+     Ada 83 onward without specifying any language version switch.
 
 
    .. _Switches_for_gnatpp:
@@ -3019,7 +1785,7 @@ Alternatively, you may run the script using the following command line:
    .. index:: --enum-upper-case (gnatpp)
 
    :switch:`--enum-upper-case`
-     Enumeration literals are in upper case.  Overrides -n casing
+     Enumeration literals are in upper case. Overrides -n casing
      setting.
 
    .. index:: --enum-lower-case (gnatpp)
@@ -3133,7 +1899,7 @@ Alternatively, you may run the script using the following command line:
    compatible.
 
    This group of ``gnatpp`` switches controls the layout of comments and
-   complex syntactic constructs.  See :ref:`Formatting_Comments` for details
+   complex syntactic constructs. See :ref:`Formatting_Comments` for details
    on their effect.
 
 
@@ -3155,11 +1921,12 @@ Alternatively, you may run the script using the following command line:
 
    :switch:`--comments-fill`
      Fill comment blocks.
+     The default is :switch:`--no-comments-fill`.
 
 
    :switch:`--comments-special`
      Keep unchanged special form comments.
-     This is the default.
+     The default is :switch:`--no-comments-special`.
 
 
    .. index:: --comments-only (gnatpp)
@@ -3181,20 +1948,55 @@ Alternatively, you may run the script using the following command line:
      Do not place the keyword ``is`` on a separate line in a subprogram body in
      case if the spec occupies more than one line.
 
+   .. index:: --no-separate-return (gnatpp)
+
+
+   :switch:`--no-separate-return`
+     In :switch:`--no-compact` mode, if a subprogram spec does not fit on
+     one line, try to place the ``return`` on the same line as the last
+     formal parameter.
+
+   .. index:: --separate-loop (gnatpp)
+
+
+   :switch:`--separate-loop`
+     Place the keyword ``loop`` in FOR and WHILE loop statements
+     on a separate line.
+
+   .. index:: --no-separate-then (gnatpp)
+
+
+   :switch:`--separate-then`
+     Place the keyword ``then`` in IF statements
+     on a separate line.
+
+   .. index:: --no-separate-loop (gnatpp)
+
+
+   :switch:`--no-separate-loop`
+     Do not place the keyword ``loop`` in FOR and WHILE loop statements
+     on a separate line. This option is
+     incompatible with the :switch:`--separate-loop` option.
+
+   .. index:: --no-separate-then (gnatpp)
+
+
+   :switch:`--no-separate-then`
+     Do not place the keyword ``then`` in IF statements
+     on a separate line. This option is
+     incompatible with the :switch:`--separate-then` option.
+
    .. index:: --separate-loop-then (gnatpp)
 
 
    :switch:`--separate-loop-then`
-     Place the keyword ``loop`` in FOR and WHILE loop statements and the
-     keyword ``then`` in IF statements on a separate line.
+     Equivalent to :switch:`--separate-loop` :switch:`--separate-then`.
 
    .. index:: --no-separate-loop-then (gnatpp)
 
 
    :switch:`--no-separate-loop-then`
-     Do not place the keyword ``loop`` in FOR and WHILE loop statements and the
-     keyword ``then`` in IF statements on a separate line. This option is
-     incompatible with the :switch:`--separate-loop-then` option.
+     Equivalent to :switch:`--no-separate-loop` :switch:`--no-separate-then`.
 
    .. index:: --use-on-new-line (gnatpp)
 
@@ -3221,6 +2023,20 @@ Alternatively, you may run the script using the following command line:
 
    :switch:`--preserve-line-breaks`
      Preserve line breaks in the input, to the extent possible.
+     By default, line breaks are also inserted at appropriate
+     places.
+
+   .. index:: --source-line-breaks (gnatpp)
+
+   :switch:`--source-line-breaks`
+     Keep the line breaks from the source; do not insert or delete any
+     line breaks.
+
+   .. index:: --spaces-only (gnatpp)
+
+   :switch:`--spaces-only`
+     Disable all formatting except for inserting and removing spaces.
+     This implies --source-line-breaks.
 
    The ``--comments`` switches are compatible with one another, except
    that the ``--comments-unchanged`` switch disables all other comment
@@ -3307,27 +2123,49 @@ Alternatively, you may run the script using the following command line:
 
    :switch:`--RM-style-spacing`
      Do not insert an extra blank before various occurrences of
-     '(' and ':'. This also turns off alignment.
+     '(' and ':'. Alignment is off by default in this mode;
+     use :switch:`--alignment` to turn it on.
 
 
-   .. index:: --ff-after-pragma-page (gnatpp)
+   .. index:: --compact (gnatpp)
+   .. index:: --no-compact (gnatpp)
 
-   :switch:`--ff-after-pragma-page`
-     Insert a Form Feed character after a pragma Page.
+   :switch:`--compact`
+     This is the default. In calls and similar, this packs as many
+     subexpressions on the same line as possible. Example:
+
+     .. code-block:: ada
+
+        Some_Procedure
+          (Short_One, Another_Short_One,
+           A_Very_Very_Very_Very_Very_Very_Very_Very_Long_One);
+
+   :switch:`--no-compact`
+     Turns off --compact mode. In calls and similar, if it is necessary
+     to split a line between two subexpressions (because otherwise the
+     construct would exceed --max-line-length), then all such subexpressions
+     are placed on separate lines. Example:
+
+     .. code-block:: ada
+
+        Some_Procedure
+          (Short_One,
+           Another_Short_One,
+           A_Very_Very_Very_Very_Very_Very_Very_Very_Long_One);
 
 
-   .. index:: --call_threshold (gnatpp)
+   .. index:: --call-threshold (gnatpp)
 
-   :switch:`--call_threshold={nnn}`
+   :switch:`--call-threshold={nnn}`
      If the number of parameter associations is greater than ``nnn`` and if at
      least one association uses named notation, start each association from
      a new line. If ``nnn`` is 0, no check for the number of associations
      is made; this is the default.
 
 
-   .. index:: --par_threshold (gnatpp)
+   .. index:: --par-threshold (gnatpp)
 
-   :switch:`--par_threshold={nnn}`
+   :switch:`--par-threshold={nnn}`
      If the number of parameter specifications is greater than ``nnn``
      (or equal to ``nnn`` in case of a function), start each specification from
      a new line. If ``nnn`` is 0, and :switch:`--no-separate-is` was not specified, then
@@ -3457,6 +2295,8 @@ Alternatively, you may run the script using the following command line:
      * *crlf*  - the same as *dos*
      * *unix* - UNIX style, lines end with LF character*
      * *lf* -  the same as *unix*
+
+     The default is to use the same end-of-line convention as the input.
 
    .. index:: --wide-character-encoding (gnatpp)
 
@@ -3600,30 +2440,6 @@ Alternatively, you may run the script using the following command line:
    all the immediate units of the argument project.
 
 
-   .. index:: --gnat83 (gnatpp)
-
-   :switch:`--gnat83`
-     Ada 83 mode
-
-
-   .. index:: --gnat95 (gnatpp)
-
-   :switch:`--gnat95`
-     Ada 95 mode
-
-
-   .. index:: --gnat2005 (gnatpp)
-
-   :switch:`--gnat2005`
-     Ada 2005 mode
-
-
-   .. index:: --gnat2012 (gnatpp)
-
-   :switch:`--gnat2012`
-     Ada 2012 mode
-
-
    .. _Formatting_Rules:
 
    Formatting Rules
@@ -3713,10 +2529,10 @@ Alternatively, you may run the script using the following command line:
      the same line.
 
    A whole-line comment is indented according to the surrounding code,
-   with some exceptions.  Comments that start in column 1 are kept
-   there.  If possible, comments are not moved so far to the right that
-   the maximum line length is exceeded.  The ``--comments-unchanged``
-   option turns off comment formatting.  Special-form comments such as
+   with some exceptions. Comments that start in column 1 are kept
+   there. If possible, comments are not moved so far to the right that
+   the maximum line length is exceeded. The ``--comments-unchanged``
+   option turns off comment formatting. Special-form comments such as
    SPARK-style ``--#...`` are left alone.
 
    For an end-of-line comment, ``gnatpp`` tries to leave the same
@@ -3741,7 +2557,7 @@ Alternatively, you may run the script using the following command line:
    are formatted according to the ``--comments-gnat-beginning`` and
    ``--comments-fill`` switches; other formatting switches are ignored. For
    example, ``--comments-only --comments-fill`` means to fill comment
-   paragraphs, and do nothing else.  Likewise, ``--comments-only
+   paragraphs, and do nothing else. Likewise, ``--comments-only
    --comments-gnat-beginning`` ensures comments start with at least two
    spaces after ``--``, and ``--comments-only --comments-gnat-beginning
    --comments-fill`` does both. If ``--comments-only`` is given without
@@ -3758,11 +2574,11 @@ Alternatively, you may run the script using the following command line:
    the same casing as the corresponding defining identifier.
 
    You control the casing for defining occurrences via the ``--name...``
-   switches.  With ``--name-case-as-declared``, which is the default,
+   switches. With ``--name-case-as-declared``, which is the default,
    defining occurrences appear exactly as in the source file where they
-   are declared.  The other values for this switch --
+   are declared. The other values for this switch --
    ``--name-upper-case``, ``--name-lower-case``, ``--name-mixed-case``
-   -- result in upper, lower, or mixed case, respectively.  If
+   -- result in upper, lower, or mixed case, respectively. If
    ``gnatpp`` changes the casing of a defining occurrence, it
    analogously changes the casing of all the usage occurrences of this
    name.
@@ -3770,7 +2586,7 @@ Alternatively, you may run the script using the following command line:
    If the defining occurrence of a name is not in the source compilation
    unit currently being processed by ``gnatpp``, the casing of each
    reference to this name is changed according to the switch (subject to
-   the dictionary file mechanism described below).  Thus ``gnatpp`` acts
+   the dictionary file mechanism described below). Thus ``gnatpp`` acts
    as though the switch had affected the casing for the defining
    occurrence of the name.
 
@@ -3807,7 +2623,7 @@ Alternatively, you may run the script using the following command line:
    ``-n`` switch or explicit dictionary files. For
    example, by default the names ``Ada.Text_IO`` and
    ``GNAT.OS_Lib`` will appear as just shown, even in the presence of
-   a ``--name-upper-case`` switch.  To ensure that even
+   a ``--name-upper-case`` switch. To ensure that even
    such names are rendered in uppercase, additionally supply the
    --dictionary=- switch (or else place these names
    in upper case in a dictionary file).
@@ -3903,6 +2719,67 @@ Alternatively, you may run the script using the following command line:
         begin
            Name2_NAME3_Name4 := Name4_NAME3_Name2 > NAME1;
         end Test;
+
+   .. _Preprocessor_directives:
+
+   Preprocessor Directives
+   ^^^^^^^^^^^^^^^^^^^^^^^
+
+   ``gnatpp`` has some support for preprocessor directives.
+   You can use preprocessor symbols, as in ``$symbol``.
+   In addition, you can use conditional compilation,
+   so long as the program text is syntactically legal Ada code
+   after removing all the preprocessor directives (lines starting
+   with ``#``). For example, ``gnatpp`` can format the following:
+
+     .. code-block:: ada
+
+        package P is
+        #IF SOMETHING
+           X : constant Integer := 123;
+        #ELSE
+           X : constant Integer := 456;
+        #END IF;
+        end P;
+
+   which will be formatted as if it were:
+
+     .. code-block:: ada
+
+        package P is
+           X : constant Integer := 123;
+           X : constant Integer := 456;
+        end P;
+
+   except that the ``#`` lines will be preserved.
+   However, ``gnatpp`` cannot format the following:
+
+     .. code-block:: ada
+
+        procedure P is
+        begin
+        #IF SOMETHING
+           if X = 0 then
+        #ELSE
+           if X = 1 then
+        #END IF;
+              null;
+           end if;
+        end P;
+
+   because removing the ``#`` lines gives:
+
+     .. code-block:: ada
+
+        procedure P is
+        begin
+           if X = 0 then
+           if X = 1 then
+              null;
+           end if;
+        end P;
+
+   which is not syntactically legal.
 
    Legacy Switches
    ^^^^^^^^^^^^^^^
@@ -4033,11 +2910,6 @@ Alternatively, you may run the script using the following command line:
    :switch:`-cl{nnn}`
      :switch:`--indent-continuation={nnn}`
 
-   .. index:: -ff (gnatpp)
-
-   :switch:`-ff`
-     :switch:`--ff-after-pragma-page`
-
    .. index:: -pipe (gnatpp)
 
    :switch:`-pipe`
@@ -4113,7 +2985,7 @@ Alternatively, you may run the script using the following command line:
   (See :ref:`Using_Project_Files_with_GNAT_Tools` for a description of
   the project-related switches but note that ``gnatstub`` does not support
   the :switch:`-U`, :switch:`-U {main_unit}`, :switch:`--subdirs={dir}`, or
-  :switch:`--no_objects_dir` switches.)
+  :switch:`--no-objects-dir` switches.)
   The project file package that can specify
   ``gnatstub`` switches is named ``gnatstub``.
 
@@ -4153,6 +3025,10 @@ Alternatively, you may run the script using the following command line:
       project file provided as a parameter of ``-P`` switch if any,
       or creates the name file to generate using the standard GNAT
       naming conventions.
+
+      Note that it is no longer necessary to specify the Ada language version;
+      ``gnatmetric`` can process Ada source code written in any version from
+      Ada 83 onward without specifying any language version switch.
 
   * *switches*
       is an optional sequence of switches as described in the next section
@@ -4313,30 +3189,6 @@ Alternatively, you may run the script using the following command line:
     * *b* - Brackets encoding (default value)
 
 
-  .. index:: --gnat83 (gnatstub)
-
-  :switch:`--gnat83`
-    Ada 83 mode
-
-
-  .. index:: --gnat95 (gnatstub)
-
-  :switch:`--gnat95`
-    Ada 95 mode
-
-
-  .. index:: --gnat2005 (gnatstub)
-
-  :switch:`--gnat2005`
-    Ada 2005 mode
-
-
-  .. index:: --gnat2012 (gnatstub)
-
-  :switch:`--gnat2012`
-    Ada 2012 mode
-
-
   .. index:: --quiet (gnatstub)
   .. index:: -q (gnatstub)
 
@@ -4430,7 +3282,7 @@ Alternatively, you may run the script using the following command line:
   (See :ref:`Using_Project_Files_with_GNAT_Tools` for a description of
   the project-related switches but note that ``gnattest`` does not support
   the :switch:`-U`, :switch:`-eL`, :switch:`--subdirs={dir}`, or
-  :switch:`--no_objects_dir` switches.)
+  :switch:`--no-objects-dir` switches.)
   The project file package that can specify
   ``gnattest`` switches is named ``gnattest``.
 
@@ -4661,7 +3513,7 @@ Alternatively, you may run the script using the following command line:
   :switch:`--subdir={dirname}`
     Test packages are placed in a subdirectory of the corresponding source
     directory, with the name ``dirname``. Thus, each set of unit tests is located
-    in a subdirectory of the code under test.  If the sources are in separate
+    in a subdirectory of the code under test. If the sources are in separate
     directories, each source directory has a test subdirectory named ``dirname``.
 
 
@@ -5442,10 +4294,13 @@ Alternatively, you may run the script using the following command line:
     Standard Output. Has no effect otherwise.
 
   :switch:`--count={N}`
-    If specified, compute the symbolic traceback ``N`` times in a row.
-    This option is mostly useful for measuring the performance of
-    ``gnatsymbolize``, particularly in the case where the cache is
-    being used.
+    Compute the symbolic traceback ``N`` times in a row. This option
+    is mostly useful for measuring the performance of ``gnatsymbolize``,
+    particularly in the case where the cache is being used.
+
+  :switch:`--load`
+    Interpret the first address as the load address of the executable.
+    This is needed for position-independent executables on Windows.
 
   Requirements for Correct Operation
   ----------------------------------
@@ -5459,12 +4314,7 @@ Alternatively, you may run the script using the following command line:
   This program provides a functionality similar to ``addr2line``.
   It has fewer options to tailor its output, but has been designed
   to require fewer of the DWARF sections to be present in the
-  executable. In particular, the following sections can be
-  stripped from the executable without impact to ``gnatsymbolize``'s
-  functionality:
-
-    * ``.debug_str``
-    * ``.debug_ranges``
+  executable. In particular, it works for code compiled with ``-g1``.
 
 
 .. only:: PRO or GPL
@@ -5521,9 +4371,9 @@ Alternatively, you may run the script using the following command line:
       Use the ``dir`` subdirectory of the project's object directory (or the ``dir``
       subdirectory of the project file directory if the project does not specify
       an object directory) for tool output files. Has no effect if no project
-      has been specified or if :switch:`--no_objects_dir` is specified.
+      has been specified or if :switch:`--no-objects-dir` is specified.
 
-   :switch:`--no_objects_dir`
+   :switch:`--no-objects-dir`
       Place all the result files into the current directory (i.e., the directory
       from which the tool invocation command is issued) instead of the project's
       object directory. Has no effect if no project has been specified.

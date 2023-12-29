@@ -10,3 +10,4 @@ Disassembly of section \.text:
    8:	f94003b1 	ldr	x17, \[x29\]
    c:	f90003b0 	str	x16, \[x29\]
   10:	f94003b1 	ldr	x17, \[x29\]
+  14:	f900001f 	str	xzr, \[x0\]

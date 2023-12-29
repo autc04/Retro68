@@ -1,4 +1,5 @@
 /* { dg-do compile } */
+/* { dg-options "-Wall -std=c17 -fopenmp -pedantic-errors" } */
 
 void f1(void)
 {
@@ -15,7 +16,7 @@ void f1(void)
 
 void f2(void)
 {
-  label:       /* { dg-error "label at end of compound statement" } */
+  label:			/* { dg-warning "defined but not used" } */
     #pragma omp barrier		/* { dg-error "may only be used in compound statements" } */
 }
 

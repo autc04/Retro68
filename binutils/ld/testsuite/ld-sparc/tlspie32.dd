@@ -5,8 +5,7 @@
 #objdump: -drj.text
 #target: sparc*-*-*
 
-.*: +file format elf32-sparc
-
+.*: +file format elf32-sparc.*
 
 Disassembly of section .text:
 
@@ -18,7 +17,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	9d e3 bf 98 	save  %sp, -104, %sp
  +[0-9a-f]+:	2f 00 00 40 	sethi  %hi\(0x10000\), %l7
  +[0-9a-f]+:	7f ff ff fc 	call  [0-9a-f]+ <.*>
- +[0-9a-f]+:	ae 05 e1 60 	add  %l7, 0x160, %l7	! 10160 <.*>
+ +[0-9a-f]+:	ae 05 e1 (58|60) 	add  %l7, 0x(158|160), %l7	! 10(158|160) <.*>
  +[0-9a-f]+:	01 00 00 00 	nop 
  +[0-9a-f]+:	01 00 00 00 	nop 
  +[0-9a-f]+:	01 00 00 00 	nop 

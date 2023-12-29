@@ -7,5 +7,5 @@
 Disassembly of section .text:
 
 0+ <_start>:
-[ 	]*[a-f0-9]+:[ 	]*0f 01 c5[ 	]*pconfig[ 	]*
+[ 	]*[a-f0-9]+:[ 	]*0f 01 c5[ 	]*pconfig
 #pass

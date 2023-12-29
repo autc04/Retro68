@@ -11,8 +11,8 @@ Disassembly of section \.text:
    4:	(7c a6 02 26|26 02 a6 7c) 	mfapidi r5,r6
    8:	(7c 07 46 24|24 46 07 7c) 	tlbivax r7,r8
    c:	(7c 0b 67 24|24 67 0b 7c) 	tlbsx   r11,r12
-  10:	(7c 00 07 a4|a4 07 00 7c) 	tlbwe   
-  14:	(7c 00 07 a4|a4 07 00 7c) 	tlbwe   
+  10:	(7c 00 07 a4|a4 07 00 7c) 	tlbwe
+  14:	(7c 00 07 a4|a4 07 00 7c) 	tlbwe
   18:	(7c 21 0f a4|a4 0f 21 7c) 	tlbwe   r1,r1,1
 
 0+000001c <branch_target_2>:
@@ -25,8 +25,8 @@ Disassembly of section \.text:
   34:	(7d 10 6b 86|86 6b 10 7d) 	mtdcr   432,r8
   38:	(7c 00 04 ac|ac 04 00 7c) 	msync
   3c:	(7c 09 55 ec|ec 55 09 7c) 	dcba    r9,r10
-  40:	(7c 00 06 ac|ac 06 00 7c) 	mbar    
-  44:	(7c 00 06 ac|ac 06 00 7c) 	mbar    
+  40:	(7c 00 06 ac|ac 06 00 7c) 	mbar
+  44:	(7c 00 06 ac|ac 06 00 7c) 	mbar
   48:	(7c 20 06 ac|ac 06 20 7c) 	mbar    1
   4c:	(7d 8d 77 24|24 77 8d 7d) 	tlbsx   r12,r13,r14
   50:	(7d 8d 77 25|25 77 8d 7d) 	tlbsx\.  r12,r13,r14

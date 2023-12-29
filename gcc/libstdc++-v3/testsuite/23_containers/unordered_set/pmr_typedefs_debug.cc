@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+// Copyright (C) 2018-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,9 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17 -D_GLIBCXX_DEBUG" }
+// { dg-options "-D_GLIBCXX_DEBUG" }
 // { dg-do compile { target c++17 } }
+// { dg-skip-if "" { *-*-* } { "-D_GLIBCXX_PARALLEL" } }
 
 #include <debug/unordered_set>
 static_assert(std::is_same_v<

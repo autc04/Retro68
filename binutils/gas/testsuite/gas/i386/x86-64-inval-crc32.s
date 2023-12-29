@@ -32,3 +32,5 @@ crc32  rax,[rsi]
 crc32  al,al
 crc32  ax, ax
 crc32  rax,eax
+
+.p2align 4

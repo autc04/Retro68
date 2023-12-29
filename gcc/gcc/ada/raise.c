@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *             Copyright (C) 1992-2019, Free Software Foundation, Inc.      *
+ *             Copyright (C) 1992-2022, Free Software Foundation, Inc.      *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -33,8 +33,7 @@
    is shared between all exception handling mechanisms.  */
 
 #ifdef IN_RTS
-#include "tconfig.h"
-#include "tsystem.h"
+#include "runtime.h"
 #else
 #include "config.h"
 #include "system.h"
@@ -56,16 +55,6 @@ extern "C" {
 void
 __gnat_unhandled_terminate (void)
 {
-#ifdef VMS
-  /* Special termination handling for VMS */
-  long prvhnd;
-
-  /* Remove the exception vector so it won't intercept any errors
-     in the call to exit, and go into and endless loop */
-
-  SYS$SETEXV (1, 0, 3, &prvhnd);
-#endif
-
   /* Default termination handling */
   __gnat_os_exit (1);
 }
@@ -73,66 +62,12 @@ __gnat_unhandled_terminate (void)
 #ifndef IN_RTS
 int
 __gnat_backtrace (void **array ATTRIBUTE_UNUSED,
-                  int size ATTRIBUTE_UNUSED,
-                  void *exclude_min ATTRIBUTE_UNUSED,
-                  void *exclude_max ATTRIBUTE_UNUSED,
-                  int skip_frames ATTRIBUTE_UNUSED)
+		  int size ATTRIBUTE_UNUSED,
+		  void *exclude_min ATTRIBUTE_UNUSED,
+		  void *exclude_max ATTRIBUTE_UNUSED,
+		  int skip_frames ATTRIBUTE_UNUSED)
 {
   return 0;
-}
-
-void
-__gnat_eh_personality (void)
-{
-  abort ();
-}
-
-void
-__gnat_rcheck_04 (void)
-{
-  abort ();
-}
-
-void
-__gnat_rcheck_10 (void)
-{
-  abort ();
-}
-
-void
-__gnat_rcheck_19 (void)
-{
-  abort ();
-}
-
-void
-__gnat_rcheck_20 (void)
-{
-  abort ();
-}
-
-void
-__gnat_rcheck_21 (void)
-{
-  abort ();
-}
-
-void
-__gnat_rcheck_30 (void)
-{
-  abort ();
-}
-
-void
-__gnat_rcheck_31 (void)
-{
-  abort ();
-}
-
-void
-__gnat_rcheck_32 (void)
-{
-  abort ();
 }
 #endif
 #ifdef __cplusplus

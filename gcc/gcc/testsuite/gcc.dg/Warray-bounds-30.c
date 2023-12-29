@@ -1,7 +1,8 @@
 /* PR tree-optimization/84047 - missing -Warray-bounds on an out-of-bounds
    index into an array
    { dg-do compile }
-   { dg-options "-O2 -Warray-bounds=2 -ftrack-macro-expansion=0" } */
+   { dg-options "-O2 -Warray-bounds=2 -ftrack-macro-expansion=0" }
+   { dg-skip-if "too many arguments in function call" { bpf-*-* } } */
 
 #include "range.h"
 
@@ -72,8 +73,7 @@ void test_global_int_array (void)
 
   T (&p[min]);      /* { dg-warning "subscript -\[0-9\]+ is \(below|outside\) array bounds of .int\\\[1]." } */
   T (&p[-1]);       /* { dg-warning "subscript -1 is \(below|outside\) array bounds of .int\\\[1]." } */
-  T (&p[0]);
-  T (&p[1]);
+  T (&p[0], &p[1]);
   T (&p[2]);        /* { dg-warning "subscript 2 is \(above|outside\) array bounds of .int\\\[1]." } */
   T (&p[max]);      /* { dg-warning "subscript \[0-9\]+ is \(above|outside\) array bounds of .int\\\[1]." } */
 
@@ -120,7 +120,7 @@ void test_global_short_2dim_array (void)
   T (&p[1]);
   T (&p[2]);
   T (&p[3]);
-  T (&p[16]);       /* { dg-warning "subscript 16 is \(above|outside\) array bounds of .short int\\\[3]" } */
+  T (&p[16]);       /* { dg-warning "subscript 16 is \(above|outside\) array bounds of .short int\\\[3]" "pr??????" { xfail *-*-* } } */
   T (&p[MAX]);      /* { dg-warning "subscript -?\[0-9\]+ is \(above|outside\) array bounds of .short int\\\[3]" } */
 }
 

@@ -1,7 +1,6 @@
 #PROG: objcopy
 #objdump: -d --prefix-addresses --show-raw-insn
 #name: MIPS16 PC-relative instruction disassembly
-#as: -32
 
 # Verify delay-slot adjustment for PC-relative operations.
 

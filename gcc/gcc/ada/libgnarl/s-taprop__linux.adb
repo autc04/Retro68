@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1992-2019, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2022, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,10 +33,6 @@
 
 --  This package contains all the GNULL primitives that interface directly with
 --  the underlying OS.
-
-pragma Polling (Off);
---  Turn off polling, we do not want ATC polling to take place during tasking
---  operations. It causes infinite loops and other problems.
 
 with Interfaces.C; use Interfaces; use type Interfaces.C.int;
 
@@ -75,7 +71,7 @@ package body System.Task_Primitives.Operations is
    Single_RTS_Lock : aliased RTS_Lock;
    --  This is a lock to allow only one thread of control in the RTS at
    --  a time; it is used to execute in mutual exclusion from all other tasks.
-   --  Used mainly in Single_Lock mode, but also to protect All_Tasks_List
+   --  Used to protect All_Tasks_List
 
    Environment_Task_Id : Task_Id;
    --  A variable to hold Task_Id for the environment task
@@ -88,13 +84,13 @@ package body System.Task_Primitives.Operations is
    Next_Serial_Number : Task_Serial_Number := 100;
    --  We start at 100 (reserve some special values for using in error checks)
 
-   Time_Slice_Val : Integer;
+   Time_Slice_Val : constant Integer;
    pragma Import (C, Time_Slice_Val, "__gl_time_slice_val");
 
-   Dispatching_Policy : Character;
+   Dispatching_Policy : constant Character;
    pragma Import (C, Dispatching_Policy, "__gl_task_dispatching_policy");
 
-   Locking_Policy : Character;
+   Locking_Policy : constant Character;
    pragma Import (C, Locking_Policy, "__gl_locking_policy");
 
    Foreign_Task_Elaborated : aliased Boolean := True;
@@ -243,9 +239,9 @@ package body System.Task_Primitives.Operations is
       return Ceiling_Support;
    end Get_Ceiling_Support;
 
-   pragma Warnings (Off, "non-static call not allowed in preelaborated unit");
+   pragma Warnings (Off, "non-preelaborable call not allowed*");
    Ceiling_Support : constant Boolean := Get_Ceiling_Support;
-   pragma Warnings (On, "non-static call not allowed in preelaborated unit");
+   pragma Warnings (On, "non-preelaborable call not allowed*");
    --  True if the locking policy is Ceiling_Locking, and the current process
    --  has permission to use this policy. The process has permission if it is
    --  running as 'root', or if the capability was set by the setcap command,
@@ -304,7 +300,7 @@ package body System.Task_Primitives.Operations is
 
    procedure Lock_RTS is
    begin
-      Write_Lock (Single_RTS_Lock'Access, Global_Lock => True);
+      Write_Lock (Single_RTS_Lock'Access);
    end Lock_RTS;
 
    ----------------
@@ -313,7 +309,7 @@ package body System.Task_Primitives.Operations is
 
    procedure Unlock_RTS is
    begin
-      Unlock (Single_RTS_Lock'Access, Global_Lock => True);
+      Unlock (Single_RTS_Lock'Access);
    end Unlock_RTS;
 
    -----------------
@@ -484,25 +480,18 @@ package body System.Task_Primitives.Operations is
       Ceiling_Violation := Result = EINVAL;
    end Write_Lock;
 
-   procedure Write_Lock
-     (L           : not null access RTS_Lock;
-      Global_Lock : Boolean := False)
-   is
+   procedure Write_Lock (L : not null access RTS_Lock) is
       Result : C.int;
    begin
-      if not Single_Lock or else Global_Lock then
-         Result := pthread_mutex_lock (L);
-         pragma Assert (Result = 0);
-      end if;
+      Result := pthread_mutex_lock (L);
+      pragma Assert (Result = 0);
    end Write_Lock;
 
    procedure Write_Lock (T : Task_Id) is
       Result : C.int;
    begin
-      if not Single_Lock then
-         Result := pthread_mutex_lock (T.Common.LL.L'Access);
-         pragma Assert (Result = 0);
-      end if;
+      Result := pthread_mutex_lock (T.Common.LL.L'Access);
+      pragma Assert (Result = 0);
    end Write_Lock;
 
    ---------------
@@ -542,25 +531,18 @@ package body System.Task_Primitives.Operations is
       pragma Assert (Result = 0);
    end Unlock;
 
-   procedure Unlock
-     (L           : not null access RTS_Lock;
-      Global_Lock : Boolean := False)
-   is
+   procedure Unlock (L : not null access RTS_Lock) is
       Result : C.int;
    begin
-      if not Single_Lock or else Global_Lock then
-         Result := pthread_mutex_unlock (L);
-         pragma Assert (Result = 0);
-      end if;
+      Result := pthread_mutex_unlock (L);
+      pragma Assert (Result = 0);
    end Unlock;
 
    procedure Unlock (T : Task_Id) is
       Result : C.int;
    begin
-      if not Single_Lock then
-         Result := pthread_mutex_unlock (T.Common.LL.L'Access);
-         pragma Assert (Result = 0);
-      end if;
+      Result := pthread_mutex_unlock (T.Common.LL.L'Access);
+      pragma Assert (Result = 0);
    end Unlock;
 
    -----------------
@@ -596,9 +578,7 @@ package body System.Task_Primitives.Operations is
       Result :=
         pthread_cond_wait
           (cond  => Self_ID.Common.LL.CV'Access,
-           mutex => (if Single_Lock
-                     then Single_RTS_Lock'Access
-                     else Self_ID.Common.LL.L'Access));
+           mutex => Self_ID.Common.LL.L'Access);
 
       --  EINTR is not considered a failure
 
@@ -860,13 +840,9 @@ package body System.Task_Primitives.Operations is
 
       Self_ID.Common.LL.Thread := Null_Thread_Id;
 
-      if not Single_Lock then
-         if Init_Mutex
-           (Self_ID.Common.LL.L'Access, Any_Priority'Last) /= 0
-         then
-            Succeeded := False;
-            return;
-         end if;
+      if Init_Mutex (Self_ID.Common.LL.L'Access, Any_Priority'Last) /= 0 then
+         Succeeded := False;
+         return;
       end if;
 
       Result := pthread_condattr_init (Cond_Attr'Access);
@@ -885,10 +861,8 @@ package body System.Task_Primitives.Operations is
       if Result = 0 then
          Succeeded := True;
       else
-         if not Single_Lock then
-            Result := pthread_mutex_destroy (Self_ID.Common.LL.L'Access);
-            pragma Assert (Result = 0);
-         end if;
+         Result := pthread_mutex_destroy (Self_ID.Common.LL.L'Access);
+         pragma Assert (Result = 0);
 
          Succeeded := False;
       end if;
@@ -999,8 +973,8 @@ package body System.Task_Primitives.Operations is
       elsif T.Common.Domain /= null and then
         (T.Common.Domain /= ST.System_Domain
           or else T.Common.Domain.all /=
-                    (Multiprocessors.CPU'First ..
-                     Multiprocessors.Number_Of_CPUs => True))
+                    [Multiprocessors.CPU'First ..
+                     Multiprocessors.Number_Of_CPUs => True])
       then
          declare
             CPUs    : constant size_t :=
@@ -1070,10 +1044,8 @@ package body System.Task_Primitives.Operations is
       Result : C.int;
 
    begin
-      if not Single_Lock then
-         Result := pthread_mutex_destroy (T.Common.LL.L'Access);
-         pragma Assert (Result = 0);
-      end if;
+      Result := pthread_mutex_destroy (T.Common.LL.L'Access);
+      pragma Assert (Result = 0);
 
       Result := pthread_cond_destroy (T.Common.LL.CV'Access);
       pragma Assert (Result = 0);
@@ -1522,8 +1494,8 @@ package body System.Task_Primitives.Operations is
             elsif T.Common.Domain /= null and then
               (T.Common.Domain /= ST.System_Domain
                 or else T.Common.Domain.all /=
-                          (Multiprocessors.CPU'First ..
-                           Multiprocessors.Number_Of_CPUs => True))
+                          [Multiprocessors.CPU'First ..
+                           Multiprocessors.Number_Of_CPUs => True])
             then
                --  Set the affinity to all the processors belonging to the
                --  dispatching domain. To avoid changing CPU affinities when

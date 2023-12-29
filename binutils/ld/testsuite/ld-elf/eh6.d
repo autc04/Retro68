@@ -1,5 +1,5 @@
 #source: eh6.s
-#ld: --gc-sections -shared
+#ld: --gc-sections -shared -z notext
 #readelf: -wf -rW
 #target: x86_64-*-linux-gnu* i?86-*-linux-gnu i?86-*-gnu*
 

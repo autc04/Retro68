@@ -226,9 +226,6 @@ ppc476:
 	lhzu	14,2(1)
 	lhzux	20,22,24
 	lhzx	23,24,25
-	lmw	3,-16(1)
-	lswi	5,4,16
-	lswx	3,4,5
 	lwarx	3,4,5
 	lwarx	3,4,5,0
 	lwarx	3,4,5,1
@@ -433,9 +430,6 @@ ppc476:
 	sthu	18,12(1)
 	sthux	21,22,23
 	sthx	12,13,14
-	stmw	6,-16(1)
-	stswi	3,4,16
-	stswx	3,4,5
 	stw	6,-16(7)
 	stwbrx	3,4,5
 	stwcx.	3,4,5

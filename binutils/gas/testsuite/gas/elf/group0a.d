@@ -1,5 +1,5 @@
 #readelf: -SW
-#name: group section
+#name: group section (using readelf -SW)
 #source: group0.s
 
 #...

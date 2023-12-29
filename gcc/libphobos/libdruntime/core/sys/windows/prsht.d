@@ -5,15 +5,16 @@
  *
  * Authors: Vladimir Vlasov
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_prsht.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_prsht.d)
  */
 module core.sys.windows.prsht;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "comctl32");
 
-private import core.sys.windows.w32api, core.sys.windows.windef, core.sys.windows.winuser;
+import core.sys.windows.w32api, core.sys.windows.windef, core.sys.windows.winuser;
 
 enum MAXPROPPAGES = 100;
 

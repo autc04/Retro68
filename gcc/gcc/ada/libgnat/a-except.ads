@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -33,18 +33,8 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  This version of Ada.Exceptions fully supports Ada 95 and later language
---  versions.  It is used in all situations except for the build of the
---  compiler and other basic tools. For these latter builds, we use an
---  Ada 95-only version.
-
---  The reason for this splitting off of a separate version is to support
---  older bootstrap compilers that do not support Ada 2005 features, and
---  Ada.Exceptions is part of the compiler sources.
-
-pragma Polling (Off);
---  We must turn polling off for this unit, because otherwise we get
---  elaboration circularities with ourself.
+--  This is the default version of this package. We also have cert and zfp
+--  versions.
 
 with System;
 with System.Parameters;
@@ -194,26 +184,11 @@ private
    --  Raise_Exception_Always if it can determine this is the case. The Export
    --  allows this routine to be accessed from Pure units.
 
-   procedure Raise_From_Signal_Handler
-     (E : Exception_Id;
-      M : System.Address);
-   pragma Export
-     (Ada, Raise_From_Signal_Handler,
-           "ada__exceptions__raise_from_signal_handler");
-   pragma No_Return (Raise_From_Signal_Handler);
-   --  This routine is used to raise an exception from a signal handler. The
-   --  signal handler has already stored the machine state (i.e. the state that
-   --  corresponds to the location at which the signal was raised). E is the
-   --  Exception_Id specifying what exception is being raised, and M is a
-   --  pointer to a null-terminated string which is the message to be raised.
-   --  Note that this routine never returns, so it is permissible to simply
-   --  jump to this routine, rather than call it. This may be appropriate for
-   --  systems where the right way to get out of signal handler is to alter the
-   --  PC value in the machine state or in some other way ask the operating
-   --  system to return here rather than to the original location.
+   pragma Machine_Attribute (Raise_Exception_Always,
+                             "strub", "callable");
+   --  Make it callable from strub contexts
 
-   procedure Raise_From_Controlled_Operation
-     (X : Ada.Exceptions.Exception_Occurrence);
+   procedure Raise_From_Controlled_Operation (X : Exception_Occurrence);
    pragma No_Return (Raise_From_Controlled_Operation);
    pragma Export
      (Ada, Raise_From_Controlled_Operation,
@@ -246,31 +221,6 @@ private
    --  Determine whether the current exception (if it exists) is an instance of
    --  Standard'Abort_Signal.
 
-   -----------------------
-   -- Polling Interface --
-   -----------------------
-
-   --  The GNAT compiler has an option to generate polling calls to the Poll
-   --  routine in this package. Specifying the -gnatP option for a compilation
-   --  causes a call to Ada.Exceptions.Poll to be generated on every subprogram
-   --  entry and on every iteration of a loop, thus avoiding the possibility of
-   --  a case of unbounded time between calls.
-
-   --  This polling interface may be used for instrumentation or debugging
-   --  purposes (e.g. implementing watchpoints in software or in the debugger).
-
-   --  In the GNAT technology itself, this interface is used to implement
-   --  immediate asynchronous transfer of control and immediate abort on
-   --  targets which do not provide for one thread interrupting another.
-
-   --  Note: this used to be in a separate unit called System.Poll, but that
-   --  caused horrible circular elaboration problems between System.Poll and
-   --  Ada.Exceptions.
-
-   procedure Poll;
-   --  Check for asynchronous abort. Note that we do not inline the body.
-   --  This makes the interface more useful for debugging purposes.
-
    --------------------------
    -- Exception_Occurrence --
    --------------------------
@@ -284,7 +234,7 @@ private
    --  Traceback array stored in exception occurrence
 
    type Exception_Occurrence is record
-      Id : Exception_Id;
+      Id : Exception_Id := Null_Id;
       --  Exception_Identity for this exception occurrence
 
       Machine_Occurrence : System.Address;
@@ -336,14 +286,10 @@ private
    pragma Stream_Convert (Exception_Occurrence, String_To_EO, EO_To_String);
    --  Functions for implementing Exception_Occurrence stream attributes
 
-   Null_Occurrence : constant Exception_Occurrence := (
-     Id                 => null,
-     Machine_Occurrence => System.Null_Address,
-     Msg_Length         => 0,
-     Msg                => (others => ' '),
-     Exception_Raised   => False,
-     Pid                => 0,
-     Num_Tracebacks     => 0,
-     Tracebacks         => (others => TBE.Null_TB_Entry));
+   Null_Occurrence : constant Exception_Occurrence :=
+     (Machine_Occurrence => System.Null_Address,
+      Msg => (others => '*'),
+      Tracebacks => (others => System.Traceback_Entries.Null_TB_Entry),
+      others => <>);
 
 end Ada.Exceptions;

@@ -15,7 +15,7 @@ foo (int n)
     {
       unsigned char uc = (unsigned char)i;
       a[i] = i;
-      b[uc] = 0;
+      b[uc] = 1;
     }
 
   bar (a);
@@ -23,4 +23,4 @@ foo (int n)
 }
 
 /* Address of array reference to b is scev.  */
-/* { dg-final { scan-tree-dump-times "  Type:\\tREFERENCE ADDRESS\n  Use \[0-9\].\[0-9\]:" 2 "ivopts" } } */
+/* { dg-final { scan-tree-dump-times "  Type:\\tREFERENCE ADDRESS\n" 2 "ivopts" } } */

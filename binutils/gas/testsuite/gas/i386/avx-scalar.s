@@ -16,11 +16,6 @@ _start:
 # Tests for op xmm, mem64
 	vmovsd %xmm4,(%ecx)
 
-# Tests for op xmm, regq/mem64
-# Tests for op regq/mem64, xmm
-	vmovq %xmm4,(%ecx)
-	vmovq (%ecx),%xmm4
-
 # Tests for op xmm/mem64, regl
 	vcvtsd2si %xmm4,%ecx
 	vcvtsd2si (%ecx),%ecx
@@ -213,13 +208,6 @@ _start:
 # Tests for op xmm, mem32
 	vmovss %xmm4,(%ecx)
 
-# Tests for op xmm, regl/mem32
-# Tests for op regl/mem32, xmm
-	vmovd %xmm4,%ecx
-	vmovd %xmm4,(%ecx)
-	vmovd %ecx,%xmm4
-	vmovd (%ecx),%xmm4
-
 # Tests for op xmm/mem32, regl
 	vcvtss2si %xmm4,%ecx
 	vcvtss2si (%ecx),%ecx
@@ -238,35 +226,21 @@ _start:
 	vroundss $7,%xmm4,%xmm6,%xmm2
 	vroundss $7,(%ecx),%xmm6,%xmm2
 
-# Tests for op xmm, xmm
-	vmovq %xmm4,%xmm6
-
 # Tests for op xmm, xmm, xmm
 	vmovsd %xmm4,%xmm6,%xmm2
 	vmovss %xmm4,%xmm6,%xmm2
 
 #Tests with different memory and register operands.
-	vmovd %xmm0,0x1234
 	vcvtsi2sdl 0x1234,%xmm0,%xmm7
-	vmovd %xmm0,(%ebp)
 	vcvtsi2sdl (%ebp),%xmm0,%xmm7
-	vmovd %xmm0,(%esp)
 	vcvtsi2sdl (%esp),%xmm0,%xmm7
-	vmovd %xmm0,0x99(%ebp)
 	vcvtsi2sdl 0x99(%ebp),%xmm0,%xmm7
-	vmovd %xmm0,0x99(,%eiz)
 	vcvtsi2sdl 0x99(,%eiz),%xmm0,%xmm7
-	vmovd %xmm0,0x99(,%eiz,2)
 	vcvtsi2sdl 0x99(,%eiz,2),%xmm0,%xmm7
-	vmovd %xmm0,0x99(%eax,%eiz)
 	vcvtsi2sdl 0x99(%eax,%eiz),%xmm0,%xmm7
-	vmovd %xmm0,0x99(%eax,%eiz,2)
 	vcvtsi2sdl 0x99(%eax,%eiz,2),%xmm0,%xmm7
-	vmovd %xmm0,0x99(%eax,%ebx,4)
 	vcvtsi2sdl 0x99(%eax,%ebx,4),%xmm0,%xmm7
-	vmovd %xmm0,0x99(%esp,%ecx,8)
 	vcvtsi2sdl 0x99(%esp,%ecx,8),%xmm0,%xmm7
-	vmovd %xmm0,0x99(%ebp,%edx,1)
 	vcvtsi2sdl 0x99(%ebp,%edx,1),%xmm0,%xmm7
 
 	.intel_syntax noprefix
@@ -286,13 +260,6 @@ _start:
 # Tests for op xmm, mem64
 	vmovsd QWORD PTR [ecx],xmm4
 	vmovsd [ecx],xmm4
-
-# Tests for op xmm, regq/mem64
-# Tests for op regq/mem64, xmm
-	vmovq QWORD PTR [ecx],xmm4
-	vmovq xmm4,QWORD PTR [ecx]
-	vmovq [ecx],xmm4
-	vmovq xmm4,[ecx]
 
 # Tests for op xmm/mem64, regl
 	vcvtsd2si ecx,xmm4
@@ -576,15 +543,6 @@ _start:
 	vmovss DWORD PTR [ecx],xmm4
 	vmovss [ecx],xmm4
 
-# Tests for op xmm, regl/mem32
-# Tests for op regl/mem32, xmm
-	vmovd ecx,xmm4
-	vmovd DWORD PTR [ecx],xmm4
-	vmovd xmm4,ecx
-	vmovd xmm4,DWORD PTR [ecx]
-	vmovd [ecx],xmm4
-	vmovd xmm4,[ecx]
-
 # Tests for op xmm/mem32, regl
 	vcvtss2si ecx,xmm4
 	vcvtss2si ecx,DWORD PTR [ecx]
@@ -609,31 +567,18 @@ _start:
 	vroundss xmm2,xmm6,DWORD PTR [ecx],7
 	vroundss xmm2,xmm6,[ecx],7
 
-# Tests for op xmm, xmm
-	vmovq xmm6,xmm4
-
 # Tests for op xmm, xmm, xmm
 	vmovsd xmm2,xmm6,xmm4
 	vmovss xmm2,xmm6,xmm4
 
 #Tests with different memory and register operands.
-	vmovd DWORD PTR ds:0x1234,xmm0
 	vcvtsi2sd xmm7,xmm0,DWORD PTR ds:0x1234
-	vmovd DWORD PTR [ebp],xmm0
 	vcvtsi2sd xmm7,xmm0,DWORD PTR [ebp]
-	vmovd DWORD PTR [ebp+0x99],xmm0
 	vcvtsi2sd xmm7,xmm0,DWORD PTR [ebp+0x99]
-	vmovd DWORD PTR [eiz*1+0x99],xmm0
 	vcvtsi2sd xmm7,xmm0,DWORD PTR [eiz*1+0x99]
-	vmovd DWORD PTR [eiz*2+0x99],xmm0
 	vcvtsi2sd xmm7,xmm0,DWORD PTR [eiz*2+0x99]
-	vmovd DWORD PTR [eax+eiz*1+0x99],xmm0
 	vcvtsi2sd xmm7,xmm0,DWORD PTR [eax+eiz*1+0x99]
-	vmovd DWORD PTR [eax+eiz*2+0x99],xmm0
 	vcvtsi2sd xmm7,xmm0,DWORD PTR [eax+eiz*2+0x99]
-	vmovd DWORD PTR [eax+ebx*4+0x99],xmm0
 	vcvtsi2sd xmm7,xmm0,DWORD PTR [eax+ebx*4+0x99]
-	vmovd DWORD PTR [esp+ecx*8+0x99],xmm0
 	vcvtsi2sd xmm7,xmm0,DWORD PTR [esp+ecx*8+0x99]
-	vmovd DWORD PTR [ebp+edx*1+0x99],xmm0
 	vcvtsi2sd xmm7,xmm0,DWORD PTR [ebp+edx*1+0x99]

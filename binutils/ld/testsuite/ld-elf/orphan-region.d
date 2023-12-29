@@ -1,10 +1,8 @@
 #source: orphan-region.s
 #ld: -T orphan-region.ld -N -z stack-size=0
 #readelf: -S -l --wide
-#xfail: d30v-*-* dlx-*-* fr30-*-* frv-*-elf ft32-*-*
-#xfail: iq*-*-* mn10200-*-* moxie-*-* msp*-*-* mt-*-* pj*-*-*
-#xfail: spu-*-* hppa*64*-*-* *-*-nacl*
-# if not using elf32.em, you don't get fancy orphan handling
+#xfail: [uses_genelf] hppa*64*-*-* spu-*-* *-*-nacl*
+# if not using elf.em, you don't get fancy orphan handling
 # spu twiddles LOAD range, hppa64 adds PHDR, nacl splits to two segments
 
 #...

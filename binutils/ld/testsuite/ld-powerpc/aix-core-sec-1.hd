@@ -1,7 +1,7 @@
 #...
 Sections:
 .*
- * 0 * \.text * 0+8 .*
+ * 0 * \.text * 0+20 .*
  * CONTENTS, ALLOC, LOAD, CODE
  * 1 * \.data * 0+0 .*
  * ALLOC, LOAD, DATA

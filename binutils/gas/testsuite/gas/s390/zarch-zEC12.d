@@ -47,6 +47,8 @@ Disassembly of section .text:
 .*:	eb 6c 7a 4d fe 2b [	 ]*clgtnh	%r6,-5555\(%r7\)
 .*:	eb 6c 7a 4d fe 2b [	 ]*clgtnh	%r6,-5555\(%r7\)
 .*:	ec 67 0c 0d 0e 59 [	 ]*risbgn	%r6,%r7,12,13,14
+.*:	ec 67 0c bc 0e 59 [	 ]*risbgnz	%r6,%r7,12,60,14
+.*:	ec 67 0c 94 0e 59 [	 ]*risbgnz	%r6,%r7,12,20,14
 .*:	ed 0f 8f a0 6d aa [	 ]*cdzt	%f6,4000\(16,%r8\),13
 .*:	ed 21 8f a0 4d ab [	 ]*cxzt	%f4,4000\(34,%r8\),13
 .*:	ed 0f 8f a0 6d a8 [	 ]*czdt	%f6,4000\(16,%r8\),13
@@ -54,16 +56,16 @@ Disassembly of section .text:
 .*:	b2 e8 c0 56 [	 ]*ppa	%r5,%r6,12
 .*:	b9 8f 60 59 [	 ]*crdte	%r5,%r6,%r9
 .*:	b9 8f 61 59 [	 ]*crdte	%r5,%r6,%r9,1
-.*:	c5 a0 0c 00 00 0c [	 ]*bprp	10,12a <bar>,12a <bar>
-.*:	c5 a0 00 00 00 00 [	 ]*bprp	10,118 <foo\+0x118>,118 <foo\+0x118>
-[	 ]*119: R_390_PLT12DBL	bar\+0x1
-[	 ]*11b: R_390_PLT24DBL	bar\+0x3
-.*:	c7 a0 00 00 00 00 [	 ]*bpp	10,11e <foo\+0x11e>,0
-[	 ]*122: R_390_PLT16DBL	bar\+0x4
-.*:	c7 a0 00 00 00 00 [	 ]*bpp	10,124 <foo\+0x124>,0
-[	 ]*128: R_390_PC16DBL	baz\+0x4
+.*:	c5 a0 0c 00 00 0c [	 ]*bprp	10,136 <bar>,136 <bar>
+.*:	c5 a0 00 00 00 00 [	 ]*bprp	10,124 <foo\+0x124>,124 <foo\+0x124>
+[	 ]*125: R_390_PLT12DBL	bar\+0x1
+[	 ]*127: R_390_PLT24DBL	bar\+0x3
+.*:	c7 a0 00 00 00 00 [	 ]*bpp	10,12a <foo\+0x12a>,0
+[	 ]*12e: R_390_PLT16DBL	bar\+0x4
+.*:	c7 a0 00 00 00 00 [	 ]*bpp	10,130 <foo\+0x130>,0
+[	 ]*134: R_390_PC16DBL	baz\+0x4
 
 
-000000000000012a <bar>:
+0000000000000136 <bar>:
 
 .*:	07 07 [	 ]*nopr	%r7

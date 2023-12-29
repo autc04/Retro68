@@ -40,7 +40,7 @@ type (
 )
 
 func TestFmtInterface(t *testing.T) {
-	var i1 interface{}
+	var i1 any
 	i1 = "abc"
 	s := Sprintf("%s", i1)
 	if s != "abc" {
@@ -56,7 +56,7 @@ var (
 	intVar = 0
 
 	array  = [5]int{1, 2, 3, 4, 5}
-	iarray = [4]interface{}{1, "hello", 2.5, nil}
+	iarray = [4]any{1, "hello", 2.5, nil}
 	slice  = array[:]
 	islice = iarray[:]
 )
@@ -100,7 +100,7 @@ type S struct {
 }
 
 type SI struct {
-	I interface{}
+	I any
 }
 
 // P is a type with a String method with pointer receiver for testing %p.
@@ -141,7 +141,7 @@ func (sf writeStringFormatter) Format(f State, c rune) {
 
 var fmtTests = []struct {
 	fmt string
-	val interface{}
+	val any
 	out string
 }{
 	{"%d", 12345, "12345"},
@@ -236,10 +236,10 @@ var fmtTests = []struct {
 	{"%#q", "\U0010ffff", "`􏿿`"},
 	{"%#+q", "\U0010ffff", "`􏿿`"},
 	// Runes that are not valid.
-	{"%q", string(0x110000), `"�"`},
-	{"%+q", string(0x110000), `"\ufffd"`},
-	{"%#q", string(0x110000), "`�`"},
-	{"%#+q", string(0x110000), "`�`"},
+	{"%q", string(rune(0x110000)), `"�"`},
+	{"%+q", string(rune(0x110000)), `"\ufffd"`},
+	{"%#q", string(rune(0x110000)), "`�`"},
+	{"%#+q", string(rune(0x110000)), "`�`"},
 
 	// characters
 	{"%c", uint('x'), "x"},
@@ -290,11 +290,11 @@ var fmtTests = []struct {
 	{"%q", '\U00000e00', `'\u0e00'`},
 	{"%q", '\U0010ffff', `'\U0010ffff'`},
 	// Runes that are not valid.
-	{"%q", int32(-1), "%!q(int32=-1)"},
+	{"%q", int32(-1), `'�'`},
 	{"%q", 0xDC80, `'�'`},
-	{"%q", rune(0x110000), "%!q(int32=1114112)"},
-	{"%q", int64(0xFFFFFFFFF), "%!q(int64=68719476735)"},
-	{"%q", uint64(0xFFFFFFFFF), "%!q(uint64=68719476735)"},
+	{"%q", rune(0x110000), `'�'`},
+	{"%q", int64(0xFFFFFFFFF), `'�'`},
+	{"%q", uint64(0xFFFFFFFFF), `'�'`},
 
 	// width
 	{"%5s", "abc", "  abc"},
@@ -354,11 +354,17 @@ var fmtTests = []struct {
 	{"%+d", -12345, "-12345"},
 	{"%b", 7, "111"},
 	{"%b", -6, "-110"},
+	{"%#b", 7, "0b111"},
+	{"%#b", -6, "-0b110"},
 	{"%b", ^uint32(0), "11111111111111111111111111111111"},
 	{"%b", ^uint64(0), "1111111111111111111111111111111111111111111111111111111111111111"},
 	{"%b", int64(-1 << 63), zeroFill("-1", 63, "")},
 	{"%o", 01234, "1234"},
+	{"%o", -01234, "-1234"},
 	{"%#o", 01234, "01234"},
+	{"%#o", -01234, "-01234"},
+	{"%O", 01234, "0o1234"},
+	{"%O", -01234, "-0o1234"},
 	{"%o", ^uint32(0), "37777777777"},
 	{"%o", ^uint64(0), "1777777777777777777777"},
 	{"%#X", 0, "0X0"},
@@ -413,6 +419,8 @@ var fmtTests = []struct {
 	// floats
 	{"%+.3e", 0.0, "+0.000e+00"},
 	{"%+.3e", 1.0, "+1.000e+00"},
+	{"%+.3x", 0.0, "+0x0.000p+00"},
+	{"%+.3x", 1.0, "+0x1.000p+00"},
 	{"%+.3f", -1.0, "-1.000"},
 	{"%+.3F", -1.0, "-1.000"},
 	{"%+.3F", float32(-1.0), "-1.000"},
@@ -428,6 +436,8 @@ var fmtTests = []struct {
 	{"%+10.2f", -1.0, "     -1.00"},
 	{"% .3E", -1.0, "-1.000E+00"},
 	{"% .3e", 1.0, " 1.000e+00"},
+	{"% .3X", -1.0, "-0X1.000P+00"},
+	{"% .3x", 1.0, " 0x1.000p+00"},
 	{"%+.3g", 0.0, "+0"},
 	{"%+.3g", 1.0, "+1"},
 	{"%+.3g", -1.0, "-1"},
@@ -445,17 +455,30 @@ var fmtTests = []struct {
 	{"%#g", 1000000.0, "1.00000e+06"},
 	{"%#.0f", 1.0, "1."},
 	{"%#.0e", 1.0, "1.e+00"},
+	{"%#.0x", 1.0, "0x1.p+00"},
 	{"%#.0g", 1.0, "1."},
 	{"%#.0g", 1100000.0, "1.e+06"},
 	{"%#.4f", 1.0, "1.0000"},
 	{"%#.4e", 1.0, "1.0000e+00"},
+	{"%#.4x", 1.0, "0x1.0000p+00"},
 	{"%#.4g", 1.0, "1.000"},
 	{"%#.4g", 100000.0, "1.000e+05"},
+	{"%#.4g", 1.234, "1.234"},
+	{"%#.4g", 0.1234, "0.1234"},
+	{"%#.4g", 1.23, "1.230"},
+	{"%#.4g", 0.123, "0.1230"},
+	{"%#.4g", 1.2, "1.200"},
+	{"%#.4g", 0.12, "0.1200"},
+	{"%#.4g", 10.2, "10.20"},
+	{"%#.4g", 0.0, "0.000"},
+	{"%#.4g", 0.012, "0.01200"},
 	{"%#.0f", 123.0, "123."},
 	{"%#.0e", 123.0, "1.e+02"},
+	{"%#.0x", 123.0, "0x1.p+07"},
 	{"%#.0g", 123.0, "1.e+02"},
 	{"%#.4f", 123.0, "123.0000"},
 	{"%#.4e", 123.0, "1.2300e+02"},
+	{"%#.4x", 123.0, "0x1.ec00p+06"},
 	{"%#.4g", 123.0, "123.0"},
 	{"%#.4g", 123000.0, "1.230e+05"},
 	{"%#9.4g", 1.0, "    1.000"},
@@ -474,17 +497,23 @@ var fmtTests = []struct {
 	{"%20f", posInf, "                +Inf"},
 	{"% 20F", posInf, "                 Inf"},
 	{"% 20e", negInf, "                -Inf"},
+	{"% 20x", negInf, "                -Inf"},
 	{"%+20E", negInf, "                -Inf"},
+	{"%+20X", negInf, "                -Inf"},
 	{"% +20g", negInf, "                -Inf"},
 	{"%+-20G", posInf, "+Inf                "},
 	{"%20e", NaN, "                 NaN"},
+	{"%20x", NaN, "                 NaN"},
 	{"% +20E", NaN, "                +NaN"},
+	{"% +20X", NaN, "                +NaN"},
 	{"% -20g", NaN, " NaN                "},
 	{"%+-20G", NaN, "+NaN                "},
 	// Zero padding does not apply to infinities and NaN.
 	{"%+020e", posInf, "                +Inf"},
+	{"%+020x", posInf, "                +Inf"},
 	{"%-020f", negInf, "-Inf                "},
 	{"%-020E", NaN, "NaN                 "},
+	{"%-020X", NaN, "NaN                 "},
 
 	// complex values
 	{"%.f", 0i, "(0+0i)"},
@@ -492,23 +521,29 @@ var fmtTests = []struct {
 	{"%+.f", 0i, "(+0+0i)"},
 	{"% +.f", 0i, "(+0+0i)"},
 	{"%+.3e", 0i, "(+0.000e+00+0.000e+00i)"},
+	{"%+.3x", 0i, "(+0x0.000p+00+0x0.000p+00i)"},
 	{"%+.3f", 0i, "(+0.000+0.000i)"},
 	{"%+.3g", 0i, "(+0+0i)"},
 	{"%+.3e", 1 + 2i, "(+1.000e+00+2.000e+00i)"},
+	{"%+.3x", 1 + 2i, "(+0x1.000p+00+0x1.000p+01i)"},
 	{"%+.3f", 1 + 2i, "(+1.000+2.000i)"},
 	{"%+.3g", 1 + 2i, "(+1+2i)"},
 	{"%.3e", 0i, "(0.000e+00+0.000e+00i)"},
+	{"%.3x", 0i, "(0x0.000p+00+0x0.000p+00i)"},
 	{"%.3f", 0i, "(0.000+0.000i)"},
 	{"%.3F", 0i, "(0.000+0.000i)"},
 	{"%.3F", complex64(0i), "(0.000+0.000i)"},
 	{"%.3g", 0i, "(0+0i)"},
 	{"%.3e", 1 + 2i, "(1.000e+00+2.000e+00i)"},
+	{"%.3x", 1 + 2i, "(0x1.000p+00+0x1.000p+01i)"},
 	{"%.3f", 1 + 2i, "(1.000+2.000i)"},
 	{"%.3g", 1 + 2i, "(1+2i)"},
 	{"%.3e", -1 - 2i, "(-1.000e+00-2.000e+00i)"},
+	{"%.3x", -1 - 2i, "(-0x1.000p+00-0x1.000p+01i)"},
 	{"%.3f", -1 - 2i, "(-1.000-2.000i)"},
 	{"%.3g", -1 - 2i, "(-1-2i)"},
 	{"% .3E", -1 - 2i, "(-1.000E+00-2.000E+00i)"},
+	{"% .3X", -1 - 2i, "(-0X1.000P+00-0X1.000P+01i)"},
 	{"%+.3g", 1 + 2i, "(+1+2i)"},
 	{"%+.3g", complex64(1 + 2i), "(+1+2i)"},
 	{"%#g", 1 + 2i, "(1.00000+2.00000i)"},
@@ -517,11 +552,13 @@ var fmtTests = []struct {
 	{"%#g", -1e10 - 1.11e100i, "(-1.00000e+10-1.11000e+100i)"},
 	{"%#.0f", 1.23 + 1.0i, "(1.+1.i)"},
 	{"%#.0e", 1.23 + 1.0i, "(1.e+00+1.e+00i)"},
+	{"%#.0x", 1.23 + 1.0i, "(0x1.p+00+0x1.p+00i)"},
 	{"%#.0g", 1.23 + 1.0i, "(1.+1.i)"},
 	{"%#.0g", 0 + 100000i, "(0.+1.e+05i)"},
 	{"%#.0g", 1230000 + 0i, "(1.e+06+0.i)"},
 	{"%#.4f", 1 + 1.23i, "(1.0000+1.2300i)"},
 	{"%#.4e", 123 + 1i, "(1.2300e+02+1.0000e+00i)"},
+	{"%#.4x", 123 + 1i, "(0x1.ec00p+06+0x1.0000p+00i)"},
 	{"%#.4g", 123 + 1.23i, "(123.0+1.230i)"},
 	{"%#12.5g", 0 + 100000i, "(      0.0000 +1.0000e+05i)"},
 	{"%#12.5g", 1230000 - 0i, "(  1.2300e+06     +0.0000i)"},
@@ -541,7 +578,9 @@ var fmtTests = []struct {
 	{"% f", complex(negInf, negInf), "(-Inf-Infi)"},
 	{"% f", complex(NaN, NaN), "( NaN+NaNi)"},
 	{"%8e", complex(posInf, posInf), "(    +Inf    +Infi)"},
+	{"%8x", complex(posInf, posInf), "(    +Inf    +Infi)"},
 	{"% 8E", complex(posInf, posInf), "(     Inf    +Infi)"},
+	{"% 8X", complex(posInf, posInf), "(     Inf    +Infi)"},
 	{"%+8f", complex(negInf, negInf), "(    -Inf    -Infi)"},
 	{"% +8g", complex(negInf, negInf), "(    -Inf    -Infi)"},
 	{"% -8G", complex(NaN, NaN), "( NaN    +NaN    i)"},
@@ -954,14 +993,14 @@ var fmtTests = []struct {
 
 	// float and complex formatting should not change the padding width
 	// for other elements. See issue 14642.
-	{"%06v", []interface{}{+10.0, 10}, "[000010 000010]"},
-	{"%06v", []interface{}{-10.0, 10}, "[-00010 000010]"},
-	{"%06v", []interface{}{+10.0 + 10i, 10}, "[(000010+00010i) 000010]"},
-	{"%06v", []interface{}{-10.0 + 10i, 10}, "[(-00010+00010i) 000010]"},
+	{"%06v", []any{+10.0, 10}, "[000010 000010]"},
+	{"%06v", []any{-10.0, 10}, "[-00010 000010]"},
+	{"%06v", []any{+10.0 + 10i, 10}, "[(000010+00010i) 000010]"},
+	{"%06v", []any{-10.0 + 10i, 10}, "[(-00010+00010i) 000010]"},
 
 	// integer formatting should not alter padding for other elements.
-	{"%03.6v", []interface{}{1, 2.0, "x"}, "[000001 002 00x]"},
-	{"%03.0v", []interface{}{0, 2.0, "x"}, "[    002 000]"},
+	{"%03.6v", []any{1, 2.0, "x"}, "[000001 002 00x]"},
+	{"%03.0v", []any{0, 2.0, "x"}, "[    002 000]"},
 
 	// Complex fmt used to leave the plus flag set for future entries in the array
 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
@@ -1021,7 +1060,7 @@ var fmtTests = []struct {
 
 	// Tests to check that not supported verbs generate an error string.
 	{"%☠", nil, "%!☠(<nil>)"},
-	{"%☠", interface{}(nil), "%!☠(<nil>)"},
+	{"%☠", any(nil), "%!☠(<nil>)"},
 	{"%☠", int(0), "%!☠(int=0)"},
 	{"%☠", uint(0), "%!☠(uint=0)"},
 	{"%☠", []byte{0, 1}, "[%!☠(uint8=0) %!☠(uint8=1)]"},
@@ -1038,8 +1077,8 @@ var fmtTests = []struct {
 	{"%☠", func() {}, "%!☠(func()=0xPTR)"},
 	{"%☠", reflect.ValueOf(renamedInt(0)), "%!☠(fmt_test.renamedInt=0)"},
 	{"%☠", SI{renamedInt(0)}, "{%!☠(fmt_test.renamedInt=0)}"},
-	{"%☠", &[]interface{}{I(1), G(2)}, "&[%!☠(fmt_test.I=1) %!☠(fmt_test.G=2)]"},
-	{"%☠", SI{&[]interface{}{I(1), G(2)}}, "{%!☠(*[]interface {}=&[1 2])}"},
+	{"%☠", &[]any{I(1), G(2)}, "&[%!☠(fmt_test.I=1) %!☠(fmt_test.G=2)]"},
+	{"%☠", SI{&[]any{I(1), G(2)}}, "{%!☠(*[]interface {}=&[1 2])}"},
 	{"%☠", reflect.Value{}, "<invalid reflect.Value>"},
 	{"%☠", map[float64]int{NaN: 1}, "map[%!☠(float64=NaN):%!☠(int=1)]"},
 }
@@ -1141,7 +1180,7 @@ func TestComplexFormatting(t *testing.T) {
 	}
 }
 
-type SE []interface{} // slice of empty; notational compactness.
+type SE []any // slice of empty; notational compactness.
 
 var reorderTests = []struct {
 	fmt string
@@ -1228,7 +1267,7 @@ func BenchmarkSprintfTruncateString(b *testing.B) {
 }
 
 func BenchmarkSprintfTruncateBytes(b *testing.B) {
-	var bytes interface{} = []byte("日本語日本語日本語日本語")
+	var bytes any = []byte("日本語日本語日本語日本語")
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%.3s", bytes)
@@ -1336,7 +1375,7 @@ func BenchmarkSprintfStringer(b *testing.B) {
 }
 
 func BenchmarkSprintfStructure(b *testing.B) {
-	s := &[]interface{}{SI{12345}, map[int]string{0: "hello"}}
+	s := &[]any{SI{12345}, map[int]string{0: "hello"}}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%#v", s)
@@ -1372,7 +1411,7 @@ func BenchmarkFprintfBytes(b *testing.B) {
 }
 
 func BenchmarkFprintIntNoAlloc(b *testing.B) {
-	var x interface{} = 123456
+	var x any = 123456
 	var buf bytes.Buffer
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
@@ -1429,7 +1468,7 @@ func (flagPrinter) Format(f State, c rune) {
 	s := "%"
 	for i := 0; i < 128; i++ {
 		if f.Flag(i) {
-			s += string(i)
+			s += string(rune(i))
 		}
 	}
 	if w, ok := f.Width(); ok {
@@ -1604,11 +1643,11 @@ func TestFormatterPrintln(t *testing.T) {
 	}
 }
 
-func args(a ...interface{}) []interface{} { return a }
+func args(a ...any) []any { return a }
 
 var startests = []struct {
 	fmt string
-	in  []interface{}
+	in  []any
 	out string
 }{
 	{"%*d", args(4, 42), "  42"},
@@ -1650,7 +1689,7 @@ func TestWidthAndPrecision(t *testing.T) {
 
 // PanicS is a type that panics in String.
 type PanicS struct {
-	message interface{}
+	message any
 }
 
 // Value receiver.
@@ -1660,7 +1699,7 @@ func (p PanicS) String() string {
 
 // PanicGo is a type that panics in GoString.
 type PanicGo struct {
-	message interface{}
+	message any
 }
 
 // Value receiver.
@@ -1670,7 +1709,7 @@ func (p PanicGo) GoString() string {
 
 // PanicF is a type that panics in Format.
 type PanicF struct {
-	message interface{}
+	message any
 }
 
 // Value receiver.
@@ -1680,7 +1719,7 @@ func (p PanicF) Format(f State, c rune) {
 
 var panictests = []struct {
 	fmt string
-	in  interface{}
+	in  any
 	out string
 }{
 	// String
@@ -1692,7 +1731,7 @@ var panictests = []struct {
 	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=GoString method: unexpected EOF)"},
 	{"%#v", PanicGo{3}, "%!v(PANIC=GoString method: 3)"},
 	// Issue 18282. catchPanic should not clear fmtFlags permanently.
-	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=GoString method: 3), %!v(PANIC=GoString method: 3)}"},
+	{"%#v", []any{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=GoString method: 3), %!v(PANIC=GoString method: 3)}"},
 	// Format
 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
 	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=Format method: unexpected EOF)"},
@@ -1768,7 +1807,7 @@ func TestNilDoesNotBecomeTyped(t *testing.T) {
 
 var formatterFlagTests = []struct {
 	in  string
-	val interface{}
+	val any
 	out string
 }{
 	// scalar values with the (unused by fmt) 'a' verb.

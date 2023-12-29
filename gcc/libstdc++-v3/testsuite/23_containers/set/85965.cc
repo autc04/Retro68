@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Free Software Foundation, Inc.
+// Copyright (C) 2019-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,3 +27,12 @@ struct Foo
   // PR libstdc++/85965
   std::set<Derived*, std::less<Base*>> s;
 };
+
+std::size_t
+test01(std::set<Derived*, std::less<Base*>> s)
+{
+  // these operations should not require the comparison object
+  auto copy = s;
+  copy = s;
+  return s.size();
+}

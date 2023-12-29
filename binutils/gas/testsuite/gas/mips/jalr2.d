@@ -1,3 +1,4 @@
+#name: MIPS JAL with an addend
 #as: -mips2 -32 -KPIC
 #objdump: -dr
 

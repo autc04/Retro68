@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Free Software Foundation, Inc.
+// Copyright (C) 2019-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -16,10 +16,9 @@
 // <http://www.gnu.org/licenses/>.
 
 // { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do run { target c++2a } }
 
 #include <numeric>
-#include <climits>
 #include <testsuite_hooks.h>
 
 const int* p = nullptr;
@@ -36,7 +35,6 @@ template<typename T> constexpr bool no_midpoint()
 static_assert(no_midpoint<void>());
 static_assert(no_midpoint<int()>());
 static_assert(no_midpoint<int&>());
-static_assert(no_midpoint<struct Incomplete>());
 
 constexpr int ca[3] = {};
 static_assert( std::midpoint(ca, ca+3) == ca+1 );

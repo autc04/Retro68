@@ -1,8 +1,6 @@
 #source: defined6.s
 #ld: -T defined6.t
 #nm: -B
-#notarget: hppa*-hpux*
-# hppa64-hpux has a different .comm
 
 # Check that DEFINED works with various symbol types
 #...

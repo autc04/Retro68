@@ -9,7 +9,9 @@
 #include "atexit.h"
 
 /* Make this a weak reference to avoid pulling in free.  */
+#ifndef MALLOC_PROVIDED
 void free(void *) _ATTRIBUTE((__weak__));
+#endif
 
 #ifndef __SINGLE_THREAD__
 __LOCK_INIT_RECURSIVE(, __atexit_recursive_mutex);
@@ -129,14 +131,9 @@ __call_exitprocs (int code, void *d)
 	    goto restart;
 	}
 
-#ifndef _ATEXIT_DYNAMIC_ALLOC
+#if !defined (_ATEXIT_DYNAMIC_ALLOC) || !defined (MALLOC_PROVIDED)
       break;
 #else
-      /* Don't dynamically free the atexit array if free is not
-	 available.  */
-      if (!free)
-	break;
-
       /* Move to the next block.  Free empty blocks except the last one,
 	 which is part of _GLOBAL_REENT.  */
       if (p->_ind == 0 && p->_next)

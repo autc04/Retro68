@@ -1,4 +1,4 @@
-#include <bfd_stdint.h>
+#include <stdint.h>
 
 extern void bar (void);
 extern void foo (void);

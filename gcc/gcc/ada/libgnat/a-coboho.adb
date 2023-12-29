@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---            Copyright (C) 2015-2019, Free Software Foundation, Inc.       --
+--            Copyright (C) 2015-2022, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,6 +26,7 @@
 ------------------------------------------------------------------------------
 
 with Unchecked_Conversion;
+with System.Put_Images;
 
 package body Ada.Containers.Bounded_Holders is
 
@@ -64,6 +65,17 @@ package body Ada.Containers.Bounded_Holders is
       return Get (Left) = Get (Right);
    end "=";
 
+   ------------------------
+   -- Constant_Reference --
+   ------------------------
+
+   function Constant_Reference
+     (Container : aliased Holder) return not null access constant Element_Type
+   is
+   begin
+      return Cast (Container'Address);
+   end Constant_Reference;
+
    ---------
    -- Get --
    ---------
@@ -72,6 +84,31 @@ package body Ada.Containers.Bounded_Holders is
    begin
       return Cast (Container'Address).all;
    end Get;
+
+   ---------------
+   -- Put_Image --
+   ---------------
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : Holder)
+   is
+      use System.Put_Images;
+   begin
+      Array_Before (S);
+      Element_Type'Put_Image (S, Get (V));
+      Array_After (S);
+   end Put_Image;
+
+   ---------------
+   -- Reference --
+   ---------------
+
+   function Reference
+     (Container : not null access Holder) return not null access Element_Type
+   is
+   begin
+      return Cast (Container.all'Address);
+   end Reference;
 
    ---------
    -- Set --

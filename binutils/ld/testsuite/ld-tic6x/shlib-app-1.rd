@@ -18,8 +18,8 @@ Section Headers:
   \[13\] \.bss              NOBITS          100000cc 0020cc 000004 00  WA  0   0  4
   \[14\] \.c6xabi\.attributes C6000_ATTRIBUTES 00000000 0020cc 000019 00      0   0  1
   \[15\] \.symtab           SYMTAB          00000000 0020e8 0001b0 10     16  22  4
-  \[16\] \.strtab           STRTAB          00000000 002298 00005e 00      0   0  1
-  \[17\] \.shstrtab         STRTAB          00000000 0022f6 000080 00      0   0  1
+  \[16\] \.strtab           STRTAB .*
+  \[17\] \.shstrtab         STRTAB .*
 Key to Flags:
 #...
 
@@ -32,7 +32,7 @@ Program Headers:
   LOAD           0x001000 0x00008000 0x00008000 0x00208 0x00208 RW  0x1000
   LOAD           0x002000 0x10000000 0x10000000 0x000cc 0x000d0 RWE 0x1000
   DYNAMIC        0x001150 0x00008150 0x00008150 0x000b8 0x000b8 RW  0x4
-  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x20000 RWE 0x8
+  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x20000 RW  0x8
 
  Section to Segment mapping:
   Segment Sections\.\.\.
@@ -50,9 +50,6 @@ Dynamic section at offset 0x1150 contains 18 entries:
  0x0000000a \(STRSZ\)                      34 \(bytes\)
  0x0000000b \(SYMENT\)                     16 \(bytes\)
  0x00000015 \(DEBUG\)                      0x0
- 0x70000000 \(C6000_DSBT_BASE\)            0x100000a0
- 0x70000001 \(C6000_DSBT_SIZE\)            0x3
- 0x70000003 \(C6000_DSBT_INDEX\)           0x0
  0x00000003 \(PLTGOT\)                     0x100000ac
  0x00000002 \(PLTRELSZ\)                   12 \(bytes\)
  0x00000014 \(PLTREL\)                     RELA
@@ -60,6 +57,9 @@ Dynamic section at offset 0x1150 contains 18 entries:
  0x00000007 \(RELA\)                       0x8114
  0x00000008 \(RELASZ\)                     72 \(bytes\)
  0x00000009 \(RELAENT\)                    12 \(bytes\)
+ 0x70000000 \(C6000_DSBT_BASE\)            0x100000a0
+ 0x70000001 \(C6000_DSBT_SIZE\)            0x3
+ 0x70000003 \(C6000_DSBT_INDEX\)           0x0
  0x00000000 \(NULL\)                       0x0
 
 Relocation section '\.rela\.got' at offset 0x1114 contains 2 entries:
@@ -83,11 +83,11 @@ Relocation section '\.rela\.plt' at offset 0x2000 contains 1 entry:
 Symbol table '\.dynsym' contains 11 entries:
    Num:    Value  Size Type    Bind   Vis      Ndx Name
      0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 10000020     0 SECTION LOCAL  DEFAULT    9 
-     2: 10000060     0 SECTION LOCAL  DEFAULT   10 
-     3: 100000a0     0 SECTION LOCAL  DEFAULT   11 
-     4: 100000c0     0 SECTION LOCAL  DEFAULT   12 
-     5: 100000cc     0 SECTION LOCAL  DEFAULT   13 
+     1: 10000020     0 SECTION LOCAL  DEFAULT    9.*
+     2: 10000060     0 SECTION LOCAL  DEFAULT   10.*
+     3: 100000a0     0 SECTION LOCAL  DEFAULT   11.*
+     4: 100000c0     0 SECTION LOCAL  DEFAULT   12.*
+     5: 100000cc     0 SECTION LOCAL  DEFAULT   13.*
      6: 100000c0     4 OBJECT  GLOBAL DEFAULT   12 b
      7: 00000000     0 NOTYPE  WEAK   DEFAULT  UND g1
      8: 00000000     0 OBJECT  WEAK   DEFAULT  UND g2
@@ -97,21 +97,21 @@ Symbol table '\.dynsym' contains 11 entries:
 Symbol table '\.symtab' contains 27 entries:
    Num:    Value  Size Type    Bind   Vis      Ndx Name
      0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 00008000     0 SECTION LOCAL  DEFAULT    1 
-     2: 00008040     0 SECTION LOCAL  DEFAULT    2 
-     3: 000080f0     0 SECTION LOCAL  DEFAULT    3 
-     4: 00008114     0 SECTION LOCAL  DEFAULT    4 
-     5: 0000812c     0 SECTION LOCAL  DEFAULT    5 
-     6: 00008144     0 SECTION LOCAL  DEFAULT    6 
-     7: 00008150     0 SECTION LOCAL  DEFAULT    7 
-     8: 10000000     0 SECTION LOCAL  DEFAULT    8 
-     9: 10000020     0 SECTION LOCAL  DEFAULT    9 
-    10: 10000060     0 SECTION LOCAL  DEFAULT   10 
-    11: 100000a0     0 SECTION LOCAL  DEFAULT   11 
-    12: 100000c0     0 SECTION LOCAL  DEFAULT   12 
-    13: 100000cc     0 SECTION LOCAL  DEFAULT   13 
-    14: 00000000     0 SECTION LOCAL  DEFAULT   14 
-    15: 00000000     0 FILE    LOCAL  DEFAULT  ABS tmpdir/shlib-app-1\.o
+     1: 00008000     0 SECTION LOCAL  DEFAULT    1.*
+     2: 00008040     0 SECTION LOCAL  DEFAULT    2.*
+     3: 000080f0     0 SECTION LOCAL  DEFAULT    3.*
+     4: 00008114     0 SECTION LOCAL  DEFAULT    4.*
+     5: 0000812c     0 SECTION LOCAL  DEFAULT    5.*
+     6: 00008144     0 SECTION LOCAL  DEFAULT    6.*
+     7: 00008150     0 SECTION LOCAL  DEFAULT    7.*
+     8: 10000000     0 SECTION LOCAL  DEFAULT    8.*
+     9: 10000020     0 SECTION LOCAL  DEFAULT    9.*
+    10: 10000060     0 SECTION LOCAL  DEFAULT   10.*
+    11: 100000a0     0 SECTION LOCAL  DEFAULT   11.*
+    12: 100000c0     0 SECTION LOCAL  DEFAULT   12.*
+    13: 100000cc     0 SECTION LOCAL  DEFAULT   13.*
+    14: 00000000     0 SECTION LOCAL  DEFAULT   14.*
+    15: 00000000     0 FILE    LOCAL  DEFAULT  ABS .*shlib-app-1\.o
     16: 10000060     0 NOTYPE  LOCAL  DEFAULT   10 fish
     17: 100000c4     8 OBJECT  LOCAL  DEFAULT   12 w
     18: 00000000     0 FILE    LOCAL  DEFAULT  ABS 

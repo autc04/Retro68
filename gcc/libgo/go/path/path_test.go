@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package path
+package path_test
 
 import (
+	. "path"
 	"runtime"
 	"testing"
 )
@@ -141,7 +142,7 @@ var jointests = []JoinTest{
 func TestJoin(t *testing.T) {
 	for _, test := range jointests {
 		if p := Join(test.elem...); p != test.path {
-			t.Errorf("join(%q) = %q, want %q", test.elem, p, test.path)
+			t.Errorf("Join(%q) = %q, want %q", test.elem, p, test.path)
 		}
 	}
 }

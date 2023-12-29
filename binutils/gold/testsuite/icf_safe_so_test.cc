@@ -1,6 +1,6 @@
 // icf_safe_so_test.cc -- a test case for gold
 
-// Copyright (C) 2010-2018 Free Software Foundation, Inc.
+// Copyright (C) 2010-2022 Free Software Foundation, Inc.
 // Written by Sriraman Tallam <tmsriram@google.com>.
 
 // This file is part of gold.
@@ -61,9 +61,17 @@ int bar_glob()
   return 2;
 }
 
+static int
+bar_static()
+{
+  return 2;
+}
+
 int main()
 {
   int (*p)() = foo_glob;
+  (void)p;
+  p = bar_static;
   (void)p;
   foo_static();
   foo_prot();

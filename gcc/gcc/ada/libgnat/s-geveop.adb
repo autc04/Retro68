@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2002-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,7 +29,6 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with System;                    use System;
 with System.Address_Operations; use System.Address_Operations;
 with System.Storage_Elements;   use System.Storage_Elements;
 
@@ -66,6 +65,13 @@ package body System.Generic_Vector_Operations is
       function VP is new Ada.Unchecked_Conversion (Address, Vector_Ptr);
       function EP is new Ada.Unchecked_Conversion (Address, Element_Ptr);
 
+      pragma Assert (VI > 0);
+      --  VI = VU
+      --  VU = Vectors.Vector'Size / Storage_Unit
+      --  Vector'Size = System.Word_Size
+      --  System.Word_Size is a multiple of Storage_Unit
+      --  Vector'Size > Storage_Unit
+      --  VI > 0
       SA : constant Address :=
              AddA (XA, To_Address
                          ((Integer_Address (Length) / VI * VI) and Unaligned));
@@ -111,6 +117,13 @@ package body System.Generic_Vector_Operations is
       function VP is new Ada.Unchecked_Conversion (Address, Vector_Ptr);
       function EP is new Ada.Unchecked_Conversion (Address, Element_Ptr);
 
+      pragma Assert (VI > 0);
+      --  VI = VU
+      --  VU = Vectors.Vector'Size / Storage_Unit
+      --  Vector'Size = System.Word_Size
+      --  System.Word_Size is a multiple of Storage_Unit
+      --  Vector'Size > Storage_Unit
+      --  VI > 0
       SA : constant Address :=
              AddA (XA, To_Address
                          ((Integer_Address (Length) / VI * VI) and Unaligned));

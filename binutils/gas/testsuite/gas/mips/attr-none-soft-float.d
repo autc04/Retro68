@@ -1,5 +1,5 @@
 #as: -msoft-float
-#PROG: readelf
+#DUMPPROG: readelf
 #source: empty.s
 #readelf: -A
 #name: MIPS infer fpabi (soft-precision)

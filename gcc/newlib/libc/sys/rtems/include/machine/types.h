@@ -62,6 +62,12 @@ typedef	__lwpid_t	lwpid_t;	/* Thread ID (a.k.a. LWP) */
 #define	_LWPID_T_DECLARED
 #endif
 
+#if ___int64_t_defined
+typedef	__uint64_t	u_quad_t;
+typedef	__int64_t	quad_t;
+typedef	quad_t *	qaddr_t;
+#endif
+
 #ifndef _RLIM_T_DECLARED
 typedef	__rlim_t	rlim_t;		/* resource limit */
 #define	_RLIM_T_DECLARED
@@ -70,6 +76,9 @@ typedef	__rlim_t	rlim_t;		/* resource limit */
 typedef	__uintptr_t	segsz_t;	/* segment size (in pages) */
 
 typedef	__uintptr_t	uintfptr_t;
+
+typedef	__uintptr_t	kvaddr_t;
+typedef	size_t		ksize_t;
 
 typedef	__intptr_t	vm_ooffset_t;
 typedef	__uintptr_t	vm_offset_t;

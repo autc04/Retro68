@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++17" }
 // { dg-do compile { target c++17 } }
 
-// Copyright (C) 2017-2019 Free Software Foundation, Inc.
+// Copyright (C) 2017-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -73,9 +72,16 @@ template<typename CT>
     return true;
   }
 
+#ifndef __cpp_lib_constexpr_string
+# error Feature-test macro for constexpr char_traits is missing
+#elif __cpp_lib_constexpr_string < (__cplusplus == 201703 ? 201611 : 201811)
+# error Feature-test macro for constexpr char_traits has the wrong value
+#endif
+
+// We also provide this non-standard macro for P0426R1 (and P1032R1 in C++20).
 #ifndef __cpp_lib_constexpr_char_traits
 # error Feature-test macro for constexpr char_traits is missing
-#elif __cpp_lib_constexpr_char_traits != 201611
+#elif __cpp_lib_constexpr_char_traits != (__cplusplus == 201703 ? 201611 : 201811)
 # error Feature-test macro for constexpr char_traits has the wrong value
 #endif
 
@@ -83,12 +89,10 @@ static_assert( test_assign<std::char_traits<char>>() );
 static_assert( test_compare<std::char_traits<char>>() );
 static_assert( test_length<std::char_traits<char>>() );
 static_assert( test_find<std::char_traits<char>>() );
-#ifdef _GLIBCXX_USE_WCHAR_T
 static_assert( test_assign<std::char_traits<wchar_t>>() );
 static_assert( test_compare<std::char_traits<wchar_t>>() );
 static_assert( test_length<std::char_traits<wchar_t>>() );
 static_assert( test_find<std::char_traits<wchar_t>>() );
-#endif
 #ifdef _GLIBCXX_USE_CHAR8_T
 static_assert( test_assign<std::char_traits<char8_t>>() );
 static_assert( test_compare<std::char_traits<char8_t>>() );

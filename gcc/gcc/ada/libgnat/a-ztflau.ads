@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,41 +31,50 @@
 
 --  This package contains the routines for Ada.Wide_Wide_Text_IO.Float_IO that
 --  are shared among separate instantiations of this package. The routines
---  in this package are identical semantically to those in Float_IO itself,
---  except that generic parameter Num has been replaced by Long_Long_Float,
---  and the default parameters have been removed because they are supplied
+--  in this package are identical semantically to those in Float_IO, except
+--  that the default parameters have been removed because they are supplied
 --  explicitly by the calls from within the generic template. Also used by
---  Ada.Wide_Wide_Text_IO.Fixed_IO, and by Ada.Wide_Wide_Text_IO.Decimal_IO.
+--  Ada.Wide_Wide_Text_IO.Fixed_IO and by Ada.Wide_Wide_Text_IO.Decimal_IO.
 
-private package Ada.Wide_Wide_Text_IO.Float_Aux is
+private generic
 
-   procedure Load_Real
-     (File : File_Type;
-      Buf  : out String;
-      Ptr  : in out Natural);
-   --  This is an auxiliary routine that is used to load a possibly signed
-   --  real literal value from the input file into Buf, starting at Ptr + 1.
+   type Num is digits <>;
+
+   with function Scan
+     (Str : String;
+      Ptr : not null access Integer;
+      Max : Integer) return Num;
+
+   with procedure Set_Image
+     (V    : Num;
+      S    : in out String;
+      P    : in out Natural;
+      Fore : Natural;
+      Aft  : Natural;
+      Exp  : Natural);
+
+package Ada.Wide_Wide_Text_IO.Float_Aux is
 
    procedure Get
      (File  : File_Type;
-      Item  : out Long_Long_Float;
+      Item  : out Num;
       Width : Field);
-
-   procedure Gets
-     (From : String;
-      Item : out Long_Long_Float;
-      Last : out Positive);
 
    procedure Put
      (File : File_Type;
-      Item : Long_Long_Float;
+      Item : Num;
       Fore : Field;
       Aft  : Field;
       Exp  : Field);
 
+   procedure Gets
+     (From : String;
+      Item : out Num;
+      Last : out Positive);
+
    procedure Puts
      (To   : out String;
-      Item : Long_Long_Float;
+      Item : Num;
       Aft  : Field;
       Exp  : Field);
 

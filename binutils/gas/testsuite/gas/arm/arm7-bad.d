@@ -1,3 +1,3 @@
 # name: ARM mode Thumb errors
 # as:
-# error-output: arm7-bad.l
+# error_output: arm7-bad.l

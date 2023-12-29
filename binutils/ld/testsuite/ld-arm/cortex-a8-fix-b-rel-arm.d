@@ -79,5 +79,5 @@ Disassembly of section \.text:
 
 00009010 <__targetfn_from_thumb>:
     9010:	4778      	bx	pc
-    9012:	46c0      	nop			; \(mov r8, r8\)
+    9012:	e7fd      	b.n	.+ <.+>
     9014:	eaffffb9 	b	8f00 <targetfn>

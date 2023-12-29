@@ -6,6 +6,7 @@ package asn1
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -478,7 +479,7 @@ type TestSet struct {
 
 var unmarshalTestData = []struct {
 	in  []byte
-	out interface{}
+	out any
 }{
 	{[]byte{0x02, 0x01, 0x42}, newInt(0x42)},
 	{[]byte{0x05, 0x00}, &RawValue{0, 5, false, []byte{}, []byte{0x05, 0x00}}},
@@ -517,6 +518,29 @@ func TestUnmarshal(t *testing.T) {
 	}
 }
 
+func TestUnmarshalWithNilOrNonPointer(t *testing.T) {
+	tests := []struct {
+		b    []byte
+		v    any
+		want string
+	}{
+		{b: []byte{0x05, 0x00}, v: nil, want: "asn1: Unmarshal recipient value is nil"},
+		{b: []byte{0x05, 0x00}, v: RawValue{}, want: "asn1: Unmarshal recipient value is non-pointer asn1.RawValue"},
+		{b: []byte{0x05, 0x00}, v: (*RawValue)(nil), want: "asn1: Unmarshal recipient value is nil *asn1.RawValue"},
+	}
+
+	for _, test := range tests {
+		_, err := Unmarshal(test.b, test.v)
+		if err == nil {
+			t.Errorf("Unmarshal expecting error, got nil")
+			continue
+		}
+		if g, w := err.Error(), test.want; g != w {
+			t.Errorf("InvalidUnmarshalError mismatch\nGot:  %q\nWant: %q", g, w)
+		}
+	}
+}
+
 type Certificate struct {
 	TBSCertificate     TBSCertificate
 	SignatureAlgorithm AlgorithmIdentifier
@@ -543,7 +567,7 @@ type RelativeDistinguishedNameSET []AttributeTypeAndValue
 
 type AttributeTypeAndValue struct {
 	Type  ObjectIdentifier
-	Value interface{}
+	Value any
 }
 
 type Validity struct {
@@ -974,9 +998,9 @@ func TestUnmarshalInvalidUTF8(t *testing.T) {
 }
 
 func TestMarshalNilValue(t *testing.T) {
-	nilValueTestData := []interface{}{
+	nilValueTestData := []any{
 		nil,
-		struct{ V interface{} }{},
+		struct{ V any }{},
 	}
 	for i, test := range nilValueTestData {
 		if _, err := Marshal(test); err == nil {
@@ -1094,5 +1118,49 @@ func TestTaggedRawValue(t *testing.T) {
 		if _, err := Unmarshal(test.derBytes, &untagged); err != nil {
 			t.Errorf("#%d: unexpected failure parsing %x with untagged RawValue: %s", i, test.derBytes, err)
 		}
+	}
+}
+
+var bmpStringTests = []struct {
+	decoded    string
+	encodedHex string
+}{
+	{"", "0000"},
+	// Example from https://tools.ietf.org/html/rfc7292#appendix-B.
+	{"Beavis", "0042006500610076006900730000"},
+	// Some characters from the "Letterlike Symbols Unicode block".
+	{"\u2115 - Double-struck N", "21150020002d00200044006f00750062006c0065002d00730074007200750063006b0020004e0000"},
+}
+
+func TestBMPString(t *testing.T) {
+	for i, test := range bmpStringTests {
+		encoded, err := hex.DecodeString(test.encodedHex)
+		if err != nil {
+			t.Fatalf("#%d: failed to decode from hex string", i)
+		}
+
+		decoded, err := parseBMPString(encoded)
+
+		if err != nil {
+			t.Errorf("#%d: decoding output gave an error: %s", i, err)
+			continue
+		}
+
+		if decoded != test.decoded {
+			t.Errorf("#%d: decoding output resulted in %q, but it should have been %q", i, decoded, test.decoded)
+			continue
+		}
+	}
+}
+
+func TestNonMinimalEncodedOID(t *testing.T) {
+	h, err := hex.DecodeString("060a2a80864886f70d01010b")
+	if err != nil {
+		t.Fatalf("failed to decode from hex string: %s", err)
+	}
+	var oid ObjectIdentifier
+	_, err = Unmarshal(h, &oid)
+	if err == nil {
+		t.Fatalf("accepted non-minimally encoded oid")
 	}
 }

@@ -203,7 +203,8 @@ type (signed or modular), as in this example:
 
      function Shift_Left
        (Value  : T;
-        Amount : Natural) return T;
+        Amount : Natural) return T
+     with Import, Convention => Intrinsic;
 
 
 The function name must be one of
@@ -215,9 +216,12 @@ The result type must be the same as the type of ``Value``.
 The shift amount must be Natural.
 The formal parameter names can be anything.
 
-A more convenient way of providing these shift operators is to use
-the Provide_Shift_Operators pragma, which provides the function declarations
-and corresponding pragma Import's for all five shift functions.
+A more convenient way of providing these shift operators is to use the
+Provide_Shift_Operators pragma, which provides the function declarations and
+corresponding pragma Import's for all five shift functions. For signed types
+the semantics of these operators is to interpret the bitwise result of the
+corresponding operator for modular type. In particular, shifting a negative
+number may change its sign bit to positive.
 
 .. _Source_Location:
 

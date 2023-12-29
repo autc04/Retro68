@@ -8,9 +8,9 @@ import (
 	"archive/zip"
 	"bytes"
 	"flag"
-	"fmt"
 	"internal/testenv"
-	"io/ioutil"
+	"io"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -46,47 +46,53 @@ var altRepos = []string{
 var localGitRepo string
 
 func testMain(m *testing.M) int {
-	if _, err := exec.LookPath("git"); err != nil {
-		fmt.Fprintln(os.Stderr, "skipping because git binary not found")
-		fmt.Println("PASS")
-		return 0
-	}
-
-	dir, err := ioutil.TempDir("", "gitrepo-test-")
+	dir, err := os.MkdirTemp("", "gitrepo-test-")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	WorkRoot = dir
 
 	if testenv.HasExternalNetwork() && testenv.HasExec() {
-		// Clone gitrepo1 into a local directory.
-		// If we use a file:// URL to access the local directory,
-		// then git starts up all the usual protocol machinery,
-		// which will let us test remote git archive invocations.
-		localGitRepo = filepath.Join(dir, "gitrepo2")
-		if _, err := Run("", "git", "clone", "--mirror", gitrepo1, localGitRepo); err != nil {
-			log.Fatal(err)
-		}
-		if _, err := Run(localGitRepo, "git", "config", "daemon.uploadarch", "true"); err != nil {
-			log.Fatal(err)
+		if _, err := exec.LookPath("git"); err == nil {
+			// Clone gitrepo1 into a local directory.
+			// If we use a file:// URL to access the local directory,
+			// then git starts up all the usual protocol machinery,
+			// which will let us test remote git archive invocations.
+			localGitRepo = filepath.Join(dir, "gitrepo2")
+			if _, err := Run("", "git", "clone", "--mirror", gitrepo1, localGitRepo); err != nil {
+				log.Fatal(err)
+			}
+			if _, err := Run(localGitRepo, "git", "config", "daemon.uploadarch", "true"); err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 
 	return m.Run()
 }
 
-func testRepo(remote string) (Repo, error) {
+func testRepo(t *testing.T, remote string) (Repo, error) {
 	if remote == "localGitRepo" {
-		return LocalGitRepo(filepath.ToSlash(localGitRepo))
+		// Convert absolute path to file URL. LocalGitRepo will not accept
+		// Windows absolute paths because they look like a host:path remote.
+		// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
+		var url string
+		if strings.HasPrefix(localGitRepo, "/") {
+			url = "file://" + localGitRepo
+		} else {
+			url = "file:///" + filepath.ToSlash(localGitRepo)
+		}
+		testenv.MustHaveExecPath(t, "git")
+		return LocalGitRepo(url)
 	}
-	kind := "git"
+	vcs := "git"
 	for _, k := range []string{"hg"} {
 		if strings.Contains(remote, "/"+k+"/") {
-			kind = k
+			vcs = k
 		}
 	}
-	return NewRepo(kind, remote)
+	testenv.MustHaveExecPath(t, vcs)
+	return NewRepo(vcs, remote)
 }
 
 var tagsTests = []struct {
@@ -107,7 +113,7 @@ func TestTags(t *testing.T) {
 
 	for _, tt := range tagsTests {
 		f := func(t *testing.T) {
-			r, err := testRepo(tt.repo)
+			r, err := testRepo(t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -159,7 +165,7 @@ func TestLatest(t *testing.T) {
 
 	for _, tt := range latestTests {
 		f := func(t *testing.T) {
-			r, err := testRepo(tt.repo)
+			r, err := testRepo(t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -202,7 +208,7 @@ var readFileTests = []struct {
 		repo: gitrepo1,
 		rev:  "v2.3.4",
 		file: "another.txt",
-		err:  os.ErrNotExist.Error(),
+		err:  fs.ErrNotExist.Error(),
 	},
 }
 
@@ -212,7 +218,7 @@ func TestReadFile(t *testing.T) {
 
 	for _, tt := range readFileTests {
 		f := func(t *testing.T) {
-			r, err := testRepo(tt.repo)
+			r, err := testRepo(t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -246,12 +252,11 @@ func TestReadFile(t *testing.T) {
 }
 
 var readZipTests = []struct {
-	repo         string
-	rev          string
-	subdir       string
-	actualSubdir string
-	err          string
-	files        map[string]uint64
+	repo   string
+	rev    string
+	subdir string
+	err    string
+	files  map[string]uint64
 }{
 	{
 		repo:   gitrepo1,
@@ -404,11 +409,11 @@ func TestReadZip(t *testing.T) {
 
 	for _, tt := range readZipTests {
 		f := func(t *testing.T) {
-			r, err := testRepo(tt.repo)
+			r, err := testRepo(t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
 			}
-			rc, actualSubdir, err := r.ReadZip(tt.rev, tt.subdir, 100000)
+			rc, err := r.ReadZip(tt.rev, tt.subdir, 100000)
 			if err != nil {
 				if tt.err == "" {
 					t.Fatalf("ReadZip: unexpected error %v", err)
@@ -425,10 +430,7 @@ func TestReadZip(t *testing.T) {
 			if tt.err != "" {
 				t.Fatalf("ReadZip: no error, wanted %v", tt.err)
 			}
-			if actualSubdir != tt.actualSubdir {
-				t.Fatalf("ReadZip: actualSubdir = %q, want %q", actualSubdir, tt.actualSubdir)
-			}
-			zipdata, err := ioutil.ReadAll(rc)
+			zipdata, err := io.ReadAll(rc)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -576,7 +578,7 @@ func TestStat(t *testing.T) {
 
 	for _, tt := range statTests {
 		f := func(t *testing.T) {
-			r, err := testRepo(tt.repo)
+			r, err := testRepo(t, tt.repo)
 			if err != nil {
 				t.Fatal(err)
 			}

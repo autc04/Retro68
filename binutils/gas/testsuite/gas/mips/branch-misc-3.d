@@ -7,11 +7,11 @@
 Disassembly .*:
 
 0+00 <.*>:
-.*	ctc1	a0,\$31
+.*	ctc1	a0,c1_fcsr
 .*	b	.*
 .*	nop
 #
-.*	ctc1	a0,\$31
+.*	ctc1	a0,c1_fcsr
 .*	nop
 .*	nop
 .*	bc1t	.*
@@ -26,13 +26,13 @@ Disassembly .*:
 .*	bc1t	.*
 .*	nop
 #
-.*	ctc1	a0,\$31
+.*	ctc1	a0,c1_fcsr
 .*	addiu	a1,a1,1
 .*	nop
 .*	bc1t	.*
 .*	nop
 #
-.*	ctc1	a0,\$31
+.*	ctc1	a0,c1_fcsr
 .*	addiu	a1,a1,1
 .*	addiu	a2,a2,1
 .*	bc1t	.*
@@ -43,7 +43,7 @@ Disassembly .*:
 .*	bc1t	.*
 .*	nop
 #
-.*	ctc1	a0,\$31
+.*	ctc1	a0,c1_fcsr
 .*	addiu	a1,a1,1
 .*	addiu	a2,a2,1
 .*	bc1t	.*

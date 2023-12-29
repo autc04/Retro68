@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -153,17 +153,6 @@ package Exp_Ch7 is
    --  triggered by an abort, E_Id denotes the defining identifier of a local
    --  exception occurrence, Raised_Id is the entity of a local boolean flag.
 
-   function CW_Or_Has_Controlled_Part (T : Entity_Id) return Boolean;
-   --  True if T is a class-wide type, or if it has controlled parts ("part"
-   --  means T or any of its subcomponents). Same as Needs_Finalization, except
-   --  when pragma Restrictions (No_Finalization) applies, in which case we
-   --  know that class-wide objects do not contain controlled parts.
-
-   function Has_New_Controlled_Component (E : Entity_Id) return Boolean;
-   --  E is a type entity. Give the same result as Has_Controlled_Component
-   --  except for tagged extensions where the result is True only if the
-   --  latest extension contains a controlled component.
-
    function Make_Adjust_Call
      (Obj_Ref   : Node_Id;
       Typ       : Entity_Id;
@@ -174,13 +163,6 @@ package Exp_Ch7 is
    --  adjusted. Typ is the expected type of Obj_Ref. When Skip_Self is set,
    --  only the components (if any) are adjusted. Return Empty if Adjust or
    --  Deep_Adjust is not available, possibly due to previous errors.
-
-   function Make_Detach_Call (Obj_Ref : Node_Id) return Node_Id;
-   --  Create a call to unhook an object from an arbitrary list. Obj_Ref is the
-   --  object. Generate the following:
-   --
-   --    Ada.Finalization.Heap_Management.Detach
-   --      (System.Finalization_Root.Root_Controlled_Ptr (Obj_Ref));
 
    function Make_Final_Call
      (Obj_Ref   : Node_Id;

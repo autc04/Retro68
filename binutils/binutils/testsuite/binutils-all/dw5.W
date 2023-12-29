@@ -3,6 +3,7 @@ Contents of the .debug_info section:
   Compilation Unit @ offset 0x0:
    Length:        0x160 \(32-bit\)
    Version:       5
+   Unit Type:     DW_UT_compile \(1\)
    Abbrev Offset: 0x0
    Pointer Size:  8
  <0><c>: Abbrev Number: 6 \(DW_TAG_compile_unit\)
@@ -280,7 +281,7 @@ Contents of the .debug_loclists section:
     00000039 <End of list>
 
 Contents of the .debug_rnglists section:
-
+#...
     Offset   Begin    End
     0000000c 0000000000001234 0000000000001236 
     00000016 0000000000001234 0000000000001239 
@@ -291,6 +292,8 @@ Raw dump of debug contents of section .debug_line:
   Offset:                      0x0
   Length:                      144
   DWARF Version:               5
+  Address size \(bytes\):        8
+  Segment selector \(bytes\):    0
   Prologue Length:             60
   Minimum Instruction Length:  1
   Maximum Ops per Instruction: 1
@@ -313,13 +316,13 @@ Raw dump of debug contents of section .debug_line:
   Opcode 11 has 0 args
   Opcode 12 has 1 arg
 
- The Directory Table \(offset 0x22\):
+ The Directory Table \(offset 0x22, lines 3, columns 1\):
   Entry	Name
   0	\(indirect line string, offset: 0x0\): 
   1	\(indirect line string, offset: 0x1\): 
   2	\(indirect line string, offset: 0x22\): /usr/include
 
- The File name Table \(offset 0x34\):
+ The File Name Table \(offset 0x34, lines 4, columns 2\):
   Entry	Dir	Name
   0	0	\(indirect line string, offset: 0x14\): main.c
   1	1	\(indirect line string, offset: 0x1b\): main.c
@@ -344,14 +347,14 @@ Raw dump of debug contents of section .debug_line:
 
 Contents of the .debug_line section:
 
-CU: ./main.c:
-File name                            Line number    Starting address    View
-main.c                                         6              0x1234
-main.c                                         6             0x12346
-main.c                                         6              0x1234
+main.c:
+File name                            Line number    Starting address    View    Stmt
+main.c                                         6              0x1234               x
+main.c                                         6             0x12346               x
+main.c                                         -              0x1234
 
-main.c                                         5              0x1234
-main.c                                         5              0x1234
-main.c                                         5              0x1234
+main.c                                         5              0x1234               x
+main.c                                         5              0x1234               x
+main.c                                         -              0x1234
 
 

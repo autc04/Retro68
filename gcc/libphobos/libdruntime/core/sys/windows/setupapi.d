@@ -5,17 +5,18 @@
  *
  * Authors: Vladimir Vlasov
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_setupapi.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_setupapi.d)
  */
 module core.sys.windows.setupapi;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "setupapi");
 
-private import core.sys.windows.basetyps, core.sys.windows.commctrl, core.sys.windows.prsht, core.sys.windows.w32api,
+import core.sys.windows.basetyps, core.sys.windows.commctrl, core.sys.windows.prsht, core.sys.windows.w32api,
   core.sys.windows.winreg, core.sys.windows.windef;
-private import core.sys.windows.winbase; // for SYSTEMTIME
+import core.sys.windows.winbase; // for SYSTEMTIME
 
 /*static if (_WIN32_WINNT < _WIN32_WINDOWS) {
 enum UINT _SETUPAPI_VER = _WIN32_WINNT; // SetupAPI version follows Windows NT version

@@ -7,8 +7,8 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -25,14 +25,14 @@ type finblock struct {
 	next    *finblock
 	cnt     uint32
 	_       int32
-	fin     [(_FinBlockSize - 2*sys.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
+	fin     [(_FinBlockSize - 2*goarch.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
 }
 
 var finlock mutex  // protects the following variables
 var fing *g        // goroutine that runs finalizers
 var finq *finblock // list of finalizers that are to be executed
 var finc *finblock // cache of free blocks
-var finptrmask [_FinBlockSize / sys.PtrSize / 8]byte
+var finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
 var fingwait bool
 var fingwake bool
 var allfin *finblock // list of all blocks
@@ -59,7 +59,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, ft *functype, ot *ptrtype) {
 	lock(&finlock)
 	if finq == nil || finq.cnt == uint32(len(finq.fin)) {
 		if finc == nil {
-			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gc_sys))
+			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gcMiscSys))
 			finc.alllink = allfin
 			allfin = finc
 			if finptrmask[0] == 0 {
@@ -260,20 +260,20 @@ func runfinq() {
 // pass the object to a call of the KeepAlive function to mark the
 // last point in the function where the object must be reachable.
 //
-// For example, if p points to a struct that contains a file descriptor d,
-// and p has a finalizer that closes that file descriptor, and if the last
-// use of p in a function is a call to syscall.Write(p.d, buf, size), then
-// p may be unreachable as soon as the program enters syscall.Write. The
-// finalizer may run at that moment, closing p.d, causing syscall.Write
-// to fail because it is writing to a closed file descriptor (or, worse,
-// to an entirely different file descriptor opened by a different goroutine).
-// To avoid this problem, call runtime.KeepAlive(p) after the call to
-// syscall.Write.
+// For example, if p points to a struct, such as os.File, that contains
+// a file descriptor d, and p has a finalizer that closes that file
+// descriptor, and if the last use of p in a function is a call to
+// syscall.Write(p.d, buf, size), then p may be unreachable as soon as
+// the program enters syscall.Write. The finalizer may run at that moment,
+// closing p.d, causing syscall.Write to fail because it is writing to
+// a closed file descriptor (or, worse, to an entirely different
+// file descriptor opened by a different goroutine). To avoid this problem,
+// call runtime.KeepAlive(p) after the call to syscall.Write.
 //
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.
-func SetFinalizer(obj interface{}, finalizer interface{}) {
+func SetFinalizer(obj any, finalizer any) {
 	if debug.sbrk != 0 {
 		// debug.sbrk never frees memory, so no finalizers run
 		// (and we don't have the data structures to record them).
@@ -318,7 +318,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	if uintptr(e.data) != base {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
-		if ot.elem == nil || ot.elem.kind&kindNoPointers == 0 || ot.elem.size >= maxTinySize {
+		if ot.elem == nil || ot.elem.ptrdata != 0 || ot.elem.size >= maxTinySize {
 			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
 		}
 	}
@@ -402,7 +402,11 @@ okarg:
 // Without the KeepAlive call, the finalizer could run at the start of
 // syscall.Read, closing the file descriptor before syscall.Read makes
 // the actual system call.
-func KeepAlive(x interface{}) {
+//
+// Note: KeepAlive should only be used to prevent finalizers from
+// running prematurely. In particular, when used with unsafe.Pointer,
+// the rules for valid uses of unsafe.Pointer still apply.
+func KeepAlive(x any) {
 	// Introduce a use of x that the compiler can't eliminate.
 	// This makes sure x is alive on entry. We need x to be alive
 	// on entry for "defer runtime.KeepAlive(x)"; see issue 21402.

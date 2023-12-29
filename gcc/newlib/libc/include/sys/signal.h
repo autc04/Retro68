@@ -12,6 +12,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/_sigset.h>
 #include <sys/_timespec.h>
+#include <stdint.h>
 
 #if !defined(_SIGSET_T_DECLARED)
 #define	_SIGSET_T_DECLARED
@@ -161,16 +162,16 @@ typedef struct sigaltstack {
 #define SIG_BLOCK 1	/* set of signals to block */
 #define SIG_UNBLOCK 2	/* set of signals to, well, unblock */
 
-int sigprocmask (int how, const sigset_t *set, sigset_t *oset);
+int sigprocmask (int, const sigset_t *, sigset_t *);
 #endif
 
 #if __POSIX_VISIBLE >= 199506
-int pthread_sigmask (int how, const sigset_t *set, sigset_t *oset);
+int pthread_sigmask (int, const sigset_t *, sigset_t *);
 #endif
 
-#ifdef _COMPILING_NEWLIB
+#ifdef _LIBC
 int _kill (pid_t, int);
-#endif /* _COMPILING_NEWLIB */
+#endif /* _LIBC */
 
 #if __POSIX_VISIBLE
 int kill (pid_t, int);
@@ -188,7 +189,7 @@ int sigfillset (sigset_t *);
 int sigemptyset (sigset_t *);
 int sigpending (sigset_t *);
 int sigsuspend (const sigset_t *);
-int sigwait (const sigset_t *set, int *sig);
+int sigwait (const sigset_t *, int *);
 
 #if !defined(__CYGWIN__) && !defined(__rtems__)
 /* These depend upon the type of sigset_t, which right now 
@@ -223,7 +224,7 @@ int sigaltstack (const stack_t *__restrict, stack_t *__restrict);
 #endif
 
 #if __POSIX_VISIBLE >= 199506
-int pthread_kill (pthread_t thread, int sig);
+int pthread_kill (pthread_t, int);
 #endif
 
 #if __POSIX_VISIBLE >= 199309
@@ -231,13 +232,28 @@ int pthread_kill (pthread_t thread, int sig);
 /*  3.3.8 Synchronously Accept a Signal, P1003.1b-1993, p. 76
     NOTE: P1003.1c/D10, p. 39 adds sigwait().  */
 
-int sigwaitinfo (const sigset_t *set, siginfo_t *info);
-int sigtimedwait (const sigset_t *set, siginfo_t *info,
-		  const struct timespec  *timeout);
+int sigwaitinfo (const sigset_t *, siginfo_t *);
+int sigtimedwait (const sigset_t *, siginfo_t *, const struct timespec *);
 /*  3.3.9 Queue a Signal to a Process, P1003.1b-1993, p. 78 */
-int sigqueue (pid_t pid, int signo, const union sigval value);
+int sigqueue (pid_t, int, const union sigval);
 
 #endif /* __POSIX_VISIBLE >= 199309 */
+
+/* Using __MISC_VISIBLE until POSIX Issue 8 is officially released */
+#if __MISC_VISIBLE
+
+/* POSIX Issue 8 adds sig2str() and str2sig() */
+
+#if __SIZEOF_INT__ >= 4
+#define SIG2STR_MAX (sizeof("RTMAX+") + sizeof("4294967295") - 1)
+#else
+#define SIG2STR_MAX (sizeof("RTMAX+") + sizeof("65535") - 1)
+#endif
+
+int sig2str(int, char *);
+int str2sig(const char *__restrict, int *__restrict);
+
+#endif /* __MISC_VISIBLE */
 
 #if defined(___AM29K__)
 /* These all need to be defined for ANSI C, but I don't think they are

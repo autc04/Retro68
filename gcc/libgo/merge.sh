@@ -54,7 +54,13 @@ merge() {
   old=$2
   new=$3
   libgo=$4
-  if ! test -f ${new}; then
+  if test -d ${new}; then
+    if ! test -d ${old}; then
+      if test -f ${old}; then
+	echo 1>&2 "merge.sh: ${name}: FILE BECAME DIRECTORY"
+      fi
+    fi
+  elif ! test -f ${new}; then
     # The file does not exist in the new version.
     if ! test -f ${old}; then
       echo 1>&2 "merge.sh internal error no files $old $new"
@@ -66,7 +72,6 @@ merge() {
     else
       echo "merge.sh: ${name}: REMOVED"
       rm -f ${libgo}
-      git rm ${libgo}
     fi
   elif test -f ${old}; then
     # The file exists in the old version.
@@ -118,7 +123,6 @@ merge() {
         mkdir -p ${dir}
       fi
       cp ${new} ${libgo}
-      git add ${libgo}
     fi
   fi
 }
@@ -128,7 +132,7 @@ echo ${rev} > VERSION
 (cd ${NEWDIR}/src && find . -name '*.go' -print) | while read f; do
   skip=false
   case "$f" in
-  ./cmd/buildid/* | ./cmd/cgo/* | ./cmd/go/* | ./cmd/gofmt/* | ./cmd/testjson/* | ./cmd/vet/* | ./cmd/internal/browser/* | ./cmd/internal/buildid/* | ./cmd/internal/edit/* | ./cmd/internal/objabi/* | ./cmd/internal/testj2on/* | ./cmd/internal/sys/* | ./cmd/vendor/golang.org/x/tools/* )
+  ./cmd/buildid/* | ./cmd/cgo/* | ./cmd/go/* | ./cmd/gofmt/* | ./cmd/test2json/* | ./cmd/vet/* | ./cmd/internal/browser/* | ./cmd/internal/buildid/* | ./cmd/internal/codesign/* | ./cmd/internal/edit/* | ./cmd/internal/objabi/* | ./cmd/internal/quoted/* | ./cmd/internal/test2json/* | ./cmd/internal/sys/* | ./cmd/internal/traceviewer/* | ./cmd/vendor/golang.org/x/tools/* | ./cmd/vendor/golang.org/x/mod/* | ./cmd/vendor/golang.org/x/xerrors/* | ./cmd/vendor/golang.org/x/crypto/ed25519 | ./cmd/vendor/golang.org/x/sync/semaphore)
     ;;
   ./cmd/*)
     skip=true
@@ -147,10 +151,24 @@ echo ${rev} > VERSION
   merge $f ${oldfile} ${newfile} ${libgofile}
 done
 
+(cd ${NEWDIR}/src && find . -name 'go.mod' -print) | while read f; do
+  oldfile=${OLDDIR}/src/$f
+  newfile=${NEWDIR}/src/$f
+  libgofile=go/`echo $f | sed -e 's|cmd/vendor/|/|' | sed -e 's|/vendor/|/|'`
+  merge $f ${oldfile} ${newfile} ${libgofile}
+done
+
+(cd ${NEWDIR}/src && find . -name 'modules.txt' -print) | while read f; do
+  oldfile=${OLDDIR}/src/$f
+  newfile=${NEWDIR}/src/$f
+  libgofile=go/$f
+  merge $f ${oldfile} ${newfile} ${libgofile}
+done
+
 (cd ${NEWDIR}/src && find . -name testdata -print) | while read d; do
   skip=false
   case "$d" in
-  ./cmd/buildid/* | ./cmd/cgo/* | ./cmd/go/* | ./cmd/gofmt/* | ./cmd/testjson/* | ./cmd/vet/* | ./cmd/internal/browser/* | ./cmd/internal/buildid/* | ./cmd/internal/edit/* | ./cmd/internal/objabi/* | ./cmd/internal/testj2on/* | ./cmd/internal/sys/* | ./cmd/vendor/golang.org/x/tools/* )
+  ./cmd/buildid/* | ./cmd/cgo/* | ./cmd/go/* | ./cmd/gofmt/* | ./cmd/test2json/* | ./cmd/vet/* | ./cmd/internal/browser/* | ./cmd/internal/buildid/* | ./cmd/internal/codesign/* | ./cmd/internal/diff/* | ./cmd/internal/edit/* | ./cmd/internal/objabi/* | ./cmd/internal/test2json/* | ./cmd/internal/sys/* | ./cmd/internal/traceviewer/* | ./cmd/vendor/golang.org/x/tools/*)
     ;;
   ./cmd/*)
     skip=true
@@ -165,13 +183,13 @@ done
 
   oldtd=${OLDDIR}/src/$d
   newtd=${NEWDIR}/src/$d
-  libgofile=go/`echo $d | sed -e 's|cmd/vendor/|/|' | sed -e 's|/vendor/|/|'`
+  libgotd=go/`echo $d | sed -e 's|cmd/vendor/|/|' | sed -e 's|/vendor/|/|'`
   if ! test -d ${oldtd}; then
     echo "merge.sh: $d: NEWDIR"
     continue
   fi
   (cd ${oldtd} && git ls-files .) | while read f; do
-    if test "`basename $f`" = ".gitignore"; then
+    if test "`basename -- $f`" = ".gitignore"; then
       continue
     fi
     name=$d/$f
@@ -179,6 +197,18 @@ done
     newfile=${newtd}/$f
     libgofile=${libgotd}/$f
     merge ${name} ${oldfile} ${newfile} ${libgofile}
+  done
+  (cd ${newtd} && git ls-files .) | while read f; do
+    if test "`basename -- $f`" = ".gitignore"; then
+      continue
+    fi
+    oldfile=${oldtd}/$f
+    if ! test -f ${oldfile}; then
+      name=$d/$f
+      newfile=${newtd}/$f
+      libgofile=${libgotd}/$f
+      merge ${name} ${oldfile} ${newfile} ${libgofile}
+    fi
   done
 done
 
@@ -201,7 +231,6 @@ done
   fi
   echo "merge.sh: ${libgofile}: REMOVED"
   rm -f ${libgofile}
-  git rm ${libgofile}
 done
 
 (cd ${OLDDIR}/misc/cgo && find . -type f -print) | while read f; do
@@ -216,7 +245,6 @@ done
   fi
   echo "merge.sh: ${libgofile}: REMOVED"
   rm -f ${libgofile}
-  git rm ${libgofile}
 done
 
 (echo ${new_rev}; sed -ne '2,$p' MERGE) > MERGE.tmp

@@ -1,6 +1,6 @@
 defined6 = DEFINED (sym2) ? 1 : 0;
 SECTIONS {
-	.text : { *(.text) sym2 = .; }
+	.text : { *(.text .pr) sym2 = .; }
 	.data : { *(.data) }
 	.bss : { *(.bss) *(COMMON) }
 }

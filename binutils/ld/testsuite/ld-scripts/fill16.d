@@ -3,16 +3,13 @@
 #source: fill16_2.s
 #ld: -T fill.t
 #objdump: -s -j .text
-#notarget: arm-*-coff
-#notarget: i[3-7]86-*-coff
-#xfail: alpha*-*-*ecoff
-#xfail: m32c-*-*
-#xfail: sh-*-pe
-#xfail: sparc*-*-coff
-#xfail: tic30-*-coff tic4x-*-* tic54x-*-*
-#xfail: z8k-*-*
+#notarget: [is_aout_format]
+#skip: arm-*-coff i[3-7]86-*-coff [is_xcoff_format]
+#xfail: alpha*-*-*ecoff sparc*-*-coff
+#xfail: tic30-*-coff tic4x-*-* tic54x-*-* z8k-*-*
+#xfail: z80-*-coff
 #
-# See also fill.d.  We use `notarget' for configurations unsupported
+# See also fill.d.  We use `skip' for configurations unsupported
 # here that are covered there, and `xfail' for configurations that work
 # with neither place.  See below for details as to why individual
 # configurations are listed above.
@@ -20,13 +17,13 @@
 # alpha-linuxecoff pads out code to 16 bytes.
 # arm-coff always aligns code to 4 bytes.
 # i386-coff always aligns code to 4 bytes.
-# m32c pads out code sections with 4 NOPs (see `m32c_md_end').
 # sh-pe pads out code sections to 16 bytes
 # sparc-coff aligns to 8 bytes
 # tic30-coff aligns to 2 bytes
 # tic4x has 4 octet bytes
 # tic54x doesn't support .p2align
 # z8k-coff aligns to 2 bytes
+# z80-coff aligns to 2 bytes
 
 .*:     file format .*
 

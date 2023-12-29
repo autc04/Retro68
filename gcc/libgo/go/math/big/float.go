@@ -224,7 +224,9 @@ func (x *Float) Mode() RoundingMode {
 	return x.mode
 }
 
-// Acc returns the accuracy of x produced by the most recent operation.
+// Acc returns the accuracy of x produced by the most recent
+// operation, unless explicitly documented otherwise by that
+// operation.
 func (x *Float) Acc() Accuracy {
 	return x.acc
 }
@@ -302,7 +304,9 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
 // SetMantExp sets z to mant × 2**exp and returns z.
 // The result z has the same precision and rounding mode
 // as mant. SetMantExp is an inverse of MantExp but does
-// not require 0.5 <= |mant| < 1.0. Specifically:
+// not require 0.5 <= |mant| < 1.0. Specifically, for a
+// given x of type *Float, SetMantExp relates to MantExp
+// as follows:
 //
 //	mant := new(Float)
 //	new(Float).SetMantExp(mant, x.MantExp(mant)).Cmp(x) == 0
@@ -320,10 +324,11 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 		mant.validate()
 	}
 	z.Copy(mant)
-	if z.form != finite {
-		return z
+
+	if z.form == finite {
+		// 0 < |mant| < +Inf
+		z.setExpAndRound(int64(z.exp)+int64(exp), 0)
 	}
-	z.setExpAndRound(int64(z.exp)+int64(exp), 0)
 	return z
 }
 

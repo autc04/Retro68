@@ -17,45 +17,45 @@ Idx Name +Size +VMA +LMA +File off +Algn
   2 \.bss  +00000000  0+0090  0+0090  00000000  2\*\*3
  +ALLOC
 SYMBOL TABLE:
-\[  0\]\(sec -2\)\(fl 0x00\)\(ty   0\)\(scl 103\) \(nx 1\) 0x00000000 fake
+\[  0\]\(sec -2\)\(fl 0x00\)\(ty    0\)\(scl 103\) \(nx 1\) 0x00000000 fake
 File 
-\[  2\]\(sec  1\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000000 \.crazy_table
+\[  2\]\(sec  1\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000000 \.crazy_table
 AUX val     8 prmhsh 0 snhsh 0 typ 1 algn 2 clss 1 stb 0 snstb 0
-\[  4\]\(sec  1\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000008 
+\[  4\]\(sec  1\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000008 
 AUX val    96 prmhsh 0 snhsh 0 typ 1 algn 2 clss 0 stb 0 snstb 0
-\[  6\]\(sec  1\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000008 reference_csect_relative_symbols
+\[  6\]\(sec  1\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000008 reference_csect_relative_symbols
 AUX indx    4 prmhsh 0 snhsh 0 typ 2 algn 0 clss 0 stb 0 snstb 0
-\[  8\]\(sec  1\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000018 dubious_references_to_default_RW_csect
+\[  8\]\(sec  1\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000018 dubious_references_to_default_RW_csect
 AUX indx    4 prmhsh 0 snhsh 0 typ 2 algn 0 clss 0 stb 0 snstb 0
-\[ 10\]\(sec  1\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000028 reference_via_toc
+\[ 10\]\(sec  1\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000028 reference_via_toc
 AUX indx    4 prmhsh 0 snhsh 0 typ 2 algn 0 clss 0 stb 0 snstb 0
-\[ 12\]\(sec  1\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000040 subtract_symbols
+\[ 12\]\(sec  1\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000040 subtract_symbols
 AUX indx    4 prmhsh 0 snhsh 0 typ 2 algn 0 clss 0 stb 0 snstb 0
-\[ 14\]\(sec  1\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x0000005c load_addresses
+\[ 14\]\(sec  1\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x0000005c load_addresses
 AUX indx    4 prmhsh 0 snhsh 0 typ 2 algn 0 clss 0 stb 0 snstb 0
-\[ 16\]\(sec  2\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000068 
+\[ 16\]\(sec  2\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000068 
 AUX val    12 prmhsh 0 snhsh 0 typ 1 algn 2 clss 5 stb 0 snstb 0
-\[ 18\]\(sec  2\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000074 TOC
+\[ 18\]\(sec  2\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000074 TOC
 AUX val     0 prmhsh 0 snhsh 0 typ 1 algn 2 clss 15 stb 0 snstb 0
-\[ 20\]\(sec  2\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000074 ignored0
+\[ 20\]\(sec  2\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000074 ignored0
 AUX val     4 prmhsh 0 snhsh 0 typ 1 algn 2 clss 3 stb 0 snstb 0
-\[ 22\]\(sec  2\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000078 ignored1
+\[ 22\]\(sec  2\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000078 ignored1
 AUX val     4 prmhsh 0 snhsh 0 typ 1 algn 2 clss 3 stb 0 snstb 0
-\[ 24\]\(sec  2\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x0000007c ignored2
+\[ 24\]\(sec  2\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x0000007c ignored2
 AUX val     4 prmhsh 0 snhsh 0 typ 1 algn 2 clss 3 stb 0 snstb 0
-\[ 26\]\(sec  2\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000080 ignored3
+\[ 26\]\(sec  2\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000080 ignored3
 AUX val     4 prmhsh 0 snhsh 0 typ 1 algn 2 clss 3 stb 0 snstb 0
-\[ 28\]\(sec  2\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000084 ignored4
+\[ 28\]\(sec  2\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000084 ignored4
 AUX val     4 prmhsh 0 snhsh 0 typ 1 algn 2 clss 3 stb 0 snstb 0
-\[ 30\]\(sec  2\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x00000088 ignored5
+\[ 30\]\(sec  2\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x00000088 ignored5
 AUX val     4 prmhsh 0 snhsh 0 typ 1 algn 2 clss 3 stb 0 snstb 0
-\[ 32\]\(sec  2\)\(fl 0x00\)\(ty   0\)\(scl 107\) \(nx 1\) 0x0000008c ignored6
+\[ 32\]\(sec  2\)\(fl 0x00\)\(ty    0\)\(scl 107\) \(nx 1\) 0x0000008c ignored6
 AUX val     4 prmhsh 0 snhsh 0 typ 1 algn 2 clss 3 stb 0 snstb 0
-\[ 34\]\(sec  0\)\(fl 0x00\)\(ty   0\)\(scl   2\) \(nx 1\) 0x00000000 esym0
+\[ 34\]\(sec  0\)\(fl 0x00\)\(ty    0\)\(scl   2\) \(nx 1\) 0x00000000 esym0
 AUX val     0 prmhsh 0 snhsh 0 typ 0 algn 0 clss 0 stb 0 snstb 0
-\[ 36\]\(sec  0\)\(fl 0x00\)\(ty   0\)\(scl   2\) \(nx 1\) 0x00000000 esym1
+\[ 36\]\(sec  0\)\(fl 0x00\)\(ty    0\)\(scl   2\) \(nx 1\) 0x00000000 esym1
 AUX val     0 prmhsh 0 snhsh 0 typ 0 algn 0 clss 0 stb 0 snstb 0
-\[ 38\]\(sec  1\)\(fl 0x00\)\(ty   0\)\(scl   3\) \(nx 1\) 0x00000000 \.text
+\[ 38\]\(sec  1\)\(fl 0x00\)\(ty    0\)\(scl   3\) \(nx 1\) 0x00000000 \.text
 AUX scnlen 0x68 nreloc 7 nlnno 0
 
 

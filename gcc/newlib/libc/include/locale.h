@@ -21,9 +21,9 @@
 #define LC_TIME     5
 #define LC_MESSAGES 6
 
-#if __POSIX_VISIBLE >= 200809 || defined (_COMPILING_NEWLIB)
+#if __POSIX_VISIBLE >= 200809 || defined (_LIBC)
 
-#include <xlocale.h>
+#include <sys/_locale.h>
 
 #define LC_ALL_MASK		(1 << LC_ALL)
 #define LC_COLLATE_MASK		(1 << LC_COLLATE)

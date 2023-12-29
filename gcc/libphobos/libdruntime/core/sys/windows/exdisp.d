@@ -4,13 +4,14 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_exdisp.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_exdisp.d)
  */
 module core.sys.windows.exdisp;
 version (Windows):
+@system:
 
 import core.sys.windows.docobj, core.sys.windows.oaidl, core.sys.windows.ocidl;
-private import core.sys.windows.basetyps, core.sys.windows.windef, core.sys.windows.wtypes;
+import core.sys.windows.basetyps, core.sys.windows.windef, core.sys.windows.wtypes;
 
 
 enum BrowserNavConstants {

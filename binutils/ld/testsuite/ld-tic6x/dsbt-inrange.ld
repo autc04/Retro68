@@ -1,7 +1,6 @@
 EXTERN (__c6xabi_DSBT_BASE);
 SECTIONS
 {
-  PROVIDE (__executable_start = SEGMENT_START("text-segment", 0x0)); . = SEGMENT_START("text-segment", 0x0) + SIZEOF_HEADERS;
   . = 0x8000;
   .hash           : { *(.hash) }
   .gnu.hash       : { *(.gnu.hash) }

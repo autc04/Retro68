@@ -1,7 +1,11 @@
 ## Process this file with automake to generate Makefile.in
 
-AUTOMAKE_OPTIONS = cygnus dejagnu
+AUTOMAKE_OPTIONS = dejagnu subdir-objects
 ACLOCAL_AMFLAGS = -I . -I ..
+
+# Variables that will accumulate in subdirs.
+PHONY =
+noinst_DATA =
 
 # Multilib support variables.
 MULTISRCTOP =
@@ -63,21 +67,15 @@ AM_MAKEFLAGS = \
 
 FLAGS_TO_PASS=$(AM_MAKEFLAGS)
 
-if HAVE_DOC
-DOCDIR = doc
-else
-DOCDIR =
-endif
-
 SUBDIRS = libc libm \
-	$(DOCDIR) . $(EXTRA_DIRS)
+	. $(EXTRA_DIRS)
 
 tooldir = $(exec_prefix)/$(host_alias)
 toollibdir = $(tooldir)/lib$(MULTISUBDIR)
 
 AR_FLAGS = rc
 
-noinst_DATA = stmp-targ-include
+noinst_DATA += stmp-targ-include
 
 if USE_LIBTOOL
 toollib_LTLIBRARIES = libm.la \
@@ -107,7 +105,7 @@ MATHOBJS_IN_LIBC = \
 	$(lpfx)s_isnand.$(oext) $(lpfx)sf_isnanf.$(oext) \
 	$(lpfx)s_nan.$(oext) $(lpfx)sf_nan.$(oext) \
 	$(lpfx)s_ldexp.$(oext) $(lpfx)sf_ldexp.$(oext) \
-	$(lpfx)s_frexp.$(oext) $(lpfx)sf_frexp.$(oext) \
+	$(lpfx)s_frexp.$(oext) $(lpfx)sf_frexp.$(oext) $(lpfx)frexpl.$(oext) \
 	$(lpfx)s_modf.$(oext) \
 	$(lpfx)sf_modf.$(oext) $(lpfx)s_scalbn.$(oext) \
 	$(lpfx)sf_scalbn.$(oext) \
@@ -237,6 +235,23 @@ stmp-targ-include: config.status
 	$(MAKE) targ-include/sys \
 		targ-include/machine \
 		targ-include/bits
+	-if [ -n "$(shared_machine_dir)" ]; then \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/machine/*.h; do \
+		if [ -f $$i ]; then \
+		  cp $$i targ-include/machine/`basename $$i`; \
+		else true; fi ; \
+	      done; \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/sys/*.h; do \
+		if [ -f $$i ]; then \
+		  cp $$i targ-include/sys/`basename $$i`; \
+		else true; fi ; \
+	      done; \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/include/*.h; do \
+		if [ -f $$i ]; then \
+		  cp $$i targ-include/`basename $$i`; \
+		else true; fi ; \
+	      done; \
+	  fi
 	-for i in $(srcdir)/libc/machine/$(machine_dir)/machine/*.h; do \
 	    if [ -f $$i ]; then \
 	      cp $$i targ-include/machine/`basename $$i`; \
@@ -315,6 +330,13 @@ endif
 	  for i in $(srcdir)/libc/include/machine/*.h; do \
 	   $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/machine/`basename $$i`; \
 	  done; \
+	  if [ -n "$(shared_machine_dir)" ]; then \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/machine/*.h; do \
+	      if [ -f $$i ]; then \
+	       $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/machine/`basename $$i`; \
+	      else true; fi ; \
+	    done; \
+	  fi ; \
 	  for i in $(srcdir)/libc/machine/$(machine_dir)/machine/*.h; do \
 	    if [ -f $$i ]; then \
 	     $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/machine/`basename $$i`; \
@@ -332,6 +354,18 @@ endif
 	  for i in $(srcdir)/libc/include/sys/*.h; do \
 	   $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
 	  done; \
+	  if [ -n "$(shared_machine_dir)" ]; then \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/sys/*.h; do \
+	      if [ -f $$i ]; then \
+	       $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
+	      else true; fi ; \
+	    done ; \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/include/*.h; do \
+	      if [ -f $$i ]; then \
+	       $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/`basename $$i`; \
+	      else true; fi ; \
+	    done ; \
+	  fi ; \
 	  for i in $(srcdir)/libc/machine/$(machine_dir)/sys/*.h; do \
 	    if [ -f $$i ]; then \
 	     $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
@@ -382,15 +416,17 @@ endif
 	  done ; \
 	else true; fi
 
+# Generate Unicode data tables for libc/string/wcwidth and libc/ctype/??w*
+unidata:
+	cd $(srcdir)/libc/string; ./mkunidata -u
+	cd $(srcdir)/libc/ctype; ./mkunidata -u
+
 # Force makedoc to be built before building info files.
-info-recursive: doc/makedoc
-dvi-recursive: doc/makedoc
-doc/makedoc:
-	cd doc && $(MAKE) all
+info-recursive dvi-recursive: doc/makedoc$(EXEEXT_FOR_BUILD)
 
 # Recursive targets for man and install-man
 man:
-	(cd doc && $(MAKE) man-cache) || exit 1; \
+	$(MAKE) man-cache || exit 1; \
 	for d in $(SUBDIRS); do \
 	  if test "$$d" != "."; then \
 	    (cd $$d && $(MAKE) man) || exit 1; \
@@ -407,7 +443,7 @@ install-man:
 CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
 
 # Multilib support.
-.PHONY: all-multi check-multi mostlyclean-multi clean-multi distclean-multi \
+PHONY += all-multi check-multi mostlyclean-multi clean-multi distclean-multi \
 	maintainer-clean-multi
 
 all-recursive: all-multi
@@ -499,3 +535,9 @@ check-DEJAGNU: site.exp
 
 clean-local:
 	-rm -rf targ-include newlib.h _newlib_version.h stamp-*
+
+if HAVE_DOC
+include doc/local.mk
+endif
+
+.PHONY: $(PHONY)

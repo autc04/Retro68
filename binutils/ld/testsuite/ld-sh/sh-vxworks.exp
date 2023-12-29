@@ -1,5 +1,5 @@
 # Expect script for VxWorks targeted SH linker tests
-#   Copyright (C) 2006-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -36,7 +36,7 @@ foreach { gas_option ld_option suffix } $endians {
 	{"VxWorks executable test 1 (dynamic)" \
 	 "tmpdir/libvxworks1.so -Tvxworks1.ld --hash-style=sysv -q --force-dynamic $ld_option" ""
 	 "$gas_option" {vxworks1.s}
-	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1$suffix.dd}}
+	 {{readelf {--relocs --wide} vxworks1.rd} {objdump -dr vxworks1$suffix.dd}}
 	 "vxworks1"}
 	{"VxWorks executable test 2 (dynamic)" \
 	 "-Tvxworks1.ld --hash-style=sysv -q --force-dynamic $ld_option" ""

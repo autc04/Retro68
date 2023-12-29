@@ -6,5 +6,7 @@ _start:
 	ret
 	.globl __start
 __start:
+	.global _main
+_main:
 	.data
 	.dc.a foo

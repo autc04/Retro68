@@ -26,6 +26,10 @@ foo:
 	mov	(%esp,%eiz,2),%eax
 	mov	(%esp,%eiz,4),%eax
 	mov	(%esp,%eiz,8),%eax
+	mov	(%eax, %eax, (1 << 0)), %eax
+	mov	(%eax, %eax, (1 << 1)), %eax
+	mov	(%eax, %eax, (1 << 2)), %eax
+	mov	(%eax, %eax, (1 << 3)), %eax
 	.intel_syntax noprefix
         mov    eax,DWORD PTR [eiz*1-30]
         mov    eax,DWORD PTR [eiz*2-30]

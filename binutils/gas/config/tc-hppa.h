@@ -1,5 +1,5 @@
 /* tc-hppa.h -- Header file for the PA
-   Copyright (C) 1989-2018 Free Software Foundation, Inc.
+   Copyright (C) 1989-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -80,12 +80,6 @@
 #define WARN_COMMENTS 1
 #endif
 
-/* FIXME.  Why oh why aren't these defined somewhere globally?  */
-#ifndef FALSE
-#define FALSE   (0)
-#define TRUE    (!FALSE)
-#endif
-
 #define ASEC_NULL (asection *)0
 
 /* pa_define_label gets used outside of tc-hppa.c via tc_frob_label.  */
@@ -133,6 +127,10 @@ int hppa_fix_adjustable (struct fix *);
 /* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
+/* The PA needs this for PIC code generation.  */
+#define TC_VALIDATE_FIX_SUB(FIX, SEG)			\
+  (md_register_arithmetic || (SEG) != reg_section)
+
 #ifdef OBJ_SOM
 /* If a symbol is imported, but never used, then the symbol should
    *not* end up in the symbol table.  Likewise for absolute symbols
@@ -176,6 +174,14 @@ int hppa_fix_adjustable (struct fix *);
        (ELF_ST_BIND ((elf)->internal_elf_sym.st_info), STT_PARISC_MILLI)\
        ), BSF_FUNCTION)							\
    : -1)
+
+/* Handle type change from .type pseudo: Zap STT_PARISC_MILLI when
+   switching to a non-function type.  */
+#define md_elf_symbol_type_change(sym, elf, type)			\
+  ((type) != BSF_FUNCTION						\
+   && (((elf)->internal_elf_sym.st_info = 				\
+	ELF_ST_INFO (ELF_ST_BIND ((elf)->internal_elf_sym.st_info),	\
+		     STT_NOTYPE)), 0))
 
 #define tc_frob_symbol(sym,punt) \
   { \

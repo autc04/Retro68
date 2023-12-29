@@ -1,5 +1,5 @@
 #as: -32
 #source: macro-warn-4.s
-#stderr: macro-warn-4.l
+#warning_output: macro-warn-4.l
 #objdump: -p
 #pass

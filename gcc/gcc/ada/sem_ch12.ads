@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,27 +36,6 @@ package Sem_Ch12 is
    procedure Analyze_Formal_Type_Declaration            (N : Node_Id);
    procedure Analyze_Formal_Subprogram_Declaration      (N : Node_Id);
    procedure Analyze_Formal_Package_Declaration         (N : Node_Id);
-
-   procedure Add_Pending_Instantiation (Inst : Node_Id; Act_Decl : Node_Id);
-   --  Add an entry in the table of instance bodies that must be analyzed
-   --  when inlining requires its body or the body of a nested instance.
-
-   function Build_Function_Wrapper
-     (Formal_Subp : Entity_Id;
-      Actual_Subp : Entity_Id) return Node_Id;
-   --  In GNATprove mode, create a wrapper function for actuals that are
-   --  functions with any number of formal parameters, in order to propagate
-   --  their contract to the renaming declarations generated for them. This
-   --  is called after the renaming declaration created for the formal in the
-   --  instance has been analyzed, and the actual is known.
-
-   function Build_Operator_Wrapper
-     (Formal_Subp : Entity_Id;
-      Actual_Subp : Entity_Id) return Node_Id;
-   --  In GNATprove mode, create a wrapper function for actuals that are
-   --  operators, in order to propagate their contract to the renaming
-   --  declarations generated for them. The types are (the instances of)
-   --  the types of the formal subprogram.
 
    procedure Start_Generic;
    --  Must be invoked before starting to process a generic spec or body

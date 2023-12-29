@@ -146,7 +146,17 @@ extern int isnan (double);
   #define __TMP_FLT_EVAL_METHOD
 #endif /* FLT_EVAL_METHOD */
 #if defined FLT_EVAL_METHOD
-  #if FLT_EVAL_METHOD == 0
+/* FLT_EVAL_METHOD == 16 has meaning as defined in ISO/IEC TS 18661-3,
+ * which provides non-compliant extensions to C and POSIX (by adding
+ * additional positive values for FLT_EVAL_METHOD).  It effectively has
+ * same meaning as the C99 and C11 definitions for value 0, while also
+ * serving as a flag that the _Float16 (float16_t) type exists.
+ *
+ * FLT_EVAL_METHOD could be any number of bits of supported floating point
+ * format (e.g. 32, 64, 128), but currently only AArch64 and few other targets
+ * might define that as 16.  */
+  #if (FLT_EVAL_METHOD == 0) \
+      || (FLT_EVAL_METHOD == 16)
     typedef float  float_t;
     typedef double double_t;
    #elif FLT_EVAL_METHOD == 1
@@ -188,17 +198,27 @@ extern int isnan (double);
 # define MATH_ERREXCEPT 2
 #endif
 #ifndef math_errhandling
-# define math_errhandling MATH_ERRNO
+# ifdef _IEEE_LIBM
+#  define _MATH_ERRHANDLING_ERRNO 0
+# else
+#  define _MATH_ERRHANDLING_ERRNO MATH_ERRNO
+# endif
+# ifdef _SUPPORTS_ERREXCEPT
+#  define _MATH_ERRHANDLING_ERREXCEPT MATH_ERREXCEPT
+# else
+#  define _MATH_ERRHANDLING_ERREXCEPT 0
+# endif
+# define math_errhandling (_MATH_ERRHANDLING_ERRNO | _MATH_ERRHANDLING_ERREXCEPT)
 #endif
 
-extern int __isinff (float x);
-extern int __isinfd (double x);
-extern int __isnanf (float x);
-extern int __isnand (double x);
-extern int __fpclassifyf (float x);
-extern int __fpclassifyd (double x);
-extern int __signbitf (float x);
-extern int __signbitd (double x);
+extern int __isinff (float);
+extern int __isinfd (double);
+extern int __isnanf (float);
+extern int __isnand (double);
+extern int __fpclassifyf (float);
+extern int __fpclassifyd (double);
+extern int __signbitf (float);
+extern int __signbitd (double);
 
 /* Note: isinf and isnan were once functions in newlib that took double
  *       arguments.  C99 specifies that these names are reserved for macros
@@ -489,6 +509,7 @@ extern long double erfcl (long double);
 #else /* !_LDBL_EQ_DBL && !__CYGWIN__ */
 extern long double hypotl (long double, long double);
 extern long double sqrtl (long double);
+extern long double frexpl (long double, int *);
 #ifdef __i386__
 /* Other long double precision functions.  */
 extern _LONG_DOUBLE rintl (_LONG_DOUBLE);
@@ -568,41 +589,6 @@ extern int *__signgam (void);
 #define __signgam_r(ptr) _REENT_SIGNGAM(ptr)
 #endif /* __MISC_VISIBLE || __XSI_VISIBLE */
 
-#if __SVID_VISIBLE
-/* The exception structure passed to the matherr routine.  */
-/* We have a problem when using C++ since `exception' is a reserved
-   name in C++.  */
-#ifdef __cplusplus
-struct __exception
-#else
-struct exception
-#endif
-{
-  int type;
-  char *name;
-  double arg1;
-  double arg2;
-  double retval;
-  int err;
-};
-
-#ifdef __cplusplus
-extern int matherr (struct __exception *e);
-#else
-extern int matherr (struct exception *e);
-#endif
-
-/* Values for the type field of struct exception.  */
-
-#define DOMAIN 1
-#define SING 2
-#define OVERFLOW 3
-#define UNDERFLOW 4
-#define TLOSS 5
-#define PLOSS 6
-
-#endif /* __SVID_VISIBLE */
-
 /* Useful constants.  */
 
 #if __BSD_VISIBLE || __XSI_VISIBLE
@@ -636,26 +622,6 @@ extern int matherr (struct exception *e);
 #define M_IVLN10        0.43429448190325182765 /* 1 / log(10) */
 #define M_LOG2_E        _M_LN2
 #define M_INVLN2        1.4426950408889633870E0  /* 1 / log(2) */
-
-/* Global control over fdlibm error handling.  */
-
-enum __fdlibm_version
-{
-  __fdlibm_ieee = -1,
-  __fdlibm_svid,
-  __fdlibm_xopen,
-  __fdlibm_posix
-};
-
-#define _LIB_VERSION_TYPE enum __fdlibm_version
-#define _LIB_VERSION __fdlib_version
-
-extern __IMPORT _LIB_VERSION_TYPE _LIB_VERSION;
-
-#define _IEEE_  __fdlibm_ieee
-#define _SVID_  __fdlibm_svid
-#define _XOPEN_ __fdlibm_xopen
-#define _POSIX_ __fdlibm_posix
 
 #endif /* __BSD_VISIBLE */
 

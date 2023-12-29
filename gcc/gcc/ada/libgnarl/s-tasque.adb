@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1992-2019, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2022, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -35,18 +35,16 @@
 
 with System.Task_Primitives.Operations;
 with System.Tasking.Initialization;
-with System.Parameters;
 
 package body System.Tasking.Queuing is
 
-   use Parameters;
    use Task_Primitives.Operations;
    use Protected_Objects;
    use Protected_Objects.Entries;
 
    --  Entry Queues implemented as doubly linked list
 
-   Queuing_Policy : Character;
+   Queuing_Policy : constant Character;
    pragma Import (C, Queuing_Policy, "__gl_queuing_policy");
 
    Priority_Queuing : constant Boolean := Queuing_Policy = 'P';
@@ -68,15 +66,10 @@ package body System.Tasking.Queuing is
    procedure Broadcast_Program_Error
      (Self_ID      : Task_Id;
       Object       : Protection_Entries_Access;
-      Pending_Call : Entry_Call_Link;
-      RTS_Locked   : Boolean := False)
+      Pending_Call : Entry_Call_Link)
    is
       Entry_Call : Entry_Call_Link;
    begin
-      if Single_Lock and then not RTS_Locked then
-         Lock_RTS;
-      end if;
-
       if Pending_Call /= null then
          Send_Program_Error (Self_ID, Pending_Call);
       end if;
@@ -91,10 +84,6 @@ package body System.Tasking.Queuing is
             Dequeue_Head (Object.Entry_Queues (E), Entry_Call);
          end loop;
       end loop;
-
-      if Single_Lock and then not RTS_Locked then
-         Unlock_RTS;
-      end if;
    end Broadcast_Program_Error;
 
    -----------------

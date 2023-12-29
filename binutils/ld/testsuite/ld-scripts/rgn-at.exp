@@ -1,5 +1,5 @@
 # Test for proper diagnosis of overflowed memory regions.
-# Copyright (C) 2009-2018 Free Software Foundation, Inc.
+# Copyright (C) 2009-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -21,8 +21,6 @@
 if ![is_elf_format] {
     return
 }
-
-load_lib ld-lib.exp
 
 set test_list [lsort [glob -nocomplain $srcdir/$subdir/rgn-at*.d]]
 foreach test_file $test_list {

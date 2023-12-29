@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,10 +31,6 @@
 
 pragma Style_Checks (All_Checks);
 --  No subprogram ordering check, due to logical grouping
-
-pragma Polling (Off);
---  We must turn polling off for this unit, because otherwise we get
---  elaboration circularities with System.Exception_Tables.
 
 with System;                  use System;
 with System.Exceptions;       use System.Exceptions;
@@ -282,6 +278,23 @@ package body Ada.Exceptions is
      "ada__exceptions__raise_exception_no_defer");
    pragma No_Return (Raise_Exception_No_Defer);
    --  Similar to Raise_Exception, but with no abort deferral
+
+   procedure Raise_From_Signal_Handler
+     (E : Exception_Id;
+      M : System.Address);
+   pragma Export
+     (C, Raise_From_Signal_Handler, "__gnat_raise_from_signal_handler");
+   pragma No_Return (Raise_From_Signal_Handler);
+   --  This routine is used to raise an exception from a signal handler. The
+   --  signal handler has already stored the machine state (i.e. the state that
+   --  corresponds to the location at which the signal was raised). E is the
+   --  Exception_Id specifying what exception is being raised, and M is a
+   --  pointer to a null-terminated string which is the message to be raised.
+   --  Note that this routine never returns, so it is permissible to simply
+   --  jump to this routine, rather than call it. This may be appropriate for
+   --  systems where the right way to get out of signal handler is to alter the
+   --  PC value in the machine state or in some other way ask the operating
+   --  system to return here rather than to the original location.
 
    procedure Raise_With_Msg (E : Exception_Id);
    pragma No_Return (Raise_With_Msg);
@@ -616,6 +629,96 @@ package body Ada.Exceptions is
    pragma No_Return (Rcheck_CE_Invalid_Data_Ext);
    pragma No_Return (Rcheck_CE_Range_Check_Ext);
 
+   --  Make all of these procedures callable from strub contexts.
+   --  These attributes are not visible to callers; they are made
+   --  visible in trans.c:build_raise_check.
+
+   pragma Machine_Attribute (Rcheck_CE_Access_Check,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Null_Access_Parameter,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Discriminant_Check,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Divide_By_Zero,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Explicit_Raise,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Index_Check,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Invalid_Data,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Length_Check,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Null_Exception_Id,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Null_Not_Allowed,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Overflow_Check,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Partition_Check,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Range_Check,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Tag_Check,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Access_Before_Elaboration,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Accessibility_Check,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Address_Of_Intrinsic,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Aliased_Parameters,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_All_Guards_Closed,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Bad_Predicated_Generic_Type,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Build_In_Place_Mismatch,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Current_Task_In_Entry_Body,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Duplicated_Entry_Address,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Explicit_Raise,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Implicit_Return,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Misaligned_Address_Value,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Missing_Return,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Non_Transportable_Actual,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Overlaid_Controlled_Object,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Potentially_Blocking_Operation,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Stream_Operation_Not_Allowed,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Stubbed_Subprogram_Called,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Unchecked_Union_Restriction,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_PE_Finalize_Raised_Exception,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_SE_Empty_Storage_Pool,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_SE_Explicit_Raise,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_SE_Infinite_Recursion,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_SE_Object_Too_Large,
+                             "strub", "callable");
+
+   pragma Machine_Attribute (Rcheck_CE_Access_Check_Ext,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Index_Check_Ext,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Invalid_Data_Ext,
+                             "strub", "callable");
+   pragma Machine_Attribute (Rcheck_CE_Range_Check_Ext,
+                             "strub", "callable");
+
    ---------------------------------------------
    -- Reason Strings for Run-Time Check Calls --
    ---------------------------------------------
@@ -667,21 +770,6 @@ package body Ada.Exceptions is
    Rmsg_35 : constant String := "object too large"                 & NUL;
    Rmsg_36 : constant String := "stream operation not allowed"     & NUL;
    Rmsg_37 : constant String := "build-in-place mismatch"          & NUL;
-
-   -----------------------
-   -- Polling Interface --
-   -----------------------
-
-   type Unsigned is mod 2 ** 32;
-
-   Counter : Unsigned := 0;
-   pragma Warnings (Off, Counter);
-   --  This counter is provided for convenience. It can be used in Poll to
-   --  perform periodic but not systematic operations.
-
-   procedure Poll is separate;
-   --  The actual polling routine is separate, so that it can easily be
-   --  replaced with a target dependent version.
 
    --------------------------
    -- Code_Address_For_AAA --
@@ -976,11 +1064,6 @@ package body Ada.Exceptions is
 
    begin
       Exception_Data.Set_Exception_Msg (X, E, Message);
-
-      if not ZCX_By_Default then
-         Abort_Defer.all;
-      end if;
-
       Complete_And_Propagate_Occurrence (X);
    end Raise_Exception_Always;
 
@@ -1027,7 +1110,7 @@ package body Ada.Exceptions is
 
       else
          declare
-            New_Msg  : constant String := Prefix & Exception_Name (X);
+            New_Msg : constant String := Prefix & Exception_Name (X);
 
          begin
             --  No message present, just provide our own
@@ -1060,11 +1143,6 @@ package body Ada.Exceptions is
 
    begin
       Exception_Data.Set_Exception_C_Msg (X, E, M);
-
-      if not ZCX_By_Default then
-         Abort_Defer.all;
-      end if;
-
       Complete_Occurrence (X);
       return X;
    end Create_Occurrence_From_Signal_Handler;
@@ -1160,11 +1238,6 @@ package body Ada.Exceptions is
       X : constant EOA := Exception_Propagation.Allocate_Occurrence;
    begin
       Exception_Data.Set_Exception_C_Msg (X, E, F, L, C, M);
-
-      if not ZCX_By_Default then
-         Abort_Defer.all;
-      end if;
-
       Complete_And_Propagate_Occurrence (X);
    end Raise_With_Location_And_Msg;
 
@@ -1186,13 +1259,6 @@ package body Ada.Exceptions is
 
       Excep.Msg_Length                  := Ex.Msg_Length;
       Excep.Msg (1 .. Excep.Msg_Length) := Ex.Msg (1 .. Ex.Msg_Length);
-
-      --  The following is a common pattern, should be abstracted
-      --  into a procedure call ???
-
-      if not ZCX_By_Default then
-         Abort_Defer.all;
-      end if;
 
       Complete_And_Propagate_Occurrence (Excep);
    end Raise_With_Msg;
@@ -1526,10 +1592,6 @@ package body Ada.Exceptions is
       Saved_MO : constant System.Address := Excep.Machine_Occurrence;
 
    begin
-      if not ZCX_By_Default then
-         Abort_Defer.all;
-      end if;
-
       Save_Occurrence (Excep.all, Get_Current_Excep.all.all);
       Excep.Machine_Occurrence := Saved_MO;
       Complete_And_Propagate_Occurrence (Excep);
@@ -1575,10 +1637,6 @@ package body Ada.Exceptions is
 
    procedure Reraise_Occurrence_Always (X : Exception_Occurrence) is
    begin
-      if not ZCX_By_Default then
-         Abort_Defer.all;
-      end if;
-
       Reraise_Occurrence_No_Defer (X);
    end Reraise_Occurrence_Always;
 
@@ -1624,6 +1682,7 @@ package body Ada.Exceptions is
       Target.Machine_Occurrence := System.Null_Address;
       Target.Msg_Length         := Source.Msg_Length;
       Target.Num_Tracebacks     := Source.Num_Tracebacks;
+      Target.Exception_Raised   := Source.Exception_Raised;
       Target.Pid                := Source.Pid;
 
       Target.Msg (1 .. Target.Msg_Length) :=
@@ -1659,10 +1718,10 @@ package body Ada.Exceptions is
    ---------------
 
    procedure To_Stderr (C : Character) is
-      procedure Put_Char_Stderr (C : Character);
+      procedure Put_Char_Stderr (C : Integer);
       pragma Import (C, Put_Char_Stderr, "put_char_stderr");
    begin
-      Put_Char_Stderr (C);
+      Put_Char_Stderr (Character'Pos (C));
    end To_Stderr;
 
    procedure To_Stderr (S : String) is
@@ -1701,7 +1760,7 @@ package body Ada.Exceptions is
    -- Wide_Exception_Name --
    -------------------------
 
-   WC_Encoding : Character;
+   WC_Encoding : constant Character;
    pragma Import (C, WC_Encoding, "__gl_wc_encoding");
    --  Encoding method for source, as exported by binder
 

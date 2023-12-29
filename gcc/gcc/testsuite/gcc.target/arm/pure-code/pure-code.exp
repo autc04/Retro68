@@ -1,4 +1,4 @@
-#   Copyright (C) 1997-2019 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,12 @@
 
 # GCC testsuite for ARM's -mpure-code option, using the `dg.exp' driver.
 
+# Exit immediately if this is an ARM FDPIC target (it uses PIC code,
+# which is incompatible with -mpure-code).
+if [istarget arm*-*-uclinuxfdpiceabi] then {
+  return
+}
+
 # Load support procs.
 load_lib gcc-dg.exp
 
@@ -25,11 +31,8 @@ if ![info exists DEFAULT_CFLAGS] then {
     set DEFAULT_CFLAGS " -ansi -pedantic-errors"
 }
 
-# The -mpure-code option is only available for M-profile targets that support
-# the MOVT instruction.
-if {([check_effective_target_arm_thumb2_ok]
-     || [check_effective_target_arm_thumb1_movt_ok])
-    && [check_effective_target_arm_cortex_m]} then {
+# The -mpure-code option is only available for M-profile targets.
+if {[check_effective_target_arm_cortex_m]} then {
 # Initialize `dg'.
 dg-init
 

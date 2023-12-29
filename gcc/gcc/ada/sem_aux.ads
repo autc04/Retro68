@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -18,20 +18,12 @@
 -- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
 -- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
--- As a special exception,  if other files  instantiate  generics from this --
--- unit, or you link  this unit with other files  to produce an executable, --
--- this  unit  does not  by itself cause  the resulting  executable  to  be --
--- covered  by the  GNU  General  Public  License.  This exception does not --
--- however invalidate  any other reasons why  the executable file  might be --
--- covered by the  GNU Public License.                                      --
---                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  Package containing utility procedures used throughout the compiler,
---  and also by ASIS so dependencies are limited to ASIS included packages.
+--  Package containing utility procedures used throughout the compiler.
 
 --  Historical note. Many of the routines here were originally in Einfo, but
 --  Einfo is supposed to be a relatively low level package dealing with the
@@ -42,7 +34,6 @@ with Alloc;
 with Namet; use Namet;
 with Table;
 with Types; use Types;
-with Sinfo; use Sinfo;
 
 package Sem_Aux is
 
@@ -71,25 +62,18 @@ package Sem_Aux is
 
    procedure Initialize;
    --  Called at the start of compilation of each new main source file to
-   --  initialize the allocation of the Obsolescent_Warnings table. Note that
-   --  Initialize must not be called if Tree_Read is used.
-
-   procedure Tree_Read;
-   --  Initializes Obsolescent_Warnings table from current tree file using the
-   --  relevant Table.Tree_Read routine.
-
-   procedure Tree_Write;
-   --  Writes out Obsolescent_Warnings table to current tree file using the
-   --  relevant Table.Tree_Write routine.
+   --  initialize the allocation of the Obsolescent_Warnings table.
 
    -----------------
    -- Subprograms --
    -----------------
 
    function Ancestor_Subtype (Typ : Entity_Id) return Entity_Id;
-   --  The argument Id is a type or subtype entity. If the argument is a
+   --  The argument Typ is a type or subtype entity. If the argument is a
    --  subtype then it returns the subtype or type from which the subtype was
    --  obtained, otherwise it returns Empty.
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    function Available_View (Ent : Entity_Id) return Entity_Id;
    --  Ent denotes an abstract state or a type that may come from a limited
@@ -103,6 +87,8 @@ package Sem_Aux is
    --  in some other cases of internal entities, which cannot be treated as
    --  constants from the point of view of constant folding. Empty is also
    --  returned for variables with no initialization expression.
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    function Corresponding_Unsigned_Type (Typ : Entity_Id) return Entity_Id;
    --  Typ is a signed integer subtype. This routine returns the standard
@@ -122,6 +108,8 @@ package Sem_Aux is
    --  The caller is responsible for checking that the type has discriminants.
    --  When called on a private type with unknown discriminants, the function
    --  always returns Empty.
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    function First_Stored_Discriminant (Typ : Entity_Id) return Entity_Id;
    --  Typ is a type with discriminants. Gives the first discriminant stored
@@ -146,33 +134,22 @@ package Sem_Aux is
    --  discriminants from Gigi's standpoint, i.e. those that will be stored in
    --  actual objects of the type.
 
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
+
    function First_Subtype (Typ : Entity_Id) return Entity_Id;
    --  Applies to all types and subtypes. For types, yields the first subtype
    --  of the type. For subtypes, yields the first subtype of the base type of
    --  the subtype.
 
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
+
    function First_Tag_Component (Typ : Entity_Id) return Entity_Id;
    --  Typ must be a tagged record type. This function returns the Entity for
    --  the first _Tag field in the record type.
 
-   function Get_Binary_Nkind (Op : Entity_Id) return Node_Kind;
-   --  Op must be an entity with an Ekind of E_Operator. This function returns
-   --  the Nkind value that would be used to construct a binary operator node
-   --  referencing this entity. It is an error to call this function if Ekind
-   --  (Op) /= E_Operator.
-
    function Get_Called_Entity (Call : Node_Id) return Entity_Id;
    --  Obtain the entity of the entry, operator, or subprogram being invoked
    --  by call Call.
-
-   function Get_Low_Bound (E : Entity_Id) return Node_Id;
-   --  For an index subtype or string literal subtype, returns its low bound
-
-   function Get_Unary_Nkind (Op : Entity_Id) return Node_Kind;
-   --  Op must be an entity with an Ekind of E_Operator. This function returns
-   --  the Nkind value that would be used to construct a unary operator node
-   --  referencing this entity. It is an error to call this function if Ekind
-   --  (Op) /= E_Operator.
 
    function Get_Rep_Item
      (E             : Entity_Id;
@@ -250,10 +227,6 @@ package Sem_Aux is
    --  not inherited from its parents, if any). If found then True is returned,
    --  otherwise False indicates that no matching entry was found.
 
-   function Has_Rep_Item (E : Entity_Id; N : Node_Id) return Boolean;
-   --  Determine whether the Rep_Item chain of arbitrary entity E contains item
-   --  N. N must denote a valid rep item.
-
    function Has_Rep_Pragma
      (E             : Entity_Id;
       Nam           : Name_Id;
@@ -317,6 +290,8 @@ package Sem_Aux is
    --  Ent is any entity. Returns True if Ent is a type entity where the type
    --  is required to be passed by reference, as defined in (RM 6.2(4-9)).
 
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
+
    function Is_Definite_Subtype (T : Entity_Id) return Boolean;
    --  T is a type entity. Returns True if T is a definite subtype.
    --  Indefinite subtypes are unconstrained arrays, unconstrained
@@ -328,6 +303,8 @@ package Sem_Aux is
    function Is_Derived_Type (Ent : Entity_Id) return Boolean;
    --  Determines if the given entity Ent is a derived type. Result is always
    --  false if argument is not a type.
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    function Is_Generic_Formal (E : Entity_Id) return Boolean;
    --  Determine whether E is a generic formal parameter. In particular this is
@@ -357,6 +334,9 @@ package Sem_Aux is
    --  these types). This older routine overlaps with the previous one, this
    --  should be cleaned up???
 
+   function Is_Record_Or_Limited_Type (Typ : Entity_Id) return Boolean;
+   --  Return True if Typ requires is a record or limited type.
+
    function Nearest_Ancestor (Typ : Entity_Id) return Entity_Id;
    --  Given a subtype Typ, this function finds out the nearest ancestor from
    --  which constraints and predicates are inherited. There is no simple link
@@ -385,10 +365,6 @@ package Sem_Aux is
    --  The result returned is the next _Tag field in this record, or Empty
    --  if this is the last such field.
 
-   function Number_Components (Typ : Entity_Id) return Nat;
-   --  Typ is a record type, yields number of components (including
-   --  discriminants) in type.
-
    function Number_Discriminants (Typ : Entity_Id) return Pos;
    --  Typ is a type with discriminants, yields number of discriminants in type
 
@@ -402,8 +378,8 @@ package Sem_Aux is
    --  (RM 3.3(23.10/3)).
 
    function Package_Body (E : Entity_Id) return Node_Id;
-   --  Given an entity for a package (spec or body), return the corresponding
-   --  package body if any, or else Empty.
+   --  Given an entity for a package, return the corresponding package body, if
+   --  any, or else Empty.
 
    function Package_Spec (E : Entity_Id) return Node_Id;
    --  Given an entity for a package spec, return the corresponding package

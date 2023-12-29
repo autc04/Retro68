@@ -10,7 +10,7 @@ AC_INIT(package-unused, version-unused,, libgo)
 AC_CONFIG_SRCDIR(Makefile.am)
 AC_CONFIG_HEADER(config.h)
 
-libtool_VERSION=14:0:0
+libtool_VERSION=21:0:0
 AC_SUBST(libtool_VERSION)
 
 AM_ENABLE_MULTILIB(, ..)
@@ -26,15 +26,20 @@ m4_rename([_AC_ARG_VAR_PRECIOUS],[glibgo_PRECIOUS])
 m4_define([_AC_ARG_VAR_PRECIOUS],[])
 AC_PROG_CC
 AC_PROG_GO
+AM_PROG_AS
 m4_rename_force([glibgo_PRECIOUS],[_AC_ARG_VAR_PRECIOUS])
 
 AC_SUBST(CFLAGS)
 
 case ${host} in
   *-*-aix*)
-    # static hash tables crashes on AIX when libgo is built with O2
-    CFLAGS="$CFLAGS -fno-section-anchors"
-    GOCFLAGS="$GOCFLAGS -fno-section-anchors"
+    # Check default architecture for FAT library creation
+    if test -z "`$CC -x c -E /dev/null -g3 -o - | grep 64BIT`" ; then
+        AIX_EXTRA_ARCH='64'
+    else
+        AIX_EXTRA_ARCH='32'
+    fi
+    AC_SUBST(AIX_EXTRA_ARCH)
     ;;
 esac
 
@@ -57,11 +62,10 @@ AC_PROG_AWK
 WARN_FLAGS='-Wall -Wextra -Wwrite-strings -Wcast-qual'
 AC_SUBST(WARN_FLAGS)
 
-AC_ARG_ENABLE(werror, [AS_HELP_STRING([--enable-werror],
-                                      [turns on -Werror @<:@default=yes@:>@])])
-if test "x$enable_werror" != "xno"; then
-  WERROR="-Werror"
-fi
+AC_ARG_ENABLE([werror],
+  [AS_HELP_STRING([--disable-werror], [disable building with -Werror])])
+AS_IF([test "x$enable_werror" != "xno" && test "x$GCC" = "xyes"],
+  [WERROR="-Werror"])
 AC_SUBST(WERROR)
 
 glibgo_toolexecdir=no
@@ -79,6 +83,8 @@ AC_ARG_ENABLE([version-specific-runtime-libs],
   [version_specific_libs=no])
 AC_MSG_RESULT($version_specific_libs)
 
+GCC_WITH_TOOLEXECLIBDIR
+
 # Version-specific runtime libs processing.
 if test $version_specific_libs = yes; then
   glibgo_toolexecdir='${libdir}/gcc/${host_alias}'
@@ -90,7 +96,14 @@ fi
 if test -n "$with_cross_host" &&
    test x"$with_cross_host" != x"no"; then
   nover_glibgo_toolexecdir='${exec_prefix}/${host_alias}'
-  nover_glibgo_toolexeclibdir='${toolexecdir}/lib'
+  case ${with_toolexeclibdir} in
+    no)
+      nover_glibgo_toolexeclibdir='${toolexecdir}/lib'
+      ;;
+    *)
+      nover_glibgo_toolexeclibdir=${with_toolexeclibdir}
+      ;;
+  esac
 else
   nover_glibgo_toolexecdir='${libdir}/gcc/${host_alias}'
   nover_glibgo_toolexeclibdir='${libdir}'
@@ -128,7 +141,7 @@ if test "$with_libffi" != no; then
 fi
 AC_SUBST(LIBFFI)
 AC_SUBST(LIBFFIINCS)
-AM_CONDITIONAL(USE_LIBFFI, test "$with_liffi" != "no")
+AM_CONDITIONAL(USE_LIBFFI, test "$with_libffi" != "no")
 
 # See if the user wants to configure without libatomic. This is useful if we are
 # on an architecture for which libgo does not need an atomic support library and
@@ -153,7 +166,7 @@ AC_SUBST(go_include)
 # All known GOOS values.  This is the union of all operating systems
 # supported by the gofrontend and all operating systems supported by
 # the gc toolchain.
-ALLGOOS="aix android darwin dragonfly freebsd hurd irix js linux netbsd openbsd plan9 rtems solaris windows"
+ALLGOOS="aix android darwin dragonfly freebsd hurd illumos ios irix js linux netbsd openbsd plan9 rtems solaris windows zos"
 
 is_darwin=no
 is_freebsd=no
@@ -239,6 +252,9 @@ case ${host} in
   aarch64-*-*)
     GOARCH=arm64
     ;;
+  aarch64_be-*-*)
+    GOARCH=arm64be
+    ;;
   arm*-*-* | strongarm*-*-* | ep9312*-*-* | xscale-*-*)
     GOARCH=arm
     case ${host} in
@@ -321,8 +337,14 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 [GOARCH=ppc64le],
 [GOARCH=ppc64])])
     ;;
-  riscv64-*-*)
-    GOARCH=riscv64
+  riscv*-*-*)
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+#if __riscv_xlen == 64
+#error 64-bit
+#endif
+])],
+[GOARCH=riscv],
+[GOARCH=riscv64])
     ;;
   s390*-*-*)
     AC_COMPILE_IFELSE([AC_LANG_SOURCE([
@@ -352,6 +374,8 @@ esac
 AC_SUBST(GOARCH)
 AC_SUBST(ALLGOARCH)
 AC_SUBST(ALLGOARCHFAMILY)
+
+AM_CONDITIONAL(LIBGO_IS_X86, test "$GOARCH" = "386" -o "$GOARCH" = "amd64" -o "$GOARCH" = "amd64p32")
 
 FUNCTION_DESCRIPTORS=false
 case ${host} in
@@ -397,7 +421,7 @@ case "$target" in
 	# msghdr in <sys/socket.h>.
 	OSCFLAGS="$OSCFLAGS -D_XOPEN_SOURCE=500"
 	;;
-    *-*-solaris2.1[[01]])
+    *-*-solaris2.*)
 	# Solaris 10+ needs this so struct msghdr gets the msg_control
 	# etc. fields in <sys/socket.h> (_XPG4_2).  _XOPEN_SOURCE=600 as
 	# above doesn't work with C99.
@@ -555,7 +579,7 @@ AC_C_BIGENDIAN
 
 GCC_CHECK_UNWIND_GETIPINFO
 
-AC_CHECK_HEADERS(port.h sched.h semaphore.h sys/file.h sys/mman.h syscall.h sys/epoll.h sys/event.h sys/inotify.h sys/ptrace.h sys/syscall.h sys/user.h sys/utsname.h sys/select.h sys/socket.h net/if.h net/if_arp.h net/route.h netpacket/packet.h sys/prctl.h sys/mount.h sys/vfs.h sys/statfs.h sys/timex.h sys/sysinfo.h utime.h linux/ether.h linux/fs.h linux/ptrace.h linux/reboot.h netinet/in_syst.h netinet/ip.h netinet/ip_mroute.h netinet/if_ether.h)
+AC_CHECK_HEADERS(port.h sched.h semaphore.h sys/file.h sys/mman.h syscall.h sys/epoll.h sys/event.h sys/inotify.h sys/ptrace.h sys/syscall.h sys/sysctl.h sys/user.h sys/utsname.h sys/select.h sys/socket.h net/bpf.h net/if.h net/if_arp.h net/route.h netpacket/packet.h sys/prctl.h sys/mount.h sys/vfs.h sys/statfs.h sys/timex.h sys/sysinfo.h utime.h linux/ether.h linux/fs.h linux/ptrace.h linux/reboot.h netinet/in_syst.h netinet/ip.h netinet/ip_mroute.h netinet/if_ether.h lwp.h)
 
 AC_CHECK_HEADERS([netinet/icmp6.h], [], [],
 [#include <netinet/in.h>
@@ -572,6 +596,8 @@ AM_CONDITIONAL(HAVE_SYS_MMAN_H, test "$ac_cv_header_sys_mman_h" = yes)
 AC_CHECK_FUNCS(strerror_r strsignal wait4 mincore setenv unsetenv dl_iterate_phdr memmem)
 AM_CONDITIONAL(HAVE_STRERROR_R, test "$ac_cv_func_strerror_r" = yes)
 AM_CONDITIONAL(HAVE_WAIT4, test "$ac_cv_func_wait4" = yes)
+
+AC_STRUCT_DIRENT_D_TYPE
 
 AC_CHECK_FUNCS(accept4 dup3 epoll_create1 faccessat fallocate fchmodat fchownat futimesat getxattr inotify_add_watch inotify_init inotify_init1 inotify_rm_watch listxattr mkdirat mknodat open64 openat pipe2 removexattr renameat setxattr sync_file_range splice syscall tee unlinkat unshare utimensat)
 AC_TYPE_OFF_T
@@ -866,6 +892,17 @@ if test "x$libgo_cv_as_x86_aes" = xyes; then
 	    [Define if your assembler supports AES instructions.])
 fi
 
+dnl Test whether the linker supports the -static option.
+AC_CACHE_CHECK([whether -static is supported],
+[libgo_cv_ld_static],
+[LDFLAGS_hold=$LDFLAGS
+LDFLAGS="$LDFLAGS -static"
+AC_LINK_IFELSE([AC_LANG_PROGRAM(,)],
+[libgo_cv_ld_static=yes],
+[libgo_cv_ld_static=no])
+LDFLAGS=$LDFLAGS_hold])
+AM_CONDITIONAL(HAVE_STATIC_LINK, test "$libgo_cv_ld_static" = yes)
+
 AC_CACHE_SAVE
 
 if test ${multilib} = yes; then
@@ -874,7 +911,7 @@ else
   multilib_arg=
 fi
 
-AC_CONFIG_FILES(Makefile testsuite/Makefile)
+AC_CONFIG_FILES(Makefile testsuite/Makefile testsuite/libgo-test-support.exp)
 
 AC_CONFIG_COMMANDS([default],
 [if test -n "$CONFIG_FILES"; then

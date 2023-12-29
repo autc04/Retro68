@@ -1,6 +1,7 @@
-/* Verify t1 is saved before use.  */
+/* Verify t0 is saved before use.  */
 /* { dg-do compile } */
-/* { dg-options "-O0 -fomit-frame-pointer" } */
+/* { dg-options "-fomit-frame-pointer" } */
+/* { dg-skip-if "" { *-*-* } { "*" } { "-O0" } } */
 void __attribute__ ((interrupt))
 foo2 (void)
 {
@@ -15,4 +16,4 @@ foo2 (void)
   COUNTER++;
 #endif
 }
-/* { dg-final { scan-assembler "s\[wd\]\tt1" } } */
+/* { dg-final { scan-assembler "s\[wd\]\tt0" } } */

@@ -1,6 +1,6 @@
 // Heap implementation -*- C++ -*-
 
-// Copyright (C) 2001-2019 Free Software Foundation, Inc.
+// Copyright (C) 2001-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -58,6 +58,7 @@
 #include <debug/debug.h>
 #include <bits/move.h>
 #include <bits/predefined_ops.h>
+#include <bits/stl_iterator_base_funcs.h>
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -70,6 +71,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   template<typename _RandomAccessIterator, typename _Distance,
 	   typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     _Distance
     __is_heap_until(_RandomAccessIterator __first, _Distance __n,
 		    _Compare& __comp)
@@ -88,6 +90,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   // __is_heap, a predicate testing whether or not a range is a heap.
   // This function is an extension, not part of the C++ standard.
   template<typename _RandomAccessIterator, typename _Distance>
+    _GLIBCXX20_CONSTEXPR
     inline bool
     __is_heap(_RandomAccessIterator __first, _Distance __n)
     {
@@ -97,6 +100,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   template<typename _RandomAccessIterator, typename _Compare,
 	   typename _Distance>
+    _GLIBCXX20_CONSTEXPR
     inline bool
     __is_heap(_RandomAccessIterator __first, _Compare __comp, _Distance __n)
     {
@@ -106,11 +110,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   template<typename _RandomAccessIterator>
+    _GLIBCXX20_CONSTEXPR
     inline bool
     __is_heap(_RandomAccessIterator __first, _RandomAccessIterator __last)
     { return std::__is_heap(__first, std::distance(__first, __last)); }
 
   template<typename _RandomAccessIterator, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     inline bool
     __is_heap(_RandomAccessIterator __first, _RandomAccessIterator __last,
 	      _Compare __comp)
@@ -124,6 +130,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   template<typename _RandomAccessIterator, typename _Distance, typename _Tp,
 	   typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     void
     __push_heap(_RandomAccessIterator __first,
 		_Distance __holeIndex, _Distance __topIndex, _Tp __value,
@@ -150,6 +157,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  [__first,__last) is a valid heap.
   */
   template<typename _RandomAccessIterator>
+    _GLIBCXX20_CONSTEXPR
     inline void
     push_heap(_RandomAccessIterator __first, _RandomAccessIterator __last)
     {
@@ -185,6 +193,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  performed using comp.
   */
   template<typename _RandomAccessIterator, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     inline void
     push_heap(_RandomAccessIterator __first, _RandomAccessIterator __last,
 	      _Compare __comp)
@@ -210,6 +219,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   template<typename _RandomAccessIterator, typename _Distance,
 	   typename _Tp, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     void
     __adjust_heap(_RandomAccessIterator __first, _Distance __holeIndex,
 		  _Distance __len, _Tp __value, _Compare __comp)
@@ -239,6 +249,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   template<typename _RandomAccessIterator, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     inline void
     __pop_heap(_RandomAccessIterator __first, _RandomAccessIterator __last,
 	       _RandomAccessIterator __result, _Compare& __comp)
@@ -267,6 +278,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  heap.
   */
   template<typename _RandomAccessIterator>
+    _GLIBCXX20_CONSTEXPR
     inline void
     pop_heap(_RandomAccessIterator __first, _RandomAccessIterator __last)
     {
@@ -300,6 +312,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  heap.  Comparisons are made using comp.
   */
   template<typename _RandomAccessIterator, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     inline void
     pop_heap(_RandomAccessIterator __first,
 	     _RandomAccessIterator __last, _Compare __comp)
@@ -322,6 +335,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   template<typename _RandomAccessIterator, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     void
     __make_heap(_RandomAccessIterator __first, _RandomAccessIterator __last,
 		_Compare& __comp)
@@ -356,6 +370,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  This operation makes the elements in [__first,__last) into a heap.
   */
   template<typename _RandomAccessIterator>
+    _GLIBCXX20_CONSTEXPR
     inline void
     make_heap(_RandomAccessIterator __first, _RandomAccessIterator __last)
     {
@@ -382,6 +397,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  Comparisons are made using __comp.
   */
   template<typename _RandomAccessIterator, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     inline void
     make_heap(_RandomAccessIterator __first, _RandomAccessIterator __last,
 	      _Compare __comp)
@@ -398,6 +414,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   template<typename _RandomAccessIterator, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     void
     __sort_heap(_RandomAccessIterator __first, _RandomAccessIterator __last,
 		_Compare& __comp)
@@ -418,6 +435,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  This operation sorts the valid heap in the range [__first,__last).
   */
   template<typename _RandomAccessIterator>
+    _GLIBCXX20_CONSTEXPR
     inline void
     sort_heap(_RandomAccessIterator __first, _RandomAccessIterator __last)
     {
@@ -445,6 +463,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  Comparisons are made using __comp.
   */
   template<typename _RandomAccessIterator, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     inline void
     sort_heap(_RandomAccessIterator __first, _RandomAccessIterator __last,
 	      _Compare __comp)
@@ -473,6 +492,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  the range [__first, i) is a heap.
   */
   template<typename _RandomAccessIterator>
+    _GLIBCXX20_CONSTEXPR
     inline _RandomAccessIterator
     is_heap_until(_RandomAccessIterator __first, _RandomAccessIterator __last)
     {
@@ -501,6 +521,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  the range [__first, i) is a heap.  Comparisons are made using __comp.
   */
   template<typename _RandomAccessIterator, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     inline _RandomAccessIterator
     is_heap_until(_RandomAccessIterator __first, _RandomAccessIterator __last,
 		  _Compare __comp)
@@ -525,6 +546,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  @ingroup heap_algorithms
   */
   template<typename _RandomAccessIterator>
+    _GLIBCXX20_CONSTEXPR
     inline bool
     is_heap(_RandomAccessIterator __first, _RandomAccessIterator __last)
     { return std::is_heap_until(__first, __last) == __last; }
@@ -538,6 +560,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  @ingroup heap_algorithms
   */
   template<typename _RandomAccessIterator, typename _Compare>
+    _GLIBCXX20_CONSTEXPR
     inline bool
     is_heap(_RandomAccessIterator __first, _RandomAccessIterator __last,
 	    _Compare __comp)

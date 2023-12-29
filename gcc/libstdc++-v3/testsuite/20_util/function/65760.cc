@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2019 Free Software Foundation, Inc.
+// Copyright (C) 2015-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,7 +31,4 @@ struct C {
     C operator()(int, int);
 };
 
-int main() {
-    C c = C();
-}
-
+C c = C();

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,10 +23,10 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  Package containing routines used to deal with runtime checks. These
+--  Package containing routines used to deal with run-time checks. These
 --  routines are used both by the semantics and by the expander. In some
---  cases, checks are enabled simply by setting flags for gigi, and in
---  other cases the code for the check is expanded.
+--  cases, checks are enabled simply by setting a flag for the back end,
+--  and in other cases the code for the check is expanded.
 
 --  The approach used for range and length checks, in regards to suppressed
 --  checks, is to attempt to detect at compilation time that a constraint
@@ -44,27 +44,34 @@ with Urealp; use Urealp;
 
 package Checks is
 
+   type Bit_Vector is array (Pos range <>) of Boolean;
+   type Dimension_Set (Dimensions : Nat) is
+      record
+         Elements : Bit_Vector (1 .. Dimensions);
+      end record;
+   Empty_Dimension_Set : constant Dimension_Set
+     := (Dimensions => 0, Elements => (others => <>));
+
    procedure Initialize;
    --  Called for each new main source program, to initialize internal
    --  variables used in the package body of the Checks unit.
 
-   function Access_Checks_Suppressed          (E : Entity_Id) return Boolean;
-   function Accessibility_Checks_Suppressed   (E : Entity_Id) return Boolean;
-   function Alignment_Checks_Suppressed       (E : Entity_Id) return Boolean;
-   function Allocation_Checks_Suppressed      (E : Entity_Id) return Boolean;
-   function Atomic_Synchronization_Disabled   (E : Entity_Id) return Boolean;
-   function Discriminant_Checks_Suppressed    (E : Entity_Id) return Boolean;
-   function Division_Checks_Suppressed        (E : Entity_Id) return Boolean;
-   function Duplicated_Tag_Checks_Suppressed  (E : Entity_Id) return Boolean;
-   function Elaboration_Checks_Suppressed     (E : Entity_Id) return Boolean;
-   function Index_Checks_Suppressed           (E : Entity_Id) return Boolean;
-   function Length_Checks_Suppressed          (E : Entity_Id) return Boolean;
-   function Overflow_Checks_Suppressed        (E : Entity_Id) return Boolean;
-   function Predicate_Checks_Suppressed       (E : Entity_Id) return Boolean;
-   function Range_Checks_Suppressed           (E : Entity_Id) return Boolean;
-   function Storage_Checks_Suppressed         (E : Entity_Id) return Boolean;
-   function Tag_Checks_Suppressed             (E : Entity_Id) return Boolean;
-   function Validity_Checks_Suppressed        (E : Entity_Id) return Boolean;
+   function Access_Checks_Suppressed         (E : Entity_Id) return Boolean;
+   function Accessibility_Checks_Suppressed  (E : Entity_Id) return Boolean;
+   function Alignment_Checks_Suppressed      (E : Entity_Id) return Boolean;
+   function Allocation_Checks_Suppressed     (E : Entity_Id) return Boolean;
+   function Atomic_Synchronization_Disabled  (E : Entity_Id) return Boolean;
+   function Discriminant_Checks_Suppressed   (E : Entity_Id) return Boolean;
+   function Division_Checks_Suppressed       (E : Entity_Id) return Boolean;
+   function Duplicated_Tag_Checks_Suppressed (E : Entity_Id) return Boolean;
+   function Elaboration_Checks_Suppressed    (E : Entity_Id) return Boolean;
+   function Index_Checks_Suppressed          (E : Entity_Id) return Boolean;
+   function Length_Checks_Suppressed         (E : Entity_Id) return Boolean;
+   function Overflow_Checks_Suppressed       (E : Entity_Id) return Boolean;
+   function Predicate_Checks_Suppressed      (E : Entity_Id) return Boolean;
+   function Range_Checks_Suppressed          (E : Entity_Id) return Boolean;
+   function Storage_Checks_Suppressed        (E : Entity_Id) return Boolean;
+   function Tag_Checks_Suppressed            (E : Entity_Id) return Boolean;
    --  These functions check to see if the named check is suppressed, either
    --  by an active scope suppress setting, or because the check has been
    --  specifically suppressed for the given entity. If no entity is relevant
@@ -90,7 +97,7 @@ package Checks is
    --  When we have address clauses, there is an issue of whether the address
    --  specified is appropriate to the alignment. In the general case where the
    --  address is dynamic, we generate a check and a possible warning (this
-   --  warning occurs for example if we have a restricted run time with the
+   --  warning occurs for example if we have a restricted runtime with the
    --  restriction No_Exception_Propagation). We also issue this warning in
    --  the case where the address is static, but we don't know the alignment
    --  at the time we process the address clause. In such a case, we issue the
@@ -98,7 +105,7 @@ package Checks is
    --  annotated the actual alignment chosen) that the warning was not needed.
 
    --  To deal with deleting these potentially annoying warnings, we save the
-   --  warning information in a table, and then delete the waranings in the
+   --  warning information in a table, and then delete the warnings in the
    --  post compilation validation stage if we can tell that the check would
    --  never fail (in general the back end will also optimize away the check
    --  in such cases).
@@ -112,6 +119,9 @@ package Checks is
       A : Uint;
       --  Compile time known value of address clause for which the alignment
       --  is to be checked once we know the alignment.
+
+      P : Node_Id;
+      --  Prefix of address clause when it is of the form X'Address
 
       W : Error_Msg_Id;
       --  Id of warning message we might delete
@@ -161,7 +171,7 @@ package Checks is
 
    procedure Activate_Range_Check (N : Node_Id);
    pragma Inline (Activate_Range_Check);
-   --  Sets Do_Range_Check flag in node N, and handles possible local raise
+   --  Sets Do_Range_Check flag in node N, and handles possible local raise.
    --  Always call this routine rather than calling Set_Do_Range_Check to
    --  set an explicit value of True, to ensure handling the local raise case.
 
@@ -176,7 +186,7 @@ package Checks is
    --  operate anyway since they may generate useful compile time warnings.
 
    procedure Apply_Access_Check (N : Node_Id);
-   --  Determines whether an expression node requires a runtime access
+   --  Determines whether an expression node requires a run-time access
    --  check and if so inserts the appropriate run-time check.
 
    procedure Apply_Accessibility_Check
@@ -197,7 +207,7 @@ package Checks is
    --  generated) is prepended to the Actions list of N_Freeze_Entity node N.
    --  Note that the check references E'Alignment, so it cannot be emitted
    --  before N (its freeze node), otherwise this would cause an illegal
-   --  access before elaboration error in GIGI. For the case of a clear overlay
+   --  access before elaboration error in gigi. For the case of a clear overlay
    --  situation, we also check that the size of the overlaying object is not
    --  larger than the overlaid object.
 
@@ -335,12 +345,27 @@ package Checks is
    --  For that to happen, the possibility of arguments of infinite or NaN
    --  value should be taken into account, which is not the case currently.
 
+   procedure Determine_Range_To_Discrete
+     (N            : Node_Id;
+      OK           : out Boolean;
+      Lo           : out Uint;
+      Hi           : out Uint;
+      Fixed_Int    : Boolean := False;
+      Assume_Valid : Boolean := False);
+   --  Similar to Determine_Range, but attempts to return a discrete range even
+   --  if N is not of a discrete type by doing a conversion. The Fixed_Int flag
+   --  if set causes any fixed-point values to be treated as though they were
+   --  discrete values (i.e. the underlying integer value is used), in which
+   --  case no conversion is needed. At the current time, this is used only for
+   --  discrete types, for fixed-point types if Fixed_Int is set, and also for
+   --  floating-point types in GNATprove, see Determine_Range_R above.
+
    procedure Install_Null_Excluding_Check (N : Node_Id);
-   --  Determines whether an access node requires a runtime access check and
+   --  Determines whether an access node requires a run-time access check and
    --  if so inserts the appropriate run-time check.
 
    procedure Install_Primitive_Elaboration_Check (Subp_Body : Node_Id);
-   --  Insert a check which ensures that subprogram body Subp_Body has been
+   --  Insert a check to ensure that subprogram body Subp_Body has been
    --  properly elaborated. The check is installed only when Subp_Body is the
    --  body of a nonabstract library-level primitive of a tagged type. Further
    --  restrictions may apply, see the body for details.
@@ -442,13 +467,10 @@ package Checks is
    -------------------------------------------------------
 
    --  Range checks are controlled by the Do_Range_Check flag. The front end
-   --  is responsible for setting this flag in relevant nodes. Originally
-   --  the back end generated all corresponding range checks. But later on
-   --  we decided to generate many range checks in the front end. We are now
-   --  in the transitional phase where some of these checks are still done
-   --  by the back end, but many are done by the front end. It is possible
-   --  that in the future we might move all the checks to the front end. The
-   --  main remaining back end checks are for subscript checking.
+   --  is responsible for setting this flag in relevant nodes. Originally the
+   --  back end generated all the corresponding range checks, but later on we
+   --  decided to generate all the range checks in the front end and this is
+   --  the current situation.
 
    --  Overflow checks are similarly controlled by the Do_Overflow_Check flag.
    --  The difference here is that if back end overflow checks are inactive
@@ -526,12 +548,6 @@ package Checks is
    --                this node is further examined depends on the setting of
    --                the parameter Source_Typ, as described below.
 
-   --    ??? Apply_Length_Check and Apply_Range_Check do not have an Expr
-   --        formal
-
-   --    ??? Apply_Length_Check and Apply_Range_Check have a Ck_Node formal
-   --        which is undocumented, is it the same as Expr?
-
    --    Target_Typ  The target type on which the check is to be based. For
    --                example, if we have a scalar range check, then the check
    --                is that we are in range of this type.
@@ -558,7 +574,7 @@ package Checks is
    --  handled by the caller.
 
    procedure Apply_Length_Check
-     (Ck_Node    : Node_Id;
+     (Expr       : Node_Id;
       Target_Typ : Entity_Id;
       Source_Typ : Entity_Id := Empty);
    --  This procedure builds a sequence of declarations to do a length check
@@ -575,10 +591,29 @@ package Checks is
    --  processes it as described above for consistency with the other routines
    --  in this section.
 
-   procedure Apply_Range_Check
-     (Ck_Node    : Node_Id;
+   procedure Apply_Length_Check_On_Assignment
+     (Expr       : Node_Id;
+      Target_Typ : Entity_Id;
+      Target     : Node_Id;
+      Source_Typ : Entity_Id := Empty);
+   --  Similar to Apply_Length_Check, but takes the target of an assignment for
+   --  which the check is to be done. Used to filter out specific cases where
+   --  the check is superfluous.
+
+   procedure Apply_Static_Length_Check
+     (Expr       : Node_Id;
       Target_Typ : Entity_Id;
       Source_Typ : Entity_Id := Empty);
+   --  Tries to determine statically whether the two array types source type
+   --  and Target_Typ have the same length. If it can be determined at compile
+   --  time that they do not, then an N_Raise_Constraint_Error node replaces
+   --  Expr, and a warning message is issued.
+
+   procedure Apply_Range_Check
+     (Expr        : Node_Id;
+      Target_Typ  : Entity_Id;
+      Source_Typ  : Entity_Id := Empty;
+      Insert_Node : Node_Id   := Empty);
    --  For a Node of kind N_Range, constructs a range check action that tests
    --  first that the range is not null and then that the range is contained in
    --  the Target_Typ range.
@@ -603,14 +638,8 @@ package Checks is
    --  The source type is used by type conversions to unconstrained array
    --  types to retrieve the corresponding bounds.
 
-   procedure Apply_Static_Length_Check
-     (Expr       : Node_Id;
-      Target_Typ : Entity_Id;
-      Source_Typ : Entity_Id := Empty);
-   --  Tries to determine statically whether the two array types source type
-   --  and Target_Typ have the same length. If it can be determined at compile
-   --  time that they do not, then an N_Raise_Constraint_Error node replaces
-   --  Expr, and a warning message is issued.
+   --  Insert_Node indicates the node where the check should be inserted.
+   --  If it is empty, then the check is inserted directly at Expr instead.
 
    procedure Apply_Scalar_Range_Check
      (Expr       : Node_Id;
@@ -618,7 +647,7 @@ package Checks is
       Source_Typ : Entity_Id := Empty;
       Fixed_Int  : Boolean   := False);
    --  For scalar types, determines whether an expression node should be
-   --  flagged as needing a runtime range check. If the node requires such a
+   --  flagged as needing a run-time range check. If the node requires such a
    --  check, the Do_Range_Check flag is turned on. The Fixed_Int flag if set
    --  causes any fixed-point values to be treated as though they were discrete
    --  values (i.e. the underlying integer value is used).
@@ -628,7 +657,7 @@ package Checks is
    --  call to Insert_Range_Checks procedure.
 
    function Get_Range_Checks
-     (Ck_Node    : Node_Id;
+     (Expr       : Node_Id;
       Target_Typ : Entity_Id;
       Source_Typ : Entity_Id := Empty;
       Warn_Node  : Node_Id   := Empty) return Check_Result;
@@ -643,49 +672,37 @@ package Checks is
      (Checks       : Check_Result;
       Stmts        : List_Id;
       Suppress_Typ : Entity_Id;
-      Static_Sloc  : Source_Ptr;
-      Flag_Node    : Node_Id);
+      Static_Sloc  : Source_Ptr);
    --  Called to append range checks as returned by a call to Get_Range_Checks.
    --  Stmts is a list to which either the dynamic check is appended or the
    --  raise Constraint_Error statement is appended (for static checks).
-   --  Static_Sloc is the Sloc at which the raise CE node points, Flag_Node is
-   --  used as the node at which to set the Has_Dynamic_Check flag. Checks_On
-   --  is a boolean value that says if range and index checking is on or not.
+   --  Suppress_Typ is the type to check to determine if checks are suppressed.
+   --  Static_Sloc is the Sloc at which the raise CE node points.
 
    procedure Insert_Range_Checks
      (Checks       : Check_Result;
       Node         : Node_Id;
       Suppress_Typ : Entity_Id;
-      Static_Sloc  : Source_Ptr := No_Location;
-      Flag_Node    : Node_Id    := Empty;
-      Do_Before    : Boolean    := False);
+      Static_Sloc  : Source_Ptr;
+      Do_Before    : Boolean := False);
    --  Called to insert range checks as returned by a call to Get_Range_Checks.
    --  Node is the node after which either the dynamic check is inserted or
    --  the raise Constraint_Error statement is inserted (for static checks).
    --  Suppress_Typ is the type to check to determine if checks are suppressed.
-   --  Static_Sloc, if passed, is the Sloc at which the raise CE node points,
-   --  otherwise Sloc (Node) is used. The Has_Dynamic_Check flag is normally
-   --  set at Node. If Flag_Node is present, then this is used instead as the
-   --  node at which to set the Has_Dynamic_Check flag. Normally the check is
-   --  inserted after, if Do_Before is True, the check is inserted before
-   --  Node.
+   --  Static_Sloc is the Sloc at which the raise CE node points. Normally the
+   --  checks are inserted after Node; if Do_Before is True, they are before.
 
    -----------------------
    -- Expander Routines --
    -----------------------
 
-   --  Some of the earlier processing for checks results in temporarily setting
-   --  the Do_Range_Check flag rather than actually generating checks. Now we
-   --  are moving the generation of such checks into the front end for reasons
-   --  of efficiency and simplicity (there were difficulties in handling this
-   --  in the back end when side effects were present in the expressions being
-   --  checked).
-
-   --  Probably we could eliminate the Do_Range_Check flag entirely and
-   --  generate the checks earlier, but this is a delicate area and it
-   --  seemed safer to implement the following routines, which are called
-   --  late on in the expansion process. They check the Do_Range_Check flag
-   --  and if it is set, generate the actual checks and reset the flag.
+   --  In most cases, the processing for range checks done by semantic analysis
+   --  only results in setting the Do_Range_Check flag, rather than actually
+   --  generating checks. The following routines must be called later on in the
+   --  expansion process upon seeing the Do_Range_Check flag; they generate the
+   --  actual checks and reset the flag. The remaining cases where range checks
+   --  are still directly generated during semantic analysis occur as part of
+   --  the processing of constraints in (sub)type and object declarations.
 
    procedure Generate_Range_Check
      (N           : Node_Id;
@@ -699,11 +716,11 @@ package Checks is
    --  if raised.
    --
    --  Note: if the expander is not active, or if we are in GNATprove mode,
-   --  then we do not generate explicit range code. Instead we just turn the
+   --  then we do not generate explicit range checks. Instead we just turn the
    --  Do_Range_Check flag on, since in these cases that's what we want to see
    --  in the tree (GNATprove in particular depends on this flag being set). If
-   --  we generate the actual range check, then we make sure the flag is off,
-   --  since the code we generate takes complete care of the check.
+   --  we generate the actual range checks, then we make sure the flag is off
+   --  afterward, since the code we generate takes complete care of the checks.
    --
    --  Historical note: We used to just pass on the Do_Range_Check flag to the
    --  back end to generate the check, but now in code-generation mode we never
@@ -712,11 +729,16 @@ package Checks is
    --  Do_Range_Check flag, and if it is set, this routine is called, which
    --  turns the flag off in code-generation mode.
 
-   procedure Generate_Index_Checks (N : Node_Id);
+   procedure Generate_Index_Checks
+     (N                : Node_Id;
+      Checks_Generated : out Dimension_Set);
    --  This procedure is called to generate index checks on the subscripts for
    --  the indexed component node N. Each subscript expression is examined, and
    --  if the Do_Range_Check flag is set, an appropriate index check is
    --  generated and the flag is reset.
+   --  The out-mode parameter Checks_Generated indicates the dimensions for
+   --  which checks were generated. Checks_Generated.Dimensions must match
+   --  the number of dimensions of the array type.
 
    --  Similarly, we set the flag Do_Discriminant_Check in the semantic
    --  analysis to indicate that a discriminant check is required for selected
@@ -842,17 +864,21 @@ package Checks is
    --    are not following the flow graph (more properly the flow of actual
    --    processing only corresponds to the flow graph for local assignments).
    --    For non-local variables, we preserve the current setting, i.e. a
-   --    validity check is performed when assigning to a knonwn valid global.
+   --    validity check is performed when assigning to a known valid global.
 
    --  Note: no validity checking is required if range checks are suppressed
    --  regardless of the setting of the validity checking mode.
 
    --  The following procedures are used in handling validity checking
 
-   procedure Apply_Subscript_Validity_Checks (Expr : Node_Id);
+   procedure Apply_Subscript_Validity_Checks
+     (Expr            : Node_Id;
+      No_Check_Needed : Dimension_Set := Empty_Dimension_Set);
    --  Expr is the node for an indexed component. If validity checking and
-   --  range checking are enabled, all subscripts for this indexed component
-   --  are checked for validity.
+   --  range checking are enabled, each subscript for this indexed component
+   --  whose dimension does not belong to the No_Check_Needed set is checked
+   --  for validity. No_Check_Needed.Dimensions must match the number of
+   --  dimensions of the array type or be zero.
 
    procedure Check_Valid_Lvalue_Subscripts (Expr : Node_Id);
    --  Expr is a lvalue, i.e. an expression representing the target of an

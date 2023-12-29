@@ -28,20 +28,15 @@ special:
 	monitor	%rax, %r\reg1, %rdx
 	monitor	%rax, %rcx, %r\reg1
 
-# FIXME: Need to ensure only "vmload %[re]ax" is accepted.
 	vmload	%r\reg1
 
-# FIXME: Need to ensure only "vmrun %[re]ax" is accepted.
 	vmrun	%r\reg1
 
-# FIXME: Need to ensure only "vmsave %[re]ax" is accepted.
 	vmsave	%r\reg1
 
-# FIXME: Need to ensure only "invlpga %[re]ax,%ecx" is accepted.
 	invlpga	%r\reg1, %ecx
 	invlpga	%rax, %e\reg1
 
-# FIXME: Need to ensure only "skinit %eax" is accepted.
 	skinit	%e\reg1
 .endr
 

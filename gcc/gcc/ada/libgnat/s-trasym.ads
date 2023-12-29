@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 1999-2019, AdaCore                     --
+--                     Copyright (C) 1999-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,7 +33,8 @@
 
 --  The full capability is currently supported on the following targets:
 
---     GNU/Linux x86, x86_64, ia64
+--     GNU/Linux x86, x86_64
+--     Windows x86, x86_64
 
 --  Note: on targets other than those listed above, a dummy implementation
 --  of the body returns a series of LF separated strings of the form "0x..."
@@ -70,10 +71,6 @@
 --  Linux. On other targets symbolic tracebacks are only supported for the main
 --  executable. You should consider using gdb to obtain symbolic traceback in
 --  such cases.
-
-pragma Polling (Off);
---  We must turn polling off for this unit, because otherwise we can get
---  elaboration circularities when polling is turned on.
 
 with Ada.Exceptions;
 

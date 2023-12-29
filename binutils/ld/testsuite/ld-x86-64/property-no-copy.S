@@ -18,3 +18,4 @@
 	.long 0			/* pr_datasz.  */
 	.p2align ALIGN
 3:
+	.section	.note.GNU-stack

@@ -25,3 +25,4 @@
 5:
 	.p2align ALIGN
 3:
+	.section	.note.GNU-stack

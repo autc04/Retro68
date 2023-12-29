@@ -15,7 +15,7 @@ SYMBOL TABLE:
 
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+ R_MMIX_ADDR27     \*ABS\*
 0+4 R_MMIX_ADDR19     \*ABS\*
 0+8 R_MMIX_ADDR19     \*ABS\*

@@ -1,7 +1,7 @@
 // { dg-do compile { target c++11 } }
 // { dg-require-gthreads "" }
 
-// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+// Copyright (C) 2018-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,6 +20,8 @@
 
 #include <thread>
 
+namespace __gnu_test
+{
 using std::is_constructible;
 using std::thread;
 
@@ -28,3 +30,4 @@ static_assert(!is_constructible<thread, thread, int>::value, "");
 static_assert(!is_constructible<thread, thread&, int>::value, "");
 static_assert(!is_constructible<thread, const thread&, int>::value, "");
 static_assert(!is_constructible<thread, const thread&&, int>::value, "");
+}

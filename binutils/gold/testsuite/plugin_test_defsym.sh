@@ -2,7 +2,7 @@
 
 # plugin_test_defsym.sh -- a test case for the plugin API.
 
-# Copyright (C) 2018 onwards Free Software Foundation, Inc.
+# Copyright (C) 2018-2022 Free Software Foundation, Inc.
 # Written by Sriraman Tallam <tmsriram@google.com>.
 
 # This file is part of gold.

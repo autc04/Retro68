@@ -12,3 +12,4 @@ _start:
 	.size	foo_p, 4
 foo_p:
 	.long	foo
+	.section	.note.GNU-stack

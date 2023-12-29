@@ -1,6 +1,195 @@
-2019-05-03  Release Manager
+2022-08-19  Release Manager
 
-	* GCC 9.1.0 released.
+	* GCC 12.2.0 released.
+
+2022-05-06  Release Manager
+
+	* GCC 12.1.0 released.
+
+2022-02-27  John David Anglin  <danglin@gcc.gnu.org>
+
+	* inclhack.def (hpux_math_constexpr): New hack.
+	* fixincl.x: Regenerate.
+	* tests/base/math.h: Update.
+
+2022-02-04  Martin Liska  <mliska@suse.cz>
+
+	* fixinc.in: Use cd OLDDIR instead of cd .. .
+
+2022-02-03  Martin Liska  <mliska@suse.cz>
+
+	* fixinc.in: Use mkdir -p rather that a loop.
+
+2022-01-16  Olivier Hainque  <hainque@adacore.com>
+
+	* inclhack.def (vxworks_posix_open): New hack.
+	* tests/base/fcntl.h: Update.
+	* fixincl.x: Regenerate.
+
+2022-01-16  Olivier Hainque  <hainque@adacore.com>
+
+	* inclhack.def (vxworks_time_h_syslib): New hack.
+	* tests/base/time.h: Update.
+	* fixincl.x: Regenerate.
+
+2022-01-16  Olivier Hainque  <hainque@adacore.com>
+
+	* inclhack.def (vxworks_math_h_fp_c99): New hack.
+	* tests/base/math.h: Update.
+	* fixincl.x: Regenerate.
+
+2022-01-06  Olivier Hainque  <hainque@adacore.com>
+
+	* inclhack.def (vxworks_next_yvals): New hack.
+	* tests/base/yvals.h: New expected test result.
+	* fixincl.x: Regenerate.
+
+2022-01-04  Olivier Hainque  <hainque@adacore.com>
+
+	* inclhack.def (vxworks_posix_mkdir): Refine to expose a
+	varargs interface.
+	* tests/base/sys/stat.h: Update expected results.
+	* fixincl.x: Regenerate.
+
+2022-01-01  Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
+
+	* inclhack.def: Add new fix on darwin.
+	* fixincl.x: Regenerate.
+	* tests/base/math.h: Regenerate.
+
+2021-11-23  Xi Ruoyao  <xry111@mengyan1223.wang>
+
+	PR bootstrap/103306
+	* fixincl.c (process): Don't call abort().
+
+2021-11-13  Xi Ruoyao  <xry111@mengyan1223.wang>
+
+	PR other/21823
+	PR bootstrap/80047
+	* fixincl.c (process): Simplify the handling for highly
+	  unlikely access() failure, to avoid using non-standard
+	  extensions.
+
+2021-08-30  John David Anglin  <danglin@gcc.gnu.org>
+
+	* inclhack.def (hpux_c99_inttypes5): New hack to define PRIdPTR, etc.
+	* fixincl.x: Regenerate.
+	* tests/base/inttypes.h: Update.
+
+2021-07-06  Clément Chigot  <clement.chigot@atos.net>
+
+	* inclhack.def (aix_externcpp1): Improve select regexp.
+	* fixincl.x: Regenerate.
+	* tests/base/sys/socket.h: Update.
+
+2021-06-30  Xi Ruoyao  <xry111@mengyan1223.wang>
+
+	PR other/91085
+	* fixfixes.c (check_has_inc): New static function.
+	  (machine_name_fix): Don't replace header names in
+	  __has_include(...).
+	* inclhack.def (machine_name): Adjust test.
+	* tests/base/testing.h: Update.
+
+2020-12-14  Ilya Leoshkevich  <iii@linux.ibm.com>
+
+	* fixincl.x: Rerun genfixes.
+	* inclhack.def(aix_physadr_t): Change test_text to something
+	that needs to be replaced.
+	* tests/base/sys/types.h(aix_physadr_t): Add expectation.
+
+2020-11-18  Nathan Sidwell  <nathan@acm.org>
+
+	* inclhack.def (aix_physaddr_t): New.
+	* fixincl.x: Regenerated.
+
+2020-10-03  Clément Chigot  <clement.chigot@atos.net>
+
+	* inclhack.def (aix_malloc): Add more context to select.
+	* fixincl.x: Regenerate.
+	* tests/base/malloc.h: Update expected results.
+
+2020-09-26  David Edelsohn  <dje.gcc@gmail.com>
+
+	PR target/97044
+	* inclhack.def (aix_inttypes): New fix.
+	* fixincl.x: Regenerate.
+	* tests/base/sys/inttypes.h: New file.
+
+2020-09-17  David Edelsohn  <dje.gcc@gmail.com>
+
+	* inclhack.def (aix_externcpp1): Add more context to select.
+	(aix_externcpp2): Same.
+	* fixincl.x: Regenerate.
+	* tests/base/sys/socket.h: Update expected results.
+
+2020-09-17  Torbjörn SVENSSON  <torbjorn.svensson@st.com>
+	    Christophe Lyon  <christophe.lyon@linaro.org>
+
+	* fixfixes.c (pz_tmp_base, pz_tmp_dot): Define only with
+	_PC_NAME_MAX.
+
+2020-02-20  Alexandre Oliva <oliva@adacore.com>
+
+	* mkheaders.in: Don't require build-time shell on host.
+
+2020-02-13  Matheus Castanho  <msc@linux.ibm.com>
+
+	* fixinc.in: Skip machine_name fix on powerpc*-*-linux*.
+
+2020-02-13  Alexandre Oliva <oliva@adacore.com>
+
+	* mkheaders.in: Re-create subdirs, copy limits.h into subdir.
+	* mkfixinc.sh: Create dummy fixinc for *-*-vxworks7*.
+
+2020-01-25  John David Anglin  <danglin@gcc.gnu.org>
+
+	* inclhack.def (hpux_c99_inttypes4): New, add missing SCNuMAX defines.
+	* fixincl.x: Regenerate.
+	* tests/base/inttypes.h: Update for above fix.
+
+2019-12-30  John David Anglin  <danglin@gcc.gnu.org>
+
+	PR libgomp/93066
+	* inclhack.def (hpux_c99_inttypes3): Fix defines for INTPTR_MAX
+	and UINTPTR_MAX, and missing define for SIZE_MAX.
+	* fixincl.x: Regenerate.
+	* tests/base/inttypes.h: Update for above fix.
+
+2019-08-18  C.G. Dogan <gcc+cgdogan.00@gmail.com>
+	    Iain Sandoe  <iain@sandoe.co.uk>
+
+	PR target/83531
+	* inclhack.def (darwin_api_availability): New, strip leading
+	underscores from API_XXXX defines.
+	* fixincl.x: Regenerate.
+	* tests/base/os/availability.h: New file.
+
+2019-06-21  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* inclhack.def: Replace the complex test using __STRICT_ANSI__ and
+	__STDC_VERSION__ with a test using __DARWIN_NO_LONG_LONG.
+	Ensure that the top level math.h uses <> to wrap included headers
+	rather than "".
+	* fixincl.x: Regenerated.
+	* tests/base/architecture/ppc/math.h: Update test to include the
+	__DARWIN_NO_LONG_LONG case.
+
+2019-06-21  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* inclhack.def: Guard __has_attribute and __has_extension in
+	os/base.h.
+	Guard Apple blocks syntax in dispatch/object.h.
+	* fixincl.x: Regenerate.
+	* tests/base/dispatch/object.h: New file.
+	* tests/base/os/base.h: New file.
+
+2019-05-11  Iain Sandoe  <iain@sandoe.co.uk>
+	PR target/90379
+	PR bootstrap/89864
+	* inclhack.def (darwin_ucred__Atomic): Do not supply test_text
+	for wrap fixes.
+	* fixincl.x: Regenerated.
 
 2019-04-18  Erik Schnetter  <schnetter@gmail.com>
 	  Jakub Jelinek  <jakub@redhat.com>

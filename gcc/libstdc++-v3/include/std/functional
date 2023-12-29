@@ -1,6 +1,6 @@
 // <functional> -*- C++ -*-
 
-// Copyright (C) 2001-2019 Free Software Foundation, Inc.
+// Copyright (C) 2001-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -61,27 +61,79 @@
 # include <unordered_map>
 # include <vector>
 # include <array>
-# include <utility>
 # include <bits/stl_algo.h>
 #endif
+#if __cplusplus > 201703L
+# include <bits/ranges_cmp.h>
+# include <compare>
+#endif
+#if __cplusplus > 202002L
+# include <bits/move_only_function.h>
+#endif
+
+#endif // C++11
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-#if __cplusplus > 201402L
-# define __cpp_lib_invoke 201411
+  /** @brief The type of placeholder objects defined by libstdc++.
+   *  @ingroup binders
+   *  @since C++11
+   */
+  template<int _Num> struct _Placeholder { };
 
-  /// Invoke a callable object.
+#if __cplusplus >= 201103L
+
+#if __cplusplus >= 201703L
+# define __cpp_lib_invoke 201411L
+# if __cplusplus > 201703L
+#  define __cpp_lib_constexpr_functional 201907L
+# endif
+
+  /** Invoke a callable object.
+   *
+   * `std::invoke` takes a callable object as its first argument and calls it
+   * with the remaining arguments. The callable object can be a pointer or
+   * reference to a function, a lambda closure, a class with `operator()`,
+   * or even a pointer-to-member.  For a pointer-to-member the first argument
+   * must be a reference or pointer to the object that the pointer-to-member
+   * will be applied to.
+   *
+   *  @since C++17
+   */
   template<typename _Callable, typename... _Args>
-    inline invoke_result_t<_Callable, _Args...>
+    inline _GLIBCXX20_CONSTEXPR invoke_result_t<_Callable, _Args...>
     invoke(_Callable&& __fn, _Args&&... __args)
     noexcept(is_nothrow_invocable_v<_Callable, _Args...>)
     {
       return std::__invoke(std::forward<_Callable>(__fn),
 			   std::forward<_Args>(__args)...);
     }
-#endif
+
+#if __cplusplus > 202002L
+# define __cpp_lib_invoke_r 202106L
+
+  /** Invoke a callable object and convert the result to `_Res`.
+   *
+   * `std::invoke_r<R>(f, args...)` is equivalent to `std::invoke(f, args...)`
+   * with the result implicitly converted to `R`.
+   *
+   *  @since C++23
+   */
+  template<typename _Res, typename _Callable, typename... _Args>
+    requires is_invocable_r_v<_Res, _Callable, _Args...>
+    constexpr _Res
+    invoke_r(_Callable&& __fn, _Args&&... __args)
+    noexcept(is_nothrow_invocable_r_v<_Res, _Callable, _Args...>)
+    {
+      return std::__invoke_r<_Res>(std::forward<_Callable>(__fn),
+				   std::forward<_Args>(__args)...);
+    }
+#endif // C++23
+#endif // C++17
+
+  /// @cond undocumented
 
   template<typename _MemFunPtr,
 	   bool __is_mem_fn = is_member_function_pointer<_MemFunPtr>::value>
@@ -106,6 +158,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _Mem_fn_base(_MemFunPtr __pmf) noexcept : _M_pmf(__pmf) { }
 
       template<typename... _Args>
+	_GLIBCXX20_CONSTEXPR
 	auto
 	operator()(_Args&&... __args) const
 	noexcept(noexcept(
@@ -131,6 +184,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _Mem_fn_base(_MemObjPtr __pm) noexcept : _M_pm(__pm) { }
 
       template<typename _Tp>
+	_GLIBCXX20_CONSTEXPR
 	auto
 	operator()(_Tp&& __obj) const
 	noexcept(noexcept(std::__invoke(_M_pm, std::forward<_Tp>(__obj))))
@@ -147,15 +201,35 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
       using _Mem_fn_base<_Res _Class::*>::_Mem_fn_base;
     };
+  /// @endcond
 
   // _GLIBCXX_RESOLVE_LIB_DEFECTS
   // 2048.  Unnecessary mem_fn overloads
   /**
-   *  @brief Returns a function object that forwards to the member
-   *  pointer @a pm.
-   *  @ingroup functors
+   * @brief Returns a function object that forwards to the member pointer
+   * pointer `pm`.
+   *
+   * This allows a pointer-to-member to be transformed into a function object
+   * that can be called with an object expression as its first argument.
+   *
+   * For a pointer-to-data-member the result must be called with exactly one
+   * argument, the object expression that would be used as the first operand
+   * in a `obj.*memptr` or `objp->*memptr` expression.
+   *
+   * For a pointer-to-member-function the result must be called with an object
+   * expression and any additional arguments to pass to the member function,
+   * as in an expression like `(obj.*memfun)(args...)` or
+   * `(objp->*memfun)(args...)`.
+   *
+   * The object expression can be a pointer, reference, `reference_wrapper`,
+   * or smart pointer, and the call wrapper will dereference it as needed
+   * to apply the pointer-to-member.
+   *
+   * @ingroup functors
+   * @since C++11
    */
   template<typename _Tp, typename _Class>
+    _GLIBCXX20_CONSTEXPR
     inline _Mem_fn<_Tp _Class::*>
     mem_fn(_Tp _Class::* __pm) noexcept
     {
@@ -163,12 +237,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   /**
-   *  @brief Determines if the given type _Tp is a function object that
-   *  should be treated as a subexpression when evaluating calls to
-   *  function objects returned by bind().
+   * @brief Trait that identifies a bind expression.
+   * 
+   * Determines if the given type `_Tp` is a function object that
+   * should be treated as a subexpression when evaluating calls to
+   * function objects returned by `std::bind`.
    *
-   *  C++11 [func.bind.isbind].
-   *  @ingroup binders
+   * C++11 [func.bind.isbind].
+   * @ingroup binders
+   * @since C++11
    */
   template<typename _Tp>
     struct is_bind_expression
@@ -180,6 +257,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *
    *  C++11 [func.bind.isplace].
    *  @ingroup binders
+   *  @since C++11
    */
   template<typename _Tp>
     struct is_placeholder
@@ -193,14 +271,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     = is_placeholder<_Tp>::value;
 #endif // C++17
 
-  /** @brief The type of placeholder objects defined by libstdc++.
-   *  @ingroup binders
-   */
-  template<int _Num> struct _Placeholder { };
-
   /** @namespace std::placeholders
-   *  @brief ISO C++11 entities sub-namespace for functional.
+   *  @brief ISO C++ 2011 namespace for std::bind placeholders.
    *  @ingroup binders
+   *  @since C++11
    */
   namespace placeholders
   {
@@ -243,6 +317,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  Partial specialization of is_placeholder that provides the placeholder
    *  number for the placeholder objects defined by libstdc++.
    *  @ingroup binders
+   *  @since C++11
    */
   template<int _Num>
     struct is_placeholder<_Placeholder<_Num> >
@@ -254,6 +329,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     : public integral_constant<int, _Num>
     { };
 
+  /// @cond undocumented
 
   // Like tuple_element_t but SFINAE-friendly.
   template<std::size_t __i, typename _Tuple>
@@ -291,6 +367,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        * but not volatile-qualified. This might be a defect in the TR.
        */
       template<typename _CVRef, typename _Tuple>
+	_GLIBCXX20_CONSTEXPR
 	_Tp&
 	operator()(_CVRef& __arg, _Tuple&) const volatile
 	{ return __arg.get(); }
@@ -307,6 +384,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
     public:
       template<typename _CVArg, typename... _Args>
+	_GLIBCXX20_CONSTEXPR
 	auto
 	operator()(_CVArg& __arg,
 		   tuple<_Args...>& __tuple) const volatile
@@ -322,6 +400,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       // Invokes the underlying function object __arg by unpacking all
       // of the arguments in the tuple.
       template<typename _CVArg, typename... _Args, std::size_t... _Indexes>
+	_GLIBCXX20_CONSTEXPR
 	auto
 	__call(_CVArg& __arg, tuple<_Args...>& __tuple,
 	       const _Index_tuple<_Indexes...>&) const volatile
@@ -341,6 +420,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
     public:
       template<typename _Tuple>
+	_GLIBCXX20_CONSTEXPR
 	_Safe_tuple_element_t<(is_placeholder<_Arg>::value - 1), _Tuple>&&
 	operator()(const volatile _Arg&, _Tuple& __tuple) const volatile
 	{
@@ -359,6 +439,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
     public:
       template<typename _CVArg, typename _Tuple>
+	_GLIBCXX20_CONSTEXPR
 	_CVArg&&
 	operator()(_CVArg&& __arg, _Tuple&) const volatile
 	{ return std::forward<_CVArg>(__arg); }
@@ -378,9 +459,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     -> __tuple_element_t<_Ind, tuple<_Tp...>> const volatile&
     { return std::get<_Ind>(const_cast<const tuple<_Tp...>&>(__tuple)); }
 
+  /// @endcond
+
   /// Type of the function object returned from bind().
   template<typename _Signature>
-    struct _Bind;
+    class _Bind;
 
    template<typename _Functor, typename... _Bound_args>
     class _Bind<_Functor(_Bound_args...)>
@@ -394,6 +477,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       // Call unqualified
       template<typename _Result, typename... _Args, std::size_t... _Indexes>
+	_GLIBCXX20_CONSTEXPR
 	_Result
 	__call(tuple<_Args...>&& __args, _Index_tuple<_Indexes...>)
 	{
@@ -404,6 +488,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       // Call as const
       template<typename _Result, typename... _Args, std::size_t... _Indexes>
+	_GLIBCXX20_CONSTEXPR
 	_Result
 	__call_c(tuple<_Args...>&& __args, _Index_tuple<_Indexes...>) const
 	{
@@ -458,24 +543,24 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
      public:
       template<typename... _Args>
-	explicit _Bind(const _Functor& __f, _Args&&... __args)
+	explicit _GLIBCXX20_CONSTEXPR
+	_Bind(const _Functor& __f, _Args&&... __args)
 	: _M_f(__f), _M_bound_args(std::forward<_Args>(__args)...)
 	{ }
 
       template<typename... _Args>
-	explicit _Bind(_Functor&& __f, _Args&&... __args)
+	explicit _GLIBCXX20_CONSTEXPR
+	_Bind(_Functor&& __f, _Args&&... __args)
 	: _M_f(std::move(__f)), _M_bound_args(std::forward<_Args>(__args)...)
 	{ }
 
       _Bind(const _Bind&) = default;
-
-      _Bind(_Bind&& __b)
-      : _M_f(std::move(__b._M_f)), _M_bound_args(std::move(__b._M_bound_args))
-      { }
+      _Bind(_Bind&&) = default;
 
       // Call unqualified
       template<typename... _Args,
 	       typename _Result = _Res_type<tuple<_Args...>>>
+	_GLIBCXX20_CONSTEXPR
 	_Result
 	operator()(_Args&&... __args)
 	{
@@ -487,6 +572,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       // Call as const
       template<typename... _Args,
 	       typename _Result = _Res_type_cv<tuple<_Args...>, add_const>>
+	_GLIBCXX20_CONSTEXPR
 	_Result
 	operator()(_Args&&... __args) const
 	{
@@ -528,7 +614,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   /// Type of the function object returned from bind<R>().
   template<typename _Result, typename _Signature>
-    struct _Bind_result;
+    class _Bind_result;
 
   template<typename _Result, typename _Functor, typename... _Bound_args>
     class _Bind_result<_Result, _Functor(_Bound_args...)>
@@ -539,110 +625,68 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _Functor _M_f;
       tuple<_Bound_args...> _M_bound_args;
 
-      // sfinae types
-      template<typename _Res>
-	using __enable_if_void
-	  = typename enable_if<is_void<_Res>{}>::type;
-
-      template<typename _Res>
-	using __disable_if_void
-	  = typename enable_if<!is_void<_Res>{}, _Result>::type;
-
       // Call unqualified
       template<typename _Res, typename... _Args, std::size_t... _Indexes>
-	__disable_if_void<_Res>
+	_GLIBCXX20_CONSTEXPR
+	_Res
 	__call(tuple<_Args...>&& __args, _Index_tuple<_Indexes...>)
 	{
-	  return std::__invoke(_M_f, _Mu<_Bound_args>()
+	  return std::__invoke_r<_Res>(_M_f, _Mu<_Bound_args>()
 		      (std::get<_Indexes>(_M_bound_args), __args)...);
-	}
-
-      // Call unqualified, return void
-      template<typename _Res, typename... _Args, std::size_t... _Indexes>
-	__enable_if_void<_Res>
-	__call(tuple<_Args...>&& __args, _Index_tuple<_Indexes...>)
-	{
-	  std::__invoke(_M_f, _Mu<_Bound_args>()
-	       (std::get<_Indexes>(_M_bound_args), __args)...);
 	}
 
       // Call as const
       template<typename _Res, typename... _Args, std::size_t... _Indexes>
-	__disable_if_void<_Res>
+	_GLIBCXX20_CONSTEXPR
+	_Res
 	__call(tuple<_Args...>&& __args, _Index_tuple<_Indexes...>) const
 	{
-	  return std::__invoke(_M_f, _Mu<_Bound_args>()
+	  return std::__invoke_r<_Res>(_M_f, _Mu<_Bound_args>()
 		      (std::get<_Indexes>(_M_bound_args), __args)...);
-	}
-
-      // Call as const, return void
-      template<typename _Res, typename... _Args, std::size_t... _Indexes>
-	__enable_if_void<_Res>
-	__call(tuple<_Args...>&& __args, _Index_tuple<_Indexes...>) const
-	{
-	  std::__invoke(_M_f, _Mu<_Bound_args>()
-	       (std::get<_Indexes>(_M_bound_args),  __args)...);
 	}
 
       // Call as volatile
       template<typename _Res, typename... _Args, std::size_t... _Indexes>
-	__disable_if_void<_Res>
+	_GLIBCXX20_CONSTEXPR
+	_Res
 	__call(tuple<_Args...>&& __args, _Index_tuple<_Indexes...>) volatile
 	{
-	  return std::__invoke(_M_f, _Mu<_Bound_args>()
+	  return std::__invoke_r<_Res>(_M_f, _Mu<_Bound_args>()
 		      (__volget<_Indexes>(_M_bound_args), __args)...);
-	}
-
-      // Call as volatile, return void
-      template<typename _Res, typename... _Args, std::size_t... _Indexes>
-	__enable_if_void<_Res>
-	__call(tuple<_Args...>&& __args, _Index_tuple<_Indexes...>) volatile
-	{
-	  std::__invoke(_M_f, _Mu<_Bound_args>()
-	       (__volget<_Indexes>(_M_bound_args), __args)...);
 	}
 
       // Call as const volatile
       template<typename _Res, typename... _Args, std::size_t... _Indexes>
-	__disable_if_void<_Res>
+	_GLIBCXX20_CONSTEXPR
+	_Res
 	__call(tuple<_Args...>&& __args,
 	       _Index_tuple<_Indexes...>) const volatile
 	{
-	  return std::__invoke(_M_f, _Mu<_Bound_args>()
+	  return std::__invoke_r<_Res>(_M_f, _Mu<_Bound_args>()
 		      (__volget<_Indexes>(_M_bound_args), __args)...);
-	}
-
-      // Call as const volatile, return void
-      template<typename _Res, typename... _Args, std::size_t... _Indexes>
-	__enable_if_void<_Res>
-	__call(tuple<_Args...>&& __args,
-	       _Index_tuple<_Indexes...>) const volatile
-	{
-	  std::__invoke(_M_f, _Mu<_Bound_args>()
-	       (__volget<_Indexes>(_M_bound_args), __args)...);
 	}
 
     public:
       typedef _Result result_type;
 
       template<typename... _Args>
-	explicit _Bind_result(const _Functor& __f, _Args&&... __args)
+	explicit _GLIBCXX20_CONSTEXPR
+	_Bind_result(const _Functor& __f, _Args&&... __args)
 	: _M_f(__f), _M_bound_args(std::forward<_Args>(__args)...)
 	{ }
 
       template<typename... _Args>
-	explicit _Bind_result(_Functor&& __f, _Args&&... __args)
+	explicit _GLIBCXX20_CONSTEXPR
+	_Bind_result(_Functor&& __f, _Args&&... __args)
 	: _M_f(std::move(__f)), _M_bound_args(std::forward<_Args>(__args)...)
 	{ }
 
       _Bind_result(const _Bind_result&) = default;
-
-      _Bind_result(_Bind_result&& __b)
-      : _M_f(std::move(__b._M_f)), _M_bound_args(std::move(__b._M_bound_args))
-      { }
+      _Bind_result(_Bind_result&&) = default;
 
       // Call unqualified
       template<typename... _Args>
+	_GLIBCXX20_CONSTEXPR
 	result_type
 	operator()(_Args&&... __args)
 	{
@@ -653,6 +697,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       // Call as const
       template<typename... _Args>
+	_GLIBCXX20_CONSTEXPR
 	result_type
 	operator()(_Args&&... __args) const
 	{
@@ -801,9 +846,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /**
    *  @brief Function template for std::bind.
    *  @ingroup binders
+   *  @since C++11
    */
   template<typename _Func, typename... _BoundArgs>
-    inline typename
+    inline _GLIBCXX20_CONSTEXPR typename
     _Bind_helper<__is_socketlike<_Func>::value, _Func, _BoundArgs...>::type
     bind(_Func&& __f, _BoundArgs&&... __args)
     {
@@ -825,9 +871,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /**
    *  @brief Function template for std::bind<R>.
    *  @ingroup binders
+   *  @since C++11
    */
   template<typename _Result, typename _Func, typename... _BoundArgs>
-    inline
+    inline _GLIBCXX20_CONSTEXPR
     typename _Bindres_helper<_Result, _Func, _BoundArgs...>::type
     bind(_Func&& __f, _BoundArgs&&... __args)
     {
@@ -837,7 +884,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
 #if __cplusplus > 201703L
-#define __cpp_lib_bind_front 201902L
+#define __cpp_lib_bind_front 201907L
 
   template<typename _Fd, typename... _BoundArgs>
     struct _Bind_front
@@ -923,18 +970,27 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   template<typename _Fn, typename... _Args>
     using _Bind_front_t
-      = _Bind_front<decay_t<_Fn>, unwrap_ref_decay_t<_Args>...>;
+      = _Bind_front<decay_t<_Fn>, decay_t<_Args>...>;
 
+  /** Create call wrapper by partial application of arguments to function.
+   *
+   * The result of `std::bind_front(f, args...)` is a function object that
+   * stores `f` and the bound arguments, `args...`. When that function
+   * object is invoked with `call_args...` it returns the result of calling
+   * `f(args..., call_args...)`.
+   *
+   *  @since C++20
+   */
   template<typename _Fn, typename... _Args>
-    _Bind_front_t<_Fn, _Args...>
+    constexpr _Bind_front_t<_Fn, _Args...>
     bind_front(_Fn&& __fn, _Args&&... __args)
-    noexcept(is_nothrow_constructible_v<int, _Bind_front_t<_Fn, _Args...>,
-					_Fn, _Args...>)
+    noexcept(is_nothrow_constructible_v<_Bind_front_t<_Fn, _Args...>,
+					int, _Fn, _Args...>)
     {
       return _Bind_front_t<_Fn, _Args...>(0, std::forward<_Fn>(__fn),
 					  std::forward<_Args>(__args)...);
     }
-#endif
+#endif // C++20
 
 #if __cplusplus >= 201402L
   /// Generalized negator.
@@ -950,6 +1006,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     public:
       template<typename _Fn2>
+	constexpr
 	_Not_fn(_Fn2&& __fn, int)
 	: _M_fn(std::forward<_Fn2>(__fn)) { }
 
@@ -962,6 +1019,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       // and deducing the return type and exception-specification.
 #define _GLIBCXX_NOT_FN_CALL_OP( _QUALS )				\
       template<typename... _Args>					\
+	_GLIBCXX20_CONSTEXPR						\
 	decltype(_S_not<__inv_res_t<_Fn _QUALS, _Args...>>())		\
 	operator()(_Args&&... __args) _QUALS				\
 	noexcept(__is_nothrow_invocable<_Fn _QUALS, _Args...>::value	\
@@ -974,7 +1032,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _GLIBCXX_NOT_FN_CALL_OP( const & )
       _GLIBCXX_NOT_FN_CALL_OP( && )
       _GLIBCXX_NOT_FN_CALL_OP( const && )
-#undef _GLIBCXX_NOT_FN_CALL
+#undef _GLIBCXX_NOT_FN_CALL_OP
 
     private:
       _Fn _M_fn;
@@ -1003,9 +1061,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     struct __is_byte_like<byte, equal_to<void>>
     : true_type { };
 
-#define __cpp_lib_not_fn 201603
-  /// [func.not_fn] Function template not_fn
+  // [func.not_fn] Function template not_fn
+#define __cpp_lib_not_fn 201603L
+  /** Wrap a function object to create one that negates its result.
+   *
+   * The function template `std::not_fn` creates a "forwarding call wrapper",
+   * which is a function object that wraps another function object and
+   * when called, forwards its arguments to the wrapped function object.
+   *
+   * The result of invoking the wrapper is the negation (using `!`) of
+   * the wrapped function object.
+   *
+   *  @ingroup functors
+   *  @since C++17
+   */
   template<typename _Fn>
+    _GLIBCXX20_CONSTEXPR
     inline auto
     not_fn(_Fn&& __fn)
     noexcept(std::is_nothrow_constructible<std::decay_t<_Fn>, _Fn&&>::value)
@@ -1014,12 +1085,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   // Searchers
-#define __cpp_lib_boyer_moore_searcher 201603
+#define __cpp_lib_boyer_moore_searcher 201603L
 
   template<typename _ForwardIterator1, typename _BinaryPredicate = equal_to<>>
     class default_searcher
     {
     public:
+      _GLIBCXX20_CONSTEXPR
       default_searcher(_ForwardIterator1 __pat_first,
 		       _ForwardIterator1 __pat_last,
 		       _BinaryPredicate __pred = _BinaryPredicate())
@@ -1027,7 +1099,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { }
 
       template<typename _ForwardIterator2>
-        pair<_ForwardIterator2, _ForwardIterator2>
+	_GLIBCXX20_CONSTEXPR
+	pair<_ForwardIterator2, _ForwardIterator2>
 	operator()(_ForwardIterator2 __first, _ForwardIterator2 __last) const
 	{
 	  _ForwardIterator2 __first_ret =
@@ -1080,7 +1153,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       template<typename _RAIter, typename _Unused>
 	__boyer_moore_array_base(_RAIter __pat, size_t __patlen,
 				 _Unused&&, _Pred&& __pred)
-	: _M_bad_char{ _GLIBCXX_STD_C::array<_Tp, _Len>{}, std::move(__pred) }
+	: _M_bad_char{ array<_Tp, _Len>{}, std::move(__pred) }
 	{
 	  std::get<0>(_M_bad_char).fill(__patlen);
 	  if (__patlen > 0)
@@ -1108,7 +1181,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       const _Pred&
       _M_pred() const { return std::get<1>(_M_bad_char); }
 
-      tuple<_GLIBCXX_STD_C::array<_Tp, _Len>, _Pred> _M_bad_char;
+      tuple<array<_Tp, _Len>, _Pred> _M_bad_char;
     };
 
   // Use __boyer_moore_array_base when pattern consists of narrow characters
@@ -1117,9 +1190,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
            typename _Val = typename iterator_traits<_RAIter>::value_type,
 	   typename _Diff = typename iterator_traits<_RAIter>::difference_type>
     using __boyer_moore_base_t
-      = conditional_t<__is_byte_like<_Val, _Pred>::value,
-		      __boyer_moore_array_base<_Diff, 256, _Pred>,
-		      __boyer_moore_map_base<_Val, _Diff, _Hash, _Pred>>;
+      = __conditional_t<__is_byte_like<_Val, _Pred>::value,
+			__boyer_moore_array_base<_Diff, 256, _Pred>,
+			__boyer_moore_map_base<_Val, _Diff, _Hash, _Pred>>;
 
   template<typename _RAIter, typename _Hash
 	     = hash<typename iterator_traits<_RAIter>::value_type>,
@@ -1289,10 +1362,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 #endif // C++17
 #endif // C++14
+#endif // C++11
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
-
-#endif // C++11
 
 #endif // _GLIBCXX_FUNCTIONAL

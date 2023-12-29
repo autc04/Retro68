@@ -4,10 +4,10 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	8a000000 	and	x0, x0, x0
    4:	92400000 	and	x0, x0, #0x1
    8:	d2800004 	mov	x4, #0x0                   	// #0
-			8: R_AARCH64_MOVW_PREL_G0	tempy
+			8: R_AARCH64_(P32_|)MOVW_PREL_G0	tempy
    c:	d2800011 	mov	x17, #0x0                   	// #0
-			c: R_AARCH64_MOVW_PREL_G0	tempy2
+			c: R_AARCH64_(P32_|)MOVW_PREL_G0	tempy2

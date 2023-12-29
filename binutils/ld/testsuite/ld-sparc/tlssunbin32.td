@@ -4,7 +4,7 @@
 #objdump: -sj.tdata
 #target: sparc*-*-*
 
-.*: +file format elf32-sparc
+.*: +file format elf32-sparc.*
 
 Contents of section .tdata:
  22194 00000011 00000000 00000000 00000000  .*

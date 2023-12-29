@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2019 Free Software Foundation, Inc.
+// Copyright (C) 2016-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,5 +19,14 @@
 
 #include <thread>
 
-bool (*lt)(std::thread::id, std::thread::id) = &std::operator<;
-bool (*eq)(std::thread::id, std::thread::id) = &std::operator==;
+struct T
+{
+  operator std::thread::id() const;
+} const t;
+
+using namespace std;
+
+// std::thread::id comparison operators are not hidden friends,
+// so should be candidates for these expressions:
+bool lt = t < t;
+bool eq = t == t;

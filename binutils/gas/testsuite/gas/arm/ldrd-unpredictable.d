@@ -1,2 +1,2 @@
 # name: Unpredictable LDRD and STRD instructions. - ARM
-# error-output: ldrd-unpredictable.l
+# warning_output: ldrd-unpredictable.l

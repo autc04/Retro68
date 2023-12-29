@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1999-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -31,9 +25,10 @@
 
 --  This package contains the routines to handle back annotation of the
 --  tree to fill in representation information, and also the routines used
---  by -gnatR to output this information. This unit is used both in the
---  compiler and in ASIS (it is used in ASIS as part of the implementation
---  of the Data Decomposition Annex).
+--  by -gnatR to output this information.
+
+--  WARNING: There is a C version of this package. Any changes to this
+--  source file must be properly reflected in the C header file repinfo.h
 
 with Types; use Types;
 with Uintp; use Uintp;
@@ -50,28 +45,22 @@ package Repinfo is
    --  the corresponding entities as constant non-negative integers,
    --  and the Uint values are stored directly in these fields.
 
-   --  For composite types, there are three cases:
+   --  For composite types, there are two cases:
 
    --    1. In some cases the front end knows the values statically,
    --       for example in the case where representation clauses or
    --       pragmas specify the values.
 
-   --    2. If Frontend_Layout is False, then the backend is responsible
-   --       for layout of all types and objects not laid out by the
-   --       front end. This includes all dynamic values, and also
-   --       static values (e.g. record sizes) when not set by the
+   --    2. The backend is responsible for layout of all types and objects
+   --       not laid out by the front end. This includes all dynamic values,
+   --       and also static values (e.g. record sizes) when not set by the
    --       front end.
-
-   --    3. If Frontend_Layout is True, then the front end lays out
-   --       all data, according to target dependent size and alignment
-   --       information, creating dynamic inlinable functions where
-   --       needed in the case of sizes not known till runtime.
 
    -----------------------------
    -- Back Annotation by Gigi --
    -----------------------------
 
-   --  The following interface is used by gigi if Frontend_Layout is False
+   --  The following interface is used by gigi
 
    --  As part of the processing in gigi, the types are laid out and
    --  appropriate values computed for the sizes and component positions
@@ -109,12 +98,12 @@ package Repinfo is
    --       in terms of the variables represented symbolically.
 
    --  Note: the extended back annotation for the dynamic case is needed only
-   --  for -gnatR3 output, and for proper operation of the ASIS DDA. Since it
-   --  can be expensive to do this back annotation (for discriminated records
-   --  with many variable-length arrays), we only do the full back annotation
-   --  in -gnatR3 mode, or ASIS mode. In any other mode, the back-end just sets
-   --  the value to Uint_Minus_1, indicating that the value of the attribute
-   --  depends on discriminant information, but not giving further details.
+   --  for -gnatR3 output. Since it can be expensive to do this back annotation
+   --  (for discriminated records with many variable-length arrays), we only do
+   --  the full back annotation in -gnatR3 mode. In any other mode, the
+   --  back-end just sets the value to Uint_Minus_1, indicating that the value
+   --  of the attribute depends on discriminant information, but not giving
+   --  further details.
 
    --  GCC expressions are represented with a Uint value that is negative.
    --  See the body of this package for details on the representation used.
@@ -126,15 +115,15 @@ package Repinfo is
    --  with a given set of discriminant values, indicates whether the variant
    --  is present for that set of values (result is True, i.e. non-zero) or
    --  not present (result is False, i.e. zero). Again, the full annotation of
-   --  this field is done only in -gnatR3 mode or in ASIS mode, and in other
-   --  modes, the value is set to Uint_Minus_1.
+   --  this field is done only in -gnatR3 mode, and in other modes, the value
+   --  is set to Uint_Minus_1.
 
-   subtype Node_Ref is Uint;
+   subtype Node_Ref is Unegative;
    --  Subtype used for negative Uint values used to represent nodes
 
    subtype Node_Ref_Or_Val is Uint;
-   --  Subtype used for values that can either be a Node_Ref (negative)
-   --  or a value (non-negative)
+   --  Subtype used for values that can be a Node_Ref (negative) or a value
+   --  (non-negative) or No_Uint.
 
    type TCode is range 0 .. 27;
    --  Type used on Ada side to represent DEFTREECODE values defined in
@@ -193,14 +182,14 @@ package Repinfo is
    --  following description, the terminology is that of the JSON syntax
    --  from the ECMA document and of the JSON grammar from www.json.org.
 
-   --  The output is a concatenation of entities
+   --  The output is an array of entities
 
    --  An entity is an object whose members are pairs taken from:
 
    --    "name"                 :  string
    --    "location"             :  string
    --    "record"               :  array of components
-   --    "variant"              :  array of variants
+   --    "[parent_]*variant"    :  array of variants
    --    "formal"               :  array of formal parameters
    --    "mechanism"            :  string
    --    "Size"                 :  numerical expression
@@ -220,8 +209,9 @@ package Repinfo is
    --    fully qualified Ada name. The value of "location" is the expanded
    --    chain of instantiation locations that contains the entity.
    --    "record" is present for every record type and its value is the list of
-   --    components. "variant" is present only if the record type has a variant
-   --    part and its value is the list of variants.
+   --    components. "[parent_]*variant" is present only if the record type, or
+   --    one of its ancestors (parent, grand-parent, etc) if it's an extension,
+   --    has a variant part and its value is the list of variants.
    --    "formal" is present for every subprogram and entry, and its value is
    --    the list of formal parameters. "mechanism" is present for functions
    --    only and its value is the return mechanim.
@@ -279,9 +269,9 @@ package Repinfo is
    --    number of elements of the value of "operands" is specified by the
    --    operands column in the line associated with the symbol in the table.
 
-   --    As documented above, the full back annotation is only done in -gnatR3
-   --    or ASIS mode. In the other cases, if the numerical expression is not
-   --    a number, then it is replaced with the "??" string.
+   --    As documented above, the full back annotation is only done in -gnatR3.
+   --    In the other cases, if the numerical expression is not a number, then
+   --    it is replaced with the "??" string.
 
    ------------------------
    -- The gigi Interface --
@@ -306,28 +296,8 @@ package Repinfo is
    -- Front-End Interface for Dynamic Size/Offset Values --
    --------------------------------------------------------
 
-   --  If Frontend_Layout is True, then the front-end deals with all
-   --  dynamic size and offset fields. There are two cases:
-
-   --    1. The value can be computed at the time of type freezing, and
-   --       is stored in a run-time constant. In this case, the field
-   --       contains a reference to this entity. In the case of sizes
-   --       the value stored is the size in storage units, since dynamic
-   --       sizes are always a multiple of storage units.
-
-   --    2. The size/offset depends on the value of discriminants at
-   --       run-time. In this case, the front end builds a function to
-   --       compute the value. This function has a single parameter
-   --       which is the discriminated record object in question. Any
-   --       references to discriminant values are simply references to
-   --       the appropriate discriminant in this single argument, and
-   --       to compute the required size/offset value at run time, the
-   --       code generator simply constructs a call to the function
-   --       with the appropriate argument. The size/offset field in
-   --       this case contains a reference to the function entity.
-   --       Note that as for case 1, if such a function is used to
-   --       return a size, then the size in storage units is returned,
-   --       not the size in bits.
+   --  This interface is used by GNAT LLVM to deal with all dynamic size and
+   --  offset fields.
 
    --  The interface here allows these created entities to be referenced
    --  using negative Unit values, so that they can be stored in the
@@ -336,7 +306,7 @@ package Repinfo is
    --  In the case of components, if the location of the component is static,
    --  then all four fields (Component_Bit_Offset, Normalized_Position, Esize,
    --  and Normalized_First_Bit) are set to appropriate values. In the case of
-   --  a non-static component location, Component_Bit_Offset is not used and
+   --  a nonstatic component location, Component_Bit_Offset is not used and
    --  is left set to Unknown. Normalized_Position and Normalized_First_Bit
    --  are set appropriately.
 
@@ -372,9 +342,9 @@ package Repinfo is
    --  and entity id values and the back end makes Get_Dynamic_SO_Ref
    --  calls to retrieve them.
 
-   --------------------
-   -- ASIS_Interface --
-   --------------------
+   ------------------------------
+   -- External tools Interface --
+   ------------------------------
 
    type Discrim_List is array (Pos range <>) of Uint;
    --  Type used to represent list of discriminant values
@@ -387,10 +357,6 @@ package Repinfo is
    --  as an argument value, and return it unmodified. A No_Uint value is
    --  also returned unmodified.
 
-   procedure Tree_Read;
-   --  Initializes internal tables from current tree file using the relevant
-   --  Table.Tree_Read routines.
-
    ------------------------
    -- Compiler Interface --
    ------------------------
@@ -398,10 +364,6 @@ package Repinfo is
    procedure List_Rep_Info (Bytes_Big_Endian : Boolean);
    --  Procedure to list representation information. Bytes_Big_Endian is the
    --  value from Ttypes (Repinfo cannot have a dependency on Ttypes).
-
-   procedure Tree_Write;
-   --  Writes out internal tables to current tree file using the relevant
-   --  Table.Tree_Write routines.
 
    --------------------------
    -- Debugging Procedures --

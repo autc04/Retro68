@@ -1,6 +1,6 @@
 // Locale support -*- C++ -*-
 
-// Copyright (C) 1997-2019 Free Software Foundation, Inc.
+// Copyright (C) 1997-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -51,19 +51,22 @@ namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-  // NB: Don't instantiate required wchar_t facets if no wchar_t support.
-#ifdef _GLIBCXX_USE_WCHAR_T
-# define  _GLIBCXX_NUM_FACETS 28
-# define  _GLIBCXX_NUM_CXX11_FACETS 16
-#else
-# define  _GLIBCXX_NUM_FACETS 14
-# define  _GLIBCXX_NUM_CXX11_FACETS 8
-#endif
+// Number of standard facets (for narrow characters only)
+#define  _GLIBCXX_NUM_FACETS 14
+
+// Number of duplicated facets for cxx11 ABI
+#define  _GLIBCXX_NUM_CXX11_FACETS (_GLIBCXX_USE_DUAL_ABI ? 8 : 0)
+
+// codecvt<char16_t> and codecvt<char32_t>
 #ifdef _GLIBCXX_USE_CHAR8_T
 # define _GLIBCXX_NUM_UNICODE_FACETS 4
 #else
 # define _GLIBCXX_NUM_UNICODE_FACETS 2
 #endif
+
+// Facets duplicated for alt128 long double format
+// num_get, num_put, money_get, money_put (+ cxx11 money_get, money_put)
+#define _GLIBCXX_NUM_LBDL_ALT128_FACETS (4 + (_GLIBCXX_USE_DUAL_ABI ? 2 : 0))
 
   // Convert string to numeric value of type _Tp and store results.
   // NB: This is specialized for all required types, there is no
@@ -667,6 +670,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   template<typename _CharT>
     locale::id ctype<_CharT>::id;
+
+  // Incomplete to provide a compile time diagnostics for common misuse
+  // of [locale.convenience] functions with basic_string as a character type.
+  template<typename _CharT, typename _Traits, typename _Alloc>
+    class ctype<basic_string<_CharT, _Traits, _Alloc> >;
 
   /**
    *  @brief  The ctype<char> specialization.
@@ -1671,11 +1679,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
     {
     public:
       // Types:
-      //@{
+      ///@{
       /// Public typedefs
       typedef _CharT			char_type;
       typedef basic_string<_CharT>	string_type;
-      //@}
+      ///@}
       typedef __numpunct_cache<_CharT>  __cache_type;
 
     protected:
@@ -1953,11 +1961,11 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
     {
     public:
       // Types:
-      //@{
+      ///@{
       /// Public typedefs
       typedef _CharT			char_type;
       typedef _InIter			iter_type;
-      //@}
+      ///@}
 
       /// Numpunct facet id.
       static locale::id			id;
@@ -2000,7 +2008,7 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
 	  ios_base::iostate& __err, bool& __v) const
       { return this->do_get(__in, __end, __io, __err, __v); }
 
-      //@{
+      ///@{
       /**
        *  @brief  Numeric parsing.
        *
@@ -2063,9 +2071,9 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
 	  ios_base::iostate& __err, unsigned long long& __v)  const
       { return this->do_get(__in, __end, __io, __err, __v); }
 #endif
-      //@}
+      ///@}
 
-      //@{
+      ///@{
       /**
        *  @brief  Numeric parsing.
        *
@@ -2106,7 +2114,7 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
       get(iter_type __in, iter_type __end, ios_base& __io,
 	  ios_base::iostate& __err, long double& __v) const
       { return this->do_get(__in, __end, __io, __err, __v); }
-      //@}
+      ///@}
 
       /**
        *  @brief  Numeric parsing.
@@ -2193,7 +2201,7 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
 	  return __ret;
 	}
 
-      //@{
+      ///@{
       /**
        *  @brief  Numeric parsing.
        *
@@ -2252,6 +2260,10 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
 
       // XXX GLIBCXX_ABI Deprecated
 #if defined _GLIBCXX_LONG_DOUBLE_COMPAT && defined __LONG_DOUBLE_128__
+      // For __gnu_cxx_ldbl128::num_get and __gnu_cxx_ieee128::num_get
+      // this entry in the vtable is for a 64-bit "long double" with the
+      // same format as double. This keeps the vtable layout consistent
+      // with std::num_get (visible when -mlong-double-64 is used).
       virtual iter_type
       __do_get(iter_type, iter_type, ios_base&, ios_base::iostate&,
 	       double&) const;
@@ -2265,12 +2277,25 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
       do_get(iter_type, iter_type, ios_base&, ios_base::iostate&, void*&) const;
 
       // XXX GLIBCXX_ABI Deprecated
+#if defined _GLIBCXX_LONG_DOUBLE_ALT128_COMPAT \
+      && defined __LONG_DOUBLE_IEEE128__
+      // For __gnu_cxx_ieee128::num_get this entry in the vtable is for
+      // the non-IEEE 128-bit "long double" (aka "double double"). This
+      // is consistent with __gnu_cxx_ldbl128::num_get (-mabi=ibmlongdouble)
+      virtual iter_type
+      __do_get(iter_type, iter_type, ios_base&, ios_base::iostate&,
+	       __ibm128&) const;
+#endif
+
+      // XXX GLIBCXX_ABI Deprecated
 #if defined _GLIBCXX_LONG_DOUBLE_COMPAT && defined __LONG_DOUBLE_128__
+      // For __gnu_cxx_ldbl128::num_get and __gnu_cxx_ieee128::num_get
+      // this entry in the vtable is for the 128-bit "long double" type.
       virtual iter_type
       do_get(iter_type, iter_type, ios_base&, ios_base::iostate&,
 	     long double&) const;
 #endif
-      //@}
+      ///@}
     };
 
   template<typename _CharT, typename _InIter>
@@ -2294,11 +2319,11 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
     {
     public:
       // Types:
-      //@{
+      ///@{
       /// Public typedefs
       typedef _CharT		char_type;
       typedef _OutIter		iter_type;
-      //@}
+      ///@}
 
       /// Numpunct facet id.
       static locale::id		id;
@@ -2332,7 +2357,7 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
       put(iter_type __s, ios_base& __io, char_type __fill, bool __v) const
       { return this->do_put(__s, __io, __fill, __v); }
 
-      //@{
+      ///@{
       /**
        *  @brief  Numeric formatting.
        *
@@ -2389,9 +2414,9 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
 	  unsigned long long __v) const
       { return this->do_put(__s, __io, __fill, __v); }
 #endif
-      //@}
+      ///@}
 
-      //@{
+      ///@{
       /**
        *  @brief  Numeric formatting.
        *
@@ -2441,7 +2466,7 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
       put(iter_type __s, ios_base& __io, char_type __fill,
 	  long double __v) const
       { return this->do_put(__s, __io, __fill, __v); }
-      //@}
+      ///@}
 
       /**
        *  @brief  Numeric formatting.
@@ -2492,7 +2517,7 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
       virtual
       ~num_put() { }
 
-      //@{
+      ///@{
       /**
        *  @brief  Numeric formatting.
        *
@@ -2546,11 +2571,18 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL
       do_put(iter_type, ios_base&, char_type, const void*) const;
 
       // XXX GLIBCXX_ABI Deprecated
+#if defined _GLIBCXX_LONG_DOUBLE_ALT128_COMPAT \
+      && defined __LONG_DOUBLE_IEEE128__
+      virtual iter_type
+      __do_put(iter_type, ios_base&, char_type, __ibm128) const;
+#endif
+
+      // XXX GLIBCXX_ABI Deprecated
 #if defined _GLIBCXX_LONG_DOUBLE_COMPAT && defined __LONG_DOUBLE_128__
       virtual iter_type
       do_put(iter_type, ios_base&, char_type, long double) const;
 #endif
-      //@}
+      ///@}
     };
 
   template <typename _CharT, typename _OutIter>

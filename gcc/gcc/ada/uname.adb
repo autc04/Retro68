@@ -6,38 +6,35 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Casing;   use Casing;
-with Einfo;    use Einfo;
+with Atree;          use Atree;
+with Casing;         use Casing;
+with Einfo;          use Einfo;
+with Einfo.Utils;    use Einfo.Utils;
 with Hostparm;
-with Lib;      use Lib;
-with Nlists;   use Nlists;
-with Output;   use Output;
-with Sinfo;    use Sinfo;
-with Sinput;   use Sinput;
+with Lib;            use Lib;
+with Nlists;         use Nlists;
+with Output;         use Output;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Sinfo.Utils;    use Sinfo.Utils;
+with Sinput;         use Sinput;
 
 package body Uname is
 
@@ -50,15 +47,18 @@ package body Uname is
    -------------------
 
    function Get_Body_Name (N : Unit_Name_Type) return Unit_Name_Type is
+      Buffer : Bounded_String;
    begin
-      Get_Name_String (N);
+      Append (Buffer, N);
 
-      pragma Assert (Name_Len > 2
-                       and then Name_Buffer (Name_Len - 1) = '%'
-                       and then Name_Buffer (Name_Len) = 's');
+      pragma Assert
+        (Buffer.Length > 2
+         and then Buffer.Chars (Buffer.Length - 1) = '%'
+         and then Buffer.Chars (Buffer.Length) = 's');
 
-      Name_Buffer (Name_Len) := 'b';
-      return Name_Find;
+      Buffer.Chars (Buffer.Length) := 'b';
+
+      return Name_Find (Buffer);
    end Get_Body_Name;
 
    -----------------------------------
@@ -114,19 +114,19 @@ package body Uname is
    --------------------------
 
    function Get_Parent_Body_Name (N : Unit_Name_Type) return Unit_Name_Type is
+      Buffer : Bounded_String;
    begin
-      Get_Name_String (N);
+      Append (Buffer, N);
 
-      while Name_Buffer (Name_Len) /= '.' loop
-         pragma Assert (Name_Len > 1); -- not a child or subunit name
-         Name_Len := Name_Len - 1;
+      while Buffer.Chars (Buffer.Length) /= '.' loop
+         pragma Assert (Buffer.Length > 1); -- not a child or subunit name
+         Buffer.Length := Buffer.Length - 1;
       end loop;
 
-      Name_Buffer (Name_Len) := '%';
-      Name_Len := Name_Len + 1;
-      Name_Buffer (Name_Len) := 'b';
-      return Name_Find;
+      Buffer.Chars (Buffer.Length) := '%';
+      Append (Buffer, 'b');
 
+      return Name_Find (Buffer);
    end Get_Parent_Body_Name;
 
    --------------------------
@@ -134,22 +134,22 @@ package body Uname is
    --------------------------
 
    function Get_Parent_Spec_Name (N : Unit_Name_Type) return Unit_Name_Type is
+      Buffer : Bounded_String;
    begin
-      Get_Name_String (N);
+      Append (Buffer, N);
 
-      while Name_Buffer (Name_Len) /= '.' loop
-         if Name_Len = 1 then
+      while Buffer.Chars (Buffer.Length) /= '.' loop
+         if Buffer.Length = 1 then
             return No_Unit_Name;
          else
-            Name_Len := Name_Len - 1;
+            Buffer.Length := Buffer.Length - 1;
          end if;
       end loop;
 
-      Name_Buffer (Name_Len) := '%';
-      Name_Len := Name_Len + 1;
-      Name_Buffer (Name_Len) := 's';
-      return Name_Find;
+      Buffer.Chars (Buffer.Length) := '%';
+      Append (Buffer, 's');
 
+      return Name_Find (Buffer);
    end Get_Parent_Spec_Name;
 
    -------------------
@@ -157,15 +157,18 @@ package body Uname is
    -------------------
 
    function Get_Spec_Name (N : Unit_Name_Type) return Unit_Name_Type is
+      Buffer : Bounded_String;
    begin
-      Get_Name_String (N);
+      Append (Buffer, N);
 
-      pragma Assert (Name_Len > 2
-                       and then Name_Buffer (Name_Len - 1) = '%'
-                       and then Name_Buffer (Name_Len) = 'b');
+      pragma Assert
+        (Buffer.Length > 2
+         and then Buffer.Chars (Buffer.Length - 1) = '%'
+         and then Buffer.Chars (Buffer.Length) = 'b');
 
-      Name_Buffer (Name_Len) := 's';
-      return Name_Find;
+      Buffer.Chars (Buffer.Length) := 's';
+
+      return Name_Find (Buffer);
    end Get_Spec_Name;
 
    -------------------
@@ -174,13 +177,8 @@ package body Uname is
 
    function Get_Unit_Name (N : Node_Id) return Unit_Name_Type is
 
-      Unit_Name_Buffer : String (1 .. Hostparm.Max_Name_Length);
-      --  Buffer used to build name of unit. Note that we cannot use the
-      --  Name_Buffer in package Name_Table because we use it to read
-      --  component names.
-
-      Unit_Name_Length : Natural := 0;
-      --  Length of name stored in Unit_Name_Buffer
+      Unit_Name_Buffer : Bounded_String;
+      --  Buffer used to build name of unit
 
       Node : Node_Id;
       --  Program unit node
@@ -203,9 +201,7 @@ package body Uname is
 
       procedure Add_Char (C : Character) is
       begin
-         --  Should really check for max length exceeded here???
-         Unit_Name_Length := Unit_Name_Length + 1;
-         Unit_Name_Buffer (Unit_Name_Length) := C;
+         Append (Unit_Name_Buffer, C);
       end Add_Char;
 
       --------------
@@ -214,11 +210,7 @@ package body Uname is
 
       procedure Add_Name (Name : Name_Id) is
       begin
-         Get_Name_String (Name);
-
-         for J in 1 .. Name_Len loop
-            Add_Char (Name_Buffer (J));
-         end loop;
+         Append (Unit_Name_Buffer, Name);
       end Add_Name;
 
       -------------------
@@ -226,8 +218,6 @@ package body Uname is
       -------------------
 
       procedure Add_Node_Name (Node : Node_Id) is
-         Kind : constant Node_Kind := Nkind (Node);
-
       begin
          --  Just ignore an error node (someone else will give a message)
 
@@ -237,7 +227,7 @@ package body Uname is
          --  Otherwise see what kind of node we have
 
          else
-            case Kind is
+            case Nkind (Node) is
                when N_Defining_Identifier
                   | N_Defining_Operator_Symbol
                   | N_Identifier
@@ -370,8 +360,8 @@ package body Uname is
          Node := Declaration_Node (Entity (Node));
       end if;
 
-      if Nkind (Node) = N_Package_Specification
-        or else Nkind (Node) in N_Subprogram_Specification
+      if Nkind (Node) in N_Package_Specification
+                       | N_Subprogram_Specification
       then
          Node := Parent (Node);
       end if;
@@ -413,11 +403,7 @@ package body Uname is
             raise Program_Error;
       end case;
 
-      Name_Buffer (1 .. Unit_Name_Length) :=
-        Unit_Name_Buffer (1 .. Unit_Name_Length);
-      Name_Len := Unit_Name_Length;
-      return Name_Find;
-
+      return Name_Find (Unit_Name_Buffer);
    end Get_Unit_Name;
 
    --------------------------
@@ -494,11 +480,12 @@ package body Uname is
    ------------------
 
    function Is_Body_Name (N : Unit_Name_Type) return Boolean is
+      Buffer : Bounded_String;
    begin
-      Get_Name_String (N);
-      return Name_Len > 2
-        and then Name_Buffer (Name_Len - 1) = '%'
-        and then Name_Buffer (Name_Len) = 'b';
+      Append (Buffer, N);
+      return Buffer.Length > 2
+        and then Buffer.Chars (Buffer.Length - 1) = '%'
+        and then Buffer.Chars (Buffer.Length) = 'b';
    end Is_Body_Name;
 
    -------------------
@@ -506,17 +493,16 @@ package body Uname is
    -------------------
 
    function Is_Child_Name (N : Unit_Name_Type) return Boolean is
-      J : Natural;
+      Buffer : Bounded_String;
 
    begin
-      Get_Name_String (N);
-      J := Name_Len;
+      Append (Buffer, N);
 
-      while Name_Buffer (J) /= '.' loop
-         if J = 1 then
+      while Buffer.Chars (Buffer.Length) /= '.' loop
+         if Buffer.Length = 1 then
             return False; -- not a child or subunit name
          else
-            J := J - 1;
+            Buffer.Length := Buffer.Length - 1;
          end if;
       end loop;
 
@@ -594,11 +580,12 @@ package body Uname is
    ------------------
 
    function Is_Spec_Name (N : Unit_Name_Type) return Boolean is
+      Buffer : Bounded_String;
    begin
-      Get_Name_String (N);
-      return Name_Len > 2
-        and then Name_Buffer (Name_Len - 1) = '%'
-        and then Name_Buffer (Name_Len) = 's';
+      Append (Buffer, N);
+      return Buffer.Length > 2
+        and then Buffer.Chars (Buffer.Length - 1) = '%'
+        and then Buffer.Chars (Buffer.Length) = 's';
    end Is_Spec_Name;
 
    -----------------------
@@ -606,12 +593,11 @@ package body Uname is
    -----------------------
 
    function Name_To_Unit_Name (N : Name_Id) return Unit_Name_Type is
+      Buffer : Bounded_String;
    begin
-      Get_Name_String (N);
-      Name_Buffer (Name_Len + 1) := '%';
-      Name_Buffer (Name_Len + 2) := 's';
-      Name_Len := Name_Len + 2;
-      return Name_Find;
+      Append (Buffer, N);
+      Append (Buffer, "%s");
+      return Name_Find (Buffer);
    end Name_To_Unit_Name;
 
    ---------------

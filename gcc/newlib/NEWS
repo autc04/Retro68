@@ -1,3 +1,73 @@
+*** Major changes in newlib version 4.2.0:
+
+- remove use of --cygnus option for automake
+- rename configure.in files to configure.ac
+- enable automake silent rules
+- import gdtoa from OpenBSD
+- update to Unicode 14.0
+- ignore _FORTIFY_SOURCE when building newlib
+- fixes to ldtoa
+- add clock support to nvptx port
+- various pthread POSIX APIs added
+- added implementatio for sig2str/str2sig
+- strtod/strtof to set errno to ERANGE consistently for underflow
+- fixed rounding issue with sqrt/sqrtf
+- fixed heap fragmentation issue with nano-malloc
+- FTW port for newlib
+- additions to sys/tree.h
+
+*** Major changes in newlib version 4.1.0:
+
+- fixes for regressions to pow/powf and tgamma functions
+- RISC-V semihosting support
+- RISC-V and arm patches
+
+*** Major changes in newlib version 4.0.0:
+
+- additional out-of-bounds checking for malloc/nano-malloc family
+- various fixes to makedocbook for python 3.8
+- multiple standard/accuracy fixes to libm math routines
+- C-SKY port
+- support for Armv8-R aarch64 added
+- move of __tzrules_struct from time.h to internal header
+- math additions/improvements for RISC-V and arm
+- all arm code converted to use unified syntax for Thumb1
+- fenv support added for multiple platforms
+- hard float support for PowerPC taken from FreeBSD
+- advertising clause removed from BSD licenses
+- various other fixes
+
+*** Major changes in newlib version 3.2.0:
+
+- memmem performance improvement
+- nanf() and HUGE_VALF now used in libm float routines to reduce size
+- new reduced "tiny" code size printf and puts support
+- errno setting enhanced in libm routines
+- new --enable-newlib-reent-check-verify configure option to verify reent memory
+- <fenv.h> support added
+- <sys/time.h> and <sys/_timespec.h> synced with FreeBSD
+- timeval macros moved to <sys/time.h>
+- newlib wide char conversion functions updated to Unicode 11.0
+- new msp430-elfbare target support
+- AMD GCN port
+- PRU port
+- nbdm port
+- various standard improvements
+
+*** Major changes in newlib version 3.1.0:
+
+- global stdio streams support added for reent small
+- _CLOCKID_T made system configurable
+- generated Unicode 10.0 width data, case conversion data,
+  character category data
+- Unicode table generation scripts fixed/enhanced
+- performance enhancements for qsort, strstr
+- nvptx port added
+- sinf/cosf/sincosf/exp/exp2/log/log2/pow rewritten for performance and accuracy
+- various gcc warnings fixed
+- various standard improvements
+
+
 *** Major changes in newlib version 3.0.0:
 
 - K&R support removed in code and docs

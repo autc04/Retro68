@@ -25,7 +25,7 @@ type (
 )
 
 type conversionTest struct {
-	s, d interface{} // source and destination
+	s, d any // source and destination
 
 	// following are used if they're non-zero
 	wantint    int64
@@ -38,7 +38,7 @@ type conversionTest struct {
 	wanttime   time.Time
 	wantbool   bool // used if d is of type *bool
 	wanterr    string
-	wantiface  interface{}
+	wantiface  any
 	wantptr    *int64 // if non-nil, *d's pointed value must be equal to *wantptr
 	wantnil    bool   // if true, *d must be *int64(nil)
 	wantusrdef userDefined
@@ -51,9 +51,6 @@ var (
 	scanbytes  []byte
 	scanraw    RawBytes
 	scanint    int
-	scanint8   int8
-	scanint16  int16
-	scanint32  int32
 	scanuint8  uint8
 	scanuint16 uint16
 	scanbool   bool
@@ -61,7 +58,7 @@ var (
 	scanf64    float64
 	scantime   time.Time
 	scanptr    *int64
-	scaniface  interface{}
+	scaniface  any
 )
 
 func conversionTests() []conversionTest {
@@ -164,7 +161,7 @@ func conversionTests() []conversionTest {
 		{s: "1.5", d: &scanf64, wantf64: float64(1.5)},
 
 		// Pointers
-		{s: interface{}(nil), d: &scanptr, wantnil: true},
+		{s: any(nil), d: &scanptr, wantnil: true},
 		{s: int64(42), d: &scanptr, wantptr: &answer},
 
 		// To interface{}
@@ -188,27 +185,27 @@ func conversionTests() []conversionTest {
 	}
 }
 
-func intPtrValue(intptr interface{}) interface{} {
+func intPtrValue(intptr any) any {
 	return reflect.Indirect(reflect.Indirect(reflect.ValueOf(intptr))).Int()
 }
 
-func intValue(intptr interface{}) int64 {
+func intValue(intptr any) int64 {
 	return reflect.Indirect(reflect.ValueOf(intptr)).Int()
 }
 
-func uintValue(intptr interface{}) uint64 {
+func uintValue(intptr any) uint64 {
 	return reflect.Indirect(reflect.ValueOf(intptr)).Uint()
 }
 
-func float64Value(ptr interface{}) float64 {
+func float64Value(ptr any) float64 {
 	return *(ptr.(*float64))
 }
 
-func float32Value(ptr interface{}) float32 {
+func float32Value(ptr any) float32 {
 	return *(ptr.(*float32))
 }
 
-func timeValue(ptr interface{}) time.Time {
+func timeValue(ptr any) time.Time {
 	return *(ptr.(*time.Time))
 }
 
@@ -219,7 +216,7 @@ func TestConversions(t *testing.T) {
 		if err != nil {
 			errstr = err.Error()
 		}
-		errf := func(format string, args ...interface{}) {
+		errf := func(format string, args ...any) {
 			base := fmt.Sprintf("convertAssign #%d: for %v (%T) -> %T, ", n, ct.s, ct.s, ct.d)
 			t.Errorf(base+format, args...)
 		}
@@ -263,7 +260,7 @@ func TestConversions(t *testing.T) {
 				errf("want pointer to %v, got %v", *ct.wantptr, intPtrValue(ct.d))
 			}
 		}
-		if ifptr, ok := ct.d.(*interface{}); ok {
+		if ifptr, ok := ct.d.(*any); ok {
 			if !reflect.DeepEqual(ct.wantiface, scaniface) {
 				errf("want interface %#v, got %#v", ct.wantiface, scaniface)
 				continue
@@ -304,7 +301,7 @@ func TestNullString(t *testing.T) {
 
 type valueConverterTest struct {
 	c       driver.ValueConverter
-	in, out interface{}
+	in, out any
 	err     string
 }
 
@@ -338,7 +335,7 @@ func TestValueConverters(t *testing.T) {
 func TestRawBytesAllocs(t *testing.T) {
 	var tests = []struct {
 		name string
-		in   interface{}
+		in   any
 		want string
 	}{
 		{"uint64", uint64(12345678), "12345678"},
@@ -358,7 +355,7 @@ func TestRawBytesAllocs(t *testing.T) {
 	}
 
 	buf := make(RawBytes, 10)
-	test := func(name string, in interface{}, want string) {
+	test := func(name string, in any, want string) {
 		if err := convertAssign(&buf, in); err != nil {
 			t.Fatalf("%s: convertAssign = %v", name, err)
 		}
@@ -433,49 +430,49 @@ func TestDriverArgs(t *testing.T) {
 	var nilValuerPPtr *Valuer_P
 	var nilStrPtr *string
 	tests := []struct {
-		args []interface{}
+		args []any
 		want []driver.NamedValue
 	}{
 		0: {
-			args: []interface{}{Valuer_V("foo")},
+			args: []any{Valuer_V("foo")},
 			want: []driver.NamedValue{
-				driver.NamedValue{
+				{
 					Ordinal: 1,
 					Value:   "FOO",
 				},
 			},
 		},
 		1: {
-			args: []interface{}{nilValuerVPtr},
+			args: []any{nilValuerVPtr},
 			want: []driver.NamedValue{
-				driver.NamedValue{
+				{
 					Ordinal: 1,
 					Value:   nil,
 				},
 			},
 		},
 		2: {
-			args: []interface{}{nilValuerPPtr},
+			args: []any{nilValuerPPtr},
 			want: []driver.NamedValue{
-				driver.NamedValue{
+				{
 					Ordinal: 1,
 					Value:   "nil-to-str",
 				},
 			},
 		},
 		3: {
-			args: []interface{}{"plain-str"},
+			args: []any{"plain-str"},
 			want: []driver.NamedValue{
-				driver.NamedValue{
+				{
 					Ordinal: 1,
 					Value:   "plain-str",
 				},
 			},
 		},
 		4: {
-			args: []interface{}{nilStrPtr},
+			args: []any{nilStrPtr},
 			want: []driver.NamedValue{
-				driver.NamedValue{
+				{
 					Ordinal: 1,
 					Value:   nil,
 				},
@@ -492,5 +489,109 @@ func TestDriverArgs(t *testing.T) {
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("test[%d]: got %v, want %v", i, got, tt.want)
 		}
+	}
+}
+
+type dec struct {
+	form        byte
+	neg         bool
+	coefficient [16]byte
+	exponent    int32
+}
+
+func (d dec) Decompose(buf []byte) (form byte, negative bool, coefficient []byte, exponent int32) {
+	coef := make([]byte, 16)
+	copy(coef, d.coefficient[:])
+	return d.form, d.neg, coef, d.exponent
+}
+
+func (d *dec) Compose(form byte, negative bool, coefficient []byte, exponent int32) error {
+	switch form {
+	default:
+		return fmt.Errorf("unknown form %d", form)
+	case 1, 2:
+		d.form = form
+		d.neg = negative
+		return nil
+	case 0:
+	}
+	d.form = form
+	d.neg = negative
+	d.exponent = exponent
+
+	// This isn't strictly correct, as the extra bytes could be all zero,
+	// ignore this for this test.
+	if len(coefficient) > 16 {
+		return fmt.Errorf("coefficient too large")
+	}
+	copy(d.coefficient[:], coefficient)
+
+	return nil
+}
+
+type decFinite struct {
+	neg         bool
+	coefficient [16]byte
+	exponent    int32
+}
+
+func (d decFinite) Decompose(buf []byte) (form byte, negative bool, coefficient []byte, exponent int32) {
+	coef := make([]byte, 16)
+	copy(coef, d.coefficient[:])
+	return 0, d.neg, coef, d.exponent
+}
+
+func (d *decFinite) Compose(form byte, negative bool, coefficient []byte, exponent int32) error {
+	switch form {
+	default:
+		return fmt.Errorf("unknown form %d", form)
+	case 1, 2:
+		return fmt.Errorf("unsupported form %d", form)
+	case 0:
+	}
+	d.neg = negative
+	d.exponent = exponent
+
+	// This isn't strictly correct, as the extra bytes could be all zero,
+	// ignore this for this test.
+	if len(coefficient) > 16 {
+		return fmt.Errorf("coefficient too large")
+	}
+	copy(d.coefficient[:], coefficient)
+
+	return nil
+}
+
+func TestDecimal(t *testing.T) {
+	list := []struct {
+		name string
+		in   decimalDecompose
+		out  dec
+		err  bool
+	}{
+		{name: "same", in: dec{exponent: -6}, out: dec{exponent: -6}},
+
+		// Ensure reflection is not used to assign the value by using different types.
+		{name: "diff", in: decFinite{exponent: -6}, out: dec{exponent: -6}},
+
+		{name: "bad-form", in: dec{form: 200}, err: true},
+	}
+	for _, item := range list {
+		t.Run(item.name, func(t *testing.T) {
+			out := dec{}
+			err := convertAssign(&out, item.in)
+			if item.err {
+				if err == nil {
+					t.Fatalf("unexpected nil error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !reflect.DeepEqual(out, item.out) {
+				t.Fatalf("got %#v want %#v", out, item.out)
+			}
+		})
 	}
 }

@@ -8,4 +8,7 @@ SECTIONS
   bar = .;
   . = ALIGN (4);
   frob = .;
+
+  . = 0x10000;
+  .text : { *(.text) }
 }

@@ -159,9 +159,9 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f1 8d 40 65 aa 00 20 00 00[ 	]*vpcmpgtw k5,zmm30,ZMMWORD PTR \[rdx\+0x2000\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 8d 40 65 6a 80[ 	]*vpcmpgtw k5,zmm30,ZMMWORD PTR \[rdx-0x2000\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 8d 40 65 aa c0 df ff ff[ 	]*vpcmpgtw k5,zmm30,ZMMWORD PTR \[rdx-0x2040\]
-[ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 e8 ab[ 	]*vpextrb rax,xmm29,0xab
-[ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 e8 7b[ 	]*vpextrb rax,xmm29,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 43 fd 08 14 e8 7b[ 	]*vpextrb r8,xmm29,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 e8 ab[ 	]*vpextrb eax,xmm29,0xab
+[ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 e8 7b[ 	]*vpextrb eax,xmm29,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 43 fd 08 14 e8 7b[ 	]*vpextrb r8d,xmm29,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 29 7b[ 	]*vpextrb BYTE PTR \[rcx\],xmm29,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 23 fd 08 14 ac f0 23 01 00 00 7b[ 	]*vpextrb BYTE PTR \[rax\+r14\*8\+0x123\],xmm29,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 6a 7f 7b[ 	]*vpextrb BYTE PTR \[rdx\+0x7f\],xmm29,0x7b
@@ -174,9 +174,9 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 15 aa 00 01 00 00 7b[ 	]*vpextrw WORD PTR \[rdx\+0x100\],xmm29,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 15 6a 80 7b[ 	]*vpextrw WORD PTR \[rdx-0x100\],xmm29,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 15 aa fe fe ff ff 7b[ 	]*vpextrw WORD PTR \[rdx-0x102\],xmm29,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 ab[ 	]*vpextrw rax,xmm30,0xab
-[ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 7b[ 	]*vpextrw rax,xmm30,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 11 fd 08 c5 c6 7b[ 	]*vpextrw r8,xmm30,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 ab[ 	]*vpextrw eax,xmm30,0xab
+[ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 7b[ 	]*vpextrw eax,xmm30,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 11 fd 08 c5 c6 7b[ 	]*vpextrw r8d,xmm30,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 ab[ 	]*vpinsrb xmm30,xmm29,eax,0xab
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 7b[ 	]*vpinsrb xmm30,xmm29,eax,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f5 7b[ 	]*vpinsrb xmm30,xmm29,ebp,0x7b
@@ -690,9 +690,9 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f1 8d 40 65 aa 00 20 00 00[ 	]*vpcmpgtw k5,zmm30,ZMMWORD PTR \[rdx\+0x2000\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 8d 40 65 6a 80[ 	]*vpcmpgtw k5,zmm30,ZMMWORD PTR \[rdx-0x2000\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 8d 40 65 aa c0 df ff ff[ 	]*vpcmpgtw k5,zmm30,ZMMWORD PTR \[rdx-0x2040\]
-[ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 e8 ab[ 	]*vpextrb rax,xmm29,0xab
-[ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 e8 7b[ 	]*vpextrb rax,xmm29,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 43 fd 08 14 e8 7b[ 	]*vpextrb r8,xmm29,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 e8 ab[ 	]*vpextrb eax,xmm29,0xab
+[ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 e8 7b[ 	]*vpextrb eax,xmm29,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 43 fd 08 14 e8 7b[ 	]*vpextrb r8d,xmm29,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 29 7b[ 	]*vpextrb BYTE PTR \[rcx\],xmm29,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 23 fd 08 14 ac f0 34 12 00 00 7b[ 	]*vpextrb BYTE PTR \[rax\+r14\*8\+0x1234\],xmm29,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 14 6a 7f 7b[ 	]*vpextrb BYTE PTR \[rdx\+0x7f\],xmm29,0x7b
@@ -705,9 +705,9 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 15 aa 00 01 00 00 7b[ 	]*vpextrw WORD PTR \[rdx\+0x100\],xmm29,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 15 6a 80 7b[ 	]*vpextrw WORD PTR \[rdx-0x100\],xmm29,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 fd 08 15 aa fe fe ff ff 7b[ 	]*vpextrw WORD PTR \[rdx-0x102\],xmm29,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 ab[ 	]*vpextrw rax,xmm30,0xab
-[ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 7b[ 	]*vpextrw rax,xmm30,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 11 fd 08 c5 c6 7b[ 	]*vpextrw r8,xmm30,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 ab[ 	]*vpextrw eax,xmm30,0xab
+[ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 7b[ 	]*vpextrw eax,xmm30,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 11 fd 08 c5 c6 7b[ 	]*vpextrw r8d,xmm30,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 ab[ 	]*vpinsrb xmm30,xmm29,eax,0xab
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 7b[ 	]*vpinsrb xmm30,xmm29,eax,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f5 7b[ 	]*vpinsrb xmm30,xmm29,ebp,0x7b

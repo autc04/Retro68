@@ -1,7 +1,7 @@
 # Test SIZEOF in a linker script.
 # By Ian Lance Taylor, Cygnus Support
 # Based on a bug report from anders.blomdell@control.lth.se.
-#   Copyright (C) 2001-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,17 +23,24 @@
 set testname "SIZEOF"
 
 if ![ld_assemble $as $srcdir/$subdir/sizeof.s tmpdir/sizeof.o] {
-    unresolved $testname
+    unsupported $testname
     return
 }
 
-if ![ld_link $ld tmpdir/sizeof "-T $srcdir/$subdir/sizeof.t tmpdir/sizeof.o"] {
+if { [is_pecoff_format] } {
+    set IMAGE_BASE "--image-base 0"
+} else {
+    set IMAGE_BASE ""
+}
+
+if ![ld_link $ld tmpdir/sizeof "$LDFLAGS -T $srcdir/$subdir/sizeof.t \
+	$IMAGE_BASE tmpdir/sizeof.o"] {
     fail $testname
     return
 }
 
 if ![ld_nm $nm "" tmpdir/sizeof] {
-    unresolved $testname
+    fail $testname
     return
 }
 

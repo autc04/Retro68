@@ -1,6 +1,6 @@
 # Expect script for complex PE tests that require a C compiler and the ability
 # to run target executables natively, in addition to the just-built binutils.
-#   Copyright (C) 2006-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -54,7 +54,7 @@ if {![is_pecoff_format]} {
 }
 
 # No compiler, no test.
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     untested "Direct linking to dll test"
     return
 }
@@ -62,27 +62,26 @@ if { [which $CC] == 0 } {
 set tmpdir tmpdir
 
 proc test_direct_link_dll {} {
-    global CC
-    global CFLAGS
+    global CC_FOR_TARGET
     global srcdir
     global subdir
     global tmpdir
 
     # Compile the dll.
-    if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/direct_dll.c $tmpdir/direct_dll.o ] {
+    if ![ld_compile $CC_FOR_TARGET $srcdir/$subdir/direct_dll.c $tmpdir/direct_dll.o ] {
 	fail "compiling shared lib"
-    } elseif ![ld_link "$CC -shared" $tmpdir/direct_dll.dll "$tmpdir/direct_dll.o" ] {
+    } elseif ![ld_link "$CC_FOR_TARGET -shared" $tmpdir/direct_dll.dll "$tmpdir/direct_dll.o" ] {
 	fail "linking shared lib (.dll)"
-    } elseif ![ld_link "$CC -shared" $tmpdir/direct_dll.sl "$tmpdir/direct_dll.o" ] {
+    } elseif ![ld_link "$CC_FOR_TARGET -shared" $tmpdir/direct_dll.sl "$tmpdir/direct_dll.o" ] {
 	fail "linking shared lib (.sl)"
     } else {
 	# Compile and link the client program.
-	if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/direct_client.c $tmpdir/direct_client.o ] {
+	if ![ld_compile $CC_FOR_TARGET $srcdir/$subdir/direct_client.c $tmpdir/direct_client.o ] {
 	    fail "compiling client"
 	} else {
 	    # Check linking directly to direct_dll.dll.
 	    set msg "linking client (.dll)"
-	    if [ld_link "$CC -Wl,--enable-auto-import" $tmpdir/direct_client_dll.exe \
+	    if [ld_link "$CC_FOR_TARGET -Wl,--enable-auto-import" $tmpdir/direct_client_dll.exe \
 	      "$tmpdir/direct_client.o $tmpdir/direct_dll.dll" ] {
 		pass $msg
 	    } else {
@@ -91,7 +90,7 @@ proc test_direct_link_dll {} {
 
 	    # Check linking directly to direct_dll.sl.
 	    set msg "linking client (.sl)"
-	    if [ld_link "$CC -Wl,--enable-auto-import" $tmpdir/direct_client_sl.exe \
+	    if [ld_link "$CC_FOR_TARGET -Wl,--enable-auto-import" $tmpdir/direct_client_sl.exe \
 	      "$tmpdir/direct_client.o $tmpdir/direct_dll.sl" ] {
 		pass $msg
 	    } else {
@@ -102,7 +101,7 @@ proc test_direct_link_dll {} {
 	    # Create symbolic link.
 	    catch "exec ln -fs direct_dll.dll $tmpdir/libdirect_dll.dll.a" ln_catch
 	    set msg "linking client (symlink -> .dll)"
-	    if [ld_link "$CC -Wl,--enable-auto-import" $tmpdir/direct_client_symlink_dll.exe \
+	    if [ld_link "$CC_FOR_TARGET -Wl,--enable-auto-import" $tmpdir/direct_client_symlink_dll.exe \
 	      "$tmpdir/direct_client.o $tmpdir/libdirect_dll.dll.a" ] {
 	        pass $msg
 	    } else {
@@ -113,7 +112,7 @@ proc test_direct_link_dll {} {
 	    # Create symbolic link.
 	    catch "exec ln -fs direct_dll.sl $tmpdir/libdirect_sl.dll.a" ln_catch
 	    set msg "linking client (symlink -> .sl)"
-	    if [ld_link "$CC -Wl,--enable-auto-import" $tmpdir/direct_client_symlink_sl.exe \
+	    if [ld_link "$CC_FOR_TARGET -Wl,--enable-auto-import" $tmpdir/direct_client_symlink_sl.exe \
 	      "$tmpdir/direct_client.o $tmpdir/libdirect_sl.dll.a" ] {
 		pass $msg
 	    } else {

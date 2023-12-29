@@ -29,16 +29,18 @@
 #ifndef _LANGINFO_H_
 #define	_LANGINFO_H_
 
-#include <newlib.h>
-#include <sys/config.h>
 #include <sys/cdefs.h>
+#include <sys/_types.h>
 #if __POSIX_VISIBLE >= 200809
-#include <xlocale.h>
+#include <sys/_locale.h>
 #endif
 
-typedef int nl_item;
+#ifndef _NL_ITEM_DECLARED
+typedef __nl_item nl_item;
+#define _NL_ITEM_DECLARED
+#endif
 
-enum __nl_item
+enum
 {
   /* POSIX and BSD defined items have to stick to the original values
      to maintain backward compatibility. */

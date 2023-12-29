@@ -1,4 +1,3 @@
-
 <!-- Policy Based Data Structures: Biblio -->
 <bibliography xmlns="http://docbook.org/ns/docbook" version="5.0"
 	      xml:id="pbds.biblio" xreflabel="Bibliography">
@@ -738,7 +737,7 @@
     <biblioentry xml:id="biblio.kt99fat_heaps">
       <title>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink"
-	      xlink:href="http://www.cs.princeton.edu/research/techreps/TR-597-99">
+	      xlink:href="https://www.cs.princeton.edu/research/techreps/TR-597-99">
 	  New Heap Data Structures
 	</link>
       </title>
@@ -1062,7 +1061,7 @@
     <biblioentry xml:id="biblio.mscom">
       <title>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink"
-	      xlink:href="https://docs.microsoft.com/en-us/windows/desktop/com/the-component-object-model">
+	      xlink:href="https://docs.microsoft.com/en-us/windows/win32/com/the-component-object-model">
 	  COM: Component Model Object Technologies
 	</link>
       </title>
@@ -1232,7 +1231,7 @@
     <biblioentry xml:id="biblio.select_man">
       <title>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink"
-	      xlink:href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/select.html">
+	      xlink:href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/select.html">
 	  select
 	</link>
       </title>

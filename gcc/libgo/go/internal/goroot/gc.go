@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build gc
+//go:build gc
 
 package goroot
 
 import (
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -121,18 +121,9 @@ func (gd *gccgoDirs) isStandard(path string) bool {
 	}
 
 	for _, dir := range gd.dirs {
-		full := filepath.Join(dir, path)
-		pkgdir, pkg := filepath.Split(full)
-		for _, p := range [...]string{
-			full,
-			full + ".gox",
-			pkgdir + "lib" + pkg + ".so",
-			pkgdir + "lib" + pkg + ".a",
-			full + ".o",
-		} {
-			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-				return true
-			}
+		full := filepath.Join(dir, path) + ".gox"
+		if fi, err := os.Stat(full); err == nil && !fi.IsDir() {
+			return true
 		}
 	}
 

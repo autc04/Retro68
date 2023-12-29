@@ -2,7 +2,7 @@
 #as: -mm9s12x
 #name: s12x extended forms of exg,tfr,sex
 
-dump.o:     file format elf32-m68hc12
+.*:     file format elf32-m68hc12
 
 
 Disassembly of section .text:

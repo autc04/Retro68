@@ -1,7 +1,7 @@
-// { dg-options "-std=gnu++17" }
 // { dg-do compile { target { ilp32 || lp64 } } }
+// { dg-require-effective-target c++17 }
 
-// Copyright (C) 2017-2019 Free Software Foundation, Inc.
+// Copyright (C) 2017-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -21,4 +21,4 @@
 #include <variant>
 
 static_assert(sizeof(std::variant<signed char, unsigned char>)
-	      < sizeof(size_t));
+	      < sizeof(std::size_t));

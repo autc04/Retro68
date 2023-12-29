@@ -1,4 +1,4 @@
-/* Copyright (C) 2017-2018 Free Software Foundation, Inc.
+/* Copyright (C) 2017-2022 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,8 @@
 
 # define DIAGNOSTIC_IGNORE(option) \
   _Pragma (DIAGNOSTIC_STRINGIFY (GCC diagnostic ignored option))
+# define DIAGNOSTIC_ERROR(option) \
+  _Pragma (DIAGNOSTIC_STRINGIFY (GCC diagnostic error option))
 #else
 # define DIAGNOSTIC_PUSH
 # define DIAGNOSTIC_POP
@@ -49,33 +51,58 @@
 #if defined (__clang__) /* clang */
 
 # define DIAGNOSTIC_IGNORE_SELF_MOVE DIAGNOSTIC_IGNORE ("-Wself-move")
+# define DIAGNOSTIC_IGNORE_DEPRECATED_DECLARATIONS \
+  DIAGNOSTIC_IGNORE ("-Wdeprecated-declarations")
 # define DIAGNOSTIC_IGNORE_DEPRECATED_REGISTER \
   DIAGNOSTIC_IGNORE ("-Wdeprecated-register")
-# define DIAGNOSTIC_IGNORE_UNUSED_FUNCTION \
-  DIAGNOSTIC_IGNORE ("-Wunused-function")
 # if __has_warning ("-Wenum-compare-switch")
 #  define DIAGNOSTIC_IGNORE_SWITCH_DIFFERENT_ENUM_TYPES \
    DIAGNOSTIC_IGNORE ("-Wenum-compare-switch")
 # endif
+
+# define DIAGNOSTIC_IGNORE_FORMAT_NONLITERAL \
+  DIAGNOSTIC_IGNORE ("-Wformat-nonliteral")
+
+# define DIAGNOSTIC_ERROR_SWITCH \
+  DIAGNOSTIC_ERROR ("-Wswitch")
+
 #elif defined (__GNUC__) /* GCC */
 
-# define DIAGNOSTIC_IGNORE_UNUSED_FUNCTION \
-  DIAGNOSTIC_IGNORE ("-Wunused-function")
+# if __GNUC__ >= 7
+#  define DIAGNOSTIC_IGNORE_DEPRECATED_REGISTER \
+   DIAGNOSTIC_IGNORE ("-Wregister")
+# endif
 
 # define DIAGNOSTIC_IGNORE_STRINGOP_TRUNCATION \
   DIAGNOSTIC_IGNORE ("-Wstringop-truncation")
+
+# if __GNUC__ >= 11
+# define DIAGNOSTIC_IGNORE_STRINGOP_OVERREAD \
+  DIAGNOSTIC_IGNORE ("-Wstringop-overread")
+#endif
+
+# define DIAGNOSTIC_IGNORE_FORMAT_NONLITERAL \
+  DIAGNOSTIC_IGNORE ("-Wformat-nonliteral")
+
+/* GCC 4.8's "diagnostic push/pop" seems broken when using this, -Wswitch
+   remains enabled at the error level even after a pop.  Therefore, don't
+   use it for GCC < 5.  */
+# if __GNUC__ >= 5
+#  define DIAGNOSTIC_ERROR_SWITCH DIAGNOSTIC_ERROR ("-Wswitch")
+# endif
+
 #endif
 
 #ifndef DIAGNOSTIC_IGNORE_SELF_MOVE
 # define DIAGNOSTIC_IGNORE_SELF_MOVE
 #endif
 
-#ifndef DIAGNOSTIC_IGNORE_DEPRECATED_REGISTER
-# define DIAGNOSTIC_IGNORE_DEPRECATED_REGISTER
+#ifndef DIAGNOSTIC_IGNORE_DEPRECATED_DECLARATIONS
+# define DIAGNOSTIC_IGNORE_DEPRECATED_DECLARATIONS
 #endif
 
-#ifndef DIAGNOSTIC_IGNORE_UNUSED_FUNCTION
-# define DIAGNOSTIC_IGNORE_UNUSED_FUNCTION
+#ifndef DIAGNOSTIC_IGNORE_DEPRECATED_REGISTER
+# define DIAGNOSTIC_IGNORE_DEPRECATED_REGISTER
 #endif
 
 #ifndef DIAGNOSTIC_IGNORE_SWITCH_DIFFERENT_ENUM_TYPES
@@ -84,6 +111,18 @@
 
 #ifndef DIAGNOSTIC_IGNORE_STRINGOP_TRUNCATION
 # define DIAGNOSTIC_IGNORE_STRINGOP_TRUNCATION
+#endif
+
+#ifndef DIAGNOSTIC_IGNORE_STRINGOP_OVERREAD
+# define DIAGNOSTIC_IGNORE_STRINGOP_OVERREAD
+#endif
+
+#ifndef DIAGNOSTIC_IGNORE_FORMAT_NONLITERAL
+# define DIAGNOSTIC_IGNORE_FORMAT_NONLITERAL
+#endif
+
+#ifndef DIAGNOSTIC_ERROR_SWITCH
+# define DIAGNOSTIC_ERROR_SWITCH
 #endif
 
 #endif /* DIAGNOSTICS_H */

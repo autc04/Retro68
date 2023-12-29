@@ -86,3 +86,10 @@ test(Exceptions.cc PROPERTIES PASS_REGULAR_EXPRESSION "OK")
 configure_file(PascalTrap.c PascalTrapCPP.cc)
 test(PascalTrap.c PROPERTIES PASS_REGULAR_EXPRESSION "OK")
 test(${CMAKE_CURRENT_BINARY_DIR}/PascalTrapCPP.cc PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+
+configure_file(PascalString.c PascalStringCPP.cc)
+test(PascalString.c PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+test(${CMAKE_CURRENT_BINARY_DIR}/PascalStringCPP.cc PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+
+test(LocalStatic.cc PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+set_target_properties(LocalStatic PROPERTIES COMPILE_FLAGS -fno-exceptions) # just to make assembly easier to read

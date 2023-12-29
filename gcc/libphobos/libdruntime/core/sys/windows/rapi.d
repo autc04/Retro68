@@ -5,17 +5,18 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_rapi.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_rapi.d)
  */
 module core.sys.windows.rapi;
 version (Windows):
+@system:
 
 /* Comment from MinGW
    NOTE: This strictly does not belong in the Win32 API since it's
    really part of Platform SDK.
  */
 
-private import core.sys.windows.winbase, core.sys.windows.windef;
+import core.sys.windows.winbase, core.sys.windows.windef;
 
 extern (Windows):
 

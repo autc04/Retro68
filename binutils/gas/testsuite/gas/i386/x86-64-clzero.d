@@ -8,5 +8,5 @@
 Disassembly of section \.text:
 
 0+ <_start>:
-[ 	]*[a-f0-9]+:	0f 01 fc             	clzero 
+[ 	]*[a-f0-9]+:	0f 01 fc             	clzero
 #pass

@@ -4,4 +4,4 @@
 template
 <
 class
-{				// { dg-error "" }
+{ // { dg-error "" }

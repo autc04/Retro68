@@ -87,11 +87,17 @@ main ()
 #ifdef AVX512VNNI
       && (ecx & bit_AVX512VNNI)
 #endif
+#ifdef AVX512FP16
+      && (edx & bit_AVX512FP16)
+#endif
 #ifdef VAES
       && (ecx & bit_VAES)
 #endif
 #ifdef VPCLMULQDQ
       && (ecx & bit_VPCLMULQDQ)
+#endif
+#ifdef AVX512VP2INTERSECT
+      && (edx & bit_AVX512VP2INTERSECT)
 #endif
       && avx512f_os_support ())
     {

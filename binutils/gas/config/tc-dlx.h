@@ -1,5 +1,5 @@
 /* tc-dlx.h -- Assemble for the DLX
-   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+   Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -31,9 +31,15 @@
 
 #define LEX_DOLLAR 1
 
+#include "bit_fix.h"
+
+#define TC_FIX_TYPE bit_fixS *
+#define tc_fix_data fx_bit_fixP
+#define TC_INIT_FIX_DATA(FIX) do (FIX)->fx_bit_fixP = NULL; while (0)
+
 extern void dlx_pop_insert         (void);
 extern int dlx_unrecognized_line   (int);
-extern bfd_boolean md_dlx_fix_adjustable  (struct fix *);
+extern bool md_dlx_fix_adjustable  (struct fix *);
 
 #define md_pop_insert()		        dlx_pop_insert ()
 

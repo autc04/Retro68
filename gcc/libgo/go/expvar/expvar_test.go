@@ -6,6 +6,7 @@ package expvar
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -241,12 +242,12 @@ func TestMapCounter(t *testing.T) {
 	// colors.String() should be '{"red":3, "blue":4}',
 	// though the order of red and blue could vary.
 	s := colors.String()
-	var j interface{}
+	var j any
 	err := json.Unmarshal([]byte(s), &j)
 	if err != nil {
 		t.Errorf("colors.String() isn't valid JSON: %v", err)
 	}
-	m, ok := j.(map[string]interface{})
+	m, ok := j.(map[string]any)
 	if !ok {
 		t.Error("colors.String() didn't produce a map.")
 	}
@@ -297,6 +298,26 @@ func BenchmarkMapSetDifferent(b *testing.B) {
 			}
 		}
 	})
+}
+
+// BenchmarkMapSetDifferentRandom simulates such a case where the concerned
+// keys of Map.Set are generated dynamically and as a result insertion is
+// out of order and the number of the keys may be large.
+func BenchmarkMapSetDifferentRandom(b *testing.B) {
+	keys := make([]string, 100)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i))))
+	}
+
+	v := new(Int)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m := new(Map).Init()
+		for _, k := range keys {
+			m.Set(k, v)
+		}
+	}
 }
 
 func BenchmarkMapSetString(b *testing.B) {
@@ -350,6 +371,25 @@ func BenchmarkMapAddDifferent(b *testing.B) {
 	})
 }
 
+// BenchmarkMapAddDifferentRandom simulates such a case where that the concerned
+// keys of Map.Add are generated dynamically and as a result insertion is out of
+// order and the number of the keys may be large.
+func BenchmarkMapAddDifferentRandom(b *testing.B) {
+	keys := make([]string, 100)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i))))
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m := new(Map).Init()
+		for _, k := range keys {
+			m.Add(k, 1)
+		}
+	}
+}
+
 func BenchmarkMapAddSameSteadyState(b *testing.B) {
 	m := new(Map).Init()
 	b.RunParallel(func(pb *testing.PB) {
@@ -387,8 +427,8 @@ func BenchmarkMapAddDifferentSteadyState(b *testing.B) {
 
 func TestFunc(t *testing.T) {
 	RemoveAll()
-	var x interface{} = []string{"a", "b"}
-	f := Func(func() interface{} { return x })
+	var x any = []string{"a", "b"}
+	f := Func(func() any { return x })
 	if s, exp := f.String(), `["a","b"]`; s != exp {
 		t.Errorf(`f.String() = %q, want %q`, s, exp)
 	}
@@ -449,12 +489,13 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
 		b.Fatalf("Listen failed: %v", err)
 	}
 	defer ln.Close()
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		for p := 0; p < P; p++ {
 			s, err := ln.Accept()
 			if err != nil {
 				b.Errorf("Accept failed: %v", err)
+				done <- false
 				return
 			}
 			servers[p] = s
@@ -464,11 +505,14 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
 	for p := 0; p < P; p++ {
 		c, err := net.Dial("tcp", ln.Addr().String())
 		if err != nil {
+			<-done
 			b.Fatalf("Dial failed: %v", err)
 		}
 		clients[p] = c
 	}
-	<-done
+	if !<-done {
+		b.FailNow()
+	}
 
 	b.StartTimer()
 

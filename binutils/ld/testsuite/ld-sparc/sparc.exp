@@ -1,5 +1,5 @@
 # Expect script for ld-sparc tests
-#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -33,7 +33,7 @@ if {[istarget "sparc-*-vxworks"]} {
 	{"VxWorks executable test 1 (dynamic)" \
 	 "tmpdir/libvxworks1.so -Tvxworks1.ld --hash-style=sysv -q --force-dynamic" ""
 	 "" {vxworks1.s}
-	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1.dd}}
+	 {{readelf {--relocs --wide} vxworks1.rd} {objdump -dr vxworks1.dd}}
 	 "vxworks1"}
 	{"VxWorks executable test 2 (dynamic)" \
 	 "-Tvxworks1.ld --hash-style=sysv -q --force-dynamic" ""
@@ -117,7 +117,7 @@ set sparc64tests {
     {"64-bit: Another helper shared library" "-shared -melf64_sparc" ""
      "--64 -Av9 -K PIC" {tlssunbinpic64.s} {} "libtlssunbinpic64.so"}
     {"64-bit: TLS -fpic and -fno-pic exec transitions"
-     "-melf64_sparc --hash-style=sysv tmpdir/libtlslib64.so tmpdir/tlssunbinpic64.o" ""
+     "-melf64_sparc -Ttext-segment=0x100000 --hash-style=sysv tmpdir/libtlslib64.so tmpdir/tlssunbinpic64.o" ""
      "--64 -Av9" {tlssunbin64.s}
      {{readelf -WSsrl tlssunbin64.rd} {objdump -drj.text tlssunbin64.dd}
       {objdump -sj.got tlssunbin64.sd} {objdump -sj.tdata tlssunbin64.td}}
@@ -130,7 +130,8 @@ set sparc64tests {
     {"64-bit: TLS in debug sections" "-melf64_sparc" ""
      "--64 -Av9" {tlsg64.s}
      {{objdump -sj.debug_foobar tlsg64.sd}} "tlsg64"}
-    {"64-bit: TLS -fpie" "-melf64_sparc -pie tmpdir/libtlslib64.so" ""
+    {"64-bit: TLS -fpie"
+     "-melf64_sparc -pie -Ttext-segment=0x100000 tmpdir/libtlslib64.so" ""
      "--64 -Av9 -K PIC" {tlspie64.s}
      {{objdump -drj.text tlspie64.dd}} "tlspie64"}
     {"64-bit: GOTDATA relocations"
@@ -141,14 +142,19 @@ set sparc64tests {
      "libgotop64.so"}
 }
 
-if { ![istarget "sparc64-*-elf*"] } {
-    run_ld_link_tests $sparctests
-}
+# The solaris2 targets do not support the generic SPARC ELF targets,
+# ie -melf32_sparc and -melf64_sparc, so we skip the next set of
+# tests for them.  Support could be added, but this then breaks the
+# creation of archives for those targets.  See PR 27666 for more
+# details.
+if { ![istarget "*-*-solaris2*"] } {
+    if { ![istarget "sparc64-*-elf*"] } {
+        run_ld_link_tests $sparctests
+    }
 
-if { !([istarget "sparc-*-elf*"]
-       || [istarget "sparc-sun-solaris2.5*"]
-       || [istarget "sparc-sun-solaris2.6"]) } {
-    run_ld_link_tests $sparc64tests
+    if { ![istarget "sparc-*-elf*"] } {
+        run_ld_link_tests $sparc64tests
+    }
 }
 
 if { [istarget "sparc*-*-linux*"] && [isnative] } {

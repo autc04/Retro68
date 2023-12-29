@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,6 +41,9 @@
 --  so we can do the instantiation under control of Discard_Names to remove
 --  the tables.
 
+--  Note: this unit is used during bootstrap, see ADA_GENERATED_FILES in
+--  gcc-interface/Make-lang.in for details on the constraints.
+
 ---------------------------------------------------
 -- Note On Compile/Run-Time Consistency Checking --
 ---------------------------------------------------
@@ -62,14 +65,12 @@
 --  then the binder could fail to recognize the R (restrictions line) in the
 --  ali file, leading to bind errors when restrictions were added or removed.
 
---  The latest implementation avoids both this problem by using a named
---  scheme for recording restrictions, rather than a positional scheme which
---  fails completely if restrictions are added or subtracted. Now the worst
---  that happens at bind time in inconsistent builds is that unrecognized
+--  The latest implementation avoids this problem by using a named scheme
+--  for recording restrictions, rather than a positional scheme that fails
+--  completely if restrictions are added or subtracted. Now the worst that
+--  happens at bind time in inconsistent builds is that unrecognized
 --  restrictions are ignored, and the consistency checking for restrictions
 --  might be incomplete, which is no big deal.
-
-pragma Compiler_Unit_Warning;
 
 generic
 package System.Rident is
@@ -103,7 +104,9 @@ package System.Rident is
       No_Direct_Boolean_Operators,               -- GNAT
       No_Dispatch,                               -- (RM H.4(19))
       No_Dispatching_Calls,                      -- GNAT
+      No_Dynamic_Accessibility_Checks,           -- GNAT
       No_Dynamic_Attachment,                     -- Ada 2012 (RM E.7(10/3))
+      No_Dynamic_CPU_Assignment,                 -- Ada 202x (RM D.7(10/3))
       No_Dynamic_Priorities,                     -- (RM D.9(9))
       No_Enumeration_Maps,                       -- GNAT
       No_Entry_Calls_In_Elaboration_Code,        -- GNAT
@@ -142,11 +145,13 @@ package System.Rident is
       No_Standard_Storage_Pools,                 -- GNAT
       No_Stream_Optimizations,                   -- GNAT
       No_Streams,                                -- GNAT
+      No_Tagged_Type_Registration,               -- GNAT
       No_Task_Allocators,                        -- (RM D.7(7))
       No_Task_Attributes_Package,                -- GNAT
       No_Task_At_Interrupt_Priority,             -- GNAT
       No_Task_Hierarchy,                         -- (RM D.7(3), H.4(3))
       No_Task_Termination,                       -- GNAT (Ravenscar)
+      No_Tasks_Unassigned_To_CPU,                -- Ada 202x (D.7(10.10/4))
       No_Tasking,                                -- GNAT
       No_Terminate_Alternatives,                 -- (RM D.7(6))
       No_Unchecked_Access,                       -- (RM H.4(18))
@@ -182,6 +187,8 @@ package System.Rident is
       No_Implicit_Loops,                         -- GNAT
       No_Elaboration_Code,                       -- GNAT
       No_Obsolescent_Features,                   -- Ada 2005 AI-368
+      No_Unrecognized_Aspects,                   -- AI12-0389-1/02
+      No_Unrecognized_Pragmas,                   -- AI12-0389-1/02
       No_Wide_Characters,                        -- GNAT
       Static_Dispatch_Tables,                    -- GNAT
       SPARK_05,                                  -- GNAT
@@ -232,7 +239,6 @@ package System.Rident is
    No_Dynamic_Interrupts  : Restriction_Id renames No_Dynamic_Attachment;
    No_Requeue             : Restriction_Id renames No_Requeue_Statements;
    No_Task_Attributes     : Restriction_Id renames No_Task_Attributes_Package;
-   SPARK                  : Restriction_Id renames SPARK_05;
 
    subtype All_Restrictions is Restriction_Id range
      Simple_Barriers .. Max_Storage_At_Blocking;
@@ -382,6 +388,7 @@ package System.Rident is
       Restricted_Tasking,
       Restricted,
       Ravenscar,
+      Jorvik,
       GNAT_Extended_Ravenscar,
       GNAT_Ravenscar_EDF);
    --  Names of recognized profiles. No_Profile is used to indicate that a
@@ -438,6 +445,7 @@ package System.Rident is
                           (No_Abort_Statements             => True,
                            No_Asynchronous_Control         => True,
                            No_Dynamic_Attachment           => True,
+                           No_Dynamic_CPU_Assignment       => True,
                            No_Dynamic_Priorities           => True,
                            No_Local_Protected_Objects      => True,
                            No_Protected_Type_Allocators    => True,
@@ -469,6 +477,7 @@ package System.Rident is
                           (No_Abort_Statements             => True,
                            No_Asynchronous_Control         => True,
                            No_Dynamic_Attachment           => True,
+                           No_Dynamic_CPU_Assignment       => True,
                            No_Dynamic_Priorities           => True,
                            No_Entry_Queue                  => True,
                            No_Local_Protected_Objects      => True,
@@ -511,6 +520,7 @@ package System.Rident is
                           (No_Abort_Statements             => True,
                            No_Asynchronous_Control         => True,
                            No_Dynamic_Attachment           => True,
+                           No_Dynamic_CPU_Assignment       => True,
                            No_Dynamic_Priorities           => True,
                            No_Entry_Queue                  => True,
                            No_Local_Protected_Objects      => True,
@@ -546,15 +556,45 @@ package System.Rident is
                            Max_Task_Entries                => 0,
                            others                          => 0)),
 
-                     GNAT_Extended_Ravenscar  =>
+                     Jorvik | GNAT_Extended_Ravenscar =>
 
-                     --  Restrictions for GNAT_Extended_Ravenscar =
-                     --    Restricted profile ..
+                     --  Restrictions for Jorvik profile, previously known
+                     --  known as the GNAT_Extended_Ravenscar profile.
+
+                     --  Note: the table entries here only represent the
+                     --  required restriction profile for Jorvik. The
+                     --  full Jorvik profile also requires:
+
+                     --    pragma Dispatching_Policy (FIFO_Within_Priorities);
+                     --    pragma Locking_Policy (Ceiling_Locking);
+                     --    pragma Detect_Blocking;
+
+                     --  The differences between Ravenscar and Jorvik are
+                     --  as follows:
+                     --     1) Ravenscar includes restriction Simple_Barriers;
+                     --        Jorvik includes Pure_Barriers instead.
+                     --     2) The No_Implicit_Heap_Allocations restriction is
+                     --        lifted and replaced with the following
+                     --        restrictions:
+                     --          No_Implicit_Task_Allocations
+                     --          No_Implicit_Protected_Object_Allocations
+                     --     3) The following 6 restrictions are included in
+                     --        Ravenscar but not in Jorvik:
+                     --          No_Implicit_Heap_Allocations
+                     --          No_Relative_Delay
+                     --          Max_Entry_Queue_Length => 1
+                     --          Max_Protected_Entries => 1
+                     --          No_Dependence => Ada.Calendar
+                     --          No_Dependence => Ada.Synchronous_Barriers
+                     --
+                     --  The last of those 7 (i.e., No_Dep => Ada.Synch_Bars)
+                     --  is not reflected here (see sem_prag.adb).
 
                        (Set   =>
                           (No_Abort_Statements             => True,
                            No_Asynchronous_Control         => True,
                            No_Dynamic_Attachment           => True,
+                           No_Dynamic_CPU_Assignment       => True,
                            No_Dynamic_Priorities           => True,
                            No_Local_Protected_Objects      => True,
                            No_Protected_Type_Allocators    => True,
@@ -605,6 +645,7 @@ package System.Rident is
                           (No_Abort_Statements             => True,
                            No_Asynchronous_Control         => True,
                            No_Dynamic_Attachment           => True,
+                           No_Dynamic_CPU_Assignment       => True,
                            No_Dynamic_Priorities           => True,
                            No_Entry_Queue                  => True,
                            No_Local_Protected_Objects      => True,

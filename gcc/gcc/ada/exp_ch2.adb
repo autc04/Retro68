@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,27 +23,31 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Checks;   use Checks;
-with Debug;    use Debug;
-with Einfo;    use Einfo;
-with Elists;   use Elists;
-with Exp_Smem; use Exp_Smem;
-with Exp_Tss;  use Exp_Tss;
-with Exp_Util; use Exp_Util;
-with Namet;    use Namet;
-with Nmake;    use Nmake;
-with Opt;      use Opt;
-with Output;   use Output;
-with Sem;      use Sem;
-with Sem_Eval; use Sem_Eval;
-with Sem_Res;  use Sem_Res;
-with Sem_Util; use Sem_Util;
-with Sem_Warn; use Sem_Warn;
-with Sinfo;    use Sinfo;
-with Sinput;   use Sinput;
-with Snames;   use Snames;
-with Tbuild;   use Tbuild;
+with Atree;          use Atree;
+with Checks;         use Checks;
+with Debug;          use Debug;
+with Einfo;          use Einfo;
+with Einfo.Entities; use Einfo.Entities;
+with Einfo.Utils;    use Einfo.Utils;
+with Elists;         use Elists;
+with Exp_Smem;       use Exp_Smem;
+with Exp_Tss;        use Exp_Tss;
+with Exp_Util;       use Exp_Util;
+with Namet;          use Namet;
+with Nmake;          use Nmake;
+with Opt;            use Opt;
+with Output;         use Output;
+with Sem;            use Sem;
+with Sem_Eval;       use Sem_Eval;
+with Sem_Res;        use Sem_Res;
+with Sem_Util;       use Sem_Util;
+with Sem_Warn;       use Sem_Warn;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Sinfo.Utils;    use Sinfo.Utils;
+with Sinput;         use Sinput;
+with Snames;         use Snames;
+with Tbuild;         use Tbuild;
 
 package body Exp_Ch2 is
 
@@ -122,8 +126,6 @@ package body Exp_Ch2 is
       Val : Node_Id;
       Op  : Node_Kind;
 
-   --  Start of processing for Expand_Current_Value
-
    begin
       if True
 
@@ -142,7 +144,7 @@ package body Exp_Ch2 is
 
          --  Do not replace lvalues
 
-         and then not May_Be_Lvalue (N)
+         and then not Known_To_Be_Assigned (N)
 
          --  Check that entity is suitable for replacement
 
@@ -162,11 +164,9 @@ package body Exp_Ch2 is
 
          and then not (Nkind (Parent (N)) = N_Attribute_Reference
                         and then
-                          (Nam_In (Attribute_Name (Parent (N)),
-                                   Name_Asm_Input,
-                                   Name_Asm_Output)
+                          (Attribute_Name (Parent (N)) in Name_Asm_Input
+                                                        | Name_Asm_Output
                             or else Prefix (Parent (N)) = N))
-
       then
          --  Case of Current_Value is a compile time known value
 
@@ -342,7 +342,42 @@ package body Exp_Ch2 is
    -----------------------------
 
    procedure Expand_Entity_Reference (N : Node_Id) is
+
+      function Is_Object_Renaming_Name (N : Node_Id) return Boolean;
+      --  Indicates that N occurs (after accounting for qualified expressions
+      --  and type conversions) as the name of an object renaming declaration.
+      --  We don't want to fold values in that case.
+
+      -----------------------------
+      -- Is_Object_Renaming_Name --
+      -----------------------------
+
+      function Is_Object_Renaming_Name (N : Node_Id) return Boolean is
+         Trailer : Node_Id := N;
+         Rover   : Node_Id;
+      begin
+         loop
+            Rover := Parent (Trailer);
+            case Nkind (Rover) is
+               when N_Qualified_Expression | N_Type_Conversion =>
+                  --  Conservative for type conversions; only necessary if
+                  --  conversion does not introduce a new object (as opposed
+                  --  to a new view of an existing object).
+                  null;
+               when N_Object_Renaming_Declaration =>
+                  return Trailer = Name (Rover);
+               when others =>
+                  return False; -- the usual case
+            end case;
+            Trailer := Rover;
+         end loop;
+      end Is_Object_Renaming_Name;
+
+      --  Local variables
+
       E : constant Entity_Id := Entity (N);
+
+   --  Start of processing for Expand_Entity_Reference
 
    begin
       --  Defend against errors
@@ -388,7 +423,7 @@ package body Exp_Ch2 is
         and then Is_Scalar_Type (Etype (N))
         and then (Is_Assignable (E) or else Is_Constant_Object (E))
         and then Comes_From_Source (N)
-        and then Is_LHS (N) = No
+        and then not Known_To_Be_Assigned (N)
         and then not Is_Actual_Out_Parameter (N)
         and then (Nkind (Parent (N)) /= N_Attribute_Reference
                    or else Attribute_Name (Parent (N)) /= Name_Valid)
@@ -408,7 +443,7 @@ package body Exp_Ch2 is
       --  Set Atomic_Sync_Required if necessary for atomic variable. Note that
       --  this processing does NOT apply to Volatile_Full_Access variables.
 
-      if Nkind_In (N, N_Identifier, N_Expanded_Name)
+      if Nkind (N) in N_Identifier | N_Expanded_Name
         and then Ekind (E) = E_Variable
         and then (Is_Atomic (E) or else Is_Atomic (Etype (E)))
       then
@@ -445,10 +480,17 @@ package body Exp_Ch2 is
          end;
       end if;
 
-      --  Interpret possible Current_Value for variable case
+      --  Interpret possible Current_Value for variable case. The
+      --  Is_Object_Renaming_Name test is needed for cases such as
+      --    X : Integer := 1;
+      --    Y : Integer renames Integer'(X);
+      --  where the value of Y is changed by any subsequent assignments to X.
+      --  In cases like this, we do not want to use Current_Value even though
+      --  it is available.
 
       if Is_Assignable (E)
         and then Present (Current_Value (E))
+        and then not Is_Object_Renaming_Name (N)
       then
          Expand_Current_Value (N);
 
@@ -499,52 +541,6 @@ package body Exp_Ch2 is
       Addr_Ent   : constant Entity_Id  := Node (Last_Elmt (Acc_Stack));
       P_Comp_Ref : Entity_Id;
 
-      function In_Assignment_Context (N : Node_Id) return Boolean;
-      --  Check whether this is a context in which the entry formal may be
-      --  assigned to.
-
-      ---------------------------
-      -- In_Assignment_Context --
-      ---------------------------
-
-      function In_Assignment_Context (N : Node_Id) return Boolean is
-      begin
-         --  Case of use in a call
-
-         --  ??? passing a formal as actual for a mode IN formal is
-         --  considered as an assignment?
-
-         if Nkind_In (Parent (N), N_Procedure_Call_Statement,
-                                  N_Entry_Call_Statement)
-           or else (Nkind (Parent (N)) = N_Assignment_Statement
-                      and then N = Name (Parent (N)))
-         then
-            return True;
-
-         --  Case of a parameter association: climb up to enclosing call
-
-         elsif Nkind (Parent (N)) = N_Parameter_Association then
-            return In_Assignment_Context (Parent (N));
-
-         --  Case of a selected component, indexed component or slice prefix:
-         --  climb up the tree, unless the prefix is of an access type (in
-         --  which case there is an implicit dereference, and the formal itself
-         --  is not being assigned to).
-
-         elsif Nkind_In (Parent (N), N_Selected_Component,
-                                     N_Indexed_Component,
-                                     N_Slice)
-           and then N = Prefix (Parent (N))
-           and then not Is_Access_Type (Etype (N))
-           and then In_Assignment_Context (Parent (N))
-         then
-            return True;
-
-         else
-            return False;
-         end if;
-      end In_Assignment_Context;
-
    --  Start of processing for Expand_Entry_Parameter
 
    begin
@@ -563,7 +559,7 @@ package body Exp_Ch2 is
          --  done during semantic processing so it is called in -gnatc mode???
 
          if Ekind (Entity (N)) /= E_In_Parameter
-           and then In_Assignment_Context (N)
+           and then Known_To_Be_Assigned (N)
          then
             Note_Possible_Modification (N, Sure => True);
          end if;
@@ -721,99 +717,5 @@ package body Exp_Ch2 is
       Reset_Analyzed_Flags (N);
       Analyze_And_Resolve (N, T);
    end Expand_Renaming;
-
-   ------------------
-   -- Param_Entity --
-   ------------------
-
-   --  This would be trivial, simply a test for an identifier that was a
-   --  reference to a formal, if it were not for the fact that a previous call
-   --  to Expand_Entry_Parameter will have modified the reference to the
-   --  identifier. A formal of a protected entity is rewritten as
-
-   --    typ!(recobj).rec.all'Constrained
-
-   --  where rec is a selector whose Entry_Formal link points to the formal
-
-   --  If the type of the entry parameter has a representation clause, then an
-   --  extra temp is involved (see below).
-
-   --  For a formal of a task entity, the formal is rewritten as a local
-   --  renaming.
-
-   --  In addition, a formal that is marked volatile because it is aliased
-   --  through an address clause is rewritten as dereference as well.
-
-   function Param_Entity (N : Node_Id) return Entity_Id is
-      Renamed_Obj : Node_Id;
-
-   begin
-      --  Simple reference case
-
-      if Nkind_In (N, N_Identifier, N_Expanded_Name) then
-         if Is_Formal (Entity (N)) then
-            return Entity (N);
-
-         --  Handle renamings of formal parameters and formals of tasks that
-         --  are rewritten as renamings.
-
-         elsif Nkind (Parent (Entity (N))) = N_Object_Renaming_Declaration then
-            Renamed_Obj := Get_Referenced_Object (Renamed_Object (Entity (N)));
-
-            if Is_Entity_Name (Renamed_Obj)
-              and then Is_Formal (Entity (Renamed_Obj))
-            then
-               return Entity (Renamed_Obj);
-
-            elsif
-              Nkind (Parent (Parent (Entity (N)))) = N_Accept_Statement
-            then
-               return Entity (N);
-            end if;
-         end if;
-
-      else
-         if Nkind (N) = N_Explicit_Dereference then
-            declare
-               P    : Node_Id := Prefix (N);
-               S    : Node_Id;
-               E    : Entity_Id;
-               Decl : Node_Id;
-
-            begin
-               --  If the type of an entry parameter has a representation
-               --  clause, then the prefix is not a selected component, but
-               --  instead a reference to a temp pointing at the selected
-               --  component. In this case, set P to be the initial value of
-               --  that temp.
-
-               if Nkind (P) = N_Identifier then
-                  E := Entity (P);
-
-                  if Ekind (E) = E_Constant then
-                     Decl := Parent (E);
-
-                     if Nkind (Decl) = N_Object_Declaration then
-                        P := Expression (Decl);
-                     end if;
-                  end if;
-               end if;
-
-               if Nkind (P) = N_Selected_Component then
-                  S := Selector_Name (P);
-
-                  if Present (Entry_Formal (Entity (S))) then
-                     return Entry_Formal (Entity (S));
-                  end if;
-
-               elsif Nkind (Original_Node (N)) = N_Identifier then
-                  return Param_Entity (Original_Node (N));
-               end if;
-            end;
-         end if;
-      end if;
-
-      return (Empty);
-   end Param_Entity;
 
 end Exp_Ch2;

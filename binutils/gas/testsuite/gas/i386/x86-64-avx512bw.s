@@ -223,7 +223,7 @@ _start:
 	vpblendmw	8192(%rdx), %zmm29, %zmm30	 # AVX512BW
 	vpblendmw	-8192(%rdx), %zmm29, %zmm30	 # AVX512BW Disp8
 	vpblendmw	-8256(%rdx), %zmm29, %zmm30	 # AVX512BW
-	vpextrb	$0xab, %xmm29, %rax	 # AVX512BW
+	vpextrb	$0xab, %xmm29, %eax	 # AVX512BW
 	vpextrb	$123, %xmm29, %rax	 # AVX512BW
 	vpextrb	$123, %xmm29, %r8	 # AVX512BW
 	vpextrb	$123, %xmm29, (%rcx)	 # AVX512BW
@@ -238,13 +238,13 @@ _start:
 	vpextrw	$123, %xmm29, 256(%rdx)	 # AVX512BW
 	vpextrw	$123, %xmm29, -256(%rdx)	 # AVX512BW Disp8
 	vpextrw	$123, %xmm29, -258(%rdx)	 # AVX512BW
-	vpextrw	$0xab, %xmm30, %rax	 # AVX512BW
+	vpextrw	$0xab, %xmm30, %eax	 # AVX512BW
 	vpextrw	$123, %xmm30, %rax	 # AVX512BW
 	vpextrw	$123, %xmm30, %r8	 # AVX512BW
 	vpinsrb	$0xab, %eax, %xmm29, %xmm30	 # AVX512BW
-	vpinsrb	$123, %eax, %xmm29, %xmm30	 # AVX512BW
+	vpinsrb	$123, %rax, %xmm29, %xmm30	 # AVX512BW
 	vpinsrb	$123, %ebp, %xmm29, %xmm30	 # AVX512BW
-	vpinsrb	$123, %r13d, %xmm29, %xmm30	 # AVX512BW
+	vpinsrb	$123, %r13, %xmm29, %xmm30	 # AVX512BW
 	vpinsrb	$123, (%rcx), %xmm29, %xmm30	 # AVX512BW
 	vpinsrb	$123, 0x123(%rax,%r14,8), %xmm29, %xmm30	 # AVX512BW
 	vpinsrb	$123, 127(%rdx), %xmm29, %xmm30	 # AVX512BW Disp8
@@ -252,9 +252,9 @@ _start:
 	vpinsrb	$123, -128(%rdx), %xmm29, %xmm30	 # AVX512BW Disp8
 	vpinsrb	$123, -129(%rdx), %xmm29, %xmm30	 # AVX512BW
 	vpinsrw	$0xab, %eax, %xmm29, %xmm30	 # AVX512BW
-	vpinsrw	$123, %eax, %xmm29, %xmm30	 # AVX512BW
+	vpinsrw	$123, %rax, %xmm29, %xmm30	 # AVX512BW
 	vpinsrw	$123, %ebp, %xmm29, %xmm30	 # AVX512BW
-	vpinsrw	$123, %r13d, %xmm29, %xmm30	 # AVX512BW
+	vpinsrw	$123, %r13, %xmm29, %xmm30	 # AVX512BW
 	vpinsrw	$123, (%rcx), %xmm29, %xmm30	 # AVX512BW
 	vpinsrw	$123, 0x123(%rax,%r14,8), %xmm29, %xmm30	 # AVX512BW
 	vpinsrw	$123, 254(%rdx), %xmm29, %xmm30	 # AVX512BW Disp8
@@ -1072,7 +1072,7 @@ _start:
 	vpblendmw	zmm30, zmm29, ZMMWORD PTR [rdx+8192]	 # AVX512BW
 	vpblendmw	zmm30, zmm29, ZMMWORD PTR [rdx-8192]	 # AVX512BW Disp8
 	vpblendmw	zmm30, zmm29, ZMMWORD PTR [rdx-8256]	 # AVX512BW
-	vpextrb	rax, xmm29, 0xab	 # AVX512BW
+	vpextrb	eax, xmm29, 0xab	 # AVX512BW
 	vpextrb	rax, xmm29, 123	 # AVX512BW
 	vpextrb	r8, xmm29, 123	 # AVX512BW
 	vpextrb	BYTE PTR [rcx], xmm29, 123	 # AVX512BW
@@ -1087,13 +1087,13 @@ _start:
 	vpextrw	WORD PTR [rdx+256], xmm29, 123	 # AVX512BW
 	vpextrw	WORD PTR [rdx-256], xmm29, 123	 # AVX512BW Disp8
 	vpextrw	WORD PTR [rdx-258], xmm29, 123	 # AVX512BW
-	vpextrw	rax, xmm30, 0xab	 # AVX512BW
+	vpextrw	eax, xmm30, 0xab	 # AVX512BW
 	vpextrw	rax, xmm30, 123	 # AVX512BW
 	vpextrw	r8, xmm30, 123	 # AVX512BW
 	vpinsrb	xmm30, xmm29, eax, 0xab	 # AVX512BW
-	vpinsrb	xmm30, xmm29, eax, 123	 # AVX512BW
+	vpinsrb	xmm30, xmm29, rax, 123	 # AVX512BW
 	vpinsrb	xmm30, xmm29, ebp, 123	 # AVX512BW
-	vpinsrb	xmm30, xmm29, r13d, 123	 # AVX512BW
+	vpinsrb	xmm30, xmm29, r13, 123	 # AVX512BW
 	vpinsrb	xmm30, xmm29, BYTE PTR [rcx], 123	 # AVX512BW
 	vpinsrb	xmm30, xmm29, BYTE PTR [rax+r14*8+0x1234], 123	 # AVX512BW
 	vpinsrb	xmm30, xmm29, BYTE PTR [rdx+127], 123	 # AVX512BW Disp8
@@ -1101,9 +1101,9 @@ _start:
 	vpinsrb	xmm30, xmm29, BYTE PTR [rdx-128], 123	 # AVX512BW Disp8
 	vpinsrb	xmm30, xmm29, BYTE PTR [rdx-129], 123	 # AVX512BW
 	vpinsrw	xmm30, xmm29, eax, 0xab	 # AVX512BW
-	vpinsrw	xmm30, xmm29, eax, 123	 # AVX512BW
+	vpinsrw	xmm30, xmm29, rax, 123	 # AVX512BW
 	vpinsrw	xmm30, xmm29, ebp, 123	 # AVX512BW
-	vpinsrw	xmm30, xmm29, r13d, 123	 # AVX512BW
+	vpinsrw	xmm30, xmm29, r13, 123	 # AVX512BW
 	vpinsrw	xmm30, xmm29, WORD PTR [rcx], 123	 # AVX512BW
 	vpinsrw	xmm30, xmm29, WORD PTR [rax+r14*8+0x1234], 123	 # AVX512BW
 	vpinsrw	xmm30, xmm29, WORD PTR [rdx+254], 123	 # AVX512BW Disp8

@@ -4,7 +4,7 @@
 Disassembly of section \.plt:
 
 00080800 <_PROCEDURE_LINKAGE_TABLE_>:
-   80800:	ff b3 04 00 00 00    	pushl  0x4\(%ebx\)
+   80800:	ff b3 04 00 00 00    	push   0x4\(%ebx\)
    80806:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
    8080c:	90                   	nop
    8080d:	90                   	nop
@@ -32,10 +32,10 @@ Disassembly of section \.text:
    80c1a:	e8 01 fc ff ff       	call   80820 <sglobal@plt>
    80c1f:	e8 ec fb ff ff       	call   80810 <sexternal@plt>
    80c24:	5b                   	pop    %ebx
-   80c25:	c3                   	ret    
+   80c25:	c3                   	ret *
 
 00080c26 <slocal>:
-   80c26:	c3                   	ret    
+   80c26:	c3                   	ret *
 
 00080c27 <sglobal>:
-   80c27:	c3                   	ret    
+   80c27:	c3                   	ret *

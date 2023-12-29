@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,17 +23,21 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Einfo;    use Einfo;
-with Elists;   use Elists;
-with Exp_Util; use Exp_Util;
-with Nlists;   use Nlists;
-with Lib;      use Lib;
-with Restrict; use Restrict;
-with Rident;   use Rident;
-with Sem_Aux;  use Sem_Aux;
-with Sem_Util; use Sem_Util;
-with Sinfo;    use Sinfo;
+with Atree;          use Atree;
+with Einfo;          use Einfo;
+with Einfo.Entities; use Einfo.Entities;
+with Einfo.Utils;    use Einfo.Utils;
+with Elists;         use Elists;
+with Exp_Util;       use Exp_Util;
+with Nlists;         use Nlists;
+with Lib;            use Lib;
+with Restrict;       use Restrict;
+with Rident;         use Rident;
+with Sem_Aux;        use Sem_Aux;
+with Sem_Ch6;        use Sem_Ch6;
+with Sem_Util;       use Sem_Util;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
 
 package body Exp_Tss is
 
@@ -146,27 +150,35 @@ package body Exp_Tss is
      (Typ : Entity_Id;
       Nam : TSS_Name_Type) return Entity_Id
    is
-      Btyp : Entity_Id := Typ;
+      Btyp : Entity_Id;
       Proc : Entity_Id;
 
    begin
-      loop
-         Btyp := Base_Type (Btyp);
-         Proc := TSS (Btyp, Nam);
+      --  If Typ is a private type, look at the full view
 
-         exit when Present (Proc)
-           or else not Is_Derived_Type (Btyp);
+      if Is_Private_Type (Typ) and then Present (Full_View (Typ)) then
+         Btyp := Base_Type (Full_View (Typ));
+      else
+         Btyp := Base_Type (Typ);
+      end if;
 
-         --  If Typ is a derived type, it may inherit attributes from some
-         --  ancestor.
+      Proc := TSS (Btyp, Nam);
 
-         Btyp := Etype (Btyp);
-      end loop;
+      --  If Typ is a derived type, it may inherit attributes from an ancestor
+
+      if No (Proc) and then Is_Derived_Type (Btyp) then
+         if not Derivation_Too_Early_To_Inherit (Btyp, Nam) then
+            Proc := Find_Inherited_TSS (Etype (Btyp), Nam);
+         elsif Is_Derived_Type (Etype (Btyp)) then
+            --  Skip one link in the derivation chain
+            Proc := Find_Inherited_TSS
+                      (Etype (Base_Type (Etype (Btyp))), Nam);
+         end if;
+      end if;
+
+      --  If nothing else, use the TSS of the root type
 
       if No (Proc) then
-
-         --  If nothing else, use the TSS of the root type
-
          Proc := TSS (Base_Type (Underlying_Type (Typ)), Nam);
       end if;
 
@@ -275,8 +287,8 @@ package body Exp_Tss is
                   then
                      exit;
 
-                  elsif Ekind (Etype (E1)) /= E_Anonymous_Access_Type
-                    and then Ekind (Etype (E2)) /= E_Anonymous_Access_Type
+                  elsif not Is_Anonymous_Access_Type (Etype (E1))
+                    and then not Is_Anonymous_Access_Type (Etype (E2))
                     and then Etype (E1) /= Etype (E2)
                   then
                      exit;
@@ -285,6 +297,17 @@ package body Exp_Tss is
                     and then Ekind (Etype (E2)) = E_Anonymous_Access_Type
                     and then Directly_Designated_Type (Etype (E1))
                                /= Directly_Designated_Type (Etype (E2))
+                  then
+                     exit;
+
+                  elsif Ekind (Etype (E1)) in
+                          E_Anonymous_Access_Subprogram_Type |
+                          E_Anonymous_Access_Protected_Subprogram_Type
+                    and then Ekind (Etype (E2)) in
+                               E_Anonymous_Access_Subprogram_Type |
+                               E_Anonymous_Access_Protected_Subprogram_Type
+                    and then not Conforming_Types
+                                   (Etype (E1), Etype (E2), Fully_Conformant)
                   then
                      exit;
                   end if;
@@ -476,48 +499,6 @@ package body Exp_Tss is
          Elmt := First_Elmt (TSS_Elist (FN));
          while Present (Elmt) loop
             if Is_TSS (Node (Elmt), Nam) then
-               Subp := Node (Elmt);
-
-               --  For stream subprograms, the TSS entity may be a renaming-
-               --  as-body of an already generated entity. Use that one rather
-               --  the one introduced by the renaming, which is an artifact of
-               --  current stream handling.
-
-               if Nkind (Parent (Parent (Subp))) =
-                                           N_Subprogram_Renaming_Declaration
-                 and then
-                   Present (Corresponding_Spec (Parent (Parent (Subp))))
-               then
-                  return Corresponding_Spec (Parent (Parent (Subp)));
-               else
-                  return Subp;
-               end if;
-
-            else
-               Next_Elmt (Elmt);
-            end if;
-         end loop;
-      end if;
-
-      return Empty;
-   end TSS;
-
-   function TSS (Typ : Entity_Id; Nam : Name_Id) return Entity_Id is
-      FN   : constant Node_Id := Freeze_Node (Typ);
-      Elmt : Elmt_Id;
-      Subp : Entity_Id;
-
-   begin
-      if No (FN) then
-         return Empty;
-
-      elsif No (TSS_Elist (FN)) then
-         return Empty;
-
-      else
-         Elmt := First_Elmt (TSS_Elist (FN));
-         while Present (Elmt) loop
-            if Chars (Node (Elmt)) = Nam then
                Subp := Node (Elmt);
 
                --  For stream subprograms, the TSS entity may be a renaming-

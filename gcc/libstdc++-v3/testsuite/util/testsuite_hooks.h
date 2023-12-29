@@ -1,7 +1,7 @@
 // -*- C++ -*-
 // Utility subroutines for the C++ library testsuite.
 //
-// Copyright (C) 2000-2019 Free Software Foundation, Inc.
+// Copyright (C) 2000-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -326,13 +326,15 @@ namespace __gnu_test
       typedef typename _Container::const_iterator const_iterator;
 
       // Implicit conversion iterator to const_iterator.
-      static const_iterator
+      static void
       iterator_to_const_iterator()
       {
 	_Container v;
-	const_iterator it = v.begin();
-	const_iterator end = v.end();
-	return it == end ? v.end() : it;
+	const_iterator i __attribute__((unused)) = const_iterator(v.begin());
+	const_iterator j __attribute__((unused)) = true ? i : v.begin();
+#if __cplusplus >= 201103L
+	const_iterator k __attribute__((unused)) { v.begin() };
+#endif
       }
     };
 

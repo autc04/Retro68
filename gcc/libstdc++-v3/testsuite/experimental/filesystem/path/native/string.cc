@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2019 Free Software Foundation, Inc.
+// Copyright (C) 2016-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -50,9 +50,11 @@ test02()
   VERIFY( str == u"abc" );
   VERIFY( str == p.string() );
 
+#ifdef _GLIBCXX_USE_WCHAR_T
   auto strw = p.string<wchar_t>();
   VERIFY( strw == L"abc" );
   VERIFY( strw == p.wstring() );
+#endif
 
   auto str16 = p.string<char16_t>();
   VERIFY( str16 == u"abc" );
@@ -63,9 +65,36 @@ test02()
   VERIFY( str32 == p.u32string() );
 }
 
+void
+test03()
+{
+  std::experimental::filesystem::path p;
+  auto str8 = p.u8string();
+  VERIFY( str8 == u8"" );
+  auto str16 = p.u16string();
+  VERIFY( str16 == u"" );
+  auto str32 = p.u32string();
+  VERIFY( str32 == U"" );
+}
+
+void
+test04()
+{
+  // PR libstdc++/90281
+  auto p = std::experimental::filesystem::u8path("\xf0\x9d\x84\x9e");
+  auto str8 = p.u8string();
+  VERIFY( str8 == u8"\U0001D11E" );
+  auto str16 = p.u16string();
+  VERIFY( str16 == u"\U0001D11E" );
+  auto str32 = p.u32string();
+  VERIFY( str32 == U"\U0001D11E" );
+}
+
 int
 main()
 {
   test01();
   test02();
+  test03();
+  test04();
 }

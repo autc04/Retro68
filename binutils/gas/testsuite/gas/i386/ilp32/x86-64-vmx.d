@@ -7,10 +7,10 @@
 Disassembly of section .text:
 
 0+000 <foo>:
-   0:	0f 01 c1 [ 	]*vmcall 
-   3:	0f 01 c2 [ 	]*vmlaunch 
-   6:	0f 01 c3 [ 	]*vmresume 
-   9:	0f 01 c4 [ 	]*vmxoff 
+   0:	0f 01 c1 [ 	]*vmcall
+   3:	0f 01 c2 [ 	]*vmlaunch
+   6:	0f 01 c3 [ 	]*vmresume
+   9:	0f 01 c4 [ 	]*vmxoff
    c:	66 0f c7 30 [ 	]*vmclear \(%rax\)
   10:	0f c7 30 [ 	]*vmptrld \(%rax\)
   13:	0f c7 38 [ 	]*vmptrst \(%rax\)

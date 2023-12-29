@@ -1,4 +1,4 @@
-# Copyright (C) 2007-2019 Free Software Foundation, Inc.
+# Copyright (C) 2007-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@ if ![istarget s390*-*-*] then {
 # Load support procs.
 load_lib gcc-dg.exp
 load_lib target-supports.exp
+load_lib gfortran-dg.exp
+load_lib atomic-dg.exp
 
 # Return 1 if the the assembler understands .machine and .machinemode.  The
 # target attribute needs that feature to work.
@@ -86,18 +88,22 @@ proc check_effective_target_s390_useable_hw { } {
 	int main (void)
 	{
 	    asm (".machinemode zarch" : : );
-	#if __ARCH__ >= 11
-	    asm ("lcbb %%r2,0(%%r15),0" : : );
+	#if __ARCH__ >= 13
+	    asm ("ncrk %%r2,%%r2,%%r2" : : : "r2");
+	#elif __ARCH__ >= 12
+	    asm ("agh %%r2,0(%%r15)" : : : "r2");
+	#elif __ARCH__ >= 11
+	    asm ("lochiz %%r2,42" : : : "r2");
 	#elif __ARCH__ >= 10
-	    asm ("risbgn %%r2,%%r2,0,0,0" : : );
+	    asm ("risbgn %%r2,%%r2,0,0,0" : : : "r2");
 	#elif __ARCH__ >= 9
-	    asm ("sgrk %%r2,%%r2,%%r2" : : );
+	    asm ("sgrk %%r2,%%r2,%%r2" : : : "r2");
 	#elif __ARCH__ >= 8
-	    asm ("rosbg %%r2,%%r2,0,0,0" : : );
+	    asm ("rosbg %%r2,%%r2,0,0,0" : : : "r2");
 	#elif __ARCH__ >= 7
-	    asm ("nilf %%r2,0" : : );
+	    asm ("nilf %%r2,0" : : : "r2");
 	#elif __ARCH__ >= 6
-	    asm ("lay %%r2,0(%%r15)" : : );
+	    asm ("lay %%r2,0(%%r15)" : : : "r2");
 	#elif __ARCH__ >= 5
 	    asm ("tam" : : );
 	#endif
@@ -107,8 +113,8 @@ proc check_effective_target_s390_useable_hw { } {
 	    asm ("etnd %0" : "=d" (nd));
 	  }
 	#endif
-	#ifdef __VX__
-	    asm ("vzero %%v0" : : );
+	#if defined (__VX__) && defined (__zarch__)
+	    asm ("vzero %%v0" : : : "v0");
 	#endif
 	  return 0;
 	}
@@ -187,11 +193,32 @@ proc check_effective_target_s390_z13_hw { } {
 	}
     }] "-march=z13 -m64 -mzarch" ] } { return 0 } else { return 1 }
 }
+proc check_effective_target_s390_z14_hw { } {
+    if { ![check_runtime s390_check_s390_z14_hw [subst {
+	int main (void)
+	{
+	    int x = 0;
+	    asm ("msgrkc %0,%0,%0" : "+r" (x) : );
+	    return x;
+	}
+    }] "-march=z14 -m64 -mzarch" ] } { return 0 } else { return 1 }
+}
+# Return 1 if the default compiler options enable z/Architecture mode
+proc check_effective_target_s390_zarch { } {
+    return [check_no_compiler_messages s390_zarch object {
+	int dummy[sizeof (int __attribute__((__mode__(__word__)))) == 8
+		  ? 1 : -1];
+    }]
+}
 
 # If a testcase doesn't have special options, use these.
 global DEFAULT_CFLAGS
 if ![info exists DEFAULT_CFLAGS] then {
     set DEFAULT_CFLAGS " -ansi -pedantic-errors"
+}
+global DEFAULT_FFLAGS
+if ![info exists DEFAULT_FFLAGS] then {
+    set DEFAULT_FFLAGS " -pedantic-errors"
 }
 
 # Initialize `dg'.
@@ -209,6 +236,9 @@ dg-runtest [lsort [prune [glob -nocomplain $srcdir/$subdir/*.{c,S}] \
 dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*vector*/*.{c,S}]] \
 	"" $DEFAULT_CFLAGS
 
+gfortran-dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*vector*/*.F90]] \
+	"" $DEFAULT_FFLAGS
+
 dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/target-attribute/*.{c,S}]] \
 	"" $DEFAULT_CFLAGS
 
@@ -221,6 +251,8 @@ dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/arch13/*.{c,S}]] \
 dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/vxe/*.{c,S}]] \
 	"" "-O3 -march=arch12 -mzarch"
 
+# Some md tests require libatomic
+atomic_init
 dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/md/*.{c,S}]] \
 	"" $DEFAULT_CFLAGS
 
@@ -265,4 +297,5 @@ foreach t [list $srcdir/$subdir/pr80080-3.c] {
 }
 
 # All done.
+atomic_finish
 dg-finish

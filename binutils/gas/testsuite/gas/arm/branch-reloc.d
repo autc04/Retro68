@@ -3,7 +3,7 @@
 #target: *-*-*eabi* *-*-nacl*
 #as: -march=armv5t
 #objdump: -rd
-#stderr: branch-reloc.l
+#warning_output: branch-reloc.l
 
 # Test the generation of relocation for inter-section branches
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2019 Free Software Foundation, Inc.
+// Copyright (C) 2017-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,21 +15,24 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17" }
-// { dg-do run { target c++17 } }
+// <charconv> is supported in C++14 as a GNU extension
+// { dg-do run { target c++14 } }
 
 #include <charconv>
-#include <string_view>
+#include <string>
 
 template<typename I>
 bool
-check_from_chars(I expected, std::string_view s, int base = 0, char term = '\0')
+check_from_chars(I expected, std::string s, int base = 0, char term = '\0')
 {
+  const char* begin = s.data();
+  const char* end = s.data() + s.length();
   I val;
   std::from_chars_result r = base == 0
-    ? std::from_chars(s.begin(), s.end(), val)
-    : std::from_chars(s.begin(), s.end(), val, base);
-  return r.ec == std::errc{} && (r.ptr == s.end() || *r.ptr == term) && val == expected;
+    ? std::from_chars(begin, end, val)
+    : std::from_chars(begin, end, val, base);
+  return r.ec == std::errc{} && (r.ptr == end || *r.ptr == term)
+    && val == expected;
 }
 
 #include <climits>
@@ -50,10 +53,18 @@ void
 test02()
 {
   // "0x" parsed as "0" not as hex prefix:
-  VERIFY( check_from_chars(0, "0x1", 10, 'x') );
-  VERIFY( check_from_chars(0, "0X1", 10, 'X') );
-  VERIFY( check_from_chars(0, "0x1", 16, 'x') );
-  VERIFY( check_from_chars(0, "0X1", 16, 'X') );
+  for (int base = 2; base < 34; ++base)
+  {
+    VERIFY( check_from_chars(0, "0x1", base, 'x') );
+    VERIFY( check_from_chars(0, "0X1", base, 'X') );
+  }
+
+  VERIFY( check_from_chars(1123, "0x1", 34) );
+  VERIFY( check_from_chars(1123, "0X1", 34) );
+  VERIFY( check_from_chars(1156, "0x1", 35) );
+  VERIFY( check_from_chars(1156, "0X1", 35) );
+  VERIFY( check_from_chars(1189, "0x1", 36) );
+  VERIFY( check_from_chars(1189, "0X1", 36) );
 
   VERIFY( check_from_chars(1155, "xx", 34) );
   VERIFY( check_from_chars(1155, "XX", 34) );

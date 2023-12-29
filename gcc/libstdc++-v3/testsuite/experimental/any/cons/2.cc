@@ -1,6 +1,6 @@
 // { dg-do run { target c++14 } }
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,14 +30,14 @@ struct X
 {
   X() = default;
   X(const X&) { copied = true; }
-  X(X&& x) { moved = true; }
+  X(X&&) { moved = true; }
 };
 
 struct X2
 {
   X2() = default;
   X2(const X2&) { copied = true; }
-  X2(X2&& x) noexcept { moved = true; }
+  X2(X2&&) noexcept { moved = true; }
 };
 
 void test01()

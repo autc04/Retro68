@@ -12,13 +12,13 @@ SYMBOL TABLE:
 0+4       O \*COM\*	0+4 comm_symbol1
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+2 R_MMIX_REG        \.MMIX\.reg_contents\+0x0+8
 0+6 R_MMIX_REG        \.MMIX\.reg_contents
 0+a R_MMIX_REG        \.MMIX\.reg_contents
 
 RELOCATION RECORDS FOR \[\.MMIX\.reg_contents\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+ R_MMIX_64         \.bss
 0+8 R_MMIX_64         comm_symbol1
 

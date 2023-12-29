@@ -1,7 +1,7 @@
 #name: C6X .scomm directive 4
 #as:
 #source: scomm-directive-4.s
-#readelf: -Ss
+#readelf: -Ss -T
 
 There are 8 section headers, starting at offset .*:
 
@@ -21,10 +21,10 @@ Key to Flags:
 Symbol table '\.symtab' contains 13 entries:
    Num:    Value  Size Type    Bind   Vis      Ndx Name
      0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 00000000     0 SECTION LOCAL  DEFAULT    1 
-     2: 00000000     0 SECTION LOCAL  DEFAULT    2 
-     3: 00000000     0 SECTION LOCAL  DEFAULT    3 
-     4: 00000000     0 SECTION LOCAL  DEFAULT    4 
+     1: 00000000     0 SECTION LOCAL  DEFAULT    1.*
+     2: 00000000     0 SECTION LOCAL  DEFAULT    2.*
+     3: 00000000     0 SECTION LOCAL  DEFAULT    3.*
+     4: 00000000     0 SECTION LOCAL  DEFAULT    4.*
      5: 00000004     4 OBJECT  GLOBAL DEFAULT  COM x4a
      6: 00000004     4 OBJECT  GLOBAL DEFAULT SCOM y4a
      7: 00000002     4 OBJECT  GLOBAL DEFAULT  COM x4b

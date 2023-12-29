@@ -1,4 +1,4 @@
-# Invalid Intel MCU instructions
+# Invalid Intel MCU instructions / directives
 	.text
 
 	fnstsw
@@ -9,3 +9,5 @@
 
 	movq	%xmm1, (%eax)
 	movnti	%eax, (%eax)
+
+	.arch generic32

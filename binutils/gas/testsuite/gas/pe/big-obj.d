@@ -1,6 +1,6 @@
 #as: -mbig-obj
 #objdump: -h
-#name: PE x64 big obj
+#name: PE big obj
 
 .*: *file format pe-bigobj-.*
 

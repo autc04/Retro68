@@ -3,4 +3,4 @@
 #name: invalid instruction recovery test - ARM version
 #objdump: -d --prefix-addresses --show-raw-insn
 #skip: *-*-pe *-*-wince
-#error-output: insn-error-a.l
+#error_output: insn-error-a.l

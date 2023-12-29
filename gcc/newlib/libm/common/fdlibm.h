@@ -15,9 +15,7 @@
 #include <math.h>
 #include <sys/types.h>
 #include <machine/ieeefp.h>
-
-/* REDHAT LOCAL: Default to XOPEN_MODE.  */
-#define _XOPEN_MODE
+#include "math_config.h"
 
 /* Most routines need to check whether a float is finite, infinite, or not a
    number, and many need to know whether the result of an operation will
@@ -162,6 +160,7 @@ extern double __ieee754_fmod __P((double,double));
 extern double __ieee754_pow __P((double,double));
 extern double __ieee754_lgamma_r __P((double,int *));
 extern double __ieee754_gamma_r __P((double,int *));
+extern double __ieee754_tgamma __P((double));
 extern double __ieee754_log10 __P((double));
 extern double __ieee754_sinh __P((double));
 extern double __ieee754_hypot __P((double,double));
@@ -208,6 +207,7 @@ extern float __ieee754_fmodf __P((float,float));
 extern float __ieee754_powf __P((float,float));
 extern float __ieee754_lgammaf_r __P((float,int *));
 extern float __ieee754_gammaf_r __P((float,int *));
+extern float __ieee754_tgammaf __P((float));
 extern float __ieee754_log10f __P((float));
 extern float __ieee754_sinhf __P((float));
 extern float __ieee754_hypotf __P((float,float));
@@ -231,6 +231,9 @@ extern float __ieee754_scalbf __P((float,float));
    This is valid as long as there are no namespace issues (the
    extern symbol is reserved whenever the caller is reserved)
    and there are no observable error handling side effects.  */
+# define __ieee754_exp(x) exp(x)
+# define __ieee754_log(x) log(x)
+# define __ieee754_pow(x,y) pow(x,y)
 # define __ieee754_expf(x) expf(x)
 # define __ieee754_logf(x) logf(x)
 # define __ieee754_powf(x,y) powf(x,y)

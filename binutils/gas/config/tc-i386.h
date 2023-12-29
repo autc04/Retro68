@@ -1,5 +1,5 @@
 /* tc-i386.h -- Header file for tc-i386.c
-   Copyright (C) 1989-2018 Free Software Foundation, Inc.
+   Copyright (C) 1989-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -59,10 +59,8 @@ extern unsigned long i386_mach (void);
 #define ELF_TARGET_FORMAT64	"elf64-x86-64-freebsd"
 #elif defined (TE_VXWORKS)
 #define ELF_TARGET_FORMAT	"elf32-i386-vxworks"
-#elif defined (TE_NACL)
-#define ELF_TARGET_FORMAT	"elf32-i386-nacl"
-#define ELF_TARGET_FORMAT32	"elf32-x86-64-nacl"
-#define ELF_TARGET_FORMAT64	"elf64-x86-64-nacl"
+#elif defined TE_CLOUDABI
+#define ELF_TARGET_FORMAT64	"elf64-x86-64-cloudabi"
 #endif
 
 #ifdef TE_SOLARIS
@@ -80,14 +78,6 @@ extern unsigned long i386_mach (void);
 
 #ifndef ELF_TARGET_FORMAT32
 #define ELF_TARGET_FORMAT32	"elf32-x86-64"
-#endif
-
-#ifndef ELF_TARGET_L1OM_FORMAT
-#define ELF_TARGET_L1OM_FORMAT	"elf64-l1om"
-#endif
-
-#ifndef ELF_TARGET_K1OM_FORMAT
-#define ELF_TARGET_K1OM_FORMAT	"elf64-k1om"
 #endif
 
 #ifndef ELF_TARGET_IAMCU_FORMAT
@@ -128,15 +118,16 @@ extern const char *i386_comment_chars;
 #define GLOBAL_OFFSET_TABLE_NAME "_GLOBAL_OFFSET_TABLE_"
 #endif
 
-#if (defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)) && !defined (LEX_AT)
 #define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) x86_cons (EXP, NBYTES)
-#endif
 extern bfd_reloc_code_real_type x86_cons (expressionS *, int);
 
 #define TC_CONS_FIX_NEW(FRAG, OFF, LEN, EXP, RELOC)	\
   x86_cons_fix_new(FRAG, OFF, LEN, EXP, RELOC)
 extern void x86_cons_fix_new
 (fragS *, unsigned int, unsigned int, expressionS *, bfd_reloc_code_real_type);
+
+#define X_PRECISION     5
+#define X_PRECISION_PAD 0
 
 #define TC_ADDRESS_BYTES x86_address_bytes
 extern int x86_address_bytes (void);
@@ -145,8 +136,10 @@ extern int x86_address_bytes (void);
 
 #define NO_RELOC BFD_RELOC_NONE
 
-void i386_validate_fix (struct fix *);
-#define TC_VALIDATE_FIX(FIX,SEGTYPE,SKIP) i386_validate_fix(FIX)
+int i386_validate_fix (struct fix *);
+#define TC_VALIDATE_FIX(FIX,SEGTYPE,SKIP) do { \
+    if (!i386_validate_fix(FIX)) goto SKIP;      \
+  } while (0)
 
 #define tc_fix_adjustable(X)  tc_i386_fix_adjustable(X)
 extern int tc_i386_fix_adjustable (struct fix *);
@@ -174,6 +167,15 @@ extern int tc_i386_fix_adjustable (struct fix *);
   (GENERIC_FORCE_RELOCATION_LOCAL (FIX)				\
    || (FIX)->fx_r_type == BFD_RELOC_386_PLT32			\
    || (FIX)->fx_r_type == BFD_RELOC_386_GOTPC			\
+   || (FIX)->fx_r_type == BFD_RELOC_X86_64_GOTPCREL		\
+   || (FIX)->fx_r_type == BFD_RELOC_X86_64_GOTPCRELX		\
+   || (FIX)->fx_r_type == BFD_RELOC_X86_64_REX_GOTPCRELX)
+
+#define TC_FORCE_RELOCATION_ABS(FIX)				\
+  (TC_FORCE_RELOCATION (FIX)					\
+   || (FIX)->fx_r_type == BFD_RELOC_386_GOT32			\
+   || (FIX)->fx_r_type == BFD_RELOC_386_GOT32X			\
+   || (FIX)->fx_r_type == BFD_RELOC_X86_64_GOTPCREL		\
    || (FIX)->fx_r_type == BFD_RELOC_X86_64_GOTPCRELX		\
    || (FIX)->fx_r_type == BFD_RELOC_X86_64_REX_GOTPCRELX)
 
@@ -205,7 +207,11 @@ if ((n)									\
     goto around;							\
   }
 
-#define MAX_MEM_FOR_RS_ALIGN_CODE 4095
+#define MAX_MEM_FOR_RS_ALIGN_CODE \
+  (alignment ? ((size_t) 1 << alignment) - 1 : (size_t) 1)
+
+extern void i386_cons_align (int);
+#define md_cons_align(nbytes) i386_cons_align (nbytes)
 
 void i386_print_statistics (FILE *);
 #define tc_print_statistics i386_print_statistics
@@ -213,11 +219,17 @@ void i386_print_statistics (FILE *);
 extern unsigned int i386_frag_max_var (fragS *);
 #define md_frag_max_var i386_frag_max_var
 
+extern long i386_generic_table_relax_frag (segT, fragS *, long);
+#define md_generic_table_relax_frag(segment, fragP, stretch) \
+  i386_generic_table_relax_frag (segment, fragP, stretch)
+
 #define md_number_to_chars number_to_chars_littleendian
 
 enum processor_type
 {
   PROCESSOR_UNKNOWN,
+  PROCESSOR_GENERIC32,
+  PROCESSOR_GENERIC64,
   PROCESSOR_I386,
   PROCESSOR_I486,
   PROCESSOR_PENTIUM,
@@ -227,18 +239,16 @@ enum processor_type
   PROCESSOR_CORE,
   PROCESSOR_CORE2,
   PROCESSOR_COREI7,
-  PROCESSOR_L1OM,
-  PROCESSOR_K1OM,
   PROCESSOR_IAMCU,
   PROCESSOR_K6,
   PROCESSOR_ATHLON,
   PROCESSOR_K8,
-  PROCESSOR_GENERIC32,
-  PROCESSOR_GENERIC64,
   PROCESSOR_AMDFAM10,
   PROCESSOR_BD,
   PROCESSOR_ZNVER,
-  PROCESSOR_BT
+  PROCESSOR_BT,
+  /* Keep this last.  */
+  PROCESSOR_NONE
 };
 
 extern enum processor_type cpu_arch_tune;
@@ -247,9 +257,26 @@ extern i386_cpu_flags cpu_arch_isa_flags;
 
 struct i386_tc_frag_data
 {
+  union
+    {
+      fragS *padding_fragP;
+      fragS *branch_fragP;
+    } u;
+  addressT padding_address;
   enum processor_type isa;
   i386_cpu_flags isa_flags;
   enum processor_type tune;
+  unsigned int max_bytes;
+  unsigned char length;
+  unsigned char last_length;
+  unsigned char max_prefix_length;
+  unsigned char prefix_length;
+  unsigned char default_prefix;
+  unsigned char cmp_size;
+  unsigned int mf_type : 3;
+  unsigned int classified : 1;
+  unsigned int branch_type : 3;
+  unsigned int code64 : 1; /* Only set by output_branch for now.  */
 };
 
 /* We need to emit the right NOP pattern in .align frags.  This is
@@ -257,12 +284,24 @@ struct i386_tc_frag_data
    the isa/tune settings at the time the .align was assembled.  */
 #define TC_FRAG_TYPE struct i386_tc_frag_data
 
-#define TC_FRAG_INIT(FRAGP)					\
+#define TC_FRAG_INIT(FRAGP, MAX_BYTES)				\
  do								\
    {								\
+     (FRAGP)->tc_frag_data.u.padding_fragP = NULL;		\
+     (FRAGP)->tc_frag_data.padding_address = 0;			\
      (FRAGP)->tc_frag_data.isa = cpu_arch_isa;			\
      (FRAGP)->tc_frag_data.isa_flags = cpu_arch_isa_flags;	\
      (FRAGP)->tc_frag_data.tune = cpu_arch_tune;		\
+     (FRAGP)->tc_frag_data.max_bytes = (MAX_BYTES);		\
+     (FRAGP)->tc_frag_data.length = 0;				\
+     (FRAGP)->tc_frag_data.last_length = 0;			\
+     (FRAGP)->tc_frag_data.max_prefix_length = 0;		\
+     (FRAGP)->tc_frag_data.prefix_length = 0;			\
+     (FRAGP)->tc_frag_data.default_prefix = 0;			\
+     (FRAGP)->tc_frag_data.cmp_size = 0;			\
+     (FRAGP)->tc_frag_data.classified = 0;			\
+     (FRAGP)->tc_frag_data.branch_type = 0;			\
+     (FRAGP)->tc_frag_data.mf_type = 0;			\
    }								\
  while (0)
 
@@ -279,7 +318,8 @@ if (fragP->fr_type == rs_align_code) 					\
     offsetT __count = (fragP->fr_next->fr_address			\
 		       - fragP->fr_address				\
 		       - fragP->fr_fix);				\
-    if (__count > 0 && __count <= MAX_MEM_FOR_RS_ALIGN_CODE)		\
+    if (__count > 0							\
+	&& (unsigned int) __count <= fragP->tc_frag_data.max_bytes)	\
       md_generate_nops (fragP, fragP->fr_literal + fragP->fr_fix,	\
 			__count, 0);					\
   }
@@ -315,6 +355,11 @@ extern bfd_vma x86_64_section_word (char *, size_t);
 extern bfd_vma x86_64_section_letter (int, const char **);
 #define md_elf_section_letter(LETTER, PTR_MSG)	x86_64_section_letter (LETTER, PTR_MSG)
 #define md_elf_section_word(STR, LEN)		x86_64_section_word (STR, LEN)
+
+#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+extern void x86_cleanup (void);
+#define md_cleanup() x86_cleanup ()
+#endif
 
 #ifdef TE_PE
 

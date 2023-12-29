@@ -1,5 +1,5 @@
 # Expect script for various ARM ELF tests.
-#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -30,7 +30,7 @@ if {[istarget "arm-*-vxworks"]} {
 	{"VxWorks executable test 1 (dynamic)"
 	 "tmpdir/libvxworks1.so -Tvxworks1.ld --hash-style=sysv -q --force-dynamic" ""
 	 "" {vxworks1.s}
-	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1.dd}}
+	 {{readelf {--relocs --wide} vxworks1.rd} {objdump -dr vxworks1.dd}}
 	 "vxworks1"}
 	{"VxWorks executable test 2 (dynamic)" \
 	 "-Tvxworks1.ld --hash-style=sysv -q --force-dynamic" ""
@@ -42,14 +42,15 @@ if {[istarget "arm-*-vxworks"]} {
 	 "" {vxworks2.s}
 	 {{readelf --segments vxworks2-static.sd}}
 	 "vxworks2"}
+	{"Branch future relocations for armv8.1-m.main target"
+	  "-static -T arm.ld"
+	  "" "" {bfs-0.s bfs-1.s}
+	  {{objdump -dw branch-futures.d}}
+	 "branch-futures"}
     }
     run_ld_link_tests $armvxworkstests
     run_dump_test "vxworks1-static"
     run_dump_test "emit-relocs1-vxworks"
-}
-
-if { [istarget "arm*-*-symbianelf*"] } {
-    run_dump_test "symbian-seg1"
 }
 
 # Exclude non-ARM-ELF targets.
@@ -67,10 +68,12 @@ if { ![is_elf_format] || ![istarget "arm*-*-*"] } {
 # nm: Apply nm options on result.  Compare with regex (last arg).
 # readelf: Apply readelf options on result.  Compare with regex (last arg).
 
-set armelftests_common_1 {
+set armelftests_common {
     {"Group relocations" "-Ttext 0x8000 -Tdata 0x3000000 --section-start alpha=0xeef0 --section-start beta=0xffeef0" "" "" {group-relocs.s}
      {{objdump -dr group-relocs.d}}
      "group-relocs"}
+}
+set tmp {
     {"Indirect cross-library function reference (set-up)"
      "-shared" "" "" {arm-lib-plt-2a.s}
      {}
@@ -79,6 +82,9 @@ set armelftests_common_1 {
      "-shared tmpdir/arm-lib-plt-2a.so" "" "" {arm-lib-plt-2b.s}
      {{objdump -dr arm-lib-plt-2.dd} {readelf --relocs arm-lib-plt-2.rd}}
      "arm-lib-plt-2b.so"}
+}
+if [check_shared_lib_support] { append armelftests_common $tmp }
+set tmp {
     {"Simple static application" "" "" "" {arm-static-app.s}
      {{objdump -fdw arm-static-app.d} {objdump -rw arm-static-app.r}}
      "arm-static-app"}
@@ -100,12 +106,21 @@ set armelftests_common_1 {
     {"arm-rel31" "-static -T arm.ld" "" "" {arm-rel31.s}
      {{objdump -s arm-rel31.d}}
      "arm-rel31"}
+}
+append armelftests_common $tmp
+set tmp {
     {"arm-rel32" "-shared -T arm-dyn.ld --hash-style=sysv" "" "" {arm-rel32.s}
      {{objdump -Rsj.data arm-rel32.d}}
      "arm-rel32"}
+}
+if [check_shared_lib_support] { append armelftests_common $tmp }
+set tmp {
     {"arm-call" "--no-fix-arm1176 -static -T arm.ld" "" "-meabi=4" {arm-call1.s arm-call2.s}
      {{objdump -d arm-call.d}}
      "arm-call"}
+}
+append armelftests_common $tmp
+set tmp {
     {"TLS shared library" "-shared -T arm-lib.ld --hash-style=sysv" ""
      "" {tls-lib.s}
      {{objdump -fdw tls-lib.d} {objdump -Rw tls-lib.r}}
@@ -118,38 +133,53 @@ set armelftests_common_1 {
      "-shared -T arm-dyn.ld --hash-style=sysv" "" "" {tls-gdesc-got.s}
      {{objdump "-fDR -j .got" tls-gdesc-got.d}}
      "tls-lib2-got.so"}
+}
+if [check_shared_lib_support] { append armelftests_common $tmp }
+set tmp {
     {"TLS gnu GD to IE relaxation"
-     "-static -T arm-dyn.ld --hash-style=sysv" "" "" {tls-gdierelax.s}
+     "-static -T arm-dyn.ld" "" "" {tls-gdierelax.s}
      {{objdump -fdw tls-gdierelax.d}}
      "tls-app-rel-ie"}
+}
+append armelftests_common $tmp
+set tmp  {
     {"TLS gnu GD to IE shared relaxation"
      "--no-fix-arm1176 -shared -T arm-dyn.ld --hash-style=sysv" ""
      "" {tls-gdierelax2.s}
      {{objdump -fdw tls-gdierelax2.d}}
      "tls-app-rel-ie2"}
-    {"TLS gnu GD to LE relaxation" "-T arm-dyn.ld --hash-style=sysv" ""
+}
+if [check_shared_lib_support] { append armelftests_common $tmp }
+set tmp {
+    {"TLS gnu GD to LE relaxation" "-T arm-dyn.ld" ""
      "" {tls-gdlerelax.s}
      {{objdump -fdw tls-gdlerelax.d}}
      "tls-app-rel-le"}
+}
+append armelftests_common $tmp
+set tmp {
     {"TLS mixed models shared lib"
      "-shared -T arm-dyn.ld --hash-style=sysv" "" "" {tls-mixed.s}
      {{objdump -Rw tls-mixed.r}}
      "tls-mixed.so"}
+}
+if [check_shared_lib_support] { append armelftests_common $tmp }
+set tmp {
     {"TLS descseq relaxation"
-     "-T arm-dyn.ld --hash-style=sysv" "" "" {tls-descrelax.s}
+     "-T arm-dyn.ld" "" "" {tls-descrelax.s}
      {{objdump -fdw tls-descrelax.d}}
      "tls-descrelax"}
     {"TLS descseq relaxation v7"
-     "-T arm-dyn.ld --hash-style=sysv" "" "" {tls-descrelax-v7.s}
+     "-T arm-dyn.ld" "" "" {tls-descrelax-v7.s}
      {{objdump -fdw tls-descrelax-v7.d}}
      "tls-descrelax-v7"}
     {"TLS descseq relaxation BE8"
-     "-T arm-dyn.ld --hash-style=sysv -EB --be8" ""
+     "-T arm-dyn.ld -EB --be8" ""
      "-mbig-endian" {tls-descrelax-be8.s}
      {{objdump -fdw tls-descrelax-be8.d}}
      "tls-descrelax-be8"}
     {"TLS descseq relaxation BE32"
-     "-T arm-dyn.ld --hash-style=sysv -EB" ""
+     "-T arm-dyn.ld -EB" ""
      "-mbig-endian" {tls-descrelax-be32.s}
      {{objdump -fdw tls-descrelax-be32.d}}
      "tls-descrelax-be32"}
@@ -198,14 +228,16 @@ set armelftests_common_1 {
      {{objdump -sj.data gc-unwind.d}}
 	"gc-unwind"}
 }
+append armelftests_common $tmp
 
-set armelftests_common_2 { 
+set tmp {
     {"script-type" "-static -T script-type.ld" "" "" {script-type.s}
 	{{readelf -s script-type.sym}}
 	"script-type"}
 }
+if ![istarget "arm*-*-netbsd*"] { append armelftests_common $tmp }
 
-set armelftests_common_3 {
+set tmp {
     {"callweak" "-static -T arm.ld" "" "" {callweak.s}
      {{objdump -dr callweak.d}}
      "callweak"}
@@ -215,6 +247,9 @@ set armelftests_common_3 {
     {"Data only mapping symbols" "-T data-only-map.ld -Map map" "" "" {data-only-map.s}
      {{objdump -dr data-only-map.d}}
      "data-only-map"}
+}
+append armelftests_common $tmp
+set tmp {
     {"Data only mapping symbols for merged sections" "-T rodata-merge-map.ld" "" "" {rodata-merge-map1.s rodata-merge-map2.s rodata-merge-map3.s}
      {{readelf -s rodata-merge-map.sym}}
      "rodata-merge-map"}
@@ -229,25 +264,40 @@ set armelftests_common_3 {
     {"Simple non-PIC shared library (no PLT check)" "-shared" "" "" {arm-lib.s}
      {{objdump -Rw arm-lib.r}}
      "arm-lib.so"}
+}
+if [check_shared_lib_support] { append armelftests_common $tmp }
+set tmp {
     {"EABI soft-float ET_EXEC ABI flag" "-T arm.ld" "" "-mfloat-abi=soft -meabi=5" {eabi-soft-float.s}
      {{readelf -h eabi-soft-float.d}}
      "eabi-soft-float"}
     {"EABI hard-float ET_EXEC ABI flag" "-T arm.ld" "" "-mfloat-abi=hard -meabi=5" {eabi-hard-float.s}
      {{readelf -h eabi-hard-float.d}}
      "eabi-hard-float"}
+}
+append armelftests_common $tmp
+set tmp {
     {"EABI hard-float ET_DYN ABI flag" "-shared" "" "-mfloat-abi=hard -meabi=5" {eabi-hard-float.s}
      {{readelf -h eabi-hard-float.d}}
      "eabi-hard-float.so"}
+}
+if [check_shared_lib_support] { append armelftests_common $tmp }
+set tmp {
     {"EABI ABI flags wrong ABI version" "-T arm.ld" "" "-mfloat-abi=soft -meabi=4" {eabi-soft-float.s}
      {{readelf -h eabi-soft-float-ABI4.d}}
      "eabi-soft-float-no-flags"}
     {"EABI ABI flags ld -r" "-r" "" "-mfloat-abi=soft -meabi=5" {eabi-soft-float.s}
      {{readelf -h eabi-soft-float-r.d}}
      "eabi-soft-float-r.o"}
+}
+append armelftests_common $tmp
+set tmp {
     {"PC-relative in -shared" "-shared --hash-style=sysv" ""
      "" {pcrel-shared.s}
      {{readelf -dr pcrel-shared.rd}}
      "pcrel-shared.so"}
+}
+if [check_shared_lib_support] { append armelftests_common $tmp }
+set tmp {
     {"MOVS thumb1 relocations" "-static -T arm.ld" "" "" {thumb1-movs.s}
      {{objdump -dw thumb1-movs.d}}
      "thumb1-movs"}
@@ -260,14 +310,14 @@ set armelftests_common_3 {
     {"ADDS thumb1 relocations for armv7-m target" "-static -T arm.ld" "" "" {thumb1-adds-armv7-m.s}
      {{objdump -dw thumb1-adds.d}}
      "thumb1-adds"}
+    {"Branch future relocations for armv8.1-m.main target" "-static -T arm.ld"
+      "" "" {bfs-0.s bfs-1.s}
+      {{objdump -dw branch-futures.d}}
+     "branch-futures"}
 }
+append armelftests_common $tmp
 
-run_ld_link_tests $armelftests_common_1
-if { ![istarget "arm*-*-netbsdelf"] } {
-    run_ld_link_tests $armelftests_common_2
-}
-run_ld_link_tests $armelftests_common_3
-
+run_ld_link_tests $armelftests_common
 
 set armelftests_nonacl {
     {"Thumb-1 BL" "-Ttext 0x1000 --section-start .foo=0x401000" "" "" {thumb1-bl.s}
@@ -282,6 +332,8 @@ set armelftests_nonacl {
     {"jump19" "-static -T arm.ld" "" "" {jump19.s}
      {{objdump -dr jump19.d}}
      "jump19"}
+}
+set tmp {
     {"Thumb and -gc-sections"
      "-shared -T arm-dyn.ld --hash-style=sysv" "" "" {gc-thumb-lib.s}
      {}
@@ -289,7 +341,6 @@ set armelftests_nonacl {
     {"Thumb and -gc-sections" "-pie -T arm.ld -gc-sections tmpdir/gc-thumb-lib.so" "" "" {gc-thumb.s}
      {{readelf --relocs gc-thumb.d}}
      "gc-thumb"}
-
     {"Simple non-PIC shared library" "-shared" "" "" {arm-lib.s}
      {{objdump -fdw arm-lib.d} {objdump -Rw arm-lib.r}}
      "arm-lib.so"}
@@ -299,10 +350,16 @@ set armelftests_nonacl {
     {"Simple dynamic application" "tmpdir/arm-lib.so" "" "" {arm-app.s}
      {{objdump -fdw arm-app.d} {objdump -Rw arm-app.r}}
      "arm-app"}
+}
+if [check_shared_lib_support] { append armelftests_nonacl $tmp }
+set tmp {
     {"Simple static application without .rel.plt in linker script"
 	"-T arm-no-rel-plt.ld" "" "" {arm-static-app.s}
      {{objdump -fdw arm-static-app.d} {objdump -rw arm-static-app.r}}
      "arm-static-app-no-rel-plt"}
+}
+append armelftests_nonacl $tmp
+set tmp {
     {"Simple dynamic application without .rel.plt in linker script"
 	"tmpdir/arm-lib.so -T arm-no-rel-plt.ld" "" "" {arm-app.s}
      {{readelf -dr arm-no-rel-plt.r}}
@@ -349,6 +406,7 @@ set armelftests_nonacl {
      {{objdump -fdw tls-lib-loc.d} {objdump -Rw tls-lib-loc.r}}
      "tls-lib-loc.so"}
 }
+if [check_shared_lib_support] { append armelftests_nonacl $tmp }
 
 if { ![istarget "arm*-*-nacl*"] } {
     run_ld_link_tests $armelftests_nonacl
@@ -375,7 +433,7 @@ run_dump_test "pie-bind-locally"
 
 # Exclude non-ARM-EABI targets.
 
-if { [istarget "arm*-*-netbsdelf"] } {
+if { [istarget "arm*-*-netbsd*"] } {
     return
 }
 
@@ -517,7 +575,7 @@ set armeabitests_nonacl {
      {{objdump -d farcall-thumb-thumb-m.d}}
      "farcall-thumb-thumb-v8-m-base"}
     {"Thumb-Thumb farcall v8-M Mainline" "-Ttext 0x1000 --section-start .foo=0x2001014" "" "-march=armv8-m.main" {farcall-thumb-thumb.s}
-     {{objdump -d farcall-thumb-thumb-m.d}}
+     {{objdump -d farcall-thumb2-thumb2-m.d}}
      "farcall-thumb-thumb-v8-m-main"}
     {"Thumb-Thumb farcall v6-M" "-Ttext 0x1000 --section-start .foo=0x2001014" "" "-march=armv6-m" {farcall-thumb-thumb.s}
      {{objdump -d farcall-thumb-thumb-m.d}}
@@ -667,6 +725,16 @@ set armeabitests_nonacl {
      {{objdump -d armv4-bx.d}}
      "armv4-bx"}
 
+     {"Armv8.1-M Mainline BF" "-r -Ttext 0x1000 --section-start .foo=0x1001000" "" "-march=armv8.1-m.main" {bf.s}
+      {{objdump -dr bf.d}}
+     "bf"}
+     {"Armv8.1-M Mainline BFL" "-r -Ttext 0x1000 --section-start .foo=0x1001000" "" "-march=armv8.1-m.main" {bfl.s}
+      {{objdump -dr bfl.d}}
+     "bfl"}
+     {"Armv8.1-M Mainline BFCSEL" "-r -Ttext 0x1000 --section-start .foo=0x1001000" "" "-march=armv8.1-m.main" {bfcsel.s}
+      {{objdump -dr bfcsel.d}}
+     "bfcsel"}
+
     {"R_ARM_THM_JUMP24 Relocation veneers: Short 1"
      "--no-fix-arm1176 --section-start destsect=0x00009000 --section-start .text=0x8000" ""
      "-march=armv7-a -mthumb"
@@ -722,7 +790,7 @@ set armeabitests_nonacl {
      "--section-start .gnu.sgstubs=0x20000 --out-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
      "-march=armv8-m.base -mthumb --defsym VER=1"
      {cmse-implib.s}
-     {{readelf {-s tmpdir/cmse-implib.lib} cmse-implib.rd}
+     {{readelf {-s --wide tmpdir/cmse-implib.lib} cmse-implib.rd}
       {readelf {-h tmpdir/cmse-implib.lib} cmse-implib.type}}
      "cmse-implib"}
     {"Input secure gateway import library"
@@ -730,7 +798,7 @@ set armeabitests_nonacl {
      "-march=armv8-m.base -mthumb --defsym VER=2"
      {cmse-implib.s}
      {{ld cmse-new-implib.out}
-      {readelf {-s tmpdir/cmse-new-implib.lib} cmse-new-implib.rd}}
+      {readelf {-s --wide tmpdir/cmse-new-implib.lib} cmse-new-implib.rd}}
      "cmse-new-implib"}
     {"Input secure gateway import library: no output import library"
      "--section-start .gnu.sgstubs=0x20000 --in-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
@@ -760,7 +828,7 @@ set armeabitests_nonacl {
      "--section-start .gnu.sgstubs=0x20000 --out-implib=tmpdir/cmse-new-comeback-implib.lib --in-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
      "-march=armv8-m.base -mthumb --defsym VER=3"
      {cmse-implib.s}
-     {{readelf {-s tmpdir/cmse-new-comeback-implib.lib} cmse-new-comeback-implib.rd}}
+     {{readelf {-s --wide tmpdir/cmse-new-comeback-implib.lib} cmse-new-comeback-implib.rd}}
      "cmse-new-comeback-implib"}
     {"Input secure gateway import library: entry function change"
      "--section-start .gnu.sgstubs=0x20000 --out-implib=tmpdir/cmse-new-wrong-implib.lib --in-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
@@ -768,6 +836,12 @@ set armeabitests_nonacl {
      {cmse-implib.s}
      {{ld cmse-new-wrong-implib.out}}
      "cmse-new-wrong-implib"}
+    {"Secure gateway veneers:cmse functions debug information missing"
+      "--section-start .gnu.sgstubs=0x190000 --gc-sections -e0" ""
+      "-march=armv8-m.main -mthumb"
+      {cmse_main.s cmse_sec_debug.s}
+      {{objdump --dwarf=info cmse_main_sec_debug.d}}
+      "cmse_main_sec_debug"}
 
     {"R_ARM_THM_JUMP19 Relocation veneers: Short"
      "--section-start destsect=0x000108002 --section-start .text=0x8000" ""
@@ -814,6 +888,11 @@ set armeabitests_nonacl {
      "" {tls-gdesc.s}
      {{readelf "-x .got" tls-gdesc-nlazy.g}}
      "tls-lib2-nlazy.so"}
+    {"TLS gnu shared library negative addend"
+     "--no-fix-arm1176 -shared -T arm-dyn.ld --hash-style=sysv" ""
+     "" {tls-gdesc-neg.s}
+     {{objdump -fdw tls-gdesc-neg.d}}
+     "tls-lib2-neg.so"}
     {"TLS long plt library"
      "-shared -T arm-dyn.ld --hash-style=sysv --section-start .foo=0x4001000" ""
      "" {tls-longplt-lib.s}
@@ -1178,3 +1257,15 @@ set arm_unwind_tests {
      "unwind-mix"}
 }
 run_ld_link_tests $arm_unwind_tests
+
+run_dump_test "non-contiguous-arm"
+run_dump_test "non-contiguous-arm2"
+run_dump_test "non-contiguous-arm3"
+run_dump_test "non-contiguous-arm4"
+run_dump_test "non-contiguous-arm5"
+run_dump_test "non-contiguous-arm6"
+
+if { ![istarget "arm*-*-nacl*"] } {
+    run_dump_test "thumb-plt"
+    run_dump_test "thumb-plt-got"
+}

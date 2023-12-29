@@ -14,9 +14,6 @@
 # - defaultphyspagesize: the default physical page size in bytes
 #	(not currently used, but maybe some day)
 # - family: the processor family, from ALLGOARCHFAMILY in configure.ac
-# - hugepagesize: size of a huge page in bytes
-#	(used only to decide when to use madvise with MADV_[NO]HUGEPAGE)
-#	(set to 0 if there are no huge pages)
 # - int64align: alignment of int64 type in bytes
 # - maxalign: maximum alignment of values of Go types in bytes
 # - minframesize: size of smallest possible function frame in bytes
@@ -37,20 +34,20 @@ bigendian=false
 cachelinesize=64
 defaultphyspagesize=4096
 family=unknown
-hugepagesize=0
 int64align=8
 maxalign=8
 minframesize=0
 pcquantum=1
 ptrsize=8
+stackalign=8
 
 case $goarch in
     386)
 	family=I386
-	hugepagesize="1 << 21"
 	int64align=4
 	maxalign=4
 	ptrsize=4
+	stackalign=4
 	;;
     alpha)
 	family=ALPHA
@@ -59,12 +56,11 @@ case $goarch in
 	;;
     amd64)
 	family=AMD64
-	hugepagesize="1 << 21"
 	;;
     amd64p32)
 	family=AMD64
-	hugepagesize="1 << 21"
 	ptrsize=4
+	stackalign=4
 	;;
     arm | armbe)
 	family=ARM
@@ -72,6 +68,7 @@ case $goarch in
 	minframesize=4
 	pcquantum=4
 	ptrsize=4
+	stackalign=4
 	case $goarch in
 	    *be)
 		bigendian=true
@@ -84,6 +81,7 @@ case $goarch in
 	defaultphyspagesize=65536
 	minframesize=8
 	pcquantum=4
+	stackalign=16
 	case $goarch in
 	    *be)
 		bigendian=true
@@ -103,6 +101,7 @@ case $goarch in
 	maxalign=2
 	pcquantum=4
 	ptrsize=4
+	stackalign=4
 	;;
     mips | mipsle | mips64p32 | mips64p32le)
 	family=MIPS
@@ -112,6 +111,7 @@ case $goarch in
 	minframesize=4
 	pcquantum=4
 	ptrsize=4
+	stackalign=4
 	case $goarch in
 	    *le)
 		bigendian=false
@@ -137,6 +137,7 @@ case $goarch in
         minframesize=16
         pcquantum=4
         ptrsize=4
+	stackalign=4
         ;;
     ppc)
 	family=PPC
@@ -145,6 +146,7 @@ case $goarch in
 	minframesize=32
 	pcquantum=4
 	ptrsize=4
+	stackalign=4
 	;;
     ppc64 | ppc64le)
 	family=PPC64
@@ -152,6 +154,7 @@ case $goarch in
 	defaultphyspagesize=65536
 	minframesize=32
 	pcquantum=4
+	stackalign=16
 	case $goarch in
 	    *le)
 		bigendian=false
@@ -162,6 +165,7 @@ case $goarch in
 	family=RISCV
 	pcquantum=2
 	ptrsize=4
+	stackalign=4
 	;;
     riscv64)
 	family=RISCV64
@@ -174,6 +178,7 @@ case $goarch in
 	minframesize=4
 	pcquantum=2
 	ptrsize=4
+	stackalign=4
 	;;
     s390x)
 	family=S390X
@@ -189,6 +194,7 @@ case $goarch in
 	minframesize=4
 	pcquantum=2
 	ptrsize=4
+	stackalign=4
 	case $goarch in
 	    *be)
 		bigendian=true
@@ -201,6 +207,7 @@ case $goarch in
 	defaultphyspagesize=8192
 	pcquantum=4
 	ptrsize=4
+	stackalign=4
 	;;
     sparc64)
 	family=SPARC64
@@ -236,9 +243,6 @@ case $keyword in
     family)
 	echo $family
 	;;
-    hugepagesize)
-	echo $hugepagesize
-	;;
     int64align)
 	echo $int64align
 	;;
@@ -253,6 +257,9 @@ case $keyword in
 	;;
     ptrsize)
 	echo $ptrsize
+	;;
+    stackalign)
+	echo $stackalign
 	;;
     *)
 	echo 1>&2 "unrecognized keyword \"$keyword\""

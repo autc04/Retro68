@@ -1,5 +1,5 @@
 # Expect script for various PIE tests.
-#   Copyright (C) 2006-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -26,13 +26,13 @@ if { ![istarget *-*-linux*]
 }
 
 # Check to see if the C compiler works
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     return
 }
 
 # Check if -pie is supported or not.
-send_log "$CC -fpie -pie $srcdir/$subdir/pie.c -o tmpdir/pie"
-catch "exec $CC -fpie -pie $srcdir/$subdir/pie.c -o tmpdir/pie" exec_output
+send_log "$CC_FOR_TARGET -fpie -pie $srcdir/$subdir/pie.c -o tmpdir/pie"
+catch "exec $CC_FOR_TARGET -fpie -pie $srcdir/$subdir/pie.c -o tmpdir/pie" exec_output
 send_log "$exec_output\n"
 if { ![string match "" $exec_output] } {
     return

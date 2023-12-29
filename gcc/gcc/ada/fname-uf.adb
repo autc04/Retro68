@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -598,7 +598,7 @@ package body Fname.UF is
 
    function SFN_Hash (F : Unit_Name_Type) return SFN_Header_Num is
    begin
-      return SFN_Header_Num (Int (F) rem SFN_Header_Num'Range_Length);
+      return SFN_Header_Num (Int (F) mod SFN_Header_Num'Range_Length);
    end SFN_Hash;
 
 begin

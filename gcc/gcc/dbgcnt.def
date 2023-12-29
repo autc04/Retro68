@@ -1,5 +1,5 @@
 /* This file contains the list of the debug counter for GCC.
-   Copyright (C) 2006-2019 Free Software Foundation, Inc.
+   Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -48,7 +48,7 @@ along with GCC; see the file COPYING3.  If not see
    or for each copy instruction in register coalescing,
    or constant-propagation for each insn,
    or a block straightening, etc.
-   See dce.c for an example. With the dbg_cnt () call in dce.c,
+   See dce.cc for an example. With the dbg_cnt () call in dce.cc,
    now a developer can use -fdbg-cnt=dce:N
    to stop doing the dead code elimination after N times.
 
@@ -140,9 +140,14 @@ echo ubound: $ub
 
 */
 
-/* Debug counter definitions.  */
+/* Debug counter definitions.
+   Please keep the list sorted in alphabetic order.  */
 DEBUG_COUNTER (asan_use_after_scope)
 DEBUG_COUNTER (auto_inc_dec)
+DEBUG_COUNTER (back_thread1)
+DEBUG_COUNTER (back_thread2)
+DEBUG_COUNTER (back_threadfull1)
+DEBUG_COUNTER (back_threadfull2)
 DEBUG_COUNTER (ccp)
 DEBUG_COUNTER (cfg_cleanup)
 DEBUG_COUNTER (cprop)
@@ -153,11 +158,12 @@ DEBUG_COUNTER (dce_ud)
 DEBUG_COUNTER (delete_trivial_dead)
 DEBUG_COUNTER (devirt)
 DEBUG_COUNTER (df_byte_scan)
+DEBUG_COUNTER (dom_unreachable_edges)
 DEBUG_COUNTER (dse)
 DEBUG_COUNTER (dse1)
 DEBUG_COUNTER (dse2)
-DEBUG_COUNTER (eipa_sra)
 DEBUG_COUNTER (gcse2_delete)
+DEBUG_COUNTER (gimple_unroll)
 DEBUG_COUNTER (global_alloc_at_func)
 DEBUG_COUNTER (global_alloc_at_reg)
 DEBUG_COUNTER (graphite_scop)
@@ -168,9 +174,22 @@ DEBUG_COUNTER (if_after_combine)
 DEBUG_COUNTER (if_after_reload)
 DEBUG_COUNTER (if_conversion)
 DEBUG_COUNTER (if_conversion_tree)
+DEBUG_COUNTER (if_to_switch)
+DEBUG_COUNTER (ipa_attr)
+DEBUG_COUNTER (ipa_cp_bits)
+DEBUG_COUNTER (ipa_cp_values)
+DEBUG_COUNTER (ipa_cp_vr)
+DEBUG_COUNTER (ipa_mod_ref)
+DEBUG_COUNTER (ipa_mod_ref_pta)
+DEBUG_COUNTER (ipa_sra_params)
+DEBUG_COUNTER (ipa_sra_retvalues)
 DEBUG_COUNTER (ira_move)
+DEBUG_COUNTER (ivopts_loop)
+DEBUG_COUNTER (lim)
 DEBUG_COUNTER (local_alloc_for_sched)
+DEBUG_COUNTER (match)
 DEBUG_COUNTER (merged_ipa_icf)
+DEBUG_COUNTER (phiopt_edge_range)
 DEBUG_COUNTER (postreload_cse)
 DEBUG_COUNTER (pre)
 DEBUG_COUNTER (pre_insn)
@@ -187,11 +206,11 @@ DEBUG_COUNTER (sel_sched_insn_cnt)
 DEBUG_COUNTER (sel_sched_region_cnt)
 DEBUG_COUNTER (sms_sched_loop)
 DEBUG_COUNTER (split_for_sched2)
+DEBUG_COUNTER (store_merging)
 DEBUG_COUNTER (store_motion)
 DEBUG_COUNTER (stv_conversion)
 DEBUG_COUNTER (tail_call)
-DEBUG_COUNTER (treepre_insert)
 DEBUG_COUNTER (tree_sra)
+DEBUG_COUNTER (treepre_insert)
 DEBUG_COUNTER (vect_loop)
 DEBUG_COUNTER (vect_slp)
-DEBUG_COUNTER (dom_unreachable_edges)

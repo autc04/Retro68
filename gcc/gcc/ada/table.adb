@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -33,7 +27,6 @@ with Debug;   use Debug;
 with Opt;     use Opt;
 with Output;  use Output;
 with System;  use System;
-with Tree_IO; use Tree_IO;
 
 with System.Memory; use System.Memory;
 
@@ -60,10 +53,6 @@ package body Table is
       --  in Max. Works correctly to do an initial allocation if the table
       --  is currently null.
 
-      function Tree_Get_Table_Address return Address;
-      --  Return Null_Address if the table length is zero,
-      --  Table (First)'Address if not.
-
       pragma Warnings (Off);
       --  Turn off warnings. The following unchecked conversions are only used
       --  internally in this package, and cannot never result in any instances
@@ -80,6 +69,7 @@ package body Table is
 
       procedure Append (New_Val : Table_Component_Type) is
       begin
+         pragma Assert (not Locked);
          Set_Item (Table_Index_Type (Last_Val + 1), New_Val);
       end Append;
 
@@ -120,6 +110,7 @@ package body Table is
 
       procedure Increment_Last is
       begin
+         pragma Assert (not Locked);
          Last_Val := Last_Val + 1;
 
          if Last_Val > Max then
@@ -384,6 +375,8 @@ package body Table is
 
       procedure Set_Last (New_Val : Table_Index_Type) is
       begin
+         pragma Assert (Int (New_Val) <= Last_Val or else not Locked);
+
          if Int (New_Val) < Last_Val then
             Last_Val := Int (New_Val);
 
@@ -395,60 +388,6 @@ package body Table is
             end if;
          end if;
       end Set_Last;
-
-      ----------------------------
-      -- Tree_Get_Table_Address --
-      ----------------------------
-
-      function Tree_Get_Table_Address return Address is
-      begin
-         if Length = 0 then
-            return Null_Address;
-         else
-            return Table (First)'Address;
-         end if;
-      end Tree_Get_Table_Address;
-
-      ---------------
-      -- Tree_Read --
-      ---------------
-
-      --  Note: we allocate only the space required to accommodate the data
-      --  actually written, which means that a Tree_Write/Tree_Read sequence
-      --  does an implicit Release.
-
-      procedure Tree_Read is
-      begin
-         Tree_Read_Int (Max);
-         Last_Val := Max;
-         Length := Max - Min + 1;
-         Reallocate;
-
-         Tree_Read_Data
-           (Tree_Get_Table_Address,
-             (Last_Val - Int (First) + 1) *
-
-               --  Note the importance of parenthesizing the following division
-               --  to avoid the possibility of intermediate overflow.
-
-               (Table_Type'Component_Size / Storage_Unit));
-      end Tree_Read;
-
-      ----------------
-      -- Tree_Write --
-      ----------------
-
-      --  Note: we write out only the currently valid data, not the entire
-      --  contents of the allocated array. See note above on Tree_Read.
-
-      procedure Tree_Write is
-      begin
-         Tree_Write_Int (Int (Last));
-         Tree_Write_Data
-           (Tree_Get_Table_Address,
-            (Last_Val - Int (First) + 1) *
-              (Table_Type'Component_Size / Storage_Unit));
-      end Tree_Write;
 
    begin
       Init;

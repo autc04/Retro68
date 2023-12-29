@@ -3,7 +3,7 @@
 #source: dj1.s
 #name: dj1.be
 
-dump.o:     file format elf32-mep
+.*:     file format elf32-mep
 
 Disassembly of section .text:
 

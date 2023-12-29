@@ -1,2 +1,3 @@
 #name: unsupported .symver with common symbol
-#error-output: pr21661.l
+#notarget: *-*-hpux*
+#error_output: pr21661.l

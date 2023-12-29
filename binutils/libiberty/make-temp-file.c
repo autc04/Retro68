@@ -1,5 +1,5 @@
 /* Utility to pick a temporary filename prefix.
-   Copyright (C) 1996-2018 Free Software Foundation, Inc.
+   Copyright (C) 1996-2022 Free Software Foundation, Inc.
 
 This file is part of the libiberty library.
 Libiberty is free software; you can redistribute it and/or
@@ -39,6 +39,10 @@ Boston, MA 02110-1301, USA.  */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <windows.h>
 #endif
+#if HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+
 
 #ifndef R_OK
 #define R_OK 4
@@ -56,7 +60,7 @@ extern int mkstemps (char *, int);
 
 /* Name of temporary file.
    mktemp requires 6 trailing X's.  */
-#define TEMP_FILE "ccXXXXXX"
+#define TEMP_FILE "XXXXXX"
 #define TEMP_FILE_LEN (sizeof(TEMP_FILE) - 1)
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
@@ -76,13 +80,21 @@ try_dir (const char *dir, const char *base)
     return base;
   if (dir != 0
       && access (dir, R_OK | W_OK | X_OK) == 0)
-    return dir;
+    {
+      /* Check to make sure dir is actually a directory. */
+#ifdef S_ISDIR
+      struct stat s;
+      if (stat (dir, &s))
+	return NULL;
+      if (!S_ISDIR (s.st_mode))
+	return NULL;
+#endif
+      return dir;
+    }
   return 0;
 }
 
 static const char tmp[] = { DIR_SEPARATOR, 't', 'm', 'p', 0 };
-static const char usrtmp[] =
-{ DIR_SEPARATOR, 'u', 's', 'r', DIR_SEPARATOR, 't', 'm', 'p', 0 };
 static const char vartmp[] =
 { DIR_SEPARATOR, 'v', 'a', 'r', DIR_SEPARATOR, 't', 'm', 'p', 0 };
 
@@ -129,9 +141,8 @@ choose_tmpdir (void)
 	base = try_dir (P_tmpdir, base);
 #endif
 
-      /* Try /var/tmp, /usr/tmp, then /tmp.  */
+      /* Try /var/tmp, then /tmp.  */
       base = try_dir (vartmp, base);
-      base = try_dir (usrtmp, base);
       base = try_dir (tmp, base);
       
       /* If all else fails, use the current directory!  */
@@ -181,25 +192,31 @@ string is @code{malloc}ed, and the temporary file has been created.
 */
 
 char *
-make_temp_file (const char *suffix)
+make_temp_file_with_prefix (const char *prefix, const char *suffix)
 {
   const char *base = choose_tmpdir ();
   char *temp_filename;
-  int base_len, suffix_len;
+  int base_len, suffix_len, prefix_len;
   int fd;
+
+  if (prefix == 0)
+    prefix = "cc";
 
   if (suffix == 0)
     suffix = "";
 
   base_len = strlen (base);
+  prefix_len = strlen (prefix);
   suffix_len = strlen (suffix);
 
   temp_filename = XNEWVEC (char, base_len
 			   + TEMP_FILE_LEN
-			   + suffix_len + 1);
+			   + suffix_len
+			   + prefix_len + 1);
   strcpy (temp_filename, base);
-  strcpy (temp_filename + base_len, TEMP_FILE);
-  strcpy (temp_filename + base_len + TEMP_FILE_LEN, suffix);
+  strcpy (temp_filename + base_len, prefix);
+  strcpy (temp_filename + base_len + prefix_len, TEMP_FILE);
+  strcpy (temp_filename + base_len + prefix_len + TEMP_FILE_LEN, suffix);
 
   fd = mkstemps (temp_filename, suffix_len);
   /* Mkstemps failed.  It may be EPERM, ENOSPC etc.  */
@@ -213,4 +230,10 @@ make_temp_file (const char *suffix)
   if (close (fd))
     abort ();
   return temp_filename;
+}
+
+char *
+make_temp_file (const char *suffix)
+{
+  return make_temp_file_with_prefix (NULL, suffix);
 }

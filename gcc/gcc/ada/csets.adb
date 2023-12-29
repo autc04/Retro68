@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -1097,38 +1091,40 @@ package body Csets is
    begin
       --  Set Fold_Upper table from source code indication
 
-      if Identifier_Character_Set = '1'
-        or else Identifier_Character_Set = 'w'
-      then
-         Fold_Upper := Fold_Latin_1;
+      case Identifier_Character_Set is
+         when '1' | 'w' =>
+            Fold_Upper := Fold_Latin_1;
 
-      elsif Identifier_Character_Set = '2' then
-         Fold_Upper := Fold_Latin_2;
+         when '2' =>
+            Fold_Upper := Fold_Latin_2;
 
-      elsif Identifier_Character_Set = '3' then
-         Fold_Upper := Fold_Latin_3;
+         when '3' =>
+            Fold_Upper := Fold_Latin_3;
 
-      elsif Identifier_Character_Set = '4' then
-         Fold_Upper := Fold_Latin_4;
+         when '4' =>
+            Fold_Upper := Fold_Latin_4;
 
-      elsif Identifier_Character_Set = '5' then
-         Fold_Upper := Fold_Cyrillic;
+         when '5' =>
+            Fold_Upper := Fold_Cyrillic;
 
-      elsif Identifier_Character_Set = 'p' then
-         Fold_Upper := Fold_IBM_PC_437;
+         when '9' =>
+            Fold_Upper := Fold_Latin_9;
 
-      elsif Identifier_Character_Set = '8' then
-         Fold_Upper := Fold_IBM_PC_850;
+         when 'p' =>
+            Fold_Upper := Fold_IBM_PC_437;
 
-      elsif Identifier_Character_Set = '9' then
-         Fold_Upper := Fold_Latin_9;
+         when '8' =>
+            Fold_Upper := Fold_IBM_PC_850;
 
-      elsif Identifier_Character_Set = 'f' then
-         Fold_Upper := Fold_Full_Upper_Half;
+         when 'f' =>
+            Fold_Upper := Fold_Full_Upper_Half;
 
-      else -- Identifier_Character_Set = 'n'
-         Fold_Upper := Fold_No_Upper_Half;
-      end if;
+         when 'n' =>
+            Fold_Upper := Fold_No_Upper_Half;
+
+         when others =>
+            raise Program_Error;
+      end case;
 
       --  Use Fold_Upper table to compute Fold_Lower table
 

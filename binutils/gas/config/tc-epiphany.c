@@ -1,5 +1,5 @@
 /* tc-epiphany.c -- Assembler for the Adapteva EPIPHANY
-   Copyright (C) 2009-2018 Free Software Foundation, Inc.
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
    Contributed by Embecosm on behalf of Adapteva, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -59,7 +59,7 @@ const char FLT_CHARS[]            = "fFdD";
 
 /* Flag to detect when switching to code section where insn alignment is
    implied.  */
-static bfd_boolean force_code_align = FALSE;
+static bool force_code_align = false;
 
 static void
 epiphany_elf_section_rtn (int i)
@@ -69,7 +69,7 @@ epiphany_elf_section_rtn (int i)
   if (force_code_align)
     {
       do_align (1, NULL, 0, 0);
-      force_code_align = FALSE;
+      force_code_align = false;
     }
 }
 
@@ -79,7 +79,7 @@ epiphany_elf_section_text (int i)
   obj_elf_text (i);
 
   do_align (1, NULL, 0, 0);
-  force_code_align = FALSE;
+  force_code_align = false;
 }
 
 /* The target specific pseudo-ops which we support.  */
@@ -145,12 +145,14 @@ md_begin (void)
 
   /* Set the machine type.  */
   bfd_default_set_arch_mach (stdoutput, bfd_arch_epiphany, bfd_mach_epiphany32);
+
+  literal_prefix_dollar_hex = true;
 }
 
 valueT
 md_section_align (segT segment, valueT size)
 {
-  int align = bfd_get_section_alignment (stdoutput, segment);
+  int align = bfd_section_alignment (segment);
 
   return ((size + (1 << align) - 1) & -(1 << align));
 }
@@ -182,7 +184,7 @@ epiphany_elf_section_flags (int flags,
      executable section specifier we set an internal flag to denote when
      word alignment should be forced.  */
   if (flags & SEC_CODE)
-    force_code_align = TRUE;
+    force_code_align = true;
 
   return flags;
 }
@@ -220,16 +222,16 @@ struct epiphany_hi_fixup
 #define GOT_NAME "_GLOBAL_OFFSET_TABLE_"
 static symbolS * GOT_symbol;
 
-static inline bfd_boolean
+static inline bool
 epiphany_PIC_related_p (symbolS *sym)
 {
   expressionS *exp;
 
   if (! sym)
-    return FALSE;
+    return false;
 
   if (sym == GOT_symbol)
-    return TRUE;
+    return true;
 
   exp = symbol_get_value_expression (sym);
 
@@ -527,13 +529,13 @@ md_assemble (char *str)
   int regmask=0, push=0, pop=0;
 
   /* Special-case push/pop instruction macros.  */
-  if (0 == strncmp (str, "push {", 6))
+  if (startswith (str, "push {"))
     {
       char * s = str + 6;
       push = 1;
       pperr = parse_reglist (s, &regmask);
     }
-  else if (0 == strncmp (str, "pop {", 5))
+  else if (startswith (str, "pop {"))
     {
       char * s = str + 5;
       pop = 1;
@@ -548,7 +550,7 @@ md_assemble (char *str)
 
   if (push && regmask)
     {
-      char buff[20];
+      char buff[32];
       int i,p ATTRIBUTE_UNUSED;
 
       epiphany_assemble ("mov r15,4");
@@ -568,7 +570,7 @@ md_assemble (char *str)
     }
   else if (pop && regmask)
     {
-      char buff[20];
+      char buff[32];
       int i,p;
 
       epiphany_assemble ("mov r15,4");
@@ -725,6 +727,8 @@ md_estimate_size_before_relax (fragS *fragP, segT segment)
 	 handling to md_convert_frag.  */
 
       EPIPHANY_RELAX_TYPES subtype;
+      const CGEN_INSN *insn;
+      int i;
       /* We haven't relaxed this at all, so the relaxation type may be
 	 completely wrong.  Set the subtype correctly.  */
       epiphany_relax_frag (segment, fragP, 0);
@@ -751,26 +755,29 @@ md_estimate_size_before_relax (fragS *fragP, segT segment)
 
       fragP->fr_subtype = subtype;
 
-      {
-	const CGEN_INSN *insn;
-	int i;
+      /* Update the recorded insn.  */
+      for (i = 0, insn = fragP->fr_cgen.insn; i < 4; i++, insn++)
+	{
+	  if (strcmp (CGEN_INSN_MNEMONIC (insn),
+		      CGEN_INSN_MNEMONIC (fragP->fr_cgen.insn)) == 0
+	      && CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_RELAXED))
+	    break;
+	}
 
-	/* Update the recorded insn.  */
+      if (i == 4)
+	abort ();
 
-	for (i = 0, insn = fragP->fr_cgen.insn; i < 4; i++, insn++)
-	  {
-	    if ((strcmp (CGEN_INSN_MNEMONIC (insn),
-			 CGEN_INSN_MNEMONIC (fragP->fr_cgen.insn))
-		 == 0)
-		&& CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_RELAXED))
-	      break;
-	  }
+      /* When changing from a 2-byte to 4-byte insn, don't leave
+	 opcode bytes uninitialised.  */
+      if (CGEN_INSN_BITSIZE (fragP->fr_cgen.insn) < CGEN_INSN_BITSIZE (insn))
+	{
+	  gas_assert (CGEN_INSN_BITSIZE (fragP->fr_cgen.insn) == 16);
+	  gas_assert (CGEN_INSN_BITSIZE (insn) == 32);
+	  fragP->fr_opcode[2] = 0;
+	  fragP->fr_opcode[3] = 0;
+	}
 
-	if (i == 4)
-	  abort ();
-
-	fragP->fr_cgen.insn = insn;
-      }
+      fragP->fr_cgen.insn = insn;
     }
 
   return md_relax_table[fragP->fr_subtype].rlx_length;
@@ -1008,19 +1015,16 @@ md_cgen_lookup_reloc (const CGEN_INSN *insn ATTRIBUTE_UNUSED,
    of LITTLENUMS emitted is stored in *SIZEP.  An error message is
    returned, or NULL on OK.  */
 
-/* Equal to MAX_PRECISION in atof-ieee.c.  */
-#define MAX_LITTLENUMS 6
-
 const char *
 md_atof (int type, char *litP, int *sizeP)
 {
-  return ieee_md_atof (type, litP, sizeP, FALSE);
+  return ieee_md_atof (type, litP, sizeP, false);
 }
 
 /* Return true if can adjust the reloc to be relative to its section
    (such as .data) instead of relative to some symbol.  */
 
-bfd_boolean
+bool
 epiphany_fix_adjustable (fixS *fixP)
 {
  bfd_reloc_code_real_type reloc_type;
@@ -1038,28 +1042,28 @@ epiphany_fix_adjustable (fixS *fixP)
     reloc_type = fixP->fx_r_type;
 
   if (fixP->fx_addsy == NULL)
-    return TRUE;
+    return true;
 
   /* Prevent all adjustments to global symbols.  */
   if (S_IS_EXTERNAL (fixP->fx_addsy))
-    return FALSE;
+    return false;
 
   if (S_IS_WEAK (fixP->fx_addsy))
-    return FALSE;
+    return false;
 
   if (pic_code
       && (reloc_type == BFD_RELOC_EPIPHANY_SIMM24
 	  || reloc_type == BFD_RELOC_EPIPHANY_SIMM8
 	  || reloc_type == BFD_RELOC_EPIPHANY_HIGH
 	  || reloc_type == BFD_RELOC_EPIPHANY_LOW))
-    return FALSE;
+    return false;
 
   /* Since we don't use partial_inplace, we must not reduce symbols in
      mergeable sections to their section symbol.  */
   if ((S_GET_SEGMENT (fixP->fx_addsy)->flags & SEC_MERGE) != 0)
-    return FALSE;
+    return false;
 
-  return TRUE;
+  return true;
 }
 
 void

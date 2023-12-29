@@ -4,3 +4,4 @@
 main:
 	movl	foo(%rip), %eax
 	.size	main, .-main
+	.section	.note.GNU-stack

@@ -1,6 +1,6 @@
 // { dg-do compile { target c++11 } }
 //
-// Copyright (C) 2013-2019 Free Software Foundation, Inc.
+// Copyright (C) 2013-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,4 +20,8 @@
 #include <cstddef>
 #include <type_traits>
 
+#if __cplusplus <= 201703L
 static_assert (std::is_pod<std::max_align_t>::value, "");
+#endif
+static_assert (std::is_standard_layout<std::max_align_t>::value, "");
+static_assert (std::is_trivial<std::max_align_t>::value, "");

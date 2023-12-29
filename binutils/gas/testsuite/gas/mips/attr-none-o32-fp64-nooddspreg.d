@@ -1,6 +1,6 @@
 #as: -mfp64 -mno-odd-spreg -32
 #source: empty.s
-#PROG: readelf
+#DUMPPROG: readelf
 #readelf: -A
 #name: MIPS infer fpabi (O32 fp64 nooddspreg)
 

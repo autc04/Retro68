@@ -5,10 +5,11 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_iptypes.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_iptypes.d)
  */
 module core.sys.windows.iptypes;
 version (Windows):
+@system:
 
 import core.sys.windows.windef;
 import core.stdc.time;

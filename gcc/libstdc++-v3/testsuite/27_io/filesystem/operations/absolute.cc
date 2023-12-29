@@ -1,8 +1,7 @@
-// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 // { dg-require-filesystem-ts "" }
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,7 +29,7 @@ using std::filesystem::path;
 void
 test01()
 {
-  for (const path& p : __gnu_test::test_paths)
+  for (const path p : __gnu_test::test_paths)
   {
     std::error_code ec;
     path abs = absolute(p, ec);
@@ -67,9 +66,37 @@ test02()
 #endif
 }
 
+void
+test03()
+{
+  // PR libstdc++/90299
+  const path p = __gnu_test::nonexistent_path();
+  std::error_code ec;
+  const path pabs = absolute(p, ec);
+  VERIFY( !ec );
+  VERIFY( pabs.is_absolute() );
+
+  const path pabs2 = absolute(p);
+  VERIFY( pabs2 == pabs );
+
+  const path eabs = absolute(path{}, ec);
+  VERIFY( ec == std::errc::invalid_argument );
+  VERIFY( eabs.empty() );
+
+  try {
+    (void) absolute(path{});
+    VERIFY( false );
+  } catch (const std::filesystem::filesystem_error& e) {
+    VERIFY( e.code() == std::errc::invalid_argument );
+    VERIFY( e.path1().empty() );
+    VERIFY( e.path2().empty() );
+  }
+}
+
 int
 main()
 {
   test01();
   test02();
+  test03();
 }

@@ -1,6 +1,6 @@
 // Runtime test for noexcept-specification.
 // { dg-options "-Wnoexcept" }
-// { dg-do run { target nonpic } }
+// { dg-do run { target { nonpic || pie_enabled } } }
 // { dg-require-effective-target c++11 }
 
 #include <exception>
@@ -35,7 +35,7 @@ void f2(T a) noexcept (noexcept (f (a)))
   f(a);
 }
 
-struct A { A() { } };		// { dg-warning "does not throw" }
+struct A { A() { } };		// { dg-message "does not throw" }
 
 int main()
 {

@@ -1,4 +1,4 @@
-#as: 
+#as:
 #objdump: -dw
 #name: i386 AVX GATHER insns
 

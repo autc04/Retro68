@@ -2,7 +2,7 @@
 
 # split_i386.sh -- test -fstack-split for i386
 
-# Copyright (C) 2009-2017 Free Software Foundation, Inc.
+# Copyright (C) 2009-2022 Free Software Foundation, Inc.
 # Written by Ian Lance Taylor <iant@google.com>.
 
 # This file is part of gold.
@@ -45,7 +45,7 @@ match 'lea.*-0x200\(%esp\),' split_i386_1.stdout
 match 'stc' split_i386_2.stdout
 match 'call.*__morestack_non_split>?$' split_i386_2.stdout
 nomatch 'call.*__morestack>?$' split_i386_2.stdout
-match 'lea.*-0x4200\(%esp\),' split_i386_2.stdout
+match 'lea.*-0x100200\(%esp\),' split_i386_2.stdout
 
 match 'failed to match' split_i386_3.stdout
 

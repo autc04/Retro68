@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-ipa-icf"  } */
+/* { dg-options "-O2 -fdump-ipa-icf-optimized-all"  } */
 
 static int zip();
 static int zap();
@@ -46,6 +46,6 @@ int main()
   return foo() + bar();
 }
 
-/* { dg-final { scan-ipa-dump "Semantic equality hit:foo->bar" "icf"  } } */
-/* { dg-final { scan-ipa-dump "Semantic equality hit:zip->zap" "icf"  } } */
+/* { dg-final { scan-ipa-dump "Semantic equality hit:foo/\[0-9+\]+->bar/\[0-9+\]+" "icf"  } } */
+/* { dg-final { scan-ipa-dump "Semantic equality hit:zip/\[0-9+\]+->zap/\[0-9+\]+" "icf"  } } */
 /* { dg-final { scan-ipa-dump "Equal symbols: 2" "icf"  } } */

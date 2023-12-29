@@ -3,7 +3,7 @@
 #source: dj1.s
 #name: dj1.le
 
-dump.o:     file format elf32-mep-little
+.*:     file format elf32-mep-little
 
 Disassembly of section .text:
 

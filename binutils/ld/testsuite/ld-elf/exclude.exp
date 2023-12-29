@@ -1,5 +1,5 @@
 # Expect script for --exclude-libs tests
-#   Copyright (C) 2004-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -39,12 +39,6 @@ if { [istarget "tic6x-*-*"] } {
     set as_opt "-mpic -mpid=near"
 }
 
-global ar
-global as
-global ld
-global nm
-global nm_output
-
 set test1 "ld link shared library"
 set test2 "ld export symbols from archive"
 set test3 "ld link shared library with --exclude-libs"
@@ -57,14 +51,14 @@ set test9 "ld don't exclude symbols from archive - --exclude-libs foo:bar"
 
 if { ![ld_assemble_flags $as $as_opt $srcdir/$subdir/exclude1.s tmpdir/exclude1.o ]
      || ![ld_assemble_flags $as $as_opt $srcdir/$subdir/exclude2.s tmpdir/exclude2.o] } {
-    unresolved $test1
+    unsupported $test1
     return
 }
 
 remote_file host delete "tmpdir/libexclude.a"
 set catch_output [run_host_cmd "$ar" "cq tmpdir/libexclude.a tmpdir/exclude2.o"]
 if {![string match "" $catch_output]} {
-    unresolved $test1
+    fail $test1
     return
 }
 
@@ -81,10 +75,9 @@ if { [ld_link $ld tmpdir/exclude.so "--shared tmpdir/exclude1.o -Ltmpdir -lexclu
     return
 }
 
-if ![ld_nm $nm "-D" tmpdir/exclude.so] {
-    unresolved $test2
-} elseif { [info exists nm_output(exclude_common)]
-	    && [info exists nm_output(exclude_sym)] } {
+if { [ld_nm $nm "-D" tmpdir/exclude.so]
+     && [info exists nm_output(exclude_common)]
+     && [info exists nm_output(exclude_sym)] } {
     pass $test2
 } else {
     fail $test2
@@ -98,10 +91,9 @@ if { [ld_link $ld tmpdir/exclude.so "--exclude-libs libexclude --shared tmpdir/e
     fail $test3
 }
 
-if ![ld_nm $nm "-D" tmpdir/exclude.so] {
-    unresolved $test4
-} elseif { ! [info exists nm_output(exclude_common)]
-	   &&  ! [info exists nm_output(exclude_sym)] } {
+if { [ld_nm $nm "-D" tmpdir/exclude.so]
+     && ! [info exists nm_output(exclude_common)]
+     &&  ! [info exists nm_output(exclude_sym)] } {
     pass $test4
 } else {
     fail $test4

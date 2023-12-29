@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -102,12 +102,11 @@ function Prag (Pragma_Node : Node_Id; Semi : Source_Ptr) return Node_Id is
    --    are some obsolescent features (e.g. character replacements) which are
    --    handled at parse time.
    --
-   --    SPARK must be processed at parse time, since this restriction controls
-   --    whether the scanner recognizes a spark HIDE directive formatted as an
-   --    Ada comment (and generates a Tok_SPARK_Hide token for the directive).
-   --
    --    No_Dependence must be processed at parse time, since otherwise it gets
    --    handled too late.
+   --
+   --    No_Unrecognized_Aspects must be processed at parse time, since
+   --    unrecognized aspects are ignored by the parser.
    --
    --  Note that we don't need to do full error checking for badly formed cases
    --  of restrictions, since these will be caught during semantic analysis.
@@ -159,7 +158,7 @@ function Prag (Pragma_Node : Node_Id; Semi : Source_Ptr) return Node_Id is
    procedure Check_Arg_Count (Required : Int) is
    begin
       if Arg_Count /= Required then
-         Error_Msg ("wrong number of arguments for pragma%", Pragma_Sloc);
+         Error_Msg_N ("wrong number of arguments for pragma%", Pragma_Node);
          raise Error_Resync;
       end if;
    end Check_Arg_Count;
@@ -173,12 +172,12 @@ function Prag (Pragma_Node : Node_Id; Semi : Source_Ptr) return Node_Id is
 
    begin
       if Nkind (Expression (Arg)) /= N_Identifier
-        or else not Nam_In (Chars (Argx), Name_On, Name_Off)
+        or else Chars (Argx) not in Name_On | Name_Off
       then
          Error_Msg_Name_2 := Name_On;
          Error_Msg_Name_3 := Name_Off;
 
-         Error_Msg ("argument for pragma% must be% or%", Sloc (Argx));
+         Error_Msg_N ("argument for pragma% must be% or%", Argx);
          raise Error_Resync;
       end if;
    end Check_Arg_Is_On_Or_Off;
@@ -190,9 +189,9 @@ function Prag (Pragma_Node : Node_Id; Semi : Source_Ptr) return Node_Id is
    procedure Check_Arg_Is_String_Literal (Arg : Node_Id) is
    begin
       if Nkind (Expression (Arg)) /= N_String_Literal then
-         Error_Msg
+         Error_Msg_N
            ("argument for pragma% must be string literal",
-             Sloc (Expression (Arg)));
+            Expression (Arg));
          raise Error_Resync;
       end if;
    end Check_Arg_Is_String_Literal;
@@ -257,12 +256,17 @@ function Prag (Pragma_Node : Node_Id; Semi : Source_Ptr) return Node_Id is
                   Restriction_Warnings (No_Obsolescent_Features) :=
                     Prag_Id = Pragma_Restriction_Warnings;
 
-               when Name_SPARK
-                  | Name_SPARK_05
-               =>
-                  Set_Restriction (SPARK_05, Pragma_Node);
-                  Restriction_Warnings (SPARK_05) :=
-                    Prag_Id = Pragma_Restriction_Warnings;
+               when Name_SPARK_05 =>
+                  Error_Msg_Name_1 := Chars (Expr);
+                  Error_Msg_N
+                    ("??% restriction is obsolete and ignored, consider " &
+                     "using 'S'P'A'R'K_'Mode and gnatprove instead", Arg);
+
+               when Name_No_Unrecognized_Aspects =>
+                  Set_Restriction
+                     (No_Unrecognized_Aspects,
+                      Pragma_Node,
+                      Prag_Id = Pragma_Restriction_Warnings);
 
                when others =>
                   null;
@@ -381,32 +385,14 @@ begin
          end if;
 
       --------------
-      -- Ada_2020 --
+      -- Ada_2022 --
       --------------
 
-      when Pragma_Ada_2020 =>
+      when Pragma_Ada_2022 =>
          if Arg_Count = 0 then
-            Ada_Version := Ada_2020;
-            Ada_Version_Explicit := Ada_2020;
+            Ada_Version := Ada_2022;
+            Ada_Version_Explicit := Ada_2022;
             Ada_Version_Pragma := Pragma_Node;
-         end if;
-
-      ---------------------------
-      -- Compiler_Unit_Warning --
-      ---------------------------
-
-      --  This pragma must be processed at parse time, since the resulting
-      --  status may be tested during the parsing of the program.
-
-      when Pragma_Compiler_Unit
-         | Pragma_Compiler_Unit_Warning
-      =>
-         Check_Arg_Count (0);
-
-         --  Only recognized in main unit
-
-         if Current_Source_Unit = Main_Unit then
-            Compiler_Unit := True;
          end if;
 
       -----------
@@ -439,10 +425,8 @@ begin
          Check_Arg_Is_On_Or_Off (Arg1);
 
          if Chars (Expression (Arg1)) = Name_On then
-            Extensions_Allowed := True;
-            Ada_Version := Ada_2012;
+            Ada_Version := Ada_With_Extensions;
          else
-            Extensions_Allowed := False;
             Ada_Version := Ada_Version_Explicit;
          end if;
 
@@ -462,7 +446,7 @@ begin
          A := Expression (Arg1);
 
          if Nkind (A) /= N_Identifier then
-            Error_Msg ("incorrect argument for pragma %", Sloc (A));
+            Error_Msg_N ("incorrect argument for pragma %", A);
          else
             Set_Name_Table_Boolean3 (Chars (A), True);
          end if;
@@ -714,9 +698,9 @@ begin
          begin
             if Prag_Id = Pragma_Source_File_Name then
                if Project_File_In_Use = In_Use then
-                  Error_Msg
+                  Error_Msg_N
                     ("pragma Source_File_Name cannot be used " &
-                     "with a project file", Pragma_Sloc);
+                     "with a project file", Pragma_Node);
 
                else
                   Project_File_In_Use := Not_In_Use;
@@ -724,9 +708,9 @@ begin
 
             else
                if Project_File_In_Use = Not_In_Use then
-                  Error_Msg
+                  Error_Msg_N
                     ("pragma Source_File_Name_Project should only be used " &
-                     "with a project file", Pragma_Sloc);
+                     "with a project file", Pragma_Node);
                else
                   Project_File_In_Use := In_Use;
                end if;
@@ -769,9 +753,9 @@ begin
                     or else Intval (Expr) > 999
                     or else Intval (Expr) <= 0
                   then
-                     Error_Msg
+                     Error_Msg_N
                        ("pragma% index must be integer literal" &
-                        " in range 1 .. 999", Sloc (Expr));
+                        " in range 1 .. 999", Expr);
                      raise Error_Resync;
                   else
                      Index := UI_To_Int (Intval (Expr));
@@ -904,8 +888,8 @@ begin
            and then Num_SRef_Pragmas (Current_Source_File) = 0
            and then Operating_Mode /= Check_Syntax
          then
-            Error_Msg -- CODEFIX
-              ("first % pragma must be first line of file", Pragma_Sloc);
+            Error_Msg_N -- CODEFIX
+              ("first % pragma must be first line of file", Pragma_Node);
             raise Error_Resync;
          end if;
 
@@ -913,9 +897,9 @@ begin
 
          if Arg_Count = 1 then
             if Num_SRef_Pragmas (Current_Source_File) = 0 then
-               Error_Msg
+               Error_Msg_N
                  ("file name required for first % pragma in file",
-                  Pragma_Sloc);
+                  Pragma_Node);
                raise Error_Resync;
             else
                Fname := No_File;
@@ -930,17 +914,17 @@ begin
 
             if Num_SRef_Pragmas (Current_Source_File) > 0 then
                if Fname /= Full_Ref_Name (Current_Source_File) then
-                  Error_Msg
-                    ("file name must be same in all % pragmas", Pragma_Sloc);
+                  Error_Msg_N
+                    ("file name must be same in all % pragmas", Pragma_Node);
                   raise Error_Resync;
                end if;
             end if;
          end if;
 
          if Nkind (Expression (Arg1)) /= N_Integer_Literal then
-            Error_Msg
+            Error_Msg_N
               ("argument for pragma% must be integer literal",
-                Sloc (Expression (Arg1)));
+               Expression (Arg1));
             raise Error_Resync;
 
          --  OK, this source reference pragma is effective, however, we
@@ -1055,7 +1039,7 @@ begin
             end if;
 
             if not OK then
-               Error_Msg ("incorrect argument for pragma%", Sloc (A));
+               Error_Msg_N ("incorrect argument for pragma%", A);
                raise Error_Resync;
             end if;
          end if;
@@ -1088,6 +1072,21 @@ begin
       when Pragma_Suppress_All =>
          Set_Has_Pragma_Suppress_All (Cunit (Current_Source_Unit));
 
+      ----------------------
+      -- Warning_As_Error --
+      ----------------------
+
+      --  pragma Warning_As_Error (static_string_EXPRESSION);
+
+      --  Further processing is done in Sem_Prag
+
+      when Pragma_Warning_As_Error =>
+         Check_Arg_Count (1);
+         Check_Arg_Is_String_Literal (Arg1);
+         Warnings_As_Errors_Count := Warnings_As_Errors_Count + 1;
+         Warnings_As_Errors (Warnings_As_Errors_Count) :=
+           new String'(Acquire_Warning_Match_String (Get_Pragma_Arg (Arg1)));
+
       ---------------------
       -- Warnings (GNAT) --
       ---------------------
@@ -1099,7 +1098,7 @@ begin
       --  DETAILS ::= static_string_EXPRESSION
       --  DETAILS ::= On | Off, static_string_EXPRESSION
 
-      --  TOOL_NAME ::= GNAT | GNATProve
+      --  TOOL_NAME ::= GNAT | GNATprove
 
       --  REASON ::= Reason => STRING_LITERAL {& STRING_LITERAL}
 
@@ -1142,11 +1141,11 @@ begin
             return Nkind (Arg1) = N_Identifier
 
               --  Return True if the tool name is GNAT, and we're not in
-              --  GNATprove or CodePeer or ASIS mode...
+              --  GNATprove or CodePeer mode...
 
               and then ((Chars (Arg1) = Name_Gnat
                           and then not
-                            (CodePeer_Mode or GNATprove_Mode or ASIS_Mode))
+                            (CodePeer_Mode or GNATprove_Mode))
 
               --  or if the tool name is GNATprove, and we're in GNATprove
               --  mode.
@@ -1300,80 +1299,80 @@ begin
 
       when Pragma_Abort_Defer
          | Pragma_Abstract_State
-         | Pragma_Acc_Data
-         | Pragma_Acc_Kernels
-         | Pragma_Acc_Loop
-         | Pragma_Acc_Parallel
-         | Pragma_Async_Readers
-         | Pragma_Async_Writers
-         | Pragma_Assertion_Policy
-         | Pragma_Assume
-         | Pragma_Assume_No_Invalid_Values
+         | Pragma_Aggregate_Individually_Assign
          | Pragma_All_Calls_Remote
          | Pragma_Allow_Integer_Address
          | Pragma_Annotate
          | Pragma_Assert
          | Pragma_Assert_And_Cut
+         | Pragma_Assertion_Policy
+         | Pragma_Assume
+         | Pragma_Assume_No_Invalid_Values
+         | Pragma_Async_Readers
+         | Pragma_Async_Writers
          | Pragma_Asynchronous
          | Pragma_Atomic
          | Pragma_Atomic_Components
          | Pragma_Attach_Handler
          | Pragma_Attribute_Definition
-         | Pragma_Check
-         | Pragma_Check_Float_Overflow
-         | Pragma_Check_Name
-         | Pragma_Check_Policy
-         | Pragma_Compile_Time_Error
-         | Pragma_Compile_Time_Warning
-         | Pragma_Constant_After_Elaboration
-         | Pragma_Contract_Cases
-         | Pragma_Convention_Identifier
          | Pragma_CPP_Class
          | Pragma_CPP_Constructor
          | Pragma_CPP_Virtual
          | Pragma_CPP_Vtable
          | Pragma_CPU
+         | Pragma_CUDA_Device
+         | Pragma_CUDA_Execute
+         | Pragma_CUDA_Global
          | Pragma_C_Pass_By_Copy
+         | Pragma_Check
+         | Pragma_Check_Float_Overflow
+         | Pragma_Check_Name
+         | Pragma_Check_Policy
          | Pragma_Comment
          | Pragma_Common_Object
+         | Pragma_Compile_Time_Error
+         | Pragma_Compile_Time_Warning
          | Pragma_Complete_Representation
          | Pragma_Complex_Representation
          | Pragma_Component_Alignment
+         | Pragma_Constant_After_Elaboration
+         | Pragma_Contract_Cases
          | Pragma_Controlled
          | Pragma_Convention
+         | Pragma_Convention_Identifier
          | Pragma_Deadline_Floor
          | Pragma_Debug_Policy
-         | Pragma_Depends
-         | Pragma_Detect_Blocking
          | Pragma_Default_Initial_Condition
          | Pragma_Default_Scalar_Storage_Order
          | Pragma_Default_Storage_Pool
+         | Pragma_Depends
+         | Pragma_Detect_Blocking
          | Pragma_Disable_Atomic_Synchronization
          | Pragma_Discard_Names
          | Pragma_Dispatching_Domain
          | Pragma_Effective_Reads
          | Pragma_Effective_Writes
-         | Pragma_Eliminate
          | Pragma_Elaborate
          | Pragma_Elaborate_All
          | Pragma_Elaborate_Body
          | Pragma_Elaboration_Checks
+         | Pragma_Eliminate
          | Pragma_Enable_Atomic_Synchronization
          | Pragma_Export
          | Pragma_Export_Function
          | Pragma_Export_Object
          | Pragma_Export_Procedure
-         | Pragma_Export_Value
          | Pragma_Export_Valued_Procedure
          | Pragma_Extend_System
          | Pragma_Extensions_Visible
          | Pragma_External
          | Pragma_External_Name_Casing
-         | Pragma_Favor_Top_Level
          | Pragma_Fast_Math
+         | Pragma_Favor_Top_Level
          | Pragma_Finalize_Storage_Only
          | Pragma_Ghost
          | Pragma_Global
+         | Pragma_GNAT_Annotate
          | Pragma_Ident
          | Pragma_Implementation_Defined
          | Pragma_Implemented
@@ -1395,8 +1394,8 @@ begin
          | Pragma_Interface
          | Pragma_Interface_Name
          | Pragma_Interrupt_Handler
-         | Pragma_Interrupt_State
          | Pragma_Interrupt_Priority
+         | Pragma_Interrupt_State
          | Pragma_Invariant
          | Pragma_Keep_Names
          | Pragma_License
@@ -1415,9 +1414,11 @@ begin
          | Pragma_Main
          | Pragma_Main_Storage
          | Pragma_Max_Entry_Queue_Depth
+         | Pragma_Max_Entry_Queue_Length
          | Pragma_Max_Queue_Length
          | Pragma_Memory_Size
          | Pragma_No_Body
+         | Pragma_No_Caching
          | Pragma_No_Component_Reordering
          | Pragma_No_Elaboration_Code_All
          | Pragma_No_Heap_Finalization
@@ -1428,28 +1429,27 @@ begin
          | Pragma_No_Tagged_Streams
          | Pragma_Normalize_Scalars
          | Pragma_Obsolescent
-         | Pragma_Ordered
          | Pragma_Optimize
          | Pragma_Optimize_Alignment
+         | Pragma_Ordered
          | Pragma_Overflow_Mode
          | Pragma_Overriding_Renamings
          | Pragma_Pack
          | Pragma_Part_Of
          | Pragma_Partition_Elaboration_Policy
          | Pragma_Passive
-         | Pragma_Preelaborable_Initialization
-         | Pragma_Polling
-         | Pragma_Prefix_Exception_Messages
          | Pragma_Persistent_BSS
          | Pragma_Post
-         | Pragma_Postcondition
          | Pragma_Post_Class
+         | Pragma_Postcondition
          | Pragma_Pre
+         | Pragma_Pre_Class
          | Pragma_Precondition
          | Pragma_Predicate
          | Pragma_Predicate_Failure
+         | Pragma_Preelaborable_Initialization
          | Pragma_Preelaborate
-         | Pragma_Pre_Class
+         | Pragma_Prefix_Exception_Messages
          | Pragma_Priority
          | Pragma_Priority_Specific_Dispatching
          | Pragma_Profile
@@ -1460,6 +1460,8 @@ begin
          | Pragma_Pure
          | Pragma_Pure_Function
          | Pragma_Queuing_Policy
+         | Pragma_Rational
+         | Pragma_Ravenscar
          | Pragma_Refined_Depends
          | Pragma_Refined_Global
          | Pragma_Refined_Post
@@ -1468,11 +1470,10 @@ begin
          | Pragma_Remote_Access_Type
          | Pragma_Remote_Call_Interface
          | Pragma_Remote_Types
-         | Pragma_Restricted_Run_Time
-         | Pragma_Rational
-         | Pragma_Ravenscar
          | Pragma_Rename_Pragma
+         | Pragma_Restricted_Run_Time
          | Pragma_Reviewable
+         | Pragma_SPARK_Mode
          | Pragma_Secondary_Stack_Size
          | Pragma_Share_Generic
          | Pragma_Shared
@@ -1480,12 +1481,12 @@ begin
          | Pragma_Short_Circuit_And_Or
          | Pragma_Short_Descriptors
          | Pragma_Simple_Storage_Pool_Type
-         | Pragma_SPARK_Mode
+         | Pragma_Static_Elaboration_Desired
          | Pragma_Storage_Size
          | Pragma_Storage_Unit
-         | Pragma_Static_Elaboration_Desired
          | Pragma_Stream_Convert
          | Pragma_Subtitle
+         | Pragma_Subprogram_Variant
          | Pragma_Suppress
          | Pragma_Suppress_Debug_Info
          | Pragma_Suppress_Exception_Locations
@@ -1505,7 +1506,6 @@ begin
          | Pragma_Unevaluated_Use_Of_Old
          | Pragma_Unimplemented_Unit
          | Pragma_Universal_Aliasing
-         | Pragma_Universal_Data
          | Pragma_Unmodified
          | Pragma_Unreferenced
          | Pragma_Unreferenced_Objects
@@ -1513,13 +1513,12 @@ begin
          | Pragma_Unsuppress
          | Pragma_Unused
          | Pragma_Use_VADS_Size
+         | Pragma_Validity_Checks
          | Pragma_Volatile
          | Pragma_Volatile_Components
          | Pragma_Volatile_Full_Access
          | Pragma_Volatile_Function
-         | Pragma_Warning_As_Error
          | Pragma_Weak_External
-         | Pragma_Validity_Checks
       =>
          null;
 

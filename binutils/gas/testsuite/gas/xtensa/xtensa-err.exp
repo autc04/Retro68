@@ -1,4 +1,4 @@
-# Copyright (C) 2001-2018 Free Software Foundation, Inc.
+# Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,11 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
-if { ! [istarget "xtensa*-*-*"] } {
-    return
-}
-
-proc run_xtensa_err_tests { } {
+if [istarget xtensa*-*-*] {
     global srcdir subdir runtests
 
     load_lib gas-dg.exp
@@ -26,5 +22,3 @@ proc run_xtensa_err_tests { } {
     dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/err-*.s]] "" ""
     dg-finish
 }
-
-run_xtensa_err_tests

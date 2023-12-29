@@ -102,10 +102,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		switch n := n.(type) {
 		case *ast.FuncDecl:
-			fn := pass.TypesInfo.Defs[n.Name].(*types.Func)
-			funcDecls[fn] = &declInfo{decl: n}
-			decls = append(decls, fn)
-
+			// Type information may be incomplete.
+			if fn, ok := pass.TypesInfo.Defs[n.Name].(*types.Func); ok {
+				funcDecls[fn] = &declInfo{decl: n}
+				decls = append(decls, fn)
+			}
 		case *ast.FuncLit:
 			funcLits[n] = new(litInfo)
 			lits = append(lits, n)
@@ -186,7 +187,11 @@ func (c *CFGs) callMayReturn(call *ast.CallExpr) (r bool) {
 		return false // panic never returns
 	}
 
-	// Is this a static call?
+	// Is this a static call? Also includes static functions
+	// parameterized by a type. Such functions may or may not
+	// return depending on the parameter type, but in some
+	// cases the answer is definite. We let ctrlflow figure
+	// that out.
 	fn := typeutil.StaticCallee(c.pass.TypesInfo, call)
 	if fn == nil {
 		return true // callee not statically known; be conservative

@@ -1,8 +1,8 @@
-#source: attr-gnu-4-0.s -mips3 -64 -EB
-#ld: -melf64btsmip -e 0
+#source: attr-gnu-4-0.s -mips3
+#ld: -e 0
 #objdump: -p
 
-[^:]*:     file format elf64-tradbigmips
+[^:]*:     file format elf64-.*mips.*
 
 Program Header:
 0x70000003 off    0x00000000000000b0 vaddr 0x00000001200000b0 paddr 0x00000001200000b0 align 2\*\*3

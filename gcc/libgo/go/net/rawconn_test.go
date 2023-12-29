@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
+//go:build !js
 
 package net
 
@@ -15,7 +15,7 @@ import (
 
 func TestRawConnReadWrite(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -64,10 +64,7 @@ func TestRawConnReadWrite(t *testing.T) {
 				return
 			}
 		}
-		ls, err := newLocalServer("tcp")
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := newLocalServer(t, "tcp")
 		defer ls.teardown()
 		if err := ls.buildup(handler); err != nil {
 			t.Fatal(err)
@@ -102,10 +99,7 @@ func TestRawConnReadWrite(t *testing.T) {
 			t.Skipf("not supported on %s", runtime.GOOS)
 		}
 
-		ln, err := newLocalListener("tcp")
-		if err != nil {
-			t.Fatal(err)
-		}
+		ln := newLocalListener(t, "tcp")
 		defer ln.Close()
 
 		c, err := Dial(ln.Addr().Network(), ln.Addr().String())
@@ -130,7 +124,7 @@ func TestRawConnReadWrite(t *testing.T) {
 		if perr := parseWriteError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Errorf("got %v; want timeout", err)
 		}
 		if _, err = readRawConn(cc, b[:]); err == nil {
@@ -139,7 +133,7 @@ func TestRawConnReadWrite(t *testing.T) {
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Errorf("got %v; want timeout", err)
 		}
 
@@ -153,7 +147,7 @@ func TestRawConnReadWrite(t *testing.T) {
 		if perr := parseReadError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Errorf("got %v; want timeout", err)
 		}
 
@@ -167,7 +161,7 @@ func TestRawConnReadWrite(t *testing.T) {
 		if perr := parseWriteError(err); perr != nil {
 			t.Error(perr)
 		}
-		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+		if !isDeadlineExceeded(err) {
 			t.Errorf("got %v; want timeout", err)
 		}
 	})
@@ -175,15 +169,12 @@ func TestRawConnReadWrite(t *testing.T) {
 
 func TestRawConnControl(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
 	t.Run("TCP", func(t *testing.T) {
-		ln, err := newLocalListener("tcp")
-		if err != nil {
-			t.Fatal(err)
-		}
+		ln := newLocalListener(t, "tcp")
 		defer ln.Close()
 
 		cc1, err := ln.(*TCPListener).SyscallConn()

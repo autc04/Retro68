@@ -1,6 +1,6 @@
 // The template and inlines for the -*- C++ -*- complex number classes.
 
-// Copyright (C) 1997-2019 Free Software Foundation, Inc.
+// Copyright (C) 1997-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -46,6 +46,10 @@
 
 // Get rid of a macro possibly defined in <complex.h>
 #undef complex
+
+#if __cplusplus > 201703L
+# define __cpp_lib_constexpr_complex 201711L
+#endif
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -120,8 +124,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  @param  Tp  Type of real and imaginary values.
   */
   template<typename _Tp>
-    struct complex
+    class complex
     {
+    public:
       /// Value typedef.
       typedef _Tp value_type;
 
@@ -320,7 +325,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   // Operators:
-  //@{
+  ///@{
   ///  Return new complex value @a x plus @a y.
   template<typename _Tp>
     inline _GLIBCXX20_CONSTEXPR complex<_Tp>
@@ -348,9 +353,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       __r += __x;
       return __r;
     }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   ///  Return new complex value @a x minus @a y.
   template<typename _Tp>
     inline _GLIBCXX20_CONSTEXPR complex<_Tp>
@@ -378,9 +383,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       __r += __x;
       return __r;
     }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   ///  Return new complex value @a x times @a y.
   template<typename _Tp>
     inline _GLIBCXX20_CONSTEXPR complex<_Tp>
@@ -408,9 +413,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       __r *= __x;
       return __r;
     }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   ///  Return new complex value @a x divided by @a y.
   template<typename _Tp>
     inline _GLIBCXX20_CONSTEXPR complex<_Tp>
@@ -438,7 +443,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       __r /= __y;
       return __r;
     }
-  //@}
+  ///@}
 
   ///  Return @a x.
   template<typename _Tp>
@@ -452,7 +457,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     operator-(const complex<_Tp>& __x)
     { return complex<_Tp>(-__x.real(), -__x.imag()); }
 
-  //@{
+  ///@{
   ///  Return true if @a x is equal to @a y.
   template<typename _Tp>
     inline _GLIBCXX_CONSTEXPR bool
@@ -464,13 +469,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     operator==(const complex<_Tp>& __x, const _Tp& __y)
     { return __x.real() == __y && __x.imag() == _Tp(); }
 
+#if !(__cpp_impl_three_way_comparison >= 201907L)
   template<typename _Tp>
     inline _GLIBCXX_CONSTEXPR bool
     operator==(const _Tp& __x, const complex<_Tp>& __y)
     { return __x == __y.real() && _Tp() == __y.imag(); }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   ///  Return false if @a x is equal to @a y.
   template<typename _Tp>
     inline _GLIBCXX_CONSTEXPR bool
@@ -486,7 +492,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     inline _GLIBCXX_CONSTEXPR bool
     operator!=(const _Tp& __x, const complex<_Tp>& __y)
     { return __x != __y.real() || _Tp() != __y.imag(); }
-  //@}
+#endif
+  ///@}
 
   ///  Extraction operator for complex values.
   template<typename _Tp, typename _CharT, class _Traits>
@@ -1073,8 +1080,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /// 26.2.3  complex specializations
   /// complex<float> specialization
   template<>
-    struct complex<float>
+    class complex<float>
     {
+    public:
       typedef float value_type;
       typedef __complex__ float _ComplexT;
 
@@ -1218,8 +1226,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /// 26.2.3  complex specializations
   /// complex<double> specialization
   template<>
-    struct complex<double>
+    class complex<double>
     {
+    public:
       typedef double value_type;
       typedef __complex__ double _ComplexT;
 
@@ -1363,8 +1372,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /// 26.2.3  complex specializations
   /// complex<long double> specialization
   template<>
-    struct complex<long double>
+    class complex<long double>
     {
+    public:
       typedef long double value_type;
       typedef __complex__ long double _ComplexT;
 
@@ -1542,36 +1552,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
 #endif
 
-  // @} group complex_numbers
-
-_GLIBCXX_END_NAMESPACE_VERSION
-} // namespace
-
-namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
-{
-_GLIBCXX_BEGIN_NAMESPACE_VERSION
-
-  // See ext/type_traits.h for the primary template.
-  template<typename _Tp, typename _Up>
-    struct __promote_2<std::complex<_Tp>, _Up>
-    {
-    public:
-      typedef std::complex<typename __promote_2<_Tp, _Up>::__type> __type;
-    };
-
-  template<typename _Tp, typename _Up>
-    struct __promote_2<_Tp, std::complex<_Up> >
-    {
-    public:
-      typedef std::complex<typename __promote_2<_Tp, _Up>::__type> __type;
-    };
-
-  template<typename _Tp, typename _Up>
-    struct __promote_2<std::complex<_Tp>, std::complex<_Up> >
-    {
-    public:
-      typedef std::complex<typename __promote_2<_Tp, _Up>::__type> __type;
-    };
+  /// @} group complex_numbers
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
@@ -1898,41 +1879,59 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Tp>
     std::complex<_Tp> proj(const std::complex<_Tp>&);
 
-  template<typename _Tp>
-    std::complex<_Tp>
-    __complex_proj(const std::complex<_Tp>& __z)
-    {
-      const _Tp __den = (__z.real() * __z.real()
-			 + __z.imag() * __z.imag() + _Tp(1.0));
-
-      return std::complex<_Tp>((_Tp(2.0) * __z.real()) / __den,
-			       (_Tp(2.0) * __z.imag()) / __den);
-    }
-
-#if _GLIBCXX_USE_C99_COMPLEX
-  inline __complex__ float
-  __complex_proj(__complex__ float __z)
-  { return __builtin_cprojf(__z); }
-
-  inline __complex__ double
-  __complex_proj(__complex__ double __z)
-  { return __builtin_cproj(__z); }
-
-  inline __complex__ long double
-  __complex_proj(const __complex__ long double& __z)
-  { return __builtin_cprojl(__z); }
-
+  // Generic implementation of std::proj, does not work for infinities.
   template<typename _Tp>
     inline std::complex<_Tp>
-    proj(const std::complex<_Tp>& __z)
-    { return __complex_proj(__z.__rep()); }
-#else
+    __complex_proj(const std::complex<_Tp>& __z)
+    { return __z; }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline complex<float>
+  __complex_proj(const complex<float>& __z)
+  { return __builtin_cprojf(__z.__rep()); }
+
+  inline complex<double>
+  __complex_proj(const complex<double>& __z)
+  { return __builtin_cproj(__z.__rep()); }
+
+  inline complex<long double>
+  __complex_proj(const complex<long double>& __z)
+  { return __builtin_cprojl(__z.__rep()); }
+#elif defined _GLIBCXX_USE_C99_MATH_TR1
+  inline complex<float>
+  __complex_proj(const complex<float>& __z)
+  {
+    if (__builtin_isinf(__z.real()) || __builtin_isinf(__z.imag()))
+      return complex<float>(__builtin_inff(),
+			    __builtin_copysignf(0.0f, __z.imag()));
+    return __z;
+  }
+
+  inline complex<double>
+  __complex_proj(const complex<double>& __z)
+  {
+    if (__builtin_isinf(__z.real()) || __builtin_isinf(__z.imag()))
+      return complex<double>(__builtin_inf(),
+			     __builtin_copysign(0.0, __z.imag()));
+    return __z;
+  }
+
+  inline complex<long double>
+  __complex_proj(const complex<long double>& __z)
+  {
+    if (__builtin_isinf(__z.real()) || __builtin_isinf(__z.imag()))
+      return complex<long double>(__builtin_infl(),
+				  __builtin_copysignl(0.0l, __z.imag()));
+    return __z;
+  }
+#endif
+
   template<typename _Tp>
     inline std::complex<_Tp>
     proj(const std::complex<_Tp>& __z)
     { return __complex_proj(__z); }
-#endif
 
+  // Overload for scalars
   template<typename _Tp>
     inline std::complex<typename __gnu_cxx::__promote<_Tp>::__type>
     proj(_Tp __x)
@@ -1956,7 +1955,7 @@ inline namespace literals {
 inline namespace complex_literals {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wliteral-suffix"
-#define __cpp_lib_complex_udls 201309
+#define __cpp_lib_complex_udls 201309L
 
   constexpr std::complex<float>
   operator""if(long double __num)

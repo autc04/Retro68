@@ -92,7 +92,7 @@ Disassembly of section \.text:
 .*:	(fd c0 78 35|35 78 c0 fd) 	frsqrte\. f14,f15
 .*:	(ed c0 78 34|34 78 c0 ed) 	frsqrtes f14,f15
 .*:	(ed c0 78 35|35 78 c0 ed) 	frsqrtes\. f14,f15
-.*:	(7c 43 27 1e|1e 27 43 7c) 	isel    r2,r3,r4,28
+.*:	(7c 43 27 1e|1e 27 43 7c) 	isel    r2,r3,r4,4\*cr7\+lt
 .*:	(7f 7b db 78|78 db 7b 7f) 	yield
 .*:	(7f 7b db 78|78 db 7b 7f) 	yield
 .*:	(60 42 00 00|00 00 42 60) 	ori     r2,r2,0
@@ -103,9 +103,5 @@ Disassembly of section \.text:
 .*:	(7f bd eb 78|78 eb bd 7f) 	mdoio
 .*:	(7f de f3 78|78 f3 de 7f) 	mdoom
 .*:	(7f de f3 78|78 f3 de 7f) 	mdoom
-.*:	(7d 40 e2 a6|a6 e2 40 7d) 	mfppr   r10
-.*:	(7d 62 e2 a6|a6 e2 62 7d) 	mfppr32 r11
-.*:	(7d 80 e3 a6|a6 e3 80 7d) 	mtppr   r12
-.*:	(7d a2 e3 a6|a6 e3 a2 7d) 	mtppr32 r13
 .*:	(7d 60 52 64|64 52 60 7d) 	tlbie   r10,r11
 #pass

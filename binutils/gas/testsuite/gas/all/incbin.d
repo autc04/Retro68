@@ -1,7 +1,6 @@
 #as: -I$srcdir/$subdir
 #objdump: -s -j .text
 #name: incbin
-#not-target: m32c-*
 
 # Test the incbin pseudo-op
 

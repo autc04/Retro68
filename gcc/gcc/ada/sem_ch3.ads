@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,7 +23,6 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Nlists; use Nlists;
 with Types;  use Types;
 
 package Sem_Ch3 is
@@ -70,8 +69,10 @@ package Sem_Ch3 is
    --  interface primitives with the tagged type primitives that cover them.
 
    procedure Analyze_Declarations (L : List_Id);
-   --  Called to analyze a list of declarations (in what context ???). Also
-   --  performs necessary freezing actions (more description needed ???)
+   --  Called to analyze a list of declarations. Also performs necessary
+   --  freezing actions (such as freezing remaining unfrozen entities at
+   --  the end of declarative parts), resolves usage names in aspects, and
+   --  analyzes contracts that require delay until after freezing is done.
 
    procedure Analyze_Interface_Declaration (T : Entity_Id; Def : Node_Id);
    --  Analyze an interface declaration or a formal interface declaration
@@ -170,14 +171,10 @@ package Sem_Ch3 is
      (Discriminant       : Entity_Id;
       Typ_For_Constraint : Entity_Id;
       Constraint         : Elist_Id) return Node_Id;
-   --  ??? MORE DOCUMENTATION
-   --  Given a discriminant somewhere in the Typ_For_Constraint tree and a
-   --  Constraint, return the value of that discriminant.
-
-   function Is_Null_Extension (T : Entity_Id) return Boolean;
-   --  Returns True if the tagged type T has an N_Full_Type_Declaration that
-   --  is a null extension, meaning that it has an extension part without any
-   --  components and does not have a known discriminant part.
+   --  Given a discriminant Discriminant occurring somewhere up the derivation
+   --  tree from Typ_For_Constraint and a Constraint, return the expression
+   --  corresponding to that discriminant in the constraint that specifies its
+   --  value.
 
    function Is_Visible_Component
      (C : Entity_Id;
@@ -196,8 +193,7 @@ package Sem_Ch3 is
      (N            : Node_Id;
       Related_Nod  : Node_Id;
       Related_Id   : Entity_Id := Empty;
-      Suffix_Index : Nat       := 1;
-      In_Iter_Schm : Boolean   := False);
+      Suffix_Index : Pos       := 1);
    --  Process an index that is given in an array declaration, an entry
    --  family declaration or a loop iteration. The index is given by an index
    --  declaration (a 'box'), or by a discrete range. The later can be the name
@@ -205,8 +201,7 @@ package Sem_Ch3 is
    --
    --  Related_Nod is the node where the potential generated implicit types
    --  will be inserted. The next last parameters are used for creating the
-   --  name. In_Iter_Schm is True if Make_Index is called on the discrete
-   --  subtype definition in an iteration scheme.
+   --  name.
 
    procedure Make_Class_Wide_Type (T : Entity_Id);
    --  A Class_Wide_Type is created for each tagged type definition. The
@@ -244,7 +239,7 @@ package Sem_Ch3 is
    --  Default and per object expressions do not freeze their components, and
    --  must be analyzed and resolved accordingly. The analysis is done by
    --  calling the Preanalyze_And_Resolve routine and setting the global
-   --  In_Default_Expression flag. See the documentation section entitled
+   --  In_Spec_Expression flag. See the documentation section entitled
    --  "Handling of Default and Per-Object Expressions" in sem.ads for full
    --  details. N is the expression to be analyzed, T is the expected type.
    --  This mechanism is also used for aspect specifications that have an
@@ -262,12 +257,10 @@ package Sem_Ch3 is
    --  Priv_T is the private view of the type whose full declaration is in N.
 
    procedure Process_Range_Expr_In_Decl
-     (R            : Node_Id;
-      T            : Entity_Id;
-      Subtyp       : Entity_Id := Empty;
-      Check_List   : List_Id   := Empty_List;
-      R_Check_Off  : Boolean   := False;
-      In_Iter_Schm : Boolean   := False);
+     (R          : Node_Id;
+      T          : Entity_Id;
+      Subtyp     : Entity_Id := Empty;
+      Check_List : List_Id   := No_List);
    --  Process a range expression that appears in a declaration context. The
    --  range is analyzed and resolved with the base type of the given type, and
    --  an appropriate check for expressions in non-static contexts made on the
@@ -277,9 +270,7 @@ package Sem_Ch3 is
    --  pointer of R so that the types get properly frozen. Check_List is used
    --  when the subprogram is called from Build_Record_Init_Proc and is used to
    --  return a set of constraint checking statements generated by the Checks
-   --  package. R_Check_Off is set to True when the call to Range_Check is to
-   --  be skipped. In_Iter_Schm is True if Process_Range_Expr_In_Decl is called
-   --  on the discrete subtype definition in an iteration scheme.
+   --  package.
    --
    --  If Subtyp is given, then the range is for the named subtype Subtyp, and
    --  in this case the bounds are captured if necessary using this name.

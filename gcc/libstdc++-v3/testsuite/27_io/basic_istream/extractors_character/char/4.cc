@@ -1,6 +1,6 @@
 // 2005-07-22  Paolo Carlini  <pcarlini@suse.de>
 
-// Copyright (C) 2005-2019 Free Software Foundation, Inc.
+// Copyright (C) 2005-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,6 +19,7 @@
 
 // 27.6.1.2.3 basic_istream::operator>>
 
+// { dg-do run { target { ! c++20 } } }
 // { dg-require-fileio "" }
 
 #include <istream>

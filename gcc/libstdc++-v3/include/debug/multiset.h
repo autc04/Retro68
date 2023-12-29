@@ -1,6 +1,6 @@
 // Debugging multiset implementation -*- C++ -*-
 
-// Copyright (C) 2003-2019 Free Software Foundation, Inc.
+// Copyright (C) 2003-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -32,7 +32,7 @@
 #include <debug/safe_sequence.h>
 #include <debug/safe_container.h>
 #include <debug/safe_iterator.h>
-#include <utility>
+#include <bits/stl_pair.h>
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -57,6 +57,16 @@ namespace __debug
 
       template<typename _ItT, typename _SeqT, typename _CatT>
 	friend class ::__gnu_debug::_Safe_iterator;
+
+      // Reference wrapper for base class. Disambiguates multiset(const _Base&)
+      // from copy constructor by requiring a user-defined conversion.
+      // See PR libstdc++/90102.
+      struct _Base_ref
+      {
+	_Base_ref(const _Base& __r) : _M_ref(__r) { }
+
+	const _Base& _M_ref;
+      };
 
     public:
       // types:
@@ -103,13 +113,14 @@ namespace __debug
       multiset(const allocator_type& __a)
       : _Base(__a) { }
 
-      multiset(const multiset& __m, const allocator_type& __a)
+      multiset(const multiset& __m,
+	       const __type_identity_t<allocator_type>& __a)
       : _Base(__m, __a) { }
 
-      multiset(multiset&& __m, const allocator_type& __a)
-      noexcept( noexcept(_Base(std::move(__m._M_base()), __a)) )
-      : _Safe(std::move(__m._M_safe()), __a),
-	_Base(std::move(__m._M_base()), __a) { }
+      multiset(multiset&& __m, const __type_identity_t<allocator_type>& __a)
+      noexcept( noexcept(_Base(std::move(__m), __a)) )
+      : _Safe(std::move(__m), __a),
+	_Base(std::move(__m), __a) { }
 
       multiset(initializer_list<value_type> __l, const allocator_type& __a)
 	: _Base(__l, __a)
@@ -138,18 +149,10 @@ namespace __debug
 		__gnu_debug::__base(__last),
 		__comp, __a) { }
 
-      multiset(const _Base& __x)
-      : _Base(__x) { }
+      multiset(_Base_ref __x)
+      : _Base(__x._M_ref) { }
 
-#if __cplusplus < 201103L
-      multiset&
-      operator=(const multiset& __x)
-      {
-	this->_M_safe() = __x;
-	_M_base() = __x;
-	return *this;
-      }
-#else
+#if __cplusplus >= 201103L
       multiset&
       operator=(const multiset&) = default;
 
@@ -159,7 +162,7 @@ namespace __debug
       multiset&
       operator=(initializer_list<value_type> __l)
       {
-	_M_base() = __l;
+	_Base::operator=(__l);
 	this->_M_invalidate_all();
 	return *this;
       }
@@ -329,8 +332,15 @@ namespace __debug
       erase(const_iterator __position)
       {
 	__glibcxx_check_erase(__position);
-	this->_M_invalidate_if(_Equal(__position.base()));
-	return { _Base::erase(__position.base()), this };
+	return { erase(__position.base()), this };
+      }
+
+      _Base_iterator
+      erase(_Base_const_iterator __position)
+      {
+	__glibcxx_check_erase2(__position);
+	this->_M_invalidate_if(_Equal(__position));
+	return _Base::erase(__position);
       }
 #else
       void
@@ -584,7 +594,7 @@ namespace __debug
     multiset(initializer_list<_Key>, _Allocator)
     -> multiset<_Key, less<_Key>, _Allocator>;
 
-#endif
+#endif // deduction guides
 
   template<typename _Key, typename _Compare, typename _Allocator>
     inline bool
@@ -592,6 +602,13 @@ namespace __debug
 	       const multiset<_Key, _Compare, _Allocator>& __rhs)
     { return __lhs._M_base() == __rhs._M_base(); }
 
+#if __cpp_lib_three_way_comparison
+  template<typename _Key, typename _Compare, typename _Alloc>
+    inline __detail::__synth3way_t<_Key>
+    operator<=>(const multiset<_Key, _Compare, _Alloc>& __lhs,
+		const multiset<_Key, _Compare, _Alloc>& __rhs)
+    { return __lhs._M_base() <=> __rhs._M_base(); }
+#else
   template<typename _Key, typename _Compare, typename _Allocator>
     inline bool
     operator!=(const multiset<_Key, _Compare, _Allocator>& __lhs,
@@ -621,6 +638,7 @@ namespace __debug
     operator>(const multiset<_Key, _Compare, _Allocator>& __lhs,
 	      const multiset<_Key, _Compare, _Allocator>& __rhs)
     { return __lhs._M_base() > __rhs._M_base(); }
+#endif // three-way comparison
 
   template<typename _Key, typename _Compare, typename _Allocator>
     void

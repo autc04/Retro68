@@ -5,13 +5,14 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_dde.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_dde.d)
  */
 module core.sys.windows.dde;
 version (Windows):
+@system:
 pragma(lib, "user32");
 
-private import core.sys.windows.windef;
+import core.sys.windows.windef;
 
 enum : uint {
     WM_DDE_FIRST     = 0x03E0,

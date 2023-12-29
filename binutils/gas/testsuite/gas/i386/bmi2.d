@@ -1,4 +1,4 @@
-#as: 
+#as:
 #objdump: -dw
 #name: i386 BMI2 insns
 

@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *         Copyright (C) 1992-2019, Free Software Foundation, Inc.          *
+ *         Copyright (C) 1992-2022, Free Software Foundation, Inc.          *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -33,6 +33,7 @@
    GNAT Run Time Library */
 
 #ifdef __vxworks
+#include "vxWorks.h"
 #include "ioLib.h"
 #if ! defined (VTHREADS)
 #include "dosFsLib.h"
@@ -41,7 +42,6 @@
 # include "nfsLib.h"
 #endif
 #include "selectLib.h"
-#include "vxWorks.h"
 #include "version.h"
 #if defined (__RTP__)
 #  include "vwModNum.h"
@@ -54,8 +54,10 @@
 
 #ifdef IN_RTS
 #define POSIX
-#include "tconfig.h"
-#include "tsystem.h"
+#include "runtime.h"
+#include <string.h>
+#include <unistd.h>
+
 #include <fcntl.h>
 #include <sys/stat.h>
 #else
@@ -300,7 +302,7 @@ __gnat_set_mode (int handle ATTRIBUTE_UNUSED, int mode ATTRIBUTE_UNUSED)
 }
 
 char *
-__gnat_ttyname (int filedes)
+__gnat_ttyname (int filedes ATTRIBUTE_UNUSED)
 {
 #if defined (__vxworks)
   return "";
@@ -641,11 +643,11 @@ long __gnat_invalid_tzoff = 259273;
 /* Reentrant localtime for Windows. */
 
 extern void
-__gnat_localtime_tzoff (const time_t *, const int *, long *);
+__gnat_localtime_tzoff (const OS_Time *, const int *, long *);
 
 static const unsigned long long w32_epoch_offset = 11644473600ULL;
 void
-__gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
+__gnat_localtime_tzoff (const OS_Time *timer, const int *is_historic, long *off)
 {
   TIME_ZONE_INFORMATION tzi;
 
@@ -701,7 +703,7 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
        to get timezone settings that depend on the year. We cannot use them as
        we still support Windows XP and Windows 2003.  */
 
-    status = (tzi_status >= 0 && tzi_status <= 2)
+    status = tzi_status <= 2
       && FileTimeToSystemTime (&utc_time.ft_time, &utc_sys_time)
       && SystemTimeToTzSpecificLocalTime (&tzi, &utc_sys_time, &local_sys_time)
       && SystemTimeToFileTime (&local_sys_time, &local_time.ft_time);
@@ -735,10 +737,10 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
    the Lynx convention when building against the legacy API. */
 
 extern void
-__gnat_localtime_tzoff (const time_t *, const int *, long *);
+__gnat_localtime_tzoff (const OS_Time *, const int *, long *);
 
 void
-__gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
+__gnat_localtime_tzoff (const OS_Time *timer, const int *is_historic, long *off)
 {
   *off = 0;
 }
@@ -754,21 +756,22 @@ extern void (*Lock_Task) (void);
 extern void (*Unlock_Task) (void);
 
 extern void
-__gnat_localtime_tzoff (const time_t *, const int *, long *);
+__gnat_localtime_tzoff (const OS_Time *, const int *, long *);
 
 void
-__gnat_localtime_tzoff (const time_t *timer ATTRIBUTE_UNUSED,
+__gnat_localtime_tzoff (const OS_Time *timer ATTRIBUTE_UNUSED,
 			const int *is_historic ATTRIBUTE_UNUSED,
 			long *off ATTRIBUTE_UNUSED)
 {
   struct tm tp ATTRIBUTE_UNUSED;
+  const time_t time = (time_t) *timer;
 
 /* AIX, HPUX, Sun Solaris */
 #if defined (_AIX) || defined (__hpux__) || defined (__sun__)
 {
   (*Lock_Task) ();
 
-  localtime_r (timer, &tp);
+  localtime_r (&time, &tp);
   *off = (long) -timezone;
 
   (*Unlock_Task) ();
@@ -785,7 +788,7 @@ __gnat_localtime_tzoff (const time_t *timer ATTRIBUTE_UNUSED,
 {
   (*Lock_Task) ();
 
-  localtime_r (timer, &tp);
+  localtime_r (&time, &tp);
 
   /* Try to read the environment variable TIMEZONE. The variable may not have
      been initialize, in that case return an offset of zero (0) for UTC. */
@@ -831,7 +834,7 @@ __gnat_localtime_tzoff (const time_t *timer ATTRIBUTE_UNUSED,
   || defined (__GLIBC__) || defined (__DragonFly__) || defined (__OpenBSD__) \
   || defined (__DJGPP__) || defined (__QNX__)
 {
-  localtime_r (timer, &tp);
+  localtime_r (&time, &tp);
   *off = tp.tm_gmtoff;
 }
 
@@ -896,30 +899,38 @@ __gnat_get_task_options (void)
 #endif
 
 int
-__gnat_is_file_not_found_error (int errno_val) {
-   switch (errno_val) {
-      case ENOENT:
+__gnat_is_file_not_found_error (int errno_val)
+ {
+    /* WARNING: Do not rewrite this as a switch/case statement.
+     * Some of the "cases" are duplicated in some versions of
+     * Vxworks, notably VxWorks7r2 SR0610.  */
+    if (errno_val == ENOENT)
+      return 1;
 #ifdef __vxworks
-      /* In the case of VxWorks, we also have to take into account various
-       * filesystem-specific variants of this error.
-       */
+    /* Starting with VxWorks 21.03, the fopen() function can set errno to
+     * ENODEV when the prefix of the path does not match any known device. */
+    else if (errno_val == ENODEV)
+      return 1;
+    /* In the case of VxWorks, we also have to take into account various
+     * filesystem-specific variants of this error.
+     */
 #if ! defined (VTHREADS) && (_WRS_VXWORKS_MAJOR < 7)
-      case S_dosFsLib_FILE_NOT_FOUND:
+    else if (errno_val == S_dosFsLib_FILE_NOT_FOUND)
+      return 1;
 #endif
 #if ! defined (__RTP__) && (! defined (VTHREADS) || defined (__VXWORKSMILS__))
-      case S_nfsLib_NFSERR_NOENT:
+    else if (errno_val ==  S_nfsLib_NFSERR_NOENT)
+      return 1;
 #endif
 #if defined (__RTP__)
-	/* An RTP can return an NFS file not found, and the NFS bits must
-	   first be masked on to check the errno.  */
-      case M_nfsStat | ENOENT:
+    /* An RTP can return an NFS file not found, and the NFS bits must
+       first be masked on to check the errno.  */
+    else if (errno_val == (M_nfsStat | ENOENT))
+      return 1;
 #endif
 #endif
-         return 1;
-
-      default:
-        return 0;
-   }
+    else
+      return 0;
 }
 
 #if defined (__linux__)
@@ -1066,4 +1077,3 @@ __gnat_name_case_equivalence ()
   return 1;
 #endif
 }
-

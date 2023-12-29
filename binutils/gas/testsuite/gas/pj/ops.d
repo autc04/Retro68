@@ -222,23 +222,23 @@ Disassembly of section .text:
   be:	96          	fcmpg
   bf:	97          	dcmpl
   c0:	98          	dcmpg
-  c1:	99 ff 41    	ifeq2 <foo1>
-  c4:	9a ff 47    	ifneb <foo10>
-  c7:	9b ff 41    	iflt8 <foo7>
-  ca:	9c ff 48    	ifge12 <foo17>
-  cd:	9d ff 39    	ifgt6 <foo5>
-  d0:	9e ff 3a    	iflea <foo9>
-  d3:	9f ff 38    	if_icmpeqb <foo10>
-  d6:	a0 ff 3a    	if_icmpne10 <foo15>
-  d9:	a1 ff 30    	if_icmplt9 <foo8>
-  dc:	a2 ff 31    	if_icmpged <foo12>
-  df:	a3 ff 29    	if_icmpgt8 <foo7>
-  e2:	a4 ff 2b    	if_icmpled <foo12>
-  e5:	a5 ff 22    	if_acmpeq7 <foo6>
-  e8:	a6 ff 20    	if_acmpne8 <foo7>
-  eb:	a7 ff 1b    	goto6 <foo5>
-  ee:	a8 00 00    	jsr
-  f1:	a9 00       	ret
+  c1:	99 ff 41    	ifeq	2 <foo1>
+  c4:	9a ff 47    	ifne	b <foo10>
+  c7:	9b ff 41    	iflt	8 <foo7>
+  ca:	9c ff 48    	ifge	12 <foo17>
+  cd:	9d ff 39    	ifgt	6 <foo5>
+  d0:	9e ff 3a    	ifle	a <foo9>
+  d3:	9f ff 38    	if_icmpeq	b <foo10>
+  d6:	a0 ff 3a    	if_icmpne	10 <foo15>
+  d9:	a1 ff 30    	if_icmplt	9 <foo8>
+  dc:	a2 ff 31    	if_icmpge	d <foo12>
+  df:	a3 ff 29    	if_icmpgt	8 <foo7>
+  e2:	a4 ff 2b    	if_icmple	d <foo12>
+  e5:	a5 ff 22    	if_acmpeq	7 <foo6>
+  e8:	a6 ff 20    	if_acmpne	8 <foo7>
+  eb:	a7 ff 1b    	goto	6 <foo5>
+  ee:	a8 ff 13    	jsr	1 <foo0>
+  f1:	a9 00       	ret	0
   f3:	aa ff ff ff 	tableswitch default: .*
   f7:	0f 00 00 00 
   fb:	01 00 00 00 
@@ -261,14 +261,14 @@ Disassembly of section .text:
  133:	af          	dreturn
  134:	b0          	areturn
  135:	b1          	return
- 136:	b2 00 00    	getstatic
- 139:	b3 00 00    	putstatic
- 13c:	b4 00 00    	getfield
- 13f:	b5 00 00    	putfield
- 142:	b6 00 00    	invokevirtual
- 145:	b7 00 00    	invokespecial
- 148:	b8 00 00    	invokestatic
- 14b:	b9 00 00 00 	invokeinterface
+ 136:	b2 12 34    	getstatic	4660
+ 139:	b3 12 34    	putstatic	4660
+ 13c:	b4 12 34    	getfield	4660
+ 13f:	b5 12 34    	putfield	4660
+ 142:	b6 12 34    	invokevirtual	4660
+ 145:	b7 12 34    	invokespecial	4660
+ 148:	b8 12 34    	invokestatic	4660
+ 14b:	b9 12 34 01 	invokeinterface	4660,1
  14f:	00 
  150:	bb 00 00    	new
  153:	bc 00       	newarray
@@ -283,125 +283,115 @@ Disassembly of section .text:
  163:	c5 00 00 00 	multianewarray
  167:	c6 00 00    	ifnull
  16a:	c7 00 00    	ifnonnull
- 16d:	c8 00 00 00 	goto_w
- 171:	00 
- 172:	c9 00 00 00 	jsr_w
- 176:	00 
- 177:	ca          	breakpoint
- 178:	cb          	bytecode
- 179:	cc          	try
- 17a:	cd          	endtry
- 17b:	ce          	catch
- 17c:	cf          	var
- 17d:	d0          	endvar
- 17e:	ed b0 a3    	sethi	-20317
- 181:	ee 5a a5    	load_word_index	90,165
- 184:	ef 5d 85    	load_short_index	93,133
- 187:	f0 17 d8    	load_char_index	23,216
- 18a:	f1 e9 de    	load_byte_index	233,222
- 18d:	f2 d4 2b    	load_ubyte_index	212,43
- 190:	f3 b2 4d    	store_word_index	178,77
- 193:	f4 c6 1b    	na_store_word_index	198,27
- 196:	f5 b4 d4    	store_short_index	180,212
- 199:	f6 11 8e    	store_byte_index	17,142
- 19c:	ff 00       	load_ubyte	
- 19e:	ff 01       	load_byte	
- 1a0:	ff 02       	load_char	
- 1a2:	ff 03       	load_short	
- 1a4:	ff 04       	load_word	
- 1a6:	ff 05       	priv_ret_from_trap	
- 1a8:	ff 06       	priv_read_dcache_tag	
- 1aa:	ff 07       	priv_read_dcache_data	
- 1ac:	ff 0a       	load_char_oe	
- 1ae:	ff 0b       	load_short_oe	
- 1b0:	ff 0c       	load_word_oe	
- 1b2:	ff 0d       	return0	
- 1b4:	ff 0e       	priv_read_icache_tag	
- 1b6:	ff 0f       	priv_read_icache_data	
- 1b8:	ff 10       	ncload_ubyte	
- 1ba:	ff 11       	ncload_byte	
- 1bc:	ff 12       	ncload_char	
- 1be:	ff 13       	ncload_short	
- 1c0:	ff 14       	ncload_word	
- 1c2:	ff 15       	iucmp	
- 1c4:	ff 16       	priv_powerdown	
- 1c6:	ff 17       	cache_invalidate	
- 1c8:	ff 1a       	ncload_char_oe	
- 1ca:	ff 1b       	ncload_short_oe	
- 1cc:	ff 1c       	ncload_word_oe	
- 1ce:	ff 1d       	return1	
- 1d0:	ff 1e       	cache_flush	
- 1d2:	ff 1f       	cache_index_flush	
- 1d4:	ff 20       	store_byte	
- 1d6:	ff 22       	store_short	
- 1d8:	ff 24       	store_word	
- 1da:	ff 25       	soft_trap	
- 1dc:	ff 26       	priv_write_dcache_tag	
- 1de:	ff 27       	priv_write_dcache_data	
- 1e0:	ff 2a       	store_short_oe	
- 1e2:	ff 2c       	store_word_oe	
- 1e4:	ff 2d       	return2	
- 1e6:	ff 2e       	priv_write_icache_tag	
- 1e8:	ff 2f       	priv_write_icache_data	
- 1ea:	ff 30       	ncstore_byte	
- 1ec:	ff 32       	ncstore_short	
- 1ee:	ff 34       	ncstore_word	
- 1f0:	ff 36       	priv_reset	
- 1f2:	ff 37       	get_current_class	
- 1f4:	ff 3a       	ncstore_short_oe	
- 1f6:	ff 3c       	ncstore_word_oe	
- 1f8:	ff 3d       	call	
- 1fa:	ff 3e       	zero_line	
- 1fc:	ff 3f       	priv_update_optop	
- 1fe:	ff 40       	read_pc	
- 200:	ff 41       	read_vars	
- 202:	ff 42       	read_frame	
- 204:	ff 43       	read_optop	
- 206:	ff 44       	priv_read_oplim	
- 208:	ff 45       	read_const_pool	
- 20a:	ff 46       	priv_read_psr	
- 20c:	ff 47       	priv_read_trapbase	
- 20e:	ff 48       	priv_read_lockcount0	
- 210:	ff 49       	priv_read_lockcount1	
- 212:	ff 4c       	priv_read_lockaddr0	
- 214:	ff 4d       	priv_read_lockaddr1	
- 216:	ff 50       	priv_read_userrange1	
- 218:	ff 51       	priv_read_gc_config	
- 21a:	ff 52       	priv_read_brk1a	
- 21c:	ff 53       	priv_read_brk2a	
- 21e:	ff 54       	priv_read_brk12c	
- 220:	ff 55       	priv_read_userrange2	
- 222:	ff 57       	priv_read_versionid	
- 224:	ff 58       	priv_read_hcr	
- 226:	ff 59       	priv_read_sc_bottom	
- 228:	ff 5a       	read_global0	
- 22a:	ff 5b       	read_global1	
- 22c:	ff 5c       	read_global2	
- 22e:	ff 5d       	read_global3	
- 230:	ff 60       	write_pc	
- 232:	ff 61       	write_vars	
- 234:	ff 62       	write_frame	
- 236:	ff 63       	write_optop	
- 238:	ff 64       	priv_write_oplim	
- 23a:	ff 65       	write_const_pool	
- 23c:	ff 66       	priv_write_psr	
- 23e:	ff 67       	priv_write_trapbase	
- 240:	ff 68       	priv_write_lockcount0	
- 242:	ff 69       	priv_write_lockcount1	
- 244:	ff 6c       	priv_write_lockaddr0	
- 246:	ff 6d       	priv_write_lockaddr1	
- 248:	ff 70       	priv_write_userrange1	
- 24a:	ff 71       	priv_write_gc_config	
- 24c:	ff 72       	priv_write_brk1a	
- 24e:	ff 73       	priv_write_brk2a	
- 250:	ff 74       	priv_write_brk12c	
- 252:	ff 75       	priv_write_userrange2	
- 254:	ff 79       	priv_write_sc_bottom	
- 256:	ff 7a       	write_global0	
- 258:	ff 7b       	write_global1	
- 25a:	ff 7c       	write_global2	
- 25c:	ff 7d       	write_global3	
- 25e:	ff ae       	tm_putchar	
- 260:	ff af       	tm_exit	
- 262:	ff b0       	tm_trap	
- 264:	ff b1       	tm_minfo	
+ 16d:	c8 ff ff fe 	goto_w	2 <foo1>
+ 171:	95 
+ 172:	c9 ff ff fe 	jsr_w	2 <foo1>
+ 176:	90 
+ 177:	ca 00 00    	breakpoint
+ 17a:	ed b0 a3    	sethi	-20317
+ 17d:	ee 5a a5    	load_word_index	90,165
+ 180:	ef 5d 85    	load_short_index	93,133
+ 183:	f0 17 d8    	load_char_index	23,216
+ 186:	f1 e9 de    	load_byte_index	233,222
+ 189:	f2 d4 2b    	load_ubyte_index	212,43
+ 18c:	f3 b2 4d    	store_word_index	178,77
+ 18f:	f4 c6 1b    	na_store_word_index	198,27
+ 192:	f5 b4 d4    	store_short_index	180,212
+ 195:	f6 11 8e    	store_byte_index	17,142
+ 198:	ff 00       	load_ubyte
+ 19a:	ff 01       	load_byte
+ 19c:	ff 02       	load_char
+ 19e:	ff 03       	load_short
+ 1a0:	ff 04       	load_word
+ 1a2:	ff 05       	priv_ret_from_trap
+ 1a4:	ff 06       	priv_read_dcache_tag
+ 1a6:	ff 07       	priv_read_dcache_data
+ 1a8:	ff 0a       	load_char_oe
+ 1aa:	ff 0b       	load_short_oe
+ 1ac:	ff 0c       	load_word_oe
+ 1ae:	ff 0d       	return0
+ 1b0:	ff 0e       	priv_read_icache_tag
+ 1b2:	ff 0f       	priv_read_icache_data
+ 1b4:	ff 10       	ncload_ubyte
+ 1b6:	ff 11       	ncload_byte
+ 1b8:	ff 12       	ncload_char
+ 1ba:	ff 13       	ncload_short
+ 1bc:	ff 14       	ncload_word
+ 1be:	ff 15       	iucmp
+ 1c0:	ff 16       	priv_powerdown
+ 1c2:	ff 17       	cache_invalidate
+ 1c4:	ff 1a       	ncload_char_oe
+ 1c6:	ff 1b       	ncload_short_oe
+ 1c8:	ff 1c       	ncload_word_oe
+ 1ca:	ff 1d       	return1
+ 1cc:	ff 1e       	cache_flush
+ 1ce:	ff 1f       	cache_index_flush
+ 1d0:	ff 20       	store_byte
+ 1d2:	ff 22       	store_short
+ 1d4:	ff 24       	store_word
+ 1d6:	ff 25       	soft_trap
+ 1d8:	ff 26       	priv_write_dcache_tag
+ 1da:	ff 27       	priv_write_dcache_data
+ 1dc:	ff 2a       	store_short_oe
+ 1de:	ff 2c       	store_word_oe
+ 1e0:	ff 2d       	return2
+ 1e2:	ff 2e       	priv_write_icache_tag
+ 1e4:	ff 2f       	priv_write_icache_data
+ 1e6:	ff 30       	ncstore_byte
+ 1e8:	ff 32       	ncstore_short
+ 1ea:	ff 34       	ncstore_word
+ 1ec:	ff 36       	priv_reset
+ 1ee:	ff 37       	get_current_class
+ 1f0:	ff 3a       	ncstore_short_oe
+ 1f2:	ff 3c       	ncstore_word_oe
+ 1f4:	ff 3d       	call
+ 1f6:	ff 3e       	zero_line
+ 1f8:	ff 3f       	priv_update_optop
+ 1fa:	ff 40       	read_pc
+ 1fc:	ff 41       	read_vars
+ 1fe:	ff 42       	read_frame
+ 200:	ff 43       	read_optop
+ 202:	ff 44       	priv_read_oplim
+ 204:	ff 45       	read_const_pool
+ 206:	ff 46       	priv_read_psr
+ 208:	ff 47       	priv_read_trapbase
+ 20a:	ff 48       	priv_read_lockcount0
+ 20c:	ff 49       	priv_read_lockcount1
+ 20e:	ff 4c       	priv_read_lockaddr0
+ 210:	ff 4d       	priv_read_lockaddr1
+ 212:	ff 50       	priv_read_userrange1
+ 214:	ff 51       	priv_read_gc_config
+ 216:	ff 52       	priv_read_brk1a
+ 218:	ff 53       	priv_read_brk2a
+ 21a:	ff 54       	priv_read_brk12c
+ 21c:	ff 55       	priv_read_userrange2
+ 21e:	ff 57       	priv_read_versionid
+ 220:	ff 58       	priv_read_hcr
+ 222:	ff 59       	priv_read_sc_bottom
+ 224:	ff 5a       	read_global0
+ 226:	ff 5b       	read_global1
+ 228:	ff 5c       	read_global2
+ 22a:	ff 5d       	read_global3
+ 22c:	ff 60       	write_pc
+ 22e:	ff 61       	write_vars
+ 230:	ff 62       	write_frame
+ 232:	ff 63       	write_optop
+ 234:	ff 64       	priv_write_oplim
+ 236:	ff 65       	write_const_pool
+ 238:	ff 66       	priv_write_psr
+ 23a:	ff 67       	priv_write_trapbase
+ 23c:	ff 68       	priv_write_lockcount0
+ 23e:	ff 69       	priv_write_lockcount1
+ 240:	ff 6c       	priv_write_lockaddr0
+ 242:	ff 6d       	priv_write_lockaddr1
+ 244:	ff 70       	priv_write_userrange1
+ 246:	ff 71       	priv_write_gc_config
+ 248:	ff 72       	priv_write_brk1a
+ 24a:	ff 73       	priv_write_brk2a
+ 24c:	ff 74       	priv_write_brk12c
+ 24e:	ff 75       	priv_write_userrange2
+ 250:	ff 79       	priv_write_sc_bottom
+ 252:	ff 7a       	write_global0
+ 254:	ff 7b       	write_global1
+ 256:	ff 7c       	write_global2
+ 258:	ff 7d       	write_global3

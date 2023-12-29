@@ -1,5 +1,5 @@
 # Test --default-script/-dT
-#   Copyright (C) 2007-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2007-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -21,6 +21,10 @@
 set old_ldflags $LDFLAGS
 if { [istarget spu*-*-*] } {
     set LDFLAGS "$LDFLAGS --local-store 0:0"
+} elseif { [is_pecoff_format] } {
+    set LDFLAGS "$LDFLAGS --image-base 0"
+} elseif { [is_xcoff_format] } {
+    set LDFLAGS "$LDFLAGS -bnogc"
 }
 
 set test_list [lsort [glob -nocomplain $srcdir/$subdir/default-script*.d]]

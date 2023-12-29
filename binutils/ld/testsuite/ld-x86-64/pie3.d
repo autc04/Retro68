@@ -1,13 +1,3 @@
 #as: --64
 #ld: -pie -melf_x86_64 --hash-style=sysv -z max-page-size=0x200000 -z noseparate-code
-#objdump: -dw
-#notarget: x86_64-*-nacl*
-
-.*: +file format .*
-
-
-Disassembly of section .text:
-
-0+191 <_start>:
- +191:	48 8d 05 68 fe ff ff 	lea    -0x198\(%rip\),%rax        # 0 <_start-0x191>
-#pass
+#error: .*relocation R_X86_64_PC32 against undefined symbol `foo' can not be used when making a PIE object; recompile with -fPIE

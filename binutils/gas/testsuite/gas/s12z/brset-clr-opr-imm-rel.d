@@ -3,7 +3,7 @@
 #source:  brset-clr-opr-imm-rel.s
 
 
-dump.o:     file format elf32-s12z
+.*:     file format elf32-s12z
 
 
 Disassembly of section .text:

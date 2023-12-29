@@ -3,7 +3,7 @@
 #source:  specd6.s
 
 
-dump.o:     file format elf32-s12z
+.*:     file format elf32-s12z
 
 
 Disassembly of section .text:

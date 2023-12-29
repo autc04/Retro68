@@ -97,3 +97,4 @@ PD3:
 PD4:
 	.picptr funcdesc(PFb)
 	.word	PFb
+	.section	.note.GNU-stack

@@ -6,5 +6,5 @@
 Disassembly of section .text:
 
 0+000 <foo>:
-[ 	]*[a-f0-9]+:	0f 37                	getsec 
+[ 	]*[a-f0-9]+:	0f 37                	getsec
 #pass

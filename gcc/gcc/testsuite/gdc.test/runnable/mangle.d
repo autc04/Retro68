@@ -1,8 +1,21 @@
 // PERMUTE_ARGS:
 // EXTRA_SOURCES: imports/mangle10077.d
+// EXTRA_FILES: imports/testmangle.d
+/*
+TEST_OUTPUT:
+---
+_D7imports10testmangle12detectMangleFPSQBlQBg6DetectZQq
+_D7imports10testmangle__T10DetectTmplTiZQpFNaNbNiNfZv
+true
+false
+---
+*/
+
+import imports.testmangle;
 
 /***************************************************/
-// 10077 - pragma(mangle)
+// https://issues.dlang.org/show_bug.cgi?id=10077
+// pragma(mangle)
 
 pragma(mangle, "_test10077a_") int test10077a;
 static assert(test10077a.mangleof == "_test10077a_");
@@ -42,7 +55,7 @@ void test10077i()
 }
 
 /***************************************************/
-// 13050
+// https://issues.dlang.org/show_bug.cgi?id=13050
 
 void func13050(int);
 template decl13050(Arg)
@@ -67,7 +80,7 @@ static assert(is(typeof(&problem13050!int) == void function(int)));
 static assert(is(typeof(&workaround13050!int) == void function(int)));
 
 /***************************************************/
-// 2774
+// https://issues.dlang.org/show_bug.cgi?id=2774
 
 int foo2774(int n) { return 0; }
 static assert(foo2774.mangleof == "_D6mangle7foo2774FiZi");
@@ -79,7 +92,7 @@ class C2774
 static assert(C2774.foo2774.mangleof == "_D6mangle5C27747foo2774MFZi");
 
 template TFoo2774(T) {}
-static assert(TFoo2774!int.mangleof == "6mangle15__T8TFoo2774TiZ");
+static assert(TFoo2774!int.mangleof == "6mangle"~tl!"15"~"__T8TFoo2774TiZ");
 
 void test2774()
 {
@@ -88,7 +101,7 @@ void test2774()
 }
 
 /*******************************************/
-// 8847
+// https://issues.dlang.org/show_bug.cgi?id=8847
 
 auto S8847()
 {
@@ -175,8 +188,8 @@ void test8847b()
 
 struct Test8847
 {
-    enum result1 = "S6mangle8Test88478__T3fooZ3fooMFZ6Result";
-    enum result2 = "S6mangle8Test88478__T3fooZ3fooMxFiZ6Result";
+    enum result1 = "S6mangle8Test8847"~tl!("8")~"__T3fooZ"~id!("3foo","Qf")~"MFZ6Result";
+    enum result2 = "S6mangle8Test8847"~tl!("8")~"__T3fooZ"~id!("3foo","Qf")~"MxFiZ6Result";
 
     auto foo()()
     {
@@ -236,9 +249,10 @@ void test8847d()
 
 void test8847e()
 {
-    enum resultHere = "6mangle"~"9test8847eFZ"~"8__T3fooZ"~"3foo";
+    enum resultHere = "6mangle"~"9test8847eFZ"~tl!"8"~"__T3fooZ"~id!("3foo","Qf");
     enum resultBar =  "S"~resultHere~"MFNaNfNgiZ3Bar";
-    enum resultFoo = "_D"~resultHere~"MFNaNbNiNfNgiZNg"~resultBar;   // added 'Nb'
+    static if(BackRefs) {} else
+      enum resultFoo = "_D"~resultHere~"MFNaNbNiNfNgiZNg"~resultBar;   // added 'Nb'
 
     // Make template function to infer 'nothrow' attributes
     auto foo()(inout int) pure @safe
@@ -248,10 +262,16 @@ void test8847e()
         return inout(Bar)();
     }
 
+    import core.demangle : demangle, demangleType;
     auto bar = foo(0);
     static assert(typeof(bar).stringof == "Bar");
     static assert(typeof(bar).mangleof == resultBar);
-    static assert(foo!().mangleof == resultFoo);
+    enum fooDemangled = "pure nothrow @nogc @safe inout(mangle.test8847e().foo!().foo(inout(int)).Bar) mangle.test8847e().foo!().foo(inout(int))";
+
+    static if (BackRefs)
+      static assert(demangle(foo!().mangleof) == fooDemangled);
+    else
+      static assert(foo!().mangleof == resultFoo);
 }
 
 // --------
@@ -275,7 +295,7 @@ static assert(typeof(f8847a()).mangleof == "S6mangle6f8847aFNaZ1S");
 static assert(typeof(f8847b()).mangleof == "S6mangle6f8847bFNaZ1S");
 
 /*******************************************/
-// 12352
+// https://issues.dlang.org/show_bug.cgi?id=12352
 
 auto bar12352()
 {
@@ -287,7 +307,7 @@ auto bar12352()
 
     return S();
 }
-static assert(       bar12352        .mangleof == "_D6mangle8bar12352FNaNbNiNfZS6mangle8bar12352FZ1S");
+static assert(       bar12352        .mangleof == "_D6mangle8bar12352FNaNbNiNfZS"~id!("6mangle8bar12352FZ","QBbQxFZ","QL2H")~"1S");
 static assert(typeof(bar12352())     .mangleof ==  "S6mangle8bar12352FZ1S");
 static assert(typeof(bar12352()).func.mangleof == "_D6mangle8bar12352FZ1S4funcMFZv");
 
@@ -301,41 +321,43 @@ auto baz12352()
 
     return new C();
 }
-static assert(       baz12352        .mangleof == "_D6mangle8baz12352FNaNbNfZC6mangle8baz12352FZ1C");
+static assert(       baz12352      .mangleof == "_D6mangle8baz12352FNaNbNfZC"~id!("6mangle8baz12352FZ","QzQuFZ","QL2F")~"1C");
 static assert(typeof(baz12352())     .mangleof ==  "C6mangle8baz12352FZ1C");
 static assert(typeof(baz12352()).func.mangleof == "_D6mangle8baz12352FZ1C4funcMFZv");
 
 /*******************************************/
-// 9525
+// https://issues.dlang.org/show_bug.cgi?id=9525
 
 void f9525(T)(in T*) { }
 
 void test9525()
 {
-    enum result1 = "S6mangle8test9525FZ26__T5test1S136mangle5f9525Z5test1MFZ1S";
-    enum result2 = "S6mangle8test9525FZ26__T5test2S136mangle5f9525Z5test2MFNaNbZ1S";
+    enum result1 = "S6mangle8test9525FZ"~tl!"26"~"__T5test1S"~tl!"13"~id!("6mangle","QBc")~"5f9525Z"~id!("5test1","Qr")~"MFZ1S";
+    enum result2 = "S6mangle8test9525FZ"~tl!"26"~"__T5test2S"~tl!"13"~id!("6mangle","QBc")~"5f9525Z"~id!("5test2","Qr")~"MFNaNbZ1S";
 
-    void test1(alias a)()
+    bool test1(alias a)()
     {
         static struct S {}
         static assert(S.mangleof == result1);
         S s;
         a(&s);  // Error: Cannot convert &S to const(S*) at compile time
+        return true;
     }
-    static assert((test1!f9525(), true));
+    enum evalTest1 = test1!f9525();
 
-    void test2(alias a)() pure nothrow
+    bool test2(alias a)() pure nothrow
     {
         static struct S {}
         static assert(S.mangleof == result2);
         S s;
         a(&s);  // Error: Cannot convert &S to const(S*) at compile time
+        return true;
     }
-    static assert((test2!f9525(), true));
+    enum evalTest2 = test2!f9525();
 }
 
 /******************************************/
-// 10249
+// https://issues.dlang.org/show_bug.cgi?id=10249
 
 template Seq10249(T...) { alias Seq10249 = T; }
 
@@ -371,7 +393,7 @@ static: // necessary to make overloaded symbols accessible via __traits(getOverl
 }
 
 /*******************************************/
-// 11718
+// https://issues.dlang.org/show_bug.cgi?id=11718
 
 struct Ty11718(alias sym) {}
 
@@ -383,27 +405,36 @@ void test11718()
     string TyName(string tail)()
     {
         enum s = "__T7Ty11718" ~ tail;
-        enum int len = s.length;
-        return "S6mangle" ~ len.stringof ~ s;
+        enum len = unsignedToString(s.length);
+        return "S6mangle" ~ tl!(len) ~ s;
     }
     string fnName(string paramPart)()
     {
-        enum s = "_D6mangle35__T7fn11718T"~
+        enum s = "_D6mangle"~tl!("35")~"__T7fn11718T"~
                  "S6mangle9test11718FZ1AZ7fn11718"~paramPart~"1a"~
                  "S6mangle9test11718FZ1A";
-        enum int len = s.length;
-        return len.stringof ~ s;
+        enum len = unsignedToString(s.length);
+        return tl!len ~ s;
     }
     enum result1 = TyName!("S" ~ fnName!("F"~"S6mangle9test11718FZ1A"~"Z") ~ "Z") ~ "7Ty11718";
     enum result2 = TyName!("S" ~ fnName!("F"~""                      ~"Z") ~ "Z") ~ "7Ty11718";
 
     struct A {}
-    static assert(fn11718(A.init) == result1);
-    static assert(fn11718!A()     == result2);
+    static if (BackRefs)
+    {
+        static assert(fn11718(A.init) == "S6mangle__T7Ty11718S_DQv__T7fn11718TSQBk9test11718FZ1AZQBcFQxZ1aQBcZQCf");
+        static assert(fn11718!A()     == "S6mangle__T7Ty11718S_DQv__T7fn11718TSQBk9test11718FZ1AZQBcFZ1aQBaZQCd");
+    }
+    else
+    {
+        pragma(msg, fn11718(A.init));
+        static assert(fn11718(A.init) == result1);
+        static assert(fn11718!A()     == result2);
+    }
 }
 
 /*******************************************/
-// 11776
+// https://issues.dlang.org/show_bug.cgi?id=11776
 
 struct S11776(alias fun) { }
 
@@ -417,15 +448,16 @@ void test11776()
         {
             auto s = S11776!(a => 1)();
             static assert(typeof(s).mangleof ==
-                "S"~"6mangle"~"56"~(
-                    "__T"~"6S11776"~"S42"~("6mangle"~"9test11776"~"FZ"~"9__lambda1MFZ"~"9__lambda1")~"Z"
-                )~"6S11776");
+                "S"~"6mangle"~tl!("56")~
+                ("__T"~"6S11776"~"S"~tl!("42")~
+                 (id!("6mangle","Qs")~"9test11776"~"FZ"~"9__lambda1MFZ"~id!("9__lambda1","Qn"))~"Z"
+                 )~id!("6S11776", "QBm"));
         }
     };
 }
 
 /***************************************************/
-// 12044
+// https://issues.dlang.org/show_bug.cgi?id=12044
 
 struct S12044(T)
 {
@@ -452,7 +484,7 @@ void test12044()
 }
 
 /*******************************************/
-// 12217
+// https://issues.dlang.org/show_bug.cgi?id=12217
 
 void test12217(int)
 {
@@ -464,34 +496,33 @@ void test12217(int)
     static assert(    S.mangleof ==  "S6mangle9test12217FiZ1S");
     static assert(  bar.mangleof == "_D6mangle9test12217FiZ3barMFNaNbNiNfZv");
     static assert(  var.mangleof == "_D6mangle9test12217FiZ3vari");
-    static assert(X!int.mangleof ==   "6mangle9test12217FiZ8__T1XTiZ");
+    static assert(X!int.mangleof ==   "6mangle9test12217FiZ"~tl!("8")~"__T1XTiZ");
 }
 
 void test12217() {}
 
 /***************************************************/
-// 12231
+// https://issues.dlang.org/show_bug.cgi?id=12231
 
 void func12231a()()
 if (is(typeof({
         class C {}
         static assert(C.mangleof ==
-            "C6mangle16__U10func12231aZ10func12231aFZ9__lambda1MFZ1C");
+            "C6mangle"~tl!("16")~"__U10func12231aZ"~id!("10func12231a","Qn")~"FZ9__lambda1MFZ1C");
             //         ###            L                       #
     })))
 {}
 
 void func12231b()()
 if (is(typeof({
-        class C {}
-        static assert(C.mangleof ==
-            "C6mangle16__U10func12231bZ10func12231bFZ9__lambda1MFZ1C");
+        class C {}        static assert(C.mangleof ==
+            "C6mangle"~tl!("16")~"__U10func12231bZ"~id!("10func12231b","Qn")~"FZ9__lambda1MFZ1C");
             //         L__L           L                       LL
-    })) &&
+      })) &&
     is(typeof({
         class C {}
         static assert(C.mangleof ==
-            "C6mangle16__U10func12231bZ10func12231bFZ9__lambda2MFZ1C");
+            "C6mangle"~tl!("16")~"__U10func12231bZ"~id!("10func12231b","Qn")~"FZ9__lambda2MFZ1C");
             //         L__L           L                       LL
     })))
 {}
@@ -500,14 +531,14 @@ void func12231c()()
 if (is(typeof({
         class C {}
         static assert(C.mangleof ==
-            "C6mangle16__U10func12231cZ10func12231cFZ9__lambda1MFZ1C");
+            "C6mangle"~tl!("16")~"__U10func12231cZ"~id!("10func12231c","Qn")~"FZ9__lambda1MFZ1C");
             //         L__L           L                       LL
     })))
 {
     (){
         class C {}
         static assert(C.mangleof ==
-            "C6mangle16__T10func12231cZ10func12231cFZ9__lambda1MFZ1C");
+            "C6mangle"~tl!("16")~"__T10func12231cZ"~id!("10func12231c","Qn")~"FZ9__lambda1MFZ1C");
             //         L__L           L                       LL
     }();
 }
@@ -515,15 +546,15 @@ if (is(typeof({
 void func12231c(X)()
 if (is(typeof({
         class C {}
-        static assert(C.mangleof ==
-            "C6mangle20__U10func12231cTAyaZ10func12231cFZ9__lambda1MFZ1C");
+    static assert(C.mangleof ==
+            "C6mangle"~tl!("20")~"__U10func12231cTAyaZ"~id!("10func12231c","Qr")~"FZ9__lambda1MFZ1C");
             //         L__L           L___L                       LL
     })))
 {
     (){
         class C {}
         static assert(C.mangleof ==
-            "C6mangle20__T10func12231cTAyaZ10func12231cFZ9__lambda1MFZ1C");
+            "C6mangle"~tl!("20")~"__T10func12231cTAyaZ"~id!("10func12231c","Qr")~"FZ9__lambda1MFZ1C");
             //         L__L           L___L                       LL
     }();
 }
@@ -574,6 +605,25 @@ static assert(typeof(fooA).mangleof != typeof(fooB).mangleof);
 
 /***************************************************/
 
+@live int testLive() { return 42; }
+
+static assert(testLive.mangleof == "_D6mangle8testLiveFNmZi");
+
+/***************************************************/
+
+alias noreturn = typeof(*null);
+alias fpd = noreturn function();
+int funcd(fpd);
+static assert(funcd.mangleof == "_D6mangle5funcdFPFZNnZi");
+
+/***************************************************/
+
+struct S21753 { void function() f1; }
+void fun21753(S21753 v)() {}
+alias fl21753 = (){};
+static assert((fun21753!(S21753(fl21753))).mangleof == "_D6mangle__T8fun21753VSQv6S21753S1f_DQBj10" ~ fl21753.stringof ~ "MFNaNbNiNfZvZQCbQp");
+
+/***************************************************/
 void main()
 {
     test10077h();

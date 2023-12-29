@@ -10,7 +10,7 @@
 
 @copying
 @c man begin COPYRIGHT
-Copyright @copyright{} 1987-2019 Free Software Foundation, Inc.
+Copyright @copyright{} 1987-2022 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -274,11 +274,11 @@ the character in the source character set that they represent, then
 converted to the execution character set, just like unescaped
 characters.
 
-In identifiers, characters outside the ASCII range can only be
-specified with the @samp{\u} and @samp{\U} escapes, not used
-directly.  If strict ISO C90 conformance is specified with an option
+In identifiers, characters outside the ASCII range can be specified
+with the @samp{\u} and @samp{\U} escapes or used directly in the input
+encoding.  If strict ISO C90 conformance is specified with an option
 such as @option{-std=c90}, or @option{-fno-extended-identifiers} is
-used, then those escapes are not permitted in identifiers.
+used, then those constructs are not permitted in identifiers.
 
 @node Initial processing
 @section Initial processing
@@ -503,8 +503,7 @@ In the 1999 C standard, identifiers may contain letters which are not
 part of the ``basic source character set'', at the implementation's
 discretion (such as accented Latin letters, Greek letters, or Chinese
 ideograms).  This may be done with an extended character set, or the
-@samp{\u} and @samp{\U} escape sequences.  GCC only accepts such
-characters in the @samp{\u} and @samp{\U} forms.
+@samp{\u} and @samp{\U} escape sequences.
 
 As an extension, GCC treats @samp{$} as a letter.  This is for
 compatibility with some systems, such as VMS, where @samp{$} is commonly
@@ -584,15 +583,15 @@ Punctuator:      @{   @}   [   ]   #    ##
 @end smallexample
 
 @cindex other tokens
-Any other single character is considered ``other''.  It is passed on to
-the preprocessor's output unmolested.  The C compiler will almost
-certainly reject source code containing ``other'' tokens.  In ASCII, the
-only other characters are @samp{@@}, @samp{$}, @samp{`}, and control
+Any other single byte is considered ``other'' and passed on to the
+preprocessor's output unchanged.  The C compiler will almost certainly
+reject source code containing ``other'' tokens.  In ASCII, the only
+``other'' characters are @samp{@@}, @samp{$}, @samp{`}, and control
 characters other than NUL (all bits zero).  (Note that @samp{$} is
-normally considered a letter.)  All characters with the high bit set
-(numeric range 0x7F--0xFF) are also ``other'' in the present
-implementation.  This will change when proper support for international
-character sets is added to GCC@.
+normally considered a letter.)  All bytes with the high bit set
+(numeric range 0x7F--0xFF) that were not succesfully interpreted as
+part of an extended character in the input encoding are also ``other''
+in the present implementation.
 
 NUL is a special case because of the high probability that its
 appearance is accidental, and because it may be invisible to the user
@@ -1632,7 +1631,7 @@ a function can.  The syntax for defining the macro is similar to that of
 a function.  Here is an example:
 
 @smallexample
-#define eprintf(@dots{}) fprintf (stderr, __VA_ARGS__)
+#define eprintf(...) fprintf (stderr, __VA_ARGS__)
 @end smallexample
 
 This kind of macro is called @dfn{variadic}.  When the macro is invoked,
@@ -1656,11 +1655,11 @@ below for an important special case for @samp{##}.)
 If your macro is complicated, you may want a more descriptive name for
 the variable argument than @code{@w{__VA_ARGS__}}.  CPP permits
 this, as an extension.  You may write an argument name immediately
-before the @samp{@dots{}}; that name is used for the variable argument.
+before the @samp{...}; that name is used for the variable argument.
 The @code{eprintf} macro above could be written
 
 @smallexample
-#define eprintf(args@dots{}) fprintf (stderr, args)
+#define eprintf(args...) fprintf (stderr, args)
 @end smallexample
 
 @noindent
@@ -1671,7 +1670,7 @@ You can have named arguments as well as variable arguments in a variadic
 macro.  We could define @code{eprintf} like this, instead:
 
 @smallexample
-#define eprintf(format, @dots{}) fprintf (stderr, format, __VA_ARGS__)
+#define eprintf(format, ...) fprintf (stderr, format, __VA_ARGS__)
 @end smallexample
 
 @noindent
@@ -1679,7 +1678,7 @@ This formulation looks more descriptive, but historically it was less
 flexible: you had to supply at least one argument after the format
 string.  In standard C, you could not omit the comma separating the
 named argument from the variable arguments.  (Note that this
-restriction has been lifted in C++2a, and never existed in GNU C; see
+restriction has been lifted in C++20, and never existed in GNU C; see
 below.)
 
 Furthermore, if you left the variable argument empty, you would have
@@ -1691,10 +1690,10 @@ eprintf("success!\n", );
      @expansion{} fprintf(stderr, "success!\n", );
 @end smallexample
 
-This has been fixed in C++2a, and GNU CPP also has a pair of
+This has been fixed in C++20, and GNU CPP also has a pair of
 extensions which deal with this problem.
 
-First, in GNU CPP, and in C++ beginning in C++2a, you are allowed to
+First, in GNU CPP, and in C++ beginning in C++20, you are allowed to
 leave the variable argument out entirely:
 
 @smallexample
@@ -1703,14 +1702,14 @@ eprintf ("success!\n")
 @end smallexample
 
 @noindent
-Second, C++2a introduces the @code{@w{__VA_OPT__}} function macro.
+Second, C++20 introduces the @code{@w{__VA_OPT__}} function macro.
 This macro may only appear in the definition of a variadic macro.  If
 the variable argument has any tokens, then a @code{@w{__VA_OPT__}}
 invocation expands to its argument; but if the variable argument does
 not have any tokens, the @code{@w{__VA_OPT__}} expands to nothing:
 
 @smallexample
-#define eprintf(format, @dots{}) \
+#define eprintf(format, ...) \
   fprintf (stderr, format __VA_OPT__(,) __VA_ARGS__)
 @end smallexample
 
@@ -1723,7 +1722,7 @@ the introduction of @code{@w{__VA_OPT__}}, this extension remains
 supported in GNU CPP, for backward compatibility.  If you write
 
 @smallexample
-#define eprintf(format, @dots{}) fprintf (stderr, format, ##__VA_ARGS__)
+#define eprintf(format, ...) fprintf (stderr, format, ##__VA_ARGS__)
 @end smallexample
 
 @noindent
@@ -1759,7 +1758,7 @@ replacement list of a variadic macro.
 Variadic macros became a standard part of the C language with C99.  
 GNU CPP previously supported them
 with a named variable argument
-(@samp{args@dots{}}, not @samp{@dots{}} and @code{@w{__VA_ARGS__}}), which
+(@samp{args...}, not @samp{...} and @code{@w{__VA_ARGS__}}), which
 is still supported for backward compatibility.
 
 @node Predefined Macros
@@ -1908,9 +1907,10 @@ selected, the value of the macro is
 @code{201103L} for the 2011 C++ standard,
 @code{201402L} for the 2014 C++ standard,
 @code{201703L} for the 2017 C++ standard,
-or an unspecified value strictly larger than @code{201703L} for the
-experimental languages enabled by @option{-std=c++2a} and
-@option{-std=gnu++2a}.
+@code{202002L} for the 2020 C++ standard,
+or an unspecified value strictly larger than @code{202002L} for the
+experimental languages enabled by @option{-std=c++23} and
+@option{-std=gnu++23}.
 
 @item __OBJC__
 This macro is defined, with value 1, when the Objective-C compiler is in
@@ -2004,6 +2004,13 @@ definitions found in standard C.
 This macro expands to the name of the main input file, in the form
 of a C string constant.  This is the source file that was specified
 on the command line of the preprocessor or C compiler.
+
+@item __FILE_NAME__
+This macro expands to the basename of the current input file, in the
+form of a C string constant.  This is the last path component by which
+the preprocessor opened the file.  For example, processing
+@code{"/usr/local/include/myheader.h"} would set this
+macro to @code{"myheader.h"}.
 
 @item __INCLUDE_LEVEL__
 This macro expands to a decimal integer constant that represents the
@@ -2312,11 +2319,13 @@ mechanism based on @code{setjmp} and @code{longjmp} for exception
 handling.
 
 @item __GXX_EXPERIMENTAL_CXX0X__
-This macro is defined when compiling a C++ source file with the option
-@option{-std=c++0x} or @option{-std=gnu++0x}. It indicates that some
-features likely to be included in C++0x are available. Note that these
-features are experimental, and may change or be removed in future
-versions of GCC.
+This macro is defined when compiling a C++ source file with C++11 features
+enabled, i.e., for all C++ language dialects except @option{-std=c++98}
+and @option{-std=gnu++98}. This macro is obsolete, but can be used to
+detect experimental C++0x features in very old versions of GCC. Since
+GCC 4.7.0 the @code{__cplusplus} macro is defined correctly, so most
+code should test @code{__cplusplus >= 201103L} instead of using this
+macro.
 
 @item __GXX_WEAK__
 This macro is defined when compiling a C++ source file.  It has the
@@ -2452,6 +2461,33 @@ features are supported by GCC.
 @item __NO_MATH_ERRNO__
 This macro is defined if @option{-fno-math-errno} is used, or enabled
 by another option such as @option{-ffast-math} or by default.
+
+@item __RECIPROCAL_MATH__
+This macro is defined if @option{-freciprocal-math} is used, or enabled
+by another option such as @option{-ffast-math} or by default.
+
+@item __NO_SIGNED_ZEROS__
+This macro is defined if @option{-fno-signed-zeros} is used, or enabled
+by another option such as @option{-ffast-math} or by default.
+
+@item __NO_TRAPPING_MATH__
+This macro is defined if @option{-fno-trapping-math} is used.
+
+@item __ASSOCIATIVE_MATH__
+This macro is defined if @option{-fassociative-math} is used, or enabled
+by another option such as @option{-ffast-math} or by default.
+
+@item __ROUNDING_MATH__
+This macro is defined if @option{-frounding-math} is used.
+
+@item __GNUC_EXECUTION_CHARSET_NAME
+@itemx __GNUC_WIDE_EXECUTION_CHARSET_NAME
+These macros are defined to expand to a narrow string literal of
+the name of the narrow and wide compile-time execution character
+set used.  It directly reflects the name passed to the options
+@option{-fexec-charset} and @option{-fwide-exec-charset}, or the defaults
+documented for those options (that is, it can expand to something like
+@code{"UTF-8"}).  @xref{Invocation}.
 @end table
 
 @node System-specific Predefined Macros
@@ -3160,6 +3196,8 @@ directive}: @samp{#if}, @samp{#ifdef} or @samp{#ifndef}.
 * Elif::
 * @code{__has_attribute}::
 * @code{__has_cpp_attribute}::
+* @code{__has_c_attribute}::
+* @code{__has_builtin}::
 * @code{__has_include}::
 @end menu
 
@@ -3432,8 +3470,9 @@ condition succeeds after the original @samp{#if} and all previous
 The special operator @code{__has_attribute (@var{operand})} may be used
 in @samp{#if} and @samp{#elif} expressions to test whether the attribute
 referenced by its @var{operand} is recognized by GCC.  Using the operator
-in other contexts is not valid.  In C code, @var{operand} must be
-a valid identifier.  In C++ code, @var{operand} may be optionally
+in other contexts is not valid.  In C code, if compiling for strict
+conformance to standards before C2x, @var{operand} must be
+a valid identifier.  Otherwise, @var{operand} may be optionally
 introduced by the @code{@var{attribute-scope}::} prefix.
 The @var{attribute-scope} prefix identifies the ``namespace'' within
 which the attribute is recognized.  The scope of GCC attributes is
@@ -3478,6 +3517,48 @@ the attribute was first introduced into the C++ standard.  For additional
 information including the dates of the introduction of current standard
 attributes, see @w{@uref{https://isocpp.org/std/standing-documents/sd-6-sg10-feature-test-recommendations/,
 SD-6: SG10 Feature Test Recommendations}}.
+
+@node @code{__has_c_attribute}
+@subsection @code{__has_c_attribute}
+@cindex @code{__has_c_attribute}
+
+The special operator @code{__has_c_attribute (@var{operand})} may be
+used in @samp{#if} and @samp{#elif} expressions in C code to test
+whether the attribute referenced by its @var{operand} is recognized by
+GCC in attributes using the @samp{[[]]} syntax.  GNU attributes must
+be specified with the scope @samp{gnu} or @samp{__gnu__} with
+@code{__has_c_attribute}.  When @var{operand} designates a supported
+standard attribute it evaluates to an integer constant of the form
+@code{YYYYMM} indicating the year and month when the attribute was
+first introduced into the C standard, or when the syntax of operands
+to the attribute was extended in the C standard.
+
+@node @code{__has_builtin}
+@subsection @code{__has_builtin}
+@cindex @code{__has_builtin}
+
+The special operator @code{__has_builtin (@var{operand})} may be used in
+constant integer contexts and in preprocessor @samp{#if} and @samp{#elif}
+expressions to test whether the symbol named by its @var{operand} is
+recognized as a built-in function by GCC in the current language and
+conformance mode.  It evaluates to a constant integer with a nonzero
+value if the argument refers to such a function, and to zero otherwise.
+The operator may also be used in preprocessor @samp{#if} and @samp{#elif}
+expressions.  The @code{__has_builtin} operator by itself, without any
+@var{operand} or parentheses, acts as a predefined macro so that support
+for it can be tested in portable code.  Thus, the recommended use of
+the operator is as follows:
+
+@smallexample
+#if defined __has_builtin
+#  if __has_builtin (__builtin_object_size)
+#    define builtin_object_size(ptr) __builtin_object_size (ptr, 2)
+#  endif
+#endif
+#ifndef builtin_object_size
+#  define builtin_object_size(ptr)   ((size_t)-1)
+#endif
+@end smallexample
 
 @node @code{__has_include}
 @subsection @code{__has_include}
@@ -4179,7 +4260,10 @@ be controlled using the @option{-fexec-charset} and
 The C and C++ standards allow identifiers to be composed of @samp{_}
 and the alphanumeric characters.  C++ also allows universal character
 names.  C99 and later C standards permit both universal character
-names and implementation-defined characters.
+names and implementation-defined characters.  In both C and C++ modes,
+GCC accepts in identifiers exactly those extended characters that
+correspond to universal character names permitted by the chosen
+standard.
 
 GCC allows the @samp{$} character in identifiers as an extension for
 most targets.  This is true regardless of the @option{std=} switch,
@@ -4192,7 +4276,7 @@ IP2K, MMIX, MIPS Irix 3, ARM aout, and PowerPC targets for the AIX
 operating system.
 
 You can override the default with @option{-fdollars-in-identifiers} or
-@option{fno-dollars-in-identifiers}.  @xref{fdollars-in-identifiers}.
+@option{-fno-dollars-in-identifiers}.  @xref{fdollars-in-identifiers}.
 
 @item Non-empty sequences of whitespace characters.
 

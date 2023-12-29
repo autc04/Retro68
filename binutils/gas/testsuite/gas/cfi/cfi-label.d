@@ -1,3 +1,4 @@
+#as: -mx86-used-note=no --generate-missing-build-notes=no
 #objdump: -tWf
 #name: .cfi_label directive
 
@@ -5,11 +6,9 @@
 
 SYMBOL TABLE:
 0*00 l    d  \.text	0*00 \.text
-0*00 l    d  \.data	0*00 \.data
-0*00 l    d  \.bss	0*00 \.bss
+#...
 0*00 l     F \.text	0*04 cfilabel
 0*2f l       \.eh_frame	0*00 cfi2
-0*00 l    d  \.eh_frame	0*00 \.eh_frame
 0*2b g       \.eh_frame	0*00 cfi1
 
 

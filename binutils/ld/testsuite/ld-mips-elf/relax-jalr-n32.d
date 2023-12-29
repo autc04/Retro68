@@ -1,8 +1,8 @@
 #name: MIPS relax-jalr n32
 #source: relax-jalr.s
-#as: -march=from-abi -KPIC -n32 -EB
+#as: -KPIC
 #objdump: --prefix-addresses -d --show-raw-insn
-#ld: -melf32btsmipn32
+#ld:
 
 .*:     file format elf.*mips.*
 

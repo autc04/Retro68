@@ -5,10 +5,13 @@ vgather:
 	vgatherdps %xmm2,(%rax,%xmm1,1),%xmm0
 	vgatherdps %xmm2,(%rax,%xmm1,2),%xmm2
 	vgatherdps %xmm2,(%rax,%xmm1,2),%xmm10
+	vgatherdps %xmm10,(%rax,%xmm1,2),%xmm10
 	vgatherdps %xmm1,(%rax,%xmm1,4),%xmm0
 	vgatherdps %xmm9,(%rax,%xmm1,4),%xmm0
+	vgatherdps %xmm9,(%rax,%xmm9,4),%xmm0
 	vgatherdps %xmm2,(%rax,%xmm1,8),%xmm1
 	vgatherdps %xmm2,(%rax,%xmm1,8),%xmm9
+	vgatherdps %xmm2,(%rax,%xmm9,8),%xmm9
 
 avx512vgather:
 	vgatherdpd	123(%rbp,%ymm17,8), %zmm16{%k1}

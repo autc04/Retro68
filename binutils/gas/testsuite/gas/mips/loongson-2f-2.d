@@ -1,9 +1,8 @@
 #as: -mfix-loongson2f-nop
 #objdump: -M reg-names=numeric -dr
-#name: ST Microelectronics Loongson-2F workarounds of nop issue 
+#name: ST Microelectronics Loongson-2F workarounds of nop issue
 
 .*:     file format .*
-
 
 Disassembly of section .text:
 

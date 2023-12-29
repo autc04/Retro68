@@ -1,15 +1,19 @@
 /* Verify that calls to fprintf don't get eliminated even if their
    result on success can be computed at compile time (they can fail).
    The calls can still be transformed into those of other functions.
+   { dg-require-effective-target fileio }
+   { dg-prune-output "warning: warning: \[^\n\r\]* possibly used unsafely" }
+   { dg-skip-if "requires io" { avr-*-* } }
    { dg-skip-if "requires io" { freestanding } } */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "gcc_tmpnam.h"
 
 int main (void)
 {
-  char *tmpfname = tmpnam (0);
+  char *tmpfname = gcc_tmpnam (0);
   FILE *f = fopen (tmpfname, "w");
   if (!f)
     {

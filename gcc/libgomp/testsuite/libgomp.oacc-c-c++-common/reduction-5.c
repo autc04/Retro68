@@ -1,5 +1,5 @@
-/* { dg-do run } */
-/* { dg-additional-options "-w" } */
+/* { dg-additional-options "-Wopenacc-parallelism" } for testing/documenting
+   aspects of that functionality.  */
 
 /* Multiple reductions.  */
 
@@ -12,7 +12,7 @@
 
 const int n = 100;
 
-#define DO_PRAGMA(x) _Pragma (#x)
+#define DO_PRAGMA(x) _Pragma (#x) /* { dg-line pragma_loc } */
 
 #define check_reduction(gwv_par, gwv_loop)		\
   {							\
@@ -46,6 +46,7 @@ main (void)
   /* Nvptx targets require a vector_length or 32 in to allow spinlocks with
      gangs.  */
   check_reduction (num_workers (nw) vector_length (vl), worker);
+  /* { dg-warning "region is vector partitioned but does not contain vector partitioned code" "test1" { target *-*-* } pragma_loc } */
   check_reduction (vector_length (vl), vector);
   check_reduction (num_gangs (ng) num_workers (nw) vector_length (vl), gang
 		   worker vector);

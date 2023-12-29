@@ -1,4 +1,4 @@
-#   Copyright (C) 2004-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -110,4 +110,18 @@ if {![binutils_assemble $srcdir/$subdir/rvct_symbol.s tmpdir/rvct_symbol.o]} the
     } else {
 	fail "skip rvct symbol"
     }
+}
+
+###########################
+# Set up generic test framework
+###########################
+
+set tempfile tmpdir/armtemp.o
+set copyfile tmpdir/armcopy
+
+set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+foreach t $test_list {
+    # We need to strip the ".d", but can leave the dirname.
+    verbose [file rootname $t]
+    run_dump_test [file rootname $t]
 }

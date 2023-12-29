@@ -300,9 +300,9 @@ projects with a few components added.
 
 
 Third Party Components:
-- binutils 2.31.1
-- gcc 9.1.0
-- newlib 3.0.0 (inside the gcc directory)
+- binutils 2.39
+- gcc 12.2.0
+- newlib 4.2 (inside the gcc directory)
 - libelf from elfutils-0.170
 - hfsutils 3.2.6
 

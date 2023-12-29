@@ -5,19 +5,23 @@
 package runtime
 
 import (
+	"internal/abi"
+	"internal/goarch"
 	"runtime/internal/math"
 	"runtime/internal/sys"
 	"unsafe"
 )
 
-// For gccgo, use go:linkname to rename compiler-called functions to
-// themselves, so that the compiler will export them.
+// For gccgo, use go:linkname to export compiler-called functions.
 //
-//go:linkname makeslice runtime.makeslice
-//go:linkname makeslice64 runtime.makeslice64
-//go:linkname growslice runtime.growslice
-//go:linkname slicecopy runtime.slicecopy
-//go:linkname slicestringcopy runtime.slicestringcopy
+//go:linkname panicmakeslicelen
+//go:linkname panicmakeslicecap
+//go:linkname makeslice
+//go:linkname checkMakeSlice
+//go:linkname makeslice64
+//go:linkname growslice
+//go:linkname unsafeslice
+//go:linkname unsafeslice64
 
 type slice struct {
 	array unsafe.Pointer
@@ -25,7 +29,7 @@ type slice struct {
 	cap   int
 }
 
-// An notInHeapSlice is a slice backed by go:notinheap memory.
+// A notInHeapSlice is a slice backed by go:notinheap memory.
 type notInHeapSlice struct {
 	array *notInHeap
 	len   int
@@ -40,7 +44,66 @@ func panicmakeslicecap() {
 	panic(errorString("makeslice: cap out of range"))
 }
 
+// makeslicecopy allocates a slice of "tolen" elements of type "et",
+// then copies "fromlen" elements of type "et" into that new allocation from "from".
+func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer {
+	var tomem, copymem uintptr
+	if uintptr(tolen) > uintptr(fromlen) {
+		var overflow bool
+		tomem, overflow = math.MulUintptr(et.size, uintptr(tolen))
+		if overflow || tomem > maxAlloc || tolen < 0 {
+			panicmakeslicelen()
+		}
+		copymem = et.size * uintptr(fromlen)
+	} else {
+		// fromlen is a known good length providing and equal or greater than tolen,
+		// thereby making tolen a good slice length too as from and to slices have the
+		// same element width.
+		tomem = et.size * uintptr(tolen)
+		copymem = tomem
+	}
+
+	var to unsafe.Pointer
+	if et.ptrdata == 0 {
+		to = mallocgc(tomem, nil, false)
+		if copymem < tomem {
+			memclrNoHeapPointers(add(to, copymem), tomem-copymem)
+		}
+	} else {
+		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+		to = mallocgc(tomem, et, true)
+		if copymem > 0 && writeBarrier.enabled {
+			// Only shade the pointers in old.array since we know the destination slice to
+			// only contains nil pointers because it has been cleared during alloc.
+			bulkBarrierPreWriteSrcOnly(uintptr(to), uintptr(from), copymem)
+		}
+	}
+
+	if raceenabled {
+		callerpc := getcallerpc()
+		pc := abi.FuncPCABIInternal(makeslicecopy)
+		racereadrangepc(from, copymem, callerpc, pc)
+	}
+	if msanenabled {
+		msanread(from, copymem)
+	}
+	if asanenabled {
+		asanread(from, copymem)
+	}
+
+	memmove(to, from, copymem)
+
+	return to
+}
+
 func makeslice(et *_type, len, cap int) unsafe.Pointer {
+	mem := checkMakeSlice(et, len, cap)
+	return mallocgc(mem, et, true)
+}
+
+// checkMakeSlice is called for append(s, make([]T, len, cap)...) to check
+// the values of len and cap.
+func checkMakeSlice(et *_type, len, cap int) uintptr {
 	mem, overflow := math.MulUintptr(et.size, uintptr(cap))
 	if overflow || mem > maxAlloc || len < 0 || len > cap {
 		// NOTE: Produce a 'len out of range' error instead of a
@@ -54,8 +117,7 @@ func makeslice(et *_type, len, cap int) unsafe.Pointer {
 		}
 		panicmakeslicecap()
 	}
-
-	return mallocgc(mem, et, true)
+	return mem
 }
 
 func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
@@ -72,6 +134,44 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 	return makeslice(et, len, cap)
 }
 
+func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+	if len < 0 {
+		panicunsafeslicelen()
+	}
+
+	mem, overflow := math.MulUintptr(et.size, uintptr(len))
+	if overflow || mem > -uintptr(ptr) {
+		if ptr == nil {
+			panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+		}
+		panicunsafeslicelen()
+	}
+}
+
+func unsafeslice64(et *_type, ptr unsafe.Pointer, len64 int64) {
+	len := int(len64)
+	if int64(len) != len64 {
+		panicunsafeslicelen()
+	}
+	unsafeslice(et, ptr, len)
+}
+
+func unsafeslicecheckptr(et *_type, ptr unsafe.Pointer, len64 int64) {
+	unsafeslice64(et, ptr, len64)
+
+	/* Commented out for gofrontend.
+	// Check that underlying array doesn't straddle multiple heap objects.
+	// unsafeslice64 has already checked for overflow.
+	if checkptrStraddles(ptr, uintptr(len64)*et.size) {
+		throw("checkptr: unsafe.Slice result straddles multiple allocations")
+	}
+	*/
+}
+
+func panicunsafeslicelen() {
+	panic(errorString("unsafe.Slice: len out of range"))
+}
+
 // growslice handles slice growth during append.
 // It is passed the slice element type, the old slice, and the desired new minimum capacity,
 // and it returns a new slice with at least that capacity, with the old data
@@ -80,10 +180,13 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 func growslice(et *_type, oldarray unsafe.Pointer, oldlen, oldcap, cap int) slice {
 	if raceenabled {
 		callerpc := getcallerpc()
-		racereadrangepc(oldarray, uintptr(oldlen*int(et.size)), callerpc, funcPC(growslice))
+		racereadrangepc(oldarray, uintptr(oldlen*int(et.size)), callerpc, abi.FuncPCABIInternal(growslice))
 	}
 	if msanenabled {
 		msanread(oldarray, uintptr(oldlen*int(et.size)))
+	}
+	if asanenabled {
+		asanread(oldarray, uintptr(oldlen*int(et.size)))
 	}
 
 	if cap < oldcap {
@@ -101,13 +204,17 @@ func growslice(et *_type, oldarray unsafe.Pointer, oldlen, oldcap, cap int) slic
 	if cap > doublecap {
 		newcap = cap
 	} else {
-		if oldlen < 1024 {
+		const threshold = 256
+		if oldcap < threshold {
 			newcap = doublecap
 		} else {
 			// Check 0 < newcap to detect overflow
 			// and prevent an infinite loop.
 			for 0 < newcap && newcap < cap {
-				newcap += newcap / 4
+				// Transition from growing 2x for small slices
+				// to growing 1.25x for large slices. This formula
+				// gives a smooth-ish transition between the two.
+				newcap += (newcap + 3*threshold) / 4
 			}
 			// Set newcap to the requested cap when
 			// the newcap calculation overflowed.
@@ -121,7 +228,7 @@ func growslice(et *_type, oldarray unsafe.Pointer, oldlen, oldcap, cap int) slic
 	var lenmem, newlenmem, capmem uintptr
 	// Specialize for common values of et.size.
 	// For 1 we don't need any division/multiplication.
-	// For sys.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
+	// For goarch.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
 	// For powers of 2, use a variable shift.
 	switch {
 	case et.size == 1:
@@ -130,15 +237,15 @@ func growslice(et *_type, oldarray unsafe.Pointer, oldlen, oldcap, cap int) slic
 		capmem = roundupsize(uintptr(newcap))
 		overflow = uintptr(newcap) > maxAlloc
 		newcap = int(capmem)
-	case et.size == sys.PtrSize:
-		lenmem = uintptr(oldlen) * sys.PtrSize
-		newlenmem = uintptr(cap) * sys.PtrSize
-		capmem = roundupsize(uintptr(newcap) * sys.PtrSize)
-		overflow = uintptr(newcap) > maxAlloc/sys.PtrSize
-		newcap = int(capmem / sys.PtrSize)
+	case et.size == goarch.PtrSize:
+		lenmem = uintptr(oldlen) * goarch.PtrSize
+		newlenmem = uintptr(cap) * goarch.PtrSize
+		capmem = roundupsize(uintptr(newcap) * goarch.PtrSize)
+		overflow = uintptr(newcap) > maxAlloc/goarch.PtrSize
+		newcap = int(capmem / goarch.PtrSize)
 	case isPowerOfTwo(et.size):
 		var shift uintptr
-		if sys.PtrSize == 8 {
+		if goarch.PtrSize == 8 {
 			// Mask shift for better code generation.
 			shift = uintptr(sys.Ctz64(uint64(et.size))) & 63
 		} else {
@@ -175,7 +282,7 @@ func growslice(et *_type, oldarray unsafe.Pointer, oldlen, oldcap, cap int) slic
 	}
 
 	var p unsafe.Pointer
-	if et.kind&kindNoPointers != 0 {
+	if et.ptrdata == 0 {
 		p = mallocgc(capmem, nil, false)
 		// The append() that calls growslice is going to overwrite from oldlen to cap (which will be the new length).
 		// Only clear the part that will not be overwritten.
@@ -183,10 +290,10 @@ func growslice(et *_type, oldarray unsafe.Pointer, oldlen, oldcap, cap int) slic
 	} else {
 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
 		p = mallocgc(capmem, et, true)
-		if writeBarrier.enabled {
-			// Only shade the pointers in oldarray since we know the destination slice p
+		if lenmem > 0 && writeBarrier.enabled {
+			// Only shade the pointers in old.array since we know the destination slice p
 			// only contains nil pointers because it has been cleared during alloc.
-			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(oldarray), lenmem)
+			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(oldarray), lenmem-et.size+et.ptrdata)
 		}
 	}
 	memmove(p, oldarray, lenmem)
@@ -198,60 +305,42 @@ func isPowerOfTwo(x uintptr) bool {
 	return x&(x-1) == 0
 }
 
-func slicecopy(to, fm slice, width uintptr) int {
-	if fm.len == 0 || to.len == 0 {
+// slicecopy is used to copy from a string or slice of pointerless elements into a slice.
+func slicecopy(toPtr unsafe.Pointer, toLen int, fromPtr unsafe.Pointer, fromLen int, width uintptr) int {
+	if fromLen == 0 || toLen == 0 {
 		return 0
 	}
 
-	n := fm.len
-	if to.len < n {
-		n = to.len
+	n := fromLen
+	if toLen < n {
+		n = toLen
 	}
 
 	if width == 0 {
 		return n
 	}
 
+	size := uintptr(n) * width
 	if raceenabled {
 		callerpc := getcallerpc()
-		pc := funcPC(slicecopy)
-		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
-		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
+		pc := abi.FuncPCABIInternal(slicecopy)
+		racereadrangepc(fromPtr, size, callerpc, pc)
+		racewriterangepc(toPtr, size, callerpc, pc)
 	}
 	if msanenabled {
-		msanwrite(to.array, uintptr(n*int(width)))
-		msanread(fm.array, uintptr(n*int(width)))
+		msanread(fromPtr, size)
+		msanwrite(toPtr, size)
+	}
+	if asanenabled {
+		asanread(fromPtr, size)
+		asanwrite(toPtr, size)
 	}
 
-	size := uintptr(n) * width
 	if size == 1 { // common case worth about 2x to do here
 		// TODO: is this still worth it with new memmove impl?
-		*(*byte)(to.array) = *(*byte)(fm.array) // known to be a byte pointer
+		*(*byte)(toPtr) = *(*byte)(fromPtr) // known to be a byte pointer
 	} else {
-		memmove(to.array, fm.array, size)
+		memmove(toPtr, fromPtr, size)
 	}
-	return n
-}
-
-func slicestringcopy(to []byte, fm string) int {
-	if len(fm) == 0 || len(to) == 0 {
-		return 0
-	}
-
-	n := len(fm)
-	if len(to) < n {
-		n = len(to)
-	}
-
-	if raceenabled {
-		callerpc := getcallerpc()
-		pc := funcPC(slicestringcopy)
-		racewriterangepc(unsafe.Pointer(&to[0]), uintptr(n), callerpc, pc)
-	}
-	if msanenabled {
-		msanwrite(unsafe.Pointer(&to[0]), uintptr(n))
-	}
-
-	memmove(unsafe.Pointer(&to[0]), stringStructOf(&fm).str, uintptr(n))
 	return n
 }

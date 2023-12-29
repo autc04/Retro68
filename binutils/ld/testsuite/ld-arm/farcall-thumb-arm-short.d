@@ -9,7 +9,7 @@ Disassembly of section .text:
 
 00001008 <__bar_from_thumb>:
     1008:	4778      	bx	pc
-    100a:	46c0      	nop			; \(mov r8, r8\)
+    100a:	e7fd      	b.n	.+ <.+>
     100c:	ea000400 	b	2014 <bar>
 Disassembly of section .foo:
 

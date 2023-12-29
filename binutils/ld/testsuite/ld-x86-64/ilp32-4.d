@@ -1,5 +1,5 @@
 #as: --x32
-#ld: -m elf32_x86_64 -shared --no-ld-generated-unwind-info --hash-style=sysv
+#ld: -m elf32_x86_64 -shared --no-ld-generated-unwind-info --hash-style=sysv $NO_DT_RELR_LDFLAGS
 #readelf: -d -S --wide
 #target: x86_64-*-linux*
 

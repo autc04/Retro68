@@ -1,4 +1,4 @@
-#ld: -Tnote-2.t
+#ld: -Tnote-2.t --no-warn-rwx-segments
 #objcopy_linked_file: -R .foo 
 #readelf: -l --wide
 

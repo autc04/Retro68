@@ -181,16 +181,16 @@ class Parse
   void method_spec(Typed_identifier_list*);
   void declaration();
   bool declaration_may_start_here();
-  void decl(void (Parse::*)(void*, unsigned int), void*, unsigned int pragmas);
-  void list(void (Parse::*)(void*, unsigned int), void*, bool);
+  void decl(void (Parse::*)());
+  void list(void (Parse::*)(), bool);
   void const_decl();
   void const_spec(int, Type**, Expression_list**);
-  void type_decl(unsigned int pragmas);
-  void type_spec(void*, unsigned int pragmas);
+  void type_decl();
+  void type_spec();
   void var_decl();
-  void var_spec(void*, unsigned int pragmas);
+  void var_spec();
   void init_vars(const Typed_identifier_list*, Type*, Expression_list*,
-		 bool is_coloneq, Location);
+		 bool is_coloneq, std::vector<std::string>*, Location);
   bool init_vars_from_call(const Typed_identifier_list*, Type*, Expression*,
 			   bool is_coloneq, Location);
   bool init_vars_from_map(const Typed_identifier_list*, Type*, Expression*,
@@ -209,7 +209,7 @@ class Parse
   void simple_var_decl_or_assignment(const std::string&, Location,
 				     bool may_be_composite_lit,
 				     Range_clause*, Type_switch*);
-  void function_decl(unsigned int pragmas);
+  void function_decl();
   Typed_identifier* receiver();
   Expression* operand(bool may_be_sink, bool *is_parenthesized);
   Expression* enclosing_var_reference(Named_object*, Named_object*,
@@ -231,7 +231,7 @@ class Parse
 			 bool* is_type_switch, bool* is_parenthesized);
   Type* reassociate_chan_direction(Channel_type*, Location);
   Expression* qualified_expr(Expression*, Location);
-  Expression* id_to_expression(const std::string&, Location, bool);
+  Expression* id_to_expression(const std::string&, Location, bool, bool);
   void statement(Label*);
   bool statement_may_start_here();
   void labeled_stmt(const std::string&, Location);
@@ -277,7 +277,10 @@ class Parse
   void goto_stat();
   void package_clause();
   void import_decl();
-  void import_spec(void*, unsigned int pragmas);
+  void import_spec();
+
+  // Check for unused compiler directives.
+  void check_directives();
 
   // Skip past an error looking for a semicolon or OP.  Return true if
   // all is well, false if we found EOF.

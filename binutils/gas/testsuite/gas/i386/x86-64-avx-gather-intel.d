@@ -1,4 +1,4 @@
-#as: 
+#as:
 #objdump: -dwMintel
 #name: x86-64 AVX GATHER insns (Intel disassembly)
 #source: x86-64-avx-gather.s

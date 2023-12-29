@@ -1,5 +1,6 @@
 /* { dg-do run { target openacc_nvidia_accel_selected } } */
 /* { dg-additional-options "-lcuda" } */
+/* { dg-require-effective-target openacc_cuda } */
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -71,6 +72,8 @@ main (int argc, char **argv)
 
   if (async > (sync * 1.5))
     abort ();
+
+  acc_unmap_data (h);
 
   acc_free (d);
 

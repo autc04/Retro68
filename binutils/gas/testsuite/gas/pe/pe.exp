@@ -1,6 +1,6 @@
 # Expect control script for GAS testsuite PE object-format-specific tests.
 
-# Copyright (C) 2009-2018 Free Software Foundation, Inc.
+# Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,7 +55,6 @@ if ([istarget "x86_64-*-mingw*"]) then {
 # Big obj
 
 
-if ([istarget "x86_64-*-mingw*"]) then {
-        # Currently only supported on x86_64
+if ([istarget "*-*-mingw*"]) then {
 	run_dump_test "big-obj"
 }

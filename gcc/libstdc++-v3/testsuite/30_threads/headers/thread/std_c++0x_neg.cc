@@ -1,8 +1,8 @@
-// { dg-do compile }
 // { dg-options "-std=gnu++98" }
+// { dg-do compile { target c++98_only } }
 // { dg-require-gthreads "" }
 
-// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+// Copyright (C) 2008-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the

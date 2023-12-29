@@ -36,19 +36,19 @@
 	popl	%ds
 	mov	%ds,%eax
 	movl	%ds,%eax
-	movl	%ds,%ax
+	movl	%ds,%ebx
 	mov	%eax,%ds
-	movl	%ax,%ds
+	movl	%ebx,%ds
 	movl	%eax,%ds
 
 	pushw	%ds
 	popw	%ds
 	mov	%ds,%ax
 	movw	%ds,%ax
-	movw	%ds,%eax
+	movw	%ds,%di
 	mov	%ax,%ds
 	movw	%ax,%ds
-	movw	%eax,%ds
+	movw	%di,%ds
 
 # test various pushes
 	pushl	$10
@@ -120,11 +120,11 @@
 	setaeb	(%ebx)
 	setae	%al
 
+	orb	$1,%al
+	orl	$0x100,%eax
+	orb	$1,%bl
+
 #these should give warnings
-	orb	$1,%ax
-	orb	$1,%eax
-	orb	$1,%bx
-	orb	$1,%ebx
 	fldl	%st(1)
 	fstl	%st(2)
 	fstpl	%st(3)
@@ -175,7 +175,7 @@
 	div	%cx,%ax
 	div	%ecx,%eax
 	mov	%si,%ds
-	movl	%si,%ds		# warning here
+	movl	%edi,%ds
 	pushl	%ds
 	push	%ds
 	mov	0,%al
@@ -215,6 +215,53 @@
 # Make sure that we won't remove movzb by accident.
 	movzb	%al,%di
 	movzb	%al,%ecx
+
+.code16gcc
+# Except for IRET use 32-bit implicit stack accesses by default.
+	call	.
+	call	*(%bx)
+	enter	$0,$0
+	iret
+	lcall	*(%bx)
+	lcall	$0,$0
+	leave
+	lret
+	lret	$0
+	push	$0
+	push	$0x1234
+	push	(%bx)
+	push	%es
+	push	%fs
+	pusha
+	pushf
+	pop	(%bx)
+	pop	%es
+	pop	%fs
+	popa
+	popf
+	ret
+	ret	$0
+
+# However use 16-bit branches not accessing the stack by default.
+	ja	.
+	ja	.+0x1234
+	jcxz	.
+	jmp	.
+	jmp	.+0x1234
+	jmp	*(%bx)
+	ljmp	*(%bx)
+	ljmp	$0,$0
+	loop	.
+	syscall
+	sysenter
+	sysexit
+	sysret
+	xbegin	.
+
+# Use 16-bit layout by default for fldenv.
+	fldenv	(%eax)
+	fldenvs	(%eax)
+	fldenvl	(%eax)
 
 	# Force a good alignment.
 	.p2align	4,0

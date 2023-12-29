@@ -1,5 +1,5 @@
 	.option norelax
-	.option rvc
+	.option arch, +c
 	.byte 0
 	.align 4
 	nop

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -27,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD: head/sys/net/if.h 314436 2017-02-28 23:42:47Z imp $
+ * $FreeBSD: head/sys/net/if.h 352458 2019-09-17 18:49:13Z kib $
  */
 
 #ifndef _NET_IF_H_
@@ -160,6 +162,9 @@ struct if_data {
 #define	IFF_STATICARP	0x80000		/* (n) static ARP */
 #define	IFF_DYING	0x200000	/* (n) interface is winding down */
 #define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
+#define	IFF_NOGROUP	0x800000	/* (n) interface is not part of any groups */
+
+
 /*
  * Old names for driver flags so that user space tools can continue to use
  * the old (portable) names.
@@ -232,7 +237,7 @@ struct if_data {
 #define	IFCAP_TOE4		0x04000	/* interface can offload TCP */
 #define	IFCAP_TOE6		0x08000	/* interface can offload TCP6 */
 #define	IFCAP_VLAN_HWFILTER	0x10000 /* interface hw can filter vlan tag */
-#define	IFCAP_POLLING_NOCOUNT	0x20000 /* polling ticks cannot be fragmented */
+/* 	available		0x20000 */
 #define	IFCAP_VLAN_HWTSO	0x40000 /* can do IFCAP_TSO on VLANs */
 #define	IFCAP_LINKSTATE		0x80000 /* the runtime link state is dynamic */
 #define	IFCAP_NETMAP		0x100000 /* netmap mode supported/enabled */
@@ -240,6 +245,10 @@ struct if_data {
 #define	IFCAP_TXCSUM_IPV6	0x400000  /* can offload checksum on IPv6 TX */
 #define	IFCAP_HWSTATS		0x800000 /* manages counters internally */
 #define	IFCAP_TXRTLMT		0x1000000 /* hardware supports TX rate limiting */
+#define	IFCAP_HWRXTSTMP		0x2000000 /* hardware rx timestamping */
+#define	IFCAP_NOMAP		0x4000000 /* can TX unmapped mbufs */
+#define	IFCAP_TXTLS4		0x8000000 /* can do TLS encryption and segmentation for TCP */
+#define	IFCAP_TXTLS6		0x10000000 /* can do TLS encryption and segmentation for TCP6 */
 
 #define IFCAP_HWCSUM_IPV6	(IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6)
 
@@ -247,6 +256,7 @@ struct if_data {
 #define	IFCAP_TSO	(IFCAP_TSO4 | IFCAP_TSO6)
 #define	IFCAP_WOL	(IFCAP_WOL_UCAST | IFCAP_WOL_MCAST | IFCAP_WOL_MAGIC)
 #define	IFCAP_TOE	(IFCAP_TOE4 | IFCAP_TOE6)
+#define	IFCAP_TXTLS	(IFCAP_TXTLS4 | IFCAP_TXTLS6)
 
 #define	IFCAP_CANTCHANGE	(IFCAP_NETMAP)
 
@@ -265,6 +275,7 @@ struct if_msghdr {
 	int	ifm_addrs;	/* like rtm_addrs */
 	int	ifm_flags;	/* value of if_flags */
 	u_short	ifm_index;	/* index for associated ifp */
+	u_short	_ifm_spare1;
 	struct	if_data ifm_data;/* statistics and other data about if */
 };
 
@@ -290,6 +301,7 @@ struct if_msghdrl {
 	u_short _ifm_spare1;	/* spare space to grow if_index, see if_var.h */
 	u_short	ifm_len;	/* length of if_msghdrl incl. if_data */
 	u_short	ifm_data_off;	/* offset of if_data from beginning */
+	int	_ifm_spare2;
 	struct	if_data ifm_data;/* statistics and other data about if */
 };
 
@@ -305,6 +317,7 @@ struct ifa_msghdr {
 	int	ifam_addrs;	/* like rtm_addrs */
 	int	ifam_flags;	/* value of ifa_flags */
 	u_short	ifam_index;	/* index for associated ifp */
+	u_short	_ifam_spare1;
 	int	ifam_metric;	/* value of ifa_ifp->if_metric */
 };
 
@@ -346,6 +359,7 @@ struct ifma_msghdr {
 	int	ifmam_addrs;	/* like rtm_addrs */
 	int	ifmam_flags;	/* value of ifa_flags */
 	u_short	ifmam_index;	/* index for associated ifp */
+	u_short	_ifmam_spare1;
 };
 
 /*
@@ -399,7 +413,9 @@ struct	ifreq {
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
 #define	ifr_dstaddr	ifr_ifru.ifru_dstaddr	/* other end of p-to-p link */
 #define	ifr_broadaddr	ifr_ifru.ifru_broadaddr	/* broadcast address */
+#ifndef _KERNEL
 #define	ifr_buffer	ifr_ifru.ifru_buffer	/* user supplied buffer with its length */
+#endif
 #define	ifr_flags	ifr_ifru.ifru_flags[0]	/* flags (low 16 bits) */
 #define	ifr_flagshigh	ifr_ifru.ifru_flags[1]	/* flags (high 16 bits) */
 #define	ifr_jid		ifr_ifru.ifru_jid	/* jail/vnet */
@@ -407,12 +423,15 @@ struct	ifreq {
 #define	ifr_mtu		ifr_ifru.ifru_mtu	/* mtu */
 #define ifr_phys	ifr_ifru.ifru_phys	/* physical wire */
 #define ifr_media	ifr_ifru.ifru_media	/* physical media */
+#ifndef _KERNEL
 #define	ifr_data	ifr_ifru.ifru_data	/* for use by interface */
+#endif
 #define	ifr_reqcap	ifr_ifru.ifru_cap[0]	/* requested capabilities */
 #define	ifr_curcap	ifr_ifru.ifru_cap[1]	/* current capabilities */
 #define	ifr_index	ifr_ifru.ifru_index	/* interface index */
 #define	ifr_fib		ifr_ifru.ifru_fib	/* interface fib */
 #define	ifr_vlan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
+#define	ifr_lan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
 };
 
 #define	_SIZEOF_ADDR_IFREQ(ifr) \
@@ -509,8 +528,10 @@ struct ifgroupreq {
 		char	ifgru_group[IFNAMSIZ];
 		struct	ifg_req *ifgru_groups;
 	} ifgr_ifgru;
+#ifndef _KERNEL
 #define ifgr_group	ifgr_ifgru.ifgru_group
 #define ifgr_groups	ifgr_ifgru.ifgru_groups
+#endif
 };
 
 /*
@@ -526,14 +547,55 @@ struct ifi2creq {
 	uint8_t data[8];	/* read buffer */
 }; 
 
-#endif /* __BSD_VISIBLE */
+/*
+ * RSS hash.
+ */
 
-#ifdef _KERNEL
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_IFADDR);
-MALLOC_DECLARE(M_IFMADDR);
-#endif
-#endif
+#define	RSS_FUNC_NONE		0		/* RSS disabled */
+#define	RSS_FUNC_PRIVATE	1		/* non-standard */
+#define	RSS_FUNC_TOEPLITZ	2
+
+#define	RSS_TYPE_IPV4		0x00000001
+#define	RSS_TYPE_TCP_IPV4	0x00000002
+#define	RSS_TYPE_IPV6		0x00000004
+#define	RSS_TYPE_IPV6_EX	0x00000008
+#define	RSS_TYPE_TCP_IPV6	0x00000010
+#define	RSS_TYPE_TCP_IPV6_EX	0x00000020
+#define	RSS_TYPE_UDP_IPV4	0x00000040
+#define	RSS_TYPE_UDP_IPV6	0x00000080
+#define	RSS_TYPE_UDP_IPV6_EX	0x00000100
+
+#define	RSS_KEYLEN		128
+
+struct ifrsskey {
+	char		ifrk_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+	uint8_t		ifrk_func;		/* RSS_FUNC_ */
+	uint8_t		ifrk_spare0;
+	uint16_t	ifrk_keylen;
+	uint8_t		ifrk_key[RSS_KEYLEN];
+};
+
+struct ifrsshash {
+	char		ifrh_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+	uint8_t		ifrh_func;		/* RSS_FUNC_ */
+	uint8_t		ifrh_spare0;
+	uint16_t	ifrh_spare1;
+	uint32_t	ifrh_types;		/* RSS_TYPE_ */
+};
+
+#define	IFNET_PCP_NONE	0xff	/* PCP disabled */
+
+#define	IFDR_MSG_SIZE		64
+#define	IFDR_REASON_MSG		1
+#define	IFDR_REASON_VENDOR	2
+struct ifdownreason {
+	char		ifdr_name[IFNAMSIZ];
+	uint32_t	ifdr_reason;
+	uint32_t	ifdr_vendor;
+	char		ifdr_msg[IFDR_MSG_SIZE];
+};
+
+#endif /* __BSD_VISIBLE */
 
 #ifndef _KERNEL
 struct if_nameindex {
@@ -547,5 +609,9 @@ char			*if_indextoname(unsigned int, char *);
 struct if_nameindex	*if_nameindex(void);
 unsigned int		 if_nametoindex(const char *);
 __END_DECLS
+#endif
+#ifdef _KERNEL
+/* Header file provided outside of Newlib */
+#include <machine/_kernel_if.h>
 #endif
 #endif /* !_NET_IF_H_ */

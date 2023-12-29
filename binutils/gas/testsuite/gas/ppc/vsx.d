@@ -170,4 +170,8 @@ Disassembly of section \.text:
 .*:	(7d 0a a6 99|99 a6 0a 7d) 	lxvd2x  vs40,r10,r20
 .*:	(7d 00 a7 99|99 a7 00 7d) 	stxvd2x vs40,0,r20
 .*:	(7d 0a a7 99|99 a7 0a 7d) 	stxvd2x vs40,r10,r20
+.*:	(f1 12 95 17|17 95 12 f1) 	xxlnot  vs40,vs50
+.*:	(f1 12 95 17|17 95 12 f1) 	xxlnot  vs40,vs50
+.*:	(f1 12 94 97|97 94 12 f1) 	xxmr    vs40,vs50
+.*:	(f1 12 94 97|97 94 12 f1) 	xxmr    vs40,vs50
 #pass

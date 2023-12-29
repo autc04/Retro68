@@ -1,7 +1,7 @@
 #name: rela-abs-relative (big endian)
 #source: rela-abs-relative.s
+#alltargets: [check_shared_lib_support] aarch64_be-*-*
 #ld: -shared -Ttext-segment=0x100000 -Tdata=0x200000 -Trelocs.ld
-#target: aarch64_be-*-*
 #objdump: -dR -j .data
 #...
 

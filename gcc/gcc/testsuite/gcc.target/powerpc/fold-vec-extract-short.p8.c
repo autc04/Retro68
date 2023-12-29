@@ -1,7 +1,7 @@
 /* Verify that overloaded built-ins for vec_extract() with short
    inputs produce the right results with a P8 (LE or BE) target.  */
 
-/* { dg-do compile { target { powerpc*-*-linux* } } } */
+/* { dg-do compile } */
 /* { dg-require-effective-target powerpc_p8vector_ok } */
 /* { dg-options "-mdejagnu-cpu=power8 -O2" } */
 
@@ -32,7 +32,7 @@
 /* add and rlwinm instructions only on the variable tests. */
 /* { dg-final { scan-assembler-times {\madd\M} 3 { target ilp32 } } } */
 /* { dg-final { scan-assembler-times "rlwinm" 3 { target ilp32 } } } */
-/* { dg-final { scan-assembler-times {\maddi\M} 6 { target ilp32 } } } */
+/* { dg-final { scan-assembler-times {\maddi\M} 9 { target ilp32 } } } */
 /* { dg-final { scan-assembler-times {\mlha\M|\mlhz\M} 6 { target ilp32 } } } */
 
 

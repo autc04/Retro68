@@ -1,6 +1,20 @@
-2019-05-03  Release Manager
+2022-08-19  Release Manager
 
-	* GCC 9.1.0 released.
+	* GCC 12.2.0 released.
+
+2022-05-06  Release Manager
+
+	* GCC 12.1.0 released.
+
+2021-10-22  Eric Gallager  <egallager@gcc.gnu.org>
+
+	PR other/102663
+	* Makefile.in: Add dummy install-dvi target.
+
+2021-05-07  Bob Duff  <duff@adacore.com>
+
+	* Makefile.in (GENERATED_FILES_FOR_TOOLS): New variable.
+	($(GCC_DIR)/stamp-tools): Walk it for the first copy operation.
 
 2018-11-19  Alexandre Oliva <oliva@adacore.com>
 

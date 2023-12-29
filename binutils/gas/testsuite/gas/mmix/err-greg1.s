@@ -6,5 +6,5 @@
 
 Main SWYM 0
 	.rept 223
-	GREG
-	.endr	% { dg-error "too many GREG registers allocated" "" }
+	GREG	% { dg-error "too many GREG registers allocated" "" }
+	.endr

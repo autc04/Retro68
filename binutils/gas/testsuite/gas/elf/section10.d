@@ -1,7 +1,7 @@
 #readelf: -N --wide
 #name: numeric section flags and types
 # The RX port annoyingly reorders the sections so that they do not match the sequence expected below.
-#skip: rx-*-*
+#xfail: rx-*-*
 
 #...
 [ 	]*\[.*\][ 	]+.text
@@ -18,7 +18,7 @@
 #...
 [ 	]*\[.*\][ 	]+sec3
 [ 	]*PROGBITS.*
-[ 	]*\[.*fefff030\]: MERGE, STRINGS,.* EXCLUDE, OS \(.*ef00000\), PROC \(.*[3467]0000000\), UNKNOWN \(0+0ff000\)
+[ 	]*\[.*fedff030\]: MERGE, STRINGS,.* EXCLUDE, OS \(.*ed00000\), PROC \(.*[3467]0000000\), UNKNOWN \(0+0ff000\)
 #...
 [ 	]*\[.*\][ 	]+sec4
 [ 	]*LOOS\+0x11[ 	].*
@@ -26,7 +26,7 @@
 #...
 [ 	]*\[.*\][ 	]+sec5
 [ 	]*LOUSER\+0x9[ 	].*
-[ 	]*\[.*feff0000\]:.* EXCLUDE, OS \(.*ef00000\), PROC \(.*[3467]0000000\), UNKNOWN \(.*f0000\)
+[ 	]*\[.*fedf0000\]:.* EXCLUDE, OS \(.*ed00000\), PROC \(.*[3467]0000000\), UNKNOWN \(.*f0000\)
 [ 	]*\[.*\][ 	]+.data.foo
 [ 	]*LOUSER\+0x7f000000[ 	].*
 [ 	]*\[0+003\]: WRITE, ALLOC

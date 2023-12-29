@@ -15,8 +15,6 @@ _start:
 	cvtsi2sd %rax, %xmm1
 	cvtsi2ssq %rax, %xmm1
 	cvtsi2sdq %rax, %xmm1
-	cvtsi2ss (%rax), %xmm1
-	cvtsi2sd (%rax), %xmm1
 	cvtsi2ssl (%rax), %xmm1
 	cvtsi2sdl (%rax), %xmm1
 	cvtsi2ssq (%rax), %xmm1

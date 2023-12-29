@@ -69,6 +69,15 @@ foreach offload_target [concat [split $offload_targets ","] "disable"] {
 
 	    set acc_mem_shared 0
 	}
+	radeon {
+	    if { ![check_effective_target_openacc_radeon_accel_present] } {
+		# Don't bother; execution testing is going to FAIL.
+		untested "$subdir $offload_target offloading: supported, but hardware not accessible"
+		continue
+	    }
+
+	    set acc_mem_shared 0
+	}
 	default {
 	    error "Unknown OpenACC device type: $openacc_device_type (offload target: $offload_target)"
 	}
@@ -103,6 +112,7 @@ foreach offload_target [concat [split $offload_targets ","] "disable"] {
 
     gcc-dg-runtest $tests "$tagopt" ""
 }
+unset offload_target
 
 # All done.
 torture-finish

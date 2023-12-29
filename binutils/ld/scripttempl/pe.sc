@@ -1,6 +1,6 @@
 # Linker script for PE.
 #
-# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+# Copyright (C) 2014-2022 Free Software Foundation, Inc.
 #
 # Copying and distribution of this file, with or without modification,
 # are permitted in any medium without royalty provided the copyright
@@ -70,7 +70,7 @@ else
 fi
 
 cat <<EOF
-/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
+/* Copyright (C) 2014-2022 Free Software Foundation, Inc.
 
    Copying and distribution of this script, with or without modification,
    are permitted in any medium without royalty provided the copyright
@@ -90,7 +90,7 @@ SECTIONS
   ${RELOCATING+. = ALIGN(__section_alignment__);}
   .text ${RELOCATING+ __image_base__ + ( __section_alignment__ < ${TARGET_PAGE_SIZE} ? . : __section_alignment__ )} :
   {
-    ${RELOCATING+ KEEP(*(.init))}
+    ${RELOCATING+KEEP (*(SORT_NONE(.init)))}
     *(.text)
     ${R_TEXT}
     ${RELOCATING+ *(.text.*)}
@@ -104,14 +104,19 @@ SECTIONS
           expectation that they will be overridden by the definitions
 	  here.  If we PROVIDE the symbols then they will not be
 	  overridden and global constructors will not be run.
+	  See PR 22762 for more details.
 	  
 	  This does mean that it is not possible for a user to define
-	  their own __CTOR_LIST__ and __DTOR_LIST__ symbols.  If that
-	  ability is needed a custom linker script will have to be
-	  used.  (The custom script can just be a copy of this script
-	  with the PROVIDE() qualifiers added).
+	  their own __CTOR_LIST__ and __DTOR_LIST__ symbols; if they do,
+	  the content from those variables are included but the symbols
+	  defined here silently take precedence.  If they truly need to
+	  be redefined, a custom linker script will have to be used.
+	  (The custom script can just be a copy of this script with the
+	  PROVIDE() qualifiers added).
 
-	  See PR 22762 for more details.  */
+	  In particular this means that ld -Ur does not work, because
+	  the proper __CTOR_LIST__ set by ld -Ur is overridden by a
+	  bogus __CTOR_LIST__ set by the final link.  See PR 46.  */
        ___CTOR_LIST__ = .;
        __CTOR_LIST__ = .;
        LONG (-1);
@@ -131,8 +136,8 @@ SECTIONS
        KEEP(*(SORT_BY_NAME(.dtors.*)));
        LONG (0);
      }
-    ${RELOCATING+ KEEP (*(.fini))}
-    /* ??? Why is .gcc_exc here?  */
+    ${RELOCATING+KEEP (*(SORT_NONE(.fini)))}
+    ${RELOCATING+/* ??? Why is .gcc_exc here?  */}
     ${RELOCATING+ *(.gcc_exc)}
     ${RELOCATING+PROVIDE (etext = .);}
     ${RELOCATING+PROVIDE (_etext = .);}
@@ -159,6 +164,7 @@ SECTIONS
   .rdata ${RELOCATING+BLOCK(__section_alignment__)} :
   {
     ${R_RDATA}
+    . = ALIGN(4);
     ${RELOCATING+__rt_psrelocs_start = .;}
     ${RELOCATING+KEEP(*(.rdata_runtime_pseudo_reloc))}
     ${RELOCATING+__rt_psrelocs_end = .;}
@@ -294,15 +300,6 @@ SECTIONS
     *(.zdebug_pubnames)
   }
 
-  .debug_pubtypes ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
-  {
-    *(.debug_pubtypes)
-  }
-  .zdebug_pubtypes ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
-  {
-    *(.zdebug_pubtypes)
-  }
-
   /* DWARF 2.  */
   .debug_info ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
   {
@@ -404,16 +401,16 @@ SECTIONS
     *(.zdebug_varnames)
   }
 
-  .debug_macro ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  /* DWARF 3.  */
+  .debug_pubtypes ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
   {
-    *(.debug_macro)
+    *(.debug_pubtypes)
   }
-  .zdebug_macro ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  .zdebug_pubtypes ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
   {
-    *(.zdebug_macro)
+    *(.zdebug_pubtypes)
   }
 
-  /* DWARF 3.  */
   .debug_ranges ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
   {
     *(.debug_ranges)
@@ -431,6 +428,68 @@ SECTIONS
   .zdebug_types ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
   {
     *(.zdebug_types${RELOCATING+ .gnu.linkonce.wt.*})
+  }
+
+  /* DWARF 5.  */
+  .debug_addr ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_addr)
+  }
+  .zdebug_addr ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.zdebug_addr)
+  }
+  .debug_line_str ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_line_str)
+  }
+  .zdebug_line_str ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.zdebug_line_str)
+  }
+  .debug_loclists ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_loclists)
+  }
+  .zdebug_loclists ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.zdebug_loclists)
+  }
+  .debug_macro ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_macro)
+  }
+  .zdebug_macro ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.zdebug_macro)
+  }
+  .debug_names ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_names)
+  }
+  .zdebug_names ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.zdebug_names)
+  }
+  .debug_rnglists ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_rnglists)
+  }
+  .zdebug_rnglists ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.zdebug_rnglists)
+  }
+  .debug_str_offsets ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_str_offsets)
+  }
+  .zdebug_str_offsets ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.zdebug_str_offsets)
+  }
+  .debug_sup ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :
+  {
+    *(.debug_sup)
   }
 
   /* For Go and Rust.  */

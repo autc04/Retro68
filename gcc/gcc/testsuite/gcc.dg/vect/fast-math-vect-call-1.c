@@ -1,3 +1,5 @@
+/* Disabling epilogues until we find a better way to deal with scans.  */
+/* { dg-additional-options "--param vect-epilogues-nomask=0" } */
 #include "tree-vect.h"
 
 extern float copysignf (float, float);
@@ -95,4 +97,4 @@ main ()
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 4 "vect" { target { vect_call_copysignf && vect_call_sqrtf } } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 3 "vect" { target { vect_call_copysignf && vect_call_sqrtf } } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 3 "vect" { target { { vect_call_copysignf && vect_call_sqrtf } && vect_perm3_int } } } } */

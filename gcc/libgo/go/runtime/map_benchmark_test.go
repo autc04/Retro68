@@ -1,6 +1,7 @@
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
 package runtime_test
 
 import (
@@ -251,7 +252,7 @@ func BenchmarkMapLast(b *testing.B) {
 }
 
 func BenchmarkMapCycle(b *testing.B) {
-	// Arrange map entries to be a permuation, so that
+	// Arrange map entries to be a permutation, so that
 	// we hit all entries, and one lookup is data dependent
 	// on the previous lookup.
 	const N = 3127
@@ -481,5 +482,54 @@ func BenchmarkMapStringConversion(b *testing.B) {
 				}
 			})
 		})
+	}
+}
+
+var BoolSink bool
+
+func BenchmarkMapInterfaceString(b *testing.B) {
+	m := map[any]bool{}
+
+	for i := 0; i < 100; i++ {
+		m[fmt.Sprintf("%d", i)] = true
+	}
+
+	key := (any)("A")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		BoolSink = m[key]
+	}
+}
+func BenchmarkMapInterfacePtr(b *testing.B) {
+	m := map[any]bool{}
+
+	for i := 0; i < 100; i++ {
+		i := i
+		m[&i] = true
+	}
+
+	key := new(int)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		BoolSink = m[key]
+	}
+}
+
+var (
+	hintLessThan8    = 7
+	hintGreaterThan8 = 32
+)
+
+func BenchmarkNewEmptyMapHintLessThan8(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = make(map[int]int, hintLessThan8)
+	}
+}
+
+func BenchmarkNewEmptyMapHintGreaterThan8(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = make(map[int]int, hintGreaterThan8)
 	}
 }

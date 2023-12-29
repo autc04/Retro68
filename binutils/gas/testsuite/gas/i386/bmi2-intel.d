@@ -1,4 +1,4 @@
-#as: 
+#as:
 #objdump: -dwMintel
 #name: i386 BMI2 insns (Intel disassembly)
 #source: bmi2.s

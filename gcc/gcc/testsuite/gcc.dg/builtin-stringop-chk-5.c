@@ -1,6 +1,6 @@
-/* Test exercising -Wrawmem-overflow and -Wstringop-overflow warnings.  */
+/* Test exercising -Wstringop-overflow warnings.  */
 /* { dg-do compile } */
-/* { dg-options "-O2 -Wstringop-overflow=1" } */
+/* { dg-options "-O2 -Wstringop-overflow=1 -Wno-array-bounds" } */
 
 #define offsetof(type, mem)   __builtin_offsetof (type, mem)
 
@@ -49,7 +49,7 @@ void test_memop_warn_local (const void *src)
   memcpy (a, src, n);   /* { dg-warning "writing between 8 and 32 bytes into a region of size 4 overflows the destination" } */
   escape (a, src);
 
-  /* At -Wrawmem-overflow=1 the destination is considered to be
+  /* At -Wstringop-overflow=1 the destination is considered to be
      the whole array and its size is therefore sizeof a.  */
   memcpy (&a[0], src, n);   /* { dg-warning "writing between 8 and 32 bytes into a region of size 4 overflows the destination" } */
   escape (a, src);
@@ -87,7 +87,7 @@ void test_memop_warn_local (const void *src)
   memset (&b->d, 0, offsetfrom (struct B, b, d) + 1);   /* { dg-warning "writing 6 bytes into a region of size 5" } */
   escape (b);
 
-  /* Same as above but clearing just elements of the second element
+  /* Same as above but clearing just members of the second element
      of the array.  */
   memset (&b[1].a.b, 0, offsetfrom (struct B, b[1], a.b) + 1);   /* { dg-warning "writing 4 bytes into a region of size 3" } */
   escape (b);
@@ -110,56 +110,56 @@ void test_memop_warn_alloc (const void *src)
 
   struct A *a = __builtin_malloc (sizeof *a * 2);
 
-  memcpy (a, src, n);   /* { dg-warning "writing between 8 and 32 bytes into a region of size 4 overflows the destination" "memcpy into allocated" { xfail *-*-*} } */
+  memcpy (a, src, n);   /* { dg-warning "writing between 8 and 32 bytes into a region of size 4 " "memcpy into allocated" } */
   escape (a, src);
 
-  /* At -Wrawmem-overflow=1 the destination is considered to be
+  /* At -Wstringop-overflow=1 the destination is considered to be
      the whole array and its size is therefore sizeof a.  */
-  memcpy (&a[0], src, n);   /* { dg-warning "writing between 8 and 32 bytes into a region of size 4 overflows the destination" "memcpy into allocated" { xfail *-*-*} } */
+  memcpy (&a[0], src, n);   /* { dg-warning "writing between 8 and 32 bytes into a region of size 4 overflows the destination" "memcpy into allocated" } */
   escape (a, src);
 
   /* Verify the same as above but by writing into the first mmeber
      of the first element of the array.  */
-  memcpy (&a[0].a, src, n);   /* { dg-warning "writing between 8 and 32 bytes into a region of size 4 overflows the destination" "memcpy into allocated" { xfail *-*-*} } */
+  memcpy (&a[0].a, src, n);   /* { dg-warning "writing between 8 and 32 bytes into a region of size " "memcpy into allocated" } */
   escape (a, src);
 
   n = range (12, 32);
 
-  struct B *b = __builtin_malloc (sizeof *b * 2);
+  struct B *b = __builtin_malloc (sizeof (struct B[2]));
 
-  memcpy (&b[0], src, n);   /* { dg-warning "writing between 12 and 32 bytes into a region of size 8 overflows the destination" "memcpy into allocated" { xfail *-*-*} } */
+  memcpy (&b[0], src, n);   /* { dg-warning "writing between 12 and 32 bytes into a region of size 8 " "memcpy into allocated" } */
   escape (b);
 
   /* The following idiom of clearing multiple members of a struct is
      used in a few places in the Linux kernel.  Verify that a warning
      is issued for it when it writes past the end of the array object.  */
-  memset (&b[0].a.b, 0, offsetfrom (struct B, b, a.b) + 1);   /* { dg-warning "writing 8 bytes into a region of size 7" "memcpy into allocated" { xfail *-*-*} } */
+  memset (&b[0].a.b, 0, offsetfrom (struct B, struct B[2], a.b) + 1);   /* { dg-warning "writing 8 bytes into a region of size " "memcpy into allocated" } */
   escape (b);
 
-  memset (&b->a.b, 0, offsetfrom (struct B, b, a.b) + 1);   /* { dg-warning "writing 8 bytes into a region of size 7" "memcpy into allocated" { xfail *-*-*} } */
+  memset (&b->a.b, 0, offsetfrom (struct B, struct B[2], a.b) + 1);   /* { dg-warning "writing 8 bytes into a region of size " "memcpy into allocated" } */
   escape (b);
 
-  memset (&b[0].c, 0, offsetfrom (struct B, b, c) + 1);   /* { dg-warning "writing 7 bytes into a region of size 6" "memcpy into allocated" { xfail *-*-*} } */
+  memset (&b[0].c, 0, offsetfrom (struct B, struct B[2], c) + 1);   /* { dg-warning "writing 7 bytes into a region of size " "memcpy into allocated" } */
   escape (b);
 
-  memset (&b->c, 0, offsetfrom (struct B, b, c) + 1);   /* { dg-warning "writing 7 bytes into a region of size 6" "memcpy into allocated" { xfail *-*-*} } */
+  memset (&b->c, 0, offsetfrom (struct B, struct B[2], c) + 1);   /* { dg-warning "writing 7 bytes into a region of size " "memcpy into allocated" } */
   escape (b);
 
-  memset (&b[0].d, 0, offsetfrom (struct B, b, d) + 1);   /* { dg-warning "writing 6 bytes into a region of size 5" "memcpy into allocated" { xfail *-*-*} } */
+  memset (&b[0].d, 0, offsetfrom (struct B, struct B[2], d) + 1);   /* { dg-warning "writing 6 bytes into a region of size " "memcpy into allocated" } */
   escape (b);
 
-  memset (&b->d, 0, offsetfrom (struct B, b, d) + 1);   /* { dg-warning "writing 6 bytes into a region of size 5" "memcpy into allocated" { xfail *-*-*} } */
+  memset (&b->d, 0, offsetfrom (struct B, struct B[2], d) + 1);   /* { dg-warning "writing 6 bytes into a region of size " "memcpy into allocated" } */
   escape (b);
 
   /* Same as above but clearing just elements of the second element
      of the array.  */
-  memset (&b[1].a.b, 0, offsetfrom (struct B, b[1], a.b) + 1);   /* { dg-warning "writing 4 bytes into a region of size 3" "memcpy into allocated" { xfail *-*-*} } */
+  memset (&b[1].a.b, 0, offsetfrom (struct B, b[1], a.b) + 1);   /* { dg-warning "writing 4 bytes into a region of size " "memcpy into allocated" } */
   escape (b);
 
-  memset (&b[1].c, 0, offsetfrom (struct B, b[1], c) + 1);   /* { dg-warning "writing 3 bytes into a region of size 2" "memcpy into allocated" { xfail *-*-*} } */
+  memset (&b[1].c, 0, offsetfrom (struct B, b[1], c) + 1);   /* { dg-warning "writing 3 bytes into a region of size " "memcpy into allocated" } */
   escape (b);
 
-  memset (&b[1].d, 0, offsetfrom (struct B, b[1], d) + 1);   /* { dg-warning "writing 2 bytes into a region of size 1" "memcpy into allocated" { xfail *-*-*} } */
+  memset (&b[1].d, 0, offsetfrom (struct B, b[1], d) + 1);   /* { dg-warning "writing 2 bytes into a region of size 1" "memcpy into allocated" } */
   escape (b);
 }
 

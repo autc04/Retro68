@@ -137,7 +137,6 @@ THIS SOFTWARE.
 #include <string.h>
 #include "mprec.h"
 #include "gdtoa.h"
-#include "gd_qnan.h"
 #include "../locale/setlocale.h"
 
 /* #ifndef NO_FENV_H */
@@ -170,6 +169,14 @@ static const double tinytens[] = { 1e-16, 1e-32,
 #define Check_FLT_ROUNDS
 #else
 #define Rounding Flt_Rounds
+#endif
+
+#ifdef IEEE_MC68k
+#define _0 0
+#define _1 1
+#else
+#define _0 1
+#define _1 0
 #endif
 
 #ifdef Avoid_Underflow /*{*/
@@ -256,8 +263,13 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 #ifdef Honor_FLT_ROUNDS
 	int rounding;
 #endif
-	struct lconv *lconv = __localeconv_l (loc);
-	int dec_len = strlen (lconv->decimal_point);
+#ifdef __HAVE_LOCALE_INFO__
+	const char *decimal_point = __get_numeric_locale(loc)->decimal_point;
+	const int dec_len = strlen (decimal_point);
+#else
+	const char *decimal_point = ".";
+	const int dec_len = 1;
+#endif
 
 	delta = bs = bd = NULL;
 	sign = nz0 = nz = decpt = 0;
@@ -319,6 +331,11 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 					Bfree(ptr,bb);
 					}
 				ULtod(rv.i, bits, exp, i);
+#ifndef NO_ERRNO
+                                /* try to avoid the bug of testing an 8087 register value */
+                                if ((dword0(rv)&Exp_mask) == 0)
+                                    errno = ERANGE;
+#endif
 			  }}
 			goto ret;
 		  }
@@ -337,7 +354,7 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 		else
 			z = 10*z + c - '0';
 	nd0 = nd;
-	if (strncmp (s, lconv->decimal_point, dec_len) == 0)
+	if (strncmp (s, decimal_point, dec_len) == 0)
 		{
 		decpt = 1;
 		c = *(s += dec_len);
@@ -444,10 +461,7 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 						}
 					else {
 #endif
-						dword0(rv) = NAN_WORD0;
-#ifndef _DOUBLE_IS_32BITS
-						dword1(rv) = NAN_WORD1;
-#endif /*!_DOUBLE_IS_32BITS*/
+						dval(rv) = nan ("");
 #ifndef No_Hex_NaN
 						}
 #endif
@@ -1186,7 +1200,16 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 #endif
 		if (y == z) {
 			/* Can we stop now? */
+#ifndef _DOUBLE_IS_32BITS
+			/* If FE_INVALID floating point exceptions are
+			   enabled, a conversion to a 32 bit value is
+			   dangerous.  A positive double value can result
+			   in a negative 32 bit int, thus raising SIGFPE.
+			   To avoid this, always convert into 64 bit here. */
+			__int64_t L = (__int64_t)aadj;
+#else
 			L = (Long)aadj;
+#endif
 			aadj -= L;
 			/* The tolerances below are conservative. */
 			if (dsign || dword1(rv) || dword0(rv) & Bndry_mask) {
@@ -1225,7 +1248,7 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 		dval(rv) *= dval(rv0);
 #ifndef NO_ERRNO
 		/* try to avoid the bug of testing an 8087 register value */
-		if (dword0(rv) == 0 && dword1(rv) == 0)
+		if ((dword0(rv) & Exp_mask) == 0)
 			ptr->_errno = ERANGE;
 #endif
 		}
@@ -1276,7 +1299,7 @@ strtof_l (const char *__restrict s00, char **__restrict se, locale_t loc)
 {
   double val = _strtod_l (_REENT, s00, se, loc);
   if (isnan (val))
-    return nanf (NULL);
+    return signbit (val) ? -nanf ("") : nanf ("");
   float retval = (float) val;
 #ifndef NO_ERRNO
   if (isinf (retval) && !isinf (val))
@@ -1285,16 +1308,38 @@ strtof_l (const char *__restrict s00, char **__restrict se, locale_t loc)
   return retval;
 }
 
+/*
+ * These two functions are not quite correct as they return true for
+ * zero, however they are 'good enough' for the test in strtof below
+ * as we only need to know whether the double test is false when
+ * the float test is true.
+ */
+static inline int
+isdenorm(double d)
+{
+    U u;
+    dval(u) = d;
+    return (dword0(u) & Exp_mask) == 0;
+}
+
+static inline int
+isdenormf(float f)
+{
+    union { float f; __uint32_t i; } u;
+    u.f = f;
+    return (u.i & 0x7f800000) == 0;
+}
+
 float
 strtof (const char *__restrict s00,
 	char **__restrict se)
 {
   double val = _strtod_l (_REENT, s00, se, __get_current_locale ());
   if (isnan (val))
-    return nanf (NULL);
+    return signbit (val) ? -nanf ("") : nanf ("");
   float retval = (float) val;
 #ifndef NO_ERRNO
-  if (isinf (retval) && !isinf (val))
+  if ((isinf (retval) && !isinf (val)) || (isdenormf(retval) && !isdenorm(val)))
     _REENT->_errno = ERANGE;
 #endif
   return retval;

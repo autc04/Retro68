@@ -1,5 +1,5 @@
 /* mips.h.  Mips opcode list for GDB, the GNU debugger.
-   Copyright (C) 1993-2018 Free Software Foundation, Inc.
+   Copyright (C) 1993-2022 Free Software Foundation, Inc.
    Contributed by Ralph Campbell and OSF
    Commented and modified by Ian Lance Taylor, Cygnus Support
 
@@ -56,8 +56,8 @@ extern "C" {
    code field in BREAK is 20 bits; yet MIPS assemblers and debuggers
    only use ten bits).  An optional two-operand form of break/sdbbp
    allows the lower ten bits to be set too, and MIPS32 and later
-   architectures allow 20 bits to be set with a signal operand
-   (using CODE20).
+   architectures allow 20 bits to be set with a single operand for
+   the sdbbp instruction (using CODE20).
 
    The syscall instruction uses CODE20.
 
@@ -461,6 +461,10 @@ enum mips_reg_operand_type {
      also be used in some contexts.  */
   OP_REG_COPRO,
 
+  /* Coprocessor control registers $0-$31.  Mnemonic names like c1_fcsr can
+     also be used in some contexts.  */
+  OP_REG_CONTROL,
+
   /* Hardware registers $0-$31.  Mnemonic names like hwr_cpunum can
      also be used in some contexts.  */
   OP_REG_HW,
@@ -519,7 +523,7 @@ struct mips_int_operand
   unsigned int shift;
 
   /* True if the operand should be printed as hex rather than decimal.  */
-  bfd_boolean print_hex;
+  bool print_hex;
 };
 
 /* Uses a lookup table to describe a small integer operand.  */
@@ -531,7 +535,7 @@ struct mips_mapped_int_operand
   const int *int_map;
 
   /* True if the operand should be printed as hex rather than decimal.  */
-  bfd_boolean print_hex;
+  bool print_hex;
 };
 
 /* An operand that encodes the most significant bit position of a bitfield.
@@ -551,7 +555,7 @@ struct mips_msb_operand
 
   /* True if the operand encodes MSB directly, false if it encodes
      MSB - LSB.  */
-  bfd_boolean add_lsb;
+  bool add_lsb;
 
   /* The maximum value of MSB + 1.  */
   unsigned int opsize;
@@ -576,10 +580,10 @@ struct mips_check_prev_operand
 {
   struct mips_operand root;
 
-  bfd_boolean greater_than_ok;
-  bfd_boolean less_than_ok;
-  bfd_boolean equal_ok;
-  bfd_boolean zero_ok;
+  bool greater_than_ok;
+  bool less_than_ok;
+  bool equal_ok;
+  bool zero_ok;
 };
 
 /* Describes an operand that encodes a pair of registers.  */
@@ -619,7 +623,7 @@ struct mips_pcrel_operand
 
 /* Return true if the assembly syntax allows OPERAND to be omitted.  */
 
-static inline bfd_boolean
+static inline bool
 mips_optional_operand_p (const struct mips_operand *operand)
 {
   return (operand->type == OP_OPTIONAL_REG
@@ -758,7 +762,7 @@ struct mips_opcode
 
 /* Return true if MO is an instruction that requires 32-bit encoding.  */
 
-static inline bfd_boolean
+static inline bool
 mips_opcode_32bit_p (const struct mips_opcode *mo)
 {
   return mo->mask >> 16 != 0;
@@ -841,6 +845,7 @@ mips_opcode_32bit_p (const struct mips_opcode *mo)
    "H" 3 bit sel field for (d)mtc* and (d)mfc* (OP_*_SEL)
    "P" 5 bit performance-monitor register (OP_*_PERFREG)
    "e" 5 bit vector register byte specifier (OP_*_VECBYTE)
+   "g" 5 bit control destination register (OP_*_RD)
    "%" 3 bit immediate vr5400 vector alignment operand (OP_*_VECALIGN)
 
    Macro instructions:
@@ -899,7 +904,7 @@ mips_opcode_32bit_p (const struct mips_opcode *mo)
    "$" 1 bit load high flag (OP_*_MT_H)
    "*" 2 bit dsp/smartmips accumulator register (OP_*_MTACC_T)
    "&" 2 bit dsp/smartmips accumulator register (OP_*_MTACC_D)
-   "g" 5 bit coprocessor 1 and 2 destination register (OP_*_RD)
+   "y" 5 bit control target register (OP_*_RT)
    "+t" 5 bit coprocessor 0 destination register (OP_*_RT)
 
    MCU ASE usage:
@@ -928,7 +933,7 @@ mips_opcode_32bit_p (const struct mips_opcode *mo)
    "+S" Length-minus-one field of cins/exts.  Requires msb position
 	of the field to be <= 63.
 
-   Loongson-3A:
+   Loongson-ext ASE:
    "+a" 8-bit signed offset in bit 6 (OP_*_OFFSET_A)
    "+b" 8-bit signed offset in bit 3 (OP_*_OFFSET_B)
    "+c" 9-bit signed offset in bit 6 (OP_*_OFFSET_C)
@@ -1001,7 +1006,7 @@ mips_opcode_32bit_p (const struct mips_opcode *mo)
    "1234567890"
    "%[]<>(),+-:'@!#$*&\~"
    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-   "abcdefghijklopqrstuvwxz"
+   "abcdef hijkl  opqrstuvwxyz"
 
    Extension character sequences used so far ("+" followed by the
    following), for quick reference when adding more:
@@ -1256,8 +1261,6 @@ static const unsigned int mips_isa_table[] = {
 #define INSN_LOONGSON_2E          0x40000000
 /* ST Microelectronics Loongson 2F.  */
 #define INSN_LOONGSON_2F          0x80000000
-/* Loongson 3A.  */
-#define INSN_LOONGSON_3A          0x00000400
 /* RMI Xlr instruction */
 #define INSN_XLR                 0x00000020
 /* Imagination interAptiv MR2.  */
@@ -1302,6 +1305,17 @@ static const unsigned int mips_isa_table[] = {
 #define ASE_CRC64		0x00080000
 /* Global INValidate Extension.  */
 #define ASE_GINV		0x00100000
+/* Loongson MultiMedia extensions Instructions (MMI).  */
+#define ASE_LOONGSON_MMI	0x00200000
+/* Loongson Content Address Memory (CAM).  */
+#define ASE_LOONGSON_CAM	0x00400000
+/* Loongson EXTensions (EXT) instructions.  */
+#define ASE_LOONGSON_EXT	0x00800000
+/* Loongson EXTensions R2 (EXT2) instructions.  */
+#define ASE_LOONGSON_EXT2	0x01000000
+/* The Enhanced VA Scheme (EVA) extension has instructions which are
+   only valid for the R6 ISA.  */
+#define ASE_EVA_R6		0x02000000
 
 /* MIPS ISA defines, use instead of hardcoding ISA level.  */
 
@@ -1366,7 +1380,9 @@ static const unsigned int mips_isa_table[] = {
 #define CPU_SB1         12310201        /* octal 'SB', 01.  */
 #define CPU_LOONGSON_2E 3001
 #define CPU_LOONGSON_2F 3002
-#define CPU_LOONGSON_3A 3003
+#define CPU_GS464	3003
+#define CPU_GS464E	3004
+#define CPU_GS264E	3005
 #define CPU_OCTEON	6501
 #define CPU_OCTEONP	6601
 #define CPU_OCTEON2	6502
@@ -1376,7 +1392,7 @@ static const unsigned int mips_isa_table[] = {
 
 /* Return true if the given CPU is included in INSN_* mask MASK.  */
 
-static inline bfd_boolean
+static inline bool
 cpu_is_member (int cpu, unsigned int mask)
 {
   switch (cpu)
@@ -1425,9 +1441,6 @@ cpu_is_member (int cpu, unsigned int mask)
     case CPU_LOONGSON_2F:
       return (mask & INSN_LOONGSON_2F) != 0;
 
-    case CPU_LOONGSON_3A:
-      return (mask & INSN_LOONGSON_3A) != 0;
-
     case CPU_OCTEON:
       return (mask & INSN_OCTEON) != 0;
 
@@ -1446,16 +1459,29 @@ cpu_is_member (int cpu, unsigned int mask)
     case CPU_INTERAPTIV_MR2:
       return (mask & INSN_INTERAPTIV_MR2) != 0;
 
-    case CPU_MIPS32R6:
-      return (mask & INSN_ISA_MASK) == INSN_ISA32R6;
-
-    case CPU_MIPS64R6:
-      return ((mask & INSN_ISA_MASK) == INSN_ISA32R6)
-	     || ((mask & INSN_ISA_MASK) == INSN_ISA64R6);
-
     default:
-      return FALSE;
+      return false;
     }
+}
+
+/* Return true if the given ISA is included in INSN_* mask MASK.  */
+
+static inline bool
+isa_is_member (int isa, unsigned int mask)
+{
+  isa &= INSN_ISA_MASK;
+  mask &= INSN_ISA_MASK;
+
+  if (isa == 0)
+    return false;
+
+  if (mask == 0)
+    return false;
+
+  if (((mips_isa_table[isa - 1] >> (mask - 1)) & 1) == 0)
+    return false;
+
+  return true;
 }
 
 /* Test for membership in an ISA including chip specific ISAs.  INSN
@@ -1464,27 +1490,30 @@ cpu_is_member (int cpu, unsigned int mask)
    test, or zero if no CPU specific ISA test is desired.  Return true
    if instruction INSN is available to the given ISA and CPU. */
 
-static inline bfd_boolean
+static inline bool
 opcode_is_member (const struct mips_opcode *insn, int isa, int ase, int cpu)
 {
-  if (!cpu_is_member (cpu, insn->exclusions))
-    {
-      /* Test for ISA level compatibility.  */
-      if ((isa & INSN_ISA_MASK) != 0
-	  && (insn->membership & INSN_ISA_MASK) != 0
-	  && ((mips_isa_table[(isa & INSN_ISA_MASK) - 1]
-	       >> ((insn->membership & INSN_ISA_MASK) - 1)) & 1) != 0)
-	return TRUE;
+  /* Test for ISA level exclusion.  */
+  if (isa_is_member (isa, insn->exclusions))
+    return false;
 
-      /* Test for ASE compatibility.  */
-      if ((ase & insn->ase) != 0)
-	return TRUE;
+  /* Test for processor-specific exclusion.  */
+  if (cpu_is_member (cpu, insn->exclusions))
+    return false;
 
-      /* Test for processor-specific extensions.  */
-      if (cpu_is_member (cpu, insn->membership))
-	return TRUE;
-    }
-  return FALSE;
+  /* Test for ISA level compatibility.  */
+  if (isa_is_member (isa, insn->membership))
+    return true;
+
+  /* Test for ASE compatibility.  */
+  if ((ase & insn->ase) != 0)
+    return true;
+
+  /* Test for processor-specific extensions.  */
+  if (cpu_is_member (cpu, insn->membership))
+    return true;
+
+  return false;
 }
 
 /* This is a list of macro expanded instructions.
@@ -1623,7 +1652,10 @@ enum
   M_LI_SS,
   M_LL_AB,
   M_LLD_AB,
+  M_LLDP_AB,
   M_LLE_AB,
+  M_LLWP_AB,
+  M_LLWPE_AB,
   M_LQ_AB,
   M_LW_AB,
   M_LWE_AB,
@@ -1674,7 +1706,10 @@ enum
   M_SAAD_AB,
   M_SC_AB,
   M_SCD_AB,
+  M_SCDP_AB,
   M_SCE_AB,
+  M_SCWP_AB,
+  M_SCWPE_AB,
   M_SD_AB,
   M_SDC1_AB,
   M_SDC2_AB,
@@ -1927,7 +1962,7 @@ extern int bfd_mips_num_opcodes;
    FP_D (never used)
    */
 
-extern const struct mips_operand *decode_mips16_operand (char, bfd_boolean);
+extern const struct mips_operand *decode_mips16_operand (char, bool);
 extern const struct mips_opcode mips16_opcodes[];
 extern const int bfd_mips16_num_opcodes;
 
@@ -2264,6 +2299,7 @@ extern const int bfd_mips16_num_opcodes;
    "E" 5-bit target register (MICROMIPSOP_*_RT)
    "G" 5-bit source register (MICROMIPSOP_*_RS)
    "H" 3-bit sel field for (D)MTC* and (D)MFC* (MICROMIPSOP_*_SEL)
+   "g" 5-bit control source register (MICROMIPSOP_*_RS)
 
    Macro instructions:
    "A" general 32 bit expression
@@ -2325,7 +2361,7 @@ extern const int bfd_mips16_num_opcodes;
    "12345678 0"
    "<>(),+-.@\^|~"
    "ABCDEFGHI KLMN   RST V    "
-   "abcd f hijklmnopqrstuvw yz"
+   "abcd fghijklmnopqrstuvw yz"
 
    Extension character sequences used so far ("+" followed by the
    following), for quick reference when adding more:

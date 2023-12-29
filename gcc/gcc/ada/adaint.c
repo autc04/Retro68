@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *          Copyright (C) 1992-2019, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2022, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -35,8 +35,14 @@
    library calls directly. This file contains all other routines.  */
 
 /* Ensure access to errno is thread safe.  */
+
+#ifndef _REENTRANT
 #define _REENTRANT
+#endif
+
+#ifndef _THREAD_SAFE
 #define _THREAD_SAFE
+#endif
 
 /* Use 64 bit Large File API */
 #if defined (__QNX__)
@@ -54,6 +60,7 @@
 /* We want to use the POSIX variants of include files.  */
 #define POSIX
 #include "vxWorks.h"
+#include <sys/time.h>
 
 #if defined (__mips_vxworks)
 #include "cacheLib.h"
@@ -68,6 +75,12 @@
    (such as chmod) are only available on VxWorks 6.  */
 #include "version.h"
 
+/* vwModNum.h and dosFsLib.h are needed for the VxWorks 6 rename workaround.
+   See below.  */
+#if (_WRS_VXWORKS_MAJOR == 6)
+#include <vwModNum.h>
+#include <dosFsLib.h>
+#endif /* 6.x */
 #endif /* VxWorks */
 
 #if defined (__APPLE__)
@@ -85,11 +98,30 @@
 
 #ifdef __QNX__
 #include <sys/syspage.h>
+#include <sys/time.h>
 #endif
 
 #ifdef IN_RTS
+
+#ifdef STANDALONE
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* for CPU_SET/CPU_ZERO */
+#define _GNU_SOURCE
+#define __USE_GNU
+
+#include "runtime.h"
+
+#else
 #include "tconfig.h"
 #include "tsystem.h"
+#endif
+
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
@@ -112,6 +144,13 @@
 #include "config.h"
 #include "system.h"
 #include "version.h"
+#endif
+
+/* limits.h is needed for LLONG_MIN.  */
+#ifdef __cplusplus
+#include <climits>
+#else
+#include <limits.h>
 #endif
 
 #ifdef __cplusplus
@@ -206,6 +245,13 @@ UINT __gnat_current_ccs_encoding;
 
 #include "adaint.h"
 
+int __gnat_in_child_after_fork = 0;
+
+#if defined (__APPLE__) && defined (st_mtime)
+#define st_atim st_atimespec
+#define st_mtim st_mtimespec
+#endif
+
 /* Define symbols O_BINARY and O_TEXT as harmless zeroes if they are not
    defined in the current system. On DOS-like systems these flags control
    whether the file is opened/created in text-translation mode (CR/LF in
@@ -234,6 +280,9 @@ UINT __gnat_current_ccs_encoding;
 
 #ifndef DIR_SEPARATOR
 #define DIR_SEPARATOR '/'
+#define IS_DIRECTORY_SEPARATOR(c) ((c) == DIR_SEPARATOR)
+#else
+#define IS_DIRECTORY_SEPARATOR(c) ((c) == '/' || (c) == DIR_SEPARATOR)
 #endif
 
 /* Check for cross-compilation.  */
@@ -326,7 +375,7 @@ int __gnat_use_acl = 1;
    system provides the routine readdir_r.
    ... but we never define it anywhere???  */
 #undef HAVE_READDIR_R
-
+
 #define MAYBE_TO_PTR32(argv) argv
 
 static const char ATTR_UNSET = 127;
@@ -392,13 +441,6 @@ __gnat_to_gm_time (OS_Time *p_time, int *p_year, int *p_month, int *p_day,
 {
   struct tm *res;
   time_t time = (time_t) *p_time;
-
-#ifdef _WIN32
-  /* On Windows systems, the time is sometimes rounded up to the nearest
-     even second, so if the number of seconds is odd, increment it.  */
-  if (time & 1)
-    time++;
-#endif
 
   res = gmtime (&time);
   if (res)
@@ -736,6 +778,20 @@ __gnat_rename (char *from, char *to)
     S2WSC (wfrom, from, GNAT_MAX_PATH_LEN);
     S2WSC (wto, to, GNAT_MAX_PATH_LEN);
     return _trename (wfrom, wto);
+  }
+#elif defined (__vxworks) && (_WRS_VXWORKS_MAJOR == 6)
+  {
+    /* When used on a dos filesystem under VxWorks 6.9 rename will trigger a
+       S_dosFsLib_FILE_NOT_FOUND errno when the file is not found.  Let's map
+       that to ENOENT so Ada.Directory.Rename can detect that and raise the
+       Name_Error exception.  */
+    int ret = rename (from, to);
+
+    if (ret && (errno == S_dosFsLib_FILE_NOT_FOUND))
+      {
+        errno = ENOENT;
+      }
+    return ret;
   }
 #else
   return rename (from, to);
@@ -1434,10 +1490,88 @@ __gnat_file_time_fd (int fd)
    return __gnat_file_time_fd_attr (fd, &attr);
 }
 
+extern long long __gnat_file_time(char* name)
+{
+  long long result;
+
+  if (name == NULL) {
+    return LLONG_MIN;
+  }
+  /* Number of seconds between <Jan 1st 1970> and <Jan 1st 2150>. */
+  static const long long ada_epoch_offset = (136 * 365 + 44 * 366) * 86400LL;
+#if defined(_WIN32)
+
+  /* Number of 100 nanoseconds between <Jan 1st 1601> and <Jan 1st 2150>. */
+  static const long long w32_epoch_offset =
+  (11644473600LL + ada_epoch_offset) * 1E7;
+
+  WIN32_FILE_ATTRIBUTE_DATA fad;
+  union
+  {
+    FILETIME ft_time;
+    long long ll_time;
+  } t_write;
+
+  if (!GetFileAttributesExA(name, GetFileExInfoStandard, &fad)) {
+    return LLONG_MIN;
+  }
+
+  t_write.ft_time = fad.ftLastWriteTime;
+
+#if defined(__GNUG__) && __GNUG__ <= 4
+  result = (t_write.ll_time - w32_epoch_offset) * 100;
+#else
+  /* Next code similar to (t_write.ll_time - w32_epoch_offset) * 100
+     but on overflow returns LLONG_MIN value. */
+
+  if (__builtin_ssubll_overflow(t_write.ll_time, w32_epoch_offset, &result)) {
+    return LLONG_MIN;
+  }
+
+  if (__builtin_smulll_overflow(result, 100, &result)) {
+    return LLONG_MIN;
+  }
+#endif
+
+#else
+
+  struct stat sb;
+  if (stat(name, &sb) != 0) {
+    return LLONG_MIN;
+  }
+
+#if defined(__GNUG__) && __GNUG__ <= 4
+    result = (sb.st_mtime - ada_epoch_offset) * 1E9;
+#if defined(st_mtime)
+    result += sb.st_mtim.tv_nsec;
+#endif
+#else
+  /* Next code similar to
+     (sb.st_mtime - ada_epoch_offset) * 1E9 + sb.st_mtim.tv_nsec
+     but on overflow returns LLONG_MIN value. */
+
+  if (__builtin_ssubll_overflow(sb.st_mtime, ada_epoch_offset, &result)) {
+    return LLONG_MIN;
+  }
+
+  if (__builtin_smulll_overflow(result, 1E9, &result)) {
+    return LLONG_MIN;
+  }
+
+#if defined(st_mtime)
+  if (__builtin_saddll_overflow(result, sb.st_mtim.tv_nsec, &result)) {
+    return LLONG_MIN;
+  }
+#endif
+#endif
+#endif
+  return result;
+}
+
 /* Set the file time stamp.  */
 
 void
-__gnat_set_file_time_name (char *name, time_t time_stamp)
+__gnat_set_file_time_name (char *name, OS_Time time_stamp)
 {
 #if defined (__vxworks)
 
@@ -1473,7 +1607,7 @@ __gnat_set_file_time_name (char *name, time_t time_stamp)
   time_t t;
 
   /* Set modification time to requested time.  */
-  utimbuf.modtime = time_stamp;
+  utimbuf.modtime = (time_t) time_stamp;
 
   /* Set access time to now in local time.  */
   t = time (NULL);
@@ -1672,9 +1806,10 @@ __gnat_is_absolute_path (char *name, int length)
   return 0;
 #else
   return (length != 0) &&
-     (*name == '/' || *name == DIR_SEPARATOR
+     (IS_DIRECTORY_SEPARATOR(*name)
 #if defined (WINNT) || defined(__DJGPP__)
-      || (length > 1 && ISALPHA (name[0]) && name[1] == ':')
+      || (length > 2 && ISALPHA (name[0]) && name[1] == ':'
+          && IS_DIRECTORY_SEPARATOR(name[2]))
 #endif
 	  );
 #endif
@@ -2289,8 +2424,10 @@ __gnat_portable_spawn (char *args[] ATTRIBUTE_UNUSED)
   if (pid == 0)
     {
       /* The child. */
-      if (execv (args[0], MAYBE_TO_PTR32 (args)) != 0)
-	_exit (1);
+      execv (args[0], MAYBE_TO_PTR32 (args));
+
+      /* execv() returns only on error */
+      _exit (1);
     }
 
   /* The parent.  */
@@ -2351,9 +2488,7 @@ __gnat_number_of_cpus (void)
 {
   int cores = 1;
 
-#if defined (__linux__) || defined (__sun__) || defined (_AIX) \
-  || defined (__APPLE__) || defined (__FreeBSD__) || defined (__OpenBSD__) \
-  || defined (__DragonFly__) || defined (__NetBSD__)
+#if defined (_SC_NPROCESSORS_ONLN)
   cores = (int) sysconf (_SC_NPROCESSORS_ONLN);
 
 #elif defined (__QNX__)
@@ -2689,8 +2824,10 @@ __gnat_portable_no_block_spawn (char *args[] ATTRIBUTE_UNUSED)
   if (pid == 0)
     {
       /* The child.  */
-      if (execv (args[0], MAYBE_TO_PTR32 (args)) != 0)
-	_exit (1);
+      execv (args[0], MAYBE_TO_PTR32 (args));
+
+      /* execv() returns only on error */
+      _exit (1);
     }
 
   return pid;
@@ -2808,7 +2945,7 @@ __gnat_locate_file_with_predicate (char *file_name, char *path_val,
 
   /* If file_name include directory separator(s), try it first as
      a path name relative to the current directory */
-  for (ptr = file_name; *ptr && *ptr != '/' && *ptr != DIR_SEPARATOR; ptr++)
+  for (ptr = file_name; *ptr && !IS_DIRECTORY_SEPARATOR(*ptr); ptr++)
     ;
 
   if (*ptr != 0)
@@ -2849,7 +2986,7 @@ __gnat_locate_file_with_predicate (char *file_name, char *path_val,
       if (*ptr == '"')
 	ptr--;
 
-      if (*ptr != '/' && *ptr != DIR_SEPARATOR)
+      if (!IS_DIRECTORY_SEPARATOR(*ptr))
         *++ptr = DIR_SEPARATOR;
 
       strcpy (++ptr, file_name);
@@ -3132,21 +3269,59 @@ __gnat_copy_attribs (char *from ATTRIBUTE_UNUSED, char *to ATTRIBUTE_UNUSED,
 
 #else
   GNAT_STRUCT_STAT fbuf;
-  struct utimbuf tbuf;
 
   if (GNAT_STAT (from, &fbuf) == -1) {
      return -1;
   }
 
-  /* Do we need to copy timestamp ? */
-  if (mode != 2) {
-     tbuf.actime = fbuf.st_atime;
-     tbuf.modtime = fbuf.st_mtime;
+#if (defined (__vxworks) && _WRS_VXWORKS_MAJOR < 7)
 
-     if (utime (to, &tbuf) == -1) {
+  /* VxWorks prior to 7 only has utime.  */
+
+  /* Do we need to copy the timestamp ?  */
+  if (mode != 2) {
+    struct utimbuf tbuf;
+
+    tbuf.actime = fbuf.st_atime;
+    tbuf.modtime = fbuf.st_mtime;
+
+    if (utime (to, &tbuf) == -1)
+      return -1;
+  }
+
+#elif _POSIX_C_SOURCE >= 200809L
+  struct timespec tbuf[2];
+
+  if (mode != 2) {
+     tbuf[0] = fbuf.st_atim;
+     tbuf[1] = fbuf.st_mtim;
+
+     if (utimensat (AT_FDCWD, to, tbuf, 0) == -1) {
         return -1;
      }
   }
+
+#else
+  struct timeval tbuf[2];
+  /* Do we need to copy timestamp ? */
+
+  if (mode != 2) {
+     tbuf[0].tv_sec  = fbuf.st_atime;
+     tbuf[1].tv_sec  = fbuf.st_mtime;
+
+     #if defined(st_mtime)
+     tbuf[0].tv_usec = fbuf.st_atim.tv_nsec / 1000;
+     tbuf[1].tv_usec = fbuf.st_mtim.tv_nsec / 1000;
+     #else
+     tbuf[0].tv_usec = 0;
+     tbuf[1].tv_usec = 0;
+     #endif
+
+     if (utimes (to, tbuf) == -1) {
+        return -1;
+     }
+  }
+#endif
 
   /* Do we need to copy file permissions ? */
   if (mode != 0 && (chmod (to, fbuf.st_mode) == -1)) {
@@ -3372,6 +3547,9 @@ __gnat_get_executable_load_address (void)
 
   return (const void *)map->l_addr;
 
+#elif defined (_WIN32)
+  return GetModuleHandle (NULL);
+
 #else
   return NULL;
 #endif
@@ -3381,23 +3559,21 @@ void
 __gnat_kill (int pid, int sig, int close ATTRIBUTE_UNUSED)
 {
 #if defined(_WIN32)
-  HANDLE h = OpenProcess (PROCESS_ALL_ACCESS, FALSE, pid);
-  if (h == NULL)
-    return;
-  if (sig == 9)
-    {
-      TerminateProcess (h, 1);
-    }
-  else if (sig == SIGINT)
-    GenerateConsoleCtrlEvent (CTRL_C_EVENT, pid);
-  else if (sig == SIGBREAK)
-    GenerateConsoleCtrlEvent (CTRL_BREAK_EVENT, pid);
-  /* ??? The last two alternatives don't really work. SIGBREAK requires setting
-     up process groups at start time which we don't do; treating SIGINT is just
-     not possible apparently. So we really only support signal 9. Fortunately
-     that's all we use in GNAT.Expect */
+  HANDLE h;
 
-  CloseHandle (h);
+  switch (sig) {
+    case 9: // SIGKILL is not declared in Windows headers
+    case SIGINT:
+    case SIGBREAK:
+    case SIGTERM:
+    case SIGABRT:
+      h = OpenProcess (PROCESS_ALL_ACCESS, FALSE, pid);
+      if (h != NULL) {
+        TerminateProcess (h, sig);
+        CloseHandle (h);
+      }
+  }
+
 #elif defined (__vxworks)
   /* Not implemented */
 #else

@@ -1,5 +1,5 @@
 /* The lang_hooks data structure.
-   Copyright (C) 2001-2019 Free Software Foundation, Inc.
+   Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -36,7 +36,7 @@ enum classify_record
 
 class substring_loc;
 
-/* The following hooks are documented in langhooks.c.  Must not be
+/* The following hooks are documented in langhooks.cc.  Must not be
    NULL.  */
 
 struct lang_hooks_for_tree_inlining
@@ -44,7 +44,7 @@ struct lang_hooks_for_tree_inlining
   bool (*var_mod_type_p) (tree, tree);
 };
 
-/* The following hooks are used by tree-dump.c.  */
+/* The following hooks are used by tree-dump.cc.  */
 
 struct lang_hooks_for_tree_dump
 {
@@ -63,6 +63,20 @@ struct lang_hooks_for_types
   /* Return a new type (with the indicated CODE), doing whatever
      language-specific processing is required.  */
   tree (*make_type) (enum tree_code);
+
+  /* Make an enum type with the given name and values, associating
+     them all with the given source location.  */
+  tree (*simulate_enum_decl) (location_t, const char *, vec<string_int_pair> *);
+
+  /* Do the equivalent of:
+
+       typedef struct NAME { FIELDS; } NAME;
+
+     associating it with location LOC.  Return the associated RECORD_TYPE.
+
+     FIELDS is a list of FIELD_DECLs, in layout order.  */
+  tree (*simulate_record_decl) (location_t loc, const char *name,
+				array_slice<const tree> fields);
 
   /* Return what kind of RECORD_TYPE this is, mainly for purposes of
      debug information.  If not defined, record types are assumed to
@@ -99,7 +113,7 @@ struct lang_hooks_for_types
      in C.  The default hook ignores the declaration.  */
   void (*register_builtin_type) (tree, const char *);
 
-  /* This routine is called in tree.c to print an error message for
+  /* This routine is called in tree.cc to print an error message for
      invalid use of an incomplete type.  VALUE is the expression that
      was used (or 0 if that isn't known) and TYPE is the type that was
      invalid.  LOC is the location of the use.  */
@@ -152,7 +166,7 @@ struct lang_hooks_for_types
 
   /* Returns the tree that represents the underlying data type used to
      implement the enumeration.  The default implementation will just use
-     type_for_size.  Used in dwarf2out.c to add a DW_AT_type base type
+     type_for_size.  Used in dwarf2out.cc to add a DW_AT_type base type
      reference to a DW_TAG_enumeration.  */
   tree (*enum_underlying_base_type) (const_tree);
 
@@ -174,6 +188,11 @@ struct lang_hooks_for_types
   /* Returns a tree for the unit size of T excluding tail padding that
      might be used by objects inheriting from T.  */
   tree (*unit_size_without_reusable_padding) (tree);
+
+  /* Returns type corresponding to FIELD's type when FIELD is a C++ base class
+     i.e., type without virtual base classes or tail padding.  Returns
+     NULL_TREE otherwise.  */
+  tree (*classtype_as_base) (const_tree);
 };
 
 /* Language hooks related to decls and the symbol table.  */
@@ -222,6 +241,24 @@ struct lang_hooks_for_decls
   /* True if this decl may be called via a sibcall.  */
   bool (*ok_for_sibcall) (const_tree);
 
+  /* Return a tree for the actual data of an array descriptor - or NULL_TREE
+     if original tree is not an array descriptor.  If the second argument
+     is true, only the TREE_TYPE is returned without generating a new tree.  */
+  tree (*omp_array_data) (tree, bool);
+
+  /* True if OpenMP should regard this DECL as being a scalar which has Fortran's
+     allocatable or pointer attribute.  */
+  bool (*omp_is_allocatable_or_ptr) (const_tree);
+
+  /* Check whether this DECL belongs to a Fortran optional argument.
+     With 'for_present_check' set to false, decls which are optional parameters
+     themselve are returned as tree - or a NULL_TREE otherwise. Those decls are
+     always pointers.  With 'for_present_check' set to true, the decl for
+     checking whether an argument is present is returned; for arguments with
+     value attribute this is the hidden argument and of BOOLEAN_TYPE.  If the
+     decl is unrelated to optional arguments, NULL_TREE is returned.  */
+  tree (*omp_check_optional_argument) (tree, bool);
+
   /* True if OpenMP should privatize what this DECL points to rather
      than the DECL itself.  */
   bool (*omp_privatize_by_reference) (const_tree);
@@ -229,6 +266,10 @@ struct lang_hooks_for_decls
   /* Return sharing kind if OpenMP sharing attribute of DECL is
      predetermined, OMP_CLAUSE_DEFAULT_UNSPECIFIED otherwise.  */
   enum omp_clause_default_kind (*omp_predetermined_sharing) (tree);
+
+  /* Return mapping kind if OpenMP mapping attribute of DECL is
+     predetermined, OMP_CLAUSE_DEFAULTMAP_CATEGORY_UNSPECIFIED otherwise.  */
+  enum omp_clause_defaultmap_kind (*omp_predetermined_mapping) (tree);
 
   /* Return decl that should be reported for DEFAULT(NONE) failure
      diagnostics.  Usually the DECL passed in.  */
@@ -268,11 +309,30 @@ struct lang_hooks_for_decls
   tree (*omp_clause_dtor) (tree clause, tree decl);
 
   /* Do language specific checking on an implicitly determined clause.  */
-  void (*omp_finish_clause) (tree clause, gimple_seq *pre_p);
+  void (*omp_finish_clause) (tree clause, gimple_seq *pre_p, bool);
+
+  /* Return true if DECL is an allocatable variable (for the purpose of
+     implicit mapping).  */
+  bool (*omp_allocatable_p) (tree decl);
 
   /* Return true if DECL is a scalar variable (for the purpose of
-     implicit firstprivatization).  */
-  bool (*omp_scalar_p) (tree decl);
+     implicit firstprivatization). If 'ptr_or', pointers and
+     allocatables are also permitted.  */
+  bool (*omp_scalar_p) (tree decl, bool ptr_ok);
+
+  /* Return true if DECL is a scalar variable with Fortran target but not
+     allocatable or pointer attribute (for the purpose of implicit mapping).  */
+  bool (*omp_scalar_target_p) (tree decl);
+
+  /* Return a pointer to the tree representing the initializer
+     expression for the non-local variable DECL.  Return NULL if
+     DECL is not initialized.  */
+  tree *(*omp_get_decl_init) (tree decl);
+
+  /* Free any extra memory used to hold initializer information for
+     variable declarations.  omp_get_decl_init must not be called
+     after calling this.  */
+  void (*omp_finish_decl_inits) (void);
 };
 
 /* Language hooks related to LTO serialization.  */
@@ -329,6 +389,24 @@ struct lang_hooks
   /* Callback used to perform language-specific initialization for the
      global diagnostic context structure.  */
   void (*initialize_diagnostics) (diagnostic_context *);
+
+  /* Beginning the main source file.  */
+  void (*preprocess_main_file) (cpp_reader *, line_maps *,
+				const line_map_ordinary *);
+
+  /* Adjust libcpp options and callbacks.  */
+  void (*preprocess_options) (cpp_reader *);
+
+  /* Undefining a macro.  */
+  void (*preprocess_undef) (cpp_reader *, location_t, cpp_hashnode *);
+
+  /* Observer for preprocessing stream.  */
+  uintptr_t (*preprocess_token) (cpp_reader *, const cpp_token *, uintptr_t);
+  /* Various flags it can return about the token.  */
+  enum PT_flags
+    {
+     PT_begin_pragma = 1 << 0
+    };
 
   /* Register language-specific dumps.  */
   void (*register_dumps) (gcc::dump_manager *);
@@ -404,7 +482,7 @@ struct lang_hooks
   void (*print_statistics) (void);
 
   /* Called by print_tree when there is a tree of class tcc_exceptional
-     that it doesn't know how to display.  */
+     or tcc_constant that it doesn't know how to display.  */
   lang_print_tree_hook print_xnode;
 
   /* Called to print language-dependent parts of tcc_decl, tcc_type,
@@ -448,7 +526,7 @@ struct lang_hooks
   HOST_WIDE_INT (*to_target_charset) (HOST_WIDE_INT);
 
   /* Pointers to machine-independent attribute tables, for front ends
-     using attribs.c.  If one is NULL, it is ignored.  Respectively, a
+     using attribs.cc.  If one is NULL, it is ignored.  Respectively, a
      table of attributes specific to the language, a table of
      attributes common to two or more languages (to allow easy
      sharing), and a table of attributes for checking formats.  */
@@ -493,6 +571,15 @@ struct lang_hooks
      ISAs.  If this points to the same function as builtin_function, the
      backend must add all of the builtins at program initialization time.  */
   tree (*builtin_function_ext_scope) (tree decl);
+
+  /* Do language-specific processing for target-specific built-in
+     function DECL, so that it is defined in the global scope (only)
+     and is available without needing to be explicitly declared.
+
+     This is intended for targets that want to inject declarations of
+     built-in functions into the source language (such as in response
+     to a pragma) rather than providing them in the source language itself.  */
+  tree (*simulate_builtin_function_decl) (tree decl);
 
   /* Used to set up the tree_contains_structure array for a frontend. */
   void (*init_ts) (void);
@@ -545,8 +632,11 @@ struct lang_hooks
   const char *(*get_substring_location) (const substring_loc &,
 					 location_t *out_loc);
 
+  /* Invoked before the early_finish debug hook is invoked.  */
+  void (*finalize_early_debug) (void);
+
   /* Whenever you add entries here, make sure you adjust langhooks-def.h
-     and langhooks.c accordingly.  */
+     and langhooks.cc accordingly.  */
 };
 
 /* Each front end provides its own.  */
@@ -562,6 +652,8 @@ extern tree add_builtin_function_ext_scope (const char *name, tree type,
 					    enum built_in_class cl,
 					    const char *library_name,
 					    tree attrs);
+extern tree simulate_builtin_function_decl (location_t, const char *, tree,
+					    int, const char *, tree);
 extern tree add_builtin_type (const char *name, tree type);
 
 /* Language helper functions.  */

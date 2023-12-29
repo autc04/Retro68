@@ -14,11 +14,19 @@
 
 module core.stdc.stdint;
 
-private import core.stdc.config;
-private import core.stdc.stddef; // for wchar_t
-private import core.stdc.signal; // for sig_atomic_t
-private import core.stdc.wchar_; // for wint_t
+import core.stdc.config;
+import core.stdc.stddef; // for wchar_t
+import core.stdc.signal; // for sig_atomic_t
+import core.stdc.wchar_; // for wint_t
 
+version (OSX)
+    version = Darwin;
+else version (iOS)
+    version = Darwin;
+else version (TVOS)
+    version = Darwin;
+else version (WatchOS)
+    version = Darwin;
 
 // Can't be `private` because of @@@BUG11173@@@.
 T _typify(T)(T val) @safe pure nothrow { return val; }
@@ -65,8 +73,16 @@ version (Windows)
 
     alias int_fast8_t   = byte;     ///
     alias uint_fast8_t  = ubyte;    ///
-    alias int_fast16_t  = int;      ///
-    alias uint_fast16_t = uint;     ///
+    version (MinGW)
+    {
+        alias int_fast16_t  = short;  ///
+        alias uint_fast16_t = ushort; ///
+    }
+    else
+    {
+        alias int_fast16_t  = int;  ///
+        alias uint_fast16_t = uint; ///
+    }
     alias int_fast32_t  = int32_t;  ///
     alias uint_fast32_t = uint32_t; ///
     alias int_fast64_t  = long;     ///
@@ -77,7 +93,7 @@ version (Windows)
     alias intmax_t  = long;      ///
     alias uintmax_t = ulong;     ///
 }
-else version (OSX)
+else version (Darwin)
 {
     alias int8_t   = byte;          ///
     alias int16_t  = short;         ///
@@ -111,7 +127,7 @@ else version (OSX)
     alias intmax_t  = long;      ///
     alias uintmax_t = ulong;     ///
 }
-else version (Posix)
+else version (linux)
 {
     alias int8_t   = byte;   ///
     alias int16_t  = short;  ///
@@ -131,14 +147,14 @@ else version (Posix)
     alias int_least64_t  = long;   ///
     alias uint_least64_t = ulong;  ///
 
-    version (FreeBSD)
+    version (CRuntime_Musl)
     {
-        alias int_fast8_t   = int;  ///
-        alias uint_fast8_t  = uint; ///
-        alias int_fast16_t  = int;  ///
-        alias uint_fast16_t = uint; ///
-        alias int_fast32_t  = int;  ///
-        alias uint_fast32_t = uint; ///
+        alias int_fast8_t   = byte;  ///
+        alias uint_fast8_t  = ubyte; ///
+        alias int_fast16_t  = int;   ///
+        alias uint_fast16_t = uint;  ///
+        alias int_fast32_t  = int;   ///
+        alias uint_fast32_t = uint;  ///
     }
     else
     {
@@ -157,9 +173,213 @@ else version (Posix)
     alias intmax_t  = long;      ///
     alias uintmax_t = ulong;     ///
 }
+else version (CRuntime_Glibc)
+{
+    alias int8_t   = byte;   ///
+    alias int16_t  = short;  ///
+    alias uint8_t  = ubyte;  ///
+    alias uint16_t = ushort; ///
+    alias int32_t  = int;    ///
+    alias uint32_t = uint;   ///
+    alias int64_t  = long;   ///
+    alias uint64_t = ulong;  ///
+
+    alias int_least8_t   = byte;   ///
+    alias uint_least8_t  = ubyte;  ///
+    alias int_least16_t  = short;  ///
+    alias uint_least16_t = ushort; ///
+    alias int_least32_t  = int;    ///
+    alias uint_least32_t = uint;   ///
+    alias int_least64_t  = long;   ///
+    alias uint_least64_t = ulong;  ///
+
+    alias int_fast8_t   = byte;      ///
+    alias uint_fast8_t  = ubyte;     ///
+    alias int_fast16_t  = ptrdiff_t; ///
+    alias uint_fast16_t = size_t;    ///
+    alias int_fast32_t  = ptrdiff_t; ///
+    alias uint_fast32_t = size_t;    ///
+    alias int_fast64_t  = long;      ///
+    alias uint_fast64_t = ulong;     ///
+
+    alias intptr_t  = ptrdiff_t; ///
+    alias uintptr_t = size_t;    ///
+    alias intmax_t  = long;      ///
+    alias uintmax_t = ulong;     ///
+}
+else version (DragonFlyBSD)
+{
+    alias int8_t   = byte;   ///
+    alias int16_t  = short;  ///
+    alias uint8_t  = ubyte;  ///
+    alias uint16_t = ushort; ///
+    alias int32_t  = int;    ///
+    alias uint32_t = uint;   ///
+    alias int64_t  = long;   ///
+    alias uint64_t = ulong;  ///
+
+    alias int_least8_t   = int8_t;   ///
+    alias uint_least8_t  = uint8_t;  ///
+    alias int_least16_t  = int16_t;  ///
+    alias uint_least16_t = uint16_t; ///
+    alias int_least32_t  = int32_t;  ///
+    alias uint_least32_t = uint32_t; ///
+    alias int_least64_t  = int64_t;  ///
+    alias uint_least64_t = uint64_t; ///
+
+    alias int_fast8_t   = int32_t;   ///
+    alias uint_fast8_t  = uint32_t;  ///
+    alias int_fast16_t  = int32_t;   ///
+    alias uint_fast16_t = uint32_t;  ///
+    alias int_fast32_t  = int32_t;   ///
+    alias uint_fast32_t = uint32_t;  ///
+    alias int_fast64_t  = int64_t;   ///
+    alias uint_fast64_t = uint64_t;  ///
+
+    alias intptr_t  = ptrdiff_t; ///
+    alias uintptr_t = size_t;    ///
+    alias intmax_t  = long;      ///
+    alias uintmax_t = ulong;     ///
+}
+else version (FreeBSD)
+{
+    alias int8_t   = byte;   ///
+    alias int16_t  = short;  ///
+    alias uint8_t  = ubyte;  ///
+    alias uint16_t = ushort; ///
+    alias int32_t  = int;    ///
+    alias uint32_t = uint;   ///
+    alias int64_t  = long;   ///
+    alias uint64_t = ulong;  ///
+
+    alias int_least8_t   = byte;   ///
+    alias uint_least8_t  = ubyte;  ///
+    alias int_least16_t  = short;  ///
+    alias uint_least16_t = ushort; ///
+    alias int_least32_t  = int;    ///
+    alias uint_least32_t = uint;   ///
+    alias int_least64_t  = long;   ///
+    alias uint_least64_t = ulong;  ///
+
+    alias int_fast8_t   = int;   ///
+    alias uint_fast8_t  = uint;  ///
+    alias int_fast16_t  = int;   ///
+    alias uint_fast16_t = uint;  ///
+    alias int_fast32_t  = int;   ///
+    alias uint_fast32_t = uint;  ///
+    alias int_fast64_t  = long;  ///
+    alias uint_fast64_t = ulong; ///
+
+    alias intptr_t  = ptrdiff_t; ///
+    alias uintptr_t = size_t;    ///
+    alias intmax_t  = long;      ///
+    alias uintmax_t = ulong;     ///
+}
+else version (NetBSD)
+{
+    alias int8_t   = byte;   ///
+    alias int16_t  = short;  ///
+    alias uint8_t  = ubyte;  ///
+    alias uint16_t = ushort; ///
+    alias int32_t  = int;    ///
+    alias uint32_t = uint;   ///
+    alias int64_t  = long;   ///
+    alias uint64_t = ulong;  ///
+
+    alias int_least8_t   = int8_t;   ///
+    alias uint_least8_t  = uint8_t;  ///
+    alias int_least16_t  = int16_t;  ///
+    alias uint_least16_t = uint16_t; ///
+    alias int_least32_t  = int32_t;  ///
+    alias uint_least32_t = uint32_t; ///
+    alias int_least64_t  = int64_t;  ///
+    alias uint_least64_t = uint64_t; ///
+
+    alias int_fast8_t   = int32_t;   ///
+    alias uint_fast8_t  = uint32_t;  ///
+    alias int_fast16_t  = int32_t;   ///
+    alias uint_fast16_t = uint32_t;  ///
+    alias int_fast32_t  = int32_t;   ///
+    alias uint_fast32_t = uint32_t;  ///
+    alias int_fast64_t  = int64_t;   ///
+    alias uint_fast64_t = uint64_t;  ///
+
+    alias intptr_t  = ptrdiff_t; ///
+    alias uintptr_t = size_t;    ///
+    alias intmax_t  = long;      ///
+    alias uintmax_t = ulong;     ///
+}
+else version (OpenBSD)
+{
+    alias int8_t   = byte;          ///
+    alias int16_t  = short;         ///
+    alias uint8_t  = ubyte;         ///
+    alias uint16_t = ushort;        ///
+    alias int32_t  = int;           ///
+    alias uint32_t = uint;          ///
+    alias int64_t  = cpp_longlong;  ///
+    alias uint64_t = cpp_ulonglong; ///
+
+    alias int_least8_t   = byte;          ///
+    alias uint_least8_t  = ubyte;         ///
+    alias int_least16_t  = short;         ///
+    alias uint_least16_t = ushort;        ///
+    alias int_least32_t  = int;           ///
+    alias uint_least32_t = uint;          ///
+    alias int_least64_t  = cpp_longlong;  ///
+    alias uint_least64_t = cpp_ulonglong; ///
+
+    alias int_fast8_t   = int;           ///
+    alias uint_fast8_t  = uint;          ///
+    alias int_fast16_t  = int;           ///
+    alias uint_fast16_t = uint;          ///
+    alias int_fast32_t  = int;           ///
+    alias uint_fast32_t = uint;          ///
+    alias int_fast64_t  = cpp_longlong;  ///
+    alias uint_fast64_t = cpp_ulonglong; ///
+
+    alias intptr_t  = cpp_long;      ///
+    alias uintptr_t = cpp_ulong;     ///
+    alias intmax_t  = cpp_longlong;  ///
+    alias uintmax_t = cpp_ulonglong; ///
+}
+else version (Solaris)
+{
+    alias int8_t   = char;   ///
+    alias int16_t  = short;  ///
+    alias uint8_t  = ubyte;  ///
+    alias uint16_t = ushort; ///
+    alias int32_t  = int;    ///
+    alias uint32_t = uint;   ///
+    alias int64_t  = long;   ///
+    alias uint64_t = ulong;  ///
+
+    alias int_least8_t   = char;   ///
+    alias uint_least8_t  = ubyte;  ///
+    alias int_least16_t  = short;  ///
+    alias uint_least16_t = ushort; ///
+    alias int_least32_t  = int;    ///
+    alias uint_least32_t = uint;   ///
+    alias int_least64_t  = long;   ///
+    alias uint_least64_t = ulong;  ///
+
+    alias int_fast8_t   = char;  ///
+    alias uint_fast8_t  = ubyte; ///
+    alias int_fast16_t  = int;   ///
+    alias uint_fast16_t = uint;  ///
+    alias int_fast32_t  = int;   ///
+    alias uint_fast32_t = uint;  ///
+    alias int_fast64_t  = long;  ///
+    alias uint_fast64_t = ulong; ///
+
+    alias intptr_t  = ptrdiff_t; ///
+    alias uintptr_t = size_t;    ///
+    alias intmax_t  = long;      ///
+    alias uintmax_t = ulong;     ///
+}
 else
 {
-    static assert(0);
+    static assert(false, "Unsupported architecture.");
 }
 
 

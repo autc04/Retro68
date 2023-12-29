@@ -49,6 +49,7 @@ public import core.sys.posix.sched : sched_param;
 extern(C):
 @nogc:
 nothrow:
+@system:
 
 int posix_spawn_file_actions_addclose(posix_spawn_file_actions_t*, int);
 int posix_spawn_file_actions_adddup2(posix_spawn_file_actions_t*, int, int);
@@ -99,8 +100,8 @@ version (linux)
             POSIX_SPAWN_SETSCHEDPARAM = 0x10,
             POSIX_SPAWN_SETSCHEDULER = 0x20
         }
-        import core.sys.posix.config : __USE_GNU;
-        static if (__USE_GNU)
+        import core.sys.posix.config : _GNU_SOURCE;
+        static if (_GNU_SOURCE)
         {
             enum
             {
@@ -139,8 +140,8 @@ version (linux)
             POSIX_SPAWN_SETSCHEDPARAM = 16,
             POSIX_SPAWN_SETSCHEDULER = 32
         }
-        import core.sys.posix.config : __USE_GNU;
-        static if (__USE_GNU)
+        import core.sys.posix.config : _GNU_SOURCE;
+        static if (_GNU_SOURCE)
         {
             enum
             {
@@ -195,8 +196,8 @@ version (linux)
             POSIX_SPAWN_SETSCHEDPARAM = 0x10,
             POSIX_SPAWN_SETSCHEDULER = 0x20
         }
-        import core.sys.posix.config : __USE_GNU;
-        static if (__USE_GNU)
+        import core.sys.posix.config : _GNU_SOURCE;
+        static if (_GNU_SOURCE)
         {
             enum
             {

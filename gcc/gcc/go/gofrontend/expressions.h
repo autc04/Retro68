@@ -62,6 +62,7 @@ class Type_guard_expression;
 class Heap_expression;
 class Receive_expression;
 class Slice_value_expression;
+class Slice_info_expression;
 class Conditional_expression;
 class Compound_expression;
 class Numeric_constant;
@@ -102,6 +103,7 @@ class Expression
     EXPRESSION_BOOLEAN,
     EXPRESSION_STRING,
     EXPRESSION_STRING_INFO,
+    EXPRESSION_STRING_VALUE,
     EXPRESSION_INTEGER,
     EXPRESSION_FLOAT,
     EXPRESSION_COMPLEX,
@@ -126,6 +128,7 @@ class Expression
     EXPRESSION_SLICE_CONSTRUCTION,
     EXPRESSION_MAP_CONSTRUCTION,
     EXPRESSION_COMPOSITE_LITERAL,
+    EXPRESSION_COMPOSITE_LITERAL_KEY,
     EXPRESSION_HEAP,
     EXPRESSION_RECEIVE,
     EXPRESSION_TYPE_DESCRIPTOR,
@@ -236,7 +239,7 @@ class Expression
 
   // Make an expression that evaluates to some characteristic of an string.
   // For simplicity, the enum values must match the field indexes in the
-  // underlying struct.
+  // underlying struct.  This returns an lvalue.
   enum String_info
     {
       // The underlying data in the string.
@@ -247,6 +250,10 @@ class Expression
 
   static Expression*
   make_string_info(Expression* string, String_info, Location);
+
+  // Make an expression for a string value.
+  static Expression*
+  make_string_value(Expression* valptr, Expression* len, Location);
 
   // Make a character constant expression.  TYPE should be NULL for an
   // abstract type.
@@ -379,6 +386,10 @@ class Expression
   make_composite_literal(Type*, int depth, bool has_keys, Expression_list*,
 			 bool all_are_names, Location);
 
+  // Make a composite literal key.
+  static Expression*
+  make_composite_literal_key(const std::string& name, Location);
+
   // Make a struct composite literal.
   static Expression*
   make_struct_composite_literal(Type*, Expression_list*, Location);
@@ -443,7 +454,7 @@ class Expression
 
   // Make an expression that evaluates to some characteristic of a
   // slice.  For simplicity, the enum values must match the field indexes
-  // in the underlying struct.
+  // in the underlying struct.  This returns an lvalue.
   enum Slice_info
     {
       // The underlying data of the slice.
@@ -464,7 +475,7 @@ class Expression
 
   // Make an expression that evaluates to some characteristic of an
   // interface.  For simplicity, the enum values must match the field indexes
-  // in the underlying struct.
+  // in the underlying struct.  This returns an lvalue.
   enum Interface_info
     {
       // The type descriptor of an empty interface.
@@ -539,10 +550,25 @@ class Expression
   location() const
   { return this->location_; }
 
+  // Set the location of an expression and all its subexpressions.
+  // This is used for const declarations where the expression is
+  // copied from an earlier declaration.
+  void
+  set_location(Location loc);
+
+  // For set_location.  This should really be a local class in
+  // Expression, but it needs types defined in gogo.h.
+  friend class Set_location;
+
   // Return whether this is a constant expression.
   bool
   is_constant() const
   { return this->do_is_constant(); }
+
+  // Return whether this is the zero value of its type.
+  bool
+  is_zero_value() const
+  { return this->do_is_zero_value(); }
 
   // Return whether this expression can be used as a static
   // initializer.  This is true for an expression that has only
@@ -570,6 +596,17 @@ class Expression
   bool
   string_constant_value(std::string* val) const
   { return this->do_string_constant_value(val); }
+
+  // If this is not a constant expression with boolean type, return
+  // false.  If it is one, return true, and set VAL to the value.
+  bool
+  boolean_constant_value(bool* val) const
+  { return this->do_boolean_constant_value(val); }
+
+  // If this is a const reference expression, return the named
+  // object to which the expression refers, otherwise return NULL.
+  const Named_object*
+  named_constant() const;
 
   // This is called if the value of this expression is being
   // discarded.  This issues warnings about computed values being
@@ -694,6 +731,10 @@ class Expression
   Call_expression*
   call_expression()
   { return this->convert<Call_expression, EXPRESSION_CALL>(); }
+
+  const Call_expression*
+  call_expression() const
+  { return this->convert<const Call_expression, EXPRESSION_CALL>(); }
 
   // If this is a call_result expression, return the Call_result_expression
   // structure.  Otherwise, return NULL.  This is a controlled dynamic
@@ -864,6 +905,14 @@ class Expression
   compound_expression()
   { return this->convert<Compound_expression, EXPRESSION_COMPOUND>(); }
 
+  // If this is a slice info expression, return the
+  // Slice_info_expression structure.  Otherwise, return NULL.
+  Slice_info_expression*
+  slice_info_expression()
+  {
+    return this->convert<Slice_info_expression, EXPRESSION_SLICE_INFO>();
+  }
+
   // Return true if this is a composite literal.
   bool
   is_composite_literal() const;
@@ -879,6 +928,11 @@ class Expression
   // Return true if this is a reference to a local variable.
   bool
   is_local_variable() const;
+
+  // Return true if multiple evaluations of this expression are OK.
+  // This is true for simple variable references and constants.
+  bool
+  is_multi_eval_safe();
 
   // Return true if two expressions refer to the same variable or
   // struct field.
@@ -924,6 +978,11 @@ class Expression
   flatten(Gogo* gogo, Named_object* function, Statement_inserter* inserter)
   { return this->do_flatten(gogo, function, inserter); }
 
+  // Make implicit type conversions explicit.
+  void
+  add_conversions()
+  { this->do_add_conversions(); }
+
   // Determine the real type of an expression with abstract integer,
   // floating point, or complex type.  TYPE_CONTEXT describes the
   // expected type.
@@ -940,7 +999,9 @@ class Expression
   determine_type_no_context();
 
   // Return the current type of the expression.  This may be changed
-  // by determine_type.
+  // by determine_type.  This should not be called before the lowering
+  // pass, unless the is_type_expression method returns true (i.e.,
+  // this is an EXPRESSION_TYPE).
   Type*
   type()
   { return this->do_type(); }
@@ -1009,6 +1070,13 @@ class Expression
                                  Expression* rhs, bool for_type_guard,
                                  Location);
 
+  // Return an expression for a conversion from a non-interface type to an
+  // interface type.  If ON_STACK is true, it can allocate the storage on
+  // stack.
+  static Expression*
+  convert_type_to_interface(Type* lhs_type, Expression* rhs,
+                            bool on_stack, Location);
+
   // Return a backend expression implementing the comparison LEFT OP RIGHT.
   // TYPE is the type of both sides.
   static Bexpression*
@@ -1031,10 +1099,31 @@ class Expression
   static Expression*
   import_expression(Import_expression*, Location);
 
-  // Return an expression which checks that VAL, of arbitrary integer type,
-  // is non-negative and is not more than the maximum integer value.
+  // Insert bounds checks for an index expression.
+  static void
+  check_bounds(Expression* val, Operator, Expression* bound, Runtime::Function,
+	       Runtime::Function, Runtime::Function, Runtime::Function,
+	       Statement_inserter*, Location);
+
+  // Return an expression for constructing a direct interface type from a
+  // pointer.
   static Expression*
-  check_bounds(Expression* val, Location);
+  pack_direct_iface(Type*, Expression*, Location);
+
+  // Return an expression of the underlying pointer for a direct interface
+  // type (the opposite of pack_direct_iface).
+  static Expression*
+  unpack_direct_iface(Expression*, Location);
+
+  // Return an expression representing the type descriptor field of an
+  // interface.
+  static Expression*
+  get_interface_type_descriptor(Expression*);
+
+  // Look through the expression of a Slice_value_expression's valmem to
+  // find an call to makeslice.
+  static std::pair<Call_expression*, Temporary_statement*>
+  find_makeslice_call(Expression*);
 
   // Dump an expression to a dump constext.
   void
@@ -1055,10 +1144,19 @@ class Expression
   do_flatten(Gogo*, Named_object*, Statement_inserter*)
   { return this; }
 
+  // Make implicit type conversions explicit.
+  virtual void
+  do_add_conversions()
+  { }
 
   // Return whether this is a constant expression.
   virtual bool
   do_is_constant() const
+  { return false; }
+
+  // Return whether this is the zero value of its type.
+  virtual bool
+  do_is_zero_value() const
   { return false; }
 
   // Return whether this expression can be used as a constant
@@ -1077,6 +1175,12 @@ class Expression
   // set VAL to the value.
   virtual bool
   do_string_constant_value(std::string*) const
+  { return false; }
+
+  // Return whether this is a constant expression of boolean type, and
+  // set VAL to the value.
+  virtual bool
+  do_boolean_constant_value(bool*) const
   { return false; }
 
   // Called by the parser if the value is being discarded.
@@ -1155,9 +1259,21 @@ class Expression
   void
   report_error(const char*);
 
+  // Write a name to export data.
+  static void
+  export_name(Export_function_body* efb, const Named_object*);
+
   // Child class implements dumping to a dump context.
   virtual void
   do_dump_expression(Ast_dump_context*) const = 0;
+
+  // Start exporting a type conversion for a constant, if needed.
+  static bool
+  export_constant_type(Export_function_body*, Type*);
+
+  // Finish exporting a type conversion for a constant.
+  static void
+  finish_export_constant_type(Export_function_body*, bool);
 
   // Varargs lowering creates a slice object (unnamed compiler temp)
   // to contain the variable length collection of values. The enum
@@ -1195,13 +1311,13 @@ class Expression
   }
 
   static Expression*
-  convert_type_to_interface(Type*, Expression*, Location);
+  convert_interface_to_type(Gogo*, Type*, Expression*, Location);
 
   static Expression*
-  get_interface_type_descriptor(Expression*);
+  import_identifier(Import_function_body*, Location);
 
   static Expression*
-  convert_interface_to_type(Type*, Expression*, Location);
+  import_expression_without_suffix(Import_expression*, Location);
 
   // The expression classification.
   Expression_classification classification_;
@@ -1367,7 +1483,8 @@ class Var_expression : public Expression
   { return this; }
 
   int
-  do_inlining_cost() const;
+  do_inlining_cost() const
+  { return 1; }
 
   void
   do_export(Export_function_body*) const;
@@ -1477,6 +1594,9 @@ class Temporary_reference_expression : public Expression
   set_is_lvalue()
   { this->is_lvalue_ = true; }
 
+  static Expression*
+  do_import(Import_function_body*, Location);
+
  protected:
   Type*
   do_type();
@@ -1488,6 +1608,13 @@ class Temporary_reference_expression : public Expression
   Expression*
   do_copy()
   { return make_temporary_reference(this->statement_, this->location()); }
+
+  int
+  do_inlining_cost() const
+  { return 1; }
+
+  void
+  do_export(Export_function_body*) const;
 
   bool
   do_is_addressable() const
@@ -1550,6 +1677,10 @@ class Set_and_use_temporary_expression : public Expression
   }
 
   bool
+  do_must_eval_in_order() const
+  { return true; }
+
+  bool
   do_is_addressable() const
   { return true; }
 
@@ -1587,9 +1718,16 @@ class String_expression : public Expression
   do_import(Import_expression*, Location);
 
  protected:
+  int
+  do_traverse(Traverse*);
+
   bool
   do_is_constant() const
   { return true; }
+
+  bool
+  do_is_zero_value() const
+  { return this->val_ == ""; }
 
   bool
   do_is_static_initializer() const
@@ -1646,7 +1784,8 @@ class Type_conversion_expression : public Expression
   Type_conversion_expression(Type* type, Expression* expr,
 			     Location location)
     : Expression(EXPRESSION_CONVERSION, location),
-      type_(type), expr_(expr), may_convert_function_types_(false)
+      type_(type), expr_(expr), may_convert_function_types_(false),
+      no_copy_(false), no_escape_(false)
   { }
 
   // Return the type to which we are converting.
@@ -1667,6 +1806,12 @@ class Type_conversion_expression : public Expression
     this->may_convert_function_types_ = true;
   }
 
+  // Mark string([]byte) conversion to reuse the backing store
+  // without copying.
+  void
+  set_no_copy(bool b)
+  { this->no_copy_ = b; };
+
   // Import a type conversion expression.
   static Expression*
   do_import(Import_expression*, Location);
@@ -1685,6 +1830,9 @@ class Type_conversion_expression : public Expression
   do_is_constant() const;
 
   bool
+  do_is_zero_value() const;
+
+  bool
   do_is_static_initializer() const;
 
   bool
@@ -1692,6 +1840,9 @@ class Type_conversion_expression : public Expression
 
   bool
   do_string_constant_value(std::string*) const;
+
+  bool
+  do_boolean_constant_value(bool*) const;
 
   Type*
   do_type()
@@ -1726,6 +1877,12 @@ class Type_conversion_expression : public Expression
   // True if this is permitted to convert function types.  This is
   // used internally for method expressions.
   bool may_convert_function_types_;
+  // True if a string([]byte) conversion can reuse the backing store
+  // without copying.  Only used in string([]byte) conversion.
+  bool no_copy_;
+  // True if a conversion does not escape.  Used in type-to-interface
+  // conversions and slice-to/from-string conversions.
+  bool no_escape_;
 };
 
 // An unsafe type conversion, used to pass values to builtin functions.
@@ -1746,6 +1903,10 @@ class Unsafe_type_conversion_expression : public Expression
  protected:
   int
   do_traverse(Traverse* traverse);
+
+  bool
+  do_is_zero_value() const
+  { return this->expr_->is_zero_value(); }
 
   bool
   do_is_static_initializer() const;
@@ -1875,6 +2036,9 @@ class Unary_expression : public Expression
 
   bool
   do_numeric_constant_value(Numeric_constant*) const;
+
+  bool
+  do_boolean_constant_value(bool*) const;
 
   Type*
   do_type();
@@ -2031,6 +2195,9 @@ class Binary_expression : public Expression
   do_numeric_constant_value(Numeric_constant*) const;
 
   bool
+  do_boolean_constant_value(bool*) const;
+
+  bool
   do_discarding_value();
 
   Type*
@@ -2144,6 +2311,9 @@ class String_concat_expression : public Expression
   do_is_constant() const;
 
   bool
+  do_is_zero_value() const;
+
+  bool
   do_is_static_initializer() const;
 
   Type*
@@ -2186,8 +2356,8 @@ class Call_expression : public Expression
       fn_(fn), args_(args), type_(NULL), call_(NULL), call_temp_(NULL)
     , expected_result_count_(0), is_varargs_(is_varargs),
       varargs_are_lowered_(false), types_are_determined_(false),
-      is_deferred_(false), is_concurrent_(false), issued_error_(false),
-      is_multi_value_arg_(false), is_flattened_(false)
+      is_deferred_(false), is_concurrent_(false), is_equal_function_(false),
+      issued_error_(false), is_multi_value_arg_(false), is_flattened_(false)
   { }
 
   // The function to call.
@@ -2268,6 +2438,11 @@ class Call_expression : public Expression
   set_is_concurrent()
   { this->is_concurrent_ = true; }
 
+  // Note that this is a call to a generated equality function.
+  void
+  set_is_equal_function()
+  { this->is_equal_function_ = true; }
+
   // We have found an error with this call expression; return true if
   // we should report it.
   bool
@@ -2291,12 +2466,15 @@ class Call_expression : public Expression
 
   // Whether this is a call to builtin function.
   virtual bool
-  is_builtin()
+  is_builtin() const
   { return false; }
 
   // Convert to a Builtin_call_expression, or return NULL.
   inline Builtin_call_expression*
   builtin_call_expression();
+
+  inline const Builtin_call_expression*
+  builtin_call_expression() const;
 
  protected:
   int
@@ -2330,6 +2508,12 @@ class Call_expression : public Expression
   virtual Bexpression*
   do_get_backend(Translate_context*);
 
+  int
+  do_inlining_cost() const;
+
+  void
+  do_export(Export_function_body*) const;
+
   virtual bool
   do_is_recover_call() const;
 
@@ -2353,14 +2537,20 @@ class Call_expression : public Expression
   determining_types();
 
   void
+  export_arguments(Export_function_body*) const;
+
+  void
   do_dump_expression(Ast_dump_context*) const;
+
+  void
+  do_add_conversions();
 
  private:
   bool
   check_argument_type(int, const Type*, const Type*, Location, bool);
 
   Expression*
-  lower_to_builtin(Named_object**, const char*, int*);
+  intrinsify(Gogo*, Statement_inserter*);
 
   Expression*
   interface_method_function(Interface_field_reference_expression*,
@@ -2393,6 +2583,8 @@ class Call_expression : public Expression
   bool is_deferred_;
   // True if the call is an argument to a go statement.
   bool is_concurrent_;
+  // True if this is a call to a generated equality function.
+  bool is_equal_function_;
   // True if we reported an error about a mismatch between call
   // results and uses.  This is to avoid producing multiple errors
   // when there are multiple Call_result_expressions.
@@ -2434,18 +2626,20 @@ class Builtin_call_expression : public Call_expression
       BUILTIN_RECOVER,
 
       // Builtin functions from the unsafe package.
+      BUILTIN_ADD,
       BUILTIN_ALIGNOF,
       BUILTIN_OFFSETOF,
-      BUILTIN_SIZEOF
+      BUILTIN_SIZEOF,
+      BUILTIN_SLICE
     };
 
   Builtin_function_code
-  code()
+  code() const
   { return this->code_; }
 
   // This overrides Call_expression::is_builtin.
   bool
-  is_builtin()
+  is_builtin() const
   { return true; }
 
   // Return whether EXPR, of array type, is a constant if passed to
@@ -2488,6 +2682,10 @@ class Builtin_call_expression : public Call_expression
 
   Bexpression*
   do_get_backend(Translate_context*);
+
+  int
+  do_inlining_cost() const
+  { return 1; }
 
   void
   do_export(Export_function_body*) const;
@@ -2534,6 +2732,14 @@ Call_expression::builtin_call_expression()
 {
   return (this->is_builtin()
           ? static_cast<Builtin_call_expression*>(this)
+          : NULL);
+}
+
+inline const Builtin_call_expression*
+Call_expression::builtin_call_expression() const
+{
+  return (this->is_builtin()
+          ? static_cast<const Builtin_call_expression*>(this)
           : NULL);
 }
 
@@ -2663,6 +2869,12 @@ class Func_expression : public Expression
   Bexpression*
   do_get_backend(Translate_context*);
 
+  int
+  do_inlining_cost() const;
+
+  void
+  do_export(Export_function_body*) const;
+
   void
   do_dump_expression(Ast_dump_context*) const;
 
@@ -2732,8 +2944,7 @@ class Unknown_expression : public Parser_expression
  public:
   Unknown_expression(Named_object* named_object, Location location)
     : Parser_expression(EXPRESSION_UNKNOWN_REFERENCE, location),
-      named_object_(named_object), no_error_message_(false),
-      is_composite_literal_key_(false)
+      named_object_(named_object), no_error_message_(false)
   { }
 
   // The associated named object.
@@ -2752,18 +2963,6 @@ class Unknown_expression : public Parser_expression
   set_no_error_message()
   { this->no_error_message_ = true; }
 
-  // Note that this expression is being used as the key in a composite
-  // literal, so it may be OK if it is not resolved.
-  void
-  set_is_composite_literal_key()
-  { this->is_composite_literal_key_ = true; }
-
-  // Note that this expression should no longer be treated as a
-  // composite literal key.
-  void
-  clear_is_composite_literal_key()
-  { this->is_composite_literal_key_ = false; }
-
  protected:
   Expression*
   do_lower(Gogo*, Named_object*, Statement_inserter*, int);
@@ -2774,15 +2973,13 @@ class Unknown_expression : public Parser_expression
 
   void
   do_dump_expression(Ast_dump_context*) const;
-  
+
  private:
   // The unknown name.
   Named_object* named_object_;
   // True if we should not give errors if this is undefined.  This is
   // used if there was a parse failure.
   bool no_error_message_;
-  // True if this is the key in a composite literal.
-  bool is_composite_literal_key_;
 };
 
 // An index expression.  This is lowered to an array index, a string
@@ -2800,7 +2997,7 @@ class Index_expression : public Parser_expression
   // Dump an index expression, i.e. an expression of the form
   // expr[expr], expr[expr:expr], or expr[expr:expr:expr] to a dump context.
   static void
-  dump_index_expression(Ast_dump_context*, const Expression* expr, 
+  dump_index_expression(Ast_dump_context*, const Expression* expr,
                         const Expression* start, const Expression* end,
                         const Expression* cap);
 
@@ -2858,7 +3055,7 @@ class Array_index_expression : public Expression
 			 Expression* end, Expression* cap, Location location)
     : Expression(EXPRESSION_ARRAY_INDEX, location),
       array_(array), start_(start), end_(end), cap_(cap), type_(NULL),
-      is_lvalue_(false), needs_bounds_check_(true)
+      is_lvalue_(false), needs_bounds_check_(true), is_flattened_(false)
   { }
 
   // Return the array.
@@ -2954,9 +3151,16 @@ class Array_index_expression : public Expression
   Bexpression*
   do_get_backend(Translate_context*);
 
+  int
+  do_inlining_cost() const
+  { return this->end_ != NULL ? 2 : 1; }
+
+  void
+  do_export(Export_function_body*) const;
+
   void
   do_dump_expression(Ast_dump_context*) const;
-  
+
  private:
   // The array we are getting a value from.
   Expression* array_;
@@ -2974,6 +3178,8 @@ class Array_index_expression : public Expression
   bool is_lvalue_;
   // Whether bounds check is needed.
   bool needs_bounds_check_;
+  // Whether this has already been flattened.
+  bool is_flattened_;
 };
 
 // A string index.  This is used for both indexing and slicing.
@@ -2984,13 +3190,25 @@ class String_index_expression : public Expression
   String_index_expression(Expression* string, Expression* start,
 			  Expression* end, Location location)
     : Expression(EXPRESSION_STRING_INDEX, location),
-      string_(string), start_(start), end_(end)
+      string_(string), start_(start), end_(end), is_flattened_(false)
   { }
 
   // Return the string being indexed.
   Expression*
   string() const
   { return this->string_; }
+
+  // Return the index of a simple index expression, or the start index
+  // of a slice expression.
+  Expression*
+  start() const
+  { return this->start_; }
+
+  // Return the end index of a slice expression.  This is NULL for a
+  // simple index expression.
+  Expression*
+  end() const
+  { return this->end_; }
 
  protected:
   int
@@ -3026,6 +3244,13 @@ class String_index_expression : public Expression
   Bexpression*
   do_get_backend(Translate_context*);
 
+  int
+  do_inlining_cost() const
+  { return this->end_ != NULL ? 2 : 1; }
+
+  void
+  do_export(Export_function_body*) const;
+
   void
   do_dump_expression(Ast_dump_context*) const;
 
@@ -3037,6 +3262,8 @@ class String_index_expression : public Expression
   // The end index of a slice.  This may be NULL for a single index,
   // or it may be a nil expression for the length of the string.
   Expression* end_;
+  // Whether this has already been flattened.
+  bool is_flattened_;
 };
 
 // An index into a map.
@@ -3112,8 +3339,18 @@ class Map_index_expression : public Expression
   Bexpression*
   do_get_backend(Translate_context*);
 
+  int
+  do_inlining_cost() const
+  { return 5; }
+
+  void
+  do_export(Export_function_body*) const;
+
   void
   do_dump_expression(Ast_dump_context*) const;
+
+  void
+  do_add_conversions();
 
  private:
   // The map we are looking into.
@@ -3167,6 +3404,10 @@ class Bound_method_expression : public Expression
   // part of a method value.
   static Named_object*
   create_thunk(Gogo*, const Method* method, Named_object* function);
+
+  // Look up a thunk.
+  static Named_object*
+  lookup_thunk(Named_object* function);
 
  protected:
   int
@@ -3341,6 +3582,10 @@ class Interface_field_reference_expression : public Expression
   static Named_object*
   create_thunk(Gogo*, Interface_type* type, const std::string& name);
 
+  // Look up a thunk.
+  static Named_object*
+  lookup_thunk(Interface_type* type, const std::string& name);
+
   // Return an expression for the pointer to the function to call.
   Expression*
   get_function();
@@ -3402,12 +3647,18 @@ class Allocation_expression : public Expression
  public:
   Allocation_expression(Type* type, Location location)
     : Expression(EXPRESSION_ALLOCATION, location),
-      type_(type), allocate_on_stack_(false)
+      type_(type), allocate_on_stack_(false),
+      no_zero_(false)
   { }
 
   void
   set_allocate_on_stack()
   { this->allocate_on_stack_ = true; }
+
+  // Mark that the allocated memory doesn't need zeroing.
+  void
+  set_no_zero()
+  { this->no_zero_ = true; }
 
  protected:
   int
@@ -3437,6 +3688,8 @@ class Allocation_expression : public Expression
   Type* type_;
   // Whether or not this is a stack allocation.
   bool allocate_on_stack_;
+  // Whether we don't need to zero the allocated memory.
+  bool no_zero_;
 };
 
 // A general composite literal.  This is lowered to a type specific
@@ -3562,13 +3815,16 @@ class Struct_construction_expression : public Expression,
 	type_(type)
   { }
 
- // Return whether this is a constant initializer.
+  // Return whether this is a constant initializer.
   bool
   is_constant_struct() const;
 
  protected:
   int
   do_traverse(Traverse* traverse);
+
+  bool
+  do_is_zero_value() const;
 
   bool
   do_is_static_initializer() const;
@@ -3586,9 +3842,6 @@ class Struct_construction_expression : public Expression,
   Expression*
   do_copy();
 
-  Expression*
-  do_flatten(Gogo*, Named_object*, Statement_inserter*);
-
   Bexpression*
   do_get_backend(Translate_context*);
 
@@ -3597,6 +3850,9 @@ class Struct_construction_expression : public Expression,
 
   void
   do_dump_expression(Ast_dump_context*) const;
+
+  void
+  do_add_conversions();
 
  private:
   // The type of the struct to construct.
@@ -3635,6 +3891,9 @@ protected:
   do_traverse(Traverse* traverse);
 
   bool
+  do_is_zero_value() const;
+
+  bool
   do_is_static_initializer() const;
 
   Type*
@@ -3655,9 +3914,6 @@ protected:
   indexes()
   { return this->indexes_; }
 
-  Expression*
-  do_flatten(Gogo*, Named_object*, Statement_inserter*);
-
   // Get the backend constructor for the array values.
   Bexpression*
   get_constructor(Translate_context* context, Btype* btype);
@@ -3667,6 +3923,9 @@ protected:
 
   virtual void
   dump_slice_storage_expression(Ast_dump_context*) const { }
+
+  void
+  do_add_conversions();
 
  private:
   // The type of the array to construct.
@@ -3790,7 +4049,10 @@ class Map_construction_expression : public Expression
 
   void
   do_dump_expression(Ast_dump_context*) const;
-  
+
+  void
+  do_add_conversions();
+
  private:
   // The type of the map to construct.
   Type* type_;
@@ -3929,6 +4191,9 @@ class Receive_expression : public Expression
   channel()
   { return this->channel_; }
 
+  static Expression*
+  do_import(Import_expression*, Location);
+
  protected:
   int
   do_traverse(Traverse* traverse)
@@ -3957,12 +4222,19 @@ class Receive_expression : public Expression
     return Expression::make_receive(this->channel_->copy(), this->location());
   }
 
+  int
+  do_inlining_cost() const
+  { return 1; }
+
   bool
   do_must_eval_in_order() const
   { return true; }
 
   Bexpression*
   do_get_backend(Translate_context*);
+
+  void
+  do_export(Export_function_body*) const;
 
   void
   do_dump_expression(Ast_dump_context*) const;
@@ -4024,6 +4296,60 @@ class Slice_value_expression : public Expression
   Expression* cap_;
 };
 
+// An expression that evaluates to some characteristic of a slice.
+// This is used when indexing, bound-checking, or nil checking a slice.
+
+class Slice_info_expression : public Expression
+{
+ public:
+  Slice_info_expression(Expression* slice, Slice_info slice_info,
+                        Location location)
+    : Expression(EXPRESSION_SLICE_INFO, location),
+      slice_(slice), slice_info_(slice_info)
+  { }
+
+  // The slice operand of this slice info expression.
+  Expression*
+  slice() const
+  { return this->slice_; }
+
+  // The info this expression is about.
+  Slice_info
+  info() const
+  { return this->slice_info_; }
+
+ protected:
+  Type*
+  do_type();
+
+  void
+  do_determine_type(const Type_context*)
+  { }
+
+  Expression*
+  do_copy()
+  {
+    return new Slice_info_expression(this->slice_->copy(), this->slice_info_,
+                                     this->location());
+  }
+
+  Bexpression*
+  do_get_backend(Translate_context* context);
+
+  void
+  do_dump_expression(Ast_dump_context*) const;
+
+  void
+  do_issue_nil_check()
+  { this->slice_->issue_nil_check(); }
+
+ private:
+  // The slice for which we are getting information.
+  Expression* slice_;
+  // What information we want.
+  Slice_info slice_info_;
+};
+
 // Conditional expressions.
 
 class Conditional_expression : public Expression
@@ -4038,6 +4364,14 @@ class Conditional_expression : public Expression
   Expression*
   condition() const
   { return this->cond_; }
+
+  Expression*
+  then_expr() const
+  { return this->then_; }
+
+  Expression*
+  else_expr() const
+  { return this->else_; }
 
  protected:
   int
@@ -4083,6 +4417,10 @@ class Compound_expression : public Expression
   Expression*
   init() const
   { return this->init_; }
+
+  Expression*
+  expr() const
+  { return this->expr_; }
 
  protected:
   int
@@ -4356,5 +4694,9 @@ class Numeric_constant
   // constant.
   Type* type_;
 };
+
+// Temporary buffer size for string conversions.
+// Also known to the runtime as tmpStringBufSize in runtime/string.go.
+static const int tmp_string_buf_size = 32;
 
 #endif // !defined(GO_EXPRESSIONS_H)

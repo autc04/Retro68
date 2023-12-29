@@ -20,7 +20,7 @@ Key to Flags:
 Symbol table '\.symtab' contains 5 entries:
    Num:    Value  Size Type    Bind   Vis      Ndx Name
      0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 00000080     0 SECTION LOCAL  DEFAULT    1 
-     2: 00000100     0 SECTION LOCAL  DEFAULT    2 
+     1: 00000080     0 SECTION LOCAL  DEFAULT    1.*
+     2: 00000100     0 SECTION LOCAL  DEFAULT    2.*
      3: 00000100     4 OBJECT  GLOBAL DEFAULT    2 x
      4: 00000080     8 OBJECT  GLOBAL DEFAULT    1 y

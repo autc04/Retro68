@@ -2,7 +2,7 @@
 .*/tls-lib2-got.so:     file format elf32-.*arm.*
 architecture: arm.*, flags 0x00000150:
 HAS_SYMS, DYNAMIC, D_PAGED
-start address 0x0+8(1e8|220)
+start address 0x[0-9a-f]+
 
 
 Disassembly of section .got:

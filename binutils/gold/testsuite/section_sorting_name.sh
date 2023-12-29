@@ -2,7 +2,7 @@
 
 # section_sorting_name.sh -- test
 
-# Copyright (C) 2013-2018 Free Software Foundation, Inc.
+# Copyright (C) 2013-2022 Free Software Foundation, Inc.
 # Written by Alexander Ivchenko <alexander.ivchenko@intel.com>.
 
 # This file is part of gold.
@@ -58,6 +58,12 @@ END {
 # addr (hot_foo_0001) < addr (hot_foo_0002) < addr (hot_foo_0003)
 check section_sorting_name.stdout "hot_foo_0001" "hot_foo_0002"
 check section_sorting_name.stdout "hot_foo_0002" "hot_foo_0003"
+
+check section_sorting_name.stdout "sorted_foo_0001" "sorted_foo_0001_abc"
+check section_sorting_name.stdout "sorted_foo_0001_abc" "sorted_foo_0002"
+check section_sorting_name.stdout "sorted_foo_0002" "sorted_foo_0003"
+check section_sorting_name.stdout "sorted_foo_0003" "sorted_foo_y"
+check section_sorting_name.stdout "sorted_foo_y" "sorted_foo_z"
 
 check section_sorting_name.stdout "vdata_0001" "vdata_0002"
 check section_sorting_name.stdout "vdata_0002" "vdata_0003"

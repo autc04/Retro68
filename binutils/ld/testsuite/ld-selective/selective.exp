@@ -1,5 +1,5 @@
 # Expect script for LD selective linking tests
-#   Copyright (C) 1998-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1998-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -46,8 +46,8 @@ set seltests {
     {A::foo() B::foo() dropme1() dropme2()} {*-*-*}}
 }
 
-set cflags "-w -O -ffunction-sections -fdata-sections"
-set cxxflags "-fno-exceptions -fno-rtti"
+set cflags "-w -O -ffunction-sections -fdata-sections $NOSANITIZE_CFLAGS $NOLTO_CFLAGS"
+set cxxflags "-fno-exceptions -fno-rtti $NOSANITIZE_CFLAGS $NOLTO_CFLAGS"
 set ldflags "--gc-sections -Bstatic"
 
 if [istarget mips*-*] {
@@ -64,7 +64,7 @@ if [istarget avr-*-*] {
 }
 
 # If we don't have g++ for the target, mark all tests as untested.
-if { ![is_remote host] && [which $CXX] == 0 } {
+if { ![is_remote host] && [which $CXX_FOR_TARGET] == 0 } {
     foreach testitem $seltests {
 	untested "[lindex $testitem 0]"
     }
@@ -90,10 +90,10 @@ foreach testitem $seltests {
 
     # It's either C or C++ at the moment.
     if { $testtype == "C++" } {
-	set compiler "$CXX"
+	set compiler "$CXX_FOR_TARGET"
 	# Starting with 3.4.0, -fvtable-gc is no longer supported and thus
 	# the functionality we try to test for cannot be expected to work.
-	set version [remote_exec host "$CXX -dumpversion"]
+	set version [remote_exec host "$CXX_FOR_TARGET -dumpversion"]
 	set version [lindex $version 1]
 	if { [regexp "^(\[1-9\]\[0-9\]+|\[4-9\]|3.(\[1-9\]\[0-9\]+))\\." $version] \
 	     || [regexp "^(\[1-9\]\[0-9\]+|\[4-9\])" $version] } {
@@ -104,14 +104,14 @@ foreach testitem $seltests {
 	}
     } else {
 	set testflags "$cflags"
-	set compiler "$CC"
+	set compiler "$CC_FOR_TARGET"
     }
 
     # Note that we do not actually *use* CXX; we just add cxxflags for C++
     # tests.  It might have been a buglet originally; now I think better
     # leave as is.
     if { ![ld_compile "$compiler $testflags" $srcdir/$subdir/$testfile $objfile] } {
-	unresolved $testname
+	unsupported $testname
 	continue
     }
 
@@ -151,7 +151,7 @@ foreach testitem $seltests {
     }
 
     if ![ld_nm $nm --demangle $ldfile] {
-	unresolved $testname
+	fail $testname
 	continue
     }
 

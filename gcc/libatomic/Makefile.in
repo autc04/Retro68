@@ -96,7 +96,9 @@ target_triplet = @target@
 @ARCH_ARM_LINUX_TRUE@@HAVE_IFUNC_TRUE@	$(addsuffix \
 @ARCH_ARM_LINUX_TRUE@@HAVE_IFUNC_TRUE@	_8_2_.lo,$(SIZEOBJS))
 @ARCH_I386_TRUE@@HAVE_IFUNC_TRUE@am__append_3 = $(addsuffix _8_1_.lo,$(SIZEOBJS))
-@ARCH_X86_64_TRUE@@HAVE_IFUNC_TRUE@am__append_4 = $(addsuffix _16_1_.lo,$(SIZEOBJS))
+@ARCH_X86_64_TRUE@@HAVE_IFUNC_TRUE@am__append_4 = $(addsuffix _16_1_.lo,$(SIZEOBJS)) \
+@ARCH_X86_64_TRUE@@HAVE_IFUNC_TRUE@		       $(addsuffix _16_2_.lo,$(SIZEOBJS))
+
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
@@ -106,6 +108,7 @@ am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
 	$(top_srcdir)/../config/multi.m4 \
 	$(top_srcdir)/../config/override.m4 \
 	$(top_srcdir)/../config/stdint.m4 \
+	$(top_srcdir)/../config/toolexeclibdir.m4 \
 	$(top_srcdir)/../config/warnings.m4 \
 	$(top_srcdir)/../ltoptions.m4 $(top_srcdir)/../ltsugar.m4 \
 	$(top_srcdir)/../ltversion.m4 $(top_srcdir)/../lt~obsolete.m4 \
@@ -375,6 +378,7 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
+tmake_file = @tmake_file@
 toolexecdir = @toolexecdir@
 toolexeclibdir = @toolexeclibdir@
 top_build_prefix = @top_build_prefix@
@@ -414,7 +418,8 @@ PAT_N = $(word 2,$(PAT_SPLIT))
 PAT_S = $(word 3,$(PAT_SPLIT))
 IFUNC_DEF = -DIFUNC_ALT=$(PAT_S)
 IFUNC_OPT = $(word $(PAT_S),$(IFUNC_OPTIONS))
-M_DEPS = -MT $@ -MD -MP -MF $(DEPDIR)/$(@F).Ppo
+@AMDEP_TRUE@M_DEPS = -MT $@ -MD -MP -MF $(DEPDIR)/$(@F).Ppo
+@AMDEP_FALSE@M_DEPS = 
 M_SIZE = -DN=$(PAT_N)
 M_IFUNC = $(if $(PAT_S),$(IFUNC_DEF) $(IFUNC_OPT))
 M_FILE = $(PAT_BASE)_n.c
@@ -432,7 +437,7 @@ libatomic_la_LIBADD = $(foreach s,$(SIZES),$(addsuffix \
 @ARCH_AARCH64_LINUX_TRUE@@HAVE_IFUNC_TRUE@IFUNC_OPTIONS = -march=armv8-a+lse
 @ARCH_ARM_LINUX_TRUE@@HAVE_IFUNC_TRUE@IFUNC_OPTIONS = -march=armv7-a+fp -DHAVE_KERNEL64
 @ARCH_I386_TRUE@@HAVE_IFUNC_TRUE@IFUNC_OPTIONS = -march=i586
-@ARCH_X86_64_TRUE@@HAVE_IFUNC_TRUE@IFUNC_OPTIONS = -mcx16
+@ARCH_X86_64_TRUE@@HAVE_IFUNC_TRUE@IFUNC_OPTIONS = -mcx16 -mcx16
 libatomic_convenience_la_SOURCES = $(libatomic_la_SOURCES)
 libatomic_convenience_la_LIBADD = $(libatomic_la_LIBADD)
 MULTISRCTOP = 
@@ -859,6 +864,9 @@ vpath % $(strip $(search_path))
 # when it is reloaded during the build of all-multi.
 all-multi: $(libatomic_la_LIBADD)
 	$(MULTIDO) $(AM_MAKEFLAGS) DO=all multi-do # $(MAKE)
+
+# target overrides
+-include $(tmake_file)
 
 # GNU Make needs to see an explicit $(MAKE) variable in the command it
 # runs to enable its job server during parallel builds.  Hence the

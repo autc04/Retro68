@@ -7,7 +7,7 @@
 --                                 S p e c                                  --
 --                                                                          --
 --            Copyright (C) 1991-2017, Florida State University             --
---                     Copyright (C) 1995-2019, AdaCore                     --
+--                     Copyright (C) 1995-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,10 +33,6 @@
 --  This is a POSIX-like version of this package
 
 --  Note: this file can only be used for POSIX compliant systems
-
-pragma Polling (Off);
---  Turn off polling, we do not want ATC polling to take place during tasking
---  operations. It causes infinite loops and other problems.
 
 with System.OS_Interface;
 

@@ -31,7 +31,7 @@ DYNAMIC SYMBOL TABLE:
 0+      D  \*UND\*	0+ x
 #...
 DYNAMIC RELOCATION RECORDS
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+82278 R_CRIS_32_TPREL   x
 
 Contents of section .interp:

@@ -1,5 +1,5 @@
 /* tc-bfin.c -- Assembler for the ADI Blackfin.
-   Copyright (C) 2005-2018 Free Software Foundation, Inc.
+   Copyright (C) 2005-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -19,7 +19,6 @@
    02110-1301, USA.  */
 
 #include "as.h"
-#include "struc-symbol.h"
 #include "bfin-defs.h"
 #include "obstack.h"
 #include "safe-ctype.h"
@@ -701,7 +700,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 
     case BFD_RELOC_BFIN_16_LOW:
     case BFD_RELOC_BFIN_16_HIGH:
-      fixP->fx_done = FALSE;
+      fixP->fx_done = false;
       break;
 
     case BFD_RELOC_BFIN_24_PCREL_JUMP_L:
@@ -770,7 +769,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_BFIN_FUNCDESC:
     case BFD_RELOC_VTABLE_INHERIT:
     case BFD_RELOC_VTABLE_ENTRY:
-      fixP->fx_done = FALSE;
+      fixP->fx_done = false;
       break;
 
     default:
@@ -782,7 +781,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
     }
 
   if (!fixP->fx_addsy)
-    fixP->fx_done = TRUE;
+    fixP->fx_done = true;
 
 }
 
@@ -790,7 +789,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 valueT
 md_section_align (segT segment, valueT size)
 {
-  int boundary = bfd_get_section_alignment (stdoutput, segment);
+  int boundary = bfd_section_alignment (segment);
   return ((size + (1 << boundary) - 1) & -(1 << boundary));
 }
 
@@ -798,7 +797,7 @@ md_section_align (segT segment, valueT size)
 const char *
 md_atof (int type, char * litP, int * sizeP)
 {
-  return ieee_md_atof (type, litP, sizeP, FALSE);
+  return ieee_md_atof (type, litP, sizeP, false);
 }
 
 
@@ -853,7 +852,7 @@ md_pcrel_from_section (fixS *fixP, segT sec)
 /* Return true if the fix can be handled by GAS, false if it must
    be passed through to the linker.  */
 
-bfd_boolean
+bool
 bfin_fix_adjustable (fixS *fixP)
 {
   switch (fixP->fx_r_type)
@@ -1930,10 +1929,10 @@ bfin_loop_beginend (Expr_Node *exp, int begin)
   /* LOOP_END follows the last instruction in the loop.
      Adjust label address.  */
   if (!begin)
-    ((struct local_symbol *) linelabel)->lsy_value -= last_insn_size;
+    *symbol_X_add_number (linelabel) -= last_insn_size;
 }
 
-bfd_boolean
+bool
 bfin_eol_in_insn (char *line)
 {
    /* Allow a new-line to appear in the middle of a multi-issue instruction.  */
@@ -1941,36 +1940,36 @@ bfin_eol_in_insn (char *line)
    char *temp = line;
 
   if (*line != '\n')
-    return FALSE;
+    return false;
 
   /* A semi-colon followed by a newline is always the end of a line.  */
   if (line[-1] == ';')
-    return FALSE;
+    return false;
 
   if (line[-1] == '|')
-    return TRUE;
+    return true;
 
   /* If the || is on the next line, there might be leading whitespace.  */
   temp++;
   while (*temp == ' ' || *temp == '\t') temp++;
 
   if (*temp == '|')
-    return TRUE;
+    return true;
 
-  return FALSE;
+  return false;
 }
 
-bfd_boolean
+bool
 bfin_start_label (char *s)
 {
   while (*s != 0)
     {
       if (*s == '(' || *s == '[')
-	return FALSE;
+	return false;
       s++;
     }
 
-  return TRUE;
+  return true;
 }
 
 int
@@ -1978,7 +1977,7 @@ bfin_force_relocation (struct fix *fixp)
 {
   if (fixp->fx_r_type ==BFD_RELOC_BFIN_16_LOW
       || fixp->fx_r_type == BFD_RELOC_BFIN_16_HIGH)
-    return TRUE;
+    return true;
 
   return generic_force_reloc (fixp);
 }

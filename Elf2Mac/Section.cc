@@ -176,8 +176,51 @@ void Section::FixRelocs(bool allowDirectCodeRefs)
         {
             case SectionKind::code:
                 relocBase = RelocBase::code;
-                if(sym.needsJT && (exceptionInfoStart == 0 || rela.r_offset < exceptionInfoStart || sym.name == "__gxx_personality_v0"))
+                if(exceptionInfoStart != 0 && rela.r_offset >= exceptionInfoStart
+                    && sym.name != "__gxx_personality_v0")
                 {
+                    // Case 1:
+                    //  references from .eh_frame, with the exception of __gcc_personality_v0.
+                    //  Should be direct references within the code segment.
+
+                    if(sym.section.get() != this)
+                    {
+#if 0                        
+                        std::cerr << "Warning: clearing cross-segment reference from .eh_frame:\n"
+                                  << sym.name << " (" << name << "->" << sym.section->name << ")\n";
+                        std::cerr << std::hex << (int)sym.st_info << " " << (int)sym.st_other << std::endl;
+                        //assert(GELF_ST_BIND(sym.st_info) == STB_WEAK);
+#endif
+
+                        /*
+                            ld behaves differently depending on whether debug info is present.
+                            If debug info is present, .eh_frame sections will contain references
+                            to other code segments, if no debug info is generated (or it is 
+                            stripped at link time), then these pointers are set to 0 during linking.
+
+                            In most cases, this has to do with weak symbols; the instance of the
+                            symbol that is removed gets a null ptr (with R_68K_NONE relocation) in
+                            the .eh_frame section if there is no debug info, but gets remapped to
+                            the surviving instance if there is debug info.
+                            It also happens with some section symbols, and I *hope* this is related.
+
+                            This makes no sense to me, but the reason is probably buried somewhere
+                            within a 900-line function of C code within a 15000 line source file
+                            in GNU bfd.
+
+                            I *hope* that the correct behavior is to just clear those pointers.
+                        */
+                        uint8_t *relocand = ((uint8_t*) data->d_buf + rela.r_offset - shdr.sh_addr);
+
+                        relocand[0] = relocand[1] = relocand[2] = relocand[3] = 0;
+                        rela.r_info = 0;
+                    }
+                }
+                else if(sym.needsJT)
+                {
+                    // Case 2: References to code that can go through the jump table.
+                    //  If we need an addend, that's a problem and we abort.
+
                     if(rela.r_addend == 0)
                     {
                         relocBase = RelocBase::jumptable;
@@ -195,10 +238,21 @@ void Section::FixRelocs(bool allowDirectCodeRefs)
                         assert(sym.section.get() == this);
                     }
                 }
-                else if(!allowDirectCodeRefs)
+                else if(allowDirectCodeRefs)
                 {
+                    // Case 3: Direct Code Refs are allowed (single-segment exectuable),
+                    //  We are happy. Nothing to check or do.
+                }
+                else
+                {
+                    // Case 4: Multi-segment executable.
+                    //  Code references that don't go through the jump table
+                    //  must remain in the current segment.
+                    
                     if(sym.section.get() != this)
                     {
+                        //  Should never happen because symbols that are referenced from a different
+                        //  segment get their needsJT flag set (ScanRelocs and Obejct::MultiSegmentApp).
                         std::cerr << "Invalid ref from "
                                   << name << ":" << std::hex << rela.r_offset-shdr.sh_addr << std::dec
                                   << " to " << sym.section->name
@@ -221,6 +275,10 @@ void Section::FixRelocs(bool allowDirectCodeRefs)
                 assert(false);
                 break;
         }
+
+        if(!GELF_R_SYM(rela.r_info))
+            continue;   // symboil reference has been cleared in Case 1 above
+
         rela.relocBase = relocBase;
 
         uint8_t *relocand = ((uint8_t*) data->d_buf + rela.r_offset - shdr.sh_addr);

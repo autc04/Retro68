@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,7 +45,12 @@ if { [istarget hppa*-*-*] || [istarget *c54x*-*-*] || [istarget mep*-*-*]} then 
 # No floating point support in assembly code for CRIS and Z80.
 if { ![istarget cris-*-*] && ![istarget crisv32-*-*] 
      && ![istarget z80-*-*] } then {
-    gas_test "float.s" ""   "" "simple FP constants"
+    if { [istarget tic4x-*-*] } then {
+	set as_opt ""
+    } else {
+	set as_opt "--defsym hasnan=1"
+    }
+    gas_test "float.s" $as_opt "" "simple FP constants"
 }
 
 # This test is meaningless for the PA; the difference of two undefined
@@ -64,21 +69,28 @@ if {    ![istarget alpha*-*-*vms*]
      && ![istarget microblaze-*-*]
      && ![istarget mn10300-*-*]
      && ![istarget msp430*-*-*]
+     && ![istarget powerpc*-*-aix*]
      && ![istarget riscv*-*-*]
      && ![istarget rl78-*-*]
-     && ![istarget rx-*-*] } then {
+     && ![istarget rs6000*-*-aix*]
+     && ![istarget rx-*-*]
+     && ![istarget loongarch*-*-*] } then {
     gas_test_error "diff1.s" "" "difference of two undefined symbols"
 }
 
 gas_test_error "equiv1.s" "" ".equiv for symbol already set to another one"
 gas_test_error "equiv2.s" "" ".equiv for symbol already set to an expression"
 
-gas_test_error "none.s" "-o $srcdir/$subdir/none.s" "Output file must be distinct from input"
+# The inode comparison used to detect identical input and output files
+# doesn't work on non-Posix hosts.
+if { ![ishost "*-*-mingw*"] } then {
+    gas_test_error "none.s" "-o $srcdir/$subdir/none.s" "Output file must be distinct from input"
+}
 
 # .equ works differently on some targets.
-case $target_triplet in {
-    { hppa*-*-* } { }
-    { *c54x*-*-* } { }
+switch -glob $target_triplet {
+    hppa*-*-* { }
+    *c54x*-*-* { }
     default {
 	gas_test "equ-ok.s" "" "" ".equ for symbol already set"
 	gas_test_error "equ-bad.s" "" ".equ for symbol already set through .eqv"
@@ -87,51 +99,40 @@ case $target_triplet in {
 
 gas_test "eqv-ok.s" "" "" ".eqv support"
 gas_test_error "eqv-bad.s" "" ".eqv for symbol already set"
+if { [istarget "pdp11-*-*"] } then {
+    run_dump_test eqv-dot-pdp11
+} else {
+    run_dump_test eqv-dot
+}
 
 if { ![istarget "bfin-*-*"] } then {
     gas_test "assign-ok.s" "" "" "== assignment support"
 }
 gas_test_error "assign-bad.s" "" "== assignment for symbol already set"
+run_dump_test assign-bad-recursive
+run_dump_test local-label-overflow
 
-# .equ works differently on some targets.
-# linkrelax-ing prevents most forward references from working.
-case $target_triplet in {
-    { am3*-*-* } { }
-    { *c54x*-*-* } { }
-    { cr16*-*-* } { }
-    { crx*-*-* } { }
-    { h8300*-*-* } { }
-    { hppa*-*-* } { }
-    { mep-*-* } { }
-    { microblaze-*-* } { }
-    { mn10\[23\]00*-*-* } { }
-    default {
-	# Some targets don't manage to resolve BFD_RELOC_8 for constants.
-	setup_xfail "alpha*-*-*" "*c30*-*-*" "*c4x*-*-*" \
-	    "d\[13\]0v*-*-*" \
-	    "nds32*-*-*" "pdp11-*-*" "xtensa*-*-*"
-	run_dump_test forward
-    }
-}
+run_dump_test simple-forward
+run_dump_test forward
 
 # aout relocs are often weird, so is mep. don't bother testing
 # som doesn't use a .text section
 # mmix doesn't like .L1:
 # ti addresses aren't octets.
 if { ![is_aout_format] } {
-    case $target_triplet in {
-	{ hppa*64*-*-* } {
+    switch -glob $target_triplet {
+	hppa*64*-*-* {
 	    run_dump_test fwdexp
 	}
-	{ alpha-*-*linux*ecoff } { }
-	{ alpha-*-osf* } { }
-	{ hppa*-*-hpux* } { }
-	{ mep-*-* } { }
-	{ mmix-*-* } { }
-	{ nds32*-*-* } { }
-	{ tic30*-*-* } { }
-	{ tic4x*-*-* } { }
-	{ tic54x*-*-* } { }
+	alpha-*-*linux*ecoff { }
+	alpha-*-osf* { }
+	hppa*-*-hpux* { }
+	mep-*-* { }
+	mmix-*-* { }
+	nds32*-*-* { }
+	tic30*-*-* { }
+	tic4x*-*-* { }
+	tic54x*-*-* { }
 	default {
 	    run_dump_test fwdexp
 	}
@@ -142,36 +143,38 @@ if { ![is_aout_format] } {
 # most of the tests won't work on targets that set linkrelax.
 # 4 octet bytes confuse address matching on ti targets.
 # pdp11 gets unexpected reloc types.
-case $target_triplet in {
-    { alpha*-*-* } { }
-    { am3*-*-* } { }
-    { cr16*-*-* } { }
-    { crx*-*-* } { }
-    { h8300-*-* } { }
-    { mips*-*-* } { }
-    { mn10200-*-* } { }
-    { mn10300-*-* } { }
-    { msp430*-*-* } { }
-    { nds32*-*-* } { }
-    { pdp11-*-* } { }
-    { tic30*-*-* } { }
-    { tic4x*-*-* } { }
-    { tic54x*-*-* } { }
-    { xtensa*-*-* } { }
-    { z80-*-* } { }
+switch -glob $target_triplet {
+    alpha*-*-* { }
+    am3*-*-* { }
+    cr16*-*-* { }
+    crx*-*-* { }
+    h8300-*-* { }
+    mips*-*-* { }
+    mn10200-*-* { }
+    mn10300-*-* { }
+    msp430*-*-* { }
+    nds32*-*-* { }
+    pdp11-*-* { }
+    tic30*-*-* { }
+    tic4x*-*-* { }
+    tic54x*-*-* { }
+    xtensa*-*-* { }
+    z80-*-* { }
     default {
 	run_dump_test redef
 	# These targets fail redef2 because they disallow redefined
 	# symbols on relocs.
 	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*" "rl78-*-*"
 	setup_xfail "riscv*-*-*" "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
+	setup_xfail "loongarch*-*-*" "avr-*-*"
 	run_dump_test redef2
 	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*" "rl78-*-*"
 	setup_xfail "riscv*-*-*" "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
+	setup_xfail "loongarch*-*-*" "avr-*-*"
 	# rs6000-aix disallows redefinition via .comm.
-	setup_xfail "*-*-aix*"
-	# SOM uses a different syntax for .comm
-	setup_xfail "hppa*-*-hpux*"
+	if [is_xcoff_format] {
+	    setup_xfail *-*-*
+	}
 	# These targets fail redef3 because section contents for the
 	# word referencing the .comm sym is not zero and/or its reloc
 	# has a non-zero addend.  Relaxing the test would hide real
@@ -209,13 +212,7 @@ proc do_comment {} {
     if [all_ones $x1 $x2 $x3] then { pass $testname } else { fail $testname }
 }
 
-# m32c pads out sections, even empty ones.
-case $target_triplet in {
-    { m32c-*-* } { }
-    default {
-	do_comment
-    }
-}
+do_comment
 
 # This test checks the output of the -ag switch. It must detect at least
 # the name of the input file, output file, and options passed.
@@ -290,27 +287,26 @@ if {    ![istarget *c30*-*-*]
 
 # ".struct" and ".align" have different meanings on c54x
 # These directives are done in the c54x-specific tests instead
-case $target_triplet in {
-    { hppa*-*-* } { }
-    { *c4x*-*-* } { }
-    { *c54x*-*-* } { }
+switch -glob $target_triplet {
+    hppa*-*-* { }
+    *c4x*-*-* { }
+    *c54x*-*-* { }
     default {
 	run_dump_test struct
 	run_dump_test align
-	setup_xfail "ns32k-*-*"
 	run_dump_test align2
     }
 }
 
 # '<' and '>' appear to have special meanings on the excluded targets
-case $target_triplet in {
-    { frv-*-* } { }
-    { hppa*-*-* } { }
-    { m32r-*-* } { }
-    { mmix-*-* } { }
-    { *c4x*-*-* } { }
-    { *c54x*-*-* } { }
-    { bfin-*-* } { }
+switch -glob $target_triplet {
+    frv-*-* { }
+    hppa*-*-* { }
+    m32r-*-* { }
+    mmix-*-* { }
+    *c4x*-*-* { }
+    *c54x*-*-* { }
+    bfin-*-* { }
     default {
 	run_dump_test altmacro
 	# The second test is valid only when '!' is not a comment
@@ -347,12 +343,17 @@ proc test_cond {} {
     global subdir
 
     set testname "conditional listings"
+    if { [istarget "pdp11-*-*"] } then {
+	set listing "cond-pdp11.l"
+    } else {
+	set listing "cond.l"
+    }
     gas_run cond.s "-alc" ">dump.out"
     if ![string match "" $comp_output] {
 	send_log "$comp_output\n"
 	fail $testname
     } else {
-	if { [regexp_diff dump.out $srcdir/$subdir/cond.l] } {
+	if { [regexp_diff dump.out $srcdir/$subdir/$listing] } {
 	    fail $testname
 	} else {
 	    pass $testname
@@ -364,19 +365,40 @@ proc test_cond {} {
 # not limited to the fact that it depends on specific section
 # names appearing in the output file.
 # Again, p2align doesn't work on c54x and related targets.
-case $target_triplet in {
-    { alpha-*-linux*ecoff} { }
-    { alpha-*-osf*} { }
-    { hppa*-*-* } { }
-    { *c4x*-*-* } { }
-    { *c54x*-*-* } { }
-    { rl78-*-* } { }
-    { rx-*-* } { }
+switch -glob $target_triplet {
+    alpha-*-linux*ecoff { }
+    alpha-*-osf* { }
+    hppa*-*-* { }
+    *c4x*-*-* { }
+    *c54x*-*-* { }
+    rl78-*-* { }
+    rx-*-* { }
     default {
         test_cond
 	remote_download host "$srcdir/$subdir/incbin.dat"
         run_dump_test incbin
     }
+}
+
+# Various targets use too custom handling to be able to sensibly create
+# common expecations for this test.  Also .equ works differently on some
+# targets.
+if {    ![istarget avr-*-*]
+     && ![istarget bfin-*-*]
+     && ![istarget cris*-*-*]
+     && ![istarget dlx-*-*]
+     && ![istarget hppa*-*-*]
+     && ![istarget m68k-*-*]
+     && ![istarget nios2-*-*]
+     && ![istarget pj-*-*]
+     && ![istarget sh*-*-*]
+     && ![istarget *c4x-*-*]
+     && ![istarget *c54x-*-*]
+     && ![istarget *c6x-*-*]
+     && ![istarget z80-*-*] } then {
+    # Some further targets' custom handling fails to recognize the overflows.
+    setup_xfail "crx-*-*" "h8300-*-*" "mcore-*-*" "mn10200-*-*" "mn10300-*-*" "msp430-*-*" "ns32k-*-*"
+    run_list_test "overflow"
 }
 
 if {  ([istarget "i*86-*-*pe*"] && ![istarget "i*86-*-openbsd*"]) \
@@ -391,7 +413,6 @@ if { ![istarget "bfin-*-*"] && ![istarget "nds32*-*-*"] } then {
 run_dump_test sleb128
 run_dump_test sleb128-2
 run_dump_test sleb128-3
-setup_xfail "nds32*-*-*"
 run_dump_test sleb128-4
 run_dump_test sleb128-5
 # .byte is not 8 bits on either tic4x or tic54x
@@ -408,32 +429,20 @@ if { ![istarget "tic4x*-*-*"] && ![istarget "tic54x*-*-*"] && ![istarget "hppa*-
     run_dump_test relax
 }
 
-# powerpc and s390 allow a string argument to .byte
-if { ![istarget "powerpc*-*-*"] && ![istarget "rs6000*-*-*"] && ![istarget "s390*-*-*"] } {
-    run_dump_test byte
-}
-
 run_dump_test quad
 
-# som doesn't use .data section.
-case $target_triplet in {
-    { hppa*64*-*-* } {
-	run_dump_test octa
-    }
-    { hppa*-*-hpux* } { }
-    default {
-	run_dump_test octa
-    }
+# poor little PDP-11 can't handle 16-byte values
+if { ![istarget "pdp11-*-*"] } {
+    run_dump_test octa
 }
 
 # .set works differently on some targets.
-case $target_triplet in {
-    { alpha*-*-* } { }
-    { mips*-*-* } { }
-    { *c54x*-*-* } { }
-    { z80-*-* } { }
+switch -glob $target_triplet {
+    alpha*-*-* { }
+    mips*-*-* { }
+    *c54x*-*-* { }
+    z80-*-* { }
     default {
-	setup_xfail "nds32*-*-*"
 	run_dump_test weakref1
 	run_dump_test weakref1g
 	run_dump_test weakref1l
@@ -452,6 +461,15 @@ if [is_elf_format] {
 
 run_dump_test quoted-sym-names
 
+# Targets where # is not a line comment character don't transform
+# "# <line> <file>" into .linefile (PR gas/29120).
+setup_xfail "tic30-*-*"
+run_list_test cond-2 "-al"
+setup_xfail "tic30-*-*"
+run_list_test linefile ""
+
+run_list_test macro "-alm"
+
 run_list_test pr20312
 
 load_lib gas-dg.exp
@@ -460,14 +478,18 @@ dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/err-*.s $srcdir/$subdir/warn
 dg-finish
 
 # Set $nop_type appropriately to indicate the NOP instruction mnemonic.
-case $target_triplet in {
-    { "mmix-*-*" } {
+# Note - this code is made obsolete by the new .nops pseudo-op.
+switch -glob $target_triplet {
+    bpf-*-* {
+        set nop_type 6
+    }
+    mmix-*-* {
 	set nop_type 5
     }
-    { "or1k*-*-*" } {
+    or1k*-*-* {
 	set nop_type 2
     }
-    { "ia64-*-*" } {
+    ia64-*-* {
 	set nop_type 1
     }
     default {
@@ -482,3 +504,12 @@ run_dump_test "org-5"
 run_dump_test "org-6"
 
 run_dump_test "fill-1"
+
+gas_test "pr23938.s" "" "" ".xstabs"
+
+run_dump_test "nop"
+run_dump_test "asciz"
+run_dump_test "pr27384"
+run_dump_test "pr27381"
+run_dump_test "multibyte1"
+run_dump_test "multibyte2"

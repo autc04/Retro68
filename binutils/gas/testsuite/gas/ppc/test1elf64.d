@@ -1,4 +1,5 @@
 #objdump: -Drx
+#as:  --generate-missing-build-notes=no
 #name: PowerPC Test 1, 64 bit elf
 
 .*

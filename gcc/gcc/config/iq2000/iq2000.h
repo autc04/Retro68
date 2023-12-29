@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler.  
    Vitesse IQ2000 processors
-   Copyright (C) 2003-2019 Free Software Foundation, Inc.
+   Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -525,7 +525,7 @@ while (0)
 
 #define FUNCTION_MODE SImode
 
-/* IQ2000 external variables defined in iq2000.c.  */
+/* IQ2000 external variables defined in iq2000.cc.  */
 
 /* Comparison type.  */
 enum cmp_type
@@ -687,7 +687,7 @@ enum delay_type
 /* Tell prologue and epilogue if register REGNO should be saved / restored.  */
 
 #define MUST_SAVE_REGISTER(regno) \
-  ((df_regs_ever_live_p (regno) && !call_used_regs[regno])		\
+  ((df_regs_ever_live_p (regno) && !call_used_or_fixed_reg_p (regno))	\
   || (regno == HARD_FRAME_POINTER_REGNUM && frame_pointer_needed)	\
    || (regno == (GP_REG_FIRST + 31) && df_regs_ever_live_p (GP_REG_FIRST + 31)))
 

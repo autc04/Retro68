@@ -1,8 +1,8 @@
 # name: H8300 Relaxation Test 3
-# ld: --relax -m h8300self
+# ld: --relax
 # objdump: -d
 
-.*:     file format .*-h8300
+.*:     file format .*
 
 Disassembly of section .text:
 

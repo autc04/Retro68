@@ -1,6 +1,7 @@
+#source: ./xor.s
 #objdump: -dr
 
-dump\.o:     file format .*
+.*:     file format .*
 
 
 Disassembly of section \.text:
@@ -86,3 +87,11 @@ Disassembly of section \.text:
  174:	06 62 0d ff fe 7f             	xor	65532\[r15\]\.w, r15
  17a:	06 a2 0d f0 ff 3f             	xor	65532\[r15\]\.l, r0
  180:	06 a2 0d ff ff 3f             	xor	65532\[r15\]\.l, r15
+ 186:	ff 60 00                      	xor	r0, r0, r0
+ 189:	ff 6f 00                      	xor	r0, r0, r15
+ 18c:	ff 60 0f                      	xor	r0, r15, r0
+ 18f:	ff 6f 0f                      	xor	r0, r15, r15
+ 192:	ff 60 f0                      	xor	r15, r0, r0
+ 195:	ff 6f f0                      	xor	r15, r0, r15
+ 198:	ff 60 ff                      	xor	r15, r15, r0
+ 19b:	ff 6f ff                      	xor	r15, r15, r15

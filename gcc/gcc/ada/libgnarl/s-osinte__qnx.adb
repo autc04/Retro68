@@ -7,7 +7,7 @@
 --                                   B o d y                                --
 --                                                                          --
 --             Copyright (C) 1991-2017, Florida State University            --
---                     Copyright (C) 1995-2019, AdaCore                     --
+--                     Copyright (C) 1995-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,10 +31,6 @@
 ------------------------------------------------------------------------------
 
 --  This version is for QNX operating systems
-
-pragma Polling (Off);
---  Turn off polling, we do not want ATC polling to take place during
---  tasking operations. It causes infinite loops and other problems.
 
 --  This package encapsulates all direct interfaces to OS services
 --  that are needed by children of System.

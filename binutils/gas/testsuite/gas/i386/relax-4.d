@@ -16,17 +16,17 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	e9 fc ff ff ff       	jmp    1b <foo\+0x1b>	1b: R_386_PC32	hidden_undef
 
 0+1f <hidden_def>:
-[ 	]*[a-f0-9]+:	c3                   	ret    
+[ 	]*[a-f0-9]+:	c3                   	ret
 
 0+20 <weak_hidden_def>:
-[ 	]*[a-f0-9]+:	c3                   	ret    
+[ 	]*[a-f0-9]+:	c3                   	ret
 
 0+21 <global_def>:
-[ 	]*[a-f0-9]+:	c3                   	ret    
+[ 	]*[a-f0-9]+:	c3                   	ret
 
 0+22 <weak_def>:
-[ 	]*[a-f0-9]+:	c3                   	ret    
+[ 	]*[a-f0-9]+:	c3                   	ret
 
 0+23 <local>:
-[ 	]*[a-f0-9]+:	c3                   	ret    
+[ 	]*[a-f0-9]+:	c3                   	ret
 #pass

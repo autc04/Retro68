@@ -7,7 +7,7 @@
 Disassembly of section \.text:
 
 0+0000000 <start>:
-   0:	(7c 43 25 de|de 25 43 7c) 	isel    r2,r3,r4,23
+   0:	(7c 43 25 de|de 25 43 7c) 	isel    r2,r3,r4,4\*cr5\+so
    4:	(7c 85 33 0c|0c 33 85 7c) 	dcblc   4,r5,r6
    8:	(7c e8 49 4c|4c 49 e8 7c) 	dcbtls  7,r8,r9
    c:	(7d 4b 61 0c|0c 61 4b 7d) 	dcbtstls 10,r11,r12
@@ -50,7 +50,7 @@ Disassembly of section \.text:
   a0:	(10 a0 22 f6|f6 22 a0 10) 	efdctuf r5,r4
   a4:	(10 a0 22 ef|ef 22 a0 10) 	efdcfs  r5,r4
   a8:	(7c 20 06 ac|ac 06 20 7c) 	mbar    1
-  ac:	(7c 00 06 ac|ac 06 00 7c) 	mbar    
+  ac:	(7c 00 06 ac|ac 06 00 7c) 	mbar
   b0:	(7c 20 06 ac|ac 06 20 7c) 	mbar    1
   b4:	(7c 00 04 ac|ac 04 00 7c) 	msync
   b8:	(7c 00 04 ac|ac 04 00 7c) 	msync

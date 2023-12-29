@@ -12,10 +12,19 @@ var executablePath string
 func getexecname() *byte
 
 //extern getpagesize
-func getpagesize() int32
+func getPageSize() int32
+
+//extern sysconf
+func sysconf(int32) _C_long
+
+func osinit() {
+	ncpu = getncpu()
+	if physPageSize == 0 {
+		physPageSize = uintptr(getPageSize())
+	}
+}
 
 func sysargs(argc int32, argv **byte) {
-	physPageSize = uintptr(getpagesize())
 	executablePath = gostringnocopy(getexecname())
 }
 
@@ -25,4 +34,17 @@ func sysargs(argc int32, argv **byte) {
 // saved executable path.
 func solarisExecutablePath() string {
 	return executablePath
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
 }

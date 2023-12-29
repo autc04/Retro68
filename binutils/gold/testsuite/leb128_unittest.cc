@@ -1,6 +1,6 @@
 // leb_unittest.cc -- test read_signed_LEB_128 and read_unsigned_LEB_128 
 
-// Copyright (C) 2012-2017 Free Software Foundation, Inc.
+// Copyright (C) 2012-2022 Free Software Foundation, Inc.
 // Written by Cary Coutant <ccoutant@google.com>.
 
 // This file is part of gold.

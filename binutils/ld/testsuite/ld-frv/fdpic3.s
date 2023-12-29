@@ -97,3 +97,4 @@ HD3:
 HD4:
 	.picptr funcdesc(HFb)
 	.word	HFb
+	.section	.note.GNU-stack

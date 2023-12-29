@@ -72,10 +72,14 @@ foo:
 	bpr	%r9
 	br	%r9
 	bras	%r9,.
+	jas	%r6,.
 	brc	6,.
 	brct	6,.
+	jct	%r6,.
 	brxh	%r6,%r9,.
+	jxh	%r6,%r9,.
 	brxle	%r6,%r9,.
+	jxle	%r6,%r9,.
 	bsa	%r6,%r9
 	bsg	%r6,%r9
 	bsm	%r6,%r9
@@ -195,6 +199,28 @@ foo:
 	jo	.
 	jp	.
 	jz	.
+	jnop	.
+	bro	.
+	brh	.
+	brp	.
+	brnle	.
+	brl	.
+	brm	.
+	brnhe	.
+	brlh	.
+	brne	.
+	brnz	.
+	bre	.
+	brz	.
+	brnlh	.
+	brhe	.
+	brnl	.
+	brnm	.
+	brle	.
+	brnh	.
+	brnp	.
+	brno	.
+	bru	.
 	kdb	%f6,4095(%r5,%r10)
 	kdbr	%f6,%f9
 	keb	%f6,4095(%r5,%r10)

@@ -1,4 +1,4 @@
-#PROG: readelf
+#DUMPPROG: readelf
 #readelf: -Wr
 #name: MIPS ELF reloc 27
 #as: -32

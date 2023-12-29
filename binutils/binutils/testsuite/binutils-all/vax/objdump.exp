@@ -1,5 +1,5 @@
 #
-# Copyright (C) 1993-2018 Free Software Foundation, Inc.
+# Copyright (C) 1993-2022 Free Software Foundation, Inc.
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # This file was written by Jan-Benedict Glaw <jbglaw@lug-owl.de>. It's goal
 # is to check the VAX-specific support of the -M entry:0xf00 switch, which
-# allows to force function entry masks at given addresses.
+# allows one to force function entry masks at given addresses.
 #
 
 if ![istarget vax*-*-*] then {

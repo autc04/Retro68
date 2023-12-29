@@ -1,6 +1,6 @@
 #name: PR ld/12718
 #as: --32
-#ld: -melf_i386
+#ld: -melf_i386 -z noseparate-code
 #readelf: -S
 
 There are 5 section headers, starting at offset 0x[0-9a-f]+:

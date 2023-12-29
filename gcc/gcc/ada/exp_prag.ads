@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -48,5 +48,16 @@ package Exp_Prag is
    --  Verify the run-time semantics of pragma Initial_Condition when it
    --  applies to package Pack_Id. N denotes the related package spec or
    --  body.
+
+   procedure Expand_Pragma_Subprogram_Variant
+     (Prag       : Node_Id;
+      Subp_Id    : Entity_Id;
+      Body_Decls : List_Id);
+   --  Given pragma Subprogram_Variant Prag, create the circuitry needed
+   --  to evaluate variant expressions at the subprogram entry and at the
+   --  recursive call. Subp_Id is the related subprogram for which the pragma
+   --  applies and Body_Decls are its body declarations. On exit, the argument
+   --  of Prag is replaced with a reference to procedure with checks for the
+   --  variant expressions.
 
 end Exp_Prag;

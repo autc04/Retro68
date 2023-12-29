@@ -1,6 +1,6 @@
 #! /usr/bin/perl -w
 
-#   Copyright (C) 1999-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 # This file is part of GCC.
 
@@ -59,6 +59,8 @@ while ($_ = shift) {
 	    $flag = shift;
 	}
         push (@ipath, $flag);
+    } elsif (/^--no-split$/) {
+	# ignore option for makeinfo compatibility
     } elsif (/^-/) {
 	usage();
     } else {
@@ -381,6 +383,7 @@ sub postprocess
     s/\@file\{([^\}]*)\}/F<$1>/g;
     s/\@w\{([^\}]*)\}/S<$1>/g;
     s/\@(?:dmn|math)\{([^\}]*)\}/$1/g;
+    s/\@t\{([^\}]*)\}/$1/g;
 
     # keep references of the form @ref{...}, print them bold
     s/\@(?:ref)\{([^\}]*)\}/B<$1>/g;

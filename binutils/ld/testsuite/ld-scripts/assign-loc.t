@@ -13,5 +13,8 @@ SECTIONS
 
   _end = .;
 
+  .text : { *(.text) }
+  .data : { *(.data) }
+  .bss : { *(.bss) }
   /DISCARD/ : { *(*) }
 }

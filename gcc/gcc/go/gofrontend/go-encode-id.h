@@ -25,11 +25,6 @@ go_encode_id(const std::string &id);
 extern std::string
 go_decode_id(const std::string &id);
 
-// Returns the empty string if the specified name needs encoding,
-// otherwise invokes go_encode_id on the name and returns the result.
-extern std::string
-go_selectively_encode_id(const std::string &id);
-
 // Encodes a struct tag that appears in a type literal encoding.
 extern std::string
 go_mangle_struct_tag(const std::string& tag);

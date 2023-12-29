@@ -24,4 +24,4 @@ int main()
 {
     foo<ns::bar> f;
     adl::swap(f, f) // { dg-error "expected ';'" }
-} // { dg-error "expected '.'" "expected end of namespace" }
+} // { dg-error "2:expected" }

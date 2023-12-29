@@ -44,6 +44,9 @@ foo:
 	clgtnh	%r6,-5555(%r7)
 
 	risbgn	%r6,%r7,12,13,14
+	risbgn	%r6,%r7,12,188,14
+	risbgnz	%r6,%r7,12,20,14
+
 	cdzt	%f6,4000(16,%r8),13
 	cxzt	%f4,4000(34,%r8),13
 	czdt	%f6,4000(16,%r8),13

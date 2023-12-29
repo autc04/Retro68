@@ -11,7 +11,7 @@ Disassembly of section \.text:
 0x00000000 43 34       	ldrc	r3
 0x00000002 4c 34       	ldrc	r12
 0x00000004 8a 0a       	ldrc	#10
-0x00000006 8a f3       	ldrc	#-13
+0x00000006 8a f3       	ldrc	#243
 0x00000008 00 98       	setdmx	
 0x0000000a 00 c8       	setdmy	
 0x0000000c 00 88       	clrdmxy	

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <bfd_stdint.h>
+#include <stdint.h>
 
 extern void foo (void);
 extern void check_ptr_eq (void (*) (void), void (*) (void));

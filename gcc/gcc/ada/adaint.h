@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2019, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2022, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -51,7 +51,7 @@ extern "C" {
    determine at compile time what support the system offers for large files.
    For now we just list the platforms we have manually tested. */
 
-#if defined (__GLIBC__) || defined (__sun__) || defined (__QNX__)
+#if (defined (__GLIBC__) && !defined(STANDALONE)) || defined (__sun__) || defined (__QNX__)
 #define GNAT_FOPEN fopen64
 #define GNAT_OPEN open64
 #define GNAT_STAT stat64
@@ -101,11 +101,7 @@ extern "C" {
 #endif
 
 /* Type corresponding to GNAT.OS_Lib.OS_Time */
-#if defined (_WIN64)
 typedef long long OS_Time;
-#else
-typedef long OS_Time;
-#endif
 
 #define __int64 long long
 GNAT_STRUCT_STAT;
@@ -139,7 +135,15 @@ struct file_attributes {
  * fit the above struct on any system)
  */
 
-extern int    __gnat_max_path_len;
+extern int  __gnat_max_path_len;
+extern int  __gnat_in_child_after_fork;
+/* This flag expresses the state when the fork call just returned zero result,
+ * i.e. when the new born child process is created and the new executable is
+ * not loaded yet. It is used to e.g. disable tracing memory
+ * allocation/deallocation in memtrack.adb just after fork returns in the child
+ * process to avoid both parent and child writing to the same gmem.out file
+ * simultaneously */
+
 extern OS_Time __gnat_current_time		   (void);
 extern void   __gnat_current_time_string           (char *);
 extern void   __gnat_to_gm_time			   (OS_Time *, int *, int *,
@@ -197,7 +201,7 @@ extern OS_Time __gnat_file_time_name                (char *);
 extern OS_Time __gnat_file_time_fd                  (int);
 /* return -1 in case of error */
 
-extern void   __gnat_set_file_time_name		   (char *, time_t);
+extern void   __gnat_set_file_time_name		   (char *, OS_Time);
 
 extern int    __gnat_dup			            (int);
 extern int    __gnat_dup2			            (int, int);
@@ -282,9 +286,10 @@ extern char  *mktemp				   (char *);
 extern void   __gnat_set_exit_status		   (int);
 
 extern int    __gnat_expect_fork		   (void);
-extern void   __gnat_expect_portable_execvp	   (char *, char *[]);
+extern void   __gnat_expect_portable_execvp	   (int *, char *, char *[]);
 extern int    __gnat_pipe			   (int *);
-extern int    __gnat_expect_poll		   (int *, int, int, int *);
+extern int    __gnat_expect_poll		   (int *, int, int, int *,
+						    int *);
 extern void   __gnat_set_binary_mode		   (int);
 extern void   __gnat_set_text_mode		   (int);
 extern void   __gnat_set_mode			   (int,int);

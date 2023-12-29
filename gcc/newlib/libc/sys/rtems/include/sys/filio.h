@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -32,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filio.h	8.1 (Berkeley) 3/28/94
- * $FreeBSD: head/sys/sys/filio.h 314436 2017-02-28 23:42:47Z imp $
+ * $FreeBSD: head/sys/sys/filio.h 326023 2017-11-20 19:43:44Z pfg $
  */
 
 #ifndef	_SYS_FILIO_H_

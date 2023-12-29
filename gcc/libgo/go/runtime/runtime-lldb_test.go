@@ -6,7 +6,6 @@ package runtime_test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -143,29 +142,32 @@ func TestLldbPython(t *testing.T) {
 
 	checkLldbPython(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, []byte(lldbHelloSource), 0644)
+	err := os.WriteFile(src, []byte(lldbHelloSource), 0644)
 	if err != nil {
-		t.Fatalf("failed to create file: %v", err)
+		t.Fatalf("failed to create src file: %v", err)
+	}
+
+	mod := filepath.Join(dir, "go.mod")
+	err = os.WriteFile(mod, []byte("module lldbtest"), 0644)
+	if err != nil {
+		t.Fatalf("failed to create mod file: %v", err)
 	}
 
 	// As of 2018-07-17, lldb doesn't support compressed DWARF, so
 	// disable it for this test.
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-ldflags=-compressdwarf=false", "-o", "a.exe")
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOPATH=") // issue 31100
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("building source %v\n%s", err, out)
 	}
 
 	src = filepath.Join(dir, "script.py")
-	err = ioutil.WriteFile(src, []byte(lldbScriptSource), 0755)
+	err = os.WriteFile(src, []byte(lldbScriptSource), 0755)
 	if err != nil {
 		t.Fatalf("failed to create script: %v", err)
 	}

@@ -1,6 +1,7 @@
 /* Test for handling of protocol hierarchies.  */
 /* Author: Ziemowit Laski <zlaski@apple.com>.  */
 /* { dg-do compile } */
+/* { dg-additional-options "-Wno-objc-root-class" } */
 
 /* One-line substitute for objc/objc.h */
 typedef struct objc_object { struct objc_class *class_pointer; } *id;
@@ -53,6 +54,4 @@ int foo(void) {
   return 0;
 }
 
-/* { dg-warning "Messages without a matching method signature" "" { target *-*-* } 0 } */
-/* { dg-warning "will be assumed to return .id. and accept" "" { target *-*-* } 0 } */
-/* { dg-warning ".\.\.\.. as arguments" "" { target *-*-* } 0 } */
+/* { dg-warning "messages without a matching method signature will be assumed to return .id. and accept .\.\.\.. as arguments" "" { target *-*-* } 0 } */

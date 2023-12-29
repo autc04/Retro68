@@ -1,5 +1,5 @@
 /* Xtensa configuration-specific ISA information.
-   Copyright (C) 2003-2018 Free Software Foundation, Inc.
+   Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -302,1539 +302,1356 @@ static xtensa_state_internal states[] = {
 static unsigned
 Field_t_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 0xf;
   return tie_t;
 }
 
 static void
 Field_t_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
 }
 
 static unsigned
 Field_t_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = ((insn[0] >> 4) & 0xf);
   return tie_t;
 }
 
 static void
 Field_t_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
 }
 
 static unsigned
 Field_t_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 0xf;
   return tie_t;
 }
 
 static void
 Field_t_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
 }
 
 static unsigned
 Field_t_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[0] & 0xf;
   return tie_t;
 }
 
 static void
 Field_t_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
 }
 
 static unsigned
 Field_t_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[0] & 0xf;
   return tie_t;
 }
 
 static void
 Field_t_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
 }
 
 static unsigned
 Field_t_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[0] & 0xf;
   return tie_t;
 }
 
 static void
 Field_t_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
 }
 
 static unsigned
 Field_t_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[0] & 0xf;
   return tie_t;
 }
 
 static void
 Field_t_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
 }
 
 static unsigned
 Field_bbi4_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
+  unsigned tie_t = (insn[0] >> 12) & 1;
   return tie_t;
 }
 
 static void
 Field_bbi4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_bbi_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 4) | ((insn[0] >> 4) & 0xf);
   return tie_t;
 }
 
 static void
 Field_bbi_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_bbi_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = (insn[0] >> 26) & 1;
+  tie_t = (tie_t << 4) | (insn[0] & 0xf);
   return tie_t;
 }
 
 static void
 Field_bbi_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
 }
 
 static unsigned
 Field_imm12_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 12) | ((insn[0] << 8) >> 20);
+  unsigned tie_t = (insn[0] >> 12) & 0xfff;
   return tie_t;
 }
 
 static void
 Field_imm12_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 20) >> 20;
+  uint32 tie_t = val & 0xfff;
   insn[0] = (insn[0] & ~0xfff000) | (tie_t << 12);
 }
 
 static unsigned
 Field_imm8_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 8) | ((insn[0] << 8) >> 24);
+  unsigned tie_t = (insn[0] >> 16) & 0xff;
   return tie_t;
 }
 
 static void
 Field_imm8_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 24) >> 24;
+  uint32 tie_t = val & 0xff;
   insn[0] = (insn[0] & ~0xff0000) | (tie_t << 16);
 }
 
 static unsigned
 Field_imm8_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 8) | ((insn[0] << 12) >> 24);
+  unsigned tie_t = (insn[0] >> 12) & 0xff;
   return tie_t;
 }
 
 static void
 Field_imm8_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 24) >> 24;
+  uint32 tie_t = val & 0xff;
   insn[0] = (insn[0] & ~0xff000) | (tie_t << 12);
 }
 
 static unsigned
 Field_imm8_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
+  tie_t = (tie_t << 4) | ((insn[0] >> 4) & 0xf);
   return tie_t;
 }
 
 static void
 Field_imm8_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 24) >> 28;
+  tie_t = (val >> 4) & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_s_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
   return tie_t;
 }
 
 static void
 Field_s_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_s_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
   return tie_t;
 }
 
 static void
 Field_s_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_s_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
   return tie_t;
 }
 
 static void
 Field_s_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_s_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 0xf;
   return tie_t;
 }
 
 static void
 Field_s_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
 }
 
 static unsigned
 Field_s_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
   return tie_t;
 }
 
 static void
 Field_s_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_s_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
   return tie_t;
 }
 
 static void
 Field_s_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_s_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 0xf;
   return tie_t;
 }
 
 static void
 Field_s_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
 }
 
 static unsigned
 Field_imm12b_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  tie_t = (tie_t << 8) | ((insn[0] << 8) >> 24);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
+  tie_t = (tie_t << 8) | ((insn[0] >> 16) & 0xff);
   return tie_t;
 }
 
 static void
 Field_imm12b_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 24) >> 24;
+  uint32 tie_t = val & 0xff;
   insn[0] = (insn[0] & ~0xff0000) | (tie_t << 16);
-  tie_t = (val << 20) >> 28;
+  tie_t = (val >> 8) & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_imm12b_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
-  tie_t = (tie_t << 8) | ((insn[0] << 12) >> 24);
+  unsigned tie_t = (insn[0] >> 4) & 0xf;
+  tie_t = (tie_t << 8) | ((insn[0] >> 12) & 0xff);
   return tie_t;
 }
 
 static void
 Field_imm12b_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 24) >> 24;
+  uint32 tie_t = val & 0xff;
   insn[0] = (insn[0] & ~0xff000) | (tie_t << 12);
-  tie_t = (val << 20) >> 28;
+  tie_t = (val >> 8) & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
 }
 
 static unsigned
 Field_imm12b_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 12) | ((insn[0] << 16) >> 20);
+  unsigned tie_t = (insn[0] >> 4) & 0xfff;
   return tie_t;
 }
 
 static void
 Field_imm12b_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 20) >> 20;
+  uint32 tie_t = val & 0xfff;
   insn[0] = (insn[0] & ~0xfff0) | (tie_t << 4);
 }
 
 static unsigned
 Field_imm16_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 16) | ((insn[0] << 8) >> 16);
+  unsigned tie_t = (insn[0] >> 8) & 0xffff;
   return tie_t;
 }
 
 static void
 Field_imm16_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 16) >> 16;
+  uint32 tie_t = val & 0xffff;
   insn[0] = (insn[0] & ~0xffff00) | (tie_t << 8);
 }
 
 static unsigned
 Field_imm16_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 16) | ((insn[0] << 12) >> 16);
+  unsigned tie_t = (insn[0] >> 4) & 0xffff;
   return tie_t;
 }
 
 static void
 Field_imm16_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 16) >> 16;
+  uint32 tie_t = val & 0xffff;
   insn[0] = (insn[0] & ~0xffff0) | (tie_t << 4);
 }
 
 static unsigned
 Field_m_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 24) >> 30);
+  unsigned tie_t = (insn[0] >> 6) & 3;
   return tie_t;
 }
 
 static void
 Field_m_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc0) | (tie_t << 6);
 }
 
 static unsigned
 Field_m_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 28) >> 30);
+  unsigned tie_t = (insn[0] >> 2) & 3;
   return tie_t;
 }
 
 static void
 Field_m_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc) | (tie_t << 2);
 }
 
 static unsigned
 Field_n_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
+  unsigned tie_t = (insn[0] >> 4) & 3;
   return tie_t;
 }
 
 static void
 Field_n_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
 }
 
 static unsigned
 Field_n_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 30) >> 30);
+  unsigned tie_t = insn[0] & 3;
   return tie_t;
 }
 
 static void
 Field_n_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x3) | (tie_t << 0);
 }
 
 static unsigned
 Field_offset_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 18) | ((insn[0] << 8) >> 14);
+  unsigned tie_t = (insn[0] >> 6) & 0x3ffff;
   return tie_t;
 }
 
 static void
 Field_offset_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 14) >> 14;
+  uint32 tie_t = val & 0x3ffff;
   insn[0] = (insn[0] & ~0xffffc0) | (tie_t << 6);
 }
 
 static unsigned
 Field_offset_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 18) | ((insn[0] << 14) >> 14);
+  unsigned tie_t = insn[0] & 0x3ffff;
   return tie_t;
 }
 
 static void
 Field_offset_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 14) >> 14;
+  uint32 tie_t = val & 0x3ffff;
   insn[0] = (insn[0] & ~0x3ffff) | (tie_t << 0);
 }
 
 static unsigned
 Field_op0_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[0] & 0xf;
   return tie_t;
 }
 
 static void
 Field_op0_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
 }
 
 static unsigned
 Field_op0_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[0] & 0xf;
   return tie_t;
 }
 
 static void
 Field_op0_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
 }
 
 static unsigned
 Field_op0_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[0] & 0xf;
   return tie_t;
 }
 
 static void
 Field_op0_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
 }
 
 static unsigned
 Field_op1_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 12) >> 28);
+  unsigned tie_t = (insn[0] >> 16) & 0xf;
   return tie_t;
 }
 
 static void
 Field_op1_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0000) | (tie_t << 16);
 }
 
 static unsigned
 Field_op1_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_op1_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_op2_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 8) >> 28);
+  unsigned tie_t = (insn[0] >> 20) & 0xf;
   return tie_t;
 }
 
 static void
 Field_op2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00000) | (tie_t << 20);
 }
 
 static unsigned
 Field_op2_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 12) >> 28);
+  unsigned tie_t = (insn[0] >> 16) & 0xf;
   return tie_t;
 }
 
 static void
 Field_op2_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0000) | (tie_t << 16);
 }
 
 static unsigned
 Field_op2_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
   return tie_t;
 }
 
 static void
 Field_op2_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_r_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_r_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_r_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_r_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_r_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_r_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_r_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
   return tie_t;
 }
 
 static void
 Field_r_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_r_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 0xf;
   return tie_t;
 }
 
 static void
 Field_r_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
 }
 
 static unsigned
 Field_r_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 0xf;
   return tie_t;
 }
 
 static void
 Field_r_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
 }
 
 static unsigned
 Field_r_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[0] & 0xf;
   return tie_t;
 }
 
 static void
 Field_r_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
 }
 
 static unsigned
 Field_sa4_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 11) >> 31);
+  unsigned tie_t = (insn[0] >> 20) & 1;
   return tie_t;
 }
 
 static void
 Field_sa4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x100000) | (tie_t << 20);
 }
 
 static unsigned
 Field_sae4_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 15) >> 31);
+  unsigned tie_t = (insn[0] >> 16) & 1;
   return tie_t;
 }
 
 static void
 Field_sae4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x10000) | (tie_t << 16);
 }
 
 static unsigned
 Field_sae4_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
+  unsigned tie_t = (insn[0] << 12) & 1;
   return tie_t;
 }
 
 static void
 Field_sae4_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_sae_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 15) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 16) & 1;
+  tie_t = (tie_t << 4) | ((insn[0] >> 8) & 0xf);
   return tie_t;
 }
 
 static void
 Field_sae_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x10000) | (tie_t << 16);
 }
 
 static unsigned
 Field_sae_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 4) | ((insn[0] >> 4) & 0xf);
   return tie_t;
 }
 
 static void
 Field_sae_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_sae_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 15) >> 27);
+  unsigned tie_t = (insn[0] >> 12) & 0x1f;
   return tie_t;
 }
 
 static void
 Field_sae_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
+  uint32 tie_t = val & 0x1f;
   insn[0] = (insn[0] & ~0x1f000) | (tie_t << 12);
 }
 
 static unsigned
 Field_sal_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 11) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 20) & 1;
+  tie_t = (tie_t << 4) | ((insn[0] >> 4) & 0xf);
   return tie_t;
 }
 
 static void
 Field_sal_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x100000) | (tie_t << 20);
 }
 
 static unsigned
 Field_sal_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 15) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = (insn[0] >> 16) & 1;
+  tie_t = (tie_t << 4) | (insn[0] & 0xf);
   return tie_t;
 }
 
 static void
 Field_sal_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x10000) | (tie_t << 16);
 }
 
 static unsigned
 Field_sal_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 4) | (insn[0] & 0xf);
   return tie_t;
 }
 
 static void
 Field_sal_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_sargt_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 11) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 20) & 1;
+  tie_t = (tie_t << 4) | ((insn[0] >> 8) & 0xf);
   return tie_t;
 }
 
 static void
 Field_sargt_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x100000) | (tie_t << 20);
 }
 
 static unsigned
 Field_sargt_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 15) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 16) & 1;
+  tie_t = (tie_t << 4) | ((insn[0] >> 4) & 0xf);
   return tie_t;
 }
 
 static void
 Field_sargt_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x10000) | (tie_t << 16);
 }
 
 static unsigned
 Field_sargt_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 19) >> 27);
+  unsigned tie_t = (insn[0] >> 8) & 0x1f;
   return tie_t;
 }
 
 static void
 Field_sargt_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
+  uint32 tie_t = val & 0x1f;
   insn[0] = (insn[0] & ~0x1f00) | (tie_t << 8);
 }
 
 static unsigned
 Field_sargt_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 19) >> 27);
+  unsigned tie_t = (insn[0] >> 8) & 0x1f;
   return tie_t;
 }
 
 static void
 Field_sargt_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
+  uint32 tie_t = val & 0x1f;
   insn[0] = (insn[0] & ~0x1f00) | (tie_t << 8);
 }
 
 static unsigned
 Field_sas4_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 27) >> 31);
+  unsigned tie_t = (insn[0] >> 4) & 1;
   return tie_t;
 }
 
 static void
 Field_sas4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x10) | (tie_t << 4);
 }
 
 static unsigned
 Field_sas_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 27) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 1;
+  tie_t = (tie_t << 4) | ((insn[0] >> 8) & 0xf);
   return tie_t;
 }
 
 static void
 Field_sas_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x10) | (tie_t << 4);
 }
 
 static unsigned
 Field_sas_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 31) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = insn[0] & 1;
+  tie_t = (tie_t << 4) | ((insn[0] >> 4) & 0xf);
   return tie_t;
 }
 
 static void
 Field_sas_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x1) | (tie_t << 0);
 }
 
 static unsigned
 Field_sr_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
+  tie_t = (tie_t << 4) | ((insn[0] >> 8) & 0xf);
   return tie_t;
 }
 
 static void
 Field_sr_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 24) >> 28;
+  tie_t = (val >> 4) & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_sr_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
+  tie_t = (tie_t << 4) | ((insn[0] >> 8) & 0xf);
   return tie_t;
 }
 
 static void
 Field_sr_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 24) >> 28;
+  tie_t = (val >> 4) & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_sr_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
+  tie_t = (tie_t << 4) | ((insn[0] >> 8) & 0xf);
   return tie_t;
 }
 
 static void
 Field_sr_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 24) >> 28;
+  tie_t = (val >> 4) & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_st_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
+  tie_t = (tie_t << 4) | ((insn[0] >> 4) & 0xf);
   return tie_t;
 }
 
 static void
 Field_st_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 24) >> 28;
+  tie_t = (val >> 4) & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_st_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
+  tie_t = (tie_t << 4) | ((insn[0] >> 4) & 0xf);
   return tie_t;
 }
 
 static void
 Field_st_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 24) >> 28;
+  tie_t = (val >> 4) & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_st_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 24) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
+  tie_t = (tie_t << 4) | ((insn[0] >> 4) & 0xf);
   return tie_t;
 }
 
 static void
 Field_st_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf0) | (tie_t << 4);
-  tie_t = (val << 24) >> 28;
+  tie_t = (val >> 4) & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_thi3_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 24) >> 29);
+  unsigned tie_t = (insn[0] >> 5) & 7;
   return tie_t;
 }
 
 static void
 Field_thi3_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe0) | (tie_t << 5);
 }
 
 static unsigned
 Field_thi3_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 28) >> 29);
+  unsigned tie_t = (insn[0] >> 1) & 7;
   return tie_t;
 }
 
 static void
 Field_thi3_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe) | (tie_t << 1);
 }
 
 static unsigned
 Field_imm4_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_imm4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_imm4_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_imm4_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_imm4_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_imm4_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_mn_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 24) >> 30);
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
+  unsigned tie_t = (insn[0] >> 6) & 3;
+  tie_t = (tie_t << 2) | ((insn[0] >> 4) & 3);
   return tie_t;
 }
 
 static void
 Field_mn_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
-  tie_t = (val << 28) >> 30;
+  tie_t = (val >> 2) & 3;
   insn[0] = (insn[0] & ~0xc0) | (tie_t << 6);
 }
 
 static unsigned
 Field_i_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
+  unsigned tie_t = (insn[0] >> 7) & 1;
   return tie_t;
 }
 
 static void
 Field_i_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
 }
 
 static unsigned
 Field_i_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
+  unsigned tie_t = (insn[0] >> 7) & 1;
   return tie_t;
 }
 
 static void
 Field_i_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
 }
 
 static unsigned
 Field_imm6lo_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_imm6lo_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_imm6lo_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_imm6lo_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_imm6hi_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
+  unsigned tie_t = (insn[0] >> 4) & 3;
   return tie_t;
 }
 
 static void
 Field_imm6hi_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
 }
 
 static unsigned
 Field_imm6hi_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
+  unsigned tie_t = (insn[0] >> 4) & 3;
   return tie_t;
 }
 
 static void
 Field_imm6hi_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
 }
 
 static unsigned
 Field_imm7lo_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_imm7lo_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_imm7lo_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_imm7lo_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_imm7hi_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
+  unsigned tie_t = (insn[0] >> 4) & 7;
   return tie_t;
 }
 
 static void
 Field_imm7hi_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
 }
 
 static unsigned
 Field_imm7hi_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
+  unsigned tie_t = (insn[0] >> 4) & 7;
   return tie_t;
 }
 
 static void
 Field_imm7hi_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
 }
 
 static unsigned
 Field_z_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 25) >> 31);
+  unsigned tie_t = (insn[0] >> 6) & 1;
   return tie_t;
 }
 
 static void
 Field_z_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x40) | (tie_t << 6);
 }
 
 static unsigned
 Field_z_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 25) >> 31);
+  unsigned tie_t = (insn[0] >> 6) & 1;
   return tie_t;
 }
 
 static void
 Field_z_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x40) | (tie_t << 6);
 }
 
 static unsigned
 Field_imm6_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 3;
+  tie_t = (tie_t << 4) | ((insn[0] >> 12) & 0xf);
   return tie_t;
 }
 
 static void
 Field_imm6_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-  tie_t = (val << 26) >> 30;
+  tie_t = (val >> 4) & 3;
   insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
 }
 
 static unsigned
 Field_imm6_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 3;
+  tie_t = (tie_t << 4) | ((insn[0] >> 12) & 0xf);
   return tie_t;
 }
 
 static void
 Field_imm6_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-  tie_t = (val << 26) >> 30;
+  tie_t = (val >> 4) & 3;
   insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
 }
 
 static unsigned
 Field_imm7_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 7;
+  tie_t = (tie_t << 4) | ((insn[0] >> 12) & 0xf);
   return tie_t;
 }
 
 static void
 Field_imm7_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-  tie_t = (val << 25) >> 29;
+  tie_t = (val >> 4) & 7;
   insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
 }
 
 static unsigned
 Field_imm7_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 4) & 7;
+  tie_t = (tie_t << 4) | ((insn[0] >> 12) & 0xf);
   return tie_t;
 }
 
 static void
 Field_imm7_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
-  tie_t = (val << 25) >> 29;
+  tie_t = (val >> 4) & 7;
   insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
 }
 
 static unsigned
 Field_imm7_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 7) | ((insn[0] << 25) >> 25);
+  unsigned tie_t = insn[0] & 0x7f;
   return tie_t;
 }
 
@@ -1842,1852 +1659,1641 @@ static void
 Field_imm7_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
-  tie_t = (val << 25) >> 25;
+  tie_t = val & 0x7f;
   insn[0] = (insn[0] & ~0x7f) | (tie_t << 0);
 }
 
 static unsigned
 Field_r3_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 16) >> 31);
+  unsigned tie_t = (insn[0] >> 15) & 1;
   return tie_t;
 }
 
 static void
 Field_r3_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x8000) | (tie_t << 15);
 }
 
 static unsigned
 Field_rbit2_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 17) >> 31);
+  unsigned tie_t = (insn[0] >> 14) & 1;
   return tie_t;
 }
 
 static void
 Field_rbit2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000) | (tie_t << 14);
 }
 
 static unsigned
 Field_rhi_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 16) >> 30);
+  unsigned tie_t = (insn[0] >> 14) & 3;
   return tie_t;
 }
 
 static void
 Field_rhi_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc000) | (tie_t << 14);
 }
 
 static unsigned
 Field_t3_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
+  unsigned tie_t = (insn[0] >> 7) & 1;
   return tie_t;
 }
 
 static void
 Field_t3_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
 }
 
 static unsigned
 Field_tbit2_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 25) >> 31);
+  unsigned tie_t = (insn[0] >> 6) & 1;
   return tie_t;
 }
 
 static void
 Field_tbit2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x40) | (tie_t << 6);
 }
 
 static unsigned
 Field_tlo_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 26) >> 30);
+  unsigned tie_t = (insn[0] >> 4) & 3;
   return tie_t;
 }
 
 static void
 Field_tlo_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x30) | (tie_t << 4);
 }
 
 static unsigned
 Field_w_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 18) >> 30);
+  unsigned tie_t = (insn[0] >> 12) & 3;
   return tie_t;
 }
 
 static void
 Field_w_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x3000) | (tie_t << 12);
 }
 
 static unsigned
 Field_y_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 25) >> 31);
+  unsigned tie_t = (insn[0] >> 6) & 1;
   return tie_t;
 }
 
 static void
 Field_y_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x40) | (tie_t << 6);
 }
 
 static unsigned
 Field_x_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 17) >> 31);
+  unsigned tie_t = (insn[0] >> 14) & 1;
   return tie_t;
 }
 
 static void
 Field_x_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000) | (tie_t << 14);
 }
 
 static unsigned
 Field_t2_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 24) >> 29);
+  unsigned tie_t = (insn[0] >> 5) & 7;
   return tie_t;
 }
 
 static void
 Field_t2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe0) | (tie_t << 5);
 }
 
 static unsigned
 Field_t2_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 24) >> 29);
+  unsigned tie_t = (insn[0] >> 5) & 7;
   return tie_t;
 }
 
 static void
 Field_t2_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe0) | (tie_t << 5);
 }
 
 static unsigned
 Field_t2_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 24) >> 29);
+  unsigned tie_t = (insn[0] >> 5) & 7;
   return tie_t;
 }
 
 static void
 Field_t2_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe0) | (tie_t << 5);
 }
 
 static unsigned
 Field_s2_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 20) >> 29);
+  unsigned tie_t = (insn[0] >> 9) & 7;
   return tie_t;
 }
 
 static void
 Field_s2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe00) | (tie_t << 9);
 }
 
 static unsigned
 Field_s2_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 20) >> 29);
+  unsigned tie_t = (insn[0] >> 9) & 7;
   return tie_t;
 }
 
 static void
 Field_s2_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe00) | (tie_t << 9);
 }
 
 static unsigned
 Field_s2_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 20) >> 29);
+  unsigned tie_t = (insn[0] >> 9) & 7;
   return tie_t;
 }
 
 static void
 Field_s2_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe00) | (tie_t << 9);
 }
 
 static unsigned
 Field_r2_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
+  unsigned tie_t = (insn[0] >> 13) & 7;
   return tie_t;
 }
 
 static void
 Field_r2_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
 }
 
 static unsigned
 Field_r2_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
+  unsigned tie_t = (insn[0] >> 13) & 7;
   return tie_t;
 }
 
 static void
 Field_r2_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
 }
 
 static unsigned
 Field_r2_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
+  unsigned tie_t = (insn[0] >> 13) & 7;
   return tie_t;
 }
 
 static void
 Field_r2_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
 }
 
 static unsigned
 Field_t4_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 24) >> 30);
+  unsigned tie_t = (insn[0] >> 6) & 3;
   return tie_t;
 }
 
 static void
 Field_t4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc0) | (tie_t << 6);
 }
 
 static unsigned
 Field_t4_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 24) >> 30);
+  unsigned tie_t = (insn[0] >> 6) & 3;
   return tie_t;
 }
 
 static void
 Field_t4_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc0) | (tie_t << 6);
 }
 
 static unsigned
 Field_t4_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 24) >> 30);
+  unsigned tie_t = (insn[0] >> 6) & 3;
   return tie_t;
 }
 
 static void
 Field_t4_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc0) | (tie_t << 6);
 }
 
 static unsigned
 Field_s4_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 20) >> 30);
+  unsigned tie_t = (insn[0] >> 10) & 3;
   return tie_t;
 }
 
 static void
 Field_s4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc00) | (tie_t << 10);
 }
 
 static unsigned
 Field_s4_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 20) >> 30);
+  unsigned tie_t = (insn[0] >> 10) & 3;
   return tie_t;
 }
 
 static void
 Field_s4_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc00) | (tie_t << 10);
 }
 
 static unsigned
 Field_s4_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 20) >> 30);
+  unsigned tie_t = (insn[0] >> 10) & 3;
   return tie_t;
 }
 
 static void
 Field_s4_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc00) | (tie_t << 10);
 }
 
 static unsigned
 Field_r4_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 16) >> 30);
+  unsigned tie_t = (insn[0] >> 14) & 3;
   return tie_t;
 }
 
 static void
 Field_r4_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc000) | (tie_t << 14);
 }
 
 static unsigned
 Field_r4_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 16) >> 30);
+  unsigned tie_t = (insn[0] >> 14) & 3;
   return tie_t;
 }
 
 static void
 Field_r4_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc000) | (tie_t << 14);
 }
 
 static unsigned
 Field_r4_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 16) >> 30);
+  unsigned tie_t = (insn[0] >> 14) & 3;
   return tie_t;
 }
 
 static void
 Field_r4_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc000) | (tie_t << 14);
 }
 
 static unsigned
 Field_t8_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
+  unsigned tie_t = (insn[0] >> 7) & 1;
   return tie_t;
 }
 
 static void
 Field_t8_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
 }
 
 static unsigned
 Field_t8_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
+  unsigned tie_t = (insn[0] >> 7) & 1;
   return tie_t;
 }
 
 static void
 Field_t8_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
 }
 
 static unsigned
 Field_t8_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
+  unsigned tie_t = (insn[0] >> 7) & 1;
   return tie_t;
 }
 
 static void
 Field_t8_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
 }
 
 static unsigned
 Field_s8_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
+  unsigned tie_t = (insn[0] >> 11) & 1;
   return tie_t;
 }
 
 static void
 Field_s8_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
 }
 
 static unsigned
 Field_s8_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
+  unsigned tie_t = (insn[0] >> 11) & 1;
   return tie_t;
 }
 
 static void
 Field_s8_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
 }
 
 static unsigned
 Field_s8_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
+  unsigned tie_t = (insn[0] >> 11) & 1;
   return tie_t;
 }
 
 static void
 Field_s8_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
 }
 
 static unsigned
 Field_r8_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 16) >> 31);
+  unsigned tie_t = (insn[0] >> 15) & 1;
   return tie_t;
 }
 
 static void
 Field_r8_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x8000) | (tie_t << 15);
 }
 
 static unsigned
 Field_r8_Slot_inst16a_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 16) >> 31);
+  unsigned tie_t = (insn[0] >> 15) & 1;
   return tie_t;
 }
 
 static void
 Field_r8_Slot_inst16a_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x8000) | (tie_t << 15);
 }
 
 static unsigned
 Field_r8_Slot_inst16b_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 16) >> 31);
+  unsigned tie_t = (insn[0] >> 15) & 1;
   return tie_t;
 }
 
 static void
 Field_r8_Slot_inst16b_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x8000) | (tie_t << 15);
 }
 
 static unsigned
 Field_xt_wbr15_imm_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 15) | ((insn[0] << 8) >> 17);
+  unsigned tie_t = (insn[0] >> 9) & 0x7fff;
   return tie_t;
 }
 
 static void
 Field_xt_wbr15_imm_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 17) >> 17;
+  uint32 tie_t = val & 0x7fff;
   insn[0] = (insn[0] & ~0xfffe00) | (tie_t << 9);
 }
 
 static unsigned
 Field_xt_wbr18_imm_Slot_inst_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 18) | ((insn[0] << 8) >> 14);
+  unsigned tie_t = (insn[0] >> 6) & 0x3ffff;
   return tie_t;
 }
 
 static void
 Field_xt_wbr18_imm_Slot_inst_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 14) >> 14;
+  uint32 tie_t = val & 0x3ffff;
   insn[0] = (insn[0] & ~0xffffc0) | (tie_t << 6);
 }
 
 static unsigned
 Field_xt_wbr18_imm_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 18) | ((insn[0] << 6) >> 14);
+  unsigned tie_t = (insn[0] >> 8) & 0x3ffff;
   return tie_t;
 }
 
 static void
 Field_xt_wbr18_imm_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 14) >> 14;
+  uint32 tie_t = val & 0x3ffff;
   insn[0] = (insn[0] & ~0x3ffff00) | (tie_t << 8);
 }
 
 static unsigned
 Field_op0_xt_flix64_slot0_s3_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 8) >> 28);
+  unsigned tie_t = (insn[0] >> 20) & 0xf;
   return tie_t;
 }
 
 static void
 Field_op0_xt_flix64_slot0_s3_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00000) | (tie_t << 20);
 }
 
 static unsigned
 Field_combined3e2c5767_fld7_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
+  unsigned tie_t = (insn[0] >> 13) & 7;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld7_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
 }
 
 static unsigned
 Field_combined3e2c5767_fld8_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
+  unsigned tie_t = (insn[0] >> 13) & 7;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld8_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
 }
 
 static unsigned
 Field_combined3e2c5767_fld9_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 12) >> 29);
+  unsigned tie_t = (insn[0] >> 17) & 7;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld9_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe0000) | (tie_t << 17);
 }
 
 static unsigned
 Field_combined3e2c5767_fld11_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 12) >> 29);
+  unsigned tie_t = (insn[0] >> 17) & 7;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld11_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe0000) | (tie_t << 17);
 }
 
 static unsigned
 Field_combined3e2c5767_fld49xt_flix64_slot0_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 12) >> 28);
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
+  unsigned tie_t = (insn[0] >> 16) & 0xf;
+  tie_t = (tie_t << 4) | ((insn[0] >> 8) & 0xf);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld49xt_flix64_slot0_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
-  tie_t = (val << 24) >> 28;
+  tie_t = (val >> 4) & 0xf;
   insn[0] = (insn[0] & ~0xf0000) | (tie_t << 16);
 }
 
 static unsigned
 Field_op0_s4_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 12) >> 30);
+  unsigned tie_t = (insn[0] >> 18) & 3;
   return tie_t;
 }
 
 static void
 Field_op0_s4_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc0000) | (tie_t << 18);
 }
 
 static unsigned
 Field_combined3e2c5767_fld16_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 16) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 0xf;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld16_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld19xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 14) >> 31);
+  unsigned tie_t = (insn[0] >> 17) & 1;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld19xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x20000) | (tie_t << 17);
 }
 
 static unsigned
 Field_combined3e2c5767_fld20xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 14) >> 30);
+  unsigned tie_t = (insn[0] >> 16) & 3;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld20xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x30000) | (tie_t << 16);
 }
 
 static unsigned
 Field_combined3e2c5767_fld21xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 14) >> 27);
+  unsigned tie_t = (insn[0] >> 13) & 0x1f;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld21xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
+  uint32 tie_t = val & 0x1f;
   insn[0] = (insn[0] & ~0x3e000) | (tie_t << 13);
 }
 
 static unsigned
 Field_combined3e2c5767_fld22xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
+  unsigned tie_t = (insn[0] >> 12) & 0x3f;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld22xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 26) >> 26;
+  uint32 tie_t = val & 0x3f;
   insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld23xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
+  unsigned tie_t = (insn[0] >> 12) & 0x3f;
+  tie_t = (tie_t << 3) | ((insn[0] >> 4) & 7);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld23xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
-  tie_t = (val << 23) >> 26;
+  tie_t = (val >> 3) & 0x3f;
   insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld25xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 3) | ((insn[0] << 25) >> 29);
+  unsigned tie_t = (insn[0] >> 12) & 0x3f;
+  tie_t = (tie_t << 3) | ((insn[0] >> 4) & 7);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld25xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0x70) | (tie_t << 4);
-  tie_t = (val << 23) >> 26;
+  tie_t = (val >> 3) & 0x3f;
   insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld26xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 2) | ((insn[0] << 25) >> 30);
+  unsigned tie_t = (insn[0] >> 12) & 0x3f;
+  tie_t = (tie_t << 2) | ((insn[0] >> 5) & 3);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld26xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x60) | (tie_t << 5);
-  tie_t = (val << 24) >> 26;
+  tie_t = (val >> 2) & 0x3f;
   insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld28xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 1) | ((insn[0] << 25) >> 31);
+  unsigned tie_t = (insn[0] >> 12) & 0x3f;
+  tie_t = (tie_t << 1) | ((insn[0] >> 6) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld28xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x40) | (tie_t << 6);
-  tie_t = (val << 25) >> 26;
+  tie_t = (val >> 1) & 0x3f;
   insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld30xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 2) | ((insn[0] << 22) >> 30);
+  unsigned tie_t = (insn[0] >> 12) & 0x3f;
+  tie_t = (tie_t << 2) | ((insn[0] >> 8) & 3);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld30xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x300) | (tie_t << 8);
-  tie_t = (val << 24) >> 26;
+  tie_t = (val >> 2) & 0x3f;
   insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld32xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 2) | ((insn[0] << 22) >> 30);
+  unsigned tie_t = (insn[0] >> 12) & 0x3f;
+  tie_t = (tie_t << 2) | ((insn[0] >> 8) & 3);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld32xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x300) | (tie_t << 8);
-  tie_t = (val << 24) >> 26;
+  tie_t = (val >> 2) & 0x3f;
   insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld33xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 6) | ((insn[0] << 14) >> 26);
-  tie_t = (tie_t << 1) | ((insn[0] << 22) >> 31);
+  unsigned tie_t = (insn[0] >> 12) & 0x3f;
+  tie_t = (tie_t << 1) | ((insn[0] >> 9) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld33xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x200) | (tie_t << 9);
-  tie_t = (val << 25) >> 26;
+  tie_t = (val >> 1) & 0x3f;
   insn[0] = (insn[0] & ~0x3f000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld35xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 14) >> 29);
+  unsigned tie_t = (insn[0] >> 15) & 7;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld35xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0x38000) | (tie_t << 15);
 }
 
 static unsigned
 Field_combined3e2c5767_fld51xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
+  unsigned tie_t = (insn[0] >> 7) & 1;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld51xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
 }
 
 static unsigned
 Field_combined3e2c5767_fld52xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = (insn[0] >> 7) & 1;
+  tie_t = (tie_t << 4) | (insn[0] & 0xf);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld52xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
 }
 
 static unsigned
 Field_combined3e2c5767_fld53xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 20) >> 30);
+  unsigned tie_t = (insn[0] >> 10) & 3;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld53xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0xc00) | (tie_t << 10);
 }
 
 static unsigned
 Field_combined3e2c5767_fld54xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 20) >> 27);
-  tie_t = (tie_t << 6) | ((insn[0] << 26) >> 26);
+  unsigned tie_t = (insn[0] >> 7) & 0x1f;
+  tie_t = (tie_t << 6) | (insn[0] & 0x3f);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld54xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 26) >> 26;
+  uint32 tie_t = val & 0x3f;
   insn[0] = (insn[0] & ~0x3f) | (tie_t << 0);
-  tie_t = (val << 21) >> 27;
+  tie_t = (val >> 6) & 0x1f;
   insn[0] = (insn[0] & ~0xf80) | (tie_t << 7);
 }
 
 static unsigned
 Field_combined3e2c5767_fld57xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 4) | (insn[0] & 0xf);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld57xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld58xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 20) >> 30);
-  tie_t = (tie_t << 1) | ((insn[0] << 23) >> 31);
+  unsigned tie_t = (insn[0] >> 10) & 3;
+  tie_t = (tie_t << 1) | ((insn[0] >> 8) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld58xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x100) | (tie_t << 8);
-  tie_t = (val << 29) >> 30;
+  tie_t = (val >> 1) & 3;
   insn[0] = (insn[0] & ~0xc00) | (tie_t << 10);
 }
 
 static unsigned
 Field_combined3e2c5767_fld60xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  tie_t = (tie_t << 5) | ((insn[0] << 27) >> 27);
+  unsigned tie_t = (insn[0] >> 7) & 1;
+  tie_t = (tie_t << 5) | (insn[0] & 0x1f);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld60xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
+  uint32 tie_t = val & 0x1f;
   insn[0] = (insn[0] & ~0x1f) | (tie_t << 0);
-  tie_t = (val << 26) >> 31;
+  tie_t = (val >> 5) & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
 }
 
 static unsigned
 Field_combined3e2c5767_fld62xt_flix64_slot1_Slot_xt_flix64_slot1_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 17) >> 29);
+  unsigned tie_t = (insn[0] >> 12) & 7;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld62xt_flix64_slot1_Slot_xt_flix64_slot1_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0x7000) | (tie_t << 12);
 }
 
 static unsigned
 Field_op0_s5_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[0] << 16) >> 29);
+  unsigned tie_t = (insn[0] >> 13) & 7;
   return tie_t;
 }
 
 static void
 Field_op0_s5_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0xe000) | (tie_t << 13);
 }
 
 static unsigned
 Field_combined3e2c5767_fld36xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
+  unsigned tie_t = (insn[0] >> 12) & 1;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld36xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld37xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 1) | ((insn[0] >> 7) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld37xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-  tie_t = (val << 30) >> 31;
+  tie_t = (val >> 1) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld39xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 27) >> 31);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 1) | ((insn[0] >> 7) & 1);
+  tie_t = (tie_t << 1) | ((insn[0] >> 4) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld39xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x10) | (tie_t << 4);
-  tie_t = (val << 30) >> 31;
+  tie_t = (val >> 1) & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-  tie_t = (val << 29) >> 31;
+  tie_t = (val >> 2) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld41xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 24) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 27) >> 31);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 1) | ((insn[0] >> 7) & 1);
+  tie_t = (tie_t << 1) | ((insn[0] >> 4) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld41xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x10) | (tie_t << 4);
-  tie_t = (val << 30) >> 31;
+  tie_t = (val >> 1) & 1;
   insn[0] = (insn[0] & ~0x80) | (tie_t << 7);
-  tie_t = (val << 29) >> 31;
+  tie_t = (val >> 2) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld42xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 3) | ((insn[0] << 21) >> 29);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 3) | ((insn[0] >> 8) & 7);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld42xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0x700) | (tie_t << 8);
-  tie_t = (val << 28) >> 31;
+  tie_t = (val >> 3) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld44xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 3) | ((insn[0] << 21) >> 29);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 3) | ((insn[0] >> 8) & 7);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld44xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[0] = (insn[0] & ~0x700) | (tie_t << 8);
-  tie_t = (val << 28) >> 31;
+  tie_t = (val >> 3) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld45xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 2) | ((insn[0] << 21) >> 30);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 2) | ((insn[0] >> 9) & 3);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld45xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x600) | (tie_t << 9);
-  tie_t = (val << 29) >> 31;
+  tie_t = (val >> 2) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld47xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 19) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 21) >> 31);
+  unsigned tie_t = (insn[0] >> 12) & 1;
+  tie_t = (tie_t << 1) | ((insn[0] >> 10) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld47xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x400) | (tie_t << 10);
-  tie_t = (val << 30) >> 31;
+  tie_t = (val >> 1) & 1;
   insn[0] = (insn[0] & ~0x1000) | (tie_t << 12);
 }
 
 static unsigned
 Field_combined3e2c5767_fld63xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 2) | ((insn[0] << 25) >> 30);
+  unsigned tie_t = (insn[0] >> 5) & 3;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld63xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x60) | (tie_t << 5);
 }
 
 static unsigned
 Field_combined3e2c5767_fld64xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
+  unsigned tie_t = (insn[0] >> 11) & 1;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld64xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
 }
 
 static unsigned
 Field_combined3e2c5767_fld65xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 20) >> 28);
-  tie_t = (tie_t << 2) | ((insn[0] << 25) >> 30);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = (insn[0] >> 8) & 0xf;
+  tie_t = (tie_t << 2) | ((insn[0] >> 5) & 3);
+  tie_t = (tie_t << 4) | (insn[0] & 0xf);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld65xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 26) >> 30;
+  tie_t = (val >> 4) & 3;
   insn[0] = (insn[0] & ~0x60) | (tie_t << 5);
-  tie_t = (val << 22) >> 28;
+  tie_t = (val >> 6) & 0xf;
   insn[0] = (insn[0] & ~0xf00) | (tie_t << 8);
 }
 
 static unsigned
 Field_combined3e2c5767_fld66xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
-  tie_t = (tie_t << 1) | ((insn[0] << 23) >> 31);
+  unsigned tie_t = (insn[0] >> 11) & 1;
+  tie_t = (tie_t << 1) | ((insn[0] >> 8) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld66xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x100) | (tie_t << 8);
-  tie_t = (val << 30) >> 31;
+  tie_t = (val >> 1) & 1;
   insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
 }
 
 static unsigned
 Field_combined3e2c5767_fld68xt_flix64_slot2_Slot_xt_flix64_slot2_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 1) | ((insn[0] << 20) >> 31);
-  tie_t = (tie_t << 2) | ((insn[0] << 22) >> 30);
+  unsigned tie_t = (insn[0] >> 11) & 1;
+  tie_t = (tie_t << 2) | ((insn[0] >> 8) & 3);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld68xt_flix64_slot2_Slot_xt_flix64_slot2_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 30) >> 30;
+  uint32 tie_t = val & 3;
   insn[0] = (insn[0] & ~0x300) | (tie_t << 8);
-  tie_t = (val << 29) >> 31;
+  tie_t = (val >> 2) & 1;
   insn[0] = (insn[0] & ~0x800) | (tie_t << 11);
 }
 
 static unsigned
 Field_op0_s6_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 5) | ((insn[0] << 0) >> 27);
+  unsigned tie_t = (insn[0] >> 27) & 0x1f;
   return tie_t;
 }
 
 static void
 Field_op0_s6_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 27) >> 27;
+  uint32 tie_t = val & 0x1f;
   insn[0] = (insn[0] & ~0xf8000000) | (tie_t << 27);
 }
 
 static unsigned
 Field_combined3e2c5767_fld70xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
+  tie_t = (tie_t << 4) | (insn[0] & 0xf);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld70xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 24) >> 29;
+  tie_t = (val >> 5) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld71_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
+  unsigned tie_t = insn[1] & 7;
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld71_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 29) >> 29;
+  uint32 tie_t = val & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld72xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
+  tie_t = (tie_t << 4) | (insn[0] & 0xf);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld72xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 24) >> 29;
+  tie_t = (val >> 5) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld73xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
+  tie_t = (tie_t << 4) | (insn[0] & 0xf);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld73xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 24) >> 29;
+  tie_t = (val >> 5) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld74xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
-  tie_t = (tie_t << 4) | ((insn[0] << 28) >> 28);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
+  tie_t = (tie_t << 4) | (insn[0] & 0xf);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld74xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf) | (tie_t << 0);
-  tie_t = (val << 27) >> 31;
+  tie_t = (val >> 4) & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 24) >> 29;
+  tie_t = (val >> 5) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld75xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld75xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld76xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld76xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld77xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld77xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld78xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld78xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld79xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld79xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld80xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld80xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld81xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld81xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld82xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld82xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld83xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld83xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld84xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld84xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld85xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld85xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld86xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld86xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld87xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld87xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld88xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld88xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld89xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld89xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld90xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld90xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld91xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld91xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld92xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 1) | ((insn[0] << 5) >> 31);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 1) | ((insn[0] >> 26) & 1);
   return tie_t;
 }
 
 static void
 Field_combined3e2c5767_fld92xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 31) >> 31;
+  uint32 tie_t = val & 1;
   insn[0] = (insn[0] & ~0x4000000) | (tie_t << 26);
-  tie_t = (val << 28) >> 29;
+  tie_t = (val >> 1) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_combined3e2c5767_fld93xt_flix64_slot3_Slot_xt_flix64_slot3_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 3) | ((insn[1] << 29) >> 29);
-  tie_t = (tie_t << 27) | ((insn[0] << 5) >> 5);
+  unsigned tie_t = insn[1] & 7;
+  tie_t = (tie_t << 27) | (insn[0] & 0x7ffffff);
   return tie_t;
 }
 
@@ -3695,25 +3301,23 @@ static void
 Field_combined3e2c5767_fld93xt_flix64_slot3_Slot_xt_flix64_slot3_set (xtensa_insnbuf insn, uint32 val)
 {
   uint32 tie_t;
-  tie_t = (val << 5) >> 5;
+  tie_t = val & 0x7ffffff;
   insn[0] = (insn[0] & ~0x7ffffff) | (tie_t << 0);
-  tie_t = (val << 2) >> 29;
+  tie_t = (val >> 27) & 7;
   insn[1] = (insn[1] & ~0x7) | (tie_t << 0);
 }
 
 static unsigned
 Field_op0_xt_flix64_slot0_Slot_xt_flix64_slot0_get (const xtensa_insnbuf insn)
 {
-  unsigned tie_t = 0;
-  tie_t = (tie_t << 4) | ((insn[0] << 8) >> 28);
+  unsigned tie_t = (insn[0] >> 20) & 0xf;
   return tie_t;
 }
 
 static void
 Field_op0_xt_flix64_slot0_Slot_xt_flix64_slot0_set (xtensa_insnbuf insn, uint32 val)
 {
-  uint32 tie_t;
-  tie_t = (val << 28) >> 28;
+  uint32 tie_t = val & 0xf;
   insn[0] = (insn[0] & ~0xf00000) | (tie_t << 20);
 }
 
@@ -3898,7 +3502,7 @@ Operand_soffsetx4_decode (uint32 *valp)
 {
   unsigned soffsetx4_0, offset_0;
   offset_0 = *valp & 0x3ffff;
-  soffsetx4_0 = 0x4 + ((((int) offset_0 << 14) >> 14) << 2);
+  soffsetx4_0 = 0x4 + (((offset_0 ^ 0x20000) - 0x20000) << 2);
   *valp = soffsetx4_0;
   return 0;
 }
@@ -3952,7 +3556,7 @@ Operand_simm4_decode (uint32 *valp)
 {
   unsigned simm4_0, mn_0;
   mn_0 = *valp & 0xf;
-  simm4_0 = ((int) mn_0 << 28) >> 28;
+  simm4_0 = (mn_0 ^ 0x8) - 0x8;
   *valp = simm4_0;
   return 0;
 }
@@ -4084,7 +3688,7 @@ Operand_immrx4_decode (uint32 *valp)
 {
   unsigned immrx4_0, r_0;
   r_0 = *valp & 0xf;
-  immrx4_0 = (((0xfffffff) << 4) | r_0) << 2;
+  immrx4_0 = (0xfffffff0 | r_0) << 2;
   *valp = immrx4_0;
   return 0;
 }
@@ -4372,7 +3976,7 @@ Operand_simm8_decode (uint32 *valp)
 {
   unsigned simm8_0, imm8_0;
   imm8_0 = *valp & 0xff;
-  simm8_0 = ((int) imm8_0 << 24) >> 24;
+  simm8_0 = (imm8_0 ^ 0x80) - 0x80;
   *valp = simm8_0;
   return 0;
 }
@@ -4392,7 +3996,7 @@ Operand_simm8x256_decode (uint32 *valp)
 {
   unsigned simm8x256_0, imm8_0;
   imm8_0 = *valp & 0xff;
-  simm8x256_0 = (((int) imm8_0 << 24) >> 24) << 8;
+  simm8x256_0 = ((imm8_0 ^ 0x80) - 0x80) << 8;
   *valp = simm8x256_0;
   return 0;
 }
@@ -4412,7 +4016,7 @@ Operand_simm12b_decode (uint32 *valp)
 {
   unsigned simm12b_0, imm12b_0;
   imm12b_0 = *valp & 0xfff;
-  simm12b_0 = ((int) imm12b_0 << 20) >> 20;
+  simm12b_0 = (imm12b_0 ^ 0x800) - 0x800;
   *valp = simm12b_0;
   return 0;
 }
@@ -4472,7 +4076,7 @@ Operand_label8_decode (uint32 *valp)
 {
   unsigned label8_0, imm8_0;
   imm8_0 = *valp & 0xff;
-  label8_0 = 0x4 + (((int) imm8_0 << 24) >> 24);
+  label8_0 = 0x4 + ((imm8_0 ^ 0x80) - 0x80);
   *valp = label8_0;
   return 0;
 }
@@ -4540,7 +4144,7 @@ Operand_label12_decode (uint32 *valp)
 {
   unsigned label12_0, imm12_0;
   imm12_0 = *valp & 0xfff;
-  label12_0 = 0x4 + (((int) imm12_0 << 20) >> 20);
+  label12_0 = 0x4 + ((imm12_0 ^ 0x800) - 0x800);
   *valp = label12_0;
   return 0;
 }
@@ -4574,7 +4178,7 @@ Operand_soffset_decode (uint32 *valp)
 {
   unsigned soffset_0, offset_0;
   offset_0 = *valp & 0x3ffff;
-  soffset_0 = 0x4 + (((int) offset_0 << 14) >> 14);
+  soffset_0 = 0x4 + ((offset_0 ^ 0x20000) - 0x20000);
   *valp = soffset_0;
   return 0;
 }
@@ -4608,7 +4212,7 @@ Operand_uimm16x4_decode (uint32 *valp)
 {
   unsigned uimm16x4_0, imm16_0;
   imm16_0 = *valp & 0xffff;
-  uimm16x4_0 = (((0xffff) << 16) | imm16_0) << 2;
+  uimm16x4_0 = (0xffff0000 | imm16_0) << 2;
   *valp = uimm16x4_0;
   return 0;
 }
@@ -5052,7 +4656,7 @@ Operand_xt_wbr15_label_decode (uint32 *valp)
 {
   unsigned xt_wbr15_label_0, xt_wbr15_imm_0;
   xt_wbr15_imm_0 = *valp & 0x7fff;
-  xt_wbr15_label_0 = 0x4 + (((int) xt_wbr15_imm_0 << 17) >> 17);
+  xt_wbr15_label_0 = 0x4 + ((xt_wbr15_imm_0 ^ 0x4000) - 0x4000);
   *valp = xt_wbr15_label_0;
   return 0;
 }
@@ -5086,7 +4690,7 @@ Operand_xt_wbr18_label_decode (uint32 *valp)
 {
   unsigned xt_wbr18_label_0, xt_wbr18_imm_0;
   xt_wbr18_imm_0 = *valp & 0x3ffff;
-  xt_wbr18_label_0 = 0x4 + (((int) xt_wbr18_imm_0 << 14) >> 14);
+  xt_wbr18_label_0 = 0x4 + ((xt_wbr18_imm_0 ^ 0x20000) - 0x20000);
   *valp = xt_wbr18_label_0;
   return 0;
 }
@@ -13248,2123 +12852,2123 @@ Opcode_bbs_w18_Slot_xt_flix64_slot3_encode (xtensa_insnbuf slotbuf)
   slotbuf[1] = 0;
 }
 
-xtensa_opcode_encode_fn Opcode_excw_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_excw_encode_fns[] = {
   Opcode_excw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rfe_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rfe_encode_fns[] = {
   Opcode_rfe_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rfde_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rfde_encode_fns[] = {
   Opcode_rfde_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_syscall_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_syscall_encode_fns[] = {
   Opcode_syscall_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_simcall_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_simcall_encode_fns[] = {
   Opcode_simcall_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_call12_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_call12_encode_fns[] = {
   Opcode_call12_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_call8_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_call8_encode_fns[] = {
   Opcode_call8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_call4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_call4_encode_fns[] = {
   Opcode_call4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_callx12_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_callx12_encode_fns[] = {
   Opcode_callx12_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_callx8_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_callx8_encode_fns[] = {
   Opcode_callx8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_callx4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_callx4_encode_fns[] = {
   Opcode_callx4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_entry_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_entry_encode_fns[] = {
   Opcode_entry_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movsp_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movsp_encode_fns[] = {
   Opcode_movsp_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rotw_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rotw_encode_fns[] = {
   Opcode_rotw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_retw_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_retw_encode_fns[] = {
   Opcode_retw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_retw_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_retw_n_encode_fns[] = {
   0, 0, Opcode_retw_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rfwo_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rfwo_encode_fns[] = {
   Opcode_rfwo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rfwu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rfwu_encode_fns[] = {
   Opcode_rfwu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_l32e_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_l32e_encode_fns[] = {
   Opcode_l32e_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_s32e_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_s32e_encode_fns[] = {
   Opcode_s32e_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_windowbase_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_windowbase_encode_fns[] = {
   Opcode_rsr_windowbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_windowbase_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_windowbase_encode_fns[] = {
   Opcode_wsr_windowbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_windowbase_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_windowbase_encode_fns[] = {
   Opcode_xsr_windowbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_windowstart_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_windowstart_encode_fns[] = {
   Opcode_rsr_windowstart_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_windowstart_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_windowstart_encode_fns[] = {
   Opcode_wsr_windowstart_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_windowstart_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_windowstart_encode_fns[] = {
   Opcode_xsr_windowstart_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_add_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_add_n_encode_fns[] = {
   0, Opcode_add_n_Slot_inst16a_encode, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_addi_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_addi_n_encode_fns[] = {
   0, Opcode_addi_n_Slot_inst16a_encode, 0, 0, 0, 0, Opcode_addi_n_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_beqz_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_beqz_n_encode_fns[] = {
   0, 0, Opcode_beqz_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bnez_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bnez_n_encode_fns[] = {
   0, 0, Opcode_bnez_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ill_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ill_n_encode_fns[] = {
   0, 0, Opcode_ill_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_l32i_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_l32i_n_encode_fns[] = {
   0, Opcode_l32i_n_Slot_inst16a_encode, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mov_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mov_n_encode_fns[] = {
   0, 0, Opcode_mov_n_Slot_inst16b_encode, Opcode_mov_n_Slot_xt_flix64_slot0_encode, Opcode_mov_n_Slot_xt_flix64_slot0_encode, Opcode_mov_n_Slot_xt_flix64_slot1_encode, Opcode_mov_n_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movi_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movi_n_encode_fns[] = {
   0, 0, Opcode_movi_n_Slot_inst16b_encode, 0, 0, 0, Opcode_movi_n_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_nop_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_nop_n_encode_fns[] = {
   0, 0, Opcode_nop_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ret_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ret_n_encode_fns[] = {
   0, 0, Opcode_ret_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_s32i_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_s32i_n_encode_fns[] = {
   0, Opcode_s32i_n_Slot_inst16a_encode, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rur_threadptr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rur_threadptr_encode_fns[] = {
   Opcode_rur_threadptr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wur_threadptr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wur_threadptr_encode_fns[] = {
   Opcode_wur_threadptr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_addi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_addi_encode_fns[] = {
   Opcode_addi_Slot_inst_encode, 0, 0, Opcode_addi_Slot_xt_flix64_slot0_encode, Opcode_addi_Slot_xt_flix64_slot0_encode, Opcode_addi_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_addmi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_addmi_encode_fns[] = {
   Opcode_addmi_Slot_inst_encode, 0, 0, Opcode_addmi_Slot_xt_flix64_slot0_encode, Opcode_addmi_Slot_xt_flix64_slot0_encode, Opcode_addmi_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_add_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_add_encode_fns[] = {
   Opcode_add_Slot_inst_encode, 0, 0, Opcode_add_Slot_xt_flix64_slot0_encode, Opcode_add_Slot_xt_flix64_slot0_encode, Opcode_add_Slot_xt_flix64_slot1_encode, Opcode_add_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_sub_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_sub_encode_fns[] = {
   Opcode_sub_Slot_inst_encode, 0, 0, Opcode_sub_Slot_xt_flix64_slot0_encode, Opcode_sub_Slot_xt_flix64_slot0_encode, Opcode_sub_Slot_xt_flix64_slot1_encode, Opcode_sub_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_addx2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_addx2_encode_fns[] = {
   Opcode_addx2_Slot_inst_encode, 0, 0, Opcode_addx2_Slot_xt_flix64_slot0_encode, Opcode_addx2_Slot_xt_flix64_slot0_encode, Opcode_addx2_Slot_xt_flix64_slot1_encode, Opcode_addx2_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_addx4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_addx4_encode_fns[] = {
   Opcode_addx4_Slot_inst_encode, 0, 0, Opcode_addx4_Slot_xt_flix64_slot0_encode, Opcode_addx4_Slot_xt_flix64_slot0_encode, Opcode_addx4_Slot_xt_flix64_slot1_encode, Opcode_addx4_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_addx8_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_addx8_encode_fns[] = {
   Opcode_addx8_Slot_inst_encode, 0, 0, Opcode_addx8_Slot_xt_flix64_slot0_encode, Opcode_addx8_Slot_xt_flix64_slot0_encode, Opcode_addx8_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_subx2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_subx2_encode_fns[] = {
   Opcode_subx2_Slot_inst_encode, 0, 0, Opcode_subx2_Slot_xt_flix64_slot0_encode, Opcode_subx2_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_subx4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_subx4_encode_fns[] = {
   Opcode_subx4_Slot_inst_encode, 0, 0, Opcode_subx4_Slot_xt_flix64_slot0_encode, Opcode_subx4_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_subx8_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_subx8_encode_fns[] = {
   Opcode_subx8_Slot_inst_encode, 0, 0, Opcode_subx8_Slot_xt_flix64_slot0_encode, Opcode_subx8_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_and_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_and_encode_fns[] = {
   Opcode_and_Slot_inst_encode, 0, 0, Opcode_and_Slot_xt_flix64_slot0_encode, Opcode_and_Slot_xt_flix64_slot0_encode, Opcode_and_Slot_xt_flix64_slot1_encode, Opcode_and_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_or_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_or_encode_fns[] = {
   Opcode_or_Slot_inst_encode, 0, 0, Opcode_or_Slot_xt_flix64_slot0_encode, Opcode_or_Slot_xt_flix64_slot0_encode, Opcode_or_Slot_xt_flix64_slot1_encode, Opcode_or_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xor_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xor_encode_fns[] = {
   Opcode_xor_Slot_inst_encode, 0, 0, Opcode_xor_Slot_xt_flix64_slot0_encode, Opcode_xor_Slot_xt_flix64_slot0_encode, Opcode_xor_Slot_xt_flix64_slot1_encode, Opcode_xor_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_beqi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_beqi_encode_fns[] = {
   Opcode_beqi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bnei_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bnei_encode_fns[] = {
   Opcode_bnei_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bgei_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bgei_encode_fns[] = {
   Opcode_bgei_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_blti_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_blti_encode_fns[] = {
   Opcode_blti_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bbci_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bbci_encode_fns[] = {
   Opcode_bbci_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bbsi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bbsi_encode_fns[] = {
   Opcode_bbsi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bgeui_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bgeui_encode_fns[] = {
   Opcode_bgeui_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bltui_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bltui_encode_fns[] = {
   Opcode_bltui_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_beq_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_beq_encode_fns[] = {
   Opcode_beq_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bne_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bne_encode_fns[] = {
   Opcode_bne_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bge_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bge_encode_fns[] = {
   Opcode_bge_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_blt_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_blt_encode_fns[] = {
   Opcode_blt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bgeu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bgeu_encode_fns[] = {
   Opcode_bgeu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bltu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bltu_encode_fns[] = {
   Opcode_bltu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bany_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bany_encode_fns[] = {
   Opcode_bany_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bnone_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bnone_encode_fns[] = {
   Opcode_bnone_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ball_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ball_encode_fns[] = {
   Opcode_ball_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bnall_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bnall_encode_fns[] = {
   Opcode_bnall_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bbc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bbc_encode_fns[] = {
   Opcode_bbc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bbs_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bbs_encode_fns[] = {
   Opcode_bbs_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_beqz_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_beqz_encode_fns[] = {
   Opcode_beqz_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bnez_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bnez_encode_fns[] = {
   Opcode_bnez_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bgez_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bgez_encode_fns[] = {
   Opcode_bgez_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bltz_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bltz_encode_fns[] = {
   Opcode_bltz_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_call0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_call0_encode_fns[] = {
   Opcode_call0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_callx0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_callx0_encode_fns[] = {
   Opcode_callx0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_extui_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_extui_encode_fns[] = {
   Opcode_extui_Slot_inst_encode, 0, 0, Opcode_extui_Slot_xt_flix64_slot0_encode, Opcode_extui_Slot_xt_flix64_slot0_encode, Opcode_extui_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ill_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ill_encode_fns[] = {
   Opcode_ill_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_j_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_j_encode_fns[] = {
   Opcode_j_Slot_inst_encode, 0, 0, 0, 0, Opcode_j_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_jx_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_jx_encode_fns[] = {
   Opcode_jx_Slot_inst_encode, 0, 0, 0, 0, Opcode_jx_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_l16ui_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_l16ui_encode_fns[] = {
   Opcode_l16ui_Slot_inst_encode, 0, 0, Opcode_l16ui_Slot_xt_flix64_slot0_encode, Opcode_l16ui_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_l16si_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_l16si_encode_fns[] = {
   Opcode_l16si_Slot_inst_encode, 0, 0, Opcode_l16si_Slot_xt_flix64_slot0_encode, Opcode_l16si_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_l32i_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_l32i_encode_fns[] = {
   Opcode_l32i_Slot_inst_encode, 0, 0, Opcode_l32i_Slot_xt_flix64_slot0_encode, Opcode_l32i_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_l32r_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_l32r_encode_fns[] = {
   Opcode_l32r_Slot_inst_encode, 0, 0, Opcode_l32r_Slot_xt_flix64_slot0_encode, Opcode_l32r_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_l8ui_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_l8ui_encode_fns[] = {
   Opcode_l8ui_Slot_inst_encode, 0, 0, Opcode_l8ui_Slot_xt_flix64_slot0_encode, Opcode_l8ui_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_loop_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_loop_encode_fns[] = {
   Opcode_loop_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_loopnez_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_loopnez_encode_fns[] = {
   Opcode_loopnez_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_loopgtz_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_loopgtz_encode_fns[] = {
   Opcode_loopgtz_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movi_encode_fns[] = {
   Opcode_movi_Slot_inst_encode, 0, 0, Opcode_movi_Slot_xt_flix64_slot0_encode, Opcode_movi_Slot_xt_flix64_slot0_encode, Opcode_movi_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_moveqz_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_moveqz_encode_fns[] = {
   Opcode_moveqz_Slot_inst_encode, 0, 0, Opcode_moveqz_Slot_xt_flix64_slot0_encode, Opcode_moveqz_Slot_xt_flix64_slot0_encode, Opcode_moveqz_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movnez_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movnez_encode_fns[] = {
   Opcode_movnez_Slot_inst_encode, 0, 0, Opcode_movnez_Slot_xt_flix64_slot0_encode, Opcode_movnez_Slot_xt_flix64_slot0_encode, Opcode_movnez_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movltz_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movltz_encode_fns[] = {
   Opcode_movltz_Slot_inst_encode, 0, 0, Opcode_movltz_Slot_xt_flix64_slot0_encode, Opcode_movltz_Slot_xt_flix64_slot0_encode, Opcode_movltz_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movgez_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movgez_encode_fns[] = {
   Opcode_movgez_Slot_inst_encode, 0, 0, Opcode_movgez_Slot_xt_flix64_slot0_encode, Opcode_movgez_Slot_xt_flix64_slot0_encode, Opcode_movgez_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_neg_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_neg_encode_fns[] = {
   Opcode_neg_Slot_inst_encode, 0, 0, Opcode_neg_Slot_xt_flix64_slot0_encode, Opcode_neg_Slot_xt_flix64_slot0_encode, Opcode_neg_Slot_xt_flix64_slot1_encode, Opcode_neg_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_abs_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_abs_encode_fns[] = {
   Opcode_abs_Slot_inst_encode, 0, 0, Opcode_abs_Slot_xt_flix64_slot0_encode, Opcode_abs_Slot_xt_flix64_slot0_encode, 0, Opcode_abs_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_nop_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_nop_encode_fns[] = {
   Opcode_nop_Slot_inst_encode, 0, 0, Opcode_nop_Slot_xt_flix64_slot0_encode, Opcode_nop_Slot_xt_flix64_slot0_encode, Opcode_nop_Slot_xt_flix64_slot1_encode, Opcode_nop_Slot_xt_flix64_slot2_encode, Opcode_nop_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_ret_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ret_encode_fns[] = {
   Opcode_ret_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_s16i_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_s16i_encode_fns[] = {
   Opcode_s16i_Slot_inst_encode, 0, 0, Opcode_s16i_Slot_xt_flix64_slot0_encode, Opcode_s16i_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_s32i_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_s32i_encode_fns[] = {
   Opcode_s32i_Slot_inst_encode, 0, 0, Opcode_s32i_Slot_xt_flix64_slot0_encode, Opcode_s32i_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_s8i_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_s8i_encode_fns[] = {
   Opcode_s8i_Slot_inst_encode, 0, 0, Opcode_s8i_Slot_xt_flix64_slot0_encode, Opcode_s8i_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ssr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ssr_encode_fns[] = {
   Opcode_ssr_Slot_inst_encode, 0, 0, Opcode_ssr_Slot_xt_flix64_slot0_encode, Opcode_ssr_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ssl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ssl_encode_fns[] = {
   Opcode_ssl_Slot_inst_encode, 0, 0, Opcode_ssl_Slot_xt_flix64_slot0_encode, Opcode_ssl_Slot_xt_flix64_slot0_encode, Opcode_ssl_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ssa8l_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ssa8l_encode_fns[] = {
   Opcode_ssa8l_Slot_inst_encode, 0, 0, Opcode_ssa8l_Slot_xt_flix64_slot0_encode, Opcode_ssa8l_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ssa8b_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ssa8b_encode_fns[] = {
   Opcode_ssa8b_Slot_inst_encode, 0, 0, Opcode_ssa8b_Slot_xt_flix64_slot0_encode, Opcode_ssa8b_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ssai_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ssai_encode_fns[] = {
   Opcode_ssai_Slot_inst_encode, 0, 0, Opcode_ssai_Slot_xt_flix64_slot0_encode, Opcode_ssai_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_sll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_sll_encode_fns[] = {
   Opcode_sll_Slot_inst_encode, 0, 0, Opcode_sll_Slot_xt_flix64_slot0_encode, Opcode_sll_Slot_xt_flix64_slot0_encode, Opcode_sll_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_src_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_src_encode_fns[] = {
   Opcode_src_Slot_inst_encode, 0, 0, Opcode_src_Slot_xt_flix64_slot0_encode, Opcode_src_Slot_xt_flix64_slot0_encode, Opcode_src_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_srl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_srl_encode_fns[] = {
   Opcode_srl_Slot_inst_encode, 0, 0, Opcode_srl_Slot_xt_flix64_slot0_encode, Opcode_srl_Slot_xt_flix64_slot0_encode, Opcode_srl_Slot_xt_flix64_slot1_encode, Opcode_srl_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_sra_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_sra_encode_fns[] = {
   Opcode_sra_Slot_inst_encode, 0, 0, Opcode_sra_Slot_xt_flix64_slot0_encode, Opcode_sra_Slot_xt_flix64_slot0_encode, Opcode_sra_Slot_xt_flix64_slot1_encode, Opcode_sra_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_slli_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_slli_encode_fns[] = {
   Opcode_slli_Slot_inst_encode, 0, 0, Opcode_slli_Slot_xt_flix64_slot0_encode, Opcode_slli_Slot_xt_flix64_slot0_encode, Opcode_slli_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_srai_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_srai_encode_fns[] = {
   Opcode_srai_Slot_inst_encode, 0, 0, Opcode_srai_Slot_xt_flix64_slot0_encode, Opcode_srai_Slot_xt_flix64_slot0_encode, Opcode_srai_Slot_xt_flix64_slot1_encode, Opcode_srai_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_srli_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_srli_encode_fns[] = {
   Opcode_srli_Slot_inst_encode, 0, 0, Opcode_srli_Slot_xt_flix64_slot0_encode, Opcode_srli_Slot_xt_flix64_slot0_encode, Opcode_srli_Slot_xt_flix64_slot1_encode, Opcode_srli_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_memw_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_memw_encode_fns[] = {
   Opcode_memw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_extw_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_extw_encode_fns[] = {
   Opcode_extw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_isync_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_isync_encode_fns[] = {
   Opcode_isync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsync_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsync_encode_fns[] = {
   Opcode_rsync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_esync_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_esync_encode_fns[] = {
   Opcode_esync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dsync_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dsync_encode_fns[] = {
   Opcode_dsync_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsil_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsil_encode_fns[] = {
   Opcode_rsil_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_lend_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_lend_encode_fns[] = {
   Opcode_rsr_lend_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_lend_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_lend_encode_fns[] = {
   Opcode_wsr_lend_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_lend_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_lend_encode_fns[] = {
   Opcode_xsr_lend_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_lcount_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_lcount_encode_fns[] = {
   Opcode_rsr_lcount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_lcount_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_lcount_encode_fns[] = {
   Opcode_wsr_lcount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_lcount_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_lcount_encode_fns[] = {
   Opcode_xsr_lcount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_lbeg_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_lbeg_encode_fns[] = {
   Opcode_rsr_lbeg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_lbeg_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_lbeg_encode_fns[] = {
   Opcode_wsr_lbeg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_lbeg_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_lbeg_encode_fns[] = {
   Opcode_xsr_lbeg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_sar_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_sar_encode_fns[] = {
   Opcode_rsr_sar_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_sar_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_sar_encode_fns[] = {
   Opcode_wsr_sar_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_sar_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_sar_encode_fns[] = {
   Opcode_xsr_sar_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_litbase_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_litbase_encode_fns[] = {
   Opcode_rsr_litbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_litbase_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_litbase_encode_fns[] = {
   Opcode_wsr_litbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_litbase_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_litbase_encode_fns[] = {
   Opcode_xsr_litbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_176_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_176_encode_fns[] = {
   Opcode_rsr_176_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_208_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_208_encode_fns[] = {
   Opcode_rsr_208_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_ps_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_ps_encode_fns[] = {
   Opcode_rsr_ps_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_ps_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_ps_encode_fns[] = {
   Opcode_wsr_ps_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_ps_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_ps_encode_fns[] = {
   Opcode_xsr_ps_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_epc1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_epc1_encode_fns[] = {
   Opcode_rsr_epc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_epc1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_epc1_encode_fns[] = {
   Opcode_wsr_epc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_epc1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_epc1_encode_fns[] = {
   Opcode_xsr_epc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_excsave1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_excsave1_encode_fns[] = {
   Opcode_rsr_excsave1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_excsave1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_excsave1_encode_fns[] = {
   Opcode_wsr_excsave1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_excsave1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_excsave1_encode_fns[] = {
   Opcode_xsr_excsave1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_epc2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_epc2_encode_fns[] = {
   Opcode_rsr_epc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_epc2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_epc2_encode_fns[] = {
   Opcode_wsr_epc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_epc2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_epc2_encode_fns[] = {
   Opcode_xsr_epc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_excsave2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_excsave2_encode_fns[] = {
   Opcode_rsr_excsave2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_excsave2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_excsave2_encode_fns[] = {
   Opcode_wsr_excsave2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_excsave2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_excsave2_encode_fns[] = {
   Opcode_xsr_excsave2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_epc3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_epc3_encode_fns[] = {
   Opcode_rsr_epc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_epc3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_epc3_encode_fns[] = {
   Opcode_wsr_epc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_epc3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_epc3_encode_fns[] = {
   Opcode_xsr_epc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_excsave3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_excsave3_encode_fns[] = {
   Opcode_rsr_excsave3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_excsave3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_excsave3_encode_fns[] = {
   Opcode_wsr_excsave3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_excsave3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_excsave3_encode_fns[] = {
   Opcode_xsr_excsave3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_epc4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_epc4_encode_fns[] = {
   Opcode_rsr_epc4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_epc4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_epc4_encode_fns[] = {
   Opcode_wsr_epc4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_epc4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_epc4_encode_fns[] = {
   Opcode_xsr_epc4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_excsave4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_excsave4_encode_fns[] = {
   Opcode_rsr_excsave4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_excsave4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_excsave4_encode_fns[] = {
   Opcode_wsr_excsave4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_excsave4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_excsave4_encode_fns[] = {
   Opcode_xsr_excsave4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_epc5_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_epc5_encode_fns[] = {
   Opcode_rsr_epc5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_epc5_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_epc5_encode_fns[] = {
   Opcode_wsr_epc5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_epc5_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_epc5_encode_fns[] = {
   Opcode_xsr_epc5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_excsave5_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_excsave5_encode_fns[] = {
   Opcode_rsr_excsave5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_excsave5_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_excsave5_encode_fns[] = {
   Opcode_wsr_excsave5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_excsave5_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_excsave5_encode_fns[] = {
   Opcode_xsr_excsave5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_epc6_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_epc6_encode_fns[] = {
   Opcode_rsr_epc6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_epc6_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_epc6_encode_fns[] = {
   Opcode_wsr_epc6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_epc6_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_epc6_encode_fns[] = {
   Opcode_xsr_epc6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_excsave6_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_excsave6_encode_fns[] = {
   Opcode_rsr_excsave6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_excsave6_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_excsave6_encode_fns[] = {
   Opcode_wsr_excsave6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_excsave6_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_excsave6_encode_fns[] = {
   Opcode_xsr_excsave6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_epc7_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_epc7_encode_fns[] = {
   Opcode_rsr_epc7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_epc7_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_epc7_encode_fns[] = {
   Opcode_wsr_epc7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_epc7_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_epc7_encode_fns[] = {
   Opcode_xsr_epc7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_excsave7_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_excsave7_encode_fns[] = {
   Opcode_rsr_excsave7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_excsave7_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_excsave7_encode_fns[] = {
   Opcode_wsr_excsave7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_excsave7_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_excsave7_encode_fns[] = {
   Opcode_xsr_excsave7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_eps2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_eps2_encode_fns[] = {
   Opcode_rsr_eps2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_eps2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_eps2_encode_fns[] = {
   Opcode_wsr_eps2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_eps2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_eps2_encode_fns[] = {
   Opcode_xsr_eps2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_eps3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_eps3_encode_fns[] = {
   Opcode_rsr_eps3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_eps3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_eps3_encode_fns[] = {
   Opcode_wsr_eps3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_eps3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_eps3_encode_fns[] = {
   Opcode_xsr_eps3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_eps4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_eps4_encode_fns[] = {
   Opcode_rsr_eps4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_eps4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_eps4_encode_fns[] = {
   Opcode_wsr_eps4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_eps4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_eps4_encode_fns[] = {
   Opcode_xsr_eps4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_eps5_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_eps5_encode_fns[] = {
   Opcode_rsr_eps5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_eps5_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_eps5_encode_fns[] = {
   Opcode_wsr_eps5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_eps5_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_eps5_encode_fns[] = {
   Opcode_xsr_eps5_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_eps6_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_eps6_encode_fns[] = {
   Opcode_rsr_eps6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_eps6_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_eps6_encode_fns[] = {
   Opcode_wsr_eps6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_eps6_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_eps6_encode_fns[] = {
   Opcode_xsr_eps6_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_eps7_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_eps7_encode_fns[] = {
   Opcode_rsr_eps7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_eps7_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_eps7_encode_fns[] = {
   Opcode_wsr_eps7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_eps7_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_eps7_encode_fns[] = {
   Opcode_xsr_eps7_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_excvaddr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_excvaddr_encode_fns[] = {
   Opcode_rsr_excvaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_excvaddr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_excvaddr_encode_fns[] = {
   Opcode_wsr_excvaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_excvaddr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_excvaddr_encode_fns[] = {
   Opcode_xsr_excvaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_depc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_depc_encode_fns[] = {
   Opcode_rsr_depc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_depc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_depc_encode_fns[] = {
   Opcode_wsr_depc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_depc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_depc_encode_fns[] = {
   Opcode_xsr_depc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_exccause_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_exccause_encode_fns[] = {
   Opcode_rsr_exccause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_exccause_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_exccause_encode_fns[] = {
   Opcode_wsr_exccause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_exccause_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_exccause_encode_fns[] = {
   Opcode_xsr_exccause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_misc0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_misc0_encode_fns[] = {
   Opcode_rsr_misc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_misc0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_misc0_encode_fns[] = {
   Opcode_wsr_misc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_misc0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_misc0_encode_fns[] = {
   Opcode_xsr_misc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_misc1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_misc1_encode_fns[] = {
   Opcode_rsr_misc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_misc1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_misc1_encode_fns[] = {
   Opcode_wsr_misc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_misc1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_misc1_encode_fns[] = {
   Opcode_xsr_misc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_misc2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_misc2_encode_fns[] = {
   Opcode_rsr_misc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_misc2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_misc2_encode_fns[] = {
   Opcode_wsr_misc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_misc2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_misc2_encode_fns[] = {
   Opcode_xsr_misc2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_misc3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_misc3_encode_fns[] = {
   Opcode_rsr_misc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_misc3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_misc3_encode_fns[] = {
   Opcode_wsr_misc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_misc3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_misc3_encode_fns[] = {
   Opcode_xsr_misc3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_prid_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_prid_encode_fns[] = {
   Opcode_rsr_prid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_vecbase_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_vecbase_encode_fns[] = {
   Opcode_rsr_vecbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_vecbase_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_vecbase_encode_fns[] = {
   Opcode_wsr_vecbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_vecbase_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_vecbase_encode_fns[] = {
   Opcode_xsr_vecbase_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_aa_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_aa_ll_encode_fns[] = {
   Opcode_mul_aa_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_aa_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_aa_hl_encode_fns[] = {
   Opcode_mul_aa_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_aa_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_aa_lh_encode_fns[] = {
   Opcode_mul_aa_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_aa_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_aa_hh_encode_fns[] = {
   Opcode_mul_aa_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_umul_aa_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_umul_aa_ll_encode_fns[] = {
   Opcode_umul_aa_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_umul_aa_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_umul_aa_hl_encode_fns[] = {
   Opcode_umul_aa_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_umul_aa_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_umul_aa_lh_encode_fns[] = {
   Opcode_umul_aa_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_umul_aa_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_umul_aa_hh_encode_fns[] = {
   Opcode_umul_aa_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_ad_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_ad_ll_encode_fns[] = {
   Opcode_mul_ad_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_ad_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_ad_hl_encode_fns[] = {
   Opcode_mul_ad_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_ad_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_ad_lh_encode_fns[] = {
   Opcode_mul_ad_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_ad_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_ad_hh_encode_fns[] = {
   Opcode_mul_ad_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_da_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_da_ll_encode_fns[] = {
   Opcode_mul_da_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_da_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_da_hl_encode_fns[] = {
   Opcode_mul_da_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_da_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_da_lh_encode_fns[] = {
   Opcode_mul_da_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_da_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_da_hh_encode_fns[] = {
   Opcode_mul_da_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_dd_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_dd_ll_encode_fns[] = {
   Opcode_mul_dd_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_dd_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_dd_hl_encode_fns[] = {
   Opcode_mul_dd_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_dd_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_dd_lh_encode_fns[] = {
   Opcode_mul_dd_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_dd_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_dd_hh_encode_fns[] = {
   Opcode_mul_dd_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_aa_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_aa_ll_encode_fns[] = {
   Opcode_mula_aa_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_aa_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_aa_hl_encode_fns[] = {
   Opcode_mula_aa_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_aa_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_aa_lh_encode_fns[] = {
   Opcode_mula_aa_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_aa_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_aa_hh_encode_fns[] = {
   Opcode_mula_aa_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_aa_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_aa_ll_encode_fns[] = {
   Opcode_muls_aa_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_aa_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_aa_hl_encode_fns[] = {
   Opcode_muls_aa_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_aa_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_aa_lh_encode_fns[] = {
   Opcode_muls_aa_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_aa_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_aa_hh_encode_fns[] = {
   Opcode_muls_aa_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_ad_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_ad_ll_encode_fns[] = {
   Opcode_mula_ad_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_ad_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_ad_hl_encode_fns[] = {
   Opcode_mula_ad_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_ad_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_ad_lh_encode_fns[] = {
   Opcode_mula_ad_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_ad_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_ad_hh_encode_fns[] = {
   Opcode_mula_ad_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_ad_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_ad_ll_encode_fns[] = {
   Opcode_muls_ad_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_ad_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_ad_hl_encode_fns[] = {
   Opcode_muls_ad_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_ad_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_ad_lh_encode_fns[] = {
   Opcode_muls_ad_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_ad_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_ad_hh_encode_fns[] = {
   Opcode_muls_ad_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_ll_encode_fns[] = {
   Opcode_mula_da_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_hl_encode_fns[] = {
   Opcode_mula_da_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_lh_encode_fns[] = {
   Opcode_mula_da_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_hh_encode_fns[] = {
   Opcode_mula_da_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_da_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_da_ll_encode_fns[] = {
   Opcode_muls_da_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_da_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_da_hl_encode_fns[] = {
   Opcode_muls_da_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_da_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_da_lh_encode_fns[] = {
   Opcode_muls_da_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_da_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_da_hh_encode_fns[] = {
   Opcode_muls_da_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_ll_encode_fns[] = {
   Opcode_mula_dd_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_hl_encode_fns[] = {
   Opcode_mula_dd_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_lh_encode_fns[] = {
   Opcode_mula_dd_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_hh_encode_fns[] = {
   Opcode_mula_dd_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_dd_ll_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_dd_ll_encode_fns[] = {
   Opcode_muls_dd_ll_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_dd_hl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_dd_hl_encode_fns[] = {
   Opcode_muls_dd_hl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_dd_lh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_dd_lh_encode_fns[] = {
   Opcode_muls_dd_lh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muls_dd_hh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muls_dd_hh_encode_fns[] = {
   Opcode_muls_dd_hh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_ll_lddec_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_ll_lddec_encode_fns[] = {
   Opcode_mula_da_ll_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_ll_ldinc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_ll_ldinc_encode_fns[] = {
   Opcode_mula_da_ll_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_hl_lddec_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_hl_lddec_encode_fns[] = {
   Opcode_mula_da_hl_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_hl_ldinc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_hl_ldinc_encode_fns[] = {
   Opcode_mula_da_hl_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_lh_lddec_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_lh_lddec_encode_fns[] = {
   Opcode_mula_da_lh_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_lh_ldinc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_lh_ldinc_encode_fns[] = {
   Opcode_mula_da_lh_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_hh_lddec_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_hh_lddec_encode_fns[] = {
   Opcode_mula_da_hh_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_da_hh_ldinc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_da_hh_ldinc_encode_fns[] = {
   Opcode_mula_da_hh_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_ll_lddec_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_ll_lddec_encode_fns[] = {
   Opcode_mula_dd_ll_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_ll_ldinc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_ll_ldinc_encode_fns[] = {
   Opcode_mula_dd_ll_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_hl_lddec_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_hl_lddec_encode_fns[] = {
   Opcode_mula_dd_hl_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_hl_ldinc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_hl_ldinc_encode_fns[] = {
   Opcode_mula_dd_hl_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_lh_lddec_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_lh_lddec_encode_fns[] = {
   Opcode_mula_dd_lh_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_lh_ldinc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_lh_ldinc_encode_fns[] = {
   Opcode_mula_dd_lh_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_hh_lddec_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_hh_lddec_encode_fns[] = {
   Opcode_mula_dd_hh_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mula_dd_hh_ldinc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mula_dd_hh_ldinc_encode_fns[] = {
   Opcode_mula_dd_hh_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_lddec_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_lddec_encode_fns[] = {
   Opcode_lddec_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ldinc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ldinc_encode_fns[] = {
   Opcode_ldinc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul16u_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul16u_encode_fns[] = {
   Opcode_mul16u_Slot_inst_encode, 0, 0, Opcode_mul16u_Slot_xt_flix64_slot0_encode, Opcode_mul16u_Slot_xt_flix64_slot0_encode, Opcode_mul16u_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul16s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul16s_encode_fns[] = {
   Opcode_mul16s_Slot_inst_encode, 0, 0, Opcode_mul16s_Slot_xt_flix64_slot0_encode, Opcode_mul16s_Slot_xt_flix64_slot0_encode, Opcode_mul16s_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_m0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_m0_encode_fns[] = {
   Opcode_rsr_m0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_m0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_m0_encode_fns[] = {
   Opcode_wsr_m0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_m0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_m0_encode_fns[] = {
   Opcode_xsr_m0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_m1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_m1_encode_fns[] = {
   Opcode_rsr_m1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_m1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_m1_encode_fns[] = {
   Opcode_wsr_m1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_m1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_m1_encode_fns[] = {
   Opcode_xsr_m1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_m2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_m2_encode_fns[] = {
   Opcode_rsr_m2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_m2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_m2_encode_fns[] = {
   Opcode_wsr_m2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_m2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_m2_encode_fns[] = {
   Opcode_xsr_m2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_m3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_m3_encode_fns[] = {
   Opcode_rsr_m3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_m3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_m3_encode_fns[] = {
   Opcode_wsr_m3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_m3_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_m3_encode_fns[] = {
   Opcode_xsr_m3_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_acclo_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_acclo_encode_fns[] = {
   Opcode_rsr_acclo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_acclo_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_acclo_encode_fns[] = {
   Opcode_wsr_acclo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_acclo_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_acclo_encode_fns[] = {
   Opcode_xsr_acclo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_acchi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_acchi_encode_fns[] = {
   Opcode_rsr_acchi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_acchi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_acchi_encode_fns[] = {
   Opcode_wsr_acchi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_acchi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_acchi_encode_fns[] = {
   Opcode_xsr_acchi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rfi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rfi_encode_fns[] = {
   Opcode_rfi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_waiti_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_waiti_encode_fns[] = {
   Opcode_waiti_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_interrupt_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_interrupt_encode_fns[] = {
   Opcode_rsr_interrupt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_intset_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_intset_encode_fns[] = {
   Opcode_wsr_intset_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_intclear_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_intclear_encode_fns[] = {
   Opcode_wsr_intclear_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_intenable_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_intenable_encode_fns[] = {
   Opcode_rsr_intenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_intenable_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_intenable_encode_fns[] = {
   Opcode_wsr_intenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_intenable_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_intenable_encode_fns[] = {
   Opcode_xsr_intenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_break_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_break_encode_fns[] = {
   Opcode_break_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_break_n_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_break_n_encode_fns[] = {
   0, 0, Opcode_break_n_Slot_inst16b_encode, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_dbreaka0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_dbreaka0_encode_fns[] = {
   Opcode_rsr_dbreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_dbreaka0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_dbreaka0_encode_fns[] = {
   Opcode_wsr_dbreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_dbreaka0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_dbreaka0_encode_fns[] = {
   Opcode_xsr_dbreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_dbreakc0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_dbreakc0_encode_fns[] = {
   Opcode_rsr_dbreakc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_dbreakc0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_dbreakc0_encode_fns[] = {
   Opcode_wsr_dbreakc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_dbreakc0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_dbreakc0_encode_fns[] = {
   Opcode_xsr_dbreakc0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_dbreaka1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_dbreaka1_encode_fns[] = {
   Opcode_rsr_dbreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_dbreaka1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_dbreaka1_encode_fns[] = {
   Opcode_wsr_dbreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_dbreaka1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_dbreaka1_encode_fns[] = {
   Opcode_xsr_dbreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_dbreakc1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_dbreakc1_encode_fns[] = {
   Opcode_rsr_dbreakc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_dbreakc1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_dbreakc1_encode_fns[] = {
   Opcode_wsr_dbreakc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_dbreakc1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_dbreakc1_encode_fns[] = {
   Opcode_xsr_dbreakc1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_ibreaka0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_ibreaka0_encode_fns[] = {
   Opcode_rsr_ibreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_ibreaka0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_ibreaka0_encode_fns[] = {
   Opcode_wsr_ibreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_ibreaka0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_ibreaka0_encode_fns[] = {
   Opcode_xsr_ibreaka0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_ibreaka1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_ibreaka1_encode_fns[] = {
   Opcode_rsr_ibreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_ibreaka1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_ibreaka1_encode_fns[] = {
   Opcode_wsr_ibreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_ibreaka1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_ibreaka1_encode_fns[] = {
   Opcode_xsr_ibreaka1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_ibreakenable_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_ibreakenable_encode_fns[] = {
   Opcode_rsr_ibreakenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_ibreakenable_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_ibreakenable_encode_fns[] = {
   Opcode_wsr_ibreakenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_ibreakenable_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_ibreakenable_encode_fns[] = {
   Opcode_xsr_ibreakenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_debugcause_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_debugcause_encode_fns[] = {
   Opcode_rsr_debugcause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_debugcause_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_debugcause_encode_fns[] = {
   Opcode_wsr_debugcause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_debugcause_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_debugcause_encode_fns[] = {
   Opcode_xsr_debugcause_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_icount_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_icount_encode_fns[] = {
   Opcode_rsr_icount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_icount_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_icount_encode_fns[] = {
   Opcode_wsr_icount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_icount_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_icount_encode_fns[] = {
   Opcode_xsr_icount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_icountlevel_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_icountlevel_encode_fns[] = {
   Opcode_rsr_icountlevel_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_icountlevel_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_icountlevel_encode_fns[] = {
   Opcode_wsr_icountlevel_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_icountlevel_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_icountlevel_encode_fns[] = {
   Opcode_xsr_icountlevel_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_ddr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_ddr_encode_fns[] = {
   Opcode_rsr_ddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_ddr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_ddr_encode_fns[] = {
   Opcode_wsr_ddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_ddr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_ddr_encode_fns[] = {
   Opcode_xsr_ddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rfdo_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rfdo_encode_fns[] = {
   Opcode_rfdo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rfdd_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rfdd_encode_fns[] = {
   Opcode_rfdd_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_mmid_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_mmid_encode_fns[] = {
   Opcode_wsr_mmid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_andb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_andb_encode_fns[] = {
   Opcode_andb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_andbc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_andbc_encode_fns[] = {
   Opcode_andbc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_orb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_orb_encode_fns[] = {
   Opcode_orb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_orbc_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_orbc_encode_fns[] = {
   Opcode_orbc_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xorb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xorb_encode_fns[] = {
   Opcode_xorb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_any4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_any4_encode_fns[] = {
   Opcode_any4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_all4_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_all4_encode_fns[] = {
   Opcode_all4_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_any8_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_any8_encode_fns[] = {
   Opcode_any8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_all8_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_all8_encode_fns[] = {
   Opcode_all8_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bf_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bf_encode_fns[] = {
   Opcode_bf_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_bt_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bt_encode_fns[] = {
   Opcode_bt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movf_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movf_encode_fns[] = {
   Opcode_movf_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movt_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movt_encode_fns[] = {
   Opcode_movt_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_br_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_br_encode_fns[] = {
   Opcode_rsr_br_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_br_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_br_encode_fns[] = {
   Opcode_wsr_br_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_br_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_br_encode_fns[] = {
   Opcode_xsr_br_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_ccount_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_ccount_encode_fns[] = {
   Opcode_rsr_ccount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_ccount_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_ccount_encode_fns[] = {
   Opcode_wsr_ccount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_ccount_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_ccount_encode_fns[] = {
   Opcode_xsr_ccount_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_ccompare0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_ccompare0_encode_fns[] = {
   Opcode_rsr_ccompare0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_ccompare0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_ccompare0_encode_fns[] = {
   Opcode_wsr_ccompare0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_ccompare0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_ccompare0_encode_fns[] = {
   Opcode_xsr_ccompare0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_ccompare1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_ccompare1_encode_fns[] = {
   Opcode_rsr_ccompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_ccompare1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_ccompare1_encode_fns[] = {
   Opcode_wsr_ccompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_ccompare1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_ccompare1_encode_fns[] = {
   Opcode_xsr_ccompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_ccompare2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_ccompare2_encode_fns[] = {
   Opcode_rsr_ccompare2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_ccompare2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_ccompare2_encode_fns[] = {
   Opcode_wsr_ccompare2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_ccompare2_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_ccompare2_encode_fns[] = {
   Opcode_xsr_ccompare2_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ipf_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ipf_encode_fns[] = {
   Opcode_ipf_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ihi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ihi_encode_fns[] = {
   Opcode_ihi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ipfl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ipfl_encode_fns[] = {
   Opcode_ipfl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ihu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ihu_encode_fns[] = {
   Opcode_ihu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_iiu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_iiu_encode_fns[] = {
   Opcode_iiu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_iii_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_iii_encode_fns[] = {
   Opcode_iii_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_lict_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_lict_encode_fns[] = {
   Opcode_lict_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_licw_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_licw_encode_fns[] = {
   Opcode_licw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_sict_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_sict_encode_fns[] = {
   Opcode_sict_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_sicw_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_sicw_encode_fns[] = {
   Opcode_sicw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dhwb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dhwb_encode_fns[] = {
   Opcode_dhwb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dhwbi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dhwbi_encode_fns[] = {
   Opcode_dhwbi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_diwb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_diwb_encode_fns[] = {
   Opcode_diwb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_diwbi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_diwbi_encode_fns[] = {
   Opcode_diwbi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dhi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dhi_encode_fns[] = {
   Opcode_dhi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dii_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dii_encode_fns[] = {
   Opcode_dii_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dpfr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dpfr_encode_fns[] = {
   Opcode_dpfr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dpfw_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dpfw_encode_fns[] = {
   Opcode_dpfw_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dpfro_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dpfro_encode_fns[] = {
   Opcode_dpfro_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dpfwo_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dpfwo_encode_fns[] = {
   Opcode_dpfwo_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dpfl_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dpfl_encode_fns[] = {
   Opcode_dpfl_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_dhu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_dhu_encode_fns[] = {
   Opcode_dhu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_diu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_diu_encode_fns[] = {
   Opcode_diu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_sdct_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_sdct_encode_fns[] = {
   Opcode_sdct_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ldct_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ldct_encode_fns[] = {
   Opcode_ldct_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_ptevaddr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_ptevaddr_encode_fns[] = {
   Opcode_wsr_ptevaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_ptevaddr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_ptevaddr_encode_fns[] = {
   Opcode_rsr_ptevaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_ptevaddr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_ptevaddr_encode_fns[] = {
   Opcode_xsr_ptevaddr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_rasid_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_rasid_encode_fns[] = {
   Opcode_rsr_rasid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_rasid_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_rasid_encode_fns[] = {
   Opcode_wsr_rasid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_rasid_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_rasid_encode_fns[] = {
   Opcode_xsr_rasid_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_itlbcfg_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_itlbcfg_encode_fns[] = {
   Opcode_rsr_itlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_itlbcfg_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_itlbcfg_encode_fns[] = {
   Opcode_wsr_itlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_itlbcfg_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_itlbcfg_encode_fns[] = {
   Opcode_xsr_itlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_dtlbcfg_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_dtlbcfg_encode_fns[] = {
   Opcode_rsr_dtlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_dtlbcfg_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_dtlbcfg_encode_fns[] = {
   Opcode_wsr_dtlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_dtlbcfg_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_dtlbcfg_encode_fns[] = {
   Opcode_xsr_dtlbcfg_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_idtlb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_idtlb_encode_fns[] = {
   Opcode_idtlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_pdtlb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_pdtlb_encode_fns[] = {
   Opcode_pdtlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rdtlb0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rdtlb0_encode_fns[] = {
   Opcode_rdtlb0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rdtlb1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rdtlb1_encode_fns[] = {
   Opcode_rdtlb1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wdtlb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wdtlb_encode_fns[] = {
   Opcode_wdtlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_iitlb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_iitlb_encode_fns[] = {
   Opcode_iitlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_pitlb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_pitlb_encode_fns[] = {
   Opcode_pitlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ritlb0_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ritlb0_encode_fns[] = {
   Opcode_ritlb0_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ritlb1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ritlb1_encode_fns[] = {
   Opcode_ritlb1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_witlb_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_witlb_encode_fns[] = {
   Opcode_witlb_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ldpte_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ldpte_encode_fns[] = {
   Opcode_ldpte_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_hwwitlba_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_hwwitlba_encode_fns[] = {
   Opcode_hwwitlba_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_hwwdtlba_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_hwwdtlba_encode_fns[] = {
   Opcode_hwwdtlba_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_cpenable_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_cpenable_encode_fns[] = {
   Opcode_rsr_cpenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_cpenable_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_cpenable_encode_fns[] = {
   Opcode_wsr_cpenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_cpenable_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_cpenable_encode_fns[] = {
   Opcode_xsr_cpenable_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_clamps_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_clamps_encode_fns[] = {
   Opcode_clamps_Slot_inst_encode, 0, 0, Opcode_clamps_Slot_xt_flix64_slot0_encode, Opcode_clamps_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_min_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_min_encode_fns[] = {
   Opcode_min_Slot_inst_encode, 0, 0, Opcode_min_Slot_xt_flix64_slot0_encode, Opcode_min_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_max_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_max_encode_fns[] = {
   Opcode_max_Slot_inst_encode, 0, 0, Opcode_max_Slot_xt_flix64_slot0_encode, Opcode_max_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_minu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_minu_encode_fns[] = {
   Opcode_minu_Slot_inst_encode, 0, 0, Opcode_minu_Slot_xt_flix64_slot0_encode, Opcode_minu_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_maxu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_maxu_encode_fns[] = {
   Opcode_maxu_Slot_inst_encode, 0, 0, Opcode_maxu_Slot_xt_flix64_slot0_encode, Opcode_maxu_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_nsa_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_nsa_encode_fns[] = {
   Opcode_nsa_Slot_inst_encode, 0, 0, Opcode_nsa_Slot_xt_flix64_slot0_encode, Opcode_nsa_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_nsau_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_nsau_encode_fns[] = {
   Opcode_nsau_Slot_inst_encode, 0, 0, Opcode_nsau_Slot_xt_flix64_slot0_encode, Opcode_nsau_Slot_xt_flix64_slot0_encode, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_sext_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_sext_encode_fns[] = {
   Opcode_sext_Slot_inst_encode, 0, 0, Opcode_sext_Slot_xt_flix64_slot0_encode, Opcode_sext_Slot_xt_flix64_slot0_encode, Opcode_sext_Slot_xt_flix64_slot1_encode, Opcode_sext_Slot_xt_flix64_slot2_encode, 0
 };
 
-xtensa_opcode_encode_fn Opcode_l32ai_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_l32ai_encode_fns[] = {
   Opcode_l32ai_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_s32ri_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_s32ri_encode_fns[] = {
   Opcode_s32ri_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_s32c1i_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_s32c1i_encode_fns[] = {
   Opcode_s32c1i_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rsr_scompare1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rsr_scompare1_encode_fns[] = {
   Opcode_rsr_scompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wsr_scompare1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wsr_scompare1_encode_fns[] = {
   Opcode_wsr_scompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_xsr_scompare1_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_xsr_scompare1_encode_fns[] = {
   Opcode_xsr_scompare1_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_quou_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_quou_encode_fns[] = {
   Opcode_quou_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_quos_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_quos_encode_fns[] = {
   Opcode_quos_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_remu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_remu_encode_fns[] = {
   Opcode_remu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rems_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rems_encode_fns[] = {
   Opcode_rems_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mull_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mull_encode_fns[] = {
   Opcode_mull_Slot_inst_encode, 0, 0, Opcode_mull_Slot_xt_flix64_slot0_encode, Opcode_mull_Slot_xt_flix64_slot0_encode, Opcode_mull_Slot_xt_flix64_slot1_encode, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_muluh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_muluh_encode_fns[] = {
   Opcode_muluh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mulsh_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mulsh_encode_fns[] = {
   Opcode_mulsh_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rur_fcr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rur_fcr_encode_fns[] = {
   Opcode_rur_fcr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wur_fcr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wur_fcr_encode_fns[] = {
   Opcode_wur_fcr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rur_fsr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rur_fsr_encode_fns[] = {
   Opcode_rur_fsr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wur_fsr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wur_fsr_encode_fns[] = {
   Opcode_wur_fsr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_add_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_add_s_encode_fns[] = {
   Opcode_add_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_sub_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_sub_s_encode_fns[] = {
   Opcode_sub_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mul_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mul_s_encode_fns[] = {
   Opcode_mul_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_madd_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_madd_s_encode_fns[] = {
   Opcode_madd_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_msub_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_msub_s_encode_fns[] = {
   Opcode_msub_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movf_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movf_s_encode_fns[] = {
   Opcode_movf_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movt_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movt_s_encode_fns[] = {
   Opcode_movt_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_moveqz_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_moveqz_s_encode_fns[] = {
   Opcode_moveqz_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movnez_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movnez_s_encode_fns[] = {
   Opcode_movnez_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movltz_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movltz_s_encode_fns[] = {
   Opcode_movltz_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_movgez_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_movgez_s_encode_fns[] = {
   Opcode_movgez_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_abs_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_abs_s_encode_fns[] = {
   Opcode_abs_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_mov_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_mov_s_encode_fns[] = {
   Opcode_mov_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_neg_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_neg_s_encode_fns[] = {
   Opcode_neg_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_un_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_un_s_encode_fns[] = {
   Opcode_un_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_oeq_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_oeq_s_encode_fns[] = {
   Opcode_oeq_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ueq_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ueq_s_encode_fns[] = {
   Opcode_ueq_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_olt_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_olt_s_encode_fns[] = {
   Opcode_olt_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ult_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ult_s_encode_fns[] = {
   Opcode_ult_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ole_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ole_s_encode_fns[] = {
   Opcode_ole_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ule_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ule_s_encode_fns[] = {
   Opcode_ule_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_float_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_float_s_encode_fns[] = {
   Opcode_float_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ufloat_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ufloat_s_encode_fns[] = {
   Opcode_ufloat_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_round_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_round_s_encode_fns[] = {
   Opcode_round_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ceil_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ceil_s_encode_fns[] = {
   Opcode_ceil_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_floor_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_floor_s_encode_fns[] = {
   Opcode_floor_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_trunc_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_trunc_s_encode_fns[] = {
   Opcode_trunc_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_utrunc_s_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_utrunc_s_encode_fns[] = {
   Opcode_utrunc_s_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_rfr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_rfr_encode_fns[] = {
   Opcode_rfr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_wfr_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_wfr_encode_fns[] = {
   Opcode_wfr_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_lsi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_lsi_encode_fns[] = {
   Opcode_lsi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_lsiu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_lsiu_encode_fns[] = {
   Opcode_lsiu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_lsx_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_lsx_encode_fns[] = {
   Opcode_lsx_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_lsxu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_lsxu_encode_fns[] = {
   Opcode_lsxu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ssi_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ssi_encode_fns[] = {
   Opcode_ssi_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ssiu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ssiu_encode_fns[] = {
   Opcode_ssiu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ssx_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ssx_encode_fns[] = {
   Opcode_ssx_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_ssxu_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ssxu_encode_fns[] = {
   Opcode_ssxu_Slot_inst_encode, 0, 0, 0, 0, 0, 0, 0
 };
 
-xtensa_opcode_encode_fn Opcode_beqz_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_beqz_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_beqz_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bnez_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bnez_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bnez_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bgez_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bgez_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bgez_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bltz_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bltz_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bltz_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_beqi_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_beqi_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_beqi_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bnei_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bnei_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bnei_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bgei_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bgei_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bgei_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_blti_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_blti_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_blti_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bgeui_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bgeui_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bgeui_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bltui_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bltui_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bltui_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bbci_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bbci_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bbci_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bbsi_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bbsi_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bbsi_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_beq_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_beq_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_beq_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bne_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bne_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bne_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bge_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bge_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bge_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_blt_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_blt_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_blt_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bgeu_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bgeu_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bgeu_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bltu_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bltu_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bltu_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bany_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bany_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bany_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bnone_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bnone_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bnone_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_ball_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_ball_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_ball_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bnall_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bnall_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bnall_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bbc_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bbc_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bbc_w18_Slot_xt_flix64_slot3_encode
 };
 
-xtensa_opcode_encode_fn Opcode_bbs_w18_encode_fns[] = {
+const xtensa_opcode_encode_fn Opcode_bbs_w18_encode_fns[] = {
   0, 0, 0, 0, 0, 0, 0, Opcode_bbs_w18_Slot_xt_flix64_slot3_encode
 };
 
@@ -19191,7 +18795,7 @@ Slot_xt_format2_Format_xt_flix64_slot3_28_set (xtensa_insnbuf insn,
   insn[1] = (insn[1] & ~0x70000000) | ((slotbuf[1] & 0x7) << 28);
 }
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_inst_get_field_fns[] = {
   Field_t_Slot_inst_get,
   Field_bbi4_Slot_inst_get,
@@ -19330,7 +18934,7 @@ Slot_inst_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_inst_set_field_fns[] = {
   Field_t_Slot_inst_set,
   Field_bbi4_Slot_inst_set,
@@ -19469,7 +19073,7 @@ Slot_inst_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_inst16a_get_field_fns[] = {
   Field_t_Slot_inst16a_get,
   0,
@@ -19608,7 +19212,7 @@ Slot_inst16a_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_inst16a_set_field_fns[] = {
   Field_t_Slot_inst16a_set,
   0,
@@ -19747,7 +19351,7 @@ Slot_inst16a_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_inst16b_get_field_fns[] = {
   Field_t_Slot_inst16b_get,
   0,
@@ -19886,7 +19490,7 @@ Slot_inst16b_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_inst16b_set_field_fns[] = {
   Field_t_Slot_inst16b_set,
   0,
@@ -20025,7 +19629,7 @@ Slot_inst16b_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_xt_flix64_slot0_get_field_fns[] = {
   Field_t_Slot_xt_flix64_slot0_get,
   0,
@@ -20164,7 +19768,7 @@ Slot_xt_flix64_slot0_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_xt_flix64_slot0_set_field_fns[] = {
   Field_t_Slot_xt_flix64_slot0_set,
   0,
@@ -20303,7 +19907,7 @@ Slot_xt_flix64_slot0_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_xt_flix64_slot1_get_field_fns[] = {
   Field_t_Slot_xt_flix64_slot1_get,
   0,
@@ -20442,7 +20046,7 @@ Slot_xt_flix64_slot1_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_xt_flix64_slot1_set_field_fns[] = {
   Field_t_Slot_xt_flix64_slot1_set,
   0,
@@ -20581,7 +20185,7 @@ Slot_xt_flix64_slot1_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_xt_flix64_slot2_get_field_fns[] = {
   Field_t_Slot_xt_flix64_slot2_get,
   0,
@@ -20720,7 +20324,7 @@ Slot_xt_flix64_slot2_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_xt_flix64_slot2_set_field_fns[] = {
   Field_t_Slot_xt_flix64_slot2_set,
   0,
@@ -20859,7 +20463,7 @@ Slot_xt_flix64_slot2_set_field_fns[] = {
   Implicit_Field_set
 };
 
-static xtensa_get_field_fn
+static const xtensa_get_field_fn
 Slot_xt_flix64_slot3_get_field_fns[] = {
   Field_t_Slot_xt_flix64_slot3_get,
   0,
@@ -20998,7 +20602,7 @@ Slot_xt_flix64_slot3_get_field_fns[] = {
   Implicit_Field_brall_get
 };
 
-static xtensa_set_field_fn
+static const xtensa_set_field_fn
 Slot_xt_flix64_slot3_set_field_fns[] = {
   Field_t_Slot_xt_flix64_slot3_set,
   0,
@@ -21210,15 +20814,15 @@ Format_xt_format2_encode (xtensa_insnbuf insn)
   insn[1] = 0;
 }
 
-static int Format_x24_slots[] = { 0 };
+static const int Format_x24_slots[] = { 0 };
 
-static int Format_x16a_slots[] = { 1 };
+static const int Format_x16a_slots[] = { 1 };
 
-static int Format_x16b_slots[] = { 2 };
+static const int Format_x16b_slots[] = { 2 };
 
-static int Format_xt_format1_slots[] = { 3, 5, 6 };
+static const int Format_xt_format1_slots[] = { 3, 5, 6 };
 
-static int Format_xt_format2_slots[] = { 4, 7 };
+static const int Format_xt_format2_slots[] = { 4, 7 };
 
 static xtensa_format_internal formats[] = {
   { "x24", 3, Format_x24_encode, 1, Format_x24_slots },
@@ -21245,7 +20849,7 @@ format_decoder (const xtensa_insnbuf insn)
   return -1;
 }
 
-static int length_table[16] = {
+static const int length_table[16] = {
   3,
   3,
   3,

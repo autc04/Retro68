@@ -44,7 +44,6 @@
 	.byte 0x0f, 0x1e, 0x04, 0x59
 	.byte 0x0f, 0x1f, 0x04, 0x59
 
-	nop (%rax) 
 	nop %rax
 	nop %eax
 	nop %ax
@@ -54,7 +53,6 @@
 	nopq %rax
 	nopl %eax
 	nopw %ax
-	nop (%r10) 
 	nop %r10
 	nop %r10d
 	nop %r10w

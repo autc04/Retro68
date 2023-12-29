@@ -2,7 +2,7 @@
 #name: automatic section group a
 #source: groupauto.s
 # The RX port uses non-standard section names.
-#not-target: rx-*
+#notarget: rx-*
 
 #...
 [ 	]*\[.*\][ 	]+\.group[ 	]+GROUP.*

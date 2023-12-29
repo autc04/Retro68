@@ -98,8 +98,8 @@ Object::Object(string input)
             if(boost::algorithm::starts_with(name,".rela."))
             {
                 string progbitsName = name.substr(5);
-                assert(sections.find(progbitsName) != sections.end());
-                sections[progbitsName]->SetRela(scn);
+                if(sections.find(progbitsName) != sections.end())
+                    sections[progbitsName]->SetRela(scn);
             }
         }
         if(shdr.sh_type == SHT_PROGBITS && (shdr.sh_flags & SHF_ALLOC))

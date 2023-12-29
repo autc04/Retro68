@@ -1,5 +1,5 @@
 /* IPA predicates.
-   Copyright (C) 2003-2019 Free Software Foundation, Inc.
+   Copyright (C) 2003-2022 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -22,16 +22,36 @@ along with GCC; see the file COPYING3.  If not see
    inlined into (i.e. known constant values of function parameters.
 
    Conditions that are interesting for function body are collected into CONDS
-   vector.  They are of simple for  function_param OP VAL, where VAL is
-   IPA invariant.  The conditions are then referred by predicates.  */
+   vector.  They are of simple as kind of a mathematical transformation on
+   function parameter, T(function_param), in which the parameter occurs only
+   once, and other operands are IPA invariant.  The conditions are then
+   referred by predicates.  */
+
+
+/* A simplified representation of tree node, for unary, binary and ternary
+   operation.  Computations on parameter are decomposed to a series of this
+   kind of structure.  */
+struct GTY(()) expr_eval_op
+{
+  /* Result type of expression.  */
+  tree type;
+  /* Constant operands in expression, there are at most two.  */
+  tree val[2];
+  /* Index of parameter operand in expression.  */
+  unsigned index : 2;
+  /* Operation code of expression.  */
+  ENUM_BITFIELD(tree_code) code : 16;
+};
+
+typedef vec<expr_eval_op, va_gc> *expr_eval_ops;
 
 struct GTY(()) condition
 {
   /* If agg_contents is set, this is the offset from which the used data was
      loaded.  */
   HOST_WIDE_INT offset;
-  /* Size of the access reading the data (or the PARM_DECL SSA_NAME).  */
-  HOST_WIDE_INT size;
+  /* Type of the access reading the data (or the PARM_DECL SSA_NAME).  */
+  tree type;
   tree val;
   int operand_num;
   ENUM_BITFIELD(tree_code) code : 16;
@@ -41,6 +61,9 @@ struct GTY(()) condition
   /* If agg_contents is set, this differentiates between loads from data
      passed by reference and by value.  */
   unsigned by_ref : 1;
+  /* A set of sequential operations on the parameter, which can be seen as
+     a mathematical function on the parameter.  */
+  expr_eval_ops param_ops;
 };
 
 /* Information kept about parameter of call site.  */
@@ -53,12 +76,24 @@ struct inline_param_summary
      parameters REG_BR_PROB_BASE.
 
      Value 0 is reserved for compile time invariants. */
-  int change_prob;
+  short change_prob;
+  unsigned points_to_local_or_readonly_memory : 1;
+  bool equal_to (const inline_param_summary &other) const
+  {
+    return change_prob == other.change_prob
+	   && points_to_local_or_readonly_memory
+	      == other.points_to_local_or_readonly_memory;
+  }
+  bool useless_p (void) const
+  {
+    return change_prob == REG_BR_PROB_BASE
+	   && !points_to_local_or_readonly_memory;
+  }
 };
 
 typedef vec<condition, va_gc> *conditions;
 
-/* Predicates are used to repesent function parameters (such as runtime)
+/* Predicates are used to represent function parameters (such as runtime)
    which depend on a context function is called in.
 
    Predicates are logical formulas in conjunctive-disjunctive form consisting
@@ -76,7 +111,7 @@ typedef vec<condition, va_gc> *conditions;
    is not.  */
 
 typedef uint32_t clause_t;
-class predicate
+class ipa_predicate
 {
 public:
   enum predicate_conditions
@@ -86,7 +121,7 @@ public:
       first_dynamic_condition = 2
     };
 
-  /* Maximal number of conditions predicate can reffer to.  This is limited
+  /* Maximal number of conditions predicate can refer to.  This is limited
      by using clause_t to be 32bit.  */
   static const int num_conditions = 32;
 
@@ -103,7 +138,7 @@ public:
 
 
   /* Initialize predicate either to true of false depending on P.  */
-  inline predicate (bool p = true)
+  inline ipa_predicate (bool p = true)
     {
       if (p)
         /* True predicate.  */
@@ -114,42 +149,42 @@ public:
     }
 
   /* Sanity check that we do not mix pointers to predicates with predicates.  */
-  inline predicate (predicate *)
+  inline ipa_predicate (ipa_predicate *)
     {
       gcc_unreachable ();
     }
 
   /* Return predicate testing condition I.  */
-  static inline predicate predicate_testing_cond (int i)
+  static inline ipa_predicate predicate_testing_cond (int i)
     {
-      class predicate p;
+      ipa_predicate p;
       p.set_to_cond (i + first_dynamic_condition);
       return p;
     }
 
   /* Return predicate testing that function was not inlined.  */
-  static predicate not_inlined (void)
+  static ipa_predicate not_inlined (void)
     {
-      class predicate p;
+      ipa_predicate p;
       p.set_to_cond (not_inlined_condition);
       return p;
     }
 
-  /* Compute logical and of predicates.  */
-  predicate & operator &= (const predicate &);
-  inline predicate operator &(const predicate &p) const
+  /* Compute logical and of ipa_predicates.  */
+  ipa_predicate & operator &= (const ipa_predicate &);
+  inline ipa_predicate operator &(const ipa_predicate &p) const
     {
-      predicate ret = *this;
+      ipa_predicate ret = *this;
       ret &= p;
       return ret;
     }
 
-  /* Compute logical or of predicates.  This is not operator because
+  /* Compute logical or of ipa_predicates.  This is not operator because
      extra parameter CONDITIONS is needed  */
-  predicate or_with (conditions, const predicate &) const;
+  ipa_predicate or_with (conditions, const ipa_predicate &) const;
 
-  /* Return true if predicates are known to be equal.  */
-  inline bool operator==(const predicate &p2) const
+  /* Return true if ipa_predicates are known to be equal.  */
+  inline bool operator==(const ipa_predicate &p2) const
     {
       int i;
       for (i = 0; m_clause[i]; i++)
@@ -180,7 +215,7 @@ public:
       return false;
     }
 
-  inline bool operator!=(const predicate &p2) const
+  inline bool operator!=(const ipa_predicate &p2) const
     {
       return !(*this == p2);
     }
@@ -201,16 +236,19 @@ public:
   void dump (FILE *f, conditions, bool nl=true) const;
   void DEBUG_FUNCTION debug (conditions) const;
 
-  /* Return predicate equal to THIS after duplication.  */
-  predicate remap_after_duplication (clause_t);
+  /* Return ipa_predicate equal to THIS after duplication.  */
+  ipa_predicate remap_after_duplication (clause_t);
 
-  /* Return predicate equal to THIS after inlining.  */
-  predicate remap_after_inlining (struct ipa_fn_summary *,
-			          struct ipa_fn_summary *,
-			          vec<int>, vec<int>, clause_t, const predicate &);
+  /* Return ipa_predicate equal to THIS after inlining.  */
+  ipa_predicate remap_after_inlining (class ipa_fn_summary *,
+				      ipa_node_params *params_summary,
+				      ipa_fn_summary *,
+				      const vec<int> &,
+				      const vec<HOST_WIDE_INT> &,
+				      clause_t, const ipa_predicate &);
 
-  void stream_in (struct lto_input_block *);
-  void stream_out (struct output_block *);
+  void stream_in (lto_input_block *);
+  void stream_out (output_block *);
 
 private:
   static const int max_clauses = 8;
@@ -227,6 +265,9 @@ private:
 };
 
 void dump_condition (FILE *f, conditions conditions, int cond);
-predicate add_condition (struct ipa_fn_summary *summary, int operand_num,
-			 HOST_WIDE_INT size, struct agg_position_info *aggpos,
-			 enum tree_code code, tree val);
+ipa_predicate add_condition (ipa_fn_summary *summary,
+			     ipa_node_params *params_summary,
+			     int operand_num,
+			     tree type, struct agg_position_info *aggpos,
+			     enum tree_code code, tree val,
+			     expr_eval_ops param_ops = NULL);

@@ -14,6 +14,8 @@ _start:
 	.type __start,"function"
 	.global __start
 __start:
-	.type __start,"function"
+	.type _main,"function"
+	.global _main
+_main:
 	call	foo
 	movl	$foo,%eax

@@ -1,7 +1,7 @@
 // { dg-do compile }
 // { dg-require-normal-namespace "" }
 
-// Copyright (C) 2007-2019 Free Software Foundation, Inc.
+// Copyright (C) 2007-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,13 +20,25 @@
 
 #include <memory>
 
+#if __cplusplus >= 201103L
+# define NOTHROW noexcept
+#else
+# define NOTHROW
+#endif
+
 namespace std {
   //  lib.default.allocator, the default allocator:
   template <class T> class allocator;
   template <> class allocator<void>;
   template <class T, class U>
+#if __cplusplus > 201703L
+  constexpr
+#endif
   bool operator==(const allocator<T>&, const allocator<U>&) throw();
   template <class T, class U>
+#if __cplusplus > 201703L
+  constexpr
+#endif
   bool operator!=(const allocator<T>&, const allocator<U>&) throw();
 
   //  lib.storage.iterator, raw storage iterator:
@@ -34,7 +46,7 @@ namespace std {
 
   //  lib.temporary.buffer, temporary buffers:
   template <class T>
-  pair<T*,ptrdiff_t> get_temporary_buffer(ptrdiff_t n);
+  pair<T*,ptrdiff_t> get_temporary_buffer(ptrdiff_t n) NOTHROW;
   template <class T>
   void return_temporary_buffer(T* p);
 

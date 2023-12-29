@@ -36,3 +36,4 @@ D5:
 	
 	.picptr funcdesc(UFb)
 	.word	UFb
+	.section	.note.GNU-stack

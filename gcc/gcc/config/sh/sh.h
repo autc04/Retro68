@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler for Renesas / SuperH SH.
-   Copyright (C) 1993-2019 Free Software Foundation, Inc.
+   Copyright (C) 1993-2022 Free Software Foundation, Inc.
    Contributed by Steve Chamberlain (sac@cygnus.com).
    Improved by Jim Wilson (wilson@cygnus.com).
 
@@ -24,8 +24,8 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config/vxworks-dummy.h"
 
-/* Unfortunately, insn-attrtab.c doesn't include insn-codes.h.  We can't
-   include it here, because bconfig.h is also included by gencodes.c .  */
+/* Unfortunately, insn-attrtab.cc doesn't include insn-codes.h.  We can't
+   include it here, because bconfig.h is also included by gencodes.cc .  */
 /* ??? No longer true.  */
 extern int code_for_indirect_jump_scratch;
 
@@ -69,6 +69,8 @@ extern int code_for_indirect_jump_scratch;
    FPU is disabled (which makes it compatible with SH4al-dsp).  */
 #define TARGET_SH4A_FP (TARGET_SH4A && TARGET_FPU_ANY)
 
+/* True if the FPU is a SH4-300 variant.  */
+#define TARGET_FPU_SH4_300 (TARGET_FPU_ANY && TARGET_SH4_300)
 
 /* This is not used by the SH2E calling convention  */
 #define TARGET_VARARGS_PRETEND_ARGS(FUN_DECL) \
@@ -431,7 +433,7 @@ extern const sh_atomic_model& selected_atomic_model (void);
 #define MIN_UNITS_PER_WORD 4
 
 /* Scaling factor for Dwarf data offsets for CFI information.
-   The dwarf2out.c default would use -UNITS_PER_WORD.  */
+   The dwarf2out.cc default would use -UNITS_PER_WORD.  */
 #define DWARF_CIE_DATA_ALIGNMENT -4
 
 /* Width in bits of a pointer.
@@ -728,45 +730,6 @@ extern char sh_additional_register_names[ADDREGNAMES_SIZE] \
   0,      0,      0,      0,      0,      0,      0,      0,		\
 /*"gbr",  "ap",	  "pr",   "t",    "mach", "macl", "fpul", "fpscr", */	\
   1,      1,      1,      1,      1,      1,      0,      1,		\
-/*"rap",  "sfp","fpscr0","fpscr1"  */					\
-  1,      1,      1,      1,						\
-}
-
-/* 1 for registers not available across function calls.
-   These must include the FIXED_REGISTERS and also any
-   registers that can be used without being saved.
-   The latter must include the registers where values are returned
-   and the register where structure-value addresses are passed.
-   Aside from that, you can include as many other registers as you like.  */
-#define CALL_USED_REGISTERS						\
-{									\
-/* Regular registers.  */						\
-  1,      1,      1,      1,      1,      1,      1,      1,		\
-  /* R8 and R9 are call-clobbered on SH5, but not on earlier SH ABIs.	\
-     Only the lower 32bits of R10-R14 are guaranteed to be preserved	\
-     across SH5 function calls.  */					\
-  0,      0,      0,      0,      0,      0,      0,      1,		\
-  1,      1,      1,      1,      1,      1,      1,      1,		\
-  1,      1,      1,      1,      0,      0,      0,      0,		\
-  0,      0,      0,      0,      1,      1,      1,      1,		\
-  1,      1,      1,      1,      0,      0,      0,      0,		\
-  0,      0,      0,      0,      0,      0,      0,      0,		\
-  0,      0,      0,      0,      1,      1,      1,      1,		\
-/* FP registers.  */							\
-  1,      1,      1,      1,      1,      1,      1,      1,		\
-  1,      1,      1,      1,      0,      0,      0,      0,		\
-  1,      1,      1,      1,      1,      1,      1,      1,		\
-  1,      1,      1,      1,      1,      1,      1,      1,		\
-  1,      1,      1,      1,      0,      0,      0,      0,		\
-  0,      0,      0,      0,      0,      0,      0,      0,		\
-  0,      0,      0,      0,      0,      0,      0,      0,		\
-  0,      0,      0,      0,      0,      0,      0,      0,		\
-/* Branch target registers.  */						\
-  1,      1,      1,      1,      1,      0,      0,      0,		\
-/* XD registers.  */							\
-  1,      1,      1,      1,      1,      1,      0,      0,		\
-/*"gbr",  "ap",	  "pr",   "t",    "mach", "macl", "fpul", "fpscr", */	\
-  1,      1,      1,      1,      1,      1,      1,      1,		\
 /*"rap",  "sfp","fpscr0","fpscr1"  */					\
   1,      1,      1,      1,						\
 }
@@ -1321,7 +1284,7 @@ extern bool current_function_interrupt;
    They give nonzero only if REGNO is a hard reg of the suitable class
    or a pseudo reg currently allocated to a suitable hard reg.
    Since they use reg_renumber, they are safe only once reg_renumber
-   has been allocated, which happens in reginfo.c during register
+   has been allocated, which happens in reginfo.cc during register
    allocation.  */
 #define REGNO_OK_FOR_BASE_P(REGNO) \
   (GENERAL_OR_AP_REGISTER_P (REGNO) \

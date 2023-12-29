@@ -13,8 +13,8 @@ Disassembly of section .text:
   10:	93c3fc41 	extr	x1, x2, x3, #63
   14:	93c30041 	extr	x1, x2, x3, #0
   18:	13837c41 	extr	w1, w2, w3, #31
-  1c:	9a9f17e1 	cset	x1, eq  // eq = none
-  20:	da9f13e1 	csetm	x1, eq  // eq = none
+  1c:	9a9f17e1 	cset	x1, eq	// eq = none
+  20:	da9f13e1 	csetm	x1, eq	// eq = none
   24:	71000021 	subs	w1, w1, #0x0
   28:	7100003f 	cmp	w1, #0x0
   2c:	4b0203e1 	neg	w1, w2

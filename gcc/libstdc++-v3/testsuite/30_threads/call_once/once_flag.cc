@@ -1,7 +1,6 @@
 // { dg-do compile { target c++11 } }
-// { dg-require-gthreads "" }
 
-// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+// Copyright (C) 2008-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,8 +19,17 @@
 
 
 #include <mutex>
+#include <testsuite_common_types.h>
 
 void test01()
 {
+  static_assert( std::is_default_constructible<std::once_flag>::value, "");
+
   std::once_flag once_flag;
+}
+
+void test02()
+{
+  __gnu_test::constexpr_default_constructible test;
+  test.operator()<std::once_flag>();
 }

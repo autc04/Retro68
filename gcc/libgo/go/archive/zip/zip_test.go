@@ -11,10 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"internal/race"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"runtime"
 	"sort"
 	"strings"
@@ -112,6 +110,47 @@ func TestFileHeaderRoundTrip64(t *testing.T) {
 		ModifiedDate:       5678,
 	}
 	testHeaderRoundTrip(fh, uint32max, fh.UncompressedSize64, t)
+}
+
+func TestFileHeaderRoundTripModified(t *testing.T) {
+	fh := &FileHeader{
+		Name:             "foo.txt",
+		UncompressedSize: 987654321,
+		Modified:         time.Now().Local(),
+		ModifiedTime:     1234,
+		ModifiedDate:     5678,
+	}
+	fi := fh.FileInfo()
+	fh2, err := FileInfoHeader(fi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fh2.Modified, fh.Modified.UTC(); got != want {
+		t.Errorf("Modified: got %s, want %s\n", got, want)
+	}
+	if got, want := fi.ModTime(), fh.Modified.UTC(); got != want {
+		t.Errorf("Modified: got %s, want %s\n", got, want)
+	}
+}
+
+func TestFileHeaderRoundTripWithoutModified(t *testing.T) {
+	fh := &FileHeader{
+		Name:             "foo.txt",
+		UncompressedSize: 987654321,
+		ModifiedTime:     1234,
+		ModifiedDate:     5678,
+	}
+	fi := fh.FileInfo()
+	fh2, err := FileInfoHeader(fi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fh2.ModTime(), fh.ModTime(); got != want {
+		t.Errorf("Modified: got %s, want %s\n", got, want)
+	}
+	if got, want := fi.ModTime(), fh.ModTime(); got != want {
+		t.Errorf("Modified: got %s, want %s\n", got, want)
+	}
 }
 
 type repeatedByte struct {
@@ -268,7 +307,7 @@ func TestZip64EdgeCase(t *testing.T) {
 // Tests that we generate a zip64 file if the directory at offset
 // 0xFFFFFFFF, but not before.
 func TestZip64DirectoryOffset(t *testing.T) {
-	if testing.Short() && race.Enabled {
+	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
 	t.Parallel()
@@ -313,7 +352,7 @@ func TestZip64DirectoryOffset(t *testing.T) {
 
 // At 16k records, we need to generate a zip64 file.
 func TestZip64ManyRecords(t *testing.T) {
-	if testing.Short() && race.Enabled {
+	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
 	t.Parallel()
@@ -580,7 +619,7 @@ func testZip64(t testing.TB, size int64) *rleBuffer {
 			t.Fatal("read:", err)
 		}
 	}
-	gotEnd, err := ioutil.ReadAll(rc)
+	gotEnd, err := io.ReadAll(rc)
 	if err != nil {
 		t.Fatal("read end:", err)
 	}

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2011-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2011-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -57,7 +57,8 @@ package SPARK_Xrefs is
    Heap : Entity_Id := Empty;
    --  A special entity which denotes the heap object; it should be considered
    --  constant, but needs to be variable, because it can only be initialized
-   --  after the node tables are created.
+   --  after the node tables are created. Also, it is only created if there is
+   --  an actual need for it, and remains Empty otherwise.
 
    -----------------
    -- Subprograms --

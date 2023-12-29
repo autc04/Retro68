@@ -1,4 +1,4 @@
-#as: -march=armv8.2-a+profile
+#as: -march=armv8-a
 #objdump: -dr
 
 .*:     file format .*
@@ -6,7 +6,11 @@
 Disassembly of section \.text:
 
 0+ <.*>:
-   0:	d503221f 	esb
-   4:	d503221f 	esb
-   8:	d503223f 	psb	csync
-   c:	d503223f 	psb	csync
+.*:	d503221f 	esb
+.*:	d503221f 	esb
+.*:	d503223f 	psb	csync
+.*:	d503223f 	psb	csync
+.*:	d503223f 	psb	csync
+.*:	d503225f 	tsb	csync
+.*:	d503225f 	tsb	csync
+.*:	d503225f 	tsb	csync

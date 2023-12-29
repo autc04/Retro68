@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,10 +33,6 @@
 
 --  This package contains all the GNULL primitives that interface directly with
 --  the underlying OS.
-
-pragma Polling (Off);
---  Turn off polling, we do not want ATC polling to take place during tasking
---  operations. It causes infinite loops and other problems.
 
 with Interfaces.C;
 with Interfaces.C.Strings;
@@ -111,12 +107,12 @@ package body System.Task_Primitives.Operations is
    Single_RTS_Lock : aliased RTS_Lock;
    --  This is a lock to allow only one thread of control in the RTS at
    --  a time; it is used to execute in mutual exclusion from all other tasks.
-   --  Used mainly in Single_Lock mode, but also to protect All_Tasks_List
+   --  Used to protect All_Tasks_List
 
-   Time_Slice_Val : Integer;
+   Time_Slice_Val : constant Integer;
    pragma Import (C, Time_Slice_Val, "__gl_time_slice_val");
 
-   Dispatching_Policy : Character;
+   Dispatching_Policy : constant Character;
    pragma Import (C, Dispatching_Policy, "__gl_task_dispatching_policy");
 
    function Get_Policy (Prio : System.Any_Priority) return Character;
@@ -290,7 +286,7 @@ package body System.Task_Primitives.Operations is
 
       Result_Bool := ResetEvent (HANDLE (Cond.all));
       pragma Assert (Result_Bool = Win32.TRUE);
-      Unlock (L, Global_Lock => True);
+      Unlock (L);
 
       --  No problem if we are interrupted here: if the condition is signaled,
       --  WaitForSingleObject will simply not block
@@ -298,7 +294,7 @@ package body System.Task_Primitives.Operations is
       Result := WaitForSingleObject (HANDLE (Cond.all), Wait_Infinite);
       pragma Assert (Result = 0);
 
-      Write_Lock (L, Global_Lock => True);
+      Write_Lock (L);
    end Cond_Wait;
 
    ---------------------
@@ -330,7 +326,7 @@ package body System.Task_Primitives.Operations is
 
       Result := ResetEvent (HANDLE (Cond.all));
       pragma Assert (Result = Win32.TRUE);
-      Unlock (L, Global_Lock => True);
+      Unlock (L);
 
       --  No problem if we are interrupted here: if the condition is signaled,
       --  WaitForSingleObject will simply not block.
@@ -355,7 +351,7 @@ package body System.Task_Primitives.Operations is
          end if;
       end if;
 
-      Write_Lock (L, Global_Lock => True);
+      Write_Lock (L);
 
       --  Ensure post-condition
 
@@ -465,21 +461,14 @@ package body System.Task_Primitives.Operations is
       Ceiling_Violation := False;
    end Write_Lock;
 
-   procedure Write_Lock
-     (L           : not null access RTS_Lock;
-      Global_Lock : Boolean := False)
-   is
+   procedure Write_Lock (L : not null access RTS_Lock) is
    begin
-      if not Single_Lock or else Global_Lock then
-         EnterCriticalSection (L);
-      end if;
+      EnterCriticalSection (L);
    end Write_Lock;
 
    procedure Write_Lock (T : Task_Id) is
    begin
-      if not Single_Lock then
-         EnterCriticalSection (T.Common.LL.L'Access);
-      end if;
+      EnterCriticalSection (T.Common.LL.L'Access);
    end Write_Lock;
 
    ---------------
@@ -501,19 +490,14 @@ package body System.Task_Primitives.Operations is
       LeaveCriticalSection (L.Mutex'Access);
    end Unlock;
 
-   procedure Unlock
-     (L : not null access RTS_Lock; Global_Lock : Boolean := False) is
+   procedure Unlock (L : not null access RTS_Lock) is
    begin
-      if not Single_Lock or else Global_Lock then
-         LeaveCriticalSection (L);
-      end if;
+      LeaveCriticalSection (L);
    end Unlock;
 
    procedure Unlock (T : Task_Id) is
    begin
-      if not Single_Lock then
-         LeaveCriticalSection (T.Common.LL.L'Access);
-      end if;
+      LeaveCriticalSection (T.Common.LL.L'Access);
    end Unlock;
 
    -----------------
@@ -544,11 +528,7 @@ package body System.Task_Primitives.Operations is
    begin
       pragma Assert (Self_ID = Self);
 
-      if Single_Lock then
-         Cond_Wait (Self_ID.Common.LL.CV'Access, Single_RTS_Lock'Access);
-      else
-         Cond_Wait (Self_ID.Common.LL.CV'Access, Self_ID.Common.LL.L'Access);
-      end if;
+      Cond_Wait (Self_ID.Common.LL.CV'Access, Self_ID.Common.LL.L'Access);
 
       if Self_ID.Deferral_Level = 0
         and then Self_ID.Pending_ATC_Level < Self_ID.ATC_Nesting_Level
@@ -579,7 +559,6 @@ package body System.Task_Primitives.Operations is
       Abs_Time   : Duration;
 
       Result : Integer;
-      pragma Unreferenced (Result);
 
       Local_Timedout : Boolean;
 
@@ -599,19 +578,12 @@ package body System.Task_Primitives.Operations is
          loop
             exit when Self_ID.Pending_ATC_Level < Self_ID.ATC_Nesting_Level;
 
-            if Single_Lock then
-               Cond_Timed_Wait
-                 (Self_ID.Common.LL.CV'Access,
-                  Single_RTS_Lock'Access,
-                  Rel_Time, Local_Timedout, Result);
-            else
-               Cond_Timed_Wait
-                 (Self_ID.Common.LL.CV'Access,
-                  Self_ID.Common.LL.L'Access,
-                  Rel_Time, Local_Timedout, Result);
-            end if;
-
+            Cond_Timed_Wait
+              (Self_ID.Common.LL.CV'Access,
+               Self_ID.Common.LL.L'Access,
+               Rel_Time, Local_Timedout, Result);
             Check_Time := Monotonic_Clock;
+
             exit when Abs_Time <= Check_Time;
 
             if not Local_Timedout then
@@ -642,13 +614,8 @@ package body System.Task_Primitives.Operations is
 
       Timedout : Boolean;
       Result   : Integer;
-      pragma Unreferenced (Timedout, Result);
 
    begin
-      if Single_Lock then
-         Lock_RTS;
-      end if;
-
       Write_Lock (Self_ID);
 
       if Mode = Relative then
@@ -665,19 +632,12 @@ package body System.Task_Primitives.Operations is
          loop
             exit when Self_ID.Pending_ATC_Level < Self_ID.ATC_Nesting_Level;
 
-            if Single_Lock then
-               Cond_Timed_Wait
-                 (Self_ID.Common.LL.CV'Access,
-                  Single_RTS_Lock'Access,
-                  Rel_Time, Timedout, Result);
-            else
-               Cond_Timed_Wait
-                 (Self_ID.Common.LL.CV'Access,
-                  Self_ID.Common.LL.L'Access,
-                  Rel_Time, Timedout, Result);
-            end if;
-
+            Cond_Timed_Wait
+              (Self_ID.Common.LL.CV'Access,
+               Self_ID.Common.LL.L'Access,
+               Rel_Time, Timedout, Result);
             Check_Time := Monotonic_Clock;
+
             exit when Abs_Time <= Check_Time;
 
             Rel_Time := Abs_Time - Check_Time;
@@ -687,11 +647,6 @@ package body System.Task_Primitives.Operations is
       end if;
 
       Unlock (Self_ID);
-
-      if Single_Lock then
-         Unlock_RTS;
-      end if;
-
       Yield;
    end Timed_Delay;
 
@@ -845,10 +800,7 @@ package body System.Task_Primitives.Operations is
       Self_ID.Common.LL.Thread := Null_Thread_Id;
 
       Initialize_Cond (Self_ID.Common.LL.CV'Access);
-
-      if not Single_Lock then
-         Initialize_Lock (Self_ID.Common.LL.L'Access, ATCB_Level);
-      end if;
+      Initialize_Lock (Self_ID.Common.LL.L'Access, ATCB_Level);
 
       Succeeded := True;
    end Initialize_TCB;
@@ -976,10 +928,7 @@ package body System.Task_Primitives.Operations is
       pragma Unreferenced (Succeeded);
 
    begin
-      if not Single_Lock then
-         Finalize_Lock (T.Common.LL.L'Access);
-      end if;
-
+      Finalize_Lock (T.Common.LL.L'Access);
       Finalize_Cond (T.Common.LL.CV'Access);
 
       if T.Known_Tasks_Index /= -1 then
@@ -1035,7 +984,7 @@ package body System.Task_Primitives.Operations is
 
    procedure Lock_RTS is
    begin
-      Write_Lock (Single_RTS_Lock'Access, Global_Lock => True);
+      Write_Lock (Single_RTS_Lock'Access);
    end Lock_RTS;
 
    ----------------
@@ -1044,7 +993,7 @@ package body System.Task_Primitives.Operations is
 
    procedure Unlock_RTS is
    begin
-      Unlock (Single_RTS_Lock'Access, Global_Lock => True);
+      Unlock (Single_RTS_Lock'Access);
    end Unlock_RTS;
 
    ----------------

@@ -1,7 +1,7 @@
 #name: Absolute non-overflowing relocs
 #source: ../ld-i386/abs.s
 #source: ../ld-i386/zero.s
-#ld:
+#ld: -z noseparate-code
 #objdump: -rs
 
 .*:     file format .*

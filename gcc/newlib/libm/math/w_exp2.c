@@ -33,9 +33,6 @@ DESCRIPTION
 	$2^x$
 	@end tex
 
-	You can use the (non-ANSI) function <<matherr>> to specify
-	error handling for these functions.
-
 RETURNS
 	On success, <<exp2>> and <<exp2f>> return the calculated value.
 	If the result underflows, the returned value is <<0>>.  If the
@@ -52,6 +49,7 @@ PORTABILITY
  */
 
 #include "fdlibm.h"
+#if __OBSOLETE_MATH
 #include <errno.h>
 #include <math.h>
 
@@ -68,3 +66,4 @@ PORTABILITY
 }
 
 #endif /* defined(_DOUBLE_IS_32BITS) */
+#endif /* __OBSOLETE_MATH */

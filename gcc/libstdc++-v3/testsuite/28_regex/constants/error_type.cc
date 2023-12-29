@@ -1,8 +1,9 @@
 // { dg-do compile { target c++11 } }
+// { dg-timeout-factor 2 }
 //
 // 2009-06-17  Stephen M. Webb  <stephen.webb@xandros.com>
 //
-// Copyright (C) 2009-2019 Free Software Foundation, Inc.
+// Copyright (C) 2009-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,7 +20,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// 28.5.3 
+// C++11 28.5.3 [re.err]
 
 #include <regex>
 

@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *          Copyright (C) 1992-2019, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2022, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -54,8 +54,14 @@
 #endif
 
 #ifdef IN_RTS
+
+#ifdef STANDALONE
+#include "runtime.h"
+#else
 #include "tconfig.h"
 #include "tsystem.h"
+#endif
+
 #include <sys/stat.h>
 
 /* We don't have libiberty, so use malloc.  */
@@ -72,7 +78,7 @@
 extern "C" {
 #endif
 
-extern void __gnat_raise_program_error (const char *, int);
+extern void __gnat_raise_program_error (const void *, int);
 
 /* Addresses of exception data blocks for predefined exceptions.  Tasking_Error
    is not used in this unit, and the abort signal is only used on IRIX.
@@ -83,16 +89,15 @@ extern struct Exception_Data program_error;
 extern struct Exception_Data storage_error;
 
 /* For the Cert run time we use the regular raise exception routine because
-   Raise_From_Signal_Handler is not available.  */
+   __gnat_raise_from_signal_handler is not available.  */
 #ifdef CERT
-#define Raise_From_Signal_Handler \
-                      __gnat_raise_exception
-extern void Raise_From_Signal_Handler (struct Exception_Data *, const char *);
+#define Raise_From_Signal_Handler __gnat_raise_exception
 #else
-#define Raise_From_Signal_Handler \
-                      ada__exceptions__raise_from_signal_handler
-extern void Raise_From_Signal_Handler (struct Exception_Data *, const char *);
+#define Raise_From_Signal_Handler __gnat_raise_from_signal_handler
 #endif
+
+extern void Raise_From_Signal_Handler (struct Exception_Data *, const void *)
+  ATTRIBUTE_NORETURN;
 
 /* Global values computed by the binder.  Note that these variables are
    declared here, not in the binder file, to avoid having unresolved
@@ -116,6 +121,7 @@ int   __gl_default_stack_size            = -1;
 int   __gl_leap_seconds_support          = 0;
 int   __gl_canonical_streams             = 0;
 char *__gl_bind_env_addr                 = NULL;
+int   __gl_xdr_stream                    = 0;
 
 /* This value is not used anymore, but kept for bootstrapping purpose.  */
 int   __gl_zero_cost_exceptions          = 0;
@@ -463,6 +469,7 @@ void fake_linux_sigemptyset (sigset_t *set)
 void
 __gnat_adjust_context_for_raise (int signo ATTRIBUTE_UNUSED, void *ucontext)
 {
+#ifndef STANDALONE
   mcontext_t *mcontext = &((ucontext_t *) ucontext)->uc_mcontext;
 
   /* On the i386 and x86-64 architectures, stack checking is performed by
@@ -511,6 +518,7 @@ __gnat_adjust_context_for_raise (int signo ATTRIBUTE_UNUSED, void *ucontext)
      mode (arm vs thumb) as the signaling compilation unit, this works.  */
   if (mcontext->arm_cpsr & (1<<CPSR_THUMB_BIT))
     mcontext->arm_pc+=1;
+#endif
 #endif
 #endif
 }
@@ -570,12 +578,8 @@ __gnat_error_handler (int sig, siginfo_t *si ATTRIBUTE_UNUSED, void *ucontext)
 
 #ifndef __ia64__
 #define HAVE_GNAT_ALTERNATE_STACK 1
-/* This must be in keeping with System.OS_Interface.Alternate_Stack_Size.
-   It must be larger than MINSIGSTKSZ and hopefully near 2 * SIGSTKSZ.  */
-# if 16 * 1024 < MINSIGSTKSZ
-#  error "__gnat_alternate_stack too small"
-# endif
-char __gnat_alternate_stack[16 * 1024];
+/* This must be in keeping with System.OS_Interface.Alternate_Stack_Size.  */
+char __gnat_alternate_stack[32 * 1024];
 #endif
 
 #ifdef __XENO__
@@ -656,6 +660,28 @@ __gnat_install_handler (void)
 
 #include <signal.h>
 #include <unistd.h>
+
+/* SA_SIGINFO is not supported by default on LynxOS, so all we have
+   available here is the "sig" argument. On newer LynxOS versions it's
+   possible to support SA_SIGINFO by setting a kernel configuration macro.
+
+   To wit:
+
+   #define NONPOSIX_SA_HANDLER_PROTO (0)
+
+   This macro must be set to 1 in either sys/bsp.<bspname>/uparam.h
+   or in the associated uparam.h customization file sys/bsp.<bspname>/xparam.h
+   (uparam.h includes xparam.h for customization)
+
+   The NONPOSIX_SA_HANDLER_PROTO macro makes it possible to provide
+   signal-catching function with 'info' and 'context' input parameters
+   even if SA_SIGINFO flag is not set or it is set for a non-realtime signal.
+
+   It also allows signal-catching function to update thread context even
+   if SA_UPDATECTX flag is not set.
+
+   This would be useful, but relying on that would transmit the requirement
+   to users to configure that feature as well, which is undesirable.  */
 
 static void
 __gnat_error_handler (int sig)
@@ -1211,7 +1237,7 @@ __gnat_handle_vms_condition (int *sigargs, void *mechargs)
   if (__gnat_resignal_p (sigargs [1]))
     return SS$_RESIGNAL;
 #ifndef IN_RTS
-  /* toplev.c handles this for compiler.  */
+  /* toplev.cc handles this for compiler.  */
   if (sigargs [1] == SS$_HPARITH)
     return SS$_RESIGNAL;
 #endif
@@ -1556,7 +1582,7 @@ int __gl_heap_size = 64;
    operation, drivide by zero, and overflow. This will prevent the VMS runtime
    (specifically OTS$CHECK_FP_MODE) from complaining about inconsistent
    floating point settings in a mixed language program. Ideally the setting
-   would be determined at link time based on setttings in the object files,
+   would be determined at link time based on settings in the object files,
    however the VMS linker seems to take the setting from the first object
    in the link, e.g. pcrt0.o which is float representation neutral.  */
 char __gl_float_format = 'I';
@@ -1725,7 +1751,7 @@ __gnat_install_handler (void)
 #include <iv.h>
 #endif
 
-#if ((defined (ARMEL) && (_WRS_VXWORKS_MAJOR == 6)) || defined (__x86_64__)) && !defined(__RTP__)
+#if ((defined (ARMEL) && (_WRS_VXWORKS_MAJOR == 6))) && !defined(__RTP__)
 #define VXWORKS_FORCE_GUARD_PAGE 1
 #include <vmLib.h>
 extern size_t vxIntStackOverflowSize;
@@ -1985,7 +2011,7 @@ __gnat_error_handler (int sig, siginfo_t *si, void *sc)
      anything else.
      This mechanism is only need in kernel mode. */
 #if !(defined (__RTP__) || defined (VTHREADS)) && ((CPU == PPCE500V2) || (CPU == PPC85XX))
-  register unsigned msr;
+  unsigned msr;
   /* Read the MSR value */
   asm volatile ("mfmsr %0" : "=r" (msr));
   /* Force the SPE bit if not set.  */
@@ -2525,6 +2551,7 @@ __gnat_install_handler (void)
 #include <signal.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 #include "sigtramp.h"
 
 void
@@ -2615,6 +2642,68 @@ __gnat_install_handler (void)
       perror (strerror (err));
     }
   }
+  __gnat_handler_installed = 1;
+}
+
+/*****************/
+/* RTEMS Section */
+/*****************/
+
+#elif defined(__rtems__)
+
+#include <signal.h>
+#include <unistd.h>
+
+static void
+__gnat_error_handler (int sig)
+{
+  struct Exception_Data *exception;
+  const char *msg;
+
+  switch(sig)
+  {
+    case SIGFPE:
+      exception = &constraint_error;
+      msg = "SIGFPE";
+      break;
+    case SIGILL:
+      exception = &constraint_error;
+      msg = "SIGILL";
+      break;
+    case SIGSEGV:
+      exception = &storage_error;
+      msg = "erroneous memory access";
+      break;
+    case SIGBUS:
+      exception = &constraint_error;
+      msg = "SIGBUS";
+      break;
+    default:
+      exception = &program_error;
+      msg = "unhandled signal";
+    }
+
+    Raise_From_Signal_Handler (exception, msg);
+}
+
+void
+__gnat_install_handler (void)
+{
+  struct sigaction act;
+
+  act.sa_handler = __gnat_error_handler;
+  sigemptyset (&act.sa_mask);
+
+  /* Do not install handlers if interrupt state is "System".  */
+  if (__gnat_get_interrupt_state (SIGFPE) != 's')
+    sigaction (SIGFPE,  &act, NULL);
+  if (__gnat_get_interrupt_state (SIGILL) != 's')
+    sigaction (SIGILL,  &act, NULL);
+  if (__gnat_get_interrupt_state (SIGSEGV) != 's')
+    sigaction (SIGSEGV, &act, NULL);
+  if (__gnat_get_interrupt_state (SIGBUS) != 's')
+    sigaction (SIGBUS,  &act, NULL);
+
   __gnat_handler_installed = 1;
 }
 
@@ -2744,11 +2833,7 @@ __gnat_install_handler (void)
 /* __gnat_init_float */
 /*********************/
 
-/* This routine is called as each process thread is created, for possible
-   initialization of the FP processor.  This version is used under INTERIX
-   and WIN32.  */
-
-#if defined (_WIN32) || defined (__INTERIX) \
+#if defined (_WIN32) || defined (__INTERIX) || defined (__linux__) \
   || defined (__Lynx__) || defined(__NetBSD__) || defined(__FreeBSD__) \
   || defined (__OpenBSD__) || defined (__DragonFly__) || defined(__QNX__)
 
@@ -2758,13 +2843,10 @@ void
 __gnat_init_float (void)
 {
 #if defined (__i386__) || defined (__x86_64__)
-
-  /* This is used to properly initialize the FPU on an x86 for each
-     process thread.  */
-
+  /* This is used to properly initialize the FPU to 64-bit precision on an x86
+     for each process thread and also for floating-point I/O.  */
   asm ("finit");
-
-#endif  /* Defined __i386__ */
+#endif
 }
 #endif
 

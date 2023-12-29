@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1999-2019, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1999-2022, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -29,7 +29,9 @@
  *                                                                          *
  ****************************************************************************/
 
-/* This file corresponds to the Ada file repinfo.ads.  */
+/* This is the C header that corresponds to the Ada package specification for
+   Repinfo.  It was created manually from repinfo.ads and must be kept
+   synchronized with changes in this file.  */
 
 #ifdef __cplusplus
 extern "C" {

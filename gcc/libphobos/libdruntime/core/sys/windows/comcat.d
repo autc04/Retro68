@@ -5,13 +5,14 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_comcat.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_comcat.d)
  */
 module core.sys.windows.comcat;
 version (Windows):
+@system:
 
 import core.sys.windows.ole2;
-private import core.sys.windows.basetyps, core.sys.windows.cguid, core.sys.windows.objbase, core.sys.windows.unknwn,
+import core.sys.windows.basetyps, core.sys.windows.cguid, core.sys.windows.objbase, core.sys.windows.unknwn,
   core.sys.windows.windef, core.sys.windows.wtypes;
 
 alias IEnumGUID LPENUMGUID;

@@ -1,5 +1,5 @@
 /* Definitions for PA_RISC with ELF format
-   Copyright (C) 1999-2019 Free Software Foundation, Inc.
+   Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -100,8 +100,8 @@ along with GCC; see the file COPYING3.  If not see
 #define GLOBAL_ASM_OP ".globl "
 
 /* FIXME: Hacked from the <elfos.h> one so that we avoid multiple
-   labels in a function declaration (since pa.c seems determined to do
-   it differently)  */
+   labels in a function declaration (since pa.cc seems determined to do
+   it differently).  */
 
 #undef ASM_DECLARE_FUNCTION_NAME
 #define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)		\
@@ -109,8 +109,13 @@ along with GCC; see the file COPYING3.  If not see
     {								\
       ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "function");	\
       ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));		\
+      pa_output_function_label (FILE);				\
     }								\
   while (0)
+
+/* Output function prologue for linux.  */
+#undef TARGET_ASM_FUNCTION_PROLOGUE
+#define TARGET_ASM_FUNCTION_PROLOGUE pa_linux_output_function_prologue
 
 /* As well as globalizing the label, we need to encode the label
    to ensure a plabel is generated in an indirect call.  */

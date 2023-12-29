@@ -1,5 +1,5 @@
 /* ANSI and traditional C compatability macros
-   Copyright (C) 1991-2019 Free Software Foundation, Inc.
+   Copyright (C) 1991-2022 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
 This program is free software; you can redistribute it and/or modify
@@ -79,7 +79,7 @@ So instead we use the macro below and test it against specific values.  */
 /* inline requires special treatment; it's in C99, and GCC >=2.7 supports
    it too, but it's not in C89.  */
 #undef inline
-#if __STDC_VERSION__ >= 199901L || defined(__cplusplus) || (defined(__SUNPRO_C) && defined(__C99FEATURES__))
+#if (!defined(__cplusplus) && __STDC_VERSION__ >= 199901L) || defined(__cplusplus) || (defined(__SUNPRO_C) && defined(__C99FEATURES__))
 /* it's a keyword */
 #else
 # if GCC_VERSION >= 2007
@@ -292,6 +292,40 @@ So instead we use the macro below and test it against specific values.  */
 # endif
 #endif
 
+/* Attribute `alloc_size' was valid as of gcc 4.3.  */
+#ifndef ATTRIBUTE_RESULT_SIZE_1
+# if (GCC_VERSION >= 4003)
+#  define ATTRIBUTE_RESULT_SIZE_1 __attribute__ ((alloc_size (1)))
+# else
+#  define ATTRIBUTE_RESULT_SIZE_1
+#endif
+#endif
+
+#ifndef ATTRIBUTE_RESULT_SIZE_2
+# if (GCC_VERSION >= 4003)
+#  define ATTRIBUTE_RESULT_SIZE_2 __attribute__ ((alloc_size (2)))
+# else
+#  define ATTRIBUTE_RESULT_SIZE_2
+#endif
+#endif
+
+#ifndef ATTRIBUTE_RESULT_SIZE_1_2
+# if (GCC_VERSION >= 4003)
+#  define ATTRIBUTE_RESULT_SIZE_1_2 __attribute__ ((alloc_size (1, 2)))
+# else
+#  define ATTRIBUTE_RESULT_SIZE_1_2
+#endif
+#endif
+
+/* Attribute `warn_unused_result' was valid as of gcc 3.3.  */
+#ifndef ATTRIBUTE_WARN_UNUSED_RESULT
+# if GCC_VERSION >= 3003
+#  define ATTRIBUTE_WARN_UNUSED_RESULT __attribute__ ((warn_unused_result))
+# else
+#  define ATTRIBUTE_WARN_UNUSED_RESULT
+# endif
+#endif
+
 /* We use __extension__ in some places to suppress -pedantic warnings
    about GCC extensions.  This feature didn't work properly before
    gcc 2.8.  */
@@ -322,7 +356,7 @@ So instead we use the macro below and test it against specific values.  */
 #define ENUM_BITFIELD(TYPE) unsigned int
 #endif
 
-#if __cpp_constexpr >= 200704
+#if defined(__cplusplus) && __cpp_constexpr >= 200704
 #define CONSTEXPR constexpr
 #else
 #define CONSTEXPR
@@ -385,7 +419,7 @@ So instead we use the macro below and test it against specific values.  */
 
    so that most attempts at copy are caught at compile-time.  */
 
-#if __cplusplus >= 201103
+#if defined(__cplusplus) && __cplusplus >= 201103
 #define DISABLE_COPY_AND_ASSIGN(TYPE)		\
   TYPE (const TYPE&) = delete;			\
   void operator= (const TYPE &) = delete

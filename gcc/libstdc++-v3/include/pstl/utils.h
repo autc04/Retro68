@@ -7,11 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef __PSTL_utils_H
-#define __PSTL_utils_H
+#ifndef _PSTL_UTILS_H
+#define _PSTL_UTILS_H
 
 #include <new>
-#include <iterator>
+#include <type_traits>
 
 namespace __pstl
 {
@@ -32,7 +32,7 @@ __except_handler(_Fp __f)
     }
     catch (...)
     {
-        std::terminate(); // Good bye according to the standard [algorithms.parallel.exceptions]
+        std::__terminate(); // Good bye according to the standard [algorithms.parallel.exceptions]
     }
 }
 
@@ -219,4 +219,4 @@ __cmp_iterators_by_values(_ForwardIterator __a, _ForwardIterator __b, _Compare _
 } // namespace __internal
 } // namespace __pstl
 
-#endif /* __PSTL_utils_H */
+#endif /* _PSTL_UTILS_H */

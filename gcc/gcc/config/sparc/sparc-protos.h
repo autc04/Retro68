@@ -1,5 +1,5 @@
 /* Prototypes of target machine for SPARC.
-   Copyright (C) 1999-2019 Free Software Foundation, Inc.
+   Copyright (C) 1999-2022 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com).
    64-bit SPARC-V9 support by Michael Tiemann, Jim Wilson, and Doug Evans,
    at Cygnus Support.
@@ -30,7 +30,8 @@ extern void init_cumulative_args (CUMULATIVE_ARGS *, tree, rtx, tree);
 extern unsigned long sparc_type_code (tree);
 #endif /* TREE_CODE */
 
-extern void order_regs_for_local_alloc (void);
+extern void sparc_order_regs_for_local_alloc (void);
+extern int sparc_leaf_reg_remap (int);
 extern int sparc_initial_elimination_offset (int);
 extern void sparc_expand_prologue (void);
 extern void sparc_flat_expand_prologue (void);
@@ -69,6 +70,7 @@ extern void sparc_split_reg_mem (rtx, rtx, machine_mode);
 extern void sparc_split_mem_reg (rtx, rtx, machine_mode);
 extern int sparc_split_reg_reg_legitimate (rtx, rtx);
 extern void sparc_split_reg_reg (rtx, rtx, machine_mode);
+extern const char *output_load_pcrel_sym (rtx *);
 extern const char *output_ubranch (rtx, rtx_insn *);
 extern const char *output_cbranch (rtx, rtx, int, int, int, rtx_insn *);
 extern const char *output_return (rtx_insn *);
@@ -85,7 +87,6 @@ extern int mems_ok_for_ldd_peep (rtx, rtx, rtx);
 extern rtx widen_mem_for_ldd_peep (rtx, rtx, machine_mode);
 extern int empty_delay_slot (rtx_insn *);
 extern int emit_cbcond_nop (rtx_insn *);
-extern int eligible_for_call_delay (rtx_insn *);
 extern int eligible_for_return_delay (rtx_insn *);
 extern int eligible_for_sibcall_delay (rtx_insn *);
 extern int emit_move_sequence (rtx, machine_mode);
@@ -111,7 +112,8 @@ unsigned int sparc_regmode_natural_size (machine_mode);
 
 extern rtl_opt_pass *make_pass_work_around_errata (gcc::context *);
 
-/* Routines implemented in sparc-d.c  */
+/* Routines implemented in sparc-d.cc  */
 extern void sparc_d_target_versions (void);
+extern void sparc_d_register_target_info (void);
 
 #endif /* __SPARC_PROTOS_H__ */

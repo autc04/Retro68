@@ -1,6 +1,6 @@
 This is cpp.info, produced by makeinfo version 6.5 from cpp.texi.
 
-Copyright (C) 1987-2019 Free Software Foundation, Inc.
+Copyright (C) 1987-2022 Free Software Foundation, Inc.
 
    Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -130,7 +130,7 @@ Obsolete Features
 * Obsolete Features::
 
 
-   Copyright (C) 1987-2019 Free Software Foundation, Inc.
+   Copyright (C) 1987-2022 Free Software Foundation, Inc.
 
    Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -249,11 +249,11 @@ replaced by the character in the source character set that they
 represent, then converted to the execution character set, just like
 unescaped characters.
 
-   In identifiers, characters outside the ASCII range can only be
-specified with the '\u' and '\U' escapes, not used directly.  If strict
-ISO C90 conformance is specified with an option such as '-std=c90', or
-'-fno-extended-identifiers' is used, then those escapes are not
-permitted in identifiers.
+   In identifiers, characters outside the ASCII range can be specified
+with the '\u' and '\U' escapes or used directly in the input encoding.
+If strict ISO C90 conformance is specified with an option such as
+'-std=c90', or '-fno-extended-identifiers' is used, then those
+constructs are not permitted in identifiers.
 
    ---------- Footnotes ----------
 
@@ -445,8 +445,7 @@ preprocessor.  *Note C++ Named Operators::.
 part of the "basic source character set", at the implementation's
 discretion (such as accented Latin letters, Greek letters, or Chinese
 ideograms).  This may be done with an extended character set, or the
-'\u' and '\U' escape sequences.  GCC only accepts such characters in the
-'\u' and '\U' forms.
+'\u' and '\U' escape sequences.
 
    As an extension, GCC treats '$' as a letter.  This is for
 compatibility with some systems, such as VMS, where '$' is commonly used
@@ -510,14 +509,14 @@ punctuators are:
      Digraph:        <%  %>  <:  :>  %:  %:%:
      Punctuator:      {   }   [   ]   #    ##
 
-   Any other single character is considered "other".  It is passed on to
-the preprocessor's output unmolested.  The C compiler will almost
-certainly reject source code containing "other" tokens.  In ASCII, the
-only other characters are '@', '$', '`', and control characters other
-than NUL (all bits zero).  (Note that '$' is normally considered a
-letter.)  All characters with the high bit set (numeric range 0x7F-0xFF)
-are also "other" in the present implementation.  This will change when
-proper support for international character sets is added to GCC.
+   Any other single byte is considered "other" and passed on to the
+preprocessor's output unchanged.  The C compiler will almost certainly
+reject source code containing "other" tokens.  In ASCII, the only
+"other" characters are '@', '$', '`', and control characters other than
+NUL (all bits zero).  (Note that '$' is normally considered a letter.)
+All bytes with the high bit set (numeric range 0x7F-0xFF) that were not
+succesfully interpreted as part of an extended character in the input
+encoding are also "other" in the present implementation.
 
    NUL is a special case because of the high probability that its
 appearance is accidental, and because it may be invisible to the user
@@ -1495,7 +1494,7 @@ This formulation looks more descriptive, but historically it was less
 flexible: you had to supply at least one argument after the format
 string.  In standard C, you could not omit the comma separating the
 named argument from the variable arguments.  (Note that this restriction
-has been lifted in C++2a, and never existed in GNU C; see below.)
+has been lifted in C++20, and never existed in GNU C; see below.)
 
    Furthermore, if you left the variable argument empty, you would have
 gotten a syntax error, because there would have been an extra comma
@@ -1504,16 +1503,16 @@ after the format string.
      eprintf("success!\n", );
           ==> fprintf(stderr, "success!\n", );
 
-   This has been fixed in C++2a, and GNU CPP also has a pair of
+   This has been fixed in C++20, and GNU CPP also has a pair of
 extensions which deal with this problem.
 
-   First, in GNU CPP, and in C++ beginning in C++2a, you are allowed to
+   First, in GNU CPP, and in C++ beginning in C++20, you are allowed to
 leave the variable argument out entirely:
 
      eprintf ("success!\n")
           ==> fprintf(stderr, "success!\n", );
 
-Second, C++2a introduces the '__VA_OPT__' function macro.  This macro
+Second, C++20 introduces the '__VA_OPT__' function macro.  This macro
 may only appear in the definition of a variadic macro.  If the variable
 argument has any tokens, then a '__VA_OPT__' invocation expands to its
 argument; but if the variable argument does not have any tokens, the
@@ -1704,9 +1703,10 @@ the current function.  They tend to be useful in conjunction with
      that it expands to a version number.  Depending on the language
      standard selected, the value of the macro is '199711L' for the 1998
      C++ standard, '201103L' for the 2011 C++ standard, '201402L' for
-     the 2014 C++ standard, '201703L' for the 2017 C++ standard, or an
-     unspecified value strictly larger than '201703L' for the
-     experimental languages enabled by '-std=c++2a' and '-std=gnu++2a'.
+     the 2014 C++ standard, '201703L' for the 2017 C++ standard,
+     '202002L' for the 2020 C++ standard, or an unspecified value
+     strictly larger than '202002L' for the experimental languages
+     enabled by '-std=c++23' and '-std=gnu++23'.
 
 '__OBJC__'
      This macro is defined, with value 1, when the Objective-C compiler
@@ -1793,6 +1793,13 @@ double underscores.
      This macro expands to the name of the main input file, in the form
      of a C string constant.  This is the source file that was specified
      on the command line of the preprocessor or C compiler.
+
+'__FILE_NAME__'
+     This macro expands to the basename of the current input file, in
+     the form of a C string constant.  This is the last path component
+     by which the preprocessor opened the file.  For example, processing
+     '"/usr/local/include/myheader.h"' would set this macro to
+     '"myheader.h"'.
 
 '__INCLUDE_LEVEL__'
      This macro expands to a decimal integer constant that represents
@@ -2094,11 +2101,13 @@ double underscores.
      mechanism based on 'setjmp' and 'longjmp' for exception handling.
 
 '__GXX_EXPERIMENTAL_CXX0X__'
-     This macro is defined when compiling a C++ source file with the
-     option '-std=c++0x' or '-std=gnu++0x'.  It indicates that some
-     features likely to be included in C++0x are available.  Note that
-     these features are experimental, and may change or be removed in
-     future versions of GCC.
+     This macro is defined when compiling a C++ source file with C++11
+     features enabled, i.e., for all C++ language dialects except
+     '-std=c++98' and '-std=gnu++98'.  This macro is obsolete, but can
+     be used to detect experimental C++0x features in very old versions
+     of GCC. Since GCC 4.7.0 the '__cplusplus' macro is defined
+     correctly, so most code should test '__cplusplus >= 201103L'
+     instead of using this macro.
 
 '__GXX_WEAK__'
      This macro is defined when compiling a C++ source file.  It has the
@@ -2235,6 +2244,33 @@ double underscores.
 '__NO_MATH_ERRNO__'
      This macro is defined if '-fno-math-errno' is used, or enabled by
      another option such as '-ffast-math' or by default.
+
+'__RECIPROCAL_MATH__'
+     This macro is defined if '-freciprocal-math' is used, or enabled by
+     another option such as '-ffast-math' or by default.
+
+'__NO_SIGNED_ZEROS__'
+     This macro is defined if '-fno-signed-zeros' is used, or enabled by
+     another option such as '-ffast-math' or by default.
+
+'__NO_TRAPPING_MATH__'
+     This macro is defined if '-fno-trapping-math' is used.
+
+'__ASSOCIATIVE_MATH__'
+     This macro is defined if '-fassociative-math' is used, or enabled
+     by another option such as '-ffast-math' or by default.
+
+'__ROUNDING_MATH__'
+     This macro is defined if '-frounding-math' is used.
+
+'__GNUC_EXECUTION_CHARSET_NAME'
+'__GNUC_WIDE_EXECUTION_CHARSET_NAME'
+     These macros are defined to expand to a narrow string literal of
+     the name of the narrow and wide compile-time execution character
+     set used.  It directly reflects the name passed to the options
+     '-fexec-charset' and '-fwide-exec-charset', or the defaults
+     documented for those options (that is, it can expand to something
+     like '"UTF-8"').  *Note Invocation::.
 
 
 File: cpp.info,  Node: System-specific Predefined Macros,  Next: C++ Named Operators,  Prev: Common Predefined Macros,  Up: Predefined Macros
@@ -2861,6 +2897,8 @@ directive": '#if', '#ifdef' or '#ifndef'.
 * Elif::
 * __has_attribute::
 * __has_cpp_attribute::
+* __has_c_attribute::
+* __has_builtin::
 * __has_include::
 
 
@@ -3103,9 +3141,10 @@ File: cpp.info,  Node: __has_attribute,  Next: __has_cpp_attribute,  Prev: Elif,
 The special operator '__has_attribute (OPERAND)' may be used in '#if'
 and '#elif' expressions to test whether the attribute referenced by its
 OPERAND is recognized by GCC. Using the operator in other contexts is
-not valid.  In C code, OPERAND must be a valid identifier.  In C++ code,
-OPERAND may be optionally introduced by the 'ATTRIBUTE-SCOPE::' prefix.
-The ATTRIBUTE-SCOPE prefix identifies the "namespace" within which the
+not valid.  In C code, if compiling for strict conformance to standards
+before C2x, OPERAND must be a valid identifier.  Otherwise, OPERAND may
+be optionally introduced by the 'ATTRIBUTE-SCOPE::' prefix.  The
+ATTRIBUTE-SCOPE prefix identifies the "namespace" within which the
 attribute is recognized.  The scope of GCC attributes is 'gnu' or
 '__gnu__'.  The '__has_attribute' operator by itself, without any
 OPERAND or parentheses, acts as a predefined macro so that support for
@@ -3130,7 +3169,7 @@ operator but not with others that don't.
      #endif
 
 
-File: cpp.info,  Node: __has_cpp_attribute,  Next: __has_include,  Prev: __has_attribute,  Up: Conditional Syntax
+File: cpp.info,  Node: __has_cpp_attribute,  Next: __has_c_attribute,  Prev: __has_attribute,  Up: Conditional Syntax
 
 4.2.7 '__has_cpp_attribute'
 ---------------------------
@@ -3147,10 +3186,52 @@ current standard attributes, see
 SD-6: SG10 Feature Test Recommendations (https://isocpp.org/std/standing-documents/sd-6-sg10-feature-test-recommendations/).
 
 
-File: cpp.info,  Node: __has_include,  Prev: __has_cpp_attribute,  Up: Conditional Syntax
+File: cpp.info,  Node: __has_c_attribute,  Next: __has_builtin,  Prev: __has_cpp_attribute,  Up: Conditional Syntax
 
-4.2.8 '__has_include'
+4.2.8 '__has_c_attribute'
+-------------------------
+
+The special operator '__has_c_attribute (OPERAND)' may be used in '#if'
+and '#elif' expressions in C code to test whether the attribute
+referenced by its OPERAND is recognized by GCC in attributes using the
+'[[]]' syntax.  GNU attributes must be specified with the scope 'gnu' or
+'__gnu__' with '__has_c_attribute'.  When OPERAND designates a supported
+standard attribute it evaluates to an integer constant of the form
+'YYYYMM' indicating the year and month when the attribute was first
+introduced into the C standard, or when the syntax of operands to the
+attribute was extended in the C standard.
+
+
+File: cpp.info,  Node: __has_builtin,  Next: __has_include,  Prev: __has_c_attribute,  Up: Conditional Syntax
+
+4.2.9 '__has_builtin'
 ---------------------
+
+The special operator '__has_builtin (OPERAND)' may be used in constant
+integer contexts and in preprocessor '#if' and '#elif' expressions to
+test whether the symbol named by its OPERAND is recognized as a built-in
+function by GCC in the current language and conformance mode.  It
+evaluates to a constant integer with a nonzero value if the argument
+refers to such a function, and to zero otherwise.  The operator may also
+be used in preprocessor '#if' and '#elif' expressions.  The
+'__has_builtin' operator by itself, without any OPERAND or parentheses,
+acts as a predefined macro so that support for it can be tested in
+portable code.  Thus, the recommended use of the operator is as follows:
+
+     #if defined __has_builtin
+     #  if __has_builtin (__builtin_object_size)
+     #    define builtin_object_size(ptr) __builtin_object_size (ptr, 2)
+     #  endif
+     #endif
+     #ifndef builtin_object_size
+     #  define builtin_object_size(ptr)   ((size_t)-1)
+     #endif
+
+
+File: cpp.info,  Node: __has_include,  Prev: __has_builtin,  Up: Conditional Syntax
+
+4.2.10 '__has_include'
+----------------------
 
 The special operator '__has_include (OPERAND)' may be used in '#if' and
 '#elif' expressions to test whether the header referenced by its OPERAND
@@ -3785,7 +3866,10 @@ free to do what it likes, but must document its choice and stick to it.
      The C and C++ standards allow identifiers to be composed of '_' and
      the alphanumeric characters.  C++ also allows universal character
      names.  C99 and later C standards permit both universal character
-     names and implementation-defined characters.
+     names and implementation-defined characters.  In both C and C++
+     modes, GCC accepts in identifiers exactly those extended characters
+     that correspond to universal character names permitted by the
+     chosen standard.
 
      GCC allows the '$' character in identifiers as an extension for
      most targets.  This is true regardless of the 'std=' switch, since
@@ -3798,7 +3882,7 @@ free to do what it likes, but must document its choice and stick to it.
      operating system.
 
      You can override the default with '-fdollars-in-identifiers' or
-     'fno-dollars-in-identifiers'.  *Note fdollars-in-identifiers::.
+     '-fno-dollars-in-identifiers'.  *Note fdollars-in-identifiers::.
 
    * Non-empty sequences of whitespace characters.
 
@@ -4143,6 +4227,9 @@ single-letter options may _not_ be grouped: '-dM' is very different from
 
      This feature is used in automatic updating of makefiles.
 
+'-Mno-modules'
+     Disable dependency generation for compiled module interfaces.
+
 '-MP'
      This option instructs CPP to add a phony target for each dependency
      other than the main file, causing each to depend on nothing.  These
@@ -4238,12 +4325,16 @@ single-letter options may _not_ be grouped: '-dM' is very different from
      Accept '$' in identifiers.  *Note Identifier characters::.
 
 '-fextended-identifiers'
-     Accept universal character names in identifiers.  This option is
-     enabled by default for C99 (and later C standard versions) and C++.
+     Accept universal character names and extended characters in
+     identifiers.  This option is enabled by default for C99 (and later
+     C standard versions) and C++.
 
 '-fno-canonical-system-headers'
      When preprocessing, do not shorten system header paths with
      canonicalization.
+
+'-fmax-include-depth=DEPTH'
+     Set the maximum depth of the nested #include.  The default is 200.
 
 '-ftabstop=WIDTH'
      Set the distance between tab stops.  This helps the preprocessor
@@ -4671,9 +4762,9 @@ in turn take precedence over the configuration of GCC.
 
      The value of 'SOURCE_DATE_EPOCH' must be a UNIX timestamp, defined
      as the number of seconds (excluding leap seconds) since 01 Jan 1970
-     00:00:00 represented in ASCII; identical to the output of ''date
-     +%s'' on GNU/Linux and other systems that support the '%s'
-     extension in the 'date' command.
+     00:00:00 represented in ASCII; identical to the output of 'date
+     +%s' on GNU/Linux and other systems that support the '%s' extension
+     in the 'date' command.
 
      The value should be a known timestamp such as the last modification
      time of the source or package and it should be set by the build
@@ -4688,7 +4779,7 @@ GNU Free Documentation License
                      Version 1.3, 3 November 2008
 
      Copyright (C) 2000, 2001, 2002, 2007, 2008 Free Software Foundation, Inc.
-     <http://fsf.org/>
+     <https://fsf.org/>
 
      Everyone is permitted to copy and distribute verbatim copies
      of this license document, but changing it is not allowed.
@@ -5085,7 +5176,7 @@ GNU Free Documentation License
      the GNU Free Documentation License from time to time.  Such new
      versions will be similar in spirit to the present version, but may
      differ in detail to address new problems or concerns.  See
-     <http://www.gnu.org/copyleft/>.
+     <https://www.gnu.org/copyleft/>.
 
      Each version of the License is given a distinguishing version
      number.  If the Document specifies that a particular numbered
@@ -5210,9 +5301,9 @@ without any initial '-' or '--'.
  [index ]
 * Menu:
 
-* A:                                     Invocation.          (line 329)
-* C:                                     Invocation.          (line 338)
-* CC:                                    Invocation.          (line 350)
+* A:                                     Invocation.          (line 336)
+* C:                                     Invocation.          (line 345)
+* CC:                                    Invocation.          (line 357)
 * CPATH:                                 Environment Variables.
                                                               (line  15)
 * CPLUS_INCLUDE_PATH:                    Environment Variables.
@@ -5220,75 +5311,77 @@ without any initial '-' or '--'.
 * C_INCLUDE_PATH:                        Environment Variables.
                                                               (line  16)
 * D:                                     Invocation.          (line  44)
-* d:                                     Invocation.          (line 399)
-* dD:                                    Invocation.          (line 418)
+* d:                                     Invocation.          (line 406)
+* dD:                                    Invocation.          (line 425)
 * DEPENDENCIES_OUTPUT:                   Environment Variables.
                                                               (line  45)
-* dI:                                    Invocation.          (line 428)
-* dM:                                    Invocation.          (line 407)
-* dN:                                    Invocation.          (line 424)
-* dU:                                    Invocation.          (line 432)
-* fdebug-cpp:                            Invocation.          (line 439)
-* fdirectives-only:                      Invocation.          (line 228)
-* fdollars-in-identifiers:               Invocation.          (line 249)
-* fexec-charset:                         Invocation.          (line 292)
-* fextended-identifiers:                 Invocation.          (line 252)
-* finput-charset:                        Invocation.          (line 305)
-* fmacro-prefix-map:                     Invocation.          (line 283)
-* fno-canonical-system-headers:          Invocation.          (line 256)
-* fno-working-directory:                 Invocation.          (line 315)
-* fpreprocessed:                         Invocation.          (line 215)
-* ftabstop:                              Invocation.          (line 260)
-* ftrack-macro-expansion:                Invocation.          (line 266)
-* fwide-exec-charset:                    Invocation.          (line 297)
-* fworking-directory:                    Invocation.          (line 315)
-* H:                                     Invocation.          (line 392)
-* I:                                     Invocation.          (line 450)
-* I-:                                    Invocation.          (line 504)
-* idirafter:                             Invocation.          (line 450)
+* dI:                                    Invocation.          (line 435)
+* dM:                                    Invocation.          (line 414)
+* dN:                                    Invocation.          (line 431)
+* dU:                                    Invocation.          (line 439)
+* fdebug-cpp:                            Invocation.          (line 446)
+* fdirectives-only:                      Invocation.          (line 231)
+* fdollars-in-identifiers:               Invocation.          (line 252)
+* fexec-charset:                         Invocation.          (line 299)
+* fextended-identifiers:                 Invocation.          (line 255)
+* finput-charset:                        Invocation.          (line 312)
+* fmacro-prefix-map:                     Invocation.          (line 290)
+* fmax-include-depth:                    Invocation.          (line 264)
+* fno-canonical-system-headers:          Invocation.          (line 260)
+* fno-working-directory:                 Invocation.          (line 322)
+* fpreprocessed:                         Invocation.          (line 218)
+* ftabstop:                              Invocation.          (line 267)
+* ftrack-macro-expansion:                Invocation.          (line 273)
+* fwide-exec-charset:                    Invocation.          (line 304)
+* fworking-directory:                    Invocation.          (line 322)
+* H:                                     Invocation.          (line 399)
+* I:                                     Invocation.          (line 457)
+* I-:                                    Invocation.          (line 511)
+* idirafter:                             Invocation.          (line 457)
 * imacros:                               Invocation.          (line  82)
-* imultilib:                             Invocation.          (line 538)
+* imultilib:                             Invocation.          (line 545)
 * include:                               Invocation.          (line  71)
-* iprefix:                               Invocation.          (line 520)
-* iquote:                                Invocation.          (line 450)
-* isysroot:                              Invocation.          (line 532)
-* isystem:                               Invocation.          (line 450)
-* iwithprefix:                           Invocation.          (line 526)
-* iwithprefixbefore:                     Invocation.          (line 526)
+* iprefix:                               Invocation.          (line 527)
+* iquote:                                Invocation.          (line 457)
+* isysroot:                              Invocation.          (line 539)
+* isystem:                               Invocation.          (line 457)
+* iwithprefix:                           Invocation.          (line 533)
+* iwithprefixbefore:                     Invocation.          (line 533)
 * M:                                     Invocation.          (line 103)
-* MD:                                    Invocation.          (line 195)
+* MD:                                    Invocation.          (line 198)
 * MF:                                    Invocation.          (line 137)
 * MG:                                    Invocation.          (line 148)
 * MM:                                    Invocation.          (line 128)
-* MMD:                                   Invocation.          (line 211)
-* MP:                                    Invocation.          (line 158)
-* MQ:                                    Invocation.          (line 185)
-* MT:                                    Invocation.          (line 170)
-* nostdinc:                              Invocation.          (line 542)
-* nostdinc++:                            Invocation.          (line 548)
+* MMD:                                   Invocation.          (line 214)
+* Mno-modules:                           Invocation.          (line 158)
+* MP:                                    Invocation.          (line 161)
+* MQ:                                    Invocation.          (line 188)
+* MT:                                    Invocation.          (line 173)
+* nostdinc:                              Invocation.          (line 549)
+* nostdinc++:                            Invocation.          (line 555)
 * OBJC_INCLUDE_PATH:                     Environment Variables.
                                                               (line  18)
-* P:                                     Invocation.          (line 362)
+* P:                                     Invocation.          (line 369)
 * pthread:                               Invocation.          (line  96)
-* remap:                                 Invocation.          (line 388)
+* remap:                                 Invocation.          (line 395)
 * SOURCE_DATE_EPOCH:                     Environment Variables.
                                                               (line  67)
 * SUNPRO_DEPENDENCIES:                   Environment Variables.
                                                               (line  61)
-* traditional:                           Invocation.          (line 370)
-* traditional-cpp:                       Invocation.          (line 370)
-* trigraphs:                             Invocation.          (line 379)
+* traditional:                           Invocation.          (line 377)
+* traditional-cpp:                       Invocation.          (line 377)
+* trigraphs:                             Invocation.          (line 386)
 * U:                                     Invocation.          (line  67)
 * undef:                                 Invocation.          (line  91)
-* Wcomment:                              Invocation.          (line 554)
-* Wcomments:                             Invocation.          (line 554)
-* Wendif-labels:                         Invocation.          (line 598)
-* Wexpansion-to-defined:                 Invocation.          (line 573)
-* Wno-endif-labels:                      Invocation.          (line 598)
-* Wno-undef:                             Invocation.          (line 569)
-* Wtrigraphs:                            Invocation.          (line 559)
-* Wundef:                                Invocation.          (line 569)
-* Wunused-macros:                        Invocation.          (line 579)
+* Wcomment:                              Invocation.          (line 561)
+* Wcomments:                             Invocation.          (line 561)
+* Wendif-labels:                         Invocation.          (line 605)
+* Wexpansion-to-defined:                 Invocation.          (line 580)
+* Wno-endif-labels:                      Invocation.          (line 605)
+* Wno-undef:                             Invocation.          (line 576)
+* Wtrigraphs:                            Invocation.          (line 566)
+* Wundef:                                Invocation.          (line 576)
+* Wunused-macros:                        Invocation.          (line 586)
 
 
 File: cpp.info,  Node: Concept Index,  Prev: Option Index,  Up: Top
@@ -5303,21 +5396,23 @@ Concept Index
 * ## operator:                           Concatenation.       (line   6)
 * _Pragma:                               Pragmas.             (line  13)
 * __has_attribute:                       __has_attribute.     (line   6)
+* __has_builtin:                         __has_builtin.       (line   6)
 * __has_cpp_attribute:                   __has_cpp_attribute. (line   6)
+* __has_c_attribute:                     __has_c_attribute.   (line   6)
 * __has_include:                         __has_include.       (line   6)
-* alternative tokens:                    Tokenization.        (line 101)
+* alternative tokens:                    Tokenization.        (line 100)
 * arguments:                             Macro Arguments.     (line   6)
 * arguments in macro definitions:        Macro Arguments.     (line   6)
 * assertions:                            Obsolete Features.   (line  13)
 * assertions, canceling:                 Obsolete Features.   (line  59)
 * backslash-newline:                     Initial processing.  (line  61)
 * block comments:                        Initial processing.  (line  77)
-* C language, traditional:               Invocation.          (line 368)
+* C language, traditional:               Invocation.          (line 375)
 * C++ named operators:                   C++ Named Operators. (line   6)
-* character constants:                   Tokenization.        (line  82)
-* character set, execution:              Invocation.          (line 292)
-* character set, input:                  Invocation.          (line 305)
-* character set, wide execution:         Invocation.          (line 297)
+* character constants:                   Tokenization.        (line  81)
+* character set, execution:              Invocation.          (line 299)
+* character set, input:                  Invocation.          (line 312)
+* character set, wide execution:         Invocation.          (line 304)
 * command line:                          Invocation.          (line   6)
 * commenting out code:                   Deleted Code.        (line   6)
 * comments:                              Initial processing.  (line  77)
@@ -5336,7 +5431,7 @@ Concept Index
                                                               (line  62)
 * dependencies, make:                    Invocation.          (line 103)
 * diagnostic:                            Diagnostics.         (line   6)
-* digraphs:                              Tokenization.        (line 101)
+* digraphs:                              Tokenization.        (line 100)
 * directive line:                        The preprocessing language.
                                                               (line   6)
 * directive name:                        The preprocessing language.
@@ -5354,7 +5449,7 @@ Concept Index
 * grouping options:                      Invocation.          (line  38)
 * guard macro:                           Once-Only Headers.   (line  35)
 * header file:                           Header Files.        (line   6)
-* header file names:                     Tokenization.        (line  82)
+* header file names:                     Tokenization.        (line  81)
 * identifiers:                           Tokenization.        (line  33)
 * implementation limits:                 Implementation limits.
                                                               (line   6)
@@ -5379,11 +5474,11 @@ Concept Index
 * newlines in macro arguments:           Newlines in Arguments.
                                                               (line   6)
 * null directive:                        Other Directives.    (line  15)
-* numbers:                               Tokenization.        (line  59)
+* numbers:                               Tokenization.        (line  58)
 * object-like macro:                     Object-like Macros.  (line   6)
 * options:                               Invocation.          (line  43)
 * options, grouping:                     Invocation.          (line  38)
-* other tokens:                          Tokenization.        (line 115)
+* other tokens:                          Tokenization.        (line 114)
 * output format:                         Preprocessor Output. (line  12)
 * overriding a header file:              Wrapper Headers.     (line   6)
 * parentheses in macro bodies:           Operator Precedence Problems.
@@ -5396,11 +5491,11 @@ Concept Index
 * predicates:                            Obsolete Features.   (line  26)
 * preprocessing directives:              The preprocessing language.
                                                               (line   6)
-* preprocessing numbers:                 Tokenization.        (line  59)
+* preprocessing numbers:                 Tokenization.        (line  58)
 * preprocessing tokens:                  Tokenization.        (line   6)
 * prescan of macro arguments:            Argument Prescan.    (line   6)
 * problems with macros:                  Macro Pitfalls.      (line   6)
-* punctuators:                           Tokenization.        (line 101)
+* punctuators:                           Tokenization.        (line 100)
 * redefining macros:                     Undefining and Redefining Macros.
                                                               (line   6)
 * repeated inclusion:                    Once-Only Headers.   (line   6)
@@ -5416,8 +5511,8 @@ Concept Index
                                                               (line   6)
 * standard predefined macros.:           Standard Predefined Macros.
                                                               (line   6)
-* string constants:                      Tokenization.        (line  82)
-* string literals:                       Tokenization.        (line  82)
+* string constants:                      Tokenization.        (line  81)
+* string literals:                       Tokenization.        (line  81)
 * stringizing:                           Stringizing.         (line   6)
 * symbolic constants:                    Object-like Macros.  (line   6)
 * system header files:                   Header Files.        (line  13)
@@ -5428,7 +5523,7 @@ Concept Index
 * token concatenation:                   Concatenation.       (line   6)
 * token pasting:                         Concatenation.       (line   6)
 * tokens:                                Tokenization.        (line   6)
-* traditional C language:                Invocation.          (line 368)
+* traditional C language:                Invocation.          (line 375)
 * trigraphs:                             Initial processing.  (line  32)
 * undefining macros:                     Undefining and Redefining Macros.
                                                               (line   6)
@@ -5445,78 +5540,80 @@ Tag Table:
 Node: Top945
 Node: Overview3506
 Node: Character sets6344
-Ref: Character sets-Footnote-18499
-Node: Initial processing8680
-Ref: trigraphs10239
-Node: Tokenization14439
-Ref: Tokenization-Footnote-121340
-Node: The preprocessing language21451
-Node: Header Files24330
-Node: Include Syntax26246
-Node: Include Operation27883
-Node: Search Path29731
-Node: Once-Only Headers31953
-Node: Alternatives to Wrapper #ifndef33612
-Node: Computed Includes35261
-Node: Wrapper Headers38419
-Node: System Headers40842
-Node: Macros42443
-Node: Object-like Macros43580
-Node: Function-like Macros47170
-Node: Macro Arguments48786
-Node: Stringizing52925
-Node: Concatenation56086
-Node: Variadic Macros59183
-Node: Predefined Macros64135
-Node: Standard Predefined Macros64723
-Node: Common Predefined Macros71055
-Node: System-specific Predefined Macros92158
-Node: C++ Named Operators94181
-Node: Undefining and Redefining Macros95145
-Node: Directives Within Macro Arguments97243
-Node: Macro Pitfalls98184
-Node: Misnesting98717
-Node: Operator Precedence Problems99829
-Node: Swallowing the Semicolon101695
-Node: Duplication of Side Effects103718
-Node: Self-Referential Macros105901
-Node: Argument Prescan108310
-Node: Newlines in Arguments112061
-Node: Conditionals113012
-Node: Conditional Uses114708
-Node: Conditional Syntax116066
-Node: Ifdef116448
-Node: If119605
-Node: Defined121909
-Node: Else123302
-Node: Elif123872
-Node: __has_attribute125185
-Node: __has_cpp_attribute126719
-Node: __has_include127605
-Node: Deleted Code129198
-Node: Diagnostics130445
-Node: Line Control131994
-Node: Pragmas134272
-Node: Other Directives138669
-Node: Preprocessor Output139719
-Node: Traditional Mode142872
-Node: Traditional lexical analysis144009
-Node: Traditional macros146512
-Node: Traditional miscellany150309
-Node: Traditional warnings151305
-Node: Implementation Details153502
-Node: Implementation-defined behavior154065
-Ref: Identifier characters154815
-Node: Implementation limits157682
-Node: Obsolete Features160355
-Node: Invocation163199
-Ref: dashMF169234
-Ref: fdollars-in-identifiers173813
-Ref: Wtrigraphs187809
-Node: Environment Variables189864
-Node: GNU Free Documentation License193557
-Node: Index of Directives218702
-Node: Option Index220855
-Node: Concept Index226811
+Ref: Character sets-Footnote-18516
+Node: Initial processing8697
+Ref: trigraphs10256
+Node: Tokenization14456
+Ref: Tokenization-Footnote-121286
+Node: The preprocessing language21397
+Node: Header Files24276
+Node: Include Syntax26192
+Node: Include Operation27829
+Node: Search Path29677
+Node: Once-Only Headers31899
+Node: Alternatives to Wrapper #ifndef33558
+Node: Computed Includes35207
+Node: Wrapper Headers38365
+Node: System Headers40788
+Node: Macros42389
+Node: Object-like Macros43526
+Node: Function-like Macros47116
+Node: Macro Arguments48732
+Node: Stringizing52871
+Node: Concatenation56032
+Node: Variadic Macros59129
+Node: Predefined Macros64081
+Node: Standard Predefined Macros64669
+Node: Common Predefined Macros71043
+Node: System-specific Predefined Macros93678
+Node: C++ Named Operators95701
+Node: Undefining and Redefining Macros96665
+Node: Directives Within Macro Arguments98763
+Node: Macro Pitfalls99704
+Node: Misnesting100237
+Node: Operator Precedence Problems101349
+Node: Swallowing the Semicolon103215
+Node: Duplication of Side Effects105238
+Node: Self-Referential Macros107421
+Node: Argument Prescan109830
+Node: Newlines in Arguments113581
+Node: Conditionals114532
+Node: Conditional Uses116228
+Node: Conditional Syntax117586
+Node: Ifdef118008
+Node: If121165
+Node: Defined123469
+Node: Else124862
+Node: Elif125432
+Node: __has_attribute126745
+Node: __has_cpp_attribute128339
+Node: __has_c_attribute129229
+Node: __has_builtin130002
+Node: __has_include131135
+Node: Deleted Code132724
+Node: Diagnostics133971
+Node: Line Control135520
+Node: Pragmas137798
+Node: Other Directives142195
+Node: Preprocessor Output143245
+Node: Traditional Mode146398
+Node: Traditional lexical analysis147535
+Node: Traditional macros150038
+Node: Traditional miscellany153835
+Node: Traditional warnings154831
+Node: Implementation Details157028
+Node: Implementation-defined behavior157591
+Ref: Identifier characters158341
+Node: Implementation limits161390
+Node: Obsolete Features164063
+Node: Invocation166907
+Ref: dashMF172942
+Ref: fdollars-in-identifiers177604
+Ref: Wtrigraphs191730
+Node: Environment Variables193785
+Node: GNU Free Documentation License197476
+Node: Index of Directives222623
+Node: Option Index224776
+Node: Concept Index230878
 
 End Tag Table

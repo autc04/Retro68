@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/goarch"
+	"runtime/internal/math"
 	"unsafe"
 )
 
@@ -89,7 +90,15 @@ func badsystemstack() {
 // *ptr is uninitialized memory (e.g., memory that's being reused
 // for a new allocation) and hence contains only "junk".
 //
+// memclrNoHeapPointers ensures that if ptr is pointer-aligned, and n
+// is a multiple of the pointer size, then any pointer-aligned,
+// pointer-sized portion is cleared atomically. Despite the function
+// name, this is necessary because this function is the underlying
+// implementation of typedmemclr and memclrHasPointers. See the doc of
+// memmove for more details.
+//
 // The (CPU-specific) implementations of this function are in memclr_*.s.
+//
 //go:noescape
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
@@ -98,7 +107,6 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
 	memclrNoHeapPointers(ptr, n)
 }
 
-// memmove copies n bytes from "from" to "to".
 //go:noescape
 func memmove(to, from unsafe.Pointer, n uintptr)
 
@@ -112,20 +120,32 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
 func memcmp(a, b unsafe.Pointer, size uintptr) int32
 
 // exported value for testing
-var hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
+const hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
 
 //go:nosplit
 func fastrand() uint32 {
 	mp := getg().m
+	// Implement wyrand: https://github.com/wangyi-fudan/wyhash
+	// Only the platform that math.Mul64 can be lowered
+	// by the compiler should be in this list.
+	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
+		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
+		goarch.IsS390x|goarch.IsRiscv64 == 1 {
+		mp.fastrand += 0xa0761d6478bd642f
+		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
+		return uint32(hi ^ lo)
+	}
+
 	// Implement xorshift64+: 2 32-bit xorshift sequences added together.
 	// Shift triplet [17,7,16] was calculated as indicated in Marsaglia's
 	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
 	// This generator passes the SmallCrush suite, part of TestU01 framework:
 	// http://simul.iro.umontreal.ca/testu01/tu01.html
-	s1, s0 := mp.fastrand[0], mp.fastrand[1]
+	t := (*[2]uint32)(unsafe.Pointer(&mp.fastrand))
+	s1, s0 := t[0], t[1]
 	s1 ^= s1 << 17
 	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16
-	mp.fastrand[0], mp.fastrand[1] = s0, s1
+	t[0], t[1] = s0, s1
 	return s0 + s1
 }
 
@@ -136,10 +156,16 @@ func fastrandn(n uint32) uint32 {
 	return uint32(uint64(fastrand()) * uint64(n) >> 32)
 }
 
-//go:linkname sync_fastrand sync.fastrand
-func sync_fastrand() uint32 { return fastrand() }
+//go:linkname sync_fastrandn sync.fastrandn
+func sync_fastrandn(n uint32) uint32 { return fastrandn(n) }
 
-// in asm_*.s
+//go:linkname net_fastrand net.fastrand
+func net_fastrand() uint32 { return fastrand() }
+
+//go:linkname os_fastrand os.fastrand
+func os_fastrand() uint32 { return fastrand() }
+
+// in internal/bytealg/equal_*.s
 //go:noescape
 func memequal(a, b unsafe.Pointer, size uintptr) bool
 
@@ -164,7 +190,6 @@ func breakpoint()
 
 func asminit() {}
 
-//go:linkname reflectcall runtime.reflectcall
 //go:noescape
 func reflectcall(fntype *functype, fn *funcval, isInterface, isMethod bool, params, results *unsafe.Pointer)
 
@@ -240,31 +265,21 @@ func asmcgocall(fn, arg unsafe.Pointer) int32 {
 	return 0
 }
 
-// argp used in Defer structs when there is no argp.
-const _NoArgs = ^uintptr(0)
-
-//extern __builtin_prefetch
-func prefetch(addr unsafe.Pointer, rw int32, locality int32)
-
-func prefetcht0(addr uintptr) {
-	prefetch(unsafe.Pointer(addr), 0, 3)
-}
-
-func prefetcht1(addr uintptr) {
-	prefetch(unsafe.Pointer(addr), 0, 2)
-}
-
-func prefetcht2(addr uintptr) {
-	prefetch(unsafe.Pointer(addr), 0, 1)
-}
-
-func prefetchnta(addr uintptr) {
-	prefetch(unsafe.Pointer(addr), 0, 0)
-}
-
-// round n up to a multiple of a.  a must be a power of 2.
-func round(n, a uintptr) uintptr {
+// alignUp rounds n up to a multiple of a. a must be a power of 2.
+func alignUp(n, a uintptr) uintptr {
 	return (n + a - 1) &^ (a - 1)
+}
+
+// alignDown rounds n down to a multiple of a. a must be a power of 2.
+func alignDown(n, a uintptr) uintptr {
+	return n &^ (a - 1)
+}
+
+// divRoundUp returns ceil(n / a).
+func divRoundUp(n, a uintptr) uintptr {
+	// a is generally a power of two. This will get inlined and
+	// the compiler will optimize the division.
+	return (n + a - 1) / a
 }
 
 // checkASM returns whether assembly runtime checks have passed.
@@ -272,32 +287,17 @@ func checkASM() bool {
 	return true
 }
 
-func eqstring(x, y string) bool {
-	a := stringStructOf(&x)
-	b := stringStructOf(&y)
-	if a.len != b.len {
-		return false
-	}
-	if a.str == b.str {
-		return true
-	}
-	return memequal(a.str, b.str, uintptr(a.len))
-}
-
-// For gccgo this is in the C code.
-func osyield()
-
 //extern __go_syscall6
 func syscall(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) uintptr
 
 // For gccgo, to communicate from the C code to the Go code.
-//go:linkname setIsCgo runtime.setIsCgo
+//go:linkname setIsCgo
 func setIsCgo() {
 	iscgo = true
 }
 
 // For gccgo, to communicate from the C code to the Go code.
-//go:linkname setSupportAES runtime.setSupportAES
+//go:linkname setSupportAES
 func setSupportAES(v bool) {
 	support_aes = v
 }
@@ -309,13 +309,6 @@ func errno() int
 func entersyscall()
 func entersyscallblock()
 
-// For gccgo to call from C code, so that the C code and the Go code
-// can share the memstats variable for now.
-//go:linkname getMstats runtime.getMstats
-func getMstats() *mstats {
-	return &memstats
-}
-
 // Get signal trampoline, written in C.
 func getSigtramp() uintptr
 
@@ -325,6 +318,10 @@ func getSigactionHandler(*_sigaction) uintptr
 
 //go:noescape
 func setSigactionHandler(*_sigaction, uintptr)
+
+// Get signal code, written in C.
+//go:noescape
+func getSiginfoCode(*_siginfo_t) uintptr
 
 // Retrieve fields from the siginfo_t and ucontext_t pointers passed
 // to a signal handler using C, as they are often hidden in a union.
@@ -337,46 +334,10 @@ func dumpregs(*_siginfo_t, unsafe.Pointer)
 // Implemented in C for gccgo.
 func setRandomNumber(uint32)
 
-// Temporary for gccgo until we port proc.go.
-//go:linkname getsched runtime.getsched
-func getsched() *schedt {
-	return &sched
-}
-
-// Temporary for gccgo until we port proc.go.
-//go:linkname getCgoHasExtraM runtime.getCgoHasExtraM
-func getCgoHasExtraM() *bool {
-	return &cgoHasExtraM
-}
-
-// Temporary for gccgo until we port proc.go.
-//go:linkname getAllP runtime.getAllP
-func getAllP() **p {
-	return &allp[0]
-}
-
-// Temporary for gccgo until we port proc.go.
-//go:linkname allocg runtime.allocg
+// Called by gccgo's proc.c.
+//go:linkname allocg
 func allocg() *g {
 	return new(g)
-}
-
-// Temporary for gccgo until we port the garbage collector.
-//go:linkname getallglen runtime.getallglen
-func getallglen() uintptr {
-	return allglen
-}
-
-// Temporary for gccgo until we port the garbage collector.
-//go:linkname getallg runtime.getallg
-func getallg(i int) *g {
-	return allgs[i]
-}
-
-// Temporary for gccgo until we port the garbage collector.
-//go:linkname getallm runtime.getallm
-func getallm() *m {
-	return allm
 }
 
 // Throw and rethrow an exception.
@@ -387,40 +348,7 @@ func rethrowException()
 // used by the stack unwinder.
 func unwindExceptionSize() uintptr
 
-// Temporary for gccgo until C code no longer needs it.
-//go:nosplit
-//go:linkname getPanicking runtime.getPanicking
-func getPanicking() uint32 {
-	return panicking
-}
-
-// Called by C code to set the number of CPUs.
-//go:linkname setncpu runtime.setncpu
-func setncpu(n int32) {
-	ncpu = n
-}
-
-// Called by C code to set the page size.
-//go:linkname setpagesize runtime.setpagesize
-func setpagesize(s uintptr) {
-	if physPageSize == 0 {
-		physPageSize = s
-	}
-}
-
-// Called by C code during library initialization.
-//go:linkname runtime_m0 runtime.runtime_m0
-func runtime_m0() *m {
-	return &m0
-}
-
-// Temporary for gccgo until we port mgc.go.
-//go:linkname runtime_g0 runtime.runtime_g0
-func runtime_g0() *g {
-	return &g0
-}
-
-const uintptrMask = 1<<(8*sys.PtrSize) - 1
+const uintptrMask = 1<<(8*goarch.PtrSize) - 1
 
 type bitvector struct {
 	n        int32 // # of bits
@@ -455,17 +383,16 @@ func abort()
 var usestackmaps bool
 
 // probestackmaps detects whether there are stack maps.
-//go:linkname probestackmaps runtime.probestackmaps
 func probestackmaps() bool
 
 // For the math/bits packages for gccgo.
-//go:linkname getDivideError runtime.getDivideError
+//go:linkname getDivideError
 func getDivideError() error {
 	return divideError
 }
 
 // For the math/bits packages for gccgo.
-//go:linkname getOverflowError runtime.getOverflowError
+//go:linkname getOverflowError
 func getOverflowError() error {
 	return overflowError
 }

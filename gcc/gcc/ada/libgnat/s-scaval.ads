@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2001-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -35,6 +35,8 @@
 --  are used by the generated code, which are linked to the actual values
 --  by the use of pragma Import.
 
+with Interfaces;
+
 package System.Scalar_Values is
 
    --  Note: logically this package should be Pure since it can be accessed
@@ -43,10 +45,10 @@ package System.Scalar_Values is
    --  access this from generated code, and the compiler knows that it is
    --  OK to access this unit from generated code.
 
-   type Byte1 is mod 2 **  8;
-   type Byte2 is mod 2 ** 16;
-   type Byte4 is mod 2 ** 32;
-   type Byte8 is mod 2 ** 64;
+   subtype Byte1 is Interfaces.Unsigned_8;
+   subtype Byte2 is Interfaces.Unsigned_16;
+   subtype Byte4 is Interfaces.Unsigned_32;
+   subtype Byte8 is Interfaces.Unsigned_64;
 
    --  The explicit initializations here are not really required, since these
    --  variables are always set by System.Scalar_Values.Initialize.

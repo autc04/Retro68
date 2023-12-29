@@ -2,7 +2,7 @@
 #as: --32
 #source: abs.s
 #source: zero.s
-#ld: -melf_i386
+#ld: -melf_i386 -z noseparate-code
 #objdump: -rs
 
 .*:     file format .*

@@ -1,9 +1,9 @@
 #source: section12.s
 #as: --no-pad-sections
 #readelf: -Sg --wide
-#name: mbind sections
-# The RX port annoyingly reorders the sections so that they do not match the sequence expected below.
-#skip: rx-*-*
+#name: mbind sections 12
+# A number of targets do not support SHF_GNU_MBIND
+#notarget: ![supports_gnu_osabi]
 
 #...
   \[[ 0-9]+\] \.mbind\.data[ 	]+PROGBITS[ 	]+0+0 0+[0-9a-f]+ 0+1 00 WAD  0   0  1
@@ -26,7 +26,7 @@
 #...
   \[[ 0-9]+\] \.mbind\.text[ 	]+PROGBITS[ 	]+0+0 0+[0-9a-f]+ 0+1 00 AXGD  0   3  1
 #...
-COMDAT group section \[    1\] `\.group' \[\.foo_group\] contains 4 sections:
+COMDAT group section \[    1\] `\.group' \[\.foo_group\] contains . sections:
 [ 	]+\[Index\][ 	]+Name
 [ 	]+\[[ 0-9]+][ 	]+\.mbind\.rodata
 [ 	]+\[[ 0-9]+][ 	]+\.mbind\.data

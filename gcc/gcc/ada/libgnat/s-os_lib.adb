@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 1995-2019, AdaCore                     --
+--                     Copyright (C) 1995-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,11 +29,8 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-pragma Compiler_Unit_Warning;
-
 with Ada.Unchecked_Conversion;
 with Ada.Unchecked_Deallocation;
-with System; use System;
 with System.Case_Util;
 with System.CRTL;
 with System.Soft_Links;
@@ -62,6 +59,11 @@ package body System.OS_Lib is
    --  Mode = 0 - copy only time stamps.
    --  Mode = 1 - copy time stamps and read/write/execute attributes
    --  Mode = 2 - copy read/write/execute attributes
+
+   function Is_Dirsep (C : Character) return Boolean;
+   pragma Inline (Is_Dirsep);
+   --  Returns True if C is a directory separator. On Windows we
+   --  accept both \ and / as a directory separator.
 
    On_Windows : constant Boolean := Directory_Separator = '\';
    --  An indication that we are on Windows. Used in Normalize_Pathname, to
@@ -127,42 +129,6 @@ package body System.OS_Lib is
       Path_Len  : Integer) return String_Access;
    --  Converts a C String to an Ada String. We could do this making use of
    --  Interfaces.C.Strings but we prefer not to import that entire package
-
-   ---------
-   -- "<" --
-   ---------
-
-   function "<"  (X, Y : OS_Time) return Boolean is
-   begin
-      return Long_Integer (X) < Long_Integer (Y);
-   end "<";
-
-   ----------
-   -- "<=" --
-   ----------
-
-   function "<="  (X, Y : OS_Time) return Boolean is
-   begin
-      return Long_Integer (X) <= Long_Integer (Y);
-   end "<=";
-
-   ---------
-   -- ">" --
-   ---------
-
-   function ">"  (X, Y : OS_Time) return Boolean is
-   begin
-      return Long_Integer (X) > Long_Integer (Y);
-   end ">";
-
-   ----------
-   -- ">=" --
-   ----------
-
-   function ">="  (X, Y : OS_Time) return Boolean is
-   begin
-      return Long_Integer (X) >= Long_Integer (Y);
-   end ">=";
 
    -----------------
    -- Args_Length --
@@ -336,22 +302,6 @@ package body System.OS_Lib is
       ----------------
 
       function Build_Path (Dir : String; File : String) return String is
-         function Is_Dirsep (C : Character) return Boolean;
-         pragma Inline (Is_Dirsep);
-         --  Returns True if C is a directory separator. On Windows we
-         --  handle both styles of directory separator.
-
-         ---------------
-         -- Is_Dirsep --
-         ---------------
-
-         function Is_Dirsep (C : Character) return Boolean is
-         begin
-            return C = Directory_Separator or else C = '/';
-         end Is_Dirsep;
-
-         --  Local variables
-
          Base_File_Ptr : Integer;
          --  The base file name is File (Base_File_Ptr + 1 .. File'Last)
 
@@ -574,13 +524,14 @@ package body System.OS_Lib is
                --  touch destination file at all.
 
                From := Open_Read (Name, Binary);
-               if From /= Invalid_FD then
+
+               if From = Invalid_FD then
+                  Success := False;
+               else
                   To := Open_Read_Write (Pathname, Binary);
+                  Lseek (To, 0, Seek_End);
+                  Copy (From, To);
                end if;
-
-               Lseek (To, 0, Seek_End);
-
-               Copy (From, To);
 
             --  Appending to directory, not allowed
 
@@ -1260,7 +1211,6 @@ package body System.OS_Lib is
       H  : Hour_Type;
       Mn : Minute_Type;
       S  : Second_Type;
-      pragma Unreferenced (Y, Mo, H, Mn, S);
 
    begin
       GM_Split (Date, Y, Mo, D, H, Mn, S);
@@ -1279,7 +1229,6 @@ package body System.OS_Lib is
       D  : Day_Type;
       Mn : Minute_Type;
       S  : Second_Type;
-      pragma Unreferenced (Y, Mo, D, Mn, S);
 
    begin
       GM_Split (Date, Y, Mo, D, H, Mn, S);
@@ -1298,7 +1247,6 @@ package body System.OS_Lib is
       D  : Day_Type;
       H  : Hour_Type;
       S  : Second_Type;
-      pragma Unreferenced (Y, Mo, D, H, S);
 
    begin
       GM_Split (Date, Y, Mo, D, H, Mn, S);
@@ -1317,7 +1265,6 @@ package body System.OS_Lib is
       H  : Hour_Type;
       Mn : Minute_Type;
       S  : Second_Type;
-      pragma Unreferenced (Y, D, H, Mn, S);
 
    begin
       GM_Split (Date, Y, Mo, D, H, Mn, S);
@@ -1336,7 +1283,6 @@ package body System.OS_Lib is
       D  : Day_Type;
       H  : Hour_Type;
       Mn : Minute_Type;
-      pragma Unreferenced (Y, Mo, D, H, Mn);
 
    begin
       GM_Split (Date, Y, Mo, D, H, Mn, S);
@@ -1357,13 +1303,13 @@ package body System.OS_Lib is
       Second : out Second_Type)
    is
       procedure To_GM_Time
-        (P_Time_T : Address;
-         P_Year   : Address;
-         P_Month  : Address;
-         P_Day    : Address;
-         P_Hours  : Address;
-         P_Mins   : Address;
-         P_Secs   : Address);
+        (P_OS_Time : Address;
+         P_Year    : Address;
+         P_Month   : Address;
+         P_Day     : Address;
+         P_Hours   : Address;
+         P_Mins    : Address;
+         P_Secs    : Address);
       pragma Import (C, To_GM_Time, "__gnat_to_gm_time");
 
       T  : OS_Time := Date;
@@ -1375,18 +1321,33 @@ package body System.OS_Lib is
       S  : Integer;
 
    begin
+      --  Special case Invalid_Time which is handled differently between
+      --  Windows and Linux: Linux will set to 1 second before 1970-01-01
+      --  while Windows will set the time to 1970-01-01 with Second set to -1,
+      --  which is not a valid value.
+
+      if Date = Invalid_Time then
+         Year   := 1969;
+         Month  := 12;
+         Day    := 31;
+         Hour   := 23;
+         Minute := 59;
+         Second := 59;
+         return;
+      end if;
+
       --  Use the global lock because To_GM_Time is not thread safe
 
       Locked_Processing : begin
          SSL.Lock_Task.all;
          To_GM_Time
-           (P_Time_T => T'Address,
-            P_Year   => Y'Address,
-            P_Month  => Mo'Address,
-            P_Day    => D'Address,
-            P_Hours  => H'Address,
-            P_Mins   => Mn'Address,
-            P_Secs   => S'Address);
+           (P_OS_Time => T'Address,
+            P_Year    => Y'Address,
+            P_Month   => Mo'Address,
+            P_Day     => D'Address,
+            P_Hours   => H'Address,
+            P_Mins    => Mn'Address,
+            P_Secs    => S'Address);
          SSL.Unlock_Task.all;
 
       exception
@@ -1397,7 +1358,15 @@ package body System.OS_Lib is
 
       Year   := Y + 1900;
       Month  := Mo + 1;
-      Day    := D;
+
+      --  May happen if To_GM_Time fails
+
+      if D = 0 then
+         Day := 1;
+      else
+         Day := D;
+      end if;
+
       Hour   := H;
       Minute := Mn;
       Second := S;
@@ -1416,26 +1385,26 @@ package body System.OS_Lib is
       Second : Second_Type) return OS_Time
    is
       procedure To_OS_Time
-        (P_Time_T : Address;
-         P_Year   : Integer;
-         P_Month  : Integer;
-         P_Day    : Integer;
-         P_Hours  : Integer;
-         P_Mins   : Integer;
-         P_Secs   : Integer);
+        (P_OS_Time : Address;
+         P_Year    : Integer;
+         P_Month   : Integer;
+         P_Day     : Integer;
+         P_Hours   : Integer;
+         P_Mins    : Integer;
+         P_Secs    : Integer);
       pragma Import (C, To_OS_Time, "__gnat_to_os_time");
 
       Result : OS_Time;
 
    begin
       To_OS_Time
-        (P_Time_T => Result'Address,
-         P_Year   => Year - 1900,
-         P_Month  => Month - 1,
-         P_Day    => Day,
-         P_Hours  => Hour,
-         P_Mins   => Minute,
-         P_Secs   => Second);
+        (P_OS_Time => Result'Address,
+         P_Year    => Year - 1900,
+         P_Month   => Month - 1,
+         P_Day     => Day,
+         P_Hours   => Hour,
+         P_Mins    => Minute,
+         P_Secs    => Second);
       return Result;
    end GM_Time_Of;
 
@@ -1451,7 +1420,6 @@ package body System.OS_Lib is
       H  : Hour_Type;
       Mn : Minute_Type;
       S  : Second_Type;
-      pragma Unreferenced (Mo, D, H, Mn, S);
 
    begin
       GM_Split (Date, Y, Mo, D, H, Mn, S);
@@ -1470,6 +1438,15 @@ package body System.OS_Lib is
    begin
       return Is_Absolute_Path (Name'Address, Name'Length) /= 0;
    end Is_Absolute_Path;
+
+   ---------------
+   -- Is_Dirsep --
+   ---------------
+
+   function Is_Dirsep (C : Character) return Boolean is
+   begin
+      return C = Directory_Separator or else C = '/';
+   end Is_Dirsep;
 
    ------------------
    -- Is_Directory --
@@ -1629,10 +1606,12 @@ package body System.OS_Lib is
       pragma Import (C, C_Kill, "__gnat_kill");
 
    begin
-      if Hard_Kill then
-         C_Kill (Pid, SIGKILL, 1);
-      else
-         C_Kill (Pid, SIGINT, 1);
+      if Pid /= Invalid_Pid then
+         if Hard_Kill then
+            C_Kill (Pid, SIGKILL, 1);
+         else
+            C_Kill (Pid, SIGINT, 1);
+         end if;
       end if;
    end Kill;
 
@@ -1997,6 +1976,8 @@ package body System.OS_Lib is
 
                   --  If the string ends with \, double it
 
+                  pragma Annotate (CodePeer, Modified, Res (J - 1));
+
                   if Res (J - 1) = '\' then
                      Res (J) := '\';
                      J := J + 1;
@@ -2080,17 +2061,63 @@ package body System.OS_Lib is
 
       Fold_To_Lower_Case : constant Boolean :=
                              not Case_Sensitive
-                               and then Get_File_Names_Case_Sensitive = 0;
+                                 and then Get_File_Names_Case_Sensitive = 0;
+
+      Cur_Dir_Len : Natural  := 0;
+      End_Path    : Natural  := Name'Length;
+      Last        : Positive := 1;
+      Path_Buffer : String (1 .. End_Path + 2 * Max_Path + 4);
+      --  We need to potentially store in this buffer the following elements:
+      --  the path itself, the current directory if the path is relative,
+      --  and additional fragments up to Max_Path in length in case
+      --  there are any symlinks.
 
       function Final_Value (S : String) return String;
       --  Make final adjustment to the returned string. This function strips
       --  trailing directory separators, and folds returned string to lower
       --  case if required.
 
-      function Get_Directory  (Dir : String) return String;
-      --  If Dir is not empty, return it, adding a directory separator
-      --  if not already present, otherwise return current working directory
-      --  with terminating directory separator.
+      procedure Fill_Directory (Drive_Only : Boolean := False);
+      --  Fill Cur_Dir and Cur_Dir_Len with Directory and ending directory
+      --  separator or with current directory if Directory is not defined.
+      --  If Drive_Only is True takes only Drive letter with colon and
+      --  directory separator from Directory parameter or from current
+      --  directory if Directory parameter is empty.
+
+      function Is_With_Drive (Name : String) return Boolean;
+      pragma Inline (Is_With_Drive);
+      --  Returns True only if the Name is including a drive
+      --  letter at start.
+
+      function Missed_Drive_Letter (Name : String) return Boolean;
+      --  Missed drive letter at start of the normalized pathname
+
+      -------------------
+      -- Is_With_Drive --
+      -------------------
+
+      function Is_With_Drive (Name : String) return Boolean is
+      begin
+         return Name'Length > 1
+           and then Name (Name'First + 1) = ':'
+           and then (Name (Name'First) in 'a' .. 'z'
+                     or else Name (Name'First) in 'A' .. 'Z');
+      end Is_With_Drive;
+
+      -------------------------
+      -- Missed_Drive_Letter --
+      -------------------------
+
+      function Missed_Drive_Letter (Name : String) return Boolean is
+      begin
+         return On_Windows
+           and then not Is_With_Drive (Name)
+           and then (Name'Length < 2 -- not \\name case
+                     or else Name (Name'First)
+                             /= Directory_Separator
+                     or else Name (Name'First + 1)
+                             /= Directory_Separator);
+      end Missed_Drive_Letter;
 
       -----------------
       -- Final_Value --
@@ -2111,22 +2138,14 @@ package body System.OS_Lib is
 
          Last := S1'Last;
 
-         if Last > 1
-           and then (S1 (Last) = '/'
-                       or else
-                     S1 (Last) = Directory_Separator)
-         then
-            --  Special case for Windows: C:\
-
-            if Last = 3
+         if Last > 1 and then Is_Dirsep (S1 (Last))
+           and then not
+             (On_Windows -- Special case for Windows: C:\
+              and then Last = 3
               and then S1 (1) /= Directory_Separator
-              and then S1 (2) = ':'
-            then
-               null;
-
-            else
-               Last := Last - 1;
-            end if;
+              and then S1 (2) = ':')
+         then
+            Last := Last - 1;
          end if;
 
          --  And ensure that there is a trailing directory separator if the
@@ -2143,90 +2162,80 @@ package body System.OS_Lib is
          end if;
       end Final_Value;
 
-      -------------------
-      -- Get_Directory --
-      -------------------
+      --------------------
+      -- Fill_Directory --
+      --------------------
 
-      function Get_Directory (Dir : String) return String is
+      procedure Fill_Directory (Drive_Only : Boolean := False) is
       begin
-         --  Directory given, add directory separator if needed
+         if Drive_Only and then Is_With_Drive (Directory) then
+            Path_Buffer (1 .. 3) :=
+              Directory (Directory'First .. Directory'First + 2);
 
-         if Dir'Length > 0 then
-            declare
-               Result : String   :=
-                          Normalize_Pathname
-                            (Dir, "", Resolve_Links, Case_Sensitive)
-                             & Directory_Separator;
-               Last   : Positive := Result'Last - 1;
+         elsif Directory = ""
+           or else not Is_Absolute_Path (Directory)
+           or else Missed_Drive_Letter (Directory)
+         then
+            --  Directory name not given or it is not absolute or without drive
+            --  letter on Windows, get current directory.
 
-            begin
-               --  On Windows, change all '/' to '\'
+            Cur_Dir_Len := Max_Path;
 
-               if On_Windows then
-                  for J in Result'First .. Last - 1 loop
-                     if Result (J) = '/' then
-                        Result (J) := Directory_Separator;
-                     end if;
-                  end loop;
+            Get_Current_Dir (Path_Buffer'Address, Cur_Dir_Len'Address);
+
+            if Cur_Dir_Len = 0 then
+               raise Program_Error;
+            end if;
+
+            if not Resolve_Links then
+               Last := Cur_Dir_Len;
+            end if;
+
+            if not Drive_Only and then Directory /= "" then
+               if On_Windows and then Is_Absolute_Path (Directory) then
+                  --  Drive letter taken from current directory but directory
+                  --  itself taken from Directory parameter.
+
+                  Path_Buffer (3 .. Directory'Length + 2) := Directory;
+                  Cur_Dir_Len := Directory'Length + 2;
+                  Last := 3;
+
+               else
+                  --  Append relative Directory to current directory
+
+                  Path_Buffer
+                    (Cur_Dir_Len + 1 .. Cur_Dir_Len + Directory'Length) :=
+                    Directory;
+                  Cur_Dir_Len := Cur_Dir_Len + Directory'Length;
                end if;
+            end if;
 
-               --  Include additional directory separator, if needed
-
-               if Result (Last) /= Directory_Separator then
-                  Last := Last + 1;
-               end if;
-
-               return Result (Result'First .. Last);
-            end;
-
-         --  Directory name not given, get current directory
+         elsif Directory'Length >= Path_Buffer'Length then
+            raise Constraint_Error with "Directory name to big";
 
          else
-            declare
-               Buffer   : String (1 .. Max_Path + 2);
-               Path_Len : Natural := Max_Path;
-
-            begin
-               Get_Current_Dir (Buffer'Address, Path_Len'Address);
-
-               if Path_Len = 0 then
-                  raise Program_Error;
-               end if;
-
-               if Buffer (Path_Len) /= Directory_Separator then
-                  Path_Len := Path_Len + 1;
-                  Buffer (Path_Len) := Directory_Separator;
-               end if;
-
-               --  By default, the drive letter on Windows is in upper case
-
-               if On_Windows
-                 and then Path_Len >= 2
-                 and then Buffer (2) = ':'
-               then
-                  System.Case_Util.To_Upper (Buffer (1 .. 1));
-               end if;
-
-               return Buffer (1 .. Path_Len);
-            end;
+            Path_Buffer (1 .. Directory'Length) := Directory;
+            Cur_Dir_Len := Directory'Length;
          end if;
-      end Get_Directory;
+
+         if Drive_Only then
+            --  When we need only drive letter from current directory on
+            --  Windows
+
+            Cur_Dir_Len := 3;
+            Last := Cur_Dir_Len;
+
+         elsif not Is_Dirsep (Path_Buffer (Cur_Dir_Len)) then
+            Cur_Dir_Len := Cur_Dir_Len + 1;
+            Path_Buffer (Cur_Dir_Len) := Directory_Separator;
+         end if;
+      end Fill_Directory;
 
       --  Local variables
 
       Max_Iterations : constant := 500;
 
-      Cur_Dir     : constant String  := Get_Directory (Directory);
-      Cur_Dir_Len : constant Natural := Cur_Dir'Length;
-
-      End_Path    : Natural := Name'Length;
-      Last        : Positive := 1;
       Link_Buffer : String (1 .. Max_Path + 2);
-      Path_Buffer : String (1 .. End_Path + Cur_Dir_Len + Max_Path + 2);
-      --  We need to potentially store in this buffer the following elements:
-      --  the path itself, the current directory if the path is relative,
-      --  and additional fragments up to Max_Path in length in case
-      --  there are any symlinks.
 
       Finish : Positive;
       Start  : Positive;
@@ -2242,14 +2251,23 @@ package body System.OS_Lib is
       end if;
 
       if Is_Absolute_Path (Name) then
-         Path_Buffer (1 .. End_Path) := Name;
+         if Missed_Drive_Letter (Name) then
+            Fill_Directory (Drive_Only => True);
+
+            --  Take only drive letter part with colon
+
+            End_Path := End_Path + 2;
+            Path_Buffer (3 .. End_Path) := Name;
+
+         else
+            Path_Buffer (1 .. End_Path) := Name;
+         end if;
 
       else
          --  If this is a relative pathname, prepend current directory
-         Path_Buffer (1 .. Cur_Dir_Len) := Cur_Dir;
+         Fill_Directory;
          Path_Buffer (Cur_Dir_Len + 1 .. Cur_Dir_Len + End_Path) := Name;
          End_Path := Cur_Dir_Len + End_Path;
-         Last := Cur_Dir_Len;
       end if;
 
       --  Special handling for Windows:
@@ -2266,30 +2284,11 @@ package body System.OS_Lib is
             end if;
          end loop;
 
-         --  If we have an absolute path starting with a directory
-         --  separator (but not a UNC path), we need to have the drive letter
-         --  in front of the path. Get_Current_Dir returns a path starting
-         --  with a drive letter. So we take this drive letter and prepend it
-         --  to the current path.
+         --  Ensure drive letter is upper-case
 
-         if Path_Buffer (1) = Directory_Separator
-           and then Path_Buffer (2) /= Directory_Separator
-         then
-            if Cur_Dir'Length > 2
-              and then Cur_Dir (Cur_Dir'First + 1) = ':'
-            then
-               Path_Buffer (3 .. End_Path + 2) :=
-                 Path_Buffer (1 .. End_Path);
-               Path_Buffer (1 .. 2) :=
-                 Cur_Dir (Cur_Dir'First .. Cur_Dir'First + 1);
-               End_Path := End_Path + 2;
-            end if;
+         pragma Assert (Path_Buffer (2) = ':');
 
-         --  We have a drive letter already, ensure it is upper-case
-
-         elsif Path_Buffer (1) in 'a' .. 'z'
-           and then Path_Buffer (2) = ':'
-         then
+         if Path_Buffer (1) in 'a' .. 'z' then
             System.Case_Util.To_Upper (Path_Buffer (1 .. 1));
          end if;
 
@@ -2977,6 +2976,15 @@ package body System.OS_Lib is
       end loop;
    end Spawn_Internal;
 
+   ------------
+   -- To_Ada --
+   ------------
+
+   function To_Ada (Time : time_t) return OS_Time is
+   begin
+      return OS_Time (Time);
+   end To_Ada;
+
    ---------------------------
    -- To_Path_String_Access --
    ---------------------------
@@ -3005,6 +3013,15 @@ package body System.OS_Lib is
 
       return Return_Val;
    end To_Path_String_Access;
+
+   ----------
+   -- To_C --
+   ----------
+
+   function To_C (Time : OS_Time) return time_t is
+   begin
+      return time_t (Time);
+   end To_C;
 
    ------------------
    -- Wait_Process --

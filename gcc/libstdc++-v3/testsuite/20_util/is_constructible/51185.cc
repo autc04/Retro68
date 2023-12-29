@@ -1,6 +1,6 @@
 // { dg-do compile { target c++11 } }
 
-// Copyright (C) 2011-2019 Free Software Foundation, Inc.
+// Copyright (C) 2011-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,7 +20,14 @@
 #include <type_traits>
 
 struct A { };
-struct B : A { };
+struct B : A {
+#if __cpp_aggregate_bases && __cpp_aggregate_paren_init
+  // A user-declared constructor prevents B from being an aggregate.
+  // Otherwise 'B&& b{A{}};' becomes valid in C++17 (__cpp_aggregate_bases),
+  // and 'B&& b(A{});' becomes valid in C++17 (__cpp_aggregate_paren_init).
+  B();
+#endif
+};
 
 // libstdc++/51185
 void f()

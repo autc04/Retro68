@@ -1,5 +1,5 @@
 /* TI PRU assembler.
-   Copyright (C) 2014-2018 Free Software Foundation, Inc.
+   Copyright (C) 2014-2022 Free Software Foundation, Inc.
    Contributed by Dimitar Dimitrov <dimitar@dinux.eu>
    Based on tc-nios2.c
 
@@ -21,7 +21,7 @@
    02110-1301, USA.  */
 
 #include "as.h"
-#include "bfd_stdint.h"
+#include <stdint.h>
 #include "opcode/pru.h"
 #include "elf/pru.h"
 #include "tc-pru.h"
@@ -66,14 +66,14 @@ struct pru_opt_s
 {
   /* -mno-link-relax / -mlink-relax: generate (or not)
      relocations for linker relaxation.  */
-  bfd_boolean link_relax;
+  bool link_relax;
 
   /* -mno-warn-regname-label: do not output a warning that a label name
      matches a register name.  */
-  bfd_boolean warn_regname_label;
+  bool warn_regname_label;
 };
 
-static struct pru_opt_s pru_opt = { TRUE, TRUE };
+static struct pru_opt_s pru_opt = { true, true };
 
 const char *md_shortopts = "r";
 
@@ -132,14 +132,14 @@ typedef struct pru_insn_info
 } pru_insn_infoS;
 
 /* Opcode hash table.  */
-static struct hash_control *pru_opcode_hash = NULL;
+static htab_t pru_opcode_hash = NULL;
 #define pru_opcode_lookup(NAME) \
-  ((struct pru_opcode *) hash_find (pru_opcode_hash, (NAME)))
+  ((struct pru_opcode *) str_hash_find (pru_opcode_hash, (NAME)))
 
 /* Register hash table.  */
-static struct hash_control *pru_reg_hash = NULL;
+static htab_t pru_reg_hash = NULL;
 #define pru_reg_lookup(NAME) \
-  ((struct pru_reg *) hash_find (pru_reg_hash, (NAME)))
+  ((struct pru_reg *) str_hash_find (pru_reg_hash, (NAME)))
 
 /* The known current alignment of the current section.  */
 static int pru_current_align;
@@ -188,7 +188,7 @@ md_number_to_chars (char *buf, valueT val, int n)
 const char *
 md_atof (int type, char *litP, int *sizeP)
 {
-  return ieee_md_atof (type, litP, sizeP, FALSE);
+  return ieee_md_atof (type, litP, sizeP, false);
 }
 
 /* Return true if STR starts with PREFIX, which should be a string literal.  */
@@ -246,7 +246,7 @@ pru_align (int log_size, const char *pfill, symbolS *label)
       if (label != NULL && !switched_seg_p)
 	{
 	  symbolS *sym;
-	  int label_seen = FALSE;
+	  int label_seen = false;
 	  struct frag *old_frag;
 	  valueT old_value;
 	  valueT new_value;
@@ -272,7 +272,7 @@ pru_align (int log_size, const char *pfill, symbolS *label)
 	    if (symbol_get_frag (sym) == old_frag
 		&& S_GET_VALUE (sym) == old_value)
 	      {
-		label_seen = TRUE;
+		label_seen = true;
 		symbol_set_frag (sym, frag_now);
 		S_SET_VALUE (sym, new_value);
 	      }
@@ -425,13 +425,13 @@ s_pru_set (int equiv)
   SKIP_WHITESPACE ();
   if (is_end_of_line[(unsigned char) *input_line_pointer])
     {
-      bfd_boolean done = TRUE;
+      bool done = true;
       *endline = 0;
 
       if (!strcmp (directive, "no_warn_regname_label"))
-	  pru_opt.warn_regname_label = FALSE;
+	  pru_opt.warn_regname_label = false;
       else
-	done = FALSE;
+	done = false;
 
       if (done)
 	{
@@ -491,7 +491,7 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT segment ATTRIBUTE_UNUSED,
 }
 
 
-static bfd_boolean
+static bool
 relaxable_section (asection *sec)
 {
   return ((sec->flags & SEC_DEBUGGING) == 0
@@ -642,7 +642,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
   unsigned char *where;
   valueT value = *valP;
-  long n;
 
   /* Assert that the fixup is one we can handle.  */
   gas_assert (fixP != NULL && valP != NULL
@@ -743,8 +742,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  diffval /= 4;
 	  break;
 	default:
-	  as_bad_where (fixP->fx_file, fixP->fx_line,
-			_("expression too complex"));
+	  as_bad_subtract (fixP);
 	  break;
 	}
 
@@ -754,7 +752,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
   }
   /* We don't actually support subtracting a symbol.  */
   if (fixP->fx_subsy != (symbolS *) NULL)
-    as_bad_where (fixP->fx_file, fixP->fx_line, _("expression too complex"));
+    as_bad_subtract (fixP);
 
   /* For the DIFF relocs, write the value into the object file while still
      keeping fx_done FALSE, as both the difference (recorded in the object file)
@@ -801,11 +799,13 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	    pru_diagnose_overflow (fixup, howto, fixP, insn);
 
 	  /* Apply the right shift.  */
-	  fixup = ((offsetT)fixup) >> howto->rightshift;
+	  fixup = (offsetT) fixup >> howto->rightshift;
 
 	  /* Truncate the fixup to right size.  */
-	  n = sizeof (fixup) * 8 - howto->bitsize;
-	  fixup = (fixup << n) >> n;
+	  if (howto->bitsize == 0)
+	    fixup = 0;
+	  else
+	    fixup &= ((valueT) 2 << (howto->bitsize - 1)) - 1;
 
 	  /* Fix up the instruction.  Non-contiguous bitfields need
 	     special handling.  */
@@ -1403,7 +1403,7 @@ pru_parse_args (pru_insn_infoS *insn ATTRIBUTE_UNUSED, char *argstr,
   int i;
   p = argstr;
   i = 0;
-  bfd_boolean terminate = FALSE;
+  bool terminate = false;
 
   /* This rest of this function is it too fragile and it mostly works,
      therefore special case this one.  */
@@ -1438,7 +1438,7 @@ pru_parse_args (pru_insn_infoS *insn ATTRIBUTE_UNUSED, char *argstr,
 	}
 
       if (*parsestr == '\0' || (p != NULL && *p == '\0'))
-	terminate = TRUE;
+	terminate = true;
       ++i;
     }
 
@@ -1515,13 +1515,13 @@ md_parse_option (int c, const char *arg ATTRIBUTE_UNUSED)
       pru_mode = PRU_MODE_TEST;
       break;
     case OPTION_LINK_RELAX:
-      pru_opt.link_relax = TRUE;
+      pru_opt.link_relax = true;
       break;
     case OPTION_NO_LINK_RELAX:
-      pru_opt.link_relax = FALSE;
+      pru_opt.link_relax = false;
       break;
     case OPTION_NO_WARN_REGNAME_LABEL:
-      pru_opt.warn_regname_label = FALSE;
+      pru_opt.warn_regname_label = false;
       break;
     default:
       return 0;
@@ -1556,41 +1556,20 @@ void
 md_begin (void)
 {
   int i;
-  const char *inserted;
 
   /* Create and fill a hashtable for the PRU opcodes, registers and
      arguments.  */
-  pru_opcode_hash = hash_new ();
-  pru_reg_hash = hash_new ();
+  pru_opcode_hash = str_htab_create ();
+  pru_reg_hash = str_htab_create ();
 
   for (i = 0; i < NUMOPCODES; ++i)
-    {
-      inserted
-	= hash_insert (pru_opcode_hash, pru_opcodes[i].name,
-		       (PTR) & pru_opcodes[i]);
-      if (inserted != NULL)
-	{
-	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
-		   pru_opcodes[i].name, inserted);
-	  /* Probably a memory allocation problem?  Give up now.  */
-	  as_fatal (_("Broken assembler.  No assembly attempted."));
-	}
-    }
+    if (str_hash_insert (pru_opcode_hash, pru_opcodes[i].name,
+			 &pru_opcodes[i], 0) != NULL)
+      as_fatal (_("duplicate %s"), pru_opcodes[i].name);
 
   for (i = 0; i < pru_num_regs; ++i)
-    {
-      inserted
-	= hash_insert (pru_reg_hash, pru_regs[i].name,
-		       (PTR) & pru_regs[i]);
-      if (inserted != NULL)
-	{
-	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
-		   pru_regs[i].name, inserted);
-	  /* Probably a memory allocation problem?  Give up now.  */
-	  as_fatal (_("Broken assembler.  No assembly attempted."));
-	}
-
-    }
+    if (str_hash_insert (pru_reg_hash, pru_regs[i].name, &pru_regs[i], 0))
+      as_fatal (_("duplicate %s"), pru_regs[i].name);
 
   linkrelax = pru_opt.link_relax;
   /* Initialize the alignment data.  */
@@ -1745,7 +1724,7 @@ md_assemble (char *op_str)
 valueT
 md_section_align (asection *seg, valueT addr)
 {
-  int align = bfd_get_section_alignment (stdoutput, seg);
+  int align = bfd_section_alignment (seg);
   return ((addr + (1 << align) - 1) & (-((valueT) 1 << align)));
 }
 
@@ -1810,8 +1789,8 @@ md_pcrel_from (fixS *fixP ATTRIBUTE_UNUSED)
 void
 md_end (void)
 {
-  hash_die (pru_opcode_hash);
-  hash_die (pru_reg_hash);
+  htab_delete (pru_opcode_hash);
+  htab_delete (pru_reg_hash);
 }
 
 symbolS *
@@ -1855,7 +1834,7 @@ skip_space (char *s)
 int
 pru_parse_cons_expression (expressionS *exp, int nbytes)
 {
-  int is_pmem = FALSE;
+  int is_pmem = false;
   char *tmp;
 
   tmp = input_line_pointer = skip_space (input_line_pointer);
@@ -1872,7 +1851,7 @@ pru_parse_cons_expression (expressionS *exp, int nbytes)
 	  if (*input_line_pointer == '(')
 	    {
 	      input_line_pointer = skip_space (input_line_pointer + 1);
-	      is_pmem = TRUE;
+	      is_pmem = true;
 	      expression (exp);
 
 	      if (*input_line_pointer == ')')
@@ -1880,7 +1859,7 @@ pru_parse_cons_expression (expressionS *exp, int nbytes)
 	      else
 		{
 		  as_bad (_("`)' required"));
-		  is_pmem = FALSE;
+		  is_pmem = false;
 		}
 
 	      return is_pmem;
@@ -1920,14 +1899,28 @@ pru_cons_fix_new (fragS *frag, int where, unsigned int nbytes,
 }
 
 /* Implement tc_regname_to_dw2regnum, to convert REGNAME to a DWARF-2
-   register number.  */
+   register number.  Return the starting HW byte-register number.  */
+
 int
 pru_regname_to_dw2regnum (char *regname)
 {
+  static const unsigned int regstart[RSEL_NUM_ITEMS] =
+    {
+     [RSEL_7_0]	  = 0,
+     [RSEL_15_8]  = 1,
+     [RSEL_23_16] = 2,
+     [RSEL_31_24] = 3,
+     [RSEL_15_0]  = 0,
+     [RSEL_23_8]  = 1,
+     [RSEL_31_16] = 2,
+     [RSEL_31_0]  = 0,
+    };
+
   struct pru_reg *r = pru_reg_lookup (regname);
-  if (r == NULL)
+
+  if (r == NULL || r->regsel >= RSEL_NUM_ITEMS)
     return -1;
-  return r->index;
+  return r->index * 4 + regstart[r->regsel];
 }
 
 /* Implement tc_cfi_frame_initial_instructions, to initialize the DWARF-2
@@ -1935,28 +1928,28 @@ pru_regname_to_dw2regnum (char *regname)
 void
 pru_frame_initial_instructions (void)
 {
-  const unsigned fp_regno = 4;
+  const unsigned fp_regno = 4 * 4;
   cfi_add_CFA_def_cfa (fp_regno, 0);
 }
 
-bfd_boolean
+bool
 pru_allow_local_subtract (expressionS * left,
 			     expressionS * right,
 			     segT section)
 {
   /* If we are not in relaxation mode, subtraction is OK.  */
   if (!linkrelax)
-    return TRUE;
+    return true;
 
   /* If the symbols are not in a code section then they are OK.  */
   if ((section->flags & SEC_CODE) == 0)
-    return TRUE;
+    return true;
 
   if (left->X_add_symbol == right->X_add_symbol)
-    return TRUE;
+    return true;
 
   /* We have to assume that there may be instructions between the
      two symbols and that relaxation may increase the distance between
      them.  */
-  return FALSE;
+  return false;
 }

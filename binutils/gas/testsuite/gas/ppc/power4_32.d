@@ -41,7 +41,7 @@ Disassembly of section \.text:
   7c:	(7c 01 17 ec|ec 17 01 7c) 	dcbz    r1,r2
   80:	(7c 23 27 ec|ec 27 23 7c) 	dcbzl   r3,r4
   84:	(7c 05 37 ec|ec 37 05 7c) 	dcbz    r5,r6
-  88:	(7c 05 32 2c|2c 32 05 7c) 	dcbt    r5,r6
-  8c:	(7c 05 32 2c|2c 32 05 7c) 	dcbt    r5,r6
-  90:	(7d 05 32 2c|2c 32 05 7d) 	dcbt    r5,r6,8
+  88:	(7c 05 32 2c|2c 32 05 7c) 	dcbtct  r5,r6
+  8c:	(7c 05 32 2c|2c 32 05 7c) 	dcbtct  r5,r6
+  90:	(7d 05 32 2c|2c 32 05 7d) 	dcbtds  r5,r6
 #pass

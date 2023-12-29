@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -69,10 +69,13 @@
 pragma Source_File_Name (System.Memory, Body_File_Name => "memtrack.adb");
 
 with Ada.Exceptions;
+with GNAT.IO;
+
 with System.Soft_Links;
 with System.Traceback;
 with System.Traceback_Entries;
-with GNAT.IO;
+with System.CRTL;
+with System.OS_Lib;
 with System.OS_Primitives;
 
 package body System.Memory is
@@ -93,27 +96,14 @@ package body System.Memory is
      (Ptr : System.Address; Size : size_t) return System.Address;
    pragma Import (C, c_realloc, "realloc");
 
-   subtype File_Ptr is System.Address;
+   In_Child_After_Fork : Integer;
+   pragma Import (C, In_Child_After_Fork, "__gnat_in_child_after_fork");
 
-   function fopen (Path : String; Mode : String) return File_Ptr;
-   pragma Import (C, fopen);
+   subtype File_Ptr is CRTL.FILEs;
 
-   procedure OS_Exit (Status : Integer);
-   pragma Import (C, OS_Exit, "__gnat_os_exit");
-   pragma No_Return (OS_Exit);
+   procedure Write (Ptr : System.Address; Size : size_t);
 
-   procedure fwrite
-     (Ptr    : System.Address;
-      Size   : size_t;
-      Nmemb  : size_t;
-      Stream : File_Ptr);
-   pragma Import (C, fwrite);
-
-   procedure fputc (C : Integer; Stream : File_Ptr);
-   pragma Import (C, fputc);
-
-   procedure fclose (Stream : File_Ptr);
-   pragma Import (C, fclose);
+   procedure Putc (Char : Character);
 
    procedure Finalize;
    pragma Export (C, Finalize, "__gnat_finalize");
@@ -149,6 +139,24 @@ package body System.Memory is
    --  themselves do dynamic allocation. We use First_Call flag to avoid
    --  infinite recursion
 
+   function Allow_Trace return Boolean;
+   pragma Inline (Allow_Trace);
+   --  Check if the memory trace is allowed
+
+   -----------------
+   -- Allow_Trace --
+   -----------------
+
+   function Allow_Trace return Boolean is
+   begin
+      if First_Call then
+         First_Call := False;
+         return In_Child_After_Fork = 0;
+      else
+         return False;
+      end if;
+   end Allow_Trace;
+
    -----------
    -- Alloc --
    -----------
@@ -176,13 +184,11 @@ package body System.Memory is
 
       Result := c_malloc (Actual_Size);
 
-      if First_Call then
+      if Allow_Trace then
 
          --  Logs allocation call
          --  format is:
          --   'A' <mem addr> <size chunk> <len backtrace> <addr1> ... <addrn>
-
-         First_Call := False;
 
          if Needs_Init then
             Gmem_Initialize;
@@ -191,20 +197,17 @@ package body System.Memory is
          Timestamp := System.OS_Primitives.Clock;
          Call_Chain
            (Tracebk, Max_Call_Stack, Num_Calls, Skip_Frames => 2);
-         fputc (Character'Pos ('A'), Gmemfile);
-         fwrite (Result'Address, Address_Size, 1, Gmemfile);
-         fwrite (Actual_Size'Address, size_t'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
-         fwrite (Timestamp'Address, Duration'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
-         fwrite (Num_Calls'Address, Integer'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
+         Putc ('A');
+         Write (Result'Address, Address_Size);
+         Write (Actual_Size'Address, size_t'Max_Size_In_Storage_Elements);
+         Write (Timestamp'Address, Duration'Max_Size_In_Storage_Elements);
+         Write (Num_Calls'Address, Integer'Max_Size_In_Storage_Elements);
 
          for J in Tracebk'First .. Tracebk'First + Num_Calls - 1 loop
             declare
                Ptr : System.Address := PC_For (Tracebk (J));
             begin
-               fwrite (Ptr'Address, Address_Size, 1, Gmemfile);
+               Write (Ptr'Address, Address_Size);
             end;
          end loop;
 
@@ -227,8 +230,8 @@ package body System.Memory is
 
    procedure Finalize is
    begin
-      if not Needs_Init then
-         fclose (Gmemfile);
+      if not Needs_Init and then CRTL.fclose (Gmemfile) /= 0 then
+         Put_Line ("gmem close error: " & OS_Lib.Errno_Message);
       end if;
    end Finalize;
 
@@ -243,13 +246,11 @@ package body System.Memory is
    begin
       Lock_Task.all;
 
-      if First_Call then
+      if Allow_Trace then
 
          --  Logs deallocation call
          --  format is:
          --   'D' <mem addr> <len backtrace> <addr1> ... <addrn>
-
-         First_Call := False;
 
          if Needs_Init then
             Gmem_Initialize;
@@ -258,18 +259,16 @@ package body System.Memory is
          Call_Chain
            (Tracebk, Max_Call_Stack, Num_Calls, Skip_Frames => 2);
          Timestamp := System.OS_Primitives.Clock;
-         fputc (Character'Pos ('D'), Gmemfile);
-         fwrite (Addr'Address, Address_Size, 1, Gmemfile);
-         fwrite (Timestamp'Address, Duration'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
-         fwrite (Num_Calls'Address, Integer'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
+         Putc ('D');
+         Write (Addr'Address, Address_Size);
+         Write (Timestamp'Address, Duration'Max_Size_In_Storage_Elements);
+         Write (Num_Calls'Address, Integer'Max_Size_In_Storage_Elements);
 
          for J in Tracebk'First .. Tracebk'First + Num_Calls - 1 loop
             declare
                Ptr : System.Address := PC_For (Tracebk (J));
             begin
-               fwrite (Ptr'Address, Address_Size, 1, Gmemfile);
+               Write (Ptr'Address, Address_Size);
             end;
          end loop;
 
@@ -287,28 +286,40 @@ package body System.Memory is
 
    procedure Gmem_Initialize is
       Timestamp : aliased Duration;
-
+      File_Mode : constant String := "wb" & ASCII.NUL;
    begin
       if Needs_Init then
          Needs_Init := False;
          System.OS_Primitives.Initialize;
          Timestamp := System.OS_Primitives.Clock;
-         Gmemfile := fopen (Gmemfname, "wb" & ASCII.NUL);
+         Gmemfile := CRTL.fopen (Gmemfname'Address, File_Mode'Address);
 
          if Gmemfile = System.Null_Address then
             Put_Line ("Couldn't open gnatmem log file for writing");
-            OS_Exit (255);
+            OS_Lib.OS_Exit (255);
          end if;
 
          declare
             S : constant String := "GMEM DUMP" & ASCII.LF;
          begin
-            fwrite (S'Address, S'Length, 1, Gmemfile);
-            fwrite (Timestamp'Address, Duration'Max_Size_In_Storage_Elements,
-                    1, Gmemfile);
+            Write (S'Address, S'Length);
+            Write (Timestamp'Address, Duration'Max_Size_In_Storage_Elements);
          end;
       end if;
    end Gmem_Initialize;
+
+   ----------
+   -- Putc --
+   ----------
+
+   procedure Putc (Char : Character) is
+      C : constant Integer := Character'Pos (Char);
+
+   begin
+      if CRTL.fputc (C, Gmemfile) /= C then
+         Put_Line ("gmem fputc error: " & OS_Lib.Errno_Message);
+      end if;
+   end Putc;
 
    -------------
    -- Realloc --
@@ -334,9 +345,7 @@ package body System.Memory is
       Abort_Defer.all;
       Lock_Task.all;
 
-      if First_Call then
-         First_Call := False;
-
+      if Allow_Trace then
          --  We first log deallocation call
 
          if Needs_Init then
@@ -345,18 +354,16 @@ package body System.Memory is
          Call_Chain
            (Tracebk, Max_Call_Stack, Num_Calls, Skip_Frames => 2);
          Timestamp := System.OS_Primitives.Clock;
-         fputc (Character'Pos ('D'), Gmemfile);
-         fwrite (Addr'Address, Address_Size, 1, Gmemfile);
-         fwrite (Timestamp'Address, Duration'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
-         fwrite (Num_Calls'Address, Integer'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
+         Putc ('D');
+         Write (Addr'Address, Address_Size);
+         Write (Timestamp'Address, Duration'Max_Size_In_Storage_Elements);
+         Write (Num_Calls'Address, Integer'Max_Size_In_Storage_Elements);
 
          for J in Tracebk'First .. Tracebk'First + Num_Calls - 1 loop
             declare
                Ptr : System.Address := PC_For (Tracebk (J));
             begin
-               fwrite (Ptr'Address, Address_Size, 1, Gmemfile);
+               Write (Ptr'Address, Address_Size);
             end;
          end loop;
 
@@ -366,20 +373,17 @@ package body System.Memory is
 
          --   Log allocation call using the same backtrace
 
-         fputc (Character'Pos ('A'), Gmemfile);
-         fwrite (Result'Address, Address_Size, 1, Gmemfile);
-         fwrite (Size'Address, size_t'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
-         fwrite (Timestamp'Address, Duration'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
-         fwrite (Num_Calls'Address, Integer'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
+         Putc ('A');
+         Write (Result'Address, Address_Size);
+         Write (Size'Address, size_t'Max_Size_In_Storage_Elements);
+         Write (Timestamp'Address, Duration'Max_Size_In_Storage_Elements);
+         Write (Num_Calls'Address, Integer'Max_Size_In_Storage_Elements);
 
          for J in Tracebk'First .. Tracebk'First + Num_Calls - 1 loop
             declare
                Ptr : System.Address := PC_For (Tracebk (J));
             begin
-               fwrite (Ptr'Address, Address_Size, 1, Gmemfile);
+               Write (Ptr'Address, Address_Size);
             end;
          end loop;
 
@@ -395,5 +399,23 @@ package body System.Memory is
 
       return Result;
    end Realloc;
+
+   -----------
+   -- Write --
+   -----------
+
+   procedure Write (Ptr : System.Address; Size : size_t) is
+      function fwrite
+        (buffer : System.Address;
+         size   : size_t;
+         count  : size_t;
+         stream : File_Ptr) return size_t;
+      pragma Import (C, fwrite);
+
+   begin
+      if fwrite (Ptr, Size, 1, Gmemfile) /= 1 then
+         Put_Line ("gmem fwrite error: " & OS_Lib.Errno_Message);
+      end if;
+   end Write;
 
 end System.Memory;

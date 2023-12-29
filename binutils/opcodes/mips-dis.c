@@ -1,5 +1,5 @@
 /* Print mips instructions for GDB, the GNU debugger, or for objdump.
-   Copyright (C) 1989-2018 Free Software Foundation, Inc.
+   Copyright (C) 1989-2022 Free Software Foundation, Inc.
    Contributed by Nobuyuki Hikichi(hikichi@sra.co.jp).
 
    This file is part of the GNU opcodes library.
@@ -24,6 +24,9 @@
 #include "libiberty.h"
 #include "opcode/mips.h"
 #include "opintl.h"
+#include "elf-bfd.h"
+#include "elf/mips.h"
+#include "elfxx-mips.h"
 
 /* FIXME: These are needed to figure out if the code is mips16 or
    not. The low bit of the address is often a good indicator.  No
@@ -32,8 +35,6 @@
 
 #if !defined(EMBEDDED_ENV)
 #define SYMTAB_AVAILABLE 1
-#include "elf-bfd.h"
-#include "elf/mips.h"
 #endif
 
 /* Mips instructions are at maximum this many bytes long.  */
@@ -121,6 +122,18 @@ static const char * const mips_cp1_names_numeric[32] =
   "$24",  "$25",  "$26",  "$27",  "$28",  "$29",  "$30",  "$31"
 };
 
+static const char * const mips_cp0_names_r3900[32] =
+{
+  "$0",           "$1",           "$2",           "c0_config",
+  "$4",           "$5",           "$6",           "c0_cache",
+  "c0_badvaddr",  "$9",           "$10",          "$11",
+  "c0_sr",        "c0_cause",     "c0_epc",       "c0_prid",
+  "c0_debug",     "c0_depc",      "$18",          "$19",
+  "$20",          "$21",          "$22",          "$23",
+  "$24",          "$25",          "$26",          "$27",
+  "$28",          "$29",          "$30",          "$31",
+};
+
 static const char * const mips_cp0_names_r3000[32] =
 {
   "c0_index",     "c0_random",    "c0_entrylo",   "$3",
@@ -167,6 +180,18 @@ static const char * const mips_cp0_names_mips3264[32] =
   "c0_xcontext",  "$21",          "$22",          "c0_debug",
   "c0_depc",      "c0_perfcnt",   "c0_errctl",    "c0_cacheerr",
   "c0_taglo",     "c0_taghi",     "c0_errorepc",  "c0_desave",
+};
+
+static const char * const mips_cp1_names_mips[32] =
+{
+  "c1_fir",       "$1",           "$2",           "$3",
+  "$4",           "$5",           "$6",           "$7",
+  "$8",           "$9",           "$10",          "$11",
+  "$12",          "$13",          "$14",          "$15",
+  "$16",          "$17",          "$18",          "$19",
+  "$20",          "$21",          "$22",          "$23",
+  "$24",          "$25",          "$26",          "$27",
+  "$28",          "$29",          "$30",          "c1_fcsr"
 };
 
 static const char * const mips_cp1_names_mips3264[32] =
@@ -453,76 +478,76 @@ const struct mips_arch_choice mips_arch_choices[] =
     mips_hwr_names_numeric },
 
   { "r3000",	1, bfd_mach_mips3000, CPU_R3000, ISA_MIPS1, 0,
-    mips_cp0_names_r3000, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_r3000, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r3900",	1, bfd_mach_mips3900, CPU_R3900, ISA_MIPS1, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_r3900, NULL, 0, mips_cp1_names_numeric,
     mips_hwr_names_numeric },
   { "r4000",	1, bfd_mach_mips4000, CPU_R4000, ISA_MIPS3, 0,
-    mips_cp0_names_r4000, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_r4000, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r4010",	1, bfd_mach_mips4010, CPU_R4010, ISA_MIPS2, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "vr4100",	1, bfd_mach_mips4100, CPU_VR4100, ISA_MIPS3, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "vr4111",	1, bfd_mach_mips4111, CPU_R4111, ISA_MIPS3, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "vr4120",	1, bfd_mach_mips4120, CPU_VR4120, ISA_MIPS3, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r4300",	1, bfd_mach_mips4300, CPU_R4300, ISA_MIPS3, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r4400",	1, bfd_mach_mips4400, CPU_R4400, ISA_MIPS3, 0,
-    mips_cp0_names_r4000, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_r4000, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r4600",	1, bfd_mach_mips4600, CPU_R4600, ISA_MIPS3, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r4650",	1, bfd_mach_mips4650, CPU_R4650, ISA_MIPS3, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r5000",	1, bfd_mach_mips5000, CPU_R5000, ISA_MIPS4, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "vr5400",	1, bfd_mach_mips5400, CPU_VR5400, ISA_MIPS4, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "vr5500",	1, bfd_mach_mips5500, CPU_VR5500, ISA_MIPS4, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r5900",	1, bfd_mach_mips5900, CPU_R5900, ISA_MIPS3, 0,
-    mips_cp0_names_r5900, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_r5900, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r6000",	1, bfd_mach_mips6000, CPU_R6000, ISA_MIPS2, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "rm7000",	1, bfd_mach_mips7000, CPU_RM7000, ISA_MIPS4, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "rm9000",	1, bfd_mach_mips7000, CPU_RM7000, ISA_MIPS4, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r8000",	1, bfd_mach_mips8000, CPU_R8000, ISA_MIPS4, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r10000",	1, bfd_mach_mips10000, CPU_R10000, ISA_MIPS4, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r12000",	1, bfd_mach_mips12000, CPU_R12000, ISA_MIPS4, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r14000",	1, bfd_mach_mips14000, CPU_R14000, ISA_MIPS4, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "r16000",	1, bfd_mach_mips16000, CPU_R16000, ISA_MIPS4, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
   { "mips5",	1, bfd_mach_mips5, CPU_MIPS5, ISA_MIPS5, 0,
-    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_numeric,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips,
     mips_hwr_names_numeric },
 
   /* For stock MIPS32, disassemble all applicable MIPS-specified ASEs.
@@ -623,15 +648,32 @@ const struct mips_arch_choice mips_arch_choices[] =
 
   { "loongson2e",   1, bfd_mach_mips_loongson_2e, CPU_LOONGSON_2E,
     ISA_MIPS3 | INSN_LOONGSON_2E, 0, mips_cp0_names_numeric,
-    NULL, 0, mips_cp1_names_numeric, mips_hwr_names_numeric },
+    NULL, 0, mips_cp1_names_mips, mips_hwr_names_numeric },
 
   { "loongson2f",   1, bfd_mach_mips_loongson_2f, CPU_LOONGSON_2F,
-    ISA_MIPS3 | INSN_LOONGSON_2F, 0, mips_cp0_names_numeric,
-    NULL, 0, mips_cp1_names_numeric, mips_hwr_names_numeric },
+    ISA_MIPS3 | INSN_LOONGSON_2F, ASE_LOONGSON_MMI, mips_cp0_names_numeric,
+    NULL, 0, mips_cp1_names_mips, mips_hwr_names_numeric },
 
-  { "loongson3a",   1, bfd_mach_mips_loongson_3a, CPU_LOONGSON_3A,
-    ISA_MIPS64R2 | INSN_LOONGSON_3A, 0, mips_cp0_names_numeric,
-    NULL, 0, mips_cp1_names_mips3264, mips_hwr_names_numeric },
+  /* The loongson3a is an alias of gs464 for compatibility */
+  { "loongson3a",   1, bfd_mach_mips_gs464, CPU_GS464,
+    ISA_MIPS64R2, ASE_LOONGSON_MMI | ASE_LOONGSON_CAM | ASE_LOONGSON_EXT,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips3264,
+    mips_hwr_names_numeric },
+
+  { "gs464",   1, bfd_mach_mips_gs464, CPU_GS464,
+    ISA_MIPS64R2, ASE_LOONGSON_MMI | ASE_LOONGSON_CAM | ASE_LOONGSON_EXT,
+    mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips3264,
+    mips_hwr_names_numeric },
+
+  { "gs464e",   1, bfd_mach_mips_gs464e, CPU_GS464E,
+    ISA_MIPS64R2, ASE_LOONGSON_MMI | ASE_LOONGSON_CAM | ASE_LOONGSON_EXT
+    | ASE_LOONGSON_EXT2, mips_cp0_names_numeric, NULL, 0, mips_cp1_names_mips3264,
+    mips_hwr_names_numeric },
+
+  { "gs264e",   1, bfd_mach_mips_gs264e, CPU_GS264E,
+    ISA_MIPS64R2, ASE_LOONGSON_MMI | ASE_LOONGSON_CAM | ASE_LOONGSON_EXT
+    | ASE_LOONGSON_EXT2 | ASE_MSA | ASE_MSA64, mips_cp0_names_numeric, NULL,
+    0, mips_cp1_names_mips3264, mips_hwr_names_numeric },
 
   { "octeon",   1, bfd_mach_mips_octeon, CPU_OCTEON,
     ISA_MIPS64R2 | INSN_OCTEON, 0, mips_cp0_names_numeric, NULL, 0,
@@ -812,7 +854,7 @@ mips_convert_abiflags_ases (unsigned long afl_ases)
 /* Calculate combination ASE flags from regular ASE flags.  */
 
 static unsigned long
-mips_calculate_combination_ases (unsigned long opcode_ases)
+mips_calculate_combination_ases (int opcode_isa, unsigned long opcode_ases)
 {
   unsigned long combination_ases = 0;
 
@@ -820,6 +862,10 @@ mips_calculate_combination_ases (unsigned long opcode_ases)
     combination_ases |= ASE_XPA_VIRT;
   if ((opcode_ases & (ASE_MIPS16E2 | ASE_MT)) == (ASE_MIPS16E2 | ASE_MT))
     combination_ases |= ASE_MIPS16E2_MT;
+  if ((opcode_ases & ASE_EVA)
+      && ((opcode_isa & INSN_ISA_MASK) == ISA_MIPS64R6
+	  || (opcode_isa & INSN_ISA_MASK) == ISA_MIPS32R6))
+    combination_ases |= ASE_EVA_R6;
   return combination_ases;
 }
 
@@ -892,16 +938,16 @@ set_default_mips_dis_options (struct disassemble_info *info)
 	mips_ase |= ASE_MDMX;
     }
 #endif
-  mips_ase |= mips_calculate_combination_ases (mips_ase);
+  mips_ase |= mips_calculate_combination_ases (mips_isa, mips_ase);
 }
 
 /* Parse an ASE disassembler option and set the corresponding global
    ASE flag(s).  Return TRUE if successful, FALSE otherwise.  */
 
-static bfd_boolean
+static bool
 parse_mips_ase_option (const char *option)
 {
-  if (CONST_STRNEQ (option, "msa"))
+  if (startswith (option, "msa"))
     {
       mips_ase |= ASE_MSA;
       if ((mips_isa & INSN_ISA_MASK) == ISA_MIPS64R2
@@ -909,10 +955,10 @@ parse_mips_ase_option (const char *option)
 	   || (mips_isa & INSN_ISA_MASK) == ISA_MIPS64R5
 	   || (mips_isa & INSN_ISA_MASK) == ISA_MIPS64R6)
 	  mips_ase |= ASE_MSA64;
-      return TRUE;
+      return true;
     }
 
-  if (CONST_STRNEQ (option, "virt"))
+  if (startswith (option, "virt"))
     {
       mips_ase |= ASE_VIRT;
       if (mips_isa & ISA_MIPS64R2
@@ -920,22 +966,47 @@ parse_mips_ase_option (const char *option)
 	  || mips_isa & ISA_MIPS64R5
 	  || mips_isa & ISA_MIPS64R6)
 	mips_ase |= ASE_VIRT64;
-      return TRUE;
+      return true;
     }
 
-  if (CONST_STRNEQ (option, "xpa"))
+  if (startswith (option, "xpa"))
     {
       mips_ase |= ASE_XPA;
-      return TRUE;
+      return true;
     }
 
-  if (CONST_STRNEQ (option, "ginv"))
+  if (startswith (option, "ginv"))
     {
       mips_ase |= ASE_GINV;
-      return TRUE;
+      return true;
     }
 
-  return FALSE;
+  if (startswith (option, "loongson-mmi"))
+    {
+      mips_ase |= ASE_LOONGSON_MMI;
+      return true;
+    }
+
+  if (startswith (option, "loongson-cam"))
+    {
+      mips_ase |= ASE_LOONGSON_CAM;
+      return true;
+    }
+  
+  /* Put here for match ext2 frist */
+  if (startswith (option, "loongson-ext2"))
+    {
+      mips_ase |= ASE_LOONGSON_EXT2;
+      return true;
+    }
+
+  if (startswith (option, "loongson-ext"))
+    {
+      mips_ase |= ASE_LOONGSON_EXT;
+      return true;
+    }
+
+  return false;
 }
 
 static void
@@ -947,7 +1018,7 @@ parse_mips_dis_option (const char *option, unsigned int len)
   const struct mips_arch_choice *chosen_arch;
 
   /* Try to match options that are simple flags */
-  if (CONST_STRNEQ (option, "no-aliases"))
+  if (startswith (option, "no-aliases"))
     {
       no_aliases = 1;
       return;
@@ -955,7 +1026,7 @@ parse_mips_dis_option (const char *option, unsigned int len)
 
   if (parse_mips_ase_option (option))
     {
-      mips_ase |= mips_calculate_combination_ases (mips_ase);
+      mips_ase |= mips_calculate_combination_ases (mips_isa, mips_ase);
       return;
     }
 
@@ -1133,7 +1204,12 @@ print_reg (struct disassemble_info *info, const struct mips_opcode *opcode,
     case OP_REG_COPRO:
       if (opcode->name[strlen (opcode->name) - 1] == '0')
 	info->fprintf_func (info->stream, "%s", mips_cp0_names[regno]);
-      else if (opcode->name[strlen (opcode->name) - 1] == '1')
+      else
+	info->fprintf_func (info->stream, "$%d", regno);
+      break;
+
+    case OP_REG_CONTROL:
+      if (opcode->name[strlen (opcode->name) - 1] == '1')
 	info->fprintf_func (info->stream, "%s", mips_cp1_names[regno]);
       else
 	info->fprintf_func (info->stream, "$%d", regno);
@@ -1607,7 +1683,7 @@ print_insn_arg (struct disassemble_info *info,
 /* Validate the arguments for INSN, which is described by OPCODE.
    Use DECODE_OPERAND to get the encoding of each operand.  */
 
-static bfd_boolean
+static bool
 validate_insn_args (const struct mips_opcode *opcode,
 		    const struct mips_operand *(*decode_operand) (const char *),
 		    unsigned int insn)
@@ -1658,7 +1734,7 @@ validate_insn_args (const struct mips_opcode *opcode,
 		    reg2 = uval >> 5;
 
 		    if (reg1 != reg2 || reg1 == 0)
-		      return FALSE;
+		      return false;
 		  }
 		break;
 
@@ -1669,20 +1745,20 @@ validate_insn_args (const struct mips_opcode *opcode,
 		    prev_op = (const struct mips_check_prev_operand *) operand;
 
 		    if (!prev_op->zero_ok && uval == 0)
-		      return FALSE;
+		      return false;
 
 		    if (((prev_op->less_than_ok && uval < state.last_regno)
 			|| (prev_op->greater_than_ok && uval > state.last_regno)
 			|| (prev_op->equal_ok && uval == state.last_regno)))
 		      break;
 
-		    return FALSE;
+		    return false;
 		  }
 
 		case OP_NON_ZERO_REG:
 		  {
 		    if (uval == 0)
-		      return FALSE;
+		      return false;
 		  }
 		break;
 
@@ -1713,7 +1789,7 @@ validate_insn_args (const struct mips_opcode *opcode,
 	    ++s;
 	}
     }
-  return TRUE;
+  return true;
 }
 
 /* Print the arguments for INSN, which is described by OPCODE.
@@ -1843,7 +1919,7 @@ print_insn_mips (bfd_vma memaddr,
   static const struct mips_opcode *mips_hash[OP_MASK_OP + 1];
   const fprintf_ftype infprintf = info->fprintf_func;
   const struct mips_opcode *op;
-  static bfd_boolean init = 0;
+  static bool init = 0;
   void *is = info->stream;
 
   /* Build a hash table to shorten the search time.  */
@@ -1955,8 +2031,8 @@ print_mips16_insn_arg (struct disassemble_info *info,
 		       struct mips_print_arg_state *state,
 		       const struct mips_opcode *opcode,
 		       char type, bfd_vma memaddr,
-		       unsigned insn, bfd_boolean use_extend,
-		       unsigned extend, bfd_boolean is_offset)
+		       unsigned insn, bool use_extend,
+		       unsigned extend, bool is_offset)
 {
   const fprintf_ftype infprintf = info->fprintf_func;
   void *is = info->stream;
@@ -1977,7 +2053,7 @@ print_mips16_insn_arg (struct disassemble_info *info,
       break;
 
     default:
-      operand = decode_mips16_operand (type, FALSE);
+      operand = decode_mips16_operand (type, false);
       if (!operand)
 	{
 	  /* xgettext:c-format */
@@ -2014,7 +2090,7 @@ print_mips16_insn_arg (struct disassemble_info *info,
       ext_size = 0;
       if (use_extend)
 	{
-	  ext_operand = decode_mips16_operand (type, TRUE);
+	  ext_operand = decode_mips16_operand (type, true);
 	  if (ext_operand != operand
 	      || (operand->type == OP_INT && operand->lsb == 0
 		  && mips_opcode_32bit_p (opcode)))
@@ -2087,16 +2163,16 @@ print_mips16_insn_arg (struct disassemble_info *info,
    This word is data and depending on the value it may interfere with
    disassembly of further PLT entries.  We make use of the fact PLT
    symbols are marked BSF_SYNTHETIC.  */
-static bfd_boolean
+static bool
 is_mips16_plt_tail (struct disassemble_info *info, bfd_vma addr)
 {
   if (info->symbols
       && info->symbols[0]
       && (info->symbols[0]->flags & BSF_SYNTHETIC)
       && addr == bfd_asymbol_value (info->symbols[0]) + 12)
-    return TRUE;
+    return true;
 
-  return FALSE;
+  return false;
 }
 
 /* Whether none, a 32-bit or a 16-bit instruction match has been done.  */
@@ -2119,8 +2195,8 @@ print_insn_mips16 (bfd_vma memaddr, struct disassemble_info *info)
   const struct mips_opcode *op, *opend;
   struct mips_print_arg_state state;
   void *is = info->stream;
-  bfd_boolean have_second;
-  bfd_boolean extend_only;
+  bool have_second;
+  bool extend_only;
   unsigned int second;
   unsigned int first;
   unsigned int full;
@@ -2164,7 +2240,7 @@ print_insn_mips16 (bfd_vma memaddr, struct disassemble_info *info)
       return -1;
     }
 
-  extend_only = FALSE;
+  extend_only = false;
 
   if (info->endian == BFD_ENDIAN_BIG)
     first = bfd_getb16 (buffer);
@@ -2174,7 +2250,7 @@ print_insn_mips16 (bfd_vma memaddr, struct disassemble_info *info)
   status = (*info->read_memory_func) (memaddr + 2, buffer, 2, info);
   if (status == 0)
     {
-      have_second = TRUE;
+      have_second = true;
       if (info->endian == BFD_ENDIAN_BIG)
 	second = bfd_getb16 (buffer);
       else
@@ -2183,7 +2259,7 @@ print_insn_mips16 (bfd_vma memaddr, struct disassemble_info *info)
     }
   else
     {
-      have_second = FALSE;
+      have_second = false;
       second = 0;
       full = first;
     }
@@ -2223,7 +2299,7 @@ print_insn_mips16 (bfd_vma memaddr, struct disassemble_info *info)
 	  if (op->pinfo2 & INSN2_SHORT_ONLY)
 	    {
 	      match = MATCH_NONE;
-	      extend_only = TRUE;
+	      extend_only = true;
 	    }
 	  else
 	    match = MATCH_FULL;
@@ -2268,10 +2344,10 @@ print_insn_mips16 (bfd_vma memaddr, struct disassemble_info *info)
 		  const struct mips_operand *operand;
 		  unsigned int reg, sel;
 
-		  operand = decode_mips16_operand (*s, TRUE);
+		  operand = decode_mips16_operand (*s, true);
 		  reg = mips_extract_operand (operand, (first << 16) | second);
 		  s += 2;
-		  operand = decode_mips16_operand (*s, TRUE);
+		  operand = decode_mips16_operand (*s, true);
 		  sel = mips_extract_operand (operand, (first << 16) | second);
 
 		  /* CP0 register including 'sel' code for mftc0, to be
@@ -2292,11 +2368,11 @@ print_insn_mips16 (bfd_vma memaddr, struct disassemble_info *info)
 		  {
 		    case MATCH_FULL:
 		      print_mips16_insn_arg (info, &state, op, *s, memaddr + 2,
-					     second, TRUE, first, s[1] == '(');
+					     second, true, first, s[1] == '(');
 		      break;
 		    case MATCH_SHORT:
 		      print_mips16_insn_arg (info, &state, op, *s, memaddr,
-					     first, FALSE, 0, s[1] == '(');
+					     first, false, 0, s[1] == '(');
 		      break;
 		    case MATCH_NONE:	/* Stop the compiler complaining.  */
 		      break;
@@ -2453,8 +2529,8 @@ print_insn_micromips (bfd_vma memaddr, struct disassemble_info *info)
    have been derived from function symbols defined elsewhere or could
    define data).  Otherwise, return 0.  */
 
-static bfd_boolean
-is_compressed_mode_p (struct disassemble_info *info, bfd_boolean micromips_p)
+static bool
+is_compressed_mode_p (struct disassemble_info *info, bool micromips_p)
 {
   int i;
   int l;
@@ -2515,9 +2591,9 @@ _print_insn_mips (bfd_vma memaddr,
 #endif
 
 #if SYMTAB_AVAILABLE
-  if (is_compressed_mode_p (info, TRUE))
+  if (is_compressed_mode_p (info, true))
     return print_insn_micromips (memaddr, info);
-  if (is_compressed_mode_p (info, FALSE))
+  if (is_compressed_mode_p (info, false))
     return print_insn_mips16 (memaddr, info);
 #endif
 
@@ -2552,72 +2628,194 @@ print_insn_little_mips (bfd_vma memaddr, struct disassemble_info *info)
   return _print_insn_mips (memaddr, info, BFD_ENDIAN_LITTLE);
 }
 
+/* Indices into option argument vector for options accepting an argument.
+   Use MIPS_OPTION_ARG_NONE for options accepting no argument.  */
+typedef enum
+{
+  MIPS_OPTION_ARG_NONE = -1,
+  MIPS_OPTION_ARG_ABI,
+  MIPS_OPTION_ARG_ARCH,
+  MIPS_OPTION_ARG_SIZE
+} mips_option_arg_t;
+
+/* Valid MIPS disassembler options.  */
+static struct
+{
+  const char *name;
+  const char *description;
+  mips_option_arg_t arg;
+} mips_options[] =
+{
+  { "no-aliases", N_("Use canonical instruction forms.\n"),
+		  MIPS_OPTION_ARG_NONE },
+  { "msa",        N_("Recognize MSA instructions.\n"),
+		  MIPS_OPTION_ARG_NONE },
+  { "virt",       N_("Recognize the virtualization ASE instructions.\n"),
+		  MIPS_OPTION_ARG_NONE },
+  { "xpa",        N_("Recognize the eXtended Physical Address (XPA) ASE\n\
+                  instructions.\n"),
+		  MIPS_OPTION_ARG_NONE },
+  { "ginv",       N_("Recognize the Global INValidate (GINV) ASE "
+		     "instructions.\n"),
+		  MIPS_OPTION_ARG_NONE },
+  { "loongson-mmi",
+		  N_("Recognize the Loongson MultiMedia extensions "
+		     "Instructions (MMI) ASE instructions.\n"),
+		  MIPS_OPTION_ARG_NONE },
+  { "loongson-cam",
+		  N_("Recognize the Loongson Content Address Memory (CAM) "
+		     " instructions.\n"),
+		  MIPS_OPTION_ARG_NONE },
+  { "loongson-ext",
+		  N_("Recognize the Loongson EXTensions (EXT) "
+		     " instructions.\n"),
+		  MIPS_OPTION_ARG_NONE },
+  { "loongson-ext2",
+		  N_("Recognize the Loongson EXTensions R2 (EXT2) "
+		     " instructions.\n"),
+		  MIPS_OPTION_ARG_NONE },
+  { "gpr-names=", N_("Print GPR names according to specified ABI.\n\
+                  Default: based on binary being disassembled.\n"),
+		  MIPS_OPTION_ARG_ABI },
+  { "fpr-names=", N_("Print FPR names according to specified ABI.\n\
+                  Default: numeric.\n"),
+		  MIPS_OPTION_ARG_ABI },
+  { "cp0-names=", N_("Print CP0 register names according to specified "
+		     "architecture.\n\
+                  Default: based on binary being disassembled.\n"),
+		  MIPS_OPTION_ARG_ARCH },
+  { "hwr-names=", N_("Print HWR names according to specified architecture.\n\
+                  Default: based on binary being disassembled.\n"),
+		  MIPS_OPTION_ARG_ARCH },
+  { "reg-names=", N_("Print GPR and FPR names according to specified ABI.\n"),
+		  MIPS_OPTION_ARG_ABI },
+  { "reg-names=", N_("Print CP0 register and HWR names according to "
+		     "specified\n\
+                  architecture."),
+		  MIPS_OPTION_ARG_ARCH }
+};
+
+/* Build the structure representing valid MIPS disassembler options.
+   This is done dynamically for maintenance ease purpose; a static
+   initializer would be unreadable.  */
+
+const disasm_options_and_args_t *
+disassembler_options_mips (void)
+{
+  static disasm_options_and_args_t *opts_and_args;
+
+  if (opts_and_args == NULL)
+    {
+      size_t num_options = ARRAY_SIZE (mips_options);
+      size_t num_args = MIPS_OPTION_ARG_SIZE;
+      disasm_option_arg_t *args;
+      disasm_options_t *opts;
+      size_t i;
+      size_t j;
+
+      args = XNEWVEC (disasm_option_arg_t, num_args + 1);
+
+      args[MIPS_OPTION_ARG_ABI].name = "ABI";
+      args[MIPS_OPTION_ARG_ABI].values
+	= XNEWVEC (const char *, ARRAY_SIZE (mips_abi_choices) + 1);
+      for (i = 0; i < ARRAY_SIZE (mips_abi_choices); i++)
+	args[MIPS_OPTION_ARG_ABI].values[i] = mips_abi_choices[i].name;
+      /* The array we return must be NULL terminated.  */
+      args[MIPS_OPTION_ARG_ABI].values[i] = NULL;
+
+      args[MIPS_OPTION_ARG_ARCH].name = "ARCH";
+      args[MIPS_OPTION_ARG_ARCH].values
+	= XNEWVEC (const char *, ARRAY_SIZE (mips_arch_choices) + 1);
+      for (i = 0, j = 0; i < ARRAY_SIZE (mips_arch_choices); i++)
+	if (*mips_arch_choices[i].name != '\0')
+	  args[MIPS_OPTION_ARG_ARCH].values[j++] = mips_arch_choices[i].name;
+      /* The array we return must be NULL terminated.  */
+      args[MIPS_OPTION_ARG_ARCH].values[j] = NULL;
+
+      /* The array we return must be NULL terminated.  */
+      args[MIPS_OPTION_ARG_SIZE].name = NULL;
+      args[MIPS_OPTION_ARG_SIZE].values = NULL;
+
+      opts_and_args = XNEW (disasm_options_and_args_t);
+      opts_and_args->args = args;
+
+      opts = &opts_and_args->options;
+      opts->name = XNEWVEC (const char *, num_options + 1);
+      opts->description = XNEWVEC (const char *, num_options + 1);
+      opts->arg = XNEWVEC (const disasm_option_arg_t *, num_options + 1);
+      for (i = 0; i < num_options; i++)
+	{
+	  opts->name[i] = mips_options[i].name;
+	  opts->description[i] = _(mips_options[i].description);
+	  if (mips_options[i].arg != MIPS_OPTION_ARG_NONE)
+	    opts->arg[i] = &args[mips_options[i].arg];
+	  else
+	    opts->arg[i] = NULL;
+	}
+      /* The array we return must be NULL terminated.  */
+      opts->name[i] = NULL;
+      opts->description[i] = NULL;
+      opts->arg[i] = NULL;
+    }
+
+  return opts_and_args;
+}
+
 void
 print_mips_disassembler_options (FILE *stream)
 {
-  unsigned int i;
+  const disasm_options_and_args_t *opts_and_args;
+  const disasm_option_arg_t *args;
+  const disasm_options_t *opts;
+  size_t max_len = 0;
+  size_t i;
+  size_t j;
+
+  opts_and_args = disassembler_options_mips ();
+  opts = &opts_and_args->options;
+  args = opts_and_args->args;
 
   fprintf (stream, _("\n\
 The following MIPS specific disassembler options are supported for use\n\
-with the -M switch (multiple options should be separated by commas):\n"));
+with the -M switch (multiple options should be separated by commas):\n\n"));
 
-  fprintf (stream, _("\n\
-  no-aliases               Use canonical instruction forms.\n"));
+  /* Compute the length of the longest option name.  */
+  for (i = 0; opts->name[i] != NULL; i++)
+    {
+      size_t len = strlen (opts->name[i]);
 
-  fprintf (stream, _("\n\
-  msa                      Recognize MSA instructions.\n"));
+      if (opts->arg[i] != NULL)
+	len += strlen (opts->arg[i]->name);
+      if (max_len < len)
+	max_len = len;
+    }
 
-  fprintf (stream, _("\n\
-  virt                     Recognize the virtualization ASE instructions.\n"));
+  for (i = 0, max_len++; opts->name[i] != NULL; i++)
+    {
+      fprintf (stream, "  %s", opts->name[i]);
+      if (opts->arg[i] != NULL)
+	fprintf (stream, "%s", opts->arg[i]->name);
+      if (opts->description[i] != NULL)
+	{
+	  size_t len = strlen (opts->name[i]);
 
-  fprintf (stream, _("\n\
-  xpa                      Recognize the eXtended Physical Address (XPA)\n\
-                           ASE instructions.\n"));
+	  if (opts->arg[i] != NULL)
+	    len += strlen (opts->arg[i]->name);
+	  fprintf (stream,
+		   "%*c %s", (int) (max_len - len), ' ', opts->description[i]);
+	}
+      fprintf (stream, _("\n"));
+    }
 
-  fprintf (stream, _("\n\
-  ginv                     Recognize the Global INValidate (GINV) ASE\n\
-                           instructions.\n"));
-
-  fprintf (stream, _("\n\
-  gpr-names=ABI            Print GPR names according to specified ABI.\n\
-                           Default: based on binary being disassembled.\n"));
-
-  fprintf (stream, _("\n\
-  fpr-names=ABI            Print FPR names according to specified ABI.\n\
-                           Default: numeric.\n"));
-
-  fprintf (stream, _("\n\
-  cp0-names=ARCH           Print CP0 register names according to\n\
-                           specified architecture.\n\
-                           Default: based on binary being disassembled.\n"));
-
-  fprintf (stream, _("\n\
-  hwr-names=ARCH           Print HWR names according to specified \n\
-                           architecture.\n\
-                           Default: based on binary being disassembled.\n"));
-
-  fprintf (stream, _("\n\
-  reg-names=ABI            Print GPR and FPR names according to\n\
-                           specified ABI.\n"));
-
-  fprintf (stream, _("\n\
-  reg-names=ARCH           Print CP0 register and HWR names according to\n\
-                           specified architecture.\n"));
-
-  fprintf (stream, _("\n\
-  For the options above, the following values are supported for \"ABI\":\n\
-   "));
-  for (i = 0; i < ARRAY_SIZE (mips_abi_choices); i++)
-    fprintf (stream, " %s", mips_abi_choices[i].name);
-  fprintf (stream, _("\n"));
-
-  fprintf (stream, _("\n\
-  For the options above, The following values are supported for \"ARCH\":\n\
-   "));
-  for (i = 0; i < ARRAY_SIZE (mips_arch_choices); i++)
-    if (*mips_arch_choices[i].name != '\0')
-      fprintf (stream, " %s", mips_arch_choices[i].name);
-  fprintf (stream, _("\n"));
+  for (i = 0; args[i].name != NULL; i++)
+    {
+      fprintf (stream, _("\n\
+  For the options above, the following values are supported for \"%s\":\n   "),
+	       args[i].name);
+      for (j = 0; args[i].values[j] != NULL; j++)
+	fprintf (stream, " %s", args[i].values[j]);
+      fprintf (stream, _("\n"));
+    }
 
   fprintf (stream, _("\n"));
 }

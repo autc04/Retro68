@@ -8,66 +8,70 @@ package modcmd
 
 import (
 	"bufio"
+	"context"
 	"os"
-	"sort"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
-	"cmd/go/internal/par"
+
+	"golang.org/x/mod/module"
 )
 
 var cmdGraph = &base.Command{
-	UsageLine: "go mod graph",
+	UsageLine: "go mod graph [-go=version]",
 	Short:     "print module requirement graph",
 	Long: `
 Graph prints the module requirement graph (with replacements applied)
 in text form. Each line in the output has two space-separated fields: a module
 and one of its requirements. Each module is identified as a string of the form
 path@version, except for the main module, which has no @version suffix.
+
+The -go flag causes graph to report the module graph as loaded by the
+given Go version, instead of the version indicated by the 'go' directive
+in the go.mod file.
+
+See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
 	`,
 	Run: runGraph,
 }
 
-func runGraph(cmd *base.Command, args []string) {
+var (
+	graphGo goVersionFlag
+)
+
+func init() {
+	cmdGraph.Flag.Var(&graphGo, "go", "")
+	base.AddModCommonFlags(&cmdGraph.Flag)
+}
+
+func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if len(args) > 0 {
-		base.Fatalf("go mod graph: graph takes no arguments")
+		base.Fatalf("go: 'go mod graph' accepts no arguments")
 	}
-	modload.LoadBuildList()
-
-	reqs := modload.MinReqs()
-	format := func(m module.Version) string {
-		if m.Version == "" {
-			return m.Path
-		}
-		return m.Path + "@" + m.Version
-	}
-
-	// Note: using par.Work only to manage work queue.
-	// No parallelism here, so no locking.
-	var out []string
-	var deps int // index in out where deps start
-	var work par.Work
-	work.Add(modload.Target)
-	work.Do(1, func(item interface{}) {
-		m := item.(module.Version)
-		list, _ := reqs.Required(m)
-		for _, r := range list {
-			work.Add(r)
-			out = append(out, format(m)+" "+format(r)+"\n")
-		}
-		if m == modload.Target {
-			deps = len(out)
-		}
-	})
-
-	sort.Slice(out[deps:], func(i, j int) bool {
-		return out[deps+i][0] < out[deps+j][0]
-	})
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
+	mg := modload.LoadModGraph(ctx, graphGo.String())
 
 	w := bufio.NewWriter(os.Stdout)
-	for _, line := range out {
-		w.WriteString(line)
+	defer w.Flush()
+
+	format := func(m module.Version) {
+		w.WriteString(m.Path)
+		if m.Version != "" {
+			w.WriteString("@")
+			w.WriteString(m.Version)
+		}
 	}
-	w.Flush()
+
+	mg.WalkBreadthFirst(func(m module.Version) {
+		reqs, _ := mg.RequiredBy(m)
+		for _, r := range reqs {
+			format(m)
+			w.WriteByte(' ')
+			format(r)
+			w.WriteByte('\n')
+		}
+	})
 }

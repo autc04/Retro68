@@ -15,13 +15,13 @@ SYMBOL TABLE:
 
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+2 R_MMIX_REG        \.MMIX\.reg_contents\+0x0+8
 0+6 R_MMIX_REG        \.MMIX\.reg_contents
 
 
 RELOCATION RECORDS FOR \[\.MMIX\.reg_contents\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+8 R_MMIX_64         \.text\+0x0+8
 
 

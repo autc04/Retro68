@@ -9,3 +9,5 @@
 	lsr.p (d6,x), #2
 	asl   d7, #1
 	asr   d1, #2
+	asl   d6, d6, #17
+	asl   d6, d6, #16

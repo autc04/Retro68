@@ -1,4 +1,4 @@
-#PROG: readelf
+#DUMPPROG: readelf
 #readelf: -s
 #name: MIPS .stab symbol type
 #as: -32

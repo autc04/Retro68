@@ -12,20 +12,23 @@ package shift
 
 import (
 	"go/ast"
-	"go/build"
 	"go/constant"
 	"go/token"
 	"go/types"
+	"math"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
+
+const Doc = "check for shifts that equal or exceed the width of the integer"
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "shift",
-	Doc:      "check for shifts that equal or exceed the width of the integer",
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -93,36 +96,36 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 	if t == nil {
 		return
 	}
-	b, ok := t.Underlying().(*types.Basic)
-	if !ok {
-		return
-	}
-	var size int64
-	switch b.Kind() {
-	case types.Uint8, types.Int8:
-		size = 8
-	case types.Uint16, types.Int16:
-		size = 16
-	case types.Uint32, types.Int32:
-		size = 32
-	case types.Uint64, types.Int64:
-		size = 64
-	case types.Int, types.Uint:
-		size = uintBitSize
-	case types.Uintptr:
-		size = uintptrBitSize
+	var structuralTypes []types.Type
+	switch t := t.(type) {
+	case *typeparams.TypeParam:
+		terms, err := typeparams.StructuralTerms(t)
+		if err != nil {
+			return // invalid type
+		}
+		for _, term := range terms {
+			structuralTypes = append(structuralTypes, term.Type())
+		}
 	default:
-		return
+		structuralTypes = append(structuralTypes, t)
 	}
-	if amt >= size {
+	sizes := make(map[int64]struct{})
+	for _, t := range structuralTypes {
+		size := 8 * pass.TypesSizes.Sizeof(t)
+		sizes[size] = struct{}{}
+	}
+	minSize := int64(math.MaxInt64)
+	for size := range sizes {
+		if size < minSize {
+			minSize = size
+		}
+	}
+	if amt >= minSize {
 		ident := analysisutil.Format(pass.Fset, x)
-		pass.Reportf(node.Pos(), "%s (%d bits) too small for shift of %d", ident, size, amt)
+		qualifier := ""
+		if len(sizes) > 1 {
+			qualifier = "may be "
+		}
+		pass.ReportRangef(node, "%s (%s%d bits) too small for shift of %d", ident, qualifier, minSize, amt)
 	}
 }
-
-var (
-	uintBitSize    = 8 * archSizes.Sizeof(types.Typ[types.Uint])
-	uintptrBitSize = 8 * archSizes.Sizeof(types.Typ[types.Uintptr])
-)
-
-var archSizes = types.SizesFor("gccgo", build.Default.GOARCH)

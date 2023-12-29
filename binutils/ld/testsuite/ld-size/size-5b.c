@@ -1,5 +1,5 @@
 extern __thread char bar[];
-extern char size_of_bar asm ("bar@SIZE");
+extern char size_of_bar __asm__ ("bar@SIZE");
 
 char *bar_size_1 = &size_of_bar;
 static char *bar_size_2 = &size_of_bar;
@@ -18,7 +18,7 @@ bar_size2 (void)
 }
 
 extern __thread char foo[];
-extern char size_of_foo asm ("foo@SIZE");
+extern char size_of_foo __asm__ ("foo@SIZE");
 
 char *foo_size_1 = &size_of_foo;
 static char *foo_size_2 = &size_of_foo;

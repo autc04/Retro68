@@ -5,12 +5,13 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_mcx.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_mcx.d)
  */
 module core.sys.windows.mcx;
 version (Windows):
+@system:
 
-private import core.sys.windows.windef;
+import core.sys.windows.windef;
 
 enum DWORD
     DIALOPTION_BILLING  =  64,

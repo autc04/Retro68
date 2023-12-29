@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1998-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,26 +23,30 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Csets;    use Csets;
-with Elists;   use Elists;
-with Errout;   use Errout;
-with Lib.Util; use Lib.Util;
-with Nlists;   use Nlists;
-with Opt;      use Opt;
-with Restrict; use Restrict;
-with Rident;   use Rident;
-with Sem;      use Sem;
-with Sem_Aux;  use Sem_Aux;
-with Sem_Prag; use Sem_Prag;
-with Sem_Util; use Sem_Util;
-with Sem_Warn; use Sem_Warn;
-with Sinfo;    use Sinfo;
-with Sinput;   use Sinput;
-with Snames;   use Snames;
-with Stringt;  use Stringt;
-with Stand;    use Stand;
-with Table;    use Table;
+with Atree;          use Atree;
+with Csets;          use Csets;
+with Einfo;          use Einfo;
+with Einfo.Utils;    use Einfo.Utils;
+with Elists;         use Elists;
+with Errout;         use Errout;
+with Lib.Util;       use Lib.Util;
+with Nlists;         use Nlists;
+with Opt;            use Opt;
+with Restrict;       use Restrict;
+with Rident;         use Rident;
+with Sem;            use Sem;
+with Sem_Aux;        use Sem_Aux;
+with Sem_Prag;       use Sem_Prag;
+with Sem_Util;       use Sem_Util;
+with Sem_Warn;       use Sem_Warn;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Sinfo.Utils;    use Sinfo.Utils;
+with Sinput;         use Sinput;
+with Snames;         use Snames;
+with Stringt;        use Stringt;
+with Stand;          use Stand;
+with Table;          use Table;
 
 with GNAT.Heap_Sort_G;
 with GNAT.HTable;
@@ -52,6 +56,14 @@ package body Lib.Xref is
    ------------------
    -- Declarations --
    ------------------
+
+   package Deferred_References is new Table.Table (
+     Table_Component_Type => Deferred_Reference_Entry,
+     Table_Index_Type     => Int,
+     Table_Low_Bound      => 0,
+     Table_Initial        => 512,
+     Table_Increment      => 200,
+     Table_Name           => "Name_Deferred_References");
 
    --  The Xref table is used to record references. The Loc field is set
    --  to No_Location for a definition entry.
@@ -198,6 +210,21 @@ package body Lib.Xref is
          Xrefs.Decrement_Last;
       end if;
    end Add_Entry;
+
+   ---------------------
+   -- Defer_Reference --
+   ---------------------
+
+   procedure Defer_Reference (Deferred_Reference : Deferred_Reference_Entry) is
+   begin
+      --  If Get_Ignore_Errors, then we are in Preanalyze_Without_Errors, and
+      --  we should not record cross references, because that will cause
+      --  duplicates when we call Analyze.
+
+      if not Get_Ignore_Errors then
+         Deferred_References.Append (Deferred_Reference);
+      end if;
+   end Defer_Reference;
 
    -----------
    -- Equal --
@@ -388,22 +415,6 @@ package body Lib.Xref is
       --  Get the enclosing entity through renamings, which may come from
       --  source or from the translation of generic instantiations.
 
-      function Is_On_LHS (Node : Node_Id) return Boolean;
-      --  Used to check if a node is on the left hand side of an assignment.
-      --  The following cases are handled:
-      --
-      --   Variable    Node is a direct descendant of left hand side of an
-      --               assignment statement.
-      --
-      --   Prefix      Of an indexed or selected component that is present in
-      --               a subtree rooted by an assignment statement. There is
-      --               no restriction of nesting of components, thus cases
-      --               such as A.B (C).D are handled properly. However a prefix
-      --               of a dereference (either implicit or explicit) is never
-      --               considered as on a LHS.
-      --
-      --   Out param   Same as above cases, but OUT parameter
-
       function OK_To_Set_Referenced return Boolean;
       --  Returns True if the Referenced flag can be set. There are a few
       --  exceptions where we do not want to set this flag, see body for
@@ -454,7 +465,9 @@ package body Lib.Xref is
                            --  e.g. function call, slicing of a function call,
                            --  pointer dereference, etc.
 
-                           if No (Obj) then
+                           if No (Obj)
+                             or else Ekind (Obj) = E_Enumeration_Literal
+                           then
                               return Empty;
                            end if;
                         else
@@ -469,85 +482,6 @@ package body Lib.Xref is
 
          end case;
       end Get_Through_Renamings;
-
-      ---------------
-      -- Is_On_LHS --
-      ---------------
-
-      --  ??? There are several routines here and there that perform a similar
-      --      (but subtly different) computation, which should be factored:
-
-      --      Sem_Util.Is_LHS
-      --      Sem_Util.May_Be_Lvalue
-      --      Sem_Util.Known_To_Be_Assigned
-      --      Exp_Ch2.Expand_Entry_Parameter.In_Assignment_Context
-      --      Exp_Smem.Is_Out_Actual
-
-      function Is_On_LHS (Node : Node_Id) return Boolean is
-         N : Node_Id;
-         P : Node_Id;
-         K : Node_Kind;
-
-      begin
-         --  Only identifiers are considered, is this necessary???
-
-         if Nkind (Node) /= N_Identifier then
-            return False;
-         end if;
-
-         --  Immediate return if appeared as OUT parameter
-
-         if Kind = E_Out_Parameter then
-            return True;
-         end if;
-
-         --  Search for assignment statement subtree root
-
-         N := Node;
-         loop
-            P := Parent (N);
-            K := Nkind (P);
-
-            if K = N_Assignment_Statement then
-               return Name (P) = N;
-
-            --  Check whether the parent is a component and the current node is
-            --  its prefix, but return False if the current node has an access
-            --  type, as in that case the selected or indexed component is an
-            --  implicit dereference, and the LHS is the designated object, not
-            --  the access object.
-
-            --  ??? case of a slice assignment?
-
-            elsif (K = N_Selected_Component or else K = N_Indexed_Component)
-              and then Prefix (P) = N
-            then
-               --  Check for access type. First a special test, In some cases
-               --  this is called too early (see comments in Find_Direct_Name),
-               --  at a point where the tree is not fully typed yet. In that
-               --  case we may lack an Etype for N, and we can't check the
-               --  Etype. For now, we always return False in such a case,
-               --  but this is clearly not right in all cases ???
-
-               if No (Etype (N)) then
-                  return False;
-
-               elsif Is_Access_Type (Etype (N)) then
-                  return False;
-
-               --  Access type case dealt with, keep going
-
-               else
-                  N := P;
-               end if;
-
-            --  All other cases, definitely not on left side
-
-            else
-               return False;
-            end if;
-         end loop;
-      end Is_On_LHS;
 
       ---------------------------
       -- OK_To_Set_Referenced --
@@ -569,10 +503,9 @@ package body Lib.Xref is
                P := Parent (P);
 
                if Nkind (P) = N_Pragma then
-                  if Nam_In (Pragma_Name_Unmapped (P),
-                             Name_Warnings,
-                             Name_Unmodified,
-                             Name_Unreferenced)
+                  if Pragma_Name_Unmapped (P) in Name_Warnings
+                                               | Name_Unmodified
+                                               | Name_Unreferenced
                   then
                      return False;
                   end if;
@@ -596,7 +529,20 @@ package body Lib.Xref is
    --  Start of processing for Generate_Reference
 
    begin
-      pragma Assert (Nkind (E) in N_Entity);
+      --  If Get_Ignore_Errors, then we are in Preanalyze_Without_Errors, and
+      --  we should not record cross references, because that will cause
+      --  duplicates when we call Analyze.
+
+      if Get_Ignore_Errors then
+         return;
+      end if;
+
+      --  May happen in case of severe errors
+
+      if Nkind (E) not in N_Entity then
+         return;
+      end if;
+
       Find_Actual (N, Formal, Call);
 
       if Present (Formal) then
@@ -662,6 +608,37 @@ package body Lib.Xref is
         and then (Typ = 'm' or else Typ = 'r')
       then
          Error_Msg_NE ("& is only defined in Ada 2012?y?", N, E);
+      end if;
+
+      --  Warn if reference to Ada 2022 entity not in Ada 2022 mode. We only
+      --  detect real explicit references (modifications and references).
+
+      if Comes_From_Source (N)
+        and then Is_Ada_2022_Only (E)
+        and then not Is_Subprogram (E)
+        and then Ada_Version < Ada_2022
+        and then Warn_On_Ada_2022_Compatibility
+        and then (Typ = 'm' or else Typ = 'r')
+      then
+         Error_Msg_NE ("& is only defined in Ada 2022?y?", N, E);
+
+      --  Error on static and dispatching calls to Ada 2022 subprograms that
+      --  require overriding if we are not in Ada 2022 mode (since overriding
+      --  was skipped); warn if the subprogram does not require overriding.
+
+      elsif Comes_From_Source (N)
+        and then Is_Ada_2022_Only (E)
+        and then Ada_Version < Ada_2022
+        and then Is_Subprogram (E)
+        and then (Typ = 'r' or else Typ = 's' or else Typ = 'R')
+      then
+         if Requires_Overriding (E) then
+            Error_Msg_NE
+              ("& is only defined in Ada 2022 and requires overriding", N, E);
+
+         elsif Warn_On_Ada_2022_Compatibility then
+            Error_Msg_NE ("& is only defined in Ada 2022?y?", N, E);
+         end if;
       end if;
 
       --  Do not generate references if we are within a postcondition sub-
@@ -750,46 +727,32 @@ package body Lib.Xref is
 
       if Set_Ref then
 
-         --  Assignable object appearing on left side of assignment or as
-         --  an out parameter.
+         --  When E itself is an IN OUT parameter mark it referenced
 
          if Is_Assignable (E)
-           and then Is_On_LHS (N)
-           and then Ekind (E) /= E_In_Out_Parameter
+           and then Ekind (E) = E_In_Out_Parameter
+           and then Known_To_Be_Assigned (N)
          then
-            --  For objects that are renamings, just set as simply referenced
-            --  we do not try to do assignment type tracking in this case.
+            Set_Referenced (E);
 
-            if Present (Renamed_Object (E)) then
-               Set_Referenced (E);
+         --  For the case where the entity is on the left hand side of an
+         --  assignment statment, we do nothing here.
 
-            --  Out parameter case
+         --  The processing for Analyze_Assignment_Statement will set the
+         --  Referenced_As_LHS flag.
 
-            elsif Kind = E_Out_Parameter then
+         elsif Is_Assignable (E)
+           and then Known_To_Be_Assigned (N, Only_LHS => True)
+         then
+            null;
 
-               --  If warning mode for all out parameters is set, or this is
-               --  the only warning parameter, then we want to mark this for
-               --  later warning logic by setting Referenced_As_Out_Parameter
+         --  For objects that are renamings, just set as simply referenced.
+         --  We do not try to do assignment type tracking in this case.
 
-               if Warn_On_Modified_As_Out_Parameter (Formal) then
-                  Set_Referenced_As_Out_Parameter (E, True);
-                  Set_Referenced_As_LHS (E, False);
-
-               --  For OUT parameter not covered by the above cases, we simply
-               --  regard it as a normal reference (in this case we do not
-               --  want any of the warning machinery for out parameters).
-
-               else
-                  Set_Referenced (E);
-               end if;
-
-            --  For the left hand of an assignment case, we do nothing here.
-            --  The processing for Analyze_Assignment_Statement will set the
-            --  Referenced_As_LHS flag.
-
-            else
-               null;
-            end if;
+         elsif Is_Assignable (E)
+           and then Present (Renamed_Object (E))
+         then
+            Set_Referenced (E);
 
          --  Check for a reference in a pragma that should not count as a
          --  making the variable referenced for warning purposes.
@@ -829,58 +792,75 @@ package body Lib.Xref is
          then
             null;
 
-         --  All other cases
+         --  Out parameter case
 
-         else
-            --  Special processing for IN OUT parameters, where we have an
-            --  implicit assignment to a simple variable.
+         elsif Kind = E_Out_Parameter
+           and then Is_Assignable (E)
+         then
+            --  If warning mode for all out parameters is set, or this is
+            --  the only warning parameter, then we want to mark this for
+            --  later warning logic by setting Referenced_As_Out_Parameter
 
-            if Kind = E_In_Out_Parameter
-              and then Is_Assignable (E)
-            then
-               --  For sure this counts as a normal read reference
+            if Warn_On_Modified_As_Out_Parameter (Formal) then
+               Set_Referenced_As_Out_Parameter (E, True);
+               Set_Referenced_As_LHS (E, False);
 
+            --  For OUT parameter not covered by the above cases, we simply
+            --  regard it as a non-reference.
+
+            else
+               Set_Referenced_As_Out_Parameter (E);
                Set_Referenced (E);
+            end if;
+
+         --  Special processing for IN OUT parameters, where we have an
+         --  implicit assignment to a simple variable.
+
+         elsif Kind = E_In_Out_Parameter
+           and then Is_Assignable (E)
+         then
+            --  For sure this counts as a normal read reference
+
+            Set_Referenced (E);
+            Set_Last_Assignment (E, Empty);
+
+            --  We count it as being referenced as an out parameter if the
+            --  option is set to warn on all out parameters, except that we
+            --  have a special exclusion for an intrinsic subprogram, which
+            --  is most likely an instantiation of Unchecked_Deallocation
+            --  which we do not want to consider as an assignment since it
+            --  generates false positives. We also exclude the case of an
+            --  IN OUT parameter if the name of the procedure is Free,
+            --  since we suspect similar semantics.
+
+            if Warn_On_All_Unread_Out_Parameters
+              and then Is_Entity_Name (Name (Call))
+              and then not Is_Intrinsic_Subprogram (Entity (Name (Call)))
+              and then Chars (Name (Call)) /= Name_Free
+            then
+               Set_Referenced_As_Out_Parameter (E, True);
+               Set_Referenced_As_LHS (E, False);
+            end if;
+
+         --  Don't count a recursive reference within a subprogram as a
+         --  reference (that allows detection of a recursive subprogram
+         --  whose only references are recursive calls as unreferenced).
+
+         elsif Is_Subprogram (E)
+           and then E = Nearest_Dynamic_Scope (Current_Scope)
+         then
+            null;
+
+         --  Any other occurrence counts as referencing the entity
+
+         elsif OK_To_Set_Referenced then
+            Set_Referenced (E);
+
+            --  If variable, this is an OK reference after an assignment
+            --  so we can clear the Last_Assignment indication.
+
+            if Is_Assignable (E) then
                Set_Last_Assignment (E, Empty);
-
-               --  We count it as being referenced as an out parameter if the
-               --  option is set to warn on all out parameters, except that we
-               --  have a special exclusion for an intrinsic subprogram, which
-               --  is most likely an instantiation of Unchecked_Deallocation
-               --  which we do not want to consider as an assignment since it
-               --  generates false positives. We also exclude the case of an
-               --  IN OUT parameter if the name of the procedure is Free,
-               --  since we suspect similar semantics.
-
-               if Warn_On_All_Unread_Out_Parameters
-                 and then Is_Entity_Name (Name (Call))
-                 and then not Is_Intrinsic_Subprogram (Entity (Name (Call)))
-                 and then Chars (Name (Call)) /= Name_Free
-               then
-                  Set_Referenced_As_Out_Parameter (E, True);
-                  Set_Referenced_As_LHS (E, False);
-               end if;
-
-            --  Don't count a recursive reference within a subprogram as a
-            --  reference (that allows detection of a recursive subprogram
-            --  whose only references are recursive calls as unreferenced).
-
-            elsif Is_Subprogram (E)
-              and then E = Nearest_Dynamic_Scope (Current_Scope)
-            then
-               null;
-
-            --  Any other occurrence counts as referencing the entity
-
-            elsif OK_To_Set_Referenced then
-               Set_Referenced (E);
-
-               --  If variable, this is an OK reference after an assignment
-               --  so we can clear the Last_Assignment indication.
-
-               if Is_Assignable (E) then
-                  Set_Last_Assignment (E, Empty);
-               end if;
             end if;
          end if;
 
@@ -893,7 +873,7 @@ package body Lib.Xref is
            and then In_Same_Extended_Unit (E, N)
          then
             --  A reference as a named parameter in a call does not count as a
-            --  violation of pragma Unreferenced for this purpose...
+            --  violation of pragma Unreferenced for this purpose.
 
             if Nkind (N) = N_Identifier
               and then Nkind (Parent (N)) = N_Parameter_Association
@@ -901,17 +881,31 @@ package body Lib.Xref is
             then
                null;
 
-            --  ... Neither does a reference to a variable on the left side of
-            --  an assignment.
+            --  Neither does a reference to a variable on the left side of
+            --  an assignment or use of an out parameter with warnings for
+            --  unread out parameters specified (via -gnatw.o).
 
-            elsif Is_On_LHS (N) then
+            --  The reason for treating unread out parameters in a special
+            --  way is so that when pragma Unreferenced is specified on such
+            --  an out parameter we do not want to issue a warning about the
+            --  pragma being unnecessary - because the purpose of the flag
+            --  is to warn about them not being read (e.g. unreferenced)
+            --  after use.
+
+            elsif (Known_To_Be_Assigned (N, Only_LHS => True)
+                    or else (Present (Formal)
+                              and then Ekind (Formal) = E_Out_Parameter
+                              and then Warn_On_All_Unread_Out_Parameters))
+              and then not (Ekind (E) = E_In_Out_Parameter
+                             and then Known_To_Be_Assigned (N))
+            then
                null;
 
             --  Do not consider F'Result as a violation of pragma Unreferenced
             --  since the attribute acts as an anonymous alias of the function
             --  result and not as a real reference to the function.
 
-            elsif Ekind_In (E, E_Function, E_Generic_Function)
+            elsif Ekind (E) in E_Function | E_Generic_Function
               and then Is_Entity_Name (N)
               and then Is_Attribute_Result (Parent (N))
             then
@@ -1006,18 +1000,18 @@ package body Lib.Xref is
 
         and then Typ /= ' '
       then
-         if Nkind_In (N, N_Identifier,
-                         N_Defining_Identifier,
-                         N_Defining_Operator_Symbol,
-                         N_Operator_Symbol,
-                         N_Defining_Character_Literal)
-           or else Nkind (N) in N_Op
+         if Nkind (N) in N_Identifier
+                       | N_Defining_Identifier
+                       | N_Defining_Operator_Symbol
+                       | N_Operator_Symbol
+                       | N_Defining_Character_Literal
+                       | N_Op
            or else (Nkind (N) = N_Character_Literal
                      and then Sloc (Entity (N)) /= Standard_Location)
          then
             Nod := N;
 
-         elsif Nkind_In (N, N_Expanded_Name, N_Selected_Component) then
+         elsif Nkind (N) in N_Expanded_Name | N_Selected_Component then
             Nod := Selector_Name (N);
 
          else
@@ -1135,7 +1129,7 @@ package body Lib.Xref is
             --  reads/writes of private protected components) and not worth the
             --  effort.
 
-            if Ekind_In (Ent, E_Abstract_State, E_Constant, E_Variable)
+            if Ekind (Ent) in E_Abstract_State | E_Constant | E_Variable
               and then Present (Encapsulating_State (Ent))
               and then Is_Single_Concurrent_Object (Encapsulating_State (Ent))
             then
@@ -1242,18 +1236,8 @@ package body Lib.Xref is
       Formal : Entity_Id;
 
    begin
-      if Is_Generic_Subprogram (E) then
-         Formal := First_Entity (E);
-
-         while Present (Formal)
-           and then not Is_Formal (Formal)
-         loop
-            Next_Entity (Formal);
-         end loop;
-
-      elsif Ekind (E) in Access_Subprogram_Kind then
+      if Is_Access_Subprogram_Type (E) then
          Formal := First_Formal (Designated_Type (E));
-
       else
          Formal := First_Formal (E);
       end if;
@@ -1652,7 +1636,7 @@ package body Lib.Xref is
       begin
          --  Generate language name from convention
 
-         if Conv  = Convention_C then
+         if Conv = Convention_C or else Conv in Convention_C_Variadic then
             Language_Name := Name_C;
 
          elsif Conv = Convention_CPP then
@@ -1693,7 +1677,7 @@ package body Lib.Xref is
       --  declared in the main unit.
 
       Handle_Prim_Ops : declare
-         Ent  : Entity_Id;
+         Ent : Entity_Id;
 
       begin
          for J in 1 .. Xrefs.Last loop
@@ -2314,15 +2298,15 @@ package body Lib.Xref is
                   --  Special handling for access parameters and objects and
                   --  components of an anonymous access type.
 
-                  if Ekind_In (Etype (XE.Key.Ent),
-                               E_Anonymous_Access_Type,
-                               E_Anonymous_Access_Subprogram_Type,
-                               E_Anonymous_Access_Protected_Subprogram_Type)
+                  if Ekind (Etype (XE.Key.Ent)) in
+                               E_Anonymous_Access_Type
+                             | E_Anonymous_Access_Subprogram_Type
+                             | E_Anonymous_Access_Protected_Subprogram_Type
                   then
                      if Is_Formal (XE.Key.Ent)
                        or else
-                         Ekind_In
-                           (XE.Key.Ent, E_Variable, E_Constant, E_Component)
+                         Ekind (XE.Key.Ent) in
+                           E_Variable | E_Constant | E_Component
                      then
                         Ctyp := 'p';
                      end if;
@@ -2779,18 +2763,13 @@ package body Lib.Xref is
             D : Deferred_Reference_Entry renames Deferred_References.Table (J);
 
          begin
-            case Is_LHS (D.N) is
-               when Yes =>
+            case Known_To_Be_Assigned (D.N) is
+               when True =>
                   Generate_Reference (D.E, D.N, 'm');
 
-               when No =>
+               when False =>
                   Generate_Reference (D.E, D.N, 'r');
 
-               --  Not clear if Unknown can occur at this stage, but if it
-               --  does we will treat it as a normal reference.
-
-               when Unknown =>
-                  Generate_Reference (D.E, D.N, 'r');
             end case;
          end;
       end loop;

@@ -1,6 +1,6 @@
 /* LTO IL compression streams.
 
-   Copyright (C) 2009-2019 Free Software Foundation, Inc.
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
    Contributed by Simon Baldwin <simonb@google.com>
 
 This file is part of GCC.
@@ -24,7 +24,7 @@ along with GCC; see the file COPYING3.  If not see
 
 struct lto_compression_stream;
 
-/* In lto-compress.c.  */
+/* In lto-compress.cc.  */
 extern struct lto_compression_stream
   *lto_start_compression (void (*callback) (const char *, unsigned, void *),
 			  void *opaque);
@@ -37,6 +37,7 @@ extern struct lto_compression_stream
 			    void *opaque);
 extern void lto_uncompress_block (struct lto_compression_stream *stream,
 				  const char *base, size_t num_chars);
-extern void lto_end_uncompression (struct lto_compression_stream *stream);
+extern void lto_end_uncompression (struct lto_compression_stream *stream,
+				  lto_compression compression);
 
 #endif /* GCC_LTO_COMPRESS_H  */

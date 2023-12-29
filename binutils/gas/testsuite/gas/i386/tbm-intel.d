@@ -1,4 +1,4 @@
-#as: 
+#as:
 #objdump: -dwMintel
 #name: i386 TBM insns (Intel disassembly)
 #source: tbm.s

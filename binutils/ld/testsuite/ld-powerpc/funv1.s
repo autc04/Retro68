@@ -1,10 +1,12 @@
- .globl my_func
- .type my_func,@function
- .section .opd,"aw",@progbits
+# old style ELFv1, with dot-symbols
+ .globl my_func, .my_func
+ .type .my_func, @function
+ .section .opd, "aw", @progbits
 my_func:
- .quad .Lmy_func, .TOC.@tocbase
+ .quad .my_func, .TOC.@tocbase, 0
+ .size my_func, . - my_func
 
  .text
-.Lmy_func:
+.my_func:
  blr
- .size my_func,.-.Lmy_func
+ .size .my_func, . - .my_func

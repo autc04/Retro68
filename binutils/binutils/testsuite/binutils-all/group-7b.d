@@ -1,7 +1,6 @@
 #name: copy removing non-reloc group member
 #source: group-7.s
 #PROG: objcopy
-#DUMPPROG: readelf
 #objcopy: --remove-section .data2.foo
 #readelf: -Sg --wide
 

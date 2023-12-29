@@ -1,8 +1,8 @@
 #readelf: -Ah
 #name: LSI 4010 processor ISA level
 #source: empty.s
-#as: -EB -32 -m4010
-#ld: -EB -r
+#as: -m4010
+#ld: -r
 
 ELF Header:
 #...

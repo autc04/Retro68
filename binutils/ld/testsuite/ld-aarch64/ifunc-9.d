@@ -1,3 +1,4 @@
 #ld: --export-dynamic
-#error: .*dynamic STT_GNU_IFUNC symbol `foo' with pointer equality in `.*.o' can not be used when making an executable; recompile with -fPIE and relink with -pie
+#objdump: -dr
 #target: aarch64*-*-*
+#...

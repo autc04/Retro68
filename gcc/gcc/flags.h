@@ -1,5 +1,5 @@
 /* Compilation switch flag definitions for GCC.
-   Copyright (C) 1987-2019 Free Software Foundation, Inc.
+   Copyright (C) 1987-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,8 +22,46 @@ along with GCC; see the file COPYING3.  If not see
 
 #if !defined(IN_LIBGCC2) && !defined(IN_TARGET_LIBS) && !defined(IN_RTS)
 
-/* Names of debug_info_type, for error messages.  */
+/* Names of fundamental debug info formats indexed by enum
+   debug_info_type.  */
+
 extern const char *const debug_type_names[];
+
+/* Get enum debug_info_type of the specified debug format, for error messages.
+   Can be used only for individual debug format types.  */
+
+extern enum debug_info_type debug_set_to_format (uint32_t debug_info_set);
+
+/* Get the number of debug formats enabled for output.  */
+
+unsigned int debug_set_count (uint32_t w_symbols);
+
+/* Get the names of the debug formats enabled for output.  */
+
+const char * debug_set_names (uint32_t w_symbols);
+
+#ifndef GENERATOR_FILE
+/* Return true iff BTF debug info is enabled.  */
+
+extern bool btf_debuginfo_p ();
+
+/* Return true iff BTF with CO-RE debug info is enabled.  */
+
+extern bool btf_with_core_debuginfo_p ();
+
+/* Return true iff CTF debug info is enabled.  */
+
+extern bool ctf_debuginfo_p ();
+
+/* Return true iff DWARF2 debug info is enabled.  */
+
+extern bool dwarf_debuginfo_p (struct gcc_options *opts = &global_options);
+
+/* Return true iff the debug info format is to be generated based on DWARF
+   DIEs (like CTF and BTF debug info formats).  */
+
+extern bool dwarf_based_debuginfo_p ();
+#endif
 
 extern void strip_off_ending (char *, int);
 extern int base_of_path (const char *path, const char **base_out);
@@ -42,22 +80,20 @@ extern bool final_insns_dump_p;
 
 /* Other basic status info about current function.  */
 
-struct target_flag_state
+class target_flag_state
 {
+public:
   /* Each falign-foo can generate up to two levels of alignment:
      -falign-foo=N:M[:N2:M2] */
   align_flags x_align_loops;
   align_flags x_align_jumps;
   align_flags x_align_labels;
   align_flags x_align_functions;
-
-  /* The excess precision currently in effect.  */
-  enum excess_precision x_flag_excess_precision;
 };
 
-extern struct target_flag_state default_target_flag_state;
+extern class target_flag_state default_target_flag_state;
 #if SWITCHABLE_TARGET
-extern struct target_flag_state *this_target_flag_state;
+extern class target_flag_state *this_target_flag_state;
 #else
 #define this_target_flag_state (&default_target_flag_state)
 #endif
@@ -66,12 +102,6 @@ extern struct target_flag_state *this_target_flag_state;
 #define align_jumps	 (this_target_flag_state->x_align_jumps)
 #define align_labels	 (this_target_flag_state->x_align_labels)
 #define align_functions	 (this_target_flag_state->x_align_functions)
-
-/* String representaions of the above options are available in
-   const char *str_align_foo.  NULL if not set.  */
-
-#define flag_excess_precision \
-  (this_target_flag_state->x_flag_excess_precision)
 
 /* Returns TRUE if generated code should match ABI version N or
    greater is in use.  */

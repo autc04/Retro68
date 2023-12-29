@@ -8,8 +8,8 @@
  */
 module core.sys.posix.aio;
 
-private import core.sys.posix.signal;
-private import core.sys.posix.sys.types;
+import core.sys.posix.signal;
+import core.sys.posix.sys.types;
 
 version (OSX)
     version = Darwin;
@@ -72,6 +72,10 @@ version (CRuntime_Glibc)
         }
     }
 }
+else version (CRuntime_Bionic)
+{
+    // Bionic does not define aiocb.
+}
 else version (CRuntime_Musl)
 {
     // https://git.musl-libc.org/cgit/musl/tree/include/aio.h
@@ -95,57 +99,7 @@ else version (CRuntime_Musl)
 }
 else version (CRuntime_UClibc)
 {
-    import core.sys.posix.config;
-    import core.sys.posix.sys.types;
-
-    struct aiocb
-    {
-        int aio_fildes;
-        int aio_lio_opcode;
-        int aio_reqprio;
-        void* aio_buf;   //volatile
-        size_t aio_nbytes;
-        sigevent aio_sigevent;
-
-        aiocb* __next_prio;
-        int __abs_prio;
-        int __policy;
-        int __error_code;
-        ssize_t __return_value;
-
-        static if (__USE_LARGEFILE64)
-        {
-            off_t aio_offset;
-            ubyte[off64_t.sizeof - off_t.sizeof] __pad;
-        }
-        else
-        {
-            off64_t aio_offset;
-        }
-        ubyte[32] __unused;
-    }
-
-    static if (__USE_LARGEFILE64)
-    {
-        struct aiocb64
-        {
-            int aio_fildes;
-            int aio_lio_opcode;
-            int aio_reqprio;
-            void* aio_buf;   //volatile
-            size_t aio_nbytes;
-            sigevent aio_sigevent;
-
-            aiocb* __next_prio;
-            int __abs_prio;
-            int __policy;
-            int __error_code;
-            ssize_t __return_value;
-
-            off64_t aio_offset;
-            ubyte[32] __unused;
-        }
-    }
+    // UClibc does not implement aiocb.
 }
 else version (Darwin)
 {
@@ -202,6 +156,10 @@ else version (NetBSD)
     }
 
     version = BSD_Posix;
+}
+else version (OpenBSD)
+{
+    // OpenBSD does not define aiocb.
 }
 else version (DragonFlyBSD)
 {
@@ -264,15 +222,6 @@ else version (CRuntime_Musl)
         AIO_ALLDONE
     }
 }
-else version (CRuntime_UClibc)
-{
-    enum
-    {
-        AIO_CANCELED,
-        AIO_NOTCANCELED,
-        AIO_ALLDONE
-    }
-}
 else version (Darwin)
 {
     enum
@@ -320,15 +269,6 @@ else version (CRuntime_Musl)
         LIO_NOP
     }
 }
-else version (CRuntime_UClibc)
-{
-    enum
-    {
-        LIO_READ,
-        LIO_WRITE,
-        LIO_NOP
-    }
-}
 else version (Darwin)
 {
     enum
@@ -367,14 +307,6 @@ version (CRuntime_Glibc)
     }
 }
 else version (CRuntime_Musl)
-{
-    enum
-    {
-        LIO_WAIT,
-        LIO_NOWAIT
-    }
-}
-else version (CRuntime_UClibc)
 {
     enum
     {
@@ -442,39 +374,17 @@ version (CRuntime_Glibc)
         int lio_listio(int mode, const(aiocb*)* aiocb_list, int nitems, sigevent* sevp);
     }
 }
-version (CRuntime_UClibc)
+else version (CRuntime_Bionic)
 {
-    static if (__USE_LARGEFILE64)
-    {
-        int aio_read64(aiocb64* aiocbp);
-        int aio_write64(aiocb64* aiocbp);
-        int aio_fsync64(int op, aiocb64* aiocbp);
-        int aio_error64(const(aiocb64)* aiocbp);
-        ssize_t aio_return64(aiocb64* aiocbp);
-        int aio_suspend64(const(aiocb64*)* aiocb_list, int nitems, const(timespec)* timeout);
-        int aio_cancel64(int fd, aiocb64* aiocbp);
-        int lio_listio64(int mode, const(aiocb64*)* aiocb_list, int nitems, sigevent* sevp);
-
-        alias aio_read = aio_read64;
-        alias aio_write = aio_write64;
-        alias aio_fsync = aio_fsync64;
-        alias aio_error = aio_error64;
-        alias aio_return = aio_return64;
-        alias aio_suspend = aio_suspend64;
-        alias aio_cancel = aio_cancel64;
-        alias lio_listio = lio_listio64;
-    }
-    else
-    {
-        int aio_read(aiocb* aiocbp);
-        int aio_write(aiocb* aiocbp);
-        int aio_fsync(int op, aiocb* aiocbp);
-        int aio_error(const(aiocb)* aiocbp);
-        ssize_t aio_return(aiocb* aiocbp);
-        int aio_suspend(const(aiocb*)* aiocb_list, int nitems, const(timespec)* timeout);
-        int aio_cancel(int fd, aiocb* aiocbp);
-        int lio_listio(int mode, const(aiocb*)* aiocb_list, int nitems, sigevent* sevp);
-    }
+    // Bionic does not implement aio.h
+}
+else version (CRuntime_UClibc)
+{
+    // UClibc does not implement aio.h
+}
+else version (OpenBSD)
+{
+    // OpenBSD does not implement aio.h
 }
 else
 {
@@ -491,27 +401,7 @@ else
 /* Functions outside/extending POSIX requirement.  */
 version (CRuntime_Glibc)
 {
-    static if (__USE_GNU)
-    {
-        /* To customize the implementation one can use the following struct.  */
-        struct aioinit
-        {
-            int aio_threads;
-            int aio_num;
-            int aio_locks;
-            int aio_usedba;
-            int aio_debug;
-            int aio_numusers;
-            int aio_idle_time;
-            int aio_reserved;
-        }
-
-        void aio_init(const(aioinit)* init);
-    }
-}
-version (CRuntime_UClibc)
-{
-    static if (__USE_GNU)
+    static if (_GNU_SOURCE)
     {
         /* To customize the implementation one can use the following struct.  */
         struct aioinit

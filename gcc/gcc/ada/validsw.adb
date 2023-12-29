@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,65 +36,16 @@ package body Validsw is
    begin
       Validity_Check_Components     := False;
       Validity_Check_Copies         := False;
-      Validity_Check_Default        := True;
+      Validity_Check_Default        := False;
       Validity_Check_Floating_Point := False;
       Validity_Check_In_Out_Params  := False;
       Validity_Check_In_Params      := False;
       Validity_Check_Operands       := False;
+      Validity_Check_Parameters     := False;
       Validity_Check_Returns        := False;
       Validity_Check_Subscripts     := False;
       Validity_Check_Tests          := False;
    end Reset_Validity_Check_Options;
-
-   ---------------------------------
-   -- Save_Validity_Check_Options --
-   ---------------------------------
-
-   procedure Save_Validity_Check_Options
-     (Options : out Validity_Check_Options)
-   is
-      P : Natural := 0;
-
-      procedure Add (C : Character; S : Boolean);
-      --  Add given character C to string if switch S is true
-
-      procedure Add (C : Character; S : Boolean) is
-      begin
-         if S then
-            P := P + 1;
-            Options (P) := C;
-         end if;
-      end Add;
-
-   --  Start of processing for Save_Validity_Check_Options
-
-   begin
-      for K in Options'Range loop
-         Options (K) := ' ';
-      end loop;
-
-      Add ('n', not Validity_Check_Default);
-
-      Add ('c', Validity_Check_Copies);
-      Add ('e', Validity_Check_Components);
-      Add ('f', Validity_Check_Floating_Point);
-      Add ('i', Validity_Check_In_Params);
-      Add ('m', Validity_Check_In_Out_Params);
-      Add ('o', Validity_Check_Operands);
-      Add ('r', Validity_Check_Returns);
-      Add ('s', Validity_Check_Subscripts);
-      Add ('t', Validity_Check_Tests);
-   end Save_Validity_Check_Options;
-
-   ----------------------------------------
-   -- Set_Default_Validity_Check_Options --
-   ----------------------------------------
-
-   procedure Set_Default_Validity_Check_Options is
-   begin
-      Reset_Validity_Check_Options;
-      Set_Validity_Check_Options ("d");
-   end Set_Default_Validity_Check_Options;
 
    --------------------------------
    -- Set_Validity_Check_Options --

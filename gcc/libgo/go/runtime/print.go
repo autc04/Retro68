@@ -5,36 +5,37 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"unsafe"
 )
 
-// For gccgo, use go:linkname to rename compiler-called functions to
-// themselves, so that the compiler will export them.
+// For gccgo, use go:linkname to export compiler-called functions.
 //
-//go:linkname printbool runtime.printbool
-//go:linkname printfloat runtime.printfloat
-//go:linkname printint runtime.printint
-//go:linkname printhex runtime.printhex
-//go:linkname printuint runtime.printuint
-//go:linkname printcomplex runtime.printcomplex
-//go:linkname printstring runtime.printstring
-//go:linkname printpointer runtime.printpointer
-//go:linkname printiface runtime.printiface
-//go:linkname printeface runtime.printeface
-//go:linkname printslice runtime.printslice
-//go:linkname printnl runtime.printnl
-//go:linkname printsp runtime.printsp
-//go:linkname printlock runtime.printlock
-//go:linkname printunlock runtime.printunlock
+//go:linkname printbool
+//go:linkname printfloat
+//go:linkname printint
+//go:linkname printhex
+//go:linkname printuint
+//go:linkname printcomplex
+//go:linkname printstring
+//go:linkname printpointer
+//go:linkname printiface
+//go:linkname printeface
+//go:linkname printslice
+//go:linkname printnl
+//go:linkname printsp
+//go:linkname printlock
+//go:linkname printunlock
 // Temporary for C code to call:
-//go:linkname gwrite runtime.gwrite
-//go:linkname printhex runtime.printhex
+//go:linkname gwrite
+//go:linkname printhex
 
 // The compiler knows that a print of a value of this type
 // should use printhex instead of printuint (decimal).
 type hex uint64
 
+//go:nowritebarrier
 func bytes(s string) (ret []byte) {
 	rp := (*slice)(unsafe.Pointer(&ret))
 	sp := stringStructOf(&s)
@@ -237,13 +238,15 @@ func printint(v int64) {
 	printuint(uint64(v))
 }
 
+var minhexdigits = 0 // protected by printlock
+
 func printhex(v uint64) {
 	const dig = "0123456789abcdef"
 	var buf [100]byte
 	i := len(buf)
 	for i--; i > 0; i-- {
 		buf[i] = dig[v%16]
-		if v < 16 {
+		if v < 16 && len(buf)-i >= minhexdigits {
 			break
 		}
 		v /= 16
@@ -257,6 +260,9 @@ func printhex(v uint64) {
 
 func printpointer(p unsafe.Pointer) {
 	printhex(uint64(uintptr(p)))
+}
+func printuintptr(p uintptr) {
+	printhex(uint64(p))
 }
 
 func printstring(s string) {
@@ -275,4 +281,45 @@ func printeface(e eface) {
 
 func printiface(i iface) {
 	print("(", i.tab, ",", i.data, ")")
+}
+
+// hexdumpWords prints a word-oriented hex dump of [p, end).
+//
+// If mark != nil, it will be called with each printed word's address
+// and should return a character mark to appear just before that
+// word's value. It can return 0 to indicate no mark.
+func hexdumpWords(p, end uintptr, mark func(uintptr) byte) {
+	printlock()
+	var markbuf [1]byte
+	markbuf[0] = ' '
+	minhexdigits = int(unsafe.Sizeof(uintptr(0)) * 2)
+	for i := uintptr(0); p+i < end; i += goarch.PtrSize {
+		if i%16 == 0 {
+			if i != 0 {
+				println()
+			}
+			print(hex(p+i), ": ")
+		}
+
+		if mark != nil {
+			markbuf[0] = mark(p + i)
+			if markbuf[0] == 0 {
+				markbuf[0] = ' '
+			}
+		}
+		gwrite(markbuf[:])
+		val := *(*uintptr)(unsafe.Pointer(p + i))
+		print(hex(val))
+		print(" ")
+
+		// Can we symbolize val?
+		name, _, _, _ := funcfileline(val, -1, false)
+		if name != "" {
+			entry := funcentry(val)
+			print("<", name, "+", hex(val-entry), "> ")
+		}
+	}
+	minhexdigits = 0
+	println()
+	printunlock()
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2019 Free Software Foundation, Inc.
+// Copyright (C) 2017-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,11 +20,13 @@
 #include <chrono>
 #include <type_traits>
 
-using namespace std;
-using namespace std::chrono;
+using std::is_constructible;
+using std::chrono::seconds;
+using std::chrono::milliseconds;
 
 template <class Duration>
-    using sys_time = time_point<system_clock, Duration>;
+    using sys_time
+      = std::chrono::time_point<std::chrono::system_clock, Duration>;
 
 static_assert(is_constructible<sys_time<milliseconds>, sys_time<seconds>>{},
     "Can construct time_point from one with lower precision duration");

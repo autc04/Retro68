@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,35 +23,39 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Casing;   use Casing;
-with Csets;    use Csets;
-with Debug;    use Debug;
-with Einfo;    use Einfo;
-with Elists;   use Elists;
-with Errout;   use Errout;
+with Atree;          use Atree;
+with Casing;         use Casing;
+with Csets;          use Csets;
+with Debug;          use Debug;
+with Einfo;          use Einfo;
+with Einfo.Entities; use Einfo.Entities;
+with Einfo.Utils;    use Einfo.Utils;
+with Elists;         use Elists;
+with Errout;         use Errout;
 with Exp_Dist;
-with Fname;    use Fname;
-with Fname.UF; use Fname.UF;
-with Ghost;    use Ghost;
-with Lib;      use Lib;
-with Lib.Load; use Lib.Load;
-with Namet;    use Namet;
-with Nlists;   use Nlists;
-with Nmake;    use Nmake;
-with Output;   use Output;
-with Opt;      use Opt;
-with Restrict; use Restrict;
-with Sem;      use Sem;
-with Sem_Aux;  use Sem_Aux;
-with Sem_Ch7;  use Sem_Ch7;
-with Sem_Dist; use Sem_Dist;
-with Sem_Util; use Sem_Util;
-with Sinfo;    use Sinfo;
-with Stand;    use Stand;
-with Snames;   use Snames;
-with Tbuild;   use Tbuild;
-with Uname;    use Uname;
+with Fname;          use Fname;
+with Fname.UF;       use Fname.UF;
+with Ghost;          use Ghost;
+with Lib;            use Lib;
+with Lib.Load;       use Lib.Load;
+with Namet;          use Namet;
+with Nlists;         use Nlists;
+with Nmake;          use Nmake;
+with Output;         use Output;
+with Opt;            use Opt;
+with Restrict;       use Restrict;
+with Sem;            use Sem;
+with Sem_Aux;        use Sem_Aux;
+with Sem_Ch7;        use Sem_Ch7;
+with Sem_Dist;       use Sem_Dist;
+with Sem_Util;       use Sem_Util;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Sinfo.Utils;    use Sinfo.Utils;
+with Stand;          use Stand;
+with Snames;         use Snames;
+with Tbuild;         use Tbuild;
+with Uname;          use Uname;
 
 package body Rtsfind is
 
@@ -423,7 +427,7 @@ package body Rtsfind is
                          (Unit_Name (Current_Sem_Unit));
 
                   begin
-                     if Parent_Name /= No_Unit_Name then
+                     if Present (Parent_Name) then
                         Get_Name_String (Parent_Name);
 
                         declare
@@ -540,83 +544,188 @@ package body Rtsfind is
    -- Get_Unit_Name --
    -------------------
 
+   --  The following subtypes include all the proper descendants of each unit
+   --  that has such descendants. For example, Ada_Calendar_Descendant includes
+   --  all the descendents of Ada.Calendar (except Ada.Calendar itself). These
+   --  are used by Get_Unit_Name to know where to change "_" to ".", and by
+   --  Is_Text_IO_Special_Package to detect the special generic pseudo-children
+   --  of [[Wide_]Wide_]Text_IO.
+
+   subtype Ada_Descendant is RTU_Id
+     range Ada_Calendar .. Ada_Wide_Wide_Text_IO_Modular_IO;
+
+   subtype Ada_Calendar_Descendant is Ada_Descendant
+     range Ada_Calendar_Delays .. Ada_Calendar_Delays;
+
+   subtype Ada_Dispatching_Descendant is Ada_Descendant
+     range Ada_Dispatching_EDF .. Ada_Dispatching_EDF;
+
+   subtype Ada_Interrupts_Descendant is Ada_Descendant range
+     Ada_Interrupts_Names .. Ada_Interrupts_Names;
+
+   subtype Ada_Numerics_Descendant is Ada_Descendant
+     range Ada_Numerics_Generic_Elementary_Functions ..
+           Ada_Numerics_Generic_Elementary_Functions;
+
+   subtype Ada_Real_Time_Descendant is Ada_Descendant
+     range Ada_Real_Time_Delays .. Ada_Real_Time_Timing_Events;
+
+   subtype Ada_Streams_Descendant is Ada_Descendant
+     range Ada_Streams_Stream_IO .. Ada_Streams_Stream_IO;
+
+   subtype Ada_Strings_Descendant is Ada_Descendant
+     range Ada_Strings_Superbounded .. Ada_Strings_Text_Buffers_Unbounded;
+
+   subtype Ada_Strings_Text_Buffers_Descendant is Ada_Strings_Descendant
+     range Ada_Strings_Text_Buffers_Unbounded ..
+           Ada_Strings_Text_Buffers_Unbounded;
+
+   subtype Ada_Text_IO_Descendant is Ada_Descendant
+     range Ada_Text_IO_Decimal_IO .. Ada_Text_IO_Modular_IO;
+
+   subtype Ada_Wide_Text_IO_Descendant is Ada_Descendant
+     range Ada_Wide_Text_IO_Decimal_IO .. Ada_Wide_Text_IO_Modular_IO;
+
+   subtype Ada_Wide_Wide_Text_IO_Descendant is Ada_Descendant
+     range Ada_Wide_Wide_Text_IO_Decimal_IO ..
+           Ada_Wide_Wide_Text_IO_Modular_IO;
+
+   subtype CUDA_Descendant is RTU_Id
+     range CUDA_Driver_Types .. CUDA_Vector_Types;
+
+   subtype Interfaces_Descendant is RTU_Id
+     range Interfaces_C .. Interfaces_C_Strings;
+
+   subtype Interfaces_C_Descendant is Interfaces_Descendant
+     range Interfaces_C_Strings .. Interfaces_C_Strings;
+
+   subtype System_Descendant is RTU_Id
+     range System_Address_Image .. System_Tasking_Stages;
+
+   subtype System_Atomic_Operations_Descendant is System_Descendant
+     range System_Atomic_Operations_Test_And_Set ..
+           System_Atomic_Operations_Test_And_Set;
+
+   subtype System_Dim_Descendant is System_Descendant
+     range System_Dim_Float_IO .. System_Dim_Integer_IO;
+
+   subtype System_Multiprocessors_Descendant is System_Descendant
+     range System_Multiprocessors_Dispatching_Domains ..
+       System_Multiprocessors_Dispatching_Domains;
+
+   subtype System_Storage_Pools_Descendant is System_Descendant
+     range System_Storage_Pools_Subpools .. System_Storage_Pools_Subpools;
+
+   subtype System_Strings_Descendant is System_Descendant
+     range System_Strings_Stream_Ops .. System_Strings_Stream_Ops;
+
+   subtype System_Tasking_Descendant is System_Descendant
+     range System_Tasking_Async_Delays .. System_Tasking_Stages;
+
+   subtype System_Tasking_Protected_Objects_Descendant is
+     System_Tasking_Descendant
+     range System_Tasking_Protected_Objects_Entries ..
+       System_Tasking_Protected_Objects_Single_Entry;
+
+   subtype System_Tasking_Restricted_Descendant is System_Tasking_Descendant
+     range System_Tasking_Restricted_Stages ..
+       System_Tasking_Restricted_Stages;
+
+   subtype System_Tasking_Async_Delays_Descendant is System_Tasking_Descendant
+     range System_Tasking_Async_Delays_Enqueue_Calendar ..
+       System_Tasking_Async_Delays_Enqueue_RT;
+
    function Get_Unit_Name (U_Id : RTU_Id) return Unit_Name_Type is
       Uname_Chars : constant String := RTU_Id'Image (U_Id);
-
    begin
       Name_Len := Uname_Chars'Length;
       Name_Buffer (1 .. Name_Len) := Uname_Chars;
       Set_Casing (All_Lower_Case);
 
-      if U_Id in Ada_Child then
+      if U_Id in Ada_Descendant then
          Name_Buffer (4) := '.';
 
-         if U_Id in Ada_Calendar_Child then
+         if U_Id in Ada_Calendar_Descendant then
             Name_Buffer (13) := '.';
 
-         elsif U_Id in Ada_Dispatching_Child then
+         elsif U_Id in Ada_Dispatching_Descendant then
             Name_Buffer (16) := '.';
 
-         elsif U_Id in Ada_Interrupts_Child then
+         elsif U_Id in Ada_Interrupts_Descendant then
             Name_Buffer (15) := '.';
 
-         elsif U_Id in Ada_Numerics_Child then
+         elsif U_Id in Ada_Numerics_Descendant then
             Name_Buffer (13) := '.';
 
-         elsif U_Id in Ada_Real_Time_Child then
+         elsif U_Id in Ada_Real_Time_Descendant then
             Name_Buffer (14) := '.';
 
-         elsif U_Id in Ada_Streams_Child then
+         elsif U_Id in Ada_Streams_Descendant then
             Name_Buffer (12) := '.';
 
-         elsif U_Id in Ada_Strings_Child then
+         elsif U_Id in Ada_Strings_Descendant then
             Name_Buffer (12) := '.';
 
-         elsif U_Id in Ada_Text_IO_Child then
+            if U_Id in Ada_Strings_Text_Buffers_Descendant then
+               Name_Buffer (25) := '.';
+            end if;
+
+         elsif U_Id in Ada_Text_IO_Descendant then
             Name_Buffer (12) := '.';
 
-         elsif U_Id in Ada_Wide_Text_IO_Child then
+         elsif U_Id in Ada_Wide_Text_IO_Descendant then
             Name_Buffer (17) := '.';
 
-         elsif U_Id in Ada_Wide_Wide_Text_IO_Child then
+         elsif U_Id in Ada_Wide_Wide_Text_IO_Descendant then
             Name_Buffer (22) := '.';
          end if;
 
-      elsif U_Id in Interfaces_Child then
+      elsif U_Id in CUDA_Descendant then
+         Name_Buffer (5) := '.';
+
+      elsif U_Id in Interfaces_Descendant then
          Name_Buffer (11) := '.';
 
-      elsif U_Id in System_Child then
+         if U_Id in Interfaces_C_Descendant then
+            Name_Buffer (13) := '.';
+         end if;
+
+      elsif U_Id in System_Descendant then
          Name_Buffer (7) := '.';
 
-         if U_Id in System_Dim_Child then
+         if U_Id in System_Atomic_Operations_Descendant then
+            Name_Buffer (25) := '.';
+         end if;
+
+         if U_Id in System_Dim_Descendant then
             Name_Buffer (11) := '.';
          end if;
 
-         if U_Id in System_Multiprocessors_Child then
+         if U_Id in System_Multiprocessors_Descendant then
             Name_Buffer (23) := '.';
          end if;
 
-         if U_Id in System_Storage_Pools_Child then
+         if U_Id in System_Storage_Pools_Descendant then
             Name_Buffer (21) := '.';
          end if;
 
-         if U_Id in System_Strings_Child then
+         if U_Id in System_Strings_Descendant then
             Name_Buffer (15) := '.';
          end if;
 
-         if U_Id in System_Tasking_Child then
+         if U_Id in System_Tasking_Descendant then
             Name_Buffer (15) := '.';
          end if;
 
-         if U_Id in System_Tasking_Restricted_Child then
+         if U_Id in System_Tasking_Restricted_Descendant then
             Name_Buffer (26) := '.';
          end if;
 
-         if U_Id in System_Tasking_Protected_Objects_Child then
+         if U_Id in System_Tasking_Protected_Objects_Descendant then
             Name_Buffer (33) := '.';
          end if;
 
-         if U_Id in System_Tasking_Async_Delays_Child then
+         if U_Id in System_Tasking_Async_Delays_Descendant then
             Name_Buffer (28) := '.';
          end if;
       end if;
@@ -755,6 +864,37 @@ package body Rtsfind is
       return Present (E) and then E = Ent;
    end Is_RTU;
 
+   --------------------------------
+   -- Is_Text_IO_Special_Package --
+   --------------------------------
+
+   function Is_Text_IO_Special_Package (E : Entity_Id) return Boolean is
+   begin
+      pragma Assert (Is_Package_Or_Generic_Package (E));
+
+      --  ??? detection with a scope climbing might be more efficient
+
+      for U in Ada_Text_IO_Descendant loop
+         if Is_RTU (E, U) then
+            return True;
+         end if;
+      end loop;
+
+      for U in Ada_Wide_Text_IO_Descendant loop
+         if Is_RTU (E, U) then
+            return True;
+         end if;
+      end loop;
+
+      for U in Ada_Wide_Wide_Text_IO_Descendant loop
+         if Is_RTU (E, U) then
+            return True;
+         end if;
+      end loop;
+
+      return False;
+   end Is_Text_IO_Special_Package;
+
    -----------------------------
    -- Is_Text_IO_Special_Unit --
    -----------------------------
@@ -784,9 +924,9 @@ package body Rtsfind is
       return
         Nkind (Prf) = N_Identifier
           and then
-            Nam_In (Chars (Prf), Name_Text_IO,
-                                 Name_Wide_Text_IO,
-                                 Name_Wide_Wide_Text_IO)
+            Chars (Prf) in Name_Text_IO
+                         | Name_Wide_Text_IO
+                         | Name_Wide_Wide_Text_IO
           and then Nkind (Sel) = N_Identifier
           and then Chars (Sel) in Text_IO_Package_Name;
    end Is_Text_IO_Special_Unit;
@@ -931,6 +1071,8 @@ package body Rtsfind is
 
       Saved_GM  : constant Ghost_Mode_Type := Ghost_Mode;
       Saved_IGR : constant Node_Id         := Ignored_Ghost_Region;
+      Saved_ISMP : constant Boolean        :=
+                     Ignore_SPARK_Mode_Pragmas_In_Instance;
       Saved_SM  : constant SPARK_Mode_Type := SPARK_Mode;
       Saved_SMP : constant Node_Id         := SPARK_Mode_Pragma;
       --  Save Ghost and SPARK mode-related data to restore on exit
@@ -946,25 +1088,20 @@ package body Rtsfind is
 
       --  Provide a clean environment for the unit
 
+      Ignore_SPARK_Mode_Pragmas_In_Instance := False;
       Install_Ghost_Region (None, Empty);
       Install_SPARK_Mode   (None, Empty);
 
-      --  Note if secondary stack is used
-
-      if U_Id = System_Secondary_Stack then
-         Opt.Sec_Stack_Used := True;
-      end if;
-
-      --  Otherwise we need to load the unit, First build unit name
-      --  from the enumeration literal name in type RTU_Id.
+      --  Otherwise we need to load the unit, First build unit name from the
+      --  enumeration literal name in type RTU_Id.
 
       U.Uname                := Get_Unit_Name (U_Id);
       U.First_Implicit_With  := Empty;
 
-      --  Now do the load call, note that setting Error_Node to Empty is
-      --  a signal to Load_Unit that we will regard a failure to find the
-      --  file as a fatal error, and that it should not output any kind
-      --  of diagnostics, since we will take care of it here.
+      --  Now do the load call, note that setting Error_Node to Empty is a
+      --  signal to Load_Unit that we will regard a failure to find the file as
+      --  a fatal error, and that it should not output any kind of diagnostics,
+      --  since we will take care of it here.
 
       --  We save style checking switches and turn off style checking for
       --  loading the unit, since we don't want any style checking.
@@ -1050,6 +1187,7 @@ package body Rtsfind is
          Set_Is_Potentially_Use_Visible (U.Entity, True);
       end if;
 
+      Ignore_SPARK_Mode_Pragmas_In_Instance := Saved_ISMP;
       Restore_Ghost_Region (Saved_GM, Saved_IGR);
       Restore_SPARK_Mode   (Saved_SM, Saved_SMP);
    end Load_RTU;
@@ -1110,9 +1248,10 @@ package body Rtsfind is
       --  for this unit to the current compilation unit.
 
       declare
-         LibUnit : constant Node_Id := Unit (Cunit (U.Unum));
-         Clause  : Node_Id;
-         Withn   : Node_Id;
+         LibUnit  : constant Node_Id         := Unit (Cunit (U.Unum));
+         Saved_GM : constant Ghost_Mode_Type := Ghost_Mode;
+         Clause   : Node_Id;
+         Withn    : Node_Id;
 
       begin
          Clause := U.First_Implicit_With;
@@ -1124,11 +1263,18 @@ package body Rtsfind is
             Clause := Next_Implicit_With (Clause);
          end loop;
 
+         --  We want to make sure that the "with" we create below isn't
+         --  marked as ignored ghost code because this list may be walked
+         --  later, after ignored ghost code is converted to a null
+         --  statement.
+
+         Ghost_Mode := None;
          Withn :=
            Make_With_Clause (Standard_Location,
              Name =>
                Make_Unit_Name
                  (U, Defining_Unit_Name (Specification (LibUnit))));
+         Ghost_Mode := Saved_GM;
 
          Set_Corresponding_Spec  (Withn, U.Entity);
          Set_First_Name          (Withn);
@@ -1245,21 +1391,6 @@ package body Rtsfind is
    ---------
 
    function RTE (E : RE_Id) return Entity_Id is
-      U_Id : constant RTU_Id := RE_Unit_Table (E);
-      U    : RT_Unit_Table_Record renames RT_Unit_Table (U_Id);
-
-      Lib_Unit : Node_Id;
-      Pkg_Ent  : Entity_Id;
-      Ename    : Name_Id;
-
-      --  The following flag is used to disable front-end inlining when RTE
-      --  is invoked. This prevents the analysis of other runtime bodies when
-      --  a particular spec is loaded through Rtsfind. This is both efficient,
-      --  and it prevents spurious visibility conflicts between use-visible
-      --  user entities, and entities in run-time packages.
-
-      Save_Front_End_Inlining : Boolean;
-
       procedure Check_RPC;
       --  Reject programs that make use of distribution features not supported
       --  on the current target. Also check that the PCS is compatible with the
@@ -1351,6 +1482,22 @@ package body Rtsfind is
          return Ent;
       end Find_Local_Entity;
 
+      --  Local variables
+
+      U_Id : constant RTU_Id := RE_Unit_Table (E);
+      U    : RT_Unit_Table_Record renames RT_Unit_Table (U_Id);
+
+      Ename    : Name_Id;
+      Lib_Unit : Node_Id;
+      Pkg_Ent  : Entity_Id;
+
+      Save_Front_End_Inlining : constant Boolean := Front_End_Inlining;
+      --  This flag is used to disable front-end inlining when RTE is invoked.
+      --  This prevents the analysis of other runtime bodies when a particular
+      --  spec is loaded through Rtsfind. This is both efficient, and prevents
+      --  spurious visibility conflicts between use-visible user entities, and
+      --  entities in run-time packages.
+
    --  Start of processing for RTE
 
    begin
@@ -1372,7 +1519,6 @@ package body Rtsfind is
          return Check_CRT (E, Find_Local_Entity (E));
       end if;
 
-      Save_Front_End_Inlining := Front_End_Inlining;
       Front_End_Inlining := False;
 
       --  Load unit if unit not previously loaded
@@ -1435,9 +1581,19 @@ package body Rtsfind is
       end if;
 
    <<Found>>
-      Maybe_Add_With (U);
 
+      --  Record whether the secondary stack is in use in order to generate
+      --  the proper binder code. No action is taken when the secondary stack
+      --  is pulled within an ignored Ghost context because all this code will
+      --  disappear.
+
+      if U_Id = System_Secondary_Stack and then Ghost_Mode /= Ignore then
+         Sec_Stack_Used := True;
+      end if;
+
+      Maybe_Add_With (U);
       Front_End_Inlining := Save_Front_End_Inlining;
+
       return Check_CRT (E, RE_Table (E));
    end RTE;
 
@@ -1660,14 +1816,12 @@ package body Rtsfind is
    -------------------------
 
    procedure SPARK_Implicit_Load (E : RE_Id) is
-      Unused : Entity_Id;
-
    begin
       pragma Assert (GNATprove_Mode);
 
       --  Force loading of a predefined unit
 
-      Unused := RTE (E);
+      Discard_Node (RTE (E));
    end SPARK_Implicit_Load;
 
 end Rtsfind;

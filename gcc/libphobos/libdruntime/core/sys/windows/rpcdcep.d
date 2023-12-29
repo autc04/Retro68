@@ -4,16 +4,17 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_rpcdcep.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_rpcdcep.d)
  */
 module core.sys.windows.rpcdcep;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 
-private import core.sys.windows.basetyps;
-private import core.sys.windows.w32api;
-private import core.sys.windows.windef;
+import core.sys.windows.basetyps;
+import core.sys.windows.w32api;
+import core.sys.windows.windef;
 
 mixin DECLARE_HANDLE!("I_RPC_HANDLE");
 alias long RPC_STATUS;

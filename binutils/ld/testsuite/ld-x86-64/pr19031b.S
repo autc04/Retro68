@@ -16,3 +16,4 @@ h:
 	.data
 zed:
         .long f - .
+	.section	.note.GNU-stack

@@ -39,7 +39,7 @@ package Clause_On_Volatile is
   For A2'Alignment use 4;
   for A2 use record
      B at 0 range 0 .. 7;
-     AW at 1 range 0 .. 31; -- { dg-error "must be multiple" }
+     AW at 1 range 0 .. 31; -- { dg-error "must be multiple|alignment" }
   end record;
 
   type A3 is record
@@ -49,7 +49,7 @@ package Clause_On_Volatile is
   For A3'Alignment use 4;
   for A3 use record
      B at 0 range 0 .. 7;
-     AW at 1 range 0 .. 15; -- { dg-error "must be (multiple||\[0-9\]*)" }
+     AW at 1 range 0 .. 15; -- { dg-error "must be (multiple||\[0-9\]*)|alignment" }
   end record;
 
   type V1 is record
@@ -57,7 +57,7 @@ package Clause_On_Volatile is
   end record;
   For V1'Alignment use 4;
   for V1 use record
-     VW at 0 range 0 .. 15;
+     VW at 0 range 0 .. 15; -- { dg-error "too small*" }
   end record;
 
   type V2 is record
@@ -67,7 +67,7 @@ package Clause_On_Volatile is
   For V2'Alignment use 4;
   for V2 use record
      B at 0 range 0 .. 7;
-     VW at 1 range 0 .. 31;
+     VW at 1 range 0 .. 31; -- { dg-error "must be multiple|alignment" }
   end record;
 
   type V3 is record
@@ -77,7 +77,7 @@ package Clause_On_Volatile is
   For V3'Alignment use 4;
   for V3 use record
      B at 0 range 0 .. 7;
-     VW at 1 range 0 .. 15;
+     VW at 1 range 0 .. 15; -- { dg-error "must be multiple|alignment|too small" }
   end record;
 
 end Clause_On_Volatile;

@@ -1,7 +1,7 @@
 	.section	.rodata.str1.1,"aMS",@progbits,1
 .LC0:
 	.string	"PASS"
-	.section	.text.startup,"ax",@progbits
+	.section	.text,"ax",@progbits,unique,1
 	.p2align 4,,15
 	.globl	main
 	.type	main, @function
@@ -41,7 +41,7 @@ main:
 	addl	$16, %esp
 	jmp	.L3
 	.size	main, .-main
-	.section	.text.__x86.get_pc_thunk.bx,"axG",@progbits,__x86.get_pc_thunk.bx,comdat
+	.section .text,"axG",@progbits,__x86.get_pc_thunk.bx,comdat,unique,2
 	.globl	__x86.get_pc_thunk.bx
 	.hidden	__x86.get_pc_thunk.bx
 	.type	__x86.get_pc_thunk.bx, @function

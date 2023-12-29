@@ -356,7 +356,9 @@ foo:
 	rnsbg	%r6,%r7,210,220,230
 	rxsbg	%r6,%r7,210,220,230
 	rosbg	%r6,%r7,210,220,230
-	risbg	%r6,%r7,210,220,230
+	risbg	%r6,%r7,210,20,230
+	risbg	%r6,%r7,210,188,230
+	risbgz	%r6,%r7,210,20,230
 	strl	%r6,.
 	stgrl	%r6,.
 	sthrl	%r6,.

@@ -4,12 +4,13 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_subauth.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_subauth.d)
  */
 module core.sys.windows.subauth;
 version (Windows):
+@system:
 
-private import core.sys.windows.ntdef, core.sys.windows.windef;
+import core.sys.windows.ntdef, core.sys.windows.windef;
 
 /+
 alias LONG NTSTATUS;

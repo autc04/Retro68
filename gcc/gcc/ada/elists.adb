@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -373,6 +367,64 @@ package body Elists is
       return Elists.Last;
    end New_Elmt_List;
 
+   -------------------
+   -- New_Elmt_List --
+   -------------------
+
+   function New_Elmt_List (Elmt1 : Node_Or_Entity_Id)
+     return Elist_Id
+   is
+      L : constant Elist_Id := New_Elmt_List;
+   begin
+      Append_Elmt (Elmt1, L);
+      return L;
+   end New_Elmt_List;
+
+   -------------------
+   -- New_Elmt_List --
+   -------------------
+
+   function New_Elmt_List
+     (Elmt1 : Node_Or_Entity_Id;
+      Elmt2 : Node_Or_Entity_Id) return Elist_Id
+   is
+      L : constant Elist_Id := New_Elmt_List (Elmt1);
+   begin
+      Append_Elmt (Elmt2, L);
+      return L;
+   end New_Elmt_List;
+
+   -------------------
+   -- New_Elmt_List --
+   -------------------
+
+   function New_Elmt_List
+     (Elmt1 : Node_Or_Entity_Id;
+      Elmt2 : Node_Or_Entity_Id;
+      Elmt3 : Node_Or_Entity_Id) return Elist_Id
+   is
+      L : constant Elist_Id := New_Elmt_List (Elmt1, Elmt2);
+   begin
+      Append_Elmt (Elmt3, L);
+      return L;
+   end New_Elmt_List;
+
+   -------------------
+   -- New_Elmt_List --
+   -------------------
+
+   function New_Elmt_List
+     (Elmt1 : Node_Or_Entity_Id;
+      Elmt2 : Node_Or_Entity_Id;
+      Elmt3 : Node_Or_Entity_Id;
+      Elmt4 : Node_Or_Entity_Id) return Elist_Id
+   is
+      L : constant Elist_Id := New_Elmt_List (Elmt1, Elmt2, Elmt3);
+   begin
+      Append_Elmt (Elmt4, L);
+      return L;
+   end New_Elmt_List;
+
    ---------------
    -- Next_Elmt --
    ---------------
@@ -579,26 +631,6 @@ package body Elists is
    begin
       Elmts.Table (Elmt).Node := New_Node;
    end Replace_Elmt;
-
-   ---------------
-   -- Tree_Read --
-   ---------------
-
-   procedure Tree_Read is
-   begin
-      Elists.Tree_Read;
-      Elmts.Tree_Read;
-   end Tree_Read;
-
-   ----------------
-   -- Tree_Write --
-   ----------------
-
-   procedure Tree_Write is
-   begin
-      Elists.Tree_Write;
-      Elmts.Tree_Write;
-   end Tree_Write;
 
    ------------
    -- Unlock --

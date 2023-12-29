@@ -13,13 +13,13 @@ SYMBOL TABLE:
 0+c g     F \.text	0+ Main
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+2 R_MMIX_REG        \.MMIX\.reg_contents
 0+7 R_MMIX_REG_OR_BYTE  \.MMIX\.reg_contents
 0+a R_MMIX_REG        \.MMIX\.reg_contents
 
 RELOCATION RECORDS FOR \[\.MMIX\.reg_contents\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+ R_MMIX_64         \.text\+0x0+10
 
 Contents of section \.text:

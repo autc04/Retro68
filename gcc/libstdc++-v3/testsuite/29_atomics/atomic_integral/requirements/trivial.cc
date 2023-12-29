@@ -1,6 +1,6 @@
 // { dg-do compile { target c++11 } }
 
-// Copyright (C) 2009-2019 Free Software Foundation, Inc.
+// Copyright (C) 2009-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,7 +22,11 @@
 
 void test01()
 {
+#if __cplusplus <= 201703L
   __gnu_test::has_trivial_cons_dtor test;
+#else
+  __gnu_test::has_trivial_dtor test;
+#endif
   __gnu_cxx::typelist::apply_generator(test,
 				       __gnu_test::atomic_integrals::type());
 }

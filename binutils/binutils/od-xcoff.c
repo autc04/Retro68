@@ -1,5 +1,5 @@
 /* od-xcoff.c -- dump information about an xcoff object file.
-   Copyright (C) 2011-2018 Free Software Foundation, Inc.
+   Copyright (C) 2011-2022 Free Software Foundation, Inc.
    Written by Tristan Gingold, Adacore.
 
    This file is part of GNU Binutils.
@@ -300,7 +300,7 @@ static const struct xlat_table rtype_xlat[] =
     RTYPE_ENTRY (NEG),
     RTYPE_ENTRY (REL),
     RTYPE_ENTRY (TOC),
-    RTYPE_ENTRY (RTB),
+    RTYPE_ENTRY (TRL),
     RTYPE_ENTRY (GL),
     RTYPE_ENTRY (TCL),
     RTYPE_ENTRY (BA),
@@ -308,7 +308,6 @@ static const struct xlat_table rtype_xlat[] =
     RTYPE_ENTRY (RL),
     RTYPE_ENTRY (RLA),
     RTYPE_ENTRY (REF),
-    RTYPE_ENTRY (TRL),
     RTYPE_ENTRY (TRLA),
     RTYPE_ENTRY (RRTBI),
     RTYPE_ENTRY (RRTBA),
@@ -763,7 +762,7 @@ dump_xcoff32_symbols (bfd *abfd, struct xcoff_dump *data)
     {
       bfd_size_type size;
 
-      size = bfd_get_section_size (debugsec);
+      size = bfd_section_size (debugsec);
       debug = (char *) xmalloc (size);
       bfd_get_section_contents (abfd, debugsec, debug, 0, size);
     }
@@ -839,13 +838,13 @@ dump_xcoff32_symbols (bfd *abfd, struct xcoff_dump *data)
                 {
                   /* Function aux entry  (Do not translate).  */
                   printf ("  exptr: %08x fsize: %08x lnnoptr: %08x endndx: %u\n",
-                          (unsigned)bfd_h_get_32 (abfd, aux->x_sym.x_tagndx),
+                          (unsigned)bfd_h_get_32 (abfd, aux->x_fcn.x_exptr),
                           (unsigned)bfd_h_get_32
-                            (abfd, aux->x_sym.x_misc.x_fsize),
+                            (abfd, aux->x_fcn.x_fsize),
                           (unsigned)bfd_h_get_32
-                            (abfd, aux->x_sym.x_fcnary.x_fcn.x_lnnoptr),
+                            (abfd, aux->x_fcn.x_lnnoptr),
                           (unsigned)bfd_h_get_32
-                            (abfd, aux->x_sym.x_fcnary.x_fcn.x_endndx));
+                            (abfd, aux->x_fcn.x_endndx));
                 }
               else if (j == 1 || (j == 0 && s->sym.numaux == 1))
                 {
@@ -900,7 +899,7 @@ dump_xcoff32_symbols (bfd *abfd, struct xcoff_dump *data)
             case C_FCN:
               printf ("  lnno: %u\n",
                       (unsigned)bfd_h_get_16
-                      (abfd, aux->x_sym.x_misc.x_lnsz.x_lnno));
+                      (abfd, aux->x_sym.x_lnno));
               break;
             default:
               /* Do not translate - generic field name.  */
@@ -1051,7 +1050,7 @@ dump_xcoff32_loader (bfd *abfd)
       printf (_("no .loader section in file\n"));
       return;
     }
-  size = bfd_get_section_size (loader);
+  size = bfd_section_size (loader);
   if (size < sizeof (*lhdr))
     {
       printf (_("section .loader is too short\n"));
@@ -1198,7 +1197,7 @@ dump_xcoff32_except (bfd *abfd, struct xcoff_dump *data)
       printf (_("no .except section in file\n"));
       return;
     }
-  size = bfd_get_section_size (sec);
+  size = bfd_section_size (sec);
   excp_data = (bfd_byte *) xmalloc (size);
   bfd_get_section_contents (abfd, sec, excp_data, 0, size);
   exceptab = (struct external_exceptab *)excp_data;
@@ -1241,7 +1240,7 @@ dump_xcoff32_typchk (bfd *abfd)
       printf (_("no .typchk section in file\n"));
       return;
     }
-  size = bfd_get_section_size (sec);
+  size = bfd_section_size (sec);
   data = (bfd_byte *) xmalloc (size);
   bfd_get_section_contents (abfd, sec, data, 0, size);
 
@@ -1449,9 +1448,9 @@ dump_xcoff32_traceback (bfd *abfd, struct xcoff_dump *data)
   text_sec = bfd_get_section_by_name (abfd, ".text");
   if (text_sec == NULL)
     return;
-  text_vma = bfd_get_section_vma (abfd, text_sec);
+  text_vma = bfd_section_vma (text_sec);
 
-  text_size = bfd_get_section_size (text_sec);
+  text_size = bfd_section_size (text_sec);
   text = (char *) xmalloc (text_size);
   bfd_get_section_contents (abfd, text_sec, text, 0, text_size);
 
@@ -1680,8 +1679,10 @@ dump_dumpx_core (bfd *abfd, struct external_core_dumpx *hdr)
 {
   if (options[OPT_FILE_HEADER].selected)
     {
-      printf ("  signal:     %u\n", bfd_h_get_8 (abfd, hdr->c_signo));
-      printf ("  flags:      0x%02x\n", bfd_h_get_8 (abfd, hdr->c_flag));
+      printf ("  signal:     %u\n",
+	      (unsigned) bfd_h_get_8 (abfd, hdr->c_signo));
+      printf ("  flags:      0x%02x\n",
+	      (unsigned) bfd_h_get_8 (abfd, hdr->c_flag));
       printf ("  entries:    %u\n",
 	      (unsigned) bfd_h_get_16 (abfd, hdr->c_entries));
 #ifdef BFD64

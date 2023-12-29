@@ -1,4 +1,4 @@
-#as: 
+#as:
 #objdump: -dwMintel
 #name: x86-64 BMI insns (Intel disassembly)
 #source: x86-64-bmi.s

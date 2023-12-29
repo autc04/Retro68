@@ -2,8 +2,7 @@
 #name: MIPS16 link branch 3
 #source: mips16-branch.s
 #source: ../../../gas/testsuite/gas/mips/mips16-branch-reloc-3.s
-#as: -EB -32
-#ld: -EB -Ttext 0x1c000000 -e bar
+#ld: -Ttext 0x1c000000 -e bar
 
 .*: +file format .*mips.*
 

@@ -1,3 +1,6 @@
+/* { dg-additional-options "-Wopenacc-parallelism" } for testing/documenting
+   aspects of that functionality.  */
+
 #include <stdio.h>
 #include <openacc.h>
 #include <gomp-constants.h>
@@ -6,6 +9,7 @@
 
 #pragma acc routine worker
 void __attribute__ ((noinline)) worker (int ary[N])
+/* { dg-warning "region is vector partitioned but does not contain vector partitioned code" "" { target *-*-* } .-1 } */
 {
 #pragma acc loop worker
   for (unsigned ix = 0; ix < N; ix++)
@@ -30,15 +34,25 @@ int main ()
   int ix;
   int exit = 0;
   int ondev = 0;
+  int workersize;
 
   for (ix = 0; ix < N;ix++)
     ary[ix] = -1;
   
-#pragma acc parallel num_workers(32) vector_length(32) copy(ary) copy(ondev)
+#define NW 32
+#define VL 32
+#pragma acc parallel num_workers(NW) vector_length(VL) \
+	    copy(ary) copy(ondev)
   {
     ondev = acc_on_device (acc_device_not_host);
     worker (ary);
   }
+  workersize = NW;
+#ifdef ACC_DEVICE_TYPE_radeon
+  /* AMD GCN has an upper limit of 'num_workers(16)'.  */
+  if (workersize > 16)
+    workersize = 16;
+#endif
 
   for (ix = 0; ix < N; ix++)
     {
@@ -46,7 +60,7 @@ int main ()
       if(ondev)
 	{
 	  int g = 0;
-	  int w = ix % 32;
+	  int w = ix % workersize;
 	  int v = 0;
 
 	  expected = (g << 16) | (w << 8) | v;

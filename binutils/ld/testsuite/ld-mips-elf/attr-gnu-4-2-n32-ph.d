@@ -1,8 +1,8 @@
-#source: empty.s -mips3 -n32 -msingle-float -EB
-#ld: -melf32btsmipn32 -e 0
+#source: empty.s -mips3 -msingle-float
+#ld: -e 0
 #objdump: -p
 
-[^:]*:     file format elf32-ntradbigmips
+[^:]*:     file format elf32-n.*mips.*
 
 Program Header:
 0x70000003 off    0x000000.. vaddr 0x100000.. paddr 0x100000.. align 2\*\*3

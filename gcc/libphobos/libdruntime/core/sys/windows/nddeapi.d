@@ -5,14 +5,15 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_nddeapi.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_nddeapi.d)
  */
 module core.sys.windows.nddeapi;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 
-private import core.sys.windows.windef;
+import core.sys.windows.windef;
 
 // FIXME: check types and grouping of constants
 

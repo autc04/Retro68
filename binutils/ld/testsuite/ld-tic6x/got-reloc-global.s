@@ -9,3 +9,4 @@
 	.type	a, @object
 	.size	a, 4
 a:
+	.section	.note.GNU-stack

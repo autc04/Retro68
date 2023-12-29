@@ -9,7 +9,7 @@ Disassembly of section .foo:
 
 [0-9a-f]+ <__func_to_branch_to_veneer>:
  +[0-9a-f]+:	4778      	bx	pc
- +[0-9a-f]+:	46c0      	nop			; \(mov r8, r8\)
+ +[0-9a-f]+:	e7fd      	b.n	.+ <.+>
  +[0-9a-f]+:	e51ff004 	ldr	pc, \[pc, #-4\]	; 2001020 <__func_to_branch_to_veneer\+0x8>
  +[0-9a-f]+:	........ 	.word	0x........
  +[0-9a-f]+:	00000000 	.word	0x00000000

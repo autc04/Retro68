@@ -1,4 +1,4 @@
-#name: TLS with PIE
+#name: TLS with PIE (2 x86)
 #as: --32
 #ld: -melf_i386 -pie
 #objdump: -dw

@@ -36,7 +36,8 @@ Symbol::Symbol(Object& theObject, const GElf_Sym &sym)
     if(st_shndx != SHN_UNDEF && st_shndx < SHN_LORESERVE)
     {
         section = theObject.sectionsByElfIndex[st_shndx];
-        sectionKind = section->kind;
+        if (section)
+            sectionKind = section->kind;
     }
     if(st_name)
     {

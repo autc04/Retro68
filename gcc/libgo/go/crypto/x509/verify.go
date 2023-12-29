@@ -10,16 +10,12 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
 	"reflect"
 	"runtime"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
-
-// ignoreCN disables interpreting Common Name as a hostname. See issue 24151.
-var ignoreCN = strings.Contains(os.Getenv("GODEBUG"), "x509ignoreCN=1")
 
 type InvalidReason int
 
@@ -43,14 +39,7 @@ const (
 	// NameMismatch results when the subject name of a parent certificate
 	// does not match the issuer name in the child.
 	NameMismatch
-	// NameConstraintsWithoutSANs results when a leaf certificate doesn't
-	// contain a Subject Alternative Name extension, but a CA certificate
-	// contains name constraints, and the Common Name can be interpreted as
-	// a hostname.
-	//
-	// You can avoid this error by setting the experimental GODEBUG environment
-	// variable to "x509ignoreCN=1", disabling Common Name matching entirely.
-	// This behavior might become the default in the future.
+	// NameConstraintsWithoutSANs is a legacy error and is no longer returned.
 	NameConstraintsWithoutSANs
 	// UnconstrainedName results when a CA certificate contains permitted
 	// name constraints, but leaf certificate contains a name of an
@@ -80,7 +69,7 @@ func (e CertificateInvalidError) Error() string {
 	case NotAuthorizedToSign:
 		return "x509: certificate is not authorized to sign other certificates"
 	case Expired:
-		return "x509: certificate has expired or is not yet valid"
+		return "x509: certificate has expired or is not yet valid: " + e.Detail
 	case CANotAuthorizedForThisName:
 		return "x509: a root or intermediate certificate is not authorized to sign for this name: " + e.Detail
 	case CANotAuthorizedForExtKeyUsage:
@@ -109,10 +98,8 @@ type HostnameError struct {
 func (h HostnameError) Error() string {
 	c := h.Certificate
 
-	if !c.hasSANExtension() && !validHostname(c.Subject.CommonName) &&
-		matchHostnames(toLowerCaseASCII(c.Subject.CommonName), toLowerCaseASCII(h.Host)) {
-		// This would have validated, if it weren't for the validHostname check on Common Name.
-		return "x509: Common Name is not a valid hostname: " + c.Subject.CommonName
+	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
+		return "x509: certificate relies on legacy Common Name field, use SANs instead"
 	}
 
 	var valid string
@@ -128,11 +115,7 @@ func (h HostnameError) Error() string {
 			valid += san.String()
 		}
 	} else {
-		if c.commonNameAsHostname() {
-			valid = c.Subject.CommonName
-		} else {
-			valid = strings.Join(c.DNSNames, ", ")
-		}
+		valid = strings.Join(c.DNSNames, ", ")
 	}
 
 	if len(valid) == 0 {
@@ -181,30 +164,40 @@ func (se SystemRootsError) Error() string {
 	return msg
 }
 
+func (se SystemRootsError) Unwrap() error { return se.Err }
+
 // errNotParsed is returned when a certificate without ASN.1 contents is
 // verified. Platform-specific verification needs the ASN.1 contents.
 var errNotParsed = errors.New("x509: missing ASN.1 contents; use ParseCertificate")
 
-// VerifyOptions contains parameters for Certificate.Verify. It's a structure
-// because other PKIX verification APIs have ended up needing many options.
+// VerifyOptions contains parameters for Certificate.Verify.
 type VerifyOptions struct {
-	DNSName       string
+	// DNSName, if set, is checked against the leaf certificate with
+	// Certificate.VerifyHostname or the platform verifier.
+	DNSName string
+
+	// Intermediates is an optional pool of certificates that are not trust
+	// anchors, but can be used to form a chain from the leaf certificate to a
+	// root certificate.
 	Intermediates *CertPool
-	Roots         *CertPool // if nil, the system roots are used
-	CurrentTime   time.Time // if zero, the current time is used
-	// KeyUsage specifies which Extended Key Usage values are acceptable. A leaf
-	// certificate is accepted if it contains any of the listed values. An empty
-	// list means ExtKeyUsageServerAuth. To accept any key usage, include
-	// ExtKeyUsageAny.
-	//
-	// Certificate chains are required to nest these extended key usage values.
-	// (This matches the Windows CryptoAPI behavior, but not the spec.)
+	// Roots is the set of trusted root certificates the leaf certificate needs
+	// to chain up to. If nil, the system roots or the platform verifier are used.
+	Roots *CertPool
+
+	// CurrentTime is used to check the validity of all certificates in the
+	// chain. If zero, the current time is used.
+	CurrentTime time.Time
+
+	// KeyUsages specifies which Extended Key Usage values are acceptable. A
+	// chain is accepted if it allows any of the listed values. An empty list
+	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []ExtKeyUsage
+
 	// MaxConstraintComparisions is the maximum number of comparisons to
 	// perform when checking a given certificate's name constraints. If
 	// zero, a sensible default is used. This limit prevents pathological
 	// certificates from consuming excessive amounts of CPU time when
-	// validating.
+	// validating. It does not apply to the platform verifier.
 	MaxConstraintComparisions int
 }
 
@@ -369,7 +362,7 @@ func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
 			reverseLabels = append(reverseLabels, domain)
 			domain = ""
 		} else {
-			reverseLabels = append(reverseLabels, domain[i+1:len(domain)])
+			reverseLabels = append(reverseLabels, domain[i+1:])
 			domain = domain[:i]
 		}
 	}
@@ -507,9 +500,9 @@ func (c *Certificate) checkNameConstraints(count *int,
 	maxConstraintComparisons int,
 	nameType string,
 	name string,
-	parsedName interface{},
-	match func(parsedName, constraint interface{}) (match bool, err error),
-	permitted, excluded interface{}) error {
+	parsedName any,
+	match func(parsedName, constraint any) (match bool, err error),
+	permitted, excluded any) error {
 
 	excludedValue := reflect.ValueOf(excluded)
 
@@ -576,8 +569,18 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	if now.IsZero() {
 		now = time.Now()
 	}
-	if now.Before(c.NotBefore) || now.After(c.NotAfter) {
-		return CertificateInvalidError{c, Expired, ""}
+	if now.Before(c.NotBefore) {
+		return CertificateInvalidError{
+			Cert:   c,
+			Reason: Expired,
+			Detail: fmt.Sprintf("current time %s is before %s", now.Format(time.RFC3339), c.NotBefore.Format(time.RFC3339)),
+		}
+	} else if now.After(c.NotAfter) {
+		return CertificateInvalidError{
+			Cert:   c,
+			Reason: Expired,
+			Detail: fmt.Sprintf("current time %s is after %s", now.Format(time.RFC3339), c.NotAfter.Format(time.RFC3339)),
+		}
 	}
 
 	maxConstraintComparisons := opts.MaxConstraintComparisions
@@ -594,15 +597,8 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		leaf = currentChain[0]
 	}
 
-	checkNameConstraints := (certType == intermediateCertificate || certType == rootCertificate) && c.hasNameConstraints()
-	if checkNameConstraints && leaf.commonNameAsHostname() {
-		// This is the deprecated, legacy case of depending on the commonName as
-		// a hostname. We don't enforce name constraints against the CN, but
-		// VerifyHostname will look for hostnames in there if there are no SANs.
-		// In order to ensure VerifyHostname will not accept an unchecked name,
-		// return an error here.
-		return CertificateInvalidError{c, NameConstraintsWithoutSANs, ""}
-	} else if checkNameConstraints && leaf.hasSANExtension() {
+	if (certType == intermediateCertificate || certType == rootCertificate) &&
+		c.hasNameConstraints() && leaf.hasSANExtension() {
 		err := forEachSAN(leaf.getSANExtension(), func(tag int, data []byte) error {
 			switch tag {
 			case nameTypeEmail:
@@ -613,7 +609,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 				}
 
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
-					func(parsedName, constraint interface{}) (bool, error) {
+					func(parsedName, constraint any) (bool, error) {
 						return matchEmailConstraint(parsedName.(rfc2821Mailbox), constraint.(string))
 					}, c.PermittedEmailAddresses, c.ExcludedEmailAddresses); err != nil {
 					return err
@@ -626,7 +622,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 				}
 
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
-					func(parsedName, constraint interface{}) (bool, error) {
+					func(parsedName, constraint any) (bool, error) {
 						return matchDomainConstraint(parsedName.(string), constraint.(string))
 					}, c.PermittedDNSDomains, c.ExcludedDNSDomains); err != nil {
 					return err
@@ -640,7 +636,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 				}
 
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "URI", name, uri,
-					func(parsedName, constraint interface{}) (bool, error) {
+					func(parsedName, constraint any) (bool, error) {
 						return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
 					}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
 					return err
@@ -653,7 +649,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 				}
 
 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
-					func(parsedName, constraint interface{}) (bool, error) {
+					func(parsedName, constraint any) (bool, error) {
 						return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
 					}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
 					return err
@@ -707,8 +703,9 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // needed. If successful, it returns one or more chains where the first
 // element of the chain is c and the last element is from opts.Roots.
 //
-// If opts.Roots is nil and system roots are unavailable the returned error
-// will be of type SystemRootsError.
+// If opts.Roots is nil, the platform verifier might be used, and
+// verification details might differ from what is described below. If system
+// roots are unavailable the returned error will be of type SystemRootsError.
 //
 // Name constraints in the intermediates will be applied to all names claimed
 // in the chain, not just opts.DNSName. Thus it is invalid for a leaf to claim
@@ -716,9 +713,16 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // the name being validated. Note that DirectoryName constraints are not
 // supported.
 //
-// Extended Key Usage values are enforced down a chain, so an intermediate or
-// root that enumerates EKUs prevents a leaf from asserting an EKU not in that
-// list.
+// Name constraint validation follows the rules from RFC 5280, with the
+// addition that DNS name constraints may use the leading period format
+// defined for emails and URIs. When a constraint has a leading period
+// it indicates that at least one additional label must be prepended to
+// the constrained name to be considered valid.
+//
+// Extended Key Usage values are enforced nested down a chain, so an intermediate
+// or root that enumerates EKUs prevents a leaf from asserting an EKU not in that
+// list. (While this is not specified, it is common practice in order to limit
+// the types of certificates a CA can issue.)
 //
 // WARNING: this function doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
@@ -727,17 +731,30 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	if len(c.Raw) == 0 {
 		return nil, errNotParsed
 	}
-	if opts.Intermediates != nil {
-		for _, intermediate := range opts.Intermediates.certs {
-			if len(intermediate.Raw) == 0 {
-				return nil, errNotParsed
-			}
+	for i := 0; i < opts.Intermediates.len(); i++ {
+		c, err := opts.Intermediates.cert(i)
+		if err != nil {
+			return nil, fmt.Errorf("crypto/x509: error fetching intermediate: %w", err)
+		}
+		if len(c.Raw) == 0 {
+			return nil, errNotParsed
 		}
 	}
 
-	// Use Windows's own verification and chain building.
-	if opts.Roots == nil && runtime.GOOS == "windows" {
-		return c.systemVerify(&opts)
+	// Use platform verifiers, where available, if Roots is from SystemCertPool.
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		if opts.Roots == nil {
+			return c.systemVerify(&opts)
+		}
+		if opts.Roots != nil && opts.Roots.systemPool {
+			platformChains, err := c.systemVerify(&opts)
+			// If the platform verifier succeeded, or there are no additional
+			// roots, return the platform verifier result. Otherwise, continue
+			// with the Go verifier.
+			if err == nil || opts.Roots.len() == 0 {
+				return platformChains, err
+			}
+		}
 	}
 
 	if opts.Roots == nil {
@@ -801,7 +818,7 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 }
 
 // maxChainSignatureChecks is the maximum number of CheckSignatureFrom calls
-// that an invocation of buildChains will (tranistively) make. Most chains are
+// that an invocation of buildChains will (transitively) make. Most chains are
 // less than 15 certificates long, so this leaves space for multiple chains and
 // for failed checks due to different intermediates having the same Subject.
 const maxChainSignatureChecks = 100
@@ -857,11 +874,11 @@ func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, curre
 		}
 	}
 
-	for _, rootNum := range opts.Roots.findPotentialParents(c) {
-		considerCandidate(rootCertificate, opts.Roots.certs[rootNum])
+	for _, root := range opts.Roots.findPotentialParents(c) {
+		considerCandidate(rootCertificate, root)
 	}
-	for _, intermediateNum := range opts.Intermediates.findPotentialParents(c) {
-		considerCandidate(intermediateCertificate, opts.Intermediates.certs[intermediateNum])
+	for _, intermediate := range opts.Intermediates.findPotentialParents(c) {
+		considerCandidate(intermediateCertificate, intermediate)
 	}
 
 	if len(chains) > 0 {
@@ -874,12 +891,16 @@ func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, curre
 	return
 }
 
+func validHostnamePattern(host string) bool { return validHostname(host, true) }
+func validHostnameInput(host string) bool   { return validHostname(host, false) }
+
 // validHostname reports whether host is a valid hostname that can be matched or
 // matched against according to RFC 6125 2.2, with some leniency to accommodate
 // legacy values.
-func validHostname(host string) bool {
-	host = strings.TrimSuffix(host, ".")
-
+func validHostname(host string, isPattern bool) bool {
+	if !isPattern {
+		host = strings.TrimSuffix(host, ".")
+	}
 	if len(host) == 0 {
 		return false
 	}
@@ -889,7 +910,7 @@ func validHostname(host string) bool {
 			// Empty label.
 			return false
 		}
-		if i == 0 && part == "*" {
+		if isPattern && i == 0 && part == "*" {
 			// Only allow full left-most wildcards, as those are the only ones
 			// we match, and matching literal '*' characters is probably never
 			// the expected behavior.
@@ -908,8 +929,8 @@ func validHostname(host string) bool {
 			if c == '-' && j != 0 {
 				continue
 			}
-			if c == '_' || c == ':' {
-				// Not valid characters in hostnames, but commonly
+			if c == '_' {
+				// Not a valid character in hostnames, but commonly
 				// found in deployments outside the WebPKI.
 				continue
 			}
@@ -920,21 +941,16 @@ func validHostname(host string) bool {
 	return true
 }
 
-// commonNameAsHostname reports whether the Common Name field should be
-// considered the hostname that the certificate is valid for. This is a legacy
-// behavior, disabled if the Subject Alt Name extension is present.
-//
-// It applies the strict validHostname check to the Common Name field, so that
-// certificates without SANs can still be validated against CAs with name
-// constraints if there is no risk the CN would be matched as a hostname.
-// See NameConstraintsWithoutSANs and issue 24151.
-func (c *Certificate) commonNameAsHostname() bool {
-	return !ignoreCN && !c.hasSANExtension() && validHostname(c.Subject.CommonName)
+func matchExactly(hostA, hostB string) bool {
+	if hostA == "" || hostA == "." || hostB == "" || hostB == "." {
+		return false
+	}
+	return toLowerCaseASCII(hostA) == toLowerCaseASCII(hostB)
 }
 
 func matchHostnames(pattern, host string) bool {
-	host = strings.TrimSuffix(host, ".")
-	pattern = strings.TrimSuffix(pattern, ".")
+	pattern = toLowerCaseASCII(pattern)
+	host = toLowerCaseASCII(strings.TrimSuffix(host, "."))
 
 	if len(pattern) == 0 || len(host) == 0 {
 		return false
@@ -993,6 +1009,13 @@ func toLowerCaseASCII(in string) string {
 
 // VerifyHostname returns nil if c is a valid certificate for the named host.
 // Otherwise it returns an error describing the mismatch.
+//
+// IP addresses can be optionally enclosed in square brackets and are checked
+// against the IPAddresses field. Other names are checked case insensitively
+// against the DNSNames field. If the names are valid hostnames, the certificate
+// fields can have a wildcard as the left-most label.
+//
+// Note that the legacy Common Name field is ignored.
 func (c *Certificate) VerifyHostname(h string) error {
 	// IP addresses may be written in [ ].
 	candidateIP := h
@@ -1010,15 +1033,21 @@ func (c *Certificate) VerifyHostname(h string) error {
 		return HostnameError{c, candidateIP}
 	}
 
-	lowered := toLowerCaseASCII(h)
+	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
+	validCandidateName := validHostnameInput(candidateName)
 
-	if c.commonNameAsHostname() {
-		if matchHostnames(toLowerCaseASCII(c.Subject.CommonName), lowered) {
-			return nil
-		}
-	} else {
-		for _, match := range c.DNSNames {
-			if matchHostnames(toLowerCaseASCII(match), lowered) {
+	for _, match := range c.DNSNames {
+		// Ideally, we'd only match valid hostnames according to RFC 6125 like
+		// browsers (more or less) do, but in practice Go is used in a wider
+		// array of contexts and can't even assume DNS resolution. Instead,
+		// always allow perfect matches, and only apply wildcard and trailing
+		// dot processing to valid hostnames.
+		if validCandidateName && validHostnamePattern(match) {
+			if matchHostnames(match, candidateName) {
+				return nil
+			}
+		} else {
+			if matchExactly(match, candidateName) {
 				return nil
 			}
 		}
@@ -1066,14 +1095,6 @@ NextCert:
 
 			for _, usage := range cert.ExtKeyUsage {
 				if requestedUsage == usage {
-					continue NextRequestedUsage
-				} else if requestedUsage == ExtKeyUsageServerAuth &&
-					(usage == ExtKeyUsageNetscapeServerGatedCrypto ||
-						usage == ExtKeyUsageMicrosoftServerGatedCrypto) {
-					// In order to support COMODO
-					// certificate chains, we have to
-					// accept Netscape or Microsoft SGC
-					// usages as equal to ServerAuth.
 					continue NextRequestedUsage
 				}
 			}

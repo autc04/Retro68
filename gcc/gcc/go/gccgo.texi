@@ -12,7 +12,7 @@
 @include gcc-common.texi
 
 @c Copyright years for this manual.
-@set copyrights-go 2010-2019
+@set copyrights-go 2010-2022
 
 @copying
 @c man begin COPYRIGHT
@@ -80,7 +80,7 @@ This manual describes how to use @command{gccgo}, the GNU compiler for
 the Go programming language.  This manual is specifically about
 @command{gccgo}.  For more information about the Go programming
 language in general, including language specifications and standard
-package documentation, see @uref{http://golang.org/}.
+package documentation, see @uref{https://golang.org/}.
 
 @menu
 * Copying::                     The GNU General Public License.
@@ -246,6 +246,11 @@ This runs escape analysis only on functions whose names hash to values
 that match the given suffix @var{n}.  This can be used to binary
 search across functions to uncover escape analysis bugs.
 
+@item -fgo-debug-optimization
+@cindex @option{-fgo-debug-optimization}
+@cindex @option{-fno-go-debug-optimization}
+Output optimization diagnostics.
+
 @item -fgo-c-header=@var{file}
 @cindex @option{-fgo-c-header}
 Write top-level named Go struct definitions to @var{file} as C code.
@@ -256,6 +261,15 @@ This is used when compiling the runtime package.
 Apply special rules for compiling the runtime package.  Implicit
 memory allocation is forbidden.  Some additional compiler directives
 are supported.
+
+@item -fgo-embedcfg=@var{file}
+@cindex @option{-fgo-embedcfg}
+Identify a JSON file used to map patterns used with special
+@code{//go:embed} comments to the files named by the patterns.  The
+JSON file should have two components: @code{Patterns} maps each
+pattern to a list of file names, and @code{Files} maps each file name
+to a full path to the file.  This option is intended for use by the
+@command{go} command to implement @code{//go:embed}.
 
 @item -g
 @cindex @option{-g for gccgo}
@@ -368,7 +382,7 @@ or with C++ code compiled using @code{extern "C"}.
 This information is provided largely for documentation purposes.  For
 ordinary use it is best to build programs with the go tool and then
 use @code{import "C"}, as described at
-@url{http://golang.org/cmd/cgo}.
+@url{https://golang.org/cmd/cgo}.
 
 @menu
 * C Type Interoperability::     How C and Go types match up.
@@ -481,7 +495,7 @@ like (after importing the @code{os} package):
 
 @smallexample
 var name = [4]byte@{'f', 'o', 'o', 0@};
-i := c_open(&amp;name[0], os.O_RDONLY, 0);
+i := c_open(&name[0], os.O_RDONLY, 0);
 @end smallexample
 
 Note that this serves as an example only.  To open a file in Go please

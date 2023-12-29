@@ -736,6 +736,13 @@ func TestAddSubUint(t *testing.T) {
 		test("Add symmetric", Add, a.y, a.x, a.c, a.z, a.cout)
 		test("Sub", Sub, a.z, a.x, a.c, a.y, a.cout)
 		test("Sub symmetric", Sub, a.z, a.y, a.c, a.x, a.cout)
+		// The above code can't test intrinsic implementation, because the passed function is not called directly.
+		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
+		test("Add intrinsic", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
+		test("Add intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Add(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub intrinsic", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub intrinsic symmetric", func(x, y, c uint) (uint, uint) { return Sub(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
+
 	}
 }
 
@@ -790,6 +797,136 @@ func TestAddSubUint64(t *testing.T) {
 		test("Add64 symmetric", Add64, a.y, a.x, a.c, a.z, a.cout)
 		test("Sub64", Sub64, a.z, a.x, a.c, a.y, a.cout)
 		test("Sub64 symmetric", Sub64, a.z, a.y, a.c, a.x, a.cout)
+		// The above code can't test intrinsic implementation, because the passed function is not called directly.
+		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
+		test("Add64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.x, a.y, a.c, a.z, a.cout)
+		test("Add64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Add64(x, y, c) }, a.y, a.x, a.c, a.z, a.cout)
+		test("Sub64 intrinsic", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.x, a.c, a.y, a.cout)
+		test("Sub64 intrinsic symmetric", func(x, y, c uint64) (uint64, uint64) { return Sub64(x, y, c) }, a.z, a.y, a.c, a.x, a.cout)
+	}
+}
+
+func TestAdd64OverflowPanic(t *testing.T) {
+	// Test that 64-bit overflow panics fire correctly.
+	// These are designed to improve coverage of compiler intrinsics.
+	tests := []func(uint64, uint64) uint64{
+		func(a, b uint64) uint64 {
+			x, c := Add64(a, b, 0)
+			if c > 0 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Add64(a, b, 0)
+			if c != 0 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Add64(a, b, 0)
+			if c == 1 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Add64(a, b, 0)
+			if c != 1 {
+				return x
+			}
+			panic("overflow")
+		},
+		func(a, b uint64) uint64 {
+			x, c := Add64(a, b, 0)
+			if c == 0 {
+				return x
+			}
+			panic("overflow")
+		},
+	}
+	for _, test := range tests {
+		shouldPanic := func(f func()) {
+			defer func() {
+				if err := recover(); err == nil {
+					t.Fatalf("expected panic")
+				}
+			}()
+			f()
+		}
+
+		// overflow
+		shouldPanic(func() { test(_M64, 1) })
+		shouldPanic(func() { test(1, _M64) })
+		shouldPanic(func() { test(_M64, _M64) })
+
+		// no overflow
+		test(_M64, 0)
+		test(0, 0)
+		test(1, 1)
+	}
+}
+
+func TestSub64OverflowPanic(t *testing.T) {
+	// Test that 64-bit overflow panics fire correctly.
+	// These are designed to improve coverage of compiler intrinsics.
+	tests := []func(uint64, uint64) uint64{
+		func(a, b uint64) uint64 {
+			x, c := Sub64(a, b, 0)
+			if c > 0 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Sub64(a, b, 0)
+			if c != 0 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Sub64(a, b, 0)
+			if c == 1 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Sub64(a, b, 0)
+			if c != 1 {
+				return x
+			}
+			panic("overflow")
+		},
+		func(a, b uint64) uint64 {
+			x, c := Sub64(a, b, 0)
+			if c == 0 {
+				return x
+			}
+			panic("overflow")
+		},
+	}
+	for _, test := range tests {
+		shouldPanic := func(f func()) {
+			defer func() {
+				if err := recover(); err == nil {
+					t.Fatalf("expected panic")
+				}
+			}()
+			f()
+		}
+
+		// overflow
+		shouldPanic(func() { test(0, 1) })
+		shouldPanic(func() { test(1, _M64) })
+		shouldPanic(func() { test(_M64-1, _M64) })
+
+		// no overflow
+		test(_M64, 0)
+		test(0, 0)
+		test(1, 1)
 	}
 }
 
@@ -817,6 +954,12 @@ func TestMulDiv(t *testing.T) {
 		testMul("Mul symmetric", Mul, a.y, a.x, a.hi, a.lo)
 		testDiv("Div", Div, a.hi, a.lo+a.r, a.y, a.x, a.r)
 		testDiv("Div symmetric", Div, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		// The above code can't test intrinsic implementation, because the passed function is not called directly.
+		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
+		testMul("Mul intrinsic", func(x, y uint) (uint, uint) { return Mul(x, y) }, a.x, a.y, a.hi, a.lo)
+		testMul("Mul intrinsic symmetric", func(x, y uint) (uint, uint) { return Mul(x, y) }, a.y, a.x, a.hi, a.lo)
+		testDiv("Div intrinsic", func(hi, lo, y uint) (uint, uint) { return Div(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div intrinsic symmetric", func(hi, lo, y uint) (uint, uint) { return Div(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
 	}
 }
 
@@ -873,6 +1016,12 @@ func TestMulDiv64(t *testing.T) {
 		testMul("Mul64 symmetric", Mul64, a.y, a.x, a.hi, a.lo)
 		testDiv("Div64", Div64, a.hi, a.lo+a.r, a.y, a.x, a.r)
 		testDiv("Div64 symmetric", Div64, a.hi, a.lo+a.r, a.x, a.y, a.r)
+		// The above code can't test intrinsic implementation, because the passed function is not called directly.
+		// The following code uses a closure to test the intrinsic version in case the function is intrinsified.
+		testMul("Mul64 intrinsic", func(x, y uint64) (uint64, uint64) { return Mul64(x, y) }, a.x, a.y, a.hi, a.lo)
+		testMul("Mul64 intrinsic symmetric", func(x, y uint64) (uint64, uint64) { return Mul64(x, y) }, a.y, a.x, a.hi, a.lo)
+		testDiv("Div64 intrinsic", func(hi, lo, y uint64) (uint64, uint64) { return Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.y, a.x, a.r)
+		testDiv("Div64 intrinsic symmetric", func(hi, lo, y uint64) (uint64, uint64) { return Div64(hi, lo, y) }, a.hi, a.lo+a.r, a.x, a.y, a.r)
 	}
 }
 
@@ -957,6 +1106,76 @@ func TestDiv64PanicZero(t *testing.T) {
 	}()
 	q, r := Div64(1, 1, 0)
 	t.Errorf("undefined q, r = %v, %v calculated when Div64 should have panicked", q, r)
+}
+
+func TestRem32(t *testing.T) {
+	// Sanity check: for non-oveflowing dividends, the result is the
+	// same as the rem returned by Div32
+	hi, lo, y := uint32(510510), uint32(9699690), uint32(510510+1) // ensure hi < y
+	for i := 0; i < 1000; i++ {
+		r := Rem32(hi, lo, y)
+		_, r2 := Div32(hi, lo, y)
+		if r != r2 {
+			t.Errorf("Rem32(%v, %v, %v) returned %v, but Div32 returned rem %v", hi, lo, y, r, r2)
+		}
+		y += 13
+	}
+}
+
+func TestRem32Overflow(t *testing.T) {
+	// To trigger a quotient overflow, we need y <= hi
+	hi, lo, y := uint32(510510), uint32(9699690), uint32(7)
+	for i := 0; i < 1000; i++ {
+		r := Rem32(hi, lo, y)
+		_, r2 := Div64(0, uint64(hi)<<32|uint64(lo), uint64(y))
+		if r != uint32(r2) {
+			t.Errorf("Rem32(%v, %v, %v) returned %v, but Div64 returned rem %v", hi, lo, y, r, r2)
+		}
+		y += 13
+	}
+}
+
+func TestRem64(t *testing.T) {
+	// Sanity check: for non-oveflowing dividends, the result is the
+	// same as the rem returned by Div64
+	hi, lo, y := uint64(510510), uint64(9699690), uint64(510510+1) // ensure hi < y
+	for i := 0; i < 1000; i++ {
+		r := Rem64(hi, lo, y)
+		_, r2 := Div64(hi, lo, y)
+		if r != r2 {
+			t.Errorf("Rem64(%v, %v, %v) returned %v, but Div64 returned rem %v", hi, lo, y, r, r2)
+		}
+		y += 13
+	}
+}
+
+func TestRem64Overflow(t *testing.T) {
+	Rem64Tests := []struct {
+		hi, lo, y uint64
+		rem       uint64
+	}{
+		// Testcases computed using Python 3, as:
+		//   >>> hi = 42; lo = 1119; y = 42
+		//   >>> ((hi<<64)+lo) % y
+		{42, 1119, 42, 27},
+		{42, 1119, 38, 9},
+		{42, 1119, 26, 23},
+		{469, 0, 467, 271},
+		{469, 0, 113, 58},
+		{111111, 111111, 1171, 803},
+		{3968194946088682615, 3192705705065114702, 1000037, 56067},
+	}
+
+	for _, rt := range Rem64Tests {
+		if rt.hi < rt.y {
+			t.Fatalf("Rem64(%v, %v, %v) is not a test with quo overflow", rt.hi, rt.lo, rt.y)
+		}
+		rem := Rem64(rt.hi, rt.lo, rt.y)
+		if rem != rt.rem {
+			t.Errorf("Rem64(%v, %v, %v) returned %v, wanted %v",
+				rt.hi, rt.lo, rt.y, rem, rt.rem)
+		}
+	}
 }
 
 func BenchmarkAdd(b *testing.B) {

@@ -12,8 +12,10 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"runtime"
 	. "runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
@@ -33,14 +35,14 @@ func TestMemStats(t *testing.T) {
 	st := new(MemStats)
 	ReadMemStats(st)
 
-	nz := func(x interface{}) error {
+	nz := func(x any) error {
 		if x != reflect.Zero(reflect.TypeOf(x)).Interface() {
 			return nil
 		}
 		return fmt.Errorf("zero value")
 	}
-	le := func(thresh float64) func(interface{}) error {
-		return func(x interface{}) error {
+	le := func(thresh float64) func(any) error {
+		return func(x any) error {
 			// These sanity tests aren't necessarily valid
 			// with high -test.count values, so only run
 			// them once.
@@ -54,8 +56,8 @@ func TestMemStats(t *testing.T) {
 			return fmt.Errorf("insanely high value (overflow?); want <= %v", thresh)
 		}
 	}
-	eq := func(x interface{}) func(interface{}) error {
-		return func(y interface{}) error {
+	eq := func(x any) func(any) error {
+		return func(y any) error {
 			if x == y {
 				return nil
 			}
@@ -64,7 +66,7 @@ func TestMemStats(t *testing.T) {
 	}
 	// Of the uint fields, HeapReleased, HeapIdle can be 0.
 	// PauseTotalNs can be 0 if timer resolution is poor.
-	fields := map[string][]func(interface{}) error{
+	fields := map[string][]func(any) error{
 		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
 		"Lookups": {eq(uint64(0))}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
 		"HeapAlloc": {nz, le(1e10)}, "HeapSys": {nz, le(1e10)}, "HeapIdle": {le(1e10)},
@@ -154,6 +156,9 @@ func TestStringConcatenationAllocs(t *testing.T) {
 }
 
 func TestTinyAlloc(t *testing.T) {
+	if runtime.Raceenabled {
+		t.Skip("tinyalloc suppressed when running in race mode")
+	}
 	const N = 16
 	var v [N]unsafe.Pointer
 	for i := range v {
@@ -170,11 +175,97 @@ func TestTinyAlloc(t *testing.T) {
 	}
 }
 
+var (
+	tinyByteSink   *byte
+	tinyUint32Sink *uint32
+	tinyObj12Sink  *obj12
+)
+
+type obj12 struct {
+	a uint64
+	b uint32
+}
+
+func TestTinyAllocIssue37262(t *testing.T) {
+	if runtime.Raceenabled {
+		t.Skip("tinyalloc suppressed when running in race mode")
+	}
+	// Try to cause an alignment access fault
+	// by atomically accessing the first 64-bit
+	// value of a tiny-allocated object.
+	// See issue 37262 for details.
+
+	// GC twice, once to reach a stable heap state
+	// and again to make sure we finish the sweep phase.
+	runtime.GC()
+	runtime.GC()
+
+	// Disable preemption so we stay on one P's tiny allocator and
+	// nothing else allocates from it.
+	runtime.Acquirem()
+
+	// Make 1-byte allocations until we get a fresh tiny slot.
+	aligned := false
+	for i := 0; i < 16; i++ {
+		tinyByteSink = new(byte)
+		if uintptr(unsafe.Pointer(tinyByteSink))&0xf == 0xf {
+			aligned = true
+			break
+		}
+	}
+	if !aligned {
+		runtime.Releasem()
+		t.Fatal("unable to get a fresh tiny slot")
+	}
+
+	// Create a 4-byte object so that the current
+	// tiny slot is partially filled.
+	tinyUint32Sink = new(uint32)
+
+	// Create a 12-byte object, which fits into the
+	// tiny slot. If it actually gets place there,
+	// then the field "a" will be improperly aligned
+	// for atomic access on 32-bit architectures.
+	// This won't be true if issue 36606 gets resolved.
+	tinyObj12Sink = new(obj12)
+
+	// Try to atomically access "x.a".
+	atomic.StoreUint64(&tinyObj12Sink.a, 10)
+
+	// Clear the sinks.
+	tinyByteSink = nil
+	tinyUint32Sink = nil
+	tinyObj12Sink = nil
+
+	runtime.Releasem()
+}
+
+func TestPageCacheLeak(t *testing.T) {
+	defer GOMAXPROCS(GOMAXPROCS(1))
+	leaked := PageCachePagesLeaked()
+	if leaked != 0 {
+		t.Fatalf("found %d leaked pages in page caches", leaked)
+	}
+}
+
 func TestPhysicalMemoryUtilization(t *testing.T) {
 	got := runTestProg(t, "testprog", "GCPhys")
 	want := "OK\n"
 	if got != want {
 		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+func TestScavengedBitsCleared(t *testing.T) {
+	var mismatches [128]BitsMismatch
+	if n, ok := CheckScavengedBitsCleared(mismatches[:]); !ok {
+		t.Errorf("uncleared scavenged bits")
+		for _, m := range mismatches[:n] {
+			t.Logf("\t@ address 0x%x", m.Base)
+			t.Logf("\t|  got: %064b", m.Got)
+			t.Logf("\t| want: %064b", m.Want)
+		}
+		t.FailNow()
 	}
 }
 
@@ -185,14 +276,6 @@ type acLink struct {
 var arenaCollisionSink []*acLink
 
 func TestArenaCollision(t *testing.T) {
-	if GOOS == "darwin" && race.Enabled {
-		// Skip this test on Darwin in race mode because Darwin 10.10 has
-		// issues following arena hints and runs out of them in race mode, so
-		// MAP_FIXED is used to ensure we keep the heap in the memory region the
-		// race detector expects.
-		// TODO(mknyszek): Delete this when Darwin 10.10 is no longer supported.
-		t.Skip("disabled on Darwin with race mode since MAP_FIXED is used")
-	}
 	testenv.MustHaveExec(t)
 
 	// Test that mheap.sysAlloc handles collisions with other

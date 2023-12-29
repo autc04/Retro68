@@ -23,8 +23,8 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -57,12 +57,6 @@ type wbBuf struct {
 	// on. This must be a multiple of wbBufEntryPointers because
 	// the write barrier only checks for overflow once per entry.
 	buf [wbBufEntryPointers * wbBufEntries]uintptr
-
-	// debugGen causes the write barrier buffer to flush after
-	// every write barrier if equal to gcWorkPauseGen. This is for
-	// debugging #27993. This is only set if debugCachedWork is
-	// set.
-	debugGen uint32
 }
 
 const (
@@ -86,7 +80,7 @@ const (
 func (b *wbBuf) reset() {
 	start := uintptr(unsafe.Pointer(&b.buf[0]))
 	b.next = start
-	if writeBarrier.cgo || (debugCachedWork && (throwOnGCWork || b.debugGen == atomic.Load(&gcWorkPauseGen))) {
+	if writeBarrier.cgo {
 		// Effectively disable the buffer by forcing a flush
 		// on every barrier.
 		b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
@@ -151,7 +145,7 @@ func (b *wbBuf) putFast(old, new uintptr) bool {
 	p := (*[2]uintptr)(unsafe.Pointer(b.next))
 	p[0] = old
 	p[1] = new
-	b.next += 2 * sys.PtrSize
+	b.next += 2 * goarch.PtrSize
 	return b.next != b.end
 }
 
@@ -204,30 +198,8 @@ func wbBufFlush(dst *uintptr, src uintptr) {
 	// Switch to the system stack so we don't have to worry about
 	// the untyped stack slots or safe points.
 	systemstack(func() {
-		if debugCachedWork {
-			// For debugging, include the old value of the
-			// slot and some other data in the traceback.
-			wbBuf := &getg().m.p.ptr().wbBuf
-			var old uintptr
-			if dst != nil {
-				// dst may be nil in direct calls to wbBufFlush.
-				old = *dst
-			}
-			wbBufFlush1Debug(old, wbBuf.buf[0], wbBuf.buf[1], &wbBuf.buf[0], wbBuf.next)
-		} else {
-			wbBufFlush1(getg().m.p.ptr())
-		}
+		wbBufFlush1(getg().m.p.ptr())
 	})
-}
-
-// wbBufFlush1Debug is a temporary function for debugging issue
-// #27993. It exists solely to add some context to the traceback.
-//
-//go:nowritebarrierrec
-//go:systemstack
-//go:noinline
-func wbBufFlush1Debug(old, buf1, buf2 uintptr, start *uintptr, next uintptr) {
-	wbBufFlush1(getg().m.p.ptr())
 }
 
 // wbBufFlush1 flushes p's write barrier buffer to the GC work queue.
@@ -285,8 +257,15 @@ func wbBufFlush1(_p_ *p) {
 			// path to reduce the rate of flushes?
 			continue
 		}
-		obj, span, objIndex := findObject(ptr, 0, 0, false)
+		obj, span, objIndex := findObject(ptr, 0, 0, !usestackmaps)
 		if obj == 0 {
+			continue
+		}
+		if span.isFree(objIndex) {
+			// For gccgo, it is possible that we have a write barrier
+			// writing to unintialized stack memory. So we could see
+			// a bad pointer in the write barrier buffer. Don't mark
+			// it in this case.
 			continue
 		}
 		// TODO: Consider making two passes where the first
@@ -296,6 +275,13 @@ func wbBufFlush1(_p_ *p) {
 			continue
 		}
 		mbits.setMarked()
+
+		// Mark span.
+		arena, pageIdx, pageMask := pageIndexOf(span.base())
+		if arena.pageMarks[pageIdx]&pageMask == 0 {
+			atomic.Or8(&arena.pageMarks[pageIdx], pageMask)
+		}
+
 		if span.spanclass.noscan() {
 			gcw.bytesMarked += uint64(span.elemsize)
 			continue

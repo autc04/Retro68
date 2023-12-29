@@ -1,7 +1,7 @@
 /* { dg-do compile { target { powerpc*-*-* } } } */
 /* { dg-skip-if "" { powerpc*-*-darwin* } } */
 /* { dg-require-effective-target powerpc_vsx_ok } */
-/* { dg-options "-O2 -mdejagnu-cpu=power7" } */
+/* { dg-options "-O2 -mdejagnu-cpu=power7 -fno-inline-functions" } */
 
 /* Test simple extract/insert/slat operations.  Make sure all types are
    supported with various options.  */
@@ -191,10 +191,11 @@ vector unsigned __int128 splat_uint128 (unsigned __int128 x) { return vec_splats
  */
 
 /* { dg-final { scan-assembler-times {\mrldic\M} 0  { target { be && ilp32 } } } } */
-/* { dg-final { scan-assembler-times {\mrldic\M} 64 { target { be && lp64 } } } } */
-/* { dg-final { scan-assembler-times {\mrldic\M} 64 { target le } } } */
-/* { dg-final { scan-assembler-times "xxpermdi" 4 { target be } } } */
-/* { dg-final { scan-assembler-times "xxpermdi" 6 { target le } } } */
+/* { dg-final { scan-assembler-times {\mrldic\M} 65 { target { be && lp64 } } } } */
+/* { dg-final { scan-assembler-times {\mrldic\M} 65 { target le } } } */
+/* { dg-final { scan-assembler-times "xxpermdi" 33 { target be } } } */
+/* { dg-final { scan-assembler-times "xxpermdi" 35 { target le } } } */
 /* { dg-final { scan-assembler-times "vspltisb" 2 } } */
 /* { dg-final { scan-assembler-times "vspltish" 2 } } */
-/* { dg-final { scan-assembler-times "vspltisw" 2 } } */
+/* { dg-final { scan-assembler-times "vspltisw" 2 { target be } } } */
+/* { dg-final { scan-assembler-times "vspltisw" 23 { target le } } } */

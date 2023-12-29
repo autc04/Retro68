@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -37,6 +37,7 @@ private with Ada.Containers.Hash_Tables;
 with Ada.Containers.Helpers;
 private with Ada.Streams;
 private with Ada.Finalization;
+private with Ada.Strings.Text_Buffers;
 
 generic
    type Element_Type (<>) is private;
@@ -48,7 +49,9 @@ generic
 
    with function "=" (Left, Right : Element_Type) return Boolean is <>;
 
-package Ada.Containers.Indefinite_Hashed_Sets is
+package Ada.Containers.Indefinite_Hashed_Sets with
+  SPARK_Mode => Off
+is
    pragma Annotate (CodePeer, Skip_Analysis);
    pragma Preelaborate;
    pragma Remote_Types;
@@ -56,7 +59,9 @@ package Ada.Containers.Indefinite_Hashed_Sets is
    type Set is tagged private
      with Constant_Indexing => Constant_Reference,
           Default_Iterator  => Iterate,
-          Iterator_Element  => Element_Type;
+          Iterator_Element  => Element_Type,
+          Aggregate         => (Empty       => Empty,
+                                Add_Unnamed => Include);
 
    pragma Preelaborable_Initialization (Set);
 
@@ -66,6 +71,8 @@ package Ada.Containers.Indefinite_Hashed_Sets is
    Empty_Set : constant Set;
    --  Set objects declared without an initialization expression are
    --  initialized to the value Empty_Set.
+
+   function Empty (Capacity : Count_Type := 1000) return Set;
 
    No_Element : constant Cursor;
    --  Cursor objects declared without an initialization expression are
@@ -490,7 +497,10 @@ private
 
    type Set is new Ada.Finalization.Controlled with record
       HT : HT_Types.Hash_Table_Type;
-   end record;
+   end record with Put_Image => Put_Image;
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : Set);
 
    overriding procedure Adjust (Container : in out Set);
 

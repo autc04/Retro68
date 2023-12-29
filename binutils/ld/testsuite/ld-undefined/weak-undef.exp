@@ -1,5 +1,5 @@
 # Test handling of weak undefined symbols
-#   Copyright (C) 2001-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,22 +23,25 @@
 # some a.out targets too.
 set testname "weak undefined data symbols"
 
+if { [is_pecoff_format] } then {
+    set IMAGE_BASE "--image-base 0"
+} else {
+    set IMAGE_BASE ""
+}
+
 if { ![is_elf_format] && ![is_pecoff_format] } then {
     unsupported $testname
 } elseif {![ld_assemble $as $srcdir/$subdir/weak-undef.s \
 	    tmpdir/weak-undef.o]} then {
     # It's OK if .weak doesn't work on this target.
-    unresolved $testname
-} elseif {![ld_link $ld tmpdir/weak-undef \
-		"tmpdir/weak-undef.o -T $srcdir/$subdir/weak-undef.t"]} then {
+    unsupported $testname
+} elseif {![ld_link $ld tmpdir/weak-undef "tmpdir/weak-undef.o \
+		-T $srcdir/$subdir/weak-undef.t $IMAGE_BASE"]} then {
     # Weak symbols are broken for non-i386 PE targets.
     if {! [istarget i?86-*-*]} {
 	setup_xfail *-*-pe*
     }
-    setup_xfail pj-*-*
     fail $testname
-} elseif {![is_remote host] && [which $objdump] == 0} then {
-    unresolved $testname
 } else {
     set exec_output [run_host_cmd "$objdump" "-s tmpdir/weak-undef"]
     set exec_output [prune_warnings $exec_output]
@@ -60,8 +63,6 @@ proc undef_weak_so { testname opts passval } {
     if {![ld_link $ld tmpdir/weak-fundef.so \
 	  "$opts tmpdir/weak-fundef.o"]} then {
 	fail $testname
-    } elseif {![is_remote host] && [which $nm] == 0} then {
-	unresolved $testname
     } else {
 	set exec_output [run_host_cmd "$nm" "-D tmpdir/weak-fundef.so"]
 	set exec_output [prune_warnings $exec_output]
@@ -84,8 +85,6 @@ proc undef_weak_exe { testname opts passval } {
     if {![ld_link $ld tmpdir/weak-fundef \
 	  "$opts tmpdir/weak-fundef.o tmpdir/weak-fundef.so"]} then {
 	fail $testname
-    } elseif {![is_remote host] && [which $nm] == 0} then {
-	unresolved $testname
     } else {
 	set exec_output [run_host_cmd "$nm" "-D tmpdir/weak-fundef"]
 	set exec_output [prune_warnings $exec_output]
@@ -106,7 +105,8 @@ set asflags ""
 switch -glob $target_triplet {
     aarch64* -
     arm* -
-    powerpc* { set asflags "--defsym BL=1" }
+    powerpc64* { set asflags "--defsym BL=1" }
+    powerpc* { set asflags "--defsym BLPLT=1" }
     hppa* { set asflags "--defsym HPPA=1" }
     i\[3-7\]86* -
     x86_64* { set asflags "--defsym CALLPLT=1" }

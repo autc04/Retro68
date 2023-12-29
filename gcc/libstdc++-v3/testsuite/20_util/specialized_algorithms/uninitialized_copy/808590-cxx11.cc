@@ -1,4 +1,4 @@
-// Copyright (C) 2012-2019 Free Software Foundation, Inc.
+// Copyright (C) 2012-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,6 +30,8 @@ struct c
 
   c(void* o = 0) : m(o) {}
   c(const c &r) : m(r.m) {}
+
+  c& operator=(const c &) = default;
 
   template<class T>
     explicit c(T &o) : m((void*)0xdeadbeef) { }

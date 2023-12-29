@@ -34,6 +34,7 @@
             default = pkgs.mkShell {
               inputsFrom = [ pkgs.retro68.monolithic ];
               nativeBuildInputs = [ pkgs.nixpkgs-fmt ];
+              hardeningDisable = [ "format" ];
             };
           } // lib.mapAttrs
             (name: cross:

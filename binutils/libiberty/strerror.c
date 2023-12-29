@@ -30,13 +30,13 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #else
-extern PTR malloc ();
+extern void *malloc ();
 #endif
 
 #ifdef HAVE_STRING_H
 #include <string.h>
 #else
-extern PTR memset ();
+extern void *memset ();
 #endif
 
 #ifndef MAX
@@ -299,7 +299,7 @@ static const struct error_info error_table[] =
   ENTRY(EREMCHG, "EREMCHG", "Remote address changed"),
 #endif
 #if defined (ELIBACC)
-  ENTRY(ELIBACC, "ELIBACC", "Can not access a needed shared library"),
+  ENTRY(ELIBACC, "ELIBACC", "Cannot access a needed shared library"),
 #endif
 #if defined (ELIBBAD)
   ENTRY(ELIBBAD, "ELIBBAD", "Accessing a corrupted shared library"),

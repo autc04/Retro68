@@ -1,7 +1,7 @@
 #name: lui to c.lui relaxation
 #source: c-lui.s
 #as: -march=rv32ic
-#ld: -melf32lriscv
+#ld: -m[riscv_choose_ilp32_emul]
 #objdump: -d -M no-aliases,numeric
 
 .*:     file format .*

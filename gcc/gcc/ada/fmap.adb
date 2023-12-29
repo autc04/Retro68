@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -162,12 +162,12 @@ package body Fmap is
 
    function Hash (F : File_Name_Type) return Header_Num is
    begin
-      return Header_Num (Int (F) rem Header_Num'Range_Length);
+      return Header_Num (Int (F) mod Header_Num'Range_Length);
    end Hash;
 
    function Hash (F : Unit_Name_Type) return Header_Num is
    begin
-      return Header_Num (Int (F) rem Header_Num'Range_Length);
+      return Header_Num (Int (F) mod Header_Num'Range_Length);
    end Hash;
 
    ----------------
@@ -301,7 +301,7 @@ package body Fmap is
       Read_Source_File (Name_Enter (File_Name), 1, Hi, Src, FD, Config);
 
       if Null_Source_Buffer_Ptr (Src) then
-         if FD = Null_FD then
+         if FD = Osint.Null_FD then
             Write_Str ("warning: could not locate mapping file """);
          else
             Write_Str ("warning: no read access for mapping file """);

@@ -1,5 +1,5 @@
 # Expect script for ld --undefined and --require-defined testing.
-#   Copyright (C) 2015-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2015-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -33,11 +33,10 @@ if ![check_gc_sections_available] {
 # number of targets, I'm just skipping the tests in these cases.]
 if { [istarget "powerpcle-*-*"] \
      || [istarget "cris-axis-elf"] \
-     || [istarget "ns32k-*-netbsd"] \
+     || [istarget "ns32k-*-*"] \
      || [istarget "*-*-coff"] \
-     || [istarget "*-*-xcoff"] \
      || [istarget "*-*-*aout*"] \
-     || [istarget "*-*-*aix*"] } {
+     || [is_xcoff_format] } {
     unsupported "require-defined testing"
     return
 }

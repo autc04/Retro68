@@ -1,6 +1,6 @@
-.syntax unified
-
-.thumb
+	.syntax unified
+	.thumb
+	.align 2
 @ Wide instruction in IT block is deprecated.
 it eq
 ldrdeq r0, [r1]

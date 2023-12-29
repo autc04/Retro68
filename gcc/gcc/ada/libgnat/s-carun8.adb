@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2002-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -28,8 +28,6 @@
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
 --                                                                          --
 ------------------------------------------------------------------------------
-
-pragma Compiler_Unit_Warning;
 
 with System.Address_Operations; use System.Address_Operations;
 
@@ -98,6 +96,13 @@ package body System.Compare_Array_Unsigned_8 is
             end if;
          end loop;
 
+         pragma Assert (Left_Len >= Bytes_Compared_As_Words);
+         pragma Assert (Right_Len >= Bytes_Compared_As_Words);
+         --  Left_Len and Right_Len are always greater or equal to
+         --  Bytes_Compared_As_Words because:
+         --    * Compare_Len is min (Left_Len, Right_Len)
+         --    * Words_To_Compare = Compare_Len / 4
+         --    * Bytes_Compared_As_Words = Words_To_Compare * 4
          return Compare_Array_U8_Unaligned
                   (AddA (Left,  Address (Bytes_Compared_As_Words)),
                    AddA (Right, Address (Bytes_Compared_As_Words)),

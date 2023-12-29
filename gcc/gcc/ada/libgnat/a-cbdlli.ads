@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -36,6 +36,7 @@ with Ada.Iterator_Interfaces;
 with Ada.Containers.Helpers;
 private with Ada.Streams;
 private with Ada.Finalization;
+private with Ada.Strings.Text_Buffers;
 
 generic
    type Element_Type is private;
@@ -43,7 +44,9 @@ generic
    with function "=" (Left, Right : Element_Type)
       return Boolean is <>;
 
-package Ada.Containers.Bounded_Doubly_Linked_Lists is
+package Ada.Containers.Bounded_Doubly_Linked_Lists with
+  SPARK_Mode => Off
+is
    pragma Annotate (CodePeer, Skip_Analysis);
    pragma Pure;
    pragma Remote_Types;
@@ -52,16 +55,19 @@ package Ada.Containers.Bounded_Doubly_Linked_Lists is
       Constant_Indexing => Constant_Reference,
       Variable_Indexing => Reference,
       Default_Iterator  => Iterate,
-      Iterator_Element  => Element_Type;
+      Iterator_Element  => Element_Type,
+      Aggregate         => (Empty       => Empty,
+                            Add_Unnamed => Append),
+      Preelaborable_Initialization
+                        => Element_Type'Preelaborable_Initialization;
 
-   pragma Preelaborable_Initialization (List);
-
-   type Cursor is private;
-   pragma Preelaborable_Initialization (Cursor);
+   type Cursor is private with Preelaborable_Initialization;
 
    Empty_List : constant List;
 
    No_Element : constant Cursor;
+
+   function Empty (Capacity : Count_Type := 10) return List;
 
    function Has_Element (Position : Cursor) return Boolean;
 
@@ -145,7 +151,11 @@ package Ada.Containers.Bounded_Doubly_Linked_Lists is
    procedure Append
      (Container : in out List;
       New_Item  : Element_Type;
-      Count     : Count_Type := 1);
+      Count     : Count_Type);
+
+   procedure Append
+     (Container : in out List;
+      New_Item  : Element_Type);
 
    procedure Delete
      (Container : in out List;
@@ -266,13 +276,16 @@ private
    type Node_Array is array (Count_Type range <>) of Node_Type;
 
    type List (Capacity : Count_Type) is tagged record
-      Nodes  : Node_Array (1 .. Capacity) := (others => <>);
+      Nodes  : Node_Array (1 .. Capacity);
       Free   : Count_Type'Base := -1;
       First  : Count_Type := 0;
       Last   : Count_Type := 0;
       Length : Count_Type := 0;
       TC     : aliased Tamper_Counts;
-   end record;
+   end record with Put_Image => Put_Image;
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : List);
 
    procedure Read
      (Stream : not null access Root_Stream_Type'Class;
