@@ -1,6 +1,6 @@
 #include "Test.h"
 
-int main()
+int main(void)
 {
     const unsigned char *pstr = "\pHello, world.";
     const char *cstr = "Hello, world.";
