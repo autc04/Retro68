@@ -121,7 +121,6 @@ pkgs: prevPkgs: {
             make -j$NIX_BUILD_CORES
             make install
           '';
-          env.CXXFLAGS = "--std=c++14"; # gcc 9 doesn't seem to like C++17
         };
 
       # binutils -- binutils with the wrappers provided by nixpkgs 
