@@ -10,6 +10,9 @@
 
   outputs = inputs@{ flake-parts, nixpkgs, multiversal, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } ({ self, lib, retroPlatforms, ... }: {
+      imports = [
+        ./nix/standalone.nix
+      ];
       _module.args.lib = import (nixpkgs + "/lib");
       _module.args.retroPlatforms = import ./nix/platforms.nix;
 
@@ -55,26 +58,6 @@
             tools = pkgs.retro68.tools;
             hfsutils = pkgs.retro68.hfsutils;
 
-            default = pkgs.runCommand "Retro68" { } ''
-              mkdir $out
-              mkdir $out/m68k-apple-macos
-              mkdir $out/powerpc-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.m68k.retro68.libretro}/. $out/m68k-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.m68k.retro68.multiversal}/. $out/m68k-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.powerpc.retro68.libretro}/. $out/powerpc-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.powerpc.retro68.multiversal}/. $out/powerpc-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.carbon.retro68.libretro}/. $out/powerpc-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.carbon.retro68.multiversal}/. $out/powerpc-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.retro68.tools}/. $out
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.retro68.hfsutils}/. $out
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.cmake}/. $out
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.gnumake}/. $out
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.ninja}/. $out
-
-              ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.pkgsCross.m68k.buildPackages.retro68.gcc_unwrapped}/. $out
-              ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.pkgsCross.powerpc.buildPackages.retro68.gcc_unwrapped}/. $out
-              ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.pkgsCross.carbon.buildPackages.retro68.gcc_unwrapped}/. $out
-            '';
 
             samples = pkgs.linkFarm "Retro68-Samples" [
               { name = "m68k"; path = self'.legacyPackages.pkgsCross.m68k.retro68.samples; }
