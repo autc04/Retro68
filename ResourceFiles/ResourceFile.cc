@@ -75,6 +75,19 @@ static void writeMacBinary(std::ostream& out, std::string filename,
 
     const std::string& rsrcBytes = resstream.str();
 
+    // MacBinary files contain mandatory timestamps (creation date and modification date)
+    // We set both of them, but to make reproducible builds possible, this optionally
+    // takes the time from the $SOURCE_DATE_EPOCH environment variable instead of the system clock.
+    // When building under `nix`, this is automatically set to the modification date of the newest source
+    // file.
+    auto timestamp = std::invoke([&] -> std::chrono::system_clock::time_point {
+        const char *sourceDateEpochEnvVar = getenv("SOURCE_DATE_EPOCH");
+        if (sourceDateEpochEnvVar && *sourceDateEpochEnvVar)
+            return std::chrono::system_clock::from_time_t((time_t)std::atoll(sourceDateEpochEnvVar));
+        else
+            return std::chrono::system_clock::now();
+    });
+
     // Calculate Mac-style timestamp (seconds since 1 January 1904 00:00:00)
     std::tm mac_epoch_tm = {
         0, 0, 0, // 00:00:00
