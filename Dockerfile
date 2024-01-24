@@ -1,12 +1,12 @@
 # vim:ft=dockerfile
 
 # Base image
-FROM ubuntu:20.04 AS base
+FROM ubuntu:22.04 AS base
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         cmake libgmp-dev libmpfr-dev libmpc-dev \
-        libboost-all-dev bison texinfo \
+        libboost-all-dev bison texinfo bzip2 \
         ruby flex curl g++ git macutils
 
 # Add toolchain to default PATH
