@@ -16,3 +16,11 @@
 #undef CPP_SPEC
 #define CPP_SPEC "-Wno-trigraphs"
 
+#undef TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS()          \
+  do                                      \
+    {                                     \
+      builtin_define ("macintosh");       \
+      builtin_define ("Macintosh");       \
+    }                                     \
+  while (0)

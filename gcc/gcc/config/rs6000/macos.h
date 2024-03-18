@@ -152,6 +152,8 @@
       builtin_define ("__PPC__");               \
       builtin_define ("__POWERPC__");           \
       builtin_define ("__NATURAL_ALIGNMENT__"); \
+      builtin_define ("macintosh");             \
+      builtin_define ("Macintosh");             \
       builtin_assert ("system=macos");     \
       builtin_assert ("cpu=powerpc");     \
       builtin_assert ("machine=powerpc"); \
