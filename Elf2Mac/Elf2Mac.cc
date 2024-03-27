@@ -194,7 +194,8 @@ int main(int argc, char *argv[])
                 CreateFlatLdScript(out, entryPoint, stripMacsbug);
             }
         }
-
+ 
+        args2.push_back("--no-warn-rwx-segments");
         args2.push_back("-o");
         args2.push_back(outputFile + ".gdb");
         args2.push_back("-T");
