@@ -30,7 +30,6 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
         PoorMansDebugging.h
         MultiSegApp.c
         LoadSeg.s
-        # glue.c
         qdglobals.c
         Retro68.r
         Retro68APPL.r
