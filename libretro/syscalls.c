@@ -135,8 +135,14 @@ int _open_r(struct _reent *reent, const char* name, int flags, int mode)
 
 int _close_r(struct _reent *reent, int fd)
 {
-    if(fd >= kMacRefNumOffset)
-        FSClose(fd - kMacRefNumOffset);
+    if(fd >= kMacRefNumOffset) {
+        short refNum = fd - kMacRefNumOffset;
+        short vRefNum;
+        OSErr err = GetVRefNum(refNum, &vRefNum);
+        FSClose(refNum);
+        if (err == noErr)
+            FlushVol(NULL, vRefNum);
+    }
     return 0;
 }
 

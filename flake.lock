@@ -21,11 +21,11 @@
     "multiversal": {
       "flake": false,
       "locked": {
-        "lastModified": 1703617805,
-        "narHash": "sha256-GngLWR9i+hC7hJ+ZkKlRK4K63lIJ4D/CMXZwefcVAqw=",
+        "lastModified": 1712682701,
+        "narHash": "sha256-/bHk7tU3+xxIs4YGLUyJVG9RsVO23ek41R//eO1F22Q=",
         "owner": "autc04",
         "repo": "multiversal",
-        "rev": "27c08c654bbd48d23f025741e3a584b59374904a",
+        "rev": "32dff28d1d618972cc2f544c86ee017b6464fa89",
         "type": "github"
       },
       "original": {
