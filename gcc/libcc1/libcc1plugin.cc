@@ -31,6 +31,7 @@
 #undef PACKAGE_TARNAME
 #undef PACKAGE_VERSION
 
+#define INCLUDE_VECTOR
 #define INCLUDE_MEMORY
 #include "gcc-plugin.h"
 #include "system.h"
@@ -69,7 +70,6 @@
 #include "gcc-c-interface.h"
 #include "context.hh"
 
-#include <vector>
 
 using namespace cc1_plugin;
 
