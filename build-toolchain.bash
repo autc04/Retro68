@@ -194,7 +194,13 @@ locateAndCheckInterfacesAndLibraries
 ##################### Third-Party components: binutils, gcc, hfsutils
 
 if [ $SKIP_THIRDPARTY != true ]; then
+	# (Re)generate autoconf scripts to be compliant with installed host toolchain
+	TEMP=$(pwd)
+	cd "$SRC"
+	find . -name "configure.in" -execdir autoconf \;
+	cd "$TEMP"
 
+	# Create or replace prefix folder
 	if [ "$PREFIX" = "$DEFAULT_PREFIX" ]; then
 		# Remove old install tree
 		rm -rf $PREFIX
@@ -297,7 +303,6 @@ if [ $SKIP_THIRDPARTY != true ]; then
 
 	unset CPPFLAGS
 	unset LDFLAGS
-
 
 	# Build hfsutil
 	mkdir -p $PREFIX/lib
