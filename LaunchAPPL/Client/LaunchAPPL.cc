@@ -60,6 +60,7 @@ static void usage()
 {
     std::cerr << "Usage: " << "LaunchAPPL [options] appl-file\n";
     std::cerr << desc << std::endl;
+    std::cerr << "Options can also be specified as environment variables of the form RETRO68_LAUNCHAPPL_OPTION_NAME.\n";
     std::cerr << "Defaults are read from:\n";
     for(string str : configFiles)
     {
@@ -118,6 +119,8 @@ int main(int argc, char *argv[])
             ("help,h", "show this help message")
             ("list-emulators,l", "get the list of available, fully configured emulators/environments")
             ("make-executable,x", po::value<std::string>(), "make a MacBinary file executable")
+            ("config-file", po::value<vector<string>>(), "read defaults from the given file")
+
     ;
     po::options_description configdesc;
     configdesc.add_options()
@@ -145,6 +148,16 @@ int main(int argc, char *argv[])
                 .run();
 
         po::store(parsed, options);
+        
+        po::store(po::parse_environment(configdesc, [](std::string_view s) {
+            const std::string_view prefix = "RETRO68_LAUNCHAPPL_";
+            if(s.compare(0, prefix.size(), prefix) != 0)
+                return std::string();
+            std::string option(s.substr(prefix.size()));
+            for (char& c : option)
+                c = c == '_' ? '-' : std::tolower(c);
+            return option;
+        }), options);
     }
     catch(po::error& e)
     {
@@ -152,6 +165,9 @@ int main(int argc, char *argv[])
         usage();
         return 1;
     }
+
+    if (options.count("config-file"))
+        configFiles = options["config-file"].as<vector<string>>();
 
     for(string configFileName : configFiles)
     {
