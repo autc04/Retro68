@@ -177,6 +177,9 @@ Likewise, use
 If you have a local checkout of Retro68, you can replace `github:autc04/Retro68` by the path
 to that local checkout, e.g., run `nix develop .#m68k` from inside the Retro68 directory.
 
+To see how to set up your own nix-based build and development environment for your own application,
+head over to the github.com/autc04/Retro68NixSample repository.
+
 You can also use the `nix build` command to build packages. As always with `nix`,
 the result will be somewhere in a subdirectory of `/nix/store`, with a symlink
 named `result` placed in the directory where you invoked the command.
