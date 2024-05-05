@@ -116,3 +116,5 @@ extern int m68k_hard_regno_rename_ok(unsigned int, unsigned int);
 
 extern void m68k_write_macsbug_name(FILE *, const char *, tree decl);
 extern poly_int64 m68k_push_rounding (poly_int64);
+
+extern bool m68k_rawinline_p (rtx x);

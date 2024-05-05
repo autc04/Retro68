@@ -7408,4 +7408,20 @@ m68k_promote_function_mode (const_tree type, machine_mode mode,
   return mode;
 }
 
+bool
+m68k_rawinline_p (rtx x)
+{
+  if(GET_CODE (x) == SYMBOL_REF)
+    {
+      tree decl = SYMBOL_REF_DECL(x);
+      if(decl)
+        {
+          tree attr = lookup_attribute ("raw_inline", TYPE_ATTRIBUTES( TREE_TYPE(decl) ));
+          if(attr)
+	    return true;
+	}
+    }
+  return false;
+}
+
 #include "gt-m68k.h"
