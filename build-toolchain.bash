@@ -237,7 +237,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		cd gcc-build
 		export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no --disable-libstdcxx-verbose"
 		$SRC/gcc/configure --target=m68k-apple-macos --prefix=$PREFIX \
-				--enable-languages=c,c++ --with-arch=m68k --with-cpu=m68000 \
+				--enable-languages=c,c++,objc,obj-c++ --with-arch=m68k --with-cpu=m68000 \
 				--disable-libssp MAKEINFO=missing
 		# There seems to be a build failure in parallel builds; ignore any errors and try again without -j8.
 		make -j8 || make
@@ -280,7 +280,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		cd gcc-build-ppc
 		export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no --disable-libstdcxx-verbose"
 		$SRC/gcc/configure --target=powerpc-apple-macos --prefix=$PREFIX \
-			--enable-languages=c,c++ --disable-libssp --disable-lto MAKEINFO=missing
+			--enable-languages=c,c++,objc,obj-c++ --disable-libssp --disable-lto MAKEINFO=missing
 		make -j8
 		make install
 		unset target_configargs
