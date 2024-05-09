@@ -23,6 +23,10 @@ SRC=$(cd `dirname $0` && pwd -P)
 DEFAULT_PREFIX=`pwd -P`/toolchain/
 PREFIX=$DEFAULT_PREFIX
 BINUTILS=`pwd -P`/binutils-build
+BUILD_JOBS=8
+if [ $(uname) == "Linux" ]; then
+    BUILD_JOBS=$(grep processor /proc/cpuinfo | wc -l)
+fi
 
 ##################### Prerequisites check
 
@@ -228,7 +232,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		mkdir -p binutils-build
 		cd binutils-build
 		$SRC/binutils/configure --target=m68k-apple-macos --prefix=$PREFIX --disable-doc
-		make -j8
+		make -j$BUILD_JOBS
 		make install
 		cd ..
 
@@ -240,7 +244,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 				--enable-languages=c,c++ --with-arch=m68k --with-cpu=m68000 \
 				--disable-libssp MAKEINFO=missing
 		# There seems to be a build failure in parallel builds; ignore any errors and try again without -j8.
-		make -j8 || make
+		make -j$BUILD_JOBS || make
 		make install
 		unset target_configargs
 		cd ..
@@ -271,7 +275,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		mkdir -p binutils-build-ppc
 		cd binutils-build-ppc
 		$SRC/binutils/configure --disable-plugins --target=powerpc-apple-macos --prefix=$PREFIX --disable-doc
-		make -j8
+		make -j$BUILD_JOBS
 		make install
 		cd ..
 
@@ -281,7 +285,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no --disable-libstdcxx-verbose"
 		$SRC/gcc/configure --target=powerpc-apple-macos --prefix=$PREFIX \
 			--enable-languages=c,c++ --disable-libssp --disable-lto MAKEINFO=missing
-		make -j8
+		make -j$BUILD_JOBS
 		make install
 		unset target_configargs
 		cd ..
