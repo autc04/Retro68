@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
     std::copy(argv + 1, argv+argc, std::back_inserter(args));
     realLdPath = string(argv[0]) + ".real";
 
-    if (char *path = getenv("RETRO68_REAL_LD"))
+    if (char *path = getenv("RETRO68_REAL_LD"); path && path[0])
         realLdPath = path;
 
     string outputFile = "a.out";
