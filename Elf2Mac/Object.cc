@@ -219,6 +219,8 @@ void Object::SingleSegmentApp(string output)
     file.creator = ResType("????");
     file.type = ResType("APPL");
 
+    file.data = "Built using Retro68.";
+
     file.write(output);
 }
 
@@ -401,6 +403,8 @@ void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
 
     file.creator = ResType("????");
     file.type = ResType("APPL");
+
+    file.data = "Built using Retro68,";
 
     file.write(output);
 }
