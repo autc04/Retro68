@@ -4469,19 +4469,6 @@ fixup_args_size_notes (rtx_insn *prev, rtx_insn *last,
       gcc_assert (!note || known_eq (args_size, get_args_size (note)));
 
       poly_int64 this_delta = find_args_size_adjust (insn);
-     
-      /* **** HALF-UNDERSTOOD HACK:
-
-        The original code here leaves out REG_ARGS_SIZE annotations for
-        instructions that don't adjust the stack under some circumstances.
-
-        In some situations, involving both m68k mac pascal functions 
-        and exception handling, this leads to a failure in dwarf2cfi.c:combine_traces.
-
-        Disabling the if (this_delta == 0) fixes this, but causes the subsequent gcc_assert 
-        to trip sometimes. Disabling both hasn't caused any observable problems... YET.
-
-
       if (known_eq (this_delta, 0))
 	{
 	  if (!CALL_P (insn)
@@ -4491,8 +4478,6 @@ fixup_args_size_notes (rtx_insn *prev, rtx_insn *last,
 	}
 
       gcc_assert (!saw_unknown);
-
-      */
       if (known_eq (this_delta, HOST_WIDE_INT_MIN))
 	saw_unknown = true;
 
