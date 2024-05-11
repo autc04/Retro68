@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #   Copyright 2014 Wolfgang Thaller.
 #
 #   This file is part of Retro68.
