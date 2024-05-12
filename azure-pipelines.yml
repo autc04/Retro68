@@ -100,7 +100,7 @@ jobs:
     displayName: Install Nix
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      nix profile install --accept-flake-config nixpkgs#cachix
+      nix-env -iA cachix -f https://cachix.org/api/v1/install
       cachix use autc04
     displayName: Setup Cachix
   - checkout: self
@@ -140,7 +140,7 @@ jobs:
     displayName: Install Nix
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      nix profile install --accept-flake-config nixpkgs#cachix
+      nix-env -iA cachix -f https://cachix.org/api/v1/install
       cachix use autc04
     displayName: Setup Cachix
   - checkout: self
