@@ -500,10 +500,14 @@ resource_item	: value { $$ = $1; }
 				;
 
 
-data : "data" res_spec "{" string_expression "}"
-{
-	world.addData($res_spec, $string_expression->evaluateString(nullptr), @1);
-}
-;
+data	: "data" res_spec "{" string_expression "}"
+			{
+				world.addData($res_spec, $string_expression->evaluateString(nullptr), @1);
+			}
+		| "data" res_spec "{" "}"
+			{
+				world.addData($res_spec, "", @1);
+			}
+		;
 
 %%
