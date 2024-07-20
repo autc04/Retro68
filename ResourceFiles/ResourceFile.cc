@@ -80,7 +80,7 @@ static void writeMacBinary(std::ostream& out, std::string filename,
     // takes the time from the $SOURCE_DATE_EPOCH environment variable instead of the system clock.
     // When building under `nix`, this is automatically set to the modification date of the newest source
     // file.
-    auto timestamp = std::invoke([&] -> std::chrono::system_clock::time_point {
+    auto timestamp = std::invoke([&]()-> std::chrono::system_clock::time_point {
         const char *sourceDateEpochEnvVar = getenv("SOURCE_DATE_EPOCH");
         if (sourceDateEpochEnvVar && *sourceDateEpochEnvVar)
             return std::chrono::system_clock::from_time_t((time_t)std::atoll(sourceDateEpochEnvVar));
