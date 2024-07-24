@@ -78,6 +78,12 @@ Version 3.4 has received the most testing, but any 3.x version could theoretical
 work. The exact directory layout inside the InterfacesAndLibraries directory does
 not matter. It will be picked up automatically when Retro68 is built.
 
+Especially on non-macOS platforms, make sure that the Mac resource fork of the
+PowerPC library files is included in a format recognized by Retro68.
+Recognized formats include MacBinary II (e.g., Interfacelib.bin),
+AppleDouble (._InterfaceLib or %InterfaceLib) or Basilisk/Sheepshaver resource
+forks (.rsrc/InterfaceLib).
+
 The Universal Interfaces were also included with Apple's free-to-download
 Macintosh Programmer's Workshop (MPW; redistribution is not officially allowed, either)
 and with Metrowerks CodeWarrior.
