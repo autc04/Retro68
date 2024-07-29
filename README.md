@@ -254,7 +254,7 @@ $ docker run --rm -v $(pwd):/root \
 EOF
 ```
 
-Note that `entrypoint.sh` checks to see if the universal interfaces are installed into
+Note that `docker-entrypoint.sh` checks to see if the universal interfaces are installed into
 `/Retro68/toolchain/universal` first before attempting to access the file or URL specified
 by INTERFACESFILE. This means that it is possible to use caching or another volume so that
 the universal interfaces are only processed once to speed up builds e.g.
