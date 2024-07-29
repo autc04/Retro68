@@ -65,31 +65,13 @@ while IFS= read -r LINE; do
                UNIXFULLPATH="$UNIXPATH$LINE"
 
                echo "Copying $HFSFULLPATH to $UNIXFULLPATH"
-
-               # PPC libraries need a resource fork, but the code in
-               # interfaces-and-libraries.sh doesn't correctly detect InterfaceLib in
-               # Macbinary format. Work around this for now by using Basilisk II format
-               # which can be parsed by ResourceFile and still allows the filename
-               # detection logic to work.
                if [[ $HFSPATH == *SharedLibraries: ]];
                then
-                   if [[ ! -d $UNIXPATH.rsrc ]];
-                   then
-                       mkdir $UNIXPATH.rsrc
-                   fi
-
-                   # First copy as Macbinary
+                   # interfaces-and-libraries.sh can detect and use PPC libraries in
+                   # MacBinary format
                    hcopy -m $HFSFULLPATH $UNIXFULLPATH.bin
-
-                   # Extract data fork using normal name
-                   bash -c "cd $UNIXPATH && macunpack -d $UNIXFULLPATH.bin && mv $UNIXFULLPATH.data $UNIXFULLPATH"
-
-                   # Extract resource fork into .rsrc directory
-                   bash -c "cd $UNIXPATH && macunpack -r $UNIXFULLPATH.bin && mv $UNIXFULLPATH.rsrc $UNIXPATH.rsrc/$LINE"
-
-                   # Delete original Macbinary
-                   rm -rf $UNIXFULLPATH.bin
                else
+                   # Otherwise copy files in raw format
                    hcopy -r $HFSFULLPATH $UNIXFULLPATH
                fi
            fi
