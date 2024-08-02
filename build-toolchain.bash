@@ -23,7 +23,7 @@ SRC=$(cd `dirname $0` && pwd -P)
 DEFAULT_PREFIX=`pwd -P`/toolchain/
 PREFIX=$DEFAULT_PREFIX
 BINUTILS=`pwd -P`/binutils-build
-BUILD_JOBS=8
+BUILD_JOBS=$(nproc | sysctl -n hw.physicalcpu)
 if [ $(uname) == "Linux" ]; then
     BUILD_JOBS=$(grep processor /proc/cpuinfo | wc -l)
 fi
