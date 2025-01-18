@@ -196,7 +196,7 @@ named `result` placed in the directory where you invoked the command.
 | `nix build github:autc04/Retro68#samples-powerpc`                  | Sample programs for PowerPC               |
 | `nix build github:autc04/Retro68#pkgsCross.m68k.zlib`              | zlib library, cross-compiled for 68K Macs |
 | `nix build github:autc04/Retro68#pkgsCross.m68k.`*packagename*     | cross-compile *packagename* to 68K        |
-| `nnix build github:autc04/Retro68#pkgsCross.powerpc.`*packagename* | cross-compile *packagename* to PowerPC    |
+| `nix build github:autc04/Retro68#pkgsCross.powerpc.`*packagename* | cross-compile *packagename* to PowerPC    |
 
 You can attempt to cross-compile *any* package from the `nixpkgs` collection. Unless the
 package contains a very portable library, the command will of course fail. Please don't
