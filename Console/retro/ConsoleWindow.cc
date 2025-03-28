@@ -29,7 +29,6 @@
 #include <functional>
 #include <OSUtils.h>
 #include <Traps.h>
-#include <Patches.h>
 
 using namespace std;
 using namespace retro;
@@ -180,6 +179,8 @@ bool waitNextEventWrapper(EventRecord *event)
 // Determines if a Toolbox routine is available
 bool routineAvailable(int trapWord) {
     TrapType trType;
+    int OSTrap = 0;
+    int ToolTrap = 1;
 
     // Determine whether it is an Operating System or Toolbox routine
     if ((trapWord & 0x0800) == 0) {
