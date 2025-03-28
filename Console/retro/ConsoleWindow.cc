@@ -26,13 +26,19 @@
 #include <unordered_map>
 #include <cstring>
 #include <TextUtils.h>
+#include <functional>
+#include <OSUtils.h>
+#include <Traps.h>
 
+using namespace std;
 using namespace retro;
 
 namespace
 {
     std::unordered_map<WindowPtr, ConsoleWindow*>    *windows = NULL;
+    function<bool(EventRecord *)> getEvent;
 }
+void setupEventFunction();
 
 ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
 {
@@ -56,6 +62,7 @@ ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
     (*windows)[win] = this;
 
     Init(port, portRect);
+    setupEventFunction();
 }
 
 ConsoleWindow::~ConsoleWindow()
@@ -101,7 +108,7 @@ char ConsoleWindow::WaitNextChar()
         #endif
         SystemTask();
         Idle();
-        while(!GetNextEvent(everyEvent, &event))
+        while(!getEvent(&event))
         {
             SystemTask();
             Idle();
@@ -153,4 +160,56 @@ char ConsoleWindow::WaitNextChar()
     } while(event.what != keyDown && event.what != autoKey);
 
     return event.message & charCodeMask;
+}
+
+// Wrapper for the GetNextEvent() function
+bool getNextEventWrapper(EventRecord *event)
+{
+    return GetNextEvent(everyEvent, event);
+}
+
+// Wrapper for the WaitNextEvent() function
+bool waitNextEventWrapper(EventRecord *event)
+{
+    const int sleepValue = 5;
+    const RgnHandle mouseRegion = nil;
+    return WaitNextEvent(everyEvent, event, sleepValue, mouseRegion);
+}
+
+// Determines if a Toolbox routine is available
+bool routineAvailable(int trapWord) {
+    TrapType trType;
+
+    // Determine whether it is an Operating System or Toolbox routine
+    if ((trapWord & 0x0800) == 0) {
+        trType = OSTrap;
+    } 
+    else {
+        trType = ToolTrap;
+    }
+
+    // Filter cases where older systems mask with 0x1FF rather than 0x3FF
+    if ((trType == ToolTrap) &&
+        ((trapWord & 0x03FF) >= 0x200) &&
+        (GetToolboxTrapAddress(0xA86E) == GetToolboxTrapAddress(0xAA6E))) {
+        return false;
+    }
+    else {
+        return (NGetTrapAddress(trapWord, trType) != GetToolboxTrapAddress(_Unimplemented));
+    }
+}
+
+// Decides which event retrieving function to use
+void setupEventFunction()
+{
+    #if TARGET_API_MAC_CARBON
+        getEvent = waitNextEventWrapper;
+    #else
+        if (routineAvailable(_WaitNextEvent) == true) {
+            getEvent = waitNextEventWrapper;
+        }
+        else {
+            getEvent = getNextEventWrapper;
+        }
+    #endif
 }
