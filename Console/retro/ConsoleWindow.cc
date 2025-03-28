@@ -29,6 +29,7 @@
 #include <functional>
 #include <OSUtils.h>
 #include <Traps.h>
+#include <Patches.h>
 
 using namespace std;
 using namespace retro;
