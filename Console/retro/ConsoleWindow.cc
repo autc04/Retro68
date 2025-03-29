@@ -176,30 +176,41 @@ bool waitNextEventWrapper(EventRecord *event)
     return WaitNextEvent(everyEvent, event, sleepValue, mouseRegion);
 }
 
-// Determines if a Toolbox routine is available
-bool routineAvailable(int trapWord) {
-    TrapType trType;
-    int OSTrap = 0;
-    int ToolTrap = 1;
+#if TARGET_API_MAC_CARBON
 
-    // Determine whether it is an Operating System or Toolbox routine
-    if ((trapWord & 0x0800) == 0) {
-        trType = OSTrap;
-    } 
-    else {
-        trType = ToolTrap;
+    bool routineAvailable(int trapWord) {
+        return true;
     }
 
-    // Filter cases where older systems mask with 0x1FF rather than 0x3FF
-    if ((trType == ToolTrap) &&
-        ((trapWord & 0x03FF) >= 0x200) &&
-        (GetToolboxTrapAddress(0xA86E) == GetToolboxTrapAddress(0xAA6E))) {
-        return false;
+#else
+
+    // Determines if a Toolbox routine is available
+    bool routineAvailable(int trapWord) {
+        TrapType trType;
+        int OSTrap = 0;
+        int ToolTrap = 1;
+    
+        // Determine whether it is an Operating System or Toolbox routine
+        if ((trapWord & 0x0800) == 0) {
+            trType = OSTrap;
+        } 
+        else {
+            trType = ToolTrap;
+        }
+    
+        // Filter cases where older systems mask with 0x1FF rather than 0x3FF
+        if ((trType == ToolTrap) &&
+            ((trapWord & 0x03FF) >= 0x200) &&
+            (GetToolboxTrapAddress(0xA86E) == GetToolboxTrapAddress(0xAA6E))) {
+            return false;
+        }
+        else {
+            return (NGetTrapAddress(trapWord, trType) != GetToolboxTrapAddress(_Unimplemented));
+        }
     }
-    else {
-        return (NGetTrapAddress(trapWord, trType) != GetToolboxTrapAddress(_Unimplemented));
-    }
-}
+
+#endif /* TARGET_API_MAC_CARBON */
+
 
 // Decides which event retrieving function to use
 void setupEventFunction()
