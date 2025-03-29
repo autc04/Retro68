@@ -38,7 +38,7 @@ namespace
     std::unordered_map<WindowPtr, ConsoleWindow*>    *windows = NULL;
     function<bool(EventRecord *)> getEvent;
 }
-void setupEventFunction();
+static void setupEventFunction();
 
 ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
 {
@@ -162,30 +162,24 @@ char ConsoleWindow::WaitNextChar()
     return event.message & charCodeMask;
 }
 
-// Wrapper for the GetNextEvent() function
-bool getNextEventWrapper(EventRecord *event)
-{
-    return GetNextEvent(everyEvent, event);
-}
-
 // Wrapper for the WaitNextEvent() function
-bool waitNextEventWrapper(EventRecord *event)
+static bool waitNextEventWrapper(EventRecord *event)
 {
     const int sleepValue = 5;
     const RgnHandle mouseRegion = nil;
     return WaitNextEvent(everyEvent, event, sleepValue, mouseRegion);
 }
 
-#if TARGET_API_MAC_CARBON
+#if !(TARGET_API_MAC_CARBON)
 
-    bool routineAvailable(int trapWord) {
-        return true;
+    // Wrapper for the GetNextEvent() function
+    static bool getNextEventWrapper(EventRecord *event)
+    {
+        return GetNextEvent(everyEvent, event);
     }
 
-#else
-
     // Determines if a Toolbox routine is available
-    bool routineAvailable(int trapWord) {
+    static bool routineAvailable(int trapWord) {
         TrapType trType;
         int OSTrap = 0;
         int ToolTrap = 1;
@@ -213,7 +207,7 @@ bool waitNextEventWrapper(EventRecord *event)
 
 
 // Decides which event retrieving function to use
-void setupEventFunction()
+static void setupEventFunction()
 {
     #if TARGET_API_MAC_CARBON
         getEvent = waitNextEventWrapper;
