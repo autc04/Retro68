@@ -7,8 +7,6 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   timeoutInMinutes: 90
-  variables:
-  - group: Tokens  
   steps:
   - checkout: self
     submodules: true
