@@ -208,6 +208,35 @@ static bool m68k_modes_tieable_p (machine_mode, machine_mode);
 static machine_mode m68k_promote_function_mode (const_tree, machine_mode,
 						int *, const_tree, int);
 static void m68k_asm_final_postscan_insn (FILE *, rtx_insn *insn, rtx [], int);
+
+static void
+m68k_unique_section (tree decl, int reloc)
+{
+  const char *name;
+  char *section = NULL;
+  tree type, chain;
+
+  /* Detect arrays pointing at labels - computed gotos. */
+  if (categorize_decl_for_section (decl, reloc) == SECCAT_RODATA
+      && TREE_CODE (TREE_TYPE (decl)) == ARRAY_TYPE)
+    {
+      type = TREE_TYPE (TREE_TYPE (decl));
+      chain = TREE_CHAIN (decl);
+
+      if (type && chain && TREE_CODE (type) == POINTER_TYPE
+          && TREE_CODE (chain) == LABEL_DECL)
+        {
+          name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl));
+          name = targetm.strip_name_encoding (name);
+          section
+            = ACONCAT ((".text.", current_function_name (), ".", name, NULL));
+          set_decl_section_name (decl, section);
+          return;
+        }
+    }
+
+  default_unique_section (decl, reloc);
+}
 
 /* Initialize the GCC target structure.  */
 
@@ -215,6 +244,9 @@ static void m68k_asm_final_postscan_insn (FILE *, rtx_insn *insn, rtx [], int);
 #undef TARGET_ASM_ALIGNED_HI_OP
 #define TARGET_ASM_ALIGNED_HI_OP "\t.word\t"
 #endif
+
+#undef TARGET_ASM_UNIQUE_SECTION
+#define TARGET_ASM_UNIQUE_SECTION m68k_unique_section
 
 #if INT_OP_GROUP == INT_OP_NO_DOT
 #undef TARGET_ASM_BYTE_OP
