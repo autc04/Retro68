@@ -10,6 +10,10 @@ jobs:
   variables:
   - group: Tokens  
   steps:
+  - script: |
+      docker login ghcr.io/autc04 -u autc04 -p $GHCR_TOKEN
+    env:
+      GHCR_TOKEN: $(GHCR_TOKEN)
   - checkout: self
     submodules: true
 
