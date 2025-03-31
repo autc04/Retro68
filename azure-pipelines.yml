@@ -11,10 +11,13 @@ jobs:
   - group: Tokens  
   steps:
   - script: |
-      echo $GHCR_TOKEN
-      echo $GHCR_TOKEN | docker login ghcr.io -u autc04 --password-stdin
+      echo $GHCR_TOKEN | wc
+      echo $TEST_TOKEN | wc
+      echo $TEST_TOKEN | docker login ghcr.io -u autc04 --password-stdin
     env:
       GHCR_TOKEN: $(GHCR_TOKEN)
+      TEST_TOKEN: $(TEST_TOKEN)
+    displayName: 'Test Login to GHCR'
   - checkout: self
     submodules: true
 
