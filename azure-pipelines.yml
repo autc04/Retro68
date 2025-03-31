@@ -13,7 +13,7 @@ jobs:
   - script: |
       echo $GHCR_TOKEN | wc
       echo $TEST_TOKEN | wc
-      echo $TEST_TOKEN | docker login ghcr.io -u autc04 --password-stdin
+      echo $GHCR_TOKEN | docker login ghcr.io -u autc04 --password-stdin
     env:
       GHCR_TOKEN: $(GHCR_TOKEN)
       TEST_TOKEN: $(TEST_TOKEN)
@@ -54,7 +54,7 @@ jobs:
       testResultsFiles: build/Testing/**/*.xml
       buildPlatform: 'x86_64-linux'
   - script: |
-      docker login ghcr.io/autc04 -u autc04 -p $GHCR_TOKEN
+      echo $GHCR_TOKEN | docker login ghcr.io -u autc04 --password-stdin
       docker push ghcr.io/autc04/retro68
     env:
       GHCR_TOKEN: $(GHCR_TOKEN)
