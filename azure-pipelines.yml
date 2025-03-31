@@ -11,7 +11,8 @@ jobs:
   - group: Tokens  
   steps:
   - script: |
-      docker login ghcr.io/autc04 -u autc04 -p $GHCR_TOKEN
+      echo $GHCR_TOKEN
+      echo $GHCR_TOKEN | docker login ghcr.io -u autc04 --password-stdin
     env:
       GHCR_TOKEN: $(GHCR_TOKEN)
   - checkout: self
