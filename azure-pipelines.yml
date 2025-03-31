@@ -11,8 +11,8 @@ jobs:
   - group: Tokens  
   steps:
   - script: |
-      echo $GHCR_TOKEN | wc
-      echo $TEST_TOKEN | wc
+      echo $GHCR_TOKEN | md5sum
+      echo $TEST_TOKEN | md5sum
       echo $GHCR_TOKEN | docker login ghcr.io -u autc04 --password-stdin
     env:
       GHCR_TOKEN: $(GHCR_TOKEN)
