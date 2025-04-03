@@ -5970,7 +5970,7 @@ _ACEOF
 
 
 
-for ac_func in clearerr_unlocked feof_unlocked   ferror_unlocked fflush_unlocked fgetc_unlocked fgets_unlocked   fileno_unlocked fprintf_unlocked fputc_unlocked fputs_unlocked   fread_unlocked fwrite_unlocked getchar_unlocked getc_unlocked   putchar_unlocked putc_unlocked
+for ac_func in clearerr_unlocked feof_unlocked   ferror_unlocked fflush_unlocked fgetc_unlocked fgets_unlocked   fileno_unlocked fprintf_unlocked fputc_unlocked fputs_unlocked   fread_unlocked fwrite_unlocked getchar_unlocked getc_unlocked   putchar_unlocked putc_unlocked setlocale
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -6194,7 +6194,7 @@ fi
 cat >>confdefs.h <<_ACEOF
 #define HAVE_DECL_PUTCHAR_UNLOCKED $ac_have_decl
 _ACEOF
-ac_fn_c_check_decl "$LINENO" "putc_unlocked" "ac_cv_have_decl_putc_unlocked" "$ac_includes_default"
+ac_fn_c_check_decl "$LINENO" "unlocked" "ac_cv_have_decl_putc_unlocked" "$ac_includes_default"
 if test "x$ac_cv_have_decl_putc_unlocked" = xyes; then :
   ac_have_decl=1
 else
