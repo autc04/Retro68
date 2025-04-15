@@ -26,6 +26,8 @@
 #include <Quickdraw.h>
 #include <vector>
 #include <string>
+#include <map>
+#include <functional>
 
 namespace retro
 {
@@ -105,6 +107,7 @@ namespace retro
         GrafPtr consolePort = nullptr;
         Rect bounds;
         Attributes currentAttr;
+        std::map<char, std::function<void(std::string)>> escapeSequenceMap;
 
         std::vector<AttributedChar> chars, onscreen;
 
@@ -136,6 +139,13 @@ namespace retro
         void InvalidateCursor();
 
         virtual char WaitNextChar();
+        void InitEscapeSequenceMap();
+        void SetCursorPosition(std::string);
+        void EraseInDisplay(std::string);
+        void SetDisplayAttributes(std::string);
+        void ClearWindow();
+        void ClearFromCursorToEndOfWindow();
+        void ClearFromTopOfWindowToCursor();
 
     protected:
         void Init(GrafPtr port, Rect r);
