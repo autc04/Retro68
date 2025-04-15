@@ -103,7 +103,7 @@ namespace retro
     private:
 
         State sequenceState;
-        std::string windowName;
+        std::string argument;
         GrafPtr consolePort = nullptr;
         Rect bounds;
         Attributes currentAttr;
@@ -146,6 +146,7 @@ namespace retro
         void ClearWindow();
         void ClearFromCursorToEndOfWindow();
         void ClearFromTopOfWindowToCursor();
+        void HandleControlSequence(char);
 
     protected:
         void Init(GrafPtr port, Rect r);
