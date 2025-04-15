@@ -274,7 +274,6 @@ void Console::ScrollUp(short n)
 
 bool Console::ProcessEscSequence(char c)
 {
-    static std::string argument;
     switch(sequenceState)
     {
     case State::noSequence:
@@ -288,14 +287,7 @@ bool Console::ProcessEscSequence(char c)
             sequenceState=State::noSequence;   // Unrecognized sequence
         break;
     case State::waitingForControlSequence:
-        if (isalpha(c)) {
-            auto escFunc = escapeSequenceMap.at(c);
-            escFunc(argument);
-            sequenceState=State::noSequence;
-            argument = "";
-        } else {
-            argument = argument + c;
-        }
+        HandleControlSequence(c);
         break;
     case State::waitingForOSCStart:
         if(c=='0')
@@ -307,7 +299,7 @@ bool Console::ProcessEscSequence(char c)
         if(c==';')
         {
             sequenceState=State::inWindowName;
-            windowName="";
+            argument = "";
         }
         else
             sequenceState=State::noSequence;   // Normal end of sequence
@@ -315,13 +307,13 @@ bool Console::ProcessEscSequence(char c)
     case State::inWindowName:
         if(c==BEL)
         {
-            setWindowName(std::move(windowName));
+            setWindowName(std::move(argument));
             sequenceState=State::noSequence;   // Normal end of sequence
         }
         else
         {
-            if(windowName.size() < MAX_LEN)    // Ignore subsequent characters
-                windowName+=c;
+            if(argument.size() < MAX_LEN)    // Ignore subsequent characters
+                argument+=c;
         }
         break;
     default:
@@ -560,35 +552,27 @@ void Console::InitEscapeSequenceMap()
 }
 
 // turns an argument string into numbers
-// example: "12;13" would return a stack with numbers 13 and 12
-std::stack<int> parseArguments(std::string str) {
+// example: "12;13" would return a vector with numbers 12 and 13
+static std::vector<int> parseArguments(std::string str) {
     std::istringstream iss(str);
     std::string token;
-    std::stack<int> numberStack;
+    std::vector<int> numberVector;
     while (getline(iss, token, ';'))
     {
         if(token == "") 
         {
-            numberStack.push(1);
+            numberVector.push_back(1);
         }
         else
         {
-            numberStack.push(atoi(token.c_str()));
+            numberVector.push_back(atoi(token.c_str()));
         }
     }
 
-    if (numberStack.empty())
-    {
-        numberStack.push(1);
-        numberStack.push(1);
-    }
+    while (numberVector.size() < 2)
+       numberVector.push_back(1);
 
-    if (numberStack.size() == 1)
-    {
-        numberStack.push(1);
-    }
-
-    return numberStack;
+    return numberVector;
 }
 
 // Bound to ANSI escape code H
@@ -605,10 +589,9 @@ void Console::SetCursorPosition(std::string args)
     // ;m        -> (m,1)
     //             -> (1,1)
     
-    auto numberStack = parseArguments(args);
-    cursorX = numberStack.top();
-    numberStack.pop();
-    cursorY = numberStack.top();
+    auto numberVector = parseArguments(args);
+    cursorX = numberVector.at(1);
+    cursorY = numberVector.at(0);
     Update();
 }
 
@@ -675,9 +658,10 @@ void Console::ClearWindow()
     std::fill(chars.begin(), chars.end(), AttributedChar(' ', currentAttr));
     std::fill(onscreen.begin(), onscreen.end(), AttributedChar(' ', currentAttr));
     
-    // Actually erase the window
+    // Erase the window
     EraseRect(&bounds);
     Update();
+    Draw(bounds);
 }
 
 // Clears the window of text from the current cursor position to the bottom of the window
@@ -689,9 +673,10 @@ void Console::ClearFromCursorToEndOfWindow()
     std::fill(chars.begin() + newPosition, chars.end(), AttributedChar(' ', currentAttr));
     std::fill(onscreen.begin() + newPosition, onscreen.end(), AttributedChar(' ', currentAttr));
     
-    // Actually erase the window
+    // Erase the window
     EraseRect(&bounds);
     Update();
+    Draw(bounds);
 }
 
 // Clears the window from the top to the current cursor position
@@ -703,7 +688,25 @@ void Console::ClearFromTopOfWindowToCursor()
     std::fill(chars.begin(), chars.begin() + newPosition, AttributedChar(' ', currentAttr));
     std::fill(onscreen.begin(), onscreen.begin() + newPosition, AttributedChar(' ', currentAttr));
     
-    // Actually erase the window
+    // Erase the window
     EraseRect(&bounds);
     Update();
+    Draw(bounds);
+}
+
+// handles the waitingForControlSequence state
+void Console::HandleControlSequence(char c)
+{
+    if (isalpha(c))
+    {
+        auto escFunc = escapeSequenceMap.at(c);
+        escFunc(argument);
+        sequenceState=State::noSequence;
+        argument = "";
+    } 
+
+    else
+    {
+        argument = argument + c;
+    }
 }
