@@ -25,8 +25,10 @@
 #include "MacUtils.h"
 #include "Fonts.h"
 #include "Processes.h"
-
+#include <cctype>
 #include <algorithm>
+#include <stack>
+#include <sstream>
 
 using namespace retro;
 
@@ -131,11 +133,13 @@ namespace
 
 Console::Console()
 {
+    InitEscapeSequenceMap();
 }
 
 Console::Console(GrafPtr port, Rect r)
 {
     Init(port, r);
+    InitEscapeSequenceMap();
 }
 
 Console::~Console()
@@ -283,30 +287,7 @@ bool Console::ProcessEscSequence(char c)
             sequenceState=State::noSequence;   // Unrecognized sequence
         break;
     case State::waitingForControlSequence:
-        sequenceState=State::waitingForM;
-        switch(c)
-        {
-        case '0':   // Normal character
-            currentAttr.reset();
-            break;
-        case '1':   // Bold
-            currentAttr.setBold(true);
-            break;
-        case '3':   // Italic
-            currentAttr.setItalic(true);
-            break;
-        case '4':   // Underline
-            currentAttr.setUnderline(true);
-            break;
-        default:
-            sequenceState=State::noSequence;   // Unrecognized sequence
-        }
-        break;
-    case State::waitingForM:
-        if(c=='m')
-            sequenceState=State::noSequence;   // Normal end of sequence
-        else
-            sequenceState=State::noSequence;   // Unrecognized sequence (but we end it anyway!)
+        HandleControlSequence(c);
         break;
     case State::waitingForOSCStart:
         if(c=='0')
@@ -318,7 +299,7 @@ bool Console::ProcessEscSequence(char c)
         if(c==';')
         {
             sequenceState=State::inWindowName;
-            windowName="";
+            argument = "";
         }
         else
             sequenceState=State::noSequence;   // Normal end of sequence
@@ -326,13 +307,13 @@ bool Console::ProcessEscSequence(char c)
     case State::inWindowName:
         if(c==BEL)
         {
-            setWindowName(std::move(windowName));
+            setWindowName(std::move(argument));
             sequenceState=State::noSequence;   // Normal end of sequence
         }
         else
         {
-            if(windowName.size() < MAX_LEN)    // Ignore subsequent characters
-                windowName+=c;
+            if(argument.size() < MAX_LEN)    // Ignore subsequent characters
+                argument+=c;
         }
         break;
     default:
@@ -560,4 +541,172 @@ void Console::Reshape(Rect newBounds)
 char Console::WaitNextChar()
 {
     return 0;
+}
+
+// Map a letter to a function
+void Console::InitEscapeSequenceMap()
+{
+    escapeSequenceMap.insert({'H', [&](std::string args) { Console::SetCursorPosition(args); } });
+    escapeSequenceMap.insert({'J', [&](std::string args) { EraseInDisplay(args); } });
+    escapeSequenceMap.insert({'m', [&](std::string args) { SetDisplayAttributes(args); } });
+}
+
+// turns an argument string into numbers
+// example: "12;13" would return a vector with numbers 12 and 13
+static std::vector<int> parseArguments(std::string str) {
+    std::istringstream iss(str);
+    std::string token;
+    std::vector<int> numberVector;
+    while (getline(iss, token, ';'))
+    {
+        if(token == "") 
+        {
+            numberVector.push_back(1);
+        }
+        else
+        {
+            numberVector.push_back(atoi(token.c_str()));
+        }
+    }
+
+    while (numberVector.size() < 2)
+       numberVector.push_back(1);
+
+    return numberVector;
+}
+
+// Bound to ANSI escape code H
+// Page: https://en.wikipedia.org/wiki/ANSI_escape_code
+// Section: Control Sequence Introducer commands
+// Name: Cursor Position
+void Console::SetCursorPosition(std::string args)
+{
+    // possible formats the arguments can be in:
+    // n          -> (1,n)
+    // n;m.     -> (m,n)
+    // n;m;     -> (m,n)
+    // n;         -> (1,n)
+    // ;m        -> (m,1)
+    //             -> (1,1)
+    
+    auto numberVector = parseArguments(args);
+    cursorX = numberVector.at(1);
+    cursorY = numberVector.at(0);
+    Update();
+}
+
+// Bound to ANSI escape code J
+// Page: https://en.wikipedia.org/wiki/ANSI_escape_code
+// Section: Control Sequence Introducer commands
+// Name: Erase in Display
+void Console::EraseInDisplay(std::string args)
+{
+    int n;
+    if (args == "")
+        n = 0;
+    else
+        n = atoi(args.c_str());
+
+    switch(n) {
+        case 0:     // clear from cursor to end of window
+            ClearFromCursorToEndOfWindow();
+            break;
+        
+        case 1:     // clear from cursor to beginning of the window
+            ClearFromTopOfWindowToCursor();
+            break;
+    
+        case 2:     // clear entire screen
+            ClearWindow();
+            break;
+            
+        case 3:     // clear entire screen and delete all lines saved in the scrollback buffer
+            ClearWindow();
+            break;
+    }
+}
+
+// Sets attributes of characters
+// Note: only a few attributes are currently implemented
+// Bound to ANSI escape code m
+// Page: https://en.wikipedia.org/wiki/ANSI_escape_code
+// Section: Select Graphic Rendition parameters
+void Console::SetDisplayAttributes(std::string args)
+{
+    char c = args.c_str()[0];
+    switch(c)
+    {
+        case '0':   // Normal character
+            currentAttr.reset();
+            break;
+        case '1':   // Bold
+            currentAttr.setBold(true);
+            break;
+        case '3':   // Italic
+            currentAttr.setItalic(true);
+            break;
+        case '4':   // Underline
+            currentAttr.setUnderline(true);
+            break;
+    }
+}
+
+// Clears the window of all text
+void Console::ClearWindow()
+{
+    // Fill the buffer with blank spaces
+    std::fill(chars.begin(), chars.end(), AttributedChar(' ', currentAttr));
+    std::fill(onscreen.begin(), onscreen.end(), AttributedChar(' ', currentAttr));
+    
+    // Erase the window
+    EraseRect(&bounds);
+    Update();
+    Draw(bounds);
+}
+
+// Clears the window of text from the current cursor position to the bottom of the window
+void Console::ClearFromCursorToEndOfWindow()
+{
+    int newPosition = cursorY * cols + cursorX;
+    
+    // Fill the buffer with blank spaces
+    std::fill(chars.begin() + newPosition, chars.end(), AttributedChar(' ', currentAttr));
+    std::fill(onscreen.begin() + newPosition, onscreen.end(), AttributedChar(' ', currentAttr));
+    
+    // Erase the window
+    EraseRect(&bounds);
+    Update();
+    Draw(bounds);
+}
+
+// Clears the window from the top to the current cursor position
+void Console::ClearFromTopOfWindowToCursor()
+{
+    int newPosition = cursorY * cols + cursorX;
+    
+    // Fill the buffer with blank spaces
+    std::fill(chars.begin(), chars.begin() + newPosition, AttributedChar(' ', currentAttr));
+    std::fill(onscreen.begin(), onscreen.begin() + newPosition, AttributedChar(' ', currentAttr));
+    
+    // Erase the window
+    EraseRect(&bounds);
+    Update();
+    Draw(bounds);
+}
+
+// handles the waitingForControlSequence state
+void Console::HandleControlSequence(char c)
+{
+    if (isalpha(c))
+    {
+        auto escFunc = escapeSequenceMap.at(c);
+        escFunc(argument);
+        sequenceState=State::noSequence;
+        argument = "";
+    } 
+
+    else
+    {
+        argument = argument + c;
+    }
 }
