@@ -123,6 +123,7 @@ namespace retro
         long blinkTicks = 0;
         bool cursorDrawn = false;
         bool cursorVisible = true;
+        bool cursorRequestedHidden = false;
         bool eof = false;
 
         void PutCharNoUpdate(char c);
@@ -147,6 +148,23 @@ namespace retro
         void ClearFromCursorToEndOfWindow();
         void ClearFromTopOfWindowToCursor();
         void HandleControlSequence(char);
+        void MoveCursorUp(std::string args);
+        void MoveCursorDown(std::string args);
+        void MoveCursorForward(std::string args);
+        void MoveCursorBack(std::string args);
+        void MoveCursorNextLine(std::string args);
+        void MoveCursorPreviousLine(std::string args);
+        void MoveCursorHorizonalAbsolute(std::string args);
+        void EraseInLine(std::string args);
+        void ClearFromCursorToEndOfLine();
+        void ClearFromBeginningOfLineToCursor();
+        void ClearEntireLine();
+        void ShowCursor(std::string args);
+        void HideCursor(std::string args);
+        void SetCursorX(int newX);
+        int GetCursorX();
+        void SetCursorY(int newY);
+        int GetCursorY();
 
     protected:
         void Init(GrafPtr port, Rect r);
