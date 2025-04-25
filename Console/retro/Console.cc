@@ -888,7 +888,12 @@ void Console::ClearFromCursorToEndOfLine()
     std::fill(onscreen.begin() + currentPosition, onscreen.begin() + endOfLinePosition, AttributedChar(' ', currentAttr));
 
     Update();
-    Draw(bounds);
+
+    // Erase only on the line the cursor is on
+    Rect rect;
+    rect = CellRect(cursorX, cursorY);
+    rect.right = cols * cellSizeX;
+    EraseRect(&rect);
 }
 
 // Erases from the beginning of the line to the cursor's position
@@ -902,7 +907,12 @@ void Console::ClearFromBeginningOfLineToCursor()
     std::fill(onscreen.begin() + beginningOfLinePosition, onscreen.begin() + currentPosition, AttributedChar(' ', currentAttr));
 
     Update();
-    Draw(bounds);
+    
+    // Erase only on the line the cursor is on
+    Rect rect;
+    rect = CellRect(0, cursorY);
+    rect.right = GetCursorX() * cellSizeX;
+    EraseRect(&rect);
 }
 
 // Erases the entire line the cursor is on
@@ -916,7 +926,12 @@ void Console::ClearEntireLine()
     std::fill(onscreen.begin() + beginningOfLinePosition, onscreen.begin() + endOfLinePosition, AttributedChar(' ', currentAttr));
 
     Update();
-    Draw(bounds);
+    
+    // Erase only the line the cursor is on
+    Rect rect;
+    rect = CellRect(0, cursorY);
+    rect.right = cols * cellSizeX;
+    EraseRect(&rect);
 }
 
 // Bound to ANSI escape code h
