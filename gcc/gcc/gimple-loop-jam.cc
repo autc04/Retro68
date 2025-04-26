@@ -1,5 +1,5 @@
 /* Loop unroll-and-jam.
-   Copyright (C) 2017-2022 Free Software Foundation, Inc.
+   Copyright (C) 2017-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -39,9 +39,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-ssa-loop-ivopts.h"
 #include "tree-vectorizer.h"
 #include "tree-ssa-sccvn.h"
+#include "tree-cfgcleanup.h"
 
 /* Unroll and Jam transformation
-   
+
    This is a combination of two transformations, where the second
    is not always valid.  It's applicable if a loop nest has redundancies
    over the iterations of an outer loop while not having that with
@@ -278,13 +279,17 @@ unroll_jam_possible_p (class loop *outer, class loop *loop)
      body would be the after-iter value of the first body) if it's over
      an associative and commutative operation.  We wouldn't
      be able to handle unknown cycles.  */
+  bool inner_vdef = false;
   for (psi = gsi_start_phis (loop->header); !gsi_end_p (psi); gsi_next (&psi))
     {
       affine_iv iv;
       tree op = gimple_phi_result (psi.phi ());
 
       if (virtual_operand_p (op))
-	continue;
+	{
+	  inner_vdef = true;
+	  continue;
+	}
       if (!simple_iv (loop, loop, op, &iv, true))
 	return false;
       /* The inductions must be regular, loop invariant step and initial
@@ -299,6 +304,12 @@ unroll_jam_possible_p (class loop *outer, class loop *loop)
 	 for the fused loop would be the original next value of the first
 	 copy, _not_ the next value of the second body.  */
     }
+
+  /* When there's no inner loop virtual PHI IV we cannot handle the update
+     required to the inner loop if that doesn't already have one.  See
+     PR117113.  */
+  if (!inner_vdef && get_virtual_phi (outer->header))
+    return false;
 
   return true;
 }
@@ -363,7 +374,6 @@ fuse_loops (class loop *loop)
       delete_loop (next);
       next = ln;
     }
-  rewrite_into_loop_closed_ssa_1 (NULL, 0, SSA_OP_USE, loop);
 }
 
 /* Return true if any of the access functions for dataref A
@@ -451,7 +461,7 @@ adjust_unroll_factor (class loop *inner, struct data_dependence_relation *ddr,
 		       1 0 0 w a[0][0] b[0][0]
 		       4 1 0 r a[2][0] b[2][0]
 		       5 1 0 w a[1][0] b[1][0]
-		       2 0 1 r a[1][0] b[1][1]  
+		       2 0 1 r a[1][0] b[1][1]
 		       3 0 1 w a[0][0] b[0][1]
 		     Note how access 2 accesses the same element as access 5
 		     for array 'a' but not for array 'b'.  */
@@ -545,11 +555,25 @@ tree_loop_unroll_and_jam (void)
 	  /* If the refs are independend there's nothing to do.  */
 	  if (DDR_ARE_DEPENDENT (ddr) == chrec_known)
 	    continue;
+
 	  dra = DDR_A (ddr);
 	  drb = DDR_B (ddr);
-	  /* Nothing interesting for the self dependencies.  */
+
+	  /* Nothing interesting for the self dependencies, except for WAW if
+	     the access function is not affine or constant because we may end
+	     up reordering writes to the same location.  */
 	  if (dra == drb)
-	    continue;
+	    {
+	      if (DR_IS_WRITE (dra)
+		  && !DR_ACCESS_FNS (dra).is_empty ()
+		  && DDR_ARE_DEPENDENT (ddr) == chrec_dont_know)
+		{
+		  unroll_factor = 0;
+		  break;
+		}
+	      else
+		continue;
+	    }
 
 	  /* Now check the distance vector, for determining a sensible
 	     outer unroll factor, and for validity of merging the inner
@@ -610,8 +634,16 @@ tree_loop_unroll_and_jam (void)
 
   if (todo)
     {
-      scev_reset ();
       free_dominance_info (CDI_DOMINATORS);
+      /* We need to cleanup the CFG first since otherwise SSA form can
+	 be not up-to-date from the VN run.  */
+      if (todo & TODO_cleanup_cfg)
+	{
+	  cleanup_tree_cfg ();
+	  todo &= ~TODO_cleanup_cfg;
+	}
+      rewrite_into_loop_closed_ssa (NULL, 0);
+      scev_reset ();
     }
   return todo;
 }
@@ -641,8 +673,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return flag_unroll_jam != 0; }
-  virtual unsigned int execute (function *);
+  bool gate (function *) final override { return flag_unroll_jam != 0; }
+  unsigned int execute (function *) final override;
 
 };
 

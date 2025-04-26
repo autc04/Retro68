@@ -1,5 +1,5 @@
 /* Functions for generic NetBSD as target machine for GNU D compiler.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,8 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
-#include "memmodel.h"
-#include "tm_p.h"
+#include "tm_d.h"
 #include "d/d-target.h"
 #include "d/d-target-def.h"
 

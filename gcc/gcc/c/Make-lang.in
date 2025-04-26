@@ -1,5 +1,5 @@
 # Top level -*- makefile -*- fragment for GNU C - C language.
-# Copyright (C) 1994-2022 Free Software Foundation, Inc.
+# Copyright (C) 1994-2025 Free Software Foundation, Inc.
 
 #This file is part of GCC.
 
@@ -88,10 +88,35 @@ cc1$(exeext): $(C_OBJS) cc1-checksum.o $(BACKEND) $(LIBDEPS)
 	  cc1-checksum.o $(BACKEND) $(LIBS) $(BACKENDLIBS)
 	@$(call LINK_PROGRESS,$(INDEX.c),end)
 
-cc1.fda: ../stage1-gcc/cc1$(exeext) ../prev-gcc/$(PERF_DATA)
-	$(CREATE_GCOV) -binary ../stage1-gcc/cc1$(exeext) -gcov cc1.fda -profile ../prev-gcc/$(PERF_DATA) -gcov_version 1
+components_in_prev = "bfd opcodes binutils fixincludes gas gcc gmp mpfr mpc isl gold intl ld libbacktrace libcpp libcody libdecnumber libiberty libiberty-linker-plugin libiconv zlib lto-plugin libctf libsframe"
+components_in_prev_target = "libstdc++-v3 libsanitizer libvtv libgcc libbacktrace libphobos zlib libgomp libatomic"
 
-#
+cc1.fda: create_fdas_for_cc1
+	$(PROFILE_MERGER) $(shell ls -ha cc1_*.fda) --output_file cc1.fda -gcov_version 2
+
+create_fdas_for_cc1: ../stage1-gcc/cc1$(exeext) ../prev-gcc/$(PERF_DATA)
+	for component_in_prev in "$(components_in_prev)"; do \
+	  perf_path=../prev-$$component_in_prev/$(PERF_DATA); \
+	  echo "Perf path:"; \
+	  echo $$perf_path; \
+	  if [ -f $$perf_path ]; then \
+	    profile_name=cc1_$$component_in_prev.fda; \
+	    $(CREATE_GCOV) -binary ../stage1-gcc/cc1$(exeext) -gcov $$profile_name -profile $$perf_path -gcov_version 2; \
+	  fi; \
+	done;
+
+	for component_in_prev_target in "$(components_in_prev_target)"; do \
+	  perf_path=../prev-$(TARGET_SUBDIR)/$$component_in_prev_target/$(PERF_DATA); \
+	  echo "Perf path:"; \
+	  echo $$perf_path; \
+	  if [ -f $$perf_path ]; then \
+	    profile_name=cc1_$$component_in_prev_target.fda; \
+	    $(CREATE_GCOV) -binary ../prev-gcc/cc1$(exeext) -gcov $$profile_name -profile $$perf_path -gcov_version 2; \
+	  fi; \
+	done;
+
+	$(STAMP) $@
+#
 # Build hooks:
 
 c.info:
@@ -106,10 +131,9 @@ c.all.cross:
 c.start.encap:
 c.rest.encap:
 c.srcinfo:
-c.srcextra: gengtype-lex.cc
-	-cp -p $^ $(srcdir)
+c.srcextra:
 c.tags: force
-	cd $(srcdir)/c; $(ETAGS) -o TAGS.sub *.c *.h; \
+	cd $(srcdir)/c; $(ETAGS) -o TAGS.sub *.cc *.h; \
 	$(ETAGS) --include TAGS.sub --include ../TAGS.sub
 c.man:
 c.srcman:
@@ -125,13 +149,13 @@ C_SELFTEST_DEPS = cc1$(exeext) $(SELFTEST_DEPS)
 
 # Run the C selftests:
 s-selftest-c: $(C_SELFTEST_DEPS)
-	$(GCC_FOR_TARGET) $(C_SELFTEST_FLAGS)
+	$(GCC_FOR_SELFTESTS) $(C_SELFTEST_FLAGS)
 	$(STAMP) $@
 
 # Convenience methods for running C selftests under gdb:
 .PHONY: selftest-c-gdb
 selftest-c-gdb: $(C_SELFTEST_DEPS)
-	$(GCC_FOR_TARGET) $(C_SELFTEST_FLAGS) \
+	$(GCC_FOR_SELFTESTS) $(C_SELFTEST_FLAGS) \
 	  -wrapper gdb,--args
 
 .PHONY: selftest-gdb
@@ -140,7 +164,7 @@ selftest-gdb: selftest-c-gdb
 # Convenience methods for running C selftests under valgrind:
 .PHONY: selftest-c-valgrind
 selftest-c-valgrind: $(C_SELFTEST_DEPS)
-	$(GCC_FOR_TARGET) $(C_SELFTEST_FLAGS) \
+	$(GCC_FOR_SELFTESTS) $(C_SELFTEST_FLAGS) \
 	  -wrapper valgrind,--leak-check=full
 
 .PHONY: selftest-valgrind
@@ -181,6 +205,7 @@ c.mostlyclean:
 	-rm -f c/*$(objext)
 	-rm -f c/*$(coverageexts)
 	-rm -f cc1.fda
+	-rm -f cc1_*.fda
 c.clean:
 c.distclean:
 	-rm -f c/config.status c/Makefile

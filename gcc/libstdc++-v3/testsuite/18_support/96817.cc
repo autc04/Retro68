@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,6 +17,7 @@
 
 // { dg-do run }
 // { dg-additional-options "-pthread" { target pthread } }
+// { dg-require-effective-target hosted }
 
 // Static init cannot detect recursion for gthreads targets without futexes
 // (and the futex case can only detect it if __libc_single_threaded==true).

@@ -1,5 +1,5 @@
 /* Prototypes for exported functions defined in xstormy16.c
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2025 Free Software Foundation, Inc.
    Contributed by Red Hat, Inc.
 
 This file is part of GCC.
@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-
+#include "tree.h"  /* For ERROR_MARK.  */
 
 extern struct xstormy16_stack_layout xstormy16_compute_stack_layout (void);
 extern void xstormy16_expand_prologue (void);
@@ -55,16 +55,17 @@ extern void xstormy16_expand_andqi3 (rtx *);
 extern void xstormy16_split_cbranch (machine_mode, rtx, rtx, rtx);
 extern int  short_memory_operand (rtx, machine_mode);
 extern bool  nonimmediate_nonstack_operand (rtx, machine_mode);
-extern enum reg_class xstormy16_secondary_reload_class 
+extern enum reg_class xstormy16_secondary_reload_class
  (enum reg_class, machine_mode, rtx);
 extern void xstormy16_split_move (machine_mode, rtx, rtx);
 extern void xstormy16_expand_move (machine_mode, rtx, rtx);
-extern void xstormy16_expand_arith (machine_mode, enum rtx_code, 
+extern void xstormy16_expand_arith (machine_mode, enum rtx_code,
 				    rtx, rtx, rtx);
-extern const char * xstormy16_output_shift (machine_mode, enum rtx_code, 
+extern const char * xstormy16_output_shift (machine_mode, enum rtx_code,
 					    rtx, rtx, rtx);
 extern bool  xstormy16_below100_symbol (rtx, machine_mode);
 extern bool  xstormy16_splittable_below100_operand (rtx, machine_mode);
-extern bool xstormy16_legitimate_address_p (machine_mode, rtx, bool);
+extern bool xstormy16_legitimate_address_p (machine_mode, rtx, bool,
+					    code_helper = ERROR_MARK);
 #endif
 

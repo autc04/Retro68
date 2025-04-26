@@ -1,5 +1,5 @@
 ;; Predicate definitions for ARM and Thumb
-;; Copyright (C) 2004-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2025 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 
 ;; This file is part of GCC.
@@ -73,13 +73,13 @@
 (define_predicate "mve_imm_selective_upto_8"
   (match_test "satisfies_constraint_Rg (op)"))
 
-;; True if the immediate is the range +/- 1016 and multiple of 8 for MVE.
-(define_constraint "Ri"
-  "@internal In Thumb-2 state a constant is multiple of 8 and in range
-   of -/+ 1016 for MVE"
-  (and (match_code "const_int")
-       (match_test "TARGET_HAVE_MVE && (-1016 <= ival) && (ival <= 1016)
-		    && ((ival % 8) == 0)")))
+;; True if the immediate is multiple of 8 and in range of -/+ 1016 for MVE.
+(define_predicate "mve_vldrd_immediate"
+  (match_test "satisfies_constraint_Ri (op)"))
+
+;; True if the immediate is multiple of 2 and in range of -/+ 252 for MVE.
+(define_predicate "mve_vstrw_immediate"
+  (match_test "satisfies_constraint_Rl (op)"))
 
 ; Predicate for stack protector guard's address in
 ; stack_protect_combined_set_insn and stack_protect_combined_test_insn patterns
@@ -99,11 +99,21 @@
 })
 
 (define_predicate "vpr_register_operand"
-  (match_code "reg")
+  (match_code "reg,subreg")
 {
-  return REG_P (op)
+  if (SUBREG_P (op))
+    {
+      /* Only allow subregs if they are strictly type punning.	*/
+      if ((GET_MODE_SIZE (GET_MODE (SUBREG_REG (op)))
+	   != GET_MODE_SIZE (GET_MODE (op)))
+	  || SUBREG_BYTE (op) != 0)
+	return false;
+      op = SUBREG_REG (op);
+    }
+
+  return (REG_P (op)
 	  && (REGNO (op) >= FIRST_PSEUDO_REGISTER
-	      || IS_VPR_REGNUM (REGNO (op)));
+	      || IS_VPR_REGNUM (REGNO (op))));
 })
 
 (define_predicate "imm_for_neon_inv_logic_operand"
@@ -849,6 +859,10 @@
   (and (match_operand 0 "memory_operand")
        (match_code "reg" "0")))
 
+;; True if the operand is memory reference suitable for a ldrd/strd.
+(define_predicate "arm_ldrd_memory_operand"
+  (match_test "arm_ldrd_legitimate_address (op)"))
+
 ;; Predicates for parallel expanders based on mode.
 (define_special_predicate "vect_par_constant_high" 
   (match_code "parallel")
@@ -876,6 +890,10 @@
   (and (match_code "mem")
        (match_test "TARGET_32BIT && neon_vector_mem_operand (op, 2, true)")))
 
+(define_predicate "mve_struct_operand"
+  (and (match_code "mem")
+       (match_test "TARGET_HAVE_MVE && mve_struct_mem_operand (op)")))
+
 (define_predicate "neon_permissive_struct_operand"
   (and (match_code "mem")
        (match_test "TARGET_32BIT && neon_vector_mem_operand (op, 2, false)")))
@@ -899,3 +917,12 @@
 (define_special_predicate "aligned_operand"
   (ior (not (match_code "mem"))
        (match_test "MEM_ALIGN (op) >= GET_MODE_ALIGNMENT (mode)")))
+
+;; A special predicate that doesn't match a particular mode.
+(define_special_predicate "arm_any_register_operand"
+  (match_code "reg"))
+
+;; General memory operand that disallows Thumb-1 POST_INC.
+(define_predicate "mem_and_no_t1_wback_op"
+  (and (match_operand 0 "memory_operand")
+       (match_test "!(TARGET_THUMB1 && GET_CODE (XEXP (op, 0)) == POST_INC)")))

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,14 +39,14 @@ package Lib is
    --  Type to hold list of indirect references to unit number table
 
    type Compiler_State_Type is (Parsing, Analyzing);
-   Compiler_State : Compiler_State_Type;
+   Compiler_State : Compiler_State_Type := Parsing;
    --  Indicates current state of compilation. This is used to implement the
    --  function In_Extended_Main_Source_Unit.
 
    Parsing_Main_Extended_Source : Boolean := False;
    --  Set True if we are currently parsing a file that is part of the main
    --  extended source (the main unit, its spec, or one of its subunits). This
-   --  flag to implement In_Extended_Main_Source_Unit.
+   --  is used to implement In_Extended_Main_Source_Unit.
 
    Analysing_Subunit_Of_Main : Boolean := False;
    --  Set to True when analyzing a subunit of the main source. When True, if
@@ -463,8 +463,8 @@ package Lib is
    function No_Elab_Code_All (U : Unit_Number_Type) return Boolean;
    function OA_Setting       (U : Unit_Number_Type) return Character;
    function Primary_Stack_Count
-                             (U : Unit_Number_Type) return Int;
-   function Sec_Stack_Count  (U : Unit_Number_Type) return Int;
+                             (U : Unit_Number_Type) return Nat;
+   function Sec_Stack_Count  (U : Unit_Number_Type) return Nat;
    function Source_Index     (U : Unit_Number_Type) return Source_File_Index;
    function Unit_File_Name   (U : Unit_Number_Type) return File_Name_Type;
    function Unit_Name        (U : Unit_Number_Type) return Unit_Name_Type;
@@ -616,8 +616,7 @@ package Lib is
    --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    function In_Extended_Main_Code_Unit (Loc : Source_Ptr) return Boolean;
-   --  Same function as above, but argument is a source pointer rather
-   --  than a node.
+   --  Same as above, but for Source_Ptr
 
    function In_Extended_Main_Source_Unit
      (N : Node_Or_Entity_Id) return Boolean;
@@ -631,7 +630,13 @@ package Lib is
    --  and the parent unit spec if it is separate.
 
    function In_Extended_Main_Source_Unit (Loc : Source_Ptr) return Boolean;
-   --  Same function as above, but argument is a source pointer
+   --  Same as above, but for Source_Ptr
+
+   function ipu (N : Node_Or_Entity_Id) return Boolean;
+   --  Same as In_Predefined_Unit, but renamed so it can assist debugging.
+   --  Otherwise, there is a disambiguous name conflict in the two versions of
+   --  In_Predefined_Unit which makes it inconvient to set as a breakpoint
+   --  condition.
 
    function In_Predefined_Unit (N : Node_Or_Entity_Id) return Boolean;
    --  Returns True if the given node or entity appears within the source text
@@ -640,7 +645,7 @@ package Lib is
 
    function In_Predefined_Unit (S : Source_Ptr) return Boolean;
    pragma Inline (In_Predefined_Unit);
-   --  Same function as above but argument is a source pointer
+   --  Same as above, but for Source_Ptr
 
    function In_Internal_Unit (N : Node_Or_Entity_Id) return Boolean;
    function In_Internal_Unit (S : Source_Ptr) return Boolean;
@@ -681,11 +686,11 @@ package Lib is
    --  source unit, the criterion being that Get_Source_Unit yields the
    --  same value for each argument.
 
-   procedure Increment_Primary_Stack_Count (Increment : Int);
+   procedure Increment_Primary_Stack_Count (Increment : Nat);
    --  Increment the Primary_Stack_Count field for the current unit by
    --  Increment.
 
-   procedure Increment_Sec_Stack_Count (Increment : Int);
+   procedure Increment_Sec_Stack_Count (Increment : Nat);
    --  Increment the Sec_Stack_Count field for the current unit by Increment
 
    function Increment_Serial_Number return Nat;
@@ -856,8 +861,8 @@ private
       Ident_String           : Node_Id;
       Main_Priority          : Int;
       Main_CPU               : Int;
-      Primary_Stack_Count    : Int;
-      Sec_Stack_Count        : Int;
+      Primary_Stack_Count    : Nat;
+      Sec_Stack_Count        : Nat;
       Serial_Number          : Nat;
       Version                : Word;
       Error_Location         : Source_Ptr;

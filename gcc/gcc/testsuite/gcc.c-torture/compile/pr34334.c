@@ -1,4 +1,3 @@
-/* { dg-skip-if "ptxas times out" { nvptx-*-* } { "*" } { "-O0" } } */
 __extension__ typedef __SIZE_TYPE__ size_t;
 __extension__ typedef long long int __quad_t;
 __extension__ typedef unsigned int __mode_t;
@@ -77,8 +76,8 @@ struct tm { };
 typedef struct __locale_struct { } *__locale_t;
 extern int getaddrinfo (__const char *__restrict __name, struct addrinfo **__restrict __pai);
 typedef struct _IO_FILE FILE;
-__strsep_1c (char **__s, char __reject) { }
-__strsep_2c (char **__s, char __reject1, char __reject2) { }
+void __strsep_1c (char **__s, char __reject) { }
+void __strsep_2c (char **__s, char __reject1, char __reject2) { }
 typedef struct stack_st  { } STACK;
 typedef struct asn1_string_st ASN1_BIT_STRING;
 typedef struct bn_mont_ctx_st BN_MONT_CTX;

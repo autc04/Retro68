@@ -1,6 +1,7 @@
 // { dg-do compile { target c++17 } }
+// { dg-add-options no_pch }
 
-// Copyright (C) 2011-2022 Free Software Foundation, Inc.
+// Copyright (C) 2011-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,21 +35,78 @@ constexpr std::size_t test01()
   auto v2  = a.at(2);
   auto v3  = a.front();
   auto v4  = a.back();
-  return v1 + v2 + v3 + v4;
+  auto v5 = *a.data();
+  return v1 + v2 + v3 + v4 + v5;
 }
 
 static_assert( test01() == (55 + 66 + 0 + 2) );
 
 constexpr std::size_t test02()
 {
-  // array
+  // const array
   typedef std::array<std::size_t, 6> array_type;
   const array_type a = { { 0, 55, 66, 99, 4115, 2 } };
   auto v1  = a[1];
   auto v2  = a.at(2);
   auto v3  = a.front();
   auto v4  = a.back();
-  return v1 + v2 + v3 + v4;
+  auto v5 = *a.data();
+  return v1 + v2 + v3 + v4 + v5;
 }
 
 static_assert( test02() == (55 + 66 + 0 + 2) );
+
+constexpr bool test_zero()
+{
+  // zero-sized array (PR libstdc++/108258)
+  std::array<int, 0> a{};
+  auto v4 = a.data();
+  // The standard says this is unspecified, it's null for our implementation:
+  return a.data() == nullptr;
+}
+
+static_assert( test_zero() );
+
+#ifdef __cpp_concepts
+template<typename T = int>
+  constexpr std::false_type
+  access_empty() { return {}; }
+
+template<typename T = int>
+  requires (std::bool_constant<&std::array<T, 0>{}.at(0) != nullptr>::value)
+  constexpr std::true_type
+  access_empty() { return {}; }
+
+template<typename T = int>
+  requires (std::bool_constant<&std::array<T, 0>{}[0] != nullptr>::value)
+  constexpr std::true_type
+  access_empty() { return {}; }
+
+template<typename T = int>
+  requires (std::bool_constant<&std::array<T, 0>{}.front() != nullptr>::value)
+  constexpr std::true_type
+  access_empty() { return {}; }
+
+template<typename T = int>
+  requires (std::bool_constant<&std::array<T, 0>{}.back() != nullptr>::value)
+  constexpr std::true_type
+  access_empty() { return {}; }
+
+static_assert( ! access_empty() );
+
+template<typename T = int>
+  constexpr std::false_type
+  access_past_the_end() { return {}; }
+
+template<typename T = int>
+  requires (std::bool_constant<std::array<T, 1>{}.at(0) != nullptr>::value)
+  constexpr std::true_type
+  access_past_the_end() { return {}; }
+
+template<typename T = int>
+  requires (std::bool_constant<&std::array<T, 1>{}[1] != nullptr>::value)
+  constexpr std::true_type
+  access_past_the_end() { return {}; }
+
+static_assert( ! access_past_the_end() );
+#endif

@@ -1,8 +1,9 @@
-TEST_OUTPUT:
+/* REQUIRED_ARGS: -preview=bitfields
+ * TEST_OUTPUT:
 ---
-fail_compilation/test16188.d(1): Error: no identifier for declarator `TEST_OUTPUT`
-fail_compilation/test16188.d(1): Error: declaration expected, not `:`
-fail_compilation/test16188.d(18): Error: unmatched closing brace
+fail_compilation/test16188.d(101): Error: no property `name` for `Where()` of type `test16188.Where`
+fail_compilation/test16188.d(107): Error: undefined identifier `getMember`
+fail_compilation/test16188.d(101): Error: template instance `test16188.Where.opDispatch!"name"` error instantiating
 ---
  */
 
@@ -14,6 +15,8 @@ fail_compilation/test16188.d(18): Error: unmatched closing brace
  * This happens because errors are gagged when opDispatch() is compiled,
  * I don't understand why.
  */
+
+#line 100
 
 void where() { Where().name; }
 

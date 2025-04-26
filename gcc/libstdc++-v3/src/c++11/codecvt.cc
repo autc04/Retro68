@@ -1,6 +1,6 @@
 // Locale support (codecvt) -*- C++ -*-
 
-// Copyright (C) 2015-2022 Free Software Foundation, Inc.
+// Copyright (C) 2015-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -256,19 +256,19 @@ namespace
       return incomplete_mb_character;
     char32_t c1 = (unsigned char) from[0];
     // https://en.wikipedia.org/wiki/UTF-8#Sample_code
-    if (c1 < 0x80)
+    if (c1 < 0x80) [[likely]]
     {
       ++from;
       return c1;
     }
-    else if (c1 < 0xC2) // continuation or overlong 2-byte sequence
+    else if (c1 < 0xC2) [[unlikely]] // continuation or overlong 2-byte sequence
       return invalid_mb_sequence;
     else if (c1 < 0xE0) // 2-byte sequence
     {
-      if (avail < 2)
+      if (avail < 2) [[unlikely]]
 	return incomplete_mb_character;
       char32_t c2 = (unsigned char) from[1];
-      if ((c2 & 0xC0) != 0x80)
+      if ((c2 & 0xC0) != 0x80) [[unlikely]]
 	return invalid_mb_sequence;
       char32_t c = (c1 << 6) + c2 - 0x3080;
       if (c <= maxcode)
@@ -277,44 +277,52 @@ namespace
     }
     else if (c1 < 0xF0) // 3-byte sequence
     {
-      if (avail < 3)
+      if (avail < 2) [[unlikely]]
 	return incomplete_mb_character;
       char32_t c2 = (unsigned char) from[1];
-      if ((c2 & 0xC0) != 0x80)
+      if ((c2 & 0xC0) != 0x80) [[unlikely]]
 	return invalid_mb_sequence;
-      if (c1 == 0xE0 && c2 < 0xA0) // overlong
+      if (c1 == 0xE0 && c2 < 0xA0) [[unlikely]] // overlong
 	return invalid_mb_sequence;
+      if (c1 == 0xED && c2 >= 0xA0) [[unlikely]] // surrogate
+	return invalid_mb_sequence;
+      if (avail < 3) [[unlikely]]
+	return incomplete_mb_character;
       char32_t c3 = (unsigned char) from[2];
-      if ((c3 & 0xC0) != 0x80)
+      if ((c3 & 0xC0) != 0x80) [[unlikely]]
 	return invalid_mb_sequence;
       char32_t c = (c1 << 12) + (c2 << 6) + c3 - 0xE2080;
       if (c <= maxcode)
 	from += 3;
       return c;
     }
-    else if (c1 < 0xF5) // 4-byte sequence
+    else if (c1 < 0xF5 && maxcode > 0xFFFF) // 4-byte sequence
     {
-      if (avail < 4)
+      if (avail < 2) [[unlikely]]
 	return incomplete_mb_character;
       char32_t c2 = (unsigned char) from[1];
-      if ((c2 & 0xC0) != 0x80)
+      if ((c2 & 0xC0) != 0x80) [[unlikely]]
 	return invalid_mb_sequence;
-      if (c1 == 0xF0 && c2 < 0x90) // overlong
+      if (c1 == 0xF0 && c2 < 0x90) [[unlikely]] // overlong
 	return invalid_mb_sequence;
-      if (c1 == 0xF4 && c2 >= 0x90) // > U+10FFFF
-      return invalid_mb_sequence;
+      if (c1 == 0xF4 && c2 >= 0x90) [[unlikely]] // > U+10FFFF
+	return invalid_mb_sequence;
+      if (avail < 3) [[unlikely]]
+	return incomplete_mb_character;
       char32_t c3 = (unsigned char) from[2];
-      if ((c3 & 0xC0) != 0x80)
+      if ((c3 & 0xC0) != 0x80) [[unlikely]]
 	return invalid_mb_sequence;
+      if (avail < 4) [[unlikely]]
+	return incomplete_mb_character;
       char32_t c4 = (unsigned char) from[3];
-      if ((c4 & 0xC0) != 0x80)
+      if ((c4 & 0xC0) != 0x80) [[unlikely]]
 	return invalid_mb_sequence;
       char32_t c = (c1 << 18) + (c2 << 12) + (c3 << 6) + c4 - 0x3C82080;
       if (c <= maxcode)
 	from += 4;
       return c;
     }
-    else // > U+10FFFF
+    else [[unlikely]] // > U+10FFFF
       return invalid_mb_sequence;
   }
 
@@ -324,20 +332,20 @@ namespace
   {
     if (code_point < 0x80)
       {
-	if (to.size() < 1)
+	if (to.size() < 1) [[unlikely]]
 	  return false;
 	to = code_point;
       }
     else if (code_point <= 0x7FF)
       {
-	if (to.size() < 2)
+	if (to.size() < 2) [[unlikely]]
 	  return false;
 	to = (code_point >> 6) + 0xC0;
 	to = (code_point & 0x3F) + 0x80;
       }
     else if (code_point <= 0xFFFF)
       {
-	if (to.size() < 3)
+	if (to.size() < 3) [[unlikely]]
 	  return false;
 	to = (code_point >> 12) + 0xE0;
 	to = ((code_point >> 6) & 0x3F) + 0x80;
@@ -345,14 +353,14 @@ namespace
       }
     else if (code_point <= 0x10FFFF)
       {
-	if (to.size() < 4)
+	if (to.size() < 4) [[unlikely]]
 	  return false;
 	to = (code_point >> 18) + 0xF0;
 	to = ((code_point >> 12) & 0x3F) + 0x80;
 	to = ((code_point >> 6) & 0x3F) + 0x80;
 	to = (code_point & 0x3F) + 0x80;
       }
-    else
+    else [[unlikely]]
       return false;
     return true;
   }
@@ -397,16 +405,16 @@ namespace
 			  unsigned long maxcode, codecvt_mode mode)
     {
       const size_t avail = from.size();
-      if (avail == 0)
+      if (avail == 0) [[unlikely]]
 	return incomplete_mb_character;
       int inc = 1;
       char32_t c = adjust_byte_order(from[0], mode);
       if (is_high_surrogate(c))
 	{
-	  if (avail < 2)
+	  if (avail < 2) [[unlikely]]
 	    return incomplete_mb_character;
 	  const char16_t c2 = adjust_byte_order(from[1], mode);
-	  if (is_low_surrogate(c2))
+	  if (is_low_surrogate(c2)) [[likely]]
 	    {
 	      c = surrogate_pair_to_code_point(c, c2);
 	      inc = 2;
@@ -414,7 +422,7 @@ namespace
 	  else
 	    return invalid_mb_sequence;
 	}
-      else if (is_low_surrogate(c))
+      else if (is_low_surrogate(c)) [[unlikely]]
 	return invalid_mb_sequence;
       if (c <= maxcode)
 	from += inc;
@@ -458,9 +466,9 @@ namespace
     while (from.size() && to.size())
       {
 	const char32_t codepoint = read_utf8_code_point(from, maxcode);
-	if (codepoint == incomplete_mb_character)
+	if (codepoint == incomplete_mb_character) [[unlikely]]
 	  return codecvt_base::partial;
-	if (codepoint > maxcode)
+	if (codepoint > maxcode) [[unlikely]]
 	  return codecvt_base::error;
 	to = codepoint;
       }
@@ -473,14 +481,16 @@ namespace
   ucs4_out(range<const char32_t>& from, range<C>& to,
            unsigned long maxcode = max_code_point, codecvt_mode mode = {})
   {
-    if (!write_utf8_bom(to, mode))
+    if (!write_utf8_bom(to, mode)) [[unlikely]]
       return codecvt_base::partial;
     while (from.size())
       {
 	const char32_t c = from[0];
-	if (c > maxcode)
+	if (0xD800 <= c && c <= 0xDFFF) [[unlikely]]
 	  return codecvt_base::error;
-	if (!write_utf8_code_point(to, c))
+	if (c > maxcode) [[unlikely]]
+	  return codecvt_base::error;
+	if (!write_utf8_code_point(to, c)) [[unlikely]]
 	  return codecvt_base::partial;
 	++from;
       }
@@ -496,13 +506,13 @@ namespace
     while (from.size() && to.size())
       {
 	const char32_t codepoint = read_utf16_code_point(from, maxcode, mode);
-	if (codepoint == incomplete_mb_character)
+	if (codepoint == incomplete_mb_character) [[unlikely]]
 	  return codecvt_base::partial;
-	if (codepoint > maxcode)
+	if (codepoint > maxcode) [[unlikely]]
 	  return codecvt_base::error;
 	to = codepoint;
       }
-    return from.size() ? codecvt_base::partial : codecvt_base::ok;
+    return from.nbytes() ? codecvt_base::partial : codecvt_base::ok;
   }
 
   // ucs4 -> utf16
@@ -510,14 +520,16 @@ namespace
   ucs4_out(range<const char32_t>& from, range<char16_t, false>& to,
            unsigned long maxcode = max_code_point, codecvt_mode mode = {})
   {
-    if (!write_utf16_bom(to, mode))
+    if (!write_utf16_bom(to, mode)) [[unlikely]]
       return codecvt_base::partial;
     while (from.size())
       {
 	const char32_t c = from[0];
-	if (c > maxcode)
+	if (0xD800 <= c && c <= 0xDFFF) [[unlikely]]
 	  return codecvt_base::error;
-	if (!write_utf16_code_point(to, c, mode))
+	if (c > maxcode) [[unlikely]]
+	  return codecvt_base::error;
+	if (!write_utf16_code_point(to, c, mode)) [[unlikely]]
 	  return codecvt_base::partial;
 	++from;
       }
@@ -527,34 +539,28 @@ namespace
   // Flag indicating whether to process UTF-16 or UCS2
   enum class surrogates { allowed, disallowed };
 
-  // utf8 -> utf16 (or utf8 -> ucs2 if s == surrogates::disallowed)
-  template<typename C8, typename C16>
+  // utf8 -> utf16 (or utf8 -> ucs2 if maxcode <= 0xFFFF)
+  template <typename C8, typename C16>
   codecvt_base::result
-  utf16_in(range<const C8>& from, range<C16>& to,
-	   unsigned long maxcode = max_code_point, codecvt_mode mode = {},
-	   surrogates s = surrogates::allowed)
+  utf16_in(range<const C8> &from, range<C16> &to,
+	   unsigned long maxcode = max_code_point, codecvt_mode mode = {})
   {
     read_utf8_bom(from, mode);
     while (from.size() && to.size())
       {
 	auto orig = from;
 	const char32_t codepoint = read_utf8_code_point(from, maxcode);
-	if (codepoint == incomplete_mb_character)
-	  {
-	    if (s == surrogates::allowed)
-	      return codecvt_base::partial;
-	    else
-	      return codecvt_base::error; // No surrogates in UCS2
-	  }
+	if (codepoint == incomplete_mb_character) [[unlikely]]
+	  return codecvt_base::partial;
 	if (codepoint > maxcode)
 	  return codecvt_base::error;
-	if (!write_utf16_code_point(to, codepoint, mode))
+	if (!write_utf16_code_point(to, codepoint, mode)) [[unlikely]]
 	  {
 	    from = orig; // rewind to previous position
 	    return codecvt_base::partial;
 	  }
       }
-    return codecvt_base::ok;
+    return from.size() ? codecvt_base::partial : codecvt_base::ok;
   }
 
   // utf16 -> utf8 (or ucs2 -> utf8 if s == surrogates::disallowed)
@@ -564,7 +570,7 @@ namespace
 	    unsigned long maxcode = max_code_point, codecvt_mode mode = {},
 	    surrogates s = surrogates::allowed)
   {
-    if (!write_utf8_bom(to, mode))
+    if (!write_utf8_bom(to, mode)) [[unlikely]]
       return codecvt_base::partial;
     while (from.size())
       {
@@ -572,14 +578,14 @@ namespace
 	int inc = 1;
 	if (is_high_surrogate(c))
 	  {
-	    if (s == surrogates::disallowed)
+	    if (s == surrogates::disallowed) [[unlikely]]
 	      return codecvt_base::error; // No surrogates in UCS-2
 
-	    if (from.size() < 2)
-	      return codecvt_base::ok; // stop converting at this point
+	    if (from.size() < 2) [[unlikely]]
+	      return codecvt_base::partial; // stop converting at this point
 
 	    const char32_t c2 = from[1];
-	    if (is_low_surrogate(c2))
+	    if (is_low_surrogate(c2)) [[likely]]
 	      {
 		c = surrogate_pair_to_code_point(c, c2);
 		inc = 2;
@@ -587,11 +593,11 @@ namespace
 	    else
 	      return codecvt_base::error;
 	  }
-	else if (is_low_surrogate(c))
+	else if (is_low_surrogate(c)) [[unlikely]]
 	  return codecvt_base::error;
-	if (c > maxcode)
+	if (c > maxcode) [[unlikely]]
 	  return codecvt_base::error;
-	if (!write_utf8_code_point(to, c))
+	if (!write_utf8_code_point(to, c)) [[unlikely]]
 	  return codecvt_base::partial;
 	from += inc;
       }
@@ -629,7 +635,7 @@ namespace
   {
     // UCS-2 only supports characters in the BMP, i.e. one UTF-16 code unit:
     maxcode = std::min(max_single_utf16_unit, maxcode);
-    return utf16_in(from, to, maxcode, mode, surrogates::disallowed);
+    return utf16_in(from, to, maxcode, mode);
   }
 
   // ucs2 -> utf8
@@ -653,7 +659,7 @@ namespace
     while (from.size() && to.size())
       {
 	char16_t c = from[0];
-	if (is_high_surrogate(c))
+	if (0xD800 <= c && c <= 0xDFFF)
 	  return codecvt_base::error;
 	if (c > maxcode)
 	  return codecvt_base::error;
@@ -680,7 +686,7 @@ namespace
 	  return codecvt_base::error;
 	to = c;
       }
-    return from.size() == 0 ? codecvt_base::ok : codecvt_base::partial;
+    return from.nbytes() == 0 ? codecvt_base::ok : codecvt_base::partial;
   }
 
   const char16_t*
@@ -1344,8 +1350,6 @@ do_in(state_type&, const extern_type* __from, const extern_type* __from_end,
   auto res = ucs2_in(from, to, _M_maxcode, _M_mode);
   __from_next = reinterpret_cast<const char*>(from.next);
   __to_next = to.next;
-  if (res == codecvt_base::ok && __from_next != __from_end)
-    res = codecvt_base::error;
   return res;
 }
 
@@ -1419,8 +1423,6 @@ do_in(state_type&, const extern_type* __from, const extern_type* __from_end,
   auto res = ucs4_in(from, to, _M_maxcode, _M_mode);
   __from_next = reinterpret_cast<const char*>(from.next);
   __to_next = to.next;
-  if (res == codecvt_base::ok && __from_next != __from_end)
-    res = codecvt_base::error;
   return res;
 }
 
@@ -1521,8 +1523,6 @@ do_in(state_type&, const extern_type* __from, const extern_type* __from_end,
 #endif
   __from_next = reinterpret_cast<const char*>(from.next);
   __to_next = reinterpret_cast<wchar_t*>(to.next);
-  if (res == codecvt_base::ok && __from_next != __from_end)
-    res = codecvt_base::error;
   return res;
 }
 

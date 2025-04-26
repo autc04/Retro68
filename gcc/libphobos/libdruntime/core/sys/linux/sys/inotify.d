@@ -22,7 +22,6 @@ version (DragonFlyBSD) version = LinuxOrCompatible;
 
 version (LinuxOrCompatible):
 extern (C):
-@system:
 nothrow:
 @nogc:
 
@@ -120,6 +119,11 @@ else version (SPARC_Any)
     enum IN_NONBLOCK = 0x800; // octal!4000
 }
 else version (IBMZ_Any)
+{
+    enum IN_CLOEXEC = 0x80000; // octal!2000000
+    enum IN_NONBLOCK = 0x800; // octal!4000
+}
+else version (LoongArch64)
 {
     enum IN_CLOEXEC = 0x80000; // octal!2000000
     enum IN_NONBLOCK = 0x800; // octal!4000

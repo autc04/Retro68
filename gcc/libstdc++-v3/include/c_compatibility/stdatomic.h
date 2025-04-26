@@ -1,6 +1,6 @@
 // C compatibility header <stdatomic.h> -*- C++ -*-
 
-// Copyright (C) 2022 The GCC developers
+// Copyright The GNU Toolchain Authors.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,12 +29,13 @@
 #ifndef _GLIBCXX_STDATOMIC_H
 #define _GLIBCXX_STDATOMIC_H
 
-#if __cplusplus > 202002L
+#define __glibcxx_want_stdatomic_h
+#include <bits/version.h>
+
+#ifdef __cpp_lib_stdatomic_h // C++ >= 23
 #include <atomic>
 
-#define __cpp_lib_stdatomic_h 202011L
-
-#define _Atomic(_Tp) std::atomic<_Tp>
+#define _Atomic(_Tp) ::std::atomic<_Tp>
 
 using std::memory_order;
 using std::memory_order_relaxed;
@@ -62,7 +63,7 @@ using std::atomic_char8_t;
 using std::atomic_char16_t;
 using std::atomic_char32_t;
 using std::atomic_wchar_t;
-#ifdef _GLIBCXX_USE_C99_STDINT_TR1
+#ifdef _GLIBCXX_USE_C99_STDINT
 using std::atomic_int8_t;
 using std::atomic_uint8_t;
 using std::atomic_int16_t;
@@ -92,7 +93,7 @@ using std::atomic_intptr_t;
 using std::atomic_uintptr_t;
 using std::atomic_size_t;
 using std::atomic_ptrdiff_t;
-#ifdef _GLIBCXX_USE_C99_STDINT_TR1
+#ifdef _GLIBCXX_USE_C99_STDINT
 using std::atomic_intmax_t;
 using std::atomic_uintmax_t;
 #endif
@@ -124,7 +125,7 @@ using std::atomic_flag_clear_explicit;
 using std::atomic_thread_fence;
 using std::atomic_signal_fence;
 
-#elif defined __clang__
+#elif defined _GLIBCXX_CLANG
 # include_next <stdatomic.h>
-#endif // C++23
+#endif // __cpp_lib_stdatomic_h
 #endif // _GLIBCXX_STDATOMIC_H

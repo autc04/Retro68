@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -48,6 +48,7 @@ with Stringt;        use Stringt;
 with Table;
 with Tbuild;         use Tbuild;
 with Uintp;          use Uintp;
+with Warnsw;         use Warnsw;
 
 with Ada.Unchecked_Deallocation;
 
@@ -57,9 +58,9 @@ with GNAT.Sets;
 package body Sem_Case is
 
    type Choice_Bounds is record
-     Lo   : Node_Id;
-     Hi   : Node_Id;
-     Node : Node_Id;
+      Lo   : Node_Id;
+      Hi   : Node_Id;
+      Node : Node_Id;
    end record;
    --  Represent one choice bounds entry with Lo and Hi values, Node points
    --  to the choice node itself.
@@ -105,6 +106,14 @@ package body Sem_Case is
    --  constraint and at least one of the constraint values is nonstatic.
 
    package Composite_Case_Ops is
+
+      Simplified_Composite_Coverage_Rules : constant Boolean := True;
+      --  Indicates that, as a temporary stopgap, we implement
+      --  simpler coverage-checking rules when casing on a
+      --  composite selector:
+      --     1) Require that an Others choice must be given, regardless
+      --        of whether all possible values are covered explicitly.
+      --     2) No legality checks regarding overlapping choices.
 
       function Box_Value_Required (Subtyp : Entity_Id) return Boolean;
       --  If result is True, then the only allowed value (in a choice
@@ -184,8 +193,13 @@ package body Sem_Case is
            record
               Low, High : Uint;
            end record;
+         function "=" (X, Y : Discrete_Range_Info) return Boolean is abstract;
+         --  Here (and below), we don't use "=", which is a good thing,
+         --  because it wouldn't work, because the user-defined "=" on
+         --  Uint does not compose according to Ada rules.
 
          type Composite_Range_Info is array (Part_Id) of Discrete_Range_Info;
+         function "=" (X, Y : Composite_Range_Info) return Boolean is abstract;
 
          type Choice_Range_Info (Is_Others : Boolean := False) is
            record
@@ -196,6 +210,9 @@ package body Sem_Case is
                     null;
               end case;
            end record;
+         pragma Annotate (CodePeer, False_Positive, "raise exception",
+                          "function is abstract, hence never called");
+         function "=" (X, Y : Choice_Range_Info) return Boolean is abstract;
 
          type Choices_Range_Info is array (Choice_Id) of Choice_Range_Info;
 
@@ -263,7 +280,6 @@ package body Sem_Case is
          type Bound_Values is array (Positive range <>) of Node_Id;
 
       end Choice_Analysis;
-
    end Composite_Case_Ops;
 
    procedure Expand_Others_Choice
@@ -1104,7 +1120,7 @@ package body Sem_Case is
          C := UI_To_Int (Value);
 
          if C in 16#20# .. 16#7E# then
-            Set_Character_Literal_Name (Char_Code (UI_To_Int (Value)));
+            Set_Character_Literal_Name (UI_To_CC (Value));
             return Name_Find;
          end if;
 
@@ -1534,8 +1550,8 @@ package body Sem_Case is
             return Result;
          end Component_Bounds_Info;
 
-         Component_Bounds : constant Composite_Range_Info
-           := Component_Bounds_Info;
+         Component_Bounds : constant Composite_Range_Info :=
+           Component_Bounds_Info;
 
          package Case_Bindings is
 
@@ -1604,7 +1620,7 @@ package body Sem_Case is
                   begin
                      while Present (Comp) loop
                         if Chars (First (Choices (Comp))) = Orig_Name then
-                           pragma Assert (not Present (Matching_Comp));
+                           pragma Assert (No (Matching_Comp));
                            Matching_Comp := Comp;
                         end if;
 
@@ -2501,8 +2517,8 @@ package body Sem_Case is
 
                use Uint_Sets;
 
-               Result : constant Representative_Values_Array
-                 := (others => Uint_Sets.Create (Initial_Size => 32));
+               Result : constant Representative_Values_Array :=
+                 (others => Uint_Sets.Create (Initial_Size => 32));
 
                procedure Insert_Representative (Value : Uint; P : Part_Id);
                --  Insert the given Value into the representative values set
@@ -2526,6 +2542,14 @@ package body Sem_Case is
                for P in Part_Id loop
                   Insert_Representative (Component_Bounds (P).Low, P);
                end loop;
+
+               if Simplified_Composite_Coverage_Rules then
+                  --  Omit other representative values to avoid capacity
+                  --  problems building data structures only used in
+                  --  compile-time checks that will not be performed.
+                  return Result;
+               end if;
+
                for C of Choices_Bounds loop
                   if not C.Is_Others then
                      for P in Part_Id loop
@@ -2539,8 +2563,8 @@ package body Sem_Case is
                return Result;
             end Representative_Values_Init;
 
-            Representative_Values : constant Representative_Values_Array
-              := Representative_Values_Init;
+            Representative_Values : constant Representative_Values_Array :=
+              Representative_Values_Init;
             --  We want to avoid looking at every point in the Cartesian
             --  product of all component values. Instead we select, for each
             --  component, a set of representative values and then look only
@@ -2640,8 +2664,8 @@ package body Sem_Case is
                   return Equal;
                else
                   declare
-                     Intersection : constant Value_Index_Set
-                       := Indexed (S1) and Indexed (S2);
+                     Intersection : constant Value_Index_Set :=
+                       Indexed (S1) and Indexed (S2);
                   begin
                      if (for all Flag of Intersection => not Flag) then
                         return Disjoint;
@@ -2667,6 +2691,7 @@ package body Sem_Case is
             ---------------------
             -- Free_Value_Sets --
             ---------------------
+
             procedure Free_Value_Sets is
             begin
                Value_Index_Set_Table.Free;
@@ -2727,7 +2752,7 @@ package body Sem_Case is
                procedure Test_Point_For_Match is
                   function In_Range (Val : Uint; Rang : Discrete_Range_Info)
                     return Boolean is
-                    ((Rang.Low <= Val) and then (Val <= Rang.High));
+                    (Rang.Low <= Val and then Val <= Rang.High);
                begin
                   pragma Assert (not Done);
                   Matches (Next_Index) :=
@@ -2925,7 +2950,7 @@ package body Sem_Case is
          --  is created with the appropriate Char_Code and Chars fields.
 
          if Is_Standard_Character_Type (Choice_Type) then
-            Set_Character_Literal_Name (Char_Code (UI_To_Int (Value)));
+            Set_Character_Literal_Name (UI_To_CC (Value));
             Lit :=
               Make_Character_Literal (Loc,
                 Chars              => Name_Find,
@@ -3367,8 +3392,6 @@ package body Sem_Case is
          --------------------------------
 
          procedure Check_Case_Pattern_Choices is
-            --  ??? Need to Free/Finalize value sets allocated here.
-
             package Ops is new Composite_Case_Ops.Choice_Analysis
               (Case_Statement => N);
             use Ops;
@@ -3393,15 +3416,21 @@ package body Sem_Case is
 
                Covered : Value_Set := Empty;
                --  The union of all alternatives seen so far
-
             begin
+               if Composite_Case_Ops.Simplified_Composite_Coverage_Rules then
+                  if not (for some Choice of Info => Choice.Is_Others) then
+                     Error_Msg_N ("others choice required", N);
+                  end if;
+                  return;
+               end if;
+
                for Choice of Info loop
                   if Choice.Is_Others then
                      Others_Seen := True;
                   else
                      if Flag_Overlapping_Within_One_Alternative
-                        and then (Compare (Matches (Choice.Alternative),
-                                  Choice.Matches) /= Disjoint)
+                        and then Compare (Matches (Choice.Alternative),
+                                          Choice.Matches) /= Disjoint
                      then
                         Error_Msg_N
                           ("bad overlapping within one alternative", N);
@@ -3450,7 +3479,7 @@ package body Sem_Case is
                   Union (Target => Covered, Source => Matches (A1));
                end loop;
 
-               if (not Others_Seen) and then not Complement_Is_Empty (Covered)
+               if not Others_Seen and then not Complement_Is_Empty (Covered)
                then
                   Error_Msg_N ("not all values are covered", N);
                end if;
@@ -3561,7 +3590,7 @@ package body Sem_Case is
 
             --  Hold on, maybe it isn't a complete mess after all.
 
-            if Extensions_Allowed and then Subtyp /= Any_Type then
+            if All_Extensions_Allowed and then Subtyp /= Any_Type then
                Check_Composite_Case_Selector;
                Check_Case_Pattern_Choices;
             end if;
@@ -3657,6 +3686,7 @@ package body Sem_Case is
                            if not Is_Discrete_Type (E)
                              or else not Has_Static_Predicate (E)
                              or else Has_Dynamic_Predicate_Aspect (E)
+                             or else Has_Ghost_Predicate_Aspect (E)
                            then
                               Bad_Predicated_Subtype_Use
                                 ("cannot use subtype& with non-static "
@@ -3794,7 +3824,7 @@ package body Sem_Case is
               (Choice_Table,
                Bounds_Type,
                Subtyp,
-               Others_Present or else (Choice_Type = Universal_Integer),
+               Others_Present or else Choice_Type = Universal_Integer,
                N);
 
             --  If no others choice we are all done, otherwise we have one more
@@ -3844,7 +3874,7 @@ package body Sem_Case is
    function Is_Case_Choice_Pattern (Expr : Node_Id) return Boolean is
       E : Node_Id := Expr;
    begin
-      if not Extensions_Allowed then
+      if not All_Extensions_Allowed then
          return False;
       end if;
 

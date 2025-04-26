@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <algorithm>
 #include <vector>
@@ -226,6 +225,29 @@ test06()
   VERIFY( ranges::equal(v, (int[]){1,2,3,0}) );
 }
 
+void
+test07()
+{
+  struct move_only_output_iterator
+  {
+    using value_type = int;
+    using difference_type = short;
+    using iterator_category = std::output_iterator_tag;
+
+    move_only_output_iterator() = default;
+    move_only_output_iterator(move_only_output_iterator&&) = default;
+    move_only_output_iterator& operator=(move_only_output_iterator&&) = default;
+
+    move_only_output_iterator& operator*() { return *this; }
+    move_only_output_iterator& operator++() { return *this; }
+    move_only_output_iterator operator++(int) { return std::move(*this); }
+
+    void operator=(int) { }
+  };
+
+  ranges::copy(std::vector<int>{1,2,3}, move_only_output_iterator{});
+}
+
 int
 main()
 {
@@ -235,4 +257,5 @@ main()
   test04();
   static_assert(test05());
   test06();
+  test07();
 }

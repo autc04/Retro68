@@ -123,7 +123,7 @@ baz (int d, int m, int i1, int i2, int p, int *idp, int s,
 void
 bar (int d, int m, int i1, int i2, int i3, int p, int *idp, int hda, int s,
      int nte, int tl, int nth, int g, int nta, int fi, int pp, int *q, int *dd, int ntm,
-     const char *msg)
+     const char *msg, int n1, int n2)
 {
   [[omp::directive (nothing)]];
   [[omp::directive (error at (execution) severity (warning) message (msg))]];
@@ -593,9 +593,11 @@ bar (int d, int m, int i1, int i2, int i3, int p, int *idp, int hda, int s,
       [[omp::directive (cancellation point parallel)]];
     }
   }
-  [[omp::directive (scope private (p) reduction(+:r) nowait)]]
+  [[omp::directive (scope private (p) firstprivate (f) reduction(+:r) nowait
+    allocate (omp_default_mem_alloc: r))]]
     ;
-  [[omp::directive (scope private (p) reduction(task, +:r))]]
+  [[omp::directive (scope private (p) firstprivate (f) reduction(task, +:r)
+    allocate (omp_default_mem_alloc: f))]]
     ;
   extern int t2;
   [[omp::directive (threadprivate (t2))]];
@@ -610,6 +612,19 @@ bar (int d, int m, int i1, int i2, int i3, int p, int *idp, int hda, int s,
     ;
   [[omp::directive (parallel)]]
   switch (0) { case 1: break; default: break; }
+  [[omp::directive (assume no_openmp no_openmp_routines no_parallelism
+			   absent (atomic, barrier, cancel, cancellation point)
+			   absent (critical, depobj)
+			   absent (distribute, flush, loop, masked, master, nothing, ordered)
+			   absent (parallel, scan, scope, section, sections, simd, single, task)
+			   absent (taskgroup, taskloop, taskwait, taskyield)
+			   absent (target, teams, for, error) holds (n1 < n2))]]
+  if (0)
+    ;
+  [[omp::sequence (omp::directive (assume contains (simd)),
+		   omp::directive (for simd))]]
+  for (int i = 0; i < 64; i++)
+    ;
 }
 
 void corge1 ();

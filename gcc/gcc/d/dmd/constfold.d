@@ -5,12 +5,12 @@
  *
  * Specification: $(LINK2 https://dlang.org/spec/float.html#fp_const_folding, Floating Point Constant Folding)
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/constfold.d, _constfold.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/constfold.d, _constfold.d)
  * Documentation:  https://dlang.org/phobos/dmd_constfold.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/constfold.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/constfold.d
  */
 
 module dmd.constfold;
@@ -20,11 +20,13 @@ import core.stdc.stdio;
 import dmd.arraytypes;
 import dmd.astenums;
 import dmd.ctfeexpr;
+import dmd.dcast;
 import dmd.declaration;
 import dmd.dstruct;
 import dmd.errors;
 import dmd.expression;
 import dmd.globals;
+import dmd.location;
 import dmd.mtype;
 import dmd.root.complex;
 import dmd.root.ctfloat;
@@ -34,6 +36,7 @@ import dmd.root.utf;
 import dmd.sideeffect;
 import dmd.target;
 import dmd.tokens;
+import dmd.typesem : toDsymbol, equivalent, sarrayOf, size;
 
 private enum LOG = false;
 
@@ -45,29 +48,6 @@ private Expression expType(Type type, Expression e)
         e.type = type;
     }
     return e;
-}
-
-/************************************
- * Returns:
- *    true if e is a constant
- */
-int isConst(Expression e)
-{
-    //printf("Expression::isConst(): %s\n", e.toChars());
-    switch (e.op)
-    {
-    case EXP.int64:
-    case EXP.float64:
-    case EXP.complex80:
-        return 1;
-    case EXP.null_:
-        return 0;
-    case EXP.symbolOffset:
-        return 2;
-    default:
-        return 0;
-    }
-    assert(0);
 }
 
 /**********************************
@@ -89,15 +69,15 @@ UnionExp Neg(Type type, Expression e1)
 {
     UnionExp ue = void;
     Loc loc = e1.loc;
-    if (e1.type.isreal())
+    if (e1.type.isReal())
     {
         emplaceExp!(RealExp)(&ue, loc, -e1.toReal(), type);
     }
-    else if (e1.type.isimaginary())
+    else if (e1.type.isImaginary())
     {
         emplaceExp!(RealExp)(&ue, loc, -e1.toImaginary(), type);
     }
-    else if (e1.type.iscomplex())
+    else if (e1.type.isComplex())
     {
         emplaceExp!(ComplexExp)(&ue, loc, -e1.toComplex(), type);
     }
@@ -127,22 +107,22 @@ UnionExp Not(Type type, Expression e1)
     return ue;
 }
 
-UnionExp Add(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Add(Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
     static if (LOG)
     {
         printf("Add(e1 = %s, e2 = %s)\n", e1.toChars(), e2.toChars());
     }
-    if (type.isreal())
+    if (type.isReal())
     {
         emplaceExp!(RealExp)(&ue, loc, e1.toReal() + e2.toReal(), type);
     }
-    else if (type.isimaginary())
+    else if (type.isImaginary())
     {
         emplaceExp!(RealExp)(&ue, loc, e1.toImaginary() + e2.toImaginary(), type);
     }
-    else if (type.iscomplex())
+    else if (type.isComplex())
     {
         // This rigamarole is necessary so that -0.0 doesn't get
         // converted to +0.0 by doing an extraneous add with +0.0
@@ -154,12 +134,12 @@ UnionExp Add(const ref Loc loc, Type type, Expression e1, Expression e2)
         real_t i2 = CTFloat.zero;
         auto v = complex_t(CTFloat.zero);
         int x;
-        if (e1.type.isreal())
+        if (e1.type.isReal())
         {
             r1 = e1.toReal();
             x = 0;
         }
-        else if (e1.type.isimaginary())
+        else if (e1.type.isImaginary())
         {
             i1 = e1.toImaginary();
             x = 3;
@@ -169,11 +149,11 @@ UnionExp Add(const ref Loc loc, Type type, Expression e1, Expression e2)
             c1 = e1.toComplex();
             x = 6;
         }
-        if (e2.type.isreal())
+        if (e2.type.isReal())
         {
             r2 = e2.toReal();
         }
-        else if (e2.type.isimaginary())
+        else if (e2.type.isImaginary())
         {
             i2 = e2.toImaginary();
             x += 1;
@@ -232,130 +212,40 @@ UnionExp Add(const ref Loc loc, Type type, Expression e1, Expression e2)
     return ue;
 }
 
-UnionExp Min(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Min(Loc loc, Type type, Expression e1, Expression e2)
 {
-    UnionExp ue = void;
-    if (type.isreal())
-    {
-        emplaceExp!(RealExp)(&ue, loc, e1.toReal() - e2.toReal(), type);
-    }
-    else if (type.isimaginary())
-    {
-        emplaceExp!(RealExp)(&ue, loc, e1.toImaginary() - e2.toImaginary(), type);
-    }
-    else if (type.iscomplex())
-    {
-        // This rigamarole is necessary so that -0.0 doesn't get
-        // converted to +0.0 by doing an extraneous add with +0.0
-        auto c1 = complex_t(CTFloat.zero);
-        real_t r1 = CTFloat.zero;
-        real_t i1 = CTFloat.zero;
-        auto c2 = complex_t(CTFloat.zero);
-        real_t r2 = CTFloat.zero;
-        real_t i2 = CTFloat.zero;
-        auto v = complex_t(CTFloat.zero);
-        int x;
-        if (e1.type.isreal())
-        {
-            r1 = e1.toReal();
-            x = 0;
-        }
-        else if (e1.type.isimaginary())
-        {
-            i1 = e1.toImaginary();
-            x = 3;
-        }
-        else
-        {
-            c1 = e1.toComplex();
-            x = 6;
-        }
-        if (e2.type.isreal())
-        {
-            r2 = e2.toReal();
-        }
-        else if (e2.type.isimaginary())
-        {
-            i2 = e2.toImaginary();
-            x += 1;
-        }
-        else
-        {
-            c2 = e2.toComplex();
-            x += 2;
-        }
-        switch (x)
-        {
-        case 0 + 0:
-            v = complex_t(r1 - r2);
-            break;
-        case 0 + 1:
-            v = complex_t(r1, -i2);
-            break;
-        case 0 + 2:
-            v = complex_t(r1 - creall(c2), -cimagl(c2));
-            break;
-        case 3 + 0:
-            v = complex_t(-r2, i1);
-            break;
-        case 3 + 1:
-            v = complex_t(CTFloat.zero, i1 - i2);
-            break;
-        case 3 + 2:
-            v = complex_t(-creall(c2), i1 - cimagl(c2));
-            break;
-        case 6 + 0:
-            v = complex_t(creall(c1) - r2, cimagl(c1));
-            break;
-        case 6 + 1:
-            v = complex_t(creall(c1), cimagl(c1) - i2);
-            break;
-        case 6 + 2:
-            v = c1 - c2;
-            break;
-        default:
-            assert(0);
-        }
-        emplaceExp!(ComplexExp)(&ue, loc, v, type);
-    }
-    else if (SymOffExp soe = e1.isSymOffExp())
-    {
-        emplaceExp!(SymOffExp)(&ue, loc, soe.var, soe.offset - e2.toInteger());
-        ue.exp().type = type;
-    }
-    else
-    {
-        emplaceExp!(IntegerExp)(&ue, loc, e1.toInteger() - e2.toInteger(), type);
-    }
+    // Compute e1-e2 as e1+(-e2)
+    UnionExp neg = Neg(e2.type, e2);
+    UnionExp ue = Add(loc, type, e1, neg.exp());
     return ue;
 }
 
-UnionExp Mul(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Mul(Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
-    if (type.isfloating())
+    if (type.isFloating())
     {
         auto c = complex_t(CTFloat.zero);
         real_t r = CTFloat.zero;
-        if (e1.type.isreal())
+        if (e1.type.isReal())
         {
             r = e1.toReal();
             c = e2.toComplex();
             c = complex_t(r * creall(c), r * cimagl(c));
         }
-        else if (e1.type.isimaginary())
+        else if (e1.type.isImaginary())
         {
             r = e1.toImaginary();
             c = e2.toComplex();
             c = complex_t(-r * cimagl(c), r * creall(c));
         }
-        else if (e2.type.isreal())
+        else if (e2.type.isReal())
         {
             r = e2.toReal();
             c = e1.toComplex();
             c = complex_t(r * creall(c), r * cimagl(c));
         }
-        else if (e2.type.isimaginary())
+        else if (e2.type.isImaginary())
         {
             r = e2.toImaginary();
             c = e1.toComplex();
@@ -363,11 +253,11 @@ UnionExp Mul(const ref Loc loc, Type type, Expression e1, Expression e2)
         }
         else
             c = e1.toComplex() * e2.toComplex();
-        if (type.isreal())
+        if (type.isReal())
             emplaceExp!(RealExp)(&ue, loc, creall(c), type);
-        else if (type.isimaginary())
+        else if (type.isImaginary())
             emplaceExp!(RealExp)(&ue, loc, cimagl(c), type);
-        else if (type.iscomplex())
+        else if (type.isComplex())
             emplaceExp!(ComplexExp)(&ue, loc, c, type);
         else
             assert(0);
@@ -379,15 +269,15 @@ UnionExp Mul(const ref Loc loc, Type type, Expression e1, Expression e2)
     return ue;
 }
 
-UnionExp Div(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Div(Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
-    if (type.isfloating())
+    if (type.isFloating())
     {
         auto c = complex_t(CTFloat.zero);
-        if (e2.type.isreal())
+        if (e2.type.isReal())
         {
-            if (e1.type.isreal())
+            if (e1.type.isReal())
             {
                 emplaceExp!(RealExp)(&ue, loc, e1.toReal() / e2.toReal(), type);
                 return ue;
@@ -396,7 +286,7 @@ UnionExp Div(const ref Loc loc, Type type, Expression e1, Expression e2)
             c = e1.toComplex();
             c = complex_t(creall(c) / r, cimagl(c) / r);
         }
-        else if (e2.type.isimaginary())
+        else if (e2.type.isImaginary())
         {
             const r = e2.toImaginary();
             c = e1.toComplex();
@@ -407,11 +297,11 @@ UnionExp Div(const ref Loc loc, Type type, Expression e1, Expression e2)
             c = e1.toComplex() / e2.toComplex();
         }
 
-        if (type.isreal())
+        if (type.isReal())
             emplaceExp!(RealExp)(&ue, loc, creall(c), type);
-        else if (type.isimaginary())
+        else if (type.isImaginary())
             emplaceExp!(RealExp)(&ue, loc, cimagl(c), type);
-        else if (type.iscomplex())
+        else if (type.isComplex())
             emplaceExp!(ComplexExp)(&ue, loc, c, type);
         else
             assert(0);
@@ -425,27 +315,27 @@ UnionExp Div(const ref Loc loc, Type type, Expression e1, Expression e2)
         n2 = e2.toInteger();
         if (n2 == 0)
         {
-            e2.error("divide by 0");
+            error(e2.loc, "divide by 0");
             emplaceExp!(ErrorExp)(&ue);
             return ue;
         }
-        if (n2 == -1 && !type.isunsigned())
+        if (n2 == -1 && !type.isUnsigned())
         {
             // Check for int.min / -1
             if (n1 == 0xFFFFFFFF80000000UL && type.toBasetype().ty != Tint64)
             {
-                e2.error("integer overflow: `int.min / -1`");
+                error(e2.loc, "integer overflow: `int.min / -1`");
                 emplaceExp!(ErrorExp)(&ue);
                 return ue;
             }
             else if (n1 == 0x8000000000000000L) // long.min / -1
             {
-                e2.error("integer overflow: `long.min / -1L`");
+                error(e2.loc, "integer overflow: `long.min / -1L`");
                 emplaceExp!(ErrorExp)(&ue);
                 return ue;
             }
         }
-        if (e1.type.isunsigned() || e2.type.isunsigned())
+        if (e1.type.isUnsigned() || e2.type.isUnsigned())
             n = (cast(dinteger_t)n1) / (cast(dinteger_t)n2);
         else
             n = n1 / n2;
@@ -454,29 +344,29 @@ UnionExp Div(const ref Loc loc, Type type, Expression e1, Expression e2)
     return ue;
 }
 
-UnionExp Mod(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Mod(Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
-    if (type.isfloating())
+    if (type.isFloating())
     {
         auto c = complex_t(CTFloat.zero);
-        if (e2.type.isreal())
+        if (e2.type.isReal())
         {
             const r2 = e2.toReal();
             c = complex_t(e1.toReal() % r2, e1.toImaginary() % r2);
         }
-        else if (e2.type.isimaginary())
+        else if (e2.type.isImaginary())
         {
             const i2 = e2.toImaginary();
             c = complex_t(e1.toReal() % i2, e1.toImaginary() % i2);
         }
         else
             assert(0);
-        if (type.isreal())
+        if (type.isReal())
             emplaceExp!(RealExp)(&ue, loc, creall(c), type);
-        else if (type.isimaginary())
+        else if (type.isImaginary())
             emplaceExp!(RealExp)(&ue, loc, cimagl(c), type);
-        else if (type.iscomplex())
+        else if (type.isComplex())
             emplaceExp!(ComplexExp)(&ue, loc, c, type);
         else
             assert(0);
@@ -490,27 +380,27 @@ UnionExp Mod(const ref Loc loc, Type type, Expression e1, Expression e2)
         n2 = e2.toInteger();
         if (n2 == 0)
         {
-            e2.error("divide by 0");
+            error(e2.loc, "divide by 0");
             emplaceExp!(ErrorExp)(&ue);
             return ue;
         }
-        if (n2 == -1 && !type.isunsigned())
+        if (n2 == -1 && !type.isUnsigned())
         {
             // Check for int.min % -1
             if (n1 == 0xFFFFFFFF80000000UL && type.toBasetype().ty != Tint64)
             {
-                e2.error("integer overflow: `int.min %% -1`");
+                error(e2.loc, "integer overflow: `int.min %% -1`");
                 emplaceExp!(ErrorExp)(&ue);
                 return ue;
             }
             else if (n1 == 0x8000000000000000L) // long.min % -1
             {
-                e2.error("integer overflow: `long.min %% -1L`");
+                error(e2.loc, "integer overflow: `long.min %% -1L`");
                 emplaceExp!(ErrorExp)(&ue);
                 return ue;
             }
         }
-        if (e1.type.isunsigned() || e2.type.isunsigned())
+        if (e1.type.isUnsigned() || e2.type.isUnsigned())
             n = (cast(dinteger_t)n1) % (cast(dinteger_t)n2);
         else
             n = n1 % n2;
@@ -519,18 +409,18 @@ UnionExp Mod(const ref Loc loc, Type type, Expression e1, Expression e2)
     return ue;
 }
 
-UnionExp Pow(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Pow(Loc loc, Type type, Expression e1, Expression e2)
 {
     //printf("Pow()\n");
     UnionExp ue;
     // Handle integer power operations.
-    if (e2.type.isintegral())
+    if (e2.type.isIntegral())
     {
         dinteger_t n = e2.toInteger();
         bool neg;
-        if (!e2.type.isunsigned() && cast(sinteger_t)n < 0)
+        if (!e2.type.isUnsigned() && cast(sinteger_t)n < 0)
         {
-            if (e1.type.isintegral())
+            if (e1.type.isIntegral())
             {
                 cantExp(ue);
                 return ue;
@@ -542,12 +432,12 @@ UnionExp Pow(const ref Loc loc, Type type, Expression e1, Expression e2)
         else
             neg = false;
         UnionExp ur, uv;
-        if (e1.type.iscomplex())
+        if (e1.type.isComplex())
         {
             emplaceExp!(ComplexExp)(&ur, loc, e1.toComplex(), e1.type);
             emplaceExp!(ComplexExp)(&uv, loc, complex_t(CTFloat.one), e1.type);
         }
-        else if (e1.type.isfloating())
+        else if (e1.type.isFloating())
         {
             emplaceExp!(RealExp)(&ur, loc, e1.toReal(), e1.type);
             emplaceExp!(RealExp)(&uv, loc, CTFloat.one, e1.type);
@@ -577,14 +467,14 @@ UnionExp Pow(const ref Loc loc, Type type, Expression e1, Expression e2)
             emplaceExp!(RealExp)(&one, loc, CTFloat.one, v.type);
             uv = Div(loc, v.type, one.exp(), v);
         }
-        if (type.iscomplex())
+        if (type.isComplex())
             emplaceExp!(ComplexExp)(&ue, loc, v.toComplex(), type);
-        else if (type.isintegral())
+        else if (type.isIntegral())
             emplaceExp!(IntegerExp)(&ue, loc, v.toInteger(), type);
         else
             emplaceExp!(RealExp)(&ue, loc, v.toReal(), type);
     }
-    else if (e2.type.isfloating())
+    else if (e2.type.isFloating())
     {
         // x ^^ y for x < 0 and y not an integer is not defined; so set result as NaN
         if (e1.toReal() < CTFloat.zero)
@@ -599,14 +489,14 @@ UnionExp Pow(const ref Loc loc, Type type, Expression e1, Expression e2)
     return ue;
 }
 
-UnionExp Shl(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Shl(Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
     emplaceExp!(IntegerExp)(&ue, loc, e1.toInteger() << e2.toInteger(), type);
     return ue;
 }
 
-UnionExp Shr(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Shr(Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
     dinteger_t value = e1.toInteger();
@@ -652,7 +542,7 @@ UnionExp Shr(const ref Loc loc, Type type, Expression e1, Expression e2)
     return ue;
 }
 
-UnionExp Ushr(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Ushr(Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
     dinteger_t value = e1.toInteger();
@@ -692,21 +582,21 @@ UnionExp Ushr(const ref Loc loc, Type type, Expression e1, Expression e2)
     return ue;
 }
 
-UnionExp And(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp And(Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
     emplaceExp!(IntegerExp)(&ue, loc, e1.toInteger() & e2.toInteger(), type);
     return ue;
 }
 
-UnionExp Or(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Or(Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
     emplaceExp!(IntegerExp)(&ue, loc, e1.toInteger() | e2.toInteger(), type);
     return ue;
 }
 
-UnionExp Xor(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Xor(Loc loc, Type type, Expression e1, Expression e2)
 {
     //printf("Xor(linnum = %d, e1 = %s, e2 = %s)\n", loc.linnum, e1.toChars(), e2.toChars());
     UnionExp ue = void;
@@ -716,7 +606,7 @@ UnionExp Xor(const ref Loc loc, Type type, Expression e1, Expression e2)
 
 /* Also returns EXP.cantExpression if cannot be computed.
  */
-UnionExp Equal(EXP op, const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Equal(EXP op, Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
     int cmp = 0;
@@ -734,7 +624,7 @@ UnionExp Equal(EXP op, const ref Loc loc, Type type, Expression e1, Expression e
         }
         else if (ArrayLiteralExp es2 = e2.isArrayLiteralExp())
         {
-            cmp = !es2.elements || (0 == es2.elements.dim);
+            cmp = !es2.elements || (0 == es2.elements.length);
         }
         else
         {
@@ -750,7 +640,7 @@ UnionExp Equal(EXP op, const ref Loc loc, Type type, Expression e1, Expression e
         }
         else if (ArrayLiteralExp es1 = e1.isArrayLiteralExp())
         {
-            cmp = !es1.elements || (0 == es1.elements.dim);
+            cmp = !es1.elements || (0 == es1.elements.length);
         }
         else
         {
@@ -779,15 +669,15 @@ UnionExp Equal(EXP op, const ref Loc loc, Type type, Expression e1, Expression e
     {
         ArrayLiteralExp es1 = e1.isArrayLiteralExp();
         ArrayLiteralExp es2 = e2.isArrayLiteralExp();
-        if ((!es1.elements || !es1.elements.dim) && (!es2.elements || !es2.elements.dim))
+        if ((!es1.elements || !es1.elements.length) && (!es2.elements || !es2.elements.length))
             cmp = 1; // both arrays are empty
         else if (!es1.elements || !es2.elements)
             cmp = 0;
-        else if (es1.elements.dim != es2.elements.dim)
+        else if (es1.elements.length != es2.elements.length)
             cmp = 0;
         else
         {
-            for (size_t i = 0; i < es1.elements.dim; i++)
+            for (size_t i = 0; i < es1.elements.length; i++)
             {
                 auto ee1 = es1[i];
                 auto ee2 = es2[i];
@@ -814,7 +704,7 @@ UnionExp Equal(EXP op, const ref Loc loc, Type type, Expression e1, Expression e
         StringExp es1 = e1.isStringExp();
         ArrayLiteralExp es2 = e2.isArrayLiteralExp();
         size_t dim1 = es1.len;
-        size_t dim2 = es2.elements ? es2.elements.dim : 0;
+        size_t dim2 = es2.elements ? es2.elements.length : 0;
         if (dim1 != dim2)
             cmp = 0;
         else
@@ -822,7 +712,7 @@ UnionExp Equal(EXP op, const ref Loc loc, Type type, Expression e1, Expression e
             cmp = 1; // if dim1 winds up being 0
             foreach (i; 0 .. dim1)
             {
-                uinteger_t c = es1.getCodeUnit(i);
+                uinteger_t c = es1.getIndex(i);
                 auto ee2 = es2[i];
                 if (ee2.isConst() != 1)
                 {
@@ -841,16 +731,16 @@ UnionExp Equal(EXP op, const ref Loc loc, Type type, Expression e1, Expression e
         StructLiteralExp es2 = e2.isStructLiteralExp();
         if (es1.sd != es2.sd)
             cmp = 0;
-        else if ((!es1.elements || !es1.elements.dim) && (!es2.elements || !es2.elements.dim))
+        else if ((!es1.elements || !es1.elements.length) && (!es2.elements || !es2.elements.length))
             cmp = 1; // both arrays are empty
         else if (!es1.elements || !es2.elements)
             cmp = 0;
-        else if (es1.elements.dim != es2.elements.dim)
+        else if (es1.elements.length != es2.elements.length)
             cmp = 0;
         else
         {
             cmp = 1;
-            for (size_t i = 0; i < es1.elements.dim; i++)
+            for (size_t i = 0; i < es1.elements.length; i++)
             {
                 Expression ee1 = (*es1.elements)[i];
                 Expression ee2 = (*es2.elements)[i];
@@ -875,13 +765,13 @@ UnionExp Equal(EXP op, const ref Loc loc, Type type, Expression e1, Expression e
         cantExp(ue);
         return ue;
     }
-    else if (e1.type.isreal())
+    else if (e1.type.isReal())
     {
         r1 = e1.toReal();
         r2 = e2.toReal();
         goto L1;
     }
-    else if (e1.type.isimaginary())
+    else if (e1.type.isImaginary())
     {
         r1 = e1.toImaginary();
         r2 = e2.toImaginary();
@@ -895,11 +785,11 @@ UnionExp Equal(EXP op, const ref Loc loc, Type type, Expression e1, Expression e
             cmp = (r1 == r2);
         }
     }
-    else if (e1.type.iscomplex())
+    else if (e1.type.isComplex())
     {
         cmp = e1.toComplex() == e2.toComplex();
     }
-    else if (e1.type.isintegral() || e1.type.toBasetype().ty == Tpointer)
+    else if (e1.type.isIntegral() || e1.type.toBasetype().ty == Tpointer)
     {
         cmp = (e1.toInteger() == e2.toInteger());
     }
@@ -914,8 +804,9 @@ UnionExp Equal(EXP op, const ref Loc loc, Type type, Expression e1, Expression e
     return ue;
 }
 
-UnionExp Identity(EXP op, const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Identity(EXP op, Loc loc, Type type, Expression e1, Expression e2)
 {
+    //printf("Identity %s %s\n", e1.toChars(), e2.toChars());
     UnionExp ue = void;
     int cmp;
     if (e1.op == EXP.null_)
@@ -930,24 +821,22 @@ UnionExp Identity(EXP op, const ref Loc loc, Type type, Expression e1, Expressio
     {
         SymOffExp es1 = e1.isSymOffExp();
         SymOffExp es2 = e2.isSymOffExp();
-        cmp = (es1.var == es2.var && es1.offset == es2.offset);
+        cmp = es1.offset == es2.offset;
+        if (cmp)
+        {
+            cmp = es1.var == es2.var;
+            if (!cmp && (es1.var.isParameter() || es2.var.isParameter()))
+            {
+                // because of ref's, they may still be the same, we cannot tell
+                cantExp(ue);
+                return ue;
+            }
+        }
     }
     else
     {
-        if (e1.type.isreal())
-        {
-            cmp = CTFloat.isIdentical(e1.toReal(), e2.toReal());
-        }
-        else if (e1.type.isimaginary())
-        {
-            cmp = RealIdentical(e1.toImaginary(), e2.toImaginary());
-        }
-        else if (e1.type.iscomplex())
-        {
-            complex_t v1 = e1.toComplex();
-            complex_t v2 = e2.toComplex();
-            cmp = RealIdentical(creall(v1), creall(v2)) && RealIdentical(cimagl(v1), cimagl(v1));
-        }
+        if (e1.type.isFloating())
+            cmp = e1.isIdentical(e2);
         else
         {
             ue = Equal((op == EXP.identity) ? EXP.equal : EXP.notEqual, loc, type, e1, e2);
@@ -960,7 +849,7 @@ UnionExp Identity(EXP op, const ref Loc loc, Type type, Expression e1, Expressio
     return ue;
 }
 
-UnionExp Cmp(EXP op, const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Cmp(EXP op, Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
     dinteger_t n;
@@ -988,20 +877,20 @@ UnionExp Cmp(EXP op, const ref Loc loc, Type type, Expression e1, Expression e2)
         cantExp(ue);
         return ue;
     }
-    else if (e1.type.isreal())
+    else if (e1.type.isReal())
     {
         r1 = e1.toReal();
         r2 = e2.toReal();
         goto L1;
     }
-    else if (e1.type.isimaginary())
+    else if (e1.type.isImaginary())
     {
         r1 = e1.toImaginary();
         r2 = e2.toImaginary();
     L1:
         n = realCmp(op, r1, r2);
     }
-    else if (e1.type.iscomplex())
+    else if (e1.type.isComplex())
     {
         assert(0);
     }
@@ -1011,7 +900,7 @@ UnionExp Cmp(EXP op, const ref Loc loc, Type type, Expression e1, Expression e2)
         sinteger_t n2;
         n1 = e1.toInteger();
         n2 = e2.toInteger();
-        if (e1.type.isunsigned() || e2.type.isunsigned())
+        if (e1.type.isUnsigned() || e2.type.isUnsigned())
             n = intUnsignedCmp(op, n1, n2);
         else
             n = intSignedCmp(op, n1, n2);
@@ -1024,7 +913,7 @@ UnionExp Cmp(EXP op, const ref Loc loc, Type type, Expression e1, Expression e2)
  *  to: type to cast to
  *  type: type to paint the result
  */
-UnionExp Cast(const ref Loc loc, Type type, Type to, Expression e1)
+UnionExp Cast(Loc loc, Type type, Type to, Expression e1)
 {
     UnionExp ue = void;
     Type tb = to.toBasetype();
@@ -1090,9 +979,9 @@ UnionExp Cast(const ref Loc loc, Type type, Type to, Expression e1)
 
         emplaceExp!(IntegerExp)(&ue, loc, opt.get(), type);
     }
-    else if (type.isintegral())
+    else if (type.isIntegral())
     {
-        if (e1.type.isfloating())
+        if (e1.type.isFloating())
         {
             dinteger_t result;
             real_t r = e1.toReal();
@@ -1130,27 +1019,27 @@ UnionExp Cast(const ref Loc loc, Type type, Type to, Expression e1)
             }
             emplaceExp!(IntegerExp)(&ue, loc, result, type);
         }
-        else if (type.isunsigned())
+        else if (type.isUnsigned())
             emplaceExp!(IntegerExp)(&ue, loc, e1.toUInteger(), type);
         else
             emplaceExp!(IntegerExp)(&ue, loc, e1.toInteger(), type);
     }
-    else if (tb.isreal())
+    else if (tb.isReal())
     {
         real_t value = e1.toReal();
         emplaceExp!(RealExp)(&ue, loc, value, type);
     }
-    else if (tb.isimaginary())
+    else if (tb.isImaginary())
     {
         real_t value = e1.toImaginary();
         emplaceExp!(RealExp)(&ue, loc, value, type);
     }
-    else if (tb.iscomplex())
+    else if (tb.isComplex())
     {
         complex_t value = e1.toComplex();
         emplaceExp!(ComplexExp)(&ue, loc, value, type);
     }
-    else if (tb.isscalar())
+    else if (tb.isScalar())
     {
         emplaceExp!(IntegerExp)(&ue, loc, e1.toInteger(), type);
     }
@@ -1164,7 +1053,7 @@ UnionExp Cast(const ref Loc loc, Type type, Type to, Expression e1)
         StructDeclaration sd = tb.toDsymbol(null).isStructDeclaration();
         assert(sd);
         auto elements = new Expressions();
-        for (size_t i = 0; i < sd.fields.dim; i++)
+        for (size_t i = 0; i < sd.fields.length; i++)
         {
             VarDeclaration v = sd.fields[i];
             UnionExp zero;
@@ -1181,7 +1070,7 @@ UnionExp Cast(const ref Loc loc, Type type, Type to, Expression e1)
     {
         if (type != Type.terror)
         {
-            // have to change to Internal Compiler Error
+            // have to change to internal compiler error
             // all invalid casts should be handled already in Expression::castTo().
             error(loc, "cannot cast `%s` to `%s`", e1.type.toChars(), type.toChars());
         }
@@ -1200,18 +1089,22 @@ UnionExp ArrayLength(Type type, Expression e1)
     }
     else if (ArrayLiteralExp ale = e1.isArrayLiteralExp())
     {
-        size_t dim = ale.elements ? ale.elements.dim : 0;
+        size_t dim = ale.elements ? ale.elements.length : 0;
         emplaceExp!(IntegerExp)(&ue, loc, dim, type);
     }
     else if (AssocArrayLiteralExp ale = e1.isAssocArrayLiteralExp)
     {
-        size_t dim = ale.keys.dim;
+        size_t dim = ale.keys.length;
         emplaceExp!(IntegerExp)(&ue, loc, dim, type);
     }
     else if (e1.type.toBasetype().ty == Tsarray)
     {
         Expression e = (cast(TypeSArray)e1.type.toBasetype()).dim;
         emplaceExp!(UnionExp)(&ue, e);
+    }
+    else if (e1.isNullExp())
+    {
+        emplaceExp!(IntegerExp)(&ue, loc, 0, type);
     }
     else
         cantExp(ue);
@@ -1232,12 +1125,12 @@ UnionExp Index(Type type, Expression e1, Expression e2, bool indexIsInBounds)
         uinteger_t i = e2.toInteger();
         if (i >= es1.len)
         {
-            e1.error("string index %llu is out of bounds `[0 .. %llu]`", i, cast(ulong)es1.len);
+            error(e1.loc, "string index %llu is out of bounds `[0 .. %llu]`", i, cast(ulong)es1.len);
             emplaceExp!(ErrorExp)(&ue);
         }
         else
         {
-            emplaceExp!(IntegerExp)(&ue, loc, es1.getCodeUnit(cast(size_t) i), type);
+            emplaceExp!(IntegerExp)(&ue, loc, es1.getIndex(cast(size_t) i), type);
         }
     }
     else if (e1.type.toBasetype().ty == Tsarray && e2.op == EXP.int64)
@@ -1248,7 +1141,7 @@ UnionExp Index(Type type, Expression e1, Expression e2, bool indexIsInBounds)
         if (i >= length && (e1.op == EXP.arrayLiteral || !indexIsInBounds))
         {
             // C code only checks bounds if an ArrayLiteralExp
-            e1.error("array index %llu is out of bounds `%s[0 .. %llu]`", i, e1.toChars(), length);
+            error(e1.loc, "array index %llu is out of bounds `%s[0 .. %llu]`", i, e1.toChars(), length);
             emplaceExp!(ErrorExp)(&ue);
         }
         else if (ArrayLiteralExp ale = e1.isArrayLiteralExp())
@@ -1269,9 +1162,9 @@ UnionExp Index(Type type, Expression e1, Expression e2, bool indexIsInBounds)
         uinteger_t i = e2.toInteger();
         if (ArrayLiteralExp ale = e1.isArrayLiteralExp())
         {
-            if (i >= ale.elements.dim)
+            if (i >= ale.elements.length)
             {
-                e1.error("array index %llu is out of bounds `%s[0 .. %llu]`", i, e1.toChars(), cast(ulong) ale.elements.dim);
+                error(e1.loc, "array index %llu is out of bounds `%s[0 .. %llu]`", i, e1.toChars(), cast(ulong) ale.elements.length);
                 emplaceExp!(ErrorExp)(&ue);
             }
             else
@@ -1292,7 +1185,7 @@ UnionExp Index(Type type, Expression e1, Expression e2, bool indexIsInBounds)
     {
         /* Search the keys backwards, in case there are duplicate keys
          */
-        for (size_t i = ae.keys.dim; i;)
+        for (size_t i = ae.keys.length; i;)
         {
             i--;
             Expression ekey = (*ae.keys)[i];
@@ -1335,7 +1228,14 @@ UnionExp Slice(Type type, Expression e1, Expression lwr, Expression upr)
         }
     }
 
-    if (e1.op == EXP.string_ && lwr.op == EXP.int64 && upr.op == EXP.int64)
+    if (!lwr)
+    {
+        if (e1.op == EXP.string_)
+            emplaceExp(&ue, e1);
+        else
+            cantExp(ue);
+    }
+    else if (e1.op == EXP.string_ && lwr.op == EXP.int64 && upr.op == EXP.int64)
     {
         StringExp es1 = e1.isStringExp();
         const uinteger_t ilwr = lwr.toInteger();
@@ -1360,7 +1260,7 @@ UnionExp Slice(Type type, Expression e1, Expression lwr, Expression upr)
         ArrayLiteralExp es1 = e1.isArrayLiteralExp();
         const uinteger_t ilwr = lwr.toInteger();
         const uinteger_t iupr = upr.toInteger();
-        if (sliceBoundsCheck(0, es1.elements.dim, ilwr, iupr))
+        if (sliceBoundsCheck(0, es1.elements.length, ilwr, iupr))
             cantExp(ue);
         else
         {
@@ -1376,7 +1276,7 @@ UnionExp Slice(Type type, Expression e1, Expression lwr, Expression upr)
 
 /* Check whether slice `[newlwr .. newupr]` is in the range `[lwr .. upr]`
  */
-bool sliceBoundsCheck(uinteger_t lwr, uinteger_t upr, uinteger_t newlwr, uinteger_t newupr) pure
+bool sliceBoundsCheck(uinteger_t lwr, uinteger_t upr, uinteger_t newlwr, uinteger_t newupr) pure @safe
 {
     assert(lwr <= upr);
     return !(newlwr <= newupr &&
@@ -1393,7 +1293,7 @@ void sliceAssignArrayLiteralFromString(ArrayLiteralExp existingAE, const StringE
     Type elemType = existingAE.type.nextOf();
     foreach (j; 0 .. len)
     {
-        const val = newval.getCodeUnit(j);
+        const val = newval.getIndex(j);
         (*existingAE.elements)[j + firstIndex] = new IntegerExp(newval.loc, val, elemType);
     }
 }
@@ -1404,7 +1304,7 @@ void sliceAssignArrayLiteralFromString(ArrayLiteralExp existingAE, const StringE
 void sliceAssignStringFromArrayLiteral(StringExp existingSE, ArrayLiteralExp newae, size_t firstIndex)
 {
     assert(existingSE.ownedByCtfe != OwnedBy.code);
-    foreach (j; 0 .. newae.elements.dim)
+    foreach (j; 0 .. newae.elements.length)
     {
         existingSE.setCodeUnit(firstIndex + j, cast(dchar)newae[j].toInteger());
     }
@@ -1442,9 +1342,9 @@ int sliceCmpStringWithArray(const StringExp se1, ArrayLiteralExp ae2, size_t lo1
 {
     foreach (j; 0 .. len)
     {
-        const val2 = cast(dchar)ae2[j + lo2].toInteger();
-        const val1 = se1.getCodeUnit(j + lo1);
-        const int c = val1 - val2;
+        const val2 = ae2[j + lo2].toInteger();
+        const val1 = se1.getIndex(j + lo1);
+        const int c = (val1 > val2) - (val1 < val2);
         if (c)
             return c;
     }
@@ -1469,9 +1369,9 @@ private Expressions* copyElements(Expression e1, Expression e2 = null)
     {
         if (!ale.elements)
             return;
-        auto d = elems.dim;
+        auto d = elems.length;
         elems.append(ale.elements);
-        foreach (ref el; (*elems)[d .. elems.dim])
+        foreach (ref el; (*elems)[d .. elems.length])
         {
             if (!el)
                 el = ale.basis;
@@ -1496,7 +1396,7 @@ private Expressions* copyElements(Expression e1, Expression e2 = null)
 
 /* Also return EXP.cantExpression if this fails
  */
-UnionExp Cat(const ref Loc loc, Type type, Expression e1, Expression e2)
+UnionExp Cat(Loc loc, Type type, Expression e1, Expression e2)
 {
     UnionExp ue = void;
     Expression e = CTFEExp.cantexp;
@@ -1505,17 +1405,11 @@ UnionExp Cat(const ref Loc loc, Type type, Expression e1, Expression e2)
     Type t2 = e2.type.toBasetype();
     //printf("Cat(e1 = %s, e2 = %s)\n", e1.toChars(), e2.toChars());
     //printf("\tt1 = %s, t2 = %s, type = %s\n", t1.toChars(), t2.toChars(), type.toChars());
-    if (e1.op == EXP.null_ && (e2.op == EXP.int64 || e2.op == EXP.structLiteral))
+
+    /* e is the non-null operand, t is the type of the null operand
+     */
+    UnionExp catNull(Expression e, Type t)
     {
-        e = e2;
-        t = t1;
-        goto L2;
-    }
-    else if ((e1.op == EXP.int64 || e1.op == EXP.structLiteral) && e2.op == EXP.null_)
-    {
-        e = e1;
-        t = t2;
-    L2:
         Type tn = e.type.toBasetype();
         if (tn.ty.isSomeChar)
         {
@@ -1533,7 +1427,7 @@ UnionExp Cat(const ref Loc loc, Type type, Expression e1, Expression e2)
             emplaceExp!(StringExp)(&ue, loc, s[0 .. len * sz], len, sz);
             StringExp es = ue.exp().isStringExp();
             es.type = type;
-            es.committed = 1;
+            es.committed = true;
         }
         else
         {
@@ -1544,6 +1438,15 @@ UnionExp Cat(const ref Loc loc, Type type, Expression e1, Expression e2)
         }
         assert(ue.exp().type);
         return ue;
+    }
+
+    if (e1.op == EXP.null_ && (e2.op == EXP.int64 || e2.op == EXP.structLiteral))
+    {
+        return catNull(e2, t1);
+    }
+    else if ((e1.op == EXP.int64 || e1.op == EXP.structLiteral) && e2.op == EXP.null_)
+    {
+        return catNull(e1, t2);
     }
     else if (e1.op == EXP.null_ && e2.op == EXP.null_)
     {
@@ -1602,31 +1505,31 @@ UnionExp Cat(const ref Loc loc, Type type, Expression e1, Expression e2)
         assert(ue.exp().type);
         return ue;
     }
-    else if (e2.op == EXP.string_ && e1.op == EXP.arrayLiteral && t1.nextOf().isintegral())
+    else if (e2.op == EXP.string_ && e1.op == EXP.arrayLiteral && t1.nextOf().isIntegral())
     {
         // [chars] ~ string --> [chars]
         StringExp es = e2.isStringExp();
         ArrayLiteralExp ea = e1.isArrayLiteralExp();
-        size_t len = es.len + ea.elements.dim;
+        size_t len = es.len + ea.elements.length;
         auto elems = new Expressions(len);
-        for (size_t i = 0; i < ea.elements.dim; ++i)
+        for (size_t i = 0; i < ea.elements.length; ++i)
         {
             (*elems)[i] = ea[i];
         }
         emplaceExp!(ArrayLiteralExp)(&ue, e1.loc, type, elems);
         ArrayLiteralExp dest = ue.exp().isArrayLiteralExp();
-        sliceAssignArrayLiteralFromString(dest, es, ea.elements.dim);
+        sliceAssignArrayLiteralFromString(dest, es, ea.elements.length);
         assert(ue.exp().type);
         return ue;
     }
-    else if (e1.op == EXP.string_ && e2.op == EXP.arrayLiteral && t2.nextOf().isintegral())
+    else if (e1.op == EXP.string_ && e2.op == EXP.arrayLiteral && t2.nextOf().isIntegral())
     {
         // string ~ [chars] --> [chars]
         StringExp es = e1.isStringExp();
         ArrayLiteralExp ea = e2.isArrayLiteralExp();
-        size_t len = es.len + ea.elements.dim;
+        size_t len = es.len + ea.elements.length;
         auto elems = new Expressions(len);
-        for (size_t i = 0; i < ea.elements.dim; ++i)
+        for (size_t i = 0; i < ea.elements.length; ++i)
         {
             (*elems)[es.len + i] = ea[i];
         }
@@ -1692,7 +1595,7 @@ UnionExp Cat(const ref Loc loc, Type type, Expression e1, Expression e2)
         e = ue.exp();
         if (type.toBasetype().ty == Tsarray)
         {
-            e.type = t1.nextOf().sarrayOf(elems.dim);
+            e.type = t1.nextOf().sarrayOf(elems.length);
         }
         else
             e.type = type;
@@ -1716,7 +1619,7 @@ UnionExp Cat(const ref Loc loc, Type type, Expression e1, Expression e2)
         e = ue.exp();
         if (type.toBasetype().ty == Tsarray)
         {
-            e.type = t1.nextOf().sarrayOf(elems.dim);
+            e.type = t1.nextOf().sarrayOf(elems.length);
         }
         else
             e.type = type;
@@ -1734,7 +1637,7 @@ UnionExp Cat(const ref Loc loc, Type type, Expression e1, Expression e2)
         e = ue.exp();
         if (type.toBasetype().ty == Tsarray)
         {
-            e.type = e2.type.sarrayOf(elems.dim);
+            e.type = e2.type.sarrayOf(elems.length);
         }
         else
             e.type = type;
@@ -1750,7 +1653,7 @@ UnionExp Cat(const ref Loc loc, Type type, Expression e1, Expression e2)
         e = ue.exp();
         if (type.toBasetype().ty == Tsarray)
         {
-            e.type = e1.type.sarrayOf(elems.dim);
+            e.type = e1.type.sarrayOf(elems.length);
         }
         else
             e.type = type;

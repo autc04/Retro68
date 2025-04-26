@@ -226,6 +226,20 @@ OMP_5.1 {
 	omp_get_teams_thread_limit_;
 } OMP_5.0.2;
 
+OMP_5.1.1 {
+  global:
+	omp_get_mapped_ptr;
+	omp_target_is_accessible;
+	omp_target_memcpy_async;
+	omp_target_memcpy_rect_async;
+} OMP_5.1;
+
+OMP_5.2 {
+  global:
+	omp_in_explicit_task;
+	omp_in_explicit_task_;
+} OMP_5.1.1;
+
 GOMP_1.0 {
   global:
 	GOMP_atomic_end;
@@ -401,6 +415,43 @@ GOMP_5.1 {
 	GOMP_warning;
 	GOMP_teams4;
 } GOMP_5.0.1;
+
+GOMP_5.1.1 {
+  global:
+	GOMP_taskwait_depend_nowait;
+} GOMP_5.1;
+
+GOMP_5.1.2 {
+  global:
+	GOMP_add_alloc;
+	GOMP_is_alloc;
+	GOMP_target_map_indirect_ptr;
+} GOMP_5.1.1;
+
+GOMP_5.1.3 {
+  global:
+	GOMP_interop;
+	omp_get_num_interop_properties;
+	omp_get_interop_int;
+	omp_get_interop_ptr;
+	omp_get_interop_str;
+	omp_get_interop_name;
+	omp_get_interop_type_desc;
+	omp_get_interop_rc_desc;
+	omp_get_interop_str_;
+	omp_get_interop_name_;
+	omp_get_interop_type_desc_;
+	omp_get_interop_rc_desc_;
+} GOMP_5.1.2;
+
+GOMP_6.0 {
+  global:
+	omp_get_device_from_uid;
+	omp_get_device_from_uid_;
+	omp_get_uid_from_device;
+	omp_get_uid_from_device_;
+	omp_get_uid_from_device_8_;
+} GOMP_5.1.3;
 
 OACC_2.0 {
   global:
@@ -609,3 +660,8 @@ GOMP_PLUGIN_1.3 {
 	GOMP_PLUGIN_goacc_profiling_dispatch;
 	GOMP_PLUGIN_goacc_thread;
 } GOMP_PLUGIN_1.2;
+
+GOMP_PLUGIN_1.4 {
+  global:
+	GOMP_PLUGIN_target_rev;
+} GOMP_PLUGIN_1.3;

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do compile { target c++20 } }
 
 #include <concepts>
 
@@ -29,6 +28,7 @@ static_assert( std::destructible<int&&> );
 static_assert( std::destructible<const int&> );
 static_assert( !std::destructible<int[]> );
 static_assert( std::destructible<int[2]> );
+static_assert( std::destructible<int[2][3]> );
 static_assert( !std::destructible<int()> );
 static_assert( std::destructible<int(*)()> );
 static_assert( std::destructible<int(&)()> );
@@ -47,6 +47,8 @@ struct C
   ~C() noexcept(false) { }
 };
 static_assert( !std::destructible<C> );
+static_assert( std::destructible<C&> );
+static_assert( !std::destructible<C[1]> );
 class D
 {
 public:
@@ -55,3 +57,5 @@ private:
   ~D() { }
 };
 static_assert( !std::destructible<D> );
+static_assert( std::destructible<D&> );
+static_assert( !std::destructible<D[1]> );

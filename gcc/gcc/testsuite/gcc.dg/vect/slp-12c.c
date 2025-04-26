@@ -24,6 +24,7 @@ main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N*2; i++)
     {
       if (out[i*4] !=  (in[i*4] + 2) * 3
@@ -48,5 +49,5 @@ int main (void)
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect"  { target { vect_int_mult } } } } */
 /* { dg-final { scan-tree-dump-times "vectorized 0 loops" 1 "vect"  { target { ! vect_int_mult } } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 1 "vect" { target vect_int_mult } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 2 "vect" { target vect_int_mult } } } */
 /* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 0 "vect" { target { ! vect_int_mult } } } } */

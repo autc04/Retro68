@@ -1,10 +1,73 @@
-2022-08-19  Release Manager
+2025-04-25  Release Manager
 
-	* GCC 12.2.0 released.
+	* GCC 15.1.0 released.
 
-2022-05-06  Release Manager
+2024-05-07  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
 
-	* GCC 12.1.0 released.
+	* Makefile.am [LIBSSP_USE_SYMVER_SUN] (ssp.map-sun): Pass
+	$(libssp_la_OBJECTS), $(libssp_la_LIBADD) to make_sunver.pl
+	unmodified.
+	* Makefile.in: Regenerate.
+
+2024-02-06  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure.ac (AC_CHECK_DECLS): Check for gets.
+	* configure, config.h.in: Regenerate.
+	* gets-chk.c (gets): Guard declaration with !HAVE_DECL_GETS.
+
+2023-12-22  Christophe Lyon  <christophe.lyon@linaro.org>
+
+	* Makefile.am: Allow overriding EXEPCT.
+	* Makefile.in: Regenerate.
+
+2023-10-22  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* Makefile.am: Handle Darwin rpaths.
+	* Makefile.in: Regenerate.
+	* configure: Regenerate.
+	* configure.ac: Handle Darwin rpaths.
+
+2023-08-07  Nick Alcock  <nick.alcock@oracle.com>
+
+	* configure: Regenerate.
+
+2023-08-07  Alexander von Gluck IV  <kallisti5@unixzen.com>
+
+	* configure: Regenerate.
+
+2023-08-07  Nick Alcock  <nick.alcock@oracle.com>
+
+	* configure: Regenerate.
+
+2023-08-07  Nick Alcock  <nick.alcock@oracle.com>
+
+	* configure: Regenerate.
+
+2023-08-07  H.J. Lu  <hjl.tools@gmail.com>
+
+	* configure: Regenerate.
+
+2023-08-07  H.J. Lu  <hjl.tools@gmail.com>
+
+	* configure: Regenerate.
+
+2023-01-07  LIU Hao  <lh_mouse@126.com>
+
+	PR middle-end/108300
+	* ssp.c: Define `WIN32_LEAN_AND_MEAN` before <windows.h>.
+
+2022-10-12  Martin Liska  <mliska@suse.cz>
+
+	* configure: Regenerate.
+
+2022-10-11  Olivier Hainque  <hainque@adacore.com>
+	    Olivier Hainque  <hainque@adacore.com>
+
+	* configure: Regenerate.
+
+2022-08-25  Martin Liska  <mliska@suse.cz>
+
+	* configure: Regenerate.
 
 2021-01-05  Samuel Thibault  <samuel.thibault@ens-lyon.org>
 

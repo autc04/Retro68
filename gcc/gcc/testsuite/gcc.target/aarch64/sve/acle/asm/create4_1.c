@@ -4,10 +4,10 @@
 
 /*
 ** create4_s8:
-**	mov	z0\.d, z6\.d
-**	mov	z1\.d, z4\.d
-**	mov	z2\.d, z7\.d
-**	mov	z3\.d, z5\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_s8, svint8x4_t, svint8_t,
@@ -16,10 +16,10 @@ TEST_CREATE (create4_s8, svint8x4_t, svint8_t,
 
 /*
 ** create4_u8:
-**	mov	z0\.d, z4\.d
-**	mov	z1\.d, z6\.d
-**	mov	z2\.d, z5\.d
-**	mov	z3\.d, z7\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_u8, svuint8x4_t, svuint8_t,
@@ -28,10 +28,10 @@ TEST_CREATE (create4_u8, svuint8x4_t, svuint8_t,
 
 /*
 ** create4_s16:
-**	mov	z0\.d, z6\.d
-**	mov	z1\.d, z4\.d
-**	mov	z2\.d, z5\.d
-**	mov	z3\.d, z7\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_s16, svint16x4_t, svint16_t,
@@ -40,10 +40,10 @@ TEST_CREATE (create4_s16, svint16x4_t, svint16_t,
 
 /*
 ** create4_u16:
-**	mov	z0\.d, z6\.d
-**	mov	z1\.d, z5\.d
-**	mov	z2\.d, z4\.d
-**	mov	z3\.d, z7\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_u16, svuint16x4_t, svuint16_t,
@@ -51,11 +51,23 @@ TEST_CREATE (create4_u16, svuint16x4_t, svuint16_t,
 	     z0 = svcreate4 (z6, z5, z4, z7))
 
 /*
+** create4_mf8:
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	ret
+*/
+TEST_CREATE (create4_mf8, svmfloat8x4_t, svmfloat8_t,
+	     z0 = svcreate4_mf8 (z4, z5, z6, z7),
+	     z0 = svcreate4 (z4, z5, z6, z7))
+
+/*
 ** create4_bf16:
-**	mov	z0\.d, z4\.d
-**	mov	z1\.d, z5\.d
-**	mov	z2\.d, z6\.d
-**	mov	z3\.d, z7\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_bf16, svbfloat16x4_t, svbfloat16_t,
@@ -64,10 +76,10 @@ TEST_CREATE (create4_bf16, svbfloat16x4_t, svbfloat16_t,
 
 /*
 ** create4_f16:
-**	mov	z0\.d, z4\.d
-**	mov	z1\.d, z5\.d
-**	mov	z2\.d, z6\.d
-**	mov	z3\.d, z7\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_f16, svfloat16x4_t, svfloat16_t,
@@ -76,10 +88,10 @@ TEST_CREATE (create4_f16, svfloat16x4_t, svfloat16_t,
 
 /*
 ** create4_s32:
-**	mov	z0\.d, z6\.d
-**	mov	z1\.d, z7\.d
-**	mov	z2\.d, z4\.d
-**	mov	z3\.d, z5\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_s32, svint32x4_t, svint32_t,
@@ -88,10 +100,10 @@ TEST_CREATE (create4_s32, svint32x4_t, svint32_t,
 
 /*
 ** create4_u32:
-**	mov	z0\.d, z7\.d
-**	mov	z1\.d, z5\.d
-**	mov	z2\.d, z6\.d
-**	mov	z3\.d, z7\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_u32, svuint32x4_t, svuint32_t,
@@ -100,10 +112,10 @@ TEST_CREATE (create4_u32, svuint32x4_t, svuint32_t,
 
 /*
 ** create4_f32:
-**	mov	z0\.d, z7\.d
-**	mov	z1\.d, z4\.d
-**	mov	z2\.d, z6\.d
-**	mov	z3\.d, z4\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_f32, svfloat32x4_t, svfloat32_t,
@@ -112,10 +124,10 @@ TEST_CREATE (create4_f32, svfloat32x4_t, svfloat32_t,
 
 /*
 ** create4_s64:
-**	mov	z0\.d, z5\.d
-**	mov	z1\.d, z7\.d
-**	mov	z2\.d, z6\.d
-**	mov	z3\.d, z6\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_s64, svint64x4_t, svint64_t,
@@ -124,10 +136,10 @@ TEST_CREATE (create4_s64, svint64x4_t, svint64_t,
 
 /*
 ** create4_u64:
-**	mov	z0\.d, z7\.d
-**	mov	z1\.d, z6\.d
-**	mov	z2\.d, z4\.d
-**	mov	z3\.d, z5\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_u64, svuint64x4_t, svuint64_t,
@@ -136,12 +148,22 @@ TEST_CREATE (create4_u64, svuint64x4_t, svuint64_t,
 
 /*
 ** create4_f64:
-**	mov	z0\.d, z5\.d
-**	mov	z1\.d, z4\.d
-**	mov	z2\.d, z7\.d
-**	mov	z3\.d, z6\.d
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
+**	mov	[^\n]+
 **	ret
 */
 TEST_CREATE (create4_f64, svfloat64x4_t, svfloat64_t,
 	     z0 = svcreate4_f64 (z5, z4, z7, z6),
 	     z0 = svcreate4 (z5, z4, z7, z6))
+
+/* This is awkward to code-generate, so don't match a particular output.  */
+TEST_CREATE_B (create4_b_0, svboolx4_t,
+	       p0_res = svcreate4_b (p0, p1, p2, p3),
+	       p0_res = svcreate4 (p0, p1, p2, p3))
+
+/* This is awkward to code-generate, so don't match a particular output.  */
+TEST_CREATE_B (create4_b_1, svboolx4_t,
+	       p0_res = svcreate4_b (p3, p2, p1, p0),
+	       p0_res = svcreate4 (p3, p2, p1, p0))

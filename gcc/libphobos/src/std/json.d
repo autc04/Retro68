@@ -1,12 +1,19 @@
 // Written in the D programming language.
 
 /**
-JavaScript Object Notation
+Implements functionality to read and write JavaScript Object Notation values.
+
+JavaScript Object Notation is a lightweight data interchange format commonly used in web services and configuration files.
+It's easy for humans to read and write, and it's easy for machines to parse and generate.
+
+$(RED Warning: While $(LREF JSONValue) is fine for small-scale use, at the range of hundreds of megabytes it is
+known to cause and exacerbate GC problems. If you encounter problems, try replacing it with a stream parser. See
+also $(LINK https://forum.dlang.org/post/dzfyaxypmkdrpakmycjv@forum.dlang.org).)
 
 Copyright: Copyright Jeremie Pelletier 2008 - 2009.
 License:   $(HTTP www.boost.org/LICENSE_1_0.txt, Boost License 1.0).
 Authors:   Jeremie Pelletier, David Herberth
-References: $(LINK http://json.org/), $(LINK http://seriot.ch/parsing_json.html)
+References: $(LINK http://json.org/), $(LINK https://seriot.ch/projects/parsing_json.html)
 Source:    $(PHOBOSSRC std/json.d)
 */
 /*
@@ -63,25 +70,26 @@ String literals used to represent special float values within JSON strings.
 */
 enum JSONFloatLiteral : string
 {
-    nan         = "NaN",       /// string representation of floating-point NaN
-    inf         = "Infinite",  /// string representation of floating-point Infinity
-    negativeInf = "-Infinite", /// string representation of floating-point negative Infinity
+    nan         = "NaN",       /// String representation of floating-point NaN
+    inf         = "Infinite",  /// String representation of floating-point Infinity
+    negativeInf = "-Infinite", /// String representation of floating-point negative Infinity
 }
 
 /**
-Flags that control how json is encoded and parsed.
+Flags that control how JSON is encoded and parsed.
 */
 enum JSONOptions
 {
-    none,                       /// standard parsing
-    specialFloatLiterals = 0x1, /// encode NaN and Inf float values as strings
-    escapeNonAsciiChars = 0x2,  /// encode non ascii characters with an unicode escape sequence
-    doNotEscapeSlashes = 0x4,   /// do not escape slashes ('/')
+    none,                       /// Standard parsing and encoding
+    specialFloatLiterals = 0x1, /// Encode NaN and Inf float values as strings
+    escapeNonAsciiChars = 0x2,  /// Encode non-ASCII characters with a Unicode escape sequence
+    doNotEscapeSlashes = 0x4,   /// Do not escape slashes ('/')
     strictParsing = 0x8,        /// Strictly follow RFC-8259 grammar when parsing
+    preserveObjectOrder = 0x16, /// Preserve order of object keys when parsing
 }
 
 /**
-JSON type enumeration
+Enumeration of JSON types
 */
 enum JSONType : byte
 {
@@ -119,13 +127,30 @@ struct JSONValue
 {
     import std.exception : enforce;
 
+    import std.typecons : Tuple;
+
+    alias OrderedObjectMember = Tuple!(
+        string, "key",
+        JSONValue, "value",
+    );
+
     union Store
     {
+        struct Object
+        {
+            bool isOrdered;
+            union
+            {
+                JSONValue[string] unordered;
+                OrderedObjectMember[] ordered;
+            }
+        }
+
         string                          str;
         long                            integer;
         ulong                           uinteger;
         double                          floating;
-        JSONValue[string]               object;
+        Object                          object;
         JSONValue[]                     array;
     }
     private Store store;
@@ -265,10 +290,10 @@ struct JSONValue
     }
 
     /***
-     * Value getter/setter for `JSONType.object`.
+     * Value getter/setter for unordered `JSONType.object`.
      * Throws: `JSONException` for read access if `type` is not
-     * `JSONType.object`.
-     * Note: this is @system because of the following pattern:
+     * `JSONType.object` or the object is ordered.
+     * Note: This is @system because of the following pattern:
        ---
        auto a = &(json.object());
        json.uinteger = 0;        // overwrite AA pointer
@@ -279,7 +304,9 @@ struct JSONValue
     {
         enforce!JSONException(type == JSONType.object,
                                 "JSONValue is not an object");
-        return store.object;
+        enforce!JSONException(!store.object.isOrdered,
+                                "JSONValue object is ordered, cannot return by ref");
+        return store.object.unordered;
     }
     /// ditto
     @property JSONValue[string] object(return scope JSONValue[string] v) pure nothrow @nogc @trusted // TODO make @safe
@@ -289,10 +316,12 @@ struct JSONValue
     }
 
     /***
-     * Value getter for `JSONType.object`.
-     * Unlike `object`, this retrieves the object by value and can be used in @safe code.
+     * Value getter for unordered `JSONType.object`.
+     * Unlike `object`, this retrieves the object by value
+     * and can be used in @safe code.
      *
-     * A caveat is that, if the returned value is null, modifications will not be visible:
+     * One possible caveat is that, if the returned value is null,
+     * modifications will not be visible:
      * ---
      * JSONValue json;
      * json.object = null;
@@ -307,14 +336,78 @@ struct JSONValue
     {
         enforce!JSONException(type == JSONType.object,
                                 "JSONValue is not an object");
-        return store.object;
+        if (store.object.isOrdered)
+        {
+            // Convert to unordered
+            JSONValue[string] result;
+            foreach (pair; store.object.ordered)
+                result[pair.key] = pair.value;
+            return cast(inout) result;
+        }
+        else
+            return store.object.unordered;
+    }
+
+    /***
+     * Value getter/setter for ordered `JSONType.object`.
+     * Throws: `JSONException` for read access if `type` is not
+     * `JSONType.object` or the object is unordered.
+     * Note: This is @system because of the following pattern:
+       ---
+       auto a = &(json.orderedObject());
+       json.uinteger = 0;        // overwrite AA pointer
+       (*a)["hello"] = "world";  // segmentation fault
+       ---
+     */
+    @property ref inout(OrderedObjectMember[]) orderedObject() inout pure @system return
+    {
+        enforce!JSONException(type == JSONType.object,
+                                "JSONValue is not an object");
+        enforce!JSONException(store.object.isOrdered,
+                                "JSONValue object is unordered, cannot return by ref");
+        return store.object.ordered;
+    }
+    /// ditto
+    @property OrderedObjectMember[] orderedObject(return scope OrderedObjectMember[] v) pure nothrow @nogc @trusted // TODO make @safe
+    {
+        assign(v);
+        return v;
+    }
+
+    /***
+     * Value getter for ordered `JSONType.object`.
+     * Unlike `orderedObject`, this retrieves the object by value
+     * and can be used in @safe code.
+     */
+    @property inout(OrderedObjectMember[]) orderedObjectNoRef() inout pure @trusted
+    {
+        enforce!JSONException(type == JSONType.object,
+                                "JSONValue is not an object");
+        if (store.object.isOrdered)
+            return store.object.ordered;
+        else
+        {
+            // Convert to ordered
+            OrderedObjectMember[] result;
+            foreach (key, value; store.object.unordered)
+                result ~= OrderedObjectMember(key, value);
+            return cast(inout) result;
+        }
+    }
+
+    /// Returns `true` if the order of keys of the represented object is being preserved.
+    @property bool isOrdered() const pure @trusted
+    {
+        enforce!JSONException(type == JSONType.object,
+                                "JSONValue is not an object");
+        return store.object.isOrdered;
     }
 
     /***
      * Value getter/setter for `JSONType.array`.
      * Throws: `JSONException` for read access if `type` is not
      * `JSONType.array`.
-     * Note: this is @system because of the following pattern:
+     * Note: This is @system because of the following pattern:
        ---
        auto a = &(json.array());
        json.uinteger = 0;  // overwrite array pointer
@@ -338,8 +431,8 @@ struct JSONValue
      * Value getter for `JSONType.array`.
      * Unlike `array`, this retrieves the array by value and can be used in @safe code.
      *
-     * A caveat is that, if you append to the returned array, the new values aren't visible in the
-     * JSONValue:
+     * One possible caveat is that, if you append to the returned array,
+     * the new values aren't visible in the `JSONValue`:
      * ---
      * JSONValue json;
      * json.array = [JSONValue("hello")];
@@ -364,9 +457,8 @@ struct JSONValue
     }
 
     /***
-     * Generic type value getter
      * A convenience getter that returns this `JSONValue` as the specified D type.
-     * Note: only numeric, `bool`, `string`, `JSONValue[string]` and `JSONValue[]` types are accepted
+     * Note: Only numeric types, `bool`, `string`, `JSONValue[string]`, and `JSONValue[]` types are accepted
      * Throws: `JSONException` if `T` cannot hold the contents of this `JSONValue`
      *         `ConvException` in case of integer overflow when converting to `T`
      */
@@ -470,8 +562,7 @@ struct JSONValue
         else static if (is(T : string))
         {
             type_tag = JSONType.string;
-            string t = arg;
-            () @trusted { store.str = t; }();
+            store = Store(str: arg);
         }
         // https://issues.dlang.org/show_bug.cgi?id=15884
         else static if (isSomeString!T)
@@ -480,7 +571,7 @@ struct JSONValue
             // FIXME: std.Array.Array(Range) is not deduced as 'pure'
             () @trusted {
                 import std.utf : byUTF;
-                store.str = cast(immutable)(arg.byUTF!char.array);
+                store = Store(str: cast(immutable)(arg.byUTF!char.array));
             }();
         }
         else static if (is(T : bool))
@@ -490,17 +581,17 @@ struct JSONValue
         else static if (is(T : ulong) && isUnsigned!T)
         {
             type_tag = JSONType.uinteger;
-            store.uinteger = arg;
+            store = Store(uinteger: arg);
         }
         else static if (is(T : long))
         {
             type_tag = JSONType.integer;
-            store.integer = arg;
+            store = Store(integer: arg);
         }
         else static if (isFloatingPoint!T)
         {
             type_tag = JSONType.float_;
-            store.floating = arg;
+            store = Store(floating: arg);
         }
         else static if (is(T : Value[Key], Key, Value))
         {
@@ -508,31 +599,34 @@ struct JSONValue
             type_tag = JSONType.object;
             static if (is(Value : JSONValue))
             {
-                JSONValue[string] t = arg;
-                () @trusted { store.object = t; }();
+                store = Store(object: Store.Object(false, unordered: arg));
             }
             else
             {
                 JSONValue[string] aa;
                 foreach (key, value; arg)
                     aa[key] = JSONValue(value);
-                () @trusted { store.object = aa; }();
+                store = Store(object: Store.Object(false, unordered: aa));
             }
+        }
+        else static if (is(T : OrderedObjectMember[]))
+        {
+            type_tag = JSONType.object;
+            store = Store(object: Store.Object(true, ordered: arg));
         }
         else static if (isArray!T)
         {
             type_tag = JSONType.array;
             static if (is(ElementEncodingType!T : JSONValue))
             {
-                JSONValue[] t = arg;
-                () @trusted { store.array = t; }();
+                store = Store(array: arg);
             }
             else
             {
                 JSONValue[] new_arg = new JSONValue[arg.length];
                 foreach (i, e; arg)
                     new_arg[i] = JSONValue(e);
-                () @trusted { store.array = new_arg; }();
+                store = Store(array: new_arg);
             }
         }
         else static if (is(T : JSONValue))
@@ -546,19 +640,20 @@ struct JSONValue
         }
     }
 
-    private void assignRef(T)(ref T arg) if (isStaticArray!T)
+    private void assignRef(T)(ref T arg)
+    if (isStaticArray!T)
     {
         type_tag = JSONType.array;
         static if (is(ElementEncodingType!T : JSONValue))
         {
-            store.array = arg;
+            store = Store(array: arg);
         }
         else
         {
             JSONValue[] new_arg = new JSONValue[arg.length];
             foreach (i, e; arg)
                 new_arg[i] = JSONValue(e);
-            store.array = new_arg;
+            store = Store(array: new_arg);
         }
     }
 
@@ -574,12 +669,14 @@ struct JSONValue
      * and `K` i.e. a JSON object, any array or `bool`. The type will
      * be set accordingly.
      */
-    this(T)(T arg) if (!isStaticArray!T)
+    this(T)(T arg)
+    if (!isStaticArray!T)
     {
         assign(arg);
     }
     /// Ditto
-    this(T)(ref T arg) if (isStaticArray!T)
+    this(T)(ref T arg)
+    if (isStaticArray!T)
     {
         assignRef(arg);
     }
@@ -602,18 +699,86 @@ struct JSONValue
         assert(j.type == JSONType.object);
     }
 
-    void opAssign(T)(T arg) if (!isStaticArray!T && !is(T : JSONValue))
+    /**
+     * An enum value that can be used to obtain a `JSONValue` representing
+     * an empty JSON object.
+     */
+    enum emptyObject = JSONValue(string[string].init);
+    ///
+    @system unittest
+    {
+        JSONValue obj1 = JSONValue.emptyObject;
+        assert(obj1.type == JSONType.object);
+        obj1.object["a"] = JSONValue(1);
+        assert(obj1.object["a"] == JSONValue(1));
+
+        JSONValue obj2 = JSONValue.emptyObject;
+        assert("a" !in obj2.object);
+        obj2.object["b"] = JSONValue(5);
+        assert(obj1 != obj2);
+    }
+
+    /**
+     * An enum value that can be used to obtain a `JSONValue` representing
+     * an empty JSON object.
+     * Unlike `emptyObject`, the order of inserted keys is preserved.
+     */
+    enum emptyOrderedObject = {
+        JSONValue v = void;
+        v.orderedObject = null;
+        return v;
+    }();
+    ///
+    @system unittest
+    {
+        JSONValue obj = JSONValue.emptyOrderedObject;
+        assert(obj.type == JSONType.object);
+        assert(obj.isOrdered);
+        obj["b"] = JSONValue(2);
+        obj["a"] = JSONValue(1);
+        assert(obj["a"] == JSONValue(1));
+        assert(obj["b"] == JSONValue(2));
+
+        string[] keys;
+        foreach (string k, JSONValue v; obj)
+            keys ~= k;
+        assert(keys == ["b", "a"]);
+    }
+
+    /**
+     * An enum value that can be used to obtain a `JSONValue` representing
+     * an empty JSON array.
+     */
+    enum emptyArray = JSONValue(JSONValue[].init);
+    ///
+    @system unittest
+    {
+        JSONValue arr1 = JSONValue.emptyArray;
+        assert(arr1.type == JSONType.array);
+        assert(arr1.array.length == 0);
+        arr1.array ~= JSONValue("Hello");
+        assert(arr1.array.length == 1);
+        assert(arr1.array[0] == JSONValue("Hello"));
+
+        JSONValue arr2 = JSONValue.emptyArray;
+        assert(arr2.array.length == 0);
+        assert(arr1 != arr2);
+    }
+
+    void opAssign(T)(T arg)
+    if (!isStaticArray!T && !is(T : JSONValue))
     {
         assign(arg);
     }
 
-    void opAssign(T)(ref T arg) if (isStaticArray!T)
+    void opAssign(T)(ref T arg)
+    if (isStaticArray!T)
     {
         assignRef(arg);
     }
 
     /***
-     * Array syntax for json arrays.
+     * Array syntax for JSON arrays.
      * Throws: `JSONException` if `type` is not `JSONType.array`.
      */
     ref inout(JSONValue) opIndex(size_t i) inout pure @safe
@@ -632,7 +797,7 @@ struct JSONValue
     }
 
     /***
-     * Hash syntax for json objects.
+     * Hash syntax for JSON objects.
      * Throws: `JSONException` if `type` is not `JSONType.object`.
      */
     ref inout(JSONValue) opIndex(return scope string k) inout pure @safe
@@ -649,26 +814,45 @@ struct JSONValue
     }
 
     /***
-     * Operator sets `value` for element of JSON object by `key`.
+     * Provides support for index assignments, which sets the
+     * corresponding value of the JSON object's `key` field to `value`.
      *
-     * If JSON value is null, then operator initializes it with object and then
-     * sets `value` for it.
+     * If the `JSONValue` is `JSONType.null_`, then this function
+     * initializes it with a JSON object and then performs
+     * the index assignment.
      *
      * Throws: `JSONException` if `type` is not `JSONType.object`
      * or `JSONType.null_`.
      */
     void opIndexAssign(T)(auto ref T value, string key)
     {
-        enforce!JSONException(type == JSONType.object || type == JSONType.null_,
-                                "JSONValue must be object or null");
-        JSONValue[string] aa = null;
-        if (type == JSONType.object)
+        enforce!JSONException(
+            type == JSONType.object ||
+            type == JSONType.null_,
+            "JSONValue must be object or null");
+        if (type == JSONType.object && isOrdered)
         {
-            aa = this.objectNoRef;
+            auto arr = this.orderedObjectNoRef;
+            foreach (ref pair; arr)
+                if (pair.key == key)
+                {
+                    pair.value = value;
+                    return;
+                }
+            arr ~= OrderedObjectMember(key, JSONValue(value));
+            this.orderedObject = arr;
         }
+        else
+        {
+            JSONValue[string] aa = null;
+            if (type == JSONType.object)
+            {
+                aa = this.objectNoRef;
+            }
 
-        aa[key] = value;
-        this.object = aa;
+            aa[key] = value;
+            this.object = aa;
+        }
     }
     ///
     @safe unittest
@@ -678,6 +862,7 @@ struct JSONValue
             assert( j["language"].str == "Perl" );
     }
 
+    /// ditto
     void opIndexAssign(T)(T arg, size_t i)
     {
         auto a = this.arrayNoRef;
@@ -730,12 +915,12 @@ struct JSONValue
     }
 
     /**
-     * Support for the `in` operator.
+     * Provides support for the `in` operator.
      *
-     * Tests wether a key can be found in an object.
+     * Tests whether a key can be found in an object.
      *
      * Returns:
-     *      when found, the `inout(JSONValue)*` that matches to the key,
+     *      When found, the `inout(JSONValue)*` that matches to the key,
      *      otherwise `null`.
      *
      * Throws: `JSONException` if the right hand side argument `JSONType`
@@ -754,13 +939,32 @@ struct JSONValue
         assert(j["author"].str == "Walter");
     }
 
+    /**
+     * Compare two JSONValues for equality
+     *
+     * JSON arrays and objects are compared deeply. The order of object keys does not matter.
+     *
+     * Floating point numbers are compared for exact equality, not approximal equality.
+     *
+     * Different number types (unsigned, signed, and floating) will be compared by converting
+     * them to a common type, in the same way that comparison of built-in D `int`, `uint` and
+     * `float` works.
+     *
+     * Other than that, types must match exactly.
+     * Empty arrays are not equal to empty objects, and booleans are never equal to integers.
+     *
+     * Returns: whether this `JSONValue` is equal to `rhs`
+     */
     bool opEquals(const JSONValue rhs) const @nogc nothrow pure @safe
     {
         return opEquals(rhs);
     }
 
+    /// ditto
     bool opEquals(ref const JSONValue rhs) const @nogc nothrow pure @trusted
     {
+        import std.algorithm.searching : canFind;
+
         // Default doesn't work well since store is a union.  Compare only
         // what should be in store.
         // This is @trusted to remain nogc, nothrow, fast, and usable from @safe code.
@@ -806,7 +1010,45 @@ struct JSONValue
         case JSONType.string:
             return type_tag == rhs.type_tag && store.str == rhs.store.str;
         case JSONType.object:
-            return type_tag == rhs.type_tag && store.object == rhs.store.object;
+            if (rhs.type_tag != JSONType.object)
+                return false;
+            if (store.object.isOrdered)
+            {
+                if (rhs.store.object.isOrdered)
+                {
+                    if (store.object.ordered.length != rhs.store.object.ordered.length)
+                        return false;
+                    foreach (ref pair; store.object.ordered)
+                        if (!rhs.store.object.ordered.canFind(pair))
+                            return false;
+                    return true;
+                }
+                else
+                {
+                    if (store.object.ordered.length != rhs.store.object.unordered.length)
+                        return false;
+                    foreach (ref pair; store.object.ordered)
+                        if (pair.key !in rhs.store.object.unordered ||
+                            rhs.store.object.unordered[pair.key] != pair.value)
+                            return false;
+                    return true;
+                }
+            }
+            else
+            {
+                if (rhs.store.object.isOrdered)
+                {
+                    if (store.object.unordered.length != rhs.store.object.ordered.length)
+                        return false;
+                    foreach (ref pair; rhs.store.object.ordered)
+                        if (pair.key !in store.object.unordered ||
+                            store.object.unordered[pair.key] != pair.value)
+                            return false;
+                    return true;
+                }
+                else
+                    return store.object.unordered == rhs.store.object.unordered;
+            }
         case JSONType.array:
             return type_tag == rhs.type_tag && store.array == rhs.store.array;
         case JSONType.true_:
@@ -819,9 +1061,13 @@ struct JSONValue
     ///
     @safe unittest
     {
-        assert(JSONValue(0u) == JSONValue(0));
-        assert(JSONValue(0u) == JSONValue(0.0));
-        assert(JSONValue(0) == JSONValue(0.0));
+        assert(JSONValue(10).opEquals(JSONValue(10.0)));
+        assert(JSONValue(10) != (JSONValue(10.5)));
+
+        assert(JSONValue(1) != JSONValue(true));
+        assert(JSONValue.emptyArray != JSONValue.emptyObject);
+
+        assert(parseJSON(`{"a": 1, "b": 2}`).opEquals(parseJSON(`{"b": 2, "a": 1}`)));
     }
 
     /// Implements the foreach `opApply` interface for json arrays.
@@ -843,14 +1089,27 @@ struct JSONValue
     int opApply(scope int delegate(string key, ref JSONValue) dg) @system
     {
         enforce!JSONException(type == JSONType.object,
-                                "JSONValue is not an object");
+            "JSONValue is not an object");
+
         int result;
 
-        foreach (string key, ref value; object)
+        if (isOrdered)
         {
-            result = dg(key, value);
-            if (result)
-                break;
+            foreach (ref pair; orderedObject)
+            {
+                result = dg(pair.key, pair.value);
+                if (result)
+                    break;
+            }
+        }
+        else
+        {
+            foreach (string key, ref value; object)
+            {
+                result = dg(key, value);
+                if (result)
+                    break;
+            }
         }
 
         return result;
@@ -947,6 +1206,7 @@ if (isSomeFiniteCharInputRange!T)
     Nullable!Char next;
     int line = 1, pos = 0;
     immutable bool strict = (options & JSONOptions.strictParsing) != 0;
+    immutable bool ordered = (options & JSONOptions.preserveObjectOrder) != 0;
 
     void error(string msg)
     {
@@ -1187,31 +1447,62 @@ if (isSomeFiniteCharInputRange!T)
         switch (c)
         {
             case '{':
-                if (testChar('}'))
+                if (ordered)
                 {
-                    value.object = null;
-                    break;
-                }
-
-                JSONValue[string] obj;
-                do
-                {
-                    skipWhitespace();
-                    if (!strict && peekChar() == '}')
+                    if (testChar('}'))
                     {
+                        value.orderedObject = null;
                         break;
                     }
-                    checkChar('"');
-                    string name = parseString();
-                    checkChar(':');
-                    JSONValue member;
-                    parseValue(member);
-                    obj[name] = member;
-                }
-                while (testChar(','));
-                value.object = obj;
 
-                checkChar('}');
+                    JSONValue.OrderedObjectMember[] obj;
+                    do
+                    {
+                        skipWhitespace();
+                        if (!strict && peekChar() == '}')
+                        {
+                            break;
+                        }
+                        checkChar('"');
+                        string name = parseString();
+                        checkChar(':');
+                        JSONValue member;
+                        parseValue(member);
+                        obj ~= JSONValue.OrderedObjectMember(name, member);
+                    }
+                    while (testChar(','));
+                    value.orderedObject = obj;
+
+                    checkChar('}');
+                }
+                else
+                {
+                    if (testChar('}'))
+                    {
+                        value.object = null;
+                        break;
+                    }
+
+                    JSONValue[string] obj;
+                    do
+                    {
+                        skipWhitespace();
+                        if (!strict && peekChar() == '}')
+                        {
+                            break;
+                        }
+                        checkChar('"');
+                        string name = parseString();
+                        checkChar(':');
+                        JSONValue member;
+                        parseValue(member);
+                        obj[name] = member;
+                    }
+                    while (testChar(','));
+                    value.object = obj;
+
+                    checkChar('}');
+                }
                 break;
 
             case '[':
@@ -1313,13 +1604,13 @@ if (isSomeFiniteCharInputRange!T)
                 if (isFloat)
                 {
                     value.type_tag = JSONType.float_;
-                    value.store.floating = parse!double(data);
+                    value.store = JSONValue.Store(floating: parse!double(data));
                 }
                 else
                 {
                     if (isNegative)
                     {
-                        value.store.integer = parse!long(data);
+                        value.store = JSONValue.Store(integer: parse!long(data));
                         value.type_tag = JSONType.integer;
                     }
                     else
@@ -1328,12 +1619,12 @@ if (isSomeFiniteCharInputRange!T)
                         ulong u = parse!ulong(data);
                         if (u & (1UL << 63))
                         {
-                            value.store.uinteger = u;
+                            value.store = JSONValue.Store(uinteger: u);
                             value.type_tag = JSONType.uinteger;
                         }
                         else
                         {
-                            value.store.integer = u;
+                            value.store = JSONValue.Store(integer: u);
                             value.type_tag = JSONType.integer;
                         }
                     }
@@ -1537,19 +1828,15 @@ if (isOutputRange!(Out,char))
             toStringImpl!char(str);
     }
 
-    // recursive @safe inference is broken here
-    // workaround: if json.put is @safe, we should be too,
-    // so annotate the recursion as @safe manually
-    static if (isSafe!({ json.put(""); }))
-    {
-        void delegate(ref const JSONValue, ulong) @safe toValue;
-    }
-    else
-    {
-        void delegate(ref const JSONValue, ulong) @system toValue;
-    }
+    /* make the function infer @system when json.put() is @system
+     */
+    if (0)
+        json.put(' ');
 
-    void toValueImpl(ref const JSONValue value, ulong indentLevel)
+    /* Mark as @trusted because json.put() may be @system. This has difficulty
+     * inferring @safe because it is recursive.
+     */
+    void toValueImpl(ref const JSONValue value, ulong indentLevel) @trusted
     {
         void putTabs(ulong additionalIndent = 0)
         {
@@ -1571,49 +1858,82 @@ if (isOutputRange!(Out,char))
         final switch (value.type)
         {
             case JSONType.object:
-                auto obj = value.objectNoRef;
-                if (!obj.length)
+                if (value.isOrdered)
                 {
-                    json.put("{}");
-                }
-                else
-                {
-                    putCharAndEOL('{');
-                    bool first = true;
-
-                    void emit(R)(R names)
+                    auto obj = value.orderedObjectNoRef;
+                    if (!obj.length)
                     {
-                        foreach (name; names)
+                        json.put("{}");
+                    }
+                    else
+                    {
+                        putCharAndEOL('{');
+                        bool first = true;
+
+                        foreach (pair; obj)
                         {
-                            auto member = obj[name];
                             if (!first)
                                 putCharAndEOL(',');
                             first = false;
                             putTabs(1);
-                            toString(name);
+                            toString(pair.key);
                             json.put(':');
                             if (pretty)
                                 json.put(' ');
-                            toValue(member, indentLevel + 1);
+                            toValueImpl(pair.value, indentLevel + 1);
                         }
-                    }
 
-                    import std.algorithm.sorting : sort;
-                    // https://issues.dlang.org/show_bug.cgi?id=14439
-                    // auto names = obj.keys;  // aa.keys can't be called in @safe code
-                    auto names = new string[obj.length];
-                    size_t i = 0;
-                    foreach (k, v; obj)
+                        putEOL();
+                        putTabs();
+                        json.put('}');
+                    }
+                }
+                else
+                {
+                    auto obj = value.objectNoRef;
+                    if (!obj.length)
                     {
-                        names[i] = k;
-                        i++;
+                        json.put("{}");
                     }
-                    sort(names);
-                    emit(names);
+                    else
+                    {
+                        putCharAndEOL('{');
+                        bool first = true;
 
-                    putEOL();
-                    putTabs();
-                    json.put('}');
+                        void emit(R)(R names)
+                        {
+                            foreach (name; names)
+                            {
+                                auto member = obj[name];
+                                if (!first)
+                                    putCharAndEOL(',');
+                                first = false;
+                                putTabs(1);
+                                toString(name);
+                                json.put(':');
+                                if (pretty)
+                                    json.put(' ');
+                                toValueImpl(member, indentLevel + 1);
+                            }
+                        }
+
+                        import std.algorithm.sorting : sort;
+                        // https://issues.dlang.org/show_bug.cgi?id=14439
+                        // auto names = obj.keys;  // aa.keys can't be called in @safe code
+                        auto names = new string[obj.length];
+                        size_t i = 0;
+                        foreach (k, v; obj)
+                        {
+                            names[i] = k;
+                            i++;
+                        }
+                        sort(names);
+                        emit(names);
+
+                        putEOL();
+                        putTabs();
+                        json.put('}');
+                    }
                 }
                 break;
 
@@ -1631,7 +1951,7 @@ if (isOutputRange!(Out,char))
                         if (i)
                             putCharAndEOL(',');
                         putTabs(1);
-                        toValue(el, indentLevel + 1);
+                        toValueImpl(el, indentLevel + 1);
                     }
                     putEOL();
                     putTabs();
@@ -1710,9 +2030,7 @@ if (isOutputRange!(Out,char))
         }
     }
 
-    toValue = &toValueImpl;
-
-    toValue(root, 0);
+    toValueImpl(root, 0);
 }
 
  // https://issues.dlang.org/show_bug.cgi?id=12897
@@ -2401,6 +2719,20 @@ pure nothrow @safe unittest
 
     auto app = appender!string();
     j.toPrettyString(app);
+
+    assert(app.data == s, app.data);
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=24823 - JSONOptions.preserveObjectOrder
+@safe unittest
+{
+    import std.array : appender;
+
+    string s = `{"b":2,"a":1}`;
+    JSONValue j = parseJSON(s, -1, JSONOptions.preserveObjectOrder);
+
+    auto app = appender!string();
+    j.toString(app);
 
     assert(app.data == s, app.data);
 }

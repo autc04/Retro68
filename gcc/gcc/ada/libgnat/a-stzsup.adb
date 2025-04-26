@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2003-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2003-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -296,6 +296,17 @@ package body Ada.Strings.Wide_Wide_Superbounded is
    begin
       return Left <= Right.Data (1 .. Right.Current_Length);
    end Less_Or_Equal;
+
+   ---------------
+   -- Put_Image --
+   ---------------
+
+   procedure Put_Image
+     (S      : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class;
+      Source : Super_String) is
+   begin
+      Wide_Wide_String'Put_Image (S, Super_To_String (Source));
+   end Put_Image;
 
    ----------------------
    -- Set_Super_String --
@@ -1498,11 +1509,11 @@ package body Ada.Strings.Wide_Wide_Superbounded is
            or else High > Source.Current_Length
          then
             raise Index_Error;
-         else
-            Result.Current_Length := High - Low + 1;
-            Result.Data (1 .. Result.Current_Length) :=
-              Source.Data (Low .. High);
          end if;
+
+         Result.Current_Length := (if Low > High then 0 else High - Low + 1);
+         Result.Data (1 .. Result.Current_Length) :=
+           Source.Data (Low .. High);
       end return;
    end Super_Slice;
 
@@ -1517,10 +1528,10 @@ package body Ada.Strings.Wide_Wide_Superbounded is
         or else High > Source.Current_Length
       then
          raise Index_Error;
-      else
-         Target.Current_Length := High - Low + 1;
-         Target.Data (1 .. Target.Current_Length) := Source.Data (Low .. High);
       end if;
+
+      Target.Current_Length := (if Low > High then 0 else High - Low + 1);
+      Target.Data (1 .. Target.Current_Length) := Source.Data (Low .. High);
    end Super_Slice;
 
    ----------------

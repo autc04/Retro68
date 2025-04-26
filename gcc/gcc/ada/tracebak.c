@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *            Copyright (C) 2000-2022, Free Software Foundation, Inc.       *
+ *            Copyright (C) 2000-2025, Free Software Foundation, Inc.       *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -93,6 +93,7 @@ extern void (*Unlock_Task) (void);
 
 #if defined (_WIN64) && defined (__SEH__)
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 #define IS_BAD_PTR(ptr) (IsBadCodePtr((FARPROC)ptr))
@@ -455,6 +456,7 @@ struct layout
 #elif defined (__i386__) || defined (__x86_64__)
 
 #if defined (__WIN32)
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #define IS_BAD_PTR(ptr) (IsBadCodePtr((FARPROC)ptr))
 #elif defined (__sun__)
@@ -555,13 +557,17 @@ is_return_from(void *symbol_addr, void *ret_addr)
 
 #if defined (__aarch64__)
 #define PC_ADJUST -4
+#elif defined (__ARMEL__)
+#define PC_ADJUST -2
+#define USING_ARM_UNWINDING 1
 #else
 #error Unhandled QNX architecture.
 #endif
 
-/*------------------- aarch64-linux or aarch64-rtems -----------------*/
+/*------------------- aarch64 FreeBSD, Linux, RTEMS -----------------*/
 
-#elif (defined (__aarch64__) && (defined (__linux__) || defined (__rtems__)))
+#elif (defined (__aarch64__) && (defined (__FreeBSD__) || \
+       defined (__linux__) || defined (__rtems__)))
 
 #define USE_GCC_UNWINDER
 #define PC_ADJUST -4

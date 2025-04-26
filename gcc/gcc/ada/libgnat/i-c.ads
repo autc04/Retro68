@@ -24,11 +24,18 @@ pragma Assertion_Policy (Pre            => Ignore,
                          Contract_Cases => Ignore,
                          Ghost          => Ignore);
 
+--  Pre/postconditions use a fully qualified name for the standard "+" operator
+--  in order to work around an internal limitation of the compiler.
+
+with System;
 with System.Parameters;
 
-package Interfaces.C
-  with SPARK_Mode, Pure
+package Interfaces.C with
+  SPARK_Mode,
+  Pure,
+  Always_Terminates
 is
+
    --  Each of the types declared in Interfaces.C is C-compatible.
 
    --  The types int, short, long, unsigned, ptrdiff_t, size_t, double,
@@ -80,10 +87,9 @@ is
    --  a non-private system.address type.
 
    type ptrdiff_t is
-     range -(2 ** (System.Parameters.ptr_bits - Integer'(1))) ..
-           +(2 ** (System.Parameters.ptr_bits - Integer'(1)) - 1);
+     range -System.Memory_Size / 2 .. System.Memory_Size / 2 - 1;
 
-   type size_t is mod 2 ** System.Parameters.ptr_bits;
+   type size_t is mod System.Memory_Size;
 
    --  Boolean type
 
@@ -143,7 +149,7 @@ is
      Pre  => not (Append_Nul = False and then Item'Length = 0),
      Post => To_C'Result'First = 0
        and then To_C'Result'Length =
-         (if Append_Nul then Item'Length + 1 else Item'Length)
+         (if Append_Nul then Standard."+" (Item'Length, 1) else Item'Length)
        and then (for all J in Item'Range =>
                    To_C'Result (size_t (J - Item'First)) = To_C (Item (J)))
        and then (if Append_Nul then To_C'Result (To_C'Result'Last) = nul);
@@ -187,7 +193,7 @@ is
    with
      Relaxed_Initialization => Target,
      Pre  => Target'Length >=
-       (if Append_Nul then Item'Length + 1 else Item'Length),
+       (if Append_Nul then Standard."+" (Item'Length, 1) else Item'Length),
      Post => Count = (if Append_Nul then Item'Length + 1 else Item'Length)
        and then
          (if Count /= 0 then
@@ -284,7 +290,7 @@ is
      Pre  => not (Append_Nul = False and then Item'Length = 0),
      Post => To_C'Result'First = 0
        and then To_C'Result'Length =
-         (if Append_Nul then Item'Length + 1 else Item'Length)
+         (if Append_Nul then Standard."+" (Item'Length, 1) else Item'Length)
        and then (for all J in Item'Range =>
                    To_C'Result (size_t (J - Item'First)) = To_C (Item (J)))
        and then (if Append_Nul then To_C'Result (To_C'Result'Last) = wide_nul);
@@ -313,7 +319,7 @@ is
    with
      Relaxed_Initialization => Target,
      Pre  => Target'Length >=
-       (if Append_Nul then Item'Length + 1 else Item'Length),
+       (if Append_Nul then Standard."+" (Item'Length, 1) else Item'Length),
      Post => Count = (if Append_Nul then Item'Length + 1 else Item'Length)
        and then
          (if Count /= 0 then
@@ -405,7 +411,7 @@ is
      Pre  => not (Append_Nul = False and then Item'Length = 0),
      Post => To_C'Result'First = 0
        and then To_C'Result'Length =
-         (if Append_Nul then Item'Length + 1 else Item'Length)
+         (if Append_Nul then Standard."+" (Item'Length, 1) else Item'Length)
        and then (for all J in Item'Range =>
                    To_C'Result (size_t (J - Item'First)) = To_C (Item (J)))
        and then
@@ -437,7 +443,7 @@ is
    with
      Relaxed_Initialization => Target,
      Pre  => Target'Length >=
-       (if Append_Nul then Item'Length + 1 else Item'Length),
+       (if Append_Nul then Standard."+" (Item'Length, 1) else Item'Length),
      Post => Count = (if Append_Nul then Item'Length + 1 else Item'Length)
        and then
          (if Count /= 0 then
@@ -525,7 +531,7 @@ is
      Pre  => not (Append_Nul = False and then Item'Length = 0),
      Post => To_C'Result'First = 0
        and then To_C'Result'Length =
-         (if Append_Nul then Item'Length + 1 else Item'Length)
+         (if Append_Nul then Standard."+" (Item'Length, 1) else Item'Length)
        and then (for all J in Item'Range =>
                    To_C'Result (size_t (J - Item'First)) = To_C (Item (J)))
        and then
@@ -557,7 +563,7 @@ is
    with
      Relaxed_Initialization => Target,
      Pre  => Target'Length >=
-       (if Append_Nul then Item'Length + 1 else Item'Length),
+       (if Append_Nul then Standard."+" (Item'Length, 1) else Item'Length),
      Post => Count = (if Append_Nul then Item'Length + 1 else Item'Length)
        and then
          (if Count /= 0 then

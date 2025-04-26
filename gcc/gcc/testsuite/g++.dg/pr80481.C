@@ -1,7 +1,10 @@
 // { dg-do compile { target { i?86-*-* x86_64-*-* }  && { ! *-*-solaris* } } }
-// { dg-options "-Ofast -funroll-loops -fopenmp -march=knl" }
+// -fopenmp implies -pthread
+// { dg-require-effective-target pthread } 
+// { dg-options "-Ofast -funroll-loops -fopenmp -march=skylake-avx512" }
 // Disabling epilogues until we find a better way to deal with scans.
 // { dg-additional-options "--param vect-epilogues-nomask=0" }
+// { dg-skip-if "requires hosted libstdc++ for cstdlib malloc" { ! hostedlib } }
 
 
 #include <math.h>

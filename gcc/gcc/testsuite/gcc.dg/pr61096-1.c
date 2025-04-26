@@ -36,7 +36,7 @@ struct S s = { { 1 }, { 3 } }; /* { dg-error "23:extra brace group at end of ini
 struct g g1 = { {0, { 1 } } }; /* { dg-error "21:initialization of flexible array member in a nested context" } */
 struct g g2 = { .f[0] = 1 }; /* { dg-error "20:array index in non-array initializer" } */
 
-__extension__ int a8 = { }; /* { dg-error "24:empty scalar initializer" } */
+__extension__ int a8 = { };
 int a9[10] = {[1.2] = 2 }; /* { dg-error "16:array index in initializer not of integer type" } */
 int a10[10] = {[e] = 2 }; /* { dg-error "17:nonconstant array index in initializer" } */
 __extension__ int a11[10] = {[1 ... e] = 1 }; /* { dg-error "31:nonconstant array index in initializer" } */
@@ -47,7 +47,7 @@ __extension__ int a15[10] = {[2 ... 1] = 4 }; /* { dg-error "31:empty index rang
 __extension__ int a16[10] = {[2 ... 100] = 4 }; /* { dg-error "31:array index range in initializer exceeds array bounds" } */
 int a17[] = { .B = 1 }; /* { dg-error "15:field name not in record or union initializer" } */
 int a18[] = { e }; /* { dg-error "15:initializer element is not constant" } */
-char a19[1] = { "x", "x" }; /* { dg-error "22:excess elements in 'char' array initializer" } */
+char a19[1] = { "x", "x" }; /* { dg-error "22:excess elements in 'char.1.' initializer" } */
 
 void
 bar (void)

@@ -1,4 +1,4 @@
-# Configure script for libada.
+# Configure script for gnattools
 #   Copyright 2003, 2004, 2009, 2012 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify it
@@ -53,75 +53,37 @@ AC_PROG_LN_S
 
 # Target-specific stuff (defaults)
 TOOLS_TARGET_PAIRS=
-AC_SUBST(TOOLS_TARGET_PAIRS)
 EXTRA_GNATTOOLS=
-AC_SUBST(EXTRA_GNATTOOLS)
 
 # Per-target case statement
 # -------------------------
 case "${target}" in
   *-*-aix*)
-    TOOLS_TARGET_PAIRS="\
-    mlib-tgt-specific.adb<mlib-tgt-specific-aix.adb \
-    indepsw.adb<indepsw-aix.adb"
+    TOOLS_TARGET_PAIRS="indepsw.adb<indepsw-aix.adb"
     ;;
   *-*-darwin*)
-    TOOLS_TARGET_PAIRS="\
-    mlib-tgt-specific.adb<mlib-tgt-specific-darwin.adb \
-    indepsw.adb<indepsw-darwin.adb"
+    TOOLS_TARGET_PAIRS="indepsw.adb<indepsw-darwin.adb"
     ;;
   *-*-dragonfly*)
-    TOOLS_TARGET_PAIRS="\
-    mlib-tgt-specific.adb<mlib-tgt-specific-linux.adb \
-    indepsw.adb<indepsw-gnu.adb"
+    TOOLS_TARGET_PAIRS="indepsw.adb<indepsw-gnu.adb"
     ;;
   *-*-freebsd*)
-    TOOLS_TARGET_PAIRS="\
-    mlib-tgt-specific.adb<mlib-tgt-specific-linux.adb \
-    indepsw.adb<indepsw-gnu.adb"
+    TOOLS_TARGET_PAIRS="indepsw.adb<indepsw-gnu.adb"
     ;;
   *-*-linux*)
-    TOOLS_TARGET_PAIRS="\
-    mlib-tgt-specific.adb<mlib-tgt-specific-linux.adb \
-    indepsw.adb<indepsw-gnu.adb"
-    ;;
-  *-*-solaris*)
-    TOOLS_TARGET_PAIRS="mlib-tgt-specific.adb<mlib-tgt-specific-solaris.adb"
+    TOOLS_TARGET_PAIRS="indepsw.adb<indepsw-gnu.adb"
     ;;
   *-*-vxworks*)
-    TOOLS_TARGET_PAIRS="\
-    mlib-tgt-specific.adb<mlib-tgt-specific-vxworks.adb \
-    indepsw.adb<indepsw-gnu.adb"
-    ;;
-  hppa*-hp-hpux10*)
-    ;;
-  hppa*-hp-hpux11*)
-    TOOLS_TARGET_PAIRS="mlib-tgt-specific.adb<mlib-tgt-specific-hpux.adb"
-    ;;
-  ia64-hp-hpux11*)
-    TOOLS_TARGET_PAIRS="mlib-tgt-specific.adb<mlib-tgt-specific-ia64-hpux.adb"
-    ;;
-  alpha*-*-vms* | alpha*-*-openvms*)
-    TOOLS_TARGET_PAIRS="\
-    mlib-tgt-specific.adb<mlib-tgt-specific-vms-alpha.adb \
-    symbols.adb<symbols-vms.adb \
-    symbols-processing.adb<symbols-processing-vms-alpha.adb"
-    EXTRA_GNATTOOLS='../../gnatlbr$(exeext) ../../gnatsym$(exeext)'
-    ;;
-  ia64-*-vms* | ia64-*-openvms*)
-    TOOLS_TARGET_PAIRS="\
-    mlib-tgt-specific.adb<mlib-tgt-specific-vms-ia64.adb \
-    symbols.adb<symbols-vms.adb \
-    symbols-processing.adb<symbols-processing-vms-ia64.adb"
-    EXTRA_GNATTOOLS='../../gnatlbr$(exeext) ../../gnatsym$(exeext)'
+    TOOLS_TARGET_PAIRS="indepsw.adb<indepsw-gnu.adb"
     ;;
   *-*-cygwin32* | *-*-mingw32* | *-*-pe)
-    TOOLS_TARGET_PAIRS="\
-    mlib-tgt-specific.adb<mlib-tgt-specific-mingw.adb \
-    indepsw.adb<indepsw-mingw.adb"
+    TOOLS_TARGET_PAIRS="indepsw.adb<indepsw-gnu.adb"
     EXTRA_GNATTOOLS='../../gnatdll$(exeext)'
     ;;
 esac
+
+AC_SUBST(TOOLS_TARGET_PAIRS)
+AC_SUBST(EXTRA_GNATTOOLS)
 
 # From user or toplevel makefile.
 AC_SUBST(ADA_CFLAGS)
@@ -134,6 +96,20 @@ if test "x$GCC" = "xyes"; then
   warn_cflags='$(GCC_WARN_CFLAGS)'
 fi
 AC_SUBST(warn_cflags)
+
+# Enable --enable-host-pie
+AC_ARG_ENABLE(host-pie,
+[AS_HELP_STRING([--enable-host-pie],
+		[build host code as PIE])],
+[PICFLAG=-fPIE; LD_PICFLAG=-pie], [PICFLAG=-fno-PIE; LD_PICFLAG=-no-pie])
+AC_SUBST(PICFLAG)
+
+# Enable --enable-host-bind-now
+AC_ARG_ENABLE(host-bind-now,
+[AS_HELP_STRING([--enable-host-bind-now],
+       [link host code as BIND_NOW])],
+[LD_PICFLAG="$LD_PICFLAG -Wl,-z,now"], [])
+AC_SUBST(LD_PICFLAG)
 
 # Determine what to build for 'gnattools'.  Test after the above,
 # because testing for CC sets the final value of cross_compiling, even

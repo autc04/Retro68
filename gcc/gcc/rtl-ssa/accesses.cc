@@ -1,5 +1,5 @@
 // Implementation of access-related functions for RTL SSA           -*- C++ -*-
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -19,6 +19,7 @@
 
 #define INCLUDE_ALGORITHM
 #define INCLUDE_FUNCTIONAL
+#define INCLUDE_ARRAY
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -792,25 +793,28 @@ function_info::merge_clobber_groups (clobber_info *clobber1,
 }
 
 // GROUP spans INSN, and INSN now sets the resource that GROUP clobbers.
-// Split GROUP around INSN and return the clobber that comes immediately
-// before INSN.
-clobber_info *
+// Split GROUP around INSN, to form two new groups.  The first of the
+// returned groups comes before INSN and the second comes after INSN.
+//
+// The caller is responsible for updating the def_splay_tree and chaining
+// the defs together.
+std::array<clobber_group *, 2>
 function_info::split_clobber_group (clobber_group *group, insn_info *insn)
 {
   // Search for either the previous or next clobber in the group.
   // The result is less than zero if CLOBBER should come before NEIGHBOR
   // or greater than zero if CLOBBER should come after NEIGHBOR.
-  int comparison = lookup_clobber (group->m_clobber_tree, insn);
+  clobber_tree &tree1 = group->m_clobber_tree;
+  int comparison = lookup_clobber (tree1, insn);
   gcc_checking_assert (comparison != 0);
-  clobber_info *neighbor = group->m_clobber_tree.root ();
+  clobber_info *neighbor = tree1.root ();
 
-  clobber_tree tree1, tree2;
+  clobber_tree tree2;
   clobber_info *prev;
   clobber_info *next;
   if (comparison > 0)
     {
       // NEIGHBOR is the last clobber in what will become the first group.
-      tree1 = neighbor;
       tree2 = tree1.split_after_root ();
       prev = neighbor;
       next = as_a<clobber_info *> (prev->next_def ());
@@ -824,26 +828,18 @@ function_info::split_clobber_group (clobber_group *group, insn_info *insn)
       prev = as_a<clobber_info *> (next->prev_def ());
     }
 
-  // Use GROUP to hold PREV and earlier clobbers.  Create a new group for
-  // NEXT onwards.
+  // Create a new group for each side of the split.  We need to invalidate
+  // the old group so that clobber_info::group can tell whether a lazy
+  // update is needed.
+  clobber_info *first_clobber = group->first_clobber ();
   clobber_info *last_clobber = group->last_clobber ();
-  clobber_group *group1 = group;
-  clobber_group *group2 = allocate<clobber_group> (next);
+  auto *group1 = allocate<clobber_group> (first_clobber, prev, tree1.root ());
+  auto *group2 = allocate<clobber_group> (next, last_clobber, tree2.root ());
 
-  // Finish setting up GROUP1, making sure that the roots and extremities
-  // have a correct group pointer.  Leave the rest to be updated lazily.
-  group1->set_last_clobber (prev);
-  tree1->set_group (group1);
-  prev->set_group (group1);
+  // Invalidate the old group.
+  group->set_last_clobber (nullptr);
 
-  // Finish setting up GROUP2, with the same approach as for GROUP1.
-  group2->set_first_clobber (next);
-  group2->set_last_clobber (last_clobber);
-  next->set_group (group2);
-  tree2->set_group (group2);
-  last_clobber->set_group (group2);
-
-  return prev;
+  return { group1, group2 };
 }
 
 // Add DEF to the end of the function's list of definitions of
@@ -900,7 +896,7 @@ function_info::add_def (def_info *def)
   insn_info *insn = def->insn ();
 
   int comparison;
-  def_node *root = nullptr;
+  def_node *neighbor = nullptr;
   def_info *prev = nullptr;
   def_info *next = nullptr;
   if (*insn > *last->insn ())
@@ -910,8 +906,8 @@ function_info::add_def (def_info *def)
       if (def_splay_tree tree = last->splay_root ())
 	{
 	  tree.splay_max_node ();
-	  root = tree.root ();
-	  last->set_splay_root (root);
+	  last->set_splay_root (tree.root ());
+	  neighbor = tree.root ();
 	}
       prev = last;
     }
@@ -922,8 +918,8 @@ function_info::add_def (def_info *def)
       if (def_splay_tree tree = last->splay_root ())
 	{
 	  tree.splay_min_node ();
-	  root = tree.root ();
-	  last->set_splay_root (root);
+	  last->set_splay_root (tree.root ());
+	  neighbor = tree.root ();
 	}
       next = first;
     }
@@ -932,8 +928,8 @@ function_info::add_def (def_info *def)
       // Search the splay tree for an insertion point.
       def_splay_tree tree = need_def_splay_tree (last);
       comparison = lookup_def (tree, insn);
-      root = tree.root ();
-      last->set_splay_root (root);
+      last->set_splay_root (tree.root ());
+      neighbor = tree.root ();
 
       // Deal with cases in which we found an overlapping live range.
       if (comparison == 0)
@@ -944,19 +940,34 @@ function_info::add_def (def_info *def)
 	      add_clobber (clobber, group);
 	      return;
 	    }
-	  prev = split_clobber_group (group, insn);
-	  next = prev->next_def ();
+	  auto new_groups = split_clobber_group (group, insn);
+
+	  // Insert the two new groups immediately after GROUP.
+	  def_splay_tree::insert_child (group, 1, new_groups[1]);
+	  def_splay_tree::insert_child (group, 1, new_groups[0]);
+
+	  // Remove GROUP.
+	  tree.remove_root ();
+	  last->set_splay_root (tree.root ());
+
+	  prev = new_groups[0]->last_clobber ();
+	  next = new_groups[1]->first_clobber ();
+
+	  // DEF comes after the first group.  (new_groups[1] and -1 would
+	  // also work.)
+	  neighbor = new_groups[0];
+	  comparison = 1;
 	}
-      // COMPARISON is < 0 if DEF comes before ROOT or > 0 if DEF comes
-      // after ROOT.
+      // COMPARISON is < 0 if DEF comes before NEIGHBOR or > 0 if DEF comes
+      // after NEIGHBOR.
       else if (comparison < 0)
 	{
-	  next = first_def (root);
+	  next = first_def (neighbor);
 	  prev = next->prev_def ();
 	}
       else
 	{
-	  prev = last_def (root);
+	  prev = last_def (neighbor);
 	  next = prev->next_def ();
 	}
     }
@@ -971,12 +982,12 @@ function_info::add_def (def_info *def)
     append_clobber_to_group (clobber, need_clobber_group (prev_clobber));
   else if (clobber && next_clobber)
     prepend_clobber_to_group (clobber, need_clobber_group (next_clobber));
-  else if (root)
+  else if (neighbor)
     {
-      // If DEF comes before ROOT, insert DEF to ROOT's left,
-      // otherwise insert DEF to ROOT's right.
+      // If DEF comes before NEIGHBOR, insert DEF to NEIGHBOR's left,
+      // otherwise insert DEF to NEIGHBOR's right.
       def_node *node = need_def_node (def);
-      def_splay_tree::insert_child (root, comparison >= 0, node);
+      def_splay_tree::insert_child (neighbor, comparison >= 0, node);
     }
   if (prev)
     insert_def_after (def, prev);
@@ -1221,16 +1232,24 @@ function_info::add_use (use_info *use)
   need_use_splay_tree (def);
   int comparison = lookup_use (def->m_use_tree, insn);
   gcc_checking_assert (comparison != 0);
-  splay_tree_node<use_info *> *neighbor = def->m_use_tree.root ();
+  use_info *neighbor = def->m_use_tree.root ()->value ();
 
   // If USE comes before NEIGHBOR, insert USE to NEIGHBOR's left,
   // otherwise insert USE to NEIGHBOR's right.
   auto *use_node = allocate<splay_tree_node<use_info *>> (use);
-  def->m_use_tree.insert_child (neighbor, comparison > 0, use_node);
+  def->m_use_tree.insert_relative (comparison, use_node);
   if (comparison > 0)
-    insert_use_after (use, neighbor->value ());
+    insert_use_after (use, neighbor);
   else
-    insert_use_before (use, neighbor->value ());
+    insert_use_before (use, neighbor);
+}
+
+void
+function_info::reparent_use (use_info *use, set_info *new_def)
+{
+  remove_use (use);
+  use->set_def (new_def);
+  add_use (use);
 }
 
 // If USE has a known definition, remove USE from that definition's list
@@ -1289,6 +1308,58 @@ function_info::insert_temp_clobber (obstack_watermark &watermark,
   return insert_access (watermark, clobber, old_defs);
 }
 
+// See the comment above the declaration.
+bool
+function_info::remains_available_at_insn (const set_info *set,
+					  insn_info *insn)
+{
+  auto *ebb = set->ebb ();
+  gcc_checking_assert (ebb == insn->ebb ());
+
+  def_info *next_def = set->next_def ();
+  if (next_def && *next_def->insn () < *insn)
+    return false;
+
+  if (HARD_REGISTER_NUM_P (set->regno ())
+      && TEST_HARD_REG_BIT (m_clobbered_by_calls, set->regno ()))
+    for (ebb_call_clobbers_info *call_group : ebb->call_clobbers ())
+      {
+	if (!call_group->clobbers (set->resource ()))
+	  continue;
+
+	insn_info *call_insn = next_call_clobbers (*call_group, insn);
+	if (call_insn && *call_insn < *insn)
+	  return false;
+      }
+
+  return true;
+}
+
+// See the comment above the declaration.
+bool
+function_info::remains_available_on_exit (const set_info *set, bb_info *bb)
+{
+  if (HARD_REGISTER_NUM_P (set->regno ())
+      && TEST_HARD_REG_BIT (m_clobbered_by_calls, set->regno ()))
+    {
+      insn_info *search_insn = (set->bb () == bb
+				? set->insn ()
+				: bb->head_insn ());
+      for (ebb_call_clobbers_info *call_group : bb->ebb ()->call_clobbers ())
+	{
+	  if (!call_group->clobbers (set->resource ()))
+	    continue;
+
+	  insn_info *insn = next_call_clobbers (*call_group, search_insn);
+	  if (insn && insn->bb () == bb)
+	    return false;
+	}
+    }
+
+  return (set->is_last_def ()
+	  || *set->next_def ()->insn () > *bb->end_insn ());
+}
+
 // A subroutine of make_uses_available.  Try to make USE's definition
 // available at the head of BB.  WILL_BE_DEBUG_USE is true if the
 // definition will be used only in debug instructions.
@@ -1315,14 +1386,20 @@ function_info::make_use_available (use_info *use, bb_info *bb,
   if (is_single_dominating_def (def))
     return use;
 
-  // FIXME: Deliberately limited for fwprop compatibility testing.
+  if (def->ebb () == bb->ebb ())
+    {
+      if (remains_available_at_insn (def, bb->head_insn ()))
+	return use;
+      return nullptr;
+    }
+
   basic_block cfg_bb = bb->cfg_bb ();
   bb_info *use_bb = use->bb ();
   if (single_pred_p (cfg_bb)
       && single_pred (cfg_bb) == use_bb->cfg_bb ()
       && remains_available_on_exit (def, use_bb))
     {
-      if (def->ebb () == bb->ebb () || will_be_debug_use)
+      if (will_be_debug_use)
 	return use;
 
       resource_info resource = use->resource ();
@@ -1382,6 +1459,26 @@ function_info::make_uses_available (obstack_watermark &watermark,
       new_uses[i] = use;
     }
   return use_array (new_uses, num_uses);
+}
+
+set_info *
+function_info::create_set (obstack_watermark &watermark,
+			   insn_info *insn,
+			   resource_info resource)
+{
+  auto set = change_alloc<set_info> (watermark, insn, resource);
+  set->m_is_temp = true;
+  return set;
+}
+
+use_info *
+function_info::create_use (obstack_watermark &watermark,
+			   insn_info *insn,
+			   set_info *set)
+{
+  auto use = change_alloc<use_info> (watermark, insn, set->resource (), set);
+  use->m_is_temp = true;
+  return use;
 }
 
 // Return true if ACCESS1 can represent ACCESS2 and if ACCESS2 can
@@ -1498,21 +1595,82 @@ rtl_ssa::insert_access_base (obstack_watermark &watermark,
 }
 
 // See the comment above the declaration.
+use_array
+rtl_ssa::remove_uses_of_def (obstack_watermark &watermark, use_array uses,
+			     def_info *def)
+{
+  access_array_builder uses_builder (watermark);
+  uses_builder.reserve (uses.size ());
+  for (use_info *use : uses)
+    if (use->def () != def)
+      uses_builder.quick_push (use);
+  return use_array (uses_builder.finish ());
+}
+
+// See the comment above the declaration.
 access_array
 rtl_ssa::remove_note_accesses_base (obstack_watermark &watermark,
 				    access_array accesses)
 {
+  auto predicate = [](access_info *a) {
+    return !a->only_occurs_in_notes ();
+  };
+
   for (access_info *access : accesses)
     if (access->only_occurs_in_notes ())
-      {
-	access_array_builder builder (watermark);
-	builder.reserve (accesses.size ());
-	for (access_info *access2 : accesses)
-	  if (!access2->only_occurs_in_notes ())
-	    builder.quick_push (access2);
-	return builder.finish ();
-      }
+      return filter_accesses (watermark, accesses, predicate);
+
   return accesses;
+}
+
+// See the comment above the declaration.
+bool
+rtl_ssa::accesses_reference_same_resource (access_array accesses1,
+					   access_array accesses2)
+{
+  auto i1 = accesses1.begin ();
+  auto end1 = accesses1.end ();
+  auto i2 = accesses2.begin ();
+  auto end2 = accesses2.end ();
+
+  while (i1 != end1 && i2 != end2)
+    {
+      access_info *access1 = *i1;
+      access_info *access2 = *i2;
+
+      unsigned int regno1 = access1->regno ();
+      unsigned int regno2 = access2->regno ();
+      if (regno1 == regno2)
+	return true;
+
+      if (regno1 < regno2)
+	++i1;
+      else
+	++i2;
+    }
+  return false;
+}
+
+// See the comment above the declaration.
+bool
+rtl_ssa::insn_clobbers_resources (insn_info *insn, access_array accesses)
+{
+  if (accesses_reference_same_resource (insn->defs (), accesses))
+    return true;
+
+  if (insn->is_call () && accesses_include_hard_registers (accesses))
+    {
+      function_abi abi = insn_callee_abi (insn->rtl ());
+      for (const access_info *access : accesses)
+	{
+	  if (!HARD_REGISTER_NUM_P (access->regno ()))
+	    break;
+	  if (abi.clobbers_reg_p (access->mode (), access->regno ()))
+	    return true;
+	}
+    }
+
+  return false;
 }
 
 // Print RESOURCE to PP.
@@ -1597,6 +1755,13 @@ rtl_ssa::pp_def_lookup (pretty_printer *pp, def_lookup dl)
   pp_def_mux (pp, dl.mux);
 }
 
+// Print TREE to PP.
+void
+rtl_ssa::pp_def_splay_tree (pretty_printer *pp, def_splay_tree tree)
+{
+  tree.print (pp, pp_def_node);
+}
+
 // Dump RESOURCE to FILE.
 void
 dump (FILE *file, resource_info resource)
@@ -1639,6 +1804,13 @@ dump (FILE *file, def_lookup result)
   dump_using (file, pp_def_lookup, result);
 }
 
+// Print TREE to FILE.
+void
+dump (FILE *file, def_splay_tree tree)
+{
+  dump_using (file, pp_def_splay_tree, tree);
+}
+
 // Debug interfaces to the dump routines above.
 void debug (const resource_info &x) { dump (stderr, x); }
 void debug (const access_info *x) { dump (stderr, x); }
@@ -1646,3 +1818,4 @@ void debug (const access_array &x) { dump (stderr, x); }
 void debug (const def_node *x) { dump (stderr, x); }
 void debug (const def_mux &x) { dump (stderr, x); }
 void debug (const def_lookup &x) { dump (stderr, x); }
+void debug (const def_splay_tree &x) { dump (stderr, x); }

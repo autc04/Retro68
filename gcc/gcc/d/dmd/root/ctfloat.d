@@ -1,12 +1,12 @@
 /**
  * Collects functions for compile-time floating-point calculations.
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/root/ctfloat.d, root/_ctfloat.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/root/ctfloat.d, root/_ctfloat.d)
  * Documentation: https://dlang.org/phobos/dmd_root_ctfloat.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/root/ctfloat.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/root/ctfloat.d
  */
 
 module dmd.root.ctfloat;
@@ -47,10 +47,10 @@ extern (C++) struct CTFloat
     static bool isInfinity(real_t r) pure;
 
     @system
-    static real_t parse(const(char)* literal, bool* isOutOfRange = null);
+    static real_t parse(const(char)* literal, out bool isOutOfRange);
 
     @system
-    static int sprint(char* str, char fmt, real_t x);
+    static int sprint(char* str, size_t size, char fmt, real_t x);
 
     // Constant real values 0, 1, -1 and 0.5.
     __gshared real_t zero;

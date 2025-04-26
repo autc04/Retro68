@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <ranges>
 #include <testsuite_hooks.h>
@@ -28,6 +27,11 @@ struct R1
 {
   int i = 0;
   int j = 0;
+
+#if __cpp_lib_ranges_as_const
+  const int *begin() const;
+  const int *end() const;
+#endif
 
   constexpr const int* rbegin() const { return &i; }
   constexpr const int* rend() const { return &i + 1; }
@@ -79,6 +83,11 @@ struct R3
 {
   int i = 0;
 
+#if __cpp_lib_ranges_as_const
+  const int *begin() const;
+  const int *end() const;
+#endif
+
   const int* rbegin() const noexcept { return &i + 1; }
   const long* rend() const noexcept { return nullptr; } // not a sentinel for rbegin()
 
@@ -86,8 +95,22 @@ struct R3
   friend const int* rend(const R3& r) { return &r.i; }
 };
 
-// N.B. this is a lie, rend on an R3 rvalue will return a dangling pointer.
-template<> constexpr bool std::ranges::enable_borrowed_range<R3> = true;
+struct R4
+{
+  int i = 0;
+
+#if __cpp_lib_ranges_as_const
+  // These members mean that range<R4> and range<const R4> are satisfied.
+  const short* begin() const { return 0; }
+  const short* end() const { return 0; }
+#endif
+
+  const int* rbegin() const noexcept { return &i + 1; }
+  const long* rend() const noexcept { return nullptr; } // not a sentinel for rbegin()
+
+  friend const long* rbegin(const R4&) noexcept { return nullptr; }
+  friend const int* rend(const R4& r) { return &r.i; }
+};
 
 void
 test03()
@@ -98,6 +121,15 @@ test03()
   static_assert( !noexcept(std::ranges::crend(r)) );
   VERIFY( std::ranges::crend(c) == std::ranges::rend(c) );
   static_assert( !noexcept(std::ranges::crend(c)) );
+
+  R4 r4;
+  const R4& c4 = r4;
+  auto b = std::ranges::rbegin(r4);
+  auto s0 = std::ranges::rend(r4);
+  static_assert( std::ranges::__access::__adl_rend<R4&> );
+  auto s = std::ranges::crend(r4);
+  auto s2 = std::ranges::rend(c4);
+  // VERIFY( std::ranges::crend(r4) == std::ranges::rend(c4) );
 }
 
 void

@@ -13,6 +13,9 @@ int main () {
 #if defined(__riscv_32e)
 #error "__riscv_32e"
 #endif
+#if defined(__riscv_64e)
+#error "__riscv_64e"
+#endif
 
 #if !defined(__riscv_atomic)
 #error "__riscv_atomic"
@@ -57,9 +60,6 @@ int main () {
 #endif
 #if !defined(__riscv_cmodel_medany)
 #error "__riscv_cmodel_medany"
-#endif
-#if !defined(__riscv_cmodel_pic)
-#error "__riscv_cmodel_pic"
 #endif
 
   return 0;

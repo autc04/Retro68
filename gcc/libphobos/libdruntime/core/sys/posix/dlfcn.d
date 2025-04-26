@@ -45,7 +45,6 @@ version (Posix):
 extern (C):
 nothrow:
 @nogc:
-@system:
 
 //
 // XOpen (XSI)
@@ -161,6 +160,18 @@ version (CRuntime_Glibc)
         enum RTLD_LOCAL     = 0;
         enum RTLD_NODELETE  = 0x01000;
     }
+    else version (LoongArch64)
+    {
+        // http://sourceware.org/git/?p=glibc.git;a=blob;f=bits/dlfcn.h
+        enum RTLD_LAZY      = 0x00001;
+        enum RTLD_NOW       = 0x00002;
+        enum RTLD_BINDING_MASK = 0x3;
+        enum RTLD_NOLOAD    = 0x00004;
+        enum RTLD_DEEPBIND  = 0x00008;
+        enum RTLD_GLOBAL    = 0x00100;
+        enum RTLD_LOCAL     = 0;
+        enum RTLD_NODELETE  = 0x01000;
+    }
     else
         static assert(0, "unimplemented");
 
@@ -177,6 +188,38 @@ version (CRuntime_Glibc)
         const(char)* dli_sname;
         void* dli_saddr;
     }
+}
+else
+version (CRuntime_Musl)
+{
+    enum RTLD_LAZY   = 1;
+    enum RTLD_NOW    = 2;
+    enum RTLD_NOLOAD = 4;
+    enum RTLD_NODELETE = 4096;
+    enum RTLD_GLOBAL = 256;
+    enum RTLD_LOCAL  = 0;
+
+    enum RTLD_NEXT    = cast(void *)-1;
+    enum RTLD_DEFAULT = cast(void *)0;
+
+    enum RTLD_DI_LINKMAP = 2;
+
+    int    dlclose(void *);
+    char  *dlerror();
+    void  *dlopen(const(char) *, int);
+
+    pragma(mangle, muslRedirTime64Mangle!("dlsym", "__dlsym_time64"))
+    void  *dlsym(void *__restrict, const(char) *__restrict);
+
+    struct Dl_info
+    {
+        const(char)* dli_fname;
+        void* dli_fbase;
+        const(char)* dli_sname;
+        void* dli_saddr;
+    }
+    int dladdr(const(void) *, Dl_info *);
+    int dlinfo(void *, int, void *);
 }
 else version (Darwin)
 {
@@ -329,12 +372,20 @@ else version (Solaris)
 }
 else version (CRuntime_Bionic)
 {
-    enum
+    enum RTLD_LOCAL    = 0;
+    enum RTLD_LAZY     = 0x00001;
+    enum RTLD_NOLOAD   = 0x00004;
+    enum RTLD_NODELETE = 0x01000;
+
+    version (D_LP64)
     {
-        RTLD_NOW    = 0,
-        RTLD_LAZY   = 1,
-        RTLD_LOCAL  = 0,
-        RTLD_GLOBAL = 2
+        enum RTLD_NOW      = 0x00002;
+        enum RTLD_GLOBAL   = 0x00100;
+    }
+    else // NDK: 'LP32 is broken for historical reasons'
+    {
+        enum RTLD_NOW      = 0;
+        enum RTLD_GLOBAL   = 0x00002;
     }
 
     int          dladdr(const scope void*, Dl_info*);
@@ -377,7 +428,7 @@ else version (CRuntime_Musl)
 }
 else version (CRuntime_UClibc)
 {
-    version (X86_64)
+    version (X86_Any)
     {
         enum RTLD_LAZY              = 0x0001;
         enum RTLD_NOW               = 0x0002;
@@ -387,7 +438,7 @@ else version (CRuntime_UClibc)
         enum RTLD_LOCAL             = 0;
         enum RTLD_NODELETE          = 0x01000;
     }
-    else version (MIPS32)
+    else version (MIPS_Any)
     {
         enum RTLD_LAZY              = 0x0001;
         enum RTLD_NOW               = 0x0002;

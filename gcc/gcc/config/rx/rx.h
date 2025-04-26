@@ -1,5 +1,5 @@
 /* GCC backend definitions for the Renesas RX processor.
-   Copyright (C) 2008-2022 Free Software Foundation, Inc.
+   Copyright (C) 2008-2025 Free Software Foundation, Inc.
    Contributed by Red Hat.
 
    This file is part of GCC.
@@ -131,10 +131,6 @@
 #define INT_TYPE_SIZE			32
 #define LONG_TYPE_SIZE			32
 #define LONG_LONG_TYPE_SIZE		64
-
-#define FLOAT_TYPE_SIZE 		32
-#define DOUBLE_TYPE_SIZE 		(TARGET_64BIT_DOUBLES ? 64 : 32)
-#define LONG_DOUBLE_TYPE_SIZE		DOUBLE_TYPE_SIZE
 
 #define DEFAULT_SIGNED_CHAR		0
 
@@ -623,7 +619,6 @@ typedef unsigned int CUMULATIVE_ARGS;
 #undef  PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
 
-#define DBX_DEBUGGING_INFO 1
 #define DWARF2_DEBUGGING_INFO 1
 
 #define INCOMING_FRAME_SP_OFFSET		4

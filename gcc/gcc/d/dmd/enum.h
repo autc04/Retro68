@@ -1,6 +1,6 @@
 
 /* Compiler implementation of the D programming language
- * Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * written by Walter Bright
  * https://www.digitalmars.com
  * Distributed under the Boost Software License, Version 1.0.
@@ -17,7 +17,13 @@ class Identifier;
 class Type;
 class Expression;
 
-class EnumDeclaration : public ScopeDsymbol
+namespace dmd
+{
+    // in enumsem.d
+    Expression *getDefaultValue(EnumDeclaration *ed, Loc loc);
+}
+
+class EnumDeclaration final : public ScopeDsymbol
 {
 public:
     /* The separate, and distinct, cases are:
@@ -35,32 +41,30 @@ public:
     Expression *maxval;
     Expression *minval;
     Expression *defaultval;     // default initializer
+private:
+    uint8_t bitFields;
+public:
+    bool isdeprecated() const;
+    bool isdeprecated(bool v);
+    bool added() const;
+    bool added(bool v);
+    bool inuse() const;
+    bool inuse(bool v);
 
-    bool isdeprecated;
-    bool added;
-    int inuse;
-
-    EnumDeclaration *syntaxCopy(Dsymbol *s);
-    void addMember(Scope *sc, ScopeDsymbol *sds);
-    void setScope(Scope *sc);
-    bool oneMember(Dsymbol **ps, Identifier *ident);
-    Type *getType();
-    const char *kind() const;
-    Dsymbol *search(const Loc &loc, Identifier *ident, int flags = SearchLocalsOnly);
-    bool isDeprecated() const;                // is Dsymbol deprecated?
-    Visibility visible();
+    EnumDeclaration *syntaxCopy(Dsymbol *s) override;
+    Type *getType() override;
+    const char *kind() const override;
+    bool isDeprecated() const override;       // is Dsymbol deprecated?
+    Visibility visible() override;
     bool isSpecial() const;
-    Expression *getDefaultValue(const Loc &loc);
-    Type *getMemtype(const Loc &loc);
 
-    EnumDeclaration *isEnumDeclaration() { return this; }
 
     Symbol *sinit;
-    void accept(Visitor *v) { v->visit(this); }
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
 
-class EnumMember : public VarDeclaration
+class EnumMember final : public VarDeclaration
 {
 public:
     /* Can take the following forms:
@@ -78,9 +82,8 @@ public:
 
     EnumDeclaration *ed;
 
-    EnumMember *syntaxCopy(Dsymbol *s);
-    const char *kind() const;
+    EnumMember *syntaxCopy(Dsymbol *s) override;
+    const char *kind() const override;
 
-    EnumMember *isEnumMember() { return this; }
-    void accept(Visitor *v) { v->visit(this); }
+    void accept(Visitor *v) override { v->visit(this); }
 };

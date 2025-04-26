@@ -1,12 +1,12 @@
 /**
  * Manage flow analysis for constructors.
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/ctorflow.d, _ctorflow.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/ctorflow.d, _ctorflow.d)
  * Documentation:  https://dlang.org/phobos/dmd_ctorflow.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/ctorflow.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/ctorflow.d
  */
 
 module dmd.ctorflow;
@@ -14,7 +14,7 @@ module dmd.ctorflow;
 import core.stdc.stdio;
 
 import dmd.root.rmem;
-import dmd.globals : Loc;
+import dmd.location;
 
 enum CSX : ushort
 {
@@ -71,7 +71,7 @@ struct CtorFlow
      * Params:
      *  csx = bits to set
      */
-    void orCSX(CSX csx) nothrow pure
+    void orCSX(CSX csx) nothrow pure @safe
     {
         callSuper |= csx;
         foreach (ref u; fieldinit)
@@ -83,7 +83,7 @@ struct CtorFlow
      * Params:
      *  ctorflow = bits to OR in
      */
-    void OR(const ref CtorFlow ctorflow) pure nothrow
+    void OR(const ref CtorFlow ctorflow) pure nothrow @safe
     {
         callSuper |= ctorflow.callSuper;
         if (fieldinit.length && ctorflow.fieldinit.length)
@@ -109,7 +109,7 @@ struct CtorFlow
  * Returns:
  *      false means one of the paths skips construction
  */
-bool mergeCallSuper(ref CSX a, const CSX b) pure nothrow
+bool mergeCallSuper(ref CSX a, const CSX b) pure nothrow @safe
 {
     // This does a primitive flow analysis to support the restrictions
     // regarding when and how constructors can appear.
@@ -172,7 +172,7 @@ bool mergeCallSuper(ref CSX a, const CSX b) pure nothrow
  * Returns:
  *      false means either `a` or `b` skips initialization
  */
-bool mergeFieldInit(ref CSX a, const CSX b) pure nothrow
+bool mergeFieldInit(ref CSX a, const CSX b) pure nothrow @safe
 {
     if (b == a)
         return true;

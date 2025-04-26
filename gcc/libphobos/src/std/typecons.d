@@ -22,8 +22,8 @@ $(TR $(TD Flags) $(TD
     $(LREF Yes)
 ))
 $(TR $(TD Memory allocation) $(TD
-    $(LREF RefCounted)
-    $(LREF refCounted)
+    $(LREF SafeRefCounted)
+    $(LREF safeRefCounted)
     $(LREF RefCountedAutoInitialize)
     $(LREF scoped)
     $(LREF Unique)
@@ -225,7 +225,10 @@ public:
     {
         if (_p !is null)
         {
-            destroy(_p);
+            static if (is(T == class) || is(T == interface))
+                destroy(_p);
+            else
+                destroy(*_p);
             _p = null;
         }
     }
@@ -259,7 +262,7 @@ private:
 ///
 @safe unittest
 {
-    static struct S
+    struct S
     {
         int i;
         this(int i){this.i = i;}
@@ -284,12 +287,31 @@ private:
     Unique!S u1;
     assert(u1.isEmpty);
     u1 = produce();
+    assert(u1.i == 5);
     increment(u1);
     assert(u1.i == 6);
     //consume(u1); // Error: u1 is not copyable
     // Transfer ownership of the resource
     consume(u1.release);
     assert(u1.isEmpty);
+}
+
+@safe unittest
+{
+    int i;
+    struct S
+    {
+        ~this()
+        {
+            // check context pointer still exists - dtor also called before GC frees struct
+            if (this.tupleof[0])
+                i++;
+        }
+    }
+    {
+        Unique!S u = new S;
+    }
+    assert(i == 1);
 }
 
 @system unittest
@@ -425,19 +447,6 @@ private:
     assert(ptr.bar.val == 7);
 }
 
-// Used in Tuple.toString
-private template sharedToString(alias field)
-if (is(typeof(field) == shared))
-{
-    static immutable sharedToString = typeof(field).stringof;
-}
-
-private template sharedToString(alias field)
-if (!is(typeof(field) == shared))
-{
-    alias sharedToString = field;
-}
-
 private enum bool distinctFieldNames(names...) = __traits(compiles,
 {
     static foreach (__name; names)
@@ -537,6 +546,14 @@ private template isBuildableFrom(U)
     enum isBuildableFrom(T) = isBuildable!(T, U);
 }
 
+private enum hasCopyCtor(T) = __traits(hasCopyConstructor, T);
+
+// T is expected to be an instantiation of Tuple.
+private template noMemberHasCopyCtor(T)
+{
+    import std.meta : anySatisfy;
+    enum noMemberHasCopyCtor = !anySatisfy!(hasCopyCtor, T.Types);
+}
 
 /**
 _Tuple of values, for example $(D Tuple!(int, string)) is a record that
@@ -723,7 +740,8 @@ if (distinctFieldNames!(Specs))
          *               compatible with the target `Tuple`'s type.
          */
         this(U)(U another)
-        if (areBuildCompatibleTuples!(typeof(this), U))
+        if (areBuildCompatibleTuples!(typeof(this), U) &&
+            (noMemberHasCopyCtor!(typeof(this)) || !is(Unqual!U == Unqual!(typeof(this)))))
         {
             field[] = another.field[];
         }
@@ -949,24 +967,35 @@ if (distinctFieldNames!(Specs))
         {
             import std.algorithm.mutation : swap;
 
-            static if (is(R : Tuple!Types) && !__traits(isRef, rhs) && isTuple!R)
+            /*
+                This optimization caused compilation failures with no error message available:
+
+                > Error: unknown, please file report on issues.dlang.org
+                > std/sumtype.d(1262): Error: template instance `std.sumtype.SumType!(Flag, Tuple!(This*))` error instantiating
+            */
+            version (none)
             {
-                if (__ctfe)
+                static if (is(R == Tuple!Types) && !__traits(isRef, rhs) && isTuple!R)
                 {
-                    // Cannot use swap at compile time
-                    field[] = rhs.field[];
+                    if (__ctfe)
+                    {
+                        // Cannot use swap at compile time
+                        field[] = rhs.field[];
+                    }
+                    else
+                    {
+                        // Use swap-and-destroy to optimize rvalue assignment
+                        swap!(Tuple!Types)(this, rhs);
+                    }
                 }
                 else
                 {
-                    // Use swap-and-destroy to optimize rvalue assignment
-                    swap!(Tuple!Types)(this, rhs);
+                    // Do not swap; opAssign should be called on the fields.
+                    field[] = rhs.field[];
                 }
             }
-            else
-            {
-                // Do not swap; opAssign should be called on the fields.
-                field[] = rhs.field[];
-            }
+
+            field[] = rhs.field[];
             return this;
         }
 
@@ -1146,7 +1175,7 @@ if (distinctFieldNames!(Specs))
         }
 
         ///
-        static if (Specs.length == 0) @safe unittest
+        static if (Specs.length == 0) @system unittest
         {
             //replace names by their position
 
@@ -1166,7 +1195,7 @@ if (distinctFieldNames!(Specs))
             assert(t2Named.c == 3);
         }
 
-        static if (Specs.length == 0) @safe unittest
+        static if (Specs.length == 0) @system unittest
         {
             //check that empty translations work fine
             enum string[string] a0 = null;
@@ -1265,11 +1294,11 @@ if (distinctFieldNames!(Specs))
          * Returns:
          *     The string representation of this `Tuple`.
          */
-        string toString()() const
+        string toString()()
         {
             import std.array : appender;
             auto app = appender!string();
-            this.toString((const(char)[] chunk) => app ~= chunk);
+            toString((const(char)[] chunk) => app ~= chunk);
             return app.data;
         }
 
@@ -1291,14 +1320,14 @@ if (distinctFieldNames!(Specs))
          *     sink = A `char` accepting delegate
          *     fmt = A $(REF FormatSpec, std,format)
          */
-        void toString(DG)(scope DG sink) const
+        void toString(DG)(scope DG sink)
         {
             auto f = FormatSpec!char();
             toString(sink, f);
         }
 
         /// ditto
-        void toString(DG, Char)(scope DG sink, scope const ref FormatSpec!Char fmt) const
+        void toString(DG, Char)(scope DG sink, scope const ref FormatSpec!Char fmt)
         {
             import std.format : format, FormatException;
             import std.format.write : formattedWrite;
@@ -1313,20 +1342,12 @@ if (distinctFieldNames!(Specs))
                         {
                             sink(fmt.sep);
                         }
-                        // TODO: Change this once formattedWrite() works for shared objects.
-                        static if (is(Type == class) && is(Type == shared))
-                        {
-                            sink(Type.stringof);
-                        }
-                        else
-                        {
-                            formattedWrite(sink, fmt.nested, this.field[i]);
-                        }
+                        formattedWrite(sink, fmt.nested, this.field[i]);
                     }
                 }
                 else
                 {
-                    formattedWrite(sink, fmt.nested, staticMap!(sharedToString, this.expand));
+                    formattedWrite(sink, fmt.nested, this.expand);
                 }
             }
             else if (fmt.spec == 's')
@@ -1341,15 +1362,8 @@ if (distinctFieldNames!(Specs))
                     {
                         sink(separator);
                     }
-                    // TODO: Change this once format() works for shared objects.
-                    static if (is(Type == class) && is(Type == shared))
-                    {
-                        sink(Type.stringof);
-                    }
-                    else
-                    {
-                        sink(format!("%(%s%)")(only(field[i])));
-                    }
+                    // Among other things, using "only" causes string-fields to be inside quotes in the result
+                    sink.formattedWrite!("%(%s%)")(only(field[i]));
                 }
                 sink(footer);
             }
@@ -1633,6 +1647,42 @@ if (distinctFieldNames!(Specs))
     Tuple!(MyStruct) t;
 }
 
+// https://issues.dlang.org/show_bug.cgi?id=24465
+@safe unittest
+{
+    {
+        static struct S
+        {
+            this(ref return scope inout(S) rhs) scope @trusted inout pure nothrow {}
+        }
+
+        static void foo(Tuple!S)
+        {
+        }
+
+        Tuple!S t;
+        foo(t);
+
+        auto t2 = Tuple!S(t);
+    }
+
+    {
+        static struct S {}
+        Tuple!S t;
+        auto t2 = Tuple!S(t);
+
+        // This can't be done if Tuple has a copy constructor, because it's not
+        // allowed to have an rvalue constructor at that point, and the
+        // compiler doesn't to something intelligent like transform it into a
+        // move instead. However, it has been legal with Tuple for a while
+        // (maybe even since it was first added) when the type doesn't have a
+        // copy constructor, so this is testing to make sure that the fix to
+        // make copy constructors work doesn't mess up the rvalue constructor
+        // when none of the Tuple's members have copy constructors.
+        auto t3 = Tuple!S(Tuple!S.init);
+    }
+}
+
 /**
     Creates a copy of a $(LREF Tuple) with its fields in _reverse order.
 
@@ -1734,7 +1784,36 @@ private template ReverseTupleSpecs(T...)
         Tuple!(int, shared A) nosh;
         nosh[0] = 5;
         assert(nosh[0] == 5 && nosh[1] is null);
-        assert(nosh.to!string == "Tuple!(int, shared(A))(5, shared(A))");
+
+        assert(nosh.to!string == "Tuple!(int, shared(A))(5, null)");
+    }
+    {
+        // Shared, without fmt.sep
+        import std.format;
+        import std.algorithm.searching;
+        static class A {int i = 1;}
+        Tuple!(int, shared A) nosh;
+        nosh[0] = 5;
+        assert(nosh[0] == 5 && nosh[1] is null);
+
+        // needs trusted, because Object.toString() isn't @safe
+        auto f = ()@trusted => format!("%(%s, %s%)")(nosh);
+        assert(f() == "5, null");
+        nosh[1] = new shared A();
+        // Currently contains the mangled type name
+        // 5, const(std.typecons.__unittest_L1750_C7.A)
+        // This assert is not necessarily to prescribe this behaviour, only to signal if there is a breaking change.
+        // See https://github.com/dlang/phobos/issues/9811
+        auto s = f();
+        assert(s.canFind("__unittest_L"));
+        assert(s.endsWith(".A)"));
+    }
+    {
+        static struct A {}
+        Tuple!(int, shared A*) nosh;
+        nosh[0] = 5;
+        assert(nosh[0] == 5 && nosh[1] is null);
+        assert(nosh.to!string == "Tuple!(int, shared(A*))(5, null)");
     }
     {
         Tuple!(int, string) t;
@@ -1742,6 +1821,40 @@ private template ReverseTupleSpecs(T...)
         t[1] = "str";
         assert(t[0] == 10 && t[1] == "str");
         assert(t.to!string == `Tuple!(int, string)(10, "str")`, t.to!string);
+    }
+    /* https://github.com/dlang/phobos/issues/9811
+    * Note: This is just documenting current behaviour, dependent on `std.format` implementation
+    * details. None of this is defined in a spec or should be regarded as rigid.
+    */
+    {
+        static struct X
+        {
+            /** Usually, toString() should be const where possible.
+             * But as long as the tuple is also non-const, this will work
+             */
+            string toString()
+            {
+                return "toString non-const";
+            }
+        }
+        assert(tuple(X()).to!string == "Tuple!(X)(toString non-const)");
+        const t = tuple(X());
+        // This is an implementation detail of `format`
+        // if the tuple is const, than non-const toString will not be called
+        assert(t.to!string == "const(Tuple!(X))(const(X)())");
+
+        static struct X2
+        {
+            string toString() const /* const toString will work in more cases */
+            {
+                return "toString const";
+            }
+        }
+        assert(tuple(X2()).to!string == "Tuple!(X2)(toString const)");
+        const t2 = tuple(X2());
+        // This is an implementation detail of `format`
+        // if the tuple is const, than non-const toString will not be called
+        assert(t2.to!string == "const(Tuple!(X2))(toString const)");
     }
     {
         Tuple!(int, "a", double, "b") x;
@@ -2168,12 +2281,14 @@ template tuple(Names...)
             // e.g. Tuple!(int, "x", string, "y")
             template Interleave(A...)
             {
-                template and(B...) if (B.length == 1)
+                template and(B...)
+                if (B.length == 1)
                 {
                     alias and = AliasSeq!(A[0], B[0]);
                 }
 
-                template and(B...) if (B.length != 1)
+                template and(B...)
+                if (B.length != 1)
                 {
                     alias and = AliasSeq!(A[0], B[0],
                         Interleave!(A[1..$]).and!(B[1..$]));
@@ -2310,7 +2425,7 @@ break the soundness of D's type system and does not incur any of the
 risks usually associated with `cast`.
 
 Params:
-    T = An object, interface, array slice type, or associative array type.
+    T = Any type.
  */
 template Rebindable(T)
 if (is(T == class) || is(T == interface) || isDynamicArray!T || isAssociativeArray!T)
@@ -2373,15 +2488,155 @@ if (is(T == class) || is(T == interface) || isDynamicArray!T || isAssociativeArr
     static assert(!__traits(compiles, &r.get()));
 }
 
+/// ditto
+struct Rebindable(T)
+if (!is(T == class) && !is(T == interface) && !isDynamicArray!T && !isAssociativeArray!T)
+{
+private:
+    static if (isAssignable!(typeof(cast() T.init)))
+    {
+        enum useQualifierCast = true;
+
+        typeof(cast() T.init) data;
+    }
+    else
+    {
+        enum useQualifierCast = false;
+
+        align(T.alignof)
+        static struct Payload
+        {
+            static if (hasIndirections!T)
+            {
+                void[T.sizeof] data;
+            }
+            else
+            {
+                ubyte[T.sizeof] data;
+            }
+        }
+
+        Payload data;
+    }
+
+public:
+
+    static if (!__traits(compiles, { T value; }))
+    {
+        @disable this();
+    }
+
+    /**
+     * Constructs a `Rebindable` from a given value.
+     */
+    this(T value) @trusted
+    {
+        static if (useQualifierCast)
+        {
+            this.data = cast() value;
+        }
+        else
+        {
+            set(value);
+        }
+    }
+
+    /**
+     * Overwrites the currently stored value with `value`.
+     */
+    void opAssign(this This)(T value) @trusted
+    {
+        clear;
+        set(value);
+    }
+
+    /**
+     * Returns the value currently stored in the `Rebindable`.
+     */
+    T get(this This)() @property @trusted
+    {
+        static if (useQualifierCast)
+        {
+            return cast(T) this.data;
+        }
+        else
+        {
+            return *cast(T*) &this.data;
+        }
+    }
+
+    static if (!useQualifierCast)
+    {
+        ~this() @trusted
+        {
+            clear;
+        }
+    }
+
+    ///
+    alias get this;
+
+private:
+
+    void set(this This)(T value)
+    {
+        static if (useQualifierCast)
+        {
+            this.data = cast() value;
+        }
+        else
+        {
+            // As we're escaping a copy of `value`, deliberately leak a copy:
+            static union DontCallDestructor
+            {
+                T value;
+            }
+            DontCallDestructor copy = DontCallDestructor(value);
+            this.data = *cast(Payload*) &copy;
+        }
+    }
+
+    void clear(this This)()
+    {
+        // work around reinterpreting cast being impossible in CTFE
+        if (__ctfe)
+        {
+            return;
+        }
+
+        // call possible struct destructors
+        .destroy!(No.initialize)(*cast(T*) &this.data);
+    }
+}
+
+/// Using Rebindable in a generic algorithm:
 @safe unittest
 {
-    class CustomToHash
+    import std.range.primitives : front, popFront;
+
+    // simple version of std.algorithm.searching.maxElement
+    typeof(R.init.front) maxElement(R)(R r)
     {
-        override size_t toHash() const nothrow @trusted { return 42; }
+        auto max = rebindable(r.front);
+        r.popFront;
+        foreach (e; r)
+            if (e > max)
+                max = e; // Rebindable allows const-correct reassignment
+        return max;
     }
-    Rebindable!(immutable(CustomToHash)) a = new immutable CustomToHash();
-    assert(a.toHash() == 42, "Rebindable!A should offer toHash()"
-        ~ " by forwarding to A.toHash().");
+    struct S
+    {
+        char[] arr;
+        alias arr this; // for comparison
+    }
+    // can't convert to mutable
+    const S cs;
+    static assert(!__traits(compiles, { S s = cs; }));
+
+    alias CS = const S;
+    CS[] arr = [CS("harp"), CS("apple"), CS("pot")];
+    CS ms = maxElement(arr);
+    assert(ms.arr == "pot");
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=18615
@@ -2431,6 +2686,34 @@ if (is(T == class) || is(T == interface) || isDynamicArray!T || isAssociativeArr
         ~ " comparable against Object itself and use Object.opEquals.");
 }
 
+///
+@system unittest
+{
+    static struct S
+    {
+        int* ptr;
+    }
+    S s = S(new int);
+
+    const cs = s;
+    // Can't assign s.ptr to cs.ptr
+    static assert(!__traits(compiles, {s = cs;}));
+
+    Rebindable!(const S) rs = s;
+    assert(rs.ptr is s.ptr);
+    // rs.ptr is const
+    static assert(!__traits(compiles, {rs.ptr = null;}));
+
+    // Can't assign s.ptr to rs.ptr
+    static assert(!__traits(compiles, {s = rs;}));
+
+    const S cs2 = rs;
+    // Rebind rs
+    rs = cs2;
+    rs = S();
+    assert(rs.ptr is null);
+}
+
 // https://issues.dlang.org/show_bug.cgi?id=18755
 @safe unittest
 {
@@ -2451,13 +2734,145 @@ if (is(T == class) || is(T == interface) || isDynamicArray!T || isAssociativeArr
     }));
 }
 
+@safe unittest
+{
+    class CustomToHash
+    {
+        override size_t toHash() const nothrow @trusted { return 42; }
+    }
+    Rebindable!(immutable(CustomToHash)) a = new immutable CustomToHash();
+    assert(a.toHash() == 42, "Rebindable!A should offer toHash()"
+        ~ " by forwarding to A.toHash().");
+}
+
+// Test Rebindable!immutable
+@safe unittest
+{
+    static struct S
+    {
+        int* ptr;
+    }
+    S s = S(new int);
+
+    Rebindable!(immutable S) ri = S(new int);
+    assert(ri.ptr !is null);
+    static assert(!__traits(compiles, {ri.ptr = null;}));
+
+    // ri is not compatible with mutable S
+    static assert(!__traits(compiles, {s = ri;}));
+    static assert(!__traits(compiles, {ri = s;}));
+
+    auto ri2 = ri;
+    assert(ri2.ptr == ri.ptr);
+
+    const S cs3 = ri;
+    static assert(!__traits(compiles, {ri = cs3;}));
+
+    immutable S si = ri;
+    // Rebind ri
+    ri = si;
+    ri = S();
+    assert(ri.ptr is null);
+
+    // Test RB!immutable -> RB!const
+    Rebindable!(const S) rc = ri;
+    assert(rc.ptr is null);
+    ri = S(new int);
+    rc = ri;
+    assert(rc.ptr !is null);
+
+    // test rebindable, opAssign
+    rc.destroy;
+    assert(rc.ptr is null);
+    rc = rebindable(cs3);
+    rc = rebindable(si);
+    assert(rc.ptr !is null);
+
+    ri.destroy;
+    assert(ri.ptr is null);
+    ri = rebindable(si);
+    assert(ri.ptr !is null);
+}
+
+// Test disabled default ctor
+@safe unittest
+{
+    static struct ND
+    {
+        int i;
+        @disable this();
+        this(int i) inout {this.i = i;}
+    }
+    static assert(!__traits(compiles, Rebindable!ND()));
+
+    Rebindable!(const ND) rb = const ND(1);
+    assert(rb.i == 1);
+    rb = immutable ND(2);
+    assert(rb.i == 2);
+    rb = rebindable(const ND(3));
+    assert(rb.i == 3);
+    static assert(!__traits(compiles, rb.i++));
+}
+
+// Test copying
+@safe unittest
+{
+    int del;
+    int post;
+    struct S
+    {
+        int* ptr;
+        int level;
+        this(this)
+        {
+            post++;
+            level++;
+        }
+        ~this()
+        {
+            del++;
+        }
+    }
+
+    // test ref count
+    {
+        Rebindable!S rc = S(new int);
+    }
+    assert(post == del - 1);
+}
+
+@safe unittest
+{
+    int del;
+    int post;
+    struct S
+    {
+        immutable int x;
+        int level;
+        this(this)
+        {
+            post++;
+            level++;
+        }
+        ~this()
+        {
+            del++;
+        }
+    }
+
+    // test ref count
+    {
+        Rebindable!S rc = S(0);
+    }
+    assert(post == del - 1);
+}
+
 /**
 Convenience function for creating a `Rebindable` using automatic type
 inference.
 
 Params:
-    obj = A reference to an object, interface, associative array, or an array slice
-          to initialize the `Rebindable` with.
+    obj = A reference to a value to initialize the `Rebindable` with.
 
 Returns:
     A newly constructed `Rebindable` initialized with the given reference.
@@ -2490,6 +2905,26 @@ if (is(T == class) || is(T == interface) || isDynamicArray!T || isAssociativeArr
 
     const c3 = c2.get;
     assert(c3.payload == 2);
+}
+
+/// ditto
+Rebindable!T rebindable(T)(T value)
+if (!is(T == class) && !is(T == interface) && !isDynamicArray!T && !isAssociativeArray!T
+    && !is(T : Rebindable!U, U))
+{
+    return Rebindable!T(value);
+}
+
+///
+@safe unittest
+{
+    immutable struct S
+    {
+        int[] array;
+    }
+    auto s1 = [3].idup.rebindable;
+    s1 = [4].idup.rebindable;
+    assert(s1 == [4]);
 }
 
 /**
@@ -2604,10 +3039,6 @@ Rebindable!T rebindable(T)(Rebindable!T obj)
         static assert(is(Rebindable!(T[]) == T[]));
     }
 
-    // https://issues.dlang.org/show_bug.cgi?id=12046
-    static assert(!__traits(compiles, Rebindable!(int[1])));
-    static assert(!__traits(compiles, Rebindable!(const int[1])));
-
     // Pull request 3341
     Rebindable!(immutable int[int]) pr3341 = [123:345];
     assert(pr3341[123] == 345);
@@ -2615,6 +3046,472 @@ Rebindable!T rebindable(T)(Rebindable!T obj)
     pr3341 = pr3341_aa;
     assert(pr3341[321] == 543);
     assert(rebindable(pr3341_aa)[321] == 543);
+}
+
+package(std) struct Rebindable2(T)
+{
+private:
+    static if (isAssignable!(typeof(cast() T.init)))
+    {
+        enum useQualifierCast = true;
+
+        typeof(cast() T.init) data;
+    }
+    else
+    {
+        enum useQualifierCast = false;
+
+        align(T.alignof)
+        static struct Payload
+        {
+            static if (hasIndirections!T)
+            {
+                void[T.sizeof] data;
+            }
+            else
+            {
+                ubyte[T.sizeof] data;
+            }
+        }
+
+        Payload data;
+    }
+
+public:
+
+    static if (!__traits(compiles, { T value; }))
+    {
+        @disable this();
+    }
+
+    /**
+     * Constructs a `Rebindable2` from a given value.
+     */
+    this(T value) @trusted
+    {
+        static if (useQualifierCast)
+        {
+            this.data = cast() value;
+        }
+        else
+        {
+            set(value);
+        }
+    }
+
+    /**
+     * Overwrites the currently stored value with `value`.
+     */
+    void opAssign(this This)(T value) @trusted
+    {
+        clear;
+        set(value);
+    }
+
+    /**
+     * Returns the value currently stored in the `Rebindable2`.
+     */
+    T get(this This)() @property @trusted
+    {
+        static if (useQualifierCast)
+        {
+            return cast(T) this.data;
+        }
+        else
+        {
+            return *cast(T*) &this.data;
+        }
+    }
+
+    /// Ditto
+    inout(T) get() inout @property @trusted
+    {
+        static if (useQualifierCast)
+        {
+            return cast(inout(T)) this.data;
+        }
+        else
+        {
+            return *cast(inout(T)*) &this.data;
+        }
+    }
+
+    static if (!useQualifierCast)
+    {
+        ~this() @trusted
+        {
+            clear;
+        }
+    }
+
+private:
+
+    void set(this This)(T value)
+    {
+        static if (useQualifierCast)
+        {
+            static if (hasElaborateAssign!T)
+            {
+                import core.lifetime : copyEmplace;
+                copyEmplace(cast() value, this.data);
+            }
+            else
+                this.data = cast() value;
+        }
+        else
+        {
+            import core.lifetime : copyEmplace;
+            copyEmplace(cast() value, cast() *cast(T*) &this.data);
+        }
+    }
+
+    void clear(this This)()
+    {
+        // work around reinterpreting cast being impossible in CTFE
+        if (__ctfe)
+        {
+            return;
+        }
+
+        // call possible struct destructors
+        static if (is(T == struct))
+        {
+            .destroy!(No.initialize)(*cast(T*) &this.data);
+        }
+    }
+}
+
+package(std) Rebindable2!T rebindable2(T)(T value)
+{
+    return Rebindable2!T(value);
+}
+
+// Verify that the destructor is called properly if there is one.
+@system unittest
+{
+    {
+        bool destroyed;
+
+        struct S
+        {
+            int i;
+
+            this(int i) @safe
+            {
+                this.i = i;
+            }
+
+            ~this() @safe
+            {
+                destroyed = true;
+            }
+        }
+
+        {
+            auto foo = rebindable2(S(42));
+
+            // Whether destruction has occurred here depends on whether the
+            // temporary gets moved or not, so we won't assume that it has or
+            // hasn't happened. What we care about here is that foo gets destroyed
+            // properly when it leaves the scope.
+            destroyed = false;
+        }
+        assert(destroyed);
+
+        {
+            auto foo = rebindable2(const S(42));
+            destroyed = false;
+        }
+        assert(destroyed);
+    }
+
+    // Test for double destruction with qualifer cast being used
+    {
+        static struct S
+        {
+            int i;
+            bool destroyed;
+
+            this(int i) @safe
+            {
+                this.i = i;
+            }
+
+            ~this() @safe
+            {
+                destroyed = true;
+            }
+
+            @safe invariant
+            {
+                assert(!destroyed);
+            }
+        }
+
+        {
+            auto foo = rebindable2(S(42));
+            assert(typeof(foo).useQualifierCast);
+            assert(foo.data.i == 42);
+            assert(!foo.data.destroyed);
+        }
+        {
+            auto foo = rebindable2(S(42));
+            destroy(foo);
+        }
+        {
+            auto foo = rebindable2(const S(42));
+            assert(typeof(foo).useQualifierCast);
+            assert(foo.data.i == 42);
+            assert(!foo.data.destroyed);
+        }
+        {
+            auto foo = rebindable2(const S(42));
+            destroy(foo);
+        }
+    }
+
+    // Test for double destruction without qualifer cast being used
+    {
+        static struct S
+        {
+            int i;
+            bool destroyed;
+
+            this(int i) @safe
+            {
+                this.i = i;
+            }
+
+            ~this() @safe
+            {
+                destroyed = true;
+            }
+
+            @disable ref S opAssign()(auto ref S rhs);
+
+            @safe invariant
+            {
+                assert(!destroyed);
+            }
+        }
+
+        {
+            auto foo = rebindable2(S(42));
+            assert(!typeof(foo).useQualifierCast);
+            assert((cast(S*)&(foo.data)).i == 42);
+            assert(!(cast(S*)&(foo.data)).destroyed);
+        }
+        {
+            auto foo = rebindable2(S(42));
+            destroy(foo);
+        }
+    }
+}
+
+// Verify that if there is an overloaded assignment operator, it's not assigned
+// to garbage.
+@safe unittest
+{
+    static struct S
+    {
+        int i;
+        bool destroyed;
+
+        this(int i) @safe
+        {
+            this.i = i;
+        }
+
+        ~this() @safe
+        {
+            destroyed = true;
+        }
+
+        ref opAssign()(auto ref S rhs)
+        {
+            assert(!this.destroyed);
+            this.i = rhs.i;
+            return this;
+        }
+    }
+
+    {
+        auto foo = rebindable2(S(42));
+        foo = S(99);
+        assert(foo.data.i == 99);
+    }
+    {
+        auto foo = rebindable2(S(42));
+        foo = const S(99);
+        assert(foo.data.i == 99);
+    }
+}
+
+// Verify that postblit or copy constructor is called properly if there is one.
+@system unittest
+{
+    // postblit with type qualifier cast
+    {
+        static struct S
+        {
+            int i;
+            static bool copied;
+
+            this(this) @safe
+            {
+                copied = true;
+            }
+        }
+
+        {
+            auto foo = rebindable2(S(42));
+
+            // Whether a copy has occurred here depends on whether the
+            // temporary gets moved or not, so we won't assume that it has or
+            // hasn't happened. What we care about here is that foo gets copied
+            // properly when we copy it below.
+            S.copied = false;
+
+            auto bar = foo;
+            assert(S.copied);
+        }
+        {
+            auto foo = rebindable2(const S(42));
+            assert(typeof(foo).useQualifierCast);
+            S.copied = false;
+
+            auto bar = foo;
+            assert(S.copied);
+        }
+    }
+
+    // copy constructor with type qualifier cast
+    {
+        static struct S
+        {
+            int i;
+            static bool copied;
+
+            this(ref inout S rhs) @safe inout
+            {
+                this.i = rhs.i;
+                copied = true;
+            }
+        }
+
+        {
+            auto foo = rebindable2(S(42));
+            assert(typeof(foo).useQualifierCast);
+            S.copied = false;
+
+            auto bar = foo;
+            assert(S.copied);
+        }
+        {
+            auto foo = rebindable2(const S(42));
+            S.copied = false;
+
+            auto bar = foo;
+            assert(S.copied);
+        }
+    }
+
+    // FIXME https://issues.dlang.org/show_bug.cgi?id=24829
+
+    // Making this work requires either reworking how the !useQualiferCast
+    // version works so that the compiler can correctly generate postblit
+    // constructors and copy constructors as appropriate, or an explicit
+    // postblit or copy constructor needs to be added for such cases, which
+    // gets pretty complicated if we want to correctly add the same attributes
+    // that T's postblit or copy constructor has.
+
+    /+
+    // postblit without type qualifier cast
+    {
+        static struct S
+        {
+            int* ptr;
+            static bool copied;
+
+            this(int i)
+            {
+                ptr = new int(i);
+            }
+
+            this(this) @safe
+            {
+                if (ptr !is null)
+                    ptr = new int(*ptr);
+                copied = true;
+            }
+
+            @disable ref S opAssign()(auto ref S rhs);
+        }
+
+        {
+            auto foo = rebindable2(S(42));
+            assert(!typeof(foo).useQualifierCast);
+            S.copied = false;
+
+            auto bar = foo;
+            assert(S.copied);
+            assert(*(cast(S*)&(foo.data)).ptr == *(cast(S*)&(bar.data)).ptr);
+            assert((cast(S*)&(foo.data)).ptr !is (cast(S*)&(bar.data)).ptr);
+        }
+        {
+            auto foo = rebindable2(const S(42));
+            S.copied = false;
+
+            auto bar = foo;
+            assert(S.copied);
+            assert(*(cast(S*)&(foo.data)).ptr == *(cast(S*)&(bar.data)).ptr);
+            assert((cast(S*)&(foo.data)).ptr !is (cast(S*)&(bar.data)).ptr);
+        }
+    }
+
+    // copy constructor without type qualifier cast
+    {
+        static struct S
+        {
+            int* ptr;
+            static bool copied;
+
+            this(int i)
+            {
+                ptr = new int(i);
+            }
+
+            this(ref inout S rhs) @safe inout
+            {
+                if (rhs.ptr !is null)
+                    ptr = new inout int(*rhs.ptr);
+                copied = true;
+            }
+
+            @disable ref S opAssign()(auto ref S rhs);
+        }
+
+        {
+            auto foo = rebindable2(S(42));
+            assert(!typeof(foo).useQualifierCast);
+            S.copied = false;
+
+            auto bar = foo;
+            assert(S.copied);
+            assert(*(cast(S*)&(foo.data)).ptr == *(cast(S*)&(bar.data)).ptr);
+            assert((cast(S*)&(foo.data)).ptr !is (cast(S*)&(bar.data)).ptr);
+        }
+        {
+            auto foo = rebindable2(const S(42));
+            S.copied = false;
+
+            auto bar = foo;
+            assert(S.copied);
+            assert(*(cast(S*)&(foo.data)).ptr == *(cast(S*)&(bar.data)).ptr);
+            assert((cast(S*)&(foo.data)).ptr !is (cast(S*)&(bar.data)).ptr);
+        }
+    }
+    +/
 }
 
 /**
@@ -2759,6 +3656,9 @@ Nullable!T) object starts in the null state. Assigning it renders it
 non-null. Calling `nullify` can nullify it again.
 
 Practically `Nullable!T` stores a `T` and a `bool`.
+
+See also:
+    $(LREF apply), an alternative way to use the payload.
  */
 struct Nullable(T)
 {
@@ -2781,11 +3681,19 @@ struct Nullable(T)
      * Params:
      *     value = The value to initialize this `Nullable` with.
      */
-    this(inout T value) inout
-    {
-        _value.payload = value;
-        _isNull = false;
-    }
+    static if (isCopyable!T)
+        this(inout T value) inout
+        {
+            _value.payload = value;
+            _isNull = false;
+        }
+    else
+        this(T value) inout
+        {
+            import std.algorithm.mutation : move;
+            _value.payload = move(value);
+            _isNull = false;
+        }
 
     static if (hasElaborateDestructor!T)
     {
@@ -2793,11 +3701,16 @@ struct Nullable(T)
         {
             if (!_isNull)
             {
-                destroy(_value.payload);
+                import std.traits : Unqual;
+                auto ptr = () @trusted { return cast(Unqual!T*) &_value.payload; }();
+                destroy!false(*ptr);
             }
         }
     }
 
+    static if (!isCopyable!T)
+        @disable this(this);
+    else
     static if (__traits(hasPostblit, T))
     {
         this(this)
@@ -3008,6 +3921,35 @@ struct Nullable(T)
     }
 
     /**
+     * Returns true if `this` has a value, otherwise false.
+     *
+     * Allows a `Nullable` to be used as the condition in an `if` statement:
+     *
+     * ---
+     * if (auto result = functionReturningNullable())
+     * {
+     *     doSomethingWith(result.get);
+     * }
+     * ---
+     */
+    bool opCast(T : bool)() const
+    {
+        return !isNull;
+    }
+
+    /// Prevents `opCast` from disabling built-in conversions.
+    auto ref T opCast(T, this This)()
+    if (is(This : T) || This.sizeof == T.sizeof)
+    {
+        static if (is(This : T))
+            // Convert implicitly
+            return this;
+        else
+            // Reinterpret
+            return *cast(T*) &this;
+    }
+
+    /**
      * Forces `this` to the null state.
      */
     void nullify()()
@@ -3036,22 +3978,18 @@ struct Nullable(T)
      * Params:
      *     value = A value of type `T` to assign to this `Nullable`.
      */
-    Nullable opAssign()(T value)
+    ref Nullable opAssign()(T value) return
     {
         import std.algorithm.mutation : moveEmplace, move;
-
-        // the lifetime of the value in copy shall be managed by
-        // this Nullable, so we must avoid calling its destructor.
-        auto copy = DontCallDestructorT(value);
 
         if (_isNull)
         {
             // trusted since payload is known to be uninitialized.
-            () @trusted { moveEmplace(copy.payload, _value.payload); }();
+            () @trusted { moveEmplace(value, _value.payload); }();
         }
         else
         {
-            move(copy.payload, _value.payload);
+            move(value, _value.payload);
         }
         _isNull = false;
         return this;
@@ -3129,18 +4067,14 @@ struct Nullable(T)
     alias back = front;
 
     /// ditto
+    static if (isCopyable!T)
     @property inout(typeof(this)) save() inout
     {
         return this;
     }
 
     /// ditto
-    inout(typeof(this)) opIndex() inout
-    {
-        return this;
-    }
-
-    /// ditto
+    static if (isCopyable!T)
     inout(typeof(this)) opIndex(size_t[2] dim) inout
     in (dim[0] <= length && dim[1] <= length && dim[1] >= dim[0])
     {
@@ -3166,6 +4100,74 @@ struct Nullable(T)
     in (index < length)
     {
         return get();
+    }
+
+    /**
+     * Converts `Nullable` to a range. Works even when the contained type is `immutable`.
+     */
+    auto opSlice(this This)()
+    {
+        static struct NullableRange
+        {
+            private This value;
+
+            // starts out true if value is null
+            private bool empty_;
+
+            @property bool empty() const @safe pure nothrow
+            {
+                return empty_;
+            }
+
+            void popFront() @safe pure nothrow
+            {
+                empty_ = true;
+            }
+
+            alias popBack = popFront;
+
+            @property ref inout(typeof(value.get())) front() inout @safe pure nothrow
+            {
+                return value.get();
+            }
+
+            alias back = front;
+
+            @property inout(typeof(this)) save() inout
+            {
+                return this;
+            }
+
+            size_t[2] opSlice(size_t dim : 0)(size_t from, size_t to) const
+            {
+                return [from, to];
+            }
+
+            @property size_t length() const @safe pure nothrow
+            {
+                return !empty;
+            }
+
+            alias opDollar(size_t dim : 0) = length;
+
+            ref inout(typeof(value.get())) opIndex(size_t index) inout @safe pure nothrow
+            in (index < length)
+            {
+                return value.get();
+            }
+
+            inout(typeof(this)) opIndex(size_t[2] dim) inout
+            in (dim[0] <= length && dim[1] <= length && dim[1] >= dim[0])
+            {
+                return (dim[0] == 0 && dim[1] == 1) ? this : this.init;
+            }
+
+            auto opIndex() inout
+            {
+                return this;
+            }
+        }
+        return NullableRange(this, isNull);
     }
 }
 
@@ -3551,16 +4553,12 @@ auto nullable(T)(T t)
 
     struct Test
     {
-        bool b;
-
-        nothrow invariant { assert(b == true); }
-
         SysTime _st;
 
         static bool destroyed;
 
         @disable this();
-        this(bool b) { this.b = b; }
+        this(int _dummy) {}
         ~this() @safe { destroyed = true; }
 
         // mustn't call opAssign on Test.init in Nullable!Test, because the invariant
@@ -3572,7 +4570,7 @@ auto nullable(T)(T t)
     {
         Nullable!Test nt;
 
-        nt = Test(true);
+        nt = Test(1);
 
         // destroy value
         Test.destroyed = false;
@@ -3749,6 +4747,85 @@ auto nullable(T)(T t)
     assert(hasLvalueElements!(Nullable!int));
 }
 
+// https://issues.dlang.org/show_bug.cgi?id=23640
+@safe pure nothrow unittest
+{
+    import std.algorithm.comparison : equal;
+    import std.range : only;
+    import std.range.primitives : hasLength, hasSlicing,
+        isRandomAccessRange;
+    static immutable struct S { int[] array; }
+    auto value = S([42]);
+    alias ImmutableNullable = immutable Nullable!S;
+    auto a = ImmutableNullable(value)[];
+    alias Range = typeof(a);
+    assert(isRandomAccessRange!Range);
+    assert(hasLength!Range);
+    assert(hasSlicing!Range);
+    assert(!a.empty);
+    assert(a.front == value);
+    assert(a.back == value);
+    assert(a[0] == value);
+    assert(a.equal(only(value)));
+    assert(a[0 .. $].equal(only(value)));
+    Range b = a.save();
+    assert(!b.empty);
+    b.popFront();
+    assert(!a.empty);
+    assert(b.empty);
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=24403
+@safe unittest
+{
+    static bool destroyed;
+    static struct S { ~this() { destroyed = true; } }
+
+    {
+        Nullable!S s = S.init;
+        destroyed = false;
+    }
+    assert(destroyed);
+
+    {
+        Nullable!(const S) s = S.init;
+        destroyed = false;
+    }
+    assert(destroyed);
+
+    {
+        Nullable!(immutable S) s = S.init;
+        destroyed = false;
+    }
+    assert(destroyed);
+
+    {
+        Nullable!(shared S) s = S.init;
+        destroyed = false;
+    }
+    assert(destroyed);
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=22293
+@safe unittest
+{
+    Nullable!int empty;
+    Nullable!int full = 123;
+
+    assert(cast(bool) empty == false);
+    assert(cast(bool) full == true);
+
+    if (empty) assert(0);
+    if (!full) assert(0);
+}
+
+// check that opCast doesn't break unsafe casts
+@system unittest
+{
+    Nullable!(const(int*)) a;
+    auto result = cast(immutable(Nullable!(int*))) a;
+}
+
 /**
 Just like `Nullable!T`, except that the null state is defined as a
 particular value. For example, $(D Nullable!(uint, uint.max)) is an
@@ -3793,7 +4870,27 @@ Params:
                 sink.formatValue(_value, fmt);
             }
         }
+
+        void toString()(scope void delegate(const(char)[]) sink, scope const ref FormatSpec!char fmt) const
+        {
+            if (isNull)
+            {
+                sink.formatValue("Nullable.null", fmt);
+            }
+            else
+            {
+                sink.formatValue(_value, fmt);
+            }
+        }
     }
+
+@system unittest
+{
+    import std.conv : to;
+
+    const Nullable!(ulong, 0) x = 1;
+    assert(x.to!string == "1");
+}
 
 /**
 Check if `this` is in the null state.
@@ -4158,7 +5255,7 @@ Returns:
 
 See also:
     $(HTTPS en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad, The `Maybe` monad)
- */
+*/
 template apply(alias fun)
 {
     import std.functional : unaryFun;
@@ -4320,7 +5417,27 @@ Params:
                 sink.formatValue(*_value, fmt);
             }
         }
+
+        void toString()(scope void delegate(const(char)[]) sink, scope const ref FormatSpec!char fmt) const
+        {
+            if (isNull)
+            {
+                sink.formatValue("Nullable.null", fmt);
+            }
+            else
+            {
+                sink.formatValue(*_value, fmt);
+            }
+        }
     }
+
+@system unittest
+{
+    import std.conv : to;
+
+    const NullableRef!(ulong) x = new ulong(1);
+    assert(x.to!string == "1");
+}
 
 /**
 Binds the internal state to `value`.
@@ -4394,7 +5511,7 @@ Params:
             non-release mode.
  */
     void opAssign()(T value)
-        if (isAssignable!T) //@@@9416@@@
+    if (isAssignable!T) //@@@9416@@@
     {
         enum message = "Called `opAssign' on null NullableRef!" ~ T.stringof ~ ".";
         assert(!isNull, message);
@@ -4729,15 +5846,17 @@ nothrow pure @safe unittest
     }
 }
 
-// / ditto
+/// ditto
 class NotImplementedError : Error
 {
+    ///
     this(string method) nothrow pure @safe
     {
         super(method ~ " is not implemented");
     }
 }
 
+///
 @system unittest
 {
     import std.exception : assertThrown;
@@ -5493,7 +6612,7 @@ private static:
     }
 
     // handle each overload set
-    private string generateCodeForOverloadSet(alias oset)() @property
+    string generateCodeForOverloadSet(alias oset)() @property
     {
         string code = "";
 
@@ -5623,7 +6742,7 @@ private static:
      * "ref int a0, real a1, ..."
      */
     static struct GenParams { string imports, params; }
-    private GenParams generateParameters(string myFuncInfo, func...)()
+    GenParams generateParameters(string myFuncInfo, func...)()
     {
         alias STC = ParameterStorageClass;
         alias stcs = ParameterStorageClassTuple!(func);
@@ -5673,7 +6792,7 @@ private static:
 
     // Returns D code which enumerates n parameter variables using comma as the
     // separator.  "a0, a1, a2, a3"
-    private string enumerateParameters(size_t n)() @property
+    string enumerateParameters(size_t n)() @property
     {
         string params = "";
 
@@ -6510,8 +7629,8 @@ package template Bind(alias Template, args1...)
 
 
 /**
-Options regarding auto-initialization of a `RefCounted` object (see
-the definition of `RefCounted` below).
+Options regarding auto-initialization of a `SafeRefCounted` object (see
+the definition of `SafeRefCounted` below).
  */
 enum RefCountedAutoInitialize
 {
@@ -6522,6 +7641,27 @@ enum RefCountedAutoInitialize
 }
 
 ///
+@system unittest
+{
+    import core.exception : AssertError;
+    import std.exception : assertThrown;
+
+    struct Foo
+    {
+        int a = 42;
+    }
+
+    SafeRefCounted!(Foo, RefCountedAutoInitialize.yes) rcAuto;
+    SafeRefCounted!(Foo, RefCountedAutoInitialize.no) rcNoAuto;
+
+    assert(rcAuto.refCountedPayload.a == 42);
+
+    assertThrown!AssertError(rcNoAuto.refCountedPayload);
+    rcNoAuto.refCountedStore.ensureInitialized;
+    assert(rcNoAuto.refCountedPayload.a == 42);
+}
+
+// Same the above but for old RefCounted and not documented
 @system unittest
 {
     import core.exception : AssertError;
@@ -6546,16 +7686,16 @@ enum RefCountedAutoInitialize
 Defines a reference-counted object containing a `T` value as
 payload.
 
-An instance of `RefCounted` is a reference to a structure,
+An instance of `SafeRefCounted` is a reference to a structure,
 which is referred to as the $(I store), or $(I storage implementation
 struct) in this documentation.  The store contains a reference count
-and the `T` payload.  `RefCounted` uses `malloc` to allocate
-the store.  As instances of `RefCounted` are copied or go out of
+and the `T` payload.  `SafeRefCounted` uses `malloc` to allocate
+the store.  As instances of `SafeRefCounted` are copied or go out of
 scope, they will automatically increment or decrement the reference
-count.  When the reference count goes down to zero, `RefCounted`
+count.  When the reference count goes down to zero, `SafeRefCounted`
 will call `destroy` against the payload and call `free` to
 deallocate the store.  If the `T` payload contains any references
-to GC-allocated memory, then `RefCounted` will add it to the GC memory
+to GC-allocated memory, then `SafeRefCounted` will add it to the GC memory
 that is scanned for pointers, and remove it from GC scanning before
 `free` is called on the store.
 
@@ -6567,8 +7707,15 @@ still be valid during the destructor call.  This allows the `T` to
 deallocate or clean up any non-GC resources immediately after the
 reference count has reached zero.
 
-`RefCounted` is unsafe and should be used with care. No references
-to the payload should be escaped outside the `RefCounted` object.
+Without -preview=dip1000, `SafeRefCounted` is unsafe and should be
+used with care. No references to the payload should be escaped outside
+the `SafeRefCounted` object.
+
+With -preview=dip1000, `SafeRefCounted` is safe if it's payload is accessed only
+with the $(LREF borrow) function. Scope semantics can also prevent accidental
+escaping of `refCountedPayload`, but it's still up to the user to not destroy
+the last counted reference while the payload is in use. Due to that,
+`refCountedPayload` remains accessible only in `@system` code.
 
 The `autoInit` option makes the object ensure the store is
 automatically initialized. Leaving $(D autoInit ==
@@ -6581,8 +7728,11 @@ pointer dereference.
 
 If `T.this()` is annotated with `@disable` then `autoInit` must be
 `RefCountedAutoInitialize.no` in order to compile.
+
+See_Also:
+  $(LREF RefCounted)
  */
-struct RefCounted(T, RefCountedAutoInitialize autoInit =
+struct SafeRefCounted(T, RefCountedAutoInitialize autoInit =
         RefCountedAutoInitialize.yes)
 if (!is(T == class) && !(is(T == interface)))
 {
@@ -6595,18 +7745,27 @@ if (!is(T == class) && !(is(T == interface)))
         private enum enableGCScan = hasIndirections!T;
     }
 
-    // TODO remove pure when https://issues.dlang.org/show_bug.cgi?id=15862 has been fixed
     extern(C) private pure nothrow @nogc static
     {
         pragma(mangle, "free") void pureFree( void *ptr );
         static if (enableGCScan)
-        {
-            pragma(mangle, "gc_addRange") void pureGcAddRange( in void* p, size_t sz, const TypeInfo ti = null );
-            pragma(mangle, "gc_removeRange") void pureGcRemoveRange( in void* p );
-        }
+            import core.memory : GC;
     }
 
-    /// `RefCounted` storage implementation.
+    pragma(inline, true) private void checkInit()()
+    if (autoInit == RefCountedAutoInitialize.yes)
+    {
+        _refCounted.ensureInitialized();
+    }
+
+    pragma(inline, true) private void checkInit()() inout
+    if (autoInit == RefCountedAutoInitialize.no)
+    {
+        assert(_refCounted.isInitialized,
+            "Attempted to use an uninitialized payload.");
+    }
+
+    /// `SafeRefCounted` storage implementation.
     struct RefCountedStore
     {
         private struct Impl
@@ -6622,7 +7781,7 @@ if (!is(T == class) && !(is(T == interface)))
             import core.lifetime : emplace, forward;
 
             allocateStore();
-            version (D_Exceptions) scope(failure) deallocateStore();
+            version (D_Exceptions) scope(failure) () @trusted { deallocateStore(); }();
             emplace(&_store._payload, forward!args);
             _store._count = 1;
         }
@@ -6632,7 +7791,7 @@ if (!is(T == class) && !(is(T == interface)))
             import std.algorithm.mutation : moveEmplace;
 
             allocateStore();
-            moveEmplace(source, _store._payload);
+            () @trusted { moveEmplace(source, _store._payload); }();
             _store._count = 1;
         }
 
@@ -6642,13 +7801,15 @@ if (!is(T == class) && !(is(T == interface)))
             static if (enableGCScan)
             {
                 import std.internal.memory : enforceCalloc;
-                _store = cast(Impl*) enforceCalloc(1, Impl.sizeof);
-                pureGcAddRange(&_store._payload, T.sizeof);
+                auto ptr = enforceCalloc(1, Impl.sizeof);
+                _store = () @trusted { return cast(Impl*) ptr; }();
+                () @trusted { GC.addRange(&_store._payload, T.sizeof); }();
             }
             else
             {
                 import std.internal.memory : enforceMalloc;
-                _store = cast(Impl*) enforceMalloc(Impl.sizeof);
+                auto ptr = enforceMalloc(Impl.sizeof);
+                _store = () @trusted { return cast(Impl*) ptr; }();
             }
         }
 
@@ -6656,7 +7817,7 @@ if (!is(T == class) && !(is(T == interface)))
         {
             static if (enableGCScan)
             {
-                pureGcRemoveRange(&this._store._payload);
+                GC.removeRange(&this._store._payload);
             }
             pureFree(_store);
             _store = null;
@@ -6689,6 +7850,7 @@ if (!is(T == class) && !(is(T == interface)))
            This function is unavailable if `T.this()` is annotated with
            `@disable`.
         */
+        @safe pure nothrow
         void ensureInitialized()()
         {
             // By checking for `@disable this()` and failing early we can
@@ -6715,7 +7877,8 @@ Constructor that initializes the payload.
 
 Postcondition: `refCountedStore.isInitialized`
  */
-    this(A...)(auto ref A args) if (A.length > 0)
+    this(A...)(auto ref A args)
+    if (A.length > 0)
     out
     {
         assert(refCountedStore.isInitialized);
@@ -6727,7 +7890,7 @@ Postcondition: `refCountedStore.isInitialized`
     }
 
     /// Ditto
-    this(T val)
+    this(return scope T val)
     {
         _refCounted.move(val);
     }
@@ -6750,18 +7913,30 @@ to deallocate the corresponding resource.
  */
     ~this()
     {
+        import std.traits : dip1000Enabled;
+
+        // This prevents the same reference from decrementing the count twice.
+        scope(exit) _refCounted = _refCounted.init;
+
         if (!_refCounted.isInitialized) return;
         assert(_refCounted._store._count > 0);
-        if (--_refCounted._store._count)
-            return;
+        if (--_refCounted._store._count) return;
         // Done, destroy and deallocate
         .destroy(_refCounted._store._payload);
-        _refCounted.deallocateStore();
+
+        static if (dip1000Enabled)
+        {
+            () @trusted { _refCounted.deallocateStore(); }();
+        }
+        else _refCounted.deallocateStore();
     }
 
 /**
-Assignment operators
- */
+Assignment operators.
+
+Note: You may not assign a new payload to an uninitialized SafeRefCounted, if
+auto initialization is off. Assigning another counted reference is still okay.
+*/
     void opAssign(typeof(this) rhs)
     {
         import std.algorithm.mutation : swap;
@@ -6774,14 +7949,7 @@ Assignment operators
     {
         import std.algorithm.mutation : move;
 
-        static if (autoInit == RefCountedAutoInitialize.yes)
-        {
-            _refCounted.ensureInitialized();
-        }
-        else
-        {
-            assert(_refCounted.isInitialized);
-        }
+        checkInit();
         move(rhs, _refCounted._store._payload);
     }
 
@@ -6793,20 +7961,20 @@ Assignment operators
         RefCountedAutoInitialize.yes), calls $(D
         refCountedStore.ensureInitialized). Otherwise, just issues $(D
         assert(refCountedStore.isInitialized)). Used with $(D alias
-        refCountedPayload this;), so callers can just use the `RefCounted`
+        refCountedPayload this;), so callers can just use the `SafeRefCounted`
         object as a `T`.
 
         $(BLUE The first overload exists only if $(D autoInit == RefCountedAutoInitialize.yes).)
         So if $(D autoInit == RefCountedAutoInitialize.no)
         or called for a constant or immutable object, then
-        `refCountedPayload` will also be qualified as safe and nothrow
+        `refCountedPayload` will also be qualified as nothrow
         (but will still assert if not initialized).
          */
-        @property @trusted
+        @property @system
         ref T refCountedPayload() return;
 
         /// ditto
-        @property nothrow @safe pure @nogc
+        @property nothrow @system pure @nogc
         ref inout(T) refCountedPayload() inout return;
     }
     else
@@ -6814,19 +7982,21 @@ Assignment operators
         static if (autoInit == RefCountedAutoInitialize.yes)
         {
             //Can't use inout here because of potential mutation
-            @property
+            @property @system
             ref T refCountedPayload() return
             {
-                _refCounted.ensureInitialized();
+                checkInit();
                 return _refCounted._store._payload;
             }
         }
-
-        @property nothrow @safe pure @nogc
-        ref inout(T) refCountedPayload() inout return
+        else
         {
-            assert(_refCounted.isInitialized, "Attempted to access an uninitialized payload.");
-            return _refCounted._store._payload;
+            @property nothrow @system pure @nogc
+            ref inout(T) refCountedPayload() inout return
+            {
+                checkInit();
+                return _refCounted._store._payload;
+            }
         }
     }
 
@@ -6862,7 +8032,7 @@ assert(refCountedStore.isInitialized)).
 {
     // A pair of an `int` and a `size_t` - the latter being the
     // reference count - will be dynamically allocated
-    auto rc1 = RefCounted!int(5);
+    auto rc1 = SafeRefCounted!int(5);
     assert(rc1 == 5);
     // No more allocation, add just one extra reference count
     auto rc2 = rc1;
@@ -6872,46 +8042,68 @@ assert(refCountedStore.isInitialized)).
     // the pair will be freed when rc1 and rc2 go out of scope
 }
 
+// This test can't be betterC because the test extractor won't see the private
+// `initialize` method accessed here
+pure @safe nothrow @nogc unittest
+{
+    auto rc1 = SafeRefCounted!(int, RefCountedAutoInitialize.no)(5);
+    rc1._refCounted.initialize();
+}
+
 pure @system unittest
 {
-    RefCounted!int* p;
+    foreach (MyRefCounted; AliasSeq!(SafeRefCounted, RefCounted))
     {
-        auto rc1 = RefCounted!int(5);
+        MyRefCounted!int* p;
+        auto rc1 = MyRefCounted!int(5);
         p = &rc1;
         assert(rc1 == 5);
         assert(rc1._refCounted._store._count == 1);
-        auto rc2 = rc1;
-        assert(rc1._refCounted._store._count == 2);
-        // Reference semantics
-        rc2 = 42;
-        assert(rc1 == 42);
-        rc2 = rc2;
-        assert(rc2._refCounted._store._count == 2);
-        rc1 = rc2;
-        assert(rc1._refCounted._store._count == 2);
-    }
-    assert(p._refCounted._store == null);
+        {
+            auto rc2 = rc1;
+            assert(rc1._refCounted._store._count == 2);
+            // Reference semantics
+            rc2 = 42;
+            assert(rc1 == 42);
+            rc2 = rc2;
+            assert(rc2._refCounted._store._count == 2);
+            rc1 = rc2;
+            assert(rc1._refCounted._store._count == 2);
+        }
+        // Artificially end scope of rc1 by calling ~this() explicitly
+        rc1.__xdtor();
+        assert(p._refCounted._store == null);
 
-    // RefCounted as a member
-    struct A
-    {
-        RefCounted!int x;
-        this(int y)
+        // [Safe]RefCounted as a member
+        struct A
         {
-            x._refCounted.initialize(y);
+            MyRefCounted!int x;
+            this(int y)
+            {
+                x._refCounted.initialize(y);
+            }
+            A copy()
+            {
+                auto another = this;
+                return another;
+            }
         }
-        A copy()
-        {
-            auto another = this;
-            return another;
-        }
-    }
-    auto a = A(4);
-    auto b = a.copy();
-    assert(a.x._refCounted._store._count == 2,
-           "https://issues.dlang.org/show_bug.cgi?id=4356 still unfixed");
+        auto a = A(4);
+        auto b = a.copy();
+        assert(a.x._refCounted._store._count == 2,
+               "https://issues.dlang.org/show_bug.cgi?id=4356 still unfixed");
+   }
 }
 
+@betterC pure @safe nothrow @nogc unittest
+{
+    import std.algorithm.mutation : swap;
+
+    SafeRefCounted!int p1, p2;
+    swap(p1, p2);
+}
+
+// Same as above but for old RefCounted and not @safe
 @betterC pure @system nothrow @nogc unittest
 {
     import std.algorithm.mutation : swap;
@@ -6932,25 +8124,52 @@ pure @system unittest
        U u;
     }
 
+    alias SRC = SafeRefCounted!S;
+}
+
+// Same as above but for old RefCounted and not @safe
+@betterC @system pure nothrow @nogc unittest
+{
+    union U {
+       size_t i;
+       void* p;
+    }
+
+    struct S {
+       U u;
+    }
+
     alias SRC = RefCounted!S;
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=6436
 @betterC @system pure unittest
 {
+    import std.meta : AliasSeq;
     struct S
     {
         this(int rval) { assert(rval == 1); }
         this(ref int lval) { assert(lval == 3); ++lval; }
     }
 
-    auto s1 = RefCounted!S(1);
-    int lval = 3;
-    auto s2 = RefCounted!S(lval);
-    assert(lval == 4);
+    foreach (MyRefCounted; AliasSeq!(SafeRefCounted, RefCounted))
+    {
+        auto s1 = MyRefCounted!S(1);
+        int lval = 3;
+        auto s2 = MyRefCounted!S(lval);
+        assert(lval == 4);
+    }
 }
 
 // gc_addRange coverage
+@betterC @safe pure unittest
+{
+    struct S { int* p; }
+
+    auto s = SafeRefCounted!S(null);
+}
+
+// Same as above but for old RefCounted and not @safe
 @betterC @system pure unittest
 {
     struct S { int* p; }
@@ -6960,69 +8179,254 @@ pure @system unittest
 
 @betterC @system pure nothrow @nogc unittest
 {
-    RefCounted!int a;
-    a = 5; //This should not assert
-    assert(a == 5);
+    import std.meta : AliasSeq;
+    foreach (MyRefCounted; AliasSeq!(SafeRefCounted, RefCounted))
+    {
+        MyRefCounted!int a;
+        a = 5; //This should not assert
+        assert(a == 5);
 
-    RefCounted!int b;
-    b = a; //This should not assert either
-    assert(b == 5);
+        MyRefCounted!int b;
+        b = a; //This should not assert either
+        assert(b == 5);
 
-    RefCounted!(int*) c;
+        MyRefCounted!(int*) c;
+    }
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=21638
 @betterC @system pure nothrow @nogc unittest
 {
+    import std.meta : AliasSeq;
     static struct NoDefaultCtor
     {
         @disable this();
         this(int x) @nogc nothrow pure { this.x = x; }
         int x;
     }
-    auto rc = RefCounted!(NoDefaultCtor, RefCountedAutoInitialize.no)(5);
-    assert(rc.x == 5);
+
+    foreach (MyRefCounted; AliasSeq!(SafeRefCounted, RefCounted))
+    {
+        auto rc = MyRefCounted!(NoDefaultCtor, RefCountedAutoInitialize.no)(5);
+        assert(rc.x == 5);
+    }
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=20502
 @system unittest
 {
-    import std.conv : to;
-    // Check that string conversion is transparent for refcounted
-    // structs that do not have either toString or alias this.
-    static struct A { Object a; }
-    auto a  = A(new Object());
-    auto r = refCounted(a);
-    assert(to!string(r) == to!string(a));
-    assert(to!string(cast(const) r) == to!string(cast(const) a));
-    // Check that string conversion is still transparent for refcounted
-    // structs that have alias this.
-    static struct B { int b; alias b this; }
-    static struct C { B b; alias b this; }
-    assert(to!string(refCounted(C(B(123)))) == to!string(C(B(123))));
-    // https://issues.dlang.org/show_bug.cgi?id=22093
-    // Check that uninitialized refcounted structs that previously could be
-    // converted to strings still can be.
-    alias R = typeof(r);
-    R r2;
-    cast(void) (((const ref R a) => to!string(a))(r2));
-    cast(void) to!string(RefCounted!(A, RefCountedAutoInitialize.no).init);
+    alias Types = AliasSeq!(SafeRefCounted, RefCounted);
+    alias funcs = AliasSeq!(safeRefCounted, refCounted);
+    static foreach (aliasI; 0 .. 2)
+    {{
+        alias MyRefCounted = Types[aliasI];
+        alias myRefCounted = funcs[aliasI];
+        import std.conv : to;
+
+        // Check that string conversion is transparent for refcounted
+        // structs that do not have either toString or alias this.
+        static struct A { Object a; }
+        auto a  = A(new Object());
+        auto r = myRefCounted(a);
+        assert(to!string(r) == to!string(a));
+        assert(to!string(cast(const) r) == to!string(cast(const) a));
+        // Check that string conversion is still transparent for refcounted
+        // structs that have alias this.
+        static struct B { int b; alias b this; }
+        static struct C { B b; alias b this; }
+        assert(to!string(myRefCounted(C(B(123)))) == to!string(C(B(123))));
+        // https://issues.dlang.org/show_bug.cgi?id=22093
+        // Check that uninitialized refcounted structs that previously could be
+        // converted to strings still can be.
+        alias R = typeof(r);
+        R r2;
+        cast(void) (((const ref R a) => to!string(a))(r2));
+        cast(void) to!string(MyRefCounted!(A, RefCountedAutoInitialize.no).init);
+    }}
+}
+
+// We tried to make `refCountedPayload` `@safe` in
+// https://github.com/dlang/phobos/pull/8368 . It proved impossible, but it may
+// be possible in the future. This test checks for false `@safe` issues we
+// encountered.
+@safe unittest
+{
+    struct Container
+    {
+        int[] data;
+    }
+
+    int[] getArr1 (scope Container local)
+    {
+        // allowed because the argument is inferred as return scope.
+        return local.data;
+    }
+
+    int[] getArr2 (scope Container local)
+    {
+        SafeRefCounted!Container rc = local;
+        // Escapes a reference to expired reference counted struct
+        // don't do this!
+        return rc.refCountedPayload().data;
+    }
+
+    int destroyFirstAndUseLater()
+    {
+        auto rc = SafeRefCounted!int(123);
+        int* ptr = &rc.refCountedPayload();
+        destroy(rc);
+        return *ptr;
+    }
+
+    // This is here mainly to test that safety gets inferred correctly for the
+    // next tests
+    static assert(isSafe!getArr1);
+    // https://github.com/dlang/phobos/pull/8101#issuecomment-843017282
+    // This got apparently fixed automatically by compiler updates.
+    static assert(!isSafe!getArr2);
+    // As of writing, this is the issue that is still preventing payload access
+    // from being `@safe`
+    static assert(!isSafe!destroyFirstAndUseLater);
 }
 
 /**
- * Initializes a `RefCounted` with `val`. The template parameter
- * `T` of `RefCounted` is inferred from `val`.
+Borrows the payload of $(LREF SafeRefCounted) for use in `fun`. Inferred as `@safe`
+if `fun` is `@safe` and does not escape a reference to the payload.
+The reference count will be incremented for the duration of the operation,
+so destroying the last reference will not leave dangling references in
+`fun`.
+
+Params:
+  fun = A callable accepting the payload either by value or by reference.
+  refCount = The counted reference to the payload.
+Returns:
+  The return value of `fun`, if any. `ref` in the return value will be
+  forwarded.
+Issues:
+  For yet unknown reason, code that uses this function with UFCS syntax
+  will not be inferred as `@safe`. It will still compile if the code is
+  explicitly marked `@safe` and nothing in `fun` prevents that.
+*/
+template borrow(alias fun)
+{
+    import std.functional : unaryFun;
+
+    auto ref borrow(RC)(RC refCount)
+    if
+    (
+        isInstanceOf!(SafeRefCounted, RC)
+        && is(typeof(unaryFun!fun(refCount.refCountedPayload)))
+    )
+    {
+        refCount.checkInit();
+
+        // If `fun` escapes a reference to the payload, it will be inferred
+        // as unsafe due to the scope storage class here.
+        scope plPtr = &refCount._refCounted._store._payload;
+        return unaryFun!fun(*plPtr);
+
+        // We destroy our copy of the reference here, automatically destroying
+        // the payload if `fun` destroyed the last reference outside.
+    }
+}
+
+/// This example can be marked `@safe` with `-preview=dip1000`.
+@safe pure nothrow unittest
+{
+    auto rcInt = safeRefCounted(5);
+    assert(rcInt.borrow!(theInt => theInt) == 5);
+    auto sameInt = rcInt;
+    assert(sameInt.borrow!"a" == 5);
+
+    // using `ref` in the function
+    auto arr = [0, 1, 2, 3, 4, 5, 6];
+    sameInt.borrow!(ref (x) => arr[x]) = 10;
+    assert(arr == [0, 1, 2, 3, 4, 10, 6]);
+
+    // modifying the payload via an alias
+    sameInt.borrow!"a*=2";
+    assert(rcInt.borrow!"a" == 10);
+}
+
+// Some memory safety penetration testing.
+@system unittest
+{
+    int* globalPtr;
+    int torpedoesFired = 0;
+    struct Destroyer { ~this() @safe { torpedoesFired++; } }
+
+    alias RcInt = typeof(safeRefCounted(0));
+    auto standardUsage(RcInt arg)
+    {
+        return borrow!((ref x) => x)(arg);
+    }
+    ref harmlessRefReturn(RcInt arg)
+    {
+        return borrow!(ref (ref x) => *globalPtr = x)(arg);
+    }
+    ref problematicRefReturn(RcInt arg)
+    {
+        return borrow!(ref (ref x) => x)(arg);
+    }
+    auto sideChannelEscape(RcInt arg)
+    {
+        return borrow!((ref x)
+        {
+            globalPtr = &x;
+            return x;
+        })(arg);
+    }
+    auto destroyDuringApply()
+    {
+        auto rc = safeRefCounted(Destroyer());
+        return borrow!((ref x)
+        {
+            // Destroys the last reference to the payload, decrementing it's
+            // reference count.
+            rc.__dtor();
+            // Destroy again! rc should be set to it's init value so that this
+            // won't decrement the reference count of the original payload.
+            rc.__dtor();
+            // The internal reference count increment done for duration of
+            // `apply` should make sure that the payload destructor is not yet
+            // run, and this value thus not incremented.
+            return torpedoesFired;
+        })(rc);
+    }
+
+    // First, let's verify the dangerous functions really do what they are
+    // supposed to do.
+    auto testRc = safeRefCounted(42);
+    assert(sideChannelEscape(testRc) == 42);
+    assert(&problematicRefReturn(testRc) == globalPtr);
+
+    // Now, are the @safe attributes inferred correctly?
+    assert(isSafe!standardUsage);
+    assert(isSafe!harmlessRefReturn);
+    assert(!isSafe!problematicRefReturn);
+    assert(!isSafe!sideChannelEscape);
+    assert(isSafe!destroyDuringApply);
+
+    // Finally, we test protection against early destruction during `apply`.
+    auto torpedoesUpToReturn = destroyDuringApply();
+    assert(torpedoesFired == torpedoesUpToReturn + 1);
+}
+
+/**
+ * Initializes a `SafeRefCounted` with `val`. The template parameter
+ * `T` of `SafeRefCounted` is inferred from `val`.
  * This function can be used to move non-copyable values to the heap.
- * It also disables the `autoInit` option of `RefCounted`.
+ * It also disables the `autoInit` option of `SafeRefCounted`.
  *
  * Params:
  *   val = The value to be reference counted
  * Returns:
- *   An initialized `RefCounted` containing `val`.
+ *   An initialized `SafeRefCounted` containing `val`.
  * See_Also:
+ *   $(LREF refCounted)
  *   $(HTTP en.cppreference.com/w/cpp/memory/shared_ptr/make_shared, C++'s make_shared)
  */
-RefCounted!(T, RefCountedAutoInitialize.no) refCounted(T)(T val)
+SafeRefCounted!(T, RefCountedAutoInitialize.no) safeRefCounted(T)(T val)
 {
     typeof(return) res;
     res._refCounted.move(val);
@@ -7047,13 +8451,13 @@ RefCounted!(T, RefCountedAutoInitialize.no) refCounted(T)(T val)
 
     assert(File.nDestroyed == 0);
 
-    // make the file refcounted to share ownership
+    // make the file ref counted to share ownership
     // Note:
-    //   We write a compound statement (brace-delimited scope) in which all `RefCounted!File` handles are created and deleted.
+    //   We write a compound statement (brace-delimited scope) in which all `SafeRefCounted!File` handles are created and deleted.
     //   This allows us to see (after the scope) what happens after all handles have been destroyed.
     {
         // We move the content of `file` to a separate (and heap-allocated) `File` object,
-        // managed-and-accessed via one-or-multiple (initially: one) `RefCounted!File` objects ("handles").
+        // managed-and-accessed via one-or-multiple (initially: one) `SafeRefCounted!File` objects ("handles").
         // This "moving":
         //   (1) invokes `file`'s destructor (=> `File.nDestroyed` is incremented from 0 to 1 and `file.name` becomes `null`);
         //   (2) overwrites `file` with `File.init` (=> `file.name` becomes `null`).
@@ -7061,18 +8465,18 @@ RefCounted!(T, RefCountedAutoInitialize.no) refCounted(T)(T val)
         // but please note that (2) is only performed if `File` defines a destructor (or post-blit operator),
         // and in the absence of the `nDestroyed` instrumentation there would have been no reason to define a destructor.
         import std.algorithm.mutation : move;
-        auto rcFile = refCounted(move(file));
+        auto rcFile = safeRefCounted(move(file));
         assert(rcFile.name == "name");
         assert(File.nDestroyed == 1);
         assert(file.name == null);
 
-        // We create another `RefCounted!File` handle to the same separate `File` object.
+        // We create another `SafeRefCounted!File` handle to the same separate `File` object.
         // While any of the handles is still alive, the `File` object is kept alive (=> `File.nDestroyed` is not modified).
         auto rcFile2 = rcFile;
         assert(rcFile.refCountedStore.refCount == 2);
         assert(File.nDestroyed == 1);
     }
-    // The separate `File` object is deleted when the last `RefCounted!File` handle is destroyed
+    // The separate `File` object is deleted when the last `SafeRefCounted!File` handle is destroyed
     // (i.e. at the closing brace of the compound statement above, which destroys both handles: `rcFile` and `rcFile2`)
     // (=> `File.nDestroyed` is incremented again, from 1 to 2):
     assert(File.nDestroyed == 2);
@@ -7117,7 +8521,7 @@ mixin template Proxy(alias a)
         }
 
         bool opEquals(T)(T b)
-            if (is(ValueType : T) || is(typeof(a.opEquals(b))) || is(typeof(b.opEquals(a))))
+        if (is(ValueType : T) || is(typeof(a.opEquals(b))) || is(typeof(b.opEquals(a))))
         {
             static if (is(typeof(a.opEquals(b))))
                 return a.opEquals(b);
@@ -7141,7 +8545,7 @@ mixin template Proxy(alias a)
         }
 
         int opCmp(T)(auto ref const T b)
-            if (is(ValueType : T) || is(typeof(a.opCmp(b))) || is(typeof(b.opCmp(a))))
+        if (is(ValueType : T) || is(typeof(a.opCmp(b))) || is(typeof(b.opCmp(a))))
         {
             static if (is(typeof(a.opCmp(b))))
                 return a.opCmp(b);
@@ -7251,7 +8655,8 @@ mixin template Proxy(alias a)
         }
     }
 
-    auto ref opAssign     (this X, V      )(auto ref V v) if (!is(V == typeof(this))) { return a       = v; }
+    auto ref opAssign     (this X, V      )(auto ref V v)
+    if (!is(V == typeof(this))) { return a       = v; }
     auto ref opIndexAssign(this X, V, D...)(auto ref V v, auto ref D i)               { return a[i]    = v; }
     auto ref opSliceAssign(this X, V      )(auto ref V v)                             { return a[]     = v; }
     auto ref opSliceAssign(this X, V, B, E)(auto ref V v, auto ref B b, auto ref E e) { return a[b .. e] = v; }
@@ -8273,7 +9678,7 @@ if (is(T == class))
 {
     // _d_newclass now use default GC alignment (looks like (void*).sizeof * 2 for
     // small objects). We will just use the maximum of filed alignments.
-    alias alignment = classInstanceAlignment!T;
+    enum alignment = __traits(classInstanceAlignment, T);
     alias aligned = _alignUp!alignment;
 
     static struct Scoped
@@ -8458,7 +9863,7 @@ if (alignment > 0 && !((alignment - 1) & alignment))
     {
         void test(size_t size)
         {
-            import core.stdc.stdlib;
+            import core.stdc.stdlib : alloca;
             cast(void) alloca(size);
             alignmentTest();
         }
@@ -8770,6 +10175,7 @@ Flag!"encryption".no).
 */
 struct Yes
 {
+    ///
     template opDispatch(string name)
     {
         enum opDispatch = Flag!name.yes;
@@ -8780,6 +10186,7 @@ struct Yes
 /// Ditto
 struct No
 {
+    ///
     template opDispatch(string name)
     {
         enum opDispatch = Flag!name.no;
@@ -8918,7 +10325,7 @@ public:
     }
 
     this(T...)(T flags)
-        if (allSatisfy!(isBaseEnumType, T))
+    if (allSatisfy!(isBaseEnumType, T))
     {
         this = flags;
     }
@@ -8929,19 +10336,19 @@ public:
     }
 
     Base opCast(B)() const
-        if (isImplicitlyConvertible!(Base, B))
+    if (is(Base : B))
     {
         return mValue;
     }
 
     auto opUnary(string op)() const
-        if (op == "~")
+    if (op == "~")
     {
         return BitFlags(cast(E) cast(Base) ~mValue);
     }
 
     auto ref opAssign(T...)(T flags)
-        if (allSatisfy!(isBaseEnumType, T))
+    if (allSatisfy!(isBaseEnumType, T))
     {
         mValue = 0;
         foreach (E flag; flags)
@@ -8982,7 +10389,7 @@ public:
     }
 
     auto opBinary(string op)(BitFlags flags) const
-        if (op == "|" || op == "&")
+    if (op == "|" || op == "&")
     {
         BitFlags result = this;
         result.opOpAssign!op(flags);
@@ -8990,7 +10397,7 @@ public:
     }
 
     auto opBinary(string op)(E flag) const
-        if (op == "|" || op == "&")
+    if (op == "|" || op == "&")
     {
         BitFlags result = this;
         result.opOpAssign!op(flag);
@@ -8998,7 +10405,7 @@ public:
     }
 
     auto opBinaryRight(string op)(E flag) const
-        if (op == "|" || op == "&")
+    if (op == "|" || op == "&")
     {
         return opBinary!op(flag);
     }
@@ -9424,6 +10831,8 @@ private template replaceTypeInFunctionTypeUnless(alias pred, From, To, fun)
             result ~= " shared";
         static if (attributes & FunctionAttribute.return_)
             result ~= " return";
+        static if (attributes & FunctionAttribute.live)
+            result ~= " @live";
 
         return result;
     }
@@ -9628,25 +11037,29 @@ struct Ternary
       $(TR $(TD `unknown`) $(TD `unknown`) $(TD) $(TD `unknown`) $(TD `unknown`) $(TD `unknown`))
     )
     */
-    Ternary opUnary(string s)() if (s == "~")
+    Ternary opUnary(string s)()
+    if (s == "~")
     {
         return make((386 >> value) & 6);
     }
 
     /// ditto
-    Ternary opBinary(string s)(Ternary rhs) if (s == "|")
+    Ternary opBinary(string s)(Ternary rhs)
+    if (s == "|")
     {
         return make((25_512 >> (value + rhs.value)) & 6);
     }
 
     /// ditto
-    Ternary opBinary(string s)(Ternary rhs) if (s == "&")
+    Ternary opBinary(string s)(Ternary rhs)
+    if (s == "&")
     {
         return make((26_144 >> (value + rhs.value)) & 6);
     }
 
     /// ditto
-    Ternary opBinary(string s)(Ternary rhs) if (s == "^")
+    Ternary opBinary(string s)(Ternary rhs)
+    if (s == "^")
     {
         return make((26_504 >> (value + rhs.value)) & 6);
     }
@@ -9785,3 +11198,284 @@ unittest
     Nullable!S s2 = s1;
     assert(s2.get().b == 3);
 }
+
+// https://issues.dlang.org/show_bug.cgi?id=24318
+@system unittest
+{
+    static struct S
+    {
+        @disable this(this);
+        int i;
+    }
+
+    Nullable!S s = S(1);
+    assert(s.get().i == 1);
+    s = S(2);
+    assert(s.get().i == 2);
+}
+
+/// The old version of $(LREF SafeRefCounted), before $(LREF borrow) existed.
+/// Old code may be relying on `@safe`ty of some of the member functions which
+/// cannot be safe in the new scheme, and
+/// can avoid breakage by continuing to use this. `SafeRefCounted` should be
+/// preferred, as this type is outdated and unrecommended for new code.
+struct RefCounted(T, RefCountedAutoInitialize autoInit =
+    RefCountedAutoInitialize.yes)
+{
+    version (D_BetterC)
+    {
+        private enum enableGCScan = false;
+    }
+    else
+    {
+        private enum enableGCScan = hasIndirections!T;
+    }
+
+    extern(C) private pure nothrow @nogc static
+    {
+        pragma(mangle, "free") void pureFree( void *ptr );
+        static if (enableGCScan)
+            import core.memory : GC;
+    }
+
+    struct RefCountedStore
+    {
+        private struct Impl
+        {
+            T _payload;
+            size_t _count;
+        }
+
+        private Impl* _store;
+
+        private void initialize(A...)(auto ref A args)
+        {
+            import core.lifetime : emplace, forward;
+
+            allocateStore();
+            version (D_Exceptions) scope(failure) deallocateStore();
+            emplace(&_store._payload, forward!args);
+            _store._count = 1;
+        }
+
+        private void move(ref T source) nothrow pure
+        {
+            import std.algorithm.mutation : moveEmplace;
+
+            allocateStore();
+            moveEmplace(source, _store._payload);
+            _store._count = 1;
+        }
+
+        // 'nothrow': can only generate an Error
+        private void allocateStore() nothrow pure
+        {
+            static if (enableGCScan)
+            {
+                import std.internal.memory : enforceCalloc;
+                _store = cast(Impl*) enforceCalloc(1, Impl.sizeof);
+                GC.addRange(&_store._payload, T.sizeof);
+            }
+            else
+            {
+                import std.internal.memory : enforceMalloc;
+                _store = cast(Impl*) enforceMalloc(Impl.sizeof);
+            }
+        }
+
+        private void deallocateStore() nothrow pure
+        {
+            static if (enableGCScan)
+            {
+                GC.removeRange(&this._store._payload);
+            }
+            pureFree(_store);
+            _store = null;
+        }
+
+        @property nothrow @safe pure @nogc
+        bool isInitialized() const
+        {
+            return _store !is null;
+        }
+
+        @property nothrow @safe pure @nogc
+        size_t refCount() const
+        {
+            return isInitialized ? _store._count : 0;
+        }
+
+        void ensureInitialized()()
+        {
+            // By checking for `@disable this()` and failing early we can
+            // produce a clearer error message.
+            static assert(__traits(compiles, { static T t; }),
+                "Cannot automatically initialize `" ~ fullyQualifiedName!T ~
+                "` because `" ~ fullyQualifiedName!T ~
+                ".this()` is annotated with `@disable`.");
+            if (!isInitialized) initialize();
+        }
+
+    }
+    RefCountedStore _refCounted;
+
+    @property nothrow @safe
+    ref inout(RefCountedStore) refCountedStore() inout
+    {
+        return _refCounted;
+    }
+
+    this(A...)(auto ref A args)
+    if (A.length > 0)
+    out
+    {
+        assert(refCountedStore.isInitialized);
+    }
+    do
+    {
+        import core.lifetime : forward;
+        _refCounted.initialize(forward!args);
+    }
+
+    this(T val)
+    {
+        _refCounted.move(val);
+    }
+
+    this(this) @safe pure nothrow @nogc
+    {
+        if (!_refCounted.isInitialized) return;
+        ++_refCounted._store._count;
+    }
+
+    ~this()
+    {
+        if (!_refCounted.isInitialized) return;
+        assert(_refCounted._store._count > 0);
+        if (--_refCounted._store._count)
+            return;
+        // Done, destroy and deallocate
+        .destroy(_refCounted._store._payload);
+        _refCounted.deallocateStore();
+    }
+
+    void opAssign(typeof(this) rhs)
+    {
+        import std.algorithm.mutation : swap;
+
+        swap(_refCounted._store, rhs._refCounted._store);
+    }
+
+    static if (__traits(compiles, lvalueOf!T = T.init))
+    {
+        void opAssign(T rhs)
+        {
+            import std.algorithm.mutation : move;
+
+            static if (autoInit == RefCountedAutoInitialize.yes)
+            {
+                _refCounted.ensureInitialized();
+            }
+            else
+            {
+                assert(_refCounted.isInitialized);
+            }
+            move(rhs, _refCounted._store._payload);
+        }
+    }
+
+    static if (autoInit == RefCountedAutoInitialize.yes)
+    {
+        //Can't use inout here because of potential mutation
+        @property
+        ref T refCountedPayload() return
+        {
+            _refCounted.ensureInitialized();
+            return _refCounted._store._payload;
+        }
+    }
+
+    @property nothrow @safe pure @nogc
+    ref inout(T) refCountedPayload() inout return
+    {
+        assert(_refCounted.isInitialized, "Attempted to access an uninitialized payload.");
+        return _refCounted._store._payload;
+    }
+
+    alias refCountedPayload this;
+
+    static if (is(T == struct) && !is(typeof((ref T t) => t.toString())))
+    {
+        string toString(this This)()
+        {
+            import std.conv : to;
+
+            static if (autoInit)
+                return to!string(refCountedPayload);
+            else
+            {
+                if (!_refCounted.isInitialized)
+                    return This.stringof ~ "(RefCountedStore(null))";
+                else
+                    return to!string(_refCounted._store._payload);
+            }
+        }
+    }
+}
+
+///
+@betterC pure @system nothrow @nogc unittest
+{
+    auto rc1 = RefCounted!int(5);
+    assert(rc1 == 5);
+    auto rc2 = rc1;
+    rc2 = 42;
+    assert(rc1 == 42);
+}
+
+// More unit tests below SafeRefCounted
+
+/**
+ * Like $(LREF safeRefCounted) but used to initialize $(LREF RefCounted)
+ * instead. Intended for backwards compatibility, otherwise it is preferable
+ *  to use `safeRefCounted`.
+ */
+RefCounted!(T, RefCountedAutoInitialize.no) refCounted(T)(T val)
+{
+    typeof(return) res;
+    res._refCounted.move(val);
+    return res;
+}
+
+///
+@system unittest
+{
+    static struct File
+    {
+        static size_t nDestroyed;
+        string name;
+        @disable this(this); // not copyable
+        ~this() { name = null; ++nDestroyed; }
+    }
+
+    auto file = File("name");
+    assert(file.name == "name");
+    static assert(!__traits(compiles, {auto file2 = file;}));
+    assert(File.nDestroyed == 0);
+
+    {
+        import std.algorithm.mutation : move;
+        auto rcFile = refCounted(move(file));
+        assert(rcFile.name == "name");
+        assert(File.nDestroyed == 1);
+        assert(file.name == null);
+
+        auto rcFile2 = rcFile;
+        assert(rcFile.refCountedStore.refCount == 2);
+        assert(File.nDestroyed == 1);
+    }
+
+    assert(File.nDestroyed == 2);
+}
+
+// More unit tests below safeRefCounted

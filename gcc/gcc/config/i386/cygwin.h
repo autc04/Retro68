@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    hosting on Windows32, using a Unix style C library and tools.
-   Copyright (C) 1995-2022 Free Software Foundation, Inc.
+   Copyright (C) 1995-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -29,15 +29,6 @@ along with GCC; see the file COPYING3.  If not see
     }								\
   while (0)
 
-#define EXTRA_TARGET_D_OS_VERSIONS()				\
-  do								\
-    {								\
-      builtin_version ("Cygwin");				\
-      builtin_version ("Posix");				\
-      builtin_version ("CRuntime_Newlib");			\
-    }								\
-  while (0)
-
 #undef CPP_SPEC
 #define CPP_SPEC "%(cpp_cpu) %{posix:-D_POSIX_SOURCE} \
   %{!ansi:-Dunix} \
@@ -57,7 +48,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC \
-  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s}\
+  "%{mdaz-ftz:crtfastmath.o%s;Ofast|ffast-math|funsafe-math-optimizations:%{!shared:%{!mno-daz-ftz:crtfastmath.o%s}}} \
    %{!shared:%:if-exists(default-manifest.o%s)}\
    %{fvtable-verify=none:%s; \
     fvtable-verify=preinit:vtv_end.o%s; \
@@ -146,7 +137,7 @@ along with GCC; see the file COPYING3.  If not see
    do not use them unnecessarily in gthr-posix.h.  */
 #define GTHREAD_USE_WEAK 0
 
-/* Every program on cygwin links against cygwin1.dll which contains 
+/* Every program on cygwin links against cygwin1.dll which contains
    the pthread routines.  There is no need to explicitly link them
    and the -pthread flag is accepted only for compatibility.  */
 #undef GOMP_SELF_SPECS

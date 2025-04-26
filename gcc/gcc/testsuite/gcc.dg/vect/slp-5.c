@@ -30,6 +30,7 @@ main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (out[i*8] !=  in[i*8]
@@ -55,6 +56,7 @@ main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N*2; i++)
     {
       if (out[i*4] !=  in[i*4]
@@ -86,6 +88,7 @@ main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N/2; i++)
     {
       if (out[i*16] !=  in[i*16]
@@ -121,5 +124,5 @@ int main (void)
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 3 loops" 1 "vect" } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 3 "vect"  } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 5 "vect"  } } */
   

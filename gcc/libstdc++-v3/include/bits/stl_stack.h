@@ -1,6 +1,6 @@
 // Stack implementation -*- C++ -*-
 
-// Copyright (C) 2001-2022 Free Software Foundation, Inc.
+// Copyright (C) 2001-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -60,6 +60,10 @@
 #include <debug/debug.h>
 #if __cplusplus >= 201103L
 # include <bits/uses_allocator.h>
+#endif
+#if __glibcxx_containers_ranges // C++ >= 23
+# include <ranges> // ranges::to
+# include <bits/ranges_algobase.h> // ranges::copy
 #endif
 
 namespace std _GLIBCXX_VISIBILITY(default)
@@ -170,15 +174,33 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       stack(_Sequence&& __c)
       : c(std::move(__c)) { }
 
-#if __cplusplus > 202002L
-#define __cpp_lib_adaptor_iterator_pair_constructor 202106L
-
+#ifdef __glibcxx_adaptor_iterator_pair_constructor // C++ >= 23 && HOSTED
       template<typename _InputIterator,
 	       typename = _RequireInputIter<_InputIterator>>
 	stack(_InputIterator __first, _InputIterator __last)
 	: c(__first, __last) { }
 #endif
 
+#if __glibcxx_containers_ranges // C++ >= 23
+      /**
+       * @brief Construct a stack from a range.
+       * @since C++23
+       */
+      template<__detail::__container_compatible_range<_Tp> _Rg>
+	stack(from_range_t, _Rg&& __rg)
+	: c(ranges::to<_Sequence>(std::forward<_Rg>(__rg)))
+	{ }
+
+      /**
+       * @brief Construct a stack from a range.
+       * @since C++23
+       */
+      template<__detail::__container_compatible_range<_Tp> _Rg,
+	       typename _Alloc>
+	stack(from_range_t, _Rg&& __rg, const _Alloc& __a)
+	: c(ranges::to<_Sequence>(std::forward<_Rg>(__rg), __a))
+	{ }
+#endif
 
       template<typename _Alloc, typename _Requires = _Uses<_Alloc>>
 	explicit
@@ -278,6 +300,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
 #endif
 
+#if __glibcxx_containers_ranges // C++ >= 23
+      template<__detail::__container_compatible_range<_Tp> _Rg>
+	void
+	push_range(_Rg&& __rg)
+	{
+	  if constexpr (requires { c.append_range(std::forward<_Rg>(__rg)); })
+	    c.append_range(std::forward<_Rg>(__rg));
+	  else
+	    ranges::copy(__rg, std::back_inserter(c));
+	}
+#endif
+
       /**
        *  @brief  Removes first element.
        *
@@ -321,7 +355,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     stack(_Container, _Allocator)
     -> stack<typename _Container::value_type, _Container>;
 
-#ifdef __cpp_lib_adaptor_iterator_pair_constructor
+#ifdef __glibcxx_adaptor_iterator_pair_constructor
   template<typename _InputIterator,
 	   typename _ValT
 	     = typename iterator_traits<_InputIterator>::value_type,
@@ -335,6 +369,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	   typename = _RequireAllocator<_Allocator>>
     stack(_InputIterator, _InputIterator, _Allocator)
     -> stack<_ValT, deque<_ValT, _Allocator>>;
+#endif
+
+#if __glibcxx_containers_ranges // C++ >= 23
+  template<ranges::input_range _Rg>
+    stack(from_range_t, _Rg&&) -> stack<ranges::range_value_t<_Rg>>;
+
+  template<ranges::input_range _Rg, __allocator_like _Alloc>
+    stack(from_range_t, _Rg&&, _Alloc)
+    -> stack<ranges::range_value_t<_Rg>,
+	     deque<ranges::range_value_t<_Rg>, _Alloc>>;
 #endif
 #endif
 

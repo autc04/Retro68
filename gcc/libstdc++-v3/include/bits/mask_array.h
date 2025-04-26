@@ -1,6 +1,6 @@
 // The template and inlines for the -*- C++ -*- mask_array class.
 
-// Copyright (C) 1997-2022 Free Software Foundation, Inc.
+// Copyright (C) 1997-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -32,7 +32,9 @@
 #ifndef _MASK_ARRAY_H
 #define _MASK_ARRAY_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -69,7 +71,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       ///  Copy constructor.  Both slices refer to the same underlying array.
       mask_array (const mask_array&);
-      
+
       ///  Assignment operator.  Assigns elements to corresponding elements
       ///  of @a a.
       mask_array& operator=(const mask_array&);
@@ -153,6 +155,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     inline mask_array<_Tp>&
     mask_array<_Tp>::operator=(const mask_array<_Tp>& __a)
     {
+      __glibcxx_assert(__a._M_sz == _M_sz);
       std::__valarray_copy(__a._M_array, __a._M_mask,
 			   _M_sz, _M_array, _M_mask);
       return *this;
@@ -166,20 +169,28 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Tp>
     inline void
     mask_array<_Tp>::operator=(const valarray<_Tp>& __v) const
-    { std::__valarray_copy(_Array<_Tp>(__v), __v.size(), _M_array, _M_mask); }
+    {
+      __glibcxx_assert(__v.size() == _M_sz);
+      std::__valarray_copy(_Array<_Tp>(__v), __v.size(), _M_array, _M_mask);
+    }
 
   template<typename _Tp>
     template<class _Ex>
       inline void
       mask_array<_Tp>::operator=(const _Expr<_Ex, _Tp>& __e) const
-      { std::__valarray_copy(__e, __e.size(), _M_array, _M_mask); }
+      {
+	__glibcxx_assert(__e.size() == _M_sz);
+	std::__valarray_copy(__e, __e.size(), _M_array, _M_mask);
+      }
 
+  /// @cond undocumented
 #undef _DEFINE_VALARRAY_OPERATOR
 #define _DEFINE_VALARRAY_OPERATOR(_Op, _Name)				\
   template<typename _Tp>						\
     inline void								\
     mask_array<_Tp>::operator _Op##=(const valarray<_Tp>& __v) const	\
     {									\
+      __glibcxx_assert(__v.size() == _M_sz);				\
       _Array_augmented_##_Name(_M_array, _M_mask,			\
 			       _Array<_Tp>(__v), __v.size());		\
     }									\
@@ -189,6 +200,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       inline void							\
       mask_array<_Tp>::operator _Op##=(const _Expr<_Dom, _Tp>& __e) const\
       {									\
+	__glibcxx_assert(__e.size() == _M_sz);				\
 	_Array_augmented_##_Name(_M_array, _M_mask, __e, __e.size());   \
       }
 
@@ -204,6 +216,7 @@ _DEFINE_VALARRAY_OPERATOR(<<, __shift_left)
 _DEFINE_VALARRAY_OPERATOR(>>, __shift_right)
 
 #undef _DEFINE_VALARRAY_OPERATOR
+  /// @endcond
 
   /// @} group numeric_arrays
 

@@ -1,4 +1,5 @@
 //  { dg-do run }
+//  { dg-skip-if "requires hosted libstdc++ for cstdlib abort" { ! hostedlib } }
 
 // The simplest co_await we can do.
 
@@ -47,6 +48,6 @@ int main ()
       PRINTF ("main: y is wrong : %d, should be 11\n", y);
       abort ();
     }
-  puts ("main: done");
+  PRINT ("main: done");
   return 0;
 }

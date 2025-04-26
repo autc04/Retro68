@@ -1,5 +1,5 @@
 /* MD reader definitions.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -194,7 +194,7 @@ class md_reader
   const struct ptr_loc *get_md_ptr_loc (const void *ptr);
   void copy_md_ptr_loc (const void *new_ptr, const void *old_ptr);
   void fprint_md_ptr_loc (FILE *outf, const void *ptr);
-  void print_md_ptr_loc (const void *ptr);
+  void print_md_ptr_loc (const void *ptr, FILE * = stdout);
 
   struct enum_type *lookup_enum_type (const char *name);
   void traverse_enum_types (htab_trav callback, void *info);
@@ -205,7 +205,7 @@ class md_reader
 
   const char *join_c_conditions (const char *cond1, const char *cond2);
   void fprint_c_condition (FILE *outf, const char *cond);
-  void print_c_condition (const char *cond);
+  void print_c_condition (FILE *outf, const char *cond);
 
   /* Defined in read-rtl.cc.  */
   const char *apply_iterator_to_string (const char *string);
@@ -330,7 +330,7 @@ class noop_reader : public md_reader
   noop_reader () : md_reader (false) {}
 
   /* A dummy implementation which skips unknown directives.  */
-  void handle_unknown_directive (file_location, const char *);
+  void handle_unknown_directive (file_location, const char *) override;
 };
 
 /* An md_reader subclass that actually handles full hierarchical
@@ -364,8 +364,10 @@ class rtx_reader : public md_reader
   /* Analogous to rtx_writer's m_in_call_function_usage.  */
   bool m_in_call_function_usage;
 
+#ifndef GENERATOR_FILE
   /* Support for "reuse_rtx" directives.  */
   auto_vec<rtx> m_reuse_rtx_by_id;
+#endif
 };
 
 /* Global singleton; constrast with md_reader_ptr above.  */
@@ -375,7 +377,7 @@ extern void (*include_callback) (const char *);
 
 /* Read the next character from the MD file.  */
 
-static inline int
+inline int
 read_char (void)
 {
   return md_reader_ptr->read_char ();
@@ -383,7 +385,7 @@ read_char (void)
 
 /* Put back CH, which was the last character read from the MD file.  */
 
-static inline void
+inline void
 unread_char (int ch)
 {
   md_reader_ptr->unread_char (ch);

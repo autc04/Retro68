@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for DEC Alpha.
-   Copyright (C) 1992-2022 Free Software Foundation, Inc.
+   Copyright (C) 1992-2025 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
 This file is part of GCC.
@@ -194,14 +194,6 @@ extern enum alpha_fp_trap_mode alpha_fptm;
 
 /* Define the size of `long long'.  The default is the twice the word size.  */
 #define LONG_LONG_TYPE_SIZE 64
-
-/* The two floating-point formats we support are S-floating, which is
-   4 bytes, and T-floating, which is 8 bytes.  `float' is S and `double'
-   and `long double' are T.  */
-
-#define FLOAT_TYPE_SIZE 32
-#define DOUBLE_TYPE_SIZE 64
-#define LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
 
 /* Work around target_flags dependency in ada/targtyps.cc.  */
 #define WIDEST_HARDWARE_FP_SIZE 64
@@ -638,7 +630,7 @@ enum reg_class {
    can use DWARF_ALT_FRAME_RETURN_COLUMN defined below.  This is just the same
    as the default definition in dwarf2out.cc.  */
 #undef DWARF_FRAME_REGNUM
-#define DWARF_FRAME_REGNUM(REG) DBX_REGISTER_NUMBER (REG)
+#define DWARF_FRAME_REGNUM(REG) DEBUGGER_REGNO (REG)
 
 /* Before the prologue, RA lives in $26.  */
 #define INCOMING_RETURN_ADDR_RTX  gen_rtx_REG (Pmode, 26)

@@ -1,5 +1,5 @@
 /* Target Code for ft32
-   Copyright (C) 2015-2022 Free Software Foundation, Inc.
+   Copyright (C) 2015-2025 Free Software Foundation, Inc.
    Contributed by FTDI <support@ftdi.com>
 
    This file is part of GCC.
@@ -634,8 +634,11 @@ ft32_setup_incoming_varargs (cumulative_args_t cum_v,
 			     int *pretend_size, int no_rtl ATTRIBUTE_UNUSED)
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
-  int named_size =
-    GET_MODE_SIZE (SImode) * (*cum - FT32_R0) + GET_MODE_SIZE (arg.mode);
+  int named_size = 0;
+  if (!TYPE_NO_NAMED_ARGS_STDARG_P (TREE_TYPE (current_function_decl))
+      || arg.type != NULL_TREE)
+    named_size
+      = GET_MODE_SIZE (SImode) * (*cum - FT32_R0) + GET_MODE_SIZE (arg.mode);
 
   if (named_size < 24)
     *pretend_size = 24 - named_size;
@@ -828,19 +831,6 @@ ft32_target_case_values_threshold (void)
   ft32_addr_space_legitimate_address_p
 
 
-// Enabling LRA gives the infamous
-//    internal compiler error: Max. number of generated reload insns per insn is achieved (90)
-// errors e.g. when compiling sieve.c
-
-static bool
-ft32_lra_p (void)
-{
-  return ft32_lra_flag;
-}
-
-#undef TARGET_LRA_P
-#define TARGET_LRA_P ft32_lra_p
-
 static bool
 reg_ok_for_base_p (rtx r, bool strict)
 {
@@ -854,7 +844,8 @@ reg_ok_for_base_p (rtx r, bool strict)
 
 static bool
 ft32_addr_space_legitimate_address_p (machine_mode mode, rtx x, bool strict,
-                                      addr_space_t as ATTRIBUTE_UNUSED)
+				      addr_space_t as ATTRIBUTE_UNUSED,
+				      code_helper = ERROR_MARK)
 {
   int max_offset = TARGET_FT32B ? 16384 : 128;
 

@@ -1,6 +1,6 @@
 // ABI Support -*- C++ -*-
 
-// Copyright (C) 2000-2022 Free Software Foundation, Inc.
+// Copyright (C) 2000-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -41,7 +41,9 @@
 #ifndef _CXXABI_H
 #define _CXXABI_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #pragma GCC visibility push(default)
 
@@ -150,10 +152,10 @@ namespace __cxxabiv1
   __cxa_deleted_virtual(void) __attribute__ ((__noreturn__));
 
   // Exception handling auxiliary.
-  void 
+  void
   __cxa_bad_cast() __attribute__((__noreturn__));
 
-  void 
+  void
   __cxa_bad_typeid() __attribute__((__noreturn__));
 
   void
@@ -169,7 +171,7 @@ namespace __cxxabiv1
    *  @param __output_buffer A region of memory, allocated with
    *  malloc, of @a *__length bytes, into which the demangled name is
    *  stored.  If @a __output_buffer is not long enough, it is
-   *  expanded using realloc.  @a __output_buffer may instead be NULL;
+   *  expanded using realloc.  @a __output_buffer may instead be null;
    *  in that case, the demangled name is placed in a region of memory
    *  allocated with malloc.
    *
@@ -184,7 +186,7 @@ namespace __cxxabiv1
    *  -3: One of the arguments is invalid.
    *
    *  @return A pointer to the start of the NUL-terminated demangled
-   *  name, or NULL if the demangling fails.  The caller is
+   *  name, or a null pointer if the demangling fails.  The caller is
    *  responsible for deallocating this memory using @c free.
    *
    *  The demangling is performed using the C++ ABI mangling rules,
@@ -616,7 +618,7 @@ namespace __cxxabiv1
   __cxa_get_globals_fast() _GLIBCXX_NOTHROW __attribute__ ((__const__));
 
   // Free the space allocated for the primary exception.
-  void 
+  void
   __cxa_free_exception(void*) _GLIBCXX_NOTHROW;
 
   // Throw the exception.
@@ -631,10 +633,10 @@ namespace __cxxabiv1
   void*
   __cxa_begin_catch(void*) _GLIBCXX_NOTHROW;
 
-  void 
+  void
   __cxa_end_catch();
 
-  void 
+  void
   __cxa_rethrow() __attribute__((__noreturn__));
 
   // Returns the type_info for the currently handled exception [15.3/8], or

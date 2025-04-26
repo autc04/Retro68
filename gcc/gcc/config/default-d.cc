@@ -1,5 +1,5 @@
 /* Default D language target hooks initializer.
-   Copyright (C) 2017-2022 Free Software Foundation, Inc.
+   Copyright (C) 2017-2025 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free
@@ -18,9 +18,11 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "memmodel.h"
 #include "tm_d.h"
 #include "d/d-target.h"
 #include "d/d-target-def.h"
+
+/* Do not include tm.h or tm_p.h here; definitions needed by the target
+   architecture to initialize targetdm should instead be added to tm_d.h.  */
 
 struct gcc_targetdm targetdm = TARGETDM_INITIALIZER;

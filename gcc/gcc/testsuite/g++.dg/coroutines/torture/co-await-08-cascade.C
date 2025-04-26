@@ -1,4 +1,5 @@
 //  { dg-do run }
+//  { dg-skip-if "requires hosted libstdc++ for cstdlib abort" { ! hostedlib } }
 
 // Check cascaded co_await operations.
 
@@ -58,6 +59,6 @@ int main ()
       PRINTF ("main: y is wrong : %d, should be 14672\n", y);
       abort ();
     }
-  puts ("main: done");
+  PRINT ("main: done");
   return 0;
 }

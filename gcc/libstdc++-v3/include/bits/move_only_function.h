@@ -30,9 +30,13 @@
 #ifndef _GLIBCXX_MOVE_ONLY_FUNCTION_H
 #define _GLIBCXX_MOVE_ONLY_FUNCTION_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
-#if __cplusplus > 202002L
+#include <bits/version.h>
+
+#ifdef __glibcxx_move_only_function // C++ >= 23 && HOSTED
 
 #include <bits/invoke.h>
 #include <bits/utility.h>
@@ -40,8 +44,6 @@
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
-
-#define __cpp_lib_move_only_function 202110L
 
   template<typename... _Signature>
     class move_only_function; // not defined
@@ -183,6 +185,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     constexpr bool __is_move_only_function_v<move_only_function<_Tp>> = true;
   /// @endcond
 
+  namespace __detail::__variant
+  {
+    template<typename> struct _Never_valueless_alt; // see <variant>
+
+    // Provide the strong exception-safety guarantee when emplacing a
+    // move_only_function into a variant.
+    template<typename... _Signature>
+      struct _Never_valueless_alt<std::move_only_function<_Signature...>>
+      : true_type
+      { };
+  }  // namespace __detail::__variant
+
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 
@@ -200,5 +214,5 @@ _GLIBCXX_END_NAMESPACE_VERSION
 #define _GLIBCXX_MOF_REF &&
 #include "mofunc_impl.h"
 
-#endif // C++23
+#endif // __glibcxx_move_only_function
 #endif // _GLIBCXX_MOVE_ONLY_FUNCTION_H

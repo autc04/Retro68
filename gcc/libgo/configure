@@ -633,6 +633,7 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
+SYSROOT_CFLAGS_FOR_TARGET
 HAVE_STATIC_LINK_FALSE
 HAVE_STATIC_LINK_TRUE
 HAVE_STAT_TIMESPEC_FALSE
@@ -708,6 +709,8 @@ glibgo_toolexecdir
 WERROR
 WARN_FLAGS
 CC_FOR_BUILD
+ENABLE_DARWIN_AT_RPATH_FALSE
+ENABLE_DARWIN_AT_RPATH_TRUE
 enable_static
 enable_shared
 CPP
@@ -2608,7 +2611,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 ac_config_headers="$ac_config_headers config.h"
 
 
-libtool_VERSION=21:0:0
+libtool_VERSION=24:0:0
 
 
 # Default to --enable-multilib
@@ -11544,7 +11547,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11547 "configure"
+#line 11550 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11650,7 +11653,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11653 "configure"
+#line 11656 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -13779,6 +13782,14 @@ CC="$lt_save_CC"
 
 
 
+ if test x$enable_darwin_at_rpath = xyes; then
+  ENABLE_DARWIN_AT_RPATH_TRUE=
+  ENABLE_DARWIN_AT_RPATH_FALSE='#'
+else
+  ENABLE_DARWIN_AT_RPATH_TRUE='#'
+  ENABLE_DARWIN_AT_RPATH_FALSE=
+fi
+
 
 CC_FOR_BUILD=${CC_FOR_BUILD:-gcc}
 
@@ -14096,6 +14107,10 @@ fi
 
 
 
+if test "${GOOS}" = "unknown"; then
+   as_fn_error $? "\"could not determine GOOS from ${host}\"" "$LINENO" 5
+fi
+
 USE_DEJAGNU=no
 case ${host} in
   *-*-rtems*) USE_DEJAGNU=yes ;;
@@ -14328,6 +14343,10 @@ esac
 
 
 
+if test "${GOARCH}" = "unknown"; then
+   as_fn_error $? "\"could not determine GOARCH from ${host}\"" "$LINENO" 5
+fi
+
  if test "$GOARCH" = "386" -o "$GOARCH" = "amd64" -o "$GOARCH" = "amd64p32"; then
   LIBGO_IS_X86_TRUE=
   LIBGO_IS_X86_FALSE='#'
@@ -14397,6 +14416,7 @@ esac
 
 
   test -z "$HWCAP_CFLAGS" && HWCAP_CFLAGS=''
+
 
   # Restrict the test to Solaris, other assemblers (e.g. AIX as) have -nH
   # with a different meaning.
@@ -14816,6 +14836,63 @@ if test "x$ac_cv_lib_pthread_pthread_create" = xyes; then :
   PTHREAD_LIBS=-lpthread
 fi
 
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing makecontext" >&5
+$as_echo_n "checking for library containing makecontext... " >&6; }
+if ${ac_cv_search_makecontext+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char makecontext ();
+int
+main ()
+{
+return makecontext ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' ucontext; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_makecontext=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_makecontext+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_makecontext+:} false; then :
+
+else
+  ac_cv_search_makecontext=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_makecontext" >&5
+$as_echo "$ac_cv_search_makecontext" >&6; }
+ac_res=$ac_cv_search_makecontext
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing sched_yield" >&5
@@ -15249,7 +15326,7 @@ $as_echo "#define HAVE_GETIPINFO 1" >>confdefs.h
   fi
 
 
-for ac_header in port.h sched.h semaphore.h sys/file.h sys/mman.h syscall.h sys/epoll.h sys/event.h sys/inotify.h sys/ptrace.h sys/syscall.h sys/sysctl.h sys/user.h sys/utsname.h sys/select.h sys/socket.h net/bpf.h net/if.h net/if_arp.h net/route.h netpacket/packet.h sys/prctl.h sys/mount.h sys/vfs.h sys/statfs.h sys/timex.h sys/sysinfo.h utime.h linux/ether.h linux/fs.h linux/ptrace.h linux/reboot.h netinet/in_syst.h netinet/ip.h netinet/ip_mroute.h netinet/if_ether.h lwp.h
+for ac_header in fcntl.h port.h sched.h semaphore.h sys/file.h sys/mman.h syscall.h sys/epoll.h sys/event.h sys/inotify.h sys/ptrace.h sys/syscall.h sys/sysctl.h sys/user.h sys/utsname.h sys/select.h sys/socket.h net/bpf.h net/if.h net/if_arp.h net/route.h netpacket/packet.h sys/prctl.h sys/mount.h sys/vfs.h sys/statfs.h sys/timex.h sys/sysinfo.h utime.h linux/ether.h linux/fs.h linux/ptrace.h linux/reboot.h netinet/in_syst.h netinet/ip.h netinet/ip_mroute.h netinet/if_ether.h lwp.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -15546,7 +15623,14 @@ _ACEOF
 
 fi
 
-ac_fn_c_check_type "$LINENO" "loff_t" "ac_cv_type_loff_t" "$ac_includes_default"
+
+CFLAGS_hold="$CFLAGS"
+CFLAGS="$OSCFLAGS $CFLAGS"
+ac_fn_c_check_type "$LINENO" "loff_t" "ac_cv_type_loff_t" "
+#include <sys/types.h>
+#include <fcntl.h>
+
+"
 if test "x$ac_cv_type_loff_t" = xyes; then :
 
 cat >>confdefs.h <<_ACEOF
@@ -15556,6 +15640,7 @@ _ACEOF
 
 fi
 
+CFLAGS="$CFLAGS_hold"
 
 LIBS_hold="$LIBS"
 LIBS="$LIBS -lm"
@@ -16082,6 +16167,8 @@ else
 fi
 
 
+
+
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
 # tests run on this system so they can be shared between configure
@@ -16319,6 +16406,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${MAINTAINER_MODE_TRUE}" && test -z "${MAINTAINER_MODE_FALSE}"; then
   as_fn_error $? "conditional \"MAINTAINER_MODE\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ENABLE_DARWIN_AT_RPATH_TRUE}" && test -z "${ENABLE_DARWIN_AT_RPATH_FALSE}"; then
+  as_fn_error $? "conditional \"ENABLE_DARWIN_AT_RPATH\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${USE_LIBFFI_TRUE}" && test -z "${USE_LIBFFI_FALSE}"; then

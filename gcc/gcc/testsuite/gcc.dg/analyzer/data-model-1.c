@@ -1,4 +1,3 @@
-/* { dg-require-effective-target alloca } */
 /* { dg-additional-options "-fno-ipa-modref" } */
 
 #include <stdlib.h>
@@ -240,8 +239,8 @@ void test_16 (void)
   __analyzer_eval (strlen (msg) == 11); /* { dg-warning "TRUE" } */
 
   /* Out-of-bounds.  */
-  __analyzer_eval (msg[100] == 'e'); /* { dg-warning "UNKNOWN" } */
-  // TODO: some kind of warning for the out-of-bounds access
+  __analyzer_eval (msg[100] == 'e'); /* { dg-warning "UNKNOWN" "eval result" } */
+  /* { dg-warning "buffer over-read" "out-of-bounds" { target *-*-* } .-1 } */
 }
 
 static const char *__attribute__((noinline))
@@ -351,9 +350,8 @@ void test_19 (void)
 {
   int i, j; /* { dg-message "region created on stack here" } */
   /* Compare two uninitialized locals.  */
-    __analyzer_eval (i == j); /* { dg-warning "UNKNOWN" "unknown " } */
-    /* { dg-warning "use of uninitialized value 'i'" "uninit i" { target *-*-* } .-1 } */
-    /* { dg-warning "use of uninitialized value 'j'" "uninit j" { target *-*-* } .-2 } */
+    __analyzer_eval (i == j); /* { dg-warning "use of uninitialized value 'i'" "uninit i" } */
+    /* { dg-warning "use of uninitialized value 'j'" "uninit j" { target *-*-* } .-1 } */
 }
 
 void test_20 (int i, int j)
@@ -624,8 +622,7 @@ void test_29a (struct coord p[])
   __analyzer_eval (q[-2].y == 107025); /* { dg-warning "TRUE" } */
 
   q -= 2;
-  __analyzer_eval (q == &p[7]); /* { dg-warning "UNKNOWN" } */
-  // TODO: make this be TRUE
+  __analyzer_eval (q == &p[7]); /* { dg-warning "TRUE" } */
 
   __analyzer_eval (q->x == 107024); /* { dg-warning "TRUE" } */
   __analyzer_eval (q->y == 107025); /* { dg-warning "TRUE" } */
@@ -654,11 +651,6 @@ void test_29b (void)
   __analyzer_eval (p[9].x == 109024); /* { dg-warning "TRUE" } */
   __analyzer_eval (p[9].y == 109025); /* { dg-warning "TRUE" } */
 
-  __analyzer_eval (p[10].x == 0); /* { dg-warning "UNKNOWN" "unknown" } */
-  /* { dg-warning "use of uninitialized value 'p\\\[10\\\].x'" "uninit" { target *-*-* } .-1 } */
-  __analyzer_eval (p[10].y == 0); /* { dg-warning "UNKNOWN" "unknown" } */
-  /* { dg-warning "use of uninitialized value 'p\\\[10\\\].y'" "uninit" { target *-*-* } .-1 } */
-
   q = &p[7];
 
   __analyzer_eval (q->x == 107024); /* { dg-warning "TRUE" } */
@@ -680,6 +672,8 @@ void test_29b (void)
 
   __analyzer_eval (q->x == 107024); /* { dg-warning "TRUE" } */
   __analyzer_eval (q->y == 107025); /* { dg-warning "TRUE" } */
+
+  __analyzer_eval (p[10].x == 0); /* { dg-warning "use of uninitialized value 'p\\\[10\\\].x'" } */
 }
 
 void test_29c (int len)
@@ -705,11 +699,6 @@ void test_29c (int len)
   __analyzer_eval (p[9].x == 109024); /* { dg-warning "TRUE" } */
   __analyzer_eval (p[9].y == 109025); /* { dg-warning "TRUE" } */
 
-  __analyzer_eval (p[10].x == 0); /* { dg-warning "UNKNOWN" "unknown" } */
-  /* { dg-warning "use of uninitialized value '\\*p\\\[10\\\].x'" "uninit" { target *-*-* } .-1 } */
-  __analyzer_eval (p[10].y == 0); /* { dg-warning "UNKNOWN" "unknown" } */
-  /* { dg-warning "use of uninitialized value '\\*p\\\[10\\\].y'" "uninit" { target *-*-* } .-1 } */
-
   q = &p[7];
 
   __analyzer_eval (q->x == 107024); /* { dg-warning "TRUE" } */
@@ -731,6 +720,8 @@ void test_29c (int len)
 
   __analyzer_eval (q->x == 107024); /* { dg-warning "TRUE" } */
   __analyzer_eval (q->y == 107025); /* { dg-warning "TRUE" } */
+
+  __analyzer_eval (p[10].x == 0); /* { dg-warning "use of uninitialized value '\\*p\\\[10\\\].x'" "" { xfail { ! alloca } } } */
 }
 
 void test_30 (void *ptr)

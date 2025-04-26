@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -16,9 +16,8 @@
 // <http://www.gnu.org/licenses/>.
 
 // expensive: * [1-9] * *
-#include "bits/verify.h"
-#include "bits/make_vec.h"
-#include "bits/metahelpers.h"
+// timeout-factor: 2
+#include "bits/main.h"
 
 template <typename T, T Begin, T End, T Stride = 1, typename F>
   void
@@ -180,11 +179,10 @@ template <typename V>
 	  for (int j = 0; j < 100; ++j)
 	    {
 	      const V seq([&](auto i) -> T { return (j + i) % n_promo_bits; });
-	      COMPARE(V(1) >> seq, V([&](auto i) { return T(T(1) >> seq[i]); }))
-		<< "seq = " << seq;
-	      COMPARE(make_value_unknown(V(1)) >> make_value_unknown(seq),
-		V([&](auto i) { return T(T(1) >> seq[i]); }))
-		<< "seq = " << seq;
+	      const V expect([&](auto i) { return seq[i] == 0 ? T(1) : T(0); });
+	      COMPARE(V(1) >> seq, expect) << "\nseq = " << seq;
+	      COMPARE(make_value_unknown(V(1)) >> make_value_unknown(seq), expect)
+		<< "\nseq = " << seq;
 	    }
 	  for_constexpr<int, 0, n_promo_bits - 1>([](auto shift_ic) {
 	    constexpr int shift = shift_ic;

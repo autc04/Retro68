@@ -1,4 +1,5 @@
 //  { dg-do run }
+//  { dg-skip-if "requires hosted libstdc++ for cstdlib abort" { ! hostedlib } }
 
 /* The simplest valued co_await we can do.  */
 
@@ -40,6 +41,6 @@ int main ()
       PRINT ("main: we should be 'done' ");
       abort ();
     }
-  puts ("main: done");
+  PRINT ("main: done");
   return 0;
 }

@@ -1,17 +1,17 @@
 # libstdc++ "tool init file" for DejaGNU
 
-# Copyright (C) 2001-2022 Free Software Foundation, Inc.
+# Copyright (C) 2001-2025 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; see the file COPYING3.  If not see
 # <http://www.gnu.org/licenses/>.
@@ -44,6 +44,21 @@ proc load_gcc_lib { filename } {
     set loaded_libs($filename) ""
 }
 
+#
+# search_for -- looks for a string match in a file
+#
+proc search_for { file pattern } {
+    set fd [open $file r]
+    while { [gets $fd cur_line]>=0 } {
+	if [string match "*$pattern*" $cur_line] then {
+	    close $fd
+	    return 1
+	}
+    }
+    close $fd
+    return 0
+}
+
 # system routines
 load_lib dg.exp
 load_lib libgloss.exp
@@ -58,6 +73,7 @@ load_gcc_lib timeout.exp
 load_gcc_lib timeout-dg.exp
 load_gcc_lib wrapper.exp
 load_gcc_lib target-utils.exp
+load_gcc_lib dg-test-cleanup.exp
 
 # Useful for debugging.  Pass the name of a variable and the verbosity
 # threshold (number of -v's on the command line).
@@ -133,9 +149,6 @@ proc libstdc++_init { testfile } {
     if ![info exists DEFAULT_CXXFLAGS] then {
 	set DEFAULT_CXXFLAGS ""
 	# Host specific goo here.
-	if { [string match "powerpc-*-darwin*" $target_triplet] } {
-	    append DEFAULT_CXXFLAGS " -multiply_defined suppress"
-	}
 	if { [string match "powerpc-ibm-aix*" $target_triplet] } {
 	    append DEFAULT_CXXFLAGS " -Wl,-bmaxdata:0x20000000"
 	}
@@ -145,10 +158,6 @@ proc libstdc++_init { testfile } {
     # By default, we assume we want to run program images.
     global dg-do-what-default
     set dg-do-what-default run
-
-    # Copy any required data files.
-    v3-copy-files [glob -nocomplain "$srcdir/data/*.tst"]
-    v3-copy-files [glob -nocomplain "$srcdir/data/*.txt"]
 
     set ld_library_path_tmp ""
 
@@ -462,6 +471,98 @@ if { [info procs saved-dg-test] == [list] } {
     }
 }
 
+# Find the minimum standard required by a test, if higher than the default_std.
+proc v3-minimum-std { test default_std max_std } {
+    for {set s $default_std} {$s <= $max_std} {incr s 3} {
+	if [search_for $test "\{ dg-do * \{ target c++$s"] {
+	    return $s
+	} elseif [search_for $test "\{ dg-require-effective-target c++$s"] {
+	    return $s
+	}
+    }
+    # TODO: replace all c++2a with c++20 and remove this case.
+    if [search_for $test "\{ dg-do * \{ target c++2a"] {
+	return 20
+    }
+    return $default_std
+}
+
+# Allow v3_std_list to be set in configuration files, e.g., ~/.dejagnurc
+if ![info exists v3_std_list] {
+    set v3_std_list { }
+}
+# Allow v3_std_list to be set from the environment.
+if [info exists env(GLIBCXX_TESTSUITE_STDS)] {
+    set v3_std_list [split $env(GLIBCXX_TESTSUITE_STDS) ","]
+}
+
+# Modified dg-runtest that runs tests in multiple standard modes,
+# unless they specifically specify one standard.
+proc v3-dg-runtest { testcases flags default-extra-flags } {
+    global runtests
+
+    foreach test $testcases {
+	# If we're only testing specific files and this isn't one of them, skip it.
+	if ![runtest_file_p $runtests $test] {
+	    continue
+	}
+
+	# If the testcase specifies a standard, use that one.
+	# If not, run it under several standards, allowing GNU extensions
+	# unless strict_std is requested.
+	if ![search_for $test "// \{ dg-*options*-std=*++"] {
+	    if [search_for $test "{ dg-add-options strict_std }"] {
+		set std_prefix "-std=c++"
+	    } else {
+		set std_prefix "-std=gnu++"
+	    }
+
+	    # See above for the initial value of this list.
+	    global v3_std_list
+	    if { [llength $v3_std_list] > 0 } {
+		set std_list $v3_std_list
+	    } else {
+		# If the test requires a newer C++ version than which
+		# is tested by default, use that C++ version for that
+		# single test.
+		# These should be adjusted whenever the default -std is
+		# updated or newer C++ effective target is added.
+		set default_std 17
+		set max_std 26
+		set min_std [v3-minimum-std $test $default_std $max_std]
+		if { $min_std > $default_std } {
+		    set std_list $min_std
+		    if { $min_std != $max_std } {
+			# Also test the latest version.
+			lappend std_list "$max_std"
+		    }
+		} else {
+		    # Only run each test once with the default -std option.
+		    # This avoids increasing the run time for most testers.
+		    # Libstdc++ developers can override this with v3_std_list.
+		    set std_list $default_std
+		}
+	    }
+	    set option_list { }
+	    foreach x $std_list {
+		if { $x eq "impcx" } then { set x "26 -fimplicit-constexpr" }
+		lappend option_list "${std_prefix}$x"
+	    }
+	} else {
+	    verbose "using -std option specified in [file tail $test]" 2
+	    set option_list { "" }
+	}
+
+	set nshort [file tail [file dirname $test]]/[file tail $test]
+
+	foreach flags_t $option_list {
+	    verbose "Testing $nshort, $flags $flags_t" 1
+	    dg-test $test "$flags $flags_t" ${default-extra-flags}
+	}
+    }
+}
+
+
 # True if the library supports wchar_t.
 set v3-wchar_t 0
 
@@ -510,11 +611,49 @@ proc v3_target_compile { source dest type options } {
 	}
     }
 
+    # For Windows and Darwin we might want to create a temporary file.
+    # Note that it needs deleting.
+    set file_to_delete ""
+    # Small adjustment for Windows hosts.
+    if { $dest == "/dev/null"
+	  && [info exists ::env(OS)] && [string match "Windows*" $::env(OS)] } {
+	if { $type == "executable" } {
+	    set dest "x.exe"
+	    set file_to_delete ${dest}
+	} else {
+	    # Windows uses special file named "nul" as a substitute for
+	    # /dev/null
+	    set dest "nul"
+	}
+    }
+
+    # Using /dev/null as the executable name does not work on Darwin when
+    # debug is enabled, since the debug linker does not accept /dev/null as
+    # a valid executable name.
+    if { $dest == "/dev/null" && [istarget *-*-darwin*]
+         && $type == "executable" } {
+	set dest dev-null-[pid].exe
+	set file_to_delete ${dest}
+    }
+
     lappend options "compiler=$cxx_final"
     lappend options "timeout=[timeout_value]"
 
-    set comp_output [target_compile $source $dest $type $options]
+    global v3_additional_files
+    # There will be an empty file at the begining of the list so trim it off.
+    foreach file [split [string trim $v3_additional_files] " "] {
+	global srcdir
+	v3-copy-file "$srcdir/data/$file" $file
+    }
+    set v3_additional_files {}
 
+    set comp_output [target_compile $source $dest $type $options]
+    if { $type == "executable" && $file_to_delete != "" } {
+	file delete $file_to_delete
+	if { [istarget *-*-darwin*] && [file exists $file_to_delete.dSYM] } {
+	    file delete -force $file_to_delete.dSYM
+	}
+    }
     return $comp_output
 }
 
@@ -654,7 +793,7 @@ proc v3-build_support { } {
 	# do not prevent compilation.
 	# Disable LTO so that ar/ranlib don't need the LTO plugin.
 	if { [v3_target_compile $srcdir/util/$f $object_file "object" \
-		  [list "incdir=$srcdir" "additional_flags=-w -fno-lto"]]
+		  [list "incdir=$srcdir" "additional_flags=-w -fno-lto -fno-freestanding"]]
 	     != "" } {
 	    error "could not compile $f"
 	}
@@ -693,7 +832,7 @@ proc v3-build_support { } {
 	    # Compile with "-w" so that warnings issued by the compiler
 	    # do not prevent compilation.
 	    if { [v3_target_compile $srcdir/util/$f $object_file "sharedlib" \
-	     [list "incdir=$srcdir" "additional_flags=-fno-inline -w -shared -fPIC -DPIC -std=gnu++98"]]
+	     [list "incdir=$srcdir" "additional_flags=-fno-inline -w -shared -fPIC -DPIC -std=gnu++98 -fno-freestanding"]]
 		 != "" } {
 		error "could not compile $f"
 	    }
@@ -802,8 +941,8 @@ proc check_v3_target_c_std { } {
 	# Set up, compile, and execute a C++ test program that tries to use
 	# C99 functionality.
 	# For math bits, could use check_effective_target_c99_math.
-	set src fileio[pid].cc
-	set exe fileio[pid].x
+	set src c_std[pid].cc
+	set exe c_std[pid].x
 
 	set f [open $src "w"]
 	puts $f "#include <tr1/cmath>"
@@ -894,7 +1033,7 @@ proc check_v3_target_namedlocale { args } {
 	puts $f "    strcpy(result, name);"
 	puts $f "#if defined __FreeBSD__ || defined __DragonFly__ || defined __NetBSD__"
 	puts $f "    /* fall-through */"
-	puts $f "#else"
+	puts $f "#elif defined __GLIBC__"
 	puts $f "    if (strstr(result, \"ISO8859-15\")) {"
 	puts $f "        strcat(result, \"@euro\");"
 	puts $f "    }"
@@ -974,13 +1113,16 @@ proc v3_try_preprocess { name code flags } {
 }
 
 # Return 1 if COND evaluates to true in the preprocessor, 0 otherwise.
-# The <bits/c++config.h> config header is included.
-proc v3_check_preprocessor_condition { name cond } {
+# The <bits/c++config.h> config header is included, and INC, if given,
+# is pasted between it and the condition evaluation, so it can be used
+# for additional #include's.
+proc v3_check_preprocessor_condition { name cond { inc "" } } {
     global cxxflags
     global DEFAULT_CXXFLAGS
 
     set code "
 	#include <bits/c++config.h>
+	$inc
 	#if ! ($cond)
 	#error '$cond' is false
 	#endif
@@ -990,11 +1132,27 @@ proc v3_check_preprocessor_condition { name cond } {
     return [v3_try_preprocess name $code $flags]
 }
 
+# Return 1 if libstdc++ defines macro for the current target, 0 otherwise.
+proc check_v3_target_cpp_feature_test { cond } {
+    global cxxflags
+    set cxxflags_saved $cxxflags
+    # Use the latest standard, so that all feature test macros are defined.
+    # We need to do it here, because this check happens before v3-dg-runtest
+    # runs its loop to test multiple times with different -std options.
+    # This should be updated when a new -std is added.
+    set cxxflags "$cxxflags -std=gnu++26"
+    set inc "#include <version>"
+    set result [v3_check_preprocessor_condition cpp_feature_test "$cond" $inc]
+    set cxxflags $cxxflags_saved
+    return $result
+}
+
 # Return 1 if Debug Mode is active, 0 otherwise.
 proc check_v3_target_debug_mode { } {
     global cxxflags
     return [check_v3_target_prop_cached et_debug_mode {
 	set code "
+	#include <bits/c++config.h>
 	#if ! defined _GLIBCXX_DEBUG
 	# error no debug mode
 	#endif
@@ -1050,7 +1208,7 @@ proc check_v3_target_parallel_mode { } {
 # Return 1 if the C99 stdint facilities are available, 0 otherwise.
 proc check_v3_target_cstdint { } {
     return [check_v3_target_prop_cached et_cstdint {
-	set cond "defined _GLIBCXX_USE_C99_STDINT_TR1"
+	set cond "defined _GLIBCXX_USE_C99_STDINT"
 	return [v3_check_preprocessor_condition cstdint $cond]
     }]
 }
@@ -1058,7 +1216,7 @@ proc check_v3_target_cstdint { } {
 # Return 1 if the C99 math facilities are available, 0 otherwise.
 proc check_v3_target_cmath { } {
     return [check_v3_target_prop_cached et_c99_math {
-	set cond "defined _GLIBCXX_USE_C99_MATH_TR1"
+	set cond "defined _GLIBCXX_USE_C99_MATH_FUNCS"
 	return [v3_check_preprocessor_condition cmath $cond]
     }]
 }
@@ -1092,6 +1250,43 @@ proc check_v3_target_thread_fence { } {
 	    return 1
 	} else {
 	    verbose "check_v3_target_thread_fence: compilation failed" 2
+	    return 0
+	}
+    }]
+}
+
+proc check_v3_target_atomic_cmpxchg_word { } {
+    return [check_v3_target_prop_cached et_atomic_cmpxchg_word {
+	global cxxflags
+	global DEFAULT_CXXFLAGS
+
+	# Set up and link a C++11 test program that depends on
+	# atomic-compare-exchange being available for a pointer-sized
+	# integer.  It should be sufficient as gcc can derive all
+	# other operations when a target implements this operation.
+	set src atomic_cmpxchg_word[pid].cc
+
+	set f [open $src "w"]
+	puts $f "
+	__UINTPTR_TYPE__ i, j, k;
+	int main() {
+	__atomic_compare_exchange (&i, &j, &k, 1, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+	return 0;
+	}"
+	close $f
+
+	set cxxflags_saved $cxxflags
+	set cxxflags "$cxxflags $DEFAULT_CXXFLAGS -Werror -std=gnu++11"
+
+	set lines [v3_target_compile $src /dev/null executable ""]
+	set cxxflags $cxxflags_saved
+	file delete $src
+
+	if [string match "" $lines] {
+	    # No error message, linking succeeded.
+	    return 1
+	} else {
+	    verbose "check_v3_target_atomic_cmpxchg_word: compilation failed" 2
 	    return 0
 	}
     }]
@@ -1144,7 +1339,9 @@ proc check_effective_target_gthreads_timed { } {
 # Return 1 if either nanosleep or sleep is available, 0 otherwise.
 proc check_v3_target_sleep { } {
     return [check_v3_target_prop_cached et_sleep {
-	set cond "defined _GLIBCXX_USE_NANOSLEEP || defined _GLIBCXX_HAVE_SLEEP"
+	set cond "defined _GLIBCXX_USE_NANOSLEEP"
+	set cond "$cond || defined _GLIBCXX_USE_WIN32_SLEEP"
+	set cond "$cond || defined _GLIBCXX_HAVE_SLEEP"
 	return [v3_check_preprocessor_condition sleep $cond]
     }]
 }
@@ -1188,6 +1385,7 @@ proc check_v3_target_binary_io { } {
 proc check_v3_target_nprocs { } {
     return [check_v3_target_prop_cached et_nprocs {
 	set cond "defined _GLIBCXX_USE_GET_NPROCS"
+	set cond "$cond || defined _GLIBCXX_USE_GET_NPROCS_WIN32"
 	set cond "$cond || defined _GLIBCXX_USE_PTHREADS_NUM_PROCESSORS_NP"
 	set cond "$cond || defined _GLIBCXX_USE_SYSCTL_HW_NCPU"
 	set cond "$cond || defined _GLIBCXX_USE_SC_NPROCESSORS_ONLN"
@@ -1265,6 +1463,30 @@ proc check_v3_target_filesystem_ts { } {
 	}
 	return 0
     }]
+}
+
+# Return 1 if the libstdc++ filesystem create_symlinks implementation
+# is not an always-failing dummy.
+proc check_v3_target_fs_symlinks { } {
+    set inc "#include <testsuite_fs.h>"
+    set cond "!defined NO_SYMLINKS"
+    return [v3_check_preprocessor_condition fs_symlinks $cond $inc]
+}
+
+# Return 1 if the libstdc++ filesystem implementation of space is not an
+# always-failing dummy.
+proc check_v3_target_fs_space { } {
+    set inc "#include <testsuite_fs.h>"
+    set cond "!defined NO_SPACE"
+    return [v3_check_preprocessor_condition fs_space $cond $inc]
+}
+
+# Return 1 if the libstdc++ filesystem implementation of
+# last_write_time is not an always-failing dummy.
+proc check_v3_target_fs_last_write_time { } {
+    set inc "#include <testsuite_fs.h>"
+    set cond "!defined NO_LAST_WRITE_TIME"
+    return [v3_check_preprocessor_condition fs_last_write_time $cond $inc]
 }
 
 # Return 1 if the "cxx11" ABI is in use using the current flags, 0 otherwise.
@@ -1346,11 +1568,30 @@ proc check_effective_target_std_allocator_new { } {
     }]
 }
 
-# Return 1 if libstdc++ was built as --enable-libstdcxx-backtrace
-proc check_effective_target_stacktrace { } {
-    return [check_v3_target_prop_cached et_stacktrace {
-	set cond "_GLIBCXX_HAVE_STACKTRACE"
-	return [v3_check_preprocessor_condition stacktrace $cond]
+# Return 1 if RTTI is enabled by the current test flags.
+proc check_effective_target_rtti { } {
+    return [check_v3_target_prop_cached et_rtti {
+	set cond "__cpp_rtti"
+	return [v3_check_preprocessor_condition rtti $cond]
+    }]
+}
+
+# Return 1 if a hosted implementation is available (i.e. not freestanding).
+proc check_effective_target_hosted { } {
+    return [check_v3_target_prop_cached et_hosted {
+	set cond "_GLIBCXX_HOSTED"
+	return [v3_check_preprocessor_condition hosted $cond]
+    }]
+}
+
+# Return 1 if std::chrono::tzdb is supported.
+proc check_effective_target_tzdb { } {
+    if {![check_effective_target_cxx11_abi]} {
+	return 0
+    }
+    return [check_v3_target_prop_cached et_tzdb {
+	set cond "defined _GLIBCXX_ZONEINFO_DIR || _GLIBCXX_STATIC_TZDATA"
+	return [v3_check_preprocessor_condition tzdb $cond]
     }]
 }
 
@@ -1429,4 +1670,39 @@ if { [info exists env(GCC_RUNTEST_PARALLELIZE_DIR)] \
     proc gcc_parallel_test_enable { val } {
     }
 
+}
+
+# Utility functions, invoked via dg-final.
+
+# Compare output file written by test to expected result.
+# With two arguments the comparison is done via 'diff arg1 arg2'.
+# With one argument the comparison is done via 'diff arg1.tst arg1.txt'.
+proc file-io-diff { args } {
+    set nargs [llength $args]
+    if { $nargs < 1 } {
+	error "too few arguments to file-io-diff"
+    }
+    if { $nargs > 2 } {
+	error "too many arguments to file-io-diff"
+    }
+
+    set testcase [testname-for-summary]
+    set description "$testcase file-io-diff $args"
+
+    if { $nargs == 1 } {
+	set file1 [lindex $args 0]
+	set file2 "${file1}.txt"
+	append file1 ".tst"
+    } else {
+	set file1 [lindex $args 0]
+	set file2 [lindex $args 1]
+    }
+
+    if { [catch { exec diff -u $file1 $file2 } msg] } {
+	fail $description
+	verbose -log "'diff':\n$msg"
+    } else {
+	pass $description
+    }
+    return
 }

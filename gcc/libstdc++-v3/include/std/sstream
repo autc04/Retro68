@@ -1,6 +1,6 @@
 // String based streams -*- C++ -*-
 
-// Copyright (C) 1997-2022 Free Software Foundation, Inc.
+// Copyright (C) 1997-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,7 +33,11 @@
 #ifndef _GLIBCXX_SSTREAM
 #define _GLIBCXX_SSTREAM 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+
+#include <bits/requires_hosted.h> // iostream
 
 #include <istream>
 #include <ostream>
@@ -41,9 +45,14 @@
 
 #if __cplusplus > 201703L && _GLIBCXX_USE_CXX11_ABI
 # define _GLIBCXX_LVAL_REF_QUAL &
+# define _GLIBCXX_SSTREAM_ALWAYS_INLINE
 #else
 # define _GLIBCXX_LVAL_REF_QUAL
+// For symbols that are not exported from libstdc++.so for the COW string ABI.
+# define _GLIBCXX_SSTREAM_ALWAYS_INLINE [[__gnu__::__always_inline__]]
 #endif
+
+
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -238,6 +247,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  character sequence is equal to the input sequence; otherwise, it
        *  is equal to the output sequence.</em> [27.7.1.2]/1
       */
+      _GLIBCXX_NODISCARD
       __string_type
       str() const _GLIBCXX_LVAL_REF_QUAL
       {
@@ -249,9 +259,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	return __ret;
       }
 
-#if __cplusplus > 201703L && _GLIBCXX_USE_CXX11_ABI
+#if __cplusplus > 201703L
+#if _GLIBCXX_USE_CXX11_ABI
 #if __cpp_concepts
       template<__allocator_like _SAlloc>
+	_GLIBCXX_NODISCARD
 	basic_string<_CharT, _Traits, _SAlloc>
 	str(const _SAlloc& __sa) const
 	{
@@ -260,6 +272,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	}
 #endif
 
+      _GLIBCXX_NODISCARD
       __string_type
       str() &&
       {
@@ -273,7 +286,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	_M_sync(_M_string.data(), 0, 0);
 	return __str;
       }
+#endif // cxx11 ABI
 
+      _GLIBCXX_SSTREAM_ALWAYS_INLINE
       basic_string_view<char_type, traits_type>
       view() const noexcept
       {
@@ -684,6 +699,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *
        *  This hides both signatures of std::basic_ios::rdbuf().
       */
+      _GLIBCXX_NODISCARD
       __stringbuf_type*
       rdbuf() const
       { return const_cast<__stringbuf_type*>(&_M_stringbuf); }
@@ -692,26 +708,32 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  @brief  Copying out the string buffer.
        *  @return  @c rdbuf()->str()
       */
+      _GLIBCXX_NODISCARD
       __string_type
       str() const _GLIBCXX_LVAL_REF_QUAL
       { return _M_stringbuf.str(); }
 
-#if __cplusplus > 201703L && _GLIBCXX_USE_CXX11_ABI
+#if __cplusplus > 201703L
+#if _GLIBCXX_USE_CXX11_ABI
 #if __cpp_concepts
       template<__allocator_like _SAlloc>
+	_GLIBCXX_NODISCARD
 	basic_string<_CharT, _Traits, _SAlloc>
 	str(const _SAlloc& __sa) const
 	{ return _M_stringbuf.str(__sa); }
 #endif
 
+      _GLIBCXX_NODISCARD
       __string_type
       str() &&
       { return std::move(_M_stringbuf).str(); }
+#endif // cxx11 ABI
 
+      _GLIBCXX_SSTREAM_ALWAYS_INLINE
       basic_string_view<char_type, traits_type>
       view() const noexcept
       { return _M_stringbuf.view(); }
-#endif
+#endif // C++20
 
       /**
        *  @brief  Setting a new buffer.
@@ -905,6 +927,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *
        *  This hides both signatures of std::basic_ios::rdbuf().
       */
+      _GLIBCXX_NODISCARD
       __stringbuf_type*
       rdbuf() const
       { return const_cast<__stringbuf_type*>(&_M_stringbuf); }
@@ -913,26 +936,32 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  @brief  Copying out the string buffer.
        *  @return  @c rdbuf()->str()
       */
+      _GLIBCXX_NODISCARD
       __string_type
       str() const _GLIBCXX_LVAL_REF_QUAL
       { return _M_stringbuf.str(); }
 
-#if __cplusplus > 201703L && _GLIBCXX_USE_CXX11_ABI
+#if __cplusplus > 201703L
+#if _GLIBCXX_USE_CXX11_ABI
 #if __cpp_concepts
       template<__allocator_like _SAlloc>
+	_GLIBCXX_NODISCARD
 	basic_string<_CharT, _Traits, _SAlloc>
 	str(const _SAlloc& __sa) const
 	{ return _M_stringbuf.str(__sa); }
 #endif
 
+      _GLIBCXX_NODISCARD
       __string_type
       str() &&
       { return std::move(_M_stringbuf).str(); }
+#endif // cxx11 ABI
 
+      _GLIBCXX_SSTREAM_ALWAYS_INLINE
       basic_string_view<char_type, traits_type>
       view() const noexcept
       { return _M_stringbuf.view(); }
-#endif
+#endif // C++20
 
       /**
        *  @brief  Setting a new buffer.
@@ -1124,6 +1153,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *
        *  This hides both signatures of std::basic_ios::rdbuf().
       */
+      _GLIBCXX_NODISCARD
       __stringbuf_type*
       rdbuf() const
       { return const_cast<__stringbuf_type*>(&_M_stringbuf); }
@@ -1132,26 +1162,32 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  @brief  Copying out the string buffer.
        *  @return  @c rdbuf()->str()
       */
+      _GLIBCXX_NODISCARD
       __string_type
       str() const _GLIBCXX_LVAL_REF_QUAL
       { return _M_stringbuf.str(); }
 
-#if __cplusplus > 201703L && _GLIBCXX_USE_CXX11_ABI
+#if __cplusplus > 201703L
+#if _GLIBCXX_USE_CXX11_ABI
 #if __cpp_concepts
       template<__allocator_like _SAlloc>
+	_GLIBCXX_NODISCARD
 	basic_string<_CharT, _Traits, _SAlloc>
 	str(const _SAlloc& __sa) const
 	{ return _M_stringbuf.str(__sa); }
 #endif
 
+      _GLIBCXX_NODISCARD
       __string_type
       str() &&
       { return std::move(_M_stringbuf).str(); }
+#endif // cxx11 ABI
 
+      _GLIBCXX_SSTREAM_ALWAYS_INLINE
       basic_string_view<char_type, traits_type>
       view() const noexcept
       { return _M_stringbuf.view(); }
-#endif
+#endif // C++20
 
       /**
        *  @brief  Setting a new buffer.
@@ -1213,6 +1249,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
 
+#undef _GLIBCXX_SSTREAM_ALWAYS_INLINE
 #undef _GLIBCXX_LVAL_REF_QUAL
 
 #include <bits/sstream.tcc>

@@ -1,6 +1,6 @@
 /* Routines for reading trees from a file stream.
 
-   Copyright (C) 2011-2022 Free Software Foundation, Inc.
+   Copyright (C) 2011-2025 Free Software Foundation, Inc.
    Contributed by Diego Novillo <dnovillo@google.com>
 
 This file is part of GCC.
@@ -35,6 +35,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "attribs.h"
 #include "asan.h"
 #include "opts.h"
+#include "stor-layout.h"
 
 
 /* Read a STRING_CST from the string table in DATA_IN using input
@@ -188,25 +189,10 @@ unpack_ts_int_cst_value_fields (struct bitpack_d *bp, tree expr)
 static void
 unpack_ts_real_cst_value_fields (struct bitpack_d *bp, tree expr)
 {
-  unsigned i;
   REAL_VALUE_TYPE r;
-  REAL_VALUE_TYPE *rp;
 
-  /* Clear all bits of the real value type so that we can later do
-     bitwise comparisons to see if two values are the same.  */
-  memset (&r, 0, sizeof r);
-  r.cl = (unsigned) bp_unpack_value (bp, 2);
-  r.decimal = (unsigned) bp_unpack_value (bp, 1);
-  r.sign = (unsigned) bp_unpack_value (bp, 1);
-  r.signalling = (unsigned) bp_unpack_value (bp, 1);
-  r.canonical = (unsigned) bp_unpack_value (bp, 1);
-  r.uexp = (unsigned) bp_unpack_value (bp, EXP_BITS);
-  for (i = 0; i < SIGSZ; i++)
-    r.sig[i] = (unsigned long) bp_unpack_value (bp, HOST_BITS_PER_LONG);
-
-  rp = ggc_alloc<real_value> ();
-  memcpy (rp, &r, sizeof (REAL_VALUE_TYPE));
-  TREE_REAL_CST_PTR (expr) = rp;
+  bp_unpack_real_value (bp, &r);
+  memcpy (TREE_REAL_CST_PTR (expr), &r, sizeof (REAL_VALUE_TYPE));
 }
 
 
@@ -264,6 +250,7 @@ unpack_ts_decl_common_value_fields (struct bitpack_d *bp, tree expr)
       else
 	SET_DECL_FIELD_ABI_IGNORED (expr, val);
       expr->decl_common.off_align = bp_unpack_value (bp, 8);
+      DECL_NOT_FLEXARRAY (expr) = (unsigned) bp_unpack_value (bp, 1);
     }
 
   else if (VAR_P (expr))
@@ -400,11 +387,26 @@ unpack_ts_type_common_value_fields (struct bitpack_d *bp, tree expr)
   if (AGGREGATE_TYPE_P (expr))
     TYPE_TYPELESS_STORAGE (expr) = (unsigned) bp_unpack_value (bp, 1);
   TYPE_EMPTY_P (expr) = (unsigned) bp_unpack_value (bp, 1);
-  TYPE_PRECISION (expr) = bp_unpack_var_len_unsigned (bp);
+  if (FUNC_OR_METHOD_TYPE_P (expr))
+    TYPE_NO_NAMED_ARGS_STDARG_P (expr) = (unsigned) bp_unpack_value (bp, 1);
+  if (RECORD_OR_UNION_TYPE_P (expr))
+    TYPE_INCLUDES_FLEXARRAY (expr) = (unsigned) bp_unpack_value (bp, 1);
+  TYPE_PRECISION_RAW (expr) = bp_unpack_var_len_unsigned (bp);
   SET_TYPE_ALIGN (expr, bp_unpack_var_len_unsigned (bp));
 #ifdef ACCEL_COMPILER
   if (TYPE_ALIGN (expr) > targetm.absolute_biggest_alignment)
     SET_TYPE_ALIGN (expr, targetm.absolute_biggest_alignment);
+
+  /* Host streams out VOIDmode for aggregate type. */
+  if (AGGREGATE_TYPE_P (expr) && TYPE_MODE (expr) == VOIDmode)
+    {
+      if (TREE_CODE (expr) == ARRAY_TYPE)
+	compute_array_mode (expr);
+      else if (RECORD_OR_UNION_TYPE_P (expr))
+	compute_record_mode (expr);
+      else
+	gcc_unreachable ();
+    }
 #endif
 }
 
@@ -456,6 +458,11 @@ unpack_ts_omp_clause_value_fields (class data_in *data_in,
       OMP_CLAUSE_DEPEND_KIND (expr)
 	= bp_unpack_enum (bp, omp_clause_depend_kind, OMP_CLAUSE_DEPEND_LAST);
       break;
+    case OMP_CLAUSE_DOACROSS:
+      OMP_CLAUSE_DOACROSS_KIND (expr)
+	= bp_unpack_enum (bp, omp_clause_doacross_kind,
+			  OMP_CLAUSE_DOACROSS_LAST);
+      break;
     case OMP_CLAUSE_MAP:
       OMP_CLAUSE_SET_MAP_KIND (expr, bp_unpack_enum (bp, gomp_map_kind,
 						     GOMP_MAP_LAST));
@@ -490,15 +497,6 @@ streamer_read_tree_bitfields (class lto_input_block *ib,
 
   /* Read the bitpack of non-pointer values from IB.  */
   bp = streamer_read_bitpack (ib);
-
-  /* The first word in BP contains the code of the tree that we
-     are about to read.  */
-  if (streamer_debugging)
-    {
-      code = (enum tree_code) bp_unpack_value (&bp, 16);
-      lto_tag_check (lto_tree_code_to_tag (code),
-		     lto_tree_code_to_tag (TREE_CODE (expr)));
-    }
   code = TREE_CODE (expr);
 
   /* Note that all these functions are highly sensitive to changes in
@@ -638,6 +636,19 @@ streamer_alloc_tree (class lto_input_block *ib, class data_in *data_in,
 	= (enum omp_clause_code) streamer_read_uhwi (ib);
       return build_omp_clause (UNKNOWN_LOCATION, subcode);
     }
+  else if (code == RAW_DATA_CST)
+    {
+      unsigned HOST_WIDE_INT len = streamer_read_uhwi (ib);
+      if (len == 0)
+	result = streamer_read_string_cst (data_in, ib);
+      else
+	{
+	  unsigned HOST_WIDE_INT off = streamer_read_uhwi (ib);
+	  result = make_node (code);
+	  RAW_DATA_LENGTH (result) = len;
+	  RAW_DATA_POINTER (result) = (const char *) (uintptr_t) off;
+	}
+    }
   else
     {
       /* For all other nodes, materialize the tree with a raw
@@ -685,8 +696,37 @@ static void
 lto_input_ts_poly_tree_pointers (class lto_input_block *ib,
 				 class data_in *data_in, tree expr)
 {
-  for (unsigned int i = 0; i < NUM_POLY_INT_COEFFS; ++i)
-    POLY_INT_CST_COEFF (expr, i) = stream_read_tree_ref (ib, data_in);
+#ifdef ACCEL_COMPILER
+  /* Ensure that we have streamed-in host_num_poly_int_coeffs.  */
+  const unsigned num_poly_int_coeffs = host_num_poly_int_coeffs;
+  gcc_assert (num_poly_int_coeffs > 0);
+#else
+  const unsigned num_poly_int_coeffs = NUM_POLY_INT_COEFFS;
+#endif
+
+  unsigned i;
+  if (num_poly_int_coeffs <= NUM_POLY_INT_COEFFS)
+    {
+      for (i = 0; i < num_poly_int_coeffs; i++)
+	POLY_INT_CST_COEFF (expr, i) = stream_read_tree_ref (ib, data_in);
+
+      tree coeff_type = TREE_TYPE (POLY_INT_CST_COEFF (expr, 0));
+      for (; i < NUM_POLY_INT_COEFFS; i++)
+	POLY_INT_CST_COEFF (expr, i) = build_zero_cst (coeff_type);
+    }
+  else
+    {
+      for (i = 0; i < NUM_POLY_INT_COEFFS; i++)
+	POLY_INT_CST_COEFF (expr, i) = stream_read_tree_ref (ib, data_in);
+      for (; i < num_poly_int_coeffs; i++)
+	{
+	  tree val = stream_read_tree_ref (ib, data_in);
+	  if (!integer_zerop (val))
+	    fatal_error (input_location,
+			 "degree of %<poly_int%> exceeds "
+			 "%<NUM_POLY_INT_COEFFS%>");
+	}
+    }
 }
 
 
@@ -856,8 +896,7 @@ lto_input_ts_type_non_common_tree_pointers (class lto_input_block *ib,
     TYPE_DOMAIN (expr) = stream_read_tree_ref (ib, data_in);
   else if (RECORD_OR_UNION_TYPE_P (expr))
     TYPE_FIELDS (expr) = streamer_read_chain (ib, data_in);
-  else if (TREE_CODE (expr) == FUNCTION_TYPE
-	   || TREE_CODE (expr) == METHOD_TYPE)
+  else if (FUNC_OR_METHOD_TYPE_P (expr))
     TYPE_ARG_TYPES (expr) = stream_read_tree_ref (ib, data_in);
 
   if (!POINTER_TYPE_P (expr))
@@ -1022,6 +1061,22 @@ lto_input_ts_constructor_tree_pointers (class lto_input_block *ib,
 }
 
 
+/* Read all pointer fields in the TS_RAW_DATA_CST structure of EXPR from
+   input block IB.  DATA_IN contains tables and descriptors for the
+   file being read.  */
+
+static void
+lto_input_ts_raw_data_cst_tree_pointers (class lto_input_block *ib,
+					 class data_in *data_in, tree expr)
+{
+  RAW_DATA_OWNER (expr) = stream_read_tree_ref (ib, data_in);
+  gcc_checking_assert (RAW_DATA_OWNER (expr)
+		       && TREE_CODE (RAW_DATA_OWNER (expr)) == STRING_CST);
+  RAW_DATA_POINTER (expr) = (TREE_STRING_POINTER (RAW_DATA_OWNER (expr))
+			     + (uintptr_t) RAW_DATA_POINTER (expr));
+}
+
+
 /* Read all pointer fields in the TS_OMP_CLAUSE structure of EXPR from
    input block IB.  DATA_IN contains tables and descriptors for the
    file being read.  */
@@ -1103,6 +1158,9 @@ streamer_read_tree_body (class lto_input_block *ib, class data_in *data_in,
   if (CODE_CONTAINS_STRUCT (code, TS_CONSTRUCTOR))
     lto_input_ts_constructor_tree_pointers (ib, data_in, expr);
 
+  if (code == RAW_DATA_CST)
+    lto_input_ts_raw_data_cst_tree_pointers (ib, data_in, expr);
+
   if (code == OMP_CLAUSE)
     lto_input_ts_omp_clause_tree_pointers (ib, data_in, expr);
 }
@@ -1116,17 +1174,8 @@ streamer_get_pickled_tree (class lto_input_block *ib, class data_in *data_in)
 {
   unsigned HOST_WIDE_INT ix;
   tree result;
-  enum LTO_tags expected_tag;
 
   ix = streamer_read_uhwi (ib);
   result = streamer_tree_cache_get_tree (data_in->reader_cache, ix);
-
-  if (streamer_debugging)
-    {
-      expected_tag = streamer_read_enum (ib, LTO_tags, LTO_NUM_TAGS);
-      gcc_assert (result
-		  && TREE_CODE (result) == lto_tag_to_tree_code (expected_tag));
-    }
-
   return result;
 }

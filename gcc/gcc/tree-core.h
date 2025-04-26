@@ -1,5 +1,5 @@
 /* Core data structures for the 'tree' type.
-   Copyright (C) 1989-2022 Free Software Foundation, Inc.
+   Copyright (C) 1989-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -33,7 +33,6 @@ struct function;
 struct real_value;
 struct fixed_value;
 struct ptr_info_def;
-struct range_info_def;
 struct die_struct;
 
 
@@ -95,6 +94,9 @@ struct die_struct;
 
 /* Nonzero if this is a cold function.  */
 #define ECF_COLD		  (1 << 15)
+
+/* Nonzero if this is a function expected to end with an exception.  */
+#define ECF_XTHROW		  (1 << 16)
 
 /* Call argument flags.  */
 
@@ -239,11 +241,18 @@ enum tree_code_class {
 };
 
 /* OMP_CLAUSE codes.  Do not reorder, as this is used to index into
-   the tables omp_clause_num_ops and omp_clause_code_name.  */
+   the tables omp_clause_num_ops and omp_clause_code_name.
+
+   Note additionally that there are various range checks such as
+   for OMP_CLAUSE_SIZE or OMP_CLAUSE_DECL; clauses having those shall
+   be inside that range, those that have not shall be outside.  */
+
 enum omp_clause_code {
   /* Clause zero is special-cased inside the parser
      (c_parser_omp_variable_list).  */
   OMP_CLAUSE_ERROR = 0,
+
+  /* Range START below for: OMP_CLAUSE_DECL  */
 
   /* OpenACC/OpenMP clause: private (variable_list).  */
   OMP_CLAUSE_PRIVATE,
@@ -256,6 +265,9 @@ enum omp_clause_code {
 
   /* OpenMP clause: lastprivate (variable_list).  */
   OMP_CLAUSE_LASTPRIVATE,
+
+  /* Range START below for: OMP_CLAUSE_REDUCTION_CODE and
+     OMP_CLAUSE_REDUCTION_{INIT,MERGE,{DECL_,}PLACEHOLDER,OMP_ORIG_REF}  */
 
   /* OpenACC/OpenMP clause: reduction (operator:variable_list).
      OMP_CLAUSE_REDUCTION_CODE: The tree_code of the operator.
@@ -274,6 +286,9 @@ enum omp_clause_code {
 
   /* OpenMP clause: in_reduction (operator:variable_list).  */
   OMP_CLAUSE_IN_REDUCTION,
+
+  /* Range END above for: OMP_CLAUSE_REDUCTION_CODE  and
+     OMP_CLAUSE_REDUCTION_{INIT,MERGE,{DECL_,}PLACEHOLDER,OMP_ORIG_REF}  */
 
   /* OpenMP clause: copyin (variable_list).  */
   OMP_CLAUSE_COPYIN,
@@ -302,9 +317,9 @@ enum omp_clause_code {
   /* OpenMP clause: uniform (argument-list).  */
   OMP_CLAUSE_UNIFORM,
 
-  /* OpenMP clause: to (extended-list).
-     Only when it appears in declare target.  */
-  OMP_CLAUSE_TO_DECLARE,
+  /* OpenMP clause: enter (extended-list).
+     to is a deprecated alias when it appears in declare target.  */
+  OMP_CLAUSE_ENTER,
 
   /* OpenMP clause: link (variable-list).  */
   OMP_CLAUSE_LINK,
@@ -328,11 +343,16 @@ enum omp_clause_code {
   /* OpenMP clause: exclusive (variable-list).  */
   OMP_CLAUSE_EXCLUSIVE,
 
+  /* Range START below for: OMP_CLAUSE_SIZE  */
+  /* Range START below for: OMP_CLAUSE_MOTION_PRESENT  */
+
   /* OpenMP clause: from (variable-list).  */
   OMP_CLAUSE_FROM,
 
   /* OpenMP clause: to (variable-list).  */
   OMP_CLAUSE_TO,
+
+  /* Range END above for: OMP_CLAUSE_MOTION_PRESENT  */
 
   /* OpenACC clauses: {copy, copyin, copyout, create, delete, deviceptr,
      device, host (self), present, present_or_copy (pcopy), present_or_copyin
@@ -345,9 +365,30 @@ enum omp_clause_code {
   /* OpenMP clause: has_device_addr (variable-list).  */
   OMP_CLAUSE_HAS_DEVICE_ADDR,
 
+  /* OpenMP clause: doacross ({source,sink}:vec).  */
+  OMP_CLAUSE_DOACROSS,
+
   /* Internal structure to hold OpenACC cache directive's variable-list.
      #pragma acc cache (variable-list).  */
   OMP_CLAUSE__CACHE_,
+
+  /* Range END above for: OMP_CLAUSE_SIZE */
+
+  /* OpenMP clause: destroy (variable-list ).  */
+  OMP_CLAUSE_DESTROY,
+
+  /* Range START below for: OMP_CLAUSE_INIT_PREFER_TYPE  */
+
+  /* OpenMP clause: init ( [modifier-list : ] variable-list ).  */
+  OMP_CLAUSE_INIT,
+
+  /* Range END above for: OMP_CLAUSE_INIT_PREFER_TYPE  */
+
+  /* OpenMP clause: use (variable-list ).  */
+  OMP_CLAUSE_USE,
+
+  /* OpenMP clause: interop (variable-list).  */
+  OMP_CLAUSE_INTEROP,
 
   /* OpenACC clause: gang [(gang-argument-list)].
      Where
@@ -381,8 +422,13 @@ enum omp_clause_code {
   /* Internal clause: temporary for inscan reductions.  */
   OMP_CLAUSE__SCANTEMP_,
 
+  /* Range END above for: OMP_CLAUSE_DECL  */
+
   /* OpenACC/OpenMP clause: if (scalar-expression).  */
   OMP_CLAUSE_IF,
+
+  /* OpenACC clause: self.  */
+  OMP_CLAUSE_SELF,
 
   /* OpenMP clause: num_threads (integer-expression).  */
   OMP_CLAUSE_NUM_THREADS,
@@ -486,6 +532,18 @@ enum omp_clause_code {
   /* OpenMP clause: filter (integer-expression).  */
   OMP_CLAUSE_FILTER,
 
+  /* OpenMP clause: indirect [(constant-integer-expression)].  */
+  OMP_CLAUSE_INDIRECT,
+
+  /* OpenMP clause: partial (constant-integer-expression).  */
+  OMP_CLAUSE_PARTIAL,
+
+  /* OpenMP clause: full.  */
+  OMP_CLAUSE_FULL,
+
+  /* OpenMP clause: sizes (constant-integer-expression-list).  */
+  OMP_CLAUSE_SIZES,
+
   /* Internally used only clause, holding SIMD uid.  */
   OMP_CLAUSE__SIMDUID_,
 
@@ -522,6 +580,13 @@ enum omp_clause_code {
 
   /* OpenACC clause: nohost.  */
   OMP_CLAUSE_NOHOST,
+
+  /* OpenMP clause: novariants (scalar-expression).  */
+  OMP_CLAUSE_NOVARIANTS,
+
+  /* OpenMP clause: nocontext (scalar-expression).  */
+  OMP_CLAUSE_NOCONTEXT,
+
 };
 
 #undef DEFTREESTRUCT
@@ -556,6 +621,7 @@ enum omp_clause_default_kind {
 
 enum omp_clause_defaultmap_kind {
   OMP_CLAUSE_DEFAULTMAP_CATEGORY_UNSPECIFIED,
+  OMP_CLAUSE_DEFAULTMAP_CATEGORY_ALL,
   OMP_CLAUSE_DEFAULTMAP_CATEGORY_SCALAR,
   OMP_CLAUSE_DEFAULTMAP_CATEGORY_AGGREGATE,
   OMP_CLAUSE_DEFAULTMAP_CATEGORY_ALLOCATABLE,
@@ -570,7 +636,8 @@ enum omp_clause_defaultmap_kind {
   OMP_CLAUSE_DEFAULTMAP_NONE = 6 * (OMP_CLAUSE_DEFAULTMAP_CATEGORY_MASK + 1),
   OMP_CLAUSE_DEFAULTMAP_DEFAULT
     = 7 * (OMP_CLAUSE_DEFAULTMAP_CATEGORY_MASK + 1),
-  OMP_CLAUSE_DEFAULTMAP_MASK = 7 * (OMP_CLAUSE_DEFAULTMAP_CATEGORY_MASK + 1)
+  OMP_CLAUSE_DEFAULTMAP_PRESENT = 8 * (OMP_CLAUSE_DEFAULTMAP_CATEGORY_MASK + 1),
+  OMP_CLAUSE_DEFAULTMAP_MASK = 15 * (OMP_CLAUSE_DEFAULTMAP_CATEGORY_MASK + 1)
 };
 
 enum omp_clause_bind_kind {
@@ -611,7 +678,7 @@ enum cv_qualifier {
 };
 
 /* Standard named or nameless data types of the C compiler.  */
-enum tree_index {
+enum tree_index : unsigned {
   TI_ERROR_MARK,
   TI_INTQI_TYPE,
   TI_INTHI_TYPE,
@@ -640,7 +707,6 @@ enum tree_index {
 
   TI_INTEGER_ZERO,
   TI_INTEGER_ONE,
-  TI_INTEGER_THREE,
   TI_INTEGER_MINUS_ONE,
   TI_NULL_POINTER,
 
@@ -662,6 +728,9 @@ enum tree_index {
   TI_DOUBLE_TYPE,
   TI_LONG_DOUBLE_TYPE,
 
+  /* __bf16 type if supported (used in C++ as std::bfloat16_t).  */
+  TI_BFLOAT16_TYPE,
+
   /* The _FloatN and _FloatNx types must be consecutive, and in the
      same sequence as the corresponding complex types, which must also
      be consecutive; _FloatN must come before _FloatNx; the order must
@@ -675,17 +744,22 @@ enum tree_index {
   TI_FLOAT64_TYPE,
   TI_FLOAT128_TYPE,
   TI_FLOATN_TYPE_LAST = TI_FLOAT128_TYPE,
-#define NUM_FLOATN_TYPES (TI_FLOATN_TYPE_LAST - TI_FLOATN_TYPE_FIRST + 1)
+#define NUM_FLOATN_TYPES ((int) (TI_FLOATN_TYPE_LAST		\
+				 - TI_FLOATN_TYPE_FIRST + 1))
   TI_FLOAT32X_TYPE,
   TI_FLOATNX_TYPE_FIRST = TI_FLOAT32X_TYPE,
   TI_FLOAT64X_TYPE,
   TI_FLOAT128X_TYPE,
   TI_FLOATNX_TYPE_LAST = TI_FLOAT128X_TYPE,
   TI_FLOATN_NX_TYPE_LAST = TI_FLOAT128X_TYPE,
-#define NUM_FLOATNX_TYPES (TI_FLOATNX_TYPE_LAST - TI_FLOATNX_TYPE_FIRST + 1)
-#define NUM_FLOATN_NX_TYPES (TI_FLOATN_NX_TYPE_LAST		\
-			     - TI_FLOATN_NX_TYPE_FIRST		\
-			     + 1)
+#define NUM_FLOATNX_TYPES ((int) (TI_FLOATNX_TYPE_LAST		\
+				  - TI_FLOATNX_TYPE_FIRST + 1))
+#define NUM_FLOATN_NX_TYPES ((int) (TI_FLOATN_NX_TYPE_LAST	\
+				  - TI_FLOATN_NX_TYPE_FIRST + 1))
+
+  /* Type used by certain backends for __float128, which in C++ should be
+     distinct type from _Float128 for backwards compatibility reasons.  */
+  TI_FLOAT128T_TYPE,
 
   /* Put the complex types after their component types, so that in (sequential)
      tree streaming we can assert that their component types have already been
@@ -730,6 +804,7 @@ enum tree_index {
   TI_DFLOAT32_TYPE,
   TI_DFLOAT64_TYPE,
   TI_DFLOAT128_TYPE,
+  TI_DFLOAT64X_TYPE,
 
   TI_VOID_LIST_NODE,
 
@@ -932,7 +1007,14 @@ enum operand_equal_flag {
   /* In conjunction with OEP_LEXICOGRAPHIC considers names of declarations
      of the same kind.  Used to compare VLA bounds involving parameters
      across redeclarations of the same function.  */
-  OEP_DECL_NAME = 512
+  OEP_DECL_NAME = 512,
+  /* Check if two expressions result in the same bit values while possibly
+     ignoring the sign of the expressions and any differences in undefined
+     behaviour.  The compared expressions must however perform the same
+     operations.  Because this comparison ignores any possible UB it cannot
+     be used blindly without ensuring that the context you are using it in
+     itself doesn't guarantee that there will be no UB.  */
+  OEP_ASSUME_WRAPV = 1024
 };
 
 /* Enum and arrays used for tree allocation stats.
@@ -963,15 +1045,25 @@ enum annot_expr_kind {
   annot_expr_no_vector_kind,
   annot_expr_vector_kind,
   annot_expr_parallel_kind,
+  annot_expr_maybe_infinite_kind,
   annot_expr_kind_last
 };
 
-/* The kind of a TREE_CLOBBER_P CONSTRUCTOR node.  */
+/* The kind of a TREE_CLOBBER_P CONSTRUCTOR node.  Other than _UNDEF, these are
+   in roughly sequential order.  */
 enum clobber_kind {
   /* Unspecified, this clobber acts as a store of an undefined value.  */
   CLOBBER_UNDEF,
-  /* This clobber ends the lifetime of the storage.  */
-  CLOBBER_EOL,
+  /* Beginning of storage duration, e.g. malloc.  */
+  CLOBBER_STORAGE_BEGIN,
+  /* Beginning of object data, e.g. start of C++ constructor.  This differs
+     from C++ 'lifetime', which starts when initialization is complete; a
+     clobber there would discard the initialization.  */
+  CLOBBER_OBJECT_BEGIN,
+  /* End of object data, e.g. end of C++ destructor.  */
+  CLOBBER_OBJECT_END,
+  /* End of storage duration, e.g. free.  */
+  CLOBBER_STORAGE_END,
   CLOBBER_LAST
 };
 
@@ -1065,10 +1157,11 @@ struct GTY(()) tree_base {
 
       unsigned spare1 : 8;
 
-      /* This field is only used with TREE_TYPE nodes; the only reason it is
+      /* For _TYPE nodes, this is TYPE_ADDR_SPACE; the reason it is
 	 present in tree_base instead of tree_type is to save space.  The size
 	 of the field must be large enough to hold addr_space_t values.
-	 For CONSTRUCTOR nodes this holds the clobber_kind enum.  */
+	 For CONSTRUCTOR nodes this holds the clobber_kind enum.
+	 The C++ front-end uses this in IDENTIFIER_NODE and NAMESPACE_DECL.  */
       unsigned address_space : 8;
     } bits;
 
@@ -1080,17 +1173,11 @@ struct GTY(()) tree_base {
     struct {
       /* The number of HOST_WIDE_INTs if the INTEGER_CST is accessed in
 	 its native precision.  */
-      unsigned char unextended;
+      unsigned short unextended;
 
       /* The number of HOST_WIDE_INTs if the INTEGER_CST is extended to
 	 wider precisions based on its TYPE_SIGN.  */
-      unsigned char extended;
-
-      /* The number of HOST_WIDE_INTs if the INTEGER_CST is accessed in
-	 offset_int precision, with smaller integers being extended
-	 according to their TYPE_SIGN.  This is equal to one of the two
-	 fields above but is cached for speed.  */
-      unsigned char offset;
+      unsigned short extended;
     } int_length;
 
     /* VEC length.  This field is only used with TREE_VEC.  */
@@ -1179,7 +1266,7 @@ struct GTY(()) tree_base {
        TRY_CATCH_IS_CLEANUP in
            TRY_CATCH_EXPR
 
-       ASM_INPUT_P in
+       ASM_BASIC_P in
            ASM_EXPR
 
        TYPE_REF_CAN_ALIAS_ALL in
@@ -1193,9 +1280,6 @@ struct GTY(()) tree_base {
 
        TRANSACTION_EXPR_OUTER in
 	   TRANSACTION_EXPR
-
-       SSA_NAME_ANTI_RANGE_P in
-	   SSA_NAME
 
        MUST_TAIL_CALL in
 	   CALL_EXPR
@@ -1325,6 +1409,12 @@ struct GTY(()) tree_base {
        TYPE_READONLY in
            all types
 
+       OMP_CLAUSE_MAP_READONLY in
+           OMP_CLAUSE_MAP
+
+       OMP_CLAUSE__CACHE__READONLY in
+           OMP_CLAUSE__CACHE_
+
    constant_flag:
 
        TREE_CONSTANT in
@@ -1374,6 +1464,9 @@ struct GTY(()) tree_base {
 
        DECL_NONALIASED in
 	  VAR_DECL
+
+       CHREC_NOWRAP in
+	  POLYNOMIAL_CHREC
 
    deprecated_flag:
 
@@ -1461,7 +1554,7 @@ struct GTY(()) tree_int_cst {
 
 struct GTY(()) tree_real_cst {
   struct tree_typed typed;
-  struct real_value * real_cst_ptr;
+  struct real_value value;
 };
 
 struct GTY(()) tree_fixed_cst {
@@ -1473,6 +1566,13 @@ struct GTY(()) tree_string {
   struct tree_typed typed;
   int length;
   char str[1];
+};
+
+struct GTY((user)) tree_raw_data {
+  struct tree_typed typed;
+  tree owner;
+  const char *str;
+  int length;
 };
 
 struct GTY(()) tree_complex {
@@ -1527,10 +1627,17 @@ enum omp_clause_depend_kind
   OMP_CLAUSE_DEPEND_OUT,
   OMP_CLAUSE_DEPEND_INOUT,
   OMP_CLAUSE_DEPEND_MUTEXINOUTSET,
-  OMP_CLAUSE_DEPEND_SOURCE,
-  OMP_CLAUSE_DEPEND_SINK,
+  OMP_CLAUSE_DEPEND_INOUTSET,
   OMP_CLAUSE_DEPEND_DEPOBJ,
+  OMP_CLAUSE_DEPEND_INVALID,
   OMP_CLAUSE_DEPEND_LAST
+};
+
+enum omp_clause_doacross_kind
+{
+  OMP_CLAUSE_DOACROSS_SOURCE,
+  OMP_CLAUSE_DOACROSS_SINK,
+  OMP_CLAUSE_DOACROSS_LAST
 };
 
 enum omp_clause_proc_bind_kind
@@ -1563,9 +1670,7 @@ enum omp_clause_linear_kind
 struct GTY(()) tree_exp {
   struct tree_typed typed;
   location_t locus;
-  tree GTY ((special ("tree_exp"),
-	     desc ("TREE_CODE ((tree) &%0)")))
-    operands[1];
+  tree GTY ((length ("TREE_OPERAND_LENGTH ((tree)&%h)"))) operands[1];
 };
 
 /* Immediate use linking structure.  This structure is used for maintaining
@@ -1593,13 +1698,12 @@ struct GTY(()) tree_ssa_name {
 
   /* Value range information.  */
   union ssa_name_info_type {
-    /* Pointer attributes used for alias analysis.  */
+    /* Range and aliasing info for pointers.  */
     struct GTY ((tag ("0"))) ptr_info_def *ptr_info;
-    /* Value range attributes used for zero/sign extension elimination.  */
-    struct GTY ((tag ("1"))) range_info_def *range_info;
+    /* Range info for everything else.  */
+    struct GTY ((tag ("1"))) vrange_storage * range_info;
   } GTY ((desc ("%1.typed.type ?" \
 		"!POINTER_TYPE_P (TREE_TYPE ((tree)&%1)) : 2"))) info;
-
   /* Immediate uses list for this SSA_NAME.  */
   struct ssa_use_operand_t imm_uses;
 };
@@ -1620,6 +1724,7 @@ struct GTY(()) tree_omp_clause {
     enum omp_clause_default_kind   default_kind;
     enum omp_clause_schedule_kind  schedule_kind;
     enum omp_clause_depend_kind    depend_kind;
+    enum omp_clause_doacross_kind  doacross_kind;
     /* See include/gomp-constants.h for enum gomp_map_kind's values.  */
     unsigned int		   map_kind;
     enum omp_clause_proc_bind_kind proc_bind_kind;
@@ -1669,18 +1774,9 @@ struct GTY(()) tree_type_common {
   tree attributes;
   unsigned int uid;
 
-  unsigned int precision : 10;
-  unsigned no_force_blk_flag : 1;
-  unsigned needs_constructing_flag : 1;
-  unsigned transparent_aggr_flag : 1;
-  unsigned restrict_flag : 1;
-  unsigned contains_placeholder_bits : 2;
+  ENUM_BITFIELD(machine_mode) mode : MACHINE_MODE_BITSIZE;
 
-  ENUM_BITFIELD(machine_mode) mode : 8;
-
-  /* TYPE_STRING_FLAG for INTEGER_TYPE and ARRAY_TYPE.
-     TYPE_CXX_ODR_P for RECORD_TYPE and UNION_TYPE.  */
-  unsigned string_flag : 1;
+  unsigned int precision : 16;
   unsigned lang_flag_0 : 1;
   unsigned lang_flag_1 : 1;
   unsigned lang_flag_2 : 1;
@@ -1696,11 +1792,24 @@ struct GTY(()) tree_type_common {
      so we need to store the value 32 (not 31, as we need the zero
      as well), hence six bits.  */
   unsigned align : 6;
+  /* TYPE_STRING_FLAG for INTEGER_TYPE and ARRAY_TYPE.
+     TYPE_CXX_ODR_P for RECORD_TYPE and UNION_TYPE.  */
+  unsigned string_flag : 1;
+  unsigned no_force_blk_flag : 1;
+
   unsigned warn_if_not_align : 6;
+  unsigned needs_constructing_flag : 1;
+  unsigned transparent_aggr_flag : 1;
+
+  unsigned contains_placeholder_bits : 2;
+  unsigned restrict_flag : 1;
   unsigned typeless_storage : 1;
   unsigned empty_flag : 1;
   unsigned indivisible_p : 1;
-  unsigned spare : 16;
+  /* TYPE_NO_NAMED_ARGS_STDARG_P for a stdarg function.
+     Or TYPE_INCLUDES_FLEXARRAY for RECORD_TYPE and UNION_TYPE.  */
+  unsigned no_named_args_stdarg_p : 1;
+  unsigned spare : 1;
 
   alias_set_type alias_set;
   tree pointer_to;
@@ -1758,7 +1867,7 @@ struct GTY(()) tree_decl_common {
   struct tree_decl_minimal common;
   tree size;
 
-  ENUM_BITFIELD(machine_mode) mode : 8;
+  ENUM_BITFIELD(machine_mode) mode : MACHINE_MODE_BITSIZE;
 
   unsigned nonlocal_flag : 1;
   unsigned virtual_flag : 1;
@@ -1790,7 +1899,8 @@ struct GTY(()) tree_decl_common {
      In VAR_DECL, PARM_DECL and RESULT_DECL, this is
      DECL_HAS_VALUE_EXPR_P.  */
   unsigned decl_flag_2 : 1;
-  /* In FIELD_DECL, this is DECL_PADDING_P.  */
+  /* In FIELD_DECL, this is DECL_PADDING_P.
+     In VAR_DECL, this is DECL_MERGEABLE.  */
   unsigned decl_flag_3 : 1;
   /* Logically, these two would go in a theoretical base shared by var and
      parm decl. */
@@ -1813,7 +1923,10 @@ struct GTY(()) tree_decl_common {
      TYPE_WARN_IF_NOT_ALIGN.  */
   unsigned int warn_if_not_align : 6;
 
-  /* 14 bits unused.  */
+  /* In FIELD_DECL, this is DECL_NOT_FLEXARRAY.  */
+  unsigned int decl_not_flexarray : 1;
+
+  /* 5 bits unused.  */
 
   /* UID for points-to sets, stable over copying from inlining.  */
   unsigned int pt_uid;
@@ -1910,7 +2023,7 @@ struct GTY(()) tree_decl_non_common {
 
 /* Classify a special function declaration type.  */
 
-enum function_decl_type
+enum class function_decl_type : unsigned
 {
   NONE,
   OPERATOR_NEW,
@@ -2049,6 +2162,7 @@ union GTY ((ptr_alias (union lang_tree_node),
   struct tree_fixed_cst GTY ((tag ("TS_FIXED_CST"))) fixed_cst;
   struct tree_vector GTY ((tag ("TS_VECTOR"))) vector;
   struct tree_string GTY ((tag ("TS_STRING"))) string;
+  struct tree_raw_data GTY ((tag ("TS_RAW_DATA_CST"))) raw_data_cst;
   struct tree_complex GTY ((tag ("TS_COMPLEX"))) complex;
   struct tree_identifier GTY ((tag ("TS_IDENTIFIER"))) identifier;
   struct tree_decl_minimal GTY((tag ("TS_DECL_MINIMAL"))) decl_minimal;
@@ -2115,8 +2229,10 @@ struct attribute_spec {
   bool function_type_required;
   /* Specifies if attribute affects type's identity.  */
   bool affects_type_identity;
-  /* Function to handle this attribute.  NODE points to the node to which
-     the attribute is to be applied.  If a DECL, it should be modified in
+  /* Function to handle this attribute.  NODE points to a tree[3] array,
+     where node[0] is the node to which the attribute is to be applied;
+     node[1] is the last pushed/merged declaration if one exists, and node[2]
+     may be the declaration for node[0].  If a DECL, it should be modified in
      place; if a TYPE, a copy should be created.  NAME is the canonicalized
      name of the attribute i.e. without any leading or trailing underscores.
      ARGS is the TREE_LIST of the arguments (which may be NULL).  FLAGS gives
@@ -2262,14 +2378,55 @@ struct floatn_type_info {
 extern bool tree_contains_struct[MAX_TREE_CODES][64];
 
 /* Class of tree given its code.  */
-extern const enum tree_code_class tree_code_type[];
+#define DEFTREECODE(SYM, NAME, TYPE, LENGTH) TYPE,
+#define END_OF_BASE_TREE_CODES tcc_exceptional,
+
+#if __cpp_inline_variables < 201606L
+template <int N>
+struct tree_code_type_tmpl {
+  static constexpr enum tree_code_class tree_code_type[] = {
+#include "all-tree.def"
+  };
+};
+
+template <int N>
+constexpr enum tree_code_class tree_code_type_tmpl<N>::tree_code_type[];
+#else
+constexpr inline enum tree_code_class tree_code_type[] = {
+#include "all-tree.def"
+};
+#endif
+
+#undef DEFTREECODE
+#undef END_OF_BASE_TREE_CODES
 
 /* Each tree code class has an associated string representation.
    These must correspond to the tree_code_class entries.  */
 extern const char *const tree_code_class_strings[];
 
 /* Number of argument-words in each kind of tree-node.  */
-extern const unsigned char tree_code_length[];
+
+#define DEFTREECODE(SYM, NAME, TYPE, LENGTH) LENGTH,
+#define END_OF_BASE_TREE_CODES 0,
+
+#if __cpp_inline_variables < 201606L
+template <int N>
+struct tree_code_length_tmpl {
+  static constexpr unsigned char tree_code_length[] = {
+#include "all-tree.def"
+  };
+};
+
+template <int N>
+constexpr unsigned char tree_code_length_tmpl<N>::tree_code_length[];
+#else
+constexpr inline unsigned char tree_code_length[] = {
+#include "all-tree.def"
+};
+#endif
+
+#undef DEFTREECODE
+#undef END_OF_BASE_TREE_CODES
 
 /* Vector of all alias pairs for global symbols.  */
 extern GTY(()) vec<alias_pair, va_gc> *alias_pairs;

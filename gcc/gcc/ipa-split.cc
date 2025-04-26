@@ -1,5 +1,5 @@
 /* Function splitting pass
-   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+   Copyright (C) 2010-2025 Free Software Foundation, Inc.
    Contributed by Jan Hubicka  <jh@suse.cz>
 
 This file is part of GCC.
@@ -54,10 +54,10 @@ along with GCC; see the file COPYING3.  If not see
    2) Via DFS walk find all possible basic blocks where we can split
       and chose best one.
    3) If split point is found, split at the specified BB by creating a clone
-      and updating function to call it.  
+      and updating function to call it.
 
    The decisions what functions to split are in execute_split_functions
-   and consider_split.  
+   and consider_split.
 
    There are several possible future improvements for this pass including:
 
@@ -70,7 +70,7 @@ along with GCC; see the file COPYING3.  If not see
       value computed in header from function parameter in very cheap way, we
       can just recompute it.
    5) Support splitting of nested functions.
-   6) Support non-SSA arguments.  
+   6) Support non-SSA arguments.
    7) There is nothing preventing us from producing multiple parts of single function
       when needed or splitting also the parts.  */
 
@@ -95,6 +95,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimplify-me.h"
 #include "gimple-walk.h"
 #include "symbol-summary.h"
+#include "sreal.h"
+#include "ipa-cp.h"
 #include "ipa-prop.h"
 #include "tree-cfg.h"
 #include "tree-into-ssa.h"
@@ -104,6 +106,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "ipa-fnsummary.h"
 #include "cfgloop.h"
 #include "attribs.h"
+#include "ipa-strub.h"
 
 /* Per basic block info.  */
 
@@ -316,7 +319,7 @@ verify_non_ssa_vars (class split_point *current, bitmap non_ssa_vars,
 	  else
 	    break;
       }
-    
+
 done:
   BITMAP_FREE (seen);
   worklist.release ();
@@ -574,7 +577,7 @@ consider_split (class split_point *current, bitmap non_ssa_vars,
 
   /* Splitting functions brings the target out of comdat group; this will
      lead to code duplication if the function is reused by other unit.
-     Limit this duplication.  This is consistent with limit in tree-sra.cc  
+     Limit this duplication.  This is consistent with limit in tree-sra.cc
      FIXME: with LTO we ought to be able to do better!  */
   if (DECL_ONE_ONLY (current_function_decl)
       && current->split_size >= (unsigned int) param_max_inline_insns_auto + 10)
@@ -602,7 +605,7 @@ consider_split (class split_point *current, bitmap non_ssa_vars,
      we can pass more than that.  */
   if (num_args != bitmap_count_bits (current->ssa_names_to_pass))
     {
-      
+
       if (dump_file && (dump_flags & TDF_DETAILS))
 	fprintf (dump_file,
 		 "  Refused: need to pass non-param values\n");
@@ -708,9 +711,9 @@ consider_split (class split_point *current, bitmap non_ssa_vars,
   if (!best_split_point.split_bbs
       || best_split_point.count
 	 > current->count
-      || (best_split_point.count == current->count 
+      || (best_split_point.count == current->count
 	  && best_split_point.split_size < current->split_size))
-	
+
     {
       if (dump_file && (dump_flags & TDF_DETAILS))
 	fprintf (dump_file, "  New best split point!\n");
@@ -853,7 +856,7 @@ mark_nonssa_use (gimple *, tree t, tree, void *data)
    for ssa uses and store them in USED_SSA_NAMES and for any non-SSA automatic
    vars stored in NON_SSA_VARS.
 
-   When BB has edge to RETURN_BB, collect uses in RETURN_BB too.  
+   When BB has edge to RETURN_BB, collect uses in RETURN_BB too.
 
    Return false when BB contains something that prevents it from being put into
    split function.  */
@@ -883,7 +886,7 @@ visit_bb (basic_block bb, basic_block return_bb,
       /* FIXME: We can split regions containing EH.  We cannot however
 	 split RESX, EH_DISPATCH and EH_POINTER referring to same region
 	 into different partitions.  This would require tracking of
-	 EH regions and checking in consider_split_point if they 
+	 EH regions and checking in consider_split_point if they
 	 are not used elsewhere.  */
       if (gimple_code (stmt) == GIMPLE_RESX)
 	{
@@ -1470,6 +1473,8 @@ split_function (basic_block return_bb, class split_point *split_point,
 	args_to_pass[i] = arg;
       }
   call = gimple_build_call_vec (node->decl, args_to_pass);
+  if (cur_node->get_fun ()->has_musttail && !add_tsan_func_exit)
+    gimple_call_set_must_tail (call, true);
   gimple_set_block (call, DECL_INITIAL (current_function_decl));
   args_to_pass.release ();
 
@@ -1715,10 +1720,11 @@ execute_split_functions (void)
   struct cgraph_node *node = cgraph_node::get (current_function_decl);
 
   if (flags_from_decl_or_type (current_function_decl)
-      & (ECF_NORETURN|ECF_MALLOC))
+      & (ECF_NORETURN|ECF_MALLOC|ECF_RETURNS_TWICE))
     {
       if (dump_file)
-	fprintf (dump_file, "Not splitting: noreturn/malloc function.\n");
+	fprintf (dump_file, "Not splitting: noreturn/malloc/returns_twice "
+			    "function.\n");
       return 0;
     }
   if (MAIN_NAME_P (DECL_NAME (current_function_decl)))
@@ -1808,6 +1814,12 @@ execute_split_functions (void)
       if (dump_file)
 	fprintf (dump_file, "Not splitting: function is in user defined "
 		 "section.\n");
+      return 0;
+    }
+  if (!strub_splittable_p (node))
+    {
+      if (dump_file)
+	fprintf (dump_file, "Not splitting: function is a strub context.\n");
       return 0;
     }
 
@@ -1915,8 +1927,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *);
-  virtual unsigned int execute (function *)
+  bool gate (function *) final override;
+  unsigned int execute (function *) final override
     {
       return execute_split_functions ();
     }
@@ -1929,7 +1941,7 @@ pass_split_functions::gate (function *)
   /* When doing profile feedback, we want to execute the pass after profiling
      is read.  So disable one in early optimization.  */
   return (flag_partial_inlining
-	  && !profile_arc_flag && !flag_branch_probabilities);
+      && !profile_arc_flag && !flag_branch_probabilities);
 }
 
 } // anon namespace
@@ -1974,8 +1986,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *);
-  virtual unsigned int execute (function *)
+  bool gate (function *) final override;
+  unsigned int execute (function *) final override
     {
       return execute_feedback_split_functions ();
     }

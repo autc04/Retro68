@@ -1,6 +1,6 @@
 // <bits/erase_if.h> -*- C++ -*-
 
-// Copyright (C) 2015-2022 Free Software Foundation, Inc.
+// Copyright (C) 2015-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,26 +30,24 @@
 #ifndef _GLIBCXX_ERASE_IF_H
 #define _GLIBCXX_ERASE_IF_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
-
-#if __cplusplus >= 201402L
+#endif
 
 #include <bits/c++config.h>
 
+// Used by C++17 containers and Library Fundamentals v2 headers.
+#if __cplusplus >= 201402L
 namespace std
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
-
-#if __cplusplus > 201703L
-# define __cpp_lib_erase_if 202002L
-#endif
 
   namespace __detail
   {
     template<typename _Container, typename _UnsafeContainer,
 	     typename _Predicate>
       typename _Container::size_type
-      __erase_nodes_if(_Container& __cont, const _UnsafeContainer& __ucont,
+      __erase_nodes_if(_Container& __cont, _UnsafeContainer& __ucont,
 		       _Predicate __pred)
       {
 	typename _Container::size_type __num = 0;
@@ -70,7 +68,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
-
 #endif // C++14
 
 #endif // _GLIBCXX_ERASE_IF_H

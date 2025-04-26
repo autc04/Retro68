@@ -37,7 +37,7 @@ public enum CustomFloatFlags
      * Store values in normalized form by default. The actual precision of the
      * significand is extended by 1 bit by assuming an implicit leading bit of 1
      * instead of 0. i.e. `1.nnnn` instead of `0.nnnn`.
-     * True for all $(LINK2 https://en.wikipedia.org/wiki/IEEE_floating_point, IEE754) types
+     * True for all $(LINK2 https://en.wikipedia.org/wiki/IEEE_floating_point, IEEE754) types
      */
     storeNormalized = 2,
 
@@ -79,10 +79,12 @@ public enum CustomFloatFlags
     none = 0
 }
 
+private enum isIEEEQuadruple = floatTraits!real.realFormat == RealFormat.ieeeQuadruple;
+
 private template CustomFloatParams(uint bits)
 {
     enum CustomFloatFlags flags = CustomFloatFlags.ieee
-                ^ ((bits == 80) ? CustomFloatFlags.storeNormalized : CustomFloatFlags.none);
+                ^ ((bits == 80 && !isIEEEQuadruple) ? CustomFloatFlags.storeNormalized : CustomFloatFlags.none);
     static if (bits ==  8) alias CustomFloatParams = CustomFloatParams!( 4,  3, flags);
     static if (bits == 16) alias CustomFloatParams = CustomFloatParams!(10,  5, flags);
     static if (bits == 32) alias CustomFloatParams = CustomFloatParams!(23,  8, flags);
@@ -221,7 +223,7 @@ private:
     }
 
     // Convert the current value to signed exponent, normalized form
-    void toNormalized(T,U)(ref T sig, ref U exp)
+    void toNormalized(T,U)(ref T sig, ref U exp) const
     {
         sig = significand;
         auto shift = (T.sizeof*8) - precision;
@@ -367,11 +369,36 @@ private:
 public:
     static if (precision == 64) // CustomFloat!80 support hack
     {
-        ulong significand;
-        enum ulong significand_max = ulong.max;
-        mixin(bitfields!(
-            T_exp , "exponent", exponentWidth,
-            bool  , "sign"    , flags & flags.signed ));
+        static if (isIEEEQuadruple)
+        {
+        // Only use highest 64 significand bits from 112 explicitly stored
+        align (1):
+            enum ulong significand_max = ulong.max;
+            version (LittleEndian)
+            {
+                private ubyte[6] _padding; // 48-bit of padding
+                ulong significand;
+                mixin(bitfields!(
+                    T_exp , "exponent", exponentWidth,
+                    bool  , "sign"    , flags & flags.signed ));
+            }
+            else
+            {
+                mixin(bitfields!(
+                    T_exp , "exponent", exponentWidth,
+                    bool  , "sign"    , flags & flags.signed ));
+                ulong significand;
+                private ubyte[6] _padding; // 48-bit of padding
+            }
+        }
+        else
+        {
+            ulong significand;
+            enum ulong significand_max = ulong.max;
+            mixin(bitfields!(
+                T_exp , "exponent", exponentWidth,
+                bool  , "sign"    , flags & flags.signed ));
+        }
     }
     else
     {
@@ -409,7 +436,7 @@ public:
     static @property size_t dig()
     {
         auto shiftcnt = precision - ((flags&Flags.storeNormalized) == 0);
-        return shiftcnt == 64 ? 19 : cast(size_t) log10(1uL << shiftcnt);
+        return shiftcnt == 64 ? 19 : cast(size_t) log10(real(1uL << shiftcnt));
     }
 
     /// Returns: smallest increment to the value 1
@@ -463,13 +490,14 @@ public:
     }
 
     /// Returns: real part
-    @property CustomFloat re() { return this; }
+    @property CustomFloat re() const { return this; }
 
     /// Returns: imaginary part
     static @property CustomFloat im() { return CustomFloat(0.0f); }
 
     /// Initialize from any `real` compatible type.
-    this(F)(F input) if (__traits(compiles, cast(real) input ))
+    this(F)(F input)
+    if (__traits(compiles, cast(real) input ))
     {
         this = input;
     }
@@ -485,7 +513,7 @@ public:
 
     /// Assigns from any `real` compatible type.
     void opAssign(F)(F input)
-        if (__traits(compiles, cast(real) input))
+    if (__traits(compiles, cast(real) input))
     {
         import std.conv : text;
 
@@ -518,8 +546,8 @@ public:
     }
 
     /// Fetches the stored value either as a `float`, `double` or `real`.
-    @property F get(F)()
-        if (staticIndexOf!(immutable F, immutable float, immutable double, immutable real) >= 0)
+    @property F get(F)() const
+    if (staticIndexOf!(immutable F, immutable float, immutable double, immutable real) >= 0)
     {
         import std.conv : text;
 
@@ -547,7 +575,7 @@ public:
 
     /// Convert the CustomFloat to a real and perform the relevant operator on the result
     real opUnary(string op)()
-        if (__traits(compiles, mixin(op~`(get!real)`)) || op=="++" || op=="--")
+    if (__traits(compiles, mixin(op~`(get!real)`)) || op=="++" || op=="--")
     {
         static if (op=="++" || op=="--")
         {
@@ -563,32 +591,32 @@ public:
     // Define an opBinary `CustomFloat op CustomFloat` so that those below
     // do not match equally, which is disallowed by the spec:
     // https://dlang.org/spec/operatoroverloading.html#binary
-    real opBinary(string op,T)(T b)
-         if (__traits(compiles, mixin(`get!real`~op~`b.get!real`)))
-     {
-         return mixin(`get!real`~op~`b.get!real`);
-     }
+    real opBinary(string op,T)(T b) const
+    if (__traits(compiles, mixin(`get!real`~op~`b.get!real`)))
+    {
+        return mixin(`get!real`~op~`b.get!real`);
+    }
 
     /// ditto
-    real opBinary(string op,T)(T b)
-        if ( __traits(compiles, mixin(`get!real`~op~`b`)) &&
-            !__traits(compiles, mixin(`get!real`~op~`b.get!real`)))
+    real opBinary(string op,T)(T b) const
+    if ( __traits(compiles, mixin(`get!real`~op~`b`)) &&
+        !__traits(compiles, mixin(`get!real`~op~`b.get!real`)))
     {
         return mixin(`get!real`~op~`b`);
     }
 
     /// ditto
-    real opBinaryRight(string op,T)(T a)
-        if ( __traits(compiles, mixin(`a`~op~`get!real`)) &&
-            !__traits(compiles, mixin(`get!real`~op~`b`)) &&
-            !__traits(compiles, mixin(`get!real`~op~`b.get!real`)))
+    real opBinaryRight(string op,T)(T a) const
+    if ( __traits(compiles, mixin(`a`~op~`get!real`)) &&
+        !__traits(compiles, mixin(`get!real`~op~`b`)) &&
+        !__traits(compiles, mixin(`get!real`~op~`b.get!real`)))
     {
         return mixin(`a`~op~`get!real`);
     }
 
     /// ditto
-    int opCmp(T)(auto ref T b)
-        if (__traits(compiles, cast(real) b))
+    int opCmp(T)(auto ref T b) const
+    if (__traits(compiles, cast(real) b))
     {
         auto x = get!real;
         auto y = cast(real) b;
@@ -597,7 +625,7 @@ public:
 
     /// ditto
     void opOpAssign(string op, T)(auto ref T b)
-        if (__traits(compiles, mixin(`get!real`~op~`cast(real) b`)))
+    if (__traits(compiles, mixin(`get!real`~op~`cast(real) b`)))
     {
         return mixin(`this = this `~op~` cast(real) b`);
     }
@@ -631,23 +659,28 @@ public:
         auto x = F(0.125);
         assert(x.get!float == 0.125F);
         assert(x.get!double == 0.125);
+        assert(x.get!real == 0.125L);
 
         x -= 0.0625;
         assert(x.get!float == 0.0625F);
         assert(x.get!double == 0.0625);
+        assert(x.get!real == 0.0625L);
 
         x *= 2;
         assert(x.get!float == 0.125F);
         assert(x.get!double == 0.125);
+        assert(x.get!real == 0.125L);
 
         x /= 4;
         assert(x.get!float == 0.03125);
         assert(x.get!double == 0.03125);
+        assert(x.get!real == 0.03125L);
 
         x = 0.5;
         x ^^= 4;
         assert(x.get!float == 1 / 16.0F);
         assert(x.get!double == 1 / 16.0);
+        assert(x.get!real == 1 / 16.0L);
     }
 }
 
@@ -916,6 +949,17 @@ public:
     assertThrown!AssertError(a = float.infinity);
 }
 
+@safe unittest
+{
+    const CustomFloat!16 x = CustomFloat!16(3);
+    assert(x.get!float == 3);
+    assert(x.re.get!float == 3);
+    assert(x + x == 6);
+    assert(x + 1 == 4);
+    assert(2 + x == 5);
+    assert(x < 4);
+}
+
 private bool isCorrectCustomFloat(uint precision, uint exponentWidth, CustomFloatFlags flags) @safe pure nothrow @nogc
 {
     // Restrictions from bitfield
@@ -1092,8 +1136,8 @@ public:
  *
  * References: "On Enclosing Simple Roots of Nonlinear Equations",
  * G. Alefeld, F.A. Potra, Yixun Shi, Mathematics of Computation 61,
- * pp733-744 (1993).  Fortran code available from $(HTTP
- * www.netlib.org,www.netlib.org) as algorithm TOMS478.
+ * pp733-744 (1993).  Fortran code available from
+ * $(HTTP www.netlib.org,www.netlib.org) as algorithm TOMS478.
  *
  */
 T findRoot(T, DF, DT)(scope DF f, const T a, const T b,
@@ -3373,7 +3417,7 @@ private:
 
     // This algorithm works by performing the even and odd parts of our FFT
     // using the "two for the price of one" method mentioned at
-    // http://www.engineeringproductivitytools.com/stuff/T0001/PT10.HTM#Head521
+    // https://web.archive.org/web/20180312110051/http://www.engineeringproductivitytools.com/stuff/T0001/PT10.HTM#Head521
     // by making the odd terms into the imaginary components of our new FFT,
     // and then using symmetry to recombine them.
     void fftImplPureReal(Ret, R)(R range, Ret buf) const
@@ -3655,7 +3699,7 @@ public:
      *              i.e., output[j] := sum[ exp(-2 PI i j k / N) input[k] ].
      */
     Complex!F[] fft(F = double, R)(R range) const
-        if (isFloatingPoint!F && isRandomAccessRange!R)
+    if (isFloatingPoint!F && isRandomAccessRange!R)
     {
         enforceSize(range);
         Complex!F[] ret;
@@ -3678,7 +3722,7 @@ public:
      * property that can be both read and written and are floating point numbers.
      */
     void fft(Ret, R)(R range, Ret buf) const
-        if (isRandomAccessRange!Ret && isComplexLike!(ElementType!Ret) && hasSlicing!Ret)
+    if (isRandomAccessRange!Ret && isComplexLike!(ElementType!Ret) && hasSlicing!Ret)
     {
         assert(buf.length == range.length);
         enforceSize(range);
@@ -3727,7 +3771,7 @@ public:
      *              output[j] := (1 / N) sum[ exp(+2 PI i j k / N) input[k] ].
      */
     Complex!F[] inverseFft(F = double, R)(R range) const
-        if (isRandomAccessRange!R && isComplexLike!(ElementType!R) && isFloatingPoint!F)
+    if (isRandomAccessRange!R && isComplexLike!(ElementType!R) && isFloatingPoint!F)
     {
         enforceSize(range);
         Complex!F[] ret;
@@ -3749,7 +3793,7 @@ public:
      * must be some complex-like type.
      */
     void inverseFft(Ret, R)(R range, Ret buf) const
-        if (isRandomAccessRange!Ret && isComplexLike!(ElementType!Ret) && hasSlicing!Ret)
+    if (isRandomAccessRange!Ret && isComplexLike!(ElementType!Ret) && hasSlicing!Ret)
     {
         enforceSize(range);
 

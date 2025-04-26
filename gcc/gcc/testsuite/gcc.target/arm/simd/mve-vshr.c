@@ -9,6 +9,8 @@
   void test_ ## NAME ##_ ## SIGN ## BITS ## x ## NB (TYPE##BITS##_t * __restrict__ dest, TYPE##BITS##_t *a, TYPE##BITS##_t *b) { \
     int i;								\
     for (i=0; i<NB; i++) {						\
+      if ((unsigned)b[i] >= (unsigned)(BITS))				\
+	__builtin_unreachable();					\
       dest[i] = a[i] OP b[i];						\
     }									\
 }
@@ -58,7 +60,7 @@ FUNC_IMM(u, uint, 8, 16, >>, vshrimm)
 /* Vector right shifts use vneg and left shifts.  */
 /* { dg-final { scan-assembler-times {vshl.s[0-9]+\tq[0-9]+, q[0-9]+} 3 } } */
 /* { dg-final { scan-assembler-times {vshl.u[0-9]+\tq[0-9]+, q[0-9]+} 3 } } */
-/* { dg-final { scan-assembler-times {vneg.s[0-9]+  q[0-9]+, q[0-9]+} 6 } } */
+/* { dg-final { scan-assembler-times {vneg.s[0-9]+\tq[0-9]+, q[0-9]+} 6 } } */
 
 
 /* Shift by immediate.  */

@@ -1,6 +1,6 @@
 // <mutex> -*- C++ -*-
 
-// Copyright (C) 2003-2022 Free Software Foundation, Inc.
+// Copyright (C) 2003-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,17 +29,23 @@
 #ifndef _GLIBCXX_MUTEX
 #define _GLIBCXX_MUTEX 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+
+#include <bits/requires_hosted.h> // concurrency
 
 #if __cplusplus < 201103L
 # include <bits/c++0x_warning.h>
 #else
 
-#include <tuple>
-#include <exception>
-#include <type_traits>
-#include <system_error>
-#include <bits/chrono.h>
+#include <tuple>	      // std::tuple
+#include <type_traits>        // is_same_v
+#include <errno.h>	      // EAGAIN, EDEADLK
+#include <bits/chrono.h>      // duration, time_point, is_clock_v
+#include <bits/functexcept.h> // __throw_system_error
+#include <bits/invoke.h>      // __invoke
+#include <bits/move.h>	      // std::forward
 #include <bits/std_mutex.h>
 #include <bits/unique_lock.h>
 #if ! _GTHREAD_USE_MUTEX_TIMEDLOCK
@@ -52,6 +58,9 @@
 # include <bits/std_function.h>  // std::function
 #endif
 
+#define __glibcxx_want_scoped_lock
+#include <bits/version.h>
+
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -62,6 +71,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    */
 
 #ifdef _GLIBCXX_HAS_GTHREADS
+  /// @cond undocumented
 
   // Common base class for std::recursive_mutex and std::recursive_timed_mutex
   class __recursive_mutex_base
@@ -89,8 +99,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     { __gthread_recursive_mutex_destroy(&_M_mutex); }
 #endif
   };
+  /// @endcond
 
-  /// The standard recursive mutex type.
+  /** The standard recursive mutex type.
+   *
+   * A recursive mutex can be locked more than once by the same thread.
+   * Other threads cannot lock the mutex until the owning thread unlocks it
+   * as many times as it was locked.
+   *
+   * @headerfile mutex
+   * @since C++11
+   */
   class recursive_mutex : private __recursive_mutex_base
   {
   public:
@@ -112,6 +131,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	__throw_system_error(__e);
     }
 
+    _GLIBCXX_NODISCARD
     bool
     try_lock() noexcept
     {
@@ -132,6 +152,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   };
 
 #if _GTHREAD_USE_MUTEX_TIMEDLOCK
+  /// @cond undocumented
+
   template<typename _Derived>
     class __timed_mutex_impl
     {
@@ -207,8 +229,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  return false;
 	}
     };
+  /// @endcond
 
-  /// The standard timed mutex type.
+  /** The standard timed mutex type.
+   *
+   * A non-recursive mutex that supports a timeout when trying to acquire the
+   * lock.
+   *
+   * @headerfile mutex
+   * @since C++11
+   */
   class timed_mutex
   : private __mutex_base, public __timed_mutex_impl<timed_mutex>
   {
@@ -231,6 +261,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	__throw_system_error(__e);
     }
 
+    _GLIBCXX_NODISCARD
     bool
     try_lock() noexcept
     {
@@ -239,11 +270,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
     template <class _Rep, class _Period>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
       { return _M_try_lock_for(__rtime); }
 
     template <class _Clock, class _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_until(const chrono::time_point<_Clock, _Duration>& __atime)
       { return _M_try_lock_until(__atime); }
@@ -268,12 +301,21 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 #if _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK
       bool
-      _M_clocklock(clockid_t clockid, const __gthread_time_t& __ts)
-      { return !pthread_mutex_clocklock(&_M_mutex, clockid, &__ts); }
+      _M_clocklock(clockid_t __clockid, const __gthread_time_t& __ts)
+      { return !pthread_mutex_clocklock(&_M_mutex, __clockid, &__ts); }
 #endif
   };
 
-  /// recursive_timed_mutex
+  /** The standard recursive timed mutex type.
+   *
+   * A recursive mutex that supports a timeout when trying to acquire the
+   * lock. A recursive mutex can be locked more than once by the same thread.
+   * Other threads cannot lock the mutex until the owning thread unlocks it
+   * as many times as it was locked.
+   *
+   * @headerfile mutex
+   * @since C++11
+   */
   class recursive_timed_mutex
   : private __recursive_mutex_base,
     public __timed_mutex_impl<recursive_timed_mutex>
@@ -297,6 +339,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	__throw_system_error(__e);
     }
 
+    _GLIBCXX_NODISCARD
     bool
     try_lock() noexcept
     {
@@ -305,11 +348,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
     template <class _Rep, class _Period>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
       { return _M_try_lock_for(__rtime); }
 
     template <class _Clock, class _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_until(const chrono::time_point<_Clock, _Duration>& __atime)
       { return _M_try_lock_until(__atime); }
@@ -334,8 +379,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 #ifdef _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK
       bool
-      _M_clocklock(clockid_t clockid, const __gthread_time_t& __ts)
-      { return !pthread_mutex_clocklock(&_M_mutex, clockid, &__ts); }
+      _M_clocklock(clockid_t __clockid, const __gthread_time_t& __ts)
+      { return !pthread_mutex_clocklock(&_M_mutex, __clockid, &__ts); }
 #endif
   };
 
@@ -364,6 +409,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _M_locked = true;
     }
 
+    _GLIBCXX_NODISCARD
     bool
     try_lock()
     {
@@ -375,6 +421,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
     template<typename _Rep, typename _Period>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
       {
@@ -386,6 +433,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       }
 
     template<typename _Clock, typename _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_until(const chrono::time_point<_Clock, _Duration>& __atime)
       {
@@ -447,6 +495,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       ++_M_count;
     }
 
+    _GLIBCXX_NODISCARD
     bool
     try_lock()
     {
@@ -463,6 +512,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
     template<typename _Rep, typename _Period>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
       {
@@ -479,6 +529,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       }
 
     template<typename _Clock, typename _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_until(const chrono::time_point<_Clock, _Duration>& __atime)
       {
@@ -585,6 +636,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  Sequentially calls try_lock() on each argument.
    */
   template<typename _L1, typename _L2, typename... _L3>
+    _GLIBCXX_NODISCARD
     inline int
     try_lock(_L1& __l1, _L2& __l2, _L3&... __l3)
     {
@@ -681,20 +733,25 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	}
     }
 
-#if __cplusplus >= 201703L
-#define __cpp_lib_scoped_lock 201703L
+#ifdef __cpp_lib_scoped_lock // C++ >= 17 && hosted && gthread
   /** @brief A scoped lock type for multiple lockable objects.
    *
    * A scoped_lock controls mutex ownership within a scope, releasing
    * ownership in the destructor.
+   *
+   * @headerfile mutex
+   * @since C++17
    */
   template<typename... _MutexTypes>
     class scoped_lock
     {
     public:
+
+      [[nodiscard]]
       explicit scoped_lock(_MutexTypes&... __m) : _M_devices(std::tie(__m...))
       { std::lock(__m...); }
 
+      [[nodiscard]]
       explicit scoped_lock(adopt_lock_t, _MutexTypes&... __m) noexcept
       : _M_devices(std::tie(__m...))
       { } // calling thread owns mutex
@@ -727,9 +784,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     public:
       using mutex_type = _Mutex;
 
+      [[nodiscard]]
       explicit scoped_lock(mutex_type& __m) : _M_device(__m)
       { _M_device.lock(); }
 
+      [[nodiscard]]
       explicit scoped_lock(adopt_lock_t, mutex_type& __m) noexcept
       : _M_device(__m)
       { } // calling thread owns mutex
@@ -743,7 +802,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     private:
       mutex_type&  _M_device;
     };
-#endif // C++17
+#endif // __cpp_lib_scoped_lock
 
 #ifdef _GLIBCXX_HAS_GTHREADS
   /// Flag type used by std::call_once

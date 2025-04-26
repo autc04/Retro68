@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1992-2022, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2025, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -584,7 +584,8 @@ package body System.Tasking.Stages is
       end if;
 
       Initialize_ATCB (Self_ID, State, Discriminants, P, Elaborated,
-        Base_Priority, Base_CPU, Domain, Task_Info, Stack_Size, T, Success);
+        Base_Priority, Base_CPU, CPU /= Unspecified_CPU, Domain, Task_Info,
+        Stack_Size, T, Success);
 
       if not Success then
          Free (T);
@@ -1079,7 +1080,7 @@ package body System.Tasking.Stages is
       Stack_Guard (Self_ID, True);
 
       --  Initialize low-level TCB components, that cannot be initialized by
-      --  the creator. Enter_Task sets Self_ID.LL.Thread.
+      --  the creator.
 
       Enter_Task (Self_ID);
 
@@ -1307,10 +1308,8 @@ package body System.Tasking.Stages is
       if TH /= null then
          begin
             TH.all (Cause, Self_ID, EO);
-
          exception
-
-            --  RM-C.7.3 requires all exceptions raised here to be ignored
+            --  RM-C.7.3(16) requires all exceptions raised here to be ignored
 
             when others =>
                null;
@@ -1617,8 +1616,8 @@ package body System.Tasking.Stages is
 
             --  Usually, C.Common.Activator = Self_ID implies C.Master_Of_Task
             --  = CM. The only case where C is pending activation by this
-            --  task, but the master of C is not CM is in Ada 2005, when C is
-            --  part of a return object of a build-in-place function.
+            --  task, but the master of C is not CM is when C is part of a
+            --  return object of a build-in-place function.
 
             pragma Assert (C.Common.State = Unactivated);
 

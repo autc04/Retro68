@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do compile { target c++20 } }
 
 #include <ranges>
 #include <string_view>
@@ -50,3 +49,7 @@ static_assert(sizeof(ranges::lazy_split_view<V, std::string_view>) == 4*ptr);
 
 static_assert
  (sizeof(ranges::reverse_view<ranges::filter_view<V, decltype(pred_l)>>) == 3*ptr);
+
+#if __cpp_lib_ranges_slide
+static_assert(sizeof(ranges::slide_view<V>) == 3*ptr);
+#endif

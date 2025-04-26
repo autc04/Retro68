@@ -1,5 +1,5 @@
 /* Register to Stack convert for GNU compiler.
-   Copyright (C) 1992-2022 Free Software Foundation, Inc.
+   Copyright (C) 1992-2025 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -214,7 +214,7 @@ typedef struct block_info_def
   struct stack_def stack_in;	/* Input stack configuration.  */
   struct stack_def stack_out;	/* Output stack configuration.  */
   HARD_REG_SET out_reg_set;	/* Stack regs live on output.  */
-  int done;			/* True if block already converted.  */
+  bool done;			/* True if block already converted.  */
   int predecessors;		/* Number of predecessors that need
 				   to be visited.  */
 } *block_info;
@@ -248,11 +248,11 @@ static rtx not_a_num;
 
 /* Forward declarations */
 
-static int stack_regs_mentioned_p (const_rtx pat);
+static bool stack_regs_mentioned_p (const_rtx pat);
 static void pop_stack (stack_ptr, int);
 static rtx *get_true_reg (rtx *);
 
-static int check_asm_stack_operands (rtx_insn *);
+static bool check_asm_stack_operands (rtx_insn *);
 static void get_asm_operands_in_out (rtx, int *, int *);
 static rtx stack_result (tree);
 static void replace_reg (rtx *, int);
@@ -262,26 +262,26 @@ static rtx_insn *emit_pop_insn (rtx_insn *, stack_ptr, rtx, enum emit_where);
 static void swap_to_top (rtx_insn *, stack_ptr, rtx, rtx);
 static bool move_for_stack_reg (rtx_insn *, stack_ptr, rtx);
 static bool move_nan_for_stack_reg (rtx_insn *, stack_ptr, rtx);
-static int swap_rtx_condition_1 (rtx);
-static int swap_rtx_condition (rtx_insn *);
+static bool swap_rtx_condition_1 (rtx);
+static bool swap_rtx_condition (rtx_insn *, int &);
 static void compare_for_stack_reg (rtx_insn *, stack_ptr, rtx, bool);
 static bool subst_stack_regs_pat (rtx_insn *, stack_ptr, rtx);
 static void subst_asm_stack_regs (rtx_insn *, stack_ptr);
 static bool subst_stack_regs (rtx_insn *, stack_ptr);
 static void change_stack (rtx_insn *, stack_ptr, stack_ptr, enum emit_where);
 static void print_stack (FILE *, stack_ptr);
-static rtx_insn *next_flags_user (rtx_insn *);
+static rtx_insn *next_flags_user (rtx_insn *, int &);
 
-/* Return nonzero if any stack register is mentioned somewhere within PAT.  */
+/* Return true if any stack register is mentioned somewhere within PAT.  */
 
-static int
+static bool
 stack_regs_mentioned_p (const_rtx pat)
 {
   const char *fmt;
   int i;
 
   if (STACK_REG_P (pat))
-    return 1;
+    return true;
 
   fmt = GET_RTX_FORMAT (GET_CODE (pat));
   for (i = GET_RTX_LENGTH (GET_CODE (pat)) - 1; i >= 0; i--)
@@ -292,25 +292,25 @@ stack_regs_mentioned_p (const_rtx pat)
 
 	  for (j = XVECLEN (pat, i) - 1; j >= 0; j--)
 	    if (stack_regs_mentioned_p (XVECEXP (pat, i, j)))
-	      return 1;
+	      return true;
 	}
       else if (fmt[i] == 'e' && stack_regs_mentioned_p (XEXP (pat, i)))
-	return 1;
+	return true;
     }
 
-  return 0;
+  return false;
 }
 
-/* Return nonzero if INSN mentions stacked registers, else return zero.  */
+/* Return true if INSN mentions stacked registers, else return zero.  */
 
-int
+bool
 stack_regs_mentioned (const_rtx insn)
 {
   unsigned int uid, max;
   int test;
 
   if (! INSN_P (insn) || !stack_regs_mentioned_data.exists ())
-    return 0;
+    return false;
 
   uid = INSN_UID (insn);
   max = stack_regs_mentioned_data.length ();
@@ -336,7 +336,7 @@ stack_regs_mentioned (const_rtx insn)
 static rtx ix86_flags_rtx;
 
 static rtx_insn *
-next_flags_user (rtx_insn *insn)
+next_flags_user (rtx_insn *insn, int &debug_seen)
 {
   /* Search forward looking for the first use of this value.
      Stop at block boundaries.  */
@@ -346,7 +346,14 @@ next_flags_user (rtx_insn *insn)
       insn = NEXT_INSN (insn);
 
       if (INSN_P (insn) && reg_mentioned_p (ix86_flags_rtx, PATTERN (insn)))
-	return insn;
+	{
+	  if (DEBUG_INSN_P (insn) && debug_seen >= 0)
+	    {
+	      debug_seen = 1;
+	      continue;
+	    }
+	  return insn;
+	}
 
       if (CALL_P (insn))
 	return NULL;
@@ -460,12 +467,12 @@ static bool any_malformed_asm;
    follow.  Those rules are explained at the top of this file: the rule
    numbers below refer to that explanation.  */
 
-static int
+static bool
 check_asm_stack_operands (rtx_insn *insn)
 {
   int i;
   int n_clobbers;
-  int malformed_asm = 0;
+  bool malformed_asm = false;
   rtx body = PATTERN (insn);
 
   char reg_used_as_output[FIRST_PSEUDO_REGISTER];
@@ -536,7 +543,7 @@ check_asm_stack_operands (rtx_insn *insn)
 	if (reg_class_size[(int) op_alt[i].cl] != 1)
 	  {
 	    error_for_asm (insn, "output constraint %d must specify a single register", i);
-	    malformed_asm = 1;
+	    malformed_asm = true;
 	  }
 	else
 	  {
@@ -548,7 +555,7 @@ check_asm_stack_operands (rtx_insn *insn)
 		  error_for_asm (insn, "output constraint %d cannot be "
 				 "specified together with %qs clobber",
 				 i, reg_names [REGNO (clobber_reg[j])]);
-		  malformed_asm = 1;
+		  malformed_asm = true;
 		  break;
 		}
 	    if (j == n_clobbers)
@@ -570,7 +577,7 @@ check_asm_stack_operands (rtx_insn *insn)
   if (i != LAST_STACK_REG + 1)
     {
       error_for_asm (insn, "output registers must be grouped at top of stack");
-      malformed_asm = 1;
+      malformed_asm = true;
     }
 
   /* Enforce rule #2: All implicitly popped input regs must be closer
@@ -611,7 +618,7 @@ check_asm_stack_operands (rtx_insn *insn)
       error_for_asm (insn,
 		     "implicitly popped registers must be grouped "
 		     "at top of stack");
-      malformed_asm = 1;
+      malformed_asm = true;
     }
 
   /* Search for first not-explicitly used reg.  */
@@ -629,7 +636,7 @@ check_asm_stack_operands (rtx_insn *insn)
       error_for_asm (insn,
 		     "explicitly used registers must be grouped "
 		     "at top of stack");
-      malformed_asm = 1;
+      malformed_asm = true;
     }
 
   /* Enforce rule #3: If any input operand uses the "f" constraint, all
@@ -648,7 +655,7 @@ check_asm_stack_operands (rtx_insn *insn)
 	    {
 	      error_for_asm (insn,
 			     "output operand %d must use %<&%> constraint", j);
-	      malformed_asm = 1;
+	      malformed_asm = true;
 	    }
       }
 
@@ -657,10 +664,10 @@ check_asm_stack_operands (rtx_insn *insn)
       /* Avoid further trouble with this insn.  */
       PATTERN (insn) = gen_rtx_USE (VOIDmode, const0_rtx);
       any_malformed_asm = true;
-      return 0;
+      return false;
     }
 
-  return 1;
+  return true;
 }
 
 /* Calculate the number of inputs and outputs in BODY, an
@@ -1073,7 +1080,8 @@ move_for_stack_reg (rtx_insn *insn, stack_ptr regstack, rtx pat)
 	      break;
 
 	  /* The destination must be dead, or life analysis is borked.  */
-	  gcc_assert (get_hard_regnum (regstack, dest) < FIRST_STACK_REG);
+	  gcc_assert (get_hard_regnum (regstack, dest) < FIRST_STACK_REG
+		      || any_malformed_asm);
 
 	  /* If the source is not live, this is yet another case of
 	     uninitialized variables.  Load up a NaN instead.  */
@@ -1092,7 +1100,8 @@ move_for_stack_reg (rtx_insn *insn, stack_ptr regstack, rtx pat)
 	      CLEAR_HARD_REG_BIT (regstack->reg_set, REGNO (src));
 	    }
 
-	  control_flow_insn_deleted |= control_flow_insn_p (insn);
+	  if (control_flow_insn_p (insn))
+	    control_flow_insn_deleted = true;
 	  delete_insn (insn);
 	  return control_flow_insn_deleted;
 	}
@@ -1109,7 +1118,8 @@ move_for_stack_reg (rtx_insn *insn, stack_ptr regstack, rtx pat)
 	  if (find_regno_note (insn, REG_UNUSED, REGNO (dest)))
 	    emit_pop_insn (insn, regstack, dest, EMIT_AFTER);
 
-	  control_flow_insn_deleted |= control_flow_insn_p (insn);
+	  if (control_flow_insn_p (insn))
+	    control_flow_insn_deleted = true;
 	  delete_insn (insn);
 	  return control_flow_insn_deleted;
 	}
@@ -1216,16 +1226,17 @@ move_nan_for_stack_reg (rtx_insn *insn, stack_ptr regstack, rtx dest)
    found a condition to swap.  False if the condition was not used as
    such.  */
 
-static int
+static bool
 swap_rtx_condition_1 (rtx pat)
 {
   const char *fmt;
-  int i, r = 0;
+  bool r = false;
+  int i;
 
   if (COMPARISON_P (pat))
     {
       PUT_CODE (pat, swap_condition (GET_CODE (pat)));
-      r = 1;
+      r = true;
     }
   else
     {
@@ -1237,18 +1248,33 @@ swap_rtx_condition_1 (rtx pat)
 	      int j;
 
 	      for (j = XVECLEN (pat, i) - 1; j >= 0; j--)
-		r |= swap_rtx_condition_1 (XVECEXP (pat, i, j));
+		if (swap_rtx_condition_1 (XVECEXP (pat, i, j)))
+		  r = true;
 	    }
-	  else if (fmt[i] == 'e')
-	    r |= swap_rtx_condition_1 (XEXP (pat, i));
+	  else if (fmt[i] == 'e' && swap_rtx_condition_1 (XEXP (pat, i)))
+	    r = true;
 	}
     }
 
   return r;
 }
 
-static int
-swap_rtx_condition (rtx_insn *insn)
+/* This function swaps condition in cc users and returns true
+   if successful.  It is invoked in 2 different modes, one with
+   DEBUG_SEEN set initially to 0.  In this mode, next_flags_user
+   will skip DEBUG_INSNs that it would otherwise return and just
+   sets DEBUG_SEEN to 1 in that case.  If DEBUG_SEEN is 0 at
+   the end of toplevel swap_rtx_condition which returns true,
+   it means no problematic DEBUG_INSNs were seen and all changes
+   have been applied.  If it returns true but DEBUG_SEEN is 1,
+   it means some problematic DEBUG_INSNs were seen and no changes
+   have been applied so far.  In that case one needs to call
+   swap_rtx_condition again with DEBUG_SEEN set to -1, in which
+   case it doesn't skip DEBUG_INSNs, but instead adjusts the
+   flags related condition in them or resets them as needed.  */
+
+static bool
+swap_rtx_condition (rtx_insn *insn, int &debug_seen)
 {
   rtx pat = PATTERN (insn);
 
@@ -1258,9 +1284,9 @@ swap_rtx_condition (rtx_insn *insn)
       && REG_P (SET_DEST (pat))
       && REGNO (SET_DEST (pat)) == FLAGS_REG)
     {
-      insn = next_flags_user (insn);
+      insn = next_flags_user (insn, debug_seen);
       if (insn == NULL_RTX)
-	return 0;
+	return false;
       pat = PATTERN (insn);
     }
 
@@ -1280,14 +1306,25 @@ swap_rtx_condition (rtx_insn *insn)
 	{
 	  insn = NEXT_INSN (insn);
 	  if (INSN_P (insn) && reg_mentioned_p (dest, insn))
-	    break;
+	    {
+	      if (DEBUG_INSN_P (insn))
+		{
+		  if (debug_seen >= 0)
+		    debug_seen = 1;
+		  else
+		    /* Reset the DEBUG insn otherwise.  */
+		    INSN_VAR_LOCATION_LOC (insn) = gen_rtx_UNKNOWN_VAR_LOC ();
+		  continue;
+		}
+	      break;
+	    }
 	  if (CALL_P (insn))
-	    return 0;
+	    return false;
 	}
 
       /* We haven't found it.  */
       if (insn == BB_END (current_block))
-	return 0;
+	return false;
 
       /* So we've found the insn using this value.  If it is anything
 	 other than sahf or the value does not die (meaning we'd have
@@ -1297,37 +1334,39 @@ swap_rtx_condition (rtx_insn *insn)
 	  || GET_CODE (SET_SRC (pat)) != UNSPEC
 	  || XINT (SET_SRC (pat), 1) != UNSPEC_SAHF
 	  || ! dead_or_set_p (insn, dest))
-	return 0;
+	return false;
 
       /* Now we are prepared to handle this.  */
-      insn = next_flags_user (insn);
+      insn = next_flags_user (insn, debug_seen);
       if (insn == NULL_RTX)
-	return 0;
+	return false;
       pat = PATTERN (insn);
     }
 
   if (swap_rtx_condition_1 (pat))
     {
-      int fail = 0;
-      INSN_CODE (insn) = -1;
-      if (recog_memoized (insn) == -1)
-	fail = 1;
+      bool fail = false;
+      if (DEBUG_INSN_P (insn))
+	gcc_assert (debug_seen < 0);
+      else
+	{
+	  INSN_CODE (insn) = -1;
+	  if (recog_memoized (insn) == -1)
+	    fail = true;
+	}
       /* In case the flags don't die here, recurse to try fix
-         following user too.  */
-      else if (! dead_or_set_p (insn, ix86_flags_rtx))
+	 following user too.  */
+      if (!fail && !dead_or_set_p (insn, ix86_flags_rtx))
 	{
-	  insn = next_flags_user (insn);
-	  if (!insn || !swap_rtx_condition (insn))
-	    fail = 1;
+	  insn = next_flags_user (insn, debug_seen);
+	  if (!insn || !swap_rtx_condition (insn, debug_seen))
+	    fail = true;
 	}
-      if (fail)
-	{
-	  swap_rtx_condition_1 (pat);
-	  return 0;
-	}
-      return 1;
+      if (fail || debug_seen == 1)
+	swap_rtx_condition_1 (pat);
+      return !fail;
     }
-  return 0;
+  return false;
 }
 
 /* Handle a comparison.  Special care needs to be taken to avoid
@@ -1344,6 +1383,7 @@ compare_for_stack_reg (rtx_insn *insn, stack_ptr regstack,
 {
   rtx *src1, *src2;
   rtx src1_note, src2_note;
+  int debug_seen = 0;
 
   src1 = get_true_reg (&XEXP (pat_src, 0));
   src2 = get_true_reg (&XEXP (pat_src, 1));
@@ -1353,8 +1393,17 @@ compare_for_stack_reg (rtx_insn *insn, stack_ptr regstack,
   if ((! STACK_REG_P (*src1)
        || (STACK_REG_P (*src2)
 	   && get_hard_regnum (regstack, *src2) == FIRST_STACK_REG))
-      && swap_rtx_condition (insn))
+      && swap_rtx_condition (insn, debug_seen))
     {
+      /* If swap_rtx_condition succeeded but some debug insns
+	 were seen along the way, it has actually reverted all the
+	 changes.  Rerun swap_rtx_condition in a mode where DEBUG_ISNSs
+	 will be adjusted as well.  */
+      if (debug_seen)
+	{
+	  debug_seen = -1;
+	  swap_rtx_condition (insn, debug_seen);
+	}
       std::swap (XEXP (pat_src, 0), XEXP (pat_src, 1));
 
       src1 = get_true_reg (&XEXP (pat_src, 0));
@@ -1539,13 +1588,13 @@ subst_stack_regs_pat (rtx_insn *insn, stack_ptr regstack, rtx pat)
 			  {
 			    rtx pat2 = gen_rtx_CLOBBER (VOIDmode, u);
 			    rtx_insn *insn2 = emit_insn_before (pat2, insn);
-			    control_flow_insn_deleted
-			      |= move_nan_for_stack_reg (insn2, regstack, u);
+			    if (move_nan_for_stack_reg (insn2, regstack, u))
+			      control_flow_insn_deleted = true;
 			  }
 		      }
-		    if (get_hard_regnum (regstack, t) == -1)
-		      control_flow_insn_deleted
-			|= move_nan_for_stack_reg (insn, regstack, t);
+		    if (get_hard_regnum (regstack, t) == -1
+			&& move_nan_for_stack_reg (insn, regstack, t))
+		      control_flow_insn_deleted = true;
 		  }
 	      }
 	  }
@@ -1568,7 +1617,8 @@ subst_stack_regs_pat (rtx_insn *insn, stack_ptr regstack, rtx pat)
 		&& (REG_P (*src) || MEM_P (*src)
 		    || CONST_DOUBLE_P (*src))))
 	  {
-	    control_flow_insn_deleted |= move_for_stack_reg (insn, regstack, pat);
+	    if (move_for_stack_reg (insn, regstack, pat))
+	      control_flow_insn_deleted = true;
 	    break;
 	  }
 
@@ -1667,15 +1717,15 @@ subst_stack_regs_pat (rtx_insn *insn, stack_ptr regstack, rtx pat)
 		  {
 		    rtx pat2 = gen_rtx_CLOBBER (VOIDmode, *src1);
 		    rtx_insn *insn2 = emit_insn_before (pat2, insn);
-		    control_flow_insn_deleted
-		      |= move_nan_for_stack_reg (insn2, regstack, *src1);
+		    if (move_nan_for_stack_reg (insn2, regstack, *src1))
+		      control_flow_insn_deleted = true;
 		  }
 		if (src2_hard_regnum == -1)
 		  {
 		    rtx pat2 = gen_rtx_CLOBBER (VOIDmode, *src2);
 		    rtx_insn *insn2 = emit_insn_before (pat2, insn);
-		    control_flow_insn_deleted
-		      |= move_nan_for_stack_reg (insn2, regstack, *src2);
+		    if (move_nan_for_stack_reg (insn2, regstack, *src2))
+		      control_flow_insn_deleted = true;
 		  }
 
 		if (src1_hard_regnum != FIRST_STACK_REG
@@ -2447,14 +2497,13 @@ subst_stack_regs (rtx_insn *insn, stack_ptr regstack)
 	        if (GET_CODE (XVECEXP (PATTERN (insn), 0, i)) == CLOBBER)
 	           XVECEXP (PATTERN (insn), 0, i)
 		     = shallow_copy_rtx (XVECEXP (PATTERN (insn), 0, i));
-		control_flow_insn_deleted
-		  |= subst_stack_regs_pat (insn, regstack,
-					   XVECEXP (PATTERN (insn), 0, i));
+		if (subst_stack_regs_pat (insn, regstack,
+					  XVECEXP (PATTERN (insn), 0, i)))
+		  control_flow_insn_deleted = true;
 	      }
 	  }
-      else
-	control_flow_insn_deleted
-	  |= subst_stack_regs_pat (insn, regstack, PATTERN (insn));
+      else if (subst_stack_regs_pat (insn, regstack, PATTERN (insn)))
+	control_flow_insn_deleted = true;
     }
 
   /* subst_stack_regs_pat may have deleted a no-op insn.  If so, any
@@ -2748,10 +2797,10 @@ print_stack (FILE *file, stack_ptr s)
    The function returns true when code was emitted to CFG edges and
    commit_edge_insertions needs to be called.  */
 
-static int
+static bool
 convert_regs_entry (void)
 {
-  int inserted = 0;
+  bool inserted = false;
   edge e;
   edge_iterator ei;
 
@@ -2780,7 +2829,7 @@ convert_regs_entry (void)
 	    init = gen_rtx_SET (FP_MODE_REG (FIRST_STACK_REG, SFmode),
 				not_a_num);
 	    insert_insn_on_edge (init, e);
-	    inserted = 1;
+	    inserted = true;
 	  }
 
       bi->stack_in.top = top;
@@ -2969,7 +3018,8 @@ compensate_edges (void)
         edge_iterator ei;
 
         FOR_EACH_EDGE (e, ei, bb->succs)
-	  inserted |= compensate_edge (e);
+	  if (compensate_edge (e))
+	    inserted = true;
       }
   return inserted;
 }
@@ -3088,7 +3138,8 @@ convert_regs_1 (basic_block block)
 		       INSN_UID (insn));
 	      print_stack (dump_file, &regstack);
 	    }
-	  control_flow_insn_deleted |= subst_stack_regs (insn, &regstack);
+	  if (subst_stack_regs (insn, &regstack))
+	    control_flow_insn_deleted = true;
 	  starting_stack_p = false;
 	}
     }
@@ -3141,7 +3192,8 @@ convert_regs_1 (basic_block block)
 
 	  set = gen_rtx_SET (FP_MODE_REG (reg, SFmode), not_a_num);
 	  insn = emit_insn_after (set, insn);
-	  control_flow_insn_deleted |= subst_stack_regs (insn, &regstack);
+	  if (subst_stack_regs (insn, &regstack))
+	    control_flow_insn_deleted = true;
 	}
     }
 
@@ -3162,8 +3214,8 @@ convert_regs_1 (basic_block block)
      better to detect this earlier and avoid creating the EH edge in the first
      place, still, but we don't have enough information at that time.  */
 
-  if (control_flow_insn_deleted)
-    cfg_altered |= purge_dead_edges (block);
+  if (control_flow_insn_deleted && purge_dead_edges (block))
+    cfg_altered = true;
 
   /* Something failed if the stack lives don't match.  If we had malformed
      asms, we zapped the instruction itself, but that didn't produce the
@@ -3222,7 +3274,8 @@ convert_regs_2 (basic_block block)
 	      *sp++ = e->dest;
 	  }
 
-      cfg_altered |= convert_regs_1 (block);
+      if (convert_regs_1 (block))
+	cfg_altered = true;
     }
   while (sp != stack);
 
@@ -3239,7 +3292,7 @@ static void
 convert_regs (void)
 {
   bool cfg_altered = false;
-  int inserted;
+  bool inserted;
   basic_block b;
   edge e;
   edge_iterator ei;
@@ -3249,7 +3302,7 @@ convert_regs (void)
 
   /* Construct the desired stack for function exit.  */
   convert_regs_exit ();
-  BLOCK_INFO (EXIT_BLOCK_PTR_FOR_FN (cfun))->done = 1;
+  BLOCK_INFO (EXIT_BLOCK_PTR_FOR_FN (cfun))->done = true;
 
   /* ??? Future: process inner loops first, and give them arbitrary
      initial stacks which emit_swap_insn can modify.  This ought to
@@ -3257,7 +3310,8 @@ convert_regs (void)
 
   /* Process all blocks reachable from all entry points.  */
   FOR_EACH_EDGE (e, ei, ENTRY_BLOCK_PTR_FOR_FN (cfun)->succs)
-    cfg_altered |= convert_regs_2 (e->dest);
+    if (convert_regs_2 (e->dest))
+      cfg_altered = true;
 
   /* ??? Process all unreachable blocks.  Though there's no excuse
      for keeping these even when not optimizing.  */
@@ -3265,15 +3319,17 @@ convert_regs (void)
     {
       block_info bi = BLOCK_INFO (b);
 
-      if (! bi->done)
-	cfg_altered |= convert_regs_2 (b);
+      if (!bi->done && convert_regs_2 (b))
+	cfg_altered = true;
     }
 
   /* We must fix up abnormal edges before inserting compensation code
      because both mechanisms insert insns on edges.  */
-  inserted |= fixup_abnormal_edges ();
+  if (fixup_abnormal_edges ())
+    inserted = true;
 
-  inserted |= compensate_edges ();
+  if (compensate_edges ())
+    inserted = true;
 
   clear_aux_for_blocks ();
 
@@ -3413,7 +3469,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
 #ifdef STACK_REGS
       return true;
@@ -3468,7 +3524,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *)
+  unsigned int execute (function *) final override
     {
       return rest_of_handle_stack_regs ();
     }

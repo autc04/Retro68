@@ -1,5 +1,5 @@
 /* { dg-require-effective-target vect_int } */
-/* { dg-additional-options "--param max-completely-peel-times=1" } */
+/* { dg-additional-options "--param max-completely-peel-times=1 -fdump-tree-optimized-details-blocks" } */
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -43,8 +43,10 @@ int main1 (int x) {
   }
 
   /* check results: */
+#pragma GCC novector
   for (i = 0; i < N; i++)
    {
+#pragma GCC novector
     for (j = 0; j < N; j++)
      {
        if (p->a[i][j] != c[i][j])
@@ -65,3 +67,4 @@ int main (void)
 /* { dg-final { scan-tree-dump-times "possible dependence between data-refs" 1 "vect" { target { ! vect_multiple_sizes } } } } */
 /* { dg-final { scan-tree-dump "possible dependence between data-refs" "vect" { target vect_multiple_sizes } } } */
 
+/* { dg-final { scan-tree-dump-not "Invalid sum" "optimized" } } */

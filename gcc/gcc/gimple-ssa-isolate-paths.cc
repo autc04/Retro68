@@ -1,7 +1,7 @@
 /* Detect paths through the CFG which can never be executed in a conforming
    program and isolate them.
 
-   Copyright (C) 2013-2022 Free Software Foundation, Inc.
+   Copyright (C) 2013-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -62,6 +62,8 @@ check_loadstore (gimple *stmt, tree op, tree, void *data)
   return false;
 }
 
+static vec<gimple *> *bb_split_points;
+
 /* Insert a trap after SI and split the block after the trap.  */
 
 static void
@@ -104,14 +106,20 @@ insert_trap (gimple_stmt_iterator *si_p, tree op)
       gsi_insert_after (si_p, seq, GSI_NEW_STMT);
       if (stmt_ends_bb_p (stmt))
 	{
-	  split_block (gimple_bb (stmt), stmt);
+	  if (dom_info_available_p (CDI_POST_DOMINATORS))
+	    bb_split_points->safe_push (stmt);
+	  else
+	    split_block (gimple_bb (stmt), stmt);
 	  return;
 	}
     }
   else
     gsi_insert_before (si_p, seq, GSI_NEW_STMT);
 
-  split_block (gimple_bb (new_stmt), new_stmt);
+  if (dom_info_available_p (CDI_POST_DOMINATORS))
+    bb_split_points->safe_push (new_stmt);
+  else
+    split_block (gimple_bb (new_stmt), new_stmt);
   *si_p = gsi_for_stmt (stmt);
 }
 
@@ -647,7 +655,8 @@ handle_return_addr_local_phi_arg (basic_block bb, basic_block duplicate,
       if (!maybe
 	  && (flag_isolate_erroneous_paths_dereference
 	      || flag_isolate_erroneous_paths_attribute)
-	  && gimple_bb (use_stmt) == bb)
+	  && gimple_bb (use_stmt) == bb
+	  && (duplicate || can_duplicate_block_p (bb)))
 	{
 	  duplicate = isolate_path (bb, duplicate, e,
 				    use_stmt, lhs, true);
@@ -765,7 +774,8 @@ find_implicit_erroneous_behavior (void)
 		    ? gimple_location (use_stmt)
 		    : phi_arg_loc;
 
-		  if (stmt_uses_name_in_undefined_way (use_stmt, lhs, loc))
+		  if (stmt_uses_name_in_undefined_way (use_stmt, lhs, loc)
+		      && (duplicate || can_duplicate_block_p (bb)))
 		    {
 		      duplicate = isolate_path (bb, duplicate, e,
 						use_stmt, lhs, false);
@@ -840,6 +850,8 @@ static void
 find_explicit_erroneous_behavior (void)
 {
   basic_block bb;
+  auto_vec<gimple *> local_bb_split_points;
+  bb_split_points = &local_bb_split_points;
 
   FOR_EACH_BB_FN (bb, cfun)
     {
@@ -881,6 +893,14 @@ find_explicit_erroneous_behavior (void)
 	    warn_return_addr_local (bb, return_stmt);
 	}
     }
+
+  free_dominance_info (CDI_POST_DOMINATORS);
+
+  /* Perform delayed splitting of blocks.  */
+  for (gimple *stmt : local_bb_split_points)
+    split_block (gimple_bb (stmt), stmt);
+
+  bb_split_points = NULL;
 }
 
 /* Search the function for statements which, if executed, would cause
@@ -937,7 +957,6 @@ gimple_ssa_isolate_erroneous_paths (void)
   /* We scramble the CFG and loop structures a bit, clean up
      appropriately.  We really should incrementally update the
      loop structures, in theory it shouldn't be that hard.  */
-  free_dominance_info (CDI_POST_DOMINATORS);
   if (cfg_altered)
     {
       free_dominance_info (CDI_DOMINATORS);
@@ -969,8 +988,11 @@ public:
   {}
 
   /* opt_pass methods: */
-  opt_pass * clone () { return new pass_isolate_erroneous_paths (m_ctxt); }
-  virtual bool gate (function *)
+  opt_pass * clone () final override
+  {
+    return new pass_isolate_erroneous_paths (m_ctxt);
+  }
+  bool gate (function *) final override
     {
       /* If we do not have a suitable builtin function for the trap statement,
 	 then do not perform the optimization.  */
@@ -979,7 +1001,7 @@ public:
 	      || warn_null_dereference);
     }
 
-  virtual unsigned int execute (function *)
+  unsigned int execute (function *) final override
     {
       return gimple_ssa_isolate_erroneous_paths ();
     }

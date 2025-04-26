@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -64,7 +64,7 @@ is
       Source   : in out List;
       Position : Node_Access);
 
-   function Vet (Position : Cursor) return Boolean;
+   function Vet (Position : Cursor) return Boolean with Inline;
    --  Checks invariants of the cursor and its designated container, as a
    --  simple way of detecting dangling references (see operation Free for a
    --  description of the detection mechanism), returning True if all checks
@@ -1991,6 +1991,10 @@ is
 
    function Vet (Position : Cursor) return Boolean is
    begin
+      if not Container_Checks'Enabled then
+         return True;
+      end if;
+
       if Position.Node = null then
          return Position.Container = null;
       end if;

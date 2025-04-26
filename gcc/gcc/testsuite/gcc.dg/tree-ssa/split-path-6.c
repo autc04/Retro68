@@ -15,9 +15,13 @@ extern struct _reent *_impure_ptr;
 extern char contextbufs[10][1024];
 extern int contextoffset;
 extern int sflag;
+int strtosichar (char *, int);
+int ichartosstr (int, int);
+void treeinsert (int, int, int);
+void stop(void);
+int __srget_r (struct _reent *, __FILE *);
 void
-givehelp (interactive)
-     int interactive;
+givehelp (int interactive)
 {
   if (interactive)
     {
@@ -29,7 +33,8 @@ givehelp (interactive)
     }
 }
 
-oof ()
+void
+oof (void)
 {
   int bufsize;
   int hadnl;
@@ -52,9 +57,10 @@ oof ()
     }
 }
 
+
+/* lookharder becomes an ifcvt'd/cmov. */
 void
-lookharder (string)
-     char *string;
+lookharder (char *string)
 {
   register char *g;
   register char *s;
@@ -69,4 +75,4 @@ lookharder (string)
     }
 }
 
-/* { dg-final { scan-tree-dump-times "Duplicating join block" 3 "split-paths" } } */
+/* { dg-final { scan-tree-dump-times "Duplicating join block" 2 "split-paths" } } */

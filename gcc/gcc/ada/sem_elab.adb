@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1997-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1997-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,7 +38,6 @@ with Exp_Util;       use Exp_Util;
 with Expander;       use Expander;
 with Lib;            use Lib;
 with Lib.Load;       use Lib.Load;
-with Namet;          use Namet;
 with Nlists;         use Nlists;
 with Nmake;          use Nmake;
 with Opt;            use Opt;
@@ -64,6 +63,7 @@ with Table;
 with Tbuild;         use Tbuild;
 with Uintp;          use Uintp;
 with Uname;          use Uname;
+with Warnsw;         use Warnsw;
 
 with GNAT;                 use GNAT;
 with GNAT.Dynamic_HTables; use GNAT.Dynamic_HTables;
@@ -879,6 +879,10 @@ package body Sem_Elab is
       Traversal : Body_Traversal_Kind := No_Traversal;
       --  The subprogram body traversal mode. Once set, this value should not
       --  be changed.
+
+      Within_Freezing_Actions : Boolean := False;
+      --  This flag is set when the Processing phase is currently examining a
+      --  scenario which was reached from the actions of a freeze node.
 
       Within_Generic : Boolean := False;
       --  This flag is set when the Processing phase is currently within a
@@ -1768,24 +1772,11 @@ package body Sem_Elab is
       pragma Inline (Is_Bridge_Target);
       --  Determine whether arbitrary entity Id denotes a bridge target
 
-      function Is_Controlled_Proc
-        (Subp_Id  : Entity_Id;
-         Subp_Nam : Name_Id) return Boolean;
-      pragma Inline (Is_Controlled_Proc);
-      --  Determine whether subprogram Subp_Id denotes controlled type
-      --  primitives Adjust, Finalize, or Initialize as denoted by name
-      --  Subp_Nam.
-
       function Is_Default_Initial_Condition_Proc
         (Id : Entity_Id) return Boolean;
       pragma Inline (Is_Default_Initial_Condition_Proc);
       --  Determine whether arbitrary entity Id denotes internally generated
       --  routine Default_Initial_Condition.
-
-      function Is_Finalizer_Proc (Id : Entity_Id) return Boolean;
-      pragma Inline (Is_Finalizer_Proc);
-      --  Determine whether arbitrary entity Id denotes internally generated
-      --  routine _Finalizer.
 
       function Is_Initial_Condition_Proc (Id : Entity_Id) return Boolean;
       pragma Inline (Is_Initial_Condition_Proc);
@@ -1808,11 +1799,6 @@ package body Sem_Elab is
       pragma Inline (Is_Partial_Invariant_Proc);
       --  Determine whether arbitrary entity Id denotes a partial invariant
       --  procedure.
-
-      function Is_Postconditions_Proc (Id : Entity_Id) return Boolean;
-      pragma Inline (Is_Postconditions_Proc);
-      --  Determine whether arbitrary entity Id denotes internally generated
-      --  routine _Postconditions.
 
       function Is_Preelaborated_Unit (Id : Entity_Id) return Boolean;
       pragma Inline (Is_Preelaborated_Unit);
@@ -1845,7 +1831,7 @@ package body Sem_Elab is
 
       function Is_SPARK_Semantic_Target (Id : Entity_Id) return Boolean;
       pragma Inline (Is_SPARK_Semantic_Target);
-      --  Determine whether arbitrary entity Id nodes a source or internally
+      --  Determine whether arbitrary entity Id denotes a source or internally
       --  generated subprogram which emulates SPARK semantics.
 
       function Is_Subprogram_Inst (Id : Entity_Id) return Boolean;
@@ -2447,7 +2433,7 @@ package body Sem_Elab is
          --  Calls to _Finalizer procedures must not appear in the output
          --  because this creates confusing noise.
 
-         elsif Is_Finalizer_Proc (Subp_Id) then
+         elsif Is_Finalizer (Subp_Id) then
             null;
 
          --  Initial_Condition
@@ -2480,14 +2466,6 @@ package body Sem_Elab is
 
          elsif Is_Partial_Invariant_Proc (Subp_Id) then
             null;
-
-         --  _Postconditions
-
-         elsif Is_Postconditions_Proc (Subp_Id) then
-            Output_Verification_Call
-              (Pred    => "postconditions",
-               Id      => Find_Enclosing_Scope (Call),
-               Id_Kind => "subprogram");
 
          --  Subprograms must come last because some of the previous cases fall
          --  under this category.
@@ -3339,7 +3317,9 @@ package body Sem_Elab is
                Traverse_List (Else_Actions (Scen));
 
             elsif Nkind (Scen) in
-                    N_Component_Association | N_Iterated_Component_Association
+                    N_Component_Association
+                  | N_Iterated_Component_Association
+                  | N_Iterated_Element_Association
             then
                Traverse_List (Loop_Actions (Scen));
 
@@ -4926,7 +4906,7 @@ package body Sem_Elab is
            and then not New_In_State.Suppress_Info_Messages
          then
             Error_Msg_NE
-              ("info: access to & during elaboration", Attr, Subp_Id);
+              ("info: access to & during elaboration?$?", Attr, Subp_Id);
          end if;
 
          --  Warnings are suppressed when a prior scenario is already in that
@@ -4958,7 +4938,7 @@ package body Sem_Elab is
          then
             Error_Msg_Name_1 := Attribute_Name (Attr);
             Error_Msg_NE
-              ("??% attribute of & before body seen", Attr, Subp_Id);
+              ("?.f?% attribute of & before body seen", Attr, Subp_Id);
             Error_Msg_N ("\possible Program_Error on later references", Attr);
 
             Output_Active_Scenarios (Attr, New_In_State);
@@ -5033,7 +5013,7 @@ package body Sem_Elab is
            and then not New_In_State.Suppress_Info_Messages
          then
             Error_Msg_NE
-              ("info: activation of & during elaboration", Call, Obj_Id);
+              ("info: activation of & during elaboration?$?", Call, Obj_Id);
          end if;
 
          --  Nothing to do when the call activates a task whose type is defined
@@ -5321,7 +5301,7 @@ package body Sem_Elab is
                   --  primitive [Deep_]Initialize.
 
                   if Is_Init_Proc (Spec_Id)
-                    or else Is_Controlled_Proc (Spec_Id, Name_Initialize)
+                    or else Is_Controlled_Procedure (Spec_Id, Name_Initialize)
                     or else Is_TSS (Spec_Id, TSS_Deep_Initialize)
                   then
                      return True;
@@ -5352,8 +5332,8 @@ package body Sem_Elab is
             --  an initialization context.
 
             return
-              (Is_Controlled_Proc (Subp_Id, Name_Finalize)
-                 or else Is_Finalizer_Proc (Subp_Id)
+              (Is_Controlled_Procedure (Subp_Id, Name_Finalize)
+                 or else Is_Finalizer (Subp_Id)
                  or else Is_TSS (Subp_Id, TSS_Deep_Finalize))
                and then In_Initialization_Context (Call);
          end Is_Partial_Finalization_Proc;
@@ -5363,6 +5343,7 @@ package body Sem_Elab is
          Subp_Id   : constant Entity_Id     := Target (Call_Rep);
          Subp_Rep  : constant Target_Rep_Id :=
                        Target_Representation_Of (Subp_Id, In_State);
+         Body_Decl : constant Node_Id       := Body_Declaration (Subp_Rep);
          Subp_Decl : constant Node_Id       := Spec_Declaration (Subp_Rep);
 
          SPARK_Rules_On : constant Boolean :=
@@ -5462,6 +5443,16 @@ package body Sem_Elab is
              or else not Elaboration_Warnings_OK (Call_Rep)
              or else not Elaboration_Warnings_OK (Subp_Rep);
 
+         --  The call occurs in freezing actions context when a prior scenario
+         --  is already in that mode, or when the target is a subprogram whose
+         --  body has been generated as a freezing action. Update the state of
+         --  the Processing phase to reflect this.
+
+         New_In_State.Within_Freezing_Actions :=
+           New_In_State.Within_Freezing_Actions
+             or else (Present (Body_Decl)
+                       and then Nkind (Parent (Body_Decl)) = N_Freeze_Entity);
+
          --  The call occurs in an initial condition context when a prior
          --  scenario is already in that mode, or when the target is an
          --  Initial_Condition procedure. Update the state of the Processing
@@ -5512,7 +5503,7 @@ package body Sem_Elab is
             In_State => New_In_State);
 
          Traverse_Conditional_ABE_Body
-           (N        => Body_Declaration (Subp_Rep),
+           (N        => Body_Decl,
             In_State => New_In_State);
       end Process_Conditional_ABE_Call;
 
@@ -5729,6 +5720,13 @@ package body Sem_Elab is
             --  this traversal has suppressed elaboration warnings.
 
             if In_State.Suppress_Warnings then
+               null;
+
+            --  Do not emit any ABE diagnostics when the call occurs in a
+            --  freezing actions context because this leads to incorrect
+            --  diagnostics.
+
+            elsif In_State.Within_Freezing_Actions then
                null;
 
             --  Do not emit any ABE diagnostics when the call occurs in an
@@ -6449,7 +6447,7 @@ package body Sem_Elab is
             if In_SPARK then
                return " in SPARK";
             else
-               return "";
+               return "?$?";
             end if;
          end Suffix;
 
@@ -6604,7 +6602,7 @@ package body Sem_Elab is
             --  Calls to _Finalizer procedures must not appear in the output
             --  because this creates confusing noise.
 
-            elsif Is_Finalizer_Proc (Subp_Id) then
+            elsif Is_Finalizer (Subp_Id) then
                null;
 
             --  Initial_Condition
@@ -6635,14 +6633,6 @@ package body Sem_Elab is
 
             elsif Is_Partial_Invariant_Proc (Subp_Id) then
                null;
-
-            --  _Postconditions
-
-            elsif Is_Postconditions_Proc (Subp_Id) then
-               Info_Verification_Call
-                 (Pred    => "postconditions",
-                  Id      => Find_Enclosing_Scope (Call),
-                  Id_Kind => "subprogram");
 
             --  Subprograms must come last because some of the previous cases
             --  fall under this category.
@@ -7346,12 +7336,22 @@ package body Sem_Elab is
             --  is a byproduct of the parser. Such a null statement should be
             --  excluded from the early call region because it carries the
             --  source location of the "end" keyword, and may lead to confusing
-            --  diagnistics.
+            --  diagnostics.
 
             if Nkind (N) = N_Null_Statement
               and then not Comes_From_Source (N)
               and then Present (Context)
               and then Nkind (Context) = N_Handled_Sequence_Of_Statements
+            then
+               return False;
+
+            --  Similarly, internally-generated objects and types may have
+            --  out-of-order source locations that confuse diagnostics, e.g.
+            --  source locations in the body for objects/types generated in
+            --  the spec.
+
+            elsif Nkind (N) in N_Full_Type_Declaration | N_Object_Declaration
+              and then not Comes_From_Source (N)
             then
                return False;
             end if;
@@ -8263,7 +8263,9 @@ package body Sem_Elab is
                Error_Msg_Name_1     := Prag_Nam;
                Error_Msg_Qual_Level := Nat'Last;
 
-               Error_Msg_NE ("info: missing pragma % for unit &", N, Unit_Id);
+               Error_Msg_NE
+                 ("info: missing pragma % for unit &?$?", N,
+                  Unit_Id);
                Error_Msg_Qual_Level := 0;
             end if;
          end Info_Missing_Pragma;
@@ -8392,7 +8394,8 @@ package body Sem_Elab is
                Error_Msg_Qual_Level := Nat'Last;
 
                Error_Msg_NE
-                 ("info: implicit pragma % generated for unit &", N, Unit_Id);
+                 ("info: implicit pragma % generated for unit &?$?",
+                   N, Unit_Id);
 
                Error_Msg_Qual_Level := 0;
                Output_Active_Scenarios (N, In_State);
@@ -8458,9 +8461,9 @@ package body Sem_Elab is
             Set_Context_Items (Main_Cunit, Items);
          end if;
 
-         --  Locate the with clause for the unit. Note that there may not be a
-         --  clause if the unit is visible through a subunit-body, body-spec,
-         --  or spec-parent relationship.
+         --  Locate the with clause for the unit. Note that there might not be
+         --  a with clause if the unit is visible through a subunit-body,
+         --  body-spec, or spec-parent relationship.
 
          Clause :=
            Find_With_Clause
@@ -8472,16 +8475,16 @@ package body Sem_Elab is
 
          --  Note that adding implicit with clauses is safe because analysis,
          --  resolution, and expansion have already taken place and it is not
-         --  possible to interfere with visibility.
+         --  possible to interfere with visibility. Note that this implicit
+         --  with clause can point at (for example) a package body, which
+         --  is not the case for normal with clauses.
 
          if No (Clause) then
             Clause :=
               Make_With_Clause (Loc,
                 Name => New_Occurrence_Of (Unit_Id, Loc));
-
-            Set_Implicit_With (Clause);
-            Set_Library_Unit  (Clause, Unit_Cunit);
-
+            Set_Is_Implicit_With (Clause);
+            Set_Withed_Lib_Unit (Clause, Unit_Cunit);
             Append_To (Items, Clause);
          end if;
 
@@ -9884,7 +9887,7 @@ package body Sem_Elab is
             elsif Nkind (Item) = N_Package_Body_Stub
               and then Chars (Defining_Entity (Item)) = Spec_Nam
             then
-               Lib_Unit := Library_Unit (Item);
+               Lib_Unit := Stub_Subunit (Item);
 
                --  The corresponding subunit was previously loaded
 
@@ -10873,20 +10876,7 @@ package body Sem_Elab is
          Spec_Id : Entity_Id;
 
       begin
-         Spec_Id := Subp_Id;
-
-         --  The elaboration target denotes an internal function that returns a
-         --  constrained array type in a SPARK-to-C compilation. In this case
-         --  the function receives a corresponding procedure which has an out
-         --  parameter. The proper body for ABE checks and diagnostics is that
-         --  of the procedure.
-
-         if Ekind (Spec_Id) = E_Function
-           and then Rewritten_For_C (Spec_Id)
-         then
-            Spec_Id := Corresponding_Procedure (Spec_Id);
-         end if;
-
+         Spec_Id  := Subp_Id;
          Rec.Kind := Subprogram_Target;
 
          Spec_And_Body_From_Entity
@@ -13079,10 +13069,6 @@ package body Sem_Elab is
            (Extra : out Entity_Id;
             Kind  : out Invocation_Kind)
          is
-            Targ_Rep  : constant Target_Rep_Id :=
-                          Target_Representation_Of (Targ_Id, In_State);
-            Spec_Decl : constant Node_Id := Spec_Declaration (Targ_Rep);
-
          begin
             --  Accept within a task body
 
@@ -13100,21 +13086,21 @@ package body Sem_Elab is
 
             --  Controlled adjustment actions
 
-            elsif Is_Controlled_Proc (Targ_Id, Name_Adjust) then
+            elsif Is_Controlled_Procedure (Targ_Id, Name_Adjust) then
                Extra := First_Formal_Type (Targ_Id);
                Kind  := Controlled_Adjustment;
 
             --  Controlled finalization actions
 
-            elsif Is_Controlled_Proc (Targ_Id, Name_Finalize)
-              or else Is_Finalizer_Proc (Targ_Id)
+            elsif Is_Controlled_Procedure (Targ_Id, Name_Finalize)
+              or else Is_Finalizer (Targ_Id)
             then
                Extra := First_Formal_Type (Targ_Id);
                Kind  := Controlled_Finalization;
 
             --  Controlled initialization actions
 
-            elsif Is_Controlled_Proc (Targ_Id, Name_Initialize) then
+            elsif Is_Controlled_Procedure (Targ_Id, Name_Initialize) then
                Extra := First_Formal_Type (Targ_Id);
                Kind  := Controlled_Initialization;
 
@@ -13167,12 +13153,6 @@ package body Sem_Elab is
             then
                Extra := First_Formal_Type (Targ_Id);
                Kind  := Invariant_Verification;
-
-            --  Postcondition verification
-
-            elsif Is_Postconditions_Proc (Targ_Id) then
-               Extra := Find_Enclosing_Scope (Spec_Decl);
-               Kind  := Postcondition_Verification;
 
             --  Protected entry call
 
@@ -14420,9 +14400,9 @@ package body Sem_Elab is
       begin
          return
            Is_Activation_Proc (Id)
-             or else Is_Controlled_Proc (Id, Name_Adjust)
-             or else Is_Controlled_Proc (Id, Name_Finalize)
-             or else Is_Controlled_Proc (Id, Name_Initialize)
+             or else Is_Controlled_Procedure (Id, Name_Adjust)
+             or else Is_Controlled_Procedure (Id, Name_Finalize)
+             or else Is_Controlled_Procedure (Id, Name_Initialize)
              or else Is_Init_Proc (Id)
              or else Is_Invariant_Proc (Id)
              or else Is_Protected_Entry (Id)
@@ -14442,8 +14422,7 @@ package body Sem_Elab is
            Is_Default_Initial_Condition_Proc (Id)
              or else Is_Initial_Condition_Proc (Id)
              or else Is_Invariant_Proc (Id)
-             or else Is_Partial_Invariant_Proc (Id)
-             or else Is_Postconditions_Proc (Id);
+             or else Is_Partial_Invariant_Proc (Id);
       end Is_Assertion_Pragma_Target;
 
       ----------------------------
@@ -14483,46 +14462,12 @@ package body Sem_Elab is
       begin
          return
            Is_Accept_Alternative_Proc (Id)
-             or else Is_Finalizer_Proc (Id)
+             or else Is_Finalizer (Id)
              or else Is_Partial_Invariant_Proc (Id)
-             or else Is_Postconditions_Proc (Id)
              or else Is_TSS (Id, TSS_Deep_Adjust)
              or else Is_TSS (Id, TSS_Deep_Finalize)
              or else Is_TSS (Id, TSS_Deep_Initialize);
       end Is_Bridge_Target;
-
-      ------------------------
-      -- Is_Controlled_Proc --
-      ------------------------
-
-      function Is_Controlled_Proc
-        (Subp_Id  : Entity_Id;
-         Subp_Nam : Name_Id) return Boolean
-      is
-         Formal_Id : Entity_Id;
-
-      begin
-         pragma Assert
-           (Subp_Nam in Name_Adjust | Name_Finalize | Name_Initialize);
-
-         --  To qualify, the subprogram must denote a source procedure with
-         --  name Adjust, Finalize, or Initialize where the sole formal is
-         --  controlled.
-
-         if Comes_From_Source (Subp_Id)
-           and then Ekind (Subp_Id) = E_Procedure
-           and then Chars (Subp_Id) = Subp_Nam
-         then
-            Formal_Id := First_Formal (Subp_Id);
-
-            return
-              Present (Formal_Id)
-                and then Is_Controlled (Etype (Formal_Id))
-                and then No (Next_Formal (Formal_Id));
-         end if;
-
-         return False;
-      end Is_Controlled_Proc;
 
       ---------------------------------------
       -- Is_Default_Initial_Condition_Proc --
@@ -14537,17 +14482,6 @@ package body Sem_Elab is
 
          return Ekind (Id) = E_Procedure and then Is_DIC_Procedure (Id);
       end Is_Default_Initial_Condition_Proc;
-
-      -----------------------
-      -- Is_Finalizer_Proc --
-      -----------------------
-
-      function Is_Finalizer_Proc (Id : Entity_Id) return Boolean is
-      begin
-         --  To qualify, the entity must denote a _Finalizer procedure
-
-         return Ekind (Id) = E_Procedure and then Chars (Id) = Name_uFinalizer;
-      end Is_Finalizer_Proc;
 
       -------------------------------
       -- Is_Initial_Condition_Proc --
@@ -14640,18 +14574,6 @@ package body Sem_Elab is
            Ekind (Id) = E_Procedure
              and then Is_Partial_Invariant_Procedure (Id);
       end Is_Partial_Invariant_Proc;
-
-      ----------------------------
-      -- Is_Postconditions_Proc --
-      ----------------------------
-
-      function Is_Postconditions_Proc (Id : Entity_Id) return Boolean is
-      begin
-         --  To qualify, the entity must denote a _Postconditions procedure
-
-         return
-           Ekind (Id) = E_Procedure and then Chars (Id) = Name_uPostconditions;
-      end Is_Postconditions_Proc;
 
       ---------------------------
       -- Is_Preelaborated_Unit --
@@ -15273,10 +15195,13 @@ package body Sem_Elab is
             --  Nothing to do for predefined primitives because they are
             --  artifacts of tagged type expansion and cannot override source
             --  primitives. Nothing to do as well for inherited primitives, as
-            --  the check concerns overriding ones.
+            --  the check concerns overriding ones. Finally, nothing to do for
+            --  abstract subprograms, because they have no body that could be
+            --  examined.
 
             if Is_Predefined_Dispatching_Operation (Prim)
               or else not Is_Overriding_Subprogram (Prim)
+              or else Is_Abstract_Subprogram (Prim)
             then
                return;
             end if;
@@ -15323,9 +15248,10 @@ package body Sem_Elab is
 
             if Earlier_In_Extended_Unit (FNode, Region) then
                Error_Msg_Node_2 := Prim;
+               Error_Msg_Code := GEC_Type_Early_Call_Region;
                Error_Msg_NE
                  ("first freezing point of type & must appear within early "
-                  & "call region of primitive body & (SPARK RM 7.7(8))",
+                  & "call region of primitive body '[[]']",
                   Typ_Decl, Typ);
 
                Error_Msg_Sloc := Sloc (Region);
@@ -16392,9 +16318,9 @@ package body Sem_Elab is
    --  to be the enclosing compilation unit of this scope.
 
    procedure Set_Elaboration_Constraint
-    (Call : Node_Id;
-     Subp : Entity_Id;
-     Scop : Entity_Id);
+     (Call : Node_Id;
+      Subp : Entity_Id;
+      Scop : Entity_Id);
    --  The current unit U may depend semantically on some unit P that is not
    --  in the current context. If there is an elaboration call that reaches P,
    --  we need to indicate that P requires an Elaborate_All, but this is not
@@ -16448,6 +16374,8 @@ package body Sem_Elab is
       --  This procedure is called when the elaborate indication must be
       --  applied to a unit not in the context of the referencing unit. The
       --  unit gets added to the context as an implicit with.
+      --  Note that we can be with-ing (for example) a package body, which
+      --  is not the case for normal with clauses.
 
       function In_Withs_Of (UEs : Entity_Id) return Boolean;
       --  UEs is the spec entity of a unit. If the unit to be marked is
@@ -16467,8 +16395,8 @@ package body Sem_Elab is
                   Name => Name (Itm));
 
       begin
-         Set_Library_Unit  (CW, Library_Unit (Itm));
-         Set_Implicit_With (CW);
+         Set_Is_Implicit_With (CW);
+         Set_Withed_Lib_Unit (CW, Withed_Lib_Unit (Itm));
 
          --  Set elaborate all desirable on copy and then append the copy to
          --  the list of body with's and we are done.
@@ -16491,7 +16419,7 @@ package body Sem_Elab is
          while Present (Itm) loop
             if Nkind (Itm) = N_With_Clause then
                Ent :=
-                 Cunit_Entity (Get_Cunit_Unit_Number (Library_Unit (Itm)));
+                 Cunit_Entity (Get_Cunit_Unit_Number (Withed_Lib_Unit (Itm)));
 
                if U = Ent then
                   return True;
@@ -16539,7 +16467,8 @@ package body Sem_Elab is
       Itm := First (CI);
       while Present (Itm) loop
          if Nkind (Itm) = N_With_Clause then
-            Ent := Cunit_Entity (Get_Cunit_Unit_Number (Library_Unit (Itm)));
+            Ent :=
+              Cunit_Entity (Get_Cunit_Unit_Number (Withed_Lib_Unit (Itm)));
 
             --  If we find it, then mark elaborate all desirable and return
 
@@ -16613,10 +16542,10 @@ package body Sem_Elab is
         (Msg_D : String;
          Msg_S : String;
          Ent   : Node_Or_Entity_Id);
-       --  Generate a call to Error_Msg_NE with parameters Msg_D or Msg_S (for
-       --  dynamic or static elaboration model), N and Ent. Msg_D is a real
-       --  warning (output if Msg_D is non-null and Elab_Warnings is set),
-       --  Msg_S is an info message (output if Elab_Info_Messages is set).
+      --  Generate a call to Error_Msg_NE with parameters Msg_D or Msg_S (for
+      --  dynamic or static elaboration model), N and Ent. Msg_D is a real
+      --  warning (output if Msg_D is non-null and Elab_Warnings is set),
+      --  Msg_S is an info message (output if Elab_Info_Messages is set).
 
       function Find_W_Scope return Entity_Id;
       --  Find top-level scope for called entity (not following renamings
@@ -16951,7 +16880,7 @@ package body Sem_Elab is
                if not Is_Controlled (Typ) then
                   return;
                else
-                  Init := Find_Prim_Op (Typ, Name_Initialize);
+                  Init := Find_Controlled_Prim_Op (Typ, Name_Initialize);
 
                   if Comes_From_Source (Init) then
                      Ent := Init;
@@ -17460,7 +17389,7 @@ package body Sem_Elab is
       --  Nothing to do if call is being preanalyzed, as when within a
       --  pre/postcondition, a predicate, or an invariant.
 
-      elsif In_Spec_Expression then
+      elsif Preanalysis_Active then
          return;
       end if;
 
@@ -17470,7 +17399,7 @@ package body Sem_Elab is
 
       if Nkind (N) = N_Procedure_Call_Statement
         and then Is_Entity_Name (Name (N))
-        and then Chars (Entity (Name (N))) = Name_uPostconditions
+        and then Chars (Entity (Name (N))) = Name_uWrapped_Statements
       then
          return;
       end if;
@@ -18743,24 +18672,22 @@ package body Sem_Elab is
                  ("instantiation of& may occur before body is seen<l<",
                   N, Orig_Ent);
             else
-               --  A rather specific check. For Finalize/Adjust/Initialize, if
+               --  A rather specific check: for Adjust/Finalize/Initialize, if
                --  the type has Warnings_Off set, suppress the warning.
 
-               if Chars (E) in Name_Adjust
-                             | Name_Finalize
-                             | Name_Initialize
-                 and then Present (First_Formal (E))
+               if Is_Controlled_Procedure (E, Name_Adjust)
+                 or else Is_Controlled_Procedure (E, Name_Finalize)
+                 or else Is_Controlled_Procedure (E, Name_Initialize)
                then
                   declare
                      T : constant Entity_Id := Etype (First_Formal (E));
+
                   begin
-                     if Is_Controlled (T) then
-                        if Warnings_Off (T)
-                          or else (Ekind (T) = E_Private_Type
-                                    and then Warnings_Off (Full_View (T)))
-                        then
-                           goto Output;
-                        end if;
+                     if Has_Warnings_Off (T)
+                       or else (Ekind (T) = E_Private_Type
+                                 and then Has_Warnings_Off (Full_View (T)))
+                     then
+                        goto Output;
                      end if;
                   end;
                end if;
@@ -18900,18 +18827,16 @@ package body Sem_Elab is
 
       procedure Collect_Tasks (Decls : List_Id) is
       begin
-         if Present (Decls) then
-            Decl := First (Decls);
-            while Present (Decl) loop
-               if Nkind (Decl) = N_Object_Declaration
-                 and then Has_Task (Etype (Defining_Identifier (Decl)))
-               then
-                  Add_Task_Proc (Etype (Defining_Identifier (Decl)));
-               end if;
+         Decl := First (Decls);
+         while Present (Decl) loop
+            if Nkind (Decl) = N_Object_Declaration
+              and then Has_Task (Etype (Defining_Identifier (Decl)))
+            then
+               Add_Task_Proc (Etype (Defining_Identifier (Decl)));
+            end if;
 
-               Next (Decl);
-            end loop;
-         end if;
+            Next (Decl);
+         end loop;
       end Collect_Tasks;
 
       ----------------
@@ -19133,8 +19058,8 @@ package body Sem_Elab is
             elsif Nkind (Nod) = N_Package_Body_Stub
               and then Chars (Defining_Identifier (Nod)) = Chars (E)
             then
-               if Present (Library_Unit (Nod)) then
-                  return Unit (Library_Unit (Nod));
+               if Present (Stub_Subunit (Nod)) then
+                  return Unit (Stub_Subunit (Nod));
 
                else
                   return Load_Package_Body (Get_Unit_Name (Nod));
@@ -19380,6 +19305,37 @@ package body Sem_Elab is
         and then Chars (Name (N)) /= Chars (Entity (Name (N)));
    end Is_Call_Of_Generic_Formal;
 
+   -----------------------------
+   -- Is_Controlled_Procedure --
+   -----------------------------
+
+   function Is_Controlled_Procedure
+     (Id  : Entity_Id;
+      Nam : Name_Id) return Boolean
+   is
+   begin
+      --  To qualify, the subprogram must denote a source procedure with
+      --  name Adjust, Finalize, or Initialize where the sole formal is
+      --  in out and controlled.
+
+      if Comes_From_Source (Id) and then Ekind (Id) = E_Procedure then
+         declare
+            Formal_Id : constant Entity_Id := First_Formal (Id);
+
+         begin
+            return
+              Present (Formal_Id)
+                and then Ekind (Formal_Id) = E_In_Out_Parameter
+                and then Is_Controlled (Etype (Formal_Id))
+                and then No (Next_Formal (Formal_Id))
+                and then Chars (Id) =
+                  Name_Of_Controlled_Prim_Op (Etype (Formal_Id), Nam);
+         end;
+      end if;
+
+      return False;
+   end Is_Controlled_Procedure;
+
    -------------------------------
    -- Is_Finalization_Procedure --
    -------------------------------
@@ -19412,7 +19368,7 @@ package body Sem_Elab is
             Deep_Fin := TSS (Typ, TSS_Deep_Finalize);
 
             if Is_Controlled (Typ) then
-               Fin := Find_Prim_Op (Typ, Name_Finalize);
+               Fin := Find_Controlled_Prim_Op (Typ, Name_Finalize);
             end if;
 
             return    (Present (Deep_Fin) and then Id = Deep_Fin)
@@ -19567,9 +19523,9 @@ package body Sem_Elab is
    --------------------------------
 
    procedure Set_Elaboration_Constraint
-    (Call : Node_Id;
-     Subp : Entity_Id;
-     Scop : Entity_Id)
+     (Call : Node_Id;
+      Subp : Entity_Id;
+      Scop : Entity_Id)
    is
       Elab_Unit : Entity_Id;
 
@@ -19579,10 +19535,7 @@ package body Sem_Elab is
 
       Init_Call : constant Boolean :=
                     Nkind (Call) = N_Procedure_Call_Statement
-                      and then Chars (Subp) = Name_Initialize
-                      and then Comes_From_Source (Subp)
-                      and then Present (Parameter_Associations (Call))
-                      and then Is_Controlled (Etype (First_Actual (Call)));
+                      and then Is_Controlled_Procedure (Subp, Name_Initialize);
 
    begin
       --  If the unit is mentioned in a with_clause of the current unit, it is
@@ -19629,7 +19582,7 @@ package body Sem_Elab is
                     Etype (First (Parameter_Associations (Call)));
          begin
             Elab_Unit := Scope (Typ);
-            while (Present (Elab_Unit))
+            while Present (Elab_Unit)
               and then not Is_Compilation_Unit (Elab_Unit)
             loop
                Elab_Unit := Scope (Elab_Unit);
@@ -19806,7 +19759,7 @@ package body Sem_Elab is
                   --  in each N_Compilation_Unit node, but that would involve
                   --  rearranging N_Compilation_Unit_Aux to make room.
 
-                  Helper (Get_Cunit_Unit_Number (Library_Unit (Item)));
+                  Helper (Get_Cunit_Unit_Number (Withed_Lib_Unit (Item)));
 
                   if Result then
                      return;

@@ -24,7 +24,7 @@
   Here are all of the configure options specific to libstdc++.  Keep
   in mind that
    <!-- This SECnn should be the "Choosing Package Options" section. -->
-   <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://sourceware.org/autobook/autobook/autobook_14.html">they
+   <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://sourceware.org/autobook/autobook/autobook_14.html">they
    all have opposite forms as well</link> (enable/disable and
    with/without).  The defaults are for the <emphasis>current
    development sources</emphasis>, which may be different than those
@@ -74,9 +74,14 @@
  </listitem></varlistentry>
 
  <varlistentry><term><code>--enable-cstdio=OPTION</code></term>
- <listitem><para>Select a target-specific I/O package. At the moment, the only
-	choice is to use 'stdio', a generic "C" abstraction.
-	The default is 'stdio'. This option can change the library ABI.
+ <listitem><para>Select a target-specific I/O package. The choices are 'stdio'
+       which is a generic abstraction using POSIX file I/O APIs
+       (<function>read</function>, <function>write</function>,
+       <function>lseek</function>, etc.), and 'stdio_pure' which is similar
+       but only uses standard C file I/O APIs (<function>fread</function>,
+       <function>fwrite</function>, <function>fseek</function>, etc.).
+       The 'stdio_posix' choice is a synonym for 'stdio'.
+       The default is 'stdio'. This option can change the library ABI.
      </para>
  </listitem></varlistentry>
 
@@ -143,7 +148,7 @@
  <varlistentry><term><code>--enable-threads=OPTION</code></term>
  <listitem><para>Select a threading library.  A full description is
 	given in the
-	general <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/install/configure.html">compiler
+	general <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/install/configure.html">compiler
 	configuration instructions</link>. This option can change the
 	library ABI.
      </para>
@@ -336,8 +341,8 @@
 	C++ includes. If enabled (as by default), and the compiler
 	seems capable of passing the simple sanity checks thrown at
 	it, try to build stdc++.h.gch as part of the make process.
-	In addition, this generated file is used later on (by appending <code>
-	--include bits/stdc++.h </code> to CXXFLAGS) when running the
+	In addition, this generated file is used later on (by appending
+	<code>-include bits/stdc++.h</code> to CXXFLAGS) when running the
 	testsuite.
      </para>
  </listitem></varlistentry>
@@ -362,8 +367,16 @@
      built.  The C++ Standard also describes a
      <emphasis>freestanding</emphasis> environment, in which only a
      minimal set of headers are provided.  This option builds such an
-     environment.
+     environment.  Note that a hosted library installs headers that still can
+     be used in non hosted environments, as the library checks for
+     <code>__STDC_HOSTED__</code>, however, a library configured with
+     <code>--disable-hosted-libstdcxx</code> will not install unusable headers.
      </para>
+ </listitem></varlistentry>
+
+ <varlistentry><term><code>--disable-libstdcxx-hosted</code></term>
+ <listitem>
+   <para>This is an alias for <code>--disable-hosted-libstdcxx</code>.</para>
  </listitem></varlistentry>
 
 <varlistentry><term><code>--disable-libstdcxx-verbose</code></term>
@@ -443,6 +456,51 @@
       as the usual libstdc++ and libsupc++ libraries. This is enabled by
       default on select POSIX targets where it is known to work and disabled
       otherwise.
+    </para>
+ </listitem></varlistentry>
+
+ <varlistentry><term><code>--enable-libstdcxx-static-eh-pool</code></term>
+ <listitem>
+    <para>Use a fixed-size static buffer for the emergency exception handling
+      pool (see <xref linkend="intro.using.exception.alloc"/>). The default
+      is to allocate the pool on program startup using <code>malloc</code>.
+      With this option, a static buffer will be provided by libstdc++ instead.
+      This does not change the library ABI.
+    </para>
+ </listitem></varlistentry>
+
+ <varlistentry><term><code>--with-libstdcxx-eh-pool-obj-count=NUM</code></term>
+ <listitem>
+    <para>Set the size of the emergency exception handling pool. NUM is the
+      number of simultaneous allocated exceptions to support.
+      This does not change the library ABI.
+    </para>
+ </listitem></varlistentry>
+
+ <varlistentry><term><code>--with-libstdcxx-zoneinfo=OPTION</code></term>
+ <listitem>
+    <para>Choose how <classname>std::chrono::tzdb</classname> will obtain
+      the time zone info. The library requires a copy of the
+      <filename>tzdata.zi</filename> and <filename>leapseconds</filename>
+      files from the <link xmlns:xlink="http://www.w3.org/1999/xlink"
+	xlink:href="https://www.iana.org/time-zones">IANA Time Zone
+      Database</link>. The choice OPTION=static will embed a copy of the files
+      into the library, and use that static data when time zone information
+      is required. The choice OPTION=dir will use the files
+      <filename>dir/tzdata.zi</filename> and
+      <filename>dir/leapseconds</filename> (which must exist when a program
+      tries to access time zone information). The choice OPTION=dir,static
+      will try to use files in <filename>dir</filename> but if they are
+      not available the embedded static data will be used instead.
+      The default choice is OPTION=yes. This is equivalent to OPTION=dir,static
+      with a system-specific default directory (if a suitable default for
+      the target is known).
+      The choice OPTION=no will disable all code for loading time zone info
+      from file or from the embedded static data, which means that only the
+      "UTC" and "GMT" time zones are defined. Using OPTION=no results in a
+      smaller library, so is suitable for systems that will never need to
+      query the time zone database.
+      This does not change the library ABI.
     </para>
  </listitem></varlistentry>
 

@@ -176,9 +176,9 @@ class FileException : Exception
     private this(scope const(char)[] name, scope const(char)[] msg, string file, size_t line, uint errno) @safe pure
     {
         if (msg.empty)
-            super(name.idup, file, line);
+            super(name is null ? "(null)" : name.idup, file, line);
         else
-            super(text(name, ": ", msg), file, line);
+            super(text(name is null ? "(null)" : name, ": ", msg), file, line);
 
         this.errno = errno;
     }
@@ -310,6 +310,8 @@ Params:
 Returns: Untyped array of bytes _read.
 
 Throws: $(LREF FileException) on error.
+
+See_Also: $(REF readText, std,file) for reading and validating a text file.
  */
 
 void[] read(R)(R name, size_t upTo = size_t.max)
@@ -497,6 +499,8 @@ version (linux) @safe unittest
 
     Throws: $(LREF FileException) if there is an error reading the file,
             $(REF UTFException, std, utf) on UTF decoding error.
+
+    See_Also: $(REF read, std,file) for reading a binary file.
 +/
 S readText(S = string, R)(auto ref R name)
 if (isSomeString!S && (isSomeFiniteCharInputRange!R || is(StringTypeOf!R)))
@@ -979,10 +983,10 @@ private void renameImpl(scope const(char)[] f, scope const(char)[] t,
             import std.conv : to, text;
 
             if (!f)
-                f = to!(typeof(f))(fromz[0 .. wcslen(fromz)]);
+                f = fromz ? to!(typeof(f))(fromz[0 .. wcslen(fromz)]) : "(null)";
 
             if (!t)
-                t = to!(typeof(t))(toz[0 .. wcslen(toz)]);
+                t = toz ? to!(typeof(t))(toz[0 .. wcslen(toz)]) : "(null)";
 
             enforce(false,
                 new FileException(
@@ -1067,11 +1071,37 @@ private void removeImpl(scope const(char)[] name, scope const(FSChar)* namez) @t
         if (!name)
         {
             import core.stdc.string : strlen;
-            auto len = strlen(namez);
+
+            auto len = namez ? strlen(namez) : 0;
             name = namez[0 .. len];
         }
         cenforce(core.stdc.stdio.remove(namez) == 0,
-            "Failed to remove file " ~ name);
+            "Failed to remove file " ~ (name is null ? "(null)" : name));
+    }
+}
+
+@safe unittest
+{
+    import std.exception : collectExceptionMsg, assertThrown;
+    import std.algorithm.searching : startsWith;
+
+    string filename = null; // e.g. as returned by File.tmpfile.name
+
+    version (linux)
+    {
+        // exact exception message is OS-dependent
+        auto msg = filename.remove.collectExceptionMsg!FileException;
+        assert(msg.startsWith("Failed to remove file (null):"), msg);
+    }
+    else version (Windows)
+    {
+        // don't test exact message on windows, it's language dependent
+        auto msg = filename.remove.collectExceptionMsg!FileException;
+        assert(msg.startsWith("(null):"), msg);
+    }
+    else
+    {
+        assertThrown!FileException(filename.remove);
     }
 }
 
@@ -1483,7 +1513,7 @@ private
         ushort bitmapcount, reserved;
         attrgroup_t commonattr, volattr, dirattr, fileattr, forkattr;
     }
-    extern(C) int setattrlist(in char* path, scope ref attrlist attrs,
+    extern(C) int setattrlist(scope const(char)* path, scope ref attrlist attrs,
         scope void* attrbuf, size_t attrBufSize, c_ulong options) nothrow @nogc @system;
 }
 
@@ -1548,7 +1578,7 @@ private void setTimesImpl(scope const(char)[] names, scope const(FSChar)* namez,
         const ta = SysTimeToFILETIME(accessTime);
         const tm = SysTimeToFILETIME(modificationTime);
         alias defaults =
-            AliasSeq!(GENERIC_WRITE,
+            AliasSeq!(FILE_WRITE_ATTRIBUTES,
                       0,
                       null,
                       OPEN_EXISTING,
@@ -1635,6 +1665,16 @@ private void setTimesImpl(scope const(char)[] names, scope const(FSChar)* namez,
         testTimes(123_456_7);
 
     rmdirRecurse(newdir);
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=23683
+@safe unittest
+{
+    scope(exit) deleteme.remove;
+    import std.stdio : File;
+    auto f = File(deleteme, "wb");
+    SysTime time = SysTime(DateTime(2018, 10, 4, 0, 0, 30));
+    setTimes(deleteme, time, time);
 }
 
 /++
@@ -3610,7 +3650,7 @@ version (StdDdoc)
             Throws:
                 $(LREF FileException) if the file does not exist.
         +/
-        this(string path);
+        this(return scope string path);
 
         version (Windows)
         {
@@ -3687,7 +3727,7 @@ assert(!de2.isFile);
         @property bool isSymlink() scope;
 
         /++
-            Returns the size of the the file represented by this `DirEntry`
+            Returns the size of the file represented by this `DirEntry`
             in bytes.
           +/
         @property ulong size() scope;
@@ -3772,7 +3812,7 @@ else version (Windows)
     public:
         alias name this;
 
-        this(string path)
+        this(return scope string path)
         {
             import std.datetime.systime : FILETIMEToSysTime;
 
@@ -3881,7 +3921,7 @@ else version (Posix)
     public:
         alias name this;
 
-        this(string path)
+        this(return scope string path)
         {
             if (!path.exists)
                 throw new FileException(path, "File does not exist");
@@ -4013,12 +4053,10 @@ else version (Posix)
          +/
         void _ensureStatDone() @trusted scope
         {
-            import std.exception : enforce;
-
             if (_didStat)
                 return;
 
-            enforce(stat(_name.tempCString(), &_statBuf) == 0,
+            cenforce(stat(_name.tempCString(), &_statBuf) == 0,
                     "Failed to stat file `" ~ _name ~ "'");
 
             _didStat = true;
@@ -4055,13 +4093,11 @@ else version (Posix)
          +/
         void _ensureLStatDone() @trusted scope
         {
-            import std.exception : enforce;
-
             if (_didLStat)
                 return;
 
             stat_t statbuf = void;
-            enforce(lstat(_name.tempCString(), &statbuf) == 0,
+            cenforce(lstat(_name.tempCString(), &statbuf) == 0,
                 "Failed to stat file `" ~ _name ~ "'");
 
             _lstatMode = statbuf.st_mode;
@@ -4143,12 +4179,12 @@ else version (Posix)
                 assert(!de.isFile);
                 assert(!de.isDir);
                 assert(de.isSymlink);
-                assertThrown(de.size);
-                assertThrown(de.timeStatusChanged);
-                assertThrown(de.timeLastAccessed);
-                assertThrown(de.timeLastModified);
-                assertThrown(de.attributes);
-                assertThrown(de.statBuf);
+                assertThrown!FileException(de.size);
+                assertThrown!FileException(de.timeStatusChanged);
+                assertThrown!FileException(de.timeLastAccessed);
+                assertThrown!FileException(de.timeLastModified);
+                assertThrown!FileException(de.attributes);
+                assertThrown!FileException(de.statBuf);
                 assert(symfile.exists);
                 symfile.remove();
             }
@@ -4424,7 +4460,7 @@ void rmdirRecurse(scope const(char)[] pathname) @safe
 }
 
 /// ditto
-void rmdirRecurse(ref DirEntry de) @safe
+void rmdirRecurse(ref scope DirEntry de) @safe
 {
     if (!de.isDir)
         throw new FileException(de.name, "Not a directory");
@@ -4438,9 +4474,10 @@ void rmdirRecurse(ref DirEntry de) @safe
     }
     else
     {
-        // dirEntries is @system because it uses a DirIterator with a
-        // RefCounted variable, but here, no references to the payload is
-        // escaped to the outside, so this should be @trusted
+        // dirEntries is @system without DIP1000 because it uses
+        // a DirIterator with a SafeRefCounted variable, but here, no
+        // references to the payload are escaped to the outside, so this should
+        // be @trusted
         () @trusted {
             // all children, recursively depth-first
             foreach (DirEntry e; dirEntries(de.name, SpanMode.depth, false))
@@ -4459,7 +4496,7 @@ void rmdirRecurse(ref DirEntry de) @safe
 //"rmdirRecurse(in char[] pathname)" implementation. That is needlessly
 //expensive.
 //A DirEntry is a bit big (72B), so keeping the "by ref" signature is desirable.
-void rmdirRecurse(DirEntry de) @safe
+void rmdirRecurse(scope DirEntry de) @safe
 {
     rmdirRecurse(de);
 }
@@ -4511,22 +4548,20 @@ version (Posix) @system unittest
     enforce(!exists(deleteme));
 }
 
-@system unittest
+@safe unittest
 {
-    void[] buf;
-
-    buf = new void[10];
-    (cast(byte[]) buf)[] = 3;
+    ubyte[] buf = new ubyte[10];
+    buf[] = 3;
     string unit_file = deleteme ~ "-unittest_write.tmp";
     if (exists(unit_file)) remove(unit_file);
-    write(unit_file, buf);
+    write(unit_file, cast(void[]) buf);
     void[] buf2 = read(unit_file);
-    assert(buf == buf2);
+    assert(cast(void[]) buf == buf2);
 
     string unit2_file = deleteme ~ "-unittest_write2.tmp";
     copy(unit_file, unit2_file);
     buf2 = read(unit2_file);
-    assert(buf == buf2);
+    assert(cast(void[]) buf == buf2);
 
     remove(unit_file);
     assert(!exists(unit_file));
@@ -4759,7 +4794,7 @@ private struct DirIteratorImpl
     }
 
     this(R)(R pathname, SpanMode mode, bool followSymlink)
-        if (isSomeFiniteCharInputRange!R)
+    if (isSomeFiniteCharInputRange!R)
     {
         _mode = mode;
         _followSymlink = followSymlink;
@@ -4838,20 +4873,31 @@ private struct DirIteratorImpl
     }
 }
 
-struct DirIterator
+// Must be a template, because the destructor is unsafe or safe depending on
+// whether `-preview=dip1000` is in use. Otherwise, linking errors would
+// result.
+struct _DirIterator(bool useDIP1000)
 {
-@safe:
+    static assert(useDIP1000 == dip1000Enabled,
+        "Please don't override useDIP1000 to disagree with compiler switch.");
+
 private:
-    RefCounted!(DirIteratorImpl, RefCountedAutoInitialize.no) impl;
+    SafeRefCounted!(DirIteratorImpl, RefCountedAutoInitialize.no) impl;
+
     this(string pathname, SpanMode mode, bool followSymlink) @trusted
     {
         impl = typeof(impl)(pathname, mode, followSymlink);
     }
 public:
-    @property bool empty() { return impl.empty; }
-    @property DirEntry front() { return impl.front; }
-    void popFront() { impl.popFront(); }
+    @property bool empty() @trusted { return impl.empty; }
+    @property DirEntry front() @trusted { return impl.front; }
+    void popFront() @trusted { impl.popFront(); }
 }
+
+// This has the client code to automatically use and link to the correct
+// template instance
+alias DirIterator = _DirIterator!dip1000Enabled;
+
 /++
     Returns an $(REF_ALTTEXT input range, isInputRange, std,range,primitives)
     of `DirEntry` that lazily iterates a given directory,
@@ -4865,6 +4911,11 @@ public:
     operating system / filesystem, and may not follow any particular sorting.
 
     Params:
+        useDIP1000 = used to instantiate this function separately for code with
+                     and without -preview=dip1000 compiler switch, because it
+                     affects the ABI of this function. Set automatically -
+                     don't touch.
+
         path = The directory to iterate over.
                If empty, the current directory will be iterated.
 
@@ -4888,7 +4939,10 @@ public:
         $(LREF DirEntry).
 
     Throws:
-        $(LREF FileException) if the directory does not exist.
+        $(UL
+        $(LI $(LREF FileException) if the $(B path) directory does not exist or read permission is denied.)
+        $(LI $(LREF FileException) if $(B mode) is not `shallow` and a subdirectory cannot be read.)
+        )
 
 Example:
 --------------------
@@ -4929,10 +4983,32 @@ auto dFiles = dirEntries("","*.{d,di}",SpanMode.depth);
 foreach (d; dFiles)
     writeln(d.name);
 --------------------
- +/
-auto dirEntries(string path, SpanMode mode, bool followSymlink = true)
+To handle subdirectories with denied read permission, use `SpanMode.shallow`:
+---
+void scan(string path)
 {
-    return DirIterator(path, mode, followSymlink);
+    foreach (DirEntry entry; dirEntries(path, SpanMode.shallow))
+    {
+        try
+        {
+            writeln(entry.name);
+            if (entry.isDir)
+                scan(entry.name);
+        }
+        catch (FileException fe) { continue; } // ignore
+    }
+}
+
+scan("");
+---
++/
+
+// For some reason, doing the same alias-to-a-template trick as with DirIterator
+// does not work here.
+auto dirEntries(bool useDIP1000 = dip1000Enabled)
+    (string path, SpanMode mode, bool followSymlink = true)
+{
+    return _DirIterator!useDIP1000(path, mode, followSymlink);
 }
 
 /// Duplicate functionality of D1's `std.file.listdir()`:
@@ -4940,24 +5016,24 @@ auto dirEntries(string path, SpanMode mode, bool followSymlink = true)
 {
     string[] listdir(string pathname)
     {
-        import std.algorithm;
-        import std.array;
-        import std.file;
-        import std.path;
+        import std.algorithm.iteration : map, filter;
+        import std.array : array;
+        import std.path : baseName;
 
-        return std.file.dirEntries(pathname, SpanMode.shallow)
+        return dirEntries(pathname, SpanMode.shallow)
             .filter!(a => a.isFile)
-            .map!((return a) => std.path.baseName(a.name))
+            .map!((return a) => baseName(a.name))
             .array;
     }
 
-    void main(string[] args)
+    // Can be safe only with -preview=dip1000
+    @safe void main(string[] args)
     {
-        import std.stdio;
+        import std.stdio : writefln;
 
         string[] files = listdir(args[1]);
         writefln("%s", files);
-     }
+    }
 }
 
 @system unittest
@@ -5032,17 +5108,18 @@ auto dirEntries(string path, SpanMode mode, bool followSymlink = true)
 }
 
 /// Ditto
-auto dirEntries(string path, string pattern, SpanMode mode,
+auto dirEntries(bool useDIP1000 = dip1000Enabled)
+    (string path, string pattern, SpanMode mode,
     bool followSymlink = true)
 {
     import std.algorithm.iteration : filter;
     import std.path : globMatch, baseName;
 
     bool f(DirEntry de) { return globMatch(baseName(de.name), pattern); }
-    return filter!f(DirIterator(path, mode, followSymlink));
+    return filter!f(_DirIterator!useDIP1000(path, mode, followSymlink));
 }
 
-@system unittest
+@safe unittest
 {
     import std.stdio : writefln;
     immutable dpath = deleteme ~ "_dir";
@@ -5059,11 +5136,11 @@ auto dirEntries(string path, string pattern, SpanMode mode,
 
     mkdir(dpath);
     write(fpath, "hello world");
-    version (Posix)
+    version (Posix) () @trusted
     {
         core.sys.posix.unistd.symlink((dpath ~ '\0').ptr, (sdpath ~ '\0').ptr);
         core.sys.posix.unistd.symlink((fpath ~ '\0').ptr, (sfpath ~ '\0').ptr);
-    }
+    } ();
 
     static struct Flags { bool dir, file, link; }
     auto tests = [dpath : Flags(true), fpath : Flags(false, true)];
@@ -5120,7 +5197,7 @@ auto dirEntries(string path, string pattern, SpanMode mode,
 
 // Make sure that dirEntries does not butcher Unicode file names
 // https://issues.dlang.org/show_bug.cgi?id=17962
-@system unittest
+@safe unittest
 {
     import std.algorithm.comparison : equal;
     import std.algorithm.iteration : map;

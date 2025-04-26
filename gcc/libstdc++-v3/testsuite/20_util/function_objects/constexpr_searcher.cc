@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do compile { target c++20 } }
 
 #include <functional>
 
@@ -28,13 +27,13 @@
 
 #include <string_view>
 
-const std::string_view
+constexpr std::string_view
 patt = "World";
 
 constexpr std::string_view
 greet = "Hello, Humongous World of Wonder!!!";
 
-const std::wstring_view
+constexpr std::wstring_view
 wpatt = L"World";
 
 constexpr std::wstring_view

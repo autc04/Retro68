@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-# Copyright (C) 2006-2022 Free Software Foundation, Inc.
+# Copyright (C) 2006-2025 Free Software Foundation, Inc.
 #
 # GCC is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,13 +70,10 @@ GCC_CET_FLAGS(CET_FLAGS)
 AC_SUBST(CET_FLAGS)
 # To ensure that runtime code for CET is compiled in, add in D version flags.
 AS_IF([test x$enable_cet = xyes], [
-  CET_DFLAGS="$CET_FLAGS -fversion=CET"
   DCFG_ENABLE_CET=true
 ], [
-  CET_DFLAGS=
   DCFG_ENABLE_CET=false
 ])
-AC_SUBST(CET_DFLAGS)
 AC_SUBST(DCFG_ENABLE_CET)
 
 # This should be inherited in the recursive make, but ensure it is defined.
@@ -93,6 +90,7 @@ AM_PROG_LIBTOOL
 WITH_LOCAL_DRUNTIME([LT_LANG([D])], [])
 AC_SUBST(enable_shared)
 AC_SUBST(enable_static)
+AM_CONDITIONAL([ENABLE_DARWIN_AT_RPATH], [test x$enable_darwin_at_rpath = xyes])
 
 # libtool variables for Phobos shared and position-independent compiles.
 #
@@ -145,6 +143,7 @@ DRUNTIME_OS_ARM_EABI_UNWINDER
 DRUNTIME_OS_MINFO_BRACKETING
 DRUNTIME_OS_DLPI_TLS_MODID
 DRUNTIME_OS_LINK_SPEC
+DRUNTIME_OS_FEATURES
 DRUNTIME_LIBRARIES_CLIB
 
 WITH_LOCAL_DRUNTIME([
@@ -221,24 +220,28 @@ AC_ARG_ENABLE(libphobos-checking,
 		[enable expensive run-time checks.  With LIST,
 		 enable only specific categories of checks.
 		 Categories are: yes,no,all,none,release.
-		 Flags are: assert or other strings])],
+		 Flags are: assert,valgrind or other strings])],
 [ac_checking_flags="${enableval}"],[ac_checking_flags=release])
 IFS="${IFS= 	}"; ac_save_IFS="$IFS"; IFS="$IFS,"
 for check in release $ac_checking_flags
 do
 	case $check in
 	# These set all the flags to specific states
-	yes|all) RELEASE_FLAG="-fno-release" ; ASSERT_FLAG= ;;
-	no|none|release) RELEASE_FLAG="-frelease" ; ASSERT_FLAG= ;;
+	yes|all)		RELEASE_FLAG="-fno-release" ; ASSERT_FLAG= ;
+				VALGRIND_FLAG= ;;
+	no|none|release)	RELEASE_FLAG="-frelease" ; ASSERT_FLAG= ;
+				VALGRIND_FLAG= ;;
 	# These enable particular checks
-	assert) ASSERT_FLAG="-fassert" ;;
+	assert)			ASSERT_FLAG="-fassert" ;;
+	valgrind)		VALGRIND_FLAG="-fdebug=VALGRIND" ;;
 	# Accept
 	*) ;;
 	esac
 done
 IFS="$ac_save_IFS"
-CHECKING_DFLAGS="$RELEASE_FLAG $ASSERT_FLAG"
+CHECKING_DFLAGS="$RELEASE_FLAG $ASSERT_FLAG $VALGRIND_FLAG"
 AC_SUBST(CHECKING_DFLAGS)
+
 
 # Add drtbegin.o/drtend.o to startfile/endfile specs in libgphobos.spec
 if test "$DCFG_MINFO_BRACKETING" = "false"; then
@@ -253,7 +256,7 @@ SPEC_PHOBOS_DEPS="$LIBS"
 AC_SUBST(SPEC_PHOBOS_DEPS)
 
 # Libdruntime / phobos soname version
-libtool_VERSION=3:0:0
+libtool_VERSION=6:0:0
 AC_SUBST(libtool_VERSION)
 
 # Set default flags (after DRUNTIME_WERROR!)
@@ -268,6 +271,8 @@ AC_SUBST(WARN_DFLAGS)
 # Sanity check for the cross-compilation case:
 AC_CHECK_HEADER(stdio.h,:,
   [AC_MSG_ERROR([cannot find stdio.h.])])
+
+DRUNTIME_LIBRARIES_VALGRIND
 
 AC_CONFIG_FILES(Makefile)
 

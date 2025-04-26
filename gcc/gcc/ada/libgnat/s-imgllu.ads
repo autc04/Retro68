@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,30 +29,62 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  This package contains the routines for supporting the Image attribute for
---  modular integer types larger than Unsigned, and also for conversion
---  operations required in Text_IO.Modular_IO for such types.
+--  This package provides the subprograms supporting the ``Image`` attribute
+--  and ``Ada.Text_IO.Modular_IO`` conversions routines for unsigned (modular)
+--  integer types larger than Size ``Unsigned'Size``.
+
+--  Preconditions in this unit are meant for analysis only, not for run-time
+--  checking, so that the expected exceptions are raised. This is enforced by
+--  setting the corresponding assertion policy to Ignore. Postconditions and
+--  contract cases should not be executed at runtime as well, in order not to
+--  slow down the execution of these functions.
+
+pragma Assertion_Policy (Pre                => Ignore,
+                         Post               => Ignore,
+                         Contract_Cases     => Ignore,
+                         Ghost              => Ignore,
+                         Subprogram_Variant => Ignore);
 
 with System.Image_U;
 with System.Unsigned_Types;
+with System.Vs_LLU;
 
-package System.Img_LLU is
-   pragma Pure;
-
+package System.Img_LLU
+  with SPARK_Mode
+is
    subtype Long_Long_Unsigned is Unsigned_Types.Long_Long_Unsigned;
 
-   package Impl is new Image_U (Long_Long_Unsigned);
+   package Impl is new Image_U
+     (Uns    => Long_Long_Unsigned,
+      U_Spec => System.Vs_LLU.Spec);
 
    procedure Image_Long_Long_Unsigned
      (V : Long_Long_Unsigned;
       S : in out String;
       P : out Natural)
      renames Impl.Image_Unsigned;
+   --  Computes Long_Long_Unsigned'Image (``V``) and stores the result in
+   --  ``S`` (1 .. ``P``) setting the resulting value of ``P``. The caller
+   --  guarantees that ``S`` is long enough to hold the result, and that
+   --  ``S``'First is 1.
+   --
+   --  The subprogram writes the leading blank in ``S`` and calls
+   --  *Set_Image_Long_Long_Unsigned*.
 
    procedure Set_Image_Long_Long_Unsigned
      (V : Long_Long_Unsigned;
       S : in out String;
       P : in out Natural)
      renames Impl.Set_Image_Unsigned;
+   --  Stores the image of ``V`` in ``S`` starting at ``S`` (``P`` + 1),
+   --  ``P`` is updated to point to the last character stored. The value
+   --  stored is identical to the value of Long_Long_Unsigned'Image (``V``)
+   --  except that no leading space is stored.
+   --  The caller guarantees that ``S`` is long enough to hold the result.
+   --  ``S`` need not have a lower bound of 1.
+   --
+   --  This subprogram uses recursion: if the value is equal or greater than
+   --  10, recurse with the value divided by 10. Then add the digit for the
+   --  remainder.
 
 end System.Img_LLU;

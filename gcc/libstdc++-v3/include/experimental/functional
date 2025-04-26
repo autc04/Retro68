@@ -1,6 +1,6 @@
 // <experimental/functional> -*- C++ -*-
 
-// Copyright (C) 2014-2022 Free Software Foundation, Inc.
+// Copyright (C) 2014-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,7 +30,11 @@
 #ifndef _GLIBCXX_EXPERIMENTAL_FUNCTIONAL
 #define _GLIBCXX_EXPERIMENTAL_FUNCTIONAL 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+
+#include <bits/requires_hosted.h> // experimental is currently omitted
 
 #if __cplusplus >= 201402L
 
@@ -40,10 +44,7 @@
 #include <unordered_map>
 #include <vector>
 #include <array>
-#include <bits/stl_algo.h>
-#ifdef _GLIBCXX_PARALLEL
-# include <parallel/algorithm> // For std::__parallel::search
-#endif
+#include <bits/stl_algobase.h> // std::max, std::search
 #include <experimental/bits/lfts_config.h>
 
 namespace std _GLIBCXX_VISIBILITY(default)

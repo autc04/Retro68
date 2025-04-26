@@ -8,7 +8,6 @@
  */
 module core.sys.windows.winhttp;
 version (Windows):
-@system:
 pragma(lib, "winhttp");
 // FIXME: Grouping of constants. Windows SDK doesn't make this entirely clear
 // FIXME: Verify WINHTTP_STATUS_CALLBACK function declaration works correctly
@@ -772,7 +771,7 @@ static if (_WIN32_WINNT >= 0x602)
 }
 
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     BOOL WinHttpAddRequestHeaders(HINTERNET hRequest, LPCWSTR pwszHeaders, DWORD dwHeadersLength, DWORD dwModifiers);
 
     BOOL WinHttpCheckPlatform();

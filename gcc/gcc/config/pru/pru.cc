@@ -1,5 +1,5 @@
 /* Target machine subroutines for TI PRU.
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2025 Free Software Foundation, Inc.
    Dimitar Dimitrov <dimitar@dinux.eu>
 
    This file is part of GCC.
@@ -405,7 +405,7 @@ pru_get_return_address (int count)
 
 /* Implement FUNCTION_PROFILER macro.  */
 void
-pru_function_profiler (FILE *file, int labelno ATTRIBUTE_UNUSED)
+pru_function_profiler (FILE *file, int)
 {
   fprintf (file, "\tmov\tr1, ra\n");
   fprintf (file, "\tcall\t_mcount\n");
@@ -443,6 +443,10 @@ prologue_saved_reg_p (int regno)
 {
   gcc_assert (GP_REG_P (regno));
 
+  /* Do not save the register if function will not return.  */
+  if (TREE_THIS_VOLATILE (current_function_decl))
+    return false;
+
   if (df_regs_ever_live_p (regno) && !call_used_or_fixed_reg_p (regno))
     return true;
 
@@ -463,7 +467,7 @@ prologue_saved_reg_p (int regno)
 
 /* Implement TARGET_CAN_ELIMINATE.  */
 static bool
-pru_can_eliminate (const int from ATTRIBUTE_UNUSED, const int to)
+pru_can_eliminate (const int, const int to)
 {
   if (to == STACK_POINTER_REGNUM)
     return !frame_pointer_needed;
@@ -513,6 +517,17 @@ pru_can_use_return_insn (void)
   return cfun->machine->total_size == 0;
 }
 
+/* Implement `TARGET_CLASS_LIKELY_SPILLED_P'.  The original intention
+   of the default implementation is kept, but is adjusted for PRU.
+   Return TRUE if the given class C contains a single SImode
+   (as opposed to word_mode!) register.  */
+
+static bool
+pru_class_likely_spilled_p (reg_class_t c)
+{
+  return (reg_class_size[(int) c] <= GET_MODE_SIZE (SImode));
+}
+
 /* Implement TARGET_HARD_REGNO_MODE_OK.  */
 
 static bool
@@ -622,20 +637,13 @@ pru_option_override (void)
      options.  */
   target_option_default_node = target_option_current_node
     = build_target_option_node (&global_options, &global_options_set);
-
-  /* Due to difficulties in implementing the TI ABI with GCC,
-     at least check and error-out if GCC cannot compile a
-     compliant output.  */
-  pru_register_abicheck_pass ();
 }
 
 /* Compute a (partial) cost for rtx X.  Return true if the complete
    cost has been computed, and false if subexpressions should be
    scanned.  In either case, *TOTAL contains the cost result.  */
 static bool
-pru_rtx_costs (rtx x, machine_mode mode,
-	       int outer_code, int opno ATTRIBUTE_UNUSED,
-	       int *total, bool speed ATTRIBUTE_UNUSED)
+pru_rtx_costs (rtx x, machine_mode mode, int outer_code, int, int *total, bool)
 {
   const int code = GET_CODE (x);
 
@@ -766,7 +774,11 @@ pru_rtx_costs (rtx x, machine_mode mode,
       }
     case ZERO_EXTEND:
       {
-	*total = COSTS_N_INSNS (0);
+	/* 64-bit zero extensions actually have a cost because they
+	   require setting a register to zero.
+	   32-bit and smaller are free.  */
+	int factor = (GET_MODE_SIZE (mode) <= GET_MODE_SIZE (SImode)) ? 0 : 1;
+	*total = factor * COSTS_N_INSNS (1);
 	return false;
       }
 
@@ -778,6 +790,61 @@ pru_rtx_costs (rtx x, machine_mode mode,
 	return false;
       }
     }
+}
+
+/* Calculate the cost of an addressing mode that contains ADDR.
+   ADDR must be a valid address.  */
+
+static int
+pru_address_cost (rtx addr, machine_mode, addr_space_t as, bool)
+{
+  if (as != ADDR_SPACE_GENERIC)
+    /* All currently implemented special address spaces for PRU
+       are much more efficient than generic memory I/O.  */
+    return 0;
+  else if (ctable_addr_operand (addr, VOIDmode)
+	   || (GET_CODE (addr) == PLUS
+	       && ctable_base_operand (XEXP (addr, 1), VOIDmode)))
+    /* Using CTABLE instructions reduces register pressure,
+       so give it precedence.  */
+    return 1;
+  else
+    /* Same two instructions (LBBO/SBBO) are used for any valid
+       addressing mode.  */
+    return 2;
+}
+
+/* Insn costs on PRU are straightforward because:
+     - Insns emit 0, 1 or more instructions.
+     - All instructions are 32-bit length.
+     - All instructions execute in 1 cycle (sans memory access delays).
+   The "length" attribute maps nicely to the insn cost.  */
+
+static int
+pru_insn_cost (rtx_insn *insn, bool speed)
+{
+  /* Use generic cost calculation for unrecognized insns.  */
+  if (recog_memoized (insn) < 0)
+    return pattern_cost (insn, speed);
+
+  unsigned int len = get_attr_length (insn);
+
+  gcc_assert ((len % 4) == 0);
+
+  int cost = COSTS_N_INSNS (len / 4);
+  /* Some insns have zero length (e.g. blockage, pruloop_end).
+     In such cases give the minimum cost, because a return of
+     0 would incorrectly indicate that the insn cost is unknown.  */
+  if (cost == 0)
+    cost = 1;
+
+  /* Writes are usually posted, so they take 1 cycle.  Reads
+     from DMEM usually take 3 cycles.
+     See TI document SPRACE8A, Device-Specific PRU Read Latency Values.  */
+  if (speed && get_attr_type (insn) == TYPE_LD)
+    cost += COSTS_N_INSNS (2);
+
+  return cost;
 }
 
 static GTY(()) rtx eqdf_libfunc;
@@ -891,6 +958,27 @@ pru_init_libfuncs (void)
   set_optab_libfunc (udivmod_optab, DImode, "__pruabi_divremull");
 }
 
+/* Given a comparison CODE, return a similar comparison but without
+   the "equals" condition.  In other words, it strips GE/GEU/LE/LEU
+   and instead returns GT/GTU/LT/LTU.  */
+
+enum rtx_code
+pru_noteq_condition (enum rtx_code code)
+{
+  switch (code)
+    {
+    case GT: return GT;
+    case GTU: return GTU;
+    case GE: return GT;
+    case GEU: return GTU;
+    case LT: return LT;
+    case LTU: return LTU;
+    case LE: return LT;
+    case LEU: return LTU;
+    default:
+      gcc_unreachable ();
+    }
+}
 
 /* Emit comparison instruction if necessary, returning the expression
    that holds the compare result in the proper mode.  Return the comparison
@@ -970,39 +1058,55 @@ sign_bit_position (const rtx op)
   return sz * 8 - 1;
 }
 
-/* Output asm code for sign_extend operation.  */
-const char *
-pru_output_sign_extend (rtx *operands)
-{
-  static char buf[512];
-  int bufi;
-  const int dst_sz = GET_MODE_SIZE (GET_MODE (operands[0]));
-  const int src_sz = GET_MODE_SIZE (GET_MODE (operands[1]));
-  char ext_start;
+/* Parse the given CVAL integer value, and extract the "filling" byte
+   range of consecutive 0xff byte values.  Rest of bytes must be 0x00.
+   There must be only one range in the given value.  This range would
+   typically be used to calculate the parameters of
+   PRU instructions ZERO and FILL.
 
-  switch (src_sz)
+   The parameter MODE determines the maximum byte range to consider
+   in the given input constant.
+
+   Example input:
+     cval = 0xffffffffffffff00 = -256
+     mode = SImode
+   Return value:
+     start = 1
+     nbytes = 3
+
+   On error, return a range with -1 for START and NBYTES.  */
+pru_byterange
+pru_calc_byterange (HOST_WIDE_INT cval, machine_mode mode)
+{
+  const pru_byterange invalid_range = { -1, -1 };
+  pru_byterange r = invalid_range;
+  enum { ST_FFS, ST_INRANGE, ST_TRAILING_ZEROS } st = ST_FFS;
+  int i;
+
+  for (i = 0; i < GET_MODE_SIZE (mode); i++)
     {
-    case 1: ext_start = 'y'; break;
-    case 2: ext_start = 'z'; break;
-    default: gcc_unreachable ();
+      const int b = cval & ((1U << BITS_PER_UNIT) - 1);
+      cval >>= BITS_PER_UNIT;
+
+      if (b == 0x00 && (st == ST_FFS || st == ST_TRAILING_ZEROS))
+	/* No action.  */;
+      else if (b == 0x00 && st == ST_INRANGE)
+	st = ST_TRAILING_ZEROS;
+      else if (b == 0xff && st == ST_FFS)
+	{
+	  st = ST_INRANGE;
+	  r.start = i;
+	  r.nbytes = 1;
+	}
+      else if (b == 0xff && st == ST_INRANGE)
+	r.nbytes++;
+      else
+	return invalid_range;
     }
 
-  gcc_assert (dst_sz > src_sz);
-
-  /* Note that src and dst can be different parts of the same
-     register, e.g. "r7, r7.w1".  */
-  bufi = snprintf (buf, sizeof (buf),
-	  "mov\t%%0, %%1\n\t"		      /* Copy AND make positive.  */
-	  "qbbc\t.+8, %%0, %d\n\t"	      /* Check sign bit.  */
-	  "fill\t%%%c0, %d",		      /* Make negative.  */
-	  sign_bit_position (operands[1]),
-	  ext_start,
-	  dst_sz - src_sz);
-
-  gcc_assert (bufi > 0);
-  gcc_assert ((unsigned int) bufi < sizeof (buf));
-
-  return buf;
+  if (st != ST_TRAILING_ZEROS && st != ST_INRANGE)
+    return invalid_range;
+  return r;
 }
 
 /* Branches and compares.  */
@@ -1425,7 +1529,8 @@ int pru_symref2ioregno (rtx op)
 /* Implement TARGET_ADDR_SPACE_LEGITIMATE_ADDRESS_P.  */
 static bool
 pru_addr_space_legitimate_address_p (machine_mode mode, rtx operand,
-				     bool strict_p, addr_space_t as)
+				     bool strict_p, addr_space_t as,
+				     code_helper = ERROR_MARK)
 {
   if (as == ADDR_SPACE_REGIO)
     {
@@ -1619,8 +1724,6 @@ pru_asm_regname (rtx op)
      V: print exact_log2 () of negated const_int operands.
      w: Lower 32-bits of a const_int operand.
      W: Upper 32-bits of a const_int operand.
-     y: print the next 8-bit register (regardless of op size).
-     z: print the second next 8-bit register (regardless of op size).
 */
 static void
 pru_print_operand (FILE *file, rtx op, int letter)
@@ -1693,26 +1796,6 @@ pru_print_operand (FILE *file, rtx op, int letter)
 	  fprintf (file, "r%d", REGNO (op) / 4 + (letter == 'N' ? 1 : 0));
 	  return;
 	}
-      else if (letter == 'y')
-	{
-	  if (REGNO (op) > LAST_NONIO_GP_REGNUM - 1)
-	    {
-	      output_operand_lossage ("invalid operand for '%%%c'", letter);
-	      return;
-	    }
-	  fprintf (file, "%s", reg_names[REGNO (op) + 1]);
-	  return;
-	}
-      else if (letter == 'z')
-	{
-	  if (REGNO (op) > LAST_NONIO_GP_REGNUM - 2)
-	    {
-	      output_operand_lossage ("invalid operand for '%%%c'", letter);
-	      return;
-	    }
-	  fprintf (file, "%s", reg_names[REGNO (op) + 2]);
-	  return;
-	}
       break;
 
     case CONST_INT:
@@ -1775,12 +1858,22 @@ pru_print_operand (FILE *file, rtx op, int letter)
 	  fprintf (file, HOST_WIDE_INT_PRINT_DEC, INTVAL (op) & 0xff);
 	  return;
 	}
+      else if (letter == 'c')
+	{
+	  fprintf (file, HOST_WIDE_INT_PRINT_DEC, INTVAL (op));
+	  return;
+	}
+      else if (letter == 'n')
+	{
+	  fprintf (file, HOST_WIDE_INT_PRINT_DEC, -INTVAL (op));
+	  return;
+	}
       /* Else, fall through.  */
 
     case CONST:
     case LABEL_REF:
     case SYMBOL_REF:
-      if (letter == 0)
+      if (letter == 0 || letter == 'c')
 	{
 	  output_addr_const (file, op);
 	  return;
@@ -2095,7 +2188,7 @@ pru_nongeneric_pointer_addrspace (tree typ)
    during the "mov<mode>" pattern expansion.  */
 
 static void
-pru_insert_attributes (tree node, tree *attributes ATTRIBUTE_UNUSED)
+pru_insert_attributes (tree node, tree *)
 {
 
   /* Validate __regio_symbol variable declarations.  */
@@ -2134,7 +2227,7 @@ pru_insert_attributes (tree node, tree *attributes ATTRIBUTE_UNUSED)
 	error ("only 32-bit access is supported "
 	       "for %<__regio_symbol%> address space");
       if (strcmp (name, "__R30") != 0 && strcmp (name, "__R31") != 0)
-	error ("register name %<%s%> not recognized "
+	error ("register name %qs not recognized "
 	       "in %<__regio_symbol%> address space", name);
     }
 
@@ -2320,15 +2413,14 @@ pru_function_arg_advance (cumulative_args_t cum_v,
 
 /* Implement TARGET_FUNCTION_VALUE.  */
 static rtx
-pru_function_value (const_tree ret_type, const_tree fn ATTRIBUTE_UNUSED,
-		      bool outgoing ATTRIBUTE_UNUSED)
+pru_function_value (const_tree ret_type, const_tree, bool)
 {
   return gen_rtx_REG (TYPE_MODE (ret_type), FIRST_RETVAL_REGNUM);
 }
 
 /* Implement TARGET_LIBCALL_VALUE.  */
 static rtx
-pru_libcall_value (machine_mode mode, const_rtx fun ATTRIBUTE_UNUSED)
+pru_libcall_value (machine_mode mode, const_rtx)
 {
   return gen_rtx_REG (mode, FIRST_RETVAL_REGNUM);
 }
@@ -2342,7 +2434,7 @@ pru_function_value_regno_p (const unsigned int regno)
 
 /* Implement TARGET_RETURN_IN_MEMORY.  */
 bool
-pru_return_in_memory (const_tree type, const_tree fntype ATTRIBUTE_UNUSED)
+pru_return_in_memory (const_tree type, const_tree)
 {
   bool in_memory = (!pru_arg_in_reg_bysize (int_size_in_bytes (type))
 		    || int_size_in_bytes (type) == -1);
@@ -2910,7 +3002,7 @@ pru_init_builtins (void)
 /* Implement TARGET_BUILTIN_DECL.  */
 
 static tree
-pru_builtin_decl (unsigned code, bool initialize_p ATTRIBUTE_UNUSED)
+pru_builtin_decl (unsigned code, bool)
 {
   switch (code)
     {
@@ -2989,10 +3081,7 @@ pru_expand_delay_cycles (rtx arg)
    IGNORE is nonzero if the value is to be ignored.  */
 
 static rtx
-pru_expand_builtin (tree exp, rtx target,
-		    rtx subtarget ATTRIBUTE_UNUSED,
-		    machine_mode mode,
-		    int ignore ATTRIBUTE_UNUSED)
+pru_expand_builtin (tree exp, rtx target, rtx, machine_mode mode, int)
 {
   tree fndecl = TREE_OPERAND (CALL_EXPR_FN (exp), 0);
   unsigned int fcode = DECL_MD_FUNCTION_CODE (fndecl);
@@ -3113,6 +3202,9 @@ pru_unwind_word_mode (void)
 #undef TARGET_CAN_ELIMINATE
 #define TARGET_CAN_ELIMINATE pru_can_eliminate
 
+#undef TARGET_CLASS_LIKELY_SPILLED_P
+#define TARGET_CLASS_LIKELY_SPILLED_P pru_class_likely_spilled_p
+
 #undef TARGET_HARD_REGNO_MODE_OK
 #define TARGET_HARD_REGNO_MODE_OK pru_hard_regno_mode_ok
 
@@ -3155,11 +3247,23 @@ pru_unwind_word_mode (void)
 #undef TARGET_RTX_COSTS
 #define TARGET_RTX_COSTS pru_rtx_costs
 
+#undef TARGET_ADDRESS_COST
+#define TARGET_ADDRESS_COST pru_address_cost
+
+#undef TARGET_INSN_COST
+#define TARGET_INSN_COST pru_insn_cost
+
 #undef TARGET_PRINT_OPERAND
 #define TARGET_PRINT_OPERAND pru_print_operand
 
 #undef TARGET_PRINT_OPERAND_ADDRESS
 #define TARGET_PRINT_OPERAND_ADDRESS pru_print_operand_address
+
+#undef  TARGET_MIN_ANCHOR_OFFSET
+#define TARGET_MIN_ANCHOR_OFFSET  0
+
+#undef  TARGET_MAX_ANCHOR_OFFSET
+#define TARGET_MAX_ANCHOR_OFFSET  255
 
 #undef TARGET_OPTION_OVERRIDE
 #define TARGET_OPTION_OVERRIDE pru_option_override

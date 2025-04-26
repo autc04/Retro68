@@ -1,4 +1,4 @@
-/* Copyright (C) 1988-2022 Free Software Foundation, Inc.
+/* Copyright (C) 1988-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -60,6 +60,7 @@ void ix86_simd_clone_adjust (struct cgraph_node *node);
 extern tree (*ix86_veclib_handler) (combined_fn, tree, tree);
 extern tree ix86_veclibabi_svml (combined_fn, tree, tree);
 extern tree ix86_veclibabi_acml (combined_fn, tree, tree);
+extern tree ix86_veclibabi_aocl (combined_fn, tree, tree);
 
 enum ix86_function_specific_strings
 {
@@ -82,7 +83,7 @@ void ix86_function_specific_print (FILE *, int,
 				   struct cl_target_option *);
 bool ix86_valid_target_attribute_p (tree, tree, tree, int);
 
-extern const struct attribute_spec ix86_attribute_table[];
+extern const struct scoped_attribute_specs ix86_gnu_attribute_table;
 
 
 #endif  /* GCC_I386_OPTIONS_H */

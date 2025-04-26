@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2022 Free Software Foundation, Inc.
+// Copyright (C) 2015-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,6 +17,7 @@
 
 // { dg-do run { target c++14 } }
 // { dg-add-options libatomic }
+// { dg-xfail-if "poll not available" { *-*-rtems* } }
 
 #include <experimental/timer>
 #include <testsuite_hooks.h>
@@ -37,7 +38,7 @@ test01()
     timer.async_wait([&ec](std::error_code e) { ec = e; });
   }
   auto n = ctx.run();
-  __builtin_printf("ran %lu\n", n);
+  __builtin_printf("ran %lu\n", long(n));
   VERIFY( n == 1 );
   VERIFY( ec == std::errc::operation_canceled );
 }

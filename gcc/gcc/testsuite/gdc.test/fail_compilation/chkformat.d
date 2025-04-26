@@ -19,7 +19,12 @@ fail_compilation/chkformat.d(115): Deprecation: argument `& u` for format specif
 fail_compilation/chkformat.d(116): Deprecation: argument `16L` for format specification `"%c"` must be `char`, not `long`
 fail_compilation/chkformat.d(117): Deprecation: argument `17L` for format specification `"%c"` must be `char`, not `long`
 fail_compilation/chkformat.d(118): Deprecation: argument `& u` for format specification `"%s"` must be `char*`, not `int*`
-fail_compilation/chkformat.d(119): Deprecation: argument `& u` for format specification `"%ls"` must be `wchar_t*`, not `int*`
+fail_compilation/chkformat.d(119): Deprecation: argument `& u` for format specification `"%ls"` must be `wchar_t*`, not `int*`$?:windows=
+fail_compilation/chkformat.d(122): Deprecation: argument `0LU` for format specification `"%lu"` must be `uint`, not `ulong`
+fail_compilation/chkformat.d(122):        C `long` is 4 bytes on your system|32=
+fail_compilation/chkformat.d(122): Deprecation: argument `0LU` for format specification `"%lu"` must be `uint`, not `ulong`
+fail_compilation/chkformat.d(122):        C `long` is 4 bytes on your system$
+fail_compilation/chkformat.d(123): Deprecation: argument `p` for format specification `"%n"` must be `int*`, not `const(int)*`
 fail_compilation/chkformat.d(201): Deprecation: argument `0L` for format specification `"%d"` must be `int*`, not `long`
 fail_compilation/chkformat.d(202): Deprecation: more format specifiers than 1 arguments
 fail_compilation/chkformat.d(203): Deprecation: argument `0L` for format specification `"%d"` must be `int*`, not `long`
@@ -81,6 +86,8 @@ void test18() { int u; printf("%s\n", &u); }
 void test19() { int u; printf("%ls\n", &u); }
 //void test20() { int u; char[] s; sprintf(&s[0], "%d\n", &u); }
 //void test21() { int u; fprintf(null, "%d\n", &u); }
+void test20() { printf("%lu", ulong.init); }
+void test22() { int i; const(int)* p = &i; printf("%n", p); }
 
 #line 200
 
@@ -169,3 +176,21 @@ void test409() { char* p; printf("%llu", p); }
 void test410() { char* p; printf("%lld", p); }
 void test411() { char* p; printf("%ju", p); }
 void test412() { char* p; printf("%jd", p); }
+
+/* https://issues.dlang.org/show_bug.cgi?id=23247
+TEST_OUTPUT:
+---
+fail_compilation/chkformat.d(501): Deprecation: argument `p` for format specification `"%a"` must be `double`, not `char*`
+fail_compilation/chkformat.d(502): Deprecation: argument `p` for format specification `"%La"` must be `real`, not `char*`
+fail_compilation/chkformat.d(503): Deprecation: argument `p` for format specification `"%a"` must be `float*`, not `char*`
+fail_compilation/chkformat.d(504): Deprecation: argument `p` for format specification `"%la"` must be `double*`, not `char*`
+fail_compilation/chkformat.d(505): Deprecation: argument `p` for format specification `"%La"` must be `real*`, not `char*`
+---
+*/
+#line 500
+
+void test501() { char* p; printf("%a", p); }
+void test502() { char* p; printf("%La", p); }
+void test503() { char* p; scanf("%a", p); }
+void test504() { char* p; scanf("%la", p); }
+void test505() { char* p; scanf("%La", p); }

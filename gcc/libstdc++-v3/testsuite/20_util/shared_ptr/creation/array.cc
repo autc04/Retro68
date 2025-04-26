@@ -1,5 +1,5 @@
-// { dg-options "-std=gnu++20" }
 // { dg-do run { target c++20 } }
+// { dg-add-options no_pch }
 
 // C++20 20.11.3.7 shared_ptr Creation [util.smartptr.shared.create]
 
@@ -65,6 +65,7 @@ test02()
 }
 
 #include <vector>
+#include <cstdint>
 
 std::vector<std::uintptr_t> addresses;
 

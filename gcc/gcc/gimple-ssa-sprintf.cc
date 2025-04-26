@@ -1,4 +1,4 @@
-/* Copyright (C) 2016-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2016-2025 Free Software Foundation, Inc.
    Contributed by Martin Sebor <msebor@redhat.com>.
 
 This file is part of GCC.
@@ -53,11 +53,11 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimple.h"
 #include "tree-pass.h"
 #include "ssa.h"
+#include "gimple-iterator.h"
 #include "gimple-fold.h"
 #include "gimple-pretty-print.h"
 #include "diagnostic-core.h"
 #include "fold-const.h"
-#include "gimple-iterator.h"
 #include "tree-ssa.h"
 #include "tree-object-size.h"
 #include "tree-cfg.h"
@@ -535,6 +535,8 @@ fmtresult::type_max_digits (tree type, int base)
   unsigned prec = TYPE_PRECISION (type);
   switch (base)
     {
+    case 2:
+      return prec;
     case 8:
       return (prec + 2) / 3;
     case 10:
@@ -804,9 +806,9 @@ ilog (unsigned HOST_WIDE_INT x, int base)
 /* Return the number of bytes resulting from converting into a string
    the INTEGER_CST tree node X in BASE with a minimum of PREC digits.
    PLUS indicates whether 1 for a plus sign should be added for positive
-   numbers, and PREFIX whether the length of an octal ('O') or hexadecimal
-   ('0x') prefix should be added for nonzero numbers.  Return -1 if X cannot
-   be represented.  */
+   numbers, and PREFIX whether the length of an octal ('0') or hexadecimal
+   ('0x') or binary ('0b') prefix should be added for nonzero numbers.
+   Return -1 if X cannot be represented.  */
 
 static HOST_WIDE_INT
 tree_digits (tree x, int base, HOST_WIDE_INT prec, bool plus, bool prefix)
@@ -857,11 +859,11 @@ tree_digits (tree x, int base, HOST_WIDE_INT prec, bool plus, bool prefix)
 
   /* Adjust a non-zero value for the base prefix, either hexadecimal,
      or, unless precision has resulted in a leading zero, also octal.  */
-  if (prefix && absval && (base == 16 || prec <= ndigs))
+  if (prefix && absval)
     {
-      if (base == 8)
+      if (base == 8 && prec <= ndigs)
 	res += 1;
-      else if (base == 16)
+      else if (base == 16 || base == 2) /* 0x...(0X...) or 0b...(0B...).  */
 	res += 2;
     }
 
@@ -1077,7 +1079,7 @@ get_int_range (tree arg, gimple *stmt,
 	  && TYPE_PRECISION (argtype) <= TYPE_PRECISION (type))
 	{
 	  /* Try to determine the range of values of the integer argument.  */
-	  value_range vr;
+	  int_range_max vr;
 	  query->range_of_expr (vr, arg, stmt);
 
 	  if (!vr.undefined_p () && !vr.varying_p ())
@@ -1179,8 +1181,15 @@ adjust_range_for_overflow (tree dirtype, tree *argmin, tree *argmax)
 							      *argmin),
 					     size_int (dirprec)))))
     {
-      *argmin = force_fit_type (dirtype, wi::to_widest (*argmin), 0, false);
-      *argmax = force_fit_type (dirtype, wi::to_widest (*argmax), 0, false);
+      unsigned int maxprec = MAX (argprec, dirprec);
+      *argmin = force_fit_type (dirtype,
+				wide_int::from (wi::to_wide (*argmin), maxprec,
+						TYPE_SIGN (argtype)),
+				0, false);
+      *argmax = force_fit_type (dirtype,
+				wide_int::from (wi::to_wide (*argmax), maxprec,
+						TYPE_SIGN (argtype)),
+				0, false);
 
       /* If *ARGMIN is still less than *ARGMAX the conversion above
 	 is safe.  Otherwise, it has overflowed and would be unsafe.  */
@@ -1209,7 +1218,7 @@ format_integer (const directive &dir, tree arg, pointer_query &ptr_qry)
 
   /* True when a conversion is preceded by a prefix indicating the base
      of the argument (octal or hexadecimal).  */
-  bool maybebase = dir.get_flag ('#');
+  const bool maybebase = dir.get_flag ('#');
 
   /* True when a signed conversion is preceded by a sign or space.  */
   bool maybesign = false;
@@ -1229,6 +1238,10 @@ format_integer (const directive &dir, tree arg, pointer_query &ptr_qry)
     case 'u':
       base = 10;
       break;
+    case 'b':
+    case 'B':
+      base = 2;
+      break;
     case 'o':
       base = 8;
       break;
@@ -1239,6 +1252,8 @@ format_integer (const directive &dir, tree arg, pointer_query &ptr_qry)
     default:
       gcc_unreachable ();
     }
+
+  const unsigned adj = (sign | maybebase) + (base == 2 || base == 16);
 
   /* The type of the "formal" argument expected by the directive.  */
   tree dirtype = NULL_TREE;
@@ -1350,11 +1365,9 @@ format_integer (const directive &dir, tree arg, pointer_query &ptr_qry)
       res.range.unlikely = res.range.max;
 
       /* Bump up the counters if WIDTH is greater than LEN.  */
-      res.adjust_for_width_or_precision (dir.width, dirtype, base,
-					 (sign | maybebase) + (base == 16));
+      res.adjust_for_width_or_precision (dir.width, dirtype, base, adj);
       /* Bump up the counters again if PRECision is greater still.  */
-      res.adjust_for_width_or_precision (dir.prec, dirtype, base,
-					 (sign | maybebase) + (base == 16));
+      res.adjust_for_width_or_precision (dir.prec, dirtype, base, adj);
 
       return res;
     }
@@ -1382,7 +1395,7 @@ format_integer (const directive &dir, tree arg, pointer_query &ptr_qry)
     {
       /* Try to determine the range of values of the integer argument
 	 (range information is not available for pointers).  */
-      value_range vr;
+      int_range_max vr;
       ptr_qry.rvals->range_of_expr (vr, arg, dir.info->callstmt);
 
       if (!vr.varying_p () && !vr.undefined_p ())
@@ -1503,17 +1516,15 @@ format_integer (const directive &dir, tree arg, pointer_query &ptr_qry)
 	  if (res.range.min == 1)
 	    res.range.likely += base == 8 ? 1 : 2;
 	  else if (res.range.min == 2
-		   && base == 16
+		   && (base == 16 || base == 2)
 		   && (dir.width[0] == 2 || dir.prec[0] == 2))
 	    ++res.range.likely;
 	}
     }
 
   res.range.unlikely = res.range.max;
-  res.adjust_for_width_or_precision (dir.width, dirtype, base,
-				     (sign | maybebase) + (base == 16));
-  res.adjust_for_width_or_precision (dir.prec, dirtype, base,
-				     (sign | maybebase) + (base == 16));
+  res.adjust_for_width_or_precision (dir.width, dirtype, base, adj);
+  res.adjust_for_width_or_precision (dir.prec, dirtype, base, adj);
 
   return res;
 }
@@ -1953,7 +1964,7 @@ format_floating (const directive &dir, tree arg, pointer_query &)
       &res.range.min, &res.range.max
     };
 
-    for (int i = 0; i != sizeof minmax / sizeof *minmax; ++i)
+    for (int i = 0; i != ARRAY_SIZE (minmax); ++i)
       {
 	/* Convert the GCC real value representation with the precision
 	   of the real type to the mpfr_t format rounding down in the
@@ -2166,8 +2177,7 @@ format_character (const directive &dir, tree arg, pointer_query &ptr_qry)
 
   res.knownrange = true;
 
-  if (dir.specifier == 'C'
-      || dir.modifier == FMT_LEN_l)
+  if (dir.specifier == 'C' || dir.modifier == FMT_LEN_l)
     {
       /* A wide character can result in as few as zero bytes.  */
       res.range.min = 0;
@@ -2178,10 +2188,13 @@ format_character (const directive &dir, tree arg, pointer_query &ptr_qry)
 	{
 	  if (min == 0 && max == 0)
 	    {
-	      /* The NUL wide character results in no bytes.  */
-	      res.range.max = 0;
-	      res.range.likely = 0;
-	      res.range.unlikely = 0;
+	      /* In strict reading of older ISO C or POSIX, this required
+		 no characters to be emitted.  ISO C23 changes that, so
+		 does POSIX, to match what has been implemented in most of the
+		 implementations, namely emitting a single NUL character.
+		 Let's use 0 for minimum and 1 for all the other values.  */
+	      res.range.max = 1;
+	      res.range.likely = res.range.unlikely = 1;
 	    }
 	  else if (min >= 0 && min < 128)
 	    {
@@ -2189,11 +2202,12 @@ format_character (const directive &dir, tree arg, pointer_query &ptr_qry)
 		 is not a 1-to-1 mapping to the source character set or
 		 if the source set is not ASCII.  */
 	      bool one_2_one_ascii
-		= (target_to_host_charmap[0] == 1 && target_to_host ('a') == 97);
+		= (target_to_host_charmap[0] == 1
+		   && target_to_host ('a') == 97);
 
 	      /* A wide character in the ASCII range most likely results
 		 in a single byte, and only unlikely in up to MB_LEN_MAX.  */
-	      res.range.max = one_2_one_ascii ? 1 : target_mb_len_max ();;
+	      res.range.max = one_2_one_ascii ? 1 : target_mb_len_max ();
 	      res.range.likely = 1;
 	      res.range.unlikely = target_mb_len_max ();
 	      res.mayfail = !one_2_one_ascii;
@@ -2224,7 +2238,6 @@ format_character (const directive &dir, tree arg, pointer_query &ptr_qry)
       /* A plain '%c' directive.  Its output is exactly 1.  */
       res.range.min = res.range.max = 1;
       res.range.likely = res.range.unlikely = 1;
-      res.knownrange = true;
     }
 
   /* Bump up the byte counters if WIDTH is greater.  */
@@ -2610,7 +2623,7 @@ format_string (const directive &dir, tree arg, pointer_query &ptr_qry)
 	  if (slen.range.likely < target_int_max ())
 	    slen.range.likely *= 2;
 
-	  if (slen.range.likely < target_int_max ())
+	  if (slen.range.unlikely < target_int_max ())
 	    slen.range.unlikely *= target_mb_len_max ();
 
 	  /* A non-empty wide character conversion may fail.  */
@@ -3725,6 +3738,11 @@ parse_directive (call_info &info,
       dir.fmtfunc = format_integer;
       break;
 
+    case 'b':
+    case 'B':
+      dir.fmtfunc = format_integer;
+      break;
+
     case 'p':
       /* The %p output is implementation-defined.  It's possible
 	 to determine this format but due to extensions (especially
@@ -4242,7 +4260,8 @@ try_substitute_return_value (gimple_stmt_iterator *gsi,
 
 	  wide_int min = wi::shwi (retval[0], prec);
 	  wide_int max = wi::shwi (retval[1], prec);
-	  set_range_info (lhs, VR_RANGE, min, max);
+	  int_range_max r (TREE_TYPE (lhs), min, max);
+	  set_range_info (lhs, r);
 
 	  setrange = true;
 	}
@@ -4610,7 +4629,7 @@ handle_printf_call (gimple_stmt_iterator *gsi, pointer_query &ptr_qry)
 	  /* Try to determine the range of values of the argument
 	     and use the greater of the two at level 1 and the smaller
 	     of them at level 2.  */
-	  value_range vr;
+	  int_range_max vr;
 	  ptr_qry.rvals->range_of_expr (vr, size, info.callstmt);
 
 	  if (!vr.undefined_p ())

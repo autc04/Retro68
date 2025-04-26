@@ -1,5 +1,5 @@
 /* Internals of libgccjit: classes for playing back recorded API calls.
-   Copyright (C) 2013-2022 Free Software Foundation, Inc.
+   Copyright (C) 2013-2025 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -19,7 +19,9 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 #include "config.h"
-#define INCLUDE_PTHREAD_H
+#define INCLUDE_MUTEX
+#define INCLUDE_DLFCN_H
+#include "libgccjit.h"
 #include "system.h"
 #include "coretypes.h"
 #include "target.h"
@@ -30,6 +32,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "toplev.h"
 #include "tree-cfg.h"
 #include "convert.h"
+#include "gimple-expr.h"
 #include "stor-layout.h"
 #include "print-tree.h"
 #include "gimplify.h"
@@ -41,6 +44,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "gcc.h"
 #include "diagnostic.h"
 #include "stmt.h"
+#include "realmpfr.h"
 
 #include "jit-playback.h"
 #include "jit-result.h"
@@ -280,6 +284,12 @@ get_tree_node_for_type (enum gcc_jit_types type_)
 
     case GCC_JIT_TYPE_FLOAT:
       return float_type_node;
+    case GCC_JIT_TYPE_BFLOAT16:
+#ifndef HAVE_BFmode
+      add_error (NULL, "gcc_jit_types value unsupported on this target: %i",
+		 type_);
+#endif
+      return bfloat16_type_node;
     case GCC_JIT_TYPE_DOUBLE:
       return double_type_node;
     case GCC_JIT_TYPE_LONG_DOUBLE:
@@ -317,6 +327,13 @@ get_type (enum gcc_jit_types type_)
     return NULL;
 
   return new type (type_node);
+}
+
+void
+playback::context::
+set_output_ident (const char* ident)
+{
+  targetm.asm_out.output_ident (ident);
 }
 
 /* Construct a playback::type instance (wrapping a tree) for the given
@@ -499,6 +516,54 @@ new_param (location *loc,
   return new param (this, inner);
 }
 
+const char* fn_attribute_to_string (gcc_jit_fn_attribute attr)
+{
+  switch (attr)
+  {
+    case GCC_JIT_FN_ATTRIBUTE_ALIAS:
+      return "alias";
+    case GCC_JIT_FN_ATTRIBUTE_ALWAYS_INLINE:
+      return "always_inline";
+    case GCC_JIT_FN_ATTRIBUTE_INLINE:
+      return NULL;
+    case GCC_JIT_FN_ATTRIBUTE_NOINLINE:
+      return "noinline";
+    case GCC_JIT_FN_ATTRIBUTE_TARGET:
+      return "target";
+    case GCC_JIT_FN_ATTRIBUTE_USED:
+      return "used";
+    case GCC_JIT_FN_ATTRIBUTE_VISIBILITY:
+      return "visibility";
+    case GCC_JIT_FN_ATTRIBUTE_COLD:
+      return "cold";
+    case GCC_JIT_FN_ATTRIBUTE_RETURNS_TWICE:
+      return "returns_twice";
+    case GCC_JIT_FN_ATTRIBUTE_PURE:
+      return "pure";
+    case GCC_JIT_FN_ATTRIBUTE_CONST:
+      return "const";
+    case GCC_JIT_FN_ATTRIBUTE_WEAK:
+      return "weak";
+    case GCC_JIT_FN_ATTRIBUTE_NONNULL:
+      return "nonnull";
+    case GCC_JIT_FN_ATTRIBUTE_MAX:
+      return NULL;
+  }
+  return NULL;
+}
+
+const char* variable_attribute_to_string (gcc_jit_variable_attribute attr)
+{
+  switch (attr)
+  {
+    case GCC_JIT_VARIABLE_ATTRIBUTE_VISIBILITY:
+      return "visibility";
+    case GCC_JIT_VARIABLE_ATTRIBUTE_MAX:
+      return NULL;
+  }
+  return NULL;
+}
+
 /* Construct a playback::function instance.  */
 
 playback::function *
@@ -509,7 +574,14 @@ new_function (location *loc,
 	      const char *name,
 	      const auto_vec<param *> *params,
 	      int is_variadic,
-	      enum built_in_function builtin_id)
+	      enum built_in_function builtin_id,
+	      const std::vector<gcc_jit_fn_attribute> &attributes,
+	      const std::vector<std::pair<gcc_jit_fn_attribute,
+					  std::string>> &string_attributes,
+	      const std::vector<std::pair<gcc_jit_fn_attribute,
+					  std::vector<int>>>
+					  &int_array_attributes,
+	      bool is_target_builtin)
 {
   int i;
   param *param;
@@ -542,6 +614,17 @@ new_function (location *loc,
   DECL_IGNORED_P (resdecl) = 1;
   DECL_RESULT (fndecl) = resdecl;
   DECL_CONTEXT (resdecl) = fndecl;
+
+  tree fn_attributes = NULL_TREE;
+
+  if (is_target_builtin)
+  {
+    tree *decl = target_builtins.get (name);
+    if (decl != NULL)
+      fndecl = *decl;
+    else
+      add_error (loc, "cannot find target builtin %s", name);
+  }
 
   if (builtin_id)
     {
@@ -588,12 +671,62 @@ new_function (location *loc,
       DECL_DECLARED_INLINE_P (fndecl) = 1;
 
       /* Add attribute "always_inline": */
-      DECL_ATTRIBUTES (fndecl) =
-	tree_cons (get_identifier ("always_inline"),
-		   NULL,
-		   DECL_ATTRIBUTES (fndecl));
+      fn_attributes = tree_cons (get_identifier ("always_inline"),
+				 NULL,
+				 fn_attributes);
     }
 
+  /* All attributes need to be declared in `dummy-frontend.cc` and more
+     specifically in `jit_attribute_table`. */
+  for (auto attr: attributes)
+  {
+    if (attr == GCC_JIT_FN_ATTRIBUTE_INLINE)
+      DECL_DECLARED_INLINE_P (fndecl) = 1;
+
+    const char* attribute = fn_attribute_to_string (attr);
+    if (attribute)
+    {
+      tree ident = get_identifier (attribute);
+      fn_attributes = tree_cons (ident, NULL_TREE, fn_attributes);
+    }
+  }
+
+  for (auto attr: string_attributes)
+  {
+    gcc_jit_fn_attribute& name = std::get<0>(attr);
+    std::string& value = std::get<1>(attr);
+    tree attribute_value = build_tree_list (NULL_TREE,
+	::build_string (value.length () + 1, value.c_str ()));
+    const char* attribute = fn_attribute_to_string (name);
+    tree ident = attribute ? get_identifier (attribute) : NULL;
+
+    if (ident)
+      fn_attributes = tree_cons (ident, attribute_value, fn_attributes);
+  }
+
+  for (auto attr: int_array_attributes)
+  {
+    gcc_jit_fn_attribute& name = std::get<0>(attr);
+    std::vector<int>& values = std::get<1>(attr);
+
+    const char* attribute = fn_attribute_to_string (name);
+    tree ident = attribute ? get_identifier (attribute) : NULL;
+
+    if (!ident)
+      continue;
+
+    tree tree_list = NULL_TREE;
+    tree *p_tree_list = &tree_list;
+    for (auto value : values)
+    {
+      tree int_value = build_int_cst (integer_type_node, value);
+      *p_tree_list = build_tree_list (NULL, int_value);
+      p_tree_list = &TREE_CHAIN (*p_tree_list);
+    }
+    fn_attributes = tree_cons (ident, tree_list, fn_attributes);
+  }
+
+  decl_attributes (&fndecl, fn_attributes, 0);
   function *func = new function (this, fndecl, kind);
   m_functions.safe_push (func);
   return func;
@@ -607,7 +740,10 @@ global_new_decl (location *loc,
 		 enum gcc_jit_global_kind kind,
 		 type *type,
 		 const char *name,
-		 enum global_var_flags flags)
+		 enum global_var_flags flags,
+		 const std::vector<std::pair<gcc_jit_variable_attribute,
+					     std::string>> &attributes,
+		 bool readonly)
 {
   gcc_assert (type);
   gcc_assert (name);
@@ -646,13 +782,36 @@ global_new_decl (location *loc,
       break;
     }
 
-  if (TYPE_READONLY (type_tree))
+  if (TYPE_READONLY (type_tree) || readonly)
     TREE_READONLY (inner) = 1;
 
   if (loc)
     set_tree_location (inner, loc);
 
+  set_variable_string_attribute (attributes, inner);
+
   return inner;
+}
+
+void
+playback::
+set_variable_string_attribute (
+  const std::vector<std::pair<gcc_jit_variable_attribute,
+			       std::string>> &string_attributes,
+  tree decl)
+{
+  tree var_attributes = NULL_TREE;
+  for (auto attr: string_attributes)
+  {
+    gcc_jit_variable_attribute& name = std::get<0>(attr);
+    std::string& value = std::get<1>(attr);
+    tree attribute_value = build_tree_list (NULL_TREE,
+	::build_string (value.length () + 1, value.c_str ()));
+    tree ident = get_identifier (variable_attribute_to_string (name));
+    if (ident)
+      var_attributes = tree_cons (ident, attribute_value, var_attributes);
+  }
+  decl_attributes (&decl, var_attributes, 0);
 }
 
 /* In use by new_global and new_global_initialized.  */
@@ -674,10 +833,13 @@ new_global (location *loc,
 	    enum gcc_jit_global_kind kind,
 	    type *type,
 	    const char *name,
-	    enum global_var_flags flags)
+	    enum global_var_flags flags,
+	    const std::vector<std::pair<gcc_jit_variable_attribute,
+					std::string>> &attributes,
+	    bool readonly)
 {
   tree inner =
-    global_new_decl (loc, kind, type, name, flags);
+    global_new_decl (loc, kind, type, name, flags, attributes, readonly);
 
   return global_finalize_lvalue (inner);
 }
@@ -818,13 +980,16 @@ playback::context::
 new_global_initialized (location *loc,
 			enum gcc_jit_global_kind kind,
 			type *type,
-                        size_t element_size,
+			size_t element_size,
 			size_t initializer_num_elem,
 			const void *initializer,
 			const char *name,
-			enum global_var_flags flags)
+			enum global_var_flags flags,
+			const std::vector<std::pair<gcc_jit_variable_attribute,
+						    std::string>> &attributes,
+			bool readonly)
 {
-  tree inner = global_new_decl (loc, kind, type, name, flags);
+  tree inner = global_new_decl (loc, kind, type, name, flags, attributes, readonly);
 
   vec<constructor_elt, va_gc> *constructor_elements = NULL;
 
@@ -932,22 +1097,16 @@ new_rvalue_from_const <double> (type *type,
   // FIXME: type-checking, or coercion?
   tree inner_type = type->as_tree ();
 
+  mpfr_t mpf_value;
+
+  mpfr_init2 (mpf_value, 64);
+  mpfr_set_d (mpf_value, value, MPFR_RNDN);
+
   /* We have a "double", we want a REAL_VALUE_TYPE.
 
-     real.cc:real_from_target appears to require the representation to be
-     split into 32-bit values, and then sent as an pair of host long
-     ints.  */
+     realmpfr.cc:real_from_mpfr.  */
   REAL_VALUE_TYPE real_value;
-  union
-  {
-    double as_double;
-    uint32_t as_uint32s[2];
-  } u;
-  u.as_double = value;
-  long int as_long_ints[2];
-  as_long_ints[0] = u.as_uint32s[0];
-  as_long_ints[1] = u.as_uint32s[1];
-  real_from_target (&real_value, as_long_ints, DFmode);
+  real_from_mpfr (&real_value, mpf_value, inner_type, MPFR_RNDN);
   tree inner = build_real (inner_type, real_value);
   return new rvalue (this, inner);
 }
@@ -971,6 +1130,27 @@ new_rvalue_from_const <void *> (type *type,
    so we can exit the gcc::jit::playback namespace.  */
 
 } // namespace playback
+
+/* Construct a playback::rvalue instance (wrapping a tree).  */
+
+playback::rvalue *
+playback::context::
+new_sizeof (type *type)
+{
+  tree inner = TYPE_SIZE_UNIT (type->as_tree ());
+  return new rvalue (this, inner);
+}
+
+/* Construct a playback::rvalue instance (wrapping a tree).  */
+
+playback::rvalue *
+playback::context::
+new_alignof (type *type)
+{
+  int alignment = TYPE_ALIGN (type->as_tree ()) / BITS_PER_UNIT;
+  tree inner = build_int_cst (integer_type_node, alignment);
+  return new rvalue (this, inner);
+}
 
 /* Construct a playback::rvalue instance (wrapping a tree).  */
 
@@ -1011,6 +1191,26 @@ playback::context::new_rvalue_from_vector (location *,
   return new rvalue (this, t_ctor);
 }
 
+/* Construct a playback::rvalue instance (wrapping a tree) for a
+   vector perm.  */
+
+playback::rvalue *
+playback::context::new_rvalue_vector_perm (location *loc,
+					   rvalue* elements1,
+					   rvalue* elements2,
+					   rvalue* mask)
+{
+  tree t_elements1 = elements1->as_tree ();
+  tree t_elements2 = elements2->as_tree ();
+  tree t_mask = mask->as_tree ();
+
+  tree t_vector_perm = build3 (VEC_PERM_EXPR, TREE_TYPE (t_elements1),
+			       t_elements1, t_elements2, t_mask);
+  if (loc)
+    set_tree_location (t_vector_perm, loc);
+  return new rvalue (this, t_vector_perm);
+}
+
 /* Coerce a tree expression into a boolean tree expression.  */
 
 tree
@@ -1024,8 +1224,9 @@ as_truth_value (tree expr, location *loc)
   if (loc)
     set_tree_location (typed_zero, loc);
 
+  tree type = TREE_TYPE (expr);
   expr = fold_build2_loc (UNKNOWN_LOCATION,
-    NE_EXPR, integer_type_node, expr, typed_zero);
+    NE_EXPR, type, expr, typed_zero);
   if (loc)
     set_tree_location (expr, loc);
 
@@ -1212,7 +1413,7 @@ playback::rvalue *
 playback::context::
 new_comparison (location *loc,
 		enum gcc_jit_comparison op,
-		rvalue *a, rvalue *b)
+		rvalue *a, rvalue *b, type *vec_result_type)
 {
   // FIXME: type-checking, or coercion?
   enum tree_code inner_op;
@@ -1251,10 +1452,27 @@ new_comparison (location *loc,
   tree node_b = b->as_tree ();
   node_b = fold_const_var (node_b);
 
-  tree inner_expr = build2 (inner_op,
-			    boolean_type_node,
-			    node_a,
-			    node_b);
+  tree inner_expr;
+  tree a_type = TREE_TYPE (node_a);
+  if (VECTOR_TYPE_P (a_type))
+  {
+    /* Build a vector comparison.  See build_vec_cmp in c-typeck.cc for
+       reference.  */
+    tree t_vec_result_type = vec_result_type->as_tree ();
+    tree zero_vec = build_zero_cst (t_vec_result_type);
+    tree minus_one_vec = build_minus_one_cst (t_vec_result_type);
+    tree cmp_type = truth_type_for (a_type);
+    tree cmp = build2 (inner_op, cmp_type, node_a, node_b);
+    inner_expr = build3 (VEC_COND_EXPR, t_vec_result_type, cmp, minus_one_vec,
+			 zero_vec);
+  }
+  else
+  {
+    inner_expr = build2 (inner_op,
+			 boolean_type_node,
+			 node_a,
+			 node_b);
+  }
 
   /* Try to fold.  */
   inner_expr = fold (inner_expr);
@@ -1438,11 +1656,11 @@ new_bitcast (location *loc,
   {
     active_playback_ctxt->add_error (loc,
       "bitcast with types of different sizes");
-    fprintf (stderr, "input expression (size: %ld):\n",
-      (long) tree_to_uhwi (expr_size));
+    fprintf (stderr, "input expression (size: " HOST_WIDE_INT_PRINT_DEC "):\n",
+	     tree_to_uhwi (expr_size));
     debug_tree (t_expr);
-    fprintf (stderr, "requested type (size: %ld):\n",
-      (long) tree_to_uhwi (type_size));
+    fprintf (stderr, "requested type (size: " HOST_WIDE_INT_PRINT_DEC "):\n",
+	     tree_to_uhwi (type_size));
     debug_tree (t_dst_type);
   }
   tree t_bitcast = build1 (VIEW_CONVERT_EXPR, t_dst_type, t_expr);
@@ -1507,6 +1725,164 @@ new_array_access (location *loc,
 
       return new lvalue (this, t_indirection);
     }
+}
+
+/* Construct a playback::rvalue instance (wrapping a tree) for a
+   vector conversion.  */
+
+playback::rvalue *
+playback::context::
+convert_vector (location *loc,
+		   rvalue *vector,
+		   type *type)
+{
+  gcc_assert (vector);
+  gcc_assert (type);
+
+  /* For comparison, see:
+       c/c-common.cc: c_build_vec_convert
+  */
+
+  tree t_vector = vector->as_tree ();
+
+  tree t_result =
+    build_call_expr_internal_loc (UNKNOWN_LOCATION, IFN_VEC_CONVERT,
+      type->as_tree (), 1, t_vector);
+
+  if (loc)
+    set_tree_location (t_result, loc);
+
+  return new rvalue (this, t_result);
+}
+
+/* The following functions come from c-common.h.  */
+/* Like c_mark_addressable but don't check register qualifier.  */
+void
+common_mark_addressable_vec (tree t)
+{
+  while (handled_component_p (t) || TREE_CODE (t) == C_MAYBE_CONST_EXPR)
+    {
+      t = TREE_OPERAND (t, 0);
+    }
+  if (!VAR_P (t)
+      && TREE_CODE (t) != PARM_DECL
+      && TREE_CODE (t) != COMPOUND_LITERAL_EXPR
+      && TREE_CODE (t) != TARGET_EXPR)
+    return;
+  if (!VAR_P (t) || !DECL_HARD_REGISTER (t))
+    TREE_ADDRESSABLE (t) = 1;
+  if (TREE_CODE (t) == COMPOUND_LITERAL_EXPR)
+    TREE_ADDRESSABLE (COMPOUND_LITERAL_EXPR_DECL (t)) = 1;
+  else if (TREE_CODE (t) == TARGET_EXPR)
+    TREE_ADDRESSABLE (TARGET_EXPR_SLOT (t)) = 1;
+}
+
+/* Return true if TYPE is a vector type that should be subject to the GNU
+   vector extensions (as opposed to a vector type that is used only for
+   the purposes of defining target-specific built-in functions).  */
+
+inline bool
+gnu_vector_type_p (const_tree type)
+{
+  return TREE_CODE (type) == VECTOR_TYPE && !TYPE_INDIVISIBLE_P (type);
+}
+
+/* Return nonzero if REF is an lvalue valid for this language.
+   Lvalues can be assigned, unless their type has TYPE_READONLY.
+   Lvalues can have their address taken, unless they have C_DECL_REGISTER.  */
+
+bool
+lvalue_p (const_tree ref)
+{
+  const enum tree_code code = TREE_CODE (ref);
+
+  switch (code)
+    {
+    case REALPART_EXPR:
+    case IMAGPART_EXPR:
+    case COMPONENT_REF:
+      return lvalue_p (TREE_OPERAND (ref, 0));
+
+    case C_MAYBE_CONST_EXPR:
+      return lvalue_p (TREE_OPERAND (ref, 1));
+
+    case COMPOUND_LITERAL_EXPR:
+    case STRING_CST:
+      return true;
+
+    case MEM_REF:
+    case TARGET_MEM_REF:
+      /* MEM_REFs can appear from -fgimple parsing or folding, so allow them
+	 here as well.  */
+    case INDIRECT_REF:
+    case ARRAY_REF:
+    case VAR_DECL:
+    case PARM_DECL:
+    case RESULT_DECL:
+    case ERROR_MARK:
+      return (TREE_CODE (TREE_TYPE (ref)) != FUNCTION_TYPE
+	      && TREE_CODE (TREE_TYPE (ref)) != METHOD_TYPE);
+
+    case BIND_EXPR:
+      return TREE_CODE (TREE_TYPE (ref)) == ARRAY_TYPE;
+
+    default:
+      return false;
+    }
+}
+
+bool
+convert_vector_to_array_for_subscript (tree *vecp)
+{
+  bool ret = false;
+  if (gnu_vector_type_p (TREE_TYPE (*vecp)))
+    {
+      tree type = TREE_TYPE (*vecp);
+
+      ret = !lvalue_p (*vecp);
+
+      /* We are building an ARRAY_REF so mark the vector as addressable
+	to not run into the gimplifiers premature setting of DECL_GIMPLE_REG_P
+	 for function parameters.  */
+      /* NOTE: that was the missing piece for making vector access work with
+	optimizations enabled.  */
+      common_mark_addressable_vec (*vecp);
+
+      *vecp = build1 (VIEW_CONVERT_EXPR,
+		      build_array_type_nelts (TREE_TYPE (type),
+					      TYPE_VECTOR_SUBPARTS (type)),
+		      *vecp);
+    }
+  return ret;
+}
+
+/* Construct a playback::lvalue instance (wrapping a tree) for a
+   vector access.  */
+
+playback::lvalue *
+playback::context::
+new_vector_access (location *loc,
+		   rvalue *vector,
+		   rvalue *index)
+{
+  gcc_assert (vector);
+  gcc_assert (index);
+
+  /* For comparison, see:
+       c/c-typeck.cc: build_array_ref
+  */
+
+  tree t_vector = vector->as_tree ();
+  bool non_lvalue = convert_vector_to_array_for_subscript (&t_vector);
+  tree type = TREE_TYPE (TREE_TYPE (t_vector));
+  tree t_result = build4 (ARRAY_REF, type, t_vector, index->as_tree (),
+			  NULL_TREE, NULL_TREE);
+  if (non_lvalue)
+    t_result = non_lvalue (t_result);
+
+  if (loc)
+    set_tree_location (t_result, loc);
+  return new lvalue (this, t_result);
 }
 
 /* Construct a tree for a field access.  */
@@ -1646,7 +2022,7 @@ bool
 playback::lvalue::
 mark_addressable (location *loc)
 {
-  tree x = as_tree ();;
+  tree x = as_tree ();
 
   while (1)
     switch (TREE_CODE (x))
@@ -1794,18 +2170,32 @@ playback::lvalue *
 playback::function::
 new_local (location *loc,
 	   type *type,
-	   const char *name)
+	   const char *name,
+	   const std::vector<std::pair<gcc_jit_variable_attribute,
+				       std::string>> &attributes)
 {
   gcc_assert (type);
-  gcc_assert (name);
-  tree inner = build_decl (UNKNOWN_LOCATION, VAR_DECL,
+  tree inner;
+  if (name)
+    inner = build_decl (UNKNOWN_LOCATION, VAR_DECL,
 			   get_identifier (name),
 			   type->as_tree ());
+  else
+  {
+    inner = build_decl (UNKNOWN_LOCATION, VAR_DECL,
+			create_tmp_var_name ("JITTMP"),
+			type->as_tree ());
+    DECL_ARTIFICIAL (inner) = 1;
+    DECL_IGNORED_P (inner) = 1;
+    DECL_NAMELESS (inner) = 1;
+  }
   DECL_CONTEXT (inner) = this->m_inner_fndecl;
 
   /* Prepend to BIND_EXPR_VARS: */
   DECL_CHAIN (inner) = BIND_EXPR_VARS (m_inner_bind_expr);
   BIND_EXPR_VARS (m_inner_bind_expr) = inner;
+
+  set_variable_string_attribute (attributes, inner);
 
   if (loc)
     set_tree_location (inner, loc);
@@ -1929,6 +2319,9 @@ postprocess ()
 
       current_function_decl = NULL;
     }
+    else
+      /* Add to cgraph to output aliases: */
+      rest_of_decl_compilation (m_inner_fndecl, true, 0);
 }
 
 /* Don't leak vec's internal buffer (in non-GC heap) when we are
@@ -2270,7 +2663,7 @@ playback::block::add_extended_asm (location *loc,
   /* asm statements without outputs, including simple ones, are treated
      as volatile.  */
   ASM_VOLATILE_P (asm_stmt) = (outputs->length () == 0);
-  ASM_INPUT_P (asm_stmt) = 0; /* extended asm stmts are not "simple".  */
+  ASM_BASIC_P (asm_stmt) = 0;
   ASM_INLINE_P (asm_stmt) = is_inline;
   if (is_volatile)
     ASM_VOLATILE_P (asm_stmt) = 1;
@@ -2300,6 +2693,20 @@ block (function *func,
   DECL_CONTEXT (m_label_decl) = func->as_fndecl ();
   m_label_expr = NULL;
 }
+
+// This is basically std::lock_guard but it can call the private lock/unlock
+// members of playback::context.
+struct playback::context::scoped_lock
+{
+  scoped_lock (context &ctx) : m_ctx (&ctx) { m_ctx->lock (); }
+  ~scoped_lock () { m_ctx->unlock (); }
+
+  context *m_ctx;
+
+  // Not movable or copyable.
+  scoped_lock (scoped_lock &&) = delete;
+  scoped_lock &operator= (scoped_lock &&) = delete;
+};
 
 /* Compile a playback::context:
 
@@ -2352,15 +2759,12 @@ compile ()
   m_recording_ctxt->get_all_requested_dumps (&requested_dumps);
 
   /* Acquire the JIT mutex and set "this" as the active playback ctxt.  */
-  acquire_mutex ();
+  scoped_lock lock(*this);
 
   auto_string_vec fake_args;
   make_fake_args (&fake_args, ctxt_progname, &requested_dumps);
   if (errors_occurred ())
-    {
-      release_mutex ();
-      return;
-    }
+    return;
 
   /* This runs the compiler.  */
   toplev toplev (get_timer (), /* external_timer */
@@ -2369,7 +2773,11 @@ compile ()
   if (get_logger ())
     for (unsigned i = 0; i < fake_args.length (); i++)
       get_logger ()->log ("argv[%i]: %s", i, fake_args[i]);
-  toplev.main (fake_args.length (),
+
+  /* Add a trailing null to argvec; this is not counted in argc.  */
+  fake_args.safe_push (nullptr);
+  toplev.main (/* The trailing null is not counted in argv.  */
+	       fake_args.length () - 1,
 	       const_cast <char **> (fake_args.address ()));
   exit_scope ("toplev::main");
 
@@ -2387,10 +2795,7 @@ compile ()
      followup activities use timevars, which are global state.  */
 
   if (errors_occurred ())
-    {
-      release_mutex ();
-      return;
-    }
+    return;
 
   if (get_bool_option (GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE))
     dump_generated_code ();
@@ -2402,8 +2807,6 @@ compile ()
      convert the .s file to the requested output format, and copy it to a
      given file (playback::compile_to_file).  */
   postprocess (ctxt_progname);
-
-  release_mutex ();
 }
 
 /* Implementation of class gcc::jit::playback::compile_to_memory,
@@ -2661,18 +3064,18 @@ playback::compile_to_file::copy_file (const char *src_path,
 /* This mutex guards gcc::jit::recording::context::compile, so that only
    one thread can be accessing the bulk of GCC's state at once.  */
 
-static pthread_mutex_t jit_mutex = PTHREAD_MUTEX_INITIALIZER;
+static std::mutex jit_mutex;
 
 /* Acquire jit_mutex and set "this" as the active playback ctxt.  */
 
 void
-playback::context::acquire_mutex ()
+playback::context::lock ()
 {
   auto_timevar tv (get_timer (), TV_JIT_ACQUIRING_MUTEX);
 
   /* Acquire the big GCC mutex. */
   JIT_LOG_SCOPE (get_logger ());
-  pthread_mutex_lock (&jit_mutex);
+  jit_mutex.lock ();
   gcc_assert (active_playback_ctxt == NULL);
   active_playback_ctxt = this;
 }
@@ -2680,13 +3083,13 @@ playback::context::acquire_mutex ()
 /* Release jit_mutex and clear the active playback ctxt.  */
 
 void
-playback::context::release_mutex ()
+playback::context::unlock ()
 {
   /* Release the big GCC mutex. */
   JIT_LOG_SCOPE (get_logger ());
   gcc_assert (active_playback_ctxt == this);
   active_playback_ctxt = NULL;
-  pthread_mutex_unlock (&jit_mutex);
+  jit_mutex.unlock ();
 }
 
 /* Callback used by gcc::jit::playback::context::make_fake_args when
@@ -3000,7 +3403,7 @@ invoke_driver (const char *ctxt_progname,
   ADD_ARG ("-fno-use-linker-plugin");
 
 #if defined (DARWIN_X86) || defined (DARWIN_PPC)
-  /* OS X's linker defaults to treating undefined symbols as errors.
+  /* macOS's linker defaults to treating undefined symbols as errors.
      If the context has any imported functions or globals they will be
      undefined until the .so is dynamically-linked into the process.
      Ensure that the driver passes in "-undefined dynamic_lookup" to the
@@ -3341,7 +3744,7 @@ void
 playback::context::
 init_types ()
 {
-  /* See lto_init() in lto-lang.cc or void visit (TypeBasic *t) in D's types.cc 
+  /* See lto_init () in lto-lang.cc or void visit (TypeBasic *t) in D's types.cc
      for reference. If TYPE_NAME is not set, debug info will not contain types */
 #define NAME_TYPE(t,n) \
 if (t) \
@@ -3369,7 +3772,7 @@ if (t) \
   NAME_TYPE (complex_float_type_node, "complex float");
   NAME_TYPE (complex_double_type_node, "complex double");
   NAME_TYPE (complex_long_double_type_node, "complex long double");
-  
+
   m_const_char_ptr = build_pointer_type(
     build_qualified_type (char_type_node, TYPE_QUAL_CONST));
 
@@ -3488,21 +3891,16 @@ add_error_va (location *loc, const char *fmt, va_list ap)
 
 void
 playback::context::
-add_diagnostic (struct diagnostic_context *diag_context,
-		struct diagnostic_info *diagnostic)
+add_diagnostic (const char *text,
+		const diagnostic_info &diagnostic)
 {
-  /* At this point the text has been formatted into the pretty-printer's
-     output buffer.  */
-  pretty_printer *pp = diag_context->printer;
-  const char *text = pp_formatted_text (pp);
-
   /* Get location information (if any) from the diagnostic.
      The recording::context::add_error[_va] methods require a
      recording::location.  We can't lookup the playback::location
      from the file/line/column since any playback location instances
      may have been garbage-collected away by now, so instead we create
      another recording::location directly.  */
-  location_t gcc_loc = diagnostic_location (diagnostic);
+  location_t gcc_loc = diagnostic_location (&diagnostic);
   recording::location *rec_loc = NULL;
   if (gcc_loc)
     {
@@ -3515,7 +3913,6 @@ add_diagnostic (struct diagnostic_context *diag_context,
     }
 
   m_recording_ctxt->add_error (rec_loc, "%s", text);
-  pp_clear_output_area (pp);
 }
 
 /* Dealing with the linemap API.  */

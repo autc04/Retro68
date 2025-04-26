@@ -1,5 +1,5 @@
 /* Post-reload compare elimination.
-   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+   Copyright (C) 2010-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -45,7 +45,7 @@ along with GCC; see the file COPYING3.  If not see
 
 	[(set (reg:CCM) (compare:CCM (operation) (immediate)))
 	 (set (reg) (operation)]
-	 
+
        The mode CCM will be chosen as if by SELECT_CC_MODE.
 
    Note that unlike NOTICE_UPDATE_CC, we do not handle memory operands.
@@ -125,7 +125,7 @@ struct comparison
   /* Whether IN_A is wrapped in a NOT before being compared.  */
   bool not_in_a;
 };
-  
+
 static vec<comparison *> all_compares;
 
 /* Return whether X is a NOT unary expression.  */
@@ -254,7 +254,8 @@ find_flags_uses_in_insn (struct comparison *cmp, rtx_insn *insn)
 	x = PATTERN (insn);
 	if (GET_CODE (x) == PARALLEL)
 	  x = XVECEXP (x, 0, 0);
-	x = SET_SRC (x);
+	if (GET_CODE (x) == SET)
+	  x = SET_SRC (x);
 	if (GET_CODE (x) == IF_THEN_ELSE)
 	  x = XEXP (x, 0);
 	if (COMPARISON_P (x)
@@ -283,7 +284,7 @@ public:
   find_comparison_dom_walker (cdi_direction direction)
     : dom_walker (direction) {}
 
-  virtual edge before_dom_children (basic_block);
+  edge before_dom_children (basic_block) final override;
 };
 
 /* Return true if conforming COMPARE with EH_NOTE is redundant with comparison
@@ -874,13 +875,13 @@ try_eliminate_compare (struct comparison *cmp)
   rtvec v = rtvec_alloc (2);
   RTVEC_ELT (v, 0) = y;
   RTVEC_ELT (v, 1) = x;
-  
+
   rtx pat = gen_rtx_PARALLEL (VOIDmode, v);
-  
+
   /* Succeed if the new instruction is valid.  Note that we may have started
      a change group within maybe_select_cc_mode, therefore we must continue. */
   validate_change (insn, &PATTERN (insn), pat, true);
-  
+
   if (!apply_change_group ())
     return false;
 
@@ -954,7 +955,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       /* Setting this target hook value is how a backend indicates the need.  */
       if (targetm.flags_regnum == INVALID_REGNUM)
@@ -962,7 +963,7 @@ public:
       return flag_compare_elim_after_reload;
     }
 
-  virtual unsigned int execute (function *)
+  unsigned int execute (function *) final override
     {
       return execute_compare_elim_after_reload ();
     }

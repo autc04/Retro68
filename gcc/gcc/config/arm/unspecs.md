@@ -1,5 +1,5 @@
 ;; Unspec defintions.
-;; Copyright (C) 2012-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2025 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 
 ;; This file is part of GCC.
@@ -159,6 +159,7 @@
   UNSPEC_VCDE		; Custom Datapath Extension instruction.
   UNSPEC_VCDEA		; Custom Datapath Extension instruction.
   UNSPEC_DLS		; Used for DLS (Do Loop Start), Armv8.1-M Mainline instruction
+  UNSPEC_PAC_NOP	; Represents PAC signing LR
 ])
 
 
@@ -220,8 +221,10 @@
   VUNSPEC_SC		; Represent a store-register-exclusive.
   VUNSPEC_LAX		; Represent a load-register-acquire-exclusive.
   VUNSPEC_SLX		; Represent a store-register-release-exclusive.
-  VUNSPEC_LDA		; Represent a store-register-acquire.
+  VUNSPEC_LDA		; Represent a load-register-acquire.
+  VUNSPEC_LDR		; Represent a load-register-relaxed.
   VUNSPEC_STL		; Represent a store-register-release.
+  VUNSPEC_STR		; Represent a store-register-relaxed.
   VUNSPEC_GET_FPSCR	; Represent fetch of FPSCR content.
   VUNSPEC_SET_FPSCR	; Represent assign of FPSCR content.
   VUNSPEC_SET_FPSCR_NZCVQC	; Represent assign of FPSCR_nzcvqc content.
@@ -254,6 +257,9 @@
 			; instruction.
   VUNSPEC_VLLDM		; Represent the lazy load multiple with vlldm
 			; instruction.
+  VUNSPEC_PACBTI_NOP	; Represents PAC signing LR + valid landing pad
+  VUNSPEC_AUT_NOP	; Represents PAC verifying LR
+  VUNSPEC_BTI_NOP	; Represent BTI
 ])
 
 ;; Enumerators for NEON unspecs.
@@ -336,6 +342,10 @@
   UNSPEC_VHSUB_S
   UNSPEC_VHSUB_U
   UNSPEC_VLD1
+  UNSPEC_VLD1X3A
+  UNSPEC_VLD1X3B
+  UNSPEC_VLD1X4A
+  UNSPEC_VLD1X4B
   UNSPEC_VLD1_LANE
   UNSPEC_VLD2
   UNSPEC_VLD2_DUP
@@ -453,6 +463,10 @@
   UNSPEC_VRSRA_U_N
   UNSPEC_VSRI
   UNSPEC_VST1
+  UNSPEC_VST1X3A
+  UNSPEC_VST1X3B
+  UNSPEC_VST1X4A
+  UNSPEC_VST1X4B
   UNSPEC_VST1_LANE
   UNSPEC_VST2
   UNSPEC_VST2_LANE
@@ -575,10 +589,12 @@
   VCVTMQ_S
   VCVTMQ_U
   VADDLVQ_U
-  VCTP8Q
-  VCTP16Q
-  VCTP32Q
-  VCTP64Q
+  VCTP
+  VCTP_M
+  LETP8
+  LETP16
+  LETP32
+  LETP64
   VPNOT
   VCREATEQ_F
   VCVTQ_N_TO_F_S
@@ -702,14 +718,9 @@
   VADDLVAQ_S
   VBICQ_N_U
   VBICQ_N_S
-  VCTP8Q_M
-  VCTP16Q_M
-  VCTP32Q_M
-  VCTP64Q_M
   VCVTBQ_F16_F32
   VCVTTQ_F16_F32
   VMLALDAVQ_U
-  VMLALDAVXQ_U
   VMLALDAVXQ_S
   VMLALDAVQ_S
   VMLSLDAVQ_S
@@ -926,7 +937,6 @@
   VSHRNBQ_N_S
   VRSHRNBQ_N_S
   VRSHRNBQ_N_U
-  VMLALDAVXQ_P_U
   VMLALDAVXQ_P_S
   VQMOVNTQ_M_U
   VQMOVNTQ_M_S
@@ -935,7 +945,6 @@
   VQSHRNTQ_N_U
   VQSHRNTQ_N_S
   VMLALDAVAXQ_S
-  VMLALDAVAXQ_U
   VSHRNTQ_N_S
   VSHRNTQ_N_U
   VCVTBQ_M_F16_F32
@@ -997,8 +1006,7 @@
   VMAXQ_M_U
   VQRDMLAHQ_M_N_U
   VCADDQ_ROT270_M_F
-  VCADDQ_ROT270_M_U
-  VCADDQ_ROT270_M_S
+  VCADDQ_ROT270_M
   VQRSHLQ_M_S
   VMULQ_M_F
   VRHADDQ_M_U
@@ -1052,8 +1060,7 @@
   VSLIQ_M_N_S
   VQSHLQ_M_U
   VQSHLQ_M_S
-  VCADDQ_ROT90_M_U
-  VCADDQ_ROT90_M_S
+  VCADDQ_ROT90_M
   VORNQ_M_U
   VORNQ_M_S
   VQSHLQ_M_N_S
@@ -1139,70 +1146,36 @@
   VMAXNMQ_M_F
   VMINNMQ_M_F
   VSUBQ_M_F
-  VSTRWQSB_S
-  VSTRWQSB_U
-  VSTRBQSO_S
-  VSTRBQSO_U
-  VSTRBQ_S
-  VSTRBQ_U
-  VLDRBQGO_S
-  VLDRBQGO_U
-  VLDRBQ_S
-  VLDRBQ_U
-  VLDRWQGB_S
-  VLDRWQGB_U
-  VLD1Q_F
-  VLD1Q_S
-  VLD1Q_U
-  VLDRHQ_F
-  VLDRHQGO_S
-  VLDRHQGO_U
-  VLDRHQGSO_S
-  VLDRHQGSO_U
-  VLDRHQ_S
-  VLDRHQ_U
-  VLDRWQ_F
-  VLDRWQ_S
-  VLDRWQ_U
-  VLDRDQGB_S
-  VLDRDQGB_U
-  VLDRDQGO_S
-  VLDRDQGO_U
-  VLDRDQGSO_S
-  VLDRDQGSO_U
-  VLDRHQGO_F
-  VLDRHQGSO_F
-  VLDRWQGB_F
-  VLDRWQGO_F
-  VLDRWQGO_S
-  VLDRWQGO_U
-  VLDRWQGSO_F
-  VLDRWQGSO_S
-  VLDRWQGSO_U
-  VSTRHQ_F
-  VST1Q_S
-  VST1Q_U
-  VSTRHQSO_S
-  VSTRHQ_U
-  VSTRWQ_S
-  VSTRWQ_U
-  VSTRWQ_F
-  VST1Q_F
+  VSTRSBQ
+  VSTRSBQ_P
+  VSTRQSO
+  VSTRQSO_P
+  VSTRQSO_TRUNC
+  VSTRQSO_TRUNC_P
+  VLDRQ
+  VLDRQ_Z
+  VLDRQ_EXT
+  VLDRQ_EXT_Z
+  VLDRGOQ
+  VLDRGOQ_Z
+  VLDRGOQ_EXT
+  VLDRGOQ_EXT_Z
+  VLDRGBQ
+  VLDRGBQ_Z
+  VLDRGSOQ
+  VLDRGSOQ_Z
+  VLDRGSOQ_EXT
+  VLDRGSOQ_EXT_Z
+  VSTRQ
+  VSTRQ_P
+  VSTRQ_TRUNC
+  VSTRQ_TRUNC_P
   VSTRDQSB_S
   VSTRDQSB_U
-  VSTRDQSO_S
-  VSTRDQSO_U
-  VSTRDQSSO_S
-  VSTRDQSSO_U
-  VSTRWQSO_S
-  VSTRWQSO_U
-  VSTRWQSSO_S
-  VSTRWQSSO_U
-  VSTRHQSO_F
-  VSTRHQSSO_F
-  VSTRWQSB_F
-  VSTRWQSO_F
-  VSTRWQSSO_F
+  VSTRSSOQ
+  VSTRSSOQ_P
+  VSTRSSOQ_TRUNC
+  VSTRSSOQ_TRUNC_P
   VDDUPQ
   VDDUPQ_M
   VDWDUPQ
@@ -1211,16 +1184,10 @@
   VIDUPQ_M
   VIWDUPQ
   VIWDUPQ_M
-  VSTRWQSBWB_S
-  VSTRWQSBWB_U
-  VLDRWQGBWB_S
-  VLDRWQGBWB_U
-  VSTRWQSBWB_F
-  VLDRWQGBWB_F
-  VSTRDQSBWB_S
-  VSTRDQSBWB_U
-  VLDRDQGBWB_S
-  VLDRDQGBWB_U
+  VSTRSBWBQ
+  VSTRSBWBQ_P
+  VLDRGBWBQ
+  VLDRGBWBQ_Z
   VADCQ_U
   VADCQ_M_U
   VADCQ_S
@@ -1242,9 +1209,6 @@
   VST2Q
   VSHLCQ_M_U
   VSHLCQ_M_S
-  VSTRHQSO_U
-  VSTRHQSSO_S
-  VSTRHQSSO_U
   VSTRHQ_S
   SRSHRL
   SRSHR
@@ -1256,5 +1220,14 @@
   UQRSHLL_48
   SQRSHRL_64
   SQRSHRL_48
-  VSHLCQ_M_
+  REINTERPRET
+])
+
+; DLSTP unspecs must be volatile to guarantee the scheduler does not reschedule
+; these instructions within the loop preheader.
+(define_c_enum "unspecv" [
+  DLSTP8
+  DLSTP16
+  DLSTP32
+  DLSTP64
 ])

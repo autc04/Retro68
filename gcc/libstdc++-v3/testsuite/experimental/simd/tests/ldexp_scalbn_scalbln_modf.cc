@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,9 +17,7 @@
 
 // only: float|double|ldouble * * *
 // expensive: * [1-9] * *
-#include "bits/verify.h"
-#include "bits/metahelpers.h"
-#include "bits/test_values.h"
+#include "bits/main.h"
 
 template <typename V>
   void
@@ -139,7 +137,6 @@ template <typename V>
 	if (modf_is_broken)
 	  return;
 	V integral = {};
-	const V totest = modf(input, &integral);
 	auto&& expected = [&](const auto& v) -> std::pair<const V, const V> {
 	  std::pair<V, V> tmp = {};
 	  using std::modf;
@@ -151,8 +148,9 @@ template <typename V>
 	    }
 	  return tmp;
 	};
-	const auto expect1 = expected(input);
 #ifdef __STDC_IEC_559__
+	const V totest = modf(input, &integral);
+	const auto expect1 = expected(input);
 	COMPARE(isnan(totest), isnan(expect1.first))
 	  << "modf(" << input << ", iptr) = " << totest << " != " << expect1;
 	COMPARE(isnan(integral), isnan(expect1.second))

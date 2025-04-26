@@ -8,7 +8,6 @@
  */
 module core.sys.windows.winnt;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 
@@ -1200,7 +1199,7 @@ enum size_t
 
 PIMAGE_SECTION_HEADER IMAGE_FIRST_SECTION(PIMAGE_NT_HEADERS h) {
     return cast(PIMAGE_SECTION_HEADER)
-        (&h.OptionalHeader + h.FileHeader.SizeOfOptionalHeader);
+        (cast(ubyte*) &h.OptionalHeader + h.FileHeader.SizeOfOptionalHeader);
 }
 
 // ImageDirectoryEntryToDataEx()

@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2004-2022 Free Software Foundation, Inc.
+// Copyright (C) 2004-2025 Free Software Foundation, Inc.
 
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License as
@@ -210,10 +210,16 @@ check_version(symbol& test, bool added)
       known_versions.push_back("GLIBCXX_3.4.27");
       known_versions.push_back("GLIBCXX_3.4.28");
       known_versions.push_back("GLIBCXX_3.4.29");
-      known_versions.push_back("GLIBCXX_3.4.30");
       known_versions.push_back("GLIBCXX_LDBL_3.4.29");
+      known_versions.push_back("GLIBCXX_3.4.30");
+      known_versions.push_back("GLIBCXX_3.4.31");
+      known_versions.push_back("GLIBCXX_3.4.32");
+      known_versions.push_back("GLIBCXX_3.4.33");
+      known_versions.push_back("GLIBCXX_3.4.34");
+      known_versions.push_back("GLIBCXX_LDBL_3.4.31");
       known_versions.push_back("GLIBCXX_IEEE128_3.4.29");
       known_versions.push_back("GLIBCXX_IEEE128_3.4.30");
+      known_versions.push_back("GLIBCXX_IEEE128_3.4.31");
       known_versions.push_back("CXXABI_1.3");
       known_versions.push_back("CXXABI_LDBL_1.3");
       known_versions.push_back("CXXABI_1.3.1");
@@ -229,6 +235,11 @@ check_version(symbol& test, bool added)
       known_versions.push_back("CXXABI_1.3.11");
       known_versions.push_back("CXXABI_1.3.12");
       known_versions.push_back("CXXABI_1.3.13");
+      known_versions.push_back("CXXABI_1.3.14");
+      known_versions.push_back("CXXABI_1.3.15");
+#ifdef __riscv
+      known_versions.push_back("CXXABI_1.3.16");
+#endif
       known_versions.push_back("CXXABI_IEEE128_1.3.13");
       known_versions.push_back("CXXABI_TM_1");
       known_versions.push_back("CXXABI_FLOAT128");
@@ -247,10 +258,8 @@ check_version(symbol& test, bool added)
 	test.version_status = symbol::incompatible;
 
       // Check that added symbols are added in the latest pre-release version.
-      bool latestp = (test.version_name == "GLIBCXX_3.4.30"
-	  // XXX remove next line when baselines have been regenerated.
-		     || test.version_name == "GLIBCXX_IEEE128_3.4.30"
-		     || test.version_name == "CXXABI_1.3.13"
+      bool latestp = (test.version_name == "GLIBCXX_3.4.34"
+		     || test.version_name == "CXXABI_1.3.16"
 		     || test.version_name == "CXXABI_FLOAT128"
 		     || test.version_name == "CXXABI_TM_1");
       if (added && !latestp)

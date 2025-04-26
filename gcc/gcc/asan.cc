@@ -1,5 +1,5 @@
 /* AddressSanitizer, a fast memory error detector.
-   Copyright (C) 2012-2022 Free Software Foundation, Inc.
+   Copyright (C) 2012-2025 Free Software Foundation, Inc.
    Contributed by Kostya Serebryany <kcc@google.com>
 
 This file is part of GCC.
@@ -64,6 +64,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-inline.h"
 #include "tree-ssa.h"
 #include "tree-eh.h"
+#include "diagnostic-core.h"
 
 /* AddressSanitizer finds out-of-bounds and use-after-free bugs
    with <2x slowdown on average.
@@ -390,6 +391,46 @@ asan_memintrin (void)
 }
 
 
+/* Support for --param asan-kernel-mem-intrinsic-prefix=1.  */
+static GTY(()) rtx asan_memfn_rtls[3];
+
+rtx
+asan_memfn_rtl (tree fndecl)
+{
+  int i;
+  const char *f, *p;
+  char buf[sizeof ("__hwasan_memmove")];
+
+  switch (DECL_FUNCTION_CODE (fndecl))
+    {
+    case BUILT_IN_MEMCPY: i = 0; f = "memcpy"; break;
+    case BUILT_IN_MEMSET: i = 1; f = "memset"; break;
+    case BUILT_IN_MEMMOVE: i = 2; f = "memmove"; break;
+    default: gcc_unreachable ();
+    }
+  if (asan_memfn_rtls[i] == NULL_RTX)
+    {
+      tree save_name = DECL_NAME (fndecl);
+      tree save_assembler_name = DECL_ASSEMBLER_NAME (fndecl);
+      rtx save_rtl = DECL_RTL (fndecl);
+      if (flag_sanitize & SANITIZE_KERNEL_HWADDRESS)
+	p = "__hwasan_";
+      else
+	p = "__asan_";
+      strcpy (buf, p);
+      strcat (buf, f);
+      DECL_NAME (fndecl) = get_identifier (buf);
+      DECL_ASSEMBLER_NAME_RAW (fndecl) = NULL_TREE;
+      SET_DECL_RTL (fndecl, NULL_RTX);
+      asan_memfn_rtls[i] = DECL_RTL (fndecl);
+      DECL_NAME (fndecl) = save_name;
+      DECL_ASSEMBLER_NAME_RAW (fndecl) = save_assembler_name;
+      SET_DECL_RTL (fndecl, save_rtl);
+    }
+  return asan_memfn_rtls[i];
+}
+
+
 /* Checks whether section SEC should be sanitized.  */
 
 static bool
@@ -416,6 +457,13 @@ asan_shadow_offset ()
   return asan_shadow_offset_value;
 }
 
+static bool
+asan_dynamic_shadow_offset_p ()
+{
+  return (asan_shadow_offset_value == 0)
+	 && targetm.asan_dynamic_shadow_offset_p ();
+}
+
 /* Returns Asan shadow offset has been set.  */
 bool
 asan_shadow_offset_set_p ()
@@ -431,6 +479,55 @@ static GTY(()) tree shadow_ptr_types[3];
 
 /* Decl for __asan_option_detect_stack_use_after_return.  */
 static GTY(()) tree asan_detect_stack_use_after_return;
+
+static GTY (()) tree asan_shadow_memory_dynamic_address;
+
+/* Local copy for the asan_shadow_memory_dynamic_address within the
+   function.  */
+static GTY (()) tree asan_local_shadow_memory_dynamic_address;
+
+static tree
+get_asan_shadow_memory_dynamic_address_decl ()
+{
+  if (asan_shadow_memory_dynamic_address == NULL_TREE)
+    {
+      tree id, decl;
+      id = get_identifier ("__asan_shadow_memory_dynamic_address");
+      decl
+	= build_decl (BUILTINS_LOCATION, VAR_DECL, id, pointer_sized_int_node);
+      SET_DECL_ASSEMBLER_NAME (decl, id);
+      TREE_ADDRESSABLE (decl) = 1;
+      DECL_ARTIFICIAL (decl) = 1;
+      DECL_IGNORED_P (decl) = 1;
+      DECL_EXTERNAL (decl) = 1;
+      TREE_STATIC (decl) = 1;
+      TREE_PUBLIC (decl) = 1;
+      TREE_USED (decl) = 1;
+      asan_shadow_memory_dynamic_address = decl;
+    }
+
+  return asan_shadow_memory_dynamic_address;
+}
+
+void
+asan_maybe_insert_dynamic_shadow_at_function_entry (function *fun)
+{
+  asan_local_shadow_memory_dynamic_address = NULL_TREE;
+  if (!asan_dynamic_shadow_offset_p ())
+    return;
+
+  gimple *g;
+
+  tree lhs = create_tmp_var (pointer_sized_int_node,
+			     "__local_asan_shadow_memory_dynamic_address");
+
+  g = gimple_build_assign (lhs, get_asan_shadow_memory_dynamic_address_decl ());
+  gimple_set_location (g, fun->function_start_locus);
+  edge e = single_succ_edge (ENTRY_BLOCK_PTR_FOR_FN (cfun));
+  gsi_insert_on_edge_immediate (e, g);
+
+  asan_local_shadow_memory_dynamic_address = lhs;
+}
 
 /* Hashtable support for memory references used by gimple
    statements.  */
@@ -1331,7 +1428,12 @@ has_stmt_been_instrumented_p (gimple *stmt)
 	  return true;
 	}
     }
-  else if (is_gimple_call (stmt) && gimple_store_p (stmt))
+  else if (is_gimple_call (stmt)
+	   && gimple_store_p (stmt)
+	   && (gimple_call_builtin_p (stmt)
+	       || gimple_call_internal_p (stmt)
+	       || !aggregate_value_p (TREE_TYPE (gimple_call_lhs (stmt)),
+				      gimple_call_fntype (stmt))))
     {
       asan_mem_ref r;
       asan_mem_ref_init (&r, NULL, 1);
@@ -1440,10 +1542,7 @@ asan_clear_shadow (rtx shadow_mem, HOST_WIDE_INT len)
 void
 asan_function_start (void)
 {
-  section *fnsec = function_section (current_function_decl);
-  switch_to_section (fnsec);
-  ASM_OUTPUT_DEBUG_LABEL (asm_out_file, "LASANPC",
-			 current_function_funcdef_no);
+  ASM_OUTPUT_DEBUG_LABEL (asm_out_file, "LASANPC", current_function_funcdef_no);
 }
 
 /* Return number of shadow bytes that are occupied by a local variable
@@ -1818,6 +1917,11 @@ asan_emit_stack_protection (rtx base, rtx pbase, unsigned int alignb,
   tree str_cst, decl, id;
   int use_after_return_class = -1;
 
+  /* Don't emit anything when doing error recovery, the assertions
+     might fail e.g. if a function had a frame offset overflow.  */
+  if (seen_error ())
+    return NULL;
+
   if (shadow_ptr_types[0] == NULL_TREE)
     asan_init_shadow_ptr_types ();
 
@@ -1863,19 +1967,39 @@ asan_emit_stack_protection (rtx base, rtx pbase, unsigned int alignb,
     }
   str_cst = asan_pp_string (&asan_pp);
 
+  gcc_checking_assert (offsets[0] == (crtl->stack_protect_guard
+				      ? -ASAN_RED_ZONE_SIZE : 0));
   /* Emit the prologue sequence.  */
   if (asan_frame_size > 32 && asan_frame_size <= 65536 && pbase
       && param_asan_use_after_return)
     {
+      HOST_WIDE_INT adjusted_frame_size = asan_frame_size;
+      /* The stack protector guard is allocated at the top of the frame
+	 and cfgexpand.cc then uses align_frame_offset (ASAN_RED_ZONE_SIZE);
+	 while in that case we can still use asan_frame_size, we need to take
+	 that into account when computing base_align_bias.  */
+      if (alignb > ASAN_RED_ZONE_SIZE && crtl->stack_protect_guard)
+	adjusted_frame_size += ASAN_RED_ZONE_SIZE;
       use_after_return_class = floor_log2 (asan_frame_size - 1) - 5;
       /* __asan_stack_malloc_N guarantees alignment
 	 N < 6 ? (64 << N) : 4096 bytes.  */
       if (alignb > (use_after_return_class < 6
 		    ? (64U << use_after_return_class) : 4096U))
 	use_after_return_class = -1;
-      else if (alignb > ASAN_RED_ZONE_SIZE && (asan_frame_size & (alignb - 1)))
-	base_align_bias = ((asan_frame_size + alignb - 1)
-			   & ~(alignb - HOST_WIDE_INT_1)) - asan_frame_size;
+      else if (alignb > ASAN_RED_ZONE_SIZE
+	       && (adjusted_frame_size & (alignb - 1)))
+	{
+	  base_align_bias
+	    = ((adjusted_frame_size + alignb - 1)
+	       & ~(alignb - HOST_WIDE_INT_1)) - adjusted_frame_size;
+	  use_after_return_class
+	    = floor_log2 (asan_frame_size + base_align_bias - 1) - 5;
+	  if (use_after_return_class > 10)
+	    {
+	      base_align_bias = 0;
+	      use_after_return_class = -1;
+	    }
+	}
     }
 
   /* Align base if target is STRICT_ALIGNMENT.  */
@@ -1960,14 +2084,26 @@ asan_emit_stack_protection (rtx base, rtx pbase, unsigned int alignb,
   DECL_INITIAL (decl) = decl;
   TREE_ASM_WRITTEN (decl) = 1;
   TREE_ASM_WRITTEN (id) = 1;
+  DECL_ALIGN_RAW (decl) = DECL_ALIGN_RAW (current_function_decl);
   emit_move_insn (mem, expand_normal (build_fold_addr_expr (decl)));
   shadow_base = expand_binop (Pmode, lshr_optab, base,
 			      gen_int_shift_amount (Pmode, ASAN_SHADOW_SHIFT),
 			      NULL_RTX, 1, OPTAB_DIRECT);
-  shadow_base
-    = plus_constant (Pmode, shadow_base,
-		     asan_shadow_offset ()
-		     + (base_align_bias >> ASAN_SHADOW_SHIFT));
+  if (asan_dynamic_shadow_offset_p ())
+    {
+      ret = expand_normal (get_asan_shadow_memory_dynamic_address_decl ());
+      shadow_base
+	= expand_simple_binop (Pmode, PLUS, shadow_base, ret, NULL_RTX,
+			       /* unsignedp = */ 1, OPTAB_WIDEN);
+      shadow_base = plus_constant (Pmode, shadow_base,
+				   (base_align_bias >> ASAN_SHADOW_SHIFT));
+    }
+  else
+    {
+      shadow_base = plus_constant (Pmode, shadow_base,
+				   asan_shadow_offset ()
+				     + (base_align_bias >> ASAN_SHADOW_SHIFT));
+    }
   gcc_assert (asan_shadow_set != -1
 	      && (ASAN_RED_ZONE_SIZE >> ASAN_SHADOW_SHIFT) == 4);
   shadow_mem = gen_rtx_MEM (SImode, shadow_base);
@@ -2031,28 +2167,13 @@ asan_emit_stack_protection (rtx base, rtx pbase, unsigned int alignb,
       mem = adjust_address (mem, VOIDmode, base_align_bias);
       emit_move_insn (mem, gen_int_mode (ASAN_STACK_RETIRED_MAGIC, ptr_mode));
       unsigned HOST_WIDE_INT sz = asan_frame_size >> ASAN_SHADOW_SHIFT;
+      bool asan_stack_free_emitted_p = false;
       if (use_after_return_class < 5
 	  && can_store_by_pieces (sz, builtin_memset_read_str, &c,
 				  BITS_PER_UNIT, true))
-	{
-	  /* Emit:
-	       memset(ShadowBase, kAsanStackAfterReturnMagic, ShadowSize);
-	       **SavedFlagPtr(FakeStack, class_id) = 0
-	  */
-	  store_by_pieces (shadow_mem, sz, builtin_memset_read_str, &c,
-			   BITS_PER_UNIT, true, RETURN_BEGIN);
-
-	  unsigned HOST_WIDE_INT offset
-	    = (1 << (use_after_return_class + 6));
-	  offset -= GET_MODE_SIZE (ptr_mode);
-	  mem = gen_rtx_MEM (ptr_mode, base);
-	  mem = adjust_address (mem, ptr_mode, offset);
-	  rtx addr = gen_reg_rtx (ptr_mode);
-	  emit_move_insn (addr, mem);
-	  addr = convert_memory_address (Pmode, addr);
-	  mem = gen_rtx_MEM (QImode, addr);
-	  emit_move_insn (mem, const0_rtx);
-	}
+	/* Emit memset (ShadowBase, kAsanStackAfterReturnMagic, ShadowSize).  */
+	store_by_pieces (shadow_mem, sz, builtin_memset_read_str, &c,
+			 BITS_PER_UNIT, true, RETURN_BEGIN);
       else if (use_after_return_class >= 5
 	       || !set_storage_via_setmem (shadow_mem,
 					   GEN_INT (sz),
@@ -2069,6 +2190,20 @@ asan_emit_stack_protection (rtx base, rtx pbase, unsigned int alignb,
 			     GEN_INT (asan_frame_size + base_align_bias),
 			     TYPE_MODE (pointer_sized_int_node),
 			     orig_addr, ptr_mode);
+	  asan_stack_free_emitted_p = true;
+	}
+      if (!asan_stack_free_emitted_p)
+	{
+	  /* Emit **SavedFlagPtr (FakeStack, class_id) = 0.  */
+	  unsigned HOST_WIDE_INT offset = (1 << (use_after_return_class + 6));
+	  offset -= GET_MODE_SIZE (ptr_mode);
+	  mem = gen_rtx_MEM (ptr_mode, base);
+	  mem = adjust_address (mem, ptr_mode, offset);
+	  rtx addr = gen_reg_rtx (ptr_mode);
+	  emit_move_insn (addr, mem);
+	  addr = convert_memory_address (Pmode, addr);
+	  mem = gen_rtx_MEM (QImode, addr);
+	  emit_move_insn (mem, const0_rtx);
 	}
       lab = gen_label_rtx ();
       emit_jump (lab);
@@ -2105,7 +2240,7 @@ asan_emit_stack_protection (rtx base, rtx pbase, unsigned int alignb,
 				  & ~(ASAN_MIN_RED_ZONE_SIZE - HOST_WIDE_INT_1))
 		   - offset;
 
-      /* Unpoison shadow memory that corresponds to a variable that is 
+      /* Unpoison shadow memory that corresponds to a variable that is
 	 is subject of use-after-return sanitization.  */
       if (l > 2)
 	{
@@ -2245,6 +2380,8 @@ asan_protect_global (tree decl, bool ignore_decl_rtl_set_p)
       || (DECL_SECTION_NAME (decl) != NULL
 	  && !symtab_node::get (decl)->implicit_section
 	  && !section_sanitized_p (DECL_SECTION_NAME (decl)))
+      /* Don't protect variables in non-generic address-space.  */
+      || !ADDR_SPACE_GENERIC_P (TYPE_ADDR_SPACE (TREE_TYPE (decl)))
       || DECL_SIZE (decl) == 0
       || ASAN_RED_ZONE_SIZE * BITS_PER_UNIT > MAX_OFILE_ALIGNMENT
       || TREE_CODE (DECL_SIZE_UNIT (decl)) != INTEGER_CST
@@ -2487,7 +2624,10 @@ build_shadow_mem_access (gimple_stmt_iterator *gsi, location_t location,
   gimple_set_location (g, location);
   gsi_insert_after (gsi, g, GSI_NEW_STMT);
 
-  t = build_int_cst (uintptr_type, asan_shadow_offset ());
+  if (asan_dynamic_shadow_offset_p ())
+    t = asan_local_shadow_memory_dynamic_address;
+  else
+    t = build_int_cst (uintptr_type, asan_shadow_offset ());
   g = gimple_build_assign (make_ssa_name (uintptr_type), PLUS_EXPR,
 			   gimple_assign_lhs (g), t);
   gimple_set_location (g, location);
@@ -2523,7 +2663,7 @@ maybe_create_ssa_name (location_t loc, tree base, gimple_stmt_iterator *iter,
   gimple *g = gimple_build_assign (make_ssa_name (TREE_TYPE (base)), base);
   gimple_set_location (g, loc);
   if (before_p)
-    gsi_insert_before (iter, g, GSI_SAME_STMT);
+    gsi_safe_insert_before (iter, g);
   else
     gsi_insert_after (iter, g, GSI_NEW_STMT);
   return gimple_assign_lhs (g);
@@ -2539,10 +2679,10 @@ maybe_cast_to_ptrmode (location_t loc, tree len, gimple_stmt_iterator *iter,
   if (ptrofftype_p (len))
     return len;
   gimple *g = gimple_build_assign (make_ssa_name (pointer_sized_int_node),
-				  NOP_EXPR, len);
+				   NOP_EXPR, len);
   gimple_set_location (g, loc);
   if (before_p)
-    gsi_insert_before (iter, g, GSI_SAME_STMT);
+    gsi_safe_insert_before (iter, g);
   else
     gsi_insert_after (iter, g, GSI_NEW_STMT);
   return gimple_assign_lhs (g);
@@ -2573,16 +2713,13 @@ build_check_stmt (location_t loc, tree base, tree len,
 		  bool is_non_zero_len, bool before_p, bool is_store,
 		  bool is_scalar_access, unsigned int align = 0)
 {
-  gimple_stmt_iterator gsi = *iter;
   gimple *g;
 
   gcc_assert (!(size_in_bytes > 0 && !is_non_zero_len));
   gcc_assert (size_in_bytes == -1 || size_in_bytes >= 1);
 
-  gsi = *iter;
-
   base = unshare_expr (base);
-  base = maybe_create_ssa_name (loc, base, &gsi, before_p);
+  base = maybe_create_ssa_name (loc, base, iter, before_p);
 
   if (len)
     {
@@ -2633,12 +2770,11 @@ build_check_stmt (location_t loc, tree base, tree len,
 						 align / BITS_PER_UNIT));
   gimple_set_location (g, loc);
   if (before_p)
-    gsi_insert_before (&gsi, g, GSI_SAME_STMT);
+    gsi_safe_insert_before (iter, g);
   else
     {
-      gsi_insert_after (&gsi, g, GSI_NEW_STMT);
-      gsi_next (&gsi);
-      *iter = gsi;
+      gsi_insert_after (iter, g, GSI_NEW_STMT);
+      gsi_next (iter);
     }
 }
 
@@ -2704,8 +2840,14 @@ instrument_derefs (gimple_stmt_iterator *iter, tree t,
   if (VAR_P (inner) && DECL_HARD_REGISTER (inner))
     return;
 
+  /* Accesses to non-generic address-spaces should not be instrumented.  */
+  if (!ADDR_SPACE_GENERIC_P (TYPE_ADDR_SPACE (TREE_TYPE (inner))))
+    return;
+
   poly_int64 decl_size;
-  if ((VAR_P (inner) || TREE_CODE (inner) == RESULT_DECL)
+  if ((VAR_P (inner)
+       || (TREE_CODE (inner) == RESULT_DECL
+	   && !aggregate_value_p (inner, current_function_decl)))
       && offset == NULL_TREE
       && DECL_SIZE (inner)
       && poly_int_tree_p (DECL_SIZE (inner), &decl_size)
@@ -2945,6 +3087,7 @@ maybe_instrument_call (gimple_stmt_iterator *iter)
 	  switch (DECL_FUNCTION_CODE (callee))
 	    {
 	    case BUILT_IN_UNREACHABLE:
+	    case BUILT_IN_UNREACHABLE_TRAP:
 	    case BUILT_IN_TRAP:
 	      /* Don't instrument these.  */
 	      return false;
@@ -2952,6 +3095,9 @@ maybe_instrument_call (gimple_stmt_iterator *iter)
 	      break;
 	    }
 	}
+      if (gimple_call_internal_p (stmt, IFN_ABNORMAL_DISPATCHER))
+	/* Don't instrument this.  */
+	return false;
       /* If a function does not return, then we must handle clearing up the
 	 shadow stack accordingly.  For ASAN we can simply set the entire stack
 	 to "valid" for accesses by setting the shadow space to 0 and all
@@ -2971,12 +3117,16 @@ maybe_instrument_call (gimple_stmt_iterator *iter)
 	  tree decl = builtin_decl_implicit (BUILT_IN_ASAN_HANDLE_NO_RETURN);
 	  gimple *g = gimple_build_call (decl, 0);
 	  gimple_set_location (g, gimple_location (stmt));
-	  gsi_insert_before (iter, g, GSI_SAME_STMT);
+	  gsi_safe_insert_before (iter, g);
 	}
     }
 
   bool instrumented = false;
-  if (gimple_store_p (stmt))
+  if (gimple_store_p (stmt)
+      && (gimple_call_builtin_p (stmt)
+	  || gimple_call_internal_p (stmt)
+	  || !aggregate_value_p (TREE_TYPE (gimple_call_lhs (stmt)),
+				 gimple_call_fntype (stmt))))
     {
       tree ref_expr = gimple_call_lhs (stmt);
       instrument_derefs (iter, ref_expr,
@@ -3240,7 +3390,17 @@ asan_add_global (tree decl, tree type, vec<constructor_elt, va_gc> *v)
     pp_string (&asan_pp, "<unknown>");
   str_cst = asan_pp_string (&asan_pp);
 
-  pp_string (&module_name_pp, main_input_filename);
+  if (!in_lto_p)
+    pp_string (&module_name_pp, main_input_filename);
+  else
+    {
+      const_tree tu = get_ultimate_context ((const_tree)decl);
+      if (tu != NULL_TREE)
+	pp_string (&module_name_pp, IDENTIFIER_POINTER (DECL_NAME (tu)));
+      else
+	pp_string (&module_name_pp, aux_base_name);
+    }
+
   module_name_cst = asan_pp_string (&module_name_pp);
 
   if (asan_needs_local_alias (decl))
@@ -3470,14 +3630,22 @@ initialize_sanitizer_builtins (void)
 
 #include "sanitizer.def"
 
-  /* -fsanitize=object-size uses __builtin_object_size, but that might
-     not be available for e.g. Fortran at this point.  We use
-     DEF_SANITIZER_BUILTIN here only as a convenience macro.  */
-  if ((flag_sanitize & SANITIZE_OBJECT_SIZE)
-      && !builtin_decl_implicit_p (BUILT_IN_OBJECT_SIZE))
-    DEF_SANITIZER_BUILTIN_1 (BUILT_IN_OBJECT_SIZE, "object_size",
-			     BT_FN_SIZE_CONST_PTR_INT,
-			     ATTR_PURE_NOTHROW_LEAF_LIST);
+  /* -fsanitize=object-size uses __builtin_dynamic_object_size and
+     __builtin_object_size, but they might not be available for e.g. Fortran at
+     this point.  We use DEF_SANITIZER_BUILTIN here only as a convenience
+     macro.  */
+  if (flag_sanitize & SANITIZE_OBJECT_SIZE)
+    {
+      if (!builtin_decl_implicit_p (BUILT_IN_OBJECT_SIZE))
+	DEF_SANITIZER_BUILTIN_1 (BUILT_IN_OBJECT_SIZE, "object_size",
+				 BT_FN_SIZE_CONST_PTR_INT,
+				 ATTR_PURE_NOTHROW_LEAF_LIST);
+      if (!builtin_decl_implicit_p (BUILT_IN_DYNAMIC_OBJECT_SIZE))
+	DEF_SANITIZER_BUILTIN_1 (BUILT_IN_DYNAMIC_OBJECT_SIZE,
+				 "dynamic_object_size",
+				 BT_FN_SIZE_CONST_PTR_INT,
+				 ATTR_PURE_NOTHROW_LEAF_LIST);
+    }
 
 #undef DEF_SANITIZER_BUILTIN_1
 #undef DEF_SANITIZER_BUILTIN
@@ -3730,9 +3898,7 @@ asan_expand_mark_ifn (gimple_stmt_iterator *iter)
     }
   tree len = gimple_call_arg (g, 2);
 
-  gcc_assert (tree_fits_shwi_p (len));
-  unsigned HOST_WIDE_INT size_in_bytes = tree_to_shwi (len);
-  gcc_assert (size_in_bytes);
+  gcc_assert (poly_int_tree_p (len));
 
   g = gimple_build_assign (make_ssa_name (pointer_sized_int_node),
 			   NOP_EXPR, base);
@@ -3741,9 +3907,10 @@ asan_expand_mark_ifn (gimple_stmt_iterator *iter)
   tree base_addr = gimple_assign_lhs (g);
 
   /* Generate direct emission if size_in_bytes is small.  */
-  if (size_in_bytes
-      <= (unsigned)param_use_after_scope_direct_emission_threshold)
+  unsigned threshold = param_use_after_scope_direct_emission_threshold;
+  if (tree_fits_uhwi_p (len) && tree_to_uhwi (len) <= threshold)
     {
+      unsigned HOST_WIDE_INT size_in_bytes = tree_to_uhwi (len);
       const unsigned HOST_WIDE_INT shadow_size
 	= shadow_mem_size (size_in_bytes);
       const unsigned int shadow_align
@@ -3777,7 +3944,7 @@ asan_expand_mark_ifn (gimple_stmt_iterator *iter)
       g = gimple_build_assign (make_ssa_name (pointer_sized_int_node),
 			       NOP_EXPR, len);
       gimple_set_location (g, loc);
-      gsi_insert_before (iter, g, GSI_SAME_STMT);
+      gsi_safe_insert_before (iter, g);
       tree sz_arg = gimple_assign_lhs (g);
 
       tree fun
@@ -4174,6 +4341,7 @@ asan_instrument (void)
 {
   if (hwasan_sanitize_p ())
     {
+      initialize_sanitizer_builtins ();
       transform_statements ();
       return 0;
     }
@@ -4214,9 +4382,15 @@ public:
   {}
 
   /* opt_pass methods: */
-  opt_pass * clone () { return new pass_asan (m_ctxt); }
-  virtual bool gate (function *) { return gate_asan () || gate_hwasan (); }
-  virtual unsigned int execute (function *) { return asan_instrument (); }
+  opt_pass * clone () final override { return new pass_asan (m_ctxt); }
+  bool gate (function *) final override
+  {
+    return gate_asan () || gate_hwasan ();
+  }
+  unsigned int execute (function *) final override
+  {
+    return asan_instrument ();
+  }
 
 }; // class pass_asan
 
@@ -4251,11 +4425,14 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       return !optimize && (gate_asan () || gate_hwasan ());
     }
-  virtual unsigned int execute (function *) { return asan_instrument (); }
+  unsigned int execute (function *) final override
+  {
+    return asan_instrument ();
+  }
 
 }; // class pass_asan_O0
 
@@ -4582,6 +4759,8 @@ hwasan_finish_file (void)
      (the kernel has its own initialization already).  */
   if (flag_sanitize & SANITIZE_KERNEL_HWADDRESS)
     return;
+
+  initialize_sanitizer_builtins ();
 
   /* Avoid instrumenting code in the hwasan constructors/destructors.  */
   flag_sanitize &= ~SANITIZE_HWADDRESS;

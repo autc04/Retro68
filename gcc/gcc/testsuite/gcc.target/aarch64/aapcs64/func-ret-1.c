@@ -4,6 +4,7 @@
    AAPCS64 \S 4.1.  */
 
 /* { dg-do run { target aarch64*-*-* } } */
+/* { dg-additional-options "-mbranch-protection=none" } */
 /* { dg-additional-sources "abitest.S" } */
 
 #ifndef IN_FRAMEWORK
@@ -13,6 +14,8 @@
 vf2_t vf2 = (vf2_t){ 17.f, 18.f };
 vi4_t vi4 = (vi4_t){ 0xdeadbabe, 0xbabecafe, 0xcafebeef, 0xbeefdead };
 vlf1_t vlf1 = (vlf1_t) { 17.0 };
+
+vldf1_t vldf1 = (vldf1_t) { 17.0dl };
 
 union int128_t qword;
 
@@ -45,4 +48,9 @@ FUNC_VAL_CHECK (13,         vi4_t,        vi4, Q0, i32in128)
 FUNC_VAL_CHECK (14,         int *,    int_ptr, X0, flat)
 FUNC_VAL_CHECK (15,         vlf1_t,    vlf1, Q0, flat)
 FUNC_VAL_CHECK (16,         __fp16,    0xabcd, H0, flat)
+
+FUNC_VAL_CHECK (17,     _Decimal32, 65432.12345df, S0, flat)
+FUNC_VAL_CHECK (18,     _Decimal64, 9876543.212345dd, D0, flat)
+FUNC_VAL_CHECK (19,    _Decimal128, 98765432123456789.987654321dl, Q0, flat)
+FUNC_VAL_CHECK (20,        vldf1_t, vldf1, Q0, flat)
 #endif

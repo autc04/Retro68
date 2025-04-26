@@ -1,5 +1,5 @@
 /* A self-testing framework, for use by -fself-test.
-   Copyright (C) 2015-2022 Free Software Foundation, Inc.
+   Copyright (C) 2015-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -63,6 +63,26 @@ fail_formatted (const location &loc, const char *fmt, ...)
   abort ();
 }
 
+/* Invoke "diff" to print the difference between VAL1 and VAL2
+   on stdout.  */
+
+static void
+print_diff (const location &loc, const char *val1, const char *val2)
+{
+  temp_source_file tmpfile1 (loc, ".txt", val1);
+  temp_source_file tmpfile2 (loc, ".txt", val2);
+  const char *args[] = {"diff",
+			"-up",
+			tmpfile1.get_filename (),
+			tmpfile2.get_filename (),
+			NULL};
+  int exit_status = 0;
+  int err = 0;
+  pex_one (PEX_SEARCH | PEX_LAST,
+	   args[0], CONST_CAST (char **, args),
+	   NULL, NULL, NULL, &exit_status, &err);
+}
+
 /* Implementation detail of ASSERT_STREQ.
    Compare val1 and val2 with strcmp.  They ought
    to be non-NULL; fail gracefully if either or both are NULL.  */
@@ -89,8 +109,12 @@ assert_streq (const location &loc,
 	if (strcmp (val1, val2) == 0)
 	  pass (loc, "ASSERT_STREQ");
 	else
-	  fail_formatted (loc, "ASSERT_STREQ (%s, %s)\n val1=\"%s\"\n val2=\"%s\"\n",
-			  desc_val1, desc_val2, val1, val2);
+	  {
+	    print_diff (loc, val1, val2);
+	    fail_formatted
+	      (loc, "ASSERT_STREQ (%s, %s)\n val1=\"%s\"\n val2=\"%s\"\n",
+	       desc_val1, desc_val2, val1, val2);
+	  }
       }
 }
 
@@ -161,10 +185,12 @@ assert_str_startswith (const location &loc,
 
 /* Constructor.  Generate a name for the file.  */
 
-named_temp_file::named_temp_file (const char *suffix)
+named_temp_file::named_temp_file (const char *suffix,
+				  file_cache *fc)
 {
   m_filename = make_temp_file (suffix);
   ASSERT_NE (m_filename, NULL);
+  m_file_cache = fc;
 }
 
 /* Destructor.  Delete the tempfile.  */
@@ -172,7 +198,8 @@ named_temp_file::named_temp_file (const char *suffix)
 named_temp_file::~named_temp_file ()
 {
   unlink (m_filename);
-  diagnostics_file_cache_forcibly_evict_file (m_filename);
+  if (m_file_cache)
+    m_file_cache->forcibly_evict_file (m_filename);
   free (m_filename);
 }
 
@@ -182,8 +209,9 @@ named_temp_file::~named_temp_file ()
 
 temp_source_file::temp_source_file (const location &loc,
 				    const char *suffix,
-				    const char *content)
-: named_temp_file (suffix)
+				    const char *content,
+				    file_cache *fc)
+: named_temp_file (suffix, fc)
 {
   FILE *out = fopen (get_filename (), "w");
   if (!out)
@@ -253,7 +281,7 @@ read_file (const location &loc, const char *path)
       /* Allow 1 extra byte for 0-termination.  */
       if (alloc_sz < (total_sz + 1))
 	{
-	  size_t new_alloc_sz = alloc_sz ? alloc_sz * 2: total_sz + 1;
+	  size_t new_alloc_sz = alloc_sz ? alloc_sz * 2 : total_sz + 1;
 	  result = (char *)xrealloc (result, new_alloc_sz);
 	  alloc_sz = new_alloc_sz;
 	}

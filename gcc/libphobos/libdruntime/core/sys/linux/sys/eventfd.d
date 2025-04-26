@@ -9,7 +9,6 @@ module core.sys.linux.sys.eventfd;
 version (linux):
 extern (C):
 @nogc:
-@system:
 nothrow:
 
 version (ARM)     version = ARM_Any;
@@ -107,6 +106,12 @@ else version (SPARC_Any)
     enum EFD_NONBLOCK = 0x800; // octal!4000
 }
 else version (IBMZ_Any)
+{
+    enum EFD_SEMAPHORE = 1;
+    enum EFD_CLOEXEC = 0x80000; // octal!2000000
+    enum EFD_NONBLOCK = 0x800; // octal!4000
+}
+else version (LoongArch64)
 {
     enum EFD_SEMAPHORE = 1;
     enum EFD_CLOEXEC = 0x80000; // octal!2000000

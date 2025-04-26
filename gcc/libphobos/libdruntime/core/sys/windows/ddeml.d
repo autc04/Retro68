@@ -9,17 +9,16 @@
  */
 module core.sys.windows.ddeml;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "user32");
 
 import core.sys.windows.basetsd, core.sys.windows.windef, core.sys.windows.winnt;
 
-mixin DECLARE_HANDLE!("HCONVLIST");
-mixin DECLARE_HANDLE!("HCONV");
-mixin DECLARE_HANDLE!("HSZ");
-mixin DECLARE_HANDLE!("HDDEDATA");
+alias HCONVLIST = HANDLE;
+alias HCONV = HANDLE;
+alias HSZ = HANDLE;
+alias HDDEDATA = HANDLE;
 
 enum : int {
     CP_WINANSI    = 1004,
@@ -333,7 +332,7 @@ struct MONMSGSTRUCT {
 }
 alias MONMSGSTRUCT* PMONMSGSTRUCT;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     BOOL DdeAbandonTransaction(DWORD, HCONV, DWORD);
     PBYTE DdeAccessData(HDDEDATA, PDWORD);
     HDDEDATA DdeAddData(HDDEDATA, PBYTE, DWORD, DWORD);

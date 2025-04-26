@@ -1,6 +1,6 @@
 // -*- C++ -*- compatibility header.
 
-// Copyright (C) 2002-2022 Free Software Foundation, Inc.
+// Copyright (C) 2002-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -26,10 +26,10 @@
  *  This is a Standard C++ Library header.
  */
 
-#include <cstring>
-
 #ifndef _GLIBCXX_STRING_H
 #define _GLIBCXX_STRING_H 1
+
+#include <cstring>
 
 #ifdef _GLIBCXX_NAMESPACE_C
 using std::memcpy;
@@ -50,7 +50,9 @@ using std::strpbrk;
 using std::strrchr;
 using std::strspn;
 using std::strstr;
+#if _GLIBCXX_HOSTED || __cplusplus <= 202302L
 using std::strtok;
+#endif
 using std::memset;
 using std::strerror;
 using std::strlen;

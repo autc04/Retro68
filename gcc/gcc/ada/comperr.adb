@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,6 +30,7 @@
 with Atree;          use Atree;
 with Debug;          use Debug;
 with Errout;         use Errout;
+with Generate_Minimal_Reproducer;
 with Gnatvsn;        use Gnatvsn;
 with Lib;            use Lib;
 with Namet;          use Namet;
@@ -177,10 +178,8 @@ package body Comperr is
 
          --  Output target name, deleting junk final reverse slash
 
-         if Target_Name.all (Target_Name.all'Last) = '\'
-           or else Target_Name.all (Target_Name.all'Last) = '/'
-         then
-            Write_Str (Target_Name.all (1 .. Target_Name.all'Last - 1));
+         if Target_Name (Target_Name'Last) in '/' | '\' then
+            Write_Str (Target_Name (1 .. Target_Name'Last - 1));
          else
             Write_Str (Target_Name.all);
          end if;
@@ -265,7 +264,7 @@ package body Comperr is
             Src : Source_Buffer_Ptr;
 
          begin
-            Namet.Unlock;
+            Namet.Unlock_If_Locked;
             Name_Buffer (1 .. 12) := "gnat_bug.box";
             Name_Len := 12;
             Read_Source_File (Name_Enter, 0, Hi, Src, FD);
@@ -405,6 +404,15 @@ package body Comperr is
                Write_Str ("list may be incomplete");
          end;
 
+         begin
+            if Debug_Flag_Underscore_M then
+               Generate_Minimal_Reproducer;
+            end if;
+         exception
+            when others =>
+               Write_Str ("failed to generate reproducer");
+         end;
+
          Write_Eol;
          Set_Standard_Output;
 
@@ -541,5 +549,4 @@ package body Comperr is
 
       Write_Char (After);
    end Repeat_Char;
-
 end Comperr;

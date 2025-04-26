@@ -1,5 +1,5 @@
 // -*- C++ -*- Manage the thread-local exception globals.
-// Copyright (C) 2001-2022 Free Software Foundation, Inc.
+// Copyright (C) 2001-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -70,19 +70,8 @@ __cxxabiv1::__cxa_get_globals() _GLIBCXX_NOTHROW
 
 namespace
 {
-  struct constant_init
-  {
-    union {
-      unsigned char unused;
-      __cxa_eh_globals obj;
-    };
-    constexpr constant_init() : obj() { }
-
-    ~constant_init() { /* do nothing, union member is not destroyed */ }
-  };
-
   // Single-threaded fallback buffer.
-  __constinit constant_init eh_globals;
+  __constinit __cxa_eh_globals eh_globals;
 }
 
 #if __GTHREADS
@@ -119,8 +108,13 @@ struct __eh_globals_init
   ~__eh_globals_init()
   {
     if (_S_init)
-      __gthread_key_delete(_M_key);
-    _S_init = false;
+      {
+	/* Set it before the call, so that, should
+	   __gthread_key_delete throw an exception, it won't rely on
+	   the key being deleted.  */
+	_S_init = false;
+	__gthread_key_delete(_M_key);
+      }
   }
 
   __eh_globals_init(const __eh_globals_init&) = delete;
@@ -138,7 +132,7 @@ __cxxabiv1::__cxa_get_globals_fast() _GLIBCXX_NOTHROW
   if (init._S_init)
     g = static_cast<__cxa_eh_globals*>(__gthread_getspecific(init._M_key));
   else
-    g = &eh_globals.obj;
+    g = &eh_globals;
   return g;
 }
 
@@ -163,7 +157,7 @@ __cxxabiv1::__cxa_get_globals() _GLIBCXX_NOTHROW
 	}
     }
   else
-    g = &eh_globals.obj;
+    g = &eh_globals;
   return g;
 }
 
@@ -171,11 +165,11 @@ __cxxabiv1::__cxa_get_globals() _GLIBCXX_NOTHROW
 
 extern "C" __cxa_eh_globals*
 __cxxabiv1::__cxa_get_globals_fast() _GLIBCXX_NOTHROW
-{ return &eh_globals.obj; }
+{ return &eh_globals; }
 
 extern "C" __cxa_eh_globals*
 __cxxabiv1::__cxa_get_globals() _GLIBCXX_NOTHROW
-{ return &eh_globals.obj; }
+{ return &eh_globals; }
 
 #endif
 

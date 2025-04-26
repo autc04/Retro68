@@ -1,5 +1,5 @@
 /* objc-map.h -- Implementation of map data structures for ObjC compiler
-   Copyright (C) 2011-2022 Free Software Foundation, Inc.
+   Copyright (C) 2011-2025 Free Software Foundation, Inc.
    Written by Nicola Pero <nicola.pero@meta-innovation.com>
 
 This program is free software; you can redistribute it and/or modify it
@@ -133,7 +133,7 @@ int objc_map_maximum_load_factor (objc_map_t map);
    value NULL, and objc_map_get() will return NULL in that case.
    So a result of NULL means that they key *was* found, and the value
    associated with it was NULL.  */
-static inline tree
+inline tree
 objc_map_get (objc_map_t map, /* struct tree_identifier * */tree key)
 {
   /* The inline implementation is private and may change without notice.  */
@@ -146,14 +146,14 @@ objc_map_get (objc_map_t map, /* struct tree_identifier * */tree key)
 
   if (map->slots[i] == key)
     return map->values[i];
-  
+
   while (1)
     {
       i = (i + j) & map->mask;
-      
+
       if (map->slots[i] == OBJC_MAP_PRIVATE_EMPTY_SLOT)
 	return OBJC_MAP_NOT_FOUND;
-      
+
       if (map->slots[i] == key)
 	return map->values[i];
 
@@ -169,7 +169,7 @@ objc_map_get (objc_map_t map, /* struct tree_identifier * */tree key)
    You can use any identifier as key, with the exception of NULL.
 
    You can use any tree as value, including NULL.  */
-static inline
+inline
 void objc_map_put (objc_map_t map, /*struct tree_identifier * */tree key, tree value)
 {
   /* The inline implementation is private and may change without notice.  */
@@ -180,7 +180,7 @@ void objc_map_put (objc_map_t map, /*struct tree_identifier * */tree key, tree v
     objc_map_private_grow (map);
 
   i = hash & map->mask;
-    
+
   while (1)
     {
       if (map->slots[i] == OBJC_MAP_PRIVATE_EMPTY_SLOT)
@@ -243,7 +243,7 @@ typedef size_t objc_map_iterator_t;
 /* Initialize an iterator to iterate over the specified objc_map.  You
    must use this before starting the iteration, to get a working
    iterator.  */
-static inline
+inline
 void
 objc_map_iterator_initialize (objc_map_t map ATTRIBUTE_UNUSED, objc_map_iterator_t *i)
 {
@@ -262,7 +262,7 @@ objc_map_iterator_initialize (objc_map_t map ATTRIBUTE_UNUSED, objc_map_iterator
    been initialized using objc_map_iterator_initialize().  Note that
    because this function is modifying the iterator, you need to pass a
    pointer to it.  */
-static inline
+inline
 int
 objc_map_iterator_move_to_next (objc_map_t map, objc_map_iterator_t *i)
 {
@@ -272,7 +272,7 @@ objc_map_iterator_move_to_next (objc_map_t map, objc_map_iterator_t *i)
       void *slot;
       if (*i == map->number_of_slots)
 	return OBJC_MAP_FAILURE;
-      
+
       slot = map->slots[*i];
       *i = *i + 1;
       if (slot != OBJC_MAP_PRIVATE_EMPTY_SLOT)
@@ -285,7 +285,7 @@ objc_map_iterator_move_to_next (objc_map_t map, objc_map_iterator_t *i)
    first element), and only if the last call returned
    OBJC_MAP_SUCCESS.  The behavior is otherwise undefined, probably a
    segmentation fault.  */
-static inline
+inline
 tree
 objc_map_iterator_current_key (objc_map_t map, objc_map_iterator_t i)
 {
@@ -298,7 +298,7 @@ objc_map_iterator_current_key (objc_map_t map, objc_map_iterator_t i)
    the first element), and only if the last call returned
    OBJC_MAP_SUCCESS.  The behavior is otherwise undefined, probably a
    segmentation fault.  */
-static inline
+inline
 tree
 objc_map_iterator_current_value (objc_map_t map, objc_map_iterator_t i)
 {

@@ -1,6 +1,6 @@
 // Node handles for containers -*- C++ -*-
 
-// Copyright (C) 2016-2022 Free Software Foundation, Inc.
+// Copyright (C) 2016-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,10 +31,13 @@
 #ifndef _NODE_HANDLE
 #define _NODE_HANDLE 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
-#if __cplusplus >= 201703L
-# define __cpp_lib_node_extract 201606L
+#include <bits/version.h>
+
+#ifdef __glibcxx_node_extract // C++ >= 17 && HOSTED
 
 #include <new>
 #include <bits/alloc_traits.h>
@@ -168,6 +171,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_M_ptr = nullptr;
       }
 
+      // Destroys the allocator. Does not deallocate or destroy the node.
+      // Precondition: !empty()
+      // Postcondition: empty()
+      void
+      release() noexcept
+      {
+	_M_alloc.release();
+	_M_ptr = nullptr;
+      }
+
     protected:
       typename _AllocTraits::pointer _M_ptr;
 
@@ -219,9 +232,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  return __tmp;
 	}
 
-	struct _Empty { };
-
-	[[__no_unique_address__]] _Empty     _M_empty;
 	[[__no_unique_address__]] _NodeAlloc _M_alloc;
       };
 
@@ -230,6 +240,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       template<typename _Key2, typename _Value2, typename _KeyOfValue,
 	       typename _Compare, typename _ValueAlloc>
 	friend class _Rb_tree;
+
+      template<typename _Key2, typename _Value2, typename _ValueAlloc,
+	       typename _ExtractKey, typename _Equal,
+	       typename _Hash, typename _RangeHash, typename _Unused,
+	       typename _RehashPolicy, typename _Traits>
+	friend class _Hashtable;
 
       /// @endcond
     };
@@ -390,5 +406,5 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 
-#endif // C++17
+#endif // __glibcxx_node_extract
 #endif

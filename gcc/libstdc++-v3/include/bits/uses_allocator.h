@@ -1,6 +1,6 @@
 // Uses-allocator Construction -*- C++ -*-
 
-// Copyright (C) 2010-2022 Free Software Foundation, Inc.
+// Copyright (C) 2010-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -21,6 +21,11 @@
 // a copy of the GCC Runtime Library Exception along with this program;
 // see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 // <http://www.gnu.org/licenses/>.
+
+/** @file include/bits/uses_allocator_args.h
+ *  This is an internal header file, included by other library headers.
+ *  Do not attempt to use it directly. @headername{memory}
+ */
 
 #ifndef _USES_ALLOCATOR_H
 #define _USES_ALLOCATOR_H 1
@@ -129,6 +134,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       uses_allocator<_Tp, _Alloc>::value;
 #endif // C++17
 
+#if __cpp_concepts
+  template<typename _Alloc, typename... _Ts>
+    concept __allocator_for = (uses_allocator_v<_Ts, _Alloc> && ...);
+#endif
+
   template<template<typename...> class _Predicate,
 	   typename _Tp, typename _Alloc, typename... _Args>
     struct __is_uses_allocator_predicate
@@ -163,7 +173,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif // C++14
 
   template<typename _Tp, typename... _Args>
-    void __uses_allocator_construct_impl(__uses_alloc0 __a, _Tp* __ptr,
+    void __uses_allocator_construct_impl(__uses_alloc0, _Tp* __ptr,
 					 _Args&&... __args)
     { ::new ((void*)__ptr) _Tp(std::forward<_Args>(__args)...); }
 

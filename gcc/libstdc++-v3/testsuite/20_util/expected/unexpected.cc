@@ -1,4 +1,3 @@
-// { dg-options "-std=gnu++23" }
 // { dg-do run { target c++23 } }
 
 #include <expected>
@@ -72,6 +71,10 @@ test()
 
   return true;
 }
+
+static_assert( std::is_swappable_v<std::unexpected<int>> );
+struct A { A& operator=(A&&) = delete; };
+static_assert( ! std::is_swappable_v<std::unexpected<A>> );
 
 int main()
 {

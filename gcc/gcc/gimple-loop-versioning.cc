@@ -1,5 +1,5 @@
 /* Loop versioning pass.
-   Copyright (C) 2018-2022 Free Software Foundation, Inc.
+   Copyright (C) 2018-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -258,7 +258,7 @@ private:
   public:
     lv_dom_walker (loop_versioning &);
 
-    edge before_dom_children (basic_block) FINAL OVERRIDE;
+    edge before_dom_children (basic_block) final override;
 
   private:
     /* The parent pass.  */
@@ -271,7 +271,7 @@ private:
   {
   public:
     name_prop (loop_info &li) : m_li (li) {}
-    tree value_of_expr (tree name, gimple *) FINAL OVERRIDE;
+    tree value_of_expr (tree name, gimple *) final override;
 
   private:
     /* Information about the versioning we've performed on the loop.  */
@@ -321,9 +321,6 @@ private:
 
   /* An obstack to use for general allocation.  */
   obstack m_obstack;
-
-  /* The number of loops in the function.  */
-  unsigned int m_nloops;
 
   /* The total number of loop version conditions we've found.  */
   unsigned int m_num_conditions;
@@ -525,10 +522,10 @@ loop_versioning::name_prop::value_of_expr (tree val, gimple *)
 
 loop_versioning::loop_versioning (function *fn)
   : m_fn (fn),
-    m_nloops (number_of_loops (fn)),
     m_num_conditions (0),
     m_address_table (31)
 {
+  unsigned m_nloops = number_of_loops (fn);
   bitmap_obstack_initialize (&m_bitmap_obstack);
   gcc_obstack_init (&m_obstack);
 
@@ -556,7 +553,7 @@ loop_versioning::loop_versioning (function *fn)
      handled efficiently by scalar code.  omp_max_vf calculates the
      maximum number of bytes in a vector, when such a value is relevant
      to loop optimization.  */
-  m_maximum_scale = estimated_poly_value (omp_max_vf ());
+  m_maximum_scale = estimated_poly_value (omp_max_vf (false));
   m_maximum_scale = MAX (m_maximum_scale, MAX_FIXED_MODE_SIZE);
 }
 
@@ -940,7 +937,7 @@ loop_versioning::analyze_term_using_scevs (address_info &address,
 	{
 	  if (dump_enabled_p ())
 	    dump_printf_loc (MSG_NOTE, address.stmt,
-			     "looking through %G", assign);
+			     "looking through %G", (gimple *) assign);
 	  stride = strip_casts (gimple_assign_rhs1 (assign));
 	}
 
@@ -1437,7 +1434,7 @@ loop_versioning::analyze_blocks ()
 	      {
 		linfo.rejected_p = true;
 		break;
-	    }
+	      }
 
 	  if (!linfo.rejected_p)
 	    {
@@ -1476,7 +1473,7 @@ loop_versioning::prune_loop_conditions (class loop *loop)
       gimple *stmt = first_stmt (loop->header);
 
       if (get_range_query (cfun)->range_of_expr (r, name, stmt)
-	  && !r.contains_p (build_one_cst (TREE_TYPE (name))))
+	  && !r.contains_p (wi::one (TYPE_PRECISION (TREE_TYPE (name)))))
 	{
 	  if (dump_enabled_p ())
 	    dump_printf_loc (MSG_NOTE, find_loop_location (loop),
@@ -1681,7 +1678,8 @@ loop_versioning::version_loop (class loop *loop)
 
   /* Convert the condition into a suitable gcond.  */
   gimple_seq stmts = NULL;
-  cond = force_gimple_operand_1 (cond, &stmts, is_gimple_condexpr, NULL_TREE);
+  cond = force_gimple_operand_1 (cond, &stmts, is_gimple_condexpr_for_cond,
+				 NULL_TREE);
 
   /* Version the loop.  */
   initialize_original_copy_tables ();
@@ -1781,8 +1779,11 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return flag_version_loops_for_strides; }
-  virtual unsigned int execute (function *);
+  bool gate (function *) final override
+  {
+    return flag_version_loops_for_strides;
+  }
+  unsigned int execute (function *) final override;
 };
 
 unsigned int

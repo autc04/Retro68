@@ -1,6 +1,5 @@
-// { dg-options "-std=gnu++20" }
 // { dg-do compile { target c++20 } }
-// { dg-xfail-if "not supported" { debug_mode } }
+// { dg-add-options no_pch }
 
 #include <vector>
 
@@ -22,6 +21,10 @@ struct Alloc : std::allocator<T>
 
   template<typename U>
     constexpr Alloc(const Alloc<U>& a) : personality(a.personality) { }
+
+#if __cplusplus <= 202302L
+  using is_always_equal = std::false_type;
+#endif
 
   int personality = 0;
 

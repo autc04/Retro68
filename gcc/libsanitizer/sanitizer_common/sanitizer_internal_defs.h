@@ -13,6 +13,12 @@
 #define SANITIZER_DEFS_H
 
 #include "sanitizer_platform.h"
+#include "sanitizer_redefine_builtins.h"
+
+// GCC does not understand __has_feature.
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
 
 #ifndef SANITIZER_DEBUG
 # define SANITIZER_DEBUG 0
@@ -29,22 +35,20 @@
 # define SANITIZER_INTERFACE_ATTRIBUTE __declspec(dllexport)
 #endif
 # define SANITIZER_WEAK_ATTRIBUTE
+#  define SANITIZER_WEAK_IMPORT
 #elif SANITIZER_GO
 # define SANITIZER_INTERFACE_ATTRIBUTE
 # define SANITIZER_WEAK_ATTRIBUTE
+#  define SANITIZER_WEAK_IMPORT
 #else
 # define SANITIZER_INTERFACE_ATTRIBUTE __attribute__((visibility("default")))
 # define SANITIZER_WEAK_ATTRIBUTE  __attribute__((weak))
-#endif
-
-// TLS is handled differently on different platforms
-#if SANITIZER_LINUX || SANITIZER_NETBSD || \
-  SANITIZER_FREEBSD
-# define SANITIZER_TLS_INITIAL_EXEC_ATTRIBUTE \
-    __attribute__((tls_model("initial-exec"))) thread_local
-#else
-# define SANITIZER_TLS_INITIAL_EXEC_ATTRIBUTE
-#endif
+#  if SANITIZER_APPLE
+#    define SANITIZER_WEAK_IMPORT extern "C" __attribute((weak_import))
+#  else
+#    define SANITIZER_WEAK_IMPORT extern "C" SANITIZER_WEAK_ATTRIBUTE
+#  endif  // SANITIZER_APPLE
+#endif    // SANITIZER_WINDOWS
 
 //--------------------------- WEAK FUNCTIONS ---------------------------------//
 // When working with weak functions, to simplify the code and make it more
@@ -73,7 +77,7 @@
 // Before Xcode 4.5, the Darwin linker doesn't reliably support undefined
 // weak symbols.  Mac OS X 10.9/Darwin 13 is the first release only supported
 // by Xcode >= 4.5.
-#elif SANITIZER_MAC && \
+#elif SANITIZER_APPLE && \
     __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1090 && !SANITIZER_GO
 # define SANITIZER_SUPPORTS_WEAK_HOOKS 1
 #else
@@ -134,19 +138,25 @@
 // in a portable way by the language itself.
 namespace __sanitizer {
 
-#if defined(_WIN64)
+#if defined(__UINTPTR_TYPE__)
+#  if defined(__arm__) && defined(__linux__)
+// Linux Arm headers redefine __UINTPTR_TYPE__ and disagree with clang/gcc.
+typedef unsigned int uptr;
+typedef int sptr;
+#  else
+typedef __UINTPTR_TYPE__ uptr;
+typedef __INTPTR_TYPE__ sptr;
+#  endif
+#elif defined(_WIN64)
 // 64-bit Windows uses LLP64 data model.
 typedef unsigned long long uptr;
 typedef signed long long sptr;
-#else
-#  if (SANITIZER_WORDSIZE == 64) || SANITIZER_MAC || SANITIZER_WINDOWS
-typedef unsigned long uptr;
-typedef signed long sptr;
-#  else
+#elif defined(_WIN32)
 typedef unsigned int uptr;
 typedef signed int sptr;
-#  endif
-#endif  // defined(_WIN64)
+#else
+#  error Unsupported compiler, missing __UINTPTR_TYPE__
+#endif  // defined(__UINTPTR_TYPE__)
 #if defined(__x86_64__)
 // Since x32 uses ILP32 data model in 64-bit hardware mode, we must use
 // 64-bit pointer to unwind stack frame.
@@ -177,8 +187,9 @@ typedef long pid_t;
 typedef int pid_t;
 #endif
 
-#if SANITIZER_FREEBSD || SANITIZER_NETBSD || SANITIZER_MAC ||             \
+#if SANITIZER_FREEBSD || SANITIZER_NETBSD || SANITIZER_APPLE ||             \
     (SANITIZER_SOLARIS && (defined(_LP64) || _FILE_OFFSET_BITS == 64)) || \
+    (SANITIZER_LINUX && !SANITIZER_GLIBC && !SANITIZER_ANDROID) ||        \
     (SANITIZER_LINUX && (defined(__x86_64__) || defined(__hexagon__)))
 typedef u64 OFF_T;
 #else
@@ -186,15 +197,16 @@ typedef uptr OFF_T;
 #endif
 typedef u64  OFF64_T;
 
-#if (SANITIZER_WORDSIZE == 64) || SANITIZER_MAC
-typedef uptr operator_new_size_type;
+#ifdef __SIZE_TYPE__
+typedef __SIZE_TYPE__ usize;
 #else
-# if defined(__s390__) && !defined(__s390x__)
-// Special case: 31-bit s390 has unsigned long as size_t.
-typedef unsigned long operator_new_size_type;
-# else
-typedef u32 operator_new_size_type;
-# endif
+typedef uptr usize;
+#endif
+
+#if defined(__s390__) && !defined(__s390x__)
+typedef long ssize;
+#else
+typedef sptr ssize;
 #endif
 
 typedef u64 tid_t;
@@ -225,7 +237,7 @@ typedef u64 tid_t;
 # define WARN_UNUSED_RESULT
 #else  // _MSC_VER
 # define ALWAYS_INLINE inline __attribute__((always_inline))
-# define ALIAS(x) __attribute__((alias(x)))
+# define ALIAS(x) __attribute__((alias(SANITIZER_STRINGIFY(x))))
 // Please only use the ALIGNED macro before the type.
 // Using ALIGNED after the variable declaration is not portable!
 # define ALIGNED(x) __attribute__((aligned(x)))
@@ -260,8 +272,16 @@ typedef u64 tid_t;
 
 #if __has_cpp_attribute(clang::fallthrough)
 #  define FALLTHROUGH [[clang::fallthrough]]
+#elif __has_cpp_attribute(fallthrough)
+#  define FALLTHROUGH [[fallthrough]]
 #else
 #  define FALLTHROUGH
+#endif
+
+#if __has_attribute(uninitialized)
+#  define UNINITIALIZED __attribute__((uninitialized))
+#else
+#  define UNINITIALIZED
 #endif
 
 // Unaligned versions of basic types.
@@ -300,7 +320,8 @@ void NORETURN CheckFailed(const char *file, int line, const char *cond,
     }                                          \
   } while (0)
 
-#define RAW_CHECK(expr, ...) RAW_CHECK_MSG(expr, #expr "\n", __VA_ARGS__)
+#define RAW_CHECK(expr) RAW_CHECK_MSG(expr, #expr "\n", )
+#define RAW_CHECK_VA(expr, ...) RAW_CHECK_MSG(expr, #expr "\n", __VA_ARGS__)
 
 #define CHECK_IMPL(c1, op, c2) \
   do { \
@@ -382,13 +403,10 @@ void NORETURN CheckFailed(const char *file, int line, const char *cond,
 enum LinkerInitialized { LINKER_INITIALIZED = 0 };
 
 #if !defined(_MSC_VER) || defined(__clang__)
-#if SANITIZER_S390_31
-#define GET_CALLER_PC() \
-  (__sanitizer::uptr) __builtin_extract_return_addr(__builtin_return_address(0))
-#else
-#define GET_CALLER_PC() (__sanitizer::uptr) __builtin_return_address(0)
-#endif
-#define GET_CURRENT_FRAME() (__sanitizer::uptr) __builtin_frame_address(0)
+#  define GET_CALLER_PC()                              \
+    ((__sanitizer::uptr)__builtin_extract_return_addr( \
+        __builtin_return_address(0)))
+#  define GET_CURRENT_FRAME() ((__sanitizer::uptr)__builtin_frame_address(0))
 inline void Trap() {
   __builtin_trap();
 }
@@ -397,13 +415,13 @@ extern "C" void* _ReturnAddress(void);
 extern "C" void* _AddressOfReturnAddress(void);
 # pragma intrinsic(_ReturnAddress)
 # pragma intrinsic(_AddressOfReturnAddress)
-#define GET_CALLER_PC() (__sanitizer::uptr) _ReturnAddress()
+#  define GET_CALLER_PC() ((__sanitizer::uptr)_ReturnAddress())
 // CaptureStackBackTrace doesn't need to know BP on Windows.
-#define GET_CURRENT_FRAME() \
-  (((__sanitizer::uptr)_AddressOfReturnAddress()) + sizeof(__sanitizer::uptr))
+#  define GET_CURRENT_FRAME() \
+    (((__sanitizer::uptr)_AddressOfReturnAddress()) + sizeof(__sanitizer::uptr))
 
 extern "C" void __ud2(void);
-# pragma intrinsic(__ud2)
+#  pragma intrinsic(__ud2)
 inline void Trap() {
   __ud2();
 }
@@ -449,6 +467,9 @@ namespace __lsan {
 using namespace __sanitizer;
 }
 namespace __msan {
+using namespace __sanitizer;
+}
+namespace __nsan {
 using namespace __sanitizer;
 }
 namespace __hwasan {

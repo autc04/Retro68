@@ -1,5 +1,5 @@
 /* Function summary pass.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2025 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -33,7 +33,7 @@ along with GCC; see the file COPYING3.  If not see
    present in the callgraph).
 
    We provide access to the ipa_fn_summary data structure and
-   basic logic updating the parameters when inlining is performed. 
+   basic logic updating the parameters when inlining is performed.
 
    The summaries are context sensitive.  Context means
      1) partial assignment of known constant values of operands
@@ -75,6 +75,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-ssa-loop-niter.h"
 #include "tree-ssa-loop.h"
 #include "symbol-summary.h"
+#include "sreal.h"
+#include "ipa-cp.h"
 #include "ipa-prop.h"
 #include "ipa-fnsummary.h"
 #include "cfgloop.h"
@@ -250,8 +252,11 @@ static struct cgraph_edge *
 redirect_to_unreachable (struct cgraph_edge *e)
 {
   struct cgraph_node *callee = !e->inline_failed ? e->callee : NULL;
-  struct cgraph_node *target = cgraph_node::get_create
-		      (builtin_decl_implicit (BUILT_IN_UNREACHABLE));
+  struct cgraph_node *target
+    = cgraph_node::get_create (builtin_decl_unreachable ());
+
+  gcc_checking_assert (lookup_attribute ("cold",
+					 DECL_ATTRIBUTES (target->decl)));
 
   if (e->speculative)
     e = cgraph_edge::resolve_speculation (e, target->decl);
@@ -371,7 +376,8 @@ evaluate_conditions_for_known_args (struct cgraph_node *node,
 				    bool inline_p,
 				    ipa_auto_call_arg_values *avals,
 				    clause_t *ret_clause,
-				    clause_t *ret_nonspec_clause)
+				    clause_t *ret_nonspec_clause,
+				    ipa_call_summary *es)
 {
   clause_t clause = inline_p ? 0 : 1 << ipa_predicate::not_inlined_condition;
   clause_t nonspec_clause = 1 << ipa_predicate::not_inlined_condition;
@@ -386,14 +392,16 @@ evaluate_conditions_for_known_args (struct cgraph_node *node,
       int j;
       struct expr_eval_op *op;
 
-      /* We allow call stmt to have fewer arguments than the callee function
-         (especially for K&R style programs).  So bound check here (we assume
-         m_known_aggs vector is either empty or has the same length as
-         m_known_vals).  */
-      gcc_checking_assert (!avals->m_known_aggs.length ()
-			   || !avals->m_known_vals.length ()
-			   || (avals->m_known_vals.length ()
-			       == avals->m_known_aggs.length ()));
+      if (c->code == ipa_predicate::not_sra_candidate)
+	{
+	  if (!inline_p
+	      || !es
+	      || (int)es->param.length () <= c->operand_num
+	      || !es->param[c->operand_num].points_to_possible_sra_candidate)
+	    clause |= 1 << (i + ipa_predicate::first_dynamic_condition);
+	  nonspec_clause |= 1 << (i + ipa_predicate::first_dynamic_condition);
+	  continue;
+	}
 
       if (c->agg_contents)
 	{
@@ -402,14 +410,14 @@ evaluate_conditions_for_known_args (struct cgraph_node *node,
 	      && (avals->safe_sval_at(c->operand_num) == error_mark_node))
 	    continue;
 
-	  if (ipa_agg_value_set *agg = avals->safe_aggval_at (c->operand_num))
+	  if (tree sval = avals->safe_sval_at (c->operand_num))
+	    val = ipa_find_agg_cst_from_init (sval, c->offset, c->by_ref);
+	  if (!val)
 	    {
-	      tree sval = avals->safe_sval_at (c->operand_num);
-	      val = ipa_find_agg_cst_for_param (agg, sval, c->offset,
-						c->by_ref);
+	      ipa_argagg_value_list avs (avals);
+	      val = avs.get_value (c->operand_num, c->offset / BITS_PER_UNIT,
+				   c->by_ref);
 	    }
-	  else
-	    val = NULL_TREE;
 	}
       else
 	{
@@ -484,47 +492,61 @@ evaluate_conditions_for_known_args (struct cgraph_node *node,
 	  && !c->agg_contents
 	  && (!val || TREE_CODE (val) != INTEGER_CST))
 	{
-	  value_range vr = avals->m_known_value_ranges[c->operand_num];
+	  value_range vr (avals->m_known_value_ranges[c->operand_num]);
 	  if (!vr.undefined_p ()
 	      && !vr.varying_p ()
 	      && (TYPE_SIZE (c->type) == TYPE_SIZE (vr.type ())))
 	    {
 	      if (!useless_type_conversion_p (c->type, vr.type ()))
-		{
-		  value_range res;
-		  range_fold_unary_expr (&res, NOP_EXPR,
-				     c->type, &vr, vr.type ());
-		  vr = res;
-		}
-	      tree type = c->type;
+		range_cast (vr, c->type);
 
 	      for (j = 0; vec_safe_iterate (c->param_ops, j, &op); j++)
 		{
 		  if (vr.varying_p () || vr.undefined_p ())
 		    break;
 
-		  value_range res;
+		  value_range res (op->type);
 		  if (!op->val[0])
-		    range_fold_unary_expr (&res, op->code, op->type, &vr, type);
+		    {
+		      value_range varying (op->type);
+		      varying.set_varying (op->type);
+		      range_op_handler handler (op->code);
+		      if (!handler
+			  || !res.supports_type_p (op->type)
+			  || !handler.fold_range (res, op->type, vr, varying))
+			res.set_varying (op->type);
+		    }
 		  else if (!op->val[1])
 		    {
-		      value_range op0 (op->val[0], op->val[0]);
-		      range_fold_binary_expr (&res, op->code, op->type,
-					      op->index ? &op0 : &vr,
-					      op->index ? &vr : &op0);
+		      value_range op0 (TREE_TYPE (op->val[0]));
+		      range_op_handler handler (op->code);
+
+		      ipa_get_range_from_ip_invariant (op0, op->val[0], node);
+
+		      if (!handler
+			  || !res.supports_type_p (op->type)
+			  || !handler.fold_range (res, op->type,
+						  op->index ? op0 : vr,
+						  op->index ? vr : op0))
+			res.set_varying (op->type);
 		    }
 		  else
 		    res.set_varying (op->type);
-		  type = op->type;
 		  vr = res;
 		}
 	      if (!vr.varying_p () && !vr.undefined_p ())
 		{
-		  value_range res;
-		  value_range val_vr (c->val, c->val);
-		  range_fold_binary_expr (&res, c->code, boolean_type_node,
-					  &vr,
-					  &val_vr);
+		  int_range<2> res;
+		  value_range val_vr (TREE_TYPE (c->val));
+		  range_op_handler handler (c->code);
+
+		  ipa_get_range_from_ip_invariant (val_vr, c->val, node);
+
+		  if (!handler
+		      || !val_vr.supports_type_p (TREE_TYPE (c->val))
+		      || !handler.fold_range (res, boolean_type_node, vr, val_vr))
+		    res.set_varying (boolean_type_node);
+
 		  if (res.zero_p ())
 		    continue;
 		}
@@ -588,6 +610,7 @@ evaluate_properties_for_edge (struct cgraph_edge *e, bool inline_p,
   struct cgraph_node *callee = e->callee->ultimate_alias_target ();
   class ipa_fn_summary *info = ipa_fn_summaries->get (callee);
   class ipa_edge_args *args;
+  class ipa_call_summary *es = NULL;
 
   if (clause_ptr)
     *clause_ptr = inline_p ? 0 : 1 << ipa_predicate::not_inlined_condition;
@@ -599,8 +622,8 @@ evaluate_properties_for_edge (struct cgraph_edge *e, bool inline_p,
     {
       struct cgraph_node *caller;
       class ipa_node_params *caller_parms_info, *callee_pi = NULL;
-      class ipa_call_summary *es = ipa_call_summaries->get (e);
       int i, count = ipa_get_cs_argument_count (args);
+      es = ipa_call_summaries->get (e);
 
       if (count)
 	{
@@ -626,8 +649,8 @@ evaluate_properties_for_edge (struct cgraph_edge *e, bool inline_p,
 		|| ipa_is_param_used_by_ipa_predicates (callee_pi, i))
 	      {
 		/* Determine if we know constant value of the parameter.  */
-		tree cst = ipa_value_from_jfunc (caller_parms_info, jf,
-						 ipa_get_type (callee_pi, i));
+		tree type = ipa_get_type (callee_pi, i);
+		tree cst = ipa_value_from_jfunc (caller_parms_info, jf, type);
 
 		if (!cst && e->call_stmt
 		    && i < (int)gimple_call_num_args (e->call_stmt))
@@ -655,18 +678,17 @@ evaluate_properties_for_edge (struct cgraph_edge *e, bool inline_p,
 		    && vrp_will_run_p (caller)
 		    && ipa_is_param_used_by_ipa_predicates (callee_pi, i))
 		  {
-		    value_range vr
-		       = ipa_value_range_from_jfunc (caller_parms_info, e, jf,
-						     ipa_get_type (callee_pi,
-								   i));
+		    value_range vr (type);
+
+		    ipa_value_range_from_jfunc (vr, caller_parms_info, e, jf, type);
 		    if (!vr.undefined_p () && !vr.varying_p ())
 		      {
 			if (!avals->m_known_value_ranges.length ())
 			  {
-			    avals->m_known_value_ranges.safe_grow (count, true);
+			    avals->m_known_value_ranges.safe_grow_cleared (count,
+									   true);
 			    for (int i = 0; i < count; ++i)
-			      new (&avals->m_known_value_ranges[i])
-				value_range ();
+			      avals->m_known_value_ranges[i].set_type (void_type_node);
 			  }
 			avals->m_known_value_ranges[i] = vr;
 		      }
@@ -674,17 +696,9 @@ evaluate_properties_for_edge (struct cgraph_edge *e, bool inline_p,
 
 		/* Determine known aggregate values.  */
 		if (fre_will_run_p (caller))
-		  {
-		    ipa_agg_value_set agg
-			= ipa_agg_value_set_from_jfunc (caller_parms_info,
-							caller, &jf->agg);
-		    if (agg.items.length ())
-		      {
-			if (!avals->m_known_aggs.length ())
-			  avals->m_known_aggs.safe_grow_cleared (count, true);
-			avals->m_known_aggs[i] = agg;
-		      }
-		  }
+		  ipa_push_agg_values_from_jfunc (caller_parms_info,
+						  caller, &jf->agg, i,
+						  &avals->m_known_aggs);
 	      }
 
 	    /* For calls used in polymorphic calls we further determine
@@ -725,7 +739,7 @@ evaluate_properties_for_edge (struct cgraph_edge *e, bool inline_p,
     }
 
   evaluate_conditions_for_known_args (callee, inline_p, avals, clause_ptr,
-				      nonspec_clause_ptr);
+				      nonspec_clause_ptr, es);
 }
 
 
@@ -852,6 +866,7 @@ ipa_fn_summary_t::duplicate (cgraph_node *src,
 					  &possible_truths,
 					  /* We are going to specialize,
 					     so ignore nonspec truths.  */
+					  NULL,
 					  NULL);
 
       info->account_size_time (0, 0, true_pred, true_pred);
@@ -1039,6 +1054,9 @@ dump_ipa_call_summary (FILE *f, int indent, struct cgraph_node *node,
 		       prob * 100.0 / REG_BR_PROB_BASE);
 	    if (es->param[i].points_to_local_or_readonly_memory)
 	      fprintf (f, "%*s op%i points to local or readonly memory\n",
+		       indent + 2, "", i);
+	    if (es->param[i].points_to_possible_sra_candidate)
+	      fprintf (f, "%*s op%i points to possible sra candidate\n",
 		       indent + 2, "", i);
 	  }
       if (!edge->inline_failed)
@@ -1296,6 +1314,35 @@ unmodified_parm_or_parm_agg_item (struct ipa_func_body_info *fbi,
 				 size_p, &aggpos->by_ref);
 }
 
+/* If stmt is simple load or store of value pointed to by a function parmaeter,
+   return its index.  */
+
+static int
+load_or_store_of_ptr_parameter (ipa_func_body_info *fbi, gimple *stmt)
+{
+  if (!optimize)
+    return -1;
+  gassign *assign = dyn_cast <gassign *> (stmt);
+  if (!assign)
+    return -1;
+  tree param;
+  if (gimple_assign_load_p (stmt))
+    param = gimple_assign_rhs1 (stmt);
+  else if (gimple_store_p (stmt))
+    param = gimple_assign_lhs (stmt);
+  else
+    return -1;
+  tree base = get_base_address (param);
+  if (TREE_CODE (base) != MEM_REF
+      || TREE_CODE (TREE_OPERAND (base, 0)) != SSA_NAME
+      || !SSA_NAME_IS_DEFAULT_DEF (TREE_OPERAND (base, 0)))
+    return -1;
+  tree p = SSA_NAME_VAR (TREE_OPERAND (base, 0));
+  if (TREE_CODE (p) != PARM_DECL)
+    return -1;
+  return ipa_get_param_decl_index (fbi->info, p);
+}
+
 /* See if statement might disappear after inlining.
    0 - means not eliminated
    1 - half of statements goes away
@@ -1378,7 +1425,7 @@ eliminated_by_inlining_prob (ipa_func_body_info *fbi, gimple *stmt)
 	    lhs_free = true;
 
 	  /* Writes to parameters, parameters passed by value and return value
-	     (either directly or passed via invisible reference) are free.  
+	     (either directly or passed via invisible reference) are free.
 
 	     TODO: We ought to handle testcase like
 	     struct a {int a,b;};
@@ -1474,6 +1521,19 @@ decompose_param_expr (struct ipa_func_body_info *fbi,
 
       if (TREE_CODE (expr) != SSA_NAME || SSA_NAME_IS_DEFAULT_DEF (expr))
 	break;
+      stmt = SSA_NAME_DEF_STMT (expr);
+
+      if (gcall *call = dyn_cast <gcall *> (stmt))
+	{
+	  int flags = gimple_call_return_flags (call);
+	  if (!(flags & ERF_RETURNS_ARG))
+	    goto fail;
+	  int arg = flags & ERF_RETURN_ARG_MASK;
+	  if (arg >= (int)gimple_call_num_args (call))
+	    goto fail;
+	  expr = gimple_call_arg (stmt, arg);
+	  continue;
+	}
 
       if (!is_gimple_assign (stmt = SSA_NAME_DEF_STMT (expr)))
 	break;
@@ -1575,7 +1635,6 @@ set_cond_stmt_execution_predicate (struct ipa_func_body_info *fbi,
 				   class ipa_node_params *params_summary,
 				   basic_block bb)
 {
-  gimple *last;
   tree op, op2;
   int index;
   struct agg_position_info aggpos;
@@ -1586,8 +1645,8 @@ set_cond_stmt_execution_predicate (struct ipa_func_body_info *fbi,
   tree param_type;
   expr_eval_ops param_ops;
 
-  last = last_stmt (bb);
-  if (!last || gimple_code (last) != GIMPLE_COND)
+  gcond *last = safe_dyn_cast <gcond *> (*gsi_last_bb (bb));
+  if (!last)
     return;
   if (!is_gimple_ip_invariant (gimple_cond_rhs (last)))
     return;
@@ -1623,6 +1682,7 @@ set_cond_stmt_execution_predicate (struct ipa_func_body_info *fbi,
 	    }
 	}
       vec_free (param_ops);
+      return;
     }
 
   if (TREE_CODE (op) != SSA_NAME)
@@ -1669,7 +1729,6 @@ set_switch_stmt_execution_predicate (struct ipa_func_body_info *fbi,
 				     class ipa_node_params *params_summary,
 				     basic_block bb)
 {
-  gimple *lastg;
   tree op;
   int index;
   struct agg_position_info aggpos;
@@ -1680,10 +1739,9 @@ set_switch_stmt_execution_predicate (struct ipa_func_body_info *fbi,
   tree param_type;
   expr_eval_ops param_ops;
 
-  lastg = last_stmt (bb);
-  if (!lastg || gimple_code (lastg) != GIMPLE_SWITCH)
+  gswitch *last = safe_dyn_cast <gswitch *> (*gsi_last_bb (bb));
+  if (!last)
     return;
-  gswitch *last = as_a <gswitch *> (lastg);
   op = gimple_switch_index (last);
   if (!decompose_param_expr (fbi, last, op, &index, &param_type, &aggpos,
 			     &param_ops))
@@ -1694,14 +1752,20 @@ set_switch_stmt_execution_predicate (struct ipa_func_body_info *fbi,
   int bound_limit = opt_for_fn (fbi->node->decl,
 				param_ipa_max_switch_predicate_bounds);
   int bound_count = 0;
-  value_range vr;
+  // This can safely be an integer range, as switches can only hold
+  // integers.
+  int_range<2> vr;
 
   get_range_query (cfun)->range_of_expr (vr, op);
   if (vr.undefined_p ())
     vr.set_varying (TREE_TYPE (op));
-  value_range_kind vr_type = vr.kind ();
-  wide_int vr_wmin = wi::to_wide (vr.min ());
-  wide_int vr_wmax = wi::to_wide (vr.max ());
+  tree vr_min, vr_max;
+  // TODO: This entire function could use a rewrite to use the irange
+  // API, instead of trying to recreate its intersection/union logic.
+  // Any use of get_legacy_range() is a serious code smell.
+  value_range_kind vr_type = get_legacy_range (vr, vr_min, vr_max);
+  wide_int vr_wmin = wi::to_wide (vr_min);
+  wide_int vr_wmax = wi::to_wide (vr_max);
 
   FOR_EACH_EDGE (e, ei, bb->succs)
     {
@@ -2200,7 +2264,7 @@ record_modified (ao_ref *ao ATTRIBUTE_UNUSED, tree vdef, void *data)
 }
 
 /* Return probability (based on REG_BR_PROB_BASE) that I-th parameter of STMT
-   will change since last invocation of STMT. 
+   will change since last invocation of STMT.
 
    Value 0 is reserved for compile time invariants.
    For common parameters it is REG_BR_PROB_BASE.  For loop invariants it
@@ -2223,7 +2287,7 @@ param_change_prob (ipa_func_body_info *fbi, gimple *stmt, int i)
 
   /* We would have to do non-trivial analysis to really work out what
      is the probability of value to change (i.e. when init statement
-     is in a sibling loop of the call). 
+     is in a sibling loop of the call).
 
      We do an conservative estimate: when call is executed N times more often
      than the statement defining value, we take the frequency 1/N.  */
@@ -2295,12 +2359,12 @@ param_change_prob (ipa_func_body_info *fbi, gimple *stmt, int i)
 	max = max.max (BASIC_BLOCK_FOR_FN (cfun, index)->count);
       if (dump_file)
 	{
-          fprintf (dump_file, "     Set with count ");	
+          fprintf (dump_file, "     Set with count ");
 	  max.dump (dump_file);
-          fprintf (dump_file, " and used with count ");	
+          fprintf (dump_file, " and used with count ");
 	  bb->count.dump (dump_file);
           fprintf (dump_file, " freq %f\n",
-		   max.to_sreal_scale (bb->count).to_double ());	
+		   max.to_sreal_scale (bb->count).to_double ());
 	}
 
       BITMAP_FREE (info.bb_set);
@@ -2326,7 +2390,6 @@ phi_result_unknown_predicate (ipa_func_body_info *fbi,
   edge e;
   edge_iterator ei;
   basic_block first_bb = NULL;
-  gimple *stmt;
 
   if (single_pred_p (bb))
     {
@@ -2357,9 +2420,8 @@ phi_result_unknown_predicate (ipa_func_body_info *fbi,
   if (!first_bb)
     return false;
 
-  stmt = last_stmt (first_bb);
+  gcond *stmt = safe_dyn_cast <gcond *> (*gsi_last_bb (first_bb));
   if (!stmt
-      || gimple_code (stmt) != GIMPLE_COND
       || !is_gimple_ip_invariant (gimple_cond_rhs (stmt)))
     return false;
 
@@ -2481,7 +2543,7 @@ find_foldable_builtin_expect (basic_block bb)
 /* Return true when the basic blocks contains only clobbers followed by RESX.
    Such BBs are kept around to make removal of dead stores possible with
    presence of EH and will be optimized out by optimize_clobbers later in the
-   game. 
+   game.
 
    NEED_EH is used to recurse in case the clobber has non-EH predecessors
    that can be clobber only, too.. When it is false, the RESX is not necessary
@@ -2589,11 +2651,194 @@ points_to_local_or_readonly_memory_p (tree t)
 	return true;
       return !ptr_deref_may_alias_global_p (t, false);
     }
-  if (TREE_CODE (t) == ADDR_EXPR)
+  if (TREE_CODE (t) == ADDR_EXPR
+      && (TREE_CODE (TREE_OPERAND (t, 0)) != TARGET_MEM_REF
+	  || TREE_CODE (TREE_OPERAND (TREE_OPERAND (t, 0), 0)) != INTEGER_CST))
     return refs_local_or_readonly_memory_p (TREE_OPERAND (t, 0));
   return false;
 }
 
+/* Return true if T is a pointer pointing to memory location that is possible
+   sra candidate if all functions it is passed to are inlined.  */
+
+static bool
+points_to_possible_sra_candidate_p (tree t)
+{
+  if (TREE_CODE (t) != ADDR_EXPR)
+    return false;
+
+  t = get_base_address (TREE_OPERAND (t, 0));
+
+  /* Automatic variables are fine.  */
+  if (DECL_P (t)
+      && auto_var_in_fn_p (t, current_function_decl))
+    return true;
+  return false;
+}
+
+/* Return true if BB only calls builtin_unreachable.
+   We skip empty basic blocks, debug statements, clobbers and predicts.
+   CACHE is used to memoize already analyzed blocks.  */
+
+static bool
+builtin_unreachable_bb_p (basic_block bb, vec<unsigned char> &cache)
+{
+  if (cache[bb->index])
+    return cache[bb->index] - 1;
+  gimple_stmt_iterator si;
+  auto_vec <basic_block, 4> visited_bbs;
+  bool ret = false;
+  while (true)
+    {
+      bool empty_bb = true;
+      visited_bbs.safe_push (bb);
+      cache[bb->index] = 3;
+      for (si = gsi_start_nondebug_bb (bb);
+	   !gsi_end_p (si) && empty_bb;
+	   gsi_next_nondebug (&si))
+	{
+	  if (gimple_code (gsi_stmt (si)) != GIMPLE_PREDICT
+	      && !gimple_clobber_p (gsi_stmt (si))
+	      && !gimple_nop_p (gsi_stmt (si)))
+	    {
+	      empty_bb = false;
+	      break;
+	    }
+	}
+      if (!empty_bb)
+	break;
+      else
+	bb = single_succ_edge (bb)->dest;
+      if (cache[bb->index])
+	{
+	  ret = cache[bb->index] == 3 ? false : cache[bb->index] - 1;
+	  goto done;
+	}
+    }
+  if (gimple_call_builtin_p (gsi_stmt (si), BUILT_IN_UNREACHABLE)
+      || gimple_call_builtin_p (gsi_stmt (si), BUILT_IN_UNREACHABLE_TRAP))
+    ret = true;
+done:
+  for (basic_block vbb:visited_bbs)
+    cache[vbb->index] = (unsigned char)ret + 1;
+  return ret;
+}
+
+static bool
+guards_builtin_unreachable (basic_block bb, vec<unsigned char> &cache)
+{
+  edge_iterator ei;
+  edge e;
+  FOR_EACH_EDGE (e, ei, bb->succs)
+    if (builtin_unreachable_bb_p (e->dest, cache))
+      {
+	if (dump_file && (dump_flags & TDF_DETAILS))
+	  fprintf (dump_file,
+		   "BB %i ends with conditional guarding __builtin_unreachable;"
+		   " conditinal is unnecesary\n", bb->index);
+	return true;
+      }
+  return false;
+}
+
+#define STMT_NECESSARY GF_PLF_1
+
+/* If STMT is not already marked necessary, mark it, and add it to the
+   worklist if ADD_TO_WORKLIST is true.  */
+
+static inline void
+mark_stmt_necessary (gimple *stmt, auto_vec<gimple *> &worklist)
+{
+  gcc_assert (stmt);
+
+  if (gimple_plf (stmt, STMT_NECESSARY))
+    return;
+
+  if (dump_file && (dump_flags & TDF_DETAILS))
+    {
+      fprintf (dump_file, "Marking useful stmt: ");
+      print_gimple_stmt (dump_file, stmt, 0, TDF_SLIM);
+      fprintf (dump_file, "\n");
+    }
+
+  gimple_set_plf (stmt, STMT_NECESSARY, true);
+  worklist.safe_push (stmt);
+}
+
+/* Mark the statement defining operand OP as necessary.  */
+
+static inline void
+mark_operand_necessary (tree op, auto_vec<gimple *> &worklist)
+{
+  gimple *stmt = SSA_NAME_DEF_STMT (op);
+  if (gimple_nop_p (stmt))
+    return;
+  mark_stmt_necessary (stmt, worklist);
+}
+
+/* Mark all statements that will remain in the body after optimizing out
+   conditionals guarding __builtin_unreachable which we keep to preserve
+   value ranges.  */
+
+static void
+find_necessary_statements (struct cgraph_node *node)
+{
+  struct function *my_function = DECL_STRUCT_FUNCTION (node->decl);
+  auto_vec<unsigned char, 10> cache;
+  basic_block bb;
+  auto_vec<gimple *> worklist;
+
+  cache.safe_grow_cleared (last_basic_block_for_fn (cfun));
+  /* Mark all obviously necessary statements.  */
+  FOR_EACH_BB_FN (bb, my_function)
+    {
+      for (gimple_stmt_iterator gsi = gsi_start_phis (bb);
+	   !gsi_end_p (gsi); gsi_next (&gsi))
+	gimple_set_plf (gsi_stmt (gsi), STMT_NECESSARY, false);
+
+      for (gimple_stmt_iterator bsi = gsi_start_bb (bb); !gsi_end_p (bsi);
+	   gsi_next_nondebug (&bsi))
+	{
+	  gimple *stmt = gsi_stmt (bsi);
+
+	  gimple_set_plf (stmt, STMT_NECESSARY, false);
+	  if (gimple_has_side_effects (stmt)
+	      || (is_ctrl_stmt (stmt)
+		  && (gimple_code (stmt) != GIMPLE_COND
+		      || !guards_builtin_unreachable (bb, cache)))
+	      || gimple_store_p (stmt)
+	      || gimple_code (stmt) == GIMPLE_ASM)
+	    mark_stmt_necessary (stmt, worklist);
+	}
+    }
+  while (worklist.length () > 0)
+    {
+      gimple *stmt = worklist.pop ();
+
+      if (dump_file && (dump_flags & TDF_DETAILS))
+	{
+	  fprintf (dump_file, "processing: ");
+	  print_gimple_stmt (dump_file, stmt, 0, TDF_SLIM);
+	  fprintf (dump_file, "\n");
+	}
+      if (gimple_code (stmt) == GIMPLE_PHI)
+	for (unsigned int k = 0; k < gimple_phi_num_args (stmt); k++)
+	  {
+	    tree arg = PHI_ARG_DEF (stmt, k);
+
+	    if (TREE_CODE (arg) == SSA_NAME)
+	      mark_operand_necessary (arg, worklist);
+	  }
+      else
+	{
+	  ssa_op_iter iter;
+	  tree use;
+
+	  FOR_EACH_SSA_TREE_OPERAND (use, stmt, iter, SSA_OP_USE)
+	    mark_operand_necessary (use, worklist);
+	}
+    }
+}
 
 /* Analyze function body for NODE.
    EARLY indicates run from early optimization pipeline.  */
@@ -2633,13 +2878,13 @@ analyze_function_body (struct cgraph_node *node, bool early)
 
      When optimizing and analyzing for early inliner, initialize node params
      so we can produce correct BB predicates.  */
-     
+
   if (opt_for_fn (node->decl, optimize))
     {
       calculate_dominance_info (CDI_DOMINATORS);
       calculate_dominance_info (CDI_POST_DOMINATORS);
       if (!early)
-        loop_optimizer_init (LOOPS_NORMAL | LOOPS_HAVE_RECORDED_EXITS);
+	loop_optimizer_init (LOOPS_NORMAL | LOOPS_HAVE_RECORDED_EXITS);
       else
 	{
 	  ipa_check_create_node_params ();
@@ -2686,6 +2931,7 @@ analyze_function_body (struct cgraph_node *node, bool early)
 
   if (fbi.info)
     compute_bb_predicates (&fbi, node, info, params_summary);
+  find_necessary_statements (node);
   const profile_count entry_count = ENTRY_BLOCK_PTR_FOR_FN (cfun)->count;
   order = XNEWVEC (int, n_basic_blocks_for_fn (cfun));
   nblocks = pre_and_rev_post_order_compute (NULL, order, false);
@@ -2751,6 +2997,21 @@ analyze_function_body (struct cgraph_node *node, bool early)
 	   !gsi_end_p (bsi); gsi_next_nondebug (&bsi))
 	{
 	  gimple *stmt = gsi_stmt (bsi);
+	  if (!gimple_plf (stmt, STMT_NECESSARY))
+	    {
+	      if (dump_file && (dump_flags & TDF_DETAILS))
+		{
+		  fprintf (dump_file, "  skipping unnecesary stmt ");
+		  print_gimple_stmt (dump_file, stmt, 0);
+		}
+	      /* TODO: const calls used only to produce values for
+		 builtion_unreachable guards should not be accounted.  However
+		 we still want to inline them and this does does not work well
+		 with the cost model.  For now account them as usual.  */
+	      if (!is_gimple_call (stmt)
+		  || gimple_call_internal_p (stmt))
+		continue;
+	    }
 	  int this_size = estimate_num_insns (stmt, &eni_size_weights);
 	  int this_time = estimate_num_insns (stmt, &eni_time_weights);
 	  int prob;
@@ -2806,6 +3067,9 @@ analyze_function_body (struct cgraph_node *node, bool early)
 		      es->param[i].points_to_local_or_readonly_memory
 			 = points_to_local_or_readonly_memory_p
 			     (gimple_call_arg (stmt, i));
+		      es->param[i].points_to_possible_sra_candidate
+			 = points_to_possible_sra_candidate_p
+			     (gimple_call_arg (stmt, i));
 		    }
 		}
 	      /* We cannot setup VLA parameters during inlining.  */
@@ -2856,7 +3120,6 @@ analyze_function_body (struct cgraph_node *node, bool early)
 	  if (this_time || this_size)
 	    {
 	      sreal final_time = (sreal)this_time * freq;
-
 	      prob = eliminated_by_inlining_prob (&fbi, stmt);
 	      if (prob == 1 && dump_file && (dump_flags & TDF_DETAILS))
 		fprintf (dump_file,
@@ -2865,6 +3128,12 @@ analyze_function_body (struct cgraph_node *node, bool early)
 		fprintf (dump_file, "\t\tWill be eliminated by inlining\n");
 
 	      ipa_predicate p = bb_predicate & will_be_nonconstant;
+	      int parm = load_or_store_of_ptr_parameter (&fbi, stmt);
+	      ipa_predicate sra_predicate = true;
+	      if (parm != -1)
+		sra_predicate &= add_condition (info, params_summary, parm,
+						ptr_type_node, NULL,
+						ipa_predicate::not_sra_candidate, NULL, 0);
 
 	      /* We can ignore statement when we proved it is never going
 		 to happen, but we cannot do that for call statements
@@ -2884,7 +3153,7 @@ analyze_function_body (struct cgraph_node *node, bool early)
 		  if (prob)
 		    {
 		      ipa_predicate ip
-			= bb_predicate & ipa_predicate::not_inlined ();
+			= bb_predicate & ipa_predicate::not_inlined () & sra_predicate;
 		      info->account_size_time (this_size * prob,
 					       (final_time * prob) / 2, ip,
 					       p);
@@ -2892,7 +3161,7 @@ analyze_function_body (struct cgraph_node *node, bool early)
 		  if (prob != 2)
 		    info->account_size_time (this_size * (2 - prob),
 					     (final_time * (2 - prob) / 2),
-					     bb_predicate,
+					     bb_predicate & sra_predicate,
 					     p);
 		}
 
@@ -3197,8 +3466,8 @@ compute_fn_summary (struct cgraph_node *node, bool early)
 	       for (e = node->callees; e; e = e->next_callee)
 		 {
 		   tree cdecl = e->callee->decl;
-		   if (fndecl_built_in_p (cdecl, BUILT_IN_APPLY_ARGS)
-		       || fndecl_built_in_p (cdecl, BUILT_IN_VA_START))
+		   if (fndecl_built_in_p (cdecl, BUILT_IN_APPLY_ARGS,
+						 BUILT_IN_VA_START))
 		     break;
 		 }
 	       node->can_change_signature = !e;
@@ -3446,8 +3715,7 @@ estimate_calls_size_and_time (struct cgraph_node *node, int *size,
 	{
 	  if (ipa_is_param_used_by_indirect_call (params_summary, i)
 	      && (avals->safe_sval_at (i)
-		  || (avals->m_known_aggs.length () > i
-		      && avals->m_known_aggs[i].items.length ())))
+		  || (ipa_argagg_value_list (avals).value_for_index_p (i))))
 	    use_table = false;
 	  else if (ipa_is_param_used_by_polymorphic_call (params_summary, i)
 		   && (avals->m_known_contexts.length () > i
@@ -3583,14 +3851,12 @@ ipa_cached_call_context::duplicate_from (const ipa_call_context &ctx)
   m_avals.m_known_aggs = vNULL;
   if (ctx.m_avals.m_known_aggs.exists ())
     {
-      unsigned int n = MIN (ctx.m_avals.m_known_aggs.length (), nargs);
-
-      for (unsigned int i = 0; i < n; i++)
+      const ipa_argagg_value_list avl (&ctx.m_avals);
+      for (unsigned int i = 0; i < nargs; i++)
 	if (ipa_is_param_used_by_indirect_call (params_summary, i)
-	    && !ctx.m_avals.m_known_aggs[i].is_empty ())
+	    && avl.value_for_index_p (i))
 	  {
-	    m_avals.m_known_aggs
-	      = ipa_copy_agg_values (ctx.m_avals.m_known_aggs);
+	    m_avals.m_known_aggs = ctx.m_avals.m_known_aggs.copy ();
 	    break;
 	  }
     }
@@ -3607,7 +3873,7 @@ ipa_cached_call_context::release ()
   /* See if context is initialized at first place.  */
   if (!m_node)
     return;
-  ipa_release_agg_values (m_avals.m_known_aggs, true);
+  m_avals.m_known_aggs.release ();
   m_avals.m_known_vals.release ();
   m_avals.m_known_contexts.release ();
   m_inline_param_summary.release ();
@@ -3708,28 +3974,59 @@ ipa_call_context::equal_to (const ipa_call_context &ctx)
     }
   if (m_avals.m_known_aggs.exists () || ctx.m_avals.m_known_aggs.exists ())
     {
-      for (unsigned int i = 0; i < nargs; i++)
+      unsigned i = 0, j = 0;
+      while (i < m_avals.m_known_aggs.length ()
+	     || j < ctx.m_avals.m_known_aggs.length ())
 	{
-	  if (!ipa_is_param_used_by_indirect_call (params_summary, i))
-	    continue;
-	  if (i >= m_avals.m_known_aggs.length ()
-	      || m_avals.m_known_aggs[i].is_empty ())
+	  if (i >= m_avals.m_known_aggs.length ())
 	    {
-	      if (i < ctx.m_avals.m_known_aggs.length ()
-		  && !ctx.m_avals.m_known_aggs[i].is_empty ())
+	      int idx2 = ctx.m_avals.m_known_aggs[j].index;
+	      if (ipa_is_param_used_by_indirect_call (params_summary, idx2))
 		return false;
+	      j++;
 	      continue;
 	    }
-	  if (i >= ctx.m_avals.m_known_aggs.length ()
-	      || ctx.m_avals.m_known_aggs[i].is_empty ())
+	  if (j >= ctx.m_avals.m_known_aggs.length ())
 	    {
-	      if (i < m_avals.m_known_aggs.length ()
-		  && !m_avals.m_known_aggs[i].is_empty ())
+	      int idx1 = m_avals.m_known_aggs[i].index;
+	      if (ipa_is_param_used_by_indirect_call (params_summary, idx1))
 		return false;
+	      i++;
 	      continue;
 	    }
-	  if (!m_avals.m_known_aggs[i].equal_to (ctx.m_avals.m_known_aggs[i]))
+
+	  int idx1 = m_avals.m_known_aggs[i].index;
+	  int idx2 = ctx.m_avals.m_known_aggs[j].index;
+	  if (idx1 < idx2)
+	    {
+	      if (ipa_is_param_used_by_indirect_call (params_summary, idx1))
+		return false;
+	      i++;
+	      continue;
+	    }
+	  if (idx1 > idx2)
+	    {
+	      if (ipa_is_param_used_by_indirect_call (params_summary, idx2))
+		return false;
+	      j++;
+	      continue;
+	    }
+	  if (!ipa_is_param_used_by_indirect_call (params_summary, idx1))
+	    {
+	      i++;
+	      j++;
+	      continue;
+	    }
+
+	  if ((m_avals.m_known_aggs[i].unit_offset
+	       != ctx.m_avals.m_known_aggs[j].unit_offset)
+	      || (m_avals.m_known_aggs[i].by_ref
+	       != ctx.m_avals.m_known_aggs[j].by_ref)
+	      || !operand_equal_p (m_avals.m_known_aggs[i].value,
+				   ctx.m_avals.m_known_aggs[j].value))
 	    return false;
+	  i++;
+	  j++;
 	}
     }
   return true;
@@ -3814,7 +4111,7 @@ ipa_call_context::estimate_size_and_time (ipa_call_estimates *estimates,
 	    }
 	  else
 	    {
-	      int prob = e->nonconst_predicate.probability 
+	      int prob = e->nonconst_predicate.probability
 					       (info->conds, m_possible_truths,
 					        m_inline_param_summary);
 	      gcc_checking_assert (prob >= 0);
@@ -3911,7 +4208,7 @@ estimate_ipcp_clone_size_and_time (struct cgraph_node *node,
   clause_t clause, nonspec_clause;
 
   evaluate_conditions_for_known_args (node, false, avals, &clause,
-				      &nonspec_clause);
+				      &nonspec_clause, NULL);
   ipa_call_context ctx (node, clause, nonspec_clause, vNULL, avals);
   ctx.estimate_size_and_time (estimates);
 }
@@ -4005,6 +4302,9 @@ remap_edge_params (struct cgraph_edge *inlined_edge,
 		  if (inlined_es
 			->param[id].points_to_local_or_readonly_memory)
 		    es->param[i].points_to_local_or_readonly_memory = true;
+		  if (inlined_es
+			->param[id].points_to_possible_sra_candidate)
+		    es->param[i].points_to_possible_sra_candidate = true;
 		}
 	      if (!es->param[i].points_to_local_or_readonly_memory
 		  && jfunc->type == IPA_JF_CONST
@@ -4383,9 +4683,9 @@ read_ipa_call_summary (class lto_input_block *ib, struct cgraph_edge *e,
 
   bitpack_d bp = streamer_read_bitpack (ib);
   if (es)
-    es->is_return_callee_uncaptured = bp_unpack_value (&bp, 1);	
+    es->is_return_callee_uncaptured = bp_unpack_value (&bp, 1);
   else
-    bp_unpack_value (&bp, 1);	
+    bp_unpack_value (&bp, 1);
 
   p.stream_in (ib);
   if (es)
@@ -4401,8 +4701,11 @@ read_ipa_call_summary (class lto_input_block *ib, struct cgraph_edge *e,
       for (i = 0; i < length; i++)
 	{
 	  es->param[i].change_prob = streamer_read_uhwi (ib);
+	  bitpack_d bp = streamer_read_bitpack (ib);
 	  es->param[i].points_to_local_or_readonly_memory
-	    = streamer_read_uhwi (ib);
+	    = bp_unpack_value (&bp, 1);
+	  es->param[i].points_to_possible_sra_candidate
+	    = bp_unpack_value (&bp, 1);
 	}
     }
   else
@@ -4432,7 +4735,7 @@ inline_read_section (struct lto_file_decl_data *file_data, const char *data,
   unsigned int f_count;
 
   lto_input_block ib ((const char *) data + main_offset, header->main_size,
-		      file_data->mode_table);
+		      file_data);
 
   data_in =
     lto_data_in_create (file_data, (const char *) data + string_offset,
@@ -4673,7 +4976,10 @@ write_ipa_call_summary (struct output_block *ob, struct cgraph_edge *e)
   for (i = 0; i < (int) es->param.length (); i++)
     {
       streamer_write_uhwi (ob, es->param[i].change_prob);
-      streamer_write_uhwi (ob, es->param[i].points_to_local_or_readonly_memory);
+      bp = bitpack_create (ob->main_stream);
+      bp_pack_value (&bp, es->param[i].points_to_local_or_readonly_memory, 1);
+      bp_pack_value (&bp, es->param[i].points_to_possible_sra_candidate, 1);
+      streamer_write_bitpack (&bp);
     }
 }
 
@@ -4788,7 +5094,7 @@ ipa_fn_summary_write (void)
 	}
     }
   streamer_write_char_stream (ob->main_stream, 0);
-  produce_asm (ob, NULL);
+  produce_asm (ob);
   destroy_output_block (ob);
 
   ipa_prop_write_jump_functions ();
@@ -4846,8 +5152,11 @@ public:
   {}
 
   /* opt_pass methods: */
-  opt_pass * clone () { return new pass_local_fn_summary (m_ctxt); }
-  virtual unsigned int execute (function *)
+  opt_pass * clone () final override
+  {
+    return new pass_local_fn_summary (m_ctxt);
+  }
+  unsigned int execute (function *) final override
     {
       return compute_fn_summary_for_current ();
     }
@@ -4889,14 +5198,17 @@ public:
   {}
 
   /* opt_pass methods: */
-  opt_pass *clone () { return new pass_ipa_free_fn_summary (m_ctxt); }
-  void set_pass_param (unsigned int n, bool param)
+  opt_pass *clone () final override
+  {
+    return new pass_ipa_free_fn_summary (m_ctxt);
+  }
+  void set_pass_param (unsigned int n, bool param) final override
     {
       gcc_assert (n == 0);
       small_p = param;
     }
-  virtual bool gate (function *) { return true; }
-  virtual unsigned int execute (function *)
+  bool gate (function *) final override { return true; }
+  unsigned int execute (function *) final override
     {
       ipa_free_fn_summary ();
       /* Free ipa-prop structures if they are no longer needed.  */
@@ -4950,7 +5262,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *) { return 0; }
+  unsigned int execute (function *) final override { return 0; }
 
 }; // class pass_ipa_fn_summary
 
@@ -4969,4 +5281,5 @@ void
 ipa_fnsummary_cc_finalize (void)
 {
   ipa_free_fn_summary ();
+  ipa_free_size_summary ();
 }

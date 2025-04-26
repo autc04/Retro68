@@ -6,7 +6,7 @@
  *      $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost Software License 1.0).
  *    (See accompanying file LICENSE)
  * Authors:   Sean Kelly, Walter Bright, Alex Rønne Petersen, Martin Nowak
- * Source:    $(DRUNTIMESRC core/thread/osthread.d)
+ * Source:    $(DRUNTIMESRC core/thread/types.d)
  */
 
 module core.thread.types;
@@ -20,7 +20,7 @@ version (Windows)
 else
 version (Posix)
 {
-    import core.sys.posix.pthread;
+    import core.sys.posix.sys.types : pthread_t;
 
     alias ThreadID = pthread_t;
 }
@@ -41,37 +41,22 @@ version (GNU)
 }
 else
 {
-    // this should be true for most architectures
-    enum isStackGrowingDown = true;
+    version (X86) enum isStackGrowingDown = true;
+    else version (X86_64) enum isStackGrowingDown = true;
+    else static assert(0, "It is undefined how the stack grows on this architecture.");
 }
 
 package
 {
-    static immutable size_t PAGESIZE;
     version (Posix) static immutable size_t PTHREAD_STACK_MIN;
 }
 
 shared static this()
 {
-    version (Windows)
+    version (Posix)
     {
-        import core.sys.windows.winbase;
+        import core.sys.posix.unistd : _SC_THREAD_STACK_MIN, sysconf;
 
-        SYSTEM_INFO info;
-        GetSystemInfo(&info);
-
-        PAGESIZE = info.dwPageSize;
-        assert(PAGESIZE < int.max);
-    }
-    else version (Posix)
-    {
-        import core.sys.posix.unistd;
-
-        PAGESIZE = cast(size_t)sysconf(_SC_PAGESIZE);
         PTHREAD_STACK_MIN = cast(size_t)sysconf(_SC_THREAD_STACK_MIN);
-    }
-    else
-    {
-        static assert(0, "unimplemented");
     }
 }

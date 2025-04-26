@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -158,6 +158,27 @@ package body Switch.B is
 
                elsif Underscore then
                   Set_Underscored_Debug_Flag (C);
+
+                  if Debug_Flag_Underscore_C then
+                     Enable_CUDA_Expansion := True;
+                  end if;
+                  if Debug_Flag_Underscore_D then
+                     Enable_CUDA_Device_Expansion := True;
+                  end if;
+                  if Enable_CUDA_Expansion and Enable_CUDA_Device_Expansion
+                  then
+                     Bad_Switch (Switch_Chars);
+                  elsif C = 'c' then
+                     --  specify device library name
+                     if Ptr >= Max or else Switch_Chars (Ptr + 1) /= '=' then
+                        Bad_Switch (Switch_Chars);
+                     else
+                        CUDA_Device_Library_Name :=
+                           new String'(Switch_Chars (Ptr + 2 .. Max));
+                        Ptr := Max;
+                     end if;
+                  end if;
+
                   Underscore := False;
 
                --    letter
@@ -345,7 +366,7 @@ package body Switch.B is
 
          when 'G' =>
             Ptr := Ptr + 1;
-            Generate_C_Code := True;
+            CCG_Mode := True;
 
          --  Processing for h switch
 
@@ -375,6 +396,12 @@ package body Switch.B is
             else
                Bad_Switch (Switch_Chars);
             end if;
+
+         --  Processing for k switch
+
+         when 'k' =>
+            Ptr := Ptr + 1;
+            Check_Elaboration_Flags := False;
 
          --  Processing for K switch
 
@@ -645,13 +672,15 @@ package body Switch.B is
                   Opt.RTS_Switch := True;
 
                   declare
+                     RTS_Arg_Path : constant String :=
+                                       Switch_Chars (Ptr + 1 .. Max);
                      Src_Path_Name : constant String_Ptr :=
                                        Get_RTS_Search_Dir
-                                         (Switch_Chars (Ptr + 1 .. Max),
+                                         (RTS_Arg_Path,
                                           Include);
                      Lib_Path_Name : constant String_Ptr :=
                                        Get_RTS_Search_Dir
-                                         (Switch_Chars (Ptr + 1 .. Max),
+                                         (RTS_Arg_Path,
                                           Objects);
 
                   begin
@@ -671,14 +700,17 @@ package body Switch.B is
                        and then Lib_Path_Name = null
                      then
                         Osint.Fail
-                          ("RTS path not valid: missing adainclude and "
+                          ("RTS path """ & RTS_Arg_Path
+                           & """ not valid: missing adainclude and "
                            & "adalib directories");
                      elsif Src_Path_Name = null then
                         Osint.Fail
-                          ("RTS path not valid: missing adainclude directory");
-                     elsif Lib_Path_Name = null then
+                          ("RTS path """ & RTS_Arg_Path
+                           & """ not valid: missing adainclude directory");
+                     else pragma Assert (Lib_Path_Name = null);
                         Osint.Fail
-                          ("RTS path not valid: missing adalib directory");
+                          ("RTS path """ & RTS_Arg_Path
+                           & """ not valid: missing adalib directory");
                      end if;
                   end;
                end if;

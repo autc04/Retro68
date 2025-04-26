@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -197,12 +197,29 @@ is
       Count     : Count_Type)
    is
    begin
-      --  In the general case, we pass the buck to Insert, but for efficiency,
-      --  we check for the usual case where Count = 1 and the vector has enough
-      --  room for at least one more element.
+      --  In the general case, we take the slow path; for efficiency,
+      --  we check for the common case where Count = 1 .
 
-      if Count = 1
-        and then Container.Elements /= null
+      if Count = 1 then
+         Append (Container, New_Item);
+      else
+         Append_Slow_Path (Container, New_Item, Count);
+      end if;
+   end Append;
+
+   ------------
+   -- Append --
+   ------------
+
+   procedure Append (Container : in out Vector;
+                     New_Item  :        Element_Type)
+   is
+   begin
+      --  For performance, check for the common special case where the
+      --  container already has room for at least one more element.
+      --  In the general case, pass the buck to Insert.
+
+      if Container.Elements /= null
         and then Container.Last /= Container.Elements.Last
       then
          TC_Check (Container.TC);
@@ -223,21 +240,9 @@ is
             Container.Elements.EA (New_Last) := new Element_Type'(New_Item);
             Container.Last := New_Last;
          end;
-
       else
-         Append_Slow_Path (Container, New_Item, Count);
+         Insert (Container, Last_Index (Container) + 1, New_Item, 1);
       end if;
-   end Append;
-
-   ------------
-   -- Append --
-   ------------
-
-   procedure Append (Container : in out Vector;
-                        New_Item   :        Element_Type)
-   is
-   begin
-      Insert (Container, Last_Index (Container) + 1, New_Item, 1);
    end Append;
 
    ----------------------
@@ -1018,8 +1023,8 @@ is
             while Source.Last >= Index_Type'First loop
                pragma Assert
                  (Source.Last <= Index_Type'First
-                   or else not (Is_Less (SA (Source.Last),
-                                         SA (Source.Last - 1))));
+                   or else not Is_Less (SA (Source.Last),
+                                        SA (Source.Last - 1)));
 
                if I < Index_Type'First then
                   declare
@@ -1036,7 +1041,7 @@ is
 
                pragma Assert
                  (I <= Index_Type'First
-                    or else not (Is_Less (TA (I), TA (I - 1))));
+                    or else not Is_Less (TA (I), TA (I - 1)));
 
                declare
                   Src : Element_Access renames SA (Source.Last);
@@ -2674,22 +2679,19 @@ is
    is
       First_Time : Boolean := True;
       use System.Put_Images;
+   begin
+      Array_Before (S);
 
-      procedure Put_Elem (Position : Cursor);
-      procedure Put_Elem (Position : Cursor) is
-      begin
+      for X of V loop
          if First_Time then
             First_Time := False;
          else
             Simple_Array_Between (S);
          end if;
 
-         Element_Type'Put_Image (S, Element (Position));
-      end Put_Elem;
+         Element_Type'Put_Image (S, X);
+      end loop;
 
-   begin
-      Array_Before (S);
-      Iterate (V, Put_Elem'Access);
       Array_After (S);
    end Put_Image;
 

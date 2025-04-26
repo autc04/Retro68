@@ -3,12 +3,12 @@
  *
  * Specification: $(LINK2 https://dlang.org/spec/attribute.html#visibility_attributes, Visibility Attributes)
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/access.d, _access.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/access.d, _access.d)
  * Documentation:  https://dlang.org/phobos/dmd_access.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/access.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/access.d
  */
 
 module dmd.access;
@@ -16,16 +16,14 @@ module dmd.access;
 import dmd.aggregate;
 import dmd.astenums;
 import dmd.dclass;
-import dmd.declaration;
 import dmd.dmodule;
 import dmd.dscope;
 import dmd.dstruct;
 import dmd.dsymbol;
 import dmd.errors;
 import dmd.expression;
-import dmd.func;
-import dmd.globals;
-import dmd.mtype;
+import dmd.funcsem : overloadApply;
+import dmd.location;
 import dmd.tokens;
 
 private enum LOG = false;
@@ -51,7 +49,7 @@ bool checkAccess(AggregateDeclaration ad, Loc loc, Scope* sc, Dsymbol smember)
 
     if (!symbolIsVisible(sc, smember))
     {
-        ad.error(loc, "%s `%s` is not accessible", smember.kind(), smember.toChars());
+        error(loc, "%s `%s` %s `%s` is not accessible", ad.kind(), ad.toPrettyChars(), smember.kind(), smember.toChars());
         //printf("smember = %s %s, vis = %d, semanticRun = %d\n",
         //        smember.kind(), smember.toPrettyChars(), smember.visible() smember.semanticRun);
         return true;
@@ -144,7 +142,7 @@ private bool hasPackageAccess(Module mod, Dsymbol s)
 /****************************************
  * Determine if scope sc has protected level access to cd.
  */
-private bool hasProtectedAccess(Scope *sc, Dsymbol s)
+private bool hasProtectedAccess(Scope* sc, Dsymbol s)
 {
     if (auto cd = s.isClassMember()) // also includes interfaces
     {
@@ -166,7 +164,7 @@ private bool hasProtectedAccess(Scope *sc, Dsymbol s)
  */
 bool checkAccess(Loc loc, Scope* sc, Expression e, Dsymbol d)
 {
-    if (sc.flags & SCOPE.noaccesscheck)
+    if (sc.noAccessCheck)
         return false;
     static if (LOG)
     {
@@ -275,7 +273,7 @@ bool symbolIsVisible(Dsymbol origin, Dsymbol s)
  *  s = symbol to check for visibility
  * Returns: true if s is visible by origin
  */
-bool symbolIsVisible(Scope *sc, Dsymbol s)
+bool symbolIsVisible(Scope* sc, Dsymbol s)
 {
     s = mostVisibleOverload(s);
     return checkSymbolAccess(sc, s);
@@ -290,7 +288,7 @@ bool symbolIsVisible(Scope *sc, Dsymbol s)
  *  s = symbol to check for visibility
  * Returns: true if s is visible by origin
  */
-bool checkSymbolAccess(Scope *sc, Dsymbol s)
+bool checkSymbolAccess(Scope* sc, Dsymbol s)
 {
     final switch (s.visible().kind)
     {

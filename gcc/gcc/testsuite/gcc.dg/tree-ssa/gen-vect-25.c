@@ -1,6 +1,8 @@
 /* { dg-do run { target vect_cmdline_needed } } */
+/* { dg-do compile { target { loongarch_sx && {! loongarch_sx_hw } } } } */
 /* { dg-options "-O2 -ftree-vectorize -fdump-tree-vect-details -fvect-cost-model=dynamic" } */
 /* { dg-options "-O2 -ftree-vectorize -fdump-tree-vect-details -fvect-cost-model=dynamic -mno-sse" { target { i?86-*-* x86_64-*-* } } } */
+/* { dg-additional-options "-mlsx" { target { loongarch*-*-* } } } */
 
 #include <stdlib.h>
 
@@ -25,6 +27,7 @@ int main_1 (int n, int *p)
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (ia[i] != n)
@@ -38,6 +41,7 @@ int main_1 (int n, int *p)
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (ib[i] != k)
@@ -54,5 +58,5 @@ int main (void)
   return main_1 (n + 2, (int *) &n);
 }
 
-/* { dg-final { scan-tree-dump-times "vectorized 2 loops" 1 "vect" { target { ! { avr-*-* msp430-*-* } } } } } */
-/* { dg-final { scan-tree-dump-times "Vectorizing an unaligned access" 0 "vect" { target { ! { avr-*-* msp430-*-* } } } } } */
+/* { dg-final { scan-tree-dump-times "vectorized 2 loops" 1 "vect" { target { ! { avr-*-* msp430-*-* pru-*-* } } } } } */
+/* { dg-final { scan-tree-dump-times "Vectorizing an unaligned access" 0 "vect" { target { ! { avr-*-* msp430-*-* pru-*-* } } } } } */

@@ -129,22 +129,22 @@ int test_6 (int first, const char *second, float third, s6 *ptr)
 /* Template function.  */
 
 template <typename T>
-int test_7 (int one, T two, float three); // { dg-line test_7_decl }
+int callee_7 (int one, T two, float three); // { dg-line callee_7_decl }
 
 int test_7 (int first, const char *second, float third)
 {
-  return test_7 <const char **> (first, second, third); // { dg-line test_7_usage }
-  // { dg-message "cannot convert 'const char\\*' to 'const char\\*\\*'" "" { target *-*-* } test_7_usage }
+  return callee_7 <const char **> (first, second, third); // { dg-line callee_7_usage }
+  // { dg-message "cannot convert 'const char\\*' to 'const char\\*\\*'" "" { target *-*-* } callee_7_usage }
   /* { dg-begin-multiline-output "" }
-   return test_7 <const char **> (first, second, third);
-                                         ^~~~~~
-                                         |
-                                         const char*
+   return callee_7 <const char **> (first, second, third);
+                                           ^~~~~~
+                                           |
+                                           const char*
      { dg-end-multiline-output "" } */
-  // { dg-message "initializing argument 2 of 'int test_7\\(int, T, float\\) .with T = const char\\*\\*.'" "" { target *-*-* } test_7_decl }
+  // { dg-message "initializing argument 2 of 'int callee_7\\(int, T, float\\) .with T = const char\\*\\*.'" "" { target *-*-* } callee_7_decl }
   /* { dg-begin-multiline-output "" }
- int test_7 (int one, T two, float three);
-                      ~~^~~
+ int callee_7 (int one, T two, float three);
+                        ~~^~~
      { dg-end-multiline-output "" } */
 }
 
@@ -201,14 +201,20 @@ int test_10 ()
 {
   s10 v10_a, v10_b;
 
-  return v10_a - v10_b; // { dg-error "no match for" }
+  return v10_a - v10_b; // { dg-line s10_usage }
+  // { dg-error "no match for" "" { target *-*-* } s10_usage }
   /* { dg-begin-multiline-output "" }
    return v10_a - v10_b;
           ~~~~~ ^ ~~~~~
           |       |
           s10     s10
      { dg-end-multiline-output "" } */
-  // { dg-message "candidate" "" { target *-*-* } s10_operator }
+  // { dg-message "there is 1 candidate" "" { target *-*-* } s10_usage }
+  /* { dg-begin-multiline-output "" }
+   return v10_a - v10_b;
+          ~~~~~~^~~~~~~
+     { dg-end-multiline-output "" } */
+  // { dg-message "candidate 1:" "" { target *-*-* } s10_operator }
   /* { dg-begin-multiline-output "" }
  extern int operator- (const s10&, int);
             ^~~~~~~~

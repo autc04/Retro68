@@ -1,6 +1,6 @@
 // ostream classes -*- C++ -*-
 
-// Copyright (C) 1997-2022 Free Software Foundation, Inc.
+// Copyright (C) 1997-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,11 @@
 #ifndef _OSTREAM_TCC
 #define _OSTREAM_TCC 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++11-extensions" // extern template
 
 #include <bits/cxxabi_forced.h>
 
@@ -69,7 +73,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	    ios_base::iostate __err = ios_base::goodbit;
 	    __try
 	      {
+#ifndef _GLIBCXX_LONG_DOUBLE_ALT128_COMPAT
 		const __num_put_type& __np = __check_facet(this->_M_num_put);
+#else
+		const __num_put_type& __np
+		  = use_facet<__num_put_type>(this->_M_ios_locale);
+#endif
 		if (__np.put(*this, *this, this->fill(), __v).failed())
 		  __err |= ios_base::badbit;
 	      }
@@ -352,8 +361,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   extern template ostream& ostream::_M_insert(unsigned long);
   extern template ostream& ostream::_M_insert(bool);
 #ifdef _GLIBCXX_USE_LONG_LONG
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wlong-long"
   extern template ostream& ostream::_M_insert(long long);
   extern template ostream& ostream::_M_insert(unsigned long long);
+#pragma GCC diagnostic pop
 #endif
   extern template ostream& ostream::_M_insert(double);
   extern template ostream& ostream::_M_insert(long double);
@@ -373,8 +385,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   extern template wostream& wostream::_M_insert(unsigned long);
   extern template wostream& wostream::_M_insert(bool);
 #ifdef _GLIBCXX_USE_LONG_LONG
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wlong-long"
   extern template wostream& wostream::_M_insert(long long);
   extern template wostream& wostream::_M_insert(unsigned long long);
+#pragma GCC diagnostic pop
 #endif
   extern template wostream& wostream::_M_insert(double);
   extern template wostream& wostream::_M_insert(long double);
@@ -385,4 +400,5 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 
+#pragma GCC diagnostic pop
 #endif

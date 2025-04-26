@@ -1,9 +1,9 @@
 /* Check load on condition for bool.  */
 
 /* { dg-do compile { target { s390*-*-* } } } */
-/* { dg-options "-O2 -march=z13" } */
+/* { dg-options "-O2 -march=z13 -mzarch" } */
 
-/* { dg-final { scan-assembler "lochinh\t%r.?,1" } } */
+/* { dg-final { scan-assembler "lochile\t%r.?,1" } } */
 #include <stdbool.h>
 
 int foo (int *a, unsigned int n)

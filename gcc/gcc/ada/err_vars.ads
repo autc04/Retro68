@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,12 +32,6 @@ with Uintp; use Uintp;
 
 package Err_Vars is
 
-   --  All of these variables are set when needed, so they do not need to be
-   --  initialized. However, there is code that saves and restores existing
-   --  values, which may malfunction in -gnatVa mode if the variable has never
-   --  been initialized, so we initialize some variables to avoid exceptions
-   --  from invalid values in such cases.
-
    --  Note on error counts (Serious_Errors_Detected, Total_Errors_Detected,
    --  Warnings_Detected, Warning_Info_Messages, Report_Info_Messages). These
    --  counts might more logically appear in this unit, but we place them
@@ -61,18 +55,6 @@ package Err_Vars is
    --  not get reset by any Error_Msg call, so the caller is responsible
    --  for resetting it.
 
-   Raise_Exception_On_Error : Nat := 0;
-   --  If this value is non-zero, then any attempt to generate an error
-   --  message raises the exception Error_Msg_Exception, and the error
-   --  message is not output. This is used for defending against junk
-   --  resulting from illegalities, and also for substitution of more
-   --  appropriate error messages from higher semantic levels. It is
-   --  a counter so that the increment/decrement protocol nests neatly.
-   --  Initialized for -gnatVa use, see comment above.
-
-   Error_Msg_Exception : exception;
-   --  Exception raised if Raise_Exception_On_Error is true
-
    Current_Error_Source_File : Source_File_Index := No_Source_File;
    --  Id of current messages. Used to post file name when unit changes. This
    --  is initialized to Main_Source_File at the start of a compilation, which
@@ -80,12 +62,6 @@ package Err_Vars is
    --  other than the main unit. However, if the main unit has a pragma
    --  Source_Reference line, then this is initialized to No_Source_File,
    --  to force an initial reference to the real source file name.
-
-   Warning_Doc_Switch : Boolean := True;
-   --  If this is set True, then the ??/?x?/?x? sequences in error messages
-   --  are active (see errout.ads for details). If this switch is False, then
-   --  these sequences are ignored (i.e. simply equivalent to a single ?). The
-   --  -gnatw.d switch sets this flag True, -gnatw.D sets this flag False.
 
    ----------------------------------------
    -- Error Message Insertion Parameters --
@@ -100,6 +76,11 @@ package Err_Vars is
    --
    --  Some of these are initialized below, because they are read before being
    --  set by clients.
+   --
+   --  Would it be desirable to use arrays (with element renamings) here
+   --  instead of individual variables, at least for the Error_Msg_Name_N and
+   --  Error_Msg_Node_N ??? This would allow simplifying existing code in some
+   --  cases (see errout.adb).
 
    Error_Msg_Col : Column_Number;
    --  Column for @ insertion character in message
@@ -108,14 +89,22 @@ package Err_Vars is
    Error_Msg_Uint_2 : Uint := No_Uint;
    --  Uint values for ^ insertion characters in message
 
+   Error_Msg_Code_Digits : constant := 4;
+   Error_Msg_Code : Nat range 0 .. 10 ** Error_Msg_Code_Digits - 1;
+   --  Nat value for [] insertion sequence in message, where a value of zero
+   --  indicates the absence of an error code.
+
    --  WARNING: There is a matching C declaration of these variables in fe.h
 
-   Error_Msg_Sloc : Source_Ptr;
+   Error_Msg_Sloc : Source_Ptr := No_Location;
    --  Source location for # insertion character in message
 
    Error_Msg_Name_1 : Name_Id;
    Error_Msg_Name_2 : Name_Id := No_Name;
    Error_Msg_Name_3 : Name_Id := No_Name;
+   Error_Msg_Name_4 : Name_Id := No_Name;
+   Error_Msg_Name_5 : Name_Id := No_Name;
+   Error_Msg_Name_6 : Name_Id := No_Name;
    --  Name_Id values for % insertion characters in message
 
    Error_Msg_File_1 : File_Name_Type;
@@ -129,6 +118,10 @@ package Err_Vars is
 
    Error_Msg_Node_1 : Node_Id;
    Error_Msg_Node_2 : Node_Id := Empty;
+   Error_Msg_Node_3 : Node_Id := Empty;
+   Error_Msg_Node_4 : Node_Id := Empty;
+   Error_Msg_Node_5 : Node_Id := Empty;
+   Error_Msg_Node_6 : Node_Id := Empty;
    --  Node_Id values for & insertion characters in message
 
    Error_Msg_Warn : Boolean;

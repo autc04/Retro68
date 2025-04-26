@@ -1,5 +1,5 @@
 /* Save and restore call-clobbered registers which are live across a call.
-   Copyright (C) 1989-2022 Free Software Foundation, Inc.
+   Copyright (C) 1989-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -342,7 +342,7 @@ new_saved_hard_reg (int regno, int call_freq)
   saved_reg->num = saved_regs_num++;
   saved_reg->hard_regno = regno;
   saved_reg->call_freq = call_freq;
-  saved_reg->first_p = FALSE;
+  saved_reg->first_p = false;
   saved_reg->next = -1;
 }
 
@@ -558,7 +558,7 @@ setup_save_areas (void)
 					+ saved_reg2->num]
 		      = saved_reg_conflicts[saved_reg2->num * saved_regs_num
 					    + saved_reg->num]
-		      = TRUE;
+		      = true;
 		  }
 	    }
 	}
@@ -608,7 +608,7 @@ setup_save_areas (void)
 	    }
 	  if (j == i)
 	    {
-	      saved_reg->first_p = TRUE;
+	      saved_reg->first_p = true;
 	      for (best_slot_num = -1, j = 0; j < prev_save_slots_num; j++)
 		{
 		  slot = prev_save_slots[j];
@@ -654,7 +654,7 @@ setup_save_areas (void)
     }
   else
     {
-      /* We are not sharing slots. 
+      /* We are not sharing slots.
 
 	 Run through all the call-used hard-registers and allocate
 	 space for each in the caller-save area.  Try to allocate space
@@ -851,7 +851,7 @@ save_call_clobbered_regs (void)
 	      for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)
 		if (TEST_HARD_REG_BIT (hard_regs_saved, regno))
 		  n_regs_saved++;
-	      
+
 	      if (cheap
 		  && HARD_REGISTER_P (cheap)
 		  && callee_abi.clobbers_reg_p (GET_MODE (cheap),

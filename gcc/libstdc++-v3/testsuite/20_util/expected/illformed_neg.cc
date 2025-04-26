@@ -1,4 +1,3 @@
-// { dg-options "-std=gnu++23" }
 // { dg-do compile { target c++23 } }
 
 #include <expected>
@@ -65,3 +64,4 @@ test_expected_error()
 }
 
 // { dg-prune-output "static assertion failed" }
+// { dg-prune-output "function returning an array" }

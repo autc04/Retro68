@@ -1,6 +1,6 @@
 // 2000-08-02 bkoz
 
-// Copyright (C) 2000-2022 Free Software Foundation, Inc.
+// Copyright (C) 2000-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -37,6 +37,8 @@ void test04()
   cout << "world" << endl;
   cout.flush();
 }
+
+// { dg-output "hello fine world" }
 
 int 
 main()

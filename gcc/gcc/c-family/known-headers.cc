@@ -1,5 +1,5 @@
 /* Support for suggestions about missing #include directives.
-   Copyright (C) 2017-2022 Free Software Foundation, Inc.
+   Copyright (C) 2017-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -18,13 +18,13 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 #include "config.h"
-#define INCLUDE_MEMORY
 #include "system.h"
 #include "coretypes.h"
 #include "c-family/c-common.h"
 #include "c-family/name-hint.h"
 #include "c-family/known-headers.h"
 #include "gcc-rich-location.h"
+#include "opts.h"
 
 /* An enum for distinguishing between the C and C++ stdlibs.  */
 
@@ -79,8 +79,7 @@ get_string_macro_hint (const char *name, enum stdlib lib)
   if ((lib == STDLIB_C && flag_isoc99)
       || (lib == STDLIB_CPLUSPLUS && cxx_dialect >= cxx11 ))
     {
-      const size_t num_c99_cxx11_macros
-	= sizeof (c99_cxx11_macros) / sizeof (c99_cxx11_macros[0]);
+      const size_t num_c99_cxx11_macros = ARRAY_SIZE (c99_cxx11_macros);
       for (size_t i = 0; i < num_c99_cxx11_macros; i++)
 	if (strcmp (name, c99_cxx11_macros[i]) == 0)
 	  return lib == STDLIB_C ? "<inttypes.h>" : "<cinttypes>";
@@ -183,6 +182,7 @@ get_stdlib_header_for_name (const char *name, enum stdlib lib)
     {"strchr", {"<string.h>", "<cstring>"} },
     {"strcmp", {"<string.h>", "<cstring>"} },
     {"strcpy", {"<string.h>", "<cstring>"} },
+    {"strerror", {"<string.h>", "<cstring>"} },
     {"strlen", {"<string.h>", "<cstring>"} },
     {"strncat", {"<string.h>", "<cstring>"} },
     {"strncmp", {"<string.h>", "<cstring>"} },
@@ -218,7 +218,7 @@ get_stdlib_header_for_name (const char *name, enum stdlib lib)
     {"WCHAR_MAX", {"<wchar.h>", "<cwchar>"} },
     {"WCHAR_MIN", {"<wchar.h>", "<cwchar>"} }
   };
-  const size_t num_hints = sizeof (hints) / sizeof (hints[0]);
+  const size_t num_hints = ARRAY_SIZE (hints);
   for (size_t i = 0; i < num_hints; i++)
     if (strcmp (name, hints[i].name) == 0)
       return hints[i].header[lib];
@@ -321,6 +321,33 @@ suggest_missing_header::~suggest_missing_header ()
   maybe_add_include_fixit (&richloc, m_header_hint, true);
   inform (&richloc,
 	  "%qs is defined in header %qs;"
-	  " did you forget to %<#include %s%>?",
+	  " this is probably fixable by adding %<#include %s%>",
 	  m_name_str, m_header_hint, m_header_hint);
+}
+
+/* Implementation of class suggest_missing_option.  */
+
+/* suggest_missing_option's ctor.  */
+
+suggest_missing_option::suggest_missing_option (location_t loc,
+						const char *macro_name,
+						diagnostic_option_id option_id)
+: deferred_diagnostic (loc), m_name_str (macro_name), m_option_id (option_id)
+{
+  gcc_assert (macro_name);
+  gcc_assert (option_id.m_idx > 0);
+}
+
+/* suggest_missing_option's dtor.  */
+
+suggest_missing_option::~suggest_missing_option ()
+{
+  if (is_suppressed_p ())
+    return;
+
+  const char *option_name = cl_options[m_option_id.m_idx].opt_text;
+  inform (get_location (),
+	  "%qs is defined when using option %qs;"
+	  " this is probably fixable by adding %qs to the command-line options",
+	  m_name_str, option_name, option_name);
 }

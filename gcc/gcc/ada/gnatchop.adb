@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1998-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -721,7 +721,7 @@ procedure Gnatchop is
       begin
          Parse_Token (Source, Parse_Ptr, Token_Ptr);
 
-         if Source'Last  + 1 - Token_Ptr < Literal'Length
+         if Source'Last + 1 - Token_Ptr < Literal'Length
            or else
              Source (Token_Ptr .. Token_Ptr + Literal'Length - 1) /= Literal
          then
@@ -984,7 +984,6 @@ procedure Gnatchop is
       Read_Ptr    : File_Offset := 1;
 
    begin
-
       loop
          This_Read := Read (FD,
            A => Buffer (Read_Ptr)'Address,
@@ -1724,7 +1723,7 @@ procedure Gnatchop is
       end;
    end Write_Unit;
 
-      procedure Check_Version_And_Help is new Check_Version_And_Help_G (Usage);
+   procedure Check_Version_And_Help is new Check_Version_And_Help_G (Usage);
 
 --  Start of processing for gnatchop
 

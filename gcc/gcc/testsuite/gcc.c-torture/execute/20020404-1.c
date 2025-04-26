@@ -1,6 +1,10 @@
 /* { dg-require-effective-target int32plus } */
+/* { dg-additional-options "-std=gnu17" } */
 /* { dg-skip-if "pointers can be truncated" { m32c-*-* } } */
 /* Extracted from GDB sources. */
+
+void abort (void);
+void exit (int);
 
 typedef long long bfd_signed_vma;
 typedef bfd_signed_vma file_ptr;

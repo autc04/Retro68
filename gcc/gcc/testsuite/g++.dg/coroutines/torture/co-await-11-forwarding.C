@@ -1,4 +1,5 @@
 //  { dg-do run }
+//  { dg-skip-if "requires hosted libstdc++ for cstdlib abort" { ! hostedlib } }
 
 // Test of forwarding a templated awaitable to co_await.
 
@@ -38,6 +39,6 @@ int main ()
       PRINTF ("main: y is wrong : %d, should be 15\n", y);
       abort ();
     }
-  puts ("main: done");
+  PRINT ("main: done");
   return 0;
 }

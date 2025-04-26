@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -50,7 +50,9 @@ package System.Wid_Uns
 is
    subtype Unsigned is Unsigned_Types.Unsigned;
 
-   function Width_Unsigned is new Width_U (Unsigned);
-   pragma Pure_Function (Width_Unsigned);
+   package Width_Uns is new Width_U (Unsigned);
+
+   function Width_Unsigned (Lo, Hi : Unsigned) return Natural
+     renames Width_Uns.Width;
 
 end System.Wid_Uns;

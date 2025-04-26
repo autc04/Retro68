@@ -1,4 +1,4 @@
-# Copyright (C) 2008-2022 Free Software Foundation, Inc.
+# Copyright (C) 2008-2025 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -46,6 +46,10 @@ i386-d.o: $(srcdir)/config/i386/i386-d.cc
 	$(COMPILE) $<
 	$(POSTCOMPILE)
 
+i386-rust.o: $(srcdir)/config/i386/i386-rust.cc
+	$(COMPILE) $<
+	$(POSTCOMPILE)
+
 i386-options.o: $(srcdir)/config/i386/i386-options.cc
 	$(COMPILE) $<
 	$(POSTCOMPILE)
@@ -62,7 +66,12 @@ i386-features.o: $(srcdir)/config/i386/i386-features.cc
 	$(COMPILE) $<
 	$(POSTCOMPILE)
 
+# i386-builtin-types.inc is included into i386-builtins.h.
+# Below are direct users of i386-builtins.h:
 i386.o: i386-builtin-types.inc
+i386-builtins.o: i386-builtin-types.inc
+i386-expand.o: i386-builtin-types.inc
+i386-features.o: i386-builtin-types.inc
 
 i386-builtin-types.inc: s-i386-bt ; @true
 s-i386-bt: $(srcdir)/config/i386/i386-builtin-types.awk \

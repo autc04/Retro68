@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2005-2025 Free Software Foundation, Inc.
    Contributed by Jakub Jelinek <jakub@redhat.com>.
 
    This file is part of the GNU Offloading and Multi Processing Library
@@ -76,6 +76,7 @@ ialias_redirect (omp_get_ancestor_thread_num)
 ialias_redirect (omp_get_team_size)
 ialias_redirect (omp_get_active_level)
 ialias_redirect (omp_in_final)
+ialias_redirect (omp_in_explicit_task)
 ialias_redirect (omp_get_cancellation)
 ialias_redirect (omp_get_proc_bind)
 ialias_redirect (omp_get_num_places)
@@ -101,6 +102,10 @@ ialias_redirect (omp_set_default_allocator)
 ialias_redirect (omp_get_default_allocator)
 ialias_redirect (omp_display_env)
 ialias_redirect (omp_fulfill_event)
+ialias_redirect (omp_get_interop_str)
+ialias_redirect (omp_get_interop_name)
+ialias_redirect (omp_get_interop_type_desc)
+ialias_redirect (omp_get_interop_rc_desc)
 #endif
 
 #ifndef LIBGOMP_GNU_SYMBOL_VERSIONING
@@ -482,6 +487,12 @@ omp_in_final_ (void)
   return omp_in_final ();
 }
 
+int32_t
+omp_in_explicit_task_ (void)
+{
+  return omp_in_explicit_task ();
+}
+
 void
 omp_set_num_teams_ (const int32_t *num_teams)
 {
@@ -784,6 +795,76 @@ intptr_t
 omp_get_default_allocator_ ()
 {
   return (intptr_t) omp_get_default_allocator ();
+}
+
+void
+omp_get_interop_str_ (const char **res, size_t *res_len,
+		      const omp_interop_t interop,
+		      omp_interop_property_t property_id,
+		      omp_interop_rc_t *ret_code)
+{
+  *res = omp_get_interop_str (interop, property_id, ret_code);
+  *res_len = *res ? strlen (*res) : 0;
+}
+
+void
+omp_get_interop_name_ (const char **res, size_t *res_len,
+		       const omp_interop_t interop,
+		       omp_interop_property_t property_id)
+{
+  *res = omp_get_interop_name (interop, property_id);
+  *res_len = *res ? strlen (*res) : 0;
+}
+
+void
+omp_get_interop_type_desc_ (const char **res, size_t *res_len,
+			    const omp_interop_t interop,
+			    omp_interop_property_t property_id)
+{
+  *res = omp_get_interop_type_desc (interop, property_id);
+  *res_len = *res ? strlen (*res) : 0;
+}
+
+void
+omp_get_interop_rc_desc_ (const char **res, size_t *res_len,
+			  const omp_interop_t interop,
+			  omp_interop_rc_t ret_code)
+{
+  *res = omp_get_interop_rc_desc (interop, ret_code);
+  *res_len = *res ? strlen (*res) : 0;
+}
+
+int
+omp_get_device_from_uid_ (const char *uid, size_t uid_len)
+{
+#ifndef LIBGOMP_OFFLOADED_ONLY
+  char *str = __builtin_alloca ((uid_len + 1) * sizeof (char));
+  memcpy (str, uid, uid_len * sizeof (char));
+  str[uid_len] = '\0';
+  return omp_get_device_from_uid (str);
+#else
+  /* Inside the target region, invoking this routine is undefined
+     behavior; thus, resolve it already here - instead of inside
+     libgomp/config/.../target.c.
+     This also circumvents issues due to not all nvptx configurations
+     supporting 'alloca'.  */
+  return omp_invalid_device;
+#endif
+}
+
+void
+omp_get_uid_from_device_ (const char **res, size_t *res_len,
+			  int32_t device_num)
+{
+  *res = omp_get_uid_from_device (device_num);
+  *res_len = *res ? strlen (*res) : 0;
+}
+
+void
+omp_get_uid_from_device_8_ (const char **res, size_t *res_len,
+			    int64_t device_num)
+{
+  omp_get_uid_from_device_ (res, res_len, (int32_t) device_num);
 }
 
 #ifndef LIBGOMP_OFFLOADED_ONLY

@@ -1,5 +1,5 @@
 /* Dead code elimination pass for the GNU compiler.
-   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+   Copyright (C) 2002-2025 Free Software Foundation, Inc.
    Contributed by Ben Elliston <bje@redhat.com>
    and Andrew MacLeod <amacleod@redhat.com>
    Adapted to use control dependence by Steven Bosscher, SUSE Labs.
@@ -68,6 +68,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-ssa-propagate.h"
 #include "gimple-fold.h"
 #include "tree-ssa.h"
+#include "ipa-modref-tree.h"
+#include "ipa-modref.h"
 
 static struct stmt_stats
 {
@@ -122,6 +124,55 @@ static inline bool
 keep_all_vdefs_p ()
 {
   return optimize_debug;
+}
+
+/* 1 if CALLEE is the function __cxa_atexit.
+   2 if CALLEE is the function __aeabi_atexit.
+   0 otherwise.   */
+
+static inline int
+is_cxa_atexit (const_tree callee)
+{
+  if (callee != NULL_TREE
+      && strcmp (IDENTIFIER_POINTER (DECL_NAME (callee)), "__cxa_atexit") == 0)
+    return 1;
+  if (callee != NULL_TREE
+      && strcmp (IDENTIFIER_POINTER (DECL_NAME (callee)), "__aeabi_atexit") == 0)
+    return 2;
+  return 0;
+}
+
+/* True if STMT is a call to __cxa_atexit (or __aeabi_atexit)
+   and the function argument to that call is a const  or pure
+   non-looping function decl.  */
+
+static inline bool
+is_removable_cxa_atexit_call (gimple *stmt)
+{
+  tree callee = gimple_call_fndecl (stmt);
+  int functype = is_cxa_atexit (callee);
+  if (!functype)
+    return false;
+  if (gimple_call_num_args (stmt) != 3)
+    return false;
+
+  /* The function argument is the 1st argument for __cxa_atexit
+     or the 2nd argument for __eabi_atexit. */
+  tree arg = gimple_call_arg (stmt, functype == 2 ? 1 : 0);
+  if (TREE_CODE (arg) != ADDR_EXPR)
+    return false;
+  arg = TREE_OPERAND (arg, 0);
+  if (TREE_CODE (arg) != FUNCTION_DECL)
+    return false;
+  int flags = flags_from_decl_or_type (arg);
+
+  /* If the function is noreturn then it cannot be removed. */
+  if (flags & ECF_NORETURN)
+    return false;
+
+  /* The function needs to be const or pure and non looping.  */
+  return (flags & (ECF_CONST|ECF_PURE))
+	  && !(flags & ECF_LOOPING_CONST_OR_PURE);
 }
 
 /* If STMT is not already marked necessary, mark it, and add it to the
@@ -190,6 +241,123 @@ mark_operand_necessary (tree op)
   worklist.safe_push (stmt);
 }
 
+/* Return true if STMT is a call to allocation function that can be
+   optimized out if the memory block is never used for anything else
+   than NULL pointer check or free.
+   If NON_NULL_CHECK is false, we can further assume that return value
+   is never checked to be non-NULL.
+   Don't return true if it is called with constant size (or sizes for calloc)
+   and the size is excessively large (larger than PTRDIFF_MAX, for calloc
+   either argument larger than PTRDIFF_MAX or both constant and their product
+   larger than PTRDIFF_MAX).  */
+
+static bool
+is_removable_allocation_p (gcall *stmt, bool non_null_check)
+{
+  int arg = -1;
+  tree callee = gimple_call_fndecl (stmt), a1, a2;
+  if (callee != NULL_TREE
+      && fndecl_built_in_p (callee, BUILT_IN_NORMAL))
+    switch (DECL_FUNCTION_CODE (callee))
+      {
+      case BUILT_IN_MALLOC:
+	arg = 1;
+	goto do_malloc;
+      case BUILT_IN_ALIGNED_ALLOC:
+	arg = 2;
+	goto do_malloc;
+      case BUILT_IN_CALLOC:
+	arg = 3;
+	goto do_malloc;
+      CASE_BUILT_IN_ALLOCA:
+	arg = 1;
+	goto do_malloc;
+      case BUILT_IN_STRDUP:
+      case BUILT_IN_STRNDUP:
+	arg = 0;
+	/* FALLTHRU */
+      do_malloc:
+	if (non_null_check)
+	  {
+	    if (flag_malloc_dce <= 1)
+	      return false;
+	  }
+	else if (!flag_malloc_dce)
+	  return false;
+	break;
+
+      case BUILT_IN_GOMP_ALLOC:
+	arg = 2;
+	break;
+
+      default:;
+      }
+
+  if (arg == -1
+      && callee != NULL_TREE
+      && flag_allocation_dce
+      && gimple_call_from_new_or_delete (stmt)
+      && DECL_IS_REPLACEABLE_OPERATOR_NEW_P (callee))
+    arg = 1;
+
+  switch (arg)
+    {
+    case -1:
+      return false;
+    case 0:
+      return true;
+    case 1:
+    case 2:
+      if (gimple_call_num_args (stmt) < (unsigned) arg)
+	return false;
+      a1 = gimple_call_arg (stmt, arg - 1);
+      if (tree_fits_uhwi_p (a1)
+	  && (tree_to_uhwi (a1)
+	      > tree_to_uhwi (TYPE_MAX_VALUE (ptrdiff_type_node))))
+	return false;
+      return true;
+    case 3:
+      if (gimple_call_num_args (stmt) < 2)
+	return false;
+      a1 = gimple_call_arg (stmt, 0);
+      a2 = gimple_call_arg (stmt, 1);
+      if (tree_fits_uhwi_p (a1)
+	  && (tree_to_uhwi (a1)
+	      > tree_to_uhwi (TYPE_MAX_VALUE (ptrdiff_type_node))))
+	return false;
+      if (tree_fits_uhwi_p (a2)
+	  && (tree_to_uhwi (a2)
+	      > tree_to_uhwi (TYPE_MAX_VALUE (ptrdiff_type_node))))
+	return false;
+      if (TREE_CODE (a1) == INTEGER_CST
+	  && TREE_CODE (a2) == INTEGER_CST
+	  && (wi::to_widest (a1) * wi::to_widest (a2)
+	      > tree_to_uhwi (TYPE_MAX_VALUE (ptrdiff_type_node))))
+	return false;
+      return true;
+    default:
+      gcc_unreachable ();
+    }
+}
+
+/* Return true if STMT is a conditional
+     if (ptr != NULL)
+   where ptr was returned by a removable allocation function.  */
+
+static bool
+checks_return_value_of_removable_allocation_p (gimple *stmt)
+{
+  gcall *def_stmt;
+  return gimple_code (stmt) == GIMPLE_COND
+	 && (gimple_cond_code (stmt) == EQ_EXPR
+	     || gimple_cond_code (stmt) == NE_EXPR)
+	 && integer_zerop (gimple_cond_rhs (stmt))
+	 && TREE_CODE (gimple_cond_lhs (stmt)) == SSA_NAME
+	 && (def_stmt = dyn_cast <gcall *>
+			 (SSA_NAME_DEF_STMT (gimple_cond_lhs (stmt))))
+	 && is_removable_allocation_p (def_stmt, true);
+}
+
 
 /* Mark STMT as necessary if it obviously is.  Add it to the worklist if
    it can make other statements necessary.
@@ -221,26 +389,23 @@ mark_stmt_if_obviously_necessary (gimple *stmt, bool aggressive)
 
     case GIMPLE_CALL:
       {
-	tree callee = gimple_call_fndecl (stmt);
-	if (callee != NULL_TREE
-	    && fndecl_built_in_p (callee, BUILT_IN_NORMAL))
-	  switch (DECL_FUNCTION_CODE (callee))
-	    {
-	    case BUILT_IN_MALLOC:
-	    case BUILT_IN_ALIGNED_ALLOC:
-	    case BUILT_IN_CALLOC:
-	    CASE_BUILT_IN_ALLOCA:
-	    case BUILT_IN_STRDUP:
-	    case BUILT_IN_STRNDUP:
-	    case BUILT_IN_GOMP_ALLOC:
-	      return;
+	gcall *call = as_a <gcall *> (stmt);
 
-	    default:;
-	    }
+	/* Never elide a noreturn call we pruned control-flow for.
+	   Same for statements that can alter control flow in unpredictable
+	   ways.  */
+	if (gimple_call_ctrl_altering_p (call))
+	  {
+	    mark_stmt_necessary (call, true);
+	    return;
+	  }
 
-	if (callee != NULL_TREE
-	    && flag_allocation_dce
-	    && DECL_IS_REPLACEABLE_OPERATOR_NEW_P (callee))
+	if (is_removable_allocation_p (call, false))
+	  return;
+
+
+	/* For __cxa_atexit calls, don't mark as necessary right away. */
+	if (is_removable_cxa_atexit_call (call))
 	  return;
 
 	/* IFN_GOACC_LOOP calls are necessary in that they are used to
@@ -249,9 +414,9 @@ mark_stmt_if_obviously_necessary (gimple *stmt, bool aggressive)
 	   survive from aggressive loop removal for it has loop exit and
 	   is assumed to be finite.  Therefore, we need to explicitly mark
 	   these calls. (An example is libgomp.oacc-c-c++-common/pr84955.c) */
-	if (gimple_call_internal_p (stmt, IFN_GOACC_LOOP))
+	if (gimple_call_internal_p (call, IFN_GOACC_LOOP))
 	  {
-	    mark_stmt_necessary (stmt, true);
+	    mark_stmt_necessary (call, true);
 	    return;
 	  }
 	break;
@@ -327,17 +492,22 @@ mark_stmt_if_obviously_necessary (gimple *stmt, bool aggressive)
 
 /* Mark the last statement of BB as necessary.  */
 
-static void
+static bool
 mark_last_stmt_necessary (basic_block bb)
 {
-  gimple *stmt = last_stmt (bb);
+  if (!bitmap_set_bit (last_stmt_necessary, bb->index))
+    return true;
 
-  bitmap_set_bit (last_stmt_necessary, bb->index);
   bitmap_set_bit (bb_contains_live_stmts, bb->index);
 
   /* We actually mark the statement only if it is a control statement.  */
+  gimple *stmt = *gsi_last_bb (bb);
   if (stmt && is_ctrl_stmt (stmt))
-    mark_stmt_necessary (stmt, true);
+    {
+      mark_stmt_necessary (stmt, true);
+      return true;
+    }
+  return false;
 }
 
 
@@ -369,8 +539,8 @@ mark_control_dependent_edges_necessary (basic_block bb, bool ignore_self)
 	  continue;
 	}
 
-      if (!bitmap_bit_p (last_stmt_necessary, cd_bb->index))
-	mark_last_stmt_necessary (cd_bb);
+      if (!mark_last_stmt_necessary (cd_bb))
+	mark_control_dependent_edges_necessary (cd_bb, false);
     }
 
   if (!skipped)
@@ -456,7 +626,8 @@ find_obviously_necessary_stmts (bool aggressive)
 static bool
 ref_may_be_aliased (tree ref)
 {
-  gcc_assert (TREE_CODE (ref) != WITH_SIZE_EXPR);
+  if (TREE_CODE (ref) == WITH_SIZE_EXPR)
+    ref = TREE_OPERAND (ref, 0);
   while (handled_component_p (ref))
     ref = TREE_OPERAND (ref, 0);
   if ((TREE_CODE (ref) == MEM_REF || TREE_CODE (ref) == TARGET_MEM_REF)
@@ -599,6 +770,8 @@ mark_all_reaching_defs_necessary_1 (ao_ref *ref ATTRIBUTE_UNUSED,
 	  case BUILT_IN_ALIGNED_ALLOC:
 	  case BUILT_IN_CALLOC:
 	  CASE_BUILT_IN_ALLOCA:
+	  case BUILT_IN_STRDUP:
+	  case BUILT_IN_STRNDUP:
 	  case BUILT_IN_FREE:
 	  case BUILT_IN_GOMP_ALLOC:
 	  case BUILT_IN_GOMP_FREE:
@@ -611,6 +784,8 @@ mark_all_reaching_defs_necessary_1 (ao_ref *ref ATTRIBUTE_UNUSED,
 	  && (DECL_IS_REPLACEABLE_OPERATOR_NEW_P (callee)
 	      || DECL_IS_OPERATOR_DELETE_P (callee))
 	  && gimple_call_from_new_or_delete (call))
+	return false;
+      if (is_removable_cxa_atexit_call (call))
 	return false;
     }
 
@@ -790,8 +965,8 @@ propagate_necessity (bool aggressive)
 		  if (gimple_bb (stmt)
 		      != get_immediate_dominator (CDI_POST_DOMINATORS, arg_bb))
 		    {
-		      if (!bitmap_bit_p (last_stmt_necessary, arg_bb->index))
-			mark_last_stmt_necessary (arg_bb);
+		      if (!mark_last_stmt_necessary (arg_bb))
+			mark_control_dependent_edges_necessary (arg_bb, false);
 		    }
 		  else if (arg_bb != ENTRY_BLOCK_PTR_FOR_FN (cfun)
 		           && !bitmap_bit_p (visited_control_parents,
@@ -821,19 +996,11 @@ propagate_necessity (bool aggressive)
 	    {
 	      tree ptr = gimple_call_arg (stmt, 0);
 	      gcall *def_stmt;
-	      tree def_callee;
 	      /* If the pointer we free is defined by an allocation
 		 function do not add the call to the worklist.  */
 	      if (TREE_CODE (ptr) == SSA_NAME
 		  && (def_stmt = dyn_cast <gcall *> (SSA_NAME_DEF_STMT (ptr)))
-		  && (def_callee = gimple_call_fndecl (def_stmt))
-		  && ((DECL_BUILT_IN_CLASS (def_callee) == BUILT_IN_NORMAL
-		       && (DECL_FUNCTION_CODE (def_callee) == BUILT_IN_ALIGNED_ALLOC
-			   || DECL_FUNCTION_CODE (def_callee) == BUILT_IN_MALLOC
-			   || DECL_FUNCTION_CODE (def_callee) == BUILT_IN_CALLOC
-			   || DECL_FUNCTION_CODE (def_callee) == BUILT_IN_GOMP_ALLOC))
-		      || (DECL_IS_REPLACEABLE_OPERATOR_NEW_P (def_callee)
-			  && gimple_call_from_new_or_delete (def_stmt))))
+		  && is_removable_allocation_p (def_stmt, false))
 		{
 		  if (is_delete_operator
 		      && !valid_new_delete_pair_p (def_stmt, stmt))
@@ -854,6 +1021,9 @@ propagate_necessity (bool aggressive)
 		  continue;
 		}
 	    }
+
+	  if (checks_return_value_of_removable_allocation_p (stmt))
+	    continue;
 
 	  FOR_EACH_SSA_TREE_OPERAND (use, stmt, iter, SSA_OP_USE)
 	    mark_operand_necessary (use);
@@ -892,33 +1062,18 @@ propagate_necessity (bool aggressive)
 	      tree callee = gimple_call_fndecl (call);
 	      unsigned i;
 
-	      /* Calls to functions that are merely acting as barriers
-		 or that only store to memory do not make any previous
-		 stores necessary.  */
-	      if (callee != NULL_TREE
-		  && DECL_BUILT_IN_CLASS (callee) == BUILT_IN_NORMAL
-		  && (DECL_FUNCTION_CODE (callee) == BUILT_IN_MEMSET
-		      || DECL_FUNCTION_CODE (callee) == BUILT_IN_MEMSET_CHK
-		      || DECL_FUNCTION_CODE (callee) == BUILT_IN_MALLOC
-		      || DECL_FUNCTION_CODE (callee) == BUILT_IN_ALIGNED_ALLOC
-		      || DECL_FUNCTION_CODE (callee) == BUILT_IN_CALLOC
-		      || DECL_FUNCTION_CODE (callee) == BUILT_IN_FREE
-		      || DECL_FUNCTION_CODE (callee) == BUILT_IN_VA_END
-		      || ALLOCA_FUNCTION_CODE_P (DECL_FUNCTION_CODE (callee))
-		      || DECL_FUNCTION_CODE (callee) == BUILT_IN_STACK_SAVE
-		      || DECL_FUNCTION_CODE (callee) == BUILT_IN_STACK_RESTORE
-		      || DECL_FUNCTION_CODE (callee) == BUILT_IN_ASSUME_ALIGNED))
-		continue;
-
 	      if (callee != NULL_TREE
 		  && (DECL_IS_REPLACEABLE_OPERATOR_NEW_P (callee)
 		      || DECL_IS_OPERATOR_DELETE_P (callee))
 		  && gimple_call_from_new_or_delete (call))
 		continue;
 
+	      if (is_removable_cxa_atexit_call (call))
+		continue;
+
+	      bool all_refs = false;
 	      /* Calls implicitly load from memory, their arguments
 	         in addition may explicitly perform memory loads.  */
-	      mark_all_reaching_defs_necessary (call);
 	      for (i = 0; i < gimple_call_num_args (call); ++i)
 		{
 		  tree arg = gimple_call_arg (call, i);
@@ -929,7 +1084,13 @@ propagate_necessity (bool aggressive)
 		    arg = TREE_OPERAND (arg, 0);
 		  if (!ref_may_be_aliased (arg))
 		    mark_aliased_reaching_defs_necessary (call, arg);
+		  else
+		    all_refs = true;
 		}
+
+	      if (!all_refs && ipa_modref_callee_reads_no_memory_p (call))
+		continue;
+	      mark_all_reaching_defs_necessary (call);
 	    }
 	  else if (gimple_assign_single_p (stmt))
 	    {
@@ -1026,7 +1187,8 @@ remove_dead_phis (basic_block bb)
 	{
 	  /* Virtual PHI nodes with one or identical arguments
 	     can be removed.  */
-	  if (degenerate_phi_p (phi))
+	  if (!loops_state_satisfies_p (LOOP_CLOSED_SSA)
+	      && degenerate_phi_p (phi))
 	    {
 	      tree vdef = gimple_phi_result (phi);
 	      tree vuse = gimple_phi_arg_def (phi, 0);
@@ -1088,7 +1250,7 @@ remove_dead_stmt (gimple_stmt_iterator *i, basic_block bb,
      nothing to the program, then we not only remove it, but we need to update
      the CFG.  We can chose any of edges out of BB as long as we are sure to not
      close infinite loops.  This is done by always choosing the edge closer to
-     exit in inverted_post_order_compute order.  */
+     exit in inverted_rev_post_order_compute order.  */
   if (is_ctrl_stmt (stmt))
     {
       edge_iterator ei;
@@ -1104,17 +1266,18 @@ remove_dead_stmt (gimple_stmt_iterator *i, basic_block bb,
 	{
 	  if (!bb_postorder)
 	    {
-	      auto_vec<int, 20> postorder;
-		 inverted_post_order_compute (&postorder,
-					      &bb_contains_live_stmts);
+	      int *rpo = XNEWVEC (int, n_basic_blocks_for_fn (cfun));
+	      int n = inverted_rev_post_order_compute (cfun, rpo,
+						       &bb_contains_live_stmts);
 	      bb_postorder = XNEWVEC (int, last_basic_block_for_fn (cfun));
-	      for (unsigned int i = 0; i < postorder.length (); ++i)
-		 bb_postorder[postorder[i]] = i;
+	      for (int i = 0; i < n; ++i)
+		 bb_postorder[rpo[i]] = i;
+	      free (rpo);
 	    }
           FOR_EACH_EDGE (e2, ei, bb->succs)
 	    if (!e || e2->dest == EXIT_BLOCK_PTR_FOR_FN (cfun)
 		|| bb_postorder [e->dest->index]
-		   < bb_postorder [e2->dest->index])
+		   >= bb_postorder [e2->dest->index])
 	      e = e2;
 	}
       gcc_assert (e);
@@ -1225,9 +1388,7 @@ maybe_optimize_arith_overflow (gimple_stmt_iterator *gsi,
   tree arg1 = gimple_call_arg (stmt, 1);
   location_t loc = gimple_location (stmt);
   tree type = TREE_TYPE (TREE_TYPE (lhs));
-  tree utype = type;
-  if (!TYPE_UNSIGNED (type))
-    utype = build_nonstandard_integer_type (TYPE_PRECISION (type), 1);
+  tree utype = unsigned_type_for (type);
   tree result = fold_build2_loc (loc, subcode, utype,
 				 fold_convert_loc (loc, utype, arg0),
 				 fold_convert_loc (loc, utype, arg1));
@@ -1306,12 +1467,12 @@ eliminate_unnecessary_stmts (bool aggressive)
   basic_block bb;
   gimple_stmt_iterator gsi, psi;
   gimple *stmt;
-  tree call;
   auto_vec<edge> to_remove_edges;
 
   if (dump_file && (dump_flags & TDF_DETAILS))
     fprintf (dump_file, "\nEliminating unnecessary statements:\n");
 
+  bool had_setjmp = cfun->calls_setjmp;
   clear_special_calls ();
 
   /* Walking basic blocks and statements in reverse order avoids
@@ -1347,6 +1508,7 @@ eliminate_unnecessary_stmts (bool aggressive)
 
       /* Remove dead statements.  */
       auto_bitmap debug_seen;
+      hash_set<int_hash <location_t, 0>> locs_seen;
       for (gsi = gsi_last_bb (bb); !gsi_end_p (gsi); gsi = psi)
 	{
 	  stmt = gsi_stmt (gsi);
@@ -1372,6 +1534,25 @@ eliminate_unnecessary_stmts (bool aggressive)
 		  if (!gimple_nop_p (def_stmt)
 		      && !gimple_plf (def_stmt, STMT_NECESSARY))
 		    gimple_set_plf (stmt, STMT_NECESSARY, false);
+		}
+	    }
+	  /* Conditional checking that return value of allocation is non-NULL
+	     can be turned to constant if the allocation itself
+	     is unnecesary.  */
+	  if (gimple_plf (stmt, STMT_NECESSARY)
+	      && gimple_code (stmt) == GIMPLE_COND
+	      && TREE_CODE (gimple_cond_lhs (stmt)) == SSA_NAME)
+	    {
+	      gimple *def_stmt = SSA_NAME_DEF_STMT (gimple_cond_lhs (stmt));
+	      if (!gimple_nop_p (def_stmt)
+		  && !gimple_plf (def_stmt, STMT_NECESSARY))
+		{
+		  gcc_checking_assert
+			(checks_return_value_of_removable_allocation_p (stmt));
+		  gimple_cond_set_lhs (as_a <gcond *>(stmt),
+				       build_one_cst
+					 (TREE_TYPE (gimple_cond_rhs (stmt))));
+		  update_stmt (stmt);
 		}
 	    }
 
@@ -1408,11 +1589,11 @@ eliminate_unnecessary_stmts (bool aggressive)
 	      remove_dead_stmt (&gsi, bb, to_remove_edges);
 	      continue;
 	    }
-	  else if (is_gimple_call (stmt))
+	  else if (gcall *call_stmt = dyn_cast <gcall *> (stmt))
 	    {
-	      tree name = gimple_call_lhs (stmt);
+	      tree name = gimple_call_lhs (call_stmt);
 
-	      notice_special_calls (as_a <gcall *> (stmt));
+	      notice_special_calls (call_stmt);
 
 	      /* When LHS of var = call (); is dead, simplify it into
 		 call (); saving one operand.  */
@@ -1422,36 +1603,30 @@ eliminate_unnecessary_stmts (bool aggressive)
 		  /* Avoid doing so for allocation calls which we
 		     did not mark as necessary, it will confuse the
 		     special logic we apply to malloc/free pair removal.  */
-		  && (!(call = gimple_call_fndecl (stmt))
-		      || ((DECL_BUILT_IN_CLASS (call) != BUILT_IN_NORMAL
-			   || (DECL_FUNCTION_CODE (call) != BUILT_IN_ALIGNED_ALLOC
-			       && DECL_FUNCTION_CODE (call) != BUILT_IN_MALLOC
-			       && DECL_FUNCTION_CODE (call) != BUILT_IN_CALLOC
-			       && !ALLOCA_FUNCTION_CODE_P
-			       (DECL_FUNCTION_CODE (call))))
-			  && !DECL_IS_REPLACEABLE_OPERATOR_NEW_P (call))))
+		  && !is_removable_allocation_p (call_stmt, false))
 		{
 		  something_changed = true;
 		  if (dump_file && (dump_flags & TDF_DETAILS))
 		    {
 		      fprintf (dump_file, "Deleting LHS of call: ");
-		      print_gimple_stmt (dump_file, stmt, 0, TDF_SLIM);
+		      print_gimple_stmt (dump_file, call_stmt, 0, TDF_SLIM);
 		      fprintf (dump_file, "\n");
 		    }
 
-		  gimple_call_set_lhs (stmt, NULL_TREE);
-		  maybe_clean_or_replace_eh_stmt (stmt, stmt);
-		  update_stmt (stmt);
+		  gimple_call_set_lhs (call_stmt, NULL_TREE);
+		  maybe_clean_or_replace_eh_stmt (call_stmt, call_stmt);
+		  update_stmt (call_stmt);
 		  release_ssa_name (name);
 
 		  /* GOMP_SIMD_LANE (unless three argument) or ASAN_POISON
 		     without lhs is not needed.  */
-		  if (gimple_call_internal_p (stmt))
-		    switch (gimple_call_internal_fn (stmt))
+		  if (gimple_call_internal_p (call_stmt))
+		    switch (gimple_call_internal_fn (call_stmt))
 		      {
 		      case IFN_GOMP_SIMD_LANE:
-			if (gimple_call_num_args (stmt) >= 3
-			    && !integer_nonzerop (gimple_call_arg (stmt, 2)))
+			if (gimple_call_num_args (call_stmt) >= 3
+			    && !integer_nonzerop
+					(gimple_call_arg (call_stmt, 2)))
 			  break;
 			/* FALLTHRU */
 		      case IFN_ASAN_POISON:
@@ -1461,8 +1636,8 @@ eliminate_unnecessary_stmts (bool aggressive)
 			break;
 		      }
 		}
-	      else if (gimple_call_internal_p (stmt))
-		switch (gimple_call_internal_fn (stmt))
+	      else if (gimple_call_internal_p (call_stmt))
+		switch (gimple_call_internal_fn (call_stmt))
 		  {
 		  case IFN_ADD_OVERFLOW:
 		    maybe_optimize_arith_overflow (&gsi, PLUS_EXPR);
@@ -1472,6 +1647,14 @@ eliminate_unnecessary_stmts (bool aggressive)
 		    break;
 		  case IFN_MUL_OVERFLOW:
 		    maybe_optimize_arith_overflow (&gsi, MULT_EXPR);
+		    break;
+		  case IFN_UADDC:
+		    if (integer_zerop (gimple_call_arg (call_stmt, 2)))
+		      maybe_optimize_arith_overflow (&gsi, PLUS_EXPR);
+		    break;
+		  case IFN_USUBC:
+		    if (integer_zerop (gimple_call_arg (call_stmt, 2)))
+		      maybe_optimize_arith_overflow (&gsi, MINUS_EXPR);
 		    break;
 		  default:
 		    break;
@@ -1488,6 +1671,15 @@ eliminate_unnecessary_stmts (bool aggressive)
 		remove_dead_stmt (&gsi, bb, to_remove_edges);
 	      continue;
 	    }
+	  else if (gimple_debug_begin_stmt_p (stmt))
+	    {
+	      /* We are only keeping the last debug-begin in a series of
+		 debug-begin stmts.  */
+	      if (locs_seen.add (gimple_location (stmt)))
+		remove_dead_stmt (&gsi, bb, to_remove_edges);
+	      continue;
+	    }
+	  locs_seen.empty ();
 	  bitmap_clear (debug_seen);
 	}
 
@@ -1495,19 +1687,50 @@ eliminate_unnecessary_stmts (bool aggressive)
       something_changed |= remove_dead_phis (bb);
     }
 
-
-  /* Since we don't track liveness of virtual PHI nodes, it is possible that we
-     rendered some PHI nodes unreachable while they are still in use.
-     Mark them for renaming.  */
+  /* First remove queued edges.  */
   if (!to_remove_edges.is_empty ())
     {
-      basic_block prev_bb;
-
       /* Remove edges.  We've delayed this to not get bogus debug stmts
          during PHI node removal.  */
       for (unsigned i = 0; i < to_remove_edges.length (); ++i)
 	remove_edge (to_remove_edges[i]);
       cfg_altered = true;
+    }
+  /* When we cleared calls_setjmp we can purge all abnormal edges.  Do so.
+     ???  We'd like to assert that setjmp calls do not pop out of nothing
+     but we currently lack a per-stmt way of noting whether a call was
+     recognized as returns-twice (or rather receives-control).  */
+  if (!cfun->calls_setjmp && had_setjmp)
+    {
+      /* Make sure we only remove the edges, not dominated blocks.  Using
+	 gimple_purge_dead_abnormal_call_edges would do that and we
+	 cannot free dominators yet.  */
+      FOR_EACH_BB_FN (bb, cfun)
+	if (gcall *stmt = safe_dyn_cast <gcall *> (*gsi_last_bb (bb)))
+	  if (!stmt_can_make_abnormal_goto (stmt))
+	    {
+	      edge_iterator ei;
+	      edge e;
+	      for (ei = ei_start (bb->succs); (e = ei_safe_edge (ei)); )
+		{
+		  if (e->flags & EDGE_ABNORMAL)
+		    {
+		      if (e->flags & EDGE_FALLTHRU)
+			e->flags &= ~EDGE_ABNORMAL;
+		      else
+			remove_edge (e);
+		      cfg_altered = true;
+		    }
+		  else
+		    ei_next (&ei);
+		}
+	    }
+    }
+
+  /* Now remove the unreachable blocks.  */
+  if (cfg_altered)
+    {
+      basic_block prev_bb;
 
       find_unreachable_blocks ();
 
@@ -1517,9 +1740,13 @@ eliminate_unnecessary_stmts (bool aggressive)
 	{
 	  prev_bb = bb->prev_bb;
 
-	  if (!bitmap_bit_p (bb_contains_live_stmts, bb->index)
+	  if ((bb_contains_live_stmts
+	       && !bitmap_bit_p (bb_contains_live_stmts, bb->index))
 	      || !(bb->flags & BB_REACHABLE))
 	    {
+	      /* Since we don't track liveness of virtual PHI nodes, it is
+		 possible that we rendered some PHI nodes unreachable while
+		 they are still in use.  Mark them for renaming.  */
 	      for (gphi_iterator gsi = gsi_start_phis (bb); !gsi_end_p (gsi);
 		   gsi_next (&gsi))
 		if (virtual_operand_p (gimple_phi_result (gsi.phi ())))
@@ -1814,12 +2041,25 @@ make_forwarders_with_degenerate_phis (function *fn)
 		    }
 		  free_dominance_info (fn, CDI_DOMINATORS);
 		  basic_block forwarder = split_edge (args[start].first);
+		  profile_count count = profile_count::zero ();
+		  bool irr = false;
 		  for (unsigned j = start + 1; j < i; ++j)
 		    {
 		      edge e = args[j].first;
+		      if (e->flags & EDGE_IRREDUCIBLE_LOOP)
+			irr = true;
 		      redirect_edge_and_branch_force (e, forwarder);
 		      redirect_edge_var_map_clear (e);
+		      count += e->count ();
 		    }
+		  forwarder->count = count;
+		  if (irr)
+		    {
+		      forwarder->flags |= BB_IRREDUCIBLE_LOOP;
+		      single_succ_edge (forwarder)->flags
+			|= EDGE_IRREDUCIBLE_LOOP;
+		    }
+
 		  if (vphi)
 		    {
 		      tree def = copy_ssa_name (vphi_args[0]);
@@ -1846,13 +2086,7 @@ make_forwarders_with_degenerate_phis (function *fn)
    In conservative mode, we ignore control dependence and simply declare
    all but the most trivially dead branches necessary.  This mode is fast.
    In aggressive mode, control dependences are taken into account, which
-   results in more dead code elimination, but at the cost of some time.
-
-   FIXME: Aggressive mode before PRE doesn't work currently because
-	  the dominance info is not invalidated after DCE1.  This is
-	  not an issue right now because we only run aggressive DCE
-	  as the last tree SSA pass, but keep this in mind when you
-	  start experimenting with pass ordering.  */
+   results in more dead code elimination, but at the cost of some time.  */
 
 static unsigned int
 perform_tree_ssa_dce (bool aggressive)
@@ -1866,9 +2100,9 @@ perform_tree_ssa_dce (bool aggressive)
   bool in_loop_pipeline = scev_initialized_p ();
   if (aggressive && ! in_loop_pipeline)
     {
-      scev_initialize ();
       loop_optimizer_init (LOOPS_NORMAL
 			   | LOOPS_HAVE_RECORDED_EXITS);
+      scev_initialize ();
     }
 
   if (aggressive)
@@ -1895,8 +2129,8 @@ perform_tree_ssa_dce (bool aggressive)
 
   if (aggressive && ! in_loop_pipeline)
     {
-      loop_optimizer_finalize ();
       scev_finalize ();
+      loop_optimizer_finalize ();
     }
 
   longest_chain = 0;
@@ -1938,19 +2172,6 @@ perform_tree_ssa_dce (bool aggressive)
   return todo;
 }
 
-/* Pass entry points.  */
-static unsigned int
-tree_ssa_dce (void)
-{
-  return perform_tree_ssa_dce (/*aggressive=*/false);
-}
-
-static unsigned int
-tree_ssa_cd_dce (void)
-{
-  return perform_tree_ssa_dce (/*aggressive=*/optimize >= 2);
-}
-
 namespace {
 
 const pass_data pass_data_dce =
@@ -1966,17 +2187,50 @@ const pass_data pass_data_dce =
   0, /* todo_flags_finish */
 };
 
-class pass_dce : public gimple_opt_pass
+class pass_dce_base : public gimple_opt_pass
+{
+public:
+  /* opt_pass methods: */
+  bool gate (function *) final override { return flag_tree_dce != 0; }
+  void set_pass_param (unsigned n, bool param) final override
+    {
+      gcc_assert (n == 0 || n == 1);
+      if (n == 0)
+	update_address_taken_p = param;
+      else if (n == 1)
+	remove_unused_locals_p = param;
+    }
+
+protected:
+  pass_dce_base (const pass_data &data, gcc::context *ctxt)
+    : gimple_opt_pass (data, ctxt)
+  {}
+  unsigned int execute_dce (function *, bool aggressive)
+    {
+      return (perform_tree_ssa_dce (aggressive)
+	      | (remove_unused_locals_p ? TODO_remove_unused_locals : 0)
+	      | (update_address_taken_p ? TODO_update_address_taken : 0));
+    }
+
+private:
+  bool update_address_taken_p = false;
+  bool remove_unused_locals_p = false;
+}; // class pass_dce_base
+
+
+class pass_dce : public pass_dce_base
 {
 public:
   pass_dce (gcc::context *ctxt)
-    : gimple_opt_pass (pass_data_dce, ctxt)
+    : pass_dce_base (pass_data_dce, ctxt)
   {}
 
   /* opt_pass methods: */
-  opt_pass * clone () { return new pass_dce (m_ctxt); }
-  virtual bool gate (function *) { return flag_tree_dce != 0; }
-  virtual unsigned int execute (function *) { return tree_ssa_dce (); }
+  opt_pass * clone () final override { return new pass_dce (m_ctxt); }
+  unsigned int execute (function *func) final override
+    {
+      return execute_dce (func, /*aggressive=*/false);
+    }
 
 }; // class pass_dce
 
@@ -2003,29 +2257,20 @@ const pass_data pass_data_cd_dce =
   0, /* todo_flags_finish */
 };
 
-class pass_cd_dce : public gimple_opt_pass
+class pass_cd_dce : public pass_dce_base
 {
 public:
   pass_cd_dce (gcc::context *ctxt)
-    : gimple_opt_pass (pass_data_cd_dce, ctxt), update_address_taken_p (false)
+    : pass_dce_base (pass_data_cd_dce, ctxt)
   {}
 
   /* opt_pass methods: */
-  opt_pass * clone () { return new pass_cd_dce (m_ctxt); }
-  void set_pass_param (unsigned n, bool param)
+  opt_pass * clone () final override { return new pass_cd_dce (m_ctxt); }
+  unsigned int execute (function *func) final override
     {
-      gcc_assert (n == 0);
-      update_address_taken_p = param;
-    }
-  virtual bool gate (function *) { return flag_tree_dce != 0; }
-  virtual unsigned int execute (function *)
-    {
-      return (tree_ssa_cd_dce ()
-	      | (update_address_taken_p ? TODO_update_address_taken : 0));
+      return execute_dce (func, /*aggressive=*/optimize >= 2);
     }
 
-private:
-  bool update_address_taken_p;
 }; // class pass_cd_dce
 
 } // anon namespace
@@ -2043,18 +2288,45 @@ make_pass_cd_dce (gcc::context *ctxt)
    use operands number.  */
 
 void
-simple_dce_from_worklist (bitmap worklist)
+simple_dce_from_worklist (bitmap worklist, bitmap need_eh_cleanup)
 {
+  int phiremoved = 0;
+  int stmtremoved = 0;
   while (! bitmap_empty_p (worklist))
     {
       /* Pop item.  */
-      unsigned i = bitmap_first_set_bit (worklist);
-      bitmap_clear_bit (worklist, i);
+      unsigned i = bitmap_clear_first_set_bit (worklist);
 
       tree def = ssa_name (i);
-      /* Removed by somebody else or still in use.  */
-      if (! def || ! has_zero_uses (def))
+      /* Removed by somebody else or still in use.
+	 Note use in itself for a phi node is not counted as still in use.  */
+      if (!def)
 	continue;
+      if (!has_zero_uses (def))
+	{
+	  gimple *def_stmt = SSA_NAME_DEF_STMT (def);
+
+	  if (gimple_code (def_stmt) != GIMPLE_PHI)
+	    continue;
+
+	  gimple *use_stmt;
+	  imm_use_iterator use_iter;
+	  bool canremove = true;
+
+	  FOR_EACH_IMM_USE_STMT (use_stmt, use_iter, def)
+	    {
+	      /* Ignore debug statements. */
+	      if (is_gimple_debug (use_stmt))
+		continue;
+	      if (use_stmt != def_stmt)
+		{
+		  canremove = false;
+		  break;
+		}
+	    }
+	  if (!canremove)
+	    continue;
+	}
 
       gimple *t = SSA_NAME_DEF_STMT (def);
       if (gimple_has_side_effects (t))
@@ -2062,15 +2334,20 @@ simple_dce_from_worklist (bitmap worklist)
 
       /* The defining statement needs to be defining only this name.
 	 ASM is the only statement that can define more than one
-	 (non-virtual) name. */
+	 name. */
       if (is_a<gasm *>(t)
-	  && !single_ssa_def_operand (t, SSA_OP_DEF))
+	  && !single_ssa_def_operand (t, SSA_OP_ALL_DEFS))
 	continue;
 
       /* Don't remove statements that are needed for non-call
 	 eh to work.  */
       if (stmt_unremovable_because_of_non_call_eh_p (cfun, t))
 	continue;
+
+      /* Tell the caller that we removed a statement that might
+	 throw so it could cleanup the cfg for that block. */
+      if (need_eh_cleanup && stmt_could_throw_p (cfun, t))
+	bitmap_set_bit (need_eh_cleanup, gimple_bb (t)->index);
 
       /* Add uses to the worklist.  */
       ssa_op_iter iter;
@@ -2091,11 +2368,20 @@ simple_dce_from_worklist (bitmap worklist)
 	}
       gimple_stmt_iterator gsi = gsi_for_stmt (t);
       if (gimple_code (t) == GIMPLE_PHI)
-	remove_phi_node (&gsi, true);
+	{
+	  remove_phi_node (&gsi, true);
+	  phiremoved++;
+	}
       else
 	{
+	  unlink_stmt_vdef (t);
 	  gsi_remove (&gsi, true);
 	  release_defs (t);
+	  stmtremoved++;
 	}
     }
+  statistics_counter_event (cfun, "PHIs removed",
+			    phiremoved);
+  statistics_counter_event (cfun, "Statements removed",
+			    stmtremoved);
 }

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -409,9 +409,9 @@ package Sem_Eval is
    --  an entity with Is_Known_Valid set, or Assume_No_Invalid_Values is True.
 
    function Is_Null_Range (Lo : Node_Id; Hi : Node_Id) return Boolean;
-   --  Returns True if it can guarantee that Lo .. Hi is a null range. If it
-   --  cannot (because the value of Lo or Hi is not known at compile time) then
-   --  it returns False.
+   --  Returns True if it can guarantee that Lo .. Hi is a null range
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    function Is_OK_Static_Expression (N : Node_Id) return Boolean;
    --  An OK static expression is one that is static in the RM definition sense
@@ -421,6 +421,15 @@ package Sem_Eval is
    --  routine. This routine is *not* to be used in contexts where the test is
    --  for compile time evaluation purposes. Use Compile_Time_Known_Value
    --  instead (see section on "Compile-Time Known Values" above).
+
+   type Staticity is (Static, Not_Static, Invalid);
+
+   function Is_OK_Static_Expression_Of_Type
+     (Expr : Node_Id; Typ : Entity_Id := Empty) return Staticity;
+   --  Return whether Expr is a static expression of the given type (i.e. it
+   --  will be analyzed and resolved using this type, which can be any valid
+   --  argument to Resolve, e.g. Any_Integer is OK). Includes checking that the
+   --  expression does not raise Constraint_Error.
 
    function Is_OK_Static_Range (N : Node_Id) return Boolean;
    --  Determines if range is static, as defined in RM 4.9(26), and also checks
@@ -485,9 +494,7 @@ package Sem_Eval is
    --  per RM 4.9(38/2). N is a node only used to post warnings.
 
    function Not_Null_Range (Lo : Node_Id; Hi : Node_Id) return Boolean;
-   --  Returns True if it can guarantee that Lo .. Hi is not a null range. If
-   --  it cannot (because the value of Lo or Hi is not known at compile time)
-   --  then it returns False.
+   --  Returns True if it can guarantee that Lo .. Hi is not a null range
 
    function Predicates_Compatible (T1, T2 : Entity_Id) return Boolean;
    --  In Ada 2012, subtypes are statically compatible if the predicates are

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,7 +24,6 @@
 ------------------------------------------------------------------------------
 
 with Casing;   use Casing;
-with Fname;    use Fname;
 with Gnatvsn;  use Gnatvsn;
 with Hostparm;
 with Namet;    use Namet;
@@ -57,13 +56,22 @@ package body Bindgen is
    Num_Elab_Calls : Nat := 0;
    --  Number of generated calls to elaboration routines
 
-   Num_Primary_Stacks : Int := 0;
+   Num_Primary_Stacks : Nat := 0;
    --  Number of default-sized primary stacks the binder needs to allocate for
    --  task objects declared in the program.
 
-   Num_Sec_Stacks : Int := 0;
+   Num_Sec_Stacks : Nat := 0;
    --  Number of default-sized primary stacks the binder needs to allocate for
    --  task objects declared in the program.
+
+   Command_Line_Used : Boolean := False;
+   --  Flag indicating whether the unit Ada.Command_Line is in the closure of
+   --  the partition. This is set by Resolve_Binder_Options, and is used to
+   --  determine whether or not to import and use symbols defined in
+   --  Ada.Command_Line's support packages (gnat_argc, gnat_argv, gnat_envp
+   --  and gnat_exit_status). Conservatively, it is always set to True for
+   --  non-configurable run-times as parts of the compiler and run-time assume
+   --  these symbols are available and can be imported directly.
 
    System_Restrictions_Used : Boolean := False;
    --  Flag indicating whether the unit System.Restrictions is in the closure
@@ -79,12 +87,6 @@ package body Bindgen is
    --  is used to call the routine to disallow the creation of new dispatching
    --  domains just before calling the main procedure from the environment
    --  task.
-
-   System_Secondary_Stack_Package_In_Closure : Boolean := False;
-   --  Flag indicating whether the unit System.Secondary_Stack is in the
-   --  closure of the partition. This is set by Resolve_Binder_Options, and
-   --  is used to initialize the package in cases where the run-time brings
-   --  in package but the secondary stack is not used.
 
    System_Tasking_Restricted_Stages_Used : Boolean := False;
    --  Flag indicating whether the unit System.Tasking.Restricted.Stages is in
@@ -119,6 +121,24 @@ package body Bindgen is
    CodePeer_Wrapper_Name : constant String := "call_main_subprogram";
    --  For CodePeer, introduce a wrapper subprogram which calls the
    --  user-defined main subprogram.
+
+   --  Name for local C-String variable
+
+   Adainit_String_Obj_Name  : constant String := "Adainit_Name_C_String";
+
+   --  Name and link_name for CUDA device initialization procedure
+
+   Device_Ada_Init_Subp_Name : constant String := "Device_Initialization";
+   Device_Link_Name_Prefix : constant String := "__device_";
+
+   function Device_Link_Name (Suffix : String) return String is
+     (Device_Link_Name_Prefix &
+       (if CUDA_Device_Library_Name = null
+        then "ada" -- is this an error path?
+        else CUDA_Device_Library_Name.all) & Suffix);
+
+   function Device_Ada_Init_Link_Name return String
+     is (Device_Link_Name (Suffix => "init"));
 
    ----------------------------------
    -- Interface_State Pragma Table --
@@ -252,9 +272,8 @@ package body Bindgen is
    --  such a pragma is given (the string will be a null string if no pragmas
    --  were used). If pragma were present the entries apply to the interrupts
    --  in sequence from the first interrupt, and are set to one of four
-   --  possible settings: 'n' for not specified, 'u' for user, 'r' for run
-   --  time, 's' for system, see description of Interrupt_State pragma for
-   --  further details.
+   --  possible settings: 'n', 'u', 'r', 's', see description in init.c
+   --  (__gnat_get_interrupt_state) for further details.
 
    --  Num_Interrupt_States is the length of the Interrupt_States string. It
    --  will be set to zero if no Interrupt_State pragmas are present.
@@ -316,6 +335,12 @@ package body Bindgen is
 
    procedure Gen_CodePeer_Wrapper;
    --  For CodePeer, generate wrapper which calls user-defined main subprogram
+
+   procedure Gen_CUDA_Defs;
+   --  Generate definitions needed in order to register kernels
+
+   procedure Gen_CUDA_Init;
+   --  Generate calls needed in order to register kernels
 
    procedure Gen_Elab_Calls (Elab_Order : Unit_Id_Array);
    --  Generate sequence of elaboration calls
@@ -512,7 +537,6 @@ package body Bindgen is
    procedure Gen_Adainit (Elab_Order : Unit_Id_Array) is
       Main_Priority : Int renames ALIs.Table (ALIs.First).Main_Priority;
       Main_CPU      : Int renames ALIs.Table (ALIs.First).Main_CPU;
-
    begin
       --  Declare the access-to-subprogram type used for initialization of
       --  of __gnat_finalize_library_objects. This is declared at library
@@ -609,33 +633,27 @@ package body Bindgen is
                  """__gnat_initialize_stack_limit"");");
          end if;
 
-         if System_Secondary_Stack_Package_In_Closure then
-            --  System.Secondary_Stack is in the closure of the program
-            --  because the program uses the secondary stack or the restricted
-            --  run-time is unconditionally calling SS_Init. In both cases,
-            --  SS_Init needs to know the number of secondary stacks created by
-            --  the binder.
-
+         if Num_Sec_Stacks > 0 then
             WBI ("      Binder_Sec_Stacks_Count : Natural;");
             WBI ("      pragma Import (Ada, Binder_Sec_Stacks_Count, " &
                  """__gnat_binder_ss_count"");");
             WBI ("");
+         end if;
 
-            --  Import secondary stack pool variables if the secondary stack
-            --  used. They are not referenced otherwise.
+         --  Import secondary stack pool variables if the secondary stack is
+         --  used. They are not referenced otherwise.
 
-            if Sec_Stack_Used then
-               WBI ("      Default_Secondary_Stack_Size : " &
-                    "System.Parameters.Size_Type;");
-               WBI ("      pragma Import (C, Default_Secondary_Stack_Size, " &
-                    """__gnat_default_ss_size"");");
+         if Sec_Stack_Used then
+            WBI ("      Default_Secondary_Stack_Size : " &
+                 "System.Parameters.Size_Type;");
+            WBI ("      pragma Import (C, Default_Secondary_Stack_Size, " &
+                 """__gnat_default_ss_size"");");
 
-               WBI ("      Default_Sized_SS_Pool : System.Address;");
-               WBI ("      pragma Import (Ada, Default_Sized_SS_Pool, " &
-                    """__gnat_default_ss_pool"");");
+            WBI ("      Default_Sized_SS_Pool : System.Address;");
+            WBI ("      pragma Import (Ada, Default_Sized_SS_Pool, " &
+                 """__gnat_default_ss_pool"");");
 
-               WBI ("");
-            end if;
+            WBI ("");
          end if;
 
          WBI ("   begin");
@@ -680,49 +698,41 @@ package body Bindgen is
             WBI ("      null;");
          end if;
 
+         Gen_Restrictions;
+
          --  Generate the default-sized secondary stack pool if the secondary
          --  stack is used by the program.
 
-         if System_Secondary_Stack_Package_In_Closure then
-            if Sec_Stack_Used then
-               --  Elaborate the body of the binder to initialize the default-
-               --  sized secondary stack pool.
+         if Sec_Stack_Used then
+            --  Elaborate the body of the binder to initialize the default-
+            --  sized secondary stack pool.
 
-               WBI ("");
-               WBI ("      " & Get_Ada_Main_Name & "'Elab_Body;");
+            WBI ("");
+            WBI ("      " & Get_Ada_Main_Name & "'Elab_Body;");
 
-               --  Generate the default-sized secondary stack pool and set the
-               --  related secondary stack globals.
+            --  Generate the default-sized secondary stack pool and set the
+            --  related secondary stack globals.
 
-               Set_String ("      Default_Secondary_Stack_Size := ");
+            Set_String ("      Default_Secondary_Stack_Size := ");
 
-               if Opt.Default_Sec_Stack_Size /= Opt.No_Stack_Size then
-                  Set_Int (Opt.Default_Sec_Stack_Size);
-               else
-                  Set_String
-                    ("System.Parameters.Runtime_Default_Sec_Stack_Size");
-               end if;
-
-               Set_Char (';');
-               Write_Statement_Buffer;
-
-               Set_String ("      Binder_Sec_Stacks_Count := ");
-               Set_Int (Num_Sec_Stacks);
-               Set_Char (';');
-               Write_Statement_Buffer;
-
-               WBI ("      Default_Sized_SS_Pool := " &
-                      "Sec_Default_Sized_Stacks'Address;");
-               WBI ("");
-
+            if Opt.Default_Sec_Stack_Size /= Opt.No_Stack_Size then
+               Set_Int (Opt.Default_Sec_Stack_Size);
             else
-               --  The presence of System.Secondary_Stack in the closure of the
-               --  program implies the restricted run-time is unconditionally
-               --  calling SS_Init. Let SS_Init know that no stacks were
-               --  created.
-
-               WBI ("      Binder_Sec_Stacks_Count := 0;");
+               Set_String
+                 ("System.Parameters.Runtime_Default_Sec_Stack_Size");
             end if;
+
+            Set_Char (';');
+            Write_Statement_Buffer;
+
+            Set_String ("      Binder_Sec_Stacks_Count := ");
+            Set_Int (Num_Sec_Stacks);
+            Set_Char (';');
+            Write_Statement_Buffer;
+
+            WBI ("      Default_Sized_SS_Pool := " &
+                   "Sec_Default_Sized_Stacks'Address;");
+            WBI ("");
          end if;
 
       --  Normal case (standard library not suppressed). Set all global values
@@ -807,14 +817,26 @@ package body Bindgen is
             WBI ("      pragma Import (C, XDR_Stream, ""__gl_xdr_stream"");");
          end if;
 
-         --  Import entry point for elaboration time signal handler
-         --  installation, and indication of if it's been called previously.
+         WBI ("      Interrupts_Default_To_System : Integer;");
+         WBI ("      pragma Import (C, Interrupts_Default_To_System, " &
+              """__gl_interrupts_default_to_system"");");
+
+         --  Import entry point for initialization of the runtime
 
          WBI ("");
          WBI ("      procedure Runtime_Initialize " &
               "(Install_Handler : Integer);");
          WBI ("      pragma Import (C, Runtime_Initialize, " &
               """__gnat_runtime_initialize"");");
+
+         --  Import entry point for initialization of the tasking runtime
+
+         if With_GNARL then
+            WBI ("");
+            WBI ("      procedure Tasking_Runtime_Initialize;");
+            WBI ("      pragma Import (C, Tasking_Runtime_Initialize, " &
+                 """__gnat_tasking_runtime_initialize"");");
+         end if;
 
          --  Import handlers attach procedure for sequential elaboration policy
 
@@ -1020,6 +1042,11 @@ package body Bindgen is
          Set_String (";");
          Write_Statement_Buffer;
 
+         if Interrupts_Default_To_System_Specified then
+            Set_String ("      Interrupts_Default_To_System := 1;");
+            Write_Statement_Buffer;
+         end if;
+
          if Leap_Seconds_Support then
             WBI ("      Leap_Seconds_Support := 1;");
          end if;
@@ -1078,6 +1105,12 @@ package body Bindgen is
          --  Generate call to Runtime_Initialize
 
          WBI ("      Runtime_Initialize (1);");
+
+         --  Generate call to Tasking_Runtime_Initialize
+
+         if With_GNARL then
+            WBI ("      Tasking_Runtime_Initialize;");
+         end if;
       end if;
 
       --  Generate call to set Initialize_Scalar values if active
@@ -1133,6 +1166,8 @@ package body Bindgen is
       if not CodePeer_Mode then
          WBI ("");
       end if;
+
+      Gen_CUDA_Init;
 
       Gen_Elab_Calls (Elab_Order);
 
@@ -1239,6 +1274,217 @@ package body Bindgen is
       Bind_Env_String_Built := True;
    end Gen_Bind_Env_String;
 
+   -------------------
+   -- Gen_CUDA_Defs --
+   -------------------
+
+   procedure Gen_CUDA_Defs is
+      Unit_Name : constant String :=
+        Get_Name_String (Units.Table (First_Unit_Entry).Uname);
+      Unit : constant String :=
+        Unit_Name (Unit_Name'First .. Unit_Name'Last - 2);
+   begin
+      if not Enable_CUDA_Expansion then
+         return;
+      end if;
+
+      WBI ("");
+      WBI ("   ");
+
+      WBI ("   procedure CUDA_Register_Function");
+      WBI ("      (Fat_Binary_Handle : System.Address;");
+      WBI ("       Func : System.Address;");
+      WBI ("       Kernel_Name : Interfaces.C.Strings.chars_ptr;");
+      WBI ("       Kernel_Name_2 : Interfaces.C.Strings.chars_ptr;");
+      WBI ("       Minus_One : Integer;");
+      WBI ("       Nullptr1 : System.Address;");
+      WBI ("       Nullptr2 : System.Address;");
+      WBI ("       Nullptr3 : System.Address;");
+      WBI ("       Nullptr4 : System.Address;");
+      WBI ("       Nullptr5 : System.Address);");
+      WBI ("   pragma Import");
+      WBI ("     (Convention => C,");
+      WBI ("      Entity => CUDA_Register_Function,");
+      WBI ("      External_Name => ""__cudaRegisterFunction"");");
+      WBI ("");
+      WBI ("   function CUDA_Register_Fat_Binary");
+      WBI ("     (Fat_Binary : System.Address)");
+      WBI ("      return System.Address;");
+      WBI ("    pragma Import");
+      WBI ("      (Convention => C,");
+      WBI ("       Entity => CUDA_Register_Fat_Binary,");
+      WBI ("       External_Name => ""__cudaRegisterFatBinary"");");
+      WBI ("");
+      WBI ("   procedure CUDA_Register_Fat_Binary_End");
+      WBI ("     (Fat_Binary : System.Address);");
+      WBI ("   pragma Import");
+      WBI ("     (Convention => C,");
+      WBI ("      Entity => CUDA_Register_Fat_Binary_End,");
+      WBI ("      External_Name => ""__cudaRegisterFatBinaryEnd"");");
+      WBI ("");
+      WBI ("   type Fatbin_Wrapper is record");
+      WBI ("      Magic   : Interfaces.C.int;");
+      WBI ("      Version : Interfaces.C.int;");
+      WBI ("      Data    : System.Address;");
+      WBI ("      Filename_Or_Fatbins : System.Address;");
+      WBI ("   end record;");
+      WBI ("");
+      WBI ("   Fat_Binary : System.Address;");
+      WBI ("   pragma Import");
+      WBI ("      (Convention    => C,");
+      WBI ("       Entity        => Fat_Binary,");
+      WBI ("       External_Name => ""_binary_" & Unit & "_fatbin_start"");");
+      WBI ("");
+      WBI ("   Wrapper : Fatbin_Wrapper :=");
+      WBI ("     (16#466243b1#,");
+      WBI ("      1,");
+      WBI ("      Fat_Binary'Address,");
+      WBI ("      System.Null_Address);");
+      WBI ("");
+      WBI ("   Fat_Binary_Handle : System.Address;");
+      WBI ("");
+
+      for K in CUDA_Kernels.First .. CUDA_Kernels.Last loop
+         declare
+            K_String : constant String := CUDA_Kernel_Id'Image (K);
+            N : constant String :=
+              K_String (K_String'First + 1 .. K_String'Last);
+            Kernel_Symbol : constant String := "Kernel_" & N;
+            --  K_Symbol is a unique identifier used to derive all symbol names
+            --  related to kernel K.
+
+            Kernel_Proc : constant String := Kernel_Symbol & "_Proc";
+            --  Kernel_Proc is the name of the symbol representing the
+            --  host-side procedure of the kernel. The address is
+            --  pragma-imported and then used while registering the kernel with
+            --  the CUDA runtime.
+            Kernel_String : constant String := Kernel_Symbol & "_String";
+            --  Kernel_String is the name of the C-string containing the name
+            --  of the kernel. It is used for registering the kernel with the
+            --  CUDA runtime.
+            Kernel_Name : constant String :=
+               Get_Name_String (CUDA_Kernels.Table (K).Kernel_Name);
+            --  Kernel_Name is the name of the kernel, after package expansion.
+
+         begin
+            --  Import host-side kernel address.
+            WBI ("   procedure " & Kernel_Proc & ";");
+            WBI ("   pragma Import");
+            WBI ("      (Convention    => C,");
+            WBI ("       Entity        => " & Kernel_Proc & ",");
+            WBI ("       External_Name => """ & Kernel_Name & """);");
+            WBI ("");
+
+            --  Generate C-string containing name of kernel.
+            WBI
+              ("   " & Kernel_String & " : Interfaces.C.Strings.Chars_Ptr;");
+            WBI ("");
+
+         end;
+      end loop;
+
+      WBI ("   procedure " & Device_Ada_Init_Subp_Name & ";");
+      WBI ("   pragma Export (C, " & Device_Ada_Init_Subp_Name &
+             ", Link_Name => """ & Device_Ada_Init_Link_Name & """);");
+
+      --  C-string declaration for adainit
+      WBI ("   " & Adainit_String_Obj_Name
+            & " : Interfaces.C.Strings.Chars_Ptr;");
+      WBI ("");
+
+      WBI ("");
+   end Gen_CUDA_Defs;
+
+   -------------------
+   -- Gen_CUDA_Init --
+   -------------------
+
+   procedure Gen_CUDA_Init is
+      --  Generate call to register one function
+      procedure Gen_CUDA_Register_Function_Call
+        (Kernel_Name   : String;
+         Kernel_String : String;
+         Kernel_Proc   : String);
+
+      -------------------------------------
+      -- Gen_CUDA_Register_Function_Call --
+      -------------------------------------
+
+      procedure Gen_CUDA_Register_Function_Call
+        (Kernel_Name   : String;
+         Kernel_String : String;
+         Kernel_Proc   : String) is
+      begin
+         WBI ("      " & Kernel_String & " :=");
+         WBI ("        Interfaces.C.Strings.New_Char_Array ("""
+               & Kernel_Name
+               & """);");
+
+         --  Generate call to CUDA runtime to register function.
+         WBI ("      CUDA_Register_Function (");
+         WBI ("        Fat_Binary_Handle, ");
+         WBI ("        " & Kernel_Proc & "'Address,");
+         WBI ("        " & Kernel_String & ",");
+         WBI ("        " & Kernel_String & ",");
+         WBI ("        -1,");
+         WBI ("        System.Null_Address,");
+         WBI ("        System.Null_Address,");
+         WBI ("        System.Null_Address,");
+         WBI ("        System.Null_Address,");
+         WBI ("        System.Null_Address);");
+         WBI ("");
+      end Gen_CUDA_Register_Function_Call;
+
+   begin
+      if not Enable_CUDA_Expansion then
+         return;
+      end if;
+
+      WBI ("      Fat_Binary_Handle :=");
+      WBI ("        CUDA_Register_Fat_Binary (Wrapper'Address);");
+
+      for K in CUDA_Kernels.First .. CUDA_Kernels.Last loop
+         declare
+            K_String : constant String := CUDA_Kernel_Id'Image (K);
+            N : constant String :=
+              K_String (K_String'First + 1 .. K_String'Last);
+            Kernel_Symbol : constant String := "Kernel_" & N;
+            --  K_Symbol is a unique identifier used to derive all symbol names
+            --  related to kernel K.
+
+            Kernel_Proc : constant String := Kernel_Symbol & "_Proc";
+            --  Kernel_Proc is the name of the symbol representing the
+            --  host-side procedure of the kernel. The address is
+            --  pragma-imported and then used while registering the kernel with
+            --  the CUDA runtime.
+            Kernel_String : constant String := Kernel_Symbol & "_String";
+            --  Kernel_String is the name of the C-string containing the name
+            --  of the kernel. It is used for registering the kernel with the
+            --  CUDA runtime.
+            Kernel_Name : constant String :=
+               Get_Name_String (CUDA_Kernels.Table (K).Kernel_Name);
+            --  Kernel_Name is the name of the kernel, after package expansion.
+         begin
+            Gen_CUDA_Register_Function_Call
+              (Kernel_Name   => Kernel_Name,
+               Kernel_String => Kernel_String,
+               Kernel_Proc   => Kernel_Proc);
+         end;
+      end loop;
+
+      --  Register device-side Adainit
+      Gen_CUDA_Register_Function_Call
+        (Kernel_Name   => Device_Ada_Init_Link_Name,
+         Kernel_String => Adainit_String_Obj_Name,
+         Kernel_Proc   => Device_Ada_Init_Subp_Name);
+
+      WBI ("      CUDA_Register_Fat_Binary_End (Fat_Binary_Handle);");
+
+      --  perform device (as opposed to host) elaboration
+      WBI ("      pragma CUDA_Execute (" &
+             Device_Ada_Init_Subp_Name & ", 1, 1);");
+   end Gen_CUDA_Init;
+
    --------------------------
    -- Gen_CodePeer_Wrapper --
    --------------------------
@@ -1292,7 +1538,7 @@ package body Bindgen is
 
             --  Nothing to do if predefined unit in no run time mode
 
-            if No_Run_Time_Mode and then Is_Predefined_File_Name (U.Sfile) then
+            if No_Run_Time_Mode and then U.Predefined then
                null;
 
             --  Likewise if this is an interface to a stand alone library
@@ -1388,6 +1634,7 @@ package body Bindgen is
 
                Check_Elab_Flag :=
                  Units.Table (Unum_Spec).Set_Elab_Entity
+                   and then Check_Elaboration_Flags
                    and then not CodePeer_Mode
                    and then (Force_Checking_Of_Elaboration_Flags
                               or Interface_Library_Unit
@@ -1476,9 +1723,7 @@ package body Bindgen is
               --  Don't generate reference for predefined file in No_Run_Time
               --  mode, since we don't include the object files in this case
 
-              and then not
-                (No_Run_Time_Mode
-                  and then Is_Predefined_File_Name (U.Sfile))
+              and then not (No_Run_Time_Mode and then U.Predefined)
             then
                Get_Name_String (U.Sfile);
                Set_String ("   ");
@@ -1865,7 +2110,7 @@ package body Bindgen is
       if Bind_Main_Program
         and then not Minimal_Binder
         and then not CodePeer_Mode
-        and then not Generate_C_Code
+        and then not CCG_Mode
       then
          WBI ("      Ensure_Reference : aliased System.Address := " &
               "Ada_Main_Program_Name'Address;");
@@ -1875,13 +2120,13 @@ package body Bindgen is
 
       WBI ("   begin");
 
-      --  Acquire command-line arguments if present on target
+      --  Acquire command-line arguments if supported on the target and used
+      --  by the program.
 
       if CodePeer_Mode then
          null;
 
-      elsif Command_Line_Args_On_Target then
-
+      elsif Command_Line_Args_On_Target and then Command_Line_Used then
          --  Initialize gnat_argc/gnat_argv only if not already initialized,
          --  to avoid losing the result of any command-line processing done by
          --  earlier GNAT run-time initialization.
@@ -1892,20 +2137,6 @@ package body Bindgen is
          WBI ("      end if;");
          WBI ("      gnat_envp := envp;");
          WBI ("");
-
-      --  If configurable run-time and no command-line args, then nothing needs
-      --  to be done since the gnat_argc/argv/envp variables are suppressed in
-      --  this case.
-
-      elsif Configurable_Run_Time_On_Target then
-         null;
-
-      --  Otherwise set dummy values (to be filled in by some other unit?)
-
-      else
-         WBI ("      gnat_argc := 0;");
-         WBI ("      gnat_argv := System.Null_Address;");
-         WBI ("      gnat_envp := System.Null_Address;");
       end if;
 
       if Opt.Default_Exit_Status /= 0
@@ -1982,7 +2213,14 @@ package body Bindgen is
          if No_Main_Subprogram
            or else ALIs.Table (ALIs.First).Main_Program = Proc
          then
-            WBI ("      return (gnat_exit_status);");
+            --  Return gnat_exit_status if Ada.Command_Line is used otherwise
+            --  return 0.
+
+            if Command_Line_Used then
+               WBI ("      return (gnat_exit_status);");
+            else
+               WBI ("      return (0);");
+            end if;
          else
             WBI ("      return (Result);");
          end if;
@@ -2353,6 +2591,14 @@ package body Bindgen is
          WBI ("with System.Secondary_Stack;");
       end if;
 
+      if Enable_CUDA_Expansion then
+         WBI ("with Interfaces.C;");
+         WBI ("with Interfaces.C.Strings;");
+
+         --  with of CUDA.Internal needed for CUDA_Execute pragma expansion
+         WBI ("with CUDA.Internal;");
+      end if;
+
       Resolve_Binder_Options (Elab_Order);
 
       --  Generate standard with's
@@ -2370,38 +2616,35 @@ package body Bindgen is
       if Bind_Main_Program then
          --  Generate argc/argv stuff unless suppressed
 
-         if Command_Line_Args_On_Target
-           or not Configurable_Run_Time_On_Target
-         then
+         --  A run-time configured to support command line arguments defines
+         --  a number of internal symbols that need to be set by the binder.
+         --  We do not do this in cases where the program does not use
+         --  Ada.Command_Line, as the package and it's support files may not be
+         --  present.
+
+         if Command_Line_Args_On_Target and then Command_Line_Used then
             WBI ("");
             WBI ("   gnat_argc : Integer;");
             WBI ("   gnat_argv : System.Address;");
             WBI ("   gnat_envp : System.Address;");
 
-            --  If the standard library is not suppressed, these variables
-            --  are in the run-time data area for easy run time access.
-
-            if not Suppress_Standard_Library_On_Target then
-               WBI ("");
-               WBI ("   pragma Import (C, gnat_argc);");
-               WBI ("   pragma Import (C, gnat_argv);");
-               WBI ("   pragma Import (C, gnat_envp);");
-            end if;
+            WBI ("");
+            WBI ("   pragma Import (C, gnat_argc);");
+            WBI ("   pragma Import (C, gnat_argv);");
+            WBI ("   pragma Import (C, gnat_envp);");
          end if;
 
-         --  Define exit status. Again in normal mode, this is in the run-time
-         --  library, and is initialized there, but in the configurable
-         --  run-time case, the variable is declared and initialized in this
-         --  file.
+         --  Define exit status if supported by the target. The exit status is
+         --  stored in the run-time library to allow applications set the state
+         --  through Ada.Command_Line and is initialized in the run-time. Like
+         --  command line arguments, skip if Ada.Command_Line is not used in
+         --  the enclosure of the partition because this package may not be
+         --  available in the runtime.
 
          WBI ("");
 
-         if Configurable_Run_Time_Mode then
-            if Exit_Status_Supported_On_Target then
-               WBI ("   gnat_exit_status : Integer := 0;");
-            end if;
-
-         else
+         if Exit_Status_Supported_On_Target and then Command_Line_Used
+         then
             WBI ("   gnat_exit_status : Integer;");
             WBI ("   pragma Import (C, gnat_exit_status);");
          end if;
@@ -2441,8 +2684,15 @@ package body Bindgen is
 
       WBI ("");
       WBI ("   procedure " & Ada_Init_Name.all & ";");
-      WBI ("   pragma Export (C, " & Ada_Init_Name.all & ", """ &
-           Ada_Init_Name.all & """);");
+      if Enable_CUDA_Device_Expansion then
+         WBI ("   pragma Export (C, " & Ada_Init_Name.all &
+                ", Link_Name => """ & Device_Link_Name_Prefix
+                & Ada_Init_Name.all & """);");
+         WBI ("   pragma CUDA_Global (" & Ada_Init_Name.all & ");");
+      else
+         WBI ("   pragma Export (C, " & Ada_Init_Name.all & ", """ &
+              Ada_Init_Name.all & """);");
+      end if;
 
       --  If -a has been specified use pragma Linker_Constructor for the init
       --  procedure and pragma Linker_Destructor for the final procedure.
@@ -2454,8 +2704,15 @@ package body Bindgen is
       if not Cumulative_Restrictions.Set (No_Finalization) then
          WBI ("");
          WBI ("   procedure " & Ada_Final_Name.all & ";");
-         WBI ("   pragma Export (C, " & Ada_Final_Name.all & ", """ &
-              Ada_Final_Name.all & """);");
+         if Enable_CUDA_Device_Expansion then
+            WBI ("   pragma Export (C, " & Ada_Final_Name.all &
+                   ", Link_Name => """ & Device_Link_Name_Prefix &
+                   Ada_Final_Name.all & """);");
+            WBI ("   pragma CUDA_Global (" & Ada_Final_Name.all & ");");
+         else
+            WBI ("   pragma Export (C, " & Ada_Final_Name.all & ", """ &
+                 Ada_Final_Name.all & """);");
+         end if;
 
          if Use_Pragma_Linker_Constructor then
             WBI ("   pragma Linker_Destructor (" & Ada_Final_Name.all & ");");
@@ -2501,6 +2758,8 @@ package body Bindgen is
          WBI ("   pragma Export (C, " & Get_Main_Name & ", """ &
            Get_Main_Name & """);");
       end if;
+
+      Gen_CUDA_Defs;
 
       --  Generate version numbers for units, only if needed. Be very safe on
       --  the condition.
@@ -2565,9 +2824,7 @@ package body Bindgen is
       --  Generate with of System.Restrictions to initialize
       --  Run_Time_Restrictions.
 
-      if System_Restrictions_Used
-        and not Suppress_Standard_Library_On_Target
-      then
+      if System_Restrictions_Used then
          WBI ("");
          WBI ("with System.Restrictions;");
       end if;
@@ -2678,6 +2935,13 @@ package body Bindgen is
 
       Gen_Adainit (Elab_Order);
 
+      if Enable_CUDA_Expansion then
+         WBI ("   procedure " & Device_Ada_Init_Subp_Name & " is");
+         WBI ("   begin");
+         WBI ("      raise Program_Error;");
+         WBI ("   end " & Device_Ada_Init_Subp_Name & ";");
+      end if;
+
       if Bind_Main_Program then
          Gen_Main;
       end if;
@@ -2700,9 +2964,7 @@ package body Bindgen is
       Count : Integer;
 
    begin
-      if Suppress_Standard_Library_On_Target
-        or not System_Restrictions_Used
-      then
+      if not System_Restrictions_Used then
          return;
       end if;
 
@@ -2907,7 +3169,7 @@ package body Bindgen is
             Nlen := Name'Length;
             Name (Name'Last) := Character'Val (J mod 10 + Character'Pos ('0'));
             Name (Name'Last - 1) :=
-              Character'Val (J /   10 + Character'Pos ('0'));
+              Character'Val (J / 10 + Character'Pos ('0'));
          end if;
 
          for K in ALIs.First .. ALIs.Last loop
@@ -3135,12 +3397,6 @@ package body Bindgen is
 
          Check_Package (System_Restrictions_Used, "system.restrictions%s");
 
-         --  Ditto for the use of System.Secondary_Stack
-
-         Check_Package
-           (System_Secondary_Stack_Package_In_Closure,
-            "system.secondary_stack%s");
-
          --  Ditto for use of an SMP bareboard runtime
 
          Check_Package (System_BB_CPU_Primitives_Multiprocessors_Used,
@@ -3151,6 +3407,18 @@ package body Bindgen is
 
          Check_Package (System_Version_Control_Used,
                         "system.version_control%s");
+
+         --  Ditto for the use of Ada.Command_Line, except we always set
+         --  Command_Line_Used to True if on a non-configurable run-time
+         --  as parts of the compiler and run-time assume the GNAT command
+         --  line symbols are available and can be imported directly (as
+         --  long as No_Run_Time mode is not set).
+
+         if Configurable_Run_Time_On_Target then
+            Check_Package (Command_Line_Used, "ada.command_line%s");
+         elsif not No_Run_Time_Mode then
+            Command_Line_Used := True;
+         end if;
       end loop;
    end Resolve_Binder_Options;
 
@@ -3242,7 +3510,11 @@ package body Bindgen is
 
             begin
                while IS_Pragma_Settings.Last < Inum loop
-                  IS_Pragma_Settings.Append ('n');
+                  if Interrupts_Default_To_System_Specified then
+                     IS_Pragma_Settings.Append ('s');
+                  else
+                     IS_Pragma_Settings.Append ('n');
+                  end if;
                end loop;
 
                IS_Pragma_Settings.Table (Inum) := Stat;

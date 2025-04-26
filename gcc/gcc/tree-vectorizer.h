@@ -1,5 +1,5 @@
 /* Vectorizer
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2025 Free Software Foundation, Inc.
    Contributed by Dorit Naishlos <dorit@il.ibm.com>
 
 This file is part of GCC.
@@ -65,7 +65,18 @@ enum vect_def_type {
   vect_reduction_def,
   vect_double_reduction_def,
   vect_nested_cycle,
+  vect_first_order_recurrence,
+  vect_condition_def,
   vect_unknown_def_type
+};
+
+/* Define operation type of linear/non-linear induction variable.  */
+enum vect_induction_op_type {
+   vect_step_op_add = 0,
+   vect_step_op_neg,
+   vect_step_op_mul,
+   vect_step_op_shl,
+   vect_step_op_shr
 };
 
 /* Define type of reduction.  */
@@ -150,17 +161,62 @@ struct vect_scalar_ops_slice_hash : typed_noop_remove<vect_scalar_ops_slice>
   static bool equal (const value_type &, const compare_type &);
 };
 
+/* Describes how we're going to vectorize an individual load or store,
+   or a group of loads or stores.  */
+enum vect_memory_access_type {
+  /* An access to an invariant address.  This is used only for loads.  */
+  VMAT_INVARIANT,
+
+  /* A simple contiguous access.  */
+  VMAT_CONTIGUOUS,
+
+  /* A contiguous access that goes down in memory rather than up,
+     with no additional permutation.  This is used only for stores
+     of invariants.  */
+  VMAT_CONTIGUOUS_DOWN,
+
+  /* A simple contiguous access in which the elements need to be permuted
+     after loading or before storing.  Only used for loop vectorization;
+     SLP uses separate permutes.  */
+  VMAT_CONTIGUOUS_PERMUTE,
+
+  /* A simple contiguous access in which the elements need to be reversed
+     after loading or before storing.  */
+  VMAT_CONTIGUOUS_REVERSE,
+
+  /* An access that uses IFN_LOAD_LANES or IFN_STORE_LANES.  */
+  VMAT_LOAD_STORE_LANES,
+
+  /* An access in which each scalar element is loaded or stored
+     individually.  */
+  VMAT_ELEMENTWISE,
+
+  /* A hybrid of VMAT_CONTIGUOUS and VMAT_ELEMENTWISE, used for grouped
+     SLP accesses.  Each unrolled iteration uses a contiguous load
+     or store for the whole group, but the groups from separate iterations
+     are combined in the same way as for VMAT_ELEMENTWISE.  */
+  VMAT_STRIDED_SLP,
+
+  /* The access uses gather loads or scatter stores.  */
+  VMAT_GATHER_SCATTER
+};
+
 /************************************************************************
   SLP
  ************************************************************************/
 typedef vec<std::pair<unsigned, unsigned> > lane_permutation_t;
+typedef auto_vec<std::pair<unsigned, unsigned>, 16> auto_lane_permutation_t;
 typedef vec<unsigned> load_permutation_t;
+typedef auto_vec<unsigned, 16> auto_load_permutation_t;
 
 /* A computation tree of an SLP instance.  Each node corresponds to a group of
    stmts to be packed in a SIMD stmt.  */
 struct _slp_tree {
   _slp_tree ();
   ~_slp_tree ();
+
+  void push_vec_def (gimple *def);
+  void push_vec_def (tree def) { vec_defs.quick_push (def); }
 
   /* Nodes that contain def-stmts of this node statements operands.  */
   vec<slp_tree> children;
@@ -181,9 +237,13 @@ struct _slp_tree {
      denotes the number of output lanes.  */
   lane_permutation_t lane_permutation;
 
+  /* Selected SIMD clone's function info.  First vector element
+     is SIMD clone's function decl, followed by a pair of trees (base + step)
+     for linear arguments (pair of NULLs for other arguments).  */
+  vec<tree> simd_clone_info;
+
   tree vectype;
-  /* Vectorized stmt/s.  */
-  vec<gimple *> vec_stmts;
+  /* Vectorized defs.  */
   vec<tree> vec_defs;
   /* Number of vector stmts that are created to replace the group of scalar
      stmts. It is calculated during the transformation phase as the number of
@@ -202,8 +262,15 @@ struct _slp_tree {
   unsigned int lanes;
   /* The operation of this node.  */
   enum tree_code code;
+  /* Whether uses of this load or feeders of this store are suitable
+     for load/store-lanes.  */
+  bool ldst_lanes;
 
   int vertex;
+
+  /* Classifies how the load or store is going to be implemented
+     for loop vectorization.  */
+  vect_memory_access_type memory_access_type;
 
   /* If not NULL this is a cached failed SLP discovery attempt with
      the lanes that failed during SLP discovery as 'false'.  This is
@@ -229,7 +296,8 @@ enum slp_instance_kind {
     slp_inst_kind_reduc_group,
     slp_inst_kind_reduc_chain,
     slp_inst_kind_bb_reduc,
-    slp_inst_kind_ctor
+    slp_inst_kind_ctor,
+    slp_inst_kind_gcond
 };
 
 /* SLP instance is a sequence of stmts in a loop that can be packed into
@@ -243,8 +311,9 @@ public:
      from, NULL otherwise.  */
   vec<stmt_vec_info> root_stmts;
 
-  /* The unrolling factor required to vectorized this SLP instance.  */
-  poly_uint64 unrolling_factor;
+  /* For slp_inst_kind_bb_reduc the defs that were not vectorized, NULL
+     otherwise.  */
+  vec<tree> remain_defs;
 
   /* The group of nodes that contain loads of this SLP instance.  */
   vec<slp_tree> loads;
@@ -268,25 +337,33 @@ public:
 
 /* Access Functions.  */
 #define SLP_INSTANCE_TREE(S)                     (S)->root
-#define SLP_INSTANCE_UNROLLING_FACTOR(S)         (S)->unrolling_factor
 #define SLP_INSTANCE_LOADS(S)                    (S)->loads
 #define SLP_INSTANCE_ROOT_STMTS(S)               (S)->root_stmts
+#define SLP_INSTANCE_REMAIN_DEFS(S)              (S)->remain_defs
 #define SLP_INSTANCE_KIND(S)                     (S)->kind
 
 #define SLP_TREE_CHILDREN(S)                     (S)->children
 #define SLP_TREE_SCALAR_STMTS(S)                 (S)->stmts
 #define SLP_TREE_SCALAR_OPS(S)                   (S)->ops
 #define SLP_TREE_REF_COUNT(S)                    (S)->refcnt
-#define SLP_TREE_VEC_STMTS(S)                    (S)->vec_stmts
 #define SLP_TREE_VEC_DEFS(S)                     (S)->vec_defs
 #define SLP_TREE_NUMBER_OF_VEC_STMTS(S)          (S)->vec_stmts_size
 #define SLP_TREE_LOAD_PERMUTATION(S)             (S)->load_permutation
 #define SLP_TREE_LANE_PERMUTATION(S)             (S)->lane_permutation
+#define SLP_TREE_SIMD_CLONE_INFO(S)              (S)->simd_clone_info
 #define SLP_TREE_DEF_TYPE(S)			 (S)->def_type
 #define SLP_TREE_VECTYPE(S)			 (S)->vectype
 #define SLP_TREE_REPRESENTATIVE(S)		 (S)->representative
 #define SLP_TREE_LANES(S)			 (S)->lanes
 #define SLP_TREE_CODE(S)			 (S)->code
+#define SLP_TREE_MEMORY_ACCESS_TYPE(S)		 (S)->memory_access_type
+
+enum vect_partial_vector_style {
+    vect_partial_vectors_none,
+    vect_partial_vectors_while_ult,
+    vect_partial_vectors_avx512,
+    vect_partial_vectors_len
+};
 
 /* Key for map that records association between
    scalar conditions and corresponding loop mask, and
@@ -397,9 +474,6 @@ public:
   void save_datarefs();
   void check_datarefs();
 
-  /* The number of scalar stmts.  */
-  unsigned n_stmts;
-
   /* All data references.  Freed by free_data_refs, so not an auto_vec.  */
   vec<data_reference_p> datarefs;
   vec<data_reference> datarefs_copy;
@@ -423,6 +497,7 @@ public:
 
   stmt_vec_info add_stmt (gimple *);
   stmt_vec_info add_pattern_stmt (gimple *, stmt_vec_info);
+  stmt_vec_info resync_stmt_addr (gimple *);
   stmt_vec_info lookup_stmt (gimple *);
   stmt_vec_info lookup_def (tree);
   stmt_vec_info lookup_single_use (tree);
@@ -444,6 +519,10 @@ public:
   /* Whether the above mapping is complete.  */
   bool stmt_vec_info_ro;
 
+  /* Whether we've done a transform we think OK to not update virtual
+     SSA form.  */
+  bool any_known_not_updated_vssa;
+
   /* The SLP graph.  */
   auto_vec<slp_instance> slp_instances;
 
@@ -462,6 +541,22 @@ public:
      the vector mode for a scalar mode, or VOIDmode if we haven't yet
      made any decisions about which vector modes to use.  */
   machine_mode vector_mode;
+
+  /* The basic blocks in the vectorization region.  For _loop_vec_info,
+     the memory is internally managed, while for _bb_vec_info, it points
+     to element space of an external auto_vec<>.  This inconsistency is
+     not a good class design pattern.  TODO: improve it with an unified
+     auto_vec<> whose lifetime is confined to vec_info object.  */
+  basic_block *bbs;
+
+  /* The count of the basic blocks in the vectorization region.  */
+  unsigned int nbbs;
+
+  /* Used to keep a sequence of def stmts of a pattern stmt that are loop
+    invariant if they exists.
+    The sequence is emitted in the loop preheader should the loop be vectorized
+    and are reset when undoing patterns.  */
+  gimple_seq inv_pattern_def_seq;
 
 private:
   stmt_vec_info new_stmt_vec_info (gimple *stmt);
@@ -575,12 +670,15 @@ is_a_helper <_bb_vec_info *>::test (vec_info *i)
 /* The controls (like masks or lengths) needed by rgroups with nV vectors,
    according to the description above.  */
 struct rgroup_controls {
-  /* The largest nS for all rgroups that use these controls.  */
+  /* The largest nS for all rgroups that use these controls.
+     For vect_partial_vectors_avx512 this is the constant nscalars_per_iter
+     for all members of the group.  */
   unsigned int max_nscalars_per_iter;
 
   /* For the largest nS recorded above, the loop controls divide each scalar
      into FACTOR equal-sized pieces.  This is useful if we need to split
-     element-based accesses into byte-based accesses.  */
+     element-based accesses into byte-based accesses.
+     For vect_partial_vectors_avx512 this records nV instead.  */
   unsigned int factor;
 
   /* This is a vector type with MAX_NSCALARS_PER_ITER * VF / nV elements.
@@ -588,6 +686,10 @@ struct rgroup_controls {
      For length-based controls, it can be any vector type that has the
      specified number of elements; the type of the elements doesn't matter.  */
   tree type;
+
+  /* When there is no uniformly used LOOP_VINFO_RGROUP_COMPARE_TYPE this
+     is the rgroup specific type used.  */
+  tree compare_type;
 
   /* A vector of nV controls, in iteration order.  */
   vec<tree> controls;
@@ -597,7 +699,17 @@ struct rgroup_controls {
   tree bias_adjusted_ctrl;
 };
 
-typedef auto_vec<rgroup_controls> vec_loop_masks;
+struct vec_loop_masks
+{
+  bool is_empty () const { return mask_set.is_empty (); }
+
+  /* Set to record vectype, nvector pairs.  */
+  hash_set<pair_hash <nofree_ptr_hash <tree_node>,
+		      int_hash<unsigned, 0>>> mask_set;
+
+  /* rgroup_controls used for the partial vector scheme.  */
+  auto_vec<rgroup_controls> rgc_vec;
+};
 
 typedef auto_vec<rgroup_controls> vec_loop_lens;
 
@@ -625,9 +737,6 @@ public:
 
   /* The loop to which this info struct refers to.  */
   class loop *loop;
-
-  /* The loop basic blocks.  */
-  basic_block *bbs;
 
   /* Number of latch executions.  */
   tree num_itersm1;
@@ -709,6 +818,11 @@ public:
      elements that should be false in the first mask).  */
   tree mask_skip_niters;
 
+  /* If we are using a loop mask to align memory addresses and we're in an
+     early break loop then this variable contains the number of elements that
+     were skipped during the initial iteration of the loop. */
+  tree mask_skip_niters_pfa_offset;
+
   /* The type that the loop control IV should be converted to before
      testing which of the VF scalars are active and inactive.
      Only meaningful if LOOP_VINFO_USING_PARTIAL_VECTORS_P.  */
@@ -725,6 +839,10 @@ public:
      LOOP_VINFO_USING_PARTIAL_VECTORS_P is true.  */
   tree rgroup_iv_type;
 
+  /* The style used for implementing partial vectors when
+     LOOP_VINFO_USING_PARTIAL_VECTORS_P is true.  */
+  vect_partial_vector_style partial_vector_style;
+
   /* Unknown DRs according to which loop was peeled.  */
   class dr_vec_info *unaligned_dr;
 
@@ -740,6 +858,9 @@ public:
 
   /* The mask used to check the alignment of pointers or arrays.  */
   int ptr_mask;
+
+  /* Indicates whether the loop has any non-linear IV.  */
+  bool nonlinear_iv;
 
   /* Data Dependence Relations defining address ranges that are candidates
      for a run-time aliasing check.  */
@@ -798,9 +919,24 @@ public:
      fewer than VF scalars.  */
   bool can_use_partial_vectors_p;
 
+  /* Records whether we must use niter masking for correctness reasons.  */
+  bool must_use_partial_vectors_p;
+
   /* True if we've decided to use partially-populated vectors, so that
      the vector loop can handle fewer than VF scalars.  */
   bool using_partial_vectors_p;
+
+  /* True if we've decided to use a decrementing loop control IV that counts
+     scalars. This can be done for any loop that:
+
+	(a) uses length "controls"; and
+	(b) can iterate more than once.  */
+  bool using_decrementing_iv_p;
+
+  /* True if we've decided to use output of select_vl to adjust IV of
+     both loop control and data reference pointer. This is only true
+     for single-rgroup control.  */
+  bool using_select_vl_p;
 
   /* True if we've decided to use partially-populated vectors for the
      epilogue of loop.  */
@@ -819,6 +955,16 @@ public:
   /* When the number of iterations is not a multiple of the vector size
      we need to peel off iterations at the end to form an epilogue loop.  */
   bool peeling_for_niter;
+
+  /* When the loop has early breaks that we can vectorize we need to peel
+     the loop for the break finding loop.  */
+  bool early_breaks;
+
+  /* List of loop additional IV conditionals found in the loop.  */
+  auto_vec<gcond *> conds;
+
+  /* Main loop IV cond.  */
+  gcond* loop_iv_cond;
 
   /* True if there are no loop carried data dependencies in the loop.
      If loop->safelen <= 1, then this is always true, either the loop
@@ -850,18 +996,59 @@ public:
   class loop *scalar_loop;
 
   /* For loops being epilogues of already vectorized loops
-     this points to the original vectorized loop.  Otherwise NULL.  */
+     this points to the main vectorized loop.  Otherwise NULL.  */
+  _loop_vec_info *main_loop_info;
+
+  /* For loops being epilogues of already vectorized loops
+     this points to the preceeding vectorized (possibly epilogue) loop.
+     Otherwise NULL.  */
   _loop_vec_info *orig_loop_info;
 
-  /* Used to store loop_vec_infos of epilogues of this loop during
+  /* Used to store loop_vec_infos of the epilogue of this loop during
      analysis.  */
-  vec<_loop_vec_info *> epilogue_vinfos;
+  _loop_vec_info *epilogue_vinfo;
 
+  /* If this is an epilogue loop the DR advancement applied.  */
+  tree drs_advanced_by;
+
+  /* The controlling loop IV for the current loop when vectorizing.  This IV
+     controls the natural exits of the loop.  */
+  edge vec_loop_iv_exit;
+
+  /* The controlling loop IV for the epilogue loop when vectorizing.  This IV
+     controls the natural exits of the loop.  */
+  edge vec_epilogue_loop_iv_exit;
+
+  /* The controlling loop IV for the scalar loop being vectorized.  This IV
+     controls the natural exits of the loop.  */
+  edge scalar_loop_iv_exit;
+
+  /* Used to store the list of stores needing to be moved if doing early
+     break vectorization as they would violate the scalar loop semantics if
+     vectorized in their current location.  These are stored in order that they
+     need to be moved.  */
+  auto_vec<gimple *> early_break_stores;
+
+  /* The final basic block where to move statements to.  In the case of
+     multiple exits this could be pretty far away.  */
+  basic_block early_break_dest_bb;
+
+  /* Statements whose VUSES need updating if early break vectorization is to
+     happen.  */
+  auto_vec<gimple*> early_break_vuses;
+
+  /* Record statements that are needed to be live for early break vectorization
+     but may not have an LC PHI node materialized yet in the exits.  */
+  auto_vec<stmt_vec_info> early_break_live_ivs;
 } *loop_vec_info;
 
 /* Access Functions.  */
 #define LOOP_VINFO_LOOP(L)                 (L)->loop
+#define LOOP_VINFO_IV_EXIT(L)              (L)->vec_loop_iv_exit
+#define LOOP_VINFO_EPILOGUE_IV_EXIT(L)     (L)->vec_epilogue_loop_iv_exit
+#define LOOP_VINFO_SCALAR_IV_EXIT(L)       (L)->scalar_loop_iv_exit
 #define LOOP_VINFO_BBS(L)                  (L)->bbs
+#define LOOP_VINFO_NBBS(L)                 (L)->nbbs
 #define LOOP_VINFO_NITERSM1(L)             (L)->num_itersm1
 #define LOOP_VINFO_NITERS(L)               (L)->num_iters
 /* Since LOOP_VINFO_NITERS and LOOP_VINFO_NITERSM1 can change after
@@ -873,7 +1060,10 @@ public:
 #define LOOP_VINFO_VERSIONING_THRESHOLD(L) (L)->versioning_threshold
 #define LOOP_VINFO_VECTORIZABLE_P(L)       (L)->vectorizable
 #define LOOP_VINFO_CAN_USE_PARTIAL_VECTORS_P(L) (L)->can_use_partial_vectors_p
+#define LOOP_VINFO_MUST_USE_PARTIAL_VECTORS_P(L) (L)->must_use_partial_vectors_p
 #define LOOP_VINFO_USING_PARTIAL_VECTORS_P(L) (L)->using_partial_vectors_p
+#define LOOP_VINFO_USING_DECREMENTING_IV_P(L) (L)->using_decrementing_iv_p
+#define LOOP_VINFO_USING_SELECT_VL_P(L) (L)->using_select_vl_p
 #define LOOP_VINFO_EPIL_USING_PARTIAL_VECTORS_P(L)                             \
   (L)->epil_using_partial_vectors_p
 #define LOOP_VINFO_PARTIAL_LOAD_STORE_BIAS(L) (L)->partial_load_store_bias
@@ -882,15 +1072,17 @@ public:
 #define LOOP_VINFO_MASKS(L)                (L)->masks
 #define LOOP_VINFO_LENS(L)                 (L)->lens
 #define LOOP_VINFO_MASK_SKIP_NITERS(L)     (L)->mask_skip_niters
+#define LOOP_VINFO_MASK_NITERS_PFA_OFFSET(L) (L)->mask_skip_niters_pfa_offset
 #define LOOP_VINFO_RGROUP_COMPARE_TYPE(L)  (L)->rgroup_compare_type
 #define LOOP_VINFO_RGROUP_IV_TYPE(L)       (L)->rgroup_iv_type
+#define LOOP_VINFO_PARTIAL_VECTORS_STYLE(L) (L)->partial_vector_style
 #define LOOP_VINFO_PTR_MASK(L)             (L)->ptr_mask
-#define LOOP_VINFO_N_STMTS(L)		   (L)->shared->n_stmts
 #define LOOP_VINFO_LOOP_NEST(L)            (L)->shared->loop_nest
 #define LOOP_VINFO_DATAREFS(L)             (L)->shared->datarefs
 #define LOOP_VINFO_DDRS(L)                 (L)->shared->ddrs
 #define LOOP_VINFO_INT_NITERS(L)           (TREE_INT_CST_LOW ((L)->num_iters))
 #define LOOP_VINFO_PEELING_FOR_ALIGNMENT(L) (L)->peeling_for_alignment
+#define LOOP_VINFO_NON_LINEAR_IV(L)        (L)->nonlinear_iv
 #define LOOP_VINFO_UNALIGNED_DR(L)         (L)->unaligned_dr
 #define LOOP_VINFO_MAY_MISALIGN_STMTS(L)   (L)->may_misalign_stmts
 #define LOOP_VINFO_MAY_ALIAS_DDRS(L)       (L)->may_alias_ddrs
@@ -905,14 +1097,27 @@ public:
 #define LOOP_VINFO_REDUCTION_CHAINS(L)     (L)->reduction_chains
 #define LOOP_VINFO_PEELING_FOR_GAPS(L)     (L)->peeling_for_gaps
 #define LOOP_VINFO_PEELING_FOR_NITER(L)    (L)->peeling_for_niter
+#define LOOP_VINFO_EARLY_BREAKS(L)         (L)->early_breaks
+#define LOOP_VINFO_EARLY_BRK_STORES(L)     (L)->early_break_stores
+#define LOOP_VINFO_EARLY_BREAKS_VECT_PEELED(L)  \
+  (single_pred ((L)->loop->latch) != (L)->vec_loop_iv_exit->src)
+#define LOOP_VINFO_EARLY_BREAKS_LIVE_IVS(L)  \
+  (L)->early_break_live_ivs
+#define LOOP_VINFO_EARLY_BRK_DEST_BB(L)    (L)->early_break_dest_bb
+#define LOOP_VINFO_EARLY_BRK_VUSES(L)      (L)->early_break_vuses
+#define LOOP_VINFO_LOOP_CONDS(L)           (L)->conds
+#define LOOP_VINFO_LOOP_IV_COND(L)         (L)->loop_iv_cond
 #define LOOP_VINFO_NO_DATA_DEPENDENCIES(L) (L)->no_data_dependencies
 #define LOOP_VINFO_SCALAR_LOOP(L)	   (L)->scalar_loop
 #define LOOP_VINFO_SCALAR_LOOP_SCALING(L)  (L)->scalar_loop_scaling
 #define LOOP_VINFO_HAS_MASK_STORE(L)       (L)->has_mask_store
 #define LOOP_VINFO_SCALAR_ITERATION_COST(L) (L)->scalar_cost_vec
+#define LOOP_VINFO_MAIN_LOOP_INFO(L)       (L)->main_loop_info
 #define LOOP_VINFO_ORIG_LOOP_INFO(L)       (L)->orig_loop_info
 #define LOOP_VINFO_SIMD_IF_COND(L)         (L)->simd_if_cond
 #define LOOP_VINFO_INNER_LOOP_COST_FACTOR(L) (L)->inner_loop_cost_factor
+#define LOOP_VINFO_INV_PATTERN_DEF_SEQ(L)  (L)->inv_pattern_def_seq
+#define LOOP_VINFO_DRS_ADVANCED_BY(L)      (L)->drs_advanced_by
 
 #define LOOP_VINFO_FULLY_MASKED_P(L)		\
   (LOOP_VINFO_USING_PARTIAL_VECTORS_P (L)	\
@@ -953,7 +1158,7 @@ public:
    stack.  */
 typedef opt_pointer_wrapper <loop_vec_info> opt_loop_vec_info;
 
-static inline loop_vec_info
+inline loop_vec_info
 loop_vec_info_for_loop (class loop *loop)
 {
   return (loop_vec_info) loop->aux;
@@ -962,11 +1167,12 @@ loop_vec_info_for_loop (class loop *loop)
 struct slp_root
 {
   slp_root (slp_instance_kind kind_, vec<stmt_vec_info> stmts_,
-	    vec<stmt_vec_info> roots_)
-    : kind(kind_), stmts(stmts_), roots(roots_) {}
+	    vec<stmt_vec_info> roots_, vec<tree> remain_ = vNULL)
+    : kind(kind_), stmts(stmts_), roots(roots_), remain(remain_) {}
   slp_instance_kind kind;
   vec<stmt_vec_info> stmts;
   vec<stmt_vec_info> roots;
+  vec<tree> remain;
 };
 
 typedef class _bb_vec_info : public vec_info
@@ -975,16 +1181,11 @@ public:
   _bb_vec_info (vec<basic_block> bbs, vec_info_shared *);
   ~_bb_vec_info ();
 
-  /* The region we are operating on.  bbs[0] is the entry, excluding
-     its PHI nodes.  In the future we might want to track an explicit
-     entry edge to cover bbs[0] PHI nodes and have a region entry
-     insert location.  */
-  vec<basic_block> bbs;
-
   vec<slp_root> roots;
 } *bb_vec_info;
 
-#define BB_VINFO_BB(B)               (B)->bb
+#define BB_VINFO_BBS(B)              (B)->bbs
+#define BB_VINFO_NBBS(B)             (B)->nbbs
 #define BB_VINFO_GROUPED_STORES(B)   (B)->grouped_stores
 #define BB_VINFO_SLP_INSTANCES(B)    (B)->slp_instances
 #define BB_VINFO_DATAREFS(B)         (B)->shared->datarefs
@@ -1012,6 +1213,7 @@ enum stmt_vec_info_type {
   cycle_phi_info_type,
   lc_phi_info_type,
   phi_info_type,
+  recurr_info_type,
   loop_exit_ctrl_vec_info_type
 };
 
@@ -1070,46 +1272,6 @@ enum vec_load_store_type {
   VLS_STORE_INVARIANT
 };
 
-/* Describes how we're going to vectorize an individual load or store,
-   or a group of loads or stores.  */
-enum vect_memory_access_type {
-  /* An access to an invariant address.  This is used only for loads.  */
-  VMAT_INVARIANT,
-
-  /* A simple contiguous access.  */
-  VMAT_CONTIGUOUS,
-
-  /* A contiguous access that goes down in memory rather than up,
-     with no additional permutation.  This is used only for stores
-     of invariants.  */
-  VMAT_CONTIGUOUS_DOWN,
-
-  /* A simple contiguous access in which the elements need to be permuted
-     after loading or before storing.  Only used for loop vectorization;
-     SLP uses separate permutes.  */
-  VMAT_CONTIGUOUS_PERMUTE,
-
-  /* A simple contiguous access in which the elements need to be reversed
-     after loading or before storing.  */
-  VMAT_CONTIGUOUS_REVERSE,
-
-  /* An access that uses IFN_LOAD_LANES or IFN_STORE_LANES.  */
-  VMAT_LOAD_STORE_LANES,
-
-  /* An access in which each scalar element is loaded or stored
-     individually.  */
-  VMAT_ELEMENTWISE,
-
-  /* A hybrid of VMAT_CONTIGUOUS and VMAT_ELEMENTWISE, used for grouped
-     SLP accesses.  Each unrolled iteration uses a contiguous load
-     or store for the whole group, but the groups from separate iterations
-     are combined in the same way as for VMAT_ELEMENTWISE.  */
-  VMAT_STRIDED_SLP,
-
-  /* The access uses gather loads or scatter stores.  */
-  VMAT_GATHER_SCATTER
-};
-
 class dr_vec_info {
 public:
   /* The data reference itself.  */
@@ -1126,6 +1288,15 @@ public:
   poly_uint64 target_alignment;
   /* If true the alignment of base_decl needs to be increased.  */
   bool base_misaligned;
+
+  /* Set by early break vectorization when this DR needs peeling for alignment
+     for correctness.  */
+  bool safe_speculative_read_required;
+
+  /* Set by early break vectorization when this DR's scalar accesses are known
+     to be inbounds of a known bounds loop.  */
+  bool scalar_access_known_in_bounds;
+
   tree base_decl;
 
   /* Stores current vectorized loop's offset.  To be added to the DR's
@@ -1184,6 +1355,7 @@ public:
      the version here.  */
   tree loop_phi_evolution_base_unchanged;
   tree loop_phi_evolution_part;
+  enum vect_induction_op_type loop_phi_evolution_type;
 
   /* Used for various bookkeeping purposes, generally holding a pointer to
      some other stmt S that is in some way "related" to this stmt.
@@ -1277,6 +1449,12 @@ public:
 
   /* The vector type for performing the actual reduction.  */
   tree reduc_vectype;
+
+  /* For loop reduction with multiple vectorized results (ncopies > 1), a
+     lane-reducing operation participating in it may not use all of those
+     results, this field specifies result index starting from which any
+     following land-reducing operation would be assigned to.  */
+  unsigned int reduc_result_pos;
 
   /* If IS_REDUC_INFO is true and if the vector code is performing
      N scalar reductions in parallel, this variable gives the initial
@@ -1417,6 +1595,7 @@ struct gather_scatter_info {
   ((S)->dr_aux.dr && DR_GROUP_FIRST_ELEMENT(S))
 #define STMT_VINFO_LOOP_PHI_EVOLUTION_BASE_UNCHANGED(S) (S)->loop_phi_evolution_base_unchanged
 #define STMT_VINFO_LOOP_PHI_EVOLUTION_PART(S) (S)->loop_phi_evolution_part
+#define STMT_VINFO_LOOP_PHI_EVOLUTION_TYPE(S) (S)->loop_phi_evolution_type
 #define STMT_VINFO_MIN_NEG_DIST(S)	(S)->min_neg_dist
 #define STMT_VINFO_REDUC_TYPE(S)	(S)->reduc_type
 #define STMT_VINFO_REDUC_CODE(S)	(S)->reduc_code
@@ -1510,6 +1689,7 @@ public:
   unsigned int outside_cost () const;
   unsigned int total_cost () const;
   unsigned int suggested_unroll_factor () const;
+  machine_mode suggested_epilogue_mode () const;
 
 protected:
   unsigned int record_stmt_cost (stmt_vec_info, vect_cost_model_location,
@@ -1532,6 +1712,10 @@ protected:
   /* The suggested unrolling factor determined at finish_cost.  */
   unsigned int m_suggested_unroll_factor;
 
+  /* The suggested mode to be used for a vectorized epilogue or VOIDmode,
+     determined at finish_cost.  */
+  machine_mode m_suggested_epilogue_mode;
+
   /* True if finish_cost has been called.  */
   bool m_finished;
 };
@@ -1545,6 +1729,7 @@ vector_costs::vector_costs (vec_info *vinfo, bool costing_for_scalar)
     m_costing_for_scalar (costing_for_scalar),
     m_costs (),
     m_suggested_unroll_factor(1),
+    m_suggested_epilogue_mode(VOIDmode),
     m_finished (false)
 {
 }
@@ -1602,6 +1787,15 @@ vector_costs::suggested_unroll_factor () const
   return m_suggested_unroll_factor;
 }
 
+/* Return the suggested epilogue mode.  */
+
+inline machine_mode
+vector_costs::suggested_epilogue_mode () const
+{
+  gcc_checking_assert (m_finished);
+  return m_suggested_epilogue_mode;
+}
+
 #define VECT_MAX_COST 1000
 
 /* The maximum number of intermediate steps required in multi-step type
@@ -1622,7 +1816,7 @@ vector_costs::suggested_unroll_factor () const
        && TYPE_PRECISION (TYPE) == 1		\
        && TYPE_UNSIGNED (TYPE)))
 
-static inline bool
+inline bool
 nested_in_vect_loop_p (class loop *loop, stmt_vec_info stmt_info)
 {
   return (loop->inner
@@ -1633,7 +1827,7 @@ nested_in_vect_loop_p (class loop *loop, stmt_vec_info stmt_info)
    Return the initial value of the variable on entry to the containing
    loop.  */
 
-static inline tree
+inline tree
 vect_phi_initial_value (gphi *phi)
 {
   basic_block bb = gimple_bb (phi);
@@ -1645,7 +1839,7 @@ vect_phi_initial_value (gphi *phi)
 /* Return true if STMT_INFO should produce a vector mask type rather than
    a normal nonmask type.  */
 
-static inline bool
+inline bool
 vect_use_mask_type_p (stmt_vec_info stmt_info)
 {
   return stmt_info->mask_precision && stmt_info->mask_precision != ~0U;
@@ -1654,7 +1848,7 @@ vect_use_mask_type_p (stmt_vec_info stmt_info)
 /* Return TRUE if a statement represented by STMT_INFO is a part of a
    pattern.  */
 
-static inline bool
+inline bool
 is_pattern_stmt_p (stmt_vec_info stmt_info)
 {
   return stmt_info->pattern_stmt_p;
@@ -1673,7 +1867,7 @@ vect_orig_stmt (stmt_vec_info stmt_info)
 
 /* Return the later statement between STMT1_INFO and STMT2_INFO.  */
 
-static inline stmt_vec_info
+inline stmt_vec_info
 get_later_stmt (stmt_vec_info stmt1_info, stmt_vec_info stmt2_info)
 {
   if (gimple_uid (vect_orig_stmt (stmt1_info)->stmt)
@@ -1696,18 +1890,18 @@ vect_stmt_to_vectorize (stmt_vec_info stmt_info)
 
 /* Return true if BB is a loop header.  */
 
-static inline bool
+inline bool
 is_loop_header_bb_p (basic_block bb)
 {
   if (bb == (bb->loop_father)->header)
     return true;
-  gcc_checking_assert (EDGE_COUNT (bb->preds) == 1);
+
   return false;
 }
 
 /* Return pow2 (X).  */
 
-static inline int
+inline int
 vect_pow2 (int x)
 {
   int i, res = 1;
@@ -1720,7 +1914,7 @@ vect_pow2 (int x)
 
 /* Alias targetm.vectorize.builtin_vectorization_cost.  */
 
-static inline int
+inline int
 builtin_vectorization_cost (enum vect_cost_for_stmt type_of_cost,
 			    tree vectype, int misalign)
 {
@@ -1730,7 +1924,7 @@ builtin_vectorization_cost (enum vect_cost_for_stmt type_of_cost,
 
 /* Get cost by calling cost target builtin.  */
 
-static inline
+inline
 int vect_get_stmt_cost (enum vect_cost_for_stmt type_of_cost)
 {
   return builtin_vectorization_cost (type_of_cost, NULL, 0);
@@ -1738,7 +1932,7 @@ int vect_get_stmt_cost (enum vect_cost_for_stmt type_of_cost)
 
 /* Alias targetm.vectorize.init_cost.  */
 
-static inline vector_costs *
+inline vector_costs *
 init_cost (vec_info *vinfo, bool costing_for_scalar)
 {
   return targetm.vectorize.create_costs (vinfo, costing_for_scalar);
@@ -1748,9 +1942,9 @@ extern void dump_stmt_cost (FILE *, int, enum vect_cost_for_stmt,
 			    stmt_vec_info, slp_tree, tree, int, unsigned,
 			    enum vect_cost_model_location);
 
-/* Alias targetm.vectorize.add_stmt_cost.  */
+/* Dump and add costs.  */
 
-static inline unsigned
+inline unsigned
 add_stmt_cost (vector_costs *costs, int count,
 	       enum vect_cost_for_stmt kind,
 	       stmt_vec_info stmt_info, slp_tree node,
@@ -1765,7 +1959,7 @@ add_stmt_cost (vector_costs *costs, int count,
   return cost;
 }
 
-static inline unsigned
+inline unsigned
 add_stmt_cost (vector_costs *costs, int count, enum vect_cost_for_stmt kind,
 	       enum vect_cost_model_location where)
 {
@@ -1774,28 +1968,11 @@ add_stmt_cost (vector_costs *costs, int count, enum vect_cost_for_stmt kind,
   return add_stmt_cost (costs, count, kind, NULL, NULL, NULL_TREE, 0, where);
 }
 
-/* Alias targetm.vectorize.add_stmt_cost.  */
-
-static inline unsigned
+inline unsigned
 add_stmt_cost (vector_costs *costs, stmt_info_for_cost *i)
 {
   return add_stmt_cost (costs, i->count, i->kind, i->stmt_info, i->node,
 			i->vectype, i->misalign, i->where);
-}
-
-/* Alias targetm.vectorize.finish_cost.  */
-
-static inline void
-finish_cost (vector_costs *costs, const vector_costs *scalar_costs,
-	     unsigned *prologue_cost, unsigned *body_cost,
-	     unsigned *epilogue_cost, unsigned *suggested_unroll_factor = NULL)
-{
-  costs->finish_cost (scalar_costs);
-  *prologue_cost = costs->prologue_cost ();
-  *body_cost = costs->body_cost ();
-  *epilogue_cost = costs->epilogue_cost ();
-  if (suggested_unroll_factor)
-    *suggested_unroll_factor = costs->suggested_unroll_factor ();
 }
 
 inline void
@@ -1826,7 +2003,7 @@ extern int dr_misalignment (dr_vec_info *dr_info, tree vectype,
 #define SET_DR_MISALIGNMENT(DR, VAL) set_dr_misalignment (DR, VAL)
 
 /* Only defined once DR_MISALIGNMENT is defined.  */
-static inline const poly_uint64
+inline const poly_uint64
 dr_target_alignment (dr_vec_info *dr_info)
 {
   if (STMT_VINFO_GROUPED_ACCESS (dr_info->stmt))
@@ -1834,8 +2011,37 @@ dr_target_alignment (dr_vec_info *dr_info)
   return dr_info->target_alignment;
 }
 #define DR_TARGET_ALIGNMENT(DR) dr_target_alignment (DR)
+#define DR_SCALAR_KNOWN_BOUNDS(DR) (DR)->scalar_access_known_in_bounds
 
-static inline void
+/* Return if the stmt_vec_info requires peeling for alignment.  */
+inline bool
+dr_safe_speculative_read_required (stmt_vec_info stmt_info)
+{
+  dr_vec_info *dr_info;
+  if (STMT_VINFO_GROUPED_ACCESS (stmt_info))
+    dr_info = STMT_VINFO_DR_INFO (DR_GROUP_FIRST_ELEMENT (stmt_info));
+  else
+    dr_info = STMT_VINFO_DR_INFO (stmt_info);
+
+  return dr_info->safe_speculative_read_required;
+}
+
+/* Set the safe_speculative_read_required for the the stmt_vec_info, if group
+   access then set on the fist element otherwise set on DR directly.  */
+inline void
+dr_set_safe_speculative_read_required (stmt_vec_info stmt_info,
+				       bool requires_alignment)
+{
+  dr_vec_info *dr_info;
+  if (STMT_VINFO_GROUPED_ACCESS (stmt_info))
+    dr_info = STMT_VINFO_DR_INFO (DR_GROUP_FIRST_ELEMENT (stmt_info));
+  else
+    dr_info = STMT_VINFO_DR_INFO (stmt_info);
+
+  dr_info->safe_speculative_read_required = requires_alignment;
+}
+
+inline void
 set_dr_target_alignment (dr_vec_info *dr_info, poly_uint64 val)
 {
   dr_info->target_alignment = val;
@@ -1845,7 +2051,7 @@ set_dr_target_alignment (dr_vec_info *dr_info, poly_uint64 val)
 /* Return true if data access DR_INFO is aligned to the targets
    preferred alignment for VECTYPE (which may be less than a full vector).  */
 
-static inline bool
+inline bool
 aligned_access_p (dr_vec_info *dr_info, tree vectype)
 {
   return (dr_misalignment (dr_info, vectype) == 0);
@@ -1855,7 +2061,7 @@ aligned_access_p (dr_vec_info *dr_info, tree vectype)
    respect to the targets preferred alignment for VECTYPE, and FALSE
    otherwise.  */
 
-static inline bool
+inline bool
 known_alignment_for_access_p (dr_vec_info *dr_info, tree vectype)
 {
   return (dr_misalignment (dr_info, vectype) != DR_MISALIGNMENT_UNKNOWN);
@@ -1864,10 +2070,11 @@ known_alignment_for_access_p (dr_vec_info *dr_info, tree vectype)
 /* Return the minimum alignment in bytes that the vectorized version
    of DR_INFO is guaranteed to have.  */
 
-static inline unsigned int
-vect_known_alignment_in_bytes (dr_vec_info *dr_info, tree vectype)
+inline unsigned int
+vect_known_alignment_in_bytes (dr_vec_info *dr_info, tree vectype,
+			       poly_int64 offset = 0)
 {
-  int misalignment = dr_misalignment (dr_info, vectype);
+  int misalignment = dr_misalignment (dr_info, vectype, offset);
   if (misalignment == DR_MISALIGNMENT_UNKNOWN)
     return TYPE_ALIGN_UNIT (TREE_TYPE (DR_REF (dr_info->dr)));
   else if (misalignment == 0)
@@ -1879,7 +2086,7 @@ vect_known_alignment_in_bytes (dr_vec_info *dr_info, tree vectype)
    (which for outer loop vectorization might not be the behavior recorded
    in DR_INFO itself).  */
 
-static inline innermost_loop_behavior *
+inline innermost_loop_behavior *
 vect_dr_behavior (vec_info *vinfo, dr_vec_info *dr_info)
 {
   stmt_vec_info stmt_info = dr_info->stmt;
@@ -1917,7 +2124,7 @@ get_dr_vinfo_offset (vec_info *vinfo,
 
 
 /* Return the vect cost model for LOOP.  */
-static inline enum vect_cost_model
+inline enum vect_cost_model
 loop_cost_model (loop_p loop)
 {
   if (loop != NULL
@@ -1928,7 +2135,7 @@ loop_cost_model (loop_p loop)
 }
 
 /* Return true if the vect cost model is unlimited.  */
-static inline bool
+inline bool
 unlimited_cost_model (loop_p loop)
 {
   return loop_cost_model (loop) == VECT_COST_MODEL_UNLIMITED;
@@ -1938,21 +2145,53 @@ unlimited_cost_model (loop_p loop)
    if the first iteration should use a partial mask in order to achieve
    alignment.  */
 
-static inline bool
+inline bool
 vect_use_loop_mask_for_alignment_p (loop_vec_info loop_vinfo)
 {
+  /* With early break vectorization we don't know whether the accesses will stay
+     inside the loop or not.  TODO: The early break adjustment code can be
+     implemented the same way as vectorizable_linear_induction.  However we
+     can't test this today so reject it.  */
   return (LOOP_VINFO_FULLY_MASKED_P (loop_vinfo)
-	  && LOOP_VINFO_PEELING_FOR_ALIGNMENT (loop_vinfo));
+	  && LOOP_VINFO_PEELING_FOR_ALIGNMENT (loop_vinfo)
+	  && !(LOOP_VINFO_NON_LINEAR_IV (loop_vinfo)
+	       && LOOP_VINFO_EARLY_BREAKS (loop_vinfo)));
 }
 
 /* Return the number of vectors of type VECTYPE that are needed to get
    NUNITS elements.  NUNITS should be based on the vectorization factor,
    so it is always a known multiple of the number of elements in VECTYPE.  */
 
-static inline unsigned int
+inline unsigned int
 vect_get_num_vectors (poly_uint64 nunits, tree vectype)
 {
   return exact_div (nunits, TYPE_VECTOR_SUBPARTS (vectype)).to_constant ();
+}
+
+/* Return the number of vectors in the context of vectorization region VINFO,
+   needed for a group of statements, whose size is specified by lanes of NODE,
+   if NULL, it is 1.  The statements are supposed to be interleaved together
+   with no gap, and all operate on vectors of type VECTYPE, if NULL, the
+   vectype of NODE is used.  */
+
+inline unsigned int
+vect_get_num_copies (vec_info *vinfo, slp_tree node, tree vectype = NULL)
+{
+  poly_uint64 vf;
+
+  if (loop_vec_info loop_vinfo = dyn_cast <loop_vec_info> (vinfo))
+    vf = LOOP_VINFO_VECT_FACTOR (loop_vinfo);
+  else
+    vf = 1;
+
+  if (node)
+    {
+      vf *= SLP_TREE_LANES (node);
+      if (!vectype)
+	vectype = SLP_TREE_VECTYPE (node);
+    }
+
+  return vect_get_num_vectors (vf, vectype);
 }
 
 /* Return the number of copies needed for loop vectorization when
@@ -1960,16 +2199,16 @@ vect_get_num_vectors (poly_uint64 nunits, tree vectype)
    vectorization factor divided by the number of elements in
    VECTYPE and is always known at compile time.  */
 
-static inline unsigned int
+inline unsigned int
 vect_get_num_copies (loop_vec_info loop_vinfo, tree vectype)
 {
-  return vect_get_num_vectors (LOOP_VINFO_VECT_FACTOR (loop_vinfo), vectype);
+  return vect_get_num_copies (loop_vinfo, NULL, vectype);
 }
 
 /* Update maximum unit count *MAX_NUNITS so that it accounts for
    NUNITS.  *MAX_NUNITS can be 1 if we haven't yet recorded anything.  */
 
-static inline void
+inline void
 vect_update_max_nunits (poly_uint64 *max_nunits, poly_uint64 nunits)
 {
   /* All unit counts have the form vec_info::vector_size * X for some
@@ -1982,7 +2221,7 @@ vect_update_max_nunits (poly_uint64 *max_nunits, poly_uint64 nunits)
    the number of units in vector type VECTYPE.  *MAX_NUNITS can be 1
    if we haven't yet recorded any vector types.  */
 
-static inline void
+inline void
 vect_update_max_nunits (poly_uint64 *max_nunits, tree vectype)
 {
   vect_update_max_nunits (max_nunits, TYPE_VECTOR_SUBPARTS (vectype));
@@ -1993,7 +2232,7 @@ vect_update_max_nunits (poly_uint64 *max_nunits, tree vectype)
    Pick a reasonable estimate if the vectorization factor isn't
    known at compile time.  */
 
-static inline unsigned int
+inline unsigned int
 vect_vf_for_cost (loop_vec_info loop_vinfo)
 {
   return estimated_poly_value (LOOP_VINFO_VECT_FACTOR (loop_vinfo));
@@ -2003,7 +2242,7 @@ vect_vf_for_cost (loop_vec_info loop_vinfo)
    Pick a reasonable estimate if the exact number isn't known at
    compile time.  */
 
-static inline unsigned int
+inline unsigned int
 vect_nunits_for_cost (tree vec_type)
 {
   return estimated_poly_value (TYPE_VECTOR_SUBPARTS (vec_type));
@@ -2011,7 +2250,7 @@ vect_nunits_for_cost (tree vec_type)
 
 /* Return the maximum possible vectorization factor for LOOP_VINFO.  */
 
-static inline unsigned HOST_WIDE_INT
+inline unsigned HOST_WIDE_INT
 vect_max_vf (loop_vec_info loop_vinfo)
 {
   unsigned HOST_WIDE_INT vf;
@@ -2042,6 +2281,24 @@ vect_apply_runtime_profitability_check_p (loop_vec_info loop_vinfo)
   unsigned int th = LOOP_VINFO_COST_MODEL_THRESHOLD (loop_vinfo);
   return (!LOOP_VINFO_NITERS_KNOWN_P (loop_vinfo)
 	  && th >= vect_vf_for_cost (loop_vinfo));
+}
+
+/* Return true if CODE is a lane-reducing opcode.  */
+
+inline bool
+lane_reducing_op_p (code_helper code)
+{
+  return code == DOT_PROD_EXPR || code == WIDEN_SUM_EXPR || code == SAD_EXPR;
+}
+
+/* Return true if STMT is a lane-reducing statement.  */
+
+inline bool
+lane_reducing_stmt_p (gimple *stmt)
+{
+  if (auto *assign = dyn_cast <gassign *> (stmt))
+    return lane_reducing_op_p (gimple_assign_rhs_code (assign));
+  return false;
 }
 
 /* Source location + hotness information. */
@@ -2086,11 +2343,14 @@ class auto_purge_vect_location
 
 /* Simple loop peeling and versioning utilities for vectorizer's purposes -
    in tree-vect-loop-manip.cc.  */
-extern void vect_set_loop_condition (class loop *, loop_vec_info,
+extern void vect_set_loop_condition (class loop *, edge, loop_vec_info,
 				     tree, tree, tree, bool);
-extern bool slpeel_can_duplicate_loop_p (const class loop *, const_edge);
-class loop *slpeel_tree_duplicate_loop_to_edge_cfg (class loop *,
-						     class loop *, edge);
+extern bool slpeel_can_duplicate_loop_p (const class loop *, const_edge,
+					 const_edge);
+class loop *slpeel_tree_duplicate_loop_to_edge_cfg (class loop *, edge,
+						    class loop *, edge,
+						    edge, edge *, bool = true,
+						    vec<basic_block> * = NULL);
 class loop *vect_loop_versioning (loop_vec_info, gimple *);
 extern class loop *vect_do_peeling (loop_vec_info, tree, tree,
 				    tree *, tree *, tree *, int, bool, bool,
@@ -2100,6 +2360,8 @@ extern void vect_prepare_for_masked_peels (loop_vec_info);
 extern dump_user_location_t find_loop_location (class loop *);
 extern bool vect_can_advance_ivs_p (loop_vec_info);
 extern void vect_update_inits_of_drs (loop_vec_info, tree, tree_code);
+extern edge vec_init_loop_exit_info (class loop *);
+extern void vect_iv_increment_position (edge, gimple_stmt_iterator *, bool *);
 
 /* In tree-vect-stmts.cc.  */
 extern tree get_related_vectype_for_scalar_type (machine_mode, tree,
@@ -2107,6 +2369,7 @@ extern tree get_related_vectype_for_scalar_type (machine_mode, tree,
 extern tree get_vectype_for_scalar_type (vec_info *, tree, unsigned int = 0);
 extern tree get_vectype_for_scalar_type (vec_info *, tree, slp_tree);
 extern tree get_mask_type_for_scalar_type (vec_info *, tree, unsigned int = 0);
+extern tree get_mask_type_for_scalar_type (vec_info *, tree, slp_tree);
 extern tree get_same_sized_vectype (tree, tree);
 extern bool vect_chooses_same_modes_p (vec_info *, machine_mode);
 extern bool vect_get_loop_mask_type (loop_vec_info);
@@ -2120,14 +2383,20 @@ extern bool vect_is_simple_use (vec_info *, stmt_vec_info, slp_tree,
 				enum vect_def_type *,
 				tree *, stmt_vec_info * = NULL);
 extern bool vect_maybe_update_slp_op_vectype (slp_tree, tree);
-extern bool supportable_widening_operation (vec_info *,
-					    enum tree_code, stmt_vec_info,
-					    tree, tree, enum tree_code *,
-					    enum tree_code *, int *,
-					    vec<tree> *);
-extern bool supportable_narrowing_operation (enum tree_code, tree, tree,
-					     enum tree_code *, int *,
+extern tree perm_mask_for_reverse (tree);
+extern bool supportable_widening_operation (vec_info*, code_helper,
+					    stmt_vec_info, tree, tree,
+					    code_helper*, code_helper*,
+					    int*, vec<tree> *);
+extern bool supportable_narrowing_operation (code_helper, tree, tree,
+					     code_helper *, int *,
 					     vec<tree> *);
+extern bool supportable_indirect_convert_operation (code_helper,
+						    tree, tree,
+						    vec<std::pair<tree, tree_code> > &,
+						    tree = NULL_TREE,
+						    slp_tree = NULL);
+extern int compare_step_with_zero (vec_info *, stmt_vec_info);
 
 extern unsigned record_stmt_cost (stmt_vector_for_cost *, int,
 				  enum vect_cost_for_stmt, stmt_vec_info,
@@ -2138,15 +2407,32 @@ extern unsigned record_stmt_cost (stmt_vector_for_cost *, int,
 extern unsigned record_stmt_cost (stmt_vector_for_cost *, int,
 				  enum vect_cost_for_stmt,
 				  enum vect_cost_model_location);
+extern unsigned record_stmt_cost (stmt_vector_for_cost *, int,
+				  enum vect_cost_for_stmt, stmt_vec_info,
+				  slp_tree, tree, int,
+				  enum vect_cost_model_location);
 
 /* Overload of record_stmt_cost with VECTYPE derived from STMT_INFO.  */
 
-static inline unsigned
+inline unsigned
 record_stmt_cost (stmt_vector_for_cost *body_cost_vec, int count,
 		  enum vect_cost_for_stmt kind, stmt_vec_info stmt_info,
 		  int misalign, enum vect_cost_model_location where)
 {
   return record_stmt_cost (body_cost_vec, count, kind, stmt_info,
+			   STMT_VINFO_VECTYPE (stmt_info), misalign, where);
+}
+
+/* Overload of record_stmt_cost with VECTYPE derived from STMT_INFO and
+   SLP node specified.  */
+
+inline unsigned
+record_stmt_cost (stmt_vector_for_cost *body_cost_vec, int count,
+		  enum vect_cost_for_stmt kind, stmt_vec_info stmt_info,
+		  slp_tree node,
+		  int misalign, enum vect_cost_model_location where)
+{
+  return record_stmt_cost (body_cost_vec, count, kind, stmt_info, node,
 			   STMT_VINFO_VECTYPE (stmt_info), misalign, where);
 }
 
@@ -2163,10 +2449,10 @@ void vect_get_vec_defs (vec_info *, stmt_vec_info, slp_tree, unsigned,
 			tree = NULL, vec<tree> * = NULL,
 			tree = NULL, vec<tree> * = NULL);
 void vect_get_vec_defs (vec_info *, stmt_vec_info, slp_tree, unsigned,
-			tree, vec<tree> *, tree,
-			tree = NULL, vec<tree> * = NULL, tree = NULL,
-			tree = NULL, vec<tree> * = NULL, tree = NULL,
-			tree = NULL, vec<tree> * = NULL, tree = NULL);
+			tree, tree, vec<tree> *,
+			tree = NULL, tree = NULL, vec<tree> * = NULL,
+			tree = NULL, tree = NULL, vec<tree> * = NULL,
+			tree = NULL, tree = NULL, vec<tree> * = NULL);
 extern tree vect_init_vector (vec_info *, stmt_vec_info, tree, tree,
                               gimple_stmt_iterator *);
 extern tree vect_get_slp_vect_def (slp_tree, unsigned);
@@ -2178,12 +2464,12 @@ extern bool vect_nop_conversion_p (stmt_vec_info);
 extern opt_result vect_analyze_stmt (vec_info *, stmt_vec_info, bool *,
 				     slp_tree,
 				     slp_instance, stmt_vector_for_cost *);
-extern void vect_get_load_cost (vec_info *, stmt_vec_info, int,
+extern void vect_get_load_cost (vec_info *, stmt_vec_info, slp_tree, int,
 				dr_alignment_support, int, bool,
 				unsigned int *, unsigned int *,
 				stmt_vector_for_cost *,
 				stmt_vector_for_cost *, bool);
-extern void vect_get_store_cost (vec_info *, stmt_vec_info, int,
+extern void vect_get_store_cost (vec_info *, stmt_vec_info, slp_tree, int,
 				 dr_alignment_support, int,
 				 unsigned int *, stmt_vector_for_cost *);
 extern bool vect_supportable_shift (vec_info *, enum tree_code, tree);
@@ -2198,6 +2484,9 @@ extern opt_result vect_get_vector_types_for_stmt (vec_info *,
 						  tree *, unsigned int = 0);
 extern opt_tree vect_get_mask_type_for_stmt (stmt_vec_info, unsigned int = 0);
 
+/* In tree-if-conv.cc.  */
+extern bool ref_within_array_bound (gimple *, tree);
+
 /* In tree-vect-data-refs.cc.  */
 extern bool vect_can_force_dr_alignment_p (const_tree, poly_uint64);
 extern enum dr_alignment_support vect_supportable_dr_alignment
@@ -2211,9 +2500,11 @@ extern bool vect_slp_analyze_instance_alignment (vec_info *, slp_instance);
 extern opt_result vect_analyze_data_ref_accesses (vec_info *, vec<int> *);
 extern opt_result vect_prune_runtime_alias_test_list (loop_vec_info);
 extern bool vect_gather_scatter_fn_p (vec_info *, bool, bool, tree, tree,
-				      tree, int, internal_fn *, tree *);
+				      tree, int, internal_fn *, tree *,
+				      vec<int> * = nullptr);
 extern bool vect_check_gather_scatter (stmt_vec_info, loop_vec_info,
-				       gather_scatter_info *);
+				       gather_scatter_info *,
+				       vec<int> * = nullptr);
 extern opt_result vect_find_stmt_data_reference (loop_p, gimple *,
 						 vec<data_reference_p> *,
 						 vec<int> *, int);
@@ -2229,9 +2520,10 @@ extern tree bump_vector_ptr (vec_info *, tree, gimple *, gimple_stmt_iterator *,
 extern void vect_copy_ref_info (tree, tree);
 extern tree vect_create_destination_var (tree, tree);
 extern bool vect_grouped_store_supported (tree, unsigned HOST_WIDE_INT);
-extern bool vect_store_lanes_supported (tree, unsigned HOST_WIDE_INT, bool);
+extern internal_fn vect_store_lanes_supported (tree, unsigned HOST_WIDE_INT, bool);
 extern bool vect_grouped_load_supported (tree, bool, unsigned HOST_WIDE_INT);
-extern bool vect_load_lanes_supported (tree, unsigned HOST_WIDE_INT, bool);
+extern internal_fn vect_load_lanes_supported (tree, unsigned HOST_WIDE_INT,
+					      bool, vec<int> * = nullptr);
 extern void vect_permute_store_chain (vec_info *, vec<tree> &,
 				      unsigned int, stmt_vec_info,
 				      gimple_stmt_iterator *, vec<tree> *);
@@ -2251,18 +2543,18 @@ extern tree vect_create_addr_base_for_vector_ref (vec_info *,
 						  tree);
 
 /* In tree-vect-loop.cc.  */
-extern tree neutral_op_for_reduction (tree, code_helper, tree);
+extern tree neutral_op_for_reduction (tree, code_helper, tree, bool = true);
 extern widest_int vect_iv_limit_for_partial_vectors (loop_vec_info loop_vinfo);
 bool vect_rgroup_iv_might_wrap_p (loop_vec_info, rgroup_controls *);
 /* Used in tree-vect-loop-manip.cc */
-extern opt_result vect_determine_partial_vectors_and_peeling (loop_vec_info,
-							      bool);
+extern opt_result vect_determine_partial_vectors_and_peeling (loop_vec_info);
 /* Used in gimple-loop-interchange.c and tree-parloops.cc.  */
 extern bool check_reduction_path (dump_user_location_t, loop_p, gphi *, tree,
 				  enum tree_code);
 extern bool needs_fold_left_reduction_p (tree, code_helper);
 /* Drive for loop analysis stage.  */
-extern opt_loop_vec_info vect_analyze_loop (class loop *, vec_info_shared *);
+extern opt_loop_vec_info vect_analyze_loop (class loop *, gimple *,
+					    vec_info_shared *);
 extern tree vect_build_loop_niters (loop_vec_info, bool * = NULL);
 extern void vect_gen_vector_loop_niters (loop_vec_info, tree, tree *,
 					 tree *, bool);
@@ -2270,12 +2562,18 @@ extern tree vect_halve_mask_nunits (tree, machine_mode);
 extern tree vect_double_mask_nunits (tree, machine_mode);
 extern void vect_record_loop_mask (loop_vec_info, vec_loop_masks *,
 				   unsigned int, tree, tree);
-extern tree vect_get_loop_mask (gimple_stmt_iterator *, vec_loop_masks *,
+extern tree vect_get_loop_mask (loop_vec_info, gimple_stmt_iterator *,
+				vec_loop_masks *,
 				unsigned int, tree, unsigned int);
 extern void vect_record_loop_len (loop_vec_info, vec_loop_lens *, unsigned int,
 				  tree, unsigned int);
-extern tree vect_get_loop_len (loop_vec_info, vec_loop_lens *, unsigned int,
-			       unsigned int);
+extern tree vect_get_loop_len (loop_vec_info, gimple_stmt_iterator *,
+			       vec_loop_lens *, unsigned int, tree,
+			       unsigned int, unsigned int);
+extern tree vect_gen_loop_len_mask (loop_vec_info, gimple_stmt_iterator *,
+				    gimple_stmt_iterator *, vec_loop_lens *,
+				    unsigned int, tree, tree, unsigned int,
+				    unsigned int);
 extern gimple_seq vect_gen_len (tree, tree, tree, tree);
 extern stmt_vec_info info_for_reduction (vec_info *, stmt_vec_info);
 extern bool reduction_fn_for_scalar_code (code_helper, internal_fn *);
@@ -2287,17 +2585,20 @@ struct vect_loop_form_info
   tree number_of_iterations;
   tree number_of_iterationsm1;
   tree assumptions;
-  gcond *loop_cond;
+  auto_vec<gcond *> conds;
   gcond *inner_loop_cond;
+  edge loop_exit;
 };
-extern opt_result vect_analyze_loop_form (class loop *, vect_loop_form_info *);
+extern opt_result vect_analyze_loop_form (class loop *, gimple *,
+					  vect_loop_form_info *);
 extern loop_vec_info vect_create_loop_vinfo (class loop *, vec_info_shared *,
 					     const vect_loop_form_info *,
 					     loop_vec_info = nullptr);
-extern bool vectorizable_live_operation (vec_info *,
-					 stmt_vec_info, gimple_stmt_iterator *,
+extern bool vectorizable_live_operation (vec_info *, stmt_vec_info,
 					 slp_tree, slp_instance, int,
 					 bool, stmt_vector_for_cost *);
+extern bool vectorizable_lane_reducing (loop_vec_info, stmt_vec_info,
+					slp_tree, stmt_vector_for_cost *);
 extern bool vectorizable_reduction (loop_vec_info, stmt_vec_info,
 				    slp_tree, slp_instance,
 				    stmt_vector_for_cost *);
@@ -2314,6 +2615,11 @@ extern bool vectorizable_lc_phi (loop_vec_info, stmt_vec_info,
 				 gimple **, slp_tree);
 extern bool vectorizable_phi (vec_info *, stmt_vec_info, gimple **, slp_tree,
 			      stmt_vector_for_cost *);
+extern bool vectorizable_recurr (loop_vec_info, stmt_vec_info,
+				  gimple **, slp_tree, stmt_vector_for_cost *);
+extern bool vectorizable_early_exit (vec_info *, stmt_vec_info,
+				     gimple_stmt_iterator *, gimple **,
+				     slp_tree, stmt_vector_for_cost *);
 extern bool vect_emulated_vector_p (tree);
 extern bool vect_can_vectorize_without_simd_p (tree_code);
 extern bool vect_can_vectorize_without_simd_p (code_helper);
@@ -2322,6 +2628,10 @@ extern int vect_get_known_peeling_cost (loop_vec_info, int, int *,
 					stmt_vector_for_cost *,
 					stmt_vector_for_cost *);
 extern tree cse_and_gimplify_to_preheader (loop_vec_info, tree);
+
+/* Nonlinear induction.  */
+extern tree vect_peel_nonlinear_iv_init (gimple_seq*, tree, tree,
+					 tree, enum vect_induction_op_type);
 
 /* In tree-vect-slp.cc.  */
 extern void vect_slp_init (void);
@@ -2333,11 +2643,12 @@ extern bool vect_transform_slp_perm_load (vec_info *, slp_tree, const vec<tree> 
 					  unsigned * = nullptr, bool = false);
 extern bool vect_slp_analyze_operations (vec_info *);
 extern void vect_schedule_slp (vec_info *, const vec<slp_instance> &);
-extern opt_result vect_analyze_slp (vec_info *, unsigned);
+extern opt_result vect_analyze_slp (vec_info *, unsigned, bool);
 extern bool vect_make_slp_decision (loop_vec_info);
 extern void vect_detect_hybrid_slp (loop_vec_info);
 extern void vect_optimize_slp (vec_info *);
 extern void vect_gather_slp_loads (vec_info *);
+extern tree vect_get_slp_scalar_def (slp_tree, unsigned);
 extern void vect_get_slp_defs (slp_tree, vec<tree> *);
 extern void vect_get_slp_defs (vec_info *, slp_tree, vec<vec<tree> > *,
 			       unsigned n = -1U);
@@ -2355,10 +2666,16 @@ extern int vect_get_place_in_interleaving_chain (stmt_vec_info, stmt_vec_info);
 extern slp_tree vect_create_new_slp_node (unsigned, tree_code);
 extern void vect_free_slp_tree (slp_tree);
 extern bool compatible_calls_p (gcall *, gcall *);
+extern int vect_slp_child_index_for_operand (const gimple *, int op, bool);
+
+extern tree prepare_vec_mask (loop_vec_info, tree, tree, tree,
+			      gimple_stmt_iterator *);
+extern tree vect_get_mask_load_else (int, tree);
 
 /* In tree-vect-patterns.cc.  */
 extern void
 vect_mark_pattern_stmts (vec_info *, stmt_vec_info, gimple *, tree);
+extern bool vect_get_range_info (tree, wide_int*, wide_int*);
 
 /* Pattern recognition functions.
    Additional pattern recognition functions can (and will) be added
@@ -2479,6 +2796,18 @@ vect_is_reduction (stmt_vec_info stmt_info)
   return STMT_VINFO_REDUC_IDX (stmt_info) >= 0;
 }
 
+/* Returns the memory acccess type being used to vectorize the statement.  If
+   SLP this is read from NODE, otherwise it's read from the STMT_VINFO.  */
+
+inline vect_memory_access_type
+vect_mem_access_type (stmt_vec_info stmt_info, slp_tree node)
+{
+  if (node)
+    return SLP_TREE_MEMORY_ACCESS_TYPE (node);
+  else
+    return STMT_VINFO_MEMORY_ACCESS_TYPE (stmt_info);
+}
+
 /* If STMT_INFO describes a reduction, return the vect_reduction_type
    of the reduction it describes, otherwise return -1.  */
 inline int
@@ -2558,4 +2887,7 @@ vect_is_integer_truncation (stmt_vec_info stmt_info)
 	  && TYPE_PRECISION (lhs_type) < TYPE_PRECISION (rhs_type));
 }
 
+/* Build a GIMPLE_ASSIGN or GIMPLE_CALL with the tree_code,
+   or internal_fn contained in ch, respectively.  */
+gimple * vect_gimple_build (tree, code_helper, tree, tree = NULL_TREE);
 #endif  /* GCC_TREE_VECTORIZER_H  */

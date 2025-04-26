@@ -1,5 +1,5 @@
 // Access-related classes for RTL SSA                               -*- C++ -*-
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -204,6 +204,10 @@ public:
   // in the main instruction pattern.
   bool only_occurs_in_notes () const { return m_only_occurs_in_notes; }
 
+  // Return true if this is a temporary access, e.g. one created for
+  // an insn that is about to be inserted.
+  bool is_temporary () const { return m_is_temp; }
+
 protected:
   access_info (resource_info, access_kind);
 
@@ -215,7 +219,8 @@ private:
 
   // The values returned by the accessors above.
   unsigned int m_regno;
-  access_kind m_kind : 8;
+  machine_mode m_mode : MACHINE_MODE_BITSIZE;
+  access_kind m_kind : 2;
 
 protected:
   // The value returned by the accessors above.
@@ -249,12 +254,6 @@ private:
   // Indicates that this access has been allocated on the function_info's
   // temporary obstack and so is not (yet) part of the proper SSA form.
   unsigned int m_is_temp : 1;
-
-  // Bits for future expansion.
-  unsigned int m_spare : 2;
-
-  // The value returned by the accessor above.
-  machine_mode m_mode : 8;
 };
 
 // A contiguous array of access_info pointers.  Used to represent a
@@ -358,6 +357,10 @@ public:
   //    next_use () && next_use ()->is_in_any_insn () ? next_use () : nullptr
   use_info *next_any_insn_use () const;
 
+  // Return the next use by a debug instruction, or null if none.
+  // This is only valid if is_in_debug_insn ().
+  use_info *next_debug_insn_use () const;
+
   // Return the previous use by a phi node in the list, or null if none.
   //
   // This is only valid if is_in_phi ().  It is equivalent to:
@@ -459,6 +462,8 @@ using reverse_use_iterator = list_iterator<use_info, &use_info::prev_use>;
 // of use in the same definition.
 using nondebug_insn_use_iterator
   = list_iterator<use_info, &use_info::next_nondebug_insn_use>;
+using debug_insn_use_iterator
+  = list_iterator<use_info, &use_info::next_debug_insn_use>;
 using any_insn_use_iterator
   = list_iterator<use_info, &use_info::next_any_insn_use>;
 using phi_use_iterator = list_iterator<use_info, &use_info::prev_phi_use>;
@@ -681,6 +686,10 @@ public:
   use_info *first_nondebug_insn_use () const;
   use_info *last_nondebug_insn_use () const;
 
+  // Return the first use of the set by debug instructions, or null if
+  // there is no such use.
+  use_info *first_debug_insn_use () const;
+
   // Return the first use of the set by any kind of instruction, or null
   // if there are no such uses.  The uses are in the order described above.
   use_info *first_any_insn_use () const;
@@ -731,6 +740,9 @@ public:
 
   // List the uses of the set by nondebug instructions, in reverse postorder.
   iterator_range<nondebug_insn_use_iterator> nondebug_insn_uses () const;
+
+  // List the uses of the set by debug instructions, in reverse postorder.
+  iterator_range<debug_insn_use_iterator> debug_insn_uses () const;
 
   // Return nondebug_insn_uses () in reverse order.
   iterator_range<reverse_use_iterator> reverse_nondebug_insn_uses () const;
@@ -925,7 +937,8 @@ public:
   void print (pretty_printer *pp) const;
 
 private:
-  clobber_group (clobber_info *clobber);
+  clobber_group (clobber_info *);
+  clobber_group (clobber_info *, clobber_info *, clobber_info *);
 
   // Set the values of first_clobber () and last_clobber ().
   void set_first_clobber (clobber_info *c) { m_clobber_or_set = c; }
@@ -1039,6 +1052,7 @@ void pp_accesses (pretty_printer *, access_array,
 void pp_def_node (pretty_printer *, const def_node *);
 void pp_def_mux (pretty_printer *, def_mux);
 void pp_def_lookup (pretty_printer *, def_lookup);
+void pp_def_splay_tree (pretty_printer *, def_splay_tree);
 
 }
 
@@ -1050,6 +1064,7 @@ void dump (FILE *, rtl_ssa::access_array,
 void dump (FILE *, const rtl_ssa::def_node *);
 void dump (FILE *, rtl_ssa::def_mux);
 void dump (FILE *, rtl_ssa::def_lookup);
+void dump (FILE *, rtl_ssa::def_splay_tree);
 
 void DEBUG_FUNCTION debug (const rtl_ssa::resource_info *);
 void DEBUG_FUNCTION debug (const rtl_ssa::access_info *);
@@ -1057,3 +1072,4 @@ void DEBUG_FUNCTION debug (const rtl_ssa::access_array);
 void DEBUG_FUNCTION debug (const rtl_ssa::def_node *);
 void DEBUG_FUNCTION debug (const rtl_ssa::def_mux &);
 void DEBUG_FUNCTION debug (const rtl_ssa::def_lookup &);
+void DEBUG_FUNCTION debug (const rtl_ssa::def_splay_tree &);

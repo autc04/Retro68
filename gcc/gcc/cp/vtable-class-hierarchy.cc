@@ -1,4 +1,4 @@
-/* Copyright (C) 2012-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2012-2025 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -467,19 +467,6 @@ check_and_record_registered_pairs (tree vtable_decl, tree vptr_address,
   return !inserted_something;
 }
 
-/* Given an IDENTIFIER_NODE, build and return a string literal based on it.  */
-
-static tree
-build_string_from_id (tree identifier)
-{
-  int len;
-
-  gcc_assert (TREE_CODE (identifier) == IDENTIFIER_NODE);
-
-  len = IDENTIFIER_LENGTH (identifier);
-  return build_string_literal (len + 1, IDENTIFIER_POINTER (identifier));
-}
-
 /* A class may contain secondary vtables in it, for various reasons.
    This function goes through the decl chain of a class record looking
    for any fields that point to secondary vtables, and adding calls to
@@ -775,7 +762,7 @@ insert_call_to_register_set (tree class_name,
 
   vec<constructor_elt, va_gc> *array_elements;
   vec_alloc (array_elements, num_args);
-                                                        
+
   tree initial = NULL_TREE;
   tree arg3 = NULL_TREE;
 
@@ -834,7 +821,7 @@ insert_call_to_register_pair (vec<tree> *vtbl_ptr_array, tree arg1,
   else
     call_expr = build_call_expr (vlt_register_pairs_fndecl, 4, arg1, arg2,
                                  size_hint_arg, vtable_address);
-    
+
   append_to_statement_list (call_expr, &body);
   num_calls_to_regpair++;
 }
@@ -864,7 +851,7 @@ output_set_info (tree record_type, vec<tree> vtbl_ptr_array)
     {
       const char *vptr_name = "unknown";
       int vptr_offset = 0;
-      
+
       if (TREE_CODE (vtbl_ptr_array[i]) == POINTER_PLUS_EXPR)
         {
           tree arg0 = TREE_OPERAND (vtbl_ptr_array[i], 0);
@@ -920,7 +907,7 @@ register_all_pairs (tree body)
 
 
       if (flag_vtv_debug)
-        str1 = build_string_from_id (DECL_NAME (base_ptr_var_decl));
+	str1 = build_string_literal (DECL_NAME (base_ptr_var_decl));
 
       new_type = build_pointer_type (TREE_TYPE (base_ptr_var_decl));
       arg1 = build1 (ADDR_EXPR, new_type, base_ptr_var_decl);
@@ -953,7 +940,7 @@ register_all_pairs (tree body)
                 if (vtable_decl)
                   {
                     vtable_should_be_output = TREE_ASM_WRITTEN (vtable_decl);
-                    str2 = build_string_from_id (DECL_NAME (vtable_decl));
+		    str2 = build_string_literal (DECL_NAME (vtable_decl));
                   }
 
                 if (vtable_decl && vtable_should_be_output)
@@ -1009,8 +996,7 @@ register_all_pairs (tree body)
       arg2 = build_key_buffer_arg (base_ptr_var_decl);
 
       if (str2 == NULL_TREE)
-        str2 = build_string_literal (strlen ("unknown") + 1,
-                                     "unknown");
+	str2 = build_string_literal ("unknown");
 
       if (flag_vtv_debug)
         output_set_info (current->class_info->class_type,
@@ -1138,7 +1124,7 @@ bool
 vtv_register_class_hierarchy_information (tree init_routine_body)
 {
   bool registered_something = false;
- 
+
   init_functions ();
 
   if (num_vtable_map_nodes == 0)
@@ -1192,8 +1178,18 @@ vtv_generate_init_routine (void)
       cgraph_node::add_new_function (vtv_fndecl, false);
 
       if (flag_vtable_verify == VTV_PREINIT_PRIORITY && !TARGET_PECOFF)
-        assemble_vtv_preinit_initializer (vtv_fndecl);
+	{
+	  tree vtv_var
+	    = build_decl (BUILTINS_LOCATION, VAR_DECL,
+			  get_identifier ("__vtv_preinit"),
+			  build_pointer_type (TREE_TYPE (vtv_fndecl)));
+	  TREE_STATIC (vtv_var) = 1;
+	  DECL_ARTIFICIAL (vtv_var) = 1;
+	  DECL_INITIAL (vtv_var) = build_fold_addr_expr (vtv_fndecl);
+	  set_decl_section_name (vtv_var, ".preinit_array");
 
+	  varpool_node::add (vtv_var);
+	}
     }
   pop_lang_context ();
 }

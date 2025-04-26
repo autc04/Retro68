@@ -1,5 +1,5 @@
 /* Pass computing data for optimizing stdarg functions.
-   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+   Copyright (C) 2004-2025 Free Software Foundation, Inc.
    Contributed by Jakub Jelinek <jakub@redhat.com>
 
 This file is part of GCC.
@@ -174,7 +174,7 @@ va_list_counter_bump (struct stdarg_info *si, tree counter, tree rhs,
 	  continue;
 	}
 
-      if (rhs_code == ADDR_EXPR 
+      if (rhs_code == ADDR_EXPR
 	  && TREE_CODE (TREE_OPERAND (rhs1, 0)) == MEM_REF
 	  && TREE_CODE (TREE_OPERAND (TREE_OPERAND (rhs1, 0), 0)) == SSA_NAME
 	  && tree_fits_uhwi_p (TREE_OPERAND (TREE_OPERAND (rhs1, 0), 1)))
@@ -241,7 +241,7 @@ va_list_counter_bump (struct stdarg_info *si, tree counter, tree rhs,
 	  continue;
 	}
 
-      if (rhs_code == ADDR_EXPR 
+      if (rhs_code == ADDR_EXPR
 	  && TREE_CODE (TREE_OPERAND (rhs1, 0)) == MEM_REF
 	  && TREE_CODE (TREE_OPERAND (TREE_OPERAND (rhs1, 0), 0)) == SSA_NAME
 	  && tree_fits_uhwi_p (TREE_OPERAND (TREE_OPERAND (rhs1, 0), 1)))
@@ -867,8 +867,8 @@ optimize_va_list_gpr_fpr_size (function *fun)
 	      tree callee = gimple_call_fndecl (stmt);
 
 	      if (callee
-		  && (fndecl_built_in_p (callee, BUILT_IN_VA_START)
-		      || fndecl_built_in_p (callee, BUILT_IN_VA_END)))
+		  && fndecl_built_in_p (callee, BUILT_IN_VA_START,
+						BUILT_IN_VA_END))
 		continue;
 	    }
 
@@ -1114,7 +1114,7 @@ const pass_data pass_data_stdarg =
   ( PROP_cfg | PROP_ssa ), /* properties_required */
   PROP_gimple_lva, /* properties_provided */
   0, /* properties_destroyed */
-  TODO_remove_unused_locals, /* todo_flags_start */
+  0, /* todo_flags_start */
   0, /* todo_flags_finish */
 };
 
@@ -1126,7 +1126,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       /* Always run this pass, in order to expand va_arg internal_fns.  We
 	 also need to do that if fun->stdarg == 0, because a va_arg may also
@@ -1135,7 +1135,7 @@ public:
       return true;
     }
 
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_stdarg
 
@@ -1185,12 +1185,12 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       return (cfun->curr_properties & PROP_gimple_lva) == 0;
     }
 
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_lower_vaarg
 

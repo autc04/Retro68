@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,12 +15,13 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
+// { dg-skip-if "" { *-*-* } { "-fno-char8_t" } }
 
 #include <string>
 #include <memory_resource>
 #include <testsuite_hooks.h>
+#include <testsuite_allocator.h>
 
 // C++2a N4810 21.3.5 [basic.string.hash]
 // If S is one of these string types, SV is the corresponding string view type,
@@ -55,9 +56,20 @@ test02()
   VERIFY( hash<std::string>()(native) == hash<std::u8string>()(utf8) );
 }
 
+void
+test03()
+{
+  using Alloc = __gnu_test::SimpleAllocator<char8_t>;
+  using Stringu8 = std::basic_string<char8_t, std::char_traits<char8_t>, Alloc>;
+
+  // LWG 3705. Hashability shouldn't depend on basic_string's allocator
+  VERIFY( test(Stringu8(u8"a utf-8 string, with custom allocator")) );
+}
+
 int
 main()
 {
   test01();
   test02();
+  test03();
 }

@@ -1,6 +1,6 @@
 // auto_ptr implementation -*- C++ -*-
 
-// Copyright (C) 2007-2022 Free Software Foundation, Inc.
+// Copyright (C) 2007-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -48,7 +48,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     struct auto_ptr_ref
     {
       _Tp1* _M_ptr;
-      
+
       explicit
       auto_ptr_ref(_Tp1* __p): _M_ptr(__p) { }
     } _GLIBCXX11_DEPRECATED;
@@ -84,17 +84,21 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  _GLIBCXX_RESOLVE_LIB_DEFECTS
    *  127.  auto_ptr<> conversion issues
    *  These resolutions have all been incorporated.
+   *
+   * @headerfile memory
+   * @deprecated Deprecated in C++11, no longer in the standard since C++17.
+   * Use `unique_ptr` instead.
    */
   template<typename _Tp>
     class auto_ptr
     {
     private:
       _Tp* _M_ptr;
-      
+
     public:
       /// The pointed-to type.
       typedef _Tp element_type;
-      
+
       /**
        *  @brief  An %auto_ptr is usually constructed from a raw pointer.
        *  @param  __p  A pointer (defaults to NULL).
@@ -170,7 +174,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  prohibited.  [17.4.3.6]/2
        */
       ~auto_ptr() { delete _M_ptr; }
-      
+
       /**
        *  @brief  Smart pointer dereferencing.
        *
@@ -180,12 +184,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  what happens when you dereference one of those...)
        */
       element_type&
-      operator*() const throw() 
+      operator*() const throw()
       {
 	__glibcxx_assert(_M_ptr != 0);
-	return *_M_ptr; 
+	return *_M_ptr;
       }
-      
+
       /**
        *  @brief  Smart pointer dereferencing.
        *
@@ -193,12 +197,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  automatically cause to be dereferenced.
        */
       element_type*
-      operator->() const throw() 
+      operator->() const throw()
       {
 	__glibcxx_assert(_M_ptr != 0);
-	return _M_ptr; 
+	return _M_ptr;
       }
-      
+
       /**
        *  @brief  Bypassing the smart pointer.
        *  @return  The raw pointer being managed.
@@ -211,7 +215,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        */
       element_type*
       get() const throw() { return _M_ptr; }
-      
+
       /**
        *  @brief  Bypassing the smart pointer.
        *  @return  The raw pointer being managed.
@@ -230,7 +234,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_M_ptr = 0;
 	return __tmp;
       }
-      
+
       /**
        *  @brief  Forcibly deletes the managed object.
        *  @param  __p  A pointer (defaults to NULL).
@@ -247,8 +251,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	    _M_ptr = __p;
 	  }
       }
-      
-      /** 
+
+      /**
        *  @brief  Automatic conversions
        *
        *  These operations are supposed to convert an %auto_ptr into and from
@@ -261,11 +265,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  @endcode
        *
        *  But it doesn't work, and won't be fixed. For further details see
-       *  http://cplusplus.github.io/LWG/lwg-closed.html#463
+       *  https://cplusplus.github.io/LWG/lwg-closed.html#463
        */
       auto_ptr(auto_ptr_ref<element_type> __ref) throw()
       : _M_ptr(__ref._M_ptr) { }
-      
+
       auto_ptr&
       operator=(auto_ptr_ref<element_type> __ref) throw()
       {
@@ -276,7 +280,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  }
 	return *this;
       }
-      
+
       template<typename _Tp1>
         operator auto_ptr_ref<_Tp1>() throw()
         { return auto_ptr_ref<_Tp1>(this->release()); }
@@ -296,6 +300,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     } _GLIBCXX11_DEPRECATED;
 
 #if __cplusplus >= 201103L
+#if _GLIBCXX_HOSTED
   template<_Lock_policy _Lp>
   template<typename _Tp>
     inline
@@ -321,13 +326,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     inline
     shared_ptr<_Tp>::shared_ptr(std::auto_ptr<_Tp1>&& __r)
     : __shared_ptr<_Tp>(std::move(__r)) { }
+#endif // HOSTED
 
   template<typename _Tp, typename _Dp>
   template<typename _Up, typename>
     inline
     unique_ptr<_Tp, _Dp>::unique_ptr(auto_ptr<_Up>&& __u) noexcept
     : _M_t(__u.release(), deleter_type()) { }
-#endif
+#endif // C++11
 
 #pragma GCC diagnostic pop
 

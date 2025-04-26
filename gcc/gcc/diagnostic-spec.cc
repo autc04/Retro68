@@ -1,6 +1,6 @@
 /* Functions to enable and disable individual warnings on an expression
    and statement basis.
-   Copyright (C) 2021-2022 Free Software Foundation, Inc.
+   Copyright (C) 2021-2025 Free Software Foundation, Inc.
    Contributed by Martin Sebor <msebor@redhat.com>
 
    This file is part of GCC.
@@ -79,7 +79,6 @@ nowarn_spec_t::nowarn_spec_t (opt_code opt)
       break;
 
       /* Access warning group.  */
-    case OPT_Warray_bounds:
     case OPT_Warray_bounds_:
     case OPT_Wformat_overflow_:
     case OPT_Wformat_truncation_:
@@ -96,13 +95,18 @@ nowarn_spec_t::nowarn_spec_t (opt_code opt)
     case OPT_Winit_self:
     case OPT_Wuninitialized:
     case OPT_Wmaybe_uninitialized:
-	m_bits = NW_UNINIT;
+      m_bits = NW_UNINIT;
       break;
 
     case OPT_Wdangling_pointer_:
     case OPT_Wreturn_local_addr:
     case OPT_Wuse_after_free_:
       m_bits = NW_DANGLING;
+      break;
+
+    case OPT_Wpessimizing_move:
+    case OPT_Wredundant_move:
+      m_bits = NW_REDUNDANT;
       break;
 
     default:
@@ -173,6 +177,27 @@ suppress_warning_at (location_t loc, opt_code opt /* = all_warnings */,
 
   nowarn_map->put (loc, optspec);
   return true;
+}
+
+/* Change the warning disposition for LOC to match OPTSPEC.  */
+
+void
+put_warning_spec_at (location_t loc, unsigned bits)
+{
+  gcc_checking_assert (!RESERVED_LOCATION_P (loc));
+
+  nowarn_spec_t optspec = nowarn_spec_t::from_bits (bits);
+  if (!optspec)
+    {
+      if (nowarn_map)
+	nowarn_map->remove (loc);
+    }
+  else
+    {
+      if (!nowarn_map)
+	nowarn_map = nowarn_map_t::create_ggc (32);
+      nowarn_map->put (loc, optspec);
+    }
 }
 
 /* Copy the no-warning disposition from one location to another.  */

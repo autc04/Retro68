@@ -1,6 +1,6 @@
 // TR1 wchar.h -*- C++ -*-
 
-// Copyright (C) 2006-2022 Free Software Foundation, Inc.
+// Copyright (C) 2006-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -23,11 +23,13 @@
 // <http://www.gnu.org/licenses/>.
 
 /** @file tr1/wchar.h
- *  This is a TR1 C++ Library header. 
+ *  This is a TR1 C++ Library header.
  */
 
 #ifndef _GLIBCXX_TR1_WCHAR_H
 #define _GLIBCXX_TR1_WCHAR_H 1
+
+#include <bits/requires_hosted.h> // TR1
 
 #include <tr1/cwchar>
 

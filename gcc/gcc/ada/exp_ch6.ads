@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -47,8 +47,8 @@ package Exp_Ch6 is
    --  nodes (e.g. the filling of the corresponding Dispatch Table for
    --  Primitive Operations)
 
-   --  The following type defines the various forms of allocation used for the
-   --  results of build-in-place function calls.
+   --  Ada 2005 (AI-318-02): The following type defines the various forms of
+   --  allocation used for the result of build-in-place function calls.
 
    type BIP_Allocation_Form is
      (Unspecified,
@@ -57,26 +57,28 @@ package Exp_Ch6 is
       Global_Heap,
       User_Storage_Pool);
 
-   type BIP_Formal_Kind is
    --  Ada 2005 (AI-318-02): This type defines the kinds of implicit extra
    --  formals created for build-in-place functions. The order of these
    --  enumeration literals matches the order in which the formals are
    --  declared. See Sem_Ch6.Create_Extra_Formals.
 
+   type BIP_Formal_Kind is
      (BIP_Alloc_Form,
-      --  Present if result subtype is unconstrained or tagged. Indicates
-      --  whether the return object is allocated by the caller or callee, and
-      --  if the callee, whether to use the secondary stack or the heap. See
-      --  Create_Extra_Formals.
+      --  Present if result subtype is returned on the secondary stack or is
+      --  tagged: in this case, this indicates whether the return object is
+      --  allocated by the caller or callee, and if the callee, whether to
+      --  use the secondary stack, the global heap or a storage pool. Also
+      --  present if result type needs finalization.
 
       BIP_Storage_Pool,
-      --  Present if result subtype is unconstrained or tagged. If
-      --  BIP_Alloc_Form = User_Storage_Pool, this is a pointer to the pool
-      --  (of type access to Root_Storage_Pool'Class). Otherwise null.
+      --  Present if result subtype is returned on the secondary stack or is
+      --  tagged: in this case, if BIP_Alloc_Form = User_Storage_Pool, this
+      --  is a pointer to the pool (of type Root_Storage_Pool_Ptr); otherwise
+      --  this is null. Also present if result type needs finalization.
 
-      BIP_Finalization_Master,
-      --  Present if result type needs finalization. Pointer to caller's
-      --  finalization master.
+      BIP_Collection,
+      --  Present if result type needs finalization. Pointer to the collection
+      --  of the access type used by the caller.
 
       BIP_Task_Master,
       --  Present if result type contains tasks. Master associated with
@@ -98,6 +100,16 @@ package Exp_Ch6 is
       Extra_Actual    : Node_Id);
    --  Adds Extra_Actual as a named parameter association for the formal
    --  Extra_Formal in Subprogram_Call.
+
+   procedure Apply_CW_Accessibility_Check (Exp : Node_Id; Func : Entity_Id);
+   --  Ada 2005 (AI95-344): If the result type is class-wide, insert a check
+   --  that the level of the return expression's underlying type is not deeper
+   --  than the level of the master enclosing the function. Always generate the
+   --  check when the type of the return expression is class-wide, when it's a
+   --  type conversion, or when it's a formal parameter. Otherwise suppress the
+   --  check in the case where the return expression has a specific type whose
+   --  level is known not to be statically deeper than the result type of the
+   --  function.
 
    function BIP_Formal_Suffix (Kind : BIP_Formal_Kind) return String;
    --  Ada 2005 (AI-318-02): Returns a string to be used as the suffix of names
@@ -121,27 +133,23 @@ package Exp_Ch6 is
    --  The returned node is the root of the procedure body which will replace
    --  the original function body, which is not needed for the C program.
 
+   function Has_BIP_Extra_Formal
+     (E              : Entity_Id;
+      Kind           : BIP_Formal_Kind;
+      Must_Be_Frozen : Boolean := True) return Boolean;
+   --  Given a subprogram, subprogram type, entry or entry family, return True
+   --  if E has the BIP extra formal associated with Kind. In general this
+   --  subprogram must be invoked with a frozen entity or a subprogram type of
+   --  a dispatching call since we can only rely on the availability of extra
+   --  formals on these entities; this requirement can be relaxed using the
+   --  formal Must_Be_Frozen in scenarios where we know that the entity has
+   --  the extra formals.
+
    procedure Install_Class_Preconditions_Check (Call_Node : Node_Id);
    --  Install check of class-wide preconditions on the caller.
 
    function Is_Build_In_Place_Entity (E : Entity_Id) return Boolean;
    --  Ada 2005 (AI-318-02): Returns True if E is a BIP entity.
-
-   function Is_Build_In_Place_Result_Type (Typ : Entity_Id) return Boolean;
-   --  Ada 2005 (AI-318-02): Returns True if functions returning the type use
-   --  build-in-place protocols. For inherently limited types, this must be
-   --  True in >= Ada 2005, and must be False in Ada 95. For other types, it
-   --  can be True or False, and the decision should be based on efficiency,
-   --  and should be the same for all language versions, so that mixed-dialect
-   --  programs will work.
-   --
-   --  For inherently limited types in Ada 2005, True means that calls will
-   --  actually be build-in-place in all cases. For other types, build-in-place
-   --  will be used when possible, but we need to make a copy in some
-   --  cases. For example, for "X := F(...);" if F can see X, or if F can
-   --  propagate exceptions, we need to store its result in a temp in general,
-   --  and copy the temp into X. Also, for "return Global_Var;" Global_Var
-   --  needs to be copied into the function result object.
 
    function Is_Build_In_Place_Function (E : Entity_Id) return Boolean;
    --  Ada 2005 (AI-318-02): Returns True if E denotes a function, generic
@@ -155,9 +163,33 @@ package Exp_Ch6 is
    --  that requires handling as a build-in-place call (possibly qualified or
    --  converted).
 
+   function Is_Build_In_Place_Result_Type (Typ : Entity_Id) return Boolean;
+   --  Ada 2005 (AI-318-02): Returns True if functions returning the type use
+   --  build-in-place protocols. For inherently limited types, this must be
+   --  True in >= Ada 2005 and must be False in Ada 95.
+
+   function Is_Build_In_Place_Return_Object (E : Entity_Id) return Boolean;
+   --  Ada 2005 (AI-318-02): Return True if E is a return object of a function
+   --  that uses build-in-place protocols.
+
+   function Is_By_Reference_Return_Object (E : Entity_Id) return Boolean;
+   --  Return True if E is a return object of a function whose return type is
+   --  required to be passed by reference, as defined in (RM 6.2(4-9)).
+
    function Is_Null_Procedure (Subp : Entity_Id) return Boolean;
    --  Predicate to recognize stubbed procedures and null procedures, which
    --  can be inlined unconditionally in all cases.
+
+   function Is_Secondary_Stack_Return_Object (E : Entity_Id) return Boolean;
+   --  Return True if E is a return object of a function whose return type is
+   --  returned on the secondary stack.
+
+   function Is_Special_Return_Object (E : Entity_Id) return Boolean;
+   --  Return True if E is the return object of a function and is handled in a
+   --  special way by the expander. In most cases, return objects are handled
+   --  like any other variables or constants but, in a few special cases, they
+   --  are further expanded into more elaborate constructs, whose common goal
+   --  is to elide the copy operation associated with the return.
 
    procedure Make_Build_In_Place_Call_In_Allocator
      (Allocator     : Node_Id;
@@ -255,7 +287,7 @@ package Exp_Ch6 is
    --  Ada 2005 (AI-318-02): Return True if the function needs an implicit
    --  BIP_Alloc_Form parameter (see type BIP_Formal_Kind).
 
-   function Needs_BIP_Finalization_Master (Func_Id : Entity_Id) return Boolean;
+   function Needs_BIP_Collection (Func_Id : Entity_Id) return Boolean;
    --  Ada 2005 (AI-318-02): Return True if the result subtype of function
    --  Func_Id might need finalization actions. This includes build-in-place
    --  functions with tagged result types, since they can be invoked via
@@ -271,5 +303,13 @@ package Exp_Ch6 is
    --  an expression containing a call displacing the pointer to the BIP object
    --  to reference the secondary dispatch table of an interface; otherwise
    --  return Empty.
+
+   procedure Validate_Subprogram_Calls (N : Node_Id);
+   --  Check that the number of actuals (including extra actuals) of calls in
+   --  the subtree N match their corresponding formals; check also that the
+   --  names of BIP extra actuals and formals match.
+
+private
+   pragma Inline (Is_Build_In_Place_Return_Object);
 
 end Exp_Ch6;

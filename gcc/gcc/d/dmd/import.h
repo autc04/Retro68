@@ -1,6 +1,6 @@
 
 /* Compiler implementation of the D programming language
- * Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * written by Walter Bright
  * https://www.digitalmars.com
  * Distributed under the Boost Software License, Version 1.0.
@@ -17,7 +17,7 @@ struct Scope;
 class Module;
 class Package;
 
-class Import : public Dsymbol
+class Import final : public Dsymbol
 {
 public:
     /* static import aliasId = pkg1.pkg2.id : alias1 = name1, alias2 = name2;
@@ -38,17 +38,11 @@ public:
 
     AliasDeclarations aliasdecls; // corresponding AliasDeclarations for alias=name pairs
 
-    const char *kind() const;
-    Visibility visible();
-    Import *syntaxCopy(Dsymbol *s);    // copy only syntax trees
-    void load(Scope *sc);
-    void importAll(Scope *sc);
-    Dsymbol *toAlias();
-    void addMember(Scope *sc, ScopeDsymbol *sds);
-    void setScope(Scope* sc);
-    Dsymbol *search(const Loc &loc, Identifier *ident, int flags = SearchLocalsOnly);
-    bool overloadInsert(Dsymbol *s);
+    const char *kind() const override;
+    Visibility visible() override;
+    Import *syntaxCopy(Dsymbol *s) override; // copy only syntax trees
+    Dsymbol *toAlias() override;
+    bool overloadInsert(Dsymbol *s) override;
 
-    Import *isImport() { return this; }
-    void accept(Visitor *v) { v->visit(this); }
+    void accept(Visitor *v) override { v->visit(this); }
 };

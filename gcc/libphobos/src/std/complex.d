@@ -156,7 +156,7 @@ if (isFloatingPoint!T)
 
     /// ditto
     void toString(Writer, Char)(scope Writer w, scope const ref FormatSpec!Char formatSpec) const
-        if (isOutputRange!(Writer, const(Char)[]))
+    if (isOutputRange!(Writer, const(Char)[]))
     {
         import std.format.write : formatValue;
         import std.math.traits : signbit;
@@ -231,14 +231,14 @@ if (isFloatingPoint!T)
 
     // +complex
     Complex opUnary(string op)() const
-        if (op == "+")
+    if (op == "+")
     {
         return this;
     }
 
     // -complex
     Complex opUnary(string op)() const
-        if (op == "-")
+    if (op == "-")
     {
         return Complex(-re, -im);
     }
@@ -255,7 +255,7 @@ if (isFloatingPoint!T)
 
     // complex op numeric
     Complex!(CommonType!(T,R)) opBinary(string op, R)(const R r) const
-        if (isNumeric!R)
+    if (isNumeric!R)
     {
         alias C = typeof(return);
         auto w = C(this.re, this.im);
@@ -264,21 +264,21 @@ if (isFloatingPoint!T)
 
     // numeric + complex,  numeric * complex
     Complex!(CommonType!(T, R)) opBinaryRight(string op, R)(const R r) const
-        if ((op == "+" || op == "*") && (isNumeric!R))
+    if ((op == "+" || op == "*") && (isNumeric!R))
     {
         return opBinary!(op)(r);
     }
 
     // numeric - complex
     Complex!(CommonType!(T, R)) opBinaryRight(string op, R)(const R r) const
-        if (op == "-" && isNumeric!R)
+    if (op == "-" && isNumeric!R)
     {
         return Complex(r - re, -im);
     }
 
     // numeric / complex
     Complex!(CommonType!(T, R)) opBinaryRight(string op, R)(const R r) const
-        if (op == "/" && isNumeric!R)
+    if (op == "/" && isNumeric!R)
     {
         version (FastMath)
         {
@@ -320,7 +320,7 @@ if (isFloatingPoint!T)
 
     // numeric ^^ complex
     Complex!(CommonType!(T, R)) opBinaryRight(string op, R)(const R lhs) const
-        if (op == "^^" && isNumeric!R)
+    if (op == "^^" && isNumeric!R)
     {
         import core.math : cos, sin;
         import std.math.exponential : exp, log;
@@ -349,7 +349,7 @@ if (isFloatingPoint!T)
 
     // complex += complex,  complex -= complex
     ref Complex opOpAssign(string op, C)(const C z)
-        if ((op == "+" || op == "-") && is(C R == Complex!R))
+    if ((op == "+" || op == "-") && is(C R == Complex!R))
     {
         mixin ("re "~op~"= z.re;");
         mixin ("im "~op~"= z.im;");
@@ -358,7 +358,7 @@ if (isFloatingPoint!T)
 
     // complex *= complex
     ref Complex opOpAssign(string op, C)(const C z)
-        if (op == "*" && is(C R == Complex!R))
+    if (op == "*" && is(C R == Complex!R))
     {
         auto temp = re*z.re - im*z.im;
         im = im*z.re + re*z.im;
@@ -368,7 +368,7 @@ if (isFloatingPoint!T)
 
     // complex /= complex
     ref Complex opOpAssign(string op, C)(const C z)
-        if (op == "/" && is(C R == Complex!R))
+    if (op == "/" && is(C R == Complex!R))
     {
         version (FastMath)
         {
@@ -409,7 +409,7 @@ if (isFloatingPoint!T)
 
     // complex ^^= complex
     ref Complex opOpAssign(string op, C)(const C z)
-        if (op == "^^" && is(C R == Complex!R))
+    if (op == "^^" && is(C R == Complex!R))
     {
         import core.math : cos, sin;
         import std.math.exponential : exp, log;
@@ -425,7 +425,7 @@ if (isFloatingPoint!T)
 
     // complex += numeric,  complex -= numeric
     ref Complex opOpAssign(string op, U : T)(const U a)
-        if (op == "+" || op == "-")
+    if (op == "+" || op == "-")
     {
         mixin ("re "~op~"= a;");
         return this;
@@ -433,7 +433,7 @@ if (isFloatingPoint!T)
 
     // complex *= numeric,  complex /= numeric
     ref Complex opOpAssign(string op, U : T)(const U a)
-        if (op == "*" || op == "/")
+    if (op == "*" || op == "/")
     {
         mixin ("re "~op~"= a;");
         mixin ("im "~op~"= a;");
@@ -442,7 +442,7 @@ if (isFloatingPoint!T)
 
     // complex ^^= real
     ref Complex opOpAssign(string op, R)(const R r)
-        if (op == "^^" && isFloatingPoint!R)
+    if (op == "^^" && isFloatingPoint!R)
     {
         import core.math : cos, sin;
         immutable ab = abs(this)^^r;
@@ -454,7 +454,7 @@ if (isFloatingPoint!T)
 
     // complex ^^= int
     ref Complex opOpAssign(string op, U)(const U i)
-        if (op == "^^" && isIntegral!U)
+    if (op == "^^" && isIntegral!U)
     {
         switch (i)
         {
@@ -477,6 +477,20 @@ if (isFloatingPoint!T)
             this ^^= cast(real) i;
         }
         return this;
+    }
+
+    /** Returns a complex number instance that correponds in size and in ABI
+        to the associated C compiler's `_Complex` type.
+     */
+    auto toNative()
+    {
+        import core.stdc.config : c_complex_float, c_complex_double, c_complex_real;
+        static if (is(T == float))
+            return c_complex_float(re, im);
+        else static if (is(T == double))
+            return c_complex_double(re, im);
+        else
+            return c_complex_real(re, im);
     }
 }
 
@@ -935,7 +949,7 @@ Complex!(CommonType!(T, U)) fromPolar(T, U)(const T modulus, const U argument)
     import std.math.operations : isClose;
     import std.math.algebraic : sqrt;
     import std.math.constants : PI_4;
-    auto z = fromPolar(core.math.sqrt(2.0), PI_4);
+    auto z = fromPolar(core.math.sqrt(2.0L), PI_4);
     assert(isClose(z.re, 1.0L));
     assert(isClose(z.im, 1.0L));
 }
@@ -1052,7 +1066,7 @@ Complex!T asin(T)(Complex!T z)  @safe pure nothrow @nogc
 {
     import std.math.operations : isClose;
     import std.math.constants : PI;
-    version (DigitalMars) {} else // Disabled because of issue 21376
+    version (DigitalMars) {} else // Disabled because of https://issues.dlang.org/show_bug.cgi?id=21376
     assert(isClose(asin(complex(0.5f)), float(PI) / 6));
 }
 
@@ -1078,7 +1092,7 @@ Complex!T acos(T)(Complex!T z)  @safe pure nothrow @nogc
 {
     import std.math.operations : isClose;
     import std.math.constants : PI;
-    version (DigitalMars) {} else // Disabled because of issue 21376
+    version (DigitalMars) {} else // Disabled because of https://issues.dlang.org/show_bug.cgi?id=21376
     assert(isClose(acos(complex(0.5f)), float(PI) / 3));
 }
 
@@ -1695,9 +1709,9 @@ Complex!T log(T)(Complex!T x) @safe pure nothrow @nogc
  */
 Complex!T log10(T)(Complex!T x) @safe pure nothrow @nogc
 {
-    static import std.math;
+    import std.math.constants : LN10;
 
-    return log(x) / Complex!T(std.math.log(10.0));
+    return log(x) / Complex!T(LN10);
 }
 
 ///
@@ -1878,7 +1892,7 @@ Complex!T pow(T)(const T x, Complex!T n) @trusted pure nothrow @nogc
 @safe pure nothrow @nogc unittest
 {
     import std.meta : AliasSeq;
-    import std.math : RealFormat, floatTraits;
+    import std.math.traits : floatTraits, RealFormat;
     static foreach (T; AliasSeq!(float, double, real))
     {{
          static if (floatTraits!T.realFormat == RealFormat.ibmExtended)
@@ -1908,5 +1922,16 @@ Complex!T pow(T)(const T x, Complex!T n) @trusted pure nothrow @nogc
              assert(abs(ref2 - res4) < eps);
              assert(abs(res3 - res4) < eps);
          }
+    }}
+}
+
+@safe pure nothrow @nogc unittest
+{
+    import std.meta : AliasSeq;
+    static foreach (T; AliasSeq!(float, double, real))
+    {{
+         auto c = Complex!T(123, 456);
+         auto n = c.toNative();
+         assert(c.re == n.re && c.im == n.im);
     }}
 }

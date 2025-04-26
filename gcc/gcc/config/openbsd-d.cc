@@ -1,5 +1,5 @@
 /* Functions for generic OpenBSD as target machine for GNU D compiler.
-   Copyright (C) 2021-2022 Free Software Foundation, Inc.
+   Copyright (C) 2021-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,9 +20,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "memmodel.h"
 #include "tm.h"
-#include "tm_p.h"
+#include "tm_d.h"
 #include "d/d-target.h"
 #include "d/d-target-def.h"
 

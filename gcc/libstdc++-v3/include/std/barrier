@@ -1,6 +1,6 @@
 // <barrier> -*- C++ -*-
 
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -13,8 +13,13 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
-// You should have received a copy of the GNU General Public License along
-// with this library; see the file COPYING3.  If not see
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 // <http://www.gnu.org/licenses/>.
 
 // This implementation is based on libcxx/include/barrier
@@ -33,17 +38,21 @@
 #ifndef _GLIBCXX_BARRIER
 #define _GLIBCXX_BARRIER 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
-#if __cplusplus > 201703L
+#include <bits/requires_hosted.h> // threading primitive
+
+#define __glibcxx_want_barrier
+#include <bits/version.h>
+
+#ifdef __cpp_lib_barrier // C++ >= 20 && __cpp_aligned_new && lib_atomic_wait
 #include <bits/atomic_base.h>
-#if __cpp_lib_atomic_wait && __cpp_aligned_new
 #include <bits/std_thread.h>
 #include <bits/unique_ptr.h>
 
 #include <array>
-
-#define __cpp_lib_barrier 201907L
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -254,6 +263,5 @@ It looks different from literature pseudocode for two main reasons:
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
-#endif // __cpp_lib_atomic_wait && __cpp_aligned_new
-#endif // __cplusplus > 201703L
+#endif // __cpp_lib_barrier
 #endif // _GLIBCXX_BARRIER

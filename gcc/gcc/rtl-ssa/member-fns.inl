@@ -1,5 +1,5 @@
 // Implementation of public inline member functions for RTL SSA     -*- C++ -*-
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -41,7 +41,8 @@ access_array_builder::quick_push (access_info *access)
 inline array_slice<access_info *>
 access_array_builder::finish ()
 {
-  auto num_accesses = obstack_object_size (m_obstack) / sizeof (access_info *);
+  unsigned num_accesses
+    = obstack_object_size (m_obstack) / sizeof (access_info *);
   if (num_accesses == 0)
     return {};
 
@@ -115,6 +116,15 @@ use_info::next_any_insn_use () const
   // seem worth having an m_is_last_nondebug_insn_use-style end marker.
   if (use_info *use = next_use ())
     if (use->is_in_any_insn ())
+      return use;
+  return nullptr;
+}
+
+inline use_info *
+use_info::next_debug_insn_use () const
+{
+  if (auto use = next_use ())
+    if (use->is_in_debug_insn ())
       return use;
   return nullptr;
 }
@@ -213,9 +223,23 @@ set_info::last_nondebug_insn_use () const
 }
 
 inline use_info *
+set_info::first_debug_insn_use () const
+{
+  use_info *use;
+  if (has_nondebug_insn_uses ())
+    use = last_nondebug_insn_use ()->next_use ();
+  else
+    use = first_use ();
+
+  if (use && use->is_in_debug_insn ())
+    return use;
+  return nullptr;
+}
+
+inline use_info *
 set_info::first_any_insn_use () const
 {
-  if (m_first_use->is_in_any_insn ())
+  if (m_first_use && m_first_use->is_in_any_insn ())
     return m_first_use;
   return nullptr;
 }
@@ -308,6 +332,12 @@ inline iterator_range<nondebug_insn_use_iterator>
 set_info::nondebug_insn_uses () const
 {
   return { first_nondebug_insn_use (), nullptr };
+}
+
+inline iterator_range<debug_insn_use_iterator>
+set_info::debug_insn_uses () const
+{
+  return { first_debug_insn_use (), nullptr };
 }
 
 inline iterator_range<reverse_use_iterator>
@@ -484,7 +514,7 @@ insn_info::operator< (const insn_info &other) const
   if (this == &other)
     return false;
 
-  if (__builtin_expect (m_point != other.m_point, 1))
+  if (LIKELY (m_point != other.m_point))
     return m_point < other.m_point;
 
   return slow_compare_with (other) < 0;
@@ -514,7 +544,7 @@ insn_info::compare_with (const insn_info *other) const
   if (this == other)
     return 0;
 
-  if (__builtin_expect (m_point != other->m_point, 1))
+  if (LIKELY (m_point != other->m_point))
     // Assume that points remain in [0, INT_MAX].
     return m_point - other->m_point;
 
@@ -525,7 +555,7 @@ inline insn_info *
 insn_info::prev_nondebug_insn () const
 {
   gcc_checking_assert (!is_debug_insn ());
-  return m_prev_insn_or_last_debug_insn.known_first ();
+  return m_prev_sametype_or_last_debug_insn.known_first ();
 }
 
 inline insn_info *
@@ -541,12 +571,23 @@ insn_info::next_nondebug_insn () const
 inline insn_info *
 insn_info::prev_any_insn () const
 {
-  const insn_info *from = this;
-  if (insn_info *last_debug = m_prev_insn_or_last_debug_insn.second_or_null ())
+  if (auto *last_debug = m_prev_sametype_or_last_debug_insn.second_or_null ())
     // This instruction is the first in a subsequence of debug instructions.
-    // Move to the following nondebug instruction.
-    from = last_debug->m_next_nondebug_or_debug_insn.known_first ();
-  return from->m_prev_insn_or_last_debug_insn.known_first ();
+    // Move to the following nondebug instruction and get the previous one
+    // from there.
+    return (last_debug->m_next_nondebug_or_debug_insn.known_first ()
+	    ->m_prev_sametype_or_last_debug_insn.known_first ());
+  auto *prev = m_prev_sametype_or_last_debug_insn.known_first ();
+  if (prev)
+    {
+      auto *next = prev->next_any_insn ();
+      if (next != this)
+	// This instruction is a non-debug instruction and there are some
+	// debug instructions between it and PREV.  NEXT is the first of
+	// the debug instructions; get the last.
+	return next->m_prev_sametype_or_last_debug_insn.known_second ();
+    }
+  return prev;
 }
 
 inline insn_info *
@@ -634,7 +675,7 @@ insn_info::find_note () const
 inline insn_info *
 insn_info::last_debug_insn () const
 {
-  return m_prev_insn_or_last_debug_insn.known_second ();
+  return m_prev_sametype_or_last_debug_insn.known_second ();
 }
 
 inline insn_range_info::insn_range_info (insn_info *first, insn_info *last)
@@ -841,21 +882,6 @@ inline insn_change::insn_change (insn_info *insn, delete_action)
 {
 }
 
-inline insn_is_changing_closure::
-insn_is_changing_closure (array_slice<insn_change *const> changes)
-  : m_changes (changes)
-{
-}
-
-inline bool
-insn_is_changing_closure::operator() (const insn_info *insn) const
-{
-  for (const insn_change *change : m_changes)
-    if (change->insn () == insn)
-      return true;
-  return false;
-}
-
 inline iterator_range<bb_iterator>
 function_info::bbs () const
 {
@@ -916,6 +942,15 @@ function_info::reg_defs (unsigned int regno) const
   return { m_defs[regno + 1], nullptr };
 }
 
+inline bool
+function_info::is_single_dominating_def (const set_info *set) const
+{
+  return (set->is_first_def ()
+	  && set->is_last_def ()
+	  && (!HARD_REGISTER_NUM_P (set->regno ())
+	      || !TEST_HARD_REG_BIT (m_clobbered_by_calls, set->regno ())));
+}
+
 inline set_info *
 function_info::single_dominating_def (unsigned int regno) const
 {
@@ -925,11 +960,11 @@ function_info::single_dominating_def (unsigned int regno) const
   return nullptr;
 }
 
-template<typename IgnorePredicate>
+template<typename IgnorePredicates>
 bool
 function_info::add_regno_clobber (obstack_watermark &watermark,
 				  insn_change &change, unsigned int regno,
-				  IgnorePredicate ignore)
+				  IgnorePredicates ignore)
 {
   // Check whether CHANGE already clobbers REGNO.
   if (find_access (change.new_defs, regno))
@@ -951,6 +986,34 @@ function_info::add_regno_clobber (obstack_watermark &watermark,
   change.new_defs = new_defs;
   change.move_range = move_range;
   return true;
+}
+
+template<typename T, typename... Ts>
+inline T *
+function_info::change_alloc (obstack_watermark &wm, Ts... args)
+{
+  static_assert (std::is_trivially_destructible<T>::value,
+		 "destructor won't be called");
+  static_assert (alignof (T) <= obstack_alignment,
+		 "too much alignment required");
+  void *addr = XOBNEW (wm, T);
+  return new (addr) T (std::forward<Ts> (args)...);
+}
+
+inline
+ignore_changing_insns::
+ignore_changing_insns (array_slice<insn_change *const> changes)
+  : m_changes (changes)
+{
+}
+
+inline bool
+ignore_changing_insns::should_ignore_insn (const insn_info *insn)
+{
+  for (const insn_change *change : m_changes)
+    if (change->insn () == insn)
+      return true;
+  return false;
 }
 
 }

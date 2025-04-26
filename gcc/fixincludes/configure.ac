@@ -68,6 +68,14 @@ if test $TARGET = twoprocess; then
 		  [Define if testing and fixing are done by separate process])
 fi
 
+# Enable --enable-host-pie.
+AC_ARG_ENABLE(host-pie,
+[AS_HELP_STRING([--enable-host-pie],
+       [build host code as PIE])],
+[PICFLAG=-fPIE; LD_PICFLAG=-pie], [])
+AC_SUBST(PICFLAG)
+AC_SUBST(LD_PICFLAG)
+
 case $host in
 	vax-dec-bsd* )
 		AC_DEFINE(exit, xexit, [Define to xexit if the host system does not support atexit])
@@ -88,7 +96,7 @@ define(fixincludes_UNLOCKED_FUNCS, clearerr_unlocked feof_unlocked dnl
   fread_unlocked fwrite_unlocked getchar_unlocked getc_unlocked dnl
   putchar_unlocked putc_unlocked)
 AC_CHECK_FUNCS(fixincludes_UNLOCKED_FUNCS)
-AC_CHECK_DECLS([abort, asprintf, basename(char *), errno, vasprintf])
+AC_CHECK_DECLS([abort, asprintf, basename(char *), errno, vasprintf, memmem])
 AC_CHECK_DECLS(m4_split(m4_normalize(fixincludes_UNLOCKED_FUNCS)))
 
 # Checks for typedefs, structures, and compiler characteristics.

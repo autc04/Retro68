@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,10 +17,7 @@
 
 // only: float|double|ldouble * * *
 // expensive: * [1-9] * *
-#include "bits/verify.h"
-#include "bits/metahelpers.h"
-#include "bits/mathreference.h"
-#include "bits/test_values.h"
+#include "bits/main.h"
 
 template <typename V>
   void
@@ -30,11 +27,13 @@ template <typename V>
     vir::test::setFuzzyness<double>(1);
 
     using T = typename V::value_type;
+#ifdef __STDC_IEC_559__
     constexpr T nan = std::__quiet_NaN_v<T>;
     constexpr T inf = std::__infinity_v<T>;
     constexpr T denorm_min = std::__denorm_min_v<T>;
-    constexpr T norm_min = std::__norm_min_v<T>;
     constexpr T min = std::__finite_min_v<T>;
+#endif
+    constexpr T norm_min = std::__norm_min_v<T>;
     constexpr T max = std::__finite_max_v<T>;
     test_values<V>({1,
 		    2,

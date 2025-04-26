@@ -45,7 +45,6 @@ version (X86_64)  version = X86_Any;
 
 version (Posix):
 extern (C) nothrow @nogc:
-@system:
 
 //
 // Advisory Information (ADV)
@@ -382,6 +381,8 @@ version (linux)
     else version (SPARC_Any)
         private enum DEFAULTS = true;
     else version (PPC_Any)
+        private enum DEFAULTS = true;
+    else version (LoongArch64)
         private enum DEFAULTS = true;
     else
         static assert(0, "unimplemented");

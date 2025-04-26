@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2002-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -71,8 +71,7 @@ package GNAT.Exception_Actions is
    --  If Action is null, this will in effect cancel all exception actions.
 
    procedure Register_Global_Unhandled_Action (Action : Exception_Action);
-   --  Similar to Register_Global_Action, called on unhandled exceptions
-   --  only.
+   --  Similar to Register_Global_Action, called on unhandled exceptions only
 
    procedure Register_Id_Action
      (Id     : Exception_Id;
@@ -90,7 +89,14 @@ package GNAT.Exception_Actions is
    --  an exception that is declared within an unlabeled block.
    --
    --  Note: All non-predefined exceptions will return Null_Id for programs
-   --  compiled with pragma Restriction (No_Exception_Registration)
+   --  compiled with pragma Restrictions (No_Exception_Registration).
+
+   type Exception_Languages is (EL_Unknown, EL_Ada, EL_Cpp);
+   --  Return type for Exception_Language.
+
+   function Exception_Language
+     (E : Exception_Occurrence) return Exception_Languages;
+   --  Return the language from which the exception originates.
 
    function Is_Foreign_Exception (E : Exception_Occurrence) return Boolean;
    --  Tell whether the exception occurrence E represents a foreign exception,

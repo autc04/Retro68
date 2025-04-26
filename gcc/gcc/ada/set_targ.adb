@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2013-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2013-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,7 +31,7 @@ with Output;   use Output;
 with System;        use System;
 with System.OS_Lib; use System.OS_Lib;
 
-with Unchecked_Conversion;
+with Ada.Unchecked_Conversion;
 
 package body Set_Targ is
 
@@ -404,7 +404,7 @@ package body Set_Targ is
       --  Pointer to Nat or Pos value (it is harmless to treat Pos values and
       --  Nat values as Natural via Unchecked_Conversion).
 
-      function To_ANat is new Unchecked_Conversion (Address, ANat);
+      function To_ANat is new Ada.Unchecked_Conversion (Address, ANat);
 
       procedure AddC (C : Character);
       --  Add one character to buffer
@@ -566,7 +566,7 @@ package body Set_Targ is
       --  Pointer to Nat or Pos value (it is harmless to treat Pos values
       --  as Nat via Unchecked_Conversion).
 
-      function To_ANat is new Unchecked_Conversion (Address, ANat);
+      function To_ANat is new Ada.Unchecked_Conversion (Address, ANat);
 
       VP : ANat;
 
@@ -837,11 +837,11 @@ begin
 
       save_argc : Nat;
       pragma Import (C, save_argc);
-      --  Saved value of argc (number of arguments), imported from misc.c
+      --  Saved value of argc (number of arguments), imported from misc.cc
 
       save_argv : Arg_Array_Ptr;
       pragma Import (C, save_argv);
-      --  Saved value of argv (argument pointers), imported from misc.c
+      --  Saved value of argv (argument pointers), imported from misc.cc
 
       gnat_argc : Nat;
       gnat_argv : Arg_Array_Ptr;
@@ -943,7 +943,7 @@ begin
             Long_Long_Size             := Get_Long_Long_Size;
             Long_Size                  := Get_Long_Size;
             Maximum_Alignment          := Get_Maximum_Alignment;
-            Max_Unaligned_Field        := Get_Max_Unaligned_Field;
+            Max_Unaligned_Field        := 1;
             Pointer_Size               := Get_Pointer_Size;
             Short_Enums                := Get_Short_Enums;
             Short_Size                 := Get_Short_Size;

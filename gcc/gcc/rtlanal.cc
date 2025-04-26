@@ -1,5 +1,5 @@
 /* Analyze RTL for GNU compiler.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -43,7 +43,7 @@ along with GCC; see the file COPYING3.  If not see
 static void set_of_1 (rtx, const_rtx, void *);
 static bool covers_regno_p (const_rtx, unsigned int);
 static bool covers_regno_no_parallel_p (const_rtx, unsigned int);
-static int computed_jump_p_1 (const_rtx);
+static bool computed_jump_p_1 (const_rtx);
 static void parms_set (rtx, const_rtx, void *);
 
 static unsigned HOST_WIDE_INT cached_nonzero_bits (const_rtx, scalar_int_mode,
@@ -131,7 +131,7 @@ generic_subrtx_iterator <T>::add_subrtxes_to_queue (array_type &array,
   enum rtx_code code = GET_CODE (x);
   const char *format = GET_RTX_FORMAT (code);
   size_t orig_end = end;
-  if (__builtin_expect (INSN_P (x), false))
+  if (UNLIKELY (INSN_P (x)))
     {
       /* Put the pattern at the top of the queue, since that's what
 	 we're likely to want most.  It also allows for the SEQUENCE
@@ -140,7 +140,7 @@ generic_subrtx_iterator <T>::add_subrtxes_to_queue (array_type &array,
 	if (format[i] == 'e')
 	  {
 	    value_type subx = T::get_value (x->u.fld[i].rt_rtx);
-	    if (__builtin_expect (end < LOCAL_ELEMS, true))
+	    if (LIKELY (end < LOCAL_ELEMS))
 	      base[end++] = subx;
 	    else
 	      base = add_single_to_queue (array, base, end++, subx);
@@ -151,7 +151,7 @@ generic_subrtx_iterator <T>::add_subrtxes_to_queue (array_type &array,
       if (format[i] == 'e')
 	{
 	  value_type subx = T::get_value (x->u.fld[i].rt_rtx);
-	  if (__builtin_expect (end < LOCAL_ELEMS, true))
+	  if (LIKELY (end < LOCAL_ELEMS))
 	    base[end++] = subx;
 	  else
 	    base = add_single_to_queue (array, base, end++, subx);
@@ -160,7 +160,7 @@ generic_subrtx_iterator <T>::add_subrtxes_to_queue (array_type &array,
 	{
 	  unsigned int length = GET_NUM_ELEM (x->u.fld[i].rt_rtvec);
 	  rtx *vec = x->u.fld[i].rt_rtvec->elem;
-	  if (__builtin_expect (end + length <= LOCAL_ELEMS, true))
+	  if (LIKELY (end + length <= LOCAL_ELEMS))
 	    for (unsigned int j = 0; j < length; j++)
 	      base[end++] = T::get_value (vec[j]);
 	  else
@@ -197,12 +197,12 @@ template class generic_subrtx_iterator <const_rtx_accessor>;
 template class generic_subrtx_iterator <rtx_var_accessor>;
 template class generic_subrtx_iterator <rtx_ptr_accessor>;
 
-/* Return 1 if the value of X is unstable
+/* Return true if the value of X is unstable
    (would be different at a different point in the program).
    The frame pointer, arg pointer, etc. are considered stable
    (within one function) and so is anything marked `unchanging'.  */
 
-int
+bool
 rtx_unstable_p (const_rtx x)
 {
   const RTX_CODE code = GET_CODE (x);
@@ -218,24 +218,24 @@ rtx_unstable_p (const_rtx x)
     CASE_CONST_ANY:
     case SYMBOL_REF:
     case LABEL_REF:
-      return 0;
+      return false;
 
     case REG:
       /* As in rtx_varies_p, we have to use the actual rtx, not reg number.  */
       if (x == frame_pointer_rtx || x == hard_frame_pointer_rtx
 	  /* The arg pointer varies if it is not a fixed register.  */
 	  || (x == arg_pointer_rtx && fixed_regs[ARG_POINTER_REGNUM]))
-	return 0;
+	return false;
       /* ??? When call-clobbered, the value is stable modulo the restore
 	 that must happen after a call.  This currently screws up local-alloc
 	 into believing that the restore is not needed.  */
       if (!PIC_OFFSET_TABLE_REG_CALL_CLOBBERED && x == pic_offset_table_rtx)
-	return 0;
-      return 1;
+	return false;
+      return true;
 
     case ASM_OPERANDS:
       if (MEM_VOLATILE_P (x))
-	return 1;
+	return true;
 
       /* Fall through.  */
 
@@ -248,21 +248,21 @@ rtx_unstable_p (const_rtx x)
     if (fmt[i] == 'e')
       {
 	if (rtx_unstable_p (XEXP (x, i)))
-	  return 1;
+	  return true;
       }
     else if (fmt[i] == 'E')
       {
 	int j;
 	for (j = 0; j < XVECLEN (x, i); j++)
 	  if (rtx_unstable_p (XVECEXP (x, i, j)))
-	    return 1;
+	    return true;
       }
 
-  return 0;
+  return false;
 }
 
-/* Return 1 if X has a value that can vary even between two
-   executions of the program.  0 means X can be compared reliably
+/* Return true if X has a value that can vary even between two
+   executions of the program.  false means X can be compared reliably
    against certain constants or near-constants.
    FOR_ALIAS is nonzero if we are called from alias analysis; if it is
    zero, we are slightly more conservative.
@@ -276,7 +276,7 @@ rtx_varies_p (const_rtx x, bool for_alias)
   const char *fmt;
 
   if (!x)
-    return 0;
+    return false;
 
   code = GET_CODE (x);
   switch (code)
@@ -288,7 +288,7 @@ rtx_varies_p (const_rtx x, bool for_alias)
     CASE_CONST_ANY:
     case SYMBOL_REF:
     case LABEL_REF:
-      return 0;
+      return false;
 
     case REG:
       /* Note that we have to test for the actual rtx used for the frame
@@ -298,15 +298,15 @@ rtx_varies_p (const_rtx x, bool for_alias)
       if (x == frame_pointer_rtx || x == hard_frame_pointer_rtx
 	  /* The arg pointer varies if it is not a fixed register.  */
 	  || (x == arg_pointer_rtx && fixed_regs[ARG_POINTER_REGNUM]))
-	return 0;
+	return false;
       if (x == pic_offset_table_rtx
 	  /* ??? When call-clobbered, the value is stable modulo the restore
 	     that must happen after a call.  This currently screws up
 	     local-alloc into believing that the restore is not needed, so we
 	     must return 0 only if we are called from alias analysis.  */
 	  && (!PIC_OFFSET_TABLE_REG_CALL_CLOBBERED || for_alias))
-	return 0;
-      return 1;
+	return false;
+      return true;
 
     case LO_SUM:
       /* The operand 0 of a LO_SUM is considered constant
@@ -317,7 +317,7 @@ rtx_varies_p (const_rtx x, bool for_alias)
 
     case ASM_OPERANDS:
       if (MEM_VOLATILE_P (x))
-	return 1;
+	return true;
 
       /* Fall through.  */
 
@@ -330,17 +330,17 @@ rtx_varies_p (const_rtx x, bool for_alias)
     if (fmt[i] == 'e')
       {
 	if (rtx_varies_p (XEXP (x, i), for_alias))
-	  return 1;
+	  return true;
       }
     else if (fmt[i] == 'E')
       {
 	int j;
 	for (j = 0; j < XVECLEN (x, i); j++)
 	  if (rtx_varies_p (XVECEXP (x, i, j), for_alias))
-	    return 1;
+	    return true;
       }
 
-  return 0;
+  return false;
 }
 
 /* Compute an approximation for the offset between the register
@@ -454,12 +454,12 @@ get_initial_register_offset (int from, int to)
     return 0;
 }
 
-/* Return nonzero if the use of X+OFFSET as an address in a MEM with SIZE
+/* Return true if the use of X+OFFSET as an address in a MEM with SIZE
    bytes can cause a trap.  MODE is the mode of the MEM (not that of X) and
-   UNALIGNED_MEMS controls whether nonzero is returned for unaligned memory
+   UNALIGNED_MEMS controls whether true is returned for unaligned memory
    references on strict alignment machines.  */
 
-static int
+static bool
 rtx_addr_can_trap_p_1 (const_rtx x, poly_int64 offset, poly_int64 size,
 		       machine_mode mode, bool unaligned_mems)
 {
@@ -488,21 +488,21 @@ rtx_addr_can_trap_p_1 (const_rtx x, poly_int64 offset, poly_int64 size,
 #endif
 
       if (!multiple_p (actual_offset, GET_MODE_SIZE (mode)))
-	return 1;
+	return true;
     }
 
   switch (code)
     {
     case SYMBOL_REF:
       if (SYMBOL_REF_WEAK (x))
-	return 1;
+	return true;
       if (!CONSTANT_POOL_ADDRESS_P (x) && !SYMBOL_REF_FUNCTION_P (x))
 	{
 	  tree decl;
 	  poly_int64 decl_size;
 
 	  if (maybe_lt (offset, 0))
-	    return 1;
+	    return true;
 	  if (!known_size_p (size))
 	    return maybe_ne (offset, 0);
 
@@ -531,10 +531,10 @@ rtx_addr_can_trap_p_1 (const_rtx x, poly_int64 offset, poly_int64 size,
 		  : !known_subrange_p (offset, size, 0, decl_size));
         }
 
-      return 0;
+      return false;
 
     case LABEL_REF:
-      return 0;
+      return false;
 
     case REG:
       /* Stack references are assumed not to trap, but we need to deal with
@@ -553,7 +553,7 @@ rtx_addr_can_trap_p_1 (const_rtx x, poly_int64 offset, poly_int64 size,
 	  poly_int64 low_bound, high_bound;
 
 	  if (!known_size_p (size))
-	    return 1;
+	    return true;
 
 	  if (x == frame_pointer_rtx)
 	    {
@@ -639,14 +639,13 @@ rtx_addr_can_trap_p_1 (const_rtx x, poly_int64 offset, poly_int64 size,
 
 	  if (known_ge (offset, low_bound)
 	      && known_le (offset, high_bound - size))
-	    return 0;
-	  return 1;
+	    return false;
+	  return true;
 	}
       /* All of the virtual frame registers are stack references.  */
-      if (REGNO (x) >= FIRST_VIRTUAL_REGISTER
-	  && REGNO (x) <= LAST_VIRTUAL_REGISTER)
-	return 0;
-      return 1;
+      if (VIRTUAL_REGISTER_P (x))
+	return false;
+      return true;
 
     case CONST:
       return rtx_addr_can_trap_p_1 (XEXP (x, 0), offset, size,
@@ -659,15 +658,15 @@ rtx_addr_can_trap_p_1 (const_rtx x, poly_int64 offset, poly_int64 size,
 	  && GET_CODE (XEXP (x, 1)) == CONST
 	  && GET_CODE (XEXP (XEXP (x, 1), 0)) == UNSPEC
 	  && known_eq (offset, 0))
-	return 0;
+	return false;
 
       /* - or it is an address that can't trap plus a constant integer.  */
       if (poly_int_rtx_p (XEXP (x, 1), &const_x1)
 	  && !rtx_addr_can_trap_p_1 (XEXP (x, 0), offset + const_x1,
 				     size, mode, unaligned_mems))
-	return 0;
+	return false;
 
-      return 1;
+      return true;
 
     case LO_SUM:
     case PRE_MODIFY:
@@ -687,12 +686,12 @@ rtx_addr_can_trap_p_1 (const_rtx x, poly_int64 offset, poly_int64 size,
     }
 
   /* If it isn't one of the case above, it can cause a trap.  */
-  return 1;
+  return true;
 }
 
-/* Return nonzero if the use of X as an address in a MEM can cause a trap.  */
+/* Return true if the use of X as an address in a MEM can cause a trap.  */
 
-int
+bool
 rtx_addr_can_trap_p (const_rtx x)
 {
   return rtx_addr_can_trap_p_1 (x, 0, -1, BLKmode, false);
@@ -733,8 +732,7 @@ nonzero_address_p (const_rtx x)
 	  || (x == arg_pointer_rtx && fixed_regs[ARG_POINTER_REGNUM]))
 	return true;
       /* All of the virtual frame registers are stack references.  */
-      if (REGNO (x) >= FIRST_VIRTUAL_REGISTER
-	  && REGNO (x) <= LAST_VIRTUAL_REGISTER)
+      if (VIRTUAL_REGISTER_P (x))
 	return true;
       return false;
 
@@ -778,7 +776,7 @@ nonzero_address_p (const_rtx x)
   return false;
 }
 
-/* Return 1 if X refers to a memory location whose address
+/* Return true if X refers to a memory location whose address
    cannot be compared reliably with constant addresses,
    or if X refers to a BLKmode memory object.
    FOR_ALIAS is nonzero if we are called from alias analysis; if it is
@@ -792,7 +790,7 @@ rtx_addr_varies_p (const_rtx x, bool for_alias)
   const char *fmt;
 
   if (x == 0)
-    return 0;
+    return false;
 
   code = GET_CODE (x);
   if (code == MEM)
@@ -803,16 +801,16 @@ rtx_addr_varies_p (const_rtx x, bool for_alias)
     if (fmt[i] == 'e')
       {
 	if (rtx_addr_varies_p (XEXP (x, i), for_alias))
-	  return 1;
+	  return true;
       }
     else if (fmt[i] == 'E')
       {
 	int j;
 	for (j = 0; j < XVECLEN (x, i); j++)
 	  if (rtx_addr_varies_p (XVECEXP (x, i, j), for_alias))
-	    return 1;
+	    return true;
       }
-  return 0;
+  return false;
 }
 
 /* Return the CALL in X if there is one.  */
@@ -947,7 +945,7 @@ split_const (rtx x, rtx *base_out, rtx *offset_out)
    to a new rtx).  Return the Y and store the offset in *OFFSET_OUT.  */
 
 rtx
-strip_offset (rtx x, poly_int64_pod *offset_out)
+strip_offset (rtx x, poly_int64 *offset_out)
 {
   rtx base = const0_rtx;
   rtx test = x;
@@ -1058,11 +1056,11 @@ unsigned_reg_p (rtx op)
 }
 
 
-/* Nonzero if register REG appears somewhere within IN.
+/* Return true if register REG appears somewhere within IN.
    Also works if REG is not a register; in this case it checks
    for a subexpression of IN that is Lisp "equal" to REG.  */
 
-int
+bool
 reg_mentioned_p (const_rtx reg, const_rtx in)
 {
   const char *fmt;
@@ -1070,10 +1068,10 @@ reg_mentioned_p (const_rtx reg, const_rtx in)
   enum rtx_code code;
 
   if (in == 0)
-    return 0;
+    return false;
 
   if (reg == in)
-    return 1;
+    return true;
 
   if (GET_CODE (in) == LABEL_REF)
     return reg == label_ref_label (in);
@@ -1090,18 +1088,18 @@ reg_mentioned_p (const_rtx reg, const_rtx in)
 	 and are unique.  */
     case SCRATCH:
     case PC:
-      return 0;
+      return false;
 
     CASE_CONST_ANY:
       /* These are kept unique for a given value.  */
-      return 0;
+      return false;
 
     default:
       break;
     }
 
   if (GET_CODE (reg) == code && rtx_equal_p (reg, in))
-    return 1;
+    return true;
 
   fmt = GET_RTX_FORMAT (code);
 
@@ -1112,55 +1110,55 @@ reg_mentioned_p (const_rtx reg, const_rtx in)
 	  int j;
 	  for (j = XVECLEN (in, i) - 1; j >= 0; j--)
 	    if (reg_mentioned_p (reg, XVECEXP (in, i, j)))
-	      return 1;
+	      return true;
 	}
       else if (fmt[i] == 'e'
 	       && reg_mentioned_p (reg, XEXP (in, i)))
-	return 1;
+	return true;
     }
-  return 0;
+  return false;
 }
 
-/* Return 1 if in between BEG and END, exclusive of BEG and END, there is
+/* Return true if in between BEG and END, exclusive of BEG and END, there is
    no CODE_LABEL insn.  */
 
-int
+bool
 no_labels_between_p (const rtx_insn *beg, const rtx_insn *end)
 {
   rtx_insn *p;
   if (beg == end)
-    return 0;
+    return false;
   for (p = NEXT_INSN (beg); p != end; p = NEXT_INSN (p))
     if (LABEL_P (p))
-      return 0;
-  return 1;
+      return false;
+  return true;
 }
 
-/* Nonzero if register REG is used in an insn between
+/* Return true if register REG is used in an insn between
    FROM_INSN and TO_INSN (exclusive of those two).  */
 
-int
+bool
 reg_used_between_p (const_rtx reg, const rtx_insn *from_insn,
 		    const rtx_insn *to_insn)
 {
   rtx_insn *insn;
 
   if (from_insn == to_insn)
-    return 0;
+    return false;
 
   for (insn = NEXT_INSN (from_insn); insn != to_insn; insn = NEXT_INSN (insn))
     if (NONDEBUG_INSN_P (insn)
 	&& (reg_overlap_mentioned_p (reg, PATTERN (insn))
 	   || (CALL_P (insn) && find_reg_fusage (insn, USE, reg))))
-      return 1;
-  return 0;
+      return true;
+  return false;
 }
 
-/* Nonzero if the old value of X, a register, is referenced in BODY.  If X
+/* Return true if the old value of X, a register, is referenced in BODY.  If X
    is entirely replaced by a new value and the only use is as a SET_DEST,
    we do not consider it a reference.  */
 
-int
+bool
 reg_referenced_p (const_rtx x, const_rtx body)
 {
   int i;
@@ -1169,7 +1167,7 @@ reg_referenced_p (const_rtx x, const_rtx body)
     {
     case SET:
       if (reg_overlap_mentioned_p (x, SET_SRC (body)))
-	return 1;
+	return true;
 
       /* If the destination is anything other than PC, a REG or a SUBREG
 	 of a REG that occupies all of the REG, the insn references X if
@@ -1180,14 +1178,14 @@ reg_referenced_p (const_rtx x, const_rtx body)
 		&& REG_P (SUBREG_REG (SET_DEST (body)))
 		&& !read_modify_subreg_p (SET_DEST (body)))
 	  && reg_overlap_mentioned_p (x, SET_DEST (body)))
-	return 1;
-      return 0;
+	return true;
+      return false;
 
     case ASM_OPERANDS:
       for (i = ASM_OPERANDS_INPUT_LENGTH (body) - 1; i >= 0; i--)
 	if (reg_overlap_mentioned_p (x, ASM_OPERANDS_INPUT (body, i)))
-	  return 1;
-      return 0;
+	  return true;
+      return false;
 
     case CALL:
     case USE:
@@ -1204,52 +1202,52 @@ reg_referenced_p (const_rtx x, const_rtx body)
     case UNSPEC_VOLATILE:
       for (i = XVECLEN (body, 0) - 1; i >= 0; i--)
 	if (reg_overlap_mentioned_p (x, XVECEXP (body, 0, i)))
-	  return 1;
-      return 0;
+	  return true;
+      return false;
 
     case PARALLEL:
       for (i = XVECLEN (body, 0) - 1; i >= 0; i--)
 	if (reg_referenced_p (x, XVECEXP (body, 0, i)))
-	  return 1;
-      return 0;
+	  return true;
+      return false;
 
     case CLOBBER:
       if (MEM_P (XEXP (body, 0)))
 	if (reg_overlap_mentioned_p (x, XEXP (XEXP (body, 0), 0)))
-	  return 1;
-      return 0;
+	  return true;
+      return false;
 
     case COND_EXEC:
       if (reg_overlap_mentioned_p (x, COND_EXEC_TEST (body)))
-	return 1;
+	return true;
       return reg_referenced_p (x, COND_EXEC_CODE (body));
 
     default:
-      return 0;
+      return false;
     }
 }
 
-/* Nonzero if register REG is set or clobbered in an insn between
+/* Return true if register REG is set or clobbered in an insn between
    FROM_INSN and TO_INSN (exclusive of those two).  */
 
-int
+bool
 reg_set_between_p (const_rtx reg, const rtx_insn *from_insn,
 		   const rtx_insn *to_insn)
 {
   const rtx_insn *insn;
 
   if (from_insn == to_insn)
-    return 0;
+    return false;
 
   for (insn = NEXT_INSN (from_insn); insn != to_insn; insn = NEXT_INSN (insn))
     if (INSN_P (insn) && reg_set_p (reg, insn))
-      return 1;
-  return 0;
+      return true;
+  return false;
 }
 
 /* Return true if REG is set or clobbered inside INSN.  */
 
-int
+bool
 reg_set_p (const_rtx reg, const_rtx insn)
 {
   /* After delay slot handling, call and branch insns might be in a
@@ -1297,11 +1295,11 @@ reg_set_p (const_rtx reg, const_rtx insn)
   return set_of (reg, insn) != NULL_RTX;
 }
 
-/* Similar to reg_set_between_p, but check all registers in X.  Return 0
-   only if none of them are modified between START and END.  Return 1 if
+/* Similar to reg_set_between_p, but check all registers in X.  Return false
+   only if none of them are modified between START and END.  Return true if
    X contains a MEM; this routine does use memory aliasing.  */
 
-int
+bool
 modified_between_p (const_rtx x, const rtx_insn *start, const rtx_insn *end)
 {
   const enum rtx_code code = GET_CODE (x);
@@ -1310,7 +1308,7 @@ modified_between_p (const_rtx x, const rtx_insn *start, const rtx_insn *end)
   rtx_insn *insn;
 
   if (start == end)
-    return 0;
+    return false;
 
   switch (code)
     {
@@ -1318,20 +1316,20 @@ modified_between_p (const_rtx x, const rtx_insn *start, const rtx_insn *end)
     case CONST:
     case SYMBOL_REF:
     case LABEL_REF:
-      return 0;
+      return false;
 
     case PC:
-      return 1;
+      return true;
 
     case MEM:
       if (modified_between_p (XEXP (x, 0), start, end))
-	return 1;
+	return true;
       if (MEM_READONLY_P (x))
-	return 0;
+	return false;
       for (insn = NEXT_INSN (start); insn != end; insn = NEXT_INSN (insn))
 	if (memory_modified_in_insn_p (x, insn))
-	  return 1;
-      return 0;
+	  return true;
+      return false;
 
     case REG:
       return reg_set_between_p (x, start, end);
@@ -1344,22 +1342,22 @@ modified_between_p (const_rtx x, const rtx_insn *start, const rtx_insn *end)
   for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
     {
       if (fmt[i] == 'e' && modified_between_p (XEXP (x, i), start, end))
-	return 1;
+	return true;
 
       else if (fmt[i] == 'E')
 	for (j = XVECLEN (x, i) - 1; j >= 0; j--)
 	  if (modified_between_p (XVECEXP (x, i, j), start, end))
-	    return 1;
+	    return true;
     }
 
-  return 0;
+  return false;
 }
 
-/* Similar to reg_set_p, but check all registers in X.  Return 0 only if none
-   of them are modified in INSN.  Return 1 if X contains a MEM; this routine
-   does use memory aliasing.  */
+/* Similar to reg_set_p, but check all registers in X.  Return false only if
+   none of them are modified in INSN.  Return true if X contains a MEM; this
+   routine does use memory aliasing.  */
 
-int
+bool
 modified_in_p (const_rtx x, const_rtx insn)
 {
   const enum rtx_code code = GET_CODE (x);
@@ -1372,19 +1370,19 @@ modified_in_p (const_rtx x, const_rtx insn)
     case CONST:
     case SYMBOL_REF:
     case LABEL_REF:
-      return 0;
+      return false;
 
     case PC:
-      return 1;
+      return true;
 
     case MEM:
       if (modified_in_p (XEXP (x, 0), insn))
-	return 1;
+	return true;
       if (MEM_READONLY_P (x))
-	return 0;
+	return false;
       if (memory_modified_in_insn_p (x, insn))
-	return 1;
-      return 0;
+	return true;
+      return false;
 
     case REG:
       return reg_set_p (x, insn);
@@ -1397,15 +1395,15 @@ modified_in_p (const_rtx x, const_rtx insn)
   for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
     {
       if (fmt[i] == 'e' && modified_in_p (XEXP (x, i), insn))
-	return 1;
+	return true;
 
       else if (fmt[i] == 'E')
 	for (j = XVECLEN (x, i) - 1; j >= 0; j--)
 	  if (modified_in_p (XVECEXP (x, i, j), insn))
-	    return 1;
+	    return true;
     }
 
-  return 0;
+  return false;
 }
 
 /* Return true if X is a SUBREG and if storing a value to X would
@@ -1595,56 +1593,59 @@ single_set_2 (const rtx_insn *insn, const_rtx pat)
   return set;
 }
 
-/* Given an INSN, return nonzero if it has more than one SET, else return
-   zero.  */
+/* Given an INSN, return true if it has more than one SET, else return
+   false.  */
 
-int
+bool
 multiple_sets (const_rtx insn)
 {
-  int found;
+  bool found;
   int i;
 
   /* INSN must be an insn.  */
   if (! INSN_P (insn))
-    return 0;
+    return false;
 
   /* Only a PARALLEL can have multiple SETs.  */
   if (GET_CODE (PATTERN (insn)) == PARALLEL)
     {
-      for (i = 0, found = 0; i < XVECLEN (PATTERN (insn), 0); i++)
+      for (i = 0, found = false; i < XVECLEN (PATTERN (insn), 0); i++)
 	if (GET_CODE (XVECEXP (PATTERN (insn), 0, i)) == SET)
 	  {
 	    /* If we have already found a SET, then return now.  */
 	    if (found)
-	      return 1;
+	      return true;
 	    else
-	      found = 1;
+	      found = true;
 	  }
     }
 
   /* Either zero or one SET.  */
-  return 0;
+  return false;
 }
 
-/* Return nonzero if the destination of SET equals the source
+/* Return true if the destination of SET equals the source
    and there are no side effects.  */
 
-int
+bool
 set_noop_p (const_rtx set)
 {
   rtx src = SET_SRC (set);
   rtx dst = SET_DEST (set);
 
   if (dst == pc_rtx && src == pc_rtx)
-    return 1;
+    return true;
 
   if (MEM_P (dst) && MEM_P (src))
-    return rtx_equal_p (dst, src) && !side_effects_p (dst);
+    return (rtx_equal_p (dst, src)
+	    && !side_effects_p (dst)
+	    && !side_effects_p (src));
 
   if (GET_CODE (dst) == ZERO_EXTRACT)
-    return rtx_equal_p (XEXP (dst, 0), src)
-	   && !BITS_BIG_ENDIAN && XEXP (dst, 2) == const0_rtx
-	   && !side_effects_p (src);
+    return (rtx_equal_p (XEXP (dst, 0), src)
+	    && !BITS_BIG_ENDIAN && XEXP (dst, 2) == const0_rtx
+	    && !side_effects_p (src)
+	    && !side_effects_p (XEXP (dst, 0)));
 
   if (GET_CODE (dst) == STRICT_LOW_PART)
     dst = XEXP (dst, 0);
@@ -1652,13 +1653,13 @@ set_noop_p (const_rtx set)
   if (GET_CODE (src) == SUBREG && GET_CODE (dst) == SUBREG)
     {
       if (maybe_ne (SUBREG_BYTE (src), SUBREG_BYTE (dst)))
-	return 0;
+	return false;
       src = SUBREG_REG (src);
       dst = SUBREG_REG (dst);
       if (GET_MODE (src) != GET_MODE (dst))
 	/* It is hard to tell whether subregs refer to the same bits, so act
-	   conservatively and return 0.  */
-	return 0;
+	   conservatively and return false.  */
+	return false;
     }
 
   /* It is a NOOP if destination overlaps with selected src vector
@@ -1673,7 +1674,7 @@ set_noop_p (const_rtx set)
       rtx src0 = XEXP (src, 0);
       poly_int64 c0;
       if (!poly_int_rtx_p (XVECEXP (par, 0, 0), &c0))
-	return 0;
+	return false;
       poly_int64 offset = GET_MODE_UNIT_SIZE (GET_MODE (src0)) * c0;
 
       for (i = 1; i < XVECLEN (par, 0); i++)
@@ -1681,10 +1682,11 @@ set_noop_p (const_rtx set)
 	  poly_int64 c0i;
 	  if (!poly_int_rtx_p (XVECEXP (par, 0, i), &c0i)
 	      || maybe_ne (c0i, c0 + i))
-	    return 0;
+	    return false;
 	}
       return
 	REG_CAN_CHANGE_MODE_P (REGNO (dst), GET_MODE (src0), GET_MODE (dst))
+	&& validate_subreg (GET_MODE (dst), GET_MODE (src0), src0, offset)
 	&& simplify_subreg_regno (REGNO (src0), GET_MODE (src0),
 				  offset, GET_MODE (dst)) == (int) REGNO (dst);
     }
@@ -1693,23 +1695,23 @@ set_noop_p (const_rtx set)
 	  && REGNO (src) == REGNO (dst));
 }
 
-/* Return nonzero if an insn consists only of SETs, each of which only sets a
+/* Return true if an insn consists only of SETs, each of which only sets a
    value to itself.  */
 
-int
+bool
 noop_move_p (const rtx_insn *insn)
 {
   rtx pat = PATTERN (insn);
 
   if (INSN_CODE (insn) == NOOP_MOVE_INSN_CODE)
-    return 1;
+    return true;
 
   /* Check the code to be executed for COND_EXEC.  */
   if (GET_CODE (pat) == COND_EXEC)
     pat = COND_EXEC_CODE (pat);
 
   if (GET_CODE (pat) == SET && set_noop_p (pat))
-    return 1;
+    return true;
 
   if (GET_CODE (pat) == PARALLEL)
     {
@@ -1724,16 +1726,16 @@ noop_move_p (const rtx_insn *insn)
 	    continue;
 
 	  if (GET_CODE (tem) != SET || ! set_noop_p (tem))
-	    return 0;
+	    return false;
 	}
 
-      return 1;
+      return true;
     }
-  return 0;
+  return false;
 }
 
 
-/* Return nonzero if register in range [REGNO, ENDREGNO)
+/* Return true if register in range [REGNO, ENDREGNO)
    appears either explicitly or implicitly in X
    other than being stored into.
 
@@ -1769,7 +1771,7 @@ refers_to_regno_p (unsigned int regno, unsigned int endregno, const_rtx x,
 	   || (FRAME_POINTER_REGNUM != ARG_POINTER_REGNUM
 	       && x_regno == ARG_POINTER_REGNUM)
 	   || x_regno == FRAME_POINTER_REGNUM)
-	  && regno >= FIRST_VIRTUAL_REGISTER && regno <= LAST_VIRTUAL_REGISTER)
+	  && VIRTUAL_REGISTER_NUM_P (regno))
 	return true;
 
       return endregno > x_regno && regno < END_REGNO (x);
@@ -1842,13 +1844,13 @@ refers_to_regno_p (unsigned int regno, unsigned int endregno, const_rtx x,
   return false;
 }
 
-/* Nonzero if modifying X will affect IN.  If X is a register or a SUBREG,
+/* Rreturn true if modifying X will affect IN.  If X is a register or a SUBREG,
    we check if any register number in X conflicts with the relevant register
-   numbers.  If X is a constant, return 0.  If X is a MEM, return 1 iff IN
-   contains a MEM (we don't bother checking for memory addresses that can't
+   numbers.  If X is a constant, return false.  If X is a MEM, return true iff
+   IN contains a MEM (we don't bother checking for memory addresses that can't
    conflict because we expect this to be a rare case.  */
 
-int
+bool
 reg_overlap_mentioned_p (const_rtx x, const_rtx in)
 {
   unsigned int regno, endregno;
@@ -1857,7 +1859,7 @@ reg_overlap_mentioned_p (const_rtx x, const_rtx in)
      affect IN.  Here we look at IN, we can profitably combine
      CONSTANT_P (x) with the switch statement below.  */
   if (CONSTANT_P (in))
-    return 0;
+    return false;
 
  recurse:
   switch (GET_CODE (x))
@@ -1890,24 +1892,24 @@ reg_overlap_mentioned_p (const_rtx x, const_rtx in)
 	int i;
 
 	if (MEM_P (in))
-	  return 1;
+	  return true;
 
 	fmt = GET_RTX_FORMAT (GET_CODE (in));
 	for (i = GET_RTX_LENGTH (GET_CODE (in)) - 1; i >= 0; i--)
 	  if (fmt[i] == 'e')
 	    {
 	      if (reg_overlap_mentioned_p (x, XEXP (in, i)))
-		return 1;
+		return true;
 	    }
 	  else if (fmt[i] == 'E')
 	    {
 	      int j;
 	      for (j = XVECLEN (in, i) - 1; j >= 0; --j)
 		if (reg_overlap_mentioned_p (x, XVECEXP (in, i, j)))
-		  return 1;
+		  return true;
 	    }
 
-	return 0;
+	return false;
       }
 
     case SCRATCH:
@@ -1922,13 +1924,13 @@ reg_overlap_mentioned_p (const_rtx x, const_rtx in)
 	for (i = XVECLEN (x, 0) - 1; i >= 0; i--)
 	  if (XEXP (XVECEXP (x, 0, i), 0) != 0
 	      && reg_overlap_mentioned_p (XEXP (XVECEXP (x, 0, i), 0), in))
-	    return 1;
-	return 0;
+	    return true;
+	return false;
       }
 
     default:
       gcc_assert (CONSTANT_P (x));
-      return 0;
+      return false;
     }
 }
 
@@ -2114,7 +2116,7 @@ rtx_properties::try_to_add_dest (const_rtx x, unsigned int flags)
 {
   /* If we have a PARALLEL, SET_DEST is a list of EXPR_LIST expressions,
      each of whose first operand is a register.  */
-  if (__builtin_expect (GET_CODE (x) == PARALLEL, 0))
+  if (UNLIKELY (GET_CODE (x) == PARALLEL))
     {
       for (int i = XVECLEN (x, 0) - 1; i >= 0; --i)
 	if (rtx dest = XEXP (XVECEXP (x, 0, i), 0))
@@ -2159,12 +2161,20 @@ rtx_properties::try_to_add_dest (const_rtx x, unsigned int flags)
       return;
     }
 
-  if (__builtin_expect (REG_P (x), 1))
+  if (LIKELY (REG_P (x)))
     {
-      /* We want to keep sp alive everywhere -  by making all
-	 writes to sp also use sp. */
       if (REGNO (x) == STACK_POINTER_REGNUM)
-	flags |= rtx_obj_flags::IS_READ;
+	{
+	  /* Stack accesses are dependent on previous allocations and
+	     anti-dependent on later deallocations, so both types of
+	     stack operation are akin to a memory write.  */
+	  if (ref_iter != ref_end)
+	    *ref_iter++ = rtx_obj_reference (MEM_REGNO, flags, BLKmode);
+
+	  /* We want to keep sp alive everywhere - by making all
+	     writes to sp also use sp.  */
+	  flags |= rtx_obj_flags::IS_READ;
+	}
       try_to_add_reg (x, flags);
       return;
     }
@@ -2385,7 +2395,7 @@ vec_rtx_properties_base::grow (ptrdiff_t start)
   ref_end = ref_begin + new_elems;
 }
 
-/* Return nonzero if X's old contents don't survive after INSN.
+/* Return true if X's old contents don't survive after INSN.
    This will be true if X is a register and X dies in INSN or because
    INSN entirely sets X.
 
@@ -2399,10 +2409,10 @@ vec_rtx_properties_base::grow (ptrdiff_t start)
    at any time after deaths have been computed.
 
    If REG is a hard reg that occupies multiple machine registers, this
-   function will only return 1 if each of those registers will be replaced
+   function will only return true if each of those registers will be replaced
    by INSN.  */
 
-int
+bool
 dead_or_set_p (const rtx_insn *insn, const_rtx x)
 {
   unsigned int regno, end_regno;
@@ -2414,9 +2424,9 @@ dead_or_set_p (const rtx_insn *insn, const_rtx x)
   end_regno = END_REGNO (x);
   for (i = regno; i < end_regno; i++)
     if (! dead_or_set_regno_p (insn, i))
-      return 0;
+      return false;
 
-  return 1;
+  return true;
 }
 
 /* Return TRUE iff DEST is a register or subreg of a register, is a
@@ -2468,24 +2478,24 @@ covers_regno_p (const_rtx dest, unsigned int test_regno)
 
 /* Utility function for dead_or_set_p to check an individual register. */
 
-int
+bool
 dead_or_set_regno_p (const rtx_insn *insn, unsigned int test_regno)
 {
   const_rtx pattern;
 
   /* See if there is a death note for something that includes TEST_REGNO.  */
   if (find_regno_note (insn, REG_DEAD, test_regno))
-    return 1;
+    return true;
 
   if (CALL_P (insn)
       && find_regno_fusage (insn, CLOBBER, test_regno))
-    return 1;
+    return true;
 
   pattern = PATTERN (insn);
 
   /* If a COND_EXEC is not executed, the value survives.  */
   if (GET_CODE (pattern) == COND_EXEC)
-    return 0;
+    return false;
 
   if (GET_CODE (pattern) == SET || GET_CODE (pattern) == CLOBBER)
     return covers_regno_p (SET_DEST (pattern), test_regno);
@@ -2502,11 +2512,11 @@ dead_or_set_regno_p (const rtx_insn *insn, unsigned int test_regno)
 
 	  if ((GET_CODE (body) == SET || GET_CODE (body) == CLOBBER)
 	      && covers_regno_p (SET_DEST (body), test_regno))
-	    return 1;
+	    return true;
 	}
     }
 
-  return 0;
+  return false;
 }
 
 /* Return the reg-note of kind KIND in insn INSN, if there is one.
@@ -2616,13 +2626,13 @@ find_constant_src (const rtx_insn *insn)
 /* Return true if DATUM, or any overlap of DATUM, of kind CODE is found
    in the CALL_INSN_FUNCTION_USAGE information of INSN.  */
 
-int
+bool
 find_reg_fusage (const_rtx insn, enum rtx_code code, const_rtx datum)
 {
   /* If it's not a CALL_INSN, it can't possibly have a
      CALL_INSN_FUNCTION_USAGE field, so don't bother checking.  */
   if (!CALL_P (insn))
-    return 0;
+    return false;
 
   gcc_assert (datum);
 
@@ -2635,7 +2645,7 @@ find_reg_fusage (const_rtx insn, enum rtx_code code, const_rtx datum)
 	   link = XEXP (link, 1))
 	if (GET_CODE (XEXP (link, 0)) == code
 	    && rtx_equal_p (datum, XEXP (XEXP (link, 0), 0)))
-	  return 1;
+	  return true;
     }
   else
     {
@@ -2651,17 +2661,17 @@ find_reg_fusage (const_rtx insn, enum rtx_code code, const_rtx datum)
 
 	  for (i = regno; i < end_regno; i++)
 	    if (find_regno_fusage (insn, code, i))
-	      return 1;
+	      return true;
 	}
     }
 
-  return 0;
+  return false;
 }
 
 /* Return true if REGNO, or any overlap of REGNO, of kind CODE is found
    in the CALL_INSN_FUNCTION_USAGE information of INSN.  */
 
-int
+bool
 find_regno_fusage (const_rtx insn, enum rtx_code code, unsigned int regno)
 {
   rtx link;
@@ -2671,7 +2681,7 @@ find_regno_fusage (const_rtx insn, enum rtx_code code, unsigned int regno)
 
   if (regno >= FIRST_PSEUDO_REGISTER
       || !CALL_P (insn) )
-    return 0;
+    return false;
 
   for (link = CALL_INSN_FUNCTION_USAGE (insn); link; link = XEXP (link, 1))
     {
@@ -2681,10 +2691,10 @@ find_regno_fusage (const_rtx insn, enum rtx_code code, unsigned int regno)
 	  && REG_P (reg = XEXP (op, 0))
 	  && REGNO (reg) <= regno
 	  && END_REGNO (reg) > regno)
-	return 1;
+	return true;
     }
 
-  return 0;
+  return false;
 }
 
 
@@ -2878,35 +2888,6 @@ in_insn_list_p (const rtx_insn_list *listp, const rtx_insn *node)
   return false;
 }
 
-/* Search LISTP (an EXPR_LIST) for an entry whose first operand is NODE and
-   remove that entry from the list if it is found.
-
-   A simple equality test is used to determine if NODE matches.  */
-
-void
-remove_node_from_expr_list (const_rtx node, rtx_expr_list **listp)
-{
-  rtx_expr_list *temp = *listp;
-  rtx_expr_list *prev = NULL;
-
-  while (temp)
-    {
-      if (node == temp->element ())
-	{
-	  /* Splice the node out of the list.  */
-	  if (prev)
-	    XEXP (prev, 1) = temp->next ();
-	  else
-	    *listp = temp->next ();
-
-	  return;
-	}
-
-      prev = temp;
-      temp = temp->next ();
-    }
-}
-
 /* Search LISTP (an INSN_LIST) for an entry whose first operand is NODE and
    remove that entry from the list if it is found.
 
@@ -2928,6 +2909,7 @@ remove_node_from_insn_list (const rtx_insn *node, rtx_insn_list **listp)
 	  else
 	    *listp = temp->next ();
 
+	  gcc_checking_assert (!in_insn_list_p (temp->next (), node));
 	  return;
 	}
 
@@ -2936,12 +2918,12 @@ remove_node_from_insn_list (const rtx_insn *node, rtx_insn_list **listp)
     }
 }
 
-/* Nonzero if X contains any volatile instructions.  These are instructions
+/* Return true if X contains any volatile instructions.  These are instructions
    which may cause unpredictable machine state instructions, and thus no
    instructions or register uses should be moved or combined across them.
    This includes only volatile asms and UNSPEC_VOLATILE instructions.  */
 
-int
+bool
 volatile_insn_p (const_rtx x)
 {
   const RTX_CODE code = GET_CODE (x);
@@ -2959,15 +2941,15 @@ volatile_insn_p (const_rtx x)
     case ADDR_DIFF_VEC:
     case CALL:
     case MEM:
-      return 0;
+      return false;
 
     case UNSPEC_VOLATILE:
-      return 1;
+      return true;
 
     case ASM_INPUT:
     case ASM_OPERANDS:
       if (MEM_VOLATILE_P (x))
-	return 1;
+	return true;
 
     default:
       break;
@@ -2984,24 +2966,24 @@ volatile_insn_p (const_rtx x)
 	if (fmt[i] == 'e')
 	  {
 	    if (volatile_insn_p (XEXP (x, i)))
-	      return 1;
+	      return true;
 	  }
 	else if (fmt[i] == 'E')
 	  {
 	    int j;
 	    for (j = 0; j < XVECLEN (x, i); j++)
 	      if (volatile_insn_p (XVECEXP (x, i, j)))
-		return 1;
+		return true;
 	  }
       }
   }
-  return 0;
+  return false;
 }
 
-/* Nonzero if X contains any volatile memory references
+/* Return true if X contains any volatile memory references
    UNSPEC_VOLATILE operations or volatile ASM_OPERANDS expressions.  */
 
-int
+bool
 volatile_refs_p (const_rtx x)
 {
   const RTX_CODE code = GET_CODE (x);
@@ -3017,16 +2999,16 @@ volatile_refs_p (const_rtx x)
     case CLOBBER:
     case ADDR_VEC:
     case ADDR_DIFF_VEC:
-      return 0;
+      return false;
 
     case UNSPEC_VOLATILE:
-      return 1;
+      return true;
 
     case MEM:
     case ASM_INPUT:
     case ASM_OPERANDS:
       if (MEM_VOLATILE_P (x))
-	return 1;
+	return true;
 
     default:
       break;
@@ -3043,24 +3025,24 @@ volatile_refs_p (const_rtx x)
 	if (fmt[i] == 'e')
 	  {
 	    if (volatile_refs_p (XEXP (x, i)))
-	      return 1;
+	      return true;
 	  }
 	else if (fmt[i] == 'E')
 	  {
 	    int j;
 	    for (j = 0; j < XVECLEN (x, i); j++)
 	      if (volatile_refs_p (XVECEXP (x, i, j)))
-		return 1;
+		return true;
 	  }
       }
   }
-  return 0;
+  return false;
 }
 
 /* Similar to above, except that it also rejects register pre- and post-
    incrementing.  */
 
-int
+bool
 side_effects_p (const_rtx x)
 {
   const RTX_CODE code = GET_CODE (x);
@@ -3076,7 +3058,7 @@ side_effects_p (const_rtx x)
     case ADDR_VEC:
     case ADDR_DIFF_VEC:
     case VAR_LOCATION:
-      return 0;
+      return false;
 
     case CLOBBER:
       /* Reject CLOBBER with a non-VOID mode.  These are made by combine.cc
@@ -3092,13 +3074,13 @@ side_effects_p (const_rtx x)
     case POST_MODIFY:
     case CALL:
     case UNSPEC_VOLATILE:
-      return 1;
+      return true;
 
     case MEM:
     case ASM_INPUT:
     case ASM_OPERANDS:
       if (MEM_VOLATILE_P (x))
-	return 1;
+	return true;
 
     default:
       break;
@@ -3115,26 +3097,26 @@ side_effects_p (const_rtx x)
 	if (fmt[i] == 'e')
 	  {
 	    if (side_effects_p (XEXP (x, i)))
-	      return 1;
+	      return true;
 	  }
 	else if (fmt[i] == 'E')
 	  {
 	    int j;
 	    for (j = 0; j < XVECLEN (x, i); j++)
 	      if (side_effects_p (XVECEXP (x, i, j)))
-		return 1;
+		return true;
 	  }
       }
   }
-  return 0;
+  return false;
 }
 
-/* Return nonzero if evaluating rtx X might cause a trap.
-   FLAGS controls how to consider MEMs.  A nonzero means the context
+/* Return true if evaluating rtx X might cause a trap.
+   FLAGS controls how to consider MEMs.  A true means the context
    of the access may have changed from the original, such that the
    address may have become invalid.  */
 
-int
+bool
 may_trap_p_1 (const_rtx x, unsigned flags)
 {
   int i;
@@ -3147,7 +3129,7 @@ may_trap_p_1 (const_rtx x, unsigned flags)
   bool code_changed = flags != 0;
 
   if (x == 0)
-    return 0;
+    return false;
   code = GET_CODE (x);
   switch (code)
     {
@@ -3159,7 +3141,7 @@ may_trap_p_1 (const_rtx x, unsigned flags)
     case PC:
     case REG:
     case SCRATCH:
-      return 0;
+      return false;
 
     case UNSPEC:
       return targetm.unspec_may_trap_p (x, flags);
@@ -3167,7 +3149,7 @@ may_trap_p_1 (const_rtx x, unsigned flags)
     case UNSPEC_VOLATILE:
     case ASM_INPUT:
     case TRAP_IF:
-      return 1;
+      return true;
 
     case ASM_OPERANDS:
       return MEM_VOLATILE_P (x);
@@ -3178,7 +3160,7 @@ may_trap_p_1 (const_rtx x, unsigned flags)
       if (flag_stack_check
 	  && MEM_VOLATILE_P (x)
 	  && XEXP (x, 0) == stack_pointer_rtx)
-	return 1;
+	return true;
       if (/* MEM_NOTRAP_P only relates to the actual position of the memory
 	     reference; moving it out of context such as when moving code
 	     when optimizing, might cause its address to become invalid.  */
@@ -3190,7 +3172,7 @@ may_trap_p_1 (const_rtx x, unsigned flags)
 					GET_MODE (x), code_changed);
 	}
 
-      return 0;
+      return false;
 
       /* Division by a non-constant might trap.  */
     case DIV:
@@ -3198,11 +3180,11 @@ may_trap_p_1 (const_rtx x, unsigned flags)
     case UDIV:
     case UMOD:
       if (HONOR_SNANS (x))
-	return 1;
+	return true;
       if (FLOAT_MODE_P (GET_MODE (x)))
 	return flag_trapping_math;
       if (!CONSTANT_P (XEXP (x, 1)) || (XEXP (x, 1) == const0_rtx))
-	return 1;
+	return true;
       if (GET_CODE (XEXP (x, 1)) == CONST_VECTOR)
 	{
 	  /* For CONST_VECTOR, return 1 if any element is or might be zero.  */
@@ -3211,22 +3193,22 @@ may_trap_p_1 (const_rtx x, unsigned flags)
 	  if (!GET_MODE_NUNITS (GET_MODE (op)).is_constant (&n_elts))
 	    {
 	      if (!CONST_VECTOR_DUPLICATE_P (op))
-		return 1;
+		return true;
 	      for (unsigned i = 0; i < (unsigned int) XVECLEN (op, 0); i++)
 		if (CONST_VECTOR_ENCODED_ELT (op, i) == const0_rtx)
-		  return 1;
+		  return true;
 	    }
 	  else
 	    for (unsigned i = 0; i < n_elts; i++)
 	      if (CONST_VECTOR_ELT (op, i) == const0_rtx)
-		return 1;
+		return true;
 	}
       break;
 
     case EXPR_LIST:
       /* An EXPR_LIST is used to represent a function call.  This
 	 certainly may trap.  */
-      return 1;
+      return true;
 
     case GE:
     case GT:
@@ -3234,6 +3216,9 @@ may_trap_p_1 (const_rtx x, unsigned flags)
     case LT:
     case LTGT:
     case COMPARE:
+    /* Treat min/max similar as comparisons.  */
+    case SMIN:
+    case SMAX:
       /* Some floating point comparisons may trap.  */
       if (!flag_trapping_math)
 	break;
@@ -3242,31 +3227,32 @@ may_trap_p_1 (const_rtx x, unsigned flags)
 	 For instance, sparc uses CCFPE for compares which generate exceptions
 	 and CCFP for compares which do not generate exceptions.  */
       if (HONOR_NANS (x))
-	return 1;
+	return true;
       /* But often the compare has some CC mode, so check operand
 	 modes as well.  */
       if (HONOR_NANS (XEXP (x, 0))
 	  || HONOR_NANS (XEXP (x, 1)))
-	return 1;
+	return true;
       break;
 
     case EQ:
     case NE:
       if (HONOR_SNANS (x))
-	return 1;
+	return true;
       /* Often comparison is CC mode, so check operand modes.  */
       if (HONOR_SNANS (XEXP (x, 0))
 	  || HONOR_SNANS (XEXP (x, 1)))
-	return 1;
+	return true;
       break;
 
     case FIX:
     case UNSIGNED_FIX:
       /* Conversion of floating point might trap.  */
       if (flag_trapping_math && HONOR_NANS (XEXP (x, 0)))
-	return 1;
+	return true;
       break;
 
+    case PARALLEL:
     case NEG:
     case ABS:
     case SUBREG:
@@ -3280,7 +3266,7 @@ may_trap_p_1 (const_rtx x, unsigned flags)
     default:
       /* Any floating arithmetic may trap.  */
       if (FLOAT_MODE_P (GET_MODE (x)) && flag_trapping_math)
-	return 1;
+	return true;
     }
 
   fmt = GET_RTX_FORMAT (code);
@@ -3289,28 +3275,28 @@ may_trap_p_1 (const_rtx x, unsigned flags)
       if (fmt[i] == 'e')
 	{
 	  if (may_trap_p_1 (XEXP (x, i), flags))
-	    return 1;
+	    return true;
 	}
       else if (fmt[i] == 'E')
 	{
 	  int j;
 	  for (j = 0; j < XVECLEN (x, i); j++)
 	    if (may_trap_p_1 (XVECEXP (x, i, j), flags))
-	      return 1;
+	      return true;
 	}
     }
-  return 0;
+  return false;
 }
 
-/* Return nonzero if evaluating rtx X might cause a trap.  */
+/* Return true if evaluating rtx X might cause a trap.  */
 
-int
+bool
 may_trap_p (const_rtx x)
 {
   return may_trap_p_1 (x, 0);
 }
 
-/* Same as above, but additionally return nonzero if evaluating rtx X might
+/* Same as above, but additionally return true if evaluating rtx X might
    cause a fault.  We define a fault for the purpose of this function as a
    erroneous execution condition that cannot be encountered during the normal
    execution of a valid program; the typical example is an unaligned memory
@@ -3350,7 +3336,7 @@ may_trap_p (const_rtx x)
    memory reference to a stack slot, but it will certainly cause a fault
    on a strict alignment machine.  */
 
-int
+bool
 may_trap_or_fault_p (const_rtx x)
 {
   return may_trap_p_1 (x, 1);
@@ -3585,11 +3571,11 @@ tablejump_casesi_pattern (const rtx_insn *insn)
   return NULL_RTX;
 }
 
-/* A subroutine of computed_jump_p, return 1 if X contains a REG or MEM or
+/* A subroutine of computed_jump_p, return true if X contains a REG or MEM or
    constant that is not in the constant pool and not in the condition
    of an IF_THEN_ELSE.  */
 
-static int
+static bool
 computed_jump_p_1 (const_rtx x)
 {
   const enum rtx_code code = GET_CODE (x);
@@ -3600,13 +3586,13 @@ computed_jump_p_1 (const_rtx x)
     {
     case LABEL_REF:
     case PC:
-      return 0;
+      return false;
 
     case CONST:
     CASE_CONST_ANY:
     case SYMBOL_REF:
     case REG:
-      return 1;
+      return true;
 
     case MEM:
       return ! (GET_CODE (XEXP (x, 0)) == SYMBOL_REF
@@ -3625,23 +3611,23 @@ computed_jump_p_1 (const_rtx x)
     {
       if (fmt[i] == 'e'
 	  && computed_jump_p_1 (XEXP (x, i)))
-	return 1;
+	return true;
 
       else if (fmt[i] == 'E')
 	for (j = 0; j < XVECLEN (x, i); j++)
 	  if (computed_jump_p_1 (XVECEXP (x, i, j)))
-	    return 1;
+	    return true;
     }
 
-  return 0;
+  return false;
 }
 
-/* Return nonzero if INSN is an indirect jump (aka computed jump).
+/* Return true if INSN is an indirect jump (aka computed jump).
 
    Tablejumps and casesi insns are not considered indirect jumps;
    we can recognize them by a (use (label_ref)).  */
 
-int
+bool
 computed_jump_p (const rtx_insn *insn)
 {
   int i;
@@ -3651,20 +3637,20 @@ computed_jump_p (const rtx_insn *insn)
 
       /* If we have a JUMP_LABEL set, we're not a computed jump.  */
       if (JUMP_LABEL (insn) != NULL)
-	return 0;
+	return false;
 
       if (GET_CODE (pat) == PARALLEL)
 	{
 	  int len = XVECLEN (pat, 0);
-	  int has_use_labelref = 0;
+	  bool has_use_labelref = false;
 
 	  for (i = len - 1; i >= 0; i--)
 	    if (GET_CODE (XVECEXP (pat, 0, i)) == USE
 		&& (GET_CODE (XEXP (XVECEXP (pat, 0, i), 0))
 		    == LABEL_REF))
 	      {
-	        has_use_labelref = 1;
-	        break;
+		has_use_labelref = true;
+		break;
 	      }
 
 	  if (! has_use_labelref)
@@ -3672,14 +3658,14 @@ computed_jump_p (const rtx_insn *insn)
 	      if (GET_CODE (XVECEXP (pat, 0, i)) == SET
 		  && SET_DEST (XVECEXP (pat, 0, i)) == pc_rtx
 		  && computed_jump_p_1 (SET_SRC (XVECEXP (pat, 0, i))))
-		return 1;
+		return true;
 	}
       else if (GET_CODE (pat) == SET
 	       && SET_DEST (pat) == pc_rtx
 	       && computed_jump_p_1 (SET_SRC (pat)))
-	return 1;
+	return true;
     }
-  return 0;
+  return false;
 }
 
 
@@ -3863,7 +3849,7 @@ commutative_operand_precedence (rtx op)
     }
 }
 
-/* Return 1 iff it is necessary to swap operands of commutative operation
+/* Return true iff it is necessary to swap operands of commutative operation
    in order to canonicalize expression.  */
 
 bool
@@ -3873,9 +3859,9 @@ swap_commutative_operands_p (rtx x, rtx y)
 	  < commutative_operand_precedence (y));
 }
 
-/* Return 1 if X is an autoincrement side effect and the register is
+/* Return true if X is an autoincrement side effect and the register is
    not the stack pointer.  */
-int
+bool
 auto_inc_p (const_rtx x)
 {
   switch (GET_CODE (x))
@@ -3888,15 +3874,15 @@ auto_inc_p (const_rtx x)
     case POST_MODIFY:
       /* There are no REG_INC notes for SP.  */
       if (XEXP (x, 0) != stack_pointer_rtx)
-	return 1;
+	return true;
     default:
       break;
     }
-  return 0;
+  return false;
 }
 
-/* Return nonzero if IN contains a piece of rtl that has the address LOC.  */
-int
+/* Return true if IN contains a piece of rtl that has the address LOC.  */
+bool
 loc_mentioned_in_p (rtx *loc, const_rtx in)
 {
   enum rtx_code code;
@@ -3904,7 +3890,7 @@ loc_mentioned_in_p (rtx *loc, const_rtx in)
   int i, j;
 
   if (!in)
-    return 0;
+    return false;
 
   code = GET_CODE (in);
   fmt = GET_RTX_FORMAT (code);
@@ -3913,15 +3899,15 @@ loc_mentioned_in_p (rtx *loc, const_rtx in)
       if (fmt[i] == 'e')
 	{
 	  if (loc == &XEXP (in, i) || loc_mentioned_in_p (loc, XEXP (in, i)))
-	    return 1;
+	    return true;
 	}
       else if (fmt[i] == 'E')
 	for (j = XVECLEN (in, i) - 1; j >= 0; j--)
 	  if (loc == &XVECEXP (in, i, j)
 	      || loc_mentioned_in_p (loc, XVECEXP (in, i, j)))
-	    return 1;
+	    return true;
     }
-  return 0;
+  return false;
 }
 
 /* Reinterpret a subreg as a bit extraction from an integer and return
@@ -4578,6 +4564,11 @@ rtx_cost (rtx x, machine_mode mode, enum rtx_code outer_code,
   switch (code)
     {
     case MULT:
+    case FMA:
+    case SS_MULT:
+    case US_MULT:
+    case SMUL_HIGHPART:
+    case UMUL_HIGHPART:
       /* Multiplication has time-complexity O(N*N), where N is the
 	 number of units (translated from digits) when using
 	 schoolbook long multiplication.  */
@@ -4587,6 +4578,8 @@ rtx_cost (rtx x, machine_mode mode, enum rtx_code outer_code,
     case UDIV:
     case MOD:
     case UMOD:
+    case SS_DIV:
+    case US_DIV:
       /* Similarly, complexity for schoolbook long division.  */
       total = factor * factor * COSTS_N_INSNS (7);
       break;
@@ -5204,7 +5197,7 @@ nonzero_bits1 (const_rtx x, scalar_int_mode mode, const_rtx known_x,
     case FFS:
     case POPCOUNT:
       /* This is at most the number of bits in the mode.  */
-      nonzero = ((unsigned HOST_WIDE_INT) 2 << (floor_log2 (mode_width))) - 1;
+      nonzero = (HOST_WIDE_INT_UC (2) << (floor_log2 (mode_width))) - 1;
       break;
 
     case CLZ:
@@ -5779,7 +5772,7 @@ pattern_cost (rtx pat, bool speed)
     return 0;
 
   cost = set_src_cost (SET_SRC (set), GET_MODE (SET_DEST (set)), speed);
-  return cost > 0 ? cost : COSTS_N_INSNS (1);
+  return MAX (COSTS_N_INSNS (1), cost);
 }
 
 /* Calculate the cost of a single instruction.  A return value of zero
@@ -6484,10 +6477,30 @@ strip_address_mutations (rtx *loc, enum rtx_code *outer_code)
 	/* (and ... (const_int -X)) is used to align to X bytes.  */
 	loc = &XEXP (*loc, 0);
       else if (code == SUBREG
-               && !OBJECT_P (SUBREG_REG (*loc))
-               && subreg_lowpart_p (*loc))
-	/* (subreg (operator ...) ...) inside and is used for mode
-	   conversion too.  */
+	       && (!OBJECT_P (SUBREG_REG (*loc))
+		   || CONSTANT_P (SUBREG_REG (*loc)))
+	       && subreg_lowpart_p (*loc))
+	/* (subreg (operator ...) ...) inside AND is used for mode
+	   conversion too.  It is also used for load-address operations
+	   in which an extension can be done for free, such as:
+
+	     (zero_extend:DI
+	       (subreg:SI (plus:DI (reg:DI R) (symbol_ref:DI "foo") 0)))
+
+	   The latter usage also covers subregs of plain "displacements",
+	   such as:
+
+	     (zero_extend:DI (subreg:SI (symbol_ref:DI "foo") 0))
+
+	   The inner address should then be the symbol_ref, not the subreg,
+	   similarly to the plus case above.
+
+	   In contrast, the subreg in:
+
+	     (zero_extend:DI (subreg:SI (reg:DI R) 0))
+
+	   should be treated as the base, since it should be replaced by
+	   an SImode hard register during register allocation.  */
 	loc = &SUBREG_REG (*loc);
       else
 	return loc;
@@ -6511,6 +6524,25 @@ binary_scale_code_p (enum rtx_code code)
           || code == ROTATERT);
 }
 
+/* Return true if X appears to be a valid base or index term.  */
+static bool
+valid_base_or_index_term_p (rtx x)
+{
+  if (GET_CODE (x) == SCRATCH)
+    return true;
+  /* Handle what appear to be eliminated forms of a register.  If we reach
+     here, the elimination occurs outside of the outermost PLUS tree,
+     and so the elimination offset cannot be treated as a displacement
+     of the main address.  Instead, we need to treat the whole PLUS as
+     the base or index term.  The address can only be made legitimate by
+     reloading the PLUS.  */
+  if (GET_CODE (x) == PLUS && CONST_SCALAR_INT_P (XEXP (x, 1)))
+    x = XEXP (x, 0);
+  if (GET_CODE (x) == SUBREG)
+    x = SUBREG_REG (x);
+  return REG_P (x) || MEM_P (x);
+}
+
 /* If *INNER can be interpreted as a base, return a pointer to the inner term
    (see address_info).  Return null otherwise.  */
 
@@ -6519,10 +6551,7 @@ get_base_term (rtx *inner)
 {
   if (GET_CODE (*inner) == LO_SUM)
     inner = strip_address_mutations (&XEXP (*inner, 0));
-  if (REG_P (*inner)
-      || MEM_P (*inner)
-      || GET_CODE (*inner) == SUBREG
-      || GET_CODE (*inner) == SCRATCH)
+  if (valid_base_or_index_term_p (*inner))
     return inner;
   return 0;
 }
@@ -6536,10 +6565,7 @@ get_index_term (rtx *inner)
   /* At present, only constant scales are allowed.  */
   if (binary_scale_code_p (GET_CODE (*inner)) && CONSTANT_P (XEXP (*inner, 1)))
     inner = strip_address_mutations (&XEXP (*inner, 0));
-  if (REG_P (*inner)
-      || MEM_P (*inner)
-      || GET_CODE (*inner) == SUBREG
-      || GET_CODE (*inner) == SCRATCH)
+  if (valid_base_or_index_term_p (*inner))
     return inner;
   return 0;
 }
@@ -6741,20 +6767,36 @@ decompose_normal_address (struct address_info *info)
     }
   else if (out == 2)
     {
+      auto address_mode = targetm.addr_space.address_mode (info->as);
+      rtx inner_op0 = *inner_ops[0];
+      rtx inner_op1 = *inner_ops[1];
+      int base;
+      /* If one inner operand has the expected mode for a base and the other
+	 doesn't, assume that the other one is the index.  This is useful
+	 for addresses such as:
+
+	   (plus (zero_extend X) Y)
+
+	 zero_extend is not in itself enough to assume an index, since bases
+	 can be zero-extended on POINTERS_EXTEND_UNSIGNED targets.  But if
+	 Y has address mode and X doesn't, there should be little doubt that
+	 Y is the base.  */
+      if (GET_MODE (inner_op0) == address_mode
+	  && GET_MODE (inner_op1) != address_mode)
+	base = 0;
+      else if (GET_MODE (inner_op1) == address_mode
+	       && GET_MODE (inner_op0) != address_mode)
+	base = 1;
       /* In the event of a tie, assume the base comes first.  */
-      if (baseness (*inner_ops[0], info->mode, info->as, PLUS,
-		    GET_CODE (*ops[1]))
-	  >= baseness (*inner_ops[1], info->mode, info->as, PLUS,
-		       GET_CODE (*ops[0])))
-	{
-	  set_address_base (info, ops[0], inner_ops[0]);
-	  set_address_index (info, ops[1], inner_ops[1]);
-	}
+      else if (baseness (inner_op0, info->mode, info->as, PLUS,
+			 GET_CODE (*ops[1]))
+	       >= baseness (inner_op1, info->mode, info->as, PLUS,
+			    GET_CODE (*ops[0])))
+	base = 0;
       else
-	{
-	  set_address_base (info, ops[1], inner_ops[1]);
-	  set_address_index (info, ops[0], inner_ops[0]);
-	}
+	base = 1;
+      set_address_base (info, ops[base], inner_ops[base]);
+      set_address_index (info, ops[1 - base], inner_ops[1 - base]);
     }
   else
     gcc_assert (out == 0);
@@ -6987,6 +7029,21 @@ vec_series_lowpart_p (machine_mode result_mode, machine_mode op_mode, rtx sel)
     {
       int offset = BYTES_BIG_ENDIAN ? nunits - XVECLEN (sel, 0) : 0;
       return rtvec_series_p (XVEC (sel, 0), offset);
+    }
+  return false;
+}
+
+/* Return true if X contains a paradoxical subreg.  */
+
+bool
+contains_paradoxical_subreg_p (rtx x)
+{
+  subrtx_var_iterator::array_type array;
+  FOR_EACH_SUBRTX_VAR (iter, array, x, NONCONST)
+    {
+      x = *iter;
+      if (SUBREG_P (x) && paradoxical_subreg_p (x))
+	return true;
     }
   return false;
 }

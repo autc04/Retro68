@@ -1,5 +1,5 @@
 /* Compute different info about registers.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -140,6 +140,9 @@ reginfo_cc_finalize (void)
   CLEAR_HARD_REG_SET (global_reg_set);
 }
 
+/* In insn-preds.cc.  */
+extern void init_reg_class_start_regs ();
+
 /* Given a register bitmap, turn on the bits in a HARD_REG_SET that
    correspond to the hard registers, if any, set in that map.  This
    could be done far more efficiently by having all sorts of special-cases
@@ -198,6 +201,8 @@ init_reg_sets (void)
 
   SET_HARD_REG_SET (accessible_reg_set);
   SET_HARD_REG_SET (operand_reg_set);
+
+  init_reg_class_start_regs ();
 }
 
 /* We need to save copies of some of the register information which
@@ -264,7 +269,7 @@ init_reg_sets_1 (void)
   for (i = 0; i < N_REG_CLASSES; i++)
     {
       bool any_nonfixed = false;
-      for (j = 0; j < FIRST_PSEUDO_REGISTER; j++)	
+      for (j = 0; j < FIRST_PSEUDO_REGISTER; j++)
 	if (TEST_HARD_REG_BIT (reg_class_contents[i], j))
 	  {
 	    reg_class_size[i]++;
@@ -413,6 +418,16 @@ init_reg_sets_1 (void)
 	  SET_HARD_REG_BIT (fixed_reg_set, i);
 	  SET_HARD_REG_BIT (global_reg_set, i);
 	}
+    }
+
+  /* Recalculate eh_return_data_regs.  */
+  CLEAR_HARD_REG_SET (eh_return_data_regs);
+  for (i = 0; ; ++i)
+    {
+      unsigned int regno = EH_RETURN_DATA_REGNO (i);
+      if (regno == INVALID_REGNUM)
+	break;
+      SET_HARD_REG_BIT (eh_return_data_regs, regno);
     }
 
   memset (have_regs_of_mode, 0, sizeof (have_regs_of_mode));
@@ -738,11 +753,11 @@ globalize_reg (tree decl, int i)
   if (global_regs[i])
     {
       auto_diagnostic_group d;
-      warning_at (loc, 0, 
+      warning_at (loc, 0,
 		  "register of %qD used for multiple global register variables",
 		  decl);
       inform (DECL_SOURCE_LOCATION (global_regs_decl[i]),
-	      "conflicts with %qD", global_regs_decl[i]); 
+	      "conflicts with %qD", global_regs_decl[i]);
       return;
     }
 
@@ -953,7 +968,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *) { return reginfo_init (); }
+  unsigned int execute (function *) final override { return reginfo_init (); }
 
 }; // class pass_reginfo_init
 
@@ -1134,9 +1149,9 @@ reg_scan_mark_refs (rtx x, rtx_insn *insn)
 }
 
 
-/* Return nonzero if C1 is a subset of C2, i.e., if every register in C1
+/* Return true if C1 is a subset of C2, i.e., if every register in C1
    is also in C2.  */
-int
+bool
 reg_class_subset_p (reg_class_t c1, reg_class_t c2)
 {
   return (c1 == c2
@@ -1145,8 +1160,8 @@ reg_class_subset_p (reg_class_t c1, reg_class_t c2)
 				   reg_class_contents[(int) c2]));
 }
 
-/* Return nonzero if there is a register that is in both C1 and C2.  */
-int
+/* Return true if there is a register that is in both C1 and C2.  */
+bool
 reg_classes_intersect_p (reg_class_t c1, reg_class_t c2)
 {
   return (c1 == c2

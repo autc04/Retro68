@@ -1,5 +1,5 @@
 /* Structure for saving state for a nested function.
-   Copyright (C) 1989-2022 Free Software Foundation, Inc.
+   Copyright (C) 1989-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -45,7 +45,7 @@ struct GTY(()) emit_status {
 
   /* seq.first and seq.last are the ends of the doubly-linked chain of
      rtl for the current function.  Both are reset to null at the
-     start of rtl generation for the function. 
+     start of rtl generation for the function.
 
      start_sequence saves both of these on seq.next and then starts
      a new, nested sequence of insns.
@@ -94,7 +94,7 @@ extern GTY ((length ("crtl->emit.x_reg_rtx_no"))) rtx * regno_reg_rtx;
 struct GTY(()) expr_status {
   /* Number of units that we should eventually pop off the stack.
      These are the arguments to function calls that have already returned.  */
-  poly_int64_pod x_pending_stack_adjust;
+  poly_int64 x_pending_stack_adjust;
 
   /* Under some ABIs, it is the caller's responsibility to pop arguments
      pushed for function calls.  A naive implementation would simply pop
@@ -117,7 +117,7 @@ struct GTY(()) expr_status {
      boundary can be momentarily unaligned while pushing the arguments.
      Record the delta since last aligned boundary here in order to get
      stack alignment in the nested function calls working right.  */
-  poly_int64_pod x_stack_pointer_delta;
+  poly_int64 x_stack_pointer_delta;
 
   /* Nonzero means __builtin_saveregs has already been done in this function.
      The value is the pseudoreg containing the value __builtin_saveregs
@@ -269,6 +269,10 @@ struct GTY(()) function {
 
   /* Value histograms attached to particular statements.  */
   htab_t GTY((skip)) value_histograms;
+
+  /* Annotated gconds so that basic conditions in the same expression map to
+     the same uid.  This is used for condition coverage.  */
+  hash_map <gcond*, unsigned> *GTY((skip)) cond_uids;
 
   /* For function.cc.  */
 
@@ -426,6 +430,9 @@ struct GTY(()) function {
   /* Nonzero when the tail call has been identified.  */
   unsigned int tail_call_marked : 1;
 
+  /* Has musttail marked calls.  */
+  unsigned int has_musttail : 1;
+
   /* Nonzero if the current function contains a #pragma GCC unroll.  */
   unsigned int has_unroll : 1;
 
@@ -438,6 +445,13 @@ struct GTY(()) function {
 
   /* Set if there are any OMP_TARGET regions in the function.  */
   unsigned int has_omp_target : 1;
+
+  /* Set for artificial function created for [[assume (cond)]].
+     These should be GIMPLE optimized, but not expanded to RTL.  */
+  unsigned int assume_function : 1;
+
+  /* Nonzero if reload will have to split basic blocks.  */
+  unsigned int split_basic_blocks_after_reload : 1;
 };
 
 /* Add the decl D to the local_decls list of FUN.  */
@@ -514,6 +528,17 @@ set_loops_for_fn (struct function *fn, struct loops *loops)
   fn->x_current_loops = loops;
 }
 
+/* Get a new unique dependence clique or zero if none is left.  */
+
+inline unsigned short
+get_new_clique (function *fn)
+{
+  unsigned short clique = fn->last_clique + 1;
+  if (clique != 0)
+    fn->last_clique = clique;
+  return clique;
+}
+
 /* For backward compatibility... eventually these should all go away.  */
 #define current_function_funcdef_no (cfun->funcdef_no)
 
@@ -533,7 +558,7 @@ extern struct machine_function * (*init_machine_status) (void);
 
 struct args_size
 {
-  poly_int64_pod constant;
+  poly_int64 constant;
   tree var;
 };
 
@@ -653,11 +678,11 @@ extern rtx get_hard_reg_initial_val (machine_mode, unsigned int);
 extern rtx has_hard_reg_initial_val (machine_mode, unsigned int);
 
 /* Called from gimple_expand_cfg.  */
-extern unsigned int emit_initial_value_sets (void);
+extern void emit_initial_value_sets (void);
 
 extern bool initial_value_entry (int i, rtx *, rtx *);
 extern void instantiate_decl_rtl (rtx x);
-extern int aggregate_value_p (const_tree, const_tree);
+extern bool aggregate_value_p (const_tree, const_tree);
 extern bool use_register_for_decl (const_tree);
 extern gimple_seq gimplify_parameters (gimple_seq *);
 extern void locate_and_pad_parm (machine_mode, tree, int, int, int,
@@ -679,11 +704,13 @@ extern void number_blocks (tree);
 extern void set_cfun (struct function *new_cfun, bool force = false);
 extern void push_cfun (struct function *new_cfun);
 extern void pop_cfun (void);
+extern void push_function_decl (tree, bool = false);
+extern void pop_function_decl (void);
 
 extern int get_next_funcdef_no (void);
 extern int get_last_funcdef_no (void);
 extern void allocate_struct_function (tree, bool);
-extern void push_struct_function (tree fndecl);
+extern void push_struct_function (tree fndecl, bool = false);
 extern void push_dummy_function (bool);
 extern void pop_dummy_function (void);
 extern void init_dummy_function_start (void);
@@ -698,9 +725,9 @@ extern void clobber_return_register (void);
 extern void expand_function_end (void);
 extern rtx get_arg_pointer_save_area (void);
 extern void maybe_copy_prologue_epilogue_insn (rtx, rtx);
-extern int prologue_contains (const rtx_insn *);
-extern int epilogue_contains (const rtx_insn *);
-extern int prologue_epilogue_contains (const rtx_insn *);
+extern bool prologue_contains (const rtx_insn *);
+extern bool epilogue_contains (const rtx_insn *);
+extern bool prologue_epilogue_contains (const rtx_insn *);
 extern void record_prologue_seq (rtx_insn *);
 extern void record_epilogue_seq (rtx_insn *);
 extern void emit_return_into_block (bool simple_p, basic_block bb);
@@ -711,12 +738,15 @@ extern vec<edge> convert_jumps_to_returns (basic_block last_bb, bool simple_p,
 extern basic_block emit_return_for_exit (edge exit_fallthru_edge,
 					 bool simple_p);
 extern void reposition_prologue_and_epilogue_notes (void);
+extern poly_int64 get_stack_dynamic_offset ();
 
 /* Returns the name of the current function.  */
 extern const char *fndecl_name (tree);
-extern const char *function_name (struct function *);
+extern const char *function_name (const function *);
 extern const char *current_function_name (void);
 
 extern void used_types_insert (tree);
+
+extern bool currently_expanding_function_start;
 
 #endif  /* GCC_FUNCTION_H */

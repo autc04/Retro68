@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -174,7 +174,7 @@ package body Uintp is
    --  K is as small as possible S.T. Right_Hat < Base * Base. It is required
    --  that Left >= Right for the algorithm to work.
 
-   function N_Digits (Input : Valid_Uint) return Int;
+   function N_Digits (Input : Valid_Uint) return Pos;
    pragma Inline (N_Digits);
    --  Returns number of "digits" in a Uint
 
@@ -300,11 +300,9 @@ package body Uintp is
 
       function Better_In_Hex return Boolean is
          T16 : constant Valid_Uint := Uint_2**Int'(16);
-         A   : Valid_Uint;
+         A   : Valid_Uint := UI_Abs (Input);
 
       begin
-         A := UI_Abs (Input);
-
          --  Small values up to 2**16 can always be in decimal
 
          if A < T16 then
@@ -567,7 +565,7 @@ package body Uintp is
          begin
             --  It is not so clear what to return when Arg is negative???
 
-            Left_Hat := abs (L1) * Base + L2;
+            Left_Hat := abs L1 * Base + L2;
          end;
       end if;
 
@@ -586,7 +584,7 @@ package body Uintp is
             Length_R := 2;
 
          else
-            R1 := abs (Udigits.Table (Uints.Table (Right).Loc));
+            R1 := abs Udigits.Table (Uints.Table (Right).Loc);
             R2 := Udigits.Table (Uints.Table (Right).Loc + 1);
             Length_R := Uints.Table (Right).Length;
          end if;
@@ -605,7 +603,7 @@ package body Uintp is
    -- N_Digits --
    ---------------
 
-   function N_Digits (Input : Valid_Uint) return Int is
+   function N_Digits (Input : Valid_Uint) return Pos is
    begin
       if Direct (Input) then
          if Direct_Val (Input) >= Base then
@@ -637,7 +635,7 @@ package body Uintp is
       --  For any other number in Int_Range, get absolute value of number
 
       elsif UI_Is_In_Int_Range (Input) then
-         Num := abs (UI_To_Int (Input));
+         Num := abs UI_To_Int (Input);
          Bits := 0;
 
       --  If not in Int_Range then initialize bit count for all low order
@@ -645,7 +643,7 @@ package body Uintp is
 
       else
          Bits := Base_Bits * (Uints.Table (Input).Length - 1);
-         Num  := abs (Udigits.Table (Uints.Table (Input).Loc));
+         Num  := abs Udigits.Table (Uints.Table (Input).Loc);
       end if;
 
       --  Increase bit count for remaining value in Num
@@ -759,6 +757,19 @@ package body Uintp is
          end;
       end if;
    end Release_And_Save;
+
+   --------------------
+   --  Type_Size_For --
+   --------------------
+
+   function Type_Size_For (Input : Valid_Uint) return Nat is
+      Neg  : constant Boolean := Input < Uint_0;
+
+   begin
+      --  Num_Bits is correct only for nonnegative values
+
+      return Num_Bits (Input) + Boolean'Pos (Neg);
+   end Type_Size_For;
 
    -------------
    -- UI_Abs --
@@ -1431,7 +1442,7 @@ package body Uintp is
 
             N := N / Uint_2;
             exit when N = Uint_0;
-            Squares := Squares *  Squares;
+            Squares := Squares * Squares;
          end loop;
 
          Uintp.Release_And_Save (M, Result);
@@ -2029,9 +2040,9 @@ package body Uintp is
       begin
          Init_Operand (Left, L_Vec);
          Init_Operand (Right, R_Vec);
-         Neg := (L_Vec (1) < Int_0) xor (R_Vec (1) < Int_0);
-         L_Vec (1) := abs (L_Vec (1));
-         R_Vec (1) := abs (R_Vec (1));
+         Neg := L_Vec (1) < Int_0 xor R_Vec (1) < Int_0;
+         L_Vec (1) := abs L_Vec (1);
+         R_Vec (1) := abs R_Vec (1);
 
          Algorithm_M : declare
             Product : UI_Vector (1 .. L_Length + R_Length);
@@ -2233,30 +2244,17 @@ package body Uintp is
 
    function UI_To_CC (Input : Valid_Uint) return Char_Code is
    begin
-      if Direct (Input) then
-         return Char_Code (Direct_Val (Input));
+      --  Char_Code and Int have equal upper bounds, so simply guard against
+      --  negative Input and reuse conversion to Int. We trust that conversion
+      --  to Int will raise Constraint_Error when Input is too large.
 
-      --  Case of input is more than one digit
+      pragma Assert
+        (Char_Code'First = 0 and then Int (Char_Code'Last) = Int'Last);
 
+      if Input >= Uint_0 then
+         return Char_Code (UI_To_Int (Input));
       else
-         declare
-            In_Length : constant Int := N_Digits (Input);
-            In_Vec    : UI_Vector (1 .. In_Length);
-            Ret_CC    : Char_Code;
-
-         begin
-            Init_Operand (Input, In_Vec);
-
-            --  We assume value is positive
-
-            Ret_CC := 0;
-            for Idx in In_Vec'Range loop
-               Ret_CC := Ret_CC * Char_Code (Base) +
-                                  Char_Code (abs In_Vec (Idx));
-            end loop;
-
-            return Ret_CC;
-         end;
+         raise Constraint_Error;
       end if;
    end UI_To_CC;
 

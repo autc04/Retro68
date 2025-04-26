@@ -191,9 +191,8 @@ Mark_address_taken::expression(Expression** pexpr)
 class Check_escape : public Traverse
 {
  public:
-  Check_escape(Gogo* gogo)
-    : Traverse(traverse_expressions | traverse_variables),
-      gogo_(gogo)
+  Check_escape()
+    : Traverse(traverse_expressions | traverse_variables)
   { }
 
   int
@@ -201,9 +200,6 @@ class Check_escape : public Traverse
 
   int
   variable(Named_object*);
-
- private:
-  Gogo* gogo_;
 };
 
 int
@@ -664,7 +660,7 @@ Gogo::add_write_barriers()
     {
       this->propagate_writebarrierrec();
 
-      Check_escape chk(this);
+      Check_escape chk;
       this->traverse(&chk);
     }
 
@@ -876,6 +872,7 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
       addr->unary_expression()->set_does_not_escape();
     }
   Temporary_statement* lhs_temp = Statement::make_temporary(NULL, addr, loc);
+  lhs_temp->determine_types(this);
   inserter->insert(lhs_temp);
   lhs = Expression::make_temporary_reference(lhs_temp, loc);
 
@@ -887,6 +884,7 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
     {
       // May need a temporary for interface conversion.
       Temporary_statement* temp = Statement::make_temporary(NULL, rhs, loc);
+      temp->determine_types(this);
       inserter->insert(temp);
       rhs = Expression::make_temporary_reference(temp, loc);
     }
@@ -895,6 +893,7 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
   if (!rhs->is_multi_eval_safe())
     {
       rhs_temp = Statement::make_temporary(NULL, rhs, loc);
+      rhs_temp->determine_types(this);
       inserter->insert(rhs_temp);
       rhs = Expression::make_temporary_reference(rhs_temp, loc);
     }
@@ -927,7 +926,8 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
       {
 	// These types are all represented by a single pointer.
 	rhs = Expression::make_unsafe_cast(uintptr_type, rhs, loc);
-	call = Runtime::make_call(Runtime::GCWRITEBARRIER, loc, 2, lhs, rhs);
+	call = Runtime::make_call(this, Runtime::GCWRITEBARRIER, loc, 2,
+				  lhs, rhs);
       }
       break;
 
@@ -943,6 +943,7 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
                                        Expression::STRING_INFO_LENGTH,
                                        loc);
         Statement* as = Statement::make_assignment(llen, rlen, loc);
+	as->determine_types(this);
         inserter->insert(as);
 
         // Assign the data field with a write barrier.
@@ -957,7 +958,8 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
         assign = Statement::make_assignment(lhs, rhs, loc);
         lhs = Expression::make_unary(OPERATOR_AND, lhs, loc);
         rhs = Expression::make_unsafe_cast(uintptr_type, rhs, loc);
-        call = Runtime::make_call(Runtime::GCWRITEBARRIER, loc, 2, lhs, rhs);
+        call = Runtime::make_call(this, Runtime::GCWRITEBARRIER, loc, 2,
+				  lhs, rhs);
       }
       break;
 
@@ -980,6 +982,7 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
                                           Expression::INTERFACE_INFO_METHODS,
                                           loc);
         Statement* as = Statement::make_assignment(ltab, rtab, loc);
+	as->determine_types(this);
         inserter->insert(as);
 
         // Assign the data field with a write barrier.
@@ -994,7 +997,8 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
         assign = Statement::make_assignment(lhs, rhs, loc);
         lhs = Expression::make_unary(OPERATOR_AND, lhs, loc);
         rhs = Expression::make_unsafe_cast(uintptr_type, rhs, loc);
-        call = Runtime::make_call(Runtime::GCWRITEBARRIER, loc, 2, lhs, rhs);
+        call = Runtime::make_call(this, Runtime::GCWRITEBARRIER, loc, 2,
+				  lhs, rhs);
       }
       break;
 
@@ -1011,6 +1015,7 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
                                         Expression::SLICE_INFO_LENGTH,
                                         loc);
           Statement* as = Statement::make_assignment(llen, rlen, loc);
+	  as->determine_types(this);
           inserter->insert(as);
 
           // Assign the capacity fields directly.
@@ -1023,6 +1028,7 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
                                         Expression::SLICE_INFO_CAPACITY,
                                         loc);
           as = Statement::make_assignment(lcap, rcap, loc);
+	  as->determine_types(this);
           inserter->insert(as);
 
           // Assign the data field with a write barrier.
@@ -1037,7 +1043,8 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
           assign = Statement::make_assignment(lhs, rhs, loc);
           lhs = Expression::make_unary(OPERATOR_AND, lhs, loc);
           rhs = Expression::make_unsafe_cast(uintptr_type, rhs, loc);
-          call = Runtime::make_call(Runtime::GCWRITEBARRIER, loc, 2, lhs, rhs);
+          call = Runtime::make_call(this, Runtime::GCWRITEBARRIER, loc, 2,
+				    lhs, rhs);
           break;
         }
       // fallthrough
@@ -1047,14 +1054,15 @@ Gogo::assign_with_write_barrier(Function* function, Block* enclosing,
         {
           rhs = Expression::unpack_direct_iface(rhs, loc);
           rhs = Expression::make_unsafe_cast(uintptr_type, rhs, loc);
-          call = Runtime::make_call(Runtime::GCWRITEBARRIER, loc, 2, lhs, rhs);
+          call = Runtime::make_call(this, Runtime::GCWRITEBARRIER, loc, 2,
+				    lhs, rhs);
         }
       else
         {
           // TODO: split assignments for small struct/array?
           rhs = Expression::make_unary(OPERATOR_AND, rhs, loc);
           rhs->unary_expression()->set_does_not_escape();
-          call = Runtime::make_call(Runtime::TYPEDMEMMOVE, loc, 3,
+          call = Runtime::make_call(this, Runtime::TYPEDMEMMOVE, loc, 3,
                                     Expression::make_type_descriptor(type, loc),
                                     lhs, rhs);
         }
@@ -1096,5 +1104,8 @@ Gogo::check_write_barrier(Block* enclosing, Statement* without,
   Block* else_block = new Block(enclosing, loc);
   else_block->add_statement(with);
 
-  return Statement::make_if_statement(cond, then_block, else_block, loc);
+  Statement* s = Statement::make_if_statement(cond, then_block, else_block,
+					      loc);
+  s->determine_types(this);
+  return s;
 }

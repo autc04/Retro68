@@ -1,5 +1,5 @@
 /* Array bounds checking.
-   Copyright (C) 2020-2022 Free Software Foundation, Inc.
+   Copyright (C) 2020-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -27,7 +27,7 @@ class array_bounds_checker
   friend class check_array_bounds_dom_walker;
 
 public:
-  array_bounds_checker (struct function *, range_query *);
+  array_bounds_checker (struct function *);
   void check ();
 
 private:
@@ -35,7 +35,7 @@ private:
   bool check_array_ref (location_t, tree, gimple *, bool ignore_off_by_one);
   bool check_mem_ref (location_t, tree, bool ignore_off_by_one);
   void check_addr_expr (location_t, tree, gimple *);
-  const value_range *get_value_range (const_tree op, gimple *);
+  void get_value_range (irange &r, const_tree op, gimple *);
 
   /* Current function.  */
   struct function *fun;

@@ -62,8 +62,9 @@ extern (C)
             {
                 import core.stdc.stdio : fprintf, stderr;
                 import core.stdc.stdlib : exit;
+                import core.atomic : atomicLoad;
 
-                fprintf(stderr, "No GC was initialized, please recheck the name of the selected GC ('%.*s').\n", cast(int)config.gc.length, config.gc.ptr);
+                fprintf(atomicLoad(stderr), "No GC was initialized, please recheck the name of the selected GC ('%.*s').\n", cast(int)config.gc.length, config.gc.ptr);
                 instanceLock.unlock();
                 exit(1);
 
@@ -97,24 +98,15 @@ extern (C)
             {
                 default:
                     import core.stdc.stdio : fprintf, stderr;
-                    fprintf(stderr, "Unknown GC cleanup method, please recheck ('%.*s').\n",
+                    import core.atomic : atomicLoad;
+
+                    fprintf(atomicLoad(stderr), "Unknown GC cleanup method, please recheck ('%.*s').\n",
                             cast(int)config.cleanup.length, config.cleanup.ptr);
                     break;
                 case "none":
                     break;
                 case "collect":
-                    // NOTE: There may be daemons threads still running when this routine is
-                    //       called.  If so, cleaning memory out from under then is a good
-                    //       way to make them crash horribly.  This probably doesn't matter
-                    //       much since the app is supposed to be shutting down anyway, but
-                    //       I'm disabling cleanup for now until I can think about it some
-                    //       more.
-                    //
-                    // NOTE: Due to popular demand, this has been re-enabled.  It still has
-                    //       the problems mentioned above though, so I guess we'll see.
-
-                    instance.collectNoStack();  // not really a 'collect all' -- still scans
-                                                // static data area, roots, and ranges.
+                    instance.collect();
                     break;
                 case "finalize":
                     instance.runFinalizers((cast(ubyte*)null)[0 .. size_t.max]);
@@ -252,6 +244,26 @@ extern (C)
     ulong gc_allocatedInCurrentThread() nothrow
     {
         return instance.allocatedInCurrentThread();
+    }
+
+    void[] gc_getArrayUsed(void *ptr, bool atomic) nothrow
+    {
+        return instance.getArrayUsed( ptr, atomic );
+    }
+
+    bool gc_expandArrayUsed(void[] slice, size_t newUsed, bool atomic) nothrow
+    {
+        return instance.expandArrayUsed( slice, newUsed, atomic );
+    }
+
+    size_t gc_reserveArrayCapacity(void[] slice, size_t request, bool atomic) nothrow
+    {
+        return instance.reserveArrayCapacity( slice, request, atomic );
+    }
+
+    bool gc_shrinkArrayUsed(void[] slice, size_t existingUsed, bool atomic) nothrow
+    {
+        return instance.shrinkArrayUsed( slice, existingUsed, atomic );
     }
 
     GC gc_getProxy() nothrow

@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *                     Copyright (C) 2008-2022, AdaCore                     *
+ *                     Copyright (C) 2008-2025, AdaCore                     *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -31,7 +31,7 @@
 
 #define ATTRIBUTE_UNUSED __attribute__((unused))
 
-/* First all usupported platforms. Add stubs for exported routines. */
+/* First all unsupported platforms. Add stubs for exported routines. */
 
 #if defined (VMS) || defined (__vxworks) || defined (__Lynx__) \
   || defined (__ANDROID__) || defined (__PikeOS__) || defined(__DJGPP__)
@@ -151,6 +151,7 @@ __gnat_setup_winsize (void *desc ATTRIBUTE_UNUSED,
 #include <stdio.h>
 #include <stdlib.h>
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winternl.h>
 #include <io.h>
@@ -1088,7 +1089,7 @@ __gnat_setup_winsize (void *desc ATTRIBUTE_UNUSED,
 {
 }
 
-#else /* defined(_WIN32, implementatin for all UNIXes */
+#else /* defined(_WIN32, implementation for all UNIXes */
 
 /* First defined some macro to identify easily some systems */
 #if defined (__FreeBSD__) \
@@ -1103,6 +1104,7 @@ __gnat_setup_winsize (void *desc ATTRIBUTE_UNUSED,
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <fcntl.h>
@@ -1120,14 +1122,14 @@ __gnat_setup_winsize (void *desc ATTRIBUTE_UNUSED,
 #if defined (__hpux__)
 #   include <sys/stropts.h>
 #endif
+#if defined (__APPLE__)
+#   include <util.h>
+#endif
+#if defined (__FreeBSD__)
+#   include <libutil.h>
+#endif
 
 #define CDISABLE _POSIX_VDISABLE
-
-/* On HP-UX and Sun system, there is a bzero function but with a different
-   signature. Use memset instead */
-#if defined (__hpux__) || defined (__sun__) || defined (_AIX)
-#   define bzero(s,n) memset (s,0,n)
-#endif
 
 /* POSIX does not specify how to open the master side of a terminal.Several
    methods are available (system specific):
@@ -1266,10 +1268,12 @@ allocate_pty_desc (pty_desc **desc) {
 #ifndef NLDLY
 #define NLDLY 0
 #define CRDLY 0
-#define TABDLY 0
 #define BSDLY 0
 #define VTDLY 0
 #define FFDLY 0
+#endif
+#ifndef TABDLY
+#define TABDLY 0
 #endif
 
 /* child_setup_tty - set terminal properties
@@ -1289,8 +1293,15 @@ child_setup_tty (int fd)
   struct termios s;
   int    status;
 
-  /* ensure that s is filled with 0 */
-  bzero (&s, sizeof (s));
+  /* Ensure that s is filled with 0.
+
+     Note that we avoid using bzero for a few reasons:
+       - On HP-UX and Sun system, there is a bzero function but with
+         a different signature, thus making the use of bzero more
+	 complicated on these platforms (we used to define a bzero
+	 macro that rewrote calls to bzero into calls to memset);
+       - bzero is deprecated (marked as LEGACY in POSIX.1-2001).  */
+  memset (&s, 0, sizeof (s));
 
   /* Get the current terminal settings */
   status = tcgetattr (fd, &s);

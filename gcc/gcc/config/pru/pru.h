@@ -1,5 +1,5 @@
 /* Definitions of target machine for TI PRU.
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2025 Free Software Foundation, Inc.
    Contributed by Dimitar Dimitrov <dimitar@dinux.eu>
 
    This file is part of GCC.
@@ -107,9 +107,6 @@
 #define SHORT_TYPE_SIZE 16
 #define LONG_TYPE_SIZE 32
 #define LONG_LONG_TYPE_SIZE 64
-#define FLOAT_TYPE_SIZE 32
-#define DOUBLE_TYPE_SIZE 64
-#define LONG_DOUBLE_TYPE_SIZE DOUBLE_TYPE_SIZE
 
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
@@ -566,8 +563,9 @@ do {									\
 
 #define CASE_VECTOR_MODE Pmode
 
-/* See definition of clz pattern for rationale of value -1.  */
-#define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE) ((VALUE) = -1, 2)
+/* See definition of clz pattern for rationale of the value.  */
+#define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE)	\
+	((VALUE) = GET_MODE_BITSIZE (MODE) - 1 - 32, 2)
 
 /* Jumps are cheap on PRU.  */
 #define LOGICAL_OP_NON_SHORT_CIRCUIT		0

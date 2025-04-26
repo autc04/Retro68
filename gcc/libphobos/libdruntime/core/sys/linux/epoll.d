@@ -13,10 +13,8 @@ version (linux):
 import core.sys.posix.signal : sigset_t;
 
 extern (C):
-@system:
 @nogc:
 nothrow:
-@system:
 
 version (ARM)     version = ARM_Any;
 version (AArch64) version = ARM_Any;
@@ -127,6 +125,14 @@ else version (SPARC_Any)
     }
 }
 else version (IBMZ_Any)
+{
+    struct epoll_event
+    {
+        uint events;
+        epoll_data_t data;
+    }
+}
+else version (LoongArch64)
 {
     struct epoll_event
     {

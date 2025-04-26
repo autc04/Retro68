@@ -51,7 +51,7 @@ contains
     !$omp declare variant (f13) match (device={kind(fpga)})
   end subroutine
   subroutine f20 ()
-    !$omp declare variant (f13) match (device={kind(any,any)})
+    !$omp declare variant (f13) match (device={kind(any)})
   end subroutine
   subroutine f21 ()
     !$omp declare variant (f13) match (device={kind(host,nohost)})
@@ -60,7 +60,7 @@ contains
     !$omp declare variant (f13) match (device={kind("cpu","gpu","fpga")})
   end subroutine
   subroutine f23 ()
-    !$omp declare variant (f13) match (device={kind(any,cpu,nohost)})
+    !$omp declare variant (f13) match (device={kind(cpu,nohost)})
   end subroutine
   subroutine f24 ()
     !$omp declare variant (f13) match (device={isa(avx)})
@@ -128,6 +128,9 @@ contains
   end subroutine
   subroutine f45 ()
     !$omp declare variant (f13) match (implementation={unified_shared_memory})
+  end subroutine
+  subroutine f45a ()
+    !$omp declare variant (f13) match (implementation={self_maps})
   end subroutine
   subroutine f46 ()
     !$omp declare variant (f13) match (implementation={unified_address})
@@ -210,28 +213,22 @@ contains
     !$omp&					       vendor(score(22):gnu),unified_address,extension(score(22):foobar)})	! { dg-warning "unknown property 'foobar' of 'extension' selector" "" { target *-*-* } .-1 }
   end subroutine
   subroutine f72 ()
-    !$omp declare variant (f13) match (user={condition(0)})
+    !$omp declare variant (f13) match (user={condition(.false.)})
   end subroutine
   subroutine f73 ()
-    !$omp declare variant (f13) match (user={condition(272-272*1)})
+    !$omp declare variant (f13) match (user={condition(.true..and..not..true.)})
   end subroutine
   subroutine f74 ()
-    !$omp declare variant (f13) match (user={condition(score(25):1)})
+    !$omp declare variant (f13) match (user={condition(score(25):.true.)})
   end subroutine
   subroutine f75 ()
-    !$omp declare variant (f13) match (device={kind(any,"any")})
-  end subroutine
-  subroutine f76 ()
-    !$omp declare variant (f13) match (device={kind("any","any")})
-  end subroutine
-  subroutine f77 ()
-    !$omp declare variant (f13) match (device={kind("any",any)})
+    !$omp declare variant (f13) match (device={kind("any")})
   end subroutine
   subroutine f78 ()
     !$omp declare variant (f13) match (implementation={vendor(nvidia)})
   end subroutine
   subroutine f79 ()
-    !$omp declare variant (f13) match (user={condition(score(0):0)})
+    !$omp declare variant (f13) match (user={condition(score(0):.false.)})
   end subroutine
 
   end module

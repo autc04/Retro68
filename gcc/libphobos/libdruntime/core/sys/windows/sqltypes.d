@@ -1,4 +1,7 @@
 /**
+$(RED Warning:
+      This binding is out-of-date and does not allow use on non-Windows platforms. Use `etc.c.odbc.sqltypes` instead.)
+
  * Windows API header module
  *
  * Translated from MinGW Windows headers
@@ -6,9 +9,9 @@
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  * Source: $(DRUNTIMESRC core/sys/windows/_sqltypes.d)
  */
+
 module core.sys.windows.sqltypes;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 
@@ -33,7 +36,7 @@ alias UDWORD SQLUINTEGER;
 // #endif
 
 //static if (ODBCVER >= 0x0300) {
-alias TypeDef!(HANDLE) SQLHANDLE;
+alias HANDLE SQLHANDLE;
 alias SQLHANDLE SQLHENV, SQLHDBC, SQLHSTMT, SQLHDESC;
 /*
 } else {
@@ -66,6 +69,10 @@ alias ubyte  SQLTIME, SQLTIMESTAMP, SQLVARCHAR;
 alias long   ODBCINT64, SQLBIGINT;
 alias ulong  SQLUBIGINT;
 //}
+
+//Everything above this line may by used by odbcinst.d
+//Everything below this line is deprecated
+deprecated ("The ODBC 3.5 modules are deprecated. Please use the ODBC4 modules in the `etc.c.odbc` package."):
 
 struct DATE_STRUCT {
     SQLSMALLINT year;

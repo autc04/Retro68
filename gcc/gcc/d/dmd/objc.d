@@ -3,12 +3,12 @@
  *
  * Specification: $(LINK2 https://dlang.org/spec/objc_interface.html, Interfacing to Objective-C)
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/objc.d, _objc.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/objc.d, _objc.d)
  * Documentation:  https://dlang.org/phobos/dmd_objc.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/objc.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/objc.d
  */
 
 module dmd.objc;
@@ -17,11 +17,11 @@ import dmd.aggregate;
 import dmd.arraytypes;
 import dmd.astenums;
 import dmd.attrib;
+import dmd.attribsem;
 import dmd.cond;
 import dmd.dclass;
 import dmd.declaration;
 import dmd.denum;
-import dmd.dmangle;
 import dmd.dmodule;
 import dmd.dscope;
 import dmd.dstruct;
@@ -36,6 +36,8 @@ import dmd.gluelayer;
 import dmd.hdrgen;
 import dmd.id;
 import dmd.identifier;
+import dmd.location;
+import dmd.mangle;
 import dmd.mtype;
 import dmd.root.array;
 import dmd.common.outbuffer;
@@ -57,7 +59,7 @@ struct ObjcSelector
         stringtable._init();
     }
 
-    extern (D) this(const(char)* sv, size_t len, size_t pcount)
+    extern (D) this(const(char)* sv, size_t len, size_t pcount) @safe
     {
         stringvalue = sv;
         stringlen = len;
@@ -91,39 +93,66 @@ struct ObjcSelector
         return sel;
     }
 
+    static const(char)[] toPascalCase(const(char)[] id) {
+        OutBuffer buf;
+        char firstChar = id[0];
+        if (firstChar >= 'a' && firstChar <= 'z')
+            firstChar = cast(char)(firstChar - 'a' + 'A');
+
+        buf.writeByte(firstChar);
+        buf.writestring(id[1..$]);
+        return cast(const(char)[])buf.extractSlice(false);
+    }
+
     extern (C++) static ObjcSelector* create(FuncDeclaration fdecl)
     {
         OutBuffer buf;
-        TypeFunction ftype = cast(TypeFunction)fdecl.type;
+        auto ftype = cast(TypeFunction)fdecl.type;
         const id = fdecl.ident.toString();
         const nparams = ftype.parameterList.length;
+
         // Special case: property setter
-        if (ftype.isproperty && nparams == 1)
+        if (ftype.isProperty && nparams == 1)
         {
-            // rewrite "identifier" as "setIdentifier"
-            char firstChar = id[0];
-            if (firstChar >= 'a' && firstChar <= 'z')
-                firstChar = cast(char)(firstChar - 'a' + 'A');
-            buf.writestring("set");
-            buf.writeByte(firstChar);
-            buf.write(id[1 .. id.length - 1]);
+
+            // Special case: "isXYZ:"
+            if (id.length >= 2 && id[0..2] == "is")
+            {
+                buf.writestring("set");
+                buf.write(toPascalCase(id[2..$]));
+            }
+            else
+            {
+                buf.writestring("set");
+                buf.write(toPascalCase(id));
+            }
             buf.writeByte(':');
             goto Lcomplete;
         }
+
         // write identifier in selector
         buf.write(id[]);
-        // add mangled type and colon for each parameter
-        if (nparams)
+
+        // To make it easier to match the selectors of objects nicely,
+        // the implementation has been replaced so that the parameter name followed by a colon
+        // is used instead.
+        // eg. void myFunction(int a, int b, int c) would be mangled to a selector as `myFunction:b:c:
+        if (nparams > 1)
         {
-            buf.writeByte('_');
-            foreach (i, fparam; ftype.parameterList)
+            buf.writeByte(':');
+            foreach(i; 1..nparams)
             {
-                mangleToBuffer(fparam.type, &buf);
+                buf.write(ftype.parameterList[i].ident.toString());
                 buf.writeByte(':');
             }
         }
+        else if (nparams == 1)
+        {
+            buf.writeByte(':');
+        }
     Lcomplete:
         buf.writeByte('\0');
+
         // the slice is not expected to include a terminating 0
         return lookup(cast(const(char)*)buf[].ptr, buf.length - 1, nparams);
     }
@@ -166,12 +195,12 @@ extern (C++) struct ObjcClassDeclaration
     /// List of non-inherited methods.
     FuncDeclaration[] methodList;
 
-    extern (D) this(ClassDeclaration classDeclaration)
+    extern (D) this(ClassDeclaration classDeclaration) @safe
     {
         this.classDeclaration = classDeclaration;
     }
 
-    bool isRootClass() const
+    bool isRootClass() const @safe
     {
         return classDeclaration.classKind == ClassKind.objc &&
             !metaclass &&
@@ -409,12 +438,12 @@ extern(C++) private final class Unsupported : Objc
 
     override void setObjc(ClassDeclaration cd)
     {
-        cd.error("Objective-C classes not supported");
+        .error(cd.loc, "%s `%s` Objective-C classes not supported", cd.kind, cd.toPrettyChars);
     }
 
     override void setObjc(InterfaceDeclaration id)
     {
-        id.error("Objective-C interfaces not supported");
+        .error(id.loc, "%s `%s` Objective-C interfaces not supported", id.kind, id.toPrettyChars);
     }
 
     override const(char)* toPrettyChars(ClassDeclaration, bool qualifyTypes) const
@@ -551,11 +580,11 @@ extern(C++) private final class Supported : Objc
 
             if (fd.objc.selector)
             {
-                fd.error("can only have one Objective-C selector per method");
+                .error(fd.loc, "%s `%s` can only have one Objective-C selector per method", fd.kind, fd.toPrettyChars);
                 return 1;
             }
 
-            assert(literal.elements.dim == 1);
+            assert(literal.elements.length == 1);
             auto se = (*literal.elements)[0].toStringExp();
             assert(se);
 
@@ -563,23 +592,33 @@ extern(C++) private final class Supported : Objc
 
             return 0;
         });
+
+        // Avoid attempting to generate selectors for template instances.
+        if (fd.parent && fd.parent.isTemplateInstance())
+            return;
+
+        // No selector declared, generate one.
+        if (fd._linkage == LINK.objc && !fd.objc.selector)
+        {
+            fd.objc.selector = ObjcSelector.create(fd);
+        }
     }
 
     override void validateSelector(FuncDeclaration fd)
     {
         if (!fd.objc.selector)
             return;
-        TypeFunction tf = cast(TypeFunction)fd.type;
-        if (fd.objc.selector.paramCount != tf.parameterList.parameters.dim)
-            fd.error("number of colons in Objective-C selector must match number of parameters");
+        auto tf = cast(TypeFunction)fd.type;
+        if (fd.objc.selector.paramCount != tf.parameterList.parameters.length)
+            .error(fd.loc, "%s `%s` number of colons in Objective-C selector must match number of parameters", fd.kind, fd.toPrettyChars);
         if (fd.parent && fd.parent.isTemplateInstance())
-            fd.error("template cannot have an Objective-C selector attached");
+            .error(fd.loc, "%s `%s` template cannot have an Objective-C selector attached", fd.kind, fd.toPrettyChars);
     }
 
     override void checkLinkage(FuncDeclaration fd)
     {
         if (fd._linkage != LINK.objc && fd.objc.selector)
-            fd.error("must have Objective-C linkage to attach a selector");
+            .error(fd.loc, "%s `%s` must have Objective-C linkage to attach a selector", fd.kind, fd.toPrettyChars);
     }
 
     override bool isVirtual(const FuncDeclaration fd) const
@@ -607,7 +646,7 @@ extern(C++) private final class Supported : Objc
         fd.objc.isOptional = count > 0;
 
         if (count > 1)
-            fd.error("can only declare a function as optional once");
+            .error(fd.loc, "%s `%s` can only declare a function as optional once", fd.kind, fd.toPrettyChars);
     }
 
     /// Returns: the number of times `fd` has been declared as optional.
@@ -642,7 +681,7 @@ extern(C++) private final class Supported : Objc
 
         if (fd._linkage != LINK.objc)
         {
-            fd.error("only functions with Objective-C linkage can be declared as optional");
+            .error(fd.loc, "%s `%s` only functions with Objective-C linkage can be declared as optional", fd.kind, fd.toPrettyChars);
 
             const linkage = linkageToString(fd._linkage);
 
@@ -654,14 +693,14 @@ extern(C++) private final class Supported : Objc
 
         if (parent && parent.isTemplateInstance())
         {
-            fd.error("template cannot be optional");
+            .error(fd.loc, "%s `%s` template cannot be optional", fd.kind, fd.toPrettyChars);
             parent = parent.parent;
             assert(parent);
         }
 
         if (parent && !parent.isInterfaceDeclaration())
         {
-            fd.error("only functions declared inside interfaces can be optional");
+            .error(fd.loc, "%s `%s` only functions declared inside interfaces can be optional", fd.kind, fd.toPrettyChars);
             errorSupplemental(fd.loc, "function is declared inside %s", fd.parent.kind);
         }
     }
@@ -675,8 +714,8 @@ extern(C++) private final class Supported : Objc
     {
         if (cd.classKind == ClassKind.objc && fd.isStatic && !cd.objc.isMeta)
             return cd.objc.metaclass;
-        else
-            return cd;
+
+        return cd;
     }
 
     override void addToClassMethodList(FuncDeclaration fd, ClassDeclaration cd) const
@@ -766,11 +805,10 @@ extern(C++) private final class Supported : Objc
         {
             if (classDeclaration.baseClass)
                 return getRuntimeMetaclass(classDeclaration.baseClass);
-            else
-                return classDeclaration;
+
+            return classDeclaration;
         }
-        else
-            return classDeclaration.objc.metaclass;
+        return classDeclaration.objc.metaclass;
     }
 
     override void addSymbols(AttribDeclaration attribDeclaration,
@@ -804,9 +842,9 @@ extern(C++) private final class Supported : Objc
         enum supplementalMessage = "`offsetof` is not available for members " ~
             "of Objective-C classes. Please use the Objective-C runtime instead";
 
-        expression.error(errorMessage, expression.toChars(),
+        error(expression.loc, errorMessage, expression.toChars(),
             expression.type.toChars());
-        expression.errorSupplemental(supplementalMessage);
+        errorSupplemental(expression.loc, supplementalMessage);
     }
 
     override void checkTupleof(Expression expression, TypeClass type) const
@@ -814,8 +852,8 @@ extern(C++) private final class Supported : Objc
         if (type.sym.classKind != ClassKind.objc)
             return;
 
-        expression.error("no property `tupleof` for type `%s`", type.toChars());
-        expression.errorSupplemental("`tupleof` is not available for members " ~
+        error(expression.loc, "no property `tupleof` for type `%s`", type.toChars());
+        errorSupplemental(expression.loc, "`tupleof` is not available for members " ~
             "of Objective-C classes. Please use the Objective-C runtime instead");
     }
 }
@@ -865,8 +903,8 @@ if (is(T == ClassDeclaration) || is(T == InterfaceDeclaration))
             }
             else
             {
-                error("base " ~ errorType ~ " for an Objective-C " ~
-                      errorType ~ " must be `extern (Objective-C)`");
+                .error(classDeclaration.loc, "%s `%s` base " ~ errorType ~ " for an Objective-C " ~
+                      errorType ~ " must be `extern (Objective-C)`", classDeclaration.kind, classDeclaration.toPrettyChars);
             }
         }
 

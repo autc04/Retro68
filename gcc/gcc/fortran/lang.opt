@@ -1,5 +1,5 @@
 ; Options for the Fortran front end.
-; Copyright (C) 2003-2022 Free Software Foundation, Inc.
+; Copyright (C) 2003-2025 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -7,12 +7,12 @@
 ; the terms of the GNU General Public License as published by the Free
 ; Software Foundation; either version 3, or (at your option) any later
 ; version.
-; 
+;
 ; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
 ; WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 ; for more details.
-; 
+;
 ; You should have received a copy of the GNU General Public License
 ; along with GCC; see the file COPYING3.  If not see
 ; <http://www.gnu.org/licenses/>.
@@ -241,6 +241,10 @@ Wdo-subscript
 Fortran Var(warn_do_subscript) Warning LangEnabledBy(Fortran,Wextra)
 Warn about possibly incorrect subscripts in do loops.
 
+Wexternal-argument-mismatch
+Fortran Var(warn_external_argument_mismatch) Warning LangEnabledBy(Fortran,Wall || fc-prototypes-external)
+Warn when arguments of external procedures do not match.
+
 Wextra
 Fortran Warning
 ; Documented in common
@@ -286,6 +290,10 @@ Fortran Var(warn_use_without_only) Warning
 Warn about USE statements that have no ONLY qualifier.
 
 Wopenacc-parallelism
+Fortran
+; Documented in C
+
+Wopenmp
 Fortran
 ; Documented in C
 
@@ -415,6 +423,10 @@ Fortran RejectNegative Joined UInteger Var(flag_blas_matmul_limit) Init(30)
 
 fbuilding-libgfortran
 Fortran Undocumented Var(flag_building_libgfortran)
+
+fbuiltin-
+Fortran Joined
+; Documented in C
 
 fcheck-array-temporaries
 Fortran
@@ -668,6 +680,33 @@ finline-arg-packing
 Fortran  Var(flag_inline_arg_packing) Init(-1)
 -finline-arg-packing	Perform argument packing inline.
 
+finline-intrinsics
+Fortran RejectNegative Enum(gfc_inlineable_intrinsics) Var(flag_inline_intrinsics, GFC_FLAG_INLINE_INTRINSIC_ALL) Undocumented
+
+fno-inline-intrinsics
+Fortran RejectNegative Enum(gfc_inlineable_intrinsics) Var(flag_inline_intrinsics, GFC_FLAG_INLINE_INTRINSIC_NONE) Undocumented
+
+finline-intrinsics=
+Fortran Joined Var(flag_inline_intrinsics) Enum(gfc_inlineable_intrinsics) Init(GFC_FLAG_INLINE_INTRINSIC_ALL_UNSET) EnumSet
+Enable generation of inline code instead of calls to functions from the library to implement intrinsics.
+
+Enum
+Name(gfc_inlineable_intrinsics) Type(int) UnknownError(%qs is not an inline-controlable intrinsic)
+
+; This is not part of any set
+; EnumValue
+; Enum(gfc_inlineable_intrinsics) String(none) Value(GFC_FLAG_INLINE_INTRINSIC_NONE)
+
+EnumValue
+Enum(gfc_inlineable_intrinsics) String(maxloc) Value(GFC_FLAG_INLINE_INTRINSIC_MAXLOC) Set(1)
+
+EnumValue
+Enum(gfc_inlineable_intrinsics) String(minloc) Value(GFC_FLAG_INLINE_INTRINSIC_MINLOC) Set(2)
+
+; This is not part of any set
+; EnumValue
+; Enum(gfc_inlineable_intrinsics) String(all) Value(GFC_FLAG_INLINE_INTRINSIC_ALL)
+
 finline-matmul-limit=
 Fortran RejectNegative Joined UInteger Var(flag_inline_matmul_limit) Init(-1)
 -finline-matmul-limit=<n>	Specify the size of the largest matrix for which matmul will be inlined.
@@ -711,6 +750,10 @@ Fortran LTO
 fopenmp-simd
 Fortran
 ; Documented in C
+
+fopenmp-allocators
+Fortran Var(flag_openmp_allocators)
+Handle OpenMP allocators for allocatables and pointers.
 
 fpack-derived
 Fortran Var(flag_pack_derived)
@@ -775,6 +818,10 @@ Allocate local variables on the stack to allow indirect recursion.
 frepack-arrays
 Fortran Var(flag_repack_arrays)
 Copy array sections into a contiguous block on procedure entry.
+
+funsigned
+Fortran Var(flag_unsigned)
+Experimental unsigned numbers.
 
 fcoarray=
 Fortran RejectNegative Joined Enum(gfc_fcoarray) Var(flag_coarray) Init(GFC_FCOARRAY_NONE)
@@ -860,8 +907,12 @@ Fortran Joined Separate
 ; Documented in common.opt
 
 static-libgfortran
-Fortran
+Driver
 Statically link the GNU Fortran helper library (libgfortran).
+
+static-libquadmath
+Driver
+Statically link the GCC Quad-Precision Math Library (libquadmath).
 
 std=f2003
 Fortran
@@ -878,6 +929,14 @@ Conform to the ISO Fortran 2008 standard including TS 29113.
 std=f2018
 Fortran
 Conform to the ISO Fortran 2018 standard.
+
+std=f2023
+Fortran
+Conform to the ISO Fortran 2023 standard.
+
+std=f202y
+Fortran
+Enable experimental Fortran 202y features.
 
 std=f95
 Fortran

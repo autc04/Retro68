@@ -1,10 +1,66 @@
-2022-08-19  Release Manager
+2025-04-25  Release Manager
 
-	* GCC 12.2.0 released.
+	* GCC 15.1.0 released.
 
-2022-05-06  Release Manager
+2024-11-22  Andrew Pinski  <quic_apinski@quicinc.com>
 
-	* GCC 12.1.0 released.
+	PR bootstrap/117737
+	* objcp-decl.cc (INCLUDE_MEMORY): Remove.
+	* objcp-lang.cc (INCLUDE_MEMORY): Remove.
+
+2024-10-25  Jakub Jelinek  <jakub@redhat.com>
+
+	* objcp-decl.cc: Remove trailing whitespace.
+	* objcp-lang.cc: Likewise.
+	* objcp-decl.h: Likewise.
+
+2024-10-24  David Malcolm  <dmalcolm@redhat.com>
+	    Gaius Mulley  <gaiusmod2@gmail.com>
+
+	PR other/116613
+	* objcp-decl.cc
+	* objcp-lang.cc: Likewise.
+
+2024-05-07  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* Make-lang.in (cc1objplus$(exeext)): Remove $(NETLIBS).
+
+2023-11-27  Alex Coplan  <alex.coplan@arm.com>
+	    Iain Sandoe  <iain@sandoe.co.uk>
+
+	PR c++/60512
+	* objcp-lang.cc (c_family_register_lang_features): New.
+
+2023-10-22  Patrick Palka  <ppalka@redhat.com>
+
+	PR objc++/111920
+	* objcp-lang.cc (objcp_tsubst_expr) <case CLASS_REFERENCE_EXPR>:
+	Use tsubst instead of tsubst_expr for type operands.
+
+2023-10-20  Patrick Palka  <ppalka@redhat.com>
+
+	* objcp-lang.cc (objcp_tsubst_copy_and_build): Rename to ...
+	(objcp_tsubst_expr): ... this.  Adjust tsubst_copy_and_build
+	uses.
+
+2022-11-15  Patrick Palka  <ppalka@redhat.com>
+
+	* objcp-lang.cc (objcp_tsubst_copy_and_build): Adjust calls to
+	tsubst_copy_and_build and tsubst_expr.
+
+2022-11-15  Patrick Palka  <ppalka@redhat.com>
+
+	* objcp-lang.cc (objcp_tsubst_copy_and_build): Remove
+	function_p parameter.
+
+2022-05-31  Jason Merrill  <jason@redhat.com>
+
+	* Make-lang.in (obj-c++.tags): Look at *.cc.
+
+2022-05-11  Martin Liska  <mliska@suse.cz>
+
+	PR target/105355
+	* lang-specs.h: Use Separate syntax.
 
 2022-01-17  Martin Liska  <mliska@suse.cz>
 
@@ -636,9 +692,8 @@
 	* objcp-decl.c: Likewise.
 	* objcp-decl.h: Likewise.
 	* objcp-lang.c: Likewise.
-
 
-Copyright (C) 2005-2022 Free Software Foundation, Inc.
+Copyright (C) 2005-2025 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

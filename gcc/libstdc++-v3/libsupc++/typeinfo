@@ -1,5 +1,5 @@
 // RTTI support for -*- C++ -*-
-// Copyright (C) 1994-2022 Free Software Foundation, Inc.
+// Copyright (C) 1994-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -29,18 +29,19 @@
 #ifndef _TYPEINFO
 #define _TYPEINFO
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <bits/exception.h>
 #if __cplusplus >= 201103L
 #include <bits/hash_bytes.h>
 #endif
 
-#pragma GCC visibility push(default)
+#define __glibcxx_want_constexpr_typeinfo
+#include <bits/version.h>
 
-#if __cplusplus >= 202100L
-# define __cpp_lib_constexpr_typeinfo 202106L
-#endif
+#pragma GCC visibility push(default)
 
 extern "C++" {
 
@@ -74,11 +75,11 @@ namespace __cxxabiv1
 
 // By default follow the old inline rules to avoid ABI changes.
 #ifndef __GXX_TYPEINFO_EQUALITY_INLINE
-  #if !__GXX_WEAK__
-    #define __GXX_TYPEINFO_EQUALITY_INLINE 0
-  #else
-    #define __GXX_TYPEINFO_EQUALITY_INLINE 1
-  #endif
+#  if !__GXX_WEAK__
+#    define __GXX_TYPEINFO_EQUALITY_INLINE 0
+#  else
+#    define __GXX_TYPEINFO_EQUALITY_INLINE 1
+#  endif
 #endif
 
 namespace std
@@ -189,6 +190,9 @@ namespace std
 #endif
 
 #if __GXX_TYPEINFO_EQUALITY_INLINE || __cplusplus > 202002L
+# if ! __GXX_TYPEINFO_EQUALITY_INLINE
+  [[__gnu__::__always_inline__]]
+# endif
   _GLIBCXX23_CONSTEXPR inline bool
   type_info::operator==(const type_info& __arg) const _GLIBCXX_NOEXCEPT
   {
@@ -208,7 +212,7 @@ namespace std
     return false;
 #endif
   }
-# endif
+#endif
 
 
   /**

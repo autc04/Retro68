@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <algorithm>
 #include <testsuite_hooks.h>
@@ -42,7 +41,7 @@ struct X
   }
 };
 
-static_assert(!std::is_trivial_v<X>);
+static_assert(!std::is_trivially_default_constructible_v<X>);
 
 template<template<typename, template<typename> typename> typename container,
 	 template<typename> typename wrapper,

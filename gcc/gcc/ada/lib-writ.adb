@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,6 +30,7 @@ with Debug;          use Debug;
 with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
+with Elists;         use Elists;
 with Errout;         use Errout;
 with Fname;          use Fname;
 with Fname.UF;       use Fname.UF;
@@ -37,6 +38,7 @@ with Lib.Util;       use Lib.Util;
 with Lib.Xref;       use Lib.Xref;
 with Nlists;         use Nlists;
 with Gnatvsn;        use Gnatvsn;
+with GNAT_CUDA;      use GNAT_CUDA;
 with Opt;            use Opt;
 with Osint;          use Osint;
 with Osint.C;        use Osint.C;
@@ -48,6 +50,7 @@ with Rident;         use Rident;
 with Stand;          use Stand;
 with Scn;            use Scn;
 with Sem_Eval;       use Sem_Eval;
+with Sem_Util;       use Sem_Util;
 with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
@@ -268,6 +271,10 @@ package body Lib.Writ is
       --  Collect with lines for entries in the context clause of the given
       --  compilation unit, Cunit.
 
+      procedure Output_CUDA_Symbols (Unit_Num : Unit_Number_Type);
+      --  Output CUDA symbols, so that the rest of the toolchain may know what
+      --  symbols need registering with the CUDA runtime.
+
       procedure Write_Unit_Information (Unit_Num : Unit_Number_Type);
       --  Write out the library information for one unit for which code is
       --  generated (includes unit line and with lines).
@@ -291,8 +298,7 @@ package body Lib.Writ is
          function Is_Implicit_With_Clause (Clause : Node_Id) return Boolean is
          begin
             --  With clauses created for ancestor units are marked as internal,
-            --  however, they emulate the semantics in Ada RM 10.1.2 (6/2),
-            --  where
+            --  however, they emulate the semantics in RM 10.1.2 (6/2), where
             --
             --    with A.B;
             --
@@ -310,7 +316,7 @@ package body Lib.Writ is
                return False;
 
             else
-               return Implicit_With (Clause);
+               return Is_Implicit_With (Clause);
             end if;
          end Is_Implicit_With_Clause;
 
@@ -333,7 +339,7 @@ package body Lib.Writ is
             --  the unit anywhere else.
 
             if Nkind (Item) = N_With_Clause then
-               Unum := Get_Cunit_Unit_Number (Library_Unit (Item));
+               Unum := Get_Cunit_Unit_Number (Withed_Lib_Unit (Item));
                With_Flags (Unum) := True;
 
                if not Limited_Present (Item) then
@@ -385,6 +391,43 @@ package body Lib.Writ is
             Next (Item);
          end loop;
       end Collect_Withs;
+
+      -------------------------
+      -- Output_CUDA_Symbols --
+      -------------------------
+
+      procedure Output_CUDA_Symbols (Unit_Num : Unit_Number_Type) is
+         Unit_Id     : constant Node_Id := Unit (Cunit (Unit_Num));
+         Spec_Id     : Node_Id;
+         Kernels     : Elist_Id;
+         Kernel_Elm  : Elmt_Id;
+         Kernel      : Entity_Id;
+      begin
+         if not Enable_CUDA_Expansion
+           or else Nkind (Unit_Id) = N_Null_Statement
+         then
+            return;
+         end if;
+         Spec_Id := (if Nkind (Unit_Id) = N_Package_Body
+           then Corresponding_Spec (Unit_Id)
+           else Defining_Unit_Name (Specification (Unit_Id)));
+         Kernels := Get_CUDA_Kernels (Spec_Id);
+         if No (Kernels) then
+            return;
+         end if;
+
+         Kernel_Elm := First_Elmt (Kernels);
+         while Present (Kernel_Elm) loop
+            Kernel := Node (Kernel_Elm);
+
+            Write_Info_Initiate ('K');
+            Write_Info_Char (' ');
+            Write_Info_Name (Chars (Kernel));
+            Write_Info_Terminate;
+            Next_Elmt (Kernel_Elm);
+         end loop;
+
+      end Output_CUDA_Symbols;
 
       ----------------------------
       -- Write_Unit_Information --
@@ -481,10 +524,20 @@ package body Lib.Writ is
          Write_Info_Str (" O");
          Write_Info_Char (OA_Setting (Unit_Num));
 
-         if Ekind (Uent) in E_Package | E_Package_Body
-           and then Present (Finalizer (Uent))
-         then
-            Write_Info_Str (" PF");
+         --  For a package instance with a body that is a library unit, the two
+         --  compilation units share Cunit_Entity so we cannot rely on Uent.
+
+         if Ukind in N_Package_Declaration | N_Package_Body then
+            declare
+               E : constant Entity_Id := Defining_Entity (Unit (Unode));
+
+            begin
+               if Ekind (E) in E_Package | E_Package_Body
+                 and then Present (Finalizer (E))
+               then
+                  Write_Info_Str (" PF");
+               end if;
+            end;
          end if;
 
          if Is_Preelaborated (Uent) then
@@ -541,9 +594,10 @@ package body Lib.Writ is
 
          if Ukind in N_Generic_Declaration
            or else
-             (Present (Library_Unit (Unode))
-                and then
-                  Nkind (Unit (Library_Unit (Unode))) in N_Generic_Declaration)
+             (Ukind in N_Lib_Unit_Body
+                and then Present (Spec_Lib_Unit (Unode))
+                and then Nkind (Unit (Spec_Lib_Unit (Unode)))
+                  in N_Generic_Declaration)
          then
             Write_Info_Str (" GE");
          end if;
@@ -585,7 +639,7 @@ package body Lib.Writ is
          --  it and which have context clauses of their own, since these
          --  with'ed units are part of its own elaboration dependencies.
 
-         if Nkind (Unit (Unode)) in N_Unit_Body then
+         if Nkind (Unit (Unode)) in N_Lib_Unit_Body then
             for S in Units.First .. Last_Unit loop
 
                --  We are only interested in subunits. For preproc. data and
@@ -594,7 +648,7 @@ package body Lib.Writ is
                if Cunit (S) /= Empty
                  and then Nkind (Unit (Cunit (S))) = N_Subunit
                then
-                  Pnode := Library_Unit (Cunit (S));
+                  Pnode := Subunit_Parent (Cunit (S));
 
                   --  In gnatc mode, the errors in the subunits will not have
                   --  been recorded, but the analysis of the subunit may have
@@ -608,7 +662,7 @@ package body Lib.Writ is
                   --  Find ultimate parent of the subunit
 
                   while Nkind (Unit (Pnode)) = N_Subunit loop
-                     Pnode := Library_Unit (Pnode);
+                     Pnode := Subunit_Parent (Pnode);
                   end loop;
 
                   --  See if it belongs to current unit, and if so, include
@@ -1116,7 +1170,7 @@ package body Lib.Writ is
             if Nkind (U) = N_Package_Body then
                U := Parent (Parent (
                    Alias (Related_Instance (Defining_Unit_Name
-                     (Specification (Unit (Library_Unit (Parent (U)))))))));
+                     (Specification (Unit (Spec_Lib_Unit (Parent (U)))))))));
             end if;
 
             S := Specification (U);
@@ -1166,6 +1220,14 @@ package body Lib.Writ is
          Write_Info_Terminate;
       end loop;
 
+      --  Output CUDA Kernel lines
+
+      for Unit in Units.First .. Last_Unit loop
+         if Present (Cunit (Unit)) then
+            Output_CUDA_Symbols (Unit);
+         end if;
+      end loop;
+
       --  Output parameters ('P') line
 
       Write_Info_Initiate ('P');
@@ -1178,22 +1240,19 @@ package body Lib.Writ is
          Write_Info_Str (" DB");
       end if;
 
-      if Tasking_Used and then not Is_Predefined_Unit (Main_Unit) then
-         if Locking_Policy /= ' ' then
-            Write_Info_Str  (" L");
-            Write_Info_Char (Locking_Policy);
-         end if;
+      if Locking_Policy /= ' ' then
+         Write_Info_Str  (" L");
+         Write_Info_Char (Locking_Policy);
+      end if;
 
-         if Queuing_Policy /= ' ' then
-            Write_Info_Str  (" Q");
-            Write_Info_Char (Queuing_Policy);
-         end if;
+      if Queuing_Policy /= ' ' then
+         Write_Info_Str  (" Q");
+         Write_Info_Char (Queuing_Policy);
+      end if;
 
-         if Task_Dispatching_Policy /= ' ' then
-            Write_Info_Str  (" T");
-            Write_Info_Char (Task_Dispatching_Policy);
-            Write_Info_Char (' ');
-         end if;
+      if Task_Dispatching_Policy /= ' ' then
+         Write_Info_Str  (" T");
+         Write_Info_Char (Task_Dispatching_Policy);
       end if;
 
       if GNATprove_Mode then
@@ -1203,6 +1262,10 @@ package body Lib.Writ is
       if Partition_Elaboration_Policy /= ' ' then
          Write_Info_Str  (" E");
          Write_Info_Char (Partition_Elaboration_Policy);
+      end if;
+
+      if Opt.Interrupts_System_By_Default then
+         Write_Info_Str (" ID");
       end if;
 
       if No_Component_Reordering_Config then
@@ -1232,10 +1295,6 @@ package body Lib.Writ is
 
       if Unreserve_All_Interrupts then
          Write_Info_Str (" UA");
-      end if;
-
-      if Front_End_Exceptions then
-         Write_Info_Str (" FX");
       end if;
 
       if ZCX_Exceptions then

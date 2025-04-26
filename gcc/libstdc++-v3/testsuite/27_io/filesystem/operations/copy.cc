@@ -1,7 +1,7 @@
 // { dg-do run { target c++17 } }
 // { dg-require-filesystem-ts "" }
 
-// Copyright (C) 2014-2022 Free Software Foundation, Inc.
+// Copyright (C) 2014-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -66,14 +66,9 @@ test01()
 void
 test02()
 {
-#if defined(__MINGW32__) || defined(__MINGW64__)
-  // No symlink support
-  return;
-#endif
-
+#ifndef NO_SYMLINKS
   const std::error_code bad_ec = make_error_code(std::errc::invalid_argument);
   auto from = __gnu_test::nonexistent_path();
-  auto to = __gnu_test::nonexistent_path();
   std::error_code ec;
 
   ec = bad_ec;
@@ -81,6 +76,7 @@ test02()
   VERIFY( !ec );
   VERIFY( fs::exists(from) );
 
+  auto to = __gnu_test::nonexistent_path();
   ec = bad_ec;
   fs::copy(from, to, fs::copy_options::skip_symlinks, ec);
   VERIFY( !ec );
@@ -110,6 +106,7 @@ test02()
 
   remove(from, ec);
   remove(to, ec);
+#endif
 }
 
 // Test is_regular_file(f) case.
@@ -117,12 +114,13 @@ void
 test03()
 {
   auto from = __gnu_test::nonexistent_path();
-  auto to = __gnu_test::nonexistent_path();
 
   // test empty file
   std::ofstream{from};
   VERIFY( fs::exists(from) );
   VERIFY( fs::file_size(from) == 0 );
+
+  auto to = __gnu_test::nonexistent_path();
   fs::copy(from, to);
   VERIFY( fs::exists(to) );
   VERIFY( fs::file_size(to) == 0 );
@@ -145,11 +143,11 @@ test04()
 {
   const std::error_code bad_ec = make_error_code(std::errc::invalid_argument);
   auto from = __gnu_test::nonexistent_path();
-  auto to = __gnu_test::nonexistent_path();
   std::error_code ec;
 
   create_directories(from/"a/b/c");
 
+  auto to = __gnu_test::nonexistent_path();
   {
     __gnu_test::scoped_file f(to);
     copy(from, to, ec);
@@ -218,6 +216,32 @@ test_pr99290()
   }
 #endif
 
+  // https://github.com/msys2/MSYS2-packages/issues/1937
+  auto copy_opts
+    = fs::copy_options::overwrite_existing | fs::copy_options::recursive;
+  copy(source, dest, copy_opts, ec);
+  VERIFY( !ec );
+
+  auto ch = std::ifstream{dest/"file"}.get();
+  VERIFY( ch == 'a' );
+
+  remove_all(dir);
+}
+
+void
+test_pr118699()
+{
+  auto dir = __gnu_test::nonexistent_path();
+  fs::create_directories(dir/"a");
+  fs::create_directories(dir/"c");
+  std::ofstream{dir/"a/b.txt"} << "b";
+  std::ofstream{dir/"a/bb.txt"} << "bb";
+
+  fs::copy(dir/"a/b.txt", dir/"c");
+  auto ec = make_error_code(std::errc::invalid_argument);
+  fs::copy(dir/"a/bb.txt", dir/"c", ec);
+  VERIFY( !ec );
+
   remove_all(dir);
 }
 
@@ -230,4 +254,5 @@ main()
   test04();
   test05();
   test_pr99290();
+  test_pr118699();
 }

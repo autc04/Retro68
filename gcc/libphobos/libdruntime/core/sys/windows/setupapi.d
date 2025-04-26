@@ -9,7 +9,6 @@
  */
 module core.sys.windows.setupapi;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "setupapi");
@@ -859,7 +858,7 @@ enum : DWORD {
 
 alias PVOID HINF;
 alias PVOID HDSKSPC;
-mixin DECLARE_HANDLE!("HDEVINFO");
+alias HDEVINFO = HANDLE;
 alias PVOID HSPFILEQ;
 alias PVOID HSPFILELOG;
 

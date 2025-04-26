@@ -8,7 +8,6 @@
  */
 module core.sys.windows.rpc;
 version (Windows):
-@system:
 
 /* Moved to rpcdecp (duplicate definition).
     typedef void *I_RPC_HANDLE;
@@ -27,6 +26,6 @@ public import core.sys.windows.winerror;
 alias MIDL_user_allocate midl_user_allocate;
 alias MIDL_user_free midl_user_free;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     int I_RpcMapWin32Status(RPC_STATUS);
 }

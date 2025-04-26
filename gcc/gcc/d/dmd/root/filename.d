@@ -1,26 +1,28 @@
 /**
  * Encapsulate path and file names.
  *
- * Copyright: Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright: Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:   Walter Bright, https://www.digitalmars.com
  * License:   $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:    $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/root/filename.d, root/_filename.d)
+ * Source:    $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/root/filename.d, root/_filename.d)
  * Documentation:  https://dlang.org/phobos/dmd_root_filename.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/root/filename.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/root/filename.d
  */
 
 module dmd.root.filename;
 
 import core.stdc.ctype;
 import core.stdc.errno;
+import core.stdc.stdio;
 import core.stdc.string;
+
+import dmd.common.file;
+import dmd.common.outbuffer;
+
 import dmd.root.array;
 import dmd.root.file;
-import dmd.common.outbuffer;
-import dmd.common.file;
 import dmd.root.port;
 import dmd.root.rmem;
-import dmd.root.rootobject;
 import dmd.root.string;
 
 version (Posix)
@@ -36,14 +38,12 @@ version (Windows)
     import core.sys.windows.windef;
     import core.sys.windows.winnls;
 
-    import dmd.common.string : extendedPathThen;
+    import dmd.common.smallbuffer : extendedPathThen;
 
     extern (Windows) DWORD GetFullPathNameW(LPCWSTR, DWORD, LPWSTR, LPWSTR*) nothrow @nogc;
     extern (Windows) void SetLastError(DWORD) nothrow @nogc;
-    extern (C) char* getcwd(char* buffer, size_t maxlen) nothrow;
-
-    // assume filenames encoded in system default Windows ANSI code page
-    private enum CodePage = CP_ACP;
+    extern (C) char* _getcwd(char* buffer, size_t maxlen) nothrow;
+    alias getcwd = _getcwd;
 }
 
 version (CRuntime_Glibc)
@@ -55,7 +55,7 @@ alias Strings = Array!(const(char)*);
 
 
 // Check whether character is a directory separator
-private bool isDirSeparator(char c) pure nothrow @nogc @safe
+bool isDirSeparator(char c) pure nothrow @nogc @safe
 {
     version (Windows)
     {
@@ -80,9 +80,15 @@ nothrow:
     private const(char)[] str;
 
     ///
-    extern (D) this(const(char)[] str) pure
+    extern (D) this(const char[] str) pure
     {
         this.str = str.xarraydup;
+    }
+
+    ///
+    extern (C++) static FileName create(const(char)* name) pure
+    {
+        return FileName(name.toDString);
     }
 
     /// Compare two name according to the platform's rules (case sensitive or not)
@@ -92,7 +98,7 @@ nothrow:
     }
 
     /// Ditto
-    extern (D) static bool equals(const(char)[] name1, const(char)[] name2) pure @nogc
+    extern (D) static bool equals(const char[] name1, const char[] name2) pure @nogc
     {
         if (name1.length != name2.length)
             return false;
@@ -121,7 +127,7 @@ nothrow:
     }
 
     /// Ditto
-    extern (D) static bool absolute(const(char)[] name) pure @nogc
+    extern (D) static bool absolute(const char[] name) pure @nogc @safe
     {
         if (!name.length)
             return false;
@@ -185,7 +191,7 @@ nothrow:
     }
 
     /// Ditto
-    extern (D) static const(char)[] ext(const(char)[] str) nothrow pure @safe @nogc
+    extern (D) static const(char)[] ext(const char[] str) nothrow pure @safe @nogc
     {
         foreach_reverse (idx, char e; str)
         {
@@ -245,7 +251,7 @@ nothrow:
     }
 
     /// Ditto
-    extern (D) static const(char)[] removeExt(const(char)[] str)
+    extern (D) static const(char)[] removeExt(const char[] str)
     {
         auto e = ext(str);
         if (e.length)
@@ -266,6 +272,20 @@ nothrow:
     }
 
     /********************************
+     * Slice of file name without extension.
+     * Params:
+     *  filename = file name
+     * Returns:
+     *  the slice
+     */
+    extern (D) static const(char)[] sansExt(const char[] filename) @safe
+    {
+        auto e = ext(filename);
+        size_t length = e.length;
+        return filename[0 .. filename.length - (length ? length + 1 : 0)]; // +1 for .
+    }
+
+    /********************************
      * Return filename name excluding path (read-only).
      */
     extern (C++) static const(char)* name(const(char)* str) pure @nogc
@@ -274,7 +294,7 @@ nothrow:
     }
 
     /// Ditto
-    extern (D) static const(char)[] name(const(char)[] str) pure @nogc
+    extern (D) static const(char)[] name(const char[] str) pure @nogc @safe
     {
         foreach_reverse (idx, char e; str)
         {
@@ -329,7 +349,7 @@ nothrow:
     }
 
     /// Ditto
-    extern (D) static const(char)[] path(const(char)[] str)
+    extern (D) static const(char)[] path(const char[] str)
     {
         const n = name(str);
         bool hasTrailingSlash;
@@ -354,7 +374,7 @@ nothrow:
     /**************************************
      * Replace filename portion of path.
      */
-    extern (D) static const(char)[] replaceName(const(char)[] path, const(char)[] name)
+    extern (D) static const(char)[] replaceName(const char[] path, const char[] name)
     {
         if (absolute(name))
             return name;
@@ -383,7 +403,7 @@ nothrow:
     }
 
     /// Ditto
-    extern(D) static const(char)[] combine(const(char)[] path, const(char)[] name)
+    extern(D) static const(char)[] combine(const char[] path, const char[] name)
     {
         return !path.length ? name : buildPath(path, name);
     }
@@ -397,7 +417,7 @@ nothrow:
         assert(combine("foo/"[], "bar"[]) == "foo/bar");
     }
 
-    static const(char)[] buildPath(const(char)[][] fragments...)
+    static const(char)[] buildPath(const char[][] fragments...)
     {
         size_t size;
         foreach (f; fragments)
@@ -448,17 +468,15 @@ nothrow:
             assert(buildPath("a/", "bb", "ccc") == "a/bb/ccc");
     }
 
-    // Split a path into an Array of paths
-    extern (C++) static Strings* splitPath(const(char)* path)
+    // Split a path and append the results to `array`
+    extern (C++) static void appendSplitPath(const(char)* path, ref Strings array)
     {
-        auto array = new Strings();
         int sink(const(char)* p) nothrow
         {
             array.push(p);
             return 0;
         }
         splitPath(&sink, path);
-        return array;
     }
 
     /****
@@ -559,7 +577,7 @@ nothrow:
      * Returns:
      *   A newly allocated string (free with `FileName.free`)
      */
-    extern(D) static char[] addExt(const(char)[] name, const(char)[] ext) pure
+    extern(D) static char[] addExt(const char[] name, const char[] ext) pure
     {
         const len = name.length + ext.length + 2;
         auto s = cast(char*)mem.xmalloc(len);
@@ -574,13 +592,13 @@ nothrow:
     /***************************
      * Free returned value with FileName::free()
      */
-    extern (C++) static const(char)* defaultExt(const(char)* name, const(char)* ext)
+    extern (C++) static const(char)* defaultExt(const(char)* name, const(char)* ext) pure
     {
         return defaultExt(name.toDString, ext.toDString).ptr;
     }
 
     /// Ditto
-    extern (D) static const(char)[] defaultExt(const(char)[] name, const(char)[] ext)
+    extern (D) static const(char)[] defaultExt(const char[] name, const char[] ext) pure
     {
         auto e = FileName.ext(name);
         if (e.length) // it already has an extension
@@ -598,13 +616,13 @@ nothrow:
     /***************************
      * Free returned value with FileName::free()
      */
-    extern (C++) static const(char)* forceExt(const(char)* name, const(char)* ext)
+    extern (C++) static const(char)* forceExt(const(char)* name, const(char)* ext) pure
     {
         return forceExt(name.toDString, ext.toDString).ptr;
     }
 
     /// Ditto
-    extern (D) static const(char)[] forceExt(const(char)[] name, const(char)[] ext)
+    extern (D) static const(char)[] forceExt(const char[] name, const char[] ext) pure
     {
         if (auto e = FileName.ext(name))
             return addExt(name[0 .. $ - e.length - 1], ext);
@@ -626,7 +644,7 @@ nothrow:
     }
 
     /// Ditto
-    extern (D) static bool equalsExt(const(char)[] name, const(char)[] ext) pure @nogc
+    extern (D) static bool equalsExt(const char[] name, const char[] ext) pure @nogc
     {
         auto e = FileName.ext(name);
         if (!e.length && !ext.length)
@@ -661,12 +679,12 @@ nothrow:
      * Returns:
      *  if found, filename combined with path, otherwise null
      */
-    extern (C++) static const(char)* searchPath(Strings* path, const(char)* name, bool cwd)
+    extern (C++) static const(char)* searchPath(const ref Strings path, const(char)* name, bool cwd)
     {
-        return searchPath(path, name.toDString, cwd).ptr;
+        return searchPath(path[], name.toDString, cwd).ptr;
     }
 
-    extern (D) static const(char)[] searchPath(Strings* path, const(char)[] name, bool cwd)
+    extern (D) static const(char)[] searchPath(const char*[] path, const char[] name, bool cwd)
     {
         if (absolute(name))
         {
@@ -677,24 +695,21 @@ nothrow:
             if (exists(name))
                 return name;
         }
-        if (path)
+        foreach (p; path)
         {
-            foreach (p; *path)
+            auto n = combine(p.toDString, name);
+            if (exists(n))
+                return n;
+            //combine might return name
+            if (n.ptr != name.ptr)
             {
-                auto n = combine(p.toDString, name);
-                if (exists(n))
-                    return n;
-                //combine might return name
-                if (n.ptr != name.ptr)
-                {
-                    mem.xfree(cast(void*)n.ptr);
-                }
+                mem.xfree(cast(void*)n.ptr);
             }
         }
         return null;
     }
 
-    extern (D) static const(char)[] searchPath(const(char)* path, const(char)[] name, bool cwd)
+    extern (D) static const(char)[] searchPath(const char* path, const char[] name, bool cwd)
     {
         if (absolute(name))
         {
@@ -734,16 +749,15 @@ nothrow:
      * Returns:
      *  index of the first reserved character in path if found, size_t.max otherwise
      */
-    extern (D) static size_t findReservedChar(const(char)* name) pure @nogc
+    extern (D) static size_t findReservedChar(const char[] name) pure @nogc @safe
     {
         version (Windows)
         {
-            size_t idx = 0;
             // According to https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions
             // the following characters are not allowed in path: < > : " | ? *
-            for (const(char)* p = name; *p; p++, idx++)
+            foreach (idx; 0 .. name.length)
             {
-                char c = *p;
+                char c = name[idx];
                 if (c == '<' || c == '>' || c == ':' || c == '"' || c == '|' || c == '?' || c == '*')
                 {
                     return idx;
@@ -784,21 +798,21 @@ nothrow:
      * Returns:
      *  true if path contains '..' reference to parent directory
      */
-    extern (D) static bool refersToParentDir(const(char)* name) pure @nogc
+    extern (D) static bool refersToParentDir(const char[] name) pure @nogc @safe
     {
-        if (name[0] == '.' && name[1] == '.' && (!name[2] || isDirSeparator(name[2])))
+        size_t s = 0;
+        foreach (i; 0 .. name.length)
         {
-            return true;
-        }
-
-        for (const(char)* p = name; *p; p++)
-        {
-            char c = *p;
-            if (isDirSeparator(c) && p[1] == '.' && p[2] == '.' && (!p[3] || isDirSeparator(p[3])))
+            if (isDirSeparator(name[i]))
             {
-                return true;
+                if (name[s..i] == "..")
+                    return true;
+                s = i + 1;
             }
         }
+        if (name[s..$] == "..")
+            return true;
+
         return false;
     }
     unittest
@@ -842,10 +856,11 @@ nothrow:
     }
 
     /// Ditto
-    extern (D) static int exists(const(char)[] name)
+    extern (D) static int exists(const char[] name)
     {
         if (!name.length)
             return 0;
+        //static int count; printf("count: %d %.*s\n", ++count, cast(int)name.length, name.ptr);
         version (Posix)
         {
             stat_t st;
@@ -862,10 +877,9 @@ nothrow:
                 const dw = GetFileAttributesW(&wname[0]);
                 if (dw == -1)
                     return 0;
-                else if (dw & FILE_ATTRIBUTE_DIRECTORY)
+                if (dw & FILE_ATTRIBUTE_DIRECTORY)
                     return 2;
-                else
-                    return 1;
+                return 1;
             });
         }
         else
@@ -889,7 +903,7 @@ nothrow:
        Returns:
          `true` if the directory exists or was successfully created
      */
-    extern (D) static bool ensurePathExists(const(char)[] path)
+    extern (D) static bool ensurePathExists(const char[] path)
     {
         //printf("FileName::ensurePathExists(%s)\n", path ? path : "");
         if (!path.length)
@@ -964,7 +978,7 @@ nothrow:
     }
 
     /// Ditto
-    extern (D) static const(char)[] canonicalName(const(char)[] name)
+    extern (D) static const(char)[] canonicalName(const char[] name)
     {
         version (Posix)
         {
@@ -1087,7 +1101,7 @@ nothrow:
         return str.ptr;
     }
 
-    const(char)[] toString() const pure nothrow @nogc @trusted
+    const(char)[] toString() const pure nothrow @nogc @safe
     {
         return str;
     }
@@ -1124,7 +1138,7 @@ version(Windows)
      * References:
      *  https://msdn.microsoft.com/en-us/library/windows/desktop/aa363855(v=vs.85).aspx
      */
-    private int _mkdir(const(char)[] path) nothrow
+    private int _mkdir(const char[] path) nothrow
     {
         const createRet = path.extendedPathThen!(
             p => CreateDirectoryW(&p[0], null /*securityAttributes*/));
@@ -1142,6 +1156,8 @@ version(Windows)
      */
     char[] toNarrowStringz(const(wchar)[] wide, char[] buffer = null) nothrow
     {
+        import dmd.common.file : CodePage;
+
         if (wide is null)
             return null;
 
@@ -1170,9 +1186,9 @@ version(Windows)
      * Returns:
      *  The result of calling F on the UTF16 version of str.
      */
-    private auto toWStringzThen(alias F)(const(char)[] str) nothrow
+    private auto toWStringzThen(alias F)(const char[] str) nothrow
     {
-        import dmd.common.string : SmallBuffer, toWStringz;
+        import dmd.common.smallbuffer : SmallBuffer, toWStringz;
 
         if (!str.length) return F(""w.ptr);
 

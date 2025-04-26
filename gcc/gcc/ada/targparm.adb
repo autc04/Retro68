@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -48,7 +48,6 @@ package body Targparm is
       D32,  --   Duration_32_Bits
       DEN,  --   Denorm
       EXS,  --   Exit_Status_Supported
-      FEX,  --   Frontend_Exceptions
       MOV,  --   Machine_Overflows
       MRN,  --   Machine_Rounds
       PAS,  --   Preallocated_Stacks
@@ -79,7 +78,6 @@ package body Targparm is
    D32_Str : aliased constant Source_Buffer := "Duration_32_Bits";
    DEN_Str : aliased constant Source_Buffer := "Denorm";
    EXS_Str : aliased constant Source_Buffer := "Exit_Status_Supported";
-   FEX_Str : aliased constant Source_Buffer := "Frontend_Exceptions";
    MOV_Str : aliased constant Source_Buffer := "Machine_Overflows";
    MRN_Str : aliased constant Source_Buffer := "Machine_Rounds";
    PAS_Str : aliased constant Source_Buffer := "Preallocated_Stacks";
@@ -110,7 +108,6 @@ package body Targparm is
       D32 => D32_Str'Access,
       DEN => DEN_Str'Access,
       EXS => EXS_Str'Access,
-      FEX => FEX_Str'Access,
       MOV => MOV_Str'Access,
       MRN => MRN_Str'Access,
       PAS => PAS_Str'Access,
@@ -663,6 +660,14 @@ package body Targparm is
             Opt.Task_Dispatching_Policy_Sloc := System_Location;
             goto Line_Loop_Continue;
 
+         --  Allow "pragma Style_Checks (On);" and "pragma Style_Checks (Off);"
+         --  to make it possible to have long "pragma Restrictions" line.
+
+         elsif Looking_At_Skip ("pragma Style_Checks (On);") or else
+           Looking_At_Skip ("pragma Style_Checks (Off);")
+         then
+            goto Line_Loop_Continue;
+
          --  No other configuration pragmas are permitted
 
          elsif Looking_At ("pragma ") then
@@ -800,7 +805,6 @@ package body Targparm is
                      when D32 => Duration_32_Bits_On_Target          := Result;
                      when DEN => Denorm_On_Target                    := Result;
                      when EXS => Exit_Status_Supported_On_Target     := Result;
-                     when FEX => Frontend_Exceptions_On_Target       := Result;
                      when MOV => Machine_Overflows_On_Target         := Result;
                      when MRN => Machine_Rounds_On_Target            := Result;
                      when PAS => Preallocated_Stacks_On_Target       := Result;

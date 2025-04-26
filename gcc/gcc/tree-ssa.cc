@@ -1,5 +1,5 @@
 /* Miscellaneous SSA utility functions.
-   Copyright (C) 2001-2022 Free Software Foundation, Inc.
+   Copyright (C) 2001-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -30,9 +30,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic-core.h"
 #include "fold-const.h"
 #include "stor-layout.h"
+#include "gimple-iterator.h"
 #include "gimple-fold.h"
 #include "gimplify.h"
-#include "gimple-iterator.h"
 #include "gimple-walk.h"
 #include "tree-ssa-loop-manip.h"
 #include "tree-into-ssa.h"
@@ -412,8 +412,7 @@ insert_debug_temp_for_var_def (gimple_stmt_iterator *gsi, tree var)
     {
       /* If there's a single use of VAR, and VAR is the entire debug
 	 expression (usecount would have been incremented again
-	 otherwise), and the definition involves only constants and
-	 SSA names, then we can propagate VALUE into this single use,
+	 otherwise), then we can propagate VALUE into this single use,
 	 avoiding the temp.
 
 	 We can also avoid using a temp if VALUE can be shared and
@@ -424,11 +423,9 @@ insert_debug_temp_for_var_def (gimple_stmt_iterator *gsi, tree var)
 	 are deferred to a debug temp, although we could avoid temps
 	 at the expense of duplication of expressions.  */
 
-      if (CONSTANT_CLASS_P (value)
+      if (usecount == 1
 	  || gimple_code (def_stmt) == GIMPLE_PHI
-	  || (usecount == 1
-	      && (!gimple_assign_single_p (def_stmt)
-		  || is_gimple_min_invariant (value)))
+	  || CONSTANT_CLASS_P (value)
 	  || is_gimple_reg (value))
 	;
       else
@@ -466,11 +463,6 @@ insert_debug_temp_for_var_def (gimple_stmt_iterator *gsi, tree var)
       if (value)
 	{
 	  FOR_EACH_IMM_USE_ON_STMT (use_p, imm_iter)
-	    /* unshare_expr is not needed here.  vexpr is either a
-	       SINGLE_RHS, that can be safely shared, some other RHS
-	       that was unshared when we found it had a single debug
-	       use, or a DEBUG_EXPR_DECL, that can be safely
-	       shared.  */
 	    SET_USE (use_p, unshare_expr (value));
 	  /* If we didn't replace uses with a debug decl fold the
 	     resulting expression.  Otherwise we end up with invalid IL.  */
@@ -1224,6 +1216,7 @@ init_tree_ssa (struct function *fn, int size)
   fn->gimple_df = ggc_cleared_alloc<gimple_df> ();
   fn->gimple_df->default_defs = hash_table<ssa_name_hasher>::create_ggc (20);
   pt_solution_reset (&fn->gimple_df->escaped);
+  pt_solution_reset (&fn->gimple_df->escaped_return);
   init_ssanames (fn, size);
 }
 
@@ -1241,6 +1234,7 @@ delete_tree_ssa (struct function *fn)
   fn->gimple_df->default_defs->empty ();
   fn->gimple_df->default_defs = NULL;
   pt_solution_reset (&fn->gimple_df->escaped);
+  pt_solution_reset (&fn->gimple_df->escaped_return);
   if (fn->gimple_df->decls_to_pointers != NULL)
     delete fn->gimple_df->decls_to_pointers;
   fn->gimple_df->decls_to_pointers = NULL;
@@ -1320,6 +1314,8 @@ ssa_undefined_value_p (tree t, bool partial)
 {
   gimple *def_stmt;
 
+  gcc_checking_assert (!virtual_operand_p (t));
+
   if (ssa_defined_default_def_p (t))
     return false;
 
@@ -1383,22 +1379,98 @@ ssa_undefined_value_p (tree t, bool partial)
 }
 
 
-/* Return TRUE iff STMT, a gimple statement, references an undefined
-   SSA name.  */
+/* Return TRUE iff there are any non-PHI uses of VAR that dominate the
+   end of BB.  If we return TRUE and BB is a loop header, then VAR we
+   be assumed to be defined within the loop, even if it is marked as
+   maybe-undefined.  */
 
 bool
-gimple_uses_undefined_value_p (gimple *stmt)
+ssa_name_any_use_dominates_bb_p (tree var, basic_block bb)
 {
-  ssa_op_iter iter;
-  tree op;
-
-  FOR_EACH_SSA_TREE_OPERAND (op, stmt, iter, SSA_OP_USE)
-    if (ssa_undefined_value_p (op))
-      return true;
+  imm_use_iterator iter;
+  use_operand_p use_p;
+  FOR_EACH_IMM_USE_FAST (use_p, iter, var)
+    {
+      if (is_a <gphi *> (USE_STMT (use_p))
+	  || is_gimple_debug (USE_STMT (use_p)))
+	continue;
+      basic_block dombb = gimple_bb (USE_STMT (use_p));
+      if (dominated_by_p (CDI_DOMINATORS, bb, dombb))
+	return true;
+    }
 
   return false;
 }
 
+/* Mark as maybe_undef any SSA_NAMEs that are unsuitable as ivopts
+   candidates for potentially involving undefined behavior.  */
+
+void
+mark_ssa_maybe_undefs (void)
+{
+  auto_vec<tree> queue;
+
+  /* Scan all SSA_NAMEs, marking the definitely-undefined ones as
+     maybe-undefined and queuing them for propagation, while clearing
+     the mark on others.  */
+  unsigned int i;
+  tree var;
+  FOR_EACH_SSA_NAME (i, var, cfun)
+    {
+      if (SSA_NAME_IS_VIRTUAL_OPERAND (var)
+	  || !ssa_undefined_value_p (var, false))
+	ssa_name_set_maybe_undef (var, false);
+      else
+	{
+	  ssa_name_set_maybe_undef (var);
+	  queue.safe_push (var);
+	  if (dump_file && (dump_flags & TDF_DETAILS))
+	    fprintf (dump_file, "marking _%i as maybe-undef\n",
+		     SSA_NAME_VERSION (var));
+	}
+    }
+
+  /* Now propagate maybe-undefined from a DEF to any other PHI that
+     uses it, as long as there isn't any intervening use of DEF.  */
+  while (!queue.is_empty ())
+    {
+      var = queue.pop ();
+      imm_use_iterator iter;
+      use_operand_p use_p;
+      FOR_EACH_IMM_USE_FAST (use_p, iter, var)
+	{
+	  /* Any uses of VAR that aren't PHI args imply VAR must be
+	     defined, otherwise undefined behavior would have been
+	     definitely invoked.  Only PHI args may hold
+	     maybe-undefined values without invoking undefined
+	     behavior for that reason alone.  */
+	  if (!is_a <gphi *> (USE_STMT (use_p)))
+	    continue;
+	  gphi *phi = as_a <gphi *> (USE_STMT (use_p));
+
+	  tree def = gimple_phi_result (phi);
+	  if (ssa_name_maybe_undef_p (def))
+	    continue;
+
+	  /* Look for any uses of the maybe-unused SSA_NAME that
+	     dominates the block that reaches the incoming block
+	     corresponding to the PHI arg in which it is mentioned.
+	     That means we can assume the SSA_NAME is defined in that
+	     path, so we only mark a PHI result as maybe-undef if we
+	     find an unused reaching SSA_NAME.  */
+	  int idx = phi_arg_index_from_use (use_p);
+	  basic_block bb = gimple_phi_arg_edge (phi, idx)->src;
+	  if (ssa_name_any_use_dominates_bb_p (var, bb))
+	    continue;
+
+	  ssa_name_set_maybe_undef (def);
+	  queue.safe_push (def);
+	  if (dump_file && (dump_flags & TDF_DETAILS))
+	    fprintf (dump_file, "marking _%i as maybe-undef because of _%i\n",
+		     SSA_NAME_VERSION (def), SSA_NAME_VERSION (var));
+	}
+    }
+}
 
 
 /* If necessary, rewrite the base of the reference tree *TP from
@@ -1420,13 +1492,13 @@ maybe_rewrite_mem_ref_base (tree *tp, bitmap suitable_for_renaming)
       && is_gimple_reg_type (TREE_TYPE (*tp))
       && ! VOID_TYPE_P (TREE_TYPE (*tp)))
     {
-      if (TREE_CODE (TREE_TYPE (sym)) == VECTOR_TYPE
+      if (VECTOR_TYPE_P (TREE_TYPE (sym))
 	  && useless_type_conversion_p (TREE_TYPE (*tp),
 					TREE_TYPE (TREE_TYPE (sym)))
 	  && multiple_p (mem_ref_offset (*tp),
 			 wi::to_poly_offset (TYPE_SIZE_UNIT (TREE_TYPE (*tp)))))
 	{
-	  *tp = build3 (BIT_FIELD_REF, TREE_TYPE (*tp), sym, 
+	  *tp = build3 (BIT_FIELD_REF, TREE_TYPE (*tp), sym,
 			TYPE_SIZE (TREE_TYPE (*tp)),
 			int_const_binop (MULT_EXPR,
 					 bitsize_int (BITS_PER_UNIT),
@@ -1434,7 +1506,10 @@ maybe_rewrite_mem_ref_base (tree *tp, bitmap suitable_for_renaming)
 	}
       else if (TREE_CODE (TREE_TYPE (sym)) == COMPLEX_TYPE
 	       && useless_type_conversion_p (TREE_TYPE (*tp),
-					     TREE_TYPE (TREE_TYPE (sym))))
+					     TREE_TYPE (TREE_TYPE (sym)))
+	       && (integer_zerop (TREE_OPERAND (*tp, 1))
+		   || tree_int_cst_equal (TREE_OPERAND (*tp, 1),
+					  TYPE_SIZE_UNIT (TREE_TYPE (*tp)))))
 	{
 	  *tp = build1 (integer_zerop (TREE_OPERAND (*tp, 1))
 			? REALPART_EXPR : IMAGPART_EXPR,
@@ -1456,9 +1531,11 @@ maybe_rewrite_mem_ref_base (tree *tp, bitmap suitable_for_renaming)
 		   (mem_ref_offset (*tp),
 		    wi::to_offset (TYPE_SIZE_UNIT (TREE_TYPE (*tp))),
 		    0, wi::to_offset (DECL_SIZE_UNIT (sym))))
-	       && (! INTEGRAL_TYPE_P (TREE_TYPE (*tp)) 
+	       && (! INTEGRAL_TYPE_P (TREE_TYPE (*tp))
 		   || (wi::to_offset (TYPE_SIZE (TREE_TYPE (*tp)))
 		       == TYPE_PRECISION (TREE_TYPE (*tp))))
+	       && (! INTEGRAL_TYPE_P (TREE_TYPE (sym))
+		   || type_has_mode_precision_p (TREE_TYPE (sym)))
 	       && wi::umod_trunc (wi::to_offset (TYPE_SIZE (TREE_TYPE (*tp))),
 				  BITS_PER_UNIT) == 0)
 	{
@@ -1483,13 +1560,29 @@ non_rewritable_mem_ref_base (tree ref)
   if (DECL_P (ref))
     return NULL_TREE;
 
-  if (! (base = CONST_CAST_TREE (strip_invariant_refs (ref))))
+  switch (TREE_CODE (ref))
     {
-      base = get_base_address (ref);
-      if (DECL_P (base))
-	return base;
-      return NULL_TREE;
+    case REALPART_EXPR:
+    case IMAGPART_EXPR:
+    case BIT_FIELD_REF:
+      if (DECL_P (TREE_OPERAND (ref, 0)))
+	return NULL_TREE;
+      break;
+    case VIEW_CONVERT_EXPR:
+      if (DECL_P (TREE_OPERAND (ref, 0)))
+	{
+	  if (TYPE_SIZE (TREE_TYPE (ref))
+	      != TYPE_SIZE (TREE_TYPE (TREE_OPERAND  (ref, 0))))
+	    return TREE_OPERAND (ref, 0);
+	  return NULL_TREE;
+	}
+      break;
+    /* We would need to rewrite ARRAY_REFs or COMPONENT_REFs and even
+       more so multiple levels of handled components.  */
+    default:;
     }
+
+  base = ref;
 
   /* But watch out for MEM_REFs we cannot lower to a
      VIEW_CONVERT_EXPR or a BIT_FIELD_REF.  */
@@ -1503,7 +1596,7 @@ non_rewritable_mem_ref_base (tree ref)
 	  || VOID_TYPE_P (TREE_TYPE (base))
 	  || TREE_THIS_VOLATILE (decl) != TREE_THIS_VOLATILE (base))
 	return decl;
-      if ((TREE_CODE (TREE_TYPE (decl)) == VECTOR_TYPE
+      if ((VECTOR_TYPE_P (TREE_TYPE (decl))
 	   || TREE_CODE (TREE_TYPE (decl)) == COMPLEX_TYPE)
 	  && useless_type_conversion_p (TREE_TYPE (base),
 					TREE_TYPE (TREE_TYPE (decl)))
@@ -1531,15 +1624,24 @@ non_rewritable_mem_ref_base (tree ref)
 	  && (! INTEGRAL_TYPE_P (TREE_TYPE (base))
 	      || (wi::to_offset (TYPE_SIZE (TREE_TYPE (base)))
 		  == TYPE_PRECISION (TREE_TYPE (base))))
+	  /* ???  Likewise for extracts from bitfields, we'd have
+	     to pun the base object to a size precision mode first.  */
+	  && (! INTEGRAL_TYPE_P (TREE_TYPE (decl))
+	      || type_has_mode_precision_p (TREE_TYPE (decl)))
 	  && wi::umod_trunc (wi::to_offset (TYPE_SIZE (TREE_TYPE (base))),
 			     BITS_PER_UNIT) == 0)
 	return NULL_TREE;
       return decl;
     }
 
+  /* We cannot rewrite a decl in the base.  */
+  base = get_base_address (ref);
+  if (DECL_P (base))
+    return base;
+
   /* We cannot rewrite TARGET_MEM_REFs.  */
-  if (TREE_CODE (base) == TARGET_MEM_REF
-      && TREE_CODE (TREE_OPERAND (base, 0)) == ADDR_EXPR)
+  else if (TREE_CODE (base) == TARGET_MEM_REF
+	   && TREE_CODE (TREE_OPERAND (base, 0)) == ADDR_EXPR)
     {
       tree decl = TREE_OPERAND (TREE_OPERAND (base, 0), 0);
       if (! DECL_P (decl))
@@ -1553,7 +1655,7 @@ non_rewritable_mem_ref_base (tree ref)
 /* For an lvalue tree LHS return true if it cannot be rewritten into SSA form.
    Otherwise return true.  */
 
-static bool 
+static bool
 non_rewritable_lvalue_p (tree lhs)
 {
   /* A plain decl is always rewritable.  */
@@ -1686,20 +1788,39 @@ maybe_optimize_var (tree var, bitmap addresses_taken, bitmap not_reg_needs,
 	      fprintf (dump_file, "\n");
 	    }
 	}
+      else if (TREE_CODE (TREE_TYPE (var)) == BITINT_TYPE
+	       && (cfun->curr_properties & PROP_gimple_lbitint) != 0
+	       && TYPE_PRECISION (TREE_TYPE (var)) > MAX_FIXED_MODE_SIZE)
+	{
+	  /* Don't rewrite large/huge _BitInt vars after _BitInt lowering
+	     into SSA form.  */
+	  DECL_NOT_GIMPLE_REG_P (var) = 1;
+	  if (dump_file)
+	    {
+	      fprintf (dump_file, "_BitInt var after its lowering: ");
+	      print_generic_expr (dump_file, var);
+	      fprintf (dump_file, "\n");
+	    }
+	}
       else if (DECL_NOT_GIMPLE_REG_P (var))
 	{
 	  maybe_reg = true;
 	  DECL_NOT_GIMPLE_REG_P (var) = 0;
 	}
-      if (maybe_reg && is_gimple_reg (var))
+      if (maybe_reg)
 	{
-	  if (dump_file)
+	  if (is_gimple_reg (var))
 	    {
-	      fprintf (dump_file, "Now a gimple register: ");
-	      print_generic_expr (dump_file, var);
-	      fprintf (dump_file, "\n");
+	      if (dump_file)
+		{
+		  fprintf (dump_file, "Now a gimple register: ");
+		  print_generic_expr (dump_file, var);
+		  fprintf (dump_file, "\n");
+		}
+	      bitmap_set_bit (suitable_for_renaming, DECL_UID (var));
 	    }
-	  bitmap_set_bit (suitable_for_renaming, DECL_UID (var));
+	  else
+	    DECL_NOT_GIMPLE_REG_P (var) = 1;
 	}
     }
 }

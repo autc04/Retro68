@@ -9,14 +9,13 @@
  */
 module core.sys.windows.aclapi;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "advapi32");
 
 import core.sys.windows.accctrl, core.sys.windows.basetyps, core.sys.windows.w32api, core.sys.windows.winnt;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     VOID BuildExplicitAccessWithNameA(PEXPLICIT_ACCESS_A, LPSTR, DWORD,
       ACCESS_MODE, DWORD);
     VOID BuildExplicitAccessWithNameW(PEXPLICIT_ACCESS_W, LPWSTR, DWORD,

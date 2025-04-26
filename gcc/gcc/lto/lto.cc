@@ -1,5 +1,5 @@
 /* Top-level LTO routines.
-   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+   Copyright (C) 2009-2025 Free Software Foundation, Inc.
    Contributed by CodeSourcery, Inc.
 
 This file is part of GCC.
@@ -18,6 +18,7 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#define INCLUDE_STRING
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -37,6 +38,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "stor-layout.h"
 #include "symbol-summary.h"
 #include "tree-vrp.h"
+#include "sreal.h"
+#include "ipa-cp.h"
 #include "ipa-prop.h"
 #include "debug.h"
 #include "lto.h"
@@ -54,10 +57,18 @@ along with GCC; see the file COPYING3.  If not see
 #include "attribs.h"
 #include "builtins.h"
 #include "lto-common.h"
+#include "opts-jobserver.h"
 
-
-/* Number of parallel tasks to run, -1 if we want to use GNU Make jobserver.  */
+/* Number of parallel tasks to run.  */
 static int lto_parallelism;
+
+#ifdef HAVE_WORKING_FORK
+/* Number of active WPA streaming processes.  */
+static int nruns = 0;
+#endif
+
+/* GNU make's jobserver info.  */
+static jobserver_info *jinfo = NULL;
 
 /* Return true when NODE has a clone that is analyzed (i.e. we need
    to load its body even if the node itself is not needed).  */
@@ -130,6 +141,12 @@ materialize_cgraph (void)
     fprintf (stderr,
 	     flag_wpa ? "Materializing decls:" : "Reading function bodies:");
 
+  /* Start the appropriate timer depending on the mode that we are
+     operating in.  */
+  lto_timer = (flag_wpa) ? TV_WHOPR_WPA
+	      : (flag_ltrans) ? TV_WHOPR_LTRANS
+	      : TV_LTO;
+  timevar_push (lto_timer);
 
   FOR_EACH_FUNCTION (node)
     {
@@ -139,14 +156,6 @@ materialize_cgraph (void)
 	  lto_stats.num_input_cgraph_nodes++;
 	}
     }
-
-
-  /* Start the appropriate timer depending on the mode that we are
-     operating in.  */
-  lto_timer = (flag_wpa) ? TV_WHOPR_WPA
-	      : (flag_ltrans) ? TV_WHOPR_LTRANS
-	      : TV_LTO;
-  timevar_push (lto_timer);
 
   current_function_decl = NULL;
   set_cfun (NULL);
@@ -169,7 +178,7 @@ stream_out (char *temp_filename, lto_symtab_encoder_t encoder, int part)
 
   gcc_assert (!dump_file);
   streamer_dump_file = dump_begin (TDI_lto_stream_out, NULL, part);
-  ipa_write_optimization_summaries (encoder);
+  ipa_write_optimization_summaries (encoder, part == 0);
 
   free (CONST_CAST (char *, file->filename));
 
@@ -205,6 +214,12 @@ wait_for_child ()
 		     "streaming subprocess was killed by signal");
     }
   while (!WIFEXITED (status) && !WIFSIGNALED (status));
+
+  --nruns;
+
+  /* Return token to the jobserver if active.  */
+  if (jinfo != NULL && jinfo->is_connected)
+    jinfo->return_token ();
 }
 #endif
 
@@ -228,25 +243,35 @@ stream_out_partitions (char *temp_filename, int blen, int min, int max,
 		       bool ARG_UNUSED (last))
 {
 #ifdef HAVE_WORKING_FORK
-  static int nruns;
-
   if (lto_parallelism <= 1)
     {
       stream_out_partitions_1 (temp_filename, blen, min, max);
       return;
     }
 
-  /* Do not run more than LTO_PARALLELISM streamings
-     FIXME: we ignore limits on jobserver.  */
   if (lto_parallelism > 0 && nruns >= lto_parallelism)
-    {
-      wait_for_child ();
-      nruns --;
-    }
+    wait_for_child ();
+
   /* If this is not the last parallel partition, execute new
      streaming process.  */
   if (!last)
     {
+      if (jinfo != NULL && jinfo->is_connected)
+	while (true)
+	  {
+	    if (jinfo->get_token ())
+	      break;
+	    if (nruns > 0)
+	      wait_for_child ();
+	    else
+	      {
+		/* There are no free tokens, lets do the job outselves.  */
+		stream_out_partitions_1 (temp_filename, blen, min, max);
+		asm_nodes_output = true;
+		return;
+	      }
+	  }
+
       pid_t cpid = fork ();
 
       if (!cpid)
@@ -264,10 +289,12 @@ stream_out_partitions (char *temp_filename, int blen, int min, int max,
   /* Last partition; stream it and wait for all children to die.  */
   else
     {
-      int i;
       stream_out_partitions_1 (temp_filename, blen, min, max);
-      for (i = 0; i < nruns; i++)
+      while (nruns > 0)
 	wait_for_child ();
+
+      if (jinfo != NULL && jinfo->is_connected)
+	jinfo->disconnect ();
     }
   asm_nodes_output = true;
 #else
@@ -460,9 +487,14 @@ do_whole_program_analysis (void)
 
   lto_parallelism = 1;
 
-  /* TODO: jobserver communication is not supported, yet.  */
   if (!strcmp (flag_wpa, "jobserver"))
-    lto_parallelism = param_max_lto_streaming_parallelism;
+    {
+      jinfo = new jobserver_info ();
+      if (jinfo->is_active)
+	jinfo->connect ();
+
+      lto_parallelism = param_max_lto_streaming_parallelism;
+    }
   else
     {
       lto_parallelism = atoi (flag_wpa);
@@ -515,7 +547,9 @@ do_whole_program_analysis (void)
 
   symtab_node::checking_verify_symtab_nodes ();
   bitmap_obstack_release (NULL);
-  if (flag_lto_partition == LTO_PARTITION_1TO1)
+  if (flag_ipa_reorder_for_locality)
+    lto_locality_map (param_max_locality_partition_size);
+  else if (flag_lto_partition == LTO_PARTITION_1TO1)
     lto_1_to_1_map ();
   else if (flag_lto_partition == LTO_PARTITION_MAX)
     lto_max_map ();
@@ -524,6 +558,8 @@ do_whole_program_analysis (void)
   else if (flag_lto_partition == LTO_PARTITION_BALANCED)
     lto_balanced_map (param_lto_partitions,
 		      param_max_partition_size);
+  else if (flag_lto_partition == LTO_PARTITION_CACHE)
+    lto_cache_map (param_lto_partitions, param_max_partition_size);
   else
     gcc_unreachable ();
 

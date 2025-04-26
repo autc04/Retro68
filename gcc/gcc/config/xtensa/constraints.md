@@ -1,5 +1,5 @@
 ;; Constraint definitions for Xtensa.
-;; Copyright (C) 2006-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2025 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -27,7 +27,12 @@
  "Boolean registers @code{b0}-@code{b15}; only available if the Xtensa
   Boolean Option is configured.")
 
-(define_register_constraint "d" "TARGET_DENSITY ? AR_REGS: NO_REGS"
+(define_register_constraint "c" "TARGET_WINDOWED_ABI ? NO_REGS : ISC_REGS"
+ "@internal
+  General-purpose AR registers for indirect sibling calls, @code{a2}-
+  @code{a8}.")
+
+(define_register_constraint "d" "TARGET_DENSITY ? AR_REGS : NO_REGS"
  "@internal
   All AR registers, including sp, but only if the Xtensa Code Density
   Option is configured.")
@@ -48,7 +53,7 @@
   General-purpose AR registers, but only if the Xtensa Sign Extend
   Option is configured.")
 
-(define_register_constraint "C" "TARGET_MUL16 ? GR_REGS: NO_REGS"
+(define_register_constraint "C" "TARGET_MUL16 ? GR_REGS : NO_REGS"
  "@internal
   General-purpose AR registers, but only if the Xtensa 16-Bit Integer
   Multiply Option is configured.")
@@ -58,7 +63,7 @@
   General-purpose AR registers, but only if the Xtensa Code Density
   Option is configured.")
 
-(define_register_constraint "W" "TARGET_CONST16 ? GR_REGS: NO_REGS"
+(define_register_constraint "W" "TARGET_CONST16 ? GR_REGS : NO_REGS"
  "@internal
   General-purpose AR registers, but only if the Xtensa Const16
   Option is configured.")
@@ -92,7 +97,7 @@
  "An integer constant in the range @minus{}32-95 for use with MOVI.N
   instructions."
  (and (match_code "const_int")
-      (match_test "ival >= -32 && ival <= 95")))
+      (match_test "IN_RANGE (ival, -32, 95)")))
 
 (define_constraint "N"
  "An unsigned 8-bit integer constant shifted left by 8 bits for use
@@ -103,7 +108,7 @@
 (define_constraint "O"
  "An integer constant that can be used in ADDI.N instructions."
  (and (match_code "const_int")
-      (match_test "ival == -1 || (ival >= 1 && ival <= 15)")))
+      (match_test "xtensa_m1_or_1_thru_15 (ival)")))
 
 (define_constraint "P"
  "An integer constant that can be used as a mask value in an EXTUI
@@ -113,32 +118,24 @@
 
 (define_constraint "Y"
  "A constant that can be used in relaxed MOVI instructions."
- (and (match_code "const_int,const_double,const,symbol_ref,label_ref")
-      (match_test "TARGET_AUTO_LITPOOLS")))
+ (ior (and (match_code "const_int,const_double,const,symbol_ref,label_ref")
+	   (match_test "TARGET_AUTO_LITPOOLS"))
+      (and (match_code "const_int")
+	   (match_test "! xtensa_split1_finished_p ()"))))
 
-;; Memory constraints.  Do not use define_memory_constraint here.  Doing so
-;; causes reload to force some constants into the constant pool, but since
-;; the Xtensa constant pool can only be accessed with L32R instructions, it
-;; is always better to just copy a constant into a register.  Instead, use
-;; regular constraints but add a check to allow pseudos during reload.
+;; Memory constraints.
 
-(define_constraint "R"
+(define_memory_constraint "R"
  "Memory that can be accessed with a 4-bit unsigned offset from a register."
- (ior (and (match_code "mem")
-	   (match_test "smalloffset_mem_p (op)"))
-      (and (match_code "reg")
-	   (match_test "reload_in_progress
-			&& REGNO (op) >= FIRST_PSEUDO_REGISTER"))))
+ (and (match_code "mem")
+      (match_test "smalloffset_mem_p (op)")))
 
-(define_constraint "T"
+(define_memory_constraint "T"
  "Memory in a literal pool (addressable with an L32R instruction)."
  (and (match_code "mem")
       (match_test "!TARGET_CONST16 && constantpool_mem_p (op)")))
 
-(define_constraint "U"
+(define_memory_constraint "U"
  "Memory that is not in a literal pool."
- (ior (and (match_code "mem")
-	   (match_test "! constantpool_mem_p (op)"))
-      (and (match_code "reg")
-	   (match_test "reload_in_progress
-			&& REGNO (op) >= FIRST_PSEUDO_REGISTER"))))
+ (and (match_code "mem")
+      (match_test "! constantpool_mem_p (op)")))

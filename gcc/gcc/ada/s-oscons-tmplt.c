@@ -7,7 +7,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2000-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2000-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,8 +30,8 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-pragma Style_Checks ("M32766");
---  Allow long lines
+pragma Style_Checks ("N");
+--  Disable style checks
 
 */
 
@@ -86,7 +86,7 @@ pragma Style_Checks ("M32766");
  ** a number of non-POSIX but useful/required features.
  **/
 
-#if defined (__linux__) || defined (__ANDROID__)
+#if defined (__linux__) || defined (__ANDROID__) || defined (__GNU__)
 
 /* Define _XOPEN_SOURCE to get IOV_MAX */
 # if !defined (_XOPEN_SOURCE)
@@ -96,7 +96,7 @@ pragma Style_Checks ("M32766");
 /* Define _BSD_SOURCE to get CRTSCTS */
 # define _BSD_SOURCE
 
-#endif /* defined (__linux__) || defined (__ANDROID__) */
+#endif /* defined (__linux__) || defined (__ANDROID__) || defined (__GNU__) */
 
 /* Include gsocket.h before any system header so it can redefine FD_SETSIZE */
 
@@ -160,7 +160,7 @@ pragma Style_Checks ("M32766");
 #endif
 
 #if defined (__linux__) || defined (__ANDROID__) || defined (__QNX__) \
-  || defined (__rtems__)
+  || defined (__rtems__) || defined (__GNU__)
 # include <pthread.h>
 # include <signal.h>
 #endif
@@ -236,9 +236,6 @@ int counter = 0;
 
 #define CST(name,comment) C(#name,String,name,comment)
 /* String constant */
-
-#define STR(x) STR1(x)
-#define STR1(x) #x
 
 #ifdef __MINGW32__
 unsigned int _CRT_fmode = _O_BINARY;
@@ -1472,7 +1469,7 @@ CND(MSG_WAITALL, "Wait for full reception")
 #endif
 CND(MSG_NOSIGNAL, "No SIGPIPE on send")
 
-#if defined (__linux__) || defined (__ANDROID__) || defined (__QNX__)
+#if defined (__linux__) || defined (__ANDROID__) || defined (__QNX__) || defined (__GNU__)
 # define MSG_Forced_Flags "MSG_NOSIGNAL"
 #else
 # define MSG_Forced_Flags "0"
@@ -1547,6 +1544,11 @@ CND(SO_KEEPALIVE, "Enable keep-alive msgs")
 # define SO_LINGER -1
 #endif
 CND(SO_LINGER, "Defer close to flush data")
+
+#ifndef SO_BINDTODEVICE
+# define SO_BINDTODEVICE -1
+#endif
+CND(SO_BINDTODEVICE, "Bind to a NIC - Network Interface Controller")
 
 #ifndef SO_BROADCAST
 # define SO_BROADCAST -1
@@ -1799,11 +1801,6 @@ CND(SIZEOF_struct_hostent, "struct hostent")
 #define SIZEOF_struct_servent (sizeof (struct servent))
 CND(SIZEOF_struct_servent, "struct servent")
 
-#if defined (__linux__) || defined (__ANDROID__) || defined (__QNX__)
-#define SIZEOF_sigset (sizeof (sigset_t))
-CND(SIZEOF_sigset, "sigset")
-#endif
-
 #if defined(_WIN32) || defined(__vxworks)
 #define SIZEOF_nfds_t sizeof (int) * 8
 #define SIZEOF_socklen_t sizeof (size_t)
@@ -1941,6 +1938,11 @@ CST(Poll_Linkname, "")
 
 #endif /* HAVE_SOCKETS */
 
+#if defined (__linux__) || defined (__ANDROID__) || defined (__QNX__) || defined (__GNU__)
+#define SIZEOF_sigset (sizeof (sigset_t))
+CND(SIZEOF_sigset, "sigset")
+#endif
+
 /*
 
    ---------------------
@@ -1973,7 +1975,8 @@ CND(CLOCK_THREAD_CPUTIME_ID, "Thread CPU clock")
 
 #if defined(__linux__) || defined(__FreeBSD__) \
  || (defined(_AIX) && defined(_AIXVERSION_530)) \
- || defined(__DragonFly__) || defined(__QNX__)
+ || defined(__DragonFly__) || defined(__QNX__) \
+ || defined (__vxworks)
 /** On these platforms use system provided monotonic clock instead of
  ** the default CLOCK_REALTIME. We then need to set up cond var attributes
  ** appropriately (see thread.c).
@@ -1994,8 +1997,10 @@ CND(CLOCK_THREAD_CPUTIME_ID, "Thread CPU clock")
 CNS(CLOCK_RT_Ada, "")
 #endif
 
-#if defined (__APPLE__) || defined (__linux__) || defined (__ANDROID__) \
-  || defined (__QNX__) || defined (__rtems__) || defined (DUMMY)
+#if defined (__APPLE__) || defined (__ANDROID__) || defined (DUMMY) \
+  || defined (__FreeBSD__) || defined (__linux__) \
+  || defined (__QNX__) || defined (__rtems__) || defined (__GNU__)
+
 /*
 
    --  Sizes of pthread data types
@@ -2038,7 +2043,8 @@ CND(PTHREAD_RWLOCKATTR_SIZE, "pthread_rwlockattr_t")
 CND(PTHREAD_RWLOCK_SIZE,     "pthread_rwlock_t")
 CND(PTHREAD_ONCE_SIZE,       "pthread_once_t")
 
-#endif /* __APPLE__ || __linux__ || __ANDROID__ || __rtems__ */
+#endif /* __APPLE__ || __ANDROID__ || __FreeBSD ||__linux__
+          || __QNX__|| __rtems__ || __GNU__ */
 
 /*
 

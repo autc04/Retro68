@@ -1,5 +1,5 @@
 /* Tail merging for gimple.
-   Copyright (C) 2011-2022 Free Software Foundation, Inc.
+   Copyright (C) 2011-2025 Free Software Foundation, Inc.
    Contributed by Tom de Vries (tom@codesourcery.com)
 
 This file is part of GCC.
@@ -336,10 +336,13 @@ stmt_local_def (gimple *stmt)
 
   def_bb = gimple_bb (stmt);
 
+  bool any_use = false;
   FOR_EACH_IMM_USE_FAST (use_p, iter, val)
     {
       if (is_gimple_debug (USE_STMT (use_p)))
 	continue;
+
+      any_use = true;
       bb = gimple_bb (USE_STMT (use_p));
       if (bb == def_bb)
 	continue;
@@ -350,6 +353,11 @@ stmt_local_def (gimple *stmt)
 
       return false;
     }
+
+  /* When there is no use avoid making the stmt live on other paths.
+     This can happen with DCE disabled or not done as seen in PR98845.  */
+  if (!any_use)
+    return false;
 
   return true;
 }
@@ -474,6 +482,9 @@ same_succ_hash (const same_succ *e)
        !gsi_end_p (gsi); gsi_next_nondebug (&gsi))
     {
       stmt = gsi_stmt (gsi);
+      if (is_gimple_debug (stmt))
+	continue;
+
       stmt_update_dep_bb (stmt);
       if (stmt_local_def (stmt))
 	continue;
@@ -1165,6 +1176,9 @@ gimple_equal_p (same_succ *same_succ, gimple *s1, gimple *s2)
       return operand_equal_p (lhs1, lhs2, 0);
 
     case GIMPLE_ASSIGN:
+      if (gimple_assign_rhs_code (s1) != gimple_assign_rhs_code (s2))
+	return false;
+
       lhs1 = gimple_get_lhs (s1);
       lhs2 = gimple_get_lhs (s2);
       if (TREE_CODE (lhs1) != SSA_NAME
@@ -1172,11 +1186,65 @@ gimple_equal_p (same_succ *same_succ, gimple *s1, gimple *s2)
 	return (operand_equal_p (lhs1, lhs2, 0)
 		&& gimple_operand_equal_value_p (gimple_assign_rhs1 (s1),
 						 gimple_assign_rhs1 (s2)));
-      else if (TREE_CODE (lhs1) == SSA_NAME
-	       && TREE_CODE (lhs2) == SSA_NAME)
-	return operand_equal_p (gimple_assign_rhs1 (s1),
-				gimple_assign_rhs1 (s2), 0);
-      return false;
+
+      if (TREE_CODE (lhs1) != SSA_NAME
+	  || TREE_CODE (lhs2) != SSA_NAME)
+	return false;
+
+      gcc_checking_assert (gimple_num_args (s1) == gimple_num_args (s2));
+      for (i = 0; i < gimple_num_args (s1); ++i)
+	{
+	  t1 = gimple_arg (s1, i);
+	  t2 = gimple_arg (s2, i);
+	  while (handled_component_p (t1) && handled_component_p (t2))
+	    {
+	      if (TREE_CODE (t1) != TREE_CODE (t2)
+		  || TREE_THIS_VOLATILE (t1) != TREE_THIS_VOLATILE (t2))
+		return false;
+	      switch (TREE_CODE (t1))
+		{
+		case COMPONENT_REF:
+		  if (TREE_OPERAND (t1, 1) != TREE_OPERAND (t2, 1)
+		      || !gimple_operand_equal_value_p (TREE_OPERAND (t1, 2),
+							TREE_OPERAND (t2, 2)))
+		    return false;
+		  break;
+		case ARRAY_REF:
+		case ARRAY_RANGE_REF:
+		  if (!gimple_operand_equal_value_p (TREE_OPERAND (t1, 3),
+						     TREE_OPERAND (t2, 3)))
+		    return false;
+		  /* Fallthru.  */
+		case BIT_FIELD_REF:
+		  if (!gimple_operand_equal_value_p (TREE_OPERAND (t1, 1),
+						     TREE_OPERAND (t2, 1))
+		      || !gimple_operand_equal_value_p (TREE_OPERAND (t1, 2),
+							TREE_OPERAND (t2, 2)))
+		    return false;
+		  break;
+		case REALPART_EXPR:
+		case IMAGPART_EXPR:
+		case VIEW_CONVERT_EXPR:
+		  break;
+		default:
+		gcc_unreachable ();
+		}
+	      t1 = TREE_OPERAND (t1, 0);
+	      t2 = TREE_OPERAND (t2, 0);
+	    }
+	  if (TREE_CODE (t1) == MEM_REF && TREE_CODE (t2) == MEM_REF)
+	    {
+	      if (TREE_THIS_VOLATILE (t1) != TREE_THIS_VOLATILE (t2)
+		  || TYPE_ALIGN (TREE_TYPE (t1)) != TYPE_ALIGN (TREE_TYPE (t2))
+		  || !gimple_operand_equal_value_p (TREE_OPERAND (t1, 0),
+						    TREE_OPERAND (t2, 0))
+		  || TREE_OPERAND (t1, 1) != TREE_OPERAND (t2, 1))
+		return false;
+	    }
+	  else if (!gimple_operand_equal_value_p (t1, t2))
+	    return false;
+	}
+      return true;
 
     case GIMPLE_COND:
       t1 = gimple_cond_lhs (s1);
@@ -1447,16 +1515,24 @@ deps_ok_for_redirect_from_bb_to_bb (basic_block from, basic_block to)
    replacement are dominates by their defs.  */
 
 static bool
-deps_ok_for_redirect (basic_block bb1, basic_block bb2)
+deps_ok_for_redirect (basic_block &bb1, basic_block &bb2)
 {
-  if (BB_CLUSTER (bb1) != NULL)
-    bb1 = BB_CLUSTER (bb1)->rep_bb;
+  basic_block b1 = bb1;
+  basic_block b2 = bb2;
+  if (BB_CLUSTER (b1) != NULL)
+    b1 = BB_CLUSTER (b1)->rep_bb;
 
-  if (BB_CLUSTER (bb2) != NULL)
-    bb2 = BB_CLUSTER (bb2)->rep_bb;
+  if (BB_CLUSTER (b2) != NULL)
+    b2 = BB_CLUSTER (b2)->rep_bb;
 
-  return (deps_ok_for_redirect_from_bb_to_bb (bb1, bb2)
-	  && deps_ok_for_redirect_from_bb_to_bb (bb2, bb1));
+  if (deps_ok_for_redirect_from_bb_to_bb (b1, b2))
+    return true;
+  if (deps_ok_for_redirect_from_bb_to_bb (b2, b1))
+    {
+      std::swap (bb1, bb2);
+      return true;
+    }
+  return false;
 }
 
 /* Within SAME_SUCC->bbs, find clusters of bbs which can be merged.  */
@@ -1593,7 +1669,7 @@ replace_block_by (basic_block bb1, basic_block bb2)
 
 	/* If probabilities are same, we are done.
 	   If counts are nonzero we can distribute accordingly. In remaining
-	   cases just avreage the values and hope for the best.  */
+	   cases just average the values and hope for the best.  */
 	e2->probability = e1->probability.combine_with_count
 	                     (bb1->count, e2->probability, bb2->count);
       }

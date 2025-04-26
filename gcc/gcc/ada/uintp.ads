@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -70,6 +70,7 @@ package Uintp is
    Uint_80  : constant Uint;
    Uint_127 : constant Uint;
    Uint_128 : constant Uint;
+   Uint_256 : constant Uint;
 
    Uint_Minus_1   : constant Uint;
    Uint_Minus_2   : constant Uint;
@@ -105,7 +106,8 @@ package Uintp is
    subtype Upos is Valid_Uint with Predicate => Upos >= Uint_1; -- positive
    subtype Nonzero_Uint is Valid_Uint with Predicate => Nonzero_Uint /= Uint_0;
    subtype Unegative is Valid_Uint with Predicate => Unegative < Uint_0;
-   subtype Ubool is Valid_Uint with Predicate => Ubool in Uint_0 | Uint_1;
+   subtype Ubool is Valid_Uint with
+     Predicate => Ubool = Uint_0 or else Ubool = Uint_1;
    subtype Opt_Ubool is Uint with
      Predicate => No (Opt_Ubool) or else Opt_Ubool in Ubool;
 
@@ -261,6 +263,9 @@ package Uintp is
    --  Approximate number of binary bits in given universal integer. This
    --  function is used for capacity checks, and it can be one bit off
    --  without affecting its usage.
+
+   function Type_Size_For (Input : Valid_Uint) return Nat;
+   --  Returns the size of an integer type that can accommodate Input
 
    ---------------------
    -- Output Routines --
@@ -506,6 +511,7 @@ private
    Uint_80  : constant Uint := Uint (Uint_Direct_Bias + 80);
    Uint_127 : constant Uint := Uint (Uint_Direct_Bias + 127);
    Uint_128 : constant Uint := Uint (Uint_Direct_Bias + 128);
+   Uint_256 : constant Uint := Uint (Uint_Direct_Bias + 256);
 
    Uint_Minus_1   : constant Uint := Uint (Uint_Direct_Bias - 1);
    Uint_Minus_2   : constant Uint := Uint (Uint_Direct_Bias - 2);

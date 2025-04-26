@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2022 Free Software Foundation, Inc.
+# Copyright (C) 2000-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,19 +24,33 @@ proc make_pattern_printable { pattern } {
     return [string map {\t \\t \n \\n \r \\r \\ \\\\} $pattern]
 }
 
+# Append to ARGS to make it suitable for use by dg-scan to indicate
+# that encoding ENC should be used when reading from the file.
+
+proc append_encoding_arg { args enc } {
+    if { [llength $args] < 2 } {
+	# Add target selector.
+	lappend args { target "*-*-*" }
+    }
+    # Add encoding ENC.
+    lappend args $enc
+    return $args
+}
+
 # Scan the OUTPUT_FILE for a pattern.  If it is present and POSITIVE
 # is non-zero, or it is not present and POSITIVE is zero, the test
 # passes.  The ORIG_ARGS is the list of arguments provided by dg-final
 # to scan-assembler.  The first element in ORIG_ARGS is the regular
 # expression to look for in the file.  The second element, if present,
-# is a DejaGNU target selector.
+# is a DejaGNU target selector.  The third element, if present, is the
+# encoding to use when reading from the file.
 
 proc dg-scan { name positive testcase output_file orig_args } {
     if { [llength $orig_args] < 1 } {
 	error "$name: too few arguments"
         return
     }
-    if { [llength $orig_args] > 2 } {
+    if { [llength $orig_args] > 3 } {
 	error "$name: too many arguments"
 	return
     }
@@ -59,8 +73,18 @@ proc dg-scan { name positive testcase output_file orig_args } {
 	return
     }
     set fd [open $output_file r]
+    if { [llength $orig_args] >= 3 } {
+	set file_encoding [lindex $orig_args 2]
+	fconfigure $fd -encoding $file_encoding
+    }
     set text [read $fd]
     close $fd
+    if { [string compare -length 14 $name scan-assembler] == 0 } {
+      # Remove LTO sections.
+      # ??? Somehow, .*? is still greedy.
+      # regsub -all {(^|\n)[[:space:]]*\.section[[:space:]]*"?\.gnu\.lto_.*?\n(?=[[:space:]]*\.text\n)} $text {\1} text
+      regsub -all {(^|\n)[[:space:]]*\.section[[:space:]]*"?\.gnu\.lto_(?:[^\n]*\n(?![[:space:]]*\.(section|text|data|bss)))*[^\n]*\n} $text {\1} text
+    }
 
     set match [regexp -- $pattern $text]
     if { $match == $positive } {
@@ -88,7 +112,17 @@ proc scan-assembler { args } {
     dg-scan "scan-assembler" 1 $testcase $output_file $args
 }
 
-force_conventional_output_for scan-assembler
+set_required_options_for scan-assembler
+
+proc scan-raw-assembler { args } {
+    set testcase [testname-for-summary]
+    # The name might include a list of options; extract the file name.
+    set filename [lindex $testcase 0]
+    set output_file "[file rootname [file tail $filename]].s"
+    dg-scan "scan-raw-assembler" 1 $testcase $output_file $args
+}
+
+set_required_options_for scan-raw-assembler
 
 # Check that a pattern is not present in the .s file produced by the
 # compiler.  See dg-scan for details.
@@ -102,7 +136,7 @@ proc scan-assembler-not { args } {
     dg-scan "scan-assembler-not" 0 $testcase $output_file $args
 }
 
-force_conventional_output_for scan-assembler-not
+set_required_options_for scan-assembler-not
 
 # Return the scan for the assembly for hidden visibility. 
 
@@ -469,8 +503,9 @@ proc scan-assembler-times { args } {
     set fd [open $output_file r]
     set text [read $fd]
     close $fd
+    regsub -all {(^|\n)[[:space:]]*\.section[[:space:]]*"?\.gnu\.lto_(?:[^\n]*\n(?![[:space:]]*\.(section|text|data|bss)))*[^\n]*\n} $text {\1} text
 
-    set result_count [llength [regexp -inline -all -- $pattern $text]]
+    set result_count [regexp -all -- $pattern $text]
     if {$result_count == $times} {
 	pass "$testcase scan-assembler-times $pp_pattern $times"
     } else {
@@ -479,7 +514,71 @@ proc scan-assembler-times { args } {
     }
 }
 
-force_conventional_output_for scan-assembler-times
+set_required_options_for scan-assembler-times
+
+# Call pass if pattern is present within a lower or upper bound, 
+# otherwise fail.
+# ex /* { dg-final { scan-assembler-bound {RE} > 3 } }
+proc scan-assembler-bound { args } {
+    if { [llength $args] < 3 } {
+	error "scan-assembler-bound: too few arguments"
+        return
+    }
+    if { [llength $args] > 4 } {
+	error "scan-assembler-bound: too many arguments"
+	return
+    }
+    if { [llength $args] >= 4 } {
+	switch [dg-process-target [lindex $args 3]] {
+	    "S" { }
+	    "N" { return }
+	    "F" { setup_xfail "*-*-*" }
+	    "P" { }
+	}
+    }
+
+    set testcase [testname-for-summary]
+    # The name might include a list of options; extract the file name.
+    set filename [lindex $testcase 0]
+    set pattern [lindex $args 0]
+    set cmp [lindex $args 1]
+    set bound [lindex $args 2]
+    set pp_pattern [make_pattern_printable $pattern]
+
+    # This must match the rule in gcc-dg.exp.
+    set output_file "[file rootname [file tail $filename]].s"
+
+    set files [glob -nocomplain $output_file]
+    if { $files == "" } {
+	verbose -log "$testcase: output file does not exist"
+	unresolved "$testcase scan-assembler-bound $pp_pattern $min $max"
+	return
+    }
+
+    if { [lsearch { < > <= >= } $cmp] == -1 } {
+        error "scan-assembler-bound: illegal argument: $cmp"
+        return
+    }
+    if ![string is integer $bound ] {
+        error "scan-assembler-bound: illegal argument: $bound"
+        return
+    }
+    
+    set fd [open $output_file r]
+    set text [read $fd]
+    close $fd
+    regsub -all {(^|\n)[[:space:]]*\.section[[:space:]]*"?\.gnu\.lto_(?:[^\n]*\n(?![[:space:]]*\.(section|text|data|bss)))*[^\n]*\n} $text {\1} text
+
+    set result_count [regexp -all -- $pattern $text]
+    if [expr $result_count $cmp $bound] {
+	pass "$testcase scan-assembler-bound $pp_pattern $cmp $bound"
+    } else {
+	verbose -log "$testcase: $pp_pattern found $result_count times"
+	fail "$testcase scan-assembler-bound $pp_pattern $cmp $bound"
+    }
+}
+
+set_required_options_for scan-assembler-bound
 
 # Utility for scanning demangled compiler result, invoked via dg-final.
 # Call pass if pattern is present, otherwise fail.
@@ -530,6 +629,7 @@ proc scan-assembler-dem { args } {
 
     set output [remote_exec host "$cxxfilt" "" "$output_file"]
     set text [lindex $output 1]
+    regsub -all {(^|\n)[[:space:]]*\.section[[:space:]]*"?\.gnu\.lto_(?:[^\n]*\n(?![[:space:]]*\.(section|text|data|bss)))*[^\n]*\n} $text {\1} text
 
     if [regexp -- $pattern $text] {
 	pass "$testcase scan-assembler-dem $pp_pattern"
@@ -586,6 +686,7 @@ proc scan-assembler-dem-not { args } {
 
     set output [remote_exec host "$cxxfilt" "" "$output_file"]
     set text [lindex $output 1]
+    regsub -all {(^|\n)[[:space:]]*\.section[[:space:]]*"?\.gnu\.lto_(?:[^\n]*\n(?![[:space:]]*\.(section|text|data|bss)))*[^\n]*\n} $text {\1} text
 
     if ![regexp -- $pattern $text] {
 	pass "$testcase scan-assembler-dem-not $pp_pattern"
@@ -759,33 +860,104 @@ proc scan-lto-assembler { args } {
     dg-scan "scan-lto-assembler" 1 $testcase $output_file $args
 }
 
-# Read assembly file FILENAME and store a mapping from function names
-# to function bodies in array RESULT.  FILENAME has already been uploaded
-# locally where necessary and is known to exist.
 
-proc parse_function_bodies { filename result } {
-    upvar $result up_result
+# Set up CONFIG for check-function-bodies.
+
+proc configure_check-function-bodies { config } {
+    upvar $config up_config
 
     # Regexp for the start of a function definition (name in \1).
-    set label {^([a-zA-Z_]\S+):$}
+    if { [istarget nvptx*-*-*] } {
+	set up_config(start) {
+	    {^// BEGIN(?: GLOBAL|) FUNCTION DEF: ([a-zA-Z_]\S*)$}
+	}
+    } elseif { [istarget *-*-darwin*] } {
+	set up_config(start) {
+	    {^_([a-zA-Z_]\S*):$}
+	    {^LFB[0-9]+:}
+	}
+    } else {
+	set up_config(start) {{^([a-zA-Z_]\S*):$}}
+    }
 
     # Regexp for the end of a function definition.
-    set terminator {^\s*\.size}
+    if { [istarget nvptx*-*-*] } {
+	set up_config(end) {^\}$}
+    } elseif { [istarget *-*-darwin*] } {
+	set up_config(end) {^LFE[0-9]+}
+    } else {
+	set up_config(end) {^\s*\.size}
+    }
 
     # Regexp for lines that aren't interesting.
-    set fluff {^\s*(?:\.|//|@)}
+    if { [istarget nvptx*-*-*] } {
+	# Skip lines beginning with '//' comments ('-fverbose-asm', for
+	# example).
+	set up_config(fluff) {^\s*(?://)}
+    } elseif { [istarget *-*-darwin*] } {
+	set up_config(fluff) {^\s*(?:\.|//|@)|^L[0-9ABCESV]}
+    } else {
+	# Skip lines beginning with labels ('.L[...]:') or other directives
+	# ('.align', '.cfi_startproc', '.quad [...]', '.text', etc.), '//' or
+	# '@' comments ('-fverbose-asm' or ARM-style, for example), or empty
+	# lines.
+	set up_config(fluff) {^\s*(?:\.|//|@|$)}
+    }
+
+    # Regexp for expected output lines prefix.
+    if { [istarget nvptx*-*-*] } {
+	# Certain instructions (such as predicable ones) are emitted with
+	# additional whitespace prefixed.  On the other hand, labels don't get
+	# any whitespace prefixed, and we'd like to be able to match these,
+	# too.  We thereare expect any amount of whitespace here.
+	set up_config(line_prefix) {\t*}
+    } else {
+	set up_config(line_prefix) {\t}
+    }
+}
+
+# Per CONFIG, read assembly file FILENAME and store a mapping from function
+# names to function bodies in array RESULT.  FILENAME has already been uploaded
+# locally where necessary and is known to exist.
+
+proc parse_function_bodies { config filename result } {
+    upvar $config up_config
+    upvar $result up_result
 
     set fd [open $filename r]
     set in_function 0
     while { [gets $fd line] >= 0 } {
-	if { [regexp $label $line dummy function_name] } {
-	    set in_function 1
-	    set function_body ""
+	if { $in_function == 0 } {
+	    if { [regexp [lindex $up_config(start) 0] \
+			 $line dummy function_name] } {
+		set in_function 1
+		set function_body ""
+	    }
+	} elseif { $in_function < [llength $up_config(start)] } {
+	    if { [regexp [lindex $up_config(start) $in_function] $line] } {
+		incr in_function
+	    } else {
+		verbose "parse_function_bodies: skipped $function_name"
+		set in_function 0
+	    }
 	} elseif { $in_function } {
-	    if { [regexp $terminator $line] } {
+	    # We allow multiple function start labels, taking the last one seen
+	    # as the function name.
+	    if { [regexp [lindex $up_config(start) 0] \
+			 $line dummy maybe_function_name] } {
+		verbose "parse_function_bodies: overriding $function_name with $maybe_function_name"
+		set function_name $maybe_function_name
+		set in_function 1
+	    } elseif { [regexp $up_config(end) $line] } {
+		verbose "parse_function_bodies: $function_name:\n$function_body"
 		set up_result($function_name) $function_body
 		set in_function 0
-	    } elseif { ![regexp $fluff $line] } {
+	    } elseif { $up_config(matched) ne "" \
+		       && [regexp $up_config(matched) $line] } {
+		append function_body $line "\n"
+	    } elseif { [regexp $up_config(fluff) $line] } {
+		verbose "parse_function_bodies: $function_name: ignoring fluff line: $line"
+	    } else {
 		append function_body $line "\n"
 	    }
 	}
@@ -803,12 +975,17 @@ proc check_function_body { functions name body_regexp } {
     if { ![info exists up_functions($name)] } {
 	return 0
     }
-    return [regexp "^$body_regexp\$" $up_functions($name)]
+    set fn_res [regexp "^$body_regexp\$" $up_functions($name)]
+    if { !$fn_res } {
+      verbose -log "body: $body_regexp"
+      verbose -log "against: $up_functions($name)"
+    }
+    return $fn_res
 }
 
 # Check the implementations of functions against expected output.  Used as:
 #
-# { dg-do { check-function-bodies PREFIX TERMINATOR[ OPTION[ SELECTOR]] } }
+# { dg-final { check-function-bodies PREFIX TERMINATOR[ OPTION[ SELECTOR [MATCHED]]] } }
 #
 # See sourcebuild.texi for details.
 
@@ -816,20 +993,21 @@ proc check-function-bodies { args } {
     if { [llength $args] < 2 } {
 	error "too few arguments to check-function-bodies"
     }
-    if { [llength $args] > 4 } {
+    if { [llength $args] > 5 } {
 	error "too many arguments to check-function-bodies"
+    }
+
+    upvar 2 dg-extra-tool-flags extra_tool_flags
+    set flags $extra_tool_flags
+
+    global torture_current_flags
+    if { [info exists torture_current_flags] } {
+	append flags " " $torture_current_flags
     }
 
     if { [llength $args] >= 3 } {
 	set required_flags [lindex $args 2]
 
-	upvar 2 dg-extra-tool-flags extra_tool_flags
-	set flags $extra_tool_flags
-
-	global torture_current_flags
-	if { [info exists torture_current_flags] } {
-	    append flags " " $torture_current_flags
-	}
 	foreach required_flag $required_flags {
 	    switch -- $required_flag {
 		target -
@@ -855,13 +1033,25 @@ proc check-function-bodies { args } {
 	}
     }
 
+    set matched ""
+    if { [llength $args] >= 5 } {
+	set matched [lindex $args 4]
+    }
+
     set testcase [testname-for-summary]
     # The name might include a list of options; extract the file name.
     set filename [lindex $testcase 0]
 
     global srcdir
     set input_filename "$srcdir/$filename"
-    set output_filename "[file rootname [file tail $filename]].s"
+    set output_filename "[file rootname [file tail $filename]]"
+    if { [string match "* -flto *" " ${flags} "]
+	 && ![string match "* -fno-use-linker-plugin *" " ${flags} "]
+	 && ![string match "* -ffat-lto-objects *" " ${flags} "] } {
+	append output_filename ".ltrans0.ltrans.s"
+    } else {
+	append output_filename ".s"
+    }
 
     set prefix [lindex $args 0]
     set prefix_len [string length $prefix]
@@ -870,13 +1060,18 @@ proc check-function-bodies { args } {
 	set terminator "*/"
     }
     set terminator_len [string length $terminator]
+    # Regexp for the start of a function definition in expected output lines
+    # (name in \1).  This may be different from '$config(start)'.
+    set start_expected {^(\S+):$}
 
+    set config(matched) $matched
+    configure_check-function-bodies config
     set have_bodies 0
     if { [is_remote host] } {
 	remote_upload host "$filename"
     }
     if { [file exists $output_filename] } {
-	parse_function_bodies $output_filename functions
+	parse_function_bodies config $output_filename functions
 	set have_bodies 1
     } else {
 	verbose -log "$testcase: output file does not exist"
@@ -884,7 +1079,6 @@ proc check-function-bodies { args } {
 
     set count 0
     set function_regexp ""
-    set label {^(\S+):$}
 
     set lineno 1
     set fd [open $input_filename r]
@@ -899,7 +1093,7 @@ proc check-function-bodies { args } {
 		} else {
 		    set selector "P"
 		}
-		if { ![regexp $label $line dummy function_name] } {
+		if { ![regexp $start_expected $line dummy function_name] } {
 		    close $fd
 		    error "check-function-bodies: line $lineno does not have a function label"
 		}
@@ -913,8 +1107,10 @@ proc check-function-bodies { args } {
 		append function_regexp ")"
 	    } elseif { [string equal $line "..."] } {
 		append function_regexp ".*"
+	    } elseif { [regexp {^\.L} $line] } {
+		append function_regexp $line "\n"
 	    } else {
-		append function_regexp "\t" $line "\n"
+		append function_regexp $config(line_prefix) $line "\n"
 	    }
 	} elseif { [string equal -length $terminator_len $line $terminator] } {
 	    if { ![string equal $selector "N"] } {

@@ -1,5 +1,5 @@
 /* Command line option handling.
-   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+   Copyright (C) 2002-2025 Free Software Foundation, Inc.
    Contributed by Neil Booth.
 
 This file is part of GCC.
@@ -32,11 +32,20 @@ along with GCC; see the file COPYING3.  If not see
 #include "spellcheck.h"
 #include "opt-suggestions.h"
 #include "diagnostic-color.h"
+#include "diagnostic-format.h"
 #include "version.h"
 #include "selftest.h"
+#include "file-prefix-map.h"
 
 /* In this file all option sets are explicit.  */
 #undef OPTION_SET_P
+
+/* Set by -fcanon-prefix-map.  */
+bool flag_canon_prefix_map;
+
+/* Set by finish_options when flag_stack_protector was set only because of
+   -fhardened.  Yuck.  */
+bool flag_stack_protector_set_by_fhardened_p;
 
 static void set_Wstrict_aliasing (struct gcc_options *opts, int onoff);
 
@@ -45,7 +54,7 @@ static void set_Wstrict_aliasing (struct gcc_options *opts, int onoff);
 
 const char *const debug_type_names[] =
 {
-  "none", "stabs", "dwarf-2", "xcoff", "vms", "ctf", "btf"
+  "none", "dwarf-2", "vms", "ctf", "btf", "codeview"
 };
 
 /* Bitmasks of fundamental debug info formats indexed by enum
@@ -53,14 +62,14 @@ const char *const debug_type_names[] =
 
 static uint32_t debug_type_masks[] =
 {
-  NO_DEBUG, DBX_DEBUG, DWARF2_DEBUG, XCOFF_DEBUG, VMS_DEBUG,
-  CTF_DEBUG, BTF_DEBUG
+  NO_DEBUG, DWARF2_DEBUG, VMS_DEBUG,
+  CTF_DEBUG, BTF_DEBUG, CODEVIEW_DEBUG
 };
 
 /* Names of the set of debug formats requested by user.  Updated and accessed
    via debug_set_names.  */
 
-static char df_set_names[sizeof "none stabs dwarf-2 xcoff vms ctf btf"];
+static char df_set_names[sizeof "none dwarf-2 vms ctf btf codeview"];
 
 /* Get enum debug_info_type of the specified debug format, for error messages.
    Can be used only for individual debug format types.  */
@@ -154,6 +163,14 @@ ctf_debuginfo_p ()
   return (write_symbols & CTF_DEBUG);
 }
 
+/* Return TRUE iff CodeView debug info is enabled.  */
+
+bool
+codeview_debuginfo_p ()
+{
+  return (write_symbols & CODEVIEW_DEBUG);
+}
+
 /* Return TRUE iff dwarf2 debug info is enabled.  */
 
 bool
@@ -168,7 +185,8 @@ dwarf_debuginfo_p (struct gcc_options *opts)
 bool dwarf_based_debuginfo_p ()
 {
   return ((write_symbols & CTF_DEBUG)
-	  || (write_symbols & BTF_DEBUG));
+	  || (write_symbols & BTF_DEBUG)
+	  || (write_symbols & CODEVIEW_DEBUG));
 }
 
 /* All flag uses below need to explicitely reference the option sets
@@ -367,7 +385,7 @@ add_comma_separated_to_vector (void **pvec, const char *arg)
   char *w;
   char *token_start;
   vec<char_p> *v = (vec<char_p> *) *pvec;
-  
+
   vec_check_alloc (v, 1);
 
   /* We never free this string.  */
@@ -426,9 +444,6 @@ init_options_struct (struct gcc_options *opts, struct gcc_options *opts_set)
 
   /* Initialize whether `char' is signed.  */
   opts->x_flag_signed_char = DEFAULT_SIGNED_CHAR;
-  /* Set this to a special "uninitialized" value.  The actual default
-     is set after target options have been processed.  */
-  opts->x_flag_short_enums = 2;
 
   /* Initialize target_flags before default_options_optimization
      so the latter can modify it.  */
@@ -592,6 +607,7 @@ static const struct default_options default_options_table[] =
     { OPT_LEVELS_1_PLUS, OPT_fvar_tracking, NULL, 1 },
 
     /* -O1 (and not -Og) optimizations.  */
+    { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_fbit_tests, NULL, 1 },
     { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_fbranch_count_reg, NULL, 1 },
 #if DELAY_SLOTS
     { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_fdelayed_branch, NULL, 1 },
@@ -600,6 +616,7 @@ static const struct default_options default_options_table[] =
     { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_fif_conversion, NULL, 1 },
     { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_fif_conversion2, NULL, 1 },
     { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_finline_functions_called_once, NULL, 1 },
+    { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_fjump_tables, NULL, 1 },
     { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_fmove_loop_invariants, NULL, 1 },
     { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_fmove_loop_stores, NULL, 1 },
     { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_fssa_phiopt, NULL, 1 },
@@ -617,6 +634,7 @@ static const struct default_options default_options_table[] =
     { OPT_LEVELS_2_PLUS, OPT_fdevirtualize, NULL, 1 },
     { OPT_LEVELS_2_PLUS, OPT_fdevirtualize_speculatively, NULL, 1 },
     { OPT_LEVELS_2_PLUS, OPT_fexpensive_optimizations, NULL, 1 },
+    { OPT_LEVELS_2_PLUS, OPT_fext_dce, NULL, 1 },
     { OPT_LEVELS_2_PLUS, OPT_fgcse, NULL, 1 },
     { OPT_LEVELS_2_PLUS, OPT_fhoist_adjacent_loads, NULL, 1 },
     { OPT_LEVELS_2_PLUS, OPT_findirect_inlining, NULL, 1 },
@@ -647,6 +665,8 @@ static const struct default_options default_options_table[] =
       VECT_COST_MODEL_VERY_CHEAP },
     { OPT_LEVELS_2_PLUS, OPT_finline_functions, NULL, 1 },
     { OPT_LEVELS_2_PLUS, OPT_ftree_loop_distribute_patterns, NULL, 1 },
+    { OPT_LEVELS_2_PLUS, OPT_foptimize_crc, NULL, 1 },
+    { OPT_LEVELS_2_PLUS, OPT_flate_combine_instructions, NULL, 1 },
 
     /* -O2 and above optimizations, but not -Os or -Og.  */
     { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_falign_functions, NULL, 1 },
@@ -658,6 +678,8 @@ static const struct default_options default_options_table[] =
       REORDER_BLOCKS_ALGORITHM_STC },
     { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_ftree_loop_vectorize, NULL, 1 },
     { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_ftree_slp_vectorize, NULL, 1 },
+    { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fopenmp_target_simd_clone_, NULL,
+      OMP_TARGET_SIMD_CLONE_NOHOST },
 #ifdef INSN_SCHEDULING
   /* Only run the pre-regalloc scheduling pass if optimizing for speed.  */
     { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fschedule_insns, NULL, 1 },
@@ -1015,6 +1037,25 @@ report_conflicting_sanitizer_options (struct gcc_options *opts, location_t loc,
     }
 }
 
+/* Validate from OPTS and OPTS_SET that when -fipa-reorder-for-locality is
+   enabled no explicit -flto-partition is also passed as the locality cloning
+   pass uses its own partitioning scheme.  */
+
+static void
+validate_ipa_reorder_locality_lto_partition (struct gcc_options *opts,
+					     struct gcc_options *opts_set)
+{
+  static bool validated_p = false;
+
+  if (opts_set->x_flag_lto_partition)
+    {
+      if (opts->x_flag_ipa_reorder_for_locality && !validated_p)
+	error ("%<-fipa-reorder-for-locality%> is incompatible with"
+	       " an explicit %qs option", "-flto-partition");
+    }
+  validated_p = true;
+}
+
 /* After all options at LOC have been read into OPTS and OPTS_SET,
    finalize settings of those options and diagnose incompatible
    combinations.  */
@@ -1086,6 +1127,17 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
       opts->x_flag_section_anchors = 0;
     }
 
+  if (opts->x_flag_hardened)
+    {
+      if (!opts_set->x_flag_auto_var_init)
+	opts->x_flag_auto_var_init = AUTO_INIT_ZERO;
+      else if (opts->x_flag_auto_var_init != AUTO_INIT_ZERO)
+	warning_at (loc, OPT_Whardened,
+		    "%<-ftrivial-auto-var-init=zero%> is not enabled by "
+		    "%<-fhardened%> because it was specified on the command "
+		    "line");
+    }
+
   if (!opts->x_flag_opts_finished)
     {
       /* We initialize opts->x_flag_pie to -1 so that targets can set a
@@ -1095,7 +1147,8 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
 	  /* We initialize opts->x_flag_pic to -1 so that we can tell if
 	     -fpic, -fPIC, -fno-pic or -fno-PIC is used.  */
 	  if (opts->x_flag_pic == -1)
-	    opts->x_flag_pie = DEFAULT_FLAG_PIE;
+	    opts->x_flag_pie = (opts->x_flag_hardened
+				? /*-fPIE*/ 2 : DEFAULT_FLAG_PIE);
 	  else
 	    opts->x_flag_pie = 0;
 	}
@@ -1110,9 +1163,29 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
     }
 
   /* We initialize opts->x_flag_stack_protect to -1 so that targets
-     can set a default value.  */
+     can set a default value.  With --enable-default-ssp or -fhardened
+     the default is -fstack-protector-strong.  */
   if (opts->x_flag_stack_protect == -1)
-    opts->x_flag_stack_protect = DEFAULT_FLAG_SSP;
+    {
+      /* This should check FRAME_GROWS_DOWNWARD, but on some targets it's
+	 defined in such a way that it uses flag_stack_protect which can't
+	 be used here.  Moreover, some targets like BPF don't support
+	 -fstack-protector at all but we don't know that here.  So remember
+	 that flag_stack_protect was set at the behest of -fhardened.  */
+      if (opts->x_flag_hardened)
+	{
+	  opts->x_flag_stack_protect = SPCT_FLAG_STRONG;
+	  flag_stack_protector_set_by_fhardened_p = true;
+	}
+      else
+	opts->x_flag_stack_protect = DEFAULT_FLAG_SSP;
+    }
+  else if (opts->x_flag_hardened
+	   && opts->x_flag_stack_protect != SPCT_FLAG_STRONG)
+    warning_at (UNKNOWN_LOCATION, OPT_Whardened,
+		"%<-fstack-protector-strong%> is not enabled by "
+		"%<-fhardened%> because it was specified on the command "
+		"line");
 
   if (opts->x_optimize == 0)
     {
@@ -1121,6 +1194,10 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
       opts->x_warn_inline = 0;
       opts->x_flag_no_inline = 1;
     }
+
+  /* At -O0 or -Og, turn __builtin_unreachable into a trap.  */
+  if (!opts->x_optimize || opts->x_optimize_debug)
+    SET_OPTION_IF_UNSET (opts, opts_set, flag_unreachable_traps, true);
 
   /* Pipelining of outer loops is only possible when general pipelining
      capabilities are requested.  */
@@ -1191,6 +1268,8 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
   if (opts->x_flag_reorder_blocks_and_partition)
     SET_OPTION_IF_UNSET (opts, opts_set, flag_reorder_functions, 1);
 
+  validate_ipa_reorder_locality_lto_partition (opts, opts_set);
+
   /* The -gsplit-dwarf option requires -ggnu-pubnames.  */
   if (opts->x_dwarf_split_debug_info)
     opts->x_debug_generate_pub_sections = 2;
@@ -1210,7 +1289,9 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
 
   /* Address sanitizers conflict with the thread sanitizer.  */
   report_conflicting_sanitizer_options (opts, loc, SANITIZE_THREAD,
-					SANITIZE_ADDRESS | SANITIZE_HWADDRESS);
+					SANITIZE_ADDRESS);
+  report_conflicting_sanitizer_options (opts, loc, SANITIZE_THREAD,
+					SANITIZE_HWADDRESS);
   /* The leak sanitizer conflicts with the thread sanitizer.  */
   report_conflicting_sanitizer_options (opts, loc, SANITIZE_LEAK,
 					SANITIZE_THREAD);
@@ -1230,6 +1311,18 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
     if ((opts->x_flag_sanitize_recover & sanitizer_opts[i].flag)
 	&& !sanitizer_opts[i].can_recover)
       error_at (loc, "%<-fsanitize-recover=%s%> is not supported",
+		sanitizer_opts[i].name);
+
+  /* Check -fsanitize-trap option.  */
+  for (int i = 0; sanitizer_opts[i].name != NULL; ++i)
+    if ((opts->x_flag_sanitize_trap & sanitizer_opts[i].flag)
+	&& !sanitizer_opts[i].can_trap
+	/* Allow -fsanitize-trap=all or -fsanitize-trap=undefined
+	   to set flag_sanitize_trap & SANITIZE_VPTR bit which will
+	   effectively disable -fsanitize=vptr, just disallow
+	   explicit -fsanitize-trap=vptr.  */
+	&& sanitizer_opts[i].flag != SANITIZE_VPTR)
+      error_at (loc, "%<-fsanitize-trap=%s%> is not supported",
 		sanitizer_opts[i].name);
 
   /* When instrumenting the pointers, we don't want to remove
@@ -1270,8 +1363,9 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
 	   "%<-fsanitize=kernel-address%>");
 
   /* Currently live patching is not support for LTO.  */
-  if (opts->x_flag_live_patching && opts->x_flag_lto)
-    sorry ("live patching is not supported with LTO");
+  if (opts->x_flag_live_patching == LIVE_PATCHING_INLINE_ONLY_STATIC && opts->x_flag_lto)
+    sorry ("live patching (with %qs) is not supported with LTO",
+	   "inline-only-static");
 
   /* Currently vtable verification is not supported for LTO */
   if (opts->x_flag_vtable_verify && opts->x_flag_lto)
@@ -1329,14 +1423,14 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
     opts->x_debug_nonbind_markers_p
       = (opts->x_optimize
 	 && opts->x_debug_info_level >= DINFO_LEVEL_NORMAL
-	 && dwarf_debuginfo_p (opts)
+	 && (dwarf_debuginfo_p (opts) || codeview_debuginfo_p ())
 	 && !(opts->x_flag_selective_scheduling
 	      || opts->x_flag_selective_scheduling2));
 
   /* We know which debug output will be used so we can set flag_var_tracking
      and flag_var_tracking_uninit if the user has not specified them.  */
   if (opts->x_debug_info_level < DINFO_LEVEL_NORMAL
-      || !dwarf_debuginfo_p (opts)
+      || (!dwarf_debuginfo_p (opts) && !codeview_debuginfo_p ())
       /* We have not yet initialized debug hooks so match that to check
 	 whether we're only doing DWARF2_LINENO_DEBUGGING_INFO.  */
 #ifndef DWARF2_DEBUGGING_INFO
@@ -1359,6 +1453,7 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
 	}
       opts->x_flag_var_tracking = 0;
       opts->x_flag_var_tracking_uninit = 0;
+      opts->x_flag_var_tracking_assignments = 0;
     }
 
   /* One could use EnabledBy, but it would lead to a circular dependency.  */
@@ -1390,6 +1485,14 @@ finish_options (struct gcc_options *opts, struct gcc_options *opts_set,
       opts->x_profile_flag = 0;
     }
 
+  if (opts->x_warn_strict_flex_arrays)
+    if (opts->x_flag_strict_flex_arrays == 0)
+      {
+	opts->x_warn_strict_flex_arrays = 0;
+	warning_at (UNKNOWN_LOCATION, 0,
+		    "%<-Wstrict-flex-arrays%> is ignored when"
+		    " %<-fstrict-flex-arrays%> is not present");
+      }
 
   diagnose_options (opts, opts_set, loc);
 }
@@ -1783,7 +1886,7 @@ print_filtered_help (unsigned int include_flags,
 	  help = new_help;
 	}
 
-      if (option->range_max != -1)
+      if (option->range_max != -1 && tab == NULL)
 	{
 	  char b[128];
 	  snprintf (b, sizeof (b), "<%d,%d>", option->range_min,
@@ -2015,53 +2118,56 @@ enable_fdo_optimizations (struct gcc_options *opts,
   SET_OPTION_IF_UNSET (opts, opts_set, flag_loop_interchange, value);
   SET_OPTION_IF_UNSET (opts, opts_set, flag_unroll_jam, value);
   SET_OPTION_IF_UNSET (opts, opts_set, flag_tree_loop_distribution, value);
+  SET_OPTION_IF_UNSET (opts, opts_set, flag_optimize_crc, value);
 }
 
 /* -f{,no-}sanitize{,-recover}= suboptions.  */
 const struct sanitizer_opts_s sanitizer_opts[] =
 {
-#define SANITIZER_OPT(name, flags, recover) \
-    { #name, flags, sizeof #name - 1, recover }
-  SANITIZER_OPT (address, (SANITIZE_ADDRESS | SANITIZE_USER_ADDRESS), true),
+#define SANITIZER_OPT(name, flags, recover, trap) \
+    { #name, flags, sizeof #name - 1, recover, trap }
+  SANITIZER_OPT (address, (SANITIZE_ADDRESS | SANITIZE_USER_ADDRESS), true,
+		 false),
   SANITIZER_OPT (hwaddress, (SANITIZE_HWADDRESS | SANITIZE_USER_HWADDRESS),
-		 true),
+		 true, false),
   SANITIZER_OPT (kernel-address, (SANITIZE_ADDRESS | SANITIZE_KERNEL_ADDRESS),
-		 true),
+		 true, false),
   SANITIZER_OPT (kernel-hwaddress,
 		 (SANITIZE_HWADDRESS | SANITIZE_KERNEL_HWADDRESS),
+		 true, false),
+  SANITIZER_OPT (pointer-compare, SANITIZE_POINTER_COMPARE, true, false),
+  SANITIZER_OPT (pointer-subtract, SANITIZE_POINTER_SUBTRACT, true, false),
+  SANITIZER_OPT (thread, SANITIZE_THREAD, false, false),
+  SANITIZER_OPT (leak, SANITIZE_LEAK, false, false),
+  SANITIZER_OPT (shift, SANITIZE_SHIFT, true, true),
+  SANITIZER_OPT (shift-base, SANITIZE_SHIFT_BASE, true, true),
+  SANITIZER_OPT (shift-exponent, SANITIZE_SHIFT_EXPONENT, true, true),
+  SANITIZER_OPT (integer-divide-by-zero, SANITIZE_DIVIDE, true, true),
+  SANITIZER_OPT (undefined, SANITIZE_UNDEFINED, true, true),
+  SANITIZER_OPT (unreachable, SANITIZE_UNREACHABLE, false, true),
+  SANITIZER_OPT (vla-bound, SANITIZE_VLA, true, true),
+  SANITIZER_OPT (return, SANITIZE_RETURN, false, true),
+  SANITIZER_OPT (null, SANITIZE_NULL, true, true),
+  SANITIZER_OPT (signed-integer-overflow, SANITIZE_SI_OVERFLOW, true, true),
+  SANITIZER_OPT (bool, SANITIZE_BOOL, true, true),
+  SANITIZER_OPT (enum, SANITIZE_ENUM, true, true),
+  SANITIZER_OPT (float-divide-by-zero, SANITIZE_FLOAT_DIVIDE, true, true),
+  SANITIZER_OPT (float-cast-overflow, SANITIZE_FLOAT_CAST, true, true),
+  SANITIZER_OPT (bounds, SANITIZE_BOUNDS, true, true),
+  SANITIZER_OPT (bounds-strict, SANITIZE_BOUNDS | SANITIZE_BOUNDS_STRICT, true,
 		 true),
-  SANITIZER_OPT (pointer-compare, SANITIZE_POINTER_COMPARE, true),
-  SANITIZER_OPT (pointer-subtract, SANITIZE_POINTER_SUBTRACT, true),
-  SANITIZER_OPT (thread, SANITIZE_THREAD, false),
-  SANITIZER_OPT (leak, SANITIZE_LEAK, false),
-  SANITIZER_OPT (shift, SANITIZE_SHIFT, true),
-  SANITIZER_OPT (shift-base, SANITIZE_SHIFT_BASE, true),
-  SANITIZER_OPT (shift-exponent, SANITIZE_SHIFT_EXPONENT, true),
-  SANITIZER_OPT (integer-divide-by-zero, SANITIZE_DIVIDE, true),
-  SANITIZER_OPT (undefined, SANITIZE_UNDEFINED, true),
-  SANITIZER_OPT (unreachable, SANITIZE_UNREACHABLE, false),
-  SANITIZER_OPT (vla-bound, SANITIZE_VLA, true),
-  SANITIZER_OPT (return, SANITIZE_RETURN, false),
-  SANITIZER_OPT (null, SANITIZE_NULL, true),
-  SANITIZER_OPT (signed-integer-overflow, SANITIZE_SI_OVERFLOW, true),
-  SANITIZER_OPT (bool, SANITIZE_BOOL, true),
-  SANITIZER_OPT (enum, SANITIZE_ENUM, true),
-  SANITIZER_OPT (float-divide-by-zero, SANITIZE_FLOAT_DIVIDE, true),
-  SANITIZER_OPT (float-cast-overflow, SANITIZE_FLOAT_CAST, true),
-  SANITIZER_OPT (bounds, SANITIZE_BOUNDS, true),
-  SANITIZER_OPT (bounds-strict, SANITIZE_BOUNDS | SANITIZE_BOUNDS_STRICT, true),
-  SANITIZER_OPT (alignment, SANITIZE_ALIGNMENT, true),
-  SANITIZER_OPT (nonnull-attribute, SANITIZE_NONNULL_ATTRIBUTE, true),
+  SANITIZER_OPT (alignment, SANITIZE_ALIGNMENT, true, true),
+  SANITIZER_OPT (nonnull-attribute, SANITIZE_NONNULL_ATTRIBUTE, true, true),
   SANITIZER_OPT (returns-nonnull-attribute, SANITIZE_RETURNS_NONNULL_ATTRIBUTE,
-		 true),
-  SANITIZER_OPT (object-size, SANITIZE_OBJECT_SIZE, true),
-  SANITIZER_OPT (vptr, SANITIZE_VPTR, true),
-  SANITIZER_OPT (pointer-overflow, SANITIZE_POINTER_OVERFLOW, true),
-  SANITIZER_OPT (builtin, SANITIZE_BUILTIN, true),
-  SANITIZER_OPT (shadow-call-stack, SANITIZE_SHADOW_CALL_STACK, false),
-  SANITIZER_OPT (all, ~0U, true),
+		 true, true),
+  SANITIZER_OPT (object-size, SANITIZE_OBJECT_SIZE, true, true),
+  SANITIZER_OPT (vptr, SANITIZE_VPTR, true, false),
+  SANITIZER_OPT (pointer-overflow, SANITIZE_POINTER_OVERFLOW, true, true),
+  SANITIZER_OPT (builtin, SANITIZE_BUILTIN, true, true),
+  SANITIZER_OPT (shadow-call-stack, SANITIZE_SHADOW_CALL_STACK, false, false),
+  SANITIZER_OPT (all, ~0U, true, true),
 #undef SANITIZER_OPT
-  { NULL, 0U, 0UL, false }
+  { NULL, 0U, 0UL, false, false }
 };
 
 /* -fzero-call-used-regs= suboptions.  */
@@ -2078,6 +2184,10 @@ const struct zero_call_used_regs_opts_s zero_call_used_regs_opts[] =
   ZERO_CALL_USED_REGS_OPT (all-gpr, zero_regs_flags::ALL_GPR),
   ZERO_CALL_USED_REGS_OPT (all-arg, zero_regs_flags::ALL_ARG),
   ZERO_CALL_USED_REGS_OPT (all, zero_regs_flags::ALL),
+  ZERO_CALL_USED_REGS_OPT (leafy-gpr-arg, zero_regs_flags::LEAFY_GPR_ARG),
+  ZERO_CALL_USED_REGS_OPT (leafy-gpr, zero_regs_flags::LEAFY_GPR),
+  ZERO_CALL_USED_REGS_OPT (leafy-arg, zero_regs_flags::LEAFY_ARG),
+  ZERO_CALL_USED_REGS_OPT (leafy, zero_regs_flags::LEAFY),
 #undef ZERO_CALL_USED_REGS_OPT
   {NULL, 0U}
 };
@@ -2114,7 +2224,7 @@ struct edit_distance_traits<const string_fragment &>
 /* Given ARG, an unrecognized sanitizer option, return the best
    matching sanitizer option, or NULL if there isn't one.
    OPTS is array of candidate sanitizer options.
-   CODE is OPT_fsanitize_ or OPT_fsanitize_recover_.
+   CODE is OPT_fsanitize_, OPT_fsanitize_recover_ or OPT_fsanitize_trap_.
    VALUE is non-zero for the regular form of the option, zero
    for the "no-" form (e.g. "-fno-sanitize-recover=").  */
 
@@ -2136,6 +2246,13 @@ get_closest_sanitizer_option (const string_fragment &arg,
 	 don't offer the non-recoverable options.  */
       if (code == OPT_fsanitize_recover_
 	  && !opts[i].can_recover
+	  && value)
+	continue;
+
+      /* For -fsanitize-trap= (and not -fno-sanitize-trap=),
+	 don't offer the non-trapping options.  */
+      if (code == OPT_fsanitize_trap_
+	  && !opts[i].can_trap
 	  && value)
 	continue;
 
@@ -2183,10 +2300,13 @@ parse_sanitizer_options (const char *p, location_t loc, int scode,
 		    if (complain)
 		      error_at (loc, "%<-fsanitize=all%> option is not valid");
 		  }
-		else
+		else if (code == OPT_fsanitize_recover_)
 		  flags |= ~(SANITIZE_THREAD | SANITIZE_LEAK
 			     | SANITIZE_UNREACHABLE | SANITIZE_RETURN
 			     | SANITIZE_SHADOW_CALL_STACK);
+		else /* if (code == OPT_fsanitize_trap_) */
+		  flags |= (SANITIZE_UNDEFINED
+			    | SANITIZE_UNDEFINED_NONDEFAULT);
 	      }
 	    else if (value)
 	      {
@@ -2197,11 +2317,22 @@ parse_sanitizer_options (const char *p, location_t loc, int scode,
 		    && sanitizer_opts[i].flag == SANITIZE_UNDEFINED)
 		  flags |= (SANITIZE_UNDEFINED
 			    & ~(SANITIZE_UNREACHABLE | SANITIZE_RETURN));
+		else if (code == OPT_fsanitize_trap_
+			 && sanitizer_opts[i].flag == SANITIZE_VPTR)
+		  error_at (loc, "%<-fsanitize-trap=%s%> is not supported",
+			    sanitizer_opts[i].name);
 		else
 		  flags |= sanitizer_opts[i].flag;
 	      }
 	    else
-	      flags &= ~sanitizer_opts[i].flag;
+	      {
+		flags &= ~sanitizer_opts[i].flag;
+		/* Don't always clear SANITIZE_ADDRESS if it was previously
+		   set: -fsanitize=address -fno-sanitize=kernel-address should
+		   leave SANITIZE_ADDRESS set.  */
+		if (flags & (SANITIZE_KERNEL_ADDRESS | SANITIZE_USER_ADDRESS))
+		  flags |= SANITIZE_ADDRESS;
+	      }
 	    found = true;
 	    break;
 	  }
@@ -2215,6 +2346,8 @@ parse_sanitizer_options (const char *p, location_t loc, int scode,
 	  const char *suffix;
 	  if (code == OPT_fsanitize_recover_)
 	    suffix = "-recover";
+	  else if (code == OPT_fsanitize_trap_)
+	    suffix = "-trap";
 	  else
 	    suffix = "";
 
@@ -2397,6 +2530,30 @@ parse_and_check_patch_area (const char *arg, bool report_error,
   free (patch_area_arg);
 }
 
+/* Print options enabled by -fhardened.  Keep this in sync with the manual!  */
+
+static void
+print_help_hardened ()
+{
+  printf ("%s\n", "The following options are enabled by -fhardened:");
+  /* Unfortunately, I can't seem to use targetm.fortify_source_default_level
+     here.  */
+  printf ("  %s\n", "-D_FORTIFY_SOURCE=3 (or =2 for glibc < 2.35)");
+  printf ("  %s\n", "-D_GLIBCXX_ASSERTIONS");
+  printf ("  %s\n", "-ftrivial-auto-var-init=zero");
+#ifdef HAVE_LD_PIE
+  printf ("  %s  %s\n", "-fPIE", "-pie");
+#endif
+  if (HAVE_LD_NOW_SUPPORT)
+    printf ("  %s\n", "-Wl,-z,now");
+  if (HAVE_LD_RELRO_SUPPORT)
+    printf ("  %s\n", "-Wl,-z,relro");
+  printf ("  %s\n", "-fstack-protector-strong");
+  printf ("  %s\n", "-fstack-clash-protection");
+  printf ("  %s\n", "-fcf-protection=full");
+  putchar ('\n');
+}
+
 /* Print help when OPT__help_ is set.  */
 
 void
@@ -2512,6 +2669,8 @@ print_help (struct gcc_options *opts, unsigned int lang_mask,
 	}
       else if (lang_flag != 0)
 	*pflags |= lang_flag;
+      else if (strncasecmp (a, "hardened", len) == 0)
+	print_help_hardened ();
       else
 	warning (0,
 		 "unrecognized argument to %<--help=%> option: %q.*s",
@@ -2613,6 +2772,7 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_fsanitize_:
+      opts_set->x_flag_sanitize = true;
       opts->x_flag_sanitize
 	= parse_sanitizer_options (arg, loc, code,
 				   opts->x_flag_sanitize, value, true);
@@ -2646,6 +2806,12 @@ common_handle_option (struct gcc_options *opts,
 				   opts->x_flag_sanitize_recover, value, true);
       break;
 
+    case OPT_fsanitize_trap_:
+      opts->x_flag_sanitize_trap
+	= parse_sanitizer_options (arg, loc, code,
+				   opts->x_flag_sanitize_trap, value, true);
+      break;
+
     case OPT_fasan_shadow_offset_:
       /* Deferred.  */
       break;
@@ -2661,6 +2827,15 @@ common_handle_option (struct gcc_options *opts,
 	     & ~(SANITIZE_UNREACHABLE | SANITIZE_RETURN);
       else
 	opts->x_flag_sanitize_recover
+	  &= ~(SANITIZE_UNDEFINED | SANITIZE_UNDEFINED_NONDEFAULT);
+      break;
+
+    case OPT_fsanitize_trap:
+      if (value)
+	opts->x_flag_sanitize_trap
+	  |= (SANITIZE_UNDEFINED | SANITIZE_UNDEFINED_NONDEFAULT);
+      else
+	opts->x_flag_sanitize_trap
 	  &= ~(SANITIZE_UNDEFINED | SANITIZE_UNDEFINED_NONDEFAULT);
       break;
 
@@ -2693,7 +2868,7 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_Werror:
-      dc->warning_as_error_requested = value;
+      dc->set_warning_as_error_requested (value);
       break;
 
     case OPT_Werror_:
@@ -2705,7 +2880,7 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_Wfatal_errors:
-      dc->fatal_errors = value;
+      dc->m_fatal_errors = value;
       break;
 
     case OPT_Wstack_usage_:
@@ -2723,7 +2898,7 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_Wsystem_headers:
-      dc->dc_warn_system_headers = value;
+      dc->m_warn_system_headers = value;
       break;
 
     case OPT_aux_info:
@@ -2747,6 +2922,10 @@ common_handle_option (struct gcc_options *opts,
     case OPT_ffile_prefix_map_:
     case OPT_fprofile_prefix_map_:
       /* Deferred.  */
+      break;
+
+    case OPT_fcanon_prefix_map:
+      flag_canon_prefix_map = value;
       break;
 
     case OPT_fcallgraph_info:
@@ -2776,19 +2955,23 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_fdiagnostics_show_location_:
-      diagnostic_prefixing_rule (dc) = (diagnostic_prefixing_rule_t) value;
+      dc->set_prefixing_rule ((diagnostic_prefixing_rule_t) value);
       break;
- 
+
     case OPT_fdiagnostics_show_caret:
-      dc->show_caret = value;
+      dc->m_source_printing.enabled = value;
+      break;
+
+    case OPT_fdiagnostics_show_event_links:
+      dc->m_source_printing.show_event_links_p = value;
       break;
 
     case OPT_fdiagnostics_show_labels:
-      dc->show_labels_p = value;
+      dc->m_source_printing.show_labels_p = value;
       break;
 
     case OPT_fdiagnostics_show_line_numbers:
-      dc->show_line_numbers_p = value;
+      dc->m_source_printing.show_line_numbers_p = value;
       break;
 
     case OPT_fdiagnostics_color_:
@@ -2800,46 +2983,73 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_fdiagnostics_format_:
-      diagnostic_output_format_init (dc,
-				     (enum diagnostics_output_format)value);
+	{
+	  const char *basename = (opts->x_dump_base_name ? opts->x_dump_base_name
+				  : opts->x_main_input_basename);
+	  gcc_assert (dc);
+	  diagnostic_output_format_init (*dc,
+					 opts->x_main_input_filename, basename,
+					 (enum diagnostics_output_format)value,
+					 opts->x_flag_diagnostics_json_formatting);
+	  break;
+	}
+
+    case OPT_fdiagnostics_add_output_:
+      handle_OPT_fdiagnostics_add_output_ (*opts, *dc, arg, loc);
+      break;
+
+    case OPT_fdiagnostics_set_output_:
+      handle_OPT_fdiagnostics_set_output_ (*opts, *dc, arg, loc);
+      break;
+
+    case OPT_fdiagnostics_text_art_charset_:
+      dc->set_text_art_charset ((enum diagnostic_text_art_charset)value);
       break;
 
     case OPT_fdiagnostics_parseable_fixits:
-      dc->extra_output_kind = (value
-			       ? EXTRA_DIAGNOSTIC_OUTPUT_fixits_v1
-			       : EXTRA_DIAGNOSTIC_OUTPUT_none);
+      dc->set_extra_output_kind (value
+				 ? EXTRA_DIAGNOSTIC_OUTPUT_fixits_v1
+				 : EXTRA_DIAGNOSTIC_OUTPUT_none);
       break;
 
     case OPT_fdiagnostics_column_unit_:
-      dc->column_unit = (enum diagnostics_column_unit)value;
+      dc->m_column_unit = (enum diagnostics_column_unit)value;
       break;
 
     case OPT_fdiagnostics_column_origin_:
-      dc->column_origin = value;
+      dc->m_column_origin = value;
       break;
 
     case OPT_fdiagnostics_escape_format_:
-      dc->escape_format = (enum diagnostics_escape_format)value;
+      dc->set_escape_format ((enum diagnostics_escape_format)value);
+      break;
+
+    case OPT_fdiagnostics_show_highlight_colors:
+      dc->set_show_highlight_colors (value);
       break;
 
     case OPT_fdiagnostics_show_cwe:
-      dc->show_cwe = value;
+      dc->set_show_cwe (value);
+      break;
+
+    case OPT_fdiagnostics_show_rules:
+      dc->set_show_rules (value);
       break;
 
     case OPT_fdiagnostics_path_format_:
-      dc->path_format = (enum diagnostic_path_format)value;
+      dc->set_path_format ((enum diagnostic_path_format)value);
       break;
 
     case OPT_fdiagnostics_show_path_depths:
-      dc->show_path_depths = value;
+      dc->set_show_path_depths (value);
       break;
 
     case OPT_fdiagnostics_show_option:
-      dc->show_option_requested = value;
+      dc->set_show_option_requested (value);
       break;
 
     case OPT_fdiagnostics_minimum_margin_width_:
-      dc->min_margin_width = value;
+      dc->m_source_printing.min_margin_width = value;
       break;
 
     case OPT_fdump_:
@@ -2876,7 +3086,7 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_fmessage_length_:
-      pp_set_line_maximum_length (dc->printer, value);
+      pp_set_line_maximum_length (dc->get_reference_printer (), value);
       diagnostic_set_caret_max_width (dc, value);
       break;
 
@@ -2890,11 +3100,14 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_foffload_abi_:
+    case OPT_foffload_abi_host_opts_:
 #ifdef ACCEL_COMPILER
       /* Handled in the 'mkoffload's.  */
 #else
-      error_at (loc, "%<-foffload-abi%> option can be specified only for "
-		"offload compiler");
+      error_at (loc,
+		"%qs option can be specified only for offload compiler",
+		(code == OPT_foffload_abi_) ? "-foffload-abi"
+					    : "-foffload-abi-host-opts");
 #endif
       break;
 
@@ -2974,7 +3187,7 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_fshow_column:
-      dc->show_column = value;
+      dc->m_show_column = value;
       break;
 
     case OPT_frandom_seed:
@@ -3047,6 +3260,12 @@ common_handle_option (struct gcc_options *opts,
                        loc);
       break;
 
+    case OPT_gcodeview:
+      set_debug_level (CODEVIEW_DEBUG, false, arg, opts, opts_set, loc);
+      if (opts->x_debug_info_level < DINFO_LEVEL_NORMAL)
+	opts->x_debug_info_level = DINFO_LEVEL_NORMAL;
+      break;
+
     case OPT_gbtf:
       set_debug_level (BTF_DEBUG, false, arg, opts, opts_set, loc);
       /* set the debug level to level 2, but if already at level 3,
@@ -3075,7 +3294,7 @@ common_handle_option (struct gcc_options *opts,
         }
       else
         value = opts->x_dwarf_version;
-      
+
       /* FALLTHRU */
     case OPT_gdwarf_:
       if (value < 2 || value > 5)
@@ -3089,20 +3308,8 @@ common_handle_option (struct gcc_options *opts,
       set_debug_level (NO_DEBUG, 2, arg, opts, opts_set, loc);
       break;
 
-    case OPT_gstabs:
-    case OPT_gstabs_:
-      set_debug_level (DBX_DEBUG, code == OPT_gstabs_, arg, opts, opts_set,
-		       loc);
-      break;
-
     case OPT_gvms:
       set_debug_level (VMS_DEBUG, false, arg, opts, opts_set, loc);
-      break;
-
-    case OPT_gxcoff:
-    case OPT_gxcoff_:
-      set_debug_level (XCOFF_DEBUG, code == OPT_gxcoff_, arg, opts, opts_set,
-		       loc);
       break;
 
     case OPT_gz:
@@ -3111,7 +3318,7 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_pedantic_errors:
-      dc->pedantic_errors = 1;
+      dc->m_pedantic_errors = 1;
       control_warning_option (OPT_Wpedantic, DK_ERROR, NULL, value,
 			      loc, lang_mask,
 			      handlers, opts, opts_set,
@@ -3132,11 +3339,11 @@ common_handle_option (struct gcc_options *opts,
       break;
 
     case OPT_w:
-      dc->dc_inhibit_warnings = true;
+      dc->m_inhibit_warnings = true;
       break;
 
     case OPT_fmax_errors_:
-      dc->max_errors = value;
+      dc->set_max_errors (value);
       break;
 
     case OPT_fuse_ld_bfd:
@@ -3196,11 +3403,15 @@ common_handle_option (struct gcc_options *opts,
     case OPT_ftabstop_:
       /* It is documented that we silently ignore silly values.  */
       if (value >= 1 && value <= 100)
-	dc->tabstop = value;
+	dc->m_tabstop = value;
       break;
 
     case OPT_freport_bug:
-      dc->report_bug = value;
+      dc->set_report_bug (value);
+      break;
+
+    case OPT_fmultiflags:
+      gcc_checking_assert (lang_mask == CL_DRIVER);
       break;
 
     default:
@@ -3307,8 +3518,6 @@ set_debug_level (uint32_t dinfo, int extended, const char *arg,
 		 struct gcc_options *opts, struct gcc_options *opts_set,
 		 location_t loc)
 {
-  opts->x_use_gnu_debug_info_extensions = extended;
-
   if (dinfo == NO_DEBUG)
     {
       if (opts->x_write_symbols == NO_DEBUG)
@@ -3322,8 +3531,6 @@ set_debug_level (uint32_t dinfo, int extended, const char *arg,
 		opts->x_write_symbols |= DWARF2_DEBUG;
 	      else
 		opts->x_write_symbols = DWARF2_DEBUG;
-#elif defined DBX_DEBUGGING_INFO
-	      opts->x_write_symbols = DBX_DEBUG;
 #endif
 	    }
 
@@ -3331,7 +3538,8 @@ set_debug_level (uint32_t dinfo, int extended, const char *arg,
 	    warning_at (loc, 0, "target system does not support debug output");
 	}
       else if ((opts->x_write_symbols & CTF_DEBUG)
-	       || (opts->x_write_symbols & BTF_DEBUG))
+	       || (opts->x_write_symbols & BTF_DEBUG)
+	       || (opts->x_write_symbols & CODEVIEW_DEBUG))
 	{
 	  opts->x_write_symbols |= DWARF2_DEBUG;
 	  opts_set->x_write_symbols |= DWARF2_DEBUG;
@@ -3524,31 +3732,33 @@ enable_warning_as_error (const char *arg, int value, unsigned int lang_mask,
 }
 
 /* Return malloced memory for the name of the option OPTION_INDEX
-   which enabled a diagnostic (context CONTEXT), originally of type
+   which enabled a diagnostic, originally of type
    ORIG_DIAG_KIND but possibly converted to DIAG_KIND by options such
    as -Werror.  */
 
 char *
-option_name (diagnostic_context *context, int option_index,
-	     diagnostic_t orig_diag_kind, diagnostic_t diag_kind)
+compiler_diagnostic_option_manager::
+make_option_name (diagnostic_option_id option_id,
+		  diagnostic_t orig_diag_kind,
+		  diagnostic_t diag_kind) const
 {
-  if (option_index)
+  if (option_id.m_idx)
     {
       /* A warning classified as an error.  */
       if ((orig_diag_kind == DK_WARNING || orig_diag_kind == DK_PEDWARN)
 	  && diag_kind == DK_ERROR)
 	return concat (cl_options[OPT_Werror_].opt_text,
 		       /* Skip over "-W".  */
-		       cl_options[option_index].opt_text + 2,
+		       cl_options[option_id.m_idx].opt_text + 2,
 		       NULL);
       /* A warning with option.  */
       else
-	return xstrdup (cl_options[option_index].opt_text);
+	return xstrdup (cl_options[option_id.m_idx].opt_text);
     }
   /* A warning without option classified as an error.  */
   else if ((orig_diag_kind == DK_WARNING || orig_diag_kind == DK_PEDWARN
 	    || diag_kind == DK_WARNING)
-	   && context->warning_as_error_requested)
+	   && m_context.warning_as_error_requested_p ())
     return xstrdup (cl_options[OPT_Werror].opt_text);
   else
     return NULL;
@@ -3560,14 +3770,6 @@ static const char *
 get_option_html_page (int option_index)
 {
   const cl_option *cl_opt = &cl_options[option_index];
-
-  /* Analyzer options are on their own page.  */
-  if (strstr (cl_opt->opt_text, "analyzer-"))
-    return "gcc/Static-Analyzer-Options.html";
-
-  /* Handle -flto= option.  */
-  if (strstr (cl_opt->opt_text, "flto"))
-    return "gcc/Optimize-Options.html";
 
 #ifdef CL_Fortran
   if ((cl_opt->flags & CL_Fortran) != 0
@@ -3581,32 +3783,49 @@ get_option_html_page (int option_index)
     return "gfortran/Error-and-Warning-Options.html";
 #endif
 
-  return "gcc/Warning-Options.html";
+  return nullptr;
+}
+
+/* Get the url within the documentation for this option, or NULL.  */
+
+label_text
+get_option_url_suffix (int option_index, unsigned lang_mask)
+{
+  if (const char *url = get_opt_url_suffix (option_index, lang_mask))
+
+    return label_text::borrow (url);
+
+  /* Fallback code for some options that aren't handled byt opt_url_suffixes
+     e.g. links below "gfortran/".  */
+  if (const char *html_page = get_option_html_page (option_index))
+    return label_text::take
+      (concat (html_page,
+	       /* Expect an anchor of the form "index-Wfoo" e.g.
+		  <a name="index-Wformat"></a>, and thus an id within
+		  the page of "#index-Wformat".  */
+	       "#index",
+	       cl_options[option_index].opt_text,
+	       NULL));
+
+  return label_text ();
 }
 
 /* Return malloced memory for a URL describing the option OPTION_INDEX
-   which enabled a diagnostic (context CONTEXT).  */
+   which enabled a diagnostic.  */
 
 char *
-get_option_url (diagnostic_context *, int option_index)
+gcc_diagnostic_option_manager::
+make_option_url (diagnostic_option_id option_id) const
 {
-  if (option_index)
-    return concat (/* DOCUMENTATION_ROOT_URL should be supplied via -D by
-		      the Makefile (see --with-documentation-root-url), and
-		      should have a trailing slash.  */
-		   DOCUMENTATION_ROOT_URL,
+  if (option_id.m_idx)
+    {
+      label_text url_suffix = get_option_url_suffix (option_id.m_idx,
+						     m_lang_mask);
+      if (url_suffix.get ())
+	return concat (DOCUMENTATION_ROOT_URL, url_suffix.get (), nullptr);
+    }
 
-		   /* get_option_html_page will return something like
-		      "gcc/Warning-Options.html".  */
-		   get_option_html_page (option_index),
-
-		   /* Expect an anchor of the form "index-Wfoo" e.g.
-		      <a name="index-Wformat"></a>, and thus an id within
-		      the URL of "#index-Wformat".  */
-		   "#index", cl_options[option_index].opt_text,
-		   NULL);
-  else
-    return NULL;
+  return nullptr;
 }
 
 /* Return a heap allocated producer with command line options.  */
@@ -3633,9 +3852,7 @@ gen_command_line_string (cl_decoded_option *options,
       case OPT_v:
       case OPT_w:
       case OPT_L:
-      case OPT_D:
       case OPT_I:
-      case OPT_U:
       case OPT_SPECIAL_unknown:
       case OPT_SPECIAL_ignore:
       case OPT_SPECIAL_warn_removed:
@@ -3643,10 +3860,12 @@ gen_command_line_string (cl_decoded_option *options,
       case OPT_SPECIAL_input_file:
       case OPT_grecord_gcc_switches:
       case OPT_frecord_gcc_switches:
-      case OPT__output_pch_:
+      case OPT__output_pch:
+      case OPT_fdiagnostics_show_highlight_colors:
       case OPT_fdiagnostics_show_location_:
       case OPT_fdiagnostics_show_option:
       case OPT_fdiagnostics_show_caret:
+      case OPT_fdiagnostics_show_event_links:
       case OPT_fdiagnostics_show_labels:
       case OPT_fdiagnostics_show_line_numbers:
       case OPT_fdiagnostics_color_:
@@ -3663,10 +3882,23 @@ gen_command_line_string (cl_decoded_option *options,
       case OPT_fmacro_prefix_map_:
       case OPT_ffile_prefix_map_:
       case OPT_fprofile_prefix_map_:
+      case OPT_fcanon_prefix_map:
       case OPT_fcompare_debug:
       case OPT_fchecking:
       case OPT_fchecking_:
 	/* Ignore these.  */
+	continue;
+      case OPT_D:
+      case OPT_U:
+	if (startswith (options[i].arg, "_FORTIFY_SOURCE")
+	    && (options[i].arg[sizeof ("_FORTIFY_SOURCE") - 1] == '\0'
+		|| (options[i].opt_index == OPT_D
+		    && options[i].arg[sizeof ("_FORTIFY_SOURCE") - 1] == '=')))
+	  {
+	    switches.safe_push (options[i].orig_option_with_args_text);
+	    len += strlen (options[i].orig_option_with_args_text) + 1;
+	  }
+	/* Otherwise ignore these. */
 	continue;
       case OPT_flto_:
 	{
@@ -3736,17 +3968,35 @@ gen_producer_string (const char *language_string, cl_decoded_option *options,
 
 namespace selftest {
 
-/* Verify that get_option_html_page works as expected.  */
+/* Verify that get_option_url_suffix works as expected.  */
 
 static void
-test_get_option_html_page ()
+test_get_option_url_suffix ()
 {
-  ASSERT_STREQ (get_option_html_page (OPT_Wcpp), "gcc/Warning-Options.html");
-  ASSERT_STREQ (get_option_html_page (OPT_Wanalyzer_double_free),
-	     "gcc/Static-Analyzer-Options.html");
+  ASSERT_STREQ (get_option_url_suffix (OPT_Wcpp, 0).get (),
+		"gcc/Warning-Options.html#index-Wcpp");
+  ASSERT_STREQ (get_option_url_suffix (OPT_Wanalyzer_double_free, 0).get (),
+		"gcc/Static-Analyzer-Options.html#index-Wanalyzer-double-free");
+
+  /* Test of a D-specific option.  */
+#ifdef CL_D
+  ASSERT_EQ (get_option_url_suffix (OPT_fbounds_check_, 0).get (), nullptr);
+  ASSERT_STREQ (get_option_url_suffix (OPT_fbounds_check_, CL_D).get (),
+		"gdc/Runtime-Options.html#index-fbounds-check");
+
+  /* Test of a D-specific override to an option URL.  */
+  /* Generic URL.  */
+  ASSERT_STREQ (get_option_url_suffix (OPT_fmax_errors_, 0).get (),
+		"gcc/Warning-Options.html#index-fmax-errors");
+  /* D-specific URL.  */
+  ASSERT_STREQ (get_option_url_suffix (OPT_fmax_errors_, CL_D).get (),
+		"gdc/Warnings.html#index-fmax-errors");
+#endif
+
 #ifdef CL_Fortran
-  ASSERT_STREQ (get_option_html_page (OPT_Wline_truncation),
-		"gfortran/Error-and-Warning-Options.html");
+  ASSERT_STREQ
+    (get_option_url_suffix (OPT_Wline_truncation, CL_Fortran).get (),
+     "gfortran/Error-and-Warning-Options.html#index-Wline-truncation");
 #endif
 }
 
@@ -3809,7 +4059,7 @@ test_enum_sets ()
 void
 opts_cc_tests ()
 {
-  test_get_option_html_page ();
+  test_get_option_url_suffix ();
   test_enum_sets ();
 }
 

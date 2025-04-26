@@ -1,6 +1,6 @@
 // 1999-05-07 bkoz
 
-// Copyright (C) 1999-2022 Free Software Foundation, Inc.
+// Copyright (C) 1999-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,12 +35,12 @@ int test01(void)
   // 2:8-chars_8-chars_
   // The following triggers -Wstringop-overread.  See PR 103332.
   str1 = std::string("8-chars_") + "8-chars_";
-  str1.c_str();
+  (void) str1.c_str();
   // printf("1:%s\n", str1.c_str());
   VERIFY( str1 == "8-chars_8-chars_" );
   str2 = str1 + "7-chars";
   // printf("2:%s\n", str1.c_str()); //str1 is gone
-  str1.c_str();
+  (void) str1.c_str();
   VERIFY( str1 == "8-chars_8-chars_" );
   return 0;
 }

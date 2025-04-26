@@ -1,5 +1,5 @@
 /* Encoding of types for Objective C.
-   Copyright (C) 1993-2022 Free Software Foundation, Inc.
+   Copyright (C) 1993-2025 Free Software Foundation, Inc.
    Contributed by Kresten Krab Thorup
    Bitfield support by Ovidiu Predescu
 
@@ -67,6 +67,11 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define UNION_TYPE      _C_UNION_B
 #define QUAL_UNION_TYPE _C_UNION_B
 #define ARRAY_TYPE      _C_ARY_B
+#define RECORD_OR_UNION_TYPE_P(TYPE)			\
+	((TREE_CODE (TYPE) == RECORD_TYPE)		\
+	 || (TREE_CODE (TYPE) == UNION_TYPE)		\
+	 || (TREE_CODE (TYPE) == QUAL_UNION_TYPE))
+#define VECTOR_TYPE_P(TYPE) (TREE_CODE (TYPE) == VECTOR_TYPE)
 
 #define REAL_TYPE       _C_DBL
 
@@ -146,7 +151,7 @@ static int __attribute__ ((__unused__)) not_target_flags = 0;
 #  undef TARGET_ALIGN_NATURAL
 #  define TARGET_ALIGN_NATURAL 1
 # endif
-/* On Darwin32, we need to recurse until we find the starting stuct type.  */
+/* On Darwin32, we need to recurse until we find the starting struct type.  */
 static int 
 _darwin_rs6000_special_round_type_align (const char *struc, int comp, int spec)
 {
@@ -181,7 +186,7 @@ _darwin_rs6000_special_round_type_align (const char *struc, int comp, int spec)
 
 /*  FIXME: while this file has no business including tm.h, this
     definitely has no business defining this macro but it
-    is only way around without really rewritting this file,
+    is only way around without really rewriting this file,
     should look after the branch of 3.4 to fix this.   */
 #define rs6000_special_round_type_align(STRUCT, COMPUTED, SPECIFIED)	\
   ({ const char *_fields = TYPE_FIELDS (STRUCT);			\
@@ -1083,7 +1088,7 @@ objc_layout_structure (const char *type,
          && *ntype++ != '=')
     /* do nothing */;
 
-  /* If there's a "<name>=", ntype - 1 points to '='; skip the the name */
+  /* If there's a "<name>=", ntype - 1 points to '='; skip the name.  */
   if (*(ntype - 1) == '=')
     type = ntype;
 

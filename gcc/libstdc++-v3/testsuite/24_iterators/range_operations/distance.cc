@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <iterator>
 #include <testsuite_hooks.h>
@@ -145,6 +144,16 @@ test05()
   VERIFY( std::ranges::distance(c4) == 5 );
 }
 
+void
+test06()
+{
+  // LWG 3664 - LWG 3392 broke std::ranges::distance(a, a+3)
+  int a[] = {1, 2, 3};
+  VERIFY( std::ranges::distance(a, a+3) == 3 );
+  VERIFY( std::ranges::distance(a, a) == 0 );
+  VERIFY( std::ranges::distance(a+3, a) == -3 );
+}
+
 int
 main()
 {
@@ -153,4 +162,5 @@ main()
   test03();
   test04();
   test05();
+  test06();
 }

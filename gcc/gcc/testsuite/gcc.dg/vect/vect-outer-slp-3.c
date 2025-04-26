@@ -30,11 +30,13 @@ int main ()
 {
   check_vect ();
 
+#pragma GCC novector
   for (int i = 0; i < 40; ++i)
     image[i] = 1.;
 
   foo ();
 
+#pragma GCC novector
   for (int i = 0; i < 20; i++)
     {
       double suma = 0;

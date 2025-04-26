@@ -1,6 +1,6 @@
 ;; Instruction Classification for ARM for GNU compiler.
 
-;; Copyright (C) 1991-2022 Free Software Foundation, Inc.
+;; Copyright (C) 1991-2025 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 
 ;; This file is part of GCC.
@@ -248,7 +248,8 @@
 ; wmmx_wunpckil
 ; wmmx_wxor
 ;
-; The classification below is for NEON instructions.
+; The classification below is for NEON instructions. If a new neon type is
+; added, please ensure this is added to the is_neon_type attribute below too.
 ;
 ; neon_add
 ; neon_add_q
@@ -573,6 +574,7 @@
 ; mve_move
 ; mve_store
 ; mve_load
+; mve_misc
 
 (define_attr "type"
  "adc_imm,\
@@ -1125,7 +1127,8 @@
   ls64,\
   mve_move,\
   mve_store,\
-  mve_load"
+  mve_load, \
+  mve_misc"
    (cond [(eq_attr "autodetect_type" "alu_shift_lsr_op2,alu_shift_asr_op2")
             (const_string "alu_shift_imm_other")
           (eq_attr "autodetect_type" "alu_shift_lsl_op2")
@@ -1281,6 +1284,7 @@
           neon_fp_mla_d_q, neon_fp_mla_d_scalar_q, neon_fp_sqrt_s,\
           neon_fp_sqrt_s_q, neon_fp_sqrt_d, neon_fp_sqrt_d_q,\
           neon_fp_div_s, neon_fp_div_s_q, neon_fp_div_d, neon_fp_div_d_q, crypto_aese,\
+          neon_fcadd, neon_fcmla, \
           crypto_aesmc, crypto_sha1_xor, crypto_sha1_fast, crypto_sha1_slow,\
           crypto_sha256_fast, crypto_sha256_slow")
         (const_string "yes")
@@ -1290,7 +1294,7 @@
 ;; No otherwise.
 (define_attr "is_mve_type" "yes,no"
         (if_then_else (eq_attr "type"
-        "mve_move, mve_load, mve_store, mrs")
+        "mve_move, mve_load, mve_store, mrs, mve_misc")
         (const_string "yes")
         (const_string "no")))
 

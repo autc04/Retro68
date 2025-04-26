@@ -43,6 +43,7 @@ main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (out[i*7] !=  (in[i*7] + 5) * 3 - 2
@@ -64,6 +65,7 @@ main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N*2; i++)
     {
       if (out[i*3] !=  (in[i*3] + 2) * 3
@@ -81,6 +83,7 @@ main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N*2; i++)
     {
       if (out2[i*3] !=  (float) (in[i*3] * 2 + 5)
@@ -105,7 +108,7 @@ int main (void)
 /* { dg-final { scan-tree-dump-times "vectorized 3 loops" 1 "vect"  {target {vect_uintfloat_cvt && vect_int_mult} } } } */
 /* { dg-final { scan-tree-dump-times "vectorized 2 loops" 1 "vect"  {target {{! { vect_uintfloat_cvt}} && vect_int_mult} } } } */
 /* { dg-final { scan-tree-dump-times "vectorized 0 loops" 1 "vect"  {target {{! { vect_uintfloat_cvt}} && {! {vect_int_mult}}} } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 3 "vect" {target {vect_uintfloat_cvt && vect_int_mult} xfail { vect_variable_length && vect_load_lanes } } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 3 "vect" {target {vect_uintfloat_cvt && vect_int_mult} } } } */
 /* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 2 "vect"  {target {{! { vect_uintfloat_cvt}} && vect_int_mult} } } } */
 /* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 0 "vect"  {target {{! { vect_uintfloat_cvt}} && {! {vect_int_mult}}} } } } */
   

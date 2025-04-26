@@ -2,6 +2,24 @@
  * This module contains UDA's (User Defined Attributes) either used in
  * the runtime or special UDA's recognized by compiler.
  *
+ * $(SCRIPT inhibitQuickIndex = 1;)
+ * $(BOOKTABLE Cheat Sheet,
+ * $(THEAD Attribute Name, Linkage, Description)
+ * $(TROW $(LREF gnuAbiTag), C++,
+ *         Declares an ABI tag on a C++ symbol.)
+ * $(TROW $(LREF mustuse),,
+ *          Ensures that values of a struct or union type are not discarded.)
+ * $(TROW $(LREF optional), Objective-C,
+ *         Makes an Objective-C interface method optional.)
+ * $(TROW $(LREF selector), Objective-C,
+ *          Attaches an Objective-C selector to a method.)
+ * $(TROW $(LREF standalone),,
+ *          Marks a shared module constructor as not depending on any
+ *          other module constructor being run first.)
+ * $(TROW $(LREF weak),,
+ *         Specifies that a global symbol should be emitted with weak linkage.)
+ * )
+ *
  * Copyright: Copyright Jacob Carlborg 2015.
  * License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  * Authors:   Jacob Carlborg
@@ -76,14 +94,14 @@ else
  *      The attribute can only be attached to methods or constructors which
  *      have Objective-C linkage. That is, a method or a constructor in a
  *      class or interface declared as $(D_CODE extern(Objective-C)).
- *  ),
+ *  )
  *
- *  $(LI It cannot be attached to a method or constructor that is a template),
+ *  $(LI It cannot be attached to a method or constructor that is a template)
  *
  *  $(LI
  *      The number of colons in the string need to match the number of
  *      arguments the method accept.
- *  ),
+ *  )
  *
  *  $(LI It can only be used once in a method declaration)
  * )
@@ -181,21 +199,21 @@ version (UdaOptional)
  * $(UL
  *  $(LI
  *      There can only be one such attribute per symbol.
- *  ),
+ *  )
  *  $(LI
  *      The attribute can only be attached to an `extern(C++)` symbol
  *      (`struct`, `class`, `enum`, function, and their templated counterparts).
- *  ),
+ *  )
  *  $(LI
  *      The attribute cannot be applied to C++ namespaces.
  *      This is to prevent confusion with the C++ semantic, which allows it to
  *      be applied to namespaces.
- *  ),
+ *  )
  *  $(LI
  *      The string arguments must only contain valid characters
  *      for C++ name mangling which currently include alphanumerics
  *      and the underscore character.
- *  ),
+ *  )
  * )
  *
  * This UDA is not transitive, and inner scope do not inherit outer scopes'
@@ -236,9 +254,9 @@ version (UdaGNUAbiTag) struct gnuAbiTag
 {
     string[] tags;
 
-    this(string[] tags...)
+    this(string[] tags...) @safe pure nothrow
     {
-        this.tags = tags;
+        this.tags = tags.dup;
     }
 }
 
@@ -252,11 +270,11 @@ version (UdaGNUAbiTag) struct gnuAbiTag
  *  $(LI
  *      the expression is the top-level expression in a statement or the
  *      left-hand expression in a comma expression, and
- *  ),
+ *  )
  *  $(LI
  *      the expression is not an assignment (`=`, `+=`, etc.), increment
  *      (`++`), or decrement (`--`) expression.
- *  ),
+ *  )
  * )
  *
  * If the declaration of a `struct` or `union` type has the `@mustuse`
@@ -290,3 +308,15 @@ version (UdaGNUAbiTag) struct gnuAbiTag
  * ---
  */
 enum mustuse;
+
+/**
+ * Use this attribute to indicate that a shared module constructor does not depend on any
+ * other module constructor being run first. This avoids errors on cyclic module constructors.
+ *
+ * However, it is now up to the user to enforce safety.
+ * The module constructor must be marked `@system` as a result.
+ * Prefer to refactor the module constructor causing the cycle so it's in its own module if possible.
+ *
+ * This is only allowed on `shared` static constructors, not thread-local module constructors.
+ */
+enum standalone;

@@ -1,5 +1,5 @@
 /* RTL reader for GCC.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -80,6 +80,12 @@ struct iterator_group {
 
   /* Return the C token for the given standard mode, code, etc.  */
   const char *(*get_c_token) (int);
+
+  /* True if each iterator name should be treated as an attribute that
+     maps to the C token produced by get_c_token.  This means that for
+     an iterator ITER, <ITER> can be used in strings to refer to the
+     current value of ITER, as a C token.  */
+  bool has_self_attr;
 };
 
 /* Records one use of an iterator.  */
@@ -284,6 +290,12 @@ find_int (const char *name)
 {
   HOST_WIDE_INT tmp;
 
+  struct md_constant tmp_def;
+  tmp_def.name = const_cast<char *> (name);
+  auto htab = rtx_reader_ptr->get_md_constants ();
+  if (auto def = (struct md_constant *) htab_find (htab, &tmp_def))
+    name = def->value;
+
   validate_const_int (name);
 #if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
   tmp = atoi (name);
@@ -314,6 +326,9 @@ apply_int_iterator (rtx x, unsigned int index, HOST_WIDE_INT value)
     case 'i':
     case 'n':
       XINT (x, index) = value;
+      break;
+    case 'L':
+      XLOC (x, index) = value;
       break;
     case 'w':
       XWINT (x, index) = value;
@@ -465,6 +480,25 @@ map_attr_string (file_location loc, const char *p, mapping **iterator_out = 0)
 	  && (strncmp (p, iterator->name, iterator_name_len) != 0
 	      || iterator->name[iterator_name_len] != 0))
 	continue;
+
+      if (iterator->group->has_self_attr
+	  && strcmp (attr, iterator->name) == 0)
+	{
+	  if (iterator_out)
+	    *iterator_out = iterator;
+	  int number = iterator->current_value->number;
+	  const char *string = iterator->group->get_c_token (number);
+	  if (res && strcmp (string, res->string) != 0)
+	    {
+	      error_at (loc, "ambiguous attribute '%s'; could be"
+			" '%s' (via '%s:%s') or '%s' (via '%s:%s')",
+			attr, res->string, prev->name, attr,
+			string, iterator->name, attr);
+	      return res;
+	    }
+	  prev = iterator;
+	  res = new map_value { nullptr, number, string };
+	}
 
       /* Find the attribute specification.  */
       m = (struct mapping *) htab_find (iterator->group->attrs, &attr);
@@ -780,9 +814,14 @@ md_reader::handle_overloaded_name (rtx original, vec<mapping *> *iterators)
 	  pending_underscore_p = false;
 	}
 
-      /* Record an argument for ITERATOR.  */
-      iterators->safe_push (iterator);
-      tmp_oname.arg_types.safe_push (iterator->group->type);
+      /* Skip define_subst iterators, since define_substs are allowed to
+	 add new match_operands in their output templates.  */
+      if (iterator->group != &substs)
+	{
+	  /* Record an argument for ITERATOR.  */
+	  iterators->safe_push (iterator);
+	  tmp_oname.arg_types.safe_push (iterator->group->type);
+	}
     }
   if (base == copy)
     fatal_with_file_and_line ("no iterator attributes in name `%s'", name);
@@ -917,6 +956,7 @@ apply_iterators (rtx original, vec<rtx> *queue)
       /* We apply subst iterator after RTL-template is copied, as during
 	 subst-iterator processing, we could add an attribute to the
 	 RTL-template, and we don't want to do it in the original one.  */
+      bool add_oname = true;
       FOR_EACH_VEC_ELT (iterator_uses, i, iuse)
 	{
 	  v = iuse->iterator->current_value;
@@ -927,10 +967,14 @@ apply_iterators (rtx original, vec<rtx> *queue)
 	      current_iterator_name = iuse->iterator->name;
 	      iuse->iterator->group->apply_iterator (iuse->x, iuse->index,
 						     v->number);
+	      /* Only handle '@' overloading for the default value.
+		 See handle_overloaded_name for details.  */
+	      if (v != iuse->iterator->values)
+		add_oname = false;
 	    }
 	}
 
-      if (oname)
+      if (oname && add_oname)
 	add_overload_instance (oname, iterators, x);
 
       /* Add the new rtx to the end of the queue.  */
@@ -1029,6 +1073,7 @@ initialize_iterators (void)
   ints.find_builtin = find_int;
   ints.apply_iterator = apply_int_iterator;
   ints.get_c_token = get_int_token;
+  ints.has_self_attr = true;
 
   substs.attrs = htab_create (13, leading_string_hash, leading_string_eq_p, 0);
   substs.iterators = htab_create (13, leading_string_hash,
@@ -1261,8 +1306,25 @@ md_reader::read_mapping (struct iterator_group *group, htab_t table)
 	  string = read_string (false);
 	  require_char_ws (')');
 	}
-      number = group->find_builtin (name.string);
-      end_ptr = add_map_value (end_ptr, number, string);
+      auto *subm = (struct mapping *) htab_find (group->iterators,
+						 &name.string);
+      if (subm)
+	{
+	  if (m == subm)
+	    fatal_with_file_and_line ("recursive definition of `%s'",
+				      name.string);
+	  for (map_value *v = subm->values; v; v = v->next)
+	    {
+	      auto *joined = rtx_reader_ptr->join_c_conditions (v->string,
+								string);
+	      end_ptr = add_map_value (end_ptr, v->number, joined);
+	    }
+	}
+      else
+	{
+	  number = group->find_builtin (name.string);
+	  end_ptr = add_map_value (end_ptr, number, string);
+	}
       c = read_skip_spaces ();
     }
   while (c != ']');
@@ -1374,21 +1436,21 @@ check_code_iterator (struct mapping *iterator)
    consistent format.  Return a representative code.  */
 
 static rtx_code
-check_code_attribute (mapping *attr)
+check_attribute_codes (mapping *attr)
 {
   rtx_code bellwether = UNKNOWN;
   for (map_value *v = attr->values; v != 0; v = v->next)
     {
       rtx_code code = maybe_find_code (v->string);
       if (code == UNKNOWN)
-	fatal_with_file_and_line ("code attribute `%s' contains "
+	fatal_with_file_and_line ("attribute `%s' contains "
 				  "unrecognized rtx code `%s'",
 				  attr->name, v->string);
       if (bellwether == UNKNOWN)
 	bellwether = code;
       else if (strcmp (GET_RTX_FORMAT (bellwether),
 		       GET_RTX_FORMAT (code)) != 0)
-	fatal_with_file_and_line ("code attribute `%s' combines "
+	fatal_with_file_and_line ("attribute `%s' combines "
 				  "`%s' and `%s', which have different "
 				  "rtx formats", attr->name,
 				  GET_RTX_NAME (bellwether),
@@ -1555,7 +1617,7 @@ parse_reg_note_name (const char *string)
   fatal_with_file_and_line ("unrecognized REG_NOTE name: `%s'", string);
 }
 
-/* Allocate an rtx for code NAME.  If NAME is a code iterator or code
+/* Allocate an rtx for code NAME.  If NAME is a code iterator or an
    attribute, record its use for later and use one of its possible
    values as an interim rtx code.  */
 
@@ -1578,13 +1640,20 @@ rtx_reader::rtx_alloc_for_name (const char *name)
 	attr = deferred_name;
 
       /* Find the attribute itself.  */
-      mapping *m = (mapping *) htab_find (codes.attrs, &attr);
+      mapping *m = nullptr;
+      for (auto attrs : { codes.attrs, ints.attrs, modes.attrs })
+       if (auto *newm = (mapping *) htab_find (attrs, &attr))
+	 {
+	   if (m)
+	     fatal_with_file_and_line ("ambiguous attribute `%s`", attr);
+	   m = newm;
+	 }
       if (!m)
-	fatal_with_file_and_line ("unknown code attribute `%s'", attr);
+	fatal_with_file_and_line ("unknown attribute `%s'", attr);
 
       /* Pick the first possible code for now, and record the attribute
 	 use for later.  */
-      rtx x = rtx_alloc (check_code_attribute (m));
+      rtx x = rtx_alloc (check_attribute_codes (m));
       record_attribute_use (&codes, get_current_location (),
 			    x, 0, deferred_name);
       return x;
@@ -1616,7 +1685,6 @@ rtx_reader::read_rtx_code (const char *code_name)
   struct md_name name;
   rtx return_rtx;
   int c;
-  long reuse_id = -1;
 
   /* Linked list structure for making RTXs: */
   struct rtx_list
@@ -1625,6 +1693,8 @@ rtx_reader::read_rtx_code (const char *code_name)
       rtx value;		/* Value of this node.  */
     };
 
+#ifndef GENERATOR_FILE
+  long reuse_id = -1;
   /* Handle reuse_rtx ids e.g. "(0|scratch:DI)".  */
   if (ISDIGIT (code_name[0]))
     {
@@ -1640,10 +1710,12 @@ rtx_reader::read_rtx_code (const char *code_name)
       read_name (&name);
       unsigned idx = atoi (name.string);
       /* Look it up by ID.  */
-      gcc_assert (idx < m_reuse_rtx_by_id.length ());
+      if (idx >= m_reuse_rtx_by_id.length ())
+	fatal_with_file_and_line ("invalid reuse index %u", idx);
       return_rtx = m_reuse_rtx_by_id[idx];
       return return_rtx;
     }
+#endif
 
   /* Handle "const_double_zero".  */
   if (strcmp (code_name, "const_double_zero") == 0)
@@ -1671,12 +1743,14 @@ rtx_reader::read_rtx_code (const char *code_name)
   memset (return_rtx, 0, RTX_CODE_SIZE (code));
   PUT_CODE (return_rtx, code);
 
+#ifndef GENERATOR_FILE
   if (reuse_id != -1)
     {
       /* Store away for later reuse.  */
       m_reuse_rtx_by_id.safe_grow_cleared (reuse_id + 1, true);
       m_reuse_rtx_by_id[reuse_id] = return_rtx;
     }
+#endif
 
   /* Check for flags. */
   read_flags (return_rtx);
@@ -1864,8 +1938,10 @@ rtx_reader::read_rtx_operand (rtx return_rtx, int idx)
 		repeat_count--;
 		value = saved_rtx;
 	      }
-	    else
+	    else if (c == '(')
 	      value = read_nested_rtx ();
+	    else
+	      fatal_with_file_and_line ("unexpected character in vector");
 
 	    for (; repeat_count > 0; repeat_count--)
 	      {
@@ -1990,6 +2066,7 @@ rtx_reader::read_rtx_operand (rtx return_rtx, int idx)
     case 'n':
     case 'w':
     case 'p':
+    case 'L':
       {
 	/* Can be an iterator or an integer constant.  */
 	file_location loc = read_name (&name);

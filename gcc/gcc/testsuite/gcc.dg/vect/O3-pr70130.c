@@ -1,5 +1,5 @@
 /* { dg-require-effective-target vsx_hw { target powerpc*-*-* } } */
-/* { dg-additional-options "-mcpu=power7 -mno-power9-vector -mno-power8-vector" { target powerpc*-*-* } } */
+/* { dg-additional-options "-mdejagnu-cpu=power7 -mvsx" { target powerpc*-*-* } } */
 
 #include "tree-vect.h"
 
@@ -90,6 +90,7 @@ main (void)
   for (i = 0; i < 8; i++)
     Loop_err (images + i, s, -1);
 
+#pragma GCC novector
   for (i = 0; i < 8; i++)
     if (__builtin_memcmp (&expected, images + i, sizeof (expected)))
       __builtin_abort ();

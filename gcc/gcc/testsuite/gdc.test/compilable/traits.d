@@ -137,6 +137,8 @@ struct DisabledPostblit
 struct NoCpCtor { }
 class C19902 { }
 
+struct MoveCtor { this(MoveCtor) { } }
+
 static assert(__traits(hasCopyConstructor, S));
 static assert(__traits(hasCopyConstructor, OuterS.S));
 static assert(__traits(hasCopyConstructor, OuterS));
@@ -147,6 +149,8 @@ static assert(__traits(hasCopyConstructor, U!S));
 static assert(!__traits(hasPostblit, U!S));
 static assert(__traits(hasPostblit, SPostblit));
 static assert(!__traits(hasCopyConstructor, SPostblit));
+static assert(__traits(hasMoveConstructor, MoveCtor));
+static assert(!__traits(hasMoveConstructor, NoCpCtor));
 
 static assert(!__traits(hasCopyConstructor, NoCpCtor));
 static assert(!__traits(hasCopyConstructor, C19902));
@@ -316,3 +320,7 @@ extern(C++, `inst`)
 mixin GetNamespaceTestTemplatedMixin!() GNTT;
 
 static assert (__traits(getCppNamespaces, GNTT.foo) == Seq!(`inst`,/*`decl`,*/ `f`));
+
+int[1] arr;
+// test that index assignment parses as an expression, not a type
+enum _ = __traits(compiles, arr[0] = 0);

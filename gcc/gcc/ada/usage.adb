@@ -6,7 +6,7 @@
 --                                                                          --
 --                                B o d y                                   --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -187,7 +187,7 @@ begin
    --  Line for -gnatef switch
 
    Write_Switch_Char ("ef");
-   Write_Line ("Full source path in brief error messages");
+   Write_Line ("Full source path in brief error messages and JSON output");
 
    --  Line for -gnateF switch
 
@@ -198,6 +198,11 @@ begin
 
    Write_Switch_Char ("eG");
    Write_Line ("Generate preprocessed source");
+
+   --  Line for -gnateH switch
+
+   Write_Switch_Char ("eH");
+   Write_Line ("Set reverse Bit_Order threshold to 64");
 
    --  Line for -gnatei switch
 
@@ -438,10 +443,12 @@ begin
    Write_Switch_Char ("Vxx");
    Write_Line
      ("Enable selected validity checking mode, xx = list of parameters:");
-   Write_Line ("        a    turn on all validity checking options");
+   Write_Line ("        a    turn on all of the following validity checking"
+                & " options");
    Write_Line ("        c    turn on checking for copies");
    Write_Line ("        C    turn off checking for copies");
-   Write_Line ("        d    turn on default (RM) checking");
+   Write_Line ("        d    turn on default (RM) checking"
+                & " (enabled by default)");
    Write_Line ("        D    turn off default (RM) checking");
    Write_Line ("        e    turn on checking for elementary components");
    Write_Line ("        E    turn off checking for elementary components");
@@ -493,8 +500,8 @@ begin
                                                  "Compile_Time_Warning");
    Write_Line ("        d    turn on warnings for implicit dereference");
    Write_Line ("        D*   turn off warnings for implicit dereference");
-   Write_Line ("        .d   turn on tagging of warnings with -gnatw switch");
-   Write_Line ("        .D*  turn off tagging of warnings with -gnatw switch");
+   Write_Line ("        .d*  turn on tagging of warnings with -gnatw switch");
+   Write_Line ("        .D   turn off tagging of warnings with -gnatw switch");
    Write_Line ("        e    treat all warnings (but not info) as errors");
    Write_Line ("        .e   turn on every optional info/warning " &
                                                   "(no exceptions)");
@@ -512,8 +519,8 @@ begin
    Write_Line ("        .H*  turn off warnings for holes in records");
    Write_Line ("        i*+  turn on warnings for implementation unit");
    Write_Line ("        I    turn off warnings for implementation unit");
-   Write_Line ("        .i*+ turn on warnings for overlapping actuals");
-   Write_Line ("        .I   turn off warnings for overlapping actuals");
+   Write_Line ("        .i+  turn on warnings for overlapping actuals");
+   Write_Line ("        .I*  turn off warnings for overlapping actuals");
    Write_Line ("        j+   turn on warnings for obsolescent " &
                                                   "(annex J) feature");
    Write_Line ("        J*   turn off warnings for obsolescent " &
@@ -522,6 +529,9 @@ begin
                                                   "primitives");
    Write_Line ("        .J*  turn off warnings for late dispatching " &
                                                   "primitives");
+   Write_Line ("        _j   turn on warnings for First_Controlling_" &
+                                                  "Parameter aspect");
+
    Write_Line ("        k+   turn on warnings on constant variable");
    Write_Line ("        K*   turn off warnings on constant variable");
    Write_Line ("        .k   turn on warnings for standard redefinition");
@@ -530,6 +540,8 @@ begin
    Write_Line ("        L*   turn off warnings for elaboration problems");
    Write_Line ("        .l   turn on info messages for inherited aspects");
    Write_Line ("        .L*  turn off info messages for inherited aspects");
+   Write_Line ("        _l   turn on warnings for implicitly limited types");
+   Write_Line ("        _L*  turn off warnings for implicitly limited types");
    Write_Line ("        m+   turn on warnings for variable assigned " &
                                                   "but not read");
    Write_Line ("        M*   turn off warnings for variable assigned " &
@@ -567,6 +579,10 @@ begin
                                                   "record types");
    Write_Line ("        .Q*  turn off warnings for questionable layout of " &
                                                   "record types");
+   Write_Line ("        _q   turn on warnings for ignored " &
+                                                  "equality operators");
+   Write_Line ("        _Q*  turn off warnings for ignored " &
+                                                  "equality operators");
    Write_Line ("        r+   turn on warnings for redundant construct");
    Write_Line ("        R*   turn off warnings for redundant construct");
    Write_Line ("        .r+  turn on warnings for object renaming function");
@@ -576,6 +592,10 @@ begin
    Write_Line ("        s    suppress all info/warnings");
    Write_Line ("        .s   turn on warnings for overridden size clause");
    Write_Line ("        .S*  turn off warnings for overridden size clause");
+   Write_Line ("        _s+  turn on warnings for ineffective predicate " &
+                                                  "tests");
+   Write_Line ("        _S*  turn off warnings for ineffective predicate " &
+                                                   "tests");
    Write_Line ("        t    turn on warnings for tracking deleted code");
    Write_Line ("        T*   turn off warnings for tracking deleted code");
    Write_Line ("        .t*+ turn on warnings for suspicious contract");
@@ -651,6 +671,7 @@ begin
    Write_Line ("        c    check comment format (two spaces)");
    Write_Line ("        C    check comment format (one space)");
    Write_Line ("        d    check no DOS line terminators");
+   Write_Line ("        D    check declared identifiers in mixed case");
    Write_Line ("        e    check end/exit labels present");
    Write_Line ("        f    check no form feeds/vertical tabs in source");
    Write_Line ("        g    check standard GNAT style rules, same as ydISux");
@@ -674,6 +695,8 @@ begin
    Write_Line ("        u    check no unnecessary blank lines");
    Write_Line ("        x    check extra parentheses around conditionals");
    Write_Line ("        y    turn on default style checks");
+   Write_Line ("        z    check parentheses not required by operator " &
+               "precedence rules");
    Write_Line ("        -    subtract (turn off) subsequent checks");
    Write_Line ("        +    add (turn on) subsequent checks");
 

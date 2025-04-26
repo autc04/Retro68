@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1999-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -196,8 +196,8 @@ package Repinfo is
    --    "Object_Size"          :  numerical expression
    --    "Value_Size"           :  numerical expression
    --    "Component_Size"       :  numerical expression
-   --    "Range"                :  array of numbers
-   --    "Small"                :  number
+   --    "Range"                :  array of numerical expressions
+   --    "Small"                :  numerical expression
    --    "Alignment"            :  number
    --    "Convention"           :  string
    --    "Linker_Section"       :  string
@@ -244,7 +244,10 @@ package Repinfo is
    --    "present" and "record" are present for every variant. The value of
    --    "present" is a boolean expression that evaluates to true when the
    --    components of the variant are contained in the record type and to
-   --    false when they are not. The value of "record" is the list of
+   --    false when they are not, with the exception that a value of 1 means
+   --    that the components of the variant are contained in the record type
+   --    only when the "present" member of all the preceding variants in the
+   --    variant list evaluates to false. The value of "record" is the list of
    --    components in the variant. "variant" is present only if the variant
    --    itself has a variant part and its value is the list of (sub)variants.
 

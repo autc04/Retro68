@@ -152,7 +152,7 @@ FULL_PATH_NAMES        = NO
 # will be relative from the directory where doxygen is started.
 # This tag requires that the tag FULL_PATH_NAMES is set to YES.
 
-STRIP_FROM_PATH        =
+STRIP_FROM_PATH        = @srcdir@/doc/ @srcdir@/libsupc++/ include/
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of the
 # path mentioned in the documentation of a class, which tells the reader which
@@ -388,7 +388,7 @@ DISTRIBUTE_GROUP_DOC   = YES
 # is disabled and one has to add nested compounds explicitly via \ingroup.
 # The default value is: NO.
 
-GROUP_NESTED_COMPOUNDS = YES
+GROUP_NESTED_COMPOUNDS = NO
 
 # Set the SUBGROUPING tag to YES to allow class member groups of the same type
 # (for instance a group of public functions) to be put as a subgroup of that
@@ -681,7 +681,7 @@ GENERATE_TESTLIST      = NO
 # list. This list is created by putting \bug commands in the documentation.
 # The default value is: YES.
 
-GENERATE_BUGLIST       = YES
+GENERATE_BUGLIST       = NO
 
 # The GENERATE_DEPRECATEDLIST tag can be used to enable (YES) or disable (NO)
 # the deprecated list. This list is created by putting \deprecated commands in
@@ -837,6 +837,7 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
+# N.B. update STRIP_FROM_PATH to sanitize paths outside the build tree.
 INPUT                  = @srcdir@/doc/doxygen/doxygroups.cc \
                          @srcdir@/libsupc++/compare \
                          @srcdir@/libsupc++/cxxabi.h \
@@ -860,10 +861,14 @@ INPUT                  = @srcdir@/doc/doxygen/doxygroups.cc \
                          include/deque \
                          include/expected \
                          include/filesystem \
+                         include/flat_map \
+                         include/flat_set \
                          include/forward_list \
+                         include/format \
                          include/fstream \
                          include/functional \
                          include/future \
+                         include/generator \
                          include/iomanip \
                          include/ios \
                          include/iosfwd \
@@ -882,6 +887,7 @@ INPUT                  = @srcdir@/doc/doxygen/doxygroups.cc \
                          include/numbers \
                          include/optional \
                          include/ostream \
+                         include/print \
                          include/queue \
                          include/random \
                          include/ranges \
@@ -902,6 +908,7 @@ INPUT                  = @srcdir@/doc/doxygen/doxygroups.cc \
                          include/string_view \
                          include/syncstream \
                          include/system_error \
+                         include/text_encoding \
                          include/thread \
                          include/tuple \
                          include/typeindex \
@@ -938,6 +945,8 @@ INPUT                  = @srcdir@/doc/doxygen/doxygroups.cc \
                          include/cwchar \
                          include/cuchar \
                          include/cwctype \
+                         include/stdbit.h \
+                         include/stdckdint.h \
                          include/ \
                          include/bits \
                          include/@host_alias@/bits \
@@ -1092,6 +1101,9 @@ RECURSIVE              = NO
 # run.
 
 EXCLUDE                = Makefile \
+                         include/unicode-data.h \
+                         include/text_encoding-data.h \
+                         include/text_encoding-win32.h \
                          include/experimental/bits/net.h
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
@@ -1217,7 +1229,7 @@ USE_MDFILE_AS_MAINPAGE =
 # also VERBATIM_HEADERS is set to NO.
 # The default value is: NO.
 
-SOURCE_BROWSER         = YES
+SOURCE_BROWSER         = @do_html@
 
 # Setting the INLINE_SOURCES tag to YES will include the body of functions,
 # classes and enums directly into the documentation.
@@ -1727,17 +1739,6 @@ HTML_FORMULA_FORMAT    = png
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
 FORMULA_FONTSIZE       = 10
-
-# Use the FORMULA_TRANSPARENT tag to determine whether or not the images
-# generated for formulas are transparent PNGs. Transparent PNGs are not
-# supported properly for IE 6.0, but are supported on all modern browsers.
-#
-# Note that when changing this option you need to delete any form_*.png files in
-# the HTML output directory before the changes have effect.
-# The default value is: YES.
-# This tag requires that the tag GENERATE_HTML is set to YES.
-
-FORMULA_TRANSPARENT    = YES
 
 # The FORMULA_MACROFILE can contain LaTeX \newcommand and \renewcommand commands
 # to create new LaTeX commands to be used in formulas as building blocks. See
@@ -2325,6 +2326,7 @@ INCLUDE_FILE_PATTERNS  =
 PREDEFINED             = __cplusplus=202002L \
                          __GTHREADS \
                          _GLIBCXX_HAS_GTHREADS \
+                         _GTHREAD_USE_MUTEX_TIMEDLOCK \
                          _GLIBCXX_HAVE_TLS \
                          _GLIBCXX_INCLUDE_AS_CXX11 \
                          "_GLIBCXX_PURE= " \
@@ -2347,6 +2349,8 @@ PREDEFINED             = __cplusplus=202002L \
                          "_GLIBCXX_END_NAMESPACE_CONTAINER= " \
                          "_GLIBCXX_END_NAMESPACE_CXX11= " \
                          "_GLIBCXX_END_NAMESPACE_LDBL= " \
+			 "-D_GLIBCXX_BEGIN_INLINE_ABI_NAMESPACE(X)= " \
+			 "-D_GLIBCXX_END_INLINE_ABI_NAMESPACE(X)= " \
                          "_GLIBCXX_TEMPLATE_ARGS=...  " \
                          "_GLIBCXX_DEPRECATED= " \
                          "_GLIBCXX_DEPRECATED_SUGGEST(E)= " \
@@ -2359,6 +2363,10 @@ PREDEFINED             = __cplusplus=202002L \
                          _GLIBCXX_USE_NOEXCEPT=noexcept \
                          _GLIBCXX_USE_WCHAR_T \
                          _GLIBCXX_USE_LONG_LONG \
+			 _GLIBCXX_USE_C99_COMPLEX_ARC \
+			 _GLIBCXX_USE_C99_INTTYPES \
+			 _GLIBCXX_USE_C99_INTTYPES_WCHAR_T \
+                         _GLIBCXX_USE_C99_STDINT \
                          _GLIBCXX_USE_C99_STDINT_TR1 \
                          _GLIBCXX_USE_SCHED_YIELD \
                          _GLIBCXX_USE_NANOSLEEP \
@@ -2386,12 +2394,15 @@ PREDEFINED             = __cplusplus=202002L \
                          _GLIBCXX14_CONSTEXPR=constexpr \
                          _GLIBCXX17_CONSTEXPR=constexpr \
                          _GLIBCXX20_CONSTEXPR=constexpr \
+                         _GLIBCXX23_CONSTEXPR=constexpr \
                          "_GLIBCXX11_DEPRECATED= " \
                          "_GLIBCXX11_DEPRECATED_SUGGEST(E)= " \
                          "_GLIBCXX17_DEPRECATED= " \
                          "_GLIBCXX17_DEPRECATED_SUGGEST(E)= " \
-                         "_GLIBCXX20_DEPRECATED(E)= " \
-                         "_GLIBCXX20_DEPRECATED(E)= " \
+                         "_GLIBCXX20_DEPRECATED= " \
+                         "_GLIBCXX20_DEPRECATED_SUGGEST(E)= " \
+                         "_GLIBCXX23_DEPRECATED= " \
+                         "_GLIBCXX23_DEPRECATED_SUGGEST(E)= " \
                          _GLIBCXX17_INLINE=inline \
                          _GLIBCXX_CHRONO_INT64_T=int64_t \
                          _GLIBCXX_DEFAULT_ABI_TAG \
@@ -2402,6 +2413,8 @@ PREDEFINED             = __cplusplus=202002L \
                          _GLIBCXX_HAVE_BUILTIN_IS_AGGREGATE \
                          _GLIBCXX_HAVE_IS_CONSTANT_EVALUATED \
                          _GLIBCXX_HAVE_BUILTIN_LAUNDER \
+			 "_GLIBCXX_DOXYGEN_ONLY(X)=X " \
+			 __exception_ptr=__unspecified__ \
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The
@@ -2472,15 +2485,6 @@ EXTERNAL_PAGES         = YES
 # Configuration options related to the dot tool
 #---------------------------------------------------------------------------
 
-# If the CLASS_DIAGRAMS tag is set to YES, doxygen will generate a class diagram
-# (in HTML and LaTeX) for classes with base or super classes. Setting the tag to
-# NO turns the diagrams off. Note that this option also works with HAVE_DOT
-# disabled, but it is recommended to install and use dot, since it yields more
-# powerful graphs.
-# The default value is: YES.
-
-CLASS_DIAGRAMS         = YES
-
 # You can include diagrams made with dia in doxygen documentation. Doxygen will
 # then run dia to produce the diagram and insert it in the documentation. The
 # DIA_PATH tag allows you to specify the directory where the dia binary resides.
@@ -2512,23 +2516,6 @@ HAVE_DOT               = YES
 # This tag requires that the tag HAVE_DOT is set to YES.
 
 DOT_NUM_THREADS        = 0
-
-# When you want a differently looking font in the dot files that doxygen
-# generates you can specify the font name using DOT_FONTNAME. You need to make
-# sure dot is able to find the font, which can be done by putting it in a
-# standard location or by setting the DOTFONTPATH environment variable or by
-# setting DOT_FONTPATH to the directory containing the font.
-# The default value is: Helvetica.
-# This tag requires that the tag HAVE_DOT is set to YES.
-
-DOT_FONTNAME           =
-
-# The DOT_FONTSIZE tag can be used to set the size (in points) of the font of
-# dot graphs.
-# Minimum value: 4, maximum value: 24, default value: 10.
-# This tag requires that the tag HAVE_DOT is set to YES.
-
-DOT_FONTSIZE           = 9
 
 # By default doxygen will tell dot to use the default font as specified with
 # DOT_FONTNAME. If you specify a different font using DOT_FONTNAME you can set
@@ -2741,18 +2728,6 @@ DOT_GRAPH_MAX_NODES    = 50
 # This tag requires that the tag HAVE_DOT is set to YES.
 
 MAX_DOT_GRAPH_DEPTH    = 0
-
-# Set the DOT_TRANSPARENT tag to YES to generate images with a transparent
-# background. This is disabled by default, because dot on Windows does not seem
-# to support this out of the box.
-#
-# Warning: Depending on the platform used, enabling this option may lead to
-# badly anti-aliased labels on the edges of a graph (i.e. they become hard to
-# read).
-# The default value is: NO.
-# This tag requires that the tag HAVE_DOT is set to YES.
-
-DOT_TRANSPARENT        = NO
 
 # Set the DOT_MULTI_TARGETS tag to YES to allow dot to generate multiple output
 # files in one run (i.e. multiple -o and -T options on the command line). This

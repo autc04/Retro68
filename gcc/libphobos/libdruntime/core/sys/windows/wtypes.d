@@ -8,7 +8,6 @@
  */
 module core.sys.windows.wtypes;
 version (Windows):
-@system:
 
 import core.sys.windows.rpc, core.sys.windows.rpcndr;
 import core.sys.windows.windef;
@@ -97,8 +96,8 @@ alias OLECHAR* BSTR;
 alias FLAGGED_WORD_BLOB* wireBSTR;
 alias BSTR* LPBSTR;
 //alias LONG SCODE; // also in winerror
-mixin DECLARE_HANDLE!("HCONTEXT");
-mixin DECLARE_HANDLE!("HMETAFILEPICT");
+alias HCONTEXT = HANDLE;
+alias HMETAFILEPICT = HANDLE;
 
 union CY {
     struct {

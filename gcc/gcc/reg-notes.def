@@ -1,5 +1,5 @@
 /* Register note definitions.
-   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+   Copyright (C) 2004-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -96,8 +96,9 @@ REG_NOTE (DEP_CONTROL)
    to extract the actual value.  */
 REG_NOTE (BR_PROB)
 
-/* Attached to a call insn; indicates that the call is malloc-like and
-   that the pointer returned cannot alias anything else.  */
+/* Attached to a move insn which receives the result of a call; indicates that
+   the call is malloc-like and that the pointer returned cannot alias anything
+   else.  */
 REG_NOTE (NOALIAS)
 
 /* REG_BR_PRED is attached to JUMP_INSNs.  It contains
@@ -157,6 +158,11 @@ REG_CFA_NOTE (CFA_VAL_EXPRESSION)
    first pattern is the register to be restored.  */
 REG_CFA_NOTE (CFA_RESTORE)
 
+/* Like CFA_RESTORE but without actually emitting CFI.  This can be
+   used to tell the verification infrastructure that a register is
+   saved without intending to restore it.  */
+REG_CFA_NOTE (CFA_NO_RESTORE)
+
 /* Attached to insns that are RTX_FRAME_RELATED_P, marks insn that sets
    vDRAP from DRAP.  If vDRAP is a register, vdrap_reg is initalized
    to the argument, if it is a MEM, it is ignored.  */
@@ -174,10 +180,10 @@ REG_CFA_NOTE (CFA_WINDOW_SAVE)
    the rest of the compiler as a CALL_INSN.  */
 REG_CFA_NOTE (CFA_FLUSH_QUEUE)
 
-/* Attached to insns that are RTX_FRAME_RELATED_P, toggling the mangling status
-   of return address.  Currently it's only used by AArch64.  The argument is
-   ignored.  */
-REG_CFA_NOTE (CFA_TOGGLE_RA_MANGLE)
+/* Attached to insns that are RTX_FRAME_RELATED_P, indicating an authentication
+   of the return address. Currently it's only used by AArch64.
+   The argument is ignored.  */
+REG_CFA_NOTE (CFA_NEGATE_RA_STATE)
 
 /* Indicates what exception region an INSN belongs in.  This is used
    to indicate what region to which a call may throw.  REGION 0

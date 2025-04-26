@@ -2,15 +2,16 @@
 REQUIRED_ARGS: -preview=dip1000
 TEST_OUTPUT:
 ---
-fail_compilation/test20245.d(20): Error: reference to local variable `x` assigned to non-scope parameter `ptr` calling test20245.escape
-fail_compilation/test20245.d(21): Error: copying `&x` into allocated memory escapes a reference to parameter variable `x`
-fail_compilation/test20245.d(22): Error: scope variable `a` may not be returned
-fail_compilation/test20245.d(26): Error: cannot take address of `scope` parameter `x` in `@safe` function `foo`
-fail_compilation/test20245.d(32): Error: reference to local variable `x` assigned to non-scope parameter `ptr` calling test20245.escape
-fail_compilation/test20245.d(33): Error: copying `&x` into allocated memory escapes a reference to parameter variable `x`
-fail_compilation/test20245.d(49): Error: reference to local variable `price` assigned to non-scope `this.minPrice`
-fail_compilation/test20245.d(68): Error: reference to local variable `this` assigned to non-scope parameter `msg` calling object.Exception.this
-fail_compilation/test20245.d(88): Error: reference to local variable `this` assigned to non-scope parameter `content` calling test20245.listUp
+fail_compilation/test20245.d(21): Error: assigning reference to local variable `x` to non-scope parameter `ptr` calling `escape` is not allowed in a `@safe` function
+fail_compilation/test20245.d(22): Error: escaping a reference to parameter `x` by copying `&x` into allocated memory is not allowed in a `@safe` function
+fail_compilation/test20245.d(23): Error: returning scope variable `a` is not allowed in a `@safe` function
+fail_compilation/test20245.d(27): Error: taking address of `scope` variable `x` with pointers is not allowed in a `@safe` function
+fail_compilation/test20245.d(33): Error: assigning reference to local variable `x` to non-scope parameter `ptr` calling `escape` is not allowed in a `@safe` function
+fail_compilation/test20245.d(34): Error: escaping a reference to parameter `x` by copying `&x` into allocated memory is not allowed in a `@safe` function
+fail_compilation/test20245.d(50): Error: assigning reference to local variable `price` to non-scope `this.minPrice` is not allowed in a `@safe` function
+fail_compilation/test20245.d(69): Error: reference to local variable `this.content[]` calling non-scope member function `Exception.this()` is not allowed in a `@safe` function
+fail_compilation/test20245.d(89): Error: assigning reference to local variable `this` to non-scope parameter `content` calling `listUp` is not allowed in a `@safe` function
+fail_compilation/test20245.d(82):        which is not `scope` because of `charPtr = content`
 ---
 */
 

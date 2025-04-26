@@ -1,5 +1,5 @@
 /* IR-agnostic target query functions relating to optabs
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -29,6 +29,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "rtl.h"
 #include "recog.h"
 #include "vec-perm-indices.h"
+#include "internal-fn.h"
+#include "memmodel.h"
+#include "optabs.h"
 
 struct target_optabs default_target_optabs;
 struct target_optabs *this_fn_optabs = &default_target_optabs;
@@ -205,6 +208,7 @@ get_best_extraction_insn (extraction_insn *insn,
 			  machine_mode field_mode)
 {
   opt_scalar_int_mode mode_iter;
+
   FOR_EACH_MODE_FROM (mode_iter, smallest_int_mode_for_size (struct_bits))
     {
       scalar_int_mode mode = mode_iter.require ();
@@ -407,9 +411,9 @@ can_vec_perm_var_p (machine_mode mode)
 }
 
 /* Return true if the target directly supports VEC_PERM_EXPRs on vectors
-   of mode MODE using the selector SEL.  ALLOW_VARIABLE_P is true if it
-   is acceptable to force the selector into a register and use a variable
-   permute (if the target supports that).
+   of mode OP_MODE and result vector of mode MODE using the selector SEL.
+   ALLOW_VARIABLE_P is true if it is acceptable to force the selector into a
+   register and use a variable permute (if the target supports that).
 
    Note that additional permutations representing whole-vector shifts may
    also be handled via the vec_shr or vec_shl optab, but only where the
@@ -417,8 +421,8 @@ can_vec_perm_var_p (machine_mode mode)
    with here.  */
 
 bool
-can_vec_perm_const_p (machine_mode mode, const vec_perm_indices &sel,
-		      bool allow_variable_p)
+can_vec_perm_const_p (machine_mode mode, machine_mode op_mode,
+		      const vec_perm_indices &sel, bool allow_variable_p)
 {
   /* If the target doesn't implement a vector mode for the vector type,
      then no operations are supported.  */
@@ -426,7 +430,7 @@ can_vec_perm_const_p (machine_mode mode, const vec_perm_indices &sel,
     return false;
 
   /* It's probably cheaper to test for the variable case first.  */
-  if (allow_variable_p && selector_fits_mode_p (mode, sel))
+  if (op_mode == mode && allow_variable_p && selector_fits_mode_p (mode, sel))
     {
       if (direct_optab_handler (vec_perm_optab, mode) != CODE_FOR_nothing)
 	return true;
@@ -448,7 +452,7 @@ can_vec_perm_const_p (machine_mode mode, const vec_perm_indices &sel,
 
   if (targetm.vectorize.vec_perm_const != NULL)
     {
-      if (targetm.vectorize.vec_perm_const (mode, NULL_RTX, NULL_RTX,
+      if (targetm.vectorize.vec_perm_const (mode, op_mode, NULL_RTX, NULL_RTX,
 					    NULL_RTX, sel))
 	return true;
 
@@ -484,6 +488,12 @@ find_widening_optab_handler_and_mode (optab op, machine_mode to_mode,
       if (GET_MODE_CLASS (limit_mode) == MODE_PARTIAL_INT)
 	limit_mode = GET_MODE_WIDER_MODE (limit_mode).require ();
     }
+  else if (is_a <scalar_int_mode> (to_mode))
+    {
+      gcc_checking_assert (VECTOR_MODE_P (from_mode)
+			   && GET_MODE_INNER (from_mode) < to_mode);
+      limit_mode = GET_MODE_NEXT_MODE (from_mode).require ();
+    }
   else
     gcc_checking_assert (GET_MODE_CLASS (from_mode) == GET_MODE_CLASS (to_mode)
 			 && from_mode < to_mode);
@@ -502,18 +512,33 @@ find_widening_optab_handler_and_mode (optab op, machine_mode to_mode,
   return CODE_FOR_nothing;
 }
 
-/* Return non-zero if a highpart multiply is supported of can be synthisized.
+/* Return non-zero if a highpart multiply is supported or can be synthesized.
    For the benefit of expand_mult_highpart, the return value is 1 for direct,
-   2 for even/odd widening, and 3 for hi/lo widening.  */
+   2 for integral widening, 3 for even/odd widening, 4 for hi/lo widening.  */
 
 int
 can_mult_highpart_p (machine_mode mode, bool uns_p)
 {
   optab op;
+  scalar_int_mode int_mode, wider_mode;
 
   op = uns_p ? umul_highpart_optab : smul_highpart_optab;
   if (optab_handler (op, mode) != CODE_FOR_nothing)
     return 1;
+
+  /* If the mode is integral, synth from widening or larger operations.  */
+  if (is_a <scalar_int_mode> (mode, &int_mode)
+      && GET_MODE_WIDER_MODE (int_mode).exists (&wider_mode))
+    {
+      op = uns_p ? umul_widen_optab : smul_widen_optab;
+      if (convert_optab_handler (op, wider_mode, mode) != CODE_FOR_nothing)
+	return 2;
+
+      /* The test on the size comes from expmed_mult_highpart_optab.  */
+      if (optab_handler (smul_optab, wider_mode) != CODE_FOR_nothing
+	  && GET_MODE_BITSIZE (int_mode) - 1 < BITS_PER_WORD)
+	return 2;
+    }
 
   /* If the mode is an integral vector, synth from widening operations.  */
   if (GET_MODE_CLASS (mode) != MODE_VECTOR_INT)
@@ -534,8 +559,8 @@ can_mult_highpart_p (machine_mode mode, bool uns_p)
 			    + (i & ~1)
 			    + ((i & 1) ? nunits : 0));
 	  vec_perm_indices indices (sel, 2, nunits);
-	  if (can_vec_perm_const_p (mode, indices))
-	    return 2;
+	  if (can_vec_perm_const_p (mode, mode, indices))
+	    return 3;
 	}
     }
 
@@ -550,78 +575,12 @@ can_mult_highpart_p (machine_mode mode, bool uns_p)
 	  for (unsigned int i = 0; i < 3; ++i)
 	    sel.quick_push (2 * i + (BYTES_BIG_ENDIAN ? 0 : 1));
 	  vec_perm_indices indices (sel, 2, nunits);
-	  if (can_vec_perm_const_p (mode, indices))
-	    return 3;
+	  if (can_vec_perm_const_p (mode, mode, indices))
+	    return 4;
 	}
     }
 
   return 0;
-}
-
-/* Return true if target supports vector masked load/store for mode.  */
-
-bool
-can_vec_mask_load_store_p (machine_mode mode,
-			   machine_mode mask_mode,
-			   bool is_load)
-{
-  optab op = is_load ? maskload_optab : maskstore_optab;
-  machine_mode vmode;
-
-  /* If mode is vector mode, check it directly.  */
-  if (VECTOR_MODE_P (mode))
-    return convert_optab_handler (op, mode, mask_mode) != CODE_FOR_nothing;
-
-  /* Otherwise, return true if there is some vector mode with
-     the mask load/store supported.  */
-
-  /* See if there is any chance the mask load or store might be
-     vectorized.  If not, punt.  */
-  scalar_mode smode;
-  if (!is_a <scalar_mode> (mode, &smode))
-    return false;
-
-  vmode = targetm.vectorize.preferred_simd_mode (smode);
-  if (VECTOR_MODE_P (vmode)
-      && targetm.vectorize.get_mask_mode (vmode).exists (&mask_mode)
-      && convert_optab_handler (op, vmode, mask_mode) != CODE_FOR_nothing)
-    return true;
-
-  auto_vector_modes vector_modes;
-  targetm.vectorize.autovectorize_vector_modes (&vector_modes, true);
-  for (machine_mode base_mode : vector_modes)
-    if (related_vector_mode (base_mode, smode).exists (&vmode)
-	&& targetm.vectorize.get_mask_mode (vmode).exists (&mask_mode)
-	&& convert_optab_handler (op, vmode, mask_mode) != CODE_FOR_nothing)
-      return true;
-  return false;
-}
-
-/* If target supports vector load/store with length for vector mode MODE,
-   return the corresponding vector mode, otherwise return opt_machine_mode ().
-   There are two flavors for vector load/store with length, one is to measure
-   length with bytes, the other is to measure length with lanes.
-   As len_{load,store} optabs point out, for the flavor with bytes, we use
-   VnQI to wrap the other supportable same size vector modes.  */
-
-opt_machine_mode
-get_len_load_store_mode (machine_mode mode, bool is_load)
-{
-  optab op = is_load ? len_load_optab : len_store_optab;
-  gcc_assert (VECTOR_MODE_P (mode));
-
-  /* Check if length in lanes supported for this mode directly.  */
-  if (direct_optab_handler (op, mode))
-    return mode;
-
-  /* Check if length in bytes supported for same vector size VnQI.  */
-  machine_mode vmode;
-  poly_uint64 nunits = GET_MODE_SIZE (mode);
-  if (related_vector_mode (mode, QImode, nunits).exists (&vmode)
-      && direct_optab_handler (op, vmode))
-    return vmode;
-
-  return opt_machine_mode ();
 }
 
 /* Return true if there is a compare_and_swap pattern.  */
@@ -716,33 +675,57 @@ lshift_cheap_p (bool speed_p)
    that mode, given that the second mode is always an integer vector.
    If MODE is VOIDmode, return true if OP supports any vector mode.  */
 
-static bool
-supports_vec_convert_optab_p (optab op, machine_mode mode)
+static enum insn_code
+supported_vec_convert_optab (optab op, machine_mode mode)
 {
   int start = mode == VOIDmode ? 0 : mode;
   int end = mode == VOIDmode ? MAX_MACHINE_MODE - 1 : mode;
+  enum insn_code icode = CODE_FOR_nothing;
   for (int i = start; i <= end; ++i)
     if (VECTOR_MODE_P ((machine_mode) i))
       for (int j = MIN_MODE_VECTOR_INT; j < MAX_MODE_VECTOR_INT; ++j)
-	if (convert_optab_handler (op, (machine_mode) i,
-				   (machine_mode) j) != CODE_FOR_nothing)
-	  return true;
+	{
+	  if ((icode
+	       = convert_optab_handler (op, (machine_mode) i,
+					(machine_mode) j)) != CODE_FOR_nothing)
+	    return icode;
+	}
 
-  return false;
+  return icode;
 }
 
 /* If MODE is not VOIDmode, return true if vec_gather_load is available for
    that mode.  If MODE is VOIDmode, return true if gather_load is available
-   for at least one vector mode.  */
+   for at least one vector mode.
+   In that case, and if ELSVALS is nonzero, store the supported else values
+   into the vector it points to.  */
 
 bool
-supports_vec_gather_load_p (machine_mode mode)
+supports_vec_gather_load_p (machine_mode mode, vec<int> *elsvals)
 {
-  if (!this_fn_optabs->supports_vec_gather_load[mode])
-    this_fn_optabs->supports_vec_gather_load[mode]
-      = (supports_vec_convert_optab_p (gather_load_optab, mode)
-	 || supports_vec_convert_optab_p (mask_gather_load_optab, mode)
-	 ? 1 : -1);
+  enum insn_code icode = CODE_FOR_nothing;
+  if (!this_fn_optabs->supports_vec_gather_load[mode] || elsvals)
+    {
+      /* Try the masked variants first.  In case we later decide that we
+	 need a mask after all (thus requiring an else operand) we need
+	 to query it below and we cannot do that when using the
+	 non-masked optab.  */
+      icode = supported_vec_convert_optab (mask_gather_load_optab, mode);
+      if (icode == CODE_FOR_nothing)
+	icode = supported_vec_convert_optab (mask_len_gather_load_optab, mode);
+      if (icode == CODE_FOR_nothing)
+	icode = supported_vec_convert_optab (gather_load_optab, mode);
+      this_fn_optabs->supports_vec_gather_load[mode]
+	= (icode != CODE_FOR_nothing) ? 1 : -1;
+    }
+
+  /* For gather the optab's operand indices do not match the IFN's because
+     the latter does not have the extension operand (operand 3).  It is
+     implicitly added during expansion so we use the IFN's else index + 1.
+     */
+  if (elsvals && icode != CODE_FOR_nothing)
+    get_supported_else_vals
+      (icode, internal_fn_else_index (IFN_MASK_GATHER_LOAD) + 1, *elsvals);
 
   return this_fn_optabs->supports_vec_gather_load[mode] > 0;
 }
@@ -754,11 +737,18 @@ supports_vec_gather_load_p (machine_mode mode)
 bool
 supports_vec_scatter_store_p (machine_mode mode)
 {
+  enum insn_code icode;
   if (!this_fn_optabs->supports_vec_scatter_store[mode])
-    this_fn_optabs->supports_vec_scatter_store[mode]
-      = (supports_vec_convert_optab_p (scatter_store_optab, mode)
-	 || supports_vec_convert_optab_p (mask_scatter_store_optab, mode)
-	 ? 1 : -1);
+    {
+      icode = supported_vec_convert_optab (scatter_store_optab, mode);
+      if (icode == CODE_FOR_nothing)
+	icode = supported_vec_convert_optab (mask_scatter_store_optab, mode);
+      if (icode == CODE_FOR_nothing)
+	icode = supported_vec_convert_optab (mask_len_scatter_store_optab,
+					      mode);
+      this_fn_optabs->supports_vec_scatter_store[mode]
+	= (icode != CODE_FOR_nothing) ? 1 : -1;
+    }
 
   return this_fn_optabs->supports_vec_scatter_store[mode] > 0;
 }
@@ -790,4 +780,76 @@ can_vec_extract (machine_mode mode, machine_mode extr_mode)
     return false;
   /* We assume we can pun mode to vmode and imode to extr_mode.  */
   return true;
+}
+
+/* OP is either neg_optab or abs_optab and FMODE is the floating-point inner
+   mode of MODE.  Check whether we can implement OP for mode MODE by using
+   xor_optab to flip the sign bit (for neg_optab) or and_optab to clear the
+   sign bit (for abs_optab).  If so, return the integral mode that should be
+   used to do the operation and set *BITPOS to the index of the sign bit
+   (counting from the lsb).  */
+
+opt_machine_mode
+get_absneg_bit_mode (optab op, machine_mode mode,
+		     scalar_float_mode fmode, int *bitpos)
+{
+  /* The format has to have a simple sign bit.  */
+  auto fmt = REAL_MODE_FORMAT (fmode);
+  if (fmt == NULL)
+    return {};
+
+  *bitpos = fmt->signbit_rw;
+  if (*bitpos < 0)
+    return {};
+
+  /* Don't create negative zeros if the format doesn't support them.  */
+  if (op == neg_optab && !fmt->has_signed_zero)
+    return {};
+
+  if (VECTOR_MODE_P (mode))
+    return related_int_vector_mode (mode);
+
+  if (GET_MODE_SIZE (fmode) <= UNITS_PER_WORD)
+    return int_mode_for_mode (fmode);
+
+  return word_mode;
+}
+
+/* Return true if we can implement OP for mode MODE directly, without resorting
+   to a libfunc.   This usually means that OP will be implemented inline.
+
+   Note that this function cannot tell whether the target pattern chooses to
+   use libfuncs internally.  */
+
+bool
+can_open_code_p (optab op, machine_mode mode)
+{
+  if (optab_handler (op, mode) != CODE_FOR_nothing)
+    return true;
+
+  if (op == umul_highpart_optab)
+    return can_mult_highpart_p (mode, true);
+
+  if (op == smul_highpart_optab)
+    return can_mult_highpart_p (mode, false);
+
+  machine_mode new_mode;
+  scalar_float_mode fmode;
+  int bitpos;
+  if ((op == neg_optab || op == abs_optab)
+      && is_a<scalar_float_mode> (GET_MODE_INNER (mode), &fmode)
+      && get_absneg_bit_mode (op, mode, fmode, &bitpos).exists (&new_mode)
+      && can_implement_p (op == neg_optab ? xor_optab : and_optab, new_mode))
+    return true;
+
+  return false;
+}
+
+/* Return true if we can implement OP for mode MODE in some way, either by
+   open-coding it or by calling a libfunc.  */
+
+bool
+can_implement_p (optab op, machine_mode mode)
+{
+  return can_open_code_p (op, mode) || optab_libfunc (op, mode);
 }

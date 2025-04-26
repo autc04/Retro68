@@ -1,10 +1,98 @@
-2022-08-19  Release Manager
+2025-04-25  Release Manager
 
-	* GCC 12.2.0 released.
+	* GCC 15.1.0 released.
 
-2022-05-06  Release Manager
+2025-03-20  Joseph Myers  <josmyers@redhat.com>
 
-	* GCC 12.1.0 released.
+	* de.po: Update.
+
+2025-03-18  Joseph Myers  <josmyers@redhat.com>
+
+	* fr.po, sv.po: Update.
+
+2025-03-17  Joseph Myers  <josmyers@redhat.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, eo.po, es.po, fi.po, fr.po,
+	id.po, ja.po, ka.po, nl.po, pt_BR.po, ro.po, ru.po, sr.po, sv.po,
+	tr.po, uk.po, vi.po, zh_CN.po, zh_TW.po: Update.
+
+2025-03-14  Joseph Myers  <josmyers@redhat.com>
+
+	* cpplib.pot: Regenerate.
+
+2025-03-10  Joseph Myers  <josmyers@redhat.com>
+
+	* de.po: Update.
+
+2025-03-03  Joseph Myers  <josmyers@redhat.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, eo.po, es.po, fi.po, fr.po,
+	id.po, ja.po, ka.po, nl.po, pt_BR.po, ro.po, ru.po, sr.po, sv.po,
+	tr.po, uk.po, vi.po, zh_CN.po, zh_TW.po: Update.
+
+2025-02-14  Joseph Myers  <josmyers@redhat.com>
+
+	* cpplib.pot: Regenerate.
+
+2024-12-16  Joseph Myers  <josmyers@redhat.com>
+
+	* sr.po: Update.
+
+2024-09-19  Joseph Myers  <josmyers@redhat.com>
+
+	* zh_CN.po: Update.
+
+2024-02-21  Joseph Myers  <josmyers@redhat.com>
+
+	* de.po: Update.
+
+2024-02-20  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2024-02-19  Joseph Myers  <josmyers@redhat.com>
+
+	* es.po: Update.
+
+2024-02-19  Joseph Myers  <josmyers@redhat.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, eo.po, es.po, fi.po, fr.po,
+	id.po, ja.po, ka.po, nl.po, pt_BR.po, ro.po, ru.po, sr.po, sv.po,
+	tr.po, uk.po, vi.po, zh_CN.po, zh_TW.po: Update.
+
+2024-02-16  Joseph Myers  <josmyers@redhat.com>
+
+	* cpplib.pot: Regenerate.
+
+2023-05-09  Joseph Myers  <joseph@codesourcery.com>
+
+	* ru.po: Update.
+
+2023-02-28  Joseph Myers  <joseph@codesourcery.com>
+
+	* sr.po, sv.po: Update.
+
+2023-02-24  Joseph Myers  <joseph@codesourcery.com>
+
+	* be.po, ca.po, da.po, de.po, el.po, eo.po, es.po, fi.po, fr.po,
+	id.po, ja.po, ka.po, nl.po, pt_BR.po, ro.po, ru.po, sr.po, sv.po,
+	tr.po, uk.po, vi.po, zh_CN.po, zh_TW.po: Update.
+
+2023-02-10  Joseph Myers  <joseph@codesourcery.com>
+
+	* cpplib.pot: Regenerate.
+
+2023-01-16  Joseph Myers  <joseph@codesourcery.com>
+
+	* ka.po: New.
+
+2023-01-09  Joseph Myers  <joseph@codesourcery.com>
+
+	* eo.po: Update.
+
+2022-10-10  Joseph Myers  <joseph@codesourcery.com>
+
+	* ro.po: New.
 
 2022-05-04  Joseph Myers  <joseph@codesourcery.com>
 

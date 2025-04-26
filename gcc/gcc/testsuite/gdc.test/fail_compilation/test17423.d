@@ -1,7 +1,8 @@
 /* REQUIRED_ARGS: -preview=dip1000
 TEST_OUTPUT:
 ---
-fail_compilation/test17423.d(26): Error: reference to local `this` assigned to non-scope parameter `dlg` calling test17423.Bar.opApply
+fail_compilation/test17423.d(27): Error: assigning reference to local `this` to non-scope parameter `dlg` calling `opApply` is not allowed in a `@safe` function
+fail_compilation/test17423.d(16):        which is not `scope` because of `this.myDlg = dlg`
 ---
 */
 

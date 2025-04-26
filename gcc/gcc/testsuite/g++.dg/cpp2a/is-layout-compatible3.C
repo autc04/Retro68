@@ -1,5 +1,6 @@
 // P0466R5
 // { dg-do compile { target c++20 } }
+// { dg-options "-pedantic" }
 
 namespace std
 {
@@ -34,7 +35,7 @@ union N { J v; };
 union O { int a; int b; };
 union P { int a : 1; int b : 12; };
 enum Q : int { Q1, Q2 };
-enum alignas(16) R : int { R1, R2 };
+enum alignas(16) R : int { R1, R2 };		// { dg-warning "'alignas' on enumerated type" }
 struct U { [[no_unique_address]] S a1; [[no_unique_address]] S a2; [[no_unique_address]] S a3; };
 struct V { [[no_unique_address]] S b1; [[no_unique_address]] T b2; [[no_unique_address]] S b3; };
 struct alignas(16) A : public I {};
@@ -55,10 +56,10 @@ static_assert (!std::is_layout_compatible_v<K, L>);
 static_assert (!std::is_layout_compatible_v<M, N>);
 static_assert (!std::is_layout_compatible_v<O, P>);
 static_assert (!std::is_layout_compatible_v<P, D>);
-static_assert (!std::is_layout_compatible_v<Q, R>);
+static_assert (std::is_layout_compatible_v<Q, R>);
 static_assert (!std::is_layout_compatible_v<U, V>);
 static_assert (!std::is_layout_compatible_v<A, I>);
 static_assert (!std::is_layout_compatible_v<C, I>);
-static_assert (std::is_layout_compatible_v<E, F>);
+static_assert (!std::is_layout_compatible_v<E, F>);
 static_assert (std::is_layout_compatible_v<G, H>);
 static_assert (std::is_layout_compatible_v<C1, D1>);

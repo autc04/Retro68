@@ -1,7 +1,7 @@
 /* Generate pattern matching and transform code shared between
    GENERIC and GIMPLE folding code from match-and-simplify description.
 
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2025 Free Software Foundation, Inc.
    Contributed by Richard Biener <rguenther@suse.de>
    and Prathamesh Kulkarni  <bilbotheelffriend@gmail.com>
 
@@ -25,19 +25,31 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include <cpplib.h>
+#include "rich-location.h"
 #include "errors.h"
 #include "hash-table.h"
 #include "hash-set.h"
 #include "is-a.h"
+#include "ordered-hash-map.h"
 
 
 /* Stubs for GGC referenced through instantiations triggered by hash-map.  */
-void *ggc_internal_cleared_alloc (size_t, void (*)(void *),
-				  size_t, size_t MEM_STAT_DECL)
+void *
+ggc_internal_cleared_alloc (size_t, void (*)(void *),
+			    size_t, size_t MEM_STAT_DECL)
 {
   return NULL;
 }
-void ggc_free (void *)
+
+void *
+ggc_internal_cleared_alloc_no_dtor (size_t, void (*)(void *),
+				    size_t, size_t MEM_STAT_DECL)
+{
+  return NULL;
+}
+
+void
+ggc_free (void *)
 {
 }
 
@@ -61,29 +73,675 @@ static class line_maps *line_table;
    This is the implementation for genmatch.  */
 
 expanded_location
-linemap_client_expand_location_to_spelling_point (location_t loc,
+linemap_client_expand_location_to_spelling_point (const line_maps *set,
+						  location_t loc,
 						  enum location_aspect)
 {
   const struct line_map_ordinary *map;
-  loc = linemap_resolve_location (line_table, loc, LRK_SPELLING_LOCATION, &map);
-  return linemap_expand_location (line_table, map, loc);
+  loc = linemap_resolve_location (set, loc, LRK_SPELLING_LOCATION, &map);
+  return linemap_expand_location (set, map, loc);
 }
+
+#define DIAG_ARGMAX 30
+
+#define diag_integer_with_precision(FS, ARG, PREC, T, F) \
+  do								\
+    switch (PREC)						\
+      {								\
+      case 0:							\
+	fprintf (FS, "%" F, ARG.m_##T);				\
+	break;							\
+								\
+      case 1:							\
+	fprintf (FS, "%l" F, ARG.m_long_##T);			\
+	break;							\
+								\
+      case 2:							\
+	fprintf (FS, "%" HOST_LONG_LONG_FORMAT F,		\
+		 ARG.m_long_long_##T);				\
+	break;							\
+								\
+      case 3:							\
+	if (T (-1) < T (0))					\
+	  fprintf (FS, "%" GCC_PRISZ F,				\
+		   (fmt_size_t) ARG.m_ssize_t);			\
+	else							\
+	  fprintf (FS, "%" GCC_PRISZ F,				\
+		   (fmt_size_t) ARG.m_size_t);			\
+	break;							\
+								\
+      case 4:							\
+	if (T (-1) >= T (0))					\
+	  {							\
+	    unsigned long long a = ARG.m_ptrdiff_t;		\
+	    unsigned long long m = PTRDIFF_MAX;			\
+	    m = 2 * m + 1;					\
+	    fprintf (FS, "%" HOST_LONG_LONG_FORMAT F,		\
+		     a & m);					\
+	  }							\
+	else if (sizeof (ptrdiff_t) <= sizeof (int))		\
+	  fprintf (FS, "%" F, (int) ARG.m_ptrdiff_t);		\
+	else if (sizeof (ptrdiff_t) <= sizeof (long))		\
+	  fprintf (FS, "%l" F, (long) ARG.m_ptrdiff_t);		\
+	else							\
+	  fprintf (FS, "%" HOST_LONG_LONG_FORMAT F,		\
+		   (long long int) ARG.m_ptrdiff_t);		\
+	break;							\
+								\
+      default:							\
+	break;							\
+      }								\
+  while (0)
+
+/* This is a simplified version of pretty-print.cc (pp_format)
+   which emits the diagnostics to F stream directly.
+   It needs to support everything that libcpp needs in its diagnostics,
+   but doesn't have to bother with colors, UTF-8 quoting, URL pretty
+   printing, etc.  */
+#if GCC_VERSION >= 4001
+__attribute__((format (gcc_diag, 3, 0)))
+#endif
+static void
+diag_vfprintf (FILE *f, int err_no, const char *msg, va_list *ap)
+{
+  unsigned int curarg = 0;
+  bool any_numbered = false;
+  bool any_unnumbered = false;
+  enum arg_kind {
+    arg_kind_none,
+    arg_kind_int,
+    arg_kind_long_int,
+    arg_kind_long_long_int,
+    arg_kind_unsigned,
+    arg_kind_long_unsigned,
+    arg_kind_long_long_unsigned,
+    arg_kind_hwi,
+    arg_kind_uhwi,
+    arg_kind_size_t,
+    arg_kind_ssize_t,
+    arg_kind_ptrdiff_t,
+    arg_kind_cst_pchar,
+    arg_kind_pvoid,
+    arg_kind_double,
+    arg_kind_Z
+  };
+  union {
+    enum arg_kind m_kind;
+    int m_int;
+    long m_long_int;
+    long long m_long_long_int;
+    unsigned m_unsigned;
+    unsigned long m_long_unsigned;
+    unsigned long long m_long_long_unsigned;
+    HOST_WIDE_INT m_hwi;
+    unsigned HOST_WIDE_INT m_uhwi;
+    size_t m_size_t;
+    ssize_t m_ssize_t;
+    ptrdiff_t m_ptrdiff_t;
+    const char *m_cst_pchar;
+    void *m_pvoid;
+    double m_double;
+    struct { int *p; unsigned len; } m_Z;
+  } args[DIAG_ARGMAX];
+  memset (args, 0, sizeof (args));
+  for (const char *p = strchr (msg, '%'); p; p = strchr (p, '%'))
+    {
+      ++p;
+      switch (*p)
+	{
+	case '\0':
+	  gcc_unreachable ();
+	case '%':
+	case '<':
+	case '>':
+	case '\'':
+	case '}':
+	case 'R':
+	case 'm':
+	  /* These don't need any arguments.  */
+	  ++p;
+	  continue;
+	default:
+	  break;
+	}
+      unsigned argno;
+      if (ISDIGIT (*p))
+	{
+	  char *end;
+	  argno = strtoul (p, &end, 10) - 1;
+	  p = end;
+	  gcc_assert (*p == '$');
+	  p++;
+
+	  any_numbered = true;
+	  gcc_assert (!any_unnumbered);
+	}
+      else
+	{
+	  argno = curarg++;
+	  any_unnumbered = true;
+	  gcc_assert (!any_numbered);
+	}
+      gcc_assert (argno < DIAG_ARGMAX);
+      gcc_assert (args[argno].m_kind == arg_kind_none);
+      int precision = 0;
+      bool wide = false;
+      for (; *p; ++p)
+	{
+	  switch (*p)
+	    {
+	    case 'q':
+	    case '+':
+	    case '#':
+	      continue;
+	    case 'w':
+	      gcc_assert (!wide);
+	      wide = true;
+	      continue;
+	    case 'z':
+	      gcc_assert (!precision);
+	      precision = 3;
+	      continue;
+	    case 't':
+	      gcc_assert (!precision);
+	      precision = 4;
+	      continue;
+	    case 'l':
+	      gcc_assert (precision < 2);
+	      ++precision;
+	      continue;
+	    default:
+	      break;
+	    }
+	  break;
+	}
+      if (*p == '.')
+	{
+	  /* We handle '%.Ns' and '%.*s' or '%M$.*N$s'
+	     (where M == N + 1).  */
+	  ++p;
+	  if (ISDIGIT (*p))
+	    {
+	      while (ISDIGIT (*p))
+		++p;
+	      gcc_assert (*p == 's');
+	    }
+	  else
+	    {
+	      gcc_assert (*p == '*');
+	      ++p;
+	      if (ISDIGIT (*p))
+		{
+		  char *end;
+		  unsigned int argno2 = strtoul (p, &end, 10) - 1;
+		  p = end;
+		  gcc_assert (argno2 == argno - 1);
+		  gcc_assert (!any_unnumbered);
+		  gcc_assert (*p == '$');
+		  ++p;
+		  args[argno2].m_kind = arg_kind_int;
+		}
+	      else
+		{
+		  gcc_assert (!any_numbered);
+		  args[argno].m_kind = arg_kind_int;
+		  ++argno;
+		  ++curarg;
+		}
+	    }
+	  gcc_assert (*p == 's');
+	}
+      enum arg_kind kind = arg_kind_none;
+      switch (*p)
+	{
+	case 'r':
+	  kind = arg_kind_cst_pchar;
+	  break;
+	case 'c':
+	  kind = arg_kind_int;
+	  break;
+	case 'd':
+	case 'i':
+	  if (wide)
+	    kind = arg_kind_hwi;
+	  else
+	    switch (precision)
+	      {
+	      case 0:
+		kind = arg_kind_int;
+		break;
+	      case 1:
+		kind = arg_kind_long_int;
+		break;
+	      case 2:
+		kind = arg_kind_long_long_int;
+		break;
+	      case 3:
+		kind = arg_kind_ssize_t;
+		break;
+	      case 4:
+		kind = arg_kind_ptrdiff_t;
+		break;
+	      }
+	  break;
+	case 'o':
+	case 'u':
+	case 'x':
+	  if (wide)
+	    kind = arg_kind_uhwi;
+	  else
+	    switch (precision)
+	      {
+	      case 0:
+		kind = arg_kind_unsigned;
+		break;
+	      case 1:
+		kind = arg_kind_long_unsigned;
+		break;
+	      case 2:
+		kind = arg_kind_long_long_unsigned;
+		break;
+	      case 3:
+		kind = arg_kind_size_t;
+		break;
+	      case 4:
+		kind = arg_kind_ptrdiff_t;
+		break;
+	      }
+	  break;
+	case 's':
+	case '{':
+	  kind = arg_kind_cst_pchar;
+	  break;
+	case 'p':
+	  kind = arg_kind_pvoid;
+	  break;
+	case 'f':
+	  kind = arg_kind_double;
+	  break;
+	case 'Z':
+	  kind = arg_kind_Z;
+	  break;
+	case '@':
+	case 'e':
+	  /* These two are unhandled, hopefully libcpp doesn't use them.  */
+	default:
+	  gcc_unreachable ();
+	}
+      gcc_assert (kind != arg_kind_none);
+      args[argno].m_kind = kind;
+    }
+  for (int i = 0; i < DIAG_ARGMAX; ++i)
+    switch (args[i].m_kind)
+      {
+      case arg_kind_none:
+	for (++i; i < DIAG_ARGMAX; ++i)
+	  gcc_assert (args[i].m_kind == arg_kind_none);
+	break;
+      case arg_kind_int:
+	args[i].m_int = va_arg (*ap, int);
+	break;
+      case arg_kind_long_int:
+	args[i].m_long_int = va_arg (*ap, long);
+	break;
+      case arg_kind_long_long_int:
+	args[i].m_long_long_int = va_arg (*ap, long long);
+	break;
+      case arg_kind_unsigned:
+	args[i].m_unsigned = va_arg (*ap, unsigned);
+	break;
+      case arg_kind_long_unsigned:
+	args[i].m_long_unsigned = va_arg (*ap, unsigned long);
+	break;
+      case arg_kind_long_long_unsigned:
+	args[i].m_long_long_unsigned = va_arg (*ap, unsigned long long);
+	break;
+      case arg_kind_hwi:
+	args[i].m_hwi = va_arg (*ap, HOST_WIDE_INT);
+	break;
+      case arg_kind_uhwi:
+	args[i].m_uhwi = va_arg (*ap, unsigned HOST_WIDE_INT);
+	break;
+      case arg_kind_size_t:
+	args[i].m_size_t = va_arg (*ap, size_t);
+	break;
+      case arg_kind_ssize_t:
+	args[i].m_ssize_t = va_arg (*ap, ssize_t);
+	break;
+      case arg_kind_ptrdiff_t:
+	args[i].m_ptrdiff_t = va_arg (*ap, ptrdiff_t);
+	break;
+      case arg_kind_cst_pchar:
+	args[i].m_cst_pchar = va_arg (*ap, const char *);
+	break;
+      case arg_kind_pvoid:
+	args[i].m_pvoid = va_arg (*ap, void *);
+	break;
+      case arg_kind_double:
+	args[i].m_double = va_arg (*ap, double);
+	break;
+      case arg_kind_Z:
+	args[i].m_Z.p = va_arg (*ap, int *);
+	args[i].m_Z.len = va_arg (*ap, unsigned);
+	break;
+      default:
+	gcc_unreachable ();
+      }
+  curarg = 0;
+  const char *q = msg;
+  for (const char *p = strchr (msg, '%'); p; p = strchr (p, '%'))
+    {
+      if (q != p)
+	fprintf (f, "%.*s", (int) (p - q), q);
+      ++p;
+      q = p + 1;
+      switch (*p)
+	{
+	case '%':
+	  fputc ('%', f);
+	  ++p;
+	  continue;
+	case '<':
+	case '>':
+	case '\'':
+	  fputc ('\'', f);
+	  ++p;
+	  continue;
+	case '}':
+	case 'R':
+	  ++p;
+	  continue;
+	case 'm':
+	  fprintf (f, "%s", xstrerror (err_no));
+	  ++p;
+	  continue;
+	default:
+	  break;
+	}
+      unsigned argno;
+      if (ISDIGIT (*p))
+	{
+	  char *end;
+	  argno = strtoul (p, &end, 10) - 1;
+	  p = end;
+	  p++;
+	}
+      else
+	argno = curarg++;
+      int precision = 0;
+      bool quote = false;
+      bool wide = false;
+      for (; *p; ++p)
+	{
+	  switch (*p)
+	    {
+	    case 'q':
+	      gcc_assert (!quote);
+	      quote = true;
+	      fputc ('\'', f);
+	      continue;
+	    case '+':
+	    case '#':
+	      continue;
+	    case 'w':
+	      wide = true;
+	      continue;
+	    case 'z':
+	      precision = 3;
+	      continue;
+	    case 't':
+	      precision = 4;
+	      continue;
+	    case 'l':
+	      ++precision;
+	      continue;
+	    default:
+	      break;
+	    }
+	  break;
+	}
+      q = p + 1;
+      switch (*p)
+	{
+	case 'r':
+	  break;
+	case 'c':
+	  fputc (args[argno].m_int, f);
+	  break;
+	case 'd':
+	case 'i':
+	  if (wide)
+	    fprintf (f, HOST_WIDE_INT_PRINT_DEC, args[argno].m_hwi);
+	  else
+	    diag_integer_with_precision (f, args[argno], precision,
+					 int, "d");
+	  break;
+	case 'o':
+	  if (wide)
+	    fprintf (f, "%" HOST_WIDE_INT_PRINT "o", args[argno].m_uhwi);
+	  else
+	    diag_integer_with_precision (f, args[argno], precision,
+					 unsigned, "o");
+	  break;
+	case 'u':
+	  if (wide)
+	    fprintf (f, HOST_WIDE_INT_PRINT_UNSIGNED, args[argno].m_uhwi);
+	  else
+	    diag_integer_with_precision (f, args[argno], precision,
+					 unsigned, "u");
+	  break;
+	case 'x':
+	  if (wide)
+	    fprintf (f, HOST_WIDE_INT_PRINT_HEX, args[argno].m_uhwi);
+	  else
+	    diag_integer_with_precision (f, args[argno], precision,
+					 unsigned, "x");
+	  break;
+	case 's':
+	  fprintf (f, "%s", args[argno].m_cst_pchar);
+	  break;
+	case '.':
+	  {
+	    int n;
+	    const char *s;
+	    ++p;
+	    if (ISDIGIT (*p))
+	      {
+		char *end;
+		n = strtoul (p, &end, 10);
+		p = end;
+	      }
+	    else
+	      {
+		p = strchr (p, 's');
+		if (any_unnumbered)
+		  {
+		    n = args[argno].m_int;
+		    ++argno;
+		    ++curarg;
+		  }
+		else
+		  n = args[argno - 1].m_int;
+	      }
+	    q = p + 1;
+	    s = args[argno].m_cst_pchar;
+	    size_t len = n < 0 ? strlen (s) : strnlen (s, n);
+	    fprintf (f, "%.*s", (int) len, s);
+	    break;
+	  }
+	case '{':
+	  break;
+	case 'p':
+	  fprintf (f, "%p", args[argno].m_pvoid);
+	  break;
+	case 'f':
+	  fprintf (f, "%f", args[argno].m_double);
+	  break;
+	case 'Z':
+	  for (unsigned i = 0; i < args[argno].m_Z.len; ++i)
+	    {
+	      fprintf (f, "%i", args[argno].m_Z.p[i]);
+		if (i < args[argno].m_Z.len - 1)
+		  fprintf (f, ", ");
+	      }
+	  break;
+	default:
+	  gcc_unreachable ();
+	}
+      if (quote)
+	fputc ('\'', f);
+    }
+  fprintf (f, "%s", q);
+}
+
+#if defined(GENMATCH_SELFTESTS) && HAVE_DECL_FMEMOPEN
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+
+static void
+test_diag_vfprintf (const char *expected, const char *msg, ...)
+{
+  char buf[256];
+  va_list ap;
+  FILE *f = fmemopen (buf, 256, "w");
+  gcc_assert (f != NULL);
+  va_start (ap, msg);
+  diag_vfprintf (f, 0, msg, &ap);
+  va_end (ap);
+  fclose (f);
+  gcc_assert (strcmp (buf, expected) == 0);
+}
+
+#pragma GCC diagnostic pop
+
+static void
+genmatch_diag_selftests (void)
+{
+  /* Verify that plain text is passed through unchanged.  */
+  test_diag_vfprintf ("unformatted", "unformatted");
+
+  /* Verify various individual format codes, in the order listed in the
+     comment for pp_format above.  For each code, we append a second
+     argument with a known bit pattern (0x12345678), to ensure that we
+     are consuming arguments correctly.  */
+  test_diag_vfprintf ("-27 12345678", "%d %x", -27, 0x12345678);
+  test_diag_vfprintf ("-5 12345678", "%i %x", -5, 0x12345678);
+  test_diag_vfprintf ("10 12345678", "%u %x", 10, 0x12345678);
+  test_diag_vfprintf ("17 12345678", "%o %x", 15, 0x12345678);
+  test_diag_vfprintf ("cafebabe 12345678", "%x %x", 0xcafebabe, 0x12345678);
+  test_diag_vfprintf ("-27 12345678", "%ld %x", (long)-27, 0x12345678);
+  test_diag_vfprintf ("-5 12345678", "%li %x", (long)-5, 0x12345678);
+  test_diag_vfprintf ("10 12345678", "%lu %x", (long)10, 0x12345678);
+  test_diag_vfprintf ("17 12345678", "%lo %x", (long)15, 0x12345678);
+  test_diag_vfprintf ("cafebabe 12345678", "%lx %x", (long)0xcafebabe,
+		      0x12345678);
+  test_diag_vfprintf ("-27 12345678", "%lld %x", (long long)-27, 0x12345678);
+  test_diag_vfprintf ("-5 12345678", "%lli %x", (long long)-5, 0x12345678);
+  test_diag_vfprintf ("10 12345678", "%llu %x", (long long)10, 0x12345678);
+  test_diag_vfprintf ("17 12345678", "%llo %x", (long long)15, 0x12345678);
+  test_diag_vfprintf ("cafebabe 12345678", "%llx %x", (long long)0xcafebabe,
+		      0x12345678);
+  test_diag_vfprintf ("-27 12345678", "%wd %x", HOST_WIDE_INT_C (-27),
+		      0x12345678);
+  test_diag_vfprintf ("-5 12345678", "%wi %x", HOST_WIDE_INT_C (-5),
+		      0x12345678);
+  test_diag_vfprintf ("10 12345678", "%wu %x", HOST_WIDE_INT_UC (10),
+		      0x12345678);
+  test_diag_vfprintf ("17 12345678", "%wo %x", HOST_WIDE_INT_C (15),
+		      0x12345678);
+  test_diag_vfprintf ("0xcafebabe 12345678", "%wx %x",
+		      HOST_WIDE_INT_C (0xcafebabe), 0x12345678);
+  test_diag_vfprintf ("-27 12345678", "%zd %x", (ssize_t)-27, 0x12345678);
+  test_diag_vfprintf ("-5 12345678", "%zi %x", (ssize_t)-5, 0x12345678);
+  test_diag_vfprintf ("10 12345678", "%zu %x", (size_t)10, 0x12345678);
+  test_diag_vfprintf ("17 12345678", "%zo %x", (size_t)15, 0x12345678);
+  test_diag_vfprintf ("cafebabe 12345678", "%zx %x", (size_t)0xcafebabe,
+		      0x12345678);
+  test_diag_vfprintf ("-27 12345678", "%td %x", (ptrdiff_t)-27, 0x12345678);
+  test_diag_vfprintf ("-5 12345678", "%ti %x", (ptrdiff_t)-5, 0x12345678);
+  test_diag_vfprintf ("10 12345678", "%tu %x", (ptrdiff_t)10, 0x12345678);
+  test_diag_vfprintf ("17 12345678", "%to %x", (ptrdiff_t)15, 0x12345678);
+  test_diag_vfprintf ("1afebabe 12345678", "%tx %x", (ptrdiff_t)0x1afebabe,
+		      0x12345678);
+  test_diag_vfprintf ("1.000000 12345678", "%f %x", 1.0, 0x12345678);
+  test_diag_vfprintf ("A 12345678", "%c %x", 'A', 0x12345678);
+  test_diag_vfprintf ("hello world 12345678", "%s %x", "hello world",
+		      0x12345678);
+
+  /* Not nul-terminated.  */
+  char arr[5] = { '1', '2', '3', '4', '5' };
+  test_diag_vfprintf ("123 12345678", "%.*s %x", 3, arr, 0x12345678);
+  test_diag_vfprintf ("1234 12345678", "%.*s %x", -1, "1234", 0x12345678);
+  test_diag_vfprintf ("12345 12345678", "%.*s %x", 7, "12345", 0x12345678);
+
+  /* We can't test for %p; the pointer is printed in an implementation-defined
+     manner.  */
+  test_diag_vfprintf ("normal colored normal 12345678",
+		      "normal %rcolored%R normal %x",
+		      "error", 0x12345678);
+
+  /* TODO:
+     %m: strerror(text->err_no) - does not consume a value *ap.  */
+  test_diag_vfprintf ("% 12345678", "%% %x", 0x12345678);
+  test_diag_vfprintf ("' 12345678", "%< %x", 0x12345678);
+  test_diag_vfprintf ("' 12345678", "%> %x", 0x12345678);
+  test_diag_vfprintf ("' 12345678", "%' %x", 0x12345678);
+  test_diag_vfprintf ("abc 12345678", "%.*s %x", 3, "abcdef", 0x12345678);
+  test_diag_vfprintf ("abc 12345678", "%.3s %x", "abcdef", 0x12345678);
+
+  /* Verify flag 'q'.  */
+  test_diag_vfprintf ("'foo' 12345678", "%qs %x", "foo", 0x12345678);
+
+  /* Verify %Z.  */
+  int v[] = { 1, 2, 3 }; 
+  test_diag_vfprintf ("1, 2, 3 12345678", "%Z %x", v, 3, 0x12345678);
+
+  int v2[] = { 0 }; 
+  test_diag_vfprintf ("0 12345678", "%Z %x", v2, 1, 0x12345678);
+
+  /* Verify that combinations work, along with unformatted text.  */
+  test_diag_vfprintf ("the quick brown fox jumps over the lazy dog",
+		      "the %s %s %s jumps over the %s %s",
+		      "quick", "brown", "fox", "lazy", "dog");
+  test_diag_vfprintf ("item 3 of 7", "item %i of %i", 3, 7);
+  test_diag_vfprintf ("problem with 'bar' at line 10",
+		      "problem with %qs at line %i", "bar", 10);
+
+  /* Verified numbered args.  */
+  test_diag_vfprintf ("foo: second bar: first",
+		      "foo: %2$s bar: %1$s", "first", "second");
+  test_diag_vfprintf ("foo: 1066 bar: 1776",
+		      "foo: %2$i bar: %1$i", 1776, 1066);
+  test_diag_vfprintf ("foo: second bar: 1776",
+		      "foo: %2$s bar: %1$i", 1776, "second");
+  test_diag_vfprintf ("foo: sec bar: 3360",
+		      "foo: %3$.*2$s bar: %1$o", 1776, 3, "second");
+  test_diag_vfprintf ("foo: seco bar: 3360",
+		      "foo: %2$.4s bar: %1$o", 1776, "second");
+}
+#else
+static void
+genmatch_diag_selftests (void)
+{
+}
+#endif
 
 static bool
 #if GCC_VERSION >= 4001
-__attribute__((format (printf, 5, 0)))
+__attribute__((format (gcc_diag, 5, 0)))
 #endif
 diagnostic_cb (cpp_reader *, enum cpp_diagnostic_level errtype,
 	       enum cpp_warning_reason, rich_location *richloc,
 	       const char *msg, va_list *ap)
 {
   const line_map_ordinary *map;
+  int err_no = errno;
   location_t location = richloc->get_loc ();
   linemap_resolve_location (line_table, location, LRK_SPELLING_LOCATION, &map);
   expanded_location loc = linemap_expand_location (line_table, map, location);
   fprintf (stderr, "%s:%d:%d %s: ", loc.file, loc.line, loc.column,
 	   (errtype == CPP_DL_WARNING) ? "warning" : "error");
-  vfprintf (stderr, msg, *ap);
+  diag_vfprintf (stderr, err_no, msg, ap);
   fprintf (stderr, "\n");
   FILE *f = fopen (loc.file, "r");
   if (f)
@@ -116,7 +774,7 @@ notfound:
 
 static void
 #if GCC_VERSION >= 4001
-__attribute__((format (printf, 2, 3)))
+__attribute__((format (gcc_diag, 2, 3)))
 #endif
 fatal_at (const cpp_token *tk, const char *msg, ...)
 {
@@ -129,7 +787,7 @@ fatal_at (const cpp_token *tk, const char *msg, ...)
 
 static void
 #if GCC_VERSION >= 4001
-__attribute__((format (printf, 2, 3)))
+__attribute__((format (gcc_diag, 2, 3)))
 #endif
 fatal_at (location_t loc, const char *msg, ...)
 {
@@ -142,7 +800,7 @@ fatal_at (location_t loc, const char *msg, ...)
 
 static void
 #if GCC_VERSION >= 4001
-__attribute__((format (printf, 2, 3)))
+__attribute__((format (gcc_diag, 2, 3)))
 #endif
 warning_at (const cpp_token *tk, const char *msg, ...)
 {
@@ -155,7 +813,7 @@ warning_at (const cpp_token *tk, const char *msg, ...)
 
 static void
 #if GCC_VERSION >= 4001
-__attribute__((format (printf, 2, 3)))
+__attribute__((format (gcc_diag, 2, 3)))
 #endif
 warning_at (location_t loc, const char *msg, ...)
 {
@@ -183,10 +841,89 @@ fprintf_indent (FILE *f, unsigned int indent, const char *format, ...)
   va_end (ap);
 }
 
+/* Secondary stream for fp_decl.  */
+static FILE *header_file;
+
+/* Start or continue emitting a declaration in fprintf-like manner,
+   printing both to F and global header_file, if non-null.  */
+static void
+#if GCC_VERSION >= 4001
+__attribute__((format (printf, 2, 3)))
+#endif
+fp_decl (FILE *f, const char *format, ...)
+{
+  va_list ap;
+  va_start (ap, format);
+  vfprintf (f, format, ap);
+  va_end (ap);
+
+  if (!header_file)
+    return;
+
+  va_start (ap, format);
+  vfprintf (header_file, format, ap);
+  va_end (ap);
+}
+
+/* Finish a declaration being emitted by fp_decl.  */
+static void
+fp_decl_done (FILE *f, const char *trailer)
+{
+  fprintf (f, "%s\n", trailer);
+  if (header_file)
+    fprintf (header_file, "%s;", trailer);
+}
+
+/* Line numbers for use by indirect line directives.  */
+static vec<int> dbg_line_numbers;
+
+static void
+write_header_declarations (bool gimple, FILE *f)
+{
+  fprintf (f, "\nextern void\n%s_dump_logs (const char *file1, int line1_id, "
+	      "const char *file2, int line2, bool simplify);\n",
+	      gimple ? "gimple" : "generic");
+}
+
+static void
+define_dump_logs (bool gimple, FILE *f)
+{
+  if (dbg_line_numbers.is_empty ())
+      return;
+
+  fprintf (f , "void\n%s_dump_logs (const char *file1, int line1_id, "
+		"const char *file2, int line2, bool simplify)\n{\n",
+		gimple ? "gimple" : "generic");
+
+  fprintf_indent (f, 2, "static int dbg_line_numbers[%d] = {",
+		  dbg_line_numbers.length ());
+
+  for (unsigned i = 0; i < dbg_line_numbers.length () - 1; i++)
+    {
+      if (i % 10 == 0)
+	fprintf (f, "\n\t/* %d */ ", i);
+
+      fprintf (f, "%d, ", dbg_line_numbers[i]);
+    }
+  fprintf (f, "%d\n  };\n\n", dbg_line_numbers.last ());
+
+
+  fprintf_indent (f, 2, "fprintf (dump_file, \"%%s "
+		  "%%s:%%d, %%s:%%d\\n\",\n");
+  fprintf_indent (f, 10, "simplify ? \"Applying pattern\" : "
+		  "\"Matching expression\", file1, "
+		  "dbg_line_numbers[line1_id], file2, line2);");
+
+  fprintf (f, "\n}\n\n");
+}
+
 static void
 output_line_directive (FILE *f, location_t location,
-		       bool dumpfile = false, bool fnargs = false)
+		      bool dumpfile = false, bool fnargs = false,
+		      bool indirect_line_numbers = false)
 {
+  typedef pair_hash<nofree_string_hash, int_hash<int, -1>> location_hash;
+  static hash_map<location_hash, int> loc_id_map;
   const line_map_ordinary *map;
   linemap_resolve_location (line_table, location, LRK_SPELLING_LOCATION, &map);
   expanded_location loc = linemap_expand_location (line_table, map, location);
@@ -205,16 +942,56 @@ output_line_directive (FILE *f, location_t location,
 	++file;
 
       if (fnargs)
-	fprintf (f, "\"%s\", %d", file, loc.line);
+	{
+	  if (indirect_line_numbers)
+	    {
+	      bool existed;
+	      int &loc_id = loc_id_map.get_or_insert (
+				std::make_pair (file, loc.line), &existed);
+		if (!existed)
+		{
+		  loc_id = dbg_line_numbers.length ();
+		  dbg_line_numbers.safe_push (loc.line);
+		}
+
+		fprintf (f, "\"%s\", %d", file, loc_id);
+	    }
+	  else
+	    fprintf (f, "\"%s\", %d", file, loc.line);
+	}
       else
 	fprintf (f, "%s:%d", file, loc.line);
     }
-  else
+  else if (verbose >= 2)
     /* Other gen programs really output line directives here, at least for
        development it's right now more convenient to have line information
        from the generated file.  Still keep the directives as comment for now
        to easily back-point to the meta-description.  */
     fprintf (f, "/* #line %d \"%s\" */\n", loc.line, loc.file);
+}
+
+/* Find the file to write into next.  We try to evenly distribute the contents
+   over the different files.  */
+
+#define SIZED_BASED_CHUNKS 1
+
+static FILE *
+choose_output (const vec<FILE *> &parts)
+{
+#ifdef SIZED_BASED_CHUNKS
+  FILE *shortest = NULL;
+  long min = 0;
+  for (FILE *part : parts)
+    {
+      long len = ftell (part);
+      if (!shortest || min > len)
+	shortest = part, min = len;
+    }
+  return shortest;
+#else
+  static int current_file;
+  return parts[current_file++ % parts.length ()];
+#endif
 }
 
 
@@ -471,12 +1248,13 @@ is_a_helper <user_id *>::test (id_base *id)
    index of the first, otherwise return -1.  */
 
 static int
-commutative_op (id_base *id)
+commutative_op (id_base *id, bool compares_are_commutative = false)
 {
   if (operator_id *code = dyn_cast <operator_id *> (id))
     {
       if (commutative_tree_code (code->code)
-	  || commutative_ternary_tree_code (code->code))
+	  || commutative_ternary_tree_code (code->code)
+	  || (compares_are_commutative && comparison_code_p (code->code)))
 	return 0;
       return -1;
     }
@@ -484,21 +1262,54 @@ commutative_op (id_base *id)
     switch (fn->fn)
       {
       CASE_CFN_FMA:
+      CASE_CFN_HYPOT:
       case CFN_FMS:
       case CFN_FNMA:
       case CFN_FNMS:
+      case CFN_ADD_OVERFLOW:
+      case CFN_MUL_OVERFLOW:
 	return 0;
+
+      case CFN_COND_ADD:
+      case CFN_COND_MUL:
+      case CFN_COND_MIN:
+      case CFN_COND_MAX:
+      case CFN_COND_FMIN:
+      case CFN_COND_FMAX:
+      case CFN_COND_AND:
+      case CFN_COND_IOR:
+      case CFN_COND_XOR:
+      case CFN_COND_FMA:
+      case CFN_COND_FMS:
+      case CFN_COND_FNMA:
+      case CFN_COND_FNMS:
+      case CFN_COND_LEN_ADD:
+      case CFN_COND_LEN_MUL:
+      case CFN_COND_LEN_MIN:
+      case CFN_COND_LEN_MAX:
+      case CFN_COND_LEN_FMIN:
+      case CFN_COND_LEN_FMAX:
+      case CFN_COND_LEN_AND:
+      case CFN_COND_LEN_IOR:
+      case CFN_COND_LEN_XOR:
+      case CFN_COND_LEN_FMA:
+      case CFN_COND_LEN_FMS:
+      case CFN_COND_LEN_FNMA:
+      case CFN_COND_LEN_FNMS:
+	return 1;
 
       default:
 	return -1;
       }
   if (user_id *uid = dyn_cast<user_id *> (id))
     {
-      int res = commutative_op (uid->substitutes[0]);
+      int res = commutative_op (uid->substitutes[0],
+				compares_are_commutative);
       if (res < 0)
-	return 0;
+	return -1;
       for (unsigned i = 1; i < uid->substitutes.length (); ++i)
-	if (res != commutative_op (uid->substitutes[i]))
+	if (res != commutative_op (uid->substitutes[i],
+				   compares_are_commutative))
 	  return -1;
       return res;
     }
@@ -698,12 +1509,13 @@ public:
     : operand (OP_EXPR, loc), operation (operation_),
       ops (vNULL), expr_type (NULL), is_commutative (is_commutative_),
       is_generic (false), force_single_use (false), force_leaf (false),
-      opt_grp (0) {}
+      match_phi (false), opt_grp (0) {}
   expr (expr *e)
     : operand (OP_EXPR, e->location), operation (e->operation),
       ops (vNULL), expr_type (e->expr_type), is_commutative (e->is_commutative),
       is_generic (e->is_generic), force_single_use (e->force_single_use),
-      force_leaf (e->force_leaf), opt_grp (e->opt_grp) {}
+      force_leaf (e->force_leaf), match_phi (e->match_phi),
+      opt_grp (e->opt_grp) {}
   void append_op (operand *op) { ops.safe_push (op); }
   /* The operator and its operands.  */
   id_base *operation;
@@ -721,11 +1533,13 @@ public:
   /* Whether in the result expression this should be a leaf node
      with any children simplified down to simple operands.  */
   bool force_leaf;
+  /* Whether the COND_EXPR is matching PHI gimple,  default false.  */
+  bool match_phi;
   /* If non-zero, the group for optional handling.  */
   unsigned char opt_grp;
-  virtual void gen_transform (FILE *f, int, const char *, bool, int,
-			      const char *, capture_info *,
-			      dt_operand ** = 0, int = 0);
+  void gen_transform (FILE *f, int, const char *, bool, int,
+		      const char *, capture_info *,
+		      dt_operand ** = 0, int = 0) override;
 };
 
 /* An operator that is represented by native C code.  This is always
@@ -757,9 +1571,9 @@ public:
   unsigned nr_stmts;
   /* The identifier replacement vector.  */
   vec<id_tab> ids;
-  virtual void gen_transform (FILE *f, int, const char *, bool, int,
-			      const char *, capture_info *,
-			      dt_operand ** = 0, int = 0);
+  void gen_transform (FILE *f, int, const char *, bool, int,
+		      const char *, capture_info *,
+		      dt_operand ** = 0, int = 0) final override;
 };
 
 /* A wrapper around another operand that captures its value.  */
@@ -778,9 +1592,9 @@ public:
   bool value_match;
   /* The captured value.  */
   operand *what;
-  virtual void gen_transform (FILE *f, int, const char *, bool, int,
-			      const char *, capture_info *,
-			      dt_operand ** = 0, int = 0);
+  void gen_transform (FILE *f, int, const char *, bool, int,
+		      const char *, capture_info *,
+		      dt_operand ** = 0, int = 0) final override;
 };
 
 /* if expression.  */
@@ -1132,7 +1946,7 @@ lower_opt (operand *o, unsigned char grp, bool strip)
   return ne;
 }
 
-/* Determine whether O or its children uses the conditional operation 
+/* Determine whether O or its children uses the conditional operation
    group GRP.  */
 
 static bool
@@ -1449,7 +2263,7 @@ lower_for (simplify *sin, vec<simplify *>& simplifiers)
       vec<user_id *>& ids = for_vec[fi];
       unsigned n_ids = ids.length ();
       unsigned max_n_opers = 0;
-      bool can_delay_subst = (sin->kind == simplify::SIMPLIFY);
+      bool can_delay_subst = true;
       for (unsigned i = 0; i < n_ids; ++i)
 	{
 	  if (ids[i]->substitutes.length () > max_n_opers)
@@ -1489,6 +2303,9 @@ lower_for (simplify *sin, vec<simplify *>& simplifiers)
 	    else
 	      can_delay_subst = false;
 	}
+      if (sin->kind == simplify::MATCH
+	  && can_delay_subst)
+	continue;
 
       unsigned worklist_end = worklist.length ();
       for (unsigned si = worklist_start; si < worklist_end; ++si)
@@ -1512,7 +2329,9 @@ lower_for (simplify *sin, vec<simplify *>& simplifiers)
 		      break;
 		    }
 		  subst.quick_push (std::make_pair (id, oper));
-		  match_op = replace_id (match_op, id, oper);
+		  if (sin->kind == simplify::SIMPLIFY
+		      || !can_delay_subst)
+		    match_op = replace_id (match_op, id, oper);
 		  if (result_op
 		      && !can_delay_subst)
 		    result_op = replace_id (result_op, id, oper);
@@ -1594,7 +2413,7 @@ struct sinfo_hashmap_traits : simple_hashmap_traits<pointer_hash<dt_simplify>,
   template <typename T> static inline void remove (T &) {}
 };
 
-typedef hash_map<void * /* unused */, sinfo *, sinfo_hashmap_traits>
+typedef ordered_hash_map<void * /* unused */, sinfo *, sinfo_hashmap_traits>
   sinfo_map_t;
 
 /* Current simplifier ID we are processing during insertion into the
@@ -1655,7 +2474,7 @@ public:
       : dt_node (type, parent_), op (op_), match_dop (match_dop_),
       pos (pos_), value_match (false), for_id (current_id) {}
 
-  void gen (FILE *, int, bool, int);
+  void gen (FILE *, int, bool, int) final override;
   unsigned gen_predicate (FILE *, int, const char *, bool);
   unsigned gen_match_op (FILE *, int, const char *, bool);
 
@@ -1664,6 +2483,7 @@ public:
 
   char *get_name (char *);
   void gen_opname (char *, unsigned);
+  void gen_phi_on_cond (FILE *, int, int);
 };
 
 /* Leaf node of the decision tree, used for DT_SIMPLIFY.  */
@@ -1681,7 +2501,7 @@ public:
 	  indexes (indexes_), info (NULL)  {}
 
   void gen_1 (FILE *, int, bool, operand *);
-  void gen (FILE *f, int, bool, int);
+  void gen (FILE *f, int, bool, int) final override;
 };
 
 template<>
@@ -1712,7 +2532,7 @@ public:
   dt_node *root;
 
   void insert (class simplify *, unsigned);
-  void gen (FILE *f, bool gimple);
+  void gen (vec <FILE *> &f, bool gimple);
   void print (FILE *f = stderr);
 
   decision_tree () { root = new dt_node (dt_node::DT_NODE, NULL); }
@@ -1742,8 +2562,15 @@ cmp_operand (operand *o1, operand *o2)
     {
       expr *e1 = static_cast<expr *>(o1);
       expr *e2 = static_cast<expr *>(o2);
-      return (e1->operation == e2->operation
-	      && e1->is_generic == e2->is_generic);
+      if (e1->operation != e2->operation
+	  || e1->is_generic != e2->is_generic
+	  || e1->match_phi != e2->match_phi)
+	return false;
+      if (e1->operation->kind == id_base::FN
+	  /* For function calls also compare number of arguments.  */
+	  && e1->ops.length () != e2->ops.length ())
+	return false;
+      return true;
     }
   else
     return false;
@@ -2526,7 +3353,8 @@ expr::gen_transform (FILE *f, int indent, const char *dest, bool gimple,
       for (unsigned i = 0; i < ops.length (); ++i)
 	fprintf (f, ", _o%d[%u]", depth, i);
       fprintf (f, ");\n");
-      fprintf_indent (f, indent, "tem_op.resimplify (lseq, valueize);\n");
+      fprintf_indent (f, indent, "tem_op.resimplify (%s, valueize);\n",
+		      !force_leaf ? "lseq" : "NULL");
       fprintf_indent (f, indent,
 		      "_r%d = maybe_push_res_to_seq (&tem_op, %s);\n", depth,
 		      !force_leaf ? "lseq" : "NULL");
@@ -2547,7 +3375,8 @@ expr::gen_transform (FILE *f, int indent, const char *dest, bool gimple,
 	{
 	  fprintf_indent (f, indent, "if (TREE_TYPE (_o%d[0]) != %s)\n",
 			  depth, type);
-	  indent += 2;
+	  fprintf_indent (f, indent + 2, "{\n");
+	  indent += 4;
 	}
       if (opr->kind == id_base::CODE)
 	fprintf_indent (f, indent, "_r%d = fold_build%d_loc (loc, %s, %s",
@@ -2570,7 +3399,8 @@ expr::gen_transform (FILE *f, int indent, const char *dest, bool gimple,
 	}
       if (*opr == CONVERT_EXPR)
 	{
-	  indent -= 2;
+	  fprintf_indent (f, indent - 2, "}\n");
+	  indent -= 4;
 	  fprintf_indent (f, indent, "else\n");
 	  fprintf_indent (f, indent, "  _r%d = _o%d[0];\n", depth, depth);
 	}
@@ -2808,6 +3638,9 @@ dt_operand::gen_gimple_expr (FILE *f, int indent, int depth)
   unsigned n_ops = e->ops.length ();
   unsigned n_braces = 0;
 
+  if (user_id *u = dyn_cast <user_id *> (id))
+    id = u->substitutes[0];
+
   for (unsigned i = 0; i < n_ops; ++i)
     {
       char child_opname[20];
@@ -2889,14 +3722,18 @@ unsigned
 dt_operand::gen_generic_expr (FILE *f, int indent, const char *opname)
 {
   expr *e = static_cast<expr *> (op);
+  id_base *id = e->operation;
   unsigned n_ops = e->ops.length ();
+
+  if (user_id *u = dyn_cast <user_id *> (id))
+    id = u->substitutes[0];
 
   for (unsigned i = 0; i < n_ops; ++i)
     {
       char child_opname[20];
       gen_opname (child_opname, i);
 
-      if (e->operation->kind == id_base::CODE)
+      if (id->kind == id_base::CODE)
 	fprintf_indent (f, indent, "tree %s = TREE_OPERAND (%s, %u);\n",
 			child_opname, opname, i);
       else
@@ -2905,6 +3742,26 @@ dt_operand::gen_generic_expr (FILE *f, int indent, const char *opname)
     }
 
   return 0;
+}
+
+/* Compare 2 fns or generic_fns vector entries for vector sorting.
+   Same operation entries with different number of arguments should
+   be adjacent.  */
+
+static int
+fns_cmp (const void *p1, const void *p2)
+{
+  dt_operand *op1 = *(dt_operand *const *) p1;
+  dt_operand *op2 = *(dt_operand *const *) p2;
+  expr *e1 = as_a <expr *> (op1->op);
+  expr *e2 = as_a <expr *> (op2->op);
+  id_base *b1 = e1->operation;
+  id_base *b2 = e2->operation;
+  if (b1->hashval < b2->hashval)
+    return -1;
+  if (b1->hashval > b2->hashval)
+    return 1;
+  return strcmp (b1->id, b2->id);
 }
 
 /* Generate matching code for the children of the decision tree node.  */
@@ -2927,8 +3784,16 @@ dt_node::gen_kids (FILE *f, int indent, bool gimple, int depth)
 	  if (expr *e = dyn_cast <expr *> (op->op))
 	    {
 	      if (e->ops.length () == 0
+		  /* In GIMPLE a CONSTRUCTOR always appears in a
+		     separate definition.  */
 		  && (!gimple || !(*e->operation == CONSTRUCTOR)))
-		generic_exprs.safe_push (op);
+		{
+		  generic_exprs.safe_push (op);
+		  /* But ADDR_EXPRs can appear directly when invariant
+		     and in a separate definition when not.  */
+		  if (gimple && *e->operation == ADDR_EXPR)
+		    gimple_exprs.safe_push (op);
+		}
 	      else if (e->operation->kind == id_base::FN)
 		{
 		  if (gimple)
@@ -2940,10 +3805,21 @@ dt_node::gen_kids (FILE *f, int indent, bool gimple, int depth)
 		preds.safe_push (op);
 	      else
 		{
-		  if (gimple && !e->is_generic)
-		    gimple_exprs.safe_push (op);
+		  user_id *u = dyn_cast <user_id *> (e->operation);
+		  if (u && u->substitutes[0]->kind == id_base::FN)
+		    {
+		      if (gimple)
+			fns.safe_push (op);
+		      else
+			generic_fns.safe_push (op);
+		    }
 		  else
-		    generic_exprs.safe_push (op);
+		    {
+		      if (gimple && !e->is_generic)
+			gimple_exprs.safe_push (op);
+		      else
+			generic_exprs.safe_push (op);
+		    }
 		}
 	    }
 	  else if (op->op->type == operand::OP_PREDICATE)
@@ -2961,6 +3837,8 @@ dt_node::gen_kids (FILE *f, int indent, bool gimple, int depth)
 	     Like DT_TRUE, DT_MATCH serves as a barrier as it can cause
 	     dependent matches to get out-of-order.  Generate code now
 	     for what we have collected sofar.  */
+	  fns.qsort (fns_cmp);
+	  generic_fns.qsort (fns_cmp);
 	  gen_kids_1 (f, indent, gimple, depth, gimple_exprs, generic_exprs,
 		      fns, generic_fns, preds, others);
 	  /* And output the true operand itself.  */
@@ -2977,6 +3855,8 @@ dt_node::gen_kids (FILE *f, int indent, bool gimple, int depth)
     }
 
   /* Generate code for the remains.  */
+  fns.qsort (fns_cmp);
+  generic_fns.qsort (fns_cmp);
   gen_kids_1 (f, indent, gimple, depth, gimple_exprs, generic_exprs,
 	      fns, generic_fns, preds, others);
 }
@@ -3037,14 +3917,24 @@ dt_node::gen_kids_1 (FILE *f, int indent, bool gimple, int depth,
 			  depth);
 	  indent += 4;
 	  fprintf_indent (f, indent, "{\n");
+	  bool cond_expr_p = false;
 	  for (unsigned i = 0; i < exprs_len; ++i)
 	    {
 	      expr *e = as_a <expr *> (gimple_exprs[i]->op);
-	      id_base *op = e->operation;
-	      if (*op == CONVERT_EXPR || *op == NOP_EXPR)
-		fprintf_indent (f, indent, "CASE_CONVERT:\n");
+	      if (user_id *u = dyn_cast <user_id *> (e->operation))
+		{
+		  for (auto id : u->substitutes)
+		    fprintf_indent (f, indent, "case %s:\n", id->id);
+		}
 	      else
-		fprintf_indent (f, indent, "case %s:\n", op->id);
+		{
+		  id_base *op = e->operation;
+		  cond_expr_p |= (*op == COND_EXPR && e->match_phi);
+		  if (*op == CONVERT_EXPR || *op == NOP_EXPR)
+		    fprintf_indent (f, indent, "CASE_CONVERT:\n");
+		  else
+		    fprintf_indent (f, indent, "case %s:\n", op->id);
+		}
 	      fprintf_indent (f, indent, "  {\n");
 	      gimple_exprs[i]->gen (f, indent + 4, true, depth);
 	      fprintf_indent (f, indent, "    break;\n");
@@ -3053,6 +3943,27 @@ dt_node::gen_kids_1 (FILE *f, int indent, bool gimple, int depth,
 	  fprintf_indent (f, indent, "default:;\n");
 	  fprintf_indent (f, indent, "}\n");
 	  indent -= 4;
+
+	  if (cond_expr_p)
+	    {
+	      fprintf_indent (f, indent,
+		"else if (gphi *_a%d = dyn_cast <gphi *> (_d%d))\n",
+		depth, depth);
+	      indent += 2;
+	      fprintf_indent (f, indent, "{\n");
+	      indent += 2;
+
+	      for (unsigned i = 0; i < exprs_len; i++)
+		{
+		  expr *e = as_a <expr *> (gimple_exprs[i]->op);
+		  if (*e->operation == COND_EXPR && e->match_phi)
+		    gimple_exprs[i]->gen_phi_on_cond (f, indent, depth);
+		}
+
+	      indent -= 2;
+	      fprintf_indent (f, indent, "}\n");
+	      indent -= 2;
+	    }
 	}
 
       if (fns_len)
@@ -3066,10 +3977,21 @@ dt_node::gen_kids_1 (FILE *f, int indent, bool gimple, int depth,
 
 	  indent += 4;
 	  fprintf_indent (f, indent, "{\n");
+	  id_base *last_op = NULL;
 	  for (unsigned i = 0; i < fns_len; ++i)
 	    {
 	      expr *e = as_a <expr *>(fns[i]->op);
-	      fprintf_indent (f, indent, "case %s:\n", e->operation->id);
+	      if (e->operation != last_op)
+		{
+		  if (i)
+		    fprintf_indent (f, indent, "  break;\n");
+		  if (user_id *u = dyn_cast <user_id *> (e->operation))
+		    for (auto id : u->substitutes)
+		      fprintf_indent (f, indent, "case %s:\n", id->id);
+		  else
+		    fprintf_indent (f, indent, "case %s:\n", e->operation->id);
+		}
+	      last_op = e->operation;
 	      /* We need to be defensive against bogus prototypes allowing
 		 calls with not enough arguments.  */
 	      fprintf_indent (f, indent,
@@ -3078,9 +4000,9 @@ dt_node::gen_kids_1 (FILE *f, int indent, bool gimple, int depth,
 	      fprintf_indent (f, indent, "    {\n");
 	      fns[i]->gen (f, indent + 6, true, depth);
 	      fprintf_indent (f, indent, "    }\n");
-	      fprintf_indent (f, indent, "  break;\n");
 	    }
 
+	  fprintf_indent (f, indent, "  break;\n");
 	  fprintf_indent (f, indent, "default:;\n");
 	  fprintf_indent (f, indent, "}\n");
 	  indent -= 4;
@@ -3116,7 +4038,13 @@ dt_node::gen_kids_1 (FILE *f, int indent, bool gimple, int depth,
 	/* Already handled above.  */
 	continue;
       else
-	fprintf_indent (f, indent, "case %s:\n", op->id);
+	{
+	  if (user_id *u = dyn_cast <user_id *> (op))
+	    for (auto id : u->substitutes)
+	      fprintf_indent (f, indent, "case %s:\n", id->id);
+	  else
+	    fprintf_indent (f, indent, "case %s:\n", op->id);
+	}
       fprintf_indent (f, indent, "  {\n");
       generic_exprs[i]->gen (f, indent + 4, gimple, depth);
       fprintf_indent (f, indent, "    break;\n");
@@ -3134,18 +4062,25 @@ dt_node::gen_kids_1 (FILE *f, int indent, bool gimple, int depth,
 		      "    {\n");
       indent += 4;
 
+      id_base *last_op = NULL;
       for (unsigned j = 0; j < generic_fns.length (); ++j)
 	{
 	  expr *e = as_a <expr *>(generic_fns[j]->op);
 	  gcc_assert (e->operation->kind == id_base::FN);
 
-	  fprintf_indent (f, indent, "case %s:\n", e->operation->id);
+	  if (e->operation != last_op)
+	    {
+	      if (j)
+		fprintf_indent (f, indent, "  break;\n");
+	      fprintf_indent (f, indent, "case %s:\n", e->operation->id);
+	    }
+	  last_op = e->operation;
 	  fprintf_indent (f, indent, "  if (call_expr_nargs (%s) == %d)\n"
 				     "    {\n", kid_opname, e->ops.length ());
 	  generic_fns[j]->gen (f, indent + 6, false, depth);
-	  fprintf_indent (f, indent, "    }\n"
-				     "  break;\n");
+	  fprintf_indent (f, indent, "    }\n");
 	}
+      fprintf_indent (f, indent, "  break;\n");
       fprintf_indent (f, indent, "default:;\n");
 
       indent -= 4;
@@ -3182,7 +4117,7 @@ dt_node::gen_kids_1 (FILE *f, int indent, bool gimple, int depth,
 			  child_opname, kid_opname, j);
 	}
       preds[i]->gen_kids (f, indent + 4, gimple, depth);
-      fprintf (f, "}\n");
+      fprintf_indent (f, indent, "  }\n");
       indent -= 2;
       fprintf_indent (f, indent, "}\n");
     }
@@ -3237,6 +4172,62 @@ dt_operand::gen (FILE *f, int indent, bool gimple, int depth)
     }
 }
 
+/* Generate matching code for the phi when meet COND_EXPR.  */
+
+void
+dt_operand::gen_phi_on_cond (FILE *f, int indent, int depth)
+{
+  char opname_0[20];
+  char opname_1[20];
+  char opname_2[20];
+
+  gen_opname (opname_0, 0);
+  gen_opname (opname_1, 1);
+  gen_opname (opname_2, 2);
+
+  fprintf_indent (f, indent,
+    "basic_block _b%d = gimple_bb (_a%d);\n", depth, depth);
+  fprintf_indent (f, indent, "tree %s, %s;\n", opname_1, opname_2);
+  fprintf_indent (f, indent,
+    "gcond *_cond_%d = match_cond_with_binary_phi (_a%d, &%s, &%s);\n",
+    depth, depth, opname_1, opname_2);
+
+  fprintf_indent (f, indent, "if (_cond_%d)\n", depth);
+
+  indent += 2;
+  fprintf_indent (f, indent, "{\n");
+  indent += 2;
+
+  fprintf_indent (f, indent,
+    "tree _cond_lhs_%d = gimple_cond_lhs (_cond_%d);\n", depth, depth);
+  fprintf_indent (f, indent,
+    "tree _cond_rhs_%d = gimple_cond_rhs (_cond_%d);\n", depth, depth);
+  fprintf_indent (f, indent,
+    "tree %s = build2 (gimple_cond_code (_cond_%d), "
+    "boolean_type_node, _cond_lhs_%d, _cond_rhs_%d);\n",
+    opname_0, depth, depth, depth);
+
+  gen_kids (f, indent, true, depth);
+
+  indent -= 2;
+  fprintf_indent (f, indent, "}\n");
+  indent -= 2;
+}
+
+/* Emit a logging call to the debug file to the file F, with the INDENT from
+   either the RESULT location or the S's match location if RESULT is null. */
+static void
+emit_logging_call (FILE *f, int indent, class simplify *s, operand *result,
+				  bool gimple)
+{
+  fprintf_indent (f, indent, "if (UNLIKELY (debug_dump)) "
+	   "%s_dump_logs (", gimple ? "gimple" : "generic");
+  output_line_directive (f,
+			result ? result->location : s->match->location,
+			true, true, true);
+  fprintf (f, ", __FILE__, __LINE__, %s);\n",
+	      s->kind == simplify::SIMPLIFY ? "true" : "false");
+}
 
 /* Generate code for the '(if ...)', '(with ..)' and actual transform
    step of a '(simplify ...)' or '(match ...)'.  This handles everything
@@ -3287,6 +4278,7 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
   char local_fail_label[256];
   snprintf (local_fail_label, 256, "next_after_fail%u", ++fail_label_cnt);
   fail_label = local_fail_label;
+  bool needs_label = false;
 
   /* Analyze captures and perform early-outs on the incoming arguments
      that cover cases we cannot handle.  */
@@ -3301,6 +4293,7 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
 		fprintf_indent (f, indent,
 				"if (TREE_SIDE_EFFECTS (_p%d)) goto %s;\n",
 				i, fail_label);
+		needs_label = true;
 		if (verbose >= 1)
 		  warning_at (as_a <expr *> (s->match)->ops[i]->location,
 			      "forcing toplevel operand to have no "
@@ -3316,6 +4309,7 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
 		fprintf_indent (f, indent,
 				"if (TREE_SIDE_EFFECTS (captures[%d])) "
 				"goto %s;\n", i, fail_label);
+		needs_label = true;
 		if (verbose >= 1)
 		  warning_at (cinfo.info[i].c->location,
 			      "forcing captured operand to have no "
@@ -3358,23 +4352,17 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
     }
 
   if (s->kind == simplify::SIMPLIFY)
-    fprintf_indent (f, indent, "if (__builtin_expect (!dbg_cnt (match), 0)) goto %s;\n", fail_label);
-
-  fprintf_indent (f, indent, "if (__builtin_expect (dump_file && (dump_flags & TDF_FOLDING), 0)) "
-	   "fprintf (dump_file, \"%s ",
-	   s->kind == simplify::SIMPLIFY
-	   ? "Applying pattern" : "Matching expression");
-  fprintf (f, "%%s:%%d, %%s:%%d\\n\", ");
-  output_line_directive (f,
-			 result ? result->location : s->match->location, true,
-			 true);
-  fprintf (f, ", __FILE__, __LINE__);\n");
+    {
+      fprintf_indent (f, indent, "if (UNLIKELY (!dbg_cnt (match))) goto %s;\n", fail_label);
+      needs_label = true;
+    }
 
   fprintf_indent (f, indent, "{\n");
   indent += 2;
   if (!result)
     {
       /* If there is no result then this is a predicate implementation.  */
+      emit_logging_call (f, indent, s, result, gimple);
       fprintf_indent (f, indent, "return true;\n");
     }
   else if (gimple)
@@ -3428,11 +4416,15 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
 	  if (!is_predicate)
 	    {
 	      fprintf_indent (f, indent,
-			      "res_op->resimplify (lseq, valueize);\n");
+			      "res_op->resimplify (%s, valueize);\n",
+			      !e->force_leaf ? "lseq" : "NULL");
 	      if (e->force_leaf)
-		fprintf_indent (f, indent,
-				"if (!maybe_push_res_to_seq (res_op, NULL)) "
-				"goto %s;\n", fail_label);
+		{
+		  fprintf_indent (f, indent,
+				  "if (!maybe_push_res_to_seq (res_op, NULL)) "
+				  "goto %s;\n", fail_label);
+		  needs_label = true;
+		}
 	    }
 	}
       else if (result->type == operand::OP_CAPTURE
@@ -3461,6 +4453,7 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
 	}
       else
 	gcc_unreachable ();
+      emit_logging_call (f, indent, s, result, gimple);
       fprintf_indent (f, indent, "return true;\n");
     }
   else /* GENERIC */
@@ -3488,9 +4481,12 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
 		  continue;
 		if (cinfo.info[i].result_use_count
 		    > cinfo.info[i].match_use_count)
-		  fprintf_indent (f, indent,
-				  "if (! tree_invariant_p (captures[%d])) "
-				  "goto %s;\n", i, fail_label);
+		  {
+		    fprintf_indent (f, indent,
+				    "if (! tree_invariant_p (captures[%d])) "
+				    "goto %s;\n", i, fail_label);
+		    needs_label = true;
+		  }
 	      }
 	  for (unsigned j = 0; j < e->ops.length (); ++j)
 	    {
@@ -3511,7 +4507,10 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
 					&cinfo, indexes);
 	    }
 	  if (is_predicate)
-	    fprintf_indent (f, indent, "return true;\n");
+	    {
+	      emit_logging_call (f, indent, s, result, gimple);
+	      fprintf_indent (f, indent, "return true;\n");
+	    }
 	  else
 	    {
 	      fprintf_indent (f, indent, "tree _r;\n");
@@ -3541,6 +4540,7 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
 		    {
 		      fprintf_indent (f, indent, "if (!_r)\n");
 		      fprintf_indent (f, indent, "  goto %s;\n", fail_label);
+		      needs_label = true;
 		    }
 		}
 	    }
@@ -3576,12 +4576,14 @@ dt_simplify::gen_1 (FILE *f, int indent, bool gimple, operand *result)
 				  i);
 		}
 	    }
+	  emit_logging_call (f, indent, s, result, gimple);
 	  fprintf_indent (f, indent, "return _r;\n");
 	}
     }
   indent -= 2;
   fprintf_indent (f, indent, "}\n");
-  fprintf (f, "%s:;\n", fail_label);
+  if (needs_label)
+    fprintf (f, "%s:;\n", fail_label);
   fail_label = NULL;
 }
 
@@ -3750,7 +4752,7 @@ sinfo_hashmap_traits::equal_keys (const key_type &v,
    tree.  */
 
 void
-decision_tree::gen (FILE *f, bool gimple)
+decision_tree::gen (vec <FILE *> &files, bool gimple)
 {
   sinfo_map_t si;
 
@@ -3758,7 +4760,7 @@ decision_tree::gen (FILE *f, bool gimple)
 
   fprintf (stderr, "%s decision tree has %u leafs, maximum depth %u and "
 	   "a total number of %u nodes\n",
-	   gimple ? "GIMPLE" : "GENERIC", 
+	   gimple ? "GIMPLE" : "GENERIC",
 	   root->num_leafs, root->max_level, root->total_size);
 
   /* First split out the transform part of equal leafs.  */
@@ -3779,39 +4781,45 @@ decision_tree::gen (FILE *f, bool gimple)
 	  output_line_directive (stderr, s->s->s->result->location);
 	}
 
+      /* Cycle the file buffers.  */
+      FILE *f = choose_output (files);
+
       /* Generate a split out function with the leaf transform code.  */
       s->fname = xasprintf ("%s_simplify_%u", gimple ? "gimple" : "generic",
 			    fcnt++);
       if (gimple)
-	fprintf (f, "\nstatic bool\n"
+	fp_decl (f, "\nbool\n"
 		 "%s (gimple_match_op *res_op, gimple_seq *seq,\n"
 		 "                 tree (*valueize)(tree) ATTRIBUTE_UNUSED,\n"
 		 "                 const tree ARG_UNUSED (type), tree *ARG_UNUSED "
-		 "(captures)\n",
+		 "(captures)",
 		 s->fname);
       else
 	{
-	  fprintf (f, "\nstatic tree\n"
+	  fp_decl (f, "\ntree\n"
 		   "%s (location_t ARG_UNUSED (loc), const tree ARG_UNUSED (type),\n",
 		   (*iter).second->fname);
 	  for (unsigned i = 0;
 	       i < as_a <expr *>(s->s->s->match)->ops.length (); ++i)
-	    fprintf (f, " tree ARG_UNUSED (_p%d),", i);
-	  fprintf (f, " tree *captures\n");
+	    fp_decl (f, " tree ARG_UNUSED (_p%d),", i);
+	  fp_decl (f, " tree *ARG_UNUSED (captures)");
 	}
       for (unsigned i = 0; i < s->s->s->for_subst_vec.length (); ++i)
 	{
 	  if (! s->s->s->for_subst_vec[i].first->used)
 	    continue;
 	  if (is_a <operator_id *> (s->s->s->for_subst_vec[i].second))
-	    fprintf (f, ", const enum tree_code ARG_UNUSED (%s)",
+	    fp_decl (f, ",\n const enum tree_code ARG_UNUSED (%s)",
 		     s->s->s->for_subst_vec[i].first->id);
 	  else if (is_a <fn_id *> (s->s->s->for_subst_vec[i].second))
-	    fprintf (f, ", const combined_fn ARG_UNUSED (%s)",
+	    fp_decl (f, ",\n const combined_fn ARG_UNUSED (%s)",
 		     s->s->s->for_subst_vec[i].first->id);
 	}
 
-      fprintf (f, ")\n{\n");
+      fp_decl_done (f, ")");
+      fprintf (f, "{\n");
+      fprintf_indent (f, 2, "const bool debug_dump = "
+			    "dump_file && (dump_flags & TDF_FOLDING);\n");
       s->s->gen_1 (f, 2, gimple, s->s->s->result);
       if (gimple)
 	fprintf (f, "  return false;\n");
@@ -3821,7 +4829,7 @@ decision_tree::gen (FILE *f, bool gimple)
     }
   fprintf (stderr, "removed %u duplicate tails\n", rcnt);
 
-  for (unsigned n = 1; n <= 5; ++n)
+  for (unsigned n = 1; n <= 7; ++n)
     {
       bool has_kids_p = false;
 
@@ -3839,24 +4847,30 @@ decision_tree::gen (FILE *f, bool gimple)
 		  && e->operation->kind != id_base::CODE))
 	    continue;
 
+
+	  /* Cycle the file buffers.  */
+	  FILE *f = choose_output (files);
+
 	  if (gimple)
-	    fprintf (f, "\nstatic bool\n"
+	    fp_decl (f, "\nbool\n"
 		     "gimple_simplify_%s (gimple_match_op *res_op,"
 		     " gimple_seq *seq,\n"
 		     "                 tree (*valueize)(tree) "
 		     "ATTRIBUTE_UNUSED,\n"
 		     "                 code_helper ARG_UNUSED (code), tree "
-		     "ARG_UNUSED (type)\n",
+		     "ARG_UNUSED (type)",
 		     e->operation->id);
 	  else
-	    fprintf (f, "\nstatic tree\n"
+	    fp_decl (f, "\ntree\n"
 		     "generic_simplify_%s (location_t ARG_UNUSED (loc), enum "
 		     "tree_code ARG_UNUSED (code), const tree ARG_UNUSED (type)",
 		     e->operation->id);
 	  for (unsigned i = 0; i < n; ++i)
-	    fprintf (f, ", tree _p%d", i);
-	  fprintf (f, ")\n");
+	    fp_decl (f, ", tree _p%d", i);
+	  fp_decl_done (f, ")");
 	  fprintf (f, "{\n");
+	  fprintf_indent (f, 2, "const bool debug_dump = "
+				"dump_file && (dump_flags & TDF_FOLDING);\n");
 	  dop->gen_kids (f, 2, gimple, 0);
 	  if (gimple)
 	    fprintf (f, "  return false;\n");
@@ -3870,18 +4884,22 @@ decision_tree::gen (FILE *f, bool gimple)
 	 with compiler warnings, by generating a simple stub.  */
       if (! has_kids_p)
 	{
+
+	  /* Cycle the file buffers.  */
+	  FILE *f = choose_output (files);
+
 	  if (gimple)
-	    fprintf (f, "\nstatic bool\n"
+	    fp_decl (f, "\nbool\n"
 			"gimple_simplify (gimple_match_op*, gimple_seq*,\n"
 			"                 tree (*)(tree), code_helper,\n"
 			"                 const tree");
 	  else
-	    fprintf (f, "\ntree\n"
+	    fp_decl (f, "\ntree\n"
 			"generic_simplify (location_t, enum tree_code,\n"
 			"                  const tree");
 	  for (unsigned i = 0; i < n; ++i)
-	    fprintf (f, ", tree");
-	  fprintf (f, ")\n");
+	    fp_decl (f, ", tree");
+	  fp_decl_done (f, ")");
 	  fprintf (f, "{\n");
 	  if (gimple)
 	    fprintf (f, "  return false;\n");
@@ -3891,20 +4909,24 @@ decision_tree::gen (FILE *f, bool gimple)
 	  continue;
 	}
 
+
+      /* Cycle the file buffers.  */
+      FILE *f = choose_output (files);
+
       /* Then generate the main entry with the outermost switch and
          tail-calls to the split-out functions.  */
       if (gimple)
-	fprintf (f, "\nstatic bool\n"
+	fp_decl (f, "\nbool\n"
 		 "gimple_simplify (gimple_match_op *res_op, gimple_seq *seq,\n"
 		 "                 tree (*valueize)(tree) ATTRIBUTE_UNUSED,\n"
 		 "                 code_helper code, const tree type");
       else
-	fprintf (f, "\ntree\n"
+	fp_decl (f, "\ntree\n"
 		 "generic_simplify (location_t loc, enum tree_code code, "
 		 "const tree type ATTRIBUTE_UNUSED");
       for (unsigned i = 0; i < n; ++i)
-	fprintf (f, ", tree _p%d", i);
-      fprintf (f, ")\n");
+	fp_decl (f, ", tree _p%d", i);
+      fp_decl_done (f, ")");
       fprintf (f, "{\n");
 
       if (gimple)
@@ -3959,13 +4981,16 @@ decision_tree::gen (FILE *f, bool gimple)
 void
 write_predicate (FILE *f, predicate_id *p, decision_tree &dt, bool gimple)
 {
-  fprintf (f, "\nbool\n"
-	   "%s%s (tree t%s%s)\n"
-	   "{\n", gimple ? "gimple_" : "tree_", p->id,
+  fp_decl (f, "\nbool\n%s%s (tree t%s%s)",
+	   gimple ? "gimple_" : "tree_", p->id,
 	   p->nargs > 0 ? ", tree *res_ops" : "",
 	   gimple ? ", tree (*valueize)(tree) ATTRIBUTE_UNUSED" : "");
+  fp_decl_done (f, "");
+  fprintf (f, "{\n");
   /* Conveniently make 'type' available.  */
   fprintf_indent (f, 2, "const tree type = TREE_TYPE (t);\n");
+  fprintf_indent (f, 2, "const bool debug_dump = "
+			"dump_file && (dump_flags & TDF_FOLDING);\n");
 
   if (!gimple)
     fprintf_indent (f, 2, "if (TREE_SIDE_EFFECTS (t)) return false;\n");
@@ -3982,9 +5007,13 @@ write_header (FILE *f, const char *head)
 {
   fprintf (f, "/* Generated automatically by the program `genmatch' from\n");
   fprintf (f, "   a IL pattern matching and simplification description.  */\n");
+  fprintf (f, "#pragma GCC diagnostic push\n");
+  fprintf (f, "#pragma GCC diagnostic ignored \"-Wunused-variable\"\n");
+  fprintf (f, "#pragma GCC diagnostic ignored \"-Wunused-function\"\n");
 
   /* Include the header instead of writing it awkwardly quoted here.  */
-  fprintf (f, "\n#include \"%s\"\n", head);
+  if (head)
+    fprintf (f, "\n#include \"%s\"\n", head);
 }
 
 
@@ -4152,7 +5181,7 @@ parser::eat_ident (const char *s)
   const cpp_token *token = peek ();
   const char *t = get_ident ();
   if (strcmp (s, t) != 0)
-    fatal_at (token, "expected '%s' got '%s'\n", s, t);
+    fatal_at (token, "expected %qs got %qs", s, t);
   return token;
 }
 
@@ -4220,7 +5249,7 @@ parser::parse_operation (unsigned char &opt_grp)
 	  alt_id = xstrdup (id);
 	  alt_id[strlen (id) - 1] = '\0';
 	  if (opt_grp == 1)
-	    fatal_at (id_tok, "use '%s?' here", alt_id);
+	    fatal_at (id_tok, "use %<%s?%> here", alt_id);
 	}
       else
 	opt_grp = 1;
@@ -4302,6 +5331,18 @@ parser::parse_expr ()
       e->force_leaf = true;
     }
 
+  if (token->type == CPP_XOR && !(token->flags & PREV_WHITE))
+    {
+      if (!parsing_match_operand)
+	fatal_at (token, "modifier %<^%> is only valid in a match expression");
+
+      if (!(*e->operation == COND_EXPR))
+	fatal_at (token, "modifier %<^%> can only act on operation %<COND_EXPR%>");
+
+      eat_token (CPP_XOR);
+      e->match_phi = true;
+    }
+
   if (token->type == CPP_COLON
       && !(token->flags & PREV_WHITE))
     {
@@ -4320,27 +5361,11 @@ parser::parse_expr ()
 		{
 		  if (*sp == 'c')
 		    {
-		      if (operator_id *o
-			    = dyn_cast<operator_id *> (e->operation))
-			{
-			  if (!commutative_tree_code (o->code)
-			      && !comparison_code_p (o->code))
-			    fatal_at (token, "operation is not commutative");
-			}
-		      else if (user_id *p = dyn_cast<user_id *> (e->operation))
-			for (unsigned i = 0;
-			     i < p->substitutes.length (); ++i)
-			  {
-			    if (operator_id *q
-				  = dyn_cast<operator_id *> (p->substitutes[i]))
-			      {
-				if (!commutative_tree_code (q->code)
-				    && !comparison_code_p (q->code))
-				  fatal_at (token, "operation %s is not "
-					    "commutative", q->id);
-			      }
-			  }
-		      is_commutative = true;
+		      if (commutative_op (e->operation, true) != -1)
+			is_commutative = true;
+		      else
+			fatal_at (token, "operation %s is not known "
+				  "commutative", e->operation->id);
 		    }
 		  else if (*sp == 'C')
 		    is_commutative = true;
@@ -4447,11 +5472,12 @@ parser::parse_c_expr (cpp_ttype start)
       /* If this is possibly a user-defined identifier mark it used.  */
       if (token->type == CPP_NAME)
 	{
-	  id_base *idb = get_operator ((const char *)CPP_HASHNODE
-				      (token->val.node.node)->ident.str);
-	  user_id *p;
-	  if (idb && (p = dyn_cast<user_id *> (idb)) && p->is_oper_list)
-	    record_operlist (token->src_loc, p);
+	  const char *str
+	    = (const char *)CPP_HASHNODE (token->val.node.node)->ident.str;
+	  if (strcmp (str, "return") == 0)
+	    fatal_at (token, "return statement not allowed in C expression");
+	  /* Mark user operators corresponding to 'str' as used.  */
+	  get_operator (str);
 	}
 
       /* Record the token.  */
@@ -4636,6 +5662,8 @@ parser::parse_result (operand *result, predicate_id *matcher)
 		    ife->trueexpr = parse_result (result, matcher);
 		  else
 		    ife->trueexpr = parse_op ();
+		  if (peek ()->type == CPP_OPEN_PAREN)
+		    fatal_at (peek(), "if inside switch cannot have an else");
 		  eat_token (CPP_CLOSE_PAREN);
 		}
 	      else
@@ -4796,7 +5824,7 @@ parser::parse_for (location_t)
 	      else
 		fatal_at (token, "iterator cannot be used as operator-list");
 	    }
-	  else 
+	  else
 	    op->substitutes.safe_push (idb);
 	}
       op->nargs = arity;
@@ -4859,7 +5887,7 @@ parser::parse_for (location_t)
 void
 parser::parse_operator_list (location_t)
 {
-  const cpp_token *token = peek (); 
+  const cpp_token *token = peek ();
   const char *id = get_ident ();
 
   if (get_operator (id, true) != 0)
@@ -4867,13 +5895,13 @@ parser::parse_operator_list (location_t)
 
   user_id *op = new user_id (id, true);
   int arity = -1;
-  
+
   while ((token = peek_ident ()) != 0)
     {
-      token = peek (); 
+      token = peek ();
       const char *oper = get_ident ();
       id_base *idb = get_operator (oper, true);
-      
+
       if (idb == 0)
 	fatal_at (token, "no such operator '%s'", oper);
 
@@ -5008,7 +6036,7 @@ parser::parse_pattern ()
     {
       if (active_ifs.length () > 0
 	  || active_fors.length () > 0)
-	fatal_at (token, "define_predicates inside if or for is not supported");
+	fatal_at (token, "%<define_predicates%> inside if or for is not supported");
       parse_predicates (token->src_loc);
     }
   else if (strcmp (id, "define_operator_list") == 0)
@@ -5018,10 +6046,11 @@ parser::parse_pattern ()
 	fatal_at (token, "operator-list inside if or for is not supported");
       parse_operator_list (token->src_loc);
     }
+  else if (active_ifs.length () == 0 && active_fors.length () == 0)
+    fatal_at (token, "expected %<define_predicates%>, %<simplify%>, "
+		     "%<match%>, %<for%> or %<if%>");
   else
-    fatal_at (token, "expected %s'simplify', 'match', 'for' or 'if'",
-	      active_ifs.length () == 0 && active_fors.length () == 0
-	      ? "'define_predicates', " : "");
+    fatal_at (token, "expected %<simplify%>, %<match%>, %<for%> or %<if%>");
 
   eat_token (CPP_CLOSE_PAREN);
 }
@@ -5063,12 +6092,13 @@ parser::finish_match_operand (operand *op)
 	  if (cpts[i][j]->value_match)
 	    {
 	      if (value_match)
-		fatal_at (cpts[i][j]->location, "duplicate @@");
+		fatal_at (cpts[i][j]->location, "duplicate %s", "@@");
 	      value_match = cpts[i][j];
 	    }
 	}
       if (cpts[i].length () == 1 && value_match)
-	fatal_at (value_match->location, "@@ without a matching capture");
+	fatal_at (value_match->location,
+		  "%s without a matching capture", "@@");
       if (value_match)
 	{
 	  /* Duplicate prevailing capture with the existing ID, create
@@ -5124,6 +6154,29 @@ round_alloc_size (size_t s)
 }
 
 
+/* Construct and display the help menu.  */
+
+static void
+usage ()
+{
+  const char *usage = "Usage:\n"
+    " %s [--gimple|--generic] [-v[v]] <input>\n"
+    " %s [options] [--include=FILE] --header=FILE <input> <output>...\n";
+  fprintf (stderr, usage, progname, progname);
+}
+
+/* Write out the correct include to the match-head fle containing the helper
+   files.  */
+
+static void
+write_header_includes (bool gimple, FILE *header_file)
+{
+  if (gimple)
+    fprintf (header_file, "#include \"gimple-match-head.cc\"\n");
+  else
+    fprintf (header_file, "#include \"generic-match-head.cc\"\n");
+}
+
 /* The genmatch generator program.  It reads from a pattern description
    and outputs GIMPLE or GENERIC IL matching and simplification routines.  */
 
@@ -5134,33 +6187,54 @@ main (int argc, char **argv)
 
   progname = "genmatch";
 
-  if (argc < 2)
-    return 1;
-
   bool gimple = true;
-  char *input = argv[argc-1];
-  for (int i = 1; i < argc - 1; ++i)
+  char *s_header_file = NULL;
+  char *s_include_file = NULL;
+  auto_vec <char *> files;
+  char *input = NULL;
+  int last_file = argc - 1;
+  for (int i = argc - 1; i >= 1; --i)
     {
       if (strcmp (argv[i], "--gimple") == 0)
 	gimple = true;
       else if (strcmp (argv[i], "--generic") == 0)
 	gimple = false;
+      else if (strncmp (argv[i], "--header=", 9) == 0)
+	s_header_file = &argv[i][9];
+      else if (strncmp (argv[i], "--include=", 10) == 0)
+	s_include_file = &argv[i][10];
       else if (strcmp (argv[i], "-v") == 0)
 	verbose = 1;
       else if (strcmp (argv[i], "-vv") == 0)
 	verbose = 2;
+      else if (strncmp (argv[i], "--", 2) != 0 && last_file-- == i)
+	files.safe_push (argv[i]);
       else
 	{
-	  fprintf (stderr, "Usage: genmatch "
-		   "[--gimple] [--generic] [-v[v]] input\n");
+	  usage ();
 	  return 1;
 	}
     }
 
+  /* Validate if the combinations are valid.  */
+  if ((files.length () > 1 && !s_header_file) || files.is_empty ())
+    {
+      usage ();
+      return 1;
+    }
+
+  genmatch_diag_selftests ();
+
+  if (!s_include_file)
+    s_include_file = s_header_file;
+
+  /* Input file is the last in the reverse list.  */
+  input = files.pop ();
+
   line_table = XCNEW (class line_maps);
   linemap_init (line_table, 0);
-  line_table->reallocator = xrealloc;
-  line_table->round_alloc_size = round_alloc_size;
+  line_table->m_reallocator = xrealloc;
+  line_table->m_round_alloc_size = round_alloc_size;
 
   r = cpp_create_reader (CLK_GNUC99, NULL, line_table);
   cpp_callbacks *cb = cpp_get_callbacks (r);
@@ -5171,12 +6245,12 @@ main (int argc, char **argv)
   dir->name = getpwd ();
   if (!dir->name)
     dir->name = ASTRDUP (".");
-  cpp_set_include_chains (r, dir, NULL, false);
+  cpp_set_include_chains (r, dir, NULL, NULL, false);
 
   if (!cpp_read_main_file (r, input))
     return 1;
-  cpp_define (r, gimple ? "GIMPLE=1": "GENERIC=1");
-  cpp_define (r, gimple ? "GENERIC=0": "GIMPLE=0");
+  cpp_define (r, gimple ? "GIMPLE=1" : "GENERIC=1");
+  cpp_define (r, gimple ? "GENERIC=0" : "GIMPLE=0");
 
   null_id = new id_base (id_base::NULL_ID, "null");
 
@@ -5203,10 +6277,30 @@ main (int argc, char **argv)
   /* Parse ahead!  */
   parser p (r, gimple);
 
-  if (gimple)
-    write_header (stdout, "gimple-match-head.cc");
+  /* Create file buffers.  */
+  int n_parts = files.is_empty () ? 1 : files.length ();
+  auto_vec <FILE *> parts (n_parts);
+  if (files.is_empty ())
+    {
+      parts.quick_push (stdout);
+      write_header (stdout, s_include_file);
+      write_header_includes (gimple, stdout);
+      write_header_declarations (gimple, stdout);
+    }
   else
-    write_header (stdout, "generic-match-head.cc");
+    {
+      for (char *s_file : files)
+	{
+	  parts.quick_push (fopen (s_file, "w"));
+	  write_header (parts.last (), s_include_file);
+	}
+
+      header_file = fopen (s_header_file, "w");
+      fprintf (header_file, "#ifndef GCC_GIMPLE_MATCH_AUTO_H\n"
+			    "#define GCC_GIMPLE_MATCH_AUTO_H\n");
+      write_header_includes (gimple, header_file);
+      write_header_declarations (gimple, header_file);
+    }
 
   /* Go over all predicates defined with patterns and perform
      lowering and code generation.  */
@@ -5226,7 +6320,10 @@ main (int argc, char **argv)
       if (verbose == 2)
 	dt.print (stderr);
 
-      write_predicate (stdout, pred, dt, gimple);
+      /* Cycle the file buffers.  */
+      FILE *f = choose_output (parts);
+
+      write_predicate (f, pred, dt, gimple);
     }
 
   /* Lower the main simplifiers and generate code for them.  */
@@ -5243,7 +6340,21 @@ main (int argc, char **argv)
   if (verbose == 2)
     dt.print (stderr);
 
-  dt.gen (stdout, gimple);
+  dt.gen (parts, gimple);
+
+  define_dump_logs (gimple, choose_output (parts));
+
+  for (FILE *f : parts)
+    {
+      fprintf (f, "#pragma GCC diagnostic pop\n");
+      fclose (f);
+    }
+
+  if (header_file)
+    {
+      fprintf (header_file, "\n#endif /* GCC_GIMPLE_MATCH_AUTO_H.  */\n");
+      fclose (header_file);
+    }
 
   /* Finalize.  */
   cpp_finish (r, NULL);

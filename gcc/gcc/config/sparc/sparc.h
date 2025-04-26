@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for Sun SPARC.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com).
    64-bit SPARC-V9 support by Michael Tiemann, Jim Wilson, and Doug Evans,
    at Cygnus Support.
@@ -26,10 +26,6 @@ along with GCC; see the file COPYING3.  If not see
    whatever definitions are necessary.  */
 
 #define TARGET_CPU_CPP_BUILTINS() sparc_target_macros ()
-
-/* Target hooks for D language.  */
-#define TARGET_D_CPU_VERSIONS sparc_d_target_versions
-#define TARGET_D_REGISTER_CPU_TARGET_INFO sparc_d_register_target_info
 
 /* Specify this in a cover file to provide bi-architecture (32/64) support.  */
 /* #define SPARC_BI_ARCH */
@@ -433,7 +429,7 @@ along with GCC; see the file COPYING3.  If not see
   (MASK_FPU + MASK_HARD_QUAD + MASK_VIS + MASK_VIS2 + MASK_VIS3	\
    + MASK_VIS4 + MASK_CBCOND + MASK_FMAF + MASK_FSMULD		\
    + MASK_POPC + MASK_SUBXC)
- 
+
 /* TARGET_HARD_MUL: Use 32-bit hardware multiply instructions but not %y.  */
 #define TARGET_HARD_MUL				\
   (TARGET_SPARCLITE || TARGET_SPARCLET		\
@@ -493,12 +489,11 @@ along with GCC; see the file COPYING3.  If not see
 #define INT_TYPE_SIZE		32
 #define LONG_TYPE_SIZE		(TARGET_ARCH64 ? 64 : 32)
 #define LONG_LONG_TYPE_SIZE	64
-#define FLOAT_TYPE_SIZE		32
-#define DOUBLE_TYPE_SIZE	64
 
-/* LONG_DOUBLE_TYPE_SIZE is defined per OS even though the
-   SPARC ABI says that it is 128-bit wide.  */
-/* #define LONG_DOUBLE_TYPE_SIZE	128 */
+/* SPARC_LONG_DOUBLE_TYPE_SIZE is defined per OS even though the
+   SPARC ABI says that it is 128-bit wide.  LONG_DOUBLE_TYPE_SIZE
+   get poisoned, so add SPARC_ prefix.  */
+/* #define SPARC_LONG_DOUBLE_TYPE_SIZE	128 */
 
 /* The widest floating-point format really supported by the hardware.  */
 #define WIDEST_HARDWARE_FP_SIZE 64
@@ -555,9 +550,7 @@ along with GCC; see the file COPYING3.  If not see
    the smaller of COMPUTED and `BIGGEST_ALIGNMENT' */
 #define ROUND_TYPE_ALIGN(STRUCT, COMPUTED, SPECIFIED)	\
  (TARGET_FASTER_STRUCTS ?				\
-  ((TREE_CODE (STRUCT) == RECORD_TYPE			\
-    || TREE_CODE (STRUCT) == UNION_TYPE                 \
-    || TREE_CODE (STRUCT) == QUAL_UNION_TYPE)           \
+  (RECORD_OR_UNION_TYPE_P (STRUCT)	   \
    && TYPE_FIELDS (STRUCT) != 0                         \
      ? MAX (MAX ((COMPUTED), (SPECIFIED)), BIGGEST_ALIGNMENT) \
      : MAX ((COMPUTED), (SPECIFIED)))			\
@@ -739,6 +732,13 @@ along with GCC; see the file COPYING3.  If not see
    - v9: 128 bytes for the in and local registers + 6*8 bytes for the integer
      parameter regs.  */
 #define STACK_POINTER_OFFSET (FIRST_PARM_OFFSET(0) + SPARC_STACK_BIAS)
+
+/* Unbias the stack pointer if needed, and move past the register save area,
+   that is never in use while a function is active, so that it is regarded as a
+   callee save area rather than as part of the function's own stack area.  This
+   enables __strub_leave() to do a better job of clearing the stack frame of a
+   previously-called sibling.  */
+#define STACK_ADDRESS_OFFSET STACK_POINTER_OFFSET
 
 /* Base register for access to local variables of the function.  */
 #define HARD_FRAME_POINTER_REGNUM 30
@@ -1510,14 +1510,6 @@ do {									   \
 #define ADDITIONAL_REGISTER_NAMES \
 {{"ccr", SPARC_ICC_REG}, {"cc", SPARC_ICC_REG}}
 
-/* On Sun 4, this limit is 2048.  We use 1000 to be safe, since the length
-   can run past this up to a continuation point.  Once we used 1500, but
-   a single entry in C++ can run more than 500 bytes, due to the length of
-   mangled symbol names.  dbxout.cc should really be fixed to do
-   continuations when they are actually needed instead of trying to
-   guess...  */
-#define DBX_CONTIN_LENGTH 1000
-
 /* This is how to output a command to make the user-level label named NAME
    defined for reference from other files.  */
 
@@ -1707,3 +1699,6 @@ extern int sparc_indent_opcode;
 #define SPARC_LOW_FE_EXCEPT_VALUES 0
 
 #define TARGET_SUPPORTS_WIDE_INT 1
+
+/* Define this to 1 to accept ABI changes to match the vendor compiler.  */
+#define SUN_V9_ABI_COMPATIBILITY 0

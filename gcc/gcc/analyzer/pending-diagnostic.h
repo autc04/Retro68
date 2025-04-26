@@ -1,5 +1,5 @@
 /* Classes for analyzer diagnostics.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2025 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -20,6 +20,10 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifndef GCC_ANALYZER_PENDING_DIAGNOSTIC_H
 #define GCC_ANALYZER_PENDING_DIAGNOSTIC_H
+
+#include "diagnostic-metadata.h"
+#include "diagnostic-path.h"
+#include "analyzer/sm.h"
 
 namespace ana {
 
@@ -46,29 +50,17 @@ struct interesting_t
 
 namespace evdesc {
 
-struct event_desc
-{
-  event_desc (bool colorize) : m_colorize (colorize) {}
-
-  label_text formatted_print (const char *fmt, ...) const
-    ATTRIBUTE_GCC_DIAG(2,3);
-
-  bool m_colorize;
-};
-
 /* For use by pending_diagnostic::describe_state_change.  */
 
-struct state_change : public event_desc
+struct state_change
 {
-  state_change (bool colorize,
-		tree expr,
+  state_change (tree expr,
 		tree origin,
 		state_machine::state_t old_state,
 		state_machine::state_t new_state,
 		diagnostic_event_id_t event_id,
 		const state_change_event &event)
-  : event_desc (colorize),
-    m_expr (expr), m_origin (origin),
+  : m_expr (expr), m_origin (origin),
     m_old_state (old_state), m_new_state (new_state),
     m_event_id (event_id), m_event (event)
   {}
@@ -85,13 +77,11 @@ struct state_change : public event_desc
 
 /* For use by pending_diagnostic::describe_call_with_state.  */
 
-struct call_with_state : public event_desc
+struct call_with_state
 {
-  call_with_state (bool colorize,
-		   tree caller_fndecl, tree callee_fndecl,
+  call_with_state (tree caller_fndecl, tree callee_fndecl,
 		   tree expr, state_machine::state_t state)
-  : event_desc (colorize),
-    m_caller_fndecl (caller_fndecl),
+  : m_caller_fndecl (caller_fndecl),
     m_callee_fndecl (callee_fndecl),
     m_expr (expr),
     m_state (state)
@@ -106,13 +96,11 @@ struct call_with_state : public event_desc
 
 /* For use by pending_diagnostic::describe_return_of_state.  */
 
-struct return_of_state : public event_desc
+struct return_of_state
 {
-  return_of_state (bool colorize,
-		   tree caller_fndecl, tree callee_fndecl,
+  return_of_state (tree caller_fndecl, tree callee_fndecl,
 		   state_machine::state_t state)
-  : event_desc (colorize),
-    m_caller_fndecl (caller_fndecl),
+  : m_caller_fndecl (caller_fndecl),
     m_callee_fndecl (callee_fndecl),
     m_state (state)
   {
@@ -125,19 +113,60 @@ struct return_of_state : public event_desc
 
 /* For use by pending_diagnostic::describe_final_event.  */
 
-struct final_event : public event_desc
+struct final_event
 {
-  final_event (bool colorize,
-	       tree expr, state_machine::state_t state)
-  : event_desc (colorize),
-    m_expr (expr), m_state (state)
+  final_event (tree expr, state_machine::state_t state,
+	       const warning_event &event)
+  : m_expr (expr), m_state (state), m_event (event)
   {}
 
   tree m_expr;
   state_machine::state_t m_state;
+  const warning_event &m_event;
 };
 
 } /* end of namespace evdesc */
+
+/*  A bundle of information for use by implementations of the
+    pending_diagnostic::emit vfunc.
+
+    The rich_location will have already been populated with a
+    diagnostic_path.  */
+
+class diagnostic_emission_context
+{
+public:
+  diagnostic_emission_context (const saved_diagnostic &sd,
+			       rich_location &rich_loc,
+			       diagnostic_metadata &metadata,
+			       logger *logger)
+  : m_sd (sd),
+    m_rich_loc (rich_loc),
+    m_metadata (metadata),
+    m_logger (logger)
+  {
+  }
+
+  const pending_diagnostic &get_pending_diagnostic () const;
+
+  bool warn (const char *, ...) ATTRIBUTE_GCC_DIAG (2,3);
+  void inform (const char *, ...) ATTRIBUTE_GCC_DIAG (2,3);
+
+  location_t get_location () const { return m_rich_loc.get_loc (); }
+  logger *get_logger () const { return m_logger; }
+
+  void add_cwe (int cwe) { m_metadata.add_cwe (cwe); }
+  void add_rule (const diagnostic_metadata::rule &r)
+  {
+    m_metadata.add_rule (r);
+  }
+
+private:
+  const saved_diagnostic &m_sd;
+  rich_location &m_rich_loc;
+  diagnostic_metadata &m_metadata;
+  logger *m_logger;
+};
 
 /* An abstract base class for capturing information about a diagnostic in
    a form that is ready to emit at a later point (or be rejected).
@@ -168,10 +197,13 @@ class pending_diagnostic
      having to generate feasible execution paths for them).  */
   virtual int get_controlling_option () const = 0;
 
-  /* Vfunc for emitting the diagnostic.  The rich_location will have been
-     populated with a diagnostic_path.
+  /* Vfunc to give the diagnostic the chance to terminate the execution
+     path being explored.  By default, don't terminate the path.  */
+  virtual bool terminate_path_p () const { return false; }
+
+  /* Vfunc for emitting the diagnostic.
      Return true if a diagnostic is actually emitted.  */
-  virtual bool emit (rich_location *) = 0;
+  virtual bool emit (diagnostic_emission_context &) = 0;
 
   /* Hand-coded RTTI: get an ID for the subclass.  */
   virtual const char *get_kind () const = 0;
@@ -200,21 +232,10 @@ class pending_diagnostic
      diagnostic deduplication.  */
   static bool same_tree_p (tree t1, tree t2);
 
-  /* A vfunc for fixing up locations (both the primary location for the
-     diagnostic, and for events in their paths), e.g. to avoid unwinding
-     inside specific macros.  */
-  virtual location_t fixup_location (location_t loc) const
-  {
-    return loc;
-  }
-
-  /* For greatest precision-of-wording, the various following "describe_*"
-     virtual functions give the pending diagnostic a way to describe events
-     in a diagnostic_path in terms that make sense for that diagnostic.
-
-     In each case, return a non-NULL label_text to give the event a custom
-     description; NULL otherwise (falling back on a more generic
-     description).  */
+  /* Vfunc for fixing up locations, e.g. to avoid unwinding
+     inside specific macros.  PRIMARY is true for the primary location
+     for the diagnostic, and FALSE for events in their paths.  */
+  virtual location_t fixup_location (location_t loc, bool primary) const;
 
   /* Precision-of-wording vfunc for describing a critical state change
      within the diagnostic_path.
@@ -227,12 +248,25 @@ class pending_diagnostic
      - "freed here"
      - "use after free here"
      Note how in both cases the first event is a "free": the best
-     description to use depends on the diagnostic.  */
+     description to use depends on the diagnostic.
 
-  virtual label_text describe_state_change (const evdesc::state_change &)
+     Print the description to PP and return true,
+     or do nothing and return false.  */
+
+  virtual bool describe_state_change (pretty_printer &,
+				      const evdesc::state_change &)
   {
     /* Default no-op implementation.  */
-    return label_text ();
+    return false;
+  }
+
+  /* Vfunc for implementing diagnostic_event::get_meaning for
+     state_change_event.  */
+  virtual diagnostic_event::meaning
+  get_meaning_for_state_change (const evdesc::state_change &) const
+  {
+    /* Default no-op implementation.  */
+    return diagnostic_event::meaning ();
   }
 
   /* Precision-of-wording vfunc for describing an interprocedural call
@@ -243,10 +277,11 @@ class pending_diagnostic
      to make it clearer how the freed value moves from caller to
      callee.  */
 
-  virtual label_text describe_call_with_state (const evdesc::call_with_state &)
+  virtual bool describe_call_with_state (pretty_printer &,
+					 const evdesc::call_with_state &)
   {
     /* Default no-op implementation.  */
-    return label_text ();
+    return false;
   }
 
   /* Precision-of-wording vfunc for describing an interprocedural return
@@ -258,10 +293,11 @@ class pending_diagnostic
      to make it clearer how the unchecked value moves from callee
      back to caller.  */
 
-  virtual label_text describe_return_of_state (const evdesc::return_of_state &)
+  virtual bool describe_return_of_state (pretty_printer &,
+					 const evdesc::return_of_state &)
   {
     /* Default no-op implementation.  */
-    return label_text ();
+    return false;
   }
 
   /* Precision-of-wording vfunc for describing the final event within a
@@ -272,13 +308,22 @@ class pending_diagnostic
      and a use-after-free might use
       - "use after 'free' here; memory was freed at (2)".  */
 
-  virtual label_text describe_final_event (const evdesc::final_event &)
+  virtual bool describe_final_event (pretty_printer &,
+				     const evdesc::final_event &)
   {
     /* Default no-op implementation.  */
-    return label_text ();
+    return false;
   }
 
   /* End of precision-of-wording vfuncs.  */
+
+  /* Vfunc for adding a function_entry_event to a checker_path, so that e.g.
+     the infinite recursion diagnostic can add a custom event subclass
+     that annotates recursively entering a function.  */
+
+  virtual void
+  add_function_entry_event (const exploded_edge &eedge,
+			    checker_path *emission_path);
 
   /* Vfunc for extending/overriding creation of the events for an
      exploded_edge that corresponds to a superedge, allowing for custom
@@ -295,6 +340,30 @@ class pending_diagnostic
     return false;
   }
 
+  /* Vfunc for adding a call_event to a checker_path, so that e.g.
+     the varargs diagnostics can add a custom event subclass that annotates
+     the variadic arguments.  */
+  virtual void add_call_event (const exploded_edge &,
+			       checker_path *);
+
+  /* Vfunc for adding any events for the creation of regions identified
+     by the mark_interesting_stuff vfunc.
+     See the comment for class region_creation_event.  */
+  virtual void add_region_creation_events (const region *reg,
+					   tree capacity,
+					   const event_loc_info &loc_info,
+					   checker_path &emission_path);
+
+  /* Vfunc for adding the final warning_event to a checker_path, so that e.g.
+     the infinite recursion diagnostic can have its diagnostic appear at
+     the callsite, but the final event in the path be at the entrypoint
+     of the called function.  */
+  virtual void add_final_event (const state_machine *sm,
+				const exploded_node *enode,
+				const event_loc_info &loc_info,
+				tree var, state_machine::state_t state,
+				checker_path *emission_path);
+
   /* Vfunc for determining that this pending_diagnostic supercedes OTHER,
      and that OTHER should therefore not be emitted.
      They have already been tested for being at the same stmt.  */
@@ -309,6 +378,25 @@ class pending_diagnostic
      diagnostic.  */
 
   virtual void mark_interesting_stuff (interesting_t *)
+  {
+    /* Default no-op implementation.  */
+  }
+
+  /* Vfunc to give diagnostic subclasses the opportunity to reject diagnostics
+     by imposing their own additional feasibility checks on the path to a
+     given feasible_node.  */
+  virtual bool check_valid_fpath_p (const feasible_node &,
+				    const gimple *) const
+  {
+    /* Default implementation: accept this path.  */
+    return true;
+  }
+
+  /* Vfunc for use in SARIF output to give pending_diagnostic subclasses
+     the opportunity to add diagnostic-specific properties to the SARIF
+     "result" object for the diagnostic.
+     This is intended for use when debugging a diagnostic.  */
+  virtual void maybe_add_sarif_properties (sarif_object &/*result_obj*/) const
   {
     /* Default no-op implementation.  */
   }
@@ -328,7 +416,7 @@ class pending_diagnostic_subclass : public pending_diagnostic
 {
  public:
   bool subclass_equal_p (const pending_diagnostic &base_other) const
-    FINAL OVERRIDE
+    final override
   {
     const Subclass &other = (const Subclass &)base_other;
     return *(const Subclass*)this == other;
@@ -371,7 +459,7 @@ class pending_note_subclass : public pending_note
 {
  public:
   bool subclass_equal_p (const pending_note &base_other) const
-    FINAL OVERRIDE
+    final override
   {
     const Subclass &other = (const Subclass &)base_other;
     return *(const Subclass*)this == other;

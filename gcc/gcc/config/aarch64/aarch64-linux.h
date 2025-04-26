@@ -1,5 +1,5 @@
 /* Machine description for AArch64 architecture.
-   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+   Copyright (C) 2009-2025 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -29,8 +29,12 @@
 #undef  ASAN_CC1_SPEC
 #define ASAN_CC1_SPEC "%{%:sanitize(address):-funwind-tables}"
 
-#undef  CC1_SPEC
-#define CC1_SPEC GNU_USER_TARGET_CC1_SPEC ASAN_CC1_SPEC
+#undef CC1_SPEC
+#define CC1_SPEC GNU_USER_TARGET_CC1_SPEC ASAN_CC1_SPEC \
+    AARCH64_ERRATA_COMPILE_SPEC
+
+#undef CC1PLUS_SPEC
+#define CC1PLUS_SPEC AARCH64_ERRATA_COMPILE_SPEC
 
 #define CPP_SPEC "%{pthread:-D_REENTRANT}"
 
@@ -50,7 +54,7 @@
 #define LINK_SPEC LINUX_TARGET_LINK_SPEC AARCH64_ERRATA_LINK_SPEC
 
 #define GNU_USER_TARGET_MATHFILE_SPEC \
-  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s}"
+  "%{Ofast|ffast-math|funsafe-math-optimizations:%{!shared:crtfastmath.o%s}}"
 
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC   \

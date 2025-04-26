@@ -28,7 +28,7 @@ namespace __lsan {
 
 static const char kLinkerName[] = "ld";
 
-static char linker_placeholder[sizeof(LoadedModule)] ALIGNED(64);
+alignas(64) static char linker_placeholder[sizeof(LoadedModule)];
 static LoadedModule *linker = nullptr;
 
 static bool IsLinker(const LoadedModule& module) {
@@ -122,12 +122,9 @@ void HandleLeaks() {
 
 static int LockStuffAndStopTheWorldCallback(struct dl_phdr_info *info,
                                             size_t size, void *data) {
-  LockThreadRegistry();
-  LockAllocator();
+  ScopedStopTheWorldLock lock;
   DoStopTheWorldParam *param = reinterpret_cast<DoStopTheWorldParam *>(data);
   StopTheWorld(param->callback, param->argument);
-  UnlockAllocator();
-  UnlockThreadRegistry();
   return 1;
 }
 

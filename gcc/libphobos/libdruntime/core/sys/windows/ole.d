@@ -9,7 +9,6 @@
  */
 module core.sys.windows.ole;
 version (Windows):
-@system:
 pragma(lib, "ole32");
 
 import core.sys.windows.windef, core.sys.windows.wingdi, core.sys.windows.uuid;
@@ -156,7 +155,7 @@ enum OLEOPT_UPDATE {
 // #endif
 }
 
-mixin DECLARE_HANDLE!("HOBJECT");
+alias HOBJECT = HANDLE;
 alias LONG_PTR LHSERVER, LHCLIENTDOC, LHSERVERDOC;
 
 struct OLEOBJECTVTBL {
@@ -258,7 +257,7 @@ struct OLESERVERVTBL {
     OLESTATUS function(LPOLESERVER) Release;
     OLESTATUS function(LPOLESERVER, HGLOBAL) Execute;
 }
-alias TypeDef!(OLESERVERVTBL*) LPOLESERVERVTBL;
+alias OLESERVERVTBL* LPOLESERVERVTBL;
 
 struct OLESERVER {
     LPOLESERVERVTBL lpvtbl;
@@ -284,7 +283,7 @@ struct OLESERVERDOC {
 }
 alias OLESERVERDOC* LPOLESERVERDOC;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     OLESTATUS OleDelete(LPOLEOBJECT);
     OLESTATUS OleRelease(LPOLEOBJECT);
     OLESTATUS OleSaveToStream(LPOLEOBJECT, LPOLESTREAM);

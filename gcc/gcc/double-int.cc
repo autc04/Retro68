@@ -1,5 +1,5 @@
 /* Operations with long integers.
-   Copyright (C) 2006-2022 Free Software Foundation, Inc.
+   Copyright (C) 2006-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -671,14 +671,14 @@ double_int::mask (unsigned prec)
   if (prec > HOST_BITS_PER_WIDE_INT)
     {
       prec -= HOST_BITS_PER_WIDE_INT;
-      m = ((unsigned HOST_WIDE_INT) 2 << (prec - 1)) - 1;
+      m = (HOST_WIDE_INT_UC (2) << (prec - 1)) - 1;
       mask.high = (HOST_WIDE_INT) m;
       mask.low = ALL_ONES;
     }
   else
     {
       mask.high = 0;
-      mask.low = prec ? ((unsigned HOST_WIDE_INT) 2 << (prec - 1)) - 1 : 0;
+      mask.low = prec ? (HOST_WIDE_INT_UC (2) << (prec - 1)) - 1 : 0;
     }
 
   return mask;
@@ -1061,7 +1061,7 @@ double_int::set_bit (unsigned bitpos) const
     a.low |= HOST_WIDE_INT_1U << bitpos;
   else
     a.high |= HOST_WIDE_INT_1 <<  (bitpos - HOST_BITS_PER_WIDE_INT);
- 
+
   return a;
 }
 

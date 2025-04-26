@@ -8,7 +8,6 @@
  */
 module core.sys.windows.subauth;
 version (Windows):
-@system:
 
 import core.sys.windows.ntdef, core.sys.windows.windef;
 
@@ -107,7 +106,7 @@ struct STRING {
 alias STRING* PSTRING;
 +/
 
-mixin DECLARE_HANDLE!("SAM_HANDLE");
+alias SAM_HANDLE = HANDLE;
 alias SAM_HANDLE* PSAM_HANDLE;
 
 struct OLD_LARGE_INTEGER {

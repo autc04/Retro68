@@ -1,4 +1,4 @@
-/* Copyright (C) 2012-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2012-2025 Free Software Foundation, Inc.
 
  This file is part of GCC.
 
@@ -121,6 +121,7 @@
 #include <stdio.h>
 #include <string.h>
 #if defined (__CYGWIN__) || defined (__MINGW32__)
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winternl.h>
 #include <psapi.h>
@@ -1790,7 +1791,7 @@ vtv_fail (const char *msg, void **data_set_ptr, const void *vtbl_ptr)
               ptr_from_set_handle_handle (*data_set_ptr) :
 	      *data_set_ptr);
   buf_len = strlen (buffer);
-  /*  Send this to to stderr.  */
+  /* Send this to stderr.  */
   write (2, buffer, buf_len);
 
 #ifndef VTV_NO_ABORT

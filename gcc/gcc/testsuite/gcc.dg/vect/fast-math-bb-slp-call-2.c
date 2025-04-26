@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_double } */
+/* { dg-additional-options "-ffast-math" } */
 
 #include "tree-vect.h"
 
@@ -44,12 +45,14 @@ main1 ()
       b[i] = ((i & 1) ? -4 * i : 4 * i) + 0.25;
     }
   f1 ();
+#pragma GCC novector
   for (i = 0; i < 8; i++)
     if (a[i] != ((i & 1) ? -4 * i : 4 * i) + 1 + i)
       abort ();
     else
       a[i] = 131.25;
   f2 ();
+#pragma GCC novector
   for (i = 0; i < 8; i++)
     if (a[i] != ((i & 1) ? -4 * i : 4 * i))
       abort ();

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,10 +29,10 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  Signed integer exponentiation (checks on)
+--  This package provides functions for signed integer exponentiation. This
+--  is the version of the package with checks enabled.
 
 with Ada.Numerics.Big_Numbers.Big_Integers_Ghost;
-use Ada.Numerics.Big_Numbers.Big_Integers_Ghost;
 
 generic
 
@@ -41,7 +41,6 @@ generic
 package System.Expont
   with Pure, SPARK_Mode
 is
-
    --  Preconditions in this unit are meant for analysis only, not for run-time
    --  checking, so that the expected exceptions are raised. This is enforced
    --  by setting the corresponding assertion policy to Ignore. Postconditions
@@ -53,19 +52,30 @@ is
                             Contract_Cases => Ignore,
                             Ghost          => Ignore);
 
-   package Signed_Conversion is new Signed_Conversions (Int => Int);
+   package BI_Ghost renames Ada.Numerics.Big_Numbers.Big_Integers_Ghost;
+   subtype Big_Integer is BI_Ghost.Big_Integer with Ghost;
+   use type BI_Ghost.Big_Integer;
+
+   package Signed_Conversion is new BI_Ghost.Signed_Conversions (Int => Int);
 
    function Big (Arg : Int) return Big_Integer is
      (Signed_Conversion.To_Big_Integer (Arg))
    with Ghost;
 
    function In_Int_Range (Arg : Big_Integer) return Boolean is
-     (In_Range (Arg, Big (Int'First), Big (Int'Last)))
+     (BI_Ghost.In_Range (Arg, Big (Int'First), Big (Int'Last)))
    with Ghost;
 
    function Expon (Left : Int; Right : Natural) return Int
    with
      Pre  => In_Int_Range (Big (Left) ** Right),
      Post => Expon'Result = Left ** Right;
+   --  Calculate ``Left`` ** ``Right``. If ``Left`` is 0 then 0 is returned
+   --  and if ``Right`` is 0 then 1 is returned. In all other cases the result
+   --  is set to 1 and then computed in a loop as follows:
+   --  If ``Right`` is a multiple of 2 then multiply the result with ``Left``.
+   --  Divide ``Right`` by 2.
+   --  If ``Right is 0, return.
+   --  Multiply ``Left`` with itself.
 
 end System.Expont;

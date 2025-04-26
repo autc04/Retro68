@@ -1,6 +1,6 @@
 // Debugging bitset implementation -*- C++ -*-
 
-// Copyright (C) 2003-2022 Free Software Foundation, Inc.
+// Copyright (C) 2003-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,7 +29,9 @@
 #ifndef _GLIBCXX_DEBUG_BITSET
 #define _GLIBCXX_DEBUG_BITSET
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <bitset>
 #include <debug/safe_sequence.h>
@@ -141,6 +143,7 @@ namespace __debug
       : _Base(__val) { }
 
       template<typename _CharT, typename _Traits, typename _Alloc>
+	_GLIBCXX23_CONSTEXPR
         explicit
         bitset(const std::basic_string<_CharT, _Traits, _Alloc>& __str,
 	       typename std::basic_string<_CharT, _Traits, _Alloc>::size_type
@@ -152,6 +155,7 @@ namespace __debug
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 396. what are characters zero and one.
       template<class _CharT, class _Traits, class _Alloc>
+	_GLIBCXX23_CONSTEXPR
 	bitset(const std::basic_string<_CharT, _Traits, _Alloc>& __str,
 	       typename std::basic_string<_CharT, _Traits, _Alloc>::size_type
 	       __pos,
@@ -160,10 +164,12 @@ namespace __debug
 	       _CharT __zero, _CharT __one = _CharT('1'))
 	: _Base(__str, __pos, __n, __zero, __one) { }
 
+      _GLIBCXX23_CONSTEXPR
       bitset(const _Base& __x) : _Base(__x) { }
 
 #if __cplusplus >= 201103L
       template<typename _CharT>
+	_GLIBCXX23_CONSTEXPR
         explicit
         bitset(const _CharT* __str,
 	       typename std::basic_string<_CharT>::size_type __n
@@ -173,6 +179,7 @@ namespace __debug
 #endif
 
       // 23.3.5.2 bitset operations:
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       operator&=(const bitset<_Nb>& __rhs) _GLIBCXX_NOEXCEPT
       {
@@ -180,6 +187,7 @@ namespace __debug
 	return *this;
       }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       operator|=(const bitset<_Nb>& __rhs) _GLIBCXX_NOEXCEPT
       {
@@ -187,6 +195,7 @@ namespace __debug
 	return *this;
       }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       operator^=(const bitset<_Nb>& __rhs) _GLIBCXX_NOEXCEPT
       {
@@ -194,6 +203,7 @@ namespace __debug
 	return *this;
       }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       operator<<=(size_t __pos) _GLIBCXX_NOEXCEPT
       {
@@ -201,6 +211,7 @@ namespace __debug
 	return *this;
       }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       operator>>=(size_t __pos) _GLIBCXX_NOEXCEPT
       {
@@ -208,6 +219,7 @@ namespace __debug
 	return *this;
       }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       set() _GLIBCXX_NOEXCEPT
       {
@@ -217,6 +229,7 @@ namespace __debug
 
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 186. bitset::set() second parameter should be bool
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       set(size_t __pos, bool __val = true)
       {
@@ -224,6 +237,7 @@ namespace __debug
 	return *this;
       }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       reset() _GLIBCXX_NOEXCEPT
       {
@@ -231,6 +245,7 @@ namespace __debug
 	return *this;
       }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       reset(size_t __pos)
       {
@@ -238,10 +253,12 @@ namespace __debug
 	return *this;
       }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>
       operator~() const _GLIBCXX_NOEXCEPT
       { return bitset(~_M_base()); }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       flip() _GLIBCXX_NOEXCEPT
       {
@@ -249,6 +266,7 @@ namespace __debug
 	return *this;
       }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>&
       flip(size_t __pos)
       {
@@ -259,6 +277,7 @@ namespace __debug
       // element access:
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 11. Bitset minor problems
+      _GLIBCXX23_CONSTEXPR
       reference
       operator[](size_t __pos)
       {
@@ -288,6 +307,7 @@ namespace __debug
 #endif
 
       template <typename _CharT, typename _Traits, typename _Alloc>
+	_GLIBCXX23_CONSTEXPR
         std::basic_string<_CharT, _Traits, _Alloc>
         to_string() const
         { return _M_base().template to_string<_CharT, _Traits, _Alloc>(); }
@@ -295,6 +315,7 @@ namespace __debug
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 396. what are characters zero and one.
       template<class _CharT, class _Traits, class _Alloc>
+	_GLIBCXX23_CONSTEXPR
 	std::basic_string<_CharT, _Traits, _Alloc>
 	to_string(_CharT __zero, _CharT __one = _CharT('1')) const
 	{
@@ -305,6 +326,7 @@ namespace __debug
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 434. bitset::to_string() hard to use.
       template<typename _CharT, typename _Traits>
+	_GLIBCXX23_CONSTEXPR
         std::basic_string<_CharT, _Traits, std::allocator<_CharT> >
         to_string() const
         { return to_string<_CharT, _Traits, std::allocator<_CharT> >(); }
@@ -312,12 +334,14 @@ namespace __debug
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 853. to_string needs updating with zero and one.
       template<class _CharT, class _Traits>
+	_GLIBCXX23_CONSTEXPR
 	std::basic_string<_CharT, _Traits, std::allocator<_CharT> >
 	to_string(_CharT __zero, _CharT __one = _CharT('1')) const
 	{ return to_string<_CharT, _Traits,
 	                   std::allocator<_CharT> >(__zero, __one); }
 
       template<typename _CharT>
+	_GLIBCXX23_CONSTEXPR
         std::basic_string<_CharT, std::char_traits<_CharT>,
                           std::allocator<_CharT> >
         to_string() const
@@ -327,6 +351,7 @@ namespace __debug
         }
 
       template<class _CharT>
+	_GLIBCXX23_CONSTEXPR
 	std::basic_string<_CharT, std::char_traits<_CharT>,
 	                  std::allocator<_CharT> >
 	to_string(_CharT __zero, _CharT __one = _CharT('1')) const
@@ -335,12 +360,14 @@ namespace __debug
 	                   std::allocator<_CharT> >(__zero, __one);
 	}
 
+      _GLIBCXX23_CONSTEXPR
       std::basic_string<char, std::char_traits<char>, std::allocator<char> >
       to_string() const
       {
 	return to_string<char,std::char_traits<char>,std::allocator<char> >();
       }
 
+      _GLIBCXX23_CONSTEXPR
       std::basic_string<char, std::char_traits<char>, std::allocator<char> >
       to_string(char __zero, char __one = '1') const
       {
@@ -351,6 +378,7 @@ namespace __debug
       using _Base::count;
       using _Base::size;
 
+      _GLIBCXX23_CONSTEXPR
       bool
       operator==(const bitset<_Nb>& __rhs) const _GLIBCXX_NOEXCEPT
       { return _M_base() == __rhs._M_base(); }
@@ -366,45 +394,52 @@ namespace __debug
       using _Base::any;
       using _Base::none;
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>
       operator<<(size_t __pos) const _GLIBCXX_NOEXCEPT
       { return bitset<_Nb>(_M_base() << __pos); }
 
+      _GLIBCXX23_CONSTEXPR
       bitset<_Nb>
       operator>>(size_t __pos) const _GLIBCXX_NOEXCEPT
       { return bitset<_Nb>(_M_base() >> __pos); }
 
+      _GLIBCXX23_CONSTEXPR
       _Base& 
       _M_base() _GLIBCXX_NOEXCEPT
       { return *this; }
 
+      _GLIBCXX23_CONSTEXPR
       const _Base&
       _M_base() const _GLIBCXX_NOEXCEPT
       { return *this; }
     };
 
   template<size_t _Nb>
-    bitset<_Nb>
+    _GLIBCXX23_CONSTEXPR
+    inline bitset<_Nb>
     operator&(const bitset<_Nb>& __x, const bitset<_Nb>& __y) _GLIBCXX_NOEXCEPT
     { return bitset<_Nb>(__x) &= __y; }
 
   template<size_t _Nb>
-    bitset<_Nb>
+    _GLIBCXX23_CONSTEXPR
+    inline bitset<_Nb>
     operator|(const bitset<_Nb>& __x, const bitset<_Nb>& __y) _GLIBCXX_NOEXCEPT
     { return bitset<_Nb>(__x) |= __y; }
 
   template<size_t _Nb>
-    bitset<_Nb>
+    _GLIBCXX23_CONSTEXPR
+    inline bitset<_Nb>
     operator^(const bitset<_Nb>& __x, const bitset<_Nb>& __y) _GLIBCXX_NOEXCEPT
     { return bitset<_Nb>(__x) ^= __y; }
 
   template<typename _CharT, typename _Traits, size_t _Nb>
-    std::basic_istream<_CharT, _Traits>&
+    inline std::basic_istream<_CharT, _Traits>&
     operator>>(std::basic_istream<_CharT, _Traits>& __is, bitset<_Nb>& __x)
     { return __is >> __x._M_base(); }
 
   template<typename _CharT, typename _Traits, size_t _Nb>
-    std::basic_ostream<_CharT, _Traits>&
+    inline std::basic_ostream<_CharT, _Traits>&
     operator<<(std::basic_ostream<_CharT, _Traits>& __os,
 	       const bitset<_Nb>& __x)
     { return __os << __x._M_base(); }

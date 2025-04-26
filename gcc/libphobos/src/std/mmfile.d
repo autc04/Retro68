@@ -2,10 +2,22 @@
 
 /**
  * Read and write memory mapped files.
+ *
+ * Memory mapped files are a mechanism in operating systems that allows
+ * file access through virtual memory. After opening a file with `MmFile`,
+ * the contents can be read from or written to with standard slice / pointer operations.
+ * Changes to the memory are automatically reflected in the underlying file.
+ *
+ * Memory mapping can increase I/O performance of large files, compared to buffered
+ * read / write operations from `std.file` and `std.stdio`. However, I/O errors are
+ * not handled as safely: when for example the disk that the file is on gets removed,
+ * reading from it may result in a segfault.
+ *
  * Copyright: Copyright The D Language Foundation 2004 - 2009.
  * License:   $(HTTP www.boost.org/LICENSE_1_0.txt, Boost License 1.0).
  * Authors:   $(HTTP digitalmars.com, Walter Bright),
  *            Matthew Wilson
+ * References: $(LINK https://en.wikipedia.org/wiki/Memory-mapped_file)
  * Source:    $(PHOBOSSRC std/mmfile.d)
  *
  * $(SCRIPT inhibitQuickIndex = 1;)
@@ -71,13 +83,13 @@ class MmFile
      *  - On POSIX, $(REF ErrnoException, std, exception).
      *  - On Windows, $(REF WindowsException, std, windows, syserror).
      */
-    this(string filename)
+    this(string filename) scope
     {
         this(filename, Mode.read, 0, null);
     }
 
     version (linux) this(File file, Mode mode = Mode.read, ulong size = 0,
-            void* address = null, size_t window = 0)
+            void* address = null, size_t window = 0) scope
     {
         // Save a copy of the File to make sure the fd stays open.
         this.file = file;
@@ -85,7 +97,7 @@ class MmFile
     }
 
     version (linux) private this(int fildes, Mode mode, ulong size,
-            void* address, size_t window)
+            void* address, size_t window) scope
     {
         int oflag;
         int fmode;
@@ -169,7 +181,7 @@ class MmFile
      *  - On Windows, $(REF WindowsException, std, windows, syserror).
      */
     this(string filename, Mode mode, ulong size, void* address,
-            size_t window = 0)
+            size_t window = 0) scope
     {
         this.filename = filename;
         this.mMode = mode;
@@ -364,7 +376,7 @@ class MmFile
     /**
      * Flushes pending output and closes the memory mapped file.
      */
-    ~this()
+    ~this() scope
     {
         debug (MMFILE) printf("MmFile.~this()\n");
         unmap();
@@ -612,23 +624,47 @@ private:
     {
         static assert(0);
     }
+}
 
-    // Report error, where errno gives the error number
-    // void errNo()
-    // {
-    //     version (Windows)
-    //     {
-    //         throw new FileException(filename, GetLastError());
-    //     }
-    //     else version (linux)
-    //     {
-    //         throw new FileException(filename, errno);
-    //     }
-    //     else
-    //     {
-    //         static assert(0);
-    //     }
-    // }
+/// Read an existing file
+@system unittest
+{
+    import std.file;
+    std.file.write(deleteme, "hello"); // deleteme is a temporary filename
+    scope(exit) remove(deleteme);
+
+    // Use a scope class so the file will be closed at the end of this function
+    scope mmfile = new MmFile(deleteme);
+
+    assert(mmfile.length == "hello".length);
+
+    // Access file contents with the slice operator
+    // This is typed as `void[]`, so cast to `char[]` or `ubyte[]` to use it
+    const data = cast(const(char)[]) mmfile[];
+
+    // At this point, the file content may not have been read yet.
+    // In that case, the following memory access will intentionally
+    // trigger a page fault, causing the kernel to load the file contents
+    assert(data[0 .. 5] == "hello");
+}
+
+/// Write a new file
+@system unittest
+{
+    import std.file;
+    scope(exit) remove(deleteme);
+
+    scope mmfile = new MmFile(deleteme, MmFile.Mode.readWriteNew, 5, null);
+    assert(mmfile.length == 5);
+
+    auto data = cast(ubyte[]) mmfile[];
+
+    // This write to memory will be reflected in the file contents
+    data[] = '\n';
+
+    mmfile.flush();
+
+    assert(std.file.read(deleteme) == "\n\n\n\n\n");
 }
 
 @system unittest

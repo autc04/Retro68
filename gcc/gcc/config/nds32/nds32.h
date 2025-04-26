@@ -1,5 +1,5 @@
 /* Definitions of target machine of Andes NDS32 cpu for GNU compiler
-   Copyright (C) 2012-2022 Free Software Foundation, Inc.
+   Copyright (C) 2012-2025 Free Software Foundation, Inc.
    Contributed by Andes Technology Corporation.
 
    This file is part of GCC.
@@ -1061,10 +1061,6 @@ enum nds32_builtins
 #define LONG_TYPE_SIZE          32
 #define LONG_LONG_TYPE_SIZE     64
 
-#define FLOAT_TYPE_SIZE         32
-#define DOUBLE_TYPE_SIZE        64
-#define LONG_DOUBLE_TYPE_SIZE   64
-
 #define DEFAULT_SIGNED_CHAR 1
 
 #define SIZE_TYPE "long unsigned int"
@@ -1332,7 +1328,7 @@ enum reg_class
    This is used to unwind the stack to an exception handler's call frame.  */
 #define EH_RETURN_STACKADJ_RTX gen_rtx_REG (Pmode, 2)
 
-#define DBX_REGISTER_NUMBER(REGNO) nds32_dbx_register_number (REGNO)
+#define DEBUGGER_REGNO(REGNO) nds32_debugger_regno (REGNO)
 
 #define STACK_POINTER_REGNUM SP_REGNUM
 

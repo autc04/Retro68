@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1998-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,6 +29,7 @@ with Einfo;          use Einfo;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
 with Errout;         use Errout;
+with Exp_Tss;        use Exp_Tss;
 with Lib.Util;       use Lib.Util;
 with Nlists;         use Nlists;
 with Opt;            use Opt;
@@ -47,6 +48,7 @@ with Snames;         use Snames;
 with Stringt;        use Stringt;
 with Stand;          use Stand;
 with Table;          use Table;
+with Warnsw;         use Warnsw;
 
 with GNAT.Heap_Sort_G;
 with GNAT.HTable;
@@ -56,14 +58,6 @@ package body Lib.Xref is
    ------------------
    -- Declarations --
    ------------------
-
-   package Deferred_References is new Table.Table (
-     Table_Component_Type => Deferred_Reference_Entry,
-     Table_Index_Type     => Int,
-     Table_Low_Bound      => 0,
-     Table_Initial        => 512,
-     Table_Increment      => 200,
-     Table_Name           => "Name_Deferred_References");
 
    --  The Xref table is used to record references. The Loc field is set
    --  to No_Location for a definition entry.
@@ -210,21 +204,6 @@ package body Lib.Xref is
          Xrefs.Decrement_Last;
       end if;
    end Add_Entry;
-
-   ---------------------
-   -- Defer_Reference --
-   ---------------------
-
-   procedure Defer_Reference (Deferred_Reference : Deferred_Reference_Entry) is
-   begin
-      --  If Get_Ignore_Errors, then we are in Preanalyze_Without_Errors, and
-      --  we should not record cross references, because that will cause
-      --  duplicates when we call Analyze.
-
-      if not Get_Ignore_Errors then
-         Deferred_References.Append (Deferred_Reference);
-      end if;
-   end Defer_Reference;
 
    -----------
    -- Equal --
@@ -641,15 +620,6 @@ package body Lib.Xref is
          end if;
       end if;
 
-      --  Do not generate references if we are within a postcondition sub-
-      --  program, because the reference does not comes from source, and the
-      --  preanalysis of the aspect has already created an entry for the ALI
-      --  file at the proper source location.
-
-      if Chars (Current_Scope) = Name_uPostconditions then
-         return;
-      end if;
-
       --  Never collect references if not in main source unit. However, we omit
       --  this test if Typ is 'e' or 'k', since these entries are structural,
       --  and it is useful to have them in units that reference packages as
@@ -664,7 +634,7 @@ package body Lib.Xref is
       --  a default in an instance.
 
       --  We also set the referenced flag in a generic package that is not in
-      --  then main source unit, when the variable is of a formal private type,
+      --  the main source unit, when the object is of a formal private type,
       --  to warn in the instance if the corresponding type is not a fully
       --  initialized type.
 
@@ -694,6 +664,7 @@ package body Lib.Xref is
             return;
 
          elsif Inside_A_Generic
+           and then Is_Object (E)
            and then Is_Generic_Type (Etype (E))
          then
             Set_Referenced (E);
@@ -736,7 +707,7 @@ package body Lib.Xref is
             Set_Referenced (E);
 
          --  For the case where the entity is on the left hand side of an
-         --  assignment statment, we do nothing here.
+         --  assignment statement, we do nothing here.
 
          --  The processing for Analyze_Assignment_Statement will set the
          --  Referenced_As_LHS flag.
@@ -806,7 +777,7 @@ package body Lib.Xref is
                Set_Referenced_As_LHS (E, False);
 
             --  For OUT parameter not covered by the above cases, we simply
-            --  regard it as a non-reference.
+            --  regard it as a reference.
 
             else
                Set_Referenced_As_Out_Parameter (E);
@@ -819,10 +790,15 @@ package body Lib.Xref is
          elsif Kind = E_In_Out_Parameter
            and then Is_Assignable (E)
          then
-            --  For sure this counts as a normal read reference
+            --  We count it as a read reference unless we're calling a
+            --  type support subprogram such as deep finalize.
 
-            Set_Referenced (E);
-            Set_Last_Assignment (E, Empty);
+            if not Is_Entity_Name (Name (Call))
+              or else Get_TSS_Name (Entity (Name (Call))) = TSS_Null
+            then
+               Set_Referenced (E);
+               Set_Last_Assignment (E, Empty);
+            end if;
 
             --  We count it as being referenced as an out parameter if the
             --  option is set to warn on all out parameters, except that we
@@ -936,10 +912,10 @@ package body Lib.Xref is
                      if Chars (BE) = Chars (E) then
                         if Has_Pragma_Unused (E) then
                            Error_Msg_NE -- CODEFIX
-                             ("??pragma Unused given for&!", N, BE);
+                             ("??aspect Unused specified for&!", N, BE);
                         else
                            Error_Msg_NE -- CODEFIX
-                             ("??pragma Unreferenced given for&!", N, BE);
+                             ("??aspect Unreferenced specified for&!", N, BE);
                         end if;
                         exit;
                      end if;
@@ -952,10 +928,10 @@ package body Lib.Xref is
 
             elsif Has_Pragma_Unused (E) then
                Error_Msg_NE -- CODEFIX
-                 ("??pragma Unused given for&!", N, E);
+                 ("??aspect Unused specified for&!", N, E);
             else
                Error_Msg_NE -- CODEFIX
-                 ("??pragma Unreferenced given for&!", N, E);
+                 ("??aspect Unreferenced specified for&!", N, E);
             end if;
          end if;
 
@@ -1290,21 +1266,6 @@ package body Lib.Xref is
       return E;
    end Get_Key;
 
-   ----------------------------
-   -- Has_Deferred_Reference --
-   ----------------------------
-
-   function Has_Deferred_Reference (Ent : Entity_Id) return Boolean is
-   begin
-      for J in Deferred_References.First .. Deferred_References.Last loop
-         if Deferred_References.Table (J).E = Ent then
-            return True;
-         end if;
-      end loop;
-
-      return False;
-   end Has_Deferred_Reference;
-
    ----------
    -- Hash --
    ----------
@@ -1317,10 +1278,10 @@ package body Lib.Xref is
       XE : Xref_Entry renames Xrefs.Table (F);
       type M is mod 2**32;
 
-      H : constant M := M (XE.Key.Ent) + 2 ** 7 * M (abs XE.Key.Loc);
+      H : constant M := 3 * M (XE.Key.Ent) + 5 * M (abs XE.Key.Loc);
       --  It would be more natural to write:
       --
-      --    H : constant M := M'Mod (XE.Key.Ent) + 2**7 * M'Mod (XE.Key.Loc);
+      --    H : constant M := 3 * M'Mod (XE.Key.Ent) + 5 * M'Mod (XE.Key.Loc);
       --
       --  But we can't use M'Mod, because it prevents bootstrapping with older
       --  compilers. Loc can be negative, so we do "abs" before converting.
@@ -2751,33 +2712,6 @@ package body Lib.Xref is
          Write_Info_EOL;
       end Output_Refs;
    end Output_References;
-
-   ---------------------------------
-   -- Process_Deferred_References --
-   ---------------------------------
-
-   procedure Process_Deferred_References is
-   begin
-      for J in Deferred_References.First .. Deferred_References.Last loop
-         declare
-            D : Deferred_Reference_Entry renames Deferred_References.Table (J);
-
-         begin
-            case Known_To_Be_Assigned (D.N) is
-               when True =>
-                  Generate_Reference (D.E, D.N, 'm');
-
-               when False =>
-                  Generate_Reference (D.E, D.N, 'r');
-
-            end case;
-         end;
-      end loop;
-
-      --  Clear processed entries from table
-
-      Deferred_References.Init;
-   end Process_Deferred_References;
 
 --  Start of elaboration for Lib.Xref
 

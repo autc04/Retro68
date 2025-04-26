@@ -1,10 +1,10 @@
 /* { dg-do compile { target lp64 } } */
-/* { dg-require-effective-target powerpc_p9vector_ok } */
-/* { dg-options "-mdejagnu-cpu=power9 -O2" } */
+/* { dg-options "-mdejagnu-cpu=power9 -mvsx -O2" } */
+/* { dg-require-effective-target powerpc_vsx } */
 
 /* Test to make sure VEXTU{B,H,W}{L,R}X is generated for various vector extract
    operations for ISA 3.0 (-mcpu=power9).  In addition, make sure that neither
-   of the the the old methods of doing vector extracts are done either by
+   of the old methods of doing vector extracts are done either by
    explict stores to the stack or by using direct move instructions.  */
 
 #include <altivec.h>

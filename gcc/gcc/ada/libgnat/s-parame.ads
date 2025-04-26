@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,9 +31,10 @@
 
 --  Default version used when no target-specific version is provided
 
---  This package defines some system dependent parameters for GNAT. These
---  are values that are referenced by the runtime library and are therefore
---  relevant to the target machine.
+--  This package defines a number of system-dependent parameters for GNAT.
+--  These are values that are referenced by the runtime library and are
+--  therefore relevant to the target machine. This includes the default and
+--  minimum size and the length of a task name.
 
 --  The parameters whose value is defined in the spec are not generally
 --  expected to be changed. If they are changed, it will be necessary to
@@ -53,9 +54,7 @@ package System.Parameters is
    -- Task And Stack Allocation Control --
    ---------------------------------------
 
-   type Size_Type is range
-     -(2 ** (Integer'(Standard'Address_Size) - 1)) ..
-     +(2 ** (Integer'(Standard'Address_Size) - 1)) - 1;
+   type Size_Type is range -Memory_Size / 2 .. Memory_Size / 2 - 1;
    --  Type used to provide task stack sizes to the runtime. Sized to permit
    --  stack sizes of up to half the total addressable memory space. This may
    --  seem excessively large (even for 32-bit systems), however there are many

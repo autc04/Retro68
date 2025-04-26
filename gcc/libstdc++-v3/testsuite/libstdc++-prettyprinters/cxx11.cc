@@ -1,7 +1,7 @@
 // { dg-do run { target c++11 } }
 // { dg-options "-g -O0" }
 
-// Copyright (C) 2011-2022 Free Software Foundation, Inc.
+// Copyright (C) 2011-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -62,6 +62,11 @@ struct datum
 };
 
 std::unique_ptr<datum> global;
+
+struct custom_cat : std::error_category {
+  const char* name() const noexcept { return "miaow"; }
+  std::string message(int) const { return ""; }
+};
 
 int
 main()
@@ -166,9 +171,9 @@ main()
 // { dg-final { note-test runiq_ptr {std::unique_ptr<int> = {get() = 0x0}} } }
 
   ExTuple tpl(6,7);
-// { dg-final { note-test tpl {std::tuple containing = {[1] = 6, [2] = 7}} } }
+// { dg-final { note-test tpl {std::tuple containing = {[0] = 6, [1] = 7}} } }
   ExTuple &rtpl = tpl;
-// { dg-final { note-test rtpl {std::tuple containing = {[1] = 6, [2] = 7}} } }
+// { dg-final { note-test rtpl {std::tuple containing = {[0] = 6, [1] = 7}} } }
 
   std::error_code e0;
   // { dg-final { note-test e0 {std::error_code = { }} } }
@@ -179,10 +184,7 @@ main()
   std::error_condition ecinval = std::make_error_condition(std::errc::invalid_argument);
   // { dg-final { note-test ecinval {std::error_condition = {"generic": EINVAL}} } }
 
-  struct custom_cat : std::error_category {
-    const char* name() const noexcept { return "miaow"; }
-    std::string message(int) const { return ""; }
-  } cat;
+  custom_cat cat;
   std::error_code emiaow(42, cat);
   // { dg-final { note-test emiaow {std::error_code = {custom_cat: 42}} } }
   std::error_condition ecmiaow(42, cat);
@@ -206,6 +208,13 @@ main()
   struct Value { int i, j; };
   std::atomic<Value> av{{8, 9}};
   // { dg-final { note-test av {std::atomic<Value> = { {i = 8, j = 9} }} } }
+
+  std::integral_constant<int, 1> one;
+  // { dg-final { note-test one {std::integral_constant<int, 1>} } }
+  std::integral_constant<bool, true> truth;
+  // { dg-final { note-test truth {std::true_type} } }
+  std::integral_constant<bool, 0> lies;
+  // { dg-final { note-test lies {std::false_type} } }
 
   placeholder(""); // Mark SPOT
   use(efl);

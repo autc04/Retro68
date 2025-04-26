@@ -8,7 +8,6 @@
  */
 module core.sys.windows.commctrl;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "comctl32");
@@ -1741,8 +1740,8 @@ enum {
     I_CHILDRENCALLBACK = -1
 }
 
-mixin DECLARE_HANDLE!("HTREEITEM");
-mixin DECLARE_HANDLE!("HIMAGELIST");
+alias HTREEITEM = HANDLE;
+alias HIMAGELIST = HANDLE;
 
 version (Win64)
 {
@@ -4483,8 +4482,8 @@ static if (_WIN32_IE >= 0x400) {
     alias RBHITTESTINFO* LPRBHITTESTINFO;
 }
 
-mixin DECLARE_HANDLE!("HDSA");
-mixin DECLARE_HANDLE!("HDPA");
+alias HDSA = HANDLE;
+alias HDPA = HANDLE;
 
 version (Unicode) {
     alias HDITEMW HDITEM;
@@ -5015,7 +5014,7 @@ BOOL Animate_Seek(HWND hwnd, int frame) {
     return Animate_Play(hwnd, frame, frame, 1);
 }
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     HBITMAP CreateMappedBitmap(HINSTANCE, INT_PTR, UINT, LPCOLORMAP, int);
     HWND CreateStatusWindowA(LONG, LPCSTR, HWND, UINT);
     HWND CreateStatusWindowW(LONG, LPCWSTR, HWND, UINT);
@@ -5069,7 +5068,7 @@ BOOL DateTime_SetSystemtime(HWND hwnd, WPARAM flag, LPSYSTEMTIME lpSysTime) {
       cast(LPARAM) lpSysTime);
 }
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     void DrawInsert(HWND, HWND, int);
     void DrawStatusTextA(HDC, LPRECT, LPCSTR, UINT);
     void DrawStatusTextW(HDC, LPRECT, LPCWSTR, UINT);
@@ -5143,7 +5142,7 @@ static if (_WIN32_IE >= 0x400) {
     }
 }
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     HDSA DSA_Create(INT, INT);
     BOOL DSA_Destroy(HDSA);
     VOID DSA_DestroyCallback(HDSA, PFNDSAENUMCALLBACK, PVOID);
@@ -5759,7 +5758,7 @@ BOOL MonthCal_SetRange(HWND w, DWORD f, LPSYSTEMTIME st) {
       cast(LPARAM) st);
 }
 
-extern (Windows) BOOL ShowHideMenuCtl(HWND, UINT_PTR, PINT);
+extern (Windows) nothrow @nogc BOOL ShowHideMenuCtl(HWND, UINT_PTR, PINT);
 
 BOOL TabCtrl_GetItem(HWND w, int i, LPTCITEM p) {
     return cast(BOOL) SendMessage(w, TCM_GETITEM, i, cast(LPARAM) p);
@@ -6070,7 +6069,7 @@ static if (_WIN32_IE >= 0x300) {
         return cast(BOOL) SendMessage(w, LVM_SETITEMCOUNT, i, cast(LPARAM) f);
     }
 
-    extern (Windows) {
+    extern (Windows) nothrow @nogc {
         WINBOOL ImageList_SetImageCount(HIMAGELIST, UINT);
         WINBOOL ImageList_Copy(HIMAGELIST, int, HIMAGELIST, int, UINT);
         WINBOOL ImageList_DrawIndirect(IMAGELISTDRAWPARAMS*);

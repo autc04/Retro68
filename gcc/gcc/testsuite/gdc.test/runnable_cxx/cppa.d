@@ -1,16 +1,13 @@
+// REQUIRED_ARGS: -preview=in
 // PERMUTE_ARGS: -g
 // EXTRA_CPP_SOURCES: cppb.cpp
 // EXTRA_FILES: extra-files/cppb.h
-// CXXFLAGS(linux freebsd osx netbsd dragonflybsd): -std=c++11
+// CXXFLAGS(linux freebsd osx openbsd netbsd dragonflybsd): -std=c++11
 // druntime isn't linked, this prevents missing symbols '_d_arraybounds_slicep':
 // REQUIRED_ARGS: -checkaction=C
-// Filter a spurious warning on Semaphore:
-// TRANSFORM_OUTPUT: remove_lines("warning: relocation refers to discarded section")
+// TRANSFORM_OUTPUT: remove_lines("warning: vsprintf\(\) is often misused")
 
 // N.B MSVC doesn't have a C++11 switch, but it defaults to the latest fully-supported standard
-
-// Broken for unknown reasons since the OMF => MsCOFF switch
-// DISABLED: win32omf
 
 import core.stdc.stdio;
 import core.stdc.stdarg;
@@ -443,57 +440,10 @@ void test13161()
 
 /****************************************/
 
-version (linux)
-{
-    static if (__traits(getTargetInfo, "cppStd") < 201703)
-    {
-        // See note on std::allocator below.
-        extern(C++, __gnu_cxx)
-        {
-            struct new_allocator(T)
-            {
-                alias size_type = size_t;
-                static if (is(T : char))
-                    void deallocate(T*, size_type) { }
-                else
-                    void deallocate(T*, size_type);
-            }
-        }
-    }
-}
-
 extern (C++, std)
 {
-    version (linux)
-    {
-        static if (__traits(getTargetInfo, "cppStd") >= 201703)
-        {
-            // std::allocator no longer derives from __gnu_cxx::new_allocator,
-            // it derives from std::__new_allocator instead.
-            struct __new_allocator(T)
-            {
-                alias size_type = size_t;
-                static if (is(T : char))
-                    void deallocate(T*, size_type) { }
-                else
-                    void deallocate(T*, size_type);
-            }
-        }
-    }
-
     extern (C++, class) struct allocator(T)
     {
-        version (linux)
-        {
-            alias size_type = size_t;
-            void deallocate(T* p, size_type sz)
-            {
-                static if (__traits(getTargetInfo, "cppStd") >= 201703)
-                    (cast(std.__new_allocator!T*)&this).deallocate(p, sz);
-                else
-                    (cast(__gnu_cxx.new_allocator!T*)&this).deallocate(p, sz);
-            }
-        }
     }
 
     class vector(T, A = allocator!T)
@@ -505,7 +455,7 @@ extern (C++, std)
     {
     }
 
-    version (CppRuntime_Gcc)
+    version (CppRuntime_GNU)
     {
         // https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html
         static if (__traits(getTargetInfo, "cppStd") >= 201103)
@@ -585,11 +535,6 @@ void test14()
 
 version (linux)
 {
-    void test14a(std.allocator!int * pa)
-    {
-    pa.deallocate(null, 0);
-    }
-
     void gun(std.vector!int pa)
     {
     int x = 42;
@@ -961,9 +906,7 @@ void fuzz2()
 }
 
 ////////
-version(CppRuntime_DigitalMars)
-    enum UNICODE = false;
-else version(CppRuntime_Microsoft)
+version(CppRuntime_Microsoft)
     enum UNICODE = false; //VS2013 doesn't support them
 else
     enum UNICODE = true;
@@ -1114,83 +1057,99 @@ void test15576()
 /****************************************/
 // https://issues.dlang.org/show_bug.cgi?id=15579
 
-extern (C++)
+version (DigitalMars)
 {
-    class Base
+    version (linux)
     {
-        //~this() {}
-        void based() { }
-        ubyte x = 4;
+        // Test removed for DMD/linux-only.
+        // https://issues.dlang.org/show_bug.cgi?id=23660
     }
-
-    interface Interface
-    {
-        int MethodCPP();
-        int MethodD();
-    }
-
-    class Derived : Base, Interface
-    {
-        short y = 5;
-        int MethodCPP();
-        int MethodD() {
-            printf("Derived.MethodD(): this = %p, x = %d, y = %d\n", this, x, y);
-            Derived p = this;
-            //p = cast(Derived)(cast(void*)p - 16);
-            assert(p.x == 4 || p.x == 7);
-            assert(p.y == 5 || p.y == 8);
-            return 3;
-        }
-        int Method() { return 6; }
-    }
-
-    Derived cppfoo(Derived);
-    Interface cppfooi(Interface);
+    else
+        version = TEST15579;
 }
+else
+    version = TEST15579;
 
-void test15579()
+version (TEST15579)
 {
-    Derived d = new Derived();
-    printf("d = %p\n", d);
-    assert(d.x == 4);
-    assert(d.y == 5);
-    assert((cast(Interface)d).MethodCPP() == 30);
-    assert((cast(Interface)d).MethodD() == 3);
-    assert(d.MethodCPP() == 30);
-    assert(d.MethodD() == 3);
-    assert(d.Method() == 6);
-
-    d = cppfoo(d);
-    assert(d.x == 7);
-    assert(d.y == 8);
-
-    printf("d2 = %p\n", d);
-
-    /* Casting to an interface involves thunks in the vtbl[].
-     * g++ puts the thunks for MethodD in the same COMDAT as MethodD.
-     * But D doesn't, so when the linker "picks one" of the D generated MethodD
-     * or the g++ generated MethodD, it may wind up with a messed up thunk,
-     * resulting in a seg fault. The solution is to not expect objects of the same
-     * type to be constructed on both sides of the D/C++ divide if the same member
-     * function (in this case, MethodD) is also defined on both sides.
-     */
-    version (Windows)
+    extern (C++)
     {
+        class Base
+        {
+            //~this() {}
+            void based() { }
+            ubyte x = 4;
+        }
+
+        interface Interface
+        {
+            int MethodCPP();
+            int MethodD();
+        }
+
+        class Derived : Base, Interface
+        {
+            short y = 5;
+            int MethodCPP();
+            int MethodD() {
+                printf("Derived.MethodD(): this = %p, x = %d, y = %d\n", this, x, y);
+                Derived p = this;
+                //p = cast(Derived)(cast(void*)p - 16);
+                assert(p.x == 4 || p.x == 7);
+                assert(p.y == 5 || p.y == 8);
+                return 3;
+            }
+            int Method() { return 6; }
+        }
+
+        Derived cppfoo(Derived);
+        Interface cppfooi(Interface);
+    }
+
+    void test15579()
+    {
+        Derived d = new Derived();
+        printf("d = %p\n", d);
+        assert(d.x == 4);
+        assert(d.y == 5);
+        assert((cast(Interface)d).MethodCPP() == 30);
         assert((cast(Interface)d).MethodD() == 3);
-    }
-    assert((cast(Interface)d).MethodCPP() == 30);
+        assert(d.MethodCPP() == 30);
+        assert(d.MethodD() == 3);
+        assert(d.Method() == 6);
 
-    assert(d.Method() == 6);
+        d = cppfoo(d);
+        assert(d.x == 7);
+        assert(d.y == 8);
 
-    printf("d = %p, i = %p\n", d, cast(Interface)d);
-    version (Windows)
-    {
-        Interface i = cppfooi(d);
-        printf("i2: %p\n", i);
-        assert(i.MethodD() == 3);
-        assert(i.MethodCPP() == 30);
+        printf("d2 = %p\n", d);
+
+        /* Casting to an interface involves thunks in the vtbl[].
+         * g++ puts the thunks for MethodD in the same COMDAT as MethodD.
+         * But D doesn't, so when the linker "picks one" of the D generated MethodD
+         * or the g++ generated MethodD, it may wind up with a messed up thunk,
+         * resulting in a seg fault. The solution is to not expect objects of the same
+         * type to be constructed on both sides of the D/C++ divide if the same member
+         * function (in this case, MethodD) is also defined on both sides.
+         */
+        version (Windows)
+        {
+            assert((cast(Interface)d).MethodD() == 3);
+        }
+        assert((cast(Interface)d).MethodCPP() == 30);
+
+        assert(d.Method() == 6);
+
+        printf("d = %p, i = %p\n", d, cast(Interface)d);
+        version (Windows)
+        {
+            Interface i = cppfooi(d);
+            printf("i2: %p\n", i);
+            assert(i.MethodD() == 3);
+            assert(i.MethodCPP() == 30);
+        }
+        printf("test15579() done\n");
     }
-    printf("test15579() done\n");
 }
 
 /****************************************/
@@ -1361,7 +1320,7 @@ extern(C++)
     class Cpp15589Derived : Cpp15589Base
     {
     public:
-        this();
+        this() scope;
         final ~this();
         int b;
     }
@@ -1371,7 +1330,7 @@ extern(C++)
     public:
         void beforeDtor();
 
-        this();
+        this() scope;
         ~this();
 
         void afterDtor();
@@ -1381,7 +1340,7 @@ extern(C++)
     class Cpp15589DerivedVirtual : Cpp15589BaseVirtual
     {
     public:
-        this();
+        this() scope;
         ~this();
 
         override void afterDtor();
@@ -1392,7 +1351,7 @@ extern(C++)
     class Cpp15589IntroducingVirtual : Cpp15589Base
     {
     public:
-        this();
+        this() scope;
         void beforeIntroducedVirtual();
         ~this();
         void afterIntroducedVirtual(int);
@@ -1637,12 +1596,28 @@ void test19134()
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=18955
-alias std_string = std.basic_string!(char);
+version (linux)
+    alias std_string = std.basic_string!(char);
+else
+{
+    import core.stdcpp.string : core_basic_string = basic_string;
+    alias std_string = core_basic_string!(char);
+}
 
 extern(C++) void callback18955(ref const(std_string) str)
 {
 }
 extern(C++) void test18955();
+
+/****************************************/
+
+extern(C++) void testPreviewIn();
+
+extern(C++) void previewInFunction(in int a, in std_string b, ref const(std_string) c)
+{
+    assert(a == 42);
+    assert(&b is &c);
+}
 
 /****************************************/
 
@@ -1682,7 +1657,7 @@ void main()
     testeh2();
     testeh3();
     test15576();
-    test15579();
+    version (TEST15579) test15579();
     test15610();
     test15455();
     test15372();
@@ -1695,6 +1670,7 @@ void main()
     test18966();
     test19134();
     test18955();
+    testPreviewIn();
 
     printf("Success\n");
 }

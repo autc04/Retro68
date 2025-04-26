@@ -8,7 +8,6 @@
  */
 module core.sys.windows.rpcndr;
 version (Windows):
-@system:
 pragma(lib, "rpcrt4");
 
 /* Translation notes:
@@ -388,7 +387,7 @@ enum PROXY_PHASE {
     PROXY_UNMARSHAL
 }
 
-alias TypeDef!(void *) RPC_SS_THREAD_HANDLE;
+alias void * RPC_SS_THREAD_HANDLE;
 
 extern (Windows) {
 alias void function (void*) NDR_RUNDOWN;

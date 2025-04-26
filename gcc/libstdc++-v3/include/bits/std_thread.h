@@ -1,6 +1,6 @@
 // std::thread declarations -*- C++ -*-
 
-// Copyright (C) 2008-2022 Free Software Foundation, Inc.
+// Copyright (C) 2008-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,7 +30,9 @@
 #ifndef _GLIBCXX_THREAD_H
 #define _GLIBCXX_THREAD_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #if __cplusplus >= 201103L
 #include <bits/c++config.h>
@@ -53,30 +55,46 @@ namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
+#if __glibcxx_formatters
+  template<typename, typename> class formatter;
+#endif
+
   /** @addtogroup threads
    *  @{
    */
 
-  /// thread
+  /** A std::thread represents a new thread of execution.
+   *
+   * The default constructor creates an object that does not own a thread.
+   * The `thread(F&&, Args&&...)` constructor invokes a callable in a new
+   * thread, and owns that new thread. A `std::thread` that owns a thread
+   * is *joinable*. Joining a thread waits for it to finish executing,
+   * which happens when the callable running in that thread returns.
+   *
+   * A `std::thread` cannot be copied, but can be moved. Moving a joinable
+   * object transfers ownership of its thread to another object.
+   *
+   * A joinable `std::thread` must be explicitly joined (or detached) before
+   * it is destroyed or assigned to. Attempting to destroy a joinable thread
+   * will terminate the whole process.
+   *
+   * @headerfile thread
+   * @since C++11
+   */
   class thread
   {
   public:
 #ifdef _GLIBCXX_HAS_GTHREADS
-    // Abstract base class for types that wrap arbitrary functors to be
-    // invoked in the new thread of execution.
-    struct _State
-    {
-      virtual ~_State();
-      virtual void _M_run() = 0;
-    };
-    using _State_ptr = unique_ptr<_State>;
-
     using native_handle_type = __gthread_t;
 #else
     using native_handle_type = int;
 #endif
 
-    /// thread::id
+    /** A std::thread::id is a unique identifier for a thread.
+     *
+     * @headerfile thread
+     * @since C++11
+     */
     class id
     {
       native_handle_type	_M_thread;
@@ -105,13 +123,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       template<class _CharT, class _Traits>
 	friend basic_ostream<_CharT, _Traits>&
 	operator<<(basic_ostream<_CharT, _Traits>& __out, id __id);
+
+#if __glibcxx_formatters
+      friend formatter<id, char>;
+      friend formatter<id, wchar_t>;
+#endif
     };
 
   private:
     id				_M_id;
 
     // _GLIBCXX_RESOLVE_LIB_DEFECTS
-    // 2097.  packaged_task constructors should be constrained
+    // 2097. packaged_task constructors should be constrained
     // 3039. Unnecessary decay in thread and packaged_task
     template<typename _Tp>
       using __not_same = __not_<is_same<__remove_cvref_t<_Tp>, thread>>;
@@ -120,6 +143,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     thread() noexcept = default;
 
 #ifdef _GLIBCXX_HAS_GTHREADS
+  private:
+    // This adds to user code that creates std:thread objects (because
+    // it is called by the template ctor below) strong references to
+    // pthread_create and pthread_join, which ensures they are both
+    // linked in even during static linking.  We can't depend on
+    // gthread calls to bring them in, because those may use weak
+    // references.
+    static void
+    _M_thread_deps_never_run() {
+#ifdef GTHR_ACTIVE_PROXY
+      reinterpret_cast<void (*)(void)>(&pthread_create)();
+      reinterpret_cast<void (*)(void)>(&pthread_join)();
+#endif
+    }
+
+  public:
     template<typename _Callable, typename... _Args,
 	     typename = _Require<__not_same<_Callable>>>
       explicit
@@ -130,18 +169,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  "std::thread arguments must be invocable after conversion to rvalues"
 	  );
 
-#ifdef GTHR_ACTIVE_PROXY
-	// Create a reference to pthread_create, not just the gthr weak symbol.
-	auto __depend = reinterpret_cast<void(*)()>(&pthread_create);
-#else
-	auto __depend = nullptr;
-#endif
 	using _Wrapper = _Call_wrapper<_Callable, _Args...>;
 	// Create a call wrapper with DECAY_COPY(__f) as its target object
 	// and DECAY_COPY(__args)... as its bound argument entities.
 	_M_start_thread(_State_ptr(new _State_impl<_Wrapper>(
 	      std::forward<_Callable>(__f), std::forward<_Args>(__args)...)),
-	    __depend);
+	    _M_thread_deps_never_run);
       }
 #endif // _GLIBCXX_HAS_GTHREADS
 
@@ -195,6 +228,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     hardware_concurrency() noexcept;
 
 #ifdef _GLIBCXX_HAS_GTHREADS
+#ifndef _GLIBCXX_THREAD_IMPL
+  private:
+#endif
+    // Abstract base class for types that wrap arbitrary functors to be
+    // invoked in the new thread of execution.
+    struct _State
+    {
+      virtual ~_State();
+      virtual void _M_run() = 0;
+    };
+    using _State_ptr = unique_ptr<_State>;
+
   private:
     template<typename _Callable>
       struct _State_impl : public _State
@@ -203,7 +248,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 	template<typename... _Args>
 	  _State_impl(_Args&&... __args)
-	  : _M_func{{std::forward<_Args>(__args)...}}
+	  : _M_func(std::forward<_Args>(__args)...)
 	  { }
 
 	void
@@ -237,6 +282,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     template<typename _Tuple>
       struct _Invoker
       {
+	template<typename... _Args>
+	  explicit
+	  _Invoker(_Args&&... __args)
+	  : _M_t(std::forward<_Args>(__args)...)
+	  { }
+
 	_Tuple _M_t;
 
 	template<typename>
@@ -261,8 +312,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       };
 
   public:
+    /// @cond undocumented
     template<typename... _Tp>
       using _Call_wrapper = _Invoker<tuple<typename decay<_Tp>::type...>>;
+    /// @endcond
 #endif // _GLIBCXX_HAS_GTHREADS
   };
 
@@ -272,10 +325,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   inline unsigned int thread::hardware_concurrency() noexcept { return 0; }
 #endif
 
+  /// @relates std::thread
   inline void
   swap(thread& __x, thread& __y) noexcept
   { __x.swap(__y); }
 
+  /// @relates std::thread::id
   inline bool
   operator==(thread::id __x, thread::id __y) noexcept
   {
@@ -301,7 +356,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   namespace this_thread
   {
-    /// this_thread::get_id
+    /// The unique identifier of the current thread.
     inline thread::id
     get_id() noexcept
     {
@@ -314,7 +369,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
     }
 
-    /// this_thread::yield
+    /// Allow the implementation to schedule a different thread.
     inline void
     yield() noexcept
     {

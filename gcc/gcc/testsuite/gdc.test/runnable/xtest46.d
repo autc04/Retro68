@@ -10,16 +10,16 @@ int
 int(int i, long j = 7L)
 long
 C10390(C10390(C10390(<recursion>)))
-tuple(height)
-tuple(get, get)
-tuple(clear)
-tuple(draw, draw)
+AliasSeq!(height)
+AliasSeq!(get, get)
+AliasSeq!(clear)
+AliasSeq!(draw, draw)
 const(int)
 string[]
 double[]
 double[]
 {}
-tuple("m")
+AliasSeq!("m")
 true
 TFunction1: extern (C) void function()
 ---
@@ -179,7 +179,7 @@ void test7()
 
 void foo8(int n1 = __LINE__ + 0, int n2 = __LINE__, string s = __FILE__)
 {
-    assert(n1 < n2);
+    assert(n1 == n2);
     printf("n1 = %d, n2 = %d, s = %.*s\n", n1, n2, cast(int)s.length, s.ptr);
 }
 
@@ -192,7 +192,7 @@ void test8()
 
 void foo9(int n1 = __LINE__ + 0, int n2 = __LINE__, string s = __FILE__)()
 {
-    assert(n1 < n2);
+    assert(n1 == n2);
     printf("n1 = %d, n2 = %d, s = %.*s\n", n1, n2, cast(int)s.length, s.ptr);
 }
 
@@ -4091,30 +4091,30 @@ void test4258() {
 
 struct Foo4258 {
     // binary ++/--
-    int opPostInc()() if (false) { return 0; }
+    int opUnary(string op)() if (false) { return 0; }
 
     // binary 1st
-    int opAdd(R)(R rhs) if (false) { return 0; }
-    int opAdd_r(R)(R rhs) if (false) { return 0; }
+    int opBinary(string op, R)(R rhs) if (false) { return 0; }
+    int opBinaryRight(string op, R)(R rhs) if (false) { return 0; }
 
     // compare
-    int opCmp(R)(R rhs) if (false) { return 0; }
+    int opCmp(R)(const(R) rhs) const if (false) { return 0; }
 
     // binary-op assign
-    int opAddAssign(R)(R rhs) if (false) { return 0; }
+    int opOpAssign(string op, R)(R rhs) if (false) { return 0; }
 }
 struct Bar4258 {
     // binary commutive 1
-    int opAdd_r(R)(R rhs) if (false) { return 0; }
+    int opBinary(string op, R)(R rhs) if (false) { return 0; }
 
     // binary-op assign
     int opOpAssign(string op, R)(R rhs) if (false) { return 0; }
 }
 struct Baz4258 {
     // binary commutive 2
-    int opAdd(R)(R rhs) if (false) { return 0; }
+    int opBinaryRight(string op, R)(R rhs) if (false) { return 0; }
 }
-static assert(!is(typeof(Foo4258.init++)));
+static assert(!is(typeof(++Foo4258.init)));
 static assert(!is(typeof(Foo4258.init + 1)));
 static assert(!is(typeof(1 + Foo4258.init)));
 static assert(!is(typeof(Foo4258.init < Foo4258.init)));
@@ -5012,18 +5012,18 @@ void test6763()
 {
     int n;
 
-    f6763(0);   //With D2: Error: function main.f ((ref const const(int) _param_0)) is not callable using argument types (int)
+    f6763(0);   //With D2: Error: function main.f ((ref const const(int) __param_0)) is not callable using argument types (int)
     c6763(0);
     r6763(n);   static assert(__traits(compiles, r6763(0)));
     i6763(0);
     o6763(n);   static assert(!__traits(compiles, o6763(0)));
 
     // https://issues.dlang.org/show_bug.cgi?id=6755
-    static assert(typeof(f6763).stringof == "void(int _param_0)");
-    static assert(typeof(c6763).stringof == "void(const(int) _param_0)");
-    static assert(typeof(r6763).stringof == "void(ref int _param_0)");
-    static assert(typeof(i6763).stringof == "void(in int _param_0)");
-    static assert(typeof(o6763).stringof == "void(out int _param_0)");
+    static assert(typeof(f6763).stringof == "void(int __param_0)");
+    static assert(typeof(c6763).stringof == "void(const(int) __param_0)");
+    static assert(typeof(r6763).stringof == "void(ref int __param_0)");
+    static assert(typeof(i6763).stringof == "void(in int __param_0)");
+    static assert(typeof(o6763).stringof == "void(out int __param_0)");
 }
 
 /***************************************************/
@@ -5993,7 +5993,7 @@ void test7618(const int x = 1)
 {
     int func(ref int x) { return 1; }
     static assert(!__traits(compiles, func(x)));
-    // Error: function test.foo.func (ref int _param_0) is not callable using argument types (const(int))
+    // Error: function test.foo.func (ref int __param_0) is not callable using argument types (const(int))
 
     int delegate(ref int) dg = (ref int x) => 1;
     static assert(!__traits(compiles, dg(x)));
@@ -6163,14 +6163,6 @@ void test8064()
 
 void foo8220(int){}
 static assert(!__traits(compiles, foo8220(typeof(0)))); // fail
-
-/***************************************************/
-
-void func8105(in ref int x) { }
-
-void test8105()
-{
-}
 
 /***************************************************/
 
@@ -8040,6 +8032,29 @@ void test18232()
 }
 
 /***************************************************/
+// https://issues.dlang.org/show_bug.cgi?id=24332
+
+void test24332()
+{
+    class A {}
+    final class B : A {}
+
+    auto foo(A a) {
+        return cast(B) a;
+    }
+
+    auto a = new A();
+    auto n = cast(B) a;
+    assert(n is null);
+    auto b = cast(A) new B();
+    auto c = cast(B) b;
+    assert(c);
+    B e;
+    auto d = cast(B) cast(A) e;
+    assert(d is null);
+}
+
+/***************************************************/
 
 int main()
 {
@@ -8296,7 +8311,6 @@ int main()
     test12503();
     test8004();
     test8064();
-    test8105();
     test159();
     test12824();
     test8283();
@@ -8361,6 +8375,7 @@ int main()
     test17349();
     test17915();
     test18232();
+    test24332();
 
     printf("Success\n");
     return 0;

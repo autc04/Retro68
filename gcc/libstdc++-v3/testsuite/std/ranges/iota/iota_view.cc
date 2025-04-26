@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,11 +15,11 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <algorithm>
 #include <ranges>
+#include <vector>
 #include <testsuite_hooks.h>
 
 void
@@ -110,6 +110,25 @@ test06()
   VERIFY( std::ranges::equal(v3, w3) );
 }
 
+template<auto iota = std::views::iota>
+void
+test07()
+{
+  // Verify SFINAE behavior.
+  static_assert(!requires { iota(nullptr); });
+  static_assert(!requires { iota(nullptr, nullptr); });
+}
+
+void
+test08()
+{
+  // LWC 4001 - iota_view should provide empty
+  std::vector<int> v;
+  auto it = std::back_inserter(v);
+  auto r = std::views::iota(it);
+  VERIFY( !r.empty() );
+}
+
 int
 main()
 {
@@ -119,4 +138,6 @@ main()
   test04();
   test05();
   test06();
+  test07();
+  test08();
 }

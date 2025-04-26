@@ -1,5 +1,5 @@
 /* Basic IPA optimizations based on profile.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -32,7 +32,7 @@ along with GCC; see the file COPYING3.  If not see
      node corresponding to the target and produce a speculative call.
 
      This call may or may not survive through IPA optimization based on decision
-     of inliner. 
+     of inliner.
    - Finally we propagate the following flags: unlikely executed, executed
      once, executed at startup and executed at exit.  These flags are used to
      control code size/performance threshold and code placement (by producing
@@ -55,6 +55,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-inline.h"
 #include "symbol-summary.h"
 #include "tree-vrp.h"
+#include "sreal.h"
+#include "ipa-cp.h"
 #include "ipa-prop.h"
 #include "ipa-fnsummary.h"
 
@@ -136,7 +138,7 @@ dump_histogram (FILE *file, vec<histogram_entry *> histogram)
   unsigned int i;
   gcov_type overall_time = 0, cumulated_time = 0, cumulated_size = 0,
 	    overall_size = 0;
-  
+
   fprintf (dump_file, "Histogram:\n");
   for (i = 0; i < histogram.length (); i++)
     {
@@ -198,9 +200,9 @@ public:
   {}
 
   /* Duplicate info when an edge is cloned.  */
-  virtual void duplicate (cgraph_edge *, cgraph_edge *,
-			  speculative_call_summary *old_sum,
-			  speculative_call_summary *new_sum);
+  void duplicate (cgraph_edge *, cgraph_edge *,
+		  speculative_call_summary *old_sum,
+		  speculative_call_summary *new_sum) final override;
 };
 
 static ipa_profile_call_summaries *call_sums = NULL;
@@ -481,7 +483,6 @@ ipa_profile_read_summary_section (struct lto_file_decl_data *file_data,
   for (i = 0; i < count; i++)
     {
       index = streamer_read_uhwi (ib);
-      encoder = file_data->symtab_node_encoder;
       node
 	= dyn_cast<cgraph_node *> (lto_symtab_encoder_deref (encoder, index));
 
@@ -802,7 +803,7 @@ ipa_profile (void)
 	      cumulated_size += histogram[i]->size;
 	    }
 	  fprintf (dump_file, "Determined min count: %" PRId64
-		   " Time:%3.2f%% Size:%3.2f%%\n", 
+		   " Time:%3.2f%% Size:%3.2f%%\n",
 		   (int64_t)threshold,
 		   cumulated_time * 100.0 / overall_time,
 		   cumulated_size * 100.0 / overall_size);
@@ -880,13 +881,6 @@ ipa_profile (void)
 			    fprintf (dump_file,
 				     "Not speculating: "
 				     "probability is too low.\n");
-			}
-		      else if (!e->maybe_hot_p ())
-			{
-			  nuseless++;
-			  if (dump_file)
-			    fprintf (dump_file,
-				     "Not speculating: call is cold.\n");
 			}
 		      else if (n2->get_availability () <= AVAIL_INTERPOSABLE
 			       && n2->can_be_discarded_p ())
@@ -1054,8 +1048,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return flag_ipa_profile || in_lto_p; }
-  virtual unsigned int execute (function *) { return ipa_profile (); }
+  bool gate (function *) final override { return flag_ipa_profile || in_lto_p; }
+  unsigned int execute (function *) final override { return ipa_profile (); }
 
 }; // class pass_ipa_profile
 
@@ -1065,4 +1059,14 @@ ipa_opt_pass_d *
 make_pass_ipa_profile (gcc::context *ctxt)
 {
   return new pass_ipa_profile (ctxt);
+}
+
+/* Reset all state within ipa-profile.cc so that we can rerun the compiler
+   within the same process.  For use by toplev::finalize.  */
+
+void
+ipa_profile_cc_finalize (void)
+{
+  delete call_sums;
+  call_sums = NULL;
 }

@@ -8,57 +8,30 @@ TEST_OUTPUT:
 #pragma once
 
 #include <assert.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <math.h>
-
-#ifdef CUSTOM_D_ARRAY_TYPE
-#define _d_dynamicArray CUSTOM_D_ARRAY_TYPE
-#else
-/// Represents a D [] array
-template<typename T>
-struct _d_dynamicArray final
-{
-    size_t length;
-    T *ptr;
-
-    _d_dynamicArray() : length(0), ptr(NULL) { }
-
-    _d_dynamicArray(size_t length_in, T *ptr_in)
-        : length(length_in), ptr(ptr_in) { }
-
-    T& operator[](const size_t idx) {
-        assert(idx < length);
-        return ptr[idx];
-    }
-
-    const T& operator[](const size_t idx) const {
-        assert(idx < length);
-        return ptr[idx];
-    }
-};
-#endif
 
 enum class __c_not_special;
-extern "C" void fn_long(long _param_0);
+extern "C" void fn_long(long __param_0_);
 
-extern "C" void fn_ulong(unsigned long _param_0);
+extern "C" void fn_ulong(unsigned long __param_0_);
 
-extern "C" void fn_longlong(long long _param_0);
+extern "C" void fn_longlong(long long __param_0_);
 
-extern "C" void fn_ulonglong(unsigned long long _param_0);
+extern "C" void fn_ulonglong(unsigned long long __param_0_);
 
-extern "C" void fn_long_double(long double _param_0);
+extern "C" void fn_long_double(long double __param_0_);
 
-extern "C" void fn_wchar_t(wchar_t _param_0);
+extern "C" void fn_wchar_t(wchar_t __param_0_);
 
-extern "C" void fn_complex_float(_Complex float _param_0);
+extern "C" void fn_complex_float(_Complex float __param_0_);
 
-extern "C" void fn_complex_double(_Complex double _param_0);
+extern "C" void fn_complex_double(_Complex double __param_0_);
 
-extern "C" void fn_complex_real(_Complex long double _param_0);
+extern "C" void fn_complex_real(_Complex long double __param_0_);
 
-extern "C" void fn_not_special(__c_not_special _param_0);
+extern "C" void fn_not_special(__c_not_special __param_0_);
 
 ---
 +/

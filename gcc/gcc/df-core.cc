@@ -1,5 +1,5 @@
 /* Allocation for dataflow support routines.
-   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+   Copyright (C) 1999-2025 Free Software Foundation, Inc.
    Originally contributed by Michael P. Hayes
              (m.hayes@elec.canterbury.ac.nz, mhayes@redhat.com)
    Major rewrite contributed by Danny Berlin (dberlin@dberlin.org)
@@ -701,11 +701,6 @@ rest_of_handle_df_initialize (void)
   if (optimize > 1)
     df_live_add_problem ();
 
-  df->postorder = XNEWVEC (int, last_basic_block_for_fn (cfun));
-  df->n_blocks = post_order_compute (df->postorder, true, true);
-  inverted_post_order_compute (&df->postorder_inverted);
-  gcc_assert ((unsigned) df->n_blocks == df->postorder_inverted.length ());
-
   df->hard_regs_live_count = XCNEWVEC (unsigned int, FIRST_PSEUDO_REGISTER);
 
   df_hard_reg_init ();
@@ -741,8 +736,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return optimize > 0; }
-  virtual unsigned int execute (function *)
+  bool gate (function *) final override { return optimize > 0; }
+  unsigned int execute (function *) final override
     {
       return rest_of_handle_df_initialize ();
     }
@@ -781,8 +776,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return optimize == 0; }
-  virtual unsigned int execute (function *)
+  bool gate (function *) final override { return optimize == 0; }
+  unsigned int execute (function *) final override
     {
       return rest_of_handle_df_initialize ();
     }
@@ -811,11 +806,14 @@ rest_of_handle_df_finish (void)
   for (i = 0; i < df->num_problems_defined; i++)
     {
       struct dataflow *dflow = df->problems_in_order[i];
-      dflow->problem->free_fun ();
+      if (dflow->problem->free_fun)
+	dflow->problem->free_fun ();
+      else
+	free (dflow);
     }
 
   free (df->postorder);
-  df->postorder_inverted.release ();
+  free (df->postorder_inverted);
   free (df->hard_regs_live_count);
   free (df);
   df = NULL;
@@ -848,7 +846,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *)
+  unsigned int execute (function *) final override
     {
       return rest_of_handle_df_finish ();
     }
@@ -874,8 +872,10 @@ make_pass_df_finish (gcc::context *ctxt)
 /* Helper function for df_worklist_dataflow.
    Propagate the dataflow forward.
    Given a BB_INDEX, do the dataflow propagation
-   and set bits on for successors in PENDING
-   if the out set of the dataflow has changed.
+   and set bits on for successors in PENDING for earlier
+   and WORKLIST for later in bbindex_to_postorder
+   if the out set of the dataflow has changed.  When WORKLIST
+   is NULL we are processing all later blocks.
 
    AGE specify time when BB was visited last time.
    AGE of 0 means we are visiting for first time and need to
@@ -890,10 +890,11 @@ make_pass_df_finish (gcc::context *ctxt)
 
 static bool
 df_worklist_propagate_forward (struct dataflow *dataflow,
-                               unsigned bb_index,
-                               unsigned *bbindex_to_postorder,
-                               bitmap pending,
-                               sbitmap considered,
+			       unsigned bb_index,
+			       unsigned *bbindex_to_postorder,
+			       bitmap worklist,
+			       bitmap pending,
+			       sbitmap considered,
 			       vec<int> &last_change_age,
 			       int age)
 {
@@ -906,8 +907,7 @@ df_worklist_propagate_forward (struct dataflow *dataflow,
   if (EDGE_COUNT (bb->preds) > 0)
     FOR_EACH_EDGE (e, ei, bb->preds)
       {
-	if (bbindex_to_postorder[e->src->index] < last_change_age.length ()
-	    && age <= last_change_age[bbindex_to_postorder[e->src->index]]
+	if ((!age || age <= last_change_age[e->src->index])
 	    && bitmap_bit_p (considered, e->src->index))
           changed |= dataflow->problem->con_fun_n (e);
       }
@@ -924,7 +924,16 @@ df_worklist_propagate_forward (struct dataflow *dataflow,
           unsigned ob_index = e->dest->index;
 
           if (bitmap_bit_p (considered, ob_index))
-            bitmap_set_bit (pending, bbindex_to_postorder[ob_index]);
+	    {
+	      if (bbindex_to_postorder[bb_index]
+		  < bbindex_to_postorder[ob_index])
+		{
+		  if (worklist)
+		    bitmap_set_bit (worklist, bbindex_to_postorder[ob_index]);
+		}
+	      else
+		bitmap_set_bit (pending, bbindex_to_postorder[ob_index]);
+	    }
         }
       return true;
     }
@@ -937,10 +946,11 @@ df_worklist_propagate_forward (struct dataflow *dataflow,
 
 static bool
 df_worklist_propagate_backward (struct dataflow *dataflow,
-                                unsigned bb_index,
-                                unsigned *bbindex_to_postorder,
-                                bitmap pending,
-                                sbitmap considered,
+				unsigned bb_index,
+				unsigned *bbindex_to_postorder,
+				bitmap worklist,
+				bitmap pending,
+				sbitmap considered,
 				vec<int> &last_change_age,
 				int age)
 {
@@ -953,8 +963,7 @@ df_worklist_propagate_backward (struct dataflow *dataflow,
   if (EDGE_COUNT (bb->succs) > 0)
     FOR_EACH_EDGE (e, ei, bb->succs)
       {
-	if (bbindex_to_postorder[e->dest->index] < last_change_age.length ()
-	    && age <= last_change_age[bbindex_to_postorder[e->dest->index]]
+	if ((!age || age <= last_change_age[e->dest->index])
 	    && bitmap_bit_p (considered, e->dest->index))
           changed |= dataflow->problem->con_fun_n (e);
       }
@@ -971,7 +980,16 @@ df_worklist_propagate_backward (struct dataflow *dataflow,
           unsigned ob_index = e->src->index;
 
           if (bitmap_bit_p (considered, ob_index))
-            bitmap_set_bit (pending, bbindex_to_postorder[ob_index]);
+	    {
+	      if (bbindex_to_postorder[bb_index]
+		  < bbindex_to_postorder[ob_index])
+		{
+		  if (worklist)
+		    bitmap_set_bit (worklist, bbindex_to_postorder[ob_index]);
+		}
+	      else
+		bitmap_set_bit (pending, bbindex_to_postorder[ob_index]);
+	    }
         }
       return true;
     }
@@ -986,7 +1004,7 @@ df_worklist_propagate_backward (struct dataflow *dataflow,
    BBINDEX_TO_POSTORDER is array mapping back BB->index to postorder position.
    PENDING will be freed.
 
-   The worklists are bitmaps indexed by postorder positions.  
+   The worklists are bitmaps indexed by postorder positions.
 
    The function implements standard algorithm for dataflow solving with two
    worklists (we are processing WORKLIST and storing new BBs to visit in
@@ -999,58 +1017,87 @@ df_worklist_propagate_backward (struct dataflow *dataflow,
 
 static void
 df_worklist_dataflow_doublequeue (struct dataflow *dataflow,
-			  	  bitmap pending,
                                   sbitmap considered,
                                   int *blocks_in_postorder,
 				  unsigned *bbindex_to_postorder,
-				  int n_blocks)
+				  unsigned n_blocks)
 {
   enum df_flow_dir dir = dataflow->problem->dir;
   int dcount = 0;
-  bitmap worklist = BITMAP_ALLOC (&df_bitmap_obstack);
   int age = 0;
   bool changed;
   vec<int> last_visit_age = vNULL;
   vec<int> last_change_age = vNULL;
-  int prev_age;
 
-  last_visit_age.safe_grow_cleared (n_blocks, true);
-  last_change_age.safe_grow_cleared (n_blocks, true);
+  bitmap worklist = BITMAP_ALLOC (&df_bitmap_obstack);
+  bitmap_tree_view (worklist);
 
-  /* Double-queueing. Worklist is for the current iteration,
-     and pending is for the next. */
+  last_visit_age.safe_grow (n_blocks, true);
+  last_change_age.safe_grow (last_basic_block_for_fn (cfun) + 1, true);
+  /* Make last_change_age defined - we can access uninit values for not
+     considered blocks but will make sure they are considered as well.  */
+  VALGRIND_DISCARD (VALGRIND_MAKE_MEM_DEFINED
+		      (last_change_age.address (),
+		       sizeof (int) * last_basic_block_for_fn (cfun)));
+
+  /* We start with processing all blocks, populating pending for the
+     next iteration.  */
+  bitmap pending = BITMAP_ALLOC (&df_bitmap_obstack);
+  bitmap_tree_view (pending);
+  for (unsigned index = 0; index < n_blocks; ++index)
+    {
+      unsigned bb_index = blocks_in_postorder[index];
+      dcount++;
+      if (dir == DF_FORWARD)
+	changed = df_worklist_propagate_forward (dataflow, bb_index,
+						 bbindex_to_postorder,
+						 NULL, pending,
+						 considered,
+						 last_change_age, 0);
+      else
+	changed = df_worklist_propagate_backward (dataflow, bb_index,
+						  bbindex_to_postorder,
+						  NULL, pending,
+						  considered,
+						  last_change_age, 0);
+      last_visit_age[index] = ++age;
+      if (changed)
+	last_change_age[bb_index] = age;
+      else
+	last_change_age[bb_index] = 0;
+    }
+
+  /* Double-queueing.  Worklist is for the current iteration,
+     and pending is for the next.  */
   while (!bitmap_empty_p (pending))
     {
-      bitmap_iterator bi;
-      unsigned int index;
-
       std::swap (pending, worklist);
 
-      EXECUTE_IF_SET_IN_BITMAP (worklist, 0, index, bi)
+      do
 	{
-	  unsigned bb_index;
+	  unsigned index = bitmap_clear_first_set_bit (worklist);
+	  unsigned bb_index = blocks_in_postorder[index];
 	  dcount++;
-
-	  bitmap_clear_bit (pending, index);
-	  bb_index = blocks_in_postorder[index];
-	  prev_age = last_visit_age[index];
+	  int prev_age = last_visit_age[index];
 	  if (dir == DF_FORWARD)
 	    changed = df_worklist_propagate_forward (dataflow, bb_index,
 						     bbindex_to_postorder,
-						     pending, considered,
+						     worklist, pending,
+						     considered,
 						     last_change_age,
 						     prev_age);
 	  else
 	    changed = df_worklist_propagate_backward (dataflow, bb_index,
 						      bbindex_to_postorder,
-						      pending, considered,
+						      worklist, pending,
+						      considered,
 						      last_change_age,
 						      prev_age);
 	  last_visit_age[index] = ++age;
 	  if (changed)
-	    last_change_age[index] = age;
+	    last_change_age[bb_index] = age;
 	}
-      bitmap_clear (worklist);
+      while (!bitmap_empty_p (worklist));
     }
 
   BITMAP_FREE (worklist);
@@ -1080,7 +1127,6 @@ df_worklist_dataflow (struct dataflow *dataflow,
                       int *blocks_in_postorder,
                       int n_blocks)
 {
-  bitmap pending = BITMAP_ALLOC (&df_bitmap_obstack);
   bitmap_iterator bi;
   unsigned int *bbindex_to_postorder;
   int i;
@@ -1107,21 +1153,15 @@ df_worklist_dataflow (struct dataflow *dataflow,
 
   /* Initialize the mapping of block index to postorder.  */
   for (i = 0; i < n_blocks; i++)
-    {
-      bbindex_to_postorder[blocks_in_postorder[i]] = i;
-      /* Add all blocks to the worklist.  */
-      bitmap_set_bit (pending, i);
-    }
+    bbindex_to_postorder[blocks_in_postorder[i]] = i;
 
   /* Initialize the problem. */
   if (dataflow->problem->init_fun)
     dataflow->problem->init_fun (blocks_to_consider);
 
   /* Solve it.  */
-  df_worklist_dataflow_doublequeue (dataflow, pending, considered,
-				    blocks_in_postorder,
-				    bbindex_to_postorder,
-				    n_blocks);
+  df_worklist_dataflow_doublequeue (dataflow, considered, blocks_in_postorder,
+				    bbindex_to_postorder, n_blocks);
   free (bbindex_to_postorder);
 }
 
@@ -1197,9 +1237,6 @@ df_analyze_1 (void)
 {
   int i;
 
-  /* These should be the same.  */
-  gcc_assert ((unsigned) df->n_blocks == df->postorder_inverted.length ());
-
   /* We need to do this before the df_verify_all because this is
      not kept incrementally up to date.  */
   df_compute_regs_ever_live (false);
@@ -1222,8 +1259,8 @@ df_analyze_1 (void)
           if (dflow->problem->dir == DF_FORWARD)
             df_analyze_problem (dflow,
                                 df->blocks_to_analyze,
-				df->postorder_inverted.address (),
-				df->postorder_inverted.length ());
+				df->postorder_inverted,
+				df->n_blocks);
           else
             df_analyze_problem (dflow,
                                 df->blocks_to_analyze,
@@ -1251,10 +1288,19 @@ df_analyze (void)
   bitmap current_all_blocks = BITMAP_ALLOC (&df_bitmap_obstack);
 
   free (df->postorder);
-  df->postorder = XNEWVEC (int, last_basic_block_for_fn (cfun));
-  df->n_blocks = post_order_compute (df->postorder, true, true);
-  df->postorder_inverted.truncate (0);
-  inverted_post_order_compute (&df->postorder_inverted);
+  free (df->postorder_inverted);
+  /* For DF_FORWARD use a RPO on the forward graph.  Since we want to
+     have unreachable blocks deleted use post_order_compute and reverse
+     the order.  */
+  df->postorder_inverted = XNEWVEC (int, n_basic_blocks_for_fn (cfun));
+  df->n_blocks = post_order_compute (df->postorder_inverted, true, true);
+  for (int i = 0; i < df->n_blocks / 2; ++i)
+    std::swap (df->postorder_inverted[i],
+	       df->postorder_inverted[df->n_blocks - 1 - i]);
+  /* For DF_BACKWARD use a RPO on the reverse graph.  */
+  df->postorder = XNEWVEC (int, n_basic_blocks_for_fn (cfun));
+  int n = inverted_rev_post_order_compute (cfun, df->postorder);
+  gcc_assert (n == df->n_blocks);
 
   for (int i = 0; i < df->n_blocks; i++)
     bitmap_set_bit (current_all_blocks, df->postorder[i]);
@@ -1263,7 +1309,7 @@ df_analyze (void)
     {
       /* Verify that POSTORDER_INVERTED only contains blocks reachable from
 	 the ENTRY block.  */
-      for (unsigned int i = 0; i < df->postorder_inverted.length (); i++)
+      for (int i = 0; i < df->n_blocks; i++)
 	gcc_assert (bitmap_bit_p (current_all_blocks,
 				  df->postorder_inverted[i]));
     }
@@ -1273,12 +1319,11 @@ df_analyze (void)
   if (df->analyze_subset)
     {
       bitmap_and_into (df->blocks_to_analyze, current_all_blocks);
-      df->n_blocks = df_prune_to_subcfg (df->postorder,
-					 df->n_blocks, df->blocks_to_analyze);
-      unsigned int newlen = df_prune_to_subcfg (df->postorder_inverted.address (),
-						df->postorder_inverted.length (),
-						  df->blocks_to_analyze);
-      df->postorder_inverted.truncate (newlen);
+      unsigned int newlen = df_prune_to_subcfg (df->postorder, df->n_blocks,
+						df->blocks_to_analyze);
+      df_prune_to_subcfg (df->postorder_inverted, df->n_blocks,
+			  df->blocks_to_analyze);
+      df->n_blocks = newlen;
       BITMAP_FREE (current_all_blocks);
     }
   else
@@ -1294,11 +1339,11 @@ df_analyze (void)
    Returns the number of blocks which is always loop->num_nodes.  */
 
 static int
-loop_post_order_compute (int *post_order, class loop *loop)
+loop_rev_post_order_compute (int *post_order, class loop *loop)
 {
   edge_iterator *stack;
   int sp;
-  int post_order_num = 0;
+  int post_order_num = loop->num_nodes - 1;
 
   /* Allocate stack for back-tracking up CFG.  */
   stack = XNEWVEC (edge_iterator, loop->num_nodes + 1);
@@ -1331,13 +1376,13 @@ loop_post_order_compute (int *post_order, class loop *loop)
 	       time, check its successors.  */
 	    stack[sp++] = ei_start (dest->succs);
 	  else
-	    post_order[post_order_num++] = dest->index;
+	    post_order[post_order_num--] = dest->index;
 	}
       else
 	{
 	  if (ei_one_before_end_p (ei)
 	      && src != loop_preheader_edge (loop)->src)
-	    post_order[post_order_num++] = src->index;
+	    post_order[post_order_num--] = src->index;
 
 	  if (!ei_one_before_end_p (ei))
 	    ei_next (&stack[sp - 1]);
@@ -1348,20 +1393,19 @@ loop_post_order_compute (int *post_order, class loop *loop)
 
   free (stack);
 
-  return post_order_num;
+  return loop->num_nodes;
 }
 
 /* Compute the reverse top sort order of the inverted sub-CFG specified
    by LOOP.  Returns the number of blocks which is always loop->num_nodes.  */
 
-static void
-loop_inverted_post_order_compute (vec<int> *post_order, class loop *loop)
+static int
+loop_inverted_rev_post_order_compute (int *post_order, class loop *loop)
 {
   basic_block bb;
   edge_iterator *stack;
   int sp;
-
-  post_order->reserve_exact (loop->num_nodes);
+  int post_order_num = loop->num_nodes - 1;
 
   /* Allocate stack for back-tracking up CFG.  */
   stack = XNEWVEC (edge_iterator, loop->num_nodes + 1);
@@ -1398,13 +1442,13 @@ loop_inverted_post_order_compute (vec<int> *post_order, class loop *loop)
 	       time, check its predecessors.  */
 	    stack[sp++] = ei_start (pred->preds);
 	  else
-	    post_order->quick_push (pred->index);
+	    post_order[post_order_num--] = pred->index;
 	}
       else
 	{
 	  if (flow_bb_inside_loop_p (loop, bb)
 	      && ei_one_before_end_p (ei))
-	    post_order->quick_push (bb->index);
+	    post_order[post_order_num--] = bb->index;
 
 	  if (!ei_one_before_end_p (ei))
 	    ei_next (&stack[sp - 1]);
@@ -1414,6 +1458,7 @@ loop_inverted_post_order_compute (vec<int> *post_order, class loop *loop)
     }
 
   free (stack);
+  return loop->num_nodes;
 }
 
 
@@ -1423,13 +1468,14 @@ void
 df_analyze_loop (class loop *loop)
 {
   free (df->postorder);
+  free (df->postorder_inverted);
 
   df->postorder = XNEWVEC (int, loop->num_nodes);
-  df->postorder_inverted.truncate (0);
-  df->n_blocks = loop_post_order_compute (df->postorder, loop);
-    loop_inverted_post_order_compute (&df->postorder_inverted, loop);
+  df->postorder_inverted = XNEWVEC (int, loop->num_nodes);
+  df->n_blocks = loop_rev_post_order_compute (df->postorder_inverted, loop);
+  int n = loop_inverted_rev_post_order_compute (df->postorder, loop);
   gcc_assert ((unsigned) df->n_blocks == loop->num_nodes);
-  gcc_assert (df->postorder_inverted.length () == loop->num_nodes);
+  gcc_assert ((unsigned) n == loop->num_nodes);
 
   bitmap blocks = BITMAP_ALLOC (&df_bitmap_obstack);
   for (int i = 0; i < df->n_blocks; ++i)
@@ -1450,8 +1496,8 @@ df_get_n_blocks (enum df_flow_dir dir)
 
   if (dir == DF_FORWARD)
     {
-      gcc_assert (df->postorder_inverted.length ());
-      return df->postorder_inverted.length ();
+      gcc_assert (df->postorder_inverted);
+      return df->n_blocks;
     }
 
   gcc_assert (df->postorder);
@@ -1470,8 +1516,8 @@ df_get_postorder (enum df_flow_dir dir)
 
   if (dir == DF_FORWARD)
     {
-      gcc_assert (df->postorder_inverted.length ());
-      return df->postorder_inverted.address ();
+      gcc_assert (df->postorder_inverted);
+      return df->postorder_inverted;
     }
   gcc_assert (df->postorder);
   return df->postorder;
@@ -1948,6 +1994,21 @@ df_bb_regno_last_def_find (basic_block bb, unsigned int regno)
   return NULL;
 }
 
+/* Return the one and only def of REGNO within BB.  If there is no def or
+   there are multiple defs, return NULL.  */
+
+df_ref
+df_bb_regno_only_def_find (basic_block bb, unsigned int regno)
+{
+  df_ref temp = df_bb_regno_first_def_find (bb, regno);
+  if (!temp)
+    return NULL;
+  else if (temp == df_bb_regno_last_def_find (bb, regno))
+    return temp;
+  else
+    return NULL;
+}
+
 /* Finds the reference corresponding to the definition of REG in INSN.
    DF is the dataflow object.  */
 
@@ -2007,6 +2068,47 @@ bool
 df_reg_used (rtx_insn *insn, rtx reg)
 {
   return df_find_use (insn, reg) != NULL;
+}
+
+/* If REG has a single definition, return its known value, otherwise return
+   null.  */
+
+rtx
+df_find_single_def_src (rtx reg)
+{
+  rtx src = NULL_RTX;
+
+  /* Don't look through unbounded number of single definition REG copies,
+     there might be loops for sources with uninitialized variables.  */
+  for (int cnt = 0; cnt < 128; cnt++)
+    {
+      df_ref adef = DF_REG_DEF_CHAIN (REGNO (reg));
+      if (adef == NULL || DF_REF_NEXT_REG (adef) != NULL
+	  || DF_REF_IS_ARTIFICIAL (adef)
+	  || (DF_REF_FLAGS (adef)
+	      & (DF_REF_PARTIAL | DF_REF_CONDITIONAL)))
+	return NULL_RTX;
+
+      rtx set = single_set (DF_REF_INSN (adef));
+      if (set == NULL || !rtx_equal_p (SET_DEST (set), reg))
+	return NULL_RTX;
+
+      rtx note = find_reg_equal_equiv_note (DF_REF_INSN (adef));
+      if (note && function_invariant_p (XEXP (note, 0)))
+	return XEXP (note, 0);
+      src = SET_SRC (set);
+
+      if (REG_P (src))
+	{
+	  reg = src;
+	  continue;
+	}
+      break;
+    }
+  if (!function_invariant_p (src))
+    return NULL_RTX;
+
+  return src;
 }
 
 

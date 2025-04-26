@@ -1,6 +1,6 @@
 // File based streams -*- C++ -*-
 
-// Copyright (C) 1997-2022 Free Software Foundation, Inc.
+// Copyright (C) 1997-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,7 +33,11 @@
 #ifndef _GLIBCXX_FSTREAM
 #define _GLIBCXX_FSTREAM 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+
+#include <bits/requires_hosted.h> // iostreams
 
 #include <istream>
 #include <ostream>
@@ -43,6 +47,9 @@
 #if __cplusplus >= 201103L
 #include <string>             // For std::string overloads.
 #endif
+
+#define __glibcxx_want_fstream_native_handle
+#include <bits/version.h>
 
 // This can be overridden by the target's os_defines.h
 #ifndef _GLIBCXX_BUFSIZ
@@ -266,6 +273,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       /**
        *  @brief  Returns true if the external file is open.
        */
+      _GLIBCXX_NODISCARD
       bool
       is_open() const throw()
       { return _M_file.is_open(); }
@@ -364,6 +372,36 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        */
       __filebuf_type*
       close();
+
+#if __cpp_lib_fstream_native_handle // C++ >= 26
+      /**
+       *  @brief The platform-specific file handle type.
+       *
+       *  The type is `int` for POSIX platforms that use file descriptors,
+       *  or `HANDLE` for Windows, or `FILE*` if the library was configured
+       *  with `--enable-cstdio=stdio_pure`.
+       *
+       *  @since C++26
+       */
+      using native_handle_type = typename __file_type::native_handle_type;
+
+      /**
+       *  @brief Return the platform-specific native handle for the file.
+       *  @pre `is_open()` is true.
+       *  @return The native file handle associated with `*this`.
+       *
+       *  The handle is invalidated when this filebuf is closed or destroyed.
+       *
+       *  @since C++26
+       */
+      [[__gnu__::__always_inline__]]
+      native_handle_type
+      native_handle() const noexcept
+      {
+	__glibcxx_assert(is_open());
+	return _M_file.native_handle();
+      }
+#endif
 
     protected:
       void
@@ -633,6 +671,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *
        *  This hides both signatures of std::basic_ios::rdbuf().
        */
+      _GLIBCXX_NODISCARD
       __filebuf_type*
       rdbuf() const
       { return const_cast<__filebuf_type*>(&_M_filebuf); }
@@ -641,12 +680,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  @brief  Wrapper to test for an open file.
        *  @return  @c rdbuf()->is_open()
        */
+      _GLIBCXX_NODISCARD
       bool
       is_open()
       { return _M_filebuf.is_open(); }
 
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 365. Lack of const-qualification in clause 27
+      _GLIBCXX_NODISCARD
       bool
       is_open() const
       { return _M_filebuf.is_open(); }
@@ -737,6 +778,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	if (!_M_filebuf.close())
 	  this->setstate(ios_base::failbit);
       }
+
+#if __cpp_lib_fstream_native_handle // C++ >= 26
+      using native_handle_type = typename __filebuf_type::native_handle_type;
+
+      [[__gnu__::__always_inline__]]
+      native_handle_type
+      native_handle() const noexcept
+      { return _M_filebuf.native_handle(); }
+#endif
     };
 
 
@@ -896,6 +946,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *
        *  This hides both signatures of std::basic_ios::rdbuf().
        */
+      _GLIBCXX_NODISCARD
       __filebuf_type*
       rdbuf() const
       { return const_cast<__filebuf_type*>(&_M_filebuf); }
@@ -904,12 +955,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  @brief  Wrapper to test for an open file.
        *  @return  @c rdbuf()->is_open()
        */
+      _GLIBCXX_NODISCARD
       bool
       is_open()
       { return _M_filebuf.is_open(); }
 
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 365. Lack of const-qualification in clause 27
+      _GLIBCXX_NODISCARD
       bool
       is_open() const
       { return _M_filebuf.is_open(); }
@@ -1000,6 +1053,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	if (!_M_filebuf.close())
 	  this->setstate(ios_base::failbit);
       }
+
+#if __cpp_lib_fstream_native_handle // C++ >= 26
+      using native_handle_type = typename __filebuf_type::native_handle_type;
+
+      [[__gnu__::__always_inline__]]
+      native_handle_type
+      native_handle() const noexcept
+      { return _M_filebuf.native_handle(); }
+#endif
     };
 
 
@@ -1152,6 +1214,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *
        *  This hides both signatures of std::basic_ios::rdbuf().
        */
+      _GLIBCXX_NODISCARD
       __filebuf_type*
       rdbuf() const
       { return const_cast<__filebuf_type*>(&_M_filebuf); }
@@ -1160,12 +1223,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  @brief  Wrapper to test for an open file.
        *  @return  @c rdbuf()->is_open()
        */
+      _GLIBCXX_NODISCARD
       bool
       is_open()
       { return _M_filebuf.is_open(); }
 
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 365. Lack of const-qualification in clause 27
+      _GLIBCXX_NODISCARD
       bool
       is_open() const
       { return _M_filebuf.is_open(); }
@@ -1260,6 +1325,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	if (!_M_filebuf.close())
 	  this->setstate(ios_base::failbit);
       }
+
+#if __cpp_lib_fstream_native_handle // C++ >= 26
+      using native_handle_type = typename __filebuf_type::native_handle_type;
+
+      [[__gnu__::__always_inline__]]
+      native_handle_type
+      native_handle() const noexcept
+      { return _M_filebuf.native_handle(); }
+#endif
     };
 
 #if __cplusplus >= 201103L

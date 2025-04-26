@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O -w" } */
+/* { dg-options "-std=gnu17 -O -w" } */
 
 struct skb_shared_info {
   short gso_size;
@@ -22,7 +22,7 @@ int tg3_tso_bug_gso_check();
 
 int
 tg3_start_xmit() {
-  int *tp = netdev_priv();
+  int *tp = (int *) netdev_priv();
   int mss, tnapi;
   struct iphdr *iph;
   tnapi = mss = ((struct skb_shared_info *)0)->gso_size;

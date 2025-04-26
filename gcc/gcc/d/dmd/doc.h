@@ -1,6 +1,6 @@
 
 /* Compiler implementation of the D programming language
- * Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * written by Walter Bright
  * https://www.digitalmars.com
  * Distributed under the Boost Software License, Version 1.0.
@@ -10,6 +10,13 @@
 
 #pragma once
 
-class Module;
+#include "root/dcompat.h" // for d_size_t
 
-void gendocfile(Module *m);
+class Module;
+class ErrorSink;
+
+namespace dmd
+{
+    void gendocfile(Module *m, const char *ddoctext_ptr, d_size_t ddoctext_length,
+                    const char *datetime, ErrorSink *eSink, OutBuffer &outbuf);
+}

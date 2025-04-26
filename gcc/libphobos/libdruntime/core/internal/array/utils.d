@@ -10,16 +10,18 @@
 module core.internal.array.utils;
 
 import core.internal.traits : Parameters;
+import core.memory : GC;
 
-private auto gcStatsPure() nothrow pure
+alias BlkAttr = GC.BlkAttr;
+
+auto gcStatsPure() nothrow pure
 {
     import core.memory : GC;
-
     auto impureBypass = cast(GC.Stats function() pure nothrow)&GC.stats;
     return impureBypass();
 }
 
-private ulong accumulatePure(string file, int line, string funcname, string name, ulong size) nothrow pure
+ulong accumulatePure(string file, int line, string funcname, string name, ulong size) nothrow pure
 {
     static ulong impureBypass(string file, int line, string funcname, string name, ulong size) @nogc nothrow
     {
@@ -34,62 +36,67 @@ private ulong accumulatePure(string file, int line, string funcname, string name
     return func(file, line, funcname, name, size);
 }
 
-/**
- * TraceGC wrapper around runtime hook `Hook`.
- * Params:
- *  T = Type of hook to report to accumulate
- *  Hook = The hook to wrap
- *  errorMessage = The error message incase `version != D_TypeInfo`
- *  file = File that called `_d_HookTraceImpl`
- *  line = Line inside of `file` that called `_d_HookTraceImpl`
- *  funcname = Function that called `_d_HookTraceImpl`
- *  parameters = Parameters that will be used to call `Hook`
- * Bugs:
- *  This function template needs be between the compiler and a much older runtime hook that bypassed safety,
- *  purity, and throwabilty checks. To prevent breaking existing code, this function template
- *  is temporarily declared `@trusted pure` until the implementation can be brought up to modern D expectations.
-*/
-auto _d_HookTraceImpl(T, alias Hook, string errorMessage)(string file, int line, string funcname, Parameters!Hook parameters) @trusted pure
+version (D_ProfileGC)
 {
-    version (D_TypeInfo)
+    /**
+     * TraceGC wrapper generator around the runtime hook `Hook`.
+     * Params:
+     *   Type = The type of hook to report to accumulate
+     *   Hook = The name hook to wrap
+     */
+    template TraceHook(string Type, string Hook)
     {
-        pragma(inline, false);
-        string name = T.stringof;
+        const char[] TraceHook = q{
+            import core.internal.array.utils : gcStatsPure, accumulatePure;
 
-        // FIXME: use rt.tracegc.accumulator when it is accessable in the future.
-        version (tracegc)
-        {
-            import core.stdc.stdio;
+            pragma(inline, false);
+            string name = } ~ "`" ~ Type ~ "`;" ~ q{
 
-            printf("%sTrace file = '%.*s' line = %d function = '%.*s' type = %.*s\n",
-                Hook.stringof.ptr,
-                file.length, file.ptr,
-                line,
-                funcname.length, funcname.ptr,
-                name.length, name.ptr
-            );
-        }
+            // FIXME: use rt.tracegc.accumulator when it is accessable in the future.
+            ulong currentlyAllocated = gcStatsPure().allocatedInCurrentThread;
 
-        ulong currentlyAllocated = gcStatsPure().allocatedInCurrentThread;
+            scope(exit)
+            {
+                ulong size = gcStatsPure().allocatedInCurrentThread - currentlyAllocated;
+                if (size > 0)
+                    if (!accumulatePure(file, line, funcname, name, size)) {
+                        // This 'if' and 'assert' is needed to force the compiler to not remove the call to
+                        // `accumulatePure`. It really want to do that while optimizing as the function is
+                        // `pure` and it does not influence the result of this hook.
 
-        scope(exit)
-        {
-            ulong size = gcStatsPure().allocatedInCurrentThread - currentlyAllocated;
-            if (size > 0)
-                if (!accumulatePure(file, line, funcname, name, size)) {
-                    // This 'if' and 'assert' is needed to force the compiler to not remove the call to
-                    // `accumulatePure`. It really want to do that while optimizing as the function is
-                    // `pure` and it does not influence the result of this hook.
-
-                    // `accumulatePure` returns the value of `size`, which can never be zero due to the
-                    // previous 'if'. So this assert will never be triggered.
-                    assert(0);
-                }
-        }
-        return Hook(parameters);
+                        // `accumulatePure` returns the value of `size`, which can never be zero due to the
+                        // previous 'if'. So this assert will never be triggered.
+                        assert(0);
+                    }
+            }
+        };
     }
-    else
-        assert(0, errorMessage);
+
+    /**
+     * TraceGC wrapper around runtime hook `Hook`.
+     * Params:
+     *  T = Type of hook to report to accumulate
+     *  Hook = The hook to wrap
+     *  errorMessage = The error message incase `version != D_TypeInfo`
+     *  file = File that called `_d_HookTraceImpl`
+     *  line = Line inside of `file` that called `_d_HookTraceImpl`
+     *  funcname = Function that called `_d_HookTraceImpl`
+     *  parameters = Parameters that will be used to call `Hook`
+     * Bugs:
+     *  This function template needs be between the compiler and a much older runtime hook that bypassed safety,
+     *  purity, and throwabilty checks. To prevent breaking existing code, this function template
+     *  is temporarily declared `@trusted pure` until the implementation can be brought up to modern D expectations.
+    */
+    auto _d_HookTraceImpl(T, alias Hook, string errorMessage)(Parameters!Hook parameters, string file = __FILE__, int line = __LINE__, string funcname = __FUNCTION__) @trusted pure
+    {
+        version (D_TypeInfo)
+        {
+            mixin(TraceHook!(T.stringof, __traits(identifier, Hook)));
+            return Hook(parameters);
+        }
+        else
+            assert(0, errorMessage);
+    }
 }
 
 /**
@@ -118,4 +125,34 @@ template isPostblitNoThrow(T) {
         enum isPostblitNoThrow = isNoThrow!(T.init.__xpostblit);
     else
         enum isPostblitNoThrow = true;
+}
+
+/**
+ * Allocate a memory block with appendable capabilities for array usage.
+ *
+ * Params:
+ *  arrSize = size of the allocated array in bytes
+ * Returns:
+ *  `void[]` matching requested size on success, `null` on failure.
+ */
+void[] __arrayAlloc(T)(size_t arrSize) @trusted
+{
+    import core.lifetime : TypeInfoSize;
+    import core.internal.traits : hasIndirections;
+
+    enum typeInfoSize = TypeInfoSize!T;
+    BlkAttr attr = BlkAttr.APPENDABLE;
+
+    /* `extern(C++)` classes don't have a classinfo pointer in their vtable,
+     * so the GC can't finalize them.
+     */
+    static if (typeInfoSize)
+        attr |= BlkAttr.FINALIZE;
+    static if (!hasIndirections!T)
+        attr |= BlkAttr.NO_SCAN;
+
+    auto ptr = GC.malloc(arrSize, attr, typeid(T));
+    if (ptr)
+        return ptr[0 .. arrSize];
+    return null;
 }

@@ -15,6 +15,8 @@ void f10(svfloat16_t) {}
 void f11(svfloat32_t) {}
 void f12(svfloat64_t) {}
 void f13(svbfloat16_t) {}
+void f14(svcount_t) {}
+void f15(svmfloat8_t) {}
 
 /* { dg-final { scan-assembler "_Z2f1u10__SVBool_t:" } } */
 /* { dg-final { scan-assembler "_Z2f2u10__SVInt8_t:" } } */
@@ -29,3 +31,5 @@ void f13(svbfloat16_t) {}
 /* { dg-final { scan-assembler "_Z3f11u13__SVFloat32_t:" } } */
 /* { dg-final { scan-assembler "_Z3f12u13__SVFloat64_t:" } } */
 /* { dg-final { scan-assembler "_Z3f13u14__SVBfloat16_t:" } } */
+/* { dg-final { scan-assembler "_Z3f14u11__SVCount_t:" } } */
+/* { dg-final { scan-assembler "_Z3f15u13__SVMfloat8_t:" } } */

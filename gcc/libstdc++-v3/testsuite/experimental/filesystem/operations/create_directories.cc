@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2022 Free Software Foundation, Inc.
+// Copyright (C) 2015-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -147,9 +147,7 @@ test03()
 void
 test04()
 {
-#if defined(__MINGW32__) || defined(__MINGW64__)
-  // no symlinks
-#else
+#ifndef NO_SYMLINKS
   // PR libstdc++/101510
   // create_directories reports an error if the path is a symlink to a dir
   std::error_code ec = make_error_code(std::errc::invalid_argument);

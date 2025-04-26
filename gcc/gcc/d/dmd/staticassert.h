@@ -1,6 +1,6 @@
 
 /* Compiler implementation of the D programming language
- * Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * written by Walter Bright
  * https://www.digitalmars.com
  * Distributed under the Boost Software License, Version 1.0.
@@ -18,12 +18,9 @@ class StaticAssert : public Dsymbol
 {
 public:
     Expression *exp;
-    Expression *msg;
+    Expressions *msg;
 
-    StaticAssert *syntaxCopy(Dsymbol *s);
-    void addMember(Scope *sc, ScopeDsymbol *sds);
-    bool oneMember(Dsymbol **ps, Identifier *ident);
-    const char *kind() const;
-    StaticAssert *isStaticAssert() { return this; }
-    void accept(Visitor *v) { v->visit(this); }
+    StaticAssert *syntaxCopy(Dsymbol *s) override;
+    const char *kind() const override;
+    void accept(Visitor *v) override { v->visit(this); }
 };

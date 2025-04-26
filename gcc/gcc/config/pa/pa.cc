@@ -1,5 +1,5 @@
 /* Subroutines for insn-output.cc for HPPA.
-   Copyright (C) 1992-2022 Free Software Foundation, Inc.
+   Copyright (C) 1992-2025 Free Software Foundation, Inc.
    Contributed by Tim Moore (moore@cs.utah.edu), based on sparc.cc
 
 This file is part of GCC.
@@ -28,6 +28,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "target.h"
 #include "rtl.h"
 #include "tree.h"
+#include "gimple.h"
 #include "df.h"
 #include "tm_p.h"
 #include "stringpool.h"
@@ -57,7 +58,7 @@ along with GCC; see the file COPYING3.  If not see
 /* This file should be included last.  */
 #include "target-def.h"
 
-/* Return nonzero if there is a bypass for the output of 
+/* Return nonzero if there is a bypass for the output of
    OUT_INSN and the fp store IN_INSN.  */
 int
 pa_fpstore_bypass_p (rtx_insn *out_insn, rtx_insn *in_insn)
@@ -82,7 +83,7 @@ pa_fpstore_bypass_p (rtx_insn *out_insn, rtx_insn *in_insn)
 
   return (GET_MODE_SIZE (store_mode) == GET_MODE_SIZE (other_mode));
 }
-  
+
 
 #ifndef DO_FRAME_NOTES
 #ifdef INCOMING_RETURN_ADDR_RTX
@@ -142,6 +143,7 @@ static void pa_asm_out_destructor (rtx, int);
 #endif
 static void pa_init_builtins (void);
 static rtx pa_expand_builtin (tree, rtx, rtx, machine_mode mode, int);
+static tree pa_builtin_decl (unsigned, bool);
 static rtx hppa_builtin_saveregs (void);
 static void hppa_va_start (tree, rtx);
 static tree hppa_gimplify_va_arg_expr (tree, tree, gimple_seq *, gimple_seq *);
@@ -192,11 +194,12 @@ static rtx pa_internal_arg_pointer (void);
 static bool pa_can_eliminate (const int, const int);
 static void pa_conditional_register_usage (void);
 static machine_mode pa_c_mode_for_suffix (char);
+static machine_mode pa_c_mode_for_floating_type (enum tree_index);
 static section *pa_function_section (tree, enum node_frequency, bool, bool);
 static bool pa_cannot_force_const_mem (machine_mode, rtx);
 static bool pa_legitimate_constant_p (machine_mode, rtx);
-static unsigned int pa_section_type_flags (tree, const char *, int);
-static bool pa_legitimate_address_p (machine_mode, rtx, bool);
+static bool pa_legitimate_address_p (machine_mode, rtx, bool,
+				     code_helper = ERROR_MARK);
 static bool pa_callee_copies (cumulative_args_t, const function_arg_info &);
 static unsigned int pa_hard_regno_nregs (unsigned int, machine_mode);
 static bool pa_hard_regno_mode_ok (unsigned int, machine_mode);
@@ -204,6 +207,9 @@ static bool pa_modes_tieable_p (machine_mode, machine_mode);
 static bool pa_can_change_mode_class (machine_mode, machine_mode, reg_class_t);
 static HOST_WIDE_INT pa_starting_frame_offset (void);
 static section* pa_elf_select_rtx_section(machine_mode, rtx, unsigned HOST_WIDE_INT) ATTRIBUTE_UNUSED;
+static void pa_atomic_assign_expand_fenv (tree *, tree *, tree *);
+static bool pa_use_lra_p (void);
+static bool pa_frame_pointer_required (void);
 
 /* The following extra sections are only used for SOM.  */
 static GTY(()) section *som_readonly_data_section;
@@ -313,9 +319,10 @@ static size_t n_deferred_plabels = 0;
 
 #undef TARGET_INIT_BUILTINS
 #define TARGET_INIT_BUILTINS pa_init_builtins
-
 #undef TARGET_EXPAND_BUILTIN
 #define TARGET_EXPAND_BUILTIN pa_expand_builtin
+#undef  TARGET_BUILTIN_DECL
+#define TARGET_BUILTIN_DECL  pa_builtin_decl
 
 #undef TARGET_REGISTER_MOVE_COST
 #define TARGET_REGISTER_MOVE_COST hppa_register_move_cost
@@ -387,24 +394,26 @@ static size_t n_deferred_plabels = 0;
 #define TARGET_DELEGITIMIZE_ADDRESS pa_delegitimize_address
 #undef TARGET_INTERNAL_ARG_POINTER
 #define TARGET_INTERNAL_ARG_POINTER pa_internal_arg_pointer
+#undef TARGET_FRAME_POINTER_REQUIRED
+#define TARGET_FRAME_POINTER_REQUIRED pa_frame_pointer_required
 #undef TARGET_CAN_ELIMINATE
 #define TARGET_CAN_ELIMINATE pa_can_eliminate
 #undef TARGET_CONDITIONAL_REGISTER_USAGE
 #define TARGET_CONDITIONAL_REGISTER_USAGE pa_conditional_register_usage
 #undef TARGET_C_MODE_FOR_SUFFIX
 #define TARGET_C_MODE_FOR_SUFFIX pa_c_mode_for_suffix
+#undef TARGET_C_MODE_FOR_FLOATING_TYPE
+#define TARGET_C_MODE_FOR_FLOATING_TYPE pa_c_mode_for_floating_type
 #undef TARGET_ASM_FUNCTION_SECTION
 #define TARGET_ASM_FUNCTION_SECTION pa_function_section
 
 #undef TARGET_LEGITIMATE_CONSTANT_P
 #define TARGET_LEGITIMATE_CONSTANT_P pa_legitimate_constant_p
-#undef TARGET_SECTION_TYPE_FLAGS
-#define TARGET_SECTION_TYPE_FLAGS pa_section_type_flags
 #undef TARGET_LEGITIMATE_ADDRESS_P
 #define TARGET_LEGITIMATE_ADDRESS_P pa_legitimate_address_p
 
 #undef TARGET_LRA_P
-#define TARGET_LRA_P hook_bool_void_false
+#define TARGET_LRA_P pa_use_lra_p
 
 #undef TARGET_HARD_REGNO_NREGS
 #define TARGET_HARD_REGNO_NREGS pa_hard_regno_nregs
@@ -424,6 +433,9 @@ static size_t n_deferred_plabels = 0;
 
 #undef TARGET_HAVE_SPECULATION_SAFE_VALUE
 #define TARGET_HAVE_SPECULATION_SAFE_VALUE speculation_safe_value_not_needed
+
+#undef TARGET_ATOMIC_ASSIGN_EXPAND_FENV
+#define TARGET_ATOMIC_ASSIGN_EXPAND_FENV pa_atomic_assign_expand_fenv
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
@@ -556,6 +568,10 @@ pa_option_override (void)
   if (flag_pic == 1 || TARGET_64BIT)
     flag_pic = 2;
 
+  /* 64-bit target is always PIE.  */
+  if (TARGET_64BIT)
+    flag_pie = 2;
+
   /* Disable -freorder-blocks-and-partition as we don't support hot and
      cold partitioning.  */
   if (flag_reorder_blocks_and_partition)
@@ -566,6 +582,9 @@ pa_option_override (void)
       flag_reorder_blocks_and_partition = 0;
       flag_reorder_blocks = 1;
     }
+
+  /* Disable -fstack-protector to suppress warning.  */
+  flag_stack_protect = 0;
 
   /* We can't guarantee that .dword is available for 32-bit targets.  */
   if (UNITS_PER_WORD == 4)
@@ -584,6 +603,10 @@ pa_option_override (void)
 
 enum pa_builtins
 {
+  /* FPU builtins.  */
+  PA_BUILTIN_GET_FPSR,
+  PA_BUILTIN_SET_FPSR,
+
   PA_BUILTIN_COPYSIGNQ,
   PA_BUILTIN_FABSQ,
   PA_BUILTIN_INFQ,
@@ -592,10 +615,48 @@ enum pa_builtins
 };
 
 static GTY(()) tree pa_builtins[(int) PA_BUILTIN_max];
+static GTY(()) enum insn_code pa_builtins_icode[(int) PA_BUILTIN_max];
+
+/* Add a PA  builtin function with NAME, ICODE, CODE and TYPE.  Return the
+   function decl or NULL_TREE if the builtin was not added.  */
+
+static tree
+def_builtin (const char *name, enum insn_code icode, enum pa_builtins code,
+	     tree type)
+{
+  tree t
+    = add_builtin_function (name, type, code, BUILT_IN_MD, NULL, NULL_TREE);
+
+  if (t)
+    {
+      pa_builtins[code] = t;
+      pa_builtins_icode[code] = icode;
+    }
+
+  return t;
+}
+
+/* Create builtin functions for FPU instructions.  */
+
+static void
+pa_fpu_init_builtins (void)
+{
+  tree ftype;
+
+  ftype = build_function_type_list (unsigned_type_node, 0);
+  def_builtin ("__builtin_get_fpsr", CODE_FOR_get_fpsr,
+	       PA_BUILTIN_GET_FPSR, ftype);
+  ftype = build_function_type_list (void_type_node, unsigned_type_node, 0);
+  def_builtin ("__builtin_set_fpsr", CODE_FOR_set_fpsr,
+	       PA_BUILTIN_SET_FPSR, ftype);
+}
 
 static void
 pa_init_builtins (void)
 {
+  if (!TARGET_SOFT_FLOAT)
+    pa_fpu_init_builtins ();
+
 #ifdef DONT_HAVE_FPUTC_UNLOCKED
   {
     tree decl = builtin_decl_explicit (BUILT_IN_PUTC_UNLOCKED);
@@ -655,6 +716,92 @@ pa_init_builtins (void)
     }
 }
 
+/* Implement TARGET_BUILTIN_DECL.  */
+
+static tree
+pa_builtin_decl (unsigned int code, bool initialize_p ATTRIBUTE_UNUSED)
+{
+  if (code >= PA_BUILTIN_max)
+    return error_mark_node;
+  return pa_builtins[code];
+}
+
+static rtx
+pa_expand_builtin_1 (tree exp, rtx target,
+		     rtx subtarget ATTRIBUTE_UNUSED,
+		     machine_mode tmode ATTRIBUTE_UNUSED,
+		     int ignore ATTRIBUTE_UNUSED)
+{
+  tree fndecl = TREE_OPERAND (CALL_EXPR_FN (exp), 0);
+  enum pa_builtins code
+    = (enum pa_builtins) DECL_MD_FUNCTION_CODE (fndecl);
+  enum insn_code icode = pa_builtins_icode[code];
+  bool nonvoid = TREE_TYPE (TREE_TYPE (fndecl)) != void_type_node;
+  call_expr_arg_iterator iter;
+  int arg_count = 0;
+  rtx pat, op[4];
+  tree arg;
+
+  if (nonvoid)
+    {
+      machine_mode tmode = insn_data[icode].operand[0].mode;
+      if (!target
+	  || GET_MODE (target) != tmode
+	  || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
+	op[0] = gen_reg_rtx (tmode);
+      else
+	op[0] = target;
+    }
+  else
+    op[0] = NULL_RTX;
+
+  FOR_EACH_CALL_EXPR_ARG (arg, iter, exp)
+    {
+      const struct insn_operand_data *insn_op;
+      int idx;
+
+      if (arg == error_mark_node)
+	return NULL_RTX;
+
+      arg_count++;
+      idx = arg_count - !nonvoid;
+      insn_op = &insn_data[icode].operand[idx];
+      op[arg_count] = expand_normal (arg);
+
+      if (! (*insn_data[icode].operand[idx].predicate) (op[arg_count],
+							insn_op->mode))
+	op[arg_count] = copy_to_mode_reg (insn_op->mode, op[arg_count]);
+    }
+
+  switch (arg_count)
+    {
+    case 0:
+      pat = GEN_FCN (icode) (op[0]);
+      break;
+    case 1:
+      if (nonvoid)
+	pat = GEN_FCN (icode) (op[0], op[1]);
+      else
+	pat = GEN_FCN (icode) (op[1]);
+      break;
+    case 2:
+      pat = GEN_FCN (icode) (op[0], op[1], op[2]);
+      break;
+    case 3:
+      pat = GEN_FCN (icode) (op[0], op[1], op[2], op[3]);
+      break;
+    default:
+      gcc_unreachable ();
+    }
+
+  if (!pat)
+    return NULL_RTX;
+
+  emit_insn (pat);
+
+  return (nonvoid ? op[0] : const0_rtx);
+}
+
 static rtx
 pa_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
 		   machine_mode mode ATTRIBUTE_UNUSED,
@@ -665,6 +812,10 @@ pa_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
 
   switch (fcode)
     {
+    case PA_BUILTIN_GET_FPSR:
+    case PA_BUILTIN_SET_FPSR:
+      return pa_expand_builtin_1 (exp, target, subtarget, mode, ignore);
+
     case PA_BUILTIN_FABSQ:
     case PA_BUILTIN_COPYSIGNQ:
       return expand_call (exp, target, ignore);
@@ -823,7 +974,7 @@ legitimize_pic_address (rtx orig, machine_mode mode, rtx reg)
 
       /* During and after reload, we need to generate a REG_LABEL_OPERAND note
 	 and update LABEL_NUSES because this is not done automatically.  */
-      if (reload_in_progress || reload_completed)
+      if (lra_in_progress || reload_in_progress || reload_completed)
 	{
 	  /* Extract LABEL_REF.  */
 	  if (GET_CODE (orig) == CONST)
@@ -848,7 +999,7 @@ legitimize_pic_address (rtx orig, machine_mode mode, rtx reg)
       /* Before reload, allocate a temporary register for the intermediate
 	 result.  This allows the sequence to be deleted when the final
 	 result is unused and the insns are trivially dead.  */
-      tmp_reg = ((reload_in_progress || reload_completed)
+      tmp_reg = ((lra_in_progress || reload_in_progress || reload_completed)
 		 ? reg : gen_reg_rtx (Pmode));
 
       if (function_label_operand (orig, VOIDmode))
@@ -902,7 +1053,7 @@ legitimize_pic_address (rtx orig, machine_mode mode, rtx reg)
 
       gcc_assert (reg);
       gcc_assert (GET_CODE (XEXP (orig, 0)) == PLUS);
-      
+
       base = legitimize_pic_address (XEXP (XEXP (orig, 0), 0), Pmode, reg);
       orig = legitimize_pic_address (XEXP (XEXP (orig, 0), 1), Pmode,
 				     base == reg ? 0 : reg);
@@ -952,7 +1103,7 @@ legitimize_tls_address (rtx addr)
   if (GET_CODE (addr) != SYMBOL_REF)
     return addr;
 
-  switch (SYMBOL_REF_TLS_MODEL (addr)) 
+  switch (SYMBOL_REF_TLS_MODEL (addr))
     {
       case TLS_MODEL_GLOBAL_DYNAMIC:
 	tmp = gen_reg_rtx (Pmode);
@@ -975,7 +1126,7 @@ legitimize_tls_address (rtx addr)
 	insn = get_insns ();
 	end_sequence ();
 	t2 = gen_reg_rtx (Pmode);
-	emit_libcall_block (insn, t2, t1, 
+	emit_libcall_block (insn, t2, t1,
 			    gen_rtx_UNSPEC (Pmode, gen_rtvec (1, const0_rtx),
 				            UNSPEC_TLSLDBASE));
 	emit_insn (gen_tld_offset_load (ret, addr, t2));
@@ -1260,6 +1411,7 @@ hppa_legitimize_address (rtx x, rtx oldx ATTRIBUTE_UNUSED,
       /* If the index adds a large constant, try to scale the
 	 constant so that it can be loaded with only one insn.  */
       if (GET_CODE (XEXP (idx, 1)) == CONST_INT
+	  && INTVAL (XEXP (idx, 1)) % (1 << shift_val) == 0
 	  && VAL_14_BITS_P (INTVAL (XEXP (idx, 1))
 			    / INTVAL (XEXP (XEXP (idx, 0), 1)))
 	  && INTVAL (XEXP (idx, 1)) % INTVAL (XEXP (XEXP (idx, 0), 1)) == 0)
@@ -1808,11 +1960,13 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 			       copy_to_mode_reg (Pmode, XEXP (operand1, 0)));
 
   if (scratch_reg
-      && reload_in_progress && GET_CODE (operand0) == REG
+      && reload_in_progress
+      && GET_CODE (operand0) == REG
       && REGNO (operand0) >= FIRST_PSEUDO_REGISTER)
     operand0 = reg_equiv_mem (REGNO (operand0));
   else if (scratch_reg
-	   && reload_in_progress && GET_CODE (operand0) == SUBREG
+	   && reload_in_progress
+	   && GET_CODE (operand0) == SUBREG
 	   && GET_CODE (SUBREG_REG (operand0)) == REG
 	   && REGNO (SUBREG_REG (operand0)) >= FIRST_PSEUDO_REGISTER)
     {
@@ -1825,11 +1979,13 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
     }
 
   if (scratch_reg
-      && reload_in_progress && GET_CODE (operand1) == REG
+      && reload_in_progress
+      && GET_CODE (operand1) == REG
       && REGNO (operand1) >= FIRST_PSEUDO_REGISTER)
     operand1 = reg_equiv_mem (REGNO (operand1));
   else if (scratch_reg
-	   && reload_in_progress && GET_CODE (operand1) == SUBREG
+	   && reload_in_progress
+	   && GET_CODE (operand1) == SUBREG
 	   && GET_CODE (SUBREG_REG (operand1)) == REG
 	   && REGNO (SUBREG_REG (operand1)) >= FIRST_PSEUDO_REGISTER)
     {
@@ -1841,12 +1997,16 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
       operand1 = alter_subreg (&temp, true);
     }
 
-  if (scratch_reg && reload_in_progress && GET_CODE (operand0) == MEM
+  if (scratch_reg
+      && (lra_in_progress || reload_in_progress)
+      && GET_CODE (operand0) == MEM
       && ((tem = find_replacement (&XEXP (operand0, 0)))
 	  != XEXP (operand0, 0)))
     operand0 = replace_equiv_address (operand0, tem);
 
-  if (scratch_reg && reload_in_progress && GET_CODE (operand1) == MEM
+  if (scratch_reg
+      && (lra_in_progress || reload_in_progress)
+      && GET_CODE (operand1) == MEM
       && ((tem = find_replacement (&XEXP (operand1, 0)))
 	  != XEXP (operand1, 0)))
     operand1 = replace_equiv_address (operand1, tem);
@@ -1868,9 +2028,7 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 
       if (reg_plus_base_memory_operand (op1, GET_MODE (op1)))
 	{
-	  if (!(TARGET_PA_20
-		&& !TARGET_ELF32
-		&& INT_14_BITS (XEXP (XEXP (op1, 0), 1)))
+	  if (!(INT14_OK_STRICT && INT_14_BITS (XEXP (XEXP (op1, 0), 1)))
 	      && !INT_5_BITS (XEXP (XEXP (op1, 0), 1)))
 	    {
 	      /* SCRATCH_REG will hold an address and maybe the actual data.
@@ -1919,9 +2077,7 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 
       if (reg_plus_base_memory_operand (op0, GET_MODE (op0)))
 	{
-	  if (!(TARGET_PA_20
-		&& !TARGET_ELF32
-		&& INT_14_BITS (XEXP (XEXP (op0, 0), 1)))
+	  if (!(INT14_OK_STRICT && INT_14_BITS (XEXP (XEXP (op0, 0), 1)))
 	      && !INT_5_BITS (XEXP (XEXP (op0, 0), 1)))
 	    {
 	      /* SCRATCH_REG will hold an address and maybe the actual data.
@@ -2071,7 +2227,7 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 		  && !HARD_REGISTER_P (operand0))
 		copy_reg_pointer (operand0, operand1);
 	    }
-	  
+
 	  /* When MEMs are broken out, the REG_POINTER flag doesn't
 	     get set.  In some cases, we can set the REG_POINTER flag
 	     from the declaration for the MEM.  */
@@ -2108,7 +2264,7 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
   else if (GET_CODE (operand0) == MEM)
     {
       if (mode == DFmode && operand1 == CONST0_RTX (mode)
-	  && !(reload_in_progress || reload_completed))
+	  && !(lra_in_progress || reload_in_progress || reload_completed))
 	{
 	  rtx temp = gen_reg_rtx (DFmode);
 
@@ -2122,7 +2278,7 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 	  emit_insn (gen_rtx_SET (operand0, operand1));
 	  return 1;
 	}
-      if (! (reload_in_progress || reload_completed))
+      if (! (lra_in_progress || reload_in_progress || reload_completed))
 	{
 	  operands[0] = validize_mem (operand0);
 	  operands[1] = operand1 = force_reg (mode, operand1);
@@ -2162,7 +2318,7 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 	      rtx temp, const_part;
 
 	      /* Figure out what (if any) scratch register to use.  */
-	      if (reload_in_progress || reload_completed)
+	      if (lra_in_progress || reload_in_progress || reload_completed)
 		{
 		  scratch_reg = scratch_reg ? scratch_reg : operand0;
 		  /* SCRATCH_REG will hold an address and maybe the actual
@@ -2220,7 +2376,7 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 	      rtx_insn *insn;
 	      rtx temp;
 
-	      if (reload_in_progress || reload_completed)
+	      if (lra_in_progress || reload_in_progress || reload_completed)
 		{
 		  temp = scratch_reg ? scratch_reg : operand0;
 		  /* TEMP will hold an address and maybe the actual
@@ -2264,7 +2420,7 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 	    {
 	      rtx temp, set;
 
-	      if (reload_in_progress || reload_completed)
+	      if (lra_in_progress || reload_in_progress || reload_completed)
 		{
 		  temp = scratch_reg ? scratch_reg : operand0;
 		  /* TEMP will hold an address and maybe the actual
@@ -2355,7 +2511,7 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 		}
 	    }
 
-	  if (reload_in_progress || reload_completed)
+	  if (lra_in_progress || reload_in_progress || reload_completed)
 	    temp = scratch_reg ? scratch_reg : operand0;
 	  else
 	    temp = gen_reg_rtx (mode);
@@ -2714,7 +2870,7 @@ pa_output_move_double (rtx *operands)
 		      && GET_CODE (operands[0]) == REG);
 
 	  gcc_assert (!reg_overlap_mentioned_p (high_reg, addr));
-	  
+
 	  /* No overlap between high target register and address
 	     register.  (We do this in a non-obvious way to
 	     save a register file writeback)  */
@@ -2729,7 +2885,7 @@ pa_output_move_double (rtx *operands)
 	  operands[0] = XEXP (addr, 0);
 	  gcc_assert (GET_CODE (operands[1]) == REG
 		      && GET_CODE (operands[0]) == REG);
-	  
+
 	  gcc_assert (!reg_overlap_mentioned_p (high_reg, addr));
 	  /* No overlap between high target register and address
 	     register.  (We do this in a non-obvious way to save a
@@ -2950,15 +3106,15 @@ pa_output_fp_move_double (rtx *operands)
   else
     {
       rtx xoperands[2];
-      
+
       gcc_assert (operands[1] == CONST0_RTX (GET_MODE (operands[0])));
-      
+
       /* This is a pain.  You have to be prepared to deal with an
 	 arbitrary address here including pre/post increment/decrement.
 
 	 so avoid this in the MD.  */
       gcc_assert (GET_CODE (operands[0]) == REG);
-      
+
       xoperands[1] = gen_rtx_REG (SImode, REGNO (operands[0]) + 1);
       xoperands[0] = operands[0];
       output_asm_insn ("copy %%r0,%0\n\tcopy %%r0,%1", xoperands);
@@ -3927,7 +4083,7 @@ pa_compute_frame_size (poly_int64 size, int *fregs_live)
      first slot is only used when the frame pointer is needed.  */
   if (size || frame_pointer_needed)
     size += pa_starting_frame_offset ();
-  
+
   /* If the current function calls __builtin_eh_return, then we need
      to allocate stack space for registers that will hold data for
      the exception handler.  */
@@ -3991,7 +4147,8 @@ pa_output_function_label (FILE *file)
   /* The function's label and associated .PROC must never be
      separated and must be output *after* any profiling declarations
      to avoid changing spaces/subspaces within a procedure.  */
-  ASM_OUTPUT_LABEL (file, XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));
+  const char *name = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
+  ASM_OUTPUT_FUNCTION_LABEL (file, name, current_function_decl);
   fputs ("\t.PROC\n", file);
 
   /* pa_expand_prologue does the dirty work now.  We just need
@@ -4266,7 +4423,7 @@ pa_expand_prologue (void)
      to do for functions which make no calls and allocate no
      frame?  Do we need to allocate a frame, or can we just omit
      the save?   For now we'll just omit the save.
-     
+
      We don't want a note on this insn as the frame marker can
      move if there is a dynamic stack allocation.  */
   if (flag_pic && actual_fsize != 0 && !TARGET_64BIT)
@@ -4367,7 +4524,7 @@ load_reg (int reg, HOST_WIDE_INT disp, int base)
       rtx tmpreg = gen_rtx_REG (Pmode, 1);
 
       emit_move_insn (tmpreg, delta);
-      if (TARGET_DISABLE_INDEXING)
+      if (!TARGET_NO_SPACE_REGS || TARGET_DISABLE_INDEXING)
 	{
 	  emit_move_insn (tmpreg, gen_rtx_PLUS (Pmode, tmpreg, basereg));
 	  src = gen_rtx_MEM (word_mode, tmpreg);
@@ -5077,7 +5234,7 @@ pa_adjust_cost (rtx_insn *insn, int dep_type, rtx_insn *dep_insn, int cost,
 		  /* A fpload can't be issued until one cycle before a
 		     preceding arithmetic operation has finished if
 		     the target of the fpload is the destination of the
-		     arithmetic operation. 
+		     arithmetic operation.
 
 		     Exception: For PA7100LC, PA7200 and PA7300, the cost
 		     is 3 cycles, unless they bundle together.   We also
@@ -5638,7 +5795,12 @@ pa_output_global_address (FILE *file, rtx x, int round_constant)
   if (GET_CODE (x) == HIGH)
     x = XEXP (x, 0);
 
-  if (GET_CODE (x) == SYMBOL_REF && read_only_operand (x, VOIDmode))
+  if (GET_CODE (x) == UNSPEC && XINT (x, 1) == UNSPEC_DLTIND14R)
+    {
+      x = XVECEXP (x, 0, 0);
+      output_addr_const (file, x);
+    }
+  else if (GET_CODE (x) == SYMBOL_REF && read_only_operand (x, VOIDmode))
     output_addr_const (file, x);
   else if (GET_CODE (x) == SYMBOL_REF && !flag_pic)
     {
@@ -5711,7 +5873,7 @@ pa_output_global_address (FILE *file, rtx x, int round_constant)
 	default:
 	  gcc_unreachable ();
 	}
-      
+
       if (!read_only_operand (base, VOIDmode) && !flag_pic)
 	fputs ("-$global$", file);
       if (offset)
@@ -5771,7 +5933,7 @@ pa_file_start_mcount (const char *aswhat)
   if (profile_flag)
     fprintf (asm_out_file, "\t.IMPORT _mcount,%s\n", aswhat);
 }
-  
+
 static void
 pa_elf_file_start (void)
 {
@@ -5937,8 +6099,8 @@ pa_init_libfuncs (void)
 			"_U_Qfcnvxf_udbl_to_quad");
     }
 
-  if (TARGET_SYNC_LIBCALL)
-    init_sync_libfuncs (8);
+  if (TARGET_SYNC_LIBCALLS)
+    init_sync_libfuncs (MAX_SYNC_LIBFUNC_SIZE);
 }
 
 /* HP's millicode routines mean something special to the assembler.
@@ -6000,13 +6162,12 @@ pa_emit_hpdiv_const (rtx *operands, int unsignedp)
       emit
 	(gen_rtx_PARALLEL
 	 (VOIDmode,
-	  gen_rtvec (6, gen_rtx_SET (gen_rtx_REG (SImode, 29),
+	  gen_rtvec (5, gen_rtx_SET (gen_rtx_REG (SImode, 29),
 				     gen_rtx_fmt_ee (unsignedp ? UDIV : DIV,
 						     SImode,
 						     gen_rtx_REG (SImode, 26),
 						     operands[2])),
-		     gen_rtx_CLOBBER (VOIDmode, operands[4]),
-		     gen_rtx_CLOBBER (VOIDmode, operands[3]),
+		     gen_rtx_CLOBBER (VOIDmode, gen_rtx_REG (SImode, 1)),
 		     gen_rtx_CLOBBER (VOIDmode, gen_rtx_REG (SImode, 26)),
 		     gen_rtx_CLOBBER (VOIDmode, gen_rtx_REG (SImode, 25)),
 		     gen_rtx_CLOBBER (VOIDmode, ret))));
@@ -6255,24 +6416,21 @@ pa_secondary_reload (bool in_p, rtx x, reg_class_t rclass_i,
   if (regno >= FIRST_PSEUDO_REGISTER || GET_CODE (x) == SUBREG)
     regno = true_regnum (x);
 
-  /* Handle reloads for floating point loads and stores.  */
-  if ((regno >= FIRST_PSEUDO_REGISTER || regno == -1)
-      && FP_REG_CLASS_P (rclass))
+  /* Handle reloads for floating-point loads and stores.  */
+  if (regno < 0 && FP_REG_CLASS_P (rclass))
     {
-      if (MEM_P (x))
-	{
-	  x = XEXP (x, 0);
+      if (REG_P (x) || GET_CODE (x) == SUBREG)
+	return NO_REGS;
 
-	  /* We don't need a secondary reload for indexed memory addresses.
+      /* We don't need a secondary reload for indexed memory addresses.
 
-	     When INT14_OK_STRICT is true, it might appear that we could
-	     directly allow register indirect memory addresses.  However,
-	     this doesn't work because we don't support SUBREGs in
-	     floating-point register copies and reload doesn't tell us
-	     when it's going to use a SUBREG.  */
-	  if (IS_INDEX_ADDR_P (x))
-	    return NO_REGS;
-	}
+	 When INT14_OK_STRICT is true, it might appear that we could
+	 directly allow register indirect memory addresses.  However,
+	 this doesn't work because we don't support SUBREGs in
+	 floating-point register copies and reload doesn't tell us
+	 when it's going to use a SUBREG.  */
+      if (MEM_P (x) && IS_INDEX_ADDR_P (XEXP (x, 0)))
+	return NO_REGS;
 
       /* Request a secondary reload with a general scratch register
 	 for everything else.  ??? Could symbolic operands be handled
@@ -6289,8 +6447,14 @@ pa_secondary_reload (bool in_p, rtx x, reg_class_t rclass_i,
   if (rclass == SHIFT_REGS)
     {
       /* Handle spill.  */
-      if (regno >= FIRST_PSEUDO_REGISTER || regno < 0)
+      if (regno < 0)
 	{
+	  if (REG_P (x) || GET_CODE (x) == SUBREG)
+	    return GENERAL_REGS;
+
+	  if (TARGET_64BIT && GET_CODE (x) == CONST_INT)
+	    return GENERAL_REGS;
+
 	  sri->icode = (in_p
 			? direct_optab_handler (reload_in_optab, mode)
 			: direct_optab_handler (reload_out_optab, mode));
@@ -6384,7 +6548,7 @@ pa_function_arg_padding (machine_mode mode, const_tree type)
 	  && type
 	  && (AGGREGATE_TYPE_P (type)
 	      || TREE_CODE (type) == COMPLEX_TYPE
-	      || TREE_CODE (type) == VECTOR_TYPE)))
+	      || VECTOR_TYPE_P (type))))
     {
       /* Return PAD_NONE if justification is not required.  */
       if (type
@@ -6577,11 +6741,11 @@ pa_scalar_mode_supported_p (scalar_mode mode)
       return false;
 
     case MODE_FLOAT:
-      if (precision == FLOAT_TYPE_SIZE)
+      if (precision == PA_FLOAT_TYPE_SIZE)
 	return true;
-      if (precision == DOUBLE_TYPE_SIZE)
+      if (precision == PA_DOUBLE_TYPE_SIZE)
 	return true;
-      if (precision == LONG_DOUBLE_TYPE_SIZE)
+      if (precision == PA_LONG_DOUBLE_TYPE_SIZE)
 	return true;
       return false;
 
@@ -6955,7 +7119,7 @@ const char *
 pa_output_lbranch (rtx dest, rtx_insn *insn, int xdelay)
 {
   rtx xoperands[4];
- 
+
   xoperands[0] = dest;
 
   /* First, free up the delay slot.  */
@@ -7476,7 +7640,7 @@ pa_output_dbra (rtx *operands, rtx_insn *insn, int which_alternative)
 	    }
 	  else
 	    return "addib,%C2 %1,%0,%3";
-      
+
 	case 8:
 	  /* Handle weird backwards branch with a fulled delay slot
 	     which is nullified.  */
@@ -7526,7 +7690,7 @@ pa_output_dbra (rtx *operands, rtx_insn *insn, int which_alternative)
 
 	  return pa_output_lbranch (operands[3], insn, xdelay);
 	}
-      
+
     }
   /* Deal with gross reload from FP register case.  */
   else if (which_alternative == 1)
@@ -8322,7 +8486,7 @@ pa_output_indirect_call (rtx_insn *insn, rtx call_dest)
       pa_output_arg_descriptor (insn);
       if (TARGET_PA_20)
 	return "bve,l,n (%%r22),%%r2\n\tnop";
-      return "ble 0(%%sr4,%%r22)\n\tcopy %%r31,%%r2"; 
+      return "ble 0(%%sr4,%%r22)\n\tcopy %%r31,%%r2";
     }
 
   if (TARGET_PORTABLE_RUNTIME)
@@ -8334,7 +8498,7 @@ pa_output_indirect_call (rtx_insn *insn, rtx call_dest)
     }
 
   /* Now the normal case -- we can reach $$dyncall directly or
-     we're sure that we can get there via a long-branch stub. 
+     we're sure that we can get there via a long-branch stub.
 
      No need to check target flags as the length uniquely identifies
      the remaining cases.  */
@@ -9048,7 +9212,7 @@ pa_asm_out_destructor (rtx symbol, int priority)
    The ASM_OUTPUT_ALIGNED_BSS macro needs to be defined to call this
    function on the SOM port to prevent uninitialized global data from
    being placed in the data section.  */
-   
+
 void
 pa_asm_output_aligned_bss (FILE *stream,
 			   const char *name,
@@ -9214,7 +9378,7 @@ forward_branch_p (rtx_insn *insn)
   gcc_assert (lab != NULL_RTX);
 
   if (INSN_ADDRESSES_SET_P ())
-    return INSN_ADDRESSES (INSN_UID (lab)) > INSN_ADDRESSES (INSN_UID (insn));  
+    return INSN_ADDRESSES (INSN_UID (lab)) > INSN_ADDRESSES (INSN_UID (insn));
 
   while (insn)
     {
@@ -9649,15 +9813,15 @@ pa_promote_function_mode (const_tree type ATTRIBUTE_UNUSED,
    to match the HP Compiler ABI.  */
 
 static rtx
-pa_function_value (const_tree valtype, 
-                   const_tree func ATTRIBUTE_UNUSED, 
+pa_function_value (const_tree valtype,
+                   const_tree func ATTRIBUTE_UNUSED,
                    bool outgoing ATTRIBUTE_UNUSED)
 {
   machine_mode valmode;
 
   if (AGGREGATE_TYPE_P (valtype)
       || TREE_CODE (valtype) == COMPLEX_TYPE
-      || TREE_CODE (valtype) == VECTOR_TYPE)
+      || VECTOR_TYPE_P (valtype))
     {
       HOST_WIDE_INT valsize = int_size_in_bytes (valtype);
 
@@ -9706,7 +9870,7 @@ pa_function_value (const_tree valtype,
   else
     valmode = TYPE_MODE (valtype);
 
-  if (TREE_CODE (valtype) == REAL_TYPE
+  if (SCALAR_FLOAT_TYPE_P (valtype)
       && !AGGREGATE_TYPE_P (valtype)
       && TYPE_MODE (valtype) != TFmode
       && !TARGET_SOFT_FLOAT)
@@ -9781,6 +9945,8 @@ pa_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
     return NULL_RTX;
 
   arg_size = pa_function_arg_size (mode, type);
+  if (!arg_size)
+    return NULL_RTX;
 
   /* If this arg would be passed partially or totally on the stack, then
      this routine should return zero.  pa_arg_partial_bytes will
@@ -9823,7 +9989,7 @@ pa_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
 	  || mode == BLKmode
 	  || (type && (AGGREGATE_TYPE_P (type)
 		       || TREE_CODE (type) == COMPLEX_TYPE
-		       || TREE_CODE (type) == VECTOR_TYPE)))
+		       || VECTOR_TYPE_P (type))))
 	{
 	  /* Double-extended precision (80-bit), quad-precision (128-bit)
 	     and aggregates including complex numbers are aligned on
@@ -9883,7 +10049,7 @@ pa_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
 	  if (mode == BLKmode
 	      || (type && (AGGREGATE_TYPE_P (type)
 			   || TREE_CODE (type) == COMPLEX_TYPE
-			   || TREE_CODE (type) == VECTOR_TYPE)))
+			   || VECTOR_TYPE_P (type))))
 	    {
 	      rtx loc = gen_rtx_EXPR_LIST (VOIDmode,
 					   gen_rtx_REG (DImode, gpr_reg_base),
@@ -9982,15 +10148,16 @@ pa_arg_partial_bytes (cumulative_args_t cum_v, const function_arg_info &arg)
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
   unsigned int max_arg_words = 8;
   unsigned int offset = 0;
+  int arg_size;
 
   if (!TARGET_64BIT)
     return 0;
 
-  if (pa_function_arg_size (arg.mode, arg.type) > 1 && (cum->words & 1))
+  arg_size = pa_function_arg_size (arg.mode, arg.type);
+  if (arg_size > 1 && (cum->words & 1))
     offset = 1;
 
-  if (cum->words + offset + pa_function_arg_size (arg.mode, arg.type)
-      <= max_arg_words)
+  if (cum->words + offset + arg_size <= max_arg_words)
     /* Arg fits fully into registers.  */
     return 0;
   else if (cum->words + offset >= max_arg_words)
@@ -10170,7 +10337,7 @@ pa_select_section (tree exp, int reloc,
    and the function is in a COMDAT group, place the plabel reference in the
    .data.rel.ro.local section.  The linker ignores references to symbols in
    discarded sections from this section.  */
-   
+
 static section *
 pa_elf_select_rtx_section (machine_mode mode, rtx x,
 			   unsigned HOST_WIDE_INT align)
@@ -10321,7 +10488,7 @@ pa_can_change_mode_class (machine_mode from, machine_mode to,
   if (COMPLEX_MODE_P (from) || VECTOR_MODE_P (from)
       || COMPLEX_MODE_P (to) || VECTOR_MODE_P (to))
     return false;
-      
+
   /* There is no way to load QImode or HImode values directly from memory
      to a FP register.  SImode loads to the FP registers are not zero
      extended.  On the 64-bit target, this conflicts with the definition
@@ -10342,7 +10509,7 @@ pa_can_change_mode_class (machine_mode from, machine_mode to,
 }
 
 /* Implement TARGET_MODES_TIEABLE_P.
-   
+
    We should return FALSE for QImode and HImode because these modes
    are not ok in the floating-point registers.  However, this prevents
    tieing these modes to SImode and DImode in the general registers.
@@ -10394,7 +10561,7 @@ pa_asm_trampoline_template (FILE *f)
 	  fputs ("\tldw		0(%r22),%r21\n", f);
 	  fputs ("\tldw		4(%r22),%r19\n", f);
 	  fputs ("\tbve		(%r21)\n", f);
-	  fputs ("\tldw		52(%r1),%r29\n", f);
+	  fputs ("\tldw		52(%r20),%r29\n", f);
 	  fputs ("\t.word	0\n", f);
 	  fputs ("\t.word	0\n", f);
 	  fputs ("\t.word	0\n", f);
@@ -10560,7 +10727,13 @@ pa_trampoline_adjust_address (rtx addr)
 static rtx
 pa_delegitimize_address (rtx orig_x)
 {
-  rtx x = delegitimize_mem_from_attrs (orig_x);
+  rtx x;
+
+  if (GET_CODE (orig_x) == UNSPEC
+      && XINT (orig_x, 1) == UNSPEC_TP)
+    orig_x = XVECEXP (orig_x, 0, 0);
+
+  x = delegitimize_mem_from_attrs (orig_x);
 
   if (GET_CODE (x) == LO_SUM
       && GET_CODE (XEXP (x, 1)) == UNSPEC
@@ -10648,6 +10821,18 @@ pa_c_mode_for_suffix (char suffix)
   return VOIDmode;
 }
 
+/* Implement TARGET_C_MODE_FOR_FLOATING_TYPE.  Return TFmode or DFmode
+   for TI_LONG_DOUBLE_TYPE which is for long double type, go with the
+   default one for the others.  */
+
+static machine_mode
+pa_c_mode_for_floating_type (enum tree_index ti)
+{
+  if (ti == TI_LONG_DOUBLE_TYPE)
+    return PA_LONG_DOUBLE_TYPE_SIZE == 64 ? DFmode : TFmode;
+  return default_mode_for_floating_type (ti);
+}
+
 /* Target hook for function_section.  */
 
 static section *
@@ -10701,6 +10886,7 @@ pa_legitimate_constant_p (machine_mode mode, rtx x)
   if (TARGET_64BIT
       && HOST_BITS_PER_WIDE_INT > 32
       && GET_CODE (x) == CONST_INT
+      && !lra_in_progress
       && !reload_in_progress
       && !reload_completed
       && !LEGITIMATE_64BIT_CONST_INT_P (INTVAL (x))
@@ -10711,25 +10897,6 @@ pa_legitimate_constant_p (machine_mode mode, rtx x)
     return false;
 
   return true;
-}
-
-/* Implement TARGET_SECTION_TYPE_FLAGS.  */
-
-static unsigned int
-pa_section_type_flags (tree decl, const char *name, int reloc)
-{
-  unsigned int flags;
-
-  flags = default_section_type_flags (decl, name, reloc);
-
-  /* Function labels are placed in the constant pool.  This can
-     cause a section conflict if decls are put in ".data.rel.ro"
-     or ".data.rel.ro.local" using the __attribute__ construct.  */
-  if (strcmp (name, ".data.rel.ro") == 0
-      || strcmp (name, ".data.rel.ro.local") == 0)
-    flags |= SECTION_WRITE | SECTION_RELRO;
-
-  return flags;
 }
 
 /* pa_legitimate_address_p recognizes an RTL expression that is a
@@ -10746,7 +10913,7 @@ pa_section_type_flags (tree decl, const char *name, int reloc)
    must provide patterns for doing indexed integer stores, or the move
    expanders must force the address of an indexed store to a register.
    We have adopted the latter approach.
-   
+
    Another function of pa_legitimate_address_p is to ensure that
    the base register is a valid pointer for indexed instructions.
    On targets that have non-equivalent space registers, we have to
@@ -10781,7 +10948,7 @@ pa_section_type_flags (tree decl, const char *name, int reloc)
    output as REG+SMALLINT.  */
 
 static bool
-pa_legitimate_address_p (machine_mode mode, rtx x, bool strict)
+pa_legitimate_address_p (machine_mode mode, rtx x, bool strict, code_helper)
 {
   if ((REG_P (x)
        && (strict ? STRICT_REG_OK_FOR_BASE_P (x)
@@ -10812,37 +10979,35 @@ pa_legitimate_address_p (machine_mode mode, rtx x, bool strict)
 
       if (GET_CODE (index) == CONST_INT)
 	{
+	  /* Short 5-bit displacements always okay.  */
 	  if (INT_5_BITS (index))
 	    return true;
 
-	  /* When INT14_OK_STRICT is false, a secondary reload is needed
-	     to adjust the displacement of SImode and DImode floating point
-	     instructions but this may fail when the register also needs
-	     reloading.  So, we return false when STRICT is true.  We
-	     also reject long displacements for float mode addresses since
-	     the majority of accesses will use floating point instructions
-	     that don't support 14-bit offsets.  */
-	  if (!INT14_OK_STRICT
-	      && (strict || !(reload_in_progress || reload_completed))
-	      && mode != QImode
-	      && mode != HImode)
+	  if (!base14_operand (index, mode))
 	    return false;
 
-	  return base14_operand (index, mode);
+	  /* Long 14-bit displacements always okay for these cases.  */
+	  if (INT14_OK_STRICT
+	      || reload_completed
+	      || (reload_in_progress && !strict)
+	      || mode == QImode
+	      || mode == HImode)
+	    return true;
+
+	  /* We have to limit displacements to those supported by
+	     both floating-point and integer accesses as reload can't
+	     fix invalid displacements.  See PR114288.  */
+	  return false;
 	}
 
       if (!TARGET_DISABLE_INDEXING
-	  /* Only accept the "canonical" INDEX+BASE operand order
-	     on targets with non-equivalent space registers.  */
-	  && (TARGET_NO_SPACE_REGS
-	      ? REG_P (index)
-	      : (base == XEXP (x, 1) && REG_P (index)
-		 && (reload_completed
-		     || (reload_in_progress && HARD_REGISTER_P (base))
-		     || REG_POINTER (base))
-		 && (reload_completed
-		     || (reload_in_progress && HARD_REGISTER_P (index))
-		     || !REG_POINTER (index))))
+	  /* Currently, the REG_POINTER flag is not set in a variety
+	     of situations (e.g., call arguments and pointer arithmetic).
+	     As a result, we can't reliably determine when unscaled
+	     addresses are legitimate on targets that need space register
+	     selection.  */
+	  && TARGET_NO_SPACE_REGS
+	  && REG_P (index)
 	  && MODE_OK_FOR_UNSCALED_INDEXING_P (mode)
 	  && (strict ? STRICT_REG_OK_FOR_INDEX_P (index)
 		     : REG_OK_FOR_INDEX_P (index))
@@ -10851,14 +11016,14 @@ pa_legitimate_address_p (machine_mode mode, rtx x, bool strict)
 	return true;
 
       if (!TARGET_DISABLE_INDEXING
-	  && GET_CODE (index) == MULT
 	  /* Only accept base operands with the REG_POINTER flag prior to
 	     reload on targets with non-equivalent space registers.  */
 	  && (TARGET_NO_SPACE_REGS
-	      || (base == XEXP (x, 1)
-		  && (reload_completed
-		      || (reload_in_progress && HARD_REGISTER_P (base))
-		      || REG_POINTER (base))))
+	      || reload_completed
+	      || ((lra_in_progress || reload_in_progress)
+		   && HARD_REGISTER_P (base))
+	      || REG_POINTER (base))
+	  && GET_CODE (index) == MULT
 	  && REG_P (XEXP (index, 0))
 	  && GET_MODE (XEXP (index, 0)) == Pmode
 	  && MODE_OK_FOR_SCALED_INDEXING_P (mode)
@@ -10884,18 +11049,23 @@ pa_legitimate_address_p (machine_mode mode, rtx x, bool strict)
 	  && (strict ? STRICT_REG_OK_FOR_BASE_P (y)
 		     : REG_OK_FOR_BASE_P (y)))
 	{
-	  /* Needed for -fPIC */
+	  y = XEXP (x, 1);
+
+	  /* UNSPEC_DLTIND14R is always okay.  Needed for -fPIC */
 	  if (mode == Pmode
-	      && GET_CODE (XEXP (x, 1)) == UNSPEC)
+	      && GET_CODE (y) == UNSPEC)
 	    return true;
 
+	  /* Before reload, we need support for 14-bit floating
+	     point loads and stores, and associated relocations.  */
 	  if (!INT14_OK_STRICT
-	      && (strict || !(reload_in_progress || reload_completed))
+	      && !reload_completed
 	      && mode != QImode
 	      && mode != HImode)
 	    return false;
 
-	  if (CONSTANT_P (XEXP (x, 1)))
+	  if (CONSTANT_P (y)
+	      || (!flag_pic && symbolic_operand (y, mode)))
 	    return true;
 	}
       return false;
@@ -11064,17 +11234,120 @@ pa_starting_frame_offset (void)
   return 8;
 }
 
-/* Figure out the size in words of the function argument.  The size
-   returned by this function should always be greater than zero because
-   we pass variable and zero sized objects by reference.  */
+/* Figure out the size in words of the function argument.  */
 
-HOST_WIDE_INT
+int
 pa_function_arg_size (machine_mode mode, const_tree type)
 {
   HOST_WIDE_INT size;
 
-  size = mode != BLKmode ? GET_MODE_SIZE (mode) : int_size_in_bytes (type); 
-  return CEIL (size, UNITS_PER_WORD);
+  size = mode != BLKmode ? GET_MODE_SIZE (mode) : int_size_in_bytes (type);
+
+  /* The 64-bit runtime does not restrict the size of stack frames,
+     but the gcc calling conventions limit argument sizes to 1G.  Our
+     prologue/epilogue code limits frame sizes to just under 32 bits.
+     1G is also the maximum frame size that can be handled by the HPUX
+     unwind descriptor.  Since very large TYPE_SIZE_UNIT values can
+     occur for (parallel:BLK []), we need to ignore large arguments
+     passed by value.  */
+  if (size >= (1 << (HOST_BITS_PER_INT - 2)))
+    size = 0;
+  return (int) CEIL (size, UNITS_PER_WORD);
+}
+
+/* Implement TARGET_ATOMIC_ASSIGN_EXPAND_FENV.  */
+
+static void
+pa_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
+{
+  const unsigned PA_FE_INEXACT = 1;
+  const unsigned PA_FE_UNDERFLOW = 2;
+  const unsigned PA_FE_OVERFLOW = 4;
+  const unsigned PA_FE_DIVBYZERO = 8;
+  const unsigned PA_FE_INVALID = 16;
+  const unsigned HOST_WIDE_INT PA_FE_ALL_EXCEPT = (PA_FE_INVALID
+						   | PA_FE_DIVBYZERO
+						   | PA_FE_OVERFLOW
+						   | PA_FE_UNDERFLOW
+						   | PA_FE_INEXACT);
+  const unsigned HOST_WIDE_INT PA_FE_EXCEPT_SHIFT = 27;
+  tree fenv_var, get_fpsr, set_fpsr, mask, ld_fenv, masked_fenv;
+  tree hold_all, new_fenv_var, reload_fenv, restore_fnenv;
+  tree get_fpsr_call, set_fpsr_call, update_call, atomic_feraiseexcept;
+
+  if (TARGET_SOFT_FLOAT)
+    return;
+
+  /* Generate the equivalent of :
+       unsigned int fenv_var;
+       fenv_var = __builtin_get_fpsr ();
+
+       unsigned int masked_fenv;
+       masked_fenv = fenv_var & mask;
+
+       __builtin_set_fpsr (masked_fenv);  */
+
+  fenv_var = create_tmp_var_raw (unsigned_type_node);
+  get_fpsr = pa_builtins[PA_BUILTIN_GET_FPSR];
+  set_fpsr = pa_builtins[PA_BUILTIN_SET_FPSR];
+  mask = build_int_cst (unsigned_type_node,
+			~((PA_FE_ALL_EXCEPT << PA_FE_EXCEPT_SHIFT)
+			  | PA_FE_ALL_EXCEPT));
+
+  get_fpsr_call = build_call_expr (get_fpsr, 0);
+  ld_fenv = build4 (TARGET_EXPR, unsigned_type_node,
+		    fenv_var, get_fpsr_call,
+		    NULL_TREE, NULL_TREE);
+  masked_fenv = build2 (BIT_AND_EXPR, unsigned_type_node, fenv_var, mask);
+  hold_all = build2 (COMPOUND_EXPR, void_type_node, masked_fenv, ld_fenv);
+  set_fpsr_call = build_call_expr (set_fpsr, 1, masked_fenv);
+  *hold = build2 (COMPOUND_EXPR, void_type_node, hold_all, set_fpsr_call);
+
+  /* Store the value of masked_fenv to clear the exceptions:
+     __builtin_set_fpsr (masked_fenv);  */
+
+  *clear = set_fpsr_call;
+
+  /* Generate the equivalent of :
+       unsigned int new_fenv_var;
+       new_fenv_var = __builtin_get_fpsr ();
+
+       __builtin_set_fpsr (fenv_var);
+
+       __atomic_feraiseexcept (new_fenv_var);  */
+
+  new_fenv_var = create_tmp_var_raw (unsigned_type_node);
+  reload_fenv = build4 (TARGET_EXPR, unsigned_type_node, new_fenv_var,
+			get_fpsr_call, NULL_TREE, NULL_TREE);
+  restore_fnenv = build_call_expr (set_fpsr, 1, fenv_var);
+  atomic_feraiseexcept = builtin_decl_implicit (BUILT_IN_ATOMIC_FERAISEEXCEPT);
+  update_call = build_call_expr (atomic_feraiseexcept, 1,
+				 fold_convert (integer_type_node,
+					       new_fenv_var));
+  *update = build2 (COMPOUND_EXPR, void_type_node,
+		    build2 (COMPOUND_EXPR, void_type_node,
+			    reload_fenv, restore_fnenv), update_call);
+}
+
+/* Implement TARGET_LRA_P.  */
+
+static bool
+pa_use_lra_p ()
+{
+  return pa_lra_p;
+}
+
+/* Implement TARGET_FRAME_POINTER_REQUIRED.  */
+
+bool
+pa_frame_pointer_required (void)
+{
+  /* If the function receives nonlocal gotos, it needs to save the frame
+     pointer in the argument save area.  */
+  if (cfun->has_nonlocal_label)
+    return true;
+
+  return false;
 }
 
 #include "gt-pa.h"

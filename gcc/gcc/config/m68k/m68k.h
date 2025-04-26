@@ -1,5 +1,5 @@
 /* Definitions of target machine for GCC for Motorola 680x0/ColdFire.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -278,8 +278,8 @@ along with GCC; see the file COPYING3.  If not see
 /* "long double" is the same as "double" on ColdFire and fido
    targets.  */
 
-#define LONG_DOUBLE_TYPE_SIZE			\
-  ((TARGET_COLDFIRE || TARGET_FIDOA) ? 64 : 80)
+#define LONG_DOUBLE_TYPE_MODE			\
+  ((TARGET_COLDFIRE || TARGET_FIDOA) ? DFmode : XFmode)
 
 #define BITS_BIG_ENDIAN 1
 #define BYTES_BIG_ENDIAN 1
@@ -707,7 +707,7 @@ __transfer_from_trampoline ()					\
 
 /* On the Sun-3, the floating point registers have numbers
    18 to 25, not 16 to 23 as they do in the compiler.  */
-#define DBX_REGISTER_NUMBER(REGNO) ((REGNO) < 16 ? (REGNO) : (REGNO) + 2)
+#define DEBUGGER_REGNO(REGNO) ((REGNO) < 16 ? (REGNO) : (REGNO) + 2)
 
 /* Before the prologue, RA is at 0(%sp).  */
 #define INCOMING_RETURN_ADDR_RTX \
@@ -720,7 +720,7 @@ __transfer_from_trampoline ()					\
 					UNITS_PER_WORD))		   \
    : gen_rtx_MEM (Pmode, plus_constant (Pmode, FRAME, UNITS_PER_WORD)))
 
-/* We must not use the DBX register numbers for the DWARF 2 CFA column
+/* We must not use the debugger register numbers for the DWARF 2 CFA column
    numbers because that maps to numbers beyond FIRST_PSEUDO_REGISTER.
    Instead use the identity mapping.  */
 #define DWARF_FRAME_REGNUM(REG) \
@@ -836,6 +836,9 @@ __transfer_from_trampoline ()					\
 ( fputs (".lcomm ", (FILE)),			\
   assemble_name ((FILE), (NAME)),		\
   fprintf ((FILE), ",%u\n", (int)(ROUNDED)))
+
+#define FINAL_PRESCAN_INSN(INSN, OPVEC, NOPERANDS) \
+  m68k_final_prescan_insn (INSN, OPVEC, NOPERANDS)
 
 /* On the 68000, we use several CODE characters:
    '.' for dot needed in Motorola-style opcode names.

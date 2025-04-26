@@ -30,6 +30,11 @@ git config alias.gcc-backport '!f() { "`git rev-parse --show-toplevel`/contrib/g
 git config alias.gcc-fix-changelog '!f() { "`git rev-parse --show-toplevel`/contrib/git-fix-changelog.py" $@; } ; f'
 git config alias.gcc-mklog '!f() { "`git rev-parse --show-toplevel`/contrib/mklog.py" $@; } ; f'
 git config alias.gcc-commit-mklog '!f() { "`git rev-parse --show-toplevel`/contrib/git-commit-mklog.py" "$@"; }; f'
+git config alias.gcc-style '!f() {
+    check=`git rev-parse --show-toplevel`/contrib/check_GNU_style.py;
+    arg=; if [ $# -ge 1 ] && [ "$1" != "-f" ]; then arg="$1"; shift;
+    elif [ $# -eq 3 ]; then arg="$3"; set -- "$1" "$2"; fi
+    git show $arg | $check "$@" -; }; f'
 
 # Make diff on MD files use "(define" as a function marker.
 # Use this in conjunction with a .gitattributes file containing
@@ -46,7 +51,11 @@ set_email=$(git config --get "user.email")
 if [ "x$set_user" = "x" ]
 then
     # Try to guess the user's name by looking it up in the password file
-    new_user=$(getent passwd $(whoami) | awk -F: '{ print $5 }')
+    if type getent >/dev/null 2>&1; then
+      new_user=$(getent passwd $(whoami) | awk -F: '{ print $5 }')
+    elif [ $(uname -s) = Darwin ]; then
+      new_user=$(id -F 2>/dev/null)
+    fi
     if [ "x$new_user" = "x" ]
     then
        new_user="(no default)"
@@ -147,45 +156,7 @@ if [ "x$dohook" = xyes ]; then
     fi
 fi
 
-# Scan the existing settings to see if there are any we need to rewrite.
-vendors=$(git config --get-all "remote.${upstream}.fetch" "refs/vendors/" | sed 's:.*refs/vendors/\([^/][^/]*\)/.*:\1:' | sort | uniq)
 url=$(git config --get "remote.${upstream}.url")
-pushurl=$(git config --get "remote.${upstream}.pushurl")
-for v in $vendors
-do
-    echo "Migrating vendor \"$v\" to new remote \"vendors/$v\""
-    git config --unset-all "remote.${upstream}.fetch" "refs/vendors/$v/"
-    git config --unset-all "remote.${upstream}.push" "refs/vendors/$v/"
-    git config "remote.vendors/${v}.url" "${url}"
-    if [ "x$pushurl" != "x" ]
-    then
-	git config "remote.vendors/${v}.pushurl" "${pushurl}"
-    fi
-    git config --add "remote.vendors/${v}.fetch" "+refs/vendors/$v/heads/*:refs/remotes/vendors/${v}/*"
-    git config --add "remote.vendors/${v}.fetch" "+refs/vendors/$v/tags/*:refs/tags/vendors/${v}/*"
-done
-
-# Convert the remote 'pfx' to users/pfx to avoid problems with ambiguous refs
-# on user branches
-old_remote=$(git config --get "remote.${old_pfx}.url")
-if [ -n "${old_remote}" ]
-then
-    echo "Migrating remote \"${old_pfx}\" to new remote \"users/${new_pfx}\""
-    # Create a dummy fetch rule that will cause the subsequent prune to remove the old remote refs.
-    git config --replace-all "remote.${old_pfx}.fetch" "+refs/empty/*:refs/remotes/${old_pfx}/*"
-    # Remove any remotes
-    git remote prune ${old_pfx}
-    git config --remove-section "remote.${old_pfx}"
-    for br in $(git branch --list "${old_pfx}/*")
-    do
-	old_remote=$(git config --get "branch.${br}.remote")
-	if [ "${old_remote}" = "${old_pfx}" ]
-	then
-	    git config "branch.${br}.remote" "users/${new_pfx}"
-	fi
-    done
-fi
-
 echo "Setting up tracking for personal namespace $remote_id in remotes/users/${new_pfx}"
 git config "remote.users/${new_pfx}.url" "${url}"
 if [ "x$pushurl" != "x" ]
@@ -195,13 +166,5 @@ fi
 git config --replace-all "remote.users/${new_pfx}.fetch" "+refs/users/${remote_id}/heads/*:refs/remotes/users/${new_pfx}/*" "refs/users/${remote_id}/heads/"
 git config --replace-all "remote.users/${new_pfx}.fetch" "+refs/users/${remote_id}/tags/*:refs/tags/users/${new_pfx}/*" "refs/users/${remote_id}/tags/"
 git config --replace-all "remote.users/${new_pfx}.push" "refs/heads/${new_pfx}/*:refs/users/${remote_id}/heads/*" "refs/users/${remote_id}"
-
-if [ "$old_pfx" != "$new_pfx" -a "$old_pfx" != "${upstream}" ]
-then
-    git config --remove-section "remote.${old_pfx}"
-fi
-
-git config --unset-all "remote.${upstream}.fetch" "refs/users/${remote_id}/"
-git config --unset-all "remote.${upstream}.push" "refs/users/${remote_id}/"
 
 git fetch "users/${new_pfx}"

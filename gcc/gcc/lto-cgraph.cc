@@ -1,7 +1,7 @@
 /* Write and read the cgraph to the memory mapped representation of a
    .o file.
 
-   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+   Copyright (C) 2009-2025 Free Software Foundation, Inc.
    Contributed by Kenneth Zadeck <zadeck@naturalbridge.com>
 
 This file is part of GCC.
@@ -37,6 +37,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "pass_manager.h"
 #include "ipa-utils.h"
 #include "omp-offload.h"
+#include "omp-general.h"
 #include "stringpool.h"
 #include "attribs.h"
 #include "alloc-pool.h"
@@ -67,6 +68,7 @@ enum LTO_symtab_tags
   LTO_symtab_edge,
   LTO_symtab_indirect_edge,
   LTO_symtab_variable,
+  LTO_symtab_indirect_function,
   LTO_symtab_last_tag
 };
 
@@ -94,6 +96,8 @@ lto_symtab_encoder_delete (lto_symtab_encoder_t encoder)
    encoder->nodes.release ();
    if (encoder->map)
      delete encoder->map;
+   if (encoder->order_remap)
+     delete encoder->order_remap;
    free (encoder);
 }
 
@@ -110,7 +114,7 @@ lto_symtab_encoder_encode (lto_symtab_encoder_t encoder,
 
   if (!encoder->map)
     {
-      lto_encoder_entry entry = {node, false, false, false};
+      lto_encoder_entry entry (node);
 
       ref = encoder->nodes.length ();
       encoder->nodes.safe_push (entry);
@@ -120,7 +124,7 @@ lto_symtab_encoder_encode (lto_symtab_encoder_t encoder,
   size_t *slot = encoder->map->get (node);
   if (!slot || !*slot)
     {
-      lto_encoder_entry entry = {node, false, false, false};
+      lto_encoder_entry entry (node);
       ref = encoder->nodes.length ();
       if (!slot)
         encoder->map->put (node, ref + 1);
@@ -139,7 +143,6 @@ lto_symtab_encoder_delete_node (lto_symtab_encoder_t encoder,
 			        symtab_node *node)
 {
   int index;
-  lto_encoder_entry last_node;
 
   size_t *slot = encoder->map->get (node);
   if (slot == NULL || !*slot)
@@ -150,10 +153,11 @@ lto_symtab_encoder_delete_node (lto_symtab_encoder_t encoder,
 
   /* Remove from vector. We do this by swapping node with the last element
      of the vector.  */
-  last_node = encoder->nodes.pop ();
+  lto_encoder_entry last_node = encoder->nodes.pop ();
   if (last_node.node != node)
     {
-      gcc_assert (encoder->map->put (last_node.node, index + 1));
+      bool existed = encoder->map->put (last_node.node, index + 1);
+      gcc_assert (existed);
 
       /* Move the last element to the original spot of NODE.  */
       encoder->nodes[index] = last_node;
@@ -164,6 +168,15 @@ lto_symtab_encoder_delete_node (lto_symtab_encoder_t encoder,
   return true;
 }
 
+/* Return TRUE if the NODE and its clones are always inlined.  */
+
+bool
+lto_symtab_encoder_only_for_inlining_p (lto_symtab_encoder_t encoder,
+					struct cgraph_node *node)
+{
+  int index = lto_symtab_encoder_lookup (encoder, node);
+  return encoder->nodes[index].only_for_inlining;
+}
 
 /* Return TRUE if we should encode the body of NODE (if any).  */
 
@@ -173,17 +186,6 @@ lto_symtab_encoder_encode_body_p (lto_symtab_encoder_t encoder,
 {
   int index = lto_symtab_encoder_lookup (encoder, node);
   return encoder->nodes[index].body;
-}
-
-/* Specify that we encode the body of NODE in this partition.  */
-
-static void
-lto_set_symtab_encoder_encode_body (lto_symtab_encoder_t encoder,
-				    struct cgraph_node *node)
-{
-  int index = lto_symtab_encoder_encode (encoder, node);
-  gcc_checking_assert (encoder->nodes[index].node == node);
-  encoder->nodes[index].body = true;
 }
 
 /* Return TRUE if we should encode initializer of NODE (if any).  */
@@ -227,6 +229,8 @@ lto_set_symtab_encoder_in_partition (lto_symtab_encoder_t encoder,
 				     symtab_node *node)
 {
   int index = lto_symtab_encoder_encode (encoder, node);
+  if (dump_file)
+    fprintf(dump_file, "Node %s, index %d\n", node->asm_name(), index);
   encoder->nodes[index].in_partition = true;
 }
 
@@ -404,7 +408,8 @@ lto_output_node (struct lto_simple_output_block *ob, struct cgraph_node *node,
 
   streamer_write_enum (ob->main_stream, LTO_symtab_tags, LTO_symtab_last_tag,
 		       tag);
-  streamer_write_hwi_stream (ob->main_stream, node->order);
+  int output_order = *encoder->order_remap->get (node->order);
+  streamer_write_hwi_stream (ob->main_stream, output_order);
 
   /* In WPA mode, we only output part of the call-graph.  Also, we
      fake cgraph node attributes.  There are two cases that we care.
@@ -419,7 +424,7 @@ lto_output_node (struct lto_simple_output_block *ob, struct cgraph_node *node,
   if (boundary_p && node->analyzed
       && node->get_partitioning_class () == SYMBOL_PARTITION)
     {
-      /* Inline clones cannot be part of boundary.  
+      /* Inline clones cannot be part of boundary.
 	 gcc_assert (!node->inlined_to);
 
 	 FIXME: At the moment they can be, when partition contains an inline
@@ -429,6 +434,13 @@ lto_output_node (struct lto_simple_output_block *ob, struct cgraph_node *node,
 	 after reading back.  */
       in_other_partition = 1;
     }
+  else if (UNLIKELY (lto_stream_offload_p
+		     && lookup_attribute ("omp target device_ancestor_host",
+					  DECL_ATTRIBUTES (node->decl))))
+    /* This symbol is only used as argument to IFN_GOMP_TARGET_REV; this IFN
+       is ignored on ACCEL_COMPILER.  Thus, mark it as in_other_partition to silence
+       verify_node_partition diagnostic.  */
+    in_other_partition = 1;
 
   clone_of = node->clone_of;
   while (clone_of
@@ -489,7 +501,7 @@ lto_output_node (struct lto_simple_output_block *ob, struct cgraph_node *node,
       if (node->same_comdat_group)
 	{
 	  ref = LCC_NOT_FOUND;
-	  for (struct symtab_node *n = node->same_comdat_group; 
+	  for (struct symtab_node *n = node->same_comdat_group;
 	       ref == LCC_NOT_FOUND && n != node; n = n->same_comdat_group)
 	    ref = lto_symtab_encoder_lookup (encoder, n);
 	}
@@ -540,8 +552,7 @@ lto_output_node (struct lto_simple_output_block *ob, struct cgraph_node *node,
   bp_pack_value (&bp, node->merged_extern_inline, 1);
   bp_pack_value (&bp, node->thunk, 1);
   bp_pack_value (&bp, node->parallelized_function, 1);
-  bp_pack_value (&bp, node->declare_variant_alt, 1);
-  bp_pack_value (&bp, node->calls_declare_variant_alt, 1);
+  bp_pack_value (&bp, node->has_omp_variant_constructs, 1);
 
   /* Stream thunk info always because we use it in
      ipa_polymorphic_call_context::ipa_polymorphic_call_context
@@ -555,7 +566,8 @@ lto_output_node (struct lto_simple_output_block *ob, struct cgraph_node *node,
 	        LDPR_NUM_KNOWN,
 		/* When doing incremental link, we will get new resolution
 		   info next time we process the file.  */
-		flag_incremental_link ? LDPR_UNKNOWN : node->resolution);
+		flag_incremental_link == INCREMENTAL_LINK_LTO
+		? LDPR_UNKNOWN : node->resolution);
   bp_pack_value (&bp, node->split_part, 1);
   streamer_write_bitpack (&bp);
   streamer_write_data_stream (ob->main_stream, section, strlen (section) + 1);
@@ -571,7 +583,7 @@ lto_output_node (struct lto_simple_output_block *ob, struct cgraph_node *node,
     thunk_info::get (node)->stream_out (ob);
 }
 
-/* Output the varpool NODE to OB. 
+/* Output the varpool NODE to OB.
    If NODE is not in SET, then NODE is a boundary.  */
 
 static void
@@ -593,7 +605,8 @@ lto_output_varpool_node (struct lto_simple_output_block *ob, varpool_node *node,
 
   streamer_write_enum (ob->main_stream, LTO_symtab_tags, LTO_symtab_last_tag,
 		       LTO_symtab_variable);
-  streamer_write_hwi_stream (ob->main_stream, node->order);
+  int output_order = *encoder->order_remap->get (node->order);
+  streamer_write_hwi_stream (ob->main_stream, output_order);
   lto_output_var_decl_ref (ob->decl_state, ob->main_stream, node->decl);
   bp = bitpack_create (ob->main_stream);
   bp_pack_value (&bp, node->externally_visible, 1);
@@ -649,7 +662,7 @@ lto_output_varpool_node (struct lto_simple_output_block *ob, varpool_node *node,
       if (node->same_comdat_group)
 	{
 	  ref = LCC_NOT_FOUND;
-	  for (struct symtab_node *n = node->same_comdat_group; 
+	  for (struct symtab_node *n = node->same_comdat_group;
 	       ref == LCC_NOT_FOUND && n != node; n = n->same_comdat_group)
 	    ref = lto_symtab_encoder_lookup (encoder, n);
 	}
@@ -667,7 +680,7 @@ lto_output_varpool_node (struct lto_simple_output_block *ob, varpool_node *node,
 		       LDPR_NUM_KNOWN, node->resolution);
 }
 
-/* Output the varpool NODE to OB. 
+/* Output the varpool NODE to OB.
    If NODE is not in SET, then NODE is a boundary.  */
 
 static void
@@ -686,7 +699,7 @@ lto_output_ref (struct lto_simple_output_block *ob, struct ipa_ref *ref,
   nref = lto_symtab_encoder_lookup (encoder, ref->referred);
   gcc_assert (nref != LCC_NOT_FOUND);
   streamer_write_hwi_stream (ob->main_stream, nref);
-  
+
   node = dyn_cast <cgraph_node *> (ref->referring);
   if (node)
     {
@@ -770,9 +783,6 @@ output_refs (lto_symtab_encoder_t encoder)
 	  for (int i = 0; node->iterate_reference (i, ref); i++)
 	    lto_output_ref (ob, ref, encoder);
 	}
-      if (cgraph_node *cnode = dyn_cast <cgraph_node *> (node))
-	if (cnode->declare_variant_alt)
-	  omp_lto_output_declare_variant_alt (ob, cnode, encoder);
     }
 
   streamer_write_uhwi_stream (ob->main_stream, 0);
@@ -785,13 +795,28 @@ output_refs (lto_symtab_encoder_t encoder)
 
 static void
 add_node_to (lto_symtab_encoder_t encoder, struct cgraph_node *node,
-	     bool include_body)
+	     bool include_body, bool not_inlined)
 {
   if (node->clone_of)
-    add_node_to (encoder, node->clone_of, include_body);
-  else if (include_body)
-    lto_set_symtab_encoder_encode_body (encoder, node);
-  lto_symtab_encoder_encode (encoder, node);
+    add_node_to (encoder, node->clone_of, include_body, not_inlined);
+
+  int index = lto_symtab_encoder_encode (encoder, node);
+  gcc_checking_assert (encoder->nodes[index].node == node);
+
+  if (include_body)
+    encoder->nodes[index].body = true;
+  if (not_inlined)
+    encoder->nodes[index].only_for_inlining = false;
+}
+
+/* Add NODE into encoder as well as nodes it is cloned from.
+   Do it in a way so clones appear first.  */
+
+static void
+add_node_to (lto_symtab_encoder_t encoder, struct cgraph_node *node,
+	     bool include_body)
+{
+  add_node_to (encoder, node, include_body, include_body && !node->inlined_to);
 }
 
 /* Add all references in NODE to encoders.  */
@@ -826,7 +851,7 @@ select_what_to_stream (void)
    means that we need to insert the nodes in specific order.  This order is
    ignored by the partitioning logic earlier.  */
 
-lto_symtab_encoder_t 
+lto_symtab_encoder_t
 compute_ltrans_boundary (lto_symtab_encoder_t in_encoder)
 {
   struct cgraph_edge *edge;
@@ -909,7 +934,8 @@ compute_ltrans_boundary (lto_symtab_encoder_t in_encoder)
 	      vec <cgraph_node *>targets
 		= possible_polymorphic_call_targets
 		    (edge, &final, &cache_token);
-	      if (!reachable_call_targets.add (cache_token))
+	      if (cache_token != NULL
+		  && !reachable_call_targets.add (cache_token))
 		{
 		  for (i = 0; i < targets.length (); i++)
 		    {
@@ -1010,7 +1036,7 @@ output_symtab (void)
      When doing WPA we must output every asm just once.  Since we do not partition asm
      nodes at all, output them to first output.  This is kind of hack, but should work
      well.  */
-  if (!asm_nodes_output)
+  if (!asm_nodes_output && !lto_stream_offload_p)
     {
       asm_nodes_output = true;
       lto_output_toplevel_asms ();
@@ -1068,7 +1094,10 @@ read_string (class lto_input_block *ib)
 void
 output_offload_tables (void)
 {
-  if (vec_safe_is_empty (offload_funcs) && vec_safe_is_empty (offload_vars))
+  bool output_requires = (flag_openmp
+			  && (omp_requires_mask & OMP_REQUIRES_TARGET_USED) != 0);
+  if (vec_safe_is_empty (offload_funcs) && vec_safe_is_empty (offload_vars)
+      && !output_requires)
     return;
 
   struct lto_simple_output_block *ob
@@ -1098,17 +1127,34 @@ output_offload_tables (void)
 			       (*offload_vars)[i]);
     }
 
+  for (unsigned i = 0; i < vec_safe_length (offload_ind_funcs); i++)
+    {
+      symtab_node *node = symtab_node::get ((*offload_ind_funcs)[i]);
+      if (!node)
+	continue;
+      node->force_output = true;
+      streamer_write_enum (ob->main_stream, LTO_symtab_tags,
+			   LTO_symtab_last_tag, LTO_symtab_indirect_function);
+      lto_output_fn_decl_ref (ob->decl_state, ob->main_stream,
+			      (*offload_ind_funcs)[i]);
+    }
+
+  if (output_requires)
+    {
+      HOST_WIDE_INT val = ((HOST_WIDE_INT) omp_requires_mask
+			   & (OMP_REQUIRES_UNIFIED_ADDRESS
+			      | OMP_REQUIRES_UNIFIED_SHARED_MEMORY
+			      | OMP_REQUIRES_SELF_MAPS
+			      | OMP_REQUIRES_REVERSE_OFFLOAD
+			      | OMP_REQUIRES_TARGET_USED));
+      /* (Mis)use LTO_symtab_edge for this variable.  */
+      streamer_write_enum (ob->main_stream, LTO_symtab_tags,
+			   LTO_symtab_last_tag, LTO_symtab_edge);
+      streamer_write_hwi_stream (ob->main_stream, val);
+    }
+
   streamer_write_uhwi_stream (ob->main_stream, 0);
   lto_destroy_simple_output_block (ob);
-
-  /* In WHOPR mode during the WPA stage the joint offload tables need to be
-     streamed to one partition only.  That's why we free offload_funcs and
-     offload_vars after the first call of output_offload_tables.  */
-  if (flag_wpa)
-    {
-      vec_free (offload_funcs);
-      vec_free (offload_vars);
-    }
 }
 
 /* Verify the partitioning of NODE.  */
@@ -1123,10 +1169,15 @@ verify_node_partition (symtab_node *node)
   if (node->in_other_partition)
     {
       if (TREE_CODE (node->decl) == FUNCTION_DECL)
-	error_at (DECL_SOURCE_LOCATION (node->decl),
-		  "function %qs has been referenced in offloaded code but"
-		  " hasn%'t been marked to be included in the offloaded code",
-		  node->name ());
+	{
+	  if (lookup_attribute ("omp target device_ancestor_host",
+				DECL_ATTRIBUTES (node->decl)) != NULL)
+	    return;
+	  error_at (DECL_SOURCE_LOCATION (node->decl),
+		    "function %qs has been referenced in offloaded code but"
+		    " hasn%'t been marked to be included in the offloaded code",
+		    node->name ());
+	}
       else if (VAR_P (node->decl))
 	error_at (DECL_SOURCE_LOCATION (node->decl),
 		  "variable %qs has been referenced in offloaded code but"
@@ -1205,8 +1256,7 @@ input_overwrite_node (struct lto_file_decl_data *file_data,
   node->merged_extern_inline = bp_unpack_value (bp, 1);
   node->thunk = bp_unpack_value (bp, 1);
   node->parallelized_function = bp_unpack_value (bp, 1);
-  node->declare_variant_alt = bp_unpack_value (bp, 1);
-  node->calls_declare_variant_alt = bp_unpack_value (bp, 1);
+  node->has_omp_variant_constructs = bp_unpack_value (bp, 1);
   *has_thunk_info = bp_unpack_value (bp, 1);
   node->resolution = bp_unpack_enum (bp, ld_plugin_symbol_resolution,
 				     LDPR_NUM_KNOWN);
@@ -1518,7 +1568,7 @@ input_edge (class lto_input_block *ib, vec<symtab_node *> nodes,
 
 /* Read a cgraph from IB using the info in FILE_DATA.  */
 
-static vec<symtab_node *> 
+static vec<symtab_node *>
 input_cgraph_1 (struct lto_file_decl_data *file_data,
 		class lto_input_block *ib)
 {
@@ -1616,12 +1666,9 @@ input_refs (class lto_input_block *ib,
 	  input_ref (ib, node, nodes);
 	  count--;
 	}
-      if (cgraph_node *cnode = dyn_cast <cgraph_node *> (node))
-	if (cnode->declare_variant_alt)
-	  omp_lto_input_declare_variant_alt (ib, cnode, nodes);
     }
 }
-	    
+
 /* Input profile_info from IB.  */
 static void
 input_profile_summary (class lto_input_block *ib,
@@ -1726,7 +1773,7 @@ input_symtab (void)
 
       ib = lto_create_simple_input_block (file_data, LTO_section_symtab_nodes,
 					  &data, &len);
-      if (!ib) 
+      if (!ib)
 	fatal_error (input_location,
 		     "cannot find LTO cgraph in %s", file_data->file_name);
       input_profile_summary (ib, file_data);
@@ -1764,6 +1811,23 @@ input_symtab (void)
     }
 }
 
+static void
+omp_requires_to_name (char *buf, size_t size, HOST_WIDE_INT requires_mask)
+{
+  char *end = buf + size, *p = buf;
+  if (requires_mask & GOMP_REQUIRES_UNIFIED_ADDRESS)
+    p += snprintf (p, end - p, "unified_address");
+  if (requires_mask & GOMP_REQUIRES_UNIFIED_SHARED_MEMORY)
+    p += snprintf (p, end - p, "%sunified_shared_memory",
+		   (p == buf ? "" : ", "));
+  if (requires_mask & GOMP_REQUIRES_SELF_MAPS)
+    p += snprintf (p, end - p, "%sself_maps",
+		   (p == buf ? "" : ", "));
+  if (requires_mask & GOMP_REQUIRES_REVERSE_OFFLOAD)
+    p += snprintf (p, end - p, "%sreverse_offload",
+		   (p == buf ? "" : ", "));
+}
+
 /* Input function/variable tables that will allow libgomp to look up offload
    target code, and store them into OFFLOAD_FUNCS and OFFLOAD_VARS.  */
 
@@ -1773,6 +1837,10 @@ input_offload_tables (bool do_force_output)
   struct lto_file_decl_data **file_data_vec = lto_get_file_decl_data ();
   struct lto_file_decl_data *file_data;
   unsigned int j = 0;
+  const char *requires_fn = NULL;
+  tree requires_decl = NULL_TREE;
+
+  omp_requires_mask = (omp_requires) 0;
 
   while ((file_data = file_data_vec[j++]))
     {
@@ -1784,6 +1852,7 @@ input_offload_tables (bool do_force_output)
       if (!ib)
 	continue;
 
+      tree tmp_decl = NULL_TREE;
       enum LTO_symtab_tags tag
 	= streamer_read_enum (ib, LTO_symtab_tags, LTO_symtab_last_tag);
       while (tag)
@@ -1799,6 +1868,7 @@ input_offload_tables (bool do_force_output)
 		 LTO mode.  */
 	      if (do_force_output)
 		cgraph_node::get (fn_decl)->mark_force_output ();
+	      tmp_decl = fn_decl;
 	    }
 	  else if (tag == LTO_symtab_variable)
 	    {
@@ -1810,6 +1880,90 @@ input_offload_tables (bool do_force_output)
 		 may be no refs to var_decl in offload LTO mode.  */
 	      if (do_force_output)
 		varpool_node::get (var_decl)->force_output = 1;
+	      tmp_decl = var_decl;
+	    }
+	  else if (tag == LTO_symtab_indirect_function)
+	    {
+	      tree fn_decl
+		= lto_input_fn_decl_ref (ib, file_data);
+	      vec_safe_push (offload_ind_funcs, fn_decl);
+
+	      /* Prevent IPA from removing fn_decl as unreachable, since there
+		 may be no refs from the parent function to child_fn in offload
+		 LTO mode.  */
+	      if (do_force_output)
+		cgraph_node::get (fn_decl)->mark_force_output ();
+	      tmp_decl = fn_decl;
+	    }
+	  else if (tag == LTO_symtab_edge)
+	    {
+	      static bool error_emitted = false;
+	      HOST_WIDE_INT val = streamer_read_hwi (ib);
+
+	      if (omp_requires_mask == 0)
+		{
+		  omp_requires_mask = (omp_requires) val;
+		  requires_decl = tmp_decl;
+		  requires_fn = file_data->file_name;
+		}
+	      else if (omp_requires_mask != val && !error_emitted)
+		{
+		  const char *fn1 = requires_fn;
+		  if (requires_decl != NULL_TREE)
+		    {
+		      while (DECL_CONTEXT (requires_decl) != NULL_TREE
+			     && TREE_CODE (requires_decl) != TRANSLATION_UNIT_DECL)
+			requires_decl = DECL_CONTEXT (requires_decl);
+		      if (requires_decl != NULL_TREE)
+			fn1 = IDENTIFIER_POINTER (DECL_NAME (requires_decl));
+		    }
+
+		  const char *fn2 = file_data->file_name;
+		  if (tmp_decl != NULL_TREE)
+		    {
+		      while (DECL_CONTEXT (tmp_decl) != NULL_TREE
+			     && TREE_CODE (tmp_decl) != TRANSLATION_UNIT_DECL)
+			tmp_decl = DECL_CONTEXT (tmp_decl);
+		      if (tmp_decl != NULL_TREE)
+			fn2 = IDENTIFIER_POINTER (DECL_NAME (tmp_decl));
+		    }
+		  if (fn1 == fn2)
+		    {
+		      fn1 = requires_fn;
+		      fn2 = file_data->file_name;
+		    }
+
+		  char buf1[sizeof ("unified_address, unified_shared_memory, "
+				    "reverse_offload")];
+		  char buf2[sizeof ("unified_address, unified_shared_memory, "
+				    "reverse_offload")];
+		  omp_requires_to_name (buf2, sizeof (buf2),
+					val != OMP_REQUIRES_TARGET_USED
+					? val
+					: (HOST_WIDE_INT) omp_requires_mask);
+		  if (val != OMP_REQUIRES_TARGET_USED
+		      && omp_requires_mask != OMP_REQUIRES_TARGET_USED)
+		    {
+		      omp_requires_to_name (buf1, sizeof (buf1),
+					    omp_requires_mask);
+		      error ("OpenMP %<requires%> directive with non-identical "
+			     "clauses in multiple compilation units: %qs vs. "
+			     "%qs", buf1, buf2);
+		      inform (UNKNOWN_LOCATION, "%qs has %qs", fn1, buf1);
+		      inform (UNKNOWN_LOCATION, "%qs has %qs", fn2, buf2);
+		    }
+		  else
+		    {
+		      error ("OpenMP %<requires%> directive with %qs specified "
+			     "only in some compilation units", buf2);
+		      inform (UNKNOWN_LOCATION, "%qs has %qs",
+			      val != OMP_REQUIRES_TARGET_USED ? fn2 : fn1,
+			      buf2);
+		      inform (UNKNOWN_LOCATION, "but %qs has not",
+			      val != OMP_REQUIRES_TARGET_USED ? fn1 : fn2);
+		    }
+		  error_emitted = true;
+		}
 	    }
 	  else
 	    fatal_error (input_location,
@@ -1821,6 +1975,18 @@ input_offload_tables (bool do_force_output)
       lto_destroy_simple_input_block (file_data, LTO_section_offload_table,
 				      ib, data, len);
     }
+#ifdef ACCEL_COMPILER
+  char *omp_requires_file = getenv ("GCC_OFFLOAD_OMP_REQUIRES_FILE");
+  if (omp_requires_file == NULL || omp_requires_file[0] == '\0')
+    fatal_error (input_location, "GCC_OFFLOAD_OMP_REQUIRES_FILE unset");
+  FILE *f = fopen (omp_requires_file, "wb");
+  if (!f)
+    fatal_error (input_location, "Cannot open omp_requires file %qs",
+		 omp_requires_file);
+  uint32_t req_mask = omp_requires_mask;
+  fwrite (&req_mask, sizeof (req_mask), 1, f);
+  fclose (f);
+#endif
 }
 
 /* True when we need optimization summary for NODE.  */
@@ -1856,7 +2022,7 @@ output_node_opt_summary (struct output_block *ob,
   struct bitpack_d bp;
   bp = bitpack_create (ob->main_stream);
   clone_info *info = clone_info::get (node);
-  
+
   bp_pack_value (&bp, (info && info->param_adjustments != NULL), 1);
   streamer_write_bitpack (&bp);
   if (ipa_param_adjustments *adjustments
@@ -1942,7 +2108,7 @@ output_cgraph_opt_summary (void)
 	  output_node_opt_summary (ob, cnode, encoder);
 	}
     }
-  produce_asm (ob, NULL);
+  produce_asm (ob);
   destroy_output_block (ob);
 }
 
@@ -2040,7 +2206,7 @@ input_cgraph_opt_section (struct lto_file_decl_data *file_data,
   unsigned int count;
 
   lto_input_block ib_main ((const char *) data + main_offset,
-			   header->main_size, file_data->mode_table);
+			   header->main_size, file_data);
 
   data_in =
     lto_data_in_create (file_data, (const char *) data + string_offset,

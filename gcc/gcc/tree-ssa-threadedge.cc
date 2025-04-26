@@ -1,5 +1,5 @@
 /* SSA Jump Threading
-   Copyright (C) 2005-2022 Free Software Foundation, Inc.
+   Copyright (C) 2005-2025 Free Software Foundation, Inc.
    Contributed by Jeff Law  <law@redhat.com>
 
 This file is part of GCC.
@@ -496,124 +496,6 @@ jump_threader::simplify_control_stmt_condition_1
       std::swap (op0, op1);
     }
 
-  /* If the condition has the form (A & B) CMP 0 or (A | B) CMP 0 then
-     recurse into the LHS to see if there is a dominating ASSERT_EXPR
-     of A or of B that makes this condition always true or always false
-     along the edge E.  */
-  if ((cond_code == EQ_EXPR || cond_code == NE_EXPR)
-      && TREE_CODE (op0) == SSA_NAME
-      && integer_zerop (op1))
-    {
-      gimple *def_stmt = SSA_NAME_DEF_STMT (op0);
-      if (gimple_code (def_stmt) != GIMPLE_ASSIGN)
-        ;
-      else if (gimple_assign_rhs_code (def_stmt) == BIT_AND_EXPR
-	       || gimple_assign_rhs_code (def_stmt) == BIT_IOR_EXPR)
-	{
-	  enum tree_code rhs_code = gimple_assign_rhs_code (def_stmt);
-	  const tree rhs1 = gimple_assign_rhs1 (def_stmt);
-	  const tree rhs2 = gimple_assign_rhs2 (def_stmt);
-
-	  /* Is A != 0 ?  */
-	  const tree res1
-	    = simplify_control_stmt_condition_1 (e, def_stmt,
-						 rhs1, NE_EXPR, op1,
-						 limit - 1);
-	  if (res1 == NULL_TREE)
-	    ;
-	  else if (rhs_code == BIT_AND_EXPR && integer_zerop (res1))
-	    {
-	      /* If A == 0 then (A & B) != 0 is always false.  */
-	      if (cond_code == NE_EXPR)
-	        return boolean_false_node;
-	      /* If A == 0 then (A & B) == 0 is always true.  */
-	      if (cond_code == EQ_EXPR)
-		return boolean_true_node;
-	    }
-	  else if (rhs_code == BIT_IOR_EXPR && integer_nonzerop (res1))
-	    {
-	      /* If A != 0 then (A | B) != 0 is always true.  */
-	      if (cond_code == NE_EXPR)
-		return boolean_true_node;
-	      /* If A != 0 then (A | B) == 0 is always false.  */
-	      if (cond_code == EQ_EXPR)
-		return boolean_false_node;
-	    }
-
-	  /* Is B != 0 ?  */
-	  const tree res2
-	    = simplify_control_stmt_condition_1 (e, def_stmt,
-						 rhs2, NE_EXPR, op1,
-						 limit - 1);
-	  if (res2 == NULL_TREE)
-	    ;
-	  else if (rhs_code == BIT_AND_EXPR && integer_zerop (res2))
-	    {
-	      /* If B == 0 then (A & B) != 0 is always false.  */
-	      if (cond_code == NE_EXPR)
-	        return boolean_false_node;
-	      /* If B == 0 then (A & B) == 0 is always true.  */
-	      if (cond_code == EQ_EXPR)
-		return boolean_true_node;
-	    }
-	  else if (rhs_code == BIT_IOR_EXPR && integer_nonzerop (res2))
-	    {
-	      /* If B != 0 then (A | B) != 0 is always true.  */
-	      if (cond_code == NE_EXPR)
-		return boolean_true_node;
-	      /* If B != 0 then (A | B) == 0 is always false.  */
-	      if (cond_code == EQ_EXPR)
-		return boolean_false_node;
-	    }
-
-	  if (res1 != NULL_TREE && res2 != NULL_TREE)
-	    {
-	      if (rhs_code == BIT_AND_EXPR
-		  && TYPE_PRECISION (TREE_TYPE (op0)) == 1
-		  && integer_nonzerop (res1)
-		  && integer_nonzerop (res2))
-		{
-		  /* If A != 0 and B != 0 then (bool)(A & B) != 0 is true.  */
-		  if (cond_code == NE_EXPR)
-		    return boolean_true_node;
-		  /* If A != 0 and B != 0 then (bool)(A & B) == 0 is false.  */
-		  if (cond_code == EQ_EXPR)
-		    return boolean_false_node;
-		}
-
-	      if (rhs_code == BIT_IOR_EXPR
-		  && integer_zerop (res1)
-		  && integer_zerop (res2))
-		{
-		  /* If A == 0 and B == 0 then (A | B) != 0 is false.  */
-		  if (cond_code == NE_EXPR)
-		    return boolean_false_node;
-		  /* If A == 0 and B == 0 then (A | B) == 0 is true.  */
-		  if (cond_code == EQ_EXPR)
-		    return boolean_true_node;
-		}
-	    }
-	}
-      /* Handle (A CMP B) CMP 0.  */
-      else if (TREE_CODE_CLASS (gimple_assign_rhs_code (def_stmt))
-	       == tcc_comparison)
-	{
-	  tree rhs1 = gimple_assign_rhs1 (def_stmt);
-	  tree rhs2 = gimple_assign_rhs2 (def_stmt);
-
-	  tree_code new_cond = gimple_assign_rhs_code (def_stmt);
-	  if (cond_code == EQ_EXPR)
-	    new_cond = invert_tree_comparison (new_cond, false);
-
-	  tree res
-	    = simplify_control_stmt_condition_1 (e, def_stmt,
-						 rhs1, new_cond, rhs2,
-						 limit - 1);
-	  if (res != NULL_TREE && is_gimple_min_invariant (res))
-	    return res;
-	}
-    }
-
   gimple_cond_set_code (dummy_cond, cond_code);
   gimple_cond_set_lhs (dummy_cond, op0);
   gimple_cond_set_rhs (dummy_cond, op1);
@@ -786,12 +668,16 @@ propagate_threaded_block_debug_into (basic_block dest, basic_block src)
 bool
 jump_threader::thread_around_empty_blocks (vec<jump_thread_edge *> *path,
 					   edge taken_edge,
-					   bitmap visited)
+					   bitmap visited, unsigned &limit)
 {
   basic_block bb = taken_edge->dest;
   gimple_stmt_iterator gsi;
   gimple *stmt;
   tree cond;
+
+  if (limit == 0)
+    return false;
+  --limit;
 
   /* The key property of these blocks is that they need not be duplicated
      when threading.  Thus they cannot have visible side effects such
@@ -830,7 +716,8 @@ jump_threader::thread_around_empty_blocks (vec<jump_thread_edge *> *path,
 	      m_registry->push_edge (path, taken_edge, EDGE_NO_COPY_SRC_BLOCK);
 	      m_state->append_path (taken_edge->dest);
 	      bitmap_set_bit (visited, taken_edge->dest->index);
-	      return thread_around_empty_blocks (path, taken_edge, visited);
+	      return thread_around_empty_blocks (path, taken_edge, visited,
+						 limit);
 	    }
 	}
 
@@ -872,7 +759,7 @@ jump_threader::thread_around_empty_blocks (vec<jump_thread_edge *> *path,
       m_registry->push_edge (path, taken_edge, EDGE_NO_COPY_SRC_BLOCK);
       m_state->append_path (taken_edge->dest);
 
-      thread_around_empty_blocks (path, taken_edge, visited);
+      thread_around_empty_blocks (path, taken_edge, visited, limit);
       return true;
     }
 
@@ -899,8 +786,13 @@ jump_threader::thread_around_empty_blocks (vec<jump_thread_edge *> *path,
 
 int
 jump_threader::thread_through_normal_block (vec<jump_thread_edge *> *path,
-					    edge e, bitmap visited)
+					    edge e, bitmap visited,
+					    unsigned &limit)
 {
+  if (limit == 0)
+    return 0;
+  limit--;
+
   m_state->register_equivs_edge (e);
 
   /* PHIs create temporary equivalences.
@@ -989,7 +881,7 @@ jump_threader::thread_through_normal_block (vec<jump_thread_edge *> *path,
  	     visited.  This may be overly conservative.  */
 	  bitmap_set_bit (visited, dest->index);
 	  bitmap_set_bit (visited, e->dest->index);
-	  thread_around_empty_blocks (path, taken_edge, visited);
+	  thread_around_empty_blocks (path, taken_edge, visited, limit);
 	  return 1;
 	}
     }
@@ -1075,9 +967,12 @@ jump_threader::thread_across_edge (edge e)
   bitmap_set_bit (visited, e->src->index);
   bitmap_set_bit (visited, e->dest->index);
 
+  /* Limit search space.  */
+  unsigned limit = param_max_jump_thread_paths;
+
   int threaded = 0;
   if ((e->flags & EDGE_DFS_BACK) == 0)
-    threaded = thread_through_normal_block (path, e, visited);
+    threaded = thread_through_normal_block (path, e, visited, limit);
 
   if (threaded > 0)
     {
@@ -1148,11 +1043,12 @@ jump_threader::thread_across_edge (edge e)
 	m_registry->push_edge (path, e, EDGE_START_JUMP_THREAD);
 	m_registry->push_edge (path, taken_edge, EDGE_COPY_SRC_JOINER_BLOCK);
 
-	found = thread_around_empty_blocks (path, taken_edge, visited);
+	found = thread_around_empty_blocks (path, taken_edge, visited, limit);
 
 	if (!found)
 	  found = thread_through_normal_block (path,
-					       path->last ()->e, visited) > 0;
+					       path->last ()->e, visited,
+					       limit) > 0;
 
 	/* If we were able to thread through a successor of E->dest, then
 	   record the jump threading opportunity.  */
@@ -1193,7 +1089,6 @@ void
 jump_threader::thread_outgoing_edges (basic_block bb)
 {
   int flags = (EDGE_IGNORE | EDGE_COMPLEX | EDGE_ABNORMAL);
-  gimple *last;
 
   if (!flag_thread_jumps)
     return;
@@ -1204,8 +1099,7 @@ jump_threader::thread_outgoing_edges (basic_block bb)
      will be traversed when the incoming edge from BB is traversed.  */
   if (single_succ_to_potentially_threadable_block (bb))
     thread_across_edge (single_succ_edge (bb));
-  else if ((last = last_stmt (bb))
-	   && gimple_code (last) == GIMPLE_COND
+  else if (safe_is_a <gcond *> (*gsi_last_bb (bb))
 	   && EDGE_COUNT (bb->succs) == 2
 	   && (EDGE_SUCC (bb, 0)->flags & flags) == 0
 	   && (EDGE_SUCC (bb, 1)->flags & flags) == 0)
@@ -1377,7 +1271,9 @@ jt_state::register_equivs_stmt (gimple *stmt, basic_block bb,
 		SET_USE (use_p, tmp);
 	    }
 
-	  cached_lhs = simplifier->simplify (stmt, stmt, bb, this);
+	  /* Do not pass state to avoid calling the ranger with the
+	     temporarily altered IL.  */
+	  cached_lhs = simplifier->simplify (stmt, stmt, bb, /*state=*/NULL);
 
 	  /* Restore the statement's original uses/defs.  */
 	  i = 0;
@@ -1397,7 +1293,6 @@ jt_state::register_equivs_stmt (gimple *stmt, basic_block bb,
 
 // Hybrid threader implementation.
 
-
 hybrid_jt_simplifier::hybrid_jt_simplifier (gimple_ranger *r,
 					    path_range_query *q)
 {
@@ -1409,19 +1304,24 @@ tree
 hybrid_jt_simplifier::simplify (gimple *stmt, gimple *, basic_block,
 				jt_state *state)
 {
-  int_range_max r;
+  auto_bitmap dependencies;
+  auto_vec<basic_block> path;
 
-  compute_ranges_from_state (stmt, state);
+  state->get_path (path);
+  compute_exit_dependencies (dependencies, path, stmt);
+  m_query->reset_path (path, dependencies);
 
   if (gimple_code (stmt) == GIMPLE_COND
       || gimple_code (stmt) == GIMPLE_ASSIGN)
     {
+      value_range r (gimple_range_type (stmt));
       tree ret;
       if (m_query->range_of_stmt (r, stmt) && r.singleton_p (&ret))
 	return ret;
     }
   else if (gimple_code (stmt) == GIMPLE_SWITCH)
     {
+      int_range_max r;
       gswitch *switch_stmt = dyn_cast <gswitch *> (stmt);
       tree index = gimple_switch_index (switch_stmt);
       if (m_query->range_of_expr (r, index, stmt))
@@ -1430,31 +1330,31 @@ hybrid_jt_simplifier::simplify (gimple *stmt, gimple *, basic_block,
   return NULL;
 }
 
-// Use STATE to generate the list of imports needed for the solver,
-// and calculate the ranges along the path.
+// Calculate the set of exit dependencies for a path and statement to
+// be simplified.  This is different than the
+// compute_exit_dependencies in the path solver because the forward
+// threader asks questions about statements not necessarily in the
+// path.  Using the default compute_exit_dependencies in the path
+// solver gets noticeably less threads.
 
 void
-hybrid_jt_simplifier::compute_ranges_from_state (gimple *stmt, jt_state *state)
+hybrid_jt_simplifier::compute_exit_dependencies (bitmap dependencies,
+						 const vec<basic_block> &path,
+						 gimple *stmt)
 {
-  auto_bitmap imports;
-  gori_compute &gori = m_ranger->gori ();
-
-  state->get_path (m_path);
-
   // Start with the imports to the final conditional.
-  bitmap_copy (imports, gori.imports (m_path[0]));
+  bitmap_copy (dependencies, m_ranger->gori_ssa ()->imports (path[0]));
 
   // Add any other interesting operands we may have missed.
-  if (gimple_bb (stmt) != m_path[0])
+  if (gimple_bb (stmt) != path[0])
     {
       for (unsigned i = 0; i < gimple_num_ops (stmt); ++i)
 	{
 	  tree op = gimple_op (stmt, i);
 	  if (op
 	      && TREE_CODE (op) == SSA_NAME
-	      && irange::supports_type_p (TREE_TYPE (op)))
-	    bitmap_set_bit (imports, SSA_NAME_VERSION (op));
+	      && value_range::supports_type_p (TREE_TYPE (op)))
+	    bitmap_set_bit (dependencies, SSA_NAME_VERSION (op));
 	}
     }
-  m_query->compute_ranges (m_path, imports);
 }

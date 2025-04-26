@@ -7,7 +7,7 @@
 --                                  S p e c                                 --
 --                                                                          --
 --               Copyright (C) 1991-1994, Florida State University          --
---            Copyright (C) 1995-2022, Free Software Foundation, Inc.       --
+--            Copyright (C) 1995-2025, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,9 +38,12 @@
 --  PLEASE DO NOT add any with-clauses to this package or remove the pragma
 --  Preelaborate. This package is designed to be a bottom-level (leaf) package
 
+with Ada.Unchecked_Conversion;
+
 with Interfaces.C;
+
+with System.OS_Locks;
 with System.Parameters;
-with Unchecked_Conversion;
 
 package System.OS_Interface is
    pragma Preelaborate;
@@ -276,15 +279,15 @@ package System.OS_Interface is
    pragma Convention (C, Thread_Body);
 
    function Thread_Body_Access is new
-     Unchecked_Conversion (System.Address, Thread_Body);
+     Ada.Unchecked_Conversion (System.Address, Thread_Body);
 
    type pthread_t is new unsigned_long;
    subtype Thread_Id        is pthread_t;
 
-   function To_pthread_t is new Unchecked_Conversion
+   function To_pthread_t is new Ada.Unchecked_Conversion
      (unsigned_long, pthread_t);
 
-   type pthread_mutex_t     is limited private;
+   subtype pthread_mutex_t  is System.OS_Locks.pthread_mutex_t;
    type pthread_cond_t      is limited private;
    type pthread_attr_t      is limited private;
    type pthread_mutexattr_t is limited private;
@@ -636,15 +639,6 @@ private
       spinlock : int;
    end record;
    pragma Convention (C, struct_pthread_fast_lock);
-
-   type pthread_mutex_t is record
-      m_reserved : int;
-      m_count    : int;
-      m_owner    : System.Address;
-      m_kind     : int;
-      m_lock     : struct_pthread_fast_lock;
-   end record;
-   pragma Convention (C, pthread_mutex_t);
 
    type pthread_cond_t is array (0 .. 47) of unsigned_char;
    pragma Convention (C, pthread_cond_t);

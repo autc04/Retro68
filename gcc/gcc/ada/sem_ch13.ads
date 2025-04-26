@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,6 +23,7 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Local_Restrict;
 with Types; use Types;
 with Sem_Disp; use Sem_Disp;
 with Uintp; use Uintp;
@@ -78,8 +79,7 @@ package Sem_Ch13 is
    procedure Set_Enum_Esize (T : Entity_Id);
    --  This routine sets the Esize field for an enumeration type T, based
    --  on the current representation information available for T. Note that
-   --  the setting of the RM_Size field is not affected. This routine also
-   --  initializes the alignment field to zero.
+   --  the setting of the RM_Size field is not affected.
 
    Unknown_Minimum_Size : constant Nonzero_Int := -1;
 
@@ -111,6 +111,19 @@ package Sem_Ch13 is
    --  at the point an object with an address clause is frozen, as well as for
    --  address clauses for tasks and entries.
 
+   procedure Check_Function_For_Indexing_Aspect
+     (ASN   : Node_Id;
+      Typ   : Entity_Id;
+      Subp  : Entity_Id;
+      Valid : out Boolean);
+   --  Check Subp to see whether it's a valid function for Typ's indexing
+   --  aspect ASN (as specified by the rules given in RM 4.1.6(1-3)), flagging
+   --  an error if Subp is not an eligible indexing function (unless Subp is
+   --  declared outside the scope of E, in which case it's simply ignored
+   --  rather than considered an error; see AI22-0084). If valid for indexing,
+   --  then Subp is added to ASN's Aspect_Subprograms list, and Valid is set
+   --  to True (otherwise False).
+
    procedure Check_Size
      (N      : Node_Id;
       T      : Entity_Id;
@@ -130,12 +143,11 @@ package Sem_Ch13 is
    --  clause, T is the component type.
 
    function Has_Compatible_Representation
-     (Target_Type, Operand_Type : Entity_Id) return Boolean;
-   --  Given two types, where the two types are related by possible derivation,
-   --  determines if the two types have compatible representation, or different
-   --  representations, requiring the special processing for representation
-   --  change. A False result is possible only for array, enumeration or
-   --  record types.
+     (Target_Typ, Operand_Typ : Entity_Id) return Boolean;
+   --  Given an explicit or implicit conversion from Operand_Typ to Target_Typ,
+   --  determine whether the types have compatible or different representation,
+   --  thus requiring special processing for the conversion in the latter case.
+   --  A False result is possible only for array, enumeration and record types.
 
    procedure Parse_Aspect_Aggregate
      (N                   : Node_Id;
@@ -147,6 +159,11 @@ package Sem_Ch13 is
    --  Utility to unpack the subprograms in an occurrence of aspect Aggregate;
    --  used to verify the structure of the aspect, and resolve and expand an
    --  aggregate for a container type that carries the aspect.
+
+   function Parse_Aspect_Local_Restrictions (Aspect_Spec : Node_Id)
+     return Local_Restrict.Local_Restriction_Set;
+   --  Utility to unpack the set of local restrictions specified in a
+   --  Local_Restrictions aspect specification.
 
    function Parse_Aspect_Stable_Properties
      (Aspect_Spec : Node_Id; Negated : out Boolean) return Subprogram_List;
@@ -307,23 +324,56 @@ package Sem_Ch13 is
 
    --  Quite an awkward approach, but this is an awkard requirement
 
-   procedure Analyze_Aspects_At_Freeze_Point (E : Entity_Id);
-   --  Analyze all the delayed aspects for entity E at freezing point. This
-   --  includes dealing with inheriting delayed aspects from the parent type
-   --  in the case where a derived type is frozen.
+   procedure Analyze_Aspects_At_Freeze_Point
+     (E                   : Entity_Id;
+      Nonoverridable_Only : Boolean := False);
+   --  Analyzes all the delayed aspects for entity E at the freeze point,
+   --  unless Nonoverridable_Only is True, in which case only nonoverridable
+   --  aspects are analyzed (those aspects have special requirements). Note
+   --  that this does not include dealing with inheriting delayed aspects from
+   --  the parent or base type in the case where a derived type or a subtype is
+   --  frozen. Callers should check that Has_Delayed_Aspects (E) is True before
+   --  calling this routine.
 
-   procedure Check_Aspect_At_Freeze_Point (ASN : Node_Id);
-   --  Performs the processing described above at the freeze point, ASN is the
-   --  N_Aspect_Specification node for the aspect.
-
-   procedure Check_Aspect_At_End_Of_Declarations (ASN : Node_Id);
+   procedure Check_Aspects_At_End_Of_Declarations (E : Entity_Id);
    --  Performs the processing described above at the freeze all point, and
    --  issues appropriate error messages if the visibility has indeed changed.
-   --  Again, ASN is the N_Aspect_Specification node for the aspect.
+   --  Callers should check that Has_Delayed_Aspects (E) is True before calling
+   --  this routine.
 
    procedure Inherit_Aspects_At_Freeze_Point (Typ : Entity_Id);
    --  Given an entity Typ that denotes a derived type or a subtype, this
    --  routine performs the inheritance of aspects at the freeze point.
+
+   --  ??? Note that, for now, just a limited number of representation aspects
+   --  have been inherited here so far. Many of them are still inherited in
+   --  Sem_Ch3 and need to be dealt with. Here is a non-exhaustive list of
+   --  aspects that likely also need to be moved to this routine: Alignment,
+   --  Component_Alignment, Component_Size, Machine_Radix, Object_Size, Pack,
+   --  Predicates, Preelaborable_Initialization, Size and Small.
+
+   procedure Inherit_Delayed_Rep_Aspects (Typ : Entity_Id);
+   --  As discussed in the spec of Aspects (see Aspect_Delay declaration),
+   --  a derived type can inherit aspects from its parent which have been
+   --  specified at the time of the derivation using an aspect, as in:
+   --
+   --    type A is range 1 .. 10
+   --      with Size => Not_Defined_Yet;
+   --    ..
+   --    type B is new A;
+   --    ..
+   --    Not_Defined_Yet : constant := 64;
+   --
+   --  In this example, the Size of A is considered to be specified prior
+   --  to the derivation, and thus inherited, even though the value is not
+   --  known at the time of derivation. To deal with this, we use two entity
+   --  flags. The flag Has_Derived_Rep_Aspects is set in the parent type (A
+   --  here), and then the flag May_Inherit_Delayed_Rep_Aspects is set in
+   --  the derived type (B here). If this flag is set when the derived type
+   --  is frozen, then this procedure is called to ensure proper inheritance
+   --  of all delayed aspects from the parent type.
+
+   --  ??? Obviously we ought not to have two mechanisms to do the same thing
 
    procedure Resolve_Aspect_Expressions (E : Entity_Id);
    --  Name resolution of an aspect expression happens at the end of the

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2000-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2000-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,7 +36,13 @@
 --  and logging purposes. For example, an exception handler can print out
 --  the name of the source file in which the exception is handled.
 
-package GNAT.Source_Info is
+package GNAT.Source_Info with
+   SPARK_Mode,
+   Abstract_State =>
+     (Source_Code_Information with
+         External => (Async_Writers, Async_Readers)),
+   Always_Terminates
+is
    pragma Preelaborate;
    --  Note that this unit is Preelaborate, but not Pure, that's because the
    --  functions here such as Line are clearly not pure functions, and normally
@@ -47,16 +53,24 @@ package GNAT.Source_Info is
    --  intrinsics as not Pure, even in Pure units, so no problems arose.
 
    function File return String with
+     Volatile_Function,
+     Global => Source_Code_Information,
      Import, Convention => Intrinsic;
    --  Return the name of the current file, not including the path information.
    --  The result is considered to be a static string constant.
+   --
+   --  This function is an intrinsic, implemented by the compiler.
 
    function Line return Positive with
      Import, Convention => Intrinsic;
    --  Return the current input line number. The result is considered to be a
    --  static expression.
+   --
+   --  This function is an intrinsic, implemented by the compiler.
 
    function Source_Location return String with
+     Volatile_Function,
+     Global => Source_Code_Information,
      Import, Convention => Intrinsic;
    --  Return a string literal of the form "name:line", where name is the
    --  current source file name without path information, and line is the
@@ -64,8 +78,12 @@ package GNAT.Source_Info is
    --  additional suffixes of the same form are appended after the separating
    --  string " instantiated at ". The result is considered to be a static
    --  string constant.
+   --
+   --  This function is an intrinsic, implemented by the compiler.
 
    function Enclosing_Entity return String with
+     Volatile_Function,
+     Global => Source_Code_Information,
      Import, Convention => Intrinsic;
    --  Return the name of the current subprogram, package, task, entry or
    --  protected subprogram. The string is in exactly the form used for the
@@ -78,19 +96,33 @@ package GNAT.Source_Info is
    --  the string returned will be the name of the instance, not the generic
    --  package itself. This is useful in identifying and logging information
    --  from within generic templates.
+   --
+   --  This function is an intrinsic, implemented by the compiler.
 
    function Compilation_ISO_Date return String with
+     Volatile_Function,
+     Global => Source_Code_Information,
      Import, Convention => Intrinsic;
    --  Returns date of compilation as a static string "yyyy-mm-dd".
+   --
+   --  This function is an intrinsic, implemented by the compiler.
 
    function Compilation_Date return String with
+     Volatile_Function,
+     Global => Source_Code_Information,
      Import, Convention => Intrinsic;
    --  Returns date of compilation as a static string "mmm dd yyyy". This is
    --  in local time form, and is exactly compatible with C macro __DATE__.
+   --
+   --  This function is an intrinsic, implemented by the compiler.
 
    function Compilation_Time return String with
+     Volatile_Function,
+     Global => Source_Code_Information,
      Import, Convention => Intrinsic;
    --  Returns GMT time of compilation as a static string "hh:mm:ss". This is
    --  in local time form, and is exactly compatible with C macro __TIME__.
+   --
+   --  This function is an intrinsic, implemented by the compiler.
 
 end GNAT.Source_Info;

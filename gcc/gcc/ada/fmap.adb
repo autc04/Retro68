@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,8 +33,6 @@ pragma Warnings (Off);
 --  This package is used also by gnatcoll
 with System.OS_Lib; use System.OS_Lib;
 pragma Warnings (On);
-
-with Unchecked_Conversion;
 
 with GNAT.HTable;
 
@@ -321,7 +319,7 @@ package body Fmap is
 
             exit when First > Last;
 
-            if (Last < First + 2) or else (Src (Last - 1) /= '%')
+            if Last < First + 2 or else Src (Last - 1) /= '%'
               or else (Src (Last) /= 's' and then Src (Last) /= 'b')
             then
                Write_Line

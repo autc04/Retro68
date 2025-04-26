@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,6 +30,7 @@ with Checks;
 with CStand;
 with Debug;          use Debug;
 with Elists;
+with Exp_Ch6;
 with Exp_Dbug;
 with Exp_Unst;
 with Fmap;
@@ -38,7 +39,6 @@ with Ghost;          use Ghost;
 with Inline;         use Inline;
 with Lib;            use Lib;
 with Lib.Load;       use Lib.Load;
-with Lib.Xref;
 with Live;           use Live;
 with Namet;          use Namet;
 with Nlists;         use Nlists;
@@ -69,6 +69,7 @@ with SCIL_LL;
 with Tbuild;         use Tbuild;
 with Types;          use Types;
 with VAST;
+with Warnsw;         use Warnsw;
 
 procedure Frontend is
 begin
@@ -157,7 +158,6 @@ begin
       --  intended -gnatg or -gnaty compilations. We also disconnect checking
       --  for maximum line length.
 
-      Opt.Style_Check := False;
       Style_Check := False;
 
       --  Capture current suppress options, which may get modified
@@ -286,13 +286,6 @@ begin
 
       Save_Config_Cunit_Boolean_Restrictions;
 
-      --  If there was a -gnatem switch, initialize the mappings of unit names
-      --  to file names and of file names to path names from the mapping file.
-
-      if Mapping_File_Name /= null then
-         Fmap.Initialize (Mapping_File_Name.all);
-      end if;
-
       --  Adjust Optimize_Alignment mode from debug switches if necessary
 
       if Debug_Flag_Dot_SS then
@@ -387,9 +380,7 @@ begin
       --  Disable Initialize_Scalars for runtime files to avoid circular
       --  dependencies.
 
-      if Initialize_Scalars
-        and then Fname.Is_Predefined_File_Name (File_Name (Main_Source_File))
-      then
+      if Initialize_Scalars and then Is_Predefined_Unit (Main_Unit) then
          Initialize_Scalars   := False;
          Init_Or_Norm_Scalars := Normalize_Scalars;
       end if;
@@ -425,24 +416,17 @@ begin
 
             --  Cleanup processing after completing main analysis
 
-            --  In GNATprove_Mode we do not perform most expansions but body
-            --  instantiation is needed.
-
-            pragma Assert
-              (Operating_Mode = Generate_Code
-                or else Operating_Mode = Check_Semantics);
-
-            if Operating_Mode = Generate_Code
-              or else GNATprove_Mode
-            then
-               Instantiate_Bodies;
-            end if;
-
-            --  Analyze all inlined bodies, check access-before-elaboration
-            --  rules, and remove ignored Ghost code when generating code or
-            --  compiling for GNATprove.
+            pragma Assert (Operating_Mode in Check_Semantics | Generate_Code);
 
             if Operating_Mode = Generate_Code or else GNATprove_Mode then
+
+               --  In GNATprove_Mode we do not perform most expansions but body
+               --  instantiation is needed.
+
+               Instantiate_Bodies;
+
+               --  Analyze inlined bodies if required
+
                if Inline_Processing_Required then
                   Analyze_Inlined_Bodies;
                end if;
@@ -453,6 +437,8 @@ begin
                if Debug_Flag_UU then
                   Collect_Garbage_Entities;
                end if;
+
+               --  Check access-before-elaboration rules
 
                if Legacy_Elaboration_Checks then
                   Check_Elab_Calls;
@@ -481,7 +467,6 @@ begin
 
             --  Output waiting warning messages
 
-            Lib.Xref.Process_Deferred_References;
             Sem_Warn.Output_Non_Modified_In_Out_Warnings;
             Sem_Warn.Output_Unreferenced_Messages;
             Sem_Warn.Check_Unused_Withs;
@@ -525,6 +510,16 @@ begin
       VAST.Check_Tree (Cunit (Main_Unit));
    end if;
 
+   --  Validate all the subprogram calls; this work will be done by VAST; in
+   --  the meantime it is done to check extra formals and it can be disabled
+   --  using -gnatd_X (which also disables all the other assertions on extra
+   --  formals). It is invoked using pragma Debug to avoid adding any cost
+   --  when the compiler is built with assertions disabled.
+
+   if not Debug_Flag_Underscore_XX then
+      pragma Debug (Exp_Ch6.Validate_Subprogram_Calls (Cunit (Main_Unit)));
+   end if;
+
    --  Dump the source now. Note that we do this as soon as the analysis
    --  of the tree is complete, because it is not just a dump in the case
    --  of -gnatD, where it rewrites all source locations in the tree.
@@ -560,6 +555,4 @@ begin
    if Mapping_File_Name /= null then
       Fmap.Update_Mapping_File (Mapping_File_Name.all);
    end if;
-
-   return;
 end Frontend;

@@ -31,14 +31,14 @@
         $(LI Maintain another reference to that same data in another thread that the
         GC does know about.)
         $(LI Disable GC collection cycles while that thread is active with $(LREF disable)/$(LREF enable).)
-        $(LI Register the thread with the GC using $(REF thread_attachThis, core,thread)/$(REF thread_detachThis, core,thread).)
+        $(LI Register the thread with the GC using $(REF thread_attachThis, core,thread,osthread)/$(REF thread_detachThis, core,thread,threadbase).)
         )
    )
    )
  *
  * Notes_to_implementors:
  * $(UL
- * $(LI On POSIX systems, the signals SIGUSR1 and SIGUSR2 are reserved
+ * $(LI On POSIX systems, the signals `SIGRTMIN` and `SIGRTMIN + 1` are reserved
  *   by this module for use in the garbage collector implementation.
  *   Typically, they will be used to stop and resume other threads
  *   when performing a collection, but an implementation may choose
@@ -100,6 +100,10 @@
  * License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  * Authors:   Sean Kelly, Alex Rønne Petersen
  * Source:    $(DRUNTIMESRC core/_memory.d)
+ * Macros:
+ * WARN_UNINITIALIZED=$(RED Warning):
+ * $1 will be uninitialized, and may happen to hold pointers to GC memory.
+ * Consider zeroing out any uninitialized bytes which won't be immediately written to.
  */
 
 module core.memory;
@@ -202,8 +206,8 @@ unittest
 // make it more difficult to call the function again, manually.
 private void initialize();
 pragma(crt_constructor)
-pragma(mangle, `_D` ~ initialize.mangleof)
-private extern (C) void initialize() @system
+pragma(mangle, initialize.mangleof)
+private extern (C) void _initialize() @system
 {
     version (Posix)
     {
@@ -266,11 +270,11 @@ extern(C):
 
     /**
      * Enables automatic garbage collection behavior if collections have
-     * previously been suspended by a call to disable.  This function is
-     * reentrant, and must be called once for every call to disable before
+     * previously been suspended by a call to `GC.disable()`.  This function is
+     * reentrant, and must be called once for every call to `GC.disable()` before
      * automatic collections are enabled.
      */
-    pragma(mangle, "gc_enable") static void enable() nothrow pure;
+    pragma(mangle, "gc_enable") static void enable() @safe nothrow pure;
 
 
     /**
@@ -278,9 +282,14 @@ extern(C):
      * process footprint.  Collections may continue to occur in instances
      * where the implementation deems necessary for correct program behavior,
      * such as during an out of memory condition.  This function is reentrant,
-     * but enable must be called once for each call to disable.
+     * but `GC.enable()` must be called once for each call to `GC.disable()`.
+     * Unlike the
+     * $(LINK2 https://dlang.org/spec/function.html#nogc-functions, `@nogc` attribute),
+     * `GC.disable()` halts
+     * collections across all threads, yet still allows GC allocations.
+     * Disabling collections eliminates GC pauses.
      */
-    pragma(mangle, "gc_disable") static void disable() nothrow pure;
+    pragma(mangle, "gc_disable") static void disable() @safe nothrow pure;
 
 
     /**
@@ -290,14 +299,14 @@ extern(C):
      * and then to reclaim free space.  This action may need to suspend all
      * running threads for at least part of the collection process.
      */
-    pragma(mangle, "gc_collect") static void collect() nothrow pure;
+    pragma(mangle, "gc_collect") static void collect() @safe nothrow pure;
 
     /**
      * Indicates that the managed memory space be minimized by returning free
      * physical memory to the operating system.  The amount of free memory
      * returned depends on the allocator design and on program behavior.
      */
-    pragma(mangle, "gc_minimize") static void minimize() nothrow pure;
+    pragma(mangle, "gc_minimize") static void minimize() @safe nothrow pure;
 
 extern(D):
 
@@ -317,7 +326,7 @@ extern(D):
         This can be used to manually allocate arrays. Initial slice size is 0.
 
         Note: The slice's usable size will not match the block size. Use
-        $(LREF capacity) to retrieve actual usable capacity.
+        $(REF1 capacity, object) to retrieve actual usable capacity.
 
         Example:
         ----
@@ -395,7 +404,7 @@ extern(D):
      *  a = A bit field containing any bits to set for this memory block.
      *
      * Returns:
-     *  The result of a call to getAttr after the specified bits have been
+     *  The result of a call to $(LREF getAttr) after the specified bits have been
      *  set.
      */
     static uint setAttr( const scope void* p, uint a ) nothrow
@@ -422,7 +431,7 @@ extern(D):
      *  a = A bit field containing any bits to clear for this memory block.
      *
      * Returns:
-     *  The result of a call to getAttr after the specified bits have been
+     *  The result of a call to $(LREF getAttr) after the specified bits have been
      *  cleared.
      */
     static uint clrAttr( const scope void* p, uint a ) nothrow
@@ -456,6 +465,8 @@ extern(C):
      *  A reference to the allocated memory or null if insufficient memory
      *  is available.
      *
+     * $(WARN_UNINITIALIZED Allocated memory)
+     *
      * Throws:
      *  OutOfMemoryError on allocation failure.
      */
@@ -467,7 +478,7 @@ extern(C):
 
     /**
      * Requests an aligned block of managed memory from the garbage collector.
-     * This memory may be deleted at will with a call to free, or it may be
+     * This memory may be deleted at will with a call to $(LREF free), or it may be
      * discarded and cleaned up automatically during a collection run.  If
      * allocation fails, this function will call onOutOfMemory which is
      * expected to throw an OutOfMemoryError.
@@ -481,6 +492,8 @@ extern(C):
      * Returns:
      *  Information regarding the allocated memory block or BlkInfo.init on
      *  error.
+     *
+     * $(WARN_UNINITIALIZED Allocated memory)
      *
      * Throws:
      *  OutOfMemoryError on allocation failure.
@@ -559,6 +572,8 @@ extern(C):
      *  zero or the pointer does not point to the base of an GC allocated
      *  memory block.
      *
+     * $(WARN_UNINITIALIZED Any extra bytes past the initial size)
+     *
      * Throws:
      *  `OutOfMemoryError` on allocation failure.
      */
@@ -570,6 +585,7 @@ extern(C):
 
     // https://issues.dlang.org/show_bug.cgi?id=13111
     ///
+    version (OnlyLowMemUnittests) {} else // Test needs a lot of RAM
     unittest
     {
         enum size1 = 1 << 11 + 1; // page in large object pool
@@ -602,10 +618,12 @@ extern(C):
      *  The size in bytes of the extended memory block referenced by p or zero
      *  if no extension occurred.
      *
+     * $(WARN_UNINITIALIZED Any extension bytes)
+     *
      * Note:
      *  Extend may also be used to extend slices (or memory blocks with
      *  $(LREF APPENDABLE) info). However, use the return value only
-     *  as an indicator of success. $(LREF capacity) should be used to
+     *  as an indicator of success. $(REF1 capacity, object) should be used to
      *  retrieve actual usable slice capacity.
      */
     version (D_ProfileGC)
@@ -663,7 +681,7 @@ extern(C):
      * If p references memory not originally allocated by this garbage
      * collector, if p points to the interior of a memory block, or if this
      * method is called from a finalizer, no action will be taken.  The block
-     * will not be finalized regardless of whether the FINALIZE attribute is
+     * will not be finalized regardless of whether the $(LREF FINALIZE) attribute is
      * set.  If finalization is desired, call $(REF1 destroy, object) prior to `GC.free`.
      *
      * Params:
@@ -701,7 +719,7 @@ extern(D):
 
     /**
      * Returns the true size of the memory block referenced by p.  This value
-     * represents the maximum number of bytes for which a call to realloc may
+     * represents the maximum number of bytes for which a call to $(LREF realloc) may
      * resize the existing block in place.  If p references memory not
      * originally allocated by this garbage collector, points to the interior
      * of a memory block, or if p is null, zero will be returned.
@@ -1149,7 +1167,7 @@ extern (C) private @system @nogc nothrow
 {
     ref int fakePureErrnoImpl()
     {
-        import core.stdc.errno;
+        import core.stdc.errno : errno;
         return errno();
     }
 }
@@ -1191,13 +1209,13 @@ $(UL
 )
 
 Note: Users should prefer $(REF1 destroy, object) to explicitly finalize objects,
-and only resort to $(REF __delete, core,memory) when $(REF destroy, object)
+and only resort to $(LREF __delete) when $(REF1 destroy, object)
 wouldn't be a feasible option.
 
 Params:
     x = aggregate object that should be destroyed
 
-See_Also: $(REF1 destroy, object), $(REF free, core,GC)
+See_Also: $(REF1 destroy, object), $(LREF GC.free)
 
 History:
 

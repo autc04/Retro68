@@ -1,5 +1,5 @@
 /* Subroutines for manipulating rtx's in semantically interesting ways.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -349,9 +349,14 @@ convert_memory_address_addr_space_1 (scalar_int_mode to_mode ATTRIBUTE_UNUSED,
       return temp;
 
     case CONST:
-      temp = convert_memory_address_addr_space_1 (to_mode, XEXP (x, 0), as,
-						  true, no_emit);
-      return temp ? gen_rtx_CONST (to_mode, temp) : temp;
+      {
+	auto *last = no_emit ? nullptr : get_last_insn ();
+	temp = convert_memory_address_addr_space_1 (to_mode, XEXP (x, 0), as,
+						    true, no_emit);
+	if (temp && (no_emit || last == get_last_insn ()))
+	  return gen_rtx_CONST (to_mode, temp);
+	return temp;
+      }
 
     case PLUS:
     case MULT:
@@ -740,6 +745,53 @@ force_reg (machine_mode mode, rtx x)
   return temp;
 }
 
+/* Like simplify_gen_subreg, but force OP into a new register if the
+   subreg cannot be formed directly.  */
+
+rtx
+force_subreg (machine_mode outermode, rtx op,
+	      machine_mode innermode, poly_uint64 byte)
+{
+  rtx x = simplify_gen_subreg (outermode, op, innermode, byte);
+  if (x)
+    return x;
+
+  auto *start = get_last_insn ();
+  op = copy_to_mode_reg (innermode, op);
+  rtx res = simplify_gen_subreg (outermode, op, innermode, byte);
+  if (!res)
+    delete_insns_since (start);
+  return res;
+}
+
+/* Try to return an rvalue expression for the OUTERMODE lowpart of OP,
+   which has mode INNERMODE.  Allow OP to be forced into a new register
+   if necessary.
+
+   Return null on failure.  */
+
+rtx
+force_lowpart_subreg (machine_mode outermode, rtx op,
+		      machine_mode innermode)
+{
+  auto byte = subreg_lowpart_offset (outermode, innermode);
+  return force_subreg (outermode, op, innermode, byte);
+}
+
+/* Try to return an rvalue expression for the OUTERMODE highpart of OP,
+   which has mode INNERMODE.  Allow OP to be forced into a new register
+   if necessary.
+
+   Return null on failure.  */
+
+rtx
+force_highpart_subreg (machine_mode outermode, rtx op,
+		       machine_mode innermode)
+{
+  auto byte = subreg_highpart_offset (outermode, innermode);
+  return force_subreg (outermode, op, innermode, byte);
+}
+
 /* If X is a memory ref, copy its contents to a new temp reg and return
    that reg.  Otherwise, return X.  */
 
@@ -1111,7 +1163,7 @@ emit_stack_restore (enum save_level save_level, rtx sa)
      STACK_POINTER. This renders the HARD_FRAME_POINTER unusable for accessing
      aligned variables, which is reflected in ix86_can_eliminate.
      We normally still have the realigned STACK_POINTER that we can use.
-     But if there is a stack restore still present at reload, it can trigger 
+     But if there is a stack restore still present at reload, it can trigger
      mark_not_eliminable for the STACK_POINTER, leaving no way to eliminate
      FRAME_POINTER into a hard reg.
      To prevent this situation, we force need_drap if we emit a stack
@@ -1185,7 +1237,7 @@ record_new_stack_level (void)
   /* Record the new stack level for nonlocal gotos.  */
   if (cfun->nonlocal_goto_save_area)
     update_nonlocal_goto_save_area ();
- 
+
   /* Record the new stack level for SJLJ exceptions.  */
   if (targetm_common.except_unwind_info (&global_options) == UI_SJLJ)
     update_sjlj_context ();
@@ -1196,6 +1248,9 @@ record_new_stack_level (void)
 rtx
 align_dynamic_address (rtx target, unsigned required_align)
 {
+  if (required_align == BITS_PER_UNIT)
+    return target;
+
   /* CEIL_DIV_EXPR needs to worry about the addition overflowing,
      but we know it can't.  So add ourselves and then do
      TRUNC_DIV_EXPR.  */
@@ -1370,12 +1425,16 @@ allocate_dynamic_stack_space (rtx size, unsigned size_align,
   HOST_WIDE_INT stack_usage_size = -1;
   rtx_code_label *final_label;
   rtx final_target, target;
+  rtx addr = (virtuals_instantiated
+	      ? plus_constant (Pmode, stack_pointer_rtx,
+			       get_stack_dynamic_offset ())
+	      : virtual_stack_dynamic_rtx);
 
   /* If we're asking for zero bytes, it doesn't matter what we point
      to since we can't dereference it.  But return a reasonable
      address anyway.  */
   if (size == const0_rtx)
-    return virtual_stack_dynamic_rtx;
+    return addr;
 
   /* Otherwise, show we're calling alloca or equivalent.  */
   cfun->calls_alloca = 1;
@@ -1527,7 +1586,7 @@ allocate_dynamic_stack_space (rtx size, unsigned size_align,
       poly_int64 saved_stack_pointer_delta;
 
       if (!STACK_GROWS_DOWNWARD)
-	emit_move_insn (target, virtual_stack_dynamic_rtx);
+	emit_move_insn (target, force_operand (addr, target));
 
       /* Check stack bounds if necessary.  */
       if (crtl->limit_stack)
@@ -1570,7 +1629,7 @@ allocate_dynamic_stack_space (rtx size, unsigned size_align,
       stack_pointer_delta = saved_stack_pointer_delta;
 
       if (STACK_GROWS_DOWNWARD)
-	emit_move_insn (target, virtual_stack_dynamic_rtx);
+	emit_move_insn (target, force_operand (addr, target));
     }
 
   suppress_reg_args_size = false;
@@ -1813,7 +1872,10 @@ probe_stack_range (HOST_WIDE_INT first, rtx size)
 			   gen_int_mode (PROBE_INTERVAL, Pmode), test_addr,
 			   1, OPTAB_WIDEN);
 
-      gcc_assert (temp == test_addr);
+      /* There is no guarantee that expand_binop constructs its result
+	 in TEST_ADDR.  So copy into TEST_ADDR if necessary.  */
+      if (temp != test_addr)
+	emit_move_insn (test_addr, temp);
 
       /* Probe at TEST_ADDR.  */
       emit_stack_probe (test_addr);

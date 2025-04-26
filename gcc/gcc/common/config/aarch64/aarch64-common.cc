@@ -1,5 +1,5 @@
 /* Common hooks for AArch64.
-   Copyright (C) 2012-2022 Free Software Foundation, Inc.
+   Copyright (C) 2012-2025 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -30,6 +30,8 @@
 #include "opts.h"
 #include "flags.h"
 #include "diagnostic.h"
+#include "config/aarch64/aarch64-feature-deps.h"
+#include "config/arm/aarch-common.h"
 
 #ifdef  TARGET_BIG_ENDIAN_DEFAULT
 #undef  TARGET_DEFAULT_TARGET_FLAGS
@@ -41,8 +43,6 @@
 
 #undef	TARGET_OPTION_OPTIMIZATION_TABLE
 #define TARGET_OPTION_OPTIMIZATION_TABLE aarch_option_optimization_table
-#undef TARGET_OPTION_INIT_STRUCT
-#define TARGET_OPTION_INIT_STRUCT aarch64_option_init_struct
 
 /* Set default optimization options.  */
 static const struct default_options aarch_option_optimization_table[] =
@@ -53,8 +53,13 @@ static const struct default_options aarch_option_optimization_table[] =
     { OPT_LEVELS_ALL, OPT_fomit_frame_pointer, NULL, 0 },
     /* Enable -fsched-pressure by default when optimizing.  */
     { OPT_LEVELS_1_PLUS, OPT_fsched_pressure, NULL, 1 },
+    /* Except for -O3 and higher, disable early scheduling due to high
+       compile-time overheads.  */
+    { OPT_LEVELS_ALL, OPT_fschedule_insns, NULL, 0 },
+    { OPT_LEVELS_3_PLUS, OPT_fschedule_insns, NULL, 1 },
     /* Enable redundant extension instructions removal at -O2 and higher.  */
     { OPT_LEVELS_2_PLUS, OPT_free, NULL, 1 },
+    { OPT_LEVELS_2_PLUS, OPT_mearly_ra_, NULL, AARCH64_EARLY_RA_ALL },
 #if (TARGET_DEFAULT_ASYNC_UNWIND_TABLES == 1)
     { OPT_LEVELS_ALL, OPT_fasynchronous_unwind_tables, NULL, 1 },
     { OPT_LEVELS_ALL, OPT_funwind_tables, NULL, 1},
@@ -64,6 +69,22 @@ static const struct default_options aarch_option_optimization_table[] =
 
     { OPT_LEVELS_NONE, 0, NULL, 0 }
   };
+
+
+/* Set OPTS->x_aarch64_asm_isa_flags_<0..n> to FLAGS and update
+   OPTS->x_aarch64_isa_flags_<0..n> accordingly.  */
+void
+aarch64_set_asm_isa_flags (gcc_options *opts, aarch64_feature_flags flags)
+{
+  opts->x_aarch64_asm_isa_flags_0 = flags.val[0];
+  opts->x_aarch64_asm_isa_flags_1 = flags.val[1];
+
+  if (opts->x_target_flags & MASK_GENERAL_REGS_ONLY)
+    flags &= ~feature_deps::get_flags_off (AARCH64_FL_FP);
+
+  opts->x_aarch64_isa_flags_0 = flags.val[0];
+  opts->x_aarch64_isa_flags_1 = flags.val[1];
+}
 
 /* Implement TARGET_HANDLE_OPTION.
    This function handles the target specific options for CPU/target selection.
@@ -99,6 +120,7 @@ aarch64_handle_option (struct gcc_options *opts,
 
     case OPT_mgeneral_regs_only:
       opts->x_target_flags |= MASK_GENERAL_REGS_ONLY;
+      aarch64_set_asm_isa_flags (opts, aarch64_get_asm_isa_flags (opts));
       return true;
 
     case OPT_mfix_cortex_a53_835769:
@@ -125,83 +147,158 @@ aarch64_handle_option (struct gcc_options *opts,
     }
 }
 
+
 /* An ISA extension in the co-processor and main instruction set space.  */
-struct aarch64_option_extension
+struct aarch64_extension_info
 {
-  const char *const name;
-  const uint64_t flag_canonical;
-  const uint64_t flags_on;
-  const uint64_t flags_off;
-  const bool is_synthetic;
+  /* The extension name to pass on to the assembler.  */
+  const char *name;
+  /* The smallest set of feature bits to toggle to enable this option.  */
+  aarch64_feature_flags flag_canonical;
+  /* If this feature is turned on, these bits also need to be turned on.  */
+  aarch64_feature_flags flags_on;
+  /* If this feature is turned off, these bits also need to be turned off.  */
+  aarch64_feature_flags flags_off;
+  /* If this feature remains enabled, these bits must also remain enabled.  */
+  aarch64_feature_flags flags_required;
 };
 
 /* ISA extensions in AArch64.  */
-static const struct aarch64_option_extension all_extensions[] =
+static constexpr aarch64_extension_info all_extensions[] =
 {
-#define AARCH64_OPT_EXTENSION(NAME, FLAG_CANONICAL, FLAGS_ON, FLAGS_OFF, \
-			      SYNTHETIC, Z) \
-  {NAME, FLAG_CANONICAL, FLAGS_ON, FLAGS_OFF, SYNTHETIC},
+#define AARCH64_OPT_EXTENSION(NAME, IDENT, C, D, E, FEATURE_STRING) \
+  {NAME, AARCH64_FL_##IDENT, feature_deps::IDENT ().explicit_on, \
+   feature_deps::get_flags_off (feature_deps::root_off_##IDENT), \
+   feature_deps::IDENT ().enable},
 #include "config/aarch64/aarch64-option-extensions.def"
-  {NULL, 0, 0, 0, false}
+  {NULL, 0, 0, 0, 0}
 };
 
-/* A copy of the ISA extensions list for AArch64 sorted by the popcount of
-   bits and extension turned on.  Cached for efficiency.  */
-static struct aarch64_option_extension all_extensions_by_on[] =
+struct aarch64_arch_info
 {
-#define AARCH64_OPT_EXTENSION(NAME, FLAG_CANONICAL, FLAGS_ON, FLAGS_OFF, \
-			      SYNTHETIC, Z) \
-  {NAME, FLAG_CANONICAL, FLAGS_ON, FLAGS_OFF, SYNTHETIC},
-#include "config/aarch64/aarch64-option-extensions.def"
-  {NULL, 0, 0, 0, false}
+  const char *name;
+  aarch64_arch arch;
+  aarch64_feature_flags flags;
 };
 
-struct processor_name_to_arch
+/* Map architecture revisions to their string representation.  */
+static constexpr aarch64_arch_info all_architectures[] =
 {
-  const std::string processor_name;
-  const enum aarch64_arch arch;
-  const uint64_t flags;
+#define AARCH64_ARCH(NAME, B, ARCH_IDENT, D, E)	\
+  {NAME, AARCH64_ARCH_##ARCH_IDENT, feature_deps::ARCH_IDENT ().enable},
+#include "config/aarch64/aarch64-arches.def"
+  {NULL, aarch64_no_arch, 0}
 };
 
-struct arch_to_arch_name
+struct aarch64_processor_info
 {
-  const enum aarch64_arch arch;
-  const std::string arch_name;
-  const uint64_t flags;
+  const char *name;
+  aarch64_cpu processor;
+  aarch64_arch arch;
+  aarch64_feature_flags flags;
 };
 
 /* Map processor names to the architecture revision they implement and
    the default set of architectural feature flags they support.  */
-static const struct processor_name_to_arch all_cores[] =
+static constexpr aarch64_processor_info all_cores[] =
 {
-#define AARCH64_CORE(NAME, X, IDENT, ARCH_IDENT, FLAGS, COSTS, IMP, PART, VARIANT) \
-  {NAME, AARCH64_ARCH_##ARCH_IDENT, FLAGS},
+#define AARCH64_CORE(NAME, CORE_IDENT, C, ARCH_IDENT, E, F, G, H, I) \
+  {NAME, AARCH64_CPU_##CORE_IDENT, AARCH64_ARCH_##ARCH_IDENT, \
+   feature_deps::cpu_##CORE_IDENT},
 #include "config/aarch64/aarch64-cores.def"
-  {"generic", AARCH64_ARCH_8A, AARCH64_FL_FOR_ARCH8},
-  {"", aarch64_no_arch, 0}
+  {NULL, aarch64_no_cpu, aarch64_no_arch, 0}
 };
 
-/* Map architecture revisions to their string representation.  */
-static const struct arch_to_arch_name all_architectures[] =
+/* Return the set of feature flags that are required to be enabled when the
+   features in FLAGS are enabled.  */
+
+aarch64_feature_flags
+aarch64_get_required_features (aarch64_feature_flags flags)
 {
-#define AARCH64_ARCH(NAME, CORE, ARCH_IDENT, ARCH, FLAGS) \
-  {AARCH64_ARCH_##ARCH_IDENT, NAME, FLAGS},
-#include "config/aarch64/aarch64-arches.def"
-  {aarch64_no_arch, "", 0}
-};
+  const struct aarch64_extension_info *opt;
+  for (opt = all_extensions; opt->name != NULL; opt++)
+    if (flags & opt->flag_canonical)
+      flags |= opt->flags_required;
+  return flags;
+}
+
+/* Print a list of CANDIDATES for an argument, and try to suggest a specific
+   close match.  */
+
+inline static void
+aarch64_print_hint_candidates (const char *str,
+			       const auto_vec<const char*> & candidates)
+{
+  char *s;
+  const char *hint = candidates_list_and_hint (str, s, candidates);
+  if (hint)
+    inform (input_location, "valid arguments are: %s;"
+			     " did you mean %qs?", s, hint);
+  else
+    inform (input_location, "valid arguments are: %s", s);
+
+  XDELETEVEC (s);
+}
+
+/* Print a hint with a suggestion for an extension name
+   that most closely resembles what the user passed in STR.  */
+
+void
+aarch64_print_hint_for_extensions (const char *str)
+{
+  auto_vec<const char *> candidates;
+  const struct aarch64_extension_info *opt;
+  for (opt = all_extensions; opt->name != NULL; opt++)
+    candidates.safe_push (opt->name);
+
+  aarch64_print_hint_candidates (str, candidates);
+}
+
+/* Print a hint with a suggestion for an architecture name that most closely
+   resembles what the user passed in STR.  */
+
+void
+aarch64_print_hint_for_arch (const char *str)
+{
+  auto_vec<const char *> candidates;
+  const struct aarch64_arch_info *entry = all_architectures;
+  for (; entry->name != NULL; entry++)
+    candidates.safe_push (entry->name);
+
+#ifdef HAVE_LOCAL_CPU_DETECT
+  /* Add also "native" as possible value.  */
+  candidates.safe_push ("native");
+#endif
+
+  aarch64_print_hint_candidates (str, candidates);
+}
+
+/* Print a hint with a suggestion for a core name that most closely resembles
+   what the user passed in STR.  */
+
+void
+aarch64_print_hint_for_core (const char *str)
+{
+  auto_vec<const char *> candidates;
+  const struct aarch64_processor_info *entry = all_cores;
+  for (; entry->name != NULL; entry++)
+    candidates.safe_push (entry->name);
+  aarch64_print_hint_candidates (str, candidates);
+}
+
 
 /* Parse the architecture extension string STR and update ISA_FLAGS
    with the architecture features turned on or off.  Return a
-   aarch64_parse_opt_result describing the result.
+   aarch_parse_opt_result describing the result.
    When the STR string contains an invalid extension,
    a copy of the string is created and stored to INVALID_EXTENSION.  */
 
-enum aarch64_parse_opt_result
-aarch64_parse_extension (const char *str, uint64_t *isa_flags,
-			 std::string *invalid_extension)
+enum aarch_parse_opt_result
+aarch64_parse_extension (const char *str, aarch64_feature_flags *isa_flags,
+                         std::string *invalid_extension)
 {
   /* The extension string is parsed left to right.  */
-  const struct aarch64_option_extension *opt = NULL;
+  const struct aarch64_extension_info *opt = NULL;
 
   /* Flag to say whether we are adding or removing an extension.  */
   int adding_ext = -1;
@@ -229,7 +326,7 @@ aarch64_parse_extension (const char *str, uint64_t *isa_flags,
 	adding_ext = 1;
 
       if (len == 0)
-	return AARCH64_PARSE_MISSING_ARG;
+	return AARCH_PARSE_MISSING_ARG;
 
 
       /* Scan over the extensions table trying to find an exact match.  */
@@ -239,9 +336,9 @@ aarch64_parse_extension (const char *str, uint64_t *isa_flags,
 	    {
 	      /* Add or remove the extension.  */
 	      if (adding_ext)
-		*isa_flags |= (opt->flags_on | opt->flag_canonical);
+		*isa_flags |= opt->flags_on;
 	      else
-		*isa_flags &= ~(opt->flags_off | opt->flag_canonical);
+		*isa_flags &= ~opt->flags_off;
 	      break;
 	    }
 	}
@@ -251,97 +348,274 @@ aarch64_parse_extension (const char *str, uint64_t *isa_flags,
 	  /* Extension not found in list.  */
 	  if (invalid_extension)
 	    *invalid_extension = std::string (str, len);
-	  return AARCH64_PARSE_INVALID_FEATURE;
+	  return AARCH_PARSE_INVALID_FEATURE;
 	}
 
       str = ext;
     };
 
-  return AARCH64_PARSE_OK;
+  return AARCH_PARSE_OK;
 }
 
-/* Append all architecture extension candidates to the CANDIDATES vector.  */
+/* Parse the TO_PARSE string and put the architecture that it
+   selects into RES_ARCH and the architectural features into RES_FLAGS.
+   Return an aarch_parse_opt_result describing the parse result.
+   If there is an error parsing, RES_ARCH and RES_FLAGS are left unchanged.
+   When the TO_PARSE string contains an invalid extension,
+   a copy of the string is created and stored to INVALID_EXTENSION.  */
 
-void
-aarch64_get_all_extension_candidates (auto_vec<const char *> *candidates)
+enum aarch_parse_opt_result
+aarch64_parse_arch (const char *to_parse, aarch64_arch *res_arch,
+		    aarch64_feature_flags *res_flags,
+		    std::string *invalid_extension)
 {
-  const struct aarch64_option_extension *opt;
-  for (opt = all_extensions; opt->name != NULL; opt++)
-    candidates->safe_push (opt->name);
+  const char *ext;
+  const struct aarch64_arch_info *arch;
+  size_t len;
+
+  ext = strchr (to_parse, '+');
+
+  if (ext != NULL)
+    len = ext - to_parse;
+  else
+    len = strlen (to_parse);
+
+  if (len == 0)
+    return AARCH_PARSE_MISSING_ARG;
+
+
+  /* Loop through the list of supported ARCHes to find a match.  */
+  for (arch = all_architectures; arch->name != NULL; arch++)
+    {
+      if (strlen (arch->name) == len
+	  && strncmp (arch->name, to_parse, len) == 0)
+	{
+	  auto isa_flags = arch->flags;
+
+	  if (ext != NULL)
+	    {
+	      /* TO_PARSE string contains at least one extension.  */
+	      enum aarch_parse_opt_result ext_res
+		= aarch64_parse_extension (ext, &isa_flags, invalid_extension);
+
+	      if (ext_res != AARCH_PARSE_OK)
+		return ext_res;
+	    }
+	  /* Extension parsing was successful.  Confirm the result
+	     arch and ISA flags.  */
+	  *res_arch = arch->arch;
+	  *res_flags = isa_flags;
+	  return AARCH_PARSE_OK;
+	}
+    }
+
+  /* ARCH name not found in list.  */
+  return AARCH_PARSE_INVALID_ARG;
 }
 
-/* Comparer to sort aarch64's feature extensions by population count. Largest
-   first.  */
+/* Parse the TO_PARSE string and put the result tuning in RES_CPU and the
+   architecture flags in RES_FLAGS.  Return an aarch_parse_opt_result
+   describing the parse result.  If there is an error parsing, RES_CPU and
+   RES_FLAGS are left unchanged.
+   When the TO_PARSE string contains an invalid extension,
+   a copy of the string is created and stored to INVALID_EXTENSION.  */
 
-typedef const struct aarch64_option_extension opt_ext;
-
-int opt_ext_cmp (const void* a, const void* b)
+enum aarch_parse_opt_result
+aarch64_parse_cpu (const char *to_parse, aarch64_cpu *res_cpu,
+		   aarch64_feature_flags *res_flags,
+		   std::string *invalid_extension)
 {
-  opt_ext *opt_a = (opt_ext *)a;
-  opt_ext *opt_b = (opt_ext *)b;
+  const char *ext;
+  const struct aarch64_processor_info *cpu;
+  size_t len;
 
-  /* We consider the total set of bits an options turns on to be the union of
-     the singleton set containing the option itself and the set of options it
-     turns on as a dependency.  As an example +dotprod turns on FL_DOTPROD and
-     FL_SIMD.  As such the set of bits represented by this option is
-     {FL_DOTPROD, FL_SIMD}. */
-  uint64_t total_flags_a = opt_a->flag_canonical & opt_a->flags_on;
-  uint64_t total_flags_b = opt_b->flag_canonical & opt_b->flags_on;
-  int popcnt_a = popcount_hwi ((HOST_WIDE_INT)total_flags_a);
-  int popcnt_b = popcount_hwi ((HOST_WIDE_INT)total_flags_b);
-  int order = popcnt_b - popcnt_a;
+  ext = strchr (to_parse, '+');
 
-  /* If they have the same amount of bits set, give it a more
-     deterministic ordering by using the value of the bits themselves.  */
-  if (order != 0)
-    return order;
+  if (ext != NULL)
+    len = ext - to_parse;
+  else
+    len = strlen (to_parse);
 
-  if (total_flags_a != total_flags_b)
-    return total_flags_a < total_flags_b ? 1 : -1;
+  if (len == 0)
+    return AARCH_PARSE_MISSING_ARG;
 
-  return 0;
+
+  /* Loop through the list of supported CPUs to find a match.  */
+  for (cpu = all_cores; cpu->name != NULL; cpu++)
+    {
+      if (strlen (cpu->name) == len && strncmp (cpu->name, to_parse, len) == 0)
+	{
+	  auto isa_flags = cpu->flags;
+
+	  if (ext != NULL)
+	    {
+	      /* TO_PARSE string contains at least one extension.  */
+	      enum aarch_parse_opt_result ext_res
+		= aarch64_parse_extension (ext, &isa_flags, invalid_extension);
+
+	      if (ext_res != AARCH_PARSE_OK)
+		return ext_res;
+	    }
+	  /* Extension parsing was successfull.  Confirm the result
+	     cpu and ISA flags.  */
+	  *res_cpu = cpu->processor;
+	  *res_flags = isa_flags;
+	  return AARCH_PARSE_OK;
+	}
+    }
+
+  /* CPU name not found in list.  */
+  return AARCH_PARSE_INVALID_ARG;
 }
 
-/* Implement TARGET_OPTION_INIT_STRUCT.  */
+/* Parse the TO_PARSE string and put the cpu it selects into RES_CPU.
+   Return an aarch_parse_opt_result describing the parse result.
+   If the parsing fails then RES_CPU does not change.  */
 
-static void
-aarch64_option_init_struct (struct gcc_options *opts ATTRIBUTE_UNUSED)
+enum aarch_parse_opt_result
+aarch64_parse_tune (const char *to_parse, aarch64_cpu *res_cpu)
 {
-    /* Sort the extensions based on how many bits they set, order the larger
-       counts first.  We sort the list because this makes processing the
-       feature bits O(n) instead of O(n^2).  While n is small, the function
-       to calculate the feature strings is called on every options push,
-       pop and attribute change (arm_neon headers, lto etc all cause this to
-       happen quite frequently).  It is a trade-off between time and space and
-       so time won.  */
-    int n_extensions
-      = sizeof (all_extensions) / sizeof (struct aarch64_option_extension);
-    qsort (&all_extensions_by_on, n_extensions,
-	   sizeof (struct aarch64_option_extension), opt_ext_cmp);
+  const struct aarch64_processor_info *cpu;
+
+  /* Loop through the list of supported CPUs to find a match.  */
+  for (cpu = all_cores; cpu->name != NULL; cpu++)
+    {
+      if (strcmp (cpu->name, to_parse) == 0)
+	{
+	  *res_cpu = cpu->processor;
+	  return AARCH_PARSE_OK;
+	}
+    }
+
+  /* CPU name not found in list.  */
+  return AARCH_PARSE_INVALID_ARG;
 }
 
-/* Checks to see if enough bits from the option OPT are enabled in
-   ISA_FLAG_BITS to be able to replace the individual options with the
-   canonicalized version of the option.  This is done based on two rules:
 
-   1) Synthetic groups, such as +crypto we only care about the bits that are
-      turned on. e.g. +aes+sha2 can be replaced with +crypto.
+/* Validate a command-line -march option.  Parse the arch and extensions
+   (if any) specified in STR and throw errors if appropriate.  Put the
+   results, if they are valid, in RES_ARCH and RES_FLAGS.  Return whether the
+   option is valid.  */
 
-   2) Options that themselves have a bit, such as +rdma, in this case, all the
-      feature bits they turn on must be available and the bit for the option
-      itself must be.  In this case it's effectively a reduction rather than a
-      grouping. e.g. +fp+simd is not enough to turn on +rdma, for that you would
-      need +rdma+fp+simd which is reduced down to +rdma.
-*/
-
-static bool
-aarch64_contains_opt (uint64_t isa_flag_bits, opt_ext *opt)
+bool
+aarch64_validate_march (const char *str, aarch64_arch *res_arch,
+			aarch64_feature_flags *res_flags)
 {
-  uint64_t flags_check
-    = opt->is_synthetic ? opt->flags_on : opt->flag_canonical;
+  std::string invalid_extension;
+  enum aarch_parse_opt_result parse_res
+    = aarch64_parse_arch (str, res_arch, res_flags, &invalid_extension);
 
-  return (isa_flag_bits & flags_check) == flags_check;
+  if (parse_res == AARCH_PARSE_OK)
+    return true;
+
+  switch (parse_res)
+    {
+      case AARCH_PARSE_MISSING_ARG:
+	error ("missing arch name in %<-march=%s%>", str);
+	break;
+      case AARCH_PARSE_INVALID_ARG:
+	{
+	  error ("unknown value %qs for %<-march%>", str);
+	  aarch64_print_hint_for_arch (str);
+	  /* A common user error is confusing -march and -mcpu.
+	     If the -march string matches a known CPU suggest -mcpu.  */
+	  aarch64_cpu temp_cpu;
+	  aarch64_feature_flags temp_flags;
+	  parse_res = aarch64_parse_cpu (str, &temp_cpu, &temp_flags,
+					 &invalid_extension);
+	  if (parse_res == AARCH_PARSE_OK)
+	    inform (input_location, "did you mean %<-mcpu=%s%>?", str);
+	  break;
+	}
+      case AARCH_PARSE_INVALID_FEATURE:
+	error ("invalid feature modifier %qs in %<-march=%s%>",
+	       invalid_extension.c_str (), str);
+	aarch64_print_hint_for_extensions (invalid_extension.c_str ());
+	break;
+      default:
+	gcc_unreachable ();
+    }
+
+  return false;
 }
+
+/* Validate a command-line -mcpu option.  Parse the cpu and extensions (if any)
+   specified in STR and throw errors if appropriate.  Put the results if
+   they are valid in RES_CPU and RES_FLAGS.  Return whether the option is
+   valid.  */
+
+bool
+aarch64_validate_mcpu (const char *str, aarch64_cpu *res_cpu,
+		       aarch64_feature_flags *res_flags)
+{
+  std::string invalid_extension;
+  enum aarch_parse_opt_result parse_res
+    = aarch64_parse_cpu (str, res_cpu, res_flags, &invalid_extension);
+
+  if (parse_res == AARCH_PARSE_OK)
+    return true;
+
+  switch (parse_res)
+    {
+      case AARCH_PARSE_MISSING_ARG:
+	error ("missing cpu name in %<-mcpu=%s%>", str);
+	break;
+      case AARCH_PARSE_INVALID_ARG:
+	{
+	  error ("unknown value %qs for %<-mcpu%>", str);
+	  aarch64_print_hint_for_core (str);
+	  /* A common user error is confusing -march and -mcpu.
+	     If the -mcpu string matches a known architecture then suggest
+	     -march=.  */
+	  aarch64_arch temp_arch;
+	  aarch64_feature_flags temp_flags;
+	  parse_res = aarch64_parse_arch (str, &temp_arch, &temp_flags,
+					  &invalid_extension);
+	  if (parse_res == AARCH_PARSE_OK)
+	    inform (input_location, "did you mean %<-march=%s%>?", str);
+	  break;
+	}
+      case AARCH_PARSE_INVALID_FEATURE:
+	error ("invalid feature modifier %qs in %<-mcpu=%s%>",
+	       invalid_extension.c_str (), str);
+	aarch64_print_hint_for_extensions (invalid_extension.c_str ());
+	break;
+      default:
+	gcc_unreachable ();
+    }
+
+  return false;
+}
+
+/* Validate a command-line -mtune option.  Parse the cpu
+   specified in STR and throw errors if appropriate.  Put the
+   result, if it is valid, in RES_CPU.  Return whether the option is
+   valid.  */
+
+bool
+aarch64_validate_mtune (const char *str, aarch64_cpu *res_cpu)
+{
+  enum aarch_parse_opt_result parse_res
+    = aarch64_parse_tune (str, res_cpu);
+
+  if (parse_res == AARCH_PARSE_OK)
+    return true;
+
+  switch (parse_res)
+    {
+      case AARCH_PARSE_MISSING_ARG:
+	error ("missing cpu name in %<-mtune=%s%>", str);
+	break;
+      case AARCH_PARSE_INVALID_ARG:
+	error ("unknown value %qs for %<-mtune%>", str);
+	aarch64_print_hint_for_core (str);
+	break;
+      default:
+	gcc_unreachable ();
+    }
+  return false;
+}
+
 
 /* Return a string representation of ISA_FLAGS.  DEFAULT_ARCH_FLAGS
    gives the default set of flags which are implied by whatever -march
@@ -350,180 +624,127 @@ aarch64_contains_opt (uint64_t isa_flag_bits, opt_ext *opt)
    that all the "+" flags come before the "+no" flags.  */
 
 std::string
-aarch64_get_extension_string_for_isa_flags (uint64_t isa_flags,
-					    uint64_t default_arch_flags)
+aarch64_get_extension_string_for_isa_flags
+  (aarch64_feature_flags isa_flags,
+   aarch64_feature_flags default_arch_flags)
 {
-  const struct aarch64_option_extension *opt = NULL;
   std::string outstr = "";
 
-  uint64_t isa_flag_bits = isa_flags;
+  /* The CRYPTO bit should only be used to support the +crypto alias
+     during option processing, and should be cleared at all other times.
+     Verify this property for the supplied flags bitmask.  */
+  gcc_assert (!(AARCH64_FL_CRYPTO & aarch64_isa_flags));
+  aarch64_feature_flags current_flags = default_arch_flags;
 
-  /* Pass one: Minimize the search space by reducing the set of options
-     to the smallest set that still turns on the same features as before in
-     conjunction with the bits that are turned on by default for the selected
-     architecture.  */
-  for (opt = all_extensions_by_on; opt->name != NULL; opt++)
+  /* As a special case, do not assume that the assembler will enable CRC
+     even if it is the default for the architecture.  This is required
+     because some CPUs had an incorrect specification in older assemblers:
+     even though CRC should be the default for these cases the -mcpu
+     values would not turn it on.
+
+     However, assemblers with Armv8-R AArch64 support should not have this
+     issue, so we don't need this fix when targeting Armv8-R.  */
+  auto explicit_flags = (!(current_flags & AARCH64_FL_V8R)
+			 ? AARCH64_FL_CRC : 0);
+
+  /* Add the features in isa_flags & ~current_flags using the smallest
+     possible number of extensions.  We can do this by iterating over the
+     array in reverse order, since the array is sorted topologically.
+     But in order to make the output more readable, it seems better
+     to add the strings in definition order.  */
+  aarch64_feature_flags added = 0;
+  auto flags_crypto = AARCH64_FL_AES | AARCH64_FL_SHA2;
+  for (unsigned int i = ARRAY_SIZE (all_extensions); i-- > 0; )
     {
-      /* If the bit is on by default, then all the options it turns on are also
-	 on by default due to the transitive dependencies.
+      auto &opt = all_extensions[i];
 
-         If the option is enabled explicitly in the set then we need to emit
-	 an option for it.  Since this list is sorted by extensions setting the
-	 largest number of featers first, we can be sure that nothing else will
-	 ever need to set the bits we already set.  Consider the following
-	 situation:
+      /* As a special case, emit +crypto rather than +aes+sha2,
+	 in order to support assemblers that predate the separate
+	 per-feature crypto flags.  */
+      auto flags = opt.flag_canonical;
+      if (flags == AARCH64_FL_CRYPTO)
+	flags = flags_crypto;
 
-	  Feat1 = A + B + C
-	  Feat2 = A + B
-	  Feat3 = A + D
-	  Feat4 = B + C
-	  Feat5 = C
-
-	The following results are expected:
-
-	  A + C = A + Feat5
-	  B + C = Feat4
-	  Feat4 + A = Feat1
-	  Feat2 + Feat5 = Feat1
-	  Feat1 + C = Feat1
-          Feat3 + Feat4 = Feat1 + D
-
-	This search assumes that all invidual feature bits are use visible,
-	in other words the user must be able to do +A, +B, +C and +D.  */
-      if (aarch64_contains_opt (isa_flag_bits | default_arch_flags, opt))
-      {
-	/* We remove all the dependent bits, to prevent them from being turned
-	   on twice.  This only works because we assume that all there are
-	   individual options to set all bits standalone.  */
-
-	/* PR target/94396.
-
-	   For flags which would already imply a bit that's on by default (e.g
-	   fp16fml which implies +fp,+fp16) we must emit the flags that are not
-	   on by default.  i.e. in Armv8.4-a +fp16fml is default if +fp16.  So
-	   if a user passes armv8.4-a+fp16 (or +fp16fml) then we need to emit
-	   +fp16.  But if +fp16fml is used in an architecture where it is
-	   completely optional we only have to emit the canonical flag.  */
-	uint64_t toggle_bits = opt->flags_on & default_arch_flags;
-	/* Now check to see if the canonical flag is on by default.  If it
-	   is not then enabling it will enable all bits in flags_on.  */
-	if ((opt->flag_canonical & default_arch_flags) == 0)
-	  toggle_bits = opt->flags_on;
-
-	isa_flag_bits &= ~toggle_bits;
-	isa_flag_bits |= opt->flag_canonical;
-      }
-    }
-
-   /* By toggling bits on and off, we may have set bits on that are already
-      enabled by default.  So we mask the default set out so we don't emit an
-      option for them.  Instead of checking for this each time during Pass One
-      we just mask all default bits away at the end.  */
-   isa_flag_bits &= ~default_arch_flags;
-
-   /* We now have the smallest set of features we need to process.  A subsequent
-      linear scan of the bits in isa_flag_bits will allow us to print the ext
-      names.  However as a special case if CRC was enabled before, always print
-      it.  This is required because some CPUs have an incorrect specification
-      in older assemblers.  Even though CRC should be the default for these
-      cases the -mcpu values won't turn it on.
-
-      Note that assemblers with Armv8-R AArch64 support should not have this
-      issue, so we don't need this fix when targeting Armv8-R.  */
-  if ((isa_flags & AARCH64_ISA_CRC) && !AARCH64_ISA_V8_R)
-    isa_flag_bits |= AARCH64_ISA_CRC;
-
-  /* Pass Two:
-     Print the option names that we're sure we must turn on.  These are only
-     optional extension names.  Mandatory ones have already been removed and
-     ones we explicitly want off have been too.  */
-  for (opt = all_extensions_by_on; opt->name != NULL; opt++)
-    {
-      if (isa_flag_bits & opt->flag_canonical)
+      if ((flags & isa_flags & (explicit_flags | ~current_flags)) == flags)
 	{
-	  outstr += "+";
-	  outstr += opt->name;
+	  current_flags |= opt.flags_on;
+	  added |= opt.flag_canonical;
 	}
     }
+  for (auto &opt : all_extensions)
+    if (added & opt.flag_canonical)
+      {
+	outstr += "+";
+	outstr += opt.name;
+      }
 
-  /* Pass Three:
-     Print out a +no for any mandatory extension that we are
-     turning off.  By this point aarch64_parse_extension would have ensured
-     that any optional extensions are turned off.  The only things left are
-     things that can't be turned off usually, e.g. something that is on by
-     default because it's mandatory and we want it off.  For turning off bits
-     we don't guarantee the smallest set of flags, but instead just emit all
-     options the user has specified.
+  /* Remove the features in current_flags & ~isa_flags.  If the feature does
+     not have an HWCAPs then it shouldn't be taken into account for feature
+     detection because one way or another we can't tell if it's available
+     or not.  */
 
-     The assembler requires all +<opts> to be printed before +no<opts>.  */
-  for (opt = all_extensions_by_on; opt->name != NULL; opt++)
+  for (auto &opt : all_extensions)
     {
-      if ((~isa_flags) & opt->flag_canonical
-		&& !((~default_arch_flags) & opt->flag_canonical))
+      auto flags = opt.flag_canonical;
+      /* As a special case, don't emit "+noaes" or "+nosha2" when we could emit
+	 "+nocrypto" instead, in order to support assemblers that predate the
+	 separate per-feature crypto flags.  Only allow "+nocrypto" when "sm4"
+	 is not already enabled (to avoid dependending on whether "+nocrypto"
+	 also disables "sm4").  */
+      if (flags & flags_crypto
+	  && (flags_crypto & current_flags & ~isa_flags) == flags_crypto
+	  && !(current_flags & AARCH64_FL_SM4))
+	  continue;
+
+      if (flags == AARCH64_FL_CRYPTO)
+	/* If either crypto flag needs removing here, then both do.  */
+	flags = flags_crypto;
+
+      if (flags & current_flags & ~isa_flags)
 	{
+	  current_flags &= ~opt.flags_off;
 	  outstr += "+no";
-	  outstr += opt->name;
+	  outstr += opt.name;
 	}
     }
 
   return outstr;
 }
 
-/* Attempt to rewrite NAME, which has been passed on the command line
-   as a -mcpu option to an equivalent -march value.  If we can do so,
-   return the new string, otherwise return an error.  */
+/* Generate an arch string to be passed to the assembler.  */
+
+std::string
+aarch64_get_arch_string_for_assembler (aarch64_arch arch,
+				       aarch64_feature_flags flags)
+{
+  const struct aarch64_arch_info *entry;
+  for (entry = all_architectures; entry->arch != aarch64_no_arch; entry++)
+    if (entry->arch == arch)
+	break;
+
+  std::string outstr = entry->name
+	+ aarch64_get_extension_string_for_isa_flags (flags, entry->flags);
+
+  return outstr;
+}
+
+/* Called by the driver to rewrite a name passed to the -march
+   argument in preparation to be passed to the assembler.  The
+   names passed from the commend line will be in ARGV, we want
+   to use the right-most argument, which should be in
+   ARGV[ARGC - 1].  ARGC should always be greater than 0.  */
 
 const char *
-aarch64_rewrite_selected_cpu (const char *name)
+aarch64_rewrite_march (int argc, const char **argv)
 {
-  std::string original_string (name);
-  std::string extension_str;
-  std::string processor;
-  size_t extension_pos = original_string.find_first_of ('+');
+  gcc_assert (argc);
+  const char *name = argv[argc - 1];
+  aarch64_arch arch;
+  aarch64_feature_flags flags;
 
-  /* Strip and save the extension string.  */
-  if (extension_pos != std::string::npos)
-    {
-      processor = original_string.substr (0, extension_pos);
-      extension_str = original_string.substr (extension_pos,
-					      std::string::npos);
-    }
-  else
-    {
-      /* No extensions.  */
-      processor = original_string;
-    }
+  aarch64_validate_march (name, &arch, &flags);
 
-  const struct processor_name_to_arch* p_to_a;
-  for (p_to_a = all_cores;
-       p_to_a->arch != aarch64_no_arch;
-       p_to_a++)
-    {
-      if (p_to_a->processor_name == processor)
-	break;
-    }
-
-  const struct arch_to_arch_name* a_to_an;
-  for (a_to_an = all_architectures;
-       a_to_an->arch != aarch64_no_arch;
-       a_to_an++)
-    {
-      if (a_to_an->arch == p_to_a->arch)
-	break;
-    }
-
-  /* We couldn't find that proceesor name, or the processor name we
-     found does not map to an architecture we understand.  */
-  if (p_to_a->arch == aarch64_no_arch
-      || a_to_an->arch == aarch64_no_arch)
-    fatal_error (input_location, "unknown value %qs for %<-mcpu%>", name);
-
-  uint64_t extensions = p_to_a->flags;
-  aarch64_parse_extension (extension_str.c_str (), &extensions, NULL);
-
-  std::string outstr = a_to_an->arch_name
-	+ aarch64_get_extension_string_for_isa_flags (extensions,
-						      a_to_an->flags);
+  std::string outstr = aarch64_get_arch_string_for_assembler (arch, flags);
 
   /* We are going to memory leak here, nobody elsewhere
      in the callchain is going to clean up after us.  The alternative is
@@ -532,8 +753,8 @@ aarch64_rewrite_selected_cpu (const char *name)
   return xstrdup (outstr.c_str ());
 }
 
-/* Called by the driver to rewrite a name passed to the -mcpu
-   argument in preparation to be passed to the assembler.  The
+/* Called by the driver to rewrite a name passed to the -mcpu argument
+   to an equivalent -march value to be passed to the assembler.  The
    names passed from the commend line will be in ARGV, we want
    to use the right-most argument, which should be in
    ARGV[ARGC - 1].  ARGC should always be greater than 0.  */
@@ -542,7 +763,52 @@ const char *
 aarch64_rewrite_mcpu (int argc, const char **argv)
 {
   gcc_assert (argc);
-  return aarch64_rewrite_selected_cpu (argv[argc - 1]);
+  const char *name = argv[argc - 1];
+  aarch64_cpu cpu;
+  aarch64_feature_flags flags;
+
+  aarch64_validate_mcpu (name, &cpu, &flags);
+
+  const struct aarch64_processor_info *entry;
+  for (entry = all_cores; entry->processor != aarch64_no_cpu; entry++)
+    if (entry->processor == cpu)
+      break;
+
+  std::string outstr = aarch64_get_arch_string_for_assembler (entry->arch,
+							      flags);
+
+  /* We are going to memory leak here, nobody elsewhere
+     in the callchain is going to clean up after us.  The alternative is
+     to allocate a static buffer, and assert that it is big enough for our
+     modified string, which seems much worse!  */
+  return xstrdup (outstr.c_str ());
+}
+
+/* Checks to see if the host CPU may not be Cortex-A53 or an unknown Armv8-a
+   baseline CPU.  */
+
+const char *
+is_host_cpu_not_armv8_base (int argc, const char **argv)
+{
+  gcc_assert (argc);
+
+  /* Default to not knowing what we are if unspecified.  The SPEC file should
+     have already mapped configure time options to here through
+     OPTION_DEFAULT_SPECS so we don't need to check the configure variants
+     manually.  */
+  if (!argv[0])
+    return NULL;
+
+  const char *res = argv[0];
+
+  /* No SVE system is baseline Armv8-A.  */
+  if (strstr (res, "+sve"))
+    return "";
+
+  if (strstr (res, "cortex-a53") || strstr (res, "armv8-a"))
+    return NULL;
+
+  return "";
 }
 
 struct gcc_targetm_common targetm_common = TARGETM_COMMON_INITIALIZER;

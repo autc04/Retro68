@@ -1,6 +1,6 @@
 // TR1 stdarg.h -*- C++ -*-
 
-// Copyright (C) 2006-2022 Free Software Foundation, Inc.
+// Copyright (C) 2006-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -23,11 +23,13 @@
 // <http://www.gnu.org/licenses/>.
 
 /** @file tr1/stdarg.h
- *  This is a TR1 C++ Library header. 
+ *  This is a TR1 C++ Library header.
  */
 
 #ifndef _TR1_STDARG_H
 #define _TR1_STDARG_H 1
+
+#include <bits/requires_hosted.h> // TR1
 
 #include <tr1/cstdarg>
 

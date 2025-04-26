@@ -19,8 +19,8 @@
 
 // Read a file into *DATA.  Returns false on error.
 
-static bool
-read_file(const char* filename, Location loc, std::string* data)
+bool
+Gogo::read_file(const char* filename, Location loc, std::string* data)
 {
   int fd = open(filename, O_RDONLY | O_BINARY);
   if (fd < 0)
@@ -346,7 +346,8 @@ Gogo::read_embedcfg(const char *filename)
 bool
 Embedcfg_reader::initialize_from_file()
 {
-  if (!read_file(this->filename_, Linemap::unknown_location(), &this->data_))
+  if (!Gogo::read_file(this->filename_, Linemap::unknown_location(),
+		       &this->data_))
     return false;
   if (this->data_.empty())
     {
@@ -791,7 +792,7 @@ Gogo::initializer_for_embeds(Type* type,
 	{
 	  go_error_at(loc,
 		      ("invalid go:embed: build system did not "
-		       "map pattern %<%s%>"),
+		       "map pattern %qs"),
 		      pe->c_str());
 	  continue;
 	}
@@ -806,7 +807,7 @@ Gogo::initializer_for_embeds(Type* type,
 	    {
 	      go_error_at(loc,
 			  ("invalid go:embed: build system did not "
-			   "map file %<%s%>"),
+			   "map file %qs"),
 			  pf->c_str());
 	      continue;
 	    }
@@ -849,7 +850,7 @@ Gogo::initializer_for_embeds(Type* type,
 	}
 
       std::string data;
-      if (!read_file(this->embed_files_[paths[0]].c_str(), loc, &data))
+      if (!Gogo::read_file(this->embed_files_[paths[0]].c_str(), loc, &data))
 	return Expression::make_error(loc);
 
       Expression* e = Expression::make_string(data, loc);
@@ -909,7 +910,7 @@ Gogo::initializer_for_embeds(Type* type,
       std::string data;
       if ((*pp)[pp->size() - 1] != '/')
 	{
-	  if (!read_file(this->embed_files_[*pp].c_str(), loc, &data))
+	  if (!Gogo::read_file(this->embed_files_[*pp].c_str(), loc, &data))
 	    return Expression::make_error(loc);
 	}
 

@@ -1,5 +1,5 @@
 /* If-conversion header file.
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2025 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -38,6 +38,22 @@ struct ce_if_block
   int num_then_insns;			/* # of insns in THEN block.  */
   int num_else_insns;			/* # of insns in ELSE block.  */
   int pass;				/* Pass number.  */
+};
+
+struct noce_multiple_sets_info
+{
+  /* A list of indices to instructions that we need to rewire into this
+     instruction when we replace them with temporary conditional moves.  */
+  auto_vec<int> rewired_src;
+  /* The true targets for a conditional move.  */
+  rtx target;
+  /* The temporaries introduced to allow us to not consider register
+     overlap.  */
+  rtx temporary;
+  /* The insns we've emitted.  */
+  rtx_insn *unmodified_insn;
+  /* True if a simple move can be used instead of a conditional move.  */
+  bool need_cmov;
 };
 
 /* Used by noce_process_if_block to communicate with its subroutines.
@@ -85,6 +101,14 @@ struct noce_if_info
      from TEST_BB.  For the noce transformations, we allow the symmetric
      form as well.  */
   bool then_else_reversed;
+
+  /* True if THEN_BB is conditional on !COND rather than COND.
+     This is used if:
+
+     - JUMP branches to THEN_BB on COND
+     - JUMP falls through to JOIN_BB on !COND
+     - COND cannot be reversed.  */
+  bool cond_inverted;
 
   /* True if the contents of then_bb and else_bb are a
      simple single set instruction.  */

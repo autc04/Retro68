@@ -1,5 +1,5 @@
 /* Definitions for Dwarf2 EH unwind support for Windows32 targets
-   Copyright (C) 2007-2022 Free Software Foundation, Inc.
+   Copyright (C) 2007-2025 Free Software Foundation, Inc.
    Contributed by Pascal Obry  <obry@adacore.com>
 
 This file is part of GCC.
@@ -45,7 +45,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
       some foreign code for which no unwind frame can be found. If this is
       a call from the Windows signal handler, then:
 
-   2) We must get the signal context information. 
+   2) We must get the signal context information.
 
       * With the standard exception filter:
 
@@ -120,7 +120,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define MD_FALLBACK_FRAME_STATE_FOR i386_w32_fallback_frame_state
 
 static _Unwind_Reason_Code
-i386_w32_fallback_frame_state (struct _Unwind_Context *context, 
+i386_w32_fallback_frame_state (struct _Unwind_Context *context,
 			       _Unwind_FrameState *fs)
 
 {
@@ -136,7 +136,7 @@ i386_w32_fallback_frame_state (struct _Unwind_Context *context,
       PCONTEXT proc_ctx_;
       long new_cfa_;
 
-      if (SIG_SEH1) 
+      if (SIG_SEH1)
 	proc_ctx_ = (PCONTEXT) (*(int*)(ctx_cfa_ + 56));
       else if (SIG_SEH2)
 	proc_ctx_ = (PCONTEXT) (*(int*)(ctx_cfa_ + 8));
@@ -153,21 +153,21 @@ i386_w32_fallback_frame_state (struct _Unwind_Context *context,
       fs->regs.cfa_offset = new_cfa_ - (long) ctx_cfa_;
 
       /* Restore registers.  */
-      fs->regs.reg[0].how = REG_SAVED_OFFSET;
+      fs->regs.how[0] = REG_SAVED_OFFSET;
       fs->regs.reg[0].loc.offset = (long)&proc_ctx_->Eax - new_cfa_;
-      fs->regs.reg[3].how = REG_SAVED_OFFSET;
+      fs->regs.how[3] = REG_SAVED_OFFSET;
       fs->regs.reg[3].loc.offset = (long)&proc_ctx_->Ebx - new_cfa_;
-      fs->regs.reg[1].how = REG_SAVED_OFFSET;
+      fs->regs.how[1] = REG_SAVED_OFFSET;
       fs->regs.reg[1].loc.offset = (long)&proc_ctx_->Ecx - new_cfa_;
-      fs->regs.reg[2].how = REG_SAVED_OFFSET;
+      fs->regs.how[2] = REG_SAVED_OFFSET;
       fs->regs.reg[2].loc.offset = (long)&proc_ctx_->Edx - new_cfa_;
-      fs->regs.reg[6].how = REG_SAVED_OFFSET;
+      fs->regs.how[6] = REG_SAVED_OFFSET;
       fs->regs.reg[6].loc.offset = (long)&proc_ctx_->Esi - new_cfa_;
-      fs->regs.reg[7].how = REG_SAVED_OFFSET;
+      fs->regs.how[7] = REG_SAVED_OFFSET;
       fs->regs.reg[7].loc.offset = (long)&proc_ctx_->Edi - new_cfa_;
-      fs->regs.reg[5].how = REG_SAVED_OFFSET;
+      fs->regs.how[5] = REG_SAVED_OFFSET;
       fs->regs.reg[5].loc.offset = (long)&proc_ctx_->Ebp - new_cfa_;
-      fs->regs.reg[8].how = REG_SAVED_OFFSET;
+      fs->regs.how[8] = REG_SAVED_OFFSET;
       fs->regs.reg[8].loc.offset = (long)&proc_ctx_->Eip - new_cfa_;
       fs->retaddr_column = 8;
       fs->signal_frame = 1;
@@ -179,9 +179,9 @@ i386_w32_fallback_frame_state (struct _Unwind_Context *context,
      one of it's probes prior to the real SP adjustment. The only
      operations of interest performed is "pushl %ecx", followed by
      ecx clobbering.  */
-  else if (SIG_ALLOCA) 
+  else if (SIG_ALLOCA)
     {
-      /* Only one push between entry in _alloca and the probe trap.  */ 
+      /* Only one push between entry in _alloca and the probe trap.  */
       long new_cfa_ = (long) ctx_cfa_ + 4;
 
       fs->regs.cfa_how = CFA_REG_OFFSET;
@@ -189,12 +189,12 @@ i386_w32_fallback_frame_state (struct _Unwind_Context *context,
       fs->regs.cfa_offset = new_cfa_ - (long) ctx_cfa_;
 
       /* The saved value of %ecx is at CFA - 4 */
-      fs->regs.reg[1].how = REG_SAVED_OFFSET;
+      fs->regs.how[1] = REG_SAVED_OFFSET;
       fs->regs.reg[1].loc.offset = -4;
 
       /* and what is stored at the CFA is the return address.  */
       fs->retaddr_column = 8;
-      fs->regs.reg[8].how = REG_SAVED_OFFSET;
+      fs->regs.how[8] = REG_SAVED_OFFSET;
       fs->regs.reg[8].loc.offset = 0;
       fs->signal_frame = 1;
 

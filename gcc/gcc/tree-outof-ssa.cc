@@ -1,5 +1,5 @@
 /* Convert a program in SSA form into Normal form.
-   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+   Copyright (C) 2004-2025 Free Software Foundation, Inc.
    Contributed by Andrew Macleod <amacleod@redhat.com>
 
 This file is part of GCC.
@@ -45,6 +45,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-ssa-coalesce.h"
 #include "tree-outof-ssa.h"
 #include "dojump.h"
+#include "internal-fn.h"
+#include "gimple-fold.h"
 
 /* FIXME: A lot of code here deals with expanding to RTL.  All that code
    should be in cfgexpand.cc.  */
@@ -60,8 +62,14 @@ ssa_is_replaceable_p (gimple *stmt)
   tree def;
   gimple *use_stmt;
 
-  /* Only consider modify stmts.  */
-  if (!is_gimple_assign (stmt))
+  /* Only consider modify stmts and direct internal fn calls that are
+     not also tail-calls.  */
+  gcall *call;
+  if (!is_gimple_assign (stmt)
+      && (!(call = dyn_cast <gcall *> (stmt))
+	  || gimple_call_tail_p (call)
+	  || !gimple_call_internal_p (call)
+	  || !direct_internal_fn_p (gimple_call_internal_fn (call))))
     return false;
 
   /* If the statement may throw an exception, it cannot be replaced.  */
@@ -92,12 +100,9 @@ ssa_is_replaceable_p (gimple *stmt)
 
   /* An assignment with a register variable on the RHS is not
      replaceable.  */
-  if (gimple_assign_rhs_code (stmt) == VAR_DECL
+  if (is_gimple_assign (stmt)
+      && gimple_assign_rhs_code (stmt) == VAR_DECL
       && DECL_HARD_REGISTER (gimple_assign_rhs1 (stmt)))
-    return false;
-
-  /* No function calls can be replaced.  */
-  if (is_gimple_call (stmt))
     return false;
 
   /* Leave any stmt with volatile operands alone as well.  */
@@ -562,7 +567,7 @@ static inline bool
 queue_phi_copy_p (var_map map, tree t)
 {
   if (TREE_CODE (t) == SSA_NAME)
-    { 
+    {
       if (var_to_partition (map, t) == NO_PARTITION)
         return true;
       return false;
@@ -1255,10 +1260,10 @@ insert_backedge_copies (void)
 		  if (gimple_nop_p (def)
 		      || gimple_code (def) == GIMPLE_PHI)
 		    continue;
-		  tree name = copy_ssa_name (result);
-		  gimple *stmt = gimple_build_assign (name, result);
 		  imm_use_iterator imm_iter;
 		  gimple *use_stmt;
+		  auto_vec<use_operand_p, 8> uses;
+		  int idx = -1;
 		  /* The following matches trivially_conflicts_p.  */
 		  FOR_EACH_IMM_USE_STMT (use_stmt, imm_iter, result)
 		    {
@@ -1269,11 +1274,61 @@ insert_backedge_copies (void)
 			{
 			  use_operand_p use;
 			  FOR_EACH_IMM_USE_ON_STMT (use, imm_iter)
-			    SET_USE (use, name);
+			    {
+			      uses.safe_push (use);
+			      if (!is_gimple_debug (use_stmt))
+				{
+				  if (idx == -1)
+				    idx = uses.length () - 1;
+				  else
+				    idx = -2;
+				}
+			    }
 			}
 		    }
-		  gimple_stmt_iterator gsi = gsi_for_stmt (def);
-		  gsi_insert_before (&gsi, stmt, GSI_SAME_STMT);
+		  /* When there is just a conflicting statement try to
+		     adjust that to refer to the new definition.
+		     In particular for now handle a conflict with the
+		     use in a (exit) condition with a NE compare,
+		     replacing a pre-IV-increment compare with a
+		     post-IV-increment one.  */
+		  if (idx >= 0
+		      && is_a <gcond *> (USE_STMT (uses[idx]))
+		      && (gimple_cond_code (USE_STMT (uses[idx])) == NE_EXPR
+			  || gimple_cond_code (USE_STMT (uses[idx])) == EQ_EXPR)
+		      && is_gimple_assign (def)
+		      && gimple_assign_rhs1 (def) == result
+		      && (gimple_assign_rhs_code (def) == PLUS_EXPR
+			  || gimple_assign_rhs_code (def) == MINUS_EXPR
+			  || gimple_assign_rhs_code (def) == POINTER_PLUS_EXPR)
+		      && TREE_CODE (gimple_assign_rhs2 (def)) == INTEGER_CST)
+		    {
+		      gcond *cond = as_a <gcond *> (USE_STMT (uses[idx]));
+		      tree *adj;
+		      if (gimple_cond_lhs (cond) == result)
+			adj = gimple_cond_rhs_ptr (cond);
+		      else
+			adj = gimple_cond_lhs_ptr (cond);
+		      gimple_stmt_iterator gsi = gsi_for_stmt (cond);
+		      tree newval
+			= gimple_build (&gsi, true, GSI_SAME_STMT,
+					UNKNOWN_LOCATION,
+					gimple_assign_rhs_code (def),
+					TREE_TYPE (*adj),
+					*adj, gimple_assign_rhs2 (def));
+		      *adj = newval;
+		      SET_USE (uses[idx], arg);
+		      update_stmt (cond);
+		    }
+		  else
+		    {
+		      tree name = copy_ssa_name (result);
+		      gimple *stmt = gimple_build_assign (name, result);
+		      gimple_stmt_iterator gsi = gsi_for_stmt (def);
+		      gsi_insert_before (&gsi, stmt, GSI_SAME_STMT);
+		      for (auto use : uses)
+			SET_USE (use, name);
+		    }
 		}
 	    }
 	}
@@ -1281,6 +1336,33 @@ insert_backedge_copies (void)
       /* Unmark this block again.  */
       bb->aux = NULL;
     }
+}
+
+/* Remove indirect clobbers.  */
+
+static void
+remove_indirect_clobbers (void)
+{
+  basic_block bb;
+
+  FOR_EACH_BB_FN (bb, cfun)
+    for (auto gsi = gsi_start_bb (bb); !gsi_end_p (gsi);)
+      {
+	gimple *stmt = gsi_stmt (gsi);
+	if (gimple_clobber_p (stmt))
+	  {
+	    tree lhs = gimple_assign_lhs (stmt);
+	    if (TREE_CODE (lhs) == MEM_REF
+		&& TREE_CODE (TREE_OPERAND (lhs, 0)) == SSA_NAME)
+	      {
+		unlink_stmt_vdef (stmt);
+		gsi_remove (&gsi, true);
+		release_defs (stmt);
+		continue;
+	      }
+	  }
+	gsi_next (&gsi);
+      }
 }
 
 /* Free all memory associated with going out of SSA form.  SA is
@@ -1305,6 +1387,10 @@ finish_out_of_ssa (struct ssaexpand *sa)
 unsigned int
 rewrite_out_of_ssa (struct ssaexpand *sa)
 {
+  /* Remove remaining indirect clobbers as we do not need those anymore.
+     Those might extend SSA lifetime and restrict coalescing.  */
+  remove_indirect_clobbers ();
+
   /* If elimination of a PHI requires inserting a copy on a backedge,
      then we will have to split the backedge which has numerous
      undesirable performance effects.
@@ -1313,7 +1399,6 @@ rewrite_out_of_ssa (struct ssaexpand *sa)
      copies into the loop itself.  */
   insert_backedge_copies ();
 
-
   /* Eliminate PHIs which are of no use, such as virtual or dead phis.  */
   eliminate_useless_phis ();
 
@@ -1321,9 +1406,6 @@ rewrite_out_of_ssa (struct ssaexpand *sa)
     gimple_dump_cfg (dump_file, dump_flags & ~TDF_DETAILS);
 
   remove_ssa_form (flag_tree_ter, sa);
-
-  if (dump_file && (dump_flags & TDF_DETAILS))
-    gimple_dump_cfg (dump_file, dump_flags & ~TDF_DETAILS);
 
   return 0;
 }

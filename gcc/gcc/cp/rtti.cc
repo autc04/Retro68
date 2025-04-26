@@ -1,5 +1,5 @@
 /* RunTime Type Identification
-   Copyright (C) 1995-2022 Free Software Foundation, Inc.
+   Copyright (C) 1995-2025 Free Software Foundation, Inc.
    Mostly written by Jason Merrill (jason@cygnus.com).
 
 This file is part of GCC.
@@ -186,7 +186,7 @@ build_headof (tree exp)
 
 /* Get a bad_cast node for the program to throw...
 
-   See libstdc++/exception.cc for __throw_bad_cast */
+   See 'libstdc++-v3/libsupc++/eh_aux_runtime.cc' for '__cxa_bad_cast'.  */
 
 static tree
 throw_bad_cast (void)
@@ -198,14 +198,13 @@ throw_bad_cast (void)
       fn = get_global_binding (name);
       if (!fn)
 	fn = push_throw_library_fn
-	  (name, build_function_type_list (ptr_type_node, NULL_TREE));
+	  (name, build_function_type_list (void_type_node, NULL_TREE));
     }
 
   return build_cxx_call (fn, 0, NULL, tf_warning_or_error);
 }
 
-/* Return an expression for "__cxa_bad_typeid()".  The expression
-   returned is an lvalue of type "const std::type_info".  */
+/* See 'libstdc++-v3/libsupc++/eh_aux_runtime.cc' for '__cxa_bad_typeid'.  */
 
 static tree
 throw_bad_typeid (void)
@@ -216,11 +215,8 @@ throw_bad_typeid (void)
       tree name = get_identifier ("__cxa_bad_typeid");
       fn = get_global_binding (name);
       if (!fn)
-	{
-	  tree t = build_reference_type (const_type_info_type_node);
-	  t = build_function_type_list (t, NULL_TREE);
-	  fn = push_throw_library_fn (name, t);
-	}
+	fn = push_throw_library_fn
+	  (name, build_function_type_list (void_type_node, NULL_TREE));
     }
 
   return build_cxx_call (fn, 0, NULL, tf_warning_or_error);
@@ -259,7 +255,7 @@ get_void_tinfo_ptr (tree type)
    otherwise return the static type of the expression.  */
 
 static tree
-get_tinfo_decl_dynamic (tree exp, tsubst_flags_t complain)
+get_tinfo_ptr_dynamic (tree exp, tsubst_flags_t complain)
 {
   tree type;
   tree t;
@@ -299,7 +295,7 @@ get_tinfo_decl_dynamic (tree exp, tsubst_flags_t complain)
     /* Otherwise return the type_info for the static type of the expr.  */
     t = get_tinfo_ptr (type);
 
-  return cp_build_fold_indirect_ref (t);
+  return t;
 }
 
 static bool
@@ -369,7 +365,7 @@ build_typeid (tree exp, tsubst_flags_t complain)
       exp = cp_build_fold_indirect_ref (exp);
     }
 
-  exp = get_tinfo_decl_dynamic (exp, complain);
+  exp = get_tinfo_ptr_dynamic (exp, complain);
 
   if (exp == error_mark_node)
     return error_mark_node;
@@ -383,7 +379,7 @@ build_typeid (tree exp, tsubst_flags_t complain)
   else
     mark_type_use (initial_expr);
 
-  return exp;
+  return cp_build_fold_indirect_ref (exp);
 }
 
 /* Generate the NTBS name of a type.  If MARK_PRIVATE, put a '*' in front so that
@@ -787,9 +783,15 @@ build_dynamic_cast_1 (location_t loc, tree type, tree expr,
 			       NULL_TREE));
 	      dcast_fn = (build_library_fn_ptr
 			  (fn_name, fn_type, ECF_LEAF | ECF_PURE | ECF_NOTHROW));
+	      /* As with __cxa_atexit in get_atexit_node.  */
+	      DECL_CONTEXT (dcast_fn) = FROB_CONTEXT (current_namespace);
+	      DECL_SOURCE_LOCATION (dcast_fn) = BUILTINS_LOCATION;
+	      dcast_fn = pushdecl (dcast_fn, /*hiding=*/true);
 	      pop_abi_namespace (flags);
 	      dynamic_cast_node = dcast_fn;
 	    }
+	  if (dcast_fn == error_mark_node)
+	    return error_mark_node;
 	  result = build_cxx_call (dcast_fn, 4, elems, complain);
 	  SET_EXPR_LOCATION (result, loc);
 
@@ -1450,7 +1452,7 @@ get_tinfo_desc (unsigned ix)
 				   NULL_TREE, integer_type_node);
 	DECL_CHAIN (fld_flg) = fields;
 	fields = fld_flg;
-	
+
 	tree fld_cnt = build_decl (BUILTINS_LOCATION, FIELD_DECL,
 				   NULL_TREE, integer_type_node);
 	DECL_CHAIN (fld_cnt) = fields;
@@ -1564,7 +1566,7 @@ emit_support_tinfo_1 (tree bltn)
 	 comdat_linkage for details.)  Since we want these objects
 	 to have external linkage so that copies do not have to be
 	 emitted in code outside the runtime library, we make them
-	 non-COMDAT here.  
+	 non-COMDAT here.
 
 	 It might also not be necessary to follow this detail of the
 	 ABI.  */
@@ -1572,6 +1574,24 @@ emit_support_tinfo_1 (tree bltn)
 	{
 	  gcc_assert (TREE_PUBLIC (tinfo) && !DECL_COMDAT (tinfo));
 	  DECL_INTERFACE_KNOWN (tinfo) = 1;
+	}
+
+      /* Emit it right away if not emitted already.  */
+      if (DECL_INITIAL (tinfo) == NULL_TREE)
+	{
+	  bool ok = emit_tinfo_decl (tinfo);
+	  gcc_assert (ok);
+	  /* When compiling libsupc++.a (fundamental_type_info.o),
+	     unemitted_tinfo_decls->last () will be tinfo, so pop it
+	     from the vector as it is emitted now.  If one uses typeid
+	     etc. in the same TU as the definition of
+	     ~fundamental_type_info (), the tinfo might be emitted
+	     already earlier, in such case keep it in the vector
+	     (as otherwise we'd need to walk the whole vector) and
+	     let c_parse_final_cleanups ignore it when it will have
+	     non-NULL DECL_INITIAL.  */
+	  if (unemitted_tinfo_decls->last () == tinfo)
+	    unemitted_tinfo_decls->pop ();
 	}
     }
 }
@@ -1598,8 +1618,16 @@ emit_support_tinfos (void)
     &long_integer_type_node, &long_unsigned_type_node,
     &long_long_integer_type_node, &long_long_unsigned_type_node,
     &float_type_node, &double_type_node, &long_double_type_node,
+    &bfloat16_type_node, &float16_type_node, &float32_type_node,
+    &float64_type_node, &float128_type_node, &float32x_type_node,
+    &float64x_type_node, &float128x_type_node, &nullptr_type_node,
+    0
+  };
+  /* Similar, but for floating point types only which should get type info
+     regardless whether they are non-NULL or NULL.  */
+  static tree *const fundamentals_with_fallback[] =
+  {
     &dfloat32_type_node, &dfloat64_type_node, &dfloat128_type_node,
-    &nullptr_type_node,
     0
   };
   int ix;
@@ -1621,8 +1649,20 @@ emit_support_tinfos (void)
   location_t saved_loc = input_location;
   input_location = BUILTINS_LOCATION;
   doing_runtime = 1;
+  tree fallback = NULL_TREE;
   for (ix = 0; fundamentals[ix]; ix++)
     emit_support_tinfo_1 (*fundamentals[ix]);
+  for (ix = 0; fundamentals_with_fallback[ix]; ix++)
+    if (*fundamentals_with_fallback[ix])
+      emit_support_tinfo_1 (*fundamentals_with_fallback[ix]);
+    else
+      {
+	if (fallback == NULL_TREE)
+	  fallback = make_node (REAL_TYPE);
+	*fundamentals_with_fallback[ix] = fallback;
+	emit_support_tinfo_1 (fallback);
+	*fundamentals_with_fallback[ix] = NULL_TREE;
+      }
   for (ix = 0; ix < NUM_INT_N_ENTS; ix ++)
     if (int_n_enabled_p[ix])
       {
@@ -1631,20 +1671,10 @@ emit_support_tinfos (void)
       }
   for (tree t = registered_builtin_types; t; t = TREE_CHAIN (t))
     emit_support_tinfo_1 (TREE_VALUE (t));
-  /* For compatibility, emit DFP typeinfos even when DFP isn't enabled,
-     because we've emitted that in the past.  */
-  if (!targetm.decimal_float_supported_p ())
-    {
-      gcc_assert (dfloat32_type_node == NULL_TREE
-		  && dfloat64_type_node == NULL_TREE
-		  && dfloat128_type_node == NULL_TREE);
-      fallback_dfloat32_type = make_node (REAL_TYPE);
-      fallback_dfloat64_type = make_node (REAL_TYPE);
-      fallback_dfloat128_type = make_node (REAL_TYPE);
-      emit_support_tinfo_1 (fallback_dfloat32_type);
-      emit_support_tinfo_1 (fallback_dfloat64_type);
-      emit_support_tinfo_1 (fallback_dfloat128_type);
-    }
+
+  /* Emit additional typeinfos as requested by target.  */
+  targetm.emit_support_tinfos (emit_support_tinfo_1);
+
   input_location = saved_loc;
 }
 
@@ -1707,7 +1737,8 @@ emit_tinfo_decl (tree decl)
       /* Avoid targets optionally bumping up the alignment to improve
 	 vector instruction accesses, tinfo are never accessed this way.  */
 #ifdef DATA_ABI_ALIGNMENT
-      SET_DECL_ALIGN (decl, DATA_ABI_ALIGNMENT (decl, TYPE_ALIGN (TREE_TYPE (decl))));
+      SET_DECL_ALIGN (decl, DATA_ABI_ALIGNMENT (TREE_TYPE (decl),
+						TYPE_ALIGN (TREE_TYPE (decl))));
       DECL_USER_ALIGN (decl) = true;
 #endif
       return true;

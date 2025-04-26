@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Free Software Foundation, Inc.
+// Copyright (C) 2018-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,7 +19,8 @@
 // { dg-require-effective-target cxx11_abi }
 
 #include <string>
-#include <memory_resource>
+
+std::pmr::string s = "polly";
 
 struct T : std::char_traits<char> { };
 

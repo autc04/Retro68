@@ -10,7 +10,7 @@ AC_INIT(package-unused, version-unused,, libgo)
 AC_CONFIG_SRCDIR(Makefile.am)
 AC_CONFIG_HEADER(config.h)
 
-libtool_VERSION=21:0:0
+libtool_VERSION=24:0:0
 AC_SUBST(libtool_VERSION)
 
 AM_ENABLE_MULTILIB(, ..)
@@ -53,6 +53,7 @@ AC_LIBTOOL_DLOPEN
 AM_PROG_LIBTOOL
 AC_SUBST(enable_shared)
 AC_SUBST(enable_static)
+AM_CONDITIONAL([ENABLE_DARWIN_AT_RPATH], [test x$enable_darwin_at_rpath = xyes])
 
 CC_FOR_BUILD=${CC_FOR_BUILD:-gcc}
 AC_SUBST(CC_FOR_BUILD)
@@ -207,6 +208,10 @@ AM_CONDITIONAL(LIBGO_IS_HURD, test $is_hurd = yes)
 AM_CONDITIONAL(LIBGO_IS_BSD, test $is_darwin = yes -o $is_dragonfly = yes -o $is_freebsd = yes -o $is_netbsd = yes -o $is_openbsd = yes)
 AC_SUBST(GOOS)
 AC_SUBST(ALLGOOS)
+
+if test "${GOOS}" = "unknown"; then
+   AC_MSG_ERROR("could not determine GOOS from ${host}")
+fi
 
 dnl Test whether we need to use DejaGNU or whether we can use the
 dnl simpler gotest approach.  We can only use gotest for a native
@@ -374,6 +379,10 @@ esac
 AC_SUBST(GOARCH)
 AC_SUBST(ALLGOARCH)
 AC_SUBST(ALLGOARCHFAMILY)
+
+if test "${GOARCH}" = "unknown"; then
+   AC_MSG_ERROR("could not determine GOARCH from ${host}")
+fi
 
 AM_CONDITIONAL(LIBGO_IS_X86, test "$GOARCH" = "386" -o "$GOARCH" = "amd64" -o "$GOARCH" = "amd64p32")
 
@@ -570,6 +579,9 @@ PTHREAD_LIBS=
 AC_CHECK_LIB([pthread], [pthread_create], PTHREAD_LIBS=-lpthread)
 AC_SUBST(PTHREAD_LIBS)
 
+dnl Test if -lucontext is required for makecontext.
+AC_SEARCH_LIBS([makecontext], [ucontext])
+
 dnl Test if -lrt is required for sched_yield or nanosleep or clock_gettime.
 AC_SEARCH_LIBS([sched_yield], [rt])
 AC_SEARCH_LIBS([nanosleep], [rt])
@@ -579,7 +591,7 @@ AC_C_BIGENDIAN
 
 GCC_CHECK_UNWIND_GETIPINFO
 
-AC_CHECK_HEADERS(port.h sched.h semaphore.h sys/file.h sys/mman.h syscall.h sys/epoll.h sys/event.h sys/inotify.h sys/ptrace.h sys/syscall.h sys/sysctl.h sys/user.h sys/utsname.h sys/select.h sys/socket.h net/bpf.h net/if.h net/if_arp.h net/route.h netpacket/packet.h sys/prctl.h sys/mount.h sys/vfs.h sys/statfs.h sys/timex.h sys/sysinfo.h utime.h linux/ether.h linux/fs.h linux/ptrace.h linux/reboot.h netinet/in_syst.h netinet/ip.h netinet/ip_mroute.h netinet/if_ether.h lwp.h)
+AC_CHECK_HEADERS(fcntl.h port.h sched.h semaphore.h sys/file.h sys/mman.h syscall.h sys/epoll.h sys/event.h sys/inotify.h sys/ptrace.h sys/syscall.h sys/sysctl.h sys/user.h sys/utsname.h sys/select.h sys/socket.h net/bpf.h net/if.h net/if_arp.h net/route.h netpacket/packet.h sys/prctl.h sys/mount.h sys/vfs.h sys/statfs.h sys/timex.h sys/sysinfo.h utime.h linux/ether.h linux/fs.h linux/ptrace.h linux/reboot.h netinet/in_syst.h netinet/ip.h netinet/ip_mroute.h netinet/if_ether.h lwp.h)
 
 AC_CHECK_HEADERS([netinet/icmp6.h], [], [],
 [#include <netinet/in.h>
@@ -601,7 +613,14 @@ AC_STRUCT_DIRENT_D_TYPE
 
 AC_CHECK_FUNCS(accept4 dup3 epoll_create1 faccessat fallocate fchmodat fchownat futimesat getxattr inotify_add_watch inotify_init inotify_init1 inotify_rm_watch listxattr mkdirat mknodat open64 openat pipe2 removexattr renameat setxattr sync_file_range splice syscall tee unlinkat unshare utimensat)
 AC_TYPE_OFF_T
-AC_CHECK_TYPES([loff_t])
+
+CFLAGS_hold="$CFLAGS"
+CFLAGS="$OSCFLAGS $CFLAGS"
+AC_CHECK_TYPES([loff_t], [], [], [[
+#include <sys/types.h>
+#include <fcntl.h>
+]])
+CFLAGS="$CFLAGS_hold"
 
 LIBS_hold="$LIBS"
 LIBS="$LIBS -lm"
@@ -902,6 +921,8 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM(,)],
 [libgo_cv_ld_static=no])
 LDFLAGS=$LDFLAGS_hold])
 AM_CONDITIONAL(HAVE_STATIC_LINK, test "$libgo_cv_ld_static" = yes)
+
+AC_SUBST(SYSROOT_CFLAGS_FOR_TARGET)
 
 AC_CACHE_SAVE
 

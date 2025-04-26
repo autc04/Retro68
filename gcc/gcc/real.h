@@ -1,5 +1,5 @@
 /* Definitions of floating-point access for GNU compiler.
-   Copyright (C) 1989-2022 Free Software Foundation, Inc.
+   Copyright (C) 1989-2025 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -277,11 +277,22 @@ extern bool real_compare (int, const REAL_VALUE_TYPE *, const REAL_VALUE_TYPE *)
 /* Determine whether a floating-point value X is infinite.  */
 extern bool real_isinf (const REAL_VALUE_TYPE *);
 
+/* Determine whether a floating-point value X is infinite with SIGN.  */
+extern bool real_isinf (const REAL_VALUE_TYPE *, bool sign);
+
 /* Determine whether a floating-point value X is a NaN.  */
 extern bool real_isnan (const REAL_VALUE_TYPE *);
 
 /* Determine whether a floating-point value X is a signaling NaN.  */
 extern bool real_issignaling_nan (const REAL_VALUE_TYPE *);
+
+/* Determine whether floating-point value R is a denormal.  This
+   function is only valid for normalized values.  */
+inline bool
+real_isdenormal (const REAL_VALUE_TYPE *r, machine_mode mode)
+{
+  return r->cl == rvc_normal && REAL_EXP (r) < REAL_MODE_FORMAT (mode)->emin;
+}
 
 /* Determine whether a floating-point value X is finite.  */
 extern bool real_isfinite (const REAL_VALUE_TYPE *);
@@ -291,6 +302,12 @@ extern bool real_isneg (const REAL_VALUE_TYPE *);
 
 /* Determine whether a floating-point value X is minus zero.  */
 extern bool real_isnegzero (const REAL_VALUE_TYPE *);
+
+/* Determine whether a floating-point value X is plus or minus zero.  */
+extern bool real_iszero (const REAL_VALUE_TYPE *);
+
+/* Determine whether a floating-point value X is zero with SIGN.  */
+extern bool real_iszero (const REAL_VALUE_TYPE *, bool sign);
 
 /* Test relationships between reals.  */
 extern bool real_identical (const REAL_VALUE_TYPE *, const REAL_VALUE_TYPE *);
@@ -331,7 +348,7 @@ extern long real_to_target (long *, const REAL_VALUE_TYPE *, format_helper);
 extern void real_from_target (REAL_VALUE_TYPE *, const long *,
 			      format_helper);
 
-extern void real_inf (REAL_VALUE_TYPE *);
+extern void real_inf (REAL_VALUE_TYPE *, bool sign = false);
 
 extern bool real_nan (REAL_VALUE_TYPE *, const char *, int, format_helper);
 
@@ -379,7 +396,7 @@ extern const struct real_format arm_bfloat_half_format;
 /* Determine whether a floating-point value X is a NaN.  */
 #define REAL_VALUE_ISNAN(x)		real_isnan (&(x))
 
-/* Determine whether a floating-point value X is a signaling NaN.  */ 
+/* Determine whether a floating-point value X is a signaling NaN.  */
 #define REAL_VALUE_ISSIGNALING_NAN(x)  real_issignaling_nan (&(x))
 
 /* Determine whether a floating-point value X is negative.  */
@@ -389,9 +406,10 @@ extern const struct real_format arm_bfloat_half_format;
 #define REAL_VALUE_MINUS_ZERO(x)	real_isnegzero (&(x))
 
 /* IN is a REAL_VALUE_TYPE.  OUT is an array of longs.  */
-#define REAL_VALUE_TO_TARGET_LONG_DOUBLE(IN, OUT)			\
-  real_to_target (OUT, &(IN),						\
-		  float_mode_for_size (LONG_DOUBLE_TYPE_SIZE).require ())
+#define REAL_VALUE_TO_TARGET_LONG_DOUBLE(IN, OUT)			   \
+  real_to_target (OUT, &(IN),						   \
+		  float_mode_for_size (TYPE_PRECISION			   \
+				       (long_double_type_node)).require ())
 
 #define REAL_VALUE_TO_TARGET_DOUBLE(IN, OUT) \
   real_to_target (OUT, &(IN), float_mode_for_size (64).require ())
@@ -451,8 +469,11 @@ extern void real_ldexp (REAL_VALUE_TYPE *, const REAL_VALUE_TYPE *, int);
 extern REAL_VALUE_TYPE dconst0;
 extern REAL_VALUE_TYPE dconst1;
 extern REAL_VALUE_TYPE dconst2;
+extern REAL_VALUE_TYPE dconstm0;
 extern REAL_VALUE_TYPE dconstm1;
 extern REAL_VALUE_TYPE dconsthalf;
+extern REAL_VALUE_TYPE dconstinf;
+extern REAL_VALUE_TYPE dconstninf;
 
 #define dconst_e() (*dconst_e_ptr ())
 #define dconst_third() (*dconst_third_ptr ())
@@ -460,9 +481,13 @@ extern REAL_VALUE_TYPE dconsthalf;
 #define dconst_sixth() (*dconst_sixth_ptr ())
 #define dconst_ninth() (*dconst_ninth_ptr ())
 #define dconst_sqrt2() (*dconst_sqrt2_ptr ())
+#define dconst_pi() (*dconst_pi_ptr ())
 
 /* Function to return the real value special constant 'e'.  */
-extern const REAL_VALUE_TYPE * dconst_e_ptr (void);
+extern const REAL_VALUE_TYPE *dconst_e_ptr (void);
+
+/* Function to return the real value special constant 'pi'.  */
+extern const REAL_VALUE_TYPE *dconst_pi_ptr (void);
 
 /* Returns a cached REAL_VALUE_TYPE corresponding to 1/n, for various n.  */
 extern const REAL_VALUE_TYPE *dconst_third_ptr (void);
@@ -535,6 +560,6 @@ extern void real_from_integer (REAL_VALUE_TYPE *, format_helper,
 
 /* Fills r with the largest value such that 1 + r*r won't overflow.
    This is used in both sin (atan (x)) and cos (atan(x)) optimizations. */
-extern void build_sinatan_real (REAL_VALUE_TYPE *, tree); 
+extern void build_sinatan_real (REAL_VALUE_TYPE *, tree);
 
 #endif /* ! GCC_REAL_H */

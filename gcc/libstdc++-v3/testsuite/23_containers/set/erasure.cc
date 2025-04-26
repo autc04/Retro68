@@ -1,7 +1,7 @@
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
+// { dg-add-options no_pch }
 
-// Copyright (C) 2018-2022 Free Software Foundation, Inc.
+// Copyright (C) 2018-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,13 +19,14 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <set>
-#include <testsuite_hooks.h>
 
 #ifndef __cpp_lib_erase_if
 # error "Feature-test macro for erase_if missing in <set>"
 #elif __cpp_lib_erase_if < 202002
 # error "Feature-test macro for erase_if has wrong value in <set>"
 #endif
+
+#include <testsuite_hooks.h>
 
 auto is_odd = [](const int i) { return i % 2 != 0; };
 
@@ -49,11 +50,24 @@ test02()
   VERIFY( num == 4 );
 }
 
+void
+test_pr107850()
+{
+  // Predicate only callable as non-const.
+  struct Pred { bool operator()(const int&) { return false; } };
+  const Pred pred; // erase_if parameter is passed by value, so non-const.
+  std::set<int> s;
+  std::erase_if(s, pred);
+  std::multiset<int> ms;
+  std::erase_if(ms, pred);
+}
+
 int
 main()
 {
   test01();
   test02();
+  test_pr107850();
 
   return 0;
 }

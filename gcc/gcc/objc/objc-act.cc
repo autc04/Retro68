@@ -1,5 +1,5 @@
 /* Implement classes and message passing for Objective C.
-   Copyright (C) 1992-2022 Free Software Foundation, Inc.
+   Copyright (C) 1992-2025 Free Software Foundation, Inc.
    Contributed by Steve Naroff.
 
 This file is part of GCC.
@@ -117,7 +117,6 @@ static tree build_method_decl (enum tree_code, tree, tree, tree, bool);
 static tree objc_add_method (tree, tree, int, bool);
 static tree add_instance_variable (tree, objc_ivar_visibility_kind, tree);
 static tree build_ivar_reference (tree);
-static tree is_ivar (tree, tree);
 
 /* We only need the following for ObjC; ObjC++ will use C++'s definition
    of DERIVED_FROM_P.  */
@@ -169,7 +168,6 @@ static tree lookup_method_static (tree, tree, int);
 static void interface_hash_init (void);
 static tree add_interface (tree, tree);
 static void add_category (tree, tree);
-static inline tree lookup_category (tree, tree);
 
 /* Protocols.  */
 
@@ -347,6 +345,11 @@ bool
 objc_init (void)
 {
   bool ok;
+
+  /* Set up stuff used by the preprocessor as well as FE parser.  */
+  interface_hash_init ();
+  hash_init ();
+
 #ifdef OBJCPLUS
   if (cxx_init () == false)
 #else
@@ -376,8 +379,6 @@ objc_init (void)
 
   /* Set up stuff used by FE parser and all runtimes.  */
   errbuf = XNEWVEC (char, 1024 * 10);
-  interface_hash_init ();
-  hash_init ();
   objc_encoding_init ();
   /* ... and then check flags and set-up for the selected runtime ... */
   if (flag_next_runtime && flag_objc_abi >= 2)
@@ -406,7 +407,7 @@ objc_init (void)
     default:
         objc_default_ivar_visibility = OBJC_IVAR_VIS_PROTECTED;
     }
-      
+
   /* Generate general types and push runtime-specific decls to file scope.  */
   synth_module_prologue ();
 
@@ -2340,7 +2341,7 @@ objc_volatilize_decl (tree decl)
   /* Do not mess with variables that are 'static' or (already)
      'volatile'.  */
   if (!TREE_THIS_VOLATILE (decl) && !TREE_STATIC (decl)
-      && (TREE_CODE (decl) == VAR_DECL
+      && (VAR_P (decl)
 	  || TREE_CODE (decl) == PARM_DECL))
     {
       if (local_variables_to_volatilize == NULL)
@@ -2812,7 +2813,7 @@ objc_build_component_ref (tree datum, tree component)
                                           tf_warning_or_error);
 #else
   return build_component_ref (input_location, datum, component,
-			      UNKNOWN_LOCATION);
+			      UNKNOWN_LOCATION, UNKNOWN_LOCATION);
 #endif
 }
 
@@ -3316,7 +3317,7 @@ objc_build_string_object (tree string)
   length = TREE_STRING_LENGTH (string) - 1;
 
   /* The target may have different ideas on how to construct an ObjC string
-     literal.  On Darwin (Mac OS X), for example, we may wish to obtain a
+     literal.  On Darwin / macOS, for example, we may wish to obtain a
      constant CFString reference instead.
      At present, this is only supported for the NeXT runtime.  */
   if (flag_next_runtime
@@ -3795,7 +3796,7 @@ objc_is_ivar_reference_p (tree expr)
 static int
 objc_is_global_reference_p (tree expr)
 {
-  return (TREE_CODE (expr) == INDIRECT_REF || TREE_CODE (expr) == PLUS_EXPR
+  return (INDIRECT_REF_P (expr) || TREE_CODE (expr) == PLUS_EXPR
 	  ? objc_is_global_reference_p (TREE_OPERAND (expr, 0))
 	  : DECL_P (expr)
 	  ? (DECL_FILE_SCOPE_P (expr) || TREE_STATIC (expr))
@@ -3814,7 +3815,7 @@ objc_generate_write_barrier (tree lhs, enum tree_code modifycode, tree rhs)
 
   /* See if we have any lhs casts, and strip them out.  NB: The lvalue casts
      will have been transformed to the form '*(type *)&expr'.  */
-  if (TREE_CODE (lhs) == INDIRECT_REF)
+  if (INDIRECT_REF_P (lhs))
     {
       outer = TREE_OPERAND (lhs, 0);
 
@@ -3866,7 +3867,7 @@ objc_generate_write_barrier (tree lhs, enum tree_code modifycode, tree rhs)
 	     || TREE_CODE (outer) == ARRAY_REF))
     outer = TREE_OPERAND (outer, 0);
 
-  if (TREE_CODE (outer) == INDIRECT_REF)
+  if (INDIRECT_REF_P (outer))
     {
       outer = TREE_OPERAND (outer, 0);
       indirect_p = 1;
@@ -3944,7 +3945,7 @@ static GTY(()) objc_map_t interface_map;
 static void
 interface_hash_init (void)
 {
-  interface_map = objc_map_alloc_ggc (200);  
+  interface_map = objc_map_alloc_ggc (200);
 }
 
 static tree
@@ -5243,7 +5244,7 @@ check_duplicates (tree method, int methods, int is_class)
   /* We have two or more methods with the same name but different
      types.  */
   first_method = TREE_VEC_ELT (method, 0);
-  
+
   /* But just how different are those types?  If
      -Wno-strict-selector-match is specified, we shall not complain if
      the differences are solely among types with identical size and
@@ -5253,15 +5254,15 @@ check_duplicates (tree method, int methods, int is_class)
       for (i = 0; i < (size_t) TREE_VEC_LENGTH (method); i++)
 	if (!comp_proto_with_proto (first_method, TREE_VEC_ELT (method, i), 0))
 	  goto issue_warning;
-      
+
       return first_method;
     }
-    
+
  issue_warning:
   if (methods)
     {
       bool type = TREE_CODE (first_method) == INSTANCE_METHOD_DECL;
-      
+
       warning_at (input_location, 0,
 		  "multiple methods named %<%c%E%> found",
 		  (is_class ? '+' : '-'),
@@ -5273,7 +5274,7 @@ check_duplicates (tree method, int methods, int is_class)
   else
     {
       bool type = TREE_CODE (first_method) == INSTANCE_METHOD_DECL;
-      
+
       warning_at (input_location, 0,
 		  "multiple selectors named %<%c%E%> found",
 		  (is_class ? '+' : '-'),
@@ -5282,11 +5283,11 @@ check_duplicates (tree method, int methods, int is_class)
 	      (type ? '-' : '+'),
 	      identifier_to_locale (gen_method_decl (first_method)));
     }
-  
+
   for (i = 0; i < (size_t) TREE_VEC_LENGTH (method); i++)
     {
       bool type = TREE_CODE (TREE_VEC_ELT (method, i)) == INSTANCE_METHOD_DECL;
-      
+
       inform (DECL_SOURCE_LOCATION (TREE_VEC_ELT (method, i)), "also found %<%c%s%>",
 	      (type ? '-' : '+'),
 	      identifier_to_locale (gen_method_decl (TREE_VEC_ELT (method, i))));
@@ -5474,7 +5475,7 @@ lookup_method_in_hash_lists (tree sel_name, int is_class)
 
   if (!is_class)
     method_prototype = objc_map_get (instance_method_map, sel_name);
-  
+
   if (method_prototype == OBJC_MAP_NOT_FOUND)
     {
       method_prototype = objc_map_get (class_method_map, sel_name);
@@ -5602,7 +5603,7 @@ objc_finish_message_expr (tree receiver, tree sel_name, tree method_params,
       /* We set class_tree to the identifier for 'Class' if this is a
 	 class method, and to NULL_TREE if not.  */
       class_tree = (IS_CLASS (rtype) ? objc_class_name : NULL_TREE);
-      
+
       /* 'rprotos' is the list of protocols that the receiver
 	 supports.  */
       rprotos = (TYPE_HAS_OBJC_INFO (TREE_TYPE (rtype))
@@ -5674,11 +5675,11 @@ objc_finish_message_expr (tree receiver, tree sel_name, tree method_params,
 		 there are protocols attached to the type, we can
 		 still look up the method in the protocols.  Ie, we
 		 are in the following case:
-	     
+
 		 @class MyClass;
 		 MyClass<MyProtocol> *x;
 		 [x method];
-		 
+
 		 If 'MyProtocol' has the method 'method', we can check
 		 and retrieve the method prototype.  */
 	      method_prototype
@@ -5983,7 +5984,7 @@ insert_method_into_method_map (bool class_method, tree method)
   else
     {
       tree new_entry;
-      
+
       /* If an entry already exists, it's more complicated.  We'll
 	 have to check whether the method prototype is the same or
 	 not.  */
@@ -5997,7 +5998,7 @@ insert_method_into_method_map (bool class_method, tree method)
 	  /* If not, create a vector to store both the method already
 	     in the map, and the new one that we are adding.  */
 	  new_entry = make_tree_vec (2);
-	  
+
 	  TREE_VEC_ELT (new_entry, 0) = existing_entry;
 	  TREE_VEC_ELT (new_entry, 1) = method;
 	}
@@ -6022,11 +6023,11 @@ insert_method_into_method_map (bool class_method, tree method)
 	     prototype, and very few, if any, will have more than
 	     2!  */
 	  new_entry = make_tree_vec (TREE_VEC_LENGTH (existing_entry) + 1);
-	  
+
 	  /* Copy the methods from the existing vector.  */
 	  for (i = 0; i < (size_t) TREE_VEC_LENGTH (existing_entry); i++)
 	    TREE_VEC_ELT (new_entry, i) = TREE_VEC_ELT (existing_entry, i);
-	  
+
 	  /* Add the new method at the end.  */
 	  TREE_VEC_ELT (new_entry, i) = method;
 	}
@@ -9624,7 +9625,7 @@ objc_lookup_ivar (tree other, tree id)
           warning (warn_shadow_ivar ? OPT_Wshadow_ivar : OPT_Wshadow,
                    "local declaration of %qE hides instance variable", id);
       }
-        
+
       return other;
     }
 
@@ -9696,7 +9697,7 @@ objc_gimplify_property_ref (tree *expr_p)
   if (TREE_CODE (getter) == TARGET_EXPR)
     {
       gcc_assert (MAYBE_CLASS_TYPE_P (TREE_TYPE (getter)));
-      gcc_assert (TREE_CODE (TREE_OPERAND (getter, 0)) == VAR_DECL);
+      gcc_assert (VAR_P (TREE_OPERAND (getter, 0)));
       call_exp = TREE_OPERAND (getter, 1);
     }
 #endif
@@ -10342,24 +10343,51 @@ objc_common_init_ts (void)
   MARK_TS_TYPED (PROPERTY_REF);
 }
 
-size_t
-objc_common_tree_size (enum tree_code code)
+/* Information for Objective-C-specific features known to __has_feature.  */
+
+struct objc_feature_info
 {
-  switch (code)
+  typedef bool (*predicate_t) ();
+
+  const char *ident;
+  predicate_t predicate;
+
+  constexpr objc_feature_info (const char *name)
+    : ident (name), predicate (nullptr) {}
+  constexpr objc_feature_info (const char *name, predicate_t p)
+    : ident (name), predicate (p) {}
+
+  bool has_feature () const
     {
-    case CLASS_METHOD_DECL:
-    case INSTANCE_METHOD_DECL:
-    case KEYWORD_DECL:
-    case PROPERTY_DECL:			return sizeof (tree_decl_non_common);
-    case CLASS_INTERFACE_TYPE:
-    case CLASS_IMPLEMENTATION_TYPE:
-    case CATEGORY_INTERFACE_TYPE:
-    case CATEGORY_IMPLEMENTATION_TYPE:
-    case PROTOCOL_INTERFACE_TYPE:	return sizeof (tree_type_non_common);
-    default:
-      gcc_unreachable ();
+      return predicate ? predicate () : true;
     }
+};
+
+static bool objc_nonfragile_abi_p ()
+{
+  return flag_next_runtime && flag_objc_abi >= 2;
 }
 
+static constexpr objc_feature_info objc_features[] =
+{
+  { "objc_default_synthesize_properties" },
+  { "objc_instancetype" },
+  { "objc_nonfragile_abi", objc_nonfragile_abi_p }
+};
+
+/* Register Objective-C-specific features for __has_feature.  */
+
+void
+objc_common_register_features ()
+{
+  for (unsigned i = 0; i < ARRAY_SIZE (objc_features); i++)
+    {
+      const objc_feature_info *info = objc_features + i;
+      if (!info->has_feature ())
+	continue;
+
+      c_common_register_feature (info->ident, true);
+    }
+}
 
 #include "gt-objc-objc-act.h"

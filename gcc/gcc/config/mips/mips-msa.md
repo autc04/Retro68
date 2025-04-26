@@ -1,7 +1,7 @@
 ;; Machine Description for MIPS MSA ASE
 ;; Based on the MIPS MSA spec Revision 1.11 8/4/2014
 ;;
-;; Copyright (C) 2015-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2025 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -125,8 +125,8 @@
 ;; Only floating-point modes.
 (define_mode_iterator FMSA     [V2DF V4SF])
 
-;; Only used for immediate set shuffle elements instruction.
-(define_mode_iterator MSA_WHB_W [V4SI V8HI V16QI V4SF])
+;; Only used for reduce_plus_scal: V4SI, V8HI, V16QI have HADD.
+(define_mode_iterator MSA_NO_HADD [V2DF V4SF V2DI])
 
 ;; The attribute gives the integer vector mode with same size.
 (define_mode_attr VIMODE
@@ -230,6 +230,10 @@
    (V8HI  "uimm4")
    (V4SI  "uimm5")
    (V2DI  "uimm6")])
+
+;; The index of sign bit in FP vector elements.
+(define_mode_attr elmsgnbit [(V2DF "63") (V4DF "63")
+			     (V4SF "31") (V8SF "31")])
 
 (define_expand "vec_init<mode><unitmode>"
   [(match_operand:MSA 0 "register_operand")
@@ -407,6 +411,19 @@
   DONE;
 })
 
+(define_expand "vcond_mask_<MSA:mode><IMSA:mode>"
+  [(match_operand:MSA 0 "register_operand")
+   (match_operand:MSA 1 "reg_or_m1_operand")
+   (match_operand:MSA 2 "reg_or_0_operand")
+   (match_operand:IMSA 3 "register_operand")]
+  "ISA_HAS_MSA
+   && (GET_MODE_NUNITS (<MSA:MODE>mode) == GET_MODE_NUNITS (<IMSA:MODE>mode))"
+{
+  mips_expand_vec_cond_expr (<MSA:MODE>mode, <MSA:VIMODE>mode, operands, true);
+  DONE;
+})
+
+
 (define_expand "vcondu<MSA:mode><IMSA:mode>"
   [(match_operand:MSA 0 "register_operand")
    (match_operand:MSA 1 "reg_or_m1_operand")
@@ -417,7 +434,7 @@
   "ISA_HAS_MSA
    && (GET_MODE_NUNITS (<MSA:MODE>mode) == GET_MODE_NUNITS (<IMSA:MODE>mode))"
 {
-  mips_expand_vec_cond_expr (<MSA:MODE>mode, <MSA:VIMODE>mode, operands);
+  mips_expand_vec_cond_expr (<MSA:MODE>mode, <MSA:VIMODE>mode, operands, false);
   DONE;
 })
 
@@ -431,7 +448,7 @@
   "ISA_HAS_MSA
    && (GET_MODE_NUNITS (<MSA:MODE>mode) == GET_MODE_NUNITS (<MSA_2:MODE>mode))"
 {
-  mips_expand_vec_cond_expr (<MSA:MODE>mode, <MSA:VIMODE>mode, operands);
+  mips_expand_vec_cond_expr (<MSA:MODE>mode, <MSA:VIMODE>mode, operands, false);
   DONE;
 })
 
@@ -597,15 +614,23 @@
 })
 
 (define_expand "neg<mode>2"
-  [(set (match_operand:MSA 0 "register_operand")
-	(minus:MSA (match_dup 2)
-		   (match_operand:MSA 1 "register_operand")))]
+  [(set (match_operand:IMSA 0 "register_operand")
+	(minus:IMSA (match_dup 2)
+		   (match_operand:IMSA 1 "register_operand")))]
   "ISA_HAS_MSA"
 {
   rtx reg = gen_reg_rtx (<MODE>mode);
   emit_move_insn (reg, CONST0_RTX (<MODE>mode));
   operands[2] = reg;
 })
+
+(define_insn "neg<mode>2"
+  [(set (match_operand:FMSA 0 "register_operand" "=f")
+	(neg:FMSA (match_operand:FMSA 1 "register_operand" "f")))]
+  "ISA_HAS_MSA"
+  "bnegi.<msafmt>\t%w0,%w1,<elmsgnbit>"
+  [(set_attr "type" "simd_bit")
+   (set_attr "mode" "<MODE>")])
 
 (define_expand "msa_ldi<mode>"
   [(match_operand:IMSA 0 "register_operand")
@@ -2495,21 +2520,29 @@
    (set_attr "mode" "<MODE>")])
 
 (define_insn "msa_shf_<msafmt_f>"
-  [(set (match_operand:MSA_WHB_W 0 "register_operand" "=f")
-	(vec_select:MSA_WHB_W
-	  (match_operand:MSA_WHB_W 1 "register_operand" "f")
+  [(set (match_operand:MSA 0 "register_operand" "=f")
+	(vec_select:MSA
+	  (match_operand:MSA 1 "register_operand" "f")
 	  (match_operand 2 "par_const_vector_shf_set_operand" "")))]
   "ISA_HAS_MSA"
 {
-  HOST_WIDE_INT val = 0;
-  unsigned int i;
-
-  /* We convert the selection to an immediate.  */
-  for (i = 0; i < 4; i++)
-    val |= INTVAL (XVECEXP (operands[2], 0, i)) << (2 * i);
-
-  operands[2] = GEN_INT (val);
-  return "shf.<msafmt>\t%w0,%w1,%X2";
+  HOST_WIDE_INT rval = mips_msa_shf_i8 (operands);
+  /* 0b11100100 means that there is no shf needed at all.  This RTL
+     should be optimized out in some pass.  */
+  if ((rval & 0xff) == 0xe4)
+    gcc_unreachable ();
+  operands[2] = GEN_INT (rval & 0xff);
+  switch (rval & 0xff00)
+  {
+  default: gcc_unreachable ();
+  case 0x400:
+    return "shf.w\t%w0,%w1,%X2";
+  case 0x200:
+    return "shf.h\t%w0,%w1,%X2";
+  case 0x100:
+    return "shf.b\t%w0,%w1,%X2";
+  }
+  gcc_unreachable ();
 }
   [(set_attr "type" "simd_shf")
    (set_attr "mode" "<MODE>")])
@@ -2772,3 +2805,128 @@
   (set_attr "mode" "TI")
   (set_attr "compact_form" "never")
   (set_attr "branch_likely" "no")])
+
+
+;; Vector reduction operation
+(define_expand "reduc_smin_scal_<mode>"
+  [(match_operand:<UNITMODE> 0 "register_operand")
+   (match_operand:MSA 1 "register_operand")]
+  "ISA_HAS_MSA"
+{
+  rtx tmp = gen_reg_rtx (<MODE>mode);
+  mips_expand_msa_reduc (gen_smin<mode>3, tmp, operands[1]);
+  emit_insn (gen_vec_extract<mode><unitmode> (operands[0], tmp,
+					      const0_rtx));
+  DONE;
+})
+
+(define_expand "reduc_smax_scal_<mode>"
+  [(match_operand:<UNITMODE> 0 "register_operand")
+   (match_operand:MSA 1 "register_operand")]
+  "ISA_HAS_MSA"
+{
+  rtx tmp = gen_reg_rtx (<MODE>mode);
+  mips_expand_msa_reduc (gen_smax<mode>3, tmp, operands[1]);
+  emit_insn (gen_vec_extract<mode><unitmode> (operands[0], tmp,
+					      const0_rtx));
+  DONE;
+})
+
+(define_expand "reduc_umin_scal_<mode>"
+  [(match_operand:<UNITMODE> 0 "register_operand")
+   (match_operand:IMSA 1 "register_operand")]
+  "ISA_HAS_MSA"
+{
+  rtx tmp = gen_reg_rtx (<MODE>mode);
+  mips_expand_msa_reduc (gen_umin<mode>3, tmp, operands[1]);
+  emit_insn (gen_vec_extract<mode><unitmode> (operands[0], tmp,
+					      const0_rtx));
+  DONE;
+})
+
+(define_expand "reduc_umax_scal_<mode>"
+  [(match_operand:<UNITMODE> 0 "register_operand")
+   (match_operand:IMSA 1 "register_operand")]
+  "ISA_HAS_MSA"
+{
+  rtx tmp = gen_reg_rtx (<MODE>mode);
+  mips_expand_msa_reduc (gen_umax<mode>3, tmp, operands[1]);
+  emit_insn (gen_vec_extract<mode><unitmode> (operands[0], tmp,
+					      const0_rtx));
+  DONE;
+})
+
+(define_expand "reduc_plus_scal_<mode>"
+  [(match_operand:<UNITMODE> 0 "register_operand")
+   (match_operand:MSA_NO_HADD 1 "register_operand")]
+  "ISA_HAS_MSA"
+{
+  rtx tmp = gen_reg_rtx (<MODE>mode);
+  mips_expand_msa_reduc (gen_add<mode>3, tmp, operands[1]);
+  emit_insn (gen_vec_extract<mode><unitmode> (operands[0], tmp,
+					      const0_rtx));
+  DONE;
+})
+
+(define_expand "reduc_plus_scal_v4si"
+  [(match_operand:SI 0 "register_operand")
+   (match_operand:V4SI 1 "register_operand")]
+  "ISA_HAS_MSA"
+{
+  rtx tmp = gen_reg_rtx (SImode);
+  rtx tmp1 = gen_reg_rtx (V2DImode);
+  emit_insn (gen_msa_hadd_s_d (tmp1, operands[1], operands[1]));
+  emit_insn (gen_vec_extractv4sisi (operands[0], gen_lowpart (V4SImode, tmp1),
+				    const0_rtx));
+  emit_insn (gen_vec_extractv4sisi (tmp, gen_lowpart (V4SImode, tmp1),
+				    GEN_INT (2)));
+  emit_insn (gen_addsi3 (operands[0], operands[0], tmp));
+  DONE;
+})
+
+(define_expand "reduc_plus_scal_v8hi"
+  [(match_operand:HI 0 "register_operand")
+   (match_operand:V8HI 1 "register_operand")]
+  "ISA_HAS_MSA"
+{
+  rtx tmp1 = gen_reg_rtx (V4SImode);
+  rtx tmp2 = gen_reg_rtx (V2DImode);
+  rtx tmp3 = gen_reg_rtx (V2DImode);
+  emit_insn (gen_msa_hadd_s_w (tmp1, operands[1], operands[1]));
+  emit_insn (gen_msa_hadd_s_d (tmp2, tmp1, tmp1));
+  mips_expand_msa_reduc (gen_addv2di3, tmp3, tmp2);
+  emit_insn (gen_vec_extractv8hihi (operands[0], gen_lowpart (V8HImode, tmp3),
+				    const0_rtx));
+  DONE;
+})
+
+(define_expand "reduc_plus_scal_v16qi"
+  [(match_operand:QI 0 "register_operand")
+   (match_operand:V16QI 1 "register_operand")]
+  "ISA_HAS_MSA"
+{
+  rtx tmp1 = gen_reg_rtx (V8HImode);
+  rtx tmp2 = gen_reg_rtx (V4SImode);
+  rtx tmp3 = gen_reg_rtx (V2DImode);
+  rtx tmp4 = gen_reg_rtx (V2DImode);
+  emit_insn (gen_msa_hadd_s_h (tmp1, operands[1], operands[1]));
+  emit_insn (gen_msa_hadd_s_w (tmp2, tmp1, tmp1));
+  emit_insn (gen_msa_hadd_s_d (tmp3, tmp2, tmp2));
+  mips_expand_msa_reduc (gen_addv2di3, tmp4, tmp3);
+  emit_insn (gen_vec_extractv16qiqi (operands[0], gen_lowpart (V16QImode, tmp4),
+				    const0_rtx));
+  DONE;
+})
+
+(define_expand "reduc_<optab>_scal_<mode>"
+  [(any_bitwise:<UNITMODE>
+      (match_operand:<UNITMODE> 0 "register_operand")
+      (match_operand:IMSA 1 "register_operand"))]
+  "ISA_HAS_MSA"
+{
+  rtx tmp = gen_reg_rtx (<MODE>mode);
+  mips_expand_msa_reduc (gen_<optab><mode>3, tmp, operands[1]);
+  emit_insn (gen_vec_extract<mode><unitmode> (operands[0], tmp,
+					      const0_rtx));
+  DONE;
+})

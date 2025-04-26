@@ -1,10 +1,177 @@
-2022-08-19  Release Manager
+2025-04-25  Release Manager
 
-	* GCC 12.2.0 released.
+	* GCC 15.1.0 released.
 
-2022-05-06  Release Manager
+2025-04-07  Jakub Jelinek  <jakub@redhat.com>
 
-	* GCC 12.1.0 released.
+	PR web/119227
+	* update_web_docs_git: Rename mdoc2pdf_html to cobol_mdoc2pdf_html,
+	perform mkdir -p $DOCSDIR/gcobol gcobol, remove $d/ from pdf and in
+	html replace it with gcobol/; update uses of the renamed function.
+
+2025-03-31  Jakub Jelinek  <jakub@redhat.com>
+
+	PR other/119510
+	* gcc_release: Use --enable-languages=c,c++,lto and if m2 is available,
+	with,m2 appended to that.  Check for all possible languages and run
+	make $lang.srcextra $lang.srcinfo $lang.srcman for those.  Add
+	libffi/doc/libffi.info.
+
+2025-03-28  Richard Biener  <rguenther@suse.de>
+
+	PR other/119510
+	* gcc_release: Use --enable-languages=default,cobol
+	when building generated files.
+
+2025-03-11  James K. Lowden  <jklowden@symas.com>
+
+	* update_web_docs_git: Add libgcobol module and cobol language.
+
+2024-12-03  David Malcolm  <dmalcolm@redhat.com>
+
+	PR web/117883
+	* update_web_docs_git: Introduce SPHINX_VENV to make
+	it easier to test the script.  Add the libgdiagnostics docs
+	and testsuite to the files to be preserved.  Use sphinx to build
+	the libgdiagnostics docs as HTML.  Copy them into $DOCSDIR.
+
+2024-12-03  David Malcolm  <dmalcolm@redhat.com>
+
+	* update_web_docs_git: Add the jit testsuite to the files to
+	be preserved, since this is used by the jit docs.
+
+2024-07-19  Richard Biener  <rguenther@suse.de>
+
+	* crontab: Remove entry for gcc-11 branch.
+
+2024-07-07  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* update_web_docs_git (BUGURL): Switch to https.
+
+2024-04-26  Jakub Jelinek  <jakub@redhat.com>
+
+	* crontab: Snapshots from trunk are now GCC 15 related.
+	Add GCC 14 snapshots from the respective branch.
+
+2023-11-14  Sam James  <sam@gentoo.org>
+
+	* gcc_release: Cleanup whitespace.
+
+2023-11-14  Sam James  <sam@gentoo.org>
+
+	* gcc_release: Use HTTPS for links.
+
+2023-07-07  Richard Biener  <rguenther@suse.de>
+
+	* crontab: Remove entry for GCC 10.
+
+2023-04-20  Arsen Arsenović  <arsen@aarsen.me>
+
+	* update_web_docs_git: Add a mechanism to override makeinfo,
+	texi2dvi and texi2pdf, and default them to
+	/home/gccadmin/texinfo/install-git/bin/${tool}, if present.
+
+2023-04-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* crontab: Snapshots from trunk are now GCC 14 related.
+	Add GCC 13 snapshots from the respective branch.
+
+2023-03-21  Arsen Arsenović  <arsen@aarsen.me>
+
+	* update_web_docs_git: Set CONTENTS_OUTPUT_LOCATION=inline in
+	order to put @shortcontents above contents.
+
+2023-03-21  Arsen Arsenović  <arsen@aarsen.me>
+
+	* update_web_docs_git (CSS): Update CSS reference to point to
+	/texinfo-manuals.css.
+
+2023-03-16  Gaius Mulley  <gaiusmod2@gmail.com>
+
+	* update_web_docs_git (MANUALS): Add gm2.
+	Add include path for gm2 manual.
+
+2023-03-16  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* update_web_docs_git (BUGURL): Introduce and use throughout.
+
+2022-11-30  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	PR web/107749
+	* update_web_docs_git: Add gdc to MANUALS.
+
+2022-11-23  Sam James  <sam@gentoo.org>
+
+	* gcc_release (XZ): Add -T0.
+
+2022-11-14  Martin Liska  <mliska@suse.cz>
+
+	Revert:
+	2022-11-09  Martin Liska  <mliska@suse.cz>
+
+	* update_web_docs_git.py: New file.
+
+2022-11-14  Martin Liska  <mliska@suse.cz>
+
+	Revert:
+	2022-11-14  Martin Liska  <mliska@suse.cz>
+
+	* update_web_docs_git.py: Simplify.
+
+2022-11-14  Martin Liska  <mliska@suse.cz>
+
+	Revert:
+	2022-11-09  Martin Liska  <mliska@suse.cz>
+
+	* crontab: Use new script for documentation of master branch.
+
+2022-11-14  Martin Liska  <mliska@suse.cz>
+
+	Revert:
+	2022-11-09  Martin Liska  <mliska@suse.cz>
+
+	* update_web_docs_git.py: Create sources tarball.
+
+2022-11-14  Martin Liska  <mliska@suse.cz>
+
+	Revert:
+	2022-11-10  Martin Liska  <mliska@suse.cz>
+
+	* crontab: Fix superfluous 'sh' for Python script.
+
+2022-11-10  Martin Liska  <mliska@suse.cz>
+
+	* crontab: Fix superfluous 'sh' for Python script.
+
+2022-11-09  Martin Liska  <mliska@suse.cz>
+
+	* update_web_docs_git.py: Create sources tarball.
+
+2022-11-09  Martin Liska  <mliska@suse.cz>
+
+	* crontab: Use new script for documentation of master branch.
+
+2022-11-09  Martin Liska  <mliska@suse.cz>
+
+	* update_web_docs_git.py: Simplify.
+
+2022-11-09  Martin Liska  <mliska@suse.cz>
+
+	* update_web_docs_git.py: New file.
+
+2022-07-28  Martin Liska  <mliska@suse.cz>
+
+	* update_web_docs_git: Use sphinx-build from a venv so that
+	we can use a recent version.
+
+2022-05-20  Richard Biener  <rguenther@suse.de>
+
+	* crontab: Disable snapshots from the gcc-9 branch.
+
+2022-04-28  Jakub Jelinek  <jakub@redhat.com>
+
+	* crontab: Snapshots from trunk are now GCC 13 related.
+	Add GCC 12 snapshots from the respective branch.
 
 2021-05-14  Jakub Jelinek  <jakub@redhat.com>
 

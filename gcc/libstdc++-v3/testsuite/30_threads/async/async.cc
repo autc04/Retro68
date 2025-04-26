@@ -3,7 +3,7 @@
 // { dg-require-effective-target c++11 }
 // { dg-require-gthreads "" }
 
-// Copyright (C) 2010-2022 Free Software Foundation, Inc.
+// Copyright (C) 2010-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,6 +20,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
+#include <iostream>
 
 #include <future>
 #include <thread>
@@ -133,6 +134,7 @@ void test04()
 {
   using namespace std::chrono;
 
+  auto const steady_start = steady_clock::now();
   auto const slow_start = slow_clock::now();
   future<void> f1 = async(launch::async, []() {
       std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -140,21 +142,26 @@ void test04()
 
   // Wait for ~1s
   {
-    auto const steady_begin = steady_clock::now();
     auto const status = f1.wait_until(slow_start + milliseconds(100));
     VERIFY(status == std::future_status::timeout);
-    auto const elapsed = steady_clock::now() - steady_begin;
+    auto const elapsed = steady_clock::now() - steady_start;
+    if (elapsed < seconds(1))
+      std::cout << elapsed.count () << "ns < 1s" << std::endl;
     VERIFY(elapsed >= seconds(1));
     VERIFY(elapsed < seconds(2));
   }
 
-  // Wait for up to ~2s more
+  // Wait for up to ~4s more, but since the async sleep completes, the
+  // actual wait may be shorter than 1s.  Tolerate 3s because 2s
+  // hasn't been enough in some extreme cases.
   {
     auto const steady_begin = steady_clock::now();
-    auto const status = f1.wait_until(slow_start + milliseconds(300));
+    auto const status = f1.wait_until(slow_start + milliseconds(500));
     VERIFY(status == std::future_status::ready);
     auto const elapsed = steady_clock::now() - steady_begin;
-    VERIFY(elapsed < seconds(2));
+    if (elapsed >= seconds(3))
+      std::cout << elapsed.count () << "ns > 2s" << std::endl;
+    VERIFY(elapsed < seconds(3));
   }
 }
 
@@ -166,7 +173,7 @@ void test_pr91486_wait_for()
 
   std::chrono::duration<float> const wait_time = std::chrono::seconds(1);
   auto const start_steady = chrono::steady_clock::now();
-  auto status = f1.wait_for(wait_time);
+  auto status __attribute__ ((__unused__)) = f1.wait_for(wait_time);
   auto const elapsed_steady = chrono::steady_clock::now() - start_steady;
 
   VERIFY( elapsed_steady >= std::chrono::seconds(1) );
@@ -202,7 +209,7 @@ struct float_steady_clock
   }
 };
 
-chrono::steady_clock::time_point float_steady_clock::epoch = chrono::steady_clock::now();
+chrono::steady_clock::time_point float_steady_clock::epoch;
 int float_steady_clock::call_count = 0;
 
 void test_pr91486_wait_until()
@@ -211,6 +218,19 @@ void test_pr91486_wait_until()
       std::this_thread::sleep_for(std::chrono::seconds(1));
     });
 
+  // When we don't _GLIBCXX_HAVE_LINUX_FUTEX, we use
+  // condition_variables, whose wait_until converts times using
+  // deltas, and if too much time has elapsed since we set the epoch
+  // during program initialization, say if the other tests took over
+  // 8s and we're unlucky with the numbers, we may lose enough
+  // precision from the 1s delta that we don't sleep until the
+  // deadline, and then we may loop more times than expected.  Each
+  // iteration will recompute the wait time from deadline -
+  // float_steady_clock::now(), and each such computation will bump
+  // float_steady_clock::call_count, so the call_count check below
+  // will fail spuriously.  Setting the epoch just before running this
+  // test makes this failure mode far less likely.
+  float_steady_clock::epoch = chrono::steady_clock::now();
   float_steady_clock::time_point const now = float_steady_clock::now();
 
   std::chrono::duration<float> const wait_time = std::chrono::seconds(1);
@@ -218,7 +238,7 @@ void test_pr91486_wait_until()
   VERIFY( expire > now );
 
   auto const start_steady = chrono::steady_clock::now();
-  auto status = f1.wait_until(expire);
+  auto status __attribute__ ((__unused__)) = f1.wait_until(expire);
   auto const elapsed_steady = chrono::steady_clock::now() - start_steady;
 
   // This checks that we didn't come back too soon

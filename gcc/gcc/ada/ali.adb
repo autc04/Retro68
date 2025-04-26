@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,6 +33,7 @@ with Snames; use Snames;
 
 with GNAT;                 use GNAT;
 with GNAT.Dynamic_HTables; use GNAT.Dynamic_HTables;
+with System.String_Hash;
 
 package body ALI is
 
@@ -251,6 +252,7 @@ package body ALI is
       'E' | --  external
       'G' | --  invocation graph
       'I' | --  interrupt
+      'K' | --  CUDA kernels
       'L' | --  linker option
       'M' | --  main program
       'N' | --  notes
@@ -268,7 +270,7 @@ package body ALI is
 
       --  Still available:
 
-      'B' | 'F' | 'H' | 'J' | 'K' | 'O' | 'Q' => False);
+      'B' | 'F' | 'H' | 'J' | 'O' | 'Q' => False);
 
    ------------------------------
    -- Add_Invocation_Construct --
@@ -578,20 +580,18 @@ package body ALI is
    function Hash
      (IS_Rec : Invocation_Signature_Record) return Bucket_Range_Type
    is
+      function String_Hash is new System.String_Hash.Hash
+        (Char_Type => Character,
+         Key_Type  => String,
+         Hash_Type => Bucket_Range_Type);
+
       Buffer : Bounded_String (2052);
-      IS_Nam : Name_Id;
 
    begin
-      --  The hash is obtained in the following manner:
-      --
-      --    * A String signature based on the scope, name, line number, column
-      --      number, and locations, in the following format:
+      --  The hash is obtained from a signature based on the scope, name, line
+      --  number, column number, and locations, in the following format:
       --
       --         scope__name__line_column__locations
-      --
-      --    * The String is converted into a Name_Id
-      --
-      --    * The absolute value of the Name_Id is used as the hash
 
       Append (Buffer, IS_Rec.Scope);
       Append (Buffer, "__");
@@ -606,8 +606,7 @@ package body ALI is
          Append (Buffer, IS_Rec.Locations);
       end if;
 
-      IS_Nam := Name_Find (Buffer);
-      return Bucket_Range_Type (abs IS_Nam);
+      return String_Hash (To_String (Buffer));
    end Hash;
 
    --------------------
@@ -666,13 +665,13 @@ package body ALI is
       No_Object_Specified                    := False;
       No_Component_Reordering_Specified      := False;
       GNATprove_Mode_Specified               := False;
+      Interrupts_Default_To_System_Specified := False;
       Normalize_Scalars_Specified            := False;
       Partition_Elaboration_Policy_Specified := ' ';
       Queuing_Policy_Specified               := ' ';
       SSO_Default_Specified                  := False;
       Task_Dispatching_Policy_Specified      := ' ';
       Unreserve_All_Interrupts_Specified     := False;
-      Frontend_Exceptions_Specified          := False;
       Zero_Cost_Exceptions_Specified         := False;
    end Initialize_ALI;
 
@@ -1353,7 +1352,7 @@ package body ALI is
          --  Check if we are on a number. In the case of bad ALI files, this
          --  may not be true.
 
-         if not (Nextc in '0' .. '9') then
+         if Nextc not in '0' .. '9' then
             Fatal_Error;
          end if;
 
@@ -1746,12 +1745,15 @@ package body ALI is
       ALIs.Table (Id) := (
         Afile                        => F,
         Compile_Errors               => False,
+        First_CUDA_Kernel            => CUDA_Kernels.Last + 1,
         First_Interrupt_State        => Interrupt_States.Last + 1,
         First_Sdep                   => No_Sdep_Id,
         First_Specific_Dispatching   => Specific_Dispatching.Last + 1,
         First_Unit                   => No_Unit_Id,
         GNATprove_Mode               => False,
+        Interrupts_Default_To_System => False,
         Invocation_Graph_Encoding    => No_Encoding,
+        Last_CUDA_Kernel             => CUDA_Kernels.Last,
         Last_Interrupt_State         => Interrupt_States.Last,
         Last_Sdep                    => No_Sdep_Id,
         Last_Specific_Dispatching    => Specific_Dispatching.Last,
@@ -1776,7 +1778,6 @@ package body ALI is
         Unit_Exception_Table         => False,
         Ver                          => (others => ' '),
         Ver_Len                      => 0,
-        Frontend_Exceptions          => False,
         Zero_Cost_Exceptions         => False);
 
       --  Now we acquire the input lines from the ALI file. Note that the
@@ -1919,6 +1920,24 @@ package body ALI is
          C := Getc;
       end loop A_Loop;
 
+      --  Acquire 'K' lines if present
+
+      Check_Unknown_Line;
+
+      while C = 'K' loop
+         if Ignore ('K') then
+            Skip_Line;
+
+         else
+            Skip_Space;
+            CUDA_Kernels.Append ((Kernel_Name => Get_Name));
+            ALIs.Table (Id).Last_CUDA_Kernel := CUDA_Kernels.Last;
+            Skip_Eol;
+         end if;
+
+         C := Getc;
+      end loop;
+
       --  Acquire P line
 
       Check_Unknown_Line;
@@ -1973,9 +1992,10 @@ package body ALI is
             elsif C = 'F' then
                C := Getc;
 
+               --  Old front-end exceptions marker, ignore
+
                if C = 'X' then
-                  ALIs.Table (Id).Frontend_Exceptions := True;
-                  Frontend_Exceptions_Specified := True;
+                  null;
                else
                   Fatal_Error_Ignore;
                end if;
@@ -1986,6 +2006,13 @@ package body ALI is
                Checkc ('P');
                GNATprove_Mode_Specified := True;
                ALIs.Table (Id).GNATprove_Mode := True;
+
+            --  Processing for ID (Interrupts Default to System)
+
+            elsif C = 'I' then
+               Checkc ('D');
+               Interrupts_Default_To_System_Specified := True;
+               ALIs.Table (Id).Interrupts_Default_To_System := True;
 
             --  Processing for Lx
 
@@ -2061,7 +2088,24 @@ package body ALI is
                --  Processing for SS
 
                elsif C = 'S' then
-                  Opt.Sec_Stack_Used := True;
+                  --  Special case: a-tags/i-c* by themselves should not set
+                  --  Sec_Stack_Used, only if other code uses the secondary
+                  --  stack should we set this flag. This ensures that we do
+                  --  not bring the secondary stack unnecessarily when using
+                  --  one of these packages and not actually using the
+                  --  secondary stack.
+
+                  declare
+                     File : constant String := Get_Name_String (F);
+                  begin
+                     if File /= "a-tags.ali"
+                       and then File /= "i-c.ali"
+                       and then File /= "i-cstrin.ali"
+                       and then File /= "i-cpoint.ali"
+                     then
+                        Opt.Sec_Stack_Used := True;
+                     end if;
+                  end;
 
                --  Invalid switch starting with S
 
@@ -2898,24 +2942,22 @@ package body ALI is
                Checkc (' ');
                Skip_Space;
                Withs.Increment_Last;
-               Withs.Table (Withs.Last).Uname              := Get_Unit_Name;
-               Withs.Table (Withs.Last).Elaborate          := False;
-               Withs.Table (Withs.Last).Elaborate_All      := False;
-               Withs.Table (Withs.Last).Elab_Desirable     := False;
-               Withs.Table (Withs.Last).Elab_All_Desirable := False;
-               Withs.Table (Withs.Last).SAL_Interface      := False;
-               Withs.Table (Withs.Last).Limited_With       := (C = 'Y');
-               Withs.Table (Withs.Last).Implicit_With      := (C = 'Z');
+               Withs.Table (Withs.Last) :=
+                 (Uname              => Get_Unit_Name,
+                  Sfile              => No_File,
+                  Afile              => No_File,
+                  Elaborate          => False,
+                  Elaborate_All      => False,
+                  Elab_Desirable     => False,
+                  Elab_All_Desirable => False,
+                  SAL_Interface      => False,
+                  Limited_With       => (C = 'Y'),
+                  Implicit_With      => (C = 'Z'));
 
-               --  Generic case with no object file available
+               --  If At_Eol, then no object file is available; leave Sfile and
+               --  Afile as above (No_File).
 
-               if At_Eol then
-                  Withs.Table (Withs.Last).Sfile := No_File;
-                  Withs.Table (Withs.Last).Afile := No_File;
-
-               --  Normal case
-
-               else
+               if not At_Eol then
                   Withs.Table (Withs.Last).Sfile := Get_File_Name
                                                       (Lower => True);
                   Withs.Table (Withs.Last).Afile := Get_File_Name
@@ -3252,8 +3294,8 @@ package body ALI is
 
             --  Acquire (sub)unit and reference file name entries
 
-            Sdep.Table (Sdep.Last).Subunit_Name := No_Name;
-            Sdep.Table (Sdep.Last).Unit_Name    := No_Name;
+            Sdep.Table (Sdep.Last).Subunit_Name := No_Unit_Name;
+            Sdep.Table (Sdep.Last).Unit_Name    := No_Unit_Name;
             Sdep.Table (Sdep.Last).Rfile        :=
               Sdep.Table (Sdep.Last).Sfile;
             Sdep.Table (Sdep.Last).Start_Line   := 1;
@@ -3269,16 +3311,13 @@ package body ALI is
                      Add_Char_To_Name_Buffer (Getc);
                   end loop;
 
-                  --  Set the (sub)unit name. Note that we use Name_Find rather
-                  --  than Name_Enter here as the subunit name may already
-                  --  have been put in the name table by the Project Manager.
+                  --  Set the (sub)unit name.
 
                   if Name_Len <= 2
                     or else Name_Buffer (Name_Len - 1) /= '%'
                   then
                      Sdep.Table (Sdep.Last).Subunit_Name := Name_Find;
                   else
-                     Name_Len := Name_Len - 2;
                      Sdep.Table (Sdep.Last).Unit_Name := Name_Find;
                   end if;
 

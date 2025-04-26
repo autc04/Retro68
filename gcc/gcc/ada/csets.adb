@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -28,6 +28,12 @@ with Opt;   use Opt;
 with System.WCh_Con; use System.WCh_Con;
 
 package body Csets is
+
+   Identifier_Char_Table : Char_Array_Flags;
+   --  This table contains all statically known characters which can appear in
+   --  identifiers, but excludes characters which need to be known dynamically,
+   --  for example like those that depend on the current Ada version which may
+   --  change from file to file.
 
    X_80 : constant Character := Character'Val (16#80#);
    X_81 : constant Character := Character'Val (16#81#);
@@ -558,7 +564,7 @@ package body Csets is
       'q' => 'Q',  X_A8 => X_A6,
       'r' => 'R',  X_B8 => X_B4,
       's' => 'S',  X_BD => X_BC,
-      't' => 'T',  X_BE => X_FF,
+      't' => 'T',  X_BE => X_BE,
       'u' => 'U',
       'v' => 'V',
       'w' => 'W',
@@ -581,7 +587,7 @@ package body Csets is
       'M' => 'M',  X_CC => X_CC,  X_DC => X_DC,
       'N' => 'N',  X_CD => X_CD,  X_DD => X_DD,
       'O' => 'O',  X_CE => X_CE,  X_DE => X_DE,
-      'P' => 'P',  X_CF => X_CF,  X_DF => X_DF,  X_FF => X_FF,
+      'P' => 'P',  X_CF => X_CF,  X_DF => X_DF,  X_FF => X_BE,
       'Q' => 'Q',  X_A6 => X_A6,
       'R' => 'R',  X_B4 => X_B4,
       'S' => 'S',  X_BC => X_BC,
@@ -835,6 +841,8 @@ package body Csets is
       X_98 => X_98,  -- y umlaut
       X_99 => X_99,  -- O umlaut
       X_9A => X_9A,  -- U umlaut
+      X_9B => X_9D,  -- o with stroke
+      X_9D => X_9D,  -- O with stroke
 
       X_A0 => X_B5,  -- a acute
       X_A1 => X_D6,  -- i acute
@@ -1083,6 +1091,34 @@ package body Csets is
 
       others => ' ');
 
+   ---------------------
+   -- Identifier_Char --
+   ---------------------
+
+   function Identifier_Char (Item : Character) return Boolean is
+   begin
+      --  Handle explicit dynamic cases
+
+      case Item is
+
+         --  Add [ as an identifier character to deal with the brackets
+         --  notation for wide characters used in identifiers for versions up
+         --  to Ada 2012.
+
+         --  Note that if we are not allowing wide characters in identifiers,
+         --  then any use of this notation will be flagged as an error in
+         --  Scan_Identifier.
+
+         when '[' | ']' =>
+            return Ada_Version < Ada_2022;
+
+         --  Otherwise, this is a static case - use the table
+
+         when others =>
+            return Identifier_Char_Table (Item);
+      end case;
+   end Identifier_Char;
+
    ----------------
    -- Initialize --
    ----------------
@@ -1142,15 +1178,8 @@ package body Csets is
       --  Build Identifier_Char table from used entries of Fold_Upper
 
       for J in Character loop
-         Identifier_Char (J) := (Fold_Upper (J) /= ' ');
+         Identifier_Char_Table (J) := (Fold_Upper (J) /= ' ');
       end loop;
-
-      --  Always add [ as an identifier character to deal with the brackets
-      --  notation for wide characters used in identifiers. Note that if
-      --  we are not allowing wide characters in identifiers, then any use
-      --  of this notation will be flagged as an error in Scan_Identifier.
-
-      Identifier_Char ('[') := True;
 
       --  Add entry for ESC if wide characters in use with a wide character
       --  encoding method active that uses the ESC code for encoding.
@@ -1158,7 +1187,7 @@ package body Csets is
       if Identifier_Character_Set = 'w'
         and then Wide_Character_Encoding_Method in WC_ESC_Encoding_Method
       then
-         Identifier_Char (ASCII.ESC) := True;
+         Identifier_Char_Table (ASCII.ESC) := True;
       end if;
    end Initialize;
 

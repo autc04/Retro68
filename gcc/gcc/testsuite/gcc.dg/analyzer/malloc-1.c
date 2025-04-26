@@ -1,5 +1,3 @@
-/* { dg-require-effective-target alloca } */
-
 #include <stdlib.h>
 
 extern int foo (void);
@@ -124,7 +122,7 @@ void test_12 (void)
 
   while (1)
     {
-      free (ptr);
+      free (ptr); /* { dg-warning "infinite loop" } */
       free (ptr); /* { dg-warning "double-'free' of 'ptr'" } */
     }
 }
@@ -625,5 +623,14 @@ void test_50c (void)
   free (&&my_label); /* { dg-warning "'free' of '&my_label' which points to memory not on the heap \\\[CWE-590\\\]" } */
 }
 
+/* Double free after unconditional dereference.  */
+
+int test_51 (int *p)
+{
+  int result = *p;
+  free (p); /* { dg-message "first 'free' here" } */
+  free (p); /* { dg-warning "double-'free' of 'p'" } */
+  return result;
+}
 
 /* { dg-prune-output "\\\[-Wfree-nonheap-object" } */

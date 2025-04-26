@@ -1,5 +1,5 @@
 /* Linux-specific atomic operations for PA Linux.
-   Copyright (C) 2008-2022 Free Software Foundation, Inc.
+   Copyright (C) 2008-2025 Free Software Foundation, Inc.
    Based on code contributed by CodeSourcery for ARM EABI Linux.
    Modifications for PA Linux by Helge Deller <deller@gmx.de>
 
@@ -24,14 +24,15 @@ a copy of the GCC Runtime Library Exception along with this program;
 see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 <http://www.gnu.org/licenses/>.  */
 
-#define EFAULT  14 
+#define EFAULT  14
 #define EBUSY   16
-#define ENOSYS 251 
+#define ENOSYS 251
 
 #define _ASM_EFAULT "-14"
 
 typedef unsigned char u8;
 typedef short unsigned int u16;
+typedef unsigned int u32;
 #ifdef __LP64__
 typedef long unsigned int u64;
 #else
@@ -115,6 +116,36 @@ __kernel_cmpxchg2 (volatile void *mem, const void *oldval, const void *newval,
 #define MASK_1 0xffu
 #define MASK_2 0xffffu
 
+/* Load value with an atomic processor load if possible.  */
+#define ATOMIC_LOAD(TYPE, WIDTH)					\
+  static inline TYPE							\
+  atomic_load_##WIDTH (volatile void *ptr)				\
+  {									\
+    return *(volatile TYPE *)ptr;					\
+  }
+
+#if defined(__LP64__) || defined(__SOFTFP__)
+ATOMIC_LOAD (u64, 8)
+#else
+static inline u64
+atomic_load_8 (volatile void *ptr)
+{
+  u64 result;
+  double tmp;
+
+  asm volatile ("{fldds|fldd} 0(%2),%1\n\t"
+		"{fstds|fstd} %1,-16(%%sp)\n\t"
+		"{ldws|ldw} -16(%%sp),%0\n\t"
+		"{ldws|ldw} -12(%%sp),%R0"
+		: "=r" (result), "=f" (tmp) : "r" (ptr): "memory");
+  return result;
+}
+#endif
+
+ATOMIC_LOAD (u32, 4)
+ATOMIC_LOAD (u16, 2)
+ATOMIC_LOAD (u8, 1)
+
 #define FETCH_AND_OP_2(OP, PFX_OP, INF_OP, TYPE, WIDTH, INDEX)		\
   TYPE HIDDEN								\
   __sync_fetch_and_##OP##_##WIDTH (volatile void *ptr, TYPE val)	\
@@ -123,7 +154,7 @@ __kernel_cmpxchg2 (volatile void *mem, const void *oldval, const void *newval,
     long failure;							\
 									\
     do {								\
-      tmp = __atomic_load_n ((volatile TYPE *)ptr, __ATOMIC_RELAXED);	\
+      tmp = atomic_load_##WIDTH ((volatile TYPE *)ptr);			\
       newval = PFX_OP (tmp INF_OP val);					\
       failure = __kernel_cmpxchg2 (ptr, &tmp, &newval, INDEX);		\
     } while (failure != 0);						\
@@ -160,7 +191,7 @@ FETCH_AND_OP_2 (nand, ~, &, u8, 1, 0)
     long failure;							\
 									\
     do {								\
-      tmp = __atomic_load_n ((volatile TYPE *)ptr, __ATOMIC_RELAXED);	\
+      tmp = atomic_load_##WIDTH ((volatile TYPE *)ptr);			\
       newval = PFX_OP (tmp INF_OP val);					\
       failure = __kernel_cmpxchg2 (ptr, &tmp, &newval, INDEX);		\
     } while (failure != 0);						\
@@ -197,8 +228,7 @@ OP_AND_FETCH_2 (nand, ~, &, u8, 1, 0)
     long failure;							\
 									\
     do {								\
-      tmp = __atomic_load_n ((volatile unsigned int *)ptr,		\
-			     __ATOMIC_RELAXED);				\
+      tmp = atomic_load_4 ((volatile unsigned int *)ptr);		\
       failure = __kernel_cmpxchg (ptr, tmp, PFX_OP (tmp INF_OP val));	\
     } while (failure != 0);						\
 									\
@@ -220,8 +250,7 @@ FETCH_AND_OP_WORD (nand, ~, &)
     long failure;							\
 									\
     do {								\
-      tmp = __atomic_load_n ((volatile unsigned int *)ptr,		\
-			     __ATOMIC_RELAXED);				\
+      tmp = atomic_load_4 ((volatile unsigned int *)ptr);		\
       failure = __kernel_cmpxchg (ptr, tmp, PFX_OP (tmp INF_OP val));	\
     } while (failure != 0);						\
 									\
@@ -235,8 +264,6 @@ OP_AND_FETCH_WORD (and,   , &)
 OP_AND_FETCH_WORD (xor,   , ^)
 OP_AND_FETCH_WORD (nand, ~, &)
 
-typedef unsigned char bool;
-
 #define COMPARE_AND_SWAP_2(TYPE, WIDTH, INDEX)				\
   TYPE HIDDEN								\
   __sync_val_compare_and_swap_##WIDTH (volatile void *ptr, TYPE oldval,	\
@@ -247,8 +274,7 @@ typedef unsigned char bool;
 									\
     while (1)								\
       {									\
-	actual_oldval = __atomic_load_n ((volatile TYPE *)ptr,		\
-					 __ATOMIC_RELAXED);		\
+	actual_oldval = atomic_load_##WIDTH ((volatile TYPE *)ptr);	\
 									\
 	if (__builtin_expect (oldval != actual_oldval, 0))		\
 	  return actual_oldval;						\
@@ -278,17 +304,16 @@ __sync_val_compare_and_swap_4 (volatile void *ptr, unsigned int oldval,
 {
   long fail;
   unsigned int actual_oldval;
-    
+
   while (1)
     {
-      actual_oldval = __atomic_load_n ((volatile unsigned int *)ptr,
-				       __ATOMIC_RELAXED);
+      actual_oldval = atomic_load_4 ((volatile unsigned int *)ptr);
 
       if (__builtin_expect (oldval != actual_oldval, 0))
 	return actual_oldval;
 
       fail = __kernel_cmpxchg (ptr, actual_oldval, newval);
-  
+
       if (__builtin_expect (!fail, 1))
 	return actual_oldval;
     }
@@ -310,8 +335,7 @@ TYPE HIDDEN								\
     long failure;							\
 									\
     do {								\
-      oldval = __atomic_load_n ((volatile TYPE *)ptr,			\
-				__ATOMIC_RELAXED);			\
+      oldval = atomic_load_##WIDTH ((volatile TYPE *)ptr);		\
       failure = __kernel_cmpxchg2 (ptr, &oldval, &val, INDEX);		\
     } while (failure != 0);						\
 									\
@@ -322,14 +346,14 @@ SYNC_LOCK_TEST_AND_SET_2 (u64, 8, 3)
 SYNC_LOCK_TEST_AND_SET_2 (u16, 2, 1)
 SYNC_LOCK_TEST_AND_SET_2 (u8, 1, 0)
 
-unsigned int HIDDEN
+u32 HIDDEN
 __sync_lock_test_and_set_4 (volatile void *ptr, unsigned int val)
 {
   long failure;
   unsigned int oldval;
 
   do {
-    oldval = __atomic_load_n ((volatile unsigned int *)ptr, __ATOMIC_RELAXED);
+    oldval = atomic_load_4 ((volatile unsigned int *)ptr);
     failure = __kernel_cmpxchg (ptr, oldval, val);
   } while (failure != 0);
 
@@ -344,8 +368,7 @@ __sync_lock_test_and_set_4 (volatile void *ptr, unsigned int val)
     long failure;						\
 								\
     do {							\
-      oldval = __atomic_load_n ((volatile TYPE *)ptr,		\
-				__ATOMIC_RELAXED);		\
+      oldval = atomic_load_##WIDTH ((volatile TYPE *)ptr);	\
       failure = __kernel_cmpxchg2 (ptr, &oldval, &val, INDEX);	\
     } while (failure != 0);					\
   }
@@ -361,7 +384,27 @@ __sync_lock_release_4 (volatile void *ptr)
   unsigned int oldval;
 
   do {
-    oldval = __atomic_load_n ((volatile unsigned int *)ptr, __ATOMIC_RELAXED);
+    oldval = atomic_load_4 ((volatile unsigned int *)ptr);
     failure = __kernel_cmpxchg (ptr, oldval, 0);
   } while (failure != 0);
 }
+
+#ifndef __LP64__
+#define SYNC_LOCK_LOAD_2(TYPE, WIDTH, INDEX)				\
+  TYPE __sync_lock_load_##WIDTH (volatile void *) HIDDEN;		\
+  TYPE									\
+  __sync_lock_load_##WIDTH (volatile void *ptr)				\
+  {									\
+    TYPE oldval;							\
+    long failure;							\
+									\
+    do {								\
+      oldval = atomic_load_##WIDTH ((volatile TYPE *)ptr);		\
+      failure = __kernel_cmpxchg2 (ptr, &oldval, &oldval, INDEX);	\
+    } while (failure != 0);						\
+									\
+    return oldval;							\
+  }
+
+SYNC_LOCK_LOAD_2 (u64, 8, 3)
+#endif

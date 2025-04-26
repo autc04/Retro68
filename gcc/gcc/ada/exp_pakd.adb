@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -95,8 +95,8 @@ package body Exp_Pakd is
    --  This expression includes any required range checks.
 
    function Compute_Number_Components
-      (N   : Node_Id;
-       Typ : Entity_Id) return Node_Id;
+     (N   : Node_Id;
+      Typ : Entity_Id) return Node_Id;
    --  Build an expression that multiplies the length of the dimensions of the
    --  array, used to control array equality checks.
 
@@ -153,11 +153,11 @@ package body Exp_Pakd is
    --  reference the corresponding packed array type.
 
    procedure Setup_Inline_Packed_Array_Reference
-     (N      : Node_Id;
-      Atyp   : Entity_Id;
-      Obj    : in out Node_Id;
-      Cmask  : out Uint;
-      Shift  : out Node_Id);
+     (N     : Node_Id;
+      Atyp  : Entity_Id;
+      Obj   : in out Node_Id;
+      Cmask : out Uint;
+      Shift : out Node_Id);
    --  This procedure performs common processing on the N_Indexed_Component
    --  parameter given as N, whose prefix is a reference to a packed array.
    --  This is used for the get and set when the component size is 1, 2, 4,
@@ -414,8 +414,8 @@ package body Exp_Pakd is
    -------------------------------
 
    function Compute_Number_Components
-      (N   : Node_Id;
-       Typ : Entity_Id) return Node_Id
+     (N   : Node_Id;
+      Typ : Entity_Id) return Node_Id
    is
       Loc      : constant Source_Ptr := Sloc (N);
       Len_Expr : Node_Id;
@@ -541,8 +541,12 @@ package body Exp_Pakd is
 
          if Is_Itype (Typ) then
             Set_Parent (Decl, Associated_Node_For_Itype (Typ));
+            Set_Associated_Node_For_Itype
+              (PAT, Associated_Node_For_Itype (Typ));
          else
             Set_Parent (Decl, Declaration_Node (Typ));
+            Set_Associated_Node_For_Itype
+              (PAT, Declaration_Node (Typ));
          end if;
 
          if Scope (Typ) /= Current_Scope then
@@ -593,6 +597,14 @@ package body Exp_Pakd is
          Set_Parent                    (PAT, Empty);
          Set_Associated_Node_For_Itype (PAT, Typ);
          Set_Original_Array_Type       (PAT, Typ);
+
+         --  In the case of a constrained array type, also set fields on the
+         --  implicit base type built during the analysis of its declaration.
+
+         if Ekind (PAT) = E_Array_Subtype then
+            Set_Is_Packed_Array_Impl_Type (Etype (PAT), True);
+            Set_Original_Array_Type       (Etype (PAT), Base_Type (Typ));
+         end if;
 
          --  Propagate representation aspects
 
@@ -671,11 +683,11 @@ package body Exp_Pakd is
          return;
       end if;
 
-      --  If our immediate ancestor subtype is constrained, and it already
-      --  has a packed array type, then just share the same type, since the
-      --  bounds must be the same. If the ancestor is not an array type but
-      --  a private type, as can happen with multiple instantiations, create
-      --  a new packed type, to avoid privacy issues.
+      --  If our immediate ancestor subtype is constrained, and it already has
+      --  a packed array type, and it has the same size, then just share the
+      --  same type, since the bounds must be the same. If the ancestor is not
+      --  an array type but a private type, as can happen with multiple
+      --  instantiations, create a new packed type, to avoid privacy issues.
 
       if Ekind (Typ) = E_Array_Subtype then
          Ancest := Ancestor_Subtype (Typ);
@@ -684,6 +696,9 @@ package body Exp_Pakd is
            and then Is_Array_Type (Ancest)
            and then Is_Constrained (Ancest)
            and then Present (Packed_Array_Impl_Type (Ancest))
+           and then Known_Esize (Typ)
+           and then Known_Esize (Ancest)
+           and then Esize (Typ) = Esize (Ancest)
          then
             Set_Packed_Array_Impl_Type (Typ, Packed_Array_Impl_Type (Ancest));
             return;
@@ -811,7 +826,7 @@ package body Exp_Pakd is
                    Subtype_Marks => Indexes,
                    Component_Definition =>
                      Make_Component_Definition (Loc,
-                       Aliased_Present    => False,
+                       Aliased_Present    => Has_Aliased_Components (Typ),
                        Subtype_Indication =>
                           New_Occurrence_Of (Ctyp, Loc)));
 
@@ -821,7 +836,7 @@ package body Exp_Pakd is
                     Discrete_Subtype_Definitions => Indexes,
                     Component_Definition =>
                       Make_Component_Definition (Loc,
-                        Aliased_Present    => False,
+                        Aliased_Present    => Has_Aliased_Components (Typ),
                         Subtype_Indication =>
                           New_Occurrence_Of (Ctyp, Loc)));
             end if;
@@ -1056,9 +1071,11 @@ package body Exp_Pakd is
       Obj   : Node_Id;
       Atyp  : Entity_Id;
       PAT   : Entity_Id;
-      Ctyp  : Entity_Id;
-      Csiz  : Int;
       Cmask : Uint;
+
+      Arr_Typ : constant Entity_Id := Etype (Prefix (Lhs));
+      Ctyp    : constant Entity_Id := Component_Type (Arr_Typ);
+      Csiz    : constant Int := UI_To_Int (Component_Size (Arr_Typ));
 
       Shift : Node_Id;
       --  The expression for the shift value that is required
@@ -1070,12 +1087,9 @@ package body Exp_Pakd is
       New_Lhs : Node_Id;
       New_Rhs : Node_Id;
 
-      Rhs_Val_Known : Boolean;
-      Rhs_Val       : Uint;
+      Rhs_Val : Uint;
       --  If the value of the right hand side as an integer constant is
-      --  known at compile time, Rhs_Val_Known is set True, and Rhs_Val
-      --  contains the value. Otherwise Rhs_Val_Known is set False, and
-      --  the Rhs_Val is undefined.
+      --  known at compile time, Rhs_Val contains the value.
 
       function Get_Shift return Node_Id;
       --  Function used to get the value of Shift, making sure that it
@@ -1107,12 +1121,14 @@ package body Exp_Pakd is
    begin
       pragma Assert (Is_Bit_Packed_Array (Etype (Prefix (Lhs))));
 
+      if CodePeer_Mode then
+         return;
+      end if;
+
       Obj := Relocate_Node (Prefix (Lhs));
       Convert_To_Actual_Subtype (Obj);
       Atyp := Etype (Obj);
       PAT  := Packed_Array_Impl_Type (Atyp);
-      Ctyp := Component_Type (Atyp);
-      Csiz := UI_To_Int (Component_Size (Atyp));
 
       --  We remove side effects, in case the rhs modifies the lhs, because we
       --  are about to transform the rhs into an expression that first READS
@@ -1134,20 +1150,19 @@ package body Exp_Pakd is
 
       if Nkind (Rhs) = N_String_Literal then
          declare
-            Decl : Node_Id;
-         begin
-            Decl :=
+            Decl : constant Node_Id :=
               Make_Object_Declaration (Loc,
                 Defining_Identifier => Make_Temporary (Loc, 'T', Rhs),
                 Object_Definition   => New_Occurrence_Of (Ctyp, Loc),
                 Expression          => New_Copy_Tree (Rhs));
-
+         begin
             Insert_Actions (N, New_List (Decl));
             Rhs := New_Occurrence_Of (Defining_Identifier (Decl), Loc);
          end;
+      else
+         Rhs := Convert_To (Ctyp, Rhs);
       end if;
 
-      Rhs := Convert_To (Ctyp, Rhs);
       Set_Parent (Rhs, N);
 
       --  If we are building the initialization procedure for a packed array,
@@ -1229,8 +1244,7 @@ package body Exp_Pakd is
          --  Determine if right side is all 0 bits or all 1 bits
 
          if Compile_Time_Known_Value (Rhs) then
-            Rhs_Val       := Expr_Rep_Value (Rhs);
-            Rhs_Val_Known := True;
+            Rhs_Val := Expr_Rep_Value (Rhs);
 
          --  The following test catches the case of an unchecked conversion of
          --  an integer literal. This results from optimizing aggregates of
@@ -1239,19 +1253,17 @@ package body Exp_Pakd is
          elsif Nkind (Rhs) = N_Unchecked_Type_Conversion
            and then Compile_Time_Known_Value (Expression (Rhs))
          then
-            Rhs_Val       := Expr_Rep_Value (Expression (Rhs));
-            Rhs_Val_Known := True;
+            Rhs_Val := Expr_Rep_Value (Expression (Rhs));
 
          else
-            Rhs_Val       := No_Uint;
-            Rhs_Val_Known := False;
+            Rhs_Val := No_Uint;
          end if;
 
          --  Some special checks for the case where the right hand value is
          --  known at compile time. Basically we have to take care of the
          --  implicit conversion to the subtype of the component object.
 
-         if Rhs_Val_Known then
+         if Present (Rhs_Val) then
 
             --  If we have a biased component type then we must manually do the
             --  biasing, since we are taking responsibility in this case for
@@ -1288,7 +1300,7 @@ package body Exp_Pakd is
 
          --  First we deal with the "and"
 
-         if not Rhs_Val_Known or else Rhs_Val /= Cmask then
+         if No (Rhs_Val) or else Rhs_Val /= Cmask then
             declare
                Mask1 : Node_Id;
                Lit   : Node_Id;
@@ -1318,7 +1330,7 @@ package body Exp_Pakd is
 
          --  Then deal with the "or"
 
-         if not Rhs_Val_Known or else Rhs_Val /= 0 then
+         if No (Rhs_Val) or else Rhs_Val /= 0 then
             declare
                Or_Rhs : Node_Id;
 
@@ -1358,7 +1370,7 @@ package body Exp_Pakd is
                end Fixup_Rhs;
 
             begin
-               if Rhs_Val_Known
+               if Present (Rhs_Val)
                  and then Compile_Time_Known_Value (Get_Shift)
                then
                   Or_Rhs :=
@@ -1386,7 +1398,7 @@ package body Exp_Pakd is
                   --  which will be properly retyped when we analyze and
                   --  resolve the expression.
 
-                  elsif Rhs_Val_Known then
+                  elsif Present (Rhs_Val) then
 
                      --  Note that Rhs_Val has already been normalized to
                      --  be an unsigned value with the proper number of bits.
@@ -1436,7 +1448,6 @@ package body Exp_Pakd is
             Bits_nn : constant Entity_Id := RTE (Bits_Id (Csiz));
             Set_nn  : Entity_Id;
             Subscr  : Node_Id;
-            Atyp    : Entity_Id;
             Rev_SSO : Node_Id;
 
          begin
@@ -1458,9 +1469,6 @@ package body Exp_Pakd is
 
             --  Now generate the set reference
 
-            Obj := Relocate_Node (Prefix (Lhs));
-            Convert_To_Actual_Subtype (Obj);
-            Atyp := Etype (Obj);
             Compute_Linear_Subscript (Atyp, Lhs, Subscr);
 
             --  Set indication of whether the packed array has reverse SSO
@@ -1503,6 +1511,10 @@ package body Exp_Pakd is
       Offset : Node_Id;
 
    begin
+      if CodePeer_Mode then
+         return;
+      end if;
+
       --  We build an expression that has the form
 
       --    outer_object'Address
@@ -1542,6 +1554,10 @@ package body Exp_Pakd is
       Offset : Node_Id;
 
    begin
+      if CodePeer_Mode then
+         return;
+      end if;
+
       --  We build an expression that has the form
 
       --    (linear-subscript * component_size      for each array reference
@@ -1577,6 +1593,10 @@ package body Exp_Pakd is
       PAT  : Entity_Id;
 
    begin
+      if CodePeer_Mode then
+         return;
+      end if;
+
       Convert_To_Actual_Subtype (L);
       Convert_To_Actual_Subtype (R);
 
@@ -1740,6 +1760,10 @@ package body Exp_Pakd is
       Arg   : Node_Id;
 
    begin
+      if CodePeer_Mode then
+         return;
+      end if;
+
       --  If the node is an actual in a call, the prefix has not been fully
       --  expanded, to account for the additional expansion for in-out actuals
       --  (see expand_actuals for details). If the prefix itself is a packed
@@ -1903,6 +1927,10 @@ package body Exp_Pakd is
       PAT  : Entity_Id;
 
    begin
+      if CodePeer_Mode then
+         return;
+      end if;
+
       Convert_To_Actual_Subtype (L);
       Convert_To_Actual_Subtype (R);
       Ltyp := Underlying_Type (Etype (L));
@@ -1930,9 +1958,17 @@ package body Exp_Pakd is
       --  modular case we guarantee that the unused bits are always zeroes.
       --  We do have to compare the lengths because we could be comparing
       --  two different subtypes of the same base type. We can only do this
-      --  if the PATs on both sides are the same.
+      --  if the PATs on both sides are modular (in which case they are
+      --  necessarily structurally the same -- same Modulus and so on);
+      --  otherwise, we have a case where the right operand is not of
+      --  compile time known size.
 
-      if Is_Modular_Integer_Type (PAT) and then PAT = Etype (R) then
+      if Is_Modular_Integer_Type (PAT)
+        and then Is_Modular_Integer_Type (Etype (R))
+      then
+         pragma Assert (RM_Size (Etype (R)) = RM_Size (PAT));
+         pragma Assert (Modulus (Etype (R)) = Modulus (PAT));
+
          Rewrite (N,
            Make_And_Then (Loc,
              Left_Opnd =>
@@ -1992,6 +2028,10 @@ package body Exp_Pakd is
       Size : Unat;
 
    begin
+      if CodePeer_Mode then
+         return;
+      end if;
+
       Convert_To_Actual_Subtype (Opnd);
       Rtyp := Etype (Opnd);
 
@@ -2101,8 +2141,8 @@ package body Exp_Pakd is
 
       --  We build up an expression serially that has the form
 
-      --    linear-subscript * component_size       for each array reference
-      --      +  field'Bit_Position                 for each record field
+      --    linear-subscript * component_size     for each array component ref
+      --      +  pref.component'Bit_Position      for each record component ref
       --      +  ...
 
       loop
@@ -2124,7 +2164,7 @@ package body Exp_Pakd is
          elsif Nkind (Base) = N_Selected_Component then
             Term :=
               Make_Attribute_Reference (Loc,
-                Prefix         => Selector_Name (Base),
+                Prefix         => Base,
                 Attribute_Name => Name_Bit_Position);
 
          else
@@ -2199,7 +2239,7 @@ package body Exp_Pakd is
          end loop;
 
          return False;
-      end  In_Partially_Packed_Record;
+      end In_Partially_Packed_Record;
 
    --  Start of processing for Known_Aligned_Enough
 
@@ -2461,21 +2501,19 @@ package body Exp_Pakd is
    -----------------------------------------
 
    procedure Setup_Inline_Packed_Array_Reference
-     (N      : Node_Id;
-      Atyp   : Entity_Id;
-      Obj    : in out Node_Id;
-      Cmask  : out Uint;
-      Shift  : out Node_Id)
+     (N     : Node_Id;
+      Atyp  : Entity_Id;
+      Obj   : in out Node_Id;
+      Cmask : out Uint;
+      Shift : out Node_Id)
    is
       Loc  : constant Source_Ptr := Sloc (N);
       PAT  : Entity_Id;
       Otyp : Entity_Id;
-      Csiz : Uint;
+      Csiz : constant Uint := Component_Size (Atyp);
       Osiz : Uint;
 
    begin
-      Csiz := Component_Size (Atyp);
-
       Convert_To_PAT_Type (Obj);
       PAT := Etype (Obj);
 

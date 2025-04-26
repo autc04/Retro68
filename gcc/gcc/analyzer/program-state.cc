@@ -1,5 +1,5 @@
 /* Classes for representing the state of interest at a given path of analysis.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2025 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -19,19 +19,17 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 #include "config.h"
+#define INCLUDE_VECTOR
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
 #include "diagnostic-core.h"
 #include "diagnostic.h"
-#include "function.h"
-#include "json.h"
 #include "analyzer/analyzer.h"
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/sm.h"
 #include "sbitmap.h"
 #include "bitmap.h"
-#include "tristate.h"
 #include "ordered-hash-map.h"
 #include "selftest.h"
 #include "analyzer/call-string.h"
@@ -40,9 +38,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "analyzer/region-model.h"
 #include "analyzer/program-state.h"
 #include "analyzer/constraint-manager.h"
-#include "alloc-pool.h"
-#include "fibonacci_heap.h"
-#include "shortest-paths.h"
 #include "diagnostic-event-id.h"
 #include "analyzer/pending-diagnostic.h"
 #include "analyzer/diagnostic-manager.h"
@@ -56,7 +51,11 @@ along with GCC; see the file COPYING3.  If not see
 #include "analyzer/program-state.h"
 #include "analyzer/exploded-graph.h"
 #include "analyzer/state-purge.h"
+#include "analyzer/call-summary.h"
 #include "analyzer/analyzer-selftests.h"
+#include "text-art/tree-widget.h"
+#include "text-art/dump.h"
+#include "make-unique.h"
 
 #if ENABLE_ANALYZER
 
@@ -84,12 +83,8 @@ extrinsic_state::dump_to_pp (pretty_printer *pp) const
 void
 extrinsic_state::dump_to_file (FILE *outf) const
 {
-  pretty_printer pp;
-  if (outf == stderr)
-    pp_show_color (&pp) = pp_show_color (global_dc->printer);
-  pp.buffer->stream = outf;
+  tree_dump_pretty_printer pp (outf);
   dump_to_pp (&pp);
-  pp_flush (&pp);
 }
 
 /* Dump a multiline representation of this state to stderr.  */
@@ -103,18 +98,18 @@ extrinsic_state::dump () const
 /* Return a new json::object of the form
    {"checkers"  : array of objects, one for each state_machine}.  */
 
-json::object *
+std::unique_ptr<json::object>
 extrinsic_state::to_json () const
 {
-  json::object *ext_state_obj = new json::object ();
+  auto ext_state_obj = ::make_unique<json::object> ();
 
   {
-    json::array *checkers_arr = new json::array ();
+    auto checkers_arr = ::make_unique<json::array> ();
     unsigned i;
     state_machine *sm;
     FOR_EACH_VEC_ELT (m_checkers, i, sm)
       checkers_arr->append (sm->to_json ());
-    ext_state_obj->set ("checkers", checkers_arr);
+    ext_state_obj->set ("checkers", std::move (checkers_arr));
   }
 
   return ext_state_obj;
@@ -272,23 +267,19 @@ sm_state_map::print (const region_model *model,
 DEBUG_FUNCTION void
 sm_state_map::dump (bool simple) const
 {
-  pretty_printer pp;
-  pp_format_decoder (&pp) = default_tree_printer;
-  pp_show_color (&pp) = pp_show_color (global_dc->printer);
-  pp.buffer->stream = stderr;
+  tree_dump_pretty_printer pp (stderr);
   print (NULL, simple, true, &pp);
   pp_newline (&pp);
-  pp_flush (&pp);
 }
 
 /* Return a new json::object of the form
    {"global"  : (optional) value for global state,
     SVAL_DESC : value for state}.  */
 
-json::object *
+std::unique_ptr<json::object>
 sm_state_map::to_json () const
 {
-  json::object *map_obj = new json::object ();
+  auto map_obj = ::make_unique<json::object> ();
 
   if (m_global_state != m_sm.get_start_state ())
     map_obj->set ("global", m_global_state->to_json ());
@@ -300,12 +291,90 @@ sm_state_map::to_json () const
       entry_t e = (*iter).second;
 
       label_text sval_desc = sval->get_desc ();
-      map_obj->set (sval_desc.m_buffer, e.m_state->to_json ());
-      sval_desc.maybe_free ();
+      map_obj->set (sval_desc.get (), e.m_state->to_json ());
 
       /* This doesn't yet JSONify e.m_origin.  */
     }
   return map_obj;
+}
+
+/* Make a text_art::tree_widget describing this sm_state_map,
+   using MODEL if non-null to describe svalues.  */
+
+std::unique_ptr<text_art::tree_widget>
+sm_state_map::make_dump_widget (const text_art::dump_widget_info &dwi,
+				const region_model *model) const
+{
+  using text_art::styled_string;
+  using text_art::tree_widget;
+  std::unique_ptr<tree_widget> state_widget
+    (tree_widget::from_fmt (dwi, nullptr,
+			    "%qs state machine", m_sm.get_name ()));
+
+  if (m_global_state != m_sm.get_start_state ())
+    {
+      pretty_printer the_pp;
+      pretty_printer * const pp = &the_pp;
+      pp_format_decoder (pp) = default_tree_printer;
+      pp_string (pp, "Global State: ");
+      m_global_state->dump_to_pp (pp);
+      state_widget->add_child (tree_widget::make (dwi, pp));
+    }
+
+  auto_vec <const svalue *> keys (m_map.elements ());
+  for (map_t::iterator iter = m_map.begin ();
+       iter != m_map.end ();
+       ++iter)
+    keys.quick_push ((*iter).first);
+  keys.qsort (svalue::cmp_ptr_ptr);
+  unsigned i;
+  const svalue *sval;
+  FOR_EACH_VEC_ELT (keys, i, sval)
+    {
+      pretty_printer the_pp;
+      pretty_printer * const pp = &the_pp;
+      const bool simple = true;
+      pp_format_decoder (pp) = default_tree_printer;
+      if (!flag_dump_noaddr)
+	{
+	  pp_pointer (pp, sval);
+	  pp_string (pp, ": ");
+	}
+      sval->dump_to_pp (pp, simple);
+
+      entry_t e = *const_cast <map_t &> (m_map).get (sval);
+      pp_string (pp, ": ");
+      e.m_state->dump_to_pp (pp);
+      if (model)
+	if (tree rep = model->get_representative_tree (sval))
+	  {
+	    pp_string (pp, " (");
+	    dump_quoted_tree (pp, rep);
+	    pp_character (pp, ')');
+	  }
+      if (e.m_origin)
+	{
+	  pp_string (pp, " (origin: ");
+	  if (!flag_dump_noaddr)
+	    {
+	      pp_pointer (pp, e.m_origin);
+	      pp_string (pp, ": ");
+	    }
+	  e.m_origin->dump_to_pp (pp, simple);
+	  if (model)
+	    if (tree rep = model->get_representative_tree (e.m_origin))
+	      {
+		pp_string (pp, " (");
+		dump_quoted_tree (pp, rep);
+		pp_character (pp, ')');
+	      }
+	  pp_string (pp, ")");
+	}
+
+      state_widget->add_child (tree_widget::make (dwi, pp));
+    }
+
+  return state_widget;
 }
 
 /* Return true if no states have been set within this map
@@ -523,6 +592,22 @@ sm_state_map::impl_set_state (const svalue *sval,
   return true;
 }
 
+/* Clear any state for SVAL from this state map.  */
+
+void
+sm_state_map::clear_any_state (const svalue *sval)
+{
+  m_map.remove (sval);
+}
+
+/* Clear all per-svalue state within this state map.  */
+
+void
+sm_state_map::clear_all_per_svalue_state ()
+{
+  m_map.empty ();
+}
+
 /* Set the "global" state within this state map to STATE.  */
 
 void
@@ -549,9 +634,10 @@ sm_state_map::on_svalue_leak (const svalue *sval,
 {
   if (state_machine::state_t state = get_state (sval, ctxt->m_ext_state))
     {
-      if (!m_sm.can_purge_p (state))
+      if (m_sm.can_purge_p (state))
+	m_map.remove (sval);
+      else
 	ctxt->on_state_leak (m_sm, sval, state);
-      m_map.remove (sval);
     }
 }
 
@@ -561,6 +647,7 @@ sm_state_map::on_svalue_leak (const svalue *sval,
 void
 sm_state_map::on_liveness_change (const svalue_set &live_svalues,
 				  const region_model *model,
+				  const extrinsic_state &ext_state,
 				  impl_region_model_context *ctxt)
 {
   svalue_set svals_to_unset;
@@ -594,9 +681,68 @@ sm_state_map::on_liveness_change (const svalue_set &live_svalues,
       ctxt->on_state_leak (m_sm, sval, e.m_state);
     }
 
+  sm_state_map old_sm_map = *this;
+
   for (svalue_set::iterator iter = svals_to_unset.begin ();
        iter != svals_to_unset.end (); ++iter)
     m_map.remove (*iter);
+
+  /* For state machines like "taint" where states can be
+     alt-inherited from other svalues, ensure that state purging doesn't
+     make us lose sm-state.
+
+     Consider e.g.:
+
+     make_tainted(foo);
+     if (foo.field > 128)
+       return;
+     arr[foo.field].f1 = v1;
+
+     where the last line is:
+
+     (A): _t1 = foo.field;
+     (B): _t2 = _t1 * sizeof(arr[0]);
+     (C): [arr + _t2].f1 = val;
+
+     At (A), foo is 'tainted' and foo.field is 'has_ub'.
+     After (B), foo.field's value (in _t1) is no longer directly
+     within LIVE_SVALUES, so with state purging enabled, we would
+     erroneously purge the "has_ub" state from the svalue.
+
+     Given that _t2's value's state comes from _t1's value's state,
+     we need to preserve that information.
+
+     Hence for all svalues that have had their explicit sm-state unset,
+     having their sm-state being unset, determine if doing so has changed
+     their effective state, and if so, explicitly set their state.
+
+     For example, in the above, unsetting the "has_ub" for _t1's value means
+     that _t2's effective value changes from "has_ub" (from alt-inherited
+     from _t1's value) to "tainted" (inherited from "foo"'s value).
+
+     For such cases, preserve the effective state by explicitly setting the
+     new state.  In the above example, this means explicitly setting _t2's
+     value to the value ("has_ub") it was previously alt-inheriting from _t1's
+     value.  */
+  if (m_sm.has_alt_get_inherited_state_p ())
+    {
+      auto_vec<const svalue *> svalues_needing_state;
+      for (auto unset_sval : svals_to_unset)
+	{
+	  const state_machine::state_t old_state
+	    = old_sm_map.get_state (unset_sval, ext_state);
+	  const state_machine::state_t new_state
+	    = get_state (unset_sval, ext_state);
+	  if (new_state != old_state)
+	    svalues_needing_state.safe_push (unset_sval);
+	}
+      for (auto sval : svalues_needing_state)
+	{
+	  const state_machine::state_t old_state
+	    = old_sm_map.get_state (sval, ext_state);
+	  impl_set_state (sval, old_state, nullptr, ext_state);
+	}
+    }
 }
 
 /* Purge state from SVAL (in response to a call to an unknown function).  */
@@ -724,6 +870,67 @@ sm_state_map::canonicalize_svalue (const svalue *sval,
   return sval;
 }
 
+/* Attempt to merge this state map with OTHER, writing the result
+   into *OUT.
+   Return true if the merger was possible, false otherwise.
+
+   Normally, only identical state maps can be merged, so that
+   differences between state maps lead to different enodes
+
+   However some state machines may support merging states to
+   allow for discarding of less important states, and thus avoid
+   blow-up of the exploded graph.  */
+
+bool
+sm_state_map::can_merge_with_p (const sm_state_map &other,
+				const state_machine &sm,
+				const extrinsic_state &ext_state,
+				sm_state_map **out) const
+{
+  /* If identical, then they merge trivially, with a copy.  */
+  if (*this == other)
+    {
+      delete *out;
+      *out = clone ();
+      return true;
+    }
+
+  delete *out;
+  *out = new sm_state_map (sm);
+
+  /* Otherwise, attempt to merge element by element. */
+
+  /* Try to merge global state.  */
+  if (state_machine::state_t merged_global_state
+      = sm.maybe_get_merged_state (get_global_state (),
+				   other.get_global_state ()))
+    (*out)->set_global_state (merged_global_state);
+  else
+    return false;
+
+  /* Try to merge state each svalue's state (for the union
+     of svalues represented by each smap).
+     Ignore the origin information.  */
+  hash_set<const svalue *> svals;
+  for (auto kv : *this)
+    svals.add (kv.first);
+  for (auto kv : other)
+    svals.add (kv.first);
+  for (auto sval : svals)
+    {
+      state_machine::state_t this_state = get_state (sval, ext_state);
+      state_machine::state_t other_state = other.get_state (sval, ext_state);
+      if (state_machine::state_t merged_state
+	    = sm.maybe_get_merged_state (this_state, other_state))
+	(*out)->impl_set_state (sval, merged_state, NULL, ext_state);
+      else
+	return false;
+    }
+
+  /* Successfully merged all elements.  */
+  return true;
+}
+
 /* class program_state.  */
 
 /* program_state's ctor.  */
@@ -742,6 +949,33 @@ program_state::program_state (const extrinsic_state &ext_state)
       sm_state_map *sm = new sm_state_map (ext_state.get_sm (i));
       m_checker_states.quick_push (sm);
     }
+}
+
+/* Attempt to use R to replay SUMMARY into this object.
+   Return true if it is possible.  */
+
+bool
+sm_state_map::replay_call_summary (call_summary_replay &r,
+				   const sm_state_map &summary)
+{
+  for (auto kv : summary.m_map)
+    {
+      const svalue *summary_sval = kv.first;
+      const svalue *caller_sval = r.convert_svalue_from_summary (summary_sval);
+      if (!caller_sval)
+	continue;
+      if (!caller_sval->can_have_associated_state_p ())
+	continue;
+      const svalue *summary_origin = kv.second.m_origin;
+      const svalue *caller_origin
+	= (summary_origin
+	   ? r.convert_svalue_from_summary (summary_origin)
+	   : NULL);
+      // caller_origin can be NULL.
+      m_map.put (caller_sval, entry_t (kv.second.m_state, caller_origin));
+    }
+  m_global_state = summary.m_global_state;
+  return true;
 }
 
 /* program_state's copy ctor.  */
@@ -923,13 +1157,8 @@ program_state::dump_to_file (const extrinsic_state &ext_state,
 			     bool summarize, bool multiline,
 			     FILE *outf) const
 {
-  pretty_printer pp;
-  pp_format_decoder (&pp) = default_tree_printer;
-  if (outf == stderr)
-    pp_show_color (&pp) = pp_show_color (global_dc->printer);
-  pp.buffer->stream = outf;
+  tree_dump_pretty_printer pp (outf);
   dump_to_pp (ext_state, summarize, multiline, &pp);
-  pp_flush (&pp);
 }
 
 /* Dump a multiline representation of this state to stderr.  */
@@ -941,6 +1170,14 @@ program_state::dump (const extrinsic_state &ext_state,
   dump_to_file (ext_state, summarize, true, stderr);
 }
 
+/* Dump a tree-like representation of this state to stderr.  */
+
+DEBUG_FUNCTION void
+program_state::dump () const
+{
+  text_art::dump (*this);
+}
+
 /* Return a new json::object of the form
    {"store"  : object for store,
     "constraints" : object for constraint_manager,
@@ -948,10 +1185,10 @@ program_state::dump (const extrinsic_state &ext_state,
     "checkers" : { STATE_NAME : object per sm_state_map },
     "valid" : true/false}.  */
 
-json::object *
+std::unique_ptr<json::object>
 program_state::to_json (const extrinsic_state &ext_state) const
 {
-  json::object *state_obj = new json::object ();
+  auto state_obj = ::make_unique<json::object> ();
 
   state_obj->set ("store", m_region_model->get_store ()->to_json ());
   state_obj->set ("constraints",
@@ -962,7 +1199,7 @@ program_state::to_json (const extrinsic_state &ext_state) const
 
   /* Provide m_checker_states as an object, using names as keys.  */
   {
-    json::object *checkers_obj = new json::object ();
+    auto checkers_obj = ::make_unique<json::object> ();
 
     int i;
     sm_state_map *smap;
@@ -970,12 +1207,34 @@ program_state::to_json (const extrinsic_state &ext_state) const
       if (!smap->is_empty_p ())
 	checkers_obj->set (ext_state.get_name (i), smap->to_json ());
 
-    state_obj->set ("checkers", checkers_obj);
+    state_obj->set ("checkers", std::move (checkers_obj));
   }
 
-  state_obj->set ("valid", new json::literal (m_valid));
+  state_obj->set_bool ("valid", m_valid);
 
   return state_obj;
+}
+
+
+std::unique_ptr<text_art::tree_widget>
+program_state::make_dump_widget (const text_art::dump_widget_info &dwi) const
+{
+  using text_art::tree_widget;
+  std::unique_ptr<tree_widget> state_widget
+    (tree_widget::from_fmt (dwi, nullptr, "State"));
+
+  state_widget->add_child (m_region_model->make_dump_widget (dwi));
+
+  /* Add nodes for any sm_state_maps with state.  */
+  {
+    int i;
+    sm_state_map *smap;
+    FOR_EACH_VEC_ELT (m_checker_states, i, smap)
+      if (!smap->is_empty_p ())
+	state_widget->add_child (smap->make_dump_widget (dwi, m_region_model));
+  }
+
+  return state_widget;
 }
 
 /* Update this program_state to reflect a top-level call to FUN.
@@ -983,14 +1242,14 @@ program_state::to_json (const extrinsic_state &ext_state) const
 
 void
 program_state::push_frame (const extrinsic_state &ext_state ATTRIBUTE_UNUSED,
-			   function *fun)
+			   const function &fun)
 {
   m_region_model->push_frame (fun, NULL, NULL);
 }
 
 /* Get the current function of this state.  */
 
-function *
+const function *
 program_state::get_current_function () const
 {
   return m_region_model->get_current_function ();
@@ -1014,6 +1273,27 @@ program_state::on_edge (exploded_graph &eg,
 			const superedge *succ,
 			uncertainty_t *uncertainty)
 {
+  class my_path_context : public path_context
+  {
+  public:
+    my_path_context (bool &terminated) : m_terminated (terminated) {}
+    void bifurcate (std::unique_ptr<custom_edge_info>) final override
+    {
+      gcc_unreachable ();
+    }
+
+    void terminate_path () final override
+    {
+      m_terminated = true;
+    }
+
+    bool terminate_path_p () const final override
+    {
+      return m_terminated;
+    }
+    bool &m_terminated;
+  };
+
   /* Update state.  */
   const program_point &point = enode->get_point ();
   const gimple *last_stmt = point.get_supernode ()->get_last_stmt ();
@@ -1026,23 +1306,33 @@ program_state::on_edge (exploded_graph &eg,
      Adding the relevant conditions for the edge could also trigger
      sm-state transitions (e.g. transitions due to ptrs becoming known
      to be NULL or non-NULL) */
-
+  bool terminated = false;
+  my_path_context path_ctxt (terminated);
   impl_region_model_context ctxt (eg, enode,
 				  &enode->get_state (),
 				  this,
-				  uncertainty, NULL,
+				  uncertainty, &path_ctxt,
 				  last_stmt);
+  std::unique_ptr<rejected_constraint> rc;
+  logger * const logger = eg.get_logger ();
   if (!m_region_model->maybe_update_for_edge (*succ,
 					      last_stmt,
-					      &ctxt, NULL))
+					      &ctxt,
+					      logger ? &rc : nullptr))
     {
-      logger * const logger = eg.get_logger ();
       if (logger)
-	logger->log ("edge to SN: %i is impossible"
-		     " due to region_model constraints",
-		     succ->m_dest->m_index);
+	{
+	  logger->start_log_line ();
+	  logger->log_partial ("edge to SN: %i is impossible"
+			       " due to region_model constraint: ",
+			       succ->m_dest->m_index);
+	  rc->dump_to_pp (logger->get_printer ());
+	  logger->end_log_line ();
+	}
       return false;
     }
+  if (terminated)
+    return false;
 
   program_state::detect_leaks (enode->get_state (), *this,
 			       NULL, eg.get_ext_state (),
@@ -1053,7 +1343,7 @@ program_state::on_edge (exploded_graph &eg,
 
 /* Update this program_state to reflect a call to function
    represented by CALL_STMT.
-   currently used only when the call doesn't have a superedge representing 
+   currently used only when the call doesn't have a superedge representing
    the call ( like call via a function pointer )  */
 void
 program_state::push_call (exploded_graph &eg,
@@ -1076,7 +1366,7 @@ program_state::push_call (exploded_graph &eg,
 
 /* Update this program_state to reflect a return from function
    call to which is represented by CALL_STMT.
-   currently used only when the call doesn't have a superedge representing 
+   currently used only when the call doesn't have a superedge representing
    the return */
 void
 program_state::returning_call (exploded_graph &eg,
@@ -1263,11 +1553,14 @@ program_state::can_merge_with_p (const program_state &other,
   gcc_assert (out);
   gcc_assert (m_region_model);
 
-  /* Early reject if there are sm-differences between the states.  */
+  /* Attempt to merge the sm-states.  */
   int i;
   sm_state_map *smap;
   FOR_EACH_VEC_ELT (out->m_checker_states, i, smap)
-    if (*m_checker_states[i] != *other.m_checker_states[i])
+    if (!m_checker_states[i]->can_merge_with_p (*other.m_checker_states[i],
+						ext_state.get_sm (i),
+						ext_state,
+						&out->m_checker_states[i]))
       return false;
 
   /* Attempt to merge the region_models.  */
@@ -1277,13 +1570,6 @@ program_state::can_merge_with_p (const program_state &other,
 					 &ext_state,
 					 this, &other))
     return false;
-
-  /* Copy m_checker_states to OUT.  */
-  FOR_EACH_VEC_ELT (out->m_checker_states, i, smap)
-    {
-      delete smap;
-      out->m_checker_states[i] = m_checker_states[i]->clone ();
-    }
 
   out->m_region_model->canonicalize ();
 
@@ -1436,6 +1722,28 @@ program_state::detect_leaks (const program_state &src_state,
     if (const region *reg = sval->maybe_get_region ())
       if (reg->get_kind () == RK_HEAP_ALLOCATED)
 	dest_state.m_region_model->unset_dynamic_extents (reg);
+}
+
+/* Attempt to use R to replay SUMMARY into this object.
+   Return true if it is possible.  */
+
+bool
+program_state::replay_call_summary (call_summary_replay &r,
+				    const program_state &summary)
+{
+  if (!m_region_model->replay_call_summary (r, *summary.m_region_model))
+    return false;
+
+  for (unsigned sm_idx = 0; sm_idx < m_checker_states.length (); sm_idx++)
+    {
+      const sm_state_map *summary_sm_map = summary.m_checker_states[sm_idx];
+      m_checker_states[sm_idx]->replay_call_summary (r, *summary_sm_map);
+    }
+
+  if (!summary.m_valid)
+    m_valid = false;
+
+  return true;
 }
 
 /* Handle calls to "__analyzer_dump_state".  */
@@ -1626,7 +1934,7 @@ test_program_state_1 ()
   const svalue *size_in_bytes
     = mgr->get_or_create_unknown_svalue (size_type_node);
   const region *new_reg
-    = model->create_region_for_heap_alloc (size_in_bytes, NULL);
+    = model->get_or_create_region_for_heap_alloc (size_in_bytes, NULL);
   const svalue *ptr_sval = mgr->get_ptr_svalue (ptr_type_node, new_reg);
   model->set_value (model->get_lvalue (p, NULL),
 		    ptr_sval, NULL);
@@ -1668,12 +1976,12 @@ test_program_state_merging ()
      malloc sm-state, pointing to a region on the heap.  */
   tree p = build_global_decl ("p", ptr_type_node);
 
-  program_point point (program_point::origin ());
+  engine eng;
+  region_model_manager *mgr = eng.get_model_manager ();
+  program_point point (program_point::origin (*mgr));
   auto_delete_vec <state_machine> checkers;
   checkers.safe_push (make_malloc_state_machine (NULL));
-  engine eng;
   extrinsic_state ext_state (checkers, &eng);
-  region_model_manager *mgr = eng.get_model_manager ();
 
   program_state s0 (ext_state);
   uncertainty_t uncertainty;
@@ -1683,7 +1991,7 @@ test_program_state_merging ()
   const svalue *size_in_bytes
     = mgr->get_or_create_unknown_svalue (size_type_node);
   const region *new_reg
-    = model0->create_region_for_heap_alloc (size_in_bytes, NULL);
+    = model0->get_or_create_region_for_heap_alloc (size_in_bytes, NULL);
   const svalue *ptr_sval = mgr->get_ptr_svalue (ptr_type_node, new_reg);
   model0->set_value (model0->get_lvalue (p, &ctxt),
 		     ptr_sval, &ctxt);
@@ -1736,10 +2044,11 @@ test_program_state_merging ()
 static void
 test_program_state_merging_2 ()
 {
-  program_point point (program_point::origin ());
+  engine eng;
+  region_model_manager *mgr = eng.get_model_manager ();
+  program_point point (program_point::origin (*mgr));
   auto_delete_vec <state_machine> checkers;
   checkers.safe_push (make_signal_state_machine (NULL));
-  engine eng;
   extrinsic_state ext_state (checkers, &eng);
 
   const state_machine::state test_state_0 ("test state 0", 0);

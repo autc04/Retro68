@@ -8,7 +8,6 @@
  */
 module core.sys.windows.winbase;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "kernel32");
@@ -39,6 +38,7 @@ import core.sys.windows.basetyps, core.sys.windows.w32api, core.sys.windows.winn
 // FIXME:
 //alias void va_list;
 import core.stdc.stdarg : va_list;
+import core.stdc.string : memset, memcpy, memmove;
 
 
 // COMMPROP structure, used by GetCommProperties()
@@ -345,6 +345,14 @@ enum DWORD
     SECURITY_SQOS_PRESENT     = 0x00100000,
     SECURITY_VALID_SQOS_FLAGS = 0x001F0000;
 
+// for GetFinalPathNameByHandle()
+enum DWORD
+    VOLUME_NAME_DOS      = 0x0,
+    VOLUME_NAME_GUID     = 0x1,
+    VOLUME_NAME_NT       = 0x2,
+    VOLUME_NAME_NONE     = 0x4,
+    FILE_NAME_NORMALIZED = 0x0,
+    FILE_NAME_OPENED     = 0x8;
 
 // Thread exit code
 enum DWORD STILL_ACTIVE = 0x103;
@@ -408,7 +416,7 @@ enum : DWORD {
     STD_ERROR_HANDLE  = 0xFFFFFFF4
 }
 
-enum HANDLE INVALID_HANDLE_VALUE = cast(HANDLE) (-1);
+@trusted enum HANDLE INVALID_HANDLE_VALUE = cast(HANDLE) (-1);
 
 enum : DWORD {
     GET_TAPE_MEDIA_INFORMATION = 0,
@@ -1333,6 +1341,51 @@ enum GET_FILEEX_INFO_LEVELS {
     GetFileExMaxInfoLevel
 }
 
+import core.sys.windows.sdkddkver : NTDDI_VERSION, NTDDI_LONGHORN;
+
+static if (NTDDI_VERSION >= NTDDI_LONGHORN)
+{
+    enum FILE_INFO_BY_HANDLE_CLASS
+    {
+        FileBasicInfo,
+        FileStandardInfo,
+        FileNameInfo,
+        FileRenameInfo,
+        FileDispositionInfo,
+        FileAllocationInfo,
+        FileEndOfFileInfo,
+        FileStreamInfo,
+        FileCompressionInfo,
+        FileAttributeTagInfo,
+        FileIdBothDirectoryInfo,
+        FileIdBothDirectoryRestartInfo,
+        FileIoPriorityHintInfo,
+        FileRemoteProtocolInfo,
+        FileFullDirectoryInfo,
+        FileFullDirectoryRestartInfo,
+//        static if (NTDDI_VERSION >= NTDDI_WIN8)
+//        {
+            FileStorageInfo,
+            FileAlignmentInfo,
+            FileIdInfo,
+            FileIdExtdDirectoryInfo,
+            FileIdExtdDirectoryRestartInfo,
+//        }
+//        static if (NTDDI_VERSION >= NTDDI_WIN10_RS1)
+//        {
+            FileDispositionInfoEx,
+            FileRenameInfoEx,
+//        }
+//        static if (NTDDI_VERSION >= NTDDI_WIN10_19H1)
+//        {
+            FileCaseSensitiveInfo,
+            FileNormalizedNameInfo,
+//        }
+        MaximumFileInfoByHandleClass
+    }
+    alias PFILE_INFO_BY_HANDLE_CLASS = FILE_INFO_BY_HANDLE_CLASS*;
+}
+
 struct SYSTEM_INFO {
     union {
         DWORD dwOemId;
@@ -1590,12 +1643,32 @@ static if (_WIN32_WINNT >= 0x410) {
     alias DWORD EXECUTION_STATE;
 }
 
-// CreateSymbolicLink
+// CreateSymbolicLink, GetFileInformationByHandleEx
 static if (_WIN32_WINNT >= 0x600) {
     enum {
         SYMBOLIC_LINK_FLAG_DIRECTORY = 0x1,
         SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2
     }
+
+    struct FILE_BASIC_INFO
+    {
+        LARGE_INTEGER CreationTime;
+        LARGE_INTEGER LastAccessTime;
+        LARGE_INTEGER LastWriteTime;
+        LARGE_INTEGER ChangeTime;
+        DWORD FileAttributes;
+    }
+    alias PFILE_BASIC_INFO = FILE_BASIC_INFO*;
+
+    struct FILE_STANDARD_INFO
+    {
+        LARGE_INTEGER AllocationSize;
+        LARGE_INTEGER EndOfFile;
+        DWORD NumberOfLinks;
+        BOOLEAN DeletePending;
+        BOOLEAN Directory;
+    }
+    alias PFILE_STANDARD_INFO = FILE_STANDARD_INFO*;
 }
 
 // Callbacks
@@ -1714,23 +1787,15 @@ extern (Windows) nothrow @nogc {
     BOOL CopyFileExA(LPCSTR, LPCSTR, LPPROGRESS_ROUTINE, LPVOID, LPBOOL, DWORD);
     BOOL CopyFileExW(LPCWSTR, LPCWSTR, LPPROGRESS_ROUTINE, LPVOID, LPBOOL, DWORD);
 
-    /+ FIXME
-    alias memmove RtlMoveMemory;
-    alias memcpy RtlCopyMemory;
+    alias RtlMoveMemory = memmove;
+    alias RtlCopyMemory = memcpy;
+    pragma(inline, true) void RtlFillMemory(PVOID Destination, SIZE_T Length, BYTE Fill) pure { memset(Destination, Fill, Length); }
+    pragma(inline, true) void RtlZeroMemory(PVOID Destination, SIZE_T Length) pure { memset(Destination, 0, Length); }
+    alias MoveMemory = RtlMoveMemory;
+    alias CopyMemory = RtlCopyMemory;
+    alias FillMemory = RtlFillMemory;
+    alias ZeroMemory = RtlZeroMemory;
 
-    void RtlFillMemory(PVOID dest, SIZE_T len, BYTE fill) {
-        memset(dest, fill, len);
-    }
-
-    void RtlZeroMemory(PVOID dest, SIZE_T len) {
-        RtlFillMemory(dest, len, 0);
-    }
-
-    alias RtlMoveMemory MoveMemory;
-    alias RtlCopyMemory CopyMemory;
-    alias RtlFillMemory FillMemory;
-    alias RtlZeroMemory ZeroMemory;
-    +/
     BOOL CreateDirectoryA(LPCSTR, LPSECURITY_ATTRIBUTES);
     BOOL CreateDirectoryW(LPCWSTR, LPSECURITY_ATTRIBUTES);
     BOOL CreateDirectoryExA(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES);
@@ -1852,6 +1917,8 @@ WINBASEAPI DWORD WINAPI GetCurrentThreadId(void);
     DWORD GetFileSize(HANDLE, PDWORD);
     BOOL GetFileTime(HANDLE, LPFILETIME, LPFILETIME, LPFILETIME);
     DWORD GetFileType(HANDLE);
+    DWORD GetFinalPathNameByHandleA(HANDLE, LPSTR, DWORD, DWORD);
+    DWORD GetFinalPathNameByHandleW(HANDLE, LPWSTR, DWORD, DWORD);
     DWORD GetFullPathNameA(LPCSTR, DWORD, LPSTR, LPSTR*);
     DWORD GetFullPathNameW(LPCWSTR, DWORD, LPWSTR, LPWSTR*);
     DWORD GetLastError() @trusted;
@@ -2493,6 +2560,7 @@ WINBASEAPI BOOL WINAPI SetEvent(HANDLE);
     static if (_WIN32_WINNT >= 0x600) {
         BOOL CreateSymbolicLinkA(LPCSTR, LPCSTR, DWORD);
         BOOL CreateSymbolicLinkW(LPCWSTR, LPCWSTR, DWORD);
+        BOOL GetFileInformationByHandleEx(HANDLE, FILE_INFO_BY_HANDLE_CLASS, LPVOID, DWORD);
     }
 }
 

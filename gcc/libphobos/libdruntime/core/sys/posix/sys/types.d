@@ -30,7 +30,6 @@ else version (WatchOS)
 
 version (Posix):
 extern (C):
-@system:
 
 //
 // bits/typesizes.h -- underlying types for *_t.
@@ -188,7 +187,7 @@ else version (FreeBSD)
     alias c_long    ssize_t;
     alias c_long    time_t;
     alias uint      uid_t;
-    alias uint      fflags_t;
+    alias uint      fflags_t; // non-standard
 }
 else version (NetBSD)
 {
@@ -621,6 +620,18 @@ version (CRuntime_Glibc)
         enum __SIZEOF_PTHREAD_BARRIER_T = 32;
         enum __SIZEOF_PTHREAD_BARRIERATTR_T = 4;
     }
+    else version (LoongArch64)
+    {
+        enum __SIZEOF_PTHREAD_ATTR_T = 56;
+        enum __SIZEOF_PTHREAD_MUTEX_T = 40;
+        enum __SIZEOF_PTHREAD_MUTEXATTR_T = 4;
+        enum __SIZEOF_PTHREAD_COND_T = 48;
+        enum __SIZEOF_PTHREAD_CONDATTR_T = 4;
+        enum __SIZEOF_PTHREAD_RWLOCK_T = 56;
+        enum __SIZEOF_PTHREAD_RWLOCKATTR_T = 8;
+        enum __SIZEOF_PTHREAD_BARRIER_T = 32;
+        enum __SIZEOF_PTHREAD_BARRIERATTR_T = 4;
+    }
     else
     {
         static assert (false, "Unsupported platform");
@@ -855,7 +866,7 @@ else version (Darwin)
 }
 else version (FreeBSD)
 {
-    alias int lwpid_t;
+    alias int lwpid_t; // non-standard
 
     alias void* pthread_attr_t;
     alias void* pthread_cond_t;
@@ -1138,6 +1149,18 @@ else version (CRuntime_UClibc)
         enum __SIZEOF_PTHREAD_RWLOCK_T      = 32;
         enum __SIZEOF_PTHREAD_RWLOCKATTR_T  = 8;
         enum __SIZEOF_PTHREAD_BARRIER_T     = 20;
+        enum __SIZEOF_PTHREAD_BARRIERATTR_T = 4;
+     }
+     else version (MIPS64)
+     {
+        enum __SIZEOF_PTHREAD_ATTR_T        = 56;
+        enum __SIZEOF_PTHREAD_MUTEX_T       = 40;
+        enum __SIZEOF_PTHREAD_MUTEXATTR_T   = 4;
+        enum __SIZEOF_PTHREAD_COND_T        = 48;
+        enum __SIZEOF_PTHREAD_CONDATTR_T    = 4;
+        enum __SIZEOF_PTHREAD_RWLOCK_T      = 56;
+        enum __SIZEOF_PTHREAD_RWLOCKATTR_T  = 8;
+        enum __SIZEOF_PTHREAD_BARRIER_T     = 32;
         enum __SIZEOF_PTHREAD_BARRIERATTR_T = 4;
      }
      else version (ARM)

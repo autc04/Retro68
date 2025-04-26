@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -101,7 +101,6 @@ package body Ch9 is
          Scan; -- past BODY
          Name_Node := P_Defining_Identifier (C_Is);
          Scopes (Scope.Last).Labl := Name_Node;
-         Current_Node := Name_Node;
 
          if Token = Tok_Left_Paren then
             Error_Msg_SC ("discriminant part not allowed in task body");
@@ -140,9 +139,7 @@ package body Ch9 is
 
             --  Move the aspect specifications to the body node
 
-            if Has_Aspects (Dummy_Node) then
-               Move_Aspects (From => Dummy_Node, To => Task_Node);
-            end if;
+            Move_Aspects (From => Dummy_Node, To => Task_Node);
 
             Parse_Decls_Begin_End (Task_Node);
 
@@ -169,7 +166,7 @@ package body Ch9 is
             Name_Node := P_Defining_Identifier;
             Set_Defining_Identifier (Task_Node, Name_Node);
             Scopes (Scope.Last).Labl := Name_Node;
-            Current_Node := Name_Node;
+
             Set_Discriminant_Specifications
               (Task_Node, P_Known_Discriminant_Part_Opt);
 
@@ -178,7 +175,6 @@ package body Ch9 is
             Name_Node := P_Defining_Identifier (C_Is);
             Set_Defining_Identifier (Task_Node, Name_Node);
             Scopes (Scope.Last).Labl := Name_Node;
-            Current_Node := Name_Node;
 
             if Token = Tok_Left_Paren then
                Error_Msg_SC ("discriminant part not allowed for single task");
@@ -343,10 +339,7 @@ package body Ch9 is
          --  Ada 2005 (AI-397): Reserved words NOT and OVERRIDING may begin an
          --  entry declaration.
 
-         elsif Token = Tok_Entry
-           or else Token = Tok_Not
-           or else Token = Tok_Overriding
-         then
+         elsif Token in Tok_Entry | Tok_Not | Tok_Overriding then
             Append (P_Entry_Declaration, Items);
 
          elsif Token = Tok_For then
@@ -447,7 +440,6 @@ package body Ch9 is
          Scan; -- past BODY
          Name_Node := P_Defining_Identifier (C_Is);
          Scopes (Scope.Last).Labl := Name_Node;
-         Current_Node := Name_Node;
 
          if Token = Tok_Left_Paren then
             Error_Msg_SC ("discriminant part not allowed in protected body");
@@ -502,7 +494,6 @@ package body Ch9 is
             Name_Node := P_Defining_Identifier (C_Is);
             Set_Defining_Identifier (Protected_Node, Name_Node);
             Scopes (Scope.Last).Labl := Name_Node;
-            Current_Node := Name_Node;
             Set_Discriminant_Specifications
               (Protected_Node, P_Known_Discriminant_Part_Opt);
 
@@ -519,7 +510,6 @@ package body Ch9 is
             end if;
 
             Scopes (Scope.Last).Labl := Name_Node;
-            Current_Node := Name_Node;
          end if;
 
          P_Aspect_Specifications (Protected_Node, Semicolon => False);
@@ -760,7 +750,7 @@ package body Ch9 is
                Set_Must_Override     (Decl, Is_Overriding);
                Set_Must_Not_Override (Decl, Not_Overriding);
 
-            elsif Token = Tok_Function or else Token = Tok_Procedure then
+            elsif Token in Tok_Function | Tok_Procedure then
                Decl := P_Subprogram (Pf_Decl_Pexp);
 
                Set_Must_Override     (Specification (Decl), Is_Overriding);
@@ -987,7 +977,7 @@ package body Ch9 is
 
             --  If comma or colon after Id, must be Formal_Part
 
-            if Token = Tok_Comma or else Token = Tok_Colon then
+            if Token in Tok_Comma | Tok_Colon then
                Restore_Scan_State (Scan_State); -- to Id
                Set_Parameter_Specifications (Decl_Node, P_Formal_Part);
 
@@ -1034,7 +1024,7 @@ package body Ch9 is
          Discard_Junk_Node (P_Expression_No_Right_Paren);
       end if;
 
-      P_Aspect_Specifications (Decl_Node);
+      P_Aspect_Specifications (Decl_Node, Semicolon => True);
       return Decl_Node;
 
    exception
@@ -1071,7 +1061,6 @@ package body Ch9 is
       Accept_Node := New_Node (N_Accept_Statement, Token_Ptr);
       Scan; -- past ACCEPT
       Scopes (Scope.Last).Labl := Token_Node;
-      Current_Node := Token_Node;
 
       Set_Entry_Direct_Name (Accept_Node, P_Identifier (C_Do));
 
@@ -1095,7 +1084,7 @@ package body Ch9 is
 
             --  If identifier followed by comma or colon, must be Formal_Part
 
-            if Token = Tok_Comma or else Token = Tok_Colon then
+            if Token in Tok_Comma | Tok_Colon then
                Restore_Scan_State (Scan_State); -- to left paren
                Set_Parameter_Specifications (Accept_Node, P_Parameter_Profile);
 
@@ -1220,7 +1209,6 @@ package body Ch9 is
       Name_Node := P_Defining_Identifier;
       Set_Defining_Identifier (Entry_Node, Name_Node);
       Scopes (Scope.Last).Labl := Name_Node;
-      Current_Node := Name_Node;
 
       Formal_Part_Node := P_Entry_Body_Formal_Part;
       Set_Entry_Body_Formal_Part (Entry_Node, Formal_Part_Node);
@@ -1323,7 +1311,7 @@ package body Ch9 is
         (Iterator_Node, P_Discrete_Subtype_Definition);
 
       if Token = Tok_With then
-         P_Aspect_Specifications (Iterator_Node, False);
+         P_Aspect_Specifications (Iterator_Node, Semicolon => False);
       end if;
 
       return Iterator_Node;
