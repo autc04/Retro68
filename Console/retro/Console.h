@@ -117,6 +117,7 @@ namespace retro
         short rows = 0, cols = 0;
 
         short cursorX, cursorY;
+        short savedCursorX, savedCursorY;
 
         Rect dirtyRect = {};
 
@@ -161,6 +162,8 @@ namespace retro
         void ClearEntireLine();
         void ShowCursor(std::string args);
         void HideCursor(std::string args);
+        void SaveCursorPosition(std::string args);
+        void RestoreCursorPosition(std::string args);
         void SetCursorX(int newX);
         int GetCursorX();
         void SetCursorY(int newY);
