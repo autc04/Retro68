@@ -559,6 +559,8 @@ void Console::InitEscapeSequenceMap()
     escapeSequenceMap.insert({'h', [&](std::string args) { ShowCursor(args); } });
     escapeSequenceMap.insert({'l', [&](std::string args) { HideCursor(args); } });
     escapeSequenceMap.insert({'m', [&](std::string args) { SetDisplayAttributes(args); } });
+    escapeSequenceMap.insert({'s', [&](std::string args) { SaveCursorPosition(args); } });
+    escapeSequenceMap.insert({'u', [&](std::string args) { RestoreCursorPosition(args); } });
 }
 
 // turns an argument string into numbers
@@ -950,6 +952,26 @@ void Console::ShowCursor(std::string args)
 void Console::HideCursor(std::string args)
 {
     cursorRequestedHidden = true;
+}
+
+// Bound to ANSI escape code s
+// Page: https://en.wikipedia.org/wiki/ANSI_escape_code
+// Section: Some popular private sequences
+// Description: Saves the current cursor position
+void Console::SaveCursorPosition(std::string args)
+{
+    savedCursorX = cursorX;
+    savedCursorY = cursorY;
+}
+
+// Bound to ANSI escape code u
+// Page: https://en.wikipedia.org/wiki/ANSI_escape_code
+// Section: Some popular private sequences
+// Description: Restores the cursor's position to the saved value
+void Console::RestoreCursorPosition(std::string args)
+{
+    cursorX = savedCursorX;
+    cursorY = savedCursorY;
 }
 
 /*
