@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -ftree-vectorize -mssse3 -mtune=slm" } */
+/* { dg-options "-O2 -ftree-vectorize -mssse3 -mtune=slm -mprefer-vector-width=128" } */
 #define byte unsigned char
 
 void
@@ -25,4 +25,5 @@ matrix_mul (byte *in, byte *out, int size)
     }
 }
 
-/* { dg-final { scan-assembler "palignr" } } */
+/* We are no longer using hybrid SLP.  */
+/* { dg-final { scan-assembler "palignr" { xfail *-*-* } } } */

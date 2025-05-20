@@ -1,5 +1,5 @@
 // ELF-specific support for sections with shared libraries.
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 
 // GCC is free software; you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free
@@ -162,17 +162,10 @@ private:
 }
 
 /****
- * Boolean flag set to true while the runtime is initialized.
- */
-__gshared bool _isRuntimeInitialized;
-
-
-/****
  * Gets called on program startup just before GC is initialized.
  */
 void initSections() nothrow @nogc
 {
-    _isRuntimeInitialized = true;
 }
 
 
@@ -181,7 +174,6 @@ void initSections() nothrow @nogc
  */
 void finiSections() nothrow @nogc
 {
-    _isRuntimeInitialized = false;
 }
 
 alias ScanDG = void delegate(void* pbeg, void* pend) nothrow;
@@ -189,7 +181,7 @@ alias ScanDG = void delegate(void* pbeg, void* pend) nothrow;
 version (Shared)
 {
     import gcc.sections : pinLoadedLibraries, unpinLoadedLibraries,
-           inheritLoadedLibraries, cleanupLoadedLibraries;
+           inheritLoadedLibraries, cleanupLoadedLibraries, sizeOfTLS;
 
     /***
      * Called once per thread; returns array of thread local storage ranges
@@ -221,6 +213,7 @@ version (Shared)
         }
     }
 
+    pragma(mangle, gcc.sections.sizeOfTLS.mangleof)
     size_t sizeOfTLS() nothrow @nogc
     {
         auto tdsos = initTLSRanges();
@@ -303,6 +296,8 @@ version (Shared)
 }
 else
 {
+    import gcc.sections : sizeOfTLS;
+
     /***
      * Called once per thread; returns array of thread local storage ranges
      */
@@ -336,6 +331,7 @@ else
         }
     }
 
+    pragma(mangle, gcc.sections.sizeOfTLS.mangleof)
     size_t sizeOfTLS() nothrow @nogc
     {
         auto rngs = initTLSRanges();
@@ -482,7 +478,7 @@ extern(C) void _d_dso_registry(CompilerDSOData* data)
         }
 
         // don't initialize modules before rt_init was called (see Bugzilla 11378)
-        if (_isRuntimeInitialized)
+        if (isRuntimeInitialized())
         {
             registerGCRanges(pdso);
             // rt_loadLibrary will run tls ctors, so do this only for dlopen
@@ -497,7 +493,7 @@ extern(C) void _d_dso_registry(CompilerDSOData* data)
         *data._slot = null;
 
         // don't finalizes modules after rt_term was called (see Bugzilla 11378)
-        if (_isRuntimeInitialized)
+        if (isRuntimeInitialized())
         {
             // rt_unloadLibrary already ran tls dtors, so do this only for dlclose
             immutable runTlsDtors = !_rtLoading;
@@ -737,7 +733,7 @@ version (Shared)
         !pthread_mutex_unlock(&_handleToDSOMutex) || assert(0);
     }
 
-    void getDependencies(in ref dl_phdr_info info, ref Array!(DSO*) deps)
+    void getDependencies(const ref dl_phdr_info info, ref Array!(DSO*) deps)
     {
         // get the entries of the .dynamic section
         ElfW!"Dyn"[] dyns;
@@ -833,7 +829,7 @@ version (Shared)
  * Scan segments in Linux dl_phdr_info struct and store
  * the TLS and writeable data segments in *pdso.
  */
-void scanSegments(in ref dl_phdr_info info, DSO* pdso) nothrow @nogc
+void scanSegments(const ref dl_phdr_info info, DSO* pdso) nothrow @nogc
 {
     foreach (ref phdr; info.dlpi_phdr[0 .. info.dlpi_phnum])
     {
@@ -957,7 +953,7 @@ bool findDSOInfoForAddr(in void* addr, dl_phdr_info* result=null) nothrow @nogc
  * Determine if 'addr' lies within shared object 'info'.
  * If so, return true and fill in 'result' with the corresponding ELF program header.
  */
-bool findSegmentForAddr(in ref dl_phdr_info info, in void* addr, ElfW!"Phdr"* result=null) nothrow @nogc
+bool findSegmentForAddr(const ref dl_phdr_info info, in void* addr, ElfW!"Phdr"* result=null) nothrow @nogc
 {
     if (addr < cast(void*)info.dlpi_addr) // less than base address of object means quick reject
         return false;
@@ -1060,6 +1056,8 @@ else version (MIPS32)
 else version (MIPS64)
     enum TLS_DTV_OFFSET = 0x8000;
 else version (IBMZ_Any)
+    enum TLS_DTV_OFFSET = 0x0;
+else version (LoongArch64)
     enum TLS_DTV_OFFSET = 0x0;
 else
     static assert( false, "Platform not supported." );

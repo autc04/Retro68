@@ -1,22 +1,36 @@
 /**
  * Stores command line options and contains other miscellaneous declarations.
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/globals.d, _globals.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/globals.d, _globals.d)
  * Documentation:  https://dlang.org/phobos/dmd_globals.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/globals.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/globals.d
  */
 
 module dmd.globals;
 
+import core.stdc.stdio;
 import core.stdc.stdint;
+import core.stdc.string;
+
+import dmd.astenums;
 import dmd.root.array;
+import dmd.root.file;
 import dmd.root.filename;
 import dmd.common.outbuffer;
+import dmd.errorsink;
+import dmd.errors;
 import dmd.file_manager;
 import dmd.identifier;
+import dmd.location;
+import dmd.lexer : CompileEnv;
+import dmd.utils;
+
+version (IN_GCC) {}
+else version (IN_LLVM) {}
+else version = MARS;
 
 /// Defines a setting for how compiler warnings and deprecations are handled
 enum DiagnosticReporting : ubyte
@@ -24,39 +38,6 @@ enum DiagnosticReporting : ubyte
     error,        /// generate an error
     inform,       /// generate a warning
     off,          /// disable diagnostic
-}
-
-/// How code locations are formatted for diagnostic reporting
-enum MessageStyle : ubyte
-{
-    digitalmars,  /// filename.d(line): message
-    gnu,          /// filename.d:line: message, see https://www.gnu.org/prep/standards/html_node/Errors.html
-}
-
-/// In which context checks for assertions, contracts, bounds checks etc. are enabled
-enum CHECKENABLE : ubyte
-{
-    _default,     /// initial value
-    off,          /// never do checking
-    on,           /// always do checking
-    safeonly,     /// do checking only in @safe functions
-}
-
-/// What should happend when an assertion fails
-enum CHECKACTION : ubyte
-{
-    D,            /// call D assert on failure
-    C,            /// call C assert on failure
-    halt,         /// cause program halt on failure
-    context,      /// call D assert with the error context on failure
-}
-
-/// Position Indepent Code setting
-enum PIC : ubyte
-{
-    fixed,              /// located at a specific address
-    pic,                /// Position Independent Code
-    pie,                /// Position Independent Executable
 }
 
 /**
@@ -81,111 +62,157 @@ enum CppStdRevision : uint
     cpp14 = 2014_02,
     cpp17 = 2017_03,
     cpp20 = 2020_02,
-}
-
-/// Configuration for the C++ header generator
-enum CxxHeaderMode : uint
-{
-    none,   /// Don't generate headers
-    silent, /// Generate headers
-    verbose /// Generate headers and add comments for hidden declarations
+    cpp23 = 2023_02,
 }
 
 /// Trivalent boolean to represent the state of a `revert`able change
-enum FeatureState : byte
+enum FeatureState : ubyte
 {
-    default_ = -1, /// Not specified by the user
-    disabled = 0,  /// Specified as `-revert=`
-    enabled = 1    /// Specified as `-preview=`
+    default_ = 0,  /// Not specified by the user
+    disabled = 1,  /// Specified as `-revert=`
+    enabled  = 2,  /// Specified as `-preview=`
+}
+
+/// Different identifier tables specifiable by CLI
+enum CLIIdentifierTable : ubyte
+{
+    default_ = 0, /// Not specified by user
+    C99      = 1, /// Tables from C99 standard
+    C11      = 2, /// Tables from C11 standard
+    UAX31    = 3, /// Tables from the Unicode Standard Annex 31: UNICODE IDENTIFIERS AND SYNTAX
+    All      = 4, /// The least restrictive set of all other tables
+}
+
+/// Specifies the mode for error printing
+enum ErrorPrintMode : ubyte
+{
+    simpleError,      // Print errors without squiggles and carets
+    printErrorContext, // Print errors with context (source line and caret)
+}
+
+extern(C++) struct Output
+{
+    bool doOutput;      // Output is enabled
+    bool fullOutput;    // Generate comments for hidden declarations (for -HC),
+                        // and don't strip the bodies of plain (non-template) functions (for -H)
+
+    const(char)[] dir;  // write to directory 'dir'
+    const(char)[] name; // write to file 'name'
+    Array!(const(char)*) files; // Other files associated with this output,
+                                // e.g. macro include files for Ddoc, dependencies for makedeps
+    OutBuffer* buffer;  // if this output is buffered, this is the buffer
+    int bufferLines;    // number of lines written to the buffer
+}
+
+/// Command line state related to printing usage about other switches
+extern(C++) struct Help
+{
+    bool manual;       // open browser on compiler manual
+    bool usage;        // print usage and exit
+    // print help of switch:
+    bool mcpu;         // -mcpu
+    bool transition;   // -transition
+    bool check;        // -check
+    bool checkAction;  // -checkaction
+    bool revert;       // -revert
+    bool preview;      // -preview
+    bool externStd;    // -extern-std
+    bool hc;           // -HC
+}
+
+extern(C++) struct Verbose
+{
+    bool verbose;           // verbose compile
+    bool showColumns;       // print character (column) numbers in diagnostics
+    bool tls;               // identify thread local variables
+    bool templates;         // collect and list statistics on template instantiations
+    // collect and list statistics on template instantiations origins.
+    // TODO: make this an enum when we want to list other kinds of instances
+    bool templatesListInstances;
+    bool gc;                // identify gc usage
+    bool field;             // identify non-mutable field variables
+    bool complex = true;    // identify complex/imaginary type usage
+    bool vin;               // identify 'in' parameters
+    bool showGaggedErrors;  // print gagged errors anyway
+    bool logo;              // print compiler logo
+    bool color;             // use ANSI colors in console output
+    bool cov;               // generate code coverage data
+    ErrorPrintMode errorPrintMode; // enum for error printing mode
+    MessageStyle messageStyle = MessageStyle.digitalmars; // style of file/line annotations on messages
+    uint errorLimit = 20;
+    uint errorSupplementLimit = 6;      // Limit the number of supplemental messages for each error (0 means unlimited)
+
+    uint errorSupplementCount() @safe
+    {
+        if (verbose)
+            return uint.max;
+        if (errorSupplementLimit == 0)
+            return uint.max;
+        return errorSupplementLimit;
+    }
+}
+
+extern (C++) struct ImportPathInfo {
+    const(char)* path; // char*'s of where to look for import modules
 }
 
 /// Put command line switches in here
 extern (C++) struct Param
 {
     bool obj = true;        // write object file
-    bool link = true;       // perform link
-    bool dll;               // generate shared dynamic library
-    bool lib;               // write library file instead of object file(s)
+    bool readStdin;         // saw "-" on command line, read source file from stdin
     bool multiobj;          // break one object file into multiple ones
-    bool oneobj;            // write one object file instead of multiple ones
     bool trace;             // insert profiling hooks
     bool tracegc;           // instrument calls to 'new'
-    bool verbose;           // verbose compile
     bool vcg_ast;           // write-out codegen-ast
-    bool showColumns;       // print character (column) numbers in diagnostics
-    bool vtls;              // identify thread local variables
-    bool vtemplates;        // collect and list statistics on template instantiations
-    bool vtemplatesListInstances; // collect and list statistics on template instantiations origins. TODO: make this an enum when we want to list other kinds of instances
-    bool vgc;               // identify gc usage
-    bool vfield;            // identify non-mutable field variables
-    bool vcomplex = true;   // identify complex/imaginary type usage
-    bool vin;               // identify 'in' parameters
-    ubyte symdebug;         // insert debug symbolic information
-    bool symdebugref;       // insert debug information for all referenced types, too
-    bool optimize;          // run optimizer
     DiagnosticReporting useDeprecated = DiagnosticReporting.inform;  // how use of deprecated features are handled
-    bool stackstomp;            // add stack stomping code
     bool useUnitTests;          // generate unittest code
     bool useInline = false;     // inline expand functions
-    FeatureState useDIP25;  // implement https://wiki.dlang.org/DIP25
-    FeatureState useDIP1000; // implement https://dlang.org/spec/memory-safe-d.html#scope-return-params
-    bool useDIP1021;        // implement https://github.com/dlang/DIPs/blob/master/DIPs/accepted/DIP1021.md
     bool release;           // build release version
     bool preservePaths;     // true means don't strip path from source file
-    DiagnosticReporting warnings = DiagnosticReporting.off;  // how compiler warnings are handled
-    PIC pic = PIC.fixed;    // generate fixed, pic or pie code
-    bool color;             // use ANSI colors in console output
+    DiagnosticReporting useWarnings = DiagnosticReporting.off;  // how compiler warnings are handled
     bool cov;               // generate code coverage data
     ubyte covPercent;       // 0..100 code coverage percentage required
     bool ctfe_cov = false;  // generate coverage data for ctfe
-    bool nofloat;           // code should not pull in floating point support
-    bool ignoreUnsupportedPragmas;  // rather than error on them
+    bool ignoreUnsupportedPragmas = true;  // rather than error on them
     bool useModuleInfo = true;   // generate runtime module information
     bool useTypeInfo = true;     // generate runtime type information
     bool useExceptions = true;   // support exception handling
-    bool noSharedAccess;         // read/write access to shared memory objects
-    bool previewIn;         // `in` means `[ref] scope const`, accepts rvalues
-    bool shortenedMethods; // allow => in normal function declarations
+    bool useGC = true;           // support features that require the D runtime GC
     bool betterC;           // be a "better C" compiler; no dependency on D runtime
     bool addMain;           // add a default main() function
     bool allInst;           // generate code for all template instantiations
-    bool fix16997 = true;   // fix integral promotions for unary + - ~ operators
-                            // https://issues.dlang.org/show_bug.cgi?id=16997
-    bool fixAliasThis;      // if the current scope has an alias this, check it before searching upper scopes
-    bool inclusiveInContracts;   // 'in' contracts of overridden methods must be a superset of parent contract
-    /** The --transition=safe switch should only be used to show code with
-     * silent semantics changes related to @safe improvements.  It should not be
-     * used to hide a feature that will have to go through deprecate-then-error
-     * before becoming default.
-     */
-    bool ehnogc;            // use @nogc exception handling
-    FeatureState dtorFields; // destruct fields of partially constructed objects
-                            // https://issues.dlang.org/show_bug.cgi?id=14246
-    bool fieldwise;         // do struct equality testing field-wise rather than by memcmp()
+    bool bitfields;         // support C style bit fields
+
+    CppStdRevision cplusplus = CppStdRevision.cpp11;    // version of C++ standard to support
+
+    Help help;
+    Verbose v;
+
+    // Options for `-preview=/-revert=`
+    FeatureState useDIP25 = FeatureState.enabled; // implement https://wiki.dlang.org/DIP25
+    FeatureState useDIP1000;     // implement https://dlang.org/spec/memory-safe-d.html#scope-return-params
+    bool ehnogc;                 // use @nogc exception handling
+    bool useDIP1021;             // implement https://github.com/dlang/DIPs/blob/master/DIPs/accepted/DIP1021.md
+    FeatureState fieldwise;      // do struct equality testing field-wise rather than by memcmp()
+    bool fixAliasThis;           // if the current scope has an alias this, check it before searching upper scopes
     FeatureState rvalueRefParam; // allow rvalues to be arguments to ref parameters
                                  // https://dconf.org/2019/talks/alexandrescu.html
                                  // https://gist.github.com/andralex/e5405a5d773f07f73196c05f8339435a
                                  // https://digitalmars.com/d/archives/digitalmars/D/Binding_rvalues_to_ref_parameters_redux_325087.html
                                  // Implementation: https://github.com/dlang/dmd/pull/9817
-
-    CppStdRevision cplusplus = CppStdRevision.cpp11;    // version of C++ standard to support
-
-    bool markdown = true;   // enable Markdown replacements in Ddoc
-    bool vmarkdown;         // list instances of Markdown replacements in Ddoc
-
-    bool showGaggedErrors;  // print gagged errors anyway
-    bool printErrorContext;  // print errors with the error context (the error line in the source file)
-    bool manual;            // open browser on compiler manual
-    bool usage;             // print usage and exit
-    bool mcpuUsage;         // print help on -mcpu switch
-    bool transitionUsage;   // print help on -transition switch
-    bool checkUsage;        // print help on -check switch
-    bool checkActionUsage;  // print help on -checkaction switch
-    bool revertUsage;       // print help on -revert switch
-    bool previewUsage;      // print help on -preview switch
-    bool externStdUsage;    // print help on -extern-std switch
-    bool hcUsage;           // print help on -HC switch
-    bool logo;              // print compiler logo
+    FeatureState safer;          // safer by default (more @safe checks in unattributed code)
+                                 // https://github.com/WalterBright/documents/blob/38f0a846726b571f8108f6e63e5e217b91421c86/safer.md
+    FeatureState noSharedAccess; // read/write access to shared memory objects
+    bool previewIn;              // `in` means `[ref] scope const`, accepts rvalues
+    bool inclusiveInContracts;   // 'in' contracts of overridden methods must be a superset of parent contract
+    bool shortenedMethods = true;       // allow => in normal function declarations
+    bool fixImmutableConv;       // error on unsound immutable conversion - https://github.com/dlang/dmd/pull/14070
+    bool fix16997 = true;        // fix integral promotions for unary + - ~ operators
+                                 // https://issues.dlang.org/show_bug.cgi?id=16997
+    FeatureState dtorFields;     // destruct fields of partially constructed objects
+                                 // https://issues.dlang.org/show_bug.cgi?id=14246
+    FeatureState systemVariables; // limit access to variables marked @system from @safe code
 
     CHECKENABLE useInvariants  = CHECKENABLE._default;  // generate class invariant checks
     CHECKENABLE useIn          = CHECKENABLE._default;  // generate precondition checks
@@ -197,59 +224,32 @@ extern (C++) struct Param
 
     CHECKACTION checkAction = CHECKACTION.D; // action to take when bounds, asserts or switch defaults are violated
 
-    uint errorLimit = 20;
+    CLIIdentifierTable dIdentifierTable = CLIIdentifierTable.default_;
+    CLIIdentifierTable cIdentifierTable = CLIIdentifierTable.default_;
 
     const(char)[] argv0;                // program name
     Array!(const(char)*) modFileAliasStrings; // array of char*'s of -I module filename alias strings
-    Array!(const(char)*)* imppath;      // array of char*'s of where to look for import modules
-    Array!(const(char)*)* fileImppath;  // array of char*'s of where to look for file import modules
+    Array!(ImportPathInfo) imppath;       // array of import path information of where to look for import modules
+    Array!(const(char)*) fileImppath;   // array of char*'s of where to look for file import modules
     const(char)[] objdir;                // .obj/.lib file output directory
     const(char)[] objname;               // .obj file output name
     const(char)[] libname;               // .lib file output name
 
-    bool doDocComments;                 // process embedded documentation comments
-    const(char)[] docdir;               // write documentation file to docdir directory
-    const(char)[] docname;              // write documentation file to docname
-    Array!(const(char)*) ddocfiles;     // macro include files for Ddoc
-
-    bool doHdrGeneration;               // process embedded documentation comments
-    const(char)[] hdrdir;                // write 'header' file to docdir directory
-    const(char)[] hdrname;               // write 'header' file to docname
-    bool hdrStripPlainFunctions = true; // strip the bodies of plain (non-template) functions
-
-    CxxHeaderMode doCxxHdrGeneration;      /// Generate 'Cxx header' file
-    const(char)[] cxxhdrdir;            // write 'header' file to docdir directory
-    const(char)[] cxxhdrname;           // write 'header' file to docname
-
-    bool doJsonGeneration;              // write JSON file
-    const(char)[] jsonfilename;          // write JSON file to jsonfilename
+    Output ddoc;                        // Generate embedded documentation comments
+    Output dihdr;                       // Generate `.di` 'header' files
+    Output cxxhdr;                      // Generate 'Cxx header' file
+    Output json;                        // Generate JSON file
     JsonFieldFlags jsonFieldFlags;      // JSON field flags to include
+    Output makeDeps;                    // Generate make file dependencies
+    Output mixinOut;                    // write expanded mixins for debugging
+    Output moduleDeps;                  // Generate `.deps` module dependencies
 
-    OutBuffer* mixinOut;                // write expanded mixins for debugging
-    const(char)* mixinFile;             // .mixin file output name
-    int mixinLines;                     // Number of lines in writeMixins
-
-    uint debuglevel;                    // debug level
-    Array!(const(char)*)* debugids;     // debug identifiers
-
-    uint versionlevel;                  // version level
-    Array!(const(char)*)* versionids;   // version identifiers
-
-    const(char)[] defaultlibname;        // default library for non-debug builds
-    const(char)[] debuglibname;          // default library for debug builds
-    const(char)[] mscrtlib;              // MS C runtime library
-
-    const(char)[] moduleDepsFile;        // filename for deps output
-    OutBuffer* moduleDeps;              // contents to be written to deps file
-
-    bool emitMakeDeps;                   // whether to emit makedeps
-    const(char)[] makeDepsFile;          // filename for makedeps output
-    Array!(const(char)*) makeDeps;      // dependencies for makedeps
-
-    MessageStyle messageStyle = MessageStyle.digitalmars; // style of file/line annotations on messages
+    bool debugEnabled;                  // Global -debug flag (no -debug=XXX) is active
 
     bool run; // run resulting executable
     Strings runargs; // arguments for executable
+    Array!(const(char)*) cppswitches;   // C preprocessor switches
+    const(char)* cpp;                   // if not null, then this specifies the C preprocessor
 
     // Linker stuff
     Array!(const(char)*) objfiles;
@@ -261,31 +261,20 @@ extern (C++) struct Param
     const(char)[] resfile;
     const(char)[] exefile;
     const(char)[] mapfile;
+
+    bool fullyQualifiedObjectFiles; // prepend module names to object files to prevent name conflicts with -od
+
+    // Time tracing
+    bool timeTrace = false; /// Whether profiling of compile time is enabled
+    uint timeTraceGranularityUs = 500; /// In microseconds, minimum event size to report
+    const(char)* timeTraceFile; /// File path of output file
+
+    ///
+    bool parsingUnittestsRequired() @safe
+    {
+        return useUnitTests || ddoc.doOutput || dihdr.doOutput;
+    }
 }
-
-extern (C++) struct structalign_t
-{
-  private:
-    ushort value = 0;  // unknown
-    enum STRUCTALIGN_DEFAULT = 1234;   // default = match whatever the corresponding C compiler does
-    bool pack;         // use #pragma pack semantics
-
-  public:
-  pure @safe @nogc nothrow:
-    bool isDefault() const { return value == STRUCTALIGN_DEFAULT; }
-    void setDefault()      { value = STRUCTALIGN_DEFAULT; }
-    bool isUnknown() const { return value == 0; }  // value is not set
-    void setUnknown()      { value = 0; }
-    void set(uint value)   { this.value = cast(ushort)value; }
-    uint get() const       { return value; }
-    bool isPack() const    { return pack; }
-    void setPack(bool pack) { this.pack = pack; }
-}
-//alias structalign_t = uint;
-
-// magic value means "match whatever the underlying C compiler does"
-// other values are all powers of 2
-//enum STRUCTALIGN_DEFAULT = (cast(structalign_t)~0);
 
 enum mars_ext = "d";        // for D source files
 enum doc_ext  = "html";     // for Ddoc generated files
@@ -304,19 +293,20 @@ extern (C++) struct Global
 {
     const(char)[] inifilename; /// filename of configuration file as given by `-conf=`, or default value
 
-    string copyright = "Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved";
+    string copyright = "Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved";
     string written = "written by Walter Bright";
 
-    Array!(const(char)*)* path;         /// Array of char*'s which form the import lookup path
-    Array!(const(char)*)* filePath;     /// Array of char*'s which form the file import lookup path
+    Array!(ImportPathInfo) path;       /// Array of path informations which form the import lookup path
+    Array!(const(char)*) importPaths;  /// Array of char*'s which form the import lookup path without metadata
+    Array!(const(char)*) filePath;     /// Array of char*'s which form the file import lookup path
 
     private enum string _version = import("VERSION");
-    private enum uint _versionNumber = parseVersionNumber(_version);
-
-    const(char)[] vendor;   /// Compiler backend name
+    char[26] datetime;      /// string returned by ctime()
+    CompileEnv compileEnv;
 
     Param params;           /// command line parameters
     uint errors;            /// number of errors reported so far
+    uint deprecations;      /// number of deprecations reported so far
     uint warnings;          /// number of warnings reported so far
     uint gag;               /// !=0 means gag reporting of errors & warnings
     uint gaggedErrors;      /// number of errors reported while gagged
@@ -324,8 +314,8 @@ extern (C++) struct Global
 
     void* console;         /// opaque pointer to console for controlling text attributes
 
-    Array!Identifier* versionids; /// command line versions and predefined versions
-    Array!Identifier* debugids;   /// command line debug versions and predefined versions
+    Array!Identifier versionids; /// command line versions and predefined versions
+    Array!Identifier debugids;   /// command line debug versions and predefined versions
 
     bool hasMainFunction; /// Whether a main function has already been compiled in (for -main switch)
     uint varSequenceNumber = 1; /// Relative lifetime of `VarDeclaration` within a function, used for `scope` checks
@@ -334,6 +324,11 @@ extern (C++) struct Global
     FileManager fileManager;
 
     enum recursionLimit = 500; /// number of recursive template expansions before abort
+
+    ErrorSink errorSink;       /// where the error messages go
+    ErrorSink errorSinkNull;   /// where the error messages are ignored
+
+    extern (C++) DArray!ubyte function(FileName, Loc, ref OutBuffer) preprocess;
 
   nothrow:
 
@@ -348,7 +343,7 @@ extern (C++) struct Global
      *
      * Returns: the current number of gagged errors, which should later be passed to `endGagging`
      */
-    extern (C++) uint startGagging()
+    extern (C++) uint startGagging() @safe
     {
         ++gag;
         gaggedWarnings = 0;
@@ -362,7 +357,7 @@ extern (C++) struct Global
      *   oldGagged = the previous number of errors, as returned by `startGagging`
      * Returns: true if errors occurred while gagged.
      */
-    extern (C++) bool endGagging(uint oldGagged)
+    extern (C++) bool endGagging(uint oldGagged) @safe
     {
         bool anyErrs = (gaggedErrors != oldGagged);
         --gag;
@@ -378,7 +373,7 @@ extern (C++) struct Global
      *
      * An error message may or may not have been printed.
      */
-    extern (C++) void increaseErrorCount()
+    extern (C++) void increaseErrorCount() @safe
     {
         if (gag)
             ++gaggedErrors;
@@ -387,19 +382,62 @@ extern (C++) struct Global
 
     extern (C++) void _init()
     {
+        errorSink = new ErrorSinkCompiler;
+        errorSinkNull = new ErrorSinkNull;
+
         this.fileManager = new FileManager();
         version (MARS)
         {
-            vendor = "Digital Mars D";
+            compileEnv.vendor = "Digital Mars D";
 
             // -color=auto is the default value
-            import dmd.console : detectTerminal;
-            params.color = detectTerminal();
+            import dmd.console : detectTerminal, detectColorPreference;
+            params.v.color = detectTerminal() && detectColorPreference();
         }
         else version (IN_GCC)
         {
-            vendor = "GNU D";
+            compileEnv.vendor = "GNU D";
         }
+        else version (IN_LLVM)
+        {
+            compileEnv.vendor = "LDC";
+
+            import dmd.console : detectTerminal;
+            params.v.color = detectTerminal();
+        }
+
+        params.v.errorPrintMode = ErrorPrintMode.printErrorContext; // Enable error context globally by default
+        compileEnv.versionNumber = parseVersionNumber(versionString());
+
+        /* Initialize date, time, and timestamp
+         */
+        import core.stdc.time;
+        import core.stdc.stdlib : getenv;
+
+        time_t ct;
+        // https://issues.dlang.org/show_bug.cgi?id=20444
+        if (auto p = getenv("SOURCE_DATE_EPOCH"))
+        {
+            if (!ct.parseDigits(p[0 .. strlen(p)]))
+                errorSink.error(Loc.initial, "value of environment variable `SOURCE_DATE_EPOCH` should be a valid UNIX timestamp, not: `%s`", p);
+        }
+        else
+            core.stdc.time.time(&ct);
+        const p = ctime(&ct);
+        assert(p);
+        datetime[] = p[0 .. 26];
+
+        __gshared char[11 + 1] date = 0;        // put in BSS segment
+        __gshared char[8  + 1] time = 0;
+        __gshared char[24 + 1] timestamp = 0;
+
+        const dsz = snprintf(&date[0], date.length, "%.6s %.4s", p + 4, p + 20);
+        const tsz = snprintf(&time[0], time.length, "%.8s", p + 11);
+        const tssz = snprintf(&timestamp[0], timestamp.length, "%.24s", p);
+        assert(dsz > 0 && tsz > 0 && tssz > 0);
+        compileEnv.time = time[0 .. tsz];
+        compileEnv.date = date[0 .. dsz];
+        compileEnv.timestamp = timestamp[0 .. tssz];
     }
 
     /**
@@ -416,7 +454,7 @@ extern (C++) struct Global
     /**
      * Computes the version number __VERSION__ from the compiler version string.
      */
-    extern (D) private static uint parseVersionNumber(string version_)
+    extern (D) private static uint parseVersionNumber(string version_) @safe
     {
         //
         // parse _version
@@ -446,17 +484,28 @@ extern (C++) struct Global
     }
 
     /**
+     * Indicate to stateful error sinks that no more errors can be produced.
+     * This is to support error sinks that collect information to produce a
+     * single (say) report.
+     */
+    extern(C++) void plugErrorSinks()
+    {
+        global.errorSink.plugSink();
+        global.errorSinkNull.plugSink();
+    }
+
+    /**
     Returns: the version as the number that would be returned for __VERSION__
     */
-    extern(C++) uint versionNumber()
+    extern(C++) uint versionNumber() @safe
     {
-        return _versionNumber;
+        return compileEnv.versionNumber;
     }
 
     /**
     Returns: compiler version string.
     */
-    extern(D) string versionString()
+    extern(D) string versionString() @safe
     {
         return _version;
     }
@@ -467,15 +516,6 @@ extern (C++) struct Global
     extern(C++) const(char*) versionChars()
     {
         return _version.ptr;
-    }
-
-    /**
-    Returns: the final defaultlibname based on the command-line parameters
-    */
-    extern (D) const(char)[] finalDefaultlibname() const
-    {
-        return params.betterC ? null :
-            params.symdebug ? params.debuglibname : params.defaultlibname;
     }
 }
 
@@ -490,126 +530,6 @@ alias dinteger_t = ulong;
 // Signed and unsigned variants
 alias sinteger_t = long;
 alias uinteger_t = ulong;
-
-version (DMDLIB)
-{
-    version = LocOffset;
-}
-
-/**
-A source code location
-
-Used for error messages, `__FILE__` and `__LINE__` tokens, `__traits(getLocation, XXX)`,
-debug info etc.
-*/
-struct Loc
-{
-    /// zero-terminated filename string, either absolute or relative to cwd
-    const(char)* filename;
-    uint linnum; /// line number, starting from 1
-    uint charnum; /// utf8 code unit index relative to start of line, starting from 1
-    version (LocOffset)
-        uint fileOffset; /// utf8 code unit index relative to start of file, starting from 0
-
-    static immutable Loc initial; /// use for default initialization of const ref Loc's
-
-nothrow:
-    extern (D) this(const(char)* filename, uint linnum, uint charnum) pure
-    {
-        this.linnum = linnum;
-        this.charnum = charnum;
-        this.filename = filename;
-    }
-
-    extern (C++) const(char)* toChars(
-        bool showColumns = global.params.showColumns,
-        ubyte messageStyle = global.params.messageStyle) const pure nothrow
-    {
-        OutBuffer buf;
-        if (filename)
-        {
-            buf.writestring(filename);
-        }
-        if (linnum)
-        {
-            final switch (messageStyle)
-            {
-                case MessageStyle.digitalmars:
-                    buf.writeByte('(');
-                    buf.print(linnum);
-                    if (showColumns && charnum)
-                    {
-                        buf.writeByte(',');
-                        buf.print(charnum);
-                    }
-                    buf.writeByte(')');
-                    break;
-                case MessageStyle.gnu: // https://www.gnu.org/prep/standards/html_node/Errors.html
-                    buf.writeByte(':');
-                    buf.print(linnum);
-                    if (showColumns && charnum)
-                    {
-                        buf.writeByte(':');
-                        buf.print(charnum);
-                    }
-                    break;
-            }
-        }
-        return buf.extractChars();
-    }
-
-    /**
-     * Checks for equivalence by comparing the filename contents (not the pointer) and character location.
-     *
-     * Note:
-     *  - Uses case-insensitive comparison on Windows
-     *  - Ignores `charnum` if `global.params.showColumns` is false.
-     */
-    extern (C++) bool equals(ref const(Loc) loc) const
-    {
-        return (!global.params.showColumns || charnum == loc.charnum) &&
-               linnum == loc.linnum &&
-               FileName.equals(filename, loc.filename);
-    }
-
-    /**
-     * `opEquals()` / `toHash()` for AA key usage
-     *
-     * Compare filename contents (case-sensitively on Windows too), not
-     * the pointer - a static foreach loop repeatedly mixing in a mixin
-     * may lead to multiple equivalent filenames (`foo.d-mixin-<line>`),
-     * e.g., for test/runnable/test18880.d.
-     */
-    extern (D) bool opEquals(ref const(Loc) loc) const @trusted pure nothrow @nogc
-    {
-        import core.stdc.string : strcmp;
-
-        return charnum == loc.charnum &&
-               linnum == loc.linnum &&
-               (filename == loc.filename ||
-                (filename && loc.filename && strcmp(filename, loc.filename) == 0));
-    }
-
-    /// ditto
-    extern (D) size_t toHash() const @trusted pure nothrow
-    {
-        import dmd.root.string : toDString;
-
-        auto hash = hashOf(linnum);
-        hash = hashOf(charnum, hash);
-        hash = hashOf(filename.toDString, hash);
-        return hash;
-    }
-
-    /******************
-     * Returns:
-     *   true if Loc has been set to other than the default initialization
-     */
-    bool isValid() const pure
-    {
-        return filename !is null;
-    }
-}
 
 /// Collection of global state
 extern (C++) __gshared Global global;

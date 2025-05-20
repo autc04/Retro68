@@ -15,9 +15,9 @@ module rt.profilegc;
 
 private:
 
-import core.stdc.stdio;
-import core.stdc.stdlib;
-import core.stdc.string;
+import core.stdc.errno : errno;
+import core.stdc.stdio : fclose, FILE, fopen, fprintf, snprintf, stderr, stdout;
+import core.stdc.stdlib : free, malloc, qsort, realloc;
 
 import core.exception : onOutOfMemoryError;
 import core.internal.container.hashtab;
@@ -151,7 +151,7 @@ shared static ~this()
     {
         qsort(counts.ptr, counts.length, Result.sizeof, &Result.qsort_cmp);
 
-        FILE* fp = logfilename.length == 0 ? stdout : fopen((logfilename).ptr, "w");
+        FILE* fp = logfilename == "\0" ? stdout : fopen((logfilename).ptr, "w");
         if (fp)
         {
             fprintf(fp, "bytes allocated, allocations, type, function, file:line\n");
@@ -165,6 +165,12 @@ shared static ~this()
                 fclose(fp);
         }
         else
-            fprintf(stderr, "cannot write profilegc log file '%.*s'", cast(int) logfilename.length, logfilename.ptr);
+        {
+            const err = errno;
+            fprintf(stderr, "cannot write profilegc log file '%.*s' (errno=%d)",
+                cast(int) logfilename.length,
+                logfilename.ptr,
+                cast(int) err);
+        }
     }
 }

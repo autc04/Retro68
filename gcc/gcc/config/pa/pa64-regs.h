@@ -1,5 +1,5 @@
 /* Configuration for GCC-compiler for PA-RISC.
-   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+   Copyright (C) 1999-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -157,25 +157,22 @@ along with GCC; see the file COPYING3.  If not see
    : FP_REGNO_P (REGNO)							\
      ? (VALID_FP_MODE_P (MODE)						\
 	&& (GET_MODE_SIZE (MODE) <= 8					\
-	    || (GET_MODE_SIZE (MODE) == 16 && ((REGNO) & 1) == 0)	\
-	    || (GET_MODE_SIZE (MODE) == 32 && ((REGNO) & 3) == 0)))	\
+	    || (GET_MODE_SIZE (MODE) == 16 && ((REGNO) & 1) == 0)))	\
    : (GET_MODE_SIZE (MODE) <= UNITS_PER_WORD				\
       || (GET_MODE_SIZE (MODE) == 2 * UNITS_PER_WORD			\
-	  && ((((REGNO) & 1) == 1 && (REGNO) <= 25) || (REGNO) == 28))	\
-      || (GET_MODE_SIZE (MODE) == 4 * UNITS_PER_WORD			\
-	  && ((REGNO) & 3) == 3 && (REGNO) <= 23)))
+	  && ((((REGNO) & 1) == 1 && (REGNO) <= 25) || (REGNO) == 28))))
 
-/* How to renumber registers for dbx and gdb.
+/* How to renumber registers for gdb.
 
    Registers 0  - 31 remain unchanged.
 
    Registers 32 - 59 are mapped to 72, 74, 76 ...
 
    Register 60 is mapped to 32.  */
-#define DBX_REGISTER_NUMBER(REGNO) \
+#define DEBUGGER_REGNO(REGNO) \
   ((REGNO) <= 31 ? (REGNO) : ((REGNO) < 60 ? (REGNO - 32) * 2 + 72 : 32))
 
-/* We must not use the DBX register numbers for the DWARF 2 CFA column
+/* We must not use the debugger register numbers for the DWARF 2 CFA column
    numbers because that maps to numbers beyond FIRST_PSEUDO_REGISTER.
    Instead use the identity mapping.  */
 #define DWARF_FRAME_REGNUM(REG) REG

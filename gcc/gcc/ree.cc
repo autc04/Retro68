@@ -1,5 +1,5 @@
 /* Redundant Extension Elimination pass for the GNU compiler.
-   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+   Copyright (C) 2010-2025 Free Software Foundation, Inc.
    Contributed by Ilya Enkovich (ilya.enkovich@intel.com)
 
    Based on the Redundant Zero-extension elimination pass contributed by
@@ -564,10 +564,10 @@ enum ext_modified_kind
   EXT_MODIFIED_SEXT
 };
 
-struct ATTRIBUTE_PACKED ext_modified
+struct ext_modified
 {
   /* Mode from which ree has zero or sign extended the destination.  */
-  ENUM_BITFIELD(machine_mode) mode : 8;
+  ENUM_BITFIELD(machine_mode) mode : MACHINE_MODE_BITSIZE;
 
   /* Kind of modification of the insn.  */
   ENUM_BITFIELD(ext_modified_kind) kind : 2;
@@ -875,7 +875,8 @@ combine_reaching_defs (ext_cand *cand, const_rtx set_pat, ext_state *state)
 
 	  for (df_link *use = uses; use; use = use->next)
 	    if (paradoxical_subreg_p (GET_MODE (*DF_REF_LOC (use->ref)),
-				      GET_MODE (SET_DEST (*dest_sub_rtx))))
+				      GET_MODE (SET_DEST (*dest_sub_rtx)))
+		&& !DEBUG_INSN_P (DF_REF_INSN (use->ref)))
 	      return false;
 	}
 
@@ -890,7 +891,7 @@ combine_reaching_defs (ext_cand *cand, const_rtx set_pat, ext_state *state)
 	 generated more than one insn.
 
          This generates garbage since we throw away the insn when we're
-	 done, only to recreate it later if this test was successful. 
+	 done, only to recreate it later if this test was successful.
 
 	 Make sure to get the mode from the extension (cand->insn).  This
 	 is different than in the code to emit the copy as we have not
@@ -963,7 +964,8 @@ combine_reaching_defs (ext_cand *cand, const_rtx set_pat, ext_state *state)
 	      rtx dest2 = SET_DEST (*dest_sub_rtx2);
 	      for (use = uses; use; use = use->next)
 		if (paradoxical_subreg_p (GET_MODE (*DF_REF_LOC (use->ref)),
-					  GET_MODE (dest2)))
+					  GET_MODE (dest2))
+		    && !DEBUG_INSN_P (DF_REF_INSN (use->ref)))
 		  break;
 	      if (use)
 		break;
@@ -1110,6 +1112,18 @@ add_removable_extension (const_rtx expr, rtx_insn *insn,
       rtx reg = XEXP (src, 0);
       struct df_link *defs, *def;
       ext_cand *cand;
+
+      if (fixed_regs[REGNO (reg)])
+	{
+	  if (dump_file)
+	    {
+	      fprintf (dump_file, "Cannot eliminate extension:\n");
+	      print_rtl_single (dump_file, insn);
+	      fprintf (dump_file, " because extension on fixed register"
+				  " isn't supported.\n");
+	    }
+	  return;
+	}
 
       /* Zero-extension of an undefined value is partly defined (it's
 	 completely undefined for sign-extension, though).  So if there exists
@@ -1403,8 +1417,11 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return (optimize > 0 && flag_ree); }
-  virtual unsigned int execute (function *) { return rest_of_handle_ree (); }
+  bool gate (function *) final override { return (optimize > 0 && flag_ree); }
+  unsigned int execute (function *) final override
+  {
+    return rest_of_handle_ree ();
+  }
 
 }; // class pass_ree
 

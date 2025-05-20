@@ -21,8 +21,17 @@ else version (TVOS)
 else version (WatchOS)
     version = Darwin;
 
-debug(trace) import core.stdc.stdio : printf;
-debug(info) import core.stdc.stdio : printf;
+debug (trace) debug = needPrintf;
+debug (info) debug = needPrintf;
+
+debug (needPrintf)
+private int printf(Args...)(scope const char* fmt, scope const Args args)
+    => __ctfe ? 0 : imported!"core.stdc.stdio".printf(fmt, args);
+
+extern (C) alias CXX_DEMANGLER = char* function (const char* mangled_name,
+                                                char* output_buffer,
+                                                size_t* length,
+                                                int* status) nothrow pure @trusted;
 
 private struct NoHooks
 {
@@ -64,61 +73,16 @@ pure @safe:
     {
         buf     = buf_;
         addType = addType_;
-        dst     = dst_;
+        dst.dst = dst_;
     }
 
-
-    enum size_t minBufSize = 4000;
-
-
     const(char)[]   buf     = null;
-    char[]          dst     = null;
+    Buffer          dst;
     size_t          pos     = 0;
-    size_t          len     = 0;
     size_t          brp     = 0; // current back reference pos
     AddType         addType = AddType.yes;
     bool            mute    = false;
     Hooks           hooks;
-
-    static class ParseException : Exception
-    {
-        @safe pure nothrow this( string msg )
-        {
-            super( msg );
-        }
-    }
-
-
-    static class OverflowException : Exception
-    {
-        @safe pure nothrow this( string msg )
-        {
-            super( msg );
-        }
-    }
-
-
-    static void error( string msg = "Invalid symbol" ) @trusted /* exception only used in module */
-    {
-        pragma(inline, false); // tame dmd inliner
-
-        //throw new ParseException( msg );
-        debug(info) printf( "error: %.*s\n", cast(int) msg.length, msg.ptr );
-        throw __ctfe ? new ParseException(msg)
-                     : cast(ParseException) __traits(initSymbol, ParseException).ptr;
-
-    }
-
-
-    static void overflow( string msg = "Buffer overflow" ) @trusted /* exception only used in module */
-    {
-        pragma(inline, false); // tame dmd inliner
-
-        //throw new OverflowException( msg );
-        debug(info) printf( "overflow: %.*s\n", cast(int) msg.length, msg.ptr );
-        throw cast(OverflowException) __traits(initSymbol, OverflowException).ptr;
-    }
-
 
     //////////////////////////////////////////////////////////////////////////
     // Type Testing and Conversion
@@ -133,7 +97,7 @@ pure @safe:
     }
 
 
-    static bool isDigit( char val )
+    static bool isDigit( char val ) nothrow
     {
         return '0' <= val && '9' >= val;
     }
@@ -147,7 +111,7 @@ pure @safe:
     }
 
 
-    static ubyte ascii2hex( char val )
+    static ubyte ascii2hex( out bool errStatus, char val ) nothrow
     {
         if (val >= 'a' && val <= 'f')
             return cast(ubyte)(val - 'a' + 10);
@@ -155,121 +119,41 @@ pure @safe:
             return cast(ubyte)(val - 'A' + 10);
         if (val >= '0' && val <= '9')
             return cast(ubyte)(val - '0');
-        error();
+
+        errStatus = true;
         return 0;
     }
 
-
-    //////////////////////////////////////////////////////////////////////////
-    // Data Output
-    //////////////////////////////////////////////////////////////////////////
-
-
-    static bool contains( const(char)[] a, const(char)[] b ) @trusted
+    BufSlice shift(scope const BufSlice val) return scope
     {
-        if (a.length && b.length)
-        {
-            auto bend = b.ptr + b.length;
-            auto aend = a.ptr + a.length;
-            return a.ptr <= b.ptr && bend <= aend;
-        }
-        return false;
-    }
-
-
-    // move val to the end of the dst buffer
-    char[] shift( const(char)[] val )
-    {
-        pragma(inline, false); // tame dmd inliner
-
-        if ( val.length && !mute )
-        {
-            assert( contains( dst[0 .. len], val ) );
-            debug(info) printf( "shifting (%.*s)\n", cast(int) val.length, val.ptr );
-
-            if (len + val.length > dst.length)
-                overflow();
-            size_t v = &val[0] - &dst[0];
-            dst[len .. len + val.length] = val[];
-            for (size_t p = v; p < len; p++)
-                dst[p] = dst[p + val.length];
-
-            return dst[len - val.length .. len];
-        }
-        return null;
-    }
-
-    // remove val from dst buffer
-    void remove( const(char)[] val )
-    {
-        pragma(inline, false); // tame dmd inliner
-
-        if ( val.length )
-        {
-            assert( contains( dst[0 .. len], val ) );
-            debug(info) printf( "removing (%.*s)\n", cast(int) val.length, val.ptr );
-            size_t v = &val[0] - &dst[0];
-            assert( len >= val.length && len <= dst.length );
-            len -= val.length;
-            for (size_t p = v; p < len; p++)
-                dst[p] = dst[p + val.length];
-        }
-    }
-
-    char[] append( const(char)[] val ) return scope
-    {
-        pragma(inline, false); // tame dmd inliner
-
-        if ( val.length && !mute )
-        {
-            if ( !dst.length )
-                dst.length = minBufSize;
-            assert( !contains( dst[0 .. len], val ) );
-            debug(info) printf( "appending (%.*s)\n", cast(int) val.length, val.ptr );
-
-            if ( dst.length - len >= val.length && &dst[len] == &val[0] )
-            {
-                // data is already in place
-                auto t = dst[len .. len + val.length];
-                len += val.length;
-                return t;
-            }
-            if ( dst.length - len >= val.length )
-            {
-                dst[len .. len + val.length] = val[];
-                auto t = dst[len .. len + val.length];
-                len += val.length;
-                return t;
-            }
-            overflow();
-        }
-        return null;
+        if (mute)
+            return dst.bslice_empty;
+        return dst.shift(val);
     }
 
     void putComma(size_t n)
     {
-        pragma(inline, false);
+        version (DigitalMars) pragma(inline, false);
         if (n)
             put(", ");
     }
 
-    char[] put(char c) return scope
+    void put(char c) return scope
     {
         char[1] val = c;
-        return put(val[]);
+        put(val[]);
     }
 
-    char[] put( scope const(char)[] val ) return scope
+    void put(scope BufSlice val) return scope
     {
-        pragma(inline, false); // tame dmd inliner
+        put(val.getSlice);
+    }
 
-        if ( val.length )
-        {
-            if ( !contains( dst[0 .. len], val ) )
-                return append( val );
-            return shift( val );
-        }
-        return null;
+    void put(scope const(char)[] val) return scope nothrow
+    {
+        if (mute)
+            return;
+        dst.append(val);
     }
 
 
@@ -294,17 +178,20 @@ pure @safe:
     {
         if ( val.length )
         {
-            append( " " );
+            put(" ");
             put( val );
         }
     }
 
 
-    void silent( void delegate() pure @safe dg )
+    void silent( out bool err_status, void delegate(out bool err_status) pure @safe nothrow dg ) nothrow
     {
         debug(trace) printf( "silent+\n" );
         debug(trace) scope(success) printf( "silent-\n" );
-        auto n = len; dg(); len = n;
+        auto n = dst.length;
+        dg(err_status);
+        if(!err_status)
+            dst.len = n;
     }
 
 
@@ -332,41 +219,43 @@ pure @safe:
     }
 
 
-    void test( char val )
+    bool test( char val ) nothrow
     {
-        if ( val != front )
-            error();
+        return val == front;
     }
 
-
-    void popFront()
+    void popFront() nothrow
     {
         if ( pos++ >= buf.length )
-            error();
+            assert(false);
     }
 
 
-    void popFront(int i)
+    void popFront(int i) nothrow
     {
         while (i--)
             popFront();
     }
 
 
-    void match( char val )
+    bool match( char val ) nothrow
     {
-        test( val );
-        popFront();
+        if (!test(val))
+            return false;
+        else
+        {
+            popFront();
+            return true;
+        }
     }
 
-
-    void match( const(char)[] val )
+    bool match( const(char)[] val ) nothrow
     {
         foreach (char e; val )
-        {
-            test( e );
-            popFront();
-        }
+            if (!match( e ))
+                return false;
+
+        return true;
     }
 
 
@@ -376,7 +265,7 @@ pure @safe:
             popFront();
     }
 
-    bool isSymbolNameFront()
+    bool isSymbolNameFront(out bool errStatus) nothrow
     {
         char val = front;
         if ( isDigit( val ) || val == '_' )
@@ -386,21 +275,28 @@ pure @safe:
 
         // check the back reference encoding after 'Q'
         val = peekBackref();
+        if (val == 0)
+        {
+            // invalid back reference
+            errStatus = true;
+            return false;
+        }
+
         return isDigit( val ); // identifier ref
     }
 
     // return the first character at the back reference
-    char peekBackref()
+    char peekBackref() nothrow
     {
         assert( front == 'Q' );
         auto n = decodeBackref!1();
         if (!n || n > pos)
-            error("invalid back reference");
+            return 0; // invalid back reference
 
         return buf[pos - n];
     }
 
-    size_t decodeBackref(size_t peekAt = 0)()
+    size_t decodeBackref(size_t peekAt = 0)() nothrow
     {
         enum base = 26;
         size_t n = 0;
@@ -419,7 +315,8 @@ pure @safe:
             if (t < 'A' || t > 'Z')
             {
                 if (t < 'a' || t > 'z')
-                    error("invalid back reference");
+                    return 0; // invalid back reference
+
                 n = base * n + t - 'a';
                 return n;
             }
@@ -455,16 +352,15 @@ pure @safe:
     }
 
 
-    size_t decodeNumber() scope
+    size_t decodeNumber(out bool errStatus) scope nothrow
     {
         debug(trace) printf( "decodeNumber+\n" );
         debug(trace) scope(success) printf( "decodeNumber-\n" );
 
-        return decodeNumber( sliceNumber() );
+        return decodeNumber( errStatus, sliceNumber() );
     }
 
-
-    size_t decodeNumber( scope const(char)[] num ) scope
+    size_t decodeNumber( out bool errStatus, scope const(char)[] num ) scope nothrow
     {
         debug(trace) printf( "decodeNumber+\n" );
         debug(trace) scope(success) printf( "decodeNumber-\n" );
@@ -479,13 +375,15 @@ pure @safe:
             val = mulu(val, 10, overflow);
             val = addu(val, c - '0',  overflow);
             if (overflow)
-                error();
+            {
+                errStatus = true;
+                return 0;
+            }
         }
         return val;
     }
 
-
-    void parseReal() scope
+    void parseReal(out bool errStatus) scope nothrow
     {
         debug(trace) printf( "parseReal+\n" );
         debug(trace) scope(success) printf( "parseReal-\n" );
@@ -494,9 +392,15 @@ pure @safe:
         size_t   tlen = 0;
         real     val  = void;
 
+        void onError()
+        {
+            errStatus = true;
+        }
+
         if ( 'I' == front )
         {
-            match( "INF" );
+            if (!match("INF"))
+                return onError();
             put( "real.infinity" );
             return;
         }
@@ -505,13 +409,15 @@ pure @safe:
             popFront();
             if ( 'I' == front )
             {
-                match( "INF" );
+                if (!match("INF"))
+                    return onError();
                 put( "-real.infinity" );
                 return;
             }
             if ( 'A' == front )
             {
-                match( "AN" );
+                if (!match("AN"))
+                    return onError();
                 put( "real.nan" );
                 return;
             }
@@ -520,18 +426,23 @@ pure @safe:
 
         tbuf[tlen++] = '0';
         tbuf[tlen++] = 'X';
-        if ( !isHexDigit( front ) )
-            error( "Expected hex digit" );
+        errStatus = !isHexDigit( front );
+        if (errStatus)
+            return; // Expected hex digit
+
         tbuf[tlen++] = front;
         tbuf[tlen++] = '.';
         popFront();
 
         while ( isHexDigit( front ) )
         {
+            if (tlen >= tbuf.length)
+                return onError(); // Too many hex float digits
             tbuf[tlen++] = front;
             popFront();
         }
-        match( 'P' );
+        if (!match('P'))
+            return onError();
         tbuf[tlen++] = 'p';
         if ( 'N' == front )
         {
@@ -576,14 +487,23 @@ pure @safe:
         Namechar
         Namechar Namechars
     */
-    void parseLName() scope
+    void parseLName(out string errMsg) scope nothrow
     {
         debug(trace) printf( "parseLName+\n" );
         debug(trace) scope(success) printf( "parseLName-\n" );
 
         static if (__traits(hasMember, Hooks, "parseLName"))
-            if (hooks.parseLName(this))
+        {
+            auto r = hooks.parseLName(errMsg, this);
+            if (errMsg !is null)
                 return;
+            if (r) return;
+        }
+
+        void error(string msg)
+        {
+            errMsg = msg;
+        }
 
         if ( front == 'Q' )
         {
@@ -591,31 +511,39 @@ pure @safe:
             auto refPos = pos;
             popFront();
             size_t n = decodeBackref();
-            if ( !n || n > refPos )
-                error( "Invalid LName back reference" );
+            if (!n || n > refPos)
+                return error("Invalid LName back reference");
+
             if ( !mute )
             {
                 auto savePos = pos;
                 scope(exit) pos = savePos;
                 pos = refPos - n;
-                parseLName();
+                parseLName(errMsg);
             }
             return;
         }
-        auto n = decodeNumber();
+
+        bool err_flag;
+        auto n = decodeNumber(err_flag);
+        if (err_flag)
+            return error("Number overflow");
+
         if ( n == 0 )
         {
             put( "__anonymous" );
             return;
         }
         if ( n > buf.length || n > buf.length - pos )
-            error( "LName must be at least 1 character" );
+            return error("LName must be at least 1 character");
+
         if ( '_' != front && !isAlpha( front ) )
-            error( "Invalid character in LName" );
+            return error("Invalid character in LName");
+
         foreach (char e; buf[pos + 1 .. pos + n] )
         {
             if ( '_' != e && !isAlpha( e ) && !isDigit( e ) )
-                error( "Invalid character in LName" );
+                return error("Invalid character in LName");
         }
 
         put( buf[pos .. pos + n] );
@@ -798,7 +726,7 @@ pure @safe:
     TypeTuple:
         B Number Arguments
     */
-    char[] parseType( char[] name = null ) return scope
+    BufSlice parseType(out bool errStatus) return scope nothrow
     {
         static immutable string[23] primitives = [
             "char", // a
@@ -827,59 +755,85 @@ pure @safe:
         ];
 
         static if (__traits(hasMember, Hooks, "parseType"))
-            if (auto n = hooks.parseType(this, name))
-                return n;
+        {
+            auto n = hooks.parseType(errStatus, this, null);
+            if (errStatus)
+                return dst.bslice_empty;
+            else
+                if (n !is null)
+                    return BufSlice(n, 0, n.length);
+        }
 
         debug(trace) printf( "parseType+\n" );
         debug(trace) scope(success) printf( "parseType-\n" );
-        auto beg = len;
+        auto beg = dst.length;
         auto t = front;
 
-        char[] parseBackrefType(scope char[] delegate() pure @safe parseDg) pure @safe
+        BufSlice parseBackrefType(out string errStatus, scope BufSlice delegate(bool err_flag) pure @safe nothrow parseDg) pure @safe nothrow
         {
             if (pos == brp)
-                error("recursive back reference");
+            {
+                errStatus = "recursive back reference";
+                return dst.bslice_empty;
+            }
+
             auto refPos = pos;
             popFront();
             auto n = decodeBackref();
             if (n == 0 || n > pos)
-                error("invalid back reference");
+            {
+                errStatus = "invalid back reference";
+                return dst.bslice_empty;
+            }
+
             if ( mute )
-                return null;
+                return dst.bslice_empty;
             auto savePos = pos;
             auto saveBrp = brp;
             scope(success) { pos = savePos; brp = saveBrp; }
             pos = refPos - n;
             brp = refPos;
-            auto ret = parseDg();
+
+            bool err_flag;
+            auto ret = parseDg(err_flag);
+            if (err_flag)
+            {
+                errStatus = "parseDg error";
+                return dst.bslice_empty;
+            }
+
             return ret;
         }
+
+        // call parseType() and return error if occured
+        enum parseTypeOrF = "parseType(errStatus); if (errStatus) return dst.bslice_empty;";
 
         switch ( t )
         {
         case 'Q': // Type back reference
-            return parseBackrefType( () => parseType( name ) );
+            string errMsg;
+            auto r = parseBackrefType(errMsg, (e_flag) => parseType(e_flag));
+            if (errMsg !is null)
+                return dst.bslice_empty;
+            return r;
         case 'O': // Shared (O Type)
             popFront();
             put( "shared(" );
-            parseType();
+            mixin(parseTypeOrF);
             put( ')' );
-            pad( name );
-            return dst[beg .. len];
+            return dst[beg .. $];
         case 'x': // Const (x Type)
             popFront();
             put( "const(" );
-            parseType();
+            mixin(parseTypeOrF);
             put( ')' );
-            pad( name );
-            return dst[beg .. len];
+            return dst[beg .. $];
         case 'y': // Immutable (y Type)
             popFront();
             put( "immutable(" );
-            parseType();
+            mixin(parseTypeOrF);
             put( ')' );
-            pad( name );
-            return dst[beg .. len];
+            return dst[beg .. $];
         case 'N':
             popFront();
             switch ( front )
@@ -887,89 +841,103 @@ pure @safe:
             case 'n': // Noreturn
                 popFront();
                 put("noreturn");
-                return dst[beg .. len];
+                return dst[beg .. $];
             case 'g': // Wild (Ng Type)
                 popFront();
                 // TODO: Anything needed here?
                 put( "inout(" );
-                parseType();
+                mixin(parseTypeOrF);
                 put( ')' );
-                return dst[beg .. len];
+                return dst[beg .. $];
             case 'h': // TypeVector (Nh Type)
                 popFront();
                 put( "__vector(" );
-                parseType();
+                mixin(parseTypeOrF);
                 put( ')' );
-                return dst[beg .. len];
+                return dst[beg .. $];
             default:
-                error();
-                assert( 0 );
+                errStatus = true;
+                return dst.bslice_empty;
             }
         case 'A': // TypeArray (A Type)
             popFront();
-            parseType();
+            mixin(parseTypeOrF);
             put( "[]" );
-            pad( name );
-            return dst[beg .. len];
+            return dst[beg .. $];
         case 'G': // TypeStaticArray (G Number Type)
             popFront();
             auto num = sliceNumber();
-            parseType();
+            mixin(parseTypeOrF);
             put( '[' );
             put( num );
             put( ']' );
-            pad( name );
-            return dst[beg .. len];
+            return dst[beg .. $];
         case 'H': // TypeAssocArray (H Type Type)
             popFront();
             // skip t1
-            auto tx = parseType();
-            parseType();
+            auto tx = parseType(errStatus);
+            if (errStatus)
+                return dst.bslice_empty;
+            mixin(parseTypeOrF);
             put( '[' );
-            put( tx );
+            shift(tx);
             put( ']' );
-            pad( name );
-            return dst[beg .. len];
+            return dst[beg .. $];
         case 'P': // TypePointer (P Type)
             popFront();
-            parseType();
+            mixin(parseTypeOrF);
             put( '*' );
-            pad( name );
-            return dst[beg .. len];
+            return dst[beg .. $];
         case 'F': case 'U': case 'W': case 'V': case 'R': // TypeFunction
-            return parseTypeFunction( name );
+            auto r = parseTypeFunction(errStatus);
+            if (errStatus)
+                return dst.bslice_empty;
+            return r;
         case 'C': // TypeClass (C LName)
         case 'S': // TypeStruct (S LName)
         case 'E': // TypeEnum (E LName)
         case 'T': // TypeTypedef (T LName)
             popFront();
-            parseQualifiedName();
-            pad( name );
-            return dst[beg .. len];
+            parseQualifiedName(errStatus);
+            if (errStatus)
+                return dst.bslice_empty;
+            return dst[beg .. $];
         case 'D': // TypeDelegate (D TypeFunction)
             popFront();
-            auto modbeg = len;
-            parseModifier();
-            auto modend = len;
+            auto modifiers = parseModifier();
             if ( front == 'Q' )
-                parseBackrefType( () => parseTypeFunction( name, IsDelegate.yes ) );
-            else
-                parseTypeFunction( name, IsDelegate.yes );
-            if (modend > modbeg)
             {
-                // move modifiers behind the function arguments
-                shift(dst[modend-1 .. modend]); // trailing space
-                shift(dst[modbeg .. modend-1]);
+                string errMsg;
+                auto r = parseBackrefType(errMsg, (e_flag) => parseTypeFunction(e_flag, IsDelegate.yes));
+                if (errMsg !is null)
+                    return dst.bslice_empty;
+                return r;
             }
-            return dst[beg .. len];
+            else
+            {
+                parseTypeFunction(errStatus, IsDelegate.yes);
+                if (errStatus)
+                    return dst.bslice_empty;
+            }
+
+            if (modifiers)
+            {
+                // write modifiers behind the function arguments
+                while (auto str = typeCtors.toStringConsume(modifiers))
+                {
+                    put(' ');
+                    put(str);
+                }
+            }
+            return dst[beg .. $];
         case 'n': // TypeNone (n)
             popFront();
             // TODO: Anything needed here?
-            return dst[beg .. len];
+            return dst[beg .. $];
         case 'B': // TypeTuple (B Number Arguments)
             popFront();
             // TODO: Handle this.
-            return dst[beg .. len];
+            return dst[beg .. $];
         case 'Z': // Internal symbol
             // This 'type' is used for untyped internal symbols, i.e.:
             // __array
@@ -979,14 +947,13 @@ pure @safe:
             // __Interface
             // __ModuleInfo
             popFront();
-            return dst[beg .. len];
+            return dst[beg .. $];
         default:
             if (t >= 'a' && t <= 'w')
             {
                 popFront();
                 put( primitives[cast(size_t)(t - 'a')] );
-                pad( name );
-                return dst[beg .. len];
+                return dst[beg .. $];
             }
             else if (t == 'z')
             {
@@ -996,20 +963,18 @@ pure @safe:
                 case 'i':
                     popFront();
                     put( "cent" );
-                    pad( name );
-                    return dst[beg .. len];
+                    return dst[beg .. $];
                 case 'k':
                     popFront();
                     put( "ucent" );
-                    pad( name );
-                    return dst[beg .. len];
+                    return dst[beg .. $];
                 default:
-                    error();
-                    assert( 0 );
+                    errStatus = true;
+                    return dst.bslice_empty;
                 }
             }
-            error();
-            return null;
+            errStatus = true;
+            return dst.bslice_empty;
         }
     }
 
@@ -1085,7 +1050,7 @@ pure @safe:
         Y     // variadic T t...) style
         Z     // not variadic
     */
-    void parseCallConvention()
+    void parseCallConvention(out bool errStatus) nothrow
     {
         // CallConvention
         switch ( front )
@@ -1106,47 +1071,48 @@ pure @safe:
             put( "extern (C++) " );
             break;
         default:
-            error();
+            errStatus = true;
         }
     }
 
-    void parseModifier()
+    /// Returns: Flags of `TypeCtor`
+    ushort parseModifier()
     {
+        TypeCtor res = TypeCtor.None;
         switch ( front )
         {
         case 'y':
             popFront();
-            put( "immutable " );
-            break;
+            return TypeCtor.Immutable;
         case 'O':
             popFront();
-            put( "shared " );
-            if ( front == 'x' )
+            res |= TypeCtor.Shared;
+            if (front == 'x')
                 goto case 'x';
-            if ( front == 'N' )
+            if (front == 'N')
                 goto case 'N';
-            break;
+            return TypeCtor.Shared;
         case 'N':
-            if ( peek( 1 ) != 'g' )
-                break;
+            if (peek( 1 ) != 'g')
+                return res;
             popFront();
             popFront();
-            put( "inout " );
+            res |= TypeCtor.InOut;
             if ( front == 'x' )
                 goto case 'x';
-            break;
+            return res;
         case 'x':
             popFront();
-            put( "const " );
-            break;
-        default: break;
+            res |= TypeCtor.Const;
+            return res;
+        default: return TypeCtor.None;
         }
     }
 
-    void parseFuncAttr()
+    ushort parseFuncAttr(out bool errStatus) nothrow
     {
         // FuncAttrs
-        breakFuncAttrs:
+        ushort result;
         while ('N' == front)
         {
             popFront();
@@ -1154,27 +1120,27 @@ pure @safe:
             {
             case 'a': // FuncAttrPure
                 popFront();
-                put( "pure " );
+                result |= FuncAttributes.Pure;
                 continue;
             case 'b': // FuncAttrNoThrow
                 popFront();
-                put( "nothrow " );
+                result |= FuncAttributes.Nothrow;
                 continue;
             case 'c': // FuncAttrRef
                 popFront();
-                put( "ref " );
+                result |= FuncAttributes.Ref;
                 continue;
             case 'd': // FuncAttrProperty
                 popFront();
-                put( "@property " );
+                result |= FuncAttributes.Property;
                 continue;
             case 'e': // FuncAttrTrusted
                 popFront();
-                put( "@trusted " );
+                result |= FuncAttributes.Trusted;
                 continue;
             case 'f': // FuncAttrSafe
                 popFront();
-                put( "@safe " );
+                result |= FuncAttributes.Safe;
                 continue;
             case 'g':
             case 'h':
@@ -1188,30 +1154,46 @@ pure @safe:
                 //       if we see these, then we know we're really in
                 //       the parameter list.  Rewind and break.
                 pos--;
-                break breakFuncAttrs;
+                return result;
             case 'i': // FuncAttrNogc
                 popFront();
-                put( "@nogc " );
+                result |= FuncAttributes.NoGC;
                 continue;
             case 'j': // FuncAttrReturn
                 popFront();
-                put( "return " );
+                if (this.peek(0) == 'N' && this.peek(1) == 'l')
+                {
+                    result |= FuncAttributes.ReturnScope;
+                    popFront();
+                    popFront();
+                } else {
+                    result |= FuncAttributes.Return;
+                }
                 continue;
             case 'l': // FuncAttrScope
                 popFront();
-                put( "scope " );
+                if (this.peek(0) == 'N' && this.peek(1) == 'j')
+                {
+                    result |= FuncAttributes.ScopeReturn;
+                    popFront();
+                    popFront();
+                } else {
+                    result |= FuncAttributes.Scope;
+                }
                 continue;
             case 'm': // FuncAttrLive
                 popFront();
-                put( "@live " );
+                result |= FuncAttributes.Live;
                 continue;
             default:
-                error();
+                errStatus = true;
+                return 0;
             }
         }
+        return result;
     }
 
-    void parseFuncArguments() scope
+    void parseFuncArguments(out bool errStatus) scope nothrow
     {
         // Arguments
         for ( size_t n = 0; true; n++ )
@@ -1303,6 +1285,10 @@ pure @safe:
                 else
                     pos--;
             }
+
+            // call parseType() and return error if occured
+            enum parseTypeOrF = "parseType(errStatus); if (errStatus) return;";
+
             switch ( front )
             {
             case 'I': // in  (I Type)
@@ -1310,25 +1296,25 @@ pure @safe:
                 put("in ");
                 if (front == 'K')
                     goto case;
-                parseType();
+                mixin(parseTypeOrF);
                 continue;
             case 'K': // ref (K Type)
                 popFront();
                 put( "ref " );
-                parseType();
+                mixin(parseTypeOrF);
                 continue;
             case 'J': // out (J Type)
                 popFront();
                 put( "out " );
-                parseType();
+                mixin(parseTypeOrF);
                 continue;
             case 'L': // lazy (L Type)
                 popFront();
                 put( "lazy " );
-                parseType();
+                mixin(parseTypeOrF);
                 continue;
             default:
-                parseType();
+                mixin(parseTypeOrF);
             }
         }
     }
@@ -1339,48 +1325,50 @@ pure @safe:
         TypeFunction:
             CallConvention FuncAttrs Arguments ArgClose Type
     */
-    char[] parseTypeFunction( char[] name = null, IsDelegate isdg = IsDelegate.no ) return scope
+    BufSlice parseTypeFunction(out bool errStatus, IsDelegate isdg = IsDelegate.no) return scope nothrow
     {
         debug(trace) printf( "parseTypeFunction+\n" );
         debug(trace) scope(success) printf( "parseTypeFunction-\n" );
-        auto beg = len;
+        auto beg = dst.length;
 
-        parseCallConvention();
-        auto attrbeg = len;
-        parseFuncAttr();
+        parseCallConvention(errStatus);
+        if (errStatus)
+            return dst.bslice_empty;
 
-        auto argbeg = len;
+        auto attributes = parseFuncAttr(errStatus);
+        if (errStatus)
+            return dst.bslice_empty;
+
+        auto argbeg = dst.length;
+        put(IsDelegate.yes == isdg ? "delegate" : "function");
         put( '(' );
-        parseFuncArguments();
+        parseFuncArguments(errStatus);
+        if (errStatus)
+            return dst.bslice_empty;
         put( ')' );
-        if (attrbeg < argbeg)
+        if (attributes)
         {
-            // move function attributes behind arguments
-            shift( dst[argbeg - 1 .. argbeg] ); // trailing space
-            shift( dst[attrbeg .. argbeg - 1] ); // attributes
-            argbeg = attrbeg;
-        }
-        auto retbeg = len;
-        parseType();
-        put( ' ' );
-        // append name/delegate/function
-        if ( name.length )
-        {
-            if ( !contains( dst[0 .. len], name ) )
-                put( name );
-            else if ( shift( name ).ptr != name.ptr )
+            // write function attributes behind arguments
+            while (auto str = funcAttrs.toStringConsume(attributes))
             {
-                argbeg -= name.length;
-                retbeg -= name.length;
+                put(' ');
+                put(str);
             }
         }
-        else if ( IsDelegate.yes == isdg )
-            put( "delegate" );
-        else
-            put( "function" );
-        // move arguments and attributes behind name
-        shift( dst[argbeg .. retbeg] );
-        return dst[beg..len];
+
+        // A function / delegate return type is located at the end of its mangling
+        // Write it in order, then shift it back to 'code order'
+        // e.g. `delegate(int) @safedouble ' => 'double delegate(int) @safe'
+        {
+            auto retbeg = dst.length;
+            parseType(errStatus);
+            if (errStatus)
+                return dst.bslice_empty;
+            put(' ');
+            shift(dst[argbeg .. retbeg]);
+        }
+
+        return dst[beg .. $];
     }
 
     static bool isCallConvention( char ch )
@@ -1428,10 +1416,21 @@ pure @safe:
         E
         F
     */
-    void parseValue(scope  char[] name = null, char type = '\0' ) scope
+
+    void parseValue(out bool errStatus) scope nothrow
+    {
+        parseValue(errStatus, dst.bslice_empty);
+    }
+
+    void parseValue(out bool errStatus, scope BufSlice name, char type = '\0' ) scope nothrow
     {
         debug(trace) printf( "parseValue+\n" );
         debug(trace) scope(success) printf( "parseValue-\n" );
+
+        void onError()
+        {
+            errStatus = true;
+        }
 
 //        printf( "*** %c\n", front );
         switch ( front )
@@ -1442,39 +1441,55 @@ pure @safe:
             return;
         case 'i':
             popFront();
-            if ( '0' > front || '9' < front )
-                error( "Number expected" );
+            if ('0' > front || '9' < front)
+                return onError(); // Number expected
             goto case;
         case '0': .. case '9':
-            parseIntegerValue( name, type );
+            parseIntegerValue( errStatus, name, type );
             return;
         case 'N':
             popFront();
             put( '-' );
-            parseIntegerValue( name, type );
+            parseIntegerValue( errStatus, name, type );
             return;
         case 'e':
             popFront();
-            parseReal();
+            parseReal(errStatus);
             return;
         case 'c':
             popFront();
-            parseReal();
+            parseReal(errStatus);
+            if (errStatus)
+                return;
             put( '+' );
-            match( 'c' );
-            parseReal();
+            if (!match('c'))
+                return onError();
+            parseReal(errStatus);
+            if (errStatus)
+                return;
             put( 'i' );
             return;
         case 'a': case 'w': case 'd':
             char t = front;
             popFront();
-            auto n = decodeNumber();
-            match( '_' );
+            auto n = decodeNumber(errStatus);
+            if (errStatus)
+                return;
+            if (!match('_'))
+                return onError();
             put( '"' );
             foreach (i; 0..n)
             {
-                auto a = ascii2hex( front ); popFront();
-                auto b = ascii2hex( front ); popFront();
+                auto a = ascii2hex( errStatus, front );
+                if (errStatus)
+                    return;
+                popFront();
+
+                auto b = ascii2hex( errStatus, front );
+                if (errStatus)
+                    return;
+                popFront();
+
                 auto v = cast(char)((a << 4) | b);
                 if (' ' <= v && v <= '~')   // ASCII printable
                 {
@@ -1504,11 +1519,15 @@ pure @safe:
             // An array literal. Value is repeated Number times.
             popFront();
             put( '[' );
-            auto n = decodeNumber();
+            auto n = decodeNumber(errStatus);
+            if (errStatus)
+                return;
             foreach ( i; 0 .. n )
             {
                 putComma(i);
-                parseValue();
+                parseValue(errStatus);
+                if (errStatus)
+                    return;
             }
             put( ']' );
             return;
@@ -1518,13 +1537,19 @@ pure @safe:
             // An associative array literal. Value is repeated 2*Number times.
             popFront();
             put( '[' );
-            auto n = decodeNumber();
+            auto n = decodeNumber(errStatus);
+            if (errStatus)
+                return;
             foreach ( i; 0 .. n )
             {
                 putComma(i);
-                parseValue();
+                parseValue(errStatus);
+                if (errStatus)
+                    return;
                 put(':');
-                parseValue();
+                parseValue(errStatus);
+                if (errStatus)
+                    return;
             }
             put( ']' );
             return;
@@ -1535,11 +1560,15 @@ pure @safe:
             if ( name.length )
                 put( name );
             put( '(' );
-            auto n = decodeNumber();
+            auto n = decodeNumber(errStatus);
+            if (errStatus)
+                return;
             foreach ( i; 0 .. n )
             {
                 putComma(i);
-                parseValue();
+                parseValue(errStatus);
+                if (errStatus)
+                    return;
             }
             put( ')' );
             return;
@@ -1547,15 +1576,14 @@ pure @safe:
             // f MangledName
             // A function literal symbol
             popFront();
-            parseMangledName(false, 1);
+            parseMangledName(errStatus, false, 1);
             return;
         default:
-            error();
+            errStatus = true;
         }
     }
 
-
-    void parseIntegerValue( scope char[] name = null, char type = '\0' ) scope
+    void parseIntegerValue( out bool errStatus, scope BufSlice name, char type = '\0' ) scope nothrow
     {
         debug(trace) printf( "parseIntegerValue+\n" );
         debug(trace) scope(success) printf( "parseIntegerValue-\n" );
@@ -1567,7 +1595,9 @@ pure @safe:
         case 'w': // dchar
         {
             auto val = sliceNumber();
-            auto num = decodeNumber( val );
+            auto num = decodeNumber( errStatus, val );
+            if (errStatus)
+                return;
 
             switch ( num )
             {
@@ -1629,7 +1659,10 @@ pure @safe:
             }
         }
         case 'b': // bool
-            put( decodeNumber() ? "true" : "false" );
+            auto d = decodeNumber(errStatus);
+            if (errStatus)
+                return;
+            put( d ? "true" : "false" );
             return;
         case 'h', 't', 'k': // ubyte, ushort, uint
             put( sliceNumber() );
@@ -1665,7 +1698,7 @@ pure @safe:
         S Number_opt QualifiedName
         X ExternallyMangledName
     */
-    void parseTemplateArgs() scope
+    void parseTemplateArgs(out bool errStatus) scope nothrow
     {
         debug(trace) printf( "parseTemplateArgs+\n" );
         debug(trace) scope(success) printf( "parseTemplateArgs-\n" );
@@ -1681,7 +1714,9 @@ pure @safe:
             case 'T':
                 popFront();
                 putComma(n);
-                parseType();
+                parseType(errStatus);
+                if (errStatus)
+                    return;
                 continue;
             case 'V':
                 popFront();
@@ -1692,9 +1727,22 @@ pure @safe:
                 //       decrement len and let put/append do its thing.
                 char t = front; // peek at type for parseValue
                 if ( t == 'Q' )
+                {
                     t = peekBackref();
-                char[] name; silent( delegate void() { name = parseType(); } );
-                parseValue( name, t );
+                    if (t == 0)
+                    {
+                        // invalid back reference
+                        errStatus = true;
+                        return;
+                    }
+                }
+                BufSlice name = dst.bslice_empty;
+                silent( errStatus, delegate void(out bool e_flg) nothrow { name = parseType(e_flg); } );
+                if (errStatus)
+                    return;
+                parseValue( errStatus, name, t );
+                if (errStatus)
+                    return;
                 continue;
             case 'S':
                 popFront();
@@ -1702,55 +1750,63 @@ pure @safe:
 
                 if ( mayBeMangledNameArg() )
                 {
-                    auto l = len;
+                    auto l = dst.length;
                     auto p = pos;
                     auto b = brp;
-                    try
-                    {
-                        debug(trace) printf( "may be mangled name arg\n" );
-                        parseMangledNameArg();
+
+                    debug(trace) printf( "may be mangled name arg\n" );
+
+                    if (parseMangledNameArg())
                         continue;
-                    }
-                    catch ( ParseException e )
-                    {
-                        len = l;
-                        pos = p;
-                        brp = b;
-                        debug(trace) printf( "not a mangled name arg\n" );
-                    }
+                    dst.len = l;
+                    pos = p;
+                    brp = b;
+                    debug(trace) printf( "not a mangled name arg\n" );
                 }
                 if ( isDigit( front ) && isDigit( peek( 1 ) ) )
                 {
                     // ambiguity: length followed by qualified name (starting with number)
                     // try all possible pairs of numbers
-                    auto qlen = decodeNumber() / 10; // last digit needed for QualifiedName
+                    auto qlen = decodeNumber(errStatus);
+                    if (errStatus)
+                        return;
+
+                    qlen /= 10; // last digit needed for QualifiedName
                     pos--;
-                    auto l = len;
+                    auto l = dst.length;
                     auto p = pos;
                     auto b = brp;
                     while ( qlen > 0 )
                     {
-                        try
+                        errStatus = false;
+                        parseQualifiedName(errStatus);
+
+                        if (!errStatus)
                         {
-                            parseQualifiedName();
                             if ( pos == p + qlen )
                                 continue L_nextArg;
                         }
-                        catch ( ParseException e )
-                        {
-                        }
+
                         qlen /= 10; // retry with one digit less
                         pos = --p;
-                        len = l;
+                        dst.len = l;
                         brp = b;
                     }
                 }
-                parseQualifiedName();
+
+                parseQualifiedName(errStatus);
+                if (errStatus)
+                    return;
                 continue;
             case 'X':
                 popFront();
                 putComma(n);
-                parseLName();
+                {
+                    string errMsg;
+                    parseLName(errMsg);
+                    if (errMsg)
+                        return;
+                }
                 continue;
             default:
                 return;
@@ -1759,79 +1815,127 @@ pure @safe:
     }
 
 
-    bool mayBeMangledNameArg()
+    bool mayBeMangledNameArg() nothrow
     {
         debug(trace) printf( "mayBeMangledNameArg+\n" );
         debug(trace) scope(success) printf( "mayBeMangledNameArg-\n" );
 
+        bool errStatus;
         auto p = pos;
         scope(exit) pos = p;
+
         if ( isDigit( buf[pos] ) )
         {
-            auto n = decodeNumber();
-            return n >= 4 &&
+            auto n = decodeNumber(errStatus);
+
+            return !errStatus && n >= 4 &&
                 pos < buf.length && '_' == buf[pos++] &&
                 pos < buf.length && 'D' == buf[pos++] &&
                 isDigit( buf[pos] );
         }
         else
         {
-            return pos < buf.length && '_' == buf[pos++] &&
+            const isSNF = isSymbolNameFront(errStatus);
+
+            return !errStatus &&
+                   pos < buf.length && '_' == buf[pos++] &&
                    pos < buf.length && 'D' == buf[pos++] &&
-                   isSymbolNameFront();
+                   isSNF;
         }
     }
 
-
-    void parseMangledNameArg()
+    bool parseMangledNameArg() nothrow
     {
         debug(trace) printf( "parseMangledNameArg+\n" );
         debug(trace) scope(success) printf( "parseMangledNameArg-\n" );
 
+        bool errStatus;
+
         size_t n = 0;
         if ( isDigit( front ) )
-            n = decodeNumber();
-        parseMangledName( false, n );
-    }
+        {
+            n = decodeNumber(errStatus);
 
+            if (errStatus)
+                return false;
+        }
+
+        parseMangledName(errStatus, false, n );
+
+        return !errStatus;
+    }
 
     /*
     TemplateInstanceName:
         Number __T LName TemplateArgs Z
     */
-    void parseTemplateInstanceName(bool hasNumber) scope
+    void parseTemplateInstanceName(out bool errStatus, bool hasNumber) scope nothrow
     {
         debug(trace) printf( "parseTemplateInstanceName+\n" );
         debug(trace) scope(success) printf( "parseTemplateInstanceName-\n" );
 
         auto sav = pos;
         auto saveBrp = brp;
-        scope(failure)
+
+        void onError()
         {
+            errStatus = true;
             pos = sav;
             brp = saveBrp;
         }
-        auto n = hasNumber ? decodeNumber() : 0;
+
+        size_t n = 0;
+        if (hasNumber)
+        {
+            n = decodeNumber(errStatus);
+            if (errStatus)
+                return onError();
+        }
+
         auto beg = pos;
-        match( "__T" );
-        parseLName();
+        errStatus = !match( "__T" );
+        if (errStatus)
+            return onError();
+
+        {
+            string errMsg;
+            parseLName(errMsg);
+            if (errMsg !is null)
+                return onError();
+        }
+
         put( "!(" );
-        parseTemplateArgs();
-        match( 'Z' );
+
+        parseTemplateArgs(errStatus);
+        if (errStatus)
+            return onError();
+
+        if (!match('Z'))
+            return onError();
+
         if ( hasNumber && pos - beg != n )
-            error( "Template name length mismatch" );
+        {
+            // Template name length mismatch
+            return onError();
+        }
+
         put( ')' );
     }
 
 
-    bool mayBeTemplateInstanceName() scope
+    bool mayBeTemplateInstanceName() scope nothrow
     {
         debug(trace) printf( "mayBeTemplateInstanceName+\n" );
         debug(trace) scope(success) printf( "mayBeTemplateInstanceName-\n" );
 
         auto p = pos;
         scope(exit) pos = p;
-        auto n = decodeNumber();
+
+        bool errStatus;
+        auto n = decodeNumber(errStatus);
+        if (errStatus)
+            return false;
+
         return n >= 5 &&
                pos < buf.length && '_' == buf[pos++] &&
                pos < buf.length && '_' == buf[pos++] &&
@@ -1844,7 +1948,7 @@ pure @safe:
         LName
         TemplateInstanceName
     */
-    void parseSymbolName() scope
+    void parseSymbolName(out bool errStatus) scope nothrow
     {
         debug(trace) printf( "parseSymbolName+\n" );
         debug(trace) scope(success) printf( "parseSymbolName-\n" );
@@ -1855,81 +1959,91 @@ pure @safe:
         {
         case '_':
             // no length encoding for templates for new mangling
-            parseTemplateInstanceName(false);
+            parseTemplateInstanceName(errStatus, false);
             return;
 
         case '0': .. case '9':
             if ( mayBeTemplateInstanceName() )
             {
-                auto t = len;
+                auto t = dst.length;
 
-                try
-                {
-                    debug(trace) printf( "may be template instance name\n" );
-                    parseTemplateInstanceName(true);
+                debug(trace) printf( "may be template instance name\n" );
+                parseTemplateInstanceName(errStatus, true);
+                if (!errStatus)
                     return;
-                }
-                catch ( ParseException e )
+                else
                 {
                     debug(trace) printf( "not a template instance name\n" );
-                    len = t;
+                    dst.len = t;
                 }
             }
             goto case;
         case 'Q':
-            parseLName();
+            string errMsg;
+            parseLName(errMsg);
+            errStatus = errMsg !is null;
             return;
         default:
-            error();
+            errStatus = true;
         }
     }
 
     // parse optional function arguments as part of a symbol name, i.e without return type
     // if keepAttr, the calling convention and function attributes are not discarded, but returned
-    char[] parseFunctionTypeNoReturn( bool keepAttr = false ) return scope
+    BufSlice parseFunctionTypeNoReturn( bool keepAttr = false ) return scope nothrow
     {
         // try to demangle a function, in case we are pointing to some function local
         auto prevpos = pos;
-        auto prevlen = len;
+        auto prevlen = dst.length;
         auto prevbrp = brp;
 
-        char[] attr;
-        try
+        if ( 'M' == front )
         {
-            if ( 'M' == front )
+            // do not emit "needs this"
+            popFront();
+            auto modifiers = parseModifier();
+            while (auto str = typeCtors.toStringConsume(modifiers))
             {
-                // do not emit "needs this"
-                popFront();
-                parseModifier();
-            }
-            if ( isCallConvention( front ) )
-            {
-                // we don't want calling convention and attributes in the qualified name
-                parseCallConvention();
-                parseFuncAttr();
-                if ( keepAttr )
-                {
-                    attr = dst[prevlen .. len];
-                }
-                else
-                {
-                    len = prevlen;
-                }
-
-                put( '(' );
-                parseFuncArguments();
-                put( ')' );
+                put(str);
+                put(' ');
             }
         }
-        catch ( ParseException )
+        if ( isCallConvention( front ) )
         {
+            BufSlice attr = dst.bslice_empty;
+            // we don't want calling convention and attributes in the qualified name
+            bool errStatus;
+            parseCallConvention(errStatus);
+            if (!errStatus)
+            {
+                auto attributes = parseFuncAttr(errStatus);
+                if (!errStatus)
+                {
+                    if (keepAttr) {
+                        while (auto str = funcAttrs.toStringConsume(attributes))
+                        {
+                            put(str);
+                            put(' ');
+                        }
+                        attr = dst[prevlen .. $];
+                    }
+
+                    put( '(' );
+                    parseFuncArguments(errStatus);
+                    if (errStatus)
+                        return dst.bslice_empty;
+                    put( ')' );
+                    return attr;
+                }
+            }
+
             // not part of a qualified name, so back up
             pos = prevpos;
-            len = prevlen;
+            dst.len = prevlen;
             brp = prevbrp;
-            attr = null;
         }
-        return attr;
+
+        return dst.bslice_empty;
     }
 
     /*
@@ -1937,22 +2051,30 @@ pure @safe:
         SymbolName
         SymbolName QualifiedName
     */
-    char[] parseQualifiedName() return scope
+    void parseQualifiedName(out bool errStatus) return scope nothrow
     {
         debug(trace) printf( "parseQualifiedName+\n" );
         debug(trace) scope(success) printf( "parseQualifiedName-\n" );
-        size_t  beg = len;
+
         size_t  n   = 0;
+        bool is_sym_name_front;
 
         do
         {
             if ( n++ )
                 put( '.' );
-            parseSymbolName();
+
+            parseSymbolName(errStatus);
+            if (errStatus)
+                return;
+
             parseFunctionTypeNoReturn();
 
-        } while ( isSymbolNameFront() );
-        return dst[beg .. len];
+            is_sym_name_front = isSymbolNameFront(errStatus);
+            if (errStatus)
+                return;
+
+        } while ( is_sym_name_front );
     }
 
 
@@ -1961,46 +2083,61 @@ pure @safe:
         _D QualifiedName Type
         _D QualifiedName M Type
     */
-    void parseMangledName( bool displayType, size_t n = 0 ) scope
+    void parseMangledName( out bool errStatus, bool displayType, size_t n = 0 ) scope nothrow
     {
         debug(trace) printf( "parseMangledName+\n" );
         debug(trace) scope(success) printf( "parseMangledName-\n" );
-        char[] name = null;
+        BufSlice name = dst.bslice_empty;
 
         auto end = pos + n;
 
         eat( '_' );
-        match( 'D' );
+        errStatus = !match( 'D' );
+        if (errStatus)
+            return;
+
         do
         {
-            size_t  beg = len;
-            size_t  nameEnd = len;
-            char[] attr;
+            size_t  beg = dst.length;
+            size_t  nameEnd = dst.length;
+            BufSlice attr = dst.bslice_empty;
+            bool is_sym_name_front;
+
             do
             {
-                if ( attr )
-                    remove( attr ); // dump attributes of parent symbols
-                if ( beg != len )
+                if ( attr.length )
+                    dst.remove(attr); // dump attributes of parent symbols
+                if (beg != dst.length)
                     put( '.' );
-                parseSymbolName();
-                nameEnd = len;
+
+                parseSymbolName(errStatus);
+                if (errStatus)
+                    return;
+
+                nameEnd = dst.length;
                 attr = parseFunctionTypeNoReturn( displayType );
 
-            } while ( isSymbolNameFront() );
+                is_sym_name_front = isSymbolNameFront(errStatus);
+                if (errStatus)
+                    return;
+            } while (is_sym_name_front);
 
             if ( displayType )
             {
                 attr = shift( attr );
-                nameEnd = len - attr.length;  // name includes function arguments
+                nameEnd = dst.length - attr.length;  // name includes function arguments
             }
             name = dst[beg .. nameEnd];
 
-            debug(info) printf( "name (%.*s)\n", cast(int) name.length, name.ptr );
+            debug(info) printf( "name (%.*s)\n", cast(int) name.length, name.getSlice.ptr );
             if ( 'M' == front )
                 popFront(); // has 'this' pointer
 
-            auto lastlen = len;
-            auto type = parseType();
+            auto lastlen = dst.length;
+            auto type = parseType(errStatus);
+            if (errStatus)
+                return;
+
             if ( displayType )
             {
                 if ( type.length )
@@ -2012,7 +2149,7 @@ pure @safe:
             {
                 // remove type
                 assert( attr.length == 0 );
-                len = lastlen;
+                dst.len = lastlen;
             }
             if ( pos >= buf.length || (n != 0 && pos >= end) )
                 return;
@@ -2031,53 +2168,28 @@ pure @safe:
         } while ( true );
     }
 
-    void parseMangledName()
+    void parseMangledName(out bool errStatus) nothrow
     {
-        parseMangledName( AddType.yes == addType );
+        parseMangledName(errStatus, AddType.yes == addType);
     }
 
-    char[] copyInput() return scope
-    {
-        if (dst.length < buf.length)
-            dst.length = buf.length;
-        char[] r = dst[0 .. buf.length];
-        r[] = buf[];
-        return r;
-    }
-
-    char[] doDemangle(alias FUNC)() return scope
+    char[] doDemangle(alias FUNC)() return scope nothrow
     {
         while ( true )
         {
-            try
+            debug(info) printf( "demangle(%.*s)\n", cast(int) buf.length, buf.ptr );
+
+            bool errStatus;
+            FUNC(errStatus);
+            if (!errStatus)
             {
-                debug(info) printf( "demangle(%.*s)\n", cast(int) buf.length, buf.ptr );
-                FUNC();
-                return dst[0 .. len];
+                return dst[0 .. $].getSlice;
             }
-            catch ( OverflowException e )
+            else
             {
-                debug(trace) printf( "overflow... restarting\n" );
-                auto a = minBufSize;
-                auto b = 2 * dst.length;
-                auto newsz = a < b ? b : a;
-                debug(info) printf( "growing dst to %lu bytes\n", newsz );
-                dst.length = newsz;
-                pos = len = brp = 0;
-                continue;
-            }
-            catch ( ParseException e )
-            {
-                debug(info)
-                {
-                    auto msg = e.toString();
-                    printf( "error: %.*s\n", cast(int) msg.length, msg.ptr );
-                }
-                return copyInput();
-            }
-            catch ( Exception e )
-            {
-                assert( false ); // no other exceptions thrown
+                debug(info) printf( "error" );
+
+                return dst.copyInput(buf);
             }
         }
     }
@@ -2095,24 +2207,27 @@ pure @safe:
 
 
 /**
- * Demangles D mangled names.  If it is not a D mangled name, it returns its
- * argument name.
+ * Demangles D/C++ mangled names.  If it is not a D/C++ mangled name, it
+ * returns its argument name.
  *
  * Params:
  *  buf = The string to demangle.
  *  dst = An optional destination buffer.
+ *  __cxa_demangle = optional C++ demangler
  *
  * Returns:
- *  The demangled name or the original string if the name is not a mangled D
- *  name.
+ *  The demangled name or the original string if the name is not a mangled
+ *  D/C++ name.
  */
-char[] demangle(return scope const(char)[] buf, return scope char[] dst = null ) nothrow pure @safe
+char[] demangle(return scope const(char)[] buf, return scope char[] dst = null, CXX_DEMANGLER __cxa_demangle = null) nothrow pure @safe
 {
+    if (__cxa_demangle && buf.length > 2 && buf[0..2] == "_Z")
+        return demangleCXX(buf, __cxa_demangle, dst);
     auto d = Demangle!()(buf, dst);
     // fast path (avoiding throwing & catching exception) for obvious
     // non-D mangled names
     if (buf.length < 2 || !(buf[0] == 'D' || buf[0..2] == "_D"))
-        return d.copyInput();
+        return d.dst.copyInput(buf);
     return d.demangleName();
 }
 
@@ -2190,8 +2305,13 @@ char[] reencodeMangled(return scope const(char)[] mangled) nothrow pure @safe
             }
         }
 
-        bool parseLName(scope ref Remangle d) scope
+        bool parseLName(out string errMsg, scope ref Remangle d) scope @trusted nothrow
         {
+            bool error(string msg)
+            {
+                errMsg = msg;
+                return false;
+            }
             flushPosition(d);
 
             auto reslen = result.length;
@@ -2205,19 +2325,25 @@ char[] reencodeMangled(return scope const(char)[] mangled) nothrow pure @safe
                     d.popFront();
                     size_t n = d.decodeBackref();
                     if (!n || n > refpos)
-                        d.error("invalid back reference");
+                        return error("invalid back reference");
 
                     auto savepos = d.pos;
                     scope(exit) d.pos = savepos;
                     size_t srcpos = refpos - n;
 
-                    auto idlen = d.decodeNumber();
+                    bool errStatus;
+                    auto idlen = d.decodeNumber(errStatus);
+                    if (errStatus)
+                        return error("invalid number");
+
                     if (d.pos + idlen > d.buf.length)
-                        d.error("invalid back reference");
+                        return error("invalid back reference");
+
                     auto id = d.buf[d.pos .. d.pos + idlen];
                     auto pid = id in idpos;
                     if (!pid)
-                        d.error("invalid back reference");
+                        return error("invalid back reference");
+
                     npos = positionInResult(*pid);
                 }
                 encodeBackref(reslen - npos);
@@ -2226,9 +2352,14 @@ char[] reencodeMangled(return scope const(char)[] mangled) nothrow pure @safe
             }
             else
             {
-                auto n = d.decodeNumber();
+                bool errStatus;
+                auto n = d.decodeNumber(errStatus);
+                if (errStatus)
+                    return error("invalid number");
+
                 if (!n || n > d.buf.length || n > d.buf.length - d.pos)
-                    d.error("LName too shot or too long");
+                    return error("LName too short or too long");
+
                 auto id = d.buf[d.pos .. d.pos + n];
                 d.pos += n;
                 if (auto pid = id in idpos)
@@ -2241,7 +2372,7 @@ char[] reencodeMangled(return scope const(char)[] mangled) nothrow pure @safe
                 }
                 else
                 {
-                    idpos[id] = refpos;
+                    idpos[id] = refpos; //! scope variable id used as AA key, makes this function @trusted
                     result ~= d.buf[refpos .. d.pos];
                 }
             }
@@ -2249,7 +2380,7 @@ char[] reencodeMangled(return scope const(char)[] mangled) nothrow pure @safe
             return true;
         }
 
-        char[] parseType( ref Remangle d, char[] name = null ) return scope
+        char[] parseType( out bool errStatus, ref Remangle d, char[] name ) return scope nothrow
         {
             if (d.front != 'Q')
                 return null;
@@ -2260,7 +2391,11 @@ char[] reencodeMangled(return scope const(char)[] mangled) nothrow pure @safe
             d.popFront();
             auto n = d.decodeBackref();
             if (n == 0 || n > refPos)
-                d.error("invalid back reference");
+            {
+                // invalid back reference
+                errStatus = true;
+                return null;
+            }
 
             size_t npos = positionInResult(refPos - n);
             size_t reslen = result.length;
@@ -2291,18 +2426,18 @@ char[] reencodeMangled(return scope const(char)[] mangled) nothrow pure @safe
     auto d = Demangle!(PrependHooks)(mangled, null);
     d.hooks = PrependHooks();
     d.mute = true; // no demangled output
-    try
+
+    bool errStatus;
+    d.parseMangledName(errStatus);
+    if (errStatus)
     {
-        d.parseMangledName();
-        if (d.hooks.lastpos < d.pos)
-            d.hooks.result ~= d.buf[d.hooks.lastpos .. d.pos];
-        return d.hooks.result;
-    }
-    catch (Exception)
-    {
-        // overflow exception cannot occur
+        // error cannot occur
         return mangled.dup;
     }
+
+    if (d.hooks.lastpos < d.pos)
+        d.hooks.result ~= d.buf[d.hooks.lastpos .. d.pos];
+    return d.hooks.result;
 }
 
 /**
@@ -2328,7 +2463,7 @@ char[] mangle(T)(return scope const(char)[] fqn, return scope char[] dst = null)
 
         @property bool empty() const { return !s.length; }
 
-        @property const(char)[] front() const return
+        @property const(char)[] front() const return scope
         {
             immutable i = indexOfDot();
             return i == -1 ? s[0 .. $] : s[0 .. i];
@@ -2637,6 +2772,15 @@ else
         ["_D4test4rrs1FNkMJPiZv", "void test.rrs1(return scope out int*)"],
         ["_D4test4rrs1FNkMKPiZv", "void test.rrs1(return scope ref int*)"],
         ["_D4test4rrs1FNkMPiZv",  "void test.rrs1(return scope int*)"],
+
+        // `scope` and `return` combinations
+        ["_D3foo3Foo3barMNgFNjNlNfZNgPv", "inout return scope @safe inout(void*) foo.Foo.bar()"],
+        ["_D3foo3FooQiMNgFNlNfZv",        "inout scope @safe void foo.Foo.foo()"],
+        ["_D3foo3Foo4foorMNgFNjNfZv",     "inout return @safe void foo.Foo.foor()"],
+        ["_D3foo3Foo3rabMNgFNlNjNfZv",    "inout scope return @safe void foo.Foo.rab()"],
+
+        // Hex float digit overflow
+        ["_D3foo__T1fVdeFA3D0FBFB72A3C33FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "_D3foo__T1fVdeFA3D0FBFB72A3C33FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"],
     ];
 
 
@@ -2680,8 +2824,10 @@ unittest
     {
         char[] buf = new char[i];
         auto ds = demangle(s, buf);
-        assert(ds == "pure nothrow @safe char[] core.demangle.demangle(scope return const(char)[], scope return char[])" ||
-               ds == "pure nothrow @safe char[] core.demangle.demangle(return scope const(char)[], return scope char[])");
+        assert(ds == "pure nothrow @safe char[] core.demangle.demangle(scope return const(char)[], scope return char[], extern (C) char* function(const(char*), char*, ulong*, int*) pure nothrow @trusted*)" ||
+               ds == "pure nothrow @safe char[] core.demangle.demangle(return scope const(char)[], return scope char[], extern (C) char* function(const(char*), char*, ulong*, int*) pure nothrow @trusted*)" ||
+               ds == "pure nothrow @safe char[] core.demangle.demangle(scope return const(char)[], scope return char[], extern (C) char* function(const(char*), char*, uint*, int*) pure nothrow @trusted*)" ||
+               ds == "pure nothrow @safe char[] core.demangle.demangle(return scope const(char)[], return scope char[], extern (C) char* function(const(char*), char*, uint*, int*) pure nothrow @trusted*)", ds);
     }
 }
 
@@ -2698,6 +2844,9 @@ unittest
     s ~= "FiZi";
     expected ~= "F";
     assert(s.demangle == expected);
+
+    // https://issues.dlang.org/show_bug.cgi?id=23562
+    assert(demangle("_Zv") == "_Zv");
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=22235
@@ -2719,51 +2868,6 @@ unittest
     assert(demangle(aggr.mangleof) == "pure nothrow @nogc @safe void " ~ parent ~ "().aggr(" ~ parent ~ "().S!(noreturn).S)");
 }
 
-/*
- *
- */
-string decodeDmdString( const(char)[] ln, ref size_t p ) nothrow pure @safe
-{
-    string s;
-    uint zlen, zpos;
-
-    // decompress symbol
-    while ( p < ln.length )
-    {
-        int ch = cast(ubyte) ln[p++];
-        if ( (ch & 0xc0) == 0xc0 )
-        {
-            zlen = (ch & 0x7) + 1;
-            zpos = ((ch >> 3) & 7) + 1; // + zlen;
-            if ( zpos > s.length )
-                break;
-            s ~= s[$ - zpos .. $ - zpos + zlen];
-        }
-        else if ( ch >= 0x80 )
-        {
-            if ( p >= ln.length )
-                break;
-            int ch2 = cast(ubyte) ln[p++];
-            zlen = (ch2 & 0x7f) | ((ch & 0x38) << 4);
-            if ( p >= ln.length )
-                break;
-            int ch3 = cast(ubyte) ln[p++];
-            zpos = (ch3 & 0x7f) | ((ch & 7) << 7);
-            if ( zpos > s.length )
-                break;
-            s ~= s[$ - zpos .. $ - zpos + zlen];
-        }
-        else if ( Demangle!().isAlpha(cast(char)ch) || Demangle!().isDigit(cast(char)ch) || ch == '_' )
-            s ~= cast(char) ch;
-        else
-        {
-            p--;
-            break;
-        }
-    }
-    return s;
-}
-
 // locally purified for internal use here only
 extern (C) private
 {
@@ -2780,4 +2884,341 @@ extern (C) private
         snprintf(nptr.ptr, nptr.length, "%#Lg", val);
         errno = err;
     }
+}
+
+private struct ManglingFlagInfo
+{
+    /// The flag value to use
+    ushort flag;
+
+    /// Human-readable representation
+    string value;
+}
+
+private enum TypeCtor : ushort {
+    None      = 0,
+    //// 'x'
+    Const     = (1 << 1),
+    /// 'y'
+    Immutable = (1 << 2),
+    /// 'O'
+    Shared    = (1 << 3),
+    ///
+    InOut     = (1 << 4),
+}
+
+private immutable ManglingFlagInfo[] typeCtors = [
+    ManglingFlagInfo(TypeCtor.Immutable, "immutable"),
+    ManglingFlagInfo(TypeCtor.Shared,    "shared"),
+    ManglingFlagInfo(TypeCtor.InOut,     "inout"),
+    ManglingFlagInfo(TypeCtor.Const,     "const"),
+];
+
+private enum FuncAttributes : ushort {
+    None      = 0,
+    //// 'a'
+    Pure     = (1 << 1),
+    //// 'b'
+    Nothrow  = (1 << 2),
+    //// 'c'
+    Ref      = (1 << 3),
+    //// 'd'
+    Property = (1 << 4),
+    //// 'e'
+    Trusted  = (1 << 5),
+    //// 'f'
+    Safe     = (1 << 6),
+    //// 'i'
+    NoGC     = (1 << 7),
+    //// 'j'
+    Return   = (1 << 8),
+    //// 'l'
+    Scope    = (1 << 9),
+    //// 'm'
+    Live     = (1 << 10),
+
+    /// Their order matter
+    ReturnScope   = (1 << 11),
+    ScopeReturn   = (1 << 12),
+}
+
+// The order in which we process is the same as in compiler/dmd/src/dmangle.d
+private immutable ManglingFlagInfo[] funcAttrs = [
+    ManglingFlagInfo(FuncAttributes.Pure,     "pure"),
+    ManglingFlagInfo(FuncAttributes.Nothrow,  "nothrow"),
+    ManglingFlagInfo(FuncAttributes.Ref,      "ref"),
+    ManglingFlagInfo(FuncAttributes.Property, "@property"),
+    ManglingFlagInfo(FuncAttributes.NoGC,     "@nogc"),
+
+    ManglingFlagInfo(FuncAttributes.ReturnScope, "return scope"),
+    ManglingFlagInfo(FuncAttributes.ScopeReturn, "scope return"),
+
+    ManglingFlagInfo(FuncAttributes.Return,   "return"),
+    ManglingFlagInfo(FuncAttributes.Scope,    "scope"),
+
+    ManglingFlagInfo(FuncAttributes.Live,     "@live"),
+    ManglingFlagInfo(FuncAttributes.Trusted,  "@trusted"),
+    ManglingFlagInfo(FuncAttributes.Safe,     "@safe"),
+];
+
+private string toStringConsume (immutable ManglingFlagInfo[] infos, ref ushort base)
+    @safe pure nothrow @nogc
+{
+    foreach (const ref info; infos)
+    {
+        if ((base & info.flag) == info.flag)
+        {
+            base &= ~info.flag;
+            return info.value;
+        }
+    }
+    return null;
+}
+
+private shared CXX_DEMANGLER __cxa_demangle;
+
+/**
+ * Returns:
+ *  a CXX_DEMANGLER if a C++ stdlib is loaded
+ */
+
+CXX_DEMANGLER getCXXDemangler() nothrow @trusted
+{
+    import core.atomic : atomicLoad, atomicStore;
+    if (__cxa_demangle is null)
+    version (Posix)
+    {
+        import core.sys.posix.dlfcn : dlsym;
+        version (DragonFlyBSD) import core.sys.dragonflybsd.dlfcn : RTLD_DEFAULT;
+        version (FreeBSD) import core.sys.freebsd.dlfcn : RTLD_DEFAULT;
+        version (linux) import core.sys.linux.dlfcn : RTLD_DEFAULT;
+        version (NetBSD) import core.sys.netbsd.dlfcn : RTLD_DEFAULT;
+        version (OpenBSD) import core.sys.openbsd.dlfcn : RTLD_DEFAULT;
+        version (Darwin) import core.sys.darwin.dlfcn : RTLD_DEFAULT;
+        version (Solaris) import core.sys.solaris.dlfcn : RTLD_DEFAULT;
+
+        if (auto found = cast(CXX_DEMANGLER) dlsym(RTLD_DEFAULT, "__cxa_demangle"))
+            atomicStore(__cxa_demangle, found);
+    }
+
+    if (__cxa_demangle is null)
+    {
+        static extern(C) char* _(const char* mangled_name, char* output_buffer,
+             size_t* length, int* status) nothrow pure @trusted
+        {
+            *status = -1;
+            return null;
+        }
+        atomicStore(__cxa_demangle, &_);
+    }
+
+    return atomicLoad(__cxa_demangle);
+}
+
+/**
+ * Demangles C++ mangled names.  If it is not a C++ mangled name, it
+ * returns its argument name.
+ *
+ * Params:
+ *  buf = The string to demangle.
+ *  __cxa_demangle = C++ demangler
+ *  dst = An optional destination buffer.
+ *
+ * Returns:
+ *  The demangled name or the original string if the name is not a mangled
+ *  C++ name.
+ */
+private char[] demangleCXX(return scope const(char)[] buf, CXX_DEMANGLER __cxa_demangle, return scope char[] dst = null,) nothrow pure @trusted
+{
+    char[] c_string = dst; // temporarily use dst buffer if possible
+    c_string.length = buf.length + 1;
+    c_string[0 .. buf.length] = buf[0 .. buf.length];
+    c_string[buf.length] = '\0';
+
+    int status;
+    size_t demangled_length;
+    auto demangled = __cxa_demangle(&c_string[0], null, &demangled_length, &status);
+    scope (exit) {
+        import core.memory;
+        pureFree(cast(void*) demangled);
+    }
+    if (status == 0)
+    {
+        dst.length = demangled_length;
+        dst[] = demangled[0 .. demangled_length];
+        return dst;
+    }
+
+    dst.length = buf.length;
+    dst[] = buf[];
+    return dst;
+}
+
+private struct Buffer
+{
+    enum size_t minSize = 4000;
+
+    @safe pure:
+
+    private char[] dst;
+    private size_t len;
+
+    public alias opDollar = len;
+
+    public size_t length () const scope @safe pure nothrow @nogc
+    {
+        return this.len;
+    }
+
+    public BufSlice opSlice (size_t from, size_t to)
+        return scope @safe pure nothrow @nogc
+    {
+        return bslice(from, to);
+    }
+
+    static bool contains(scope const(char)[] a, scope const BufSlice b) @safe nothrow
+    {
+        return
+            b.from < a.length &&
+            b.to <= a.length;
+    }
+
+    char[] copyInput(scope const(char)[] buf)
+        return scope nothrow
+    {
+        if (dst.length < buf.length)
+            dst.length = buf.length;
+        char[] r = dst[0 .. buf.length];
+        r[] = buf[];
+        return r;
+    }
+
+    private void checkAndStretchBuf(size_t len_to_add) scope nothrow
+    {
+        const required = len + len_to_add;
+
+        if (required > dst.length)
+            dst.length = dst.length + len_to_add;
+    }
+
+    // move val to the end of the dst buffer
+    BufSlice shift(scope const BufSlice val) return scope nothrow
+    {
+        version (DigitalMars) pragma(inline, false); // tame dmd inliner
+
+        if (val.length)
+        {
+            const ptrdiff_t s = val.from;
+            const size_t f = len;
+
+            assert(contains( dst[0 .. len], val ),
+                "\ndst=\""~dst[0 .. len]~"\"\n"~
+                "val=\""~val.getSlice~"\"\n"
+            );
+
+            checkAndStretchBuf(val.length);
+
+            // store value temporary over len index
+            dst[len .. len + val.length] = val.getSlice();
+
+            // shift all chars including temporary saved above
+            // if buf was allocated above it will be leave for further usage
+            for (size_t p = s; p < f; p++)
+                dst[p] = dst[p + val.length];
+
+            return bslice(len - val.length, len);
+        }
+
+        return bslice_empty;
+    }
+
+    // remove val from dst buffer
+    void remove(scope BufSlice val) scope nothrow
+    {
+        version (DigitalMars) pragma(inline, false); // tame dmd inliner
+
+        if ( val.length )
+        {
+            assert( contains( dst[0 .. len], val ) );
+
+            assert( len >= val.length && len <= dst.length );
+            len -= val.length;
+            for (size_t p = val.from; p < len; p++)
+                dst[p] = dst[p + val.length];
+        }
+    }
+
+    void append(scope const(char)[] val) scope nothrow
+    {
+        version (DigitalMars) pragma(inline, false); // tame dmd inliner
+
+        if (val.length)
+        {
+            if ( !dst.length )
+                dst.length = minSize;
+
+            debug(info) printf( "appending (%.*s)\n", cast(int) val.length, val.ptr );
+
+            checkAndStretchBuf(val.length);
+
+            // data is already not in place?
+            if ( &dst[len] != &val[0] )
+                dst[len .. len + val.length] = val[];
+
+            len += val.length;
+        }
+    }
+
+    @nogc:
+
+    private scope bslice(size_t from, size_t to) nothrow
+    {
+        return BufSlice(dst, from, to);
+    }
+
+    private static scope bslice_empty() nothrow
+    {
+        return BufSlice.init;
+    }
+}
+
+private struct BufSlice
+{
+    char[] buf;
+    size_t from;
+    size_t to;
+
+    @safe pure nothrow:
+
+    @disable this();
+
+    this(return scope char[] buf) scope nothrow @nogc
+    {
+        this(buf, 0, 0);
+    }
+
+    this(return scope char[] buf, size_t from, size_t to, bool lastArgIsLen = false) scope nothrow @nogc
+    {
+        this.buf = buf;
+        this.from = from;
+
+        if (lastArgIsLen)
+            this.to = from + to;
+        else
+            this.to = to;
+    }
+
+    invariant
+    {
+        if (buf is null)
+        {
+            assert(from == 0);
+            assert(to == 0);
+        }
+
+        assert(from <= to);
+    }
+
+    auto getSlice() inout nothrow scope { return buf[from .. to]; }
+    size_t length() const scope { return to - from; }
 }

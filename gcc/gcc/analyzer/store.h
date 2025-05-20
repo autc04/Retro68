@@ -1,5 +1,5 @@
 /* Classes for modeling the state of memory.
-   Copyright (C) 2020-2022 Free Software Foundation, Inc.
+   Copyright (C) 2020-2025 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -20,6 +20,8 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifndef GCC_ANALYZER_STORE_H
 #define GCC_ANALYZER_STORE_H
+
+#include "text-art/tree-widget.h"
 
 /* Implementation of the region-based ternary model described in:
      "A Memory Model for Static Analysis of C Programs"
@@ -237,6 +239,13 @@ struct bit_range
   void dump_to_pp (pretty_printer *pp) const;
   void dump () const;
 
+  std::unique_ptr<json::object> to_json () const;
+
+  bool empty_p () const
+  {
+    return m_size_in_bits == 0;
+  }
+
   bit_offset_t get_start_bit_offset () const
   {
     return m_start_bit_offset;
@@ -247,6 +256,7 @@ struct bit_range
   }
   bit_offset_t get_last_bit_offset () const
   {
+    gcc_assert (!empty_p ());
     return get_next_bit_offset () - 1;
   }
 
@@ -270,8 +280,16 @@ struct bit_range
 	    && other.get_start_bit_offset () < get_next_bit_offset ());
   }
   bool intersects_p (const bit_range &other,
+		     bit_size_t *out_num_overlap_bits) const;
+  bool intersects_p (const bit_range &other,
 		     bit_range *out_this,
 		     bit_range *out_other) const;
+
+  bool exceeds_p (const bit_range &other,
+		  bit_range *out_overhanging_bit_range) const;
+
+  bool falls_short_of_p (bit_offset_t offset,
+			 bit_range *out_fall_short_bits) const;
 
   static int cmp (const bit_range &br1, const bit_range &br2);
 
@@ -297,6 +315,13 @@ struct byte_range
   void dump_to_pp (pretty_printer *pp) const;
   void dump () const;
 
+  std::unique_ptr<json::object> to_json () const;
+
+  bool empty_p () const
+  {
+    return m_size_in_bytes == 0;
+  }
+
   bool contains_p (byte_offset_t offset) const
   {
     return (offset >= get_start_byte_offset ()
@@ -320,6 +345,7 @@ struct byte_range
   }
   byte_offset_t get_last_byte_offset () const
   {
+    gcc_assert (!empty_p ());
     return m_start_byte_offset + m_size_in_bytes - 1;
   }
 
@@ -329,14 +355,23 @@ struct byte_range
 		      m_size_in_bytes * BITS_PER_UNIT);
   }
 
+  bit_offset_t get_start_bit_offset () const
+  {
+    return m_start_byte_offset * BITS_PER_UNIT;
+  }
+  bit_offset_t get_next_bit_offset () const
+  {
+    return get_next_byte_offset () * BITS_PER_UNIT;
+  }
+
   static int cmp (const byte_range &br1, const byte_range &br2);
 
   byte_offset_t m_start_byte_offset;
   byte_size_t m_size_in_bytes;
 };
 
-/* Concrete subclass of binding_key, for describing a concrete range of
-   bits within the binding_map (e.g. "bits 8-15").  */
+/* Concrete subclass of binding_key, for describing a non-empty
+   concrete range of bits within the binding_map (e.g. "bits 8-15").  */
 
 class concrete_binding : public binding_key
 {
@@ -346,8 +381,10 @@ public:
 
   concrete_binding (bit_offset_t start_bit_offset, bit_size_t size_in_bits)
   : m_bit_range (start_bit_offset, size_in_bits)
-  {}
-  bool concrete_p () const FINAL OVERRIDE { return true; }
+  {
+    gcc_assert (m_bit_range.m_size_in_bits > 0);
+  }
+  bool concrete_p () const final override { return true; }
 
   hashval_t hash () const
   {
@@ -361,12 +398,13 @@ public:
     return m_bit_range == other.m_bit_range;
   }
 
-  void dump_to_pp (pretty_printer *pp, bool simple) const FINAL OVERRIDE;
+  void dump_to_pp (pretty_printer *pp, bool simple) const final override;
 
-  const concrete_binding *dyn_cast_concrete_binding () const FINAL OVERRIDE
+  const concrete_binding *dyn_cast_concrete_binding () const final override
   { return this; }
 
   const bit_range &get_bit_range () const { return m_bit_range; }
+  bool get_byte_range (byte_range *out) const;
 
   bit_offset_t get_start_bit_offset () const
   {
@@ -386,16 +424,24 @@ public:
 
   static int cmp_ptr_ptr (const void *, const void *);
 
-  void mark_deleted () { m_bit_range.m_start_bit_offset = -1; }
-  void mark_empty () { m_bit_range.m_start_bit_offset = -2; }
-  bool is_deleted () const { return m_bit_range.m_start_bit_offset == -1; }
-  bool is_empty () const { return m_bit_range.m_start_bit_offset == -2; }
+  void mark_deleted () { m_bit_range.m_size_in_bits = -1; }
+  void mark_empty () { m_bit_range.m_size_in_bits = -2; }
+  bool is_deleted () const { return m_bit_range.m_size_in_bits == -1; }
+  bool is_empty () const { return m_bit_range.m_size_in_bits == -2; }
 
 private:
   bit_range m_bit_range;
 };
 
 } // namespace ana
+
+template <>
+template <>
+inline bool
+is_a_helper <const ana::concrete_binding *>::test (const ana::binding_key *key)
+{
+  return key->concrete_p ();
+}
 
 template <> struct default_hash_traits<ana::concrete_binding>
 : public member_function_hash_traits<ana::concrete_binding>
@@ -415,7 +461,7 @@ public:
   typedef symbolic_binding key_t;
 
   symbolic_binding (const region *region) : m_region (region) {}
-  bool concrete_p () const FINAL OVERRIDE { return false; }
+  bool concrete_p () const final override { return false; }
 
   hashval_t hash () const
   {
@@ -426,9 +472,9 @@ public:
     return m_region == other.m_region;
   }
 
-  void dump_to_pp (pretty_printer *pp, bool simple) const FINAL OVERRIDE;
+  void dump_to_pp (pretty_printer *pp, bool simple) const final override;
 
-  const symbolic_binding *dyn_cast_symbolic_binding () const FINAL OVERRIDE
+  const symbolic_binding *dyn_cast_symbolic_binding () const final override
   { return this; }
 
   const region *get_region () const { return m_region; }
@@ -500,7 +546,10 @@ public:
   void dump_to_pp (pretty_printer *pp, bool simple, bool multiline) const;
   void dump (bool simple) const;
 
-  json::object *to_json () const;
+  std::unique_ptr<json::object> to_json () const;
+
+  void add_to_tree_widget (text_art::tree_widget &parent_widget,
+			   const text_art::dump_widget_info &dwi) const;
 
   bool apply_ctor_to_region (const region *parent_reg, tree ctor,
 			     region_model_manager *mgr);
@@ -510,6 +559,7 @@ public:
   void remove_overlapping_bindings (store_manager *mgr,
 				    const binding_key *drop_key,
 				    uncertainty_t *uncertainty,
+				    svalue_set *maybe_live_values,
 				    bool always_overlap);
 
 private:
@@ -544,9 +594,7 @@ public:
   typedef hash_map <const binding_key *, const svalue *> map_t;
   typedef map_t::iterator iterator_t;
 
-  binding_cluster (const region *base_region)
-  : m_base_region (base_region), m_map (),
-    m_escaped (false), m_touched (false) {}
+  binding_cluster (const region *base_region);
   binding_cluster (const binding_cluster &other);
   binding_cluster& operator=(const binding_cluster &other);
 
@@ -567,7 +615,11 @@ public:
 
   void validate () const;
 
-  json::object *to_json () const;
+  std::unique_ptr<json::object> to_json () const;
+
+  std::unique_ptr<text_art::tree_widget>
+  make_dump_widget (const text_art::dump_widget_info &dwi,
+		    store_manager *mgr) const;
 
   void bind (store_manager *mgr, const region *, const svalue *);
 
@@ -578,7 +630,8 @@ public:
   void mark_region_as_unknown (store_manager *mgr,
 			       const region *reg_to_bind,
 			       const region *reg_for_overlap,
-			       uncertainty_t *uncertainty);
+			       uncertainty_t *uncertainty,
+			       svalue_set *maybe_live_values);
   void purge_state_involving (const svalue *sval,
 			      region_model_manager *sval_mgr);
 
@@ -591,7 +644,8 @@ public:
 					     const region *reg) const;
 
   void remove_overlapping_bindings (store_manager *mgr, const region *reg,
-				    uncertainty_t *uncertainty);
+				    uncertainty_t *uncertainty,
+				    svalue_set *maybe_live_values);
 
   template <typename T>
   void for_each_value (void (*cb) (const svalue *sval, T user_data),
@@ -617,7 +671,7 @@ public:
   void on_asm (const gasm *stmt, store_manager *mgr,
 	       const conjured_purge &p);
 
-  bool escaped_p () const { return m_escaped; }
+  bool escaped_p () const;
   bool touched_p () const { return m_touched; }
 
   bool redundant_p () const;
@@ -627,6 +681,7 @@ public:
 				     svalue_set *visited,
 				     const region *base_reg,
 				     const svalue *sval,
+				     logger *logger,
 				     auto_vec<path_var> *out_pvs) const;
 
   const svalue *maybe_get_simple_value (store_manager *mgr) const;
@@ -703,7 +758,11 @@ public:
 
   void validate () const;
 
-  json::object *to_json () const;
+  std::unique_ptr<json::object> to_json () const;
+
+  std::unique_ptr<text_art::tree_widget>
+  make_dump_widget (const text_art::dump_widget_info &dwi,
+		    store_manager *mgr) const;
 
   const svalue *get_any_binding (store_manager *mgr, const region *reg) const;
 
@@ -717,7 +776,8 @@ public:
   void fill_region (store_manager *mgr, const region *reg, const svalue *sval);
   void zero_fill_region (store_manager *mgr, const region *reg);
   void mark_region_as_unknown (store_manager *mgr, const region *reg,
-			       uncertainty_t *uncertainty);
+			       uncertainty_t *uncertainty,
+			       svalue_set *maybe_live_values);
   void purge_state_involving (const svalue *sval,
 			      region_model_manager *sval_mgr);
 
@@ -747,6 +807,7 @@ public:
   void get_representative_path_vars (const region_model *model,
 				     svalue_set *visited,
 				     const svalue *sval,
+				     logger *logger,
 				     auto_vec<path_var> *out_pvs) const;
 
   cluster_map_t::iterator begin () const { return m_cluster_map.begin (); }
@@ -766,6 +827,13 @@ public:
   void canonicalize (store_manager *mgr);
   void loop_replay_fixup (const store *other_store,
 			  region_model_manager *mgr);
+
+  void replay_call_summary (call_summary_replay &r,
+			    const store &summary);
+  void replay_call_summary_cluster (call_summary_replay &r,
+				    const store &summary,
+				    const region *base_reg);
+  void on_maybe_live_values (const svalue_set &maybe_live_values);
 
 private:
   void remove_overlapping_bindings (store_manager *mgr, const region *reg,
@@ -805,6 +873,12 @@ public:
   {
     return get_concrete_binding (bits.get_start_bit_offset (),
 				 bits.m_size_in_bits);
+  }
+  const concrete_binding *
+  get_concrete_binding (const byte_range &bytes)
+  {
+    bit_range bits = bytes.as_bit_range ();
+    return get_concrete_binding (bits);
   }
   const symbolic_binding *
   get_symbolic_binding (const region *region);

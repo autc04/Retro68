@@ -9,7 +9,7 @@
   Here are all of the configure options specific to libstdc++.  Keep
   in mind that
    
-   <a class="link" href="http://sourceware.org/autobook/autobook/autobook_14.html" target="_top">they
+   <a class="link" href="https://sourceware.org/autobook/autobook/autobook_14.html" target="_top">they
    all have opposite forms as well</a> (enable/disable and
    with/without).  The defaults are for the <span class="emphasis"><em>current
    development sources</em></span>, which may be different than those
@@ -38,9 +38,14 @@
      </p><pre class="programlisting">
    --with-gxx-include-dir=/foo/H-x86-gcc-3-c-gxx-inc/include/4.4-20090404</pre></dd><dt><span class="term"><code class="code">--enable-cstdio</code></span></dt><dd><p>This is an abbreviated form of <code class="code">'--enable-cstdio=stdio'</code>
 	(described next).
-     </p></dd><dt><span class="term"><code class="code">--enable-cstdio=OPTION</code></span></dt><dd><p>Select a target-specific I/O package. At the moment, the only
-	choice is to use 'stdio', a generic "C" abstraction.
-	The default is 'stdio'. This option can change the library ABI.
+     </p></dd><dt><span class="term"><code class="code">--enable-cstdio=OPTION</code></span></dt><dd><p>Select a target-specific I/O package. The choices are 'stdio'
+       which is a generic abstraction using POSIX file I/O APIs
+       (<code class="function">read</code>, <code class="function">write</code>,
+       <code class="function">lseek</code>, etc.), and 'stdio_pure' which is similar
+       but only uses standard C file I/O APIs (<code class="function">fread</code>,
+       <code class="function">fwrite</code>, <code class="function">fseek</code>, etc.).
+       The 'stdio_posix' choice is a synonym for 'stdio'.
+       The default is 'stdio'. This option can change the library ABI.
      </p></dd><dt><span class="term"><code class="code">--enable-clocale</code></span></dt><dd><p>This is an abbreviated form of <code class="code">'--enable-clocale=generic'</code>
 	(described next).
      </p></dd><dt><span class="term"><code class="code">--enable-clocale=OPTION</code></span></dt><dd><p>Select a target-specific underlying locale package.  The
@@ -77,7 +82,7 @@
 	(described next).
      </p></dd><dt><span class="term"><code class="code">--enable-threads=OPTION</code></span></dt><dd><p>Select a threading library.  A full description is
 	given in the
-	general <a class="link" href="http://gcc.gnu.org/install/configure.html" target="_top">compiler
+	general <a class="link" href="https://gcc.gnu.org/install/configure.html" target="_top">compiler
 	configuration instructions</a>. This option can change the
 	library ABI.
      </p></dd><dt><span class="term"><code class="code">--enable-libstdcxx-threads</code></span></dt><dd><p>Enable C++11 threads support.  If not explicitly specified,
@@ -203,8 +208,8 @@
 	C++ includes. If enabled (as by default), and the compiler
 	seems capable of passing the simple sanity checks thrown at
 	it, try to build stdc++.h.gch as part of the make process.
-	In addition, this generated file is used later on (by appending <code class="code">
-	--include bits/stdc++.h </code> to CXXFLAGS) when running the
+	In addition, this generated file is used later on (by appending
+	<code class="code">-include bits/stdc++.h</code> to CXXFLAGS) when running the
 	testsuite.
      </p></dd><dt><span class="term"><code class="code">--enable-extern-template</code>[default]</span></dt><dd><p>Use extern template to pre-instantiate all required
  	specializations for certain types defined in the standard libraries.
@@ -219,8 +224,11 @@
      built.  The C++ Standard also describes a
      <span class="emphasis"><em>freestanding</em></span> environment, in which only a
      minimal set of headers are provided.  This option builds such an
-     environment.
-     </p></dd><dt><span class="term"><code class="code">--disable-libstdcxx-verbose</code></span></dt><dd><p>
+     environment.  Note that a hosted library installs headers that still can
+     be used in non hosted environments, as the library checks for
+     <code class="code">__STDC_HOSTED__</code>, however, a library configured with
+     <code class="code">--disable-hosted-libstdcxx</code> will not install unusable headers.
+     </p></dd><dt><span class="term"><code class="code">--disable-libstdcxx-hosted</code></span></dt><dd><p>This is an alias for <code class="code">--disable-hosted-libstdcxx</code>.</p></dd><dt><span class="term"><code class="code">--disable-libstdcxx-verbose</code></span></dt><dd><p>
      By default, the library is configured to write descriptive messages
      to standard error for certain events such as calling a pure virtual
      function or the invocation of the standard terminate handler.  Those
@@ -271,4 +279,33 @@
       as the usual libstdc++ and libsupc++ libraries. This is enabled by
       default on select POSIX targets where it is known to work and disabled
       otherwise.
+    </p></dd><dt><span class="term"><code class="code">--enable-libstdcxx-static-eh-pool</code></span></dt><dd><p>Use a fixed-size static buffer for the emergency exception handling
+      pool (see <a class="xref" href="using_exceptions.html#intro.using.exception.alloc" title="Memory allocation">Memory allocation for exceptions</a>). The default
+      is to allocate the pool on program startup using <code class="code">malloc</code>.
+      With this option, a static buffer will be provided by libstdc++ instead.
+      This does not change the library ABI.
+    </p></dd><dt><span class="term"><code class="code">--with-libstdcxx-eh-pool-obj-count=NUM</code></span></dt><dd><p>Set the size of the emergency exception handling pool. NUM is the
+      number of simultaneous allocated exceptions to support.
+      This does not change the library ABI.
+    </p></dd><dt><span class="term"><code class="code">--with-libstdcxx-zoneinfo=OPTION</code></span></dt><dd><p>Choose how <code class="classname">std::chrono::tzdb</code> will obtain
+      the time zone info. The library requires a copy of the
+      <code class="filename">tzdata.zi</code> and <code class="filename">leapseconds</code>
+      files from the <a class="link" href="https://www.iana.org/time-zones" target="_top">IANA Time Zone
+      Database</a>. The choice OPTION=static will embed a copy of the files
+      into the library, and use that static data when time zone information
+      is required. The choice OPTION=dir will use the files
+      <code class="filename">dir/tzdata.zi</code> and
+      <code class="filename">dir/leapseconds</code> (which must exist when a program
+      tries to access time zone information). The choice OPTION=dir,static
+      will try to use files in <code class="filename">dir</code> but if they are
+      not available the embedded static data will be used instead.
+      The default choice is OPTION=yes. This is equivalent to OPTION=dir,static
+      with a system-specific default directory (if a suitable default for
+      the target is known).
+      The choice OPTION=no will disable all code for loading time zone info
+      from file or from the embedded static data, which means that only the
+      "UTC" and "GMT" time zones are defined. Using OPTION=no results in a
+      smaller library, so is suitable for systems that will never need to
+      query the time zone database.
+      This does not change the library ABI.
     </p></dd></dl></div></div><div class="navfooter"><hr /><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="setup.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="setup.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="make.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 2. Setup </td><td width="20%" align="center"><a accesskey="h" href="../index.html">Home</a></td><td width="40%" align="right" valign="top"> Make</td></tr></table></div></body></html>

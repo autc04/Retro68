@@ -1,5 +1,5 @@
 /* Subroutines for the gcc driver.
-   Copyright (C) 2015-2022 Free Software Foundation, Inc.
+   Copyright (C) 2015-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -125,10 +125,14 @@ s390_host_detect_local_cpu (int argc, const char **argv)
 	      break;
 	    case 0x3931:
 	    case 0x3932:
-	      cpu = "z16";
+	      cpu = "arch14";
+	      break;
+	    case 0x9175:
+	    case 0x9176:
+	      cpu = "arch15";
 	      break;
 	    default:
-	      cpu = "z16";
+	      cpu = "arch15";
 	      break;
 	    }
 	}

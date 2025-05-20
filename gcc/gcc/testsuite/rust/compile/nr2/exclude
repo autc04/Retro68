@@ -1,0 +1,25 @@
+canonical_paths1.rs
+cfg1.rs
+generics9.rs
+issue-3315-2.rs
+lookup_err1.rs
+multiple_bindings1.rs
+multiple_bindings2.rs
+privacy5.rs
+privacy8.rs
+pub_restricted_1.rs
+pub_restricted_2.rs
+pub_restricted_3.rs
+use_1.rs
+issue-2905-2.rs
+derive_clone_enum3.rs
+derive-debug1.rs
+derive-default1.rs
+derive-eq-invalid.rs
+derive-hash1.rs
+torture/alt_patterns1.rs
+torture/name_resolve1.rs
+issue-3568.rs
+issue-3663.rs
+issue-3671.rs
+# please don't delete the trailing newline

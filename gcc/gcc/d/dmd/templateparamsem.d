@@ -1,24 +1,26 @@
 /**
  * Semantic analysis of template parameters.
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/templateparamsem.d, _templateparamsem.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/templateparamsem.d, _templateparamsem.d)
  * Documentation:  https://dlang.org/phobos/dmd_templateparamsem.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/templateparamsem.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/templateparamsem.d
  */
 
 module dmd.templateparamsem;
 
 import dmd.arraytypes;
+import dmd.dinterpret;
 import dmd.dsymbol;
 import dmd.dscope;
 import dmd.dtemplate;
 import dmd.globals;
+import dmd.location;
 import dmd.expression;
 import dmd.expressionsem;
-import dmd.root.rootobject;
+import dmd.rootobject;
 import dmd.mtype;
 import dmd.typesem;
 import dmd.visitor;
@@ -33,7 +35,7 @@ import dmd.visitor;
  * Returns:
  *      `true` if no errors
  */
-extern(C++) bool tpsemantic(TemplateParameter tp, Scope* sc, TemplateParameters* parameters)
+bool tpsemantic(TemplateParameter tp, Scope* sc, TemplateParameters* parameters)
 {
     scope v = new TemplateParameterSemanticVisitor(sc, parameters);
     tp.accept(v);
@@ -49,7 +51,7 @@ private extern (C++) final class TemplateParameterSemanticVisitor : Visitor
     TemplateParameters* parameters;
     bool result;
 
-    this(Scope* sc, TemplateParameters* parameters)
+    this(Scope* sc, TemplateParameters* parameters) scope @safe
     {
         this.sc = sc;
         this.parameters = parameters;
@@ -71,6 +73,15 @@ private extern (C++) final class TemplateParameterSemanticVisitor : Visitor
             }
         }
         result = !(ttp.specType && isError(ttp.specType));
+    }
+
+    override void visit(TemplateThisParameter ttp)
+    {
+        import dmd.errors;
+
+        if (!sc.getStructClassScope())
+            error(ttp.loc, "cannot use `this` outside an aggregate type");
+        visit(cast(TemplateTypeParameter)ttp);
     }
 
     override void visit(TemplateValueParameter tvp)
@@ -159,7 +170,7 @@ RootObject aliasParameterSemantic(Loc loc, Scope* sc, RootObject o, TemplatePara
         Dsymbol s = ta.toDsymbol(sc);
         if (s)
             return s;
-        else if (TypeInstance ti = ta.isTypeInstance())
+        if (TypeInstance ti = ta.isTypeInstance())
         {
             Type t;
             const errors = global.errors;
@@ -172,14 +183,13 @@ RootObject aliasParameterSemantic(Loc loc, Scope* sc, RootObject o, TemplatePara
             // see https://issues.dlang.org/show_bug.cgi?id=16472
             if (t)
                 return t.typeSemantic(loc, sc);
-            else if (ea)
+            if (ea)
             {
                 return eaCTFE();
             }
-            else if (s)
+            if (s)
                 return s;
-            else
-                assert(0);
+            assert(0);
         }
         else
             return ta.typeSemantic(loc, sc);

@@ -1,5 +1,5 @@
 /* Top level of GCC compilers (cc1, cc1plus, etc.)
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -41,6 +41,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "cgraph.h"
 #include "coverage.h"
 #include "diagnostic.h"
+#include "pretty-print-urlifier.h"
 #include "varasm.h"
 #include "tree-inline.h"
 #include "realmpfr.h"	/* For GMP/MPFR/MPC versions, in print_version.  */
@@ -74,7 +75,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "ipa-reference.h"
 #include "symbol-summary.h"
 #include "tree-vrp.h"
+#include "sreal.h"
+#include "ipa-cp.h"
 #include "ipa-prop.h"
+#include "ipa-utils.h"
 #include "gcse.h"
 #include "omp-offload.h"
 #include "edit-context.h"
@@ -88,14 +92,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "ipa-modref.h"
 #include "ipa-param-manipulation.h"
 #include "dbgcnt.h"
-
-#if defined(DBX_DEBUGGING_INFO) || defined(XCOFF_DEBUGGING_INFO)
-#include "dbxout.h"
-#endif
-
-#ifdef XCOFF_DEBUGGING_INFO
-#include "xcoffout.h"		/* Needed for external data declarations. */
-#endif
+#include "gcc-urlifier.h"
+#include "unique-argv.h"
+#include "make-unique.h"
 
 #include "selftest.h"
 
@@ -103,11 +102,11 @@ along with GCC; see the file COPYING3.  If not see
 #include <isl/version.h>
 #endif
 
-static void general_init (const char *, bool);
+static void general_init (const char *, bool, unique_argv original_argv);
 static void backend_init (void);
 static int lang_dependent_init (const char *);
 static void init_asm_output (const char *);
-static void finalize (bool);
+static void finalize ();
 
 static void crash_signal (int) ATTRIBUTE_NORETURN;
 static void compile_file (void);
@@ -171,6 +170,7 @@ FILE *aux_info_file;
 FILE *callgraph_info_file = NULL;
 static bitmap callgraph_info_external_printed;
 FILE *stack_usage_file = NULL;
+static bool no_backend = false;
 
 /* The current working directory of a translation.  It's generally the
    directory from which compilation was initiated, but a preprocessed
@@ -230,7 +230,7 @@ announce_function (tree decl)
 	fprintf (stderr, " %s",
 		 identifier_to_locale (lang_hooks.decl_printable_name (decl, 2)));
       fflush (stderr);
-      pp_needs_newline (global_dc->printer) = true;
+      pp_needs_newline (global_dc->get_reference_printer ()) = true;
       diagnostic_set_last_function (global_dc, (diagnostic_info *) NULL);
     }
 }
@@ -331,7 +331,7 @@ wrapup_global_declaration_1 (tree decl)
 {
   /* We're not deferring this any longer.  Assignment is conditional to
      avoid needlessly dirtying PCH pages.  */
-  if (CODE_CONTAINS_STRUCT (TREE_CODE (decl), TS_DECL_WITH_VIS)
+  if (HAS_DECL_ASSEMBLER_NAME_P (decl)
       && DECL_DEFER_OUTPUT (decl) != 0)
     DECL_DEFER_OUTPUT (decl) = 0;
 
@@ -464,7 +464,7 @@ compile_file (void)
 
   if (flag_syntax_only || flag_wpa)
     return;
- 
+
   /* Reset maximum_field_alignment, it can be adjusted by #pragma pack
      and this shouldn't influence any types built by the middle-end
      from now on (like gcov_info_type).  */
@@ -721,7 +721,7 @@ init_asm_output (const char *name)
 		     "cannot open %qs for writing: %m", asm_file_name);
     }
 
-  if (!flag_syntax_only)
+  if (!flag_syntax_only && !(global_dc->get_lang_mask () & CL_LTODump))
     {
       targetm.asm_out.file_start ();
 
@@ -837,7 +837,8 @@ output_stack_usage_1 (FILE *cf)
   if (stack_usage_file)
     {
       print_decl_identifier (stack_usage_file, current_function_decl,
-			     PRINT_DECL_ORIGIN | PRINT_DECL_NAME);
+			     PRINT_DECL_ORIGIN | PRINT_DECL_NAME
+			     | PRINT_DECL_REMAP_DEBUG);
       fprintf (stack_usage_file, "\t" HOST_WIDE_INT_PRINT_DEC"\t%s\n",
 	       stack_usage, stack_usage_kind_str[stack_usage_kind]);
     }
@@ -914,6 +915,37 @@ dump_final_callee_vcg (FILE *f, location_t location, tree callee)
   fputs ("\" }\n", f);
 }
 
+/* Callback for cgraph_node::call_for_symbol_thunks_and_aliases to dump to F_ a
+   node and an edge from ALIAS->DECL to CURRENT_FUNCTION_DECL.  */
+
+static bool
+dump_final_alias_vcg (cgraph_node *alias, void *f_)
+{
+  FILE *f = (FILE *)f_;
+
+  if (alias->decl == current_function_decl)
+    return false;
+
+  dump_final_node_vcg_start (f, alias->decl);
+  fputs ("\" shape : triangle }\n", f);
+
+  fputs ("edge: { sourcename: \"", f);
+  print_decl_identifier (f, alias->decl, PRINT_DECL_UNIQUE_NAME);
+  fputs ("\" targetname: \"", f);
+  print_decl_identifier (f, current_function_decl, PRINT_DECL_UNIQUE_NAME);
+  location_t location = DECL_SOURCE_LOCATION (alias->decl);
+  if (LOCATION_LOCUS (location) != UNKNOWN_LOCATION)
+    {
+      expanded_location loc;
+      fputs ("\" label: \"", f);
+      loc = expand_location (location);
+      fprintf (f, "%s:%d:%d", loc.file, loc.line, loc.column);
+    }
+  fputs ("\" }\n", f);
+
+  return false;
+}
+
 /* Dump final cgraph node in VCG format.  */
 
 static void
@@ -950,6 +982,12 @@ dump_final_node_vcg (FILE *f)
     dump_final_callee_vcg (f, c->location, c->decl);
   vec_free (cfun->su->callees);
   cfun->su->callees = NULL;
+
+  cgraph_node *node = cgraph_node::get (current_function_decl);
+  if (!node)
+    return;
+  node->call_for_symbol_thunks_and_aliases (dump_final_alias_vcg, f,
+					    true, false);
 }
 
 /* Output stack usage and callgraph info, as requested.  */
@@ -992,7 +1030,7 @@ internal_error_reentered (diagnostic_context *, const char *, va_list *)
 static void
 internal_error_function (diagnostic_context *, const char *, va_list *)
 {
-  global_dc->internal_error = internal_error_reentered;
+  global_dc->m_internal_error = internal_error_reentered;
   warn_if_plugins ();
   emergency_dump_function ();
 }
@@ -1001,7 +1039,7 @@ internal_error_function (diagnostic_context *, const char *, va_list *)
    options are parsed.  Signal handlers, internationalization etc.
    ARGV0 is main's argv[0].  */
 static void
-general_init (const char *argv0, bool init_signals)
+general_init (const char *argv0, bool init_signals, unique_argv original_argv)
 {
   const char *p;
 
@@ -1025,34 +1063,43 @@ general_init (const char *argv0, bool init_signals)
   /* Initialize the diagnostics reporting machinery, so option parsing
      can give warnings and errors.  */
   diagnostic_initialize (global_dc, N_OPTS);
-  global_dc->lang_mask = lang_hooks.option_lang_mask ();
   /* Set a default printer.  Language specific initializations will
      override it later.  */
   tree_diagnostics_defaults (global_dc);
 
-  global_dc->show_caret
+  global_dc->set_original_argv (std::move (original_argv));
+
+  global_dc->m_source_printing.enabled
     = global_options_init.x_flag_diagnostics_show_caret;
-  global_dc->show_labels_p
+  global_dc->m_source_printing.show_event_links_p
+    = global_options_init.x_flag_diagnostics_show_event_links;
+  global_dc->m_source_printing.show_labels_p
     = global_options_init.x_flag_diagnostics_show_labels;
-  global_dc->show_line_numbers_p
+  global_dc->m_source_printing.show_line_numbers_p
     = global_options_init.x_flag_diagnostics_show_line_numbers;
-  global_dc->show_cwe
-    = global_options_init.x_flag_diagnostics_show_cwe;
-  global_dc->path_format
-    = (enum diagnostic_path_format)global_options_init.x_flag_diagnostics_path_format;
-  global_dc->show_path_depths
-    = global_options_init.x_flag_diagnostics_show_path_depths;
-  global_dc->show_option_requested
-    = global_options_init.x_flag_diagnostics_show_option;
-  global_dc->min_margin_width
+  global_dc->set_show_cwe (global_options_init.x_flag_diagnostics_show_cwe);
+  global_dc->set_show_rules (global_options_init.x_flag_diagnostics_show_rules);
+  global_dc->set_path_format
+    ((enum diagnostic_path_format)
+     global_options_init.x_flag_diagnostics_path_format);
+  global_dc->set_show_path_depths
+    (global_options_init.x_flag_diagnostics_show_path_depths);
+  global_dc->set_show_option_requested
+    (global_options_init.x_flag_diagnostics_show_option);
+  global_dc->m_source_printing.min_margin_width
     = global_options_init.x_diagnostics_minimum_margin_width;
-  global_dc->show_column
+  global_dc->m_show_column
     = global_options_init.x_flag_show_column;
-  global_dc->internal_error = internal_error_function;
-  global_dc->option_enabled = option_enabled;
-  global_dc->option_state = &global_options;
-  global_dc->option_name = option_name;
-  global_dc->get_option_url = get_option_url;
+  global_dc->set_show_highlight_colors
+    (global_options_init.x_flag_diagnostics_show_highlight_colors);
+  global_dc->m_internal_error = internal_error_function;
+  const unsigned lang_mask = lang_hooks.option_lang_mask ();
+  global_dc->set_option_manager
+    (::make_unique<compiler_diagnostic_option_manager> (*global_dc,
+							lang_mask,
+							&global_options),
+     lang_mask);
+  global_dc->push_owned_urlifier (make_gcc_urlifier (lang_mask));
 
   if (init_signals)
     {
@@ -1087,9 +1134,9 @@ general_init (const char *argv0, bool init_signals)
   input_location = UNKNOWN_LOCATION;
   line_table = ggc_alloc<line_maps> ();
   linemap_init (line_table, BUILTINS_LOCATION);
-  line_table->reallocator = realloc_for_line_map;
-  line_table->round_alloc_size = ggc_round_alloc_size;
-  line_table->default_range_bits = 5;
+  line_table->m_reallocator = realloc_for_line_map;
+  line_table->m_round_alloc_size = ggc_round_alloc_size;
+  line_table->default_range_bits = line_map_suggested_range_bits;
   init_ttree ();
 
   /* Initialize register usage now so switches may override.  */
@@ -1226,7 +1273,7 @@ parse_alignment_opts (void)
 
 /* Process the options that have been parsed.  */
 static void
-process_options (bool no_backend)
+process_options ()
 {
   const char *language_string = lang_hooks.name;
 
@@ -1239,10 +1286,10 @@ process_options (bool no_backend)
   input_location = saved_location;
 
   if (flag_diagnostics_generate_patch)
-      global_dc->edit_context_ptr = new edit_context ();
+    global_dc->create_edit_context ();
 
   /* Avoid any informative notes in the second run of -fcompare-debug.  */
-  if (flag_compare_debug) 
+  if (flag_compare_debug)
     diagnostic_inhibit_notes (global_dc);
 
   if (flag_section_anchors && !target_supports_section_anchors_p ())
@@ -1253,7 +1300,7 @@ process_options (bool no_backend)
       flag_section_anchors = 0;
     }
 
-  if (flag_short_enums == 2)
+  if (!OPTION_SET_P (flag_short_enums))
     flag_short_enums = targetm.default_short_enums ();
 
   /* Set aux_base_name if not already set.  */
@@ -1364,7 +1411,7 @@ process_options (bool no_backend)
      option flags in use.  */
   if (version_flag)
     {
-      print_version (stderr, "", true);
+      /* We already printed the version header in main ().  */
       if (!quiet_flag)
 	{
 	  fputs ("options passed: ", stderr);
@@ -1415,21 +1462,8 @@ process_options (bool no_backend)
       && ctf_debug_info_level == CTFINFO_LEVEL_NONE)
     write_symbols = NO_DEBUG;
 
-  /* Warn if STABS debug gets enabled and is not the default.  */
-  if (PREFERRED_DEBUGGING_TYPE != DBX_DEBUG && (write_symbols & DBX_DEBUG))
-    warning (0, "STABS debugging information is obsolete and not "
-	     "supported anymore");
-
   if (write_symbols == NO_DEBUG)
     ;
-#if defined(DBX_DEBUGGING_INFO)
-  else if (write_symbols == DBX_DEBUG)
-    debug_hooks = &dbx_debug_hooks;
-#endif
-#if defined(XCOFF_DEBUGGING_INFO)
-  else if (write_symbols == XCOFF_DEBUG)
-    debug_hooks = &xcoff_debug_hooks;
-#endif
 #ifdef DWARF2_DEBUGGING_INFO
   else if (dwarf_debuginfo_p ())
     debug_hooks = &dwarf2_debug_hooks;
@@ -1450,6 +1484,10 @@ process_options (bool no_backend)
   else if (write_symbols == DWARF2_DEBUG)
     debug_hooks = &dwarf2_lineno_debug_hooks;
 #endif
+#ifdef CODEVIEW_DEBUGGING_INFO
+  else if (codeview_debuginfo_p ())
+    debug_hooks = &dwarf2_debug_hooks;
+#endif
   else
     {
       gcc_assert (debug_set_count (write_symbols) <= 1);
@@ -1468,6 +1506,14 @@ process_options (bool no_backend)
     dwarf2out_as_loc_support = dwarf2out_default_as_loc_support ();
   if (!OPTION_SET_P (dwarf2out_as_locview_support))
     dwarf2out_as_locview_support = dwarf2out_default_as_locview_support ();
+  if (dwarf2out_as_locview_support && !dwarf2out_as_loc_support)
+    {
+      if (OPTION_SET_P (dwarf2out_as_locview_support))
+	warning_at (UNKNOWN_LOCATION, 0,
+		    "%<-gas-locview-support%> is forced disabled "
+		    "without %<-gas-loc-support%>");
+      dwarf2out_as_locview_support = false;
+    }
 
   if (!OPTION_SET_P (debug_variable_location_views))
     {
@@ -1475,9 +1521,7 @@ process_options (bool no_backend)
 	= (flag_var_tracking
 	   && debug_info_level >= DINFO_LEVEL_NORMAL
 	   && dwarf_debuginfo_p ()
-	   && !dwarf_strict
-	   && dwarf2out_as_loc_support
-	   && dwarf2out_as_locview_support);
+	   && !dwarf_strict);
     }
   else if (debug_variable_location_views == -1 && dwarf_version != 5)
     {
@@ -1584,6 +1628,13 @@ process_options (bool no_backend)
       flag_associative_math = 0;
     }
 
+  if (flag_hardened && !HAVE_FHARDENED_SUPPORT)
+    {
+      warning_at (UNKNOWN_LOCATION, 0,
+		  "%<-fhardened%> not supported for this target");
+      flag_hardened = 0;
+    }
+
   /* -fstack-clash-protection is not currently supported on targets
      where the stack grows up.  */
   if (flag_stack_clash_protection && !STACK_GROWS_DOWNWARD)
@@ -1593,13 +1644,26 @@ process_options (bool no_backend)
 		  "where the stack grows from lower to higher addresses");
       flag_stack_clash_protection = 0;
     }
+  else if (flag_hardened)
+    {
+      if (!flag_stack_clash_protection
+	   /* Don't enable -fstack-clash-protection when -fstack-check=
+	      is used: it would result in confusing errors.  */
+	   && flag_stack_check == NO_STACK_CHECK)
+	flag_stack_clash_protection = 1;
+      else if (flag_stack_check != NO_STACK_CHECK)
+	warning_at (UNKNOWN_LOCATION, OPT_Whardened,
+		    "%<-fstack-clash-protection%> is not enabled by "
+		    "%<-fhardened%> because %<-fstack-check%> was "
+		    "specified on the command line");
+    }
 
   /* We cannot support -fstack-check= and -fstack-clash-protection at
      the same time.  */
   if (flag_stack_check != NO_STACK_CHECK && flag_stack_clash_protection)
     {
       warning_at (UNKNOWN_LOCATION, 0,
-		  "%<-fstack-check=%> and %<-fstack-clash_protection%> are "
+		  "%<-fstack-check=%> and %<-fstack-clash-protection%> are "
 		  "mutually exclusive; disabling %<-fstack-check=%>");
       flag_stack_check = NO_STACK_CHECK;
     }
@@ -1608,8 +1672,9 @@ process_options (bool no_backend)
      target already uses a soft frame pointer, the transition is trivial.  */
   if (!FRAME_GROWS_DOWNWARD && flag_stack_protect)
     {
-      warning_at (UNKNOWN_LOCATION, 0,
-		  "%<-fstack-protector%> not supported for this target");
+      if (!flag_stack_protector_set_by_fhardened_p)
+	warning_at (UNKNOWN_LOCATION, 0,
+		    "%<-fstack-protector%> not supported for this target");
       flag_stack_protect = 0;
     }
   if (!flag_stack_protect)
@@ -1628,7 +1693,8 @@ process_options (bool no_backend)
 
   if ((flag_sanitize & SANITIZE_USER_ADDRESS)
       && ((targetm.asan_shadow_offset == NULL)
-	  || (targetm.asan_shadow_offset () == 0)))
+	  || ((targetm.asan_shadow_offset () == 0)
+	      && !targetm.asan_dynamic_shadow_offset_p ())))
     {
       warning_at (UNKNOWN_LOCATION, 0,
 		  "%<-fsanitize=address%> not supported for this target");
@@ -1681,13 +1747,11 @@ process_options (bool no_backend)
   if (!OPTION_SET_P (warnings_are_errors))
     {
       if (warn_coverage_mismatch
-	  && (global_dc->classify_diagnostic[OPT_Wcoverage_mismatch] ==
-	      DK_UNSPECIFIED))
+	  && option_unspecified_p (OPT_Wcoverage_mismatch))
 	diagnostic_classify_diagnostic (global_dc, OPT_Wcoverage_mismatch,
 					DK_ERROR, UNKNOWN_LOCATION);
       if (warn_coverage_invalid_linenum
-	  && (global_dc->classify_diagnostic[OPT_Wcoverage_invalid_line_number] ==
-	      DK_UNSPECIFIED))
+	  && option_unspecified_p (OPT_Wcoverage_invalid_line_number))
 	diagnostic_classify_diagnostic (global_dc, OPT_Wcoverage_invalid_line_number,
 					DK_ERROR, UNKNOWN_LOCATION);
     }
@@ -1700,9 +1764,6 @@ process_options (bool no_backend)
   if (flag_checking >= 2)
     hash_table_sanitize_eq_limit
       = param_hash_table_verification_limit;
-
-  if (flag_large_source_files)
-    line_table->default_range_bits = 0;
 
   diagnose_options (&global_options, &global_options_set, UNKNOWN_LOCATION);
 
@@ -1889,6 +1950,9 @@ lang_dependent_init (const char *name)
 void
 target_reinit (void)
 {
+  if (no_backend)
+    return;
+
   struct rtl_data saved_x_rtl;
   rtx *saved_regno_reg_rtx;
   tree saved_optimization_current_node;
@@ -1913,7 +1977,7 @@ target_reinit (void)
      to allow target_reinit being called even after prepare_function_start.  */
   saved_regno_reg_rtx = regno_reg_rtx;
   if (saved_regno_reg_rtx)
-    {  
+    {
       saved_x_rtl = *crtl;
       memset (crtl, '\0', sizeof (*crtl));
       regno_reg_rtx = NULL;
@@ -1981,7 +2045,7 @@ dump_memory_report (const char *header)
 /* Clean up: close opened files, etc.  */
 
 static void
-finalize (bool no_backend)
+finalize ()
 {
   /* Close the dump files.  */
   if (flag_gen_aux_info)
@@ -2063,7 +2127,7 @@ standard_type_bitsize (int bitsize)
 
 /* Initialize the compiler, and compile the input file.  */
 static void
-do_compile (bool no_backend)
+do_compile ()
 {
   /* Don't do any more if an error has already occurred.  */
   if (!seen_error ())
@@ -2150,7 +2214,7 @@ do_compile (bool no_backend)
 
       timevar_start (TV_PHASE_FINALIZE);
 
-      finalize (no_backend);
+      finalize ();
 
       timevar_stop (TV_PHASE_FINALIZE);
     }
@@ -2222,10 +2286,14 @@ toplev::main (int argc, char **argv)
      Increase stack size limits if possible.  */
   stack_limit_increase (64 * 1024 * 1024);
 
+  /* Stash a copy of the original argv before expansion
+     for use by SARIF output.  */
+  unique_argv original_argv (dupargv (argv));
+
   expandargv (&argc, &argv);
 
   /* Initialization of GCC's environment, and diagnostics.  */
-  general_init (argv[0], m_init_signals);
+  general_init (argv[0], m_init_signals, std::move (original_argv));
 
   /* One-off initialization of options that does not need to be
      repeated when options are added for particular functions.  */
@@ -2265,11 +2333,18 @@ toplev::main (int argc, char **argv)
 		  UNKNOWN_LOCATION, global_dc,
 		  targetm.target_option.override);
 
+  global_dc->get_file_cache ().tune (param_file_cache_files,
+				     param_file_cache_lines);
+
   handle_common_deferred_options ();
 
   init_local_tick ();
 
   initialize_plugins ();
+
+  /* Handle the dump options now that plugins have had a chance to install new
+     passes.  */
+  handle_deferred_dump_options ();
 
   if (version_flag)
     print_version (stderr, "", true);
@@ -2287,15 +2362,15 @@ toplev::main (int argc, char **argv)
 	 initialization based on the command line options.  This hook also
 	 sets the original filename if appropriate (e.g. foo.i -> foo.c)
 	 so we can correctly initialize debug output.  */
-      bool no_backend = lang_hooks.post_options (&main_input_filename);
+      no_backend = lang_hooks.post_options (&main_input_filename);
 
-      process_options (no_backend);
+      process_options ();
 
       if (m_use_TV_TOTAL)
 	start_timevars ();
-      do_compile (no_backend);
+      do_compile ();
 
-      if (flag_self_test)
+      if (flag_self_test && !seen_error ())
 	{
 	  if (no_backend)
 	    error_at (UNKNOWN_LOCATION, "self-tests incompatible with %<-E%>");
@@ -2311,13 +2386,11 @@ toplev::main (int argc, char **argv)
      emit some diagnostics here.  */
   invoke_plugin_callbacks (PLUGIN_FINISH, NULL);
 
-  if (flag_diagnostics_generate_patch)
+  if (auto edit_context_ptr = global_dc->get_edit_context ())
     {
-      gcc_assert (global_dc->edit_context_ptr);
-
       pretty_printer pp;
-      pp_show_color (&pp) = pp_show_color (global_dc->printer);
-      global_dc->edit_context_ptr->print_diff (&pp, true);
+      pp_show_color (&pp) = pp_show_color (global_dc->get_reference_printer ());
+      edit_context_ptr->print_diff (&pp, true);
       pp_flush (&pp);
     }
 
@@ -2327,7 +2400,7 @@ toplev::main (int argc, char **argv)
 
   after_memory_report = true;
 
-  if (seen_error () || werrorcount)
+  if (global_dc->execution_failed_p ())
     return (FATAL_EXIT_CODE);
 
   return (SUCCESS_EXIT_CODE);
@@ -2338,6 +2411,7 @@ toplev::main (int argc, char **argv)
 void
 toplev::finalize (void)
 {
+  no_backend = false;
   rtl_initialized = false;
   this_target_rtl->target_specific_initialized = false;
 
@@ -2346,16 +2420,22 @@ toplev::finalize (void)
   ipa_fnsummary_cc_finalize ();
   ipa_modref_cc_finalize ();
   ipa_edge_modifications_finalize ();
+  ipa_icf_cc_finalize ();
 
+  ipa_prop_cc_finalize ();
+  ipa_profile_cc_finalize ();
+  ipa_sra_cc_finalize ();
   cgraph_cc_finalize ();
   cgraphunit_cc_finalize ();
   symtab_thunks_cc_finalize ();
+  dwarf2cfi_cc_finalize ();
   dwarf2out_cc_finalize ();
   gcse_cc_finalize ();
   ipa_cp_cc_finalize ();
   ira_costs_cc_finalize ();
   tree_cc_finalize ();
   reginfo_cc_finalize ();
+  varasm_cc_finalize ();
 
   /* save_decoded_options uses opts_obstack, so these must
      be cleaned up together.  */
@@ -2363,6 +2443,8 @@ toplev::finalize (void)
   XDELETEVEC (save_decoded_options);
   save_decoded_options = NULL;
   save_decoded_options_count = 0;
+
+  ggc_common_finalize ();
 
   /* Clean up the context (and pass_manager etc). */
   delete g;

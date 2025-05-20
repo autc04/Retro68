@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -114,10 +114,7 @@ package body Ch12 is
 
       --  Check for generic renaming declaration case
 
-      if Token = Tok_Package
-        or else Token = Tok_Function
-        or else Token = Tok_Procedure
-      then
+      if Token in Tok_Package | Tok_Function | Tok_Procedure then
          Ren_Token := Token;
          Scan; -- scan past PACKAGE, FUNCTION or PROCEDURE
 
@@ -226,7 +223,7 @@ package body Ch12 is
             Error_Msg_SP ("child unit allowed only at library level");
          end if;
 
-         P_Aspect_Specifications (Gen_Decl);
+         P_Aspect_Specifications (Gen_Decl, Semicolon => True);
       end if;
 
       Set_Generic_Formal_Declarations (Gen_Decl, Decls);
@@ -485,7 +482,7 @@ package body Ch12 is
 
          No_Constraint;
          Set_Default_Expression (Decl_Node, Init_Expr_Opt);
-         P_Aspect_Specifications (Decl_Node);
+         P_Aspect_Specifications (Decl_Node, Semicolon => True);
 
          if Ident > 1 then
             Set_Prev_Ids (Decl_Node, True);
@@ -573,7 +570,7 @@ package body Ch12 is
             end if;
          end if;
 
-         P_Aspect_Specifications (Decl_Node);
+         P_Aspect_Specifications (Decl_Node, Semicolon => True);
 
       else
          Decl_Node := Error;
@@ -581,7 +578,7 @@ package body Ch12 is
          --  If we have aspect specifications, skip them
 
          if Aspect_Specifications_Present then
-            P_Aspect_Specifications (Error);
+            P_Aspect_Specifications (Error, Semicolon => True);
 
          --  If we have semicolon, skip it to avoid cascaded errors
 
@@ -1225,7 +1222,7 @@ package body Ch12 is
 
          elsif Token = Tok_Left_Paren then
             Error_Msg_GNAT_Extension
-              ("expression default for formal subprograms");
+              ("expression default for formal subprograms", Token_Ptr);
 
             if Nkind (Spec_Node) = N_Function_Specification then
                Scan;  --  past "("
@@ -1253,7 +1250,7 @@ package body Ch12 is
          Set_Specification (Def_Node, Spec_Node);
       end if;
 
-      P_Aspect_Specifications (Def_Node);
+      P_Aspect_Specifications (Def_Node, Semicolon => True);
       return Def_Node;
    end P_Formal_Subprogram_Declaration;
 
@@ -1320,7 +1317,7 @@ package body Ch12 is
          end if;
       end if;
 
-      P_Aspect_Specifications (Def_Node);
+      P_Aspect_Specifications (Def_Node, Semicolon => True);
       return Def_Node;
    end P_Formal_Package_Declaration;
 

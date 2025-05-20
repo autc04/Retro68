@@ -103,7 +103,6 @@ am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
 	$(top_srcdir)/../config/multi.m4 \
 	$(top_srcdir)/../config/no-executables.m4 \
 	$(top_srcdir)/../config/override.m4 \
-	$(top_srcdir)/../config/stdint.m4 \
 	$(top_srcdir)/../config/toolexeclibdir.m4 \
 	$(top_srcdir)/../config/unwind_ipinfo.m4 \
 	$(top_srcdir)/../libtool.m4 $(top_srcdir)/../ltoptions.m4 \
@@ -241,6 +240,7 @@ ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
+EH_POOL_FLAGS = @EH_POOL_FLAGS@
 ERROR_CONSTANTS_SRCDIR = @ERROR_CONSTANTS_SRCDIR@
 EXEEXT = @EXEEXT@
 EXTRA_CFLAGS = @EXTRA_CFLAGS@
@@ -424,8 +424,8 @@ WARN_CXXFLAGS = \
 
 # -I/-D flags to pass when compiling.
 AM_CPPFLAGS = $(GLIBCXX_INCLUDES) $(CPPFLAGS)
-@GLIBCXX_HOSTED_TRUE@hosted_source = src doc po testsuite python
-SUBDIRS = include libsupc++ $(hosted_source)
+@GLIBCXX_HOSTED_TRUE@hosted_source = doc po testsuite python
+SUBDIRS = include libsupc++ src $(hosted_source)
 ACLOCAL_AMFLAGS = -I . -I .. -I ../config
 @BUILD_XML_FALSE@STAMP_XML = 
 
@@ -464,6 +464,7 @@ AM_MAKEFLAGS = \
 	"CXXFLAGS=$(CXXFLAGS)" \
 	"CFLAGS_FOR_BUILD=$(CFLAGS_FOR_BUILD)" \
 	"CFLAGS_FOR_TARGET=$(CFLAGS_FOR_TARGET)" \
+	"EXPECT=$(EXPECT)" \
 	"INSTALL=$(INSTALL)" \
 	"INSTALL_DATA=$(INSTALL_DATA)" \
 	"INSTALL_PROGRAM=$(INSTALL_PROGRAM)" \
@@ -781,11 +782,11 @@ uninstall-am:
 
 # Testsuite/check forwarding targets.
 check-%:
-	cd testsuite && $(MAKE) $@
+	$(MAKE) -C testsuite $@
 
 # Documentation forwarding targets.
 doc-%:
-	cd doc && $(MAKE) $@
+	$(MAKE) -C doc $@
 
 # Documentation primary rules.
 #

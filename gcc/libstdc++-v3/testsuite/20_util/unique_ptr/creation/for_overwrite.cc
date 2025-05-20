@@ -1,8 +1,10 @@
-// { dg-options "-std=gnu++20 -fno-lifetime-dse -O0" }
-// { dg-do run { target c++2a } }
+// { dg-options "-fno-lifetime-dse -O0" }
+// { dg-do run { target c++20 } }
 // { dg-xfail-run-if "AIX operator new" { powerpc-ibm-aix* } }
+// { dg-require-effective-target hosted }
+// { dg-add-options no_pch }
 
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -40,8 +42,8 @@ void* operator new(std::size_t n)
   return p;
 }
 
-void operator delete(void* p) { std::free(p); }
-void operator delete(void* p, std::size_t) { std::free(p); }
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
 
 void
 test01()

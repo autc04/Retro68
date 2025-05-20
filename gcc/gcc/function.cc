@@ -1,5 +1,5 @@
 /* Expands front end tree to back end RTL for GCC.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -84,6 +84,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "function-abi.h"
 #include "value-range.h"
 #include "gimple-range.h"
+#include "insn-attr.h"
 
 /* So we can assign to cfun in this file.  */
 #undef cfun
@@ -215,6 +216,7 @@ free_after_compilation (struct function *f)
   f->machine = NULL;
   f->cfg = NULL;
   f->curr_properties &= ~PROP_cfg;
+  delete f->cond_uids;
 
   regno_reg_rtx = NULL;
 }
@@ -300,7 +302,7 @@ get_stack_local_alignment (tree type, machine_mode mode)
 static bool
 try_fit_stack_local (poly_int64 start, poly_int64 length,
 		     poly_int64 size, unsigned int alignment,
-		     poly_int64_pod *poffset)
+		     poly_int64 *poffset)
 {
   poly_int64 this_frame_offset;
   int frame_off, frame_alignment, frame_phase;
@@ -578,8 +580,8 @@ public:
   tree type;
   /* The alignment (in bits) of the slot.  */
   unsigned int align;
-  /* Nonzero if this temporary is currently in use.  */
-  char in_use;
+  /* True if this temporary is currently in use.  */
+  bool in_use;
   /* Nesting level at which this slot is being used.  */
   int level;
   /* The offset of the slot from the frame_pointer, including extra space
@@ -674,7 +676,7 @@ make_slot_available (class temp_slot *temp)
 {
   cut_slot_from_list (temp, temp_slots_at_level (temp->level));
   insert_slot_to_list (temp, &avail_temp_slots);
-  temp->in_use = 0;
+  temp->in_use = false;
   temp->level = -1;
   n_temp_slots_in_use--;
 }
@@ -848,7 +850,7 @@ assign_stack_temp_for_type (machine_mode mode, poly_int64 size, tree type)
 	  if (known_ge (best_p->size - rounded_size, alignment))
 	    {
 	      p = ggc_alloc<temp_slot> ();
-	      p->in_use = 0;
+	      p->in_use = false;
 	      p->size = best_p->size - rounded_size;
 	      p->base_offset = best_p->base_offset + rounded_size;
 	      p->full_size = best_p->full_size - rounded_size;
@@ -918,7 +920,7 @@ assign_stack_temp_for_type (machine_mode mode, poly_int64 size, tree type)
     }
 
   p = selected;
-  p->in_use = 1;
+  p->in_use = true;
   p->type = type;
   p->level = temp_slot_level;
   n_temp_slots_in_use++;
@@ -1340,7 +1342,7 @@ has_hard_reg_initial_val (machine_mode mode, unsigned int regno)
   return NULL_RTX;
 }
 
-unsigned int
+void
 emit_initial_value_sets (void)
 {
   struct initial_value_struct *ivs = crtl->hard_reg_initial_vals;
@@ -1348,7 +1350,7 @@ emit_initial_value_sets (void)
   rtx_insn *seq;
 
   if (ivs == 0)
-    return 0;
+    return;
 
   start_sequence ();
   for (i = 0; i < ivs->num_entries; i++)
@@ -1357,7 +1359,6 @@ emit_initial_value_sets (void)
   end_sequence ();
 
   emit_insn_at_entry (seq);
-  return 0;
 }
 
 /* Return the hardreg-pseudoreg initial values pair entry I and
@@ -1432,7 +1433,7 @@ static poly_int64 cfa_offset;
    offset indirectly through the pointer.  Otherwise, return 0.  */
 
 static rtx
-instantiate_new_reg (rtx x, poly_int64_pod *poffset)
+instantiate_new_reg (rtx x, poly_int64 *poffset)
 {
   rtx new_rtx;
   poly_int64 offset;
@@ -1535,7 +1536,7 @@ instantiate_virtual_regs_in_rtx (rtx *loc)
 /* A subroutine of instantiate_virtual_regs_in_insn.  Return true if X
    matches the predicate for insn CODE operand OPERAND.  */
 
-static int
+static bool
 safe_insn_predicate (int code, int operand, rtx x)
 {
   return code < 0 || insn_operand_matches ((enum insn_code) code, operand, x);
@@ -1838,8 +1839,7 @@ instantiate_decl_rtl (rtx x)
   addr = XEXP (x, 0);
   if (CONSTANT_P (addr)
       || (REG_P (addr)
-	  && (REGNO (addr) < FIRST_VIRTUAL_REGISTER
-	      || REGNO (addr) > LAST_VIRTUAL_REGISTER)))
+	  && !VIRTUAL_REGISTER_P (addr)))
     return;
 
   instantiate_virtual_regs_in_rtx (&XEXP (x, 0));
@@ -1945,10 +1945,20 @@ instantiate_decls (tree fndecl)
   vec_free (cfun->local_decls);
 }
 
+/* Return the value of STACK_DYNAMIC_OFFSET for the current function.
+   This is done through a function wrapper so that the macro sees a
+   predictable set of included files.  */
+
+poly_int64
+get_stack_dynamic_offset ()
+{
+  return STACK_DYNAMIC_OFFSET (current_function_decl);
+}
+
 /* Pass through the INSNS of function FNDECL and convert virtual register
    references to hard register references.  */
 
-static unsigned int
+static void
 instantiate_virtual_regs (void)
 {
   rtx_insn *insn;
@@ -1956,7 +1966,7 @@ instantiate_virtual_regs (void)
   /* Compute the offsets to use for this function.  */
   in_arg_offset = FIRST_PARM_OFFSET (current_function_decl);
   var_offset = targetm.starting_frame_offset ();
-  dynamic_offset = STACK_DYNAMIC_OFFSET (current_function_decl);
+  dynamic_offset = get_stack_dynamic_offset ();
   out_arg_offset = STACK_POINTER_OFFSET;
 #ifdef FRAME_POINTER_CFA_OFFSET
   cfa_offset = FRAME_POINTER_CFA_OFFSET (current_function_decl);
@@ -2002,8 +2012,6 @@ instantiate_virtual_regs (void)
   /* Indicate that, from now on, assign_stack_local should use
      frame_pointer_rtx.  */
   virtuals_instantiated = 1;
-
-  return 0;
 }
 
 namespace {
@@ -2029,9 +2037,10 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *)
+  unsigned int execute (function *) final override
     {
-      return instantiate_virtual_regs ();
+      instantiate_virtual_regs ();
+      return 0;
     }
 
 }; // class pass_instantiate_virtual_regs
@@ -2045,12 +2054,12 @@ make_pass_instantiate_virtual_regs (gcc::context *ctxt)
 }
 
 
-/* Return 1 if EXP is an aggregate type (or a value with aggregate type).
+/* Return true if EXP is an aggregate type (or a value with aggregate type).
    This means a type for which function calls must pass an address to the
    function or get an address back from the function.
    EXP may be a type node or an expression (whose type is tested).  */
 
-int
+bool
 aggregate_value_p (const_tree exp, const_tree fntype)
 {
   const_tree type = (TYPE_P (exp)) ? exp : TREE_TYPE (exp);
@@ -2070,7 +2079,7 @@ aggregate_value_p (const_tree exp, const_tree fntype)
 	  else
 	    /* For internal functions, assume nothing needs to be
 	       returned in memory.  */
-	    return 0;
+	    return false;
 	}
 	break;
       case FUNCTION_DECL:
@@ -2088,7 +2097,10 @@ aggregate_value_p (const_tree exp, const_tree fntype)
       }
 
   if (VOID_TYPE_P (type))
-    return 0;
+    return false;
+
+  if (error_operand_p (fntype))
+    return false;
 
   /* If a record should be passed the same as its first (and only) member
      don't pass it as an aggregate.  */
@@ -2099,25 +2111,25 @@ aggregate_value_p (const_tree exp, const_tree fntype)
      reference, do so.  */
   if ((TREE_CODE (exp) == PARM_DECL || TREE_CODE (exp) == RESULT_DECL)
       && DECL_BY_REFERENCE (exp))
-    return 1;
+    return true;
 
   /* Function types that are TREE_ADDRESSABLE force return in memory.  */
   if (fntype && TREE_ADDRESSABLE (fntype))
-    return 1;
+    return true;
 
   /* Types that are TREE_ADDRESSABLE must be constructed in memory,
      and thus can't be returned in registers.  */
   if (TREE_ADDRESSABLE (type))
-    return 1;
+    return true;
 
   if (TYPE_EMPTY_P (type))
-    return 0;
+    return false;
 
   if (flag_pcc_struct_return && AGGREGATE_TYPE_P (type))
-    return 1;
+    return true;
 
   if (targetm.calls.return_in_memory (type, fntype))
-    return 1;
+    return true;
 
   /* Make sure we have suitable call-clobbered regs to return
      the value in; if not, we must return it in memory.  */
@@ -2126,7 +2138,7 @@ aggregate_value_p (const_tree exp, const_tree fntype)
   /* If we have something other than a REG (e.g. a PARALLEL), then assume
      it is OK.  */
   if (!REG_P (reg))
-    return 0;
+    return false;
 
   /* Use the default ABI if the type of the function isn't known.
      The scheme for handling interoperability between different ABIs
@@ -2139,9 +2151,9 @@ aggregate_value_p (const_tree exp, const_tree fntype)
   nregs = hard_regno_nregs (regno, TYPE_MODE (type));
   for (i = 0; i < nregs; i++)
     if (!fixed_regs[regno + i] && !abi.clobbers_full_reg_p (regno + i))
-      return 1;
+      return true;
 
-  return 0;
+  return false;
 }
 
 /* Return true if we should assign DECL a pseudo register; false if it
@@ -2219,6 +2231,7 @@ use_register_for_decl (const_tree decl)
       /* We don't set DECL_IGNORED_P for the function_result_decl.  */
       if (optimize)
 	return true;
+      /* Needed for [[musttail]] which can operate even at -O0 */
       if (cfun->tail_call_marked)
 	return true;
       /* We don't set DECL_REGISTER for the function_result_decl.  */
@@ -2374,7 +2387,7 @@ split_complex_args (vec<tree> *args)
    the hidden struct return argument, and (abi willing) complex args.
    Return the new parameter list.  */
 
-static vec<tree> 
+static vec<tree>
 assign_parms_augmented_arg_list (struct assign_parm_data_all *all)
 {
   tree fndecl = current_function_decl;
@@ -2443,15 +2456,7 @@ assign_parm_find_data_types (struct assign_parm_data_all *all, tree parm,
 {
   int unsignedp;
 
-#ifndef BROKEN_VALUE_INITIALIZATION
   *data = assign_parm_data_one ();
-#else
-  /* Old versions of GCC used to miscompile the above by only initializing
-     the members with explicit constructors and copying garbage
-     to the other members.  */
-  assign_parm_data_one zero_data = {};
-  *data = zero_data;
-#endif
 
   /* NAMED_ARG is a misnomer.  We really mean 'non-variadic'. */
   if (!cfun->stdarg)
@@ -3486,6 +3491,17 @@ assign_parm_setup_stack (struct assign_parm_data_all *all, tree parm,
 
       emit_move_insn (tempreg, validize_mem (copy_rtx (data->entry_parm)));
 
+      /* Some ABIs require scalar floating point modes to be passed
+	 in a wider scalar integer mode.  We need to explicitly
+	 truncate to an integer mode of the correct precision before
+	 using a SUBREG to reinterpret as a floating point value.  */
+      if (SCALAR_FLOAT_MODE_P (data->nominal_mode)
+	  && SCALAR_INT_MODE_P (data->arg.mode)
+	  && known_lt (GET_MODE_SIZE (data->nominal_mode),
+		       GET_MODE_SIZE (data->arg.mode)))
+	tempreg = convert_wider_int_to_float (data->nominal_mode,
+					      data->arg.mode, tempreg);
+
       push_to_sequence2 (all->first_conversion_insn, all->last_conversion_insn);
       to_conversion = true;
 
@@ -3650,6 +3666,13 @@ assign_parms (tree fndecl)
   assign_parms_initialize_all (&all);
   fnargs = assign_parms_augmented_arg_list (&all);
 
+  if (TYPE_NO_NAMED_ARGS_STDARG_P (TREE_TYPE (fndecl))
+      && fnargs.is_empty ())
+    {
+      struct assign_parm_data_one data = {};
+      assign_parms_setup_varargs (&all, &data, false);
+    }
+
   FOR_EACH_VEC_ELT (fnargs, i, parm)
     {
       struct assign_parm_data_one data;
@@ -3737,6 +3760,8 @@ assign_parms (tree fndecl)
   /* Output all parameter conversion instructions (possibly including calls)
      now that all parameters have been copied out of hard registers.  */
   emit_insn (all.first_conversion_insn);
+
+  do_pending_stack_adjust ();
 
   /* Estimate reload stack alignment from scalar return mode.  */
   if (SUPPORTS_STACK_ALIGNMENT)
@@ -3867,30 +3892,6 @@ assign_parms (tree fndecl)
     }
 }
 
-/* A subroutine of gimplify_parameters, invoked via walk_tree.
-   For all seen types, gimplify their sizes.  */
-
-static tree
-gimplify_parm_type (tree *tp, int *walk_subtrees, void *data)
-{
-  tree t = *tp;
-
-  *walk_subtrees = 0;
-  if (TYPE_P (t))
-    {
-      if (POINTER_TYPE_P (t))
-	*walk_subtrees = 1;
-      else if (TYPE_SIZE (t) && !TREE_CONSTANT (TYPE_SIZE (t))
-	       && !TYPE_SIZES_GIMPLIFIED (t))
-	{
-	  gimplify_type_sizes (t, (gimple_seq *) data);
-	  *walk_subtrees = 1;
-	}
-    }
-
-  return NULL;
-}
-
 /* Gimplify the parameter list for current_function_decl.  This involves
    evaluating SAVE_EXPRs of variable sized parameters and generating code
    to implement callee-copies reference parameters.  Returns a sequence of
@@ -3926,8 +3927,7 @@ gimplify_parameters (gimple_seq *cleanup)
 	 SAVE_EXPRs (amongst others) onto a pending sizes list.  This
 	 turned out to be less than manageable in the gimple world.
 	 Now we have to hunt them down ourselves.  */
-      walk_tree_without_duplicates (&data.arg.type,
-				    gimplify_parm_type, &stmts);
+      gimplify_type_sizes (TREE_TYPE (parm), &stmts);
 
       if (TREE_CODE (DECL_SIZE_UNIT (parm)) != INTEGER_CST)
 	{
@@ -4642,14 +4642,6 @@ number_blocks (tree fn)
   int n_blocks;
   tree *block_vector;
 
-  /* For XCOFF debugging output, we start numbering the blocks
-     from 1 within each function, rather than keeping a running
-     count.  */
-#if defined (XCOFF_DEBUGGING_INFO)
-  if (write_symbols == XCOFF_DEBUG)
-    next_block_index = 1;
-#endif
-
   block_vector = get_block_vector (DECL_INITIAL (fn), &n_blocks);
 
   /* The top-level BLOCK isn't numbered at all.  */
@@ -4729,22 +4721,59 @@ invoke_set_current_function_hook (tree fndecl)
     }
 }
 
+/* Set cfun to NEW_CFUN and switch to the optimization and target options
+   associated with NEW_FNDECL.
+
+   FORCE says whether we should do the switch even if NEW_CFUN is the current
+   function, e.g. because there has been a change in optimization or target
+   options.  */
+
+static void
+set_function_decl (function *new_cfun, tree new_fndecl, bool force)
+{
+  if (cfun != new_cfun || force)
+    {
+      cfun = new_cfun;
+      invoke_set_current_function_hook (new_fndecl);
+      redirect_edge_var_map_empty ();
+    }
+}
+
 /* cfun should never be set directly; use this function.  */
 
 void
 set_cfun (struct function *new_cfun, bool force)
 {
-  if (cfun != new_cfun || force)
-    {
-      cfun = new_cfun;
-      invoke_set_current_function_hook (new_cfun ? new_cfun->decl : NULL_TREE);
-      redirect_edge_var_map_empty ();
-    }
+  set_function_decl (new_cfun, new_cfun ? new_cfun->decl : NULL_TREE, force);
 }
 
 /* Initialized with NOGC, making this poisonous to the garbage collector.  */
 
 static vec<function *> cfun_stack;
+
+/* Push the current cfun onto the stack, then switch to function NEW_CFUN
+   and FUNCTION_DECL NEW_FNDECL.  FORCE is as for set_function_decl.  */
+
+static void
+push_function_decl (function *new_cfun, tree new_fndecl, bool force)
+{
+  gcc_assert ((!cfun && !current_function_decl)
+	      || (cfun && current_function_decl == cfun->decl));
+  cfun_stack.safe_push (cfun);
+  current_function_decl = new_fndecl;
+  set_function_decl (new_cfun, new_fndecl, force);
+}
+
+/* Push the current cfun onto the stack and switch to function declaration
+   NEW_FNDECL, which might or might not have a function body.  FORCE is as for
+   set_function_decl.  */
+
+void
+push_function_decl (tree new_fndecl, bool force)
+{
+  force |= current_function_decl != new_fndecl;
+  push_function_decl (DECL_STRUCT_FUNCTION (new_fndecl), new_fndecl, force);
+}
 
 /* Push the current cfun onto the stack, and set cfun to new_cfun.  Also set
    current_function_decl accordingly.  */
@@ -4752,17 +4781,14 @@ static vec<function *> cfun_stack;
 void
 push_cfun (struct function *new_cfun)
 {
-  gcc_assert ((!cfun && !current_function_decl)
-	      || (cfun && current_function_decl == cfun->decl));
-  cfun_stack.safe_push (cfun);
-  current_function_decl = new_cfun ? new_cfun->decl : NULL_TREE;
-  set_cfun (new_cfun);
+  push_function_decl (new_cfun, new_cfun ? new_cfun->decl : NULL_TREE, false);
 }
 
-/* Pop cfun from the stack.  Also set current_function_decl accordingly.  */
+/* A common subroutine for pop_cfun and pop_function_decl.  FORCE is as
+   for set_function_decl.  */
 
-void
-pop_cfun (void)
+static void
+pop_cfun_1 (bool force)
 {
   struct function *new_cfun = cfun_stack.pop ();
   /* When in_dummy_function, we do have a cfun but current_function_decl is
@@ -4772,8 +4798,28 @@ pop_cfun (void)
   gcc_checking_assert (in_dummy_function
 		       || !cfun
 		       || current_function_decl == cfun->decl);
-  set_cfun (new_cfun);
+  set_cfun (new_cfun, force);
   current_function_decl = new_cfun ? new_cfun->decl : NULL_TREE;
+}
+
+/* Pop cfun from the stack.  Also set current_function_decl accordingly.  */
+
+void
+pop_cfun (void)
+{
+  pop_cfun_1 (false);
+}
+
+/* Undo push_function_decl.  */
+
+void
+pop_function_decl (void)
+{
+  /* If the previous cfun was null, the options should be reset to the
+     global set.  Checking the current cfun against the new (popped) cfun
+     wouldn't catch this if the current function decl has no function
+     struct.  */
+  pop_cfun_1 (!cfun_stack.last ());
 }
 
 /* Return value of funcdef and increase it.  */
@@ -4893,7 +4939,7 @@ allocate_struct_function (tree fndecl, bool abstract_p)
    instead of just setting it.  */
 
 void
-push_struct_function (tree fndecl)
+push_struct_function (tree fndecl, bool abstract_p)
 {
   /* When in_dummy_function we might be in the middle of a pop_cfun and
      current_function_decl and cfun may not match.  */
@@ -4902,7 +4948,7 @@ push_struct_function (tree fndecl)
 	      || (cfun && current_function_decl == cfun->decl));
   cfun_stack.safe_push (cfun);
   current_function_decl = fndecl;
-  allocate_struct_function (fndecl, false);
+  allocate_struct_function (fndecl, abstract_p);
 }
 
 /* Reset crtl and other non-struct-function variables to defaults as
@@ -4999,7 +5045,8 @@ init_function_start (tree subr)
   /* Warn if this value is an aggregate type,
      regardless of which calling convention we are using for it.  */
   if (AGGREGATE_TYPE_P (TREE_TYPE (DECL_RESULT (subr))))
-    warning (OPT_Waggregate_return, "function returns an aggregate");
+    warning_at (DECL_SOURCE_LOCATION (DECL_RESULT (subr)),
+		OPT_Waggregate_return, "function returns an aggregate");
 }
 
 /* Expand code to verify the stack_protect_guard.  This is invoked at
@@ -5063,9 +5110,12 @@ stack_protect_epilogue (void)
    PARMS_HAVE_CLEANUPS is nonzero if there are cleanups associated with
    the function's parameters, which must be run at any return statement.  */
 
+bool currently_expanding_function_start;
 void
 expand_function_start (tree subr)
 {
+  currently_expanding_function_start = true;
+
   /* Make sure volatile mem refs aren't considered
      valid operands of arithmetic insns.  */
   init_recog_no_volatile ();
@@ -5126,7 +5176,7 @@ expand_function_start (tree subr)
   else if (DECL_MODE (res) == VOIDmode)
     /* If return mode is void, this decl rtl should not be used.  */
     set_parm_rtl (res, NULL_RTX);
-  else 
+  else
     {
       /* Compute the return values into a pseudo reg, which we will copy
 	 into the true return register after the cleanups are done.  */
@@ -5225,7 +5275,7 @@ expand_function_start (tree subr)
 
   gcc_assert (NOTE_P (get_last_insn ()));
 
-  parm_birth_insn = get_last_insn ();
+  function_beg_insn = parm_birth_insn = get_last_insn ();
 
   /* If the function receives a non-local goto, then store the
      bits we need to restore the frame pointer.  */
@@ -5258,6 +5308,8 @@ expand_function_start (tree subr)
   /* If we are doing generic stack checking, the probe should go here.  */
   if (flag_stack_check == GENERIC_STACK_CHECK)
     stack_check_probe_note = emit_note (NOTE_INSN_DELETED);
+
+  currently_expanding_function_start = false;
 }
 
 void
@@ -5769,26 +5821,26 @@ contains (const rtx_insn *insn, hash_table<insn_cache_hasher> *hash)
   return hash->find (const_cast<rtx_insn *> (insn)) != NULL;
 }
 
-int
+bool
 prologue_contains (const rtx_insn *insn)
 {
   return contains (insn, prologue_insn_hash);
 }
 
-int
+bool
 epilogue_contains (const rtx_insn *insn)
 {
   return contains (insn, epilogue_insn_hash);
 }
 
-int
+bool
 prologue_epilogue_contains (const rtx_insn *insn)
 {
   if (contains (insn, prologue_insn_hash))
-    return 1;
+    return true;
   if (contains (insn, epilogue_insn_hash))
-    return 1;
-  return 0;
+    return true;
+  return false;
 }
 
 void
@@ -5903,6 +5955,9 @@ gen_call_used_regs_seq (rtx_insn *ret, unsigned int zero_regs_type)
   only_gpr = zero_regs_type & ONLY_GPR;
   only_used = zero_regs_type & ONLY_USED;
   only_arg = zero_regs_type & ONLY_ARG;
+
+  if ((zero_regs_type & LEAFY_MODE) && leaf_function_p ())
+    only_used = true;
 
   /* For each of the hard registers, we should zero it if:
 	    1. it is a call-used register;
@@ -6155,6 +6210,8 @@ thread_prologue_and_epilogue_insns (void)
 		  && returnjump_p (BB_END (e->src)))
 		e->flags &= ~EDGE_FALLTHRU;
 	    }
+
+	  find_sub_basic_blocks (BLOCK_FOR_INSN (epilogue_seq));
 	}
       else if (next_active_insn (BB_END (exit_fallthru_edge->src)))
 	{
@@ -6238,7 +6295,17 @@ thread_prologue_and_epilogue_insns (void)
       if (!(CALL_P (insn) && SIBLING_CALL_P (insn)))
 	continue;
 
-      if (rtx_insn *ep_seq = targetm.gen_sibcall_epilogue ())
+      rtx_insn *ep_seq;
+      if (targetm.emit_epilogue_for_sibcall)
+	{
+	  start_sequence ();
+	  targetm.emit_epilogue_for_sibcall (as_a<rtx_call_insn *> (insn));
+	  ep_seq = get_insns ();
+	  end_sequence ();
+	}
+      else
+	ep_seq = targetm.gen_sibcall_epilogue ();
+      if (ep_seq)
 	{
 	  start_sequence ();
 	  emit_note (NOTE_INSN_EPILOGUE_BEG);
@@ -6253,6 +6320,8 @@ thread_prologue_and_epilogue_insns (void)
 	  set_insn_locations (seq, epilogue_location);
 
 	  emit_insn_before (seq, insn);
+
+	  find_sub_basic_blocks (BLOCK_FOR_INSN (insn));
 	}
     }
 
@@ -6274,10 +6343,21 @@ thread_prologue_and_epilogue_insns (void)
 	}
     }
 
-  /* Threading the prologue and epilogue changes the artificial refs
-     in the entry and exit blocks.  */
-  epilogue_completed = 1;
-  df_update_entry_exit_and_calls ();
+  /* Threading the prologue and epilogue changes the artificial refs in the
+     entry and exit blocks, and may invalidate DF info for tail calls.
+     This is also needed for [[musttail]] conversion even when not
+     optimizing.  */
+  if (optimize
+      || cfun->tail_call_marked
+      || flag_optimize_sibling_calls
+      || flag_ipa_icf_functions
+      || in_lto_p)
+    df_update_entry_exit_and_calls ();
+  else
+    {
+      df_update_entry_block_defs ();
+      df_update_exit_block_uses ();
+    }
 }
 
 /* Reposition the prologue-end and epilogue-begin notes after
@@ -6288,7 +6368,8 @@ reposition_prologue_and_epilogue_notes (void)
 {
   if (!targetm.have_prologue ()
       && !targetm.have_epilogue ()
-      && !targetm.have_sibcall_epilogue ())
+      && !targetm.have_sibcall_epilogue ()
+      && !targetm.emit_epilogue_for_sibcall)
     return;
 
   /* Since the hash table is created on demand, the fact that it is
@@ -6400,7 +6481,7 @@ fndecl_name (tree fndecl)
 
 /* Returns the name of function FN.  */
 const char *
-function_name (struct function *fn)
+function_name (const function *fn)
 {
   tree fndecl = (fn == NULL) ? NULL : fn->decl;
   return fndecl_name (fndecl);
@@ -6414,14 +6495,13 @@ current_function_name (void)
 }
 
 
-static unsigned int
+static void
 rest_of_handle_check_leaf_regs (void)
 {
 #ifdef LEAF_REGISTERS
   crtl->uses_only_leaf_regs
     = optimize > 0 && only_leaf_regs_used () && leaf_function_p ();
 #endif
-  return 0;
 }
 
 /* Insert a TYPE into the used types hash table of CFUN.  */
@@ -6544,9 +6624,10 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *)
+  unsigned int execute (function *) final override
     {
-      return rest_of_handle_check_leaf_regs ();
+      rest_of_handle_check_leaf_regs ();
+      return 0;
     }
 
 }; // class pass_leaf_regs
@@ -6559,12 +6640,12 @@ make_pass_leaf_regs (gcc::context *ctxt)
   return new pass_leaf_regs (ctxt);
 }
 
-static unsigned int
-rest_of_handle_thread_prologue_and_epilogue (void)
+static void
+rest_of_handle_thread_prologue_and_epilogue (function *fun)
 {
   /* prepare_shrink_wrap is sensitive to the block structure of the control
      flow graph, so clean it up first.  */
-  if (optimize)
+  if (cfun->tail_call_marked || optimize)
     cleanup_cfg (0);
 
   /* On some machines, the prologue and epilogue code, or parts thereof,
@@ -6577,6 +6658,13 @@ rest_of_handle_thread_prologue_and_epilogue (void)
      Fix that up.  */
   fixup_partitions ();
 
+  /* After prologue and epilogue generation, the judgement on whether
+     one memory access onto stack frame may trap or not could change,
+     since we get more exact stack information by now.  So try to
+     remove any EH edges here, see PR90259.  */
+  if (fun->can_throw_non_call_exceptions)
+    purge_all_dead_edges ();
+
   /* Shrink-wrapping can result in unreachable edges in the epilogue,
      see PR57320.  */
   cleanup_cfg (optimize ? CLEANUP_EXPENSIVE : 0);
@@ -6584,8 +6672,6 @@ rest_of_handle_thread_prologue_and_epilogue (void)
   /* The stack usage info is finalized during prologue expansion.  */
   if (flag_stack_usage_info || flag_callgraph_info)
     output_stack_usage ();
-
-  return 0;
 }
 
 /* Record a final call to CALLEE at LOCATION.  */
@@ -6645,12 +6731,56 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *)
+  bool gate (function *) final override
     {
-      return rest_of_handle_thread_prologue_and_epilogue ();
+      return !targetm.use_late_prologue_epilogue ();
+    }
+
+  unsigned int execute (function * fun) final override
+    {
+      rest_of_handle_thread_prologue_and_epilogue (fun);
+      return 0;
     }
 
 }; // class pass_thread_prologue_and_epilogue
+
+const pass_data pass_data_late_thread_prologue_and_epilogue =
+{
+  RTL_PASS, /* type */
+  "late_pro_and_epilogue", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  TV_THREAD_PROLOGUE_AND_EPILOGUE, /* tv_id */
+  0, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  ( TODO_df_verify | TODO_df_finish ), /* todo_flags_finish */
+};
+
+class pass_late_thread_prologue_and_epilogue : public rtl_opt_pass
+{
+public:
+  pass_late_thread_prologue_and_epilogue (gcc::context *ctxt)
+    : rtl_opt_pass (pass_data_late_thread_prologue_and_epilogue, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  bool gate (function *) final override
+    {
+      return targetm.use_late_prologue_epilogue ();
+    }
+
+  unsigned int execute (function *fn) final override
+    {
+      /* It's not currently possible to have both delay slots and
+	 late prologue/epilogue, since the latter has to run before
+	 the former, and the former won't honor whatever restrictions
+	 the latter is trying to enforce.  */
+      gcc_assert (!DELAY_SLOTS);
+      rest_of_handle_thread_prologue_and_epilogue (fn);
+      return 0;
+    }
+}; // class pass_late_thread_prologue_and_epilogue
 
 } // anon namespace
 
@@ -6658,6 +6788,12 @@ rtl_opt_pass *
 make_pass_thread_prologue_and_epilogue (gcc::context *ctxt)
 {
   return new pass_thread_prologue_and_epilogue (ctxt);
+}
+
+rtl_opt_pass *
+make_pass_late_thread_prologue_and_epilogue (gcc::context *ctxt)
+{
+  return new pass_late_thread_prologue_and_epilogue (ctxt);
 }
 
 namespace {
@@ -6683,7 +6819,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_zero_call_used_regs
 
@@ -6954,7 +7090,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_match_asm_constraints
 

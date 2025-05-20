@@ -6,7 +6,7 @@
  *                                                                          *
  *                     Asm Implementation Include File                      *
  *                                                                          *
- *         Copyright (C) 2011-2022, Free Software Foundation, Inc.          *
+ *         Copyright (C) 2011-2025, Free Software Foundation, Inc.          *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -149,7 +149,7 @@
 
    In general:
    There is no unique numbering for the x86 architecture.  It's parameterized
-   by DWARF_FRAME_REGNUM, which is DBX_REGISTER_NUMBER except for Windows, and
+   by DWARF_FRAME_REGNUM, which is DEBUGGER_REGNO except for Windows, and
    the latter depends on the platform.
 */
 

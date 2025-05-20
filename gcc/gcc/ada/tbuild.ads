@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,12 +33,6 @@ with Types;          use Types;
 with Uintp;          use Uintp;
 
 package Tbuild is
-
-   function Checks_Off (N : Node_Id) return Node_Id;
-   pragma Inline (Checks_Off);
-   --  Returns an N_Unchecked_Expression node whose expression is the given
-   --  argument. The results is a subexpression identical to the argument,
-   --  except that it will be analyzed and resolved with checks off.
 
    function Convert_To (Typ : Entity_Id; Expr : Node_Id) return Node_Id;
    --  Returns an expression that is a type conversion of expression Expr to
@@ -187,6 +181,13 @@ package Tbuild is
    --  A convenient form of Make_String_Literal, where the string value is
    --  given as a normal string instead of a String_Id value.
 
+   function Make_Suppress_Block
+     (Loc   : Source_Ptr;
+      Check : Name_Id;
+      Stmts : List_Id) return Node_Id;
+   --  Build a block with a pragma Suppress on Check. Stmts is the statements
+   --  list that needs protection against the check activation.
+
    function Make_Temporary
      (Loc          : Source_Ptr;
       Id           : Character;
@@ -207,8 +208,8 @@ package Tbuild is
      (Loc   : Source_Ptr;
       Check : Name_Id;
       Stmts : List_Id) return Node_Id;
-   --  Build a block with a pragma Suppress on 'Check'. Stmts is the statements
-   --  list that needs protection against the check
+   --  Build a block with a pragma Unsuppress on Check. Stmts is the statements
+   --  list that needs protection against the check suppression.
 
    function New_Constraint_Error (Loc : Source_Ptr) return Node_Id;
    --  This function builds a tree corresponding to the Ada statement

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do compile { target c++20 } }
 
 #include <span>
 
@@ -31,11 +30,11 @@ auto first = std::begin(r), last = std::end(r);
 
 // span(It, size_type)
 std::span<int> s1 = {first, 2};
-std::span<int, 2> s2 = {first, 2}; // { dg-error "could not convert" }
+std::span<int, 2> s2 = {first, 2}; // { dg-error "explicit constructor" }
 
 // span(It, End)
 std::span<int> s3 = {first, last};
-std::span<int, 2> s4 = {first, last}; // { dg-error "could not convert" }
+std::span<int, 2> s4 = {first, last}; // { dg-error "explicit constructor" }
 
 // span(R&&)
 std::span<int> s5 = r;

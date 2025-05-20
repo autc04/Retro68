@@ -8,7 +8,6 @@
  */
 module core.sys.windows.shlwapi;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "shlwapi");
@@ -121,7 +120,7 @@ enum URLIS
     URLIS_HASQUERY
 }
 
-mixin DECLARE_HANDLE!("HUSKEY");
+alias HUSKEY = HANDLE;
 alias HUSKEY* PHUSKEY;
 
 extern (Windows)

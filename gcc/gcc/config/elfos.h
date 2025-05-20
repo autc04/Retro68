@@ -1,6 +1,6 @@
 /* elfos.h  --  operating system specific defines to be used when
    targeting GCC for some generic ELF system
-   Copyright (C) 1991-2022 Free Software Foundation, Inc.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
    Based on svr4.h contributed by Ron Guilmette (rfg@netcom.com).
 
 This file is part of GCC.
@@ -43,10 +43,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #undef  USER_LABEL_PREFIX
 #define USER_LABEL_PREFIX ""
 
-/* The biggest alignment supported by ELF in bits. 32-bit ELF 
-   supports section alignment up to (0x80000000 * 8), while 
-   64-bit ELF supports (0x8000000000000000 * 8). If this macro 
-   is not defined, the default is the largest alignment supported 
+/* The biggest alignment supported by ELF in bits. 32-bit ELF
+   supports section alignment up to (0x80000000 * 8), while
+   64-bit ELF supports (0x8000000000000000 * 8). If this macro
+   is not defined, the default is the largest alignment supported
    by 32-bit ELF and representable on a 32-bit host. Use this
    macro to limit the alignment which can be specified using
    the `__attribute__ ((aligned (N)))' construct.  */
@@ -444,6 +444,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #define STRING_ASM_OP	"\t.string\t"
 
+#ifdef HAVE_GAS_BASE64
+#define BASE64_ASM_OP	"\t.base64\t"
+#endif
+
 /* The routine used to output NUL terminated strings.  We use a special
    version of this for most svr4 targets because doing so makes the
    generated assembly code more compact (and thus faster to assemble)
@@ -482,9 +486,3 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #undef TARGET_LIBC_HAS_FUNCTION
 #define TARGET_LIBC_HAS_FUNCTION no_c99_libc_has_function
-
-/* ELF support needed only by D front-end.  */
-
-#define TARGET_D_MINFO_SECTION "minfo"
-#define TARGET_D_MINFO_START_NAME "__start_minfo"
-#define TARGET_D_MINFO_END_NAME "__stop_minfo"

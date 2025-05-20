@@ -1,5 +1,5 @@
 /* Preprocess only, using cpplib.
-   Copyright (C) 1995-2022 Free Software Foundation, Inc.
+   Copyright (C) 1995-2025 Free Software Foundation, Inc.
    Written by Per Bothner, 1994-95.
 
    This program is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 #include "c-pragma.h"		/* For parse_in.  */
 #include "file-prefix-map.h"    /* remap_macro_filename()  */
 
+class token_streamer;
+
 /* Encapsulates state used to convert a stream of tokens into a text
    file.  */
 static struct
@@ -38,6 +40,8 @@ static struct
   bool prev_was_system_token;	/* True if the previous token was a
 				   system token.*/
   const char *src_file;		/* Current source file.  */
+  token_streamer *streamer;     /* Instance of class token_streamer using this
+				   object.  */
 } print;
 
 /* Defined and undefined macros being queued for output with -dU at
@@ -88,10 +92,18 @@ preprocess_file (cpp_reader *pfile)
      cpp_scan_nooutput or cpp_get_token next.  */
   if (flag_no_output && pfile->buffer)
     {
-      /* Scan -included buffers, then the main file.  */
-      while (pfile->buffer->prev)
-	cpp_scan_nooutput (pfile);
-      cpp_scan_nooutput (pfile);
+      if (flag_modules)
+	{
+	  /* For macros from imported headers we need directives_only_cb.  */
+	  scan_translation_unit_directives_only (pfile);
+	}
+      else
+	{
+	  /* Scan -included buffers, then the main file.  */
+	  while (pfile->buffer->prev)
+	    cpp_scan_nooutput (pfile);
+	  cpp_scan_nooutput (pfile);
+	}
     }
   else if (cpp_get_options (pfile)->traditional)
     scan_translation_unit_trad (pfile);
@@ -110,6 +122,14 @@ preprocess_file (cpp_reader *pfile)
     putc ('\n', print.outf);
 }
 
+/* Don't emit #pragma or #ident directives if we are processing
+   assembly language; the assembler may choke on them.  */
+static bool
+should_output_pragmas ()
+{
+  return cpp_get_options (parse_in)->lang != CLK_ASM;
+}
+
 /* Set up the callbacks as appropriate.  */
 void
 init_pp_output (FILE *out_stream)
@@ -119,9 +139,7 @@ init_pp_output (FILE *out_stream)
   if (!flag_no_output)
     {
       cb->line_change = cb_line_change;
-      /* Don't emit #pragma or #ident directives if we are processing
-	 assembly language; the assembler may choke on them.  */
-      if (cpp_get_options (parse_in)->lang != CLK_ASM)
+      if (should_output_pragmas ())
 	{
 	  cb->ident      = cb_ident;
 	  cb->def_pragma = cb_def_pragma;
@@ -152,7 +170,9 @@ init_pp_output (FILE *out_stream)
 
   cb->has_attribute = c_common_has_attribute;
   cb->has_builtin = c_common_has_builtin;
+  cb->has_feature = c_common_has_feature;
   cb->get_source_date_epoch = cb_get_source_date_epoch;
+  cb->get_suggestion = cb_get_suggestion;
   cb->remap_filename = remap_macro_filename;
 
   /* Initialize the print structure.  */
@@ -163,6 +183,7 @@ init_pp_output (FILE *out_stream)
   print.first_time = 1;
   print.src_file = "";
   print.prev_was_system_token = false;
+  print.streamer = nullptr;
 }
 
 // FIXME: Ideally we'd just turn the entirety of the print struct into
@@ -173,19 +194,19 @@ class token_streamer
   bool avoid_paste;
   bool do_line_adjustments;
   bool in_pragma;
-  bool line_marker_emitted;
 
  public:
   token_streamer (cpp_reader *pfile)
     :avoid_paste (false),
     do_line_adjustments (cpp_get_options (pfile)->lang != CLK_ASM
 			 && !flag_no_line_commands),
-    in_pragma (false),
-    line_marker_emitted (false)
+    in_pragma (false)
     {
+      gcc_assert (!print.streamer);
+      print.streamer = this;
     }
 
-  void begin_pragma () 
+  void begin_pragma ()
   {
     in_pragma = true;
   }
@@ -197,6 +218,10 @@ void
 token_streamer::stream (cpp_reader *pfile, const cpp_token *token,
 			location_t loc)
 {
+  /* Keep input_location up to date, since it is needed for processing early
+     pragmas such as #pragma GCC diagnostic.  */
+  input_location = loc;
+
   if (token->type == CPP_PADDING)
     {
       avoid_paste = true;
@@ -210,7 +235,14 @@ token_streamer::stream (cpp_reader *pfile, const cpp_token *token,
   if (token->type == CPP_EOF)
     return;
 
+  /* Keep track when we move into and out of system locations.  */
+  const bool is_system_token = in_system_header_at (loc);
+  const bool system_state_changed
+    = (is_system_token != print.prev_was_system_token);
+  print.prev_was_system_token = is_system_token;
+
   /* Subtle logic to output a space if and only if necessary.  */
+  bool line_marker_emitted = false;
   if (avoid_paste)
     {
       unsigned src_line = LOCATION_LINE (loc);
@@ -235,7 +267,7 @@ token_streamer::stream (cpp_reader *pfile, const cpp_token *token,
 	  print.printed = true;
 	}
     }
-  else if (token->flags & PREV_WHITE)
+  else if (token->flags & PREV_WHITE && token->type != CPP_PRAGMA)
     {
       unsigned src_line = LOCATION_LINE (loc);
 
@@ -252,23 +284,83 @@ token_streamer::stream (cpp_reader *pfile, const cpp_token *token,
   print.prev = token;
   if (token->type == CPP_PRAGMA)
     {
-      const char *space;
-      const char *name;
-
-      line_marker_emitted = maybe_print_line (token->src_loc);
-      fputs ("#pragma ", print.outf);
-      c_pp_lookup_pragma (token->val.pragma, &space, &name);
-      if (space)
-	fprintf (print.outf, "%s %s", space, name);
-      else
-	fprintf (print.outf, "%s", name);
-      print.printed = true;
       in_pragma = true;
+      if (should_output_pragmas ())
+	{
+	  const char *space;
+	  const char *name;
+
+	  line_marker_emitted = maybe_print_line (token->src_loc);
+	  fputs ("#pragma ", print.outf);
+	  c_pp_lookup_pragma (token->val.pragma, &space, &name);
+	  if (space)
+	    fprintf (print.outf, "%s %s", space, name);
+	  else
+	    fprintf (print.outf, "%s", name);
+	  print.printed = true;
+	}
+      if (token->val.pragma >= PRAGMA_FIRST_EXTERNAL)
+	c_pp_invoke_early_pragma_handler (token->val.pragma);
     }
   else if (token->type == CPP_PRAGMA_EOL)
     {
-      maybe_print_line (UNKNOWN_LOCATION);
+      if (should_output_pragmas ())
+	maybe_print_line (UNKNOWN_LOCATION);
       in_pragma = false;
+    }
+  else if (token->type == CPP_EMBED)
+    {
+      char buf[76 + 6];
+      maybe_print_line (token->src_loc);
+      gcc_checking_assert (token->val.str.len != 0);
+      fputs ("#embed \".\" __gnu__::__base64__(", print.outf);
+      if (token->val.str.len > 30)
+	{
+	  fputs (" \\\n", print.outf);
+	  print.src_line++;
+	}
+      buf[0] = '"';
+      memcpy (buf + 1 + 76, "\" \\\n", 5);
+      unsigned int j = 1;
+      static const char base64_enc[] =
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+      for (unsigned i = 0; ; i += 3)
+	{
+	  unsigned char a = token->val.str.text[i];
+	  unsigned char b = 0, c = 0;
+	  unsigned int n = token->val.str.len - i;
+	  if (n > 1)
+	    b = token->val.str.text[i + 1];
+	  if (n > 2)
+	    c = token->val.str.text[i + 2];
+	  unsigned long v = ((((unsigned long) a) << 16)
+			     | (((unsigned long) b) << 8)
+			     | c);
+	  buf[j++] = base64_enc[(v >> 18) & 63];
+	  buf[j++] = base64_enc[(v >> 12) & 63];
+	  buf[j++] = base64_enc[(v >> 6) & 63];
+	  buf[j++] = base64_enc[v & 63];
+	  if (j == 76 + 1 || n <= 3)
+	    {
+	      if (n < 3)
+		{
+		  buf[j - 1] = '=';
+		  if (n == 1)
+		    buf[j - 2] = '=';
+		}
+	      if (n <= 3)
+		memcpy (buf + j, "\")", 3);
+	      else
+		print.src_line++;
+	      fputs (buf, print.outf);
+	      j = 1;
+	      if (n <= 3)
+		break;
+	    }
+	}
+      print.printed = true;
+      maybe_print_line (token->src_loc);
+      return;
     }
   else
     {
@@ -278,18 +370,19 @@ token_streamer::stream (cpp_reader *pfile, const cpp_token *token,
       if (do_line_adjustments
 	  && !in_pragma
 	  && !line_marker_emitted
-	  && print.prev_was_system_token != !!in_system_header_at (loc)
+	  && system_state_changed
 	  && !is_location_from_builtin_token (loc))
 	/* The system-ness of this token is different from the one of
 	   the previous token.  Let's emit a line change to mark the
 	   new system-ness before we emit the token.  */
 	{
-	  do_line_change (pfile, token, loc, false);
-	  print.prev_was_system_token = !!in_system_header_at (loc);
+	  line_marker_emitted = do_line_change (pfile, token, loc, false);
 	}
-      cpp_output_token (token, print.outf);
-      line_marker_emitted = false;
-      print.printed = true;
+      if (!in_pragma || should_output_pragmas ())
+	{
+	  cpp_output_token (token, print.outf);
+	  print.printed = true;
+	}
     }
 
   /* CPP_COMMENT tokens and raw-string literal tokens can have
@@ -358,28 +451,31 @@ directives_only_cb (cpp_reader *pfile, CPP_DO_task task, void *data_, ...)
       gcc_unreachable ();
 
     case CPP_DO_print:
-      {
-	print.src_line += va_arg (args, unsigned);
+      if (!flag_no_output)
+	{
+	  print.src_line += va_arg (args, unsigned);
 
-	const void *buf = va_arg (args, const void *);
-	size_t size = va_arg (args, size_t);
-	fwrite (buf, 1, size, print.outf);
-      }
+	  const void *buf = va_arg (args, const void *);
+	  size_t size = va_arg (args, size_t);
+	  fwrite (buf, 1, size, print.outf);
+	}
       break;
 
     case CPP_DO_location:
-      maybe_print_line (va_arg (args, location_t));
+      if (!flag_no_output)
+	maybe_print_line (va_arg (args, location_t));
       break;
 
     case CPP_DO_token:
       {
 	const cpp_token *token = va_arg (args, const cpp_token *);
-	location_t spelling_loc = va_arg (args, location_t);
-	streamer->stream (pfile, token, spelling_loc);
+	unsigned flags = 0;
 	if (streamer->filter)
+	  flags = lang_hooks.preprocess_token (pfile, token, streamer->filter);
+	if (!flag_no_output)
 	  {
-	    unsigned flags = lang_hooks.preprocess_token
-	      (pfile, token, streamer->filter);
+	    location_t spelling_loc = va_arg (args, location_t);
+	    streamer->stream (pfile, token, spelling_loc);
 	    if (flags & lang_hooks::PT_begin_pragma)
 	      streamer->begin_pragma ();
 	  }
@@ -404,7 +500,15 @@ scan_translation_unit_directives_only (cpp_reader *pfile)
     lang_hooks.preprocess_token (pfile, NULL, streamer.filter);
 }
 
-/* Adjust print.src_line for newlines embedded in output.  */
+/* Adjust print.src_line for newlines embedded in output.  For example, if a raw
+   string literal contains newlines, then we need to increment our notion of the
+   current line to keep in sync and avoid outputting a line marker
+   unnecessarily.  If a raw string literal containing newlines is the result of
+   macro expansion, then we have the opposite problem, where the token takes up
+   more lines in the output than it did in the input, and hence a line marker is
+   needed to restore the correct state for subsequent lines.  In this case,
+   incrementing print.src_line still does the job, because it will cause us to
+   emit the line marker the next time a token is streamed.  */
 static void
 account_for_newlines (const unsigned char *str, size_t len)
 {
@@ -561,8 +665,12 @@ do_line_change (cpp_reader *pfile, const cpp_token *token,
      one space per column greater than 2, since scan_translation_unit
      will provide a space if PREV_WHITE.  Don't bother trying to
      reconstruct tabs; we can't get it right in general, and nothing
-     ought to care.  Some things do care; the fault lies with them.  */
-  if (!CPP_OPTION (pfile, traditional))
+     ought to care.  Some things do care; the fault lies with them.
+
+     Also do not output the spaces if this is a CPP_PRAGMA token.  In this
+     case, libcpp has provided the location of the first token after #pragma,
+     so we would start at the wrong column.  */
+  if (!CPP_OPTION (pfile, traditional) && token->type != CPP_PRAGMA)
     {
       int spaces = LOCATION_COLUMN (src_loc) - 2;
       print.printed = true;
@@ -782,6 +890,16 @@ cb_def_pragma (cpp_reader *pfile, location_t line)
   print.src_line++;
 }
 
+/* Stream a token as if we had seen it directly ourselves; needed
+   in case a token was lexed externally, e.g. while processing a
+   pragma.  */
+void
+c_pp_stream_token (cpp_reader *pfile, const cpp_token *tok, location_t loc)
+{
+  gcc_assert (print.streamer);
+  print.streamer->stream (pfile, tok, loc);
+}
+
 /* Dump out the hash table.  */
 static int
 dump_macro (cpp_reader *pfile, cpp_hashnode *node, void *v ATTRIBUTE_UNUSED)
@@ -811,4 +929,9 @@ cb_read_pch (cpp_reader *pfile, const char *name,
 
   fprintf (print.outf, "#pragma GCC pch_preprocess \"%s\"\n", name);
   print.src_line++;
+
+  /* The process of reading the PCH has destroyed the frontend parser,
+     so ask the frontend to reinitialize it, in case we need it to
+     process any #pragma directives encountered while preprocessing.  */
+  c_init_preprocess ();
 }

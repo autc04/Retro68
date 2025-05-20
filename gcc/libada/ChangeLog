@@ -1,10 +1,14 @@
-2022-08-19  Release Manager
+2025-04-25  Release Manager
 
-	* GCC 12.2.0 released.
+	* GCC 15.1.0 released.
 
-2022-05-06  Release Manager
+2023-08-07  John Ericson  <git@JohnEricson.me>
 
-	* GCC 12.1.0 released.
+	* configure: Regenerate.
+
+2022-08-25  Martin Liska  <mliska@suse.cz>
+
+	* configure: Regenerate.
 
 2021-10-22  Eric Gallager  <egallager@gcc.gnu.org>
 
@@ -462,7 +466,7 @@
 
 	* New directory, new ChangeLog.
 
-Copyright (C) 2003-2022 Free Software Foundation, Inc.
+Copyright (C) 2003-2025 Free Software Foundation, Inc.
 
 This ChangeLog is free software; the Free Software Foundation gives
 unlimited permission to copy, distribute, and modify it.

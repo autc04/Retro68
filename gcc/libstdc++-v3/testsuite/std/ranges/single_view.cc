@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <ranges>
 #include <utility> // as_const
@@ -111,6 +110,34 @@ test06()
   auto y = std::views::single(std::move(obj));
 }
 
+template<auto single = std::views::single>
+void
+test07()
+{
+  // Verify SFINAE behavior.
+  struct uncopyable {
+    uncopyable();
+    uncopyable(const uncopyable&) = delete;
+  };
+  static_assert(!requires { single(uncopyable{}); });
+}
+
+template<auto single = std::views::single>
+void
+test08()
+{
+  struct move_only {
+    move_only() { }
+    move_only(move_only&&) { }
+  };
+#if __cpp_lib_ranges >= 202207L
+  // P2494R2 Relaxing range adaptors to allow for move only types
+  static_assert( requires { single(move_only{}); } );
+#else
+  static_assert( ! requires { single(move_only{}); } );
+#endif
+}
+
 int main()
 {
   test01();
@@ -119,4 +146,6 @@ int main()
   test04();
   test05();
   test06();
+  test07();
+  test08();
 }

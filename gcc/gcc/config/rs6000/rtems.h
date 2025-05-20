@@ -1,5 +1,5 @@
 /* Definitions for rtems targeting a PowerPC using elf.
-   Copyright (C) 1996-2022 Free Software Foundation, Inc.
+   Copyright (C) 1996-2025 Free Software Foundation, Inc.
    Contributed by Joel Sherrill (joel@OARcorp.com).
 
    This file is part of GCC.
@@ -35,6 +35,10 @@
 #define TARGET_64BIT 0
 #endif
 #endif
+
+/* RTEMS configured for the 32-bit multilibs doesn't support saving and
+   restoring 64-bit regs.  */
+#define OS_MISSING_POWERPC64 !TARGET_64BIT
 
 /* Copy and paste from linux64.h and freebsd64.h */
 #undef	TARGET_AIX
@@ -255,7 +259,8 @@
 %{mcpu=821:  %{!Dppc*: %{!Dmpc*: -Dmpc821}  } } \
 %{mcpu=860:  %{!Dppc*: %{!Dmpc*: -Dmpc860}  } } \
 %{mcpu=8540: %{!Dppc*: %{!Dmpc*: -Dppc8540}  } } \
-%{mcpu=e6500: -D__PPC_CPU_E6500__}"
+%{mcpu=e6500: -D__PPC_CPU_E6500__} \
+%{mvrsave: -D__PPC_VRSAVE__}"
 
 #undef	ASM_SPEC
 #define	ASM_SPEC "%{!m64:%(asm_spec32)}%{m64:%(asm_spec64)} %(asm_spec_common)"

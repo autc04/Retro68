@@ -1,5 +1,8 @@
 /* Verify how paths are printed for signal-handler diagnostics.  */
 
+/* C only; attempting to generalize it for C++ leads
+   to an explosion of possibilities for the multiline output.  */
+
 /* { dg-options "-fanalyzer -fdiagnostics-show-line-numbers -fdiagnostics-path-format=inline-events -fdiagnostics-show-caret" } */
 /* { dg-enable-nn-line-numbers "" } */
 /* { dg-require-effective-target signal } */

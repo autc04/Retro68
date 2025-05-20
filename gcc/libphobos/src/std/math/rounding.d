@@ -551,7 +551,7 @@ long lrint(real x) @trusted pure nothrow @nogc
     }
     else
     {
-        import std.math : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
+        import std.math.traits : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
 
         alias F = floatTraits!(real);
         static if (F.realFormat == RealFormat.ieeeDouble)
@@ -776,27 +776,18 @@ version (Posix)
  *
  * If the fractional part of x is exactly 0.5, the return value is rounded
  * away from zero.
- *
- * $(BLUE This function is not implemented for Digital Mars C runtime.)
  */
 long lround(real x) @trusted nothrow @nogc
 {
-    version (CRuntime_DigitalMars)
-        assert(0, "lround not implemented");
-    else
-        return core.stdc.math.llroundl(x);
+    return core.stdc.math.llroundl(x);
 }
 
 ///
 @safe nothrow @nogc unittest
 {
-    version (CRuntime_DigitalMars) {}
-    else
-    {
-        assert(lround(0.49) == 0);
-        assert(lround(0.5) == 1);
-        assert(lround(1.5) == 2);
-    }
+    assert(lround(0.49) == 0);
+    assert(lround(0.5) == 1);
+    assert(lround(1.5) == 2);
 }
 
 /**
@@ -896,7 +887,7 @@ long rndtol(float x) @safe pure nothrow @nogc { return rndtol(cast(real) x); }
 // Helper for floor/ceil
 T floorImpl(T)(const T x) @trusted pure nothrow @nogc
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     alias F = floatTraits!(T);
     // Take care not to trigger library calls from the compiler,
@@ -908,7 +899,9 @@ T floorImpl(T)(const T x) @trusted pure nothrow @nogc
 
         // Other kinds of extractors for real formats.
         static if (F.realFormat == RealFormat.ieeeSingle)
-            int vi;
+            uint vi;
+        else static if (F.realFormat == RealFormat.ieeeDouble)
+            ulong vi;
     }
     floatBits y = void;
     y.rv = x;
@@ -919,15 +912,14 @@ T floorImpl(T)(const T x) @trusted pure nothrow @nogc
     static if (F.realFormat == RealFormat.ieeeSingle)
     {
         int exp = ((y.vi >> (T.mant_dig - 1)) & 0xff) - 0x7f;
+        enum mantissa_mask = F.MANTISSAMASK_INT;
+        enum sign_shift = 31;
     }
     else static if (F.realFormat == RealFormat.ieeeDouble)
     {
-        int exp = ((y.vu[F.EXPPOS_SHORT] >> 4) & 0x7ff) - 0x3ff;
-
-        version (LittleEndian)
-            int pos = 0;
-        else
-            int pos = 3;
+        long exp = ((y.vi >> (T.mant_dig - 1)) & 0x7ff) - 0x3ff;
+        enum mantissa_mask = F.MANTISSAMASK_LONG;
+        enum sign_shift = 63;
     }
     else static if (F.realFormat == RealFormat.ieeeExtended ||
                     F.realFormat == RealFormat.ieeeExtended53)
@@ -959,18 +951,21 @@ T floorImpl(T)(const T x) @trusted pure nothrow @nogc
             return 0.0;
     }
 
-    static if (F.realFormat == RealFormat.ieeeSingle)
+    static if (F.realFormat == RealFormat.ieeeSingle ||
+               F.realFormat == RealFormat.ieeeDouble)
     {
         if (exp < (T.mant_dig - 1))
         {
             // Clear all bits representing the fraction part.
-            const uint fraction_mask = F.MANTISSAMASK_INT >> exp;
+            // Note: the fraction mask represents the floating point number 0.999999...
+            // i.e: `2.0 ^^ (exp - T.mant_dig + 1) * (fraction_mask + 1) == 1.0`
+            const fraction_mask = mantissa_mask >> exp;
 
             if ((y.vi & fraction_mask) != 0)
             {
-                // If 'x' is negative, then first substract 1.0 from the value.
-                if (y.vi < 0)
-                    y.vi += 0x00800000 >> exp;
+                // If 'x' is negative, then first substract (1.0 - T.epsilon) from the value.
+                if (y.vi >> sign_shift)
+                    y.vi += fraction_mask;
                 y.vi &= ~fraction_mask;
             }
         }

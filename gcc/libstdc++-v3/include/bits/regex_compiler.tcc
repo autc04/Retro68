@@ -1,6 +1,6 @@
 // class template regex -*- C++ -*-
 
-// Copyright (C) 2013-2022 Free Software Foundation, Inc.
+// Copyright (C) 2013-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -54,6 +54,9 @@
 // That's why we introduced dummy node here ------ "end_tag" is a dummy node.
 // All dummy nodes will be eliminated at the end of compilation.
 */
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++20-extensions" // variadic macro with 0 args
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -583,10 +586,12 @@ namespace __detail
     _Compiler<_TraitsT>::
     _M_cur_int_value(int __radix)
     {
-      long __v = 0;
-      for (typename _StringT::size_type __i = 0;
-	   __i < _M_value.length(); ++__i)
-	__v =__v * __radix + _M_traits.value(_M_value[__i], __radix);
+      int __v = 0;
+      for (_CharT __c : _M_value)
+	if (__builtin_mul_overflow(__v, __radix, &__v)
+	    || __builtin_add_overflow(__v, _M_traits.value(__c, __radix), &__v))
+	    std::__throw_regex_error(regex_constants::error_backref,
+				     "invalid back reference");
       return __v;
     }
 
@@ -606,10 +611,13 @@ namespace __detail
 	    return true;
 	if (_M_traits.isctype(__ch, _M_class_set))
 	  return true;
-	if (std::find(_M_equiv_set.begin(), _M_equiv_set.end(),
-		      _M_traits.transform_primary(&__ch, &__ch+1))
-	    != _M_equiv_set.end())
-	  return true;
+	if (!_M_equiv_set.empty())
+	  {
+	    auto __x = _M_traits.transform_primary(&__ch, &__ch+1);
+	    auto __p = std::find(_M_equiv_set.begin(), _M_equiv_set.end(), __x);
+	    if (__p != _M_equiv_set.end())
+	      return true;
+	  }
 	for (auto& __it : _M_neg_class_set)
 	  if (!_M_traits.isctype(__ch, __it))
 	    return true;
@@ -619,4 +627,6 @@ namespace __detail
 } // namespace __detail
 
 _GLIBCXX_END_NAMESPACE_VERSION
-} // namespace
+} // namespace std
+
+#pragma GCC diagnostic pop

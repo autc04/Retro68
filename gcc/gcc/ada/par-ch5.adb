@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -22,10 +22,6 @@
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
 --                                                                          --
 ------------------------------------------------------------------------------
-
-pragma Style_Checks (All_Checks);
---  Turn off subprogram body ordering check. Subprograms are in order by RM
---  section rather than alphabetical.
 
 with Sinfo.CN;       use Sinfo.CN;
 
@@ -103,21 +99,11 @@ package body Ch5 is
    --  | LOOP_STATEMENT       | BLOCK_STATEMENT
    --  | ACCEPT_STATEMENT     | SELECT_STATEMENT
 
-   --  This procedure scans a sequence of statements. The caller sets SS_Flags
-   --  to indicate acceptable termination conditions for the sequence:
-
-   --    SS_Flags.Eftm Terminate on ELSIF
-   --    SS_Flags.Eltm Terminate on ELSE
-   --    SS_Flags.Extm Terminate on EXCEPTION
-   --    SS_Flags.Ortm Terminate on OR
-   --    SS_Flags.Tatm Terminate on THEN ABORT (Token = ABORT on return)
-   --    SS_Flags.Whtm Terminate on WHEN
-   --    SS_Flags.Unco Unconditional terminate after scanning one statement
-
-   --  In addition, the scan is always terminated by encountering END or the
-   --  end of file (EOF) condition. If one of the six above terminators is
-   --  encountered with the corresponding SS_Flags flag not set, then the
-   --  action taken is as follows:
+   --  This procedure scans a sequence of statements. SS_Flags indicates
+   --  termination conditions for the sequence. In addition, the sequence is
+   --  always terminated by encountering END or end of file. If one of the six
+   --  above terminators is encountered with the corresponding SS_Flags flag
+   --  not set, then the action taken is as follows:
 
    --    If the keyword occurs to the left of the expected column of the end
    --    for the current sequence (as recorded in the current end context),
@@ -131,7 +117,8 @@ package body Ch5 is
 
    --  Note that the first action means that control can return to the caller
    --  with Token set to a terminator other than one of those specified by the
-   --  SS parameter. The caller should treat such a case as equivalent to END.
+   --  SS_Flags parameter. The caller should treat such a case as equivalent to
+   --  END.
 
    --  In addition, the flag SS_Flags.Sreq is set to True to indicate that at
    --  least one real statement (other than a pragma) is required in the
@@ -144,54 +131,33 @@ package body Ch5 is
    --  parsing a statement, then the scan pointer is advanced past the next
    --  semicolon and the parse continues.
 
-   function P_Sequence_Of_Statements (SS_Flags : SS_Rec) return List_Id is
-
-      Statement_Required : Boolean;
+   function P_Sequence_Of_Statements (SS_Flags : SS_Rec) return List_Id
+   is
+      Statement_Required : Boolean := SS_Flags.Sreq;
       --  This flag indicates if a subsequent statement (other than a pragma)
       --  is required. It is initialized from the Sreq flag, and modified as
       --  statements are scanned (a statement turns it off, and a label turns
       --  it back on again since a statement must follow a label).
       --  Note : this final requirement is lifted in Ada 2012.
 
-      Statement_Seen : Boolean;
+      Statement_Seen : Boolean := False;
       --  In Ada 2012, a label can end a sequence of statements, but the
       --  sequence cannot contain only labels. This flag is set whenever a
       --  label is encountered, to enforce this rule at the end of a sequence.
 
-      Declaration_Found : Boolean := False;
-      --  This flag is set True if a declaration is encountered, so that the
-      --  error message about declarations in the statement part is only
-      --  given once for a given sequence of statements.
-
       Scan_State_Label : Saved_Scan_State;
       Scan_State       : Saved_Scan_State;
 
-      Statement_List : List_Id;
+      Statement_List : constant List_Id := New_List;
       Block_Label    : Name_Id;
       Id_Node        : Node_Id;
       Name_Node      : Node_Id;
 
-      procedure Junk_Declaration;
-      --  Procedure called to handle error of declaration encountered in
-      --  statement sequence.
+      Decl_Loc, Label_Loc : Source_Ptr := No_Location;
+      --  Sloc of the first declaration/label encountered, if any.
 
       procedure Test_Statement_Required;
       --  Flag error if Statement_Required flag set
-
-      ----------------------
-      -- Junk_Declaration --
-      ----------------------
-
-      procedure Junk_Declaration is
-      begin
-         if (not Declaration_Found) or All_Errors_Mode then
-            Error_Msg_SC -- CODEFIX
-              ("declarations must come before BEGIN");
-            Declaration_Found := True;
-         end if;
-
-         Skip_Declaration (Statement_List);
-      end Junk_Declaration;
 
       -----------------------------
       -- Test_Statement_Required --
@@ -235,17 +201,12 @@ package body Ch5 is
                    and then Statement_Seen)
                 or else All_Pragmas)
             then
-               declare
-                  Null_Stm : constant Node_Id :=
-                               Make_Null_Statement (Token_Ptr);
-               begin
-                  Set_Comes_From_Source (Null_Stm, False);
-                  Append_To (Statement_List, Null_Stm);
-               end;
+               null;
 
-            --  If not Ada 2012, or not special case above, give error message
+            --  If not Ada 2012, or not special case above, and no declaration
+            --  seen (as allowed in Ada 2022), give error message.
 
-            else
+            elsif No (Decl_Loc) then
                Error_Msg_BC -- CODEFIX
                  ("statement expected");
             end if;
@@ -255,14 +216,61 @@ package body Ch5 is
    --  Start of processing for P_Sequence_Of_Statements
 
    begin
-      Statement_List := New_List;
-      Statement_Required := SS_Flags.Sreq;
-      Statement_Seen     := False;
+      --  When extensions are active, we allow declarative items to be mixed
+      --  with statements. The loop below alternates between calling
+      --  P_Declarative_Items to parse zero or more declarative items, and
+      --  parsing a statement.
 
       loop
          Ignore (Tok_Semicolon);
 
+         declare
+            Num_Statements : constant Nat := List_Length (Statement_List);
+            Decl           : Node_Id;
          begin
+            P_Declarative_Items
+              (Statement_List, Declare_Expression => False,
+               In_Spec => False, In_Statements => True);
+
+            --  Use the length of the list to determine whether we parsed
+            --  any declarative items.
+
+            if List_Length (Statement_List) > Num_Statements then
+               Decl := Pick (Statement_List, Num_Statements + 1);
+
+               --  If so, it's an error unless language extensions are enabled.
+
+               if All_Errors_Mode or else No (Decl_Loc) then
+                  Decl_Loc := Sloc (Decl);
+
+                  Error_Msg_GNAT_Extension
+                    ("declarations mixed with statements", Sloc (Decl),
+                     Is_Core_Extension => True);
+
+               end if;
+
+               --  Check every declaration added to the list, to see whether
+               --  it's part of the allowed subset of declarations. Only check
+               --  that if core extensions are allowed.
+
+               if Core_Extensions_Allowed then
+                  while Present (Decl) loop
+                     if not (Nkind (Decl) in
+                        N_Object_Declaration | N_Object_Renaming_Declaration |
+                        N_Use_Type_Clause | N_Use_Package_Clause)
+                     then
+                        Error_Msg
+                          ("Declaration kind not allowed in statements lists",
+                           Sloc (Decl));
+                     end if;
+
+                     Next (Decl);
+                  end loop;
+               end if;
+            end if;
+         end;
+
+         begin -- handle Error_Resync
             if Style_Check then
                Style.Check_Indentation;
             end if;
@@ -282,18 +290,13 @@ package body Ch5 is
                   --  with the exception of the cases tested for below.
 
                   (Token = Tok_Semicolon
-                    and then Prev_Token /= Tok_Return
-                    and then Prev_Token /= Tok_Null
-                    and then Prev_Token /= Tok_Raise
-                    and then Prev_Token /= Tok_End
-                    and then Prev_Token /= Tok_Exit)
+                    and then Prev_Token not in
+                     Tok_Return | Tok_Null | Tok_Raise | Tok_End | Tok_Exit)
 
                   --  If followed by colon, colon-equal, or dot, then we
                   --  definitely  have an identifier (could not be reserved)
 
-                  or else Token = Tok_Colon
-                  or else Token = Tok_Colon_Equal
-                  or else Token = Tok_Dot
+                  or else Token in Tok_Colon | Tok_Colon_Equal | Tok_Dot
 
                   --  Left paren means we have an identifier except for those
                   --  reserved words that can legitimately be followed by a
@@ -301,14 +304,9 @@ package body Ch5 is
 
                   or else
                     (Token = Tok_Left_Paren
-                      and then Prev_Token /= Tok_Case
-                      and then Prev_Token /= Tok_Delay
-                      and then Prev_Token /= Tok_If
-                      and then Prev_Token /= Tok_Elsif
-                      and then Prev_Token /= Tok_Return
-                      and then Prev_Token /= Tok_When
-                      and then Prev_Token /= Tok_While
-                      and then Prev_Token /= Tok_Separate)
+                      and then Prev_Token not in
+                       Tok_Case | Tok_Delay | Tok_If | Tok_Elsif | Tok_Return |
+                       Tok_When | Tok_While | Tok_Separate)
                then
                   --  Here we have an apparent reserved identifier and the
                   --  token past it is appropriate to this usage (and would
@@ -407,6 +405,25 @@ package body Ch5 is
                   --  Always return, in the case where we scanned out handlers
                   --  that we did not expect, Parse_Exception_Handlers returned
                   --  with Token being either end or EOF, so we are OK.
+
+                  exit;
+
+               --  Case of finally
+
+               when Tok_Finally =>
+                  Test_Statement_Required;
+
+                  --  See the analogous comment in the Tok_Exception branch.
+
+                  if not SS_Flags.Fitm
+                    and then Start_Column >= Scopes (Scope.Last).Ecol
+                  then
+                     Error_Msg_SC ("finally construct not permitted here");
+                     Scan; -- past FINALLY
+                     Discard_Junk_List (P_Sequence_Of_Statements (SS_Sreq));
+                  end if;
+
+                  --  We exit like in the exception branch, should we really???
 
                   exit;
 
@@ -613,14 +630,6 @@ package body Ch5 is
                         Append_To (Statement_List,
                           P_For_Statement (Id_Node));
 
-                     --  Improper statement follows label. If we have an
-                     --  expression token, then assume the colon was part
-                     --  of a misplaced declaration.
-
-                     elsif Token not in Token_Class_Eterm then
-                        Restore_Scan_State (Scan_State_Label);
-                        Junk_Declaration;
-
                      --  Otherwise complain we have inappropriate statement
 
                      else
@@ -704,11 +713,12 @@ package body Ch5 is
                   --  instance of an incorrectly spelled keyword. If so, we
                   --  do nothing. The Bad_Spelling_Of will have reset Token
                   --  to the appropriate keyword, so the next time round the
-                  --  loop we will process the modified token. Note that we
-                  --  check for ELSIF before ELSE here. That's not accidental.
-                  --  We don't want to identify a misspelling of ELSE as
-                  --  ELSIF, and in particular we do not want to treat ELSEIF
-                  --  as ELSE IF.
+                  --  loop we will process the modified token.
+                  --
+                  --  Note that we check for ELSIF before ELSE here, because
+                  --  we don't want to identify a misspelling of ELSE as ELSIF,
+                  --  and in particular we do not want to treat ELSEIF as
+                  --  ELSE IF.
 
                   else
                      Restore_Scan_State (Scan_State_Label); -- to identifier
@@ -810,6 +820,10 @@ package body Ch5 is
 
                   Append_To (Statement_List, P_Label);
                   Statement_Required := True;
+
+                  if No (Label_Loc) then
+                     Label_Loc := Sloc (Last (Statement_List));
+                  end if;
 
                --  Pragma appearing as a statement in a statement sequence
 
@@ -941,14 +955,9 @@ package body Ch5 is
                --  handling of a bad statement.
 
                when others =>
-                  if Token in Token_Class_Declk then
-                     Junk_Declaration;
-
-                  else
-                     Error_Msg_BC -- CODEFIX
-                       ("statement expected");
-                     raise Error_Resync;
-                  end if;
+                  Error_Msg_BC -- CODEFIX
+                    ("statement expected");
+                  raise Error_Resync;
             end case;
 
          --  On error resynchronization, skip past next semicolon, and, since
@@ -966,7 +975,71 @@ package body Ch5 is
          exit when SS_Flags.Unco;
       end loop;
 
-      return Statement_List;
+      --  If there are declarative items in the list, we always wrap it in a
+      --  block, so that anything declared in a statement list is not visible
+      --  from the exception handlers. Example:
+      --
+      --     if ... then
+      --        use Some_Package;
+      --        Do_Something (...);
+      --     end if;
+      --
+      --  is tranformed into:
+      --
+      --     if ... then
+      --        begin
+      --           use Some_Package;
+      --           Do_Something (...);
+      --        end;
+      --     end if;
+      --
+      --  This:
+      --
+      --     declare
+      --        X : Integer;
+      --     begin
+      --        X : Integer;
+      --
+      --  is transformed into this:
+      --
+      --     declare
+      --        X : Integer;
+      --     begin
+      --        declare
+      --           X : Integer;
+      --        begin
+      --           ...
+      --
+      --  We hence don't try to detect this case, even though it can be
+      --  confusing to users, and might possibly deserve a warning.
+
+      if Present (Decl_Loc) then
+         --  Forbid labels and declarative items from coexisting. Otherwise,
+         --  one could jump past a declaration, leading to chaos. Jumping
+         --  backward past a declaration is also questionable -- does the
+         --  declaration get elaborated again? Is secondary stack storage
+         --  reclaimed? (A more liberal rule was proposed, but this is what
+         --  we're doing for now.)
+
+         if Present (Label_Loc) then
+            Error_Msg ("declarative item in same list as label", Decl_Loc);
+            Error_Msg ("label in same list as declarative item", Label_Loc);
+         end if;
+
+         declare
+            Loc : constant Source_Ptr := Sloc (First (Statement_List));
+            Block : constant Node_Id :=
+              Make_Block_Statement
+                (Loc,
+                 Handled_Statement_Sequence =>
+                   Make_Handled_Sequence_Of_Statements
+                     (Loc, Statements => Statement_List));
+         begin
+            return New_List (Block);
+         end;
+      else
+         return Statement_List;
+      end if;
    end P_Sequence_Of_Statements;
 
    --------------------
@@ -1136,7 +1209,7 @@ package body Ch5 is
            and then Start_Column /= Scopes (Scope.Last).Ecol
          then
             Error_Msg_Col := Scopes (Scope.Last).Ecol;
-            Error_Msg_SC ("(style) this token should be@");
+            Error_Msg_SC ("(style) this token should be@?l?");
          end if;
       end Check_If_Column;
 
@@ -1295,22 +1368,36 @@ package body Ch5 is
 
          return Cond;
 
-      --  Otherwise check for redundant parentheses but do not emit messages
-      --  about expressions that require parentheses (e.g. conditional,
-      --  quantified or declaration expressions).
+      --  Otherwise check for redundant parentheses
 
       else
-         if Style_Check
-           and then
-             Paren_Count (Cond) >
-               (if Nkind (Cond) in N_Case_Expression
-                                 | N_Expression_With_Actions
-                                 | N_If_Expression
-                                 | N_Quantified_Expression
-                then 1
-                else 0)
-         then
-            Style.Check_Xtra_Parens (First_Sloc (Cond));
+         if Style_Check then
+            Style.Check_Xtra_Parens (Cond);
+
+            --  When the condition is an operator then examine parentheses
+            --  surrounding the condition's operands - taking care to avoid
+            --  flagging operands which themselves are operators since they
+            --  may be required for resolution or precedence.
+
+            if Nkind (Cond) in N_Op
+                             | N_Membership_Test
+                             | N_Short_Circuit
+              and then Nkind (Right_Opnd (Cond)) not in N_Op
+                                                      | N_Membership_Test
+                                                      | N_Short_Circuit
+            then
+               Style.Check_Xtra_Parens (Right_Opnd (Cond));
+            end if;
+
+            if Nkind (Cond) in N_Binary_Op
+                             | N_Membership_Test
+                             | N_Short_Circuit
+              and then Nkind (Left_Opnd (Cond)) not in N_Op
+                                                     | N_Membership_Test
+                                                     | N_Short_Circuit
+            then
+               Style.Check_Xtra_Parens (Left_Opnd (Cond));
+            end if;
          end if;
 
          --  And return the result
@@ -1335,6 +1422,7 @@ package body Ch5 is
 
    function P_Case_Statement return Node_Id is
       Case_Node         : Node_Id;
+      Expr              : Node_Id;
       Alternatives_List : List_Id;
       First_When_Loc    : Source_Ptr;
 
@@ -1349,7 +1437,14 @@ package body Ch5 is
       Scopes (Scope.Last).Node := Case_Node;
 
       Scan; -- past CASE
-      Set_Expression (Case_Node, P_Expression_No_Right_Paren);
+
+      Expr := P_Expression_No_Right_Paren;
+
+      if Style_Check then
+         Style.Check_Xtra_Parens (Expr);
+      end if;
+
+      Set_Expression (Case_Node, Expr);
       TF_Is;
 
       --  Prepare to parse case statement alternatives
@@ -1364,7 +1459,7 @@ package body Ch5 is
          --  If we have a WHEN or OTHERS, then that's fine keep going. Note
          --  that it is a semantic check to ensure the proper use of OTHERS
 
-         if Token = Tok_When or else Token = Tok_Others then
+         if Token in Tok_When | Tok_Others then
             Append (P_Case_Statement_Alternative, Alternatives_List);
 
          --  If we have an END, then probably we are at the end of the case
@@ -1663,7 +1758,6 @@ package body Ch5 is
       Scan_State : Saved_Scan_State;
 
    begin
-
       Save_Scan_State (Scan_State);
       ID_Node := P_Defining_Identifier (C_In);
 
@@ -1676,7 +1770,7 @@ package body Ch5 is
       --  expression it is an iterator specification. Ambiguity is resolved
       --  during analysis of the loop parameter specification.
 
-      if Token = Tok_Of or else Token = Tok_Colon then
+      if Token in Tok_Of | Tok_Colon then
          Error_Msg_Ada_2012_Feature ("iterator", Token_Ptr);
          return P_Iterator_Specification (ID_Node);
       end if;
@@ -1754,18 +1848,6 @@ package body Ch5 is
 
       elsif Token = Tok_In then
          Scan;  --  past IN
-
-      elsif Prev_Token = Tok_In
-        and then Present (Subtype_Indication (Node1))
-      then
-         --  Simplest recovery is to transform it into an element iterator.
-         --  Error message on 'in" has already been emitted when parsing the
-         --  optional constraint.
-
-         Set_Of_Present (Node1);
-         Error_Msg_N
-           ("subtype indication is only legal on an element iterator",
-            Subtype_Indication (Node1));
 
       else
          return Error;
@@ -1975,7 +2057,7 @@ package body Ch5 is
       Append_Elmt (Goto_Node, Goto_List);
 
       if Token = Tok_When then
-         Error_Msg_GNAT_Extension ("goto when statement");
+         Error_Msg_GNAT_Extension ("goto when statement", Token_Ptr);
 
          Scan; -- past WHEN
          Mutate_Nkind (Goto_Node, N_Goto_When_Statement);
@@ -2146,7 +2228,7 @@ package body Ch5 is
               and then Token_Is_At_Start_Of_Line
               and then Start_Column /= Error_Msg_Col
             then
-               Error_Msg_SC ("(style) BEGIN in wrong column, should be@");
+               Error_Msg_SC ("(style) BEGIN in wrong column, should be@?l?");
 
             else
                Scopes (Scope.Last).Ecol := Start_Column;
@@ -2184,9 +2266,7 @@ package body Ch5 is
             --  END, EOF, or a token which starts declarations.
 
             elsif Parent_Nkind = N_Package_Body
-              and then (Token = Tok_End
-                          or else Token = Tok_EOF
-                          or else Token in Token_Class_Declk)
+              and then Token in Tok_End | Tok_EOF | Token_Class_Declk
             then
                Set_Null_HSS (Parent);
 
@@ -2296,7 +2376,7 @@ package body Ch5 is
          TF_Then;
       end loop;
 
-      if Token = Tok_And or else Token = Tok_Or then
+      if Token in Tok_And | Tok_Or then
          Error_Msg_SC ("unexpected logical operator");
          Scan; -- past logical operator
 

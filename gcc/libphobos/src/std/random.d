@@ -107,18 +107,6 @@ module std.random;
 import std.range.primitives;
 import std.traits;
 
-version (OSX)
-    version = Darwin;
-else version (iOS)
-    version = Darwin;
-else version (TVOS)
-    version = Darwin;
-else version (WatchOS)
-    version = Darwin;
-
-version (D_InlineAsm_X86) version = InlineAsm_X86_Any;
-version (D_InlineAsm_X86_64) version = InlineAsm_X86_Any;
-
 ///
 @safe unittest
 {
@@ -177,6 +165,18 @@ version (D_InlineAsm_X86_64) version = InlineAsm_X86_Any;
     else
         assert([0, 1, 2, 4, 5].randomShuffle(rnd2).equal([4, 2, 5, 0, 1]));
 }
+
+version (OSX)
+    version = Darwin;
+else version (iOS)
+    version = Darwin;
+else version (TVOS)
+    version = Darwin;
+else version (WatchOS)
+    version = Darwin;
+
+version (D_InlineAsm_X86) version = InlineAsm_X86_Any;
+version (D_InlineAsm_X86_64) version = InlineAsm_X86_Any;
 
 version (StdUnittest)
 {
@@ -812,7 +812,7 @@ Parameters for the generator.
 
     // Bitmasks used in the 'twist' part of the algorithm
     private enum UIntType lowerMask = (cast(UIntType) 1u << r) - 1,
-                          upperMask = (~lowerMask) & this.max;
+                          upperMask = (~lowerMask) & max;
 
     /*
        Collection of all state variables
@@ -905,17 +905,17 @@ Parameters for the generator.
     private static void seedImpl(UIntType value, ref State mtState) @nogc
     {
         mtState.data[$ - 1] = value;
-        static if (this.max != UIntType.max)
+        static if (max != UIntType.max)
         {
-            mtState.data[$ - 1] &= this.max;
+            mtState.data[$ - 1] &= max;
         }
 
         foreach_reverse (size_t i, ref e; mtState.data[0 .. $ - 1])
         {
             e = f * (mtState.data[i + 1] ^ (mtState.data[i + 1] >> (w - 2))) + cast(UIntType)(n - (i + 1));
-            static if (this.max != UIntType.max)
+            static if (max != UIntType.max)
             {
-                e &= this.max;
+                e &= max;
             }
         }
 
@@ -935,7 +935,8 @@ Parameters for the generator.
    `Exception` if the InputRange didn't provide enough elements to seed the generator.
    The number of elements required is the 'n' template parameter of the MersenneTwisterEngine struct.
  */
-    void seed(T)(T range) if (isInputRange!T && is(immutable ElementType!T == immutable UIntType))
+    void seed(T)(T range)
+    if (isInputRange!T && is(immutable ElementType!T == immutable UIntType))
     {
         this.seedImpl(range, this.state);
     }
@@ -945,7 +946,7 @@ Parameters for the generator.
        which can be used with an arbitrary `State` instance
     */
     private static void seedImpl(T)(T range, ref State mtState)
-        if (isInputRange!T && is(immutable ElementType!T == immutable UIntType))
+    if (isInputRange!T && is(immutable ElementType!T == immutable UIntType))
     {
         size_t j;
         for (j = 0; j < n && !range.empty; ++j, range.popFront())
@@ -1771,10 +1772,103 @@ else
     }
 }
 
+version (linux)
+{
+    version (linux_legacy_emulate_getrandom)
+    {
+        /+
+            Emulates `getrandom()` for backwards compatibility
+            with outdated kernels and legacy libc versions.
+
+            `getrandom()` was added to the GNU C Library in v2.25.
+         +/
+        pragma(msg, "`getrandom()` emulation for legacy Linux targets is enabled.");
+
+        /+
+            On modern kernels (5.6+), `/dev/random` would behave more similar
+            to `getrandom()`.
+            However, this emulator was specifically written for systems older
+            than that. Hence, `/dev/urandom` is the CSPRNG of choice.
+
+            <https://web.archive.org/web/20200914181930/https://www.2uo.de/myths-about-urandom/>
+         +/
+        private static immutable _pathLinuxSystemCSPRNG = "/dev/urandom";
+
+        import core.sys.posix.sys.types : ssize_t;
+
+        /+
+            Linux `getrandom()` emulation built upon `/dev/urandom`.
+            The fourth parameter (`uint flags`) is happily ignored.
+         +/
+        private ssize_t getrandom(
+                void* buf,
+                size_t buflen,
+                uint,
+        ) @system nothrow @nogc
+        {
+            import core.stdc.stdio : fclose, fopen, fread;
+
+            auto blockDev = fopen(_pathLinuxSystemCSPRNG.ptr, "r");
+            if (blockDev is null)
+                assert(false, "System CSPRNG unavailable: `fopen(\"" ~ _pathLinuxSystemCSPRNG ~ "\")` failed.");
+            scope (exit) fclose(blockDev);
+
+            const bytesRead = fread(buf, 1, buflen, blockDev);
+            return bytesRead;
+        }
+    }
+    else
+    {
+        // `getrandom()` was introduced in Linux 3.17.
+
+        // Shim for missing bindings in druntime
+        version (none)
+            import core.sys.linux.sys.random : getrandom;
+        else
+        {
+            import core.sys.posix.sys.types : ssize_t;
+            private extern extern(C) ssize_t getrandom(
+                void* buf,
+                size_t buflen,
+                uint flags,
+            ) @system nothrow @nogc;
+        }
+    }
+}
+
+version (Windows)
+{
+    import std.internal.windows.bcrypt : bcryptGenRandom;
+}
+
 /**
 A "good" seed for initializing random number engines. Initializing
 with $(D_PARAM unpredictableSeed) makes engines generate different
 random number sequences every run.
+
+This function utilizes the system $(I cryptographically-secure pseudo-random
+number generator (CSPRNG)) or $(I pseudo-random number generator (PRNG))
+where available and implemented (currently `arc4random` on applicable BSD
+systems, `getrandom` on Linux or `BCryptGenRandom` on Windows) to generate
+“high quality” pseudo-random numbers – if possible.
+As a consequence, calling it may block under certain circumstances (typically
+during early boot when the system's entropy pool has not yet been
+initialized).
+
+On x86 CPU models which support the `RDRAND` instruction, that will be used
+when no more specialized randomness source is implemented.
+
+In the future, further platform-specific PRNGs may be incorporated.
+
+Warning:
+$(B This function must not be used for cryptographic purposes.)
+Despite being implemented for certain targets, there are no guarantees
+that it sources its randomness from a CSPRNG.
+The implementation also includes a fallback option that provides very little
+randomness and is used when no better source of randomness is available or
+integrated on the target system.
+As written earlier, this function only aims to provide randomness for seeding
+ordinary (non-cryptographic) PRNG engines.
 
 Returns:
 A single unsigned integer seed value, different on each successive call
@@ -1787,7 +1881,37 @@ how excellent the source of entropy is.
 */
 @property uint unpredictableSeed() @trusted nothrow @nogc
 {
-    version (AnyARC4Random)
+    version (linux)
+    {
+        uint buffer;
+
+        /*
+            getrandom(2):
+            If the _urandom_ source has been initialized, reads of up to
+            256 bytes will always return as many bytes as requested and
+            will not be interrupted by signals. No such guarantees apply
+            for larger buffer sizes.
+            */
+        static assert(buffer.sizeof <= 256);
+
+        const status = (() @trusted => getrandom(&buffer, buffer.sizeof, 0))();
+        assert(status == buffer.sizeof);
+
+        return buffer;
+    }
+    else version (Windows)
+    {
+        uint result;
+        if (!bcryptGenRandom!uint(result))
+        {
+            version (none)
+                return fallbackSeed();
+            else
+                assert(false, "BCryptGenRandom() failed.");
+        }
+        return result;
+    }
+    else version (AnyARC4Random)
     {
         return arc4random();
     }
@@ -1836,7 +1960,37 @@ if (isUnsigned!UIntType)
         /// ditto
         @property UIntType unpredictableSeed() @nogc nothrow @trusted
         {
-            version (AnyARC4Random)
+            version (linux)
+            {
+                UIntType buffer;
+
+                /*
+                    getrandom(2):
+                    If the _urandom_ source has been initialized, reads of up to
+                    256 bytes will always return as many bytes as requested and
+                    will not be interrupted by signals. No such guarantees apply
+                    for larger buffer sizes.
+                 */
+                static assert(buffer.sizeof <= 256);
+
+                const status = (() @trusted => getrandom(&buffer, buffer.sizeof, 0))();
+                assert(status == buffer.sizeof);
+
+                return buffer;
+            }
+            else version (Windows)
+            {
+                UIntType result;
+                if (!bcryptGenRandom!UIntType(result))
+                {
+                    version (none)
+                        return fallbackSeed();
+                    else
+                        assert(false, "BCryptGenRandom() failed.");
+                }
+                return result;
+            }
+            else version (AnyARC4Random)
             {
                 static if (UIntType.sizeof <= uint.sizeof)
                 {
@@ -2215,6 +2369,7 @@ at least that number won't be represented fairly.
 Hence, our condition to reroll is
 `bucketFront > (UpperType.max - (upperDist - 1))`
 +/
+/// ditto
 auto uniform(string boundaries = "[)", T1, T2, RandomGen)
 (T1 a, T2 b, ref RandomGen rng)
 if ((isIntegral!(CommonType!(T1, T2)) || isSomeChar!(CommonType!(T1, T2))) &&
@@ -2277,9 +2432,14 @@ if ((isIntegral!(CommonType!(T1, T2)) || isSomeChar!(CommonType!(T1, T2))) &&
     return cast(ResultType)(lower + offset);
 }
 
+///
 @safe unittest
 {
     import std.conv : to;
+    import std.meta : AliasSeq;
+    import std.range.primitives : isForwardRange;
+    import std.traits : isIntegral, isSomeChar;
+
     auto gen = Mt19937(123_456_789);
     static assert(isForwardRange!(typeof(gen)));
 
@@ -2290,7 +2450,7 @@ if ((isIntegral!(CommonType!(T1, T2)) || isSomeChar!(CommonType!(T1, T2))) &&
     auto c = uniform(0.0, 1.0);
     assert(0 <= c && c < 1);
 
-    static foreach (T; std.meta.AliasSeq!(char, wchar, dchar, byte, ubyte, short, ushort,
+    static foreach (T; AliasSeq!(char, wchar, dchar, byte, ubyte, short, ushort,
                           int, uint, long, ulong, float, double, real))
     {{
         T lo = 0, hi = 100;
@@ -2344,7 +2504,7 @@ if ((isIntegral!(CommonType!(T1, T2)) || isSomeChar!(CommonType!(T1, T2))) &&
 
     auto reproRng = Xorshift(239842);
 
-    static foreach (T; std.meta.AliasSeq!(char, wchar, dchar, byte, ubyte, short,
+    static foreach (T; AliasSeq!(char, wchar, dchar, byte, ubyte, short,
                           ushort, int, uint, long, ulong))
     {{
         T lo = T.min + 10, hi = T.max - 10;
@@ -2516,7 +2676,7 @@ if (!is(T == enum) && (isIntegral!T || isSomeChar!T))
     assert(rnd.uniform!ulong == 4838462006927449017);
 
     enum Fruit { apple, mango, pear }
-    version (X86_64) // https://issues.dlang.org/show_bug.cgi?id=15147
+    version (D_LP64) // https://issues.dlang.org/show_bug.cgi?id=15147
     assert(rnd.uniform!Fruit == Fruit.mango);
 }
 
@@ -2762,7 +2922,7 @@ Returns:
     return a `ref` to the $(D range element), otherwise it will return
     a copy.
  */
-auto ref choice(Range, RandomGen = Random)(auto ref Range range, ref RandomGen urng)
+auto ref choice(Range, RandomGen = Random)(Range range, ref RandomGen urng)
 if (isRandomAccessRange!Range && hasLength!Range && isUniformRNG!RandomGen)
 {
     assert(range.length > 0,
@@ -2772,7 +2932,22 @@ if (isRandomAccessRange!Range && hasLength!Range && isUniformRNG!RandomGen)
 }
 
 /// ditto
-auto ref choice(Range)(auto ref Range range)
+auto ref choice(Range)(Range range)
+{
+    return choice(range, rndGen);
+}
+
+/// ditto
+auto ref choice(Range, RandomGen = Random)(ref Range range, ref RandomGen urng)
+if (isRandomAccessRange!Range && hasLength!Range && isUniformRNG!RandomGen)
+{
+    assert(range.length > 0,
+           __PRETTY_FUNCTION__ ~ ": invalid Range supplied. Range cannot be empty");
+    return range[uniform(size_t(0), $, urng)];
+}
+
+/// ditto
+auto ref choice(Range)(ref Range range)
 {
     return choice(range, rndGen);
 }
@@ -2783,7 +2958,7 @@ auto ref choice(Range)(auto ref Range range)
     auto rnd = MinstdRand0(42);
 
     auto elem  = [1, 2, 3, 4, 5].choice(rnd);
-    version (X86_64) // https://issues.dlang.org/show_bug.cgi?id=15147
+    version (D_LP64) // https://issues.dlang.org/show_bug.cgi?id=15147
     assert(elem == 3);
 }
 
@@ -2791,7 +2966,7 @@ auto ref choice(Range)(auto ref Range range)
 {
     import std.algorithm.searching : canFind;
 
-    class MyTestClass
+    static class MyTestClass
     {
         int x;
 
@@ -2825,6 +3000,39 @@ auto ref choice(Range)(auto ref Range range)
            "Choice did not return a ref to an element from the given Range");
     assert(array.canFind(*(cast(int *)(elemAddr))),
            "Choice did not return a valid element from the given Range");
+}
+
+@safe unittest // https://issues.dlang.org/show_bug.cgi?id=18631
+{
+    auto rng = MinstdRand0(42);
+    const a = [0,1,2];
+    const(int[]) b = [0, 1, 2];
+    auto x = choice(a);
+    auto y = choice(b);
+    auto z = choice(cast(const)[1, 2, 3]);
+    auto x1 = choice(a, rng);
+    auto y1 = choice(b, rng);
+    auto z1 = choice(cast(const)[1, 2, 3], rng);
+}
+
+@safe unittest // Ref range (https://issues.dlang.org/show_bug.cgi?id=18631 PR)
+{
+    struct TestRange
+    {
+        int x;
+        ref int front() return {return x;}
+        ref int back() return {return x;}
+        void popFront() {}
+        void popBack() {}
+        bool empty = false;
+        TestRange save() {return this;}
+        size_t length = 10;
+        alias opDollar = length;
+        ref int opIndex(size_t i) return {return x;}
+    }
+
+    TestRange r = TestRange(10);
+    int* s = &choice(r);
 }
 
 /**
@@ -2865,7 +3073,7 @@ if (isRandomAccessRange!Range)
     auto rnd = MinstdRand0(42);
 
     auto arr = [1, 2, 3, 4, 5].randomShuffle(rnd);
-    version (X86_64) // https://issues.dlang.org/show_bug.cgi?id=15147
+    version (D_LP64) // https://issues.dlang.org/show_bug.cgi?id=15147
     assert(arr == [3, 5, 2, 4, 1]);
 }
 
@@ -2955,15 +3163,15 @@ if (isRandomAccessRange!Range)
     auto arr = [1, 2, 3, 4, 5, 6];
     arr = arr.dup.partialShuffle(1, rnd);
 
-    version (X86_64) // https://issues.dlang.org/show_bug.cgi?id=15147
+    version (D_LP64) // https://issues.dlang.org/show_bug.cgi?id=15147
     assert(arr == [2, 1, 3, 4, 5, 6]); // 1<->2
 
     arr = arr.dup.partialShuffle(2, rnd);
-    version (X86_64) // https://issues.dlang.org/show_bug.cgi?id=15147
+    version (D_LP64) // https://issues.dlang.org/show_bug.cgi?id=15147
     assert(arr == [1, 4, 3, 2, 5, 6]); // 1<->2, 2<->4
 
     arr = arr.dup.partialShuffle(3, rnd);
-    version (X86_64) // https://issues.dlang.org/show_bug.cgi?id=15147
+    version (D_LP64) // https://issues.dlang.org/show_bug.cgi?id=15147
     assert(arr == [5, 4, 6, 2, 1, 3]); // 1<->5, 2<->4, 3<->6
 }
 
@@ -3008,8 +3216,16 @@ if (isRandomAccessRange!Range)
 }
 
 /**
-Rolls a dice with relative probabilities stored in $(D
-proportions). Returns the index in `proportions` that was chosen.
+Get a random index into a list of weights corresponding to each index
+
+Similar to rolling a die with relative probabilities stored in `proportions`.
+Returns the index in `proportions` that was chosen.
+
+Note:
+    Usually, dice are 'fair', meaning that each side has equal probability
+    to come up, in which case `1 + uniform(0, 6)` can simply be used.
+    In future Phobos versions, this function might get renamed to something like
+    `weightedChoice` to avoid confusion.
 
 Params:
     rnd = (optional) random number generator to use; if not
@@ -3055,6 +3271,9 @@ if (isNumeric!Num)
 ///
 @safe unittest
 {
+    auto d6  = 1 + dice(1, 1, 1, 1, 1, 1); // fair dice roll
+    auto d6b = 1 + dice(2, 1, 1, 1, 1, 1); // double the chance to roll '1'
+
     auto x = dice(0.5, 0.5);   // x is 0 or 1 in equal proportions
     auto y = dice(50, 50);     // y is 0 or 1 in equal proportions
     auto z = dice(70, 20, 10); // z is 0 70% of the time, 1 20% of the time,
@@ -3369,7 +3588,7 @@ if (isRandomAccessRange!Range)
     import std.range : iota;
     auto rnd = MinstdRand0(42);
 
-    version (X86_64) // https://issues.dlang.org/show_bug.cgi?id=15147
+    version (D_LP64) // https://issues.dlang.org/show_bug.cgi?id=15147
     assert(10.iota.randomCover(rnd).equal([7, 4, 2, 0, 1, 6, 8, 3, 9, 5]));
 }
 

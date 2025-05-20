@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 2012-2022, AdaCore                     --
+--                     Copyright (C) 2012-2025, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,7 +30,8 @@
 ------------------------------------------------------------------------------
 
 --  This is the GNU/Linux specific version of this package
-with Interfaces.C;              use Interfaces.C;
+
+with Interfaces.C; use Interfaces.C;
 
 separate (System.Traceback.Symbolic)
 
@@ -40,18 +41,6 @@ package body Module_Name is
 
    function Is_Shared_Lib (Base : Address) return Boolean;
    --  Returns True if a shared library
-
-   --  The principle is:
-
-   --  1. We get information about the module containing the address.
-
-   --  2. We check that the full pathname is pointing to a shared library.
-
-   --  3. for shared libraries, we return the non relocated address (so
-   --     the absolute address in the shared library).
-
-   --  4. we also return the full pathname of the module containing this
-   --     address.
 
    -------------------
    -- Is_Shared_Lib --
@@ -93,23 +82,30 @@ package body Module_Name is
       pragma Convention (C, link_map_acc);
 
       type link_map is record
-         l_addr : Address;
+         l_addr : aliased Address;
          --  Base address of the shared object
 
-         l_name : Address;
+         l_name : aliased Address;
          --  Null-terminated absolute file name
 
-         l_ld   : Address;
+         l_ld   : aliased Address;
          --  Dynamic section
 
-         l_next, l_prev : link_map_acc;
+         l_next, l_prev : aliased link_map_acc;
          --  Chain
       end record;
       pragma Convention (C, link_map);
 
+      type r_debug_state is (RT_CONSISTENT, RT_ADD, RT_DELETE);
+      pragma Convention (C, r_debug_state);
+      pragma Unreferenced (RT_CONSISTENT, RT_ADD, RT_DELETE);
+
       type r_debug_type is record
-         r_version : Integer;
-         r_map : link_map_acc;
+         r_version : aliased int;
+         r_map     : aliased link_map_acc;
+         r_brk     : aliased Address;
+         r_state   : aliased r_debug_state;
+         r_ldbase  : aliased Address;
       end record;
       pragma Convention (C, r_debug_type);
 
@@ -132,11 +128,22 @@ package body Module_Name is
    -- Get --
    ---------
 
-   function Get (Addr : System.Address;
-                 Load_Addr : access System.Address)
-     return String
-   is
+   --  The principle is:
 
+   --  1. We get information about the module containing the address.
+
+   --  2. We check whether the module is a shared library.
+
+   --  3. For shared libraries, we return the non-relocated address (so
+   --     the absolute address in the shared library).
+
+   --  4. We also return the full pathname of the module containing this
+   --     address.
+
+   function Get
+     (Addr      : System.Address;
+      Load_Addr : access System.Address) return String
+   is
       --  Dl_info record for Linux, used to get sym reloc offset
 
       type Dl_info is record

@@ -1,17 +1,26 @@
-/*
+﻿/*
 REQUIRED_ARGS: -verrors=context
 TEST_OUTPUT:
 ---
-fail_compilation/fail_pretty_errors.d(20): Error: undefined identifier `a`
+fail_compilation/fail_pretty_errors.d(29): Error: undefined identifier `a`
     a = 1;
     ^
-fail_compilation/fail_pretty_errors.d-mixin-25(25): Error: undefined identifier `b`
-fail_compilation/fail_pretty_errors.d(30): Error: cannot implicitly convert expression `5` of type `int` to `string`
+fail_compilation/fail_pretty_errors.d-mixin-34(34): Error: undefined identifier `b`
+b = 1;
+^
+fail_compilation/fail_pretty_errors.d(39): Error: cannot implicitly convert expression `5` of type `int` to `string`
     string x = 5;
                ^
-fail_compilation/fail_pretty_errors.d(35): Error: mixin `fail_pretty_errors.testMixin2.mixinTemplate!()` error instantiating
+fail_compilation/fail_pretty_errors.d(44): Error: mixin `fail_pretty_errors.testMixin2.mixinTemplate!()` error instantiating
     mixin mixinTemplate;
     ^
+fail_compilation/fail_pretty_errors.d(50): Error: invalid array operation `"" + ""` (possible missing [])
+    auto x = ""+"";
+             ^
+fail_compilation/fail_pretty_errors.d(50):        did you mean to concatenate (`"" ~ ""`) instead ?
+fail_compilation/fail_pretty_errors.d(53): Error: cannot implicitly convert expression `1111` of type `int` to `byte`
+        byte ɑ =    1111;
+                    ^
 ---
 */
 
@@ -33,4 +42,13 @@ mixin template mixinTemplate()
 void testMixin2()
 {
     mixin mixinTemplate;
+}
+
+void f()
+{
+    // check supplemental error doesn't show context
+    auto x = ""+"";
+
+    // Check correct spacing with the presence of unicode characters and tabs
+	 	byte ɑ = 	1111;
 }

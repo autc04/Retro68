@@ -1,25 +1,22 @@
 /**
  * Text macro processor for Ddoc.
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/dmacro.d, _dmacro.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/dmacro.d, _dmacro.d)
  * Documentation:  https://dlang.org/phobos/dmd_dmacro.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/dmacro.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/dmacro.d
  */
 
 module dmd.dmacro;
 
 import core.stdc.ctype;
 import core.stdc.string;
-import dmd.doc;
-import dmd.errors;
-import dmd.globals;
 import dmd.common.outbuffer;
 import dmd.root.rmem;
 
-extern (C++) struct MacroTable
+struct MacroTable
 {
     /**********************************
      * Define name=text macro.
@@ -28,7 +25,7 @@ extern (C++) struct MacroTable
      *  name = name of macro
      *  text = text of macro
      */
-    extern (D) void define(const(char)[] name, const(char)[] text)
+    void define(const(char)[] name, const(char)[] text) nothrow pure @safe
     {
         //printf("MacroTable::define('%.*s' = '%.*s')\n", cast(int)name.length, name.ptr, text.length, text.ptr);
         if (auto table = name in mactab)
@@ -39,11 +36,16 @@ extern (C++) struct MacroTable
         mactab[name] = new Macro(name, text);
     }
 
+    alias fp_t = bool function(const(char)* p) @nogc nothrow pure;
+
     /*****************************************************
      * Look for macros in buf and expand them in place.
      * Only look at the text in buf from start to pend.
+     *
+     * Returns: `true` on success, `false` when the recursion limit was reached
      */
-    extern (D) void expand(ref OutBuffer buf, size_t start, ref size_t pend, const(char)[] arg)
+    bool expand(ref OutBuffer buf, size_t start, ref size_t pend, const(char)[] arg, int recursionLimit,
+        fp_t isIdStart, fp_t isIdTail) nothrow pure
     {
         version (none)
         {
@@ -51,14 +53,10 @@ extern (C++) struct MacroTable
             printf("Buf is: '%.*s'\n", cast(int)(pend - start), buf.data + start);
         }
         // limit recursive expansion
-        __gshared int nest;
-        if (nest > global.recursionLimit)
-        {
-            error(Loc.initial, "DDoc macro expansion limit exceeded; more than %d expansions.",
-                  global.recursionLimit);
-            return;
-        }
-        nest++;
+        recursionLimit--;
+        if (recursionLimit < 0)
+            return false;
+
         size_t end = pend;
         assert(start <= end);
         assert(end <= buf.length);
@@ -105,7 +103,9 @@ extern (C++) struct MacroTable
                     end += marg.length - 2;
                     // Scan replaced text for further expansion
                     size_t mend = u + marg.length;
-                    expand(buf, u, mend, null);
+                    const success = expand(buf, u, mend, null, recursionLimit, isIdStart, isIdTail);
+                    if (!success)
+                        return false;
                     end += mend - (u + marg.length);
                     u = mend;
                 }
@@ -121,7 +121,9 @@ extern (C++) struct MacroTable
                     end += -2 + 2 + marg.length + 2;
                     // Scan replaced text for further expansion
                     size_t mend = u + 2 + marg.length;
-                    expand(buf, u + 2, mend, null);
+                    const success = expand(buf, u + 2, mend, null, recursionLimit, isIdStart, isIdTail);
+                    if (!success)
+                        return false;
                     end += mend - (u + 2 + marg.length);
                     u = mend;
                 }
@@ -149,7 +151,7 @@ extern (C++) struct MacroTable
                 /* Scan forward to find end of macro name and
                  * beginning of macro argument (marg).
                  */
-                for (v = u + 2; v < end; v += utfStride(p + v))
+                for (v = u + 2; v < end; v += utfStride(p[v]))
                 {
                     if (!isIdTail(p + v))
                     {
@@ -228,7 +230,9 @@ extern (C++) struct MacroTable
                             // Scan replaced text for further expansion
                             m.inuse++;
                             size_t mend = v + 1 + 2 + m.text.length + 2;
-                            expand(buf, v + 1, mend, marg);
+                            const success = expand(buf, v + 1, mend, marg, recursionLimit, isIdStart, isIdTail);
+                            if (!success)
+                                return false;
                             end += mend - (v + 1 + 2 + m.text.length + 2);
                             m.inuse--;
                             buf.remove(u, v + 1 - u);
@@ -253,12 +257,12 @@ extern (C++) struct MacroTable
         }
         mem.xfree(cast(char*)arg);
         pend = end;
-        nest--;
+        return true;
     }
 
   private:
 
-    extern (D) Macro* search(const(char)[] name)
+    Macro* search(const(char)[] name) @nogc nothrow pure @safe
     {
         //printf("Macro::search(%.*s)\n", cast(int)name.length, name.ptr);
         if (auto table = name in mactab)
@@ -282,7 +286,7 @@ struct Macro
     const(char)[] text;     // macro replacement text
     int inuse;              // macro is in use (don't expand)
 
-    this(const(char)[] name, const(char)[] text)
+    this(const(char)[] name, const(char)[] text) @nogc nothrow pure @safe
     {
         this.name = name;
         this.text = text;
@@ -297,7 +301,7 @@ struct Macro
  *      copy allocated with mem.xmalloc()
  */
 
-char[] memdup(const(char)[] p)
+char[] memdup(const(char)[] p) nothrow pure @trusted
 {
     size_t len = p.length;
     return (cast(char*)memcpy(mem.xmalloc(len), p.ptr, len))[0 .. len];
@@ -312,7 +316,7 @@ char[] memdup(const(char)[] p)
  *              1..9:   get nth argument
  *              -1:     get 2nd through end
  */
-size_t extractArgN(const(char)[] buf, out const(char)[] marg, int n)
+size_t extractArgN(const(char)[] buf, out const(char)[] marg, int n) @nogc nothrow pure @safe
 {
     /* Scan forward for matching right parenthesis.
      * Nest parentheses.
@@ -328,7 +332,7 @@ size_t extractArgN(const(char)[] buf, out const(char)[] marg, int n)
     uint inexp = 0;
     uint argn = 0;
     size_t v = 0;
-    const p = buf.ptr;
+    const p = buf;
     const end = buf.length;
 Largstart:
     // Skip first space, if any, to find the start of the macro argument
@@ -421,4 +425,36 @@ Largstart:
         marg = p[vstart .. v];
     //printf("extractArg%d('%.*s') = '%.*s'\n", n, cast(int)end, p, cast(int)marg.length, marg.ptr);
     return v;
+}
+
+/*****************************************
+ * Get number of UTF-8 code units in code point that starts with `c`
+ * Params:
+ *      c = starting code unit
+ * Returns: number of UTF-8 code units (i.e. bytes), else 1 on invalid UTF start
+ */
+@safe
+int utfStride(char c) @nogc nothrow pure
+{
+    return
+        c < 0x80 ? 1 :
+        c < 0xC0 ? 1 : // invalid UTF start
+        c < 0xE0 ? 2 :
+        c < 0xF0 ? 3 :
+        c < 0xF8 ? 4 :
+        c < 0xFC ? 5 :
+        c < 0xFE ? 6 :
+                   1; // invalid UTF start
+}
+
+unittest
+{
+    assert(utfStride(0) == 1);
+    assert(utfStride(0x80) == 1);
+    assert(utfStride(0xC0) == 2);
+    assert(utfStride(0xE0) == 3);
+    assert(utfStride(0xF0) == 4);
+    assert(utfStride(0xF8) == 5);
+    assert(utfStride(0xFC) == 6);
+    assert(utfStride(0xFE) == 1);
 }

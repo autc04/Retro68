@@ -1,6 +1,6 @@
-/* { dg-do compile { target { powerpc*-*-* && lp64 } } } */
-/* { dg-require-effective-target powerpc_p9vector_ok } */
-/* { dg-options "-mpower9-vector -mpower9-misc -O2" } */
+/* { dg-do compile { target { lp64 } } } */
+/* { dg-options "-mdejagnu-cpu=power9 -O2" } */
+/* { dg-require-effective-target powerpc_vsx } */
 
 /* Verify P9 atomic memory operations.  */
 

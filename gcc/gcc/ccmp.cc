@@ -1,5 +1,5 @@
 /* Conditional compare related functions
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -52,7 +52,7 @@ ccmp_tree_comparison_p (tree t, basic_block bb)
     return (TREE_CODE (TREE_TYPE (t)) == BOOLEAN_TYPE);
 
   /* Check to see if SSA name is set by a comparison operator in
-     the same basic block.  */ 
+     the same basic block.  */
   if (!is_gimple_assign (g))
     return false;
   if (bb != gimple_bb (g))
@@ -90,16 +90,17 @@ ccmp_tree_comparison_p (tree t, basic_block bb)
    If all checks OK in expand_ccmp_expr, it emits insns in prep_seq, then
    insns in gen_seq.  */
 
-/* Check whether G is a potential conditional compare candidate.  */
+/* Check whether G is a potential conditional compare candidate; OUTER is true if
+   G is the outer most AND/IOR.  */
 static bool
-ccmp_candidate_p (gimple *g)
+ccmp_candidate_p (gimple *g, bool outer = false)
 {
   tree lhs, op0, op1;
   gimple *gs0, *gs1;
   tree_code tcode;
   basic_block bb;
 
-  if (!g)
+  if (!g || !is_gimple_assign (g))
     return false;
 
   tcode = gimple_assign_rhs_code (g);
@@ -109,8 +110,9 @@ ccmp_candidate_p (gimple *g)
   lhs = gimple_assign_lhs (g);
   op0 = gimple_assign_rhs1 (g);
   op1 = gimple_assign_rhs2 (g);
-  if ((TREE_CODE (op0) != SSA_NAME) || (TREE_CODE (op1) != SSA_NAME)
-      || !has_single_use (lhs))
+  if ((TREE_CODE (op0) != SSA_NAME) || (TREE_CODE (op1) != SSA_NAME))
+    return false;
+  if (!outer && !has_single_use (lhs))
     return false;
 
   bb = gimple_bb (g);
@@ -136,7 +138,7 @@ get_compare_parts (tree t, int *up, rtx_code *rcode,
 {
   tree_code code;
   gimple *g = get_gimple_for_ssa_name (t);
-  if (g)
+  if (g && is_gimple_assign (g))
     {
       *up = TYPE_UNSIGNED (TREE_TYPE (gimple_assign_rhs1 (g)));
       code = gimple_assign_rhs_code (g);
@@ -245,7 +247,15 @@ expand_ccmp_expr_1 (gimple *g, rtx_insn **prep_seq, rtx_insn **gen_seq)
 	      cost2 = seq_cost (prep_seq_2, speed_p);
 	      cost2 += seq_cost (gen_seq_2, speed_p);
 	    }
-	  if (cost2 < cost1)
+
+	  /* It's possible that one expansion succeeds and the other
+	     fails.
+	     For example, x86 has int ccmp but not fp ccmp, and so a
+	     combined fp and int comparison must be ordered such that
+	     the fp comparison happens first. The costs are not
+	     meaningful for failed expansions.  */
+
+	  if (ret2 && (!ret || cost2 < cost1))
 	    {
 	      *prep_seq = prep_seq_2;
 	      *gen_seq = gen_seq_2;
@@ -284,7 +294,7 @@ expand_ccmp_expr (gimple *g, machine_mode mode)
   rtx_insn *last;
   rtx tmp;
 
-  if (!ccmp_candidate_p (g))
+  if (!ccmp_candidate_p (g, true))
     return NULL_RTX;
 
   last = get_last_insn ();

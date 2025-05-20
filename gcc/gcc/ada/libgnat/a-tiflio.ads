@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -43,7 +43,10 @@
 private generic
    type Num is digits <>;
 
-package Ada.Text_IO.Float_IO with SPARK_Mode => On is
+package Ada.Text_IO.Float_IO with
+  SPARK_Mode => On,
+  Always_Terminates
+is
 
    Default_Fore : Field := 2;
    Default_Aft  : Field := Num'Digits - 1;
@@ -54,17 +57,19 @@ package Ada.Text_IO.Float_IO with SPARK_Mode => On is
       Item  : out Num;
       Width : Field := 0)
    with
-     Pre    => Is_Open (File) and then Mode (File) = In_File,
-     Global => (In_Out => File_System);
+     Pre               => Is_Open (File) and then Mode (File) = In_File,
+     Global            => (In_Out => File_System),
+     Exceptional_Cases => (Data_Error | End_Error => Standard.True);
 
    procedure Get
      (Item  : out Num;
       Width : Field := 0)
    with
-     Post   =>
+     Post              =>
        Line_Length'Old = Line_Length
        and Page_Length'Old = Page_Length,
-     Global => (In_Out => File_System);
+     Global            => (In_Out => File_System),
+     Exceptional_Cases => (Data_Error | End_Error => Standard.True);
 
    procedure Put
      (File : File_Type;
@@ -73,11 +78,12 @@ package Ada.Text_IO.Float_IO with SPARK_Mode => On is
       Aft  : Field := Default_Aft;
       Exp  : Field := Default_Exp)
    with
-     Pre    => Is_Open (File) and then Mode (File) /= In_File,
-     Post   =>
+     Pre               => Is_Open (File) and then Mode (File) /= In_File,
+     Post              =>
        Line_Length (File)'Old = Line_Length (File)
        and Page_Length (File)'Old = Page_Length (File),
-     Global => (In_Out => File_System);
+     Global            => (In_Out => File_System),
+     Exceptional_Cases => (Layout_Error => Line_Length (File) /= 0);
 
    procedure Put
      (Item : Num;
@@ -85,17 +91,19 @@ package Ada.Text_IO.Float_IO with SPARK_Mode => On is
       Aft  : Field := Default_Aft;
       Exp  : Field := Default_Exp)
    with
-     Post   =>
+     Post              =>
        Line_Length'Old = Line_Length
        and Page_Length'Old = Page_Length,
-     Global => (In_Out => File_System);
+     Global            => (In_Out => File_System),
+     Exceptional_Cases => (Layout_Error => Line_Length /= 0);
 
    procedure Get
      (From : String;
       Item : out Num;
       Last : out Positive)
    with
-     Global => null;
+     Global            => null,
+     Exceptional_Cases => (Data_Error => Standard.True);
 
    procedure Put
      (To   : out String;
@@ -103,7 +111,8 @@ package Ada.Text_IO.Float_IO with SPARK_Mode => On is
       Aft  : Field := Default_Aft;
       Exp  : Field := Default_Exp)
    with
-     Global => null;
+     Global            => null,
+     Exceptional_Cases => (Layout_Error => Standard.True);
 
 private
    pragma Inline (Get);

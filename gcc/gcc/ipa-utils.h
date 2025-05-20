@@ -1,5 +1,5 @@
 /* Utilities for ipa analysis.
-   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+   Copyright (C) 2004-2025 Free Software Foundation, Inc.
    Contributed by Kenneth Zadeck <zadeck@naturalbridge.com>
 
 This file is part of GCC.
@@ -30,7 +30,7 @@ struct ipa_dfs_info {
   bool new_node;
   bool on_stack;
   struct cgraph_node* next_cycle;
-  PTR aux;
+  void *aux;
 };
 
 
@@ -46,6 +46,8 @@ tree get_base_var (tree);
 void ipa_merge_profiles (struct cgraph_node *dst,
 			 struct cgraph_node *src, bool preserve_body = false);
 bool recursive_call_p (tree, tree);
+bool stmt_may_terminate_function_p (function *fun, gimple *stmt, bool assume_return_or_eh);
+bitmap find_always_executed_bbs (function *fun, bool assume_return_or_eh);
 
 /* In ipa-pure-const.cc  */
 bool finite_function_p ();
@@ -55,6 +57,13 @@ bool ipa_make_function_pure (cgraph_node *, bool, bool);
 
 /* In ipa-profile.cc  */
 bool ipa_propagate_frequency (struct cgraph_node *node);
+void ipa_profile_cc_finalize (void);
+
+/* In ipa-icf.cc  */
+void ipa_icf_cc_finalize (void);
+
+/* In ipa-sra.cc  */
+void ipa_sra_cc_finalize (void);
 
 /* In ipa-devirt.cc  */
 
@@ -103,11 +112,12 @@ tree prevailing_odr_type (tree type);
 void enable_odr_based_tbaa (tree type);
 bool odr_based_tbaa_p (const_tree type);
 void set_type_canonical_for_odr_type (tree type, tree canonical);
+void warn_function_returns_nonnull (tree);
 
 void register_odr_enum (tree type);
 
 /* Return vector containing possible targets of polymorphic call E.
-   If COMPLETEP is non-NULL, store true if the list is complete. 
+   If COMPLETEP is non-NULL, store true if the list is complete.
    CACHE_TOKEN (if non-NULL) will get stored to an unique ID of entry
    in the target cache.  If user needs to visit every target list
    just once, it can memoize them.
@@ -175,7 +185,7 @@ possible_polymorphic_call_target_p (struct cgraph_edge *e,
 					     context, n);
 }
 
-/* Return true if BINFO corresponds to a type with virtual methods. 
+/* Return true if BINFO corresponds to a type with virtual methods.
 
    Every type has several BINFOs.  One is the BINFO associated by the type
    while other represents bases of derived types.  The BINFOs representing
@@ -240,7 +250,7 @@ type_in_anonymous_namespace_p (const_tree t)
     return !TREE_PUBLIC (TYPE_STUB_DECL (t));
 }
 
-/* Return true of T is type with One Definition Rule info attached. 
+/* Return true of T is type with One Definition Rule info attached.
    It means that either it is anonymous type or it has assembler name
    set.  */
 

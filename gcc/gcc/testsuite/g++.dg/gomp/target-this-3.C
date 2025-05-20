@@ -1,5 +1,7 @@
 // { dg-do compile }
 // { dg-additional-options "-fdump-tree-gimple" }
+// { dg-skip-if "requires hosted libstdc++ for cstring" { ! hostedlib } }
+
 #include <cstdlib>
 #include <cstring>
 extern "C" void abort ();
@@ -100,6 +102,6 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump {#pragma omp target num_teams.* map\(alloc:MEM.* \[len: 0\]\) map\(firstprivate:this \[pointer assign, bias: 0\]\) firstprivate\(n\) map\(tofrom:\*this \[len: [0-9]+\]\) map\(firstprivate:this \[pointer assign, bias: 0\]\) map\(alloc:\*_[0-9]+ \[pointer assign, zero-length array section, bias: 0\]\) map\(attach:this->refptr \[bias: 0\]\) map\(from:mapped \[len: [0-9]+\]\)} "gimple" } } */
+/* { dg-final { scan-tree-dump {#pragma omp target num_teams.* firstprivate\(n\) map\(tofrom:\*this \[len: [0-9]+\]\) map\(firstprivate:this \[pointer assign, bias: 0\]\) map\(from:mapped \[len: [0-9]+\]\) map\(alloc:\*_[0-9+] \[len: 0\]\) map\(alloc:\*_[0-9]+ \[pointer assign, zero-length array section, bias: 0\]\) map\(attach:this->refptr \[bias: 0\]\)} "gimple" } } */
 
-/* { dg-final { scan-tree-dump {#pragma omp target num_teams.* map\(alloc:MEM.* \[len: 0\]\) map\(firstprivate:this \[pointer assign, bias: 0\]\) firstprivate\(n\) map\(tofrom:\*this \[len: [0-9]+\]\) map\(firstprivate:this \[pointer assign, bias: 0\]\) map\(attach_zero_length_array_section:this->ptr \[bias: 0\]\) map\(from:mapped \[len: [0-9]+\]\) map\(alloc:\*_[0-9]+ \[len: 0\]\)} "gimple" } } */
+/* { dg-final { scan-tree-dump {#pragma omp target num_teams.* firstprivate\(n\) map\(tofrom:\*this \[len: [0-9]+\]\) map\(firstprivate:this \[pointer assign, bias: 0\]\) map\(from:mapped \[len: [0-9]+\]\) map\(alloc:\*_[0-9]+ \[len: 0\]\) map\(attach_zero_length_array_section:this->ptr \[bias: 0\]\)} "gimple" } } */

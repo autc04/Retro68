@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -199,6 +199,82 @@ package body Ch2 is
 
    --  Handled by scanner as part of string literal handling (see 2.4)
 
+   ---------------------------------------
+   --  2.6  Interpolated String Literal --
+   ---------------------------------------
+
+   --  INTERPOLATED_STRING_LITERAL ::=
+   --    'f' "{INTERPOLATED_STRING_ELEMENT}" {
+   --        "{INTERPOLATED_STRING_ELEMENT}" }
+
+   --  INTERPOLATED_STRING_ELEMENT ::=
+   --     ESCAPED_CHARACTER | INTERPOLATED_EXPRESSION
+   --   | non_quotation_mark_non_left_brace_GRAPHIC_CHARACTER
+
+   --  ESCAPED_CHARACTER ::= '\GRAPHIC_CHARACTER'
+
+   --  INTERPOLATED_EXPRESSION ::= '{' EXPRESSION '}'
+
+   --  Interpolated string element and escaped character rules are handled by
+   --  scanner as part of string literal handling.
+
+   -----------------------------------
+   -- P_Interpolated_String_Literal --
+   -----------------------------------
+
+   function P_Interpolated_String_Literal return Node_Id is
+      Elements_List : constant List_Id := New_List;
+      Saved_State   : constant Boolean := Inside_Interpolated_String_Literal;
+      String_Node   : Node_Id;
+
+   begin
+      String_Node := New_Node (N_Interpolated_String_Literal, Token_Ptr);
+      Inside_Interpolated_String_Literal := True;
+
+      Scan;   --  past 'f'
+
+      if Token /= Tok_String_Literal then
+         Error_Msg_SC ("string literal expected");
+
+      else
+         Set_Is_Interpolated_String_Literal (Token_Node);
+         Append_To (Elements_List, Token_Node);
+         Scan;  --  past string_literal
+
+         while Token in Tok_Left_Curly_Bracket | Tok_String_Literal loop
+
+            --  Interpolated expression
+
+            if Token = Tok_Left_Curly_Bracket then
+               declare
+                  Saved_In_Expr : constant Boolean :=
+                    Inside_Interpolated_String_Expression;
+
+               begin
+                  Scan; --  past '{'
+                  Inside_Interpolated_String_Expression := True;
+                  Append_To (Elements_List, P_Expression);
+                  Inside_Interpolated_String_Expression := Saved_In_Expr;
+                  T_Right_Curly_Bracket;
+               end;
+            else
+               if Prev_Token /= Tok_Right_Curly_Bracket then
+                  Error_Msg_SC ("unexpected string literal");
+               end if;
+
+               Set_Is_Interpolated_String_Literal (Token_Node);
+               Append_To (Elements_List, Token_Node);
+               Scan; --  past string_literal
+            end if;
+         end loop;
+      end if;
+
+      Inside_Interpolated_String_Literal := Saved_State;
+      Set_Expressions (String_Node, Elements_List);
+
+      return String_Node;
+   end P_Interpolated_String_Literal;
+
    ------------------
    -- 2.7  Comment --
    ------------------
@@ -298,7 +374,7 @@ package body Ch2 is
 
       if SIS_Entry_Active then
          Import_Check_Required :=
-           (Prag_Name = Name_Import) or else (Prag_Name = Name_Interface);
+           Prag_Name = Name_Import or else Prag_Name = Name_Interface;
       else
          Import_Check_Required := False;
       end if;

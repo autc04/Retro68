@@ -11,7 +11,6 @@
 
 #include "sanitizer_chained_origin_depot.h"
 
-#include "sanitizer_persistent_allocator.h"
 #include "sanitizer_stackdepotbase.h"
 
 namespace __sanitizer {
@@ -140,8 +139,12 @@ u32 ChainedOriginDepot::Get(u32 id, u32 *other) {
   return desc.here_id;
 }
 
-void ChainedOriginDepot::LockAll() { depot.LockAll(); }
+void ChainedOriginDepot::LockBeforeFork() { depot.LockBeforeFork(); }
 
-void ChainedOriginDepot::UnlockAll() { depot.UnlockAll(); }
+void ChainedOriginDepot::UnlockAfterFork(bool fork_child) {
+  depot.UnlockAfterFork(fork_child);
+}
+
+void ChainedOriginDepot::TestOnlyUnmap() { depot.TestOnlyUnmap(); }
 
 }  // namespace __sanitizer

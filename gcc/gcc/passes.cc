@@ -1,5 +1,5 @@
 /* Top level of GCC compilers (cc1, cc1plus, etc.)
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -352,18 +352,12 @@ finish_optimization_passes (void)
   gcc::dump_manager *dumps = m_ctxt->get_dumps ();
 
   timevar_push (TV_DUMP);
-  if (profile_arc_flag || flag_test_coverage || flag_branch_probabilities)
+  if (coverage_instrumentation_p () || flag_test_coverage
+      || flag_branch_probabilities)
     {
       dumps->dump_start (pass_profile_1->static_pass_number, NULL);
       end_branch_prob ();
       dumps->dump_finish (pass_profile_1->static_pass_number);
-    }
-
-  if (optimize > 0)
-    {
-      dumps->dump_start (pass_combine_1->static_pass_number, NULL);
-      print_combine_total_stats ();
-      dumps->dump_finish (pass_combine_1->static_pass_number);
     }
 
   /* Do whatever is necessary to finish printing the graphs.  */
@@ -417,13 +411,13 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       /* Don't bother doing anything if the program has errors.  */
       return (!seen_error () && !in_lto_p);
     }
 
-  virtual unsigned int execute (function *)
+  unsigned int execute (function *) final override
     {
       return execute_build_ssa_passes ();
     }
@@ -451,7 +445,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       /* Don't bother doing anything if the program has errors.  */
       return (!seen_error () && !in_lto_p);
@@ -480,7 +474,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       /* Don't bother doing anything if the program has errors.  */
       return (!seen_error () && !in_lto_p);
@@ -531,7 +525,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       return (optimize >= 1
 	      /* Don't bother doing anything if the program has errors.  */
@@ -571,7 +565,10 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return optimize >= 1 && !optimize_debug; }
+  bool gate (function *) final override
+  {
+    return optimize >= 1 && !optimize_debug;
+  }
 
 }; // class pass_all_optimizations
 
@@ -606,7 +603,10 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return optimize >= 1 && optimize_debug; }
+  bool gate (function *) final override
+  {
+    return optimize >= 1 && optimize_debug;
+  }
 
 }; // class pass_all_optimizations_g
 
@@ -641,7 +641,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       /* Early return if there were errors.  We can run afoul of our
 	 consistency checks, and there's not really much point in fixing them.  */
@@ -659,6 +659,10 @@ make_pass_rest_of_compilation (gcc::context *ctxt)
 }
 
 namespace {
+
+/* A container pass (only) for '!targetm.no_register_allocation' targets, for
+   passes to run if reload completed (..., but not run them if it failed, for
+   example for an invalid 'asm').  See also 'pass_late_compilation'.  */
 
 const pass_data pass_data_postreload =
 {
@@ -681,7 +685,12 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return reload_completed; }
+  bool gate (function *) final override
+  {
+    if (reload_completed)
+      gcc_checking_assert (!targetm.no_register_allocation);
+    return reload_completed;
+  }
 
 }; // class pass_postreload
 
@@ -694,6 +703,9 @@ make_pass_postreload (gcc::context *ctxt)
 }
 
 namespace {
+
+/* A container pass like 'pass_postreload', but for passes to run also for
+   'targetm.no_register_allocation' targets.  */
 
 const pass_data pass_data_late_compilation =
 {
@@ -716,7 +728,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
   {
     return reload_completed || targetm.no_register_allocation;
   }
@@ -756,15 +768,15 @@ public:
   {
   }
 
-  virtual bool
-  gate (function *fun)
+  bool
+  gate (function *fun) final override
   {
     return flag_tree_slp_vectorize
 	   && (fun->pending_TODOs & PENDING_TODO_force_next_scalar_cleanup);
   }
 
-  virtual unsigned int
-  execute (function *fun)
+  unsigned int
+  execute (function *fun) final override
   {
     fun->pending_TODOs &= ~PENDING_TODO_force_next_scalar_cleanup;
     return 0;
@@ -1553,7 +1565,7 @@ pass_manager::register_pass (struct register_pass_info *pass_info)
    compile ()
        ipa_passes () 			-> all_small_ipa_passes
 					-> Analysis of all_regular_ipa_passes
-	* possible LTO streaming at copmilation time *
+	* possible LTO streaming at compilation time *
 					-> Execution of all_regular_ipa_passes
 	* possible LTO streaming at link time *
 					-> all_late_ipa_passes
@@ -1573,18 +1585,13 @@ pass_manager::pass_manager (context *ctxt)
 
   /* Zero-initialize pass members.  */
 #define INSERT_PASSES_AFTER(PASS)
-#define PUSH_INSERT_PASSES_WITHIN(PASS)
+#define PUSH_INSERT_PASSES_WITHIN(PASS, NUM)
 #define POP_INSERT_PASSES()
 #define NEXT_PASS(PASS, NUM) PASS ## _ ## NUM = NULL
 #define NEXT_PASS_WITH_ARG(PASS, NUM, ARG) NEXT_PASS (PASS, NUM)
+#define NEXT_PASS_WITH_ARGS(PASS, NUM, ...) NEXT_PASS (PASS, NUM)
 #define TERMINATE_PASS_LIST(PASS)
 #include "pass-instances.def"
-#undef INSERT_PASSES_AFTER
-#undef PUSH_INSERT_PASSES_WITHIN
-#undef POP_INSERT_PASSES
-#undef NEXT_PASS
-#undef NEXT_PASS_WITH_ARG
-#undef TERMINATE_PASS_LIST
 
   /* Initialize the pass_lists array.  */
 #define DEF_PASS_LIST(LIST) pass_lists[PASS_LIST_NO_##LIST] = &LIST;
@@ -1603,9 +1610,9 @@ pass_manager::pass_manager (context *ctxt)
     *p = NULL;					\
   }
 
-#define PUSH_INSERT_PASSES_WITHIN(PASS) \
+#define PUSH_INSERT_PASSES_WITHIN(PASS, NUM) \
   { \
-    opt_pass **p = &(PASS ## _1)->sub;
+    opt_pass **p = &(PASS ## _ ## NUM)->sub;
 
 #define POP_INSERT_PASSES() \
   }
@@ -1629,14 +1636,19 @@ pass_manager::pass_manager (context *ctxt)
       PASS ## _ ## NUM->set_pass_param (0, ARG);	\
     } while (0)
 
-#include "pass-instances.def"
+#define NEXT_PASS_WITH_ARGS(PASS, NUM, ...)		\
+    do {						\
+      NEXT_PASS (PASS, NUM);				\
+      static constexpr bool values[] = { __VA_ARGS__ };	\
+      unsigned i = 0;					\
+      for (bool value : values)				\
+	{						\
+	  PASS ## _ ## NUM->set_pass_param (i, value);	\
+	  i++;						\
+	}						\
+    } while (0)
 
-#undef INSERT_PASSES_AFTER
-#undef PUSH_INSERT_PASSES_WITHIN
-#undef POP_INSERT_PASSES
-#undef NEXT_PASS
-#undef NEXT_PASS_WITH_ARG
-#undef TERMINATE_PASS_LIST
+#include "pass-instances.def"
 
   /* Register the passes with the tree dump code.  */
   register_dump_files (all_lowering_passes);
@@ -1838,6 +1850,13 @@ emergency_dump_function ()
   fnotice (stderr, "dump file: %s\n", dump_file_name);
   fprintf (dump_file, "\n\n\nEMERGENCY DUMP:\n\n");
   execute_function_dump (cfun, current_pass);
+
+  /* Normally the passmanager will close the graphs as a pass could be wanting
+     to print multiple digraphs. But during an emergency dump there can only be
+     one and we must finish the graph manually.  */
+  if ((cfun->curr_properties & PROP_cfg)
+      && (dump_flags & TDF_GRAPH))
+    finish_graph_dump_file (dump_file_name);
 
   if (symtab && current_pass->type == IPA_PASS)
     symtab->dump (dump_file);
@@ -2061,9 +2080,6 @@ execute_function_todo (function *fn, void *data)
 
   if (flags & TODO_remove_unused_locals)
     remove_unused_locals ();
-
-  if (flags & TODO_rebuild_frequencies)
-    rebuild_frequencies ();
 
   if (flags & TODO_rebuild_cgraph_edges)
     cgraph_edge::rebuild_edges ();
@@ -2511,6 +2527,11 @@ should_skip_pass_p (opt_pass *pass)
   if (strstr (pass->name, "build_cgraph_edges") != NULL)
     return false;
 
+  /* We need to run ISEL as that lowers VEC_COND_EXPR but doesn't provide
+     a property.  */
+  if (strstr (pass->name, "isel") != NULL)
+    return false;
+
   /* Don't skip df init; later RTL passes need it.  */
   if (strstr (pass->name, "dfinit") != NULL
       || strstr (pass->name, "dfinish") != NULL)
@@ -2653,6 +2674,15 @@ execute_one_pass (opt_pass *pass)
 
       if (dom_info_available_p (CDI_POST_DOMINATORS))
        free_dominance_info (CDI_POST_DOMINATORS);
+
+      if (cfun->assume_function)
+	{
+	  /* For assume functions, don't release body, keep it around.  */
+	  cfun->curr_properties |= PROP_assumptions_done;
+	  pop_cfun ();
+	  current_pass = NULL;
+	  return true;
+	}
 
       tree fn = cfun->decl;
       pop_cfun ();
@@ -2811,11 +2841,13 @@ ipa_write_summaries_2 (opt_pass *pass, struct lto_out_decl_state *state)
    summaries.  SET is the set of nodes to be written.  */
 
 static void
-ipa_write_summaries_1 (lto_symtab_encoder_t encoder)
+ipa_write_summaries_1 (lto_symtab_encoder_t encoder,
+		       bool output_offload_tables_p)
 {
   pass_manager *passes = g->get_passes ();
   struct lto_out_decl_state *state = lto_new_out_decl_state ();
   state->symtab_node_encoder = encoder;
+  state->output_offload_tables_p = output_offload_tables_p;
 
   lto_output_init_mode_table ();
   lto_push_out_decl_state (state);
@@ -2863,8 +2895,7 @@ ipa_write_summaries (void)
     {
       struct cgraph_node *node = order[i];
 
-      if ((node->definition || node->declare_variant_alt)
-	  && node->need_lto_streaming)
+      if (node->definition && node->need_lto_streaming)
 	{
 	  if (gimple_has_body_p (node->decl))
 	    lto_prepare_function_for_streaming (node);
@@ -2879,7 +2910,8 @@ ipa_write_summaries (void)
     if (vnode->need_lto_streaming)
       lto_set_symtab_encoder_in_partition (encoder, vnode);
 
-  ipa_write_summaries_1 (compute_ltrans_boundary (encoder));
+  ipa_write_summaries_1 (compute_ltrans_boundary (encoder),
+			 flag_generate_offload);
 
   free (order);
   if (streamer_dump_file)
@@ -2934,10 +2966,12 @@ ipa_write_optimization_summaries_1 (opt_pass *pass,
    NULL, write out all summaries of all nodes. */
 
 void
-ipa_write_optimization_summaries (lto_symtab_encoder_t encoder)
+ipa_write_optimization_summaries (lto_symtab_encoder_t encoder,
+				  bool output_offload_tables_p)
 {
   struct lto_out_decl_state *state = lto_new_out_decl_state ();
   state->symtab_node_encoder = encoder;
+  state->output_offload_tables_p = output_offload_tables_p;
 
   lto_output_init_mode_table ();
   lto_push_out_decl_state (state);

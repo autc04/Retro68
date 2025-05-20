@@ -1,5 +1,5 @@
 /* Dwarf2 Call Frame Information helper routines.
-   Copyright (C) 1992-2022 Free Software Foundation, Inc.
+   Copyright (C) 1992-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -57,6 +57,15 @@ along with GCC; see the file COPYING3.  If not see
 #define DEFAULT_INCOMING_FRAME_SP_OFFSET INCOMING_FRAME_SP_OFFSET
 #endif
 
+
+/* Signing method used for return address authentication.
+   (AArch64 extension)  */
+typedef enum
+{
+  ra_no_signing = 0x0,
+  ra_signing_sp = 0x1,
+} ra_signing_method_t;
+
 /* A collected description of an entire row of the abstract CFI table.  */
 struct GTY(()) dw_cfi_row
 {
@@ -69,11 +78,13 @@ struct GTY(()) dw_cfi_row
   /* The expressions for any register column that is saved.  */
   cfi_vec reg_save;
 
-  /* True if the register window is saved.  */
+  /* SPARC extension for DW_CFA_GNU_window_save.
+     True if the register window is saved.  */
   bool window_save;
 
-  /* True if the return address is in a mangled state.  */
-  bool ra_mangled;
+  /* AArch64 extension for DW_CFA_AARCH64_negate_ra_state.
+     Enum which stores the return address state.  */
+  ra_signing_method_t ra_state;
 };
 
 /* The caller's ORIG_REG is saved in SAVED_IN_REG.  */
@@ -112,8 +123,8 @@ struct dw_trace_info
      while scanning insns.  However, the args_size value is irrelevant at
      any point except can_throw_internal_p insns.  Therefore the "delay"
      sizes the values that must actually be emitted for this trace.  */
-  poly_int64_pod beg_true_args_size, end_true_args_size;
-  poly_int64_pod beg_delay_args_size, end_delay_args_size;
+  poly_int64 beg_true_args_size, end_true_args_size;
+  poly_int64 beg_delay_args_size, end_delay_args_size;
 
   /* The first EH insn in the trace, where beg_delay_args_size must be set.  */
   rtx_insn *eh_head;
@@ -219,7 +230,7 @@ static dw_cfa_location *cur_cfa;
 struct queued_reg_save {
   rtx reg;
   rtx saved_reg;
-  poly_int64_pod cfa_offset;
+  poly_int64 cfa_offset;
 };
 
 
@@ -282,7 +293,7 @@ void init_one_dwarf_reg_size (int regno, machine_mode regmode,
   const unsigned int dnum = DWARF_FRAME_REGNUM (regno);
   const unsigned int rnum = DWARF2_FRAME_REG_OUT (dnum, 1);
   const unsigned int dcol = DWARF_REG_TO_UNWIND_COLUMN (rnum);
-  
+
   poly_int64 slotoffset = dcol * GET_MODE_SIZE (slotmode);
   poly_int64 regsize = GET_MODE_SIZE (regmode);
 
@@ -801,8 +812,6 @@ cfi_oprnd_equal_p (enum dw_cfi_oprnd_type t, dw_cfi_oprnd *a, dw_cfi_oprnd *b)
 static bool
 cfi_equal_p (dw_cfi_ref a, dw_cfi_ref b)
 {
-  enum dwarf_call_frame_info opc;
-
   /* Make things easier for our callers, including missing operands.  */
   if (a == b)
     return true;
@@ -810,7 +819,7 @@ cfi_equal_p (dw_cfi_ref a, dw_cfi_ref b)
     return false;
 
   /* Obviously, the opcodes must match.  */
-  opc = a->dw_cfi_opc;
+  dwarf_call_frame_info opc = a->dw_cfi_opc;
   if (opc != b->dw_cfi_opc)
     return false;
 
@@ -857,7 +866,7 @@ cfi_row_equal_p (dw_cfi_row *a, dw_cfi_row *b)
   if (a->window_save != b->window_save)
     return false;
 
-  if (a->ra_mangled != b->ra_mangled)
+  if (a->ra_state != b->ra_state)
     return false;
 
   return true;
@@ -1496,10 +1505,12 @@ dwarf2out_frame_debug_cfa_val_expression (rtx set)
   update_row_reg_save (cur_row, dwf_regno (dest), cfi);
 }
 
-/* A subroutine of dwarf2out_frame_debug, process a REG_CFA_RESTORE note.  */
+/* A subroutine of dwarf2out_frame_debug, process a REG_CFA_RESTORE
+   note. When called with EMIT_CFI set to false emitting a CFI
+   statement is suppressed.  */
 
 static void
-dwarf2out_frame_debug_cfa_restore (rtx reg)
+dwarf2out_frame_debug_cfa_restore (rtx reg, bool emit_cfi)
 {
   gcc_assert (REG_P (reg));
 
@@ -1507,7 +1518,8 @@ dwarf2out_frame_debug_cfa_restore (rtx reg)
   if (!span)
     {
       unsigned int regno = dwf_regno (reg);
-      add_cfi_restore (regno);
+      if (emit_cfi)
+	add_cfi_restore (regno);
       update_row_reg_save (cur_row, regno, NULL);
     }
   else
@@ -1522,7 +1534,8 @@ dwarf2out_frame_debug_cfa_restore (rtx reg)
 	  reg = XVECEXP (span, 0, par_index);
 	  gcc_assert (REG_P (reg));
 	  unsigned int regno = dwf_regno (reg);
-	  add_cfi_restore (regno);
+	  if (emit_cfi)
+	    add_cfi_restore (regno);
 	  update_row_reg_save (cur_row, regno, NULL);
 	}
     }
@@ -1543,19 +1556,18 @@ dwarf2out_frame_debug_cfa_window_save (void)
   cur_row->window_save = true;
 }
 
-/* A subroutine of dwarf2out_frame_debug, process a REG_CFA_TOGGLE_RA_MANGLE.
-   Note: DW_CFA_GNU_window_save dwarf opcode is reused for toggling RA mangle
-   state, this is a target specific operation on AArch64 and can only be used
-   on other targets if they don't use the window save operation otherwise.  */
+/* A subroutine of dwarf2out_frame_debug, process REG_CFA_NEGATE_RA_STATE.  */
 
 static void
-dwarf2out_frame_debug_cfa_toggle_ra_mangle (void)
+dwarf2out_frame_debug_cfa_negate_ra_state (void)
 {
   dw_cfi_ref cfi = new_cfi ();
-
-  cfi->dw_cfi_opc = DW_CFA_GNU_window_save;
+  cfi->dw_cfi_opc = DW_CFA_AARCH64_negate_ra_state;
+  cur_row->ra_state
+    = (cur_row->ra_state == ra_no_signing
+      ? ra_signing_sp
+      : ra_no_signing);
   add_cfi (cfi);
-  cur_row->ra_mangled = !cur_row->ra_mangled;
 }
 
 /* Record call frame debugging information for an expression EXPR,
@@ -2309,6 +2321,7 @@ dwarf2out_frame_debug (rtx_insn *insn)
 	break;
 
       case REG_CFA_RESTORE:
+      case REG_CFA_NO_RESTORE:
 	n = XEXP (note, 0);
 	if (n == NULL)
 	  {
@@ -2317,7 +2330,7 @@ dwarf2out_frame_debug (rtx_insn *insn)
 	      n = XVECEXP (n, 0, 0);
 	    n = XEXP (n, 0);
 	  }
-	dwarf2out_frame_debug_cfa_restore (n);
+	dwarf2out_frame_debug_cfa_restore (n, REG_NOTE_KIND (note) == REG_CFA_RESTORE);
 	handled_one = true;
 	break;
 
@@ -2336,8 +2349,8 @@ dwarf2out_frame_debug (rtx_insn *insn)
 	handled_one = true;
 	break;
 
-      case REG_CFA_TOGGLE_RA_MANGLE:
-	dwarf2out_frame_debug_cfa_toggle_ra_mangle ();
+      case REG_CFA_NEGATE_RA_STATE:
+	dwarf2out_frame_debug_cfa_negate_ra_state ();
 	handled_one = true;
 	break;
 
@@ -2411,18 +2424,17 @@ change_cfi_row (dw_cfi_row *old_row, dw_cfi_row *new_row)
     {
       dw_cfi_ref cfi = new_cfi ();
 
-      gcc_assert (!old_row->ra_mangled && !new_row->ra_mangled);
+      gcc_assert (!old_row->ra_state && !new_row->ra_state);
       cfi->dw_cfi_opc = DW_CFA_GNU_window_save;
       add_cfi (cfi);
     }
 
-  if (old_row->ra_mangled != new_row->ra_mangled)
+  if (old_row->ra_state != new_row->ra_state)
     {
       dw_cfi_ref cfi = new_cfi ();
 
       gcc_assert (!old_row->window_save && !new_row->window_save);
-      /* DW_CFA_GNU_window_save is reused for toggling RA mangle state.  */
-      cfi->dw_cfi_opc = DW_CFA_GNU_window_save;
+      cfi->dw_cfi_opc = DW_CFA_AARCH64_negate_ra_state;
       add_cfi (cfi);
     }
 }
@@ -2615,7 +2627,7 @@ maybe_record_trace_start_abnormal (rtx_insn *start, rtx_insn *origin)
 
       cur_row->cfa.offset += delta;
     }
-  
+
   maybe_record_trace_start (start, origin);
 
   cur_trace->end_true_args_size = save_args_size;
@@ -3011,7 +3023,7 @@ connect_traces (void)
 		 start of the trace, we can wind up increasing the
 		 size of the unwind info due to extra advance opcodes.
 		 Instead, put the remember immediately before the next
-		 state change.  We know there must be one, because the 
+		 state change.  We know there must be one, because the
 		 state at the beginning and head of the trace differ.  */
 	      add_cfi_insn = before_next_cfi_note (prev_ti->head);
 	      cfi = new_cfi ();
@@ -3286,7 +3298,7 @@ create_cie_data (void)
    state at each location within the function.  These notes will be
    emitted during pass_final.  */
 
-static unsigned int
+static void
 execute_dwarf2_frame (void)
 {
   /* Different HARD_FRAME_POINTER_REGNUM might coexist in the same file.  */
@@ -3317,8 +3329,6 @@ execute_dwarf2_frame (void)
 
   delete trace_index;
   trace_index = NULL;
-
-  return 0;
 }
 
 /* Convert a DWARF call frame info. operation to its string name */
@@ -3513,9 +3523,6 @@ output_cfi (dw_cfi_ref cfi, dw_fde_ref fde, int for_eh)
 	  dw2_asm_output_data_sleb128 (off, NULL);
 	  break;
 
-	case DW_CFA_GNU_window_save:
-	  break;
-
 	case DW_CFA_def_cfa_expression:
 	case DW_CFA_expression:
 	case DW_CFA_val_expression:
@@ -3628,10 +3635,6 @@ output_cfi_directive (FILE *f, dw_cfi_ref cfi)
 	}
       break;
 
-    case DW_CFA_GNU_window_save:
-      fprintf (f, "\t.cfi_window_save\n");
-      break;
-
     case DW_CFA_def_cfa_expression:
     case DW_CFA_expression:
     case DW_CFA_val_expression:
@@ -3648,7 +3651,8 @@ output_cfi_directive (FILE *f, dw_cfi_ref cfi)
       break;
 
     default:
-      gcc_unreachable ();
+      if (!targetm.output_cfi_directive (f, cfi))
+	gcc_unreachable ();
     }
 }
 
@@ -3788,8 +3792,12 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *);
-  virtual unsigned int execute (function *) { return execute_dwarf2_frame (); }
+  bool gate (function *) final override;
+  unsigned int execute (function *) final override
+  {
+    execute_dwarf2_frame ();
+    return 0;
+  }
 
 }; // class pass_dwarf2_frame
 
@@ -3813,6 +3821,15 @@ rtl_opt_pass *
 make_pass_dwarf2_frame (gcc::context *ctxt)
 {
   return new pass_dwarf2_frame (ctxt);
+}
+
+void dwarf2cfi_cc_finalize ()
+{
+  add_cfi_insn = NULL;
+  add_cfi_vec = NULL;
+  cur_trace = NULL;
+  cur_row = NULL;
+  cur_cfa = NULL;
 }
 
 #include "gt-dwarf2cfi.h"

@@ -1,5 +1,6 @@
 // PR c++/89785
 // { dg-do compile { target c++14 } }
+// Explicit { dg-require-effective-target exceptions_enabled } to avoid verify compiler messages FAILs for '-fno-exceptions'.
 
 constexpr int
 foo (int x)
@@ -11,7 +12,7 @@ foo (int x)
     case 2:
       break;
     }
-  throw 42;	// { dg-error "is not a constant expression" }
+  throw 42;	// { dg-error "is not a constant expression" "" { target c++20_down } }
   return 0;
 }
 
@@ -29,7 +30,7 @@ bar (int x)
 	    continue;
 	  break;
 	}
-      throw -42;	// { dg-error "is not a constant expression" }
+      throw -42;	// { dg-error "is not a constant expression" "" { target c++20_down } }
     }
   while (0);
   return x;

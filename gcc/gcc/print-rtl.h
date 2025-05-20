@@ -1,5 +1,5 @@
 /* Print RTL for GCC.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -36,7 +36,7 @@ class rtx_writer
 
   void print_rtx (const_rtx in_rtx);
   void print_rtl (const_rtx rtx_first);
-  int print_rtl_single_with_indent (const_rtx x, int ind);
+  void print_rtl_single_with_indent (const_rtx x, int ind);
 
   void finish_directive ();
 
@@ -45,6 +45,7 @@ class rtx_writer
   void print_rtx_operand_code_e (const_rtx in_rtx, int idx);
   void print_rtx_operand_codes_E_and_V (const_rtx in_rtx, int idx);
   void print_rtx_operand_code_i (const_rtx in_rtx, int idx);
+  void print_rtx_operand_code_L (const_rtx in_rtx, int idx);
   void print_rtx_operand_code_r (const_rtx in_rtx);
   void print_rtx_operand_code_u (const_rtx in_rtx, int idx);
   void print_rtx_operand (const_rtx in_rtx, int idx);
@@ -52,8 +53,8 @@ class rtx_writer
 
  private:
   FILE *m_outfile;
-  int m_sawclose;
   int m_indent;
+  bool m_sawclose;
   bool m_in_call_function_usage;
 
   /* True means use simplified format without flags, modes, etc.  */

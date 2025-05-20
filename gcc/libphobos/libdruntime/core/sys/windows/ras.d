@@ -8,7 +8,6 @@
  */
 module core.sys.windows.ras;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "rasapi32");
@@ -224,7 +223,7 @@ enum RASPROJECTION {
 }
 alias RASPROJECTION* LPRASPROJECTION;
 
-alias TypeDef!(HANDLE) HRASCONN;
+alias HANDLE HRASCONN;
 alias HRASCONN* LPHRASCONN;
 
 struct RASCONNW {

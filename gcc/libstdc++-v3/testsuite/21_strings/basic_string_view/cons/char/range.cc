@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,13 +15,15 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++20" }
 // { dg-do run { target c++20 } }
 
 #include <string_view>
-#include <vector>
 #include <testsuite_hooks.h>
 #include <testsuite_iterators.h>
+
+#if __STDC_HOSTED__
+# include <vector>
+#endif // HOSTED
 
 constexpr char str[] = "abcdefg";
 constexpr std::basic_string_view<char> s(std::begin(str), std::cend(str) - 1);
@@ -38,11 +40,13 @@ static_assert( ! noexcept(std::basic_string_view<char>(I{}, I{})) );
 void
 test01()
 {
+#if __STDC_HOSTED__
   std::vector<char> v{'a', 'b', 'c'};
   std::basic_string_view<char> s(v.begin(), v.end());
   VERIFY( s.data() == v.data() );
   std::basic_string_view ctad(v.begin(), v.end());
   VERIFY( ctad == s );
+#endif // HOSTED
 }
 
 int

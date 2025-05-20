@@ -1,5 +1,5 @@
 /* gospec.cc -- Specific flags and argument handling of the gcc Go front end.
-   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+   Copyright (C) 2009-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -125,7 +125,7 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
 #endif
 
   /* The first input file with an extension of .go.  */
-  const char *first_go_file = NULL;  
+  const char *first_go_file = NULL;
 
   /* Whether we saw any -g option.  */
   bool saw_opt_g = false;
@@ -215,11 +215,7 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
 	case OPT_gdwarf:
 	case OPT_gdwarf_:
 	case OPT_ggdb:
-	case OPT_gstabs:
-	case OPT_gstabs_:
 	case OPT_gvms:
-	case OPT_gxcoff:
-	case OPT_gxcoff_:
 	  saw_opt_g = true;
 	  break;
 
@@ -447,8 +443,11 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
      using the GNU linker, the Solaris linker needs an option to not
      warn about this.  Everything works without this option, but you
      get unsightly warnings at link time.  */
-  generate_option (OPT_Wl_, "-t", 1, CL_DRIVER, &new_decoded_options[j]);
-  j++;
+  if (library > 0)
+    {
+      generate_option (OPT_Wl_, "-t", 1, CL_DRIVER, &new_decoded_options[j]);
+      j++;
+    }
 #endif
 
   *in_decoded_options_count = j;

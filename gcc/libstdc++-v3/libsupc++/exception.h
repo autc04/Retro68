@@ -1,6 +1,6 @@
 // Exception Handling support header for -*- C++ -*-
 
-// Copyright (C) 2016-2022 Free Software Foundation, Inc.
+// Copyright (C) 2016-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -31,15 +31,15 @@
 #ifndef __EXCEPTION_H
 #define __EXCEPTION_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
-
-#pragma GCC visibility push(default)
+#endif
 
 #include <bits/c++config.h>
 
 extern "C++" {
 
-namespace std
+namespace std _GLIBCXX_VISIBILITY(default)
 {
   /**
    * @defgroup exceptions Exceptions
@@ -81,7 +81,5 @@ namespace std
 } // namespace std
 
 }
-
-#pragma GCC visibility pop
 
 #endif

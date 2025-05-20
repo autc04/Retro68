@@ -1,5 +1,5 @@
 /* Hierarchical log messages for the analyzer.
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2025 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -22,6 +22,8 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifndef ANALYZER_LOGGING_H
 #define ANALYZER_LOGGING_H
+
+#include "diagnostic-core.h"
 
 namespace ana {
 
@@ -55,7 +57,7 @@ class logger
   void inc_indent () { m_indent_level++; }
   void dec_indent () { m_indent_level--; }
 
-  pretty_printer *get_printer () const { return m_pp; }
+  pretty_printer *get_printer () const { return m_pp.get (); }
   FILE *get_file () const { return m_f_out; }
 
 private:
@@ -65,7 +67,7 @@ private:
   FILE *m_f_out;
   int m_indent_level;
   bool m_log_refcount_changes;
-  pretty_printer *m_pp;
+  std::unique_ptr<pretty_printer> m_pp;
 };
 
 /* The class log_scope is an RAII-style class intended to make

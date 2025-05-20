@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2022 Free Software Foundation, Inc.
+// Copyright (C) 2015-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -111,9 +111,12 @@ test03()
   fs::path foo = dir/"foo", bar = dir/"bar";
   fs::create_directory(foo);
   fs::create_directory(bar);
+#ifdef NO_SYMLINKS
 #if defined(__MINGW32__) || defined(__MINGW64__)
-  // No symlink support
   const fs::path baz = dir/"foo\\\\..\\bar///";
+#else
+  const fs::path baz = dir/"foo//../bar///";
+#endif
 #else
   fs::create_symlink("../bar", foo/"baz");
   const fs::path baz = dir/"foo//./baz///";

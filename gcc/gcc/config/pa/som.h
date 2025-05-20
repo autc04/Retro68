@@ -1,5 +1,5 @@
 /* Definitions for SOM assembler support.
-   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+   Copyright (C) 1999-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,26 +21,11 @@ along with GCC; see the file COPYING3.  If not see
 #undef TARGET_SOM
 #define TARGET_SOM 1
 
-/* With SOM we can only do STABS.  */
-#undef PREFERRED_DEBUGGING_TYPE
-#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
-
-/* We do not use BINCL stabs in SOM.
-   ??? If it does not hurt, we probably should to avoid useless divergence
-   from other embedded stabs implementations.  */
-#undef DBX_USE_BINCL
-
-#define DBX_LINES_FUNCTION_RELATIVE 1
-
-/* gdb needs a null N_SO at the end of each file for scattered loading.  */
-
-#define DBX_OUTPUT_NULL_N_SO_AT_MAIN_SOURCE_FILE_END
-
 /* HPUX has a program 'chatr' to list the dependencies of dynamically
    linked executables and shared libraries.  */
 #define LDD_SUFFIX "chatr"
 /* Look for lines like "dynamic   /usr/lib/X11R5/libX11.sl"
-   or "static    /usr/lib/X11R5/libX11.sl". 
+   or "static    /usr/lib/X11R5/libX11.sl".
 
    HPUX 10.20 also has lines like "static branch prediction ..."
    so we filter that out explicitly.
@@ -302,7 +287,7 @@ do {						\
    initialized variables and functions.  */
 #define MAKE_DECL_ONE_ONLY(DECL) \
   do {									\
-    if (TREE_CODE (DECL) == VAR_DECL					\
+    if (VAR_P (DECL)					\
         && (DECL_INITIAL (DECL) == 0					\
             || DECL_INITIAL (DECL) == error_mark_node))			\
       DECL_COMMON (DECL) = 1;						\
@@ -372,7 +357,7 @@ do {						\
 #define GTHREAD_USE_WEAK 0
 
 /* Shared library suffix.  Collect2 strips the version string after
-   this suffix when generating constructor/destructor names.  */ 
+   this suffix when generating constructor/destructor names.  */
 #define SHLIB_SUFFIX ".sl"
 
 /* We don't have named sections.  */

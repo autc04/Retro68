@@ -1,5 +1,5 @@
 /* Schedule GIMPLE vector statements.
-   Copyright (C) 2020-2022 Free Software Foundation, Inc.
+   Copyright (C) 2020-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -42,17 +42,26 @@ along with GCC; see the file COPYING3.  If not see
 
 /* Expand all ARRAY_REF(VIEW_CONVERT_EXPR) gimple assignments into calls to
    internal function based on vector type of selected expansion.
-   i.e.:
+
+   For vec_set:
+
      VIEW_CONVERT_EXPR<int[4]>(u)[_1] = i_4(D);
    =>
      _7 = u;
      _8 = .VEC_SET (_7, i_4(D), _1);
-     u = _8;  */
+     u = _8;
+
+   For vec_extract:
+
+      _3 = VIEW_CONVERT_EXPR<intD.1[4]>(vD.2208)[idx_2(D)];
+   =>
+      _4 = vD.2208;
+      _3 = .VEC_EXTRACT (_4, idx_2(D));  */
 
 static bool
-gimple_expand_vec_set_expr (struct function *fun, gimple_stmt_iterator *gsi)
+gimple_expand_vec_set_extract_expr (struct function *fun,
+				    gimple_stmt_iterator *gsi)
 {
-  enum tree_code code;
   gcall *new_stmt = NULL;
   gassign *ass_stmt = NULL;
   bool cfg_changed = false;
@@ -62,49 +71,85 @@ gimple_expand_vec_set_expr (struct function *fun, gimple_stmt_iterator *gsi)
   if (!stmt)
     return false;
 
+  bool is_extract = false;
+
   tree lhs = gimple_assign_lhs (stmt);
-  code = TREE_CODE (lhs);
-  if (code != ARRAY_REF)
+  tree rhs = gimple_assign_rhs1 (stmt);
+  tree val, ref;
+  if (TREE_CODE (lhs) == ARRAY_REF)
+    {
+      /* Assume it is a vec_set.  */
+      val = rhs;
+      ref = lhs;
+    }
+  else if (TREE_CODE (rhs) == ARRAY_REF)
+    {
+      /* vec_extract.  */
+      is_extract = true;
+      val = lhs;
+      ref = rhs;
+    }
+  else
     return false;
 
-  tree val = gimple_assign_rhs1 (stmt);
-  tree op0 = TREE_OPERAND (lhs, 0);
+  tree op0 = TREE_OPERAND (ref, 0);
   if (TREE_CODE (op0) == VIEW_CONVERT_EXPR && DECL_P (TREE_OPERAND (op0, 0))
       && VECTOR_TYPE_P (TREE_TYPE (TREE_OPERAND (op0, 0)))
-      && TYPE_MODE (TREE_TYPE (lhs))
+      && TYPE_MODE (TREE_TYPE (ref))
 	   == TYPE_MODE (TREE_TYPE (TREE_TYPE (TREE_OPERAND (op0, 0)))))
     {
-      tree pos = TREE_OPERAND (lhs, 1);
+      tree pos = TREE_OPERAND (ref, 1);
+
       tree view_op0 = TREE_OPERAND (op0, 0);
       machine_mode outermode = TYPE_MODE (TREE_TYPE (view_op0));
-      if (auto_var_in_fn_p (view_op0, fun->decl)
-	  && !TREE_ADDRESSABLE (view_op0) && can_vec_set_var_idx_p (outermode))
+      machine_mode extract_mode = TYPE_MODE (TREE_TYPE (ref));
+
+      if ((auto_var_in_fn_p (view_op0, fun->decl)
+	   || (VAR_P (view_op0) && DECL_HARD_REGISTER (view_op0)))
+	  && !TREE_ADDRESSABLE (view_op0)
+	  && ((!is_extract && can_vec_set_var_idx_p (outermode))
+	      || (is_extract
+		  && can_vec_extract_var_idx_p (outermode, extract_mode))))
 	{
 	  location_t loc = gimple_location (stmt);
 	  tree var_src = make_ssa_name (TREE_TYPE (view_op0));
-	  tree var_dst = make_ssa_name (TREE_TYPE (view_op0));
 
 	  ass_stmt = gimple_build_assign (var_src, view_op0);
 	  gimple_set_vuse (ass_stmt, gimple_vuse (stmt));
 	  gimple_set_location (ass_stmt, loc);
 	  gsi_insert_before (gsi, ass_stmt, GSI_SAME_STMT);
 
-	  new_stmt
-	    = gimple_build_call_internal (IFN_VEC_SET, 3, var_src, val, pos);
-	  gimple_call_set_lhs (new_stmt, var_dst);
-	  gimple_set_location (new_stmt, loc);
-	  gsi_insert_before (gsi, new_stmt, GSI_SAME_STMT);
+	  if (!is_extract)
+	    {
+	      tree var_dst = make_ssa_name (TREE_TYPE (view_op0));
 
-	  ass_stmt = gimple_build_assign (view_op0, var_dst);
-	  gimple_set_location (ass_stmt, loc);
-	  gsi_insert_before (gsi, ass_stmt, GSI_SAME_STMT);
+	      new_stmt = gimple_build_call_internal (IFN_VEC_SET, 3, var_src,
+						     val, pos);
 
-	  basic_block bb = gimple_bb (stmt);
-	  gimple_move_vops (ass_stmt, stmt);
-	  if (gsi_remove (gsi, true)
-	      && gimple_purge_dead_eh_edges (bb))
-	    cfg_changed = true;
-	  *gsi = gsi_for_stmt (ass_stmt);
+	      gimple_call_set_lhs (new_stmt, var_dst);
+	      gimple_set_location (new_stmt, loc);
+	      gsi_insert_before (gsi, new_stmt, GSI_SAME_STMT);
+
+	      ass_stmt = gimple_build_assign (view_op0, var_dst);
+	      gimple_set_location (ass_stmt, loc);
+	      gimple_move_vops (ass_stmt, stmt);
+	      gsi_insert_before (gsi, ass_stmt, GSI_SAME_STMT);
+
+	      basic_block bb = gimple_bb (stmt);
+	      if (gsi_remove (gsi, true)
+		  && gimple_purge_dead_eh_edges (bb))
+		cfg_changed = true;
+	      *gsi = gsi_for_stmt (ass_stmt);
+	    }
+	  else
+	    {
+	      new_stmt
+		= gimple_build_call_internal (IFN_VEC_EXTRACT, 2, var_src, pos);
+	      gimple_call_set_lhs (new_stmt, lhs);
+
+	      gsi_replace (gsi, new_stmt, true);
+	      cfg_changed = true;
+	    }
 	}
     }
 
@@ -115,16 +160,11 @@ gimple_expand_vec_set_expr (struct function *fun, gimple_stmt_iterator *gsi)
    function based on type of selected expansion.  */
 
 static gimple *
-gimple_expand_vec_cond_expr (struct function *fun, gimple_stmt_iterator *gsi,
-			     hash_map<tree, unsigned int> *vec_cond_ssa_name_uses)
+gimple_expand_vec_cond_expr (gimple_stmt_iterator *gsi)
 {
-  tree lhs, op0a = NULL_TREE, op0b = NULL_TREE;
+  tree lhs, op0a = NULL_TREE;
   enum tree_code code;
   enum tree_code tcode;
-  machine_mode cmp_op_mode;
-  bool unsignedp;
-  enum insn_code icode;
-  imm_use_iterator imm_iter;
 
   /* Only consider code == GIMPLE_ASSIGN.  */
   gassign *stmt = dyn_cast<gassign *> (gsi_stmt (*gsi));
@@ -164,173 +204,151 @@ gimple_expand_vec_cond_expr (struct function *fun, gimple_stmt_iterator *gsi,
   gcc_assert (!COMPARISON_CLASS_P (op0));
   if (TREE_CODE (op0) == SSA_NAME)
     {
-      unsigned int used_vec_cond_exprs = 0;
-      unsigned int *slot = vec_cond_ssa_name_uses->get (op0);
-      if (slot)
-	used_vec_cond_exprs = *slot;
-      else
-	{
-	  gimple *use_stmt;
-	  FOR_EACH_IMM_USE_STMT (use_stmt, imm_iter, op0)
-	    {
-	      gassign *assign = dyn_cast<gassign *> (use_stmt);
-	      if (assign != NULL
-		  && gimple_assign_rhs_code (assign) == VEC_COND_EXPR
-		  && gimple_assign_rhs1 (assign) == op0)
-		used_vec_cond_exprs++;
-	    }
-	  vec_cond_ssa_name_uses->put (op0, used_vec_cond_exprs);
-	}
-
       gassign *def_stmt = dyn_cast<gassign *> (SSA_NAME_DEF_STMT (op0));
       if (def_stmt)
 	{
 	  tcode = gimple_assign_rhs_code (def_stmt);
 	  op0a = gimple_assign_rhs1 (def_stmt);
-	  op0b = gimple_assign_rhs2 (def_stmt);
 
 	  tree op0_type = TREE_TYPE (op0);
 	  tree op0a_type = TREE_TYPE (op0a);
 	  if (TREE_CODE_CLASS (tcode) == tcc_comparison)
 	    can_compute_op0 = expand_vec_cmp_expr_p (op0a_type, op0_type,
 						     tcode);
+	  gcc_assert (can_compute_op0);
 
-	  /* Try to fold x CMP y ? -1 : 0 to x CMP y.  */
 	  if (can_compute_op0
-	      && integer_minus_onep (op1)
-	      && integer_zerop (op2)
 	      && TYPE_MODE (TREE_TYPE (lhs)) == TYPE_MODE (TREE_TYPE (op0)))
 	    {
-	      tree conv_op = build1 (VIEW_CONVERT_EXPR, TREE_TYPE (lhs), op0);
-	      gassign *new_stmt = gimple_build_assign (lhs, conv_op);
-	      gsi_replace (gsi, new_stmt, true);
-	      return new_stmt;
+	      /* Assuming c = x CMP y.  */
+	      bool op1_minus_onep = integer_minus_onep (op1);
+	      bool op2_zerop = integer_zerop (op2);
+	      tree vtype = TREE_TYPE (lhs);
+	      machine_mode vmode = TYPE_MODE (vtype);
+	      /* Try to fold r = c ? -1 : 0 to r = c.  */
+	      if (op1_minus_onep && op2_zerop)
+		{
+		  tree conv_op = build1 (VIEW_CONVERT_EXPR, vtype, op0);
+		  return gimple_build_assign (lhs, conv_op);
+		}
+	      /* Try to fold r = c ? -1 : z to r = c | z, or
+		 r = c ? c : z.  */
+	      if (op1_minus_onep)
+		{
+		  tree conv_op = build1 (VIEW_CONVERT_EXPR, vtype, op0);
+		  tree new_op1 = make_ssa_name (vtype);
+		  gassign *new_stmt = gimple_build_assign (new_op1, conv_op);
+		  gsi_insert_seq_before (gsi, new_stmt, GSI_SAME_STMT);
+		  if (optab_handler (ior_optab, vmode) != CODE_FOR_nothing)
+		    /* r = c | z */
+		    return gimple_build_assign (lhs, BIT_IOR_EXPR, new_op1,
+						op2);
+		  /* r = c ? c : z */
+		  op1 = new_op1;
+		}
+	      /* Try to fold r = c ? z : 0 to r = c & z, or
+		 r = c ? z : c.  */
+	      else if (op2_zerop)
+		{
+		  tree conv_op = build1 (VIEW_CONVERT_EXPR, vtype, op0);
+		  tree new_op2 = make_ssa_name (vtype);
+		  gassign *new_stmt = gimple_build_assign (new_op2, conv_op);
+		  gsi_insert_seq_before (gsi, new_stmt, GSI_SAME_STMT);
+		  if (optab_handler (and_optab, vmode) != CODE_FOR_nothing)
+		    /* r = c | z */
+		    return gimple_build_assign (lhs, BIT_AND_EXPR, new_op2,
+						op1);
+		  /* r = c ? z : c */
+		  op2 = new_op2;
+		}
+	      bool op1_zerop = integer_zerop (op1);
+	      bool op2_minus_onep = integer_minus_onep (op2);
+	      /* Try to fold r = c ? 0 : z to r = .BIT_ANDN (z, c).  */
+	      if (op1_zerop
+		  && (direct_internal_fn_supported_p (IFN_BIT_ANDN, vtype,
+						      OPTIMIZE_FOR_BOTH)))
+		{
+		  tree conv_op = build1 (VIEW_CONVERT_EXPR, vtype, op0);
+		  tree new_op = make_ssa_name (vtype);
+		  gassign *new_stmt = gimple_build_assign (new_op, conv_op);
+		  gsi_insert_seq_before (gsi, new_stmt, GSI_SAME_STMT);
+		  return gimple_build_call_internal (IFN_BIT_ANDN, 2, op2,
+						     new_op);
+		}
+	      /* Try to fold r = c ? z : -1 to r = .BIT_IORN (z, c).  */
+	      else if (op2_minus_onep
+		       && (direct_internal_fn_supported_p (IFN_BIT_IORN, vtype,
+							   OPTIMIZE_FOR_BOTH)))
+		{
+		  tree conv_op = build1 (VIEW_CONVERT_EXPR, vtype, op0);
+		  tree new_op = make_ssa_name (vtype);
+		  gassign *new_stmt = gimple_build_assign (new_op, conv_op);
+		  gsi_insert_seq_before (gsi, new_stmt, GSI_SAME_STMT);
+		  return gimple_build_call_internal (IFN_BIT_IORN, 2, op1,
+						     new_op);
+		}
 	    }
-
-	  /* When the compare has EH we do not want to forward it when
-	     it has multiple uses and in general because of the complication
-	     with EH redirection.  */
-	  if (stmt_can_throw_internal (fun, def_stmt))
-	    tcode = TREE_CODE (op0);
-
-	  /* If we can compute op0 and have multiple uses, keep the SSA
-	     name and use vcond_mask.  */
-	  else if (can_compute_op0
-		   && used_vec_cond_exprs >= 2
-		   && (get_vcond_mask_icode (mode, TYPE_MODE (op0_type))
-		       != CODE_FOR_nothing))
-	    tcode = TREE_CODE (op0);
-	}
-      else
-	tcode = TREE_CODE (op0);
-    }
-  else
-    tcode = TREE_CODE (op0);
-
-  if (TREE_CODE_CLASS (tcode) != tcc_comparison)
-    {
-      gcc_assert (VECTOR_BOOLEAN_TYPE_P (TREE_TYPE (op0)));
-      if (get_vcond_mask_icode (mode, TYPE_MODE (TREE_TYPE (op0)))
-	  != CODE_FOR_nothing)
-	return gimple_build_call_internal (IFN_VCOND_MASK, 3, op0, op1, op2);
-      /* Fake op0 < 0.  */
-      else
-	{
-	  gcc_assert (GET_MODE_CLASS (TYPE_MODE (TREE_TYPE (op0)))
-		      == MODE_VECTOR_INT);
-	  op0a = op0;
-	  op0b = build_zero_cst (TREE_TYPE (op0));
-	  tcode = LT_EXPR;
 	}
     }
-  cmp_op_mode = TYPE_MODE (TREE_TYPE (op0a));
-  unsignedp = TYPE_UNSIGNED (TREE_TYPE (op0a));
 
-  gcc_assert (known_eq (GET_MODE_NUNITS (mode),
-			GET_MODE_NUNITS (cmp_op_mode)));
-
-  icode = get_vcond_icode (mode, cmp_op_mode, unsignedp);
-  /* Some targets do not have vcondeq and only vcond with NE/EQ
-     but not vcondu, so make sure to also try vcond here as
-     vcond_icode_p would canonicalize the optab query to.  */
-  if (icode == CODE_FOR_nothing
-      && (tcode == NE_EXPR || tcode == EQ_EXPR)
-      && ((icode = get_vcond_icode (mode, cmp_op_mode, !unsignedp))
-	  != CODE_FOR_nothing))
-    unsignedp = !unsignedp;
-  if (icode == CODE_FOR_nothing)
-    {
-      if (tcode == LT_EXPR
-	  && op0a == op0)
-	{
-	  /* A VEC_COND_EXPR condition could be folded from EQ_EXPR/NE_EXPR
-	     into a constant when only get_vcond_eq_icode is supported.
-	     Try changing it to NE_EXPR.  */
-	  tcode = NE_EXPR;
-	}
-      if ((tcode == EQ_EXPR || tcode == NE_EXPR)
-	  && direct_internal_fn_supported_p (IFN_VCONDEQ, TREE_TYPE (lhs),
-					     TREE_TYPE (op0a),
-					     OPTIMIZE_FOR_BOTH))
-	{
-	  tree tcode_tree = build_int_cst (integer_type_node, tcode);
-	  return gimple_build_call_internal (IFN_VCONDEQ, 5, op0a, op0b, op1,
-					     op2, tcode_tree);
-	}
-
-      gcc_assert (VECTOR_BOOLEAN_TYPE_P (TREE_TYPE (op0))
-		  && can_compute_op0
-		  && (get_vcond_mask_icode (mode, TYPE_MODE (TREE_TYPE (op0)))
-		      != CODE_FOR_nothing));
-      return gimple_build_call_internal (IFN_VCOND_MASK, 3, op0, op1, op2);
-    }
-
-  tree tcode_tree = build_int_cst (integer_type_node, tcode);
-  return gimple_build_call_internal (unsignedp ? IFN_VCONDU : IFN_VCOND,
-				     5, op0a, op0b, op1, op2, tcode_tree);
+  gcc_assert (VECTOR_BOOLEAN_TYPE_P (TREE_TYPE (op0)));
+  gcc_assert (get_vcond_mask_icode (mode, TYPE_MODE (TREE_TYPE (op0)))
+	      != CODE_FOR_nothing);
+  return gimple_build_call_internal (IFN_VCOND_MASK, 3, op0, op1, op2);
 }
 
-
-
-/* Iterate all gimple statements and try to expand
-   VEC_COND_EXPR assignments.  */
-
-static unsigned int
-gimple_expand_vec_exprs (struct function *fun)
+/* Duplicate COND_EXPR condition defs of STMT located in BB when they are
+   comparisons so RTL expansion with the help of TER
+   can perform better if conversion.  */
+static void
+maybe_duplicate_comparison (gassign *stmt, basic_block bb)
 {
-  gimple_stmt_iterator gsi;
-  basic_block bb;
-  hash_map<tree, unsigned int> vec_cond_ssa_name_uses;
-  auto_bitmap dce_ssa_names;
-  bool cfg_changed = false;
+  imm_use_iterator imm_iter;
+  use_operand_p use_p;
+  auto_vec<gassign *, 4> cond_exprs;
+  tree lhs = gimple_assign_lhs (stmt);
+  unsigned cnt = 0;
 
-  FOR_EACH_BB_FN (bb, fun)
+  /* This is should not be used for -O0 nor it is not useful
+     when ter is turned off. */
+  if (!optimize || !flag_tree_ter)
+    return;
+
+  FOR_EACH_IMM_USE_FAST (use_p, imm_iter, lhs)
     {
-      for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
-	{
-	  gimple *g = gimple_expand_vec_cond_expr (fun, &gsi,
-						   &vec_cond_ssa_name_uses);
-	  if (g != NULL)
-	    {
-	      tree lhs = gimple_assign_lhs (gsi_stmt (gsi));
-	      gimple_set_lhs (g, lhs);
-	      gsi_replace (&gsi, g, false);
-	    }
-
-	  cfg_changed |= gimple_expand_vec_set_expr (fun, &gsi);
-	  if (gsi_end_p (gsi))
-	    break;
-	}
+      if (is_gimple_debug (USE_STMT (use_p)))
+	continue;
+      cnt++;
+      /* Add the use statement if it was a cond_expr.  */
+      if (gimple_bb (USE_STMT (use_p)) == bb
+	  && is_gimple_assign (USE_STMT (use_p))
+	  && gimple_assign_rhs_code (USE_STMT (use_p)) == COND_EXPR
+	  && gimple_assign_rhs1_ptr (USE_STMT (use_p)) == use_p->use)
+	cond_exprs.safe_push (as_a <gassign *> (USE_STMT (use_p)));
     }
 
-  for (hash_map<tree, unsigned int>::iterator it = vec_cond_ssa_name_uses.begin ();
-       it != vec_cond_ssa_name_uses.end (); ++it)
-    bitmap_set_bit (dce_ssa_names, SSA_NAME_VERSION ((*it).first));
+  /* If the comparison has 0 or 1 uses, no reason to do anything. */
+  if (cnt <= 1)
+    return;
 
-  simple_dce_from_worklist (dce_ssa_names);
+  /* If we only use the expression inside cond_exprs in that BB, we don't
+     need to duplicate for one of them so pop the top. */
+  if (cond_exprs.length () == cnt)
+    cond_exprs.pop();
 
-  return cfg_changed ? TODO_cleanup_cfg : 0;
+  while (!cond_exprs.is_empty())
+    {
+      auto old_top = cond_exprs.pop();
+      gassign *copy = as_a <gassign *> (gimple_copy (stmt));
+      tree new_def = duplicate_ssa_name (lhs, copy);
+      gimple_assign_set_lhs (copy, new_def);
+      auto gsi2 = gsi_for_stmt (old_top);
+      gsi_insert_before (&gsi2, copy, GSI_SAME_STMT);
+      gimple_assign_set_rhs1 (old_top, new_def);
+      update_stmt (old_top);
+    }
 }
+
 
 namespace {
 
@@ -355,17 +373,56 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       return true;
     }
 
-  virtual unsigned int execute (function *fun)
+  unsigned int execute (function *fun) final override;
+}; // class pass_gimple_isel
+
+
+/* Iterate all gimple statements and perform pre RTL expansion
+   GIMPLE massaging to improve instruction selection.  */
+
+unsigned int
+pass_gimple_isel::execute (struct function *fun)
+{
+  gimple_stmt_iterator gsi;
+  basic_block bb;
+  bool cfg_changed = false;
+
+  FOR_EACH_BB_FN (bb, fun)
     {
-      return gimple_expand_vec_exprs (fun);
+      for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
+	{
+	  /* Pre-expand VEC_COND_EXPRs to .VCOND* internal function
+	     calls mapping to supported optabs.  */
+	  gimple *g = gimple_expand_vec_cond_expr (&gsi);
+	  if (g != NULL)
+	    {
+	      tree lhs = gimple_assign_lhs (gsi_stmt (gsi));
+	      gimple_set_lhs (g, lhs);
+	      gsi_replace (&gsi, g, false);
+	    }
+
+	  /* Recognize .VEC_SET and .VEC_EXTRACT patterns.  */
+	  cfg_changed |= gimple_expand_vec_set_extract_expr (fun, &gsi);
+	  if (gsi_end_p (gsi))
+	    break;
+
+	  gassign *stmt = dyn_cast <gassign *> (*gsi);
+	  if (!stmt)
+	    continue;
+
+	  tree_code code = gimple_assign_rhs_code (stmt);
+	  if (TREE_CODE_CLASS (code) == tcc_comparison)
+	    maybe_duplicate_comparison (stmt, bb);
+	}
     }
 
-}; // class pass_gimple_isel
+  return cfg_changed ? TODO_cleanup_cfg : 0;
+}
 
 } // anon namespace
 

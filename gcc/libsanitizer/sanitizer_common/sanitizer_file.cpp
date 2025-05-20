@@ -19,6 +19,7 @@
 
 #include "sanitizer_common.h"
 #include "sanitizer_file.h"
+#  include "sanitizer_interface_internal.h"
 
 namespace __sanitizer {
 
@@ -68,7 +69,7 @@ void ReportFile::ReopenIfNecessary() {
     WriteToFile(kStderrFd, ErrorMsgPrefix, internal_strlen(ErrorMsgPrefix));
     WriteToFile(kStderrFd, full_path, internal_strlen(full_path));
     char errmsg[100];
-    internal_snprintf(errmsg, sizeof(errmsg), " (reason: %d)", err);
+    internal_snprintf(errmsg, sizeof(errmsg), " (reason: %d)\n", err);
     WriteToFile(kStderrFd, errmsg, internal_strlen(errmsg));
     Die();
   }
@@ -83,8 +84,14 @@ static void RecursiveCreateParentDirs(char *path) {
     if (!IsPathSeparator(path[i]))
       continue;
     path[i] = '\0';
-    /* Some of these will fail, because the directory exists, ignore it. */
-    CreateDir(path);
+    if (!DirExists(path) && !CreateDir(path)) {
+      const char *ErrorMsgPrefix = "ERROR: Can't create directory: ";
+      WriteToFile(kStderrFd, ErrorMsgPrefix, internal_strlen(ErrorMsgPrefix));
+      WriteToFile(kStderrFd, path, internal_strlen(path));
+      const char *ErrorMsgSuffix = "\n";
+      WriteToFile(kStderrFd, ErrorMsgSuffix, internal_strlen(ErrorMsgSuffix));
+      Die();
+    }
     path[i] = save;
   }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Free Software Foundation, Inc.
+// Copyright (C) 2018-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,6 +17,7 @@
 
 // { dg-do run }
 // { dg-xfail-run-if "AIX operator new" { powerpc-ibm-aix* } }
+// { dg-require-effective-target hosted }
 
 #include <new>
 #include <stdlib.h>
@@ -40,7 +41,15 @@ static void new_handler ()
         throw MyBadAlloc ();
 }
 
-void* operator new (size_t n)
+#if __cplusplus >= 201103L
+# define THROW_BAD_ALLOC noexcept(false)
+# define NOEXCEPT noexcept
+# else
+# define THROW_BAD_ALLOC throw(std::bad_alloc)
+# define NOEXCEPT throw()
+#endif
+
+void* operator new (size_t n) THROW_BAD_ALLOC
 {
     static size_t cntr;
 
@@ -63,31 +72,31 @@ void* operator new (size_t n)
     }
 }
 
-void operator delete (void *p)
+void operator delete (void *p) NOEXCEPT
 {
     ++delete_called;
     if (p)
         free (static_cast<size_t*>(p) - 1);
 }
 
-void* operator new[] (size_t n)
+void* operator new[] (size_t n) THROW_BAD_ALLOC
 {
     ++new_vec_called;
     return operator new(n);
 }
 
-void operator delete[] (void *p)
+void operator delete[] (void *p) NOEXCEPT
 {
     ++delete_vec_called;
     operator delete(p);
 }
 
 #if __cplusplus >= 201402L
-void operator delete (void *p, std::size_t)
+void operator delete (void *p, std::size_t) noexcept
 {
   ::operator delete(p);
 }
-void operator delete[] (void *p, std::size_t)
+void operator delete[] (void *p, std::size_t) noexcept
 {
   ::operator delete[](p);
 }

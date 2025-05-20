@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -108,6 +108,9 @@ is
       --  Ghost variable to hold Factor**Exp between Exp and Factor updates
 
    begin
+      pragma Annotate (Gnatcheck, Exempt_On, "Improper_Returns",
+                       "early returns for performance");
+
       --  We use the standard logarithmic approach, Exp gets shifted right
       --  testing successive low order bits and Factor is the value of the
       --  base raised to the next power of 2.
@@ -173,6 +176,8 @@ is
       pragma Assert (Big (Result) = Big (Left) ** Right);
 
       return Result;
+
+      pragma Annotate (Gnatcheck, Exempt_Off, "Improper_Returns");
    end Expon;
 
    ----------------------
@@ -180,14 +185,24 @@ is
    ----------------------
 
    procedure Lemma_Exp_Expand (A : Big_Integer; Exp : Natural) is
+
+      procedure Lemma_Exp_Distribution (Exp_1, Exp_2 : Natural) with
+        Pre  => A /= 0 and then Natural'Last - Exp_2 >= Exp_1,
+        Post => A ** (Exp_1 + Exp_2) = A ** (Exp_1) * A ** (Exp_2);
+
+      ----------------------------
+      -- Lemma_Exp_Distribution --
+      ----------------------------
+
+      procedure Lemma_Exp_Distribution (Exp_1, Exp_2 : Natural) is null;
+
    begin
       if Exp rem 2 = 0 then
          pragma Assert (Exp = Exp / 2 + Exp / 2);
       else
          pragma Assert (Exp = Exp / 2 + Exp / 2 + 1);
-         pragma Assert (A ** Exp = A ** (Exp / 2) * A ** (Exp / 2 + 1));
-         pragma Assert (A ** (Exp / 2 + 1) = A ** (Exp / 2) * A);
-         pragma Assert (A ** Exp = A ** (Exp / 2) * A ** (Exp / 2) * A);
+         Lemma_Exp_Distribution (Exp / 2, Exp / 2 + 1);
+         Lemma_Exp_Distribution (Exp / 2, 1);
       end if;
    end Lemma_Exp_Expand;
 

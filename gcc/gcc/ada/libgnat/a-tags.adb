@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -93,7 +93,10 @@ package body Ada.Tags is
    --  Disable warnings on possible aliasing problem
 
    function To_Tag is
-     new Unchecked_Conversion (Integer_Address, Tag);
+     new Unchecked_Conversion (System.Address, Tag);
+
+   function To_Tag (S : Integer_Address) return Tag is
+     (To_Tag (To_Address (S)));
 
    function To_Dispatch_Table_Ptr is
       new Ada.Unchecked_Conversion (Tag, Dispatch_Table_Ptr);
@@ -554,13 +557,18 @@ package body Ada.Tags is
    -----------------------------
 
    function Interface_Ancestor_Tags (T : Tag) return Tag_Array is
-      TSD_Ptr     : constant Addr_Ptr :=
-                      To_Addr_Ptr (To_Address (T) - DT_Typeinfo_Ptr_Size);
-      TSD         : constant Type_Specific_Data_Ptr :=
-                      To_Type_Specific_Data_Ptr (TSD_Ptr.all);
-      Iface_Table : constant Interface_Data_Ptr := TSD.Interfaces_Table;
-
+      TSD_Ptr     : Addr_Ptr;
+      TSD         : Type_Specific_Data_Ptr;
+      Iface_Table : Interface_Data_Ptr;
    begin
+      if T = No_Tag then
+         raise Tag_Error;
+      end if;
+
+      TSD_Ptr     := To_Addr_Ptr (To_Address (T) - DT_Typeinfo_Ptr_Size);
+      TSD         := To_Type_Specific_Data_Ptr (TSD_Ptr.all);
+      Iface_Table := TSD.Interfaces_Table;
+
       if Iface_Table = null then
          declare
             Table : Tag_Array (1 .. 0);
@@ -731,7 +739,10 @@ package body Ada.Tags is
       Ancestor   : Tag) return Boolean
    is
    begin
-      if Descendant = Ancestor then
+      if Descendant = No_Tag or else Ancestor = No_Tag then
+         raise Tag_Error;
+
+      elsif Descendant = Ancestor then
          return True;
 
       else

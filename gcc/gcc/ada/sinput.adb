@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,8 +41,8 @@ with System.Storage_Elements;
 with System.Memory;
 with System.WCh_Con; use System.WCh_Con;
 
-with Unchecked_Conversion;
-with Unchecked_Deallocation;
+with Ada.Unchecked_Conversion;
+with Ada.Unchecked_Deallocation;
 
 package body Sinput is
 
@@ -56,16 +56,16 @@ package body Sinput is
    --  used to construct improperly aliased pointer values.
 
    function To_Address is
-     new Unchecked_Conversion (Lines_Table_Ptr, Address);
+     new Ada.Unchecked_Conversion (Lines_Table_Ptr, Address);
 
    function To_Address is
-     new Unchecked_Conversion (Logical_Lines_Table_Ptr, Address);
+     new Ada.Unchecked_Conversion (Logical_Lines_Table_Ptr, Address);
 
    function To_Pointer is
-     new Unchecked_Conversion (Address, Lines_Table_Ptr);
+     new Ada.Unchecked_Conversion (Address, Lines_Table_Ptr);
 
    function To_Pointer is
-     new Unchecked_Conversion (Address, Logical_Lines_Table_Ptr);
+     new Ada.Unchecked_Conversion (Address, Logical_Lines_Table_Ptr);
 
    pragma Warnings (On);
 
@@ -244,9 +244,28 @@ package body Sinput is
          Append (Buf, ':');
          Append (Buf, Nat (Get_Logical_Line_Number (Ptr)));
 
+         --  For inherited pragmas, the location will be appended to a messsage
+         --  that already says "inherited"; also, we are not interested where
+         --  the pragma has been inherited. Progress directly to instantiation
+         --  locations.
+
+         if Comes_From_Inherited_Pragma (Ptr) then
+            Ptr := Instantiation_Location (Ptr);
+         end if;
+
          Ptr := Instantiation_Location (Ptr);
          exit when Ptr = No_Location;
-         Append (Buf, " instantiated at ");
+
+         --  Make sure that we don't mention "instantiated" when in fact the
+         --  location comes from other mechanisms.
+
+         pragma Assert (not Comes_From_Inherited_Pragma (Ptr));
+
+         if Comes_From_Inlined_Body (Ptr) then
+            Append (Buf, " inlined at ");
+         else
+            Append (Buf, " instantiated at ");
+         end if;
       end loop;
    end Build_Location_String;
 
@@ -256,6 +275,23 @@ package body Sinput is
       Build_Location_String (Buf, Loc);
       return +Buf;
    end Build_Location_String;
+
+   ---------------------
+   -- C_Source_Buffer --
+   ---------------------
+
+   function C_Source_Buffer (S : SFI) return C_Array is
+      Length : constant Integer :=
+        Integer (Source_Last (S) - Source_First (S));
+
+      Text : constant Source_Buffer_Ptr := Source_Text (S);
+
+      Pointer : constant access constant Character :=
+        (if Length = 0 then null else
+          Text (Text'First)'Access);
+   begin
+      return (Pointer, Length);
+   end C_Source_Buffer;
 
    -------------------
    -- Check_For_BOM --
@@ -319,10 +355,10 @@ package body Sinput is
    -- Clear_Source_File_Table --
    -----------------------------
 
-   procedure Free is new Unchecked_Deallocation
+   procedure Free is new Ada.Unchecked_Deallocation
      (Lines_Table_Type, Lines_Table_Ptr);
 
-   procedure Free is new Unchecked_Deallocation
+   procedure Free is new Ada.Unchecked_Deallocation
      (Logical_Lines_Table_Type, Logical_Lines_Table_Ptr);
 
    procedure Clear_Source_File_Table is
@@ -378,12 +414,12 @@ package body Sinput is
       --  to first Unchecked_Convert to access-to-variable.
 
       function To_Source_Buffer_Ptr_Var is new
-        Unchecked_Conversion (Source_Buffer_Ptr, Source_Buffer_Ptr_Var);
+        Ada.Unchecked_Conversion (Source_Buffer_Ptr, Source_Buffer_Ptr_Var);
 
       Temp : Source_Buffer_Ptr_Var := To_Source_Buffer_Ptr_Var (Src);
 
       procedure Free_Ptr is new
-        Unchecked_Deallocation (Source_Buffer, Source_Buffer_Ptr_Var);
+        Ada.Unchecked_Deallocation (Source_Buffer, Source_Buffer_Ptr_Var);
    begin
       Free_Ptr (Temp);
       Src := null;
@@ -459,19 +495,6 @@ package body Sinput is
          return SFR.Logical_Lines_Table (L);
       end if;
    end Get_Logical_Line_Number;
-
-   ---------------------------------
-   -- Get_Logical_Line_Number_Img --
-   ---------------------------------
-
-   function Get_Logical_Line_Number_Img
-     (P : Source_Ptr) return String
-   is
-   begin
-      Name_Len := 0;
-      Add_Nat_To_Name_Buffer (Nat (Get_Logical_Line_Number (P)));
-      return Name_Buffer (1 .. Name_Len);
-   end Get_Logical_Line_Number_Img;
 
    ------------------------------
    -- Get_Physical_Line_Number --
@@ -550,7 +573,7 @@ package body Sinput is
                        or else S = Standard_ASCII_Location
                        or else S = System_Location;
 
-         pragma Assert ((S > No_Location) xor Special);
+         pragma Assert (S > No_Location xor Special);
          pragma Assert (Result in Source_File.First .. Source_File.Last);
 
          SFR : Source_File_Record renames Source_File.Table (Result);
@@ -620,7 +643,6 @@ package body Sinput is
    -------------------------
 
    function Instantiation_Depth (S : Source_Ptr) return Nat is
-      Sind  : Source_File_Index;
       Sval  : Source_Ptr;
       Depth : Nat;
 
@@ -629,8 +651,7 @@ package body Sinput is
       Depth := 0;
 
       loop
-         Sind := Get_Source_File_Index (Sval);
-         Sval := Instantiation (Sind);
+         Sval := Instantiation_Location (Sval);
          exit when Sval = No_Location;
          Depth := Depth + 1;
       end loop;
@@ -922,7 +943,7 @@ package body Sinput is
       pragma Import (Ada, Dope);
       use System.Storage_Elements;
       for Dope'Address use Src + System.Address'Size / 8;
-      procedure Free is new Unchecked_Deallocation (Dope_Rec, Dope_Ptr);
+      procedure Free is new Ada.Unchecked_Deallocation (Dope_Rec, Dope_Ptr);
    begin
       Free (Dope);
    end Free_Dope;
@@ -1023,7 +1044,7 @@ package body Sinput is
             SI : constant Source_File_Index := Get_Source_File_Index (P);
 
          begin
-            Write_Name (Debug_Source_Name (SI));
+            Write_Name_For_Debug (Debug_Source_Name (SI));
             Write_Char (':');
             Write_Int (Int (Get_Logical_Line_Number (P)));
             Write_Char (':');

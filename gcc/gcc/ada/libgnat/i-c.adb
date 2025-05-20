@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -200,6 +200,7 @@ is
             pragma Loop_Invariant
               (for all J in Item'First .. From when J /= From =>
                  Item (J) /= nul);
+            pragma Loop_Variant (Increases => From);
 
             if From > Item'Last then
                raise Terminator_Error;
@@ -257,6 +258,7 @@ is
             pragma Loop_Invariant
               (for all J in Item'First .. From when J /= From =>
                 Item (J) /= nul);
+            pragma Loop_Variant (Increases => From);
 
             if From > Item'Last then
                raise Terminator_Error;
@@ -333,6 +335,7 @@ is
             pragma Loop_Invariant
               (for all J in Item'First .. From when J /= From =>
                  Item (J) /= wide_nul);
+            pragma Loop_Variant (Increases => From);
 
             if From > Item'Last then
                raise Terminator_Error;
@@ -390,6 +393,7 @@ is
             pragma Loop_Invariant
               (for all J in Item'First .. From when J /= From =>
                 Item (J) /= wide_nul);
+            pragma Loop_Variant (Increases => From);
 
             if From > Item'Last then
                raise Terminator_Error;
@@ -466,6 +470,7 @@ is
             pragma Loop_Invariant
               (for all J in Item'First .. From when J /= From =>
                  Item (J) /= char16_nul);
+            pragma Loop_Variant (Increases => From);
 
             if From > Item'Last then
                raise Terminator_Error;
@@ -523,6 +528,7 @@ is
             pragma Loop_Invariant
               (for all J in Item'First .. From when J /= From =>
                 Item (J) /= char16_nul);
+            pragma Loop_Variant (Increases => From);
 
             if From > Item'Last then
                raise Terminator_Error;
@@ -599,6 +605,8 @@ is
             pragma Loop_Invariant
               (for all J in Item'First .. From when J /= From =>
                  Item (J) /= char32_nul);
+            pragma Loop_Invariant (From <= Item'First + C_Length_Ghost (Item));
+            pragma Loop_Variant (Increases => From);
 
             if From > Item'Last then
                raise Terminator_Error;
@@ -656,6 +664,7 @@ is
             pragma Loop_Invariant
               (for all J in Item'First .. From when J /= From =>
                 Item (J) /= char32_nul);
+            pragma Loop_Variant (Increases => From);
 
             if From > Item'Last then
                raise Terminator_Error;
@@ -1177,7 +1186,7 @@ is
       To : size_t;
 
    begin
-      if Target'Length < Item'Length then
+      if Target'Length < Item'Length + (if Append_Nul then 1 else 0) then
          raise Constraint_Error;
 
       else
@@ -1210,17 +1219,14 @@ is
                      Target'First + (Item'Length - 1))'Initialized);
 
          if Append_Nul then
-            if To > Target'Last then
-               raise Constraint_Error;
-            else
-               Target (To) := char32_nul;
-               Count := Item'Length + 1;
-            end if;
-
+            Target (To) := char32_nul;
+            Count := Item'Length + 1;
          else
             Count := Item'Length;
          end if;
       end if;
    end To_C;
+   pragma Annotate (CodePeer, False_Positive, "validity check",
+     "Count is only uninitialized on abnormal return.");
 
 end Interfaces.C;

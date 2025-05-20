@@ -26,6 +26,7 @@ foo (unsigned char *src, unsigned char *dst)
 
   s = src;
   d = (unsigned short *)dst;
+#pragma GCC novector
   for (i = 0; i < N/4; i++)
     {
       const int b = *s++;
@@ -57,9 +58,7 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump {vect_recog_over_widening_pattern: detected:[^\n]* << 3} "vect" } } */
 /* { dg-final { scan-tree-dump {vect_recog_over_widening_pattern: detected:[^\n]* >> 3} "vect" } } */
 /* { dg-final { scan-tree-dump {vect_recog_over_widening_pattern: detected:[^\n]* >> 8} "vect" } } */
-/* { dg-final { scan-tree-dump {vect_recog_over_widening_pattern: detected:[^\n]* << 9} "vect" } } */
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" } } */
 

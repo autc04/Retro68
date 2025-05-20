@@ -3,7 +3,7 @@
    We expect a struct with 2 members to be generated. The size 0 bitfield
    should not have any entry in the member list.  */
 
-/* { dg-do compile )  */
+/* { dg-do compile } */
 /* { dg-options "-O0 -gbtf -dA" } */
 
 /* Struct with bitfield members, and 2 members.  */
@@ -16,7 +16,11 @@
 /* { dg-final { scan-assembler-times "\[\t \]0x20000020\[\t \]+\[^\n\]*btm_offset" 1 } } */
 
 /* Only 2 members.  */
-/* { dg-final { scan-assembler-times "btm_name" 2 } } */
+/* { dg-final { scan-assembler-times "MEMBER" 2 } } */
+
+#if __SIZEOF_INT__ < 4
+#define unsigned __UINT32_TYPE__
+#endif
 
 struct foo
 {

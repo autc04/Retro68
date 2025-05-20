@@ -1,6 +1,6 @@
 // { dg-do run { target c++17 } }
 
-// Copyright (C) 2013-2022 Free Software Foundation, Inc.
+// Copyright (C) 2013-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,7 +20,9 @@
 // basic_string_view element access
 
 #include <string_view>
-#include <stdexcept>
+#if __STDC_HOSTED__
+# include <stdexcept>
+#endif // HOSTED
 #include <testsuite_hooks.h>
 
 void
@@ -43,13 +45,14 @@ test01()
   //cref cref2 = str01[csz01];
   //VERIFY( cref2 == wchar_t() );
 
+#if __STDC_HOSTED__
   // const_reference at(size_type pos) const;
   csz01 = str01.size();
   cref cref3 = str01.at(csz01 - 1);
   VERIFY( cref3 == L'a' );
   try
   {
-    str01.at(csz01);
+    (void) str01.at(csz01);
     VERIFY( false ); // Should not get here, as exception thrown.
   }
   catch (std::out_of_range& fail)
@@ -60,6 +63,7 @@ test01()
   {
     VERIFY( false );
   }
+#endif // HOSTED
 }
 
 int

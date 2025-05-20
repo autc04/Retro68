@@ -1,5 +1,5 @@
 /* Timing variables for measuring compiler performance.
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2025 Free Software Foundation, Inc.
    Contributed by Alex Samuel <samuel@codesourcery.com>
 
    This file is part of GCC.
@@ -21,10 +21,10 @@
 #ifndef GCC_TIMEVAR_H
 #define GCC_TIMEVAR_H
 
+namespace json { class value; }
+
 /* Timing variables are used to measure elapsed time in various
-   portions of the compiler.  Each measures elapsed user, system, and
-   wall-clock time, as appropriate to and supported by the host
-   system.
+   portions of the compiler.  Each measures wall time.
 
    Timing variables are defined using the DEFTIMEVAR macro in
    timevar.def.  Each has an enumeral identifier, used when referring
@@ -44,22 +44,15 @@
 */
 
 /* This structure stores the various varieties of time that can be
-   measured.  Times are stored in seconds.  The time may be an
+   measured.  Times are stored in nanoseconds.  The time may be an
    absolute time or a time difference; in the former case, the time
    base is undefined, except that the difference between two times
    produces a valid time difference.  */
 
 struct timevar_time_def
 {
-  /* User time in this process.  */
-  double user;
-
-  /* System time (if applicable for this host platform) in this
-     process.  */
-  double sys;
-
   /* Wall clock time.  */
-  double wall;
+  uint64_t wall;
 
   /* Garbage collector memory.  */
   size_t ggc_mem;
@@ -119,6 +112,7 @@ class timer
   void pop_client_item ();
 
   void print (FILE *fp);
+  std::unique_ptr<json::value> make_json () const;
 
   const char *get_topmost_item_name () const;
 
@@ -140,6 +134,8 @@ class timer
   /* Private type: a timing variable.  */
   struct timevar_def
   {
+    std::unique_ptr<json::value> make_json () const;
+
     /* Elapsed time for this variable.  */
     struct timevar_time_def elapsed;
 
@@ -206,14 +202,14 @@ class timer
 };
 
 /* Provided for backward compatibility.  */
-static inline void
+inline void
 timevar_push (timevar_id_t tv)
 {
   if (g_timer)
     g_timer->push (tv);
 }
 
-static inline void
+inline void
 timevar_pop (timevar_id_t tv)
 {
   if (g_timer)

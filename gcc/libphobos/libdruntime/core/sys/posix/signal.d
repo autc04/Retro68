@@ -14,7 +14,7 @@ module core.sys.posix.signal;
 import core.sys.posix.config;
 public import core.stdc.signal;
 public import core.sys.posix.sys.types; // for pid_t
-//public import core.sys.posix.time;      // for timespec, now defined here
+public import core.sys.posix.time; // for timespec
 
 version (OSX)
     version = Darwin;
@@ -136,7 +136,7 @@ version (Solaris)
     import core.sys.posix.unistd;
 
     @property int SIGRTMIN() nothrow @nogc {
-        __gshared static int sig = -1;
+        __gshared int sig = -1;
         if (sig == -1) {
             sig = cast(int)sysconf(_SC_SIGRT_MIN);
         }
@@ -144,7 +144,7 @@ version (Solaris)
     }
 
     @property int SIGRTMAX() nothrow @nogc {
-        __gshared static int sig = -1;
+        __gshared int sig = -1;
         if (sig == -1) {
             sig = cast(int)sysconf(_SC_SIGRT_MAX);
         }
@@ -180,7 +180,7 @@ else version (linux)
     }
 
     @property int SIGRTMIN() nothrow @nogc {
-        __gshared static int sig = -1;
+        __gshared int sig = -1;
         if (sig == -1) {
             sig = __libc_current_sigrtmin();
         }
@@ -188,7 +188,7 @@ else version (linux)
     }
 
     @property int SIGRTMAX() nothrow @nogc {
-        __gshared static int sig = -1;
+        __gshared int sig = -1;
         if (sig == -1) {
             sig = __libc_current_sigrtmax();
         }
@@ -367,6 +367,30 @@ version (linux)
         enum SIGURG     = 16;
     }
     else version (IBMZ_Any)
+    {
+        //SIGABRT (defined in core.stdc.signal)
+        enum SIGALRM    = 14;
+        enum SIGBUS     = 7;
+        enum SIGCHLD    = 17;
+        enum SIGCONT    = 18;
+        //SIGFPE (defined in core.stdc.signal)
+        enum SIGHUP     = 1;
+        //SIGILL (defined in core.stdc.signal)
+        //SIGINT (defined in core.stdc.signal)
+        enum SIGKILL    = 9;
+        enum SIGPIPE    = 13;
+        enum SIGQUIT    = 3;
+        //SIGSEGV (defined in core.stdc.signal)
+        enum SIGSTOP    = 19;
+        //SIGTERM (defined in core.stdc.signal)
+        enum SIGTSTP    = 20;
+        enum SIGTTIN    = 21;
+        enum SIGTTOU    = 22;
+        enum SIGUSR1    = 10;
+        enum SIGUSR2    = 12;
+        enum SIGURG     = 23;
+    }
+    else version (LoongArch64)
     {
         //SIGABRT (defined in core.stdc.signal)
         enum SIGALRM    = 14;
@@ -1750,6 +1774,16 @@ version (linux)
         enum SIGXCPU    = 24;
         enum SIGXFSZ    = 25;
     }
+    else version (LoongArch64)
+    {
+        enum SIGPOLL    = 29;
+        enum SIGPROF    = 27;
+        enum SIGSYS     = 31;
+        enum SIGTRAP    = 5;
+        enum SIGVTALRM  = 26;
+        enum SIGXCPU    = 24;
+        enum SIGXFSZ    = 25;
+    }
     else
         static assert(0, "unimplemented");
 
@@ -2390,11 +2424,23 @@ version (CRuntime_Glibc)
     //ucontext_t (defined in core.sys.posix.ucontext)
     //mcontext_t (defined in core.sys.posix.ucontext)
 
-    struct stack_t
+    version (MIPS_Any)
     {
-        void*   ss_sp;
-        int     ss_flags;
-        size_t  ss_size;
+        struct stack_t
+        {
+            void*   ss_sp;
+            size_t  ss_size;
+            int     ss_flags;
+        }
+    }
+    else
+    {
+        struct stack_t
+        {
+            void*   ss_sp;
+            int     ss_flags;
+            size_t  ss_size;
+        }
     }
 
     struct sigstack
@@ -2712,6 +2758,11 @@ else version (CRuntime_Musl)
         enum MINSIGSTKSZ = 2048;
         enum SIGSTKSZ    = 8192;
     }
+    else version (LoongArch64)
+    {
+        enum MINSIGSTKSZ = 4096;
+        enum SIGSTKSZ    = 16384;
+    }
     else
         static assert(0, "unimplemented");
 
@@ -2760,7 +2811,7 @@ else version (CRuntime_UClibc)
     enum MINSIGSTKSZ    = 2048;
     enum SIGSTKSZ       = 8192;
 
-    version (MIPS32)
+    version (MIPS_Any)
     {
         struct stack_t
         {
@@ -2798,83 +2849,6 @@ else version (CRuntime_UClibc)
     int siginterrupt(int, int);
     int sigpause(int);
     int sigrelse(int);
-}
-else
-{
-    static assert(false, "Unsupported platform");
-}
-
-//
-// Timer (TMR)
-//
-/*
-NOTE: This should actually be defined in core.sys.posix.time.
-      It is defined here instead to break a circular import.
-
-struct timespec
-{
-    time_t  tv_sec;
-    int     tv_nsec;
-}
-*/
-
-version (linux)
-{
-    struct timespec
-    {
-        time_t  tv_sec;
-        c_long  tv_nsec;
-    }
-}
-else version (Darwin)
-{
-    struct timespec
-    {
-        time_t  tv_sec;
-        c_long  tv_nsec;
-    }
-}
-else version (FreeBSD)
-{
-    struct timespec
-    {
-        time_t  tv_sec;
-        c_long  tv_nsec;
-    }
-}
-else version (NetBSD)
-{
-    struct timespec
-    {
-        time_t  tv_sec;
-        c_long  tv_nsec;
-    }
-}
-else version (OpenBSD)
-{
-    struct timespec
-    {
-        time_t  tv_sec;
-        c_long  tv_nsec;
-    }
-}
-else version (DragonFlyBSD)
-{
-    struct timespec
-    {
-        time_t  tv_sec;
-        c_long  tv_nsec;
-    }
-}
-else version (Solaris)
-{
-    struct timespec
-    {
-        time_t tv_sec;
-        c_long tv_nsec;
-    }
-
-    alias timespec timestruc_t;
 }
 else
 {
@@ -3067,6 +3041,7 @@ else version (CRuntime_Bionic)
 else version (CRuntime_Musl)
 {
     int sigqueue(pid_t, int, const sigval);
+    pragma(mangle, muslRedirTime64Mangle!("sigtimedwait", "__sigtimedwait_time64"))
     int sigtimedwait(const scope sigset_t*, siginfo_t*, const scope timespec*);
     int sigwaitinfo(const scope sigset_t*, siginfo_t*);
 }

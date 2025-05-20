@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  S p e c                                 --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -33,13 +33,21 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+--  Package ``Ada.Real_Time`` provides basic definitions and operations related
+--  to the types defined ``Time`` and ``Time_Span`` as defined by ARM D.8. The
+--  types ``Time`` and ``Time_Span`` are implemented by the ``Duration`` type.
+--
+--  This software layer provides the Ada abstraction for time handling and
+--  delays, using the services provided by lower layers.
+
 with System.Task_Primitives.Operations;
 pragma Elaborate_All (System.Task_Primitives.Operations);
 
 package Ada.Real_Time with
   SPARK_Mode,
   Abstract_State => (Clock_Time with Synchronous),
-  Initializes    => Clock_Time
+  Initializes    => Clock_Time,
+  Always_Terminates
 is
 
    pragma Compile_Time_Error

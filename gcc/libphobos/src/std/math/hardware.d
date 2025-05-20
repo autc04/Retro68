@@ -33,16 +33,10 @@ version (SPARC64)   version = SPARC_Any;
 version (SystemZ)   version = IBMZ_Any;
 version (RISCV32)   version = RISCV_Any;
 version (RISCV64)   version = RISCV_Any;
+version (LoongArch64)   version = LoongArch_Any;
 
 version (D_InlineAsm_X86)    version = InlineAsm_X86_Any;
 version (D_InlineAsm_X86_64) version = InlineAsm_X86_Any;
-
-version (InlineAsm_X86_Any) version = InlineAsm_X87;
-version (InlineAsm_X87)
-{
-    static assert(real.mant_dig == 64);
-    version (CRuntime_Microsoft) version = InlineAsm_X87_MSVC;
-}
 
 version (X86_64) version = StaticallyHaveSSE;
 version (X86) version (OSX) version = StaticallyHaveSSE;
@@ -67,6 +61,7 @@ else version (X86_Any)   version = IeeeFlagsSupport;
 else version (PPC_Any)   version = IeeeFlagsSupport;
 else version (RISCV_Any) version = IeeeFlagsSupport;
 else version (MIPS_Any)  version = IeeeFlagsSupport;
+else version (LoongArch_Any) version = IeeeFlagsSupport;
 else version (ARM_Any)   version = IeeeFlagsSupport;
 
 // Struct FloatingPointControl is only available if hardware FP units are available.
@@ -74,19 +69,6 @@ version (D_HardFloat)
 {
     // FloatingPointControl.clearExceptions() depends on version IeeeFlagsSupport
     version (IeeeFlagsSupport) version = FloatingPointControlSupport;
-}
-
-version (GNU)
-{
-    // The compiler can unexpectedly rearrange floating point operations and
-    // access to the floating point status flags when optimizing. This means
-    // ieeeFlags tests cannot be reliably checked in optimized code.
-    // See https://github.com/ldc-developers/ldc/issues/888
-}
-else
-{
-    version = IeeeFlagsUnittest;
-    version = FloatingPointControlUnittest;
 }
 
 version (IeeeFlagsSupport)
@@ -110,6 +92,7 @@ private:
     // The ARM and PowerPC FPSCR is a 32-bit register.
     // The SPARC FSR is a 32bit register (64 bits for SPARC 7 & 8, but high bits are uninteresting).
     // The RISC-V (32 & 64 bit) fcsr is 32-bit register.
+    // THe LoongArch fcsr (fcsr0) is a 32-bit register.
     uint flags;
 
     version (CRuntime_Microsoft)
@@ -214,12 +197,12 @@ private:
         }
         else version (SPARC)
         {
-           /*
+            /*
                int retval;
                asm pure nothrow @nogc { st %fsr, retval; }
                return retval;
             */
-           assert(0, "Not yet supported");
+            assert(0, "Not yet supported");
         }
         else version (ARM)
         {
@@ -227,14 +210,21 @@ private:
         }
         else version (RISCV_Any)
         {
-            mixin(`
             uint result = void;
             asm pure nothrow @nogc
             {
                 "frflags %0" : "=r" (result);
             }
             return result;
-            `);
+        }
+        else version (LoongArch_Any)
+        {
+            uint result = void;
+            asm pure nothrow @nogc
+            {
+                "movfcsr2gr %0, $fcsr2" : "=r" (result);
+            }
+            return result & EXCEPTIONS_MASK;
         }
         else
             assert(0, "Not yet supported");
@@ -315,13 +305,18 @@ private:
         }
         else version (RISCV_Any)
         {
-            mixin(`
             uint newValues = 0x0;
             asm pure nothrow @nogc
             {
                 "fsflags %0" : : "r" (newValues);
             }
-            `);
+        }
+        else version (LoongArch_Any)
+        {
+            asm nothrow @nogc
+            {
+                "movgr2fcsr $fcsr2,$r0";
+            }
         }
         else
         {
@@ -368,7 +363,7 @@ public:
 }
 
 ///
-version (IeeeFlagsUnittest)
+version (StdDdoc)
 @safe unittest
 {
     import std.math.traits : isNaN;
@@ -376,17 +371,14 @@ version (IeeeFlagsUnittest)
     static void func() {
         int a = 10 * 10;
     }
-    pragma(inline, false) static void blockopt(ref real x) {}
     real a = 3.5;
     // Set all the flags to zero
     resetIeeeFlags();
     assert(!ieeeFlags.divByZero);
-    blockopt(a); // avoid constant propagation by the optimizer
     // Perform a division by zero.
     a /= 0.0L;
     assert(a == real.infinity);
     assert(ieeeFlags.divByZero);
-    blockopt(a); // avoid constant propagation by the optimizer
     // Create a NaN
     a *= 0.0L;
     assert(ieeeFlags.invalid);
@@ -399,7 +391,33 @@ version (IeeeFlagsUnittest)
     assert(ieeeFlags == f);
 }
 
-version (IeeeFlagsUnittest)
+@safe unittest
+{
+    import std.math.traits : isNaN;
+
+    static void func() {
+        int a = 10 * 10;
+    }
+    real a = 3.5;
+    // Set all the flags to zero
+    resetIeeeFlags();
+    assert(!ieeeFlags.divByZero);
+    // Perform a division by zero.
+    a = forceDivOp(a, 0.0L);
+    assert(a == real.infinity);
+    assert(ieeeFlags.divByZero);
+    // Create a NaN
+    a = forceMulOp(a, 0.0L);
+    assert(ieeeFlags.invalid);
+    assert(isNaN(a));
+
+    // Check that calling func() has no effect on the
+    // status flags.
+    IeeeFlags f = ieeeFlags;
+    func();
+    assert(ieeeFlags == f);
+}
+
 @safe unittest
 {
     import std.meta : AliasSeq;
@@ -412,27 +430,26 @@ version (IeeeFlagsUnittest)
 
     static foreach (T; AliasSeq!(float, double, real))
     {{
-        T x; /* Needs to be here to trick -O. It would optimize away the
-            calculations if x were local to the function literals. */
+        T x; // Needs to be here to avoid `call without side effects` warning.
         auto tests = [
             Test(
-                () { x = 1; x += 0.1L; },
+                () { x = forceAddOp!T(1, 0.1L); },
                 () => ieeeFlags.inexact
             ),
             Test(
-                () { x = T.min_normal; x /= T.max; },
+                () { x = forceDivOp!T(T.min_normal, T.max); },
                 () => ieeeFlags.underflow
             ),
             Test(
-                () { x = T.max; x += T.max; },
+                () { x = forceAddOp!T(T.max, T.max); },
                 () => ieeeFlags.overflow
             ),
             Test(
-                () { x = 1; x /= 0; },
+                () { x = forceDivOp!T(1, 0); },
                 () => ieeeFlags.divByZero
             ),
             Test(
-                () { x = 0; x /= 0; },
+                () { x = forceDivOp!T(0, 0); },
                 () => ieeeFlags.invalid
             )
         ];
@@ -453,14 +470,24 @@ void resetIeeeFlags() @trusted nothrow @nogc
 }
 
 ///
+version (StdDdoc)
 @safe unittest
 {
-    pragma(inline, false) static void blockopt(ref real x) {}
     resetIeeeFlags();
     real a = 3.5;
-    blockopt(a); // avoid constant propagation by the optimizer
     a /= 0.0L;
-    blockopt(a); // avoid constant propagation by the optimizer
+    assert(a == real.infinity);
+    assert(ieeeFlags.divByZero);
+
+    resetIeeeFlags();
+    assert(!ieeeFlags.divByZero);
+}
+
+@safe unittest
+{
+    resetIeeeFlags();
+    real a = 3.5;
+    a = forceDivOp(a, 0.0L);
     assert(a == real.infinity);
     assert(ieeeFlags.divByZero);
 
@@ -475,21 +502,35 @@ void resetIeeeFlags() @trusted nothrow @nogc
 }
 
 ///
+version (StdDdoc)
 @safe nothrow unittest
 {
     import std.math.traits : isNaN;
 
-    pragma(inline, false) static void blockopt(ref real x) {}
     resetIeeeFlags();
     real a = 3.5;
-    blockopt(a); // avoid constant propagation by the optimizer
 
     a /= 0.0L;
     assert(a == real.infinity);
     assert(ieeeFlags.divByZero);
-    blockopt(a); // avoid constant propagation by the optimizer
 
     a *= 0.0L;
+    assert(isNaN(a));
+    assert(ieeeFlags.invalid);
+}
+
+@safe nothrow unittest
+{
+    import std.math.traits : isNaN;
+
+    resetIeeeFlags();
+    real a = 3.5;
+
+    a = forceDivOp(a, 0.0L);
+    assert(a == real.infinity);
+    assert(ieeeFlags.divByZero);
+
+    a = forceMulOp(a, 0.0L);
     assert(isNaN(a));
     assert(ieeeFlags.invalid);
 }
@@ -674,9 +715,9 @@ nothrow @nogc:
         enum : ExceptionMask
         {
             inexactException      = 0x01,
-            divByZeroException    = 0x02,
-            underflowException    = 0x04,
-            overflowException     = 0x08,
+            divByZeroException    = 0x08,
+            underflowException    = 0x02,
+            overflowException     = 0x04,
             invalidException      = 0x10,
             severeExceptions   = overflowException | divByZeroException
                                  | invalidException,
@@ -693,6 +734,21 @@ nothrow @nogc:
             overflowException     = 0x04,
             divByZeroException    = 0x08,
             invalidException      = 0x10,
+            severeExceptions   = overflowException | divByZeroException
+                                 | invalidException,
+            allExceptions      = severeExceptions | underflowException
+                                 | inexactException,
+        }
+    }
+    else version (LoongArch_Any)
+    {
+        enum : ExceptionMask
+        {
+            inexactException      = 0x00,
+            divByZeroException    = 0x01,
+            overflowException     = 0x02,
+            underflowException    = 0x04,
+            invalidException      = 0x08,
             severeExceptions   = overflowException | divByZeroException
                                  | invalidException,
             allExceptions      = severeExceptions | underflowException
@@ -786,6 +842,8 @@ nothrow @nogc:
             return true;
         else version (MIPS_Any)
             return true;
+        else version (LoongArch_Any)
+            return true;
         else version (ARM_Any)
         {
             // The hasExceptionTraps_impl function is basically pure,
@@ -856,6 +914,10 @@ private:
         alias ControlState = uint;
     }
     else version (RISCV_Any)
+    {
+        alias ControlState = uint;
+    }
+    else version (LoongArch_Any)
     {
         alias ControlState = uint;
     }
@@ -973,14 +1035,22 @@ private:
         }
         else version (RISCV_Any)
         {
-            mixin(`
             ControlState cont;
             asm pure nothrow @nogc
             {
                 "frcsr %0" : "=r" (cont);
             }
             return cont;
-            `);
+        }
+        else version (LoongArch_Any)
+        {
+            ControlState cont;
+            asm pure nothrow @nogc
+            {
+                "movfcsr2gr %0, $fcsr0" : "=r" (cont);
+            }
+            cont &= (roundingMask | allExceptions);
+            return cont;
         }
         else
             assert(0, "Not yet supported");
@@ -1087,12 +1157,18 @@ private:
         }
         else version (RISCV_Any)
         {
-            mixin(`
             asm pure nothrow @nogc
             {
                 "fscsr %0" : : "r" (newState);
             }
-            `);
+        }
+        else version (LoongArch_Any)
+        {
+            asm nothrow @nogc
+            {
+                "movgr2fcsr $fcsr0,%0" :
+                : "r" (newState & (roundingMask | allExceptions));
+            }
         }
         else
             assert(0, "Not yet supported");
@@ -1100,7 +1176,6 @@ private:
 }
 
 ///
-version (FloatingPointControlUnittest)
 @safe unittest
 {
     import std.math.rounding : lrint;
@@ -1154,32 +1229,27 @@ version (FloatingPointControlUnittest)
     ensureDefaults();
 }
 
-version (FloatingPointControlUnittest)
 @safe unittest // rounding
 {
     import std.meta : AliasSeq;
 
     static T addRound(T)(uint rm)
     {
-        pragma(inline, false) static void blockopt(ref T x) {}
         pragma(inline, false);
         FloatingPointControl fpctrl;
         fpctrl.rounding = rm;
         T x = 1;
-        blockopt(x); // avoid constant propagation by the optimizer
-        x += 0.1L;
+        x = forceAddOp(x, 0.1L);
         return x;
     }
 
     static T subRound(T)(uint rm)
     {
-        pragma(inline, false) static void blockopt(ref T x) {}
         pragma(inline, false);
         FloatingPointControl fpctrl;
         fpctrl.rounding = rm;
         T x = -1;
-        blockopt(x); // avoid constant propagation by the optimizer
-        x -= 0.1L;
+        x = forceSubOp(x, 0.1L);
         return x;
     }
 
@@ -1210,4 +1280,16 @@ version (FloatingPointControlUnittest)
     }}
 }
 
+} // FloatingPointControlSupport
+
+version (StdUnittest)
+{
+    // These helpers are intended to avoid constant propagation by the optimizer.
+    pragma(inline, false) private @safe
+    {
+        T forceAddOp(T)(T x, T y) { return x + y; }
+        T forceSubOp(T)(T x, T y) { return x - y; }
+        T forceMulOp(T)(T x, T y) { return x * y; }
+        T forceDivOp(T)(T x, T y) { return x / y; }
+    }
 }

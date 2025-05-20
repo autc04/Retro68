@@ -1,5 +1,5 @@
 /* Translation of isl AST to Gimple.
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2025 Free Software Foundation, Inc.
    Contributed by Roman Gareev <gareevroman@gmail.com>.
 
 This file is part of GCC.
@@ -32,8 +32,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimple.h"
 #include "ssa.h"
 #include "fold-const.h"
-#include "gimple-fold.h"
 #include "gimple-iterator.h"
+#include "gimple-fold.h"
 #include "gimplify.h"
 #include "gimplify-me.h"
 #include "tree-eh.h"
@@ -274,7 +274,7 @@ widest_int_from_isl_expr_int (__isl_keep isl_ast_expr *expr)
   isl_val *val = isl_ast_expr_get_val (expr);
   size_t n = isl_val_n_abs_num_chunks (val, sizeof (HOST_WIDE_INT));
   HOST_WIDE_INT *chunks = XALLOCAVEC (HOST_WIDE_INT, n);
-  if (n > WIDE_INT_MAX_ELTS
+  if (n > WIDEST_INT_MAX_ELTS
       || isl_val_get_abs_num_chunks (val, sizeof (HOST_WIDE_INT), chunks) == -1)
     {
       isl_val_free (val);
@@ -443,7 +443,7 @@ nary_op_to_tree (tree type, __isl_take isl_ast_expr *expr, ivs_params &ip)
       break;
 
     default:
-      gcc_unreachable ();    
+      gcc_unreachable ();
     }
   isl_ast_expr *arg_expr = isl_ast_expr_get_op_arg (expr, 0);
   tree res = gcc_expression_from_isl_expression (type, arg_expr, ip);
@@ -746,7 +746,7 @@ translate_isl_ast_node_for (loop_p context_loop, __isl_keep isl_ast_node *node,
 
 /* Inserts in iv_map a tuple (OLD_LOOP->num, NEW_NAME) for the induction
    variables of the loops around GBB in SESE.
- 
+
    FIXME: Instead of using a vec<tree> that maps each loop id to a possible
    chrec, we could consider using a map<int, tree> that maps loop ids to the
    corresponding tree expressions.  */
@@ -853,7 +853,7 @@ translate_isl_ast_node_block (loop_p context_loop,
   isl_ast_node_list_free (node_list);
   return next_e;
 }
- 
+
 /* Creates a new if region corresponding to isl's cond.  */
 
 edge translate_isl_ast_to_gimple::
@@ -1014,7 +1014,7 @@ gsi_insert_earliest (gimple_seq seq)
   basic_block begin_bb = get_entry_bb (codegen_region);
 
   /* Inserting the gimple statements in a vector because gimple_seq behave
-     in strage ways when inserting the stmts from it into different basic
+     in strange ways when inserting the stmts from it into different basic
      blocks one at a time.  */
   auto_vec<gimple *, 3> stmts;
   for (gimple_stmt_iterator gsi = gsi_start (seq); !gsi_end_p (gsi);

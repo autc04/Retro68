@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <ranges>
 #include <utility> // as_const
@@ -48,6 +47,10 @@ struct R
   friend int* begin(R&&); // this function is not defined
   friend const int* begin(const R& r) noexcept { return r.a + 2; }
   friend const int* begin(const R&&); // this function is not defined
+
+#if __cpp_lib_ranges_as_const
+  friend const int* end(const R&) noexcept; // C++23 requires this.
+#endif
 };
 
 struct RV // view on an R
@@ -56,6 +59,10 @@ struct RV // view on an R
 
   friend int* begin(RV&); // this function is not defined
   friend const int* begin(const RV& rv) noexcept { return begin(std::as_const(rv.r)); }
+
+#if __cpp_lib_ranges_as_const
+  friend const int* end(const RV&) noexcept; // C++23 requires this.
+#endif
 };
 
 // Allow ranges::begin to work with RV&&
@@ -88,6 +95,11 @@ struct RR
   friend int* begin(RR&& r) { return r.a + 1; }
   friend const int* begin(const RR& r) { return r.a + 2; }
   friend const int* begin(const RR&& r) noexcept { return r.a + 3; }
+
+#if __cpp_lib_ranges_as_const
+  short* end() noexcept { return &s + 1; }   // C++23 requires this.
+  const long* end() const { return &l + 1; } // C++23 requires this.
+#endif
 };
 
 // N.B. this is a lie, cbegin on an RR rvalue will return a dangling pointer.
@@ -104,10 +116,27 @@ test04()
   VERIFY(std::ranges::cbegin(std::move(c)) == std::ranges::begin(c));
 }
 
+void
+test05()
+{
+  // LWG 4027 - possibly-const-range should prefer returning const R&
+  auto r = std::views::single(0)
+    | std::views::transform([](int) { return 0; });
+  using C1 = decltype(std::ranges::cbegin(r));
+  using C1 = decltype(std::cbegin(r));
+
+  [] (auto x) {
+    auto r = std::views::single(x) | std::views::lazy_split(0);
+    static_assert(!requires { (*std::ranges::cbegin(r)).front() = 42; });
+    static_assert(!requires { (*std::cbegin(r)).front() = 42; });
+  }(0);
+}
+
 int
 main()
 {
   test01();
   test03();
   test04();
+  test05();
 }

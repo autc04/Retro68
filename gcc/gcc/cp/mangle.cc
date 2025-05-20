@@ -1,5 +1,5 @@
 /* Name mangling for the 3.0 -*- C++ -*- ABI.
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2025 Free Software Foundation, Inc.
    Written by Alex Samuel <samuel@codesourcery.com>
 
    This file is part of GCC.
@@ -221,7 +221,7 @@ static void write_function_type (const tree);
 static void write_bare_function_type (const tree, const int, const tree);
 static void write_method_parms (tree, const int, const tree);
 static void write_class_enum_type (const tree);
-static void write_template_args (tree);
+static void write_template_args (tree, tree = NULL_TREE);
 static void write_expression (tree);
 static void write_template_arg_literal (const tree);
 static void write_template_arg (tree);
@@ -238,7 +238,6 @@ static void write_local_name (tree, const tree, const tree);
 static void dump_substitution_candidates (void);
 static tree mangle_decl_string (const tree);
 static void maybe_check_abi_tags (tree, tree = NULL_TREE, int = 10);
-static bool equal_abi_tags (tree, tree);
 
 /* Control functions.  */
 
@@ -274,6 +273,17 @@ static tree mangle_special_for_type (const tree, const char *);
 /* Write out an unsigned quantity in base 10.  */
 #define write_unsigned_number(NUMBER)					\
   write_number ((NUMBER), /*unsigned_p=*/1, 10)
+
+/* Check for -fabi-version dependent mangling and also set the need_abi_warning
+   flag as appropriate.  */
+
+static bool
+abi_check (int ver)
+{
+  if (abi_warn_or_compat_version_crosses (ver))
+    G.need_abi_warning = true;
+  return abi_version_at_least (ver);
+}
 
 /* If DECL is a template instance (including the uninstantiated template
    itself), return its TEMPLATE_INFO.  Otherwise return NULL.  */
@@ -518,6 +528,16 @@ get_abi_tags (tree t)
 
   if (DECL_P (t) && DECL_DECLARES_TYPE_P (t))
     t = TREE_TYPE (t);
+
+  if (TREE_CODE (t) == TEMPLATE_DECL && DECL_TEMPLATE_RESULT (t))
+    {
+      tree tags = get_abi_tags (DECL_TEMPLATE_RESULT (t));
+      /* We used to overlook abi_tag on function and variable templates.  */
+      if (tags && abi_check (19))
+	return tags;
+      else
+	return NULL_TREE;
+    }
 
   tree attrs;
   if (TYPE_P (t))
@@ -798,6 +818,25 @@ write_mangled_name (const tree decl, bool top_level)
       write_string ("_Z");
       write_encoding (decl);
     }
+
+  /* If this is the pre/post function for a guarded function, append
+     .pre/post, like something from create_virtual_clone.  */
+  if (DECL_IS_PRE_FN_P (decl))
+    write_string (".pre");
+  else if (DECL_IS_POST_FN_P (decl))
+    write_string (".post");
+
+  /* If this is a coroutine helper, then append an appropriate string to
+     identify which.  */
+  if (tree ramp = DECL_RAMP_FN (decl))
+    {
+      if (DECL_ACTOR_FN (ramp) == decl)
+	write_string (JOIN_STR "actor");
+      else if (DECL_DESTROY_FN (ramp) == decl)
+	write_string (JOIN_STR "destroy");
+      else
+	gcc_unreachable ();
+    }
 }
 
 /* Returns true if the return type of DECL is part of its signature, and
@@ -810,6 +849,70 @@ mangle_return_type_p (tree decl)
 	  && !DECL_DESTRUCTOR_P (decl)
 	  && !DECL_CONV_FN_P (decl)
 	  && maybe_template_info (decl));
+}
+
+/* <constraint-expression> ::= <expression> */
+
+static void
+write_constraint_expression (tree expr)
+{
+  write_expression (expr);
+}
+
+/* Mangle a requires-clause following a template-head, if any.
+
+   Q <constraint_expression> E  */
+
+static void
+write_tparms_constraints (tree constraints)
+{
+  /* In a declaration with shorthand constraints in the template-head, followed
+     by a requires-clause, followed by shorthand constraints in the
+     function-parameter-list, the full constraints will be some && with the
+     parameter constraints on the RHS, around an && with the requires-clause on
+     the RHS.  Find the requires-clause, if any.
+
+     This logic relies on the && and ... from combine_constraint_expressions,
+     finish_shorthand_constraint, and convert_generic_types_to_packs having
+     UNKNOWN_LOCATION.  If they need to have an actual location, we could move
+     to using a TREE_LANG_FLAG.  */
+  if (constraints && abi_check (19))
+    {
+      tree probe = constraints;
+      while (probe
+	     && !EXPR_LOCATION (probe)
+	     && TREE_CODE (probe) == TRUTH_ANDIF_EXPR)
+	{
+	  tree op1 = TREE_OPERAND (probe, 1);
+	  probe = (EXPR_LOCATION (op1) ? op1
+		   : TREE_OPERAND (probe, 0));
+	}
+      if (probe && EXPR_LOCATION (probe))
+	{
+	  write_char ('Q');
+	  write_constraint_expression (probe);
+	}
+    }
+}
+
+/* <type-constraint> ::= <name> */
+
+static void
+write_type_constraint (tree cnst)
+{
+  if (!cnst)
+    return;
+
+  gcc_checking_assert (TREE_CODE (cnst) == TEMPLATE_ID_EXPR);
+
+  tree concept_decl = get_concept_check_template (cnst);
+  write_name (concept_decl, 0);
+  tree args = TREE_OPERAND (cnst, 1);
+  if (TREE_VEC_LENGTH (args) > 1)
+    {
+      TEMPLATE_ARGS_TYPE_CONSTRAINT_P (args) = true;
+      write_template_args (args);
+    }
 }
 
 /*   <encoding>		::= <function name> <bare-function-type>
@@ -856,17 +959,14 @@ write_encoding (const tree decl)
 				mangle_return_type_p (decl),
 				d);
 
-      /* If this is a coroutine helper, then append an appropriate string to
-	 identify which.  */
-      if (tree ramp = DECL_RAMP_FN (decl))
-	{
-	  if (DECL_ACTOR_FN (ramp) == decl)
-	    write_string (JOIN_STR "actor");
-	  else if (DECL_DESTROY_FN (ramp) == decl)
-	    write_string (JOIN_STR "destroy");
-	  else
-	    gcc_unreachable ();
-	}
+      if (tree c = get_trailing_function_requirements (decl))
+	if (abi_check (19))
+	  {
+	    ++G.parm_depth;
+	    write_char ('Q');
+	    write_constraint_expression (c);
+	    --G.parm_depth;
+	  }
     }
 }
 
@@ -916,7 +1016,10 @@ maybe_write_module (tree decl)
   if (!DECL_NAMESPACE_SCOPE_P (decl))
     return;
 
-  if (TREE_CODE (decl) == NAMESPACE_DECL && DECL_NAME (decl))
+  if (!TREE_PUBLIC (STRIP_TEMPLATE (decl)))
+    return;
+
+  if (TREE_CODE (decl) == NAMESPACE_DECL)
     return;
 
   int m = get_originating_module (decl, true);
@@ -945,12 +1048,21 @@ decl_mangling_context (tree decl)
       tree extra = LAMBDA_TYPE_EXTRA_SCOPE (TREE_TYPE (decl));
       if (extra)
 	return extra;
+      tcontext = CP_DECL_CONTEXT (decl);
+      if (LAMBDA_TYPE_P (tcontext))
+	/* Lambda type context means this lambda appears between the
+	   lambda-introducer and the open brace of another lambda (c++/119175).
+	   That isn't a real scope; look further into the enclosing scope.  */
+	return decl_mangling_context (TYPE_NAME (tcontext));
     }
   else if (template_type_parameter_p (decl))
      /* template type parms have no mangling context.  */
       return NULL_TREE;
 
   tcontext = CP_DECL_CONTEXT (decl);
+
+  if (member_like_constrained_friend_p (decl))
+    tcontext = DECL_FRIEND_CONTEXT (decl);
 
   /* Ignore the artificial declare reduction functions.  */
   if (tcontext
@@ -1012,7 +1124,13 @@ write_name (tree decl, const int ignore_local_scope)
 	{
 	  /* Yes: use <unscoped-template-name>.  */
 	  write_unscoped_template_name (TI_TEMPLATE (info));
-	  write_template_args (TI_ARGS (info));
+	  /* Pass down the parms of a function template in case we need to
+	     mangle them; we don't mangle the parms of a non-overloadable
+	     template.  */
+	  tree parms = (TREE_CODE (decl) == FUNCTION_DECL
+			? DECL_TEMPLATE_PARMS (TI_TEMPLATE (info))
+			: NULL_TREE);
+	  write_template_args (TI_ARGS (info), parms);
 	}
       else
 	/* Everything else gets an <unqualified-name>.  */
@@ -1118,9 +1236,9 @@ write_nested_name (const tree decl)
 
   write_char ('N');
 
-  /* Write CV-qualifiers, if this is a member function.  */
+  /* Write CV-qualifiers, if this is an iobj member function.  */
   if (TREE_CODE (decl) == FUNCTION_DECL
-      && DECL_NONSTATIC_MEMBER_FUNCTION_P (decl))
+      && DECL_IOBJ_MEMBER_FUNCTION_P (decl))
     {
       if (DECL_VOLATILE_MEMFUNC_P (decl))
 	write_char ('V');
@@ -1134,6 +1252,9 @@ write_nested_name (const tree decl)
 	    write_char ('R');
 	}
     }
+  else if (DECL_DECLARES_FUNCTION_P (decl)
+	   && DECL_XOBJ_MEMBER_FUNCTION_P (decl))
+    write_char ('H');
 
   /* Is this a template instance?  */
   if (tree info = maybe_template_info (decl))
@@ -1184,7 +1305,8 @@ write_prefix (const tree node)
 
   MANGLE_TRACE_TREE ("prefix", node);
 
-  if (TREE_CODE (node) == DECLTYPE_TYPE)
+  if (TREE_CODE (node) == DECLTYPE_TYPE
+      || TREE_CODE (node) == TRAIT_TYPE)
     {
       write_type (node);
       return;
@@ -1249,7 +1371,12 @@ write_prefix (const tree node)
 	{
 	  /* <data-member-prefix> := <member source-name> M */
 	  write_char ('M');
-	  return;
+
+	  /* Before ABI 18, we did not count these as substitution
+	     candidates.  This leads to incorrect demanglings (and
+	     ABI divergence to other compilers).  */
+	  if (!abi_check (18))
+	    return;
 	}
     }
 
@@ -1326,49 +1453,26 @@ write_template_prefix (const tree node)
   add_substitution (substitution);
 }
 
-/* As the list of identifiers for the structured binding declaration
-   DECL is likely gone, try to recover the DC <source-name>+ E portion
-   from its mangled name.  Return pointer to the DC and set len to
-   the length up to and including the terminating E.  On failure
-   return NULL.  */
+/* "For the purposes of mangling, the name of an anonymous union is considered
+   to be the name of the first named data member found by a pre-order,
+   depth-first, declaration-order walk of the data members of the anonymous
+   union. If there is no such data member (i.e., if all of the data members in
+   the union are unnamed), then there is no way for a program to refer to the
+   anonymous union, and there is therefore no need to mangle its name."  */
 
-static const char *
-find_decomp_unqualified_name (tree decl, size_t *len)
+static tree
+anon_aggr_naming_decl (tree type)
 {
-  const char *p = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl));
-  const char *end = p + IDENTIFIER_LENGTH (DECL_ASSEMBLER_NAME (decl));
-  bool nested = false;
-  if (!startswith (p, "_Z"))
-    return NULL;
-  p += 2;
-  if (startswith (p, "St"))
-    p += 2;
-  else if (*p == 'N')
+  tree field = next_aggregate_field (TYPE_FIELDS (type));
+  for (; field; field = next_aggregate_field (DECL_CHAIN (field)))
     {
-      nested = true;
-      ++p;
-      while (ISDIGIT (p[0]))
-	{
-	  char *e;
-	  long num = strtol (p, &e, 10);
-	  if (num >= 1 && num < end - e)
-	    p = e + num;
-	  else
-	    break;
-	}
+      if (DECL_NAME (field))
+	return field;
+      if (ANON_AGGR_TYPE_P (TREE_TYPE (field)))
+	if (tree sub = anon_aggr_naming_decl (TREE_TYPE (field)))
+	  return sub;
     }
-  if (!startswith (p, "DC"))
-    return NULL;
-  if (nested)
-    {
-      if (end[-1] != 'E')
-	return NULL;
-      --end;
-    }
-  if (end[-1] != 'E')
-    return NULL;
-  *len = end - p;
-  return p;
+  return NULL_TREE;
 }
 
 /* We don't need to handle thunks, vtables, or VTTs here.  Those are
@@ -1378,7 +1482,8 @@ find_decomp_unqualified_name (tree decl, size_t *len)
 			::= <special-name>
 			::= [<module-name>] <source-name>
 			::= [<module-name>] <unnamed-type-name>
-			::= <local-source-name> 
+			::= <local-source-name>
+			::= F <source-name> # member-like constrained friend
 
     <local-source-name>	::= L <source-name> <discriminator> */
 
@@ -1414,25 +1519,24 @@ write_unqualified_name (tree decl)
 
   bool found = false;
 
-  if (DECL_NAME (decl) == NULL_TREE)
+  if (DECL_NAME (decl) == NULL_TREE
+      && ANON_AGGR_TYPE_P (TREE_TYPE (decl)))
+    decl = anon_aggr_naming_decl (TREE_TYPE (decl));
+  else if (DECL_NAME (decl) == NULL_TREE)
     {
       found = true;
       gcc_assert (DECL_ASSEMBLER_NAME_SET_P (decl));
-      const char *decomp_str = NULL;
-      size_t decomp_len = 0;
-      if (VAR_P (decl)
-	  && DECL_DECOMPOSITION_P (decl)
-	  && DECL_NAME (decl) == NULL_TREE
-	  && DECL_NAMESPACE_SCOPE_P (decl))
-	decomp_str = find_decomp_unqualified_name (decl, &decomp_len);
-      if (decomp_str)
-	write_chars (decomp_str, decomp_len);
-      else
-	write_source_name (DECL_ASSEMBLER_NAME (decl));
+      write_source_name (DECL_ASSEMBLER_NAME (decl));
     }
   else if (DECL_DECLARES_FUNCTION_P (decl))
     {
       found = true;
+
+      /* A constrained hidden friend is mangled like a member function, with
+	 the name prefixed by 'F'.  */
+      if (member_like_constrained_friend_p (decl))
+	write_char ('F');
+
       if (DECL_CONSTRUCTOR_P (decl))
 	write_special_name_constructor (decl);
       else if (DECL_DESTRUCTOR_P (decl))
@@ -1544,9 +1648,7 @@ write_unqualified_name (tree decl)
       && any_abi_below (11))
     if (tree mtags = missing_abi_tags (decl))
       {
-	if (abi_warn_or_compat_version_crosses (11))
-	  G.need_abi_warning = true;
-	if (!abi_version_at_least (11))
+	if (!abi_check (11))
 	  tags = chainon (mtags, tags);
       }
   write_abi_tags (tags);
@@ -1576,7 +1678,7 @@ write_source_name (tree identifier)
 
 /* Compare two TREE_STRINGs like strcmp.  */
 
-int
+static int
 tree_string_cmp (const void *p1, const void *p2)
 {
   if (p1 == p2)
@@ -1631,7 +1733,7 @@ write_abi_tags (tree tags)
 
 /* True iff the TREE_LISTS T1 and T2 of ABI tags are equivalent.  */
 
-static bool
+bool
 equal_abi_tags (tree t1, tree t2)
 {
   releasing_vec v1 = sorted_abi_tags (t1);
@@ -1641,7 +1743,8 @@ equal_abi_tags (tree t1, tree t2)
   if (len1 != v2->length())
     return false;
   for (unsigned i = 0; i < len1; ++i)
-    if (tree_string_cmp (v1[i], v2[i]) != 0)
+    if (strcmp (TREE_STRING_POINTER (v1[i]),
+		TREE_STRING_POINTER (v2[i])) != 0)
       return false;
   return true;
 }
@@ -1717,6 +1820,168 @@ write_unnamed_type_name (const tree type)
   write_compact_number (discriminator);
 }
 
+/* ABI issue #47: if a function template parameter is not "natural" for its
+   argument we must mangle the parameter.  */
+
+static bool
+template_parm_natural_p (tree arg, tree parm)
+{
+  tree decl = TREE_VALUE (parm);
+
+  /* A template parameter is "natural" if: */
+
+  if (template_parameter_pack_p (decl))
+    {
+      tree args = ARGUMENT_PACK_ARGS (arg);
+      if (TREE_VEC_LENGTH (args) == 0)
+	{
+#if 0
+	  /* the argument is an empty pack and the parameter is an
+	     unconstrained template type parameter pack; */
+	  if (TREE_CODE (decl) != TYPE_DECL)
+	    return false;
+#else
+	  /* Defer changing the mangling of C++11 code like
+	     template <int i> int max();
+	     template <int i, int j, int... rest> int max();  */
+	  return true;
+#endif
+	}
+      else
+	/* the argument is a non-empty pack and a non-pack variant of the
+	   parameter would be natural for the first element of the pack; */
+	arg = TREE_VEC_ELT (args, 0);
+    }
+
+  /* the argument is a template and the parameter has the exact
+     same template head; */
+  if (TREE_CODE (decl) == TEMPLATE_DECL)
+    return template_heads_equivalent_p (arg, decl);
+
+  /* the argument is a type and the parameter is unconstrained; or */
+  else if (TREE_CODE (decl) == TYPE_DECL)
+    return !TEMPLATE_PARM_CONSTRAINTS (parm);
+
+  /* the argument is a non-type template argument and the declared parameter
+     type neither is instantiation dependent nor contains deduced types.  */
+  else if (TREE_CODE (decl) == PARM_DECL)
+    {
+#if 0
+      return !uses_template_parms (TREE_TYPE (decl));
+#else
+      /* Defer changing the mangling of C++98 code like
+	 template <class T, T V> ....  */
+      return !type_uses_auto (TREE_TYPE (decl));
+#endif
+    }
+
+  gcc_unreachable ();
+}
+
+/* Used for lambda template head and non-natural function template parameters.
+
+   <template-param-decl> ::= Ty               # template type parameter
+	::= Tk <type-constraint>              # constrained type parameter
+	::= Tn <type>                         # template non-type parameter
+	::= Tt <template-param-decl>* [Q <constraint-expression] E  # ttp
+	::= Tp <non-pack template-param-decl> # template parameter pack */
+
+static void
+write_template_param_decl (tree parm)
+{
+  tree decl = TREE_VALUE (parm);
+
+  if (template_parameter_pack_p (decl))
+    write_string ("Tp");
+
+  switch (TREE_CODE (decl))
+    {
+    case PARM_DECL:
+      {
+	write_string ("Tn");
+
+	tree type = TREE_TYPE (decl);
+	if (tree c = (is_auto (type)
+		      ? PLACEHOLDER_TYPE_CONSTRAINTS (type)
+		      : NULL_TREE))
+	  {
+	    if (AUTO_IS_DECLTYPE (type))
+	      write_string ("DK");
+	    else
+	      write_string ("Dk");
+	    write_type_constraint (c);
+	  }
+	else
+	  write_type (type);
+      }
+      break;
+
+    case TEMPLATE_DECL:
+      {
+	write_string ("Tt");
+	tree parms = DECL_INNERMOST_TEMPLATE_PARMS (decl);
+	for (tree node : tree_vec_range (parms))
+	  write_template_param_decl (node);
+	write_char ('E');
+      }
+      break;
+
+    case TYPE_DECL:
+      if (tree c = TEMPLATE_PARM_CONSTRAINTS (parm))
+	{
+	  if (TREE_CODE (c) == UNARY_LEFT_FOLD_EXPR)
+	    {
+	      c = FOLD_EXPR_PACK (c);
+	      c = PACK_EXPANSION_PATTERN (c);
+	    }
+	  if (TREE_CODE (decl) == TYPE_DECL)
+	    {
+	      write_string ("Tk");
+	      write_type_constraint (c);
+	    }
+	}
+      else
+	write_string ("Ty");
+      break;
+
+    default:
+      gcc_unreachable ();
+    }
+}
+
+// A template head, for templated lambdas.
+// New in ABI=18. Returns true iff we emitted anything -- used for ABI
+// version warning.
+
+static bool
+write_closure_template_head (tree tmpl)
+{
+  bool any = false;
+
+  // We only need one level of template parms
+  tree parms = DECL_TEMPLATE_PARMS (tmpl);
+  tree inner = INNERMOST_TEMPLATE_PARMS (parms);
+
+  for (int ix = 0, len = TREE_VEC_LENGTH (inner); ix != len; ix++)
+    {
+      tree parm = TREE_VEC_ELT (inner, ix);
+      if (parm == error_mark_node)
+	continue;
+
+      if (DECL_IMPLICIT_TEMPLATE_PARM_P (TREE_VALUE (parm)))
+	// A synthetic parm, we're done.
+	break;
+
+      any = true;
+      if (abi_version_at_least (18))
+	write_template_param_decl (parm);
+    }
+
+  write_tparms_constraints (TEMPLATE_PARMS_CONSTRAINTS (parms));
+
+  return any;
+}
+
 /* <closure-type-name> ::= Ul <lambda-sig> E [ <nonnegative number> ] _
    <lambda-sig> ::= <parameter type>+  # Parameter types or "v" if the lambda has no parameters */
 
@@ -1730,9 +1995,23 @@ write_closure_type_name (const tree type)
   MANGLE_TRACE_TREE ("closure-type-name", type);
 
   write_string ("Ul");
-  write_method_parms (parms, /*method_p=*/1, fn);
+
+  if (auto ti = maybe_template_info (fn))
+    if (write_closure_template_head (TI_TEMPLATE (ti)))
+      // If there were any explicit template parms, we may need to
+      // issue a mangling diagnostic.
+      if (abi_warn_or_compat_version_crosses (18))
+	G.need_abi_warning = true;
+
+  write_method_parms (parms, TREE_CODE (TREE_TYPE (fn)) == METHOD_TYPE, fn);
   write_char ('E');
-  write_compact_number (LAMBDA_EXPR_DISCRIMINATOR (lambda));
+  if ((LAMBDA_EXPR_SCOPE_SIG_DISCRIMINATOR (lambda)
+       != LAMBDA_EXPR_SCOPE_ONLY_DISCRIMINATOR (lambda))
+      && abi_warn_or_compat_version_crosses (18))
+    G.need_abi_warning = true;
+  write_compact_number (abi_version_at_least (18)
+			? LAMBDA_EXPR_SCOPE_SIG_DISCRIMINATOR (lambda)
+			: LAMBDA_EXPR_SCOPE_ONLY_DISCRIMINATOR (lambda));
 }
 
 /* Convert NUMBER to ascii using base BASE and generating at least
@@ -2022,9 +2301,7 @@ write_discriminator (const int discriminator)
       write_char ('_');
       if (discriminator - 1 >= 10)
 	{
-	  if (abi_warn_or_compat_version_crosses (11))
-	    G.need_abi_warning = 1;
-	  if (abi_version_at_least (11))
+	  if (abi_check (11))
 	    write_char ('_');
 	}
       write_unsigned_number (discriminator - 1);
@@ -2107,7 +2384,7 @@ write_local_name (tree function, const tree local_entity,
    C++0x extensions
 
      <type> ::= RR <type>   # rvalue reference-to
-     <type> ::= Dt <expression> # decltype of an id-expression or 
+     <type> ::= Dt <expression> # decltype of an id-expression or
                                 # class member access
      <type> ::= DT <expression> # decltype of an expression
      <type> ::= Dn              # decltype of nullptr
@@ -2282,6 +2559,16 @@ write_type (tree type)
 	    case TEMPLATE_TYPE_PARM:
 	      if (is_auto (type))
 		{
+		  if (template_placeholder_p (type)
+		      && abi_check (19))
+		    {
+		      /* ABI #109: placeholder is mangled as its template.  */
+		      type = CLASS_PLACEHOLDER_TEMPLATE (type);
+		      if (find_substitution (type))
+			return;
+		      write_name (type, 0);
+		      break;
+		    }
 		  if (AUTO_IS_DECLTYPE (type))
 		    write_identifier ("Dc");
 		  else
@@ -2353,9 +2640,7 @@ write_type (tree type)
 
 		  if (etype && !type_uses_auto (etype))
 		    {
-		      if (abi_warn_or_compat_version_crosses (5))
-			G.need_abi_warning = 1;
-		      if (!abi_version_at_least (5))
+		      if (!abi_check (5))
 			{
 			  write_type (etype);
 			  return;
@@ -2376,18 +2661,23 @@ write_type (tree type)
 
 	    case NULLPTR_TYPE:
 	      write_string ("Dn");
-	      if (abi_version_at_least (7))
+	      if (abi_check (7))
 		++is_builtin_type;
-	      if (abi_warn_or_compat_version_crosses (7))
-		G.need_abi_warning = 1;
 	      break;
 
 	    case TYPEOF_TYPE:
 	      sorry ("mangling %<typeof%>, use %<decltype%> instead");
 	      break;
 
-	    case UNDERLYING_TYPE:
-	      sorry ("mangling %<__underlying_type%>");
+	    case TRAIT_TYPE:
+	      error ("use of built-in trait %qT in function signature; "
+		     "use library traits instead", type);
+	      break;
+
+	    case PACK_INDEX_TYPE:
+	      /* TODO Mangle pack indexing
+		 <https://github.com/itanium-cxx-abi/cxx-abi/issues/175>.  */
+	      sorry ("mangling type pack index");
 	      break;
 
 	    case LANG_TYPE:
@@ -2639,67 +2929,30 @@ write_builtin_type (tree type)
 	write_char ('d');
       else if (type == long_double_type_node)
 	write_char ('e');
-      else if (type == dfloat32_type_node || type == fallback_dfloat32_type)
+      else if (type == dfloat32_type_node)
 	write_string ("Df");
-      else if (type == dfloat64_type_node || type == fallback_dfloat64_type)
+      else if (type == dfloat64_type_node)
 	write_string ("Dd");
-      else if (type == dfloat128_type_node || type == fallback_dfloat128_type)
+      else if (type == dfloat128_type_node)
 	write_string ("De");
+      else if (type == float16_type_node)
+	write_string ("DF16_");
+      else if (type == float32_type_node)
+	write_string ("DF32_");
+      else if (type == float64_type_node)
+	write_string ("DF64_");
+      else if (type == float128_type_node)
+	write_string ("DF128_");
+      else if (type == float32x_type_node)
+	write_string ("DF32x");
+      else if (type == float64x_type_node)
+	write_string ("DF64x");
+      else if (type == float128x_type_node)
+	write_string ("DF128x");
+      else if (type == bfloat16_type_node)
+	write_string ("DF16b");
       else
 	gcc_unreachable ();
-      break;
-
-    case FIXED_POINT_TYPE:
-      write_string ("DF");
-      if (GET_MODE_IBIT (TYPE_MODE (type)) > 0)
-	write_unsigned_number (GET_MODE_IBIT (TYPE_MODE (type)));
-      if (type == fract_type_node
-	  || type == sat_fract_type_node
-	  || type == accum_type_node
-	  || type == sat_accum_type_node)
-	write_char ('i');
-      else if (type == unsigned_fract_type_node
-	       || type == sat_unsigned_fract_type_node
-	       || type == unsigned_accum_type_node
-	       || type == sat_unsigned_accum_type_node)
-	write_char ('j');
-      else if (type == short_fract_type_node
-	       || type == sat_short_fract_type_node
-	       || type == short_accum_type_node
-	       || type == sat_short_accum_type_node)
-	write_char ('s');
-      else if (type == unsigned_short_fract_type_node
-	       || type == sat_unsigned_short_fract_type_node
-	       || type == unsigned_short_accum_type_node
-	       || type == sat_unsigned_short_accum_type_node)
-	write_char ('t');
-      else if (type == long_fract_type_node
-	       || type == sat_long_fract_type_node
-	       || type == long_accum_type_node
-	       || type == sat_long_accum_type_node)
-	write_char ('l');
-      else if (type == unsigned_long_fract_type_node
-	       || type == sat_unsigned_long_fract_type_node
-	       || type == unsigned_long_accum_type_node
-	       || type == sat_unsigned_long_accum_type_node)
-	write_char ('m');
-      else if (type == long_long_fract_type_node
-	       || type == sat_long_long_fract_type_node
-	       || type == long_long_accum_type_node
-	       || type == sat_long_long_accum_type_node)
-	write_char ('x');
-      else if (type == unsigned_long_long_fract_type_node
-	       || type == sat_unsigned_long_long_fract_type_node
-	       || type == unsigned_long_long_accum_type_node
-	       || type == sat_unsigned_long_long_accum_type_node)
-	write_char ('y');
-      else
-	sorry ("mangling unknown fixed point type");
-      write_unsigned_number (GET_MODE_FBIT (TYPE_MODE (type)));
-      if (TYPE_SATURATING (type))
-	write_char ('s');
-      else
-	write_char ('n');
       break;
 
     default:
@@ -2856,13 +3109,84 @@ write_class_enum_type (const tree type)
   write_name (TYPE_NAME (type), /*ignore_local_scope=*/0);
 }
 
+/* Mangle a requirement REQ in a requires-expression.  */
+
+static void
+write_requirement (tree req)
+{
+  tree op = TREE_OPERAND (req, 0);
+
+  switch (tree_code code = TREE_CODE (req))
+    {
+      /* # simple-requirement or compound-requirement
+	 <requirement> ::= X <expression> [ N ] [ R <type-constraint> ] */
+    case SIMPLE_REQ:
+    case COMPOUND_REQ:
+      write_char ('X');
+      write_expression (op);
+      if (code == SIMPLE_REQ)
+	break;
+      if (COMPOUND_REQ_NOEXCEPT_P (req))
+	write_char ('N');
+      if (tree constr = TREE_OPERAND (req, 1))
+	{
+	  write_char ('R');
+	  write_type_constraint (PLACEHOLDER_TYPE_CONSTRAINTS (constr));
+	}
+      break;
+
+      /* <requirement> ::= T <type> # type-requirement */
+    case TYPE_REQ:
+      write_char ('T');
+      write_type (op);
+      break;
+
+      /* <requirement> ::= Q <constraint-expression> # nested-requirement */
+    case NESTED_REQ:
+      write_char ('Q');
+      write_constraint_expression (op);
+      break;
+
+    default:
+      gcc_unreachable ();
+    }
+}
+
+/* # requires { ... }
+   <expression> ::= rq <requirement>+ E
+   # requires (...) { ... }
+   <expression> ::= rQ <bare-function-type> _ <requirement>+ E */
+
+static void
+write_requires_expr (tree expr)
+{
+  tree parms = REQUIRES_EXPR_PARMS (expr);
+  if (parms)
+    {
+      write_string ("rQ");
+      ++G.parm_depth;
+      for (; parms; parms = DECL_CHAIN (parms))
+	write_type (cv_unqualified (TREE_TYPE (parms)));
+      --G.parm_depth;
+      write_char ('_');
+    }
+  else
+    write_string ("rq");
+
+  for (tree reqs = REQUIRES_EXPR_REQS (expr); reqs;
+       reqs = TREE_CHAIN (reqs))
+    write_requirement (TREE_VALUE (reqs));
+
+  write_char ('E');
+}
+
 /* Non-terminal <template-args>.  ARGS is a TREE_VEC of template
    arguments.
 
-     <template-args> ::= I <template-arg>* E  */
+     <template-args> ::= I <template-arg>* [Q <constraint-expr>] E  */
 
 static void
-write_template_args (tree args)
+write_template_args (tree args, tree parms /*= NULL_TREE*/)
 {
   int i;
   int length = 0;
@@ -2874,6 +3198,13 @@ write_template_args (tree args)
   if (args)
     length = TREE_VEC_LENGTH (args);
 
+  tree constraints = NULL_TREE;
+  if (parms)
+    {
+      constraints = TEMPLATE_PARMS_CONSTRAINTS (parms);
+      parms = INNERMOST_TEMPLATE_PARMS (parms);
+    }
+
   if (args && length && TREE_CODE (TREE_VEC_ELT (args, 0)) == TREE_VEC)
     {
       /* We have nested template args.  We want the innermost template
@@ -2881,8 +3212,38 @@ write_template_args (tree args)
       args = TREE_VEC_ELT (args, length - 1);
       length = TREE_VEC_LENGTH (args);
     }
-  for (i = 0; i < length; ++i)
-    write_template_arg (TREE_VEC_ELT (args, i));
+  if (TEMPLATE_ARGS_TYPE_CONSTRAINT_P (args))
+    /* Skip the constrained type.  */
+    i = 1;
+  else
+    i = 0;
+  bool implicit_parm_scope = false;
+  for (; i < length; ++i)
+    {
+      tree arg = TREE_VEC_ELT (args, i);
+      if (parms)
+	{
+	  tree parm = TREE_VEC_ELT (parms, i);
+	  tree decl = TREE_VALUE (parm);
+	  if (DECL_IMPLICIT_TEMPLATE_PARM_P (decl)
+	      && !implicit_parm_scope)
+	    {
+	      /* The rest of the template parameters are based on generic
+		 function parameters, so any expressions in their
+		 type-constraints are in parameter scope.  */
+	      implicit_parm_scope = true;
+	      ++G.parm_depth;
+	    }
+	  if (!template_parm_natural_p (arg, parm)
+	      && abi_check (19))
+	    write_template_param_decl (parm);
+	}
+      write_template_arg (arg);
+    }
+  if (implicit_parm_scope)
+    --G.parm_depth;
+
+  write_tparms_constraints (constraints);
 
   write_char ('E');
 }
@@ -2899,16 +3260,20 @@ write_member_name (tree member)
     {
       if (IDENTIFIER_ANY_OP_P (member))
 	{
-	  if (abi_version_at_least (11))
+	  if (abi_check (11))
 	    write_string ("on");
-	  if (abi_warn_or_compat_version_crosses (11))
-	    G.need_abi_warning = 1;
 	}
       write_unqualified_id (member);
     }
   else if (DECL_P (member))
     {
-      gcc_assert (!DECL_OVERLOADED_OPERATOR_P (member));
+      if (ANON_AGGR_TYPE_P (TREE_TYPE (member)))
+	;
+      else if (DECL_OVERLOADED_OPERATOR_P (member))
+	{
+	  if (abi_check (16))
+	    write_string ("on");
+	}
       write_unqualified_name (member);
     }
   else if (TREE_CODE (member) == TEMPLATE_ID_EXPR)
@@ -3053,6 +3418,10 @@ write_expression (tree expr)
   else if (TREE_CODE_CLASS (code) == tcc_constant
 	   || code == CONST_DECL)
     write_template_arg_literal (expr);
+  else if (code == EXCESS_PRECISION_EXPR
+	   && TREE_CODE (TREE_OPERAND (expr, 0)) == REAL_CST)
+    write_template_arg_literal (fold_convert (TREE_TYPE (expr),
+					      TREE_OPERAND (expr, 0)));
   else if (code == PARM_DECL && DECL_ARTIFICIAL (expr))
     {
       gcc_assert (id_equal (DECL_NAME (expr), "this"));
@@ -3068,7 +3437,8 @@ write_expression (tree expr)
       write_char ('f');
       if (delta != 0)
 	{
-	  if (abi_version_at_least (5))
+	  gcc_checking_assert (delta > 0);
+	  if (abi_check (5))
 	    {
 	      /* Let L be the number of function prototype scopes from the
 		 innermost one (in which the parameter reference occurs) up
@@ -3080,8 +3450,6 @@ write_expression (tree expr)
 	      write_char ('L');
 	      write_unsigned_number (delta - 1);
 	    }
-	  if (abi_warn_or_compat_version_crosses (5))
-	    G.need_abi_warning = true;
 	}
       write_char ('p');
       write_compact_number (index - 1);
@@ -3098,9 +3466,8 @@ write_expression (tree expr)
 
       if (PACK_EXPANSION_P (op))
 	{
-	  if (abi_warn_or_compat_version_crosses (11))
-	    G.need_abi_warning = true;
-	  if (abi_version_at_least (11))
+    sizeof_pack:
+	  if (abi_check (11))
 	    {
 	      /* sZ rather than szDp.  */
 	      write_string ("sZ");
@@ -3118,10 +3485,21 @@ write_expression (tree expr)
 	{
 	  tree args = ARGUMENT_PACK_ARGS (op);
 	  int length = TREE_VEC_LENGTH (args);
-	  if (abi_warn_or_compat_version_crosses (10))
-	    G.need_abi_warning = true;
-	  if (abi_version_at_least (10))
+	  if (abi_check (10))
 	    {
+	      /* Before v19 we wrongly mangled all single pack expansions with
+		 sZ, but now only for expressions, as types ICEd (95298).  */
+	      if (length == 1)
+		{
+		  tree arg = TREE_VEC_ELT (args, 0);
+		  if (TREE_CODE (arg) == EXPR_PACK_EXPANSION
+		      && !abi_check (19))
+		    {
+		      op = arg;
+		      goto sizeof_pack;
+		    }
+		}
+
 	      /* sP <template-arg>* E # sizeof...(T), size of a captured
 		 template parameter pack from an alias template */
 	      write_string ("sP");
@@ -3158,9 +3536,7 @@ write_expression (tree expr)
     {
       if (!ALIGNOF_EXPR_STD_P (expr))
 	{
-	  if (abi_warn_or_compat_version_crosses (16))
-	    G.need_abi_warning = true;
-	  if (abi_version_at_least (16))
+	  if (abi_check (16))
 	    {
 	      /* We used to mangle __alignof__ like alignof.  */
 	      write_string ("u11__alignof__");
@@ -3227,7 +3603,8 @@ write_expression (tree expr)
   else if (TREE_CODE (expr) == TEMPLATE_ID_EXPR)
     {
       tree fn = TREE_OPERAND (expr, 0);
-      fn = OVL_NAME (fn);
+      if (!identifier_p (fn))
+	fn = OVL_NAME (fn);
       if (IDENTIFIER_ANY_OP_P (fn))
 	write_string ("on");
       write_unqualified_id (fn);
@@ -3271,10 +3648,15 @@ write_expression (tree expr)
 
       if (nelts)
 	{
-	  tree domain;
 	  ++processing_template_decl;
-	  domain = compute_array_index_type (NULL_TREE, nelts,
-					     tf_warning_or_error);
+	  /* Avoid compute_array_index_type complaints about
+	     non-constant nelts.  */
+	  tree max = cp_build_binary_op (input_location, MINUS_EXPR,
+					 fold_convert (sizetype, nelts),
+					 size_one_node,
+					 tf_warning_or_error);
+	  max = maybe_constant_value (max);
+	  tree domain = build_index_type (max);
 	  type = build_cplus_array_type (type, domain);
 	  --processing_template_decl;
 	}
@@ -3316,6 +3698,11 @@ write_expression (tree expr)
 	}
       else
 	write_string ("tr");
+    }
+  else if (code == NOEXCEPT_EXPR)
+    {
+      write_string ("nx");
+      write_expression (TREE_OPERAND (expr, 0));
     }
   else if (code == CONSTRUCTOR)
     {
@@ -3372,8 +3759,41 @@ write_expression (tree expr)
 		    unsigned reps = 1;
 		    if (ce->index && TREE_CODE (ce->index) == RANGE_EXPR)
 		      reps = range_expr_nelts (ce->index);
-		    for (unsigned j = 0; j < reps; ++j)
-		      write_expression (ce->value);
+		    if (TREE_CODE (ce->value) == RAW_DATA_CST)
+		      {
+			gcc_assert (reps == 1);
+			unsigned int len = RAW_DATA_LENGTH (ce->value);
+			/* If this is the last non-zero element, skip
+			   zeros at the end.  */
+			if (i == last_nonzero)
+			  while (len)
+			    {
+			      if (RAW_DATA_POINTER (ce->value)[len - 1])
+				break;
+			      --len;
+			    }
+			tree valtype = TREE_TYPE (ce->value);
+			for (unsigned int i = 0; i < len; ++i)
+			  {
+			    write_char ('L');
+			    write_type (valtype);
+			    unsigned HOST_WIDE_INT v;
+			    if (!TYPE_UNSIGNED (valtype)
+				&& TYPE_PRECISION (valtype) == BITS_PER_UNIT
+				&& RAW_DATA_SCHAR_ELT (ce->value, i) < 0)
+			      {
+				write_char ('n');
+				v = -RAW_DATA_SCHAR_ELT (ce->value, i);
+			      }
+			    else
+			      v = RAW_DATA_UCHAR_ELT (ce->value, i);
+			    write_unsigned_number (v);
+			    write_char ('E');
+			  }
+		      }
+		    else
+		      for (unsigned j = 0; j < reps; ++j)
+			write_expression (ce->value);
 		  }
 	    }
 	  else
@@ -3390,19 +3810,19 @@ write_expression (tree expr)
 	 equivalent.
 
 	 So just use the closure type mangling.  */
-      write_string ("tl");
+      write_char ('L');
       write_type (LAMBDA_EXPR_CLOSURE (expr));
       write_char ('E');
     }
+  else if (code == REQUIRES_EXPR)
+    write_requires_expr (expr);
   else if (dependent_name (expr))
     {
       tree name = dependent_name (expr);
       if (IDENTIFIER_ANY_OP_P (name))
 	{
-	  if (abi_version_at_least (16))
+	  if (abi_check (16))
 	    write_string ("on");
-	  if (abi_warn_or_compat_version_crosses (16))
-	    G.need_abi_warning = 1;
 	}
       write_unqualified_id (name);
     }
@@ -3461,9 +3881,7 @@ write_expression (tree expr)
       if (code == CONST_CAST_EXPR
 	  || code == STATIC_CAST_EXPR)
 	{
-	  if (abi_warn_or_compat_version_crosses (6))
-	    G.need_abi_warning = 1;
-	  if (!abi_version_at_least (6))
+	  if (!abi_check (6))
 	    name = OVL_OP_INFO (false, CAST_EXPR)->mangled_name;
 	}
 
@@ -3483,7 +3901,7 @@ write_expression (tree expr)
 	  return;
 	}
       else
-	write_string (name);	
+	write_string (name);
 
       switch (code)
 	{
@@ -3510,7 +3928,7 @@ write_expression (tree expr)
 
 	case CAST_EXPR:
 	  write_type (TREE_TYPE (expr));
-	  if (list_length (TREE_OPERAND (expr, 0)) == 1)	  
+	  if (list_length (TREE_OPERAND (expr, 0)) == 1)
 	    write_expression (TREE_VALUE (TREE_OPERAND (expr, 0)));
 	  else
 	    {
@@ -3532,10 +3950,8 @@ write_expression (tree expr)
 
 	case PREINCREMENT_EXPR:
 	case PREDECREMENT_EXPR:
-	  if (abi_version_at_least (6))
+	  if (abi_check (6))
 	    write_char ('_');
-	  if (abi_warn_or_compat_version_crosses (6))
-	    G.need_abi_warning = 1;
 	  /* Fall through.  */
 
 	default:
@@ -3708,7 +4124,7 @@ write_template_arg (tree node)
 	}
     }
 
-  if (template_parm_object_p (node))
+  if (VAR_P (node) && DECL_NTTP_OBJECT_P (node))
     /* We want to mangle the argument, not the var we stored it in.  */
     node = tparm_object_argument (node);
 
@@ -3730,11 +4146,9 @@ write_template_arg (tree node)
   if (TREE_CODE (node) == BASELINK
       && !type_unknown_p (node))
     {
-      if (abi_version_at_least (6))
+      /* Before v6 we wrongly wrapped a class-scope function in X/E.  */
+      if (abi_check (6))
 	node = BASELINK_FUNCTIONS (node);
-      if (abi_warn_or_compat_version_crosses (6))
-	/* We wrongly wrapped a class-scope function in X/E.  */
-	G.need_abi_warning = 1;
     }
 
   if (ARGUMENT_PACK_P (node))
@@ -3742,12 +4156,10 @@ write_template_arg (tree node)
       /* Expand the template argument pack. */
       tree args = ARGUMENT_PACK_ARGS (node);
       int i, length = TREE_VEC_LENGTH (args);
-      if (abi_version_at_least (6))
+      if (abi_check (6))
 	write_char ('J');
       else
 	write_char ('I');
-      if (abi_warn_or_compat_version_crosses (6))
-	G.need_abi_warning = 1;
       for (i = 0; i < length; ++i)
         write_template_arg (TREE_VEC_ELT (args, i));
       write_char ('E');
@@ -3761,17 +4173,19 @@ write_template_arg (tree node)
 	   || code == CONST_DECL
 	   || null_member_pointer_value_p (node))
     write_template_arg_literal (node);
+  else if (code == EXCESS_PRECISION_EXPR
+	   && TREE_CODE (TREE_OPERAND (node, 0)) == REAL_CST)
+    write_template_arg_literal (fold_convert (TREE_TYPE (node),
+					      TREE_OPERAND (node, 0)));
   else if (DECL_P (node))
     {
       write_char ('L');
       /* Until ABI version 3, the underscore before the mangled name
 	 was incorrectly omitted.  */
-      if (!abi_version_at_least (3))
+      if (!abi_check (3))
 	write_char ('Z');
       else
 	write_string ("_Z");
-      if (abi_warn_or_compat_version_crosses (3))
-	G.need_abi_warning = 1;
       write_encoding (node);
       write_char ('E');
     }
@@ -3839,6 +4253,8 @@ write_array_type (const tree type)
 	    }
 	  else
 	    {
+	      gcc_checking_assert (TREE_CODE (max) == MINUS_EXPR
+				   && integer_onep (TREE_OPERAND (max, 1)));
 	      max = TREE_OPERAND (max, 0);
 	      write_expression (max);
 	    }
@@ -3871,6 +4287,7 @@ static void
 write_template_param (const tree parm)
 {
   int parm_index;
+  int level;
 
   MANGLE_TRACE_TREE ("template-parm", parm);
 
@@ -3880,10 +4297,12 @@ write_template_param (const tree parm)
     case TEMPLATE_TEMPLATE_PARM:
     case BOUND_TEMPLATE_TEMPLATE_PARM:
       parm_index = TEMPLATE_TYPE_IDX (parm);
+      level = TEMPLATE_TYPE_LEVEL (parm);
       break;
 
     case TEMPLATE_PARM_INDEX:
       parm_index = TEMPLATE_PARM_IDX (parm);
+      level = TEMPLATE_PARM_LEVEL (parm);
       break;
 
     default:
@@ -3891,6 +4310,14 @@ write_template_param (const tree parm)
     }
 
   write_char ('T');
+  if (level > 1)
+    {
+      if (abi_check (19))
+	{
+	  write_char ('L');
+	  write_compact_number (level - 1);
+	}
+    }
   /* NUMBER as it appears in the mangling is (-1)-indexed, with the
      earliest template param denoted by `_'.  */
   write_compact_number (parm_index);
@@ -3944,10 +4371,8 @@ write_substitution (const int seq_id)
 static inline void
 start_mangling (const tree entity)
 {
+  G = {};
   G.entity = entity;
-  G.need_abi_warning = false;
-  G.need_cxx17_warning = false;
-  G.mod = false;
   obstack_free (&name_obstack, name_base);
   mangle_obstack = &name_obstack;
   name_base = obstack_alloc (&name_obstack, 0);
@@ -4268,6 +4693,7 @@ mangle_decomp (const tree decl, vec<tree> &decls)
   location_t saved_loc = input_location;
   input_location = DECL_SOURCE_LOCATION (decl);
 
+  check_abi_tags (decl);
   start_mangling (decl);
   write_string ("_Z");
 
@@ -4275,13 +4701,21 @@ mangle_decomp (const tree decl, vec<tree> &decls)
   gcc_assert (context != NULL_TREE);
 
   bool nested = false;
+  bool local = false;
   if (DECL_NAMESPACE_STD_P (context))
     write_string ("St");
+  else if (TREE_CODE (context) == FUNCTION_DECL)
+    {
+      local = true;
+      write_char ('Z');
+      write_encoding (context);
+      write_char ('E');
+    }
   else if (context != global_namespace)
     {
       nested = true;
       write_char ('N');
-      write_prefix (decl_mangling_context (decl));
+      write_prefix (context);
     }
 
   write_string ("DC");
@@ -4291,8 +4725,22 @@ mangle_decomp (const tree decl, vec<tree> &decls)
     write_unqualified_name (d);
   write_char ('E');
 
+  if (tree tags = get_abi_tags (decl))
+    {
+      /* We didn't emit ABI tags for structured bindings before ABI 19.  */
+      if (!G.need_abi_warning
+	  && TREE_PUBLIC (decl)
+	  && abi_warn_or_compat_version_crosses (19))
+	G.need_abi_warning = 1;
+
+      if (abi_version_at_least (19))
+	write_abi_tags (tags);
+    }
+
   if (nested)
     write_char ('E');
+  else if (local && DECL_DISCRIMINATOR_P (decl))
+    write_discriminator (discriminator_for_local_entity (decl));
 
   tree id = finish_mangling_get_identifier ();
   if (DEBUG_MANGLE)
@@ -4300,6 +4748,37 @@ mangle_decomp (const tree decl, vec<tree> &decls)
              IDENTIFIER_POINTER (id));
 
   input_location = saved_loc;
+
+  if (warn_abi && G.need_abi_warning)
+    {
+      const char fabi_version[] = "-fabi-version";
+      tree id2 = id;
+      int save_ver = flag_abi_version;
+
+      if (flag_abi_version != warn_abi_version)
+	{
+	  flag_abi_version = warn_abi_version;
+	  id2 = mangle_decomp (decl, decls);
+	  flag_abi_version = save_ver;
+	}
+
+      if (id2 == id)
+	/* OK.  */;
+      else if (warn_abi_version != 0
+	       && abi_version_at_least (warn_abi_version))
+	warning_at (DECL_SOURCE_LOCATION (G.entity), OPT_Wabi,
+		    "the mangled name of %qD changed between "
+		    "%<%s=%d%> (%qD) and %<%s=%d%> (%qD)",
+		    G.entity, fabi_version, warn_abi_version, id2,
+		    fabi_version, save_ver, id);
+      else
+	warning_at (DECL_SOURCE_LOCATION (G.entity), OPT_Wabi,
+		    "the mangled name of %qD changes between "
+		    "%<%s=%d%> (%qD) and %<%s=%d%> (%qD)",
+		    G.entity, fabi_version, save_ver, id,
+		    fabi_version, warn_abi_version, id2);
+    }
+
   return id;
 }
 
@@ -4469,6 +4948,13 @@ write_guarded_var_name (const tree variable)
     /* The name of a guard variable for a reference temporary should refer
        to the reference, not the temporary.  */
     write_string (IDENTIFIER_POINTER (DECL_NAME (variable)) + 4);
+  else if (DECL_DECOMPOSITION_P (variable)
+	   && DECL_NAME (variable) == NULL_TREE
+	   && startswith (IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (variable)),
+			  "_Z"))
+    /* The name of a guard variable for a structured binding needs special
+       casing.  */
+    write_string (IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (variable)) + 2);
   else
     write_name (variable, /*ignore_local_scope=*/0);
 }
@@ -4535,7 +5021,7 @@ mangle_ref_init_variable (const tree variable)
   start_mangling (variable);
   write_string ("_ZGR");
   check_abi_tags (variable);
-  write_name (variable, /*ignore_local_scope=*/0);
+  write_guarded_var_name (variable);
   /* Avoid name clashes with aggregate initialization of multiple
      references at once.  */
   write_compact_number (current_ref_temp_count++);

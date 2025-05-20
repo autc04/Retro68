@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2022, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2025, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -102,8 +102,8 @@ typedef struct { const char *Array; String_Template *Bounds; }
    once again, the annoying restriction on bit fields for some compilers
    bites us!  */
 
-typedef unsigned int Node_Kind;
-typedef unsigned int Entity_Kind;
+enum Node_Kind : unsigned int;
+enum Entity_Kind : unsigned int;
 
 /* Types used for Text Buffer Handling:  */
 
@@ -140,7 +140,7 @@ typedef Text_Ptr Source_Ptr;
 #define Standard_Location -2
 
 /* Convention identifiers.  */
-typedef Byte Convention_Id;
+enum Convention_Id : Byte;
 
 /* Instance identifiers.  */
 typedef Nat Instance_Id;
@@ -188,7 +188,7 @@ SUBTYPE (Ureal_Range,     Int, Ureal_Low_Bound,   Ureal_High_Bound)
 
 /* Types for Names_Table Package:  */
 
-typedef Int Name_Id;
+enum Name_Id : Int;
 
 /* Name_Id value for no name present.  */
 #define No_Name Names_Low_Bound
@@ -383,11 +383,9 @@ typedef unsigned int any_slot;
 #define Slot_Size (sizeof (any_slot) * 8)
 
 /* Slots are 32 bits (for now, but we might want to make that 64).
-   The first bootstrap stage uses -std=gnu++98, so we cannot use
-   static_assert in that case.  */
-#if __cplusplus >= 201402L
-static_assert (Slot_Size == 32);
-#endif
+   The first bootstrap stage uses C++14, so we can only use the 2 argument
+   version of static_assert. */
+static_assert (Slot_Size == 32, "");
 
 /* Definitions of Reason codes for Raise_xxx_Error nodes.  */
 enum RT_Exception_Code
@@ -432,7 +430,8 @@ enum RT_Exception_Code
   SE_Infinite_Recursion             = 34,
   SE_Object_Too_Large               = 35,
   PE_Stream_Operation_Not_Allowed   = 36,
-  PE_Build_In_Place_Mismatch        = 37
+  PE_Build_In_Place_Mismatch        = 37,
+  PE_Raise_Check_Failed             = 38
 };
 
-#define LAST_REASON_CODE 37
+#define LAST_REASON_CODE 38

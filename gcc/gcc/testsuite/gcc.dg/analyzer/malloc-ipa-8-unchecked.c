@@ -3,6 +3,9 @@
 /* { dg-additional-options "-fdiagnostics-show-line-numbers -fdiagnostics-path-format=inline-events -fanalyzer-checker=malloc -fdiagnostics-show-caret" } */
 /* { dg-enable-nn-line-numbers "" } */
 
+/* C only; attempting to generalize it for C++ leads
+   to an explosion of possibilities for the multiline output.  */
+
 #include <stdlib.h>
 
 void *wrapped_malloc (size_t size)

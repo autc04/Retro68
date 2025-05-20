@@ -1,6 +1,7 @@
+
 // unique_ptr implementation -*- C++ -*-
 
-// Copyright (C) 2008-2022 Free Software Foundation, Inc.
+// Copyright (C) 2008-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,16 +37,10 @@
 #include <tuple>
 #include <bits/stl_function.h>
 #include <bits/functional_hash.h>
-#if __cplusplus > 201703L
+#if __cplusplus >= 202002L
 # include <compare>
-# include <ostream>
-#endif
-
-#if __cplusplus > 202002L && __cpp_constexpr_dynamic_alloc
-# if __cpp_lib_constexpr_memory < 202202L
-// Defined with older value in bits/ptr_traits.h for C++20
-#  undef __cpp_lib_constexpr_memory
-#  define __cpp_lib_constexpr_memory 202202L
+# if _GLIBCXX_HOSTED
+#  include <bits/ostream.h>
 # endif
 #endif
 
@@ -65,8 +60,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #pragma GCC diagnostic pop
 #endif
 
-  /// Primary template of default_delete, used by unique_ptr for single objects
-  /// @since C++11
+  /** Primary template of default_delete, used by unique_ptr for single objects
+   *
+   * @headerfile memory
+   * @since C++11
+   */
   template<typename _Tp>
     struct default_delete
     {
@@ -99,7 +97,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   // _GLIBCXX_RESOLVE_LIB_DEFECTS
   // DR 740 - omit specialization for array objects with a compile time length
 
-  /// Specialization of default_delete for arrays, used by `unique_ptr<T[]>`
+  /** Specialization of default_delete for arrays, used by `unique_ptr<T[]>`
+   *
+   * @headerfile memory
+   * @since C++11
+   */
   template<typename _Tp>
     struct default_delete<_Tp[]>
     {
@@ -377,8 +379,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
       /// Converting constructor from @c auto_ptr
-      template<typename _Up, typename = _Require<
-	       is_convertible<_Up*, _Tp*>, is_same<_Dp, default_delete<_Tp>>>>
+      template<typename _Up,
+	       typename = _Require<is_convertible<_Up*, pointer>,
+				   is_same<_Dp, default_delete<_Tp>>>>
 	unique_ptr(auto_ptr<_Up>&& __u) noexcept;
 #pragma GCC diagnostic pop
 #endif
@@ -442,6 +445,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typename add_lvalue_reference<element_type>::type
       operator*() const noexcept(noexcept(*std::declval<pointer>()))
       {
+#if _GLIBCXX_USE_BUILTIN_TRAIT(__reference_converts_from_temporary)
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 4148. unique_ptr::operator* should not allow dangling references
+	using _ResT = typename add_lvalue_reference<element_type>::type;
+	using _DerefT = decltype(*get());
+	static_assert(!__reference_converts_from_temporary(_ResT, _DerefT),
+		      "operator* must not return a dangling reference");
+#endif
 	__glibcxx_assert(get() != pointer());
 	return *get();
       }
@@ -513,6 +524,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       // Disable copy from lvalue.
       unique_ptr(const unique_ptr&) = delete;
       unique_ptr& operator=(const unique_ptr&) = delete;
+
+    private:
+#ifdef __glibcxx_out_ptr
+      template<typename, typename, typename...>
+	friend class out_ptr_t;
+      template<typename, typename, typename...>
+	friend class inout_ptr_t;
+#endif
   };
 
   // 20.7.1.3 unique_ptr for array objects with a runtime length
@@ -532,14 +551,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       __uniq_ptr_data<_Tp, _Dp> _M_t;
 
-      template<typename _Up>
-	using __remove_cv = typename remove_cv<_Up>::type;
-
       // like is_base_of<_Tp, _Up> but false if unqualified types are the same
       template<typename _Up>
 	using __is_derived_Tp
 	  = __and_< is_base_of<_Tp, _Up>,
-		    __not_<is_same<__remove_cv<_Tp>, __remove_cv<_Up>>> >;
+		    __not_<is_same<__remove_cv_t<_Tp>, __remove_cv_t<_Up>>> >;
 
     public:
       using pointer	  = typename __uniq_ptr_impl<_Tp, _Dp>::pointer;
@@ -790,6 +806,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       // Disable copy from lvalue.
       unique_ptr(const unique_ptr&) = delete;
       unique_ptr& operator=(const unique_ptr&) = delete;
+
+    private:
+#ifdef __glibcxx_out_ptr
+      template<typename, typename, typename...> friend class out_ptr_t;
+      template<typename, typename, typename...> friend class inout_ptr_t;
+#endif
     };
 
   /// @{
@@ -998,11 +1020,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /// @} relates unique_ptr
 
   /// @cond undocumented
-  template<typename _Up, typename _Ptr = typename _Up::pointer,
-	   bool = __poison_hash<_Ptr>::__enable_hash_call>
+  template<typename _Up, typename _Ptr = typename _Up::pointer>
     struct __uniq_ptr_hash
+    : public __hash_base<size_t, _Up>
 #if ! _GLIBCXX_INLINE_VERSION
-    : private __poison_hash<_Ptr>
+    , private __hash_empty_base<_Ptr>
 #endif
     {
       size_t
@@ -1011,22 +1033,20 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { return hash<_Ptr>()(__u.get()); }
     };
 
-  template<typename _Up, typename _Ptr>
-    struct __uniq_ptr_hash<_Up, _Ptr, false>
-    : private __poison_hash<_Ptr>
-    { };
+  template<typename _Up>
+    using __uniq_ptr_hash_base
+      = __conditional_t<__is_hash_enabled_for<typename _Up::pointer>,
+			     __uniq_ptr_hash<_Up>,
+			     __hash_not_enabled<typename _Up::pointer>>;
   /// @endcond
 
   /// std::hash specialization for unique_ptr.
   template<typename _Tp, typename _Dp>
     struct hash<unique_ptr<_Tp, _Dp>>
-    : public __hash_base<size_t, unique_ptr<_Tp, _Dp>>,
-      public __uniq_ptr_hash<unique_ptr<_Tp, _Dp>>
+    : public __uniq_ptr_hash_base<unique_ptr<_Tp, _Dp>>
     { };
 
-#if __cplusplus >= 201402L
-#define __cpp_lib_make_unique 201304L
-
+#ifdef __glibcxx_make_unique // C++ >= 14 && HOSTED
   /// @cond undocumented
 namespace __detail
 {
@@ -1124,9 +1144,9 @@ namespace __detail
     make_unique_for_overwrite(_Args&&...) = delete;
 #endif // C++20
 
-#endif // C++14
+#endif // C++14 && HOSTED
 
-#if __cplusplus > 201703L && __cpp_concepts
+#if __cplusplus > 201703L && __cpp_concepts && _GLIBCXX_HOSTED
   // _GLIBCXX_RESOLVE_LIB_DEFECTS
   // 2948. unique_ptr does not define operator<< for stream output
   /// Stream output operator for unique_ptr
@@ -1141,7 +1161,14 @@ namespace __detail
       __os << __p.get();
       return __os;
     }
-#endif // C++20
+#endif // C++20 && HOSTED
+
+#if __cpp_variable_templates
+  template<typename _Tp>
+    constexpr bool __is_unique_ptr = false;
+  template<typename _Tp, typename _Del>
+    constexpr bool __is_unique_ptr<unique_ptr<_Tp, _Del>> = true;
+#endif
 
   /// @} group pointer_abstractions
 

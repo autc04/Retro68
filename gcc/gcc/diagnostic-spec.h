@@ -1,6 +1,6 @@
 /* Language-independent APIs to enable/disable per-location warnings.
 
-   Copyright (C) 2021-2022 Free Software Foundation, Inc.
+   Copyright (C) 2021-2025 Free Software Foundation, Inc.
    Contributed by Martin Sebor <msebor@redhat.com>
 
    This file is part of GCC.
@@ -45,14 +45,23 @@ public:
      NW_DANGLING = 1 << 5,
      /* All other unclassified warnings.  */
      NW_OTHER = 1 << 6,
+     /* Warnings about redundant calls.  */
+     NW_REDUNDANT = 1 << 7,
      /* All groups of warnings.  */
      NW_ALL = (NW_ACCESS | NW_LEXICAL | NW_NONNULL
-	       | NW_UNINIT | NW_VFLOW | NW_DANGLING | NW_OTHER)
+	       | NW_UNINIT | NW_VFLOW | NW_DANGLING | NW_REDUNDANT | NW_OTHER)
    };
 
   nowarn_spec_t (): m_bits () { }
 
   nowarn_spec_t (opt_code);
+
+  static nowarn_spec_t from_bits (unsigned bits)
+  {
+    nowarn_spec_t spec;
+    spec.m_bits = bits;
+    return spec;
+  }
 
   /* Return the raw bitset.  */
   operator unsigned() const

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,13 +15,17 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do compile { target c++20 } }
+// { dg-add-options no_pch }
 
 #include <algorithm>
 
 #ifndef __cpp_lib_constexpr_algorithms
 # error "Feature-test macro for constexpr algorithms missing"
+#elif __cplusplus > 202302L
+# if __cpp_lib_constexpr_algorithms < 202306L
+#  error "Feature-test macro for constexpr algorithms has wrong value"
+# endif
 #elif __cpp_lib_constexpr_algorithms < 201806L
 # error "Feature-test macro for constexpr algorithms has wrong value"
 #endif

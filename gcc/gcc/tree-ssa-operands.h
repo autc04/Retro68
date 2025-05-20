@@ -1,5 +1,5 @@
 /* SSA operand management for trees.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -72,20 +72,19 @@ struct GTY(()) ssa_operands {
 #define USE_OP_PTR(OP)		(&((OP)->use_ptr))
 #define USE_OP(OP)		(USE_FROM_PTR (USE_OP_PTR (OP)))
 
-#define PHI_RESULT_PTR(PHI)	gimple_phi_result_ptr (PHI)
-#define PHI_RESULT(PHI)		DEF_FROM_PTR (PHI_RESULT_PTR (PHI))
-#define SET_PHI_RESULT(PHI, V)	SET_DEF (PHI_RESULT_PTR (PHI), (V))
-/*
-#define PHI_ARG_DEF(PHI, I)	USE_FROM_PTR (PHI_ARG_DEF_PTR ((PHI), (I)))
-*/
+#define PHI_RESULT(PHI)		gimple_phi_result (PHI)
+#define SET_PHI_RESULT(PHI, V)	SET_DEF (gimple_phi_result_ptr (PHI), (V))
 #define PHI_ARG_DEF_PTR(PHI, I)	gimple_phi_arg_imm_use_ptr ((PHI), (I))
 #define PHI_ARG_DEF(PHI, I)	gimple_phi_arg_def ((PHI), (I))
 #define SET_PHI_ARG_DEF(PHI, I, V)					\
 				SET_USE (PHI_ARG_DEF_PTR ((PHI), (I)), (V))
+#define SET_PHI_ARG_DEF_ON_EDGE(PHI, E, V)				      \
+				SET_USE (gimple_phi_arg_imm_use_ptr_from_edge \
+					   ((PHI), (E)), (V))
 #define PHI_ARG_DEF_FROM_EDGE(PHI, E)					\
-				PHI_ARG_DEF ((PHI), (E)->dest_idx)
+				gimple_phi_arg_def_from_edge ((PHI), (E))
 #define PHI_ARG_DEF_PTR_FROM_EDGE(PHI, E)				\
-				PHI_ARG_DEF_PTR ((PHI), (E)->dest_idx)
+				gimple_phi_arg_imm_use_ptr_from_edge ((PHI), (E))
 #define PHI_ARG_INDEX_FROM_USE(USE)   phi_arg_index_from_use (USE)
 
 
@@ -106,14 +105,14 @@ extern void debug_immediate_uses_for (tree var);
 extern void unlink_stmt_vdef (gimple *);
 
 /* Return the tree pointed-to by USE.  */
-static inline tree
+inline tree
 get_use_from_ptr (use_operand_p use)
 {
   return *(use->use);
 }
 
 /* Return the tree pointed-to by DEF.  */
-static inline tree
+inline tree
 get_def_from_ptr (def_operand_p def)
 {
   return *def;

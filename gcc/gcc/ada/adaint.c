@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *          Copyright (C) 1992-2022, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2025, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -85,6 +85,9 @@
 
 #if defined (__APPLE__)
 #include <unistd.h>
+#include <signal.h>
+#include <sys/time.h>
+#include <TargetConditionals.h>
 #endif
 
 #if defined (__hpux__)
@@ -172,7 +175,7 @@ extern "C" {
 
 #include "mingw32.h"
 
-/* Current code page and CCS encoding to use, set in initialize.c.  */
+/* Current code page and CCS encoding to use, set in rtinit.c.  */
 UINT __gnat_current_codepage;
 UINT __gnat_current_ccs_encoding;
 
@@ -200,11 +203,7 @@ UINT __gnat_current_ccs_encoding;
 #endif
 
 /* wait.h processing */
-#ifdef __MINGW32__
-# if OLD_MINGW
-#  include <sys/wait.h>
-# endif
-#elif defined (__vxworks) && defined (__RTP__)
+#if defined (__vxworks) && defined (__RTP__)
 # include <wait.h>
 #elif defined (__Lynx__)
 /* ??? We really need wait.h and it includes resource.h on Lynx.  GCC
@@ -214,7 +213,7 @@ UINT __gnat_current_ccs_encoding;
    preventing the inclusion of the GCC header from doing anything.  */
 # define GCC_RESOURCE_H
 # include <sys/wait.h>
-#elif defined (__PikeOS__)
+#elif defined (__PikeOS__) || defined (__MINGW32__)
 /* No wait() or waitpid() calls available.  */
 #else
 /* Default case.  */
@@ -231,6 +230,10 @@ UINT __gnat_current_ccs_encoding;
 
 #elif defined (_WIN32)
 
+/* Cannot redefine abort here.  */
+#undef abort
+
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <accctrl.h>
 #include <aclapi.h>
@@ -239,7 +242,15 @@ UINT __gnat_current_ccs_encoding;
 #undef DIR_SEPARATOR
 #define DIR_SEPARATOR '\\'
 
+#ifdef STANDALONE
+#undef PATH_SEPARATOR
+#define PATH_SEPARATOR ';'
+#undef HOST_EXECUTABLE_SUFFIX
+#define HOST_EXECUTABLE_SUFFIX ".exe"
+#endif
+
 #else
+#include <signal.h>
 #include <utime.h>
 #endif
 
@@ -335,11 +346,6 @@ const char *__gnat_library_template = GNAT_LIBRARY_TEMPLATE;
 
 #if defined (__MINGW32__)
 #include "mingw32.h"
-
-#if OLD_MINGW
-#include <sys/param.h>
-#endif
-
 #else
 #include <sys/param.h>
 #endif
@@ -618,11 +624,18 @@ __gnat_get_file_names_case_sensitive (void)
       else
 	{
 	  /* By default, we suppose filesystems aren't case sensitive on
-	     Windows and Darwin (but they are on arm-darwin).  */
-#if defined (WINNT) || defined (__DJGPP__) \
-  || (defined (__APPLE__) && !(defined (__arm__) || defined (__arm64__)))
+	     Windows or DOS.  */
+#if defined (WINNT) || defined (__DJGPP__)
 	  file_names_case_sensitive_cache = 0;
+#elif defined (__APPLE__)
+	  /* By default, macOS volumes are case-insensitive, iOS
+	     volumes are case-sensitive.  */
+#if TARGET_OS_IOS
+	  file_names_case_sensitive_cache = 1;
 #else
+	  file_names_case_sensitive_cache = 0;
+#endif
+#else /* Neither Windows nor Apple.  */
 	  file_names_case_sensitive_cache = 1;
 #endif
 	}
@@ -752,15 +765,19 @@ __gnat_os_filename (char *filename ATTRIBUTE_UNUSED,
 /* Delete a file.  */
 
 int
-__gnat_unlink (char *path)
+__gnat_unlink (char *path, int encoding ATTRIBUTE_UNUSED)
 {
 #if defined (__MINGW32__) && ! defined (__vxworks) && ! defined (IS_CROSS)
-  {
-    TCHAR wpath[GNAT_MAX_PATH_LEN];
+  TCHAR wpath[GNAT_MAX_PATH_LEN];
 
+  if (encoding == Encoding_Unspecified)
     S2WSC (wpath, path, GNAT_MAX_PATH_LEN);
-    return _tunlink (wpath);
-  }
+  else if (encoding == Encoding_UTF8)
+    S2WSU (wpath, path, GNAT_MAX_PATH_LEN);
+  else
+    S2WS (wpath, path, GNAT_MAX_PATH_LEN);
+
+  return _tunlink (wpath);
 #else
   return unlink (path);
 #endif
@@ -1512,7 +1529,16 @@ extern long long __gnat_file_time(char* name)
     long long ll_time;
   } t_write;
 
-  if (!GetFileAttributesExA(name, GetFileExInfoStandard, &fad)) {
+  TCHAR wname [GNAT_MAX_PATH_LEN + 2];
+  int name_len;
+
+  S2WSC (wname, name, GNAT_MAX_PATH_LEN + 2);
+  name_len = _tcslen (wname);
+
+  if (name_len > GNAT_MAX_PATH_LEN)
+    return LLONG_MIN;
+
+  if (!GetFileAttributesEx(wname, GetFileExInfoStandard, &fad)) {
     return LLONG_MIN;
   }
 
@@ -3053,32 +3079,36 @@ __gnat_locate_exec (char *exec_name, char *path_val)
 /* Locate an executable using the Systems default PATH.  */
 
 char *
-__gnat_locate_exec_on_path (char *exec_name)
+__gnat_locate_exec_on_path (char *exec_name,
+				    int current_dir_on_windows ATTRIBUTE_UNUSED)
 {
   char *apath_val;
 
 #if defined (_WIN32)
   TCHAR *wpath_val = _tgetenv (_T("PATH"));
-  TCHAR *wapath_val;
-  /* In Win32 systems we expand the PATH as for XP environment
-     variables are not automatically expanded. We also prepend the
-     ".;" to the path to match normal NT path search semantics */
-
   #define EXPAND_BUFFER_SIZE 32767
-
-  wapath_val = (TCHAR *) alloca (EXPAND_BUFFER_SIZE);
-
-  wapath_val [0] = '.';
-  wapath_val [1] = ';';
-
-  DWORD res = ExpandEnvironmentStrings
-    (wpath_val, &wapath_val[2], EXPAND_BUFFER_SIZE - 2);
-
-  if (!res) wapath_val [0] = _T('\0');
-
   apath_val = (char *) alloca (EXPAND_BUFFER_SIZE);
 
-  WS2SC (apath_val, wapath_val, EXPAND_BUFFER_SIZE);
+  if (current_dir_on_windows) {
+    TCHAR *wapath_val;
+    /* In Win32 systems we expand the PATH as for XP environment
+      variables are not automatically expanded. We also prepend the
+      ".;" to the path to match normal NT path search semantics */
+
+    wapath_val = (TCHAR *) alloca (EXPAND_BUFFER_SIZE);
+
+    wapath_val [0] = '.';
+    wapath_val [1] = ';';
+
+    DWORD res = ExpandEnvironmentStrings
+      (wpath_val, &wapath_val[2], EXPAND_BUFFER_SIZE - 2);
+
+    if (!res) wapath_val [0] = _T('\0');
+
+    WS2SC (apath_val, wapath_val, EXPAND_BUFFER_SIZE);
+  } else {
+    WS2SC (apath_val, wpath_val, EXPAND_BUFFER_SIZE);
+  }
 
 #else
   const char *path_val = getenv ("PATH");
@@ -3533,6 +3563,9 @@ __gnat_cpu_set (int cpu, size_t count ATTRIBUTE_UNUSED, cpu_set_t *set)
 
 #if defined (__APPLE__)
 #include <mach-o/dyld.h>
+#elif defined (__linux__)
+#include <features.h>
+#include <link.h>
 #endif
 
 const void *
@@ -3541,10 +3574,8 @@ __gnat_get_executable_load_address (void)
 #if defined (__APPLE__)
   return _dyld_get_image_header (0);
 
-#elif 0 && defined (__linux__)
-  /* Currently disabled as it needs at least -ldl.  */
+#elif defined (__linux__) && (defined (__GLIBC__) || defined (__UCLIBC__))
   struct link_map *map = _r_debug.r_map;
-
   return (const void *)map->l_addr;
 
 #elif defined (_WIN32)
@@ -3556,7 +3587,7 @@ __gnat_get_executable_load_address (void)
 }
 
 void
-__gnat_kill (int pid, int sig, int close ATTRIBUTE_UNUSED)
+__gnat_kill (int pid, int sig)
 {
 #if defined(_WIN32)
   HANDLE h;
@@ -3595,7 +3626,7 @@ void __gnat_killprocesstree (int pid, int sig_num)
 
   if (hSnap == INVALID_HANDLE_VALUE)
     {
-      __gnat_kill (pid, sig_num, 1);
+      __gnat_kill (pid, sig_num);
       return;
     }
 
@@ -3618,7 +3649,7 @@ void __gnat_killprocesstree (int pid, int sig_num)
 
   /* kill process */
 
-  __gnat_kill (pid, sig_num, 1);
+  __gnat_kill (pid, sig_num);
 
 #elif defined (__vxworks)
   /* not implemented */
@@ -3635,7 +3666,7 @@ void __gnat_killprocesstree (int pid, int sig_num)
 
   if (!dir)
     {
-      __gnat_kill (pid, sig_num, 1);
+      __gnat_kill (pid, sig_num);
       return;
     }
 
@@ -3673,9 +3704,9 @@ void __gnat_killprocesstree (int pid, int sig_num)
 
   /* kill process */
 
-  __gnat_kill (pid, sig_num, 1);
+  __gnat_kill (pid, sig_num);
 #else
-  __gnat_kill (pid, sig_num, 1);
+  __gnat_kill (pid, sig_num);
 #endif
   /* Note on Solaris it is possible to read /proc/<PID>/status.
      The 5th and 6th words are the pid and the 7th and 8th the ppid.

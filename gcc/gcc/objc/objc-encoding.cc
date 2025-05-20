@@ -1,5 +1,5 @@
 /* Routines dealing with ObjC encoding of types
-   Copyright (C) 1992-2022 Free Software Foundation, Inc.
+   Copyright (C) 1992-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -391,10 +391,10 @@ encode_array (tree type, int curtype, int format)
 
       /* Else, we are in a struct, and we encode it as a zero-length
 	 array.  */
-      sprintf (buffer, "[" HOST_WIDE_INT_PRINT_DEC, (HOST_WIDE_INT)0);
+      sprintf (buffer, "[" HOST_WIDE_INT_PRINT_DEC, HOST_WIDE_INT_0);
     }
   else if (TREE_INT_CST_LOW (TYPE_SIZE (array_of)) == 0)
-   sprintf (buffer, "[" HOST_WIDE_INT_PRINT_DEC, (HOST_WIDE_INT)0);
+   sprintf (buffer, "[" HOST_WIDE_INT_PRINT_DEC, HOST_WIDE_INT_0);
   else
     sprintf (buffer, "[" HOST_WIDE_INT_PRINT_DEC,
 	     TREE_INT_CST_LOW (an_int_cst)
@@ -843,7 +843,7 @@ encode_field_decl (tree field_decl)
   encode_field (field_decl,
 		obstack_object_size (&util_obstack),
 		OBJC_ENCODE_DONT_INLINE_DEFS);
-  
+
   /* Null terminate string.  */
   obstack_1grow (&util_obstack, 0);
 

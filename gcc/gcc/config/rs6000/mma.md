@@ -1,5 +1,5 @@
 ;; Matrix-Multiply Assist (MMA) patterns.
-;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2025 Free Software Foundation, Inc.
 ;; Contributed by Peter Bergner <bergner@linux.ibm.com> and
 ;;		  Michael Meissner <meissner@linux.ibm.com>
 ;;
@@ -268,15 +268,33 @@
 (define_expand "movoo"
   [(set (match_operand:OO 0 "nonimmediate_operand")
 	(match_operand:OO 1 "input_operand"))]
-  "TARGET_MMA"
+  ""
 {
-  rs6000_emit_move (operands[0], operands[1], OOmode);
-  DONE;
+  if (TARGET_MMA)
+    {
+      rs6000_emit_move (operands[0], operands[1], OOmode);
+      DONE;
+    }
+  else if (currently_expanding_to_rtl && seen_error ())
+    {
+      /* PR103353 shows we may want to continue to expand the __builtin_vsx_lxvp
+	 built-in function, even if we have already emitted error messages about
+	 some missing required conditions.  As shown in that PR, without one
+	 explicit mov optab on OOmode provided, it would call emit_move_insn
+	 recursively.  So we allow this pattern to be generated when we are
+	 expanding to RTL and have seen errors.  It would not cause further ICEs
+	 as the compilation would stop soon after expanding.  */
+    }
+  else if (rs6000_opaque_type_invalid_use_p (currently_expanding_gimple_stmt))
+    ;
+  else
+    /* Catch unexpected cases.  */
+    gcc_assert (false);
 })
 
 (define_insn_and_split "*movoo"
-  [(set (match_operand:OO 0 "nonimmediate_operand" "=wa,m,wa")
-	(match_operand:OO 1 "input_operand" "m,wa,wa"))]
+  [(set (match_operand:OO 0 "nonimmediate_operand" "=wa,ZwO,wa")
+	(match_operand:OO 1 "input_operand" "ZwO,wa,wa"))]
   "TARGET_MMA
    && (gpc_reg_operand (operands[0], OOmode)
        || gpc_reg_operand (operands[1], OOmode))"
@@ -300,15 +318,30 @@
 (define_expand "movxo"
   [(set (match_operand:XO 0 "nonimmediate_operand")
 	(match_operand:XO 1 "input_operand"))]
-  "TARGET_MMA"
+  ""
 {
-  rs6000_emit_move (operands[0], operands[1], XOmode);
-  DONE;
+  if (TARGET_MMA)
+    {
+      rs6000_emit_move (operands[0], operands[1], XOmode);
+      DONE;
+    }
+  else if (currently_expanding_to_rtl && seen_error ())
+    {
+      /* PR103353 shows we may want to continue to expand the __builtin_vsx_lxvp
+	 built-in function, even if we have already emitted error messages about
+	 some missing required conditions.  So do the same handlings for XOmode
+	 as OOmode here.  */
+    }
+  else if (rs6000_opaque_type_invalid_use_p (currently_expanding_gimple_stmt))
+    ;
+  else
+    /* Catch unexpected cases.  */
+    gcc_assert (false);
 })
 
 (define_insn_and_split "*movxo"
-  [(set (match_operand:XO 0 "nonimmediate_operand" "=d,m,d")
-	(match_operand:XO 1 "input_operand" "m,d,d"))]
+  [(set (match_operand:XO 0 "nonimmediate_operand" "=d,ZwO,d")
+	(match_operand:XO 1 "input_operand" "ZwO,d,d"))]
   "TARGET_MMA
    && (gpc_reg_operand (operands[0], XOmode)
        || gpc_reg_operand (operands[1], XOmode))"

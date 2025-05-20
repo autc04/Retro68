@@ -1,5 +1,5 @@
 /* RTL-based forward propagation pass for GNU compiler.
-   Copyright (C) 2005-2022 Free Software Foundation, Inc.
+   Copyright (C) 2005-2025 Free Software Foundation, Inc.
    Contributed by Paolo Bonzini and Steven Bosscher.
 
 This file is part of GCC.
@@ -20,11 +20,13 @@ along with GCC; see the file COPYING3.  If not see
 
 #define INCLUDE_ALGORITHM
 #define INCLUDE_FUNCTIONAL
+#define INCLUDE_ARRAY
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
 #include "backend.h"
 #include "rtl.h"
+#include "rtlanal.h"
 #include "df.h"
 #include "rtl-ssa.h"
 
@@ -143,10 +145,11 @@ should_replace_address (int old_num_changes, rtx mem, rtx_insn *insn)
 
   /* Prefer the new address if it is less expensive.  */
   bool speed = optimize_bb_for_speed_p (BLOCK_FOR_INSN (insn));
-  temporarily_undo_changes (old_num_changes);
-  gain = address_cost (XEXP (mem, 0), GET_MODE (mem),
-		       MEM_ADDR_SPACE (mem), speed);
-  redo_changes (old_num_changes);
+  {
+    undo_recog_changes undo (old_num_changes);
+    gain = address_cost (XEXP (mem, 0), GET_MODE (mem),
+			 MEM_ADDR_SPACE (mem), speed);
+  }
   gain -= address_cost (XEXP (mem, 0), GET_MODE (mem),
 			MEM_ADDR_SPACE (mem), speed);
 
@@ -157,9 +160,8 @@ should_replace_address (int old_num_changes, rtx mem, rtx_insn *insn)
   if (gain == 0)
     {
       gain = set_src_cost (XEXP (mem, 0), VOIDmode, speed);
-      temporarily_undo_changes (old_num_changes);
+      undo_recog_changes undo (old_num_changes);
       gain -= set_src_cost (XEXP (mem, 0), VOIDmode, speed);
-      redo_changes (old_num_changes);
     }
 
   return (gain > 0);
@@ -179,7 +181,7 @@ namespace
 
     bool changed_mem_p () const { return result_flags & CHANGED_MEM; }
     bool folded_to_constants_p () const;
-    bool profitable_p () const;
+    bool likely_profitable_p () const;
 
     bool check_mem (int, rtx) final override;
     void note_simplification (int, uint16_t, rtx, rtx) final override;
@@ -217,9 +219,11 @@ fwprop_propagation::check_mem (int old_num_changes, rtx mem)
       return false;
     }
 
-  temporarily_undo_changes (old_num_changes);
-  bool can_simplify = can_simplify_addr (XEXP (mem, 0));
-  redo_changes (old_num_changes);
+  bool can_simplify = [&]()
+    {
+      undo_recog_changes undo (old_num_changes);
+      return can_simplify_addr (XEXP (mem, 0));
+    } ();
   if (!can_simplify)
     {
       failure_reason = "would replace a frame address";
@@ -322,7 +326,7 @@ fwprop_propagation::folded_to_constants_p () const
    false if it would increase the complexity of the pattern too much.  */
 
 bool
-fwprop_propagation::profitable_p () const
+fwprop_propagation::likely_profitable_p () const
 {
   if (changed_mem_p ())
     return true;
@@ -351,21 +355,6 @@ static bool
 reg_single_def_p (rtx x)
 {
   return REG_P (x) && crtl->ssa->single_dominating_def (REGNO (x));
-}
-
-/* Return true if X contains a paradoxical subreg.  */
-
-static bool
-contains_paradoxical_subreg_p (rtx x)
-{
-  subrtx_var_iterator::array_type array;
-  FOR_EACH_SUBRTX_VAR (iter, array, x, NONCONST)
-    {
-      x = *iter;
-      if (SUBREG_P (x) && paradoxical_subreg_p (x))
-	return true;
-    }
-  return false;
 }
 
 /* Try to substitute (set DEST SRC), which defines DEF, into note NOTE of
@@ -412,7 +401,7 @@ try_fwprop_subst_note (insn_info *use_insn, set_info *def,
     }
   else
     {
-      if (!prop.folded_to_constants_p () && !prop.profitable_p ())
+      if (!prop.folded_to_constants_p () && !prop.likely_profitable_p ())
 	{
 	  if (dump_file && (dump_flags & TDF_DETAILS))
 	    fprintf (dump_file, "cannot propagate from insn %d into"
@@ -426,9 +415,10 @@ try_fwprop_subst_note (insn_info *use_insn, set_info *def,
     {
       fprintf (dump_file, "\nin notes of insn %d, replacing:\n  ",
 	       INSN_UID (use_rtl));
-      temporarily_undo_changes (0);
-      print_inline_rtx (dump_file, note, 2);
-      redo_changes (0);
+      {
+	undo_recog_changes undo (0);
+	print_inline_rtx (dump_file, note, 2);
+      }
       fprintf (dump_file, "\n with:\n  ");
       print_inline_rtx (dump_file, note, 2);
       fprintf (dump_file, "\n");
@@ -463,7 +453,11 @@ try_fwprop_subst_pattern (obstack_watermark &attempt, insn_change &use_change,
   if (prop.num_replacements == 0)
     return false;
 
-  if (!prop.profitable_p ())
+  if (!prop.likely_profitable_p ()
+      && (prop.changed_mem_p ()
+	  || contains_mem_rtx_p (src)
+	  || use_insn->is_asm ()
+	  || use_insn->is_debug_insn ()))
     {
       if (dump_file && (dump_flags & TDF_DETAILS))
 	fprintf (dump_file, "cannot propagate from insn %d into"
@@ -476,33 +470,24 @@ try_fwprop_subst_pattern (obstack_watermark &attempt, insn_change &use_change,
     {
       fprintf (dump_file, "\npropagating insn %d into insn %d, replacing:\n",
 	       def_insn->uid (), use_insn->uid ());
-      temporarily_undo_changes (0);
+      undo_recog_changes undo (0);
       print_rtl_single (dump_file, PATTERN (use_rtl));
-      redo_changes (0);
     }
 
-  /* ??? In theory, it should be better to use insn costs rather than
-     set_src_costs here.  That would involve replacing this code with
-     change_is_worthwhile.  */
   bool ok = recog (attempt, use_change);
-  if (ok && !prop.changed_mem_p () && !use_insn->is_asm ())
-    if (rtx use_set = single_set (use_rtl))
-      {
-	bool speed = optimize_bb_for_speed_p (BLOCK_FOR_INSN (use_rtl));
-	temporarily_undo_changes (0);
-	auto old_cost = set_src_cost (SET_SRC (use_set),
-				      GET_MODE (SET_DEST (use_set)), speed);
-	redo_changes (0);
-	auto new_cost = set_src_cost (SET_SRC (use_set),
-				      GET_MODE (SET_DEST (use_set)), speed);
-	if (new_cost > old_cost)
-	  {
-	    if (dump_file)
-	      fprintf (dump_file, "change not profitable"
-		       " (cost %d -> cost %d)\n", old_cost, new_cost);
-	    ok = false;
-	  }
-      }
+  if (ok
+      && !prop.changed_mem_p ()
+      && !use_insn->is_asm ()
+      && !use_insn->is_debug_insn ())
+    {
+      bool strict_p = !prop.likely_profitable_p ();
+      if (!change_is_worthwhile (use_change, strict_p))
+	{
+	  if (dump_file)
+	    fprintf (dump_file, "change not profitable");
+	  ok = false;
+	}
+    }
 
   if (!ok)
     {
@@ -864,6 +849,8 @@ forward_propagate_into (use_info *use, bool reg_prop_only = false)
 
   rtx dest = SET_DEST (def_set);
   rtx src = SET_SRC (def_set);
+  if (volatile_refs_p (src))
+    return false;
 
   /* Allow propagations into a loop only for reg-to-reg copies, since
      replacing one register by another shouldn't increase the cost.
@@ -1029,8 +1016,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return gate_fwprop (); }
-  virtual unsigned int execute (function *) { return fwprop (false); }
+  bool gate (function *) final override { return gate_fwprop (); }
+  unsigned int execute (function *) final override { return fwprop (false); }
 
 }; // class pass_rtl_fwprop
 
@@ -1065,8 +1052,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return gate_fwprop (); }
-  virtual unsigned int execute (function *) { return fwprop (true); }
+  bool gate (function *) final override { return gate_fwprop (); }
+  unsigned int execute (function *) final override { return fwprop (true); }
 
 }; // class pass_rtl_fwprop_addr
 

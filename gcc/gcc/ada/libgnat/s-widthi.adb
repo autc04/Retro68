@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -126,8 +126,8 @@ function System.Width_I (Lo, Hi : Int) return Natural is
 
    Pow    : Big_Integer := 1 with Ghost;
    T_Init : constant Int :=
-     Int'Max (abs (Int'Max (Lo, Int'First + 1)),
-              abs (Int'Max (Hi, Int'First + 1)))
+     Int'Max (abs Int'Max (Lo, Int'First + 1),
+              abs Int'Max (Hi, Int'First + 1))
      with Ghost;
 
 --  Start of processing for System.Width_I
@@ -145,8 +145,8 @@ begin
       --  negative number (note that First + 1 has same digits as First)
 
       T := Int'Max (
-             abs (Int'Max (Lo, Int'First + 1)),
-             abs (Int'Max (Hi, Int'First + 1)));
+             abs Int'Max (Lo, Int'First + 1),
+             abs Int'Max (Hi, Int'First + 1));
 
       --  Increase value if more digits required
 
@@ -166,9 +166,9 @@ begin
       end loop;
 
       declare
-         F : constant Big_Integer := Big_10 ** (W - 2) with Ghost;
-         Q : constant Big_Integer := Big (T_Init) / F with Ghost;
-         R : constant Big_Integer := Big (T_Init) rem F with Ghost;
+         F : constant Big_Positive := Big_10 ** (W - 2) with Ghost;
+         Q : constant Big_Natural := Big (T_Init) / F with Ghost;
+         R : constant Big_Natural := Big (T_Init) rem F with Ghost;
       begin
          pragma Assert (Q < Big_10);
          pragma Assert (Big (T_Init) = Q * F + R);

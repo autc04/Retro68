@@ -9,7 +9,6 @@
  */
 module core.sys.windows.winsvc;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "advapi32");
@@ -185,10 +184,10 @@ struct SERVICE_TABLE_ENTRYW {
 }
 alias SERVICE_TABLE_ENTRYW* LPSERVICE_TABLE_ENTRYW;
 
-mixin DECLARE_HANDLE!("SC_HANDLE");
+alias SC_HANDLE = HANDLE;
 alias SC_HANDLE* LPSC_HANDLE;
 alias void* SC_LOCK;
-mixin DECLARE_HANDLE!("SERVICE_STATUS_HANDLE");
+alias SERVICE_STATUS_HANDLE = HANDLE;
 
 extern (Windows) {
     alias void function(DWORD) LPHANDLER_FUNCTION;
@@ -273,7 +272,7 @@ static if (_WIN32_WINNT >= 0x500) {
     alias SERVICE_FAILURE_ACTIONSW* LPSERVICE_FAILURE_ACTIONSW;
 }
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     BOOL ChangeServiceConfigA(SC_HANDLE, DWORD, DWORD, DWORD, LPCSTR,
       LPCSTR, LPDWORD, LPCSTR, LPCSTR, LPCSTR, LPCSTR);
     BOOL ChangeServiceConfigW(SC_HANDLE, DWORD, DWORD, DWORD, LPCWSTR,

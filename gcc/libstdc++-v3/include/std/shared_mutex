@@ -1,6 +1,6 @@
 // <shared_mutex> -*- C++ -*-
 
-// Copyright (C) 2013-2022 Free Software Foundation, Inc.
+// Copyright (C) 2013-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,14 +29,23 @@
 #ifndef _GLIBCXX_SHARED_MUTEX
 #define _GLIBCXX_SHARED_MUTEX 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+
+#include <bits/requires_hosted.h> // concurrency
 
 #if __cplusplus >= 201402L
 
 #include <bits/chrono.h>
+#include <bits/error_constants.h>
 #include <bits/functexcept.h>
 #include <bits/move.h>        // move, __exchange
 #include <bits/std_mutex.h>   // defer_lock_t
+
+#define __glibcxx_want_shared_mutex
+#define __glibcxx_want_shared_timed_mutex
+#include <bits/version.h>
 
 #if ! (_GLIBCXX_USE_PTHREAD_RWLOCK_T && _GTHREAD_USE_MUTEX_TIMEDLOCK)
 # include <condition_variable>
@@ -53,12 +62,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 #ifdef _GLIBCXX_HAS_GTHREADS
 
-#if __cplusplus >= 201703L
-#define __cpp_lib_shared_mutex 201505L
+#ifdef __cpp_lib_shared_mutex // C++ >= 17 && hosted && gthread
   class shared_mutex;
 #endif
 
-#define __cpp_lib_shared_timed_mutex 201402L
   class shared_timed_mutex;
 
   /// @cond undocumented
@@ -67,7 +74,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #ifdef __gthrw
 #define _GLIBCXX_GTHRW(name) \
   __gthrw(pthread_ ## name); \
-  static inline int \
+  inline int \
   __glibcxx_ ## name (pthread_rwlock_t *__rwlock) \
   { \
     if (__gthread_active_p ()) \
@@ -83,7 +90,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 # ifndef PTHREAD_RWLOCK_INITIALIZER
   _GLIBCXX_GTHRW(rwlock_destroy)
   __gthrw(pthread_rwlock_init);
-  static inline int
+  inline int
   __glibcxx_rwlock_init (pthread_rwlock_t *__rwlock)
   {
     if (__gthread_active_p ())
@@ -94,7 +101,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 # endif
 # if _GTHREAD_USE_MUTEX_TIMEDLOCK
    __gthrw(pthread_rwlock_timedrdlock);
-  static inline int
+  inline int
   __glibcxx_rwlock_timedrdlock (pthread_rwlock_t *__rwlock,
 				const timespec *__ts)
   {
@@ -104,7 +111,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       return 0;
   }
    __gthrw(pthread_rwlock_timedwrlock);
-  static inline int
+  inline int
   __glibcxx_rwlock_timedwrlock (pthread_rwlock_t *__rwlock,
 				const timespec *__ts)
   {
@@ -115,33 +122,33 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   }
 # endif
 #else
-  static inline int
+  inline int
   __glibcxx_rwlock_rdlock (pthread_rwlock_t *__rwlock)
   { return pthread_rwlock_rdlock (__rwlock); }
-  static inline int
+  inline int
   __glibcxx_rwlock_tryrdlock (pthread_rwlock_t *__rwlock)
   { return pthread_rwlock_tryrdlock (__rwlock); }
-  static inline int
+  inline int
   __glibcxx_rwlock_wrlock (pthread_rwlock_t *__rwlock)
   { return pthread_rwlock_wrlock (__rwlock); }
-  static inline int
+  inline int
   __glibcxx_rwlock_trywrlock (pthread_rwlock_t *__rwlock)
   { return pthread_rwlock_trywrlock (__rwlock); }
-  static inline int
+  inline int
   __glibcxx_rwlock_unlock (pthread_rwlock_t *__rwlock)
   { return pthread_rwlock_unlock (__rwlock); }
-  static inline int
+  inline int
   __glibcxx_rwlock_destroy(pthread_rwlock_t *__rwlock)
   { return pthread_rwlock_destroy (__rwlock); }
-  static inline int
+  inline int
   __glibcxx_rwlock_init(pthread_rwlock_t *__rwlock)
   { return pthread_rwlock_init (__rwlock, NULL); }
 # if _GTHREAD_USE_MUTEX_TIMEDLOCK
-  static inline int
+  inline int
   __glibcxx_rwlock_timedrdlock (pthread_rwlock_t *__rwlock,
 				const timespec *__ts)
   { return pthread_rwlock_timedrdlock (__rwlock, __ts); }
-  static inline int
+  inline int
   __glibcxx_rwlock_timedwrlock (pthread_rwlock_t *__rwlock,
 				const timespec *__ts)
   { return pthread_rwlock_timedwrlock (__rwlock, __ts); }
@@ -325,10 +332,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
       unique_lock<mutex> __lk(_M_mut);
       // Wait until we can set the write-entered flag.
-      _M_gate1.wait(__lk, [=]{ return !_M_write_entered(); });
+      _M_gate1.wait(__lk, [this]{ return !_M_write_entered(); });
       _M_state |= _S_write_entered;
       // Then wait until there are no more readers.
-      _M_gate2.wait(__lk, [=]{ return _M_readers() == 0; });
+      _M_gate2.wait(__lk, [this]{ return _M_readers() == 0; });
     }
 
     bool
@@ -360,7 +367,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     lock_shared()
     {
       unique_lock<mutex> __lk(_M_mut);
-      _M_gate1.wait(__lk, [=]{ return _M_state < _S_max_readers; });
+      _M_gate1.wait(__lk, [this]{ return _M_state < _S_max_readers; });
       ++_M_state;
     }
 
@@ -404,7 +411,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
   /// @endcond
 
-#if __cplusplus >= 201703L
+#ifdef __cpp_lib_shared_mutex
   /// The standard shared mutex type.
   class shared_mutex
   {
@@ -418,13 +425,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     // Exclusive ownership
 
     void lock() { _M_impl.lock(); }
-    bool try_lock() { return _M_impl.try_lock(); }
+    [[nodiscard]] bool try_lock() { return _M_impl.try_lock(); }
     void unlock() { _M_impl.unlock(); }
 
     // Shared ownership
 
     void lock_shared() { _M_impl.lock_shared(); }
-    bool try_lock_shared() { return _M_impl.try_lock_shared(); }
+    [[nodiscard]] bool try_lock_shared() { return _M_impl.try_lock_shared(); }
     void unlock_shared() { _M_impl.unlock_shared(); }
 
 #if _GLIBCXX_USE_PTHREAD_RWLOCK_T
@@ -438,7 +445,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     __shared_mutex_cv _M_impl;
 #endif
   };
-#endif // C++17
+#endif // __cpp_lib_shared_mutex
 
   /// @cond undocumented
 #if _GLIBCXX_USE_PTHREAD_RWLOCK_T && _GTHREAD_USE_MUTEX_TIMEDLOCK
@@ -471,10 +478,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     // Exclusive ownership
 
     void lock() { _Base::lock(); }
-    bool try_lock() { return _Base::try_lock(); }
+    _GLIBCXX_NODISCARD bool try_lock() { return _Base::try_lock(); }
     void unlock() { _Base::unlock(); }
 
     template<typename _Rep, typename _Period>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
       {
@@ -487,10 +495,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     // Shared ownership
 
     void lock_shared() { _Base::lock_shared(); }
+    _GLIBCXX_NODISCARD
     bool try_lock_shared() { return _Base::try_lock_shared(); }
     void unlock_shared() { _Base::unlock_shared(); }
 
     template<typename _Rep, typename _Period>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_shared_for(const chrono::duration<_Rep, _Period>& __rtime)
       {
@@ -505,6 +515,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     // Exclusive ownership
 
     template<typename _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_until(const chrono::time_point<chrono::system_clock,
 		     _Duration>& __atime)
@@ -530,6 +541,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 #ifdef _GLIBCXX_USE_PTHREAD_RWLOCK_CLOCKLOCK
     template<typename _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_until(const chrono::time_point<chrono::steady_clock,
 		   _Duration>& __atime)
@@ -556,6 +568,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
 
     template<typename _Clock, typename _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_until(const chrono::time_point<_Clock, _Duration>& __atime)
       {
@@ -578,6 +591,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     // Shared ownership
 
     template<typename _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_shared_until(const chrono::time_point<chrono::system_clock,
 			    _Duration>& __atime)
@@ -617,6 +631,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 #ifdef _GLIBCXX_USE_PTHREAD_RWLOCK_CLOCKLOCK
     template<typename _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_shared_until(const chrono::time_point<chrono::steady_clock,
 			    _Duration>& __atime)
@@ -643,6 +658,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
 
     template<typename _Clock, typename _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_shared_until(const chrono::time_point<_Clock,
 						     _Duration>& __atime)
@@ -668,18 +684,19 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     // Exclusive ownership
 
     template<typename _Clock, typename _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_until(const chrono::time_point<_Clock, _Duration>& __abs_time)
       {
 	unique_lock<mutex> __lk(_M_mut);
 	if (!_M_gate1.wait_until(__lk, __abs_time,
-				 [=]{ return !_M_write_entered(); }))
+				 [this]{ return !_M_write_entered(); }))
 	  {
 	    return false;
 	  }
 	_M_state |= _S_write_entered;
 	if (!_M_gate2.wait_until(__lk, __abs_time,
-				 [=]{ return _M_readers() == 0; }))
+				 [this]{ return _M_readers() == 0; }))
 	  {
 	    _M_state ^= _S_write_entered;
 	    // Wake all threads blocked while the write-entered flag was set.
@@ -692,13 +709,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     // Shared ownership
 
     template <typename _Clock, typename _Duration>
+      _GLIBCXX_NODISCARD
       bool
       try_lock_shared_until(const chrono::time_point<_Clock,
 						     _Duration>& __abs_time)
       {
 	unique_lock<mutex> __lk(_M_mut);
 	if (!_M_gate1.wait_until(__lk, __abs_time,
-				 [=]{ return _M_state < _S_max_readers; }))
+				 [this]{ return _M_state < _S_max_readers; }))
 	  {
 	    return false;
 	  }
@@ -762,6 +780,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       shared_lock&
       operator=(shared_lock&& __sl) noexcept
       {
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 4172. unique_lock self-move-assignment is broken
 	shared_lock(std::move(__sl)).swap(*this);
 	return *this;
       }
@@ -774,6 +794,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_M_owns = true;
       }
 
+      _GLIBCXX_NODISCARD
       bool
       try_lock()
       {
@@ -782,6 +803,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       }
 
       template<typename _Rep, typename _Period>
+	_GLIBCXX_NODISCARD
 	bool
 	try_lock_for(const chrono::duration<_Rep, _Period>& __rel_time)
 	{
@@ -790,6 +812,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	}
 
       template<typename _Clock, typename _Duration>
+	_GLIBCXX_NODISCARD
 	bool
 	try_lock_until(const chrono::time_point<_Clock, _Duration>& __abs_time)
 	{
@@ -801,7 +824,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       unlock()
       {
 	if (!_M_owns)
-	  __throw_system_error(int(errc::resource_deadlock_would_occur));
+	  __throw_system_error(int(errc::operation_not_permitted));
 	_M_pm->unlock_shared();
 	_M_owns = false;
       }
@@ -824,10 +847,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       // Getters
 
+      _GLIBCXX_NODISCARD
       bool owns_lock() const noexcept { return _M_owns; }
 
       explicit operator bool() const noexcept { return _M_owns; }
 
+      _GLIBCXX_NODISCARD
       mutex_type* mutex() const noexcept { return _M_pm; }
 
     private:

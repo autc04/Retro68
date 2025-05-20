@@ -1,5 +1,5 @@
 /* ACLE support for AArch64 SVE (__ARM_FEATURE_SVE intrinsics)
-   Copyright (C) 2018-2022 Free Software Foundation, Inc.
+   Copyright (C) 2018-2025 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -37,6 +37,8 @@ namespace aarch64_sve
     extern const function_base *const svadrd;
     extern const function_base *const svadrh;
     extern const function_base *const svadrw;
+    extern const function_base *const svamax;
+    extern const function_base *const svamin;
     extern const function_base *const svand;
     extern const function_base *const svandv;
     extern const function_base *const svasr;
@@ -298,6 +300,12 @@ namespace aarch64_sve
     extern const function_base *const svzip1q;
     extern const function_base *const svzip2;
     extern const function_base *const svzip2q;
+  }
+  namespace neon_sve_bridge_functions
+  {
+    extern const function_base *const svset_neonq;
+    extern const function_base *const svget_neonq;
+    extern const function_base *const svdup_neonq;
   }
 }
 

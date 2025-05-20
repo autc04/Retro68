@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do compile { target c++20 } }
 
 #include <shared_mutex>
 
@@ -34,7 +33,7 @@ test01()
 {
   std::shared_timed_mutex m;
   std::shared_lock<std::shared_timed_mutex> l(m, std::defer_lock);
-  l.try_lock_until(clok::now()); // { dg-error "here" }
+  (void) l.try_lock_until(clok::now()); // { dg-error "here" }
 }
 
 struct cloc
@@ -53,7 +52,7 @@ test02()
 {
   std::shared_timed_mutex m;
   std::shared_lock<std::shared_timed_mutex> l(m, std::defer_lock);
-  l.try_lock_until(cloc::now()); // { dg-error "here" }
+  (void) l.try_lock_until(cloc::now()); // { dg-error "here" }
 }
 
 // { dg-error "static assertion failed" "" { target *-*-* } 0 }

@@ -1,5 +1,5 @@
 /* HOST_WIDE_INT definitions for the GNU compiler.
-   Copyright (C) 1998-2022 Free Software Foundation, Inc.
+   Copyright (C) 1998-2025 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -51,7 +51,7 @@ extern char sizeof_long_long_must_be_8[sizeof (long long) == 8 ? 1 : -1];
    to be either long or long long.  */
 
 #define HOST_BITS_PER_WIDE_INT 64
-#if INT64_T_IS_LONG   
+#if INT64_T_IS_LONG
 #   define HOST_WIDE_INT long
 #   define HOST_WIDE_INT_C(X) X ## L
 #else
@@ -115,6 +115,27 @@ typedef HOST_WIDE_INT __gcc_host_wide_int__;
 #define HOST_WIDE_INT_PRINT_DOUBLE_HEX "0x%" PRIx64 "%016" PRIx64
 #define HOST_WIDE_INT_PRINT_PADDED_HEX "%016" PRIx64
 
+/* Similarly format modifier for printing size_t.  As not all hosts support
+   z modifier in printf, use GCC_PRISZ and cast argument to fmt_size_t.
+   So, instead of doing fprintf ("%zu\n", sizeof (x) * y); use
+   fprintf (HOST_SIZE_T_PRINT_UNSIGNED "\n",
+	    (fmt_size_t) (sizeof (x) * y));  */
+#if SIZE_MAX <= UINT_MAX
+# define GCC_PRISZ ""
+# define fmt_size_t unsigned int
+#elif SIZE_MAX <= ULONG_MAX
+# define GCC_PRISZ HOST_LONG_FORMAT
+# define fmt_size_t unsigned long int
+#else
+# define GCC_PRISZ HOST_LONG_LONG_FORMAT
+# define fmt_size_t unsigned long long int
+#endif
+
+#define HOST_SIZE_T_PRINT_DEC "%" GCC_PRISZ "d"
+#define HOST_SIZE_T_PRINT_UNSIGNED "%" GCC_PRISZ "u"
+#define HOST_SIZE_T_PRINT_HEX "%#" GCC_PRISZ "x"
+#define HOST_SIZE_T_PRINT_HEX_PURE "%" GCC_PRISZ "x"
+
 /* Define HOST_WIDEST_FAST_INT to the widest integer type supported
    efficiently in hardware.  (That is, the widest integer type that fits
    in a hardware register.)  Normally this is "long" but on some hosts it
@@ -138,7 +159,7 @@ typedef HOST_WIDE_INT __gcc_host_wide_int__;
 
 /* Return X with all but the lowest bit masked off.  */
 
-static inline unsigned HOST_WIDE_INT
+inline unsigned HOST_WIDE_INT
 least_bit_hwi (unsigned HOST_WIDE_INT x)
 {
   return (x & -x);
@@ -146,7 +167,7 @@ least_bit_hwi (unsigned HOST_WIDE_INT x)
 
 /* True if X is zero or a power of two.  */
 
-static inline bool
+inline bool
 pow2_or_zerop (unsigned HOST_WIDE_INT x)
 {
   return least_bit_hwi (x) == x;
@@ -154,7 +175,7 @@ pow2_or_zerop (unsigned HOST_WIDE_INT x)
 
 /* True if X is a power of two.  */
 
-static inline bool
+inline bool
 pow2p_hwi (unsigned HOST_WIDE_INT x)
 {
   return x && pow2_or_zerop (x);
@@ -181,7 +202,7 @@ extern int ceil_log2			(unsigned HOST_WIDE_INT);
 #else /* GCC_VERSION >= 3004 */
 
 /* For convenience, define 0 -> word_size.  */
-static inline int
+inline int
 clz_hwi (unsigned HOST_WIDE_INT x)
 {
   if (x == 0)
@@ -195,7 +216,7 @@ clz_hwi (unsigned HOST_WIDE_INT x)
 # endif
 }
 
-static inline int
+inline int
 ctz_hwi (unsigned HOST_WIDE_INT x)
 {
   if (x == 0)
@@ -209,7 +230,7 @@ ctz_hwi (unsigned HOST_WIDE_INT x)
 # endif
 }
 
-static inline int
+inline int
 ffs_hwi (unsigned HOST_WIDE_INT x)
 {
 # if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_LONG
@@ -221,7 +242,7 @@ ffs_hwi (unsigned HOST_WIDE_INT x)
 # endif
 }
 
-static inline int
+inline int
 popcount_hwi (unsigned HOST_WIDE_INT x)
 {
 # if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_LONG
@@ -233,19 +254,19 @@ popcount_hwi (unsigned HOST_WIDE_INT x)
 # endif
 }
 
-static inline int
+inline int
 floor_log2 (unsigned HOST_WIDE_INT x)
 {
   return HOST_BITS_PER_WIDE_INT - 1 - clz_hwi (x);
 }
 
-static inline int
+inline int
 ceil_log2 (unsigned HOST_WIDE_INT x)
 {
   return x == 0 ? 0 : floor_log2 (x - 1) + 1;
 }
 
-static inline int
+inline int
 exact_log2 (unsigned HOST_WIDE_INT x)
 {
   return pow2p_hwi (x) ? ctz_hwi (x) : -1;
@@ -263,10 +284,11 @@ extern HOST_WIDE_INT gcd (HOST_WIDE_INT, HOST_WIDE_INT);
 extern HOST_WIDE_INT pos_mul_hwi (HOST_WIDE_INT, HOST_WIDE_INT);
 extern HOST_WIDE_INT mul_hwi (HOST_WIDE_INT, HOST_WIDE_INT);
 extern HOST_WIDE_INT least_common_multiple (HOST_WIDE_INT, HOST_WIDE_INT);
+extern unsigned HOST_WIDE_INT reflect_hwi (unsigned HOST_WIDE_INT, unsigned);
 
 /* Like ctz_hwi, except 0 when x == 0.  */
 
-static inline int
+inline int
 ctz_or_zero (unsigned HOST_WIDE_INT x)
 {
   return ffs_hwi (x) - 1;
@@ -274,7 +296,7 @@ ctz_or_zero (unsigned HOST_WIDE_INT x)
 
 /* Sign extend SRC starting from PREC.  */
 
-static inline HOST_WIDE_INT
+inline HOST_WIDE_INT
 sext_hwi (HOST_WIDE_INT src, unsigned int prec)
 {
   if (prec == HOST_BITS_PER_WIDE_INT)
@@ -304,7 +326,7 @@ sext_hwi (HOST_WIDE_INT src, unsigned int prec)
 }
 
 /* Zero extend SRC starting from PREC.  */
-static inline unsigned HOST_WIDE_INT
+inline unsigned HOST_WIDE_INT
 zext_hwi (unsigned HOST_WIDE_INT src, unsigned int prec)
 {
   if (prec == HOST_BITS_PER_WIDE_INT)
@@ -373,6 +395,32 @@ mul_hwi (HOST_WIDE_INT a, HOST_WIDE_INT b, bool *overflow)
   *overflow = __builtin_mul_overflow (a, b, &result);
   return result;
 #endif
+}
+
+/* Compute the saturated sum of signed A and B, i.e. upon overflow clamp
+   the result to the corresponding extremum.  */
+
+inline HOST_WIDE_INT
+add_sat_hwi (HOST_WIDE_INT a, HOST_WIDE_INT b)
+{
+  bool overflow;
+  HOST_WIDE_INT result = add_hwi (a, b, &overflow);
+  if (!overflow)
+    return result;
+  return (a < 0) ? HOST_WIDE_INT_MIN : HOST_WIDE_INT_MAX;
+}
+
+/* Compute the saturated product of signed A and B, i.e. upon overflow clamp
+   the result to the corresponding extremum.  */
+
+inline HOST_WIDE_INT
+mul_sat_hwi (HOST_WIDE_INT a, HOST_WIDE_INT b)
+{
+  bool overflow;
+  HOST_WIDE_INT result = mul_hwi (a, b, &overflow);
+  if (!overflow)
+    return result;
+  return ((a < 0) != (b < 0)) ? HOST_WIDE_INT_MIN : HOST_WIDE_INT_MAX;
 }
 
 #endif /* ! GCC_HWINT_H */

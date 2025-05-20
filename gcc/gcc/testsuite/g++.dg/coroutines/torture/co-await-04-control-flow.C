@@ -1,4 +1,6 @@
 //  { dg-do run }
+//  { dg-additional-options "-Wno-unused-label" }
+//  { dg-skip-if "requires hosted libstdc++ for cstdlib abort" { ! hostedlib } }
 
 // Check correct operation of await transform.
 
@@ -47,6 +49,6 @@ int main ()
       PRINTF ("main: y is wrong : %d, should be 42\n", y);
       abort ();
     }
-  puts ("main: done");
+  PRINT ("main: done");
   return 0;
 }

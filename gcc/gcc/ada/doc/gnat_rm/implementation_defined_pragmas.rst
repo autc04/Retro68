@@ -90,11 +90,11 @@ Syntax:
     | (EXTERNAL_PROPERTY {, EXTERNAL_PROPERTY} )
 
   EXTERNAL_PROPERTY ::=
-      Async_Readers    [=> boolean_EXPRESSION]
-    | Async_Writers    [=> boolean_EXPRESSION]
-    | Effective_Reads  [=> boolean_EXPRESSION]
-    | Effective_Writes [=> boolean_EXPRESSION]
-      others            => boolean_EXPRESSION
+      Async_Readers    [=> static_boolean_EXPRESSION]
+    | Async_Writers    [=> static_boolean_EXPRESSION]
+    | Effective_Reads  [=> static_boolean_EXPRESSION]
+    | Effective_Writes [=> static_boolean_EXPRESSION]
+      others            => static_boolean_EXPRESSION
 
   STATE_NAME ::= defining_identifier
 
@@ -233,6 +233,36 @@ Syntax:
 This configuration pragma is a synonym for pragma Ada_12 and has the
 same syntax and effect.
 
+Pragma Ada_2022
+===============
+
+Syntax:
+
+.. code-block:: ada
+
+  pragma Ada_2022;
+  pragma Ada_2022 (local_NAME);
+
+
+A configuration pragma that establishes Ada 2022 mode for the unit to which
+it applies, regardless of the mode set by the command line switches.
+This mode is set automatically for the ``Ada`` and ``System``
+packages and their children, so you need not specify it in these
+contexts.  This pragma is useful when writing a reusable component that
+itself uses Ada 2022 features, but which is intended to be usable from
+Ada 83, Ada 95, Ada 2005 or Ada 2012 programs.
+
+The one argument form, which is not a configuration pragma,
+is used for managing the transition from Ada
+2012 to Ada 2022 in the run-time library. If an entity is marked
+as Ada_2022 only, then referencing the entity in any pre-Ada_2022
+mode will generate a warning. In addition, in any pre-Ada_2012
+mode, a preference rule is established which does not choose
+such an entity unless it is unambiguously specified. This avoids
+extra subprograms marked this way from generating ambiguities in
+otherwise legal pre-Ada_2022 programs. The one argument form is
+intended for exclusive use in the GNAT run-time library.
+
 Pragma Aggregate_Individually_Assign
 ====================================
 
@@ -298,6 +328,20 @@ System.Address is a visible integer type,
 this pragma serves no purpose but is ignored
 rather than rejected to allow common sets of sources to be used
 in the two situations.
+
+.. _Pragma-Always_Terminates:
+
+Pragma Always_Terminates
+========================
+
+Syntax:
+
+.. code-block:: ada
+
+  pragma Always_Terminates [ (boolean_EXPRESSION) ];
+
+For the semantics of this pragma, see the entry for aspect ``Always_Terminates``
+in the SPARK 2014 Reference Manual, section 6.1.11.
 
 .. _Pragma-Annotate:
 
@@ -478,7 +522,7 @@ applies to both the ``Precondition`` pragma
 and the aspect ``Precondition``. Note that the identifiers for
 pragmas Pre_Class and Post_Class are Pre'Class and Post'Class (not
 Pre_Class and Post_Class), since these pragmas are intended to be
-identical to the corresponding aspects).
+identical to the corresponding aspects.
 
 If the policy is ``CHECK``, then assertions are enabled, i.e.
 the corresponding pragma or aspect is activated.
@@ -600,7 +644,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Async_Readers [ (boolean_EXPRESSION) ];
+  pragma Async_Readers [ (static_boolean_EXPRESSION) ];
 
 For the semantics of this pragma, see the entry for aspect ``Async_Readers`` in
 the SPARK 2014 Reference Manual, section 7.1.2.
@@ -614,7 +658,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Async_Writers [ (boolean_EXPRESSION) ];
+  pragma Async_Writers [ (static_boolean_EXPRESSION) ];
 
 For the semantics of this pragma, see the entry for aspect ``Async_Writers`` in
 the SPARK 2014 Reference Manual, section 7.1.2.
@@ -1132,7 +1176,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Constant_After_Elaboration [ (boolean_EXPRESSION) ];
+  pragma Constant_After_Elaboration [ (static_boolean_EXPRESSION) ];
 
 For the semantics of this pragma, see the entry for aspect
 ``Constant_After_Elaboration`` in the SPARK 2014 Reference Manual, section 3.3.1.
@@ -1147,7 +1191,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Contract_Cases ((CONTRACT_CASE {, CONTRACT_CASE));
+  pragma Contract_Cases (CONTRACT_CASE {, CONTRACT_CASE});
 
   CONTRACT_CASE ::= CASE_GUARD => CONSEQUENCE
 
@@ -1359,7 +1403,7 @@ Pragma CPP_Virtual
 This pragma is now obsolete and, other than generating a warning if warnings
 on obsolescent features are enabled, is completely ignored.
 It is retained for compatibility
-purposes. It used to be required to ensure compoatibility with C++, but
+purposes. It used to be required to ensure compatibility with C++, but
 is no longer required for that purpose because GNAT generates
 the same object layout as the G++ compiler by default.
 
@@ -1408,20 +1452,6 @@ This pragma applies only to protected types and specifies the floor
 deadline inherited by a task when the task enters a protected object.
 It is effective only when the EDF scheduling policy is used.
 
-.. _Pragma-Default_Initial_Condition:
-
-Pragma Default_Initial_Condition
-================================
-
-Syntax:
-
-.. code-block:: ada
-
-  pragma Default_Initial_Condition [ (null | boolean_EXPRESSION) ];
-
-For the semantics of this pragma, see the entry for aspect
-``Default_Initial_Condition`` in the SPARK 2014 Reference Manual, section 7.3.3.
-
 Pragma Debug
 ============
 
@@ -1464,6 +1494,20 @@ Syntax:
 This pragma is equivalent to a corresponding ``Check_Policy`` pragma
 with a first argument of ``Debug``. It is retained for historical
 compatibility reasons.
+
+.. _Pragma-Default_Initial_Condition:
+
+Pragma Default_Initial_Condition
+================================
+
+Syntax:
+
+.. code-block:: ada
+
+  pragma Default_Initial_Condition [ (null | boolean_EXPRESSION) ];
+
+For the semantics of this pragma, see the entry for aspect
+``Default_Initial_Condition`` in the SPARK 2014 Reference Manual, section 7.3.3.
 
 Pragma Default_Scalar_Storage_Order
 ===================================
@@ -1618,18 +1662,20 @@ Syntax:
 
   pragma Disable_Atomic_Synchronization [(Entity)];
 
+  pragma Enable_Atomic_Synchronization [(Entity)];
 
 Ada requires that accesses (reads or writes) of an atomic variable be
 regarded as synchronization points in the case of multiple tasks.
 Particularly in the case of multi-processors this may require special
-handling, e.g. the generation of memory barriers. This capability may
-be turned off using this pragma in cases where it is known not to be
-required.
+handling, e.g. the generation of memory barriers. This synchronization
+is performed by default, but can be turned off using pragma
+``Disable_Atomic_Synchronization``.
+The ``Enable_Atomic_Synchronization`` pragma turns it back on.
 
-The placement and scope rules for this pragma are the same as those
-for ``pragma Suppress``. In particular it can be used as a
-configuration  pragma, or in a declaration sequence where it applies
-till the end of the scope. If an ``Entity`` argument is present,
+The placement and scope rules for these pragmas are the same as those
+for ``pragma Suppress``. In particular they can be used as
+configuration pragmas, or in a declaration sequence where they apply
+until the end of the scope. If an ``Entity`` argument is present,
 the action applies only to that entity.
 
 Pragma Dispatching_Domain
@@ -1656,7 +1702,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Effective_Reads [ (boolean_EXPRESSION) ];
+  pragma Effective_Reads [ (static_boolean_EXPRESSION) ];
 
 For the semantics of this pragma, see the entry for aspect ``Effective_Reads`` in
 the SPARK 2014 Reference Manual, section 7.1.2.
@@ -1670,7 +1716,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Effective_Writes [ (boolean_EXPRESSION) ];
+  pragma Effective_Writes [ (static_boolean_EXPRESSION) ];
 
 For the semantics of this pragma, see the entry for aspect ``Effective_Writes``
 in the SPARK 2014 Reference Manual, section 7.1.2.
@@ -1735,27 +1781,23 @@ The pragma has the following semantics, where ``U`` is the unit specified by
 the ``Unit_Name`` argument and ``E`` is the entity specified by the ``Entity``
 argument:
 
-*  ``E`` must be a subprogram that is explicitly declared either:
+* ``E`` must be a subprogram that is explicitly declared either:
 
-   o  Within ``U``, or
+  * Within ``U``, or
+  * Within a generic package that is instantiated in ``U``, or
+  * As an instance of generic subprogram instantiated in ``U``.
 
-   o  Within a generic package that is instantiated in ``U``, or
+  Otherwise the pragma is ignored.
 
-   o  As an instance of generic subprogram instantiated in ``U``.
-
-   Otherwise the pragma is ignored.
-
-*  If ``E`` is overloaded within ``U`` then, in the absence of a
-   ``Source_Location`` argument, all overloadings are eliminated.
-
-*  If ``E`` is overloaded within ``U`` and only some overloadings
-   are to be eliminated, then each overloading to be eliminated
-   must be specified in a corresponding pragma ``Eliminate``
-   with a ``Source_Location`` argument identifying the line where the
-   declaration appears, as described below.
-
-*  If ``E`` is declared as the result of a generic instantiation, then
-   a ``Source_Location`` argument is needed, as described below
+* If ``E`` is overloaded within ``U`` then, in the absence of a
+  ``Source_Location`` argument, all overloadings are eliminated.
+* If ``E`` is overloaded within ``U`` and only some overloadings
+  are to be eliminated, then each overloading to be eliminated
+  must be specified in a corresponding pragma ``Eliminate``
+  with a ``Source_Location`` argument identifying the line where the
+  declaration appears, as described below.
+* If ``E`` is declared as the result of a generic instantiation, then
+  a ``Source_Location`` argument is needed, as described below.
 
 Pragma ``Eliminate`` allows a program to be compiled in a system-independent
 manner, so that unused entities are eliminated but without
@@ -1863,21 +1905,46 @@ Syntax:
 
   pragma Enable_Atomic_Synchronization [(Entity)];
 
+Reenables atomic synchronization; see ``pragma Disable_Atomic_Synchronization``
+for details.
 
-Ada requires that accesses (reads or writes) of an atomic variable be
-regarded as synchronization points in the case of multiple tasks.
-Particularly in the case of multi-processors this may require special
-handling, e.g. the generation of memory barriers. This synchronization
-is performed by default, but can be turned off using
-``pragma Disable_Atomic_Synchronization``. The
-``Enable_Atomic_Synchronization`` pragma can be used to turn
-it back on.
+Pragma Exceptional_Cases
+========================
+.. index:: Exceptional_Cases
 
-The placement and scope rules for this pragma are the same as those
-for ``pragma Unsuppress``. In particular it can be used as a
-configuration  pragma, or in a declaration sequence where it applies
-till the end of the scope. If an ``Entity`` argument is present,
-the action applies only to that entity.
+Syntax:
+
+
+::
+
+  pragma Exceptional_Cases (EXCEPTIONAL_CASE_LIST);
+
+  EXCEPTIONAL_CASE_LIST ::= EXCEPTIONAL_CASE {, EXCEPTIONAL_CASE}
+  EXCEPTIONAL_CASE      ::= exception_choice {'|' exception_choice} => CONSEQUENCE
+  CONSEQUENCE           ::= Boolean_expression
+
+For the semantics of this aspect, see the SPARK 2014 Reference Manual, section
+6.1.9.
+
+Pragma Exit_Cases
+=================
+.. index:: Exit_Cases
+
+Syntax:
+
+::
+
+  pragma Exit_Cases (EXIT_CASE_LIST);
+
+  EXIT_CASE_LIST ::= EXIT_CASE {, EXIT_CASE}
+  EXIT_CASE      ::= GUARD => EXIT_KIND
+  EXIT_KIND      ::= Normal_Return
+                   | Exception_Raised
+		   | (Exception_Raised => exception_name)
+  GUARD          ::= Boolean_expression
+
+For the semantics of this aspect, see the SPARK 2014 Reference Manual, section
+6.1.10.
 
 Pragma Export_Function
 ======================
@@ -1959,10 +2026,10 @@ Syntax:
 
 ::
 
-  pragma Export_Object
+  pragma Export_Object (
         [Internal =>] LOCAL_NAME
      [, [External =>] EXTERNAL_SYMBOL]
-     [, [Size     =>] EXTERNAL_SYMBOL]
+     [, [Size     =>] EXTERNAL_SYMBOL]);
 
   EXTERNAL_SYMBOL ::=
     IDENTIFIER
@@ -2137,6 +2204,8 @@ To compile it you will have to use the *-gnatg* switch
 for compiling System units, as explained in the
 GNAT User's Guide.
 
+.. _Pragma_Extensions_Allowed:
+
 Pragma Extensions_Allowed
 =========================
 .. index:: Ada Extensions
@@ -2148,249 +2217,21 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Extensions_Allowed (On | Off);
+  pragma Extensions_Allowed (On | Off | All_Extensions);
 
 
-This configuration pragma enables or disables the implementation
-extension mode (the use of Off as a parameter cancels the effect
-of the *-gnatX* command switch).
+This configuration pragma enables (via the "On" or "All_Extensions" argument)
+or disables (via the "Off" argument) the implementation extension mode; the
+pragma takes precedence over the ``-gnatX`` and ``-gnatX0`` command switches.
 
-In extension mode, the latest version of the Ada language is
-implemented (currently Ada 2022), and in addition a number
-of GNAT specific extensions are recognized as follows:
+If an argument of ``"On"`` is specified, the latest version of the Ada language
+is implemented (currently Ada 2022) and, in addition, a curated set of GNAT
+specific extensions are recognized. (See the list here
+:ref:`here<Curated_Language_Extensions>`)
 
-* Constrained attribute for generic objects
-
-  The ``Constrained`` attribute is permitted for objects of
-  generic types. The result indicates if the corresponding actual
-  is constrained.
-
-* ``Static`` aspect on intrinsic functions
-
-  The Ada 202x ``Static`` aspect can be specified on Intrinsic imported
-  functions and the compiler will evaluate some of these intrinsic statically,
-  in particular the ``Shift_Left`` and ``Shift_Right`` intrinsics.
-
-* ``'Reduce`` attribute
-
-  This attribute part of the Ada 202x language definition is provided for
-  now under -gnatX to confirm and potentially refine its usage and syntax.
-
-* ``[]`` aggregates
-
-  This new aggregate syntax for arrays and containers is provided under -gnatX
-  to experiment and confirm this new language syntax.
-
-* Additional ``when`` constructs
-
-  In addition to the ``exit when CONDITION`` control structure, several
-  additional constructs are allowed following this format. Including
-  ``return when CONDITION``, ``goto when CONDITION``, and
-  ``raise [with EXCEPTION_MESSAGE] when CONDITION.``
-
-  Some examples:
-
-  .. code-block:: ada
-
-      return Result when Variable > 10;
-
-      raise Program_Error with "Element is null" when Element = null;
-
-      goto End_Of_Subprogram when Variable = -1;
-
-* Casing on composite values (aka pattern matching)
-
-  The selector for a case statement may be of a composite type, subject to
-  some restrictions (described below). Aggregate syntax is used for choices
-  of such a case statement; however, in cases where a "normal" aggregate would
-  require a discrete value, a discrete subtype may be used instead; box
-  notation can also be used to match all values.
-
-  Consider this example:
-
-  .. code-block:: ada
-
-      type Rec is record
-         F1, F2 : Integer;
-      end record;
-
-      procedure Caser_1 (X : Rec) is
-      begin
-         case X is
-            when (F1 => Positive, F2 => Positive) =>
-               Do_This;
-            when (F1 => Natural, F2 => <>) | (F1 => <>, F2 => Natural) =>
-               Do_That;
-            when others =>
-                Do_The_Other_Thing;
-         end case;
-      end Caser_1;
-
-  If Caser_1 is called and both components of X are positive, then
-  Do_This will be called; otherwise, if either component is nonnegative
-  then Do_That will be called; otherwise, Do_The_Other_Thing will be called.
-
-  If the set of values that match the choice(s) of an earlier alternative
-  overlaps the corresponding set of a later alternative, then the first
-  set shall be a proper subset of the second (and the later alternative
-  will not be executed if the earlier alternative "matches"). All possible
-  values of the composite type shall be covered. The composite type of the
-  selector shall be an array or record type that is neither limited
-  class-wide.
-
-  If a subcomponent's subtype does not meet certain restrictions, then
-  the only value that can be specified for that subcomponent in a case
-  choice expression is a "box" component association (which matches all
-  possible values for the subcomponent). This restriction applies if
-
-  - the component subtype is not a record, array, or discrete type; or
-
-  - the component subtype is subject to a non-static constraint or
-    has a predicate; or
-
-  - the component type is an enumeration type that is subject to an
-    enumeration representation clause; or
-
-  - the component type is a multidimensional array type or an
-    array type with a nonstatic index subtype.
-
-  Support for casing on arrays (and on records that contain arrays) is
-  currently subject to some restrictions. Non-positional
-  array aggregates are not supported as (or within) case choices. Likewise
-  for array type and subtype names. The current implementation exceeds
-  compile-time capacity limits in some annoyingly common scenarios; the
-  message generated in such cases is usually "Capacity exceeded in compiling
-  case statement with composite selector type".
-
-  In addition, pattern bindings are supported. This is a mechanism
-  for binding a name to a component of a matching value for use within
-  an alternative of a case statement. For a component association
-  that occurs within a case choice, the expression may be followed by
-  "is <identifier>". In the special case of a "box" component association,
-  the identifier may instead be provided within the box. Either of these
-  indicates that the given identifer denotes (a constant view of) the matching
-  subcomponent of the case selector. Binding is not yet supported for arrays
-  or subcomponents thereof.
-
-  Consider this example (which uses type Rec from the previous example):
-
-  .. code-block:: ada
-
-      procedure Caser_2 (X : Rec) is
-      begin
-         case X is
-            when (F1 => Positive is Abc, F2 => Positive) =>
-               Do_This (Abc)
-            when (F1 => Natural is N1, F2 => <N2>) |
-                 (F1 => <N2>, F2 => Natural is N1) =>
-               Do_That (Param_1 => N1, Param_2 => N2);
-            when others =>
-               Do_The_Other_Thing;
-         end case;
-      end Caser_2;
-
-  This example is the same as the previous one with respect to
-  determining whether Do_This, Do_That, or Do_The_Other_Thing will
-  be called. But for this version, Do_This takes a parameter and Do_That
-  takes two parameters. If Do_This is called, the actual parameter in the
-  call will be X.F1.
-
-  If Do_That is called, the situation is more complex because there are two
-  choices for that alternative. If Do_That is called because the first choice
-  matched (i.e., because X.F1 is nonnegative and either X.F1 or X.F2 is zero
-  or negative), then the actual parameters of the call will be (in order)
-  X.F1 and X.F2. If Do_That is called because the second choice matched (and
-  the first one did not), then the actual parameters will be reversed.
-
-  Within the choice list for single alternative, each choice must
-  define the same set of bindings and the component subtypes for
-  for a given identifer must all statically match. Currently, the case
-  of a binding for a nondiscrete component is not implemented.
-
-* Fixed lower bounds for array types and subtypes
-
-  Unconstrained array types and subtypes can be specified with a lower bound
-  that is fixed to a certain value, by writing an index range that uses the
-  syntax "<lower-bound-expression> .. <>". This guarantees that all objects
-  of the type or subtype will have the specified lower bound.
-
-  For example, a matrix type with fixed lower bounds of zero for each
-  dimension can be declared by the following:
-
-  .. code-block:: ada
-
-      type Matrix is
-        array (Natural range 0 .. <>, Natural range 0 .. <>) of Integer;
-
-  Objects of type Matrix declared with an index constraint must have index
-  ranges starting at zero:
-
-  .. code-block:: ada
-
-      M1 : Matrix (0 .. 9, 0 .. 19);
-      M2 : Matrix (2 .. 11, 3 .. 22);  -- Warning about bounds; will raise CE
-
-  Similarly, a subtype of String can be declared that specifies the lower
-  bound of objects of that subtype to be 1:
-
-   .. code-block:: ada
-
-      subtype String_1 is String (1 .. <>);
-
-  If a string slice is passed to a formal of subtype String_1 in a call to
-  a subprogram S, the slice's bounds will "slide" so that the lower bound
-  is 1. Within S, the lower bound of the formal is known to be 1, so, unlike
-  a normal unconstrained String formal, there is no need to worry about
-  accounting for other possible lower-bound values. Sliding of bounds also
-  occurs in other contexts, such as for object declarations with an
-  unconstrained subtype with fixed lower bound, as well as in subtype
-  conversions.
-
-  Use of this feature increases safety by simplifying code, and can also
-  improve the efficiency of indexing operations, since the compiler statically
-  knows the lower bound of unconstrained array formals when the formal's
-  subtype has index ranges with static fixed lower bounds.
-
-* Prefixed-view notation for calls to primitive subprograms of untagged types
-
-  Since Ada 2005, calls to primitive subprograms of a tagged type that
-  have a "prefixed view" (see RM 4.1.3(9.2)) have been allowed to be
-  written using the form of a selected_component, with the first actual
-  parameter given as the prefix and the name of the subprogram as a
-  selector. This prefixed-view notation for calls is extended so as to
-  also allow such syntax for calls to primitive subprograms of untagged
-  types. The primitives of an untagged type T that have a prefixed view
-  are those where the first formal parameter of the subprogram either
-  is of type T or is an anonymous access parameter whose designated type
-  is T. For a type that has a component that happens to have the same
-  simple name as one of the type's primitive subprograms, where the
-  component is visible at the point of a selected_component using that
-  name, preference is given to the component in a selected_component
-  (as is currently the case for tagged types with such component names).
-
-* Expression defaults for generic formal functions
-
-  The declaration of a generic formal function is allowed to specify
-  an expression as a default, using the syntax of an expression function.
-
-  Here is an example of this feature:
-
-  .. code-block:: ada
-
-      generic
-         type T is private;
-         with function Copy (Item : T) return T is (Item); -- Defaults to Item
-      package Stacks is
-
-         type Stack is limited private;
-
-         procedure Push (S : in out Stack; X : T); -- Calls Copy on X
-
-         function Pop (S : in out Stack) return T; -- Calls Copy to return item
-
-      private
-         -- ...
-      end Stacks;
+An argument of ``"All_Extensions"`` has the same effect except that some extra
+experimental extensions are enabled (See the list here
+:ref:`here<Experimental_Language_Extensions>`)
 
 .. _Pragma-Extensions_Visible:
 
@@ -2401,7 +2242,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Extensions_Visible [ (boolean_EXPRESSION) ];
+  pragma Extensions_Visible [ (static_boolean_EXPRESSION) ];
 
 For the semantics of this pragma, see the entry for aspect ``Extensions_Visible``
 in the SPARK 2014 Reference Manual, section 6.1.7.
@@ -2549,7 +2390,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Favor_Top_Level (type_NAME);
+  pragma Favor_Top_Level (type_LOCAL_NAME);
 
 
 The argument of pragma ``Favor_Top_Level`` must be a named access-to-subprogram
@@ -2615,7 +2456,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Ghost [ (boolean_EXPRESSION) ];
+  pragma Ghost [ (static_boolean_EXPRESSION) ];
 
 For the semantics of this pragma, see the entry for aspect ``Ghost`` in the SPARK
 2014 Reference Manual, section 6.9.
@@ -2672,7 +2513,9 @@ Syntax:
 This is a configuration pragma
 that takes a single argument that is a simple identifier. Any subsequent
 use of a pragma whose pragma identifier matches this argument will be
-silently ignored. This may be useful when legacy code or code intended
+silently ignored. Any preceding use of a pragma whose pragma identifier
+matches this argument will be parsed and then ignored.
+This may be useful when legacy code or code intended
 for compilation with some other compiler contains pragmas that match the
 name, but not the exact implementation, of a GNAT pragma. The use of this
 pragma allows such pragmas to be ignored, which may be useful in CodePeer
@@ -2821,12 +2664,12 @@ Syntax:
 ::
 
   pragma Import_Function (
-       [Internal                 =>] LOCAL_NAME,
-    [, [External                 =>] EXTERNAL_SYMBOL]
-    [, [Parameter_Types          =>] PARAMETER_TYPES]
-    [, [Result_Type              =>] SUBTYPE_MARK]
-    [, [Mechanism                =>] MECHANISM]
-    [, [Result_Mechanism         =>] MECHANISM_NAME]);
+       [Internal         =>] LOCAL_NAME,
+    [, [External         =>] EXTERNAL_SYMBOL]
+    [, [Parameter_Types  =>] PARAMETER_TYPES]
+    [, [Result_Type      =>] SUBTYPE_MARK]
+    [, [Mechanism        =>] MECHANISM]
+    [, [Result_Mechanism =>] MECHANISM_NAME]);
 
   EXTERNAL_SYMBOL ::=
     IDENTIFIER
@@ -2885,7 +2728,7 @@ Syntax:
 
 ::
 
-  pragma Import_Object
+  pragma Import_Object (
        [Internal =>] LOCAL_NAME
     [, [External =>] EXTERNAL_SYMBOL]
     [, [Size     =>] EXTERNAL_SYMBOL]);
@@ -2912,10 +2755,10 @@ Syntax:
 ::
 
   pragma Import_Procedure (
-       [Internal                 =>] LOCAL_NAME
-    [, [External                 =>] EXTERNAL_SYMBOL]
-    [, [Parameter_Types          =>] PARAMETER_TYPES]
-    [, [Mechanism                =>] MECHANISM]);
+       [Internal        =>] LOCAL_NAME
+    [, [External        =>] EXTERNAL_SYMBOL]
+    [, [Parameter_Types =>] PARAMETER_TYPES]
+    [, [Mechanism       =>] MECHANISM]);
 
   EXTERNAL_SYMBOL ::=
     IDENTIFIER
@@ -2952,10 +2795,10 @@ Syntax:
 ::
 
   pragma Import_Valued_Procedure (
-       [Internal                 =>] LOCAL_NAME
-    [, [External                 =>] EXTERNAL_SYMBOL]
-    [, [Parameter_Types          =>] PARAMETER_TYPES]
-    [, [Mechanism                =>] MECHANISM]);
+       [Internal        =>] LOCAL_NAME
+    [, [External        =>] EXTERNAL_SYMBOL]
+    [, [Parameter_Types =>] PARAMETER_TYPES]
+    [, [Mechanism       =>] MECHANISM]);
 
   EXTERNAL_SYMBOL ::=
     IDENTIFIER
@@ -3004,7 +2847,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Independent (Local_NAME);
+  pragma Independent (component_LOCAL_NAME);
 
 
 This pragma is standard in Ada 2012 mode (which also provides an aspect
@@ -3235,7 +3078,7 @@ with some extended implementations of this pragma in certain Ada 83
 implementations.  The only difference between pragma ``Interface``
 and pragma ``Import`` is that there is special circuitry to allow
 both pragmas to appear for the same subprogram entity (normally it
-is illegal to have multiple ``Import`` pragmas. This is useful in
+is illegal to have multiple ``Import`` pragmas). This is useful in
 maintaining Ada 83/Ada 95 compatibility and is compatible with other
 Ada 83 compilers.
 
@@ -3350,6 +3193,19 @@ declared in the spec of package ``System.OS_Interface``.
 Overriding the default state of signals used by the Ada runtime may interfere
 with an application's runtime behavior in the cases of the synchronous signals,
 and in the case of the signal used to implement the ``abort`` statement.
+
+Pragma Interrupts_System_By_Default
+===================================
+
+Syntax:
+
+
+::
+
+  pragma Interrupts_System_By_Default;
+
+Default all interrupts to the System state as defined above in pragma
+``Interrupt_State``. This is a configuration pragma.
 
 .. _Pragma-Invariant:
 
@@ -3703,6 +3559,11 @@ Pragma Lock_Free
 ================
 
 Syntax:
+
+.. code-block:: ada
+
+  pragma Lock_Free [ (static_boolean_EXPRESSION) ];
+
 This pragma may be specified for protected types or objects. It specifies that
 the implementation of protected operations must be implemented without locks.
 Compilation fails if the compiler cannot generate lock-free code for the
@@ -3717,14 +3578,19 @@ In addition, each protected subprogram body must satisfy:
 
 * May reference only one protected component
 * May not reference nonconstant entities outside the protected subprogram
-  scope.
+  scope
 * May not contain address representation items, allocators, or quantified
-  expressions.
-* May not contain delay, goto, loop, or procedure-call statements.
+  expressions
+* May not contain delay, goto, loop, or procedure-call statements
 * May not contain exported and imported entities
 * May not dereferenced access values
 * Function calls and attribute references must be static
 
+If the Lock_Free aspect is specified to be True for a protected unit
+and the Ceiling_Locking locking policy is in effect, then the run-time
+actions associated with the Ceiling_Locking locking policy (described in
+Ada RM D.3) are not performed when a protected operation of the protected
+unit is executed.
 
 Pragma Loop_Invariant
 =====================
@@ -3834,7 +3700,7 @@ decrease or increase in successive iterations of the loop. In its simplest
 form, just one expression is specified, whose value must increase or decrease
 on each iteration of the loop.
 
-In a more complex form, multiple arguments can be given which are intepreted
+In a more complex form, multiple arguments can be given which are interpreted
 in a nesting lexicographic manner. For example:
 
 .. code-block:: ada
@@ -3927,7 +3793,7 @@ Pragma Max_Queue_Length
 
 Syntax::
 
-   pragma Max_Entry_Queue (static_integer_EXPRESSION);
+   pragma Max_Queue_Length (static_integer_EXPRESSION);
 
 
 This pragma is used to specify the maximum callers per entry queue for
@@ -3969,7 +3835,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma No_Caching [ (boolean_EXPRESSION) ];
+  pragma No_Caching [ (static_boolean_EXPRESSION) ];
 
 For the semantics of this pragma, see the entry for aspect ``No_Caching`` in
 the SPARK 2014 Reference Manual, section 7.1.2.
@@ -4011,7 +3877,7 @@ same name) that establishes the restriction ``No_Elaboration_Code`` for
 the current unit and any extended main source units (body and subunits).
 It also has the effect of enforcing a transitive application of this
 aspect, so that if any unit is implicitly or explicitly with'ed by the
-current unit, it must also have the No_Elaboration_Code_All aspect set.
+current unit, it must also have the `No_Elaboration_Code_All` aspect set.
 It may be applied to package or subprogram specs or their generic versions.
 
 Pragma No_Heap_Finalization
@@ -4065,6 +3931,25 @@ results from the use of pragma ``Inline``.  This pragma is always active,
 in particular it is not subject to the use of option *-gnatn* or
 *-gnatN*.  It is illegal to specify both pragma ``No_Inline`` and
 pragma ``Inline_Always`` for the same ``NAME``.
+
+.. _Pragma-No_Raise:
+
+Pragma No_Raise
+===============
+
+Syntax:
+
+
+::
+
+  pragma No_Raise (subprogram_LOCAL_NAME {, subprogram_LOCAL_NAME});
+
+
+Each ``subprogram_LOCAL_NAME`` argument must refer to one or more subprogram
+declarations in the current declarative part.  A subprogram to which this
+pragma is applied may not raise an exception that is not caught within it.
+An implementation-defined check named `Raise_Check` is associated with the
+pragma, and `Program_Error` is raised upon its failure (see RM 11.5(19/5)).
 
 Pragma No_Return
 ================
@@ -4249,12 +4134,12 @@ Syntax:
 
   pragma Obsolescent (
     [Message =>] static_string_EXPRESSION
-  [,[Version =>] Ada_05]]);
+  [,[Version =>] Ada_05]);
 
   pragma Obsolescent (
     [Entity  =>] NAME
   [,[Message =>] static_string_EXPRESSION
-  [,[Version =>] Ada_05]] );
+  [,[Version =>] Ada_05]]);
 
 
 This pragma can occur immediately following a declaration of an entity,
@@ -4602,6 +4487,22 @@ even though
 RM 8.3 (15) stipulates that an overridden operation is not visible within the
 declaration of the overriding operation.
 
+.. _Pragma-Part_Of:
+
+Pragma Part_Of
+==============
+
+Syntax:
+
+.. code-block:: ada
+
+  pragma Part_Of (ABSTRACT_STATE);
+
+  ABSTRACT_STATE ::= NAME
+
+For the semantics of this pragma, see the entry for aspect ``Part_Of`` in the
+SPARK 2014 Reference Manual, section 7.2.6.
+
 Pragma Partition_Elaboration_Policy
 ===================================
 
@@ -4618,22 +4519,6 @@ Syntax:
 This pragma is standard in Ada 2005, but is available in all earlier
 versions of Ada as an implementation-defined pragma.
 See Ada 2012 Reference Manual for details.
-
-.. _Pragma-Part_Of:
-
-Pragma Part_Of
-==============
-
-Syntax:
-
-.. code-block:: ada
-
-  pragma Part_Of (ABSTRACT_STATE);
-
-  ABSTRACT_STATE ::= NAME
-
-For the semantics of this pragma, see the entry for aspect ``Part_Of`` in the
-SPARK 2014 Reference Manual, section 7.2.6.
 
 Pragma Passive
 ==============
@@ -4669,7 +4554,7 @@ Syntax:
 
 ::
 
-  pragma Persistent_BSS [(LOCAL_NAME)]
+  pragma Persistent_BSS [(object_LOCAL_NAME)]
 
 
 This pragma allows selected objects to be placed in the ``.persistent_bss``
@@ -4915,7 +4800,7 @@ appear at the start of the declarations in a subprogram body
 Note: This pragma is called ``Post_Class`` rather than
 ``Post'Class`` because the latter would not be strictly
 conforming to the allowed syntax for pragmas. The motivation
-for provinding pragmas equivalent to the aspects is to allow a program
+for providing pragmas equivalent to the aspects is to allow a program
 to be written using the pragmas, and then compiled if necessary
 using an Ada compiler that does not recognize the pragmas or
 aspects, but is prepared to ignore the pragmas. The assertion
@@ -5478,9 +5363,9 @@ overloaded declaration exists, in which case the pragma applies
 to all entities).  It specifies that the function ``Entity`` is
 to be considered pure for the purposes of code generation.  This means
 that the compiler can assume that there are no side effects, and
-in particular that two calls with identical arguments produce the
-same result.  It also means that the function can be used in an
-address clause.
+in particular that two identical calls produce the same result in
+the same context. It also means that the function can be used in
+an address clause.
 
 Note that, quite deliberately, there are no static checks to try
 to ensure that this promise is met, so ``Pure_Function`` can be used
@@ -6005,11 +5890,25 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Short_Descriptors
+  pragma Short_Descriptors;
 
 
 This pragma is provided for compatibility with other Ada implementations. It
 is recognized but ignored by all current versions of GNAT.
+
+.. _Pragma-Side_Effects:
+
+Pragma Side_Effects
+===================
+
+Syntax:
+
+.. code-block:: ada
+
+  pragma Side_Effects [ (static_boolean_EXPRESSION) ];
+
+For the semantics of this pragma, see the entry for aspect
+``Side_Effects`` in the SPARK Reference Manual, section 6.1.12.
 
 .. _Pragma-Simple_Storage_Pool_Type:
 
@@ -6095,12 +5994,12 @@ Syntax:
 ::
 
   pragma Source_File_Name (
-    [Unit_Name   =>] unit_NAME,
+    [Unit_Name     =>] unit_NAME,
     Spec_File_Name =>  STRING_LITERAL,
     [Index => INTEGER_LITERAL]);
 
   pragma Source_File_Name (
-    [Unit_Name   =>] unit_NAME,
+    [Unit_Name     =>] unit_NAME,
     Body_File_Name =>  STRING_LITERAL,
     [Index => INTEGER_LITERAL]);
 
@@ -6108,7 +6007,7 @@ Syntax:
 Use this to override the normal naming convention.  It is a configuration
 pragma, and so has the usual applicability of configuration pragmas
 (i.e., it applies to either an entire partition, or to all units in a
-compilation, or to a single unit, depending on how it is used.
+compilation, or to a single unit, depending on how it is used).
 ``unit_name`` is mapped to ``file_name_literal``.  The identifier for
 the second argument is required, and indicates whether this is the file
 name for the spec or for the body.
@@ -6181,7 +6080,7 @@ replacement of any dots in the unit name by the specified string literal.
 
 Note that Source_File_Name pragmas should not be used if you are using
 project files. The reason for this rule is that the project manager is not
-aware of these pragmas, and so other tools that use the projet file would not
+aware of these pragmas, and so other tools that use the project file would not
 be aware of the intended naming conventions. If you are using project files,
 file naming is controlled by Source_File_Name_Project pragmas, which are
 usually supplied automatically by the project manager. A pragma
@@ -6438,21 +6337,91 @@ activated.  These are additive, so they apply in addition to any previously
 set style check options.  The codes for the options are the same as those
 used in the *-gnaty* switch to *gcc* or *gnatmake*.
 For example the following two methods can be used to enable
-layout checking:
+layout checking and to change the maximum nesting level value:
 
 *
 
-  ::
+  .. code-block:: ada
 
+    --  switch on layout checks
     pragma Style_Checks ("l");
-
+    --  set the number of maximum allowed nesting levels to 15
+    pragma Style_Checks ("L15");
 
 *
 
   ::
 
-    gcc -c -gnatyl ...
+    gcc -c -gnatyl -gnatyL15 ...
 
+
+The string literal values can be cumulatively switched on and off by prefixing
+the value with ``+`` or ``-``, where:
+
+* ``+`` is equivalent to no prefix. It applies the check referenced by the
+  literal value;
+* ``-`` switches the referenced check off.
+
+
+.. code-block:: ada
+  :linenos:
+  :emphasize-lines: 15
+
+  --  allow misaligned block by disabling layout check
+  pragma Style_Checks ("-l");
+  declare
+      msg : constant String := "Hello";
+  begin
+      Put_Line (msg);
+      end;
+
+  --  enable the layout check again
+  pragma Style_Checks ("l");
+  declare
+      msg : constant String := "Hello";
+  begin
+      Put_Line (msg);
+      end;
+
+The code above contains two layout errors, however, only
+the last line is picked up by the compiler.
+
+Similarly, the switches containing a numeric value can be applied in sequence.
+In the example below, the permitted nesting level is reduced in in the middle
+block and the compiler raises a warning on the highlighted line.
+
+.. code-block:: ada
+  :linenos:
+  :emphasize-lines: 15
+
+  -- Permit 3 levels of nesting
+  pragma Style_Checks ("L3");
+
+  procedure Main is
+  begin
+      if True then
+        if True then
+            null;
+        end if;
+      end if;
+      --  Reduce permitted nesting levels to 2.
+      --  Note that "+L2" and "L2" are equivalent.
+      pragma Style_Checks ("+L2");
+      if True then
+        if True then
+            null;
+        end if;
+      end if;
+      --  Disable checking permitted nesting levels.
+      --  Note that the number after "-L" is insignificant,
+      --  "-L", "-L3" and "-Lx" are all equivalent.
+      pragma Style_Checks ("-L3");
+      if True then
+        if True then
+            null;
+        end if;
+      end if;
+  end Main;
 
 The form ``ALL_CHECKS`` activates all standard checks (its use is equivalent
 to the use of the :switch:`gnaty` switch with no options.
@@ -6465,7 +6434,6 @@ options (i.e. equivalent to :switch:`-gnatyg`).
 The forms with ``Off`` and ``On``
 can be used to temporarily disable style checks
 as shown in the following example:
-
 
 .. code-block:: ada
 
@@ -6488,6 +6456,36 @@ for the specified entity, as shown in the following example:
   Rf1 : Integer := ARG;      -- incorrect, wrong case
   pragma Style_Checks (Off, Arg);
   Rf2 : Integer := ARG;      -- OK, no error
+
+Pragma Subprogram_Variant
+=========================
+.. index:: Subprogram_Variant
+
+Syntax:
+
+
+::
+
+  pragma Subprogram_Variant (SUBPROGRAM_VARIANT_LIST);
+
+  SUBPROGRAM_VARIANT_LIST ::=
+    STRUCTURAL_SUBPROGRAM_VARIANT_ITEM
+  | NUMERIC_SUBPROGRAM_VARIANT_ITEMS
+
+  NUMERIC_SUBPROGRAM_VARIANT_ITEMS ::=
+    NUMERIC_SUBPROGRAM_VARIANT_ITEM {, NUMERIC_SUBPROGRAM_VARIANT_ITEM}
+
+  NUMERIC_SUBPROGRAM_VARIANT_ITEM ::=
+    CHANGE_DIRECTION => EXPRESSION
+
+  STRUCTURAL_SUBPROGRAM_VARIANT_ITEM ::=
+    STRUCTURAL => EXPRESSION
+
+  CHANGE_DIRECTION ::= Increases | Decreases
+
+The ``Subprogram_Variant`` pragma is intended to be an exact replacement for
+the implementation-defined ``Subprogram_Variant`` aspect, and shares its
+restrictions and semantics.
 
 
 Pragma Subtitle
@@ -6647,12 +6645,12 @@ Syntax:
 
 ::
 
-  pragma Suppress_Initialization ([Entity =>] variable_or_subtype_Name);
+  pragma Suppress_Initialization ([Entity =>] variable_or_subtype_LOCAL_NAME);
 
 
-Here variable_or_subtype_Name is the name introduced by a type declaration
-or subtype declaration or the name of a variable introduced by an
-object declaration.
+Here variable_or_subtype_LOCAL_NAME is the name introduced by a type
+declaration or subtype declaration or the name of a variable introduced by
+an object declaration.
 
 In the case of a type or subtype
 this pragma suppresses any implicit or explicit initialization
@@ -6837,7 +6835,7 @@ Syntax:
 This pragma specifies that the specified entity, which must be
 a variable declared in a library-level package, is to be marked as
 "Thread Local Storage" (``TLS``). On systems supporting this (which
-include Windows, Solaris, GNU/Linux, and VxWorks 6), this causes each
+include Windows, Solaris, GNU/Linux, and VxWorks), this causes each
 thread (and hence each Ada task) to see a distinct copy of the variable.
 
 The variable must not have default initialization, and if there is
@@ -7023,6 +7021,39 @@ part or package specification. In the latter case it applies to
 uses up to the end of the corresponding statement sequence or
 sequence of package declarations.
 
+Pragma User_Aspect_Definition
+=============================
+
+Syntax:
+
+
+.. code-block:: ada
+
+  pragma User_Aspect_Definition
+    (Identifier {, Identifier [(Identifier {, Identifier})]});
+
+
+This configuration pragma defines a new aspect, making it available for
+subsequent use in a `User_Aspect` aspect specification. The first identifier
+is the name of the new aspect. Any subsequent arguments specify the names
+of other aspects. A subsequent name for which no parenthesized arguments
+are given shall denote either a Boolean-valued non-representation aspect
+or an aspect that has been defined by another `User_Aspect_Definition`
+pragma. A name for which one or more arguments are given shall be either
+`Annotate` or `Local_Restrictions` (and the arguments shall be appropriate
+for the named aspect).
+
+This pragma, together with the `User_Aspect` aspect, provides a mechanism
+for avoiding textual duplication if some set of aspect specifications
+is needed in multiple places. This is somewhat analogous to how profiles
+allow avoiding duplication of `Restrictions` pragmas.
+
+The visibility rules for an aspect defined by a `User_Aspect_Definition`
+pragma are the same as for a check name introduced by a `Check_Name`
+pragma. If multiple definitions are visible for some aspect at some point,
+then the definitions must agree. A predefined aspect cannot be redefined.
+
+
 Pragma Unimplemented_Unit
 =========================
 
@@ -7035,9 +7066,9 @@ Syntax:
 
 
 If this pragma occurs in a unit that is processed by the compiler, GNAT
-aborts with the message :samp:`xxx not implemented`, where
-``xxx`` is the name of the current compilation unit.  This pragma is
-intended to allow the compiler to handle unimplemented library units in
+aborts with the message :samp:`xxx is not supported in this configuration`,
+where ``xxx`` is the name of the current compilation unit.  This pragma
+is intended to allow the compiler to handle unimplemented library units in
 a clean manner.
 
 The abort only happens if code is being generated.  Thus you can use
@@ -7058,10 +7089,9 @@ Syntax:
 
 ``type_LOCAL_NAME`` must refer to a type declaration in the current
 declarative part.  The effect is to inhibit strict type-based aliasing
-optimization for the given type.  In other words, the effect is as though
-access types designating this type were subject to pragma No_Strict_Aliasing.
-For a detailed description of the strict aliasing optimization, and the
-situations in which it must be suppressed, see the section on
+optimizations for the given type.  For a detailed description of the
+strict type-based aliasing optimizations and the situations in which
+they need to be suppressed, see the section on
 ``Optimization and Strict Aliasing`` in the :title:`GNAT User's Guide`.
 
 .. _Pragma-Unmodified:
@@ -7093,7 +7123,7 @@ be.
 
 For the variable case, warnings are never given for unreferenced variables
 whose name contains one of the substrings
-``DISCARD, DUMMY, IGNORE, JUNK, UNUSED`` in any casing. Such names
+``DISCARD, DUMMY, IGNORE, JUNK, UNUSE, TMP, TEMP`` in any casing. Such names
 are typically to be used in cases where such warnings are expected.
 Thus it is never necessary to use ``pragma Unmodified`` for such
 variables, though it is harmless to do so.
@@ -7150,7 +7180,7 @@ for this purpose, see :ref:`Pragma_Obsolescent`.
 The second form of pragma ``Unreferenced`` is used within a context
 clause. In this case the arguments must be unit names of units previously
 mentioned in ``with`` clauses (similar to the usage of pragma
-``Elaborate_All``. The effect is to suppress warnings about unreferenced
+``Elaborate_All``). The effect is to suppress warnings about unreferenced
 units and unreferenced entities within these units.
 
 For the variable case, warnings are never given for unreferenced variables
@@ -7255,32 +7285,9 @@ configuration pragma will ensure this test is not suppressed:
 This pragma is standard in Ada 2005. It is available in all earlier versions
 of Ada as an implementation-defined pragma.
 
-Note that in addition to the checks defined in the Ada RM, GNAT recogizes a
+Note that in addition to the checks defined in the Ada RM, GNAT recognizes a
 number of implementation-defined check names. See the description of pragma
 ``Suppress`` for full details.
-
-Pragma Use_VADS_Size
-====================
-.. index:: Size, VADS compatibility
-
-.. index:: Rational profile
-
-
-Syntax:
-
-
-.. code-block:: ada
-
-  pragma Use_VADS_Size;
-
-
-This is a configuration pragma.  In a unit to which it applies, any use
-of the 'Size attribute is automatically interpreted as a use of the
-'VADS_Size attribute.  Note that this may result in incorrect semantic
-processing of valid Ada 95 or Ada 2005 programs.  This is intended to aid in
-the handling of existing code which depends on the interpretation of Size
-as implemented in the VADS compiler.  See description of the VADS_Size
-attribute for further details.
 
 .. _Pragma-Unused:
 
@@ -7313,8 +7320,31 @@ For the variable case, warnings are never given for unreferenced
 variables whose name contains one of the substrings
 ``DISCARD, DUMMY, IGNORE, JUNK, UNUSED`` in any casing. Such names
 are typically to be used in cases where such warnings are expected.
-Thus it is never necessary to use ``pragma Unmodified`` for such
+Thus it is never necessary to use ``pragma Unused`` for such
 variables, though it is harmless to do so.
+
+Pragma Use_VADS_Size
+====================
+.. index:: Size, VADS compatibility
+
+.. index:: Rational profile
+
+
+Syntax:
+
+
+.. code-block:: ada
+
+  pragma Use_VADS_Size;
+
+
+This is a configuration pragma.  In a unit to which it applies, any use
+of the 'Size attribute is automatically interpreted as a use of the
+'VADS_Size attribute.  Note that this may result in incorrect semantic
+processing of valid Ada 95 or Ada 2005 programs.  This is intended to aid in
+the handling of existing code which depends on the interpretation of Size
+as implemented in the VADS compiler.  See description of the VADS_Size
+attribute for further details.
 
 Pragma Validity_Checks
 ======================
@@ -7430,7 +7460,7 @@ Syntax:
 
 .. code-block:: ada
 
-  pragma Volatile_Function [ (boolean_EXPRESSION) ];
+  pragma Volatile_Function [ (static_boolean_EXPRESSION) ];
 
 For the semantics of this pragma, see the entry for aspect ``Volatile_Function``
 in the SPARK 2014 Reference Manual, section 7.1.2.
@@ -7556,7 +7586,7 @@ expression (which does not exist in Ada 83).
 Note if the second argument of ``DETAILS`` is a ``local_NAME`` then the
 second form is always understood. If the intention is to use
 the fourth form, then you can write ``NAME & ""`` to force the
-intepretation as a *static_string_EXPRESSION*.
+interpretation as a *static_string_EXPRESSION*.
 
 Note: if the first argument is a valid ``TOOL_NAME``, it will be interpreted
 that way. The use of the ``TOOL_NAME`` argument is relevant only to users

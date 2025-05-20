@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2022 Free Software Foundation, Inc.
+// Copyright (C) 2016-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -16,6 +16,7 @@
 // <http://www.gnu.org/licenses/>.
 
 // { dg-do compile { target c++17 } }
+// { dg-add-options no_pch }
 
 #include <chrono>
 
@@ -58,3 +59,8 @@ static_assert( std::chrono::round<seconds>(2501ms) == 3s );
 
 static_assert( std::chrono::abs(100ms) == 100ms );
 static_assert( std::chrono::abs(-100ms) == 100ms );
+
+// LWG 3741. std::chrono::abs(duration) is ill-formed with non-reduced periods
+using D1000 = std::chrono::duration<int, std::ratio<1000, 1000>>;
+static_assert( std::chrono::abs(D1000(-2)) == D1000(2) );
+static_assert( std::is_same_v<decltype(std::chrono::abs(D1000(-2))), D1000> );

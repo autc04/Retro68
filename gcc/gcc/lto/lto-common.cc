@@ -1,5 +1,5 @@
 /* Top-level LTO routines.
-   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+   Copyright (C) 2009-2025 Free Software Foundation, Inc.
    Contributed by CodeSourcery, Inc.
 
 This file is part of GCC.
@@ -37,6 +37,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "stor-layout.h"
 #include "symbol-summary.h"
 #include "tree-vrp.h"
+#include "sreal.h"
+#include "ipa-cp.h"
 #include "ipa-prop.h"
 #include "common.h"
 #include "debug.h"
@@ -63,8 +65,6 @@ along with GCC; see the file COPYING3.  If not see
 static bool type_streaming_finished = false;
 
 GTY(()) tree first_personality_decl;
-
-GTY(()) const unsigned char *lto_mode_identity_table;
 
 /* Returns a hash code for P.  */
 
@@ -254,7 +254,8 @@ hash_canonical_type (tree type)
      checked.  */
   code = tree_code_for_canonical_type_merging (TREE_CODE (type));
   hstate.add_int (code);
-  hstate.add_int (TYPE_MODE (type));
+  if (!RECORD_OR_UNION_TYPE_P (type))
+    hstate.add_int (TYPE_MODE (type));
 
   /* Incorporate common features of numerical types.  */
   if (INTEGRAL_TYPE_P (type)
@@ -332,7 +333,11 @@ hash_canonical_type (tree type)
 	    && (! DECL_SIZE (f)
 		|| ! integer_zerop (DECL_SIZE (f))))
 	  {
-	    iterative_hash_canonical_type (TREE_TYPE (f), hstate);
+	    tree t = TREE_TYPE (f);
+	    if (!TREE_CHAIN (f)
+		&& TREE_CODE (t) == ARRAY_TYPE)
+	      t = TREE_TYPE  (t);
+	    iterative_hash_canonical_type (t, hstate);
 	    nf++;
 	  }
 
@@ -958,7 +963,7 @@ lto_register_function_decl_in_symtab (class data_in *data_in, tree decl,
 static void
 lto_maybe_register_decl (class data_in *data_in, tree t, unsigned ix)
 {
-  if (TREE_CODE (t) == VAR_DECL)
+  if (VAR_P (t))
     lto_register_var_decl_in_symtab (data_in, t, ix);
   else if (TREE_CODE (t) == FUNCTION_DECL
 	   && !fndecl_built_in_p (t))
@@ -984,21 +989,25 @@ lto_fixup_prevailing_type (tree t)
       TYPE_NEXT_VARIANT (t) = TYPE_NEXT_VARIANT (mv);
       TYPE_NEXT_VARIANT (mv) = t;
     }
-
-  /* The following reconstructs the pointer chains
-     of the new pointed-to type if we are a main variant.  We do
-     not stream those so they are broken before fixup.  */
-  if (TREE_CODE (t) == POINTER_TYPE
-      && TYPE_MAIN_VARIANT (t) == t)
+  else if (!TYPE_ATTRIBUTES (t))
     {
-      TYPE_NEXT_PTR_TO (t) = TYPE_POINTER_TO (TREE_TYPE (t));
-      TYPE_POINTER_TO (TREE_TYPE (t)) = t;
-    }
-  else if (TREE_CODE (t) == REFERENCE_TYPE
-	   && TYPE_MAIN_VARIANT (t) == t)
-    {
-      TYPE_NEXT_REF_TO (t) = TYPE_REFERENCE_TO (TREE_TYPE (t));
-      TYPE_REFERENCE_TO (TREE_TYPE (t)) = t;
+      /* The following reconstructs the pointer chains
+	 of the new pointed-to type if we are a main variant.  We do
+	 not stream those so they are broken before fixup.
+	 Don't add it if despite being main variant it has
+	 attributes (then it was created with build_distinct_type_copy).
+	 Similarly don't add TYPE_REF_IS_RVALUE REFERENCE_TYPEs.
+	 Don't add it if there is something in the chain already.  */
+      if (TREE_CODE (t) == POINTER_TYPE)
+	{
+	  TYPE_NEXT_PTR_TO (t) = TYPE_POINTER_TO (TREE_TYPE (t));
+	  TYPE_POINTER_TO (TREE_TYPE (t)) = t;
+	}
+      else if (TREE_CODE (t) == REFERENCE_TYPE && !TYPE_REF_IS_RVALUE (t))
+	{
+	  TYPE_NEXT_REF_TO (t) = TYPE_REFERENCE_TO (TREE_TYPE (t));
+	  TYPE_REFERENCE_TO (TREE_TYPE (t)) = t;
+	}
     }
 }
 
@@ -1189,6 +1198,7 @@ compare_tree_sccs_1 (tree t1, tree t2, tree **map)
 	  compare_values (DECL_FIELD_ABI_IGNORED);
 	  compare_values (DECL_FIELD_CXX_ZERO_WIDTH_BIT_FIELD);
 	  compare_values (DECL_OFFSET_ALIGN);
+	  compare_values (DECL_NOT_FLEXARRAY);
 	}
       else if (code == VAR_DECL)
 	{
@@ -1270,11 +1280,15 @@ compare_tree_sccs_1 (tree t1, tree t2, tree **map)
       if (AGGREGATE_TYPE_P (t1))
 	compare_values (TYPE_TYPELESS_STORAGE);
       compare_values (TYPE_EMPTY_P);
+      if (FUNC_OR_METHOD_TYPE_P (t1))
+	compare_values (TYPE_NO_NAMED_ARGS_STDARG_P);
+      if (RECORD_OR_UNION_TYPE_P (t1))
+	compare_values (TYPE_INCLUDES_FLEXARRAY);
       compare_values (TYPE_PACKED);
       compare_values (TYPE_RESTRICT);
       compare_values (TYPE_USER_ALIGN);
       compare_values (TYPE_READONLY);
-      compare_values (TYPE_PRECISION);
+      compare_values (TYPE_PRECISION_RAW);
       compare_values (TYPE_ALIGN);
       /* Do not compare TYPE_ALIAS_SET.  Doing so introduce ordering issues
 	 with calls to get_alias_set which may initialize it for streamed
@@ -1324,6 +1338,12 @@ compare_tree_sccs_1 (tree t1, tree t2, tree **map)
     if (TREE_STRING_LENGTH (t1) != TREE_STRING_LENGTH (t2)
 	|| memcmp (TREE_STRING_POINTER (t1), TREE_STRING_POINTER (t2),
 		   TREE_STRING_LENGTH (t1)) != 0)
+      return false;
+
+  if (code == RAW_DATA_CST)
+    if (RAW_DATA_LENGTH (t1) != RAW_DATA_LENGTH (t2)
+	|| memcmp (RAW_DATA_POINTER (t1), RAW_DATA_POINTER (t2),
+		   RAW_DATA_LENGTH (t1)) != 0)
       return false;
 
   if (code == OMP_CLAUSE)
@@ -1874,7 +1894,7 @@ lto_read_decls (struct lto_file_decl_data *decl_data, const void *data,
   uint32_t num_decl_states;
 
   lto_input_block ib_main ((const char *) data + main_offset,
-			   header->main_size, decl_data->mode_table);
+			   header->main_size, decl_data);
 
   data_in = lto_data_in_create (decl_data, (const char *) data + string_offset,
 				header->string_size, resolutions);
@@ -2104,8 +2124,7 @@ lto_resolution_read (splay_tree file_ids, FILE *resolution, lto_file *file)
       char r_str[27];
       enum ld_plugin_symbol_resolution r = (enum ld_plugin_symbol_resolution) 0;
       unsigned int j;
-      unsigned int lto_resolution_str_len
-	= sizeof (lto_resolution_str) / sizeof (char *);
+      unsigned int lto_resolution_str_len = ARRAY_SIZE (lto_resolution_str);
       res_pair rp;
 
       t = fscanf (resolution, "%u " HOST_WIDE_INT_PRINT_HEX_PURE
@@ -2118,6 +2137,17 @@ lto_resolution_read (splay_tree file_ids, FILE *resolution, lto_file *file)
 	  if (strcmp (lto_resolution_str[j], r_str) == 0)
 	    {
 	      r = (enum ld_plugin_symbol_resolution) j;
+	      /* Incremental linking together with -fwhole-program may seem
+		 somewhat contradictionary (as the point of incremental linking
+		 is to allow re-linking with more symbols later) but it is
+		 used to build LTO kernel.  We want to hide all symbols that
+		 are not explicitely marked as exported and thus turn
+		 LDPR_PREVAILING_DEF_IRONLY_EXP
+		 to LDPR_PREVAILING_DEF_IRONLY.  */
+	      if (flag_whole_program
+		  && flag_incremental_link == INCREMENTAL_LINK_NOLTO
+		  && r == LDPR_PREVAILING_DEF_IRONLY_EXP)
+		r = LDPR_PREVAILING_DEF_IRONLY;
 	      break;
 	    }
 	}
@@ -2157,6 +2187,13 @@ lto_section_with_id (const char *name, unsigned HOST_WIDE_INT *id)
 
   if (strncmp (name, section_name_prefix, strlen (section_name_prefix)))
     return 0;
+
+  if (flag_ltrans)
+    {
+      *id = 0;
+      return 1;
+    }
+
   s = strrchr (name, '.');
   if (!s)
     return 0;
@@ -2258,7 +2295,8 @@ lto_file_finalize (struct lto_file_decl_data *file_data, lto_file *file,
 #ifdef ACCEL_COMPILER
   lto_input_mode_table (file_data);
 #else
-  file_data->mode_table = lto_mode_identity_table;
+  file_data->mode_table = NULL;
+  file_data->mode_bits = ceil_log2 (MAX_MACHINE_MODE);
 #endif
 
   data = lto_get_summary_section_data (file_data, LTO_section_decls, &len);
@@ -3003,10 +3041,10 @@ print_lto_report_1 (void)
 	   total_scc_size + num_unshared_trees_read);
   if (flag_wpa && tree_scc_hash && num_sccs_read)
     {
-      fprintf (stderr, "[%s] tree SCC table: size %ld, %ld elements, "
-	       "collision ratio: %f\n", pfx,
-	       (long) tree_scc_hash->size (),
-	       (long) tree_scc_hash->elements (),
+      fprintf (stderr, "[%s] tree SCC table: size " HOST_SIZE_T_PRINT_DEC ", "
+	       HOST_SIZE_T_PRINT_DEC " elements, collision ratio: %f\n", pfx,
+	       (fmt_size_t) tree_scc_hash->size (),
+	       (fmt_size_t) tree_scc_hash->elements (),
 	       tree_scc_hash->collisions ());
       hash_table<tree_scc_hasher>::iterator hiter;
       tree_scc *scc, *max_scc = NULL;
@@ -3034,12 +3072,13 @@ print_lto_report_1 (void)
       fprintf (stderr, "[%s] Merged %lu types\n", pfx, num_merged_types);
       fprintf (stderr, "[%s] %lu types prevailed (%lu associated trees)\n",
 	       pfx, num_prevailing_types, num_type_scc_trees);
-      fprintf (stderr, "[%s] GIMPLE canonical type table: size %ld, "
-	       "%ld elements, %ld searches, %ld collisions (ratio: %f)\n", pfx,
-	       (long) htab_size (gimple_canonical_types),
-	       (long) htab_elements (gimple_canonical_types),
-	       (long) gimple_canonical_types->searches,
-	       (long) gimple_canonical_types->collisions,
+      fprintf (stderr, "[%s] GIMPLE canonical type table: size "
+	       HOST_SIZE_T_PRINT_DEC ", " HOST_SIZE_T_PRINT_DEC
+	       " elements, %d searches, %d collisions (ratio: %f)\n", pfx,
+	       (fmt_size_t) htab_size (gimple_canonical_types),
+	       (fmt_size_t) htab_elements (gimple_canonical_types),
+	       gimple_canonical_types->searches,
+	       gimple_canonical_types->collisions,
 	       htab_collisions (gimple_canonical_types));
       fprintf (stderr, "[%s] GIMPLE canonical type pointer-map: "
 	       "%lu elements, %ld searches\n", pfx,
@@ -3098,13 +3137,6 @@ lto_fe_init (void)
   memset (&lto_stats, 0, sizeof (lto_stats));
   bitmap_obstack_initialize (NULL);
   gimple_register_cfg_hooks ();
-#ifndef ACCEL_COMPILER
-  unsigned char *table
-    = ggc_vec_alloc<unsigned char> (MAX_MACHINE_MODE);
-  for (int m = 0; m < MAX_MACHINE_MODE; m++)
-    table[m] = m;
-  lto_mode_identity_table = table;
-#endif
 }
 
 #include "gt-lto-lto-common.h"

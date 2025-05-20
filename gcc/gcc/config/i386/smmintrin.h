@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2007-2025 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -365,17 +365,18 @@ _mm_insert_ps (__m128 __D, __m128 __S, const int __N)
 extern __inline int __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 _mm_extract_ps (__m128 __X, const int __N)
 {
-  union { int i; float f; } __tmp;
-  __tmp.f = __builtin_ia32_vec_ext_v4sf ((__v4sf)__X, __N);
-  return __tmp.i;
+  union { int __i; float __f; } __tmp;
+  __tmp.__f = __builtin_ia32_vec_ext_v4sf ((__v4sf)__X, __N);
+  return __tmp.__i;
 }
 #else
 #define _mm_extract_ps(X, N)						\
   (__extension__							\
    ({									\
-     union { int i; float f; } __tmp;					\
-     __tmp.f = __builtin_ia32_vec_ext_v4sf ((__v4sf)(__m128)(X), (int)(N)); \
-     __tmp.i;								\
+     union { int __i; float __f; } __tmp;				\
+     __tmp.__f = __builtin_ia32_vec_ext_v4sf ((__v4sf)(__m128)(X),	\
+					      (int)(N));		\
+     __tmp.__i;								\
    }))
 #endif
 
@@ -384,7 +385,7 @@ _mm_extract_ps (__m128 __X, const int __N)
    by index N.  */
 #define _MM_EXTRACT_FLOAT(D, S, N) \
   { (D) = __builtin_ia32_vec_ext_v4sf ((__v4sf)(S), (N)); }
-  
+
 /* Extract specified single precision float element into the lower
    part of __m128.  */
 #define _MM_PICK_OUT_PS(X, N)				\

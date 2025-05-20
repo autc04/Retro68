@@ -1,6 +1,6 @@
 
 /* Compiler implementation of the D programming language
- * Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * written by Walter Bright
  * https://www.digitalmars.com
  * Distributed under the Boost Software License, Version 1.0.
@@ -12,6 +12,7 @@
 
 #include "arraytypes.h"
 #include "dsymbol.h"
+#include "expression.h"
 
 class Identifier;
 class TemplateInstance;
@@ -28,15 +29,15 @@ class Expression;
 class FuncDeclaration;
 class Parameter;
 
-class Tuple : public RootObject
+class Tuple final : public RootObject
 {
 public:
     Objects objects;
 
     // kludge for template.isType()
-    DYNCAST dyncast() const { return DYNCAST_TUPLE; }
+    DYNCAST dyncast() const override { return DYNCAST_TUPLE; }
 
-    const char *toChars() const { return objects.toChars(); }
+    const char *toChars() const override;
 };
 
 struct TemplatePrevious
@@ -46,7 +47,8 @@ struct TemplatePrevious
     Objects *dedargs;
 };
 
-class TemplateDeclaration : public ScopeDsymbol
+
+class TemplateDeclaration final : public ScopeDsymbol
 {
 public:
     TemplateParameters *parameters;     // array of TemplateParameter's
@@ -63,35 +65,27 @@ public:
 
     Dsymbol *onemember;         // if !=NULL then one member of this template
 
-    bool literal;               // this template declaration is a literal
-    bool ismixin;               // template declaration is only to be used as a mixin
-    bool isstatic;              // this is static template declaration
-    bool isTrivialAliasSeq;     // matches `template AliasSeq(T...) { alias AliasSeq = T; }
-    bool isTrivialAlias;        // matches pattern `template Alias(T) { alias Alias = qualifiers(T); }`
-    bool deprecated_;           // this template declaration is deprecated
+    d_bool literal;               // this template declaration is a literal
+    d_bool ismixin;               // template declaration is only to be used as a mixin
+    d_bool isstatic;              // this is static template declaration
+    d_bool isTrivialAliasSeq;     // matches `template AliasSeq(T...) { alias AliasSeq = T; }
+    d_bool isTrivialAlias;        // matches pattern `template Alias(T) { alias Alias = qualifiers(T); }`
+    d_bool deprecated_;           // this template declaration is deprecated
     Visibility visibility;
-    int inuse;                  // for recursive expansion detection
 
     TemplatePrevious *previous;         // threaded list of previous instantiation attempts on stack
 
-    TemplateDeclaration *syntaxCopy(Dsymbol *);
-    bool overloadInsert(Dsymbol *s);
-    bool hasStaticCtorOrDtor();
-    const char *kind() const;
-    const char *toChars() const;
+    TemplateDeclaration *syntaxCopy(Dsymbol *) override;
+    bool overloadInsert(Dsymbol *s) override;
+    const char *kind() const override;
 
-    Visibility visible();
+    Visibility visible() override;
 
-    MATCH leastAsSpecialized(Scope *sc, TemplateDeclaration *td2, Expressions *fargs);
-    RootObject *declareParameter(Scope *sc, TemplateParameter *tp, RootObject *o);
 
-    TemplateDeclaration *isTemplateDeclaration() { return this; }
+    bool isDeprecated() const override;
+    bool isOverloadable() const override;
 
-    TemplateTupleParameter *isVariadic();
-    bool isDeprecated() const;
-    bool isOverloadable() const;
-
-    void accept(Visitor *v) { v->visit(this); }
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
 /* For type-parameter:
@@ -119,7 +113,7 @@ public:
      * A dependent template parameter should return MATCHexact in matchArg()
      * to respect the match level of the corresponding precedent parameter.
      */
-    bool dependent;
+    d_bool dependent;
 
     virtual TemplateTypeParameter  *isTemplateTypeParameter();
     virtual TemplateValueParameter *isTemplateValueParameter();
@@ -131,13 +125,12 @@ public:
     virtual bool declareParameter(Scope *sc) = 0;
     virtual void print(RootObject *oarg, RootObject *oded) = 0;
     virtual RootObject *specialization() = 0;
-    virtual RootObject *defaultArg(const Loc &instLoc, Scope *sc) = 0;
+    virtual RootObject *defaultArg(Loc instLoc, Scope *sc) = 0;
     virtual bool hasDefaultArg() = 0;
 
-    /* Create dummy argument based on parameter.
-     */
-    virtual RootObject *dummyArg() = 0;
-    void accept(Visitor *v) { v->visit(this); }
+    DYNCAST dyncast() const override { return DYNCAST_TEMPLATEPARAMETER; }
+
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
 /* Syntax:
@@ -149,85 +142,81 @@ public:
     Type *specType;     // type parameter: if !=NULL, this is the type specialization
     Type *defaultType;
 
-    TemplateTypeParameter *isTemplateTypeParameter();
-    TemplateTypeParameter *syntaxCopy();
-    bool declareParameter(Scope *sc);
-    void print(RootObject *oarg, RootObject *oded);
-    RootObject *specialization();
-    RootObject *defaultArg(const Loc &instLoc, Scope *sc);
-    bool hasDefaultArg();
-    RootObject *dummyArg();
-    void accept(Visitor *v) { v->visit(this); }
+    TemplateTypeParameter *isTemplateTypeParameter() override final;
+    TemplateTypeParameter *syntaxCopy() override;
+    bool declareParameter(Scope *sc) override final;
+    void print(RootObject *oarg, RootObject *oded) override final;
+    RootObject *specialization() override final;
+    RootObject *defaultArg(Loc instLoc, Scope *sc) override final;
+    bool hasDefaultArg() override final;
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
 /* Syntax:
  *  this ident : specType = defaultType
  */
-class TemplateThisParameter : public TemplateTypeParameter
+class TemplateThisParameter final : public TemplateTypeParameter
 {
 public:
-    TemplateThisParameter *isTemplateThisParameter();
-    TemplateThisParameter *syntaxCopy();
-    void accept(Visitor *v) { v->visit(this); }
+    TemplateThisParameter *isTemplateThisParameter() override;
+    TemplateThisParameter *syntaxCopy() override;
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
 /* Syntax:
  *  valType ident : specValue = defaultValue
  */
-class TemplateValueParameter : public TemplateParameter
+class TemplateValueParameter final : public TemplateParameter
 {
 public:
     Type *valType;
     Expression *specValue;
     Expression *defaultValue;
 
-    TemplateValueParameter *isTemplateValueParameter();
-    TemplateValueParameter *syntaxCopy();
-    bool declareParameter(Scope *sc);
-    void print(RootObject *oarg, RootObject *oded);
-    RootObject *specialization();
-    RootObject *defaultArg(const Loc &instLoc, Scope *sc);
-    bool hasDefaultArg();
-    RootObject *dummyArg();
-    void accept(Visitor *v) { v->visit(this); }
+    TemplateValueParameter *isTemplateValueParameter() override;
+    TemplateValueParameter *syntaxCopy() override;
+    bool declareParameter(Scope *sc) override;
+    void print(RootObject *oarg, RootObject *oded) override;
+    RootObject *specialization() override;
+    RootObject *defaultArg(Loc instLoc, Scope *sc) override;
+    bool hasDefaultArg() override;
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
 /* Syntax:
  *  specType ident : specAlias = defaultAlias
  */
-class TemplateAliasParameter : public TemplateParameter
+class TemplateAliasParameter final : public TemplateParameter
 {
 public:
     Type *specType;
     RootObject *specAlias;
     RootObject *defaultAlias;
 
-    TemplateAliasParameter *isTemplateAliasParameter();
-    TemplateAliasParameter *syntaxCopy();
-    bool declareParameter(Scope *sc);
-    void print(RootObject *oarg, RootObject *oded);
-    RootObject *specialization();
-    RootObject *defaultArg(const Loc &instLoc, Scope *sc);
-    bool hasDefaultArg();
-    RootObject *dummyArg();
-    void accept(Visitor *v) { v->visit(this); }
+    TemplateAliasParameter *isTemplateAliasParameter() override;
+    TemplateAliasParameter *syntaxCopy() override;
+    bool declareParameter(Scope *sc) override;
+    void print(RootObject *oarg, RootObject *oded) override;
+    RootObject *specialization() override;
+    RootObject *defaultArg(Loc instLoc, Scope *sc) override;
+    bool hasDefaultArg() override;
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
 /* Syntax:
  *  ident ...
  */
-class TemplateTupleParameter : public TemplateParameter
+class TemplateTupleParameter final : public TemplateParameter
 {
 public:
-    TemplateTupleParameter *isTemplateTupleParameter();
-    TemplateTupleParameter *syntaxCopy();
-    bool declareParameter(Scope *sc);
-    void print(RootObject *oarg, RootObject *oded);
-    RootObject *specialization();
-    RootObject *defaultArg(const Loc &instLoc, Scope *sc);
-    bool hasDefaultArg();
-    RootObject *dummyArg();
-    void accept(Visitor *v) { v->visit(this); }
+    TemplateTupleParameter *isTemplateTupleParameter() override;
+    TemplateTupleParameter *syntaxCopy() override;
+    bool declareParameter(Scope *sc) override;
+    void print(RootObject *oarg, RootObject *oded) override;
+    RootObject *specialization() override;
+    RootObject *defaultArg(Loc instLoc, Scope *sc) override;
+    bool hasDefaultArg() override;
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
 /* Given:
@@ -259,6 +248,7 @@ public:
     ScopeDsymbol *argsym;               // argument symbol table
     hash_t hash;                        // cached result of toHash()
     Expressions *fargs;                 // for function template, these are the function arguments
+    Identifiers *fnames;                // for function template, argument names
 
     TemplateInstances* deferred;
 
@@ -275,43 +265,41 @@ private:
 public:
     unsigned char inuse;                 // for recursive expansion detection
 
-    TemplateInstance *syntaxCopy(Dsymbol *);
-    Dsymbol *toAlias();                 // resolve real symbol
-    const char *kind() const;
-    bool oneMember(Dsymbol **ps, Identifier *ident);
-    const char *toChars() const;
-    const char* toPrettyCharsHelper();
-    Identifier *getIdent();
-    hash_t toHash();
+    TemplateInstance *syntaxCopy(Dsymbol *) override;
+    Dsymbol *toAlias() override final;   // resolve real symbol
+    const char *kind() const override;
+    const char* toPrettyCharsHelper() override final;
+    Identifier *getIdent() override final;
 
     bool isDiscardable();
     bool needsCodegen();
 
-    TemplateInstance *isTemplateInstance() { return this; }
-    void accept(Visitor *v) { v->visit(this); }
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
-class TemplateMixin : public TemplateInstance
+class TemplateMixin final : public TemplateInstance
 {
 public:
     TypeQualified *tqual;
 
-    TemplateMixin *syntaxCopy(Dsymbol *s);
-    const char *kind() const;
-    bool oneMember(Dsymbol **ps, Identifier *ident);
-    bool hasPointers();
-    void setFieldOffset(AggregateDeclaration *ad, FieldState& fieldState, bool isunion);
-    const char *toChars() const;
+    TemplateMixin *syntaxCopy(Dsymbol *s) override;
+    const char *kind() const override;
+    bool hasPointers() override;
 
-    TemplateMixin *isTemplateMixin() { return this; }
-    void accept(Visitor *v) { v->visit(this); }
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
-Expression *isExpression(RootObject *o);
-Dsymbol *isDsymbol(RootObject *o);
-Type *isType(RootObject *o);
-Tuple *isTuple(RootObject *o);
-Parameter *isParameter(RootObject *o);
-TemplateParameter *isTemplateParameter(RootObject *o);
-bool isError(const RootObject *const o);
-void printTemplateStats();
+namespace dmd
+{
+    // in templateparamsem.d
+    bool tpsemantic(TemplateParameter *tp, Scope *sc, TemplateParameters *parameters);
+
+    Expression *isExpression(RootObject *o);
+    Dsymbol *isDsymbol(RootObject *o);
+    Type *isType(RootObject *o);
+    Tuple *isTuple(RootObject *o);
+    Parameter *isParameter(RootObject *o);
+    TemplateParameter *isTemplateParameter(RootObject *o);
+    bool isError(const RootObject *const o);
+    void printTemplateStats(bool listInstances, ErrorSink* eSink);
+}

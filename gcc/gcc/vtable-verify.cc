@@ -1,4 +1,4 @@
-/* Copyright (C) 2013-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2013-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -359,7 +359,7 @@ vtbl_register_mangled_name (tree class_type, tree mangled_name)
 
   gcc_assert (vtbl_mangled_name_types->length() ==
 	      vtbl_mangled_name_ids->length());
-    
+
 
   if (vtbl_find_mangled_name (class_type) == NULL_TREE)
     {
@@ -599,7 +599,7 @@ var_is_used_for_virtual_call_p (tree lhs, int *mem_ref_depth,
 	  if (TREE_CODE (rhs) == ADDR_EXPR
 	      || TREE_CODE (rhs) == MEM_REF)
 	    *mem_ref_depth = *mem_ref_depth + 1;
-	  
+
 	  if (TREE_CODE (rhs) == COMPONENT_REF)
 	    {
 	      while (TREE_CODE (TREE_OPERAND (rhs, 0)) == COMPONENT_REF)
@@ -725,10 +725,6 @@ verify_bb_vtables (basic_block bb)
                      trace information to debug problems.  */
                   if (flag_vtv_debug)
                     {
-                      int len1 = IDENTIFIER_LENGTH
-                                                 (DECL_NAME (vtbl_var_decl));
-                      int len2 = strlen (vtable_name);
-
                       call_stmt = gimple_build_call
                                      (verify_vtbl_ptr_fndecl, 4,
                                       build1 (ADDR_EXPR,
@@ -737,12 +733,8 @@ verify_bb_vtables (basic_block bb)
                                               vtbl_var_decl),
                                       lhs,
                                       build_string_literal
-                                                  (len1 + 1,
-                                                   IDENTIFIER_POINTER
-                                                       (DECL_NAME
-                                                            (vtbl_var_decl))),
-                                      build_string_literal (len2 + 1,
-                                                            vtable_name));
+						  (DECL_NAME (vtbl_var_decl)),
+				      build_string_literal (vtable_name));
                     }
                   else
                     call_stmt = gimple_build_call
@@ -818,8 +810,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return (flag_vtable_verify); }
-  virtual unsigned int execute (function *);
+  bool gate (function *) final override { return (flag_vtable_verify); }
+  unsigned int execute (function *) final override;
 
 }; // class pass_vtable_verify
 

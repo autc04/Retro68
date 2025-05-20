@@ -1,6 +1,6 @@
 // -*- C++ -*- compatibility header.
 
-// Copyright (C) 2007-2022 Free Software Foundation, Inc.
+// Copyright (C) 2007-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,7 +29,12 @@
 #ifndef _GLIBCXX_INTTYPES_H
 #define _GLIBCXX_INTTYPES_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic" // include_next
 
 #include <bits/c++config.h>
 
@@ -48,7 +53,7 @@
 #  endif
 # endif
 
-#ifdef _GLIBCXX_USE_C99_INTTYPES_TR1
+#ifdef _GLIBCXX_USE_C99_INTTYPES
 
 namespace std
 {
@@ -72,13 +77,13 @@ namespace std
   using ::strtoimax;
   using ::strtoumax;
 
-#if defined(_GLIBCXX_USE_WCHAR_T) && _GLIBCXX_USE_C99_INTTYPES_WCHAR_T_TR1
+#if defined(_GLIBCXX_USE_WCHAR_T) && _GLIBCXX_USE_C99_INTTYPES_WCHAR_T
   using ::wcstoimax;
   using ::wcstoumax;
 #endif
 } // namespace
 
-#endif _GLIBCXX_USE_C99_INTTYPES_TR1
+#endif _GLIBCXX_USE_C99_INTTYPES
 
 #else
 
@@ -87,5 +92,7 @@ namespace std
 # endif
 
 #endif // C++11
+
+#pragma GCC diagnostic pop
 
 #endif // _GLIBCXX_INTTYPES_H

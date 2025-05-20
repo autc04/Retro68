@@ -1,5 +1,5 @@
 /* Shrink-wrapping related optimizations.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -705,7 +705,7 @@ try_shrink_wrapping (edge *entry_edge, rtx_insn *prologue_seq)
   if (frame_pointer_needed)
     add_to_hard_reg_set (&set_up_by_prologue.set, Pmode,
 			 HARD_FRAME_POINTER_REGNUM);
-  if (pic_offset_table_rtx 
+  if (pic_offset_table_rtx
       && (unsigned) PIC_OFFSET_TABLE_REGNUM != INVALID_REGNUM)
     add_to_hard_reg_set (&set_up_by_prologue.set, Pmode,
 			 PIC_OFFSET_TABLE_REGNUM);
@@ -939,7 +939,7 @@ try_shrink_wrapping (edge *entry_edge, rtx_insn *prologue_seq)
 
 	if (dump_file)
 	  fprintf (dump_file, "Duplicated %d to %d\n", bb->index, dup->index);
-	
+
 	if (num == profile_count::zero () || den.nonzero_p ())
 	  bb->count = bb->count.apply_scale (num, den);
 	dup->count -= bb->count;
@@ -1776,16 +1776,13 @@ insert_prologue_epilogue_for_components (sbitmap components)
   commit_edge_insertions ();
 }
 
-/* The main entry point to this subpass.  FIRST_BB is where the prologue
-   would be normally put.  */
-void
-try_shrink_wrapping_separate (basic_block first_bb)
+bool
+use_shrink_wrapping_separate (void)
 {
-  if (!(SHRINK_WRAPPING_ENABLED
-	&& flag_shrink_wrap_separate
+  if (!(SHRINK_WRAPPING_ENABLED && flag_shrink_wrap_separate
 	&& optimize_function_for_speed_p (cfun)
 	&& targetm.shrink_wrap.get_separate_components))
-    return;
+    return false;
 
   /* We don't handle "strange" functions.  */
   if (cfun->calls_alloca
@@ -1794,6 +1791,17 @@ try_shrink_wrapping_separate (basic_block first_bb)
       || crtl->calls_eh_return
       || crtl->has_nonlocal_goto
       || crtl->saves_all_registers)
+    return false;
+
+  return true;
+}
+
+/* The main entry point to this subpass.  FIRST_BB is where the prologue
+   would be normally put.  */
+void
+try_shrink_wrapping_separate (basic_block first_bb)
+{
+  if (!use_shrink_wrapping_separate ())
     return;
 
   /* Ask the target what components there are.  If it returns NULL, don't

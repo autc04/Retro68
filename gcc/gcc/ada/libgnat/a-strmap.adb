@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -148,7 +148,7 @@ is
 
          pragma Loop_Invariant (if Map = Identity then J = 0);
          pragma Loop_Invariant (J <= Character'Pos (C) + 1);
-         pragma Loop_Invariant (Result (1 .. J)'Initialized);
+         pragma Loop_Invariant (for all K in 1 .. J => Result (K)'Initialized);
          pragma Loop_Invariant (for all K in 1 .. J => Result (K) <= C);
          pragma Loop_Invariant
            (SPARK_Proof_Sorted_Character_Sequence (Result (1 .. J)));
@@ -290,6 +290,7 @@ is
          loop
             pragma Loop_Invariant
               (Seq1 (Seq1'First .. J) = Seq2 (Seq2'First .. J));
+            pragma Loop_Variant (Increases => J);
 
             if J = Positive'Last then
                return;
@@ -403,6 +404,7 @@ is
          pragma Loop_Invariant
            (for all K in 1 .. J => Result (K) = Map (Domain (K)));
       end loop;
+      pragma Assert (Is_Domain (Map, Domain (1 .. J)));
 
       --  Show the equality of Domain and To_Domain(Map)
 
@@ -440,6 +442,7 @@ is
               (Character'Pos (C) >= Character'Pos (C'Loop_Entry));
             pragma Loop_Invariant
               (for all Char in C'Loop_Entry .. C => not Set (Char));
+            pragma Loop_Variant (Increases => C);
             exit when C = Character'Last;
             C := Character'Succ (C);
          end loop;
@@ -457,6 +460,7 @@ is
             pragma Loop_Invariant
               (for all Char in C'Loop_Entry .. C =>
                  (if Char /= C then Set (Char)));
+            pragma Loop_Variant (Increases => C);
             exit when not Set (C) or else C = Character'Last;
             C := Character'Succ (C);
          end loop;
@@ -491,6 +495,7 @@ is
          pragma Loop_Invariant
            (for all Span of Max_Ranges (1 .. Range_Num) =>
               (for all Char in Span.Low .. Span.High => Set (Char)));
+         pragma Loop_Variant (Increases => Range_Num);
       end loop;
 
       return Max_Ranges (1 .. Range_Num);
@@ -541,7 +546,7 @@ is
                  Result (Char) =
                    ((for some Prev in Ranges'First .. R - 1 =>
                        Char in Ranges (Prev).Low .. Ranges (Prev).High)
-                    or else (Char in Ranges (R).Low .. C)));
+                    or else Char in Ranges (R).Low .. C));
          end loop;
 
          pragma Loop_Invariant

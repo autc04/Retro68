@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---              Copyright (C) 2012-2022, Free Software Foundation, Inc.     --
+--              Copyright (C) 2012-2025, Free Software Foundation, Inc.     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,7 +29,7 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  This package contains both atomic primitives defined from GCC built-in
+--  This package contains atomic primitives defined from GCC built-in
 --  functions and operations used by the compiler to generate the lock-free
 --  implementation of protected objects.
 
@@ -77,6 +77,19 @@ package System.Atomic_Primitives is
    function Atomic_Load_16 is new Atomic_Load (uint16);
    function Atomic_Load_32 is new Atomic_Load (uint32);
    function Atomic_Load_64 is new Atomic_Load (uint64);
+
+   generic
+      type Atomic_Type is mod <>;
+   procedure Atomic_Store
+     (Ptr   : Address;
+      Value : Atomic_Type;
+      Model : Mem_Model := Seq_Cst);
+   pragma Import (Intrinsic, Atomic_Store, "__atomic_store_n");
+
+   procedure Atomic_Store_8  is new Atomic_Store (uint8);
+   procedure Atomic_Store_16 is new Atomic_Store (uint16);
+   procedure Atomic_Store_32 is new Atomic_Store (uint32);
+   procedure Atomic_Store_64 is new Atomic_Store (uint64);
 
    generic
       type Atomic_Type is mod <>;

@@ -1,10 +1,75 @@
-2022-08-19  Release Manager
+2025-04-25  Release Manager
 
-	* GCC 12.2.0 released.
+	* GCC 15.1.0 released.
 
-2022-05-06  Release Manager
+2024-05-07  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
 
-	* GCC 12.1.0 released.
+	* configure.ac (ax_lib_socket_nsl.m4): Don't sinclude.
+	(AX_LIB_SOCKET_NSL): Don't call.
+	(NETLIBS): Remove.
+	* configure: Regenerate.
+	* Makefile.in (NETLIBS): Remove.
+	(g++-mapper-server$(exeext)): Remove $(NETLIBS).
+
+2023-06-22  Marek Polacek  <polacek@redhat.com>
+
+	* configure.ac (--enable-host-bind-now): New check.
+	* configure: Regenerate.
+
+2023-06-15  Marek Polacek  <polacek@redhat.com>
+
+	* Makefile.in: Rename PIEFLAG to PICFLAG.  Set LD_PICFLAG.  Use it.
+	Use pic/libiberty.a if PICFLAG is set.
+	* configure.ac (--enable-default-pie): Set PICFLAG instead of PIEFLAG.
+	(--enable-host-pie): New check.
+	* configure: Regenerate.
+
+2023-03-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	PR bootstrap/101834
+	* Makefile.in (INSTALL): Set variable.
+	(mostlyclean): Mark as a phony target.
+	(clean): Add mostlyclean as a prerequisite.
+	(distclean): Add clean as a prerequisite and remove more files.
+	(maintainer-clean): Add distclean as a prerequisite.
+
+2023-01-09  John David Anglin  <danglin@gcc.gnu.org>
+
+	PR other/107616
+	* server.cc (server): Don't call FD_ISSET when HAVE_PSELECT
+	and HAVE_SELECT are zero.
+
+2022-11-23  Marek Polacek  <polacek@redhat.com>
+
+	Revert:
+	2022-11-23  Marek Polacek  <polacek@redhat.com>
+
+	* Makefile.in: Rename PIEFLAG to PICFLAG.  Set LD_PICFLAG.  Use it.
+	Use pic/libiberty.a if PICFLAG is set.
+	* configure.ac (--enable-default-pie): Set PICFLAG instead of PIEFLAG.
+	(--enable-host-pie): New check.
+	* configure: Regenerate.
+
+2022-11-23  Marek Polacek  <polacek@redhat.com>
+
+	Revert:
+	2022-11-23  Marek Polacek  <polacek@redhat.com>
+
+	* configure.ac (--enable-host-bind-now): New check.
+	* configure: Regenerate.
+
+2022-11-23  Marek Polacek  <polacek@redhat.com>
+
+	* configure.ac (--enable-host-bind-now): New check.
+	* configure: Regenerate.
+
+2022-11-23  Marek Polacek  <polacek@redhat.com>
+
+	* Makefile.in: Rename PIEFLAG to PICFLAG.  Set LD_PICFLAG.  Use it.
+	Use pic/libiberty.a if PICFLAG is set.
+	* configure.ac (--enable-default-pie): Set PICFLAG instead of PIEFLAG.
+	(--enable-host-pie): New check.
+	* configure: Regenerate.
 
 2022-03-18  Iain Sandoe  <iain@sandoe.co.uk>
 
@@ -146,7 +211,7 @@
 	* server.cc: New.
 
 
-Copyright (C) 2020-2022 Free Software Foundation, Inc.
+Copyright (C) 2020-2025 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

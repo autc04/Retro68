@@ -9,6 +9,7 @@ proc load_gcc_lib { filename } {
 }
 
 load_lib dg.exp
+load_lib standard.exp
 
 # Required to use gcc-dg.exp - however, the latter should NOT be
 # loaded until ${tool}_target_compile is defined since it uses that
@@ -28,9 +29,11 @@ load_gcc_lib scanasm.exp
 load_gcc_lib scandump.exp
 load_gcc_lib scanlang.exp
 load_gcc_lib scanrtl.exp
+load_gcc_lib scansarif.exp
 load_gcc_lib scantree.exp
-load_gcc_lib scanltranstree.exp
+load_gcc_lib scanltrans.exp
 load_gcc_lib scanoffload.exp
+load_gcc_lib scanoffloadipa.exp
 load_gcc_lib scanoffloadtree.exp
 load_gcc_lib scanoffloadrtl.exp
 load_gcc_lib scanipa.exp
@@ -38,15 +41,17 @@ load_gcc_lib scanwpaipa.exp
 load_gcc_lib timeout-dg.exp
 load_gcc_lib torture-options.exp
 load_gcc_lib fortran-modules.exp
+load_gcc_lib dg-test-cleanup.exp
 
 # Try to load a test support file, built during libgomp configuration.
-load_file libgomp-test-support.exp
+# Search in '..' vs. '.' to support parallel vs. sequential testing.
+if [info exists ::env(GCC_RUNTEST_PARALLELIZE_DIR)] {
+    load_file ../libgomp-test-support.exp
+} else {
+    load_file libgomp-test-support.exp
+}
 
 set dg-do-what-default run
-
-#
-# GCC_UNDER_TEST is the compiler under test.
-#
 
 set libgomp_compile_options ""
 
@@ -64,12 +69,11 @@ proc libgomp_init { args } {
     global srcdir blddir objdir tool_root_dir
     global libgomp_initialized
     global tmpdir
-    global blddir
     global gluefile wrap_flags
     global ALWAYS_CFLAGS
     global CFLAGS
     global TOOL_EXECUTABLE TOOL_OPTIONS
-    global GCC_UNDER_TEST
+    global GCC_UNDER_TEST GXX_UNDER_TEST GFORTRAN_UNDER_TEST
     global TESTING_IN_BUILD_TREE
     global target_triplet
     global always_ld_library_path
@@ -94,6 +98,26 @@ proc libgomp_init { args } {
 	} else {
 	    set GCC_UNDER_TEST "[find_gcc]"
 	}
+	# Only if we're guessing 'GCC_UNDER_TEST', we're also going to guess
+	# 'GXX_UNDER_TEST', 'GFORTRAN_UNDER_TEST'.
+	if ![info exists GXX_UNDER_TEST] then {
+	    if [info exists TOOL_EXECUTABLE] {
+		set GXX_UNDER_TEST $TOOL_EXECUTABLE
+	    } else {
+		set GXX_UNDER_TEST "[find_g++]"
+	    }
+	} else {
+	    error "GXX_UNDER_TEST set but not GCC_UNDER_TEST"
+	}
+	if ![info exists GFORTRAN_UNDER_TEST] then {
+	    if [info exists TOOL_EXECUTABLE] {
+		set GFORTRAN_UNDER_TEST $TOOL_EXECUTABLE
+	    } else {
+		set GFORTRAN_UNDER_TEST "[find_gfortran]"
+	    }
+	} else {
+	    error "GFORTRAN_UNDER_TEST set but not GCC_UNDER_TEST"
+	}
     }
 
     if ![info exists tmpdir] {
@@ -116,19 +140,7 @@ proc libgomp_init { args } {
     }
 
     # Compute what needs to be put into LD_LIBRARY_PATH
-    set always_ld_library_path ".:${blddir}/.libs"
-
-    # Add liboffloadmic build directory in LD_LIBRARY_PATH to support
-    # Intel MIC offloading testing.
-    global offload_plugins
-    if { [string match "*,intelmic,*" ",$offload_plugins,"] } {
-	append always_ld_library_path ":${blddir}/../liboffloadmic/.libs"
-	append always_ld_library_path ":${blddir}/../liboffloadmic/plugin/.libs"
-	# libstdc++ is required by liboffloadmic
-	append always_ld_library_path ":${blddir}/../libstdc++-v3/src/.libs"
-	# libgcc_s is required by libstdc++
-	append always_ld_library_path ":${blddir}/../libgcc"
-    }
+    set always_ld_library_path "."
 
     global offload_additional_lib_paths
     if { $offload_additional_lib_paths != "" } {
@@ -161,12 +173,19 @@ proc libgomp_init { args } {
 
     set ALWAYS_CFLAGS ""
     if { $blddir != "" } {
+	# If '--with-build-sysroot=[...]' was specified, use it for build-tree
+	# testing.
+	global SYSROOT_CFLAGS_FOR_TARGET
+	lappend ALWAYS_CFLAGS "additional_flags=${SYSROOT_CFLAGS_FOR_TARGET}"
+
         lappend ALWAYS_CFLAGS "additional_flags=-B${blddir}/"
         # targets that use libgomp.a%s in their specs need a -B option
         # for uninstalled testing.
         lappend ALWAYS_CFLAGS "additional_flags=-B${blddir}/.libs"
         lappend ALWAYS_CFLAGS "additional_flags=-I${blddir}"
         lappend ALWAYS_CFLAGS "ldflags=-L${blddir}/.libs"
+
+	append always_ld_library_path ":${blddir}/.libs"
     }
     # The top-level include directory, for gomp-constants.h.
     lappend ALWAYS_CFLAGS "additional_flags=-I${srcdir}/../../include"
@@ -188,23 +207,6 @@ proc libgomp_init { args } {
 		    "additional_flags=-L${atomic_library_path}"
 		append always_ld_library_path ":${atomic_library_path}"
 	    }
-	}
-	global cuda_driver_include
-	global cuda_driver_lib
-	if { $cuda_driver_include != "" } {
-	    # Stop gfortran from freaking out:
-	    # Warning: Nonexistent include directory "[...]"
-	    if {[file exists $cuda_driver_include]} {
-		lappend ALWAYS_CFLAGS "additional_flags=-I$cuda_driver_include"
-	    }
-	}
-	if { $cuda_driver_lib != "" } {
-	    lappend ALWAYS_CFLAGS "additional_flags=-L$cuda_driver_lib"
-	    append always_ld_library_path ":$cuda_driver_lib"
-	}
-	global hsa_runtime_lib
-	if { $hsa_runtime_lib != "" } {
-	    append always_ld_library_path ":$hsa_runtime_lib"
 	}
     }
 
@@ -231,11 +233,8 @@ proc libgomp_init { args } {
     # error-message parsing machinery.
     lappend ALWAYS_CFLAGS "additional_flags=-fmessage-length=0"
 
-    # Disable caret
-    lappend ALWAYS_CFLAGS "additional_flags=-fno-diagnostics-show-caret"
-
-    # Disable color diagnostics
-    lappend ALWAYS_CFLAGS "additional_flags=-fdiagnostics-color=never"
+    # Disable caret, color, URL diagnostics
+    lappend ALWAYS_CFLAGS "additional_flags=-fdiagnostics-plain-output"
 
     # Help GCC to find offload compilers' 'mkoffload'.
     global offload_additional_options
@@ -260,24 +259,25 @@ proc libgomp_target_compile { source dest type options } {
     global gluefile wrap_flags
     global ALWAYS_CFLAGS
     global GCC_UNDER_TEST
-    global lang_test_file
-    global lang_library_path
-    global lang_link_flags
-    global lang_include_flags
-    global lang_source_re
 
-    if { [info exists lang_test_file] } {
-        if { $blddir != "" } {
-            # Some targets use libgfortran.a%s in their specs, so they need
-            # a -B option for uninstalled testing.
-            lappend options "additional_flags=-B${blddir}/${lang_library_path}"
-            lappend options "ldflags=-L${blddir}/${lang_library_path}"
-        }
-        lappend options "ldflags=${lang_link_flags}"
-	if { [info exists lang_include_flags] \
-	     && [regexp ${lang_source_re} ${source}] } {
-	    lappend options "additional_flags=${lang_include_flags}"
+    global lang_source_re lang_include_flags
+    if { [info exists lang_include_flags] \
+	 && [regexp ${lang_source_re} ${source}] } {
+	lappend options "additional_flags=${lang_include_flags}"
+    }
+
+    global lang_library_paths
+    if { [info exists lang_library_paths] } {
+	foreach lang_library_path $lang_library_paths {
+	    # targets that use lib[...].a%s in their specs need a -B option
+	    # for uninstalled testing.
+	    lappend options "additional_flags=-B${blddir}/${lang_library_path}"
+	    lappend options "ldflags=-L${blddir}/${lang_library_path}"
 	}
+    }
+    global lang_link_flags
+    if { [info exists lang_link_flags] } {
+	lappend options "ldflags=${lang_link_flags}"
     }
 
     if { [target_info needs_status_wrapper] != "" && [info exists gluefile] } {
@@ -287,7 +287,6 @@ proc libgomp_target_compile { source dest type options } {
 
     lappend options "additional_flags=[libio_include_flags]"
     lappend options "timeout=[timeout_value]"
-    lappend options "compiler=$GCC_UNDER_TEST"
 
     set options [concat $libgomp_compile_options $options]
 
@@ -295,7 +294,7 @@ proc libgomp_target_compile { source dest type options } {
 	set options [concat "$ALWAYS_CFLAGS" $options]
     }
 
-    set options [dg-additional-files-options $options $source]
+    set options [dg-additional-files-options $options $source $dest $type]
 
     set result [target_compile $source $dest $type $options]
 
@@ -319,6 +318,36 @@ proc libgomp_option_proc { option } {
     }
 }
 
+if ![info exists ::env(GCC_RUNTEST_PARALLELIZE_DIR)] {
+    # No parallel testing.
+} elseif { $FLOCK == "" } {
+    # Using just one parallel slot.
+} else {
+    # Using several parallel slots.  Override DejaGnu
+    # 'standard.exp:${tool}_load'...
+    rename libgomp_load standard_libgomp_load
+    proc libgomp_load { program args } {
+	# ... in order to serialize execution testing via an exclusive lock.
+	# We use stdout, as per <https://perldoc.perl.org/functions/flock>
+	# "[...] FILEHANDLE [...] be open with write intent to use LOCK_EX".
+	set lock_file ../lock
+	set lock_kind --exclusive
+	set lock_fd [open $lock_file a+]
+	set lock_clock_begin [clock seconds]
+	global FLOCK
+	exec $FLOCK $lock_kind 1 >@ $lock_fd
+	set lock_clock_end [clock seconds]
+	verbose -log "Got ${FLOCK}('$lock_file', '$lock_kind') at [clock format $lock_clock_end] after [expr $lock_clock_end - $lock_clock_begin] s" 2
+
+	set result [standard_libgomp_load $program $args]
+
+	# Unlock (implicit with 'close').
+	close $lock_fd
+
+	return $result
+    }
+}
+
 # Translate offload target to OpenACC device type.  Return the empty string if
 # not supported, and 'host' for offload target 'disable'.
 proc offload_target_to_openacc_device_type { offload_target } {
@@ -329,9 +358,6 @@ proc offload_target_to_openacc_device_type { offload_target } {
 	disable {
 	    return "host"
 	}
-	*-intelmic* {
-	    return ""
-	}
 	nvptx* {
 	    return "nvidia"
 	}
@@ -339,6 +365,25 @@ proc offload_target_to_openacc_device_type { offload_target } {
 	    error "Unknown offload target: $offload_target"
 	}
     }
+}
+
+# Return 1 if certain nonstandard math functions are available
+# on the target: gamma, scalb, significand, and their float variants.
+proc check_effective_target_nonstandard_math_functions { } {
+    return [check_no_compiler_messages nonstandard_math_functions executable {
+      #include <math.h>
+      int main() {
+        float x = 42;
+        double y = 42;
+        x = gammaf (x);
+        x = __builtin_scalbf (x, 2.f);
+        x =__builtin_significandf (x);
+        y = gamma (y);
+        y = __builtin_scalb (y, 2.);
+        y =__builtin_significand (y);
+        return 0;
+      }
+    } "-lm" ]
 }
 
 # Return 1 if compiling for the specified offload target
@@ -362,6 +407,11 @@ proc libgomp_check_effective_target_offload_target { target_name } {
 
     verbose "not compiling for $target_name offload target"
     return 0
+}
+
+# Return 1 if compiling for any offload target.
+proc check_effective_target_offload_target_any { } {
+    return [libgomp_check_effective_target_offload_target ""]
 }
 
 # Return 1 if compiling for offload target nvptx.
@@ -426,6 +476,18 @@ proc check_effective_target_offload_device_nvptx { } {
     } ]
 }
 
+# Return 1 if using a GCN offload device.
+proc check_effective_target_offload_device_gcn { } {
+    return [check_runtime_nocache offload_device_gcn {
+      #include <omp.h>
+      #include "testsuite/libgomp.c-c++-common/on_device_arch.h"
+      int main ()
+	{
+	  return !on_device_arch_gcn ();
+	}
+    } ]
+}
+
 # Return 1 if at least one Nvidia GPU is accessible.
 
 proc check_effective_target_openacc_nvidia_accel_present { } {
@@ -446,28 +508,6 @@ proc check_effective_target_openacc_nvidia_accel_selected { } {
     }
     global openacc_device_type
     return [string match "nvidia" $openacc_device_type]
-}
-
-# Return 1 if using Intel MIC offload device.
-proc check_effective_target_offload_device_intel_mic { } {
-    return [check_runtime_nocache offload_device_intel_mic {
-      #include "testsuite/libgomp.c-c++-common/on_device_arch.h"
-      int main ()
-	{
-	  return !on_device_arch_intel_mic ();
-	}
-    } ]
-}
-
-# Return 1 if any Intel MIC offload device is available.
-proc check_effective_target_offload_device_any_intel_mic { } {
-    return [check_runtime_nocache offload_device_any_intel_mic {
-      #include "testsuite/libgomp.c-c++-common/on_device_arch.h"
-      int main ()
-	{
-	  return !any_device_arch_intel_mic ();
-	}
-    } ]
 }
 
 # Return 1 if the OpenACC 'host' device type is selected.

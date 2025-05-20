@@ -1,5 +1,5 @@
 /* Target Definitions for OpenRISC.
-   Copyright (C) 2018-2022 Free Software Foundation, Inc.
+   Copyright (C) 2018-2025 Free Software Foundation, Inc.
    Contributed by Stafford Horne.
 
    This file is part of GCC.
@@ -67,9 +67,6 @@
 #define SHORT_TYPE_SIZE 16
 #define LONG_TYPE_SIZE 32
 #define LONG_LONG_TYPE_SIZE 64
-#define FLOAT_TYPE_SIZE 32
-#define DOUBLE_TYPE_SIZE 64
-#define LONG_DOUBLE_TYPE_SIZE 64
 #define WCHAR_TYPE_SIZE 32
 
 #undef SIZE_TYPE
@@ -146,7 +143,7 @@
    : (X) < 24 ? ((X) - 16) * 2 + 17	\
    : ((X) - 24) * 2 + 16)
 
-#define DBX_REGISTER_NUMBER(X)  GCC_TO_HW_REGNO(X)
+#define DEBUGGER_REGNO(X)  GCC_TO_HW_REGNO(X)
 
 #define REGISTER_NAMES { \
   "r0",   "r1",   "r2",   "r3",   "r4",   "r5",   "r6",   "r7",   \

@@ -1,5 +1,5 @@
 /* Definitions for C language specific types.
-   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+   Copyright (C) 2009-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -54,14 +54,31 @@ struct GTY(()) language_function {
   unsigned char x_in_statement;
   struct c_switch * GTY((skip)) x_switch_stack;
   struct c_arg_info * GTY((skip)) arg_info;
+  vec<tree> GTY((skip)) loop_names;
+  decl_tree_map * GTY((skip)) loop_names_hash;
   int returns_value;
   int returns_null;
   int returns_abnormally;
   int warn_about_return_type;
 };
 
-/* If non-zero, implicit "omp declare target" attribute is added into the
+struct GTY(()) c_omp_declare_target_attr {
+  bool attr_syntax;
+  int device_type;
+  int indirect;
+};
+
+struct GTY(()) c_omp_begin_assumes_data {
+  bool attr_syntax;
+};
+
+/* If non-empty, implicit "omp declare target" attribute is added into the
    attribute lists.  */
-extern GTY(()) int current_omp_declare_target_attribute;
+extern GTY(()) vec<c_omp_declare_target_attr, va_gc>
+  *current_omp_declare_target_attribute;
+/* Similarly whether we are in between #pragma omp begin assumes and
+   #pragma omp end assumes (and how many times when nested).  */
+extern GTY(()) vec<c_omp_begin_assumes_data, va_gc>
+  *current_omp_begin_assumes;
 
 #endif /* ! GCC_C_LANG_H */

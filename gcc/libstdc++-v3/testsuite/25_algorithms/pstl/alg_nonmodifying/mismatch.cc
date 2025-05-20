@@ -2,6 +2,7 @@
 // { dg-options "-ltbb" }
 // { dg-do run { target c++17 } }
 // { dg-timeout-factor 3 }
+// { dg-timeout-factor 5 { target debug_mode } }
 // { dg-require-effective-target tbb_backend }
 
 //===-- mismatch.pass.cpp -------------------------------------------------===//
@@ -53,7 +54,7 @@ struct test_mismatch
         using namespace std;
         typedef typename iterator_traits<Iterator1>::value_type T;
         {
-            const auto expected = mismatch(__pstl::execution::seq, first1, last1, first2, last2, std::equal_to<T>());
+            const auto expected = mismatch(std::execution::seq, first1, last1, first2, last2, std::equal_to<T>());
             const auto res1 = mismatch(exec, first1, last1, first2, last2, std::equal_to<T>());
             EXPECT_TRUE(expected == res1, "wrong return result from mismatch");
             const auto res2 = mismatch(exec, first1, last1, first2, last2);
@@ -129,7 +130,7 @@ struct test_non_const
     }
 };
 
-int32_t
+int
 main()
 {
 

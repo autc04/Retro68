@@ -1,4 +1,5 @@
-/* Copyright (C) 2012-2022 Free Software Foundation, Inc.
+/* Build texi documentation for option -mmcu for AVR 8-bit microcontrollers.
+   Copyright (C) 2012-2025 Free Software Foundation, Inc.
    Contributed by Georg-Johann Lay (avr@gjlay.de)
 
    This file is part of GCC.
@@ -7,12 +8,12 @@
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 3, or (at your option)
    any later version.
-   
+
    GCC is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING3.  If not see
    <http://www.gnu.org/licenses/>.  */
@@ -23,10 +24,12 @@
 
 #define IN_GEN_AVR_MMCU_TEXI
 
+#define ARRAY_SIZE(a) (sizeof (a) / sizeof ((a)[0]))
+
 #include "avr-devices.cc"
 
 static const avr_mcu_t*
-mcus[sizeof avr_mcu_types / sizeof avr_mcu_types[0]];
+mcus[ARRAY_SIZE (avr_mcu_types)];
 
 static int letter (char c)
 {
@@ -53,10 +56,10 @@ c_prefix (const char *str)
 {
   static const char *const prefixes[] =
     {
-      "attiny", "atmega", "atxmega", "ata", "at90"
+      "attiny", "atmega", "atxmega", "ata", "at90", "avr"
     };
 
-  int i, n = (int) (sizeof (prefixes) / sizeof (*prefixes));
+  int i, n = (int) (ARRAY_SIZE (prefixes));
 
   for (i = 0; i < n; i++)
     if (str_prefix_p (str, prefixes[i]))
@@ -116,23 +119,23 @@ comparator (const void *va, const void *vb)
 
       if (*a != *b)
 	return *a - *b;
-      
+
       a++;
       b++;
     }
 
   return *a - *b;
-} 
+}
 
 static void
 print_mcus (size_t n_mcus)
 {
   int duplicate = 0;
   size_t i;
-    
+
   if (!n_mcus)
     return;
-    
+
   qsort (mcus, n_mcus, sizeof (avr_mcu_t*), comparator);
 
   printf ("@*@var{mcu}@tie{}=");
@@ -160,7 +163,7 @@ int main (void)
   size_t i, n_mcus = 0;
   const avr_mcu_t *mcu;
 
-  printf ("@c Copyright (C) 2012-2022 Free Software Foundation, Inc.\n");
+  printf ("@c Copyright (C) 2012-2025 Free Software Foundation, Inc.\n");
   printf ("@c This is part of the GCC manual.\n");
   printf ("@c For copying conditions, see the file "
 	  "gcc/doc/include/fdl.texi.\n\n");
@@ -185,9 +188,10 @@ int main (void)
 	  print_mcus (n_mcus);
 	  n_mcus = 0;
 
-	  for (i = 0; i < sizeof (avr_texinfo) / sizeof (*avr_texinfo); i++)
+	  for (i = 0; i < ARRAY_SIZE (avr_texinfo); i++)
 	    if (arch_id == avr_texinfo[i].arch_id)
-	      printf ("@item %s\n%s\n", mcu->name, avr_texinfo[i].texinfo);
+	      printf ("@item @anchor{%s}%s\n%s\n", mcu->name, mcu->name,
+		      avr_texinfo[i].texinfo);
 	}
       else if (arch_id == (enum avr_arch_id) mcu->arch_id)
 	{

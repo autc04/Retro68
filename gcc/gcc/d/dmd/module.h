@@ -1,6 +1,6 @@
 
 /* Compiler implementation of the D programming language
- * Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * written by Walter Bright
  * https://www.digitalmars.com
  * Distributed under the Boost Software License, Version 1.0.
@@ -28,6 +28,14 @@ enum PKG
     PKGpackage  // already determined that's an actual package
 };
 
+enum class Edition : unsigned char
+{
+    none = 0u,
+    legacy = 1u,
+    v2024 = 2u,
+    latest = 2u,
+};
+
 class Package : public ScopeDsymbol
 {
 public:
@@ -35,21 +43,18 @@ public:
     unsigned tag;       // auto incremented tag, used to mask package tree in scopes
     Module *mod;        // != NULL if isPkgMod == PKGmodule
 
-    const char *kind() const;
+    const char *kind() const override;
 
-    bool equals(const RootObject *o) const;
-
-    Package *isPackage() { return this; }
+    bool equals(const RootObject * const o) const override;
 
     bool isAncestorPackageOf(const Package * const pkg) const;
 
-    Dsymbol *search(const Loc &loc, Identifier *ident, int flags = SearchLocalsOnly);
-    void accept(Visitor *v) { v->visit(this); }
+    void accept(Visitor *v) override { v->visit(this); }
 
     Module *isPackageMod();
 };
 
-class Module : public Package
+class Module final : public Package
 {
 public:
     static Module *rootModule;
@@ -58,7 +63,6 @@ public:
     static Dsymbols deferred;   // deferred Dsymbol's needing semantic() run on them
     static Dsymbols deferred2;  // deferred Dsymbol's needing semantic2() run on them
     static Dsymbols deferred3;  // deferred Dsymbol's needing semantic3() run on them
-    static unsigned dprogress;  // progress resolving the deferred list
 
     static void _init();
 
@@ -75,22 +79,24 @@ public:
     unsigned errors;    // if any errors in file
     unsigned numlines;  // number of lines in source file
     FileType filetype;  // source file type
-    bool hasAlwaysInlines; // contains references to functions that must be inlined
-    bool isPackageFile; // if it is a package.d
+    d_bool hasAlwaysInlines; // contains references to functions that must be inlined
+    d_bool isPackageFile; // if it is a package.d
+    Edition edition;    // language edition that this module is compiled with
     Package *pkg;       // if isPackageFile is true, the Package that contains this package.d
     Strings contentImportedFiles;  // array of files whose content was imported
     int needmoduleinfo;
-    int selfimports;            // 0: don't know, 1: does not, 2: does
+    ThreeState selfimports;
+    ThreeState rootimports;
     void* tagSymTab;            // ImportC: tag symbols that conflict with other symbols used as the index
+    OutBuffer defines;          // collect all the #define lines here
     bool selfImports();         // returns true if module imports itself
 
-    int rootimports;            // 0: don't know, 1: does not, 2: does
     bool rootImports();         // returns true if module imports root module
 
-    int insearch;
     Identifier *searchCacheIdent;
     Dsymbol *searchCacheSymbol; // cached value of search
-    int searchCacheFlags;       // cached flags
+    SearchOptFlags searchCacheFlags;       // cached flags
+    d_bool insearch;
 
     // module from command line we're imported from,
     // i.e. a module that will be taken all the
@@ -101,11 +107,9 @@ public:
 
     Modules aimports;             // all imported modules
 
-    unsigned debuglevel;        // debug level
     Identifiers *debugids;      // debug identifiers
     Identifiers *debugidsNot;   // forward referenced debug identifiers
 
-    unsigned versionlevel;      // version level
     Identifiers *versionids;    // version identifiers
     Identifiers *versionidsNot; // forward referenced version identifiers
 
@@ -116,18 +120,15 @@ public:
     size_t namelen;             // length of module name in characters
 
     static Module* create(const char *arg, Identifier *ident, int doDocComment, int doHdrGen);
+    static const char *find(const char *filename);
+    static Module *load(Loc loc, Identifiers *packages, Identifier *ident);
 
-    static Module *load(const Loc &loc, Identifiers *packages, Identifier *ident);
-
-    const char *kind() const;
-    bool read(const Loc &loc); // read file, returns 'true' if succeed, 'false' otherwise.
+    const char *kind() const override;
+    bool read(Loc loc); // read file, returns 'true' if succeed, 'false' otherwise.
     Module *parse();    // syntactic parse
-    void importAll(Scope *sc);
     int needModuleInfo();
-    Dsymbol *search(const Loc &loc, Identifier *ident, int flags = SearchLocalsOnly);
-    bool isPackageAccessible(Package *p, Visibility visibility, int flags = 0);
-    Dsymbol *symtabInsert(Dsymbol *s);
-    void deleteObjFile();
+    bool isPackageAccessible(Package *p, Visibility visibility, SearchOptFlags flags = (SearchOptFlags)SearchOpt::all) override;
+    Dsymbol *symtabInsert(Dsymbol *s) override;
     static void runDeferredSemantic();
     static void runDeferredSemantic2();
     static void runDeferredSemantic3();
@@ -142,7 +143,7 @@ public:
 
     int doppelganger;           // sub-module
     Symbol *cov;                // private uint[] __coverage;
-    unsigned *covb;             // bit array of valid code line numbers
+    DArray<unsigned> covb;      // bit array of valid code line numbers
 
     Symbol *sictor;             // module order independent constructor
     Symbol *sctor;              // module constructor
@@ -155,8 +156,7 @@ public:
 
     void *ctfe_cov;             // stores coverage information from ctfe
 
-    Module *isModule() { return this; }
-    void accept(Visitor *v) { v->visit(this); }
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
 
@@ -165,8 +165,14 @@ struct ModuleDeclaration
     Loc loc;
     Identifier *id;
     DArray<Identifier*> packages;  // array of Identifier's representing packages
-    bool isdeprecated;  // if it is a deprecated module
+    d_bool isdeprecated;  // if it is a deprecated module
     Expression *msg;
 
     const char *toChars() const;
 };
+
+namespace dmd
+{
+    void getLocalClasses(Module* mod, Array<ClassDeclaration* >& aclasses);
+    FuncDeclaration *findGetMembers(ScopeDsymbol *dsym);
+}

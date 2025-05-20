@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 2000-2022, AdaCore                     --
+--                     Copyright (C) 2000-2025, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -261,7 +261,7 @@ package body GNAT.AWK is
    -- Session Data --
    ------------------
 
-   type Session_Data is record
+   type Session_Data is limited record
       Current_File : Text_IO.File_Type;
       Current_Line : Unbounded_String;
       Separators   : Split.Mode_Access;
@@ -1211,7 +1211,6 @@ package body GNAT.AWK is
       Exceptions.Raise_Exception
         (E,
          '[' & Filename & ':' & Line & "] " & Message);
-      raise Constraint_Error; -- to please GNAT as this is a No_Return proc
    end Raise_With_Info;
 
    ---------------

@@ -1,7 +1,7 @@
 // -*- C++ -*-
 // Testing performance utilities for the C++ library testsuite.
 //
-// Copyright (C) 2003-2022 Free Software Foundation, Inc.
+// Copyright (C) 2003-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,48 +33,49 @@
 #include <stdexcept>
 #include <sstream>
 #include <cxxabi.h>
+#include <ext/atomicity.h>
 #include <testsuite_common_types.h>
 
 #if defined (__linux__) || defined (__GLIBC__)
-#include <malloc.h>
-#elif defined (__FreeBSD__)
-extern "C"
-{
-  struct mallinfo
-  {
-    int uordblks;
-    int hblkhd;
-  };
-
-  struct mallinfo
-  mallinfo(void)
-  {
-    struct mallinfo m = { (((std::size_t) sbrk (0) + 1023) / 1024), 0 };
-    return m;
-  }
-}
-#elif !defined (__hpux__)
-extern "C"
-{
-  struct mallinfo
-  {
-    int uordblks;
-    int hblkhd;
-  };
-
-  struct mallinfo empty = { 0, 0 };
-
-  struct mallinfo
-  mallinfo(void)
-  { return empty; }
-}
+#include <malloc.h> // For mallinfo.
 #endif
 
 namespace __gnu_test
 {
+  struct MallocInfo
+  {
+    MallocInfo() : uordblks(0), hblkhd(0) { }
+    MallocInfo(std::size_t uordblocks, std::size_t hblockhd)
+      : uordblks(uordblocks), hblkhd(hblockhd)
+    { }
+
+    std::size_t uordblks;
+    std::size_t hblkhd;
+  };
+
+  MallocInfo
+  malloc_info()
+  {
+#if defined (__linux__) || defined (__hpux__) || defined (__GLIBC__)
+#if __GLIBC__ > 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ >= 33
+    struct mallinfo2 mi = mallinfo2();
+#else
+    struct mallinfo mi = mallinfo();
+#endif
+    return MallocInfo(mi.uordblks, mi.hblkhd);
+#elif defined (__FreeBSD__)
+    return MallocInfo((((std::size_t) sbrk (0) + 1023) / 1024), 0);
+#else
+    return MallocInfo();
+#endif
+  }
+
   class time_counter
   {
   private:
+    // All times are measured in clock ticks.
+    // There are CLOCKS_PER_SEC ticks per second.
+    // POSIX requires CLOCKS_PER_SEC == 1000000 so ticks == microseconds.
     clock_t	elapsed_begin;
     clock_t	elapsed_end;
     tms		tms_begin;
@@ -138,7 +139,7 @@ namespace __gnu_test
 
     std::size_t
     system_time() const
-    { return (tms_end.tms_stime - tms_begin.tms_stime) + splits[1]; }
+    { return (tms_end.tms_stime - tms_begin.tms_stime) + splits[2]; }
   };
 
   class resource_counter
@@ -146,8 +147,8 @@ namespace __gnu_test
     int                 who;
     rusage	        rusage_begin;
     rusage	        rusage_end;
-    struct mallinfo  	allocation_begin;
-    struct mallinfo  	allocation_end;
+    MallocInfo  	allocation_begin;
+    MallocInfo  	allocation_end;
 
   public:
     resource_counter(int i = RUSAGE_SELF) : who(i)
@@ -168,7 +169,7 @@ namespace __gnu_test
       if (getrusage(who, &rusage_begin) != 0 )
 	memset(&rusage_begin, 0, sizeof(rusage_begin));
       void* p __attribute__((unused)) = malloc(0); // Needed for some implementations.
-      allocation_begin = mallinfo();
+      allocation_begin = malloc_info();
     }
 
     void
@@ -176,7 +177,7 @@ namespace __gnu_test
     {
       if (getrusage(who, &rusage_end) != 0 )
 	memset(&rusage_end, 0, sizeof(rusage_end));
-      allocation_end = mallinfo();
+      allocation_end = malloc_info();
     }
 
     int
@@ -226,10 +227,8 @@ namespace __gnu_test
 
     std::ofstream out(name, std::ios_base::app);
 
-#ifdef __GTHREADS
-    if (__gthread_active_p())
+    if (!__gnu_cxx::__is_single_threaded())
       testname.append("-thread");
-#endif
 
     out.setf(std::ios_base::left);
     out << std::setw(25) << testname << tab;
@@ -256,10 +255,8 @@ namespace __gnu_test
 
     std::ofstream out(name, std::ios_base::app);
 
-#ifdef __GTHREADS
-    if (__gthread_active_p ())
+    if (!__gnu_cxx::__is_single_threaded ())
       testname.append("-thread");
-#endif
 
     out.setf(std::ios_base::left);
     out << std::setw(25) << testname << tab;

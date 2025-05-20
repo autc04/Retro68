@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+# Copyright (C) 2020-2025 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -14,7 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with GCC; see the file COPYING3.  If not see
-# <http://www.gnu.org/licenses/>.  */
+# <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
 
@@ -76,4 +78,5 @@ def parse_git_revisions(repo_path, revisions, ref_name=None):
                                commit_to_info_hook=commit_to_info,
                                ref_name=ref_name)
         parsed_commits.append(git_commit)
+    repo.close()
     return parsed_commits

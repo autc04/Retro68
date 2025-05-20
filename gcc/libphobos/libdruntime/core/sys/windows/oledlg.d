@@ -7,7 +7,6 @@
  * Source: $(DRUNTIMESRC core/sys/windows/_oledlg.d)
  */
 module core.sys.windows.oledlg;
-@system:
 version (Windows):
 
 version (ANSI) {} else version = Unicode;
@@ -388,7 +387,7 @@ struct OLEUIINSERTOBJECTA {
 }
 alias OLEUIINSERTOBJECTA* POLEUIINSERTOBJECTA, LPOLEUIINSERTOBJECTA;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     UINT OleUIInsertObjectW(LPOLEUIINSERTOBJECTW);
     UINT OleUIInsertObjectA(LPOLEUIINSERTOBJECTA);
 }
@@ -850,7 +849,7 @@ struct OLEUIOBJECTPROPSA {
 }
 alias OLEUIOBJECTPROPSA* POLEUIOBJECTPROPSA, LPOLEUIOBJECTPROPSA;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     BOOL OleUIAddVerbMenuW(LPOLEOBJECT, LPCWSTR, HMENU, UINT, UINT, UINT, BOOL, UINT, HMENU*);
     BOOL OleUIAddVerbMenuA(LPOLEOBJECT, LPCSTR, HMENU, UINT, UINT, UINT, BOOL, UINT, HMENU*);
     UINT OleUIBusyW(LPOLEUIBUSYW);

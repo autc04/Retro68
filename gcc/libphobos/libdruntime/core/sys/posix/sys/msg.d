@@ -14,7 +14,6 @@ import core.stdc.config;
 version (CRuntime_Glibc):
 // Some of these may be from linux kernel headers.
 extern (C):
-@system:
 
 version (ARM)     version = ARM_Any;
 version (AArch64) version = ARM_Any;
@@ -57,6 +56,7 @@ version (linux)
     version (IA64)      version = GENERICMSQ;
     version (IBMZ_Any)  version = GENERICMSQ;
     version (RISCV_Any) version = GENERICMSQ;
+    version (LoongArch64) version = GENERICMSQ;
 
     version (GENERICMSQ)
     {

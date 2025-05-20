@@ -1,5 +1,5 @@
 # Python hooks for gdb for debugging GCC
-# Copyright (C) 2013-2022 Free Software Foundation, Inc.
+# Copyright (C) 2013-2025 Free Software Foundation, Inc.
 
 # Contributed by David Malcolm <dmalcolm@redhat.com>
 
@@ -133,10 +133,10 @@ vector: attempting to do so instead gives you the vec itself (for vec[0]),
 or a (probably) invalid cast to vec<> for the memory after the vec (for
 vec[1] onwards).
 
-Instead (for now) you must access m_vecdata:
-  (gdb) p bb->preds->m_vecdata[0]
+Instead (for now) you must access the payload directly:
+  (gdb) p ((edge_def**)(bb->preds+1))[0]
   $20 = <edge 0x7ffff044d380 (3 -> 5)>
-  (gdb) p bb->preds->m_vecdata[1]
+  (gdb) p ((edge_def**)(bb->preds+1))[1]
   $21 = <edge 0x7ffff044d3b8 (4 -> 5)>
 """
 import os.path
@@ -220,13 +220,23 @@ class TreePrinter:
 
         val_TREE_CODE = self.node.TREE_CODE()
 
-        # extern const enum tree_code_class tree_code_type[];
+        # constexpr inline enum tree_code_class tree_code_type[] = { ... };
         # #define TREE_CODE_CLASS(CODE)	tree_code_type[(int) (CODE)]
+        # or
+        # template <int N>
+        # struct tree_code_type_tmpl {
+        # static constexpr enum tree_code_class tree_code_type[] = { ... };
+        # }; };
+        # #define TREE_CODE_CLASS(CODE) \
+        # tree_code_type_tmpl <0>::tree_code_type[(int) (CODE)]
 
         if val_TREE_CODE == 0xa5a5:
             return '<ggc_freed 0x%x>' % intptr(self.gdbval)
 
-        val_tree_code_type = gdb.parse_and_eval('tree_code_type')
+        try:
+            val_tree_code_type = gdb.parse_and_eval('tree_code_type')
+        except:
+            val_tree_code_type = gdb.parse_and_eval('tree_code_type_tmpl<0>::tree_code_type')
         val_tclass = val_tree_code_type[val_TREE_CODE]
 
         val_tree_code_name = gdb.parse_and_eval('tree_code_name')
@@ -443,6 +453,30 @@ class PassPrinter:
 
 ######################################################################
 
+VEC_KIND_EMBED = 0
+VEC_KIND_PTR = 1
+
+"""
+Given a vec or pointer to vec, return its layout (embedded or space
+efficient).
+"""
+def get_vec_kind(val):
+    typ = val.type
+    if typ.code == gdb.TYPE_CODE_PTR:
+        typ = typ.target()
+    kind = typ.template_argument(2).name
+    if kind == "vl_embed":
+        return VEC_KIND_EMBED
+    elif kind == "vl_ptr":
+        return VEC_KIND_PTR
+    else:
+        assert False, f"unexpected vec kind {kind}"
+
+def strip_ref(gdbval):
+    if gdbval.type.code == gdb.TYPE_CODE_REF:
+        return gdbval.referenced_value ()
+    return gdbval
+
 class VecPrinter:
     #    -ex "up" -ex "p bb->preds"
     def __init__(self, gdbval):
@@ -454,16 +488,28 @@ class VecPrinter:
     def to_string (self):
         # A trivial implementation; prettyprinting the contents is done
         # by gdb calling the "children" method below.
-        return '0x%x' % intptr(self.gdbval)
+        return '0x%x' % intptr(strip_ref(self.gdbval))
 
     def children (self):
-        if intptr(self.gdbval) == 0:
+        val = strip_ref(self.gdbval)
+        if intptr(val) != 0 and get_vec_kind(val) == VEC_KIND_PTR:
+            val = val['m_vec']
+
+        if intptr(val) == 0:
             return
-        m_vecpfx = self.gdbval['m_vecpfx']
+
+        assert get_vec_kind(val) == VEC_KIND_EMBED
+        m_vecpfx = val['m_vecpfx']
         m_num = m_vecpfx['m_num']
-        m_vecdata = self.gdbval['m_vecdata']
+        typ = val.type
+        if typ.code == gdb.TYPE_CODE_PTR:
+            typ = typ.target()
+        else:
+            val = val.address
+        typ_T = typ.template_argument(0) # the type T
+        vecdata = (val + 1).cast(typ_T.pointer())
         for i in range(m_num):
-            yield ('[%d]' % i, m_vecdata[i])
+            yield ('[%d]' % i, vecdata[i])
 
 ######################################################################
 
@@ -625,7 +671,7 @@ class PassNames:
         self.names = []
         with open(os.path.join(srcdir, 'passes.def')) as f:
             for line in f:
-                m = re.match('\s*NEXT_PASS \(([^,]+).*\);', line)
+                m = re.match(r'\s*NEXT_PASS \(([^,]+).*\);', line)
                 if m:
                     self.names.append(m.group(1))
 
@@ -766,6 +812,18 @@ class DumpFn(gdb.Command):
 
 DumpFn()
 
+class GCCDotCmd(gdb.Parameter):
+    """
+    This parameter controls the command used to render dot files within
+    GCC's dot-fn command.  It will be invoked as gcc-dot-cmd <dot-file>.
+    """
+    def __init__(self):
+        super(GCCDotCmd, self).__init__('gcc-dot-cmd',
+                gdb.COMMAND_NONE, gdb.PARAM_STRING)
+        self.value = "dot -Tx11"
+
+gcc_dot_cmd = GCCDotCmd()
+
 class DotFn(gdb.Command):
     """
     A custom command to show a gimple/rtl function control flow graph.
@@ -831,8 +889,17 @@ class DotFn(gdb.Command):
             return
 
         # Show graph in temp file
-        os.system("( dot -Tx11 \"%s\"; rm \"%s\" ) &" % (filename, filename))
+        dot_cmd = gcc_dot_cmd.value
+        os.system("( %s \"%s\"; rm \"%s\" ) &" % (dot_cmd, filename, filename))
 
 DotFn()
+
+# Try and invoke the user-defined command "on-gcc-hooks-load".  Doing
+# this allows users to customize the GCC extensions once they've been
+# loaded by defining the hook in their .gdbinit.
+try:
+    gdb.execute('on-gcc-hooks-load')
+except gdb.error:
+    pass
 
 print('Successfully loaded GDB hooks for GCC')

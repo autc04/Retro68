@@ -1,5 +1,5 @@
 /* Define control flow data structures for the CFG.
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -26,7 +26,7 @@ extern void delete_insn_chain (rtx, rtx_insn *, bool);
 extern basic_block create_basic_block_structure (rtx_insn *, rtx_insn *,
 						 rtx_note *, basic_block);
 extern void compute_bb_for_insn (void);
-extern unsigned int free_bb_for_insn (void);
+extern void free_bb_for_insn (void);
 extern rtx_insn *entry_of_function (void);
 extern void update_bb_for_insn (basic_block);
 extern bool contains_no_active_insn_p (const_basic_block);
@@ -38,6 +38,7 @@ extern edge try_redirect_by_replacing_jump (edge, basic_block, bool);
 extern void emit_barrier_after_bb (basic_block bb);
 extern basic_block force_nonfallthru_and_redirect (edge, basic_block, rtx);
 extern void insert_insn_on_edge (rtx, edge);
+extern void prepend_insn_to_edge (rtx, edge);
 extern void commit_one_edge_insertion (edge e);
 extern void commit_edge_insertions (void);
 extern void print_rtl_with_bb (FILE *, const rtx_insn *, dump_flags_t);

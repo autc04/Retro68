@@ -1,7 +1,7 @@
 /* This file contains the definitions and documentation for the
    Register Transfer Expressions (rtx's) that make up the
    Register Transfer Language (rtl) used in the Back End of the GNU compiler.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -139,21 +139,21 @@ DEF_RTL_EXPR(ADDRESS, "address", "i", RTX_EXTRA)
    ---------------------------------------------------------------------- */
 
 /* An annotation for variable assignment tracking.  */
-DEF_RTL_EXPR(DEBUG_INSN, "debug_insn", "uuBeiie", RTX_INSN)
+DEF_RTL_EXPR(DEBUG_INSN, "debug_insn", "uuBeLie", RTX_INSN)
 
 /* An instruction that cannot jump.  */
-DEF_RTL_EXPR(INSN, "insn", "uuBeiie", RTX_INSN)
+DEF_RTL_EXPR(INSN, "insn", "uuBeLie", RTX_INSN)
 
 /* An instruction that can possibly jump.
    Fields ( rtx->u.fld[] ) have exact same meaning as INSN's.  */
-DEF_RTL_EXPR(JUMP_INSN, "jump_insn", "uuBeiie0", RTX_INSN)
+DEF_RTL_EXPR(JUMP_INSN, "jump_insn", "uuBeLie0", RTX_INSN)
 
 /* An instruction that can possibly call a subroutine
    but which will not change which instruction comes next
    in the current function.
    Field ( rtx->u.fld[8] ) is CALL_INSN_FUNCTION_USAGE.
    All other fields ( rtx->u.fld[] ) have exact same meaning as INSN's.  */
-DEF_RTL_EXPR(CALL_INSN, "call_insn", "uuBeiiee", RTX_INSN)
+DEF_RTL_EXPR(CALL_INSN, "call_insn", "uuBeLiee", RTX_INSN)
 
 /* Placeholder for tablejump JUMP_INSNs.  The pattern of this kind
    of rtx is always either an ADDR_VEC or an ADDR_DIFF_VEC.  These
@@ -202,7 +202,7 @@ DEF_RTL_EXPR(PARALLEL, "parallel", "E", RTX_EXTRA)
      These occur in an insn all by themselves as the PATTERN.
      They also appear inside an ASM_OPERANDS
      as a convenient way to hold a string.  */
-DEF_RTL_EXPR(ASM_INPUT, "asm_input", "si", RTX_EXTRA)
+DEF_RTL_EXPR(ASM_INPUT, "asm_input", "sL", RTX_EXTRA)
 
 /* An assembler instruction with operands.
    1st operand is the instruction template.
@@ -216,7 +216,7 @@ DEF_RTL_EXPR(ASM_INPUT, "asm_input", "si", RTX_EXTRA)
      and whose mode indicates the mode of the input operand.
    6th is a vector of labels that may be branched to by the asm.
    7th is the source line number.  */
-DEF_RTL_EXPR(ASM_OPERANDS, "asm_operands", "ssiEEEi", RTX_EXTRA)
+DEF_RTL_EXPR(ASM_OPERANDS, "asm_operands", "ssiEEEL", RTX_EXTRA)
 
 /* A machine-specific operation.
    1st operand is a vector of operands being used by the operation so that
@@ -664,6 +664,9 @@ DEF_RTL_EXPR(POPCOUNT, "popcount", "e", RTX_UNARY)
 /* Population parity (number of 1 bits modulo 2).  */
 DEF_RTL_EXPR(PARITY, "parity", "e", RTX_UNARY)
 
+/* Reverse bits.  */
+DEF_RTL_EXPR(BITREVERSE, "bitreverse", "e", RTX_UNARY)
+
 /* Reference to a signed bit-field of specified size and position.
    Operand 0 is the memory unit (usually SImode or QImode) which
    contains the field's first bit.  Operand 1 is the width, in bits.
@@ -752,6 +755,9 @@ DEF_RTL_EXPR(US_TRUNCATE, "us_truncate", "e", RTX_UNARY)
 
 /* Floating point multiply/add combined instruction.  */
 DEF_RTL_EXPR(FMA, "fma", "eee", RTX_TERNARY)
+
+/* Floating point copysign.  Operand 0 with the sign of operand 1.  */
+DEF_RTL_EXPR(COPYSIGN, "copysign", "ee", RTX_BIN_ARITH)
 
 /* Information about the variable and its location.  */
 DEF_RTL_EXPR(VAR_LOCATION, "var_location", "te", RTX_EXTRA)
@@ -1010,8 +1016,10 @@ DEF_RTL_EXPR(DEFINE_SPECIAL_PREDICATE, "define_special_predicate", "ses", RTX_EX
       at -m switches and the like.
    2: A docstring for this constraint, in Texinfo syntax; not currently
       used, in future will be incorporated into the manual's list of
-      machine-specific operand constraints.  */
-DEF_RTL_EXPR(DEFINE_REGISTER_CONSTRAINT, "define_register_constraint", "sss", RTX_EXTRA)
+      machine-specific operand constraints.
+   3: A C expression that evalutes to true if "regno" is a valid
+      start register.  */
+DEF_RTL_EXPR(DEFINE_REGISTER_CONSTRAINT, "define_register_constraint", "sssS", RTX_EXTRA)
 
 /* Definition of a non-register operand constraint.  These look at the
    operand and decide whether it fits the constraint.
@@ -1354,7 +1362,7 @@ DEF_RTL_EXPR(DEFINE_SUBST, "define_subst", "sEsE", RTX_EXTRA)
       unmodified version of the pattern).
    3: String to substitute for the subst-attribute name in the pattern
       name, for the case that the DEFINE_SUBST is applied to the patten.
-      
+
    The use of DEFINE_SUBST and DEFINE_SUBST_ATTR is explained in the
    GCC internals manual, under "RTL Templates Transformations".  */
 DEF_RTL_EXPR(DEFINE_SUBST_ATTR, "define_subst_attr", "ssss", RTX_EXTRA)

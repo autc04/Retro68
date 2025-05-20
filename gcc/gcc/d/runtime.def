@@ -1,5 +1,5 @@
 /* runtime.def -- Definitions for D runtime functions.
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2025 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -59,10 +59,6 @@ DEF_D_RUNTIME (ARRAYBOUNDS_SLICEP, "_d_arraybounds_slicep", RT(VOID),
 DEF_D_RUNTIME (ARRAYBOUNDS_INDEXP, "_d_arraybounds_indexp", RT(VOID),
 	       P4(IMMUTABLE_CHARPTR, UINT, SIZE_T, SIZE_T), ECF_NORETURN)
 
-/* Used when calling new on a class.  */
-DEF_D_RUNTIME (NEWCLASS, "_d_newclass", RT(OBJECT), P1(CONST_CLASSINFO), 0)
-DEF_D_RUNTIME (NEWTHROW, "_d_newThrowable", RT(OBJECT), P1(CONST_CLASSINFO), 0)
-
 /* Used when calling delete on a stack-allocated class or interface.  */
 DEF_D_RUNTIME (CALLFINALIZER, "_d_callfinalizer", RT(VOID), P1(VOIDPTR), 0)
 DEF_D_RUNTIME (CALLINTERFACEFINALIZER, "_d_callinterfacefinalizer", RT(VOID),
@@ -73,23 +69,6 @@ DEF_D_RUNTIME (DYNAMIC_CAST, "_d_dynamic_cast", RT(OBJECT),
 	       P2(OBJECT, CLASSINFO), 0)
 DEF_D_RUNTIME (INTERFACE_CAST, "_d_interface_cast", RT(OBJECT),
 	       P2(OBJECT, CLASSINFO), 0)
-
-/* Used when calling new on a pointer.  The `i' variant is for when the
-   initializer is nonzero.  */
-DEF_D_RUNTIME (NEWITEMT, "_d_newitemT", RT(VOIDPTR), P1(CONST_TYPEINFO), 0)
-DEF_D_RUNTIME (NEWITEMIT, "_d_newitemiT", RT(VOIDPTR), P1(CONST_TYPEINFO), 0)
-
-/* Used when calling new on an array.  The `i' variant is for when the
-   initializer is nonzero, and the `m' variant is when initializing a
-   multi-dimensional array.  */
-DEF_D_RUNTIME (NEWARRAYT, "_d_newarrayT", RT(ARRAY_VOID),
-	       P2(CONST_TYPEINFO, SIZE_T), 0)
-DEF_D_RUNTIME (NEWARRAYIT, "_d_newarrayiT", RT(ARRAY_VOID),
-	       P2(CONST_TYPEINFO, SIZE_T), 0)
-DEF_D_RUNTIME (NEWARRAYMTX, "_d_newarraymTX", RT(ARRAY_VOID),
-	       P2(CONST_TYPEINFO, ARRAY_SIZE_T), 0)
-DEF_D_RUNTIME (NEWARRAYMITX, "_d_newarraymiTX", RT(ARRAY_VOID),
-	       P2(CONST_TYPEINFO, ARRAY_SIZE_T), 0)
 
 /* Used for allocating an array literal on the GC heap.  */
 DEF_D_RUNTIME (ARRAYLITERALTX, "_d_arrayliteralTX", RT(VOIDPTR),
@@ -116,24 +95,6 @@ DEF_D_RUNTIME (ALLOCMEMORY, "_d_allocmemory", RT(VOIDPTR), P1(SIZE_T),
 DEF_D_RUNTIME (ARRAYCOPY, "_d_arraycopy", RT(ARRAY_VOID),
 	       P3(SIZE_T, ARRAY_VOID, ARRAY_VOID), 0)
 
-/* Used for array assignments from an existing array.  The `set' variant is for
-   when the assignment value is a single element.  */
-DEF_D_RUNTIME (ARRAYASSIGN, "_d_arrayassign", RT(ARRAY_VOID),
-	       P3(CONST_TYPEINFO, ARRAY_VOID, ARRAY_VOID), 0)
-DEF_D_RUNTIME (ARRAYASSIGN_L, "_d_arrayassign_l", RT(ARRAY_VOID),
-	       P4(CONST_TYPEINFO, ARRAY_VOID, ARRAY_VOID, VOIDPTR), 0)
-DEF_D_RUNTIME (ARRAYASSIGN_R, "_d_arrayassign_r", RT(ARRAY_VOID),
-	       P4(CONST_TYPEINFO, ARRAY_VOID, ARRAY_VOID, VOIDPTR), 0)
-DEF_D_RUNTIME (ARRAYSETASSIGN, "_d_arraysetassign", RT(VOIDPTR),
-	       P4(VOIDPTR, VOIDPTR, SIZE_T, CONST_TYPEINFO), 0)
-
-/* Used for concatenating two or more arrays together.  Then `n' variant is
-   for when there is more than two arrays to handle.  */
-DEF_D_RUNTIME (ARRAYCATT, "_d_arraycatT", RT(ARRAY_BYTE),
-	       P3(CONST_TYPEINFO, ARRAY_BYTE, ARRAY_BYTE), 0)
-DEF_D_RUNTIME (ARRAYCATNTX, "_d_arraycatnTX", RT(ARRAY_VOID),
-	       P2(CONST_TYPEINFO, ARRAYARRAY_BYTE), 0)
-
 /* Used for appending a single element to an array.  */
 DEF_D_RUNTIME (ARRAYAPPENDCTX, "_d_arrayappendcTX", RT(ARRAY_BYTE),
 	       P3(CONST_TYPEINFO, ARRAYPTR_BYTE, SIZE_T), 0)
@@ -145,13 +106,10 @@ DEF_D_RUNTIME (ARRAYAPPENDCD, "_d_arrayappendcd", RT(ARRAY_VOID),
 DEF_D_RUNTIME (ARRAYAPPENDWD, "_d_arrayappendwd", RT(ARRAY_VOID),
 	       P2(ARRAYPTR_BYTE, DCHAR), 0)
 
-/* Used for appending an existing array to another.  */
-DEF_D_RUNTIME (ARRAYAPPENDT, "_d_arrayappendT", RT(ARRAY_VOID),
-	       P3(TYPEINFO, ARRAYPTR_BYTE, ARRAY_BYTE), 0)
-
 /* Used for allocating a new associative array.  */
 DEF_D_RUNTIME (ASSOCARRAYLITERALTX, "_d_assocarrayliteralTX", RT(VOIDPTR),
 	       P3(CONST_TYPEINFO, ARRAY_VOID, ARRAY_VOID), 0)
+DEF_D_RUNTIME (AANEW, "_aaNew", RT(VOIDPTR), P1(CONST_TYPEINFO), 0)
 
 /* Used for value equality of two associative arrays.  */
 DEF_D_RUNTIME (AAEQUAL, "_aaEqual", RT(INT),
@@ -184,8 +142,8 @@ DEF_D_RUNTIME (CXA_END_CATCH, "__cxa_end_catch", RT(VOID), P0(), 0)
 
 /* When invariant() contracts are turned on, used after testing whether a
    class != null for validating the state of a class.  */
-DEF_D_RUNTIME (INVARIANT, "_D9invariant12_d_invariantFC6ObjectZv", RT(VOID),
-	       P1(OBJECT), 0)
+DEF_D_RUNTIME (INVARIANT, "_D2rt10invariant_12_d_invariantFC6ObjectZv",
+	       RT(VOID), P1(OBJECT), 0)
 
 #undef P0
 #undef P1

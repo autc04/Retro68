@@ -1,6 +1,5 @@
 /* { dg-do run { target { powerpc*-*-linux* } } } */
 /* { dg-options "-mvsx -O2" } */
-/* { dg-require-effective-target powerpc_p9vector_ok } */
 /* { dg-require-effective-target ppc_cpu_supports_hw } */
 
 #include <stddef.h>

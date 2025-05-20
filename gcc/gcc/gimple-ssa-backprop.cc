@@ -1,5 +1,5 @@
 /* Back-propagation of usage information to definitions.
-   Copyright (C) 2015-2022 Free Software Foundation, Inc.
+   Copyright (C) 2015-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -351,10 +351,15 @@ backprop::process_builtin_call_use (gcall *call, tree rhs, usage_info *info)
       break;
 
     CASE_CFN_COS:
+    CASE_CFN_COS_FN:
     CASE_CFN_COSH:
+    CASE_CFN_COSH_FN:
     CASE_CFN_CCOS:
+    CASE_CFN_CCOS_FN:
     CASE_CFN_CCOSH:
+    CASE_CFN_CCOSH_FN:
     CASE_CFN_HYPOT:
+    CASE_CFN_HYPOT_FN:
       /* The signs of all inputs are ignored.  */
       info->flags.ignore_sign = true;
       break;
@@ -367,6 +372,7 @@ backprop::process_builtin_call_use (gcall *call, tree rhs, usage_info *info)
       break;
 
     CASE_CFN_POW:
+    CASE_CFN_POW_FN:
       {
 	/* The sign of the first input is ignored as long as the second
 	   input is an even real.  */
@@ -657,8 +663,14 @@ remove_unused_var (tree var)
       print_gimple_stmt (dump_file, stmt, 0, TDF_SLIM);
     }
   gimple_stmt_iterator gsi = gsi_for_stmt (stmt);
-  gsi_remove (&gsi, true);
-  release_defs (stmt);
+  if (gimple_code (stmt) == GIMPLE_PHI)
+    remove_phi_node (&gsi, true);
+  else
+    {
+      unlink_stmt_vdef (stmt);
+      gsi_remove (&gsi, true);
+      release_defs (stmt);
+    }
 }
 
 /* Note that we're replacing OLD_RHS with NEW_RHS in STMT.  */
@@ -688,7 +700,6 @@ strip_sign_op_1 (tree rhs)
     switch (gimple_assign_rhs_code (assign))
       {
       case ABS_EXPR:
-      case ABSU_EXPR:
       case NEGATE_EXPR:
 	return gimple_assign_rhs1 (assign);
 
@@ -945,9 +956,9 @@ public:
   {}
 
   /* opt_pass methods: */
-  opt_pass * clone () { return new pass_backprop (m_ctxt); }
-  virtual bool gate (function *) { return flag_ssa_backprop; }
-  virtual unsigned int execute (function *);
+  opt_pass * clone () final override { return new pass_backprop (m_ctxt); }
+  bool gate (function *) final override { return flag_ssa_backprop; }
+  unsigned int execute (function *) final override;
 
 }; // class pass_backprop
 

@@ -3,12 +3,12 @@
  *
  * Specification: $(LINK2 https://dlang.org/spec/lex.html#tokens, Tokens)
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/tokens.d, _tokens.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/tokens.d, _tokens.d)
  * Documentation:  https://dlang.org/phobos/dmd_tokens.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/tokens.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/tokens.d
  */
 
 module dmd.tokens;
@@ -16,8 +16,8 @@ module dmd.tokens;
 import core.stdc.ctype;
 import core.stdc.stdio;
 import core.stdc.string;
-import dmd.globals;
 import dmd.identifier;
+import dmd.location;
 import dmd.root.ctfloat;
 import dmd.common.outbuffer;
 import dmd.root.rmem;
@@ -26,6 +26,9 @@ import dmd.root.utf;
 enum TOK : ubyte
 {
     reserved,
+
+    // if this list changes, update
+    // tokens.h, ../tests/cxxfrontend.cc and ../../test/unit/lexer/location_offset.d to match
 
     // Other
     leftParenthesis,
@@ -45,7 +48,6 @@ enum TOK : ubyte
     false_,
     throw_,
     new_,
-    delete_,
     variable,
     slice,
     version_,
@@ -124,6 +126,8 @@ enum TOK : ubyte
     // Leaf operators
     identifier,
     string_,
+    interpolated,
+    hexadecimalString,
     this_,
     super_,
     error,
@@ -247,6 +251,7 @@ enum TOK : ubyte
     wchar_tLiteral,
     endOfLine,  // \n, \r, \u2028, \u2029
     whitespace,
+    rvalue,
 
     // C only keywords
     inline,
@@ -269,10 +274,14 @@ enum TOK : ubyte
     _Thread_local,
 
     // C only extended keywords
+    _assert,
     _import,
     __cdecl,
     __declspec,
     __stdcall,
+    __thread,
+    __pragma,
+    __int128,
     __attribute__,
 }
 
@@ -286,8 +295,6 @@ enum EXP : ubyte
     cast_,
     null_,
     assert_,
-    true_,
-    false_,
     array,
     call,
     address,
@@ -304,13 +311,10 @@ enum EXP : ubyte
     dotType,
     slice,
     arrayLength,
-    version_,
     dollar,
     template_,
     dotTemplateDeclaration,
     declaration,
-    typeof_,
-    pragma_,
     dSymbol,
     typeid_,
     uadd,
@@ -380,6 +384,7 @@ enum EXP : ubyte
     // Leaf operators
     identifier,
     string_,
+    interpolated,
     this_,
     super_,
     halt,
@@ -391,13 +396,11 @@ enum EXP : ubyte
     int64,
     float64,
     complex80,
-    char_,
     import_,
     delegate_,
     function_,
     mixin_,
     in_,
-    default_,
     break_,
     continue_,
     goto_,
@@ -411,7 +414,6 @@ enum EXP : ubyte
     moduleString,   // __MODULE__
     functionString, // __FUNCTION__
     prettyFunction, // __PRETTY_FUNCTION__
-    shared_,
     pow,
     powAssign,
     vector,
@@ -421,10 +423,12 @@ enum EXP : ubyte
     showCtfeContext,
     objcClassReference,
     vectorArray,
-    arrow,      // ->
     compoundLiteral, // ( type-name ) { initializer-list }
     _Generic,
     interval,
+
+    loweredAssignExp,
+    rvalue,
 }
 
 enum FirstCKeyword = TOK.inline;
@@ -432,8 +436,10 @@ enum FirstCKeyword = TOK.inline;
 // Assert that all token enum members have consecutive values and
 // that none of them overlap
 static assert(() {
-    foreach (idx, enumName; __traits(allMembers, TOK)) {
-       static if (idx != __traits(getMember, TOK, enumName)) {
+    foreach (idx, enumName; __traits(allMembers, TOK))
+    {
+       static if (idx != __traits(getMember, TOK, enumName))
+       {
            pragma(msg, "Error: Expected TOK.", enumName, " to be ", idx, " but is ", __traits(getMember, TOK, enumName));
            static assert(0);
        }
@@ -454,7 +460,6 @@ private immutable TOK[] keywords =
     TOK.false_,
     TOK.cast_,
     TOK.new_,
-    TOK.delete_,
     TOK.throw_,
     TOK.module_,
     TOK.pragma_,
@@ -556,6 +561,7 @@ private immutable TOK[] keywords =
     TOK.prettyFunction,
     TOK.shared_,
     TOK.immutable_,
+    TOK.rvalue,
 
     // C only keywords
     TOK.inline,
@@ -578,10 +584,14 @@ private immutable TOK[] keywords =
     TOK._Thread_local,
 
     // C only extended keywords
+    TOK._assert,
     TOK._import,
     TOK.__cdecl,
     TOK.__declspec,
     TOK.__stdcall,
+    TOK.__thread,
+    TOK.__pragma,
+    TOK.__int128,
     TOK.__attribute__,
 ];
 
@@ -592,7 +602,7 @@ shared static this() nothrow
     foreach (kw; keywords)
     {
         //printf("keyword[%d] = '%s'\n",kw, Token.tochars[kw].ptr);
-        Identifier.idPool(Token.tochars[kw].ptr, Token.tochars[kw].length, cast(uint)kw);
+        Identifier.idPool(Token.tochars[kw], kw);
     }
 }
 
@@ -608,9 +618,11 @@ static immutable TOK[TOK.max + 1] Ckeywords =
         enum Ckwds = [ auto_, break_, case_, char_, const_, continue_, default_, do_, float64, else_,
                        enum_, extern_, float32, for_, goto_, if_, inline, int32, int64, register,
                        restrict, return_, int16, signed, sizeof_, static_, struct_, switch_, typedef_,
-                       union_, unsigned, void_, volatile, while_, asm_,
+                       union_, unsigned, void_, volatile, while_, asm_, typeof_,
                        _Alignas, _Alignof, _Atomic, _Bool, _Complex, _Generic, _Imaginary, _Noreturn,
-                       _Static_assert, _Thread_local, _import, __cdecl, __declspec, __stdcall, __attribute__ ];
+                       _Static_assert, _Thread_local,
+                       _import, __cdecl, __declspec, __stdcall, __thread, __pragma, __int128, __attribute__,
+                       _assert ];
 
         foreach (kw; Ckwds)
             tab[kw] = cast(TOK) kw;
@@ -619,6 +631,10 @@ static immutable TOK[TOK.max + 1] Ckeywords =
     }
 } ();
 
+struct InterpolatedSet {
+    // all strings in the parts are zero terminated at length+1
+    string[] parts;
+}
 
 /***********************************************************
  */
@@ -634,14 +650,18 @@ extern (C++) struct Token
     union
     {
         // Integers
-        sinteger_t intvalue;
-        uinteger_t unsvalue;
+        long intvalue;
+        ulong unsvalue;
         // Floats
         real_t floatvalue;
 
         struct
         {
-            const(char)* ustring; // UTF8 string
+            union
+            {
+                const(char)* ustring; // UTF8 string
+                InterpolatedSet* interpolatedSet;
+            }
             uint len;
             ubyte postfix; // 'c', 'w', 'd'
         }
@@ -660,12 +680,12 @@ extern (C++) struct Token
         TOK.false_: "false",
         TOK.cast_: "cast",
         TOK.new_: "new",
-        TOK.delete_: "delete",
         TOK.throw_: "throw",
         TOK.module_: "module",
         TOK.pragma_: "pragma",
         TOK.typeof_: "typeof",
         TOK.typeid_: "typeid",
+        TOK.rvalue: "__rvalue",
         TOK.template_: "template",
         TOK.void_: "void",
         TOK.int8: "byte",
@@ -829,6 +849,7 @@ extern (C++) struct Token
         // For debugging
         TOK.error: "error",
         TOK.string_: "string",
+        TOK.interpolated: "interpolated string",
         TOK.onScopeExit: "scope(exit)",
         TOK.onScopeSuccess: "scope(success)",
         TOK.onScopeFailure: "scope(failure)",
@@ -852,6 +873,7 @@ extern (C++) struct Token
         TOK.wcharLiteral: "wcharv",
         TOK.dcharLiteral: "dcharv",
         TOK.wchar_tLiteral: "wchar_tv",
+        TOK.hexadecimalString: "xstring",
         TOK.endOfLine: "\\n",
         TOK.whitespace: "whitespace",
 
@@ -876,10 +898,14 @@ extern (C++) struct Token
         TOK._Thread_local  : "_Thread_local",
 
         // C only extended keywords
+        TOK._assert       : "__check",
         TOK._import       : "__import",
         TOK.__cdecl        : "__cdecl",
         TOK.__declspec     : "__declspec",
         TOK.__stdcall      : "__stdcall",
+        TOK.__thread       : "__thread",
+        TOK.__pragma       : "__pragma",
+        TOK.__int128       : "__int128",
         TOK.__attribute__  : "__attribute__",
     ];
 
@@ -891,7 +917,7 @@ extern (C++) struct Token
 
 nothrow:
 
-    int isKeyword() const
+    extern (D) int isKeyword() pure const @safe @nogc
     {
         foreach (kw; keywords)
         {
@@ -899,6 +925,29 @@ nothrow:
                 return 1;
         }
         return 0;
+    }
+
+    extern(D) void appendInterpolatedPart(const ref OutBuffer buf)
+    {
+        appendInterpolatedPart(cast(const(char)*)buf[].ptr, buf.length);
+    }
+
+    extern(D) void appendInterpolatedPart(const(char)[] str)
+    {
+        appendInterpolatedPart(str.ptr, str.length);
+    }
+
+    extern(D) void appendInterpolatedPart(const(char)* ptr, size_t length)
+    {
+        assert(value == TOK.interpolated);
+        if (interpolatedSet is null)
+            interpolatedSet = new InterpolatedSet;
+
+        auto s = cast(char*)mem.xmalloc_noscan(length + 1);
+        memcpy(s, ptr, length);
+        s[length] = 0;
+
+        interpolatedSet.parts ~= cast(string) s[0 .. length];
     }
 
     /****
@@ -909,6 +958,7 @@ nothrow:
      */
     void setString(const(char)* ptr, size_t length)
     {
+        value = TOK.string_;
         auto s = cast(char*)mem.xmalloc_noscan(length + 1);
         memcpy(s, ptr, length);
         s[length] = 0;
@@ -932,6 +982,7 @@ nothrow:
      */
     void setString()
     {
+        value = TOK.string_;
         ustring = "";
         len = 0;
         postfix = 0;
@@ -939,73 +990,110 @@ nothrow:
 
     extern (C++) const(char)* toChars() const
     {
-        __gshared char[3 + 3 * floatvalue.sizeof + 1] buffer;
-        const(char)* p = &buffer[0];
+        return toString().ptr;
+    }
+
+    /*********************************
+     * Returns:
+     *  a zero-terminated string representation of the token,
+     *  sometimes reusing a static buffer, sometimes leaking memory
+     */
+    extern (D) const(char)[] toString() const
+    {
+        const bufflen = 3 + 3 * floatvalue.sizeof + 1;
+        __gshared char[bufflen + 2] buffer;     // extra 2 for suffixes
+        char* p = &buffer[0];
         switch (value)
         {
         case TOK.int32Literal:
-            sprintf(&buffer[0], "%d", cast(int)intvalue);
-            break;
+            const length = snprintf(p, bufflen, "%d", cast(int)intvalue);
+            return p[0 .. length];
+
         case TOK.uns32Literal:
         case TOK.wchar_tLiteral:
-            sprintf(&buffer[0], "%uU", cast(uint)unsvalue);
-            break;
+            const length = snprintf(p, bufflen, "%uU", cast(uint)unsvalue);
+            return p[0 .. length];
+
         case TOK.wcharLiteral:
         case TOK.dcharLiteral:
         case TOK.charLiteral:
-            {
-                OutBuffer buf;
-                buf.writeSingleCharLiteral(cast(dchar) intvalue);
-                buf.writeByte('\0');
-                p = buf.extractSlice().ptr;
-            }
-            break;
+            OutBuffer buf;
+            buf.writeSingleCharLiteral(cast(dchar) intvalue);
+            return buf.extractSlice(true);
+
         case TOK.int64Literal:
-            sprintf(&buffer[0], "%lldL", cast(long)intvalue);
-            break;
+            const length = snprintf(p, bufflen, "%lldL", cast(long)intvalue);
+            return p[0 .. length];
+
         case TOK.uns64Literal:
-            sprintf(&buffer[0], "%lluUL", cast(ulong)unsvalue);
-            break;
+            const length = snprintf(p, bufflen, "%lluUL", cast(ulong)unsvalue);
+            return p[0 .. length];
+
         case TOK.float32Literal:
-            CTFloat.sprint(&buffer[0], 'g', floatvalue);
-            strcat(&buffer[0], "f");
-            break;
+            const length = CTFloat.sprint(p, bufflen, 'g', floatvalue);
+            p[length] = 'f';
+            p[length + 1] = 0;
+            return p[0 .. length + 1];
+
         case TOK.float64Literal:
-            CTFloat.sprint(&buffer[0], 'g', floatvalue);
-            break;
+            const length = CTFloat.sprint(p, bufflen, 'g', floatvalue);
+            return p[0 .. length];
+
         case TOK.float80Literal:
-            CTFloat.sprint(&buffer[0], 'g', floatvalue);
-            strcat(&buffer[0], "L");
-            break;
+            const length = CTFloat.sprint(p, bufflen, 'g', floatvalue);
+            p[length] = 'L';
+            p[length + 1] = 0;
+            return p[0 .. length + 1];
+
         case TOK.imaginary32Literal:
-            CTFloat.sprint(&buffer[0], 'g', floatvalue);
-            strcat(&buffer[0], "fi");
-            break;
+            const length = CTFloat.sprint(p, bufflen, 'g', floatvalue);
+            p[length    ] = 'f';
+            p[length + 1] = 'i';
+            p[length + 2] = 0;
+            return p[0 .. length + 2];
+
         case TOK.imaginary64Literal:
-            CTFloat.sprint(&buffer[0], 'g', floatvalue);
-            strcat(&buffer[0], "i");
-            break;
+            const length = CTFloat.sprint(p, bufflen, 'g', floatvalue);
+            p[length] = 'i';
+            p[length + 1] = 0;
+            return p[0 .. length + 1];
+
         case TOK.imaginary80Literal:
-            CTFloat.sprint(&buffer[0], 'g', floatvalue);
-            strcat(&buffer[0], "Li");
-            break;
+            const length = CTFloat.sprint(p, bufflen, 'g', floatvalue);
+            p[length    ] = 'L';
+            p[length + 1] = 'i';
+            p[length + 2] = 0;
+            return p[0 .. length + 2];
+
         case TOK.string_:
+            OutBuffer buf;
+            buf.writeByte('"');
+            for (size_t i = 0; i < len;)
             {
-                OutBuffer buf;
-                buf.writeByte('"');
-                for (size_t i = 0; i < len;)
-                {
-                    dchar c;
-                    utf_decodeChar(ustring[0 .. len], i, c);
-                    writeCharLiteral(buf, c);
-                }
-                buf.writeByte('"');
-                if (postfix)
-                    buf.writeByte(postfix);
-                buf.writeByte(0);
-                p = buf.extractSlice().ptr;
+                dchar c;
+                utf_decodeChar(ustring[0 .. len], i, c);
+                writeCharLiteral(buf, c);
             }
-            break;
+            buf.writeByte('"');
+            if (postfix)
+                buf.writeByte(postfix);
+            return buf.extractSlice(true);
+
+        case TOK.hexadecimalString:
+            OutBuffer buf;
+            buf.writeByte('x');
+            buf.writeByte('"');
+            foreach (size_t i; 0 .. len)
+            {
+                if (i)
+                    buf.writeByte(' ');
+                buf.printf("%02x", ustring[i]);
+            }
+            buf.writeByte('"');
+            if (postfix)
+                buf.writeByte(postfix);
+            return buf.extractSlice(true);
+
         case TOK.identifier:
         case TOK.enum_:
         case TOK.struct_:
@@ -1034,13 +1122,11 @@ nothrow:
         case TOK.complex64:
         case TOK.complex80:
         case TOK.void_:
-            p = ident.toChars();
-            break;
+            return ident.toString();
+
         default:
-            p = toChars(value);
-            break;
+            return tochars[value];
         }
-        return p;
     }
 
     static const(char)* toChars(TOK value)
@@ -1113,7 +1199,7 @@ unittest
     {
         writeCharLiteral(buf, d);
     }
-    assert(buf.extractSlice() == `a\n\r\t\b\f\0\x11\u7233\U00017233`);
+    assert(buf[] == `a\n\r\t\b\f\0\x11\u7233\U00017233`);
 }
 
 /**
@@ -1144,11 +1230,11 @@ unittest
 {
     OutBuffer buf;
     writeSingleCharLiteral(buf, '\'');
-    assert(buf.extractSlice() == `'\''`);
+    assert(buf[] == `'\''`);
     buf.reset();
     writeSingleCharLiteral(buf, '"');
-    assert(buf.extractSlice() == `'"'`);
+    assert(buf[] == `'"'`);
     buf.reset();
     writeSingleCharLiteral(buf, '\n');
-    assert(buf.extractSlice() == `'\n'`);
+    assert(buf[] == `'\n'`);
 }

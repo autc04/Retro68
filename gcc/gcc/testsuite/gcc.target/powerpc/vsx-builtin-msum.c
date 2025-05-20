@@ -2,9 +2,9 @@
    inputs generate the proper code.  */
 
 /* { dg-do compile } */
-/* { dg-require-effective-target powerpc_p9vector_ok } */
+/* { dg-options "-mdejagnu-cpu=power9 -mvsx  -O3" } */
+/* { dg-require-effective-target powerpc_vsx } */
 /* { dg-require-effective-target int128 } */
-/* { dg-options "-mdejagnu-cpu=power9  -O3" } */
 
 #include <altivec.h>
 
@@ -22,5 +22,5 @@ test_msum_ui (vector unsigned long long vull_1, vector unsigned long long vull_2
   return vec_msum (vull_1, vull_2, vui128);
 }
 
-/* { dg_final { scan_assembler_times "vmsumudm" 2 } } */
+/* { dg-final { scan-assembler-times "vmsumudm" 2 } } */
 

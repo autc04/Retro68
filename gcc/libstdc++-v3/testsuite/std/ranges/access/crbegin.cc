@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <ranges>
 #include <testsuite_hooks.h>
@@ -29,6 +28,11 @@ struct R1
   int i = 0;
   int j = 0;
 
+#if __cpp_lib_ranges_as_const
+  const int *begin() const;
+  const int *end() const;
+#endif
+
   const int* rbegin() const { return &i; }
   friend const int* rbegin(const R1&& r) { return &r.j; }
 };
@@ -37,7 +41,12 @@ struct R1V // view on an R1
 {
   R1& r;
 
-  friend const long* rbegin(R1V&); // this is not defined
+#if __cpp_lib_ranges_as_const
+  const int *begin() const;
+  const int *end() const;
+#endif
+
+  friend const long* rbegin(R1V&) { return nullptr; }
   friend const int* rbegin(const R1V& rv) noexcept { return rv.r.rbegin(); }
 };
 
@@ -53,8 +62,11 @@ test01()
   VERIFY( std::ranges::crbegin(c) == std::ranges::rbegin(c) );
 
   R1V v{r};
-  const R1V cv{r};
+  VERIFY( std::ranges::crbegin(v) == std::ranges::rbegin(c) );
   VERIFY( std::ranges::crbegin(std::move(v)) == std::ranges::rbegin(c) );
+
+  const R1V cv{r};
+  VERIFY( std::ranges::crbegin(cv) == std::ranges::rbegin(c) );
   VERIFY( std::ranges::crbegin(std::move(cv)) == std::ranges::rbegin(c) );
 }
 

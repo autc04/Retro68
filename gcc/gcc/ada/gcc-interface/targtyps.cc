@@ -4,9 +4,9 @@
  *                                                                          *
  *                            T A R G T Y P S                               *
  *                                                                          *
- *                                  Body                                    *
+ *                          C Implementation File                           *
  *                                                                          *
- *          Copyright (C) 1992-2021, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2025, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *

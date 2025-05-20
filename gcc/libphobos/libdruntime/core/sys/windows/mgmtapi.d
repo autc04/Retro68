@@ -9,7 +9,6 @@
  */
 module core.sys.windows.mgmtapi;
 version (Windows):
-@system:
 
 import core.sys.windows.snmp;
 import core.sys.windows.windef;
@@ -30,7 +29,7 @@ enum MGMCTL_SETAGENTPORT = 1;
 
 alias PVOID LPSNMP_MGR_SESSION;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     BOOL SnmpMgrClose(LPSNMP_MGR_SESSION);
     BOOL SnmpMgrCtl(LPSNMP_MGR_SESSION, DWORD, LPVOID, DWORD, LPVOID, DWORD,
       LPDWORD);

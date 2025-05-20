@@ -1,6 +1,6 @@
 // <queue> -*- C++ -*-
 
-// Copyright (C) 2001-2022 Free Software Foundation, Inc.
+// Copyright (C) 2001-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -55,12 +55,20 @@
 #ifndef _GLIBCXX_QUEUE
 #define _GLIBCXX_QUEUE 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+
+#include <bits/requires_hosted.h> // containers
 
 #include <deque>
 #include <vector>
 #include <bits/stl_heap.h>
 #include <bits/stl_function.h>
 #include <bits/stl_queue.h>
+
+#define __glibcxx_want_adaptor_iterator_pair_constructor
+#define __glibcxx_want_containers_ranges
+#include <bits/version.h>
 
 #endif /* _GLIBCXX_QUEUE */

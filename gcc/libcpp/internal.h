@@ -1,5 +1,5 @@
 /* Part of CPP library.
-   Copyright (C) 1997-2022 Free Software Foundation, Inc.
+   Copyright (C) 1997-2025 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -24,6 +24,7 @@ along with this program; see the file COPYING3.  If not see
 
 #include "symtab.h"
 #include "cpplib.h"
+#include "rich-location.h"
 
 #if HAVE_ICONV
 #include <iconv.h>
@@ -84,6 +85,7 @@ struct dummy
   {
     double d;
     int *p;
+    location_t l;
   } u;
 };
 
@@ -121,6 +123,7 @@ enum include_type
    IT_INCLUDE,  /* #include */
    IT_INCLUDE_NEXT,  /* #include_next */
    IT_IMPORT,   /* #import  */
+   IT_EMBED,  /* #embed  */
 
    /* Non-directive including mechanisms.  */
    IT_CMDLINE,  /* -include */
@@ -302,7 +305,7 @@ struct spec_nodes
   cpp_hashnode *n__VA_OPT__;		/* C++ vararg macros */
 
   enum {M_EXPORT, M_MODULE, M_IMPORT, M__IMPORT, M_HWM};
-  
+
   /* C++20 modules, only set when module_directives is in effect.
      incoming variants [0], outgoing ones [1] */
   cpp_hashnode *n_modules[M_HWM][2];
@@ -316,10 +319,18 @@ struct _cpp_line_note
 
   /* Type of note.  The 9 'from' trigraph characters represent those
      trigraphs, '\\' an escaped newline, ' ' an escaped newline with
-     intervening space, 0 represents a note that has already been handled,
-     and anything else is invalid.  */
+     intervening space, 'W' trailing whitespace, 'L', 'S' and 'T' for
+     leading whitespace issues, 0 represents a note that
+     has already been handled, and anything else is invalid.  */
   unsigned int type;
 };
+
+/* Tail padding required by search_line_fast alternatives.  */
+#ifdef HAVE_SSSE3
+#define CPP_BUFFER_PADDING 64
+#else
+#define CPP_BUFFER_PADDING 16
+#endif
 
 /* Represents the contents of a file cpplib has read in.  */
 struct cpp_buffer
@@ -458,10 +469,15 @@ struct cpp_reader
      one.  */
   bool about_to_expand_macro_p;
 
+  /* True if the preprocessor should diagnose CPP_DOT or CPP_COLON
+     tokens as the first ones coming from macro expansion.  */
+  bool diagnose_dot_colon_from_macro_p;
+
   /* Search paths for include files.  */
   struct cpp_dir *quote_include;	/* "" */
   struct cpp_dir *bracket_include;	/* <> */
   struct cpp_dir no_search_path;	/* No path.  */
+  struct cpp_dir *embed_include;	/* #embed <> */
 
   /* Chain of all hashed _cpp_file instances.  */
   struct _cpp_file *all_files;
@@ -485,9 +501,11 @@ struct cpp_reader
      been used.  */
   bool seen_once_only;
 
-  /* Multiple include optimization.  */
+  /* Multiple include optimization and -Wheader-guard warning.  */
   const cpp_hashnode *mi_cmacro;
   const cpp_hashnode *mi_ind_cmacro;
+  const cpp_hashnode *mi_def_cmacro;
+  location_t mi_loc, mi_def_loc;
   bool mi_valid;
 
   /* Lexing.  */
@@ -555,6 +573,9 @@ struct cpp_reader
   /* Identifier hash table.  */
   struct ht *hash_table;
 
+  /* Identifier ancillary data hash table.  */
+  struct ht *extra_hash_table;
+
   /* Expression parser stack.  */
   struct op *op_stack, *op_limit;
 
@@ -566,7 +587,7 @@ struct cpp_reader
   struct spec_nodes spec_nodes;
 
   /* Whether cpplib owns the hashtable.  */
-  bool our_hashtable;
+  bool our_hashtable, our_extra_hashtable;
 
   /* Traditional preprocessing output buffer (a logical line).  */
   struct
@@ -601,6 +622,10 @@ struct cpp_reader
      zero of said file.  */
   location_t main_loc;
 
+  /* If non-zero, override diagnostic locations (other than DK_NOTE
+     diagnostics) to this one.  */
+  location_t diagnostic_override_loc;
+
   /* Returns true iff we should warn about UTF-8 bidirectional control
      characters.  */
   bool warn_bidi_p () const
@@ -608,6 +633,24 @@ struct cpp_reader
     return (CPP_OPTION (this, cpp_warn_bidirectional)
 	    & (bidirectional_unpaired|bidirectional_any));
   }
+};
+
+/* Lists of tokens for #embed/__has_embed prefix/suffix/if_empty
+   parameters.  */
+struct cpp_embed_params_tokens
+{
+  cpp_token *cur_token;
+  tokenrun base_run, *cur_run;
+  size_t count;
+};
+
+/* #embed and __has_embed parameters.  */
+struct cpp_embed_params
+{
+  location_t loc;
+  bool has_embed;
+  cpp_num_part limit, offset;
+  cpp_embed_params_tokens prefix, suffix, if_empty, base64;
 };
 
 /* Character classes.  Based on the more primitive macros in safe-ctype.h.
@@ -635,6 +678,12 @@ struct cpp_reader
    compiler that supports C99.  */
 #if HAVE_DESIGNATED_INITIALIZERS
 extern const unsigned char _cpp_trigraph_map[UCHAR_MAX + 1];
+#elif __cpp_constexpr >= 201304L
+extern const struct _cpp_trigraph_map_s {
+  unsigned char map[UCHAR_MAX + 1];
+  constexpr _cpp_trigraph_map_s ();
+} _cpp_trigraph_map_d;
+#define _cpp_trigraph_map _cpp_trigraph_map_d.map
 #else
 extern unsigned char _cpp_trigraph_map[UCHAR_MAX + 1];
 #endif
@@ -665,7 +714,8 @@ _cpp_in_main_source_file (cpp_reader *pfile)
 }
 
 /* True if NODE is a macro for the purposes of ifdef, defined etc.  */
-inline bool _cpp_defined_macro_p (cpp_hashnode *node)
+inline bool
+_cpp_defined_macro_p (const cpp_hashnode *node)
 {
   /* Do not treat conditional macros as being defined.  This is due to
      the powerpc port using conditional macros for 'vector', 'bool',
@@ -686,7 +736,7 @@ inline bool _cpp_maybe_notify_macro_use (cpp_reader *pfile, cpp_hashnode *node,
 }
 extern cpp_macro *_cpp_new_macro (cpp_reader *, cpp_macro_kind, void *);
 extern void _cpp_free_definition (cpp_hashnode *);
-extern bool _cpp_create_definition (cpp_reader *, cpp_hashnode *);
+extern bool _cpp_create_definition (cpp_reader *, cpp_hashnode *, location_t);
 extern void _cpp_pop_context (cpp_reader *);
 extern void _cpp_push_text_context (cpp_reader *, cpp_hashnode *,
 				    const unsigned char *, size_t);
@@ -698,24 +748,31 @@ extern bool _cpp_arguments_ok (cpp_reader *, cpp_macro *, const cpp_hashnode *,
 extern const unsigned char *_cpp_builtin_macro_text (cpp_reader *,
 						     cpp_hashnode *,
 						     location_t = 0);
+extern const cpp_token *_cpp_get_token_no_padding (cpp_reader *);
 extern int _cpp_warn_if_unused_macro (cpp_reader *, cpp_hashnode *, void *);
 extern void _cpp_push_token_context (cpp_reader *, cpp_hashnode *,
 				     const cpp_token *, unsigned int);
 extern void _cpp_backup_tokens_direct (cpp_reader *, unsigned int);
 
 /* In identifiers.cc */
-extern void _cpp_init_hashtable (cpp_reader *, cpp_hash_table *);
+extern void
+_cpp_init_hashtable (cpp_reader *, cpp_hash_table *, cpp_hash_table *);
 extern void _cpp_destroy_hashtable (cpp_reader *);
 
 /* In files.cc */
 enum _cpp_find_file_kind
-  { _cpp_FFK_NORMAL, _cpp_FFK_FAKE, _cpp_FFK_PRE_INCLUDE, _cpp_FFK_HAS_INCLUDE };
+  { _cpp_FFK_NORMAL, _cpp_FFK_FAKE, _cpp_FFK_PRE_INCLUDE, _cpp_FFK_HAS_INCLUDE,
+    _cpp_FFK_EMBED, _cpp_FFK_HAS_EMBED };
 extern _cpp_file *_cpp_find_file (cpp_reader *, const char *, cpp_dir *,
 				  int angle, _cpp_find_file_kind, location_t);
 extern bool _cpp_find_failed (_cpp_file *);
 extern void _cpp_mark_file_once_only (cpp_reader *, struct _cpp_file *);
+extern cpp_dir *search_path_head (cpp_reader *, const char *, int,
+				  include_type, bool = false);
 extern const char *_cpp_find_header_unit (cpp_reader *, const char *file,
 					  bool angle_p,  location_t);
+extern int _cpp_stack_embed (cpp_reader *, const char *, bool,
+			     cpp_embed_params *);
 extern void _cpp_fake_include (cpp_reader *, const char *);
 extern bool _cpp_stack_file (cpp_reader *, _cpp_file*, include_type, location_t);
 extern bool _cpp_stack_include (cpp_reader *, const char *, int,
@@ -730,11 +787,13 @@ extern bool _cpp_save_file_entries (cpp_reader *pfile, FILE *f);
 extern bool _cpp_read_file_entries (cpp_reader *, FILE *);
 extern const char *_cpp_get_file_name (_cpp_file *);
 extern struct stat *_cpp_get_file_stat (_cpp_file *);
+extern struct cpp_dir *_cpp_get_file_dir (_cpp_file *);
 extern bool _cpp_has_header (cpp_reader *, const char *, int,
 			     enum include_type);
 
 /* In expr.cc */
-extern bool _cpp_parse_expr (cpp_reader *, bool);
+extern cpp_num_part _cpp_parse_expr (cpp_reader *, const char *,
+				     const cpp_token *);
 extern struct op *_cpp_expand_op_stack (cpp_reader *);
 
 /* In lex.cc */
@@ -748,7 +807,6 @@ extern cpp_token *_cpp_lex_direct (cpp_reader *);
 extern unsigned char *_cpp_spell_ident_ucns (unsigned char *, cpp_hashnode *);
 extern int _cpp_equiv_tokens (const cpp_token *, const cpp_token *);
 extern void _cpp_init_tokenrun (tokenrun *, unsigned int);
-extern cpp_hashnode *_cpp_lex_identifier (cpp_reader *, const char *);
 extern int _cpp_remaining_tokens_num_in_context (cpp_context *);
 extern void _cpp_init_lexer (void);
 static inline void *_cpp_reserve_room (cpp_reader *pfile, size_t have,
@@ -775,6 +833,8 @@ extern void _cpp_restore_pragma_names (cpp_reader *, char **);
 extern int _cpp_do__Pragma (cpp_reader *, location_t);
 extern void _cpp_init_directives (cpp_reader *);
 extern void _cpp_init_internal_pragmas (cpp_reader *);
+extern void _cpp_free_embed_params_tokens (cpp_embed_params_tokens *);
+extern bool _cpp_parse_embed_params (cpp_reader *, struct cpp_embed_params *);
 extern void _cpp_do_file_change (cpp_reader *, enum lc_reason, const char *,
 				 linenum_type, unsigned int);
 extern void _cpp_pop_buffer (cpp_reader *);
@@ -802,7 +862,7 @@ extern size_t _cpp_replacement_text_len (const cpp_macro *);
    It starts initialized to all zeros, and at the end
    'level' is the normalization level of the sequence.  */
 
-struct normalize_state 
+struct normalize_state
 {
   /* The previous starter character.  */
   cppchar_t previous;
@@ -935,7 +995,7 @@ location_t linemap_add_macro_token (const line_map_macro *,
    LOCATION is the location of token that is part of the
    expansion-list of a macro expansion return the line number of the
    macro expansion point.  */
-int linemap_get_expansion_line (class line_maps *,
+int linemap_get_expansion_line (const line_maps *,
 				location_t);
 
 /* Return the path of the file corresponding to source code location
@@ -946,7 +1006,7 @@ int linemap_get_expansion_line (class line_maps *,
    macro expansion point.
 
    SET is the line map set LOCATION comes from.  */
-const char* linemap_get_expansion_filename (class line_maps *,
+const char* linemap_get_expansion_filename (const line_maps *,
 					    location_t);
 
 /* A subclass of rich_location for emitting a diagnostic

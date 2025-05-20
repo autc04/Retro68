@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1995-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1995-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -197,8 +197,7 @@ package Interfaces.C_Streams is
    function ungetc (c : int; stream : FILEs) return int
      renames System.CRTL.ungetc;
 
-   function unlink (filename : chars) return int
-     renames System.CRTL.unlink;
+   function unlink (filename : chars) return int;
 
    ---------------------
    -- Extra functions --
@@ -236,9 +235,9 @@ package Interfaces.C_Streams is
    --                   In this mode we are eventually using the system-wide
    --                   translation if activated.
    --    Text         : Text encoding activated
+   --    U8text       : Unicode UTF-8 encoding
    --    Wtext        : Unicode mode
    --    U16text      : Unicode UTF-16 encoding
-   --    U8text       : Unicode UTF-8 encoding
    --
    --  This encoding is system dependent and only used on Windows systems.
    --

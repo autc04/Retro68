@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 2001-2022, AdaCore                     --
+--                     Copyright (C) 2001-2025, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -120,7 +120,8 @@ package body GNAT.Sockets is
                 IPv6_Only           => SOSC.IPV6_V6ONLY,
                 Send_Timeout        => SOSC.SO_SNDTIMEO,
                 Receive_Timeout     => SOSC.SO_RCVTIMEO,
-                Busy_Polling        => SOSC.SO_BUSY_POLL];
+                Busy_Polling        => SOSC.SO_BUSY_POLL,
+                Bind_To_Device      => SOSC.SO_BINDTODEVICE];
    --  ??? Note: for OpenSolaris, Receive_Packet_Info should be IP_RECVPKTINFO,
    --  but for Linux compatibility this constant is the same as IP_PKTINFO.
 
@@ -191,12 +192,14 @@ package body GNAT.Sockets is
        else Value);
    --  Removes dot at the end of error message
 
-   procedure Raise_Host_Error (H_Error : Integer; Name : String);
+   procedure Raise_Host_Error (H_Error : Integer; Name : String)
+   with No_Return;
    --  Raise Host_Error exception with message describing error code (note
    --  hstrerror seems to be obsolete) from h_errno. Name is the name
    --  or address that was being looked up.
 
-   procedure Raise_GAI_Error (RC : C.int; Name : String);
+   procedure Raise_GAI_Error (RC : C.int; Name : String)
+   with No_Return;
    --  Raise Host_Error with exception message in case of errors in
    --  getaddrinfo and getnameinfo.
 
@@ -1034,7 +1037,6 @@ package body GNAT.Sockets is
 
       R     : C.int;
       Iter  : Addrinfo_Access;
-      Found : Boolean;
 
       function To_Array return Address_Info_Array;
       --  Convert taken from OS addrinfo list A into Address_Info_Array
@@ -1044,8 +1046,6 @@ package body GNAT.Sockets is
       --------------
 
       function To_Array return Address_Info_Array is
-         Result : Address_Info_Array (1 .. 8);
-
          procedure Unsupported;
          --  Calls Unknown callback if defiend
 
@@ -1063,6 +1063,9 @@ package body GNAT.Sockets is
                   Integer (Iter.ai_addrlen));
             end if;
          end Unsupported;
+
+         Found  : Boolean;
+         Result : Address_Info_Array (1 .. 8);
 
       --  Start of processing for To_Array
 
@@ -1085,8 +1088,8 @@ package body GNAT.Sockets is
                if Result (J).Addr.Family = Family_Unspec then
                   Unsupported;
                else
+                  Found := False;
                   for M in Modes'Range loop
-                     Found := False;
                      if Modes (M) = Iter.ai_socktype then
                         Result (J).Mode := M;
                         Found := True;
@@ -1411,17 +1414,21 @@ package body GNAT.Sockets is
       use type C.unsigned;
       use type C.unsigned_char;
 
+      --  SOSC.IF_NAMESIZE may be not defined, ensure that we have at least
+      --  a valid range for VS declared below.
+      NS  : constant Interfaces.C.size_t :=
+              (if SOSC.IF_NAMESIZE = -1 then 256 else SOSC.IF_NAMESIZE);
       V8  : aliased Two_Ints;
       V4  : aliased C.int;
       U4  : aliased C.unsigned;
       V1  : aliased C.unsigned_char;
+      VS  : aliased C.char_array (1 .. NS); -- for devices name
       VT  : aliased Timeval;
       Len : aliased C.int;
       Add : System.Address;
       Res : C.int;
       Opt : Option_Type (Name);
       Onm : Interfaces.C.int;
-
    begin
       if Name in Specific_Option_Name then
          Onm := Options (Name);
@@ -1489,6 +1496,11 @@ package body GNAT.Sockets is
          =>
             Len := V8'Size / 8;
             Add := V8'Address;
+
+         when Bind_To_Device
+         =>
+            Len := VS'Length;
+            Add := VS'Address;
       end case;
 
       Res :=
@@ -1587,6 +1599,9 @@ package body GNAT.Sockets is
             else
                Opt.Timeout := To_Duration (VT);
             end if;
+
+         when Bind_To_Device =>
+            Opt.Device := ASU.To_Unbounded_String (C.To_Ada (VS));
       end case;
 
       return Opt;
@@ -2614,6 +2629,10 @@ package body GNAT.Sockets is
       V4  : aliased C.int;
       U4  : aliased C.unsigned;
       V1  : aliased C.unsigned_char;
+      VS  : aliased C.char_array
+              (1 .. (if Option.Name = Bind_To_Device
+                     then C.size_t (ASU.Length (Option.Device) + 1)
+                     else 0));
       VT  : aliased Timeval;
       Len : C.int;
       Add : System.Address := Null_Address;
@@ -2752,6 +2771,11 @@ package body GNAT.Sockets is
                Len := VT'Size / 8;
                Add := VT'Address;
             end if;
+
+         when Bind_To_Device =>
+            VS := C.To_C (ASU.To_String (Option.Device));
+            Len := C.int (VS'Length);
+            Add := VS'Address;
       end case;
 
       if Option.Name in Specific_Option_Name then

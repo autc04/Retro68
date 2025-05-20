@@ -14,7 +14,7 @@
  *
  * Copyright: D Language Foundation 2018 - 2020
  * License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:    $(LINK2 https://github.com/dlang/druntime/blob/master/src/core/internal/dassert.d, _dassert.d)
+ * Source:    $(DRUNTIMESRC core/internal/_dassert.d)
  * Documentation: https://dlang.org/phobos/core_internal_dassert.html
  */
 module core.internal.dassert;
@@ -180,6 +180,8 @@ private string miniFormat(V)(const scope ref V v)
     /// `shared` values are formatted as their base type
     static if (is(V == shared T, T))
     {
+        import core.atomic : atomicLoad;
+
         // Use atomics to avoid race conditions whenever possible
         static if (__traits(compiles, atomicLoad(v)))
         {
@@ -472,11 +474,6 @@ private bool[] calcFieldOverlap(const scope size_t[] offsets)
     return overlaps;
 }
 
-// This should be a local import in miniFormat but fails with a cyclic dependency error
-// core.thread.osthread -> core.time -> object -> core.internal.array.capacity
-// -> core.atomic -> core.thread -> core.thread.osthread
-import core.atomic : atomicLoad;
-
 /// Negates a comparison token, e.g. `==` is mapped to `!=`
 private string invertCompToken(scope string comp) pure nothrow @nogc @safe
 {
@@ -518,7 +515,7 @@ private auto assumeFakeAttributes(T)(T t) @trusted
 }
 
 /// Wrapper for `miniFormat` which assumes that the implementation is `@safe`, `@nogc`, ...
-/// s.t. it does not violate the constraints of the the function containing the `assert`.
+/// s.t. it does not violate the constraints of the function containing the `assert`.
 private string miniFormatFakeAttributes(T)(const scope ref T t)
 {
     alias miniT = miniFormat!T;

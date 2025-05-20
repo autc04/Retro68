@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -25,37 +25,13 @@
 
 package body Opt is
 
-   -------------------------
-   -- Back_End_Exceptions --
-   -------------------------
-
-   function Back_End_Exceptions return Boolean is
-   begin
-      return
-        Exception_Mechanism = Back_End_SJLJ
-          or else
-        Exception_Mechanism = Back_End_ZCX;
-   end Back_End_Exceptions;
-
-   -------------------------
-   -- Front_End_Exceptions --
-   -------------------------
-
-   function Front_End_Exceptions return Boolean is
-   begin
-      return Exception_Mechanism = Front_End_SJLJ;
-   end Front_End_Exceptions;
-
    --------------------
    -- SJLJ_Exceptions --
    --------------------
 
    function SJLJ_Exceptions return Boolean is
    begin
-      return
-        Exception_Mechanism = Back_End_SJLJ
-          or else
-        Exception_Mechanism = Front_End_SJLJ;
+      return Exception_Mechanism = Back_End_SJLJ;
    end SJLJ_Exceptions;
 
    --------------------

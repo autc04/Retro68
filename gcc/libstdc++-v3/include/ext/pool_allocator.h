@@ -1,6 +1,6 @@
 // Allocators -*- C++ -*-
 
-// Copyright (C) 2001-2022 Free Software Foundation, Inc.
+// Copyright (C) 2001-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -42,6 +42,8 @@
 #ifndef _POOL_ALLOCATOR_H
 #define _POOL_ALLOCATOR_H 1
 
+#include <bits/requires_hosted.h> // GNU extensions are currently omitted
+
 #include <bits/c++config.h>
 #include <cstdlib>
 #include <new>
@@ -80,27 +82,27 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       enum { _S_align = 8 };
       enum { _S_max_bytes = 128 };
       enum { _S_free_list_size = (size_t)_S_max_bytes / (size_t)_S_align };
-      
+
       union _Obj
       {
 	union _Obj* _M_free_list_link;
 	char        _M_client_data[1];    // The client sees this.
       };
-      
+
       static _Obj* volatile         _S_free_list[_S_free_list_size];
 
       // Chunk allocation state.
       static char*                  _S_start_free;
       static char*                  _S_end_free;
-      static size_t                 _S_heap_size;     
-      
+      static size_t                 _S_heap_size;
+
       size_t
       _M_round_up(size_t __bytes)
       { return ((__bytes + (size_t)_S_align - 1) & ~((size_t)_S_align - 1)); }
-      
+
       _GLIBCXX_CONST _Obj* volatile*
       _M_get_free_list(size_t __bytes) throw ();
-    
+
       __mutex&
       _M_get_mutex() throw ();
 
@@ -108,7 +110,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       // free list.
       void*
       _M_refill(size_t __n);
-      
+
       // Allocates a chunk for nobjs of size size.  nobjs may be reduced
       // if it is inconvenient to allocate the requested number.
       char*
@@ -163,7 +165,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { return std::__addressof(__x); }
 
       size_type
-      max_size() const _GLIBCXX_USE_NOEXCEPT 
+      max_size() const _GLIBCXX_USE_NOEXCEPT
       { return std::size_t(-1) / sizeof(_Tp); }
 
 #if __cplusplus >= 201103L
@@ -173,16 +175,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	{ ::new((void *)__p) _Up(std::forward<_Args>(__args)...); }
 
       template<typename _Up>
-        void 
+        void
         destroy(_Up* __p) { __p->~_Up(); }
 #else
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 402. wrong new expression in [some_] allocator::construct
-      void 
-      construct(pointer __p, const _Tp& __val) 
+      void
+      construct(pointer __p, const _Tp& __val)
       { ::new((void *)__p) _Tp(__val); }
 
-      void 
+      void
       destroy(pointer __p) { __p->~_Tp(); }
 #endif
 
@@ -190,7 +192,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       allocate(size_type __n, const void* = 0);
 
       void
-      deallocate(pointer __p, size_type __n);      
+      deallocate(pointer __p, size_type __n);
     };
 
   template<typename _Tp>
@@ -222,7 +224,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 	  const size_t __bytes = __n * sizeof(_Tp);
 
-#if __cpp_aligned_new
+#if __cpp_aligned_new && __cplusplus >= 201103L
 	  if (alignof(_Tp) > __STDCPP_DEFAULT_NEW_ALIGNMENT__)
 	    {
 	      std::align_val_t __al = std::align_val_t(alignof(_Tp));
@@ -246,7 +248,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  else
 	    {
 	      _Obj* volatile* __free_list = _M_get_free_list(__bytes);
-	      
+
 	      __scoped_lock sentry(_M_get_mutex());
 	      _Obj* __restrict__ __result = *__free_list;
 	      if (__builtin_expect(__result == 0, 0))
@@ -270,7 +272,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       using std::size_t;
       if (__builtin_expect(__n != 0 && __p != 0, true))
 	{
-#if __cpp_aligned_new
+#if __cpp_aligned_new && __cplusplus >= 201103L
 	  if (alignof(_Tp) > __STDCPP_DEFAULT_NEW_ALIGNMENT__)
 	    {
 	      ::operator delete(__p, std::align_val_t(alignof(_Tp)));

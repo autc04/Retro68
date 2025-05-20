@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,6 +23,7 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Aspects;        use Aspects;
 with Atree;          use Atree;
 with Checks;         use Checks;
 with Debug;          use Debug;
@@ -34,9 +35,11 @@ with Exp_Smem;       use Exp_Smem;
 with Exp_Tss;        use Exp_Tss;
 with Exp_Util;       use Exp_Util;
 with Namet;          use Namet;
+with Nlists;         use Nlists;
 with Nmake;          use Nmake;
 with Opt;            use Opt;
 with Output;         use Output;
+with Rtsfind;        use Rtsfind;
 with Sem;            use Sem;
 with Sem_Eval;       use Sem_Eval;
 with Sem_Res;        use Sem_Res;
@@ -47,7 +50,10 @@ with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
 with Snames;         use Snames;
+with Stand;
+with Stringt;        use Stringt;
 with Tbuild;         use Tbuild;
+with Uintp;           use Uintp;
 
 package body Exp_Ch2 is
 
@@ -149,13 +155,6 @@ package body Exp_Ch2 is
          --  Check that entity is suitable for replacement
 
          and then OK_To_Do_Constant_Replacement (E)
-
-         --  Do not replace occurrences in pragmas (where names typically
-         --  appear not as values, but as simply names. If there are cases
-         --  where values are required, it is only a very minor efficiency
-         --  issue that they do not get replaced when they could be).
-
-         and then Nkind (Parent (N)) /= N_Pragma_Argument_Association
 
          --  Do not replace the prefixes of attribute references, since this
          --  causes trouble with cases like 4'Size. Also for Name_Asm_Input and
@@ -467,9 +466,9 @@ package body Exp_Ch2 is
             --  disable if either variable or its type have sync disabled.
 
             else
-               Set := (not Atomic_Synchronization_Disabled (E))
+               Set := not Atomic_Synchronization_Disabled (E)
                         and then
-                      (not Atomic_Synchronization_Disabled (Etype (E)));
+                      not Atomic_Synchronization_Disabled (Etype (E));
             end if;
 
             --  Set flag if required
@@ -717,5 +716,196 @@ package body Exp_Ch2 is
       Reset_Analyzed_Flags (N);
       Analyze_And_Resolve (N, T);
    end Expand_Renaming;
+
+   ------------------------------------------
+   -- Expand_N_Interpolated_String_Literal --
+   ------------------------------------------
+
+   procedure Expand_N_Interpolated_String_Literal (N : Node_Id) is
+
+      procedure Apply_Static_Length_Check (Typ : Entity_Id);
+      --  Tries to determine statically whether the length of the interpolated
+      --  string N exceeds the length of the target subtype Typ. If it can be
+      --  determined at compile time then an N_Raise_Constraint_Error node
+      --  replaces the interpolated string N, and a warning message is issued.
+
+      function Build_Interpolated_String_Image (N : Node_Id) return Node_Id;
+      --  Build the following Expression_With_Actions node:
+      --     do
+      --        Sink : Buffer;
+      --        [ Set_Trim_Leading_Spaces (Sink); ]
+      --        Type'Put_Image (Sink, X);
+      --        { [ Set_Trim_Leading_Spaces (Sink); ]
+      --          Type'Put_Image (Sink, X); }
+      --        Result : constant String := Get (Sink);
+      --        Destroy (Sink);
+      --     in Result end
+
+      -------------------------------
+      -- Apply_Static_Length_Check --
+      -------------------------------
+
+      procedure Apply_Static_Length_Check (Typ : Entity_Id) is
+         HB         : constant Node_Id := High_Bound (First_Index (Typ));
+         LB         : constant Node_Id := Low_Bound (First_Index (Typ));
+         Str_Elem   : Node_Id;
+         Str_Length : Nat;
+         Typ_Length : Nat;
+
+      begin
+         if Compile_Time_Known_Value (LB)
+           and then Compile_Time_Known_Value (HB)
+         then
+            Typ_Length := UI_To_Int (Expr_Value (HB) - Expr_Value (LB) + 1);
+
+            --  Compute the minimum length of the interpolated string: the
+            --  length of the concatenation of the string literals composing
+            --  the interpolated string.
+
+            Str_Length := 0;
+            Str_Elem   := First (Expressions (N));
+            while Present (Str_Elem) loop
+               if Nkind (Str_Elem) = N_String_Literal then
+                  Str_Length := Str_Length + String_Length (Strval (Str_Elem));
+               end if;
+
+               Next (Str_Elem);
+            end loop;
+
+            if Str_Length > Typ_Length then
+               Apply_Compile_Time_Constraint_Error
+                 (N, "wrong length for interpolated string of}??",
+                  CE_Length_Check_Failed,
+                  Ent => Typ,
+                  Typ => Typ);
+            end if;
+         end if;
+      end Apply_Static_Length_Check;
+
+      -------------------------------------
+      -- Build_Interpolated_String_Image --
+      -------------------------------------
+
+      function Build_Interpolated_String_Image (N : Node_Id) return Node_Id
+      is
+         Loc           : constant Source_Ptr := Sloc (N);
+         Sink_Entity   : constant Entity_Id  := Make_Temporary (Loc, 'S');
+         Sink_Decl     : constant Node_Id :=
+                           Make_Object_Declaration (Loc,
+                             Defining_Identifier => Sink_Entity,
+                             Object_Definition =>
+                               New_Occurrence_Of (RTE (RE_Buffer_Type), Loc));
+
+         B_Type        : constant Entity_Id := Base_Type (Etype (N));
+         Get_Id        : constant RE_Id :=
+                           (if B_Type = Stand.Standard_String then
+                               RE_Get
+                            elsif B_Type = Stand.Standard_Wide_String then
+                               RE_Wide_Get
+                            else
+                               RE_Wide_Wide_Get);
+
+         Result_Entity : constant Entity_Id := Make_Temporary (Loc, 'R');
+         Result_Decl   : constant Node_Id :=
+                           Make_Object_Declaration (Loc,
+                             Defining_Identifier => Result_Entity,
+                             Object_Definition =>
+                               New_Occurrence_Of (B_Type, Loc),
+                             Expression =>
+                               Make_Function_Call (Loc,
+                                 Name => New_Occurrence_Of (RTE (Get_Id), Loc),
+                                 Parameter_Associations => New_List (
+                                   New_Occurrence_Of (Sink_Entity, Loc))));
+
+         Actions  : constant List_Id := New_List;
+         U_Type   : constant Entity_Id := Underlying_Type (Etype (N));
+         Elem_Typ : Entity_Id;
+         Str_Elem : Node_Id;
+
+      begin
+         pragma Assert (Etype (N) /= Stand.Any_String);
+
+         Append_To (Actions, Sink_Decl);
+
+         Str_Elem := First (Expressions (N));
+         while Present (Str_Elem) loop
+            Elem_Typ := Etype (Str_Elem);
+
+            --  If the type is numeric or has a specified Integer_Literal or
+            --  Real_Literal aspect, then prior to invoking Put_Image, the
+            --  Trim_Leading_Spaces flag is set on the text buffer.
+
+            if Is_Numeric_Type (Underlying_Type (Elem_Typ))
+              or else Has_Aspect (Elem_Typ, Aspect_Integer_Literal)
+              or else Has_Aspect (Elem_Typ, Aspect_Real_Literal)
+            then
+               Append_To (Actions,
+                 Make_Procedure_Call_Statement (Loc,
+                   Name                   =>
+                     New_Occurrence_Of
+                       (RTE (RE_Set_Trim_Leading_Spaces), Loc),
+                   Parameter_Associations => New_List (
+                     Convert_To (RTE (RE_Root_Buffer_Type),
+                       New_Occurrence_Of (Sink_Entity, Loc)),
+                     New_Occurrence_Of (Stand.Standard_True, Loc))));
+            end if;
+
+            Append_To (Actions,
+              Make_Attribute_Reference (Loc,
+                Prefix         => New_Occurrence_Of (Elem_Typ, Loc),
+                Attribute_Name => Name_Put_Image,
+                Expressions    => New_List (
+                  New_Occurrence_Of (Sink_Entity, Loc),
+                  Duplicate_Subexpr (Str_Elem))));
+
+            Next (Str_Elem);
+         end loop;
+
+         --  Add a type conversion to the result object declaration of custom
+         --  string types.
+
+         if not Is_Standard_String_Type (U_Type)
+           and then (not RTU_Loaded (Interfaces_C)
+                       or else Enclosing_Lib_Unit_Entity (U_Type)
+                                 /= RTU_Entity (Interfaces_C))
+         then
+            Set_Expression (Result_Decl,
+              Convert_To (Etype (N),
+                Relocate_Node (Expression (Result_Decl))));
+         end if;
+
+         Append_To (Actions, Result_Decl);
+
+         return Make_Expression_With_Actions (Loc,
+           Actions    => Actions,
+           Expression => New_Occurrence_Of (Result_Entity, Loc));
+      end Build_Interpolated_String_Image;
+
+      --  Local variables
+
+      Typ : constant Entity_Id := Etype (N);
+
+   --  Start of processing for Expand_N_Interpolated_String_Literal
+
+   begin
+      --  If the type imposed by the context is constrained then check that
+      --  the statically known length of the interpolated string does not
+      --  exceed the length of its type.
+
+      if Is_Constrained (Typ) then
+         Apply_Static_Length_Check (Typ);
+
+         if Nkind (N) = N_Raise_Constraint_Error then
+            return;
+         end if;
+      end if;
+
+      Rewrite (N, Build_Interpolated_String_Image (N));
+      Analyze_And_Resolve (N, Typ);
+
+      if Is_Constrained (Typ) then
+         Apply_Length_Check (Expression (N), Typ);
+      end if;
+   end Expand_N_Interpolated_String_Literal;
 
 end Exp_Ch2;

@@ -1,6 +1,6 @@
 // Aligned memory buffer -*- C++ -*-
 
-// Copyright (C) 2013-2022 Free Software Foundation, Inc.
+// Copyright (C) 2013-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,7 +29,9 @@
 #ifndef _ALIGNED_BUFFER_H
 #define _ALIGNED_BUFFER_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #if __cplusplus >= 201103L
 # include <type_traits>
@@ -49,11 +51,15 @@ namespace __gnu_cxx
       // Target macro ADJUST_FIELD_ALIGN can produce different alignment for
       // types when used as class members. __aligned_membuf is intended
       // for use as a class member, so align the buffer as for a class member.
-      // Since GCC 8 we could just use alignof(_Tp) instead, but older
-      // versions of non-GNU compilers might still need this trick.
+      // Since GCC 8 we can just use alignas(_Tp) to get the right alignment.
+#ifdef __EDG__
+      // The EDG front end does not implement the PR c++/69560 alignof change.
       struct _Tp2 { _Tp _M_t; };
-
-      alignas(__alignof__(_Tp2::_M_t)) unsigned char _M_storage[sizeof(_Tp)];
+      alignas(__alignof__(_Tp2::_M_t))
+#else
+      alignas(_Tp)
+#endif
+	unsigned char _M_storage[sizeof(_Tp)];
 
       __aligned_membuf() = default;
 
@@ -88,10 +94,9 @@ namespace __gnu_cxx
   // This type is still used to avoid an ABI change.
   template<typename _Tp>
     struct __aligned_buffer
-    : std::aligned_storage<sizeof(_Tp), __alignof__(_Tp)>
     {
-      typename
-	std::aligned_storage<sizeof(_Tp), __alignof__(_Tp)>::type _M_storage;
+      // Using __alignof__ gives the alignment for a complete object.
+      alignas(__alignof__(_Tp)) unsigned char _M_storage[sizeof(_Tp)];
 
       __aligned_buffer() = default;
 

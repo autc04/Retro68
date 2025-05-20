@@ -1,5 +1,5 @@
 // { dg-do compile { target c++17 } }
-// { dg-options "-fno-inline -O0" }
+// { dg-options "-fno-inline -O0 -fabi-compat-version=0" }
 
 inline auto var = [] () {return 2;};
 
@@ -26,5 +26,5 @@ int thorn ()
 }
 
 // { dg-final { scan-assembler "_ZNK3varMUlvE_clEv:" } }
-// { dg-final { scan-assembler "_ZNK3Foo3barMUlvE_clEv:" { xfail *-*-* } } }
-// { dg-final { scan-assembler-not "_ZNK3FooUlvE_clEv:" { xfail *-*-* } } }
+// { dg-final { scan-assembler "_ZNK3Foo3barMUlvE_clEv:" } }
+// { dg-final { scan-assembler-not "_ZNK3FooUlvE_clEv:" } }

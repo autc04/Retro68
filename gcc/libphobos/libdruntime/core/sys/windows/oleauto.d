@@ -8,7 +8,6 @@
  */
 module core.sys.windows.oleauto;
 version (Windows):
-@system:
 pragma(lib, "oleaut32");
 
 import core.sys.windows.oaidl;
@@ -227,7 +226,7 @@ deprecated {  // not actually deprecated, but they aren't converted yet.
     alias ICreateTypeLib2 LPCREATETYPELIB2;
 }
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     BSTR SysAllocString(const(OLECHAR)*);
     int SysReAllocString(BSTR*, const(OLECHAR)*);
     BSTR SysAllocStringLen(const(OLECHAR)*, uint);

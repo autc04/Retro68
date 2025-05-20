@@ -15,16 +15,19 @@
  * - $(LINK2 https://github.com/ldc-developers/ldc, LDC repository)
  * - $(LINK2 https://github.com/D-Programming-GDC/gcc, GDC repository)
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/target.d, _target.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/target.d, _target.d)
  * Documentation:  https://dlang.org/phobos/dmd_target.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/target.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/target.d
  */
 
 module dmd.target;
 
+import core.stdc.stdio;
+
+import dmd.astenums : CHECKENABLE;
 import dmd.globals : Param;
 
 enum CPU : ubyte
@@ -61,7 +64,7 @@ extern (C++) struct Target
     import dmd.dscope : Scope;
     import dmd.expression : Expression;
     import dmd.func : FuncDeclaration;
-    import dmd.globals : Loc;
+    import dmd.location;
     import dmd.astenums : LINK, TY;
     import dmd.mtype : Type, TypeFunction, TypeTuple;
     import dmd.root.ctfloat : real_t;
@@ -110,8 +113,10 @@ extern (C++) struct Target
 
     /// Architecture name
     const(char)[] architectureName;
-    CPU cpu = CPU.baseline; // CPU instruction set to target
-    bool is64bit;           // generate 64 bit code for x86_64; true by default for 64 bit dmd
+    CPU cpu;                // CPU instruction set to target
+    bool isAArch64;         // generate 64 bit Arm code
+    bool isX86_64;          // generate 64 bit code for x86_64; true by default for 64 bit dmd
+    bool isX86;             // generate 32 bit Intel x86 code
     bool isLP64;            // pointers are 64 bits
 
     // Environmental
@@ -119,7 +124,6 @@ extern (C++) struct Target
     const(char)[] lib_ext;    /// extension for static library files
     const(char)[] dll_ext;    /// extension for dynamic library files
     bool run_noext;           /// allow -run sources without extensions
-    bool omfobj = false;      // for Win32: write OMF object files instead of MsCoff
     /**
      * Values representing all properties for floating point types
      */
@@ -159,7 +163,7 @@ extern (C++) struct Target
      * This can be used to restore the state set by `_init` to its original
      * state.
      */
-    void deinitialize()
+    void deinitialize() @safe
     {
         this = this.init;
     }
@@ -190,7 +194,7 @@ extern (C++) struct Target
      * Returns:
      *      `Type` that represents `va_list`.
      */
-    extern (C++) Type va_listType(const ref Loc loc, Scope* sc);
+    extern (C++) Type va_listType(Loc loc, Scope* sc);
 
     /**
      * Checks whether the target supports a vector type.
@@ -203,7 +207,7 @@ extern (C++) struct Target
      *      2   vector element type is not supported
      *      3   vector size is not supported
      */
-    extern (C++) int isVectorTypeSupported(int sz, Type type);
+    extern (C++) int isVectorTypeSupported(int sz, Type type) @safe;
 
     /**
      * Checks whether the target supports the given operation for vectors.
@@ -221,7 +225,7 @@ extern (C++) struct Target
      * Returns:
      *      `LINK` to use for `extern(System)`
      */
-    extern (C++) LINK systemLinkage();
+    extern (C++) LINK systemLinkage() @safe;
 
     /**
      * Describes how an argument type is passed to a function on target.
@@ -263,14 +267,14 @@ extern (C++) struct Target
      * Returns:
      *  Expression for the requested targetInfo
      */
-    extern (C++) Expression getTargetInfo(const(char)* name, const ref Loc loc);
+    extern (C++) Expression getTargetInfo(const(char)* name, Loc loc);
 
     /**
      * Params:
      *  tf = type of function being called
      * Returns: `true` if the callee invokes destructors for arguments.
      */
-    extern (C++) bool isCalleeDestroyingArgs(TypeFunction tf);
+    extern (C++) bool isCalleeDestroyingArgs(TypeFunction tf) @safe;
 
     /**
      * Returns true if the implementation for object monitors is always defined
@@ -288,7 +292,7 @@ extern (C++) struct Target
      * Returns:
      *      `false` if the target does not support `pragma(linkerDirective)`.
      */
-    extern (C++) bool supportsLinkerDirective() const;
+    extern (C++) bool supportsLinkerDirective() const @safe;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -297,11 +301,12 @@ extern (C++) struct Target
  */
 struct TargetC
 {
+    import dmd.declaration : BitFieldDeclaration;
+
     enum Runtime : ubyte
     {
         Unspecified,
         Bionic,
-        DigitalMars,
         Glibc,
         Microsoft,
         Musl,
@@ -313,7 +318,6 @@ struct TargetC
     enum BitFieldStyle : ubyte
     {
         Unspecified,
-        DM,                   /// Digital Mars 32 bit C compiler
         MS,                   /// Microsoft 32 and 64 bit C compilers
                               /// https://docs.microsoft.com/en-us/cpp/c-language/c-bit-fields?view=msvc-160
                               /// https://docs.microsoft.com/en-us/cpp/cpp/cpp-bit-fields?view=msvc-160
@@ -329,6 +333,14 @@ struct TargetC
     ubyte wchar_tsize;        /// size of a C `wchar_t` type
     Runtime runtime;          /// vendor of the C runtime to link against
     BitFieldStyle bitFieldStyle; /// different C compilers do it differently
+
+    /**
+     * Indicates whether the specified bit-field contributes to the alignment
+     * of the containing aggregate.
+     * E.g., (not all) ARM ABIs do NOT ignore anonymous (incl. 0-length)
+     * bit-fields.
+     */
+    extern (C++) bool contributesToAggregateAlignment(BitFieldDeclaration bfd);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -345,9 +357,8 @@ struct TargetCPP
     enum Runtime : ubyte
     {
         Unspecified,
-        Clang,
-        DigitalMars,
-        Gcc,
+        LLVM,
+        GNU,
         Microsoft,
         Sun
     }

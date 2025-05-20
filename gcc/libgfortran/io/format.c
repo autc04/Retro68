@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2025 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -32,7 +32,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include <string.h>
 
 
-static const fnode colon_node = { FMT_COLON, 0, NULL, NULL, {{ 0, 0, 0 }}, 0,
+static const fnode colon_node = { FMT_COLON, FMT_NONE, 0, NULL, NULL, {{ 0, 0, 0 }}, 0,
 				  NULL };
 
 /* Error messages. */
@@ -45,7 +45,8 @@ static const char posint_required[] = "Positive integer required in format",
   bad_string[] = "Unterminated character constant in format",
   bad_hollerith[] = "Hollerith constant extends past the end of the format",
   reversion_error[] = "Exhausted data descriptors in format",
-  zero_width[] = "Zero width in format descriptor";
+  zero_width[] = "Zero width in format descriptor",
+  comma_missing[] = "Missing comma between descriptors";
 
 /* The following routines support caching format data from parsed format strings
    into a hash table.  This avoids repeatedly parsing duplicate format strings
@@ -225,6 +226,7 @@ get_fnode (format_data *fmt, fnode **head, fnode **tail, format_token t)
     }
   f = fmt->avail++;
   memset (f, '\0', sizeof (fnode));
+  f->pushed = FMT_NONE;
 
   if (*head == NULL)
     *head = *tail = f;
@@ -269,8 +271,7 @@ free_format_data (format_data *fmt)
        fnp->format != FMT_NONE; fnp++)
     if (fnp->format == FMT_DT)
 	{
-	  if (GFC_DESCRIPTOR_DATA(fnp->u.udf.vlist))
-	    free (GFC_DESCRIPTOR_DATA(fnp->u.udf.vlist));
+	  free (GFC_DESCRIPTOR_DATA(fnp->u.udf.vlist));
 	  free (fnp->u.udf.vlist);
 	}
 
@@ -923,6 +924,7 @@ parse_format_list (st_parameter_dt *dtp, bool *seen_dd)
       *seen_dd = true;
       get_fnode (fmt, &head, &tail, t);
       tail->repeat = repeat;
+      tail->pushed = FMT_NONE;
 
       u = format_lex (fmt);
       
@@ -1232,8 +1234,10 @@ parse_format_list (st_parameter_dt *dtp, bool *seen_dd)
       goto finished;
 
     default:
-      /* Assume a missing comma, this is a GNU extension */
-      goto format_item_1;
+      /* Assume a missing comma with -std=legacy, GNU extension. */
+      if (compile_options.warn_std == 0)
+	goto format_item_1;
+      format_error (dtp, tail, comma_missing);
     }
 
   /* Optional comma is a weird between state where we've just finished

@@ -1,5 +1,5 @@
 /* Exported functions from alias.cc
-   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+   Copyright (C) 2004-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -30,16 +30,18 @@ extern bool ends_tbaa_access_path_p (const_tree);
 extern bool alias_set_subset_of (alias_set_type, alias_set_type);
 extern void record_alias_subset (alias_set_type, alias_set_type);
 extern void record_component_aliases (tree);
-extern int alias_sets_conflict_p (alias_set_type, alias_set_type);
-extern int alias_sets_must_conflict_p (alias_set_type, alias_set_type);
-extern int objects_must_conflict_p (tree, tree);
-extern int nonoverlapping_memrefs_p (const_rtx, const_rtx, bool);
+extern bool alias_sets_conflict_p (alias_set_type, alias_set_type);
+extern bool alias_sets_must_conflict_p (alias_set_type, alias_set_type);
+extern bool objects_must_conflict_p (tree, tree);
+extern bool nonoverlapping_memrefs_p (const_rtx, const_rtx, bool);
 extern void dump_alias_stats_in_alias_c (FILE *s);
 tree reference_alias_ptr_type (tree);
 tree reference_alias_ptr_type_1 (tree *);
 bool alias_ptr_types_compatible_p (tree, tree);
 int compare_base_decls (tree, tree);
 bool refs_same_for_tbaa_p (tree, tree);
+bool mems_same_for_tbaa_p (rtx, rtx);
+bool view_converted_memref_p (tree);
 
 /* This alias set can be used to force a memory to conflict with all
    other memories, creating a barrier across which no memory reference

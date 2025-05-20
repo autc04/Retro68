@@ -3,8 +3,9 @@
  * vec_nand) were added as part of ISA 2.07 (P8).  */
 
 /* { dg-do compile } */
-/* { dg-require-effective-target powerpc_p8vector_ok } */
-/* { dg-options "-mpower8-vector -O1" } */
+/* { dg-options "-mvsx -O1" } */
+/* { dg-additional-options "-mdejagnu-cpu=power8" { target { ! has_arch_pwr8 } } } */
+/* { dg-require-effective-target powerpc_vsx } */
 
 #include <altivec.h>
 
@@ -104,5 +105,5 @@ test6_nand (vector unsigned char x, vector unsigned char y)
   return *foo;
 }
 
-/* { dg-final { scan-assembler-times {\mxxlnand\M} 3 } } */
+/* { dg-final { scan-assembler-times {\mxxlnand\M} 6 } } */
 /* { dg-final { scan-assembler-times {\mxxlorc\M} 6 } } */

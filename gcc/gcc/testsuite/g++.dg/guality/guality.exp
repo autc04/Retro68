@@ -8,6 +8,10 @@ if { [istarget *-*-darwin*] } {
     return
 }
 
+if { [istarget hppa*-*-hpux*] } {
+    return
+}
+
 if { [istarget "powerpc-ibm-aix*"] } {
     set torture_execute_xfail "powerpc-ibm-aix*"
     return
@@ -33,6 +37,7 @@ proc check_guality {args} {
 }
 
 dg-init
+torture-init
 
 global GDB
 if ![info exists ::env(GUALITY_GDB_NAME)] {
@@ -46,11 +51,16 @@ if ![info exists ::env(GUALITY_GDB_NAME)] {
     }
     setenv GUALITY_GDB_NAME "$guality_gdb_name"
 }
+
+if [info exists ::env(DEBUGINFOD_URLS)] {
+  set orig_debuginfod_urls "$::env(DEBUGINFOD_URLS)"
+  setenv DEBUGINFOD_URLS ""
+}
+
 report_gdb $::env(GUALITY_GDB_NAME) [info script]
 
 global DG_TORTURE_OPTIONS LTO_TORTURE_OPTIONS
 set guality_dg_torture_options [guality_minimal_options $DG_TORTURE_OPTIONS]
-torture-init
 set-torture-options \
     $guality_dg_torture_options \
     [list {}] \
@@ -85,6 +95,10 @@ if {[check_guality "
 
 if [info exists guality_gdb_name] {
     unsetenv GUALITY_GDB_NAME
+}
+
+if [info exists ::env(DEBUGINFOD_URLS)] {
+  setenv DEBUGINFOD_URLS "$orig_debuginfod_urls"
 }
 
 torture-finish

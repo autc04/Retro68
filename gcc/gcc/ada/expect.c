@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *                     Copyright (C) 2001-2022, AdaCore                     *
+ *                     Copyright (C) 2001-2025, AdaCore                     *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -41,18 +41,15 @@
 
 #include "adaint.h"
 #include <sys/types.h>
+#include <string.h>
 
-#ifdef __MINGW32__
-# if OLD_MINGW
-#  include <sys/wait.h>
-# endif
-#elif defined (__vxworks) && defined (__RTP__)
+#if defined (__vxworks) && defined (__RTP__)
 # include <wait.h>
 #elif defined (__Lynx__)
   /* ??? See comment in adaint.c.  */
 # define GCC_RESOURCE_H
 # include <sys/wait.h>
-#elif defined (__PikeOS__)
+#elif defined (__PikeOS__) || defined (__MINGW32__)
   /* No wait.h available */
 #else
 #include <sys/wait.h>
@@ -75,6 +72,7 @@
 
 #ifdef _WIN32
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <process.h>
 #include <signal.h>
@@ -349,11 +347,11 @@ __gnat_waitpid (int pid)
      return -1;
   }
 
-  if WIFEXITED (status) {
+  if (WIFEXITED (status)) {
      status = WEXITSTATUS (status);
-  } else if WIFSIGNALED (status) {
+  } else if (WIFSIGNALED (status)) {
      status = WTERMSIG (status);
-  } else if WIFSTOPPED (status) {
+  } else if (WIFSTOPPED (status)) {
      status = WSTOPSIG (status);
   }
 

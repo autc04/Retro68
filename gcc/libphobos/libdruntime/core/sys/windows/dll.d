@@ -9,12 +9,8 @@
  * Source: $(DRUNTIMESRC core/sys/windows/_dll.d)
  */
 
-/* NOTE: This file has been patched from the original DMD distribution to
- * work with the GDC compiler.
- */
 module core.sys.windows.dll;
 version (Windows):
-@system:
 
 import core.sys.windows.winbase;
 import core.sys.windows.winnt;
@@ -33,13 +29,7 @@ extern (C)
 {
     version (Win32)
     {
-        version (CRuntime_DigitalMars)
-        {
-            extern __gshared byte  _tlsstart;
-            extern __gshared byte  _tlsend;
-            extern __gshared void* _tls_callbacks_a;
-        }
-        else version (CRuntime_Microsoft)
+        version (CRuntime_Microsoft)
         {
             extern __gshared byte  _tls_start;
             extern __gshared byte  _tls_end;
@@ -124,19 +114,19 @@ version (Win32)
     //     _NtdllBaseTag           - tag used for RtlAllocateHeap
     //     _LdrpTlsList            - root of the double linked list with TlsList entries
 
-    static __gshared int* pNtdllBaseTag; // remembered for reusage in addTlsData
+    __gshared int* pNtdllBaseTag; // remembered for reusage in addTlsData
 
-    static __gshared ubyte[] jmp_LdrpInitialize = [ 0x33, 0xED, 0xE9 ]; // xor ebp,ebp; jmp _LdrpInitialize
-    static __gshared ubyte[] jmp__LdrpInitialize = [ 0x5D, 0xE9 ]; // pop ebp; jmp __LdrpInitialize
-    static __gshared ubyte[] jmp__LdrpInitialize_xp64 = [ 0x5D, 0x90, 0x90, 0x90, 0x90, 0x90 ]; // pop ebp; nop; nop; nop; nop; nop;
-    static __gshared ubyte[] call_LdrpInitializeThread = [ 0xFF, 0x75, 0x08, 0xE8 ]; // push [ebp+8]; call _LdrpInitializeThread
-    static __gshared ubyte[] call_LdrpAllocateTls = [ 0x00, 0x00, 0xE8 ]; // jne 0xc3; call _LdrpAllocateTls
-    static __gshared ubyte[] call_LdrpAllocateTls_svr03 = [ 0x65, 0xfc, 0x00, 0xE8 ]; // and [ebp+fc], 0; call _LdrpAllocateTls
-    static __gshared ubyte[] jne_LdrpAllocateTls = [ 0x0f, 0x85 ]; // jne body_LdrpAllocateTls
-    static __gshared ubyte[] mov_LdrpNumberOfTlsEntries = [ 0x8B, 0x0D ]; // mov ecx, _LdrpNumberOfTlsEntries
-    static __gshared ubyte[] mov_NtdllBaseTag = [ 0x51, 0x8B, 0x0D ]; // push ecx; mov ecx, _NtdllBaseTag
-    static __gshared ubyte[] mov_NtdllBaseTag_srv03 = [ 0x50, 0xA1 ]; // push eax; mov eax, _NtdllBaseTag
-    static __gshared ubyte[] mov_LdrpTlsList = [ 0x8B, 0x3D ]; // mov edi, _LdrpTlsList
+    __gshared ubyte[] jmp_LdrpInitialize = [ 0x33, 0xED, 0xE9 ]; // xor ebp,ebp; jmp _LdrpInitialize
+    __gshared ubyte[] jmp__LdrpInitialize = [ 0x5D, 0xE9 ]; // pop ebp; jmp __LdrpInitialize
+    __gshared ubyte[] jmp__LdrpInitialize_xp64 = [ 0x5D, 0x90, 0x90, 0x90, 0x90, 0x90 ]; // pop ebp; nop; nop; nop; nop; nop;
+    __gshared ubyte[] call_LdrpInitializeThread = [ 0xFF, 0x75, 0x08, 0xE8 ]; // push [ebp+8]; call _LdrpInitializeThread
+    __gshared ubyte[] call_LdrpAllocateTls = [ 0x00, 0x00, 0xE8 ]; // jne 0xc3; call _LdrpAllocateTls
+    __gshared ubyte[] call_LdrpAllocateTls_svr03 = [ 0x65, 0xfc, 0x00, 0xE8 ]; // and [ebp+fc], 0; call _LdrpAllocateTls
+    __gshared ubyte[] jne_LdrpAllocateTls = [ 0x0f, 0x85 ]; // jne body_LdrpAllocateTls
+    __gshared ubyte[] mov_LdrpNumberOfTlsEntries = [ 0x8B, 0x0D ]; // mov ecx, _LdrpNumberOfTlsEntries
+    __gshared ubyte[] mov_NtdllBaseTag = [ 0x51, 0x8B, 0x0D ]; // push ecx; mov ecx, _NtdllBaseTag
+    __gshared ubyte[] mov_NtdllBaseTag_srv03 = [ 0x50, 0xA1 ]; // push eax; mov eax, _NtdllBaseTag
+    __gshared ubyte[] mov_LdrpTlsList = [ 0x8B, 0x3D ]; // mov edi, _LdrpTlsList
 
     static LdrpTlsListEntry* addTlsListEntry( void** peb, void* tlsstart, void* tlsend, void* tls_callbacks_a, int* tlsindex ) nothrow
     {
@@ -329,6 +319,8 @@ public:
  *  first access to a __declspec(thread) variable occurs, that is."
  *
  * _tls_index is initialized by the compiler to 0, so we can use this as a test.
+ * Returns:
+ *	true for success, false for failure
  */
 bool dll_fixTLS( HINSTANCE hInstance, void* tlsstart, void* tlsend, void* tls_callbacks_a, int* tlsindex ) nothrow
 {
@@ -410,36 +402,29 @@ private bool isWindows8OrLater() nothrow @nogc
 int dll_getRefCount( HINSTANCE hInstance ) nothrow @nogc
 {
     void** peb;
-    version (Win64)
+    version (D_InlineAsm_X86_64)
     {
-        version (GNU_InlineAsm)
+        asm pure nothrow @nogc
         {
-            asm pure nothrow @nogc { "movq %%gs:0x60, %0;" : "=r" (peb); }
-        }
-        else
-        {
-            asm pure nothrow @nogc
-            {
-                mov RAX, 0x60;
-                mov RAX,GS:[RAX];
-                mov peb, RAX;
-            }
+            mov RAX, 0x60;
+            mov RAX,GS:[RAX];
+            mov peb, RAX;
         }
     }
-    else version (Win32)
+    else version (D_InlineAsm_X86)
     {
-        version (GNU_InlineAsm)
+        asm pure nothrow @nogc
         {
+            mov EAX,FS:[0x30];
+            mov peb, EAX;
+        }
+    }
+    else version (GNU_InlineAsm)
+    {
+        version (X86_64)
+            asm pure nothrow @nogc { "movq %%gs:0x60, %0;" : "=r" (peb); }
+        else version (X86)
             asm pure nothrow @nogc { "movl %%fs:0x30, %0;" : "=r" (peb); }
-        }
-        else
-        {
-            asm pure nothrow @nogc
-            {
-                mov EAX,FS:[0x30];
-                mov peb, EAX;
-            }
-        }
     }
     dll_aux.LDR_MODULE *ldrMod = dll_aux.findLdrModule( hInstance, peb );
     if ( !ldrMod )
@@ -449,8 +434,13 @@ int dll_getRefCount( HINSTANCE hInstance ) nothrow @nogc
     return ldrMod.LoadCount;
 }
 
-// fixup TLS storage, initialize runtime and attach to threads
-// to be called from DllMain with reason DLL_PROCESS_ATTACH
+/*****************************
+ * To be called from DllMain with reason DLL_PROCESS_ATTACH
+ *
+ * fixup TLS storage, initialize runtime and attach to threads
+ * Returns:
+ *	true = success, false = failure
+ */
 bool dll_process_attach( HINSTANCE hInstance, bool attach_threads,
                          void* tlsstart, void* tlsend, void* tls_callbacks_a, int* tlsindex )
 {
@@ -481,9 +471,20 @@ bool dll_process_attach( HINSTANCE hInstance, bool attach_threads,
         }, null );
 }
 
-// same as above, but only usable if druntime is linked statically
+version (Shared) version (DigitalMars) private extern(C) extern __gshared void* __ImageBase;
+
+/** same as above, but checking for shared runtime
+ */
+pragma(inline, false) // version (Shared) only set when compiling druntime
 bool dll_process_attach( HINSTANCE hInstance, bool attach_threads = true )
 {
+    version (Shared) version (DigitalMars)
+    {
+        // cannot declare rt_initSharedModule globally as it then conflicts with the definition in sections_win64.d
+        pragma(mangle, "rt_initSharedModule") extern(C) bool rt_initSharedModule( void* handle );
+        if ( hInstance != &__ImageBase )
+            return rt_initSharedModule( hInstance );
+    }
     version (Win64)
     {
         return dll_process_attach( hInstance, attach_threads,
@@ -496,9 +497,19 @@ bool dll_process_attach( HINSTANCE hInstance, bool attach_threads = true )
     }
 }
 
-// to be called from DllMain with reason DLL_PROCESS_DETACH
+/**
+ * to be called from DllMain with reason DLL_PROCESS_DETACH
+ */
+pragma(inline, false) // version (Shared) only set when compiling druntime
 void dll_process_detach( HINSTANCE hInstance, bool detach_threads = true )
 {
+    version (Shared) version (DigitalMars)
+    {
+        // cannot declare rt_termSharedModule globally as it then conflicts with the definition in sections_win64.d
+        pragma(mangle, "rt_termSharedModule") extern(C) bool rt_termSharedModule( void* handle );
+        if ( hInstance != &__ImageBase )
+            return cast(void) rt_termSharedModule( hInstance );
+    }
     // notify core.thread.joinLowLevelThread that the DLL is about to be unloaded
     thread_DLLProcessDetaching = true;
 
@@ -522,15 +533,41 @@ void dll_process_detach( HINSTANCE hInstance, bool detach_threads = true )
     Runtime.terminate();
 }
 
+/*****************************
+* Check whether the D runtime is built as a DLL or linked statically
+*
+* Returns:
+*	true = DLL, false = static library
+*/
+pragma(inline, false) // version (Shared) only set when compiling druntime
+bool isSharedDRuntime()
+{
+    version (Shared)
+        return true;
+    else
+        return false;
+}
+
 /* Make sure that tlsCtorRun is itself a tls variable
  */
 static bool tlsCtorRun;
 static this() { tlsCtorRun = true; }
 static ~this() { tlsCtorRun = false; }
 
-// to be called from DllMain with reason DLL_THREAD_ATTACH
-bool dll_thread_attach( bool attach_thread = true, bool initTls = true )
+/**
+ * To be called from DllMain with reason DLL_THREAD_ATTACH
+ * Returns:
+ *	true for success, false for failure
+ */
+pragma(inline, false) // version (Shared) only set when compiling druntime
+bool dll_thread_attach( bool attach_thread = true, bool initTls = true, HINSTANCE hInstance = null )
 {
+    version (Shared) version (DigitalMars)
+    {
+        if ( hInstance && hInstance != &__ImageBase )
+            return true;
+    }
+
     // if the OS has not prepared TLS for us, don't attach to the thread
     //  (happened when running under x64 OS)
     auto tid = GetCurrentThreadId();
@@ -547,9 +584,20 @@ bool dll_thread_attach( bool attach_thread = true, bool initTls = true )
     return true;
 }
 
-// to be called from DllMain with reason DLL_THREAD_DETACH
-bool dll_thread_detach( bool detach_thread = true, bool exitTls = true )
+/**
+ * To be called from DllMain with reason DLL_THREAD_DETACH
+ * Returns:
+ *	true for success, false for failure
+ */
+pragma(inline, false) // version (Shared) only set when compiling druntime
+bool dll_thread_detach( bool detach_thread = true, bool exitTls = true, HINSTANCE hInstance = null )
 {
+    version (Shared) version (DigitalMars)
+    {
+        if ( hInstance && hInstance != &__ImageBase )
+            return true;
+    }
+
     // if the OS has not prepared TLS for us, we did not attach to the thread
     if ( !GetTlsDataAddress( GetCurrentThreadId() ) )
          return false;
@@ -563,14 +611,17 @@ bool dll_thread_detach( bool detach_thread = true, bool exitTls = true )
     return true;
 }
 
-/// A simple mixin to provide a $(D DllMain) which calls the necessary
-/// runtime initialization and termination functions automatically.
-///
-/// Instead of writing a custom $(D DllMain), simply write:
-///
-/// ---
-/// mixin SimpleDllMain;
-/// ---
+/**********************************
+ * A mixin to provide a $(D DllMain) which calls the necessary
+ * D runtime initialization and termination functions automatically.
+ *
+ * Example:
+ * ---
+ * module dllmain;
+ * import core.sys.windows.dll;
+ * mixin SimpleDllMain;
+ * ---
+ */
 mixin template SimpleDllMain()
 {
     import core.sys.windows.windef : HINSTANCE, BOOL, DWORD, LPVOID;
@@ -593,10 +644,10 @@ mixin template SimpleDllMain()
                 return true;
 
             case DLL_THREAD_ATTACH:
-                return dll_thread_attach( true, true );
+                return dll_thread_attach( true, true, hInstance );
 
             case DLL_THREAD_DETACH:
-                return dll_thread_detach( true, true );
+                return dll_thread_detach( true, true, hInstance );
         }
     }
 }

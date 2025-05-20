@@ -20,17 +20,19 @@ version (Windows)
 }
 else version (Posix)
 {
-    import core.sys.posix.pthread;
-    import core.sys.posix.sys.types;
-    import core.sys.posix.time;
+    import core.sys.posix.pthread : pthread_cond_broadcast, pthread_cond_destroy, pthread_cond_init,
+        pthread_cond_timedwait, pthread_cond_wait, pthread_mutex_destroy, pthread_mutex_init, pthread_mutex_lock,
+        pthread_mutex_unlock;
+    import core.sys.posix.sys.types : pthread_cond_t, pthread_mutex_t;
+    import core.sys.posix.time : timespec;
 }
 else
 {
     static assert(false, "Platform not supported");
 }
 
-import core.time;
 import core.internal.abort : abort;
+import core.time;
 
 /**
  * represents an event. Clients of an event are suspended while waiting
@@ -61,7 +63,7 @@ struct ProcessFile
             group.create(&doProcess);
 
         buffer = std.file.read(filename);
-        event.set();
+        event.setIfInitialized();
         group.joinAll();
         event.terminate();
     }
@@ -105,8 +107,13 @@ nothrow @nogc:
                 return;
             pthread_mutex_init(cast(pthread_mutex_t*) &m_mutex, null) == 0 ||
                 abort("Error: pthread_mutex_init failed.");
-            static if ( is( typeof( pthread_condattr_setclock ) ) )
+
+            static if ( is( typeof( imported!"core.sys.posix.pthread".pthread_condattr_setclock ) ) )
             {
+                import core.sys.posix.pthread : CLOCK_MONOTONIC, pthread_condattr_destroy, pthread_condattr_init,
+                    pthread_condattr_setclock;
+                import core.sys.posix.sys.types : pthread_condattr_t;
+
                 pthread_condattr_t attr = void;
                 pthread_condattr_init(&attr) == 0 ||
                     abort("Error: pthread_condattr_init failed.");
@@ -162,9 +169,13 @@ nothrow @nogc:
         }
     }
 
+    deprecated ("Use setIfInitialized() instead") void set()
+    {
+        setIfInitialized();
+    }
 
     /// Set the event to "signaled", so that waiting clients are resumed
-    void set()
+    void setIfInitialized()
     {
         version (Windows)
         {
@@ -302,7 +313,7 @@ private:
     // auto-reset, initial state false
     Event ev1 = Event(false, false);
     assert(!ev1.wait(1.dur!"msecs"));
-    ev1.set();
+    ev1.setIfInitialized();
     assert(ev1.wait());
     assert(!ev1.wait(1.dur!"msecs"));
 
@@ -316,7 +327,8 @@ private:
 
 unittest
 {
-    import core.thread, core.atomic;
+    import core.atomic;
+    import core.thread;
 
     scope event      = new Event(true, false);
     int  numThreads = 10;
@@ -336,7 +348,7 @@ unittest
     auto start = MonoTime.currTime;
     assert(numRunning == 0);
 
-    event.set();
+    event.setIfInitialized();
     group.joinAll();
 
     assert(numRunning == numThreads);

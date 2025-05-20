@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler for Xilinx MicroBlaze.
-   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+   Copyright (C) 2009-2025 Free Software Foundation, Inc.
 
    Contributed by Michael Eager <eager@eagercon.com>.
 
@@ -39,7 +39,7 @@ extern char microblaze_print_operand_punct[];
 extern int microblaze_section_threshold;
 
 /* Map register # to debug register # */
-extern int microblaze_dbx_regno[];
+extern int microblaze_debugger_regno[];
 
 extern int microblaze_no_unsafe_delay;
 extern int microblaze_has_clz;
@@ -68,8 +68,8 @@ extern enum pipeline_type microblaze_pipe;
 /* The default is to not need GOT for TLS.  */
 #define TLS_NEEDS_GOT 0
 
-/* What is the default setting for -mcpu= . We set it to v4.00.a even though 
-   we are actually ahead. This is safest version that has generate code 
+/* What is the default setting for -mcpu= . We set it to v4.00.a even though
+   we are actually ahead. This is safest version that has generate code
    compatible for the original ISA */
 #define MICROBLAZE_DEFAULT_CPU      "v4.00.a"
 
@@ -142,7 +142,7 @@ extern enum pipeline_type microblaze_pipe;
 #define MB_ABI_SUB_RETURN_ADDR_REGNUM       15
 #define MB_ABI_DEBUG_RETURN_ADDR_REGNUM     16
 #define MB_ABI_EXCEPTION_RETURN_ADDR_REGNUM 17
-#define MB_ABI_ASM_TEMP_REGNUM              18	
+#define MB_ABI_ASM_TEMP_REGNUM              18
 /* This is our temp register.  */
 #define MB_ABI_FRAME_POINTER_REGNUM         19
 #define MB_ABI_PIC_ADDR_REGNUM              20
@@ -157,14 +157,14 @@ extern enum pipeline_type microblaze_pipe;
 #define MB_ABI_STATIC_CHAIN_REGNUM           3
 #define MB_ABI_TEMP1_REGNUM                 11
 #define MB_ABI_TEMP2_REGNUM                 12
-#define MB_ABI_MSR_SAVE_REG                 11	
+#define MB_ABI_MSR_SAVE_REG                 11
 /* Volatile register used to save MSR in interrupt handlers.  */
 
 
 /* Debug stuff.  */
 
-/* How to renumber registers for dbx and gdb.  */
-#define DBX_REGISTER_NUMBER(REGNO) microblaze_dbx_regno[(REGNO)]
+/* How to renumber registers for gdb.  */
+#define DEBUGGER_REGNO(REGNO) microblaze_debugger_regno[(REGNO)]
 
 /* Generate DWARF exception handling info.  */
 #define DWARF2_UNWIND_INFO 1
@@ -177,8 +177,8 @@ extern enum pipeline_type microblaze_pipe;
 	(GP_REG_FIRST + MB_ABI_SUB_RETURN_ADDR_REGNUM)
 
 /* Initial state of return address on entry to func = R15.
-   Actually, the RA is at R15+8, but gcc doesn't know how 
-   to generate this. 
+   Actually, the RA is at R15+8, but gcc doesn't know how
+   to generate this.
    NOTE:  GDB has a workaround and expects this incorrect value.
    If this is fixed, a corresponding fix to GDB is needed.  */
 #define INCOMING_RETURN_ADDR_RTX  			\
@@ -216,9 +216,6 @@ extern enum pipeline_type microblaze_pipe;
 #define SHORT_TYPE_SIZE         16
 #define LONG_TYPE_SIZE          32
 #define LONG_LONG_TYPE_SIZE     64
-#define FLOAT_TYPE_SIZE         32
-#define DOUBLE_TYPE_SIZE        64
-#define LONG_DOUBLE_TYPE_SIZE   64
 #define POINTER_SIZE            32
 #define PARM_BOUNDARY           32
 #define FUNCTION_BOUNDARY       32
@@ -276,7 +273,7 @@ extern enum pipeline_type microblaze_pipe;
 #define GP_REG_FIRST    0
 #define GP_REG_LAST     31
 #define GP_REG_NUM      (GP_REG_LAST - GP_REG_FIRST + 1)
-#define GP_DBX_FIRST    0
+#define GP_DEBUGGER_FIRST    0
 
 #define ST_REG		32
 #define AP_REG_NUM      33
@@ -297,7 +294,7 @@ extern enum pipeline_type microblaze_pipe;
    rMB_ABI_INTR_RETUREN_ADDR_REGNUM is a fixed
    register(return address for interrupt), and will not be used for
    anything else.  */
-   
+
 #define FRAME_POINTER_REGNUM 		FRP_REG_NUM
 #define HARD_FRAME_POINTER_REGNUM       \
         (GP_REG_FIRST + MB_ABI_FRAME_POINTER_REGNUM)
@@ -372,9 +369,8 @@ extern enum reg_class microblaze_regno_to_class[];
    since they may change into reg + const, which the patterns
    can't handle yet.  */
 #define CALL_INSN_OP(X) (CONSTANT_ADDRESS_P (X) \
-                         || (GET_CODE (X) == REG && X != arg_pointer_rtx\
-                             && ! (REGNO (X) >= FIRST_PSEUDO_REGISTER	\
-                             && REGNO (X) <= LAST_VIRTUAL_REGISTER)))
+			 || (GET_CODE (X) == REG && X != arg_pointer_rtx \
+			     && ! VIRTUAL_REGISTER_P (X)))
 
 /* True if VALUE is a signed 16-bit number.  */
 #define SMALL_OPERAND(VALUE) 						\
@@ -387,7 +383,7 @@ extern enum reg_class microblaze_regno_to_class[];
    && (((VALUE) & 0x0000ffff) != 0					\
        || (((VALUE) & ~2147483647) != 0					\
 	   && ((VALUE) & ~2147483647) != ~2147483647)))
-	
+
 #define PREFERRED_RELOAD_CLASS(X,CLASS)					\
   ((CLASS) != ALL_REGS							\
    ? (CLASS)							\
@@ -474,7 +470,7 @@ typedef struct microblaze_args
   int fp_code;			/* Mode of FP arguments */
   int num_adjusts;		/* number of adjustments made */
   /* Adjustments made to args pass in regs.  */
-  /* ??? The size is doubled to work around a bug in the code that sets the 
+  /* ??? The size is doubled to work around a bug in the code that sets the
      adjustments in function_arg.  */
   rtx adjust[MAX_ARGS_IN_REGISTERS * 2];
 } CUMULATIVE_ARGS;
@@ -516,7 +512,7 @@ typedef struct microblaze_args
 #define MAX_REGS_PER_ADDRESS 2
 
 
-/* Identify valid constant addresses.  Exclude if PIC addr which 
+/* Identify valid constant addresses.  Exclude if PIC addr which
    needs scratch register.  */
 #define CONSTANT_ADDRESS_P(X)	microblaze_constant_address_p(X)
 
@@ -612,7 +608,7 @@ typedef struct microblaze_args
 /* ASM_OUTPUT_ALIGNED_COMMON and ASM_OUTPUT_ALIGNED_LOCAL
 
    Unfortunately, we still need to set the section explicitly. Somehow,
-   our binutils assign .comm and .lcomm variables to the "current" section 
+   our binutils assign .comm and .lcomm variables to the "current" section
    in the assembly file, rather than where they implicitly belong. We need to
    remove this explicit setting in GCC when binutils can understand sections
    better.  */
@@ -840,11 +836,11 @@ do {									 \
 #undef TARGET_ASM_NAMED_SECTION
 #define TARGET_ASM_NAMED_SECTION        default_elf_asm_named_section
 
-/* Define the strings to put out for each section in the object file.  
-   
-   Note: For ctors/dtors, we want to give these sections the SHF_WRITE 
-   attribute to allow shared libraries to patch/resolve addresses into 
-   these locations.  On Microblaze, there is no concept of shared libraries 
+/* Define the strings to put out for each section in the object file.
+
+   Note: For ctors/dtors, we want to give these sections the SHF_WRITE
+   attribute to allow shared libraries to patch/resolve addresses into
+   these locations.  On Microblaze, there is no concept of shared libraries
    yet, so this is for future use.  */
 #define TEXT_SECTION_ASM_OP	"\t.text"
 #define DATA_SECTION_ASM_OP	"\t.data"
@@ -869,7 +865,7 @@ do {									 \
           "\tbrlid   r15, " #FUNC "\n\t nop\n"         \
           TEXT_SECTION_ASM_OP);
 
-/* We need to group -lm as well, since some Newlib math functions 
+/* We need to group -lm as well, since some Newlib math functions
    reference __errno!  */
 #undef LIB_SPEC
 #define LIB_SPEC \

@@ -1,5 +1,5 @@
 // Implementation of private inline member functions for RTL SSA    -*- C++ -*-
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -22,6 +22,7 @@ namespace rtl_ssa {
 // Construct a new access with the given resource () and kind () values.
 inline access_info::access_info (resource_info resource, access_kind kind)
   : m_regno (resource.regno),
+    m_mode (resource.mode),
     m_kind (kind),
     m_is_artificial (false),
     m_is_set_with_nondebug_insn_uses (false),
@@ -36,9 +37,7 @@ inline access_info::access_info (resource_info resource, access_kind kind)
     m_is_last_nondebug_insn_use (false),
     m_is_in_debug_insn_or_phi (false),
     m_has_been_superceded (false),
-    m_is_temp (false),
-    m_spare (0),
-    m_mode (resource.mode)
+    m_is_temp (false)
 {
 }
 
@@ -305,7 +304,7 @@ inline clobber_info::clobber_info (insn_info *insn, unsigned int regno)
 inline void
 clobber_info::update_group (clobber_group *group)
 {
-  if (__builtin_expect (m_group != group, 0))
+  if (UNLIKELY (m_group != group))
     m_group = group;
 }
 
@@ -381,6 +380,20 @@ inline clobber_group::clobber_group (clobber_info *clobber)
   clobber->m_group = this;
 }
 
+// Construct a new group of clobber_infos that spans [FIRST_CLOBBER,
+// LAST_CLOBBER].  Set the root of the splay tree to CLOBBER_TREE.
+inline clobber_group::clobber_group (clobber_info *first_clobber,
+				     clobber_info *last_clobber,
+				     clobber_info *clobber_tree)
+  : def_node (first_clobber),
+    m_last_clobber (last_clobber),
+    m_clobber_tree (clobber_tree)
+{
+  first_clobber->m_group = this;
+  last_clobber->m_group = this;
+  clobber_tree->m_group = this;
+}
+
 // Construct a node for the instruction with uid UID.
 inline insn_info::order_node::order_node (int uid)
   : insn_note (kind),
@@ -404,7 +417,7 @@ inline insn_call_clobbers_note::insn_call_clobbers_note (unsigned int abi_id,
 // If the instruction is real, COST_OR_UID is the value of cost (),
 // otherwise it is the value of uid ().
 inline insn_info::insn_info (bb_info *bb, rtx_insn *rtl, int cost_or_uid)
-  : m_prev_insn_or_last_debug_insn (nullptr),
+  : m_prev_sametype_or_last_debug_insn (nullptr),
     m_next_nondebug_or_debug_insn (nullptr),
     m_bb (bb),
     m_rtl (rtl),
@@ -416,6 +429,7 @@ inline insn_info::insn_info (bb_info *bb, rtx_insn *rtl, int cost_or_uid)
     m_is_asm (false),
     m_has_pre_post_modify (false),
     m_has_volatile_refs (false),
+    m_is_temp (false),
     m_spare (0),
     m_point (0),
     m_cost_or_uid (cost_or_uid),
@@ -486,7 +500,8 @@ insn_info::get_known_order_node () const
 inline void
 insn_info::copy_prev_from (insn_info *other)
 {
-  m_prev_insn_or_last_debug_insn = other->m_prev_insn_or_last_debug_insn;
+  m_prev_sametype_or_last_debug_insn
+    = other->m_prev_sametype_or_last_debug_insn;
 }
 
 // Copy the overloaded next link from OTHER.
@@ -504,7 +519,7 @@ insn_info::copy_next_from (insn_info *other)
 inline void
 insn_info::set_prev_sametype_insn (insn_info *prev)
 {
-  m_prev_insn_or_last_debug_insn.set_first (prev);
+  m_prev_sametype_or_last_debug_insn.set_first (prev);
 }
 
 // Only valid for debug instructions.  Record that this instruction starts
@@ -512,7 +527,7 @@ insn_info::set_prev_sametype_insn (insn_info *prev)
 inline void
 insn_info::set_last_debug_insn (insn_info *last)
 {
-  m_prev_insn_or_last_debug_insn.set_second (last);
+  m_prev_sametype_or_last_debug_insn.set_second (last);
 }
 
 // Record that the next instruction of any kind is NEXT.
@@ -529,7 +544,7 @@ insn_info::set_next_any_insn (insn_info *next)
 inline void
 insn_info::clear_insn_links ()
 {
-  m_prev_insn_or_last_debug_insn = nullptr;
+  m_prev_sametype_or_last_debug_insn = nullptr;
   m_next_nondebug_or_debug_insn = nullptr;
   m_point = 0;
 }
@@ -539,7 +554,7 @@ insn_info::clear_insn_links ()
 inline bool
 insn_info::has_insn_links ()
 {
-  return (m_prev_insn_or_last_debug_insn
+  return (m_prev_sametype_or_last_debug_insn
 	  || m_next_nondebug_or_debug_insn
 	  || m_point);
 }
@@ -673,6 +688,9 @@ combine_modes (machine_mode mode1, machine_mode mode2)
 
   if (mode2 == E_BLKmode)
     return mode1;
+
+  if (!ordered_p (GET_MODE_SIZE (mode1), GET_MODE_SIZE (mode2)))
+    return BLKmode;
 
   return wider_subreg_mode (mode1, mode2);
 }

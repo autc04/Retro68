@@ -8,49 +8,31 @@ int test (struct s *ptr)
   return ptr->colour;
 }
 
-/* Use dg-regexp to consume the JSON output starting with
-   the innermost values, and working outwards.
-   We can't rely on any ordering of the keys.  */
-
-/* { dg-regexp "\"kind\": \"error\"" } */
-/* { dg-regexp "\"column-origin\": 1" } */
-/* { dg-regexp "\"escape-source\": false" } */
-/* { dg-regexp "\"message\": \".*\"" } */
-
-/* Verify fix-it hints.  */
-
-/* { dg-regexp "\"string\": \"color\"" } */
-
-/* { dg-regexp "\"start\": \{" } */
-/* { dg-regexp "\"file\": \"\[^\n\r\"\]*diagnostic-format-json-5.c\"" } */
-/* { dg-regexp "\"line\": 8" } */
-/* { dg-regexp "\"column\": 15" } */
-/* { dg-regexp "\"display-column\": 15" } */
-/* { dg-regexp "\"byte-column\": 15" } */
-
-/* { dg-regexp "\"next\": \{" } */
-/* { dg-regexp "\"file\": \"\[^\n\r\"\]*diagnostic-format-json-5.c\"" } */
-/* { dg-regexp "\"line\": 8" } */
-/* { dg-regexp "\"column\": 21" } */
-/* { dg-regexp "\"display-column\": 21" } */
-/* { dg-regexp "\"byte-column\": 21" } */
-
-/* { dg-regexp "\"fixits\": \[\[\{\}, \]*\]" } */
-
-/* { dg-regexp "\"caret\": \{" } */
-/* { dg-regexp "\"file\": \"\[^\n\r\"\]*diagnostic-format-json-5.c\"" } */
-/* { dg-regexp "\"line\": 8" } */
-/* { dg-regexp "\"column\": 15" } */
-/* { dg-regexp "\"display-column\": 15" } */
-/* { dg-regexp "\"byte-column\": 15" } */
-
-/* { dg-regexp "\"finish\": \{" } */
-/* { dg-regexp "\"file\": \"\[^\n\r\"\]*diagnostic-format-json-5.c\"" } */
-/* { dg-regexp "\"line\": 8" } */
-/* { dg-regexp "\"column\": 20" } */
-/* { dg-regexp "\"display-column\": 20" } */
-/* { dg-regexp "\"byte-column\": 20" } */
-
-/* { dg-regexp "\"locations\": \[\[\{\}, \]*\]" } */
-/* { dg-regexp "\"children\": \[\[\]\[\]\]" } */
-/* { dg-regexp "\[\[\{\}, \]*\]" } */
+/* { dg-begin-multiline-output "" }
+[{"kind": "error",
+  "message": "'struct s' has no member named 'colour'; did you mean 'color'?",
+  "children": [],
+  "column-origin": 1,
+  "locations": [{"caret": {"file":
+                           "line": 8,
+                           "display-column": 15,
+                           "byte-column": 15,
+                           "column": 15},
+                 "finish": {"file":
+                            "line": 8,
+                            "display-column": 20,
+                            "byte-column": 20,
+                            "column": 20}}],
+  "fixits": [{"start": {"file":
+                        "line": 8,
+                        "display-column": 15,
+                        "byte-column": 15,
+                        "column": 15},
+              "next": {"file":
+                       "line": 8,
+                       "display-column": 21,
+                       "byte-column": 21,
+                       "column": 21},
+              "string": "color"}],
+  "escape-source": false}]
+   { dg-end-multiline-output "" } */

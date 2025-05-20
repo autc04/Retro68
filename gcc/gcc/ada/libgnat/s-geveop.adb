@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2002-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,16 +29,16 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with System.Address_Operations; use System.Address_Operations;
-with System.Storage_Elements;   use System.Storage_Elements;
+with System.Storage_Elements; use System.Storage_Elements;
 
 with Ada.Unchecked_Conversion;
 
 package body System.Generic_Vector_Operations is
 
-   IU : constant Integer := Integer (Storage_Unit);
-   VU : constant Address := Address (Vectors.Vector'Size / IU);
-   EU : constant Address := Address (Element_Array'Component_Size / IU);
+   IU : constant Integer       := Integer (Storage_Unit);
+   VU : constant Storage_Count := Storage_Count (Vectors.Vector'Size / IU);
+   EU : constant Storage_Count :=
+          Storage_Count (Element_Array'Component_Size / IU);
 
    ----------------------
    -- Binary_Operation --
@@ -48,15 +48,10 @@ package body System.Generic_Vector_Operations is
      (R, X, Y : System.Address;
       Length  : System.Storage_Elements.Storage_Count)
    is
-      RA : Address := R;
-      XA : Address := X;
-      YA : Address := Y;
-      --  Address of next element to process in R, X and Y
-
-      VI : constant Integer_Address := To_Integer (VU);
+      VI : constant Integer_Address := Integer_Address (VU);
 
       Unaligned : constant Integer_Address :=
-                    Boolean'Pos (ModA (OrA (OrA (RA, XA), YA), VU) /= 0) - 1;
+        (if R mod VU /= 0 or X mod VU /= 0 or Y mod VU /= 0 then 0 else -1);
       --  Zero iff one or more argument addresses is not aligned, else all 1's
 
       type Vector_Ptr is access all Vectors.Vector;
@@ -73,23 +68,28 @@ package body System.Generic_Vector_Operations is
       --  Vector'Size > Storage_Unit
       --  VI > 0
       SA : constant Address :=
-             AddA (XA, To_Address
-                         ((Integer_Address (Length) / VI * VI) and Unaligned));
+             X + Storage_Offset
+                   ((Integer_Address (Length) / VI * VI) and Unaligned);
       --  First address of argument X to start serial processing
+
+      RA : Address := R;
+      XA : Address := X;
+      YA : Address := Y;
+      --  Address of next element to process in R, X and Y
 
    begin
       while XA < SA loop
          VP (RA).all := Vector_Op (VP (XA).all, VP (YA).all);
-         XA := AddA (XA, VU);
-         YA := AddA (YA, VU);
-         RA := AddA (RA, VU);
+         XA := XA + VU;
+         YA := YA + VU;
+         RA := RA + VU;
       end loop;
 
       while XA < X + Length loop
          EP (RA).all := Element_Op (EP (XA).all, EP (YA).all);
-         XA := AddA (XA, EU);
-         YA := AddA (YA, EU);
-         RA := AddA (RA, EU);
+         XA := XA + EU;
+         YA := YA + EU;
+         RA := RA + EU;
       end loop;
    end Binary_Operation;
 
@@ -101,14 +101,10 @@ package body System.Generic_Vector_Operations is
      (R, X    : System.Address;
       Length  : System.Storage_Elements.Storage_Count)
    is
-      RA : Address := R;
-      XA : Address := X;
-      --  Address of next element to process in R and X
-
-      VI : constant Integer_Address := To_Integer (VU);
+      VI : constant Integer_Address := Integer_Address (VU);
 
       Unaligned : constant Integer_Address :=
-                    Boolean'Pos (ModA (OrA (RA, XA), VU) /= 0) - 1;
+        (if R mod VU /= 0 or X mod VU /= 0 then 0 else -1);
       --  Zero iff one or more argument addresses is not aligned, else all 1's
 
       type Vector_Ptr is access all Vectors.Vector;
@@ -125,21 +121,25 @@ package body System.Generic_Vector_Operations is
       --  Vector'Size > Storage_Unit
       --  VI > 0
       SA : constant Address :=
-             AddA (XA, To_Address
-                         ((Integer_Address (Length) / VI * VI) and Unaligned));
+             X + Storage_Offset
+                   ((Integer_Address (Length) / VI * VI) and Unaligned);
       --  First address of argument X to start serial processing
+
+      RA : Address := R;
+      XA : Address := X;
+      --  Address of next element to process in R and X
 
    begin
       while XA < SA loop
          VP (RA).all := Vector_Op (VP (XA).all);
-         XA := AddA (XA, VU);
-         RA := AddA (RA, VU);
+         XA := XA + VU;
+         RA := RA + VU;
       end loop;
 
       while XA < X + Length loop
          EP (RA).all := Element_Op (EP (XA).all);
-         XA := AddA (XA, EU);
-         RA := AddA (RA, EU);
+         XA := XA + EU;
+         RA := RA + EU;
       end loop;
    end Unary_Operation;
 

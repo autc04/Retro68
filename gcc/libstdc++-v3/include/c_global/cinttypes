@@ -1,6 +1,6 @@
 // <cinttypes> -*- C++ -*-
 
-// Copyright (C) 2007-2022 Free Software Foundation, Inc.
+// Copyright (C) 2007-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,7 +29,9 @@
 #ifndef _GLIBCXX_CINTTYPES
 #define _GLIBCXX_CINTTYPES 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #if __cplusplus < 201103L
 # include <bits/c++0x_warning.h>
@@ -50,7 +52,7 @@
 # endif
 #endif
 
-#ifdef _GLIBCXX_USE_C99_INTTYPES_TR1
+#ifdef _GLIBCXX_USE_C99_INTTYPES
 
 namespace std
 {
@@ -68,13 +70,13 @@ namespace std
   using ::strtoimax;
   using ::strtoumax;
 
-#if defined(_GLIBCXX_USE_WCHAR_T) && _GLIBCXX_USE_C99_INTTYPES_WCHAR_T_TR1
+#if defined(_GLIBCXX_USE_WCHAR_T) && _GLIBCXX_USE_C99_INTTYPES_WCHAR_T
   using ::wcstoimax;
   using ::wcstoumax;
 #endif
 } // namespace std
 
-#endif // _GLIBCXX_USE_C99_INTTYPES_TR1
+#endif // _GLIBCXX_USE_C99_INTTYPES
 
 #endif // C++11
 

@@ -230,6 +230,21 @@ void test5()
     static assert(!__traits(compiles, s.err += 1));
 }
 
+void test6()
+{
+    int dtors;
+    struct S6
+    {
+        @disable this(this);
+        ~this() { dtors++; }
+    }
+
+    S6[2] arr;
+    arr = S6();
+
+    assert(dtors == 2);
+}
+
 /***************************************************/
 // https://issues.dlang.org/show_bug.cgi?id=4424
 
@@ -346,7 +361,7 @@ struct CtorTest6174(Data)
 
 const char gc6174;
 const char[1] ga6174;
-static this()
+shared static this()
 {
     gc6174 = 'a';    // OK
     ga6174[0] = 'a'; // line 5, Err
@@ -711,7 +726,7 @@ struct Foo8783
 
 const Foo8783[1] foos8783;
 
-static this()
+shared static this()
 {
     foreach (i; 0 .. foos8783.length)
         foos8783[i].bar[i] = 1; // OK
@@ -1192,6 +1207,7 @@ int main()
     test3();
     test4();
     test5();
+    test6();
     test4424();
     test6174a();
     test6174b();

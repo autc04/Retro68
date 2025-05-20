@@ -8,7 +8,6 @@
  */
 module core.sys.windows.lmalert;
 version (Windows):
-@system:
 pragma(lib, "netapi32");
 
 import core.sys.windows.lmcons, core.sys.windows.windef;
@@ -72,7 +71,7 @@ struct USER_OTHER_INFO{
 }
 alias USER_OTHER_INFO* PUSER_OTHER_INFO, LPUSER_OTHER_INFO;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
 NET_API_STATUS NetAlertRaise(LPCWSTR,PVOID,DWORD);
 NET_API_STATUS NetAlertRaiseEx(LPCWSTR,PVOID,DWORD,LPCWSTR);
 }

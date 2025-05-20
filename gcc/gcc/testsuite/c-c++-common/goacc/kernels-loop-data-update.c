@@ -1,6 +1,7 @@
 /* { dg-additional-options "-O2" } */
 /* { dg-additional-options "-fdump-tree-parloops1-all" } */
 /* { dg-additional-options "-fdump-tree-optimized" } */
+/* { dg-skip-if "requires hosted libstdc++ for stdlib malloc" { ! hostedlib } } */
 
 #include <stdlib.h>
 
@@ -55,7 +56,7 @@ main (void)
 /* Check that only two loops are analyzed, and that both can be
    parallelized.  */
 /* { dg-final { scan-tree-dump-times "SUCCESS: may be parallelized" 2 "parloops1" } } */
-/* { dg-final { scan-tree-dump-times "(?n)__attribute__\\(\\(oacc kernels parallelized, oacc function \\(, , \\), oacc kernels, omp target entrypoint\\)\\)" 2 "parloops1" } } */
+/* { dg-final { scan-tree-dump-times "(?n)__attribute__\\(\\(oacc kernels parallelized, oacc function \\(, , \\), oacc kernels, omp target entrypoint, noclone\\)\\)" 2 "parloops1" } } */
 /* { dg-final { scan-tree-dump-not "FAILED:" "parloops1" } } */
 
 /* Check that the loop has been split off into a function.  */

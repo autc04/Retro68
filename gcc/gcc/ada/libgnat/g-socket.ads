@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 2001-2022, AdaCore                     --
+--                     Copyright (C) 2001-2025, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -841,6 +841,9 @@ package GNAT.Sockets is
       --  Sets the approximate time in microseconds to busy poll on a blocking
       --  receive when there is no data.
 
+      Bind_To_Device,  -- SO_BINDTODEVICE
+      --  Bind to a specific NIC (Network Interface Controller)
+
       -------------------------------
       -- IP_Protocol_For_TCP_Level --
       -------------------------------
@@ -986,6 +989,8 @@ package GNAT.Sockets is
               Receive_Timeout =>
             Timeout : Timeval_Duration;
 
+         when Bind_To_Device =>
+            Device : Ada.Strings.Unbounded.Unbounded_String;
       end case;
    end record;
 
@@ -1593,7 +1598,7 @@ private
    Wait_For_A_Full_Reception : constant Request_Flag_Type := 4;
    Send_End_Of_Record        : constant Request_Flag_Type := 8;
 
-   procedure Raise_Socket_Error (Error : Integer);
+   procedure Raise_Socket_Error (Error : Integer) with No_Return;
    --  Raise Socket_Error with an exception message describing the error code
    --  from errno.
 

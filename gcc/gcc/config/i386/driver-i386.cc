@@ -1,5 +1,5 @@
 /* Subroutines for the gcc driver.
-   Copyright (C) 2006-2022 Free Software Foundation, Inc.
+   Copyright (C) 2006-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,6 +23,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "diagnostic.h"
 
 const char *host_detect_local_cpu (int argc, const char **argv);
 
@@ -251,7 +252,7 @@ decode_caches_intel (unsigned reg, bool xeon_mp,
 /* Detect cache parameters using CPUID function 2.  */
 
 static void
-detect_caches_cpuid2 (bool xeon_mp, 
+detect_caches_cpuid2 (bool xeon_mp,
 		      struct cache_desc *level1, struct cache_desc *level2)
 {
   unsigned regs[4];
@@ -294,7 +295,7 @@ detect_caches_cpuid4 (struct cache_desc *level1, struct cache_desc *level2,
   int count;
 
   for (count = 0;; count++)
-    { 
+    {
       __cpuid_count(4, count, eax, ebx, ecx, edx);
       switch (eax & 0x1f)
 	{
@@ -369,6 +370,37 @@ detect_caches_intel (bool xeon_mp, unsigned max_level,
   return describe_cache (level1, level2);
 }
 
+/* Extended features */
+#define has_feature(f) \
+  has_cpu_feature (&cpu_model, cpu_features2, f)
+
+/* We will emit a warning when using AVX10.1 and AVX512 options with one
+   enabled and the other disabled.  Add this function to avoid push "-mno-"
+   options under this scenario for -march=native.  */
+
+bool check_avx512_features (__processor_model &cpu_model,
+			    unsigned int (&cpu_features2)[SIZE_OF_CPU_FEATURES],
+			    const enum processor_features feature)
+{
+  if (has_feature (FEATURE_AVX10_1_256)
+      && ((feature == FEATURE_AVX512F)
+	  || (feature == FEATURE_AVX512CD)
+	  || (feature == FEATURE_AVX512DQ)
+	  || (feature == FEATURE_AVX512BW)
+	  || (feature == FEATURE_AVX512VL)
+	  || (feature == FEATURE_AVX512IFMA)
+	  || (feature == FEATURE_AVX512VBMI)
+	  || (feature == FEATURE_AVX512VBMI2)
+	  || (feature == FEATURE_AVX512VNNI)
+	  || (feature == FEATURE_AVX512VPOPCNTDQ)
+	  || (feature == FEATURE_AVX512BITALG)
+	  || (feature == FEATURE_AVX512FP16)
+	  || (feature == FEATURE_AVX512BF16)))
+    return false;
+
+  return true;
+}
+
 /* This will be called by the spec parser in gcc.cc when it sees
    a %:local_cpu_detect(args) construct.  Currently it will be
    called with either "arch [32|64]" or "tune [32|64]" as argument
@@ -438,17 +470,14 @@ const char *host_detect_local_cpu (int argc, const char **argv)
 	  || vendor == VENDOR_CYRIX
 	  || vendor == VENDOR_NSC)
 	cache = detect_caches_amd (ext_level);
-      else if (vendor == VENDOR_INTEL)
+      else if (vendor == VENDOR_INTEL
+			 || vendor == VENDOR_ZHAOXIN)
 	{
 	  bool xeon_mp = (family == 15 && model == 6);
 	  cache = detect_caches_intel (xeon_mp, max_level,
 				       ext_level, &l2sizekb);
 	}
     }
-
-  /* Extended features */
-#define has_feature(f) \
-  has_cpu_feature (&cpu_model, cpu_features2, f)
 
   if (vendor == VENDOR_AMD)
     {
@@ -464,6 +493,10 @@ const char *host_detect_local_cpu (int argc, const char **argv)
 	processor = PROCESSOR_GEODE;
       else if (has_feature (FEATURE_MOVBE) && family == 22)
 	processor = PROCESSOR_BTVER2;
+      else if (has_feature (FEATURE_AVX512VP2INTERSECT))
+	processor = PROCESSOR_ZNVER5;
+      else if (has_feature (FEATURE_AVX512F))
+	processor = PROCESSOR_ZNVER4;
       else if (has_feature (FEATURE_VAES))
 	processor = PROCESSOR_ZNVER3;
       else if (has_feature (FEATURE_CLWB))
@@ -518,6 +551,24 @@ const char *host_detect_local_cpu (int argc, const char **argv)
 	    processor = PROCESSOR_I486;
 	}
     }
+  else if (vendor == VENDOR_ZHAOXIN)
+    {
+      processor = PROCESSOR_GENERIC;
+
+      switch (family)
+	{
+	case 7:
+	  if (model >= 0x6b)
+	    processor = PROCESSOR_SHIJIDADAO;
+	  else if (model == 0x5b)
+	    processor = PROCESSOR_YONGFENG;
+	  else if (model == 0x3b)
+	    processor = PROCESSOR_LUJIAZUI;
+	  break;
+	default:
+	  break;
+	}
+    }
   else
     {
       switch (family)
@@ -529,6 +580,7 @@ const char *host_detect_local_cpu (int argc, const char **argv)
 	  processor = PROCESSOR_PENTIUM;
 	  break;
 	case 6:
+	case 19:
 	  processor = PROCESSOR_PENTIUMPRO;
 	  break;
 	case 15:
@@ -571,54 +623,76 @@ const char *host_detect_local_cpu (int argc, const char **argv)
 	{
 	  if (arch)
 	    {
-	      /* This is unknown family 0x6 CPU.  */
-	      if (has_feature (FEATURE_AVX))
+	      /* This is unknown CPU.  */
+	      if (has_feature (FEATURE_AVX512F))
 		{
-		  if (has_feature (FEATURE_AVX512VP2INTERSECT))
-		    {
-		      if (has_feature (FEATURE_TSXLDTRK))
-			/* Assume Sapphire Rapids.  */
-			cpu = "sapphirerapids";
-		      else
-			/* Assume Tiger Lake */
-			cpu = "tigerlake";
-		    }
+		  /* Assume Diamond Rapids.  */
+		  if (has_feature (FEATURE_AMX_TRANSPOSE))
+		    cpu = "diamondrapids";
+		  /* Assume Granite Rapids D.  */
+		  else if (has_feature (FEATURE_AMX_COMPLEX))
+		    cpu = "graniterapids-d";
+		  /* Assume Granite Rapids.  */
+		  else if (has_feature (FEATURE_AMX_FP16))
+		    cpu = "graniterapids";
+		  /* Assume Tiger Lake */
+		  else if (has_feature (FEATURE_AVX512VP2INTERSECT))
+		    cpu = "tigerlake";
+		  /* Assume Sapphire Rapids.  */
+		  else if (has_feature (FEATURE_TSXLDTRK))
+		    cpu = "sapphirerapids";
 		  /* Assume Cooper Lake */
 		  else if (has_feature (FEATURE_AVX512BF16))
 		    cpu = "cooperlake";
 		  /* Assume Ice Lake Server.  */
 		  else if (has_feature (FEATURE_WBNOINVD))
 		    cpu = "icelake-server";
-		/* Assume Ice Lake.  */
-		else if (has_feature (FEATURE_AVX512BITALG))
-		  cpu = "icelake-client";
-		/* Assume Cannon Lake.  */
-		else if (has_feature (FEATURE_AVX512VBMI))
-		  cpu = "cannonlake";
-		/* Assume Knights Mill.  */
-		else if (has_feature (FEATURE_AVX5124VNNIW))
-		  cpu = "knm";
-		/* Assume Knights Landing.  */
-		else if (has_feature (FEATURE_AVX512ER))
-		  cpu = "knl";
-		/* Assume Skylake with AVX-512.  */
-		else if (has_feature (FEATURE_AVX512F))
-		  cpu = "skylake-avx512";
-		 /* Assume Alder Lake */
-		else if (has_feature (FEATURE_SERIALIZE))
+		  /* Assume Ice Lake.  */
+		  else if (has_feature (FEATURE_AVX512BITALG))
+		    cpu = "icelake-client";
+		  /* Assume Cannon Lake.  */
+		  else if (has_feature (FEATURE_AVX512VBMI))
+		    cpu = "cannonlake";
+		  /* Assume Xeon Phi Processors.  Support has been removed
+		     since GCC 15.  */
+		  else if (!has_feature (FEATURE_AVX512VL))
+		    error ("Xeon Phi ISA support has been removed since "
+			   "GCC 15, use GCC 14 for the Xeon Phi ISAs or "
+			   "%<-march=broadwell%> for all the other ISAs "
+			   "supported on this machine.");
+		  /* Assume Skylake with AVX-512.  */
+		  else
+		    cpu = "skylake-avx512";
+		}
+	      else if (has_feature (FEATURE_AVX))
+		{
+		  /* Assume Panther Lake.  */
+		  if (has_feature (FEATURE_PREFETCHI))
+		    cpu = "pantherlake";
+		  /* Assume Clearwater Forest.  */
+		  else if (has_feature (FEATURE_USER_MSR))
+		    cpu = "clearwaterforest";
+		  /* Assume Arrow Lake S.  */
+		  else if (has_feature (FEATURE_SM3))
+		    cpu = "arrowlake-s";
+		  /* Assume Sierra Forest.  */
+		  else if (has_feature (FEATURE_AVXVNNIINT8))
+		    cpu = "sierraforest";
+		  /* Assume Alder Lake.  */
+		  else if (has_feature (FEATURE_SERIALIZE))
 		    cpu = "alderlake";
-		/* Assume Skylake.  */
-		else if (has_feature (FEATURE_CLFLUSHOPT))
-		  cpu = "skylake";
-		/* Assume Broadwell.  */
-		else if (has_feature (FEATURE_ADX))
-		  cpu = "broadwell";
-		else if (has_feature (FEATURE_AVX2))
-		/* Assume Haswell.  */
-		  cpu = "haswell";
-		else
-		/* Assume Sandy Bridge.  */
-		  cpu = "sandybridge";	      
+		  /* Assume Skylake.  */
+		  else if (has_feature (FEATURE_CLFLUSHOPT))
+		    cpu = "skylake";
+		  /* Assume Broadwell.  */
+		  else if (has_feature (FEATURE_ADX))
+		    cpu = "broadwell";
+		  /* Assume Haswell.  */
+		  else if (has_feature (FEATURE_AVX2))
+		    cpu = "haswell";
+		  /* Assume Sandy Bridge.  */
+		  else
+		    cpu = "sandybridge";
 	      }
 	      else if (has_feature (FEATURE_SSE4_2))
 		{
@@ -767,11 +841,26 @@ const char *host_detect_local_cpu (int argc, const char **argv)
     case PROCESSOR_ZNVER3:
       cpu = "znver3";
       break;
+    case PROCESSOR_ZNVER4:
+      cpu = "znver4";
+      break;
+    case PROCESSOR_ZNVER5:
+      cpu = "znver5";
+      break;
     case PROCESSOR_BTVER1:
       cpu = "btver1";
       break;
     case PROCESSOR_BTVER2:
       cpu = "btver2";
+      break;
+    case PROCESSOR_LUJIAZUI:
+      cpu = "lujiazui";
+      break;
+    case PROCESSOR_YONGFENG:
+      cpu = "yongfeng";
+      break;
+    case PROCESSOR_SHIJIDADAO:
+      cpu = "shijidadao";
       break;
 
     default:
@@ -815,11 +904,17 @@ const char *host_detect_local_cpu (int argc, const char **argv)
 	    if (has_feature (isa_names_table[i].feature))
 	      {
 		if (codegen_x86_64
-		    || isa_names_table[i].feature != FEATURE_UINTR)
+		    || (isa_names_table[i].feature != FEATURE_UINTR
+			&& isa_names_table[i].feature != FEATURE_APX_F))
 		  options = concat (options, " ",
 				    isa_names_table[i].option, NULL);
 	      }
-	    else
+	    /* Never push -mno-avx10.1-{256,512} under -march=native to
+	       avoid unnecessary warnings when building libraries.  */
+	    else if (isa_names_table[i].feature != FEATURE_AVX10_1_256
+		     && isa_names_table[i].feature != FEATURE_AVX10_1
+		     && check_avx512_features (cpu_model, cpu_features2,
+					       isa_names_table[i].feature))
 	      options = concat (options, neg_option,
 				isa_names_table[i].option + 2, NULL);
 	  }

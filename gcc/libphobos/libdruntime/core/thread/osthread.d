@@ -10,20 +10,16 @@
  * Source:    $(DRUNTIMESRC core/thread/osthread.d)
  */
 
-/* NOTE: This file has been patched from the original DMD distribution to
- * work with the GDC compiler.
- */
 module core.thread.osthread;
 
-import core.thread.threadbase;
-import core.thread.context;
-import core.thread.types;
 import core.atomic;
-import core.memory : GC;
-import core.time;
 import core.exception : onOutOfMemoryError;
 import core.internal.traits : externDFunc;
-
+import core.memory : GC, pageSize;
+import core.thread.context;
+import core.thread.threadbase;
+import core.thread.types;
+import core.time;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Platform Detection and Memory Allocation
@@ -37,10 +33,6 @@ else version (TVOS)
     version = Darwin;
 else version (WatchOS)
     version = Darwin;
-
-version (Shared)
-    version (GNU)
-        version = GNUShared;
 
 version (D_InlineAsm_X86)
 {
@@ -60,72 +52,11 @@ else version (D_InlineAsm_X86_64)
         version = AsmX86_64_Posix;
     }
 }
-else version (X86)
-{
-    version (CET) {} else
-    {
-        version = AsmExternal;
-    }
-}
-else version (X86_64)
-{
-    version (CET)   {} else
-    version (D_X32) {} else
-    {
-        version = AsmExternal;
-    }
-}
-else version (PPC)
-{
-    version (Posix)
-    {
-        version = AsmExternal;
-    }
-}
-else version (MIPS_O32)
-{
-    version (Posix)
-    {
-        version = AsmExternal;
-    }
-}
-else version (AArch64)
-{
-    version (Posix)
-    {
-        version = AsmExternal;
-    }
-}
-else version (ARM)
-{
-    version (Posix)
-    {
-        version = AsmExternal;
-    }
-}
-
-version (Posix)
-{
-    version (AsmX86_Windows)    {} else
-    version (AsmX86_Posix)      {} else
-    version (AsmX86_64_Windows) {} else
-    version (AsmX86_64_Posix)   {} else
-    version (AsmExternal)       {} else
-    {
-        // NOTE: The ucontext implementation requires architecture specific
-        //       data definitions to operate so testing for it must be done
-        //       by checking for the existence of ucontext_t rather than by
-        //       a version identifier.  Please note that this is considered
-        //       an obsolescent feature according to the POSIX spec, so a
-        //       custom solution is still preferred.
-        import core.sys.posix.ucontext;
-    }
-}
 
 version (Windows)
 {
     import core.stdc.stdint : uintptr_t; // for _beginthreadex decl below
-    import core.stdc.stdlib;             // for malloc, atexit
+    import core.stdc.stdlib : free, malloc, realloc;
     import core.sys.windows.basetsd /+: HANDLE+/;
     import core.sys.windows.threadaux /+: getThreadStackBottom, impersonate_thread, OpenThreadHandle+/;
     import core.sys.windows.winbase /+: CloseHandle, CREATE_SUSPENDED, DuplicateHandle, GetCurrentThread,
@@ -141,25 +72,59 @@ version (Windows)
 }
 else version (Posix)
 {
-    import core.stdc.errno;
-    import core.sys.posix.semaphore;
-    import core.sys.posix.stdlib; // for malloc, valloc, free, atexit
-    import core.sys.posix.pthread;
-    import core.sys.posix.signal;
-    import core.sys.posix.time;
+    static import core.sys.posix.pthread;
+    static import core.sys.posix.signal;
+    import core.stdc.errno : EINTR, errno;
+    import core.sys.posix.pthread : pthread_atfork, pthread_attr_destroy, pthread_attr_getstack, pthread_attr_init,
+        pthread_attr_setstacksize, pthread_create, pthread_detach, pthread_getschedparam, pthread_join, pthread_self,
+        pthread_setschedparam, sched_get_priority_max, sched_get_priority_min, sched_param, sched_yield;
+    import core.sys.posix.semaphore : sem_init, sem_post, sem_t, sem_wait;
+    import core.sys.posix.signal : pthread_kill, sigaction, sigaction_t, sigdelset, sigfillset, sigset_t, sigsuspend,
+        SIGUSR1, stack_t;
+    import core.sys.posix.stdlib : free, malloc, realloc;
+    import core.sys.posix.sys.types : pthread_attr_t, pthread_key_t, pthread_t;
+    import core.sys.posix.time : nanosleep, timespec;
 
     version (Darwin)
     {
-        import core.sys.darwin.mach.thread_act;
+        import core.sys.darwin.mach.kern_return : KERN_SUCCESS;
+        import core.sys.darwin.mach.port : mach_port_t;
+        import core.sys.darwin.mach.thread_act : mach_msg_type_number_t,
+            thread_get_state, thread_resume, thread_suspend;
         import core.sys.darwin.pthread : pthread_mach_thread_np;
+        version (X86)
+        {
+            import core.sys.darwin.mach.thread_act :
+             x86_THREAD_STATE32, x86_THREAD_STATE32_COUNT, x86_thread_state32_t;
+        }
+        else version (X86_64)
+        {
+            import core.sys.darwin.mach.thread_act :
+             x86_THREAD_STATE64, x86_THREAD_STATE64_COUNT, x86_thread_state64_t;
+        }
+        else version (AArch64)
+        {
+            import core.sys.darwin.mach.thread_act :
+             ARM_THREAD_STATE64, ARM_THREAD_STATE64_COUNT, arm_thread_state64_t;
+        }
+        else version (PPC)
+        {
+            import core.sys.darwin.mach.thread_act :
+             PPC_THREAD_STATE32, PPC_THREAD_STATE32_COUNT, ppc_thread_state32_t;
+        }
+        else version (PPC64)
+        {
+            import core.sys.darwin.mach.thread_act :
+             PPC_THREAD_STATE64, PPC_THREAD_STATE64_COUNT, ppc_thread_state64_t;
+        }
     }
 }
 
 version (Solaris)
 {
-    import core.sys.solaris.sys.priocntl;
-    import core.sys.solaris.sys.types;
     import core.sys.posix.sys.wait : idtype_t;
+    import core.sys.solaris.sys.priocntl : PC_CLNULL, PC_GETCLINFO, PC_GETPARMS, PC_SETPARMS, pcinfo_t, pcparms_t, priocntl;
+    import core.sys.solaris.sys.types : P_MYID, pri_t;
 }
 
 version (GNU)
@@ -493,9 +458,8 @@ class Thread : ThreadBase
         slock.lock_nothrow();
         scope(exit) slock.unlock_nothrow();
         {
-            ++nAboutToStart;
-            pAboutToStart = cast(ThreadBase*)realloc(pAboutToStart, Thread.sizeof * nAboutToStart);
-            pAboutToStart[nAboutToStart - 1] = this;
+            incrementAboutToStart(this);
+
             version (Windows)
             {
                 if ( ResumeThread( m_hndl ) == -1 )
@@ -511,16 +475,8 @@ class Thread : ThreadBase
 
                 version (Shared)
                 {
-                    version (GNU)
-                    {
-                        auto libs = externDFunc!("gcc.sections.pinLoadedLibraries",
-                                                 void* function() @nogc nothrow)();
-                    }
-                    else
-                    {
-                        auto libs = externDFunc!("rt.sections_elf_shared.pinLoadedLibraries",
-                                                 void* function() @nogc nothrow)();
-                    }
+                    auto libs = externDFunc!("rt.sections_elf_shared.pinLoadedLibraries",
+                                             void* function() @nogc nothrow)();
 
                     auto ps = cast(void**).malloc(2 * size_t.sizeof);
                     if (ps is null) onOutOfMemoryError();
@@ -528,16 +484,8 @@ class Thread : ThreadBase
                     ps[1] = cast(void*)libs;
                     if ( pthread_create( &m_addr, &attr, &thread_entryPoint, ps ) != 0 )
                     {
-                        version (GNU)
-                        {
-                            externDFunc!("gcc.sections.unpinLoadedLibraries",
-                                         void function(void*) @nogc nothrow)(libs);
-                        }
-                        else
-                        {
-                            externDFunc!("rt.sections_elf_shared.unpinLoadedLibraries",
-                                         void function(void*) @nogc nothrow)(libs);
-                        }
+                        externDFunc!("rt.sections_elf_shared.unpinLoadedLibraries",
+                                     void function(void*) @nogc nothrow)(libs);
                         .free(ps);
                         onThreadError( "Error creating thread" );
                     }
@@ -870,8 +818,10 @@ class Thread : ThreadBase
         }
         else version (Posix)
         {
-            static if (__traits(compiles, pthread_setschedprio))
+            static if (__traits(compiles, core.sys.posix.pthread.pthread_setschedprio))
             {
+                import core.sys.posix.pthread : pthread_setschedprio;
+
                 if (auto err = pthread_setschedprio(m_addr, val))
                 {
                     // ignore error if thread is not running => Bugzilla 8960
@@ -978,7 +928,7 @@ class Thread : ThreadBase
      *
      * ------------------------------------------------------------------------
      */
-    static void sleep( Duration val ) @nogc nothrow
+    static void sleep( Duration val ) @nogc nothrow @trusted
     in
     {
         assert( !val.isNegative );
@@ -1115,7 +1065,7 @@ unittest
 
 unittest
 {
-    // use >PAGESIZE to avoid stack overflow (e.g. in an syscall)
+    // use >pageSize to avoid stack overflow (e.g. in an syscall)
     auto thr = new Thread(function{}, 4096 + 1).start();
     thr.join();
 }
@@ -1155,52 +1105,6 @@ unittest
     t.join();
 }
 
-unittest
-{
-    // NOTE: This entire test is based on the assumption that no
-    //       memory is allocated after the child thread is
-    //       started. If an allocation happens, a collection could
-    //       trigger, which would cause the synchronization below
-    //       to cause a deadlock.
-    // NOTE: DO NOT USE LOCKS IN CRITICAL REGIONS IN NORMAL CODE.
-
-    import core.sync.semaphore;
-
-    auto sema = new Semaphore(),
-         semb = new Semaphore();
-
-    auto thr = new Thread(
-    {
-        thread_enterCriticalRegion();
-        assert(thread_inCriticalRegion());
-        sema.notify();
-
-        semb.wait();
-        assert(thread_inCriticalRegion());
-
-        thread_exitCriticalRegion();
-        assert(!thread_inCriticalRegion());
-        sema.notify();
-
-        semb.wait();
-        assert(!thread_inCriticalRegion());
-    });
-
-    thr.start();
-
-    sema.wait();
-    synchronized (ThreadBase.criticalRegionLock)
-        assert(thr.m_isInCriticalRegion);
-    semb.notify();
-
-    sema.wait();
-    synchronized (ThreadBase.criticalRegionLock)
-        assert(!thr.m_isInCriticalRegion);
-    semb.notify();
-
-    thr.join();
-}
-
 // https://issues.dlang.org/show_bug.cgi?id=22124
 unittest
 {
@@ -1213,34 +1117,10 @@ unittest
     static assert(!__traits(compiles, () @nogc => fun(thread, 3) ));
 }
 
+@nogc @safe nothrow
 unittest
 {
-    import core.sync.semaphore;
-
-    shared bool inCriticalRegion;
-    auto sema = new Semaphore(),
-         semb = new Semaphore();
-
-    auto thr = new Thread(
-    {
-        thread_enterCriticalRegion();
-        inCriticalRegion = true;
-        sema.notify();
-        semb.wait();
-
-        Thread.sleep(dur!"msecs"(1));
-        inCriticalRegion = false;
-        thread_exitCriticalRegion();
-    });
-    thr.start();
-
-    sema.wait();
-    assert(inCriticalRegion);
-    semb.notify();
-
-    thread_suspendAll();
-    assert(!inCriticalRegion);
-    thread_resumeAll();
+    Thread.sleep(1.msecs);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1251,7 +1131,7 @@ version (CoreDdoc)
 {
     /**
      * Instruct the thread module, when initialized, to use a different set of
-     * signals besides SIGUSR1 and SIGUSR2 for suspension and resumption of threads.
+     * signals besides SIGRTMIN and SIGRTMIN + 1 for suspension and resumption of threads.
      * This function should be called at most once, prior to thread_init().
      * This function is Posix-only.
      */
@@ -1281,8 +1161,8 @@ else version (Posix)
 
 version (Posix)
 {
-    private __gshared int suspendSignalNumber = SIGUSR1;
-    private __gshared int resumeSignalNumber  = SIGUSR2;
+    private __gshared int suspendSignalNumber;
+    private __gshared int resumeSignalNumber;
 }
 
 private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
@@ -1308,7 +1188,7 @@ private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
         atomicStore!(MemoryOrder.raw)(thisThread.toThread.m_isRunning, true);
     }
     thisThread.m_isDaemon = true;
-    thisThread.tlsGCdataInit();
+    thisThread.tlsRTdataInit();
     Thread.setThis( thisThread );
 
     version (Darwin)
@@ -1333,6 +1213,9 @@ private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
  *       must be called after thread_attachThis:
  *
  *       extern (C) void rt_moduleTlsCtor();
+ *
+ * See_Also:
+ *     $(REF thread_detachThis, core,thread,threadbase)
  */
 extern(C) Thread thread_attachThis()
 {
@@ -1380,7 +1263,7 @@ version (Windows)
         if ( addr == GetCurrentThreadId() )
         {
             thisThread.m_hndl = GetCurrentThreadHandle();
-            thisThread.tlsGCdataInit();
+            thisThread.tlsRTdataInit();
             Thread.setThis( thisThread );
         }
         else
@@ -1388,7 +1271,7 @@ version (Windows)
             thisThread.m_hndl = OpenThreadHandle( addr );
             impersonate_thread(addr,
             {
-                thisThread.tlsGCdataInit();
+                thisThread.tlsRTdataInit();
                 Thread.setThis( thisThread );
             });
         }
@@ -1596,13 +1479,11 @@ private extern (D) void scanWindowsOnly(scope ScanAllThreadsTypeFn scan, ThreadB
  */
 version (Posix)
 {
-    import core.sys.posix.unistd;
-
-    alias getpid = core.sys.posix.unistd.getpid;
+    alias getpid = imported!"core.sys.posix.unistd".getpid;
 }
 else version (Windows)
 {
-    alias getpid = core.sys.windows.winbase.GetCurrentProcessId;
+    alias getpid = imported!"core.sys.windows.winbase".GetCurrentProcessId;
 }
 
 extern (C) @nogc nothrow
@@ -1623,7 +1504,7 @@ extern (C) @nogc nothrow
 }
 
 
-package extern(D) void* getStackTop() nothrow @nogc
+private extern(D) void* getStackTop() nothrow @nogc
 {
     version (D_InlineAsm_X86)
         asm pure nothrow @nogc { naked; mov EAX, ESP; ret; }
@@ -1636,7 +1517,7 @@ package extern(D) void* getStackTop() nothrow @nogc
 }
 
 
-package extern(D) void* getStackBottom() nothrow @nogc
+private extern(D) void* getStackBottom() nothrow @nogc
 {
     version (Windows)
     {
@@ -1658,7 +1539,7 @@ package extern(D) void* getStackBottom() nothrow @nogc
             else version (X86_64)
                 asm pure nothrow @nogc { "movq %%gs:8, %0;" : "=r" (bottom); }
             else
-                static assert(false, "Platform not supported.");
+                static assert(false, "Architecture not supported.");
 
             return bottom;
         }
@@ -1667,7 +1548,7 @@ package extern(D) void* getStackBottom() nothrow @nogc
     }
     else version (Darwin)
     {
-        import core.sys.darwin.pthread;
+        import core.sys.darwin.pthread : pthread_get_stackaddr_np;
         return pthread_get_stackaddr_np(pthread_self());
     }
     else version (PThread_Getattr_NP)
@@ -1732,20 +1613,10 @@ package extern(D) void* getStackBottom() nothrow @nogc
  */
 private extern (D) bool suspend( Thread t ) nothrow @nogc
 {
-    Duration waittime = dur!"usecs"(10);
- Lagain:
     if (!t.isRunning)
     {
         Thread.remove(t);
         return false;
-    }
-    else if (t.m_isInCriticalRegion)
-    {
-        Thread.criticalRegionLock.unlock_nothrow();
-        Thread.sleep(waittime);
-        if (waittime < dur!"msecs"(10)) waittime *= 2;
-        Thread.criticalRegionLock.lock_nothrow();
-        goto Lagain;
     }
 
     version (Windows)
@@ -1955,6 +1826,13 @@ private extern (D) bool suspend( Thread t ) nothrow @nogc
 }
 
 /**
+ * Runs the necessary operations required before stopping the world.
+ */
+extern (C) void thread_preStopTheWorld() nothrow {
+    Thread.slock.lock_nothrow();
+}
+
+/**
  * Suspend all threads but the calling thread for "stop the world" garbage
  * collection runs.  This function may be called multiple times, and must
  * be followed by a matching number of calls to thread_resumeAll before
@@ -1986,20 +1864,23 @@ extern (C) void thread_suspendAll() nothrow
         return;
     }
 
-    Thread.slock.lock_nothrow();
+    thread_preStopTheWorld();
     {
         if ( ++suspendDepth > 1 )
             return;
 
-        Thread.criticalRegionLock.lock_nothrow();
-        scope (exit) Thread.criticalRegionLock.unlock_nothrow();
         size_t cnt;
+        bool suspendedSelf;
         Thread t = ThreadBase.sm_tbeg.toThread;
         while (t)
         {
             auto tn = t.next.toThread;
             if (suspend(t))
+            {
+                if (t is ThreadBase.getThis())
+                    suspendedSelf = true;
                 ++cnt;
+            }
             t = tn;
         }
 
@@ -2007,9 +1888,12 @@ extern (C) void thread_suspendAll() nothrow
         {}
         else version (Posix)
         {
-            // subtract own thread
+            // Subtract own thread if we called suspend() on ourselves.
+            // For example, suspendedSelf would be false if the current
+            // thread ran thread_detachThis().
             assert(cnt >= 1);
-            --cnt;
+            if (suspendedSelf)
+                --cnt;
             // wait for semaphore notifications
             for (; cnt; --cnt)
             {
@@ -2093,6 +1977,8 @@ private extern (D) void resume(ThreadBase _t) nothrow @nogc
             t.m_curr.tstack = t.m_curr.bstack;
         }
     }
+    else
+        static assert(false, "Platform not supported.");
 }
 
 
@@ -2101,7 +1987,7 @@ private extern (D) void resume(ThreadBase _t) nothrow @nogc
  * garbage collector on startup and before any other thread routines
  * are called.
  */
-extern (C) void thread_init() @nogc
+extern (C) void thread_init() @nogc nothrow
 {
     // NOTE: If thread_init itself performs any allocations then the thread
     //       routines reserved for garbage collector use may be called while
@@ -2112,17 +1998,19 @@ extern (C) void thread_init() @nogc
     initLowlevelThreads();
     Thread.initLocks();
 
-    // The Android VM runtime intercepts SIGUSR1 and apparently doesn't allow
-    // its signal handler to run, so swap the two signals on Android, since
-    // thread_resumeHandler does nothing.
-    version (Android) thread_setGCSignals(SIGUSR2, SIGUSR1);
-
     version (Darwin)
     {
         // thread id different in forked child process
         static extern(C) void initChildAfterFork()
         {
             auto thisThread = Thread.getThis();
+            if (!thisThread)
+            {
+                // It is possible that runtime was not properly initialized in the current process or thread -
+                // it may happen after `fork` call when using a dynamically loaded shared library written in D from a multithreaded non-D program.
+                // In such case getThis will return null.
+                return;
+            }
             thisThread.m_addr = pthread_self();
             assert( thisThread.m_addr != thisThread.m_addr.init );
             thisThread.m_tmach = pthread_mach_thread_np( thisThread.m_addr );
@@ -2132,6 +2020,29 @@ extern (C) void thread_init() @nogc
     }
     else version (Posix)
     {
+        version (OpenBSD)
+        {
+            // OpenBSD does not support SIGRTMIN or SIGRTMAX
+            // Use SIGUSR1 for SIGRTMIN, SIGUSR2 for SIGRTMIN + 1
+            // And use 32 for SIGRTMAX (32 is the max signal number on OpenBSD)
+            enum SIGRTMIN = SIGUSR1;
+            enum SIGRTMAX = 32;
+        }
+        else
+        {
+            import core.sys.posix.signal : SIGRTMAX, SIGRTMIN;
+        }
+
+        if ( suspendSignalNumber == 0 )
+        {
+            suspendSignalNumber = SIGRTMIN;
+        }
+
+        if ( resumeSignalNumber == 0 )
+        {
+            resumeSignalNumber = SIGRTMIN + 1;
+            assert(resumeSignalNumber <= SIGRTMAX);
+        }
         int         status;
         sigaction_t suspend = void;
         sigaction_t resume = void;
@@ -2144,8 +2055,12 @@ extern (C) void thread_init() @nogc
         // NOTE: SA_RESTART indicates that system calls should restart if they
         //       are interrupted by a signal, but this is not available on all
         //       Posix systems, even those that support multithreading.
-        static if ( __traits( compiles, SA_RESTART ) )
+        static if (__traits(compiles, core.sys.posix.signal.SA_RESTART))
+        {
+            import core.sys.posix.signal : SA_RESTART;
+
             suspend.sa_flags = SA_RESTART;
+        }
 
         suspend.sa_handler = &thread_suspendHandler;
         // NOTE: We want to ignore all signals while in this handler, so fill
@@ -2172,18 +2087,18 @@ extern (C) void thread_init() @nogc
         status = sem_init( &suspendCount, 0, 0 );
         assert( status == 0 );
     }
-    _mainThreadStore[] = __traits(initSymbol, Thread)[];
+    _mainThreadStore[] = cast(void[]) __traits(initSymbol, Thread)[];
     Thread.sm_main = attachThread((cast(Thread)_mainThreadStore.ptr).__ctor());
 }
 
 private alias MainThreadStore = void[__traits(classInstanceSize, Thread)];
-package __gshared align(Thread.alignof) MainThreadStore _mainThreadStore;
+package __gshared align(__traits(classInstanceAlignment, Thread)) MainThreadStore _mainThreadStore;
 
 /**
  * Terminates the thread module. No other thread routine may be called
  * afterwards.
  */
-extern (C) void thread_term() @nogc
+extern (C) void thread_term() @nogc nothrow
 {
     thread_term_tpl!(Thread)(_mainThreadStore);
 }
@@ -2208,8 +2123,8 @@ version (Windows)
 
             obj.initDataStorage();
 
-            Thread.setThis(obj);
-            Thread.add(obj);
+            Thread.registerThis(obj);
+
             scope (exit)
             {
                 Thread.remove(obj);
@@ -2275,19 +2190,6 @@ else version (Posix)
 {
     private
     {
-        import core.stdc.errno;
-        import core.sys.posix.semaphore;
-        import core.sys.posix.stdlib; // for malloc, valloc, free, atexit
-        import core.sys.posix.pthread;
-        import core.sys.posix.signal;
-        import core.sys.posix.time;
-
-        version (Darwin)
-        {
-            import core.sys.darwin.mach.thread_act;
-            import core.sys.darwin.pthread : pthread_mach_thread_np;
-        }
-
         //
         // Entry point for POSIX threads
         //
@@ -2307,12 +2209,7 @@ else version (Posix)
 
             // loadedLibraries need to be inherited from parent thread
             // before initilizing GC for TLS (rt_tlsgc_init)
-            version (GNUShared)
-            {
-                externDFunc!("gcc.sections.inheritLoadedLibraries",
-                             void function(void*) @nogc nothrow)(loadedLibraries);
-            }
-            else version (Shared)
+            version (Shared)
             {
                 externDFunc!("rt.sections_elf_shared.inheritLoadedLibraries",
                              void function(void*) @nogc nothrow)(loadedLibraries);
@@ -2321,8 +2218,9 @@ else version (Posix)
             obj.initDataStorage();
 
             atomicStore!(MemoryOrder.raw)(obj.m_isRunning, true);
-            Thread.setThis(obj); // allocates lazy TLS (see Issue 11981)
-            Thread.add(obj);     // can only receive signals from here on
+
+            Thread.registerThis(obj); // can only receive signals from here on
+
             scope (exit)
             {
                 Thread.remove(obj);
@@ -2350,14 +2248,18 @@ else version (Posix)
             //       implementation actually requires default initialization
             //       then pthread_cleanup should be restructured to maintain
             //       the current lack of a link dependency.
-            static if ( __traits( compiles, pthread_cleanup ) )
+            static if (__traits(compiles, core.sys.posix.pthread.pthread_cleanup))
             {
+                import core.sys.posix.pthread : pthread_cleanup;
+
                 pthread_cleanup cleanup = void;
                 cleanup.push( &thread_cleanupHandler, cast(void*) obj );
             }
-            else static if ( __traits( compiles, pthread_cleanup_push ) )
+            else static if (__traits(compiles, core.sys.posix.pthread.pthread_cleanup_push))
             {
-                pthread_cleanup_push( &thread_cleanupHandler, cast(void*) obj );
+                import core.sys.posix.pthread : pthread_cleanup_push;
+
+                pthread_cleanup_push(&thread_cleanupHandler, cast(void*) obj);
             }
             else
             {
@@ -2390,12 +2292,7 @@ else version (Posix)
                     append( t );
                 }
                 rt_moduleTlsDtor();
-                version (GNUShared)
-                {
-                    externDFunc!("gcc.sections.cleanupLoadedLibraries",
-                                 void function() @nogc nothrow)();
-                }
-                else version (Shared)
+                version (Shared)
                 {
                     externDFunc!("rt.sections_elf_shared.cleanupLoadedLibraries",
                                  void function() @nogc nothrow)();
@@ -2408,12 +2305,14 @@ else version (Posix)
 
             // NOTE: Normal cleanup is handled by scope(exit).
 
-            static if ( __traits( compiles, pthread_cleanup ) )
+            static if (__traits(compiles, core.sys.posix.pthread.pthread_cleanup))
             {
                 cleanup.pop( 0 );
             }
-            else static if ( __traits( compiles, pthread_cleanup_push ) )
+            else static if (__traits(compiles, core.sys.posix.pthread.pthread_cleanup_push))
             {
+                import core.sys.posix.pthread : pthread_cleanup_pop;
+
                 pthread_cleanup_pop( 0 );
             }
 
@@ -2427,6 +2326,39 @@ else version (Posix)
         __gshared sem_t suspendCount;
 
 
+        extern (C) bool thread_preSuspend( void* sp ) nothrow {
+            // NOTE: Since registers are being pushed and popped from the
+            //       stack, any other stack data used by this function should
+            //       be gone before the stack cleanup code is called below.
+            Thread obj = Thread.getThis();
+            if (obj is null)
+            {
+                return false;
+            }
+
+            if ( !obj.m_lock )
+            {
+                obj.m_curr.tstack = sp;
+            }
+
+            return true;
+        }
+
+        extern (C) bool thread_postSuspend() nothrow {
+            Thread obj = Thread.getThis();
+            if (obj is null)
+            {
+                return false;
+            }
+
+            if ( !obj.m_lock )
+            {
+                obj.m_curr.tstack = obj.m_curr.bstack;
+            }
+
+            return true;
+        }
+
         extern (C) void thread_suspendHandler( int sig ) nothrow
         in
         {
@@ -2436,15 +2368,13 @@ else version (Posix)
         {
             void op(void* sp) nothrow
             {
-                // NOTE: Since registers are being pushed and popped from the
-                //       stack, any other stack data used by this function should
-                //       be gone before the stack cleanup code is called below.
-                Thread obj = Thread.getThis();
-                assert(obj !is null);
+                bool supported = thread_preSuspend(getStackTop());
+                assert(supported, "Tried to suspend a detached thread!");
 
-                if ( !obj.m_lock )
+                scope(exit)
                 {
-                    obj.m_curr.tstack = getStackTop();
+                    supported = thread_postSuspend();
+                    assert(supported, "Tried to suspend a detached thread!");
                 }
 
                 sigset_t    sigres = void;
@@ -2460,11 +2390,6 @@ else version (Posix)
                 assert( status == 0 );
 
                 sigsuspend( &sigres );
-
-                if ( !obj.m_lock )
-                {
-                    obj.m_curr.tstack = obj.m_curr.bstack;
-                }
             }
             callWithStackShell(&op);
         }
@@ -2574,10 +2499,9 @@ private
     // Note: if the DLL is never unloaded, process termination kills all threads
     // and signals their handles before unconditionally calling DllMain(DLL_PROCESS_DETACH).
 
-    import core.sys.windows.winbase : FreeLibraryAndExitThread, GetModuleHandleExW,
-        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
-    import core.sys.windows.windef : HMODULE;
     import core.sys.windows.dll : dll_getRefCount;
+    import core.sys.windows.winbase : FreeLibraryAndExitThread, GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, GetModuleHandleExW;
+    import core.sys.windows.windef : HMODULE;
 
     version (CRuntime_Microsoft)
         extern(C) extern __gshared ubyte msvcUsesUCRT; // from rt/msvc.d
@@ -2602,11 +2526,7 @@ private
 
     bool ll_dllHasExternalReferences() nothrow
     {
-        version (CRuntime_DigitalMars)
-            enum internalReferences = 1; // only the watchdog thread
-        else
-            int internalReferences =  msvcUsesUCRT ? 1 + ll_countLowLevelThreadsWithDLLUnloadCallback() : 1;
-
+        int internalReferences =  msvcUsesUCRT ? 1 + ll_countLowLevelThreadsWithDLLUnloadCallback() : 1;
         int refcnt = dll_getRefCount(ll_dllModule);
         return refcnt > internalReferences;
     }
@@ -2667,10 +2587,7 @@ private
         // if a thread is created from a DLL, the MS runtime (starting with VC2015) increments the DLL reference count
         // to avoid the DLL being unloaded while the thread is still running. Mimick this behavior here for all
         // runtimes not doing this
-        version (CRuntime_DigitalMars)
-            enum needRef = true;
-        else
-            bool needRef = !msvcUsesUCRT;
+        bool needRef = !msvcUsesUCRT;
 
         if (needRef)
         {
@@ -2852,20 +2769,12 @@ private size_t adjustStackSize(size_t sz) nothrow @nogc
     version (CRuntime_Glibc)
     {
         // On glibc, TLS uses the top of the stack, so add its size to the requested size
-        version (GNU)
-        {
-            sz += externDFunc!("gcc.sections.elf.sizeOfTLS",
-                               size_t function() @nogc nothrow)();
-        }
-        else
-        {
-            sz += externDFunc!("rt.sections_elf_shared.sizeOfTLS",
-                               size_t function() @nogc nothrow)();
-        }
+        sz += externDFunc!("rt.sections_elf_shared.sizeOfTLS",
+                           size_t function() @nogc nothrow)();
     }
 
-    // stack size must be a multiple of PAGESIZE
-    sz = ((sz + PAGESIZE - 1) & ~(PAGESIZE - 1));
+    // stack size must be a multiple of pageSize
+    sz = ((sz + pageSize - 1) & ~(pageSize - 1));
 
     return sz;
 }

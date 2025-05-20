@@ -1,5 +1,5 @@
 /* Wrapper for ar/ranlib/nm to pass the LTO plugin.
-   Copyright (C) 2011-2022 Free Software Foundation, Inc.
+   Copyright (C) 2011-2025 Free Software Foundation, Inc.
    Contributed by Andi Kleen.
 
 This file is part of GCC.
@@ -105,7 +105,7 @@ setup_prefixes (const char *exec_path)
   /* Build the relative path to the target-specific tool directory.  */
   self_tooldir_prefix = concat (tooldir_base_prefix, target_machine,
 				dir_separator, NULL);
-  self_tooldir_prefix = concat (self_exec_prefix, target_machine, 
+  self_tooldir_prefix = concat (self_exec_prefix, target_machine,
 				dir_separator, target_version, dir_separator,
 				self_tooldir_prefix, NULL);
 
@@ -113,7 +113,7 @@ setup_prefixes (const char *exec_path)
   prefix_from_string (concat (self_tooldir_prefix, "bin", NULL), &target_path);
 
   /* Add the target-specific libexec prefix.  */
-  self_libexec_prefix = concat (self_libexec_prefix, target_machine, 
+  self_libexec_prefix = concat (self_libexec_prefix, target_machine,
 				dir_separator, target_version,
 				dir_separator, NULL);
   prefix_from_string (self_libexec_prefix, &target_path);
@@ -122,16 +122,23 @@ setup_prefixes (const char *exec_path)
   prefix_from_env ("PATH", &path);
 }
 
-int 
+int
 main (int ac, char **av)
 {
   const char *exe_name;
 #if HAVE_LTO_PLUGIN > 0
   char *plugin;
+  const int j = 2; /* Two extra args, --plugin <plugin>  */
+#else
+  const int j = 0; /* No extra args.  */
 #endif
   int k, status, err;
   const char *err_msg;
   const char **nargv;
+  char **old_argv;
+  const char *rsp_file = NULL;
+  const char *rsp_arg = NULL;
+  const char *rsp_argv[3];
   bool is_ar = !strcmp (PERSONALITY, "ar");
   int exit_code = FATAL_EXIT_CODE;
   int i;
@@ -206,34 +213,70 @@ main (int ac, char **av)
 	}
     }
 
+  /* Expand any @files before modifying the command line
+     and use a temporary response file if there were any.  */
+  old_argv = av;
+  expandargv (&ac, &av);
+  if (av != old_argv)
+    rsp_file = make_temp_file ("");
+
+  /* Prepend - if necessary.  */
+  if (is_ar && av[1] && av[1][0] != '-')
+    av[1] = concat ("-", av[1], NULL);
+
   /* Create new command line with plugin - if we have one, otherwise just
      copy the command through.  */
-  nargv = XCNEWVEC (const char *, ac + 4);
+  nargv = XCNEWVEC (const char *, ac + j + 1); /* +j plugin args +1 for NULL.  */
   nargv[0] = exe_name;
 #if HAVE_LTO_PLUGIN > 0
   nargv[1] = "--plugin";
   nargv[2] = plugin;
-  if (is_ar && av[1] && av[1][0] != '-')
-    av[1] = concat ("-", av[1], NULL);
-  for (k = 1; k < ac; k++)
-    nargv[2 + k] = av[k];
-  nargv[2 + k] = NULL;
-#else
-  if (is_ar && av[1] && av[1][0] != '-')
-    av[1] = concat ("-", av[1], NULL);
-  for (k = 1; k < ac; k++)
-    nargv[k] = av[k];
-  nargv[k] = NULL;
 #endif
+  for (k = 1; k < ac; k++)
+    nargv[j + k] = av[k];
+  nargv[j + k] = NULL;
+
+  /* If @file was passed, put nargv into the temporary response
+     file and then change it to a single @FILE argument, where
+     FILE is the temporary filename.  */
+  if (rsp_file)
+    {
+      FILE *f;
+      int status;
+      f = fopen (rsp_file, "w");
+      if (f == NULL)
+	{
+	  fprintf (stderr, "Cannot open temporary file %s\n", rsp_file);
+	  exit (1);
+	}
+      status = writeargv (
+	  CONST_CAST2 (char * const *, const char **, nargv) + 1, f);
+      if (status)
+	{
+	  fprintf (stderr, "Cannot write to temporary file %s\n", rsp_file);
+	  exit (1);
+	}
+      status = fclose (f);
+      if (EOF == status)
+	{
+	  fprintf (stderr, "Cannot close temporary file %s\n", rsp_file);
+	  exit (1);
+	}
+      rsp_arg = concat ("@", rsp_file, NULL);
+      rsp_argv[0] = nargv[0];
+      rsp_argv[1] = rsp_arg;
+      rsp_argv[2] = NULL;
+      nargv = rsp_argv;
+    }
 
   /* Run utility */
   /* ??? the const is misplaced in pex_one's argv? */
-  err_msg = pex_one (PEX_LAST|PEX_SEARCH, 
-		     exe_name, 
+  err_msg = pex_one (PEX_LAST|PEX_SEARCH,
+		     exe_name,
 		     CONST_CAST2 (char * const *, const char **, nargv),
 		     concat ("gcc-", exe_name, NULL),
 		     NULL,NULL,  &status, &err);
-  if (err_msg) 
+  if (err_msg)
     fprintf (stderr, "Error running %s: %s\n", exe_name, err_msg);
   else if (status)
     {
@@ -249,6 +292,9 @@ main (int ac, char **av)
     }
   else
     exit_code = SUCCESS_EXIT_CODE;
+
+  if (rsp_file)
+    unlink (rsp_file);
 
   return exit_code;
 }

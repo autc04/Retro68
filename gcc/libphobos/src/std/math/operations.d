@@ -44,7 +44,7 @@ import std.traits : CommonType, isFloatingPoint, isIntegral, Unqual;
  */
 real NaN(ulong payload) @trusted pure nothrow @nogc
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     alias F = floatTraits!(real);
     static if (F.realFormat == RealFormat.ieeeExtended ||
@@ -136,7 +136,7 @@ real NaN(ulong payload) @trusted pure nothrow @nogc
 
 @system pure nothrow @nogc unittest // not @safe because taking address of local.
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     static if (floatTraits!(real).realFormat == RealFormat.ieeeDouble)
     {
@@ -159,7 +159,7 @@ real NaN(ulong payload) @trusted pure nothrow @nogc
  */
 ulong getNaNPayload(real x) @trusted pure nothrow @nogc
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     //  assert(isNaN(x));
     alias F = floatTraits!(real);
@@ -283,7 +283,7 @@ debug(UnitTest)
  */
 real nextUp(real x) @trusted pure nothrow @nogc
 {
-    import std.math : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
+    import std.math.traits : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
 
     alias F = floatTraits!(real);
     static if (F.realFormat != RealFormat.ieeeDouble)
@@ -522,8 +522,7 @@ float nextDown(float x) @safe pure nothrow @nogc
 
 @safe pure nothrow @nogc unittest
 {
-    import std.math : floatTraits, RealFormat;
-    import std.math.traits : isIdentical;
+    import std.math.traits : floatTraits, RealFormat, isIdentical;
 
     static if (floatTraits!(real).realFormat == RealFormat.ieeeExtended ||
                floatTraits!(real).realFormat == RealFormat.ieeeDouble ||
@@ -865,7 +864,7 @@ real fma(real x, real y, real z) @safe pure nothrow @nogc { return (x * y) + z; 
 int feqrel(X)(const X x, const X y) @trusted pure nothrow @nogc
 if (isFloatingPoint!(X))
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
     import core.math : fabs;
 
     /* Public Domain. Author: Don Clugston, 18 Aug 2005.
@@ -1287,11 +1286,12 @@ bool isClose(T, U, V = CommonType!(FloatingPointBaseType!T,FloatingPointBaseType
         // two numbers
         if (lhs == rhs) return true;
 
-        static if (is(typeof(lhs.infinity)) && is(typeof(rhs.infinity)))
-        {
-            if (lhs == lhs.infinity || rhs == rhs.infinity ||
-                lhs == -lhs.infinity || rhs == -rhs.infinity) return false;
-        }
+        static if (is(typeof(lhs.infinity)))
+            if (lhs == lhs.infinity || lhs == -lhs.infinity)
+                 return false;
+        static if (is(typeof(rhs.infinity)))
+            if (rhs == rhs.infinity || rhs == -rhs.infinity)
+                return false;
 
         import std.math.algebraic : abs;
 
@@ -1406,6 +1406,8 @@ bool isClose(T, U, V = CommonType!(FloatingPointBaseType!T,FloatingPointBaseType
     assert(!isClose(1,real.nan));
     assert(!isClose(real.nan,real.max));
     assert(!isClose(real.nan,real.nan));
+
+    assert(!isClose(-double.infinity, 1));
 }
 
 @safe pure nothrow @nogc unittest
@@ -1492,7 +1494,7 @@ private template FloatingPointBaseType(T)
 int cmp(T)(const(T) x, const(T) y) @nogc @trusted pure nothrow
 if (isFloatingPoint!T)
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     alias F = floatTraits!T;
 
@@ -1720,7 +1722,7 @@ if (isFloatingPoint!T)
 FloatingPointBitpattern!T extractBitpattern(T)(const(T) value) @trusted
 if (isFloatingPoint!T)
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     T val = value;
     FloatingPointBitpattern!T ret;
@@ -1793,7 +1795,7 @@ if (isFloatingPoint!T)
         }
 
         import std.math.exponential : log2;
-        enum log2_max_exp = cast(int) log2(T.max_exp);
+        enum log2_max_exp = cast(int) log2(T(T.max_exp));
 
         ret.mantissa = ival & ((1L << (T.mant_dig - 1)) - 1);
         ret.exponent = (ival >> (T.mant_dig - 1)) & ((1L << (log2_max_exp + 1)) - 1);
@@ -1892,7 +1894,7 @@ if (isFloatingPoint!T)
 
 @safe pure unittest
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     alias F = floatTraits!real;
     static if (F.realFormat == RealFormat.ieeeExtended)
@@ -1943,57 +1945,60 @@ if (isFloatingPoint!T)
 
 @safe pure unittest
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
     import std.math.exponential : log2;
 
     alias F = floatTraits!real;
 
-    // log2 is broken for x87-reals on some computers in CTFE
-    // the following test excludes these computers from the test
-    // (issue 21757)
-    enum test = cast(int) log2(3.05e2312L);
-    static if (F.realFormat == RealFormat.ieeeExtended && test == 7681)
+    static if (F.realFormat == RealFormat.ieeeExtended)
     {
-        enum r1 = 1.0L;
-        enum bp1 = extractBitpattern(r1);
-        static assert(bp1.mantissa == 0x8000_0000_0000_0000L);
-        static assert(bp1.exponent == 0);
-        static assert(bp1.negative == false);
+        // log2 is broken for x87-reals on some computers in CTFE
+        // the following test excludes these computers from the test
+        // (https://issues.dlang.org/show_bug.cgi?id=21757)
+        enum test = cast(int) log2(3.05e2312L);
+        static if (test == 7681)
+        {
+            enum r1 = 1.0L;
+            enum bp1 = extractBitpattern(r1);
+            static assert(bp1.mantissa == 0x8000_0000_0000_0000L);
+            static assert(bp1.exponent == 0);
+            static assert(bp1.negative == false);
 
-        enum r2 = real.max;
-        enum bp2 = extractBitpattern(r2);
-        static assert(bp2.mantissa == 0xffff_ffff_ffff_ffffL);
-        static assert(bp2.exponent == 16383);
-        static assert(bp2.negative == false);
+            enum r2 = real.max;
+            enum bp2 = extractBitpattern(r2);
+            static assert(bp2.mantissa == 0xffff_ffff_ffff_ffffL);
+            static assert(bp2.exponent == 16383);
+            static assert(bp2.negative == false);
 
-        enum r3 = -1.5432e-3333L;
-        enum bp3 = extractBitpattern(r3);
-        static assert(bp3.mantissa == 0xc768_a2c7_a616_cc22L);
-        static assert(bp3.exponent == -11072);
-        static assert(bp3.negative == true);
+            enum r3 = -1.5432e-3333L;
+            enum bp3 = extractBitpattern(r3);
+            static assert(bp3.mantissa == 0xc768_a2c7_a616_cc22L);
+            static assert(bp3.exponent == -11072);
+            static assert(bp3.negative == true);
 
-        enum r4 = 0.0L.nextUp;
-        enum bp4 = extractBitpattern(r4);
-        static assert(bp4.mantissa == 0x0000_0000_0000_0001L);
-        static assert(bp4.exponent == -16382);
-        static assert(bp4.negative == false);
+            enum r4 = 0.0L.nextUp;
+            enum bp4 = extractBitpattern(r4);
+            static assert(bp4.mantissa == 0x0000_0000_0000_0001L);
+            static assert(bp4.exponent == -16382);
+            static assert(bp4.negative == false);
 
-        enum r5 = -real.infinity;
-        enum bp5 = extractBitpattern(r5);
-        static assert(bp5.mantissa == 0);
-        static assert(bp5.exponent == 16384);
-        static assert(bp5.negative == true);
+            enum r5 = -real.infinity;
+            enum bp5 = extractBitpattern(r5);
+            static assert(bp5.mantissa == 0);
+            static assert(bp5.exponent == 16384);
+            static assert(bp5.negative == true);
 
-        enum r6 = real.nan;
-        enum bp6 = extractBitpattern(r6);
-        static assert(bp6.mantissa != 0); // we don't guarantee payloads
-        static assert(bp6.exponent == 16384);
-        static assert(bp6.negative == false);
+            enum r6 = real.nan;
+            enum bp6 = extractBitpattern(r6);
+            static assert(bp6.mantissa != 0); // we don't guarantee payloads
+            static assert(bp6.exponent == 16384);
+            static assert(bp6.negative == false);
 
-        enum r7 = nextDown(0x1p+16383L);
-        enum bp7 = extractBitpattern(r7);
-        static assert(bp7.mantissa == 0xffff_ffff_ffff_ffffL);
-        static assert(bp7.exponent == 16382);
-        static assert(bp7.negative == false);
+            enum r7 = nextDown(0x1p+16383L);
+            enum bp7 = extractBitpattern(r7);
+            static assert(bp7.mantissa == 0xffff_ffff_ffff_ffffL);
+            static assert(bp7.exponent == 16382);
+            static assert(bp7.negative == false);
+        }
     }
 }

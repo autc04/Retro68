@@ -1,5 +1,5 @@
 /* { dg-require-effective-target vect_int } */
-/* { dg-additional-options "-fno-ipa-icf" } */
+/* { dg-additional-options "--param vect-max-version-for-alias-checks=0 -fno-ipa-icf" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -41,6 +41,7 @@ int main(void)
   with_restrict(a + 1);
   without_restrict(b + 1);
 
+#pragma GCC novector
   for (i = 0; i < 1002; ++i) {
     if (a[i] != b[i])
       abort();

@@ -17,12 +17,12 @@ module core.stdc.wchar_;
 import core.stdc.config;
 import core.stdc.stdarg; // for va_list
 import core.stdc.stdio;  // for FILE, not exposed per spec
+import core.atomic : atomicLoad;
 public import core.stdc.stddef;  // for wchar_t
 public import core.stdc.time;    // for tm
 public import core.stdc.stdint;  // for WCHAR_MIN, WCHAR_MAX
 
 extern (C):
-@system:
 nothrow:
 @nogc:
 
@@ -106,6 +106,20 @@ else version (Solaris)
     ///
     alias mbstate_t = __mbstate_t;
 }
+else version (CRuntime_Newlib)
+{
+    ///
+    struct mbstate_t
+    {
+        int __count;
+        union ___value
+        {
+            wint_t __wch = 0;
+            char[4] __wchb;
+        }
+        ___value __value;
+    }
+}
 else version (CRuntime_UClibc)
 {
     ///
@@ -127,30 +141,72 @@ alias wchar_t wint_t;
 ///
 enum wchar_t WEOF = 0xFFFF;
 
-///
-int fwprintf(FILE* stream, const scope wchar_t* format, scope const ...);
-///
-int fwscanf(FILE* stream, const scope wchar_t* format, scope ...);
-///
-int swprintf(wchar_t* s, size_t n, const scope wchar_t* format, scope const ...);
-///
-int swscanf(const scope wchar_t* s, const scope wchar_t* format, scope ...);
-///
-int vfwprintf(FILE* stream, const scope wchar_t* format, va_list arg);
-///
-int vfwscanf(FILE* stream, const scope wchar_t* format, va_list arg);
-///
-int vswprintf(wchar_t* s, size_t n, const scope wchar_t* format, va_list arg);
-///
-int vswscanf(const scope wchar_t* s, const scope wchar_t* format, va_list arg);
-///
-int vwprintf(const scope wchar_t* format, va_list arg);
-///
-int vwscanf(const scope wchar_t* format, va_list arg);
-///
-int wprintf(const scope wchar_t* format, scope const ...);
-///
-int wscanf(const scope wchar_t* format, scope ...);
+version (CRuntime_Glibc)
+{
+    ///
+    int fwprintf(FILE* stream, const scope wchar_t* format, scope const ...);
+    ///
+    int __isoc99_fwscanf(FILE* stream, const scope wchar_t* format, scope ...);
+    ///
+    alias fwscanf = __isoc99_fwscanf;
+    ///
+    int swprintf(wchar_t* s, size_t n, const scope wchar_t* format, scope const ...);
+    ///
+    int __isoc99_swscanf(const scope wchar_t* s, const scope wchar_t* format, scope ...);
+    ///
+    alias swscanf = __isoc99_swscanf;
+    ///
+    int vfwprintf(FILE* stream, const scope wchar_t* format, va_list arg);
+    ///
+    int __isoc99_vfwscanf(FILE* stream, const scope wchar_t* format, va_list arg);
+    ///
+    alias vfwscanf = __isoc99_vfwscanf;
+    ///
+    int vswprintf(wchar_t* s, size_t n, const scope wchar_t* format, va_list arg);
+    ///
+    int __isoc99_vswscanf(const scope wchar_t* s, const scope wchar_t* format, va_list arg);
+    ///
+    alias vswscanf = __isoc99_vswscanf;
+    ///
+    int vwprintf(const scope wchar_t* format, va_list arg);
+    ///
+    int __isoc99_vwscanf(const scope wchar_t* format, va_list arg);
+    ///
+    alias vwscanf = __isoc99_vwscanf;
+    ///
+    int wprintf(const scope wchar_t* format, scope const ...);
+    ///
+    int __isoc99_wscanf(const scope wchar_t* format, scope ...);
+    ///
+    alias wscanf = __isoc99_wscanf;
+}
+else
+{
+    ///
+    int fwprintf(FILE* stream, const scope wchar_t* format, scope const ...);
+    ///
+    int fwscanf(FILE* stream, const scope wchar_t* format, scope ...);
+    ///
+    int swprintf(wchar_t* s, size_t n, const scope wchar_t* format, scope const ...);
+    ///
+    int swscanf(const scope wchar_t* s, const scope wchar_t* format, scope ...);
+    ///
+    int vfwprintf(FILE* stream, const scope wchar_t* format, va_list arg);
+    ///
+    int vfwscanf(FILE* stream, const scope wchar_t* format, va_list arg);
+    ///
+    int vswprintf(wchar_t* s, size_t n, const scope wchar_t* format, va_list arg);
+    ///
+    int vswscanf(const scope wchar_t* s, const scope wchar_t* format, va_list arg);
+    ///
+    int vwprintf(const scope wchar_t* format, va_list arg);
+    ///
+    int vwscanf(const scope wchar_t* format, va_list arg);
+    ///
+    int wprintf(const scope wchar_t* format, scope const ...);
+    ///
+    int wscanf(const scope wchar_t* format, scope ...);
+}
 
 // No unsafe pointer manipulation.
 @trusted
@@ -170,9 +226,9 @@ int      fputws(const scope wchar_t* s, FILE* stream);
 extern (D) @trusted
 {
     ///
-    wint_t getwchar()                     { return fgetwc(stdin);     }
+    wint_t getwchar()                     { return fgetwc(atomicLoad(stdin));     }
     ///
-    wint_t putwchar(wchar_t c)            { return fputwc(c,stdout);  }
+    wint_t putwchar(wchar_t c)            { return fputwc(c,atomicLoad(stdout));  }
 }
 
 ///

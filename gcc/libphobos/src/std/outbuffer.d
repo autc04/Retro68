@@ -22,9 +22,10 @@ import std.traits : isSomeString;
  * OutBuffer's byte order is the format native to the computer.
  * To control the byte order (endianness), use a class derived
  * from OutBuffer.
+ *
  * OutBuffer's internal buffer is allocated with the GC. Pointers
  * stored into the buffer are scanned by the GC, but you have to
- * ensure proper alignment, e.g. by using alignSize((void*).sizeof).
+ * ensure proper alignment, e.g. by using `alignSize((void*).sizeof)`.
  */
 
 class OutBuffer
@@ -173,21 +174,40 @@ class OutBuffer
     }
 
     /****************************************
-     * Append nbytes of 0 to the internal buffer.
+     * Append nbytes of val to the internal buffer.
+     * Params:
+     *   nbytes = Number of bytes to fill.
+     *   val = Value to fill, defaults to 0.
      */
 
-    void fill0(size_t nbytes)
+    void fill(size_t nbytes, ubyte val = 0)
     {
         reserve(nbytes);
-        data[offset .. offset + nbytes] = 0;
+        data[offset .. offset + nbytes] = val;
         offset += nbytes;
     }
 
+    /****************************************
+     * Append nbytes of 0 to the internal buffer.
+     * Param:
+     *   nbytes - number of bytes to fill.
+     */
+    void fill0(size_t nbytes)
+    {
+        fill(nbytes);
+    }
+
     /**********************************
-     * 0-fill to align on power of 2 boundary.
+     * Append bytes until the buffer aligns on a power of 2 boundary.
+     *
+     * By default fills with 0 bytes.
+     *
+     * Params:
+     *   alignsize = Alignment value. Must be power of 2.
+     *   val = Value to fill, defaults to 0.
      */
 
-    void alignSize(size_t alignsize)
+    void alignSize(size_t alignsize, ubyte val = 0)
     in
     {
         assert(alignsize && (alignsize & (alignsize - 1)) == 0);
@@ -200,7 +220,35 @@ class OutBuffer
     {
         auto nbytes = offset & (alignsize - 1);
         if (nbytes)
-            fill0(alignsize - nbytes);
+            fill(alignsize - nbytes, val);
+    }
+    ///
+    @safe unittest
+    {
+        OutBuffer buf = new OutBuffer();
+        buf.write(cast(ubyte) 1);
+        buf.align2();
+        assert(buf.toBytes() == "\x01\x00");
+        buf.write(cast(ubyte) 2);
+        buf.align4();
+        assert(buf.toBytes() == "\x01\x00\x02\x00");
+        buf.write(cast(ubyte) 3);
+        buf.alignSize(8);
+        assert(buf.toBytes() == "\x01\x00\x02\x00\x03\x00\x00\x00");
+    }
+    /// ditto
+    @safe unittest
+    {
+        OutBuffer buf = new OutBuffer();
+        buf.write(cast(ubyte) 1);
+        buf.align2(0x55);
+        assert(buf.toBytes() == "\x01\x55");
+        buf.write(cast(ubyte) 2);
+        buf.align4(0x55);
+        assert(buf.toBytes() == "\x01\x55\x02\x55");
+        buf.write(cast(ubyte) 3);
+        buf.alignSize(8, 0x55);
+        assert(buf.toBytes() == "\x01\x55\x02\x55\x03\x55\x55\x55");
     }
 
     /// Clear the data in the buffer
@@ -211,23 +259,27 @@ class OutBuffer
 
     /****************************************
      * Optimize common special case alignSize(2)
+     * Params:
+     *   val = Value to fill, defaults to 0.
      */
 
-    void align2()
+    void align2(ubyte val = 0)
     {
         if (offset & 1)
-            write(cast(byte) 0);
+            write(cast(byte) val);
     }
 
     /****************************************
      * Optimize common special case alignSize(4)
+     * Params:
+     *   val = Value to fill, defaults to 0.
      */
 
-    void align4()
+    void align4(ubyte val = 0)
     {
         if (offset & 3)
         {   auto nbytes = (4 - offset) & 3;
-            fill0(nbytes);
+            fill(nbytes, val);
         }
     }
 
@@ -246,7 +298,7 @@ class OutBuffer
      * Append output of C's vprintf() to internal buffer.
      */
 
-    void vprintf(scope string format, va_list args) @trusted nothrow
+    void vprintf(scope string format, va_list args) @system nothrow
     {
         import core.stdc.stdio : vsnprintf;
         import core.stdc.stdlib : alloca;
@@ -291,7 +343,7 @@ class OutBuffer
      * Append output of C's printf() to internal buffer.
      */
 
-    void printf(scope string format, ...) @trusted
+    void printf(scope string format, ...) @system
     {
         va_list ap;
         va_start(ap, format);
@@ -424,7 +476,7 @@ class OutBuffer
     buf.write("hello");
     buf.write(cast(byte) 0x20);
     buf.write("world");
-    buf.printf(" %d", 62665);
+    buf.writef(" %d", 62665);
     assert(cmp(buf.toString(), "hello world 62665") == 0);
 
     buf.clear();

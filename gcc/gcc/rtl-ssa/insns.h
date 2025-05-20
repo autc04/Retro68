@@ -1,5 +1,5 @@
 // Instruction-related RTL SSA classes                              -*- C++ -*-
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -141,7 +141,7 @@ using insn_call_clobbers_tree = default_splay_tree<insn_call_clobbers_note *>;
 // of "notes", a bit like REG_NOTES for the underlying RTL insns.
 class insn_info
 {
-  // Size: 8 LP64 words.
+  // Size: 9 LP64 words.
   friend class ebb_info;
   friend class function_info;
 
@@ -306,6 +306,8 @@ public:
   // Print a full description of the instruction.
   void print_full (pretty_printer *) const;
 
+  bool is_temporary () const { return m_is_temp; }
+
 private:
   // The first-order way of representing the order between instructions
   // is to assign "program points", with higher point numbers coming
@@ -328,37 +330,14 @@ private:
     // Return the uid of the instruction that this node describes.
     int uid () const { return m_data32; }
 
+    // Change the uid of the instruction that this node describes.
+    void set_uid (int uid) { m_data32 = uid; }
+
     // The splay tree pointers.
     order_node *m_children[2];
     order_node *m_parent;
   };
   using order_splay_tree = default_rootless_splay_tree<order_node *>;
-
-  // prev_insn_or_last_debug_insn represents a choice between two things:
-  //
-  // (1) A pointer to the previous instruction in the list that has the
-  //     same is_debug_insn () value, or null if no such instruction exists.
-  //
-  // (2) A pointer to the end of a sublist of debug instructions.
-  //
-  // (2) is used if this instruction is a debug instruction and the
-  // previous instruction is not.  (1) is used otherwise.
-  //
-  // next_nondebug_or_debug_insn points to the next instruction but also
-  // records whether that next instruction is a debug instruction or a
-  // nondebug instruction.
-  //
-  // Thus the list is chained as follows:
-  //
-  //         ---->        ---->     ---->     ---->     ---->
-  // NONDEBUG     NONDEBUG     DEBUG     DEBUG     DEBUG     NONDEBUG ...
-  //         <----    ^     +--     <----     <----  ^    +--
-  //                  |     |                        |    |
-  //                  |     +------------------------+    |
-  //                  |                                   |
-  //                  +-----------------------------------+
-  using prev_insn_or_last_debug_insn = pointer_mux<insn_info>;
-  using next_nondebug_or_debug_insn = pointer_mux<insn_info>;
 
   insn_info (bb_info *bb, rtx_insn *rtl, int cost_or_uid);
 
@@ -372,6 +351,7 @@ private:
   void set_bb (bb_info *bb) { m_bb = bb; }
 
   void add_note (insn_note *note);
+  void remove_note (insn_note *note);
 
   order_node *get_order_node () const;
   order_node *get_known_order_node () const;
@@ -389,9 +369,33 @@ private:
   void clear_insn_links ();
   bool has_insn_links ();
 
+  // m_prev_sametye_or_last_debug_insn represents a choice between two things:
+  //
+  // (1) A pointer to the previous instruction in the list that has the
+  //     same is_debug_insn () value, or null if no such instruction exists.
+  //
+  // (2) A pointer to the end of a sublist of debug instructions.
+  //
+  // (2) is used if this instruction is a debug instruction and the
+  // previous instruction is not.  (1) is used otherwise.
+  //
+  // m_next_nondebug_or_debug_insn points to the next instruction but also
+  // records whether that next instruction is a debug instruction or a
+  // nondebug instruction.
+  //
+  // Thus the list is chained as follows:
+  //
+  //         ---->        ---->     ---->     ---->     ---->
+  // NONDEBUG     NONDEBUG     DEBUG     DEBUG     DEBUG     NONDEBUG ...
+  //         <----    ^     +--     <----     <----  ^    +--
+  //                  |     |                        |    |
+  //                  |     +------------------------+    |
+  //                  |                                   |
+  //                  +-----------------------------------+
+  pointer_mux<insn_info> m_prev_sametype_or_last_debug_insn;
+  pointer_mux<insn_info> m_next_nondebug_or_debug_insn;
+
   // The values returned by the accessors above.
-  prev_insn_or_last_debug_insn m_prev_insn_or_last_debug_insn;
-  next_nondebug_or_debug_insn m_next_nondebug_or_debug_insn;
   bb_info *m_bb;
   rtx_insn *m_rtl;
 
@@ -401,10 +405,11 @@ private:
   // The number of definitions and the number uses.  FIRST_PSEUDO_REGISTER + 1
   // is the maximum number of accesses to hard registers and memory, and
   // MAX_RECOG_OPERANDS is the maximum number of pseudos that can be
-  // defined by an instruction, so the number of definitions should fit
-  // easily in 16 bits.
+  // defined by an instruction, so the number of definitions in a real
+  // instruction should fit easily in 16 bits.  However, there are no
+  // limits on the number of definitions in artifical instructions.
   unsigned int m_num_uses;
-  unsigned int m_num_defs : 16;
+  unsigned int m_num_defs;
 
   // Flags returned by the accessors above.
   unsigned int m_is_debug_insn : 1;
@@ -413,8 +418,11 @@ private:
   unsigned int m_has_pre_post_modify : 1;
   unsigned int m_has_volatile_refs : 1;
 
+  // Indicates the insn is a temporary / new user-allocated insn.
+  unsigned int m_is_temp : 1;
+
   // For future expansion.
-  unsigned int m_spare : 11;
+  unsigned int m_spare : 26;
 
   // The program point at which the instruction occurs.
   //
@@ -430,6 +438,9 @@ private:
   // For artificial instructions: the (negative) unique identifier of the
   // instruction.
   mutable int m_cost_or_uid;
+
+  // On LP64 systems, there's a gap here that could be used for future
+  // expansion.
 
   // The list of notes that have been attached to the instruction.
   insn_note *m_first_note;
@@ -482,18 +493,6 @@ public:
   // The lower and upper bounds of the range.
   insn_info *first;
   insn_info *last;
-};
-
-// A class that represents a closure of operator== for instructions.
-// This is used by insn_is; see there for details.
-class insn_is_closure
-{
-public:
-  insn_is_closure (const insn_info *insn) : m_insn (insn) {}
-  bool operator() (const insn_info *other) const { return m_insn == other; }
-
-private:
-  const insn_info *m_insn;
 };
 
 void pp_insn (pretty_printer *, const insn_info *);

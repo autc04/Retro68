@@ -1,5 +1,5 @@
 /* Operations with affine combinations of trees.
-   Copyright (C) 2005-2022 Free Software Foundation, Inc.
+   Copyright (C) 2005-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -268,7 +268,6 @@ expr_to_aff_combination (aff_tree *comb, tree_code code, tree type,
 			 tree op0, tree op1 = NULL_TREE)
 {
   aff_tree tmp;
-  poly_int64 bitpos, bitsize, bytepos;
 
   switch (code)
     {
@@ -346,12 +345,13 @@ expr_to_aff_combination (aff_tree *comb, tree_code code, tree type,
 	       for below case:
 		 (T1)(X *+- CST) -> (T1)X *+- (T1)CST
 	       if X *+- CST doesn't overflow by range information.  */
-	    value_range vr;
+	    int_range_max vr;
 	    if (TYPE_UNSIGNED (itype)
 		&& TYPE_OVERFLOW_WRAPS (itype)
 		&& TREE_CODE (op1) == INTEGER_CST
 		&& get_range_query (cfun)->range_of_expr (vr, op0)
-		&& vr.kind () == VR_RANGE)
+		&& !vr.varying_p ()
+		&& !vr.undefined_p ())
 	      {
 		wide_int minv = vr.lower_bound ();
 		wide_int maxv = vr.upper_bound ();
@@ -805,6 +805,7 @@ aff_combination_expand (aff_tree *comb ATTRIBUTE_UNUSED,
 	      continue;
 	    }
 	  exp = XNEW (class name_expansion);
+	  ::new (static_cast<void *> (exp)) name_expansion ();
 	  exp->in_progress = 1;
 	  if (!*cache)
 	    *cache = new hash_map<tree, name_expansion *>;
@@ -860,6 +861,7 @@ tree_to_aff_combination_expand (tree expr, tree type, aff_tree *comb,
 bool
 free_name_expansion (tree const &, name_expansion **value, void *)
 {
+  (*value)->~name_expansion ();
   free (*value);
   return true;
 }
@@ -878,21 +880,24 @@ free_affine_expand_cache (hash_map<tree, name_expansion *> **cache)
   *cache = NULL;
 }
 
-/* If VAL != CST * DIV for any constant CST, returns false.
-   Otherwise, if *MULT_SET is true, additionally compares CST and MULT,
-   and if they are different, returns false.  Finally, if neither of these
-   two cases occur, true is returned, and CST is stored to MULT and MULT_SET
-   is set to true.  */
+/* If VAL == CST * DIV for any constant CST, returns true.
+   and if *MULT_SET is true, additionally compares CST and MULT
+   and if they are different, returns false.  If true is returned, CST is
+   stored to MULT and MULT_SET is set to true unless VAL and DIV are both zero
+   in which case neither MULT nor MULT_SET are updated.  */
 
 static bool
 wide_int_constant_multiple_p (const poly_widest_int &val,
 			      const poly_widest_int &div,
 			      bool *mult_set, poly_widest_int *mult)
 {
-  poly_widest_int rem, cst;
+  poly_widest_int cst;
 
   if (known_eq (val, 0))
     {
+      if (known_eq (div, 0))
+	return true;
+
       if (*mult_set && maybe_ne (*mult, 0))
 	return false;
       *mult_set = true;

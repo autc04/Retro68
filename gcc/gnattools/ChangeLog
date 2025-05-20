@@ -1,10 +1,42 @@
-2022-08-19  Release Manager
+2025-04-25  Release Manager
 
-	* GCC 12.2.0 released.
+	* GCC 15.1.0 released.
 
-2022-05-06  Release Manager
+2025-04-01  Eric Botcazou  <ebotcazou@adacore.com>
 
-	* GCC 12.1.0 released.
+	PR ada/119440
+	PR ada/119571
+	* Makefile.in (TOOLS_FLAGS_TO_PASS_CROSS): Pass $(PICFLAG) under
+	CFLAGS and $(LD_PICFLAG) under LDFLAGS.
+
+2025-03-25  Eric Botcazou  <ebotcazou@adacore.com>
+
+	PR ada/119440
+	* configure.ac (host-pie): New switch.
+	(host-bind-now): Likewise.
+	Substitute PICFLAG and LD_PICFLAG.
+	* configure: Regenerate.
+	* Makefile.in (PICFLAG): New substituted variable.
+	(LD_PICFLAG): Likewise.
+	(TOOLS_FLAGS_TO_PASS): Pass $(PICFLAG) under CFLAGS & $(LD_PICFLAG)
+	under LDFLAGS.  Do not pass -I- under ADA_INCLUDES.
+	(TOOLS_FLAGS_TO_PASS_RE): Likewise.
+
+2024-07-07  Maciej W. Rozycki  <macro@orcam.me.uk>
+
+	* Makefile.in (gnattools-cross): Also build 'gnattools-cross-mv'
+	in GCC_DIR.
+
+2023-04-25  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* configure.ac (TOOLS_TARGET_PAIRS): Remove obsolete settings.
+	(EXTRA_GNATTOOLS): Likewise.
+	* configure: Regenerate.
+
+2022-08-31  Martin Liska  <mliska@suse.cz>
+
+	* configure.ac: Remove deprecated ports.
+	* configure: Regenerate.
 
 2021-10-22  Eric Gallager  <egallager@gcc.gnu.org>
 
@@ -335,7 +367,7 @@
 	* configure: Regenerate.
 	* New directory, cloned from libada.
 
-Copyright 2004-2018 Free Software Foundation, Inc.
+Copyright 2004-2024 Free Software Foundation, Inc.
 
 This ChangeLog is free software; the Free Software Foundation gives
 unlimited permission to copy, distribute, and modify it.

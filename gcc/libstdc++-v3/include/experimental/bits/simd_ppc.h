@@ -1,6 +1,6 @@
 // Simd PowerPC specific implementations -*- C++ -*-
 
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -64,7 +64,7 @@ template <typename _Abi, typename>
 	__x = _Base::_S_bit_shift_left(__x, __y);
 	if constexpr (sizeof(_Tp) < sizeof(int))
 	  {
-	    if (__y >= sizeof(_Tp) * __CHAR_BIT__)
+	    if (__y >= int(sizeof(_Tp) * __CHAR_BIT__))
 	      return {};
 	  }
 	return __x;
@@ -124,12 +124,14 @@ template <typename _Abi, typename>
 
     // _S_popcount {{{
     template <typename _Tp>
-      _GLIBCXX_SIMD_INTRINSIC static int _S_popcount(simd_mask<_Tp, _Abi> __k)
+      _GLIBCXX_SIMD_INTRINSIC static int
+      _S_popcount(simd_mask<_Tp, _Abi> __k)
       {
 	const auto __kv = __as_vector(__k);
 	if constexpr (__have_power10vec)
 	  {
-	    return vec_cntm(__to_intrin(__kv), 1);
+	    using _Intrin = __intrinsic_type16_t<make_unsigned_t<__int_for_sizeof_t<_Tp>>>;
+	    return vec_cntm(reinterpret_cast<_Intrin>(__kv), 1);
 	  }
 	else if constexpr (sizeof(_Tp) >= sizeof(int))
 	  {

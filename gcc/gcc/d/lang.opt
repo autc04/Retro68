@@ -1,5 +1,5 @@
 ; lang.opt -- Options for the D front end.
-; Copyright (C) 2006-2022 Free Software Foundation, Inc.
+; Copyright (C) 2006-2025 Free Software Foundation, Inc.
 ;
 ; GCC is free software; you can redistribute it and/or modify it under
 ; the terms of the GNU General Public License as published by the Free
@@ -118,6 +118,10 @@ Wno-alloca-larger-than
 D
 ; Documented in C
 
+Wbuiltin-declaration-mismatch
+D
+; Documented in C
+
 Wcast-result
 D Warning Var(warn_cast_result) LangEnabledBy(D, Wextra)
 Warn about casts that will produce a null result.
@@ -129,6 +133,14 @@ D
 Werror
 D
 ; Documented in common.opt
+
+Wextra
+D Warning
+; Documented in common.opt
+
+Wmismatched-special-enum
+D Warning Var(warn_mismatched_special_enum) LangEnabledBy(D, Wextra)
+Warn when a special enum is declared with the wrong base type.
 
 Wpsabi
 D
@@ -245,7 +257,7 @@ Compile in debug code.
 
 fdebug=
 D Joined RejectNegative
--fdebug=<level|ident>	Compile in debug code, code <= <level>, or code identified by <ident>.
+-fdebug=<ident>	Compile in debug code identified by <ident>.
 
 fdoc
 D
@@ -279,6 +291,10 @@ fdump-d-original
 D
 Display the frontend AST after parsing and semantic passes.
 
+fexceptions
+D
+; Documented in common.opt
+
 fextern-std=
 D Joined RejectNegative Enum(extern_stdcpp) Var(flag_extern_stdcpp)
 -fextern-std=<standard>	Set C++ name mangling compatibility with <standard>.
@@ -304,9 +320,16 @@ Enum(extern_stdcpp) String(c++17) Value(201703)
 EnumValue
 Enum(extern_stdcpp) String(c++20) Value(202002)
 
+EnumValue
+Enum(extern_stdcpp) String(c++23) Value(202302)
+
 fignore-unknown-pragmas
 D
 Ignore unsupported pragmas.
+
+finclude-imports
+D RejectNegative
+Include imported modules in the compilation.
 
 finvariants
 D Var(flag_invariants)
@@ -340,6 +363,10 @@ fpreview=all
 D RejectNegative
 Turn on all upcoming D language features.
 
+fpreview=bitfields
+D RejectNegative
+Implement D bit-fields.
+
 fpreview=dip1000
 D RejectNegative
 Implement DIP1000: Scoped pointers.
@@ -351,10 +378,6 @@ Implement DIP1008: Allow exceptions in @nogc code.
 fpreview=dip1021
 D RejectNegative
 Implement DIP1021: Mutable function arguments.
-
-fpreview=dip25
-D RejectNegative
-Implement DIP25: Sealed references.
 
 fpreview=dtorfields
 D RejectNegative
@@ -368,6 +391,10 @@ fpreview=fixaliasthis
 D RejectNegative
 When a symbol is resolved, check `alias this' scope before going to upper scopes.
 
+fpreview=fiximmutableconv
+D RejectNegative
+Disallow unsound immutable conversions that were formerly incorrectly permitted.
+
 fpreview=in
 D RejectNegative
 Implement 'in' parameters to mean scope const.
@@ -380,13 +407,17 @@ fpreview=nosharedaccess
 D RejectNegative
 Disable access to shared memory objects.
 
+fpreview=safer
+D RejectNegative
+Enable safety checks on all functions by default.
+
 fpreview=rvaluerefparam
 D RejectNegative
 Enable rvalue arguments to ref parameters.
 
-fpreview=shortenedmethods
+fpreview=systemvariables
 D RejectNegative
-Allow use of '=>' for methods and top-level functions in addition to lambdas.
+Disable access to variables marked `@system' from @safe code.
 
 frelease
 D
@@ -400,21 +431,13 @@ frevert=dip1000
 D RejectNegative
 Revert DIP1000: Scoped pointers.
 
-frevert=dip25
-D RejectNegative
-Revert DIP25: Sealed references.
-
 frevert=dtorfields
 D RejectNegative
 Don't destruct fields of partially constructed objects.
 
 frevert=intpromote
 D RejectNegative
-Use C-style integral promotion for unary '+', '-' and '~'.
-
-frevert=markdown
-D RejectNegative
-Disable Markdown replacements in Ddoc.
+Don't use C-style integral promotion for unary '+', '-' and '~'.
 
 frtti
 D
@@ -452,17 +475,13 @@ ftransition=tls
 D RejectNegative
 List all variables going into thread local storage.
 
-ftransition=vmarkdown
-D RejectNegative
-List instances of Markdown replacements in Ddoc.
-
 funittest
 D
 Compile in unittest code.
 
 fversion=
 D Joined RejectNegative
--fversion=<level|ident>	Compile in version code >= <level> or identified by <ident>.
+-fversion=<ident>	Compile in version code identified by <ident>.
 
 fweak-templates
 D Var(flag_weak_templates) Init(1)

@@ -1,5 +1,5 @@
 /* Part of CPP library.  (Precompiled header reading/writing.)
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2025 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -613,7 +613,7 @@ cpp_valid_state (cpp_reader *r, const char *name, int fd)
 	{
 	  if (CPP_OPTION (r, warn_invalid_pch))
 	    cpp_warning_syshdr (r, CPP_W_INVALID_PCH,
-		                "%s: not used because `%.*s' is poisoned",
+		                "%s: not used because %<%.*s%> is poisoned",
 		                name, m.name_length, namebuf);
 	  goto fail;
 	}
@@ -635,7 +635,7 @@ cpp_valid_state (cpp_reader *r, const char *name, int fd)
 
 	  if (CPP_OPTION (r, warn_invalid_pch))
 	    cpp_warning_syshdr (r, CPP_W_INVALID_PCH,
-		                "%s: not used because `%.*s' not defined",
+		                "%s: not used because %<%.*s%> not defined",
 		                name, m.name_length, namebuf);
 	  goto fail;
 	}
@@ -647,10 +647,12 @@ cpp_valid_state (cpp_reader *r, const char *name, int fd)
 	{
 	  if (CPP_OPTION (r, warn_invalid_pch))
 	    cpp_warning_syshdr (r, CPP_W_INVALID_PCH,
-	       "%s: not used because `%.*s' defined as `%s' not `%.*s'",
-		       name, m.name_length, namebuf, newdefn + m.name_length,
-		       m.definition_length - m.name_length,
-		       namebuf +  m.name_length);
+				"%s: not used because %<%.*s%> defined as "
+				"%qs not %<%.*s%>",
+				name, m.name_length, namebuf,
+				newdefn + m.name_length,
+				m.definition_length - m.name_length,
+				namebuf +  m.name_length);
 	  goto fail;
 	}
     }
@@ -688,7 +690,7 @@ cpp_valid_state (cpp_reader *r, const char *name, int fd)
 	{
 	  if (CPP_OPTION (r, warn_invalid_pch))
 	    cpp_warning_syshdr (r, CPP_W_INVALID_PCH,
-		                "%s: not used because `%s' is defined",
+		                "%s: not used because %qs is defined",
 		                name, first);
 	  goto fail;
 	}
@@ -708,7 +710,7 @@ cpp_valid_state (cpp_reader *r, const char *name, int fd)
     {
       if (CPP_OPTION (r, warn_invalid_pch))
 	cpp_warning_syshdr (r, CPP_W_INVALID_PCH,
-		            "%s: not used because `__COUNTER__' is invalid",
+		            "%s: not used because %<__COUNTER__%> is invalid",
 		            name);
       goto fail;
     }
@@ -838,7 +840,14 @@ cpp_read_state (cpp_reader *r, const char *name, FILE *f,
 	      != NULL)
 	    {
 	      _cpp_clean_line (r);
-	      if (!_cpp_create_definition (r, h))
+
+	      /* ??? Using r->line_table->highest_line is not ideal here, but we
+		 do need to use some location that is relative to the new line
+		 map just loaded, not the old one that was in effect when these
+		 macros were lexed.  The proper fix is to remember the file name
+		 and line number where each macro was defined, and then add
+		 these locations into the new line map.  See PR105608.  */
+	      if (!_cpp_create_definition (r, h, r->line_table->highest_line))
 		abort ();
 	      _cpp_pop_buffer (r);
 	    }

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -787,7 +787,7 @@ package body CStand is
       B_Node := New_Node (N_Character_Literal, Stloc);
       Set_Is_Static_Expression (B_Node);
       Set_Chars                (B_Node, No_Name);
-      Set_Char_Literal_Value   (B_Node, UI_From_Int (16#FF#));
+      Set_Char_Literal_Value   (B_Node, UI_From_CC (16#FF#));
       Set_Entity               (B_Node, Empty);
       Set_Etype                (B_Node, Standard_Character);
       Set_High_Bound (R_Node, B_Node);
@@ -833,7 +833,7 @@ package body CStand is
       B_Node := New_Node (N_Character_Literal, Stloc);
       Set_Is_Static_Expression (B_Node);
       Set_Chars                (B_Node, No_Name);
-      Set_Char_Literal_Value   (B_Node, UI_From_Int (16#FFFF#));
+      Set_Char_Literal_Value   (B_Node, UI_From_CC (16#FFFF#));
       Set_Entity               (B_Node, Empty);
       Set_Etype                (B_Node, Standard_Wide_Character);
       Set_High_Bound           (R_Node, B_Node);
@@ -882,7 +882,7 @@ package body CStand is
       B_Node := New_Node (N_Character_Literal, Stloc);
       Set_Is_Static_Expression (B_Node);
       Set_Chars                (B_Node, No_Name);
-      Set_Char_Literal_Value   (B_Node, UI_From_Int (16#7FFF_FFFF#));
+      Set_Char_Literal_Value   (B_Node, UI_From_CC (16#7FFF_FFFF#));
       Set_Entity               (B_Node, Empty);
       Set_Etype                (B_Node, Standard_Wide_Wide_Character);
       Set_High_Bound           (R_Node, B_Node);
@@ -1088,7 +1088,7 @@ package body CStand is
             Set_Is_Static_Expression (Expr_Decl);
             Set_Chars                (Expr_Decl, No_Name);
             Set_Etype                (Expr_Decl, Standard_Character);
-            Set_Char_Literal_Value   (Expr_Decl, UI_From_Int (Int (Ccode)));
+            Set_Char_Literal_Value   (Expr_Decl, UI_From_CC (Ccode));
          end;
 
          Append (Decl, Decl_A);
@@ -1334,8 +1334,8 @@ package body CStand is
       --  used internally. They are unsigned types with the same length as
       --  the correspondingly named signed integer types.
 
-      Standard_Short_Short_Unsigned
-        := New_Standard_Entity ("short_short_unsigned");
+      Standard_Short_Short_Unsigned :=
+        New_Standard_Entity ("short_short_unsigned");
       Build_Unsigned_Integer_Type
         (Standard_Short_Short_Unsigned, Standard_Short_Short_Integer_Size);
 
@@ -1642,8 +1642,7 @@ package body CStand is
 
       for E in Standard_Entity_Type loop
          if Ekind (Standard_Entity (E)) /= E_Operator then
-            Set_Name_Entity_Id
-              (Chars (Standard_Entity (E)), Standard_Entity (E));
+            Set_Current_Entity (Standard_Entity (E));
             Set_Homonym (Standard_Entity (E), Empty);
          end if;
 
@@ -1784,6 +1783,7 @@ package body CStand is
 
       Set_Is_Immediately_Visible  (Ident_Node, True);
       Set_Is_Intrinsic_Subprogram (Ident_Node, True);
+      Set_Is_Not_Self_Hidden (Ident_Node);
 
       Set_Name_Entity_Id (Op, Ident_Node);
       Append_Entity (Ident_Node, Standard_Standard);
@@ -1806,9 +1806,10 @@ package body CStand is
       Set_Is_Public (E);
 
       --  All standard entity names are analyzed manually, and are thus
-      --  frozen as soon as they are created.
+      --  frozen and not self-hidden as soon as they are created.
 
       Set_Is_Frozen (E);
+      Set_Is_Not_Self_Hidden (E);
 
       --  Set debug information required for all standard types
 

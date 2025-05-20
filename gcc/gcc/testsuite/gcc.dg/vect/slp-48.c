@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-require-effective-target vect_perm } */
 
 #include "tree-vect.h"
 
@@ -35,6 +36,7 @@ main ()
     }
 
   foo ();
+#pragma GCC novector
   for (int i = 0; i < 1024; ++i)
     if (x[i] != y[1023 - i^1])
       abort ();
@@ -46,6 +48,7 @@ main ()
     }
 
   bar ();
+#pragma GCC novector
   for (int i = 0; i < 1024; ++i)
     if (x[i] != y[1023 - i])
       abort ();

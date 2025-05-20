@@ -1,5 +1,5 @@
 /* Subroutines for the D front end on the ARM architecture.
-   Copyright (C) 2017-2022 Free Software Foundation, Inc.
+   Copyright (C) 2017-2025 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,9 +21,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
-#include "tm_p.h"
+#include "tm_d.h"
 #include "d/d-target.h"
 #include "d/d-target-def.h"
+#include "arm-protos.h"
 
 /* Implement TARGET_D_CPU_VERSIONS for ARM targets.  */
 

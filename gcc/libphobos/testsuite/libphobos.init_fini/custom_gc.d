@@ -1,6 +1,6 @@
-import core.gc.registry;
 import core.gc.gcinterface;
-import core.stdc.stdlib;
+import core.gc.registry;
+import core.stdc.stdlib : calloc, malloc, realloc;
 
 static import core.memory;
 
@@ -22,11 +22,18 @@ extern (C) void register_default_gcs()
 class MallocGC : GC
 {
 nothrow @nogc:
+    // To make sure all allocations are multiples of 8 bytes for alignment
+    private size_t alignUp(size_t size)
+    {
+        return (size + 7) & ~7LU;
+    }
+
     static GC initialize()
     {
         import core.stdc.string : memcpy;
 
-        __gshared ubyte[__traits(classInstanceSize, MallocGC)] buf;
+        __gshared align(__traits(classInstanceAlignment, MallocGC))
+            ubyte[__traits(classInstanceSize, MallocGC)] buf;
 
         auto init = typeid(MallocGC).initializer();
         assert(init.length == buf.length);
@@ -80,21 +87,25 @@ nothrow @nogc:
 
     void* malloc(size_t size, uint bits, const TypeInfo ti) nothrow
     {
+        size = alignUp(size);
         return sentinelAdd(.malloc(size + sentinelSize), size);
     }
 
     BlkInfo qalloc(size_t size, uint bits, const scope TypeInfo ti) nothrow
     {
+        size = alignUp(size);
         return BlkInfo(malloc(size, bits, ti), size);
     }
 
     void* calloc(size_t size, uint bits, const TypeInfo ti) nothrow
     {
+        size = alignUp(size);
         return sentinelAdd(.calloc(1, size + sentinelSize), size);
     }
 
     void* realloc(void* p, size_t size, uint bits, const TypeInfo ti) nothrow
     {
+        size = alignUp(size);
         return sentinelAdd(.realloc(p - sentinelSize, size + sentinelSize), size);
     }
 
@@ -176,6 +187,26 @@ nothrow @nogc:
     ulong allocatedInCurrentThread() nothrow
     {
         return stats().allocatedInCurrentThread;
+    }
+
+    void[] getArrayUsed(void *ptr, bool atomic = false) nothrow
+    {
+        return null;
+    }
+
+    bool expandArrayUsed(void[] slice, size_t newUsed, bool atomic = false) nothrow @safe
+    {
+        return false;
+    }
+
+    size_t reserveArrayCapacity(void[] slice, size_t request, bool atomic = false) nothrow @safe
+    {
+        return 0;
+    }
+
+    bool shrinkArrayUsed(void[] slice, size_t existingUsed, bool atomic = false) nothrow
+    {
+        return false;
     }
 
 private:

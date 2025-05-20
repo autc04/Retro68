@@ -1,5 +1,5 @@
 /* SSA operands management for trees.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -809,6 +809,10 @@ operands_scanner::get_expr_operands (tree *expr_p, int flags)
 	add_stmt_operand (expr_p, flags);
       return;
 
+    case OMP_NEXT_VARIANT:
+    case OMP_TARGET_DEVICE_MATCHES:
+      return;
+
     case DEBUG_EXPR_DECL:
       gcc_assert (gimple_debug_bind_p (stmt));
       return;
@@ -896,7 +900,6 @@ operands_scanner::get_expr_operands (tree *expr_p, int flags)
     case BIT_INSERT_EXPR:
     case COMPOUND_EXPR:
     case OBJ_TYPE_REF:
-    case ASSERT_EXPR:
     do_binary:
       {
 	get_expr_operands (&TREE_OPERAND (expr, 0), flags);

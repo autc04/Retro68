@@ -1,6 +1,6 @@
 // Debugging support implementation -*- C++ -*-
 
-// Copyright (C) 2003-2022 Free Software Foundation, Inc.
+// Copyright (C) 2003-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -32,19 +32,6 @@
 #include <bits/c++config.h>
 
 #ifndef _GLIBCXX_DEBUG
-
-# define _GLIBCXX_DEBUG_ASSERT(_Condition)
-# define _GLIBCXX_DEBUG_PEDASSERT(_Condition)
-# define _GLIBCXX_DEBUG_ONLY(_Statement)
-
-#endif
-
-#ifndef _GLIBCXX_ASSERTIONS
-# define __glibcxx_requires_non_empty_range(_First,_Last)
-# define __glibcxx_requires_nonempty()
-# define __glibcxx_requires_subscript(_N)
-#else
-
 // Verify that [_First, _Last) forms a non-empty iterator range.
 # define __glibcxx_requires_non_empty_range(_First,_Last)	\
   __glibcxx_assert(_First != _Last)
@@ -53,9 +40,17 @@
 // Verify that the container is nonempty
 # define __glibcxx_requires_nonempty()		\
   __glibcxx_assert(!this->empty())
+#else // Use the more verbose Debug Mode checks.
+# define __glibcxx_requires_non_empty_range(_First,_Last) \
+  __glibcxx_check_non_empty_range(_First,_Last)
+# define __glibcxx_requires_nonempty() \
+  __glibcxx_check_nonempty()
+# define __glibcxx_requires_subscript(_N) \
+  __glibcxx_check_subscript(_N)
 #endif
 
-#ifdef _GLIBCXX_DEBUG
+#if defined _GLIBCXX_DEBUG && _GLIBCXX_HOSTED
+
 # define _GLIBCXX_DEBUG_ASSERT(_Condition) __glibcxx_assert(_Condition)
 
 # ifdef _GLIBCXX_DEBUG_PEDANTIC
@@ -65,6 +60,11 @@
 # endif
 
 # define _GLIBCXX_DEBUG_ONLY(_Statement) _Statement
+
+#else
+# define _GLIBCXX_DEBUG_ASSERT(_Condition)
+# define _GLIBCXX_DEBUG_PEDASSERT(_Condition)
+# define _GLIBCXX_DEBUG_ONLY(_Statement)
 #endif
 
 #endif // _GLIBCXX_DEBUG_ASSERTIONS

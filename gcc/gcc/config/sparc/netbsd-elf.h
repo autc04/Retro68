@@ -1,6 +1,6 @@
 /* Definitions of target machine for GCC, for ELF on NetBSD/sparc
    and NetBSD/sparc64.
-   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+   Copyright (C) 2002-2025 Free Software Foundation, Inc.
    Contributed by Matthew Green (mrg@eterna.com.au).
 
 This file is part of GCC.
@@ -45,11 +45,6 @@ along with GCC; see the file COPYING3.  If not see
 
 #undef PTRDIFF_TYPE
 #define PTRDIFF_TYPE "long int"
-
-/* This is the char to use for continuation (in case we need to turn
-   continuation back on).  */
-#undef DBX_CONTIN_CHAR
-#define DBX_CONTIN_CHAR '?'
 
 #undef  LOCAL_LABEL_PREFIX
 #define LOCAL_LABEL_PREFIX  "."
@@ -165,8 +160,8 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifdef SPARC_BI_ARCH
 
-#undef LONG_DOUBLE_TYPE_SIZE
-#define LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
+#undef SPARC_LONG_DOUBLE_TYPE_SIZE
+#define SPARC_LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
 
 #undef  CC1_SPEC
 #if DEFAULT_ARCH32_P
@@ -186,8 +181,8 @@ along with GCC; see the file COPYING3.  If not see
 #if TARGET_CPU_DEFAULT == TARGET_CPU_v9 \
  || TARGET_CPU_DEFAULT == TARGET_CPU_ultrasparc
 
-#undef LONG_DOUBLE_TYPE_SIZE
-#define LONG_DOUBLE_TYPE_SIZE 128
+#undef SPARC_LONG_DOUBLE_TYPE_SIZE
+#define SPARC_LONG_DOUBLE_TYPE_SIZE 128
 
 #undef  CC1_SPEC
 #define CC1_SPEC CC1_SPEC64
@@ -198,8 +193,8 @@ along with GCC; see the file COPYING3.  If not see
 /* A 32-bit only compiler.  NetBSD don't support 128 bit `long double'
    for 32-bit code, unlike Solaris.  */
 
-#undef LONG_DOUBLE_TYPE_SIZE
-#define LONG_DOUBLE_TYPE_SIZE 64
+#undef SPARC_LONG_DOUBLE_TYPE_SIZE
+#define SPARC_LONG_DOUBLE_TYPE_SIZE 64
 
 #undef  CC1_SPEC
 #define CC1_SPEC CC1_SPEC32

@@ -1,6 +1,6 @@
 // Exception Handling support header (exception_ptr class) for -*- C++ -*-
 
-// Copyright (C) 2008-2022 Free Software Foundation, Inc.
+// Copyright (C) 2008-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -8,12 +8,12 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 3, or (at your option)
 // any later version.
-// 
+//
 // GCC is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // Under Section 7 of GPL version 3, you are granted additional
 // permissions described in the GCC Runtime Library Exception, version
 // 3.1, as published by the Free Software Foundation.
@@ -30,8 +30,6 @@
 
 #ifndef _EXCEPTION_PTR_H
 #define _EXCEPTION_PTR_H
-
-#pragma GCC visibility push(default)
 
 #include <bits/c++config.h>
 #include <bits/exception_defines.h>
@@ -51,7 +49,7 @@
 
 extern "C++" {
 
-namespace std 
+namespace std _GLIBCXX_VISIBILITY(default)
 {
   class type_info;
 
@@ -67,9 +65,12 @@ namespace std
 
   using __exception_ptr::exception_ptr;
 
-  /** Obtain an exception_ptr to the currently handled exception. If there
-   *  is none, or the currently handled exception is foreign, return the null
-   *  value.
+  /** Obtain an exception_ptr to the currently handled exception.
+   *
+   * If there is none, or the currently handled exception is foreign,
+   * return the null value.
+   *
+   * @since C++11
    */
   exception_ptr current_exception() _GLIBCXX_USE_NOEXCEPT;
 
@@ -81,10 +82,16 @@ namespace std
 
   namespace __exception_ptr
   {
-    using std::rethrow_exception;
+    using std::rethrow_exception; // So that ADL finds it.
 
     /**
      *  @brief An opaque pointer to an arbitrary exception.
+     *
+     * The actual name of this type is unspecified, so the alias
+     * `std::exception_ptr` should be used to refer to it.
+     *
+     *  @headerfile exception
+     *  @since C++11 (but usable in C++98 as a GCC extension)
      *  @ingroup exceptions
      */
     class exception_ptr
@@ -125,11 +132,11 @@ namespace std
       exception_ptr(__safe_bool) _GLIBCXX_USE_NOEXCEPT;
 #endif
 
-      exception_ptr& 
+      exception_ptr&
       operator=(const exception_ptr&) _GLIBCXX_USE_NOEXCEPT;
 
 #if __cplusplus >= 201103L
-      exception_ptr& 
+      exception_ptr&
       operator=(exception_ptr&& __o) noexcept
       {
         exception_ptr(static_cast<exception_ptr&&>(__o)).swap(*this);
@@ -139,13 +146,12 @@ namespace std
 
       ~exception_ptr() _GLIBCXX_USE_NOEXCEPT;
 
-      void 
+      void
       swap(exception_ptr&) _GLIBCXX_USE_NOEXCEPT;
 
 #ifdef _GLIBCXX_EH_PTR_COMPAT
       // Retained for compatibility with CXXABI_1.3.
-      void _M_safe_bool_dummy() _GLIBCXX_USE_NOEXCEPT
-	__attribute__ ((__const__));
+      void _M_safe_bool_dummy() _GLIBCXX_USE_NOEXCEPT;
       bool operator!() const _GLIBCXX_USE_NOEXCEPT
 	__attribute__ ((__pure__));
       operator __safe_bool() const _GLIBCXX_USE_NOEXCEPT;
@@ -233,6 +239,8 @@ namespace std
 
   } // namespace __exception_ptr
 
+  using __exception_ptr::swap; // So that std::swap(exp1, exp2) finds it.
+
   /// Obtain an exception_ptr pointing to a copy of the supplied object.
 #if (__cplusplus >= 201103L && __cpp_rtti) || __cpp_exceptions
   template<typename _Ex>
@@ -271,7 +279,7 @@ namespace std
   // instead of a working one compiled with RTTI and/or exceptions enabled.
   template<typename _Ex>
     __attribute__ ((__always_inline__))
-    exception_ptr
+    inline exception_ptr
     make_exception_ptr(_Ex) _GLIBCXX_USE_NOEXCEPT
     { return exception_ptr(); }
 #endif
@@ -282,7 +290,5 @@ namespace std
 } // namespace std
 
 } // extern "C++"
-
-#pragma GCC visibility pop
 
 #endif

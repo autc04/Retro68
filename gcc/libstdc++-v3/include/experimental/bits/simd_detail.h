@@ -1,6 +1,6 @@
 // Internal macros for the simd implementation -*- C++ -*-
 
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -60,6 +60,16 @@
 #define _GLIBCXX_SIMD_HAVE_NEON_A64 1
 #else
 #define _GLIBCXX_SIMD_HAVE_NEON_A64 0
+#endif
+#if (__ARM_FEATURE_SVE_BITS > 0 && __ARM_FEATURE_SVE_VECTOR_OPERATORS==1)
+#define _GLIBCXX_SIMD_HAVE_SVE 1
+#else
+#define _GLIBCXX_SIMD_HAVE_SVE 0
+#endif
+#ifdef __ARM_FEATURE_SVE2
+#define _GLIBCXX_SIMD_HAVE_SVE2 1
+#else
+#define _GLIBCXX_SIMD_HAVE_SVE2 0
 #endif
 //}}}
 // x86{{{
@@ -252,11 +262,13 @@
 #endif
 //}}}
 
-#ifdef __clang__
+#ifdef _GLIBCXX_CLANG
 #define _GLIBCXX_SIMD_NORMAL_MATH
+#define _GLIBCXX_SIMD_ALWAYS_INLINE_LAMBDA
 #else
 #define _GLIBCXX_SIMD_NORMAL_MATH                                              \
   [[__gnu__::__optimize__("finite-math-only,no-signed-zeros")]]
+#define _GLIBCXX_SIMD_ALWAYS_INLINE_LAMBDA __attribute__((__always_inline__))
 #endif
 #define _GLIBCXX_SIMD_NEVER_INLINE [[__gnu__::__noinline__]]
 #define _GLIBCXX_SIMD_INTRINSIC                                                \
@@ -265,7 +277,7 @@
 #define _GLIBCXX_SIMD_IS_UNLIKELY(__x) __builtin_expect(__x, 0)
 #define _GLIBCXX_SIMD_IS_LIKELY(__x) __builtin_expect(__x, 1)
 
-#if defined __STRICT_ANSI__ && __STRICT_ANSI__
+#if _GLIBCXX_SIMD_HAVE_SVE || __STRICT_ANSI__ || defined _GLIBCXX_CLANG
 #define _GLIBCXX_SIMD_CONSTEXPR
 #define _GLIBCXX_SIMD_USE_CONSTEXPR_API const
 #else
@@ -273,7 +285,7 @@
 #define _GLIBCXX_SIMD_USE_CONSTEXPR_API constexpr
 #endif
 
-#if defined __clang__
+#if defined _GLIBCXX_CLANG
 #define _GLIBCXX_SIMD_USE_CONSTEXPR const
 #else
 #define _GLIBCXX_SIMD_USE_CONSTEXPR constexpr
@@ -294,6 +306,8 @@
 #ifdef _GLIBCXX_SIMD_NO_ALWAYS_INLINE
 #undef _GLIBCXX_SIMD_ALWAYS_INLINE
 #define _GLIBCXX_SIMD_ALWAYS_INLINE inline
+#undef _GLIBCXX_SIMD_ALWAYS_INLINE_LAMBDA
+#define _GLIBCXX_SIMD_ALWAYS_INLINE_LAMBDA
 #undef _GLIBCXX_SIMD_INTRINSIC
 #define _GLIBCXX_SIMD_INTRINSIC inline
 #endif
@@ -316,7 +330,9 @@
 #endif
 
 // integer division not optimized
+#ifndef _GLIBCXX_CLANG
 #define _GLIBCXX_SIMD_WORKAROUND_PR90993 1
+#endif
 
 // very bad codegen for extraction and concatenation of 128/256 "subregisters"
 // with sizeof(element type) < 8: https://godbolt.org/g/mqUsgM

@@ -1,5 +1,5 @@
 /* Control flow optimization code for GNU compiler.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -208,7 +208,7 @@ mark_effect (rtx exp, regset nonequal)
       return false;
 
     case SET:
-      if (rtx_equal_for_cselib_p (SET_DEST (exp), SET_SRC (exp)))
+      if (cselib_redundant_set_p (exp))
 	return false;
       dest = SET_DEST (exp);
       if (dest == pc_rtx)
@@ -973,7 +973,7 @@ equal_different_set_p (rtx p1, rtx s1, rtx p2, rtx s2)
    that is a single_set with a SET_SRC of SRC1.  Similarly
    for NOTE2/SRC2.
 
-   So effectively NOTE1/NOTE2 are an alternate form of 
+   So effectively NOTE1/NOTE2 are an alternate form of
    SRC1/SRC2 respectively.
 
    Return nonzero if SRC1 or NOTE1 has the same constant
@@ -1861,10 +1861,10 @@ outgoing_edges_match (int mode, basic_block bb1, basic_block bb2)
   /* fallthru edges must be forwarded to the same destination.  */
   if (fallthru1)
     {
-      basic_block d1 = (forwarder_block_p (fallthru1->dest)
-			? single_succ (fallthru1->dest): fallthru1->dest);
-      basic_block d2 = (forwarder_block_p (fallthru2->dest)
-			? single_succ (fallthru2->dest): fallthru2->dest);
+      basic_block d1 = (FORWARDER_BLOCK_P (fallthru1->dest)
+			? single_succ (fallthru1->dest) : fallthru1->dest);
+      basic_block d2 = (FORWARDER_BLOCK_P (fallthru2->dest)
+			? single_succ (fallthru2->dest) : fallthru2->dest);
 
       if (d1 != d2)
 	return false;
@@ -2599,7 +2599,7 @@ trivially_empty_bb_p (basic_block bb)
    return value.  Fill in *RET and *USE with the return and use insns
    if any found, otherwise NULL.  All CLOBBERs are ignored.  */
 
-static bool
+bool
 bb_is_just_return (basic_block bb, rtx_insn **ret, rtx_insn **use)
 {
   *ret = *use = NULL;
@@ -2608,14 +2608,14 @@ bb_is_just_return (basic_block bb, rtx_insn **ret, rtx_insn **use)
   if (bb == EXIT_BLOCK_PTR_FOR_FN (cfun))
     return false;
 
-  FOR_BB_INSNS (bb, insn)
+  FOR_BB_INSNS_REVERSE (bb, insn)
     if (NONDEBUG_INSN_P (insn))
       {
 	rtx pat = PATTERN (insn);
 
 	if (!*ret && ANY_RETURN_P (pat))
 	  *ret = insn;
-	else if (!*ret && !*use && GET_CODE (pat) == USE
+	else if (*ret && !*use && GET_CODE (pat) == USE
 	    && REG_P (XEXP (pat, 0))
 	    && REG_FUNCTION_VALUE_P (XEXP (pat, 0)))
 	  *use = insn;
@@ -3227,7 +3227,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_jump
 
@@ -3274,11 +3274,11 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
   {
     return flag_thread_jumps && flag_expensive_optimizations;
   }
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_jump_after_combine
 
@@ -3322,7 +3322,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *)
+  unsigned int execute (function *) final override
     {
       cleanup_cfg (flag_crossjumping ? CLEANUP_CROSSJUMP : 0);
       return 0;

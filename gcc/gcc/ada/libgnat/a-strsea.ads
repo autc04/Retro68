@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -50,7 +50,10 @@ pragma Assertion_Policy (Pre            => Ignore,
 
 with Ada.Strings.Maps; use type Ada.Strings.Maps.Character_Mapping_Function;
 
-package Ada.Strings.Search with SPARK_Mode is
+package Ada.Strings.Search with
+  SPARK_Mode,
+  Always_Terminates
+is
    pragma Preelaborate;
 
    --  The ghost function Match tells whether the slice of Source starting at
@@ -73,6 +76,9 @@ package Ada.Strings.Search with SPARK_Mode is
        and then Source'Length > 0
        and then From in Source'First .. Source'Last - (Pattern'Length - 1),
      Global => null;
+   pragma Annotate (GNATprove, False_Positive,
+                    "call via access-to-subprogram",
+                    "function Mapping must always terminate");
 
    function Match
      (Source  : String;
@@ -142,7 +148,7 @@ package Ada.Strings.Search with SPARK_Mode is
                       then J <= Index'Result - 1
                       else J - 1 in Index'Result
                                     .. Source'Last - Pattern'Length)
-                  then not (Match (Source, Pattern, Mapping, J)))),
+                  then not Match (Source, Pattern, Mapping, J))),
 
         --  Otherwise, 0 is returned
 
@@ -189,7 +195,7 @@ package Ada.Strings.Search with SPARK_Mode is
                       then J <= Index'Result - 1
                       else J - 1 in Index'Result
                                     .. Source'Last - Pattern'Length)
-                  then not (Match (Source, Pattern, Mapping, J)))),
+                  then not Match (Source, Pattern, Mapping, J))),
 
         --  Otherwise, 0 is returned
 
@@ -289,7 +295,7 @@ package Ada.Strings.Search with SPARK_Mode is
                       then J in From .. Index'Result - 1
                       else J - 1 in Index'Result
                                     .. From - Pattern'Length)
-                  then not (Match (Source, Pattern, Mapping, J)))),
+                  then not Match (Source, Pattern, Mapping, J))),
 
         --  Otherwise, 0 is returned
 
@@ -347,7 +353,7 @@ package Ada.Strings.Search with SPARK_Mode is
                       then J in From .. Index'Result - 1
                       else J - 1 in Index'Result
                                     .. From - Pattern'Length)
-                  then not (Match (Source, Pattern, Mapping, J)))),
+                  then not Match (Source, Pattern, Mapping, J))),
 
         --  Otherwise, 0 is returned
 

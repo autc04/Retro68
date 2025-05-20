@@ -1,6 +1,6 @@
 // Versatile string -*- C++ -*-
 
-// Copyright (C) 2005-2022 Free Software Foundation, Inc.
+// Copyright (C) 2005-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,7 +29,11 @@
 #ifndef _VSTRING_H
 #define _VSTRING_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+
+#include <bits/requires_hosted.h> // GNU extensions are currently omitted
 
 #if __cplusplus >= 201103L
 #include <initializer_list>
@@ -46,18 +50,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   /**
    *  @class __versa_string vstring.h
-   *  @brief  Template class __versa_string. 
+   *  @brief  Template class __versa_string.
    *  @ingroup extensions
    *
    *  Data structure managing sequences of characters and
-   *  character-like objects. 
+   *  character-like objects.
    */
   template<typename _CharT, typename _Traits, typename _Alloc,
 	   template <typename, typename, typename> class _Base>
     class __versa_string
     : private _Base<_CharT, _Traits, _Alloc>
     {
-      typedef _Base<_CharT, _Traits, _Alloc>                __vstring_base;    
+      typedef _Base<_CharT, _Traits, _Alloc>                __vstring_base;
       typedef typename __vstring_base::_CharT_alloc_type    _CharT_alloc_type;
       typedef __alloc_traits<_CharT_alloc_type> _CharT_alloc_traits;
 
@@ -248,14 +252,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       /**
        *  @brief  Destroy the string instance.
        */
-      ~__versa_string() _GLIBCXX_NOEXCEPT { }	
+      ~__versa_string() _GLIBCXX_NOEXCEPT { }
 
       /**
        *  @brief  Assign the value of @a str to this string.
        *  @param  __str  Source string.
        */
       __versa_string&
-      operator=(const __versa_string& __str) 
+      operator=(const __versa_string& __str)
       { return this->assign(__str); }
 
 #if __cplusplus >= 201103L
@@ -291,7 +295,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  @param  __s  Source null-terminated string.
        */
       __versa_string&
-      operator=(const _CharT* __s) 
+      operator=(const _CharT* __s)
       { return this->assign(__s); }
 
       /**
@@ -302,9 +306,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  (*this)[0] == @a __c.
        */
       __versa_string&
-      operator=(_CharT __c) 
-      { 
-	this->assign(1, __c); 
+      operator=(_CharT __c)
+      {
+	this->assign(1, __c);
 	return *this;
       }
 
@@ -517,7 +521,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { this->_M_clear(); }
 
       /**
-       *  Returns true if the %string is empty.  Equivalent to 
+       *  Returns true if the %string is empty.  Equivalent to
        *  <code>*this == ""</code>.
        */
       _GLIBCXX_NODISCARD bool
@@ -669,7 +673,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        */
       __versa_string&
       operator+=(_CharT __c)
-      { 
+      {
 	this->push_back(__c);
 	return *this;
       }
@@ -788,7 +792,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        */
       void
       push_back(_CharT __c)
-      { 
+      {
 	const size_type __size = this->size();
 	if (__size + 1 > this->capacity() || this->_M_is_shared())
 	  this->_M_mutate(__size, size_type(0), 0, size_type(1));
@@ -944,7 +948,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_GLIBCXX_DEBUG_PEDASSERT(__p >= _M_ibegin() && __p <= _M_iend());
 	const size_type __pos = __p - _M_ibegin();
 	this->replace(__p, __p, __n, __c);
-	return iterator(this->_M_data() + __pos); 
+	return iterator(this->_M_data() + __pos);
       }
 #else
       /**
@@ -1146,7 +1150,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #if __cplusplus >= 201103L
       insert(const_iterator __p, _CharT __c)
 #else
-      insert(iterator __p, _CharT __c)	
+      insert(iterator __p, _CharT __c)
 #endif
       {
 	_GLIBCXX_DEBUG_PEDASSERT(__p >= _M_ibegin() && __p <= _M_iend());
@@ -1173,7 +1177,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       */
       __versa_string&
       erase(size_type __pos = 0, size_type __n = npos)
-      { 
+      {
 	this->_M_erase(_M_check(__pos, "__versa_string::erase"),
 		       _M_limit(__pos, __n));
 	return *this;
@@ -1191,7 +1195,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #if __cplusplus >= 201103L
       erase(const_iterator __position)
 #else
-      erase(iterator __position)	
+      erase(iterator __position)
 #endif
       {
 	_GLIBCXX_DEBUG_PEDASSERT(__position >= _M_ibegin()
@@ -1327,7 +1331,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  Removes the characters in the range [pos,pos + n1) from this
        *  string.  In place, the characters of @a __s are inserted.  If
        *  @a pos is beyond end of string, out_of_range is thrown.  If
-       *  the length of result exceeds max_size(), length_error is thrown.  
+       *  the length of result exceeds max_size(), length_error is thrown.
        *  The value of the string doesn't change if an error is thrown.
       */
       __versa_string&
@@ -1425,7 +1429,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #if __cplusplus >= 201103L
       replace(const_iterator __i1, const_iterator __i2, const _CharT* __s)
 #else
-      replace(iterator __i1, iterator __i2, const _CharT* __s)	
+      replace(iterator __i1, iterator __i2, const _CharT* __s)
 #endif
       {
 	__glibcxx_requires_string(__s);
@@ -1565,7 +1569,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	return this->replace(__i1 - _M_ibegin(), __i2 - __i1,
 			     __k1.base(), __k2 - __k1);
       }
-      
+
 #if __cplusplus >= 201103L
       /**
        *  @brief  Replace range of characters with initializer_list.
@@ -2338,31 +2342,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     inline bool
     operator==(const __versa_string<_CharT, _Traits, _Alloc, _Base>& __lhs,
 	       const __versa_string<_CharT, _Traits, _Alloc, _Base>& __rhs)
-    { return __lhs.compare(__rhs) == 0; }
-
-  template<typename _CharT,
-	   template <typename, typename, typename> class _Base>
-    inline typename __enable_if<std::__is_char<_CharT>::__value, bool>::__type
-    operator==(const __versa_string<_CharT, std::char_traits<_CharT>,
-	       std::allocator<_CharT>, _Base>& __lhs,
-	       const __versa_string<_CharT, std::char_traits<_CharT>,
-	       std::allocator<_CharT>, _Base>& __rhs)
-    { return (__lhs.size() == __rhs.size()
-	      && !std::char_traits<_CharT>::compare(__lhs.data(), __rhs.data(),
-						    __lhs.size())); }
-
-  /**
-   *  @brief  Test equivalence of C string and string.
-   *  @param __lhs  C string.
-   *  @param __rhs  String.
-   *  @return  True if @a __rhs.compare(@a __lhs) == 0.  False otherwise.
-   */
-  template<typename _CharT, typename _Traits, typename _Alloc,
-	   template <typename, typename, typename> class _Base>
-    inline bool
-    operator==(const _CharT* __lhs,
-	       const __versa_string<_CharT, _Traits, _Alloc, _Base>& __rhs)
-    { return __rhs.compare(__lhs) == 0; }
+    {
+      return __lhs.size() == __rhs.size()
+	       && !_Traits::compare(__lhs.data(), __rhs.data(), __lhs.size());
+    }
 
   /**
    *  @brief  Test equivalence of string and C string.
@@ -2375,7 +2358,23 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     inline bool
     operator==(const __versa_string<_CharT, _Traits, _Alloc, _Base>& __lhs,
 	       const _CharT* __rhs)
-    { return __lhs.compare(__rhs) == 0; }
+    {
+      return __lhs.size() == _Traits::length(__rhs)
+	       && !_Traits::compare(__lhs.data(), __rhs, __lhs.size());
+    }
+
+  /**
+   *  @brief  Test equivalence of C string and string.
+   *  @param __lhs  C string.
+   *  @param __rhs  String.
+   *  @return  True if @a __rhs.compare(@a __lhs) == 0.  False otherwise.
+   */
+  template<typename _CharT, typename _Traits, typename _Alloc,
+	   template <typename, typename, typename> class _Base>
+    inline bool
+    operator==(const _CharT* __lhs,
+	       const __versa_string<_CharT, _Traits, _Alloc, _Base>& __rhs)
+    { return __rhs == __lhs; }
 
   // operator !=
   /**
@@ -2402,7 +2401,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     inline bool
     operator!=(const _CharT* __lhs,
 	       const __versa_string<_CharT, _Traits, _Alloc, _Base>& __rhs)
-    { return !(__lhs == __rhs); }
+    { return !(__rhs == __lhs); }
 
   /**
    *  @brief  Test difference of string and C string.
@@ -2677,7 +2676,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     inline basic_istream<_CharT, _Traits>&
     getline(basic_istream<_CharT, _Traits>& __is,
 	    __gnu_cxx::__versa_string<_CharT, _Traits, _Alloc, _Base>& __str)
-    { return getline(__is, __str, __is.widen('\n')); }      
+    { return getline(__is, __str, __is.widen('\n')); }
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
@@ -2797,12 +2796,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif // _GLIBCXX_USE_C99_STDIO
 
 #if defined(_GLIBCXX_USE_WCHAR_T) && _GLIBCXX_USE_C99_WCHAR
-  inline int 
+  inline int
   stoi(const __wvstring& __str, std::size_t* __idx = 0, int __base = 10)
   { return __gnu_cxx::__stoa<long, int>(&std::wcstol, "stoi", __str.c_str(),
 					__idx, __base); }
 
-  inline long 
+  inline long
   stol(const __wvstring& __str, std::size_t* __idx = 0, int __base = 10)
   { return __gnu_cxx::__stoa(&std::wcstol, "stol", __str.c_str(),
 			     __idx, __base); }

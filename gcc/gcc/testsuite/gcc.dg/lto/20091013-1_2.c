@@ -1,3 +1,5 @@
+/* { dg-options "-std=gnu17 -Wno-stringop-overread" } */
+
 typedef struct HDC__ { int unused; } *HDC;
 typedef struct HFONT__ { int unused; } *HFONT;
 

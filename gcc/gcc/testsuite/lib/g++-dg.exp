@@ -1,4 +1,4 @@
-#   Copyright (C) 1997-2022 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,13 +53,42 @@ proc g++-dg-runtest { testcases flags default-extra-flags } {
 	    if { [llength $gpp_std_list] > 0 } {
 		set std_list $gpp_std_list
 	    } else {
-		set std_list { 98 14 17 20 }
+		# If the test mentions specific C++ versions, test those.
+		set lines [get_matching_lines $test {\{ dg* c++[0-9][0-9]}]
+		set std_list {}
+		set low 0
+		foreach line $lines {
+		    regexp {c\+\+([0-9][0-9])} $line -> ver
+		    lappend std_list $ver
+
+		    if { $ver == 98 } {
+			# Leave low alone.
+		    } elseif { [regexp {dg-do|dg-require-effective-target} $line] } {
+			set low $ver
+		    }
+		}
+		#verbose "low: $low" 1
+
+		set std_list [lsort -unique $std_list]
+
+		# If fewer than 3 specific versions are mentioned, add more.
+		# The order of this list is significant: first $cxx_default,
+		# then the oldest and newest, then others in rough order of
+		# importance based on test coverage and usage.
+		foreach ver { 17 98 26 11 20 14 23 } {
+		    set cmpver $ver
+		    if { $ver == 98 } { set cmpver 03 }
+		    if { [llength $std_list] < 3
+			 && $ver ni $std_list
+			 && $cmpver > $low } {
+			lappend std_list $ver
+		    }
+		}
+		verbose "std_list: $std_list" 1
 	    }
 	    set option_list { }
 	    foreach x $std_list {
-		# Handle "concepts" as C++17 plus Concepts TS.
-		if { $x eq "concepts" } then { set x "17 -fconcepts"
-		} elseif { $x eq "impcx" } then { set x "23 -fimplicit-constexpr" }
+		if { $x eq "impcx" } then { set x "26 -fimplicit-constexpr" }
 		lappend option_list "${std_prefix}$x"
 	    }
 	} else {

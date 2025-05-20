@@ -311,7 +311,6 @@ if (isBidirectionalRange!R && isSomeChar!(ElementType!R) ||
 @safe unittest
 {
     import std.array;
-    import std.utf : byDchar;
 
     assert(rtrimDirSeparators("//abc//").array == "//abc");
     assert(rtrimDirSeparators("//abc//"d).array == "//abc"d);
@@ -329,7 +328,6 @@ if (isBidirectionalRange!R && isSomeChar!(ElementType!R) ||
 @safe unittest
 {
     import std.array;
-    import std.utf : byDchar;
 
     assert(trimDirSeparators("//abc//").array == "abc");
     assert(trimDirSeparators("//abc//"d).array == "abc"d);
@@ -1446,9 +1444,8 @@ private auto _withDefaultExtension(R, C)(R path, C[] ext)
         of segments to assemble the path from.
     Returns: The assembled path.
 */
-immutable(ElementEncodingType!(ElementType!Range))[]
-    buildPath(Range)(scope Range segments)
-    if (isInputRange!Range && !isInfinite!Range && isSomeString!(ElementType!Range))
+immutable(ElementEncodingType!(ElementType!Range))[] buildPath(Range)(scope Range segments)
+if (isInputRange!Range && !isInfinite!Range && isSomeString!(ElementType!Range))
 {
     if (segments.empty) return null;
 
@@ -1595,7 +1592,7 @@ if (isSomeChar!C)
 
 @safe unittest
 {
-    // Test for issue 7397
+    // Test for https://issues.dlang.org/show_bug.cgi?id=7397
     string[] ary = ["a", "b"];
     version (Posix)
     {
@@ -1758,7 +1755,6 @@ immutable(C)[] buildNormalizedPath(C)(const(C[])[] paths...)
 if (isSomeChar!C)
 {
     import std.array : array;
-    import std.exception : assumeUnique;
 
     const(C)[] chained;
     foreach (path; paths)
@@ -1770,7 +1766,7 @@ if (isSomeChar!C)
     }
     auto result = asNormalizedPath(chained);
     // .array returns a copy, so it is unique
-    return () @trusted { return assumeUnique(result.array); } ();
+    return result.array;
 }
 
 ///
@@ -1876,7 +1872,7 @@ if (isSomeChar!C)
 
 @safe unittest
 {
-    // Test for issue 7397
+    // Test for https://issues.dlang.org/show_bug.cgi?id=7397
     string[] ary = ["a", "b"];
     version (Posix)
     {
@@ -2733,6 +2729,9 @@ else version (Posix)
     The function allocates memory if and only if it gets to the third stage
     of this algorithm.
 
+    Note that `absolutePath` will not normalize `..` segments.
+    Use `buildNormalizedPath(absolutePath(path))` if that is desired.
+
     Params:
         path = the relative path to transform
         base = the base directory of the relative path
@@ -2746,7 +2745,7 @@ else version (Posix)
     See_Also:
         $(LREF asAbsolutePath) which does not allocate
 */
-string absolutePath(string path, lazy string base = getcwd())
+string absolutePath(return scope const string path, lazy string base = getcwd())
     @safe pure
 {
     import std.array : array;
@@ -2793,6 +2792,19 @@ string absolutePath(string path, lazy string base = getcwd())
     assertThrown(absolutePath("bar", "foo"));
 }
 
+// Ensure that we can call absolute path with scope paramaters
+@safe unittest
+{
+    string testAbsPath(scope const string path, scope const string base) {
+        return absolutePath(path, base);
+    }
+
+    version (Posix)
+        assert(testAbsPath("some/file", "/foo/bar")  == "/foo/bar/some/file");
+    version (Windows)
+        assert(testAbsPath(`some\file`, `c:\foo\bar`)    == `c:\foo\bar\some\file`);
+}
+
 /** Transforms `path` into an absolute path.
 
     The following algorithm is used:
@@ -2802,6 +2814,9 @@ string absolutePath(string path, lazy string base = getcwd())
         $(LI Otherwise, append `path` to the current working directory,
         which allocates memory.)
     )
+
+    Note that `asAbsolutePath` will not normalize `..` segments.
+    Use `asNormalizedPath(asAbsolutePath(path))` if that is desired.
 
     Params:
         path = the relative path to transform
@@ -3357,8 +3372,10 @@ in
 {
     // Verify that pattern[] is valid
     import std.algorithm.searching : balancedParens;
-    assert(balancedParens(pattern, '[', ']', 0));
-    assert(balancedParens(pattern, '{', '}', 0));
+    import std.utf : byUTF;
+
+    assert(balancedParens(pattern.byUTF!C, '[', ']', 0));
+    assert(balancedParens(pattern.byUTF!C, '{', '}', 0));
 }
 do
 {
@@ -3376,8 +3393,11 @@ do
     }
     else
     {
+        import core.memory : pureMalloc, pureFree;
         C[] pattmp;
-        foreach (ref pi; 0 .. pattern.length)
+        scope(exit) if (pattmp !is null) (() @trusted => pureFree(pattmp.ptr))();
+
+        for (size_t pi = 0; pi < pattern.length; pi++)
         {
             const pc = pattern[pi];
             switch (pc)
@@ -3462,9 +3482,12 @@ do
                              *   pattern[pi0 .. pi-1] ~ pattern[piRemain..$]
                              */
                             if (pattmp is null)
+                            {
                                 // Allocate this only once per function invocation.
-                                // Should do it with malloc/free, but that would make it impure.
-                                pattmp = new C[pattern.length];
+                                pattmp = (() @trusted =>
+                                    (cast(C*) pureMalloc(C.sizeof * pattern.length))[0 .. pattern.length])
+                                ();
+                            }
 
                             const len1 = pi - 1 - pi0;
                             pattmp[0 .. len1] = pattern[pi0 .. pi - 1];
@@ -3498,7 +3521,7 @@ do
 }
 
 ///
-@safe unittest
+@safe @nogc unittest
 {
     assert(globMatch("foo.bar", "*"));
     assert(globMatch("foo.bar", "*.*"));
@@ -3558,7 +3581,8 @@ if (isConvertibleToString!Range)
     assert(!globMatch("foo.bar", "[gh]???bar"));
     assert(!globMatch("foo.bar"w, "[!fg]*bar"w));
     assert(!globMatch("foo.bar"d, "[fg]???baz"d));
-    assert(!globMatch("foo.di", "*.d")); // test issue 6634: triggered bad assertion
+    // https://issues.dlang.org/show_bug.cgi?id=6634
+    assert(!globMatch("foo.di", "*.d")); // triggered bad assertion
 
     assert(globMatch("foo.bar", "{foo,bif}.bar"));
     assert(globMatch("bif.bar"w, "{foo,bif}.bar"w));
@@ -3954,12 +3978,12 @@ if (isConvertibleToString!Range)
     }
     -----
 */
-string expandTilde(string inputPath) @safe nothrow
+string expandTilde(return scope const string inputPath) @safe nothrow
 {
     version (Posix)
     {
         import core.exception : onOutOfMemoryError;
-        import core.stdc.errno : errno, ERANGE;
+        import core.stdc.errno : errno, EBADF, ENOENT, EPERM, ERANGE, ESRCH;
         import core.stdc.stdlib : malloc, free, realloc;
 
         /*  Joins a path from a C string to the remainder of path.
@@ -4065,7 +4089,7 @@ string expandTilde(string inputPath) @safe nothrow
                 char[] extra_memory;
 
                 passwd result;
-                while (1)
+                loop: while (1)
                 {
                     extra_memory.length += extra_memory_size;
 
@@ -4088,10 +4112,23 @@ string expandTilde(string inputPath) @safe nothrow
                         break;
                     }
 
-                    if (errno != ERANGE &&
+                    switch (errno)
+                    {
+                        case ERANGE:
                         // On BSD and OSX, errno can be left at 0 instead of set to ERANGE
-                        errno != 0)
-                        onOutOfMemoryError();
+                        case 0:
+                            break;
+
+                        case ENOENT:
+                        case ESRCH:
+                        case EBADF:
+                        case EPERM:
+                            // The given name or uid was not found.
+                            break loop;
+
+                        default:
+                            onOutOfMemoryError();
+                    }
 
                     // extra_memory isn't large enough
                     import core.checkedint : mulu;
@@ -4124,7 +4161,7 @@ string expandTilde(string inputPath) @safe nothrow
 }
 
 ///
-@system unittest
+@safe unittest
 {
     version (Posix)
     {
@@ -4139,7 +4176,7 @@ string expandTilde(string inputPath) @safe nothrow
     }
 }
 
-@system unittest
+@safe unittest
 {
     version (Posix)
     {
@@ -4190,6 +4227,26 @@ string expandTilde(string inputPath) @safe nothrow
         assert(expandTilde("~Idontexist/hey") == "~Idontexist/hey");
     }
 }
+
+@safe unittest
+{
+    version (Posix)
+    {
+        import std.process : environment;
+
+        string testPath(scope const string source_path) {
+            return source_path.expandTilde;
+        }
+
+        auto oldHome = environment["HOME"];
+        scope(exit) environment["HOME"] = oldHome;
+
+        environment["HOME"] = "dmd/test";
+        assert(testPath("~/") == "dmd/test/");
+        assert(testPath("~") == "dmd/test");
+    }
+}
+
 
 version (StdUnittest)
 {

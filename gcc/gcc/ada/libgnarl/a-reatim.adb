@@ -7,7 +7,7 @@
 --                                 B o d y                                  --
 --                                                                          --
 --             Copyright (C) 1991-2017, Florida State University            --
---                     Copyright (C) 1995-2022, AdaCore                     --
+--                     Copyright (C) 1995-2025, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,8 +30,8 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Ada.Unchecked_Conversion;
 with System.Tasking;
-with Unchecked_Conversion;
 
 package body Ada.Real_Time with
   SPARK_Mode => Off
@@ -128,7 +128,7 @@ is
       type Duration_Rep is range -(2 ** 63) .. +((2 ** 63 - 1));
 
       function To_Integer is
-        new Unchecked_Conversion (Duration, Duration_Rep);
+        new Ada.Unchecked_Conversion (Duration, Duration_Rep);
    begin
       return Integer
                (To_Integer (Duration (Left)) / To_Integer (Duration (Right)));
@@ -216,7 +216,7 @@ is
       --  Special-case for Time_First, whose absolute value is anomalous,
       --  courtesy of two's complement.
 
-      T_Val := (if T = Time_First then abs (Time_Last) else abs (T));
+      T_Val := (if T = Time_First then abs Time_Last else abs T);
 
       --  Extract the integer part of T, truncating towards zero
 
@@ -307,6 +307,9 @@ is
    --  Start of processing for Time_Of
 
    begin
+      pragma Annotate (Gnatcheck, Exempt_On, "Improper_Returns",
+                       "early returns for performance");
+
       --  If SC is so far out of range that there is no possibility of the
       --  addition of TS getting it back in range, raise an exception right
       --  away. That way we don't have to worry about SC values overflowing.
@@ -356,6 +359,8 @@ is
             Out_Of_Range;
          end if;
       end if;
+
+      pragma Annotate (Gnatcheck, Exempt_Off, "Improper_Returns");
    end Time_Of;
 
    -----------------

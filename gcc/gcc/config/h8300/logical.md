@@ -31,30 +31,8 @@
 ;; AND INSTRUCTIONS
 ;; ----------------------------------------------------------------------
 
-(define_insn "bclr<mode>_msx"
-  [(set (match_operand:QHI 0 "bit_register_indirect_operand" "=WU")
-	(and:QHI (match_operand:QHI 1 "bit_register_indirect_operand" "%0")
-		 (match_operand:QHI 2 "single_zero_operand" "Y0")))]
-  "TARGET_H8300SX && rtx_equal_p (operands[0], operands[1])"
-  "bclr\\t%W2,%0"
-  [(set_attr "length" "8")])
-
-(define_split
-  [(set (match_operand:HI 0 "bit_register_indirect_operand")
-	(and:HI (match_operand:HI 1 "bit_register_indirect_operand")
-		(match_operand:HI 2 "single_zero_operand")))]
-  "TARGET_H8300SX && abs (INTVAL (operands[2])) > 0xff"
-  [(set (match_dup 0)
-	(and:QI (match_dup 1)
-		(match_dup 2)))]
-  {
-    operands[0] = adjust_address (operands[0], QImode, 0);
-    operands[1] = adjust_address (operands[1], QImode, 0);
-    operands[2] = GEN_INT ((INTVAL (operands[2])) >> 8);
-  })
-
 (define_insn_and_split "*andqi3_2"
-  [(set (match_operand:QI 0 "bit_operand" "=U,rQ,r")
+  [(set (match_operand:QI 0 "bit_operand" "=rU,rQ,r")
 	(and:QI (match_operand:QI 1 "bit_operand" "%0,0,WU")
 		(match_operand:QI 2 "h8300_src_operand" "Y0,rQi,IP1>X")))]
   "TARGET_H8300SX"
@@ -64,7 +42,7 @@
 	      (clobber (reg:CC CC_REG))])])
 
 (define_insn "*andqi3_2_clobber_flags"
-  [(set (match_operand:QI 0 "bit_operand" "=U,rQ,r")
+  [(set (match_operand:QI 0 "bit_operand" "=rU,rQ,r")
 	(and:QI (match_operand:QI 1 "bit_operand" "%0,0,WU")
 		(match_operand:QI 2 "h8300_src_operand" "Y0,rQi,IP1>X")))
    (clobber (reg:CC CC_REG))]
@@ -77,7 +55,7 @@
    (set_attr "length_table" "*,logicb,*")])
 
 (define_insn_and_split "andqi3_1"
-  [(set (match_operand:QI 0 "bit_operand" "=U,r")
+  [(set (match_operand:QI 0 "bit_operand" "=rU,r")
 	(and:QI (match_operand:QI 1 "bit_operand" "%0,0")
 		(match_operand:QI 2 "h8300_src_operand" "Y0,rn")))]
   "register_operand (operands[0], QImode)
@@ -177,16 +155,8 @@
 ;; OR/XOR INSTRUCTIONS
 ;; ----------------------------------------------------------------------
 
-(define_insn "b<code><mode>_msx"
-  [(set (match_operand:QHI 0 "bit_register_indirect_operand" "=WU")
-	(ors:QHI (match_operand:QHI 1 "bit_register_indirect_operand" "%0")
-		 (match_operand:QHI 2 "single_one_operand" "Y2")))]
-  "TARGET_H8300SX && rtx_equal_p (operands[0], operands[1])"
-  { return <CODE> == IOR ? "bset\\t%V2,%0" : "bnot\\t%V2,%0"; }
-  [(set_attr "length" "8")])
-
 (define_insn_and_split "<code>qi3_1"
-  [(set (match_operand:QI 0 "bit_operand" "=U,rQ")
+  [(set (match_operand:QI 0 "bit_operand" "=rU,rQ")
 	(ors:QI (match_operand:QI 1 "bit_operand" "%0,0")
 		(match_operand:QI 2 "h8300_src_operand" "Y2,rQi")))]
   "TARGET_H8300SX || register_operand (operands[0], QImode)

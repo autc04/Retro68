@@ -1,6 +1,7 @@
 // PERMUTE_ARGS:
 // EXTRA_SOURCES: imports/mangle10077.d
 // EXTRA_FILES: imports/testmangle.d
+// UNICODE_NAMES:
 /*
 TEST_OUTPUT:
 ---
@@ -447,11 +448,11 @@ void test11776()
         if (1)
         {
             auto s = S11776!(a => 1)();
-            static assert(typeof(s).mangleof ==
-                "S"~"6mangle"~tl!("56")~
+            enum expected = "S"~"6mangle"~tl!("56")~
                 ("__T"~"6S11776"~"S"~tl!("42")~
-                 (id!("6mangle","Qs")~"9test11776"~"FZ"~"9__lambda1MFZ"~id!("9__lambda1","Qn"))~"Z"
-                 )~id!("6S11776", "QBm"));
+                 (id!("6mangle","Qs")~"9test11776"~"FZ"~"17__lambda_L444_C14MFZ17__lambda_L450_C30")~"Z"
+                 )~id!("6S11776", "QCm");
+            static assert(typeof(s).mangleof == expected);
         }
     };
 }
@@ -508,7 +509,7 @@ void func12231a()()
 if (is(typeof({
         class C {}
         static assert(C.mangleof ==
-            "C6mangle"~tl!("16")~"__U10func12231aZ"~id!("10func12231a","Qn")~"FZ9__lambda1MFZ1C");
+            "C6mangle"~tl!("16")~"__U10func12231aZ"~id!("10func12231a","Qn")~"FZ17__lambda_L509_C15MFZ1C");
             //         ###            L                       #
     })))
 {}
@@ -516,13 +517,13 @@ if (is(typeof({
 void func12231b()()
 if (is(typeof({
         class C {}        static assert(C.mangleof ==
-            "C6mangle"~tl!("16")~"__U10func12231bZ"~id!("10func12231b","Qn")~"FZ9__lambda1MFZ1C");
+            "C6mangle"~tl!("16")~"__U10func12231bZ"~id!("10func12231b","Qn")~"FZ17__lambda_L518_C15MFZ1C");
             //         L__L           L                       LL
       })) &&
     is(typeof({
         class C {}
         static assert(C.mangleof ==
-            "C6mangle"~tl!("16")~"__U10func12231bZ"~id!("10func12231b","Qn")~"FZ9__lambda2MFZ1C");
+            "C6mangle"~tl!("16")~"__U10func12231bZ"~id!("10func12231b","Qn")~"FZ17__lambda_L523_C15MFZ1C");
             //         L__L           L                       LL
     })))
 {}
@@ -531,14 +532,14 @@ void func12231c()()
 if (is(typeof({
         class C {}
         static assert(C.mangleof ==
-            "C6mangle"~tl!("16")~"__U10func12231cZ"~id!("10func12231c","Qn")~"FZ9__lambda1MFZ1C");
+            "C6mangle"~tl!("16")~"__U10func12231cZ"~id!("10func12231c","Qn")~"FZ17__lambda_L532_C15MFZ1C");
             //         L__L           L                       LL
     })))
 {
     (){
         class C {}
         static assert(C.mangleof ==
-            "C6mangle"~tl!("16")~"__T10func12231cZ"~id!("10func12231c","Qn")~"FZ9__lambda1MFZ1C");
+            "C6mangle"~tl!("16")~"__T10func12231cZ"~id!("10func12231c","Qn")~"FZ16__lambda_L539_C5MFZ1C");
             //         L__L           L                       LL
     }();
 }
@@ -547,14 +548,14 @@ void func12231c(X)()
 if (is(typeof({
         class C {}
     static assert(C.mangleof ==
-            "C6mangle"~tl!("20")~"__U10func12231cTAyaZ"~id!("10func12231c","Qr")~"FZ9__lambda1MFZ1C");
+            "C6mangle"~tl!("20")~"__U10func12231cTAyaZ"~id!("10func12231c","Qr")~"FZ17__lambda_L548_C15MFZ1C");
             //         L__L           L___L                       LL
     })))
 {
     (){
         class C {}
         static assert(C.mangleof ==
-            "C6mangle"~tl!("20")~"__T10func12231cTAyaZ"~id!("10func12231c","Qr")~"FZ9__lambda1MFZ1C");
+            "C6mangle"~tl!("20")~"__T10func12231cTAyaZ"~id!("10func12231c","Qr")~"FZ16__lambda_L555_C5MFZ1C");
             //         L__L           L___L                       LL
     }();
 }
@@ -568,12 +569,6 @@ void test12231()
     func12231c();
     func12231c!string();
 }
-
-/***************************************************/
-
-int test2a(scope int a) { return a; }
-
-static assert(test2a.mangleof == "_D6mangle6test2aFiZi");
 
 /***************************************************/
 
@@ -621,7 +616,7 @@ static assert(funcd.mangleof == "_D6mangle5funcdFPFZNnZi");
 struct S21753 { void function() f1; }
 void fun21753(S21753 v)() {}
 alias fl21753 = (){};
-static assert((fun21753!(S21753(fl21753))).mangleof == "_D6mangle__T8fun21753VSQv6S21753S1f_DQBj10" ~ fl21753.stringof ~ "MFNaNbNiNfZvZQCbQp");
+static assert((fun21753!(S21753(fl21753))).mangleof == "_D6mangle__T8fun21753VSQv6S21753S1f_DQBj16" ~ fl21753.stringof ~ "MFNaNbNiNfZvZQChQp");
 
 /***************************************************/
 void main()

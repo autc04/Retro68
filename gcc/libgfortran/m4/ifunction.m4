@@ -19,13 +19,13 @@ dnl You should not return or break from the inner loop of the implementation.
 dnl Care should also be taken to avoid using the names defined in iparm.m4
 define(START_ARRAY_FUNCTION,
 `
-extern void name`'rtype_qual`_'atype_code (rtype * const restrict, 
+extern void name`'rtype_qual`_'atype_code (rtype * const restrict,
 	atype` * const restrict, const 'index_type` * const restrict'back_arg`);
 export_proto('name`'rtype_qual`_'atype_code);
 
 void
-name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray, 
-	'atype` * const restrict array, 
+name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray,
+	'atype` * const restrict array,
 	const index_type * const restrict pdim'back_arg`)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -96,12 +96,7 @@ name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray,
 
       retarray->base_addr = xmallocarray (alloc_size, sizeof (rtype_name));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-
-	}
+	return;
     }
   else
     {
@@ -183,15 +178,15 @@ define(FINISH_ARRAY_FUNCTION,
 }')dnl
 define(START_MASKED_ARRAY_FUNCTION,
 `
-extern void `m'name`'rtype_qual`_'atype_code` ('rtype` * const restrict, 
+extern void `m'name`'rtype_qual`_'atype_code` ('rtype` * const restrict,
 	'atype` * const restrict, const 'index_type` * const restrict,
 	gfc_array_l1 * const restrict'back_arg`);
 export_proto(m'name`'rtype_qual`_'atype_code`);
 
 void
-m'name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray, 
-	'atype` * const restrict array, 
-	const index_type * const restrict pdim, 
+m'name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray,
+	'atype` * const restrict array,
+	const index_type * const restrict pdim,
 	gfc_array_l1 * const restrict mask'back_arg`)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -232,8 +227,8 @@ m'name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray,
     }
 
   len = GFC_DESCRIPTOR_EXTENT(array,dim);
-  if (len <= 0)
-    return;
+  if (len < 0)
+    len = 0;
 
   mbase = mask->base_addr;
 
@@ -291,15 +286,9 @@ m'name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray,
       retarray->offset = 0;
       retarray->dtype.rank = rank;
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (rtype_name));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (rtype_name));
-
+	return;
     }
   else
     {
@@ -378,15 +367,15 @@ define(FINISH_MASKED_ARRAY_FUNCTION,
 }')dnl
 define(SCALAR_ARRAY_FUNCTION,
 `
-extern void `s'name`'rtype_qual`_'atype_code` ('rtype` * const restrict, 
+extern void `s'name`'rtype_qual`_'atype_code` ('rtype` * const restrict,
 	'atype` * const restrict, const index_type * const restrict,
 	GFC_LOGICAL_4 *'back_arg`);
 export_proto(s'name`'rtype_qual`_'atype_code);
 
 void
-`s'name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray, 
-	'atype` * const restrict array, 
-	const index_type * const restrict pdim, 
+`s'name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray,
+	'atype` * const restrict array,
+	const index_type * const restrict pdim,
 	GFC_LOGICAL_4 * mask'back_arg`)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -455,14 +444,9 @@ void
 
       alloc_size = GFC_DESCRIPTOR_STRIDE(retarray,rank-1) * extent[rank-1];
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (rtype_name));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (rtype_name));
+	return;
     }
   else
     {

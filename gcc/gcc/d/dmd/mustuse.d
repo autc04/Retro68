@@ -1,31 +1,22 @@
 /**
  * Compile-time checks associated with the @mustuse attribute.
  *
- * Copyright: Copyright (C) 2022 by The D Language Foundation, All Rights Reserved
+ * Copyright: Copyright (C) 2022-2025 by The D Language Foundation, All Rights Reserved
  * License:   $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:    $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/mustuse.d, _mustuse.d)
+ * Source:    $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/mustuse.d, _mustuse.d)
  * Documentation:  https://dlang.org/phobos/dmd_mustuse.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/mustuse.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/mustuse.d
  */
 
 module dmd.mustuse;
 
 import dmd.dscope;
 import dmd.dsymbol;
+import dmd.errors;
 import dmd.expression;
 import dmd.globals;
 import dmd.identifier;
-
-// Used in isIncrementOrDecrement
-private static const StringExp plusPlus, minusMinus;
-
-// Loc.initial cannot be used in static initializers, so
-// these need a static constructor.
-static this()
-{
-    plusPlus = new StringExp(Loc.initial, "++");
-    minusMinus = new StringExp(Loc.initial, "--");
-}
+import dmd.location;
 
 /**
  * Check whether discarding an expression would violate the requirements of
@@ -40,6 +31,7 @@ static this()
 bool checkMustUse(Expression e, Scope* sc)
 {
     import dmd.id : Id;
+    import dmd.typesem : toDsymbol;
 
     assert(e.type);
     if (auto sym = e.type.toDsymbol(sc))
@@ -48,7 +40,7 @@ bool checkMustUse(Expression e, Scope* sc)
         // isStructDeclaration returns non-null for both structs and unions
         if (sd && hasMustUseAttribute(sd, sc) && !isAssignment(e) && !isIncrementOrDecrement(e))
         {
-            e.error("ignored value of `@%s` type `%s`; prepend a `cast(void)` if intentional",
+            error(e.loc, "ignored value of `@%s` type `%s`; prepend a `cast(void)` if intentional",
                 Id.udaMustUse.toChars(), e.type.toPrettyChars(true));
             return true;
         }
@@ -98,7 +90,7 @@ void checkMustUseReserved(Dsymbol sym)
  */
 private bool isAssignment(Expression e)
 {
-    if (e.isAssignExp || e.isBinAssignExp)
+    if (e.isAssignExp || e.isBinAssignExp || e.isConstructExp || e.isBlitExp)
         return true;
     if (auto ce = e.isCallExp())
     {
@@ -119,26 +111,13 @@ private bool isAssignmentOpId(Identifier id)
 {
     import dmd.id : Id;
 
-    return id == Id.assign
-        || id == Id.addass
-        || id == Id.subass
-        || id == Id.mulass
-        || id == Id.divass
-        || id == Id.modass
-        || id == Id.andass
-        || id == Id.orass
-        || id == Id.xorass
-        || id == Id.shlass
-        || id == Id.shrass
-        || id == Id.ushrass
-        || id == Id.catass
-        || id == Id.indexass
-        || id == Id.slice
-        || id == Id.sliceass
+    return id == Id.opAssign
+        || id == Id.opIndexAssign
+        || id == Id.opSlice
+        || id == Id.opSliceAssign
         || id == Id.opOpAssign
         || id == Id.opIndexOpAssign
-        || id == Id.opSliceOpAssign
-        || id == Id.powass;
+        || id == Id.opSliceOpAssign;
 }
 
 /**
@@ -147,7 +126,7 @@ private bool isAssignmentOpId(Identifier id)
 private bool isIncrementOrDecrement(Expression e)
 {
     import dmd.dtemplate : isExpression;
-    import dmd.globals : Loc;
+    import dmd.location;
     import dmd.id : Id;
     import dmd.tokens : EXP;
 
@@ -171,9 +150,15 @@ private bool isIncrementOrDecrement(Expression e)
                     {
                         if (auto argExp = (*tiargs)[0].isExpression())
                         {
-                            auto op = argExp.isStringExp();
-                            if (op && (op.compare(plusPlus) == 0 || op.compare(minusMinus) == 0))
-                                return true;
+                            if (auto op = argExp.isStringExp())
+                            {
+                                if (op.len == 2 && op.sz == 1)
+                                {
+                                    const s = op.peekString();
+                                    if (s == "++" || s == "--")
+                                        return true;
+                                }
+                            }
                         }
                     }
                 }
@@ -204,7 +189,7 @@ private bool isIncrementOrDecrement(Expression e)
  */
 private bool hasMustUseAttribute(Dsymbol sym, Scope* sc)
 {
-    import dmd.attrib : foreachUda;
+    import dmd.attribsem : foreachUda;
 
     bool result = false;
 
@@ -225,20 +210,7 @@ private bool hasMustUseAttribute(Dsymbol sym, Scope* sc)
  */
 private bool isMustUseAttribute(Expression e)
 {
-    import dmd.attrib : isCoreUda;
+    import dmd.attrib : isEnumAttribute;
     import dmd.id : Id;
-
-    // Logic based on dmd.objc.Supported.declaredAsOptionalCount
-    auto typeExp = e.isTypeExp;
-    if (!typeExp)
-        return false;
-
-    auto typeEnum = typeExp.type.isTypeEnum();
-    if (!typeEnum)
-        return false;
-
-    if (isCoreUda(typeEnum.sym, Id.udaMustUse))
-        return true;
-
-    return false;
+    return isEnumAttribute(e, Id.udaMustUse);
 }

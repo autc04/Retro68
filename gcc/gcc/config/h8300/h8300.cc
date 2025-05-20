@@ -1,5 +1,5 @@
 /* Subroutines for insn-output.cc for Renesas H8/300.
-   Copyright (C) 1992-2022 Free Software Foundation, Inc.
+   Copyright (C) 1992-2025 Free Software Foundation, Inc.
    Contributed by Steve Chamberlain (sac@cygnus.com),
    Jim Wilson (wilson@cygnus.com), and Doug Evans (dje@cygnus.com).
 
@@ -317,7 +317,7 @@ h8300_option_override (void)
 	       "%<-msx%> - option ignored");
    }
 
-#ifdef H8300_LINUX 
+#ifdef H8300_LINUX
  if ((TARGET_NORMAL_MODE))
    {
       error ("%<-mn%> is not supported for linux targets");
@@ -811,7 +811,7 @@ h8300_expand_prologue (void)
 
   if (h8300_monitor_function_p (current_function_decl))
  /* The monitor function act as normal functions, which means it
-    can accept parameters and return values. In addition to this, 
+    can accept parameters and return values. In addition to this,
     interrupts are masked in prologue and return with "rte" in epilogue. */
     emit_insn (gen_monitor_prologue ());
 
@@ -1140,7 +1140,7 @@ static int
 h8300_register_move_cost (machine_mode mode ATTRIBUTE_UNUSED,
                          reg_class_t from, reg_class_t to)
 {
-  if (from == MAC_REGS || to == MAC_REG)
+  if (from == MAC_REGS || to == MAC_REGS)
     return 6;
   else
     return 3;
@@ -1444,7 +1444,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
 	  fprintf (file, "%sl", names_big[REGNO (x)]);
 	  break;
 	case CONST_INT:
-	  fprintf (file, "#%ld", (-INTVAL (x)) & 0xff);
+	  fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, (-INTVAL (x)) & 0xff);
 	  break;
 	default:
 	  gcc_unreachable ();
@@ -1457,7 +1457,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
 	  fprintf (file, "%sh", names_big[REGNO (x)]);
 	  break;
 	case CONST_INT:
-	  fprintf (file, "#%ld", ((-INTVAL (x)) & 0xff00) >> 8);
+	  fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, ((-INTVAL (x)) & 0xff00) >> 8);
 	  break;
 	default:
 	  gcc_unreachable ();
@@ -1465,7 +1465,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
       break;
     case 'G':
       gcc_assert (GET_CODE (x) == CONST_INT);
-      fprintf (file, "#%ld", 0xff & (-INTVAL (x)));
+      fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, 0xff & (-INTVAL (x)));
       break;
     case 'S':
       if (GET_CODE (x) == REG)
@@ -1484,7 +1484,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
       if ((exact_log2 ((bitint >> 8) & 0xff)) == -1)
 	bitint = exact_log2 (bitint & 0xff);
       else
-        bitint = exact_log2 ((bitint >> 8) & 0xff);	      
+        bitint = exact_log2 ((bitint >> 8) & 0xff);
       gcc_assert (bitint >= 0);
       fprintf (file, "#%d", bitint);
       break;
@@ -1493,7 +1493,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
       if ((exact_log2 ((bitint >> 8) & 0xff)) == -1 )
 	bitint = exact_log2 (bitint & 0xff);
       else
-	bitint = (exact_log2 ((bitint >> 8) & 0xff));      
+	bitint = (exact_log2 ((bitint >> 8) & 0xff));
       gcc_assert (bitint >= 0);
       fprintf (file, "#%d", bitint);
       break;
@@ -1542,7 +1542,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
 	  h8300_print_operand (file, x, 0);
 	  break;
 	case CONST_INT:
-	  fprintf (file, "#%ld", ((INTVAL (x) >> 16) & 0xffff));
+	  fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, ((INTVAL (x) >> 16) & 0xffff));
 	  break;
 	case CONST_DOUBLE:
 	  {
@@ -1567,7 +1567,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
 	  h8300_print_operand (file, x, 0);
 	  break;
 	case CONST_INT:
-	  fprintf (file, "#%ld", INTVAL (x) & 0xffff);
+	  fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, INTVAL (x) & 0xffff);
 	  break;
 	case CONST_DOUBLE:
 	  {
@@ -1621,7 +1621,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
       break;
     case 's':
       if (GET_CODE (x) == CONST_INT)
-	fprintf (file, "#%ld", (INTVAL (x)) & 0xff);
+	fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, (INTVAL (x)) & 0xff);
       else if (GET_CODE (x) == REG)
 	fprintf (file, "%s", byte_reg (x, 0));
       else
@@ -1629,7 +1629,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
       break;
     case 't':
       if (GET_CODE (x) == CONST_INT)
-	fprintf (file, "#%ld", (INTVAL (x) >> 8) & 0xff);
+	fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, (INTVAL (x) >> 8) & 0xff);
       else if (GET_CODE (x) == REG)
 	fprintf (file, "%s", byte_reg (x, 1));
       else
@@ -1637,7 +1637,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
       break;
     case 'w':
       if (GET_CODE (x) == CONST_INT)
-	fprintf (file, "#%ld", INTVAL (x) & 0xff);
+	fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, INTVAL (x) & 0xff);
       else if (GET_CODE (x) == REG)
 	fprintf (file, "%s", byte_reg (x, 0));
       else
@@ -1645,7 +1645,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
       break;
     case 'x':
       if (GET_CODE (x) == CONST_INT)
-	fprintf (file, "#%ld", (INTVAL (x) >> 8) & 0xff);
+	fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, (INTVAL (x) >> 8) & 0xff);
       else if (GET_CODE (x) == REG)
 	fprintf (file, "%s", byte_reg (x, 1));
       else
@@ -1653,7 +1653,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
       break;
     case 'y':
       if (GET_CODE (x) == CONST_INT)
-	fprintf (file, "#%ld", (INTVAL (x) >> 16) & 0xff);
+	fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, (INTVAL (x) >> 16) & 0xff);
       else if (GET_CODE (x) == REG)
 	fprintf (file, "%s", byte_reg (x, 0));
       else
@@ -1661,7 +1661,7 @@ h8300_print_operand (FILE *file, rtx x, int code)
       break;
     case 'z':
       if (GET_CODE (x) == CONST_INT)
-	fprintf (file, "#%ld", (INTVAL (x) >> 24) & 0xff);
+	fprintf (file, "#" HOST_WIDE_INT_PRINT_DEC, (INTVAL (x) >> 24) & 0xff);
       else if (GET_CODE (x) == REG)
 	fprintf (file, "%s", byte_reg (x, 1));
       else
@@ -2358,7 +2358,7 @@ h8300_bitfield_length (rtx op, rtx op2)
   if (GET_CODE (op) == REG)
     op = op2;
   gcc_assert (GET_CODE (op) != REG);
-  
+
   size = GET_MODE_SIZE (GET_MODE (op));
   operand_length = h8300_classify_operand (op, size, &opclass);
 
@@ -2521,7 +2521,7 @@ h8300_insn_length_from_table (rtx_insn *insn, rtx * operands)
 
     case LENGTH_TABLE_BITFIELD:
       return h8300_bitfield_length (operands[0], operands[1]);
-      
+
     case LENGTH_TABLE_BITBRANCH:
       return h8300_bitfield_length (operands[1], operands[2]) - 2;
 
@@ -4100,7 +4100,7 @@ output_a_shift (rtx operands[4], rtx_code code)
   /* This case must be taken care of by one of the two splitters
      that convert a variable shift into a loop.  */
   gcc_assert (GET_CODE (operands[2]) == CONST_INT);
-  
+
   n = INTVAL (operands[2]);
 
   /* If the count is negative, make it 0.  */
@@ -4113,7 +4113,7 @@ output_a_shift (rtx operands[4], rtx_code code)
     n = GET_MODE_BITSIZE (mode);
 
   get_shift_alg (shift_type, shift_mode, n, &info);
-  
+
   switch (info.alg)
     {
     case SHIFT_SPECIAL:
@@ -4134,7 +4134,7 @@ output_a_shift (rtx operands[4], rtx_code code)
       for (; n > 0; n--)
 	output_asm_insn (info.shift1, operands);
       return "";
-      
+
     case SHIFT_ROT_AND:
       {
 	int m = GET_MODE_BITSIZE (mode) - n;
@@ -4146,18 +4146,18 @@ output_a_shift (rtx operands[4], rtx_code code)
 	/* Not all possibilities of rotate are supported.  They shouldn't
 	   be generated, but let's watch for 'em.  */
 	gcc_assert (info.shift1);
-	
+
 	/* Emit two bit rotates first.  */
 	if (info.shift2 != NULL)
 	  {
 	    for (; m > 1; m -= 2)
 	      output_asm_insn (info.shift2, operands);
 	  }
-	
+
 	/* Now single bit rotates for any residual.  */
 	for (; m > 0; m--)
 	  output_asm_insn (info.shift1, operands);
-	
+
 	/* Now mask off the high bits.  */
 	switch (mode)
 	  {
@@ -4201,7 +4201,7 @@ output_a_shift (rtx operands[4], rtx_code code)
 	  fprintf (asm_out_file, "\tbne	.Llt%d\n", loopend_lab);
 	}
       return "";
-      
+
     default:
       gcc_unreachable ();
     }
@@ -4299,6 +4299,11 @@ compute_a_shift_length (rtx operands[3], rtx_code code)
 	  /* Fall through.  */
 
 	case SHIFT_INLINE:
+	  /* H8/SX has a richer set of logical shifts.  */
+	  if (TARGET_H8300SX
+	      && (code == ASHIFT || code == LSHIFTRT))
+	    return (exact_log2 (n) >= 0) ? 2 : 4;
+
 	  n = info.remainder;
 
 	  if (info.shift2 != NULL)
@@ -4376,7 +4381,7 @@ compute_a_shift_cc (rtx operands[3], rtx_code code)
   enum shift_mode shift_mode;
   struct shift_info info;
   int n;
-  
+
   switch (mode)
     {
     case E_QImode:
@@ -4410,7 +4415,7 @@ compute_a_shift_cc (rtx operands[3], rtx_code code)
   /* This case must be taken care of by one of the two splitters
      that convert a variable shift into a loop.  */
   gcc_assert (GET_CODE (operands[2]) == CONST_INT);
-  
+
   n = INTVAL (operands[2]);
 
   /* If the count is negative, make it 0.  */
@@ -4421,9 +4426,9 @@ compute_a_shift_cc (rtx operands[3], rtx_code code)
      do the intuitive thing.  */
   else if ((unsigned int) n > GET_MODE_BITSIZE (mode))
     n = GET_MODE_BITSIZE (mode);
-  
+
   get_shift_alg (shift_type, shift_mode, n, &info);
-  
+
   switch (info.alg)
     {
     case SHIFT_SPECIAL:
@@ -4436,11 +4441,11 @@ compute_a_shift_cc (rtx operands[3], rtx_code code)
     case SHIFT_INLINE:
       return (info.cc_inline == OLD_CC_SET_ZN
 	      || info.cc_inline == OLD_CC_SET_ZNV);
-      
+
     case SHIFT_ROT_AND:
       /* This case always ends with an and instruction.  */
       return true;
-      
+
     case SHIFT_LOOP:
       /* A loop to shift by a "large" constant value.
 	 If we have shift-by-2 insns, use them.  */
@@ -4449,10 +4454,10 @@ compute_a_shift_cc (rtx operands[3], rtx_code code)
 	  if (n % 2)
 	    return (info.cc_inline == OLD_CC_SET_ZN
 		    || info.cc_inline == OLD_CC_SET_ZNV);
-		
+
 	}
       return false;
-      
+
     default:
       gcc_unreachable ();
     }
@@ -4909,7 +4914,7 @@ h8300_insert_attributes (tree node, tree *attributes)
    tiny_data: This variable lives in the tiny data area and can be
    referenced with 16-bit absolute memory references.  */
 
-static const struct attribute_spec h8300_attribute_table[] =
+TARGET_GNU_ATTRIBUTES (h8300_attribute_table,
 {
   /* { name, min_len, max_len, decl_req, type_req, fn_type_req,
        affects_type_identity, handler, exclude } */
@@ -4926,9 +4931,8 @@ static const struct attribute_spec h8300_attribute_table[] =
   { "eightbit_data",     0, 0, true,  false, false, false,
     h8300_handle_eightbit_data_attribute, NULL },
   { "tiny_data",         0, 0, true,  false, false, false,
-    h8300_handle_tiny_data_attribute, NULL },
-  { NULL,                0, 0, false, false, false, false, NULL, NULL }
-};
+    h8300_handle_tiny_data_attribute, NULL }
+});
 
 
 /* Handle an attribute requiring a FUNCTION_DECL; arguments as in
@@ -5009,7 +5013,7 @@ h8300_encode_section_info (tree decl, rtx rtl, int first)
   if (TREE_CODE (decl) == FUNCTION_DECL
       && h8300_funcvec_function_p (decl))
     extra_flags = SYMBOL_FLAG_FUNCVEC_FUNCTION;
-  else if (TREE_CODE (decl) == VAR_DECL
+  else if (VAR_P (decl)
 	   && (TREE_STATIC (decl) || DECL_EXTERNAL (decl)))
     {
       if (h8300_eightbit_data_p (decl))
@@ -5312,7 +5316,8 @@ h8300_rtx_ok_for_base_p (rtx x, int strict)
    CONSTANT_ADDRESS.  */
 
 static bool
-h8300_legitimate_address_p (machine_mode mode, rtx x, bool strict)
+h8300_legitimate_address_p (machine_mode mode, rtx x, bool strict,
+			    code_helper = ERROR_MARK)
 {
   /* The register indirect addresses like @er0 is always valid.  */
   if (h8300_rtx_ok_for_base_p (x, strict))
@@ -5405,6 +5410,14 @@ h8300_init_libfuncs (void)
   set_optab_libfunc (udiv_optab, HImode, "__udivhi3");
   set_optab_libfunc (smod_optab, HImode, "__modhi3");
   set_optab_libfunc (umod_optab, HImode, "__umodhi3");
+
+/* The comment below comes from config/mmix/mmix.cc.
+
+   Unfortunately, by default __builtin_ffs is expanded to ffs for
+   targets where INT_TYPE_SIZE < BITS_PER_WORD.  That together with
+   newlib since 2017-07-04 implementing ffs as __builtin_ffs leads to
+   (newlib) ffs recursively calling itself.  */
+  set_optab_libfunc (ffs_optab, HImode, "__ffshi2");
 }
 
 /* Worker function for TARGET_FUNCTION_VALUE.
@@ -5498,6 +5511,70 @@ h8300_trampoline_init (rtx m_tramp, tree fndecl, rtx cxt)
     }
 }
 
+/* Return true if a signed bitfield extraction with length COUNT
+   starting at position POS should be optimized by first shifting
+   right to put the field in the LSB, then using a 3 operand sequence
+   to sign extend from an arbitrary position.  Return false
+   otherwise.
+
+   The basic idea here is to compute the length of each sequence
+   and use that as a proxy for performance.  It's not strictly
+   correct on the H8/SX which has variable timed shifts and some
+   lengths may be incorrect, but this is pretty close.
+
+   There may be cases where the length computations are inaccurate
+   which may in turn lead to a sub-optimal sequence, but that
+   should be rare.
+
+   We do not try to balance avoiding a loop with burning an extra
+   couple bytes.   Those probably couple be handled with special
+   cases.  */
+
+bool
+use_extvsi (int count, int pos)
+{
+  rtx operands[3];
+  operands[0] = gen_rtx_REG (SImode, 0);
+  operands[1] = gen_rtx_REG (SImode, 0);
+
+  /* We have a special sequence to sign extract a single bit
+     object, otherwise compute it as a pair of shifts, first
+     left, then arithmetic right.  The cost of that special
+     sequence is 8/10 depending on where the bit is.  */
+  unsigned shift_cost;
+  if (count == 1)
+    shift_cost = pos >= 16 ? 10 : 8;
+  else
+    {
+      unsigned lshift = 32 - (count + pos);
+      unsigned rshift = 32 - count;
+      operands[2] = GEN_INT (lshift);
+      shift_cost = compute_a_shift_length (operands, ASHIFT);
+      operands[2] = GEN_INT (rshift);
+      shift_cost += compute_a_shift_length (operands, ASHIFTRT);
+    }
+
+  /* Cost of hopefully optimized sequence.  First we logically shift right
+     by an adjusted count.  Logicals are generally better than arith,
+     particularly for H8/SX.  */
+  operands[2] = GEN_INT (pos);
+  unsigned opt_cost = compute_a_shift_length (operands, LSHIFTRT);
+  operands[2] = gen_int_mode (~(HOST_WIDE_INT_M1U << count), SImode);
+  opt_cost += compute_logical_op_length (SImode, AND, operands, NULL);
+  operands[2] = gen_int_mode (HOST_WIDE_INT_1U << (count - 1), SImode);
+  opt_cost += compute_logical_op_length (SImode, XOR, operands, NULL);
+
+  /* H8/SX has short form subtraction.  */
+  if (TARGET_H8300SX && (INTVAL (operands[2]) >= 1 && INTVAL (operands[2]) <= 7))
+    opt_cost += 2;
+  else if (TARGET_H8300SX && (INTVAL (operands[2]) >= 8 && INTVAL (operands[2]) <= 32767))
+    opt_cost += 4;
+  else
+    opt_cost += 6;
+
+  return opt_cost <= shift_cost;
+}
+
 /* Implement PUSH_ROUNDING.
 
    On the H8/300, @-sp really pushes a byte if you ask it to - but that's
@@ -5531,6 +5608,44 @@ h8300_ok_for_sibcall_p (tree fndecl, tree)
 
   return 1;
 }
+
+/* Implement TARGET_C_MODE_FOR_FLOATING_TYPE.  Return SFmode or DFmode
+   for TI_{LONG_,}DOUBLE_TYPE which is for {long,} double type, go with
+   the default one for the others.  */
+
+static machine_mode
+h8300_c_mode_for_floating_type (enum tree_index ti)
+{
+  if (ti == TI_DOUBLE_TYPE || ti == TI_LONG_DOUBLE_TYPE)
+    return DOUBLE_TYPE_MODE;
+  return default_mode_for_floating_type (ti);
+}
+
+/* Return TRUE if OP is a PRE_INC or PRE_DEC
+   instruction using REG, FALSE otherwise.  */
+
+bool
+pre_incdec_with_reg (rtx op, unsigned int reg)
+{
+  /* OP must be a MEM.  */
+  if (GET_CODE (op) != MEM)
+    return false;
+
+  /* The address must be a PRE_INC or PRE_DEC.  */
+  op = XEXP (op, 0);
+  if (GET_CODE (op) != PRE_DEC && GET_CODE (op) != PRE_INC)
+    return false;
+
+  /* It must be a register that is being incremented
+     or decremented.  */
+  op = XEXP (op, 0);
+  if (!REG_P (op))
+    return false;
+
+  /* Finally, check that the register number matches.  */
+  return REGNO (op) == reg;
+}
+
 
 /* Initialize the GCC target structure.  */
 #undef TARGET_ATTRIBUTE_TABLE
@@ -5599,9 +5714,6 @@ h8300_ok_for_sibcall_p (tree fndecl, tree)
 #undef TARGET_MODES_TIEABLE_P
 #define TARGET_MODES_TIEABLE_P h8300_modes_tieable_p
 
-#undef TARGET_LRA_P
-#define TARGET_LRA_P hook_bool_void_false
-
 #undef TARGET_LEGITIMATE_ADDRESS_P
 #define TARGET_LEGITIMATE_ADDRESS_P	h8300_legitimate_address_p
 
@@ -5628,5 +5740,11 @@ h8300_ok_for_sibcall_p (tree fndecl, tree)
 
 #undef TARGET_FUNCTION_OK_FOR_SIBCALL
 #define TARGET_FUNCTION_OK_FOR_SIBCALL h8300_ok_for_sibcall_p
+
+#undef TARGET_C_MODE_FOR_FLOATING_TYPE
+#define TARGET_C_MODE_FOR_FLOATING_TYPE h8300_c_mode_for_floating_type
+
+#undef TARGET_DOCUMENTATION_NAME
+#define TARGET_DOCUMENTATION_NAME "H8/300"
 
 struct gcc_target targetm = TARGET_INITIALIZER;

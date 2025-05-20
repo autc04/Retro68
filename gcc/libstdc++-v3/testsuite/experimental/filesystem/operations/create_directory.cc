@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2022 Free Software Foundation, Inc.
+// Copyright (C) 2016-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -69,9 +69,7 @@ test01()
     VERIFY( e.path1() == f );
   }
 
-#if defined(__MINGW32__) || defined(__MINGW64__)
-  // no symlinks
-#else
+#ifndef NO_SYMLINKS
   // PR libstdc++/101510 create_directory on an existing symlink to a directory
   fs::create_directory(p/"dir");
   auto link = p/"link";

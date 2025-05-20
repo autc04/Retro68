@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -165,7 +165,7 @@ package body Util is
         and then Start_Column <= Scopes (Scope.Last).Ecol
       then
          Error_Msg_BC -- CODEFIX
-           ("(style) incorrect layout");
+           ("(style) incorrect layout?l?");
       end if;
    end Check_Bad_Layout;
 
@@ -196,6 +196,14 @@ package body Util is
       then
          if Token_Name = Name_Some then
             Error_Msg_N ("& is a reserved word in Ada 2012?y?", Token_Node);
+         end if;
+      end if;
+
+      if Ada_Version < Ada_With_All_Extensions then
+         if Token_Name = Name_Finally then
+            Error_Msg_N
+              ("& is a reserved word with all extensions enabled?",
+               Token_Node);
          end if;
       end if;
 
@@ -336,7 +344,7 @@ package body Util is
             --  probably the semicolon did end the list. Indeed that is
             --  certainly the only single error correction possible here.
 
-            if Token = Tok_Semicolon or else Token = Tok_EOF then
+            if Token in Tok_Semicolon | Tok_EOF then
                Restore_Scan_State (Scan_State);
                return False;
 
@@ -462,7 +470,7 @@ package body Util is
             declare
                Tname : constant String := Token_Type'Image (Token);
             begin
-               Error_Msg_SC ("|extra " & Tname (5 .. Tname'Last) & "ignored");
+               Error_Msg_SC ("|extra " & Tname (5 .. Tname'Last) & " ignored");
             end;
          end if;
 
@@ -521,44 +529,34 @@ package body Util is
                         raise Program_Error;
 
                      when C_Comma_Right_Paren =>
-                        OK_Next_Tok :=
-                          Token = Tok_Comma or else Token = Tok_Right_Paren;
+                        OK_Next_Tok := Token in Tok_Comma | Tok_Right_Paren;
 
                      when C_Comma_Colon =>
-                        OK_Next_Tok :=
-                          Token = Tok_Comma or else Token = Tok_Colon;
+                        OK_Next_Tok := Token in Tok_Comma | Tok_Colon;
 
                      when C_Do =>
-                        OK_Next_Tok :=
-                          Token = Tok_Do;
+                        OK_Next_Tok := Token = Tok_Do;
 
                      when C_Dot =>
-                        OK_Next_Tok :=
-                          Token = Tok_Dot;
+                        OK_Next_Tok := Token = Tok_Dot;
 
                      when C_Greater_Greater =>
-                        OK_Next_Tok :=
-                          Token = Tok_Greater_Greater;
+                        OK_Next_Tok := Token = Tok_Greater_Greater;
 
                      when C_In =>
-                        OK_Next_Tok :=
-                          Token = Tok_In;
+                        OK_Next_Tok := Token = Tok_In;
 
                      when C_Is =>
-                        OK_Next_Tok :=
-                          Token = Tok_Is;
+                        OK_Next_Tok := Token = Tok_Is;
 
                      when C_Left_Paren_Semicolon =>
-                        OK_Next_Tok :=
-                          Token = Tok_Left_Paren or else Token = Tok_Semicolon;
+                        OK_Next_Tok := Token in Tok_Left_Paren | Tok_Semicolon;
 
                      when C_Use =>
-                        OK_Next_Tok :=
-                          Token = Tok_Use;
+                        OK_Next_Tok := Token = Tok_Use;
 
                      when C_Vertical_Bar_Arrow =>
-                        OK_Next_Tok :=
-                          Token = Tok_Vertical_Bar or else Token = Tok_Arrow;
+                        OK_Next_Tok := Token in Tok_Vertical_Bar | Tok_Arrow;
                   end case;
 
                   Restore_Scan_State (Scan_State);
@@ -699,12 +697,6 @@ package body Util is
       pragma Assert (Scope.Last > 0);
       Scope.Decrement_Last;
 
-      if Include_Subprogram_In_Messages
-        and then Scopes (Scope.Last).Labl /= Error
-      then
-         Current_Node := Scopes (Scope.Last).Labl;
-      end if;
-
       if Debug_Flag_P then
          Error_Msg_Uint_1 := UI_From_Int (Scope.Last);
          Error_Msg_SC ("decrement scope stack ptr, new value = ^!");
@@ -723,7 +715,7 @@ package body Util is
         and then Scope.Last = Style_Max_Nesting_Level + 1
       then
          Error_Msg
-           ("(style) maximum nesting level exceeded",
+           ("(style) maximum nesting level exceeded?L?",
             First_Non_Blank_Location);
       end if;
 
@@ -802,7 +794,7 @@ package body Util is
 
    function Token_Is_At_Start_Of_Line return Boolean is
    begin
-      return (Token_Ptr = First_Non_Blank_Location or else Token = Tok_EOF);
+      return Token_Ptr = First_Non_Blank_Location or else Token = Tok_EOF;
    end Token_Is_At_Start_Of_Line;
 
    -----------------------------------

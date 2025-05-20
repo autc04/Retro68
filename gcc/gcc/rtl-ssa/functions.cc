@@ -1,5 +1,5 @@
 // Implementation of function-related RTL SSA functions             -*- C++ -*-
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -19,6 +19,7 @@
 
 #define INCLUDE_ALGORITHM
 #define INCLUDE_FUNCTIONAL
+#define INCLUDE_ARRAY
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -32,7 +33,7 @@
 using namespace rtl_ssa;
 
 function_info::function_info (function *fn)
-  : m_fn (fn)
+  : m_fn (fn), m_clobbered_by_calls ()
 {
   // Force the alignment to be obstack_alignment.  Everything else is normal.
   obstack_specify_allocation (&m_obstack, OBSTACK_CHUNK_SIZE,

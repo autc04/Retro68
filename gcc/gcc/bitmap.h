@@ -1,5 +1,5 @@
 /* Functions to support general ended bitmaps.
-   Copyright (C) 1997-2022 Free Software Foundation, Inc.
+   Copyright (C) 1997-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -60,7 +60,7 @@ along with GCC; see the file COPYING3.  If not see
    sparse sets.  The canonical example in GCC is, of course, the "set of
    sets" for some CFG-based data flow problems (liveness analysis, dominance
    frontiers, etc.).
-   
+
    For random-access sparse sets of unknown universe, the binary tree
    representation is likely to be a more suitable choice.  Theoretical
    access times for the binary tree representation are better than those
@@ -99,7 +99,7 @@ along with GCC; see the file COPYING3.  If not see
    efficiently.  The downside is that many random-access operations are
    relatively slow, because the linked list has to be traversed to test
    membership (i.e. member_p/ add_member/remove_member).
-   
+
    To improve the performance of this set representation, the last
    accessed element and its index are cached.  For membership tests on
    members close to recently accessed members, the cached last element
@@ -110,6 +110,7 @@ along with GCC; see the file COPYING3.  If not see
 
      * clear			: bitmap_clear
      * smallest_member		: bitmap_first_set_bit
+     * pop_smallest		: bitmap_clear_first_set_bit
      * choose_one		: (not implemented, but could be
 				   in constant time)
 
@@ -133,6 +134,7 @@ along with GCC; see the file COPYING3.  If not see
    amortized time with O(E) worst-case behavior.
 
      * smallest_member
+     * pop_smallest
      * largest_member
      * set_size
      * member_p
@@ -174,7 +176,7 @@ along with GCC; see the file COPYING3.  If not see
    of clearing the set, and the relatively large number of operations
    necessary to balance the tree.  Also, iterating the set members is
    not supported.
-   
+
    As for the linked-list representation, the last accessed element and
    its index are cached, so that membership tests on the latest accessed
    members is a constant-time operation.  Other lookups take O(logE)
@@ -461,7 +463,7 @@ extern void dump_bitmap_statistics (void);
 /* Initialize a bitmap header.  OBSTACK indicates the bitmap obstack
    to allocate from, NULL for GC'd bitmap.  */
 
-static inline void
+inline void
 bitmap_initialize (bitmap head, bitmap_obstack *obstack CXX_MEM_STAT_INFO)
 {
   head->first = head->current = NULL;
@@ -476,7 +478,7 @@ bitmap_initialize (bitmap head, bitmap_obstack *obstack CXX_MEM_STAT_INFO)
 /* Release a bitmap (but not its head).  This is suitable for pairing with
    bitmap_initialize.  */
 
-static inline void
+inline void
 bitmap_release (bitmap head)
 {
   bitmap_clear (head);
@@ -501,6 +503,7 @@ extern void debug (const bitmap_head &ref);
 extern void debug (const bitmap_head *ptr);
 
 extern unsigned bitmap_first_set_bit (const_bitmap);
+extern unsigned bitmap_clear_first_set_bit (bitmap);
 extern unsigned bitmap_last_set_bit (const_bitmap);
 
 /* Compute bitmap hash (for purposes of hashing etc.)  */
@@ -532,7 +535,7 @@ struct bitmap_iterator
 /* Initialize a single bitmap iterator.  START_BIT is the first bit to
    iterate from.  */
 
-static inline void
+inline void
 bmp_iter_set_init (bitmap_iterator *bi, const_bitmap map,
 		   unsigned start_bit, unsigned *bit_no)
 {
@@ -576,7 +579,7 @@ bmp_iter_set_init (bitmap_iterator *bi, const_bitmap map,
 /* Initialize an iterator to iterate over the intersection of two
    bitmaps.  START_BIT is the bit to commence from.  */
 
-static inline void
+inline void
 bmp_iter_and_init (bitmap_iterator *bi, const_bitmap map1, const_bitmap map2,
 		   unsigned start_bit, unsigned *bit_no)
 {
@@ -645,7 +648,7 @@ bmp_iter_and_init (bitmap_iterator *bi, const_bitmap map1, const_bitmap map2,
 
 /* Initialize an iterator to iterate over the bits in MAP1 & ~MAP2.  */
 
-static inline void
+inline void
 bmp_iter_and_compl_init (bitmap_iterator *bi,
 			 const_bitmap map1, const_bitmap map2,
 			 unsigned start_bit, unsigned *bit_no)
@@ -696,7 +699,7 @@ bmp_iter_and_compl_init (bitmap_iterator *bi,
 /* Advance to the next bit in BI.  We don't advance to the next
    nonzero bit yet.  */
 
-static inline void
+inline void
 bmp_iter_next (bitmap_iterator *bi, unsigned *bit_no)
 {
   bi->bits >>= 1;
@@ -705,7 +708,7 @@ bmp_iter_next (bitmap_iterator *bi, unsigned *bit_no)
 
 /* Advance to first set bit in BI.  */
 
-static inline void
+inline void
 bmp_iter_next_bit (bitmap_iterator * bi, unsigned *bit_no)
 {
 #if (GCC_VERSION >= 3004)
@@ -728,7 +731,7 @@ bmp_iter_next_bit (bitmap_iterator * bi, unsigned *bit_no)
    already advanced past the just iterated bit.  Return true if there
    is a bit to iterate.  */
 
-static inline bool
+inline bool
 bmp_iter_set (bitmap_iterator *bi, unsigned *bit_no)
 {
   /* If our current word is nonzero, it contains the bit we want.  */
@@ -774,7 +777,7 @@ bmp_iter_set (bitmap_iterator *bi, unsigned *bit_no)
    bitmaps.  We will have already advanced past the just iterated bit.
    Return true if there is a bit to iterate.  */
 
-static inline bool
+inline bool
 bmp_iter_and (bitmap_iterator *bi, unsigned *bit_no)
 {
   /* If our current word is nonzero, it contains the bit we want.  */
@@ -843,7 +846,7 @@ bmp_iter_and (bitmap_iterator *bi, unsigned *bit_no)
    complemented bitmaps.  We will have already advanced past the just
    iterated bit.  */
 
-static inline bool
+inline bool
 bmp_iter_and_compl (bitmap_iterator *bi, unsigned *bit_no)
 {
   /* If our current word is nonzero, it contains the bit we want.  */
@@ -956,10 +959,10 @@ class auto_bitmap
 
  private:
   // Prevent making a copy that references our bitmap.
-  auto_bitmap (const auto_bitmap &);
-  auto_bitmap &operator = (const auto_bitmap &);
-  auto_bitmap (auto_bitmap &&);
-  auto_bitmap &operator = (auto_bitmap &&);
+  auto_bitmap (const auto_bitmap &) = delete;
+  auto_bitmap &operator = (const auto_bitmap &) = delete;
+  auto_bitmap (auto_bitmap &&) = delete;
+  auto_bitmap &operator = (auto_bitmap &&) = delete;
 
   bitmap_head m_bits;
 };

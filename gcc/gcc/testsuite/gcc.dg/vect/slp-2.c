@@ -25,6 +25,7 @@ main1 (unsigned short a0, unsigned short a1, unsigned short a2,
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (out[i*4] != a8 
@@ -55,6 +56,7 @@ main1 (unsigned short a0, unsigned short a1, unsigned short a2,
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (out[i*16] != a8
@@ -85,6 +87,7 @@ main1 (unsigned short a0, unsigned short a1, unsigned short a2,
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (out[i*3] != a8
@@ -110,6 +113,7 @@ main1 (unsigned short a0, unsigned short a1, unsigned short a2,
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (out[i*11] != a8
@@ -140,5 +144,5 @@ int main (void)
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 4 loops" 1 "vect"  } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 4 "vect" { xfail vect_variable_length } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 4 "vect" } } */
   

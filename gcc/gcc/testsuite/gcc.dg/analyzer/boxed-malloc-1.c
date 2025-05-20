@@ -1,7 +1,5 @@
 /* Adapted from malloc-1.c, but wrapping the pointers in a struct.  */
 
-/* { dg-require-effective-target alloca } */
-
 #include <stdlib.h>
 
 extern int foo (void);
@@ -141,7 +139,7 @@ void test_12 (void)
 
   while (1)
     {
-      free (ptr.value);
+      free (ptr.value); /* { dg-warning "infinite loop" } */
       free (ptr.value); /* { dg-warning "double-'free' of 'ptr.value'" } */
     }
 }

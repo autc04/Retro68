@@ -617,6 +617,17 @@ void test11565()
     assert(cond11565(true) == size_t.max);
 }
 
+// https://issues.dlang.org/show_bug.cgi?id=23743
+void test23743()
+{
+    ubyte[] a = [1];
+    foreach (x; a)
+    {
+        ubyte v = x >= 1 ? 255 : 0;
+        assert(v == 255);
+    }
+}
+
 ///////////////////////
 
 int[3] array1 = [1:1,2,0:3];
@@ -2468,6 +2479,75 @@ void test21835()
 }
 
 ////////////////////////////////////////////////////////////////////////
+// https://github.com/dlang/dmd/pull/16187#issuecomment-1946534649
+
+void testDoWhileContinue()
+{
+    int i = 10;
+    do
+    {
+        continue;
+    }
+    while(--i > 0);
+}
+
+////////////////////////////////////////////////////////////////////////
+// https://github.com/dlang/dmd/issues/20574
+
+int test20574x(int i, int y)
+{
+    return i ? y : y;
+}
+
+void test20574()
+{
+    assert(test20574x(1, 2) == 2);
+    assert(test20574x(0, 2) == 2);
+}
+
+////////////////////////////////////////////////////////////////////////
+
+struct S8
+{
+    int x,y,z;
+}
+
+int test8x(S8 s)
+{
+    s = s;
+    return s.y;
+}
+
+void test8()
+{
+    S8 s;
+    s.y = 2;
+    assert(test8x(s) == 2);
+}
+
+////////////////////////////////////////////////////////////////////////
+
+struct S9
+{
+    int a,b;
+    ~this() { }
+}
+
+
+S9 test9x(ref S9 arg)
+{
+    return arg;
+}
+
+void test9()
+{
+    S9 s;
+    s.b = 3;
+    S9 t = test9x(s);
+    assert(t.b == 3);
+}
+
+////////////////////////////////////////////////////////////////////////
 
 int main()
 {
@@ -2498,6 +2578,7 @@ int main()
     testdocond();
     testnegcom();
     test11565();
+    test23743();
     testoror();
     testbt();
     test12095(0);
@@ -2566,6 +2647,10 @@ int main()
     test21256();
     test21816();
     test21835();
+    testDoWhileContinue();
+    test20574();
+    test8();
+    test9();
 
     printf("Success\n");
     return 0;

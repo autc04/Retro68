@@ -1,6 +1,5 @@
-;;   Machine description for GNU compiler,
-;;   for Atmel AVR micro controllers.
-;;   Copyright (C) 1998-2022 Free Software Foundation, Inc.
+;;   Support 64-bit operations for AVR 8-bit microcontrollers.
+;;   Copyright (C) 1998-2025 Free Software Foundation, Inc.
 ;;   Contributed by Georg Lay (avr@gjlay.de)
 ;;
 ;; This file is part of GCC.
@@ -43,8 +42,8 @@
 ;; so that no DImode insn contains pseudos or needs reloading.
 
 (define_constants
-  [(ACC_A	18)
-   (ACC_B	10)])
+  [(ACC_A  18)
+   (ACC_B  10)])
 
 ;; Supported modes that are 8 bytes wide
 (define_mode_iterator ALL8 [DI DQ UDQ DA UDA TA UTA])
@@ -62,8 +61,8 @@
 ;; "addta3" "adduta3"
 (define_expand "add<mode>3"
   [(parallel [(match_operand:ALL8 0 "general_operand" "")
-              (match_operand:ALL8 1 "general_operand" "")
-              (match_operand:ALL8 2 "general_operand" "")])]
+              (match_operand:ALL8 1 "nop_general_operand")
+              (match_operand:ALL8 2 "nop_general_operand")])]
   "avr_have_dimode"
   {
     rtx acc_a = gen_rtx_REG (<MODE>mode, ACC_A);
@@ -178,8 +177,8 @@
 ;; "subta3" "subuta3"
 (define_expand "sub<mode>3"
   [(parallel [(match_operand:ALL8 0 "general_operand" "")
-              (match_operand:ALL8 1 "general_operand" "")
-              (match_operand:ALL8 2 "general_operand" "")])]
+              (match_operand:ALL8 1 "nop_general_operand")
+              (match_operand:ALL8 2 "nop_general_operand")])]
   "avr_have_dimode"
   {
     rtx acc_a = gen_rtx_REG (<MODE>mode, ACC_A);
@@ -259,8 +258,8 @@
 
 (define_expand "<code_stdname><mode>3"
   [(set (match_operand:ALL8S 0 "general_operand" "")
-        (ss_addsub:ALL8S (match_operand:ALL8S 1 "general_operand" "")
-                         (match_operand:ALL8S 2 "general_operand" "")))]
+        (ss_addsub:ALL8S (match_operand:ALL8S 1 "nop_general_operand")
+                         (match_operand:ALL8S 2 "nop_general_operand")))]
   "avr_have_dimode"
   {
     rtx acc_a = gen_rtx_REG (<MODE>mode, ACC_A);
@@ -332,8 +331,8 @@
 
 (define_expand "<code_stdname><mode>3"
   [(set (match_operand:ALL8U 0 "general_operand" "")
-        (us_addsub:ALL8U (match_operand:ALL8U 1 "general_operand" "")
-                         (match_operand:ALL8U 2 "general_operand" "")))]
+        (us_addsub:ALL8U (match_operand:ALL8U 1 "nop_general_operand")
+                         (match_operand:ALL8U 2 "nop_general_operand")))]
   "avr_have_dimode"
   {
     rtx acc_a = gen_rtx_REG (<MODE>mode, ACC_A);
@@ -405,7 +404,7 @@
 
 (define_expand "negdi2"
   [(parallel [(match_operand:DI 0 "general_operand" "")
-              (match_operand:DI 1 "general_operand" "")])]
+              (match_operand:DI 1 "nop_general_operand")])]
   "avr_have_dimode"
   {
     rtx acc_a = gen_rtx_REG (DImode, ACC_A);
@@ -455,12 +454,18 @@
 (define_expand "cbranch<mode>4"
   [(set (pc)
         (if_then_else (match_operator 0 "ordered_comparison_operator"
-                        [(match_operand:ALL8 1 "register_operand"  "")
-                         (match_operand:ALL8 2 "nonmemory_operand" "")])
-         (label_ref (match_operand 3 "" ""))
-         (pc)))]
+                        [(match_operand:ALL8 1 "register_operand")
+                         (match_operand:ALL8 2 "nonmemory_operand")])
+                      (label_ref (match_operand 3))
+                      (pc)))]
   "avr_have_dimode"
-   {
+  {
+    int icode = (int) GET_CODE (operands[0]);
+
+    targetm.canonicalize_comparison (&icode, &operands[1], &operands[2], false);
+    operands[0] = gen_rtx_fmt_ee ((rtx_code) icode,
+                                  VOIDmode, operands[1], operands[2]);
+
     rtx acc_a = gen_rtx_REG (<MODE>mode, ACC_A);
 
     avr_fix_inputs (operands, 1 << 2, regmask (<MODE>mode, ACC_A));
@@ -483,15 +488,15 @@
         emit_jump_insn (gen_cbranch_<mode>2_split (operands[0], operands[3]));
       }
     DONE;
-   })
+  })
 
 (define_insn_and_split "cbranch_<mode>2_split"
   [(set (pc)
         (if_then_else (match_operator 0 "ordered_comparison_operator"
                         [(reg:ALL8 ACC_A)
                          (reg:ALL8 ACC_B)])
-         (label_ref (match_operand 1 "" ""))
-         (pc)))]
+                      (label_ref (match_operand 1))
+                      (pc)))]
   "avr_have_dimode"
   "#"
   "&& reload_completed"
@@ -544,8 +549,8 @@
         (if_then_else (match_operator 0 "ordered_comparison_operator"
                         [(reg:ALL8 ACC_A)
                          (match_operand:ALL8 1 "const_operand" "n Ynn")])
-         (label_ref (match_operand 2 "" ""))
-         (pc)))
+                      (label_ref (match_operand 2 "" ""))
+                      (pc)))
    (clobber (match_scratch:QI 3 "=&d"))]
   "avr_have_dimode
    && !s8_operand (operands[1], VOIDmode)"
@@ -596,8 +601,8 @@
 ;; "ashluta3"  "ashruta3"  "lshruta3"  "rotluta3"
 (define_expand "<code_stdname><mode>3"
   [(parallel [(match_operand:ALL8 0 "general_operand" "")
-              (di_shifts:ALL8 (match_operand:ALL8 1 "general_operand" "")
-                              (match_operand:QI 2 "general_operand" ""))])]
+              (di_shifts:ALL8 (match_operand:ALL8 1 "nop_general_operand")
+                              (match_operand:QI 2 "nop_general_operand"))])]
   "avr_have_dimode"
   {
     rtx acc_a = gen_rtx_REG (<MODE>mode, ACC_A);
@@ -642,8 +647,8 @@
 ;; "mulsidi3"
 (define_expand "<extend_u>mulsidi3"
   [(parallel [(match_operand:DI 0 "register_operand" "")
-              (match_operand:SI 1 "general_operand" "")
-              (match_operand:SI 2 "general_operand" "")
+              (match_operand:SI 1 "nop_general_operand")
+              (match_operand:SI 2 "nop_general_operand")
               ;; Just to mention the iterator 
               (clobber (any_extend:SI (match_dup 1)))])]
   "avr_have_dimode

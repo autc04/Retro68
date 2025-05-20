@@ -1,5 +1,5 @@
 /* Swing Modulo Scheduling implementation.
-   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+   Copyright (C) 2004-2025 Free Software Foundation, Inc.
    Contributed by Ayal Zaks and Mustafa Hagog <zaks,mustafa@il.ibm.com>
 
 This file is part of GCC.
@@ -178,7 +178,7 @@ struct partial_schedule
       trying to schedule a node in a full row; that is, to avoid running
       through futile DFA state transitions.  */
   int *rows_length;
-  
+
   /* The earliest absolute cycle of an insn in the partial schedule.  */
   int min_cycle;
 
@@ -214,7 +214,7 @@ static void permute_partial_schedule (partial_schedule_ptr, rtx_insn *);
 static int calculate_stage_count (partial_schedule_ptr, int);
 static void calculate_must_precede_follow (ddg_node_ptr, int, int,
 					   int, int, sbitmap, sbitmap, sbitmap);
-static int get_sched_window (partial_schedule_ptr, ddg_node_ptr, 
+static int get_sched_window (partial_schedule_ptr, ddg_node_ptr,
 			     sbitmap, int, int *, int *, int *);
 static bool try_scheduling_node_in_cycle (partial_schedule_ptr, int, int,
 					  sbitmap, int *, sbitmap, sbitmap);
@@ -693,7 +693,7 @@ schedule_reg_moves (partial_schedule_ptr ps)
       int distances[2];
       sbitmap distance1_uses;
       rtx set = single_set (u->insn);
-      
+
       /* Skip instructions that do not set a register.  */
       if (set && !REG_P (SET_DEST (set)))
         continue;
@@ -730,7 +730,7 @@ schedule_reg_moves (partial_schedule_ptr ps)
 		   target regsiter rather then the inc'ed register.	*/
 		gcc_assert (!autoinc_var_is_used_p (u->insn, e->dest->insn));
 	      }
-	    
+
 	    if (nreg_moves4e)
 	      {
 		gcc_assert (e->distance < 2);
@@ -866,7 +866,7 @@ reset_sched_times (partial_schedule_ptr ps, int amount)
               fprintf (dump_file, " (branch)");
             fprintf (dump_file, "\n");
           }
-	
+
 	gcc_assert (SCHED_TIME (u) >= ps->min_cycle);
 	gcc_assert (SCHED_TIME (u) <= ps->max_cycle);
 
@@ -874,7 +874,7 @@ reset_sched_times (partial_schedule_ptr ps, int amount)
 	update_node_sched_params (u, ii, normalized_time, new_min_cycle);
       }
 }
- 
+
 /* Permute the insns according to their order in PS, from row 0 to
    row ii-1, and position them right before LAST.  This schedules
    the insns of the loop kernel.  */
@@ -1439,10 +1439,10 @@ sms_schedule (void)
 
       /* Perform SMS only on loops that their average count is above threshold.  */
 
-      if ( latch_edge->count () > profile_count::zero ()
-          && (latch_edge->count()
-	      < single_exit (loop)->count ().apply_scale
-				 (param_sms_loop_average_count_threshold, 1)))
+      if (latch_edge->count () > profile_count::zero ()
+	  && (latch_edge->count ()
+	      < (single_exit (loop)->count ()
+		 * param_sms_loop_average_count_threshold)))
 	{
 	  if (dump_file)
 	    {
@@ -1464,12 +1464,12 @@ sms_schedule (void)
         }
 
       /* Make sure this is a doloop.  */
-      if ( !(count_reg = doloop_register_get (head, tail)))
-      {
-        if (dump_file)
-          fprintf (dump_file, "SMS doloop_register_get failed\n");
-	continue;
-      }
+      if (!(count_reg = doloop_register_get (head, tail)))
+	{
+	  if (dump_file)
+	    fprintf (dump_file, "SMS doloop_register_get failed\n");
+	  continue;
+	}
 
       /* Don't handle BBs with calls or barriers
 	 or !single_set with the exception of do-loop control part insns.
@@ -1677,11 +1677,11 @@ sms_schedule (void)
             {
 	      /* Rotate the partial schedule to have the branch in row ii-1.  */
               int amount = SCHED_TIME (g->closing_branch->cuid) - (ps->ii - 1);
-	      
+
               reset_sched_times (ps, amount);
               rotate_partial_schedule (ps, amount);
             }
-	  
+
 	  set_columns_for_ps (ps);
 
 	  min_cycle = PS_MIN_CYCLE (ps) - SMODULO (PS_MIN_CYCLE (ps), ps->ii);
@@ -1716,7 +1716,7 @@ sms_schedule (void)
 		       ps->ii, stage_count);
 	      print_partial_schedule (ps, dump_file);
 	    }
- 
+
 	  if (count_init)
 	    {
 	       if (adjust_inplace)
@@ -1749,7 +1749,7 @@ sms_schedule (void)
 	     scheduling passes don't touch it.  */
 	  if (! flag_resched_modulo_sched)
 	    mark_loop_unsched (loop);
-	  
+
 	  /* The life-info is not valid any more.  */
 	  df_set_bb_dirty (g->bb);
 
@@ -2119,7 +2119,7 @@ try_scheduling_node_in_cycle (partial_schedule_ptr ps,
 			      sbitmap must_follow)
 {
   ps_insn_ptr psi;
-  bool success = 0;
+  bool success = false;
 
   verify_partial_schedule (ps, sched_nodes);
   psi = ps_add_node_check_conflicts (ps, u, cycle, must_precede, must_follow);
@@ -2127,7 +2127,7 @@ try_scheduling_node_in_cycle (partial_schedule_ptr ps,
     {
       SCHED_TIME (u) = cycle;
       bitmap_set_bit (sched_nodes, u);
-      success = 1;
+      success = true;
       *num_splits = 0;
       if (dump_file)
 	fprintf (dump_file, "Scheduled w/o split in %d\n", cycle);
@@ -2202,8 +2202,8 @@ sms_schedule_by_order (ddg_ptr g, int mii, int maxii, int *nodes_order)
                 {
 		  sbitmap tmp_precede, tmp_follow;
 
-                  set_must_precede_follow (&tmp_follow, must_follow, 
-		                           &tmp_precede, must_precede, 
+                  set_must_precede_follow (&tmp_follow, must_follow,
+		                           &tmp_precede, must_precede,
                                            c, start, end, step);
                   success =
                     try_scheduling_node_in_cycle (ps, u, c,
@@ -2419,11 +2419,11 @@ verify_partial_schedule (partial_schedule_ptr ps, sbitmap sched_nodes)
   for (row = 0; row < ps->ii; row++)
     {
       int length = 0;
-      
+
       for (crr_insn = ps->rows[row]; crr_insn; crr_insn = crr_insn->next_in_row)
 	{
 	  int u = crr_insn->id;
-	  
+
 	  length++;
 	  gcc_assert (bitmap_bit_p (sched_nodes, u));
 	  /* ??? Test also that all nodes of sched_nodes are in ps, perhaps by
@@ -2431,7 +2431,7 @@ verify_partial_schedule (partial_schedule_ptr ps, sbitmap sched_nodes)
 	  gcc_assert (SCHED_TIME (u) >= ps->min_cycle);
 	  gcc_assert (SCHED_TIME (u) <= ps->max_cycle);
 	}
-      
+
       gcc_assert (ps->rows_length[row] == length);
     }
 }
@@ -2922,7 +2922,7 @@ print_partial_schedule (partial_schedule_ptr ps, FILE *dump)
 	    fprintf (dump, "%d (branch), ", INSN_UID (insn));
 	  else
 	    fprintf (dump, "%d, ", INSN_UID (insn));
-	
+
 	  ps_i = ps_i->next_in_row;
 	}
     }
@@ -2943,14 +2943,14 @@ create_ps_insn (int id, int cycle)
 }
 
 
-/* Removes the given PS_INSN from the partial schedule.  */  
-static void 
+/* Removes the given PS_INSN from the partial schedule.  */
+static void
 remove_node_from_ps (partial_schedule_ptr ps, ps_insn_ptr ps_i)
 {
   int row;
 
   gcc_assert (ps && ps_i);
-  
+
   row = SMODULO (ps_i->cycle, ps->ii);
   if (! ps_i->prev_in_row)
     {
@@ -2965,8 +2965,8 @@ remove_node_from_ps (partial_schedule_ptr ps, ps_insn_ptr ps_i)
       if (ps_i->next_in_row)
 	ps_i->next_in_row->prev_in_row = ps_i->prev_in_row;
     }
-   
-  ps->rows_length[row] -= 1; 
+
+  ps->rows_length[row] -= 1;
   free (ps_i);
   return;
 }
@@ -3015,7 +3015,7 @@ ps_insn_find_column (partial_schedule_ptr ps, ps_insn_ptr ps_i,
       /* The closing branch must be the last in the row.  */
       if (JUMP_P (ps_rtl_insn (ps, next_ps_i->id)))
 	return false;
-             
+
        last_in_row = next_ps_i;
     }
 
@@ -3040,7 +3040,7 @@ ps_insn_find_column (partial_schedule_ptr ps, ps_insn_ptr ps_i,
 	ps->rows[row] = ps_i;
       return true;
     }
-  
+
   /* Now insert the node after INSERT_AFTER_PSI.  */
 
   if (! last_must_precede)
@@ -3067,7 +3067,7 @@ ps_insn_find_column (partial_schedule_ptr ps, ps_insn_ptr ps_i,
    in failure and true in success.  Bit N is set in MUST_FOLLOW if
    the node with cuid N must be come after the node pointed to by
    PS_I when scheduled in the same cycle.  */
-static int
+static bool
 ps_insn_advance_column (partial_schedule_ptr ps, ps_insn_ptr ps_i,
 			sbitmap must_follow)
 {
@@ -3158,7 +3158,7 @@ advance_one_cycle (void)
 /* Checks if PS has resource conflicts according to DFA, starting from
    FROM cycle to TO cycle; returns true if there are conflicts and false
    if there are no conflicts.  Assumes DFA is being used.  */
-static int
+static bool
 ps_has_conflicts (partial_schedule_ptr ps, int from, int to)
 {
   int cycle;
@@ -3214,7 +3214,8 @@ ps_add_node_check_conflicts (partial_schedule_ptr ps, int n,
    			     int c, sbitmap must_precede,
 			     sbitmap must_follow)
 {
-  int i, first, amount, has_conflicts = 0;
+  int i, first, amount;
+  bool has_conflicts = false;
   ps_insn_ptr ps_i;
 
   /* First add the node to the PS, if this succeeds check for
@@ -3271,7 +3272,7 @@ calculate_stage_count (partial_schedule_ptr ps, int rotation_amount)
   int stage_count = CALC_STAGE_COUNT (-1, new_min_cycle, ps->ii);
 
   /* The calculation of stage count is done adding the number of stages
-     before cycle zero and after cycle zero.  */ 
+     before cycle zero and after cycle zero.  */
   stage_count += CALC_STAGE_COUNT (new_max_cycle, 0, ps->ii);
 
   return stage_count;
@@ -3299,7 +3300,7 @@ rotate_partial_schedule (partial_schedule_ptr ps, int start_cycle)
       for (row = 0; row < last_row; row++)
 	{
 	  ps->rows[row] = ps->rows[row + 1];
-	  ps->rows_length[row] = ps->rows_length[row + 1]; 
+	  ps->rows_length[row] = ps->rows_length[row + 1];
 	}
 
       ps->rows[last_row] = first_row;
@@ -3338,12 +3339,12 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
 {
   return (optimize > 0 && flag_modulo_sched);
 }
 
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_sms
 

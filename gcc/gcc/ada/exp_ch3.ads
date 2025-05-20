@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -25,9 +25,10 @@
 
 --  Expand routines for chapter 3 constructs
 
-with Types;  use Types;
-with Elists; use Elists;
-with Uintp;  use Uintp;
+with Elists;  use Elists;
+with Exp_Tss; use Exp_Tss;
+with Types;   use Types;
+with Uintp;   use Uintp;
 
 package Exp_Ch3 is
 
@@ -56,30 +57,69 @@ package Exp_Ch3 is
    --  checks on the relevant aspects. The wrapper body could be simplified to
    --  a null body when expansion is disabled ???
 
-   procedure Build_Discr_Checking_Funcs (N : Node_Id);
-   --  Builds function which checks whether the component name is consistent
-   --  with the current discriminants. N is the full type declaration node,
-   --  and the discriminant checking functions are inserted after this node.
+   function Build_Default_Initialization
+     (N          : Node_Id;
+      Typ        : Entity_Id;
+      Obj_Id     : Entity_Id;
+      For_CW     : Boolean := False;
+      Target_Ref : Node_Id := Empty) return List_Id;
+   --  Build the code to default-initialize an object of Typ either declared
+   --  or allocated by node N if this is necessary. In the former case Obj_Id
+   --  is the entity for the object whereas, in the second case, Obj_Id is a
+   --  temporary generated to hold the result of the allocator. For_CW is set
+   --  to True in the second case if this result is of a class-wide type.
+
+   --  Target_Ref is only passed identically to Build_Initialization_Call, so
+   --  its description given for Build_Initialization_Call is also valid here.
+
+   function Build_Default_Simple_Initialization
+     (N      : Node_Id;
+      Typ    : Entity_Id;
+      Obj_Id : Entity_Id) return Node_Id;
+   --  Try to build an expression to default-initialize an object of Typ either
+   --  declared or allocated by node N if this is necessary. In the former case
+   --  Obj_Id is the entity for the object whereas, in the second case, it must
+   --  be set to Empty.
+
+   procedure Build_Or_Copy_Discr_Checking_Funcs (N : Node_Id);
+   --  For each variant component, builds a function that checks whether
+   --  the component name is consistent with the current discriminants
+   --  and sets the component's Dcheck_Function attribute to refer to it.
+   --  N is the full type declaration node; the discriminant checking
+   --  functions are inserted after this node.
+   --  In the case of a derived untagged type, copy the attributes that were
+   --  set for the components of the parent type onto the components of the
+   --  derived type; no new subprograms are constructed in this case.
 
    function Build_Initialization_Call
-     (Loc               : Source_Ptr;
-      Id_Ref            : Node_Id;
-      Typ               : Entity_Id;
-      In_Init_Proc      : Boolean := False;
-      Enclos_Type       : Entity_Id := Empty;
-      Discr_Map         : Elist_Id := New_Elmt_List;
-      With_Default_Init : Boolean := False;
-      Constructor_Ref   : Node_Id := Empty) return List_Id;
+     (N                   : Node_Id;
+      Id_Ref              : Node_Id;
+      Typ                 : Entity_Id;
+      In_Init_Proc        : Boolean   := False;
+      Enclos_Type         : Entity_Id := Empty;
+      Target_Ref          : Node_Id   := Empty;
+      Discr_Map           : Elist_Id  := New_Elmt_List;
+      With_Default_Init   : Boolean   := False;
+      Constructor_Ref     : Node_Id   := Empty;
+      Init_Control_Actual : Entity_Id := Empty) return List_Id;
    --  Builds a call to the initialization procedure for the base type of Typ,
    --  passing it the object denoted by Id_Ref, plus additional parameters as
    --  appropriate for the type (the _Master, for task types, for example).
-   --  Loc is the source location for the constructed tree. In_Init_Proc has
+   --  N is the construct for which the call is to be built. In_Init_Proc has
    --  to be set to True when the call is itself in an init proc in order to
-   --  enable the use of discriminals. Enclos_Type is the enclosing type when
-   --  initializing a component in an outer init proc, and it is used for
-   --  various expansion cases including the case where Typ is a task type
-   --  which is an array component, the indexes of the enclosing type are
-   --  used to build the string that identifies each task at runtime.
+   --  enable the use of discriminals.
+   --
+   --  Enclos_Type is the enclosing type when initializing a component of a
+   --  composite type, and is used for the case where Typ is a task type of
+   --  an array component: the indices of this enclosing type are then used
+   --  to build the image string that identifies each task at run time.
+   --
+   --  Target_Ref is also used when Typ is a task type if the initialization
+   --  call is to be generated for an allocator. It is either the name of a
+   --  simple assignment whose expression is the allocator, or the defining
+   --  identifier of an object declaration whose initializing expression is
+   --  the allocator, or else the allocator's access type. It is used both
+   --  to build the image string and to pass the task master.
    --
    --  Discr_Map is used to replace discriminants by their discriminals in
    --  expressions used to constrain record components. In the presence of
@@ -93,20 +133,21 @@ package Exp_Ch3 is
    --
    --  Constructor_Ref is a call to a constructor subprogram. It is currently
    --  used only to support C++ constructors.
+   --
+   --  Init_Control_Actual is Empty except in the case where the init proc
+   --  for a tagged type calls the init proc for its parent type in order
+   --  to initialize its _Parent component. In that case, it is the
+   --  actual parameter value corresponding to the Init_Control formal
+   --  parameter to be used in the call of the parent type's init proc.
 
    function Build_Variant_Record_Equality
      (Typ         : Entity_Id;
+      Spec_Id     : Entity_Id;
       Body_Id     : Entity_Id;
       Param_Specs : List_Id) return Node_Id;
    --  Build the body of the equality function Body_Id for the untagged variant
-   --  record Typ with the given parameters specification list.
-
-   procedure Ensure_Activation_Chain_And_Master (Obj_Decl : Node_Id);
-   --  If tasks are being declared (or might be declared) by the given object
-   --  declaration then ensure to have an activation chain defined for the
-   --  tasks (has no effect if we already have one), and also that a Master
-   --  variable is established (and that the appropriate enclosing construct
-   --  is established as a task master).
+   --  record Typ with the given parameters specification list. If Spec_Id is
+   --  present, the body is built for a renaming of the equality function.
 
    function Freeze_Type (N : Node_Id) return Boolean;
    --  This function executes the freezing actions associated with the given
@@ -137,11 +178,6 @@ package Exp_Ch3 is
    --  Normalize_Scalars. A call to this routine where Typ denotes a scalar
    --  type is valid only when Normalize_Scalars or Initialize_Scalars is
    --  active, or if N is the node for a 'Invalid_Value attribute node.
-
-   function Init_Proc_Level_Formal (Proc : Entity_Id) return Entity_Id;
-   --  Fetch the extra formal from an initalization procedure "proc"
-   --  corresponding to the level of the object being initialized. When none
-   --  is present Empty is returned.
 
    procedure Init_Secondary_Tags
      (Typ            : Entity_Id;
@@ -201,5 +237,14 @@ package Exp_Ch3 is
    --  The spec for the equality function has been created by
    --  Make_Predefined_Primitive_Eq_Spec; see there for description of
    --  the Renamed_Eq parameter.
+
+   function Stream_Operation_OK
+     (Typ       : Entity_Id;
+      Operation : TSS_Name_Type) return Boolean;
+   --  Check whether the named stream operation must be emitted for a given
+   --  type. The rules for inheritance of stream attributes by type extensions
+   --  are enforced by this function. Furthermore, various restrictions prevent
+   --  the generation of these operations, as a useful optimization or for
+   --  certification purposes and to save unnecessary generated code.
 
 end Exp_Ch3;

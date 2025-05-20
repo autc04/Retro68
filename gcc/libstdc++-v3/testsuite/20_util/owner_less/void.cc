@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2022 Free Software Foundation, Inc.
+// Copyright (C) 2016-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -16,13 +16,15 @@
 // <http://www.gnu.org/licenses/>.
 
 // { dg-do compile { target c++11 } }
+// { dg-require-effective-target hosted }
+// { dg-add-options no_pch }
 
 #include <memory>
 
 #if __cplusplus >= 201402L
 // The feature-test macro is only defined for C++14 and later.
 # if __cpp_lib_transparent_operators < 201510
-#  error "__cpp_lib_transparent_operators < 201510"
+#  error "__cpp_lib_transparent_operators < 201510 in <memory>"
 # endif
 #endif
 

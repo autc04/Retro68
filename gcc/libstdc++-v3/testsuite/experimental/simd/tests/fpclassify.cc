@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,9 +17,7 @@
 
 // only: float|double|ldouble * * *
 // expensive: * [1-9] * *
-#include "bits/verify.h"
-#include "bits/metahelpers.h"
-#include "bits/test_values.h"
+#include "bits/main.h"
 #include <cfenv>
 
 template <typename F>
@@ -40,9 +38,11 @@ template <typename V>
   {
     using T = typename V::value_type;
     using intv = std::experimental::fixed_size_simd<int, V::size()>;
+#if __GCC_IEC_559 >= 2
     constexpr T inf = std::__infinity_v<T>;
     constexpr T denorm_min = std::__infinity_v<T>;
     constexpr T nan = std::__quiet_NaN_v<T>;
+#endif
     constexpr T max = std::__finite_max_v<T>;
     constexpr T norm_min = std::__norm_min_v<T>;
     test_values<V>(

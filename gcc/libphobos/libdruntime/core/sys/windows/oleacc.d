@@ -8,7 +8,6 @@
  */
 module core.sys.windows.oleacc;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "oleacc");
@@ -187,7 +186,7 @@ interface IAccessible : IDispatch {
 
 alias IAccessible LPACCESSIBLE;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     HRESULT AccessibleChildren(IAccessible, LONG, LONG, VARIANT*, LONG*);
     HRESULT AccessibleObjectFromEvent(HWND, DWORD, DWORD, IAccessible, VARIANT*);
     HRESULT AccessibleObjectFromPoint(POINT, IAccessible*, VARIANT*);

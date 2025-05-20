@@ -1,7 +1,6 @@
 /* { dg-do compile } */
 /* { dg-require-stack-check "specific" } */
-/* { dg-additional-options "-fstack-check -w" } */
-/* { dg-require-effective-target alloca } */
+/* { dg-additional-options "-fpermissive -fstack-check -w" } */
 
 int a;
 struct b {

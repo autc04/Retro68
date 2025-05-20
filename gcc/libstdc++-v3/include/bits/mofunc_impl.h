@@ -51,14 +51,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  @headerfile functional
    *
    *  The `std::move_only_function` class template is a call wrapper similar
-   *  to *  `std::function`, but does not require the stored target function
+   *  to `std::function`, but does not require the stored target function
    *  to be copyable.
    *
    *  It also supports const-qualification, ref-qualification, and
    *  no-throw guarantees. The qualifications and exception-specification
    *  of the `move_only_function::operator()` member function are respected
    *  when invoking the target function.
-   *
    */
   template<typename _Res, typename... _ArgTypes, bool _Noex>
     class move_only_function<_Res(_ArgTypes...) _GLIBCXX_MOF_CV
@@ -205,10 +204,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     private:
       template<typename _Tp>
-	using __param_t
-	  = __conditional_t<is_trivially_copyable_v<_Tp>
-			      && sizeof(_Tp) <= sizeof(long),
-			    _Tp, _Tp&&>;
+	using __param_t = __conditional_t<is_scalar_v<_Tp>, _Tp, _Tp&&>;
 
       using _Invoker = _Res (*)(_Mofunc_base _GLIBCXX_MOF_CV*,
 				__param_t<_ArgTypes>...) noexcept(_Noex);

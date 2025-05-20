@@ -1,10 +1,86 @@
-2022-08-19  Release Manager
+2025-04-25  Release Manager
 
-	* GCC 12.2.0 released.
+	* GCC 15.1.0 released.
 
-2022-05-06  Release Manager
+2024-09-23  Andrew Kreimer  <algonell@gmail.com>
 
-	* GCC 12.1.0 released.
+	* Makefile.in: s/overrridden/overridden.
+	* encoding.c (_darwin_rs6000_special_round_type_align): Fix typo
+	in comment.
+	(rs6000_special_round_type_align): Likewise.
+	* exception.c (is_kind_of_exception_matcher): Likewise.
+	(PERSONALITY_FUNCTION): Likewise.
+	* hash.c (objc_hash_next): Likewise.
+	* init.c (__objc_create_classes_tree): Likewise.
+	* objc-private/objc-list.h (list_remove_head): Likewise.
+	* sendmsg.c (__objc_install_dtable_for_class): Likewise.
+	* thr.c (objc_thread_yield): Likewise.
+
+2024-08-31  Andrew Pinski  <quic_apinski@quicinc.com>
+
+	PR libobjc/89586
+	* sendmsg.c (__objc_get_forward_imp): Add cast to `void*` before casting to IMP.
+
+2024-04-02  Jakub Jelinek  <jakub@redhat.com>
+
+	* init.c (duplicate_classes): Fix duplicated words in comment; in in
+	-> in.
+	* sendmsg.c (__objc_prepare_dtable_for_class): Fix duplicated words
+	in comment; the the -> the.
+	* encoding.c (objc_layout_structure): Likewise.
+
+2023-10-22  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* configure: Regenerate.
+	* configure.ac: Handle Darwin rpaths.
+
+2023-08-07  Nick Alcock  <nick.alcock@oracle.com>
+
+	* configure: Regenerate.
+
+2023-08-07  Alexander von Gluck IV  <kallisti5@unixzen.com>
+
+	* configure: Regenerate.
+
+2023-08-07  Nick Alcock  <nick.alcock@oracle.com>
+
+	* configure: Regenerate.
+
+2023-08-07  Nick Alcock  <nick.alcock@oracle.com>
+
+	* configure: Regenerate.
+
+2023-08-07  H.J. Lu  <hjl.tools@gmail.com>
+
+	* configure: Regenerate.
+
+2023-08-07  H.J. Lu  <hjl.tools@gmail.com>
+
+	* configure: Regenerate.
+
+2023-05-22  Iain Sandoe  <iain@sandoe.co.uk>
+	    Andrew Pinski  <apinski@marvell.com>
+
+	PR libobjc/109913
+	* encoding.c (RECORD_OR_UNION_TYPE_P, VECTOR_TYPE_P): New.
+
+2022-10-20  Thomas Schwinge  <thomas@codesourcery.com>
+
+	* configure.ac (AC_CONFIG_MACRO_DIRS): Instantiate.
+	* configure: Regenerate.
+
+2022-10-12  Martin Liska  <mliska@suse.cz>
+
+	* configure: Regenerate.
+
+2022-10-11  Olivier Hainque  <hainque@adacore.com>
+	    Olivier Hainque  <hainque@adacore.com>
+
+	* configure: Regenerate.
+
+2022-08-25  Martin Liska  <mliska@suse.cz>
+
+	* configure: Regenerate.
 
 2021-01-05  Samuel Thibault  <samuel.thibault@ens-lyon.org>
 
@@ -3226,9 +3302,9 @@ Mon Dec 17 17:02:12 2001  Nicola Pero  <nicola@brainstorm.co.uk>
 
 2001-11-07  Aldy Hernandez  <aldyh@redhat.com>
 
-	 * objc/objc-api.h (_C_VECTOR): New.
+	* objc/objc-api.h (_C_VECTOR): New.
 
-	 * encoding.c (VECTOR_TYPE): New.
+	* encoding.c (VECTOR_TYPE): New.
 
 Mon Oct 29 21:29:21 2001  Nicola Pero  <n.pero@mi.flashnet.it>
 
@@ -3614,7 +3690,7 @@ Mon Sep 21 23:27:10 1998  Ovidiu Predescu <ovidiu@slip.net>
 
 	* New directory.  Moved files from ../gcc/objc.
 
-Copyright (C) 1998-2022 Free Software Foundation, Inc.
+Copyright (C) 1998-2025 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

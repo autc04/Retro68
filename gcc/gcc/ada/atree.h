@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2022, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2025, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -35,7 +35,7 @@
 extern "C" {
 #endif
 
-#define Parent atree__parent
+#define Parent atree__node_parent
 extern Node_Id Parent (Node_Id);
 
 #define Original_Node atree__original_node

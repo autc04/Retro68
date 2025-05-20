@@ -1,5 +1,5 @@
 /* The lang_hooks data structure.
-   Copyright (C) 2001-2022 Free Software Foundation, Inc.
+   Copyright (C) 2001-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -128,9 +128,6 @@ struct lang_hooks_for_types
      firstprivate variables.  */
   void (*omp_firstprivatize_type_sizes) (struct gimplify_omp_ctx *, tree);
 
-  /* Return true if TYPE is a mappable type.  */
-  bool (*omp_mappable_type) (tree type);
-
   /* Return TRUE if TYPE1 and TYPE2 are identical for type hashing purposes.
      Called only after doing all language independent checks.
      At present, this function is only called when both TYPE1 and TYPE2 are
@@ -246,6 +243,11 @@ struct lang_hooks_for_decls
      is true, only the TREE_TYPE is returned without generating a new tree.  */
   tree (*omp_array_data) (tree, bool);
 
+  /* Return a tree for the actual data of an array descriptor - or NULL_TREE
+     if original tree is not an array descriptor.  If the second argument
+     is true, only the TREE_TYPE is returned without generating a new tree.  */
+  tree (*omp_array_size) (tree, gimple_seq *pre_p);
+
   /* True if OpenMP should regard this DECL as being a scalar which has Fortran's
      allocatable or pointer attribute.  */
   bool (*omp_is_allocatable_or_ptr) (const_tree);
@@ -310,6 +312,21 @@ struct lang_hooks_for_decls
 
   /* Do language specific checking on an implicitly determined clause.  */
   void (*omp_finish_clause) (tree clause, gimple_seq *pre_p, bool);
+
+  /* Additional language-specific mappings for a decl; returns true
+     if those may occur.  */
+  bool (*omp_deep_mapping_p) (const gimple *ctx_stmt, tree clause);
+
+  /* Additional language-specific mappings for a decl; returns the
+     number of additional mappings needed.  */
+  tree (*omp_deep_mapping_cnt) (const gimple *ctx_stmt, tree clause,
+				gimple_seq *seq);
+
+  /* Do the actual additional language-specific mappings for a decl. */
+  void (*omp_deep_mapping) (const gimple *stmt, tree clause,
+			    unsigned HOST_WIDE_INT tkind,
+			    tree data, tree sizes, tree kinds,
+			    tree offset_data, tree offset, gimple_seq *seq);
 
   /* Return true if DECL is an allocatable variable (for the purpose of
      implicit mapping).  */
@@ -512,9 +529,11 @@ struct lang_hooks
      in contexts where erroneously returning 0 causes problems.  */
   int (*types_compatible_p) (tree x, tree y);
 
-  /* Called by report_error_function to print out function name.  */
-  void (*print_error_function) (diagnostic_context *, const char *,
-				struct diagnostic_info *);
+  /* Called by diagnostic_report_current_function to print out function name
+     for textual diagnostic output.  */
+  void (*print_error_function) (diagnostic_text_output_format &,
+				const char *,
+				const struct diagnostic_info *);
 
   /* Convert a character from the host's to the target's character
      set.  The character should be in what C calls the "basic source
@@ -530,9 +549,7 @@ struct lang_hooks
      table of attributes specific to the language, a table of
      attributes common to two or more languages (to allow easy
      sharing), and a table of attributes for checking formats.  */
-  const struct attribute_spec *attribute_table;
-  const struct attribute_spec *common_attribute_table;
-  const struct attribute_spec *format_attribute_table;
+  array_slice<const struct scoped_attribute_specs *const> attribute_table;
 
   struct lang_hooks_for_tree_inlining tree_inlining;
 
@@ -541,7 +558,7 @@ struct lang_hooks
   struct lang_hooks_for_decls decls;
 
   struct lang_hooks_for_types types;
-  
+
   struct lang_hooks_for_lto lto;
 
   /* Returns a TREE_VEC of the generic parameters of an instantiation of
@@ -634,6 +651,12 @@ struct lang_hooks
 
   /* Invoked before the early_finish debug hook is invoked.  */
   void (*finalize_early_debug) (void);
+
+  /* Get a value for the SARIF v2.1.0 "artifact.sourceLanguage" property
+     for FILENAME, or return NULL.
+     See SARIF v2.1.0 Appendix J for suggested values for common programming
+     languages.  */
+  const char *(*get_sarif_source_language) (const char *filename);
 
   /* Whenever you add entries here, make sure you adjust langhooks-def.h
      and langhooks.cc accordingly.  */

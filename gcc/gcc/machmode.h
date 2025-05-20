@@ -1,5 +1,5 @@
 /* Machine mode definitions for GCC; included by rtl.h and tree.h.
-   Copyright (C) 1991-2022 Free Software Foundation, Inc.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,14 +22,15 @@ along with GCC; see the file COPYING3.  If not see
 
 typedef opt_mode<machine_mode> opt_machine_mode;
 
-extern CONST_MODE_SIZE poly_uint16_pod mode_size[NUM_MACHINE_MODES];
-extern CONST_MODE_PRECISION poly_uint16_pod mode_precision[NUM_MACHINE_MODES];
-extern const unsigned char mode_inner[NUM_MACHINE_MODES];
-extern CONST_MODE_NUNITS poly_uint16_pod mode_nunits[NUM_MACHINE_MODES];
+extern CONST_MODE_SIZE poly_uint16 mode_size[NUM_MACHINE_MODES];
+extern CONST_MODE_PRECISION poly_uint16 mode_precision[NUM_MACHINE_MODES];
+extern const unsigned short mode_inner[NUM_MACHINE_MODES];
+extern CONST_MODE_NUNITS poly_uint16 mode_nunits[NUM_MACHINE_MODES];
 extern CONST_MODE_UNIT_SIZE unsigned char mode_unit_size[NUM_MACHINE_MODES];
 extern const unsigned short mode_unit_precision[NUM_MACHINE_MODES];
-extern const unsigned char mode_wider[NUM_MACHINE_MODES];
-extern const unsigned char mode_2xwider[NUM_MACHINE_MODES];
+extern const unsigned short mode_next[NUM_MACHINE_MODES];
+extern const unsigned short mode_wider[NUM_MACHINE_MODES];
+extern const unsigned short mode_2xwider[NUM_MACHINE_MODES];
 
 template<typename T>
 struct mode_traits
@@ -241,6 +242,21 @@ extern const unsigned char mode_class[NUM_MACHINE_MODES];
    || CLASS == MODE_ACCUM                      \
    || CLASS == MODE_UACCUM)
 
+/* The MACHINE_MODE_BITSIZE should be exactly aligned with the type of the
+   machine_mode array in the machmode.h and genmodes.cc.  For example as below.
+   +------------------------+-------+
+   | MACHINE_MODE_BITSIZE   |    16 |
+   +------------------------+-------+
+   | mode_inter[]           | short |
+   | mode_next[]            | short |
+   | mode_wider[]           | short |
+   | mode_2xwider[]         | short |
+   | mode_complex[]         | short |
+   | class_narrowest_mode[] | short |
+   +------------------------+-------+
+   */
+#define MACHINE_MODE_BITSIZE 16
+
 /* An optional T (i.e. a T or nothing), where T is some form of mode class.  */
 template<typename T>
 class opt_mode
@@ -252,6 +268,8 @@ public:
   ALWAYS_INLINE CONSTEXPR opt_mode (const T &m) : m_mode (m) {}
   template<typename U>
   ALWAYS_INLINE CONSTEXPR opt_mode (const U &m) : m_mode (T (m)) {}
+  template<typename U>
+  ALWAYS_INLINE CONSTEXPR opt_mode (const opt_mode<U> &);
   ALWAYS_INLINE CONSTEXPR opt_mode (from_int m) : m_mode (machine_mode (m)) {}
 
   machine_mode else_void () const;
@@ -268,6 +286,14 @@ public:
 private:
   machine_mode m_mode;
 };
+
+template<typename T>
+template<typename U>
+ALWAYS_INLINE CONSTEXPR
+opt_mode<T>::opt_mode (const opt_mode<U> &m)
+  : m_mode (m.exists () ? T (m.require ()) : E_VOIDmode)
+{
+}
 
 /* If the object contains a T, return its enum value, otherwise return
    E_VOIDmode.  */
@@ -760,7 +786,23 @@ GET_MODE_NUNITS (const T &mode)
 }
 #endif
 
-/* Get the next wider natural mode (eg, QI -> HI -> SI -> DI -> TI).  */
+/* Get the next natural mode (not narrower, eg, QI -> HI -> SI -> DI -> TI
+   or HF -> BF -> SF -> DF -> XF -> TF).  */
+
+template<typename T>
+ALWAYS_INLINE opt_mode<T>
+GET_MODE_NEXT_MODE (const T &m)
+{
+  return typename opt_mode<T>::from_int (mode_next[m]);
+}
+
+/* Get the next wider mode (eg, QI -> HI -> SI -> DI -> TI
+   or { HF, BF } -> SF -> DF -> XF -> TF).
+   This is similar to GET_MODE_NEXT_MODE, but while GET_MODE_NEXT_MODE
+   can include mode that have the same precision (e.g.
+   GET_MODE_NEXT_MODE (HFmode) can be BFmode even when both have the same
+   precision), this one will skip those.  And always VOIDmode for
+   modes whose class is !CLASS_HAS_WIDER_MODES_P.  */
 
 template<typename T>
 ALWAYS_INLINE opt_mode<T>
@@ -780,7 +822,7 @@ GET_MODE_2XWIDER_MODE (const T &m)
 }
 
 /* Get the complex mode from the component mode.  */
-extern const unsigned char mode_complex[NUM_MACHINE_MODES];
+extern const unsigned short mode_complex[NUM_MACHINE_MODES];
 #define GET_MODE_COMPLEX_MODE(MODE) ((machine_mode) mode_complex[MODE])
 
 /* Represents a machine mode that must have a fixed size.  The main
@@ -873,15 +915,15 @@ decimal_float_mode_for_size (unsigned int size)
     (mode_for_size (size, MODE_DECIMAL_FLOAT, 0));
 }
 
-extern machine_mode smallest_mode_for_size (poly_uint64, enum mode_class);
+extern opt_machine_mode smallest_mode_for_size (poly_uint64, enum mode_class);
 
-/* Find the narrowest integer mode that contains at least SIZE bits.
-   Such a mode must exist.  */
+/* Find the narrowest integer mode that contains at least SIZE bits,
+   if such a mode exists.  */
 
-inline scalar_int_mode
+inline opt_scalar_int_mode
 smallest_int_mode_for_size (poly_uint64 size)
 {
-  return as_a <scalar_int_mode> (smallest_mode_for_size (size, MODE_INT));
+  return dyn_cast <scalar_int_mode> (smallest_mode_for_size (size, MODE_INT));
 }
 
 extern opt_scalar_int_mode int_mode_for_mode (machine_mode);
@@ -929,7 +971,7 @@ extern unsigned get_mode_alignment (machine_mode);
 
 /* For each class, get the narrowest mode in that class.  */
 
-extern const unsigned char class_narrowest_mode[MAX_MODE_CLASS];
+extern const unsigned short class_narrowest_mode[MAX_MODE_CLASS];
 #define GET_CLASS_NARROWEST_MODE(CLASS) \
   ((machine_mode) class_narrowest_mode[CLASS])
 
@@ -1098,7 +1140,33 @@ namespace mode_iterator
     return *iter != E_VOIDmode;
   }
 
-  /* Set mode iterator *ITER to the next widest mode in the same class,
+  /* Set mode iterator *ITER to the next mode in the same class,
+     if any.  */
+
+  template<typename T>
+  inline void
+  get_next (opt_mode<T> *iter)
+  {
+    *iter = GET_MODE_NEXT_MODE (iter->require ());
+  }
+
+  inline void
+  get_next (machine_mode *iter)
+  {
+    *iter = GET_MODE_NEXT_MODE (*iter).else_void ();
+  }
+
+  /* Set mode iterator *ITER to the next mode in the same class.
+     Such a mode is known to exist.  */
+
+  template<typename T>
+  inline void
+  get_known_next (T *iter)
+  {
+    *iter = GET_MODE_NEXT_MODE (*iter).require ();
+  }
+
+  /* Set mode iterator *ITER to the next wider mode in the same class,
      if any.  */
 
   template<typename T>
@@ -1114,7 +1182,7 @@ namespace mode_iterator
     *iter = GET_MODE_WIDER_MODE (*iter).else_void ();
   }
 
-  /* Set mode iterator *ITER to the next widest mode in the same class.
+  /* Set mode iterator *ITER to the next wider mode in the same class.
      Such a mode is known to exist.  */
 
   template<typename T>
@@ -1146,18 +1214,25 @@ namespace mode_iterator
 #define FOR_EACH_MODE_IN_CLASS(ITERATOR, CLASS)  \
   for (mode_iterator::start (&(ITERATOR), CLASS); \
        mode_iterator::iterate_p (&(ITERATOR)); \
-       mode_iterator::get_wider (&(ITERATOR)))
+       mode_iterator::get_next (&(ITERATOR)))
 
 /* Make ITERATOR iterate over all the modes in the range [START, END),
    in order of increasing width.  */
 #define FOR_EACH_MODE(ITERATOR, START, END) \
   for ((ITERATOR) = (START); \
        (ITERATOR) != (END); \
-       mode_iterator::get_known_wider (&(ITERATOR)))
+       mode_iterator::get_known_next (&(ITERATOR)))
 
-/* Make ITERATOR iterate over START and all wider modes in the same
+/* Make ITERATOR iterate over START and all non-narrower modes in the same
    class, in order of increasing width.  */
 #define FOR_EACH_MODE_FROM(ITERATOR, START) \
+  for ((ITERATOR) = (START); \
+       mode_iterator::iterate_p (&(ITERATOR)); \
+       mode_iterator::get_next (&(ITERATOR)))
+
+/* Make ITERATOR iterate over START and all wider modes in the same
+   class, in order of strictly increasing width.  */
+#define FOR_EACH_WIDER_MODE_FROM(ITERATOR, START) \
   for ((ITERATOR) = (START); \
        mode_iterator::iterate_p (&(ITERATOR)); \
        mode_iterator::get_wider (&(ITERATOR)))
@@ -1167,6 +1242,14 @@ namespace mode_iterator
    in END's class.  */
 #define FOR_EACH_MODE_UNTIL(ITERATOR, END) \
   FOR_EACH_MODE (ITERATOR, get_narrowest_mode (END), END)
+
+/* Make ITERATOR iterate over modes in the same class as MODE, in order
+   of non-decreasing width.  Start at next such mode after START,
+   or don't iterate at all if there is no such mode.  */
+#define FOR_EACH_NEXT_MODE(ITERATOR, START) \
+  for ((ITERATOR) = (START), mode_iterator::get_next (&(ITERATOR)); \
+       mode_iterator::iterate_p (&(ITERATOR)); \
+       mode_iterator::get_next (&(ITERATOR)))
 
 /* Make ITERATOR iterate over modes in the same class as MODE, in order
    of increasing width.  Start at the first mode wider than START,

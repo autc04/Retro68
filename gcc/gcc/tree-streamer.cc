@@ -1,7 +1,7 @@
 /* Miscellaneous utilities for tree streaming.  Things that are used
    in both input and output are here.
 
-   Copyright (C) 2011-2022 Free Software Foundation, Inc.
+   Copyright (C) 2011-2025 Free Software Foundation, Inc.
    Contributed by Diego Novillo <dnovillo@google.com>
 
 This file is part of GCC.
@@ -35,7 +35,7 @@ along with GCC; see the file COPYING3.  If not see
    During streaming in, we translate the on the disk mode using this
    table.  For normal LTO it is set to identity, for ACCEL_COMPILER
    depending on the mode_table content.  */
-unsigned char streamer_mode_table[1 << 8];
+unsigned char streamer_mode_table[MAX_MACHINE_MODE];
 
 /* Check that all the TS_* structures handled by the streamer_write_* and
    streamer_read_* routines are exactly ALL the structures defined in
@@ -60,6 +60,7 @@ streamer_check_handled_ts_structures (void)
   handled_p[TS_FIXED_CST] = true;
   handled_p[TS_VECTOR] = true;
   handled_p[TS_STRING] = true;
+  handled_p[TS_RAW_DATA_CST] = true;
   handled_p[TS_COMPLEX] = true;
   handled_p[TS_IDENTIFIER] = true;
   handled_p[TS_DECL_MINIMAL] = true;

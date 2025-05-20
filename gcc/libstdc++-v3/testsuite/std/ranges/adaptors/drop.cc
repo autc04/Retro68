@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <algorithm>
 #include <ranges>
@@ -275,6 +274,17 @@ test09()
   static_assert(!requires { views::all | drop; });
 }
 
+constexpr bool
+test10()
+{
+  // PR libstdc++/112641 - drop_view::begin const may have O(n) complexity
+  const auto s = ranges::subrange(views::iota(size_t(1)), size_t(-1));
+  const auto r = ranges::drop_view(s, s.size() - 1);
+  const auto b = r.begin(); // time out
+  VERIFY( *b == size_t(-1) );
+  return true;
+}
+
 int
 main()
 {
@@ -287,4 +297,5 @@ main()
   test07();
   test08();
   test09();
+  static_assert(test10());
 }

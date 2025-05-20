@@ -1,6 +1,6 @@
 // Character Traits for use by standard string and iostream -*- C++ -*-
 
-// Copyright (C) 1997-2022 Free Software Foundation, Inc.
+// Copyright (C) 1997-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,12 +34,25 @@
 #ifndef _CHAR_TRAITS_H
 #define _CHAR_TRAITS_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
-#include <bits/postypes.h>      // For streampos
-#include <cwchar>               // For WEOF, wmemmove, wmemset, etc.
+#include <bits/c++config.h>
+
+#if _GLIBCXX_HOSTED
+# include <bits/postypes.h>     // For streampos
+#endif // HOSTED
+
+#ifdef _GLIBCXX_USE_WCHAR_T
+# include <cwchar>              // For WEOF, wmemmove, wmemset, etc.
+#endif // USE_WCHAR_T
+
 #if __cplusplus >= 201103L
 # include <type_traits>
+#if !defined __UINT_LEAST16_TYPE__ || !defined __UINT_LEAST32_TYPE__
+# include <cstdint>
+#endif
 #endif
 #if __cplusplus >= 202002L
 # include <compare>
@@ -73,9 +86,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     struct _Char_types
     {
       typedef unsigned long   int_type;
+#if _GLIBCXX_HOSTED
       typedef std::streampos  pos_type;
       typedef std::streamoff  off_type;
       typedef std::mbstate_t  state_type;
+#endif // HOSTED
     };
 
 
@@ -92,16 +107,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *
    *  See https://gcc.gnu.org/onlinedocs/libstdc++/manual/strings.html#strings.string.character_types
    *  for advice on how to make use of this class for @a unusual character
-   *  types. Also, check out include/ext/pod_char_traits.h.  
+   *  types. Also, check out include/ext/pod_char_traits.h.
    */
   template<typename _CharT>
     struct char_traits
     {
       typedef _CharT                                    char_type;
       typedef typename _Char_types<_CharT>::int_type    int_type;
+#if _GLIBCXX_HOSTED
       typedef typename _Char_types<_CharT>::pos_type    pos_type;
       typedef typename _Char_types<_CharT>::off_type    off_type;
       typedef typename _Char_types<_CharT>::state_type  state_type;
+#endif // HOSTED
 #if __cpp_lib_three_way_comparison
       using comparison_category = std::strong_ordering;
 #endif
@@ -155,6 +172,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       eq_int_type(const int_type& __c1, const int_type& __c2)
       { return __c1 == __c2; }
 
+#ifdef _GLIBCXX_STDIO_EOF
       static _GLIBCXX_CONSTEXPR int_type
       eof()
       { return static_cast<int_type>(_GLIBCXX_STDIO_EOF); }
@@ -162,6 +180,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR int_type
       not_eof(const int_type& __c)
       { return !eq_int_type(__c, eof()) ? __c : to_int_type(char_type()); }
+#endif // defined(_GLIBCXX_STDIO_EOF)
     };
 
   template<typename _CharT>
@@ -210,27 +229,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #if __cplusplus >= 202002L
       if (std::__is_constant_evaluated())
 	{
-	  if (__s1 == __s2) // unlikely, but saves a lot of work
-	    return __s1;
-#if __cpp_constexpr_dynamic_alloc
-	  // The overlap detection below fails due to PR c++/89074,
-	  // so use a temporary buffer instead.
-	  char_type* __tmp = new char_type[__n];
-	  copy(__tmp, __s2, __n);
-	  copy(__s1, __tmp, __n);
-	  delete[] __tmp;
-#else
-	  const auto __end = __s2 + __n - 1;
-	  bool __overlap = false;
-	  for (std::size_t __i = 0; __i < __n - 1; ++__i)
-	    {
-	      if (__s1 + __i == __end)
-		{
-		  __overlap = true;
-		  break;
-		}
-	    }
-	  if (__overlap)
+	  // Use __builtin_constant_p to avoid comparing unrelated pointers.
+	  if (__builtin_constant_p(__s2 < __s1)
+		&& __s1 > __s2 && __s1 < (__s2 + __n))
 	    {
 	      do
 		{
@@ -241,7 +242,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	    }
 	  else
 	    copy(__s1, __s2, __n);
-#endif
 	  return __s1;
 	}
 #endif
@@ -255,6 +255,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     char_traits<_CharT>::
     copy(char_type* __s1, const char_type* __s2, std::size_t __n)
     {
+      if (__n == 0)
+	return __s1;
 #if __cplusplus >= 202002L
       if (std::__is_constant_evaluated())
 	{
@@ -263,7 +265,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  return __s1;
 	}
 #endif
-
       __builtin_memcpy(__s1, __s2, __n * sizeof(char_type));
       return __s1;
     }
@@ -285,9 +286,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       if _GLIBCXX17_CONSTEXPR (sizeof(_CharT) == 1 && __is_trivial(_CharT))
 	{
-	  unsigned char __c;
-	  __builtin_memcpy(&__c, __builtin_addressof(__a), 1);
-	  __builtin_memset(__s, __c, __n);
+	  if (__n)
+	    {
+	      unsigned char __c;
+	      __builtin_memcpy(&__c, __builtin_addressof(__a), 1);
+	      __builtin_memset(__s, __c, __n);
+	    }
 	}
       else
 	{
@@ -303,14 +307,6 @@ _GLIBCXX_END_NAMESPACE_VERSION
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
-
-#ifdef __cpp_lib_is_constant_evaluated
-// Unofficial macro indicating P1032R1 support in C++20
-# define __cpp_lib_constexpr_char_traits 201811L
-#elif __cplusplus >= 201703L && _GLIBCXX_HAVE_IS_CONSTANT_EVALUATED
-// Unofficial macro indicating P0426R1 support in C++17
-# define __cpp_lib_constexpr_char_traits 201611L
-#endif
 
   // 21.1
   /**
@@ -336,9 +332,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
       typedef char              char_type;
       typedef int               int_type;
+#if _GLIBCXX_HOSTED
       typedef streampos         pos_type;
       typedef streamoff         off_type;
       typedef mbstate_t         state_type;
+#endif // HOSTED
 #if __cpp_lib_three_way_comparison
       using comparison_category = strong_ordering;
 #endif
@@ -457,6 +455,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       eq_int_type(const int_type& __c1, const int_type& __c2) _GLIBCXX_NOEXCEPT
       { return __c1 == __c2; }
 
+#ifdef _GLIBCXX_STDIO_EOF
       static _GLIBCXX_CONSTEXPR int_type
       eof() _GLIBCXX_NOEXCEPT
       { return static_cast<int_type>(_GLIBCXX_STDIO_EOF); }
@@ -464,6 +463,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR int_type
       not_eof(const int_type& __c) _GLIBCXX_NOEXCEPT
       { return (__c == eof()) ? 0 : __c; }
+#endif // defined(_GLIBCXX_STDIO_EOF)
   };
 
 
@@ -474,9 +474,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
       typedef wchar_t           char_type;
       typedef wint_t            int_type;
+#if _GLIBCXX_HOSTED
       typedef streamoff         off_type;
       typedef wstreampos        pos_type;
       typedef mbstate_t         state_type;
+#endif // HOSTED
 #if __cpp_lib_three_way_comparison
       using comparison_category = strong_ordering;
 #endif
@@ -582,6 +584,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       eq_int_type(const int_type& __c1, const int_type& __c2) _GLIBCXX_NOEXCEPT
       { return __c1 == __c2; }
 
+#if _GLIBCXX_HOSTED
       static _GLIBCXX_CONSTEXPR int_type
       eof() _GLIBCXX_NOEXCEPT
       { return static_cast<int_type>(WEOF); }
@@ -589,6 +592,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR int_type
       not_eof(const int_type& __c) _GLIBCXX_NOEXCEPT
       { return eq_int_type(__c, eof()) ? 0 : __c; }
+#endif // HOSTED
   };
 #else // _GLIBCXX_USE_WCHAR_T
   template<>
@@ -602,9 +606,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
       typedef char8_t           char_type;
       typedef unsigned int      int_type;
+#if _GLIBCXX_HOSTED
       typedef u8streampos       pos_type;
       typedef streamoff         off_type;
       typedef mbstate_t         state_type;
+#endif // HOSTED
 #if __cpp_lib_three_way_comparison
       using comparison_category = strong_ordering;
 #endif
@@ -647,10 +653,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	if (std::__is_constant_evaluated())
 	  return __gnu_cxx::char_traits<char_type>::length(__s);
 #endif
-	size_t __i = 0;
-	while (!eq(__s[__i], char_type()))
-	  ++__i;
-	return __i;
+	return __builtin_strlen((const char*)__s);
       }
 
       static _GLIBCXX17_CONSTEXPR const char_type*
@@ -713,6 +716,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       eq_int_type(const int_type& __c1, const int_type& __c2) _GLIBCXX_NOEXCEPT
       { return __c1 == __c2; }
 
+#if _GLIBCXX_HOSTED
       static _GLIBCXX_CONSTEXPR int_type
       eof() _GLIBCXX_NOEXCEPT
       { return static_cast<int_type>(-1); }
@@ -720,6 +724,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static _GLIBCXX_CONSTEXPR int_type
       not_eof(const int_type& __c) _GLIBCXX_NOEXCEPT
       { return eq_int_type(__c, eof()) ? 0 : __c; }
+#endif // HOSTED
     };
 #endif //_GLIBCXX_USE_CHAR8_T
 
@@ -727,8 +732,6 @@ _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
 
 #if __cplusplus >= 201103L
-
-#include <cstdint>
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -738,16 +741,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     struct char_traits<char16_t>
     {
       typedef char16_t          char_type;
-#ifdef _GLIBCXX_USE_C99_STDINT_TR1
-      typedef uint_least16_t    int_type;
-#elif defined __UINT_LEAST16_TYPE__
+#ifdef __UINT_LEAST16_TYPE__
       typedef __UINT_LEAST16_TYPE__	    int_type;
 #else
-      typedef make_unsigned<char16_t>::type int_type;
+      typedef uint_least16_t    int_type;
 #endif
+#if _GLIBCXX_HOSTED
       typedef streamoff         off_type;
       typedef u16streampos      pos_type;
       typedef mbstate_t         state_type;
+#endif // HOSTED
 #if __cpp_lib_three_way_comparison
       using comparison_category = strong_ordering;
 #endif
@@ -838,13 +841,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       to_char_type(const int_type& __c) noexcept
       { return char_type(__c); }
 
-      static constexpr int_type
-      to_int_type(const char_type& __c) noexcept
-      { return __c == eof() ? int_type(0xfffd) : int_type(__c); }
-
       static constexpr bool
       eq_int_type(const int_type& __c1, const int_type& __c2) noexcept
       { return __c1 == __c2; }
+
+#if _GLIBCXX_HOSTED
+      static constexpr int_type
+      to_int_type(const char_type& __c) noexcept
+      { return __c == eof() ? int_type(0xfffd) : int_type(__c); }
 
       static constexpr int_type
       eof() noexcept
@@ -853,22 +857,27 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static constexpr int_type
       not_eof(const int_type& __c) noexcept
       { return eq_int_type(__c, eof()) ? 0 : __c; }
+#else // !HOSTED
+      static constexpr int_type
+      to_int_type(const char_type& __c) noexcept
+      { return int_type(__c); }
+#endif // !HOSTED
     };
 
   template<>
     struct char_traits<char32_t>
     {
       typedef char32_t          char_type;
-#ifdef _GLIBCXX_USE_C99_STDINT_TR1
-      typedef uint_least32_t    int_type;
-#elif defined __UINT_LEAST32_TYPE__
+#ifdef __UINT_LEAST32_TYPE__
       typedef __UINT_LEAST32_TYPE__	    int_type;
 #else
-      typedef make_unsigned<char32_t>::type int_type;
+      typedef uint_least32_t    int_type;
 #endif
+#if _GLIBCXX_HOSTED
       typedef streamoff         off_type;
       typedef u32streampos      pos_type;
       typedef mbstate_t         state_type;
+#endif // HOSTED
 #if __cpp_lib_three_way_comparison
       using comparison_category = strong_ordering;
 #endif
@@ -936,7 +945,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       static _GLIBCXX20_CONSTEXPR char_type*
       copy(char_type* __s1, const char_type* __s2, size_t __n)
-      { 
+      {
 	if (__n == 0)
 	  return __s1;
 #if __cplusplus >= 202002L
@@ -967,6 +976,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       eq_int_type(const int_type& __c1, const int_type& __c2) noexcept
       { return __c1 == __c2; }
 
+#if _GLIBCXX_HOSTED
       static constexpr int_type
       eof() noexcept
       { return static_cast<int_type>(-1); }
@@ -974,6 +984,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static constexpr int_type
       not_eof(const int_type& __c) noexcept
       { return eq_int_type(__c, eof()) ? 0 : __c; }
+#endif // HOSTED
     };
 
 #if __cpp_lib_three_way_comparison

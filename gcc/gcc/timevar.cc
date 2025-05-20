@@ -1,5 +1,5 @@
 /* Timing variables for measuring compiler performance.
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2025 Free Software Foundation, Inc.
    Contributed by Alex Samuel <samuel@codesourcery.com>
 
 This file is part of GCC.
@@ -23,83 +23,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "timevar.h"
 #include "options.h"
-
-#ifndef HAVE_CLOCK_T
-typedef int clock_t;
-#endif
-
-#ifndef HAVE_STRUCT_TMS
-struct tms
-{
-  clock_t tms_utime;
-  clock_t tms_stime;
-  clock_t tms_cutime;
-  clock_t tms_cstime;
-};
-#endif
-
-#ifndef RUSAGE_SELF
-# define RUSAGE_SELF 0
-#endif
-
-/* Calculation of scale factor to convert ticks to microseconds.
-   We mustn't use CLOCKS_PER_SEC except with clock().  */
-#if HAVE_SYSCONF && defined _SC_CLK_TCK
-# define TICKS_PER_SECOND sysconf (_SC_CLK_TCK) /* POSIX 1003.1-1996 */
-#else
-# ifdef CLK_TCK
-#  define TICKS_PER_SECOND CLK_TCK /* POSIX 1003.1-1988; obsolescent */
-# else
-#  ifdef HZ
-#   define TICKS_PER_SECOND HZ  /* traditional UNIX */
-#  else
-#   define TICKS_PER_SECOND 100 /* often the correct value */
-#  endif
-# endif
-#endif
-
-/* Prefer times to getrusage to clock (each gives successively less
-   information).  */
-#ifdef HAVE_TIMES
-# if defined HAVE_DECL_TIMES && !HAVE_DECL_TIMES
-  extern clock_t times (struct tms *);
-# endif
-# define USE_TIMES
-# define HAVE_USER_TIME
-# define HAVE_SYS_TIME
-# define HAVE_WALL_TIME
-#else
-#ifdef HAVE_GETRUSAGE
-# if defined HAVE_DECL_GETRUSAGE && !HAVE_DECL_GETRUSAGE
-  extern int getrusage (int, struct rusage *);
-# endif
-# define USE_GETRUSAGE
-# define HAVE_USER_TIME
-# define HAVE_SYS_TIME
-#else
-#ifdef HAVE_CLOCK
-# if defined HAVE_DECL_CLOCK && !HAVE_DECL_CLOCK
-  extern clock_t clock (void);
-# endif
-# define USE_CLOCK
-# define HAVE_USER_TIME
-#endif
-#endif
-#endif
-
-/* libc is very likely to have snuck a call to sysconf() into one of
-   the underlying constants, and that can be very slow, so we have to
-   precompute them.  Whose wonderful idea was it to make all those
-   _constants_ variable at run time, anyway?  */
-#ifdef USE_TIMES
-static double ticks_to_msec;
-#define TICKS_TO_MSEC (1 / (double)TICKS_PER_SECOND)
-#endif
-
-#ifdef USE_CLOCK
-static double clocks_to_msec;
-#define CLOCKS_TO_MSEC (1 / (double)CLOCKS_PER_SEC)
-#endif
+#include "json.h"
+#include "make-unique.h"
 
 /* Non-NULL if timevars should be used.  In GCC, this happens with
    the -ftime-report flag.  */
@@ -135,6 +60,8 @@ class timer::named_items
   void pop ();
   void print (FILE *fp, const timevar_time_def *total);
 
+  std::unique_ptr<json::value> make_json () const;
+
  private:
   /* Which timer instance does this relate to?  */
   timer *m_timer;
@@ -143,7 +70,8 @@ class timer::named_items
      Note that currently we merely store/compare the raw string
      pointers provided by client code; we don't take a copy,
      or use strcmp.  */
-  hash_map <const char *, timer::timevar_def> m_hash_map;
+  typedef hash_map <const char *, timer::timevar_def> hash_map_t;
+  hash_map_t m_hash_map;
 
   /* The order in which items were originally inserted.  */
   auto_vec <const char *> m_names;
@@ -175,8 +103,6 @@ timer::named_items::push (const char *item_name)
   timer::timevar_def *def = &m_hash_map.get_or_insert (item_name, &existed);
   if (!existed)
     {
-      def->elapsed.user = 0;
-      def->elapsed.sys = 0;
       def->elapsed.wall = 0;
       def->name = item_name;
       def->standalone = 0;
@@ -207,35 +133,48 @@ timer::named_items::print (FILE *fp, const timevar_time_def *total)
     }
 }
 
-/* Fill the current times into TIME.  The definition of this function
-   also defines any or all of the HAVE_USER_TIME, HAVE_SYS_TIME, and
-   HAVE_WALL_TIME macros.  */
+/* Create a json value representing this object, suitable for use
+   in SARIF output.  */
+
+std::unique_ptr<json::value>
+timer::named_items::make_json () const
+{
+  auto arr = ::make_unique<json::array> ();
+  for (const char *item_name : m_names)
+    {
+      hash_map_t &mut_map = const_cast <hash_map_t &> (m_hash_map);
+      timer::timevar_def *def = mut_map.get (item_name);
+      gcc_assert (def);
+      arr->append (def->make_json ());
+    }
+  return arr;
+}
+
+/* Fill the current times into TIME, and define HAVE_WALL_TIME if there.  */
 
 static void
 get_time (struct timevar_time_def *now)
 {
-  now->user = 0;
-  now->sys  = 0;
   now->wall = 0;
   now->ggc_mem = timevar_ggc_mem_total;
 
-  {
-#ifdef USE_TIMES
-    struct tms tms;
-    now->wall = times (&tms)  * ticks_to_msec;
-    now->user = tms.tms_utime * ticks_to_msec;
-    now->sys  = tms.tms_stime * ticks_to_msec;
+#ifdef HAVE_CLOCK_GETTIME
+  struct timespec ts;
+#if _POSIX_TIMERS > 0 && defined(_POSIX_MONOTONIC_CLOCK)
+  clock_gettime (CLOCK_MONOTONIC, &ts);
+#else
+  clock_gettime (CLOCK_REALTIME, &ts);
 #endif
-#ifdef USE_GETRUSAGE
-    struct rusage rusage;
-    getrusage (RUSAGE_SELF, &rusage);
-    now->user = rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec * 1e-6;
-    now->sys  = rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec * 1e-6;
+  now->wall = ts.tv_sec * 1000000000 + ts.tv_nsec;
+  return;
+#define HAVE_WALL_TIME 1
 #endif
-#ifdef USE_CLOCK
-    now->user = clock () * clocks_to_msec;
+#ifdef HAVE_GETTIMEOFDAY
+  struct timeval tv;
+  gettimeofday (&tv, NULL);
+  now->wall = tv.tv_sec * 1000000000 + tv.tv_usec * 1000;
+#define HAVE_WALL_TIME 1
 #endif
-  }
 }
 
 /* Add the difference between STOP_TIME and START_TIME to TIMER.  */
@@ -245,10 +184,19 @@ timevar_accumulate (struct timevar_time_def *timer,
 		    struct timevar_time_def *start_time,
 		    struct timevar_time_def *stop_time)
 {
-  timer->user += stop_time->user - start_time->user;
-  timer->sys += stop_time->sys - start_time->sys;
   timer->wall += stop_time->wall - start_time->wall;
   timer->ggc_mem += stop_time->ggc_mem - start_time->ggc_mem;
+}
+
+/* Get the difference between STOP_TIME and START_TIME.  */
+
+static void
+timevar_diff (struct timevar_time_def *out,
+	      const timevar_time_def &start_time,
+	      const timevar_time_def &stop_time)
+{
+  out->wall = stop_time.wall - start_time.wall;
+  out->ggc_mem = stop_time.ggc_mem - start_time.ggc_mem;
 }
 
 /* Class timer's constructor.  */
@@ -267,15 +215,6 @@ timer::timer () :
   m_timevars[identifier__].name = name__;
 #include "timevar.def"
 #undef DEFTIMEVAR
-
-  /* Initialize configuration-specific state.
-     Ideally this would be one-time initialization.  */
-#ifdef USE_TIMES
-  ticks_to_msec = TICKS_TO_MSEC;
-#endif
-#ifdef USE_CLOCK
-  clocks_to_msec = CLOCKS_TO_MSEC;
-#endif
 }
 
 /* Class timer's destructor.  */
@@ -583,12 +522,9 @@ timer::validate_phases (FILE *fp) const
 {
   unsigned int /* timevar_id_t */ id;
   const timevar_time_def *total = &m_timevars[TV_TOTAL].elapsed;
-  double phase_user = 0.0;
-  double phase_sys = 0.0;
-  double phase_wall = 0.0;
+  uint64_t phase_wall = 0;
   size_t phase_ggc_mem = 0;
   static char phase_prefix[] = "phase ";
-  const double tolerance = 1.000001;  /* One part in a million.  */
 
   for (id = 0; id < (unsigned int) TIMEVAR_LAST; ++id)
     {
@@ -600,33 +536,28 @@ timer::validate_phases (FILE *fp) const
 
       if (startswith (tv->name, phase_prefix))
 	{
-	  phase_user += tv->elapsed.user;
-	  phase_sys += tv->elapsed.sys;
 	  phase_wall += tv->elapsed.wall;
 	  phase_ggc_mem += tv->elapsed.ggc_mem;
 	}
     }
 
-  if (phase_user > total->user * tolerance
-      || phase_sys > total->sys * tolerance
-      || phase_wall > total->wall * tolerance
-      || phase_ggc_mem > total->ggc_mem * tolerance)
+  if (phase_wall > total->wall || phase_ggc_mem > total->ggc_mem)
     {
 
       fprintf (fp, "Timing error: total of phase timers exceeds total time.\n");
-      if (phase_user > total->user)
-	fprintf (fp, "user    %24.18e > %24.18e\n", phase_user, total->user);
-      if (phase_sys > total->sys)
-	fprintf (fp, "sys     %24.18e > %24.18e\n", phase_sys, total->sys);
       if (phase_wall > total->wall)
-	fprintf (fp, "wall    %24.18e > %24.18e\n", phase_wall, total->wall);
+	fprintf (fp, "wall    %13" PRIu64 " > %13" PRIu64 "\n",
+		 phase_wall, total->wall);
       if (phase_ggc_mem > total->ggc_mem)
-	fprintf (fp, "ggc_mem %24lu > %24lu\n", (unsigned long)phase_ggc_mem,
+	fprintf (fp, "ggc_mem %13lu > %13lu\n", (unsigned long)phase_ggc_mem,
 		 (unsigned long)total->ggc_mem);
       gcc_unreachable ();
     }
 }
 
+#define nanosec_to_floating_sec(NANO) ((double)(NANO) * 1e-9)
+#define percent_of(TOTAL, SUBTOTAL) \
+  ((TOTAL) == 0 ? 0 : ((double)SUBTOTAL / TOTAL) * 100)
 /* Helper function for timer::print.  */
 
 void
@@ -637,25 +568,11 @@ timer::print_row (FILE *fp,
   /* The timing variable name.  */
   fprintf (fp, " %-35s:", name);
 
-#ifdef HAVE_USER_TIME
-  /* Print user-mode time for this process.  */
-  fprintf (fp, "%7.2f (%3.0f%%)",
-	   elapsed.user,
-	   (total->user == 0 ? 0 : elapsed.user / total->user) * 100);
-#endif /* HAVE_USER_TIME */
-
-#ifdef HAVE_SYS_TIME
-  /* Print system-mode time for this process.  */
-  fprintf (fp, "%7.2f (%3.0f%%)",
-	   elapsed.sys,
-	   (total->sys == 0 ? 0 : elapsed.sys / total->sys) * 100);
-#endif /* HAVE_SYS_TIME */
-
 #ifdef HAVE_WALL_TIME
   /* Print wall clock time elapsed.  */
   fprintf (fp, "%7.2f (%3.0f%%)",
-	   elapsed.wall,
-	   (total->wall == 0 ? 0 : elapsed.wall / total->wall) * 100);
+	   nanosec_to_floating_sec (elapsed.wall),
+	   percent_of (total->wall, elapsed.wall));
 #endif /* HAVE_WALL_TIME */
 
   /* Print the amount of ggc memory allocated.  */
@@ -673,10 +590,9 @@ timer::print_row (FILE *fp,
 bool
 timer::all_zero (const timevar_time_def &elapsed)
 {
-  const double tiny = 5e-3;
-  return (elapsed.user < tiny
-	  && elapsed.sys < tiny
-	  && elapsed.wall < tiny
+  /* 5000000 nanosec == 5e-3 seconds.  */
+  uint64_t tiny = 5000000;
+  return (elapsed.wall < tiny
 	  && elapsed.ggc_mem < GGC_MEM_BOUND);
 }
 
@@ -688,7 +604,7 @@ void
 timer::print (FILE *fp)
 {
   /* Only print stuff if we have some sort of time information.  */
-#if defined (HAVE_USER_TIME) || defined (HAVE_SYS_TIME) || defined (HAVE_WALL_TIME)
+#if defined (HAVE_WALL_TIME)
   unsigned int /* timevar_id_t */ id;
   const timevar_time_def *total = &m_timevars[TV_TOTAL].elapsed;
   struct timevar_time_def now;
@@ -710,8 +626,7 @@ timer::print (FILE *fp)
      TIMEVAR.  */
   m_start_time = now;
 
-  fprintf (fp, "\n%-35s%16s%14s%14s%14s\n", "Time variable", "usr", "sys",
-	   "wall", "GGC");
+  fprintf (fp, "\n%-35s%16s%14s\n", "Time variable", "wall", "GGC");
   if (m_jit_client_items)
     fputs ("GCC items:\n", fp);
   for (id = 0; id < (unsigned int) TIMEVAR_LAST; ++id)
@@ -765,15 +680,7 @@ timer::print (FILE *fp)
 
   /* Print total time.  */
   fprintf (fp, " %-35s:", "TOTAL");
-#ifdef HAVE_USER_TIME
-  fprintf (fp, "%7.2f      ", total->user);
-#endif
-#ifdef HAVE_SYS_TIME
-  fprintf (fp, "%8.2f      ", total->sys);
-#endif
-#ifdef HAVE_WALL_TIME
-  fprintf (fp, "%8.2f      ", total->wall);
-#endif
+  fprintf (fp, "%7.2f      ", nanosec_to_floating_sec (total->wall));
   fprintf (fp, PRsa (7) "\n", SIZE_AMOUNT (total->ggc_mem));
 
   if (CHECKING_P || flag_checking)
@@ -785,10 +692,134 @@ timer::print (FILE *fp)
   fprintf (fp, "Configure with --enable-checking=release to enable checks.\n");
 #endif
 
-#endif /* defined (HAVE_USER_TIME) || defined (HAVE_SYS_TIME)
-	  || defined (HAVE_WALL_TIME) */
+#endif /* defined (HAVE_WALL_TIME) */
 
   validate_phases (fp);
+}
+
+/* Create a json value representing this object, suitable for use
+   in SARIF output.  */
+
+std::unique_ptr<json::object>
+make_json_for_timevar_time_def (const timevar_time_def &ttd)
+{
+  auto obj = ::make_unique<json::object> ();
+  obj->set_float ("wall", nanosec_to_floating_sec (ttd.wall));
+  obj->set_integer ("ggc_mem", ttd.ggc_mem);
+  return obj;
+}
+#undef nanosec_to_floating_sec
+#undef percent_of
+
+/* Create a json value representing this object, suitable for use
+   in SARIF output.  */
+
+std::unique_ptr<json::value>
+timer::timevar_def::make_json () const
+{
+  auto timevar_obj = ::make_unique<json::object> ();
+  timevar_obj->set_string ("name", name);
+  timevar_obj->set ("elapsed", make_json_for_timevar_time_def (elapsed));
+
+  if (children)
+    {
+      bool any_children_with_time = false;
+      for (auto i : *children)
+	if (!all_zero (i.second))
+	  {
+	    any_children_with_time = true;
+	    break;
+	  }
+      if (any_children_with_time)
+	{
+	  auto children_arr = ::make_unique<json::array> ();
+	  for (auto i : *children)
+	    {
+	      /* Don't emit timing variables if we're going to get a row of
+		 zeroes.  */
+	      if (all_zero (i.second))
+		continue;
+	      auto child_obj = ::make_unique<json::object> ();
+	      child_obj->set_string ("name", i.first->name);
+	      child_obj->set ("elapsed",
+			      make_json_for_timevar_time_def (i.second));
+	      children_arr->append (std::move (child_obj));
+	    }
+	  timevar_obj->set ("children", std::move (children_arr));
+	}
+    }
+
+  return timevar_obj;
+}
+
+/* Create a json value representing this object, suitable for use
+   in SARIF output.  */
+
+std::unique_ptr<json::value>
+timer::make_json () const
+{
+#if defined (HAVE_WALL_TIME)
+  auto report_obj = ::make_unique<json::object> ();
+  json::array *json_arr = new json::array ();
+  report_obj->set ("timevars", json_arr);
+
+  for (unsigned id = 0; id < (unsigned int) TIMEVAR_LAST; ++id)
+    {
+      const timevar_def *tv = &m_timevars[(timevar_id_t) id];
+
+      /* Don't print the total execution time here; this isn't initialized
+	 by the time the sarif output runs.  */
+      if ((timevar_id_t) id == TV_TOTAL)
+	continue;
+
+      /* Don't emit timing variables that were never used.  */
+      if (!tv->used)
+	continue;
+
+      bool any_children_with_time = false;
+      if (tv->children)
+	for (child_map_t::iterator i = tv->children->begin ();
+	     i != tv->children->end (); ++i)
+	  if (! all_zero ((*i).second))
+	    {
+	      any_children_with_time = true;
+	      break;
+	    }
+
+      /* Don't emit timing variables if we're going to get a row of
+	 zeroes.  Unless there are children with non-zero time.  */
+      if (! any_children_with_time
+	  && all_zero (tv->elapsed))
+	continue;
+
+      json_arr->append (tv->make_json ());
+    }
+
+  /* Special-case for total.  */
+  {
+    /* Get our own total up till now, without affecting TV_TOTAL.  */
+    struct timevar_time_def total_now;
+    struct timevar_time_def total_elapsed;
+    get_time (&total_now);
+    timevar_diff (&total_elapsed, m_timevars[TV_TOTAL].start_time, total_now);
+
+    auto total_obj = ::make_unique<json::object> ();
+    total_obj->set_string ("name", "TOTAL");
+    total_obj->set ("elapsed", make_json_for_timevar_time_def (total_elapsed));
+    json_arr->append (std::move (total_obj));
+  }
+
+  if (m_jit_client_items)
+    report_obj->set ("client_items", m_jit_client_items->make_json ());
+
+  report_obj->set_bool ("CHECKING_P", CHECKING_P);
+  report_obj->set_bool ("flag_checking", flag_checking);
+
+  return report_obj;
+
+#else /* defined (HAVE_USER_TIME) */
+  return NULL;
+#endif /* !defined (HAVE_WALL_TIME) */
 }
 
 /* Get the name of the topmost item.  For use by jit for validating

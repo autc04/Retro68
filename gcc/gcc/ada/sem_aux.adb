@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -410,8 +410,10 @@ package body Sem_Aux is
       Ctyp : Entity_Id;
 
    begin
+      pragma Assert (Is_Tagged_Type (Typ)
+        or else Is_Class_Wide_Equivalent_Type (Typ));
+
       Ctyp := Typ;
-      pragma Assert (Is_Tagged_Type (Ctyp));
 
       if Is_Class_Wide_Type (Ctyp) then
          Ctyp := Root_Type (Ctyp);
@@ -697,24 +699,6 @@ package body Sem_Aux is
       return Present (Get_Rep_Pragma (E, Nam1, Nam2, Check_Parents));
    end Has_Rep_Pragma;
 
-   --------------------------------
-   -- Has_Unconstrained_Elements --
-   --------------------------------
-
-   function Has_Unconstrained_Elements (T : Entity_Id) return Boolean is
-      U_T : constant Entity_Id := Underlying_Type (T);
-   begin
-      if No (U_T) then
-         return False;
-      elsif Is_Record_Type (U_T) then
-         return Has_Discriminants (U_T) and then not Is_Constrained (U_T);
-      elsif Is_Array_Type (U_T) then
-         return Has_Unconstrained_Elements (Component_Type (U_T));
-      else
-         return False;
-      end if;
-   end Has_Unconstrained_Elements;
-
    ----------------------
    -- Has_Variant_Part --
    ----------------------
@@ -726,10 +710,6 @@ package body Sem_Aux is
       CList : Node_Id;
 
    begin
-      if not Is_Type (Typ) then
-         return False;
-      end if;
-
       FSTyp := First_Subtype (Typ);
 
       if not Has_Discriminants (FSTyp) then
@@ -884,7 +864,8 @@ package body Sem_Aux is
          return True;
 
       elsif Is_Record_Type (Btype) then
-         if Is_Limited_Record (Btype)
+         if Is_Controlled (Btype)
+           or else Is_Limited_Record (Btype)
            or else Is_Tagged_Type (Btype)
            or else Is_Volatile (Btype)
          then
@@ -962,7 +943,7 @@ package body Sem_Aux is
    -- Is_Derived_Type --
    ---------------------
 
-   function Is_Derived_Type (Ent : E) return B is
+   function Is_Derived_Type (Ent : Entity_Id) return B is
       Par : Node_Id;
 
    begin
@@ -1018,63 +999,6 @@ package body Sem_Aux is
                             N_Formal_Package_Declaration);
       end if;
    end Is_Generic_Formal;
-
-   -------------------------------
-   -- Is_Immutably_Limited_Type --
-   -------------------------------
-
-   function Is_Immutably_Limited_Type (Ent : Entity_Id) return Boolean is
-      Btype : constant Entity_Id := Available_View (Base_Type (Ent));
-
-   begin
-      if Is_Limited_Record (Btype) then
-         return True;
-
-      elsif Ekind (Btype) = E_Limited_Private_Type
-        and then Nkind (Parent (Btype)) = N_Formal_Type_Declaration
-      then
-         return not In_Package_Body (Scope ((Btype)));
-
-      elsif Is_Private_Type (Btype) then
-
-         --  AI05-0063: A type derived from a limited private formal type is
-         --  not immutably limited in a generic body.
-
-         if Is_Derived_Type (Btype)
-           and then Is_Generic_Type (Etype (Btype))
-         then
-            if not Is_Limited_Type (Etype (Btype)) then
-               return False;
-
-            --  A descendant of a limited formal type is not immutably limited
-            --  in the generic body, or in the body of a generic child.
-
-            elsif Ekind (Scope (Etype (Btype))) = E_Generic_Package then
-               return not In_Package_Body (Scope (Btype));
-
-            else
-               return False;
-            end if;
-
-         else
-            declare
-               Utyp : constant Entity_Id := Underlying_Type (Btype);
-            begin
-               if No (Utyp) then
-                  return False;
-               else
-                  return Is_Immutably_Limited_Type (Utyp);
-               end if;
-            end;
-         end if;
-
-      elsif Is_Concurrent_Type (Btype) then
-         return True;
-
-      else
-         return False;
-      end if;
-   end Is_Immutably_Limited_Type;
 
    ---------------------
    -- Is_Limited_Type --
@@ -1136,10 +1060,8 @@ package body Sem_Aux is
 
          else
             declare
-               C : E;
-
+               C : Entity_Id := First_Component (Btype);
             begin
-               C := First_Component (Btype);
                while Present (C) loop
                   if Is_Limited_Type (Etype (C)) then
                      return True;
@@ -1160,11 +1082,71 @@ package body Sem_Aux is
       end if;
    end Is_Limited_Type;
 
-   ---------------------
-   -- Is_Limited_View --
-   ---------------------
+   -------------------------------
+   -- Is_Immutably_Limited_Type --
+   -------------------------------
 
-   function Is_Limited_View (Ent : Entity_Id) return Boolean is
+   function Is_Immutably_Limited_Type (Ent : Entity_Id) return Boolean is
+      Btype : constant Entity_Id := Available_View (Base_Type (Ent));
+
+   begin
+      if Is_Limited_Record (Btype) then
+         return True;
+
+      elsif Ekind (Btype) = E_Limited_Private_Type
+        and then Nkind (Parent (Btype)) = N_Formal_Type_Declaration
+      then
+         return not In_Package_Body (Scope ((Btype)));
+
+      elsif Is_Private_Type (Btype) then
+
+         --  If Ent occurs in the completion of a private type, then
+         --  look for the word "limited" in the full view.
+
+         if Nkind (Parent (Ent)) = N_Full_Type_Declaration
+           and then Nkind (Type_Definition (Parent (Ent))) in
+                      N_Record_Definition | N_Derived_Type_Definition
+           and then Limited_Present (Type_Definition (Parent (Ent)))
+         then
+            return True;
+         end if;
+
+         --  AI05-0063: A type derived from a limited private formal type is
+         --  not immutably limited in a generic body.
+
+         if Is_Derived_Type (Btype)
+           and then Is_Generic_Type (Etype (Btype))
+         then
+            if not Is_Limited_Type (Etype (Btype)) then
+               return False;
+
+            --  A descendant of a limited formal type is not immutably limited
+            --  in the generic body, or in the body of a generic child.
+
+            elsif Ekind (Scope (Etype (Btype))) = E_Generic_Package then
+               return not In_Package_Body (Scope (Btype));
+
+            else
+               return False;
+            end if;
+
+         else
+            return False;
+         end if;
+
+      elsif Is_Concurrent_Type (Btype) then
+         return True;
+
+      else
+         return False;
+      end if;
+   end Is_Immutably_Limited_Type;
+
+   --------------------------------
+   -- Is_Inherently_Limited_Type --
+   --------------------------------
+
+   function Is_Inherently_Limited_Type (Ent : Entity_Id) return Boolean is
       Btype : constant Entity_Id := Available_View (Base_Type (Ent));
 
    begin
@@ -1204,7 +1186,7 @@ package body Sem_Aux is
                if No (Utyp) then
                   return False;
                else
-                  return Is_Limited_View (Utyp);
+                  return Is_Inherently_Limited_Type (Utyp);
                end if;
             end;
          end if;
@@ -1222,7 +1204,7 @@ package body Sem_Aux is
          --  of a type that is not inherently limited.
 
          if Is_Class_Wide_Type (Btype) then
-            return Is_Limited_View (Root_Type (Btype));
+            return Is_Inherently_Limited_Type (Root_Type (Btype));
 
          else
             declare
@@ -1239,7 +1221,7 @@ package body Sem_Aux is
                   --  limited interfaces.
 
                   if not Is_Interface (Etype (C))
-                    and then Is_Limited_View (Etype (C))
+                    and then Is_Inherently_Limited_Type (Etype (C))
                   then
                      return True;
                   end if;
@@ -1252,21 +1234,12 @@ package body Sem_Aux is
          end if;
 
       elsif Is_Array_Type (Btype) then
-         return Is_Limited_View (Component_Type (Btype));
+         return Is_Inherently_Limited_Type (Component_Type (Btype));
 
       else
          return False;
       end if;
-   end Is_Limited_View;
-
-   -------------------------------
-   -- Is_Record_Or_Limited_Type --
-   -------------------------------
-
-   function Is_Record_Or_Limited_Type (Typ : Entity_Id) return Boolean is
-   begin
-      return Is_Record_Type (Typ) or else Is_Limited_Type (Typ);
-   end Is_Record_Or_Limited_Type;
+   end Is_Inherently_Limited_Type;
 
    ----------------------
    -- Nearest_Ancestor --

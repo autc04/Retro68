@@ -1,4 +1,4 @@
-.. Copyright (C) 2015-2022 Free Software Foundation, Inc.
+.. Copyright (C) 2015-2025 Free Software Foundation, Inc.
    Originally contributed by David Malcolm <dmalcolm@redhat.com>
 
    This is free software: you can redistribute it and/or modify it
@@ -371,3 +371,85 @@ alignment of a variable:
 
   * :func:`gcc_jit_lvalue_set_alignment`
   * :func:`gcc_jit_lvalue_get_alignment`
+
+.. _LIBGCCJIT_ABI_25:
+
+``LIBGCCJIT_ABI_25``
+--------------------
+``LIBGCCJIT_ABI_25`` covers the addition of
+:func:`gcc_jit_type_get_restrict`
+
+.. _LIBGCCJIT_ABI_26:
+
+``LIBGCCJIT_ABI_26``
+--------------------
+``LIBGCCJIT_ABI_26`` covers the addition of functions to set attributes
+on functions and variables:
+
+  * :func:`gcc_jit_function_add_attribute`
+  * :func:`gcc_jit_function_add_string_attribute`
+  * :func:`gcc_jit_function_add_integer_array_attribute`
+  * :func:`gcc_jit_lvalue_add_string_attribute`
+
+.. _LIBGCCJIT_ABI_27:
+
+``LIBGCCJIT_ABI_27``
+--------------------
+``LIBGCCJIT_ABI_27`` covers the addition of
+:func:`gcc_jit_context_new_sizeof`
+
+.. _LIBGCCJIT_ABI_28:
+
+``LIBGCCJIT_ABI_28``
+--------------------
+``LIBGCCJIT_ABI_28`` covers the addition of
+:func:`gcc_jit_context_new_alignof`
+
+.. _LIBGCCJIT_ABI_29:
+
+``LIBGCCJIT_ABI_29``
+--------------------
+``LIBGCCJIT_ABI_29`` covers the addition of
+:func:`gcc_jit_global_set_readonly`
+
+.. _LIBGCCJIT_ABI_30:
+
+``LIBGCCJIT_ABI_30``
+--------------------
+``LIBGCCJIT_ABI_30`` covers the addition of
+:func:`gcc_jit_context_convert_vector`
+
+.. _LIBGCCJIT_ABI_31:
+
+``LIBGCCJIT_ABI_31``
+--------------------
+``LIBGCCJIT_ABI_31`` covers the addition of functions to manipulate vectors:
+
+  * :func:`gcc_jit_context_new_rvalue_vector_perm`
+  * :func:`gcc_jit_context_new_vector_access`
+
+.. _LIBGCCJIT_ABI_32:
+
+``LIBGCCJIT_ABI_32``
+--------------------
+
+``LIBGCCJIT_ABI_32`` covers the addition of a function to get target builtins:
+
+  * :func:`gcc_jit_context_get_target_builtin_function`
+
+.. _LIBGCCJIT_ABI_33:
+
+``LIBGCCJIT_ABI_33``
+--------------------
+``LIBGCCJIT_ABI_33`` covers the addition of a function to create a new
+temporary variable:
+
+  * :func:`gcc_jit_function_new_temp`
+
+.. _LIBGCCJIT_ABI_34:
+
+``LIBGCCJIT_ABI_34``
+--------------------
+``LIBGCCJIT_ABI_34`` covers the addition of
+
+ * :func:`gcc_jit_context_set_output_ident`

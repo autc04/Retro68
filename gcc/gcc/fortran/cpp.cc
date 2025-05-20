@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -96,6 +96,8 @@ struct gfc_cpp_option_data
   int deps_skip_system;                 /* -MM */
   const char *deps_filename;            /* -M[M]D */
   const char *deps_filename_user;       /* -MF <arg> */
+  const char *deps_target_filename;     /* -MT / -MQ <arg> */
+  bool quote_deps_target_filename;      /* -MQ */
   int deps_missing_are_generated;       /* -MG */
   int deps_phony;                       /* -MP */
   int warn_date_time;                   /* -Wdate-time */
@@ -287,6 +289,8 @@ gfc_cpp_init_options (unsigned int decoded_options_count,
   gfc_cpp_option.deps_missing_are_generated = 0;
   gfc_cpp_option.deps_filename = NULL;
   gfc_cpp_option.deps_filename_user = NULL;
+  gfc_cpp_option.deps_target_filename = NULL;
+  gfc_cpp_option.quote_deps_target_filename = false;
 
   gfc_cpp_option.multilib = NULL;
   gfc_cpp_option.prefix = NULL;
@@ -297,16 +301,16 @@ gfc_cpp_init_options (unsigned int decoded_options_count,
   gfc_cpp_option.deferred_opt_count = 0;
 }
 
-int
+bool
 gfc_cpp_handle_option (size_t scode, const char *arg, int value ATTRIBUTE_UNUSED)
 {
-  int result = 1;
+  bool result = true;
   enum opt_code code = (enum opt_code) scode;
 
   switch (code)
   {
     default:
-      result = 0;
+      result = false;
       break;
 
     case OPT_cpp_:
@@ -439,9 +443,8 @@ gfc_cpp_handle_option (size_t scode, const char *arg, int value ATTRIBUTE_UNUSED
 
     case OPT_MQ:
     case OPT_MT:
-      gfc_cpp_option.deferred_opt[gfc_cpp_option.deferred_opt_count].code = code;
-      gfc_cpp_option.deferred_opt[gfc_cpp_option.deferred_opt_count].arg = arg;
-      gfc_cpp_option.deferred_opt_count++;
+      gfc_cpp_option.quote_deps_target_filename = (code == OPT_MQ);
+      gfc_cpp_option.deps_target_filename = arg;
       break;
 
     case OPT_P:
@@ -593,6 +596,12 @@ gfc_cpp_init_0 (void)
     }
 
   gcc_assert(cpp_in);
+
+  if (gfc_cpp_option.deps_target_filename)
+    if (mkdeps *deps = cpp_get_deps (cpp_in))
+      deps_add_target (deps, gfc_cpp_option.deps_target_filename,
+		       gfc_cpp_option.quote_deps_target_filename);
+
   if (!cpp_read_main_file (cpp_in, gfc_source_file))
     errorcount++;
 }
@@ -605,7 +614,7 @@ gfc_cpp_init (void)
   if (gfc_option.flag_preprocessed)
     return;
 
-  cpp_change_file (cpp_in, LC_RENAME, _("<built-in>"));
+  cpp_change_file (cpp_in, LC_RENAME, special_fname_builtin ());
   if (!gfc_cpp_option.no_predefined)
     {
       /* Make sure all of the builtins about to be declared have
@@ -635,9 +644,6 @@ gfc_cpp_init (void)
 	  else
 	    cpp_assert (cpp_in, opt->arg);
 	}
-      else if (opt->code == OPT_MT || opt->code == OPT_MQ)
-	if (mkdeps *deps = cpp_get_deps (cpp_in))
-	  deps_add_target (deps, opt->arg, opt->code == OPT_MQ);
     }
 
   /* Pre-defined macros for non-required INTEGER kind types.  */
@@ -749,7 +755,6 @@ gfc_cpp_add_include_path_after (char *path, bool user_supplied)
 
 static void scan_translation_unit_trad (cpp_reader *);
 static void account_for_newlines (const unsigned char *, size_t);
-static int dump_macro (cpp_reader *, cpp_hashnode *, void *);
 
 static void print_line (location_t, const char *);
 static void maybe_print_line (location_t);
@@ -1058,7 +1063,7 @@ cb_used_define (cpp_reader *pfile, location_t line ATTRIBUTE_UNUSED,
 /* Return the gcc option code associated with the reason for a cpp
    message, or 0 if none.  */
 
-static int
+static diagnostic_option_id
 cb_cpp_diagnostic_cpp_option (enum cpp_warning_reason reason)
 {
   const struct cpp_reason_option_codes_t *entry;
@@ -1085,13 +1090,13 @@ cb_cpp_diagnostic (cpp_reader *pfile ATTRIBUTE_UNUSED,
 {
   diagnostic_info diagnostic;
   diagnostic_t dlevel;
-  bool save_warn_system_headers = global_dc->dc_warn_system_headers;
+  bool save_warn_system_headers = global_dc->m_warn_system_headers;
   bool ret;
 
   switch (level)
     {
     case CPP_DL_WARNING_SYSHDR:
-      global_dc->dc_warn_system_headers = 1;
+      global_dc->m_warn_system_headers = 1;
       /* Fall through.  */
     case CPP_DL_WARNING:
       dlevel = DK_WARNING;
@@ -1116,11 +1121,11 @@ cb_cpp_diagnostic (cpp_reader *pfile ATTRIBUTE_UNUSED,
     }
   diagnostic_set_info_translated (&diagnostic, msg, ap,
 				  richloc, dlevel);
-  diagnostic_override_option_index (&diagnostic,
-				    cb_cpp_diagnostic_cpp_option (reason));
+  diagnostic_set_option_id (&diagnostic,
+			    cb_cpp_diagnostic_cpp_option (reason));
   ret = diagnostic_report_diagnostic (global_dc, &diagnostic);
   if (level == CPP_DL_WARNING_SYSHDR)
-    global_dc->dc_warn_system_headers = save_warn_system_headers;
+    global_dc->m_warn_system_headers = save_warn_system_headers;
   return ret;
 }
 

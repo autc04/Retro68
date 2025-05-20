@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2015-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2015-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -37,6 +37,7 @@ package Contracts is
    --  The following are valid pragmas:
    --
    --    Abstract_State
+   --    Always_Terminates
    --    Async_Readers
    --    Async_Writers
    --    Attach_Handler
@@ -45,6 +46,7 @@ package Contracts is
    --    Depends
    --    Effective_Reads
    --    Effective_Writes
+   --    Exceptional_Cases
    --    Extensions_Visible
    --    Global
    --    Initial_Condition
@@ -58,19 +60,33 @@ package Contracts is
    --    Refined_Global
    --    Refined_Post
    --    Refined_States
+   --    Side_Effects
+   --    Subprogram_Variant
    --    Test_Case
    --    Volatile_Function
 
    procedure Analyze_Contracts (L : List_Id);
    --  Analyze the contracts of all eligible constructs found in list L
 
+   procedure Analyze_Pragmas_In_Declarations (Body_Id : Entity_Id);
+   --  Perform early analysis of pragmas at the top of a given subprogram's
+   --  declarations.
+   --
+   --  The purpose of this is to analyze contract-related pragmas for later
+   --  processing, but also to handle other such pragmas before these
+   --  declarations get moved to an internal wrapper as part of contract
+   --  expansion. For example, pragmas Inline, Ghost, Volatile all need to
+   --  apply directly to the subprogram and not be moved to a wrapper.
+
    procedure Analyze_Entry_Or_Subprogram_Body_Contract (Body_Id : Entity_Id);
    --  Analyze all delayed pragmas chained on the contract of entry or
    --  subprogram body Body_Id as if they appeared at the end of a declarative
    --  region. Pragmas in question are:
    --
+   --    Always_Terminates  (stand alone subprogram body)
    --    Contract_Cases     (stand alone subprogram body)
    --    Depends            (stand alone subprogram body)
+   --    Exceptional_Cases  (stand alone subprogram body)
    --    Global             (stand alone subprogram body)
    --    Postcondition      (stand alone subprogram body)
    --    Precondition       (stand alone subprogram body)
@@ -87,8 +103,10 @@ package Contracts is
    --  subprogram Subp_Id as if they appeared at the end of a declarative
    --  region. The pragmas in question are:
    --
+   --    Always_Terminates
    --    Contract_Cases
    --    Depends
+   --    Exceptional_Cases
    --    Global
    --    Postcondition
    --    Precondition
@@ -125,6 +143,8 @@ package Contracts is
    --    Async_Writers
    --    Effective_Reads
    --    Effective_Writes
+   --    Postcondition
+   --    Precondition
    --
    --  In the case of a protected or task type, there will also be
    --  a call to Analyze_Protected_Contract or Analyze_Task_Contract.
@@ -159,14 +179,17 @@ package Contracts is
    --  stub Stub_Id as if they appeared at the end of a declarative region. The
    --  pragmas in question are:
    --
+   --    Always_Terminates
    --    Contract_Cases
    --    Depends
+   --    Exceptional_Cases
    --    Global
    --    Postcondition
    --    Precondition
    --    Refined_Depends
    --    Refined_Global
    --    Refined_Post
+   --    Subprogram_Variant
    --    Test_Case
 
    procedure Analyze_Task_Contract (Task_Id : Entity_Id);
@@ -176,6 +199,17 @@ package Contracts is
    --
    --    Depends
    --    Global
+
+   procedure Build_Entry_Contract_Wrapper (E : Entity_Id; Decl : Node_Id);
+   --  Build the body of a wrapper procedure for an entry or entry family that
+   --  has contract cases, preconditions, or postconditions, and add it to the
+   --  freeze actions of the related synchronized type.
+   --
+   --  The body first verifies the preconditions and case guards of the
+   --  contract cases, then invokes the entry [family], and finally verifies
+   --  the postconditions and the consequences of the contract cases. E denotes
+   --  the entry family. Decl denotes the declaration of the enclosing
+   --  synchronized type.
 
    procedure Create_Generic_Contract (Unit : Node_Id);
    --  Create a contract node for a generic package, generic subprogram, or a
@@ -188,27 +222,13 @@ package Contracts is
    --  denoted by Body_Decl. In addition, freeze the contract of the nearest
    --  enclosing package body.
 
-   function Get_Postcond_Enabled (Subp : Entity_Id) return Entity_Id;
-   --  Get the defining identifier for a subprogram's Postcond_Enabled
-   --  object created during the expansion of the subprogram's postconditions.
-
-   function Get_Result_Object_For_Postcond (Subp : Entity_Id) return Entity_Id;
-   --  Get the defining identifier for a subprogram's
-   --  Result_Object_For_Postcond object created during the expansion of the
-   --  subprogram's postconditions.
-
-   function Get_Return_Success_For_Postcond
-     (Subp : Entity_Id) return Entity_Id;
-   --  Get the defining identifier for a subprogram's
-   --  Return_Success_For_Postcond object created during the expansion of the
-   --  subprogram's postconditions.
-
    procedure Inherit_Subprogram_Contract
      (Subp      : Entity_Id;
       From_Subp : Entity_Id);
    --  Inherit relevant contract items from source subprogram From_Subp. Subp
    --  denotes the destination subprogram. The inherited items are:
    --    Extensions_Visible
+   --    Side_Effects
    --  ??? it would be nice if this routine handles Pre'Class and Post'Class
 
    procedure Instantiate_Subprogram_Contract (Templ : Node_Id; L : List_Id);
@@ -226,6 +246,39 @@ package Contracts is
    --  overrides an inherited class-wide precondition (see AI12-0195-1).
    --  Late_Overriding enables special handling required for late-overriding
    --  subprograms.
+   --
+   --  For example, if we have a subprogram with the following profile:
+   --
+   --     procedure Prim (Obj : TagTyp; <additional formals>)
+   --       with Pre'Class => F1 (Obj) and F2(Obj)
+   --
+   --  We build the following helper that evaluates statically the class-wide
+   --  precondition:
+   --
+   --    function PrimSP (Obj : TagTyp) return Boolean is
+   --    begin
+   --       return F1 (Obj) and F2(Obj);
+   --    end PrimSP;
+   --
+   --   ... and the following helper that evaluates dynamically the class-wide
+   --   precondition:
+   --
+   --    function PrimDP (Obj : TagTyp'Class; ...) return Boolean is
+   --    begin
+   --       return F1 (Obj) and F2(Obj);
+   --    end PrimSP;
+   --
+   --   ... and the following indirect-call wrapper (ICW) that is used by the
+   --   code generated by the compiler for indirect calls:
+   --
+   --    procedure PrimICW (Obj : TagTyp; <additional formals> is
+   --    begin
+   --       if not PrimSP (Obj) then
+   --          $raise_assert_failure ("failed precondition in call at ...");
+   --       end if;
+   --
+   --       Prim (Obj, ...);
+   --    end Prim;
 
    procedure Merge_Class_Conditions (Spec_Id : Entity_Id);
    --  Merge and preanalyze all class-wide conditions of Spec_Id (class-wide
@@ -236,6 +289,10 @@ package Contracts is
    --  expressions are later installed by the expander in helper subprograms
    --  which are invoked from the caller side; they are also used to build
    --  the dispatch-table wrapper (DTW), if required.
+
+   procedure Preanalyze_Class_Conditions (Spec_Id : Entity_Id);
+   --  Preanalyze class-wide pre-/postconditions of the given subprogram
+   --  specification.
 
    procedure Process_Class_Conditions_At_Freeze_Point (Typ : Entity_Id);
    --  Merge, preanalyze, and check class-wide pre/postconditions of Typ

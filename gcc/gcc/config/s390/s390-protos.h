@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for IBM S/390.
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2025 Free Software Foundation, Inc.
 
    Contributed by Hartmut Penner (hpenner@de.ibm.com)
 
@@ -74,8 +74,9 @@ extern int s390_const_double_ok_for_constraint_p (rtx, int, const char *);
 extern int s390_single_part (rtx, machine_mode, machine_mode, int);
 extern unsigned HOST_WIDE_INT s390_extract_part (rtx, machine_mode, int);
 extern bool s390_contiguous_bitmask_p (unsigned HOST_WIDE_INT, bool, int, int *, int *);
-extern bool s390_contiguous_bitmask_vector_p (rtx, int *, int *);
-extern bool s390_bytemask_vector_p (rtx, unsigned *);
+extern bool s390_constant_via_vgm_p (rtx, machine_mode *, int *, int *);
+extern bool s390_constant_via_vrepi_p (rtx, machine_mode *, short *);
+extern bool s390_constant_via_vgbm_p (rtx, unsigned *);
 extern bool s390_split_ok_p (rtx, rtx, machine_mode, int);
 extern bool s390_overlap_p (rtx, rtx, HOST_WIDE_INT);
 extern bool s390_offset_p (rtx, rtx, rtx);
@@ -85,7 +86,7 @@ extern int tls_symbolic_operand (rtx);
 extern bool s390_match_ccmode (rtx_insn *, machine_mode);
 extern machine_mode s390_tm_ccmode (rtx, rtx, bool);
 extern machine_mode s390_select_ccmode (enum rtx_code, rtx, rtx);
-extern rtx s390_emit_compare (enum rtx_code, rtx, rtx);
+extern rtx s390_emit_compare (machine_mode, enum rtx_code, rtx, rtx);
 extern rtx_insn *s390_emit_jump (rtx, rtx);
 extern bool symbolic_reference_mentioned_p (rtx);
 extern bool tls_symbolic_reference_mentioned_p (rtx);
@@ -106,8 +107,9 @@ extern void s390_reload_symref_address (rtx , rtx , rtx , bool);
 extern void s390_expand_plus_operand (rtx, rtx, rtx);
 extern void emit_symbolic_move (rtx *);
 extern void s390_load_address (rtx, rtx);
-extern bool s390_expand_cpymem (rtx, rtx, rtx);
-extern void s390_expand_setmem (rtx, rtx, rtx);
+extern bool s390_expand_cpymem (rtx, rtx, rtx, rtx, rtx);
+extern bool s390_expand_movmem (rtx, rtx, rtx, rtx, rtx);
+extern void s390_expand_setmem (rtx, rtx, rtx, rtx, rtx);
 extern bool s390_expand_cmpmem (rtx, rtx, rtx, rtx);
 extern void s390_expand_vec_strlen (rtx, rtx, rtx);
 extern void s390_expand_vec_movstr (rtx, rtx, rtx);
@@ -173,10 +175,6 @@ extern void s390_register_target_pragmas (void);
 
 /* Routines for s390-c.cc */
 extern bool s390_const_operand_ok (tree, int, int, tree);
-
-/* s390-d.cc routines */
-extern void s390_d_target_versions (void);
-extern void s390_d_register_target_info (void);
 
 /* Pass management.  */
 namespace gcc { class context; }

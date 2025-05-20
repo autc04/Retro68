@@ -1,5 +1,5 @@
 /* A type-safe hash table template.
-   Copyright (C) 2012-2022 Free Software Foundation, Inc.
+   Copyright (C) 2012-2025 Free Software Foundation, Inc.
    Contributed by Lawrence Crowl <crowl@google.com>
 
 This file is part of GCC.
@@ -37,7 +37,7 @@ along with GCC; see the file COPYING3.  If not see
    code to divide by a constant, we want to be able to use the same algorithm
    all the time.  All of these inverses (are implied to) have bit 32 set.
 
-   For the record, here's the function that computed the table; it's a 
+   For the record, here's the function that computed the table; it's a
    vastly simplified version of the function of the same name from gcc.  */
 
 struct prime_ent const prime_tab[] = {
@@ -84,7 +84,7 @@ unsigned int
 hash_table_higher_prime_index (unsigned long n)
 {
   unsigned int low = 0;
-  unsigned int high = sizeof (prime_tab) / sizeof (prime_tab[0]);
+  unsigned int high = ARRAY_SIZE (prime_tab);
 
   while (low != high)
     {

@@ -17,19 +17,19 @@
 #include "asan_interface_internal.h"
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_internal_defs.h"
-#include "sanitizer_common/sanitizer_stacktrace.h"
 #include "sanitizer_common/sanitizer_libc.h"
+#include "sanitizer_common/sanitizer_stacktrace.h"
 
 #if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
-# error "The AddressSanitizer run-time should not be"
-        " instrumented by AddressSanitizer"
+#  error \
+      "The AddressSanitizer run-time should not be instrumented by AddressSanitizer"
 #endif
 
 // Build-time configuration options.
 
 // If set, asan will intercept C++ exception api call(s).
 #ifndef ASAN_HAS_EXCEPTIONS
-# define ASAN_HAS_EXCEPTIONS 1
+#  define ASAN_HAS_EXCEPTIONS 1
 #endif
 
 // If set, values like allocator chunk size, as well as defaults for some flags
@@ -43,11 +43,11 @@
 #endif
 
 #ifndef ASAN_DYNAMIC
-# ifdef PIC
-#  define ASAN_DYNAMIC 1
-# else
-#  define ASAN_DYNAMIC 0
-# endif
+#  ifdef PIC
+#    define ASAN_DYNAMIC 1
+#  else
+#    define ASAN_DYNAMIC 0
+#  endif
 #endif
 
 // All internal functions in asan reside inside the __asan namespace
@@ -60,6 +60,7 @@ class AsanThread;
 using __sanitizer::StackTrace;
 
 void AsanInitFromRtl();
+bool TryAsanInitFromRtl();
 
 // asan_win.cpp
 void InitializePlatformExceptionHandlers();
@@ -79,7 +80,6 @@ void ReplaceSystemMalloc();
 
 // asan_linux.cpp / asan_mac.cpp / asan_win.cpp
 uptr FindDynamicShadowStart();
-void *AsanDoesNotSupportStaticLinkage();
 void AsanCheckDynamicRTPrereqs();
 void AsanCheckIncompatibleRT();
 
@@ -105,6 +105,7 @@ void AsanApplyToGlobals(globals_op_fptr op, const void *needle);
 
 void AsanOnDeadlySignal(int, void *siginfo, void *context);
 
+void SignContextStack(void *context);
 void ReadContextStack(void *context, uptr *stack, uptr *ssize);
 void StopInitOrderChecking();
 
@@ -123,26 +124,18 @@ void *AsanDlSymNext(const char *sym);
 // `dlopen()` specific initialization inside this function.
 bool HandleDlopenInit();
 
-// Add convenient macro for interface functions that may be represented as
-// weak hooks.
-#define ASAN_MALLOC_HOOK(ptr, size)                                   \
-  do {                                                                \
-    if (&__sanitizer_malloc_hook) __sanitizer_malloc_hook(ptr, size); \
-    RunMallocHooks(ptr, size);                                        \
-  } while (false)
-#define ASAN_FREE_HOOK(ptr)                                 \
-  do {                                                      \
-    if (&__sanitizer_free_hook) __sanitizer_free_hook(ptr); \
-    RunFreeHooks(ptr);                                      \
-  } while (false)
-#define ASAN_ON_ERROR() \
-  if (&__asan_on_error) __asan_on_error()
+void InstallAtExitCheckLeaks();
+void InstallAtForkHandler();
 
-extern int asan_inited;
-// Used to avoid infinite recursion in __asan_init().
-extern bool asan_init_is_running;
+#define ASAN_ON_ERROR() \
+  if (&__asan_on_error) \
+  __asan_on_error()
+
+bool AsanInited();
+extern bool replace_intrin_cached;
 extern void (*death_callback)(void);
-// These magic values are written to shadow for better error reporting.
+// These magic values are written to shadow for better error
+// reporting.
 const int kAsanHeapLeftRedzoneMagic = 0xfa;
 const int kAsanHeapFreeMagic = 0xfd;
 const int kAsanStackLeftRedzoneMagic = 0xf1;

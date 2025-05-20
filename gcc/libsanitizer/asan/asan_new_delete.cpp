@@ -48,15 +48,6 @@ COMMENT_EXPORT("??_V@YAXPAX@Z")                   // operator delete[]
 
 using namespace __asan;
 
-// FreeBSD prior v9.2 have wrong definition of 'size_t'.
-// http://svnweb.freebsd.org/base?view=revision&revision=232261
-#if SANITIZER_FREEBSD && SANITIZER_WORDSIZE == 32
-#include <sys/param.h>
-#if __FreeBSD_version <= 902001  // v9.2
-#define size_t unsigned
-#endif  // __FreeBSD_version
-#endif  // SANITIZER_FREEBSD && SANITIZER_WORDSIZE == 32
-
 // This code has issues on OSX.
 // See https://github.com/google/sanitizers/issues/131.
 
@@ -89,7 +80,7 @@ enum class align_val_t: size_t {};
 // delete.
 // To make sure that C++ allocation/deallocation operators are overridden on
 // OS X we need to intercept them using their mangled names.
-#if !SANITIZER_MAC
+#if !SANITIZER_APPLE
 CXX_OPERATOR_ATTRIBUTE
 void *operator new(size_t size)
 { OPERATOR_NEW_BODY(FROM_NEW, false /*nothrow*/); }
@@ -115,7 +106,7 @@ CXX_OPERATOR_ATTRIBUTE
 void *operator new[](size_t size, std::align_val_t align, std::nothrow_t const&)
 { OPERATOR_NEW_BODY_ALIGN(FROM_NEW_BR, true /*nothrow*/); }
 
-#else  // SANITIZER_MAC
+#else  // SANITIZER_APPLE
 INTERCEPTOR(void *, _Znwm, size_t size) {
   OPERATOR_NEW_BODY(FROM_NEW, false /*nothrow*/);
 }
@@ -128,7 +119,7 @@ INTERCEPTOR(void *, _ZnwmRKSt9nothrow_t, size_t size, std::nothrow_t const&) {
 INTERCEPTOR(void *, _ZnamRKSt9nothrow_t, size_t size, std::nothrow_t const&) {
   OPERATOR_NEW_BODY(FROM_NEW_BR, true /*nothrow*/);
 }
-#endif  // !SANITIZER_MAC
+#endif  // !SANITIZER_APPLE
 
 #define OPERATOR_DELETE_BODY(type) \
   GET_STACK_TRACE_FREE;            \
@@ -146,7 +137,7 @@ INTERCEPTOR(void *, _ZnamRKSt9nothrow_t, size_t size, std::nothrow_t const&) {
   GET_STACK_TRACE_FREE;                       \
   asan_delete(ptr, size, static_cast<uptr>(align), &stack, type);
 
-#if !SANITIZER_MAC
+#if !SANITIZER_APPLE
 CXX_OPERATOR_ATTRIBUTE
 void operator delete(void *ptr) NOEXCEPT
 { OPERATOR_DELETE_BODY(FROM_NEW); }
@@ -184,7 +175,7 @@ CXX_OPERATOR_ATTRIBUTE
 void operator delete[](void *ptr, size_t size, std::align_val_t align) NOEXCEPT
 { OPERATOR_DELETE_BODY_SIZE_ALIGN(FROM_NEW_BR); }
 
-#else  // SANITIZER_MAC
+#else  // SANITIZER_APPLE
 INTERCEPTOR(void, _ZdlPv, void *ptr)
 { OPERATOR_DELETE_BODY(FROM_NEW); }
 INTERCEPTOR(void, _ZdaPv, void *ptr)
@@ -193,4 +184,4 @@ INTERCEPTOR(void, _ZdlPvRKSt9nothrow_t, void *ptr, std::nothrow_t const&)
 { OPERATOR_DELETE_BODY(FROM_NEW); }
 INTERCEPTOR(void, _ZdaPvRKSt9nothrow_t, void *ptr, std::nothrow_t const&)
 { OPERATOR_DELETE_BODY(FROM_NEW_BR); }
-#endif  // !SANITIZER_MAC
+#endif  // !SANITIZER_APPLE

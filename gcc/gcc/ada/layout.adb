@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -40,6 +40,7 @@ with Sinfo.Utils;    use Sinfo.Utils;
 with Snames;         use Snames;
 with Ttypes;         use Ttypes;
 with Uintp;          use Uintp;
+with Warnsw;         use Warnsw;
 
 package body Layout is
 
@@ -500,7 +501,7 @@ package body Layout is
          if Is_Array_Type (E)
            and then Present (First_Index (E))  --  Skip types in error
            and then Number_Dimensions (E) = 1
-           and then not Present (Packed_Array_Impl_Type (E))
+           and then No (Packed_Array_Impl_Type (E))
            and then Has_Pragma_Pack (E)
            and then Is_Constrained (E)
            and then Compile_Time_Known_Bounds (E)
@@ -606,8 +607,8 @@ package body Layout is
                Error_Msg_Uint_1 := RM_Size (E);
                Error_Msg_F
                  ("object size is too small, minimum allowed is ^",
-                  Expression (Get_Attribute_Definition_Clause
-                                             (E, Attribute_Object_Size)));
+                  Expression (Object_Size_Clause (E)));
+
             end if;
 
             --  Adjust Esize up to RM_Size value
@@ -1053,8 +1054,6 @@ package body Layout is
             --  derived types.
 
             declare
-               FST : constant Entity_Id := First_Subtype (E);
-
                function Has_Attribute_Clause
                  (E  : Entity_Id;
                   Id : Attribute_Id) return Boolean;
@@ -1072,7 +1071,17 @@ package body Layout is
                   return Present (Get_Attribute_Definition_Clause (E, Id));
                end Has_Attribute_Clause;
 
+               FST : Entity_Id;
+
             begin
+               FST := First_Subtype (E);
+
+               --  Deal with private types
+
+               if Is_Private_Type (FST) then
+                  FST := Full_View (FST);
+               end if;
+
                --  If the alignment comes from a clause, then we respect it.
                --  Consider for example:
 

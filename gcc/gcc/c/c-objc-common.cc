@@ -1,5 +1,5 @@
 /* Some code common to C and ObjC front ends.
-   Copyright (C) 2001-2022 Free Software Foundation, Inc.
+   Copyright (C) 2001-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -24,22 +24,61 @@ along with GCC; see the file COPYING3.  If not see
 #include "intl.h"
 #include "c-family/c-pretty-print.h"
 #include "tree-pretty-print.h"
+#include "tree-pretty-print-markup.h"
 #include "gimple-pretty-print.h"
 #include "langhooks.h"
 #include "c-objc-common.h"
-#include "gcc-rich-location.h"
+#include "c-family/c-type-mismatch.h"
 #include "stringpool.h"
 #include "attribs.h"
+#include "dwarf2.h"
+#include "make-unique.h"
 
 static bool c_tree_printer (pretty_printer *, text_info *, const char *,
-			    int, bool, bool, bool, bool *, const char **);
+			    int, bool, bool, bool, bool *, pp_token_list &);
+
+/* Info for C language features which can be queried through
+   __has_{feature,extension}.  */
+
+struct c_feature_info
+{
+  const char *ident;
+  const int *enable_flag;
+};
+
+static const c_feature_info c_feature_table[] =
+{
+  { "c_alignas", &flag_isoc11 },
+  { "c_alignof", &flag_isoc11 },
+  { "c_atomic", &flag_isoc11 },
+  { "c_generic_selections", &flag_isoc11 },
+  { "c_static_assert", &flag_isoc11 },
+  { "c_thread_local", &flag_isoc11 },
+  { "cxx_binary_literals", &flag_isoc23 }
+};
+
+/* Register features specific to the C language.  */
+
+void
+c_register_features ()
+{
+  for (unsigned i = 0; i < ARRAY_SIZE (c_feature_table); i++)
+    {
+      const c_feature_info *info = c_feature_table + i;
+      const bool feat_p = !info->enable_flag || *info->enable_flag;
+      c_common_register_feature (info->ident, feat_p);
+    }
+}
 
 bool
 c_missing_noreturn_ok_p (tree decl)
 {
-  /* A missing noreturn is not ok for freestanding implementations and
-     ok for the `main' function in hosted implementations.  */
-  return flag_hosted && MAIN_NAME_P (DECL_ASSEMBLER_NAME (decl));
+  /* A missing noreturn is ok for the `main' function.  */
+  if (!MAIN_NAME_P (DECL_ASSEMBLER_NAME (decl)))
+    return false;
+
+  return flag_hosted
+    || TYPE_MAIN_VARIANT (TREE_TYPE (TREE_TYPE (decl))) == integer_type_node;
 }
 
 /* Called from check_global_declaration.  */
@@ -93,6 +132,8 @@ get_aka_type (tree type)
 
       result = get_aka_type (orig_type);
     }
+  else if (TREE_CODE (type) == ENUMERAL_TYPE)
+    return type;
   else
     {
       tree canonical = TYPE_CANONICAL (type);
@@ -183,7 +224,8 @@ get_aka_type (tree type)
 /* Print T to CPP.  */
 
 static void
-print_type (c_pretty_printer *cpp, tree t, bool *quoted)
+print_type (c_pretty_printer *cpp, tree t, bool *quoted,
+	    const char *highlight_color = nullptr)
 {
   if (t == error_mark_node)
     {
@@ -191,8 +233,11 @@ print_type (c_pretty_printer *cpp, tree t, bool *quoted)
       return;
     }
 
+  if (!pp_show_highlight_colors (cpp))
+    highlight_color = nullptr;
+
   gcc_assert (TYPE_P (t));
-  struct obstack *ob = pp_buffer (cpp)->obstack;
+  struct obstack *ob = pp_buffer (cpp)->m_obstack;
   char *p = (char *) obstack_base (ob);
   /* Remember the end of the initial dump.  */
   int len = obstack_object_size (ob);
@@ -210,10 +255,11 @@ print_type (c_pretty_printer *cpp, tree t, bool *quoted)
   tree aka_type = get_aka_type (t);
   if (aka_type != t)
     {
+      const bool show_color = pp_show_color (cpp);
       c_pretty_printer cpp2;
       /* Print the stripped version into a temporary printer.  */
       cpp2.type_id (aka_type);
-      struct obstack *ob2 = cpp2.buffer->obstack;
+      struct obstack *ob2 = pp_buffer (&cpp2)->m_obstack;
       /* Get the stripped version from the temporary printer.  */
       const char *aka = (char *) obstack_base (ob2);
       int aka_len = obstack_object_size (ob2);
@@ -225,20 +271,36 @@ print_type (c_pretty_printer *cpp, tree t, bool *quoted)
 
       /* They're not, print the stripped version now.  */
       if (*quoted)
-	pp_end_quote (cpp, pp_show_color (cpp));
+	pp_end_quote (cpp, show_color);
       pp_c_whitespace (cpp);
       pp_left_brace (cpp);
       pp_c_ws_string (cpp, _("aka"));
       pp_c_whitespace (cpp);
+      pp_string (cpp, colorize_stop (show_color));
       if (*quoted)
-	pp_begin_quote (cpp, pp_show_color (cpp));
+	pp_begin_quote (cpp, show_color);
+      if (highlight_color)
+	pp_string (cpp, colorize_start (show_color, highlight_color));
       cpp->type_id (aka_type);
       if (*quoted)
-	pp_end_quote (cpp, pp_show_color (cpp));
+	pp_end_quote (cpp, show_color);
       pp_right_brace (cpp);
       /* No further closing quotes are needed.  */
       *quoted = false;
     }
+}
+
+/* Implementation of pp_markup::element_quoted_type::print_type
+   for C/ObjC.  */
+
+void
+pp_markup::element_quoted_type::print_type (pp_markup::context &ctxt)
+{
+  auto pp = ctxt.m_pp.clone ();
+  c_pretty_printer *cpp = (c_pretty_printer *)pp.get ();
+  cpp->set_padding (pp_none);
+  ::print_type (cpp, m_type, &ctxt.m_quoted, m_highlight_color);
+  pp_string (&ctxt.m_pp, pp_formatted_text (cpp));
 }
 
 /* Called during diagnostic message formatting process to print a
@@ -257,19 +319,19 @@ print_type (c_pretty_printer *cpp, tree t, bool *quoted)
 static bool
 c_tree_printer (pretty_printer *pp, text_info *text, const char *spec,
 		int precision, bool wide, bool set_locus, bool hash,
-		bool *quoted, const char **)
+		bool *quoted, pp_token_list &)
 {
   tree t = NULL_TREE;
   // FIXME: the next cast should be a dynamic_cast, when it is permitted.
   c_pretty_printer *cpp = (c_pretty_printer *) pp;
-  pp->padding = pp_none;
+  pp->set_padding (pp_none);
 
   if (precision != 0 || wide)
     return false;
 
   if (*spec != 'v')
     {
-      t = va_arg (*text->args_ptr, tree);
+      t = va_arg (*text->m_args_ptr, tree);
       if (set_locus)
 	text->set_location (0, DECL_SOURCE_LOCATION (t),
 			    SHOW_RANGE_WITH_CARET);
@@ -313,7 +375,7 @@ c_tree_printer (pretty_printer *pp, text_info *text, const char *spec,
       return true;
 
     case 'v':
-      pp_c_cv_qualifiers (cpp, va_arg (*text->args_ptr, int), hash);
+      pp_c_cv_qualifiers (cpp, va_arg (*text->m_args_ptr, int), hash);
       return true;
 
     default:
@@ -350,16 +412,9 @@ has_c_linkage (const_tree decl ATTRIBUTE_UNUSED)
 void
 c_initialize_diagnostics (diagnostic_context *context)
 {
-  pretty_printer *base = context->printer;
-  c_pretty_printer *pp = XNEW (c_pretty_printer);
-  context->printer = new (pp) c_pretty_printer ();
-
-  /* It is safe to free this object because it was previously XNEW()'d.  */
-  base->~pretty_printer ();
-  XDELETE (base);
-
+  context->set_pretty_printer (::make_unique<c_pretty_printer> ());
   c_common_diagnostics_set_defaults (context);
-  diagnostic_format_decoder (context) = &c_tree_printer;
+  context->set_format_decoder (&c_tree_printer);
 }
 
 int
@@ -368,12 +423,12 @@ c_types_compatible_p (tree x, tree y)
   return comptypes (TYPE_MAIN_VARIANT (x), TYPE_MAIN_VARIANT (y));
 }
 
-/* Determine if the type is a vla type for the backend.  */
+/* Determine if the type is a variably modified type for the backend.  */
 
 bool
-c_vla_unspec_p (tree x, tree fn ATTRIBUTE_UNUSED)
+c_var_mod_p (tree x, tree fn ATTRIBUTE_UNUSED)
 {
-  return c_vla_type_p (x);
+  return C_TYPE_VARIABLY_MODIFIED (x);
 }
 
 /* Special routine to get the alias set of T for C.  */
@@ -381,16 +436,44 @@ c_vla_unspec_p (tree x, tree fn ATTRIBUTE_UNUSED)
 alias_set_type
 c_get_alias_set (tree t)
 {
-  /* Allow aliasing between enumeral types and the underlying
-     integer type.  This is required since those are compatible types.  */
-  if (TREE_CODE (t) == ENUMERAL_TYPE)
+  return c_common_get_alias_set (t);
+}
+
+/* In C there are no invisible parameters like in C++ (this, in-charge, VTT,
+   etc.).  */
+
+int
+maybe_adjust_arg_pos_for_attribute (const_tree)
+{
+  return 0;
+}
+
+/* In C, no expression is dependent.  */
+
+bool
+instantiation_dependent_expression_p (tree)
+{
+  return false;
+}
+
+/* Return -1 if dwarf ATTR shouldn't be added for TYPE, or the attribute
+   value otherwise.  */
+int
+c_type_dwarf_attribute (const_tree type, int attr)
+{
+  if (type == NULL_TREE)
+    return -1;
+
+  switch (attr)
     {
-      tree t1 = c_common_type_for_size (tree_to_uhwi (TYPE_SIZE (t)),
-					/* short-cut commoning to signed
-					   type.  */
-					false);
-      return get_alias_set (t1);
+    case DW_AT_export_symbols:
+      if (RECORD_OR_UNION_TYPE_P (type) && TYPE_NAME (type) == NULL_TREE)
+	return 1;
+      break;
+
+    default:
+      break;
     }
 
-  return c_common_get_alias_set (t);
+  return -1;
 }

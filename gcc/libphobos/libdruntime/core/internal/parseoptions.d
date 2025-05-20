@@ -9,12 +9,10 @@
 
 module core.internal.parseoptions;
 
-import core.stdc.stdlib;
-import core.stdc.stdio;
-import core.stdc.ctype;
-import core.stdc.string;
-import core.vararg;
 import core.internal.traits : externDFunc, hasUDA;
+import core.stdc.ctype : isdigit, isspace;
+import core.stdc.stdio : fprintf, snprintf, sscanf, stderr;
+import core.vararg;
 
 
 @nogc nothrow:
@@ -146,9 +144,11 @@ private:
 
 bool optError(const scope char[] msg, const scope char[] name, const(char)[] errName)
 {
+    import core.atomic : atomicLoad;
+
     version (CoreUnittest) if (inUnittest) return false;
 
-    fprintf(stderr, "%.*s %.*s option '%.*s'.\n",
+    fprintf(atomicLoad(stderr), "%.*s %.*s option '%.*s'.\n",
             cast(int)msg.length, msg.ptr,
             cast(int)errName.length, errName.ptr,
             cast(int)name.length, name.ptr);
@@ -168,6 +168,7 @@ inout(char)[] find(alias pred)(inout(char)[] str)
 }
 
 bool parse(T : size_t)(const(char)[] optname, ref inout(char)[] str, ref T res, const(char)[] errName, bool mayHaveSuffix = false)
+if (is(T == size_t))
 in { assert(str.length); }
 do
 {
@@ -216,13 +217,12 @@ do
                     return overflowedError(optname, str);
 
                 i++;
-                break;
             }
             else // unexpected non-digit character
             {
                 i = 0;
-                break;
             }
+            break;
         }
     }
 
@@ -242,6 +242,22 @@ do
     if (v > res.max)
         return parseError("a number " ~ T.max.stringof ~ " or below", optname, str[0 .. i], errName);
     str = str[i .. $];
+    res = v;
+    return true;
+}
+
+bool parse(T : size_t)(const(char)[] optname, ref inout(char)[] str, ref T res, const(char)[] errName, bool mayHaveSuffix = false)
+if (!is(T == size_t))
+in { assert(str.length); }
+do
+{
+    const oldStr = str;
+    size_t v;
+    if (!parse!size_t(optname, str, v, errName, mayHaveSuffix))
+        return false;
+
+    if (v > res.max)
+        return parseError("a number " ~ T.max.stringof ~ " or below", optname, oldStr[0 .. $-str.length], errName);
     res = cast(T) v;
     return true;
 }
@@ -271,32 +287,8 @@ do
     assert(n > 4 && n < fmt.length);
 
     int nscanned;
-    version (CRuntime_DigitalMars)
-    {
-        /* Older sscanf's in snn.lib can write to its first argument, causing a crash
-        * if the string is in readonly memory. Recent updates to DMD
-        * https://github.com/dlang/dmd/pull/6546
-        * put string literals in readonly memory.
-        * Although sscanf has been fixed,
-        * http://ftp.digitalmars.com/snn.lib
-        * this workaround is here so it still works with the older snn.lib.
-        */
-        // Create mutable copy of str
-        const length = str.length;
-        char* mptr = cast(char*)malloc(length + 1);
-        assert(mptr);
-        memcpy(mptr, str.ptr, length);
-        mptr[length] = 0;
-        const result = sscanf(mptr, fmt.ptr, &res, &nscanned);
-        free(mptr);
-        if (result < 1)
-            return parseError("a float", optname, str, errName);
-    }
-    else
-    {
-        if (sscanf(str.ptr, fmt.ptr, &res, &nscanned) < 1)
-            return parseError("a float", optname, str, errName);
-    }
+    if (sscanf(str.ptr, fmt.ptr, &res, &nscanned) < 1)
+        return parseError("a float", optname, str, errName);
     str = str[nscanned .. $];
     return true;
 }
@@ -315,9 +307,11 @@ do
 
 bool parseError(const scope char[] exp, const scope char[] opt, const scope char[] got, const(char)[] errName)
 {
+    import core.atomic : atomicLoad;
+
     version (CoreUnittest) if (inUnittest) return false;
 
-    fprintf(stderr, "Expecting %.*s as argument for %.*s option '%.*s', got '%.*s' instead.\n",
+    fprintf(atomicLoad(stderr), "Expecting %.*s as argument for %.*s option '%.*s', got '%.*s' instead.\n",
             cast(int)exp.length, exp.ptr,
             cast(int)errName.length, errName.ptr,
             cast(int)opt.length, opt.ptr,
@@ -327,9 +321,11 @@ bool parseError(const scope char[] exp, const scope char[] opt, const scope char
 
 bool overflowedError(const scope char[] opt, const scope char[] got)
 {
+    import core.atomic : atomicLoad;
+
     version (CoreUnittest) if (inUnittest) return false;
 
-    fprintf(stderr, "Argument for %.*s option '%.*s' is too big.\n",
+    fprintf(atomicLoad(stderr), "Argument for %.*s option '%.*s' is too big.\n",
             cast(int)opt.length, opt.ptr,
             cast(int)got.length, got.ptr);
     return false;

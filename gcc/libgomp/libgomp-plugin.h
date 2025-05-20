@@ -1,6 +1,6 @@
 /* The libgomp plugin API.
 
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2025 Free Software Foundation, Inc.
 
    Contributed by Mentor Embedded.
 
@@ -33,6 +33,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef _LIBGOMP_PLUGIN_INCLUDE
+  /* Include 'omp.h' for the interop definitions.  */
+  #define _LIBGOMP_OMP_LOCK_DEFINED 1
+  typedef struct omp_lock_t omp_lock_t;
+  typedef struct omp_nest_lock_t omp_nest_lock_t;
+  #include "omp.h.in"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,7 +57,6 @@ enum offload_target_type
   OFFLOAD_TARGET_TYPE_HOST = 2,
   /* OFFLOAD_TARGET_TYPE_HOST_NONSHM = 3 removed.  */
   OFFLOAD_TARGET_TYPE_NVIDIA_PTX = 5,
-  OFFLOAD_TARGET_TYPE_INTEL_MIC = 6,
   OFFLOAD_TARGET_TYPE_HSA = 7,
   OFFLOAD_TARGET_TYPE_GCN = 8
 };
@@ -102,11 +109,32 @@ struct addr_pair
   uintptr_t end;
 };
 
-/* This symbol is to name a target side variable that holds the designated
-   'device number' of the target device. The symbol needs to be available to
-   libgomp code and the offload plugin (which in the latter case must be
-   stringified).  */
-#define GOMP_DEVICE_NUM_VAR __gomp_device_num
+
+#ifdef _LIBGOMP_OMP_LOCK_DEFINED
+/* Only define when omp.h.in was included, as in plugin/ and in libgomp.h.   */
+struct interop_obj_t
+{
+  void *stream;
+  void *device_data;
+  omp_interop_fr_t fr;
+  int device_num;
+};
+
+enum gomp_interop_flag
+{
+  gomp_interop_flag_init,
+  gomp_interop_flag_use,
+  gomp_interop_flag_destroy
+};
+#endif
+
+/* This following symbol is used to name the target side variable struct that
+   holds the designated ICVs of the target device. The symbol needs to be
+   available to libgomp code and the offload plugin (which in the latter case
+   must be stringified).  */
+#define GOMP_ADDITIONAL_ICVS __gomp_additional_icvs
+
+#define GOMP_INDIRECT_ADDR_MAP __gomp_indirect_addr_map
 
 /* Miscellaneous functions.  */
 extern void *GOMP_PLUGIN_malloc (size_t) __attribute__ ((malloc));
@@ -121,22 +149,34 @@ extern void GOMP_PLUGIN_error (const char *, ...)
 extern void GOMP_PLUGIN_fatal (const char *, ...)
 	__attribute__ ((noreturn, format (printf, 1, 2)));
 
+extern void GOMP_PLUGIN_target_rev (uint64_t, uint64_t, uint64_t, uint64_t,
+				    uint64_t, int, struct goacc_asyncqueue *);
+
 /* Prototypes for functions implemented by libgomp plugins.  */
 extern const char *GOMP_OFFLOAD_get_name (void);
+extern const char *GOMP_OFFLOAD_get_uid (int);
 extern unsigned int GOMP_OFFLOAD_get_caps (void);
 extern int GOMP_OFFLOAD_get_type (void);
-extern int GOMP_OFFLOAD_get_num_devices (void);
+extern int GOMP_OFFLOAD_get_num_devices (unsigned int);
 extern bool GOMP_OFFLOAD_init_device (int);
 extern bool GOMP_OFFLOAD_fini_device (int);
 extern unsigned GOMP_OFFLOAD_version (void);
 extern int GOMP_OFFLOAD_load_image (int, unsigned, const void *,
-				    struct addr_pair **);
+				    struct addr_pair **, uint64_t **,
+				    uint64_t *);
 extern bool GOMP_OFFLOAD_unload_image (int, unsigned, const void *);
 extern void *GOMP_OFFLOAD_alloc (int, size_t);
 extern bool GOMP_OFFLOAD_free (int, void *);
 extern bool GOMP_OFFLOAD_dev2host (int, void *, const void *, size_t);
 extern bool GOMP_OFFLOAD_host2dev (int, void *, const void *, size_t);
 extern bool GOMP_OFFLOAD_dev2dev (int, void *, const void *, size_t);
+extern int GOMP_OFFLOAD_memcpy2d (int, int, size_t, size_t,
+				  void*, size_t, size_t, size_t,
+				  const void*, size_t, size_t, size_t);
+extern int GOMP_OFFLOAD_memcpy3d (int, int, size_t, size_t, size_t, void *,
+				  size_t, size_t, size_t, size_t, size_t,
+				  const void *, size_t, size_t, size_t, size_t,
+				  size_t);
 extern bool GOMP_OFFLOAD_can_run (void *);
 extern void GOMP_OFFLOAD_run (int, void *, void *, void **);
 extern void GOMP_OFFLOAD_async_run (int, void *, void *, void **, void *);
@@ -167,6 +207,23 @@ extern int GOMP_OFFLOAD_openacc_cuda_set_stream (struct goacc_asyncqueue *,
 						 void *);
 extern union goacc_property_value
   GOMP_OFFLOAD_openacc_get_property (int, enum goacc_property);
+
+#ifdef _LIBGOMP_OMP_LOCK_DEFINED
+/* Only define when omp.h.in was included, as in plugin/ and in libgomp.h.   */
+extern void GOMP_OFFLOAD_interop (struct interop_obj_t *, int,
+				  enum gomp_interop_flag, bool, const char *);
+extern intptr_t GOMP_OFFLOAD_get_interop_int (struct interop_obj_t *,
+					      omp_interop_property_t,
+					      omp_interop_rc_t *);
+extern void *GOMP_OFFLOAD_get_interop_ptr (struct interop_obj_t *,
+					   omp_interop_property_t,
+					   omp_interop_rc_t *);
+extern const char *GOMP_OFFLOAD_get_interop_str (struct interop_obj_t *obj,
+						 omp_interop_property_t,
+						 omp_interop_rc_t *);
+extern const char *GOMP_OFFLOAD_get_interop_type_desc (struct interop_obj_t *,
+						       omp_interop_property_t);
+#endif
 
 #ifdef __cplusplus
 }

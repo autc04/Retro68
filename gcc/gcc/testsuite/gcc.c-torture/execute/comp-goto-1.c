@@ -1,3 +1,4 @@
+/* { dg-additional-options "-std=gnu17" } */
 /* { dg-require-effective-target label_values } */
 /* { dg-require-stack-size "4000" } */
 
@@ -163,5 +164,5 @@ main ()
   exit (0);
 }
 #else
-main(){ exit (0); }
+int main(){ exit (0); }
 #endif

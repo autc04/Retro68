@@ -1,6 +1,6 @@
 
 /* Compiler implementation of the D programming language
- * Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * written by Walter Bright
  * https://www.digitalmars.com
  * Distributed under the Boost Software License, Version 1.0.
@@ -10,6 +10,7 @@
 
 #pragma once
 
+class ErrorSink;
 class Identifier;
 class Module;
 class Statement;
@@ -28,67 +29,50 @@ class CPPNamespaceDeclaration;
 
 #include "dsymbol.h"
 
-enum
+enum class CSX : uint16_t
 {
-    CSXthis_ctor  = 1,      // called this()
-    CSXsuper_ctor = 2,      // called super()
-    CSXthis       = 4,      // referenced this
-    CSXsuper      = 8,      // referenced super
-    CSXlabel      = 0x10,   // seen a label
-    CSXreturn     = 0x20,   // seen a return statement
-    CSXany_ctor   = 0x40,   // either this() or super() was called
-    CSXhalt       = 0x80,   // assert(0)
+    none       = 0,
+    this_ctor  = 1,      // called this()
+    super_ctor = 2,      // called super()
+    label      = 4,      // seen a label
+    return_    = 8,      // seen a return statement
+    any_ctor   = 0x10,   // either this() or super() was called
+    halt       = 0x20,   // assert(0)
 };
 
-enum
+enum class Contract : uint8_t
 {
-    // Flags that would not be inherited beyond scope nesting
-    SCOPEctor          = 0x0001,  // constructor type
-    SCOPEcondition     = 0x0004,  // inside static if/assert condition
-    SCOPEdebug         = 0x0008,  // inside debug conditional
-
-    // Flags that would be inherited beyond scope nesting
-    SCOPEnoaccesscheck = 0x0002,  // don't do access checks
-    SCOPEconstraint    = 0x0010,  // inside template constraint
-    SCOPEinvariant     = 0x0020,  // inside invariant code
-    SCOPErequire       = 0x0040,  // inside in contract code
-    SCOPEensure        = 0x0060,  // inside out contract code
-    SCOPEcontract      = 0x0060,  // [mask] we're inside contract code
-    SCOPEctfe          = 0x0080,  // inside a ctfe-only expression
-    SCOPEcompile       = 0x0100,  // inside __traits(compile)
-    SCOPEignoresymbolvisibility = 0x0200,  // ignore symbol visibility (Bugzilla 15907)
-
-    SCOPEfree          = 0x8000,  // is on free list
-    SCOPEfullinst      = 0x10000, // fully instantiate templates
-    SCOPEalias         = 0x20000, // inside alias declaration
-
-    // The following are mutually exclusive
-    SCOPEprintf        = 0x40000, // printf-style function
-    SCOPEscanf         = 0x80000, // scanf-style function
+    none = 0u,
+    invariant_ = 1u,
+    require = 2u,
+    ensure = 3u,
 };
 
-struct Scope
+struct Scope final
 {
     Scope *enclosing;           // enclosing Scope
 
     Module *_module;            // Root module
     ScopeDsymbol *scopesym;     // current symbol
     FuncDeclaration *func;      // function we are in
+    VarDeclaration  *varDecl;   // variable we are in during semantic2
     Dsymbol *parent;            // parent to use
     LabelStatement *slabel;     // enclosing labelled statement
-    SwitchStatement *sw;        // enclosing switch statement
+    SwitchStatement *switchStatement; // enclosing switch statement
     Statement *tryBody;         // enclosing _body of TryCatchStatement or TryFinallyStatement
-    TryFinallyStatement *tf;    // enclosing try finally statement
-    ScopeGuardStatement *os;       // enclosing scope(xxx) statement
+    TryFinallyStatement *tryFinally; // enclosing try finally statement
+    ScopeGuardStatement *scopeGuard; // enclosing scope(xxx) statement
     Statement *sbreak;          // enclosing statement that supports "break"
     Statement *scontinue;       // enclosing statement that supports "continue"
     ForeachStatement *fes;      // if nested function for ForeachStatement, this is it
     Scope *callsc;              // used for __FUNCTION__, __PRETTY_FUNCTION__ and __MODULE__
     Dsymbol *inunion;           // !=null if processing members of a union
-    bool nofree;                // true if shouldn't free it
-    bool inLoop;                // true if inside a loop (where constructor calls aren't allowed)
+    d_bool nofree;                // true if shouldn't free it
+    d_bool inLoop;                // true if inside a loop (where constructor calls aren't allowed)
+    d_bool inDefaultArg;          // true if inside a default argument (where __FILE__, etc are evaluated at the call site)
     int intypeof;               // in typeof(exp)
     VarDeclaration *lastVar;    // Previous symbol used to prevent goto-skips-init
+    ErrorSink *eSink;           // sink for error messages
 
     /* If  minst && !tinst, it's in definitely non-speculative scope (eg. module member scope).
      * If !minst && !tinst, it's in definitely speculative scope (eg. template constraint).
@@ -98,8 +82,8 @@ struct Scope
     Module *minst;              // root module where the instantiated templates should belong to
     TemplateInstance *tinst;    // enclosing template instance
 
-    unsigned char callSuper;    // primitive flow analysis for constructors
-    unsigned char *fieldinit;
+    CSX callSuper;              // primitive flow analysis for constructors
+    CSX *fieldinit;
     size_t fieldinit_dim;
 
     AlignDeclaration *aligndecl;    // alignment for struct members
@@ -118,7 +102,35 @@ struct Scope
 
     DeprecatedDeclaration *depdecl; // customized deprecation message
 
-    unsigned flags;
+    uint16_t flags;
+    uint16_t previews; // state of preview switches
+
+    bool ctor() const;
+    bool ctor(bool v);
+    bool noAccessCheck() const;
+    bool noAccessCheck(bool v);
+    bool condition() const;
+    bool condition(bool v);
+    bool debug_() const;
+    bool debug_(bool v);
+    bool inTemplateConstraint() const;
+    bool inTemplateConstraint(bool v);
+    Contract contract() const;
+    Contract contract(Contract v);
+    bool ctfe() const;
+    bool ctfe(bool v);
+    bool traitsCompiles() const;
+    bool traitsCompiles(bool v);
+    bool ignoresymbolvisibility() const;
+    bool ignoresymbolvisibility(bool v);
+    bool inCfile() const;
+    bool inCfile(bool v);
+    bool canFree() const;
+    bool canFree(bool v);
+    bool fullinst() const;
+    bool fullinst(bool v);
+    bool ctfeBlock() const;
+    bool ctfeBlock(bool v);
 
     UserAttributeDeclaration *userAttribDecl;   // user defined attributes
 
@@ -128,23 +140,7 @@ struct Scope
 
     AliasDeclaration *aliasAsg; // if set, then aliasAsg is being assigned a new value,
                                 // do not set wasRead for it
-    Scope();
+    StructDeclaration *argStruct; // elimiate recursion when looking for rvalue construction
 
-    Scope *copy();
-
-    Scope *push();
-    Scope *push(ScopeDsymbol *ss);
-    Scope *pop();
-
-    Scope *startCTFE();
-    Scope *endCTFE();
-
-    Dsymbol *search(const Loc &loc, Identifier *ident, Dsymbol **pscopesym, int flags = IgnoreNone);
-
-    ClassDeclaration *getClassScope();
-    AggregateDeclaration *getStructClassScope();
-
-    structalign_t alignment();
-
-    bool isDeprecated() const;
+    Dsymbol *search(Loc loc, Identifier *ident, Dsymbol *&pscopesym, SearchOptFlags flags = (SearchOptFlags)SearchOpt::all);
 };

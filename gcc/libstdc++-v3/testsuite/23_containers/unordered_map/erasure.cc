@@ -1,7 +1,7 @@
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
+// { dg-add-options no_pch }
 
-// Copyright (C) 2018-2022 Free Software Foundation, Inc.
+// Copyright (C) 2018-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,14 +19,15 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <unordered_map>
-#include <string>
-#include <testsuite_hooks.h>
 
 #ifndef __cpp_lib_erase_if
 # error "Feature-test macro for erase_if missing in <unordered_map>"
 #elif __cpp_lib_erase_if < 202002
 # error "Feature-test macro for erase_if has wrong value in <unordered_map>"
 #endif
+
+#include <string>
+#include <testsuite_hooks.h>
 
 auto is_odd_pair = [](const std::pair<const int, std::string>& p)
 {
@@ -61,11 +62,24 @@ test02()
   VERIFY( num == 4 );
 }
 
+void
+test_pr107850()
+{
+  // Predicate only callable as non-const and only accepts non-const argument.
+  struct Pred { bool operator()(std::pair<const int, int>&) { return false; } };
+  const Pred pred; // erase_if parameter is passed by value, so non-const.
+  std::unordered_map<int, int> m;
+  std::erase_if(m, pred);
+  std::unordered_multimap<int, int> mm;
+  std::erase_if(mm, pred);
+}
+
 int
 main()
 {
   test01();
   test02();
+  test_pr107850();
 
   return 0;
 }

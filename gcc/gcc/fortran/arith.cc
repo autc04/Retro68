@@ -1,5 +1,5 @@
 /* Compiler arithmetic
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2025 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -58,7 +58,17 @@ gfc_mpfr_to_mpz (mpz_t z, mpfr_t x, locus *where)
     mpz_tdiv_q_2exp (z, z, -e);
 }
 
+/* Reduce an unsigned number to within its range.  */
 
+void
+gfc_reduce_unsigned (gfc_expr *e)
+{
+  int k;
+  gcc_checking_assert (e->expr_type == EXPR_CONSTANT
+		       && e->ts.type == BT_UNSIGNED);
+  k = gfc_validate_kind (BT_UNSIGNED, e->ts.kind, false);
+  mpz_and (e->value.integer, e->value.integer, gfc_unsigned_kinds[k].huge);
+}
 /* Set the model number precision by the requested KIND.  */
 
 void
@@ -86,7 +96,7 @@ gfc_set_model (mpfr_t x)
 /* Given an arithmetic error code, return a pointer to a string that
    explains the error.  */
 
-static const char *
+const char *
 gfc_arith_error (arith code)
 {
   const char *p;
@@ -118,12 +128,44 @@ gfc_arith_error (arith code)
     case ARITH_WRONGCONCAT:
       p = G_("Illegal type in character concatenation at %L");
       break;
-
+    case ARITH_INVALID_TYPE:
+      p = G_("Invalid type in arithmetic operation at %L");
+      break;
+    case ARITH_UNSIGNED_TRUNCATED:
+      p = G_("Unsigned constant truncated at %L");
+      break;
+    case ARITH_UNSIGNED_NEGATIVE:
+      p = G_("Negation of unsigned constant at %L not permitted");
+      break;
     default:
       gfc_internal_error ("gfc_arith_error(): Bad error code");
     }
 
   return p;
+}
+
+
+/* Check if a certain arithmetic error code is severe enough to prevent
+   further simplification, as opposed to errors thrown by the range check
+   (e.g. overflow) or arithmetic exceptions that are tolerated with
+   -fno-range-check.  */
+
+static bool
+is_hard_arith_error (arith code)
+{
+  switch (code)
+    {
+    case ARITH_OK:
+    case ARITH_OVERFLOW:
+    case ARITH_UNDERFLOW:
+    case ARITH_NAN:
+    case ARITH_DIV0:
+    case ARITH_ASYMMETRIC:
+      return false;
+
+    default:
+      return true;
+    }
 }
 
 
@@ -133,6 +175,7 @@ void
 gfc_arith_init_1 (void)
 {
   gfc_integer_info *int_info;
+  gfc_unsigned_info *uint_info;
   gfc_real_info *real_info;
   mpfr_t a, b;
   int i;
@@ -173,6 +216,36 @@ gfc_arith_init_1 (void)
       mpfr_log10 (a, a, GFC_RND_MODE);
       mpfr_trunc (a, a);
       int_info->range = (int) mpfr_get_si (a, GFC_RND_MODE);
+    }
+
+  /* Similar, for UNSIGNED.  */
+  if (flag_unsigned)
+    {
+      for (uint_info = gfc_unsigned_kinds; uint_info->kind != 0; uint_info++)
+	{
+	  /* UNSIGNED is radix 2.  */
+	  gcc_assert (uint_info->radix == 2);
+	  /* Huge.  */
+	  mpz_init (uint_info->huge);
+	  mpz_set_ui (uint_info->huge, 2);
+	  mpz_pow_ui (uint_info->huge, uint_info->huge, uint_info->digits);
+	  mpz_sub_ui (uint_info->huge, uint_info->huge, 1);
+
+	  /* int_min - the smallest number we can reasonably convert from.  */
+
+	  mpz_init (uint_info->int_min);
+	  mpz_set_ui (uint_info->int_min, 2);
+	  mpz_pow_ui (uint_info->int_min, uint_info->int_min,
+		      uint_info->digits - 1);
+	  mpz_neg (uint_info->int_min, uint_info->int_min);
+
+	  /* Range.  */
+	  mpfr_set_z (a, uint_info->huge, GFC_RND_MODE);
+	  mpfr_log10 (a, a, GFC_RND_MODE);
+	  mpfr_trunc (a,a);
+	  uint_info->range = (int) mpfr_get_si (a, GFC_RND_MODE);
+	}
+
     }
 
   mpfr_clear (a);
@@ -317,6 +390,25 @@ gfc_check_integer_range (mpz_t p, int kind)
   return result;
 }
 
+/* Same as above.  */
+arith
+gfc_check_unsigned_range (mpz_t p, int kind)
+{
+  int i;
+
+  i = gfc_validate_kind (BT_UNSIGNED, kind, false);
+
+  if (pedantic && mpz_cmp_si (p, 0) < 0)
+    return ARITH_UNSIGNED_NEGATIVE;
+
+  if (mpz_cmp (p, gfc_unsigned_kinds[i].int_min) < 0)
+    return ARITH_UNSIGNED_TRUNCATED;
+
+  if (mpz_cmp (p, gfc_unsigned_kinds[i].huge) > 0)
+    return ARITH_UNSIGNED_TRUNCATED;
+
+  return ARITH_OK;
+}
 
 /* Given a real and a kind, make sure that the real lies within the
    range of the kind.  Returns ARITH_OK, ARITH_OVERFLOW or
@@ -419,6 +511,9 @@ gfc_arith_not (gfc_expr *op1, gfc_expr **resultp)
 {
   gfc_expr *result;
 
+  if (op1->ts.type != BT_LOGICAL)
+    return ARITH_INVALID_TYPE;
+
   result = gfc_get_constant_expr (BT_LOGICAL, op1->ts.kind, &op1->where);
   result->value.logical = !op1->value.logical;
   *resultp = result;
@@ -431,6 +526,9 @@ static arith
 gfc_arith_and (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 {
   gfc_expr *result;
+
+  if (op1->ts.type != BT_LOGICAL || op2->ts.type != BT_LOGICAL)
+    return ARITH_INVALID_TYPE;
 
   result = gfc_get_constant_expr (BT_LOGICAL, gfc_kind_max (op1, op2),
 				  &op1->where);
@@ -446,6 +544,9 @@ gfc_arith_or (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 {
   gfc_expr *result;
 
+  if (op1->ts.type != BT_LOGICAL || op2->ts.type != BT_LOGICAL)
+    return ARITH_INVALID_TYPE;
+
   result = gfc_get_constant_expr (BT_LOGICAL, gfc_kind_max (op1, op2),
 				  &op1->where);
   result->value.logical = op1->value.logical || op2->value.logical;
@@ -460,6 +561,9 @@ gfc_arith_eqv (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 {
   gfc_expr *result;
 
+  if (op1->ts.type != BT_LOGICAL || op2->ts.type != BT_LOGICAL)
+    return ARITH_INVALID_TYPE;
+
   result = gfc_get_constant_expr (BT_LOGICAL, gfc_kind_max (op1, op2),
 				  &op1->where);
   result->value.logical = op1->value.logical == op2->value.logical;
@@ -473,6 +577,9 @@ static arith
 gfc_arith_neqv (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 {
   gfc_expr *result;
+
+  if (op1->ts.type != BT_LOGICAL || op2->ts.type != BT_LOGICAL)
+    return ARITH_INVALID_TYPE;
 
   result = gfc_get_constant_expr (BT_LOGICAL, gfc_kind_max (op1, op2),
 				  &op1->where);
@@ -497,6 +604,10 @@ gfc_range_check (gfc_expr *e)
     {
     case BT_INTEGER:
       rc = gfc_check_integer_range (e->value.integer, e->ts.kind);
+      break;
+
+    case BT_UNSIGNED:
+      rc = gfc_check_unsigned_range (e->value.integer, e->ts.kind);
       break;
 
     case BT_REAL:
@@ -561,10 +672,10 @@ check_result (arith rc, gfc_expr *x, gfc_expr *r, gfc_expr **rp)
       val = ARITH_OK;
     }
 
-  if (val == ARITH_OK || val == ARITH_OVERFLOW)
-    *rp = r;
-  else
+  if (is_hard_arith_error (val))
     gfc_free_expr (r);
+  else
+    *rp = r;
 
   return val;
 }
@@ -597,6 +708,15 @@ gfc_arith_uminus (gfc_expr *op1, gfc_expr **resultp)
       mpz_neg (result->value.integer, op1->value.integer);
       break;
 
+    case BT_UNSIGNED:
+      {
+	if (pedantic)
+	  return check_result (ARITH_UNSIGNED_NEGATIVE, op1, result, resultp);
+
+	mpz_neg (result->value.integer, op1->value.integer);
+      }
+      break;
+
     case BT_REAL:
       mpfr_neg (result->value.real, op1->value.real, GFC_RND_MODE);
       break;
@@ -610,7 +730,15 @@ gfc_arith_uminus (gfc_expr *op1, gfc_expr **resultp)
     }
 
   rc = gfc_range_check (result);
-
+  if (op1->ts.type == BT_UNSIGNED)
+    {
+      if (rc != ARITH_OK)
+	{
+	  gfc_warning (0, gfc_arith_error (rc), &op1->where);
+	  rc = ARITH_OK;
+	}
+      gfc_reduce_unsigned (result);
+    }
   return check_result (rc, op1, result, resultp);
 }
 
@@ -621,12 +749,20 @@ gfc_arith_plus (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
   gfc_expr *result;
   arith rc;
 
+  if (op1->ts.type != op2->ts.type)
+    return ARITH_INVALID_TYPE;
+
   result = gfc_get_constant_expr (op1->ts.type, op1->ts.kind, &op1->where);
 
   switch (op1->ts.type)
     {
     case BT_INTEGER:
       mpz_add (result->value.integer, op1->value.integer, op2->value.integer);
+      break;
+
+    case BT_UNSIGNED:
+      mpz_add (result->value.integer, op1->value.integer, op2->value.integer);
+      gfc_reduce_unsigned (result);
       break;
 
     case BT_REAL:
@@ -655,12 +791,20 @@ gfc_arith_minus (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
   gfc_expr *result;
   arith rc;
 
+  if (op1->ts.type != op2->ts.type)
+    return ARITH_INVALID_TYPE;
+
   result = gfc_get_constant_expr (op1->ts.type, op1->ts.kind, &op1->where);
 
   switch (op1->ts.type)
     {
     case BT_INTEGER:
       mpz_sub (result->value.integer, op1->value.integer, op2->value.integer);
+      break;
+
+    case BT_UNSIGNED:
+      mpz_sub (result->value.integer, op1->value.integer, op2->value.integer);
+      gfc_reduce_unsigned (result);
       break;
 
     case BT_REAL:
@@ -689,12 +833,20 @@ gfc_arith_times (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
   gfc_expr *result;
   arith rc;
 
+  if (op1->ts.type != op2->ts.type)
+    return ARITH_INVALID_TYPE;
+
   result = gfc_get_constant_expr (op1->ts.type, op1->ts.kind, &op1->where);
 
   switch (op1->ts.type)
     {
     case BT_INTEGER:
       mpz_mul (result->value.integer, op1->value.integer, op2->value.integer);
+      break;
+
+    case BT_UNSIGNED:
+      mpz_mul (result->value.integer, op1->value.integer, op2->value.integer);
+      gfc_reduce_unsigned (result);
       break;
 
     case BT_REAL:
@@ -724,6 +876,9 @@ gfc_arith_divide (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
   gfc_expr *result;
   arith rc;
 
+  if (op1->ts.type != op2->ts.type)
+    return ARITH_INVALID_TYPE;
+
   rc = ARITH_OK;
 
   result = gfc_get_constant_expr (op1->ts.type, op1->ts.kind, &op1->where);
@@ -731,6 +886,7 @@ gfc_arith_divide (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
   switch (op1->ts.type)
     {
     case BT_INTEGER:
+    case BT_UNSIGNED:
       if (mpz_sgn (op2->value.integer) == 0)
 	{
 	  rc = ARITH_DIV0;
@@ -748,7 +904,7 @@ gfc_arith_divide (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 	    {
 	      char *p;
 	      p = mpz_get_str (NULL, 10, result->value.integer);
-	      gfc_warning_now (OPT_Winteger_division, "Integer division "
+	      gfc_warning (OPT_Winteger_division, "Integer division "
 			       "truncated to constant %qs at %L", p,
 			       &op1->where);
 	      free (p);
@@ -762,23 +918,26 @@ gfc_arith_divide (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
       break;
 
     case BT_REAL:
-      if (mpfr_sgn (op2->value.real) == 0 && flag_range_check == 1)
-	{
-	  rc = ARITH_DIV0;
-	  break;
-	}
+      /* Set "Division by zero" only for regular numerator.  */
+      if (flag_range_check == 1
+	  && mpfr_zero_p (op2->value.real)
+	  && mpfr_regular_p (op1->value.real))
+	rc = ARITH_DIV0;
 
       mpfr_div (result->value.real, op1->value.real, op2->value.real,
 	       GFC_RND_MODE);
       break;
 
     case BT_COMPLEX:
-      if (mpc_cmp_si_si (op2->value.complex, 0, 0) == 0
-	  && flag_range_check == 1)
-	{
-	  rc = ARITH_DIV0;
-	  break;
-	}
+      /* Set "Division by zero" only for regular numerator.  */
+      if (flag_range_check == 1
+	  && mpfr_zero_p (mpc_realref (op2->value.complex))
+	  && mpfr_zero_p (mpc_imagref (op2->value.complex))
+	  && ((mpfr_regular_p (mpc_realref (op1->value.complex))
+	       && mpfr_number_p (mpc_imagref (op1->value.complex)))
+	      || (mpfr_regular_p (mpc_imagref (op1->value.complex))
+		  && mpfr_number_p (mpc_realref (op1->value.complex)))))
+	rc = ARITH_DIV0;
 
       gfc_set_model (mpc_realref (op1->value.complex));
       if (mpc_cmp_si_si (op2->value.complex, 0, 0) == 0)
@@ -811,6 +970,16 @@ arith_power (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
   int power_sign;
   gfc_expr *result;
   arith rc;
+
+  if (!gfc_numeric_ts (&op1->ts) || !gfc_numeric_ts (&op2->ts))
+    return ARITH_INVALID_TYPE;
+
+  /* The result type is derived from op1 and must be compatible with the
+     result of the simplification.  Otherwise postpone simplification until
+     after operand conversions usually done by gfc_type_convert_binary.  */
+  if ((op1->ts.type == BT_INTEGER && op2->ts.type != BT_INTEGER)
+      || (op1->ts.type == BT_REAL && op2->ts.type == BT_COMPLEX))
+    return ARITH_NOT_REDUCED;
 
   rc = ARITH_OK;
   result = gfc_get_constant_expr (op1->ts.type, op1->ts.kind, &op1->where);
@@ -974,6 +1143,20 @@ arith_power (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 		 op2->value.complex, GFC_MPC_RND_MODE);
       }
       break;
+    case BT_UNSIGNED:
+      {
+	int k;
+	mpz_t x;
+	gcc_assert (op1->ts.type == BT_UNSIGNED);
+	k = gfc_validate_kind (BT_UNSIGNED, op1->ts.kind, false);
+	/* Exponentiation is performed modulo x = 2**n.  */
+	mpz_init (x);
+	mpz_add_ui (x, gfc_unsigned_kinds[k].huge, 1);
+	mpz_powm (result->value.integer, op1->value.integer,
+		  op2->value.integer, x);
+	mpz_clear (x);
+      }
+      break;
     default:
       gfc_internal_error ("arith_power(): unknown type");
     }
@@ -994,7 +1177,7 @@ gfc_arith_concat (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
   size_t len;
 
   /* By cleverly playing around with constructors, it is possible
-     to get mismaching types here.  */
+     to get mismatching types here.  */
   if (op1->ts.type != BT_CHARACTER || op2->ts.type != BT_CHARACTER
       || op1->ts.kind != op2->ts.kind)
     return ARITH_WRONGCONCAT;
@@ -1064,6 +1247,7 @@ gfc_compare_expr (gfc_expr *op1, gfc_expr *op2, gfc_intrinsic_op op)
   switch (op1->ts.type)
     {
     case BT_INTEGER:
+    case BT_UNSIGNED:
       rc = mpz_cmp (op1->value.integer, op2->value.integer);
       break;
 
@@ -1078,6 +1262,11 @@ gfc_compare_expr (gfc_expr *op1, gfc_expr *op2, gfc_intrinsic_op op)
     case BT_LOGICAL:
       rc = ((!op1->value.logical && op2->value.logical)
 	    || (op1->value.logical && !op2->value.logical));
+      break;
+
+    case BT_COMPLEX:
+      gcc_assert (op == INTRINSIC_EQ);
+      rc = mpc_cmp (op1->value.complex, op2->value.complex);
       break;
 
     default:
@@ -1169,6 +1358,9 @@ gfc_arith_eq (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 {
   gfc_expr *result;
 
+  if (op1->ts.type != op2->ts.type)
+    return ARITH_INVALID_TYPE;
+
   result = gfc_get_constant_expr (BT_LOGICAL, gfc_default_logical_kind,
 				  &op1->where);
   result->value.logical = (op1->ts.type == BT_COMPLEX)
@@ -1184,6 +1376,9 @@ static arith
 gfc_arith_ne (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 {
   gfc_expr *result;
+
+  if (op1->ts.type != op2->ts.type)
+    return ARITH_INVALID_TYPE;
 
   result = gfc_get_constant_expr (BT_LOGICAL, gfc_default_logical_kind,
 				  &op1->where);
@@ -1201,6 +1396,9 @@ gfc_arith_gt (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 {
   gfc_expr *result;
 
+  if (op1->ts.type != op2->ts.type)
+    return ARITH_INVALID_TYPE;
+
   result = gfc_get_constant_expr (BT_LOGICAL, gfc_default_logical_kind,
 				  &op1->where);
   result->value.logical = (gfc_compare_expr (op1, op2, INTRINSIC_GT) > 0);
@@ -1214,6 +1412,9 @@ static arith
 gfc_arith_ge (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 {
   gfc_expr *result;
+
+  if (op1->ts.type != op2->ts.type)
+    return ARITH_INVALID_TYPE;
 
   result = gfc_get_constant_expr (BT_LOGICAL, gfc_default_logical_kind,
 				  &op1->where);
@@ -1229,6 +1430,9 @@ gfc_arith_lt (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 {
   gfc_expr *result;
 
+  if (op1->ts.type != op2->ts.type)
+    return ARITH_INVALID_TYPE;
+
   result = gfc_get_constant_expr (BT_LOGICAL, gfc_default_logical_kind,
 				  &op1->where);
   result->value.logical = (gfc_compare_expr (op1, op2, INTRINSIC_LT) < 0);
@@ -1242,6 +1446,9 @@ static arith
 gfc_arith_le (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
 {
   gfc_expr *result;
+
+  if (op1->ts.type != op2->ts.type)
+    return ARITH_INVALID_TYPE;
 
   result = gfc_get_constant_expr (BT_LOGICAL, gfc_default_logical_kind,
 				  &op1->where);
@@ -1264,27 +1471,46 @@ reduce_unary (arith (*eval) (gfc_expr *, gfc_expr **), gfc_expr *op,
   if (op->expr_type == EXPR_CONSTANT)
     return eval (op, result);
 
+  if (op->expr_type != EXPR_ARRAY)
+    return ARITH_NOT_REDUCED;
+
   rc = ARITH_OK;
   head = gfc_constructor_copy (op->value.constructor);
   for (c = gfc_constructor_first (head); c; c = gfc_constructor_next (c))
     {
-      rc = reduce_unary (eval, c->expr, &r);
+      arith rc_tmp = reduce_unary (eval, c->expr, &r);
 
-      if (rc != ARITH_OK)
-	break;
+      /* Remember first recoverable ("soft") error encountered during
+	 reduction and continue, but terminate on serious errors.  */
+      if (is_hard_arith_error (rc_tmp))
+	{
+	  rc = rc_tmp;
+	  break;
+	}
+      else if (rc_tmp != ARITH_OK && rc == ARITH_OK)
+	rc = rc_tmp;
 
       gfc_replace_expr (c->expr, r);
     }
 
-  if (rc != ARITH_OK)
+  if (is_hard_arith_error (rc))
     gfc_constructor_free (head);
   else
     {
       gfc_constructor *c = gfc_constructor_first (head);
-      r = gfc_get_array_expr (c->expr->ts.type, c->expr->ts.kind,
-			      &op->where);
+      if (c == NULL)
+	{
+	  /* Handle zero-sized arrays.  */
+	  r = gfc_get_array_expr (op->ts.type, op->ts.kind, &op->where);
+	}
+      else
+	{
+	  r = gfc_get_array_expr (c->expr->ts.type, c->expr->ts.kind,
+				  &op->where);
+	}
       r->shape = gfc_copy_shape (op->shape, op->rank);
       r->rank = op->rank;
+      r->corank = op->corank;
       r->value.constructor = head;
       *result = r;
     }
@@ -1305,20 +1531,31 @@ reduce_binary_ac (arith (*eval) (gfc_expr *, gfc_expr *, gfc_expr **),
   head = gfc_constructor_copy (op1->value.constructor);
   for (c = gfc_constructor_first (head); c; c = gfc_constructor_next (c))
     {
+      arith rc_tmp;
+
       gfc_simplify_expr (c->expr, 0);
 
       if (c->expr->expr_type == EXPR_CONSTANT)
-        rc = eval (c->expr, op2, &r);
+	rc_tmp = eval (c->expr, op2, &r);
+      else if (c->expr->expr_type != EXPR_ARRAY)
+	rc_tmp = ARITH_NOT_REDUCED;
       else
-	rc = reduce_binary_ac (eval, c->expr, op2, &r);
+	rc_tmp = reduce_binary_ac (eval, c->expr, op2, &r);
 
-      if (rc != ARITH_OK)
-	break;
+      /* Remember first recoverable ("soft") error encountered during
+	 reduction and continue, but terminate on serious errors.  */
+      if (is_hard_arith_error (rc_tmp))
+	{
+	  rc = rc_tmp;
+	  break;
+	}
+      else if (rc_tmp != ARITH_OK && rc == ARITH_OK)
+	rc = rc_tmp;
 
       gfc_replace_expr (c->expr, r);
     }
 
-  if (rc != ARITH_OK)
+  if (is_hard_arith_error (rc))
     gfc_constructor_free (head);
   else
     {
@@ -1337,6 +1574,7 @@ reduce_binary_ac (arith (*eval) (gfc_expr *, gfc_expr *, gfc_expr **),
 	  r->shape = gfc_get_shape (op1->rank);
 	}
       r->rank = op1->rank;
+      r->corank = op1->corank;
       r->value.constructor = head;
       *result = r;
     }
@@ -1357,20 +1595,31 @@ reduce_binary_ca (arith (*eval) (gfc_expr *, gfc_expr *, gfc_expr **),
   head = gfc_constructor_copy (op2->value.constructor);
   for (c = gfc_constructor_first (head); c; c = gfc_constructor_next (c))
     {
+      arith rc_tmp;
+
       gfc_simplify_expr (c->expr, 0);
 
       if (c->expr->expr_type == EXPR_CONSTANT)
-	rc = eval (op1, c->expr, &r);
+	rc_tmp = eval (op1, c->expr, &r);
+      else if (c->expr->expr_type != EXPR_ARRAY)
+	rc_tmp = ARITH_NOT_REDUCED;
       else
-	rc = reduce_binary_ca (eval, op1, c->expr, &r);
+	rc_tmp = reduce_binary_ca (eval, op1, c->expr, &r);
 
-      if (rc != ARITH_OK)
-	break;
+      /* Remember first recoverable ("soft") error encountered during
+	 reduction and continue, but terminate on serious errors.  */
+      if (is_hard_arith_error (rc_tmp))
+	{
+	  rc = rc_tmp;
+	  break;
+	}
+      else if (rc_tmp != ARITH_OK && rc == ARITH_OK)
+	rc = rc_tmp;
 
       gfc_replace_expr (c->expr, r);
     }
 
-  if (rc != ARITH_OK)
+  if (is_hard_arith_error (rc))
     gfc_constructor_free (head);
   else
     {
@@ -1389,6 +1638,7 @@ reduce_binary_ca (arith (*eval) (gfc_expr *, gfc_expr *, gfc_expr **),
 	  r->shape = gfc_get_shape (op2->rank);
 	}
       r->rank = op2->rank;
+      r->corank = op2->corank;
       r->value.constructor = head;
       *result = r;
     }
@@ -1420,25 +1670,42 @@ reduce_binary_aa (arith (*eval) (gfc_expr *, gfc_expr *, gfc_expr **),
        c && d;
        c = gfc_constructor_next (c), d = gfc_constructor_next (d))
     {
-	rc = reduce_binary (eval, c->expr, d->expr, &r);
-	if (rc != ARITH_OK)
-	  break;
+      arith rc_tmp = reduce_binary (eval, c->expr, d->expr, &r);
 
-	gfc_replace_expr (c->expr, r);
+      /* Remember first recoverable ("soft") error encountered during
+	 reduction and continue, but terminate on serious errors.  */
+      if (is_hard_arith_error (rc_tmp))
+	{
+	  rc = rc_tmp;
+	  break;
+	}
+      else if (rc_tmp != ARITH_OK && rc == ARITH_OK)
+	rc = rc_tmp;
+
+      gfc_replace_expr (c->expr, r);
     }
 
-  if (c || d)
+  if (rc == ARITH_OK && (c || d))
     rc = ARITH_INCOMMENSURATE;
 
-  if (rc != ARITH_OK)
+  if (is_hard_arith_error (rc))
     gfc_constructor_free (head);
   else
     {
       gfc_constructor *c = gfc_constructor_first (head);
-      r = gfc_get_array_expr (c->expr->ts.type, c->expr->ts.kind,
-			      &op1->where);
+      if (c == NULL)
+	{
+	  /* Handle zero-sized arrays.  */
+	  r = gfc_get_array_expr (op1->ts.type, op1->ts.kind, &op1->where);
+	}
+      else
+	{
+	  r = gfc_get_array_expr (c->expr->ts.type, c->expr->ts.kind,
+				  &op1->where);
+	}
       r->shape = gfc_copy_shape (op1->shape, op1->rank);
       r->rank = op1->rank;
+      r->corank = op1->corank;
       r->value.constructor = head;
       *result = r;
     }
@@ -1459,6 +1726,9 @@ reduce_binary (arith (*eval) (gfc_expr *, gfc_expr *, gfc_expr **),
 
   if (op1->expr_type == EXPR_ARRAY && op2->expr_type == EXPR_CONSTANT)
     return reduce_binary_ac (eval, op1, op2, result);
+
+  if (op1->expr_type != EXPR_ARRAY || op2->expr_type != EXPR_ARRAY)
+    return ARITH_NOT_REDUCED;
 
   return reduce_binary_aa (eval, op1, op2, result);
 }
@@ -1570,13 +1840,31 @@ eval_intrinsic (gfc_intrinsic_op op,
 
     gcc_fallthrough ();
     /* Numeric binary  */
+    case INTRINSIC_POWER:
+      if (pedantic && (op1->ts.type == BT_UNSIGNED || op2->ts.type == BT_UNSIGNED))
+	{
+	  gfc_error ("Unsigned exponentiation not permitted with -pedantic "
+		     "at %L", &op1->where);
+	  goto runtime;
+	}
+
+      gcc_fallthrough ();
+
     case INTRINSIC_PLUS:
     case INTRINSIC_MINUS:
     case INTRINSIC_TIMES:
     case INTRINSIC_DIVIDE:
-    case INTRINSIC_POWER:
       if (!gfc_numeric_ts (&op1->ts) || !gfc_numeric_ts (&op2->ts))
 	goto runtime;
+
+      if (flag_unsigned && gfc_invalid_unsigned_ops (op1, op2))
+	goto runtime;
+
+      /* Do not perform conversions if operands are not conformable as
+	 required for the binary intrinsic operators (F2018:10.1.5).
+	 Defer to a possibly overloading user-defined operator.  */
+      if (!gfc_op_rank_conformable (op1, op2))
+	    goto runtime;
 
       /* Insert any necessary type conversions to make the operands
 	 compatible.  */
@@ -1638,6 +1926,8 @@ eval_intrinsic (gfc_intrinsic_op op,
   else
     rc = reduce_binary (eval.f3, op1, op2, &result);
 
+  if (rc == ARITH_INVALID_TYPE || rc == ARITH_NOT_REDUCED)
+    goto runtime;
 
   /* Something went wrong.  */
   if (op == INTRINSIC_POWER && rc == ARITH_PROHIBIT)
@@ -1665,7 +1955,6 @@ runtime:
   /* Create a run-time expression.  */
   result = gfc_get_operator_expr (&op1->where, op, op1, op2);
   result->ts = temp.ts;
-
   return result;
 }
 
@@ -2015,13 +2304,17 @@ wprecision_int_real (mpz_t n, mpfr_t r)
   return ret;
 }
 
-/* Convert integers to integers.  */
+/* Convert integers to integers; we can reuse this for also converting
+   unsigneds.  */
 
 gfc_expr *
 gfc_int2int (gfc_expr *src, int kind)
 {
   gfc_expr *result;
   arith rc;
+
+  if (src->ts.type != BT_INTEGER && src->ts.type != BT_UNSIGNED)
+    return NULL;
 
   result = gfc_get_constant_expr (BT_INTEGER, kind, &src->where);
 
@@ -2068,6 +2361,9 @@ gfc_int2real (gfc_expr *src, int kind)
   gfc_expr *result;
   arith rc;
 
+  if (src->ts.type != BT_INTEGER)
+    return NULL;
+
   result = gfc_get_constant_expr (BT_REAL, kind, &src->where);
 
   mpfr_set_z (result->value.real, src->value.integer, GFC_RND_MODE);
@@ -2099,6 +2395,9 @@ gfc_int2complex (gfc_expr *src, int kind)
   gfc_expr *result;
   arith rc;
 
+  if (src->ts.type != BT_INTEGER)
+    return NULL;
+
   result = gfc_get_constant_expr (BT_COMPLEX, kind, &src->where);
 
   mpc_set_z (result->value.complex, src->value.integer, GFC_MPC_RND_MODE);
@@ -2123,6 +2422,109 @@ gfc_int2complex (gfc_expr *src, int kind)
   return result;
 }
 
+/* Convert unsigned to unsigned, or integer to unsigned.  */
+
+gfc_expr *
+gfc_uint2uint (gfc_expr *src, int kind)
+{
+  gfc_expr *result;
+  arith rc;
+
+  if (src->ts.type != BT_UNSIGNED && src->ts.type != BT_INTEGER)
+    return NULL;
+
+  result = gfc_get_constant_expr (BT_UNSIGNED, kind, &src->where);
+  mpz_set (result->value.integer, src->value.integer);
+
+  rc = gfc_range_check (result);
+  if (rc != ARITH_OK)
+    gfc_warning (OPT_Wconversion, gfc_arith_error (rc), &result->where);
+
+  gfc_reduce_unsigned (result);
+  return result;
+}
+
+gfc_expr *
+gfc_int2uint (gfc_expr *src, int kind)
+{
+  return gfc_uint2uint (src, kind);
+}
+
+gfc_expr *
+gfc_uint2int (gfc_expr *src, int kind)
+{
+  return gfc_int2int (src, kind);
+}
+
+/* Convert UNSIGNED to reals.  */
+
+gfc_expr *
+gfc_uint2real (gfc_expr *src, int kind)
+{
+  gfc_expr *result;
+  arith rc;
+
+  if (src->ts.type != BT_UNSIGNED)
+    return NULL;
+
+  result = gfc_get_constant_expr (BT_REAL, kind, &src->where);
+
+  mpfr_set_z (result->value.real, src->value.integer, GFC_RND_MODE);
+
+  if ((rc = gfc_check_real_range (result->value.real, kind)) != ARITH_OK)
+    {
+      /* This should be rare, just in case.  */
+      arith_error (rc, &src->ts, &result->ts, &src->where);
+      gfc_free_expr (result);
+      return NULL;
+    }
+
+  if (warn_conversion
+      && wprecision_int_real (src->value.integer, result->value.real))
+    gfc_warning (OPT_Wconversion, "Change of value in conversion "
+		 "from %qs to %qs at %L",
+		 gfc_typename (&src->ts),
+		 gfc_typename (&result->ts),
+		 &src->where);
+
+  return result;
+}
+
+/* Convert default integer to default complex.  */
+
+gfc_expr *
+gfc_uint2complex (gfc_expr *src, int kind)
+{
+  gfc_expr *result;
+  arith rc;
+
+  if (src->ts.type != BT_UNSIGNED)
+    return NULL;
+
+  result = gfc_get_constant_expr (BT_COMPLEX, kind, &src->where);
+
+  mpc_set_z (result->value.complex, src->value.integer, GFC_MPC_RND_MODE);
+
+  if ((rc = gfc_check_real_range (mpc_realref (result->value.complex), kind))
+      != ARITH_OK)
+    {
+      /* This should be rare, just in case.  */
+      arith_error (rc, &src->ts, &result->ts, &src->where);
+      gfc_free_expr (result);
+      return NULL;
+    }
+
+  if (warn_conversion
+      && wprecision_int_real (src->value.integer,
+			      mpc_realref (result->value.complex)))
+      gfc_warning_now (OPT_Wconversion, "Change of value in conversion "
+		       "from %qs to %qs at %L",
+		       gfc_typename (&src->ts),
+		       gfc_typename (&result->ts),
+		       &src->where);
+
+  return result;
+}
 
 /* Convert default real to default integer.  */
 
@@ -2132,6 +2534,9 @@ gfc_real2int (gfc_expr *src, int kind)
   gfc_expr *result;
   arith rc;
   bool did_warn = false;
+
+  if (src->ts.type != BT_REAL)
+    return NULL;
 
   result = gfc_get_constant_expr (BT_INTEGER, kind, &src->where);
 
@@ -2158,6 +2563,7 @@ gfc_real2int (gfc_expr *src, int kind)
 			   gfc_typename (&result->ts), &src->where);
 	  did_warn = true;
 	}
+      mpfr_clear (f);
     }
   if (!did_warn && warn_conversion_extra)
     {
@@ -2169,6 +2575,51 @@ gfc_real2int (gfc_expr *src, int kind)
   return result;
 }
 
+/* Convert real to unsigned.  */
+
+gfc_expr *
+gfc_real2uint (gfc_expr *src, int kind)
+{
+  gfc_expr *result;
+  arith rc;
+  bool did_warn = false;
+
+  if (src->ts.type != BT_REAL)
+    return NULL;
+
+  result = gfc_get_constant_expr (BT_UNSIGNED, kind, &src->where);
+
+  gfc_mpfr_to_mpz (result->value.integer, src->value.real, &src->where);
+  if ((rc = gfc_check_unsigned_range (result->value.integer, kind)) != ARITH_OK)
+    gfc_warning (OPT_Wconversion, gfc_arith_error (rc), &result->where);
+
+  gfc_reduce_unsigned (result);
+
+  /* If there was a fractional part, warn about this.  */
+
+  if (warn_conversion)
+    {
+      mpfr_t f;
+      mpfr_init (f);
+      mpfr_frac (f, src->value.real, GFC_RND_MODE);
+      if (mpfr_cmp_si (f, 0) != 0)
+	{
+	  gfc_warning_now (OPT_Wconversion, "Change of value in conversion "
+			   "from %qs to %qs at %L", gfc_typename (&src->ts),
+			   gfc_typename (&result->ts), &src->where);
+	  did_warn = true;
+	}
+      mpfr_clear (f);
+    }
+  if (!did_warn && warn_conversion_extra)
+    {
+      gfc_warning_now (OPT_Wconversion_extra, "Conversion from %qs to %qs "
+		       "at %L", gfc_typename (&src->ts),
+		       gfc_typename (&result->ts), &src->where);
+    }
+
+  return result;
+}
 
 /* Convert real to real.  */
 
@@ -2178,6 +2629,9 @@ gfc_real2real (gfc_expr *src, int kind)
   gfc_expr *result;
   arith rc;
   bool did_warn = false;
+
+  if (src->ts.type != BT_REAL)
+    return NULL;
 
   result = gfc_get_constant_expr (BT_REAL, kind, &src->where);
 
@@ -2238,6 +2692,9 @@ gfc_real2complex (gfc_expr *src, int kind)
   arith rc;
   bool did_warn = false;
 
+  if (src->ts.type != BT_REAL)
+    return NULL;
+
   result = gfc_get_constant_expr (BT_COMPLEX, kind, &src->where);
 
   mpc_set_fr (result->value.complex, src->value.real, GFC_MPC_RND_MODE);
@@ -2289,6 +2746,9 @@ gfc_complex2int (gfc_expr *src, int kind)
   gfc_expr *result;
   arith rc;
   bool did_warn = false;
+
+  if (src->ts.type != BT_COMPLEX)
+    return NULL;
 
   result = gfc_get_constant_expr (BT_INTEGER, kind, &src->where);
 
@@ -2342,6 +2802,69 @@ gfc_complex2int (gfc_expr *src, int kind)
   return result;
 }
 
+/* Convert complex to integer.  */
+
+gfc_expr *
+gfc_complex2uint (gfc_expr *src, int kind)
+{
+  gfc_expr *result;
+  arith rc;
+  bool did_warn = false;
+
+  if (src->ts.type != BT_COMPLEX)
+    return NULL;
+
+  result = gfc_get_constant_expr (BT_UNSIGNED, kind, &src->where);
+
+  gfc_mpfr_to_mpz (result->value.integer, mpc_realref (src->value.complex),
+		   &src->where);
+
+  if ((rc = gfc_check_unsigned_range (result->value.integer, kind)) != ARITH_OK)
+    gfc_warning (OPT_Wconversion, gfc_arith_error (rc), &result->where);
+
+  gfc_reduce_unsigned (result);
+
+  if (warn_conversion || warn_conversion_extra)
+    {
+      int w = warn_conversion ? OPT_Wconversion : OPT_Wconversion_extra;
+
+      /* See if we discarded an imaginary part.  */
+      if (mpfr_cmp_si (mpc_imagref (src->value.complex), 0) != 0)
+	{
+	  gfc_warning_now (w, "Non-zero imaginary part discarded "
+			   "in conversion from %qs to %qs at %L",
+			   gfc_typename(&src->ts), gfc_typename (&result->ts),
+			   &src->where);
+	  did_warn = true;
+	}
+
+      else
+	{
+	  mpfr_t f;
+
+	  mpfr_init (f);
+	  mpfr_frac (f, src->value.real, GFC_RND_MODE);
+	  if (mpfr_cmp_si (f, 0) != 0)
+	    {
+	      gfc_warning_now (w, "Change of value in conversion from "
+			       "%qs to %qs at %L", gfc_typename (&src->ts),
+			       gfc_typename (&result->ts), &src->where);
+	      did_warn = true;
+	    }
+	  mpfr_clear (f);
+	}
+
+      if (!did_warn && warn_conversion_extra)
+	{
+	  gfc_warning_now (OPT_Wconversion_extra, "Conversion from %qs to %qs "
+			   "at %L", gfc_typename (&src->ts),
+			   gfc_typename (&result->ts), &src->where);
+	}
+    }
+
+  return result;
+}
+
 
 /* Convert complex to real.  */
 
@@ -2351,6 +2874,9 @@ gfc_complex2real (gfc_expr *src, int kind)
   gfc_expr *result;
   arith rc;
   bool did_warn = false;
+
+  if (src->ts.type != BT_COMPLEX)
+    return NULL;
 
   result = gfc_get_constant_expr (BT_REAL, kind, &src->where);
 
@@ -2419,6 +2945,9 @@ gfc_complex2complex (gfc_expr *src, int kind)
   arith rc;
   bool did_warn = false;
 
+  if (src->ts.type != BT_COMPLEX)
+    return NULL;
+
   result = gfc_get_constant_expr (BT_COMPLEX, kind, &src->where);
 
   mpc_set (result->value.complex, src->value.complex, GFC_MPC_RND_MODE);
@@ -2484,6 +3013,9 @@ gfc_log2log (gfc_expr *src, int kind)
 {
   gfc_expr *result;
 
+  if (src->ts.type != BT_LOGICAL)
+    return NULL;
+
   result = gfc_get_constant_expr (BT_LOGICAL, kind, &src->where);
   result->value.logical = src->value.logical;
 
@@ -2498,7 +3030,26 @@ gfc_log2int (gfc_expr *src, int kind)
 {
   gfc_expr *result;
 
+  if (src->ts.type != BT_LOGICAL)
+    return NULL;
+
   result = gfc_get_constant_expr (BT_INTEGER, kind, &src->where);
+  mpz_set_si (result->value.integer, src->value.logical);
+
+  return result;
+}
+
+/* Convert logical to unsigned.  */
+
+gfc_expr *
+gfc_log2uint (gfc_expr *src, int kind)
+{
+  gfc_expr *result;
+
+  if (src->ts.type != BT_LOGICAL)
+    return NULL;
+
+  result = gfc_get_constant_expr (BT_UNSIGNED, kind, &src->where);
   mpz_set_si (result->value.integer, src->value.logical);
 
   return result;
@@ -2511,6 +3062,25 @@ gfc_expr *
 gfc_int2log (gfc_expr *src, int kind)
 {
   gfc_expr *result;
+
+  if (src->ts.type != BT_INTEGER)
+    return NULL;
+
+  result = gfc_get_constant_expr (BT_LOGICAL, kind, &src->where);
+  result->value.logical = (mpz_cmp_si (src->value.integer, 0) != 0);
+
+  return result;
+}
+
+/* Convert unsigned to logical.  */
+
+gfc_expr *
+gfc_uint2log (gfc_expr *src, int kind)
+{
+  gfc_expr *result;
+
+  if (src->ts.type != BT_UNSIGNED)
+    return NULL;
 
   result = gfc_get_constant_expr (BT_LOGICAL, kind, &src->where);
   result->value.logical = (mpz_cmp_si (src->value.integer, 0) != 0);
@@ -2629,10 +3199,12 @@ gfc_hollerith2real (gfc_expr *src, int kind)
   result = gfc_get_constant_expr (BT_REAL, kind, &src->where);
 
   hollerith2representation (result, src);
-  gfc_interpret_float (kind, (unsigned char *) result->representation.string,
-		       result->representation.length, result->value.real);
-
-  return result;
+  if (gfc_interpret_float (kind,
+			   (unsigned char *) result->representation.string,
+			   result->representation.length, result->value.real))
+    return result;
+  else
+    return NULL;
 }
 
 /* Convert character to real.  The constant will be padded or truncated.  */

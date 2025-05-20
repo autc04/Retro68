@@ -1,6 +1,6 @@
 // <algorithm> Forward declarations  -*- C++ -*-
 
-// Copyright (C) 2007-2022 Free Software Foundation, Inc.
+// Copyright (C) 2007-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,7 +30,9 @@
 #ifndef _GLIBCXX_ALGORITHMFWD_H
 #define _GLIBCXX_ALGORITHMFWD_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <bits/c++config.h>
 #include <bits/stl_pair.h>
@@ -38,6 +40,9 @@
 #if __cplusplus >= 201103L
 #include <initializer_list>
 #endif
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++11-extensions"
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -191,10 +196,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   // adjacent_find
 
-#if __cplusplus > 201703L
-#  define __cpp_lib_constexpr_algorithms 201806L
-#endif
-
 #if __cplusplus >= 201103L
   template<typename _IIter, typename _Predicate>
     _GLIBCXX20_CONSTEXPR
@@ -207,12 +208,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     any_of(_IIter, _IIter, _Predicate);
 #endif
 
-  template<typename _FIter, typename _Tp>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter)>
     _GLIBCXX20_CONSTEXPR
     bool
     binary_search(_FIter, _FIter, const _Tp&);
 
-  template<typename _FIter, typename _Tp, typename _Compare>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter),
+	   typename _Compare>
     _GLIBCXX20_CONSTEXPR
     bool
     binary_search(_FIter, _FIter, const _Tp&, _Compare);
@@ -254,22 +256,24 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   // count
   // count_if
 
-  template<typename _FIter, typename _Tp>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter)>
     _GLIBCXX20_CONSTEXPR
     pair<_FIter, _FIter>
     equal_range(_FIter, _FIter, const _Tp&);
 
-  template<typename _FIter, typename _Tp, typename _Compare>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter),
+	   typename _Compare>
     _GLIBCXX20_CONSTEXPR
     pair<_FIter, _FIter>
     equal_range(_FIter, _FIter, const _Tp&, _Compare);
 
-  template<typename _FIter, typename _Tp>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter)>
     _GLIBCXX20_CONSTEXPR
     void
     fill(_FIter, _FIter, const _Tp&);
 
-  template<typename _OIter, typename _Size, typename _Tp>
+  template<typename _OIter, typename _Size,
+	   typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_OIter)>
     _GLIBCXX20_CONSTEXPR
     _OIter
     fill_n(_OIter, _Size, const _Tp&);
@@ -311,10 +315,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     includes(_IIter1, _IIter1, _IIter2, _IIter2, _Compare);
 
   template<typename _BIter>
+    _GLIBCXX26_CONSTEXPR
     void
     inplace_merge(_BIter, _BIter, _BIter);
 
   template<typename _BIter, typename _Compare>
+    _GLIBCXX26_CONSTEXPR
     void
     inplace_merge(_BIter, _BIter, _BIter, _Compare);
 
@@ -381,12 +387,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     void
     iter_swap(_FIter1, _FIter2);
 
-  template<typename _FIter, typename _Tp>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter)>
     _GLIBCXX20_CONSTEXPR
     _FIter
     lower_bound(_FIter, _FIter, const _Tp&);
 
-  template<typename _FIter, typename _Tp, typename _Compare>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter),
+	   typename _Compare>
     _GLIBCXX20_CONSTEXPR
     _FIter
     lower_bound(_FIter, _FIter, const _Tp&, _Compare);
@@ -557,7 +564,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   // random_shuffle
 
-  template<typename _FIter, typename _Tp>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter)>
     _GLIBCXX20_CONSTEXPR
     _FIter
     remove(_FIter, _FIter, const _Tp&);
@@ -567,7 +574,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     _FIter
     remove_if(_FIter, _FIter, _Predicate);
 
-  template<typename _IIter, typename _OIter, typename _Tp>
+  template<typename _IIter, typename _OIter,
+	   typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_IIter)>
     _GLIBCXX20_CONSTEXPR
     _OIter
     remove_copy(_IIter, _IIter, _OIter, const _Tp&);
@@ -584,7 +592,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     _OIter
     replace_copy(_IIter, _IIter, _OIter, const _Tp&, const _Tp&);
 
-  template<typename _Iter, typename _OIter, typename _Predicate, typename _Tp>
+  template<typename _Iter, typename _OIter, typename _Predicate,
+	   typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_OIter)>
     _GLIBCXX20_CONSTEXPR
     _OIter
     replace_copy_if(_Iter, _Iter, _OIter, _Predicate, const _Tp&);
@@ -601,13 +610,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     _OIter
     reverse_copy(_BIter, _BIter, _OIter);
 
-  inline namespace _V2
-  {
-    template<typename _FIter>
-      _GLIBCXX20_CONSTEXPR
-      _FIter
-      rotate(_FIter, _FIter, _FIter);
-  }
+_GLIBCXX_BEGIN_INLINE_ABI_NAMESPACE(_V2)
+
+  template<typename _FIter>
+    _GLIBCXX20_CONSTEXPR
+    _FIter
+    rotate(_FIter, _FIter, _FIter);
+
+_GLIBCXX_END_INLINE_ABI_NAMESPACE(_V2)
 
   template<typename _FIter, typename _OIter>
     _GLIBCXX20_CONSTEXPR
@@ -621,7 +631,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   // set_symmetric_difference
   // set_union
 
-#if (__cplusplus >= 201103L) && defined(_GLIBCXX_USE_C99_STDINT_TR1)
+#if __cplusplus >= 201103L
   template<typename _RAIter, typename _UGenerator>
     void
     shuffle(_RAIter, _RAIter, _UGenerator&&);
@@ -637,9 +647,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     void
     sort_heap(_RAIter, _RAIter, _Compare);
 
+#if _GLIBCXX_HOSTED
   template<typename _BIter, typename _Predicate>
+    _GLIBCXX26_CONSTEXPR
     _BIter
     stable_partition(_BIter, _BIter, _Predicate);
+#endif
 
 #if __cplusplus < 201103L
   // For C++11 swap() is declared in <type_traits>.
@@ -674,12 +687,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   // unique_copy
 
-  template<typename _FIter, typename _Tp>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter)>
     _GLIBCXX20_CONSTEXPR
     _FIter
     upper_bound(_FIter, _FIter, const _Tp&);
 
-  template<typename _FIter, typename _Tp, typename _Compare>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter),
+	   typename _Compare>
     _GLIBCXX20_CONSTEXPR
     _FIter
     upper_bound(_FIter, _FIter, const _Tp&, _Compare);
@@ -696,7 +710,7 @@ _GLIBCXX_BEGIN_NAMESPACE_ALGO
     _FIter
     adjacent_find(_FIter, _FIter, _BinaryPredicate);
 
-  template<typename _IIter, typename _Tp>
+  template<typename _IIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_IIter)>
     _GLIBCXX20_CONSTEXPR
     typename iterator_traits<_IIter>::difference_type
     count(_IIter, _IIter, const _Tp&);
@@ -716,7 +730,7 @@ _GLIBCXX_BEGIN_NAMESPACE_ALGO
     bool
     equal(_IIter1, _IIter1, _IIter2, _BinaryPredicate);
 
-  template<typename _IIter, typename _Tp>
+  template<typename _IIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_IIter)>
     _GLIBCXX20_CONSTEXPR
     _IIter
     find(_IIter, _IIter, const _Tp&);
@@ -827,11 +841,14 @@ _GLIBCXX_BEGIN_NAMESPACE_ALGO
     _BIter
     partition(_BIter, _BIter, _Predicate);
 
+#if _GLIBCXX_HOSTED
   template<typename _RAIter>
+    _GLIBCXX14_DEPRECATED_SUGGEST("std::shuffle")
     void
     random_shuffle(_RAIter, _RAIter);
 
   template<typename _RAIter, typename _Generator>
+    _GLIBCXX14_DEPRECATED_SUGGEST("std::shuffle")
     void
     random_shuffle(_RAIter, _RAIter,
 #if __cplusplus >= 201103L
@@ -839,13 +856,15 @@ _GLIBCXX_BEGIN_NAMESPACE_ALGO
 #else
 		   _Generator&);
 #endif
+#endif // HOSTED
 
-  template<typename _FIter, typename _Tp>
+  template<typename _FIter, typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter)>
     _GLIBCXX20_CONSTEXPR
     void
     replace(_FIter, _FIter, const _Tp&, const _Tp&);
 
-  template<typename _FIter, typename _Predicate, typename _Tp>
+  template<typename _FIter, typename _Predicate,
+	   typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter)>
     _GLIBCXX20_CONSTEXPR
     void
     replace_if(_FIter, _FIter, _Predicate, const _Tp&);
@@ -860,12 +879,14 @@ _GLIBCXX_BEGIN_NAMESPACE_ALGO
     _FIter1
     search(_FIter1, _FIter1, _FIter2, _FIter2, _BinaryPredicate);
 
-  template<typename _FIter, typename _Size, typename _Tp>
+  template<typename _FIter, typename _Size,
+	   typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter)>
     _GLIBCXX20_CONSTEXPR
     _FIter
     search_n(_FIter, _FIter, _Size, const _Tp&);
 
-  template<typename _FIter, typename _Size, typename _Tp,
+  template<typename _FIter, typename _Size,
+	   typename _Tp _GLIBCXX26_ALGO_DEF_VAL_T(_FIter),
 	   typename _BinaryPredicate>
     _GLIBCXX20_CONSTEXPR
     _FIter
@@ -927,10 +948,12 @@ _GLIBCXX_BEGIN_NAMESPACE_ALGO
     sort(_RAIter, _RAIter, _Compare);
 
   template<typename _RAIter>
+    _GLIBCXX26_CONSTEXPR
     void
     stable_sort(_RAIter, _RAIter);
 
   template<typename _RAIter, typename _Compare>
+    _GLIBCXX26_CONSTEXPR
     void
     stable_sort(_RAIter, _RAIter, _Compare);
 
@@ -958,6 +981,8 @@ _GLIBCXX_BEGIN_NAMESPACE_ALGO
 _GLIBCXX_END_NAMESPACE_ALGO
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
+
+#pragma GCC diagnostic pop
 
 #ifdef _GLIBCXX_PARALLEL
 # include <parallel/algorithmfwd.h>

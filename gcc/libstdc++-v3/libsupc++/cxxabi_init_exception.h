@@ -1,6 +1,6 @@
 // ABI Support -*- C++ -*-
 
-// Copyright (C) 2016-2022 Free Software Foundation, Inc.
+// Copyright (C) 2016-2025 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -31,7 +31,9 @@
 #ifndef _CXXABI_INIT_EXCEPTION_H
 #define _CXXABI_INIT_EXCEPTION_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #pragma GCC visibility push(default)
 
@@ -67,8 +69,9 @@ namespace __cxxabiv1
 
       // Initialize exception (this is a GNU extension)
       __cxa_refcounted_exception*
-      __cxa_init_primary_exception(void *object, std::type_info *tinfo,
-                void (_GLIBCXX_CDTOR_CALLABI *dest) (void *)) _GLIBCXX_NOTHROW;
+      __cxa_init_primary_exception(void *__object, std::type_info *__tinfo,
+                void (_GLIBCXX_CDTOR_CALLABI *__dest) (void *))
+	_GLIBCXX_NOTHROW;
 
     }
 } // namespace __cxxabiv1

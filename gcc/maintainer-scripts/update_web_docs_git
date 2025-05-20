@@ -14,6 +14,21 @@ export GITROOT
 
 PATH=/usr/local/bin:$PATH
 
+# We use a copy of Sphinx installed in a virtual environment so that
+# we don't depend on a system package.
+SPHINX_VENV=${SPHINX_VENV:-"/home/gccadmin/venv"}
+
+makeinfo_git=/home/gccadmin/texinfo/install-git/bin/
+if [ -x "${makeinfo_git}"/makeinfo ]; then
+    : "${MAKEINFO:=${makeinfo_git}/makeinfo}"
+    : "${TEXI2DVI:=${makeinfo_git}/texi2dvi}"
+    : "${TEXI2PDF:=${makeinfo_git}/texi2pdf}"
+else
+    : "${MAKEINFO:=makeinfo}"
+    : "${TEXI2DVI:=texi2dvi}"
+    : "${TEXI2PDF:=texi2pdf}"
+fi
+
 MANUALS="cpp
   cppinternals
   fastjar
@@ -21,8 +36,10 @@ MANUALS="cpp
   gccgo
   gccint
   gcj
+  gdc
   gfortran
   gfc-internals
+  gm2
   gnat_ugn
   gnat-style
   gnat_rm
@@ -32,7 +49,8 @@ MANUALS="cpp
   libiberty
   porting"
 
-CSS=/gcc.css
+BUGURL="https://gcc.gnu.org/bugs/"
+CSS=/texinfo-manuals.css
 
 WWWBASE=${WWWBASE:-"/www/gcc/htdocs"}
 WWWBASE_PREFORMATTED=/www/gcc/htdocs-preformatted
@@ -124,7 +142,8 @@ rm -rf gcc/.git
 # Note that we have to preserve gcc/jit/docs since the jit docs are
 # not .texi files (Makefile, .rst and .png), and the jit docs use
 # include directives to pull in content from jit/jit-common.h and
-# jit/notes.txt, so we have to preserve those also.
+# Similar considerations apply for libgdiagnostics.
+# Preserve the cobol man pages, which are converted to HTML and PDF.
 find gcc -type f \( -name '*.texi' \
   -o -path gcc/gcc/doc/install.texi2html \
   -o -path gcc/gcc/doc/include/texinfo.tex \
@@ -134,6 +153,10 @@ find gcc -type f \( -name '*.texi' \
   -o -path "gcc/gcc/jit/docs/*" \
   -o -path "gcc/gcc/jit/jit-common.h" \
   -o -path "gcc/gcc/jit/notes.txt" \
+  -o -path "gcc/gcc/testsuite/jit.dg/*" \
+  -o -path "gcc/gcc/doc/libgdiagnostics/*" \
+  -o -path "gcc/gcc/testsuite/libgdiagnostics.dg/*" \
+  -o -path "gcc/gcc/cobol/gcobol*[13]" \
   -o -print0 \) | xargs -0 rm -f
 
 # Build a tarball of the sources.
@@ -153,11 +176,11 @@ includedir=gcc/gcc/doc/include
    fi
    echo "@set srcdir $WORKDIR/gcc/gcc"
    echo "@set VERSION_PACKAGE (GCC)"
-   echo "@set BUGURL @uref{http://gcc.gnu.org/bugs/}"
+   echo "@set BUGURL @uref{$BUGURL}"
 ) > $includedir/gcc-vers.texi
 
 # Generate libquadmath-vers.texi.
-echo "@set BUGURL @uref{http://gcc.gnu.org/bugs/}" \
+echo "@set BUGURL @uref{$BUGURL}" \
   > $includedir/libquadmath-vers.texi
 
 # Now convert the relevant files from texi to HTML, PDF and PostScript.
@@ -165,37 +188,65 @@ for file in $MANUALS; do
   filename=`find . -name ${file}.texi`
   if [ "${filename}" ]; then
     includes="-I ${includedir} -I `dirname ${filename}`"
-    if [ "$file" = "gnat_ugn" ]; then
+    if [ "$file" = "gm2" ]; then
+      includes="$includes -I gcc/gcc/m2/target-independent"
+      includes="$includes -I gcc/gcc/m2/target-independent/m2"
+    elif [ "$file" = "gnat_ugn" ]; then
       includes="$includes -I gcc/gcc/ada -I gcc/gcc/ada/doc/gnat_ugn"
     fi
-    makeinfo --html --css-ref $CSS $includes -o ${file} ${filename}
+    "${MAKEINFO}" --html -c CONTENTS_OUTPUT_LOCATION=inline --css-ref $CSS $includes -o ${file} ${filename}
     tar cf ${file}-html.tar ${file}/*.html
-    texi2dvi $includes -o ${file}.dvi ${filename} </dev/null >/dev/null && dvips -o ${file}.ps ${file}.dvi
-    texi2pdf $includes -o ${file}.pdf ${filename} </dev/null
+    "${TEXI2DVI}" $includes -o ${file}.dvi ${filename} </dev/null >/dev/null && dvips -o ${file}.ps ${file}.dvi
+    "${TEXI2PDF}" $includes -o ${file}.pdf ${filename} </dev/null
     mkdir -p $DOCSDIR/$file
   fi
 done
 
-# The jit is a special-case, using sphinx rather than texinfo.
-# Specifically, the jit docs need sphinx 1.0 or later.
 #
-# The jit/docs Makefile uses the executable $(SPHINXBUILD),
-# defaulting to "sphinx-build".
+# The COBOL FE maintains man pages.  Convert them to HTML and PDF.
 #
-# sphinx is packaged in Fedora and EPEL 6 within "python-sphinx",
-# in RHEL 8 within "python3-sphinx",
-# and in openSUSE within "python-Sphinx".
+cobol_mdoc2pdf_html() {
+    mkdir -p $DOCSDIR/gcobol gcobol
+    input="$1"
+    d="${input%/*}"
+    pdf="$2"
+    html="gcobol/$3"
+    groff -mdoc -T pdf "$input" > "${pdf}~"
+    mv "${pdf}~" "${pdf}"
+    mandoc -T html "$filename" > "${html}~"
+    mv "${html}~" "${html}"
+}
+
+find . -name gcobol.[13] |
+    while read filename
+    do
+        case ${filename##*.} in
+            1)
+                cobol_mdoc2pdf_html "$filename" gcobol.pdf gcobol.html
+                ;;
+            3)
+                cobol_mdoc2pdf_html "$filename" gcobol_io.pdf gcobol_io.html
+                ;;
+        esac
+    done
+
+# jit and libgdiagnostics are a special-case, using Sphinx rather than texinfo.
+# Specifically, they need Sphinx 3.0 or later.
 #
-# For EPEL6, python-sphinx is sphinx 0.6.6, which is missing various
-# directives (e.g. ":c:macro:"), so we need the variant
-# python-sphinx10 package.  The latter installs its executable as
-#   /usr/bin/sphinx-1.0-build
-# so we needed to override SPHINXBUILD with this when invoking "make".
+# Use the Sphinx installed in a virtual environment so that
+# we don't depend on a system package.
+
 pushd gcc/gcc/jit/docs
-make html || true
+make html SPHINXBUILD=$SPHINX_VENV/bin/sphinx-build || true
 popd
 cp -a gcc/gcc/jit/docs/_build/html jit
 mkdir -p $DOCSDIR/jit
+
+pushd gcc/gcc/doc/libgdiagnostics
+make html SPHINXBUILD=$SPHINX_VENV/bin/sphinx-build || true
+popd
+cp -a gcc/gcc/doc/libgdiagnostics/_build/html libgdiagnostics
+mkdir -p $DOCSDIR/libgdiagnostics
 
 # Work around makeinfo generated file names and references with
 # "_002d" instead of "-".
@@ -243,11 +294,11 @@ for file in */*.html *.ps *.pdf *.tar; do
   fi
 done
 
-# Again, the jit is a special case, with nested subdirectories
-# below "jit", and with some non-HTML files (.png images from us,
+# Again, jit and libgdignostics are special cases, with nested subdirectories
+# below them, and with some non-HTML files (.png images from us,
 # plus .css and .js supplied by sphinx, and source files, renamed
 # from .rst to .txt).
-find jit \
+find jit libgdiagnostics \
     -name "*.html" -o -name "*.png" \
     -o -name "*.css" -o -name "*.js" \
     -o -name "*.txt" |

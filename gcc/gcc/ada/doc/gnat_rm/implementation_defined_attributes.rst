@@ -81,10 +81,9 @@ Attribute Atomic_Always_Lock_Free
 =================================
 .. index:: Atomic_Always_Lock_Free
 
-The prefix of the ``Atomic_Always_Lock_Free`` attribute is a type.
-The result is a Boolean value which is True if the type has discriminants,
-and False otherwise.  The result indicate whether atomic operations are
-supported by the target for the given type.
+The prefix of the ``Atomic_Always_Lock_Free`` attribute is a type. The
+result indicates whether atomic operations are supported by the target
+for the given type.
 
 Attribute Bit
 =============
@@ -566,12 +565,6 @@ uninitialized value of the type if pragma Initialize_Scalars is used,
 including the ability to modify the value with the binder -Sxx flag and
 relevant environment variables at run time.
 
-Attribute Iterable
-==================
-.. index:: Iterable
-
-Equivalent to Aspect Iterable.
-
 Attribute Large
 ===============
 .. index:: Ada 83 attributes
@@ -589,7 +582,7 @@ Attribute Library_Level
 ``P'Library_Level``, where P is an entity name,
 returns a Boolean value which is True if the entity is declared
 at the library level, and False otherwise. Note that within a
-generic instantition, the name of the generic unit denotes the
+generic instantiation, the name of the generic unit denotes the
 instance, which means that this attribute can be used to test
 if a generic is instantiated at the library level, as shown
 in this example:
@@ -605,13 +598,6 @@ in this example:
     ...
   end Gen;
 
-
-Attribute Lock_Free
-===================
-.. index:: Lock_Free
-
-``P'Lock_Free``, where P is a protected object, returns True if a
-pragma ``Lock_Free`` applies to P.
 
 Attribute Loop_Entry
 ====================
@@ -629,10 +615,13 @@ to the value an expression had upon entry to the subprogram. The
 relevant loop is either identified by the given loop name, or it is the
 innermost enclosing loop when no loop name is given.
 
-A ``Loop_Entry`` attribute can only occur within a
-``Loop_Variant`` or ``Loop_Invariant`` pragma. A common use of
-``Loop_Entry`` is to compare the current value of objects with their
-initial value at loop entry, in a ``Loop_Invariant`` pragma.
+A ``Loop_Entry`` attribute can only occur within an ``Assert``,
+``Assert_And_Cut``, ``Assume``, ``Loop_Variant`` or ``Loop_Invariant`` pragma.
+In addition, such a pragma must be one of the items in the sequence
+of statements of a loop body, or nested inside block statements that
+appear in the sequence of statements of a loop body.
+A common use of ``Loop_Entry`` is to compare the current value of objects with
+their initial value at loop entry, in a ``Loop_Invariant`` pragma.
 
 The effect of using ``X'Loop_Entry`` is the same as declaring
 a constant initialized with the initial value of ``X`` at loop
@@ -922,6 +911,14 @@ is used to refer to the result of the function in the postcondition expression.
 For a further discussion of the use of this attribute and examples of its use,
 see the description of pragma Postcondition.
 
+Attribute Round
+=====================
+.. index:: Round
+
+In addition to the usage of this attribute in the Ada RM, GNAT
+also permits the use of the ``'Round`` attribute for ordinary
+fixed point types.
+
 Attribute Safe_Emax
 ===================
 .. index:: Ada 83 attributes
@@ -1043,7 +1040,7 @@ are relaxed. Instead, the following rules apply:
 * the enclosing machine scalar is defined as the smallest machine
   scalar starting at a position no greater than
   ``position + first_bit / storage_element_size`` and covering
-  storage elements at least up to ``position + (last_bit + storage_element_size - 1) / storage_element_size```
+  storage elements at least up to ``position + (last_bit + storage_element_size - 1) / storage_element_size``
 * the position of the component is interpreted relative to that machine
   scalar.
 
@@ -1235,7 +1232,7 @@ Attribute System_Allocator_Alignment
 .. index:: System_Allocator_Alignment
 
 ``Standard'System_Allocator_Alignment`` (``Standard`` is the only
-allowed prefix) provides the observable guaranted to be honored by
+allowed prefix) provides the observable guaranteed to be honored by
 the system allocator (malloc). This is a static value that can be used
 in user storage pools based on malloc either to reject allocation
 with alignment too large or to enable a realignment circuitry if the
@@ -1385,7 +1382,7 @@ has returned, such calls are erroneous. For example:
 
   package body P is
 
-     type Less_Nested is not null access procedure;
+     type Less_Nested is access procedure;
      Global : Less_Nested;
 
      procedure P1 is
@@ -1627,13 +1624,13 @@ Multi-dimensional arrays can be modified, as shown by this example:
 
 which changes element (1,2) to 20 and (3,4) to 30.
 
-Attribute Valid_Image
+Attribute Valid_Value
 =======================
-.. index:: Valid_Image
+.. index:: Valid_Value
 
-The ``'Valid_Image`` attribute is defined for enumeration types other than
+The ``'Valid_Value`` attribute is defined for enumeration types other than
 those in package Standard. This attribute is a function that takes
-a String, and returns Boolean. ``T'Valid_Image (S)`` returns True
+a String, and returns Boolean. ``T'Valid_Value (S)`` returns True
 if and only if ``T'Value (S)`` would not raise Constraint_Error.
 
 Attribute Valid_Scalars

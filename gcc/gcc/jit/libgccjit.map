@@ -1,5 +1,5 @@
 # Linker script for libgccjit.so
-#   Copyright (C) 2013-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2025 Free Software Foundation, Inc.
 #   Contributed by David Malcolm <dmalcolm@redhat.com>.
 #
 # This file is part of GCC.
@@ -271,3 +271,57 @@ LIBGCCJIT_ABI_24 {
     gcc_jit_lvalue_set_alignment;
     gcc_jit_lvalue_get_alignment;
 } LIBGCCJIT_ABI_23;
+
+LIBGCCJIT_ABI_25 {
+  global:
+    gcc_jit_type_get_restrict;
+} LIBGCCJIT_ABI_24;
+
+LIBGCCJIT_ABI_26 {
+  global:
+    gcc_jit_function_add_attribute;
+    gcc_jit_function_add_string_attribute;
+    gcc_jit_lvalue_add_string_attribute;
+    gcc_jit_function_add_integer_array_attribute;
+} LIBGCCJIT_ABI_25;
+
+LIBGCCJIT_ABI_27 {
+  global:
+    gcc_jit_context_new_sizeof;
+} LIBGCCJIT_ABI_26;
+
+LIBGCCJIT_ABI_28 {
+  global:
+    gcc_jit_context_new_alignof;
+} LIBGCCJIT_ABI_27;
+
+LIBGCCJIT_ABI_29 {
+  global:
+    gcc_jit_global_set_readonly;
+} LIBGCCJIT_ABI_28;
+
+LIBGCCJIT_ABI_30 {
+  global:
+    gcc_jit_context_convert_vector;
+} LIBGCCJIT_ABI_29;
+
+LIBGCCJIT_ABI_31 {
+  global:
+    gcc_jit_context_new_vector_access;
+    gcc_jit_context_new_rvalue_vector_perm;
+} LIBGCCJIT_ABI_30;
+
+LIBGCCJIT_ABI_32 {
+  global:
+    gcc_jit_context_get_target_builtin_function;
+} LIBGCCJIT_ABI_31;
+
+LIBGCCJIT_ABI_33 {
+  global:
+    gcc_jit_function_new_temp;
+} LIBGCCJIT_ABI_32;
+
+LIBGCCJIT_ABI_34 {
+  global:
+    gcc_jit_context_set_output_ident;
+} LIBGCCJIT_ABI_33;

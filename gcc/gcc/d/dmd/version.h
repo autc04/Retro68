@@ -1,6 +1,6 @@
 
 /* Compiler implementation of the D programming language
- * Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * written by Walter Bright
  * https://www.digitalmars.com
  * Distributed under the Boost Software License, Version 1.0.
@@ -12,30 +12,20 @@
 
 #include "dsymbol.h"
 
-class DebugSymbol : public Dsymbol
+class DebugSymbol final : public Dsymbol
 {
 public:
-    unsigned level;
+    DebugSymbol *syntaxCopy(Dsymbol *) override;
 
-    DebugSymbol *syntaxCopy(Dsymbol *);
-
-    const char *toChars() const;
-    void addMember(Scope *sc, ScopeDsymbol *sds);
-    const char *kind() const;
-    DebugSymbol *isDebugSymbol();
-    void accept(Visitor *v) { v->visit(this); }
+    const char *kind() const override;
+    void accept(Visitor *v) override { v->visit(this); }
 };
 
-class VersionSymbol : public Dsymbol
+class VersionSymbol final : public Dsymbol
 {
 public:
-    unsigned level;
+    VersionSymbol *syntaxCopy(Dsymbol *) override;
 
-    VersionSymbol *syntaxCopy(Dsymbol *);
-
-    const char *toChars() const;
-    void addMember(Scope *sc, ScopeDsymbol *sds);
-    const char *kind() const;
-    VersionSymbol *isVersionSymbol();
-    void accept(Visitor *v) { v->visit(this); }
+    const char *kind() const override;
+    void accept(Visitor *v) override { v->visit(this); }
 };

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -52,7 +52,6 @@ with Types;          use Types;
 with Seinfo;         use Seinfo;
 with System;         use System;
 with Table;
-with Unchecked_Conversion;
 
 package Atree is
 
@@ -149,7 +148,6 @@ package Atree is
    --  This is a count of errors that are serious enough to stop expansion,
    --  and hence to prevent generation of an object file even if the
    --  switch -gnatQ is set. Initialized to zero at the start of compilation.
-   --  Initialized for -gnatVa use, see comment above.
 
    --  WARNING: There is a matching C declaration of this variable in fe.h
 
@@ -157,22 +155,17 @@ package Atree is
    --  Number of errors detected so far. Includes count of serious errors and
    --  non-serious errors, so this value is always greater than or equal to the
    --  Serious_Errors_Detected value. Initialized to zero at the start of
-   --  compilation. Initialized for -gnatVa use, see comment above.
+   --  compilation.
 
    Warnings_Detected : Nat := 0;
    --  Number of warnings detected. Initialized to zero at the start of
-   --  compilation. Initialized for -gnatVa use, see comment above. This
-   --  count includes the count of style and info messages.
+   --  compilation. This count includes the count of style and info messages.
 
-   Warning_Info_Messages : Nat := 0;
-   --  Number of info messages generated as warnings. Info messages are never
-   --  treated as errors (whether from use of the pragma, or the compiler
-   --  switch -gnatwe).
-
-   Report_Info_Messages : Nat := 0;
+   Info_Messages : Nat := 0;
    --  Number of info messages generated as reports. Info messages are never
    --  treated as errors (whether from use of the pragma, or the compiler
-   --  switch -gnatwe). Used under Spark_Mode to report proved checks.
+   --  switch -gnatwe). Used by GNATprove under SPARK_Mode to report proved
+   --  checks.
 
    Check_Messages : Nat := 0;
    --  Number of check messages generated. Check messages are neither warnings
@@ -228,6 +221,14 @@ package Atree is
    pragma Inline (Is_Entity);
    --  Returns True if N is an entity
 
+   function Is_Syntactic_Node
+     (Source : Node_Id;
+      Field  : Node_Id)
+      return Boolean;
+   --  Return True when Field is a syntactic child of node Source. It is called
+   --  when creating a copy of Source to preserve the Parent link in the copy
+   --  of Field.
+
    function New_Node
      (New_Node_Kind : Node_Kind;
       New_Sloc      : Source_Ptr) return Node_Id;
@@ -247,7 +248,7 @@ package Atree is
    --  The usual approach is to build a new node using this function and
    --  then, using the value returned, use the Set_xxx functions to set
    --  fields of the node as required. New_Node can only be used for
-   --  non-entity nodes, i.e. it never generates an extended node.
+   --  non-entity nodes.
    --
    --  If we are currently parsing, as indicated by a previous call to
    --  Set_Comes_From_Source_Default (True), then this call also resets
@@ -256,8 +257,7 @@ package Atree is
    function New_Entity
      (New_Node_Kind : Node_Kind;
       New_Sloc      : Source_Ptr) return Entity_Id;
-   --  Similar to New_Node, except that it is used only for entity nodes
-   --  and returns an extended node.
+   --  Similar to New_Node, except that it is used only for entity nodes.
 
    procedure Set_Comes_From_Source_Default (Default : Boolean);
    --  Sets value of Comes_From_Source flag to be used in all subsequent
@@ -304,8 +304,7 @@ package Atree is
    --  returns Empty, and New_Copy (Error) returns Error. Note that, unlike
    --  Copy_Separate_Tree, New_Copy does not recursively copy any descendants,
    --  so in general parent pointers are not set correctly for the descendants
-   --  of the copied node. Both normal and extended nodes (entities) may be
-   --  copied using New_Copy.
+   --  of the copied node.
 
    function Relocate_Node (Source : Node_Id) return Node_Id;
    --  Source is a non-entity node that is to be relocated. A new node is
@@ -355,7 +354,7 @@ package Atree is
    --  caller, according to context.
 
    procedure Extend_Node (Source : Node_Id);
-   --  This turns a node into an entity; it function is used only by Sinfo.CN.
+   --  This turns a node into an entity; it is only used by Sinfo.CN.
 
    type Ignored_Ghost_Record_Proc is access procedure (N : Node_Or_Entity_Id);
 
@@ -447,10 +446,20 @@ package Atree is
    --  Tests given Id for equality with the Empty node. This allows notations
    --  like "if No (Variant_Part)" as opposed to "if Variant_Part = Empty".
 
-   function Parent (N : Node_Or_Entity_Id) return Node_Or_Entity_Id;
+   function Node_Parent (N : Node_Or_Entity_Id) return Node_Or_Entity_Id;
+   pragma Inline (Node_Parent);
+   function Parent (N : Node_Or_Entity_Id) return Node_Or_Entity_Id
+     renames Node_Parent;
    pragma Inline (Parent);
    --  Returns the parent of a node if the node is not a list member, or else
    --  the parent of the list containing the node if the node is a list member.
+   --  Parent has the same name as the one in Nlists; Node_Parent can be used
+   --  more easily in the debugger.
+
+   function Parent_Or_List_Containing (X : Union_Id) return Union_Id;
+   --  X must be in Node_Range or in List_Range. If X is in Node_Range and is
+   --  contained in a list, returns that list, otherwise return the parent of
+   --  the list or node represented by X.
 
    function Paren_Count (N : Node_Id) return Nat;
    pragma Inline (Paren_Count);
@@ -466,7 +475,10 @@ package Atree is
    --  Note that this routine is used only in very peculiar cases. In normal
    --  cases, the Original_Node link is set by calls to Rewrite.
 
-   procedure Set_Parent (N : Node_Or_Entity_Id; Val : Node_Or_Entity_Id);
+   procedure Set_Node_Parent (N : Node_Or_Entity_Id; Val : Node_Or_Entity_Id);
+   pragma Inline (Set_Node_Parent);
+   procedure Set_Parent (N : Node_Or_Entity_Id; Val : Node_Or_Entity_Id)
+     renames Set_Node_Parent;
    pragma Inline (Set_Parent);
 
    procedure Set_Paren_Count (N : Node_Id; Val : Nat);
@@ -528,7 +540,7 @@ package Atree is
    --  newly constructed replacement subtree. The actual mechanism is to swap
    --  the contents of these two nodes fixing up the parent pointers of the
    --  replaced node (we do not attempt to preserve parent pointers for the
-   --  original node). Neither Old_Node nor New_Node can be extended nodes.
+   --  original node).
    --  ??? The above explanation is incorrect, instead Copy_Node is called.
    --
    --  Note: New_Node may not contain references to Old_Node, for example as
@@ -625,16 +637,15 @@ package Atree is
    --  Mutate_Nkind. This is necessary, because the memory occupied by the
    --  vanishing fields might be used for totally unrelated fields in the new
    --  node. See Reinit_Field_To_Zero.
+   --
+   --  It is an error to mutate a node to the same kind it already has.
 
-   procedure Mutate_Ekind
-     (N : Entity_Id; Val : Entity_Kind) with Inline;
+   procedure Mutate_Ekind (N : Entity_Id; Val : Entity_Kind) with Inline;
    --  Ekind is also like a discriminant, and is mostly treated as above (see
-   --  Mutate_Nkind). However, there are a few cases where we set the Ekind
-   --  from its initial E_Void value to something else, then set it back to
-   --  E_Void, then back to the something else, and we expect the "something
-   --  else" fields to retain their value. The two "something else"s are not
-   --  always the same; for example we change from E_Void, to E_Variable, to
-   --  E_Void, to E_Constant.
+   --  Mutate_Nkind).
+   --
+   --  It is not (yet?) an error to mutate an entity to the same kind it
+   --  already has. It is an error to mutate to E_Void.
 
    function Node_To_Fetch_From
      (N : Node_Or_Entity_Id; Field : Node_Or_Entity_Field)

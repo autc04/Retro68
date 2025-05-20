@@ -102,7 +102,7 @@ template among(values...)
 if (isExpressionTuple!values)
 {
     uint among(Value)(Value value)
-        if (!is(CommonType!(Value, values) == void))
+    if (!is(CommonType!(Value, values) == void))
     {
         switch (value)
         {
@@ -577,14 +577,25 @@ Returns:
     and `T3` are different.
 */
 T1 clamp(T1, T2, T3)(T1 val, T2 lower, T3 upper)
-if (is(typeof(val.lessThan(lower) ? lower : val.greaterThan(upper) ? upper : val) : T1))
-in
 {
+    static assert(is(T2 : T1), "T2 of type '", T2.stringof
+            , "' must be implicitly convertible to type of T1 '"
+            , T1.stringof, "'");
+    static assert(is(T3 : T1), "T3 of type '", T3.stringof
+            , "' must be implicitly convertible to type of T1 '"
+            , T1.stringof, "'");
+
     assert(!lower.greaterThan(upper), "Lower can't be greater than upper.");
-}
-do
-{
-    return val.lessThan(lower) ? lower : val.greaterThan(upper) ? upper : val;
+
+    // `if (is(typeof(val.lessThan(lower) ? lower : val.greaterThan(upper) ? upper : val) : T1))
+    // because of https://issues.dlang.org/show_bug.cgi?id=16235.
+    // Once that is fixed, we can simply use the ternary in both the template constraint
+    // and the template body
+    if (val.lessThan(lower))
+        return lower;
+    else if (val.greaterThan(upper))
+        return upper;
+    return val;
 }
 
 ///
@@ -635,6 +646,12 @@ do
     A x, lo, hi;
     x.y = 42;
     assert(x.clamp(lo, hi).y == 42);
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=23268
+@safe pure nothrow @nogc unittest
+{
+    static assert(__traits(compiles, clamp(short.init, short.init, cast(const) short.init)));
 }
 
 // cmp

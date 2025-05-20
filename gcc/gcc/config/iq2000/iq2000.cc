@@ -1,5 +1,5 @@
 /* Subroutines used for code generation on Vitesse IQ2000 processors
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -170,7 +170,8 @@ static pad_direction iq2000_function_arg_padding (machine_mode, const_tree);
 static unsigned int iq2000_function_arg_boundary (machine_mode,
 						  const_tree);
 static void iq2000_va_start	      (tree, rtx);
-static bool iq2000_legitimate_address_p (machine_mode, rtx, bool);
+static bool iq2000_legitimate_address_p (machine_mode, rtx, bool,
+					 code_helper = ERROR_MARK);
 static bool iq2000_can_eliminate      (const int, const int);
 static void iq2000_asm_trampoline_template (FILE *);
 static void iq2000_trampoline_init    (rtx, tree, rtx);
@@ -241,9 +242,6 @@ static HOST_WIDE_INT iq2000_starting_frame_offset (void);
 #undef	TARGET_EXPAND_BUILTIN_VA_START
 #define	TARGET_EXPAND_BUILTIN_VA_START	iq2000_va_start
 
-#undef TARGET_LRA_P
-#define TARGET_LRA_P hook_bool_void_false
-
 #undef TARGET_LEGITIMATE_ADDRESS_P
 #define TARGET_LEGITIMATE_ADDRESS_P	iq2000_legitimate_address_p
 
@@ -307,7 +305,8 @@ iq2000_reg_mode_ok_for_base_p (rtx reg,
    function is called during reload.  */
 
 bool
-iq2000_legitimate_address_p (machine_mode mode, rtx xinsn, bool strict)
+iq2000_legitimate_address_p (machine_mode mode, rtx xinsn, bool strict,
+			     code_helper)
 {
   if (TARGET_DEBUG_A_MODE)
     {
@@ -1229,9 +1228,7 @@ iq2000_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
   int bias = 0;
   unsigned int *arg_words = &cum->arg_words;
   int struct_p = (type != 0
-		  && (TREE_CODE (type) == RECORD_TYPE
-		      || TREE_CODE (type) == UNION_TYPE
-		      || TREE_CODE (type) == QUAL_UNION_TYPE));
+		  && RECORD_OR_UNION_TYPE_P (type));
 
   if (TARGET_DEBUG_D_MODE)
     {
@@ -1307,7 +1304,7 @@ iq2000_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
 
 	  for (field = TYPE_FIELDS (type); field; field = DECL_CHAIN (field))
 	    if (TREE_CODE (field) == FIELD_DECL
-		&& TREE_CODE (TREE_TYPE (field)) == REAL_TYPE
+		&& SCALAR_FLOAT_TYPE_P (TREE_TYPE (field))
 		&& TYPE_PRECISION (TREE_TYPE (field)) == BITS_PER_WORD
 		&& tree_fits_shwi_p (bit_position (field))
 		&& int_bit_position (field) % BITS_PER_WORD == 0)
@@ -1349,7 +1346,7 @@ iq2000_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
 
 		  if (field
 		      && int_bit_position (field) == bitpos
-		      && TREE_CODE (TREE_TYPE (field)) == REAL_TYPE
+		      && SCALAR_FLOAT_TYPE_P (TREE_TYPE (field))
 		      && TYPE_PRECISION (TREE_TYPE (field)) == BITS_PER_WORD)
 		    reg = gen_rtx_REG (DFmode, regno++);
 		  else
@@ -1575,7 +1572,7 @@ final_prescan_insn (rtx_insn *insn, rtx opvec[] ATTRIBUTE_UNUSED,
       rtx_insn *nop_insn = emit_insn_after (gen_nop (), insn);
       INSN_ADDRESSES_NEW (nop_insn, -1);
     }
-  
+
   if (TARGET_STATS
       && (JUMP_P (insn) || CALL_P (insn)))
     dslots_jump_total ++;
@@ -1687,7 +1684,7 @@ compute_frame_size (HOST_WIDE_INT size)
   gp_reg_rounded = IQ2000_STACK_ALIGN (gp_reg_size);
   total_size += gp_reg_rounded + IQ2000_STACK_ALIGN (fp_reg_size);
 
-  /* The gp reg is caller saved, so there is no need for leaf routines 
+  /* The gp reg is caller saved, so there is no need for leaf routines
      (total_size == extra_size) to save the gp reg.  */
   if (total_size == extra_size
       && ! profile_flag)
@@ -1754,18 +1751,18 @@ iq2000_initial_elimination_offset (int from, int to ATTRIBUTE_UNUSED)
 {
   int offset;
 
-  compute_frame_size (get_frame_size ());				 
-  if ((from) == FRAME_POINTER_REGNUM) 
-    (offset) = 0; 
-  else if ((from) == ARG_POINTER_REGNUM) 
-    (offset) = (cfun->machine->total_size); 
-  else if ((from) == RETURN_ADDRESS_POINTER_REGNUM) 
+  compute_frame_size (get_frame_size ());
+  if ((from) == FRAME_POINTER_REGNUM)
+    (offset) = 0;
+  else if ((from) == ARG_POINTER_REGNUM)
+    (offset) = (cfun->machine->total_size);
+  else if ((from) == RETURN_ADDRESS_POINTER_REGNUM)
     {
-      if (leaf_function_p ()) 
-	(offset) = 0; 
-      else (offset) = cfun->machine->gp_sp_offset 
-	     + ((UNITS_PER_WORD - (POINTER_SIZE / BITS_PER_UNIT)) 
-		* (BYTES_BIG_ENDIAN != 0)); 
+      if (leaf_function_p ())
+	(offset) = 0;
+      else (offset) = cfun->machine->gp_sp_offset
+	     + ((UNITS_PER_WORD - (POINTER_SIZE / BITS_PER_UNIT))
+		* (BYTES_BIG_ENDIAN != 0));
     }
   else
     gcc_unreachable ();
@@ -1774,7 +1771,7 @@ iq2000_initial_elimination_offset (int from, int to ATTRIBUTE_UNUSED)
 }
 
 /* Common code to emit the insns (or to write the instructions to a file)
-   to save/restore registers.  
+   to save/restore registers.
    Other parts of the code assume that IQ2000_TEMP1_REGNUM (aka large_reg)
    is not modified within save_restore_insns.  */
 
@@ -1894,7 +1891,7 @@ save_restore_insns (int store_p)
 
 	  if (store_p)
 	    iq2000_emit_frame_related_store (mem_rtx, reg_rtx, gp_offset);
-	  else 
+	  else
 	    {
 	      emit_move_insn (reg_rtx, mem_rtx);
 	    }
@@ -2635,7 +2632,7 @@ expand_one_builtin (enum insn_code icode, rtx target, tree exp,
     default:
       gcc_unreachable ();
     }
-  
+
   if (! pat)
     return 0;
   emit_insn (pat);
@@ -2666,7 +2663,7 @@ iq2000_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     {
     default:
       break;
-      
+
     case IQ2000_BUILTIN_ADO16:
       return expand_one_builtin (CODE_FOR_ado16, target, exp, code, 2);
 
@@ -2675,10 +2672,10 @@ iq2000_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       code[2] = CONST_INT;
       code[3] = CONST_INT;
       return expand_one_builtin (CODE_FOR_ram, target, exp, code, 4);
-      
+
     case IQ2000_BUILTIN_CHKHDR:
       return expand_one_builtin (CODE_FOR_chkhdr, target, exp, code, 2);
-      
+
     case IQ2000_BUILTIN_PKRL:
       return expand_one_builtin (CODE_FOR_pkrl, target, exp, code, 2);
 
@@ -2825,7 +2822,7 @@ iq2000_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case IQ2000_BUILTIN_SYSCALL:
       return expand_one_builtin (CODE_FOR_syscall, target, exp, code, 0);
     }
-  
+
   return NULL_RTX;
 }
 
@@ -2846,39 +2843,39 @@ iq2000_setup_incoming_varargs (cumulative_args_t cum_v,
 			       int *pretend_size, int no_rtl)
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
-  unsigned int iq2000_off = ! cum->last_arg_fp; 
-  unsigned int iq2000_fp_off = cum->last_arg_fp; 
+  unsigned int iq2000_off = ! cum->last_arg_fp;
+  unsigned int iq2000_fp_off = cum->last_arg_fp;
 
   if ((cum->arg_words < MAX_ARGS_IN_REGISTERS - iq2000_off))
     {
-      int iq2000_save_gp_regs 
-	= MAX_ARGS_IN_REGISTERS - cum->arg_words - iq2000_off; 
-      int iq2000_save_fp_regs 
-        = (MAX_ARGS_IN_REGISTERS - cum->fp_arg_words - iq2000_fp_off); 
+      int iq2000_save_gp_regs
+	= MAX_ARGS_IN_REGISTERS - cum->arg_words - iq2000_off;
+      int iq2000_save_fp_regs
+        = (MAX_ARGS_IN_REGISTERS - cum->fp_arg_words - iq2000_fp_off);
 
-      if (iq2000_save_gp_regs < 0) 
-	iq2000_save_gp_regs = 0; 
-      if (iq2000_save_fp_regs < 0) 
-	iq2000_save_fp_regs = 0; 
+      if (iq2000_save_gp_regs < 0)
+	iq2000_save_gp_regs = 0;
+      if (iq2000_save_fp_regs < 0)
+	iq2000_save_fp_regs = 0;
 
-      *pretend_size = ((iq2000_save_gp_regs * UNITS_PER_WORD) 
-                      + (iq2000_save_fp_regs * UNITS_PER_FPREG)); 
+      *pretend_size = ((iq2000_save_gp_regs * UNITS_PER_WORD)
+                      + (iq2000_save_fp_regs * UNITS_PER_FPREG));
 
-      if (! (no_rtl)) 
+      if (! (no_rtl))
 	{
-	  if (cum->arg_words < MAX_ARGS_IN_REGISTERS - iq2000_off) 
+	  if (cum->arg_words < MAX_ARGS_IN_REGISTERS - iq2000_off)
 	    {
-	      rtx ptr, mem; 
+	      rtx ptr, mem;
 	      ptr = plus_constant (Pmode, virtual_incoming_args_rtx,
 				   - (iq2000_save_gp_regs
 				      * UNITS_PER_WORD));
-	      mem = gen_rtx_MEM (BLKmode, ptr); 
-	      move_block_from_reg 
-		(cum->arg_words + GP_ARG_FIRST + iq2000_off, 
-		 mem, 
+	      mem = gen_rtx_MEM (BLKmode, ptr);
+	      move_block_from_reg
+		(cum->arg_words + GP_ARG_FIRST + iq2000_off,
+		 mem,
 		 iq2000_save_gp_regs);
-	    } 
-	} 
+	    }
+	}
     }
 }
 
@@ -3130,7 +3127,7 @@ iq2000_print_operand (FILE *file, rtx op, int letter)
     {
       int value;
       if (code != CONST_INT
-	  || (value = exact_log2 (INTVAL (op))) < 0)
+	  || (value = exact_log2 (UINTVAL (op) & 0xffffffff)) < 0)
 	output_operand_lossage ("invalid %%p value");
       else
 	fprintf (file, "%d", value);
@@ -3300,7 +3297,7 @@ iq2000_rtx_costs (rtx x, machine_mode mode, int outer_code ATTRIBUTE_UNUSED,
 	* total = COSTS_N_INSNS (2 * num_words);
 	break;
       }
-      
+
     case FFS:
       * total = COSTS_N_INSNS (6);
       break;
@@ -3319,7 +3316,7 @@ iq2000_rtx_costs (rtx x, machine_mode mode, int outer_code ATTRIBUTE_UNUSED,
 	* total = COSTS_N_INSNS ((GET_CODE (XEXP (x, 1)) == CONST_INT) ? 4 : 12);
       else
 	* total = COSTS_N_INSNS (1);
-    break;								
+    break;
 
     case ABS:
       if (mode == SFmode || mode == DFmode)
@@ -3327,7 +3324,7 @@ iq2000_rtx_costs (rtx x, machine_mode mode, int outer_code ATTRIBUTE_UNUSED,
       else
 	* total = COSTS_N_INSNS (4);
       break;
-    
+
     case PLUS:
     case MINUS:
       if (mode == SFmode || mode == DFmode)
@@ -3337,7 +3334,7 @@ iq2000_rtx_costs (rtx x, machine_mode mode, int outer_code ATTRIBUTE_UNUSED,
       else
 	* total = COSTS_N_INSNS (1);
       break;
-    
+
     case NEG:
       * total = (mode == DImode) ? 4 : 1;
       break;
@@ -3360,16 +3357,16 @@ iq2000_rtx_costs (rtx x, machine_mode mode, int outer_code ATTRIBUTE_UNUSED,
       else
 	* total = COSTS_N_INSNS (69);
       break;
-      
+
     case UDIV:
     case UMOD:
       * total = COSTS_N_INSNS (69);
       break;
-      
+
     case SIGN_EXTEND:
       * total = COSTS_N_INSNS (2);
       break;
-    
+
     case ZERO_EXTEND:
       * total = COSTS_N_INSNS (1);
       break;
@@ -3377,7 +3374,7 @@ iq2000_rtx_costs (rtx x, machine_mode mode, int outer_code ATTRIBUTE_UNUSED,
     case CONST_INT:
       * total = 0;
       break;
-    
+
     case LABEL_REF:
       * total = COSTS_N_INSNS (2);
       break;
@@ -3402,19 +3399,19 @@ iq2000_rtx_costs (rtx x, machine_mode mode, int outer_code ATTRIBUTE_UNUSED,
     case SYMBOL_REF:
       * total = COSTS_N_INSNS (SYMBOL_REF_FLAG (x) ? 1 : 2);
       break;
-    
+
     case CONST_DOUBLE:
       {
 	rtx high, low;
-      
+
 	split_double (x, & high, & low);
-      
+
 	* total = COSTS_N_INSNS (  (high == CONST0_RTX (GET_MODE (high))
 				  || low == CONST0_RTX (GET_MODE (low)))
 				   ? 2 : 4);
 	break;
       }
-    
+
     default:
       return false;
     }

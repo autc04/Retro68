@@ -9,7 +9,6 @@
  */
 module core.sys.windows.imagehlp;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 
@@ -276,7 +275,7 @@ struct IMAGEHLP_DUPLICATE_SYMBOL {
 }
 alias IMAGEHLP_DUPLICATE_SYMBOL* PIMAGEHLP_DUPLICATE_SYMBOL;
 
-mixin DECLARE_HANDLE!("DIGEST_HANDLE");
+alias DIGEST_HANDLE = HANDLE;
 
 extern (Windows) {
     alias BOOL function(IMAGEHLP_STATUS_REASON, LPSTR, LPSTR, ULONG_PTR, ULONG_PTR)
@@ -296,6 +295,7 @@ extern (Windows) {
     alias BOOL function(DIGEST_HANDLE refdata, PBYTE pData, DWORD dwLength)
       DIGEST_FUNCTION;
 
+nothrow @nogc:
     PIMAGE_NT_HEADERS CheckSumMappedFile(LPVOID, DWORD, LPDWORD, LPDWORD);
     DWORD MapFileAndCheckSumA(LPSTR, LPDWORD, LPDWORD);
     DWORD MapFileAndCheckSumW(PWSTR, LPDWORD, LPDWORD);

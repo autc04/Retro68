@@ -47,7 +47,7 @@ of GNAT, and will generate a warning message.
 This child of ``Ada.Characters``
 provides a set of definitions corresponding to those in the
 RM-defined package ``Ada.Characters.Latin_1`` but with the
-few modifications required for ``Latin-9``
+few modifications required for ``Latin-9``.
 The provision of such a package
 is specifically authorized by the Ada Reference Manual
 (RM A.3.3(27)).
@@ -69,12 +69,12 @@ instead of ``Character``.  The provision of such a package
 is specifically authorized by the Ada Reference Manual
 (RM A.3.3(27)).
 
-.. _`Ada.Characters.Wide_Latin_9_(a-cwila1.ads)`:
+.. _`Ada.Characters.Wide_Latin_9_(a-cwila9.ads)`:
 
-``Ada.Characters.Wide_Latin_9`` (:file:`a-cwila1.ads`)
+``Ada.Characters.Wide_Latin_9`` (:file:`a-cwila9.ads`)
 ======================================================
 
-.. index:: Ada.Characters.Wide_Latin_9 (a-cwila1.ads)
+.. index:: Ada.Characters.Wide_Latin_9 (a-cwila9.ads)
 
 .. index:: Latin_9 constants for Wide_Character
 
@@ -120,205 +120,6 @@ instead of ``Character``.  The provision of such a package
 is specifically authorized by the Ada Reference Manual
 (RM A.3.3(27)).
 
-.. _`Ada.Containers.Formal_Doubly_Linked_Lists_(a-cfdlli.ads)`:
-
-``Ada.Containers.Formal_Doubly_Linked_Lists`` (:file:`a-cfdlli.ads`)
-====================================================================
-
-.. index:: Ada.Containers.Formal_Doubly_Linked_Lists (a-cfdlli.ads)
-
-.. index:: Formal container for doubly linked lists
-
-This child of ``Ada.Containers`` defines a modified version of the
-Ada 2005 container for doubly linked lists, meant to facilitate formal
-verification of code using such containers. The specification of this
-unit is compatible with SPARK 2014.
-
-Note that although this container was designed with formal verification
-in mind, it may well be generally useful in that it is a simplified more
-efficient version than the one defined in the standard. In particular it
-does not have the complex overhead required to detect cursor tampering.
-
-.. _`Ada.Containers.Formal_Hashed_Maps_(a-cfhama.ads)`:
-
-``Ada.Containers.Formal_Hashed_Maps`` (:file:`a-cfhama.ads`)
-============================================================
-
-.. index:: Ada.Containers.Formal_Hashed_Maps (a-cfhama.ads)
-
-.. index:: Formal container for hashed maps
-
-This child of ``Ada.Containers`` defines a modified version of the
-Ada 2005 container for hashed maps, meant to facilitate formal
-verification of code using such containers. The specification of this
-unit is compatible with SPARK 2014.
-
-Note that although this container was designed with formal verification
-in mind, it may well be generally useful in that it is a simplified more
-efficient version than the one defined in the standard. In particular it
-does not have the complex overhead required to detect cursor tampering.
-
-.. _`Ada.Containers.Formal_Hashed_Sets_(a-cfhase.ads)`:
-
-``Ada.Containers.Formal_Hashed_Sets`` (:file:`a-cfhase.ads`)
-============================================================
-
-.. index:: Ada.Containers.Formal_Hashed_Sets (a-cfhase.ads)
-
-.. index:: Formal container for hashed sets
-
-This child of ``Ada.Containers`` defines a modified version of the
-Ada 2005 container for hashed sets, meant to facilitate formal
-verification of code using such containers. The specification of this
-unit is compatible with SPARK 2014.
-
-Note that although this container was designed with formal verification
-in mind, it may well be generally useful in that it is a simplified more
-efficient version than the one defined in the standard. In particular it
-does not have the complex overhead required to detect cursor tampering.
-
-.. _`Ada.Containers.Formal_Ordered_Maps_(a-cforma.ads)`:
-
-``Ada.Containers.Formal_Ordered_Maps`` (:file:`a-cforma.ads`)
-=============================================================
-
-.. index:: Ada.Containers.Formal_Ordered_Maps (a-cforma.ads)
-
-.. index:: Formal container for ordered maps
-
-This child of ``Ada.Containers`` defines a modified version of the
-Ada 2005 container for ordered maps, meant to facilitate formal
-verification of code using such containers. The specification of this
-unit is compatible with SPARK 2014.
-
-Note that although this container was designed with formal verification
-in mind, it may well be generally useful in that it is a simplified more
-efficient version than the one defined in the standard. In particular it
-does not have the complex overhead required to detect cursor tampering.
-
-.. _`Ada.Containers.Formal_Ordered_Sets_(a-cforse.ads)`:
-
-``Ada.Containers.Formal_Ordered_Sets`` (:file:`a-cforse.ads`)
-=============================================================
-
-.. index:: Ada.Containers.Formal_Ordered_Sets (a-cforse.ads)
-
-.. index:: Formal container for ordered sets
-
-This child of ``Ada.Containers`` defines a modified version of the
-Ada 2005 container for ordered sets, meant to facilitate formal
-verification of code using such containers. The specification of this
-unit is compatible with SPARK 2014.
-
-Note that although this container was designed with formal verification
-in mind, it may well be generally useful in that it is a simplified more
-efficient version than the one defined in the standard. In particular it
-does not have the complex overhead required to detect cursor tampering.
-
-.. _`Ada.Containers.Formal_Vectors_(a-cofove.ads)`:
-
-``Ada.Containers.Formal_Vectors`` (:file:`a-cofove.ads`)
-========================================================
-
-.. index:: Ada.Containers.Formal_Vectors (a-cofove.ads)
-
-.. index:: Formal container for vectors
-
-This child of ``Ada.Containers`` defines a modified version of the
-Ada 2005 container for vectors, meant to facilitate formal
-verification of code using such containers. The specification of this
-unit is compatible with SPARK 2014.
-
-Note that although this container was designed with formal verification
-in mind, it may well be generally useful in that it is a simplified more
-efficient version than the one defined in the standard. In particular it
-does not have the complex overhead required to detect cursor tampering.
-
-.. _`Ada.Containers.Formal_Indefinite_Vectors_(a-cfinve.ads)`:
-
-``Ada.Containers.Formal_Indefinite_Vectors`` (:file:`a-cfinve.ads`)
-===================================================================
-
-.. index:: Ada.Containers.Formal_Indefinite_Vectors (a-cfinve.ads)
-
-.. index:: Formal container for vectors
-
-This child of ``Ada.Containers`` defines a modified version of the
-Ada 2005 container for vectors of indefinite elements, meant to
-facilitate formal verification of code using such containers. The
-specification of this unit is compatible with SPARK 2014.
-
-Note that although this container was designed with formal verification
-in mind, it may well be generally useful in that it is a simplified more
-efficient version than the one defined in the standard. In particular it
-does not have the complex overhead required to detect cursor tampering.
-
-.. _`Ada.Containers.Functional_Vectors_(a-cofuve.ads)`:
-
-``Ada.Containers.Functional_Vectors`` (:file:`a-cofuve.ads`)
-=================================================================
-
-.. index:: Ada.Containers.Functional_Vectors (a-cofuve.ads)
-
-.. index:: Functional vectors
-
-This child of ``Ada.Containers`` defines immutable vectors. These
-containers are unbounded and may contain indefinite elements. Furthermore, to
-be usable in every context, they are neither controlled nor limited. As they
-are functional, that is, no primitives are provided which would allow modifying
-an existing container, these containers can still be used safely.
-
-Their API features functions creating new containers from existing ones.
-As a consequence, these containers are highly inefficient. They are also
-memory consuming, as the allocated memory is not reclaimed when the container
-is no longer referenced. Thus, they should in general be used in ghost code
-and annotations, so that they can be removed from the final executable. The
-specification of this unit is compatible with SPARK 2014.
-
-.. _`Ada.Containers.Functional_Sets_(a-cofuse.ads)`:
-
-``Ada.Containers.Functional_Sets`` (:file:`a-cofuse.ads`)
-=================================================================
-
-.. index:: Ada.Containers.Functional_Sets (a-cofuse.ads)
-
-.. index:: Functional sets
-
-This child of ``Ada.Containers`` defines immutable sets. These containers are
-unbounded and may contain indefinite elements. Furthermore, to be usable in
-every context, they are neither controlled nor limited. As they are functional,
-that is, no primitives are provided which would allow modifying an existing
-container, these containers can still be used safely.
-
-Their API features functions creating new containers from existing ones.
-As a consequence, these containers are highly inefficient. They are also
-memory consuming, as the allocated memory is not reclaimed when the container
-is no longer referenced. Thus, they should in general be used in ghost code
-and annotations, so that they can be removed from the final executable. The
-specification of this unit is compatible with SPARK 2014.
-
-.. _`Ada.Containers.Functional_Maps_(a-cofuma.ads)`:
-
-``Ada.Containers.Functional_Maps`` (:file:`a-cofuma.ads`)
-=================================================================
-
-.. index:: Ada.Containers.Functional_Maps (a-cofuma.ads)
-
-.. index:: Functional maps
-
-This child of ``Ada.Containers`` defines immutable maps. These containers are
-unbounded and may contain indefinite elements. Furthermore, to be usable in
-every context, they are neither controlled nor limited. As they are functional,
-that is, no primitives are provided which would allow modifying an existing
-container, these containers can still be used safely.
-
-Their API features functions creating new containers from existing ones.
-As a consequence, these containers are highly inefficient. They are also
-memory consuming, as the allocated memory is not reclaimed when the container
-is no longer referenced. Thus, they should in general be used in ghost code
-and annotations, so that they can be removed from the final executable. The
-specification of this unit is compatible with SPARK 2014.
-
 .. _`Ada.Containers.Bounded_Holders_(a-coboho.ads)`:
 
 ``Ada.Containers.Bounded_Holders`` (:file:`a-coboho.ads`)
@@ -358,8 +159,8 @@ where this concept makes sense.
 This child of ``Ada.Command_Line``
 provides a mechanism for logically removing
 arguments from the argument list.  Once removed, an argument is not visible
-to further calls on the subprograms in ``Ada.Command_Line`` will not
-see the removed argument.
+to further calls to the subprograms in ``Ada.Command_Line``. These calls
+will not see the removed argument.
 
 .. _`Ada.Command_Line.Response_File_(a-clrefi.ads)`:
 
@@ -721,6 +522,18 @@ Provides AWK-like parsing functions, with an easy interface for parsing one
 or more files containing formatted data.  The file is viewed as a database
 where each record is a line and a field is a data element in this line.
 
+.. _`GNAT.Binary_Search_(g-binsea.ads)`:
+
+``GNAT.Binary_Search`` (:file:`g-binsea.ads`)
+================================================
+
+.. index:: GNAT.Binary_Search (g-binsea.ads)
+
+.. index:: Binary search
+
+Allow binary search of a sorted array (or of an array-like container;
+the generic does not reference the array directly).
+
 .. _`GNAT.Bind_Environment_(g-binenv.ads)`:
 
 ``GNAT.Bind_Environment`` (:file:`g-binenv.ads`)
@@ -1020,7 +833,7 @@ obtaining information about exceptions provided by Ada 83 compilers.
 
 .. index:: Memory corruption debugging
 
-Provide a debugging storage pools that helps tracking memory corruption
+Provides a debugging storage pools that helps tracking memory corruption
 problems.
 See ``The GNAT Debug_Pool Facility`` section in the :title:`GNAT User's Guide`.
 
@@ -1230,7 +1043,7 @@ a message from a subprogram in a pure package, since the
 necessary types and subprograms are in ``Ada.Exceptions``
 which is not a pure unit. ``GNAT.Exceptions`` provides a
 facility for getting around this limitation for a few
-predefined exceptions, and for example allow raising
+predefined exceptions, and for example allows raising
 ``Constraint_Error`` with a message from a pure subprogram.
 
 .. _`GNAT.Expect_(g-expect.ads)`:
@@ -1285,10 +1098,28 @@ in this package can be used to reestablish the required mode.
 .. index:: Formatted String
 
 Provides support for C/C++ printf() formatted strings. The format is
-copied from the printf() routine and should therefore gives identical
+copied from the printf() routine and should therefore give identical
 output. Some generic routines are provided to be able to use types
 derived from Integer, Float or enumerations as values for the
 formatted string.
+
+.. _`GNAT.Generic_Fast_Math_Functions_(g-gfmafu.ads)`:
+
+``GNAT.Generic_Fast_Math_Functions`` (:file:`g-gfmafu.ads`)
+===========================================================
+
+.. index:: GNAT.Generic_Fast_Math_Functions (g-gfmafu.ads)
+
+.. index:: Mathematical functions
+
+Provides direct access to the underlying implementation of the common
+mathematical functions, generally from the system mathematical library.
+This differs from ``Ada.Numerics.Generic_Elementary_Functions`` in that
+the implementation may deviate from the semantics specified for these
+functions in the Reference Manual, for example ``Numerics.Argument_Error``
+is not raised. On selected platforms, some of these functions may also
+have a vector implementation that can be automatically used by the
+compiler when auto-vectorization is enabled.
 
 .. _`GNAT.Heap_Sort_(g-heasor.ads)`:
 
@@ -1483,7 +1314,7 @@ Provides a generator of static minimal perfect hash functions. No
 collisions occur and each item can be retrieved from the table in one
 probe (perfect property). The hash table size corresponds to the exact
 size of the key set and no larger (minimal property). The key set has to
-be know in advance (static property). The hash functions are also order
+be known in advance (static property). The hash functions are also order
 preserving. If w2 is inserted after w1 in the generator, their
 hashcode are in the same order. These hashing functions are very
 convenient for use with realtime applications.
@@ -1498,7 +1329,9 @@ convenient for use with realtime applications.
 .. index:: Random number generation
 
 Provides random number capabilities which extend those available in the
-standard Ada library and are more convenient to use.
+standard Ada library and are more convenient to use. This package is
+however NOT suitable for situations requiring cryptographically secure
+randomness.
 
 .. _`GNAT.Regexp_(g-regexp.ads)`:
 
@@ -1568,7 +1401,7 @@ this interface usable for large files or socket streams.
 
 .. index:: Secondary Stack Info
 
-Provide the capability to query the high water mark of the current task's
+Provides the capability to query the high water mark of the current task's
 secondary stack.
 
 .. _`GNAT.Semaphores_(g-semaph.ads)`:
@@ -1683,7 +1516,7 @@ targets.
 A high level and portable interface to develop sockets based applications.
 This package is based on the sockets thin binding found in
 ``GNAT.Sockets.Thin``. Currently ``GNAT.Sockets`` is implemented
-on all native GNAT ports and on VxWorks cross prots.  It is not implemented for
+on all native GNAT ports and on VxWorks cross ports.  It is not implemented for
 the LynxOS cross port.
 
 .. _`GNAT.Source_Info_(g-souinf.ads)`:
@@ -1950,12 +1783,12 @@ in various debugging situations.
 
 .. index:: Trace back facilities
 
-.. _`GNAT.UTF_32_(g-table.ads)`:
+.. _`GNAT.UTF_32_(g-utf_32.ads)`:
 
-``GNAT.UTF_32`` (:file:`g-table.ads`)
-=====================================
+``GNAT.UTF_32`` (:file:`g-utf_32.ads`)
+======================================
 
-.. index:: GNAT.UTF_32 (g-table.ads)
+.. index:: GNAT.UTF_32 (g-utf_32.ads)
 
 .. index:: Wide character codes
 
@@ -1969,12 +1802,12 @@ lexical rules for identifiers and strings, and also a
 lower case to upper case fold routine corresponding to
 the Ada 2005 rules for identifier equivalence.
 
-.. _`GNAT.Wide_Spelling_Checker_(g-u3spch.ads)`:
+.. _`GNAT.UTF_32_Spelling_Checker_(g-u3spch.ads)`:
 
-``GNAT.Wide_Spelling_Checker`` (:file:`g-u3spch.ads`)
-=====================================================
+``GNAT.UTF_32_Spelling_Checker`` (:file:`g-u3spch.ads`)
+=======================================================
 
-.. index:: GNAT.Wide_Spelling_Checker (g-u3spch.ads)
+.. index:: GNAT.UTF_32_Spelling_Checker (g-u3spch.ads)
 
 .. index:: Spell checking
 
@@ -2084,23 +1917,6 @@ mainframes.
 .. index:: VxWorks, interfacing
 
 This package provides a limited binding to the VxWorks API.
-In particular, it interfaces with the
-VxWorks hardware interrupt facilities.
-
-.. _`Interfaces.VxWorks.Int_Connection_(i-vxinco.ads)`:
-
-``Interfaces.VxWorks.Int_Connection`` (:file:`i-vxinco.ads`)
-============================================================
-
-.. index:: Interfaces.VxWorks.Int_Connection (i-vxinco.ads)
-
-.. index:: Interfacing to VxWorks
-
-.. index:: VxWorks, interfacing
-
-This package provides a way for users to replace the use of
-intConnect() with a custom routine for installing interrupt
-handlers.
 
 .. _`Interfaces.VxWorks.IO_(i-vxwoio.ads)`:
 
@@ -2177,7 +1993,7 @@ x86, and x86_64 platforms.
 
 This package provides the interface to the low level routines used
 by the generated code for allocation and freeing storage for the
-default storage pool (analogous to the C routines malloc and free.
+default storage pool (analogous to the C routines malloc and free).
 It also provides a reallocation interface analogous to the C routine
 realloc. The body of this unit may be modified to provide alternative
 allocation mechanisms for the default pool, and in addition, direct

@@ -1,12 +1,13 @@
 /**
  * Flow analysis for Ownership/Borrowing
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/ob.d, _ob.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/ob.d, _ob.d)
  * Documentation:  https://dlang.org/phobos/dmd_escape.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/ob.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/ob.d
+ * References:  https://github.com/dlang/DIPs/blob/master/DIPs/accepted/DIP1021.md Argument Ownership and Function Calls
  */
 
 module dmd.ob;
@@ -16,11 +17,10 @@ import core.stdc.stdlib;
 import core.stdc.string;
 
 import dmd.root.array;
-import dmd.root.rootobject;
+import dmd.rootobject;
 import dmd.root.rmem;
 
 import dmd.aggregate;
-import dmd.apply;
 import dmd.arraytypes;
 import dmd.astenums;
 import dmd.declaration;
@@ -30,17 +30,21 @@ import dmd.dtemplate;
 import dmd.errors;
 import dmd.escape;
 import dmd.expression;
-import dmd.foreachvar;
+
 import dmd.func;
 import dmd.globals;
+import dmd.hdrgen;
 import dmd.identifier;
 import dmd.init;
+import dmd.location;
 import dmd.mtype;
 import dmd.printast;
 import dmd.statement;
 import dmd.stmtstate;
 import dmd.tokens;
+import dmd.typesem;
 import dmd.visitor;
+import dmd.visitor.foreachvar;
 
 import dmd.root.bitarray;
 import dmd.common.outbuffer;
@@ -114,7 +118,7 @@ struct ObNode
     PtrVarState[] input;  /// variable states on entry to exp
     PtrVarState[] output; /// variable states on exit to exp
 
-    this(ObNode* tryBlock)
+    this(ObNode* tryBlock) scope
     {
         this.tryBlock = tryBlock;
     }
@@ -145,7 +149,7 @@ enum ObType : ubyte
     fend,
 }
 
-string toString(ObType obtype)
+string toString(ObType obtype) @safe
 {
     return obtype == ObType.goto_     ? "goto  "  :
            obtype == ObType.return_   ? "ret   "  :
@@ -197,12 +201,12 @@ enum PtrState : ubyte
 
 /************
  */
-const(char)* toChars(PtrState state)
+const(char)* PtrStateToChars(PtrState state)
 {
     return toString(state).ptr;
 }
 
-string toString(PtrState state)
+string toString(PtrState state) @safe
 {
     return ["Initial", "Undefined", "Owner", "Borrowed", "Readonly"][state];
 }
@@ -226,6 +230,8 @@ struct PtrVarState
      * are being merged
      * Params:
      *  pvs = path to be merged with `this`
+     *  vi = variable's index into gen[]
+     *  gen = array of variable states
      */
     void combine(ref PtrVarState pvs, size_t vi, PtrVarState[] gen)
     {
@@ -280,6 +286,9 @@ struct PtrVarState
     }
 
     /***********************
+     * Print a bracketed list of all the variables that depend on 'this'
+     * Params:
+     *  vars = variables that depend on 'this'
      */
     void print(VarDeclaration[] vars)
     {
@@ -370,7 +379,7 @@ void toObNodes(ref ObNodes obnodes, Statement s)
             return ob;
         }
 
-        // block_goto(blx, BCgoto, null)
+        // block_goto(blx, BC.goto_, null)
         ObNode* gotoNextNode()
         {
             return gotoNextNodeIs(newNode());
@@ -565,7 +574,7 @@ void toObNodes(ref ObNodes obnodes, Statement s)
              */
             mystate.defaultBlock = s.sdefault ? newNode() : mystate.breakBlock;
 
-            const numcases = s.cases ? s.cases.dim : 0;
+            const numcases = s.cases ? s.cases.length : 0;
 
             /* allocate a block for each case
              */
@@ -843,10 +852,10 @@ void toObNodes(ref ObNodes obnodes, Statement s)
             case STMT.Conditional:
             case STMT.While:
             case STMT.Forwarding:
-            case STMT.Compile:
+            case STMT.Mixin:
             case STMT.Peel:
             case STMT.Synchronized:
-                debug printf("s: %s\n", s.toChars());
+                debug printf("s: %s\n", toChars(s));
                 assert(0);              // should have been rewritten
         }
     }
@@ -1012,7 +1021,7 @@ void insertFinallyBlockGotos(ref ObNodes obnodes)
  * Set the `index` field of each ObNode
  * to its index in the `obnodes[]` array.
  */
-void numberNodes(ref ObNodes obnodes)
+void numberNodes(ref ObNodes obnodes) @safe
 {
     //printf("numberNodes()\n");
     foreach (i, ob; obnodes)
@@ -1113,8 +1122,8 @@ bool isTrackableVar(VarDeclaration v)
     /* Assume types with a destructor are doing their own tracking,
      * such as being a ref counted type
      */
-    if (v.needsScopeDtor())
-        return false;
+//    if (v.needsScopeDtor())
+//        return false;
 
     /* Not tracking function parameters that are not mutable
      */
@@ -1231,7 +1240,8 @@ void allocStates(ref ObState obstate)
  */
 bool isBorrowedPtr(VarDeclaration v)
 {
-    return v.isScope() && !v.isowner && v.type.nextOf().isMutable();
+    return v.isScope() && !v.isowner &&
+        v.type.hasPointersToMutableFields();
 }
 
 /******************************
@@ -1241,7 +1251,7 @@ bool isBorrowedPtr(VarDeclaration v)
  */
 bool isReadonlyPtr(VarDeclaration v)
 {
-    return v.isScope() && !v.type.nextOf().isMutable();
+    return v.isScope() && !v.type.hasPointersToMutableFields();
 }
 
 /***************************************
@@ -1251,7 +1261,7 @@ void genKill(ref ObState obstate, ObNode* ob)
 {
     enum log = false;
     if (log)
-        printf("-----------computeGenKill()-----------\n");
+        printf("-----------computeGenKill() %d -----------\n", ob.index);
 
     /***************
      * Assigning result of expression `e` to variable `v`.
@@ -1274,8 +1284,6 @@ void genKill(ref ObState obstate, ObNode* ob)
                 pvs.state = PtrState.Owner;
             pvs.deps.zero();
 
-            EscapeByResults er;
-            escapeByValue(e, &er, true);
             bool any = false;           // if any variables are assigned to v
 
             void by(VarDeclaration r)
@@ -1305,10 +1313,7 @@ void genKill(ref ObState obstate, ObNode* ob)
                 }
             }
 
-            foreach (VarDeclaration v2; er.byvalue)
-                by(v2);
-            foreach (VarDeclaration v2; er.byref)
-                by(v2);
+            escapeLive(e, &by);
 
             /* Make v an Owner for initializations like:
              *    scope v = malloc();
@@ -1331,7 +1336,7 @@ void genKill(ref ObState obstate, ObNode* ob)
         }
     }
 
-    void dgReadVar(const ref Loc loc, ObNode* ob, VarDeclaration v, bool mutable)
+    void dgReadVar(Loc loc, ObNode* ob, VarDeclaration v, bool mutable)
     {
         if (log)
             printf("dgReadVar() %s %d\n", v.toChars(), mutable);
@@ -1346,13 +1351,13 @@ void genKill(ref ObState obstate, ObNode* ob)
         {
             alias visit = typeof(super).visit;
             extern (D) void delegate(ObNode*, VarDeclaration, Expression, bool) dgWriteVar;
-            extern (D) void delegate(const ref Loc loc, ObNode* ob, VarDeclaration v, bool mutable) dgReadVar;
+            extern (D) void delegate(Loc loc, ObNode* ob, VarDeclaration v, bool mutable) dgReadVar;
             ObNode* ob;
             ObState* obstate;
 
             extern (D) this(void delegate(ObNode*, VarDeclaration, Expression, bool) dgWriteVar,
-                            void delegate(const ref Loc loc, ObNode* ob, VarDeclaration v, bool mutable) dgReadVar,
-                            ObNode* ob, ref ObState obstate)
+                            void delegate(Loc loc, ObNode* ob, VarDeclaration v, bool mutable) dgReadVar,
+                            ObNode* ob, ref ObState obstate) scope
             {
                 this.dgWriteVar = dgWriteVar;
                 this.dgReadVar  = dgReadVar;
@@ -1407,16 +1412,7 @@ void genKill(ref ObState obstate, ObNode* ob)
                     }
                     else if (auto td = s.isTupleDeclaration())
                     {
-                        foreach (o; *td.objects)
-                        {
-                            if (auto eo = o.isExpression())
-                            {
-                                if (auto se = eo.isDsymbolExp())
-                                {
-                                    Dsymbol_visit(se.s);
-                                }
-                            }
-                        }
+                        td.foreachVar(&Dsymbol_visit);
                     }
                 }
 
@@ -1444,6 +1440,41 @@ void genKill(ref ObState obstate, ObNode* ob)
                     assert(t.ty == Tdelegate);
                     tf = t.nextOf().isTypeFunction();
                     assert(tf);
+
+                }
+
+                if (auto dve = ce.e1.isDotVarExp())
+                {
+                    if (!t.isTypeDelegate() && dve.e1.isVarExp())
+                    {
+                        //printf("dve: %s\n", dve.toChars());
+
+                        void byf(VarDeclaration v)
+                        {
+                            //printf("byf v: %s\n", v.ident.toChars());
+                            if (!isTrackableVar(v))
+                                return;
+
+                            const vi = obstate.vars.find(v);
+                            if (vi == size_t.max)
+                                return;
+
+                            auto fd = dve.var.isFuncDeclaration();
+                            if (fd && fd.storage_class & STC.scope_)
+                            {
+                                // borrow
+                                obstate.varStack.push(vi);
+                                obstate.mutableStack.push(isMutableRef(dve.e1.type.toBasetype()));
+                            }
+                            else
+                            {
+                                // move (i.e. consume arg)
+                                makeUndefined(vi, ob.gen);
+                            }
+                        }
+
+                        escapeLive(dve.e1, &byf);
+                    }
                 }
 
                 // j=1 if _arguments[] is first argument
@@ -1459,14 +1490,13 @@ void genKill(ref ObState obstate, ObNode* ob)
                         Parameter p = tf.parameterList[i - j];
                         auto pt = p.type.toBasetype();
 
-                        EscapeByResults er;
-                        escapeByValue(arg, &er, true);
 
                         if (!(p.storageClass & STC.out_ && arg.isVarExp()))
                             arg.accept(this);
 
                         void by(VarDeclaration v)
                         {
+                            //printf("by v: %s\n", v.ident.toChars());
                             if (!isTrackableVar(v))
                                 return;
 
@@ -1493,17 +1523,11 @@ void genKill(ref ObState obstate, ObNode* ob)
                             }
                         }
 
-                        foreach (VarDeclaration v2; er.byvalue)
-                            by(v2);
-                        foreach (VarDeclaration v2; er.byref)
-                            by(v2);
+                        escapeLive(arg, &by);
                     }
                     else // variadic args
                     {
                         arg.accept(this);
-
-                        EscapeByResults er;
-                        escapeByValue(arg, &er, true);
 
                         void byv(VarDeclaration v)
                         {
@@ -1526,10 +1550,7 @@ void genKill(ref ObState obstate, ObNode* ob)
                                 makeUndefined(vi, ob.gen);
                         }
 
-                        foreach (VarDeclaration v2; er.byvalue)
-                            byv(v2);
-                        foreach (VarDeclaration v2; er.byref)
-                            byv(v2);
+                        escapeLive(arg, &byv);
                     }
                 }
 
@@ -1662,7 +1683,7 @@ void genKill(ref ObState obstate, ObNode* ob)
             override void visit(ArrayLiteralExp e)
             {
                 Type tb = e.type.toBasetype();
-                if (tb.ty == Tsarray || tb.ty == Tarray)
+                if (tb.isStaticOrDynamicArray())
                 {
                     if (e.basis)
                         e.basis.accept(this);
@@ -1702,6 +1723,8 @@ void genKill(ref ObState obstate, ObNode* ob)
 
             override void visit(NewExp e)
             {
+                if (e.placement)
+                    e.placement.accept(this);
                 if (e.arguments)
                 {
                     foreach (ex; *e.arguments)
@@ -1730,6 +1753,15 @@ void genKill(ref ObState obstate, ObNode* ob)
     }
 
     foreachExp(ob, ob.exp);
+
+    if (log)
+    {
+        printf("  gen:\n");
+        foreach (i, ref pvs2; ob.gen[])
+        {
+            printf("    %s: ", obstate.vars[i].toChars()); pvs2.print(obstate.vars[]);
+        }
+    }
 }
 
 /***************************************
@@ -1955,6 +1987,25 @@ void doDataFlowAnalysis(ref ObState obstate)
 
 
 /***************************************
+ * Check for escaping variables using DIP1000's `escapeByValue`, with `live` set to `true`
+ * Params:
+ *   e = expression to check
+ *   onVar = gets called for each variable escaped through `e`, either by value or by ref
+ */
+void escapeLive(Expression e, scope void delegate(VarDeclaration) onVar)
+{
+    scope EscapeByResults er = EscapeByResults(
+        (VarDeclaration v, bool) => onVar(v),
+        onVar,
+        (FuncDeclaration f, bool) {},
+        (Expression e, bool) {},
+        true,
+    );
+
+    escapeByValue(e, er);
+}
+
+/***************************************
  * Check for Ownership/Borrowing errors.
  */
 void checkObErrors(ref ObState obstate)
@@ -1979,14 +2030,12 @@ void checkObErrors(ref ObState obstate)
             else
             {
                 if (pvs.state == PtrState.Owner && v.type.hasPointersToMutableFields())
-                    v.error(e.loc, "assigning to Owner without disposing of owned value");
+                    .error(e.loc, "%s `%s` assigning to Owner without disposing of owned value", v.kind, v.toPrettyChars);
 
                 pvs.state = PtrState.Owner;
             }
             pvs.deps.zero();
 
-            EscapeByResults er;
-            escapeByValue(e, &er, true);
 
             void by(VarDeclaration r)   // `v` = `r`
             {
@@ -2002,12 +2051,12 @@ void checkObErrors(ref ObState obstate)
 
                     if (pvsr.state == Undefined)
                     {
-                        v.error(e.loc, "is reading from `%s` which is Undefined", r.toChars());
+                        .error(e.loc, "%s `%s` is reading from `%s` which is Undefined", v.kind, v.toPrettyChars, r.toChars());
                     }
                     else if (isBorrowedPtr(v))  // v is going to borrow from r
                     {
                         if (pvsr.state == Readonly)
-                            v.error(e.loc, "is borrowing from `%s` which is Readonly", r.toChars());
+                            .error(e.loc, "%s `%s` is borrowing from `%s` which is Readonly", v.kind, v.toPrettyChars, r.toChars());
 
                         pvs.state = Borrowed;
                     }
@@ -2024,10 +2073,7 @@ void checkObErrors(ref ObState obstate)
                 }
             }
 
-            foreach (VarDeclaration v2; er.byvalue)
-                by(v2);
-            foreach (VarDeclaration v2; er.byref)
-                by(v2);
+            escapeLive(e, &by);
         }
         else
         {
@@ -2041,14 +2087,14 @@ void checkObErrors(ref ObState obstate)
         }
     }
 
-    void dgReadVar(const ref Loc loc, ObNode* ob, VarDeclaration v, bool mutable, PtrVarState[] gen)
+    void dgReadVar(Loc loc, ObNode* ob, VarDeclaration v, bool mutable, PtrVarState[] gen)
     {
         if (log) printf("dgReadVar() %s\n", v.toChars());
         const vi = obstate.vars.find(v);
         assert(vi != size_t.max);
         auto pvs = &gen[vi];
         if (pvs.state == PtrState.Undefined)
-            v.error(loc, "has undefined state and cannot be read");
+            .error(loc, "%s `%s` has undefined state and cannot be read", v.kind, v.toPrettyChars);
 
         readVar(ob, vi, mutable, gen);
     }
@@ -2059,14 +2105,14 @@ void checkObErrors(ref ObState obstate)
         {
             alias visit = typeof(super).visit;
             extern (D) void delegate(ObNode*, PtrVarState[], VarDeclaration, Expression) dgWriteVar;
-            extern (D) void delegate(const ref Loc loc, ObNode* ob, VarDeclaration v, bool mutable, PtrVarState[]) dgReadVar;
+            extern (D) void delegate(Loc loc, ObNode* ob, VarDeclaration v, bool mutable, PtrVarState[]) dgReadVar;
             PtrVarState[] cpvs;
             ObNode* ob;
             ObState* obstate;
 
-            extern (D) this(void delegate(const ref Loc loc, ObNode* ob, VarDeclaration v, bool mutable, PtrVarState[]) dgReadVar,
+            extern (D) this(void delegate(Loc loc, ObNode* ob, VarDeclaration v, bool mutable, PtrVarState[]) dgReadVar,
                             void delegate(ObNode*, PtrVarState[], VarDeclaration, Expression) dgWriteVar,
-                            PtrVarState[] cpvs, ObNode* ob, ref ObState obstate)
+                            PtrVarState[] cpvs, ObNode* ob, ref ObState obstate) scope
             {
                 this.dgReadVar  = dgReadVar;
                 this.dgWriteVar = dgWriteVar;
@@ -2107,16 +2153,7 @@ void checkObErrors(ref ObState obstate)
                     }
                     else if (auto td = s.isTupleDeclaration())
                     {
-                        foreach (o; *td.objects)
-                        {
-                            if (auto eo = o.isExpression())
-                            {
-                                if (auto se = eo.isDsymbolExp())
-                                {
-                                    Dsymbol_visit(se.s);
-                                }
-                            }
-                        }
+                        td.foreachVar(&Dsymbol_visit);
                     }
                 }
 
@@ -2175,8 +2212,6 @@ void checkObErrors(ref ObState obstate)
                         if (!(p.storageClass & STC.out_ && arg.isVarExp()))
                             arg.accept(this);
 
-                        EscapeByResults er;
-                        escapeByValue(arg, &er, true);
 
                         void by(VarDeclaration v)
                         {
@@ -2205,23 +2240,16 @@ void checkObErrors(ref ObState obstate)
                             {
                                 // move (i.e. consume arg)
                                 if (pvs.state != PtrState.Owner)
-                                    v.error(arg.loc, "is not Owner, cannot consume its value");
+                                    .error(arg.loc, "%s `%s` is not Owner, cannot consume its value", v.kind, v.toPrettyChars);
                                 makeUndefined(vi, cpvs);
                             }
                         }
 
-                        foreach (VarDeclaration v2; er.byvalue)
-                            by(v2);
-                        foreach (VarDeclaration v2; er.byref)
-                            by(v2);
+                        escapeLive(arg, &by);
                     }
                     else // variadic args
                     {
                         arg.accept(this);
-
-                        EscapeByResults er;
-                        escapeByValue(arg, &er, true);
-
                         void byv(VarDeclaration v)
                         {
                             if (!isTrackableVar(v))
@@ -2244,15 +2272,12 @@ void checkObErrors(ref ObState obstate)
                             {
                                 // move (i.e. consume arg)
                                 if (pvs.state != PtrState.Owner)
-                                    v.error(arg.loc, "is not Owner, cannot consume its value");
+                                    .error(arg.loc, "%s `%s` is not Owner, cannot consume its value", v.kind, v.toPrettyChars);
                                 makeUndefined(vi, cpvs);
                             }
                         }
 
-                        foreach (VarDeclaration v2; er.byvalue)
-                            byv(v2);
-                        foreach (VarDeclaration v2; er.byref)
-                            byv(v2);
+                        escapeLive(arg, &byv);
                     }
                 }
 
@@ -2279,7 +2304,7 @@ void checkObErrors(ref ObState obstate)
                             {
                                 if (obstate.mutableStack[vi] || obstate.mutableStack[vk])
                                 {
-                                    v.error(ce.loc, "is passed as Owner more than once");
+                                    .error(ce.loc, "%s `%s` is passed as Owner more than once", v.kind, v.toPrettyChars);
                                     break;  // no need to continue
                                 }
                             }
@@ -2401,7 +2426,7 @@ void checkObErrors(ref ObState obstate)
             override void visit(ArrayLiteralExp e)
             {
                 Type tb = e.type.toBasetype();
-                if (tb.ty == Tsarray || tb.ty == Tarray)
+                if (tb.isStaticOrDynamicArray())
                 {
                     if (e.basis)
                         e.basis.accept(this);
@@ -2441,6 +2466,9 @@ void checkObErrors(ref ObState obstate)
 
             override void visit(NewExp e)
             {
+                if (e.placement)
+                    e.placement.accept(this);
+
                 if (e.arguments)
                 {
                     foreach (ex; *e.arguments)
@@ -2478,7 +2506,7 @@ void checkObErrors(ref ObState obstate)
     {
         static if (log)
         {
-            printf("%d: %s\n", obi, ob.exp ? ob.exp.toChars() : "".ptr);
+            printf("%d: %s\n", cast(int) obi, ob.exp ? ob.exp.toChars() : "".ptr);
             printf("  input:\n");
             foreach (i, ref pvs; ob.input[])
             {
@@ -2508,7 +2536,9 @@ void checkObErrors(ref ObState obstate)
                     if (s1 != s2 && (s1 == PtrState.Owner || s2 == PtrState.Owner))
                     {
                         auto v = obstate.vars[i];
-                        v.error(ob.exp ? ob.exp.loc : v.loc, "is both %s and %s", s1.toChars(), s2.toChars());
+                        // Don't worry about non-pointers
+                        if (hasPointers(v.type))
+                            .error(ob.exp ? ob.exp.loc : v.loc, "%s `%s` is both %s and %s", v.kind, v.toPrettyChars, PtrStateToChars(s1), PtrStateToChars(s2));
                     }
                     pvs1.combine(*pvs2, i, ob.gen);
                 }
@@ -2540,9 +2570,6 @@ void checkObErrors(ref ObState obstate)
 
         if (ob.obtype == ObType.retexp)
         {
-            EscapeByResults er;
-            escapeByValue(ob.exp, &er, true);
-
             void by(VarDeclaration r)   // `r` is the rvalue
             {
                 const ri = obstate.vars.find(r);
@@ -2554,7 +2581,7 @@ void checkObErrors(ref ObState obstate)
                     switch (pvsr.state)
                     {
                         case Undefined:
-                            r.error(ob.exp.loc, "is returned but is Undefined");
+                            .error(ob.exp.loc, "%s `%s` is returned but is Undefined", r.kind, r.toPrettyChars);
                             break;
 
                         case Owner:
@@ -2570,11 +2597,7 @@ void checkObErrors(ref ObState obstate)
                     }
                 }
             }
-
-            foreach (VarDeclaration v2; er.byvalue)
-                by(v2);
-            foreach (VarDeclaration v2; er.byref)
-                by(v2);
+            escapeLive(ob.exp, &by);
         }
 
         if (ob.obtype == ObType.return_ || ob.obtype == ObType.retexp)
@@ -2584,9 +2607,10 @@ void checkObErrors(ref ObState obstate)
                 //printf("%s: ", obstate.vars[i].toChars()); pvs.print(obstate.vars[]);
                 if (pvs.state == PtrState.Owner)
                 {
+                    import dmd.typesem : hasPointers;
                     auto v = obstate.vars[i];
                     if (v.type.hasPointers())
-                        v.error(v.loc, "is left dangling at return");
+                        .error(v.loc, "%s `%s` is not disposed of before return", v.kind, v.toPrettyChars);
                 }
             }
         }
@@ -2666,6 +2690,9 @@ void makeChildrenUndefined(size_t vi, PtrVarState[] gen)
 
 /********************
  * Recursively make Undefined vi undefined and all who list vi as a dependency
+ * Params:
+ *    vi = variable's index
+ *    gen = array of the states of variables
  */
 void makeUndefined(size_t vi, PtrVarState[] gen)
 {

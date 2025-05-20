@@ -2,7 +2,7 @@
 /* { dg-options "-O2 -mcpu=5208 -w" } */
 
 void __attribute__ ((noinline))
-oof()
+oof(const char *s)
 {
   asm volatile ("" ::: "memory");
 }
@@ -32,13 +32,13 @@ int main(int argc, char *argv[])
     myaddr = 0x0;
     ret = print_info(&myaddr);
     if (!ret)
-        abort ();
+        __builtin_abort ();
 
     myaddr = 0x01020304;
     ret = print_info(&myaddr);
     if (ret)
-        abort ();
-    exit (0);
+        __builtin_abort ();
+    __builtin_exit (0);
 }
 
 

@@ -166,7 +166,6 @@ public:
         Thread.sleep(usecs(1));
 
         sw.reset();
-        assert(sw.peek() < msecs(1));
         assert(sw._timeStarted > before);
         assert(sw._timeStarted <= MonoTime.currTime);
     }
@@ -234,7 +233,7 @@ public:
 
 
     /++
-       Peek at the amount of time that the the StopWatch has been running.
+       Peek at the amount of time that the StopWatch has been running.
 
        This does not include any time during which the StopWatch was stopped but
        does include $(I all) of the time that it was running and not just the

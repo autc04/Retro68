@@ -1,6 +1,6 @@
 // <extptr_allocator.h> -*- C++ -*-
 
-// Copyright (C) 2008-2022 Free Software Foundation, Inc.
+// Copyright (C) 2008-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,6 +36,8 @@
 #ifndef _EXTPTR_ALLOCATOR_H
 #define _EXTPTR_ALLOCATOR_H 1
 
+#include <bits/requires_hosted.h> // GNU extensions are currently omitted
+
 #include <memory>
 #include <ext/numeric_traits.h>
 #include <ext/pointer.h>
@@ -61,7 +63,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       // Note the non-standard pointer types.
       typedef _Pointer_adapter<_Relative_pointer_impl<_Tp> >       pointer;
-      typedef _Pointer_adapter<_Relative_pointer_impl<const _Tp> > 
+      typedef _Pointer_adapter<_Relative_pointer_impl<const _Tp> >
                                                              const_pointer;
 
       typedef _Tp&       reference;
@@ -72,7 +74,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
         struct rebind
         { typedef _ExtPtr_allocator<_Up> other; };
 
-      _ExtPtr_allocator() _GLIBCXX_USE_NOEXCEPT 
+      _ExtPtr_allocator() _GLIBCXX_USE_NOEXCEPT
       : _M_real_alloc() { }
 
       _ExtPtr_allocator(const _ExtPtr_allocator& __rarg) _GLIBCXX_USE_NOEXCEPT
@@ -113,7 +115,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	{ construct(__p.get(), std::forward<_Args>(__args)...); }
 
       template<typename _Up>
-        void 
+        void
         destroy(_Up* __p)
         { __p->~_Up(); }
 

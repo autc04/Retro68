@@ -1,7 +1,7 @@
 /* Definitions of target machine for GNU compiler,
    for m68k (including m68010) NetBSD platforms using the
    ELF object format.
-   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+   Copyright (C) 2002-2025 Free Software Foundation, Inc.
    Contributed by Wasabi Systems. Inc.
 
    This file is derived from <m68k/m68kv4.h>, <m68k/m68kelf.h>,
@@ -35,9 +35,9 @@ along with GCC; see the file COPYING3.  If not see
     }						\
   while (0)
 
-/* Don't try using XFmode on the 68010.  */ 
-#undef LONG_DOUBLE_TYPE_SIZE
-#define LONG_DOUBLE_TYPE_SIZE (TARGET_68020 ? 80 : 64)
+/* Don't try using XFmode on the 68010.  */
+#undef LONG_DOUBLE_TYPE_MODE
+#define LONG_DOUBLE_TYPE_MODE (TARGET_68020 ? XFmode : DFmode)
 
 #undef SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS \
@@ -137,12 +137,12 @@ while (0)
 	if (ADDRESS_REG_P (operands[0]))		\
 	  return "jmp %%pc@(2,%0:l)";			\
 	else if (TARGET_LONG_JUMP_TABLE_OFFSETS)	\
-	  return "jmp %%pc@(2,%0:l)";			\
+	  return "jmp %%pc@(%l1,%0:l)";			\
 	else						\
 	  return "ext%.l %0\n\tjmp %%pc@(2,%0:l)";	\
       }							\
     else if (TARGET_LONG_JUMP_TABLE_OFFSETS)		\
-      return "jmp %%pc@(2,%0:l)";			\
+      return "jmp %%pc@(%l1,%0:l)";			\
     else						\
       return "jmp %%pc@(2,%0:w)";			\
   } while (0)
@@ -215,13 +215,13 @@ while (0)
 #define M68K_STATIC_CHAIN_REG_NAME REGISTER_PREFIX "a1"
 
 
-/* Now to renumber registers for dbx and gdb.
+/* Now to renumber registers for gdb.
    We use the Sun-3 convention, which is:
    floating point registers have numbers 18 to 25, not
    16 to 23 as they do in the compiler.  */
 
-#undef DBX_REGISTER_NUMBER
-#define DBX_REGISTER_NUMBER(REGNO) ((REGNO) < 16 ? (REGNO) : (REGNO) + 2)
+#undef DEBUGGER_REGNO
+#define DEBUGGER_REGNO(REGNO) ((REGNO) < 16 ? (REGNO) : (REGNO) + 2)
 
 
 /* 1 if N is a possible register number for a function value.  For

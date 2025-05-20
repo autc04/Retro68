@@ -30,6 +30,7 @@ else version (WatchOS)
 version (ARM)     version = ARM_Any;
 version (AArch64) version = ARM_Any;
 version (HPPA)    version = HPPA_Any;
+version (HPPA64)  version = HPPA_Any;
 version (MIPS32)  version = MIPS_Any;
 version (MIPS64)  version = MIPS_Any;
 version (PPC)     version = PPC_Any;
@@ -45,7 +46,6 @@ version (X86_64)  version = X86_Any;
 
 version (Posix):
 extern (C) nothrow @nogc:
-@system:
 
 //
 // Required
@@ -188,10 +188,40 @@ version (linux)
 
     extern (D) inout(ubyte)*   CMSG_DATA( return scope inout(cmsghdr)* cmsg ) pure nothrow @nogc { return cast(ubyte*)( cmsg + 1 ); }
 
-    private inout(cmsghdr)* __cmsg_nxthdr(inout(msghdr)*, inout(cmsghdr)*) pure nothrow @nogc;
-    extern (D)  inout(cmsghdr)* CMSG_NXTHDR(inout(msghdr)* msg, inout(cmsghdr)* cmsg) pure nothrow @nogc
+    version (CRuntime_Musl)
     {
-        return __cmsg_nxthdr(msg, cmsg);
+        extern (D)
+        {
+            private size_t __CMSG_LEN(inout(cmsghdr)* cmsg) pure nothrow @nogc
+            {
+                return (cmsg.cmsg_len + size_t.sizeof -1) & cast(size_t)(~(size_t.sizeof - 1));
+            }
+
+            private inout(cmsghdr)* __CMSG_NEXT(inout(cmsghdr)* cmsg) pure nothrow @nogc
+            {
+                return cmsg + __CMSG_LEN(cmsg);
+            }
+
+            private inout(msghdr)* __MHDR_END(inout(msghdr)* mhdr) pure nothrow @nogc
+            {
+                return cast(inout(msghdr)*)(mhdr.msg_control + mhdr.msg_controllen);
+            }
+
+            inout(cmsghdr)* CMSG_NXTHDR(inout(msghdr)* msg, inout(cmsghdr)* cmsg) pure nothrow @nogc
+            {
+                return cmsg.cmsg_len < cmsghdr.sizeof ||
+                    __CMSG_LEN(cmsg) + cmsghdr.sizeof >= __MHDR_END(msg) - cast(inout(msghdr)*)(cmsg)
+                        ? cast(inout(cmsghdr)*) null : cast(inout(cmsghdr)*) __CMSG_NEXT(cmsg);
+            }
+        }
+    }
+    else
+    {
+        private inout(cmsghdr)* __cmsg_nxthdr(inout(msghdr)*, inout(cmsghdr)*) pure nothrow @nogc;
+        extern (D)  inout(cmsghdr)* CMSG_NXTHDR(inout(msghdr)* msg, inout(cmsghdr)* cmsg) pure nothrow @nogc
+        {
+            return __cmsg_nxthdr(msg, cmsg);
+        }
     }
 
     extern (D) inout(cmsghdr)* CMSG_FIRSTHDR( inout(msghdr)* mhdr ) pure nothrow @nogc
@@ -288,6 +318,7 @@ version (linux)
             SO_RCVLOWAT     = 0x1004,
             SO_RCVTIMEO     = 0x1006,
             SO_REUSEADDR    = 0x0004,
+            SO_REUSEPORT    = 0x0200,
             SO_SNDBUF       = 0x1001,
             SO_SNDLOWAT     = 0x1003,
             SO_SNDTIMEO     = 0x1005,
@@ -322,6 +353,7 @@ version (linux)
             SO_RCVLOWAT     = 0x1004,
             SO_RCVTIMEO     = 0x1006,
             SO_REUSEADDR    = 0x0004,
+            SO_REUSEPORT    = 0x0200,
             SO_SNDBUF       = 0x1001,
             SO_SNDLOWAT     = 0x1003,
             SO_SNDTIMEO     = 0x1005,
@@ -356,6 +388,7 @@ version (linux)
             SO_RCVLOWAT     = 16,
             SO_RCVTIMEO     = 18,
             SO_REUSEADDR    = 2,
+            SO_REUSEPORT    = 15,
             SO_SNDBUF       = 7,
             SO_SNDLOWAT     = 17,
             SO_SNDTIMEO     = 19,
@@ -425,6 +458,7 @@ version (linux)
             SO_RCVLOWAT     = 18,
             SO_RCVTIMEO     = 20,
             SO_REUSEADDR    = 2,
+            SO_REUSEPORT    = 15,
             SO_SNDBUF       = 7,
             SO_SNDLOWAT     = 19,
             SO_SNDTIMEO     = 21,
@@ -459,6 +493,7 @@ version (linux)
             SO_RCVLOWAT     = 18,
             SO_RCVTIMEO     = 20,
             SO_REUSEADDR    = 2,
+            SO_REUSEPORT    = 0x0200, //FIXME: the rest appear to be wrong
             SO_SNDBUF       = 7,
             SO_SNDLOWAT     = 19,
             SO_SNDTIMEO     = 21,
@@ -493,6 +528,42 @@ version (linux)
             SO_RCVLOWAT     = 18,
             SO_RCVTIMEO     = 20,
             SO_REUSEADDR    = 2,
+            SO_REUSEPORT    = 15,
+            SO_SNDBUF       = 7,
+            SO_SNDLOWAT     = 19,
+            SO_SNDTIMEO     = 21,
+            SO_TYPE         = 3
+        }
+    }
+    else version (LoongArch64)
+    {
+        enum
+        {
+            SOCK_DGRAM      = 2,
+            SOCK_SEQPACKET  = 5,
+            SOCK_STREAM     = 1
+        }
+
+        enum
+        {
+            SOL_SOCKET      = 1
+        }
+
+        enum
+        {
+            SO_ACCEPTCONN   = 30,
+            SO_BROADCAST    = 6,
+            SO_DEBUG        = 1,
+            SO_DONTROUTE    = 5,
+            SO_ERROR        = 4,
+            SO_KEEPALIVE    = 9,
+            SO_LINGER       = 13,
+            SO_OOBINLINE    = 10,
+            SO_RCVBUF       = 8,
+            SO_RCVLOWAT     = 18,
+            SO_RCVTIMEO     = 20,
+            SO_REUSEADDR    = 2,
+            SO_REUSEPORT    = 15,
             SO_SNDBUF       = 7,
             SO_SNDLOWAT     = 19,
             SO_SNDTIMEO     = 21,
@@ -589,27 +660,30 @@ else version (Darwin)
 
     struct cmsghdr
     {
-         socklen_t cmsg_len;
-         int       cmsg_level;
-         int       cmsg_type;
+        socklen_t  cmsg_len;
+        int        cmsg_level;
+        int        cmsg_type;
+    }
+
+
+    extern (D)
+    {
+        socklen_t CMSG_ALIGN(socklen_t len) pure nothrow @nogc { return (len + socklen_t.sizeof - 1) & cast(socklen_t) (~(socklen_t.sizeof - 1)); }
+        socklen_t CMSG_SPACE(socklen_t len) pure nothrow @nogc { return CMSG_ALIGN(len) + CMSG_ALIGN(cmsghdr.sizeof); }
+        socklen_t CMSG_LEN(socklen_t len) pure nothrow @nogc { return CMSG_ALIGN(cmsghdr.sizeof) + len; }
+
+        inout(ubyte)*   CMSG_DATA( return scope inout(cmsghdr)* cmsg ) pure nothrow @nogc { return cast(ubyte*)( cmsg + 1 ); }
+
+        inout(cmsghdr)* CMSG_FIRSTHDR( inout(msghdr)* mhdr ) pure nothrow @nogc
+        {
+            return ( cast(socklen_t)mhdr.msg_controllen >= cmsghdr.sizeof ? cast(inout(cmsghdr)*) mhdr.msg_control : cast(inout(cmsghdr)*) null );
+        }
     }
 
     enum : uint
     {
         SCM_RIGHTS = 0x01
     }
-
-    /+
-    CMSG_DATA(cmsg)     ((unsigned char *)(cmsg) + \
-                         ALIGN(sizeof(struct cmsghdr)))
-    CMSG_NXTHDR(mhdr, cmsg) \
-                        (((unsigned char *)(cmsg) + ALIGN((cmsg)->cmsg_len) + \
-                         ALIGN(sizeof(struct cmsghdr)) > \
-                         (unsigned char *)(mhdr)->msg_control +(mhdr)->msg_controllen) ? \
-                         (struct cmsghdr *)0 /* NULL */ : \
-                         (struct cmsghdr *)((unsigned char *)(cmsg) + ALIGN((cmsg)->cmsg_len)))
-    CMSG_FIRSTHDR(mhdr) ((struct cmsghdr *)(mhdr)->msg_control)
-    +/
 
     struct linger
     {
@@ -1481,6 +1555,7 @@ else version (Solaris)
         SO_RCVLOWAT     = 0x1004,
         SO_RCVTIMEO     = 0x1006,
         SO_REUSEADDR    = 0x0004,
+        SO_REUSEPORT    = 0x100e,
         SO_SNDBUF       = 0x1001,
         SO_SNDLOWAT     = 0x1003,
         SO_SNDTIMEO     = 0x1005,

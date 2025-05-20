@@ -1,6 +1,6 @@
 // Locale support -*- C++ -*-
 
-// Copyright (C) 2007-2022 Free Software Foundation, Inc.
+// Copyright (C) 2007-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,15 @@
 #ifndef _LOCALE_CLASSES_TCC
 #define _LOCALE_CLASSES_TCC 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+
+#include <cerrno>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++11-extensions" // extern template
+#pragma GCC diagnostic ignored "-Wvariadic-macros"
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -44,6 +52,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     locale::
     locale(const locale& __other, _Facet* __f)
     {
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 2295. Locale name when the provided Facet is a nullptr
+      if (__builtin_expect(!__f, 0))
+	{
+	  _M_impl = __other._M_impl;
+	  _M_impl->_M_add_reference();
+	  return;
+	}
+
       _M_impl = new _Impl(*__other._M_impl, 1);
 
       __try
@@ -62,6 +79,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     locale::
     combine(const locale& __other) const
     {
+#if __cpp_lib_type_trait_variable_templates // C++ >= 17
+      static_assert(__is_facet<_Facet>, "Template argument must be a facet");
+#endif
+
       _Impl* __tmp = new _Impl(*_M_impl, 1);
       __try
 	{
@@ -72,6 +93,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  __tmp->_M_remove_reference();
 	  __throw_exception_again;
 	}
+      delete[] __tmp->_M_names[0];
+      __tmp->_M_names[0] = 0;   // Unnamed.
       return locale(__tmp);
     }
 
@@ -87,6 +110,68 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 				__s2.data(), __s2.data() + __s2.length()) < 0);
     }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions"
+  template<typename _Facet>
+    inline const _Facet*
+    __try_use_facet(const locale& __loc) _GLIBCXX_NOTHROW
+    {
+      const size_t __i = _Facet::id._M_id();
+      const locale::facet** __facets = __loc._M_impl->_M_facets;
+
+      // We know these standard facets are always installed in every locale
+      // so dynamic_cast always succeeds, just use static_cast instead.
+#define _GLIBCXX_STD_FACET(...) \
+      if _GLIBCXX_CONSTEXPR (__is_same(const _Facet, const __VA_ARGS__)) \
+	return static_cast<const _Facet*>(__facets[__i])
+
+      _GLIBCXX_STD_FACET(ctype<char>);
+      _GLIBCXX_STD_FACET(num_get<char>);
+      _GLIBCXX_STD_FACET(num_put<char>);
+      _GLIBCXX_STD_FACET(codecvt<char, char, mbstate_t>);
+      _GLIBCXX_STD_FACET(collate<char>);
+      _GLIBCXX_STD_FACET(moneypunct<char>);
+      _GLIBCXX_STD_FACET(moneypunct<char, true>);
+      _GLIBCXX_STD_FACET(money_get<char>);
+      _GLIBCXX_STD_FACET(money_put<char>);
+      _GLIBCXX_STD_FACET(numpunct<char>);
+      _GLIBCXX_STD_FACET(time_get<char>);
+      _GLIBCXX_STD_FACET(time_put<char>);
+      _GLIBCXX_STD_FACET(messages<char>);
+
+#ifdef _GLIBCXX_USE_WCHAR_T
+      _GLIBCXX_STD_FACET(ctype<wchar_t>);
+      _GLIBCXX_STD_FACET(num_get<wchar_t>);
+      _GLIBCXX_STD_FACET(num_put<wchar_t>);
+      _GLIBCXX_STD_FACET(codecvt<wchar_t, char, mbstate_t>);
+      _GLIBCXX_STD_FACET(collate<wchar_t>);
+      _GLIBCXX_STD_FACET(moneypunct<wchar_t>);
+      _GLIBCXX_STD_FACET(moneypunct<wchar_t, true>);
+      _GLIBCXX_STD_FACET(money_get<wchar_t>);
+      _GLIBCXX_STD_FACET(money_put<wchar_t>);
+      _GLIBCXX_STD_FACET(numpunct<wchar_t>);
+      _GLIBCXX_STD_FACET(time_get<wchar_t>);
+      _GLIBCXX_STD_FACET(time_put<wchar_t>);
+      _GLIBCXX_STD_FACET(messages<wchar_t>);
+#endif
+#if __cplusplus >= 201103L
+      _GLIBCXX_STD_FACET(codecvt<char16_t, char, mbstate_t>);
+      _GLIBCXX_STD_FACET(codecvt<char32_t, char, mbstate_t>);
+#endif
+
+#undef _GLIBCXX_STD_FACET
+
+      if (__i >= __loc._M_impl->_M_facets_size || !__facets[__i])
+	return 0;
+
+#if __cpp_rtti
+      return dynamic_cast<const _Facet*>(__facets[__i]);
+#else
+      return static_cast<const _Facet*>(__facets[__i]);
+#endif
+    }
+#pragma GCC diagnostic pop
+
   /**
    *  @brief  Test for the presence of a facet.
    *  @ingroup locales
@@ -100,17 +185,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  @return  true if @p __loc contains a facet of type _Facet, else false.
   */
   template<typename _Facet>
-    bool
-    has_facet(const locale& __loc) throw()
+    _GLIBCXX_NODISCARD
+    inline bool
+    has_facet(const locale& __loc) _GLIBCXX_USE_NOEXCEPT
     {
-      const size_t __i = _Facet::id._M_id();
-      const locale::facet** __facets = __loc._M_impl->_M_facets;
-      return (__i < __loc._M_impl->_M_facets_size
-#if __cpp_rtti
-	      && dynamic_cast<const _Facet*>(__facets[__i]));
+#if __cplusplus >= 201103L
+      static_assert(__is_base_of(locale::facet, _Facet),
+		    "template argument must be derived from locale::facet");
 #else
-              && static_cast<const _Facet*>(__facets[__i]));
+      (void) static_cast<const _Facet*>(static_cast<const locale::facet*>(0));
 #endif
+      return std::__try_use_facet<_Facet>(__loc) != 0;
     }
 
   /**
@@ -127,20 +212,24 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *  @return  Reference to facet of type Facet.
    *  @throw  std::bad_cast if @p __loc doesn't contain a facet of type _Facet.
   */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-reference"
   template<typename _Facet>
-    const _Facet&
+    _GLIBCXX_NODISCARD
+    inline const _Facet&
     use_facet(const locale& __loc)
     {
-      const size_t __i = _Facet::id._M_id();
-      const locale::facet** __facets = __loc._M_impl->_M_facets;
-      if (__i >= __loc._M_impl->_M_facets_size || !__facets[__i])
-        __throw_bad_cast();
-#if __cpp_rtti
-      return dynamic_cast<const _Facet&>(*__facets[__i]);
+#if __cplusplus >= 201103L
+      static_assert(__is_base_of(locale::facet, _Facet),
+		    "template argument must be derived from locale::facet");
 #else
-      return static_cast<const _Facet&>(*__facets[__i]);
+      (void) static_cast<const _Facet*>(static_cast<const locale::facet*>(0));
 #endif
+      if (const _Facet* __f = std::__try_use_facet<_Facet>(__loc))
+	return *__f;
+      __throw_bad_cast();
     }
+#pragma GCC diagnostic pop
 
 
   // Generic version does nothing.
@@ -209,43 +298,76 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       size_t __len = (__hi - __lo) * 2;
 
-      _CharT* __c = new _CharT[__len];
+      struct _Buf
+      {
+	_Buf(size_t __n, void* __buf, int __e)
+	: _M_c(__buf ? (_CharT*)__buf : new _CharT[__n]),
+	  _M_stackbuf(__buf),
+	  _M_errno(__e)
+	{ }
 
-      __try
+	~_Buf()
 	{
-	  // strxfrm stops when it sees a nul character so we break
-	  // the string into zero-terminated substrings and pass those
-	  // to strxfrm.
-	  for (;;)
+	  if (_M_c != _M_stackbuf)
+	    delete[] _M_c;
+	  if (errno == 0)
+	    errno = _M_errno;
+	}
+
+	void _M_realloc(size_t __len)
+	{
+	  _CharT* __p = new _CharT[__len];
+	  if (_M_c != _M_stackbuf)
+	    delete[] _M_c;
+	  _M_c = __p;
+	}
+
+	_CharT* _M_c;
+	void* const _M_stackbuf;
+	int _M_errno;
+      };
+
+      const size_t __bytes = __len * sizeof(_CharT);
+      _Buf __buf(__len, __bytes <= 256 ? __builtin_alloca(__bytes) : 0, errno);
+      errno = 0;
+
+      // strxfrm stops when it sees a nul character so we break
+      // the string into zero-terminated substrings and pass those
+      // to strxfrm.
+      for (;;)
+	{
+	  // First try a buffer perhaps big enough.
+	  size_t __res = _M_transform(__buf._M_c, __p, __len);
+	  // If the buffer was not large enough, try again with the
+	  // correct size.
+	  if (__res >= __len)
 	    {
-	      // First try a buffer perhaps big enough.
-	      size_t __res = _M_transform(__c, __p, __len);
-	      // If the buffer was not large enough, try again with the
-	      // correct size.
-	      if (__res >= __len)
+	      if (__builtin_expect(errno, 0))
 		{
-		  __len = __res + 1;
-		  delete [] __c, __c = 0;
-		  __c = new _CharT[__len];
-		  __res = _M_transform(__c, __p, __len);
+#if __cpp_exceptions
+		  __throw_system_error(errno);
+#else
+		  // std::regex can call this function internally with
+		  // char values that always fail, so we don't want to
+		  // use _GLIBCXX_THROW_OR_ABORT here.
+		  __ret.clear();
+		  break;
+#endif
 		}
 
-	      __ret.append(__c, __res);
-	      __p += char_traits<_CharT>::length(__p);
-	      if (__p == __pend)
-		break;
-
-	      __p++;
-	      __ret.push_back(_CharT());
+	      __len = __res + 1;
+	      __buf._M_realloc(__len);
+	      __res = _M_transform(__buf._M_c, __p, __len);
 	    }
-	}
-      __catch(...)
-	{
-	  delete [] __c;
-	  __throw_exception_again;
-	}
 
-      delete [] __c;
+	  __ret.append(__buf._M_c, __res);
+	  __p += char_traits<_CharT>::length(__p);
+	  if (__p == __pend)
+	    break;
+
+	  __p++;
+	  __ret.push_back(_CharT());
+	}
 
       return __ret;
     }
@@ -271,6 +393,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   extern template class collate_byname<char>;
 
   extern template
+    const collate<char>*
+    __try_use_facet<collate<char> >(const locale&) _GLIBCXX_NOTHROW;
+
+  extern template
     const collate<char>&
     use_facet<collate<char> >(const locale&);
 
@@ -281,6 +407,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #ifdef _GLIBCXX_USE_WCHAR_T
   extern template class collate<wchar_t>;
   extern template class collate_byname<wchar_t>;
+
+  extern template
+    const collate<wchar_t>*
+    __try_use_facet<collate<wchar_t> >(const locale&) _GLIBCXX_NOTHROW;
 
   extern template
     const collate<wchar_t>&
@@ -295,4 +425,5 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 
+#pragma GCC diagnostic pop
 #endif

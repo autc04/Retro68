@@ -1,4 +1,4 @@
-/* Copyright (C) 1997-2022 Free Software Foundation, Inc.
+/* Copyright (C) 1997-2025 Free Software Foundation, Inc.
    Contributed by Red Hat, Inc.
 
 This file is part of GCC.
@@ -261,7 +261,8 @@ static frv_stack_t *frv_stack_cache = (frv_stack_t *)0;
 /* Forward references */
 
 static void frv_option_override			(void);
-static bool frv_legitimate_address_p		(machine_mode, rtx, bool);
+static bool frv_legitimate_address_p (machine_mode, rtx, bool,
+				      code_helper = ERROR_MARK);
 static int frv_default_flags_for_cpu		(void);
 static FRV_INLINE bool frv_small_data_reloc_p	(rtx, int);
 static void frv_print_operand			(FILE *, rtx, int);
@@ -2104,7 +2105,8 @@ frv_setup_incoming_varargs (cumulative_args_t cum_v,
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
 
-  if (TARGET_DEBUG_ARG)
+  if (!TYPE_NO_NAMED_ARGS_STDARG_P (TREE_TYPE (current_function_decl))
+      && TARGET_DEBUG_ARG)
     fprintf (stderr,
 	     "setup_vararg: words = %2d, mode = %4s, pretend_size = %d, second_time = %d\n",
 	     *cum, GET_MODE_NAME (arg.mode), *pretend_size, second_time);
@@ -2482,7 +2484,7 @@ frv_print_operand_address (FILE * stream, machine_mode /* mode */, rtx x)
 	 See gcc/testsuite/gcc.dg/asm-4.c for an example.  */
       frv_print_operand_memory_reference (stream, x, 0);
       return;
-      
+
     default:
       break;
     }
@@ -3395,7 +3397,7 @@ frv_legitimate_address_p_1 (machine_mode mode,
 }
 
 bool
-frv_legitimate_address_p (machine_mode mode, rtx x, bool strict_p)
+frv_legitimate_address_p (machine_mode mode, rtx x, bool strict_p, code_helper)
 {
   return frv_legitimate_address_p_1 (mode, x, strict_p, FALSE, FALSE);
 }
@@ -4060,7 +4062,7 @@ frv_emit_movsi (rtx dest, rtx src)
 			   || !DECL_COMMON (SYMBOL_REF_DECL (sym))))
 		{
 		  tree decl = SYMBOL_REF_DECL (sym);
-		  tree init = TREE_CODE (decl) == VAR_DECL
+		  tree init = VAR_P (decl)
 		    ? DECL_INITIAL (decl)
 		    : TREE_CODE (decl) == CONSTRUCTOR
 		    ? decl : 0;
@@ -4070,7 +4072,7 @@ frv_emit_movsi (rtx dest, rtx src)
 		  if (init && init != error_mark_node)
 		    reloc = compute_reloc_for_constant (init);
 
-		  named_section = TREE_CODE (decl) == VAR_DECL
+		  named_section = VAR_P (decl)
 		    && lookup_attribute ("section", DECL_ATTRIBUTES (decl));
 		  readonly = decl_readonly_section (decl, reloc);
 
@@ -6309,7 +6311,7 @@ frv_secondary_reload_class (enum reg_class rclass,
 /* This hook exists to catch the case where secondary_reload_class() is
    called from init_reg_autoinc() in regclass.c - before the reload optabs
    have been initialised.  */
-   
+
 static reg_class_t
 frv_secondary_reload (bool in_p, rtx x, reg_class_t reload_class_i,
 		      machine_mode reload_mode,
@@ -6680,7 +6682,7 @@ frv_register_move_cost (machine_mode mode ATTRIBUTE_UNUSED,
 	default:
 	  break;
 
-	case QUAD_REGS:	
+	case QUAD_REGS:
 	case GPR_REGS:
 	case GR8_REGS:
 	case GR9_REGS:

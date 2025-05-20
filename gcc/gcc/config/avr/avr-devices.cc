@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2009-2025 Free Software Foundation, Inc.
    Contributed by Anatoly Sokolov (aesok@post.ru)
 
    This file is part of GCC.
@@ -7,12 +7,12 @@
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 3, or (at your option)
    any later version.
-   
+
    GCC is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING3.  If not see
    <http://www.gnu.org/licenses/>.  */
@@ -93,8 +93,8 @@ avr_texinfo[] =
     "``Enhanced'' devices with 3-byte PC, i.e.@: with more than 128@tie{}KiB "
     "of program memory." },
   { ARCH_AVRTINY,
-    "``TINY'' Tiny core devices with 512@tie{}B up to 4@tie{}KiB of "
-    "program memory." },
+    "``Reduced Tiny'' Tiny core devices with only 16 general purpose "
+    "registers and 512@tie{}B up to 4@tie{}KiB of program memory." },
   { ARCH_AVRXMEGA2,
     "``XMEGA'' devices with more than 8@tie{}KiB and up to 64@tie{}KiB "
     "of program memory." },
@@ -130,7 +130,7 @@ avr_mcu_types[] =
 
 #ifndef IN_GEN_AVR_MMCU_TEXI
 
-static char*
+static char *
 avr_archs_str (void)
 {
   char *archs = concat ("", NULL);
@@ -144,13 +144,29 @@ avr_archs_str (void)
   return archs;
 }
 
-  
+
 void
 avr_inform_core_architectures (void)
 {
   char *archs = avr_archs_str ();
   inform (input_location, "supported core architectures:%s", archs);
   free (archs);
+}
+
+
+/* When MCU names a core arch like "avr5", then return a pointer to the
+   respective entry in avr_arch_types[].  Otherwise, return NULL.  */
+
+const avr_arch_t *
+avr_get_parch (const char *mcu)
+{
+  for (size_t i = 0; i < ARRAY_SIZE (avr_arch_types); ++i)
+    {
+      if (strcmp (mcu, avr_arch_types[i].name) == 0)
+	return & avr_arch_types[i];
+    }
+
+  return NULL;
 }
 
 #endif // IN_GEN_AVR_MMCU_TEXI

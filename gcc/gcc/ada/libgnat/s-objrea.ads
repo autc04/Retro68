@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2009-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2009-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -120,11 +120,17 @@ package System.Object_Reader is
       PPC64,
       --  64-bit PowerPC
 
+      S390,
+      --  IBM S/390
+
       ARM,
       --  32-bit ARM
 
-      AARCH64);
+      AARCH64,
       --  64-bit ARM
+
+      RISCV);
+      --  RISC-V
 
    ------------------
    -- Target types --
@@ -187,7 +193,7 @@ package System.Object_Reader is
    type Mapped_Stream is private;
    --  Provide an abstraction of a stream on a memory mapped file
 
-   function Create_Stream (Mf : System.Mmap.Mapped_File;
+   function Create_Stream (MF : System.Mmap.Mapped_File;
                            File_Offset : System.Mmap.File_Size;
                            File_Length : System.Mmap.File_Size)
                           return Mapped_Stream;
@@ -381,7 +387,7 @@ private
    subtype Any_PECOFF is Object_Format range PECOFF .. PECOFF_PLUS;
 
    type Object_File (Format : Object_Format) is record
-      Mf   : System.Mmap.Mapped_File := System.Mmap.Invalid_Mapped_File;
+      MF   : System.Mmap.Mapped_File := System.Mmap.Invalid_Mapped_File;
       Arch : Object_Arch := Unknown;
 
       Num_Sections : uint32 := 0;

@@ -1,5 +1,5 @@
 /* Array prefetching.
-   Copyright (C) 2005-2022 Free Software Foundation, Inc.
+   Copyright (C) 2005-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -282,7 +282,7 @@ struct mem_ref
 /* Dumps information about memory reference */
 static void
 dump_mem_details (FILE *file, tree base, tree step,
-	    HOST_WIDE_INT delta, bool write_p) 
+	    HOST_WIDE_INT delta, bool write_p)
 {
   fprintf (file, "(base ");
   print_generic_expr (file, base, TDF_SLIM);
@@ -554,7 +554,7 @@ gather_memory_references_ref (class loop *loop, struct mem_ref_group **refs,
   if (may_be_nonaddressable_p (base))
     return false;
 
-  /* Limit non-constant step prefetching only to the innermost loops and 
+  /* Limit non-constant step prefetching only to the innermost loops and
      only when the step is loop invariant in the entire loop nest. */
   if (!cst_and_fits_in_hwi (step))
     {
@@ -562,16 +562,16 @@ gather_memory_references_ref (class loop *loop, struct mem_ref_group **refs,
         {
           if (dump_file && (dump_flags & TDF_DETAILS))
             {
-              fprintf (dump_file, "Memory expression %p\n",(void *) ref ); 
+              fprintf (dump_file, "Memory expression %p\n",(void *) ref );
 	      print_generic_expr (dump_file, ref, TDF_SLIM);
 	      fprintf (dump_file,":");
               dump_mem_details (dump_file, base, step, delta, write_p);
-              fprintf (dump_file, 
+              fprintf (dump_file,
                        "Ignoring %p, non-constant step prefetching is "
-                       "limited to inner most loops \n", 
+                       "limited to inner most loops \n",
                        (void *) ref);
             }
-            return false;    
+            return false;
          }
       else
         {
@@ -583,12 +583,12 @@ gather_memory_references_ref (class loop *loop, struct mem_ref_group **refs,
 		print_generic_expr (dump_file, ref, TDF_SLIM);
                 fprintf (dump_file,":");
                 dump_mem_details (dump_file, base, step, delta, write_p);
-                fprintf (dump_file, 
+                fprintf (dump_file,
                          "Not prefetching, ignoring %p due to "
                          "loop variant step\n",
                          (void *) ref);
               }
-              return false;                 
+              return false;
             }
         }
     }
@@ -738,6 +738,8 @@ is_miss_rate_acceptable (unsigned HOST_WIDE_INT cache_line_size,
      line size.  */
   if (delta >= (HOST_WIDE_INT) cache_line_size)
     return false;
+
+  gcc_assert (align_unit > 0);
 
   miss_positions = 0;
   total_positions = (cache_line_size / align_unit) * distinct_iters;
@@ -1180,7 +1182,7 @@ issue_prefetch_ref (struct mem_ref *ref, unsigned unroll_factor, unsigned ahead)
   addr_base = force_gimple_operand_gsi (&bsi, unshare_expr (addr_base),
 					true, NULL, true, GSI_SAME_STMT);
   write_p = ref->write_p ? integer_one_node : integer_zero_node;
-  local = nontemporal ? integer_zero_node : integer_three_node;
+  local = nontemporal ? integer_zero_node : build_int_cst (integer_type_node, 3);
 
   for (ap = 0; ap < n_prefetches; ap++)
     {
@@ -1308,8 +1310,6 @@ emit_mfence_after_loop (class loop *loop)
 
       gsi_insert_before (&bsi, call, GSI_NEW_STMT);
     }
-
-  update_ssa (TODO_update_ssa_only_virtuals);
 }
 
 /* Returns true if we can use storent in loop, false otherwise.  */
@@ -1340,23 +1340,27 @@ may_use_storent_in_loop_p (class loop *loop)
 }
 
 /* Marks nontemporal stores in LOOP.  GROUPS contains the description of memory
-   references in the loop.  */
+   references in the loop.  Returns whether we inserted any mfence call.  */
 
-static void
+static bool
 mark_nontemporal_stores (class loop *loop, struct mem_ref_group *groups)
 {
   struct mem_ref *ref;
   bool any = false;
 
   if (!may_use_storent_in_loop_p (loop))
-    return;
+    return false;
 
   for (; groups; groups = groups->next)
     for (ref = groups->refs; ref; ref = ref->next)
       any |= mark_nontemporal_store (ref);
 
   if (any && FENCE_FOLLOWING_MOVNT != NULL_TREE)
-    emit_mfence_after_loop (loop);
+    {
+      emit_mfence_after_loop (loop);
+      return true;
+    }
+  return false;
 }
 
 /* Determines whether we can profitably unroll LOOP FACTOR times, and if
@@ -1396,6 +1400,10 @@ determine_unroll_factor (class loop *loop, struct mem_ref_group *refs,
   unsigned nfactor, factor, mod_constraint;
   struct mem_ref_group *agp;
   struct mem_ref *ref;
+
+  /* Bail out early in case we must not unroll loops.  */
+  if (!flag_unroll_loops)
+    return 1;
 
   /* First check whether the loop is not too large to unroll.  We ignore
      PARAM_MAX_UNROLL_TIMES, because for small loops, it prevented us
@@ -1874,10 +1882,11 @@ insn_to_prefetch_ratio_too_small_p (unsigned ninsns, unsigned prefetch_count,
 
 
 /* Issue prefetch instructions for array references in LOOP.  Returns
-   true if the LOOP was unrolled.  */
+   true if the LOOP was unrolled and updates NEED_LC_SSA_UPDATE if we need
+   to update SSA for virtual operands and LC SSA for a split edge.  */
 
 static bool
-loop_prefetch_arrays (class loop *loop)
+loop_prefetch_arrays (class loop *loop, bool &need_lc_ssa_update)
 {
   struct mem_ref_group *refs;
   unsigned ahead, ninsns, time, unroll_factor;
@@ -1952,7 +1961,7 @@ loop_prefetch_arrays (class loop *loop)
 					  unroll_factor))
     goto fail;
 
-  mark_nontemporal_stores (loop, refs);
+  need_lc_ssa_update |= mark_nontemporal_stores (loop, refs);
 
   /* Step 4: what to prefetch?  */
   if (!schedule_prefetches (refs, unroll_factor, ahead))
@@ -1980,6 +1989,7 @@ unsigned int
 tree_ssa_prefetch_arrays (void)
 {
   bool unrolled = false;
+  bool need_lc_ssa_update = false;
   int todo_flags = 0;
 
   if (!targetm.have_prefetch ()
@@ -2028,11 +2038,14 @@ tree_ssa_prefetch_arrays (void)
       if (dump_file && (dump_flags & TDF_DETAILS))
 	fprintf (dump_file, "Processing loop %d:\n", loop->num);
 
-      unrolled |= loop_prefetch_arrays (loop);
+      unrolled |= loop_prefetch_arrays (loop, need_lc_ssa_update);
 
       if (dump_file && (dump_flags & TDF_DETAILS))
 	fprintf (dump_file, "\n\n");
     }
+
+  if (need_lc_ssa_update)
+    rewrite_into_loop_closed_ssa (NULL, TODO_update_ssa_only_virtuals);
 
   if (unrolled)
     {
@@ -2069,8 +2082,11 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return flag_prefetch_loop_arrays > 0; }
-  virtual unsigned int execute (function *);
+  bool gate (function *) final override
+  {
+    return flag_prefetch_loop_arrays > 0;
+  }
+  unsigned int execute (function *) final override;
 
 }; // class pass_loop_prefetch
 
@@ -2087,7 +2103,7 @@ pass_loop_prefetch::execute (function *fun)
       if (!warned)
 	{
 	  warning (OPT_Wdisabled_optimization,
-		   "%<l1-cache-size%> parameter is not a power of two %d",
+		   "%<l1-cache-size%> parameter is not a power of two: %d",
 		   PREFETCH_BLOCK);
 	  warned = true;
 	}

@@ -1,5 +1,5 @@
 /* Tracking equivalence classes and constraints at a point on an execution path.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2025 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -85,7 +85,10 @@ struct bounded_range
   void dump_to_pp (pretty_printer *pp, bool show_types) const;
   void dump (bool show_types) const;
 
-  json::object *to_json () const;
+  std::unique_ptr<json::object> to_json () const;
+
+  std::unique_ptr<text_art::widget>
+  make_dump_widget (const text_art::dump_widget_info &dwi) const;
 
   bool contains_p (tree cst) const;
 
@@ -100,11 +103,16 @@ struct bounded_range
 
   static int cmp (const bounded_range &a, const bounded_range &b);
 
+  bool singleton_p () const
+  {
+    return tree_int_cst_equal (m_lower, m_upper);
+  }
+
   tree m_lower;
   tree m_upper;
 
 private:
-  static void set_json_attr (json::object *obj, const char *name, tree value);
+  static void set_json_attr (json::object &obj, const char *name, tree value);
 };
 
 /* A collection of bounded_range instances, suitable
@@ -127,7 +135,10 @@ public:
   void dump_to_pp (pretty_printer *pp, bool show_types) const;
   void dump (bool show_types) const;
 
-  json::value *to_json () const;
+  std::unique_ptr<json::value> to_json () const;
+
+  void add_to_dump_widget (text_art::tree_widget &parent,
+			   const text_art::dump_widget_info &dwi) const;
 
   tristate eval_condition (enum tree_code op,
 			   tree rhs_const,
@@ -137,6 +148,9 @@ public:
   bool empty_p () const { return m_ranges.length () == 0; }
 
   static int cmp (const bounded_ranges *a, const bounded_ranges *b);
+
+  unsigned get_count () const { return m_ranges.length (); }
+  const bounded_range &get_range (unsigned idx) const { return m_ranges[idx]; }
 
 private:
   void canonicalize ();
@@ -257,7 +271,11 @@ public:
 
   void print (pretty_printer *pp) const;
 
-  json::object *to_json () const;
+  std::unique_ptr<json::object> to_json () const;
+
+  std::unique_ptr<text_art::tree_widget>
+  make_dump_widget (const text_art::dump_widget_info &dwi,
+		    unsigned id) const;
 
   bool contains_non_constant_p () const;
 
@@ -333,7 +351,11 @@ class constraint
 
   void print (pretty_printer *pp, const constraint_manager &cm) const;
 
-  json::object *to_json () const;
+  std::unique_ptr<json::object> to_json () const;
+
+  std::unique_ptr<text_art::widget>
+  make_dump_widget (const text_art::dump_widget_info &dwi,
+		    const constraint_manager &cm) const;
 
   hashval_t hash () const;
   bool operator== (const constraint &other) const;
@@ -376,7 +398,7 @@ public:
 
   void print (pretty_printer *pp, const constraint_manager &cm) const;
 
-  json::object *to_json () const;
+  std::unique_ptr<json::object> to_json () const;
 
   bool operator== (const bounded_ranges_constraint &other) const;
   bool operator!= (const bounded_ranges_constraint &other) const
@@ -385,6 +407,9 @@ public:
   }
 
   void add_to_hash (inchash::hash *hstate) const;
+
+  std::unique_ptr<text_art::tree_widget>
+  make_dump_widget (const text_art::dump_widget_info &dwi) const;
 
   equiv_class_id m_ec_id;
   const bounded_ranges *m_ranges;
@@ -417,7 +442,10 @@ public:
   void dump (FILE *fp) const;
   void dump () const;
 
-  json::object *to_json () const;
+  std::unique_ptr<json::object> to_json () const;
+
+  std::unique_ptr<text_art::tree_widget>
+  make_dump_widget (const text_art::dump_widget_info &dwi) const;
 
   const equiv_class &get_equiv_class_by_index (unsigned idx) const
   {
@@ -451,6 +479,7 @@ public:
 
   bool get_equiv_class_by_svalue (const svalue *sval,
 				    equiv_class_id *out) const;
+  bool sval_constrained_p (const svalue *sval) const;
   equiv_class_id get_or_add_equiv_class (const svalue *sval);
   tristate eval_condition (equiv_class_id lhs,
 			   enum tree_code op,
@@ -484,6 +513,9 @@ public:
 
   bounded_ranges_manager *get_range_manager () const;
 
+  bool replay_call_summary (call_summary_replay &r,
+			    const constraint_manager &summary);
+
   auto_delete_vec<equiv_class> m_equiv_classes;
   auto_vec<constraint> m_constraints;
   auto_vec<bounded_ranges_constraint> m_bounded_ranges_constraints;
@@ -492,6 +524,8 @@ public:
   void add_constraint_internal (equiv_class_id lhs_id,
 				enum constraint_op c_op,
 				equiv_class_id rhs_id);
+  bool impossible_derived_conditions_p (const svalue *lhs,
+					const svalue *rhs) const;
 
   region_model_manager *m_mgr;
 };

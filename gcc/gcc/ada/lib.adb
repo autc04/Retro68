@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,6 +36,7 @@ with Opt;            use Opt;
 with Output;         use Output;
 with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
+with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
 with Stand;          use Stand;
 with Stringt;        use Stringt;
@@ -173,12 +174,12 @@ package body Lib is
       return Units.Table (U).OA_Setting;
    end OA_Setting;
 
-   function Primary_Stack_Count (U : Unit_Number_Type) return Int is
+   function Primary_Stack_Count (U : Unit_Number_Type) return Nat is
    begin
       return Units.Table (U).Primary_Stack_Count;
    end Primary_Stack_Count;
 
-   function Sec_Stack_Count  (U : Unit_Number_Type) return Int is
+   function Sec_Stack_Count  (U : Unit_Number_Type) return Nat is
    begin
       return Units.Table (U).Sec_Stack_Count;
    end Sec_Stack_Count;
@@ -320,15 +321,13 @@ package body Lib is
    begin
       if S1 = No_Location or else S2 = No_Location then
          return No;
+      end if;
 
-      elsif S1 = Standard_Location then
-         if S2 = Standard_Location then
-            return Yes_Same;
-         else
-            return No;
-         end if;
+      if S1 = S2 then
+         return Yes_Same;
+      end if;
 
-      elsif S2 = Standard_Location then
+      if S1 = Standard_Location or else S2 = Standard_Location then
          return No;
       end if;
 
@@ -483,12 +482,12 @@ package body Lib is
          --  earlier.
 
          if Nkind (Unit1) in N_Subprogram_Body | N_Package_Body then
-            if Library_Unit (Cunit (Unum1)) = Cunit (Unum2) then
+            if Spec_Lib_Unit (Cunit (Unum1)) = Cunit (Unum2) then
                return Yes_After;
             end if;
 
          elsif Nkind (Unit2) in N_Subprogram_Body | N_Package_Body then
-            if Library_Unit (Cunit (Unum2)) = Cunit (Unum1) then
+            if Spec_Lib_Unit (Cunit (Unum2)) = Cunit (Unum1) then
                return Yes_Before;
             end if;
          end if;
@@ -781,10 +780,16 @@ package body Lib is
          end if;
       end loop;
 
-      --  If not in the table, must be a spec created for a main unit that is a
-      --  child subprogram body which we have not inserted into the table yet.
+      --  Not in the table. Empty N is some already-detected error; otherwise,
+      --  it must be a spec created for a main unit that is a child subprogram
+      --  body which we have not inserted into the table yet.
 
-      if N = Library_Unit (Cunit (Main_Unit)) then
+      if No (N) then
+         pragma Assert (Serious_Errors_Detected > 0);
+         return Main_Unit;
+      end if;
+
+      if N = Spec_Lib_Unit (Cunit (Main_Unit)) then
          return Main_Unit;
 
       --  If it is anything else, something is seriously wrong, and we really
@@ -841,53 +846,36 @@ package body Lib is
      (N : Node_Or_Entity_Id) return Boolean
    is
    begin
-      if Sloc (N) = Standard_Location then
-         return False;
-
-      elsif Sloc (N) = No_Location then
-         return False;
-
       --  Special case Itypes to test the Sloc of the associated node. The
       --  reason we do this is for possible calls from gigi after -gnatD
       --  processing is complete in sprint. This processing updates the
       --  sloc fields of all nodes in the tree, but itypes are not in the
       --  tree so their slocs do not get updated.
 
-      elsif Nkind (N) = N_Defining_Identifier
-        and then Is_Itype (N)
-      then
+      if Nkind (N) = N_Defining_Identifier and then Is_Itype (N) then
          return In_Extended_Main_Code_Unit (Associated_Node_For_Itype (N));
-
-      --  Otherwise see if we are in the main unit
-
-      elsif Get_Code_Unit (Sloc (N)) = Get_Code_Unit (Cunit (Main_Unit)) then
-         return True;
-
-      --  Node may be in spec (or subunit etc) of main unit
-
-      else
-         return In_Same_Extended_Unit (N, Cunit (Main_Unit));
       end if;
+
+      return In_Extended_Main_Code_Unit (Sloc (N));
    end In_Extended_Main_Code_Unit;
 
    function In_Extended_Main_Code_Unit (Loc : Source_Ptr) return Boolean is
    begin
-      if Loc = Standard_Location then
-         return False;
+      --  Special value cases
 
-      elsif Loc = No_Location then
+      if Loc in No_Location | Standard_Location then
          return False;
+      end if;
 
       --  Otherwise see if we are in the main unit
 
-      elsif Get_Code_Unit (Loc) = Get_Code_Unit (Cunit (Main_Unit)) then
+      if Get_Code_Unit (Loc) = Get_Code_Unit (Cunit (Main_Unit)) then
          return True;
+      end if;
 
       --  Location may be in spec (or subunit etc) of main unit
 
-      else
-         return In_Same_Extended_Unit (Loc, Sloc (Cunit (Main_Unit)));
-      end if;
+      return In_Same_Extended_Unit (Loc, Sloc (Cunit (Main_Unit)));
    end In_Extended_Main_Code_Unit;
 
    ----------------------------------
@@ -897,69 +885,42 @@ package body Lib is
    function In_Extended_Main_Source_Unit
      (N : Node_Or_Entity_Id) return Boolean
    is
-      Nloc : constant Source_Ptr := Sloc (N);
-      Mloc : constant Source_Ptr := Sloc (Cunit (Main_Unit));
-
    begin
-      --  If parsing, then use the global flag to indicate result
-
-      if Compiler_State = Parsing then
-         return Parsing_Main_Extended_Source;
-
-      --  Special value cases
-
-      elsif Nloc = Standard_Location then
-         return False;
-
-      elsif Nloc = No_Location then
-         return False;
-
       --  Special case Itypes to test the Sloc of the associated node. The
       --  reason we do this is for possible calls from gigi after -gnatD
       --  processing is complete in sprint. This processing updates the
       --  sloc fields of all nodes in the tree, but itypes are not in the
       --  tree so their slocs do not get updated.
 
-      elsif Nkind (N) = N_Defining_Identifier
-        and then Is_Itype (N)
-      then
+      if Nkind (N) = N_Defining_Identifier and then Is_Itype (N) then
+         pragma Assert (Compiler_State /= Parsing);
          return In_Extended_Main_Source_Unit (Associated_Node_For_Itype (N));
-
-      --  Otherwise compare original locations to see if in same unit
-
-      else
-         return
-           In_Same_Extended_Unit
-             (Original_Location (Nloc), Original_Location (Mloc));
       end if;
+
+      return In_Extended_Main_Source_Unit (Sloc (N));
    end In_Extended_Main_Source_Unit;
 
    function In_Extended_Main_Source_Unit
      (Loc : Source_Ptr) return Boolean
    is
-      Mloc : constant Source_Ptr := Sloc (Cunit (Main_Unit));
-
    begin
       --  If parsing, then use the global flag to indicate result
 
       if Compiler_State = Parsing then
          return Parsing_Main_Extended_Source;
+      end if;
 
       --  Special value cases
 
-      elsif Loc = Standard_Location then
+      if Loc in No_Location | Standard_Location then
          return False;
-
-      elsif Loc = No_Location then
-         return False;
-
-      --  Otherwise compare original locations to see if in same unit
-
-      else
-         return
-           In_Same_Extended_Unit
-             (Original_Location (Loc), Original_Location (Mloc));
       end if;
+
+      --  Otherwise compare original locations
+
+      return In_Same_Extended_Unit
+        (Original_Location (Loc),
+         Original_Location (Sloc (Cunit (Main_Unit))));
    end In_Extended_Main_Source_Unit;
 
    ----------------------
@@ -991,6 +952,15 @@ package body Lib is
    begin
       return Is_Predefined_Renaming (Unit);
    end In_Predefined_Renaming;
+
+   ---------
+   -- ipu --
+   ---------
+
+   function ipu (N : Node_Or_Entity_Id) return Boolean is
+   begin
+      return In_Predefined_Unit (N);
+   end ipu;
 
    ------------------------
    -- In_Predefined_Unit --
@@ -1071,8 +1041,8 @@ package body Lib is
    -- Increment_Primary_Stack_Count --
    -----------------------------------
 
-   procedure Increment_Primary_Stack_Count (Increment : Int) is
-      PSC : Int renames Units.Table (Current_Sem_Unit).Primary_Stack_Count;
+   procedure Increment_Primary_Stack_Count (Increment : Nat) is
+      PSC : Nat renames Units.Table (Current_Sem_Unit).Primary_Stack_Count;
    begin
       PSC := PSC + Increment;
    end Increment_Primary_Stack_Count;
@@ -1081,8 +1051,8 @@ package body Lib is
    -- Increment_Sec_Stack_Count --
    -------------------------------
 
-   procedure Increment_Sec_Stack_Count (Increment : Int) is
-      SSC : Int renames Units.Table (Current_Sem_Unit).Sec_Stack_Count;
+   procedure Increment_Sec_Stack_Count (Increment : Nat) is
+      SSC : Nat renames Units.Table (Current_Sem_Unit).Sec_Stack_Count;
    begin
       SSC := SSC + Increment;
    end Increment_Sec_Stack_Count;
@@ -1367,12 +1337,13 @@ package body Lib is
                if Nkind (Context_Item) = N_With_Clause
                  and then not Limited_Present (Context_Item)
                then
-                  pragma Assert (Present (Library_Unit (Context_Item)));
+                  pragma Assert (Present (Withed_Lib_Unit (Context_Item)));
                   Write_Unit_Name
                     (Unit_Name
-                       (Get_Cunit_Unit_Number (Library_Unit (Context_Item))));
+                      (Get_Cunit_Unit_Number
+                        (Withed_Lib_Unit (Context_Item))));
 
-                  if Implicit_With (Context_Item) then
+                  if Is_Implicit_With (Context_Item) then
                      Write_Str (" -- implicit");
                   end if;
 

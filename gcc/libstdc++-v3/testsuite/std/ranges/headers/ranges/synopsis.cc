@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,14 +15,18 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do compile { target c++20 } }
+// { dg-add-options no_pch }
 
 #include <ranges>
 
 #ifndef __cpp_lib_ranges
 # error "Feature test macro for ranges is missing in <ranges>"
-#elif __cpp_lib_ranges < 201911L
+#elif __cplusplus > 202302L && __cpp_lib_ranges != 202406L
+# error "Feature test macro for ranges has wrong value in <ranges>"
+#elif __cplusplus == 202302L && __cpp_lib_ranges != 202302L
+# error "Feature test macro for ranges has wrong value in <ranges>"
+#elif __cplusplus == 202002L && __cpp_lib_ranges != 202110L
 # error "Feature test macro for ranges has wrong value in <ranges>"
 #endif
 

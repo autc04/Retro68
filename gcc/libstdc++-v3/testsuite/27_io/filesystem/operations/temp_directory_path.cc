@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2022 Free Software Foundation, Inc.
+// Copyright (C) 2015-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -140,12 +140,17 @@ test04()
   VERIFY( r == fs::path() );
 
   std::error_code ec2;
+  std::string failed_path;
   try {
     (void) fs::temp_directory_path();
   } catch (const fs::filesystem_error& e) {
     ec2 = e.code();
+    // On Windows the returned path will be in preferred form, i.e. using L'\\'
+    // and will have a trailing slash, so compare generic forms.
+    failed_path = e.path1().generic_string();
   }
   VERIFY( ec2 == ec );
+  VERIFY( failed_path.find(f.path.generic_string()) != std::string::npos );
 }
 
 int

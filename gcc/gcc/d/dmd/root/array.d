@@ -2,12 +2,12 @@
 /**
  * Dynamic array implementation.
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2025 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/root/array.d, root/_array.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/root/array.d, root/_array.d)
  * Documentation:  https://dlang.org/phobos/dmd_root_array.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/root/array.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/root/array.d
  */
 
 module dmd.root.array;
@@ -41,7 +41,7 @@ public:
      * Params:
      *  dim = initial length of array
      */
-    this(size_t dim) pure nothrow
+    this(size_t dim) pure nothrow scope
     {
         reserve(dim);
         this.length = dim;
@@ -52,7 +52,7 @@ public:
     ~this() pure nothrow
     {
         debug (stomp) memset(data.ptr, 0xFF, data.length);
-        if (data.ptr != &smallarray[0])
+        if (data.ptr && data.ptr != &smallarray[0])
             mem.xfree(data.ptr);
     }
     ///returns elements comma separated in []
@@ -69,7 +69,18 @@ public:
             {
                 foreach (u; 0 .. a.length)
                 {
-                    buf[u] = toStringFunc(a.data[u]);
+                    static if (is(typeof(a.data[u] is null)))
+                    {
+                        if (a.data[u] is null)
+                            buf[u] = "null";
+                        else
+                            buf[u] = toStringFunc(a.data[u]);
+                    }
+                    else
+                    {
+                        buf[u] = toStringFunc(a.data[u]);
+                    }
+
                     len += buf[u].length + seplen;
                 }
             }
@@ -222,12 +233,34 @@ public:
         }
     }
 
+    extern (D) void insert(size_t index, T[] a) pure nothrow
+    {
+        size_t d = a.length;
+        reserve(d);
+        if (length != index)
+            memmove(data.ptr + index + d, data.ptr + index, (length - index) * T.sizeof);
+        memcpy(data.ptr + index, a.ptr, d * T.sizeof);
+        length += d;
+    }
+
     void insert(size_t index, T ptr) pure nothrow
     {
         reserve(1);
         memmove(data.ptr + index + 1, data.ptr + index, (length - index) * T.sizeof);
         data[index] = ptr;
         length++;
+    }
+
+    /// Insert 'count' copies of 'value' at 'index' position
+    void insert(size_t index, size_t count, T value) pure nothrow
+    {
+        if (count == 0)
+            return;
+        reserve(count);
+        if (length != index)
+            memmove(data.ptr + index + count, data.ptr + index, (length - index) * T.sizeof);
+        data[index .. index + count] = value;
+        length += count;
     }
 
     void setDim(size_t newdim) pure nothrow
@@ -342,7 +375,9 @@ public:
     }
 
     alias opDollar = length;
-    alias dim = length;
+
+    deprecated("use `.length` instead")
+    extern(D) size_t dim() const @nogc nothrow pure @safe { return length; }
 }
 
 unittest
@@ -369,6 +404,19 @@ unittest
     assert(str == `["hello","world"]`);
     // Test presence of null terminator.
     assert(str.ptr[str.length] == '\0');
+
+    // Test printing an array of classes, which can be null
+    static class C
+    {
+        override string toString() const
+        {
+            return "x";
+        }
+    }
+    auto nullarray = Array!C(2);
+    nullarray[0] = new C();
+    nullarray[1] = null;
+    assert(nullarray.toString() == `[x,null]`);
 }
 
 unittest
@@ -414,6 +462,20 @@ unittest
     arrayA.zero();
     foreach(e; arrayA)
         assert(e == 0);
+
+    arrayA.setDim(0);
+    arrayA.pushSlice([5, 6]);
+    arrayA.insert(1, [1, 2]);
+    assert(arrayA[] == [5, 1, 2, 6]);
+    arrayA.insert(0, [7, 8]);
+    arrayA.insert(arrayA.length, [0, 9]);
+    assert(arrayA[] == [7, 8, 5, 1, 2, 6, 0, 9]);
+    arrayA.insert(4, 3, 8);
+    assert(arrayA[] == [7, 8, 5, 1, 8, 8, 8, 2, 6, 0, 9]);
+    arrayA.insert(0, 3, 8);
+    assert(arrayA[] == [8, 8, 8, 7, 8, 5, 1, 8, 8, 8, 2, 6, 0, 9]);
+    arrayA.insert(arrayA.length, 3, 8);
+    assert(arrayA[] == [8, 8, 8, 7, 8, 5, 1, 8, 8, 8, 2, 6, 0, 9, 8, 8, 8]);
 }
 
 /**
@@ -530,7 +592,7 @@ unittest
 private template arraySortWrapper(T, alias fn)
 {
     pragma(mangle, "arraySortWrapper_" ~ T.mangleof ~ "_" ~ fn.mangleof)
-    extern(C) int arraySortWrapper(scope const void* e1, scope const void* e2) nothrow
+    extern(C) int arraySortWrapper(scope const void* e1, scope const void* e2)
     {
         return fn(cast(const(T*))e1, cast(const(T*))e2);
     }

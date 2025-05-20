@@ -1,5 +1,5 @@
 /* Rich optional information on why an optimization wasn't possible.
-   Copyright (C) 2018-2022 Free Software Foundation, Inc.
+   Copyright (C) 2018-2025 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -62,17 +62,16 @@ opt_problem::opt_problem (const dump_location_t &loc,
   {
     dump_pretty_printer pp (&dump_context::get (), MSG_MISSED_OPTIMIZATION);
 
-    text_info text;
-    text.err_no = errno;
-    text.args_ptr = ap;
-    text.format_spec = fmt; /* No i18n is performed.  */
+    text_info text (fmt, /* No i18n is performed.  */
+		    ap, errno);
 
     /* Phases 1 and 2, using pp_format.  */
     pp_format (&pp, &text);
 
     /* Phase 3: dump the items to the "immediate" dump destinations,
        and storing them into m_optinfo for later retrieval.  */
-    pp.emit_items (&m_optinfo);
+    pp.set_optinfo (&m_optinfo);
+    pp_output_formatted_text (&pp, nullptr);
   }
 }
 

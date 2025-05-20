@@ -1,5 +1,5 @@
 /* D-specific tree lowering bits; see also gimple.cc.
-   Copyright (C) 2020-2022 Free Software Foundation, Inc.
+   Copyright (C) 2020-2025 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -162,6 +162,15 @@ d_gimplify_call_expr (tree *expr_p, gimple_seq *pre_p)
   if (!has_side_effects)
     return GS_UNHANDLED;
 
+  /* Evaluate the callee before calling it.  */
+  tree new_call_fn = CALL_EXPR_FN (*expr_p);
+
+  if (gimplify_expr (&new_call_fn, pre_p, NULL,
+		     is_gimple_call_addr, fb_rvalue) == GS_ERROR)
+    return GS_ERROR;
+
+  CALL_EXPR_FN (*expr_p) = new_call_fn;
+
   /* Leave the last argument for gimplify_call_expr.  */
   for (int i = 0; i < nargs - 1; i++)
     {
@@ -235,10 +244,10 @@ d_gimplify_binary_expr (tree *expr_p)
   if (bit_field_ref (op0) || bit_field_ref (op1))
     {
       if (TREE_TYPE (op0) != TREE_TYPE (*expr_p))
-    	TREE_OPERAND (*expr_p, 0) = convert (TREE_TYPE (*expr_p), op0);
+	TREE_OPERAND (*expr_p, 0) = convert (TREE_TYPE (*expr_p), op0);
 
       if (TREE_TYPE (op1) != TREE_TYPE (*expr_p))
-    	TREE_OPERAND (*expr_p, 1) = convert (TREE_TYPE (*expr_p), op1);
+	TREE_OPERAND (*expr_p, 1) = convert (TREE_TYPE (*expr_p), op1);
 
       return GS_OK;
     }

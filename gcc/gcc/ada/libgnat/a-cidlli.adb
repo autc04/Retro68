@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -67,7 +67,7 @@ is
       Source   : in out List;
       Position : Node_Access);
 
-   function Vet (Position : Cursor) return Boolean;
+   function Vet (Position : Cursor) return Boolean with Inline;
    --  Checks invariants of the cursor and its designated container, as a
    --  simple way of detecting dangling references (see operation Free for a
    --  description of the detection mechanism), returning True if all checks
@@ -1283,22 +1283,19 @@ is
    is
       First_Time : Boolean := True;
       use System.Put_Images;
+   begin
+      Array_Before (S);
 
-      procedure Put_Elem (Position : Cursor);
-      procedure Put_Elem (Position : Cursor) is
-      begin
+      for X of V loop
          if First_Time then
             First_Time := False;
          else
             Simple_Array_Between (S);
          end if;
 
-         Element_Type'Put_Image (S, Element (Position));
-      end Put_Elem;
+         Element_Type'Put_Image (S, X);
+      end loop;
 
-   begin
-      Array_Before (S);
-      Iterate (V, Put_Elem'Access);
       Array_After (S);
    end Put_Image;
 
@@ -2103,6 +2100,10 @@ is
 
    function Vet (Position : Cursor) return Boolean is
    begin
+      if not Container_Checks'Enabled then
+         return True;
+      end if;
+
       if Position.Node = null then
          return Position.Container = null;
       end if;

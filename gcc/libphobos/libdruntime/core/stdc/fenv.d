@@ -24,7 +24,6 @@ else version (WatchOS)
     version = Darwin;
 
 extern (C):
-@system:
 nothrow:
 @nogc:
 
@@ -167,21 +166,19 @@ version (GNUFP)
 
         alias fexcept_t = uint;
     }
+    else version (LoongArch64)
+    {
+        struct fenv_t
+        {
+            uint   __fp_control_register;
+        }
+
+        alias fexcept_t = uint;
+    }
     else
     {
         static assert(0, "Unimplemented architecture");
     }
-}
-else version (CRuntime_DigitalMars)
-{
-    struct fenv_t
-    {
-        ushort    status;
-        ushort    control;
-        ushort    round;
-        ushort[2] reserved;
-    }
-    alias fexcept_t = int;
 }
 else version (CRuntime_Microsoft)
 {
@@ -435,9 +432,60 @@ else version (CRuntime_Musl)
         }
         alias ushort fexcept_t;
     }
+    else version (LoongArch64)
+    {
+        struct fenv_t
+        {
+            uint __cw;
+        }
+        alias uint fexcept_t;
+    }
     else
     {
         static assert(false, "Architecture not supported.");
+    }
+}
+else version (CRuntime_Newlib)
+{
+    version (AArch64)
+    {
+        alias fenv_t = ulong;
+        alias fexcept_t = ulong;
+    }
+    else version (RISCV_Any)
+    {
+        alias fenv_t = size_t;
+        alias fexcept_t = size_t;
+    }
+    else version (X86_Any)
+    {
+        struct fenv_t
+        {
+            uint _fpu_cw;
+            uint _fpu_sw;
+            uint _fpu_tagw;
+            uint _fpu_ipoff;
+            uint _fpu_ipsel;
+            uint _fpu_opoff;
+            uint _fpu_opsel;
+            uint _sse_mxcsr;
+        }
+        alias fexcept_t = uint;
+    }
+    else version (SPARC64)
+    {
+        alias fenv_t = ulong;
+        alias fexcept_t = ulong;
+    }
+    else version (SPARC)
+    {
+        alias fenv_t = uint;
+        alias fexcept_t = uint;
+    }
+    else
+    {
+        alias fenv_t = int;
+        alias fexcept_t = int;
     }
 }
 else version (CRuntime_UClibc)
@@ -483,7 +531,7 @@ else version (CRuntime_UClibc)
 
         alias fexcept_t = ushort;
     }
-    else version (MIPS32)
+    else version (MIPS_Any)
     {
         struct fenv_t
         {
@@ -787,6 +835,28 @@ else
             FE_TOWARDZERO   = 0x1, ///
         }
     }
+    else version (LoongArch64)
+    {
+        // Define bits representing exceptions in the Flags field in FCSR{0,2}.
+        enum
+        {
+            FE_INEXACT      = 0x010000, ///
+            FE_UNDERFLOW    = 0x020000, ///
+            FE_OVERFLOW     = 0x040000, ///
+            FE_DIVBYZERO    = 0x080000, ///
+            FE_INVALID      = 0x100000, ///
+            FE_ALL_EXCEPT   = 0x1f0000, ///
+        }
+
+        // Define bits representing rounding modes in the RM field in FCSR{0,3}.
+        enum
+        {
+            FE_TONEAREST    = 0x000, ///
+            FE_TOWARDZERO   = 0x100, ///
+            FE_UPWARD       = 0x200, ///
+            FE_DOWNWARD     = 0x300, ///
+        }
+    }
     else
     {
         static assert(0, "Unimplemented architecture");
@@ -798,12 +868,6 @@ version (GNUFP)
 {
     ///
     enum FE_DFL_ENV = cast(fenv_t*)(-1);
-}
-else version (CRuntime_DigitalMars)
-{
-    private extern __gshared fenv_t _FE_DFL_ENV;
-    ///
-    enum fenv_t* FE_DFL_ENV = &_FE_DFL_ENV;
 }
 else version (CRuntime_Microsoft)
 {
@@ -903,7 +967,7 @@ version (CRuntime_Microsoft) // supported since MSVCRT 12 (VS 2013) only
             double num;
             double denom;
         }
-        static __gshared immutable(Entry[5]) table =
+        static immutable Entry[5] table =
         [ // Raise exception by evaluating num / denom:
             { FE_INVALID,   0.0,    0.0    },
             { FE_DIVBYZERO, 1.0,    0.0    },

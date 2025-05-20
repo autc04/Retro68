@@ -9,7 +9,6 @@
  */
 module core.sys.windows.sspi;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 
@@ -380,4 +379,3 @@ version (Unicode) {
     alias QUERY_SECURITY_PACKAGE_INFO_FN_A QUERY_SECURITY_PACKAGE_INFO_FN;
     alias INIT_SECURITY_INTERFACE_A INIT_SECURITY_INTERFACE;
 }
-

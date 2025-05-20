@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+# Copyright (C) 2017-2025 Free Software Foundation, Inc.
 #
 # Checks some of the GNU style formatting rules in a set of patches.
 # The script is a rewritten of the same bash script and should eventually
@@ -18,7 +20,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with GCC; see the file COPYING3.  If not see
-# <http://www.gnu.org/licenses/>.  */
+# <http://www.gnu.org/licenses/>.
 #
 # The script requires python packages, which can be installed via pip3
 # like this:
@@ -101,7 +103,7 @@ class SpacesCheck:
 
 class SpacesAndTabsMixedCheck:
     def __init__(self):
-        self.re = re.compile('\ \t')
+        self.re = re.compile(r'\ \t')
 
     def check(self, filename, lineno, line):
         stripped = line.lstrip()
@@ -113,7 +115,7 @@ class SpacesAndTabsMixedCheck:
 
 class TrailingWhitespaceCheck:
     def __init__(self):
-        self.re = re.compile('(\s+)$')
+        self.re = re.compile(r'(\s+)$')
 
     def check(self, filename, lineno, line):
         assert(len(line) == 0 or line[-1] != '\n')
@@ -126,7 +128,7 @@ class TrailingWhitespaceCheck:
 
 class SentenceSeparatorCheck:
     def __init__(self):
-        self.re = re.compile('\w\.(\s|\s{3,})\w')
+        self.re = re.compile(r'\w\.(\s|\s{3,})\w')
 
     def check(self, filename, lineno, line):
         m = self.re.search(line)
@@ -138,7 +140,7 @@ class SentenceSeparatorCheck:
 
 class SentenceEndOfCommentCheck:
     def __init__(self):
-        self.re = re.compile('\w\.(\s{0,1}|\s{3,})\*/')
+        self.re = re.compile(r'\w\.(\s{0,1}|\s{3,})\*/')
 
     def check(self, filename, lineno, line):
         m = self.re.search(line)
@@ -150,7 +152,7 @@ class SentenceEndOfCommentCheck:
 
 class SentenceDotEndCheck:
     def __init__(self):
-        self.re = re.compile('\w(\s*\*/)')
+        self.re = re.compile(r'\w(\s*\*/)')
 
     def check(self, filename, lineno, line):
         m = self.re.search(line)
@@ -162,7 +164,7 @@ class SentenceDotEndCheck:
 class FunctionParenthesisCheck:
     # TODO: filter out GTY stuff
     def __init__(self):
-        self.re = re.compile('\w(\s{2,})?(\()')
+        self.re = re.compile(r'\w(\s{2,})?(\()')
 
     def check(self, filename, lineno, line):
         if '#define' in line:
@@ -177,9 +179,12 @@ class FunctionParenthesisCheck:
 
 class SquareBracketCheck:
     def __init__(self):
-        self.re = re.compile('\w\s+(\[)')
+        self.re = re.compile(r'\w\s+(\[)')
 
     def check(self, filename, lineno, line):
+        if filename.endswith('.md'):
+            return None
+
         m = self.re.search(line)
         if m != None:
             return CheckError(filename, lineno,
@@ -189,7 +194,7 @@ class SquareBracketCheck:
 
 class ClosingParenthesisCheck:
     def __init__(self):
-        self.re = re.compile('\S\s+(\))')
+        self.re = re.compile(r'\S\s+(\))')
 
     def check(self, filename, lineno, line):
         m = self.re.search(line)
@@ -203,7 +208,7 @@ class BracesOnSeparateLineCheck:
     # This will give false positives for C99 compound literals.
 
     def __init__(self):
-        self.re = re.compile('(\)|else)\s*({)')
+        self.re = re.compile(r'(\)|else)\s*({)')
 
     def check(self, filename, lineno, line):
         m = self.re.search(line)
@@ -214,7 +219,7 @@ class BracesOnSeparateLineCheck:
 
 class TrailinigOperatorCheck:
     def __init__(self):
-        regex = '^\s.*(([^a-zA-Z_]\*)|([-%<=&|^?])|([^*]/)|([^:][+]))$'
+        regex = r'^\s.*(([^a-zA-Z_]\*)|([-%<=&|^?])|([^*]/)|([^:][+]))$'
         self.re = re.compile(regex)
 
     def check(self, filename, lineno, line):
@@ -262,7 +267,7 @@ class SpacesAndTabsMixedTest(unittest.TestCase):
         r = self.check.check('foo', 123, '\t  a = 123;')
         self.assertIsNone(r)
 
-def check_GNU_style_file(file, file_encoding, format):
+def check_GNU_style_file(file, format):
     checks = [LineLengthCheck(), SpacesCheck(), TrailingWhitespaceCheck(),
         SentenceSeparatorCheck(), SentenceEndOfCommentCheck(),
         SentenceDotEndCheck(), FunctionParenthesisCheck(),
@@ -271,7 +276,7 @@ def check_GNU_style_file(file, file_encoding, format):
         SpacesAndTabsMixedCheck()]
     errors = []
 
-    patch = PatchSet(file, encoding=file_encoding)
+    patch = PatchSet(file)
 
     for pfile in patch.added_files + patch.modified_files:
         t = pfile.target_file.lstrip('b/')

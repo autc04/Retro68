@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler.  LoongArch version.
-   Copyright (C) 2021-2022 Free Software Foundation, Inc.
+   Copyright (C) 2021-2025 Free Software Foundation, Inc.
    Contributed by Loongson Ltd.
    Based on MIPS and RISC-V target for GNU compiler.
 
@@ -22,6 +22,13 @@ along with GCC; see the file COPYING3.  If not see
 /* LoongArch external variables defined in loongarch.cc.  */
 
 #include "config/loongarch/loongarch-opts.h"
+#include "config/loongarch/loongarch-evolution.h"
+
+#define SWITCHABLE_TARGET 1
+
+#define REGISTER_TARGET_PRAGMAS() loongarch_register_pragmas ()
+
+#define TARGET_SUPPORTS_WIDE_INT 1
 
 /* Macros to silence warnings about numbers being signed in traditional
    C and unsigned in ISO C when compiled on 32-bit hosts.  */
@@ -47,9 +54,6 @@ along with GCC; see the file COPYING3.  If not see
 
 #define TARGET_LIBGCC_SDATA_SECTION ".sdata"
 
-/* Driver native functions for SPEC processing in the GCC driver.  */
-#include "loongarch-driver.h"
-
 /* This definition replaces the formerly used 'm' constraint with a
    different constraint letter in order to avoid changing semantics of
    the 'm' constraint when accepting new address formats in
@@ -61,56 +65,6 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef NM_FLAGS
 #define NM_FLAGS "-Bn"
 #endif
-
-/* SUBTARGET_ASM_SPEC is always passed to the assembler.  It may be
-   overridden by subtargets.  */
-
-#ifndef SUBTARGET_ASM_SPEC
-#define SUBTARGET_ASM_SPEC ""
-#endif
-
-#undef ASM_SPEC
-#define ASM_SPEC "%{mabi=*} %{subtarget_asm_spec}"
-
-/* Extra switches sometimes passed to the linker.  */
-
-#ifndef LINK_SPEC
-#define LINK_SPEC ""
-#endif /* LINK_SPEC defined  */
-
-/* Specs for the compiler proper.  */
-
-/* CC1_SPEC is the set of arguments to pass to the compiler proper.  */
-
-#undef CC1_SPEC
-#define CC1_SPEC "\
-%{G*} \
-%(subtarget_cc1_spec)"
-
-/* Preprocessor specs.  */
-
-/* SUBTARGET_CPP_SPEC is passed to the preprocessor.  It may be
-   overridden by subtargets.  */
-#ifndef SUBTARGET_CPP_SPEC
-#define SUBTARGET_CPP_SPEC ""
-#endif
-
-#define CPP_SPEC "%(subtarget_cpp_spec)"
-
-/* This macro defines names of additional specifications to put in the specs
-   that can be used in various specifications like CC1_SPEC.  Its definition
-   is an initializer with a subgrouping for each command option.
-
-   Each subgrouping contains a string constant, that defines the
-   specification name, and a string constant that used by the GCC driver
-   program.
-
-   Do not define this macro if it does not need to do anything.  */
-
-#define EXTRA_SPECS \
-  {"subtarget_cc1_spec", SUBTARGET_CC1_SPEC}, \
-  {"subtarget_cpp_spec", SUBTARGET_CPP_SPEC}, \
-  {"subtarget_asm_spec", SUBTARGET_ASM_SPEC},
 
 /* Registers may have a prefix which can be ignored when matching
    user asm and register definitions.  */
@@ -179,20 +133,20 @@ along with GCC; see the file COPYING3.  If not see
 #define MIN_UNITS_PER_WORD 4
 #endif
 
-/* For LARCH, width of a floating point register.  */
-#define UNITS_PER_FPREG (TARGET_DOUBLE_FLOAT ? 8 : 4)
+/* Width of a LSX vector register in bytes.  */
+#define UNITS_PER_LSX_REG 16
+/* Width of a LSX vector register in bits.  */
+#define BITS_PER_LSX_REG (UNITS_PER_LSX_REG * BITS_PER_UNIT)
+
+/* Width of a LASX vector register in bytes.  */
+#define UNITS_PER_LASX_REG 32
+/* Width of a LASX vector register in bits.  */
+#define BITS_PER_LASX_REG (UNITS_PER_LASX_REG * BITS_PER_UNIT)
 
 /* The largest size of value that can be held in floating-point
    registers and moved with a single instruction.  */
 #define UNITS_PER_HWFPVALUE \
-  (TARGET_SOFT_FLOAT ? 0 : UNITS_PER_FPREG)
-
-/* The largest size of value that can be held in floating-point
-   registers.  */
-#define UNITS_PER_FPVALUE \
-  (TARGET_SOFT_FLOAT ? 0 \
-   : TARGET_SINGLE_FLOAT ? UNITS_PER_FPREG \
-			 : LONG_DOUBLE_TYPE_SIZE / BITS_PER_UNIT)
+  (TARGET_SOFT_FLOAT ? 0 : UNITS_PER_FP_REG)
 
 /* The number of bytes in a double.  */
 #define UNITS_PER_DOUBLE (TYPE_PRECISION (double_type_node) / BITS_PER_UNIT)
@@ -203,9 +157,8 @@ along with GCC; see the file COPYING3.  If not see
 #define LONG_TYPE_SIZE (TARGET_64BIT ? 64 : 32)
 #define LONG_LONG_TYPE_SIZE 64
 
-#define FLOAT_TYPE_SIZE 32
-#define DOUBLE_TYPE_SIZE 64
-#define LONG_DOUBLE_TYPE_SIZE (TARGET_64BIT ? 128 : 64)
+/* LONG_DOUBLE_TYPE_SIZE get poisoned, so add LA_ prefix.  */
+#define LA_LONG_DOUBLE_TYPE_SIZE (TARGET_64BIT ? 128 : 64)
 
 /* Define the sizes of fixed-point types.  */
 #define SHORT_FRACT_TYPE_SIZE 8
@@ -220,7 +173,7 @@ along with GCC; see the file COPYING3.  If not see
 
 /* long double is not a fixed mode, but the idea is that, if we
    support long double, we also want a 128-bit integer type.  */
-#define MAX_FIXED_MODE_SIZE LONG_DOUBLE_TYPE_SIZE
+#define MAX_FIXED_MODE_SIZE LA_LONG_DOUBLE_TYPE_SIZE
 
 /* Width in bits of a pointer.  */
 #ifndef POINTER_SIZE
@@ -241,8 +194,11 @@ along with GCC; see the file COPYING3.  If not see
 #define STRUCTURE_SIZE_BOUNDARY 8
 
 /* There is no point aligning anything to a rounder boundary than
-   LONG_DOUBLE_TYPE_SIZE.  */
-#define BIGGEST_ALIGNMENT (LONG_DOUBLE_TYPE_SIZE)
+   LA_LONG_DOUBLE_TYPE_SIZE, unless under LSX/LASX the bigggest alignment is
+   BITS_PER_LSX_REG/BITS_PER_LASX_REG/..  */
+#define BIGGEST_ALIGNMENT \
+  (ISA_HAS_LASX? BITS_PER_LASX_REG \
+   : (ISA_HAS_LSX ? BITS_PER_LSX_REG : LA_LONG_DOUBLE_TYPE_SIZE))
 
 /* All accesses must be aligned.  */
 #define STRICT_ALIGNMENT (TARGET_STRICT_ALIGN)
@@ -326,9 +282,11 @@ along with GCC; see the file COPYING3.  If not see
 /* Define if loading short immediate values into registers sign extends.  */
 #define SHORT_IMMEDIATES_SIGN_EXTEND 1
 
-/* The clz.{w/d} instructions have the natural values at 0.  */
+/* The clz.{w/d}, ctz.{w/d} instructions have the natural values at 0.  */
 
 #define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE) \
+  ((VALUE) = GET_MODE_UNIT_BITSIZE (MODE), 2)
+#define CTZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE) \
   ((VALUE) = GET_MODE_UNIT_BITSIZE (MODE), 2)
 
 /* Standard register usage.  */
@@ -378,6 +336,13 @@ along with GCC; see the file COPYING3.  If not see
 #define FP_REG_FIRST 32
 #define FP_REG_LAST 63
 #define FP_REG_NUM (FP_REG_LAST - FP_REG_FIRST + 1)
+#define LSX_REG_FIRST FP_REG_FIRST
+#define LSX_REG_LAST  FP_REG_LAST
+#define LSX_REG_NUM   FP_REG_NUM
+
+#define LASX_REG_FIRST FP_REG_FIRST
+#define LASX_REG_LAST  FP_REG_LAST
+#define LASX_REG_NUM   FP_REG_NUM
 
 /* The DWARF 2 CFA column which tracks the return address from a
    signal handler context.  This means that to maintain backwards
@@ -395,8 +360,14 @@ along with GCC; see the file COPYING3.  If not see
   ((unsigned int) ((int) (REGNO) - FP_REG_FIRST) < FP_REG_NUM)
 #define FCC_REG_P(REGNO) \
   ((unsigned int) ((int) (REGNO) - FCC_REG_FIRST) < FCC_REG_NUM)
+#define LSX_REG_P(REGNO) \
+  ((unsigned int) ((int) (REGNO) - LSX_REG_FIRST) < LSX_REG_NUM)
+#define LASX_REG_P(REGNO) \
+  ((unsigned int) ((int) (REGNO) - LASX_REG_FIRST) < LASX_REG_NUM)
 
 #define FP_REG_RTX_P(X) (REG_P (X) && FP_REG_P (REGNO (X)))
+#define LSX_REG_RTX_P(X) (REG_P (X) && LSX_REG_P (REGNO (X)))
+#define LASX_REG_RTX_P(X) (REG_P (X) && LASX_REG_P (REGNO (X)))
 
 /* Select a register mode required for caller save of hard regno REGNO.  */
 #define HARD_REGNO_CALLER_SAVE_MODE(REGNO, NREGS, MODE) \
@@ -561,7 +532,8 @@ enum reg_class
   64, 65, 66, 67, 68, 69, 70, 71, 72, 73}
 
 #define IMM_BITS 12
-#define IMM_REACH (1LL << IMM_BITS)
+#define IMM_REACH (HOST_WIDE_INT_1 << IMM_BITS)
+#define HWIT_1U HOST_WIDE_INT_1U
 
 /* True if VALUE is an unsigned 6-bit number.  */
 
@@ -576,6 +548,11 @@ enum reg_class
 #define IMM12_OPERAND(VALUE) \
   ((unsigned HOST_WIDE_INT) (VALUE) + IMM_REACH / 2 < IMM_REACH)
 
+/* True if VALUE is a signed 13-bit number.  */
+
+#define IMM13_OPERAND(VALUE) \
+  ((unsigned HOST_WIDE_INT) (VALUE) + 0x1000 < 0x2000)
+
 /* True if VALUE is a signed 16-bit number.  */
 
 #define IMM16_OPERAND(VALUE) \
@@ -589,18 +566,20 @@ enum reg_class
 /* True if VALUE can be loaded into a register using LU12I.  */
 
 #define LU12I_OPERAND(VALUE) \
-  (((VALUE) | ((1UL << 31) - IMM_REACH)) == ((1UL << 31) - IMM_REACH) \
-   || ((VALUE) | ((1UL << 31) - IMM_REACH)) + IMM_REACH == 0)
+  (((VALUE) | ((HWIT_1U << 31) - IMM_REACH)) == ((HWIT_1U << 31) - IMM_REACH) \
+   || ((VALUE) | ((HWIT_1U << 31) - IMM_REACH)) + IMM_REACH == 0)
 
 /* True if VALUE can be loaded into a register using LU32I.  */
 
 #define LU32I_OPERAND(VALUE) \
-  (((VALUE) | (((1ULL << 19) - 1) << 32)) == (((1ULL << 19) - 1) << 32) \
-   || ((VALUE) | (((1ULL << 19) - 1) << 32)) + (1ULL << 32) == 0)
+  (((VALUE) | (((HWIT_1U << 19) - 1) << 32)) == (((HWIT_1U << 19) - 1) << 32) \
+   || ((VALUE) | (((HWIT_1U << 19) - 1) << 32)) + (HWIT_1U << 32) == 0)
 
 /* True if VALUE can be loaded into a register using LU52I.  */
 
-#define LU52I_OPERAND(VALUE) (((VALUE) | (0xfffULL << 52)) == (0xfffULL << 52))
+#define HWIT_UC_0xFFF HOST_WIDE_INT_UC(0xfff)
+#define LU52I_OPERAND(VALUE) \
+  (((VALUE) | (HWIT_UC_0xFFF << 52)) == (HWIT_UC_0xFFF << 52))
 
 /* Return a value X with the low 12 bits clear, and such that
    VALUE - X is a signed 12-bit value.  */
@@ -609,12 +588,31 @@ enum reg_class
 
 #define CONST_LOW_PART(VALUE) ((VALUE) - CONST_HIGH_PART (VALUE))
 
+/* True if VALUE can be added onto a register with one addu16i.d
+   instruction.  */
+
+#define ADDU16I_OPERAND(VALUE)			\
+  (TARGET_64BIT && (((VALUE) & 0xffff) == 0	\
+   && IMM16_OPERAND ((HOST_WIDE_INT) (VALUE) / 65536)))
+
+/* True if VALUE can be added onto a register with two addi.{d/w}
+   instructions, but not one addi.{d/w} instruction.  */
+#define DUAL_IMM12_OPERAND(VALUE) \
+  (IN_RANGE ((VALUE), -4096, 4094) && !IMM12_OPERAND (VALUE))
+
+/* True if VALUE can be added onto a register with two addu16i.d
+   instruction, but not one addu16i.d instruction.  */
+#define DUAL_ADDU16I_OPERAND(VALUE)		\
+  (TARGET_64BIT && (((VALUE) & 0xffff) == 0	\
+   && !ADDU16I_OPERAND (VALUE)			\
+   && IN_RANGE ((VALUE) / 65536, -0x10000, 0xfffe)))
+
 #define IMM12_INT(X) IMM12_OPERAND (INTVAL (X))
 #define IMM12_INT_UNSIGNED(X) IMM12_OPERAND_UNSIGNED (INTVAL (X))
 #define LU12I_INT(X) LU12I_OPERAND (INTVAL (X))
 #define LU32I_INT(X) LU32I_OPERAND (INTVAL (X))
 #define LU52I_INT(X) LU52I_OPERAND (INTVAL (X))
-#define LARCH_U12BIT_OFFSET_P(OFFSET) (IN_RANGE (OFFSET, -2048, 2047))
+#define LARCH_12BIT_OFFSET_P(OFFSET) (IN_RANGE (OFFSET, -2048, 2047))
 #define LARCH_9BIT_OFFSET_P(OFFSET) (IN_RANGE (OFFSET, -256, 255))
 #define LARCH_16BIT_OFFSET_P(OFFSET) (IN_RANGE (OFFSET, -32768, 32767))
 #define LARCH_SHIFT_2_OFFSET_P(OFFSET) (((OFFSET) & 0x3) == 0)
@@ -665,11 +663,15 @@ enum reg_class
 
 #define STACK_BOUNDARY (TARGET_ABI_LP64 ? 128 : 64)
 
+/* This value controls how many pages we manually unroll the loop for when
+   generating stack clash probes.  */
+#define STACK_CLASH_MAX_UNROLL_PAGES 4
+
 /* Symbolic macros for the registers used to return integer and floating
    point values.  */
 
 #define GP_RETURN (GP_REG_FIRST + 4)
-#define FP_RETURN ((TARGET_SOFT_FLOAT) ? GP_RETURN : (FP_REG_FIRST + 0))
+#define FP_RETURN ((TARGET_SOFT_FLOAT_ABI) ? GP_RETURN : (FP_REG_FIRST + 0))
 
 #define MAX_ARGS_IN_REGISTERS 8
 
@@ -679,6 +681,44 @@ enum reg_class
 #define GP_ARG_LAST (GP_ARG_FIRST + MAX_ARGS_IN_REGISTERS - 1)
 #define FP_ARG_FIRST (FP_REG_FIRST + 0)
 #define FP_ARG_LAST (FP_ARG_FIRST + MAX_ARGS_IN_REGISTERS - 1)
+
+/* True if MODE is vector and supported in a LSX vector register.  */
+#define LSX_SUPPORTED_MODE_P(MODE)			\
+  (ISA_HAS_LSX						\
+   && GET_MODE_SIZE (MODE) == UNITS_PER_LSX_REG		\
+   && (GET_MODE_CLASS (MODE) == MODE_VECTOR_INT		\
+       || GET_MODE_CLASS (MODE) == MODE_VECTOR_FLOAT))
+
+#define LASX_SUPPORTED_MODE_P(MODE)			\
+  (ISA_HAS_LASX						\
+   && (GET_MODE_SIZE (MODE) == UNITS_PER_LSX_REG	\
+       ||GET_MODE_SIZE (MODE) == UNITS_PER_LASX_REG)	\
+   && (GET_MODE_CLASS (MODE) == MODE_VECTOR_INT		\
+       || GET_MODE_CLASS (MODE) == MODE_VECTOR_FLOAT))
+
+#define RECIP_MASK_NONE         0x00
+#define RECIP_MASK_DIV          0x01
+#define RECIP_MASK_SQRT         0x02
+#define RECIP_MASK_RSQRT        0x04
+#define RECIP_MASK_VEC_DIV      0x08
+#define RECIP_MASK_VEC_SQRT     0x10
+#define RECIP_MASK_VEC_RSQRT    0x20
+#define RECIP_MASK_ALL (RECIP_MASK_DIV | RECIP_MASK_SQRT \
+			| RECIP_MASK_RSQRT | RECIP_MASK_VEC_SQRT \
+			| RECIP_MASK_VEC_DIV | RECIP_MASK_VEC_RSQRT)
+
+#define TARGET_RECIP_DIV \
+  ((recip_mask & RECIP_MASK_DIV) != 0 && ISA_HAS_FRECIPE)
+#define TARGET_RECIP_SQRT \
+  ((recip_mask & RECIP_MASK_SQRT) != 0 && ISA_HAS_FRECIPE)
+#define TARGET_RECIP_RSQRT \
+  ((recip_mask & RECIP_MASK_RSQRT) != 0 && ISA_HAS_FRECIPE)
+#define TARGET_RECIP_VEC_DIV \
+  ((recip_mask & RECIP_MASK_VEC_DIV) != 0 && ISA_HAS_FRECIPE)
+#define TARGET_RECIP_VEC_SQRT \
+  ((recip_mask & RECIP_MASK_VEC_SQRT) != 0 && ISA_HAS_FRECIPE)
+#define TARGET_RECIP_VEC_RSQRT \
+  ((recip_mask & RECIP_MASK_VEC_RSQRT) != 0 && ISA_HAS_FRECIPE)
 
 /* 1 if N is a possible register number for function argument passing.
    We have no FP argument registers when soft-float.  */
@@ -828,7 +868,7 @@ typedef struct {
 /* A C expression for the cost of a branch instruction.  A value of
    1 is the default; other values are interpreted relative to that.  */
 
-#define BRANCH_COST(speed_p, predictable_p) loongarch_branch_cost
+#define BRANCH_COST(speed_p, predictable_p) la_branch_cost
 #define LOGICAL_OP_NON_SHORT_CIRCUIT 0
 
 /* Return the asm template for a conditional branch instruction.
@@ -891,6 +931,7 @@ typedef struct {
   { "t8",	20 + GP_REG_FIRST },					\
   { "x",	21 + GP_REG_FIRST },					\
   { "fp",	22 + GP_REG_FIRST },					\
+  { "s9",	22 + GP_REG_FIRST },					\
   { "s0",	23 + GP_REG_FIRST },					\
   { "s1",	24 + GP_REG_FIRST },					\
   { "s2",	25 + GP_REG_FIRST },					\
@@ -900,8 +941,104 @@ typedef struct {
   { "s6",	29 + GP_REG_FIRST },					\
   { "s7",	30 + GP_REG_FIRST },					\
   { "s8",	31 + GP_REG_FIRST },					\
+  { "fa0",	 0 + FP_REG_FIRST },					\
+  { "fa1",	 1 + FP_REG_FIRST },					\
+  { "fa2",	 2 + FP_REG_FIRST },					\
+  { "fa3",	 3 + FP_REG_FIRST },					\
+  { "fa4",	 4 + FP_REG_FIRST },					\
+  { "fa5",	 5 + FP_REG_FIRST },					\
+  { "fa6",	 6 + FP_REG_FIRST },					\
+  { "fa7",	 7 + FP_REG_FIRST },					\
+  { "ft0",	 8 + FP_REG_FIRST },					\
+  { "ft1",	 9 + FP_REG_FIRST },					\
+  { "ft2",	10 + FP_REG_FIRST },					\
+  { "ft3",	11 + FP_REG_FIRST },					\
+  { "ft4",	12 + FP_REG_FIRST },					\
+  { "ft5",	13 + FP_REG_FIRST },					\
+  { "ft6",	14 + FP_REG_FIRST },					\
+  { "ft7",	15 + FP_REG_FIRST },					\
+  { "ft8",	16 + FP_REG_FIRST },					\
+  { "ft9",	17 + FP_REG_FIRST },					\
+  { "ft10",	18 + FP_REG_FIRST },					\
+  { "ft11",	19 + FP_REG_FIRST },					\
+  { "ft12",	20 + FP_REG_FIRST },					\
+  { "ft13",	21 + FP_REG_FIRST },					\
+  { "ft14",	22 + FP_REG_FIRST },					\
+  { "ft15",	23 + FP_REG_FIRST },					\
+  { "fs0",	24 + FP_REG_FIRST },					\
+  { "fs1",	25 + FP_REG_FIRST },					\
+  { "fs2",	26 + FP_REG_FIRST },					\
+  { "fs3",	27 + FP_REG_FIRST },					\
+  { "fs4",	28 + FP_REG_FIRST },					\
+  { "fs5",	29 + FP_REG_FIRST },					\
+  { "fs6",	30 + FP_REG_FIRST },					\
+  { "fs7",	31 + FP_REG_FIRST },					\
   { "v0",	 4 + GP_REG_FIRST },					\
-  { "v1",	 5 + GP_REG_FIRST }					\
+  { "v1",	 5 + GP_REG_FIRST },					\
+  { "vr0",	 0 + FP_REG_FIRST },					\
+  { "vr1",	 1 + FP_REG_FIRST },					\
+  { "vr2",	 2 + FP_REG_FIRST },					\
+  { "vr3",	 3 + FP_REG_FIRST },					\
+  { "vr4",	 4 + FP_REG_FIRST },					\
+  { "vr5",	 5 + FP_REG_FIRST },					\
+  { "vr6",	 6 + FP_REG_FIRST },					\
+  { "vr7",	 7 + FP_REG_FIRST },					\
+  { "vr8",	 8 + FP_REG_FIRST },					\
+  { "vr9",	 9 + FP_REG_FIRST },					\
+  { "vr10",	10 + FP_REG_FIRST },					\
+  { "vr11",	11 + FP_REG_FIRST },					\
+  { "vr12",	12 + FP_REG_FIRST },					\
+  { "vr13",	13 + FP_REG_FIRST },					\
+  { "vr14",	14 + FP_REG_FIRST },					\
+  { "vr15",	15 + FP_REG_FIRST },					\
+  { "vr16",	16 + FP_REG_FIRST },					\
+  { "vr17",	17 + FP_REG_FIRST },					\
+  { "vr18",	18 + FP_REG_FIRST },					\
+  { "vr19",	19 + FP_REG_FIRST },					\
+  { "vr20",	20 + FP_REG_FIRST },					\
+  { "vr21",	21 + FP_REG_FIRST },					\
+  { "vr22",	22 + FP_REG_FIRST },					\
+  { "vr23",	23 + FP_REG_FIRST },					\
+  { "vr24",	24 + FP_REG_FIRST },					\
+  { "vr25",	25 + FP_REG_FIRST },					\
+  { "vr26",	26 + FP_REG_FIRST },					\
+  { "vr27",	27 + FP_REG_FIRST },					\
+  { "vr28",	28 + FP_REG_FIRST },					\
+  { "vr29",	29 + FP_REG_FIRST },					\
+  { "vr30",	30 + FP_REG_FIRST },					\
+  { "vr31",	31 + FP_REG_FIRST },					\
+  { "xr0",	 0 + FP_REG_FIRST },					\
+  { "xr1",	 1 + FP_REG_FIRST },					\
+  { "xr2",	 2 + FP_REG_FIRST },					\
+  { "xr3",	 3 + FP_REG_FIRST },					\
+  { "xr4",	 4 + FP_REG_FIRST },					\
+  { "xr5",	 5 + FP_REG_FIRST },					\
+  { "xr6",	 6 + FP_REG_FIRST },					\
+  { "xr7",	 7 + FP_REG_FIRST },					\
+  { "xr8",	 8 + FP_REG_FIRST },					\
+  { "xr9",	 9 + FP_REG_FIRST },					\
+  { "xr10",	10 + FP_REG_FIRST },					\
+  { "xr11",	11 + FP_REG_FIRST },					\
+  { "xr12",	12 + FP_REG_FIRST },					\
+  { "xr13",	13 + FP_REG_FIRST },					\
+  { "xr14",	14 + FP_REG_FIRST },					\
+  { "xr15",	15 + FP_REG_FIRST },					\
+  { "xr16",	16 + FP_REG_FIRST },					\
+  { "xr17",	17 + FP_REG_FIRST },					\
+  { "xr18",	18 + FP_REG_FIRST },					\
+  { "xr19",	19 + FP_REG_FIRST },					\
+  { "xr20",	20 + FP_REG_FIRST },					\
+  { "xr21",	21 + FP_REG_FIRST },					\
+  { "xr22",	22 + FP_REG_FIRST },					\
+  { "xr23",	23 + FP_REG_FIRST },					\
+  { "xr24",	24 + FP_REG_FIRST },					\
+  { "xr25",	25 + FP_REG_FIRST },					\
+  { "xr26",	26 + FP_REG_FIRST },					\
+  { "xr27",	27 + FP_REG_FIRST },					\
+  { "xr28",	28 + FP_REG_FIRST },					\
+  { "xr29",	29 + FP_REG_FIRST },					\
+  { "xr30",	30 + FP_REG_FIRST },					\
+  { "xr31",	31 + FP_REG_FIRST }					\
 }
 
 /* Globalizing directive for a label.  */
@@ -975,11 +1112,6 @@ typedef struct {
 
 #define ASM_OUTPUT_ALIGN(STREAM, LOG) fprintf (STREAM, "\t.align\t%d\n", (LOG))
 
-/* "nop" instruction 54525952 (andi $r0,$r0,0) is
-   used for padding.  */
-#define ASM_OUTPUT_ALIGN_WITH_NOP(STREAM, LOG) \
-  fprintf (STREAM, "\t.align\t%d,54525952,4\n", (LOG))
-
 /* This is how to output an assembler line to advance the location
    counter by SIZE bytes.  */
 
@@ -1037,21 +1169,24 @@ typedef struct {
 
 /* The maximum number of bytes that can be copied by one iteration of
    a cpymemsi loop; see loongarch_block_move_loop.  */
-#define LARCH_MAX_MOVE_BYTES_PER_LOOP_ITER (UNITS_PER_WORD * 4)
+#define LARCH_MAX_MOVE_OPS_PER_LOOP_ITER 4
 
 /* The maximum number of bytes that can be copied by a straight-line
    implementation of cpymemsi; see loongarch_block_move_straight.  We want
    to make sure that any loop-based implementation will iterate at
    least twice.  */
-#define LARCH_MAX_MOVE_BYTES_STRAIGHT (LARCH_MAX_MOVE_BYTES_PER_LOOP_ITER * 2)
+#define LARCH_MAX_MOVE_OPS_STRAIGHT (LARCH_MAX_MOVE_OPS_PER_LOOP_ITER * 2)
+
+#define LARCH_MAX_MOVE_PER_INSN \
+  (ISA_HAS_LASX ? 32 : (ISA_HAS_LSX ? 16 : UNITS_PER_WORD))
 
 /* The base cost of a memcpy call, for MOVE_RATIO and friends.  These
    values were determined experimentally by benchmarking with CSiBE.
 */
-#define LARCH_CALL_RATIO 8
+#define LARCH_CALL_RATIO 6
 
 /* Any loop-based implementation of cpymemsi will have at least
-   LARCH_MAX_MOVE_BYTES_STRAIGHT / UNITS_PER_WORD memory-to-memory
+   LARCH_MAX_MOVE_OPS_PER_LOOP_ITER memory-to-memory
    moves, so allow individual copies of fewer elements.
 
    When cpymemsi is not available, use a value approximating
@@ -1062,9 +1197,7 @@ typedef struct {
    value of LARCH_CALL_RATIO to take that into account.  */
 
 #define MOVE_RATIO(speed) \
-  (HAVE_cpymemsi \
-   ? LARCH_MAX_MOVE_BYTES_PER_LOOP_ITER / UNITS_PER_WORD \
-   : CLEAR_RATIO (speed) / 2)
+  (HAVE_cpymemsi ? LARCH_MAX_MOVE_OPS_PER_LOOP_ITER : CLEAR_RATIO (speed) / 2)
 
 /* For CLEAR_RATIO, when optimizing for size, give a better estimate
    of the length of a memset call, but use the default otherwise.  */
@@ -1124,11 +1257,18 @@ struct GTY (()) machine_function
   /* The current frame information, calculated by loongarch_compute_frame_info.
    */
   struct loongarch_frame_info frame;
+
+  bool reg_is_wrapped_separately[FIRST_PSEUDO_REGISTER];
 };
 #endif
 
+#ifdef HAVE_AS_EH_FRAME_PCREL_ENCODING_SUPPORT
+#define ASM_PREFERRED_EH_DATA_FORMAT(CODE, GLOBAL) \
+  (((GLOBAL) ? DW_EH_PE_indirect : 0) | DW_EH_PE_pcrel | DW_EH_PE_sdata4)
+#else
 #define ASM_PREFERRED_EH_DATA_FORMAT(CODE, GLOBAL) \
   (((GLOBAL) ? DW_EH_PE_indirect : 0) | DW_EH_PE_absptr)
+#endif
 
 /* Do emit .note.GNU-stack by default.  */
 #ifndef NEED_INDICATE_EXEC_STACK
@@ -1142,6 +1282,14 @@ struct GTY (()) machine_function
 /* The largest type that can be passed in floating-point registers.  */
 /* TODO: according to mabi.  */
 #define UNITS_PER_FP_ARG  \
-  (TARGET_HARD_FLOAT ? (TARGET_DOUBLE_FLOAT ? 8 : 4) : 0)
+  (TARGET_HARD_FLOAT_ABI ? (TARGET_DOUBLE_FLOAT_ABI ? 8 : 4) : 0)
 
 #define FUNCTION_VALUE_REGNO_P(N) ((N) == GP_RETURN || (N) == FP_RETURN)
+
+/* LoongArch maintains ICache/DCache coherency by hardware,
+   we just need "ibar" to avoid instruction hazard here.  */
+#undef  CLEAR_INSN_CACHE
+#define CLEAR_INSN_CACHE(beg, end) __builtin_loongarch_ibar (0)
+
+#define TARGET_EXPLICIT_RELOCS \
+  (la_opt_explicit_relocs == EXPLICIT_RELOCS_ALWAYS)

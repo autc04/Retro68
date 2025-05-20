@@ -1,4 +1,4 @@
-/* { dg-do run}  */
+/* { dg-do run }  */
 /* PR target/101529 */
 typedef unsigned char C;
 typedef unsigned char __attribute__((__vector_size__ (8))) V;
@@ -24,3 +24,6 @@ main (void)
       __builtin_abort ();
   return 0;
 }
+
+// On i?86-*-* an ABI warning would actually surface.
+// { dg-prune-output "MMX vector (argument|return) without MMX enabled changes the ABI" }

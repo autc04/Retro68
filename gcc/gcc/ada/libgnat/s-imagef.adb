@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---            Copyright (C) 2020-2022, Free Software Foundation, Inc.       --
+--            Copyright (C) 2020-2025, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,8 +31,24 @@
 
 with System.Image_I;
 with System.Img_Util; use System.Img_Util;
+with System.Value_I_Spec;
+with System.Value_U_Spec;
 
 package body System.Image_F is
+
+   --  Contracts, ghost code, loop invariants and assertions in this unit are
+   --  meant for analysis only, not for run-time checking, as it would be too
+   --  costly otherwise. This is enforced by setting the assertion policy to
+   --  Ignore.
+
+   pragma Assertion_Policy (Assert             => Ignore,
+                            Assert_And_Cut     => Ignore,
+                            Contract_Cases     => Ignore,
+                            Ghost              => Ignore,
+                            Loop_Invariant     => Ignore,
+                            Pre                => Ignore,
+                            Post               => Ignore,
+                            Subprogram_Variant => Ignore);
 
    Maxdigs : constant Natural := Int'Width - 2;
    --  Maximum number of decimal digits that can be represented in an Int.
@@ -54,7 +70,14 @@ package body System.Image_F is
    --  if the small is larger than 1, and smaller than 2**(Int'Size - 1) / 10
    --  if the small is smaller than 1.
 
-   package Image_I is new System.Image_I (Int);
+   package Uns_Spec is new System.Value_U_Spec (Uns);
+   package Int_Spec is new System.Value_I_Spec (Int, Uns, Uns_Spec);
+
+   package Image_I is new System.Image_I
+     (Int    => Int,
+      Uns    => Uns,
+      U_Spec => Uns_Spec,
+      I_Spec => Int_Spec);
 
    procedure Set_Image_Integer
      (V : Int;
@@ -92,11 +115,11 @@ package body System.Image_F is
    --     Q * 10**(-D)
 
    --  This value can be written to the output file or to the result string
-   --  according to the format described in RM A.3.10. The details of this
+   --  according to the format described in RM A.10.9. The details of this
    --  operation are omitted here.
 
    --  A 64-bit value can represent all integers with 18 decimal digits, but
-   --  not all with 19 decimal digits. If the total number of requested ouput
+   --  not all with 19 decimal digits. If the total number of requested output
    --  digits (Fore - 1) + Aft is greater than 18 then, for purposes of the
    --  conversion, Aft is adjusted to 18 - (Fore - 1). In that case, trailing
    --  zeros can complete the output after writing the first 18 significant
@@ -251,8 +274,15 @@ package body System.Image_F is
       --  Aft0 digits (unless V is zero). In both cases, we compute one more
       --  digit than requested so that Set_Decimal_Digits can round at Aft.
 
+      --  Aft0 is bounded by the 'Aft of a type with delta 1/2**(Int'Size - 1)
+      --  which is N = ceil ((Int'Siz - 1) * log2 / log10). Aft lies in the
+      --  range of type Field declared in Ada.Text_IO so is bounded by 255.
+      --  Thus A is bounded by 256 + ceil ((Int'Siz - 1) * log2 / log10).
+
       D : constant Integer :=
             Integer'Max (-Maxdigs, Integer'Min (A, Maxdigs - (For0 - 1)));
+      --  D lies in the range -Maxdigs .. A
+
       Y : constant Int     := Num * 10**Integer'Max (0, D);
       Z : constant Int     := Den * 10**Integer'Max (0, -D);
       --  See the description of the algorithm above
@@ -261,6 +291,8 @@ package body System.Image_F is
       --  Number of remaining digits to be computed after the first round. It
       --  is larger than A if the first round does not compute all the digits
       --  before the decimal point, i.e. (For0 - 1) larger than Maxdigs.
+
+      --  AF is bounded by 256 + Maxdigs + ceil ((Int'Siz - 1) * log2 / log10)
 
       N : constant Natural := 1 + (AF + Maxdigs - 1) / Maxdigs;
       --  Number of rounds of scaled divide to be performed
@@ -284,6 +316,9 @@ package body System.Image_F is
       YY : Int := Y;
       --  First two operands of the scaled divide
 
+      J : Natural;
+      --  Loop index
+
    begin
       --  Set the first character like Image
 
@@ -294,59 +329,61 @@ package body System.Image_F is
          Ndigs := 0;
       end if;
 
-      for J in 1 .. N loop
-         exit when XX = 0;
+      --  First round of scaled divide
 
+      if XX /= 0 then
+         Scaled_Divide (XX, YY, Z, Q, R => XX, Round => False);
+         if Q /= 0 then
+            Set_Image_Integer (Q, Digs, Ndigs);
+         end if;
+
+         Scale := Scale + D;
+
+         --  Prepare for next round, if any
+
+         YY := 10**Maxdigs;
+      end if;
+
+      J := 2;
+      while J <= N and then XX /= 0 loop
          Scaled_Divide (XX, YY, Z, Q, R => XX, Round => False);
 
-         if J = 1 then
+         pragma Assert (-10**Maxdigs < Q and then Q < 10**Maxdigs);
+
+         Len := 0;
+         Set_Image_Integer (abs Q, Buf, Len);
+
+         pragma Assert (1 <= Len and then Len <= Maxdigs);
+
+         --  If no character but the space has been written, write the
+         --  minus if need be, since Set_Image_Integer did not do it.
+
+         if Ndigs <= 1 then
             if Q /= 0 then
-               Set_Image_Integer (Q, Digs, Ndigs);
-            end if;
-
-            Scale := Scale + D;
-
-            --  Prepare for next round, if any
-
-            YY := 10**Maxdigs;
-
-         else
-            pragma Assert (-10**Maxdigs < Q and then Q < 10**Maxdigs);
-
-            Len := 0;
-            Set_Image_Integer (abs Q, Buf, Len);
-
-            pragma Assert (1 <= Len and then Len <= Maxdigs);
-
-            --  If no character but the space has been written, write the
-            --  minus if need be, since Set_Image_Integer did not do it.
-
-            if Ndigs <= 1 then
-               if Q /= 0 then
-                  if Ndigs = 0 then
-                     Digs (1) := '-';
-                  end if;
-
-                  Digs (2 .. Len + 1) := Buf (1 .. Len);
-                  Ndigs := Len + 1;
+               if Ndigs = 0 then
+                  Digs (1) := '-';
                end if;
 
-            --  Or else pad the output with zeroes up to Maxdigs
-
-            else
-               for K in 1 .. Maxdigs - Len loop
-                  Digs (Ndigs + K) := '0';
-               end loop;
-
-               for K in 1 .. Len loop
-                  Digs (Ndigs + Maxdigs - Len + K) := Buf (K);
-               end loop;
-
-               Ndigs := Ndigs + Maxdigs;
+               Digs (2 .. Len + 1) := Buf (1 .. Len);
+               Ndigs := Len + 1;
             end if;
 
-            Scale := Scale + Maxdigs;
+         --  Or else pad the output with zeroes up to Maxdigs
+
+         else
+            for K in 1 .. Maxdigs - Len loop
+               Digs (Ndigs + K) := '0';
+            end loop;
+
+            for K in 1 .. Len loop
+               Digs (Ndigs + Maxdigs - Len + K) := Buf (K);
+            end loop;
+
+            Ndigs := Ndigs + Maxdigs;
          end if;
+
+         Scale := Scale + Maxdigs;
+         J := J + 1;
       end loop;
 
       --  If no digit was output, this is zero
@@ -355,6 +392,8 @@ package body System.Image_F is
          Digs (1 .. 2) := " 0";
          Ndigs := 2;
       end if;
+      pragma Annotate (CodePeer, False_Positive, "test always true",
+                       "no digits were output for zero");
 
       Set_Decimal_Digits (Digs, Ndigs, S, P, Scale, Fore, Aft, Exp);
    end Set_Image_Fixed;

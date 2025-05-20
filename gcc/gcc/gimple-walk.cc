@@ -1,6 +1,6 @@
 /* Gimple walk support.
 
-   Copyright (C) 2007-2022 Free Software Foundation, Inc.
+   Copyright (C) 2007-2025 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldyh@redhat.com>
 
 This file is part of GCC.
@@ -56,11 +56,21 @@ walk_gimple_seq_mod (gimple_seq *pseq, walk_stmt_fn callback_stmt,
 	  gcc_assert (wi);
 	  wi->callback_result = ret;
 
-	  return wi->removed_stmt ? NULL : gsi_stmt (gsi);
+	  gimple *g;
+	  if (!wi->removed_stmt)
+	    g = gsi_stmt (gsi);
+	  else
+	    {
+	      g = NULL;
+	      wi->removed_stmt = false;
+	    }
+	  return g;
 	}
 
       if (!wi->removed_stmt)
 	gsi_next (&gsi);
+      else
+	wi->removed_stmt = false;
     }
 
   if (wi)
@@ -485,6 +495,12 @@ walk_gimple_op (gimple *stmt, walk_tree_fn callback_op,
       }
       break;
 
+    case GIMPLE_ASSUME:
+      ret = walk_tree (gimple_assume_guard_ptr (stmt), callback_op, wi, pset);
+      if (ret)
+	return ret;
+      break;
+
     case GIMPLE_TRANSACTION:
       {
 	gtransaction *txn = as_a <gtransaction *> (stmt);
@@ -687,9 +703,11 @@ walk_gimple_stmt (gimple_stmt_iterator *gsi, walk_stmt_fn callback_stmt,
     case GIMPLE_OMP_ORDERED:
     case GIMPLE_OMP_SCAN:
     case GIMPLE_OMP_SECTION:
+    case GIMPLE_OMP_STRUCTURED_BLOCK:
     case GIMPLE_OMP_PARALLEL:
     case GIMPLE_OMP_TASK:
     case GIMPLE_OMP_SCOPE:
+    case GIMPLE_OMP_DISPATCH:
     case GIMPLE_OMP_SECTIONS:
     case GIMPLE_OMP_SINGLE:
     case GIMPLE_OMP_TARGET:
@@ -703,6 +721,13 @@ walk_gimple_stmt (gimple_stmt_iterator *gsi, walk_stmt_fn callback_stmt,
     case GIMPLE_WITH_CLEANUP_EXPR:
       ret = walk_gimple_seq_mod (gimple_wce_cleanup_ptr (stmt), callback_stmt,
 			     callback_op, wi);
+      if (ret)
+	return wi->callback_result;
+      break;
+
+    case GIMPLE_ASSUME:
+      ret = walk_gimple_seq_mod (gimple_assume_body_ptr (stmt),
+				 callback_stmt, callback_op, wi);
       if (ret)
 	return wi->callback_result;
       break;
@@ -811,17 +836,6 @@ walk_stmt_load_store_addr_ops (gimple *stmt, void *data,
 	    ;
 	  else if (TREE_CODE (op) == ADDR_EXPR)
 	    ret |= visit_addr (stmt, TREE_OPERAND (op, 0), op, data);
-	  /* COND_EXPR and VCOND_EXPR rhs1 argument is a comparison
-	     tree with two operands.  */
-	  else if (i == 1 && COMPARISON_CLASS_P (op))
-	    {
-	      if (TREE_CODE (TREE_OPERAND (op, 0)) == ADDR_EXPR)
-		ret |= visit_addr (stmt, TREE_OPERAND (TREE_OPERAND (op, 0),
-						       0), op, data);
-	      if (TREE_CODE (TREE_OPERAND (op, 1)) == ADDR_EXPR)
-		ret |= visit_addr (stmt, TREE_OPERAND (TREE_OPERAND (op, 1),
-						       0), op, data);
-	    }
 	}
     }
   else if (gcall *call_stmt = dyn_cast <gcall *> (stmt))

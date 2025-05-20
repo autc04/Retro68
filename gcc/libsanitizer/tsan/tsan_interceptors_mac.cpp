@@ -12,12 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_common/sanitizer_platform.h"
-#if SANITIZER_MAC
+#if SANITIZER_APPLE
 
 #include "interception/interception.h"
 #include "tsan_interceptors.h"
 #include "tsan_interface.h"
 #include "tsan_interface_ann.h"
+#include "tsan_spinlock_defs_mac.h"
 #include "sanitizer_common/sanitizer_addrhashmap.h"
 
 #include <errno.h>
@@ -93,6 +94,10 @@ static constexpr morder kMacFailureOrder = mo_relaxed;
   m_orig(int32_t, uint32_t, a32, f##32##OrigBarrier,                           \
     __tsan_atomic32_##tsan_atomic_f, kMacOrderBarrier)
 
+
+#pragma clang diagnostic push
+// OSAtomic* functions are deprecated.
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 OSATOMIC_INTERCEPTORS_ARITHMETIC(OSAtomicAdd, fetch_add,
                                  OSATOMIC_INTERCEPTOR_PLUS_X)
 OSATOMIC_INTERCEPTORS_ARITHMETIC(OSAtomicIncrement, fetch_add,
@@ -122,6 +127,9 @@ OSATOMIC_INTERCEPTORS_BITWISE(OSAtomicXor, fetch_xor,
         kMacOrderBarrier, kMacFailureOrder);                                \
   }
 
+#pragma clang diagnostic push
+// OSAtomicCompareAndSwap* functions are deprecated.
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 OSATOMIC_INTERCEPTORS_CAS(OSAtomicCompareAndSwapInt, __tsan_atomic32, a32, int)
 OSATOMIC_INTERCEPTORS_CAS(OSAtomicCompareAndSwapLong, __tsan_atomic64, a64,
                           long_t)
@@ -131,6 +139,7 @@ OSATOMIC_INTERCEPTORS_CAS(OSAtomicCompareAndSwap32, __tsan_atomic32, a32,
                           int32_t)
 OSATOMIC_INTERCEPTORS_CAS(OSAtomicCompareAndSwap64, __tsan_atomic64, a64,
                           int64_t)
+#pragma clang diagnostic pop
 
 #define OSATOMIC_INTERCEPTOR_BITOP(f, op, clear, mo)             \
   TSAN_INTERCEPTOR(bool, f, uint32_t n, volatile void *ptr) {    \
@@ -518,4 +527,4 @@ STDCXX_INTERCEPTOR(void, _ZNSt3__111__call_onceERVmPvPFvS2_E, void *flag,
 
 }  // namespace __tsan
 
-#endif  // SANITIZER_MAC
+#endif  // SANITIZER_APPLE

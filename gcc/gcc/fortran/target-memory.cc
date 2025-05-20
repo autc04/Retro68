@@ -1,5 +1,5 @@
 /* Simulate storage of variables into target memory.
-   Copyright (C) 2007-2022 Free Software Foundation, Inc.
+   Copyright (C) 2007-2025 Free Software Foundation, Inc.
    Contributed by Paul Thomas and Brooks Moses
 
 This file is part of GCC.
@@ -42,6 +42,11 @@ size_integer (int kind)
   return GET_MODE_SIZE (SCALAR_INT_TYPE_MODE (gfc_get_int_type (kind)));
 }
 
+static size_t
+size_unsigned (int kind)
+{
+  return GET_MODE_SIZE (SCALAR_INT_TYPE_MODE (gfc_get_unsigned_type (kind)));
+}
 
 static size_t
 size_float (int kind)
@@ -84,6 +89,9 @@ gfc_element_size (gfc_expr *e, size_t *siz)
     {
     case BT_INTEGER:
       *siz = size_integer (e->ts.kind);
+      return true;
+    case BT_UNSIGNED:
+      *siz = size_unsigned (e->ts.kind);
       return true;
     case BT_REAL:
       *siz = size_float (e->ts.kind);
@@ -158,6 +166,8 @@ gfc_target_expr_size (gfc_expr *e, size_t *size)
 	asz = mpz_get_ui (tmp);
       else
 	return false;
+
+      mpz_clear (tmp);
     }
   else
     asz = 1;
@@ -416,11 +426,14 @@ gfc_interpret_float (int kind, unsigned char *buffer, size_t buffer_size,
 		     mpfr_t real)
 {
   gfc_set_model_kind (kind);
-  mpfr_init (real);
-  gfc_conv_tree_to_mpfr (real,
-			 native_interpret_expr (gfc_get_real_type (kind),
-						buffer, buffer_size));
 
+  tree source = native_interpret_expr (gfc_get_real_type (kind), buffer,
+				       buffer_size);
+  if (!source)
+    return 0;
+
+  mpfr_init (real);
+  gfc_conv_tree_to_mpfr (real, source);
   return size_float (kind);
 }
 

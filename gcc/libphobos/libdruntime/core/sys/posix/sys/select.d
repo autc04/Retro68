@@ -27,7 +27,6 @@ else version (WatchOS)
 
 version (Posix):
 extern (C) nothrow @nogc:
-@system:
 
 //
 // Required
@@ -184,7 +183,8 @@ else version (FreeBSD)
 
     struct fd_set
     {
-        __fd_mask[(FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS] __fds_bits;
+        __fd_mask[(FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS] fds_bits;
+        deprecated("druntime incorrectly named fds_bits __fds_bits") alias __fds_bits = fds_bits;
     }
 
     extern (D) __fd_mask __fdset_mask(uint n) pure
@@ -194,17 +194,17 @@ else version (FreeBSD)
 
     extern (D) void FD_CLR( int n, fd_set* p ) pure
     {
-        p.__fds_bits[n / _NFDBITS] &= ~__fdset_mask(n);
+        p.fds_bits[n / _NFDBITS] &= ~__fdset_mask(n);
     }
 
     extern (D) bool FD_ISSET( int n, const(fd_set)* p ) pure
     {
-        return (p.__fds_bits[n / _NFDBITS] & __fdset_mask(n)) != 0;
+        return (p.fds_bits[n / _NFDBITS] & __fdset_mask(n)) != 0;
     }
 
     extern (D) void FD_SET( int n, fd_set* p ) pure
     {
-        p.__fds_bits[n / _NFDBITS] |= __fdset_mask(n);
+        p.fds_bits[n / _NFDBITS] |= __fdset_mask(n);
     }
 
     extern (D) void FD_ZERO( fd_set* p ) pure
@@ -215,7 +215,7 @@ else version (FreeBSD)
         _p = p;
         _n = (FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS;
         while (_n > 0)
-            _p.__fds_bits[--_n] = 0;
+            _p.fds_bits[--_n] = 0;
     }
 
     int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
@@ -233,7 +233,8 @@ else version (NetBSD)
 
     struct fd_set
     {
-        __fd_mask[(FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS] __fds_bits;
+        __fd_mask[(FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS] fds_bits;
+        deprecated("druntime incorrectly named fds_bits __fds_bits") alias __fds_bits = fds_bits;
     }
 
     extern (D) __fd_mask __fdset_mask(uint n) pure
@@ -243,17 +244,17 @@ else version (NetBSD)
 
     extern (D) void FD_CLR( int n, fd_set* p ) pure
     {
-        p.__fds_bits[n / _NFDBITS] &= ~__fdset_mask(n);
+        p.fds_bits[n / _NFDBITS] &= ~__fdset_mask(n);
     }
 
     extern (D) bool FD_ISSET( int n, const(fd_set)* p ) pure
     {
-        return (p.__fds_bits[n / _NFDBITS] & __fdset_mask(n)) != 0;
+        return (p.fds_bits[n / _NFDBITS] & __fdset_mask(n)) != 0;
     }
 
     extern (D) void FD_SET( int n, fd_set* p ) pure
     {
-        p.__fds_bits[n / _NFDBITS] |= __fdset_mask(n);
+        p.fds_bits[n / _NFDBITS] |= __fdset_mask(n);
     }
 
     extern (D) void FD_ZERO( fd_set* p ) pure
@@ -264,7 +265,7 @@ else version (NetBSD)
         _p = p;
         _n = (FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS;
         while (_n > 0)
-            _p.__fds_bits[--_n] = 0;
+            _p.fds_bits[--_n] = 0;
     }
 
     int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
@@ -282,7 +283,8 @@ else version (OpenBSD)
 
     struct fd_set
     {
-        __fd_mask[(FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS] __fds_bits;
+        __fd_mask[(FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS] fds_bits;
+        deprecated("druntime incorrectly named fds_bits __fds_bits") alias __fds_bits = fds_bits;
     }
 
     extern (D) __fd_mask __fdset_mask(uint n) pure
@@ -292,17 +294,17 @@ else version (OpenBSD)
 
     extern (D) void FD_CLR(int n, fd_set* p) pure
     {
-        p.__fds_bits[n / _NFDBITS] &= ~__fdset_mask(n);
+        p.fds_bits[n / _NFDBITS] &= ~__fdset_mask(n);
     }
 
     extern (D) bool FD_ISSET(int n, const(fd_set)* p) pure
     {
-        return (p.__fds_bits[n / _NFDBITS] & __fdset_mask(n)) != 0;
+        return (p.fds_bits[n / _NFDBITS] & __fdset_mask(n)) != 0;
     }
 
     extern (D) void FD_SET(int n, fd_set* p) pure
     {
-        p.__fds_bits[n / _NFDBITS] |= __fdset_mask(n);
+        p.fds_bits[n / _NFDBITS] |= __fdset_mask(n);
     }
 
     extern (D) void FD_ZERO(fd_set* p) pure
@@ -311,7 +313,7 @@ else version (OpenBSD)
         size_t _n = (FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS;
 
         while (_n > 0)
-            _p.__fds_bits[--_n] = 0;
+            _p.fds_bits[--_n] = 0;
     }
 
     int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
@@ -329,7 +331,8 @@ else version (DragonFlyBSD)
 
     struct fd_set
     {
-        __fd_mask[(FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS] __fds_bits;
+        __fd_mask[(FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS] fds_bits;
+        deprecated("druntime incorrectly named fds_bits __fds_bits") alias __fds_bits = fds_bits;
     }
 
     extern (D) __fd_mask __fdset_mask(uint n) pure
@@ -339,17 +342,17 @@ else version (DragonFlyBSD)
 
     extern (D) void FD_CLR( int n, fd_set* p ) pure
     {
-        p.__fds_bits[n / _NFDBITS] &= ~__fdset_mask(n);
+        p.fds_bits[n / _NFDBITS] &= ~__fdset_mask(n);
     }
 
     extern (D) bool FD_ISSET( int n, const(fd_set)* p ) pure
     {
-        return (p.__fds_bits[n / _NFDBITS] & __fdset_mask(n)) != 0;
+        return (p.fds_bits[n / _NFDBITS] & __fdset_mask(n)) != 0;
     }
 
     extern (D) void FD_SET( int n, fd_set* p ) pure
     {
-        p.__fds_bits[n / _NFDBITS] |= __fdset_mask(n);
+        p.fds_bits[n / _NFDBITS] |= __fdset_mask(n);
     }
 
     extern (D) void FD_ZERO( fd_set* p ) pure
@@ -360,7 +363,7 @@ else version (DragonFlyBSD)
         _p = p;
         _n = (FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS;
         while (_n > 0)
-            _p.__fds_bits[--_n] = 0;
+            _p.fds_bits[--_n] = 0;
     }
 
     int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
@@ -502,7 +505,9 @@ else version (CRuntime_Musl)
     {
         fdset.fds_bits[0 .. $] = 0;
     }
+    pragma(mangle, muslRedirTime64Mangle!("pselect", "__pselect_time64"))
     int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
+    pragma(mangle, muslRedirTime64Mangle!("select", "__select_time64"))
     int select(int, fd_set*, fd_set*, fd_set*, timeval*);
 }
 else version (CRuntime_UClibc)
@@ -608,4 +613,3 @@ pure unittest
         assert(!FD_ISSET(i, &fd));
     }
 }
-

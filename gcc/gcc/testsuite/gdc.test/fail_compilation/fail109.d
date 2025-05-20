@@ -34,7 +34,8 @@ enum E1 : short
 /* https://issues.dlang.org/show_bug.cgi?id=14950
 TEST_OUTPUT:
 ---
-fail_compilation/fail109.d(50): Error: Comparison between different enumeration types `B` and `C`; If this behavior is intended consider using `std.conv.asOriginalType`
+fail_compilation/fail109.d(50): Error: cannot check `fail109.B.end` value for overflow
+fail_compilation/fail109.d(50): Error: comparison between different enumeration types `B` and `C`; If this behavior is intended consider using `std.conv.asOriginalType`
 fail_compilation/fail109.d(50): Error: enum member `fail109.B.end` initialization with `B.start+1` causes overflow for type `C`
 ---
 */
@@ -43,7 +44,6 @@ enum C
     start,
     end
 }
-
 enum B
 {
     start = C.end,
@@ -89,4 +89,20 @@ enum RegValueType2b : DWORD
 {
     DWORD = REG_DWORD,
     Unknown = DWORD.min,
+}
+
+/*
+TEST_OUTPUT:
+---
+fail_compilation/fail109.d(107): Error: enum member `fail109.d` initialization with `__anonymous.c+1` causes overflow for type `Q`
+---
+*/
+
+struct Q {
+	enum max = Q();
+}
+
+enum {
+	c = Q(),
+	d
 }

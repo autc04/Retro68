@@ -1,6 +1,6 @@
 // Utility functions for uses-allocator construction -*- C++ -*-
 
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,10 +30,13 @@
 #ifndef _USES_ALLOCATOR_ARGS
 #define _USES_ALLOCATOR_ARGS 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
-#if __cplusplus > 201703L && __cpp_concepts
+#include <bits/version.h>
 
+#ifdef __glibcxx_make_obj_using_allocator // C++ >= 20 && concepts
 #include <new>			// for placement operator new
 #include <tuple>		// for tuple, make_tuple, make_from_tuple
 #include <bits/stl_construct.h> // construct_at
@@ -44,15 +47,11 @@ namespace std _GLIBCXX_VISIBILITY(default)
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   template<typename _Tp>
-    concept _Std_pair = __is_pair<_Tp>;
+    concept _Std_pair = __is_pair<remove_cv_t<_Tp>>;
 
 /** @addtogroup allocators
  *  @{
  */
-
-// Not specified by C++20, used internally
-#define __cpp_lib_make_obj_using_allocator 201811L
-
   template<typename _Tp, typename _Alloc, typename... _Args>
     constexpr auto
     uses_allocator_construction_args(const _Alloc& __a,
@@ -106,6 +105,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<_Std_pair _Tp, typename _Alloc, typename _Up, typename _Vp>
     constexpr auto
     uses_allocator_construction_args(const _Alloc&, pair<_Up, _Vp>&&) noexcept;
+
+#if __cplusplus > 202002L
+  template<_Std_pair _Tp, typename _Alloc, typename _Up, typename _Vp>
+    constexpr auto
+    uses_allocator_construction_args(const _Alloc&,
+				     pair<_Up, _Vp>&) noexcept;
+
+  template<_Std_pair _Tp, typename _Alloc, typename _Up, typename _Vp>
+    constexpr auto
+    uses_allocator_construction_args(const _Alloc&, const pair<_Up, _Vp>&&) noexcept;
+#endif // C++23
 
   template<_Std_pair _Tp, typename _Alloc, typename _Tuple1, typename _Tuple2>
     constexpr auto
@@ -174,12 +184,45 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       using _Tp1 = typename _Tp::first_type;
       using _Tp2 = typename _Tp::second_type;
 
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 3527. uses_allocator_construction_args handles rvalue pairs
+      // of rvalue references incorrectly
       return std::make_tuple(piecewise_construct,
 	  std::uses_allocator_construction_args<_Tp1>(__a,
-	    std::move(__pr).first),
+	    std::get<0>(std::move(__pr))),
 	  std::uses_allocator_construction_args<_Tp2>(__a,
-	    std::move(__pr).second));
+	    std::get<1>(std::move(__pr))));
     }
+
+#if __cplusplus > 202002L
+  template<_Std_pair _Tp, typename _Alloc, typename _Up, typename _Vp>
+    constexpr auto
+    uses_allocator_construction_args(const _Alloc& __a,
+				     pair<_Up, _Vp>& __pr) noexcept
+    {
+      using _Tp1 = typename _Tp::first_type;
+      using _Tp2 = typename _Tp::second_type;
+
+      return std::make_tuple(piecewise_construct,
+	  std::uses_allocator_construction_args<_Tp1>(__a, __pr.first),
+	  std::uses_allocator_construction_args<_Tp2>(__a, __pr.second));
+    }
+
+  template<_Std_pair _Tp, typename _Alloc, typename _Up, typename _Vp>
+    constexpr auto
+    uses_allocator_construction_args(const _Alloc& __a,
+				     const pair<_Up, _Vp>&& __pr) noexcept
+    {
+      using _Tp1 = typename _Tp::first_type;
+      using _Tp2 = typename _Tp::second_type;
+
+      return std::make_tuple(piecewise_construct,
+	  std::uses_allocator_construction_args<_Tp1>(__a,
+	    std::get<0>(std::move(__pr))),
+	  std::uses_allocator_construction_args<_Tp2>(__a,
+	    std::get<1>(std::move(__pr))));
+    }
+#endif // C++23
 
   template<typename _Tp, typename _Alloc, typename... _Args>
     constexpr _Tp
@@ -203,5 +246,5 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 /// @}
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
-#endif // C++20
+#endif // __glibcxx_make_obj_using_allocator
 #endif // _USES_ALLOCATOR_ARGS

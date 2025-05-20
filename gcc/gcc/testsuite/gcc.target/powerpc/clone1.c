@@ -1,6 +1,6 @@
 /* { dg-do compile { target { powerpc*-*-linux* && lp64 } } } */
-/* { dg-options "-mdejagnu-cpu=power8 -O2" } */
-/* { dg-require-effective-target powerpc_p9vector_ok } */
+/* { dg-options "-mdejagnu-cpu=power8 -mvsx -O2" } */
+/* { dg-require-effective-target powerpc_vsx } */
 /* { dg-require-effective-target ppc_cpu_supports_hw } */
 
 /* Power9 (aka, ISA 3.0) has a MODSD instruction to do modulus, while Power8
@@ -21,6 +21,7 @@ long mod_func_or (long a, long b, long c)
   return mod_func (a, b) | c;
 }
 
-/* { dg-final { scan-assembler-times {\mdivd\M}  1 } } */
-/* { dg-final { scan-assembler-times {\mmulld\M} 1 } } */
-/* { dg-final { scan-assembler-times {\mmodsd\M} 1 } } */
+/* { Fail due to RS6000_DISABLE_SCALAR_MODULO. */
+/* { dg-final { scan-assembler-times {\mdivd\M}  1 { xfail *-*-* } } } */
+/* { dg-final { scan-assembler-times {\mmulld\M} 1 { xfail *-*-* } } } */
+/* { dg-final { scan-assembler-times {\mmodsd\M} 1 { xfail *-*-* } } } */

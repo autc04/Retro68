@@ -1,4 +1,4 @@
-/* Copyright (C) 2013-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2013-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -49,6 +49,9 @@ typedef _Atomic long atomic_long;
 typedef _Atomic unsigned long atomic_ulong;
 typedef _Atomic long long atomic_llong;
 typedef _Atomic unsigned long long atomic_ullong;
+#ifdef __CHAR8_TYPE__
+typedef _Atomic __CHAR8_TYPE__ atomic_char8_t;
+#endif
 typedef _Atomic __CHAR16_TYPE__ atomic_char16_t;
 typedef _Atomic __CHAR32_TYPE__ atomic_char32_t;
 typedef _Atomic __WCHAR_TYPE__ atomic_wchar_t;
@@ -73,10 +76,12 @@ typedef _Atomic __UINTPTR_TYPE__ atomic_uintptr_t;
 typedef _Atomic __SIZE_TYPE__ atomic_size_t;
 typedef _Atomic __PTRDIFF_TYPE__ atomic_ptrdiff_t;
 typedef _Atomic __INTMAX_TYPE__ atomic_intmax_t;
-typedef _Atomic __UINTMAX_TYPE__ atomic_uintmax_t;        
+typedef _Atomic __UINTMAX_TYPE__ atomic_uintmax_t;
 
 
+#if !(defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L)
 #define ATOMIC_VAR_INIT(VALUE)	(VALUE)
+#endif
 
 /* Initialize an atomic object pointed to by PTR with VAL.  */
 #define atomic_init(PTR, VAL)                           \
@@ -97,6 +102,9 @@ extern void atomic_signal_fence (memory_order);
 
 #define ATOMIC_BOOL_LOCK_FREE		__GCC_ATOMIC_BOOL_LOCK_FREE
 #define ATOMIC_CHAR_LOCK_FREE		__GCC_ATOMIC_CHAR_LOCK_FREE
+#ifdef __GCC_ATOMIC_CHAR8_T_LOCK_FREE
+#define ATOMIC_CHAR8_T_LOCK_FREE	__GCC_ATOMIC_CHAR8_T_LOCK_FREE
+#endif
 #define ATOMIC_CHAR16_T_LOCK_FREE	__GCC_ATOMIC_CHAR16_T_LOCK_FREE
 #define ATOMIC_CHAR32_T_LOCK_FREE	__GCC_ATOMIC_CHAR32_T_LOCK_FREE
 #define ATOMIC_WCHAR_T_LOCK_FREE	__GCC_ATOMIC_WCHAR_T_LOCK_FREE
@@ -110,7 +118,7 @@ extern void atomic_signal_fence (memory_order);
 /* Note that these macros require __auto_type to remove
    _Atomic qualifiers (and const qualifiers, if those are valid on
    macro operands).
-   
+
    Also note that the header file uses the generic form of __atomic
    builtins, which requires the address to be taken of the value
    parameter, and then we pass that value on.  This allows the macros
@@ -239,5 +247,9 @@ extern void atomic_flag_clear (volatile atomic_flag *);
 #define atomic_flag_clear(PTR)	__atomic_clear ((PTR), __ATOMIC_SEQ_CST)
 extern void atomic_flag_clear_explicit (volatile atomic_flag *, memory_order);
 #define atomic_flag_clear_explicit(PTR, MO)   __atomic_clear ((PTR), (MO))
+
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+#define __STDC_VERSION_STDATOMIC_H__	202311L
+#endif
 
 #endif  /* _STDATOMIC_H */

@@ -11,7 +11,6 @@
 
 module core.sys.windows.stacktrace;
 version (Windows):
-@system:
 
 import core.demangle;
 import core.stdc.stdlib;
@@ -25,12 +24,13 @@ import core.sys.windows.windef;
 debug(PRINTF) import core.stdc.stdio;
 
 
-extern(Windows) void RtlCaptureContext(CONTEXT* ContextRecord);
+extern(Windows) void RtlCaptureContext(CONTEXT* ContextRecord) @nogc;
 extern(Windows) DWORD GetEnvironmentVariableA(LPCSTR lpName, LPSTR pBuffer, DWORD nSize);
 
-extern(Windows) alias USHORT function(ULONG FramesToSkip, ULONG FramesToCapture, PVOID *BackTrace, PULONG BackTraceHash) RtlCaptureStackBackTraceFunc;
+extern(Windows) alias USHORT function(ULONG FramesToSkip, ULONG FramesToCapture, PVOID *BackTrace, PULONG BackTraceHash) @nogc RtlCaptureStackBackTraceFunc;
 
 private __gshared RtlCaptureStackBackTraceFunc RtlCaptureStackBackTrace;
+private __gshared CRITICAL_SECTION mutex; // cannot use core.sync.mutex.Mutex unfortunately (cyclic dependency...)
 private __gshared immutable bool initialized;
 
 
@@ -43,14 +43,14 @@ public:
      *  skip = The number of stack frames to skip.
      *  context = The context to receive the stack trace from. Can be null.
      */
-    this(size_t skip, CONTEXT* context)
+    this(size_t skip, CONTEXT* context) @nogc
     {
         if (context is null)
         {
             version (Win64)
-                static enum INTERNALFRAMES = 3;
+                enum INTERNALFRAMES = 3;
             else version (Win32)
-                static enum INTERNALFRAMES = 2;
+                enum INTERNALFRAMES = 2;
 
             skip += INTERNALFRAMES; //skip the stack frames within the StackTrace class
         }
@@ -58,17 +58,17 @@ public:
         {
             //When a exception context is given the first stack frame is repeated for some reason
             version (Win64)
-                static enum INTERNALFRAMES = 1;
+                enum INTERNALFRAMES = 1;
             else version (Win32)
-                static enum INTERNALFRAMES = 1;
+                enum INTERNALFRAMES = 1;
 
             skip += INTERNALFRAMES;
         }
-        if ( initialized )
-            m_trace = trace(skip, context);
+        if (initialized)
+            m_trace = trace(tracebuf[], skip, context);
     }
 
-    int opApply( scope int delegate(ref const(char[])) dg ) const
+    override int opApply( scope int delegate(ref const(char[])) dg ) const
     {
         return opApply( (ref size_t, ref const(char[]) buf)
                         {
@@ -77,7 +77,7 @@ public:
     }
 
 
-    int opApply( scope int delegate(ref size_t, ref const(char[])) dg ) const
+    override int opApply( scope int delegate(ref size_t, ref const(char[])) dg ) const
     {
         int result;
         foreach ( i, e; resolve(m_trace) )
@@ -101,19 +101,28 @@ public:
     }
 
     /**
-     * Receive a stack trace in the form of an address list.
+     * Receive a stack trace in the form of an address list. One form accepts
+     * an allocated buffer, the other form automatically allocates the buffer.
+     *
      * Params:
      *  skip = How many stack frames should be skipped.
      *  context = The context that should be used. If null the current context is used.
+     *  buffer = The buffer to use for the trace. This should be at least 63 elements.
      * Returns:
      *  A list of addresses that can be passed to resolve at a later point in time.
      */
     static ulong[] trace(size_t skip = 0, CONTEXT* context = null)
     {
-        synchronized( typeid(StackTrace) )
-        {
-            return traceNoSync(skip, context);
-        }
+        return trace(new ulong[63], skip, context);
+    }
+
+    /// ditto
+    static ulong[] trace(ulong[] buffer, size_t skip = 0, CONTEXT* context = null) @nogc
+    {
+        EnterCriticalSection(&mutex);
+        scope(exit) LeaveCriticalSection(&mutex);
+
+        return traceNoSync(buffer, skip, context);
     }
 
     /**
@@ -125,45 +134,55 @@ public:
      */
     @trusted static char[][] resolve(const(ulong)[] addresses)
     {
-        synchronized( typeid(StackTrace) )
-        {
-            return resolveNoSync(addresses);
-        }
+        // FIXME: make @nogc to avoid having to disable resolution within finalizers
+        import core.memory : GC;
+        if (GC.inFinalizer)
+            return null;
+
+        EnterCriticalSection(&mutex);
+        scope(exit) LeaveCriticalSection(&mutex);
+
+        return resolveNoSync(addresses);
     }
 
 private:
+    ulong[128] tracebuf;
     ulong[] m_trace;
 
 
-    static ulong[] traceNoSync(size_t skip, CONTEXT* context)
+    static ulong[] traceNoSync(ulong[] buffer, size_t skip, CONTEXT* context) @nogc
     {
         auto dbghelp  = DbgHelp.get();
         if (dbghelp is null)
             return []; // dbghelp.dll not available
 
-        if (RtlCaptureStackBackTrace !is null && context is null)
+        if (buffer.length >= 63 && RtlCaptureStackBackTrace !is null &&
+            context is null)
         {
-            size_t[63] buffer = void; // On windows xp the sum of "frames to skip" and "frames to capture" can't be greater then 63
-            auto backtraceLength = RtlCaptureStackBackTrace(cast(ULONG)skip, cast(ULONG)(buffer.length - skip), cast(void**)buffer.ptr, null);
+            version (Win64)
+            {
+                auto bufptr = cast(void**)buffer.ptr;
+            }
+            version (Win32)
+            {
+                size_t[63] bufstorage = void; // On windows xp the sum of "frames to skip" and "frames to capture" can't be greater then 63
+                auto bufptr = cast(void**)bufstorage.ptr;
+            }
+            auto backtraceLength = RtlCaptureStackBackTrace(cast(ULONG)skip, cast(ULONG)(63 - skip), bufptr, null);
 
             // If we get a backtrace and it does not have the maximum length use it.
             // Otherwise rely on tracing through StackWalk64 which is slower but works when no frame pointers are available.
-            if (backtraceLength > 1 && backtraceLength < buffer.length - skip)
+            if (backtraceLength > 1 && backtraceLength < 63 - skip)
             {
                 debug(PRINTF) printf("Using result from RtlCaptureStackBackTrace\n");
-                version (Win64)
+                version (Win32)
                 {
-                    return buffer[0..backtraceLength].dup;
-                }
-                else version (Win32)
-                {
-                    auto result = new ulong[backtraceLength];
-                    foreach (i, ref e; result)
+                    foreach (i, ref e; buffer[0 .. backtraceLength])
                     {
-                        e = buffer[i];
+                        e = bufstorage[i];
                     }
-                    return result;
                 }
+                return buffer[0..backtraceLength];
             }
         }
 
@@ -211,21 +230,23 @@ private:
         else version (X86_64) enum imageType = IMAGE_FILE_MACHINE_AMD64;
         else                  static assert(0, "unimplemented");
 
-        ulong[] result;
         size_t frameNum = 0;
+        size_t nframes = 0;
 
         // do ... while so that we don't skip the first stackframe
         do
         {
             if (frameNum >= skip)
             {
-                result ~= stackframe.AddrPC.Offset;
+                buffer[nframes++] = stackframe.AddrPC.Offset;
+                if (nframes >= buffer.length)
+                    break;
             }
             frameNum++;
         }
         while (dbghelp.StackWalk64(imageType, hProcess, hThread, &stackframe,
                                    &ctxt, null, null, null, null));
-        return result;
+        return buffer[0 .. nframes];
     }
 
     static char[][] resolveNoSync(const(ulong)[] addresses)
@@ -288,12 +309,6 @@ private:
         auto res = formatStackFrame(pc);
         res ~= " in ";
         const(char)[] tempSymName = symName[0 .. strlen(symName)];
-        //Deal with dmd mangling of long names
-        version (CRuntime_DigitalMars)
-        {
-            size_t decodeIndex = 0;
-            tempSymName = decodeDmdString(tempSymName, decodeIndex);
-        }
         res ~= demangle(tempSymName, demangleBuf);
         return res;
     }
@@ -316,34 +331,6 @@ private:
     }
 }
 
-
-// Workaround OPTLINK bug (Bugzilla 8263)
-extern(Windows) BOOL FixupDebugHeader(HANDLE hProcess, ULONG ActionCode,
-                                      ulong CallbackContext, ulong UserContext)
-{
-    if (ActionCode == CBA_READ_MEMORY)
-    {
-        auto p = cast(IMAGEHLP_CBA_READ_MEMORY*)CallbackContext;
-        if (!(p.addr & 0xFF) && p.bytes == 0x1C &&
-            // IMAGE_DEBUG_DIRECTORY.PointerToRawData
-            (*cast(DWORD*)(p.addr + 24) & 0xFF) == 0x20)
-        {
-            immutable base = DbgHelp.get().SymGetModuleBase64(hProcess, p.addr);
-            // IMAGE_DEBUG_DIRECTORY.AddressOfRawData
-            if (base + *cast(DWORD*)(p.addr + 20) == p.addr + 0x1C &&
-                *cast(DWORD*)(p.addr + 0x1C) == 0 &&
-                *cast(DWORD*)(p.addr + 0x20) == ('N'|'B'<<8|'0'<<16|'9'<<24))
-            {
-                debug(PRINTF) printf("fixup IMAGE_DEBUG_DIRECTORY.AddressOfRawData\n");
-                memcpy(p.buf, cast(void*)p.addr, 0x1C);
-                *cast(DWORD*)(p.buf + 20) = cast(DWORD)(p.addr - base) + 0x20;
-                *p.bytesread = 0x1C;
-                return TRUE;
-            }
-        }
-    }
-    return FALSE;
-}
 
 private string generateSearchPath()
 {
@@ -405,7 +392,6 @@ shared static this()
     if (!dbghelp.SymInitialize(hProcess, generateSearchPath().ptr, TRUE))
         return;
 
-    dbghelp.SymRegisterCallback64(hProcess, &FixupDebugHeader, 0);
-
+    InitializeCriticalSection(&mutex);
     initialized = true;
 }

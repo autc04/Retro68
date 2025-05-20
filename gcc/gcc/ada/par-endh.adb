@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -28,6 +28,7 @@ with Stringt;  use Stringt;
 with Uintp;    use Uintp;
 
 with GNAT.Spelling_Checker; use GNAT.Spelling_Checker;
+with Diagnostics.Constructors; use Diagnostics.Constructors;
 
 separate (Par)
 package body Endh is
@@ -242,7 +243,7 @@ package body Endh is
             --  FOR or WHILE allowed (signalling error) to substitute for LOOP
             --  if on the same line as the END.
 
-            elsif (Token = Tok_For or else Token = Tok_While)
+            elsif Token in Tok_For | Tok_While
               and then not Token_Is_At_Start_Of_Line
             then
                Scan; -- past FOR or WHILE
@@ -412,19 +413,19 @@ package body Endh is
                      Error_Msg_SC
                        ("misplaced aspects for package declaration");
                      Error_Msg
-                       ("info: aspect specifications belong here??", Is_Loc);
-                     P_Aspect_Specifications (Empty);
+                       ("info: aspect specifications belong here", Is_Loc);
+                     P_Aspect_Specifications (Empty, Semicolon => True);
 
                   --  Other cases where aspect specifications are not allowed
 
                   else
-                     P_Aspect_Specifications (Error);
+                     P_Aspect_Specifications (Error, Semicolon => True);
                   end if;
 
                --  Aspect specifications allowed
 
                else
-                  P_Aspect_Specifications (Decl);
+                  P_Aspect_Specifications (Decl, Semicolon => True);
                end if;
 
             --  If no aspect specifications, must have a semicolon
@@ -445,8 +446,7 @@ package body Endh is
                --  incorrect. Same thing for a period in place of a semicolon.
 
                elsif Token_Is_At_Start_Of_Line
-                 or else Token = Tok_Colon
-                 or else Token = Tok_Dot
+                 or else Token in Tok_Colon | Tok_Dot
                then
                   T_Semicolon;
 
@@ -480,10 +480,8 @@ package body Endh is
             --  on the same line as the END
 
             while not Token_Is_At_Start_Of_Line
-              and then Prev_Token /= Tok_Record
-              and then Prev_Token /= Tok_Semicolon
-              and then Token /= Tok_End
-              and then Token /= Tok_EOF
+              and then Prev_Token not in Tok_Record | Tok_Semicolon
+              and then Token not in Tok_End | Tok_EOF
             loop
                Scan; -- past junk
             end loop;
@@ -625,9 +623,8 @@ package body Endh is
             return;
          end if;
 
-         if Token /= Tok_Identifier
-           and then Token /= Tok_Operator_Symbol
-           and then Token /= Tok_String_Literal
+         if Token not in
+           Tok_Identifier | Tok_Operator_Symbol | Tok_String_Literal
          then
             exit;
          end if;
@@ -655,9 +652,7 @@ package body Endh is
       --  if there is no line end at the end of the last line of the file)
 
       else
-         while Token /= Tok_End
-           and then Token /= Tok_EOF
-           and then Token /= Tok_Semicolon
+         while Token not in Tok_End | Tok_EOF | Tok_Semicolon
            and then not Token_Is_At_Start_Of_Line
          loop
             Scan; -- past junk token on same line
@@ -826,9 +821,9 @@ package body Endh is
       --  Cases where a label is definitely allowed on the END line
 
       elsif End_Type = E_Name then
-         Syntax_OK := (not Explicit_Start_Label (SS_Index))
+         Syntax_OK := not Explicit_Start_Label (SS_Index)
                          or else
-                      (not Scopes (SS_Index).Lreq);
+                      not Scopes (SS_Index).Lreq;
 
       --  Otherwise we have cases which don't allow labels anyway, so we
       --  certainly accept an END which does not have a label.
@@ -902,6 +897,8 @@ package body Endh is
    procedure Output_End_Expected (Ins : Boolean) is
       End_Type : SS_End_Type;
 
+      Wrong_End_Start : Source_Ptr;
+      Wrong_End_Finish : Source_Ptr;
    begin
       --  Suppress message if this was a potentially junk entry (e.g. a record
       --  entry where no record keyword was present).
@@ -938,8 +935,32 @@ package body Endh is
 
       elsif End_Type = E_Loop then
          if Error_Msg_Node_1 = Empty then
-            Error_Msg_SC -- CODEFIX
-              ("`END LOOP;` expected@ for LOOP#!");
+
+            if Debug_Flag_Underscore_DD then
+
+               --  TODO: This is a quick hack to get the location of the
+               --  END LOOP for the demonstration.
+
+               Wrong_End_Start := Token_Ptr;
+
+               while Token /= Tok_Semicolon loop
+                  Scan; -- past semicolon
+               end loop;
+
+               Wrong_End_Finish := Token_Ptr;
+
+               Restore_Scan_State (Scan_State);
+
+               Record_End_Loop_Expected_Error
+                 (End_Loc   => To_Span (First => Wrong_End_Start,
+                                        Ptr   => Wrong_End_Start,
+                                        Last  => Wrong_End_Finish),
+                  Start_Loc => Error_Msg_Sloc);
+
+            else
+               Error_Msg_SC -- CODEFIX
+                 ("`END LOOP;` expected@ for LOOP#!");
+            end if;
          else
             Error_Msg_SC -- CODEFIX
               ("`END LOOP &;` expected@!");
@@ -1137,7 +1158,7 @@ package body Endh is
                then
                   Error_Msg_Col := Scopes (Scope.Last).Ecol;
                   Error_Msg
-                    ("(style) END in wrong column, should be@", End_Sloc);
+                    ("(style) END in wrong column, should be@?l?", End_Sloc);
                end if;
             end if;
 
@@ -1157,9 +1178,7 @@ package body Endh is
 
                   Scan; -- past END
 
-                  if Token = Tok_Identifier
-                    or else Token = Tok_Operator_Symbol
-                  then
+                  if Token in Tok_Identifier | Tok_Operator_Symbol then
                      Nxt_Labl := P_Designator;
 
                      --  We only consider it an error if the label is a match
@@ -1172,11 +1191,11 @@ package body Endh is
                        and then
                          (Scope.Last = 1
                             or else
-                              (not Explicit_Start_Label (Scope.Last - 1))
+                              not Explicit_Start_Label (Scope.Last - 1)
                                  or else
-                              (not Same_Label
-                                     (End_Labl,
-                                      Scopes (Scope.Last - 1).Labl)))
+                              not Same_Label
+                                    (End_Labl,
+                                     Scopes (Scope.Last - 1).Labl))
                      then
                         T_Semicolon;
                         Error_Msg ("duplicate end line ignored", End_Loc);

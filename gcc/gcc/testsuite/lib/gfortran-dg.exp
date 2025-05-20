@@ -1,4 +1,4 @@
-#   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -126,11 +126,15 @@ proc gfortran-dg-runtest { testcases flags default-extra-flags } {
     global runtests
     global torture_with_loops
 
+    # Some callers initialize torture testing themselves; don't override those.
+    set existing_torture_init [torture-init-done]
+    if { $existing_torture_init == 0 } {
+	torture-init
+    }
     # Some callers set torture options themselves; don't override those.
     set existing_torture_options [torture-options-exist]
     if { $existing_torture_options == 0 } {
 	global DG_TORTURE_OPTIONS
-	torture-init
 	set-torture-options $DG_TORTURE_OPTIONS
     }
     dump-torture-options
@@ -142,10 +146,16 @@ proc gfortran-dg-runtest { testcases flags default-extra-flags } {
 	    continue
         }
 
-	# look if this is dg-do-run test, in which case
+	# look if this is dg-do run test, in which case
 	# we cycle through the option list, otherwise we don't
 	if [expr [search_for $test "dg-do run"]] {
-	    set option_list $torture_with_loops
+	    if { [ expr [search_for $test "dg-options*\[ \t\"\{]-O"] ] \
+		 || [ expr [search_for $test \
+			    "dg-additional-options*\[ \t\"\{]-O"] ] } {
+		set option_list [list { -O } ]
+	    } else {
+		set option_list $torture_with_loops
+	    }
 	} else {
 	    set option_list [list { -O } ]
 	}
@@ -156,11 +166,12 @@ proc gfortran-dg-runtest { testcases flags default-extra-flags } {
 	foreach flags_t $option_list {
 	    verbose "Testing $nshort, $flags $flags_t" 1
 	    dg-test $test "$flags $flags_t" ${default-extra-flags}
+	    fortran-delete-unit-files $test
 	    cleanup-modules ""
 	}
     }
 
-    if { $existing_torture_options == 0 } {
+    if { $existing_torture_init == 0 } {
 	torture-finish
     }
 }
@@ -170,7 +181,7 @@ proc gfortran-dg-debug-runtest { target_compile trivial opt_opts testcases } {
 
     if ![info exists DEBUG_TORTURE_OPTIONS] {
        set DEBUG_TORTURE_OPTIONS ""
-       set type_list [list "-gstabs" "-gstabs+" "-gxcoff" "-gxcoff+" "-gdwarf-2" ]
+       set type_list [list "-gdwarf-2" ]
        foreach type $type_list {
            set comp_output [$target_compile \
                    "$srcdir/$subdir/$trivial" "trivial.S" assembly \

@@ -9,7 +9,6 @@
  */
 module core.sys.windows.winver;
 version (Windows):
-@system:
 import core.sys.windows.w32api;
 import core.sys.windows.winbase;
 import core.sys.windows.sdkddkver;
@@ -140,7 +139,7 @@ struct VS_FIXEDFILEINFO {
     DWORD dwFileDateLS;
 }
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     DWORD VerFindFileA(DWORD, LPCSTR, LPCSTR, LPCSTR, LPSTR, PUINT, LPSTR,
       PUINT);
     DWORD VerFindFileW(DWORD, LPCWSTR, LPCWSTR, LPCWSTR, LPWSTR, PUINT, LPWSTR,

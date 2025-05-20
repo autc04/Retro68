@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,12 +29,13 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+--  Image for fixed and float types (also used for Float_IO/Fixed_IO output)
+
 --  This obsolete package is preserved for the sake of backward compatibility
 
 with System.Img_LLF;
 
 package System.Img_Real is
-   pragma Pure;
 
    procedure Set_Image_Real
      (V    : Long_Long_Float;
@@ -44,5 +45,13 @@ package System.Img_Real is
       Aft  : Natural;
       Exp  : Natural)
      renames System.Img_LLF.Set_Image_Long_Long_Float;
+   --  Sets the image of ``V`` starting at ``S`` (``P`` + 1), updating ``P``
+   --  to point to the last character stored, the caller promises that the
+   --  buffer is large enough and no check is made for this. Constraint_Error
+   --  will not necessarily be raised if this is violated, since it is
+   --  perfectly valid to compile this unit with checks off). The ``Fore``,
+   --  ``Aft`` and ``Exp`` values can be set to any valid values for the case
+   --  of use from Text_IO. Note that no space is stored at the start for
+   --  non-negative values.
 
 end System.Img_Real;

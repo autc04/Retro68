@@ -1,10 +1,25 @@
-2022-08-19  Release Manager
+2025-04-25  Release Manager
 
-	* GCC 12.2.0 released.
+	* GCC 15.1.0 released.
 
-2022-05-06  Release Manager
+2024-04-15  Jakub Jelinek  <jakub@redhat.com>
 
-	* GCC 12.1.0 released.
+	* Makefile.am (install-exec-local, uninstall-local): Add goals
+	on the else branch of if NATIVE to ensure reproducibility.
+	* Makefile.in: Regenerate.
+
+2023-11-03  Maxim Kuvyrkov  <maxim.kuvyrkov@linaro.org>
+
+	* Makefile.am: Update "Running <sub-testsuite> ..." output
+	* Makefile.in: Regenerate.
+
+2022-08-30  Martin Liska  <mliska@suse.cz>
+
+	* Makefile.in: Regenerate.
+
+2022-08-30  Martin Liska  <mliska@suse.cz>
+
+	* Makefile.in: Regenerate.
 
 2022-02-13  Ian Lance Taylor  <iant@golang.org>
 

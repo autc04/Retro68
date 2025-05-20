@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2022 Free Software Foundation, Inc.
+// Copyright (C) 2017-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -16,6 +16,7 @@
 // <http://www.gnu.org/licenses/>.
 
 // { dg-do run { target c++11 } }
+// { dg-additional-options "-Wno-deprecated-declarations" { target c++17 } }
 
 #include <locale>
 #include <codecvt>
@@ -83,7 +84,7 @@ test06()
   const char src[] = "\0\x61\xAB\xCD";
   Conv<char16_t> conv("to_bytes failed", u"from_bytes failed");
   std::u16string result = conv.from_bytes(src, src+3); // incomplete character
-  VERIFY( result == u"from_bytes failed" );
+  VERIFY( result == u"\u0061" );
   VERIFY( conv.converted() == 2 );
 }
 

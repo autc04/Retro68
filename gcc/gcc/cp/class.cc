@@ -1,5 +1,5 @@
 /* Functions related to building -*- C++ -*- classes and their related objects.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GCC.
@@ -40,7 +40,7 @@ along with GCC; see the file COPYING3.  If not see
 
 /* Id for dumping the class hierarchy.  */
 int class_dump_id;
- 
+
 /* The number of nested classes being processed.  If we are not in the
    scope of any class, this is zero.  */
 
@@ -141,8 +141,8 @@ static bool accessible_nvdtor_p (tree);
 /* Used by find_flexarrays and related functions.  */
 struct flexmems_t;
 static void diagnose_flexarrays (tree, const flexmems_t *);
-static void find_flexarrays (tree, flexmems_t *, bool = false,
-			     tree = NULL_TREE, tree = NULL_TREE);
+static void find_flexarrays (tree, flexmems_t *, bool, bool = false,
+			     bool = false, tree = NULL_TREE);
 static void check_flexarrays (tree, flexmems_t * = NULL, bool = false);
 static void check_bases (tree, int *, int *);
 static void check_bases_and_members (tree);
@@ -205,6 +205,7 @@ static tree get_vcall_index (tree, tree);
 static bool type_maybe_constexpr_default_constructor (tree);
 static bool type_maybe_constexpr_destructor (tree);
 static bool field_poverlapping_p (tree);
+static void propagate_class_warmth_attribute (tree);
 
 /* Set CURRENT_ACCESS_SPECIFIER based on the protection of DECL.  */
 
@@ -325,7 +326,7 @@ build_base_path (enum tree_code code,
 		error ("cannot convert from base class %qT to derived "
 		       "class %qT because the base is virtual",
 		       BINFO_TYPE (binfo), BINFO_TYPE (d_binfo));
-	    }	      
+	    }
 	  else
 	    {
 	      if (want_pointer)
@@ -344,7 +345,7 @@ build_base_path (enum tree_code code,
 
   bool uneval = (cp_unevaluated_operand != 0
 		 || processing_template_decl
-		 || in_template_function ());
+		 || in_template_context);
 
   /* For a non-pointer simple base reference, express it as a COMPONENT_REF
      without taking its address (and so causing lambda capture, 91933).  */
@@ -673,7 +674,7 @@ convert_to_base_statically (tree expr, tree base)
 bool
 is_empty_base_ref (tree expr)
 {
-  if (TREE_CODE (expr) == INDIRECT_REF)
+  if (INDIRECT_REF_P (expr))
     expr = TREE_OPERAND (expr, 0);
   if (TREE_CODE (expr) != NOP_EXPR)
     return false;
@@ -1018,6 +1019,241 @@ modify_vtable_entry (tree t,
 }
 
 
+/* Check if the object parameter of an iobj member function corresponds to
+   another parameter type.  CONTEXT is the class that the implicit object
+   parameter is considered to refer to.  */
+
+bool
+iobj_parm_corresponds_to (tree iobj_fn, tree xobj_param, tree context)
+{
+  tree iobj_fn_type = TREE_TYPE (iobj_fn);
+
+  /* If the iobj member function was introduced with a using declaration, the
+     type of its object parameter is considered to be that of the class it was
+     introduced into.
+
+     [over.match.funcs.general.4]
+     For non-conversion functions that are implicit object member
+     functions nominated by a using-declaration in a derived class, the
+     function is considered to be a member of the derived class for the purpose
+     of defining the type of the implicit object parameter.
+
+     Unfortunately, because of this rule, we can't just compare the xobj member
+     function's DECL_CONTEXT to its object parameter.
+
+     struct S;
+
+     struct B {
+       int f(this S&) { return 5; }
+     };
+
+     struct S : B {
+       using B::f;
+       int f() { return 10; }
+     };
+
+     The using declaration does not change the object parameter of B::f as it
+     is an xobj member function.  However, its object parameter still
+     corresponds to S::f as it was declared with an object parameter of type
+     S const&.  The DECL_CONTEXT of B::f is B, so if we compare the type of the
+     object parameter to that, it will not match.  If we naively assume a
+     different type from the DECL_CONTEXT for an xobj parameter means that the
+     object parameters do not correspond, then the object parameters in the
+     above example will be considered non-corresponding.
+
+     As a result of this, B::f would incorrectly not be discarded, causing an
+     ambiguity when f is called on an object of type S.
+
+     This also impacts member functions with constraints as in the following
+     example.
+
+     template<typename = void>
+     struct S;
+
+     template<typename = void>
+     struct B {
+       int f(this S<>&) requires true { return 5; }
+     };
+
+     template<typename>
+     struct S : B<> {
+       using B<>::f;
+       int f() { return 10; }
+     };
+
+     Once again, if we compare the DECL_CONTEXT of B<>::f to it's xobj
+     parameter, it would not match.  If the object parameters do not
+     correspond, constraints are not taken into account, so in this example we
+     would (probably) get an ambiguous lookup instead of correctly picking
+     B<>::f.
+
+     Because of this caveat, we must actually compare the type of the iobj
+     parameter to the type of the xobj parameter, shortcuts will have these
+     edge cases.
+
+     Aside from the more complex reasons above, this logic also implicitly
+     handles xobj parameters of pointer type, we don't have to explicitly
+     check for that case.  */
+
+  if (!same_type_ignoring_top_level_qualifiers_p
+      (context, non_reference (xobj_param)))
+    return false;
+
+  /* We don't get to bail yet even if we have a by-value xobj parameter,
+     a by-value xobj parameter can correspond to an iobj parameter provided the
+     iobj member function is not declared with a reference qualifier.
+
+     From this point on, we know we are dealing with an xobj parameter that has
+     an object parameter of the same type as the class it was declared in.
+     We still don't know if we have a reference or by-value parameter yet
+     though.  */
+
+  cp_ref_qualifier const iobj_ref_qual = type_memfn_rqual (iobj_fn_type);
+  /* We only care about cv qualifiers when determining correspondence.  */
+  static constexpr cp_cv_quals cv_bits = TYPE_QUAL_VOLATILE
+				       | TYPE_QUAL_CONST;
+  cp_cv_quals const iobj_cv_quals = type_memfn_quals (iobj_fn_type) & cv_bits;
+  /* We need to ignore the ref qualifier of the xobj parameter if the iobj
+     member function lacks a ref qualifier.
+
+     [basic.scope.scope.3]
+     Two non-static member functions have corresponding object parameters if:
+     -- exactly one is an implicit object member function with no ref-qualifier
+	and the types of their object parameters ([dcl.fct]), after removing
+	top-level references, are the same, or
+     -- their object parameters have the same type.
+
+     The cv qualifiers of a by-value parameter are supposed to be discarded, so
+     we ignore them.
+
+     [dcl.fct.5]
+     After producing the list of parameter types, any top-level cv-qualifiers
+     modifying a parameter type are deleted when forming the function type.
+
+     However, they still need to be taken into account when our xobj parameter
+     is a reference that is being ignored (according to [basic.scope.scope.3]
+     quoted above), but when we are actually dealing with a by-value xobj
+     parameter we can proceed following this table.
+     | iobj | xobj | equal |
+     | none | none |   X   |
+     | none |    c |   X   |
+     | none |    v |   X   |
+     | none |   cv |   X   |
+     |    c | none |   O   |
+     |    c |    c |   O   |
+     |    c |    v |   O   |
+     |    c |   cv |   O   |
+     |    v | none |   O   |
+     |    v |    c |   O   |
+     |    v |    v |   O   |
+     |    v |   cv |   O   |
+     |   cv | none |   O   |
+     |   cv |    c |   O   |
+     |   cv |    v |   O   |
+     |   cv |   cv |   O   |
+
+     Additionally, if the iobj member function is ref qualified, we aren't
+     ignoring the ref qualifier of the iobj parameter, so we can't be dealing
+     with correspondence in that case either.
+
+     So to recap, if we have a by-value xobj parameter, we know for sure that
+     we aren't dealing with corresponding object parameters if the iobj member
+     function has any cv-ref qualifiers.  The only case where we might still be
+     dealing with corresponding object parameters is when the iobj member
+     function lacks any cv-ref qualification.  */
+  if (!TYPE_REF_P (xobj_param))
+    {
+      if (iobj_ref_qual || iobj_cv_quals)
+	return false;
+    }
+  else
+    {
+      /* We are dealing with an xobj parameter that is a reference now, but due
+	 to [basic.scope.scope.3] we need to ignore its ref qual.  */
+      cp_ref_qualifier const xobj_ref_qual = [&](){
+	  if (!TYPE_REF_P (xobj_param) || !iobj_ref_qual)
+	    return REF_QUAL_NONE;
+	  return TYPE_REF_IS_RVALUE (xobj_param) ? REF_QUAL_RVALUE
+						 : REF_QUAL_LVALUE;
+	}(); /* IILE.  */
+
+      /* Even if we are ignoring the reference qualifier, the xobj parameter
+	 was still a reference so we still take the cv qualifiers into
+	 account.  */
+      cp_cv_quals const xobj_cv_quals
+	= cp_type_quals (TREE_TYPE (xobj_param)) & cv_bits;
+
+      /* Finally, if the qualifications don't match exactly, the object
+	 parameters don't correspond.  */
+      if (iobj_ref_qual != xobj_ref_qual
+	  || iobj_cv_quals != xobj_cv_quals)
+	return false;
+    }
+  /* If we got past everything else, the object parameters of fn1 and fn2
+     definitely correspond.  */
+  return true;
+}
+
+/* True if FN and METHOD have corresponding object parms per
+   [basic.scope.scope], or if one of them is a static member function (which
+   are considered to have an object parm that corresponds to any other).
+   CONTEXT is the class that an implicit object member function is considered
+   to be a member of for the purpose of this comparison, per
+   [over.match.funcs].  */
+
+bool
+object_parms_correspond (tree fn, tree method, tree context)
+{
+  tree fn_type = TREE_TYPE (fn);
+  tree method_type = TREE_TYPE (method);
+
+  /* Compare the quals on the 'this' parm.  Don't compare
+     the whole types, as used functions are treated as
+     coming from the using class in overload resolution.  */
+  if (DECL_IOBJ_MEMBER_FUNCTION_P (fn)
+      && DECL_IOBJ_MEMBER_FUNCTION_P (method))
+    {
+      /* Either both or neither need to be ref-qualified for
+	 differing quals to allow overloading.  */
+      if ((FUNCTION_REF_QUALIFIED (fn_type)
+	   == FUNCTION_REF_QUALIFIED (method_type))
+	  && (type_memfn_quals (fn_type) != type_memfn_quals (method_type)
+	      || type_memfn_rqual (fn_type) != type_memfn_rqual (method_type)))
+	return false;
+      return true;
+    }
+  /* Treat a static member function as corresponding to any object parm.  */
+  else if (DECL_STATIC_FUNCTION_P (fn) || DECL_STATIC_FUNCTION_P (method))
+    return true;
+  /* Handle special correspondence rules for xobj vs xobj and xobj vs iobj
+     member function declarations.
+     We don't worry about static member functions here.  */
+  else if (DECL_XOBJ_MEMBER_FUNCTION_P (fn)
+	   && DECL_XOBJ_MEMBER_FUNCTION_P (method))
+    {
+      auto get_object_param = [] (tree fn)
+	{
+	  return TREE_VALUE (TYPE_ARG_TYPES (TREE_TYPE (fn)));
+	};
+      /* We skip the object parameter below, check it here instead of
+	 making changes to that code.  */
+      tree fn_param = get_object_param (fn);
+      tree method_param = get_object_param (method);
+      if (!same_type_p (fn_param, method_param))
+	return false;
+    }
+  else
+    {
+      tree xobj_fn = DECL_XOBJ_MEMBER_FUNCTION_P (fn) ? fn : method;
+      tree iobj_fn = xobj_fn != fn ? fn : method;
+      tree xobj_param = TREE_VALUE (TYPE_ARG_TYPES (TREE_TYPE (xobj_fn)));
+
+      return iobj_parm_corresponds_to (iobj_fn, xobj_param, context);
+    }
+
+  return true;
+}
+
 /* Add method METHOD to class TYPE.  If VIA_USING indicates whether
    METHOD is being injected via a using_decl.  Returns true if the
    method could be added to the method vec.  */
@@ -1072,21 +1308,11 @@ add_method (tree type, tree method, bool via_using)
 	 functions in the derived class override and/or hide member
 	 functions with the same name and parameter types in a base
 	 class (rather than conflicting).  */
+      if (!object_parms_correspond (fn, method, type))
+	continue;
+
       tree fn_type = TREE_TYPE (fn);
       tree method_type = TREE_TYPE (method);
-
-      /* Compare the quals on the 'this' parm.  Don't compare
-	 the whole types, as used functions are treated as
-	 coming from the using class in overload resolution.  */
-      if (! DECL_STATIC_FUNCTION_P (fn)
-	  && ! DECL_STATIC_FUNCTION_P (method)
-	  /* Either both or neither need to be ref-qualified for
-	     differing quals to allow overloading.  */
-	  && (FUNCTION_REF_QUALIFIED (fn_type)
-	      == FUNCTION_REF_QUALIFIED (method_type))
-	  && (type_memfn_quals (fn_type) != type_memfn_quals (method_type)
-	      || type_memfn_rqual (fn_type) != type_memfn_rqual (method_type)))
-	  continue;
 
       tree real_fn = fn;
       tree real_method = method;
@@ -1095,7 +1321,7 @@ add_method (tree type, tree method, bool via_using)
       if ((DECL_CONV_FN_P (fn) || TREE_CODE (fn) == TEMPLATE_DECL)
 	  && !same_type_p (TREE_TYPE (fn_type), TREE_TYPE (method_type)))
 	continue;
-      
+
       /* For templates, the template parameters must be identical.  */
       if (TREE_CODE (fn) == TEMPLATE_DECL)
 	{
@@ -1184,7 +1410,7 @@ add_method (tree type, tree method, bool via_using)
 	  if (!DECL_INHERITED_CTOR (fn))
 	    /* Defer to the other function.  */
 	    return false;
-	    
+
 	  tree basem = DECL_INHERITED_CTOR_BASE (method);
 	  tree basef = DECL_INHERITED_CTOR_BASE (fn);
 	  if (flag_new_inheriting_ctors)
@@ -1205,6 +1431,7 @@ add_method (tree type, tree method, bool via_using)
 		continue;
 	    }
 
+	  auto_diagnostic_group d;
 	  error_at (DECL_SOURCE_LOCATION (method),
 		    "%q#D conflicts with version inherited from %qT",
 		    method, basef);
@@ -1227,6 +1454,7 @@ add_method (tree type, tree method, bool via_using)
 	}
       else
 	{
+	  auto_diagnostic_group d;
 	  error_at (DECL_SOURCE_LOCATION (method),
 		    "%q#D cannot be overloaded with %q#D", method, fn);
 	  inform (DECL_SOURCE_LOCATION (fn),
@@ -1378,6 +1606,7 @@ handle_using_decl (tree using_decl, tree t)
     ;
   else if (is_overloaded_fn (old_value))
     {
+      auto_diagnostic_group d;
       error_at (DECL_SOURCE_LOCATION (using_decl), "%qD invalid in %q#T "
 		"because of local method %q#D with same name",
 		using_decl, t, old_value);
@@ -1387,6 +1616,7 @@ handle_using_decl (tree using_decl, tree t)
     }
   else if (!DECL_ARTIFICIAL (old_value))
     {
+      auto_diagnostic_group d;
       error_at (DECL_SOURCE_LOCATION (using_decl), "%qD invalid in %q#T "
 		"because of local member %q#D with same name",
 		using_decl, t, old_value);
@@ -1756,7 +1986,7 @@ accessible_nvdtor_p (tree t)
 
   if (DECL_VINDEX (dtor))
     return false; /* Virtual */
-  
+
   if (!TREE_PRIVATE (dtor) && !TREE_PROTECTED (dtor))
     return true;  /* Public */
 
@@ -2086,6 +2316,7 @@ fixup_type_variants (tree type)
       TYPE_PRECISION (variant) = TYPE_PRECISION (type);
       TYPE_MODE_RAW (variant) = TYPE_MODE_RAW (type);
       TYPE_EMPTY_P (variant) = TYPE_EMPTY_P (type);
+      TREE_ADDRESSABLE (variant) = TREE_ADDRESSABLE (type);
     }
 }
 
@@ -2152,8 +2383,17 @@ fixup_attribute_variants (tree t)
 static void
 finish_struct_bits (tree t)
 {
-  /* Fix up variants (if any).  */
-  fixup_type_variants (t);
+  /* If this type has a copy constructor or a destructor, force its
+     mode to be BLKmode, and force its TREE_ADDRESSABLE bit to be
+     nonzero.  This will cause it to be passed by invisible reference
+     and prevent it from being returned in a register.  */
+  if (type_has_nontrivial_copy_init (t)
+      || TYPE_HAS_NONTRIVIAL_DESTRUCTOR (t))
+    {
+      SET_DECL_MODE (TYPE_MAIN_DECL (t), BLKmode);
+      SET_TYPE_MODE (t, BLKmode);
+      TREE_ADDRESSABLE (t) = 1;
+    }
 
   if (BINFO_N_BASE_BINFOS (TYPE_BINFO (t)) && TYPE_POLYMORPHIC_P (t))
     /* For a class w/o baseclasses, 'finish_struct' has set
@@ -2166,21 +2406,8 @@ finish_struct_bits (tree t)
        looking in the vtables).  */
     get_pure_virtuals (t);
 
-  /* If this type has a copy constructor or a destructor, force its
-     mode to be BLKmode, and force its TREE_ADDRESSABLE bit to be
-     nonzero.  This will cause it to be passed by invisible reference
-     and prevent it from being returned in a register.  */
-  if (type_has_nontrivial_copy_init (t)
-      || TYPE_HAS_NONTRIVIAL_DESTRUCTOR (t))
-    {
-      tree variants;
-      SET_DECL_MODE (TYPE_MAIN_DECL (t), BLKmode);
-      for (variants = t; variants; variants = TYPE_NEXT_VARIANT (variants))
-	{
-	  SET_TYPE_MODE (variants, BLKmode);
-	  TREE_ADDRESSABLE (variants) = 1;
-	}
-    }
+  /* Fix up variants (if any).  */
+  fixup_type_variants (t);
 }
 
 /* Issue warnings about T having private constructors, but no friends,
@@ -2324,6 +2551,7 @@ maybe_warn_about_overly_private_class (tree t)
 
       if (!nonprivate_ctor)
 	{
+	  auto_diagnostic_group d;
 	  bool w = warning (OPT_Wctor_dtor_privacy,
 			    "%q#T only defines private constructors and has "
 			    "no friends", t);
@@ -2702,7 +2930,7 @@ update_vtable_entry_for_fn (tree t, tree binfo, tree fn, tree* virtuals,
 		{
 		  /* We convert via virtual base.  Adjust the fixed
 		     offset to be from there.  */
-		  offset = 
+		  offset =
 		    size_diffop (offset,
 				 fold_convert (ssizetype,
 					  BINFO_OFFSET (virtual_offset)));
@@ -3015,10 +3243,19 @@ warn_hidden (tree t)
 	  continue;
 
 	tree name = OVL_NAME (fns);
+	size_t num_fns = 0; /* The number of fndecls in fns.  */
 	auto_vec<tree, 20> base_fndecls;
 	tree base_binfo;
 	tree binfo;
 	unsigned j;
+	size_t num_overriders = 0;
+	hash_set<tree> overriden_base_fndecls;
+	/* base_fndecls that are hidden but not overriden. The "value"
+	   contains the last fndecl we saw that hides the "key".  */
+	hash_map<tree, tree> hidden_base_fndecls;
+
+	if (IDENTIFIER_CDTOR_P (name))
+	  continue;
 
 	/* Iterate through all of the base classes looking for possibly
 	   hidden functions.  */
@@ -3033,35 +3270,65 @@ warn_hidden (tree t)
 	if (base_fndecls.is_empty ())
 	  continue;
 
-	/* Remove any overridden functions.  */
+	/* Find all the base_fndecls that are overridden, as well as those
+	   that are hidden, in T.  */
 	for (tree fndecl : ovl_range (fns))
 	  {
-	    if (TREE_CODE (fndecl) == FUNCTION_DECL
-		&& DECL_VINDEX (fndecl))
+	    bool template_p = TREE_CODE (fndecl) == TEMPLATE_DECL;
+	    bool fndecl_overrides_p = false;
+	    fndecl = STRIP_TEMPLATE (fndecl);
+	    if (TREE_CODE (fndecl) != FUNCTION_DECL
+		|| fndecl == conv_op_marker)
+	      continue;
+	    num_fns++;
+	    for (size_t k = 0; k < base_fndecls.length (); k++)
 	      {
-		/* If the method from the base class has the same
-		   signature as the method from the derived class, it
-		   has been overridden.  */
-		for (size_t k = 0; k < base_fndecls.length (); k++)
-		  if (base_fndecls[k]
-		      && same_signature_p (fndecl, base_fndecls[k]))
-		    base_fndecls[k] = NULL_TREE;
+		if (!base_fndecls[k] || !DECL_VINDEX (base_fndecls[k]))
+		  continue;
+		if (IDENTIFIER_CONV_OP_P (name)
+		    && !same_type_p (DECL_CONV_FN_TYPE (fndecl),
+				     DECL_CONV_FN_TYPE (base_fndecls[k])))
+		  /* If base_fndecl[k] and fndecl are conversion operators
+		     to different types, they're unrelated.  */
+		  ;
+		else if (!template_p /* Template methods don't override.  */
+			 && same_signature_p (fndecl, base_fndecls[k]))
+		  {
+		    overriden_base_fndecls.add (base_fndecls[k]);
+		    fndecl_overrides_p = true;
+		  }
+		else
+		  {
+		    /* fndecl hides base_fndecls[k].  */
+		    hidden_base_fndecls.put (base_fndecls[k], fndecl);
+		  }
 	      }
+	    if (fndecl_overrides_p)
+	      ++num_overriders;
 	  }
 
-	/* Now give a warning for all base functions without overriders,
-	   as they are hidden.  */
-	tree base_fndecl;
-	FOR_EACH_VEC_ELT (base_fndecls, j, base_fndecl)
-	  if (base_fndecl)
-	    {
-	      auto_diagnostic_group d;
-	      /* Here we know it is a hider, and no overrider exists.  */
-	      if (warning_at (location_of (base_fndecl),
-			      OPT_Woverloaded_virtual,
-			      "%qD was hidden", base_fndecl))
-		inform (location_of (fns), "  by %qD", fns);
-	    }
+	if (warn_overloaded_virtual == 1 && num_overriders == num_fns)
+	  /* All the fns override a base virtual.  */
+	  continue;
+
+	/* Now give a warning for all hidden methods. Note that a method that
+	   is both in hidden_base_fndecls and overriden_base_fndecls is not
+	   hidden.  */
+	for (auto hidden_base_fndecl : hidden_base_fndecls)
+	  {
+	    tree hidden_fndecl = hidden_base_fndecl.first;
+	    if (!hidden_fndecl
+		|| overriden_base_fndecls.contains (hidden_fndecl))
+	      continue;
+	    auto_diagnostic_group d;
+	    if (warning_at (location_of (hidden_fndecl),
+			    OPT_Woverloaded_virtual_,
+			    "%qD was hidden", hidden_fndecl))
+	      {
+		tree hider = hidden_base_fndecl.second;
+		inform (location_of (hider), "  by %qD", hider);
+	      }
+	  }
       }
 }
 
@@ -3277,6 +3544,22 @@ one_inherited_ctor (tree ctor, tree t, tree using_decl)
     }
 }
 
+/* Implicitly declare T().  */
+
+static void
+add_implicit_default_ctor (tree t)
+{
+  TYPE_HAS_DEFAULT_CONSTRUCTOR (t) = 1;
+  CLASSTYPE_LAZY_DEFAULT_CTOR (t) = 1;
+  if (cxx_dialect >= cxx11)
+    TYPE_HAS_CONSTEXPR_CTOR (t)
+      /* Don't force the declaration to get a hard answer; if the
+	 definition would have made the class non-literal, it will still be
+	 non-literal because of the base or member in question, and that
+	 gives a better diagnostic.  */
+      = type_maybe_constexpr_default_constructor (t);
+}
+
 /* Create default constructors, assignment operators, and so forth for
    the type indicated by T, if they are needed.  CANT_HAVE_CONST_CTOR,
    and CANT_HAVE_CONST_ASSIGNMENT are nonzero if, for whatever reason,
@@ -3305,17 +3588,7 @@ add_implicitly_declared_members (tree t, tree* access_decls,
      If there is no user-declared constructor for a class, a default
      constructor is implicitly declared.  */
   if (! TYPE_HAS_USER_CONSTRUCTOR (t))
-    {
-      TYPE_HAS_DEFAULT_CONSTRUCTOR (t) = 1;
-      CLASSTYPE_LAZY_DEFAULT_CTOR (t) = 1;
-      if (cxx_dialect >= cxx11)
-	TYPE_HAS_CONSTEXPR_CTOR (t)
-	  /* Don't force the declaration to get a hard answer; if the
-	     definition would have made the class non-literal, it will still be
-	     non-literal because of the base or member in question, and that
-	     gives a better diagnostic.  */
-	  = type_maybe_constexpr_default_constructor (t);
-    }
+    add_implicit_default_ctor (t);
 
   /* [class.ctor]
 
@@ -3379,7 +3652,13 @@ add_implicitly_declared_members (tree t, tree* access_decls,
 	  location_t loc = input_location;
 	  input_location = DECL_SOURCE_LOCATION (using_decl);
 	  for (tree fn : ovl_range (ctor_list))
-	    one_inherited_ctor (fn, t, using_decl);
+	    {
+	      if (!TYPE_HAS_DEFAULT_CONSTRUCTOR (t) && default_ctor_p (fn))
+		/* CWG2799: Inheriting a default constructor gives us a default
+		   constructor, not just an inherited constructor.  */
+		add_implicit_default_ctor (t);
+	      one_inherited_ctor (fn, t, using_decl);
+	    }
 	  *access_decls = TREE_CHAIN (*access_decls);
 	  input_location = loc;
 	}
@@ -3565,6 +3844,7 @@ check_field_decl (tree field,
       if (TREE_CODE (t) == UNION_TYPE && cxx_dialect < cxx11)
 	{
 	  static bool warned;
+	  auto_diagnostic_group d;
 	  int oldcount = errorcount;
 	  if (TYPE_NEEDS_CONSTRUCTING (type))
 	    error ("member %q+#D with constructor not allowed in union",
@@ -3682,7 +3962,7 @@ check_field_decls (tree t, tree *access_decls,
 	case CONST_DECL:
 	  DECL_NONLOCAL (field) = 1;
 	  break;
-	  
+
 	case VAR_DECL:
 	  if (TREE_CODE (t) == UNION_TYPE
 	      && cxx_dialect < cxx11)
@@ -3696,7 +3976,7 @@ check_field_decls (tree t, tree *access_decls,
 		       "a member of a union", field);
 	    }
 	  goto data_member;
-	  
+
 	case FIELD_DECL:
 	  if (TREE_CODE (t) == UNION_TYPE)
 	    {
@@ -3881,6 +4161,7 @@ check_field_decls (tree t, tree *access_decls,
 	  if (default_init_member
 	      && TREE_CODE (t) == UNION_TYPE)
 	    {
+	      auto_diagnostic_group d;
 	      error ("multiple fields in union %qT initialized", t);
 	      inform (DECL_SOURCE_LOCATION (default_init_member),
 		      "initialized member %q+D declared here",
@@ -3959,6 +4240,7 @@ check_field_decls (tree t, tree *access_decls,
       && TYPE_HAS_NONTRIVIAL_DESTRUCTOR (t)
       && !(TYPE_HAS_COPY_CTOR (t) && TYPE_HAS_COPY_ASSIGN (t)))
     {
+      auto_diagnostic_group d;
       if (warning (OPT_Weffc__, "%q#T has pointer data members", t))
 	{
 	  if (! TYPE_HAS_COPY_CTOR (t))
@@ -4038,9 +4320,33 @@ check_subobject_offset (tree type, tree offset, splay_tree offsets)
   if (!n)
     return 0;
 
+  enum { ignore, fast, slow, warn }
+  cv_check = (abi_version_crosses (19) ? slow
+	      : abi_version_at_least (19) ? fast
+	      : ignore);
   for (t = (tree) n->value; t; t = TREE_CHAIN (t))
-    if (same_type_p (TREE_VALUE (t), type))
-      return 1;
+    {
+      tree elt = TREE_VALUE (t);
+
+      if (same_type_p (elt, type))
+	return 1;
+
+      if (cv_check != ignore
+	  && similar_type_p (elt, type))
+	{
+	  if (cv_check == fast)
+	    return 1;
+	  cv_check = warn;
+	}
+    }
+
+  if (cv_check == warn)
+    {
+      warning (OPT_Wabi, "layout of %qs member of type %qT changes in %qs",
+	       "[[no_unique_address]]", type, "-fabi-version=19");
+      if (abi_version_at_least (19))
+	return 1;
+    }
 
   return 0;
 }
@@ -4780,8 +5086,9 @@ check_methods (tree t)
 
   /* Check whether the eligible special member functions (P0848) are
      user-provided.  add_method arranged that the CLASSTYPE_MEMBER_VEC only
-     has the eligible ones; TYPE_FIELDS also contains ineligible overloads,
-     which is why this needs to be separate from the loop above.  */
+     has the eligible ones, unless none are eligible; TYPE_FIELDS also contains
+     ineligible overloads, which is why this needs to be separate from the loop
+     above.  */
 
   if (tree dtor = CLASSTYPE_DESTRUCTOR (t))
     {
@@ -4792,9 +5099,23 @@ check_methods (tree t)
 	     in that class with an empty argument list to select the destructor
 	     for the class, also known as the selected destructor. The program
 	     is ill-formed if overload resolution fails. */
+	  int viable = 0;
+	  for (tree fn : ovl_range (dtor))
+	    if (constraints_satisfied_p (fn))
+	      ++viable;
+	  gcc_checking_assert (viable != 1);
+
 	  auto_diagnostic_group d;
-	  error_at (location_of (t), "destructor for %qT is ambiguous", t);
+	  if (viable == 0)
+	    error_at (location_of (t), "no viable destructor for %qT", t);
+	  else
+	    error_at (location_of (t), "destructor for %qT is ambiguous", t);
 	  print_candidates (dtor);
+
+	  /* Arbitrarily prune the overload set to a single function for
+	     sake of error recovery.  */
+	  tree *slot = find_member_slot (t, dtor_identifier);
+	  *slot = get_first_fn (dtor);
 	}
       else if (user_provided_p (dtor))
 	TYPE_HAS_NONTRIVIAL_DESTRUCTOR (t) = true;
@@ -4804,9 +5125,13 @@ check_methods (tree t)
     {
       if (!user_provided_p (fn))
 	/* Might be trivial.  */;
-      else if (copy_fn_p (fn))
+      else if (TREE_CODE (fn) == TEMPLATE_DECL)
+	/* Templates are never special members.  */;
+      else if (copy_fn_p (fn)
+	       && constraints_satisfied_p (fn))
 	TYPE_HAS_COMPLEX_COPY_CTOR (t) = true;
-      else if (move_fn_p (fn))
+      else if (move_fn_p (fn)
+	       && constraints_satisfied_p (fn))
 	TYPE_HAS_COMPLEX_MOVE_CTOR (t) = true;
     }
 
@@ -4814,9 +5139,13 @@ check_methods (tree t)
     {
       if (!user_provided_p (fn))
 	/* Might be trivial.  */;
-      else if (copy_fn_p (fn))
+      else if (TREE_CODE (fn) == TEMPLATE_DECL)
+	/* Templates are never special members.  */;
+      else if (copy_fn_p (fn)
+	       && constraints_satisfied_p (fn))
 	TYPE_HAS_COMPLEX_COPY_ASSIGN (t) = true;
-      else if (move_fn_p (fn))
+      else if (move_fn_p (fn)
+	       && constraints_satisfied_p (fn))
 	TYPE_HAS_COMPLEX_MOVE_ASSIGN (t) = true;
     }
 }
@@ -4840,6 +5169,7 @@ copy_fndecl_with_name (tree fn, tree name, tree_code code,
       set_constraints (clone, copy_node (ci));
 
   SET_DECL_ASSEMBLER_NAME (clone, NULL_TREE);
+  DECL_ABSTRACT_P (clone) = false;
   /* There's no pending inline data for this function.  */
   DECL_PENDING_INLINE_INFO (clone) = NULL;
   DECL_PENDING_INLINE_P (clone) = 0;
@@ -4978,6 +5308,8 @@ build_clone (tree fn, tree name, bool need_vtt_parm_p,
       clone = copy_fndecl_with_name (fn, name, ERROR_MARK,
 				     need_vtt_parm_p, omit_inherited_parms_p);
       DECL_CLONED_FUNCTION (clone) = fn;
+
+      maybe_prepare_return_this (clone);
     }
 
   /* Remember where this function came from.  */
@@ -5494,8 +5826,8 @@ default_init_uninitialized_part (tree type)
       if (r)
 	return r;
     }
-  for (t = next_initializable_field (TYPE_FIELDS (type)); t;
-       t = next_initializable_field (DECL_CHAIN (t)))
+  for (t = next_aggregate_field (TYPE_FIELDS (type)); t;
+       t = next_aggregate_field (DECL_CHAIN (t)))
     if (!DECL_INITIAL (t) && !DECL_ARTIFICIAL (t))
       {
 	r = default_init_uninitialized_part (TREE_TYPE (t));
@@ -5605,12 +5937,21 @@ type_has_virtual_destructor (tree type)
 {
   tree dtor;
 
-  if (!CLASS_TYPE_P (type))
+  if (!NON_UNION_CLASS_TYPE_P (type))
     return false;
 
   gcc_assert (COMPLETE_TYPE_P (type));
   dtor = CLASSTYPE_DESTRUCTOR (type);
   return (dtor && DECL_VIRTUAL_P (dtor));
+}
+
+/* True iff class TYPE has a non-deleted trivial default
+   constructor.  */
+
+bool
+type_has_non_deleted_trivial_default_ctor (tree type)
+{
+  return TYPE_HAS_TRIVIAL_DFLT (type) && locate_ctor (type);
 }
 
 /* Returns true iff T, a class, has a move-assignment or
@@ -5642,7 +5983,7 @@ classtype_has_move_assign_or_move_ctor_p (tree t, bool user_p)
 	  && DECL_CONTEXT (*iter) == t
 	  && move_fn_p (*iter))
 	return true;
-  
+
   return false;
 }
 
@@ -5883,7 +6224,7 @@ finalize_literal_type_property (tree t)
     for (fn = TYPE_FIELDS (t); fn; fn = DECL_CHAIN (fn))
       if (TREE_CODE (fn) == FUNCTION_DECL
 	  && DECL_DECLARED_CONSTEXPR_P (fn)
-	  && DECL_NONSTATIC_MEMBER_FUNCTION_P (fn)
+	  && DECL_IOBJ_MEMBER_FUNCTION_P (fn)
 	  && !DECL_CONSTRUCTOR_P (fn))
 	{
 	  DECL_DECLARED_CONSTEXPR_P (fn) = false;
@@ -6024,10 +6365,12 @@ check_bases_and_members (tree t)
   check_bases (t, &cant_have_const_ctor, &no_const_asn_ref);
 
   /* Deduce noexcept on destructor.  This needs to happen after we've set
-     triviality flags appropriately for our bases.  */
+     triviality flags appropriately for our bases, and before checking
+     overriden virtual functions via check_methods.  */
   if (cxx_dialect >= cxx11)
     if (tree dtor = CLASSTYPE_DESTRUCTOR (t))
-      deduce_noexcept_on_destructor (dtor);
+      for (tree fn : ovl_range (dtor))
+	deduce_noexcept_on_destructor (fn);
 
   /* Check all the method declarations.  */
   check_methods (t);
@@ -6065,7 +6408,7 @@ check_bases_and_members (tree t)
   /* [dcl.init.aggr]
 
      An aggregate is an array or a class with no user-provided
-     constructors ... and no virtual functions.  
+     constructors ... and no virtual functions.
 
      Again, other conditions for being an aggregate are checked
      elsewhere.  */
@@ -6111,7 +6454,7 @@ check_bases_and_members (tree t)
       vec<tree, va_gc> *accesses = BINFO_BASE_ACCESSES (binfo);
       tree base_binfo;
       unsigned i;
-      
+
       for (i = 0; BINFO_BASE_ITERATE (binfo, i, base_binfo); i++)
 	{
 	  tree basetype = TREE_TYPE (base_binfo);
@@ -6124,7 +6467,7 @@ check_bases_and_members (tree t)
 		     basetype);
 	}
     }
-  
+
   /* If the class has no user-declared constructor, but does have
      non-static const or reference data members that can never be
      initialized, issue a warning.  */
@@ -6170,27 +6513,14 @@ check_bases_and_members (tree t)
   for (fn = TYPE_FIELDS (t); fn; fn = DECL_CHAIN (fn))
     if (DECL_DECLARES_FUNCTION_P (fn)
 	&& !DECL_ARTIFICIAL (fn)
-	&& DECL_DEFAULTED_IN_CLASS_P (fn))
-      {
+	&& DECL_DEFAULTED_IN_CLASS_P (fn)
 	/* ...except handle comparisons later, in finish_struct_1.  */
-	if (special_function_p (fn) == sfk_comparison)
-	  continue;
-
-	int copy = copy_fn_p (fn);
-	if (copy > 0)
-	  {
-	    bool imp_const_p
-	      = (DECL_CONSTRUCTOR_P (fn) ? !cant_have_const_ctor
-		 : !no_const_asn_ref);
-	    bool fn_const_p = (copy == 2);
-
-	    if (fn_const_p && !imp_const_p)
-	      /* If the function is defaulted outside the class, we just
-		 give the synthesis error.  Core Issue #1331 says this is
-		 no longer ill-formed, it is defined as deleted instead.  */
-	      DECL_DELETED_FN (fn) = true;
-	  }
-	defaulted_late_check (fn);
+	&& special_function_p (fn) != sfk_comparison)
+      {
+	bool imp_const_p
+	  = (DECL_CONSTRUCTOR_P (fn) ? !cant_have_const_ctor
+	     : !no_const_asn_ref);
+	defaulted_late_check (fn, imp_const_p);
       }
 
   if (LAMBDA_TYPE_P (t))
@@ -6213,6 +6543,12 @@ check_bases_and_members (tree t)
      allocating an array of this type.  */
   LANG_TYPE_CLASS_CHECK (t)->vec_new_uses_cookie
     = type_requires_array_cookie (t);
+
+  /* Classes marked hot or cold propagate the attribute to all members.  We
+     may do this now that methods are declared.  This does miss some lazily
+     declared special member functions (CLASSTYPE_LAZY_*), which are handled
+     in lazily_declare_fn later on.  */
+  propagate_class_warmth_attribute (t);
 }
 
 /* If T needs a pointer to its virtual function table, set TYPE_VFIELD
@@ -6270,7 +6606,7 @@ create_vtable_ptr (tree t, tree* virtuals_p)
 	 stores cannot alias stores to void*!  */
       tree field;
 
-      field = build_decl (input_location, 
+      field = build_decl (input_location,
 			  FIELD_DECL, get_vfield_name (t), vtbl_ptr_type_node);
       DECL_VIRTUAL_P (field) = 1;
       DECL_ARTIFICIAL (field) = 1;
@@ -6436,7 +6772,15 @@ end_of_class (tree t, eoc_mode mode)
 	     size of the type (usually 1) for computing nvsize.  */
 	  size = TYPE_SIZE_UNIT (TREE_TYPE (field));
 
-	offset = size_binop (PLUS_EXPR, byte_position (field), size);
+	if (DECL_BIT_FIELD_TYPE (field))
+	  {
+	    offset = size_binop (PLUS_EXPR, bit_position (field),
+				 DECL_SIZE (field));
+	    offset = size_binop (CEIL_DIV_EXPR, offset, bitsize_unit_node);
+	    offset = fold_convert (sizetype, offset);
+	  }
+	else
+	  offset = size_binop (PLUS_EXPR, byte_position (field), size);
 	if (tree_int_cst_lt (result, offset))
 	  result = offset;
       }
@@ -6863,7 +7207,8 @@ layout_class_type (tree t, tree *virtuals_p)
 	     check_bitfield_decl eventually sets DECL_SIZE (field)
 	     to that width.  */
 	  && (DECL_SIZE (field) == NULL_TREE
-	      || integer_zerop (DECL_SIZE (field))))
+	      || integer_zerop (DECL_SIZE (field)))
+	  && TREE_TYPE (field) != error_mark_node)
 	SET_DECL_FIELD_CXX_ZERO_WIDTH_BIT_FIELD (field, 1);
       check_non_pod_aggregate (field);
     }
@@ -7042,11 +7387,7 @@ field_nonempty_p (const_tree fld)
   if (TREE_CODE (fld) == FIELD_DECL
       && TREE_CODE (type) != ERROR_MARK
       && (DECL_NAME (fld) || RECORD_OR_UNION_TYPE_P (type)))
-    {
-      return TYPE_SIZE (type)
-	&& (TREE_CODE (TYPE_SIZE (type)) != INTEGER_CST
-	    || !tree_int_cst_equal (size_zero_node, TYPE_SIZE (type)));
-    }
+    return TYPE_SIZE (type) && !integer_zerop (TYPE_SIZE (type));
 
   return false;
 }
@@ -7058,8 +7399,9 @@ struct flexmems_t
   /* The first flexible array member or non-zero array member found
      in the order of layout.  */
   tree array;
-  /* First non-static non-empty data member in the class or its bases.  */
-  tree first;
+  /* True if there is a non-static non-empty data member in the class or
+     its bases.  */
+  bool first;
   /* The first non-static non-empty data member following either
      the flexible array member, if found, or the zero-length array member
      otherwise.  AFTER[1] refers to the first such data member of a union
@@ -7080,24 +7422,51 @@ struct flexmems_t
    array, in that order of preference, among members of class T (but not
    its base classes), and set members of FMEM accordingly.
    BASE_P is true if T is a base class of another class.
-   PUN is set to the outermost union in which the flexible array member
-   (or zero-length array) is defined if one such union exists, otherwise
-   to NULL.
-   Similarly, PSTR is set to a data member of the outermost struct of
+   PUN is true when inside of a union (perhaps recursively).
+   PSTR is set to a data member of the outermost struct of
    which the flexible array is a member if one such struct exists,
-   otherwise to NULL.  */
+   otherwise to NULL.  NESTED_P is true for recursive calls except ones
+   handling anonymous aggregates.  Those types are expected to be diagnosed
+   on its own already and so only the last member is checked vs. what
+   follows it in the outer type.  */
 
 static void
 find_flexarrays (tree t, flexmems_t *fmem, bool base_p,
-		 tree pun /* = NULL_TREE */,
+		 bool nested_p /* = false */, bool pun /* = false */,
 		 tree pstr /* = NULL_TREE */)
 {
-  /* Set the "pointer" to the outermost enclosing union if not set
-     yet and maintain it for the remainder of the recursion.   */
-  if (!pun && TREE_CODE (t) == UNION_TYPE)
-    pun = t;
+  if (TREE_CODE (t) == UNION_TYPE)
+    pun = true;
 
-  for (tree fld = TYPE_FIELDS (t); fld; fld = DECL_CHAIN (fld))
+  tree fld = TYPE_FIELDS (t);
+  if ((base_p || nested_p) && TREE_CODE (t) == RECORD_TYPE)
+    {
+      /* In bases or in nested structures, only process the last
+	 non-static data member.  If we have say
+	 struct A { int a; int b[]; int c; };
+	 struct B { int d; int e[]; int f; };
+	 struct C : A { int g; B h, i; int j; };
+	 then the A::b followed by A::c should have been diagnosed
+	 already when completing struct A, and B::e followed by B::f
+	 when completing struct B, so no need to repeat that when completing
+	 struct C.  So, only look at the last member so we cover e.g.
+	 struct D { int k; int l[]; };
+	 struct E : D { int m; };
+	 struct F { D n; int o; };
+	 where flexible array member at the end of D is fine, but it isn't
+	 correct that E::m in E or F::o in F follows it.  */
+      tree last_fld = NULL_TREE;
+      for (; (fld = next_subobject_field (fld)); fld = DECL_CHAIN (fld))
+	if (DECL_ARTIFICIAL (fld))
+	  continue;
+	else if (TREE_TYPE (fld) == error_mark_node)
+	  return;
+	else if (TREE_CODE (TREE_TYPE (fld)) == ARRAY_TYPE
+		 || field_nonempty_p (fld))
+	  last_fld = fld;
+      fld = last_fld;
+    }
+  for (; fld; fld = DECL_CHAIN (fld))
     {
       if (fld == error_mark_node)
 	return;
@@ -7142,11 +7511,11 @@ find_flexarrays (tree t, flexmems_t *fmem, bool base_p,
 
       if (RECORD_OR_UNION_TYPE_P (eltype))
 	{
-	  if (fmem->array && !fmem->after[bool (pun)])
+	  if (fmem->array && !fmem->after[pun])
 	    {
 	      /* Once the member after the flexible array has been found
 		 we're done.  */
-	      fmem->after[bool (pun)] = fld;
+	      fmem->after[pun] = fld;
 	      break;
 	    }
 
@@ -7160,32 +7529,43 @@ find_flexarrays (tree t, flexmems_t *fmem, bool base_p,
 		 are already in the process of being checked by one of the
 		 recursive calls).  */
 
-	      tree first = fmem->first;
+	      bool first = fmem->first;
 	      tree array = fmem->array;
+	      bool maybe_anon_p = TYPE_UNNAMED_P (eltype);
+	      if (tree ctx = maybe_anon_p ? TYPE_CONTEXT (eltype) : NULL_TREE)
+		maybe_anon_p = RECORD_OR_UNION_TYPE_P (ctx);
 
 	      /* If this member isn't anonymous and a prior non-flexible array
 		 member has been seen in one of the enclosing structs, clear
 		 the FIRST member since it doesn't contribute to the flexible
 		 array struct's members.  */
 	      if (first && !array && !ANON_AGGR_TYPE_P (eltype))
-		fmem->first = NULL_TREE;
+		fmem->first = false;
 
-	      find_flexarrays (eltype, fmem, false, pun,
-			       !pstr && TREE_CODE (t) == RECORD_TYPE ? fld : pstr);
+	      find_flexarrays (eltype, fmem, false, !maybe_anon_p, pun,
+			       !pstr && TREE_CODE (t) == RECORD_TYPE
+			       ? fld : pstr);
 
 	      if (fmem->array != array)
-		continue;
+		{
+		  /* If the recursive call passed true to nested_p,
+		     it only looked at the last field and we do not
+		     want to diagnose in that case the "in otherwise empty"
+		     case, just if it is followed by some other non-empty
+		     member.  So set fmem->first.  */
+		  if (!maybe_anon_p)
+		    fmem->first = true;
+		  continue;
+		}
 
 	      if (first && !array && !ANON_AGGR_TYPE_P (eltype))
-		{
-		  /* Restore the FIRST member reset above if no flexible
-		     array member has been found in this member's struct.  */
-		  fmem->first = first;
-		}
+		/* Restore the FIRST member reset above if no flexible
+		   array member has been found in this member's struct.  */
+		fmem->first = first;
 
 	      /* If the member struct contains the first flexible array
 		 member, or if this member is a base class, continue to
-		 the next member and avoid setting the FMEM->NEXT pointer
+		 the next member and avoid setting the FMEM->AFTER pointer
 		 to point to it.  */
 	      if (base_p)
 		continue;
@@ -7196,13 +7576,13 @@ find_flexarrays (tree t, flexmems_t *fmem, bool base_p,
 	{
 	  /* Remember the first non-static data member.  */
 	  if (!fmem->first)
-	    fmem->first = fld;
+	    fmem->first = true;
 
 	  /* Remember the first non-static data member after the flexible
 	     array member, if one has been found, or the zero-length array
 	     if it has been found.  */
-	  if (fmem->array && !fmem->after[bool (pun)])
-	    fmem->after[bool (pun)] = fld;
+	  if (fmem->array && !fmem->after[pun])
+	    fmem->after[pun] = fld;
 	}
 
       /* Skip non-arrays.  */
@@ -7218,8 +7598,8 @@ find_flexarrays (tree t, flexmems_t *fmem, bool base_p,
 		 such field or a flexible array member has been seen to
 		 handle the pathological and unlikely case of multiple
 		 such members.  */
-	      if (!fmem->after[bool (pun)])
-		fmem->after[bool (pun)] = fld;
+	      if (!fmem->after[pun])
+		fmem->after[pun] = fld;
 	    }
 	  else if (integer_all_onesp (TYPE_MAX_VALUE (TYPE_DOMAIN (fldtype))))
 	    {
@@ -7238,13 +7618,13 @@ find_flexarrays (tree t, flexmems_t *fmem, bool base_p,
 		{
 		  /* Replace the zero-length array if it's been stored and
 		     reset the after pointer.  */
-		  fmem->after[bool (pun)] = NULL_TREE;
+		  fmem->after[pun] = NULL_TREE;
 		  fmem->array = fld;
 		  fmem->enclosing = pstr;
 		}
-	      else if (!fmem->after[bool (pun)])
+	      else if (!fmem->after[pun])
 		/* Make a record of another flexible array member.  */
-		fmem->after[bool (pun)] = fld;
+		fmem->after[pun] = fld;
 	    }
 	  else
 	    {
@@ -7265,15 +7645,14 @@ diagnose_invalid_flexarray (const flexmems_t *fmem)
     {
       auto_diagnostic_group d;
       if (pedwarn (location_of (fmem->enclosing), OPT_Wpedantic,
-		     TYPE_DOMAIN (TREE_TYPE (fmem->array))
-		     ? G_("invalid use of %q#T with a zero-size array "
-			  "in %q#D")
-		     : G_("invalid use of %q#T with a flexible array member "
-			  "in %q#T"),
-		     DECL_CONTEXT (fmem->array),
-		     DECL_CONTEXT (fmem->enclosing)))
+		   TYPE_DOMAIN (TREE_TYPE (fmem->array))
+		   ? G_("invalid use of %q#T with a zero-size array in %q#D")
+		   : G_("invalid use of %q#T with a flexible array member "
+			"in %q#T"),
+		   DECL_CONTEXT (fmem->array),
+		   DECL_CONTEXT (fmem->enclosing)))
 	inform (DECL_SOURCE_LOCATION (fmem->array),
-		  "array member %q#D declared here", fmem->array);
+		"array member %q#D declared here", fmem->array);
     }
 }
 
@@ -7297,6 +7676,7 @@ diagnose_flexarrays (tree t, const flexmems_t *fmem)
   bool diagd = false;
 
   const char *msg = 0;
+  const char *msg_fam = 0;
 
   if (TYPE_DOMAIN (TREE_TYPE (fmem->array)))
     {
@@ -7322,23 +7702,27 @@ diagnose_flexarrays (tree t, const flexmems_t *fmem)
       if (fmem->after[0])
 	msg = G_("flexible array member %qD not at end of %q#T");
       else if (!fmem->first)
-	msg = G_("flexible array member %qD in an otherwise empty %q#T");
+	msg_fam = G_("flexible array member %qD in an otherwise"
+		     " empty %q#T is a GCC extension");
 
-      if (msg)
+      if (msg || msg_fam)
 	{
 	  location_t loc = DECL_SOURCE_LOCATION (fmem->array);
 	  diagd = true;
 
 	  auto_diagnostic_group d;
-	  error_at (loc, msg, fmem->array, t);
+	  if (msg)
+	    error_at (loc, msg, fmem->array, t);
+	  else
+	    pedwarn (loc, OPT_Wpedantic, msg_fam, fmem->array, t);
 
 	  /* In the unlikely event that the member following the flexible
 	     array member is declared in a different class, or the member
 	     overlaps another member of a common union, point to it.
 	     Otherwise it should be obvious.  */
 	  if (fmem->after[0]
-	      && ((DECL_CONTEXT (fmem->after[0])
-		   != DECL_CONTEXT (fmem->array))))
+	      && (DECL_CONTEXT (fmem->after[0])
+		  != DECL_CONTEXT (fmem->array)))
 	    {
 	      inform (DECL_SOURCE_LOCATION (fmem->after[0]),
 		      "next member %q#D declared here",
@@ -7431,14 +7815,12 @@ check_flexarrays (tree t, flexmems_t *fmem /* = NULL */,
     find_flexarrays (t, fmem, base_p || fam != fmem->array);
 
   if (fmem == &flexmems && !maybe_anon_p)
-    {
-      /* Issue diagnostics for invalid flexible and zero-length array
-	 members found in base classes or among the members of the current
-	 class.  Ignore anonymous structs and unions whose members are
-	 considered to be members of the enclosing class and thus will
-	 be diagnosed when checking it.  */
-      diagnose_flexarrays (t, fmem);
-    }
+    /* Issue diagnostics for invalid flexible and zero-length array
+       members found in base classes or among the members of the current
+       class.  Ignore anonymous structs and unions whose members are
+       considered to be members of the enclosing class and thus will
+       be diagnosed when checking it.  */
+    diagnose_flexarrays (t, fmem);
 }
 
 /* Perform processing required when the definition of T (a class type)
@@ -7493,8 +7875,11 @@ finish_struct_1 (tree t)
       /* If a polymorphic class has no key method, we may emit the vtable
 	 in every translation unit where the class definition appears.  If
 	 we're devirtualizing, we can look into the vtable even if we
-	 aren't emitting it.  */
-      if (!CLASSTYPE_KEY_METHOD (t))
+	 aren't emitting it.
+
+	 Additionally, if the class is attached to a named module, make sure
+	 to always emit the vtable in this TU.  */
+      if (!CLASSTYPE_KEY_METHOD (t) || module_attach_p ())
 	vec_safe_push (keyed_classes, t);
     }
 
@@ -7685,6 +8070,28 @@ unreverse_member_declarations (tree t)
     }
 }
 
+/* Classes, structs or unions T marked with hotness attributes propagate
+   the attribute to all methods.  */
+
+void
+propagate_class_warmth_attribute (tree t)
+{
+  if (t == NULL_TREE
+      || !(TREE_CODE (t) == RECORD_TYPE
+	   || TREE_CODE (t) == UNION_TYPE))
+    return;
+
+  tree class_has_cold_attr
+    = lookup_attribute ("cold", TYPE_ATTRIBUTES (t));
+  tree class_has_hot_attr
+    = lookup_attribute ("hot", TYPE_ATTRIBUTES (t));
+
+  if (class_has_cold_attr || class_has_hot_attr)
+    for (tree f = TYPE_FIELDS (t); f; f = DECL_CHAIN (f))
+      if (DECL_DECLARES_FUNCTION_P (f))
+	maybe_propagate_warmth_attributes (STRIP_TEMPLATE (f), t);
+}
+
 tree
 finish_struct (tree t, tree attributes)
 {
@@ -7771,7 +8178,7 @@ finish_struct (tree t, tree attributes)
   /* COMPLETE_TYPE_P is now true.  */
 
   maybe_warn_about_overly_private_class (t);
-  
+
   if (is_std_init_list (t))
     {
       /* People keep complaining that the compiler crashes on an invalid
@@ -7781,10 +8188,10 @@ finish_struct (tree t, tree attributes)
       bool ok = false;
       if (processing_template_decl)
 	{
-	  tree f = next_initializable_field (TYPE_FIELDS (t));
+	  tree f = next_aggregate_field (TYPE_FIELDS (t));
 	  if (f && TYPE_PTR_P (TREE_TYPE (f)))
 	    {
-	      f = next_initializable_field (DECL_CHAIN (f));
+	      f = next_aggregate_field (DECL_CHAIN (f));
 	      if (f && same_type_p (TREE_TYPE (f), size_type_node))
 		ok = true;
 	    }
@@ -7808,7 +8215,7 @@ finish_struct (tree t, tree attributes)
   if (flag_openmp)
     for (tree decl = TYPE_FIELDS (t); decl; decl = DECL_CHAIN (decl))
       if (TREE_CODE (decl) == FUNCTION_DECL
-	  && DECL_NONSTATIC_MEMBER_FUNCTION_P (decl))
+	  && DECL_OBJECT_MEMBER_FUNCTION_P (decl))
 	if (tree attr = lookup_attribute ("omp declare variant base",
 					  DECL_ATTRIBUTES (decl)))
 	  omp_declare_variant_finalize (decl, attr);
@@ -8007,7 +8414,7 @@ resolves_to_fixed_type_p (tree instance, int* nonnull)
   /* processing_template_decl can be false in a template if we're in
      instantiate_non_dependent_expr, but we still want to suppress
      this check.  */
-  if (in_template_function ())
+  if (in_template_context)
     {
       /* In a template we only care about the type of the result.  */
       if (nonnull)
@@ -8329,7 +8736,7 @@ pop_lang_context (void)
    control of FLAGS.  Permit pointers to member function if FLAGS
    permits.  If TEMPLATE_ONLY, the name of the overloaded function was
    a template-id, and EXPLICIT_TARGS are the explicitly provided
-   template arguments.  
+   template arguments.
 
    If OVERLOAD is for one or more member functions, then ACCESS_PATH
    is the base path used to reference those member functions.  If
@@ -8546,11 +8953,18 @@ resolve_address_of_overloaded_function (tree target_type,
 	  tree match = most_specialized_instantiation (matches);
 
 	  if (match != error_mark_node)
-	    matches = tree_cons (TREE_PURPOSE (match),
-				 NULL_TREE,
-				 NULL_TREE);
+	    {
+	      matches = match;
+	      TREE_CHAIN (match) = NULL_TREE;
+	    }
 	}
     }
+  else if (flag_concepts && TREE_CHAIN (matches))
+    if (tree match = most_constrained_function (matches))
+      {
+	matches = match;
+	TREE_CHAIN (match) = NULL_TREE;
+      }
 
   /* Now we should have exactly one function in MATCHES.  */
   if (matches == NULL_TREE)
@@ -8558,6 +8972,7 @@ resolve_address_of_overloaded_function (tree target_type,
       /* There were *no* matches.  */
       if (complain & tf_error)
 	{
+	  auto_diagnostic_group d;
 	  error ("no matches converting function %qD to type %q#T",
 		 OVL_NAME (overload), target_type);
 
@@ -8585,6 +9000,7 @@ resolve_address_of_overloaded_function (tree target_type,
 	{
 	  if (complain & tf_error)
 	    {
+	      auto_diagnostic_group d;
 	      error ("converting overloaded function %qD to type %q#T is ambiguous",
 		     OVL_NAME (overload), target_type);
 
@@ -8603,21 +9019,52 @@ resolve_address_of_overloaded_function (tree target_type,
   /* Good, exactly one match.  Now, convert it to the correct type.  */
   fn = TREE_PURPOSE (matches);
 
-  if (DECL_NONSTATIC_MEMBER_FUNCTION_P (fn)
-      && !(complain & tf_ptrmem_ok) && !flag_ms_extensions)
+  if (DECL_OBJECT_MEMBER_FUNCTION_P (fn)
+      && !(complain & tf_ptrmem_ok))
     {
-      static int explained;
-
-      if (!(complain & tf_error))
+      /* Previously we allowed this behavior for iobj member functions when the
+	 -fms-extensions flag is passed as MSVC allows this as a language
+	 extension.  MSVC also allows this for xobj member functions, but the
+	 documentation for -fms-extensions states it's purpose is to support
+	 the use of microsoft headers.  Until otherwise demonstrated, we should
+	 assume xobj member functions are not used in this manner in microsoft
+	 headers and forbid the incorrect syntax instead of supporting it for
+	 non-legacy uses.  This should hopefully encourage conformance going
+	 forward.
+	 This comment is referred to in typeck.cc:cp_build_addr_expr_1.  */
+      if (DECL_IOBJ_MEMBER_FUNCTION_P (fn) && flag_ms_extensions)
+	/* Early escape.  */;
+      else if (!(complain & tf_error))
 	return error_mark_node;
-
-      auto_diagnostic_group d;
-      if (permerror (input_location, "assuming pointer to member %qD", fn)
-	  && !explained)
+      else if (DECL_XOBJ_MEMBER_FUNCTION_P (fn))
 	{
-	  inform (input_location, "(a pointer to member can only be "
-		  "formed with %<&%E%>)", fn);
-	  explained = 1;
+	  auto_diagnostic_group d;
+	  /* Should match the error in typeck.cc:cp_build_addr_expr_1.
+	     We seem to lack the details here to match that diagnostic exactly,
+	     perhaps this could be fixed in the future? See PR113075 bug 2.  */
+	  error_at (input_location,
+		    "ISO C++ forbids taking the address of an unqualified"
+		    " or parenthesized non-static member function to form"
+		    " a pointer to explicit object member function.");
+	  /* This is incorrect, see PR113075 bug 3.  */
+	  inform (input_location,
+		  "a pointer to explicit object member function can only be "
+		  "formed with %<&%E%>", fn);
+	}
+      else
+	{
+	  static int explained;
+	  gcc_assert (DECL_IOBJ_MEMBER_FUNCTION_P (fn) && !flag_ms_extensions);
+	  /* Is there a reason this error message doesn't match the one in
+	     typeck.cc:cp_build_addr_expr_1?  */
+	  auto_diagnostic_group d;
+	  if (permerror (input_location, "assuming pointer to member %qD", fn)
+	      && !explained)
+	    {
+	      inform (input_location, "(a pointer to member can only be "
+				      "formed with %<&%E%>)", fn);
+	      explained = 1;
+	    }
 	}
     }
 
@@ -8688,6 +9135,8 @@ instantiate_type (tree lhstype, tree rhs, tsubst_flags_t complain)
 
   complain &= ~tf_ptrmem_ok;
 
+  STRIP_ANY_LOCATION_WRAPPER (rhs);
+
   if (lhstype == unknown_type_node)
     {
       if (complain & tf_error)
@@ -8726,15 +9175,6 @@ instantiate_type (tree lhstype, tree rhs, tsubst_flags_t complain)
     {
       access_path = BASELINK_ACCESS_BINFO (rhs);
       rhs = BASELINK_FUNCTIONS (rhs);
-    }
-
-  /* If we are in a template, and have a NON_DEPENDENT_EXPR, we cannot
-     deduce any type information.  */
-  if (TREE_CODE (rhs) == NON_DEPENDENT_EXPR)
-    {
-      if (complain & tf_error)
-	error ("not enough type information");
-      return error_mark_node;
     }
 
   /* There are only a few kinds of expressions that may have a type
@@ -8858,7 +9298,7 @@ build_self_reference (void)
   DECL_ARTIFICIAL (decl) = 1;
   SET_DECL_SELF_REFERENCE_P (decl);
   set_underlying_type (decl);
-  set_instantiating_module (decl);  
+  set_instantiating_module (decl);
 
   if (processing_template_decl)
     decl = push_template_decl (decl);
@@ -8931,32 +9371,53 @@ is_really_empty_class (tree type, bool ignore_vptr)
 void
 maybe_note_name_used_in_class (tree name, tree decl)
 {
-  splay_tree names_used;
-
   /* If we're not defining a class, there's nothing to do.  */
   if (!(innermost_scope_kind() == sk_class
 	&& TYPE_BEING_DEFINED (current_class_type)
 	&& !LAMBDA_TYPE_P (current_class_type)))
     return;
 
-  /* If there's already a binding for this NAME, then we don't have
-     anything to worry about.  */
-  if (lookup_member (current_class_type, name,
-		     /*protect=*/0, /*want_type=*/false, tf_warning_or_error))
-    return;
+  const cp_binding_level *blev = nullptr;
+  if (const cxx_binding *binding = IDENTIFIER_BINDING (name))
+    blev = binding->scope;
+  const cp_binding_level *lev = current_binding_level;
 
-  if (!current_class_stack[current_class_depth - 1].names_used)
-    current_class_stack[current_class_depth - 1].names_used
-      = splay_tree_new (splay_tree_compare_pointers, 0, 0);
-  names_used = current_class_stack[current_class_depth - 1].names_used;
+  /* Record the binding in the names_used tables for classes inside blev.  */
+  for (int i = current_class_depth; i > 0; --i)
+    {
+      tree type = (i == current_class_depth
+		   ? current_class_type
+		   : current_class_stack[i].type);
 
-  splay_tree_insert (names_used,
-		     (splay_tree_key) name,
-		     (splay_tree_value) decl);
+      for (; lev; lev = lev->level_chain)
+	{
+	  if (lev == blev)
+	    /* We found the declaration.  */
+	    return;
+	  if (lev->kind == sk_class && lev->this_entity == type)
+	    /* This class is inside the declaration scope.  */
+	    break;
+	}
+
+      auto &names_used = current_class_stack[i-1].names_used;
+      if (!names_used)
+	names_used = splay_tree_new (splay_tree_compare_pointers, 0, 0);
+
+      tree use = build1_loc (input_location, VIEW_CONVERT_EXPR,
+			     TREE_TYPE (decl), decl);
+      EXPR_LOCATION_WRAPPER_P (use) = 1;
+      splay_tree_insert (names_used,
+			 (splay_tree_key) name,
+			 (splay_tree_value) use);
+    }
 }
 
 /* Note that NAME was declared (as DECL) in the current class.  Check
-   to see that the declaration is valid.  */
+   to see that the declaration is valid under [class.member.lookup]:
+
+   If [the result of a search in T for N at point P] differs from the result of
+   a search in T for N from immediately after the class-specifier of T, the
+   program is ill-formed, no diagnostic required.  */
 
 void
 note_name_declared_in_class (tree name, tree decl)
@@ -8971,7 +9432,7 @@ note_name_declared_in_class (tree name, tree decl)
     return;
   /* The C language allows members to be declared with a type of the same
      name, and the C++ standard says this diagnostic is not required.  So
-     allow it in extern "C" blocks unless predantic is specified.
+     allow it in extern "C" blocks unless pedantic is specified.
      Allow it in all cases if -ms-extensions is specified.  */
   if ((!pedantic && current_lang_name == lang_name_c)
       || flag_ms_extensions)
@@ -8979,17 +9440,33 @@ note_name_declared_in_class (tree name, tree decl)
   n = splay_tree_lookup (names_used, (splay_tree_key) name);
   if (n)
     {
+      tree use = (tree) n->value;
+      location_t loc = EXPR_LOCATION (use);
+      tree olddecl = OVL_FIRST (TREE_OPERAND (use, 0));
       /* [basic.scope.class]
 
 	 A name N used in a class S shall refer to the same declaration
 	 in its context and when re-evaluated in the completed scope of
 	 S.  */
-      if (permerror (location_of (decl),
-		     "declaration of %q#D changes meaning of %qD",
-		     decl, OVL_NAME (decl)))
-	inform (location_of ((tree) n->value),
-		"%qD declared here as %q#D",
-		OVL_NAME (decl), (tree) n->value);
+      auto ov = make_temp_override (global_dc->m_pedantic_errors);
+      if (TREE_CODE (decl) == TYPE_DECL
+	  && TREE_CODE (olddecl) == TYPE_DECL
+	  && same_type_p (TREE_TYPE (decl), TREE_TYPE (olddecl)))
+	/* Different declaration, but same meaning; just warn.  */;
+      else if (flag_permissive)
+	/* Let -fpermissive make it a warning like past versions.  */;
+      else
+	/* Make it an error.  */
+	global_dc->m_pedantic_errors = 1;
+
+      auto_diagnostic_group d;
+      if (pedwarn (location_of (decl), OPT_Wchanges_meaning,
+		   "declaration of %q#D changes meaning of %qD",
+		   decl, OVL_NAME (decl)))
+	{
+	  inform (loc, "used here to mean %q#D", olddecl);
+	  inform (location_of (olddecl), "declared here" );
+	}
     }
 }
 
@@ -9177,14 +9654,14 @@ static void
 dump_class_hierarchy_1 (FILE *stream, dump_flags_t flags, tree t)
 {
   fprintf (stream, "Class %s\n", type_as_string (t, TFF_PLAIN_IDENTIFIER));
-  fprintf (stream, "   size=%lu align=%lu\n",
-	   (unsigned long)(tree_to_shwi (TYPE_SIZE (t)) / BITS_PER_UNIT),
-	   (unsigned long)(TYPE_ALIGN (t) / BITS_PER_UNIT));
+  fprintf (stream, "   size=" HOST_WIDE_INT_PRINT_UNSIGNED " align=%u\n",
+	   tree_to_shwi (TYPE_SIZE (t)) / BITS_PER_UNIT,
+	   TYPE_ALIGN (t) / BITS_PER_UNIT);
   if (tree as_base = CLASSTYPE_AS_BASE (t))
-    fprintf (stream, "   base size=%lu base align=%lu\n",
-	     (unsigned long)(tree_to_shwi (TYPE_SIZE (as_base))
-			     / BITS_PER_UNIT),
-	     (unsigned long)(TYPE_ALIGN (as_base) / BITS_PER_UNIT));
+    fprintf (stream, "   base size=" HOST_WIDE_INT_PRINT_UNSIGNED
+	     " base align=%u\n",
+	     tree_to_shwi (TYPE_SIZE (as_base)) / BITS_PER_UNIT,
+	     TYPE_ALIGN (as_base) / BITS_PER_UNIT);
   dump_class_hierarchy_r (stream, flags, TYPE_BINFO (t), TYPE_BINFO (t), 0);
   fprintf (stream, "\n");
 }
@@ -10194,7 +10671,7 @@ build_vcall_offset_vtbl_entries (tree binfo, vtbl_init_data* vid)
      compute the indices -- but do not add to the vtable -- when
      building the main vtable for a class.  */
   if (binfo == TYPE_BINFO (vid->derived)
-      || (BINFO_VIRTUAL_P (binfo) 
+      || (BINFO_VIRTUAL_P (binfo)
 	  /* If BINFO is RTTI_BINFO, then (since BINFO does not
 	     correspond to VID->DERIVED), we are building a primary
 	     construction virtual table.  Since this is a primary

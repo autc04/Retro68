@@ -1,4 +1,4 @@
-# Copyright (C) 1992-2022 Free Software Foundation, Inc.
+# Copyright (C) 1992-2025 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -142,6 +142,10 @@ proc g++_link_flags { paths } {
 	  append flags " -L${gccpath}/libstdc++-v3/src/.libs "
 	  append ld_library_path ":${gccpath}/libstdc++-v3/src/.libs"
       }
+      if [file exists "${gccpath}/libstdc++-v3/src/experimental/.libs/libstdc++exp.a"] {
+	  append flags " -L${gccpath}/libstdc++-v3/src/experimental/.libs "
+	  append ld_library_path ":${gccpath}/libstdc++-v3/src/experimental/.libs"
+      }
 
       if [file exists "${gccpath}/libiberty/libiberty.a"] {
           append flags "-L${gccpath}/libiberty "
@@ -281,10 +285,6 @@ proc g++_init { args } {
     set gcc_warning_prefix "warning:"
     set gcc_error_prefix "(fatal )?error:"
 
-    if { [istarget *-*-darwin*] } {
-	lappend ALWAYS_CXXFLAGS "ldflags=-multiply_defined suppress"
-       }
-
     verbose -log "ALWAYS_CXXFLAGS set to $ALWAYS_CXXFLAGS"
 
     verbose "g++ is initialized" 3
@@ -302,11 +302,6 @@ proc g++_target_compile { source dest type options } {
     global GXX_UNDER_TEST
     global flags_to_postpone
     global board_info
-
-    if { [target_info needs_status_wrapper] != "" && [info exists gluefile] } {
-	lappend options "libs=${gluefile}"
-	lappend options "ldflags=${wrap_flags}"
-    }
 
     global TEST_EXTRA_LIBS
     if [info exists TEST_EXTRA_LIBS] {
@@ -331,7 +326,12 @@ proc g++_target_compile { source dest type options } {
         append board_info($tboard,multilib_flags) " $flags_to_postpone"
     }
 
-    set options [dg-additional-files-options $options $source]
+    set options [dg-additional-files-options $options $source $dest $type]
+
+    if { [target_info needs_status_wrapper] != "" && [info exists gluefile] } {
+	lappend options "libs=${gluefile}"
+	lappend options "ldflags=${wrap_flags}"
+    }
 
     set result [target_compile $source $dest $type $options]
 

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -98,17 +98,6 @@ package body Tbuild is
          end;
       end if;
    end Add_Unique_Serial_Number;
-
-   ----------------
-   -- Checks_Off --
-   ----------------
-
-   function Checks_Off (N : Node_Id) return Node_Id is
-   begin
-      return
-        Make_Unchecked_Expression (Sloc (N),
-          Expression => N);
-   end Checks_Off;
 
    ----------------
    -- Convert_To --
@@ -503,7 +492,7 @@ package body Tbuild is
    -- Make_SC --
    -------------
 
-   function  Make_SC (Pre, Sel : Node_Id) return Node_Id is
+   function Make_SC (Pre, Sel : Node_Id) return Node_Id is
    begin
       return
         Make_Selected_Component (System_Location,
@@ -524,6 +513,38 @@ package body Tbuild is
       Store_String_Chars (Strval);
       return Make_String_Literal (Sloc, Strval => End_String);
    end Make_String_Literal;
+
+   -------------------------
+   -- Make_Suppress_Block --
+   -------------------------
+
+   --  Generates the following expansion:
+
+   --    declare
+   --       pragma Suppress (<check>);
+   --    begin
+   --       <stmts>
+   --    end;
+
+   function Make_Suppress_Block
+     (Loc   : Source_Ptr;
+      Check : Name_Id;
+      Stmts : List_Id) return Node_Id
+   is
+   begin
+      return
+        Make_Block_Statement (Loc,
+          Declarations => New_List (
+            Make_Pragma (Loc,
+              Chars => Name_Suppress,
+              Pragma_Argument_Associations => New_List (
+                Make_Pragma_Argument_Association (Loc,
+                  Expression => Make_Identifier (Loc, Check))))),
+
+          Handled_Statement_Sequence =>
+            Make_Handled_Sequence_Of_Statements (Loc,
+              Statements => Stmts));
+   end Make_Suppress_Block;
 
    --------------------
    -- Make_Temporary --
@@ -548,7 +569,7 @@ package body Tbuild is
    --  Generates the following expansion:
 
    --    declare
-   --       pragma Suppress (<check>);
+   --       pragma Unsuppress (<check>);
    --    begin
    --       <stmts>
    --    end;
@@ -563,7 +584,7 @@ package body Tbuild is
         Make_Block_Statement (Loc,
           Declarations => New_List (
             Make_Pragma (Loc,
-              Chars => Name_Suppress,
+              Chars => Name_Unsuppress,
               Pragma_Argument_Associations => New_List (
                 Make_Pragma_Argument_Association (Loc,
                   Expression => Make_Identifier (Loc, Check))))),
@@ -882,15 +903,21 @@ package body Tbuild is
       --  We don't really want to allow E_Void here, but existing code passes
       --  it.
 
-      Loc         : constant Source_Ptr := Sloc (Expr);
-      Result      : Node_Id;
+      Loc    : constant Source_Ptr := Sloc (Expr);
+      Result : Node_Id;
 
    begin
-      --  If the expression is already of the correct type, then nothing
-      --  to do, except for relocating the node
+      --  If the expression is already of the correct type, then nothing to do,
+      --  except for relocating the node. If Typ is an array type with fixed
+      --  lower bound, the expression might be of a subtype that does not
+      --  have this lower bound (on a slice), hence the conversion needs to
+      --  be preserved for sliding.
 
       if Present (Etype (Expr))
-        and then (Base_Type (Etype (Expr)) = Typ or else Etype (Expr) = Typ)
+        and then
+          ((Base_Type (Etype (Expr)) = Typ
+             and then not Is_Fixed_Lower_Bound_Array_Subtype (Typ))
+           or else Etype (Expr) = Typ)
       then
          return Relocate_Node (Expr);
 

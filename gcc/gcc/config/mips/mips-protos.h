@@ -1,5 +1,5 @@
 /* Prototypes of target machine for GNU compiler.  MIPS version.
-   Copyright (C) 1989-2022 Free Software Foundation, Inc.
+   Copyright (C) 1989-2025 Free Software Foundation, Inc.
    Contributed by A. Lichnewsky (lich@inria.inria.fr).
    Changed by Michael Meissner	(meissner@osf.org).
    64-bit r4000 support by Ian Lance Taylor (ian@cygnus.com) and
@@ -271,7 +271,7 @@ extern void mips_declare_object (FILE *, const char *, const char *,
 extern void mips_declare_object_name (FILE *, const char *, tree);
 extern void mips_finish_declare_object (FILE *, tree, int, int);
 extern void mips_set_text_contents_type (FILE *, const char *,
-					 unsigned long, bool);
+					 unsigned HOST_WIDE_INT, bool);
 
 extern bool mips_small_data_pattern_p (rtx);
 extern rtx mips_rewrite_small_data (rtx);
@@ -352,6 +352,7 @@ extern void mips_expand_atomic_qihi (union mips_gen_fn_ptrs,
 extern void mips_expand_vector_init (rtx, rtx);
 extern void mips_expand_vec_unpack (rtx op[2], bool, bool);
 extern void mips_expand_vec_reduc (rtx, rtx, rtx (*)(rtx, rtx, rtx));
+extern void mips_expand_msa_reduc (rtx (*)(rtx, rtx, rtx), rtx, rtx);
 extern void mips_expand_vec_minmax (rtx, rtx, rtx,
 				    rtx (*) (rtx, rtx, rtx), bool);
 
@@ -385,11 +386,16 @@ extern mulsidi3_gen_fn mips_mulsidi3_gen_fn (enum rtx_code);
 #endif
 
 extern void mips_register_frame_header_opt (void);
-extern void mips_expand_vec_cond_expr (machine_mode, machine_mode, rtx *);
+extern void mips_expand_vec_cond_expr (machine_mode, machine_mode, rtx *, bool);
 extern void mips_expand_vec_cmp_expr (rtx *);
+extern HOST_WIDE_INT mips_msa_shf_i8 (rtx *);
 
-/* Routines implemented in mips-d.cc  */
-extern void mips_d_target_versions (void);
-extern void mips_d_register_target_info (void);
+extern void mips_emit_speculation_barrier_function (void);
 
+extern bool mips_bit_clear_p (enum machine_mode, unsigned HOST_WIDE_INT);
+extern void mips_bit_clear_info (enum machine_mode, unsigned HOST_WIDE_INT,
+				  int *, int *);
+
+extern const char *mips_output_compare (const char *fpcmp, const char *fcond,
+			const char *fmt, const char *fpcc_mode, bool swap);
 #endif /* ! GCC_MIPS_PROTOS_H */

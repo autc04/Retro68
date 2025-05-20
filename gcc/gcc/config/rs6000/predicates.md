@@ -1,5 +1,5 @@
 ;; Predicate definitions for POWER and PowerPC.
-;; Copyright (C) 2005-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2025 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -19,7 +19,7 @@
 
 ;; Return 1 for anything except PARALLEL.
 (define_predicate "any_operand"
-  (match_code "const_int,const_double,const_wide_int,const,symbol_ref,label_ref,subreg,reg,mem"))
+  (match_code "const_int,const_double,const_wide_int,const_vector,const,symbol_ref,label_ref,subreg,reg,mem"))
 
 ;; Return 1 for any PARALLEL.
 (define_predicate "any_parallel_operand"
@@ -694,6 +694,12 @@
   return num_insns > 1;
 })
 
+;; Return true if the operand is a constant that can be loaded with a vspltisw
+;; instruction and then a vupkhsw instruction.
+
+(define_predicate "vspltisw_vupkhsw_constant_split"
+  (and (match_code "const_vector")
+       (match_test "vspltisw_vupkhsw_constant_p (op, mode)")))
 
 ;; Return 1 if the operand is constant that can loaded directly with a XXSPLTIB
 ;; instruction.
@@ -742,6 +748,11 @@
           && xxspltib_constant_p (op, mode, &num_insns, &value))
 	return true;
 
+      /* V2DI constant within RANGE (-16, 15) can be synthesized with a
+	 vspltisw and a vupkhsw.  */
+      if (vspltisw_vupkhsw_constant_p (op, mode, &value))
+	return true;
+
       return easy_altivec_constant (op, mode);
     }
 
@@ -760,7 +771,7 @@
     return 0;
   elt = BYTES_BIG_ENDIAN ? GET_MODE_NUNITS (mode) - 1 : 0;
   val = const_vector_elt_as_int (op, elt);
-  val = ((val & 0xff) ^ 0x80) - 0x80;
+  val = sext_hwi (val, 8);
   return EASY_VECTOR_15_ADD_SELF (val);
 })
 
@@ -785,7 +796,7 @@
       elt += (BYTES_BIG_ENDIAN ? -1 : 1) * (sz - isz) / isz;
     }
   else if (isz > sz)
-    inner = smallest_int_mode_for_size (sz * BITS_PER_UNIT);
+    inner = smallest_int_mode_for_size (sz * BITS_PER_UNIT).require ();
   val = const_vector_elt_as_int (op, elt);
   return EASY_VECTOR_MSB (val, inner);
 })
@@ -797,6 +808,43 @@
        (and (match_test "TARGET_ALTIVEC")
 	    (and (match_test "easy_altivec_constant (op, mode)")
 		 (match_test "vspltis_shifted (op) != 0")))))
+
+;; Return true if this is a vector constant and each byte in
+;; it is the same.
+(define_predicate "const_vector_each_byte_same"
+  (match_code "const_vector")
+{
+  rtx elt;
+  if (!const_vec_duplicate_p (op, &elt))
+    return false;
+
+  machine_mode emode = GET_MODE_INNER (mode);
+  unsigned HOST_WIDE_INT eval;
+  if (CONST_INT_P (elt))
+    eval = INTVAL (elt);
+  else if (CONST_DOUBLE_AS_FLOAT_P (elt))
+    {
+      gcc_assert (emode == SFmode || emode == DFmode);
+      long l[2];
+      real_to_target (l, CONST_DOUBLE_REAL_VALUE (elt), emode);
+      /* real_to_target puts 32-bit pieces in each long.  */
+      eval = zext_hwi (l[0], 32);
+      eval |= zext_hwi (l[1], 32) << 32;
+    }
+  else
+    return false;
+
+  unsigned int esize = GET_MODE_SIZE (emode);
+  unsigned char byte0 = eval & 0xff;
+  for (unsigned int i = 1; i < esize; i++)
+    {
+      eval >>= BITS_PER_UNIT;
+      if (byte0 != (eval & 0xff))
+	return false;
+    }
+
+  return true;
+})
 
 ;; Return 1 if operand is a vector int register or is either a vector constant
 ;; of all 0 bits of a vector constant of all 1 bits.
@@ -811,6 +859,69 @@
 
   else
     return op == CONST0_RTX (mode) || op == CONSTM1_RTX (mode);
+})
+
+;; Return 1 if the operand is a V2DI or V4SI const_vector, where each element
+;; is the same constant, and the constant can be used for a shift operation.
+;; This is to prevent sub-optimal code, that needs to load up the constant and
+;; then zero extend it 32 or 64-bit vectors or load up the constant from the
+;; literal pool.
+;;
+;; For V4SImode, we only recognize shifts by 16..31 on ISA 3.0, since shifts by
+;; 1..15 can be handled by the normal VSPLTISW and vector shift instruction.
+;; For V2DImode, we do this all of the time, since there is no convenient
+;; instruction to load up a vector long long splatted constant.
+;;
+;; If we can use XXSPLTIB, then allow constants up to 63.  If not, we restrict
+;; the constant to 0..15 that can be loaded with VSPLTISW.  V4SI shifts are
+;; only optimized for ISA 3.0 when the shift value is >= 16 and <= 31.  Values
+;; between 0 and 15 can use a normal VSPLTISW to load the value, and it doesn't
+;; need this optimization.
+(define_predicate "vector_shift_constant"
+  (match_code "const_vector,vec_duplicate")
+{
+  unsigned HOST_WIDE_INT min_value;
+
+  if (mode == V2DImode)
+    {
+      min_value = 0;
+      if (!TARGET_P8_VECTOR)
+	return 0;
+    }
+  else if (mode == V4SImode)
+    {
+      min_value = 16;
+      if (!TARGET_P9_VECTOR)
+	return 0;
+    }
+  else
+    return 0;
+
+  unsigned HOST_WIDE_INT max_value = TARGET_P9_VECTOR ? 63 : 15;
+
+  if (GET_CODE (op) == CONST_VECTOR)
+    {
+      unsigned HOST_WIDE_INT first = UINTVAL (CONST_VECTOR_ELT (op, 0));
+      unsigned nunits = GET_MODE_NUNITS (mode);
+      unsigned i;
+
+      if (!IN_RANGE (first, min_value, max_value))
+	return 0;
+
+      for (i = 1; i < nunits; i++)
+	if (first != UINTVAL (CONST_VECTOR_ELT (op, i)))
+	  return 0;
+
+      return 1;
+    }
+  else
+    {
+      rtx op0 = XEXP (op, 0);
+      if (!CONST_INT_P (op0))
+	return 0;
+
+      return IN_RANGE (UINTVAL (op0), min_value, max_value);
+    }
 })
 
 ;; Return 1 if operand is 0.0.
@@ -864,7 +975,7 @@
   if (!TARGET_QUAD_MEMORY && !TARGET_SYNC_TI)
     return false;
 
-  if (GET_MODE_SIZE (mode) != 16 || !MEM_P (op) || MEM_ALIGN (op) < 128)
+  if (GET_MODE_SIZE (mode) != 16 || MEM_ALIGN (op) < 128)
     return false;
 
   return quad_address_p (XEXP (op, 0), mode, false);
@@ -876,7 +987,7 @@
 (define_predicate "vsx_quad_dform_memory_operand"
   (match_code "mem")
 {
-  if (!TARGET_P9_VECTOR || !MEM_P (op) || GET_MODE_SIZE (mode) != 16)
+  if (!TARGET_P9_VECTOR)
     return false;
 
   return quad_address_p (XEXP (op, 0), mode, false);
@@ -1086,20 +1197,6 @@
   if (!CONST_INT_P (offset))
     return true;
   return INTVAL (offset) % 4 == 0;
-})
-
-;; Return 1 if the operand is a memory operand that has a valid address for
-;; a DS-form instruction. I.e. the address has to be either just a register,
-;; or register + const where the two low order bits of const are zero.
-(define_predicate "ds_form_mem_operand"
-  (match_code "subreg,mem")
-{
-  if (!any_memory_operand (op, mode))
-    return false;
-
-  rtx addr = XEXP (op, 0);
-
-  return address_to_insn_form (addr, mode, NON_PREFIXED_DS) == INSN_FORM_DS;
 })
 
 ;; Return 1 if the operand, used inside a MEM, is a SYMBOL_REF.
@@ -2064,3 +2161,8 @@
   else
     return false;
 })
+
+(define_predicate "lowpart_subreg_operator"
+  (and (match_code "subreg")
+       (match_test "subreg_lowpart_offset (mode, GET_MODE (SUBREG_REG (op)))
+		    == SUBREG_BYTE (op)")))

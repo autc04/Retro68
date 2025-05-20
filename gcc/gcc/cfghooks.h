@@ -1,5 +1,5 @@
 /* Hooks for cfg representation specific functions.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2025 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <s.pop@laposte.net>
 
 This file is part of GCC.
@@ -31,7 +31,7 @@ along with GCC; see the file COPYING3.  If not see
    For every field[2], field[0] is the count before the pass runs, and
    field[1] is the post-pass count.  This allows us to monitor the effect
    of each individual pass on the profile consistency.
-   
+
    This structure is not supposed to be used by anything other than passes.cc
    and one CFG hook per CFG mode.  */
 struct profile_record
@@ -78,7 +78,7 @@ struct cfg_hooks
   const char *name;
 
   /* Debugging.  */
-  int (*verify_flow_info) (void);
+  bool (*verify_flow_info) (void);
   void (*dump_bb) (FILE *, basic_block, int, dump_flags_t);
   void (*dump_bb_for_graph) (pretty_printer *, basic_block);
 
@@ -189,7 +189,7 @@ struct cfg_hooks
   /* Add PHI arguments queued in PENDINT_STMT list on edge E to edge
      E->dest (only in tree-ssa loop versioning.  */
   void (*flush_pending_stmts) (edge);
-  
+
   /* True if a block contains no executable instructions.  */
   bool (*empty_block_p) (basic_block);
 
@@ -206,7 +206,7 @@ extern void verify_flow_info (void);
 /* Check control flow invariants, if internal consistency checks are
    enabled.  */
 
-static inline void
+inline void
 checking_verify_flow_info (void)
 {
   /* TODO: Add a separate option for -fchecking=cfg.  */

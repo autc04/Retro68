@@ -1,6 +1,9 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
-<!-- Copyright (C) 1988-2022 Free Software Foundation, Inc.
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- Copyright (C) 1988-2025 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -19,9 +22,6 @@ A GNU Manual
 You have freedom to copy and modify this GNU Manual, like GNU
      software.  Copies published by the Free Software Foundation raise
      funds for GNU development. -->
-<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>Prerequisites for GCC</title>
 
 <meta name="description" content="Prerequisites for GCC">
@@ -29,30 +29,24 @@ You have freedom to copy and modify this GNU Manual, like GNU
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
 <style type="text/css">
 <!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
 a.summary-letter {text-decoration: none}
 blockquote.indentedblock {margin-right: 0em}
-blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
-blockquote.smallquotation {font-size: smaller}
 div.display {margin-left: 3.2em}
 div.example {margin-left: 3.2em}
-div.lisp {margin-left: 3.2em}
-div.smalldisplay {margin-left: 3.2em}
-div.smallexample {margin-left: 3.2em}
-div.smalllisp {margin-left: 3.2em}
 kbd {font-style: oblique}
 pre.display {font-family: inherit}
 pre.format {font-family: inherit}
 pre.menu-comment {font-family: serif}
 pre.menu-preformatted {font-family: serif}
-pre.smalldisplay {font-family: inherit; font-size: smaller}
-pre.smallexample {font-size: smaller}
-pre.smallformat {font-family: inherit; font-size: smaller}
-pre.smalllisp {font-size: smaller}
 span.nolinebreak {white-space: nowrap}
 span.roman {font-family: initial; font-weight: normal}
 span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
 ul.no-bullet {list-style: none}
 -->
 </style>
@@ -79,30 +73,38 @@ ul.no-bullet {list-style: none}
 
 
 
-<a name="index-Prerequisites"></a>
+
+
+
+<span id="index-Prerequisites"></span>
 
 <p>GCC requires that various tools and packages be available for use in the
 build procedure.  Modifying GCC sources requires additional tools
 described below.
 </p>
-<a name="Tools_002fpackages-necessary-for-building-GCC"></a>
-<h3 class="heading">Tools/packages necessary for building GCC</h3>
+<span id="Tools_002fpackages-necessary-for-building-GCC"></span><h3 class="heading">Tools/packages necessary for building GCC</h3>
 <dl compact="compact">
-<dt>ISO C++11 compiler</dt>
-<dd><p>Necessary to bootstrap GCC.
+<dt><span>ISO C++14 compiler</span></dt>
+<dd><p>Necessary to bootstrap GCC.  GCC 5.4 or newer has sufficient support
+for used C++14 features.
 </p>
-<p>Versions of GCC prior to 11 also allow bootstrapping with an ISO C++98
-compiler, versions of GCC prior to 4.8 also allow bootstrapping with a
-ISO C89 compiler, and versions of GCC prior to 3.4 also allow
-bootstrapping with a traditional (K&amp;R) C compiler.
+<p>Versions of GCC prior to 15 allow bootstrapping with an ISO C++11
+compiler, versions prior to 10.5 allow bootstrapping with an ISO C++98
+compiler, and versions prior to 4.8 allow bootstrapping with an ISO
+C89 compiler.
+</p>
+<p>If you need to build an intermediate version of GCC in order to
+bootstrap current GCC, consider GCC 9.5: it can build the current Ada
+and D compilers, and was also the version that declared C++17 support
+stable.
 </p>
 <p>To build all languages in a cross-compiler or other configuration where
 3-stage bootstrap is not performed, you need to start with an existing
-GCC binary (version 4.8 or later) because source code for language
+GCC binary (of a new enough version) because source code for language
 frontends other than C might use GCC extensions.
 </p>
 </dd>
-<dt>C standard library and headers</dt>
+<dt><span>C standard library and headers</span></dt>
 <dd>
 <p>In order to build GCC, the C standard library and headers must be present
 for all target variants for which target libraries will be built (and not
@@ -119,7 +121,13 @@ name of the package depends on your distro) or you must build GCC as a
 &lsquo;<samp>fatal error: gnu/stubs-32.h: No such file</samp>&rsquo;
 </p>
 </dd>
-<dt><a name="GNAT-prerequisite"></a>GNAT</dt>
+<dt><span>Python</span></dt>
+<dd><p>If you configure a RISC-V compiler with the option <samp>--with-arch</samp> and
+the specified architecture string is non-canonical, then you will need
+<code>python</code> installed on the build system.
+</p>
+</dd>
+<dt><span><span id="GNAT-prerequisite"></span>GNAT</span></dt>
 <dd>
 <p>In order to build GNAT, the Ada compiler, you need a working GNAT
 compiler (GCC version 5.1 or later).
@@ -148,12 +156,43 @@ Ada runtime libraries. You can check that your build environment is clean
 by verifying that &lsquo;<samp>gnatls -v</samp>&rsquo; lists only one explicit path in each
 section.
 </p>
+<span id="index-cobol"></span>
 </dd>
-<dt><a name="GDC-prerequisite"></a>GDC</dt>
+<dt><span><span id="GCOBOL-prerequisite"></span>GCOBOL</span></dt>
 <dd>
-<p>In order to build GDC, the D compiler, you need a working GDC
-compiler (GCC version 9.1 or later) and D runtime library,
-&lsquo;<samp>libphobos</samp>&rsquo;, as the D front end is written in D.
+<p>The COBOL compiler, gcobol, first appeared in GCC 15.  To build the
+COBOL parser, you need GNU Bison 3.5.1 or later (but not 3.8.0). To build
+the lexer requires GNU Flex 2.6.4, the current version as of this writing,
+released on 2017-05-06.
+</p>
+<p>The gcobol documentation is maintained as manpages using troff
+mdoc. GNU groff is required to convert them to PDF format.  Conversion
+to HTML is done with mandoc, available at
+<a href="http://mdocml.bsd.lv/">http://mdocml.bsd.lv/</a>.
+</p>
+<p>Because ISO COBOL defines strict requirements for numerical precision,
+gcobol requires hardware with 128-bit computation instructions.  This
+requirement applies to both host and target. For integer and
+fixed-point computation, gcobol uses
+</p><dl class="def">
+<dt id="index-_005f_005fint128"><span class="category">Data type: </span><span><strong>__int128</strong><a href='#index-_005f_005fint128' class='copiable-anchor'> &para;</a></span></dt>
+</dl>
+<p>meaning <code>16 == sizeof(long long int)</code>.
+For floating point, gcobol uses
+</p><dl class="def">
+<dt id="index-_005fFloat128"><span class="category">Data type: </span><span><strong>_Float128</strong><a href='#index-_005fFloat128' class='copiable-anchor'> &para;</a></span></dt>
+</dl>
+<p>(On some architectures, GCC supports 128-bit floating point in software.)
+</p>
+<p>gcobol has so far been tested on two architectures only: x86_64 and
+aarch64 with little-endian encoding.
+</p>
+</dd>
+<dt><span><span id="GDC-prerequisite"></span>GDC</span></dt>
+<dd>
+<p>In order to build GDC, the D compiler, you need a working GDC compiler
+(GCC version 9.4 or later) and D runtime library, &lsquo;<samp>libphobos</samp>&rsquo;, as
+the D front end is written in D.
 </p>
 <p>Versions of GDC prior to 12 can be built with an ISO C++11 compiler, which can
 then be installed and used to bootstrap newer versions of the D front end.
@@ -174,7 +213,22 @@ and works if <samp>--enable-libphobos</samp> is used.  Specifics are
 documented for affected targets.
 </p>
 </dd>
-<dt>A &ldquo;working&rdquo; POSIX compatible shell, or GNU bash</dt>
+<dt><span><span id="GM2-prerequisite"></span>GM2</span></dt>
+<dd>
+<p>Python3 is required if you want to build the complete Modula-2
+documentation including the target <code>SYSTEM</code> definition module.
+If Python3 is unavailable Modula-2 documentation will include a target
+independent version of the SYSTEM modules.
+</p>
+</dd>
+<dt><span><span id="gccrs-prerequisite"></span>gccrs</span></dt>
+<dd>
+<p>The official Rust compiler and Rust build system (cargo) are required for
+building various parts of the gccrs frontend, until gccrs can compile them
+by itself. The minimum supported Rust version is 1.49.
+</p>
+</dd>
+<dt><span>A &ldquo;working&rdquo; POSIX compatible shell, or GNU bash</span></dt>
 <dd>
 <p>Necessary when running <code>configure</code> because some
 <code>/bin/sh</code> shells have bugs and may crash when configuring the
@@ -193,14 +247,18 @@ environment to your &ldquo;good&rdquo; shell prior to running
 work when configuring GCC.
 </p>
 </dd>
-<dt>A POSIX or SVR4 awk</dt>
+<dt><span>GNU flex</span></dt>
 <dd>
-<p>Necessary for creating some of the generated source files for GCC.
-If in doubt, use a recent GNU awk version, as some of the older ones
-are broken.  GNU awk version 3.1.5 is known to work.
+<p>Necessary to build the lexical analysis module.
 </p>
 </dd>
-<dt>GNU binutils</dt>
+<dt><span>A POSIX or SVR4 awk</span></dt>
+<dd>
+<p>Necessary for creating some of the generated source files for GCC.
+If in doubt, use a recent GNU awk version.
+</p>
+</dd>
+<dt><span>GNU binutils</span></dt>
 <dd>
 <p>Necessary in some circumstances, optional in others.  See the
 host/target specific instructions for your platform for the exact
@@ -210,30 +268,30 @@ requirements.
 with GNU libtool that includes doing a bootstrap with LTO enabled.
 </p>
 </dd>
-<dt>gzip version 1.2.4 (or later) or</dt>
-<dt>bzip2 version 1.0.2 (or later)</dt>
+<dt><span>gzip version 1.2.4 (or later) or</span></dt>
+<dt><span>bzip2 version 1.0.2 (or later)</span></dt>
 <dd>
 <p>Necessary to uncompress GCC <code>tar</code> files when source code is
 obtained via HTTPS mirror sites.
 </p>
 </dd>
-<dt>GNU make version 3.80 (or later)</dt>
+<dt><span>GNU make version 3.80 (or later)</span></dt>
 <dd>
 <p>You must have GNU make installed to build GCC.
 </p>
 </dd>
-<dt>GNU tar version 1.14 (or later)</dt>
+<dt><span>GNU tar version 1.14 (or later)</span></dt>
 <dd>
 <p>Necessary (only on some platforms) to untar the source code.  Many
 systems&rsquo; <code>tar</code> programs will also work, only try GNU
 <code>tar</code> if you have problems.
 </p>
 </dd>
-<dt>Perl version between 5.6.1 and 5.6.24</dt>
+<dt><span>Perl version 5.6.1 (or later)</span></dt>
 <dd>
 <p>Necessary when targeting Darwin, building &lsquo;<samp>libstdc++</samp>&rsquo;,
 and not using <samp>--disable-symvers</samp>.
-Necessary when targeting Solaris 2 with Solaris <code>ld</code> and not using
+Necessary when targeting Solaris with Solaris <code>ld</code> and not using
 <samp>--disable-symvers</samp>.
 </p>
 <p>Necessary when regenerating <samp>Makefile</samp> dependencies in libiberty.
@@ -244,6 +302,9 @@ repository (mainly Unicode-related and rarely changing) from source
 tables.
 </p>
 <p>Used by <code>automake</code>.
+</p>
+<p>If available, enables parallel testing of &lsquo;<samp>libgomp</samp>&rsquo; in case that
+<code>flock</code> is not available.
 </p>
 </dd>
 </dl>
@@ -258,9 +319,10 @@ support libraries then using those packages may be the simplest way to
 install the libraries.
 </p>
 <dl compact="compact">
-<dt>GNU Multiple Precision Library (GMP) version 4.3.2 (or later)</dt>
+<dt><span>GNU Multiple Precision Library (GMP) version 4.3.2 (or later)</span></dt>
 <dd>
-<p>Necessary to build GCC.  If a GMP source distribution is found in a
+<p>Necessary to build GCC.  It can be downloaded from
+<a href="https://gmplib.org/">https://gmplib.org/</a>.  If a GMP source distribution is found in a
 subdirectory of your GCC sources named <samp>gmp</samp>, it will be built
 together with GCC.  Alternatively, if GMP is already installed but it
 is not in your library search path, you will have to configure with the
@@ -270,7 +332,7 @@ The in-tree build is only supported with the GMP version that
 download_prerequisites installs.
 </p>
 </dd>
-<dt>MPFR Library version 3.1.0 (or later)</dt>
+<dt><span>MPFR Library version 3.1.0 (or later)</span></dt>
 <dd>
 <p>Necessary to build GCC.  It can be downloaded from
 <a href="https://www.mpfr.org">https://www.mpfr.org</a>.  If an MPFR source distribution is found
@@ -283,7 +345,7 @@ The in-tree build is only supported with the MPFR version that
 download_prerequisites installs.
 </p>
 </dd>
-<dt>MPC Library version 1.0.1 (or later)</dt>
+<dt><span>MPC Library version 1.0.1 (or later)</span></dt>
 <dd>
 <p>Necessary to build GCC.  It can be downloaded from
 <a href="https://www.multiprecision.org/mpc/">https://www.multiprecision.org/mpc/</a>.  If an MPC source distribution
@@ -296,7 +358,7 @@ The in-tree build is only supported with the MPC version that
 download_prerequisites installs.
 </p>
 </dd>
-<dt>isl Library version 0.15 or later.</dt>
+<dt><span>isl Library version 0.15 or later.</span></dt>
 <dd>
 <p>Necessary to build GCC with the Graphite loop optimizations.
 It can be downloaded from <a href="https://gcc.gnu.org/pub/gcc/infrastructure/">https://gcc.gnu.org/pub/gcc/infrastructure/</a>.
@@ -307,26 +369,79 @@ option should be used if isl is not installed in your default library
 search path.
 </p>
 </dd>
-<dt>zstd Library.</dt>
+<dt><span>zstd Library.</span></dt>
 <dd>
 <p>Necessary to build GCC with zstd compression used for LTO bytecode.
 The library is searched in your default library patch search.
 Alternatively, the <samp>--with-zstd</samp> configure option should be used.
 </p>
 </dd>
+<dt><span>Python3 modules</span></dt>
+<dd>
+<p>The complete list of Python3 modules broken down by GCC subcomponent
+is shown below:
+</p>
+<dl compact="compact">
+<dt><span>internal debugging in gdbhooks</span></dt>
+<dd><p><code>gdb</code>, <code>gdb.printing</code>, <code>gdb.types</code>,
+<code>os.path</code>, <code>re</code>, <code>sys</code> and <code>tempfile</code>,
+</p>
+</dd>
+<dt><span>g++ testsuite</span></dt>
+<dd><p><code>gcov</code>, <code>gzip</code>, <code>json</code>, <code>os</code> and <code>pytest</code>.
+</p>
+</dd>
+<dt><span>SARIF testsuite</span></dt>
+<dd><p>Tests of SARIF output will use the <code>check-jsonschema</code> program from
+the <code>check-jsonschema</code> module (if available) to validate generated
+.sarif files.  If this tool is not found, the validation parts of those
+tests are skipped.
+</p>
+</dd>
+<dt><span>c++ cxx api generation</span></dt>
+<dd><p><code>csv</code>, <code>os</code>, <code>sys</code> and <code>time</code>.
+</p>
+</dd>
+<dt><span>modula-2 documentation</span></dt>
+<dd><p><code>argparse</code>, <code>os</code>, <code>pathlib</code>, <code>shutil</code> and
+<code>sys</code>.
+</p>
+</dd>
+<dt><span>git developer tools</span></dt>
+<dd><p><code>os</code> and <code>sys</code>.
+</p>
+</dd>
+<dt><span>ada documentation</span></dt>
+<dd><p><code>latex_elements</code>, <code>os</code>, <code>pygments</code>, <code>re</code>,
+<code>sys</code> and <code>time</code>.
+</p></dd>
 </dl>
 
-<a name="Tools_002fpackages-necessary-for-modifying-GCC"></a>
-<h3 class="heading">Tools/packages necessary for modifying GCC</h3>
+</dd>
+<dt><span>GNU gettext</span></dt>
+<dd>
+<p>Necessary to build GCC with internationalization support via
+<samp>--enable-nls</samp>.  It can be downloaded from
+<a href="https://www.gnu.org/software/gettext/">https://www.gnu.org/software/gettext/</a>. If a GNU gettext distribution
+is found in a subdirectory of your GCC sources named <samp>gettext</samp>, it
+will be built together with GCC, unless present in the system (either in
+libc or as a stand-alone library).
+</p>
+<p>The in-tree configuration requires GNU gettext version 0.22 or later.
+</p>
+</dd>
+</dl>
+
+<span id="Tools_002fpackages-necessary-for-modifying-GCC"></span><h3 class="heading">Tools/packages necessary for modifying GCC</h3>
 <dl compact="compact">
-<dt>autoconf version 2.69</dt>
-<dt>GNU m4 version 1.4.6 (or later)</dt>
+<dt><span>autoconf version 2.69</span></dt>
+<dt><span>GNU m4 version 1.4.6 (or later)</span></dt>
 <dd>
 <p>Necessary when modifying <samp>configure.ac</samp>, <samp>aclocal.m4</samp>, etc.
 to regenerate <samp>configure</samp> and <samp>config.in</samp> files.
 </p>
 </dd>
-<dt>automake version 1.15.1</dt>
+<dt><span>automake version 1.15.1</span></dt>
 <dd>
 <p>Necessary when modifying a <samp>Makefile.am</samp> file to regenerate its
 associated <samp>Makefile.in</samp>.
@@ -342,28 +457,28 @@ to a newer version, please update all the directories using an older 1.15
 to the latest released version.
 </p>
 </dd>
-<dt>gettext version 0.14.5 (or later)</dt>
+<dt><span>gettext version 0.14.5 (or later)</span></dt>
 <dd>
 <p>Needed to regenerate <samp>gcc.pot</samp>.
 </p>
 </dd>
-<dt>gperf version 2.7.2 (or later)</dt>
+<dt><span>gperf version 2.7.2 (or later)</span></dt>
 <dd>
 <p>Necessary when modifying <code>gperf</code> input files, e.g.
 <samp>gcc/cp/cfns.gperf</samp> to regenerate its associated header file, e.g.
 <samp>gcc/cp/cfns.h</samp>.
 </p>
 </dd>
-<dt>DejaGnu version 1.5.3 (or later)</dt>
-<dt>Expect</dt>
-<dt>Tcl</dt>
+<dt><span>DejaGnu version 1.5.3 (or later)</span></dt>
+<dt><span>Expect</span></dt>
+<dt><span>Tcl</span></dt>
 <dd>
 <p>Necessary to run the GCC testsuite; see the section on testing for
 details.
 </p>
 </dd>
-<dt>autogen version 5.5.4 (or later) and</dt>
-<dt>guile version 1.4.1 (or later)</dt>
+<dt><span>autogen version 5.5.4 (or later) and</span></dt>
+<dt><span>guile version 1.4.1 (or later)</span></dt>
 <dd>
 <p>Necessary to regenerate <samp>fixinc/fixincl.x</samp> from
 <samp>fixinc/inclhack.def</samp> and <samp>fixinc/*.tpl</samp>.
@@ -373,8 +488,10 @@ details.
 <p>Necessary to regenerate the top level <samp>Makefile.in</samp> file from
 <samp>Makefile.tpl</samp> and <samp>Makefile.def</samp>.
 </p>
+<p>Necessary to regenerate the <samp>bits/version.h</samp> header for libstdc++.
+</p>
 </dd>
-<dt>Flex version 2.5.4 (or later)</dt>
+<dt><span>Flex version 2.5.4 (or later)</span></dt>
 <dd>
 <p>Necessary when modifying <samp>*.l</samp> files.
 </p>
@@ -383,46 +500,63 @@ files are not included in the version-controlled source repository.
 They are included in releases.
 </p>
 </dd>
-<dt>Texinfo version 4.7 (or later)</dt>
+<dt><span>Bison version 3.5.1 or later (but not 3.8.0)</span></dt>
+<dd>
+<p>Necessary when modifying <samp>*.y</samp> files in the COBOL front end.
+</p>
+<p>Necessary to build GCC during development because the generated output
+files are not included in the version-controlled source repository.
+They are included in releases.
+</p>
+</dd>
+<dt><span>Texinfo version 4.7 (or later)</span></dt>
 <dd>
 <p>Necessary for running <code>makeinfo</code> when modifying <samp>*.texi</samp>
 files to test your changes.
 </p>
-<p>Necessary for running <code>make dvi</code> or <code>make pdf</code> to
-create printable documentation in DVI or PDF format.  Texinfo version
+<p>Necessary for running <code>make dvi</code>, <code>make pdf</code>,
+or <code>make html</code> to create formatted documentation.  Texinfo version
 4.8 or later is required for <code>make pdf</code>.
 </p>
-<p>Necessary to build GCC documentation during development because the
-generated output files are not included in the repository.  They are
-included in releases.
+<p>Necessary to build GCC documentation in info format during development
+because the generated output files are not included in the repository.
+(They are included in release tarballs.)
+</p>
+<p>Note that the minimum requirement is for a very old version of
+Texinfo, but recent versions of Texinfo produce better-quality output,
+especially for HTML format.  The version of Texinfo packaged with any
+current operating system distribution is likely to be adequate for
+building the documentation without error, but you may still want to
+install a newer release to get the best appearance and usability of
+the generated manuals.
 </p>
 </dd>
-<dt>TeX (any working version)</dt>
+<dt><span>TeX (any working version)</span></dt>
 <dd>
 <p>Necessary for running <code>texi2dvi</code> and <code>texi2pdf</code>, which
 are used when running <code>make dvi</code> or <code>make pdf</code> to create
 DVI or PDF files, respectively.
 </p>
 </dd>
-<dt>Sphinx version 1.0 (or later)</dt>
+<dt><span>Sphinx version 1.0 (or later)</span></dt>
 <dd>
 <p>Necessary to regenerate <samp>jit/docs/_build/texinfo</samp> from the <samp>.rst</samp>
 files in the directories below <samp>jit/docs</samp>.
 </p>
 </dd>
-<dt>git (any version)</dt>
-<dt>SSH (any version)</dt>
+<dt><span>git (any version)</span></dt>
+<dt><span>SSH (any version)</span></dt>
 <dd>
 <p>Necessary to access the source repository.  Public releases and weekly
 snapshots of the development sources are also available via HTTPS.
 </p>
 </dd>
-<dt>GNU diffutils version 2.7 (or later)</dt>
+<dt><span>GNU diffutils version 2.7 (or later)</span></dt>
 <dd>
 <p>Useful when submitting patches for the GCC source code.
 </p>
 </dd>
-<dt>patch version 2.5.4 (or later)</dt>
+<dt><span>patch version 2.5.4 (or later)</span></dt>
 <dd>
 <p>Necessary when applying patches, created with <code>diff</code>, to one&rsquo;s
 own sources.

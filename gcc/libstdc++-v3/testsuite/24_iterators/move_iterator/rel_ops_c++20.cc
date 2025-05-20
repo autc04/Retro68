@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,10 +15,10 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do compile { target c++20 } }
 
 #include <iterator>
+#include <testsuite_iterators.h>
 
 template<int>
 struct Iter
@@ -142,3 +142,14 @@ static_assert( cend > beg );
 static_assert( beg <= cend );
 static_assert( cend >= beg );
 static_assert( std::is_lt(beg <=> cend) );
+
+template<typename I>
+  concept has_plus = requires(std::iter_difference_t<I> n, I i) {
+	{ n + i } -> std::same_as<I>;
+  };
+
+using namespace __gnu_test;
+using MBI = std::move_iterator<bidirectional_iterator_wrapper<int>>;
+static_assert( ! has_plus<MBI> );
+using MRI = std::move_iterator<random_access_iterator_wrapper<int>>;
+static_assert( has_plus<MRI> );

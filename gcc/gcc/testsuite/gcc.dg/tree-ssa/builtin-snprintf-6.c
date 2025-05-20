@@ -23,7 +23,7 @@ int snprintf (char * restrict, size_t, const char *restrict, ...);
 /* Macro to emit a call to funcation named
    call_in_true_branch_not_eliminated_on_line_NNN()
    for each call that's expected to be eliminated.  The dg-final
-   scan-tree-dump-time directive at the bottom of the test verifies
+   scan-tree-dump-times directive at the bottom of the test verifies
    that no such call appears in output.  */
 #define ELIM(expr)							\
   if (!(expr)) FAIL (in_true_branch_not_eliminated, __COUNTER__); else (void)0
@@ -91,7 +91,7 @@ void test_assign_aggregate (void)
   T (5, "123456", "s=%.*s", 3, &s.a[2]);
 }
 
-/* { dg-final { scan-tree-dump-times "Function test_assign_aggregate" 1 "optimized" { xfail { { ! x86_64-*-* } || { ilp32 } } } } } */
+/* { dg-final { scan-tree-dump-times "Function test_assign_aggregate" 1 "optimized" { xfail { { ! { i?86-*-* x86_64-*-* } } || { ilp32 } } } } } */
 
 #endif   /* x86_64 */
 

@@ -248,6 +248,56 @@
 #error "__ARM_FEATURE_CRC32 is not defined but should be!"
 #endif
 
+#pragma GCC target ("arch=armv8.2-a")
+#ifdef __ARM_FEATURE_RCPC
+#error "__ARM_FEATURE_RCPC is defined but should not be!"
+#endif
+
+#pragma GCC target ("arch=armv8.2-a+rcpc")
+#ifndef __ARM_FEATURE_RCPC
+#error "__ARM_FEATURE_RCPC is not defined but should be!"
+#endif
+
+#pragma GCC target ("+norcpc")
+#ifdef __ARM_FEATURE_RCPC
+#error "__ARM_FEATURE_RCPC is defined but should not be!"
+#endif
+
+#pragma GCC target ("arch=armv8.3-a")
+#ifndef __ARM_FEATURE_RCPC
+#error "__ARM_FEATURE_RCPC is not defined but should be!"
+#endif
+
+#pragma GCC target ("arch=armv8.8-a+gcs")
+#ifndef __ARM_FEATURE_GCS
+#error "__ARM_FEATURE_GCS is not defined but should be!"
+#endif
+
+#pragma GCC target ("arch=armv8.8-a+nogcs")
+#ifdef __ARM_FEATURE_GCS
+#error "__ARM_FEATURE_GCS is defined but should not be!"
+#endif
+
+#pragma GCC target ("arch=armv8.8-a")
+#ifdef __ARM_FEATURE_GCS
+#error "__ARM_FEATURE_GCS is defined but should not be!"
+#endif
+
+#pragma GCC target ("branch-protection=gcs")
+#ifndef __ARM_FEATURE_GCS_DEFAULT
+#error "__ARM_FEATURE_GCS_DEFAULT is not defined but should be!"
+#endif
+
+#pragma GCC target ("branch-protection=none")
+#ifdef __ARM_FEATURE_GCS_DEFAULT
+#error "__ARM_FEATURE_GCS_DEFAULT is defined but should not be!"
+#endif
+
+#pragma GCC target ("branch-protection=standard")
+#ifndef __ARM_FEATURE_GCS_DEFAULT
+#error "__ARM_FEATURE_GCS_DEFAULT is not defined but should be!"
+#endif
+
 int
 foo (int a)
 {

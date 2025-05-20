@@ -1,5 +1,5 @@
 /* Compilation switch flag definitions for GCC.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2025 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -52,6 +52,10 @@ extern bool btf_with_core_debuginfo_p ();
 /* Return true iff CTF debug info is enabled.  */
 
 extern bool ctf_debuginfo_p ();
+
+/* Return true iff CodeView debug info is enabled.  */
+
+extern bool codeview_debuginfo_p ();
 
 /* Return true iff DWARF2 debug info is enabled.  */
 
@@ -112,6 +116,6 @@ extern class target_flag_state *this_target_flag_state;
 /* Whether to emit an overflow warning whose code is C.  */
 #define issue_strict_overflow_warning(c) (warn_strict_overflow >= (int) (c))
 
-#endif
+#endif /* ! in target library */
 
 #endif /* ! GCC_FLAGS_H */

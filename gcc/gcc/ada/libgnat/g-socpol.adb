@@ -4,9 +4,9 @@
 --                                                                          --
 --                    G N A T . S O C K E T S . P O L L                     --
 --                                                                          --
---                                 S p e c                                  --
+--                                 B o d y                                  --
 --                                                                          --
---                       Copyright (C) 2020-2022, AdaCore                   --
+--                       Copyright (C) 2020-2025, AdaCore                   --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --

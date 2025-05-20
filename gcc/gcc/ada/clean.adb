@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2003-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2003-2025, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -248,7 +248,7 @@ package body Clean is
                      for J in ALIs.Table (The_ALI).First_Sdep ..
                        ALIs.Table (The_ALI).Last_Sdep
                      loop
-                        if Sdep.Table (J).Subunit_Name /= No_Name then
+                        if Sdep.Table (J).Subunit_Name /= No_Unit_Name then
                            Sources.Increment_Last;
                            Sources.Table (Sources.Last) :=
                              Sdep.Table (J).Sfile;
@@ -554,7 +554,7 @@ package body Clean is
       --  In verbose mode, if Delete has not been called, indicate that no file
       --  needs to be deleted.
 
-      if Verbose_Mode and (not File_Deleted) then
+      if Verbose_Mode and not File_Deleted then
          New_Line;
 
          if Do_Nothing then

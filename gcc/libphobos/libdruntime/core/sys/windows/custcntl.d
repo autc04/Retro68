@@ -9,7 +9,6 @@
  */
 module core.sys.windows.custcntl;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 
@@ -100,6 +99,7 @@ extern (Windows) {
     alias INT function(DWORD, DWORD, HFONT, LPWSTR) LPFNCCSIZETOTEXTW;
     alias UINT function(LPCCINFOA) LPFNCCINFOA;
     alias UINT function(LPCCINFOW) LPFNCCINFOW;
+nothrow @nogc:
     UINT CustomControlInfoA(LPCCINFOA acci);
     UINT CustomControlInfoW(LPCCINFOW acci);
 }

@@ -1,6 +1,6 @@
 // Mathematical Special Functions for -*- C++ -*-
 
-// Copyright (C) 2006-2022 Free Software Foundation, Inc.
+// Copyright (C) 2006-2025 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,13 +30,11 @@
 #ifndef _GLIBCXX_BITS_SPECFUN_H
 #define _GLIBCXX_BITS_SPECFUN_H 1
 
-#pragma GCC visibility push(default)
-
 #include <bits/c++config.h>
 
-#define __STDCPP_MATH_SPEC_FUNCS__ 201003L
-
-#define __cpp_lib_math_special_functions 201603L
+#define __glibcxx_want_math_spec_funcs
+#define __glibcxx_want_math_special_functions
+#include <bits/version.h>
 
 #if __cplusplus <= 201403L && __STDCPP_WANT_MATH_SPEC_FUNCS__ == 0
 # error include <cmath> and define __STDCPP_WANT_MATH_SPEC_FUNCS__
@@ -159,7 +157,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    * @f]
    * is generally found to be within 10<sup>-15</sup> for 64-bit double on
    * linux-x86_64 systems over most of the ranges of validity.
-   * 
+   *
    * @todo Provide accuracy comparisons on a per-function basis for a small
    *       number of targets.
    *
@@ -1384,7 +1382,5 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace __gnu_cxx
 #endif // __STRICT_ANSI__
-
-#pragma GCC visibility pop
 
 #endif // _GLIBCXX_BITS_SPECFUN_H

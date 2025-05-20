@@ -9,7 +9,6 @@
  */
 module core.sys.windows.wininet;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "wininet");
@@ -741,7 +740,8 @@ enum {
     INTERNET_CACHE_GROUP_REMOVE = 1
 }
 
-mixin DECLARE_HANDLE!("HINTERNET"); // doesn't work - bug
+alias HINTERNET = HANDLE;
+// mixin DECLARE_HANDLE!("HINTERNET"); // doesn't work - bug
 /*struct HINTERNET {
     HANDLE h;
     alias h this;

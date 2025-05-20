@@ -1,5 +1,5 @@
-;; Predicate definitions for ATMEL AVR micro controllers.
-;; Copyright (C) 2006-2022 Free Software Foundation, Inc.
+;; Insn predicate definitions for AVR 8-bit microcontrollers.
+;; Copyright (C) 2006-2025 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -27,6 +27,11 @@
   (and (match_code "reg")
        (match_test "REGNO (op) >= 16 && REGNO (op) <= 31")))
 
+(define_predicate "scratch_or_dreg_operand"
+  (ior (match_operand 0 "d_register_operand")
+       (and (match_code ("scratch"))
+            (match_operand 0 "scratch_operand"))))
+
 (define_predicate "even_register_operand"
   (and (match_code "reg")
        (and (match_test "REGNO (op) <= 31")
@@ -45,10 +50,20 @@
 ;; Return true if OP is a valid address for lower half of I/O space.
 (define_special_predicate "low_io_address_operand"
   (ior (and (match_code "const_int")
-	    (match_test "IN_RANGE (INTVAL (op) - avr_arch->sfr_offset,
-				   0, 0x1F)"))
+            (match_test "IN_RANGE (INTVAL (op) - avr_arch->sfr_offset,
+                                   0, 0x1F)"))
        (and (match_code "symbol_ref")
-	    (match_test "SYMBOL_REF_FLAGS (op) & SYMBOL_FLAG_IO_LOW"))))
+            (match_test "SYMBOL_REF_FLAGS (op) & SYMBOL_FLAG_IO_LOW"))))
+
+;; Return true if OP is a register_operand or low_io_operand.
+(define_predicate "reg_or_low_io_operand"
+  (ior (match_operand 0 "register_operand")
+       (and (match_code "mem")
+            ; Deliberately only allow QImode no matter what the mode of
+            ; the operand is.  This effectively disallows and I/O that
+            ; is not QImode for that operand.
+            (match_test "GET_MODE (op) == QImode")
+            (match_test "low_io_address_operand (XEXP (op, 0), Pmode)"))))
 
 ;; Return true if OP is a valid address for high half of I/O space.
 (define_predicate "high_io_address_operand"
@@ -59,10 +74,10 @@
 ;; Return true if OP is a valid address of I/O space.
 (define_special_predicate "io_address_operand"
   (ior (and (match_code "const_int")
-	    (match_test "IN_RANGE (INTVAL (op) - avr_arch->sfr_offset,
-				   0, 0x3F)"))
+            (match_test "IN_RANGE (INTVAL (op) - avr_arch->sfr_offset,
+                                   0, 0x3F)"))
        (and (match_code "symbol_ref")
-	    (match_test "SYMBOL_REF_FLAGS (op) & SYMBOL_FLAG_IO"))))
+            (match_test "SYMBOL_REF_FLAGS (op) & SYMBOL_FLAG_IO"))))
 
 ;; Return 1 if OP is a general operand not in flash memory
 (define_predicate "nop_general_operand"
@@ -74,6 +89,7 @@
 (define_predicate "nox_general_operand"
   (and (match_operand 0 "general_operand")
        (not (match_test "avr_load_libgcc_p (op)"))
+       (not (match_test "avr_mem_flashx_p (op)"))
        (not (match_test "avr_mem_memx_p (op)"))))
 
 ;; Return 1 if OP is the zero constant for MODE.
@@ -86,16 +102,56 @@
   (and (match_code "const_int")
        (match_test "op == CONST1_RTX (mode)")))
 
+;; Return 1 if OP is the constant integer 7 for MODE.
+(define_predicate "const7_operand"
+  (and (match_code "const_int")
+       (match_test "INTVAL(op) == 7")))
+
+;; Return 1 if OP is the constant integer 15 for MODE.
+(define_predicate "const15_operand"
+  (and (match_code "const_int")
+       (match_test "INTVAL(op) == 15")))
+
+;; Return 1 if OP is the constant integer 23 for MODE.
+(define_predicate "const23_operand"
+  (and (match_code "const_int")
+       (match_test "INTVAL(op) == 23")))
+
+;; Return 1 if OP is the constant integer 31 for MODE.
+(define_predicate "const31_operand"
+  (and (match_code "const_int")
+       (match_test "INTVAL(op) == 31")))
+
 
 ;; Return 1 if OP is constant integer 0..7 for MODE.
 (define_predicate "const_0_to_7_operand"
   (and (match_code "const_int")
        (match_test "IN_RANGE (INTVAL (op), 0, 7)")))
 
+;; Return 1 if OP is constant integer 0..15 for MODE.
+(define_predicate "const_0_to_15_operand"
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (INTVAL (op), 0, 15)")))
+
+;; Return 1 if OP is constant integer 0..23 for MODE.
+(define_predicate "const_0_to_23_operand"
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (INTVAL (op), 0, 23)")))
+
+;; Return 1 if OP is constant integer 0..31 for MODE.
+(define_predicate "const_0_to_31_operand"
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (INTVAL (op), 0, 31)")))
+
 ;; Return 1 if OP is constant integer 2..7 for MODE.
 (define_predicate "const_2_to_7_operand"
   (and (match_code "const_int")
        (match_test "IN_RANGE (INTVAL (op), 2, 7)")))
+
+;; Return true if OP is constant integer 1..3 for MODE.
+(define_predicate "const_1_to_3_operand"
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (INTVAL (op), 1, 3)")))
 
 ;; Return 1 if OP is constant integer 1..6 for MODE.
 (define_predicate "const_1_to_6_operand"
@@ -112,14 +168,39 @@
   (and (match_code "const_int")
        (match_test "IN_RANGE (INTVAL (op), -255, -1)")))
 
+;; Return true if OP is a CONST_INT in { -2, -1, 1, 2 }.
+(define_predicate "abs1_abs2_operand"
+  (and (match_code "const_int")
+       (match_test "INTVAL (op) != 0")
+       (match_test "IN_RANGE (INTVAL (op), -2, 2)")))
+
 ;; Returns true if OP is either the constant zero or a register.
 (define_predicate "reg_or_0_operand"
   (ior (match_operand 0 "register_operand")
        (match_operand 0 "const0_operand")))
 
+;; Returns true if OP is either the constant zero or an upper register.
+(define_predicate "dreg_or_0_operand"
+  (ior (match_operand 0 "d_register_operand")
+       (match_operand 0 "const0_operand")))
+
 ;; Returns 1 if OP is a SYMBOL_REF.
 (define_predicate "symbol_ref_operand"
   (match_code "symbol_ref"))
+
+;; Returns true when OP is a SYMBOL_REF, CONST or CONST_INT that is
+;; a multiple of 256, i.e. lo8(OP) = 0.
+(define_predicate "const_0mod256_operand"
+  (ior (and (match_code "symbol_ref")
+            (match_test "SYMBOL_REF_DECL (op)
+                         && DECL_P (SYMBOL_REF_DECL (op))
+                         && DECL_ALIGN (SYMBOL_REF_DECL (op)) >= 8 * 256"))
+       (and (match_code "const")
+            (match_test "GET_CODE (XEXP (op, 0)) == PLUS")
+            (match_test "const_0mod256_operand (XEXP (XEXP (op, 0), 0), HImode)")
+            (match_test "const_0mod256_operand (XEXP (XEXP (op, 0), 1), HImode)"))
+       (and (match_code "const_int")
+            (match_test "INTVAL (op) % 256 == 0"))))
 
 ;; Return true if OP is a text segment reference.
 ;; This is needed for program memory address expressions.
@@ -135,8 +216,8 @@
     case SYMBOL_REF :
       return SYMBOL_REF_FUNCTION_P (op);
     case PLUS :
-      /* Assume canonical format of symbol + constant.
-	 Fall through.  */
+      // Assume canonical format of symbol + constant.
+      // Fall through.
     case CONST :
       return text_segment_operand (XEXP (op, 0), VOIDmode);
     default :
@@ -178,9 +259,29 @@
   (and (match_operand 0 "comparison_operator")
        (not (match_code "gt,gtu,le,leu"))))
 
+;; True for EQ, NE, GE, LT, GT, LE
+(define_predicate "signed_comparison_operator"
+  (match_code "eq,ne,ge,lt,gt,le"))
+
 ;; True for SIGN_EXTEND, ZERO_EXTEND.
 (define_predicate "extend_operator"
   (match_code "sign_extend,zero_extend"))
+
+;; True for 8-bit operations that set SREG.N and SREG.Z in a
+;; usable way:
+;; * OP0 is a QImode register, and
+;; * OP1 is a QImode register or CONST_INT, and
+;;
+;; the allowed operations is one of:
+;;
+;; * SHIFTs with a const_int offset in { 1, 2, 3 }.
+;; * MINUS and XOR with a register operand
+;; * IOR and AND with a register operand, or d-reg + const_int
+;; * PLUS with a register operand, or d-reg + const_int,
+;;   or a const_int in { -2, -1, 1, 2 }.  */
+(define_predicate "op8_ZN_operator"
+  (and (match_code "plus,minus,ashift,ashiftrt,lshiftrt,and,ior,xor")
+       (match_test "avr_op8_ZN_operator (op)")))
 
 ;; Return true if OP is a valid call operand.
 (define_predicate "call_insn_operand"
@@ -279,3 +380,7 @@
   (ior (match_code "const_fixed")
        (match_code "const_double")
        (match_operand 0 "immediate_operand")))
+
+(define_predicate "set_some_operation"
+  (and (match_code "parallel")
+       (match_test "avr_set_some_operation (op)")))

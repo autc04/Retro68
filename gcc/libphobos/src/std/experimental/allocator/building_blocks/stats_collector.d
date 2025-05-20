@@ -134,7 +134,7 @@ enum Options : ulong
     bytesNotMoved = 1u << 17,
     /**
     Measures the sum of extra bytes allocated beyond the bytes requested, i.e.
-    the $(HTTP goo.gl/YoKffF, internal fragmentation). This is the current
+    the $(HTTPS en.wikipedia.org/wiki/Fragmentation_(computing)#Internal_fragmentation, internal fragmentation). This is the current
     effective number of slack bytes, and it goes up and down with time.
     */
     bytesSlack = 1u << 18,
@@ -845,9 +845,9 @@ public:
 
 @system unittest
 {
-    import std.experimental.allocator.building_blocks.region : Region;
+    import std.experimental.allocator.building_blocks.region : BorrowedRegion;
 
-    auto a = StatsCollector!(Region!(), Options.all, Options.all)(Region!()(new ubyte[1024 * 64]));
+    auto a = StatsCollector!(BorrowedRegion!(), Options.all, Options.all)(BorrowedRegion!()(new ubyte[1024 * 64]));
     auto b = a.allocate(42);
     assert(b.length == 42);
     // Test that reallocate infers from parent
@@ -859,9 +859,9 @@ public:
 
 @system unittest
 {
-    import std.experimental.allocator.building_blocks.region : Region;
+    import std.experimental.allocator.building_blocks.region : BorrowedRegion;
 
-    auto a = StatsCollector!(Region!(), Options.all)(Region!()(new ubyte[1024 * 64]));
+    auto a = StatsCollector!(BorrowedRegion!(), Options.all)(BorrowedRegion!()(new ubyte[1024 * 64]));
     auto b = a.alignedAllocate(42, 128);
     assert(b.length == 42);
     assert(b.ptr.alignedAt(128));

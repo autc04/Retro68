@@ -1,5 +1,5 @@
 /* Language-dependent hooks for Objective-C++.
-   Copyright (C) 2005-2022 Free Software Foundation, Inc.
+   Copyright (C) 2005-2025 Free Software Foundation, Inc.
    Contributed by Ziemowit Laski  <zlaski@apple.com>
 
 This file is part of GCC.
@@ -38,7 +38,7 @@ static void objcxx_init_ts (void);
 #define LANG_HOOKS_NAME "GNU Objective-C++"
 #undef LANG_HOOKS_INIT
 #define LANG_HOOKS_INIT objc_init
-#undef LANG_HOOKS_GIMPLIFY_EXPR 
+#undef LANG_HOOKS_GIMPLIFY_EXPR
 #define LANG_HOOKS_GIMPLIFY_EXPR objc_gimplify_expr
 #undef LANG_HOOKS_INIT_TS
 #define LANG_HOOKS_INIT_TS objcxx_init_ts
@@ -50,13 +50,10 @@ struct lang_hooks lang_hooks = LANG_HOOKS_INITIALIZER;
    there should be very few (if any) routines below.  */
 
 tree
-objcp_tsubst_copy_and_build (tree t, tree args, tsubst_flags_t complain, 
-			     tree in_decl, bool function_p ATTRIBUTE_UNUSED)
+objcp_tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl)
 {
 #define RECURSE(NODE)							\
-  tsubst_copy_and_build (NODE, args, complain, in_decl, 		\
-			 /*function_p=*/false,				\
-			 /*integral_constant_expression_p=*/false)
+  tsubst_expr (NODE, args, complain, in_decl)
 
   /* The following two can only occur in Objective-C++.  */
 
@@ -69,8 +66,14 @@ objcp_tsubst_copy_and_build (tree t, tree args, tsubst_flags_t complain,
 	 RECURSE (TREE_OPERAND (t, 2)), NULL);
 
     case CLASS_REFERENCE_EXPR:
-      return objc_get_class_reference
-	(RECURSE (TREE_OPERAND (t, 0)));
+      {
+	tree ident = TREE_OPERAND (t, 0);
+	if (TYPE_P (ident))
+	  ident = tsubst (ident, args, complain, in_decl);
+	else
+	  ident = RECURSE (ident);
+	return objc_get_class_reference (ident);
+      }
 
     default:
       break;
@@ -80,6 +83,16 @@ objcp_tsubst_copy_and_build (tree t, tree args, tsubst_flags_t complain,
   return NULL_TREE;
 
 #undef RECURSE
+}
+
+/* Implement c-family hook to add language-specific features
+   for __has_{feature,extension}.  */
+
+void
+c_family_register_lang_features ()
+{
+  objc_common_register_features ();
+  cp_register_features ();
 }
 
 static void
