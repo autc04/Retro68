@@ -4427,14 +4427,12 @@ find_args_size_adjust (rtx_insn *insn)
       addr = XEXP (mem, 0);
       switch (GET_CODE (addr))
 	{
-#ifdef PUSH_ROUNDING
 	case PRE_INC:
 	case POST_INC:
-	  return PUSH_ROUNDING( GET_MODE_SIZE (GET_MODE (mem)) );
+	  return GET_MODE_SIZE (GET_MODE (mem));
 	case PRE_DEC:
 	case POST_DEC:
-	  return -PUSH_ROUNDING( GET_MODE_SIZE (GET_MODE (mem)) );
-#endif
+	  return -GET_MODE_SIZE (GET_MODE (mem));
 	case PRE_MODIFY:
 	case POST_MODIFY:
 	  addr = XEXP (addr, 1);
