@@ -4,6 +4,7 @@
 #include <sstream>
 #include <fstream>
 #include <cassert>
+#include <cstdint>
 #include <vector>
 
 void decompressADC(std::vector<uint8_t>& outbuf, const std::vector<uint8_t>& inbuf)
