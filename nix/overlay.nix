@@ -101,12 +101,12 @@ pkgs: prevPkgs: {
         stdenv.mkDerivation rec {
           name = "retro68.gcc_unwrapped";
           src = ../gcc;
+          nativeBuildInputs = [ texinfo ];
           buildInputs = [ retro68.binutils_unwrapped gmp mpfr libmpc ];
           configureFlags = [
             "--target=${stdenv.targetPlatform.config}"
             "--enable-languages=c,c++"
             "--disable-libssp"
-            "MAKEINFO=missing"
           ] ++ stdenv.targetPlatform.retro68GccConfig or [ ];
           hardeningDisable = [ "format" ];
           enableParallelBuilding = true;
