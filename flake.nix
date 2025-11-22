@@ -2,7 +2,7 @@
   description = "Description for the project";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     multiversal.url = "github:autc04/multiversal";
     multiversal.flake = false;
     flake-parts.url = "github:hercules-ci/flake-parts";
@@ -29,7 +29,32 @@
                 inherit system;
                 overlays = [ self.overlays.default ];
                 crossSystem = plat;
-                config = { allowUnsupportedSystem = true; };
+                config = { 
+                  allowUnsupportedSystem = true; 
+                };
+                stdenvStages = let 
+                  realStdenvStages = import (nixpkgs + "/pkgs/stdenv");
+                  inspect = lib.systems.inspect;
+                  myElaborate = systemDict:
+                    systemDict // lib.mapAttrs (n: v: v systemDict) inspect.predicates
+                    // { 
+                      uname = { system = "MacOS"; processor = systemDict.parsed.cpu.name; release = null; }; 
+                      rust = {rustcTarget = systemDict.config; rustcTargetSpec = systemDict.config; };
+                      go = {};
+                      node = {};
+                      useiOSPrebuilt = false;
+                      useAndroidPrebuilt = false;
+                      linker = "bfd";
+                      libdir = null;
+                      extensions = {
+                        staticLibarary = ".a";
+                        library = ".a";
+                        executable = "";
+                      };
+                      hasSharedLibraries = false;
+                      useLLVM = false;
+                    };
+                  in args@{crossSystem, ...}: realStdenvStages (args // { crossSystem = myElaborate plat; });
               })
             retroPlatforms;
 

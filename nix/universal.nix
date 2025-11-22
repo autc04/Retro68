@@ -4,7 +4,7 @@ pkgs: prevPkgs:
     if !(prevPkgs.hostPlatform ? retro68) then
       prevPkgs.retro68
     else
-      prevPkgs.retro68.overrideScope' (self: prevRetro: {
+      prevPkgs.retro68.overrideScope (self: prevRetro: {
 
         mpw_35_gm = with pkgs;
           fetchurl {

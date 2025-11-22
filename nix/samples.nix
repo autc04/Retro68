@@ -1,5 +1,5 @@
 pkgs: prevPkgs: {
-  retro68 = prevPkgs.retro68.overrideScope' (self: prevRetro: {
+  retro68 = prevPkgs.retro68.overrideScope (self: prevRetro: {
     samples = with pkgs;
       let
         individualSamples = lib.mapAttrs
