@@ -9,15 +9,17 @@
   };
 
   outputs = inputs@{ flake-parts, nixpkgs, multiversal, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } ({ self, lib, retroPlatforms, ... }: {
+    flake-parts.lib.mkFlake { inherit inputs; } ({ self, ... }: {
       imports = [
         ./nix/standalone.nix
       ];
-      _module.args.lib = import (nixpkgs + "/lib");
-      _module.args.retroPlatforms = import ./nix/platforms.nix;
 
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
       perSystem = { config, self', inputs', pkgs, system, ... }:
+        let
+          lib = pkgs.lib;
+          retroPlatforms = (import ./nix/platforms.nix) { inherit lib; };
+        in
         {
           _module.args.pkgs = import nixpkgs { inherit system; overlays = [ self.overlays.default ]; };
 
@@ -33,28 +35,8 @@
                   allowUnsupportedSystem = true; 
                 };
                 stdenvStages = let 
-                  realStdenvStages = import (nixpkgs + "/pkgs/stdenv");
-                  inspect = lib.systems.inspect;
-                  myElaborate = systemDict:
-                    systemDict // lib.mapAttrs (n: v: v systemDict) inspect.predicates
-                    // { 
-                      uname = { system = "MacOS"; processor = systemDict.parsed.cpu.name; release = null; }; 
-                      rust = {rustcTarget = systemDict.config; rustcTargetSpec = systemDict.config; };
-                      go = {};
-                      node = {};
-                      useiOSPrebuilt = false;
-                      useAndroidPrebuilt = false;
-                      linker = "bfd";
-                      libdir = null;
-                      extensions = {
-                        staticLibarary = ".a";
-                        library = ".a";
-                        executable = "";
-                      };
-                      hasSharedLibraries = false;
-                      useLLVM = false;
-                    };
-                  in args@{crossSystem, ...}: realStdenvStages (args // { crossSystem = myElaborate plat; });
+                  realStdenvStages = import (nixpkgs + "/pkgs/stdenv");                  
+                  in args@{crossSystem, ...}: realStdenvStages (args // { crossSystem = plat; });
               })
             retroPlatforms;
 
@@ -95,7 +77,7 @@
         };
       flake = {
         overlays.default =
-          lib.composeManyExtensions [
+          nixpkgs.lib.composeManyExtensions [
             ((import nix/overlay.nix) {
               multiversal_src =
                 if builtins.pathExists ./multiversal/make-multiverse.rb

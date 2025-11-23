@@ -1,5 +1,27 @@
-{
-  m68k = {
+{ lib }: 
+let
+  inspect = lib.systems.inspect;
+  elaborate = systemDict:
+    systemDict // lib.mapAttrs (n: v: v systemDict) inspect.predicates
+    // { 
+      uname = { system = "MacOS"; processor = systemDict.parsed.cpu.name; release = null; }; 
+      rust = {rustcTarget = systemDict.config; rustcTargetSpec = systemDict.config; };
+      go = {};
+      node = {};
+      useiOSPrebuilt = false;
+      useAndroidPrebuilt = false;
+      linker = "bfd";
+      libdir = null;
+      extensions = {
+        staticLibarary = ".a";
+        library = ".a";
+        executable = "";
+      };
+      hasSharedLibraries = false;
+      useLLVM = false;
+    };
+in {
+  m68k = elaborate {
     system = "m68k-macos";
     config = "m68k-apple-macos";
     libc = null;
@@ -24,7 +46,7 @@
     retro68 = true;
     cmakeSystemName = "Retro68";
   };
-  powerpc = {
+  powerpc = elaborate {
     system = "powerpc-macos";
     config = "powerpc-apple-macos";
     libc = null;
@@ -49,7 +71,7 @@
     retro68 = true;
     cmakeSystemName = "RetroPPC";
   };
-  carbon = {
+  carbon = elaborate {
     system = "powerpc-carbon";
     config = "powerpc-apple-macos";
     libc = null;

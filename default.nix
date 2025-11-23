@@ -9,9 +9,10 @@ in { system ? builtins.currentSystem
    }:
 
 let
-  retroPlatforms = import nix/platforms.nix;
-
   lib = ((import nixpkgs) { inherit system; }).lib;
+
+  retroPlatforms = (import nix/platforms.nix) { inherit lib; };
+
 
   # A Nixpkgs overlay.
   overlay = lib.composeManyExtensions [
