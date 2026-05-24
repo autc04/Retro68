@@ -15,7 +15,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-find_package(Boost COMPONENTS filesystem system REQUIRED)
+find_package(Boost CONFIG COMPONENTS filesystem system REQUIRED)
 
 add_library(ResourceFiles
     ResourceFork.h ResourceFork.cc
@@ -27,15 +27,13 @@ add_library(ResourceFiles
 find_path(HFS_INCLUDE_DIR NAMES hfs.h)
 find_library(HFS_LIBRARY NAMES hfs)
 
-target_link_libraries(ResourceFiles ${Boost_LIBRARIES} ${HFS_LIBRARY})
+target_link_libraries(ResourceFiles Boost::filesystem ${HFS_LIBRARY})
 target_include_directories(ResourceFiles PUBLIC .
-                                         PRIVATE ${HFS_INCLUDE_DIR}
-                                                 ${Boost_INCLUDE_DIR})
+                                         PRIVATE ${HFS_INCLUDE_DIR})
 
-find_package(Boost COMPONENTS program_options REQUIRED)
+find_package(Boost CONFIG COMPONENTS program_options REQUIRED)
 
 add_executable(ResInfo ResInfo.cc)
-target_link_libraries(ResInfo ResourceFiles ${Boost_LIBRARIES})
-target_include_directories(ResInfo PRIVATE ${Boost_INCLUDE_DIR})
+target_link_libraries(ResInfo ResourceFiles Boost::program_options)
 
 install(TARGETS ResInfo RUNTIME DESTINATION bin)

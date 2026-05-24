@@ -1,4 +1,4 @@
-find_package(Boost COMPONENTS filesystem program_options)
+find_package(Boost CONFIG COMPONENTS filesystem program_options REQUIRED)
 find_path(HFS_INCLUDE_DIR NAMES hfs.h)
 find_library(HFS_LIBRARY NAMES hfs)
 
@@ -32,8 +32,8 @@ add_executable(LaunchAPPL
 
     ${LAUNCHMETHODS})
 
-target_include_directories(LaunchAPPL PRIVATE ${CMAKE_INSTALL_PREFIX}/include ${Boost_INCLUDE_DIR} ${HFS_INCLUDE_DIR})
-target_link_libraries(LaunchAPPL ResourceFiles LaunchAPPLCommon ${Boost_LIBRARIES} ${HFS_LIBRARY})
+target_include_directories(LaunchAPPL PRIVATE ${CMAKE_INSTALL_PREFIX}/include ${HFS_INCLUDE_DIR})
+target_link_libraries(LaunchAPPL ResourceFiles LaunchAPPLCommon Boost::filesystem Boost::program_options ${HFS_LIBRARY})
 
 if(APPLE)
     find_library(APPLICATIONSERVICES_FW ApplicationServices)

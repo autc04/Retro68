@@ -15,7 +15,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-find_package(Boost COMPONENTS wave filesystem system thread regex program_options)
+find_package(Boost CONFIG COMPONENTS wave filesystem system thread regex program_options REQUIRED)
 
 # Look for bison.
     # We need Version 3, and Mac OS X still comes with an outdated version (2.3).
@@ -71,14 +71,12 @@ add_library(RezLib
 
         Diagnostic.h Diagnostic.cc
     )
-target_link_libraries(RezLib ResourceFiles ${Boost_LIBRARIES})
-target_include_directories(RezLib PRIVATE ${Boost_INCLUDE_DIR})
+target_link_libraries(RezLib ResourceFiles Boost::wave Boost::filesystem Boost::system Boost::thread Boost::regex Boost::program_options)
 
 add_executable(Rez
         Rez.cc
     )
-target_link_libraries(Rez RezLib ResourceFiles ${Boost_LIBRARIES})
-target_include_directories(Rez PRIVATE ${Boost_INCLUDE_DIR})
+target_link_libraries(Rez RezLib ResourceFiles Boost::wave Boost::filesystem Boost::system Boost::thread Boost::regex Boost::program_options)
 
 install(TARGETS Rez RUNTIME DESTINATION bin)
 
