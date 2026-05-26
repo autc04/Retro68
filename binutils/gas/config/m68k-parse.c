@@ -67,7 +67,7 @@
 
 
 /* First part of user prologue.  */
-#line 27 "./config/m68k-parse.y"
+#line 27 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
 
 
 #include "as.h"
@@ -134,7 +134,7 @@ static void yyerror (const char *);
 static struct m68k_op *op;
 
 
-#line 138 "config/m68k-parse.c"
+#line 138 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -210,7 +210,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 95 "./config/m68k-parse.y"
+#line 95 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
 
   struct m68k_indexreg indexreg;
   enum m68k_register reg;
@@ -219,7 +219,7 @@ union YYSTYPE
   int onereg;
   int trailing_ampersand;
 
-#line 223 "config/m68k-parse.c"
+#line 223 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -1356,159 +1356,159 @@ yyreduce:
   switch (yyn)
     {
   case 3: /* operand: motorola_operand optional_ampersand  */
-#line 122 "./config/m68k-parse.y"
+#line 122 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->trailing_ampersand = (yyvsp[0].trailing_ampersand);
 		}
-#line 1364 "config/m68k-parse.c"
+#line 1364 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 4: /* operand: mit_operand optional_ampersand  */
-#line 126 "./config/m68k-parse.y"
+#line 126 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->trailing_ampersand = (yyvsp[0].trailing_ampersand);
 		}
-#line 1372 "config/m68k-parse.c"
+#line 1372 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 5: /* optional_ampersand: %empty  */
-#line 134 "./config/m68k-parse.y"
+#line 134 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 { (yyval.trailing_ampersand) = 0; }
-#line 1378 "config/m68k-parse.c"
+#line 1378 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 6: /* optional_ampersand: '&'  */
-#line 136 "./config/m68k-parse.y"
+#line 136 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 { (yyval.trailing_ampersand) = 1; }
-#line 1384 "config/m68k-parse.c"
+#line 1384 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 7: /* generic_operand: '<' '<'  */
-#line 143 "./config/m68k-parse.y"
+#line 143 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = LSH;
 		}
-#line 1392 "config/m68k-parse.c"
+#line 1392 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 8: /* generic_operand: '>' '>'  */
-#line 148 "./config/m68k-parse.y"
+#line 148 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = RSH;
 		}
-#line 1400 "config/m68k-parse.c"
+#line 1400 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 9: /* generic_operand: DR  */
-#line 153 "./config/m68k-parse.y"
+#line 153 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = DREG;
 		  op->reg = (yyvsp[0].reg);
 		}
-#line 1409 "config/m68k-parse.c"
+#line 1409 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 10: /* generic_operand: AR  */
-#line 158 "./config/m68k-parse.y"
+#line 158 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = AREG;
 		  op->reg = (yyvsp[0].reg);
 		}
-#line 1418 "config/m68k-parse.c"
+#line 1418 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 11: /* generic_operand: FPR  */
-#line 163 "./config/m68k-parse.y"
+#line 163 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = FPREG;
 		  op->reg = (yyvsp[0].reg);
 		}
-#line 1427 "config/m68k-parse.c"
+#line 1427 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 12: /* generic_operand: FPCR  */
-#line 168 "./config/m68k-parse.y"
+#line 168 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = CONTROL;
 		  op->reg = (yyvsp[0].reg);
 		}
-#line 1436 "config/m68k-parse.c"
+#line 1436 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 13: /* generic_operand: CREG  */
-#line 173 "./config/m68k-parse.y"
+#line 173 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = CONTROL;
 		  op->reg = (yyvsp[0].reg);
 		}
-#line 1445 "config/m68k-parse.c"
+#line 1445 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 14: /* generic_operand: EXPR  */
-#line 178 "./config/m68k-parse.y"
+#line 178 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = ABSL;
 		  op->disp = (yyvsp[0].exp);
 		}
-#line 1454 "config/m68k-parse.c"
+#line 1454 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 15: /* generic_operand: '#' EXPR  */
-#line 183 "./config/m68k-parse.y"
+#line 183 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = IMMED;
 		  op->disp = (yyvsp[0].exp);
 		}
-#line 1463 "config/m68k-parse.c"
+#line 1463 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 16: /* generic_operand: '&' EXPR  */
-#line 188 "./config/m68k-parse.y"
+#line 188 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = IMMED;
 		  op->disp = (yyvsp[0].exp);
 		}
-#line 1472 "config/m68k-parse.c"
+#line 1472 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 17: /* generic_operand: reglist  */
-#line 193 "./config/m68k-parse.y"
+#line 193 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = REGLST;
 		  op->mask = (yyvsp[0].mask);
 		}
-#line 1481 "config/m68k-parse.c"
+#line 1481 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 18: /* motorola_operand: '(' AR ')'  */
-#line 206 "./config/m68k-parse.y"
+#line 206 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = AINDR;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1490 "config/m68k-parse.c"
+#line 1490 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 19: /* motorola_operand: '(' AR ')' '+'  */
-#line 211 "./config/m68k-parse.y"
+#line 211 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = AINC;
 		  op->reg = (yyvsp[-2].reg);
 		}
-#line 1499 "config/m68k-parse.c"
+#line 1499 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 20: /* motorola_operand: '-' '(' AR ')'  */
-#line 216 "./config/m68k-parse.y"
+#line 216 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = ADEC;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1508 "config/m68k-parse.c"
+#line 1508 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 21: /* motorola_operand: '(' EXPR ',' zapc ')'  */
-#line 221 "./config/m68k-parse.y"
+#line 221 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->reg = (yyvsp[-1].reg);
 		  op->disp = (yyvsp[-3].exp);
@@ -1518,11 +1518,11 @@ yyreduce:
 		  else
 		    op->mode = DISP;
 		}
-#line 1522 "config/m68k-parse.c"
+#line 1522 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 22: /* motorola_operand: '(' zapc ',' EXPR ')'  */
-#line 231 "./config/m68k-parse.y"
+#line 231 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->reg = (yyvsp[-3].reg);
 		  op->disp = (yyvsp[-1].exp);
@@ -1532,11 +1532,11 @@ yyreduce:
 		  else
 		    op->mode = DISP;
 		}
-#line 1536 "config/m68k-parse.c"
+#line 1536 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 23: /* motorola_operand: EXPR '(' zapc ')'  */
-#line 241 "./config/m68k-parse.y"
+#line 241 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->reg = (yyvsp[-1].reg);
 		  op->disp = (yyvsp[-3].exp);
@@ -1546,49 +1546,49 @@ yyreduce:
 		  else
 		    op->mode = DISP;
 		}
-#line 1550 "config/m68k-parse.c"
+#line 1550 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 24: /* motorola_operand: '(' LPC ')'  */
-#line 251 "./config/m68k-parse.y"
+#line 251 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = DISP;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1559 "config/m68k-parse.c"
+#line 1559 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 25: /* motorola_operand: '(' ZAR ')'  */
-#line 256 "./config/m68k-parse.y"
+#line 256 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1568 "config/m68k-parse.c"
+#line 1568 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 26: /* motorola_operand: '(' LZPC ')'  */
-#line 261 "./config/m68k-parse.y"
+#line 261 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1577 "config/m68k-parse.c"
+#line 1577 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 27: /* motorola_operand: '(' EXPR ',' zapc ',' zireg ')'  */
-#line 266 "./config/m68k-parse.y"
+#line 266 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-3].reg);
 		  op->disp = (yyvsp[-5].exp);
 		  op->index = (yyvsp[-1].indexreg);
 		}
-#line 1588 "config/m68k-parse.c"
+#line 1588 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 28: /* motorola_operand: '(' EXPR ',' zapc ',' zpc ')'  */
-#line 273 "./config/m68k-parse.y"
+#line 273 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  if ((yyvsp[-3].reg) == PC || (yyvsp[-3].reg) == ZPC)
 		    yyerror (_("syntax error"));
@@ -1599,53 +1599,53 @@ yyreduce:
 		  op->index.size = SIZE_UNSPEC;
 		  op->index.scale = 1;
 		}
-#line 1603 "config/m68k-parse.c"
+#line 1603 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 29: /* motorola_operand: '(' EXPR ',' zdireg optczapc ')'  */
-#line 284 "./config/m68k-parse.y"
+#line 284 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-1].reg);
 		  op->disp = (yyvsp[-4].exp);
 		  op->index = (yyvsp[-2].indexreg);
 		}
-#line 1614 "config/m68k-parse.c"
+#line 1614 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 30: /* motorola_operand: '(' zdireg ',' EXPR ')'  */
-#line 291 "./config/m68k-parse.y"
+#line 291 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = BASE;
 		  op->disp = (yyvsp[-1].exp);
 		  op->index = (yyvsp[-3].indexreg);
 		}
-#line 1624 "config/m68k-parse.c"
+#line 1624 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 31: /* motorola_operand: EXPR '(' zapc ',' zireg ')'  */
-#line 297 "./config/m68k-parse.y"
+#line 297 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-3].reg);
 		  op->disp = (yyvsp[-5].exp);
 		  op->index = (yyvsp[-1].indexreg);
 		}
-#line 1635 "config/m68k-parse.c"
+#line 1635 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 32: /* motorola_operand: '(' zapc ',' zireg ')'  */
-#line 304 "./config/m68k-parse.y"
+#line 304 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-3].reg);
 		  op->index = (yyvsp[-1].indexreg);
 		}
-#line 1645 "config/m68k-parse.c"
+#line 1645 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 33: /* motorola_operand: EXPR '(' zapc ',' zpc ')'  */
-#line 310 "./config/m68k-parse.y"
+#line 310 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  if ((yyvsp[-3].reg) == PC || (yyvsp[-3].reg) == ZPC)
 		    yyerror (_("syntax error"));
@@ -1656,11 +1656,11 @@ yyreduce:
 		  op->index.size = SIZE_UNSPEC;
 		  op->index.scale = 1;
 		}
-#line 1660 "config/m68k-parse.c"
+#line 1660 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 34: /* motorola_operand: '(' zapc ',' zpc ')'  */
-#line 321 "./config/m68k-parse.y"
+#line 321 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  if ((yyvsp[-3].reg) == PC || (yyvsp[-3].reg) == ZPC)
 		    yyerror (_("syntax error"));
@@ -1670,32 +1670,32 @@ yyreduce:
 		  op->index.size = SIZE_UNSPEC;
 		  op->index.scale = 1;
 		}
-#line 1674 "config/m68k-parse.c"
+#line 1674 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 35: /* motorola_operand: EXPR '(' zdireg optczapc ')'  */
-#line 331 "./config/m68k-parse.y"
+#line 331 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-1].reg);
 		  op->disp = (yyvsp[-4].exp);
 		  op->index = (yyvsp[-2].indexreg);
 		}
-#line 1685 "config/m68k-parse.c"
+#line 1685 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 36: /* motorola_operand: '(' zdireg optczapc ')'  */
-#line 338 "./config/m68k-parse.y"
+#line 338 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-1].reg);
 		  op->index = (yyvsp[-2].indexreg);
 		}
-#line 1695 "config/m68k-parse.c"
+#line 1695 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 37: /* motorola_operand: '(' '[' EXPR optczapc ']' ',' zireg optcexpr ')'  */
-#line 344 "./config/m68k-parse.y"
+#line 344 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-5].reg);
@@ -1703,43 +1703,43 @@ yyreduce:
 		  op->index = (yyvsp[-2].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1707 "config/m68k-parse.c"
+#line 1707 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 38: /* motorola_operand: '(' '[' EXPR optczapc ']' optcexpr ')'  */
-#line 352 "./config/m68k-parse.y"
+#line 352 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-3].reg);
 		  op->disp = (yyvsp[-4].exp);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1718 "config/m68k-parse.c"
+#line 1718 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 39: /* motorola_operand: '(' '[' zapc ']' ',' zireg optcexpr ')'  */
-#line 359 "./config/m68k-parse.y"
+#line 359 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-5].reg);
 		  op->index = (yyvsp[-2].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1729 "config/m68k-parse.c"
+#line 1729 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 40: /* motorola_operand: '(' '[' zapc ']' optcexpr ')'  */
-#line 366 "./config/m68k-parse.y"
+#line 366 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-3].reg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1739 "config/m68k-parse.c"
+#line 1739 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 41: /* motorola_operand: '(' '[' EXPR ',' zapc ',' zireg ']' optcexpr ')'  */
-#line 372 "./config/m68k-parse.y"
+#line 372 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = PRE;
 		  op->reg = (yyvsp[-5].reg);
@@ -1747,22 +1747,22 @@ yyreduce:
 		  op->index = (yyvsp[-3].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1751 "config/m68k-parse.c"
+#line 1751 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 42: /* motorola_operand: '(' '[' zapc ',' zireg ']' optcexpr ')'  */
-#line 380 "./config/m68k-parse.y"
+#line 380 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = PRE;
 		  op->reg = (yyvsp[-5].reg);
 		  op->index = (yyvsp[-3].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1762 "config/m68k-parse.c"
+#line 1762 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 43: /* motorola_operand: '(' '[' EXPR ',' zapc ',' zpc ']' optcexpr ')'  */
-#line 387 "./config/m68k-parse.y"
+#line 387 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  if ((yyvsp[-5].reg) == PC || (yyvsp[-5].reg) == ZPC)
 		    yyerror (_("syntax error"));
@@ -1774,11 +1774,11 @@ yyreduce:
 		  op->index.scale = 1;
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1778 "config/m68k-parse.c"
+#line 1778 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 44: /* motorola_operand: '(' '[' zapc ',' zpc ']' optcexpr ')'  */
-#line 399 "./config/m68k-parse.y"
+#line 399 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  if ((yyvsp[-5].reg) == PC || (yyvsp[-5].reg) == ZPC)
 		    yyerror (_("syntax error"));
@@ -1789,11 +1789,11 @@ yyreduce:
 		  op->index.scale = 1;
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1793 "config/m68k-parse.c"
+#line 1793 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 45: /* motorola_operand: '(' '[' optexprc zdireg optczapc ']' optcexpr ')'  */
-#line 410 "./config/m68k-parse.y"
+#line 410 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = PRE;
 		  op->reg = (yyvsp[-3].reg);
@@ -1801,11 +1801,11 @@ yyreduce:
 		  op->index = (yyvsp[-4].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1805 "config/m68k-parse.c"
+#line 1805 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 46: /* mit_operand: optzapc '@'  */
-#line 423 "./config/m68k-parse.y"
+#line 423 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  /* We use optzapc to avoid a shift/reduce conflict.  */
 		  if ((yyvsp[-1].reg) < ADDR0 || (yyvsp[-1].reg) > ADDR7)
@@ -1813,11 +1813,11 @@ yyreduce:
 		  op->mode = AINDR;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1817 "config/m68k-parse.c"
+#line 1817 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 47: /* mit_operand: optzapc '@' '+'  */
-#line 431 "./config/m68k-parse.y"
+#line 431 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  /* We use optzapc to avoid a shift/reduce conflict.  */
 		  if ((yyvsp[-2].reg) < ADDR0 || (yyvsp[-2].reg) > ADDR7)
@@ -1825,11 +1825,11 @@ yyreduce:
 		  op->mode = AINC;
 		  op->reg = (yyvsp[-2].reg);
 		}
-#line 1829 "config/m68k-parse.c"
+#line 1829 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 48: /* mit_operand: optzapc '@' '-'  */
-#line 439 "./config/m68k-parse.y"
+#line 439 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  /* We use optzapc to avoid a shift/reduce conflict.  */
 		  if ((yyvsp[-2].reg) < ADDR0 || (yyvsp[-2].reg) > ADDR7)
@@ -1837,11 +1837,11 @@ yyreduce:
 		  op->mode = ADEC;
 		  op->reg = (yyvsp[-2].reg);
 		}
-#line 1841 "config/m68k-parse.c"
+#line 1841 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 49: /* mit_operand: optzapc '@' '(' EXPR ')'  */
-#line 447 "./config/m68k-parse.y"
+#line 447 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->reg = (yyvsp[-4].reg);
 		  op->disp = (yyvsp[-1].exp);
@@ -1851,22 +1851,22 @@ yyreduce:
 		  else
 		    op->mode = DISP;
 		}
-#line 1855 "config/m68k-parse.c"
+#line 1855 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 50: /* mit_operand: optzapc '@' '(' optexprc zireg ')'  */
-#line 457 "./config/m68k-parse.y"
+#line 457 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-5].reg);
 		  op->disp = (yyvsp[-2].exp);
 		  op->index = (yyvsp[-1].indexreg);
 		}
-#line 1866 "config/m68k-parse.c"
+#line 1866 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 51: /* mit_operand: optzapc '@' '(' EXPR ')' '@' '(' optexprc zireg ')'  */
-#line 464 "./config/m68k-parse.y"
+#line 464 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-9].reg);
@@ -1874,22 +1874,22 @@ yyreduce:
 		  op->index = (yyvsp[-1].indexreg);
 		  op->odisp = (yyvsp[-2].exp);
 		}
-#line 1878 "config/m68k-parse.c"
+#line 1878 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 52: /* mit_operand: optzapc '@' '(' EXPR ')' '@' '(' EXPR ')'  */
-#line 472 "./config/m68k-parse.y"
+#line 472 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-8].reg);
 		  op->disp = (yyvsp[-5].exp);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1889 "config/m68k-parse.c"
+#line 1889 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 53: /* mit_operand: optzapc '@' '(' optexprc zireg ')' '@' '(' EXPR ')'  */
-#line 479 "./config/m68k-parse.y"
+#line 479 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  op->mode = PRE;
 		  op->reg = (yyvsp[-9].reg);
@@ -1897,164 +1897,164 @@ yyreduce:
 		  op->index = (yyvsp[-5].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1901 "config/m68k-parse.c"
+#line 1901 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 55: /* zireg: zadr  */
-#line 494 "./config/m68k-parse.y"
+#line 494 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.indexreg).reg = (yyvsp[0].reg);
 		  (yyval.indexreg).size = SIZE_UNSPEC;
 		  (yyval.indexreg).scale = 1;
 		}
-#line 1911 "config/m68k-parse.c"
+#line 1911 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 57: /* zdireg: zdr  */
-#line 508 "./config/m68k-parse.y"
+#line 508 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.indexreg).reg = (yyvsp[0].reg);
 		  (yyval.indexreg).size = SIZE_UNSPEC;
 		  (yyval.indexreg).scale = 1;
 		}
-#line 1921 "config/m68k-parse.c"
+#line 1921 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 68: /* optzapc: %empty  */
-#line 551 "./config/m68k-parse.y"
+#line 551 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.reg) = ZADDR0;
 		}
-#line 1929 "config/m68k-parse.c"
+#line 1929 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 72: /* optczapc: %empty  */
-#line 568 "./config/m68k-parse.y"
+#line 568 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.reg) = ZADDR0;
 		}
-#line 1937 "config/m68k-parse.c"
+#line 1937 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 73: /* optczapc: ',' zapc  */
-#line 572 "./config/m68k-parse.y"
+#line 572 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.reg) = (yyvsp[0].reg);
 		}
-#line 1945 "config/m68k-parse.c"
+#line 1945 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 74: /* optcexpr: %empty  */
-#line 581 "./config/m68k-parse.y"
+#line 581 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.exp).exp.X_op = O_absent;
 		  (yyval.exp).size = SIZE_UNSPEC;
 		}
-#line 1954 "config/m68k-parse.c"
+#line 1954 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 75: /* optcexpr: ',' EXPR  */
-#line 586 "./config/m68k-parse.y"
+#line 586 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.exp) = (yyvsp[0].exp);
 		}
-#line 1962 "config/m68k-parse.c"
+#line 1962 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 76: /* optexprc: %empty  */
-#line 595 "./config/m68k-parse.y"
+#line 595 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.exp).exp.X_op = O_absent;
 		  (yyval.exp).size = SIZE_UNSPEC;
 		}
-#line 1971 "config/m68k-parse.c"
+#line 1971 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 77: /* optexprc: EXPR ','  */
-#line 600 "./config/m68k-parse.y"
+#line 600 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.exp) = (yyvsp[-1].exp);
 		}
-#line 1979 "config/m68k-parse.c"
+#line 1979 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 79: /* reglist: reglistpair '/' ireglist  */
-#line 610 "./config/m68k-parse.y"
+#line 610 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.mask) = (yyvsp[-2].mask) | (yyvsp[0].mask);
 		}
-#line 1987 "config/m68k-parse.c"
+#line 1987 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 80: /* reglist: reglistreg '/' ireglist  */
-#line 614 "./config/m68k-parse.y"
+#line 614 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.mask) = (1 << (yyvsp[-2].onereg)) | (yyvsp[0].mask);
 		}
-#line 1995 "config/m68k-parse.c"
+#line 1995 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 81: /* ireglist: reglistreg  */
-#line 626 "./config/m68k-parse.y"
+#line 626 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.mask) = 1 << (yyvsp[0].onereg);
 		}
-#line 2003 "config/m68k-parse.c"
+#line 2003 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 83: /* ireglist: reglistpair '/' ireglist  */
-#line 631 "./config/m68k-parse.y"
+#line 631 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.mask) = (yyvsp[-2].mask) | (yyvsp[0].mask);
 		}
-#line 2011 "config/m68k-parse.c"
+#line 2011 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 84: /* ireglist: reglistreg '/' ireglist  */
-#line 635 "./config/m68k-parse.y"
+#line 635 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.mask) = (1 << (yyvsp[-2].onereg)) | (yyvsp[0].mask);
 		}
-#line 2019 "config/m68k-parse.c"
+#line 2019 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 85: /* reglistpair: reglistreg '-' reglistreg  */
-#line 642 "./config/m68k-parse.y"
+#line 642 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  if ((yyvsp[-2].onereg) <= (yyvsp[0].onereg))
 		    (yyval.mask) = (1 << ((yyvsp[0].onereg) + 1)) - 1 - ((1 << (yyvsp[-2].onereg)) - 1);
 		  else
 		    (yyval.mask) = (1 << ((yyvsp[-2].onereg) + 1)) - 1 - ((1 << (yyvsp[0].onereg)) - 1);
 		}
-#line 2030 "config/m68k-parse.c"
+#line 2030 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 86: /* reglistreg: DR  */
-#line 652 "./config/m68k-parse.y"
+#line 652 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.onereg) = (yyvsp[0].reg) - DATA0;
 		}
-#line 2038 "config/m68k-parse.c"
+#line 2038 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 87: /* reglistreg: AR  */
-#line 656 "./config/m68k-parse.y"
+#line 656 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.onereg) = (yyvsp[0].reg) - ADDR0 + 8;
 		}
-#line 2046 "config/m68k-parse.c"
+#line 2046 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 88: /* reglistreg: FPR  */
-#line 660 "./config/m68k-parse.y"
+#line 660 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  (yyval.onereg) = (yyvsp[0].reg) - FP0 + 16;
 		}
-#line 2054 "config/m68k-parse.c"
+#line 2054 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
   case 89: /* reglistreg: FPCR  */
-#line 664 "./config/m68k-parse.y"
+#line 664 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
                 {
 		  if ((yyvsp[0].reg) == FPI)
 		    (yyval.onereg) = 24;
@@ -2063,11 +2063,11 @@ yyreduce:
 		  else
 		    (yyval.onereg) = 26;
 		}
-#line 2067 "config/m68k-parse.c"
+#line 2067 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
     break;
 
 
-#line 2071 "config/m68k-parse.c"
+#line 2071 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.c"
 
       default: break;
     }
@@ -2260,7 +2260,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 674 "./config/m68k-parse.y"
+#line 674 "/home/wolfgang/Projects/Retro68/binutils/gas/config/m68k-parse.y"
 
 
 /* The string to parse is stored here, and modified by yylex.  */

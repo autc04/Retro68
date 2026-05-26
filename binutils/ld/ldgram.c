@@ -67,7 +67,7 @@
 
 
 /* First part of user prologue.  */
-#line 22 "ldgram.y"
+#line 22 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
 
 /*
 
@@ -108,7 +108,7 @@ static int error_index;
 #define PUSH_ERROR(x) if (error_index < ERROR_NAME_MAX) error_names[error_index] = x; error_index++;
 #define POP_ERROR()   error_index--;
 
-#line 112 "ldgram.c"
+#line 112 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -133,8 +133,8 @@ static int error_index;
 
 /* Use api.header.include to #include this header
    instead of duplicating it here.  */
-#ifndef YY_YY_LDGRAM_H_INCLUDED
-# define YY_YY_LDGRAM_H_INCLUDED
+#ifndef YY_YY__HOME_WOLFGANG_PROJECTS_RETRO_BINUTILS_LD_LDGRAM_H_INCLUDED
+# define YY_YY__HOME_WOLFGANG_PROJECTS_RETRO_BINUTILS_LD_LDGRAM_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -429,7 +429,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 62 "ldgram.y"
+#line 62 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
 
   bfd_vma integer;
   struct big_int
@@ -460,7 +460,7 @@ union YYSTYPE
   struct bfd_elf_version_expr *versyms;
   struct bfd_elf_version_tree *versnode;
 
-#line 464 "ldgram.c"
+#line 464 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -475,7 +475,7 @@ extern YYSTYPE yylval;
 int yyparse (void);
 
 
-#endif /* !YY_YY_LDGRAM_H_INCLUDED  */
+#endif /* !YY_YY__HOME_WOLFGANG_PROJECTS_RETRO_BINUTILS_LD_LDGRAM_H_INCLUDED  */
 /* Symbol kind.  */
 enum yysymbol_kind_t
 {
@@ -2556,597 +2556,597 @@ yyreduce:
   switch (yyn)
     {
   case 8: /* $@1: %empty  */
-#line 181 "ldgram.y"
+#line 181 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { ldlex_expression(); }
-#line 2562 "ldgram.c"
+#line 2562 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 9: /* defsym_expr: $@1 assignment  */
-#line 183 "ldgram.y"
+#line 183 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { ldlex_popstate(); }
-#line 2568 "ldgram.c"
+#line 2568 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 10: /* $@2: %empty  */
-#line 188 "ldgram.y"
+#line 188 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  ldlex_mri_script ();
 		  PUSH_ERROR (_("MRI style script"));
 		}
-#line 2577 "ldgram.c"
+#line 2577 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 11: /* mri_script_file: $@2 mri_script_lines  */
-#line 193 "ldgram.y"
+#line 193 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  ldlex_popstate ();
 		  mri_draw_tree ();
 		  POP_ERROR ();
 		}
-#line 2587 "ldgram.c"
+#line 2587 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 16: /* mri_script_command: NAME  */
-#line 208 "ldgram.y"
+#line 208 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			einfo(_("%F%P: unrecognised keyword in MRI style script '%s'\n"),(yyvsp[0].name));
 			}
-#line 2595 "ldgram.c"
+#line 2595 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 17: /* mri_script_command: LIST  */
-#line 211 "ldgram.y"
+#line 211 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			config.map_filename = "-";
 			}
-#line 2603 "ldgram.c"
+#line 2603 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 20: /* mri_script_command: PUBLIC NAME '=' exp  */
-#line 217 "ldgram.y"
+#line 217 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_public((yyvsp[-2].name), (yyvsp[0].etree)); }
-#line 2609 "ldgram.c"
+#line 2609 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 21: /* mri_script_command: PUBLIC NAME ',' exp  */
-#line 219 "ldgram.y"
+#line 219 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_public((yyvsp[-2].name), (yyvsp[0].etree)); }
-#line 2615 "ldgram.c"
+#line 2615 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 22: /* mri_script_command: PUBLIC NAME exp  */
-#line 221 "ldgram.y"
+#line 221 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_public((yyvsp[-1].name), (yyvsp[0].etree)); }
-#line 2621 "ldgram.c"
+#line 2621 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 23: /* mri_script_command: FORMAT NAME  */
-#line 223 "ldgram.y"
+#line 223 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_format((yyvsp[0].name)); }
-#line 2627 "ldgram.c"
+#line 2627 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 24: /* mri_script_command: SECT NAME ',' exp  */
-#line 225 "ldgram.y"
+#line 225 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_output_section((yyvsp[-2].name), (yyvsp[0].etree));}
-#line 2633 "ldgram.c"
+#line 2633 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 25: /* mri_script_command: SECT NAME exp  */
-#line 227 "ldgram.y"
+#line 227 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_output_section((yyvsp[-1].name), (yyvsp[0].etree));}
-#line 2639 "ldgram.c"
+#line 2639 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 26: /* mri_script_command: SECT NAME '=' exp  */
-#line 229 "ldgram.y"
+#line 229 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_output_section((yyvsp[-2].name), (yyvsp[0].etree));}
-#line 2645 "ldgram.c"
+#line 2645 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 27: /* mri_script_command: ALIGN_K NAME '=' exp  */
-#line 231 "ldgram.y"
+#line 231 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_align((yyvsp[-2].name),(yyvsp[0].etree)); }
-#line 2651 "ldgram.c"
+#line 2651 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 28: /* mri_script_command: ALIGN_K NAME ',' exp  */
-#line 233 "ldgram.y"
+#line 233 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_align((yyvsp[-2].name),(yyvsp[0].etree)); }
-#line 2657 "ldgram.c"
+#line 2657 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 29: /* mri_script_command: ALIGNMOD NAME '=' exp  */
-#line 235 "ldgram.y"
+#line 235 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_alignmod((yyvsp[-2].name),(yyvsp[0].etree)); }
-#line 2663 "ldgram.c"
+#line 2663 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 30: /* mri_script_command: ALIGNMOD NAME ',' exp  */
-#line 237 "ldgram.y"
+#line 237 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_alignmod((yyvsp[-2].name),(yyvsp[0].etree)); }
-#line 2669 "ldgram.c"
+#line 2669 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 33: /* mri_script_command: NAMEWORD NAME  */
-#line 241 "ldgram.y"
+#line 241 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_name((yyvsp[0].name)); }
-#line 2675 "ldgram.c"
+#line 2675 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 34: /* mri_script_command: ALIAS NAME ',' NAME  */
-#line 243 "ldgram.y"
+#line 243 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_alias((yyvsp[-2].name),(yyvsp[0].name),0);}
-#line 2681 "ldgram.c"
+#line 2681 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 35: /* mri_script_command: ALIAS NAME ',' INT  */
-#line 245 "ldgram.y"
+#line 245 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_alias ((yyvsp[-2].name), 0, (int) (yyvsp[0].bigint).integer); }
-#line 2687 "ldgram.c"
+#line 2687 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 36: /* mri_script_command: BASE exp  */
-#line 247 "ldgram.y"
+#line 247 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_base((yyvsp[0].etree)); }
-#line 2693 "ldgram.c"
+#line 2693 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 37: /* mri_script_command: TRUNCATE INT  */
-#line 249 "ldgram.y"
+#line 249 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { mri_truncate ((unsigned int) (yyvsp[0].bigint).integer); }
-#line 2699 "ldgram.c"
+#line 2699 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 40: /* $@3: %empty  */
-#line 253 "ldgram.y"
+#line 253 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { ldfile_open_command_file ((yyvsp[0].name)); }
-#line 2705 "ldgram.c"
+#line 2705 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 42: /* mri_script_command: START NAME  */
-#line 256 "ldgram.y"
+#line 256 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_entry ((yyvsp[0].name), false); }
-#line 2711 "ldgram.c"
+#line 2711 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 44: /* ordernamelist: ordernamelist ',' NAME  */
-#line 261 "ldgram.y"
+#line 261 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                              { mri_order((yyvsp[0].name)); }
-#line 2717 "ldgram.c"
+#line 2717 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 45: /* ordernamelist: ordernamelist NAME  */
-#line 262 "ldgram.y"
+#line 262 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                           { mri_order((yyvsp[0].name)); }
-#line 2723 "ldgram.c"
+#line 2723 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 47: /* mri_load_name_list: NAME  */
-#line 268 "ldgram.y"
+#line 268 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_load((yyvsp[0].name)); }
-#line 2729 "ldgram.c"
+#line 2729 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 48: /* mri_load_name_list: mri_load_name_list ',' NAME  */
-#line 269 "ldgram.y"
+#line 269 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                             { mri_load((yyvsp[0].name)); }
-#line 2735 "ldgram.c"
+#line 2735 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 49: /* mri_abs_name_list: NAME  */
-#line 274 "ldgram.y"
+#line 274 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_only_load((yyvsp[0].name)); }
-#line 2741 "ldgram.c"
+#line 2741 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 50: /* mri_abs_name_list: mri_abs_name_list ',' NAME  */
-#line 276 "ldgram.y"
+#line 276 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { mri_only_load((yyvsp[0].name)); }
-#line 2747 "ldgram.c"
+#line 2747 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 51: /* casesymlist: %empty  */
-#line 280 "ldgram.y"
+#line 280 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                       { (yyval.name) = NULL; }
-#line 2753 "ldgram.c"
+#line 2753 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 54: /* extern_name_list: NAME  */
-#line 287 "ldgram.y"
+#line 287 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlang_add_undef ((yyvsp[0].name), false); }
-#line 2759 "ldgram.c"
+#line 2759 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 55: /* extern_name_list: extern_name_list NAME  */
-#line 289 "ldgram.y"
+#line 289 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlang_add_undef ((yyvsp[0].name), false); }
-#line 2765 "ldgram.c"
+#line 2765 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 56: /* extern_name_list: extern_name_list ',' NAME  */
-#line 291 "ldgram.y"
+#line 291 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlang_add_undef ((yyvsp[0].name), false); }
-#line 2771 "ldgram.c"
+#line 2771 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 57: /* $@4: %empty  */
-#line 295 "ldgram.y"
+#line 295 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
         { ldlex_script (); }
-#line 2777 "ldgram.c"
+#line 2777 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 58: /* script_file: $@4 ifile_list  */
-#line 297 "ldgram.y"
+#line 297 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
         { ldlex_popstate (); }
-#line 2783 "ldgram.c"
+#line 2783 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 71: /* ifile_p1: TARGET_K '(' NAME ')'  */
-#line 318 "ldgram.y"
+#line 318 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_target((yyvsp[-1].name)); }
-#line 2789 "ldgram.c"
+#line 2789 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 72: /* ifile_p1: SEARCH_DIR '(' filename ')'  */
-#line 320 "ldgram.y"
+#line 320 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { ldfile_add_library_path ((yyvsp[-1].name), false); }
-#line 2795 "ldgram.c"
+#line 2795 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 73: /* ifile_p1: OUTPUT '(' filename ')'  */
-#line 322 "ldgram.y"
+#line 322 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_output((yyvsp[-1].name), 1); }
-#line 2801 "ldgram.c"
+#line 2801 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 74: /* ifile_p1: OUTPUT_FORMAT '(' NAME ')'  */
-#line 324 "ldgram.y"
+#line 324 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { lang_add_output_format ((yyvsp[-1].name), (char *) NULL,
 					    (char *) NULL, 1); }
-#line 2808 "ldgram.c"
+#line 2808 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 75: /* ifile_p1: OUTPUT_FORMAT '(' NAME ',' NAME ',' NAME ')'  */
-#line 327 "ldgram.y"
+#line 327 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { lang_add_output_format ((yyvsp[-5].name), (yyvsp[-3].name), (yyvsp[-1].name), 1); }
-#line 2814 "ldgram.c"
+#line 2814 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 76: /* ifile_p1: OUTPUT_ARCH '(' NAME ')'  */
-#line 329 "ldgram.y"
+#line 329 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { ldfile_set_output_arch ((yyvsp[-1].name), bfd_arch_unknown); }
-#line 2820 "ldgram.c"
+#line 2820 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 77: /* ifile_p1: FORCE_COMMON_ALLOCATION  */
-#line 331 "ldgram.y"
+#line 331 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { command_line.force_common_definition = true ; }
-#line 2826 "ldgram.c"
+#line 2826 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 78: /* ifile_p1: FORCE_GROUP_ALLOCATION  */
-#line 333 "ldgram.y"
+#line 333 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { command_line.force_group_allocation = true ; }
-#line 2832 "ldgram.c"
+#line 2832 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 79: /* ifile_p1: INHIBIT_COMMON_ALLOCATION  */
-#line 335 "ldgram.y"
+#line 335 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { link_info.inhibit_common_definition = true ; }
-#line 2838 "ldgram.c"
+#line 2838 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 81: /* $@5: %empty  */
-#line 338 "ldgram.y"
+#line 338 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { lang_enter_group (); }
-#line 2844 "ldgram.c"
+#line 2844 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 82: /* ifile_p1: GROUP $@5 '(' input_list ')'  */
-#line 340 "ldgram.y"
+#line 340 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { lang_leave_group (); }
-#line 2850 "ldgram.c"
+#line 2850 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 83: /* ifile_p1: MAP '(' filename ')'  */
-#line 342 "ldgram.y"
+#line 342 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_map((yyvsp[-1].name)); }
-#line 2856 "ldgram.c"
+#line 2856 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 84: /* $@6: %empty  */
-#line 344 "ldgram.y"
+#line 344 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { ldfile_open_command_file ((yyvsp[0].name)); }
-#line 2862 "ldgram.c"
+#line 2862 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 86: /* ifile_p1: NOCROSSREFS '(' nocrossref_list ')'  */
-#line 347 "ldgram.y"
+#line 347 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_nocrossref ((yyvsp[-1].nocrossref));
 		}
-#line 2870 "ldgram.c"
+#line 2870 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 87: /* ifile_p1: NOCROSSREFS_TO '(' nocrossref_list ')'  */
-#line 351 "ldgram.y"
+#line 351 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_nocrossref_to ((yyvsp[-1].nocrossref));
 		}
-#line 2878 "ldgram.c"
+#line 2878 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 88: /* $@7: %empty  */
-#line 354 "ldgram.y"
+#line 354 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                            { ldlex_expression (); }
-#line 2884 "ldgram.c"
+#line 2884 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 89: /* ifile_p1: EXTERN '(' $@7 extern_name_list ')'  */
-#line 355 "ldgram.y"
+#line 355 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_popstate (); }
-#line 2890 "ldgram.c"
+#line 2890 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 90: /* ifile_p1: INSERT_K AFTER NAME  */
-#line 357 "ldgram.y"
+#line 357 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_insert ((yyvsp[0].name), 0); }
-#line 2896 "ldgram.c"
+#line 2896 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 91: /* ifile_p1: INSERT_K BEFORE NAME  */
-#line 359 "ldgram.y"
+#line 359 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_insert ((yyvsp[0].name), 1); }
-#line 2902 "ldgram.c"
+#line 2902 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 92: /* ifile_p1: REGION_ALIAS '(' NAME ',' NAME ')'  */
-#line 361 "ldgram.y"
+#line 361 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_memory_region_alias ((yyvsp[-3].name), (yyvsp[-1].name)); }
-#line 2908 "ldgram.c"
+#line 2908 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 93: /* ifile_p1: LD_FEATURE '(' NAME ')'  */
-#line 363 "ldgram.y"
+#line 363 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_ld_feature ((yyvsp[-1].name)); }
-#line 2914 "ldgram.c"
+#line 2914 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 94: /* $@8: %empty  */
-#line 367 "ldgram.y"
+#line 367 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { ldlex_inputlist(); }
-#line 2920 "ldgram.c"
+#line 2920 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 95: /* input_list: $@8 input_list1  */
-#line 369 "ldgram.y"
+#line 369 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { ldlex_popstate(); }
-#line 2926 "ldgram.c"
+#line 2926 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 96: /* input_list1: NAME  */
-#line 373 "ldgram.y"
+#line 373 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_input_file((yyvsp[0].name),lang_input_file_is_search_file_enum,
 				 (char *)NULL); }
-#line 2933 "ldgram.c"
+#line 2933 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 97: /* input_list1: input_list1 ',' NAME  */
-#line 376 "ldgram.y"
+#line 376 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_input_file((yyvsp[0].name),lang_input_file_is_search_file_enum,
 				 (char *)NULL); }
-#line 2940 "ldgram.c"
+#line 2940 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 98: /* input_list1: input_list1 NAME  */
-#line 379 "ldgram.y"
+#line 379 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_input_file((yyvsp[0].name),lang_input_file_is_search_file_enum,
 				 (char *)NULL); }
-#line 2947 "ldgram.c"
+#line 2947 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 99: /* input_list1: LNAME  */
-#line 382 "ldgram.y"
+#line 382 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_input_file((yyvsp[0].name),lang_input_file_is_l_enum,
 				 (char *)NULL); }
-#line 2954 "ldgram.c"
+#line 2954 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 100: /* input_list1: input_list1 ',' LNAME  */
-#line 385 "ldgram.y"
+#line 385 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_input_file((yyvsp[0].name),lang_input_file_is_l_enum,
 				 (char *)NULL); }
-#line 2961 "ldgram.c"
+#line 2961 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 101: /* input_list1: input_list1 LNAME  */
-#line 388 "ldgram.y"
+#line 388 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_input_file((yyvsp[0].name),lang_input_file_is_l_enum,
 				 (char *)NULL); }
-#line 2968 "ldgram.c"
+#line 2968 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 102: /* @9: %empty  */
-#line 391 "ldgram.y"
+#line 391 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { (yyval.integer) = input_flags.add_DT_NEEDED_for_regular;
 		    input_flags.add_DT_NEEDED_for_regular = true; }
-#line 2975 "ldgram.c"
+#line 2975 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 103: /* input_list1: AS_NEEDED '(' @9 input_list1 ')'  */
-#line 394 "ldgram.y"
+#line 394 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { input_flags.add_DT_NEEDED_for_regular = (yyvsp[-2].integer); }
-#line 2981 "ldgram.c"
+#line 2981 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 104: /* @10: %empty  */
-#line 396 "ldgram.y"
+#line 396 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { (yyval.integer) = input_flags.add_DT_NEEDED_for_regular;
 		    input_flags.add_DT_NEEDED_for_regular = true; }
-#line 2988 "ldgram.c"
+#line 2988 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 105: /* input_list1: input_list1 ',' AS_NEEDED '(' @10 input_list1 ')'  */
-#line 399 "ldgram.y"
+#line 399 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { input_flags.add_DT_NEEDED_for_regular = (yyvsp[-2].integer); }
-#line 2994 "ldgram.c"
+#line 2994 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 106: /* @11: %empty  */
-#line 401 "ldgram.y"
+#line 401 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { (yyval.integer) = input_flags.add_DT_NEEDED_for_regular;
 		    input_flags.add_DT_NEEDED_for_regular = true; }
-#line 3001 "ldgram.c"
+#line 3001 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 107: /* input_list1: input_list1 AS_NEEDED '(' @11 input_list1 ')'  */
-#line 404 "ldgram.y"
+#line 404 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { input_flags.add_DT_NEEDED_for_regular = (yyvsp[-2].integer); }
-#line 3007 "ldgram.c"
+#line 3007 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 112: /* statement_anywhere: ENTRY '(' NAME ')'  */
-#line 419 "ldgram.y"
+#line 419 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_add_entry ((yyvsp[-1].name), false); }
-#line 3013 "ldgram.c"
+#line 3013 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 114: /* $@12: %empty  */
-#line 421 "ldgram.y"
+#line 421 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                           {ldlex_expression ();}
-#line 3019 "ldgram.c"
+#line 3019 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 115: /* statement_anywhere: ASSERT_K $@12 '(' exp ',' NAME ')'  */
-#line 422 "ldgram.y"
+#line 422 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { ldlex_popstate ();
 		  lang_add_assignment (exp_assert ((yyvsp[-3].etree), (yyvsp[-1].name))); }
-#line 3026 "ldgram.c"
+#line 3026 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 116: /* wildcard_name: NAME  */
-#line 428 "ldgram.y"
+#line 428 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.cname) = (yyvsp[0].name);
 			}
-#line 3034 "ldgram.c"
+#line 3034 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 117: /* wildcard_maybe_exclude: wildcard_name  */
-#line 435 "ldgram.y"
+#line 435 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard).name = (yyvsp[0].cname);
 			  (yyval.wildcard).sorted = none;
 			  (yyval.wildcard).exclude_name_list = NULL;
 			  (yyval.wildcard).section_flag_list = NULL;
 			}
-#line 3045 "ldgram.c"
+#line 3045 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 118: /* wildcard_maybe_exclude: EXCLUDE_FILE '(' exclude_name_list ')' wildcard_name  */
-#line 442 "ldgram.y"
+#line 442 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard).name = (yyvsp[0].cname);
 			  (yyval.wildcard).sorted = none;
 			  (yyval.wildcard).exclude_name_list = (yyvsp[-2].name_list);
 			  (yyval.wildcard).section_flag_list = NULL;
 			}
-#line 3056 "ldgram.c"
+#line 3056 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 120: /* filename_spec: SORT_BY_NAME '(' wildcard_maybe_exclude ')'  */
-#line 453 "ldgram.y"
+#line 453 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard) = (yyvsp[-1].wildcard);
 			  (yyval.wildcard).sorted = by_name;
 			}
-#line 3065 "ldgram.c"
+#line 3065 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 121: /* filename_spec: SORT_NONE '(' wildcard_maybe_exclude ')'  */
-#line 458 "ldgram.y"
+#line 458 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard) = (yyvsp[-1].wildcard);
 			  (yyval.wildcard).sorted = by_none;
 			}
-#line 3074 "ldgram.c"
+#line 3074 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 123: /* section_name_spec: SORT_BY_NAME '(' wildcard_maybe_exclude ')'  */
-#line 467 "ldgram.y"
+#line 467 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard) = (yyvsp[-1].wildcard);
 			  (yyval.wildcard).sorted = by_name;
 			}
-#line 3083 "ldgram.c"
+#line 3083 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 124: /* section_name_spec: SORT_BY_ALIGNMENT '(' wildcard_maybe_exclude ')'  */
-#line 472 "ldgram.y"
+#line 472 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard) = (yyvsp[-1].wildcard);
 			  (yyval.wildcard).sorted = by_alignment;
 			}
-#line 3092 "ldgram.c"
+#line 3092 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 125: /* section_name_spec: SORT_NONE '(' wildcard_maybe_exclude ')'  */
-#line 477 "ldgram.y"
+#line 477 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard) = (yyvsp[-1].wildcard);
 			  (yyval.wildcard).sorted = by_none;
 			}
-#line 3101 "ldgram.c"
+#line 3101 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 126: /* section_name_spec: SORT_BY_NAME '(' SORT_BY_ALIGNMENT '(' wildcard_maybe_exclude ')' ')'  */
-#line 482 "ldgram.y"
+#line 482 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard) = (yyvsp[-2].wildcard);
 			  (yyval.wildcard).sorted = by_name_alignment;
 			}
-#line 3110 "ldgram.c"
+#line 3110 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 127: /* section_name_spec: SORT_BY_NAME '(' SORT_BY_NAME '(' wildcard_maybe_exclude ')' ')'  */
-#line 487 "ldgram.y"
+#line 487 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard) = (yyvsp[-2].wildcard);
 			  (yyval.wildcard).sorted = by_name;
 			}
-#line 3119 "ldgram.c"
+#line 3119 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 128: /* section_name_spec: SORT_BY_ALIGNMENT '(' SORT_BY_NAME '(' wildcard_maybe_exclude ')' ')'  */
-#line 492 "ldgram.y"
+#line 492 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard) = (yyvsp[-2].wildcard);
 			  (yyval.wildcard).sorted = by_alignment_name;
 			}
-#line 3128 "ldgram.c"
+#line 3128 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 129: /* section_name_spec: SORT_BY_ALIGNMENT '(' SORT_BY_ALIGNMENT '(' wildcard_maybe_exclude ')' ')'  */
-#line 497 "ldgram.y"
+#line 497 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard) = (yyvsp[-2].wildcard);
 			  (yyval.wildcard).sorted = by_alignment;
 			}
-#line 3137 "ldgram.c"
+#line 3137 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 130: /* section_name_spec: SORT_BY_INIT_PRIORITY '(' wildcard_maybe_exclude ')'  */
-#line 502 "ldgram.y"
+#line 502 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.wildcard) = (yyvsp[-1].wildcard);
 			  (yyval.wildcard).sorted = by_init_priority;
 			}
-#line 3146 "ldgram.c"
+#line 3146 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 131: /* sect_flag_list: NAME  */
-#line 509 "ldgram.y"
+#line 509 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct flag_info_list *n;
 			  n = ((struct flag_info_list *) xmalloc (sizeof *n));
@@ -3164,11 +3164,11 @@ yyreduce:
 			  n->next = NULL;
 			  (yyval.flag_info_list) = n;
 			}
-#line 3168 "ldgram.c"
+#line 3168 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 132: /* sect_flag_list: sect_flag_list '&' NAME  */
-#line 527 "ldgram.y"
+#line 527 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct flag_info_list *n;
 			  n = ((struct flag_info_list *) xmalloc (sizeof *n));
@@ -3186,11 +3186,11 @@ yyreduce:
 			  n->next = (yyvsp[-2].flag_info_list);
 			  (yyval.flag_info_list) = n;
 			}
-#line 3190 "ldgram.c"
+#line 3190 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 133: /* sect_flags: INPUT_SECTION_FLAGS '(' sect_flag_list ')'  */
-#line 548 "ldgram.y"
+#line 548 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct flag_info *n;
 			  n = ((struct flag_info *) xmalloc (sizeof *n));
@@ -3200,11 +3200,11 @@ yyreduce:
 			  n->only_with_flags = 0;
 			  (yyval.flag_info) = n;
 			}
-#line 3204 "ldgram.c"
+#line 3204 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 134: /* exclude_name_list: exclude_name_list wildcard_name  */
-#line 561 "ldgram.y"
+#line 561 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct name_list *tmp;
 			  tmp = (struct name_list *) xmalloc (sizeof *tmp);
@@ -3212,11 +3212,11 @@ yyreduce:
 			  tmp->next = (yyvsp[-1].name_list);
 			  (yyval.name_list) = tmp;
 			}
-#line 3216 "ldgram.c"
+#line 3216 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 135: /* exclude_name_list: wildcard_name  */
-#line 570 "ldgram.y"
+#line 570 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct name_list *tmp;
 			  tmp = (struct name_list *) xmalloc (sizeof *tmp);
@@ -3224,11 +3224,11 @@ yyreduce:
 			  tmp->next = NULL;
 			  (yyval.name_list) = tmp;
 			}
-#line 3228 "ldgram.c"
+#line 3228 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 136: /* section_name_list: section_name_list opt_comma section_name_spec  */
-#line 581 "ldgram.y"
+#line 581 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct wildcard_list *tmp;
 			  tmp = (struct wildcard_list *) xmalloc (sizeof *tmp);
@@ -3236,11 +3236,11 @@ yyreduce:
 			  tmp->spec = (yyvsp[0].wildcard);
 			  (yyval.wildcard_list) = tmp;
 			}
-#line 3240 "ldgram.c"
+#line 3240 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 137: /* section_name_list: section_name_spec  */
-#line 590 "ldgram.y"
+#line 590 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct wildcard_list *tmp;
 			  tmp = (struct wildcard_list *) xmalloc (sizeof *tmp);
@@ -3248,11 +3248,11 @@ yyreduce:
 			  tmp->spec = (yyvsp[0].wildcard);
 			  (yyval.wildcard_list) = tmp;
 			}
-#line 3252 "ldgram.c"
+#line 3252 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 138: /* input_section_spec_no_keep: NAME  */
-#line 601 "ldgram.y"
+#line 601 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct wildcard_spec tmp;
 			  tmp.name = (yyvsp[0].name);
@@ -3261,11 +3261,11 @@ yyreduce:
 			  tmp.section_flag_list = NULL;
 			  lang_add_wild (&tmp, NULL, ldgram_had_keep);
 			}
-#line 3265 "ldgram.c"
+#line 3265 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 139: /* input_section_spec_no_keep: sect_flags NAME  */
-#line 610 "ldgram.y"
+#line 610 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct wildcard_spec tmp;
 			  tmp.name = (yyvsp[0].name);
@@ -3274,19 +3274,19 @@ yyreduce:
 			  tmp.section_flag_list = (yyvsp[-1].flag_info);
 			  lang_add_wild (&tmp, NULL, ldgram_had_keep);
 			}
-#line 3278 "ldgram.c"
+#line 3278 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 140: /* input_section_spec_no_keep: '[' section_name_list ']'  */
-#line 619 "ldgram.y"
+#line 619 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  lang_add_wild (NULL, (yyvsp[-1].wildcard_list), ldgram_had_keep);
 			}
-#line 3286 "ldgram.c"
+#line 3286 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 141: /* input_section_spec_no_keep: sect_flags '[' section_name_list ']'  */
-#line 623 "ldgram.y"
+#line 623 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct wildcard_spec tmp;
 			  tmp.name = NULL;
@@ -3295,210 +3295,210 @@ yyreduce:
 			  tmp.section_flag_list = (yyvsp[-3].flag_info);
 			  lang_add_wild (&tmp, (yyvsp[-1].wildcard_list), ldgram_had_keep);
 			}
-#line 3299 "ldgram.c"
+#line 3299 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 142: /* input_section_spec_no_keep: filename_spec '(' section_name_list ')'  */
-#line 632 "ldgram.y"
+#line 632 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  lang_add_wild (&(yyvsp[-3].wildcard), (yyvsp[-1].wildcard_list), ldgram_had_keep);
 			}
-#line 3307 "ldgram.c"
+#line 3307 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 143: /* input_section_spec_no_keep: sect_flags filename_spec '(' section_name_list ')'  */
-#line 636 "ldgram.y"
+#line 636 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyvsp[-3].wildcard).section_flag_list = (yyvsp[-4].flag_info);
 			  lang_add_wild (&(yyvsp[-3].wildcard), (yyvsp[-1].wildcard_list), ldgram_had_keep);
 			}
-#line 3316 "ldgram.c"
+#line 3316 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 145: /* $@13: %empty  */
-#line 645 "ldgram.y"
+#line 645 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldgram_had_keep = true; }
-#line 3322 "ldgram.c"
+#line 3322 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 146: /* input_section_spec: KEEP '(' $@13 input_section_spec_no_keep ')'  */
-#line 647 "ldgram.y"
+#line 647 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldgram_had_keep = false; }
-#line 3328 "ldgram.c"
+#line 3328 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 149: /* statement: CREATE_OBJECT_SYMBOLS  */
-#line 654 "ldgram.y"
+#line 654 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_attribute (lang_object_symbols_statement_enum);
 		}
-#line 3336 "ldgram.c"
+#line 3336 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 150: /* statement: CONSTRUCTORS  */
-#line 658 "ldgram.y"
+#line 658 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_attribute (lang_constructors_statement_enum);
 		}
-#line 3344 "ldgram.c"
+#line 3344 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 151: /* statement: SORT_BY_NAME '(' CONSTRUCTORS ')'  */
-#line 662 "ldgram.y"
+#line 662 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  constructors_sorted = true;
 		  lang_add_attribute (lang_constructors_statement_enum);
 		}
-#line 3353 "ldgram.c"
+#line 3353 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 153: /* statement: length '(' mustbe_exp ')'  */
-#line 668 "ldgram.y"
+#line 668 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_data ((int) (yyvsp[-3].integer), (yyvsp[-1].etree));
 		}
-#line 3361 "ldgram.c"
+#line 3361 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 154: /* statement: FILL '(' fill_exp ')'  */
-#line 673 "ldgram.y"
+#line 673 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_fill ((yyvsp[-1].fill));
 		}
-#line 3369 "ldgram.c"
+#line 3369 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 155: /* $@14: %empty  */
-#line 677 "ldgram.y"
+#line 677 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { ldlex_expression (); }
-#line 3375 "ldgram.c"
+#line 3375 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 156: /* statement: ASSERT_K $@14 '(' exp ',' NAME ')' separator  */
-#line 679 "ldgram.y"
+#line 679 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  ldlex_popstate ();
 		  lang_add_assignment (exp_assert ((yyvsp[-4].etree), (yyvsp[-2].name)));
 		}
-#line 3384 "ldgram.c"
+#line 3384 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 157: /* $@15: %empty  */
-#line 684 "ldgram.y"
+#line 684 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  ldfile_open_command_file ((yyvsp[0].name));
 		}
-#line 3392 "ldgram.c"
+#line 3392 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 163: /* length: QUAD  */
-#line 702 "ldgram.y"
+#line 702 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.integer) = (yyvsp[0].token); }
-#line 3398 "ldgram.c"
+#line 3398 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 164: /* length: SQUAD  */
-#line 704 "ldgram.y"
+#line 704 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.integer) = (yyvsp[0].token); }
-#line 3404 "ldgram.c"
+#line 3404 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 165: /* length: LONG  */
-#line 706 "ldgram.y"
+#line 706 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.integer) = (yyvsp[0].token); }
-#line 3410 "ldgram.c"
+#line 3410 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 166: /* length: SHORT  */
-#line 708 "ldgram.y"
+#line 708 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.integer) = (yyvsp[0].token); }
-#line 3416 "ldgram.c"
+#line 3416 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 167: /* length: BYTE  */
-#line 710 "ldgram.y"
+#line 710 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.integer) = (yyvsp[0].token); }
-#line 3422 "ldgram.c"
+#line 3422 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 168: /* fill_exp: mustbe_exp  */
-#line 715 "ldgram.y"
+#line 715 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.fill) = exp_get_fill ((yyvsp[0].etree), 0, "fill value");
 		}
-#line 3430 "ldgram.c"
+#line 3430 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 169: /* fill_opt: '=' fill_exp  */
-#line 722 "ldgram.y"
+#line 722 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.fill) = (yyvsp[0].fill); }
-#line 3436 "ldgram.c"
+#line 3436 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 170: /* fill_opt: %empty  */
-#line 723 "ldgram.y"
+#line 723 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.fill) = (fill_type *) 0; }
-#line 3442 "ldgram.c"
+#line 3442 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 171: /* assign_op: PLUSEQ  */
-#line 728 "ldgram.y"
+#line 728 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.token) = '+'; }
-#line 3448 "ldgram.c"
+#line 3448 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 172: /* assign_op: MINUSEQ  */
-#line 730 "ldgram.y"
+#line 730 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.token) = '-'; }
-#line 3454 "ldgram.c"
+#line 3454 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 173: /* assign_op: MULTEQ  */
-#line 732 "ldgram.y"
+#line 732 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.token) = '*'; }
-#line 3460 "ldgram.c"
+#line 3460 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 174: /* assign_op: DIVEQ  */
-#line 734 "ldgram.y"
+#line 734 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.token) = '/'; }
-#line 3466 "ldgram.c"
+#line 3466 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 175: /* assign_op: LSHIFTEQ  */
-#line 736 "ldgram.y"
+#line 736 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.token) = LSHIFT; }
-#line 3472 "ldgram.c"
+#line 3472 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 176: /* assign_op: RSHIFTEQ  */
-#line 738 "ldgram.y"
+#line 738 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.token) = RSHIFT; }
-#line 3478 "ldgram.c"
+#line 3478 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 177: /* assign_op: ANDEQ  */
-#line 740 "ldgram.y"
+#line 740 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.token) = '&'; }
-#line 3484 "ldgram.c"
+#line 3484 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 178: /* assign_op: OREQ  */
-#line 742 "ldgram.y"
+#line 742 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.token) = '|'; }
-#line 3490 "ldgram.c"
+#line 3490 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 181: /* assignment: NAME '=' mustbe_exp  */
-#line 752 "ldgram.y"
+#line 752 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_assignment (exp_assign ((yyvsp[-2].name), (yyvsp[0].etree), false));
 		}
-#line 3498 "ldgram.c"
+#line 3498 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 182: /* assignment: NAME assign_op mustbe_exp  */
-#line 756 "ldgram.y"
+#line 756 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_assignment (exp_assign ((yyvsp[-2].name),
 						   exp_binop ((yyvsp[-1].token),
@@ -3506,61 +3506,61 @@ yyreduce:
 									  (yyvsp[-2].name)),
 							      (yyvsp[0].etree)), false));
 		}
-#line 3510 "ldgram.c"
+#line 3510 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 183: /* assignment: HIDDEN '(' NAME '=' mustbe_exp ')'  */
-#line 764 "ldgram.y"
+#line 764 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_assignment (exp_assign ((yyvsp[-3].name), (yyvsp[-1].etree), true));
 		}
-#line 3518 "ldgram.c"
+#line 3518 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 184: /* assignment: PROVIDE '(' NAME '=' mustbe_exp ')'  */
-#line 768 "ldgram.y"
+#line 768 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_assignment (exp_provide ((yyvsp[-3].name), (yyvsp[-1].etree), false));
 		}
-#line 3526 "ldgram.c"
+#line 3526 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 185: /* assignment: PROVIDE_HIDDEN '(' NAME '=' mustbe_exp ')'  */
-#line 772 "ldgram.y"
+#line 772 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_add_assignment (exp_provide ((yyvsp[-3].name), (yyvsp[-1].etree), true));
 		}
-#line 3534 "ldgram.c"
+#line 3534 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 193: /* $@16: %empty  */
-#line 795 "ldgram.y"
+#line 795 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { region = lang_memory_region_lookup ((yyvsp[0].name), true); }
-#line 3540 "ldgram.c"
+#line 3540 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 194: /* memory_spec: NAME $@16 attributes_opt ':' origin_spec opt_comma length_spec  */
-#line 798 "ldgram.y"
+#line 798 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {}
-#line 3546 "ldgram.c"
+#line 3546 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 195: /* $@17: %empty  */
-#line 800 "ldgram.y"
+#line 800 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { ldfile_open_command_file ((yyvsp[0].name)); }
-#line 3552 "ldgram.c"
+#line 3552 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 197: /* origin_spec: ORIGIN '=' mustbe_exp  */
-#line 806 "ldgram.y"
+#line 806 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  region->origin_exp = (yyvsp[0].etree);
 		}
-#line 3560 "ldgram.c"
+#line 3560 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 198: /* length_spec: LENGTH '=' mustbe_exp  */
-#line 813 "ldgram.y"
+#line 813 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  if (yychar == NAME)
 		    {
@@ -3569,79 +3569,79 @@ yyreduce:
 		    }
 		  region->length_exp = (yyvsp[0].etree);
 		}
-#line 3573 "ldgram.c"
+#line 3573 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 199: /* attributes_opt: %empty  */
-#line 825 "ldgram.y"
+#line 825 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { /* dummy action to avoid bison 1.25 error message */ }
-#line 3579 "ldgram.c"
+#line 3579 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 203: /* attributes_string: NAME  */
-#line 836 "ldgram.y"
+#line 836 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { lang_set_flags (region, (yyvsp[0].name), 0); }
-#line 3585 "ldgram.c"
+#line 3585 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 204: /* attributes_string: '!' NAME  */
-#line 838 "ldgram.y"
+#line 838 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                   { lang_set_flags (region, (yyvsp[0].name), 1); }
-#line 3591 "ldgram.c"
+#line 3591 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 205: /* startup: STARTUP '(' filename ')'  */
-#line 843 "ldgram.y"
+#line 843 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { lang_startup((yyvsp[-1].name)); }
-#line 3597 "ldgram.c"
+#line 3597 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 207: /* high_level_library: HLL '(' ')'  */
-#line 849 "ldgram.y"
+#line 849 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldemul_hll((char *)NULL); }
-#line 3603 "ldgram.c"
+#line 3603 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 208: /* high_level_library_NAME_list: high_level_library_NAME_list opt_comma filename  */
-#line 854 "ldgram.y"
+#line 854 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldemul_hll((yyvsp[0].name)); }
-#line 3609 "ldgram.c"
+#line 3609 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 209: /* high_level_library_NAME_list: filename  */
-#line 856 "ldgram.y"
+#line 856 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldemul_hll((yyvsp[0].name)); }
-#line 3615 "ldgram.c"
+#line 3615 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 211: /* low_level_library_NAME_list: low_level_library_NAME_list opt_comma filename  */
-#line 865 "ldgram.y"
+#line 865 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldemul_syslib((yyvsp[0].name)); }
-#line 3621 "ldgram.c"
+#line 3621 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 213: /* floating_point_support: FLOAT  */
-#line 871 "ldgram.y"
+#line 871 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { lang_float(true); }
-#line 3627 "ldgram.c"
+#line 3627 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 214: /* floating_point_support: NOFLOAT  */
-#line 873 "ldgram.y"
+#line 873 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { lang_float(false); }
-#line 3633 "ldgram.c"
+#line 3633 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 215: /* nocrossref_list: %empty  */
-#line 878 "ldgram.y"
+#line 878 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.nocrossref) = NULL;
 		}
-#line 3641 "ldgram.c"
+#line 3641 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 216: /* nocrossref_list: NAME nocrossref_list  */
-#line 882 "ldgram.y"
+#line 882 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  struct lang_nocrossref *n;
 
@@ -3650,11 +3650,11 @@ yyreduce:
 		  n->next = (yyvsp[0].nocrossref);
 		  (yyval.nocrossref) = n;
 		}
-#line 3654 "ldgram.c"
+#line 3654 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 217: /* nocrossref_list: NAME ',' nocrossref_list  */
-#line 891 "ldgram.y"
+#line 891 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  struct lang_nocrossref *n;
 
@@ -3663,281 +3663,281 @@ yyreduce:
 		  n->next = (yyvsp[0].nocrossref);
 		  (yyval.nocrossref) = n;
 		}
-#line 3667 "ldgram.c"
+#line 3667 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 218: /* $@18: %empty  */
-#line 901 "ldgram.y"
+#line 901 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_script (); }
-#line 3673 "ldgram.c"
+#line 3673 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 219: /* paren_script_name: $@18 '(' NAME ')'  */
-#line 903 "ldgram.y"
+#line 903 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_popstate (); (yyval.name) = (yyvsp[-1].name); }
-#line 3679 "ldgram.c"
+#line 3679 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 220: /* $@19: %empty  */
-#line 905 "ldgram.y"
+#line 905 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_expression (); }
-#line 3685 "ldgram.c"
+#line 3685 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 221: /* mustbe_exp: $@19 exp  */
-#line 907 "ldgram.y"
+#line 907 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_popstate (); (yyval.etree) = (yyvsp[0].etree); }
-#line 3691 "ldgram.c"
+#line 3691 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 222: /* exp: '-' exp  */
-#line 912 "ldgram.y"
+#line 912 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_unop ('-', (yyvsp[0].etree)); }
-#line 3697 "ldgram.c"
+#line 3697 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 223: /* exp: '(' exp ')'  */
-#line 914 "ldgram.y"
+#line 914 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = (yyvsp[-1].etree); }
-#line 3703 "ldgram.c"
+#line 3703 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 224: /* exp: NEXT '(' exp ')'  */
-#line 916 "ldgram.y"
+#line 916 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_unop ((int) (yyvsp[-3].integer),(yyvsp[-1].etree)); }
-#line 3709 "ldgram.c"
+#line 3709 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 225: /* exp: '!' exp  */
-#line 918 "ldgram.y"
+#line 918 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_unop ('!', (yyvsp[0].etree)); }
-#line 3715 "ldgram.c"
+#line 3715 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 226: /* exp: '+' exp  */
-#line 920 "ldgram.y"
+#line 920 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = (yyvsp[0].etree); }
-#line 3721 "ldgram.c"
+#line 3721 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 227: /* exp: '~' exp  */
-#line 922 "ldgram.y"
+#line 922 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_unop ('~', (yyvsp[0].etree));}
-#line 3727 "ldgram.c"
+#line 3727 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 228: /* exp: exp '*' exp  */
-#line 925 "ldgram.y"
+#line 925 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop ('*', (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3733 "ldgram.c"
+#line 3733 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 229: /* exp: exp '/' exp  */
-#line 927 "ldgram.y"
+#line 927 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop ('/', (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3739 "ldgram.c"
+#line 3739 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 230: /* exp: exp '%' exp  */
-#line 929 "ldgram.y"
+#line 929 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop ('%', (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3745 "ldgram.c"
+#line 3745 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 231: /* exp: exp '+' exp  */
-#line 931 "ldgram.y"
+#line 931 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop ('+', (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3751 "ldgram.c"
+#line 3751 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 232: /* exp: exp '-' exp  */
-#line 933 "ldgram.y"
+#line 933 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop ('-' , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3757 "ldgram.c"
+#line 3757 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 233: /* exp: exp LSHIFT exp  */
-#line 935 "ldgram.y"
+#line 935 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (LSHIFT , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3763 "ldgram.c"
+#line 3763 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 234: /* exp: exp RSHIFT exp  */
-#line 937 "ldgram.y"
+#line 937 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (RSHIFT , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3769 "ldgram.c"
+#line 3769 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 235: /* exp: exp EQ exp  */
-#line 939 "ldgram.y"
+#line 939 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (EQ , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3775 "ldgram.c"
+#line 3775 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 236: /* exp: exp NE exp  */
-#line 941 "ldgram.y"
+#line 941 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (NE , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3781 "ldgram.c"
+#line 3781 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 237: /* exp: exp LE exp  */
-#line 943 "ldgram.y"
+#line 943 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (LE , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3787 "ldgram.c"
+#line 3787 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 238: /* exp: exp GE exp  */
-#line 945 "ldgram.y"
+#line 945 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (GE , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3793 "ldgram.c"
+#line 3793 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 239: /* exp: exp '<' exp  */
-#line 947 "ldgram.y"
+#line 947 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop ('<' , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3799 "ldgram.c"
+#line 3799 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 240: /* exp: exp '>' exp  */
-#line 949 "ldgram.y"
+#line 949 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop ('>' , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3805 "ldgram.c"
+#line 3805 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 241: /* exp: exp '&' exp  */
-#line 951 "ldgram.y"
+#line 951 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop ('&' , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3811 "ldgram.c"
+#line 3811 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 242: /* exp: exp '^' exp  */
-#line 953 "ldgram.y"
+#line 953 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop ('^' , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3817 "ldgram.c"
+#line 3817 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 243: /* exp: exp '|' exp  */
-#line 955 "ldgram.y"
+#line 955 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop ('|' , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3823 "ldgram.c"
+#line 3823 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 244: /* exp: exp '?' exp ':' exp  */
-#line 957 "ldgram.y"
+#line 957 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_trinop ('?' , (yyvsp[-4].etree), (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3829 "ldgram.c"
+#line 3829 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 245: /* exp: exp ANDAND exp  */
-#line 959 "ldgram.y"
+#line 959 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (ANDAND , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3835 "ldgram.c"
+#line 3835 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 246: /* exp: exp OROR exp  */
-#line 961 "ldgram.y"
+#line 961 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (OROR , (yyvsp[-2].etree), (yyvsp[0].etree)); }
-#line 3841 "ldgram.c"
+#line 3841 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 247: /* exp: DEFINED '(' NAME ')'  */
-#line 963 "ldgram.y"
+#line 963 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_nameop (DEFINED, (yyvsp[-1].name)); }
-#line 3847 "ldgram.c"
+#line 3847 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 248: /* exp: INT  */
-#line 965 "ldgram.y"
+#line 965 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_bigintop ((yyvsp[0].bigint).integer, (yyvsp[0].bigint).str); }
-#line 3853 "ldgram.c"
+#line 3853 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 249: /* exp: SIZEOF_HEADERS  */
-#line 967 "ldgram.y"
+#line 967 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_nameop (SIZEOF_HEADERS,0); }
-#line 3859 "ldgram.c"
+#line 3859 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 250: /* exp: ALIGNOF paren_script_name  */
-#line 970 "ldgram.y"
+#line 970 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_nameop (ALIGNOF, (yyvsp[0].name)); }
-#line 3865 "ldgram.c"
+#line 3865 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 251: /* exp: SIZEOF paren_script_name  */
-#line 972 "ldgram.y"
+#line 972 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_nameop (SIZEOF, (yyvsp[0].name)); }
-#line 3871 "ldgram.c"
+#line 3871 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 252: /* exp: ADDR paren_script_name  */
-#line 974 "ldgram.y"
+#line 974 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_nameop (ADDR, (yyvsp[0].name)); }
-#line 3877 "ldgram.c"
+#line 3877 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 253: /* exp: LOADADDR paren_script_name  */
-#line 976 "ldgram.y"
+#line 976 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_nameop (LOADADDR, (yyvsp[0].name)); }
-#line 3883 "ldgram.c"
+#line 3883 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 254: /* exp: CONSTANT '(' NAME ')'  */
-#line 978 "ldgram.y"
+#line 978 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_nameop (CONSTANT,(yyvsp[-1].name)); }
-#line 3889 "ldgram.c"
+#line 3889 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 255: /* exp: ABSOLUTE '(' exp ')'  */
-#line 980 "ldgram.y"
+#line 980 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_unop (ABSOLUTE, (yyvsp[-1].etree)); }
-#line 3895 "ldgram.c"
+#line 3895 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 256: /* exp: ALIGN_K '(' exp ')'  */
-#line 982 "ldgram.y"
+#line 982 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_unop (ALIGN_K,(yyvsp[-1].etree)); }
-#line 3901 "ldgram.c"
+#line 3901 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 257: /* exp: ALIGN_K '(' exp ',' exp ')'  */
-#line 984 "ldgram.y"
+#line 984 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (ALIGN_K,(yyvsp[-3].etree),(yyvsp[-1].etree)); }
-#line 3907 "ldgram.c"
+#line 3907 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 258: /* exp: DATA_SEGMENT_ALIGN '(' exp ',' exp ')'  */
-#line 986 "ldgram.y"
+#line 986 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (DATA_SEGMENT_ALIGN, (yyvsp[-3].etree), (yyvsp[-1].etree)); }
-#line 3913 "ldgram.c"
+#line 3913 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 259: /* exp: DATA_SEGMENT_RELRO_END '(' exp ',' exp ')'  */
-#line 988 "ldgram.y"
+#line 988 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (DATA_SEGMENT_RELRO_END, (yyvsp[-1].etree), (yyvsp[-3].etree)); }
-#line 3919 "ldgram.c"
+#line 3919 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 260: /* exp: DATA_SEGMENT_END '(' exp ')'  */
-#line 990 "ldgram.y"
+#line 990 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_unop (DATA_SEGMENT_END, (yyvsp[-1].etree)); }
-#line 3925 "ldgram.c"
+#line 3925 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 261: /* $@20: %empty  */
-#line 991 "ldgram.y"
+#line 991 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                               { ldlex_script (); }
-#line 3931 "ldgram.c"
+#line 3931 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 262: /* $@21: %empty  */
-#line 992 "ldgram.y"
+#line 992 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_popstate (); }
-#line 3937 "ldgram.c"
+#line 3937 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 263: /* exp: SEGMENT_START $@20 '(' NAME $@21 ',' exp ')'  */
-#line 993 "ldgram.y"
+#line 993 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { /* The operands to the expression node are
 			     placed in the opposite order from the way
 			     in which they appear in the script as
@@ -3946,166 +3946,166 @@ yyreduce:
 			  (yyval.etree) = exp_binop (SEGMENT_START,
 					  (yyvsp[-1].etree),
 					  exp_nameop (NAME, (yyvsp[-4].name))); }
-#line 3950 "ldgram.c"
+#line 3950 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 264: /* exp: BLOCK '(' exp ')'  */
-#line 1002 "ldgram.y"
+#line 1002 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_unop (ALIGN_K,(yyvsp[-1].etree)); }
-#line 3956 "ldgram.c"
+#line 3956 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 265: /* exp: NAME  */
-#line 1004 "ldgram.y"
+#line 1004 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_nameop (NAME,(yyvsp[0].name)); }
-#line 3962 "ldgram.c"
+#line 3962 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 266: /* exp: MAX_K '(' exp ',' exp ')'  */
-#line 1006 "ldgram.y"
+#line 1006 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (MAX_K, (yyvsp[-3].etree), (yyvsp[-1].etree) ); }
-#line 3968 "ldgram.c"
+#line 3968 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 267: /* exp: MIN_K '(' exp ',' exp ')'  */
-#line 1008 "ldgram.y"
+#line 1008 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_binop (MIN_K, (yyvsp[-3].etree), (yyvsp[-1].etree) ); }
-#line 3974 "ldgram.c"
+#line 3974 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 268: /* exp: ASSERT_K '(' exp ',' NAME ')'  */
-#line 1010 "ldgram.y"
+#line 1010 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_assert ((yyvsp[-3].etree), (yyvsp[-1].name)); }
-#line 3980 "ldgram.c"
+#line 3980 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 269: /* exp: ORIGIN paren_script_name  */
-#line 1012 "ldgram.y"
+#line 1012 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_nameop (ORIGIN, (yyvsp[0].name)); }
-#line 3986 "ldgram.c"
+#line 3986 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 270: /* exp: LENGTH paren_script_name  */
-#line 1014 "ldgram.y"
+#line 1014 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_nameop (LENGTH, (yyvsp[0].name)); }
-#line 3992 "ldgram.c"
+#line 3992 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 271: /* exp: LOG2CEIL '(' exp ')'  */
-#line 1016 "ldgram.y"
+#line 1016 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.etree) = exp_unop (LOG2CEIL, (yyvsp[-1].etree)); }
-#line 3998 "ldgram.c"
+#line 3998 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 272: /* memspec_at_opt: AT '>' NAME  */
-#line 1021 "ldgram.y"
+#line 1021 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                             { (yyval.name) = (yyvsp[0].name); }
-#line 4004 "ldgram.c"
+#line 4004 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 273: /* memspec_at_opt: %empty  */
-#line 1022 "ldgram.y"
+#line 1022 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.name) = 0; }
-#line 4010 "ldgram.c"
+#line 4010 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 274: /* opt_at: AT '(' exp ')'  */
-#line 1026 "ldgram.y"
+#line 1026 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                { (yyval.etree) = (yyvsp[-1].etree); }
-#line 4016 "ldgram.c"
+#line 4016 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 275: /* opt_at: %empty  */
-#line 1027 "ldgram.y"
+#line 1027 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.etree) = 0; }
-#line 4022 "ldgram.c"
+#line 4022 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 276: /* opt_align: ALIGN_K '(' exp ')'  */
-#line 1031 "ldgram.y"
+#line 1031 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                     { (yyval.etree) = (yyvsp[-1].etree); }
-#line 4028 "ldgram.c"
+#line 4028 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 277: /* opt_align: %empty  */
-#line 1032 "ldgram.y"
+#line 1032 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.etree) = 0; }
-#line 4034 "ldgram.c"
+#line 4034 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 278: /* opt_align_with_input: ALIGN_WITH_INPUT  */
-#line 1036 "ldgram.y"
+#line 1036 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                  { (yyval.token) = ALIGN_WITH_INPUT; }
-#line 4040 "ldgram.c"
+#line 4040 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 279: /* opt_align_with_input: %empty  */
-#line 1037 "ldgram.y"
+#line 1037 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.token) = 0; }
-#line 4046 "ldgram.c"
+#line 4046 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 280: /* opt_subalign: SUBALIGN '(' exp ')'  */
-#line 1041 "ldgram.y"
+#line 1041 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                      { (yyval.etree) = (yyvsp[-1].etree); }
-#line 4052 "ldgram.c"
+#line 4052 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 281: /* opt_subalign: %empty  */
-#line 1042 "ldgram.y"
+#line 1042 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.etree) = 0; }
-#line 4058 "ldgram.c"
+#line 4058 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 282: /* sect_constraint: ONLY_IF_RO  */
-#line 1046 "ldgram.y"
+#line 1046 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                            { (yyval.token) = ONLY_IF_RO; }
-#line 4064 "ldgram.c"
+#line 4064 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 283: /* sect_constraint: ONLY_IF_RW  */
-#line 1047 "ldgram.y"
+#line 1047 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                            { (yyval.token) = ONLY_IF_RW; }
-#line 4070 "ldgram.c"
+#line 4070 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 284: /* sect_constraint: SPECIAL  */
-#line 1048 "ldgram.y"
+#line 1048 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.token) = SPECIAL; }
-#line 4076 "ldgram.c"
+#line 4076 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 285: /* sect_constraint: %empty  */
-#line 1049 "ldgram.y"
+#line 1049 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.token) = 0; }
-#line 4082 "ldgram.c"
+#line 4082 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 286: /* $@22: %empty  */
-#line 1053 "ldgram.y"
+#line 1053 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_expression(); }
-#line 4088 "ldgram.c"
+#line 4088 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 287: /* $@23: %empty  */
-#line 1060 "ldgram.y"
+#line 1060 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  ldlex_popstate ();
 			  ldlex_wild ();
 			  lang_enter_output_section_statement ((yyvsp[-7].name), (yyvsp[-5].etree), sectype,
 					sectype_value, (yyvsp[-3].etree), (yyvsp[-1].etree), (yyvsp[-4].etree), (yyvsp[0].token), (yyvsp[-2].token));
 			}
-#line 4099 "ldgram.c"
+#line 4099 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 288: /* $@24: %empty  */
-#line 1069 "ldgram.y"
+#line 1069 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_popstate (); }
-#line 4105 "ldgram.c"
+#line 4105 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 289: /* $@25: %empty  */
-#line 1071 "ldgram.y"
+#line 1071 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  /* fill_opt may have switched the lexer into
 			     expression state, and back again, but in
@@ -4122,31 +4122,31 @@ yyreduce:
 			  lang_leave_output_section_statement ((yyvsp[0].fill), (yyvsp[-3].name),
 							       (yyvsp[-1].section_phdr), (yyvsp[-2].name));
 			}
-#line 4126 "ldgram.c"
+#line 4126 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 291: /* $@26: %empty  */
-#line 1089 "ldgram.y"
+#line 1089 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_expression (); }
-#line 4132 "ldgram.c"
+#line 4132 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 292: /* $@27: %empty  */
-#line 1091 "ldgram.y"
+#line 1091 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_popstate (); }
-#line 4138 "ldgram.c"
+#line 4138 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 293: /* $@28: %empty  */
-#line 1093 "ldgram.y"
+#line 1093 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  lang_enter_overlay ((yyvsp[-5].etree), (yyvsp[-2].etree));
 			}
-#line 4146 "ldgram.c"
+#line 4146 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 294: /* $@29: %empty  */
-#line 1099 "ldgram.y"
+#line 1099 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  if (yychar == NAME)
 			    {
@@ -4156,162 +4156,162 @@ yyreduce:
 			  lang_leave_overlay ((yyvsp[-10].etree), (int) (yyvsp[-11].integer),
 					      (yyvsp[0].fill), (yyvsp[-3].name), (yyvsp[-1].section_phdr), (yyvsp[-2].name));
 			}
-#line 4160 "ldgram.c"
+#line 4160 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 296: /* $@30: %empty  */
-#line 1114 "ldgram.y"
+#line 1114 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_expression (); }
-#line 4166 "ldgram.c"
+#line 4166 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 297: /* $@31: %empty  */
-#line 1116 "ldgram.y"
+#line 1116 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  ldlex_popstate ();
 			  lang_add_assignment (exp_assign (".", (yyvsp[0].etree), false));
 			}
-#line 4175 "ldgram.c"
+#line 4175 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 299: /* $@32: %empty  */
-#line 1122 "ldgram.y"
+#line 1122 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  ldfile_open_command_file ((yyvsp[0].name));
 			}
-#line 4183 "ldgram.c"
+#line 4183 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 301: /* type: NOLOAD  */
-#line 1129 "ldgram.y"
+#line 1129 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                    { sectype = noload_section; }
-#line 4189 "ldgram.c"
+#line 4189 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 302: /* type: DSECT  */
-#line 1130 "ldgram.y"
+#line 1130 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                    { sectype = noalloc_section; }
-#line 4195 "ldgram.c"
+#line 4195 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 303: /* type: COPY  */
-#line 1131 "ldgram.y"
+#line 1131 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                    { sectype = noalloc_section; }
-#line 4201 "ldgram.c"
+#line 4201 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 304: /* type: INFO  */
-#line 1132 "ldgram.y"
+#line 1132 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                    { sectype = noalloc_section; }
-#line 4207 "ldgram.c"
+#line 4207 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 305: /* type: OVERLAY  */
-#line 1133 "ldgram.y"
+#line 1133 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                    { sectype = noalloc_section; }
-#line 4213 "ldgram.c"
+#line 4213 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 306: /* type: READONLY '(' TYPE '=' exp ')'  */
-#line 1134 "ldgram.y"
+#line 1134 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                          { sectype = typed_readonly_section; sectype_value = (yyvsp[-1].etree); }
-#line 4219 "ldgram.c"
+#line 4219 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 307: /* type: READONLY  */
-#line 1135 "ldgram.y"
+#line 1135 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                     { sectype = readonly_section; }
-#line 4225 "ldgram.c"
+#line 4225 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 308: /* type: TYPE '=' exp  */
-#line 1136 "ldgram.y"
+#line 1136 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { sectype = type_section; sectype_value = (yyvsp[0].etree); }
-#line 4231 "ldgram.c"
+#line 4231 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 310: /* atype: %empty  */
-#line 1141 "ldgram.y"
+#line 1141 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                             { sectype = normal_section; }
-#line 4237 "ldgram.c"
+#line 4237 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 311: /* atype: '(' ')'  */
-#line 1142 "ldgram.y"
+#line 1142 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { sectype = normal_section; }
-#line 4243 "ldgram.c"
+#line 4243 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 312: /* opt_exp_with_type: exp atype ':'  */
-#line 1146 "ldgram.y"
+#line 1146 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                         { (yyval.etree) = (yyvsp[-2].etree); }
-#line 4249 "ldgram.c"
+#line 4249 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 313: /* opt_exp_with_type: atype ':'  */
-#line 1147 "ldgram.y"
+#line 1147 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                         { (yyval.etree) = (etree_type *)NULL;  }
-#line 4255 "ldgram.c"
+#line 4255 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 314: /* opt_exp_with_type: BIND '(' exp ')' atype ':'  */
-#line 1152 "ldgram.y"
+#line 1152 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                            { (yyval.etree) = (yyvsp[-3].etree); }
-#line 4261 "ldgram.c"
+#line 4261 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 315: /* opt_exp_with_type: BIND '(' exp ')' BLOCK '(' exp ')' atype ':'  */
-#line 1154 "ldgram.y"
+#line 1154 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.etree) = (yyvsp[-7].etree); }
-#line 4267 "ldgram.c"
+#line 4267 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 316: /* opt_exp_without_type: exp ':'  */
-#line 1158 "ldgram.y"
+#line 1158 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                 { (yyval.etree) = (yyvsp[-1].etree); }
-#line 4273 "ldgram.c"
+#line 4273 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 317: /* opt_exp_without_type: ':'  */
-#line 1159 "ldgram.y"
+#line 1159 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                 { (yyval.etree) = (etree_type *) NULL;  }
-#line 4279 "ldgram.c"
+#line 4279 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 318: /* opt_nocrossrefs: %empty  */
-#line 1164 "ldgram.y"
+#line 1164 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.integer) = 0; }
-#line 4285 "ldgram.c"
+#line 4285 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 319: /* opt_nocrossrefs: NOCROSSREFS  */
-#line 1166 "ldgram.y"
+#line 1166 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { (yyval.integer) = 1; }
-#line 4291 "ldgram.c"
+#line 4291 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 320: /* memspec_opt: '>' NAME  */
-#line 1171 "ldgram.y"
+#line 1171 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.name) = (yyvsp[0].name); }
-#line 4297 "ldgram.c"
+#line 4297 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 321: /* memspec_opt: %empty  */
-#line 1172 "ldgram.y"
+#line 1172 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 { (yyval.name) = DEFAULT_MEMORY_REGION; }
-#line 4303 "ldgram.c"
+#line 4303 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 322: /* phdr_opt: %empty  */
-#line 1177 "ldgram.y"
+#line 1177 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.section_phdr) = NULL;
 		}
-#line 4311 "ldgram.c"
+#line 4311 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 323: /* phdr_opt: phdr_opt ':' NAME  */
-#line 1181 "ldgram.y"
+#line 1181 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  struct lang_output_section_phdr_list *n;
 
@@ -4322,26 +4322,26 @@ yyreduce:
 		  n->next = (yyvsp[-2].section_phdr);
 		  (yyval.section_phdr) = n;
 		}
-#line 4326 "ldgram.c"
+#line 4326 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 325: /* $@33: %empty  */
-#line 1197 "ldgram.y"
+#line 1197 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  ldlex_wild ();
 			  lang_enter_overlay_section ((yyvsp[0].name));
 			}
-#line 4335 "ldgram.c"
+#line 4335 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 326: /* $@34: %empty  */
-#line 1204 "ldgram.y"
+#line 1204 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         { ldlex_popstate (); }
-#line 4341 "ldgram.c"
+#line 4341 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 327: /* $@35: %empty  */
-#line 1206 "ldgram.y"
+#line 1206 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  if (yychar == NAME)
 			    {
@@ -4350,32 +4350,32 @@ yyreduce:
 			    }
 			  lang_leave_overlay_section ((yyvsp[0].fill), (yyvsp[-1].section_phdr));
 			}
-#line 4354 "ldgram.c"
+#line 4354 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 332: /* $@36: %empty  */
-#line 1227 "ldgram.y"
+#line 1227 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                      { ldlex_expression (); }
-#line 4360 "ldgram.c"
+#line 4360 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 333: /* $@37: %empty  */
-#line 1228 "ldgram.y"
+#line 1228 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                                             { ldlex_popstate (); }
-#line 4366 "ldgram.c"
+#line 4366 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 334: /* phdr: NAME $@36 phdr_type phdr_qualifiers $@37 ';'  */
-#line 1230 "ldgram.y"
+#line 1230 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_new_phdr ((yyvsp[-5].name), (yyvsp[-3].etree), (yyvsp[-2].phdr).filehdr, (yyvsp[-2].phdr).phdrs, (yyvsp[-2].phdr).at,
 				 (yyvsp[-2].phdr).flags);
 		}
-#line 4375 "ldgram.c"
+#line 4375 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 335: /* phdr_type: exp  */
-#line 1238 "ldgram.y"
+#line 1238 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.etree) = (yyvsp[0].etree);
 
@@ -4420,19 +4420,19 @@ yyreduce:
 			}
 		    }
 		}
-#line 4424 "ldgram.c"
+#line 4424 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 336: /* phdr_qualifiers: %empty  */
-#line 1286 "ldgram.y"
+#line 1286 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  memset (&(yyval.phdr), 0, sizeof (struct phdr_info));
 		}
-#line 4432 "ldgram.c"
+#line 4432 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 337: /* phdr_qualifiers: NAME phdr_val phdr_qualifiers  */
-#line 1290 "ldgram.y"
+#line 1290 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.phdr) = (yyvsp[0].phdr);
 		  if (strcmp ((yyvsp[-2].name), "FILEHDR") == 0 && (yyvsp[-1].etree) == NULL)
@@ -4445,217 +4445,217 @@ yyreduce:
 		    einfo (_("%X%P:%pS: PHDRS syntax error at `%s'\n"),
 			   NULL, (yyvsp[-2].name));
 		}
-#line 4449 "ldgram.c"
+#line 4449 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 338: /* phdr_qualifiers: AT '(' exp ')' phdr_qualifiers  */
-#line 1303 "ldgram.y"
+#line 1303 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.phdr) = (yyvsp[0].phdr);
 		  (yyval.phdr).at = (yyvsp[-2].etree);
 		}
-#line 4458 "ldgram.c"
+#line 4458 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 339: /* phdr_val: %empty  */
-#line 1311 "ldgram.y"
+#line 1311 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.etree) = NULL;
 		}
-#line 4466 "ldgram.c"
+#line 4466 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 340: /* phdr_val: '(' exp ')'  */
-#line 1315 "ldgram.y"
+#line 1315 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.etree) = (yyvsp[-1].etree);
 		}
-#line 4474 "ldgram.c"
+#line 4474 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 341: /* $@38: %empty  */
-#line 1321 "ldgram.y"
+#line 1321 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  ldlex_version_file ();
 		  PUSH_ERROR (_("dynamic list"));
 		}
-#line 4483 "ldgram.c"
+#line 4483 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 342: /* dynamic_list_file: $@38 dynamic_list_nodes  */
-#line 1326 "ldgram.y"
+#line 1326 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  ldlex_popstate ();
 		  POP_ERROR ();
 		}
-#line 4492 "ldgram.c"
+#line 4492 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 346: /* dynamic_list_tag: vers_defns ';'  */
-#line 1343 "ldgram.y"
+#line 1343 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_append_dynamic_list (current_dynamic_list_p, (yyvsp[-1].versyms));
 		}
-#line 4500 "ldgram.c"
+#line 4500 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 347: /* $@39: %empty  */
-#line 1351 "ldgram.y"
+#line 1351 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  ldlex_version_file ();
 		  PUSH_ERROR (_("VERSION script"));
 		}
-#line 4509 "ldgram.c"
+#line 4509 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 348: /* version_script_file: $@39 vers_nodes  */
-#line 1356 "ldgram.y"
+#line 1356 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  ldlex_popstate ();
 		  POP_ERROR ();
 		}
-#line 4518 "ldgram.c"
+#line 4518 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 349: /* $@40: %empty  */
-#line 1365 "ldgram.y"
+#line 1365 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  ldlex_version_script ();
 		}
-#line 4526 "ldgram.c"
+#line 4526 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 350: /* version: $@40 VERSIONK '{' vers_nodes '}'  */
-#line 1369 "ldgram.y"
+#line 1369 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  ldlex_popstate ();
 		}
-#line 4534 "ldgram.c"
+#line 4534 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 353: /* vers_node: '{' vers_tag '}' ';'  */
-#line 1381 "ldgram.y"
+#line 1381 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_register_vers_node (NULL, (yyvsp[-2].versnode), NULL);
 		}
-#line 4542 "ldgram.c"
+#line 4542 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 354: /* vers_node: VERS_TAG '{' vers_tag '}' ';'  */
-#line 1385 "ldgram.y"
+#line 1385 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_register_vers_node ((yyvsp[-4].name), (yyvsp[-2].versnode), NULL);
 		}
-#line 4550 "ldgram.c"
+#line 4550 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 355: /* vers_node: VERS_TAG '{' vers_tag '}' verdep ';'  */
-#line 1389 "ldgram.y"
+#line 1389 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  lang_register_vers_node ((yyvsp[-5].name), (yyvsp[-3].versnode), (yyvsp[-1].deflist));
 		}
-#line 4558 "ldgram.c"
+#line 4558 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 356: /* verdep: VERS_TAG  */
-#line 1396 "ldgram.y"
+#line 1396 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.deflist) = lang_add_vers_depend (NULL, (yyvsp[0].name));
 		}
-#line 4566 "ldgram.c"
+#line 4566 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 357: /* verdep: verdep VERS_TAG  */
-#line 1400 "ldgram.y"
+#line 1400 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.deflist) = lang_add_vers_depend ((yyvsp[-1].deflist), (yyvsp[0].name));
 		}
-#line 4574 "ldgram.c"
+#line 4574 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 358: /* vers_tag: %empty  */
-#line 1407 "ldgram.y"
+#line 1407 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versnode) = lang_new_vers_node (NULL, NULL);
 		}
-#line 4582 "ldgram.c"
+#line 4582 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 359: /* vers_tag: vers_defns ';'  */
-#line 1411 "ldgram.y"
+#line 1411 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versnode) = lang_new_vers_node ((yyvsp[-1].versyms), NULL);
 		}
-#line 4590 "ldgram.c"
+#line 4590 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 360: /* vers_tag: GLOBAL ':' vers_defns ';'  */
-#line 1415 "ldgram.y"
+#line 1415 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versnode) = lang_new_vers_node ((yyvsp[-1].versyms), NULL);
 		}
-#line 4598 "ldgram.c"
+#line 4598 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 361: /* vers_tag: LOCAL ':' vers_defns ';'  */
-#line 1419 "ldgram.y"
+#line 1419 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versnode) = lang_new_vers_node (NULL, (yyvsp[-1].versyms));
 		}
-#line 4606 "ldgram.c"
+#line 4606 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 362: /* vers_tag: GLOBAL ':' vers_defns ';' LOCAL ':' vers_defns ';'  */
-#line 1423 "ldgram.y"
+#line 1423 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versnode) = lang_new_vers_node ((yyvsp[-5].versyms), (yyvsp[-1].versyms));
 		}
-#line 4614 "ldgram.c"
+#line 4614 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 363: /* vers_defns: VERS_IDENTIFIER  */
-#line 1430 "ldgram.y"
+#line 1430 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versyms) = lang_new_vers_pattern (NULL, (yyvsp[0].name), ldgram_vers_current_lang, false);
 		}
-#line 4622 "ldgram.c"
+#line 4622 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 364: /* vers_defns: NAME  */
-#line 1434 "ldgram.y"
+#line 1434 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versyms) = lang_new_vers_pattern (NULL, (yyvsp[0].name), ldgram_vers_current_lang, true);
 		}
-#line 4630 "ldgram.c"
+#line 4630 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 365: /* vers_defns: vers_defns ';' VERS_IDENTIFIER  */
-#line 1438 "ldgram.y"
+#line 1438 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versyms) = lang_new_vers_pattern ((yyvsp[-2].versyms), (yyvsp[0].name), ldgram_vers_current_lang, false);
 		}
-#line 4638 "ldgram.c"
+#line 4638 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 366: /* vers_defns: vers_defns ';' NAME  */
-#line 1442 "ldgram.y"
+#line 1442 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versyms) = lang_new_vers_pattern ((yyvsp[-2].versyms), (yyvsp[0].name), ldgram_vers_current_lang, true);
 		}
-#line 4646 "ldgram.c"
+#line 4646 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 367: /* @41: %empty  */
-#line 1446 "ldgram.y"
+#line 1446 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.name) = ldgram_vers_current_lang;
 			  ldgram_vers_current_lang = (yyvsp[-1].name);
 			}
-#line 4655 "ldgram.c"
+#line 4655 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 368: /* vers_defns: vers_defns ';' EXTERN NAME '{' @41 vers_defns opt_semicolon '}'  */
-#line 1451 "ldgram.y"
+#line 1451 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  struct bfd_elf_version_expr *pat;
 			  for (pat = (yyvsp[-2].versyms); pat->next != NULL; pat = pat->next);
@@ -4663,77 +4663,77 @@ yyreduce:
 			  (yyval.versyms) = (yyvsp[-2].versyms);
 			  ldgram_vers_current_lang = (yyvsp[-3].name);
 			}
-#line 4667 "ldgram.c"
+#line 4667 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 369: /* @42: %empty  */
-#line 1459 "ldgram.y"
+#line 1459 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.name) = ldgram_vers_current_lang;
 			  ldgram_vers_current_lang = (yyvsp[-1].name);
 			}
-#line 4676 "ldgram.c"
+#line 4676 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 370: /* vers_defns: EXTERN NAME '{' @42 vers_defns opt_semicolon '}'  */
-#line 1464 "ldgram.y"
+#line 1464 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                         {
 			  (yyval.versyms) = (yyvsp[-2].versyms);
 			  ldgram_vers_current_lang = (yyvsp[-3].name);
 			}
-#line 4685 "ldgram.c"
+#line 4685 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 371: /* vers_defns: GLOBAL  */
-#line 1469 "ldgram.y"
+#line 1469 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versyms) = lang_new_vers_pattern (NULL, "global", ldgram_vers_current_lang, false);
 		}
-#line 4693 "ldgram.c"
+#line 4693 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 372: /* vers_defns: vers_defns ';' GLOBAL  */
-#line 1473 "ldgram.y"
+#line 1473 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versyms) = lang_new_vers_pattern ((yyvsp[-2].versyms), "global", ldgram_vers_current_lang, false);
 		}
-#line 4701 "ldgram.c"
+#line 4701 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 373: /* vers_defns: LOCAL  */
-#line 1477 "ldgram.y"
+#line 1477 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versyms) = lang_new_vers_pattern (NULL, "local", ldgram_vers_current_lang, false);
 		}
-#line 4709 "ldgram.c"
+#line 4709 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 374: /* vers_defns: vers_defns ';' LOCAL  */
-#line 1481 "ldgram.y"
+#line 1481 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versyms) = lang_new_vers_pattern ((yyvsp[-2].versyms), "local", ldgram_vers_current_lang, false);
 		}
-#line 4717 "ldgram.c"
+#line 4717 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 375: /* vers_defns: EXTERN  */
-#line 1485 "ldgram.y"
+#line 1485 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versyms) = lang_new_vers_pattern (NULL, "extern", ldgram_vers_current_lang, false);
 		}
-#line 4725 "ldgram.c"
+#line 4725 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
   case 376: /* vers_defns: vers_defns ';' EXTERN  */
-#line 1489 "ldgram.y"
+#line 1489 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
                 {
 		  (yyval.versyms) = lang_new_vers_pattern ((yyvsp[-2].versyms), "extern", ldgram_vers_current_lang, false);
 		}
-#line 4733 "ldgram.c"
+#line 4733 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
     break;
 
 
-#line 4737 "ldgram.c"
+#line 4737 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.c"
 
       default: break;
     }
@@ -4926,7 +4926,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 1499 "ldgram.y"
+#line 1499 "/home/wolfgang/Projects/Retro68/binutils/ld/ldgram.y"
 
 void
 yyerror(arg)

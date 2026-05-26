@@ -1,5 +1,5 @@
 
-#line 2 "arlex.c"
+#line 2 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -549,9 +549,9 @@ int yy_flex_debug = 0;
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
-#line 1 "arlex.l"
+#line 1 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 #define YY_NO_INPUT 1
-#line 4 "arlex.l"
+#line 4 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 /* arlex.l - Strange script language lexer */
 
 /* Copyright (C) 1992-2022 Free Software Foundation, Inc.
@@ -588,8 +588,8 @@ char *yytext;
 extern int yylex (void);
 
 int linenumber;
-#line 591 "arlex.c"
-#line 592 "arlex.c"
+#line 591 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.c"
+#line 592 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.c"
 
 #define INITIAL 0
 
@@ -804,10 +804,10 @@ YY_DECL
 		}
 
 	{
-#line 45 "arlex.l"
+#line 45 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 
 
-#line 810 "arlex.c"
+#line 810 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -866,178 +866,178 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 47 "arlex.l"
+#line 47 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return ADDLIB; }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 48 "arlex.l"
+#line 48 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return ADDMOD; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 49 "arlex.l"
+#line 49 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return CLEAR; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 50 "arlex.l"
+#line 50 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return CREATE; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 51 "arlex.l"
+#line 51 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return DELETE; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 52 "arlex.l"
+#line 52 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return DIRECTORY; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 53 "arlex.l"
+#line 53 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return END; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 54 "arlex.l"
+#line 54 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return EXTRACT; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 55 "arlex.l"
+#line 55 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return FULLDIR; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 56 "arlex.l"
+#line 56 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return HELP; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 57 "arlex.l"
+#line 57 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return LIST; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 58 "arlex.l"
+#line 58 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return OPEN; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 59 "arlex.l"
+#line 59 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return REPLACE; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 60 "arlex.l"
+#line 60 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return VERBOSE; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 61 "arlex.l"
+#line 61 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return SAVE; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 62 "arlex.l"
+#line 62 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return ADDLIB; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 63 "arlex.l"
+#line 63 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return ADDMOD; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 64 "arlex.l"
+#line 64 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return CLEAR; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 65 "arlex.l"
+#line 65 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return CREATE; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 66 "arlex.l"
+#line 66 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return DELETE; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 67 "arlex.l"
+#line 67 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return DIRECTORY; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 68 "arlex.l"
+#line 68 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return END; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 69 "arlex.l"
+#line 69 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return EXTRACT; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 70 "arlex.l"
+#line 70 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return FULLDIR; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 71 "arlex.l"
+#line 71 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return HELP; }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 72 "arlex.l"
+#line 72 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return LIST; }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 73 "arlex.l"
+#line 73 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return OPEN; }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 74 "arlex.l"
+#line 74 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return REPLACE; }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 75 "arlex.l"
+#line 75 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return VERBOSE; }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 76 "arlex.l"
+#line 76 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return SAVE; }
 	YY_BREAK
 case 31:
 /* rule 31 can match eol */
 YY_RULE_SETUP
-#line 77 "arlex.l"
+#line 77 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { linenumber ++; }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 78 "arlex.l"
+#line 78 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return '('; }
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 79 "arlex.l"
+#line 79 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return ')'; }
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 80 "arlex.l"
+#line 80 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { return ','; }
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 81 "arlex.l"
+#line 81 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 {
 		yylval.name =  xstrdup (yytext);
 		return FILENAME;
@@ -1045,31 +1045,31 @@ YY_RULE_SETUP
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 85 "arlex.l"
+#line 85 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { }
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 86 "arlex.l"
+#line 86 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { }
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 87 "arlex.l"
+#line 87 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { }
 	YY_BREAK
 case 39:
 /* rule 39 can match eol */
 YY_RULE_SETUP
-#line 88 "arlex.l"
+#line 88 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 { linenumber ++; return NEWLINE; }
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 90 "arlex.l"
+#line 90 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 ECHO;
 	YY_BREAK
-#line 1072 "arlex.c"
+#line 1072 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2037,6 +2037,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 90 "arlex.l"
+#line 90 "/home/wolfgang/Projects/Retro68/binutils/binutils/arlex.l"
 
 

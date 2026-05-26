@@ -1,5 +1,5 @@
 /* ==> Do not modify this file!!  It is created automatically
-   from bsd_callg_bl.m using the gen-c-prog.awk script.  <== */
+   from /home/wolfgang/Projects/Retro68/binutils/gprof/bsd_callg_bl.m using the gen-c-prog.awk script.  <== */
 
 #include <stdio.h>
 #include "ansidecl.h"

@@ -1,5 +1,5 @@
 /* ==> Do not modify this file!!  It is created automatically
-   from fsf_callg_bl.m using the gen-c-prog.awk script.  <== */
+   from /home/wolfgang/Projects/Retro68/binutils/gprof/fsf_callg_bl.m using the gen-c-prog.awk script.  <== */
 
 #include <stdio.h>
 #include "ansidecl.h"
