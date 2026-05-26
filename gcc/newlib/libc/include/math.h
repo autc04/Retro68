@@ -510,6 +510,44 @@ extern long double erfcl (long double);
 extern long double hypotl (long double, long double);
 extern long double sqrtl (long double);
 extern long double frexpl (long double, int *);
+/* Declare the remaining long double functions needed for complex math
+   on platforms where long double != double (e.g. m68k with 80-bit FPU).  */
+#ifndef __math_68881
+extern long double atanl (long double);
+extern long double cosl (long double);
+extern long double sinl (long double);
+extern long double tanl (long double);
+extern long double sinhl (long double);
+extern long double coshl (long double);
+extern long double tanhl (long double);
+extern long double acosl (long double);
+extern long double asinl (long double);
+extern long double atan2l (long double, long double);
+extern long double expl (long double);
+extern long double ldexpl (long double, int);
+extern long double logl (long double);
+extern long double log10l (long double);
+extern long double powl (long double, long double);
+extern long double fmodl (long double, long double);
+extern long double fabsl (long double);
+extern long double floorl (long double);
+extern long double ceill (long double);
+extern long double modfl (long double, long double *);
+#endif /* ! defined (__math_68881) */
+extern long double copysignl (long double, long double);
+extern long double asinhl (long double);
+extern long double log2l (long double);
+extern long double rintl (long double);
+extern long double scalbnl (long double, int);
+extern long double exp2l (long double);
+extern long double scalblnl (long double, long);
+extern long double nearbyintl (long double);
+extern long int lrintl (long double);
+extern long long int llrintl (long double);
+extern long double roundl (long double);
+extern long lroundl (long double);
+extern long long int llroundl (long double);
+extern long double truncl (long double);
 #ifdef __i386__
 /* Other long double precision functions.  */
 extern _LONG_DOUBLE rintl (_LONG_DOUBLE);
