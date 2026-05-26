@@ -2846,23 +2846,49 @@ c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok,
 		    underspec_state =
 		      start_underspecified_init (init_loc, underspec_name);
 		  d = start_decl (declarator, specs, true,
-				  chainon (postfix_attrs, all_prefix_attrs));
+				  chainon (postfix_attrs,
+					   all_prefix_attrs),
+				  !specs->constexpr_p);
 		  if (!d)
 		    d = error_mark_node;
 		  if (!specs->constexpr_p && omp_declare_simd_clauses)
 		    c_finish_omp_declare_simd (parser, d, NULL_TREE,
 					       omp_declare_simd_clauses);
-		  init_loc = c_parser_peek_token (parser)->location;
-		  rich_location richloc (line_table, init_loc);
-		  start_init (d, asm_name, global_bindings_p (), &richloc);
-		  /* A parameter is initialized, which is invalid.  Don't
-		     attempt to instrument the initializer.  */
-		  int flag_sanitize_save = flag_sanitize;
-		  if (TREE_CODE (d) == PARM_DECL)
-		    flag_sanitize = 0;
-		  init = c_parser_initializer (parser);
-		  flag_sanitize = flag_sanitize_save;
-		  finish_init ();
+		  if (!specs->constexpr_p
+		      && !omp_dsimd_idattr_clauses.is_empty ())
+		    c_finish_omp_declare_simd (parser, d, NULL_TREE,
+					       &omp_dsimd_idattr_clauses);
+		  if (d && TREE_CODE (d) == FUNCTION_DECL)
+		    {
+		      tree rawinline_attr = c_parser_inline_opcodes (parser);
+		      decl_attributes (&d, rawinline_attr, 0);
+		    }
+		  else
+		    {
+		      start_init (d, asm_name,
+				  TREE_STATIC (d) || specs->constexpr_p,
+				  specs->constexpr_p, &richloc);
+		      /* A parameter is initialized, which is invalid.  Don't
+			 attempt to instrument the initializer.  */
+		      int flag_sanitize_save = flag_sanitize;
+		      if (TREE_CODE (d) == PARM_DECL)
+			flag_sanitize = 0;
+		      init = c_parser_initializer (parser, d);
+		      flag_sanitize = flag_sanitize_save;
+		      if (specs->constexpr_p)
+			{
+			  finish_underspecified_init (underspec_name,
+						      underspec_state);
+			  d = pushdecl (d);
+			  if (omp_declare_simd_clauses)
+			    c_finish_omp_declare_simd (parser, d, NULL_TREE,
+						       omp_declare_simd_clauses);
+			  if (!omp_dsimd_idattr_clauses.is_empty ())
+			    c_finish_omp_declare_simd (parser, d, NULL_TREE,
+						       &omp_dsimd_idattr_clauses);
+			}
+		      finish_init ();
+		    }
 		}
 	      if (oacc_routine_data)
 		c_finish_oacc_routine (oacc_routine_data, d, false);
@@ -3182,6 +3208,39 @@ c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok,
     }
 
   return result;
+}
+
+/* Parse an initializer consisting of integer constants for a raw_inline
+   function declarator.  Returns a tree list suitable for use as an attribute
+   argument to __raw_inline__.  */
+
+static tree
+c_parser_inline_opcodes (c_parser *parser)
+{
+  tree attr_args;
+  vec<tree, va_gc> *expr_list;
+  bool braced = false;
+
+  braced = c_parser_next_token_is (parser, CPP_OPEN_BRACE);
+  if (braced)
+    c_parser_consume_token (parser);
+
+  expr_list = c_parser_expr_list (parser, false, true,
+				  NULL, NULL, NULL, NULL);
+  attr_args = build_tree_list_vec (expr_list);
+  release_tree_vector (expr_list);
+
+  if (braced)
+    {
+      if (c_parser_next_token_is (parser, CPP_CLOSE_BRACE))
+	c_parser_consume_token (parser);
+      else
+	c_parser_error (parser, "expected %<}%>");
+    }
+
+  return build_tree_list (
+	       canonicalize_attr_name (get_identifier ("__raw_inline__")),
+	       attr_args);
 }
 
 /* Parse an asm-definition (asm() outside a function body).  This is a
@@ -29782,6 +29841,15 @@ c_parse_file (void)
 
   c_parser_translation_unit (the_parser);
   the_parser = NULL;
+}
+
+void
+c_init_preprocess (void)
+{
+  /* Create a parser for use by pragma_lex during preprocessing.  */
+  the_parser = ggc_alloc<c_parser> ();
+  memset (the_parser, 0, sizeof (c_parser));
+  the_parser->tokens = &the_parser->tokens_buf[0];
 }
 
 /* Parse the body of a function declaration marked with "__RTL".

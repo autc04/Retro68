@@ -7464,4 +7464,85 @@ m68k_promote_function_mode (const_tree type, machine_mode mode,
   return mode;
 }
 
+/* Implement TARGET_ZERO_CALL_USED_REGS.  */
+
+static HARD_REG_SET
+m68k_zero_call_used_regs (HARD_REG_SET need_zeroed_hardregs)
+{
+  rtx zero_fpreg = NULL_RTX;
+
+  for (unsigned int regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)
+    if (TEST_HARD_REG_BIT (need_zeroed_hardregs, regno))
+      {
+	rtx reg, zero;
+
+	if (INT_REGNO_P (regno))
+	  {
+	    reg = regno_reg_rtx[regno];
+	    zero = CONST0_RTX (SImode);
+	  }
+	else if (FP_REGNO_P (regno))
+	  {
+	    reg = gen_raw_REG (SFmode, regno);
+	    if (zero_fpreg == NULL_RTX)
+	      {
+		/* On the 040/060 clearing an FP reg loads a large
+		   immediate.  To reduce code size use the first
+		   cleared FP reg to clear remaining ones.  Don't do
+		   this on cores which use fmovecr.  */
+		zero = CONST0_RTX (SFmode);
+		if (TUNE_68040_60)
+		  zero_fpreg = reg;
+	      }
+	    else
+	      zero = zero_fpreg;
+	  }
+	else
+	  gcc_unreachable ();
+
+	emit_move_insn (reg, zero);
+      }
+
+  return need_zeroed_hardregs;
+}
+
+/* Implement TARGET_C_MODE_FOR_FLOATING_TYPE.  Return XFmode or DFmode
+   for TI_LONG_DOUBLE_TYPE which is for long double type, go with the
+   default one for the others.  */
+
+static machine_mode
+m68k_c_mode_for_floating_type (enum tree_index ti)
+{
+  if (ti == TI_LONG_DOUBLE_TYPE)
+    return LONG_DOUBLE_TYPE_MODE;
+  return default_mode_for_floating_type (ti);
+}
+
+/* Implement TARGET_LRA_P.  */
+
+static bool
+m68k_use_lra_p ()
+{
+  return m68k_lra_p;
+}
+
+/* Return true if X is a SYMBOL_REF referring to a raw_inline function.  */
+
+bool
+m68k_rawinline_p (rtx x)
+{
+  if (GET_CODE (x) == SYMBOL_REF)
+    {
+      tree decl = SYMBOL_REF_DECL (x);
+      if (decl)
+	{
+	  tree attr = lookup_attribute ("raw_inline",
+					TYPE_ATTRIBUTES (TREE_TYPE (decl)));
+	  if (attr)
+	    return true;
+	}
+    }
+  return false;
+}
+
 #include "gt-m68k.h"
