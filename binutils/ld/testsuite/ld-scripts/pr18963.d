@@ -1,5 +1,5 @@
 # source: data.s
-# ld: -T pr18963.t
+# ld: -T pr18963.t --no-error-rwx-segments
 # nm: -B -n
 # notarget: *-*-vms
 # Skip for VMS based targets as the linker automatically adds extra libraries that may not be present in a cross build.

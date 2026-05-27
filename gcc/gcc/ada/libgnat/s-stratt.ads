@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -170,6 +170,8 @@ package System.Stream_Attributes is
    procedure W_U24  (Stream : not null access RST; Item : Unsigned_24);
    procedure W_WC   (Stream : not null access RST; Item : Wide_Character);
    procedure W_WWC  (Stream : not null access RST; Item : Wide_Wide_Character);
+
+   procedure W_80IEEE (Stream : not null access RST; Item : Long_Long_Float);
 
    function Block_IO_OK return Boolean;
    --  Indicate whether the current setting supports block IO. See

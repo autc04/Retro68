@@ -1,5 +1,5 @@
 /* Hooks for cfg representation specific functions.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <s.pop@laposte.net>
 
 This file is part of GCC.
@@ -18,6 +18,7 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#define INCLUDE_VECTOR
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -34,6 +35,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "cfgloop.h"
 #include "sreal.h"
 #include "profile.h"
+#include "diagnostics/sarif-sink.h"
+#include "custom-sarif-properties/cfg.h"
 
 /* Disable warnings about missing quoting in GCC diagnostics.  */
 #if __GNUC__ >= 10
@@ -350,6 +353,33 @@ dump_bb_for_graph (pretty_printer *pp, basic_block bb)
   pp_write_text_to_stream (pp);
   if (!(dump_flags & TDF_SLIM))
     cfg_hooks->dump_bb_for_graph (pp, bb);
+}
+
+void
+dump_bb_as_sarif_properties (diagnostics::sarif_builder *builder,
+			     json::object &output_bag,
+			     basic_block bb)
+{
+  if (!cfg_hooks->dump_bb_for_graph)
+    internal_error ("%s does not support dump_bb_as_sarif_properties",
+		    cfg_hooks->name);
+  namespace bb_property_names = custom_sarif_properties::cfg::basic_block;
+  if (bb->index == ENTRY_BLOCK)
+    output_bag.set_string (bb_property_names::kind, "entry");
+  else if (bb->index == EXIT_BLOCK)
+    output_bag.set_string (bb_property_names::kind, "exit");
+  else if (BB_PARTITION (bb) == BB_HOT_PARTITION)
+    output_bag.set_string (bb_property_names::kind, "hot");
+  else if (BB_PARTITION (bb) == BB_COLD_PARTITION)
+    output_bag.set_string (bb_property_names::kind, "cold");
+  if (bb->count.initialized_p ())
+    {
+      pretty_printer pp;
+      pp_printf (&pp, "%" PRId64, bb->count.to_gcov_type ());
+      output_bag.set_string (bb_property_names::count,
+			     pp_formatted_text (&pp));
+    }
+  cfg_hooks->dump_bb_as_sarif_properties (builder, output_bag, bb);
 }
 
 /* Dump the complete CFG to FILE.  FLAGS are the TDF_* flags in dumpfile.h.  */
@@ -816,6 +846,15 @@ merge_blocks (basic_block a, basic_block b)
 
   if (!cfg_hooks->merge_blocks)
     internal_error ("%s does not support merge_blocks", cfg_hooks->name);
+
+  /* Pick the more reliable count.  If both qualities agrees, pick the larger
+     one since turning mistakely hot code to cold is more harmful.  */
+  if (!a->count.initialized_p ())
+    a->count = b->count;
+  else if (a->count.quality () < b->count.quality ())
+    a->count = b->count;
+  else if (a->count.quality () == b->count.quality ())
+    a->count = profile_count::max_prefer_initialized (a->count, b->count);
 
   cfg_hooks->merge_blocks (a, b);
 

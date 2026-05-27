@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 AVX/GFNI insns
 #source: x86-64-avx_gfni.s

@@ -25,7 +25,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 73 f6 02          	psllq  \$0x2,%mm6
 [ 	]*[a-f0-9]+:	66 41 0f 73 f2 02    	psllq  \$0x2,%xmm10
 [ 	]*[a-f0-9]+:	66 41 0f 73 fa 02    	pslldq \$0x2,%xmm10
-[ 	]*[a-f0-9]+:	40 80 c0 01[ 	]+rex add \$0x1,%al
+[ 	]*[a-f0-9]+:	40 04 01[ 	]+rex add \$0x1,%al
 [ 	]*[a-f0-9]+:	40 80 c1 01[ 	]+rex add \$0x1,%cl
 [ 	]*[a-f0-9]+:	40 80 c2 01[ 	]+rex add \$0x1,%dl
 [ 	]*[a-f0-9]+:	40 80 c3 01[ 	]+rex add \$0x1,%bl
@@ -33,6 +33,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	40 80 c5 01[ 	]+add    \$0x1,%bpl
 [ 	]*[a-f0-9]+:	40 80 c6 01[ 	]+add    \$0x1,%sil
 [ 	]*[a-f0-9]+:	40 80 c7 01[ 	]+add    \$0x1,%dil
+[ 	]*[a-f0-9]+:	40 e4 00[ 	]+rex in \$0x0,%al
+[ 	]*[a-f0-9]+:	40 e6 00[ 	]+rex out %al,\$0x0
+[ 	]*[a-f0-9]+:	40 d3 e0[ 	]+rex shl %cl,%eax
 [ 	]*[a-f0-9]+:	0f 71 d6 02          	psrlw  \$0x2,%mm6
 [ 	]*[a-f0-9]+:	66 0f 71 d2 02       	psrlw  \$0x2,%xmm2
 [ 	]*[a-f0-9]+:	0f 71 e6 02          	psraw  \$0x2,%mm6

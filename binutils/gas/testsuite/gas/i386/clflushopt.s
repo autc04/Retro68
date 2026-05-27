@@ -1,6 +1,5 @@
 # Check 32bit CLFLUSHOPT instructions
 
-	.allow_index_reg
 	.text
 _start:
 

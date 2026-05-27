@@ -1,5 +1,5 @@
 /* Definitions for rtems targeting a PowerPC using elf.
-   Copyright (C) 1996-2025 Free Software Foundation, Inc.
+   Copyright (C) 1996-2026 Free Software Foundation, Inc.
    Contributed by Joel Sherrill (joel@OARcorp.com).
 
    This file is part of GCC.
@@ -297,9 +297,9 @@
 /* Use gnu-user.h LINK_GCC_SEQUENCE_SPEC for rtems.  */
 #undef LINK_GCC_C_SEQUENCE_SPEC
 #define	LINK_GCC_C_SEQUENCE_SPEC \
-  "%{mads|myellowknife|mmvme|msim:%G %L %G;" \
+  "%{mads|myellowknife|mmvme|msim:%G" LINK_LIBATOMIC_SPEC "%L %G;" \
   "!mcall-*|mcall-linux:" GNU_USER_TARGET_LINK_GCC_C_SEQUENCE_SPEC ";" \
-  ":%G %L %G}"
+  ":%G" LINK_LIBATOMIC_SPEC "%L %G}"
 
 #define RTEMS_STARTFILE_SPEC "ecrti%O%s rtems_crti%O%s crtbegin%O%s"
 #define RTEMS_ENDFILE_SPEC "crtend%O%s rtems_crtn%O%s ecrtn%O%s"

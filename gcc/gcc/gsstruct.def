@@ -1,7 +1,7 @@
 /* This file contains the definitions for the gimple IR structure
    enumeration used in GCC.
 
-   Copyright (C) 2007-2025 Free Software Foundation, Inc.
+   Copyright (C) 2007-2026 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldyh@redhat.com>
 
 This file is part of GCC.
@@ -44,6 +44,7 @@ DEFGSSTRUCT(GSS_OMP, gimple_statement_omp, false)
 DEFGSSTRUCT(GSS_OMP_CRITICAL, gomp_critical, false)
 DEFGSSTRUCT(GSS_OMP_FOR, gomp_for, false)
 DEFGSSTRUCT(GSS_OMP_PARALLEL_LAYOUT, gimple_statement_omp_parallel_layout, false)
+DEFGSSTRUCT(GSS_OMP_TARGET, gomp_target, false)
 DEFGSSTRUCT(GSS_OMP_TASK, gomp_task, false)
 DEFGSSTRUCT(GSS_OMP_SECTIONS, gomp_sections, false)
 DEFGSSTRUCT(GSS_OMP_SINGLE_LAYOUT, gimple_statement_omp_single_layout, false)

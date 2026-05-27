@@ -1,20 +1,20 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: bad type in SIMD instruction -- `vqabs.u8 q0,q1'
-[^:]*:11: Error: bad type in SIMD instruction -- `vqneg.u16 q0,q1'
-[^:]*:12: Error: bad type in SIMD instruction -- `vqabs.s64 q0,q1'
-[^:]*:13: Error: bad instruction `vqnegs.s64 q0,q1'
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:3: Error: bad type in SIMD instruction -- `vqabs.u8 q0,q1'
+[^:]*:4: Error: bad type in SIMD instruction -- `vqneg.u16 q0,q1'
+[^:]*:5: Error: bad type in SIMD instruction -- `vqabs.s64 q0,q1'
+[^:]*:6: Error: bad instruction `vqnegs.s64 q0,q1'
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:17: Error: syntax error -- `vqabseq.s32 q0,q1'
 [^:]*:18: Error: syntax error -- `vqabseq.s32 q0,q1'
 [^:]*:19: Error: syntax error -- `vqabseq.s32 q0,q1'

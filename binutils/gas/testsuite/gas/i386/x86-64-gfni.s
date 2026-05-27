@@ -1,6 +1,5 @@
 # Check 64bit GFNI instructions
 
-	.allow_index_reg
 	.text
 _start:
 	gf2p8mulb %xmm4, %xmm5

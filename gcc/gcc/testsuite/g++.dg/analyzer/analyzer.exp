@@ -1,4 +1,4 @@
-#   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+#   Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ if [info exists DEFAULT_CXXFLAGS] then {
 }
 
 # If a testcase doesn't have special options, use these.
-set DEFAULT_CXXFLAGS " -fanalyzer -Wanalyzer-too-complex -fanalyzer-call-summaries"
+set DEFAULT_CXXFLAGS " -fanalyzer -Wanalyzer-too-complex"
 
 # Initialize `dg'.
 dg-init

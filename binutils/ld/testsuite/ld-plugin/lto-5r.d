@@ -1,4 +1,4 @@
-#ld: -r tmpdir/lto-5a.o tmpdir/lto-5b.o
+#ld: -r tmpdir/lto-5a.o tmpdir/lto-5b.o --no-error-execstack
 #source: dummy.s
 #nm: -p
 

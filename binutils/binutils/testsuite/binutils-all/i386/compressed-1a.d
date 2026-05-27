@@ -7,7 +7,7 @@
 
 Contents of the .[z]?debug_abbrev section:
 
-  Number TAG \(0x0\)
+  Number TAG \((0x)?0\)
    1      DW_TAG_compile_unit    \[has children\]
     DW_AT_producer     DW_FORM_strp
     DW_AT_language     DW_FORM_data1
@@ -29,25 +29,25 @@ Contents of the .[z]?debug_abbrev section:
 
 Contents of the .[z]?debug_info section:
 
-  Compilation Unit @ offset 0x0:
+  Compilation Unit @ offset (0x)?0:
    Length:        0x46 \(32-bit\)
    Version:       3
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  4
  <0><b>: Abbrev Number: 1 \(DW_TAG_compile_unit\)
-    <c>   DW_AT_producer    : \(indirect string, offset: 0x0\): GNU C 4.4.4
+    <c>   DW_AT_producer    : \(indirect string, offset: (0x)?0\): GNU C 4.4.4
     <10>   DW_AT_language    : 1	\(ANSI C\)
     <11>   DW_AT_name        : \(indirect string, offset: 0x18\): compressed-1.c
     <15>   DW_AT_comp_dir    : \(indirect string, offset: 0x16\): .
-    <19>   DW_AT_low_pc      : 0x0
+    <19>   DW_AT_low_pc      : (0x)?0
     <1d>   DW_AT_high_pc     : 0x1b
-    <21>   DW_AT_stmt_list   : 0x0
+    <21>   DW_AT_stmt_list   : (0x)?0
  <1><25>: Abbrev Number: 2 \(DW_TAG_subprogram\)
     <26>   DW_AT_external    : 1
     <27>   DW_AT_name        : \(indirect string, offset: 0xc\): foo2
     <2b>   DW_AT_decl_file   : 1
     <2c>   DW_AT_decl_line   : 10
-    <2d>   DW_AT_low_pc      : 0x0
+    <2d>   DW_AT_low_pc      : (0x)?0
     <31>   DW_AT_high_pc     : 0x2
     <35>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
  <1><37>: Abbrev Number: 2 \(DW_TAG_subprogram\)
@@ -62,7 +62,7 @@ Contents of the .[z]?debug_info section:
 
 Raw dump of debug contents of section .[z]?debug_line:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Length:                      64
   DWARF Version:               .
   Prologue Length:             37
@@ -93,10 +93,10 @@ Raw dump of debug contents of section .[z]?debug_line:
   1	0	0	0	compressed-1.c
 
  Line Number Statements:
-  \[0x.*\]  Extended opcode 2: set Address to 0x0
+  \[0x.*\]  Extended opcode 2: set Address to (0x)?0
   \[0x.*\]  Advance Line by 10 to 11
   \[0x.*\]  Copy
-  \[0x.*\]  Special opcode 6: advance Address by 0 to 0x0 and Line by 1 to 12 \(view 1\)
+  \[0x.*\]  Special opcode 6: advance Address by 0 to (0x)?0 and Line by 1 to 12 \(view 1\)
   \[0x.*\]  Advance Line by -7 to 5
   \[0x.*\]  Special opcode 229: advance Address by 16 to 0x10 and Line by 0 to 5
   \[0x.*\]  Special opcode 49: advance Address by 3 to 0x13 and Line by 2 to 7
@@ -109,7 +109,7 @@ Contents of the .[z]?debug_pubnames section:
 
   Length:                              32
   Version:                             2
-  Offset into .[z]?debug_info section:     0x0
+  Offset into .[z]?debug_info section:     (0x)?0
   Size of area in .[z]?debug_info section: 74
 
     Offset	Name
@@ -120,13 +120,13 @@ Contents of the .[z]?debug_aranges section:
 
   Length:                   28
   Version:                  2
-  Offset into .[z]?debug_info:  0x0
+  Offset into .[z]?debug_info:  (0x)?0
   Pointer Size:             4
   Segment Size:             0
 
     Address    Length
-    00000000 0000001b 
-    00000000 00000000 
+    00000000 0000001b ?
+    00000000 00000000 ?
 
 Contents of the .[z]?debug_str section:
 

@@ -10,6 +10,9 @@ _start:
     tdpbssd %tmm1, %tmm1, %tmm0
     tdpbssd %tmm1, %tmm0, %tmm1
     tdpbssd %tmm0, %tmm1, %tmm1
+    tdpbf16ps %tmm1, %tmm1, %tmm0
+    tdpbf16ps %tmm1, %tmm0, %tmm1
+    tdpbf16ps %tmm0, %tmm1, %tmm1
 
     .intel_syntax noprefix
     tileloadd tmm1, [rip]
@@ -20,3 +23,6 @@ _start:
     tdpbssd tmm0, tmm1, tmm1
     tdpbssd tmm1, tmm0, tmm1
     tdpbssd tmm1, tmm1, tmm0
+    tdpbf16ps tmm0, tmm1, tmm1
+    tdpbf16ps tmm1, tmm0, tmm1
+    tdpbf16ps tmm0, tmm1, tmm1

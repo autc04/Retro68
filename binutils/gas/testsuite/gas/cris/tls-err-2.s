@@ -1,7 +1,7 @@
 ; Like tls-err-1.s but for PIC TLS suffixes.
 
 ; { dg-do assemble }
-; { dg-options "--pic --no-underscore --em=criself" }
+; { dg-options "--pic --no-underscore --emulation=criself" }
 
  .syntax no_register_prefix
  .text

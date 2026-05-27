@@ -307,12 +307,10 @@ _start:
 	vcvttsd2si rcx,[rcx]
 
 # Tests for op regq/mem64, xmm, xmm
-	vcvtsi2sdq xmm6,xmm4,rcx
-	vcvtsi2sdq xmm6,xmm4,QWORD PTR [rcx]
-	vcvtsi2sdq xmm6,xmm4,[rcx]
-	vcvtsi2ssq xmm6,xmm4,rcx
-	vcvtsi2ssq xmm6,xmm4,QWORD PTR [rcx]
-	vcvtsi2ssq xmm6,xmm4,[rcx]
+	vcvtsi2sd xmm6,xmm4,rcx
+	vcvtsi2sd xmm6,xmm4,QWORD PTR [rcx]
+	vcvtsi2ss xmm6,xmm4,rcx
+	vcvtsi2ss xmm6,xmm4,QWORD PTR [rcx]
 
 # Tests for op imm8, xmm/mem64, xmm, xmm
 	vcmpsd xmm2,xmm6,xmm4,7

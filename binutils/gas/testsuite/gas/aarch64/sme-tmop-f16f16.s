@@ -1,0 +1,8 @@
+	ftmopa	za0.h, { z0.h-z1.h }, z0.h, z20[0]
+	ftmopa	za1.h, { z0.h-z1.h }, z0.h, z20[0]
+	ftmopa	za0.h, { z30.h-z31.h }, z0.h, z20[0]
+	ftmopa	za0.h, { z0.h-z1.h }, z31.h, z20[0]
+	ftmopa	za0.h, { z0.h-z1.h }, z0.h, z23[0]
+	ftmopa	za0.h, { z0.h-z1.h }, z0.h, z28[0]
+	ftmopa	za0.h, { z0.h-z1.h }, z0.h, z31[0]
+	ftmopa	za0.h, { z0.h-z1.h }, z0.h, z20[3]

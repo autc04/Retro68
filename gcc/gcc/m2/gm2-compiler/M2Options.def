@@ -1,6 +1,6 @@
 (* M2Options.def initializes the user options.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -55,9 +55,10 @@ VAR
    StyleChecking,                (* -Wstudents checks for common student errs*)
    UnboundedByReference,         (* -funbounded-by-reference                 *)
    VerboseUnbounded,             (* -Wverbose-unbounded                      *)
-   OptimizeUncalledProcedures,   (* -Ouncalled removes uncalled procedures   *)
-   OptimizeBasicBlock,           (* -Obb create basic blocks and optimize.   *)
-   OptimizeCommonSubExpressions, (* -Ocse optimize common subexpressions     *)
+   OptimizeUncalledProcedures,   (* Removes uncalled procedures?             *)
+   OptimizeBasicBlock,           (* Create basic blocks and optimize?        *)
+   OptimizeCommonSubExpressions, (* Optimize common subexpressions?          *)
+   OptimizeSets,                 (* TRUE if -On when n>0.  False for -Os.    *)
    WholeProgram,                 (* -fwhole-program optimization.            *)
    NilChecking,                  (* -fnil makes compiler test for pointer    *)
                                  (* NIL.                                     *)
@@ -87,6 +88,8 @@ VAR
    LineDirectives,               (* Should compiler understand preprocessor  *)
                                  (* # linenumber "filename" markers?         *)
    StrictTypeChecking,           (* -fm2-strict-type experimental checker.   *)
+   StrictTypeAssignment,         (* -fm2-strict-assignment.                  *)
+   StrictTypeReason,             (* -fm2-strict-reason.                      *)
    CPreProcessor,                (* Must we run the cpp on the source?       *)
    Xcode,                        (* Should errors follow Xcode format?       *)
    ExtendedOpaque,               (* Do we allow non pointer opaque types?    *)
@@ -113,6 +116,7 @@ VAR
    SharedFlag,                   (* -fshared indicating this module needs    *)
                                  (* the shared library version of the        *)
                                  (* scaffold.                                *)
+   TimeReport, MemReport,        (* -ftime-report and -fmem-report values.   *)
    ForcedLocation,
    GenerateStatementNote,
    Optimizing,
@@ -756,6 +760,20 @@ PROCEDURE SetStrictTypeChecking (value: BOOLEAN) ;
 
 
 (*
+   SetStrictTypeAssignment - assigns the StrictTypeAssignment flag to value.
+*)
+
+PROCEDURE SetStrictTypeAssignment (value: BOOLEAN) ;
+
+
+(*
+   SetStrictTypeReason - assigns the StrictTypeReason flag to value.
+*)
+
+PROCEDURE SetStrictTypeReason (value: BOOLEAN) ;
+
+
+(*
    setdefextension - set the source file definition module extension to arg.
                      This should include the . and by default it is set to .def.
 *)
@@ -1147,6 +1165,34 @@ PROCEDURE SetFileOffsetBits (value: BOOLEAN; bits: CARDINAL) : BOOLEAN ;
 *)
 
 PROCEDURE GetFileOffsetBits () : CARDINAL ;
+
+
+(*
+   SetMemReport - set MemReport to value.
+*)
+
+PROCEDURE SetMemReport (value: BOOLEAN) ;
+
+
+(*
+   SetTimeReport - set TimeReport to value.
+*)
+
+PROCEDURE SetTimeReport (value: BOOLEAN) ;
+
+
+(*
+   SetWideset - set the Wideset flag to value.
+*)
+
+PROCEDURE SetWideset (value: BOOLEAN) ;
+
+
+(*
+   GetWideset - return the Wideset flag value.
+*)
+
+PROCEDURE GetWideset () : BOOLEAN ;
 
 
 (*

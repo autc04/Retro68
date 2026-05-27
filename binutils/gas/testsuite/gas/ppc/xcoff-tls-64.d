@@ -1,6 +1,6 @@
 #as: -a64
 #source: xcoff-tls.s
-#objdump: -Dr
+#objdump: -Dr -j.data -j.tdata -j.tbss
 #name: XCOFF TLS relocation (64 bit)
 
 .*

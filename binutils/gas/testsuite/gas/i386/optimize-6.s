@@ -1,6 +1,5 @@
 # Check instructions with optimized encoding
 
-	.allow_index_reg
 	.text
 _start:
 	vandnpd %zmm1, %zmm1, %zmm5{%k7}

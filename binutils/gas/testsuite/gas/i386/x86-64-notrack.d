@@ -1,3 +1,4 @@
+#as: -march=+mpx
 #objdump: -dw
 #name: x86-64 NOTRACK prefix
 

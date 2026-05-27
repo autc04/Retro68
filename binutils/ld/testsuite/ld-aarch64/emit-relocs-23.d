@@ -1,6 +1,7 @@
 #source: emit-relocs-23.s
 #as: -mabi=ilp32
 #ld: -m [aarch64_choose_ilp32_emul] -T relocs-ilp32.ld --defsym foo=0x12345678 -e0 --emit-relocs
+#notarget: *-*-nto*
 #objdump: -dr
 
 .*: +file format .*

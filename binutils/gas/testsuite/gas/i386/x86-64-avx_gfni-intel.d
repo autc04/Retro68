@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: x86_64 AVX/GFNI insns (Intel disassembly)
 #source: x86-64-avx_gfni.s

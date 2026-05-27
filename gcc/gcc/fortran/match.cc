@@ -1,5 +1,5 @@
 /* Matching subroutines in all sizes, shapes and colors.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -1814,12 +1814,53 @@ gfc_free_iterator (gfc_iterator *iter, int flag)
     free (iter);
 }
 
+static match
+match_named_arg (const char *pat, const char *name, gfc_expr **e,
+		 gfc_statement st_code)
+{
+  match m;
+  gfc_expr *tmp;
+
+  m = gfc_match (pat, &tmp);
+  if (m == MATCH_ERROR)
+    {
+      gfc_syntax_error (st_code);
+      return m;
+    }
+  if (m == MATCH_YES)
+    {
+      if (*e)
+	{
+	  gfc_error ("Duplicate %s attribute in %C", name);
+	  gfc_free_expr (tmp);
+	  return MATCH_ERROR;
+	}
+      *e = tmp;
+
+      return MATCH_YES;
+    }
+  return MATCH_NO;
+}
+
+static match
+match_stat_errmsg (struct sync_stat *sync_stat, gfc_statement st_code)
+{
+  match m;
+
+  m = match_named_arg (" stat = %v", "STAT", &sync_stat->stat, st_code);
+  if (m != MATCH_NO)
+    return m;
+
+  m = match_named_arg (" errmsg = %v", "ERRMSG", &sync_stat->errmsg, st_code);
+  return m;
+}
 
 /* Match a CRITICAL statement.  */
 match
 gfc_match_critical (void)
 {
   gfc_st_label *label = NULL;
+  match m;
 
   if (gfc_match_label () == MATCH_ERROR)
     return MATCH_ERROR;
@@ -1830,11 +1871,28 @@ gfc_match_critical (void)
   if (gfc_match_st_label (&label) == MATCH_ERROR)
     return MATCH_ERROR;
 
-  if (gfc_match_eos () != MATCH_YES)
+  if (gfc_match_eos () == MATCH_YES)
+    goto done;
+
+  if (gfc_match_char ('(') != MATCH_YES)
+    goto syntax;
+
+  for (;;)
     {
-      gfc_syntax_error (ST_CRITICAL);
-      return MATCH_ERROR;
+      m = match_stat_errmsg (&new_st.ext.sync_stat, ST_CRITICAL);
+      if (m == MATCH_ERROR)
+	goto cleanup;
+
+      if (gfc_match_char (',') == MATCH_YES)
+	continue;
+
+      break;
     }
+
+  if (gfc_match (" )%t") != MATCH_YES)
+    goto syntax;
+
+done:
 
   if (gfc_pure (NULL))
     {
@@ -1856,9 +1914,9 @@ gfc_match_critical (void)
 
   if (flag_coarray == GFC_FCOARRAY_NONE)
     {
-       gfc_fatal_error ("Coarrays disabled at %C, use %<-fcoarray=%> to "
-			"enable");
-       return MATCH_ERROR;
+      gfc_fatal_error ("Coarrays disabled at %C, use %<-fcoarray=%> to "
+		       "enable");
+      return MATCH_ERROR;
     }
 
   if (gfc_find_state (COMP_CRITICAL))
@@ -1869,13 +1927,21 @@ gfc_match_critical (void)
 
   new_st.op = EXEC_CRITICAL;
 
-  if (label != NULL
-      && !gfc_reference_st_label (label, ST_LABEL_TARGET))
-    return MATCH_ERROR;
+  if (label != NULL && !gfc_reference_st_label (label, ST_LABEL_TARGET))
+    goto cleanup;
 
   return MATCH_YES;
-}
 
+syntax:
+  gfc_syntax_error (ST_CRITICAL);
+
+cleanup:
+  gfc_free_expr (new_st.ext.sync_stat.stat);
+  gfc_free_expr (new_st.ext.sync_stat.errmsg);
+  new_st.ext.sync_stat = {NULL, NULL};
+
+  return MATCH_ERROR;
+}
 
 /* Match a BLOCK statement.  */
 
@@ -1900,29 +1966,29 @@ gfc_match_block (void)
   return MATCH_YES;
 }
 
-
-/* Match an ASSOCIATE statement.  */
+bool
+check_coarray_assoc (const char *name, gfc_association_list *assoc)
+{
+  if (assoc->target->expr_type == EXPR_VARIABLE
+      && !strcmp (assoc->target->symtree->name, name))
+    {
+      gfc_error ("Codimension decl name %qs in association at %L "
+		 "must not be the same as a selector",
+		 name, &assoc->where);
+      return false;
+    }
+  return true;
+}
 
 match
-gfc_match_associate (void)
+match_association_list (bool for_change_team = false)
 {
-  if (gfc_match_label () == MATCH_ERROR)
-    return MATCH_ERROR;
-
-  if (gfc_match (" associate") != MATCH_YES)
-    return MATCH_NO;
-
-  /* Match the association list.  */
-  if (gfc_match_char ('(') != MATCH_YES)
-    {
-      gfc_error ("Expected association list at %C");
-      return MATCH_ERROR;
-    }
   new_st.ext.block.assoc = NULL;
   while (true)
     {
-      gfc_association_list* newAssoc = gfc_get_association_list ();
-      gfc_association_list* a;
+      gfc_association_list *newAssoc = gfc_get_association_list ();
+      gfc_association_list *a;
+      locus pre_name = gfc_current_locus;
 
       /* Match the next association.  */
       if (gfc_match (" %n ", newAssoc->name) != MATCH_YES)
@@ -1932,7 +1998,7 @@ gfc_match_associate (void)
 	}
 
       /* Required for an assumed rank target.  */
-      if (gfc_peek_char () == '(')
+      if (!for_change_team && gfc_peek_char () == '(')
 	{
 	  newAssoc->ar = gfc_get_array_ref ();
 	  if (gfc_match_array_ref (newAssoc->ar, NULL, 0, 0) != MATCH_YES)
@@ -1946,26 +2012,53 @@ gfc_match_associate (void)
 	gfc_error_now ("The bounds remapping list at %C is an experimental "
 		       "F202y feature. Use std=f202y to enable");
 
+      if (for_change_team && gfc_peek_char () == '[')
+	{
+	  if (!newAssoc->ar)
+	    newAssoc->ar = gfc_get_array_ref ();
+	  if (gfc_match_array_spec (&newAssoc->ar->as, false, true)
+	      == MATCH_ERROR)
+	    goto assocListError;
+	}
+
       /* Match the next association.  */
       if (gfc_match (" =>", newAssoc->name) != MATCH_YES)
 	{
-	  gfc_error ("Expected association at %C");
-	  goto assocListError;
+	  if (for_change_team)
+	    gfc_current_locus = pre_name;
+
+	  free (newAssoc);
+	  return MATCH_NO;
 	}
 
-      if (gfc_match (" %e", &newAssoc->target) != MATCH_YES)
+      if (!for_change_team)
 	{
-	  /* Have another go, allowing for procedure pointer selectors.  */
-	  gfc_matching_procptr_assignment = 1;
 	  if (gfc_match (" %e", &newAssoc->target) != MATCH_YES)
 	    {
+	      /* Have another go, allowing for procedure pointer selectors.  */
+	      gfc_matching_procptr_assignment = 1;
+	      if (gfc_match (" %e", &newAssoc->target) != MATCH_YES)
+		{
+		  gfc_matching_procptr_assignment = 0;
+		  gfc_error ("Invalid association target at %C");
+		  goto assocListError;
+		}
 	      gfc_matching_procptr_assignment = 0;
-	      gfc_error ("Invalid association target at %C");
+	    }
+	  newAssoc->where = gfc_current_locus;
+	}
+      else
+	{
+	  newAssoc->where = gfc_current_locus;
+	  /* F2018, C1116: A selector in a coarray-association shall be a named
+	     coarray.  */
+	  if (gfc_match (" %v", &newAssoc->target) != MATCH_YES)
+	    {
+	      gfc_error ("Selector in coarray association as %C shall be a "
+			 "named coarray");
 	      goto assocListError;
 	    }
-	  gfc_matching_procptr_assignment = 0;
 	}
-      newAssoc->where = gfc_current_locus;
 
       /* Check that the current name is not yet in the list.  */
       for (a = new_st.ext.block.assoc; a; a = a->next)
@@ -1975,6 +2068,35 @@ gfc_match_associate (void)
 		       newAssoc->name);
 	    goto assocListError;
 	  }
+
+      if (for_change_team)
+	{
+	  /* F2018, C1113: In a change-team-stmt, a coarray-name in a
+	     codimension-decl shall not be the same as a selector, or another
+	     coarray-name, in that statement.
+	     The latter is already checked for above.  So check only the
+	     former.
+	   */
+	  if (!check_coarray_assoc (newAssoc->name, newAssoc))
+	    goto assocListError;
+
+	  for (a = new_st.ext.block.assoc; a; a = a->next)
+	    {
+	      if (!check_coarray_assoc (newAssoc->name, a)
+		  || !check_coarray_assoc (a->name, newAssoc))
+		goto assocListError;
+
+	      /* F2018, C1115: No selector shall appear more than once in a
+	       * given change-team-stmt.  */
+	      if (!strcmp (newAssoc->target->symtree->name,
+			   a->target->symtree->name))
+		{
+		  gfc_error ("Selector at %L duplicates selector at %L",
+			     &newAssoc->target->where, &a->target->where);
+		  goto assocListError;
+		}
+	    }
+	}
 
       /* The target expression must not be coindexed.  */
       if (gfc_is_coindexed (newAssoc->target))
@@ -2019,6 +2141,17 @@ gfc_match_associate (void)
 	      goto assocListError;
 	    }
 	}
+      else if (newAssoc->target->ts.type == BT_UNKNOWN
+	       && newAssoc->target->expr_type == EXPR_OP)
+	{
+	  /* This will work for sure if the operator is type bound to a use
+	     associated derived type.  */
+	  gfc_expr *tmp =gfc_copy_expr (newAssoc->target);
+	  if (gfc_extend_expr (tmp) == MATCH_YES)
+	    gfc_replace_expr (newAssoc->target, tmp);
+	  else
+	    gfc_free_expr (tmp);
+	}
 
       /* The `variable' field is left blank for now; because the target is not
 	 yet resolved, we can't use gfc_has_vector_subscript to determine it
@@ -2042,8 +2175,40 @@ gfc_match_associate (void)
 
 assocListError:
       free (newAssoc);
+      return MATCH_ERROR;
+    }
+
+  return MATCH_YES;
+}
+
+/* Match an ASSOCIATE statement.  */
+
+match
+gfc_match_associate (void)
+{
+  match m;
+  if (gfc_match_label () == MATCH_ERROR)
+    return MATCH_ERROR;
+
+  if (gfc_match (" associate") != MATCH_YES)
+    return MATCH_NO;
+
+  /* Match the association list.  */
+  if (gfc_match_char ('(') != MATCH_YES)
+    {
+      gfc_error ("Expected association list at %C");
+      return MATCH_ERROR;
+    }
+
+  m = match_association_list ();
+  if (m == MATCH_ERROR)
+    goto error;
+  else if (m == MATCH_NO)
+    {
+      gfc_error ("Expected association at %C");
       goto error;
     }
+
   if (gfc_match_char (')') != MATCH_YES)
     {
       /* This should never happen as we peek above.  */
@@ -2151,8 +2316,8 @@ match_derived_type_spec (gfc_typespec *ts)
    the implicit_flag is not needed, so it was removed. Derived types are
    identified by their name alone.  */
 
-match
-gfc_match_type_spec (gfc_typespec *ts)
+static match
+match_type_spec (gfc_typespec *ts)
 {
   match m;
   locus old_locus;
@@ -2362,6 +2527,17 @@ kind_selector:
 }
 
 
+match
+gfc_match_type_spec (gfc_typespec *ts)
+{
+  match m;
+  gfc_namespace *old_ns = gfc_current_ns;
+  m = match_type_spec (ts);
+  gfc_current_ns = old_ns;
+  return m;
+}
+
+
 /******************** FORALL subroutines ********************/
 
 /* Free a list of FORALL iterators.  */
@@ -2454,7 +2630,66 @@ cleanup:
 }
 
 
-/* Match the header of a FORALL statement.  */
+/* Apply type-spec to iterator and create shadow variable if needed.  */
+
+static void
+apply_typespec_to_iterator (gfc_forall_iterator *iter, gfc_typespec *ts,
+			     locus *loc)
+{
+  char *name;
+  gfc_expr *v;
+  gfc_symtree *st;
+
+  /* When a type-spec is provided in DO CONCURRENT/FORALL, F2018 19.4(6)
+     requires the index-name to have scope limited to the construct,
+     shadowing any variable with the same name from outer scope.
+     If the index-name was not previously declared, we can simply set its
+     type.  Otherwise, create a shadow variable with "_" prefix.  */
+  iter->shadow = false;
+  v = iter->var;
+  if (v->ts.type == BT_UNKNOWN)
+    {
+      /* Variable not declared in outer scope - just set the type.  */
+      v->ts.type = v->symtree->n.sym->ts.type = BT_INTEGER;
+      v->ts.kind = v->symtree->n.sym->ts.kind = ts->kind;
+      gfc_set_sym_referenced (v->symtree->n.sym);
+    }
+  else
+    {
+      /* Variable exists in outer scope - must create shadow to comply
+	 with F2018 19.4(6) scoping rules.  */
+      name = (char *) alloca (strlen (v->symtree->name) + 2);
+      strcpy (name, "_");
+      strcat (name, v->symtree->name);
+      if (gfc_get_sym_tree (name, NULL, &st, false) != 0)
+	gfc_internal_error ("Failed to create shadow variable symtree for "
+			    "DO CONCURRENT type-spec at %L", loc);
+
+      v = gfc_get_expr ();
+      v->where = gfc_current_locus;
+      v->expr_type = EXPR_VARIABLE;
+      v->ts.type = st->n.sym->ts.type = ts->type;
+      v->ts.kind = st->n.sym->ts.kind = ts->kind;
+      st->n.sym->forall_index = true;
+      v->symtree = st;
+      gfc_replace_expr (iter->var, v);
+      iter->shadow = true;
+      gfc_set_sym_referenced (st->n.sym);
+    }
+
+  /* Convert iterator bounds to the specified type.  */
+  gfc_convert_type (iter->start, ts, 1);
+  gfc_convert_type (iter->end, ts, 1);
+  gfc_convert_type (iter->stride, ts, 1);
+}
+
+
+/* Match the header of a FORALL statement.  In F2008 and F2018, the form of
+   the header is:
+
+      ([ type-spec :: ] concurrent-control-list [, scalar-mask-expr ] )
+
+   where type-spec is INTEGER.  */
 
 static match
 match_forall_header (gfc_forall_iterator **phead, gfc_expr **mask)
@@ -2462,6 +2697,9 @@ match_forall_header (gfc_forall_iterator **phead, gfc_expr **mask)
   gfc_forall_iterator *head, *tail, *new_iter;
   gfc_expr *msk;
   match m;
+  gfc_typespec ts;
+  bool seen_ts = false;
+  locus loc;
 
   gfc_gobble_whitespace ();
 
@@ -2471,11 +2709,39 @@ match_forall_header (gfc_forall_iterator **phead, gfc_expr **mask)
   if (gfc_match_char ('(') != MATCH_YES)
     return MATCH_NO;
 
+  /* Check for an optional type-spec.  */
+  gfc_clear_ts (&ts);
+  loc = gfc_current_locus;
+  m = gfc_match_type_spec (&ts);
+  if (m == MATCH_YES)
+    {
+      seen_ts = (gfc_match (" ::") == MATCH_YES);
+
+      if (seen_ts)
+	{
+	  if (!gfc_notify_std (GFC_STD_F2008, "FORALL or DO CONCURRENT "
+			       "construct includes type specification "
+			       "at %L", &loc))
+	    goto cleanup;
+
+	  if (ts.type != BT_INTEGER)
+	    {
+	      gfc_error ("Type-spec at %L must be an INTEGER type", &loc);
+	      goto cleanup;
+	    }
+	}
+    }
+  else if (m == MATCH_ERROR)
+    goto syntax;
+
   m = match_forall_iterator (&new_iter);
   if (m == MATCH_ERROR)
     goto cleanup;
   if (m == MATCH_NO)
     goto syntax;
+
+  if (seen_ts)
+    apply_typespec_to_iterator (new_iter, &ts, &loc);
 
   head = tail = new_iter;
 
@@ -2490,6 +2756,9 @@ match_forall_header (gfc_forall_iterator **phead, gfc_expr **mask)
 
       if (m == MATCH_YES)
 	{
+	  if (seen_ts)
+	    apply_typespec_to_iterator (new_iter, &ts, &loc);
+
 	  tail->next = new_iter;
 	  tail = new_iter;
 	  continue;
@@ -2738,7 +3007,7 @@ gfc_match_do (void)
 	  locus where = gfc_current_locus;
 
 	  if (gfc_match_eos () == MATCH_YES)
-	    break;
+	    goto concurr_ok;
 
 	  else if (gfc_match ("local ( ") == MATCH_YES)
 	    {
@@ -2987,6 +3256,7 @@ gfc_match_do (void)
       if (gfc_match_eos () != MATCH_YES)
 	goto concurr_cleanup;
 
+concurr_ok:
       if (label != NULL
 	   && !gfc_reference_st_label (label, ST_LABEL_DO_TARGET))
 	goto concurr_cleanup;
@@ -3171,6 +3441,7 @@ match_exit_cycle (gfc_statement st, gfc_exec_op op)
 
     case COMP_ASSOCIATE:
     case COMP_BLOCK:
+    case COMP_CHANGE_TEAM:
     case COMP_IF:
     case COMP_SELECT:
     case COMP_SELECT_TYPE:
@@ -3848,7 +4119,9 @@ match
 gfc_match_form_team (void)
 {
   match m;
-  gfc_expr *teamid,*team;
+  gfc_expr *teamid, *team, *new_index;
+
+  teamid = team = new_index = NULL;
 
   if (!gfc_notify_std (GFC_STD_F2018, "FORM TEAM statement at %C"))
     return MATCH_ERROR;
@@ -3866,17 +4139,60 @@ gfc_match_form_team (void)
   if (gfc_match ("%e", &team) != MATCH_YES)
     goto syntax;
 
-  m = gfc_match_char (')');
-  if (m == MATCH_NO)
+  m = gfc_match_char (',');
+  if (m == MATCH_ERROR)
     goto syntax;
+  if (m == MATCH_NO)
+    {
+      m = gfc_match_char (')');
+      if (m == MATCH_YES)
+	goto done;
+      goto syntax;
+    }
+
+  for (;;)
+    {
+      m = match_stat_errmsg (&new_st.ext.sync_stat, ST_FORM_TEAM);
+      if (m == MATCH_ERROR)
+	goto cleanup;
+
+      m = match_named_arg (" new_index = %e", "NEW_INDEX", &new_index,
+			   ST_FORM_TEAM);
+      if (m == MATCH_ERROR)
+	goto cleanup;
+
+      m = gfc_match_char (',');
+      if (m == MATCH_YES)
+	continue;
+
+      break;
+    }
+
+  if (m == MATCH_ERROR)
+    goto syntax;
+
+  if (gfc_match (" )%t") != MATCH_YES)
+    goto syntax;
+
+done:
 
   new_st.expr1 = teamid;
   new_st.expr2 = team;
+  new_st.expr3 = new_index;
 
   return MATCH_YES;
 
 syntax:
   gfc_syntax_error (ST_FORM_TEAM);
+
+cleanup:
+  gfc_free_expr (new_index);
+  gfc_free_expr (new_st.ext.sync_stat.stat);
+  gfc_free_expr (new_st.ext.sync_stat.errmsg);
+  new_st.ext.sync_stat = {NULL, NULL};
+
+  gfc_free_expr (team);
+  gfc_free_expr (teamid);
 
   return MATCH_ERROR;
 }
@@ -3887,7 +4203,13 @@ match
 gfc_match_change_team (void)
 {
   match m;
-  gfc_expr *team;
+  gfc_expr *team = NULL;
+
+  if (gfc_match_label () == MATCH_ERROR)
+    return MATCH_ERROR;
+
+  if (gfc_match (" change% team") != MATCH_YES)
+    return MATCH_NO;
 
   if (!gfc_notify_std (GFC_STD_F2018, "CHANGE TEAM statement at %C"))
     return MATCH_ERROR;
@@ -3895,14 +4217,40 @@ gfc_match_change_team (void)
   if (gfc_match_char ('(') == MATCH_NO)
     goto syntax;
 
-  new_st.op = EXEC_CHANGE_TEAM;
-
   if (gfc_match ("%e", &team) != MATCH_YES)
     goto syntax;
 
-  m = gfc_match_char (')');
-  if (m == MATCH_NO)
+  m = gfc_match_char (',');
+  if (m == MATCH_ERROR)
     goto syntax;
+  if (m == MATCH_NO)
+    {
+      m = gfc_match_char (')');
+      if (m == MATCH_YES)
+	goto done;
+      goto syntax;
+    }
+
+  m = match_association_list (true);
+  if (m == MATCH_ERROR)
+    goto cleanup;
+  else if (m == MATCH_NO)
+    for (;;)
+      {
+	m = match_stat_errmsg (&new_st.ext.block.sync_stat, ST_CHANGE_TEAM);
+	if (m == MATCH_ERROR)
+	  goto cleanup;
+
+	if (gfc_match_char (',') == MATCH_YES)
+	  continue;
+
+	break;
+      }
+
+  if (gfc_match (" )%t") != MATCH_YES)
+    goto syntax;
+
+done:
 
   new_st.expr1 = team;
 
@@ -3911,19 +4259,48 @@ gfc_match_change_team (void)
 syntax:
   gfc_syntax_error (ST_CHANGE_TEAM);
 
+cleanup:
+  gfc_free_expr (new_st.ext.block.sync_stat.stat);
+  gfc_free_expr (new_st.ext.block.sync_stat.errmsg);
+  new_st.ext.block.sync_stat = {NULL, NULL};
+  gfc_free_association_list (new_st.ext.block.assoc);
+  new_st.ext.block.assoc = NULL;
+  gfc_free_expr (team);
+
   return MATCH_ERROR;
 }
 
-/* Match a END TEAM statement.  */
+/* Match an END TEAM statement.  */
 
 match
 gfc_match_end_team (void)
 {
-  if (!gfc_notify_std (GFC_STD_F2018, "END TEAM statement at %C"))
-    return MATCH_ERROR;
+  if (gfc_match_eos () == MATCH_YES)
+    goto done;
 
-  if (gfc_match_char ('(') == MATCH_YES)
+  if (gfc_match_char ('(') != MATCH_YES)
+    {
+      /* There could be a team-construct-name following.  Let caller decide
+	 about error.  */
+      new_st.op = EXEC_END_TEAM;
+      return MATCH_NO;
+    }
+
+  for (;;)
+    {
+      if (match_stat_errmsg (&new_st.ext.sync_stat, ST_END_TEAM) == MATCH_ERROR)
+	goto cleanup;
+
+      if (gfc_match_char (',') == MATCH_YES)
+	continue;
+
+      break;
+    }
+
+  if (gfc_match_char (')') != MATCH_YES)
     goto syntax;
+
+done:
 
   new_st.op = EXEC_END_TEAM;
 
@@ -3931,6 +4308,14 @@ gfc_match_end_team (void)
 
 syntax:
   gfc_syntax_error (ST_END_TEAM);
+
+cleanup:
+  gfc_free_expr (new_st.ext.sync_stat.stat);
+  gfc_free_expr (new_st.ext.sync_stat.errmsg);
+  new_st.ext.sync_stat = {NULL, NULL};
+
+  /* Try to match the closing bracket to allow error recovery.  */
+  gfc_match_char (')');
 
   return MATCH_ERROR;
 }
@@ -3941,7 +4326,7 @@ match
 gfc_match_sync_team (void)
 {
   match m;
-  gfc_expr *team;
+  gfc_expr *team = NULL;
 
   if (!gfc_notify_std (GFC_STD_F2018, "SYNC TEAM statement at %C"))
     return MATCH_ERROR;
@@ -3954,9 +4339,33 @@ gfc_match_sync_team (void)
   if (gfc_match ("%e", &team) != MATCH_YES)
     goto syntax;
 
-  m = gfc_match_char (')');
-  if (m == MATCH_NO)
+  m = gfc_match_char (',');
+  if (m == MATCH_ERROR)
     goto syntax;
+  if (m == MATCH_NO)
+    {
+      m = gfc_match_char (')');
+      if (m == MATCH_YES)
+	goto done;
+      goto syntax;
+    }
+
+  for (;;)
+    {
+      m = match_stat_errmsg (&new_st.ext.sync_stat, ST_SYNC_TEAM);
+      if (m == MATCH_ERROR)
+	goto cleanup;
+
+      if (gfc_match_char (',') == MATCH_YES)
+	continue;
+
+      break;
+    }
+
+  if (gfc_match (" )%t") != MATCH_YES)
+    goto syntax;
+
+done:
 
   new_st.expr1 = team;
 
@@ -3964,6 +4373,13 @@ gfc_match_sync_team (void)
 
 syntax:
   gfc_syntax_error (ST_SYNC_TEAM);
+
+cleanup:
+  gfc_free_expr (new_st.ext.sync_stat.stat);
+  gfc_free_expr (new_st.ext.sync_stat.errmsg);
+  new_st.ext.sync_stat = {NULL, NULL};
+
+  gfc_free_expr (team);
 
   return MATCH_ERROR;
 }
@@ -4557,6 +4973,25 @@ cleanup:
 }
 
 
+/* A reduced version of gfc_spec_list_type, which only looks for deferred
+   type spec list parameters.  */
+
+static gfc_param_spec_type
+spec_list_type (gfc_actual_arglist *param_list)
+{
+  gfc_param_spec_type res = SPEC_EXPLICIT;
+
+  for (; param_list; param_list = param_list->next)
+    if (param_list->spec_type == SPEC_DEFERRED)
+      {
+	res = param_list->spec_type;
+	break;
+      }
+
+  return res;
+}
+
+
 /* Frees a list of gfc_alloc structures.  */
 
 void
@@ -4582,6 +5017,7 @@ gfc_match_allocate (void)
   gfc_expr *stat, *errmsg, *tmp, *source, *mold;
   gfc_typespec ts;
   gfc_symbol *sym;
+  gfc_ref *ref;
   match m;
   locus old_locus, deferred_locus, assumed_locus;
   bool saw_stat, saw_errmsg, saw_source, saw_mold, saw_deferred, b1, b2, b3;
@@ -4641,8 +5077,7 @@ gfc_match_allocate (void)
 	    }
 
 	  if (type_param_spec_list
-	      && gfc_spec_list_type (type_param_spec_list, NULL)
-		 == SPEC_DEFERRED)
+	      && spec_list_type (type_param_spec_list) == SPEC_DEFERRED)
 	    {
 	      gfc_error ("The type parameter spec list in the type-spec at "
 			 "%L cannot contain DEFERRED parameters", &old_locus);
@@ -4704,10 +5139,27 @@ gfc_match_allocate (void)
 	  goto cleanup;
 	}
 
-      if (tail->expr->ts.deferred)
+      if (tail->expr->ts.deferred
+	  || (tail->expr->symtree->n.sym->param_list
+	      && spec_list_type (tail->expr->symtree->n.sym->param_list)
+				 == SPEC_DEFERRED))
 	{
 	  saw_deferred = true;
 	  deferred_locus = tail->expr->where;
+	}
+      else if ((tail->expr->ts.type == BT_DERIVED
+		|| tail->expr->ts.type == BT_CLASS)
+	       && tail->expr->ref)
+	{
+	  for (ref = tail->expr->ref; ref; ref = ref->next)
+	    if (ref->type == REF_COMPONENT
+		&& ref->u.c.component->param_list
+		&& spec_list_type (ref->u.c.component->param_list)
+				   == SPEC_DEFERRED)
+	    {
+	      saw_deferred = true;
+	      deferred_locus = tail->expr->where;
+	    }
 	}
 
       if (gfc_find_state (COMP_DO_CONCURRENT)
@@ -4992,7 +5444,7 @@ match
 gfc_match_nullify (void)
 {
   gfc_code *tail;
-  gfc_expr *e, *p;
+  gfc_expr *e, *p = NULL;
   match m;
 
   tail = NULL;
@@ -5258,6 +5710,15 @@ gfc_match_return (void)
   if (gfc_find_state (COMP_DO_CONCURRENT))
     {
       gfc_error ("Image control statement RETURN at %C in DO CONCURRENT block");
+      return MATCH_ERROR;
+    }
+
+  if (gfc_find_state (COMP_CHANGE_TEAM))
+    {
+      /* F2018, C1111: A RETURN statement shall not appear within a CHANGE TEAM
+	 construct.  */
+      gfc_error (
+	"Image control statement RETURN at %C in CHANGE TEAM-END TEAM block");
       return MATCH_ERROR;
     }
 
@@ -6861,9 +7322,11 @@ select_type_push (gfc_symbol *sel)
 /* Set the temporary for the current intrinsic SELECT TYPE selector.  */
 
 static gfc_symtree *
-select_intrinsic_set_tmp (gfc_typespec *ts)
+select_intrinsic_set_tmp (gfc_typespec *ts, const char *var_name)
 {
-  char name[GFC_MAX_SYMBOL_LEN];
+  /* Keep size in sync with the buffer size in resolve_select_type as it
+     determines the final name through truncation.  */
+  char name[GFC_MAX_SYMBOL_LEN + 12 + 1];
   gfc_symtree *tmp;
   HOST_WIDE_INT charlen = 0;
   gfc_symbol *selector = select_type_stack->selector;
@@ -6882,12 +7345,12 @@ select_intrinsic_set_tmp (gfc_typespec *ts)
     charlen = gfc_mpz_get_hwi (ts->u.cl->length->value.integer);
 
   if (ts->type != BT_CHARACTER)
-    sprintf (name, "__tmp_%s_%d", gfc_basic_typename (ts->type),
-	     ts->kind);
+    snprintf (name, sizeof (name), "__tmp_%s_%d_%s",
+	      gfc_basic_typename (ts->type), ts->kind, var_name);
   else
     snprintf (name, sizeof (name),
-	      "__tmp_%s_" HOST_WIDE_INT_PRINT_DEC "_%d",
-	      gfc_basic_typename (ts->type), charlen, ts->kind);
+	      "__tmp_%s_" HOST_WIDE_INT_PRINT_DEC "_%d_%s",
+	      gfc_basic_typename (ts->type), charlen, ts->kind, var_name);
 
   gfc_get_sym_tree (name, gfc_current_ns, &tmp, false);
   sym = tmp->n.sym;
@@ -6929,7 +7392,9 @@ select_type_set_tmp (gfc_typespec *ts)
       return;
     }
 
-  tmp = select_intrinsic_set_tmp (ts);
+  gfc_expr *select_type_expr = gfc_state_stack->construct->expr1;
+  const char *var_name = gfc_var_name_for_select_type_temp (select_type_expr);
+  tmp = select_intrinsic_set_tmp (ts, var_name);
 
   if (tmp == NULL)
     {
@@ -6937,9 +7402,11 @@ select_type_set_tmp (gfc_typespec *ts)
 	return;
 
       if (ts->type == BT_CLASS)
-	sprintf (name, "__tmp_class_%s", ts->u.derived->name);
+	snprintf (name, sizeof (name), "__tmp_class_%s_%s", ts->u.derived->name,
+		  var_name);
       else
-	sprintf (name, "__tmp_type_%s", ts->u.derived->name);
+	snprintf (name, sizeof (name), "__tmp_type_%s_%s", ts->u.derived->name,
+		  var_name);
 
       gfc_get_sym_tree (name, gfc_current_ns, &tmp, false);
       sym = tmp->n.sym;
@@ -7043,12 +7510,17 @@ gfc_match_select_type (void)
   else
     {
       m = gfc_match (" %e ", &expr1);
-      if (m != MATCH_YES)
+      if (m == MATCH_NO)
 	{
 	  std::swap (ns, gfc_current_ns);
 	  gfc_free_namespace (ns);
 	  return m;
 	}
+      /* On MATCH_ERROR, the temporary block namespace may already contain
+	 broken state from the failed expression match.  Avoid freeing it
+	 through the normal rollback path.  */
+      else if (m == MATCH_ERROR)
+	return m;
     }
 
   m = gfc_match (" )%t");
@@ -7516,10 +7988,8 @@ gfc_match_type_is (void)
       return MATCH_ERROR;
     }
 
-  if (c->ts.type == BT_DERIVED
-      && c->ts.u.derived && c->ts.u.derived->attr.pdt_type
-      && gfc_spec_list_type (type_param_spec_list, c->ts.u.derived)
-							!= SPEC_ASSUMED)
+  if (IS_PDT (c) && gfc_spec_list_type (type_param_spec_list,
+					c->ts.u.derived) != SPEC_ASSUMED)
     {
       gfc_error ("All the LEN type parameters in the TYPE IS statement "
 		 "at %C must be ASSUMED");
@@ -7532,7 +8002,9 @@ gfc_match_type_is (void)
   return MATCH_YES;
 
 syntax:
-  gfc_error ("Syntax error in TYPE IS specification at %C");
+
+  if (!gfc_error_check ())
+    gfc_error ("Syntax error in TYPE IS specification at %C");
 
 cleanup:
   if (c != NULL)

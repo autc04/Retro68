@@ -1,4 +1,4 @@
-#as: -J
+#as: -J -march=+mpx
 #objdump: -dwr
 #name: x86-64 MPX branch
 #notarget: *-*-solaris*

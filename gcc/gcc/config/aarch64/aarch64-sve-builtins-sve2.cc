@@ -1,5 +1,5 @@
 /* ACLE support for AArch64 SVE (__ARM_FEATURE_SVE2 intrinsics)
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -316,7 +316,8 @@ public:
   expand (function_expander &e) const override
   {
     e.prepare_gather_address_operands (1, false);
-    return e.use_exact_insn (CODE_FOR_aarch64_gather_ld1q);
+    auto icode = code_for_aarch64_gather_ld1q (e.tuple_mode (0));
+    return e.use_exact_insn (icode);
   }
 };
 
@@ -722,7 +723,7 @@ public:
   expand (function_expander &e) const override
   {
     rtx data = e.args.last ();
-    e.args.last () = force_lowpart_subreg (VNx2DImode, data, GET_MODE (data));
+    e.args.last () = aarch64_sve_reinterpret (VNx2DImode, data);
     e.prepare_gather_address_operands (1, false);
     return e.use_exact_insn (CODE_FOR_aarch64_scatter_st1q);
   }
@@ -880,7 +881,9 @@ public:
   {
     for (unsigned int i = 0; i < 2; ++i)
       e.args[i] = e.convert_to_pmode (e.args[i]);
-    return e.use_exact_insn (code_for_while (m_unspec, Pmode, e.gp_mode (0)));
+    auto icode = code_for_aarch64_sve_while_acle (m_unspec, Pmode,
+						  e.gp_mode (0));
+    return e.use_exact_insn (icode);
   }
 
   int m_unspec;
@@ -929,6 +932,44 @@ public:
   unsigned int m_bits;
 };
 
+/* The same as cond_or_uncond_unspec_function but the intrinsics with vector
+   modes are SME2 extensions instead of SVE.  */
+class faminmaximpl : public function_base
+{
+public:
+  CONSTEXPR faminmaximpl (int cond_unspec, int uncond_unspec)
+    : m_cond_unspec (cond_unspec), m_uncond_unspec (uncond_unspec)
+    {}
+
+  rtx
+  expand (function_expander &e) const override
+  {
+    if (e.group_suffix ().vectors_per_tuple > 1)
+      {
+	/* SME2+faminmax intrinsics.  */
+	gcc_assert (e.pred == PRED_none);
+	auto mode = e.tuple_mode (0);
+	auto icode = (code_for_aarch64_sme (m_uncond_unspec, mode));
+	return e.use_exact_insn (icode);
+      }
+    /* SVE+faminmax intrinsics.  */
+    else if (e.pred == PRED_none)
+      {
+	auto mode = e.tuple_mode (0);
+	auto icode = (e.mode_suffix_id == MODE_single
+		      ? code_for_aarch64_sve_single (m_uncond_unspec, mode)
+		      : code_for_aarch64_sve (m_uncond_unspec, mode));
+	return e.use_exact_insn (icode);
+      }
+    return e.map_to_unspecs (m_cond_unspec, m_cond_unspec, m_cond_unspec);
+  }
+
+  /* The unspecs for the conditional and unconditional instructions,
+     respectively.  */
+  int m_cond_unspec;
+  int m_uncond_unspec;
+};
+
 } /* end anonymous namespace */
 
 namespace aarch64_sve {
@@ -957,10 +998,8 @@ FUNCTION (svaesd, fixed_insn_function, (CODE_FOR_aarch64_sve2_aesd))
 FUNCTION (svaese, fixed_insn_function, (CODE_FOR_aarch64_sve2_aese))
 FUNCTION (svaesimc, fixed_insn_function, (CODE_FOR_aarch64_sve2_aesimc))
 FUNCTION (svaesmc, fixed_insn_function, (CODE_FOR_aarch64_sve2_aesmc))
-FUNCTION (svamax, cond_or_uncond_unspec_function,
-	  (UNSPEC_COND_FAMAX, UNSPEC_FAMAX))
-FUNCTION (svamin, cond_or_uncond_unspec_function,
-	  (UNSPEC_COND_FAMIN, UNSPEC_FAMIN))
+FUNCTION (svamax, faminmaximpl, (UNSPEC_COND_FAMAX, UNSPEC_FAMAX))
+FUNCTION (svamin, faminmaximpl, (UNSPEC_COND_FAMIN, UNSPEC_FAMIN))
 FUNCTION (svandqv, reduction, (UNSPEC_ANDQV, UNSPEC_ANDQV, -1))
 FUNCTION (svbcax, CODE_FOR_MODE0 (aarch64_sve2_bcax),)
 FUNCTION (svbdep, unspec_based_function, (UNSPEC_BDEP, UNSPEC_BDEP, -1))
@@ -981,6 +1020,8 @@ FUNCTION (svclamp, svclamp_impl,)
 FUNCTION (svcvt1, svcvt_fp8_impl, (UNSPEC_F1CVT))
 FUNCTION (svcvt2, svcvt_fp8_impl, (UNSPEC_F2CVT))
 FUNCTION (svcvtl, svcvtl_impl,)
+FUNCTION (svcvtl1, svcvt_fp8_impl, (UNSPEC_F1CVTL))
+FUNCTION (svcvtl2, svcvt_fp8_impl, (UNSPEC_F2CVTL))
 FUNCTION (svcvtlt1, svcvt_fp8_impl, (UNSPEC_F1CVTLT))
 FUNCTION (svcvtlt2, svcvt_fp8_impl, (UNSPEC_F2CVTLT))
 FUNCTION (svcvtlt, unspec_based_function, (-1, -1, UNSPEC_COND_FCVTLT))

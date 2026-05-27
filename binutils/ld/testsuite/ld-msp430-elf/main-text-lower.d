@@ -1,3 +1,3 @@
 #...
-Disassembly of section .lower.text:
+.* \.lower\.text +0+38 .*
 #pass

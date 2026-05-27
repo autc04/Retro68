@@ -1,5 +1,5 @@
 #objdump: -sr
-#as: --em=criself
+#as: --emulation=criself
 
 # Checking .dtpoffd output.
 

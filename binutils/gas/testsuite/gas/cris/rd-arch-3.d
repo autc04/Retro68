@@ -1,5 +1,5 @@
 #source: arch-err-5.s
-#as: --march=v0_v10 --underscore --em=criself
+#as: --march=v0_v10 --underscore --emulation=criself
 #objdump: -p
 
 #...

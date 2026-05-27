@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -55,11 +55,11 @@ ASTLowerImplItem::translate (AST::AssociatedItem &item, HirId parent_impl_id)
 void
 ASTLowerImplItem::visit (AST::TypeAlias &alias)
 {
-  std::vector<std::unique_ptr<HIR::WhereClauseItem> > where_clause_items;
+  std::vector<std::unique_ptr<HIR::WhereClauseItem>> where_clause_items;
   HIR::WhereClause where_clause (std::move (where_clause_items));
   HIR::Visibility vis = translate_visibility (alias.get_visibility ());
 
-  std::vector<std::unique_ptr<HIR::GenericParam> > generic_params;
+  std::vector<std::unique_ptr<HIR::GenericParam>> generic_params;
   if (alias.has_generics ())
     generic_params = lower_generic_params (alias.get_generic_params ());
 
@@ -110,12 +110,12 @@ void
 ASTLowerImplItem::visit (AST::Function &function)
 {
   // ignore for now and leave empty
-  std::vector<std::unique_ptr<HIR::WhereClauseItem> > where_clause_items;
+  std::vector<std::unique_ptr<HIR::WhereClauseItem>> where_clause_items;
   for (auto &item : function.get_where_clause ().get_items ())
     {
       HIR::WhereClauseItem *i
 	= ASTLowerWhereClauseItem::translate (*item.get ());
-      where_clause_items.push_back (std::unique_ptr<HIR::WhereClauseItem> (i));
+      where_clause_items.emplace_back (i);
     }
 
   HIR::WhereClause where_clause (std::move (where_clause_items));
@@ -124,7 +124,7 @@ ASTLowerImplItem::visit (AST::Function &function)
   HIR::Visibility vis = translate_visibility (function.get_visibility ());
 
   // need
-  std::vector<std::unique_ptr<HIR::GenericParam> > generic_params;
+  std::vector<std::unique_ptr<HIR::GenericParam>> generic_params;
   if (function.has_generics ())
     {
       generic_params = lower_generic_params (function.get_generic_params ());
@@ -138,7 +138,8 @@ ASTLowerImplItem::visit (AST::Function &function)
 
   std::unique_ptr<HIR::Type> return_type
     = function.has_return_type () ? std::unique_ptr<HIR::Type> (
-	ASTLoweringType::translate (function.get_return_type ()))
+	ASTLoweringType::translate (function.get_return_type (), false,
+				    true /* impl trait is allowed here*/))
 				  : nullptr;
 
   Defaultness defaultness
@@ -161,10 +162,9 @@ ASTLowerImplItem::visit (AST::Function &function)
 				     mappings.get_next_hir_id (crate_num),
 				     UNKNOWN_LOCAL_DEFID);
 
-      auto hir_param
-	= HIR::FunctionParam (mapping, std::move (translated_pattern),
-			      std::move (translated_type), param.get_locus ());
-      function_params.push_back (std::move (hir_param));
+      function_params.emplace_back (mapping, std::move (translated_pattern),
+				    std::move (translated_type),
+				    param.get_locus ());
     }
 
   bool terminated = false;
@@ -233,12 +233,12 @@ ASTLowerTraitItem::translate (AST::AssociatedItem &item)
 void
 ASTLowerTraitItem::visit (AST::Function &func)
 {
-  std::vector<std::unique_ptr<HIR::WhereClauseItem> > where_clause_items;
+  std::vector<std::unique_ptr<HIR::WhereClauseItem>> where_clause_items;
   HIR::WhereClause where_clause (std::move (where_clause_items));
   HIR::FunctionQualifiers qualifiers
     = lower_qualifiers (func.get_qualifiers ());
 
-  std::vector<std::unique_ptr<HIR::GenericParam> > generic_params;
+  std::vector<std::unique_ptr<HIR::GenericParam>> generic_params;
   if (func.has_generics ())
     generic_params = lower_generic_params (func.get_generic_params ());
 
@@ -271,10 +271,18 @@ ASTLowerTraitItem::visit (AST::Function &func)
 				     mappings.get_next_hir_id (crate_num),
 				     UNKNOWN_LOCAL_DEFID);
 
-      auto hir_param
-	= HIR::FunctionParam (mapping, std::move (translated_pattern),
-			      std::move (translated_type), param.get_locus ());
-      function_params.push_back (hir_param);
+      function_params.emplace_back (mapping, std::move (translated_pattern),
+				    std::move (translated_type),
+				    param.get_locus ());
+    }
+
+  if (func.has_self_param ())
+    {
+      // insert mappings for self
+      // TODO: Is this correct ? Looks fishy
+      mappings.insert_hir_self_param (&*self_param);
+      mappings.insert_location (self_param->get_mappings ().get_hirid (),
+				self_param->get_locus ());
     }
 
   HIR::TraitFunctionDecl decl (func.get_function_name (),
@@ -300,14 +308,6 @@ ASTLowerTraitItem::visit (AST::Function &func)
     = new HIR::TraitItemFunc (mapping, std::move (decl), std::move (block_expr),
 			      func.get_outer_attrs (), func.get_locus ());
   translated = trait_item;
-  if (func.has_self_param ())
-    {
-      // insert mappings for self
-      // TODO: Is this correct ? Looks fishy
-      mappings.insert_hir_self_param (&*self_param);
-      mappings.insert_location (self_param->get_mappings ().get_hirid (),
-				self_param->get_locus ());
-    }
 
   // add the mappings for the function params at the end
   for (auto &param : trait_item->get_decl ().get_function_params ())
@@ -318,10 +318,10 @@ ASTLowerTraitItem::visit (AST::Function &func)
 }
 
 void
-ASTLowerTraitItem::visit (AST::TraitItemConst &constant)
+ASTLowerTraitItem::visit (AST::ConstantItem &constant)
 {
   HIR::Type *type = ASTLoweringType::translate (constant.get_type ());
-  HIR::Expr *expr = constant.has_expression ()
+  HIR::Expr *expr = constant.has_expr ()
 		      ? ASTLoweringExpr::translate (constant.get_expr ())
 		      : nullptr;
 
@@ -342,7 +342,24 @@ ASTLowerTraitItem::visit (AST::TraitItemConst &constant)
 void
 ASTLowerTraitItem::visit (AST::TraitItemType &type)
 {
-  std::vector<std::unique_ptr<HIR::TypeParamBound> > type_param_bounds;
+  // Lower generic parameters (for GATs)
+  std::vector<std::unique_ptr<HIR::GenericParam>> generic_params;
+  for (auto &param : type.get_generic_params ())
+    {
+      auto lowered_param = ASTLowerGenericParam::translate (*param.get ());
+      generic_params.push_back (
+	std::unique_ptr<HIR::GenericParam> (lowered_param));
+    }
+
+  // Lower type parameter bounds
+  std::vector<std::unique_ptr<HIR::TypeParamBound>> type_param_bounds;
+  for (auto &bound : type.get_type_param_bounds ())
+    {
+      auto lowered_bound = lower_bound (*bound.get ());
+      type_param_bounds.push_back (
+	std::unique_ptr<HIR::TypeParamBound> (lowered_bound));
+    }
+
   auto crate_num = mappings.get_current_crate ();
   Analysis::NodeMapping mapping (crate_num, type.get_node_id (),
 				 mappings.get_next_hir_id (crate_num),
@@ -350,6 +367,7 @@ ASTLowerTraitItem::visit (AST::TraitItemType &type)
 
   HIR::TraitItemType *trait_item
     = new HIR::TraitItemType (mapping, type.get_identifier (),
+			      std::move (generic_params),
 			      std::move (type_param_bounds),
 			      type.get_outer_attrs (), type.get_locus ());
   translated = trait_item;

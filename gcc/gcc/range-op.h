@@ -1,5 +1,5 @@
 /* Header file for range operator class.
-   Copyright (C) 2017-2025 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
    Contributed by Andrew MacLeod <amacleod@redhat.com>
    and Aldy Hernandez <aldyh@redhat.com>.
 
@@ -86,6 +86,10 @@ public:
 			   const irange &lh,
 			   const irange &rh,
 			   relation_trio = TRIO_VARYING) const;
+  virtual bool fold_range (frange &r, tree type,
+			   const irange &lh,
+			   const frange &rh,
+			   relation_trio = TRIO_VARYING) const;
   virtual bool fold_range (prange &r, tree type,
 			   const prange &lh,
 			   const prange &rh,
@@ -146,7 +150,10 @@ public:
 			  const irange &lhs,
 			  const frange &op2,
 			  relation_trio = TRIO_VARYING) const;
-
+  virtual bool op1_range (irange &r, tree type,
+			  const frange &lhs,
+			  const irange &op2,
+			  relation_trio = TRIO_VARYING) const;
 
   virtual bool op2_range (irange &r, tree type,
 			  const irange &lhs,
@@ -188,6 +195,10 @@ public:
   virtual relation_kind lhs_op1_relation (const irange &lhs,
 					  const prange &op1,
 					  const prange &op2,
+					  relation_kind = VREL_VARYING) const;
+  virtual relation_kind lhs_op1_relation (const prange &lhs,
+					  const prange &op1,
+					  const irange &op2,
 					  relation_kind = VREL_VARYING) const;
   virtual relation_kind lhs_op1_relation (const frange &lhs,
 					  const frange &op1,
@@ -380,11 +391,12 @@ extern void wi_set_zero_nonzero_bits (tree type,
 // Add them to the end of the tree-code vector, and provide a name for
 // each allowing for easy access when required.
 
-#define OP_WIDEN_MULT_SIGNED	((unsigned) MAX_TREE_CODES)
-#define OP_WIDEN_MULT_UNSIGNED	((unsigned) MAX_TREE_CODES + 1)
-#define OP_WIDEN_PLUS_SIGNED	((unsigned) MAX_TREE_CODES + 2)
-#define OP_WIDEN_PLUS_UNSIGNED	((unsigned) MAX_TREE_CODES + 3)
-#define RANGE_OP_TABLE_SIZE	((unsigned) MAX_TREE_CODES + 4)
+#define OP_WIDEN_MULT_SIGNED		((unsigned) MAX_TREE_CODES)
+#define OP_WIDEN_MULT_UNSIGNED		((unsigned) MAX_TREE_CODES + 1)
+#define OP_WIDEN_MULT_SIGNED_UNSIGNED	((unsigned) MAX_TREE_CODES + 2)
+#define OP_WIDEN_PLUS_SIGNED		((unsigned) MAX_TREE_CODES + 3)
+#define OP_WIDEN_PLUS_UNSIGNED		((unsigned) MAX_TREE_CODES + 4)
+#define RANGE_OP_TABLE_SIZE		((unsigned) MAX_TREE_CODES + 5)
 
 // This implements the range operator tables as local objects.
 

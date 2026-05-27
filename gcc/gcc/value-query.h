@@ -1,5 +1,5 @@
 /* Support routines for value queries.
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldyh@redhat.com> and
    Andrew Macleod <amacleod@redhat.com>.
 
@@ -75,6 +75,8 @@ public:
   virtual bool range_on_entry (vrange &r, basic_block bb, tree expr);
   virtual bool range_on_exit (vrange &r, basic_block bb, tree expr);
 
+  virtual void update_range_info (tree name, const vrange &r);
+
   inline class relation_oracle &relation () const  { return *m_relation; }
   void create_relation_oracle (bool do_trans_p = true);
   void destroy_relation_oracle ();
@@ -92,9 +94,10 @@ public:
 
 protected:
   bool get_tree_range (vrange &v, tree expr, gimple *stmt,
-		       basic_block bbentry = NULL, basic_block bbexit = NULL);
+		       basic_block bbentry = NULL, basic_block bbexit = NULL,
+		       edge e = NULL);
   bool invoke_range_of_expr (vrange &v, tree expr, gimple *stmt,
-			     basic_block bbentry, basic_block bbexit);
+			     basic_block bbentry, basic_block bbexit, edge e);
   bool get_arith_expr_range (vrange &r, tree expr, gimple *stmt);
   relation_oracle *m_relation;
   infer_range_oracle *m_infer;
@@ -104,7 +107,6 @@ protected:
   // This is an internal interface
   void share_query (range_query &q);
   bool m_shared_copy_p;
-
 };
 
 // Global ranges for SSA names using SSA_NAME_RANGE_INFO.

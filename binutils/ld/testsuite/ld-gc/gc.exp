@@ -1,5 +1,5 @@
 # Expect script for ld-gc tests
-#   Copyright (C) 2008-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2008-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -142,7 +142,6 @@ if { [is_elf_format] && [check_shared_lib_support] } then {
 
 if { [check_compiler_available] } {
     if { [istarget "*-*-linux*"]
-	 || [istarget "*-*-nacl*"]
 	 || [istarget "*-*-gnu*"] } {
 	ld_compile "$CC_FOR_TARGET -fPIC $cflags" $srcdir/$subdir/pr11218-1.c tmpdir/pr11218-1.o
 	ld_link $ld tmpdir/pr11218-1.so "-shared tmpdir/pr11218-1.o"

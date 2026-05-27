@@ -109,7 +109,9 @@ target_triplet = @target@
 subdir = libm2pim
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
+	$(top_srcdir)/../config/clang-plugin.m4 \
 	$(top_srcdir)/../config/depstand.m4 \
+	$(top_srcdir)/../config/gcc-plugin.m4 \
 	$(top_srcdir)/../config/lead-dot.m4 \
 	$(top_srcdir)/../config/multi.m4 \
 	$(top_srcdir)/../config/no-executables.m4 \
@@ -157,8 +159,9 @@ am__uninstall_files_from_dir = { \
 am__installdirs = "$(DESTDIR)$(toolexeclibdir)"
 LTLIBRARIES = $(toolexeclib_LTLIBRARIES)
 libm2pim_la_LIBADD =
-@BUILD_PIMLIB_TRUE@am__objects_1 = ASCII.lo IO.lo Args.lo M2RTS.lo \
-@BUILD_PIMLIB_TRUE@	M2Dependent.lo Assertion.lo NumberIO.lo \
+@BUILD_PIMLIB_TRUE@am__objects_1 = ASCII.lo Args.lo BinDict.lo IO.lo \
+@BUILD_PIMLIB_TRUE@	M2RTS.lo M2Dependent.lo M2Diagnostic.lo \
+@BUILD_PIMLIB_TRUE@	M2WIDESET.lo Assertion.lo NumberIO.lo \
 @BUILD_PIMLIB_TRUE@	Break.lo SYSTEM.lo CmdArgs.lo Scan.lo \
 @BUILD_PIMLIB_TRUE@	StrCase.lo FIO.lo StrIO.lo StrLib.lo \
 @BUILD_PIMLIB_TRUE@	TimeString.lo Environment.lo FpuIO.lo \
@@ -169,12 +172,14 @@ libm2pim_la_LIBADD =
 @BUILD_PIMLIB_TRUE@	Builtins.lo MathLib0.lo M2EXCEPTION.lo \
 @BUILD_PIMLIB_TRUE@	RTExceptions.lo SMathLib0.lo RTint.lo \
 @BUILD_PIMLIB_TRUE@	Indexing.lo LMathLib0.lo LegacyReal.lo \
-@BUILD_PIMLIB_TRUE@	MemUtils.lo gdbif.lo GetOpt.lo OptLib.lo
+@BUILD_PIMLIB_TRUE@	MemUtils.lo gdbif.lo GetOpt.lo OptLib.lo \
+@BUILD_PIMLIB_TRUE@	ARRAYOFCHAR.lo CHAR.lo StringFileSysOp.lo \
+@BUILD_PIMLIB_TRUE@	String.lo FileSysOp.lo
 @BUILD_PIMLIB_TRUE@am_libm2pim_la_OBJECTS = $(am__objects_1) \
 @BUILD_PIMLIB_TRUE@	UnixArgs.lo Selective.lo sckt.lo errno.lo \
 @BUILD_PIMLIB_TRUE@	dtoa.lo ldtoa.lo termios.lo \
 @BUILD_PIMLIB_TRUE@	SysExceptions.lo libm2pim_la-target.lo \
-@BUILD_PIMLIB_TRUE@	wrapc.lo cgetopt.lo
+@BUILD_PIMLIB_TRUE@	wrapc.lo cgetopt.lo CFileSysOp.lo
 libm2pim_la_OBJECTS = $(am_libm2pim_la_OBJECTS)
 @BUILD_PIMLIB_TRUE@am_libm2pim_la_rpath = -rpath $(toolexeclibdir)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -306,6 +311,7 @@ LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
+LLVM_CONFIG = @LLVM_CONFIG@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
@@ -473,9 +479,12 @@ AM_MAKEFLAGS = \
 # Subdir rules rely on $(FLAGS_TO_PASS)
 FLAGS_TO_PASS = $(AM_MAKEFLAGS)
 @BUILD_PIMLIB_TRUE@toolexeclib_LTLIBRARIES = libm2pim.la
-@BUILD_PIMLIB_TRUE@M2MODS = ASCII.mod IO.mod \
-@BUILD_PIMLIB_TRUE@       Args.mod M2RTS.mod \
+@BUILD_PIMLIB_TRUE@M2MODS = ASCII.mod \
+@BUILD_PIMLIB_TRUE@       Args.mod BinDict.mod \
+@BUILD_PIMLIB_TRUE@       IO.mod M2RTS.mod \
 @BUILD_PIMLIB_TRUE@       M2Dependent.mod \
+@BUILD_PIMLIB_TRUE@       M2Diagnostic.mod \
+@BUILD_PIMLIB_TRUE@       M2WIDESET.mod \
 @BUILD_PIMLIB_TRUE@       Assertion.mod NumberIO.mod \
 @BUILD_PIMLIB_TRUE@       Break.mod SYSTEM.mod \
 @BUILD_PIMLIB_TRUE@       CmdArgs.mod Scan.mod \
@@ -495,14 +504,21 @@ FLAGS_TO_PASS = $(AM_MAKEFLAGS)
 @BUILD_PIMLIB_TRUE@       Indexing.mod \
 @BUILD_PIMLIB_TRUE@       LMathLib0.mod LegacyReal.mod \
 @BUILD_PIMLIB_TRUE@       MemUtils.mod gdbif.mod \
-@BUILD_PIMLIB_TRUE@       GetOpt.mod OptLib.mod
+@BUILD_PIMLIB_TRUE@       GetOpt.mod OptLib.mod \
+@BUILD_PIMLIB_TRUE@       ARRAYOFCHAR.mod \
+@BUILD_PIMLIB_TRUE@       CHAR.mod \
+@BUILD_PIMLIB_TRUE@       StringFileSysOp.mod \
+@BUILD_PIMLIB_TRUE@       String.mod \
+@BUILD_PIMLIB_TRUE@       FileSysOp.mod
 
 
 # COROUTINES.mod has been removed as it is implemented in ../libm2iso.
 @BUILD_PIMLIB_TRUE@M2DEFS = Args.def   ASCII.def \
-@BUILD_PIMLIB_TRUE@         Assertion.def  Break.def \
+@BUILD_PIMLIB_TRUE@         Assertion.def  BinDict.def \
+@BUILD_PIMLIB_TRUE@         Break.def \
 @BUILD_PIMLIB_TRUE@         Builtins.def  cbuiltin.def \
-@BUILD_PIMLIB_TRUE@         CmdArgs.def COROUTINES.def \
+@BUILD_PIMLIB_TRUE@         CmdArgs.def CFileSysOp.def \
+@BUILD_PIMLIB_TRUE@         COROUTINES.def \
 @BUILD_PIMLIB_TRUE@         cxxabi.def  Debug.def \
 @BUILD_PIMLIB_TRUE@         dtoa.def  DynamicStrings.def \
 @BUILD_PIMLIB_TRUE@         Environment.def  errno.def \
@@ -513,8 +529,10 @@ FLAGS_TO_PASS = $(AM_MAKEFLAGS)
 @BUILD_PIMLIB_TRUE@         LegacyReal.def  libc.def \
 @BUILD_PIMLIB_TRUE@         libm.def  LMathLib0.def \
 @BUILD_PIMLIB_TRUE@         M2Dependent.def \
+@BUILD_PIMLIB_TRUE@         M2Diagnostic.def \
 @BUILD_PIMLIB_TRUE@         M2EXCEPTION.def \
 @BUILD_PIMLIB_TRUE@         M2RTS.def \
+@BUILD_PIMLIB_TRUE@         M2WIDESET.def \
 @BUILD_PIMLIB_TRUE@         MathLib0.def  MemUtils.def \
 @BUILD_PIMLIB_TRUE@         NumberIO.def  PushBackInput.def \
 @BUILD_PIMLIB_TRUE@         RTExceptions.def  RTint.def \
@@ -530,7 +548,12 @@ FLAGS_TO_PASS = $(AM_MAKEFLAGS)
 @BUILD_PIMLIB_TRUE@         termios.def  TimeString.def \
 @BUILD_PIMLIB_TRUE@         UnixArgs.def  wrapc.def  \
 @BUILD_PIMLIB_TRUE@         GetOpt.def OptLib.def \
-@BUILD_PIMLIB_TRUE@         cgetopt.def
+@BUILD_PIMLIB_TRUE@         cgetopt.def \
+@BUILD_PIMLIB_TRUE@         ARRAYOFCHAR.def \
+@BUILD_PIMLIB_TRUE@         CHAR.def \
+@BUILD_PIMLIB_TRUE@         StringFileSysOp.def \
+@BUILD_PIMLIB_TRUE@         String.def \
+@BUILD_PIMLIB_TRUE@         FileSysOp.def
 
 @BUILD_PIMLIB_TRUE@libm2pim_la_SOURCES = $(M2MODS) \
 @BUILD_PIMLIB_TRUE@                      UnixArgs.cc \
@@ -538,7 +561,8 @@ FLAGS_TO_PASS = $(AM_MAKEFLAGS)
 @BUILD_PIMLIB_TRUE@                      errno.cc dtoa.cc \
 @BUILD_PIMLIB_TRUE@                      ldtoa.cc termios.cc \
 @BUILD_PIMLIB_TRUE@                      SysExceptions.cc target.c \
-@BUILD_PIMLIB_TRUE@                      wrapc.cc cgetopt.cc
+@BUILD_PIMLIB_TRUE@                      wrapc.cc cgetopt.cc \
+@BUILD_PIMLIB_TRUE@                      CFileSysOp.cc
 
 @BUILD_PIMLIB_TRUE@libm2pimdir = libm2pim
 @BUILD_PIMLIB_TRUE@libm2pim_la_DEPENDENCIES = SYSTEM.def $(addsuffix .lo, $(basename $(libm2pim_la_SOURCES)))
@@ -550,6 +574,7 @@ FLAGS_TO_PASS = $(AM_MAKEFLAGS)
 @BUILD_PIMLIB_TRUE@  -fm2-pathname=m2pim -I. -I$(GM2_SRC)/gm2-libs \
 @BUILD_PIMLIB_TRUE@  -fm2-pathname=m2iso -I$(GM2_SRC)/gm2-libs-iso \
 @BUILD_PIMLIB_TRUE@  -fm2-g -g -Wcase-enum -Wreturn-type \
+@BUILD_PIMLIB_TRUE@  -Wall \
 @BUILD_PIMLIB_TRUE@  -fcase -fm2-prefix=m2pim
 
 @BUILD_PIMLIB_TRUE@@TARGET_DARWIN_FALSE@libm2pim_la_link_flags =  \
@@ -639,6 +664,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CFileSysOp.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Selective.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/SysExceptions.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/UnixArgs.Plo@am__quote@

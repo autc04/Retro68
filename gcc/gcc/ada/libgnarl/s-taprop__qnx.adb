@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -51,16 +51,9 @@ with System.OS_Primitives;
 with System.Task_Info;
 with System.Tasking.Debug;
 
-with System.Soft_Links;
---  We use System.Soft_Links instead of System.Tasking.Initialization
---  because the later is a higher level package that we shouldn't depend on.
---  For example when using the restricted run time, it is replaced by
---  System.Tasking.Restricted.Stages.
-
 package body System.Task_Primitives.Operations is
 
    package OSC renames System.OS_Constants;
-   package SSL renames System.Soft_Links;
 
    use Interfaces.C;
 
@@ -95,6 +88,22 @@ package body System.Task_Primitives.Operations is
 
    Unblocked_Signal_Mask : aliased sigset_t;
    --  The set of signals that should unblocked in all tasks
+
+   Default_Signal_Mask : aliased sigset_t;
+   --  Default signal mask, used to restore signal mask after thread creation
+
+   Default_Signal_Mask_Initialized : Boolean := False;
+   --  Allow to not enable default signals if the default signal mask failed to
+   --  initialize.
+
+   procedure Disable_Signals;
+   --  Disable signals before calling pthread_create to avoid a potential
+   --  memory leak on QNX.
+
+   procedure Enable_Signals;
+   --  Enable signals after pthread_create and in the created task. Since the
+   --  created task inherits the disabled signals from the parent they have to
+   --  be enabled for each task separately.
 
    --  The followings are internal configuration constants needed
 
@@ -654,6 +663,7 @@ package body System.Task_Primitives.Operations is
 
    procedure Enter_Task (Self_ID : Task_Id) is
    begin
+      Enable_Signals;
       Self_ID.Common.LL.LWP := lwp_self;
 
       Specific.Set (Self_ID);
@@ -765,7 +775,6 @@ package body System.Task_Primitives.Operations is
 
       function Thread_Body_Access is new
         Ada.Unchecked_Conversion (System.Address, Thread_Body);
-
    begin
       Adjusted_Stack_Size :=
          Interfaces.C.size_t (Stack_Size + Alternate_Stack_Size);
@@ -840,10 +849,11 @@ package body System.Task_Primitives.Operations is
 
       pragma Assert (Result = 0);
 
-      --  Since the initial signal mask of a thread is inherited from the
-      --  creator, and the Environment task has all its signals masked, we
-      --  do not need to manipulate caller's signal mask at this point.
-      --  All tasks in RTS will have All_Tasks_Mask initially.
+      --  (QMS3263) lists PR 2894086. This defect causes a memory leak when
+      --  pthread_create is interrupted by a signal and later resumed. To avoid
+      --  avoid such a leak the document suggests to disable signals while
+      --  calling pthread_create. The signal mask of the calling thread is
+      --  restored after the call to pthread_create.
 
       --  The write to T.Common.LL.Thread is not racy with regard to the
       --  created thread because the created thread will not access it until
@@ -851,12 +861,14 @@ package body System.Task_Primitives.Operations is
       --  Restricted.Stages is used). One can verify that by inspecting the
       --  Task_Wrapper procedures.
 
+      Disable_Signals;
       Result := pthread_create
         (T.Common.LL.Thread'Access,
          Attributes'Access,
          Thread_Body_Access (Wrapper),
          To_Address (T));
       pragma Assert (Result = 0 or else Result = EAGAIN);
+      Enable_Signals;
 
       Succeeded := Result = 0;
 
@@ -912,223 +924,6 @@ package body System.Task_Primitives.Operations is
          pragma Assert (Result = 0);
       end if;
    end Abort_Task;
-
-   ----------------
-   -- Initialize --
-   ----------------
-
-   procedure Initialize (S : in out Suspension_Object) is
-      Mutex_Attr : aliased pthread_mutexattr_t;
-      Cond_Attr  : aliased pthread_condattr_t;
-      Result     : Interfaces.C.int;
-
-   begin
-      --  Initialize internal state (always to False (RM D.10 (6)))
-
-      S.State := False;
-      S.Waiting := False;
-
-      --  Initialize internal mutex
-
-      Result := pthread_mutexattr_init (Mutex_Attr'Access);
-      pragma Assert (Result = 0 or else Result = ENOMEM);
-
-      if Result = ENOMEM then
-         raise Storage_Error;
-      end if;
-
-      Result := pthread_mutex_init (S.L'Access, Mutex_Attr'Access);
-      pragma Assert (Result = 0 or else Result = ENOMEM);
-
-      if Result = ENOMEM then
-         Result := pthread_mutexattr_destroy (Mutex_Attr'Access);
-         pragma Assert (Result = 0);
-
-         raise Storage_Error;
-      end if;
-
-      Result := pthread_mutexattr_destroy (Mutex_Attr'Access);
-      pragma Assert (Result = 0);
-
-      --  Initialize internal condition variable
-
-      Result := pthread_condattr_init (Cond_Attr'Access);
-      pragma Assert (Result = 0 or else Result = ENOMEM);
-
-      if Result /= 0 then
-         Result := pthread_mutex_destroy (S.L'Access);
-         pragma Assert (Result = 0);
-
-         --  Storage_Error is propagated as intended if the allocation of the
-         --  underlying OS entities fails.
-
-         raise Storage_Error;
-
-      else
-         Result := GNAT_pthread_condattr_setup (Cond_Attr'Access);
-         pragma Assert (Result = 0);
-      end if;
-
-      Result := pthread_cond_init (S.CV'Access, Cond_Attr'Access);
-      pragma Assert (Result = 0 or else Result = ENOMEM);
-
-      if Result /= 0 then
-         Result := pthread_mutex_destroy (S.L'Access);
-         pragma Assert (Result = 0);
-
-         Result := pthread_condattr_destroy (Cond_Attr'Access);
-         pragma Assert (Result = 0);
-
-         --  Storage_Error is propagated as intended if the allocation of the
-         --  underlying OS entities fails.
-
-         raise Storage_Error;
-      end if;
-
-      Result := pthread_condattr_destroy (Cond_Attr'Access);
-      pragma Assert (Result = 0);
-   end Initialize;
-
-   --------------
-   -- Finalize --
-   --------------
-
-   procedure Finalize (S : in out Suspension_Object) is
-      Result : Interfaces.C.int;
-
-   begin
-      --  Destroy internal mutex
-
-      Result := pthread_mutex_destroy (S.L'Access);
-      pragma Assert (Result = 0);
-
-      --  Destroy internal condition variable
-
-      Result := pthread_cond_destroy (S.CV'Access);
-      pragma Assert (Result = 0);
-   end Finalize;
-
-   -------------------
-   -- Current_State --
-   -------------------
-
-   function Current_State (S : Suspension_Object) return Boolean is
-   begin
-      --  We do not want to use lock on this read operation. State is marked
-      --  as Atomic so that we ensure that the value retrieved is correct.
-
-      return S.State;
-   end Current_State;
-
-   ---------------
-   -- Set_False --
-   ---------------
-
-   procedure Set_False (S : in out Suspension_Object) is
-      Result : Interfaces.C.int;
-
-   begin
-      SSL.Abort_Defer.all;
-
-      Result := pthread_mutex_lock (S.L'Access);
-      pragma Assert (Result = 0);
-
-      S.State := False;
-
-      Result := pthread_mutex_unlock (S.L'Access);
-      pragma Assert (Result = 0);
-
-      SSL.Abort_Undefer.all;
-   end Set_False;
-
-   --------------
-   -- Set_True --
-   --------------
-
-   procedure Set_True (S : in out Suspension_Object) is
-      Result : Interfaces.C.int;
-
-   begin
-      SSL.Abort_Defer.all;
-
-      Result := pthread_mutex_lock (S.L'Access);
-      pragma Assert (Result = 0);
-
-      --  If there is already a task waiting on this suspension object then
-      --  we resume it, leaving the state of the suspension object to False,
-      --  as it is specified in (RM D.10(9)). Otherwise, it just leaves
-      --  the state to True.
-
-      if S.Waiting then
-         S.Waiting := False;
-         S.State := False;
-
-         Result := pthread_cond_signal (S.CV'Access);
-         pragma Assert (Result = 0);
-
-      else
-         S.State := True;
-      end if;
-
-      Result := pthread_mutex_unlock (S.L'Access);
-      pragma Assert (Result = 0);
-
-      SSL.Abort_Undefer.all;
-   end Set_True;
-
-   ------------------------
-   -- Suspend_Until_True --
-   ------------------------
-
-   procedure Suspend_Until_True (S : in out Suspension_Object) is
-      Result : Interfaces.C.int;
-
-   begin
-      SSL.Abort_Defer.all;
-
-      Result := pthread_mutex_lock (S.L'Access);
-      pragma Assert (Result = 0);
-
-      if S.Waiting then
-
-         --  Program_Error must be raised upon calling Suspend_Until_True
-         --  if another task is already waiting on that suspension object
-         --  (RM D.10(10)).
-
-         Result := pthread_mutex_unlock (S.L'Access);
-         pragma Assert (Result = 0);
-
-         SSL.Abort_Undefer.all;
-
-         raise Program_Error;
-
-      else
-         --  Suspend the task if the state is False. Otherwise, the task
-         --  continues its execution, and the state of the suspension object
-         --  is set to False (ARM D.10 par. 9).
-
-         if S.State then
-            S.State := False;
-         else
-            S.Waiting := True;
-
-            loop
-               --  Loop in case pthread_cond_wait returns earlier than expected
-               --  (e.g. in case of EINTR caused by a signal).
-
-               Result := pthread_cond_wait (S.CV'Access, S.L'Access);
-               pragma Assert (Result = 0 or else Result = EINTR);
-
-               exit when not S.Waiting;
-            end loop;
-         end if;
-
-         Result := pthread_mutex_unlock (S.L'Access);
-         pragma Assert (Result = 0);
-
-         SSL.Abort_Undefer.all;
-      end if;
-   end Suspend_Until_True;
 
    ----------------
    -- Check_Exit --
@@ -1276,6 +1071,10 @@ package body System.Task_Primitives.Operations is
          end if;
       end loop;
 
+      Result := pthread_sigmask
+         (SIG_SETMASK, null, Default_Signal_Mask'Access);
+      Default_Signal_Mask_Initialized := Result = 0;
+
       --  Initialize the lock used to synchronize chain of all ATCBs
 
       Initialize_Lock (Single_RTS_Lock'Access, RTS_Lock_Level);
@@ -1362,4 +1161,60 @@ package body System.Task_Primitives.Operations is
       pragma Assert (Result = 0);
    end Set_Task_Affinity;
 
+   ---------------------
+   -- Disable_Signals --
+   ---------------------
+
+   procedure Disable_Signals
+   is
+      Set    : aliased sigset_t;
+      Result : Interfaces.C.int;
+   begin
+      --  If the default signal mask is not initialized there is no point in
+      --  disabling signals since we can't enable them again. Not enabling them
+      --  might impact the runtimes functionality so we rather accept the
+      --  possible memory leak.
+      if not Default_Signal_Mask_Initialized then
+         return;
+      end if;
+
+      --  If any of the operations of setting up the signal mask fails we abort
+      --  disabling the signals. The function to enable the signals doesn't
+      --  need to care about this. It will simply restore the default signal
+      --  mask if it was successfully initialized. If the signals are not
+      --  disabled this is a no-op.
+      Result := sigemptyset (Set'Access);
+      if Result /= 0 then
+         return;
+      end if;
+      for S in SIGHUP .. SIGXFSZ loop
+         Result := sigaddset (Set'Access, Signal (S));
+         if Result /= 0 then
+            return;
+         end if;
+      end loop;
+      Result := pthread_sigmask (SIG_BLOCK, Set'Access, null);
+      pragma Assert (Result = 0);
+   end Disable_Signals;
+
+   --------------------
+   -- Enable_Signals --
+   --------------------
+
+   procedure Enable_Signals
+   is
+      Result : Interfaces.C.int;
+   begin
+      if not Default_Signal_Mask_Initialized then
+         return;
+      end if;
+      Result := pthread_sigmask
+         (SIG_SETMASK, Default_Signal_Mask'Access, null);
+      pragma Assert (Result = 0);
+   end Enable_Signals;
+
+   function Is_Task_Context return Boolean is
+   begin
+      return True;
+   end Is_Task_Context;
 end System.Task_Primitives.Operations;

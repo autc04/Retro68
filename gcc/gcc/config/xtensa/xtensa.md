@@ -1,5 +1,5 @@
 ;; GCC machine description for Tensilica's Xtensa architecture.
-;; Copyright (C) 2001-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2026 Free Software Foundation, Inc.
 ;; Contributed by Bob Wilson (bwilson@tensilica.com) at Tensilica.
 
 ;; This file is part of GCC.
@@ -41,6 +41,9 @@
   UNSPEC_LSETUP_START
   UNSPEC_LSETUP_END
   UNSPEC_FRAME_BLOCKAGE
+  UNSPEC_CEIL
+  UNSPEC_FLOOR
+  UNSPEC_ROUND
 ])
 
 (define_c_enum "unspecv" [
@@ -86,10 +89,7 @@
 ;; This mode iterator allows the HI and QI patterns to be defined from
 ;; the same template.
 (define_mode_iterator HQI [HI QI])
-
-;; This mode iterator allows the SI and HI patterns to be defined from
-;; the same template.
-(define_mode_iterator SHI [SI HI])
+(define_mode_attr mode_bits [(HI "16") (QI "8")])
 
 ;; This iterator and attribute allow signed/unsigned FP truncations to be
 ;; generated from one template.
@@ -102,6 +102,13 @@
 (define_code_iterator any_float [float unsigned_float])
 (define_code_attr m_float [(float "float") (unsigned_float "ufloat")])
 (define_code_attr s_float [(float "") (unsigned_float "uns")])
+
+;; This iterator and attribute allow FP-to-integer rounding of three types
+;; to be generated from one template.
+(define_int_iterator ANY_ROUND [UNSPEC_CEIL UNSPEC_FLOOR
+				(UNSPEC_ROUND "flag_unsafe_math_optimizations")])
+(define_int_attr m_round [(UNSPEC_CEIL "ceil") (UNSPEC_FLOOR "floor")
+			  (UNSPEC_ROUND "round")])
 
 
 ;; Attributes.
@@ -169,25 +176,24 @@
 ;; Addition.
 
 (define_insn "addsi3"
-  [(set (match_operand:SI 0 "register_operand" "=D,D,a,a,a")
-	(plus:SI (match_operand:SI 1 "register_operand" "%d,d,r,r,r")
-		 (match_operand:SI 2 "add_operand" "d,O,r,J,N")))]
+  [(set (match_operand:SI 0 "register_operand")
+	(plus:SI (match_operand:SI 1 "register_operand")
+		 (match_operand:SI 2 "add_operand")))]
   ""
-  "@
-   add.n\t%0, %1, %2
-   addi.n\t%0, %1, %d2
-   add\t%0, %1, %2
-   addi\t%0, %1, %d2
-   addmi\t%0, %1, %x2"
-  [(set_attr "type"	"arith,arith,arith,arith,arith")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"2,2,3,3,3")])
+  {@ [cons: =0, %1, 2; attrs: type, length]
+     [D, d, d; arith, 2] add.n\t%0, %1, %2
+     [D, d, O; arith, 2] addi.n\t%0, %1, %d2
+     [a, r, r; arith, 3] add\t%0, %1, %2
+     [a, r, J; arith, 3] addi\t%0, %1, %d2
+     [a, r, N; arith, 3] addmi\t%0, %1, %x2
+  }
+  [(set_attr "mode" "SI")])
 
 (define_insn "*addsubx"
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(match_operator:SI 4 "addsub_operator"
 		[(ashift:SI (match_operand:SI 1 "register_operand" "r")
-			    (match_operand:SI 3 "addsubx_operand" "i"))
+			    (match_operand:SI 3 "addsubx_operand" ""))
 		 (match_operand:SI 2 "register_operand" "r")]))]
   "TARGET_ADDX"
 {
@@ -267,7 +273,7 @@
 
 (define_insn_and_split "*subsi3_from_const"
   [(set (match_operand:SI 0 "register_operand" "=a")
-	(minus:SI (match_operand:SI 1 "const_int_operand" "i")
+	(minus:SI (match_operand:SI 1 "const_int_operand" "")
 		  (match_operand:SI 2 "register_operand" "r")))]
   "xtensa_simm8 (-INTVAL (operands[1]))
    || xtensa_simm8x256 (-INTVAL (operands[1]))"
@@ -385,18 +391,15 @@
    (set_attr "length"	"3")])
 
 (define_insn "<u>mulhisi3"
-  [(set (match_operand:SI 0 "register_operand" "=C,A")
-	(mult:SI (any_extend:SI
-		  (match_operand:HI 1 "register_operand" "%r,r"))
-		 (any_extend:SI
-		  (match_operand:HI 2 "register_operand" "r,r"))))]
+  [(set (match_operand:SI 0 "register_operand")
+	(mult:SI (any_extend:SI (match_operand:HI 1 "register_operand"))
+		 (any_extend:SI (match_operand:HI 2 "register_operand"))))]
   "TARGET_MUL16 || TARGET_MAC16"
-  "@
-   mul16<su>\t%0, %1, %2
-   <u>mul.aa.ll\t%1, %2"
-  [(set_attr "type"	"mul16,mac16")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"3,3")])
+  {@ [cons: =0, %1, 2; attrs: type, length]
+     [C, r, r; mul16, 3] mul16<su>\t%0, %1, %2
+     [A, r, r; mac16, 3] <u>mul.aa.ll\t%1, %2
+  }
+  [(set_attr "mode" "SI")])
 
 (define_insn "muladdhisi"
   [(set (match_operand:SI 0 "register_operand" "=A")
@@ -545,8 +548,8 @@
         (match_operator:SI 5 "xtensa_sminmax_operator"
 	  [(match_operator:SI 4 "xtensa_sminmax_operator"
 	    [(match_operand:SI 1 "register_operand" "r")
-	     (match_operand:SI 2 "const_int_operand" "i")])
-	   (match_operand:SI 3 "const_int_operand" "i")]))]
+	     (match_operand:SI 2 "const_int_operand" "")])
+	   (match_operand:SI 3 "const_int_operand" "")]))]
   "TARGET_MINMAX && TARGET_CLAMPS
    && INTVAL (operands[2]) + INTVAL (operands[3]) == -1
    && ((GET_CODE (operands[5]) == SMIN && GET_CODE (operands[4]) == SMAX
@@ -645,36 +648,15 @@
 })
 
 (define_insn "bswapsi2_internal"
-  [(set (match_operand:SI 0 "register_operand" "=a,&a")
-	(bswap:SI (match_operand:SI 1 "register_operand" "0,r")))
-   (clobber (match_scratch:SI 2 "=&a,X"))]
+  [(set (match_operand:SI 0 "register_operand")
+	(bswap:SI (match_operand:SI 1 "register_operand")))
+   (clobber (match_scratch:SI 2))]
   "!optimize_debug && optimize > 1 && !optimize_size"
-{
-  rtx_insn *prev_insn = prev_nonnote_nondebug_insn (insn);
-  const char *init = "ssai\t8\;";
-  static char result[128];
-  if (prev_insn && NONJUMP_INSN_P (prev_insn))
-    {
-      rtx x = PATTERN (prev_insn);
-      if (GET_CODE (x) == PARALLEL && XVECLEN (x, 0) == 2
-	  && GET_CODE (XVECEXP (x, 0, 0)) == SET
-	  && GET_CODE (XVECEXP (x, 0, 1)) == CLOBBER)
-	{
-	  x = XEXP (XVECEXP (x, 0, 0), 1);
-	  if (GET_CODE (x) == BSWAP && GET_MODE (x) == SImode)
-	    init = "";
-	}
-    }
-  sprintf (result,
-	   (which_alternative == 0)
-	   ? "%s" "srli\t%%2, %%1, 16\;src\t%%2, %%2, %%1\;src\t%%2, %%2, %%2\;src\t%%0, %%1, %%2"
-	   : "%s" "srli\t%%0, %%1, 16\;src\t%%0, %%0, %%1\;src\t%%0, %%0, %%0\;src\t%%0, %%1, %%0",
-	   init);
-  return result;
-}
-   [(set_attr "type"	"arith,arith")
-    (set_attr "mode"	"SI")
-    (set_attr "length"	"15,15")])
+  {@ [cons: =0, 1, =2; attrs: type, length]
+     [ a, 0, &a; arith, 15] << xtensa_bswapsi2_output (insn, "srli\t%2, %1, 16\;src\t%2, %2, %1\;src\t%2, %2, %2\;src\t%0, %1, %2");
+     [&a, r,  X; arith, 15] << xtensa_bswapsi2_output (insn, "srli\t%0, %1, 16\;src\t%0, %0, %1\;src\t%0, %0, %0\;src\t%0, %1, %0");
+  }
+  [(set_attr "mode" "SI")])
 
 (define_expand "bswapdi2"
   [(set (match_operand:DI 0 "register_operand" "")
@@ -701,50 +683,50 @@
    (set_attr "mode"	"SI")
    (set_attr "length"	"3")])
 
-(define_insn_and_split "one_cmplsi2"
-  [(set (match_operand:SI 0 "register_operand" "=a")
-	(not:SI (match_operand:SI 1 "register_operand" "r")))]
+(define_expand "one_cmplsi2"
+  [(set (match_operand:SI 0 "register_operand")
+	(not:SI (match_operand:SI 1 "register_operand")))]
   ""
-  "#"
-  "&& can_create_pseudo_p ()"
-  [(set (match_dup 2)
-	(const_int -1))
-   (set (match_dup 0)
-	(xor:SI (match_dup 1)
-		(match_dup 2)))]
 {
-  operands[2] = gen_reg_rtx (SImode);
-}
-  [(set_attr "type"	"arith")
-   (set_attr "mode"	"SI")
-   (set (attr "length")
-	(if_then_else (match_test "TARGET_DENSITY")
-		      (const_int 5)
-		      (const_int 6)))])
+  emit_insn (gen_xorsi3 (operands[0], operands[1],
+			 force_reg (SImode, constm1_rtx)));
+  DONE;
+})
 
-(define_insn "negsf2"
-  [(set (match_operand:SF 0 "register_operand" "=f")
-	(neg:SF (match_operand:SF 1 "register_operand" "f")))]
+(define_insn_and_split "negsf2"
+  [(set (match_operand:SF 0 "register_operand")
+        (neg:SF (match_operand:SF 1 "register_operand")))
+   (clobber (match_scratch:SI 2))]
   "TARGET_HARD_FLOAT"
-  "neg.s\t%0, %1"
-  [(set_attr "type"	"farith")
-   (set_attr "mode"	"SF")
-   (set_attr "length"	"3")])
+  {@ [cons: =0, 1, =2; attrs: type, length]
+     [D, D, &a; arith , 7] #
+     [f, f,  X; farith, 3] neg.s\t%0, %1
+  }
+  "&& reload_completed && REG_P (operands[2])"
+  [(set (match_dup 2)
+	(const_int 1))
+   (set (match_dup 2)
+	(ashift:SI (match_dup 2)
+		   (const_int 31)))
+   (set (subreg:SI (match_dup 0) 0)
+	(plus:SI (subreg:SI (match_dup 1) 0)
+		 (match_dup 2)))]
+  ""
+  [(set_attr "mode" "SF")])
 
 
 ;; Logical instructions.
 
 (define_insn "andsi3"
-  [(set (match_operand:SI 0 "register_operand" "=a,a")
-	(and:SI (match_operand:SI 1 "register_operand" "%r,r")
-		(match_operand:SI 2 "mask_operand" "P,r")))]
+  [(set (match_operand:SI 0 "register_operand")
+	(and:SI (match_operand:SI 1 "register_operand")
+		(match_operand:SI 2 "mask_operand")))]
   ""
-  "@
-   extui\t%0, %1, 0, %K2
-   and\t%0, %1, %2"
-  [(set_attr "type"	"arith,arith")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"3,3")])
+  {@ [cons: =0, %1, 2; attrs: type, length]
+     [a, r, P; arith, 3] extui\t%0, %1, 0, %K2
+     [a, r, r; arith, 3] and\t%0, %1, %2
+  }
+  [(set_attr "mode" "SI")])
 
 (define_insn_and_split "*andsi3_bitcmpl"
   [(set (match_operand:SI 0 "register_operand" "=a")
@@ -769,7 +751,7 @@
 (define_insn_and_split "*andsi3_const_pow2_minus_one"
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(and:SI (match_operand:SI 1 "register_operand" "r")
-		(match_operand:SI 2 "const_int_operand" "i")))]
+		(match_operand:SI 2 "const_int_operand" "")))]
   "IN_RANGE (exact_log2 (INTVAL (operands[2]) + 1), 17, 31)"
   "#"
   "&& 1"
@@ -793,7 +775,7 @@
 (define_insn_and_split "*andsi3_const_negative_pow2"
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(and:SI (match_operand:SI 1 "register_operand" "r")
-		(match_operand:SI 2 "const_int_operand" "i")))]
+		(match_operand:SI 2 "const_int_operand" "")))]
   "IN_RANGE (exact_log2 (-INTVAL (operands[2])), 12, 31)"
   "#"
   "&& 1"
@@ -813,7 +795,7 @@
 (define_insn_and_split "*andsi3_const_shifted_mask"
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(and:SI (match_operand:SI 1 "register_operand" "r")
-		(match_operand:SI 2 "shifted_mask_operand" "i")))]
+		(match_operand:SI 2 "shifted_mask_operand" "")))]
   "! xtensa_simm12b (INTVAL (operands[2]))"
   "#"
   "&& 1"
@@ -890,9 +872,9 @@
 (define_insn_and_split "*splice_bits"
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(ior:SI (and:SI (match_operand:SI 1 "register_operand" "r")
-			(match_operand:SI 3 "const_int_operand" "i"))
+			(match_operand:SI 3 "const_int_operand" ""))
 		(and:SI (match_operand:SI 2 "register_operand" "r")
-			(match_operand:SI 4 "const_int_operand" "i"))))]
+			(match_operand:SI 4 "const_int_operand" ""))))]
 
   "!optimize_debug && optimize
    && INTVAL (operands[3]) + INTVAL (operands[4]) == -1
@@ -937,27 +919,15 @@
 
 ;; Zero-extend instructions.
 
-(define_insn "zero_extendhisi2"
-  [(set (match_operand:SI 0 "register_operand" "=a,a")
-	(zero_extend:SI (match_operand:HI 1 "nonimmed_operand" "r,U")))]
+(define_insn "zero_extend<mode>si2"
+  [(set (match_operand:SI 0 "register_operand")
+	(zero_extend:SI (match_operand:HQI 1 "nonimmed_operand")))]
   ""
-  "@
-   extui\t%0, %1, 0, 16
-   %v1l16ui\t%0, %1"
-  [(set_attr "type"	"arith,load")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"3,3")])
-
-(define_insn "zero_extendqisi2"
-  [(set (match_operand:SI 0 "register_operand" "=a,a")
-	(zero_extend:SI (match_operand:QI 1 "nonimmed_operand" "r,U")))]
-  ""
-  "@
-   extui\t%0, %1, 0, 8
-   %v1l8ui\t%0, %1"
-  [(set_attr "type"	"arith,load")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"3,3")])
+  {@ [cons: =0, 1; attrs: type, length]
+     [a, r; arith, 3] extui\t%0, %1, 0, <mode_bits>
+     [a, U; load , 3] %v1l<mode_bits>ui\t%0, %1
+  }
+  [(set_attr "mode" "SI")])
 
 
 ;; Sign-extend instructions.
@@ -975,15 +945,14 @@
 })
 
 (define_insn "extendhisi2_internal"
-  [(set (match_operand:SI 0 "register_operand" "=B,a")
-	(sign_extend:SI (match_operand:HI 1 "sext_operand" "r,U")))]
+  [(set (match_operand:SI 0 "register_operand")
+	(sign_extend:SI (match_operand:HI 1 "sext_operand")))]
   ""
-  "@
-   sext\t%0, %1, 15
-   %v1l16si\t%0, %1"
-  [(set_attr "type"	"arith,load")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"3,3")])
+  {@ [cons: =0, 1; attrs: type, length]
+     [B, r; arith, 3] sext\t%0, %1, 15
+     [a, U; load , 3] %v1l16si\t%0, %1
+  }
+  [(set_attr "mode" "SI")])
 
 (define_expand "extendqisi2"
   [(set (match_operand:SI 0 "register_operand" "")
@@ -1007,7 +976,7 @@
    (set_attr "length"	"3")])
 
 
-;; Field extract instructions.
+;; Field extract and insert instructions.
 
 (define_expand "extvsi"
   [(set (match_operand:SI 0 "register_operand" "")
@@ -1032,8 +1001,8 @@
 (define_insn "extvsi_internal"
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(sign_extract:SI (match_operand:SI 1 "register_operand" "r")
-			 (match_operand:SI 2 "sext_fldsz_operand" "i")
-			 (match_operand:SI 3 "lsbitnum_operand" "i")))]
+			 (match_operand:SI 2 "sext_fldsz_operand" "")
+			 (match_operand:SI 3 "lsbitnum_operand" "")))]
   "TARGET_SEXT"
 {
   int fldsz = INTVAL (operands[2]);
@@ -1061,8 +1030,8 @@
 (define_insn "extzvsi_internal"
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(zero_extract:SI (match_operand:SI 1 "register_operand" "r")
-			 (match_operand:SI 2 "extui_fldsz_operand" "i")
-			 (match_operand:SI 3 "const_int_operand" "i")))]
+			 (match_operand:SI 2 "extui_fldsz_operand" "")
+			 (match_operand:SI 3 "const_int_operand" "")))]
   ""
 {
   int shift;
@@ -1081,8 +1050,8 @@
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(and:SI (match_operator:SI 4 "logical_shift_operator"
 			[(match_operand:SI 1 "register_operand" "r")
-			 (match_operand:SI 2 "const_int_operand" "i")])
-		(match_operand:SI 3 "const_int_operand" "i")))]
+			 (match_operand:SI 2 "const_int_operand" "")])
+		(match_operand:SI 3 "const_int_operand" "")))]
   "exact_log2 (INTVAL (operands[3])) > 0"
   "#"
   "&& 1"
@@ -1113,8 +1082,8 @@
 	(match_operator:SI 5 "addsub_operator"
 		[(and:SI (match_operator:SI 6 "logical_shift_operator"
 				[(match_operand:SI 1 "register_operand" "r0")
-				 (match_operand:SI 3 "const_int_operand" "i")])
-			 (match_operand:SI 4 "const_int_operand" "i"))
+				 (match_operand:SI 3 "const_int_operand" "")])
+			 (match_operand:SI 4 "const_int_operand" ""))
 		 (match_operand:SI 2 "register_operand" "r")]))]
   "TARGET_ADDX
    && IN_RANGE (exact_log2 (INTVAL (operands[4])), 1, 3)"
@@ -1141,6 +1110,25 @@
    (set_attr "mode"	"SI")
    (set_attr "length"	"6")])
 
+(define_insn "insvsi"
+  [(set (zero_extract:SI (match_operand:SI 0 "register_operand" "+a")
+			 (match_operand:SI 1 "extui_fldsz_operand" "")
+			 (match_operand:SI 2 "const_int_operand" ""))
+	(match_operand:SI 3 "register_operand" "r"))]
+  "TARGET_DEPBITS"
+{
+  int shift;
+  if (BITS_BIG_ENDIAN)
+    shift = (32 - (INTVAL (operands[1]) + INTVAL (operands[2]))) & 0x1f;
+  else
+    shift = INTVAL (operands[2]) & 0x1f;
+  operands[2] = GEN_INT (shift);
+  return "depbits\t%0, %3, %2, %1";
+}
+  [(set_attr "type"	"arith")
+   (set_attr "mode"	"SI")
+   (set_attr "length"	"3")])
+
 
 ;; Conversions.
 
@@ -1166,14 +1154,9 @@
 (define_insn "*fix<s_fix>_truncsfsi2_scaled"
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(any_fix:SI (mult:SF (match_operand:SF 1 "register_operand" "f")
-			     (match_operand:SF 2 "fix_scaling_operand" "F"))))]
+			     (match_operand:SF 2 "fix_scaling_operand" ""))))]
   "TARGET_HARD_FLOAT"
-{
-  static char result[64];
-  sprintf (result, "<m_fix>.s\t%%0, %%1, %d",
-	   REAL_EXP (CONST_DOUBLE_REAL_VALUE (operands[2])) - 1);
-  return result;
-}
+  "<m_fix>.s\t%0, %1, %U2"
   [(set_attr "type"	"fconv")
    (set_attr "mode"	"SF")
    (set_attr "length"	"3")])
@@ -1190,14 +1173,38 @@
 (define_insn "*float<s_float>sisf2_scaled"
   [(set (match_operand:SF 0 "register_operand" "=f")
 	(mult:SF (any_float:SF (match_operand:SI 1 "register_operand" "a"))
-		 (match_operand:SF 2 "float_scaling_operand" "F")))]
+		 (match_operand:SF 2 "float_scaling_operand" "")))]
   "TARGET_HARD_FLOAT"
-{
-  static char result[64];
-  sprintf (result, "<m_float>.s\t%%0, %%1, %d",
-	   1 - REAL_EXP (CONST_DOUBLE_REAL_VALUE (operands[2])));
-  return result;
-}
+  "<m_float>.s\t%0, %1, %V2"
+  [(set_attr "type"	"fconv")
+   (set_attr "mode"	"SF")
+   (set_attr "length"	"3")])
+
+(define_insn "l<m_round>sfsi2"
+  [(set (match_operand:SI 0 "register_operand" "=a")
+	(unspec:SI [(match_operand:SF 1 "register_operand" "f")] ANY_ROUND))]
+  "TARGET_HARD_FLOAT"
+  "<m_round>.s\t%0, %1, 0"
+  [(set_attr "type"	"fconv")
+   (set_attr "mode"	"SF")
+   (set_attr "length"	"3")])
+
+(define_insn "*l<m_round>sfsi2_2x"
+  [(set (match_operand:SI 0 "register_operand" "=a")
+	(unspec:SI [(plus:SF (match_operand:SF 1 "register_operand" "f")
+			     (match_dup 1))] ANY_ROUND))]
+  "TARGET_HARD_FLOAT"
+  "<m_round>.s\t%0, %1, 1"
+  [(set_attr "type"	"fconv")
+   (set_attr "mode"	"SF")
+   (set_attr "length"	"3")])
+
+(define_insn "*l<m_round>sfsi2_scaled"
+  [(set (match_operand:SI 0 "register_operand" "=a")
+	(unspec:SI [(mult:SF (match_operand:SF 1 "register_operand" "f")
+			     (match_operand:SF 2 "fix_scaling_operand" ""))] ANY_ROUND))]
+  "TARGET_HARD_FLOAT"
+  "<m_round>.s\t%0, %1, %U2"
   [(set_attr "type"	"fconv")
    (set_attr "mode"	"SF")
    (set_attr "length"	"3")])
@@ -1212,22 +1219,8 @@
 	(match_operand:DI 1 "general_operand" ""))]
   ""
 {
-  if (CONSTANT_P (operands[1]))
-    {
-      /* Split in halves if 64-bit Const-to-Reg moves
-	 because of offering further optimization opportunities.  */
-      if (register_operand (operands[0], DImode))
-	{
-	  rtx ops[4] = { operands[0], operands[1] };
-	  xtensa_split_DI_reg_imm (ops);
-	  emit_move_insn (ops[0], ops[1]);
-	  emit_move_insn (ops[2], ops[3]);
-	  DONE;
-	}
-
-      if (!TARGET_CONST16)
-	operands[1] = force_const_mem (DImode, operands[1]);
-    }
+  if (!TARGET_CONST16 && CONSTANT_P (operands[1]))
+    operands[1] = force_const_mem (DImode, operands[1]);
 
   if (!register_operand (operands[0], DImode)
       && !register_operand (operands[1], DImode))
@@ -1237,35 +1230,25 @@
 })
 
 (define_insn_and_split "movdi_internal"
-  [(set (match_operand:DI 0 "nonimmed_operand" "=a,W,a,a,U")
-	(match_operand:DI 1 "move_operand" "r,i,T,U,r"))]
+  [(set (match_operand:DI 0 "nonimmed_operand")
+	(match_operand:DI 1 "move_operand"))]
   "register_operand (operands[0], DImode)
    || register_operand (operands[1], DImode)"
-  "#"
+  {@ [cons: =0, 1; attrs: type, length]
+     [a, r; move,   6] #
+     [a, Y; load,   6] ^
+     [W, i; move,  12] ^
+     [a, T; load,   6] ^
+     [a, U; load,   6] ^
+     [U, r; store,  6] ^
+  }
   "&& reload_completed"
   [(set (match_dup 0) (match_dup 2))
    (set (match_dup 1) (match_dup 3))]
 {
   xtensa_split_operand_pair (operands, SImode);
-  if (reg_overlap_mentioned_p (operands[0], operands[3]))
-    {
-      std::swap (operands[0], operands[1]);
-      std::swap (operands[2], operands[3]);
-    }
-})
-
-(define_split
-  [(set (match_operand:DI 0 "register_operand")
-	(match_operand:DI 1 "const_int_operand"))]
-  "!TARGET_CONST16
-   && ! xtensa_split1_finished_p ()"
-  [(set (match_dup 0)
-	(match_dup 1))
-   (set (match_dup 2)
-	(match_dup 3))]
-{
-  xtensa_split_DI_reg_imm (operands);
-})
+}
+  [(set_attr "mode" "DI")])
 
 ;; 32-bit Integer moves
 
@@ -1279,65 +1262,38 @@
 })
 
 (define_insn "movsi_internal"
-  [(set (match_operand:SI 0 "nonimmed_operand" "=D,D,D,D,R,R,a,q,a,a,W,a,a,U,*a,*A")
-	(match_operand:SI 1 "move_operand" "M,D,d,R,D,d,r,r,I,Y,i,T,U,r,*A,*r"))]
+  [(set (match_operand:SI 0 "nonimmed_operand")
+	(match_operand:SI 1 "move_operand"))]
   "xtensa_valid_move (SImode, operands)"
-  "@
-   movi.n\t%0, %x1
-   mov.n\t%0, %1
-   mov.n\t%0, %1
-   %v1l32i.n\t%0, %1
-   %v0s32i.n\t%1, %0
-   %v0s32i.n\t%1, %0
-   mov\t%0, %1
-   movsp\t%0, %1
-   movi\t%0, %x1
-   movi\t%0, %1
-   const16\t%0, %t1\;const16\t%0, %b1
-   %v1l32r\t%0, %1
-   %v1l32i\t%0, %1
-   %v0s32i\t%1, %0
-   rsr\t%0, ACCLO
-   wsr\t%1, ACCLO"
-  [(set_attr "type"	"move,move,move,load,store,store,move,move,move,move,move,load,load,store,rsr,wsr")
+  {@ [cons: =0, 1; attrs: type, length]
+     [ D,  M; move , 2] movi.n\t%0, %x1
+     [ a,  I; move , 3] movi\t%0, %x1
+     [ W,  i; move , 6] const16\t%0, %t1\;const16\t%0, %b1
+     [ a,  Y; load , 3] movi\t%0, %1
+     [ a,  T; load , 3] %v1l32r\t%0, %1
+     [ q,  r; move , 3] movsp\t%0, %1
+     [ D, Dd; move , 2] mov.n\t%0, %1
+     [ a,  r; move , 3] mov\t%0, %1
+     [ D,  R; load , 2] %v1l32i.n\t%0, %1
+     [ a,  U; load , 3] %v1l32i\t%0, %1
+     [ R, Dd; store, 2] %v0s32i.n\t%1, %0
+     [ U,  r; store, 3] %v0s32i\t%1, %0
+     [*a, *A; rsr  , 3] rsr\t%0, ACCLO
+     [*A, *r; wsr  , 3] wsr\t%1, ACCLO
+  }
+  [(set_attr "mode" "SI")])
+
+(define_insn "*xtensa_const16"
+  [(set (match_operand:SI 0 "register_operand" "=a")
+	(match_operator:SI 3 "xtensa_bit_join_operator"
+		[(ashift:SI (match_operand:SI 1 "register_operand" "0")
+			    (const_int 16))
+		 (match_operand:SI 2 "const_int_operand" "")]))]
+  "TARGET_CONST16 && IN_RANGE (INTVAL (operands[2]), 1, 65535)"
+  "const16\t%0, %2"
+  [(set_attr "type"	"move")
    (set_attr "mode"	"SI")
-   (set_attr "length"	"2,2,2,2,2,2,3,3,3,3,6,3,3,3,3,3")])
-
-(define_split
-  [(set (match_operand:SHI 0 "register_operand")
-	(match_operand:SHI 1 "const_int_operand"))]
-  "!TARGET_CONST16 && !TARGET_AUTO_LITPOOLS
-   && ! xtensa_split1_finished_p ()
-   && ! xtensa_simm12b (INTVAL (operands[1]))"
-  [(set (match_dup 0)
-	(match_dup 1))]
-{
-  operands[1] = force_const_mem (<MODE>mode, operands[1]);
-})
-
-(define_split
-  [(set (match_operand:SHI 0 "register_operand")
-	(match_operand:SHI 1 "constantpool_operand"))]
-  "!optimize_debug && reload_completed"
-  [(const_int 0)]
-{
-  if (xtensa_constantsynth (operands[0], operands[1]))
-    DONE;
-  FAIL;
-})
-
-(define_split
-  [(set (match_operand:SHI 0 "register_operand")
-	(match_operand:SHI 1 "const_int_operand"))]
-  "!optimize_debug && reload_completed
-   && !TARGET_CONST16 && TARGET_AUTO_LITPOOLS
-   && ! xtensa_simm12b (INTVAL (operands[1]))"
-  [(const_int 0)]
-{
-  if (xtensa_constantsynth (operands[0], operands[1]))
-    DONE;
-  FAIL;
-})
+   (set_attr "length"	"3")])
 
 ;; 16-bit Integer moves
 
@@ -1351,23 +1307,22 @@
 })
 
 (define_insn "movhi_internal"
-  [(set (match_operand:HI 0 "nonimmed_operand" "=D,D,a,a,a,a,a,U,*a,*A")
-	(match_operand:HI 1 "move_operand" "M,d,r,I,Y,T,U,r,*A,*r"))]
+  [(set (match_operand:HI 0 "nonimmed_operand")
+	(match_operand:HI 1 "move_operand"))]
   "xtensa_valid_move (HImode, operands)"
-  "@
-   movi.n\t%0, %x1
-   mov.n\t%0, %1
-   mov\t%0, %1
-   movi\t%0, %x1
-   movi\t%0, %1
-   %v1l32r\t%0, %1
-   %v1l16ui\t%0, %1
-   %v0s16i\t%1, %0
-   rsr\t%0, ACCLO
-   wsr\t%1, ACCLO"
-  [(set_attr "type"	"move,move,move,move,move,load,load,store,rsr,wsr")
-   (set_attr "mode"	"HI")
-   (set_attr "length"	"2,2,3,3,3,3,3,3,3,3")])
+  {@ [cons: =0, 1; attrs: type, length]
+     [ D,  M; move , 2] movi.n\t%0, %x1
+     [ a,  I; move , 3] movi\t%0, %x1
+     [ a,  Y; load , 3] movi\t%0, %1
+     [ a,  T; load , 3] %v1l32r\t%0, %1
+     [ D,  d; move , 2] mov.n\t%0, %1
+     [ a,  r; move , 3] mov\t%0, %1
+     [ a,  U; load , 3] %v1l16ui\t%0, %1
+     [ U,  r; store, 3] %v0s16i\t%1, %0
+     [*a, *A; rsr  , 3] rsr\t%0, ACCLO
+     [*A, *r; wsr  , 3] wsr\t%1, ACCLO
+  }
+  [(set_attr "mode" "HI")])
 
 ;; 8-bit Integer moves
 
@@ -1381,21 +1336,20 @@
 })
 
 (define_insn "movqi_internal"
-  [(set (match_operand:QI 0 "nonimmed_operand" "=D,D,a,a,a,U,*a,*A")
-	(match_operand:QI 1 "move_operand" "M,d,r,I,U,r,*A,*r"))]
+  [(set (match_operand:QI 0 "nonimmed_operand")
+	(match_operand:QI 1 "move_operand"))]
   "xtensa_valid_move (QImode, operands)"
-  "@
-   movi.n\t%0, %x1
-   mov.n\t%0, %1
-   mov\t%0, %1
-   movi\t%0, %x1
-   %v1l8ui\t%0, %1
-   %v0s8i\t%1, %0
-   rsr\t%0, ACCLO
-   wsr\t%1, ACCLO"
-  [(set_attr "type"	"move,move,move,move,load,store,rsr,wsr")
-   (set_attr "mode"	"QI")
-   (set_attr "length"	"2,2,3,3,3,3,3,3")])
+  {@ [cons: =0, 1; attrs: type, length]
+     [ D,  M; move , 2] movi.n\t%0, %x1
+     [ a,  I; move , 3] movi\t%0, %x1
+     [ D,  d; move , 2] mov.n\t%0, %1
+     [ a,  r; move , 3] mov\t%0, %1
+     [ a,  U; load , 3] %v1l8ui\t%0, %1
+     [ U,  r; store, 3] %v0s8i\t%1, %0
+     [*a, *A; rsr  , 3] rsr\t%0, ACCLO
+     [*A, *r; wsr  , 3] wsr\t%1, ACCLO
+  }
+  [(set_attr "mode" "QI")])
 
 ;; Sub-word reloads from the constant pool.
 
@@ -1453,35 +1407,34 @@
 })
 
 (define_insn "movsf_internal"
-  [(set (match_operand:SF 0 "nonimmed_operand" "=f,f,^U,D,a,D,R,a,f,a,a,W,a,U")
-	(match_operand:SF 1 "move_operand" "f,^U,f,d,T,R,d,r,r,f,Y,iF,U,r"))]
+  [(set (match_operand:SF 0 "nonimmed_operand")
+	(match_operand:SF 1 "move_operand"))]
   "((register_operand (operands[0], SFmode)
      || register_operand (operands[1], SFmode))
     && !(FP_REG_P (xt_true_regnum (operands[0]))
 	 && (constantpool_mem_p (operands[1]) || CONSTANT_P (operands[1]))))"
-  "@
-   mov.s\t%0, %1
-   %v1lsi\t%0, %1
-   %v0ssi\t%1, %0
-   mov.n\t%0, %1
-   %v1l32r\t%0, %1
-   %v1l32i.n\t%0, %1
-   %v0s32i.n\t%1, %0
-   mov\t%0, %1
-   wfr\t%0, %1
-   rfr\t%0, %1
-   movi\t%0, %y1
-   const16\t%0, %t1\;const16\t%0, %b1
-   %v1l32i\t%0, %1
-   %v0s32i\t%1, %0"
-  [(set_attr "type"	"farith,fload,fstore,move,load,load,store,move,farith,farith,move,move,load,store")
-   (set_attr "mode"	"SF")
-   (set_attr "length"	"3,3,3,2,3,2,2,3,3,3,3,6,3,3")])
+  {@ [cons: =0, 1; attrs: type, length]
+     [W, iF; move  , 6] const16\t%0, %t1\;const16\t%0, %b1
+     [a,  Y; load  , 3] movi\t%0, %y1
+     [a,  T; load  , 3] %v1l32r\t%0, %1
+     [D,  d; move  , 2] mov.n\t%0, %1
+     [a,  r; move  , 3] mov\t%0, %1
+     [f,  f; farith, 3] mov.s\t%0, %1
+     [f,  r; farith, 3] wfr\t%0, %1
+     [a,  f; farith, 3] rfr\t%0, %1
+     [D,  R; load  , 2] %v1l32i.n\t%0, %1
+     [a,  U; load  , 3] %v1l32i\t%0, %1
+     [f,  U; fload , 3] %v1lsi\t%0, %1
+     [R,  d; store , 2] %v0s32i.n\t%1, %0
+     [U,  r; store , 3] %v0s32i\t%1, %0
+     [U,  f; fstore, 3] %v0ssi\t%1, %0
+  }
+  [(set_attr "mode" "SF")])
 
 (define_insn "*lsiu"
   [(set (match_operand:SF 0 "register_operand" "=f")
 	(mem:SF (plus:SI (match_operand:SI 1 "register_operand" "+a")
-			 (match_operand:SI 2 "fpmem_offset_operand" "i"))))
+			 (match_operand:SI 2 "fpmem_offset_operand" ""))))
    (set (match_dup 1)
 	(plus:SI (match_dup 1) (match_dup 2)))]
   "TARGET_HARD_FLOAT && !TARGET_HARD_FLOAT_POSTINC"
@@ -1496,7 +1449,7 @@
 
 (define_insn "*ssiu"
   [(set (mem:SF (plus:SI (match_operand:SI 0 "register_operand" "+a")
-			 (match_operand:SI 1 "fpmem_offset_operand" "i")))
+			 (match_operand:SI 1 "fpmem_offset_operand" "")))
 	(match_operand:SF 2 "register_operand" "f"))
    (set (match_dup 0)
 	(plus:SI (match_dup 0) (match_dup 1)))]
@@ -1515,7 +1468,7 @@
 	(mem:SF (match_operand:SI 1 "register_operand" "+a")))
    (set (match_dup 1)
 	(plus:SI (match_dup 1)
-		 (match_operand:SI 2 "fpmem_offset_operand" "i")))]
+		 (match_operand:SI 2 "fpmem_offset_operand" "")))]
   "TARGET_HARD_FLOAT && TARGET_HARD_FLOAT_POSTINC"
 {
   if (TARGET_SERIALIZE_VOLATILE && volatile_refs_p (PATTERN (insn)))
@@ -1531,7 +1484,7 @@
 	(match_operand:SF 1 "register_operand" "f"))
    (set (match_dup 0)
 	(plus:SI (match_dup 0)
-		 (match_operand:SI 2 "fpmem_offset_operand" "i")))]
+		 (match_operand:SI 2 "fpmem_offset_operand" "")))]
   "TARGET_HARD_FLOAT && TARGET_HARD_FLOAT_POSTINC"
 {
   if (TARGET_SERIALIZE_VOLATILE && volatile_refs_p (PATTERN (insn)))
@@ -1541,29 +1494,6 @@
   [(set_attr "type"	"fstore")
    (set_attr "mode"	"SF")
    (set_attr "length"	"3")])
-
-(define_split
-  [(set (match_operand:SF 0 "register_operand")
-	(match_operand 1 "constantpool_operand"))]
-  "!optimize_debug && reload_completed"
-  [(const_int 0)]
-{
-  if (xtensa_constantsynth (operands[0], operands[1]))
-    DONE;
-  FAIL;
-})
-
-(define_split
-  [(set (match_operand:SF 0 "register_operand")
-	(match_operand 1 "const_double_operand"))]
-  "!optimize_debug && reload_completed
-   && !TARGET_CONST16 && TARGET_AUTO_LITPOOLS"
-  [(const_int 0)]
-{
-  if (xtensa_constantsynth (operands[0], operands[1]))
-    DONE;
-  FAIL;
-})
 
 ;; 64-bit floating point moves
 
@@ -1583,22 +1513,25 @@
 })
 
 (define_insn_and_split "movdf_internal"
-  [(set (match_operand:DF 0 "nonimmed_operand" "=a,a,W,a,a,U")
-	(match_operand:DF 1 "move_operand" "r,Y,iF,T,U,r"))]
+  [(set (match_operand:DF 0 "nonimmed_operand")
+	(match_operand:DF 1 "move_operand"))]
   "register_operand (operands[0], DFmode)
    || register_operand (operands[1], DFmode)"
-  "#"
+  {@ [cons: =0, 1; attrs: type, length]
+     [a,  r; move,   6] #
+     [a,  Y; load,   6] ^
+     [W, iF; move,  12] ^
+     [a,  T; load,   6] ^
+     [a,  U; load,   6] ^
+     [U,  r; store,  6] ^
+  }
   "&& reload_completed"
   [(set (match_dup 0) (match_dup 2))
    (set (match_dup 1) (match_dup 3))]
 {
   xtensa_split_operand_pair (operands, SFmode);
-  if (reg_overlap_mentioned_p (operands[0], operands[3]))
-    {
-      std::swap (operands[0], operands[1]);
-      std::swap (operands[2], operands[3]);
-    }
-})
+}
+  [(set_attr "mode" "DF")])
 
 ;; Block moves
 
@@ -1641,16 +1574,15 @@
 })
 
 (define_insn "ashlsi3_internal"
-  [(set (match_operand:SI 0 "register_operand" "=a,a")
-	(ashift:SI (match_operand:SI 1 "register_operand" "r,r")
-		   (match_operand:SI 2 "arith_operand" "J,r")))]
+  [(set (match_operand:SI 0 "register_operand")
+	(ashift:SI (match_operand:SI 1 "register_operand")
+		   (match_operand:SI 2 "arith_operand")))]
   ""
-  "@
-   slli\t%0, %1, %R2
-   ssl\t%2\;sll\t%0, %1"
-  [(set_attr "type"	"arith,arith")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"3,6")])
+  {@ [cons: =0, 1, 2; attrs: type, length]
+     [a, r, J; arith, 3] slli\t%0, %1, %R2
+     [a, r, r; arith, 6] ssl\t%2\;sll\t%0, %1
+  }
+  [(set_attr "mode" "SI")])
 
 (define_split
   [(set (match_operand:SI 0 "register_operand")
@@ -1662,35 +1594,26 @@
 		 (match_dup 1)))])
 
 (define_insn "ashrsi3"
-  [(set (match_operand:SI 0 "register_operand" "=a,a")
-	(ashiftrt:SI (match_operand:SI 1 "register_operand" "r,r")
-		     (match_operand:SI 2 "arith_operand" "J,r")))]
+  [(set (match_operand:SI 0 "register_operand")
+	(ashiftrt:SI (match_operand:SI 1 "register_operand")
+		     (match_operand:SI 2 "arith_operand")))]
   ""
-  "@
-   srai\t%0, %1, %R2
-   ssr\t%2\;sra\t%0, %1"
-  [(set_attr "type"	"arith,arith")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"3,6")])
+  {@ [cons: =0, 1, 2; attrs: type, length]
+     [a, r, J; arith, 3] srai\t%0, %1, %R2
+     [a, r, r; arith, 6] ssr\t%2\;sra\t%0, %1
+  }
+  [(set_attr "mode" "SI")])
 
 (define_insn "lshrsi3"
-  [(set (match_operand:SI 0 "register_operand" "=a,a")
-	(lshiftrt:SI (match_operand:SI 1 "register_operand" "r,r")
-		     (match_operand:SI 2 "arith_operand" "J,r")))]
+  [(set (match_operand:SI 0 "register_operand")
+	(lshiftrt:SI (match_operand:SI 1 "register_operand")
+		     (match_operand:SI 2 "arith_operand")))]
   ""
-{
-  if (which_alternative == 0)
-    {
-      if ((INTVAL (operands[2]) & 0x1f) < 16)
-	return "srli\t%0, %1, %R2";
-      else
-	return "extui\t%0, %1, %R2, %L2";
-    }
-  return "ssr\t%2\;srl\t%0, %1";
-}
-  [(set_attr "type"	"arith,arith")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"3,6")])
+  {@ [cons: =0, 1, 2; attrs: type, length]
+     [a, r, J; arith, 3] << (INTVAL (operands[2]) & 0x1f) < 16 ? \"srli\t%0, %1, %R2\" : \"extui\t%0, %1, %R2, %L2\";
+     [a, r, r; arith, 6] ssr\t%2\;srl\t%0, %1
+  }
+  [(set_attr "mode" "SI")])
 
 (define_insn "*shift_per_byte"
   [(set (match_operand:SI 0 "register_operand" "=a")
@@ -1718,7 +1641,7 @@
 		[(match_operand:SI 1 "register_operand" "r")
 		 (and:SI (ashift:SI (match_operand:SI 2 "register_operand" "r")
 				    (const_int 3))
-			 (match_operand:SI 3 "const_int_operand" "i"))]))]
+			 (match_operand:SI 3 "const_int_operand" ""))]))]
   "!optimize_debug && optimize
    && (INTVAL (operands[3]) & 0x1f) == 3 << 3"
   "#"
@@ -1739,7 +1662,7 @@
 		[(match_operand:SI 1 "register_operand" "r")
 		 (neg:SI (and:SI (ashift:SI (match_operand:SI 2 "register_operand" "r")
 					    (const_int 3))
-				 (match_operand:SI 3 "const_int_operand" "i")))]))]
+				 (match_operand:SI 3 "const_int_operand" "")))]))]
   "!optimize_debug && optimize
    && (INTVAL (operands[3]) & 0x1f) == 3 << 3"
   "#"
@@ -1813,10 +1736,10 @@
 	(match_operator:SI 7 "xtensa_bit_join_operator"
 		[(match_operator:SI 5 "logical_shift_operator"
 			[(match_operand:SI 1 "register_operand" "r")
-			 (match_operand:SI 3 "const_int_operand" "i")])
+			 (match_operand:SI 3 "const_int_operand" "")])
 		 (match_operator:SI 6 "logical_shift_operator"
 			[(match_operand:SI 2 "register_operand" "r")
-			 (match_operand:SI 4 "const_int_operand" "i")])]))]
+			 (match_operand:SI 4 "const_int_operand" "")])]))]
   "!optimize_debug && optimize
    && xtensa_shlrd_which_direction (operands[5], operands[6]) != UNKNOWN
    && IN_RANGE (INTVAL (operands[3]), 1, 31)
@@ -1866,7 +1789,7 @@
 			[(match_operand:SI 1 "register_operand" "r")
 			 (and:SI (ashift:SI (match_operand:SI 2 "register_operand" "r")
 					    (const_int 3))
-				 (match_operand:SI 4 "const_int_operand" "i"))])
+				 (match_operand:SI 4 "const_int_operand" ""))])
 		 (match_operator:SI 6 "logical_shift_operator"
 			[(match_operand:SI 3 "register_operand" "r")
 			 (neg:SI (and:SI (ashift:SI (match_dup 2)
@@ -1893,28 +1816,26 @@
    (set_attr "length"	"6")])
 
 (define_insn "rotlsi3"
-  [(set (match_operand:SI 0 "register_operand" "=a,a")
-	(rotate:SI (match_operand:SI 1 "register_operand" "r,r")
-		     (match_operand:SI 2 "arith_operand" "J,r")))]
+  [(set (match_operand:SI 0 "register_operand")
+	(rotate:SI (match_operand:SI 1 "register_operand")
+		     (match_operand:SI 2 "arith_operand")))]
   ""
-  "@
-   ssai\t%L2\;src\t%0, %1, %1
-   ssl\t%2\;src\t%0, %1, %1"
-  [(set_attr "type"	"multi,multi")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"6,6")])
+  {@ [cons: =0, 1, 2; attrs: type, length]
+     [a, r, J; multi, 6] ssai\t%L2\;src\t%0, %1, %1
+     [a, r, r; multi, 6] ssl\t%2\;src\t%0, %1, %1
+  }
+  [(set_attr "mode" "SI")])
 
 (define_insn "rotrsi3"
-  [(set (match_operand:SI 0 "register_operand" "=a,a")
-	(rotatert:SI (match_operand:SI 1 "register_operand" "r,r")
-		     (match_operand:SI 2 "arith_operand" "J,r")))]
+  [(set (match_operand:SI 0 "register_operand")
+	(rotatert:SI (match_operand:SI 1 "register_operand")
+		     (match_operand:SI 2 "arith_operand")))]
   ""
-  "@
-   ssai\t%R2\;src\t%0, %1, %1
-   ssr\t%2\;src\t%0, %1, %1"
-  [(set_attr "type"	"multi,multi")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"6,6")])
+  {@ [cons: =0, 1, 2; attrs: type, length]
+     [a, r, J; multi, 6] ssai\t%R2\;src\t%0, %1, %1
+     [a, r, r; multi, 6] ssr\t%2\;src\t%0, %1, %1
+  }
+  [(set_attr "mode" "SI")])
 
 
 ;; Comparisons.
@@ -1948,16 +1869,16 @@
 (define_insn "*btrue"
   [(set (pc)
 	(if_then_else (match_operator 3 "branch_operator"
-			[(match_operand:SI 0 "register_operand" "r,r")
-			 (match_operand:SI 1 "branch_operand" "K,?r")])
-		      (label_ref (match_operand 2 "" ""))
+			[(match_operand:SI 0 "register_operand")
+			 (match_operand:SI 1 "branch_operand")])
+		      (label_ref (match_operand 2 ""))
 		      (pc)))]
   ""
-{
-  return xtensa_emit_branch (which_alternative == 0, operands);
-}
-  [(set_attr "type"	"jump,jump")
-   (set_attr "mode"	"none")
+  {@ [cons: 0, 1, 2; attrs: type]
+     [r,  K, ; jump] << xtensa_emit_branch (true, operands);
+     [r, ?r, ; jump] << xtensa_emit_branch (false, operands);
+  }
+  [(set_attr "mode" "none")
    (set (attr "length")
         (if_then_else (match_test "TARGET_DENSITY
 				   && CONST_INT_P (operands[1])
@@ -1973,26 +1894,23 @@
 			[(match_operand:SI 0 "register_operand" "r")
 			 (const_int -2147483648)])
 		      (label_ref (match_operand 1 ""))
-		      (pc)))]
+		      (pc)))
+   (clobber (match_scratch:SI 3 "=a"))]
   "TARGET_ABS"
   "#"
-  "&& can_create_pseudo_p ()"
+  "&& 1"
   [(set (match_dup 3)
 	(abs:SI (match_dup 0)))
    (set (pc)
 	(if_then_else (match_op_dup 2
-			[(zero_extract:SI (match_dup 3)
-					  (const_int 1)
-					  (match_dup 4))
+			[(match_dup 3)
 			 (const_int 0)])
 		      (label_ref (match_dup 1))
 		      (pc)))]
 {
-  operands[3] = gen_reg_rtx (SImode);
-  operands[4] = GEN_INT (BITS_BIG_ENDIAN ? 0 : 31);
-  operands[2] = gen_rtx_fmt_ee (reverse_condition (GET_CODE (operands[2])),
-				VOIDmode, XEXP (operands[2], 0),
-				const0_rtx);
+  if (GET_CODE (operands[3]) == SCRATCH)
+    operands[3] = gen_reg_rtx (SImode);
+  PUT_CODE (operands[2], GET_CODE (operands[2]) == EQ ? LT : GE);
 }
   [(set_attr "type"	"jump")
    (set_attr "mode"	"none")
@@ -2001,17 +1919,16 @@
 (define_insn "*ubtrue"
   [(set (pc)
 	(if_then_else (match_operator 3 "ubranch_operator"
-			[(match_operand:SI 0 "register_operand" "r,r")
-			 (match_operand:SI 1 "ubranch_operand" "L,r")])
-		      (label_ref (match_operand 2 "" ""))
+			[(match_operand:SI 0 "register_operand")
+			 (match_operand:SI 1 "ubranch_operand")])
+		      (label_ref (match_operand 2 ""))
 		      (pc)))]
   ""
-{
-  return xtensa_emit_branch (which_alternative == 0, operands);
-}
-  [(set_attr "type"	"jump,jump")
-   (set_attr "mode"	"none")
-   (set_attr "length"	"3,3")])
+  {@ [cons: 0, 1, 2; attrs: type, length]
+     [r, L, ; jump, 3] << xtensa_emit_branch (true, operands);
+     [r, r, ; jump, 3] << xtensa_emit_branch (false, operands);
+  }
+  [(set_attr "mode" "none")])
 
 ;; Branch patterns for bit testing
 
@@ -2093,7 +2010,7 @@
   [(set (pc)
 	(if_then_else (match_operator 3 "boolean_operator"
 			[(and:SI (not:SI (match_operand:SI 0 "register_operand" "r"))
-				 (match_operand:SI 1 "const_int_operand" "i"))
+				 (match_operand:SI 1 "const_int_operand" ""))
 			 (const_int 0)])
 		      (label_ref (match_operand 2 "" ""))
 		      (pc)))]
@@ -2139,15 +2056,15 @@
 		      (label_ref (match_dup 1))
 		      (pc)))]
 {
-  operands[3] = GEN_INT ((1 << GET_MODE_BITSIZE (GET_MODE (operands[3]))) - 1);
+  operands[3] = GEN_INT (GET_MODE_MASK (GET_MODE (operands[3])));
 })
 
 (define_insn_and_split "*masktrue_const_pow2_minus_one"
   [(set (pc)
 	(if_then_else (match_operator 4 "boolean_operator"
 			[(and:SI (match_operand:SI 0 "register_operand" "r")
-				 (match_operand:SI 1 "const_int_operand" "i"))
-			 (match_operand:SI 2 "const_int_operand" "i")])
+				 (match_operand:SI 1 "const_int_operand" ""))
+			 (match_operand:SI 2 "const_int_operand" "")])
 		      (label_ref (match_operand 3 "" ""))
 		      (pc)))]
   "IN_RANGE (exact_log2 (INTVAL (operands[1]) + 1), 17, 31)
@@ -2186,8 +2103,8 @@
   [(set (pc)
 	(if_then_else (match_operator 4 "boolean_operator"
 			[(and:SI (match_operand:SI 0 "register_operand" "r")
-				 (match_operand:SI 1 "const_int_operand" "i"))
-			 (match_operand:SI 2 "const_int_operand" "i")])
+				 (match_operand:SI 1 "const_int_operand" ""))
+			 (match_operand:SI 2 "const_int_operand" "")])
 		      (label_ref (match_operand 3 "" ""))
 		      (pc)))]
   "IN_RANGE (exact_log2 (-INTVAL (operands[1])), 1, 30)
@@ -2221,8 +2138,8 @@
   [(set (pc)
 	(if_then_else (match_operator 4 "boolean_operator"
 			[(and:SI (match_operand:SI 0 "register_operand" "r")
-				 (match_operand:SI 1 "shifted_mask_operand" "i"))
-			 (match_operand:SI 2 "const_int_operand" "i")])
+				 (match_operand:SI 1 "shifted_mask_operand" ""))
+			 (match_operand:SI 2 "const_int_operand" "")])
 		      (label_ref (match_operand 3 "" ""))
 		      (pc)))]
   "/* (INTVAL (operands[2]) & ((1 << ctz_hwi (INTVAL (operands[1]))) - 1)) == 0  // can be omitted
@@ -2407,6 +2324,23 @@
    (set_attr "mode"	"SI")
    (set_attr "length"	"3")])
 
+(define_expand "spaceshipsi4"
+  [(match_operand:SI 0 "register_operand")
+   (match_operand:SI 1 "register_operand")
+   (match_operand:SI 2 "register_operand")
+   (match_operand:SI 3 "const_int_operand")]
+  "TARGET_SALT"
+{
+  rtx (*gen_op)(rtx, rtx, rtx);
+  rtx temp0, temp1;
+  gcc_assert (operands[3] == const1_rtx || operands[3] == constm1_rtx);
+  gen_op = (operands[3] == const1_rtx) ? gen_saltu : gen_salt;
+  emit_insn (gen_op (temp0 = gen_reg_rtx (SImode), operands[1], operands[2]));
+  emit_insn (gen_op (temp1 = gen_reg_rtx (SImode), operands[2], operands[1]));
+  emit_insn (gen_subsi3 (operands[0], temp1, temp0));
+  DONE;
+})
+
 (define_expand "cstoresf4"
   [(match_operand:SI 0 "register_operand")
    (match_operator:SI 1 "comparison_operator"
@@ -2448,66 +2382,64 @@
 })
 
 (define_insn "movsicc_internal0"
-  [(set (match_operand:SI 0 "register_operand" "=a,a")
+  [(set (match_operand:SI 0 "register_operand")
 	(if_then_else:SI (match_operator 4 "branch_operator"
-			   [(match_operand:SI 1 "register_operand" "r,r")
+			   [(match_operand:SI 1 "register_operand")
 			    (const_int 0)])
-			 (match_operand:SI 2 "register_operand" "r,0")
-			 (match_operand:SI 3 "register_operand" "0,r")))]
+			 (match_operand:SI 2 "register_operand")
+			 (match_operand:SI 3 "register_operand")))]
   ""
-{
-  return xtensa_emit_movcc (which_alternative == 1, false, false, operands);
-}
-  [(set_attr "type"	"move,move")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"3,3")])
+  {@ [cons: =0, 1, 2, 3; attrs: type, length]
+     [a, r, r, 0; move, 3] << xtensa_emit_movcc (false, false, false, operands);
+     [a, r, 0, r; move, 3] << xtensa_emit_movcc (true, false, false, operands);
+  }
+  [(set_attr "mode" "SI")])
 
 (define_insn "movsicc_internal1"
-  [(set (match_operand:SI 0 "register_operand" "=a,a")
+  [(set (match_operand:SI 0 "register_operand")
 	(if_then_else:SI (match_operator 4 "boolean_operator"
-			   [(match_operand:CC 1 "register_operand" "b,b")
+			   [(match_operand:CC 1 "register_operand")
 			    (const_int 0)])
-			 (match_operand:SI 2 "register_operand" "r,0")
-			 (match_operand:SI 3 "register_operand" "0,r")))]
+			 (match_operand:SI 2 "register_operand")
+			 (match_operand:SI 3 "register_operand")))]
   "TARGET_BOOLEANS"
-{
-  return xtensa_emit_movcc (which_alternative == 1, false, true, operands);
-}
-  [(set_attr "type"	"move,move")
-   (set_attr "mode"	"SI")
-   (set_attr "length"	"3,3")])
+  {@ [cons: =0, 1, 2, 3; attrs: type, length]
+     [a, b, r, 0; move, 3] << xtensa_emit_movcc (false, false, true, operands);
+     [a, b, 0, r; move, 3] << xtensa_emit_movcc (true, false, true, operands);
+  }
+  [(set_attr "mode" "SI")])
 
 (define_insn "movsfcc_internal0"
-  [(set (match_operand:SF 0 "register_operand" "=a,a,f,f")
+  [(set (match_operand:SF 0 "register_operand")
 	(if_then_else:SF (match_operator 4 "branch_operator"
-			   [(match_operand:SI 1 "register_operand" "r,r,r,r")
+			   [(match_operand:SI 1 "register_operand")
 			    (const_int 0)])
-			 (match_operand:SF 2 "register_operand" "r,0,f,0")
-			 (match_operand:SF 3 "register_operand" "0,r,0,f")))]
+			 (match_operand:SF 2 "register_operand")
+			 (match_operand:SF 3 "register_operand")))]
   ""
-{
-  return xtensa_emit_movcc ((which_alternative & 1) == 1,
-			    which_alternative >= 2, false, operands);
-}
-  [(set_attr "type"	"move,move,move,move")
-   (set_attr "mode"	"SF")
-   (set_attr "length"	"3,3,3,3")])
+  {@ [cons: =0, 1, 2, 3; attrs: type, length]
+     [a, r, r, 0; move, 3] << xtensa_emit_movcc (false, false, false, operands);
+     [a, r, 0, r; move, 3] << xtensa_emit_movcc (true, false, false, operands);
+     [f, r, f, 0; move, 3] << xtensa_emit_movcc (false, true, false, operands);
+     [f, r, 0, f; move, 3] << xtensa_emit_movcc (true, true, false, operands);
+  }
+  [(set_attr "mode" "SF")])
 
 (define_insn "movsfcc_internal1"
-  [(set (match_operand:SF 0 "register_operand" "=a,a,f,f")
+  [(set (match_operand:SF 0 "register_operand")
 	(if_then_else:SF (match_operator 4 "boolean_operator"
-			   [(match_operand:CC 1 "register_operand" "b,b,b,b")
+			   [(match_operand:CC 1 "register_operand")
 			    (const_int 0)])
-			 (match_operand:SF 2 "register_operand" "r,0,f,0")
-			 (match_operand:SF 3 "register_operand" "0,r,0,f")))]
+			 (match_operand:SF 2 "register_operand")
+			 (match_operand:SF 3 "register_operand")))]
   "TARGET_BOOLEANS"
-{
-  return xtensa_emit_movcc ((which_alternative & 1) == 1,
-			    which_alternative >= 2, true, operands);
-}
-  [(set_attr "type"	"move,move,move,move")
-   (set_attr "mode"	"SF")
-   (set_attr "length"	"3,3,3,3")])
+  {@ [cons: =0, 1, 2, 3; attrs: type, length]
+     [a, b, r, 0; move, 3] << xtensa_emit_movcc (false, false, true, operands);
+     [a, b, 0, r; move, 3] << xtensa_emit_movcc (true, false, true, operands);
+     [f, b, f, 0; move, 3] << xtensa_emit_movcc (false, true, true, operands);
+     [f, b, 0, f; move, 3] << xtensa_emit_movcc (true, true, true, operands);
+  }
+  [(set_attr "mode" "SF")])
 
 
 ;; Floating-point comparisons.
@@ -2602,8 +2534,8 @@
 })
 
 (define_insn "call_internal"
-  [(call (mem (match_operand:SI 0 "call_insn_operand" "nir"))
-	 (match_operand 1 "" "i"))]
+  [(call (mem (match_operand:SI 0 "call_insn_operand" "ir"))
+	 (match_operand 1 "" ""))]
   "!SIBLING_CALL_P (insn)"
 {
   return xtensa_emit_call (0, operands);
@@ -2624,8 +2556,8 @@
 
 (define_insn "call_value_internal"
   [(set (match_operand 0 "register_operand" "=a")
-	(call (mem (match_operand:SI 1 "call_insn_operand" "nir"))
-	      (match_operand 2 "" "i")))]
+	(call (mem (match_operand:SI 1 "call_insn_operand" "ir"))
+	      (match_operand 2 "" "")))]
   "!SIBLING_CALL_P (insn)"
 {
   return xtensa_emit_call (1, operands);
@@ -2644,8 +2576,8 @@
 })
 
 (define_insn "sibcall_internal"
-  [(call (mem:SI (match_operand:SI 0 "call_insn_operand" "nic"))
-	 (match_operand 1 "" "i"))]
+  [(call (mem:SI (match_operand:SI 0 "call_insn_operand" "ic"))
+	 (match_operand 1 "" ""))]
   "!TARGET_WINDOWED_ABI && SIBLING_CALL_P (insn)"
 {
   return xtensa_emit_sibcall (0, operands);
@@ -2666,8 +2598,8 @@
 
 (define_insn "sibcall_value_internal"
   [(set (match_operand 0 "register_operand" "=a")
-	(call (mem:SI (match_operand:SI 1 "call_insn_operand" "nic"))
-	      (match_operand 2 "" "i")))]
+	(call (mem:SI (match_operand:SI 1 "call_insn_operand" "ic"))
+	      (match_operand 2 "" "")))]
   "!TARGET_WINDOWED_ABI && SIBLING_CALL_P (insn)"
 {
   return xtensa_emit_sibcall (1, operands);
@@ -2699,7 +2631,7 @@
 
 (define_insn "entry"
   [(set (reg:SI A1_REG)
-	(unspec_volatile:SI [(match_operand:SI 0 "const_int_operand" "i")]
+	(unspec_volatile:SI [(match_operand:SI 0 "const_int_operand" "")]
 			    UNSPECV_ENTRY))]
   ""
   "entry\tsp, %0"
@@ -2708,12 +2640,10 @@
    (set_attr "length"	"3")])
 
 (define_insn "return"
-  [(return)
-   (use (reg:SI A0_REG))]
-  "reload_completed
-   && (TARGET_WINDOWED_ABI
-       || compute_frame_size (get_frame_size ()) == 0
-       || epilogue_completed)"
+  [(return)]
+  "TARGET_WINDOWED_ABI
+   || compute_frame_size (get_frame_size ()) == 0
+   || epilogue_completed"
 {
   return TARGET_WINDOWED_ABI ?
       (TARGET_DENSITY ? "retw.n" : "retw") :
@@ -2777,7 +2707,6 @@
   "!TARGET_WINDOWED_ABI"
 {
   xtensa_expand_epilogue ();
-  emit_use (gen_rtx_REG (SImode, A0_REG));
   DONE;
 })
 
@@ -3265,7 +3194,7 @@
   [(set (match_operand:SI 0 "register_operand" "=a")
 	(match_operator:SI 3 "boolean_operator"
 		[(and:SI (match_operand:SI 1 "register_operand" "r")
-			 (match_operand:SI 2 "const_int_operand" "i"))
+			 (match_operand:SI 2 "const_int_operand" ""))
 		 (const_int 0)]))]
   "IN_RANGE (exact_log2 (INTVAL (operands[2]) + 1), 17, 31)
    || IN_RANGE (exact_log2 (-INTVAL (operands[2])), 1, 30)"
@@ -3319,35 +3248,41 @@
 				    (const_int 8)
 				    (const_int 9))))])
 
-(define_peephole2
-  [(set (match_operand:SI 0 "register_operand")
-	(match_operand:SI 6 "reload_operand"))
-   (set (match_operand:SI 1 "register_operand")
-	(match_operand:SI 7 "reload_operand"))
-   (set (match_operand:SF 2 "register_operand")
-	(match_operand:SF 4 "register_operand"))
-   (set (match_operand:SF 3 "register_operand")
-	(match_operand:SF 5 "register_operand"))]
-  "REGNO (operands[0]) == REGNO (operands[4])
-   && REGNO (operands[1]) == REGNO (operands[5])
-   && peep2_reg_dead_p (4, operands[0])
-   && peep2_reg_dead_p (4, operands[1])"
-  [(set (match_dup 2)
-	(match_dup 6))
-   (set (match_dup 3)
-	(match_dup 7))]
+(define_insn_and_split "*eqne_in_range"
+  [(set (pc)
+	(if_then_else (match_operator 4 "alt_ubranch_operator"
+			[(plus:SI (match_operand:SI 0 "register_operand" "r")
+				  (match_operand:SI 1 "const_int_operand" ""))
+			 (match_operand:SI 2 "const_int_operand" "")])
+		      (label_ref (match_operand 3 ""))
+		      (pc)))
+   (clobber (match_scratch:SI 5 "=&a"))]
+  "TARGET_MINMAX && TARGET_CLAMPS
+   && INTVAL (operands[1]) * 2 - INTVAL (operands[2]) == 1
+   && IN_RANGE (exact_log2 (INTVAL (operands[1])), 7, 22)"
+  "#"
+  "&& 1"
+  [(set (match_dup 5)
+	(smin:SI (smax:SI (match_dup 0)
+			  (match_dup 1))
+		 (match_dup 2)))
+   (set (pc)
+	(if_then_else (match_op_dup 4
+			[(match_dup 0)
+			 (match_dup 5)])
+		      (label_ref (match_dup 3))
+		      (pc)))]
 {
-  HARD_REG_SET regs;
-  int i;
-  CLEAR_HARD_REG_SET (regs);
-  for (i = 0; i <= 3; ++i)
-    if (TEST_HARD_REG_BIT (regs, REGNO (operands[i])))
-      FAIL;
-    else
-      SET_HARD_REG_BIT (regs, REGNO (operands[i]));
-  operands[6] = gen_rtx_MEM (SFmode, XEXP (operands[6], 0));
-  operands[7] = gen_rtx_MEM (SFmode, XEXP (operands[7], 0));
-})
+  HOST_WIDE_INT v = INTVAL (operands[1]);
+  operands[1] = GEN_INT (-v);
+  operands[2] = GEN_INT (v - 1);
+  PUT_CODE (operands[4], GET_CODE (operands[4]) == GTU ? NE : EQ);
+  if (GET_CODE (operands[5]) == SCRATCH)
+    operands[5] = gen_reg_rtx (SImode);
+}
+  [(set_attr "type"	"jump")
+   (set_attr "mode"	"none")
+   (set_attr "length"	"6")])
 
 (define_split
   [(clobber (match_operand 0 "register_operand"))]
@@ -3433,50 +3368,4 @@ FALLTHRU:;
   imm0 = value - imm1 - 128;
   operands[1] = GEN_INT (imm0);
   operands[2] = GEN_INT (imm1);
-})
-
-(define_peephole2
-  [(set (match_operand 0 "register_operand")
-	(match_operand 1 "register_operand"))]
-  "REG_NREGS (operands[0]) == 1 && GP_REG_P (REGNO (operands[0]))
-   && REG_NREGS (operands[1]) == 1 && GP_REG_P (REGNO (operands[1]))
-   && peep2_reg_dead_p (1, operands[1])"
-  [(const_int 0)]
-{
-  basic_block bb = BLOCK_FOR_INSN (curr_insn);
-  rtx_insn *head = BB_HEAD (bb), *insn;
-  rtx dest = operands[0], src = operands[1], pattern, t_dest, dest_orig;
-  for (insn = PREV_INSN (curr_insn);
-       insn && insn != head;
-       insn = PREV_INSN (insn))
-    if (CALL_P (insn))
-      break;
-    else if (INSN_P (insn))
-      {
-	if (GET_CODE (pattern = PATTERN (insn)) == SET
-	    && REG_P (t_dest = SET_DEST (pattern))
-	    && REG_NREGS (t_dest) == 1
-	    && REGNO (t_dest) == REGNO (src))
-	{
-	  dest_orig = SET_DEST (pattern);
-	  SET_DEST (pattern) = gen_rtx_REG (GET_MODE (t_dest),
-					    REGNO (dest));
-	  extract_insn (insn);
-	  if (!constrain_operands (true, get_enabled_alternatives (insn)))
-	    {
-	      SET_DEST (pattern) = dest_orig;
-	      goto ABORT;
-	    }
-	  df_insn_rescan (insn);
-	  goto FALLTHRU;
-	}
-	if (reg_overlap_mentioned_p (dest, pattern)
-	    || reg_overlap_mentioned_p (src, pattern)
-	    || set_of (dest, insn)
-	    || set_of (src, insn))
-	  break;
-      }
-ABORT:
-  FAIL;
-FALLTHRU:;
 })

@@ -62,4 +62,62 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f b6 00             	movzx  eax,BYTE PTR \[eax\]
 [ 	]*[a-f0-9]+:	0f b7 00             	movzx  eax,WORD PTR \[eax\]
 [ 	]*[a-f0-9]+:	0f c3 00             	movnti DWORD PTR \[eax\],eax
+[ 	]*[a-f0-9]+:	63 ca                	arpl   edx,ecx
+[ 	]*[a-f0-9]+:	63 ca                	arpl   edx,ecx
+[ 	]*[a-f0-9]+:	63 0a                	arpl   (WORD PTR )?\[edx\],ecx
+[ 	]*[a-f0-9]+:	63 0a                	arpl   (WORD PTR )?\[edx\],ecx
+[ 	]*[a-f0-9]+:	66 0f 02 d2          	lar    dx,dx
+[ 	]*[a-f0-9]+:	0f 02 d2             	lar    edx,edx
+[ 	]*[a-f0-9]+:	0f 02 d2             	lar    edx,edx
+[ 	]*[a-f0-9]+:	66 0f 02 12          	lar    dx,WORD PTR \[edx\]
+[ 	]*[a-f0-9]+:	0f 02 12             	lar    edx,WORD PTR \[edx\]
+[ 	]*[a-f0-9]+:	0f 00 d2             	lldt   edx
+[ 	]*[a-f0-9]+:	0f 00 d2             	lldt   edx
+[ 	]*[a-f0-9]+:	0f 00 12             	lldt   (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	66 0f 03 d2          	lsl    dx,dx
+[ 	]*[a-f0-9]+:	0f 03 d2             	lsl    edx,edx
+[ 	]*[a-f0-9]+:	0f 03 d2             	lsl    edx,edx
+[ 	]*[a-f0-9]+:	66 0f 03 12          	lsl    dx,WORD PTR \[edx\]
+[ 	]*[a-f0-9]+:	0f 03 12             	lsl    edx,WORD PTR \[edx\]
+[ 	]*[a-f0-9]+:	0f 00 da             	ltr    edx
+[ 	]*[a-f0-9]+:	0f 00 da             	ltr    edx
+[ 	]*[a-f0-9]+:	0f 00 1a             	ltr    (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	0f 00 e2             	verr   edx
+[ 	]*[a-f0-9]+:	0f 00 e2             	verr   edx
+[ 	]*[a-f0-9]+:	0f 00 22             	verr   (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	0f 00 ea             	verw   edx
+[ 	]*[a-f0-9]+:	0f 00 ea             	verw   edx
+[ 	]*[a-f0-9]+:	0f 00 2a             	verw   (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	63 d1                	arpl   ecx,edx
+[ 	]*[a-f0-9]+:	63 d1                	arpl   ecx,edx
+[ 	]*[a-f0-9]+:	63 11                	arpl   (WORD PTR )?\[ecx],edx
+[ 	]*[a-f0-9]+:	63 11                	arpl   (WORD PTR )?\[ecx],edx
+[ 	]*[a-f0-9]+:	63 11                	arpl   (WORD PTR )?\[ecx],edx
+[ 	]*[a-f0-9]+:	63 11                	arpl   (WORD PTR )?\[ecx],edx
+[ 	]*[a-f0-9]+:	66 0f 02 d2          	lar    dx,dx
+[ 	]*[a-f0-9]+:	0f 02 d2             	lar    edx,edx
+[ 	]*[a-f0-9]+:	0f 02 d2             	lar    edx,edx
+[ 	]*[a-f0-9]+:	66 0f 02 12          	lar    dx,WORD PTR \[edx\]
+[ 	]*[a-f0-9]+:	0f 02 12             	lar    edx,WORD PTR \[edx\]
+[ 	]*[a-f0-9]+:	0f 00 d2             	lldt   edx
+[ 	]*[a-f0-9]+:	0f 00 d2             	lldt   edx
+[ 	]*[a-f0-9]+:	0f 00 12             	lldt   (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	0f 00 12             	lldt   (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	66 0f 03 d2          	lsl    dx,dx
+[ 	]*[a-f0-9]+:	0f 03 d2             	lsl    edx,edx
+[ 	]*[a-f0-9]+:	0f 03 d2             	lsl    edx,edx
+[ 	]*[a-f0-9]+:	66 0f 03 12          	lsl    dx,WORD PTR \[edx\]
+[ 	]*[a-f0-9]+:	0f 03 12             	lsl    edx,WORD PTR \[edx\]
+[ 	]*[a-f0-9]+:	0f 00 da             	ltr    edx
+[ 	]*[a-f0-9]+:	0f 00 da             	ltr    edx
+[ 	]*[a-f0-9]+:	0f 00 1a             	ltr    (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	0f 00 1a             	ltr    (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	0f 00 e2             	verr   edx
+[ 	]*[a-f0-9]+:	0f 00 e2             	verr   edx
+[ 	]*[a-f0-9]+:	0f 00 22             	verr   (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	0f 00 22             	verr   (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	0f 00 ea             	verw   edx
+[ 	]*[a-f0-9]+:	0f 00 ea             	verw   edx
+[ 	]*[a-f0-9]+:	0f 00 2a             	verw   (WORD PTR )?\[edx\]
+[ 	]*[a-f0-9]+:	0f 00 2a             	verw   (WORD PTR )?\[edx\]
 #pass

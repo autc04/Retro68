@@ -1,6 +1,5 @@
+# Check 64bit VPCLMULQDQ instructions
 
-
-	.allow_index_reg
 	.text
 _start:
 	vpclmulqdq	$0xab, %ymm8, %ymm9, %ymm10

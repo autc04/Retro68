@@ -1,6 +1,6 @@
 // Debugging map implementation -*- C++ -*-
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -382,18 +382,26 @@ namespace __debug
 	  return { { __res.first, this }, __res.second };
 	}
 
+# ifdef __glibcxx_associative_heterogeneous_insertion
+      template <__heterogeneous_tree_key<map> _Kt, typename... _Args>
+	pair<iterator, bool>
+	try_emplace(_Kt&& __k, _Args&&... __args)
+	{
+	  auto __res = _Base::try_emplace(
+	    std::forward<_Kt>(__k), std::forward<_Args>(__args)...);
+	  return { { __res.first, this }, __res.second };
+	}
+#endif
+
       template <typename... _Args>
         iterator
         try_emplace(const_iterator __hint, const key_type& __k,
                     _Args&&... __args)
         {
 	  __glibcxx_check_insert(__hint);
-	  return
-	    {
-	      _Base::try_emplace(__hint.base(), __k,
-				 std::forward<_Args>(__args)...),
-	      this
-	    };
+	  auto __it = _Base::try_emplace(__hint.base(), __k,
+	    std::forward<_Args>(__args)...);
+	  return { __it, this };
 	}
 
       template <typename... _Args>
@@ -401,13 +409,22 @@ namespace __debug
         try_emplace(const_iterator __hint, key_type&& __k, _Args&&... __args)
         {
 	  __glibcxx_check_insert(__hint);
-	  return
-	    {
-	      _Base::try_emplace(__hint.base(), std::move(__k),
-				 std::forward<_Args>(__args)...),
-	      this
-	    };
+	  auto __it = _Base::try_emplace(__hint.base(), std::move(__k),
+	    std::forward<_Args>(__args)...);
+	  return { __it, this };
 	}
+
+# ifdef __glibcxx_associative_heterogeneous_insertion
+      template <__heterogeneous_tree_key<map> _Kt, typename... _Args>
+	iterator
+	try_emplace(const_iterator __hint, _Kt&& __k, _Args&&... __args)
+	{
+	  __glibcxx_check_insert(__hint);
+	  auto __it = _Base::try_emplace(__hint.base(),
+	    std::forward<_Kt>(__k), std::forward<_Args>(__args)...);
+	  return { __it, this };
+	}
+# endif
 
       template <typename _Obj>
         std::pair<iterator, bool>
@@ -427,18 +444,26 @@ namespace __debug
 	  return { { __res.first, this }, __res.second };
 	}
 
+# ifdef __glibcxx_associative_heterogeneous_insertion
+      template <__heterogeneous_tree_key<map> _Kt, typename _Obj>
+	std::pair<iterator, bool>
+	insert_or_assign(_Kt&& __k, _Obj&& __obj)
+	{
+	  auto __res = _Base::insert_or_assign(
+	    std::forward<_Kt>(__k), std::forward<_Obj>(__obj));
+	  return { { __res.first, this }, __res.second };
+	}
+#endif
+
       template <typename _Obj>
         iterator
         insert_or_assign(const_iterator __hint,
                          const key_type& __k, _Obj&& __obj)
 	{
 	  __glibcxx_check_insert(__hint);
-	  return
-	    {
-	      _Base::insert_or_assign(__hint.base(), __k,
-				      std::forward<_Obj>(__obj)),
-	      this
-	    };
+	  auto __it = _Base::insert_or_assign(__hint.base(), __k,
+	    std::forward<_Obj>(__obj));
+	  return { __it, this };
 	}
 
       template <typename _Obj>
@@ -446,16 +471,26 @@ namespace __debug
         insert_or_assign(const_iterator __hint, key_type&& __k, _Obj&& __obj)
         {
 	  __glibcxx_check_insert(__hint);
-	  return
-	    {
-	      _Base::insert_or_assign(__hint.base(), std::move(__k),
-				      std::forward<_Obj>(__obj)),
-	      this
-	    };
+	  auto __it = _Base::insert_or_assign(__hint.base(), std::move(__k),
+	    std::forward<_Obj>(__obj));
+	  return { __it, this };
 	}
+
+# ifdef __glibcxx_associative_heterogeneous_insertion
+      template <__heterogeneous_tree_key<map> _Kt, typename _Obj>
+	iterator
+	insert_or_assign(const_iterator __hint, _Kt&& __k, _Obj&& __obj)
+	{
+	  __glibcxx_check_insert(__hint);
+	  auto __it = _Base::insert_or_assign(__hint.base(),
+	    std::forward<_Kt>(__k), std::forward<_Obj>(__obj));
+	  return { __it, this };
+	}
+# endif
+
 #endif // C++17
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17 && HOSTED
       using node_type = typename _Base::node_type;
       using insert_return_type = _Node_insert_return<iterator, node_type>;
 
@@ -475,6 +510,18 @@ namespace __debug
 	  return extract(__position);
 	return {};
       }
+
+# ifdef __glibcxx_associative_heterogeneous_erasure
+      template <__heterogeneous_tree_key<map> _Kt>
+	node_type
+	extract(_Kt&& __key)
+	{
+	  const auto __position = find(__key);
+	  if (__position != end())
+	    return extract(__position);
+	  return {};
+	}
+# endif
 
       insert_return_type
       insert(node_type&& __nh)
@@ -537,6 +584,26 @@ namespace __debug
 	    return 1;
 	  }
       }
+
+# ifdef __glibcxx_associative_heterogeneous_erasure
+      // Note that for some types _Kt this may erase more than
+      // one element, such as if _Kt::operator< checks only part
+      // of the key.
+      template <__heterogeneous_tree_key<map> _Kt>
+	size_type
+	erase(_Kt&& __x)
+	{
+	  auto __victims = _Base::equal_range(__x);
+	  size_type __count = 0;
+	  for (auto __victim = __victims.first; __victim != __victims.second;)
+	    {
+	      this->_M_invalidate_if(_Equal(__victim));
+	      _Base::erase(__victim++);
+	      ++__count;
+	    }
+	  return __count;
+	}
+# endif
 
 #if __cplusplus >= 201103L
       iterator
@@ -601,7 +668,7 @@ namespace __debug
       find(const key_type& __x)
       { return iterator(_Base::find(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -614,7 +681,7 @@ namespace __debug
       find(const key_type& __x) const
       { return const_iterator(_Base::find(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -629,7 +696,7 @@ namespace __debug
       lower_bound(const key_type& __x)
       { return iterator(_Base::lower_bound(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -642,7 +709,7 @@ namespace __debug
       lower_bound(const key_type& __x) const
       { return const_iterator(_Base::lower_bound(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -655,7 +722,7 @@ namespace __debug
       upper_bound(const key_type& __x)
       { return iterator(_Base::upper_bound(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -668,7 +735,7 @@ namespace __debug
       upper_bound(const key_type& __x) const
       { return const_iterator(_Base::upper_bound(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -686,7 +753,7 @@ namespace __debug
 			      iterator(__res.second, this));
       }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -707,7 +774,7 @@ namespace __debug
 			      const_iterator(__res.second, this));
       }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>

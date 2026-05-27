@@ -3,7 +3,7 @@
 ; not being in 16-bit range, so no error is recognized for a 16-bit operand.
 
 ; { dg-do assemble { target cris-*-* } }
-; { dg-options "--pic --no-underscore --em=criself" }
+; { dg-options "--pic --no-underscore --emulation=criself" }
 
  .syntax no_register_prefix
  .text

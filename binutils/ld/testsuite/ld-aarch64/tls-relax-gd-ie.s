@@ -1,7 +1,3 @@
-	.global	var
-	.section	.tdata,"awT",%progbits
-var:
-	.word	2
 	.text
 	adrp	x0, :tlsgd:var
 	add	x0, x0, :tlsgd_lo12:var

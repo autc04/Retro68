@@ -1,6 +1,6 @@
 ; Options for the ARM port of the compiler.
 
-; Copyright (C) 2005-2025 Free Software Foundation, Inc.
+; Copyright (C) 2005-2026 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -58,9 +58,6 @@ EnumValue
 Enum(arm_abi_type) String(aapcs) Value(ARM_ABI_AAPCS)
 
 EnumValue
-Enum(arm_abi_type) String(iwmmxt) Value(ARM_ABI_IWMMXT)
-
-EnumValue
 Enum(arm_abi_type) String(aapcs-linux) Value(ARM_ABI_AAPCS_LINUX)
 
 mabort-on-noreturn
@@ -75,11 +72,12 @@ Target Mask(APCS_FRAME)
 Generate APCS conformant stack frames.
 
 mapcs-reentrant
-Target Mask(APCS_REENT)
-Generate re-entrant, PIC code.
+Target Mask(APCS_REENT) Undocumented
+Unimplemented option to generate re-entrant, PIC code.
 
 mapcs-stack-check
 Target Mask(APCS_STACK) Undocumented
+Unimplemented option to generate stack checking code on function entry.
 
 march=
 Target Save RejectNegative Negative(march=) ToLower Joined Var(arm_arch_string)
@@ -142,7 +140,7 @@ Target Var(TARGET_FLIP_THUMB) Undocumented
 Switch ARM/Thumb modes on alternating functions for compiler testing.
 
 mfp16-format=
-Target RejectNegative Joined Enum(arm_fp16_format_type) Var(arm_fp16_format) Init(ARM_FP16_FORMAT_NONE)
+Target RejectNegative Joined Enum(arm_fp16_format_type) Var(arm_fp16_format) Init(ARM_FP16_FORMAT_DEFAULT)
 Specify the __fp16 floating-point format.
 
 Enum
@@ -251,7 +249,7 @@ Target Save RejectNegative Negative(mtune=) ToLower Joined Var(arm_tune_string)
 Tune code for the given processor.
 
 mprint-tune-info
-Target RejectNegative Var(print_tune_info) Init(0)
+Target RejectNegative Var(print_tune_info) Init(0) Undocumented
 Print CPU tuning information as comment in assembler file.  This is
 an option used only for regression testing of the compiler and not
 intended for ordinary use in compiling code.
@@ -305,7 +303,7 @@ Target Var(unaligned_access) Init(2) Save
 Enable unaligned word and halfword accesses to packed data.
 
 mneon-for-64bits
-Target WarnRemoved
+Target WarnRemoved Undocumented
 This option is deprecated and has no effect.
 
 mslow-flash-data

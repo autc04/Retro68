@@ -1,4 +1,4 @@
-.. Copyright (C) 2015-2025 Free Software Foundation, Inc.
+.. Copyright (C) 2015-2026 Free Software Foundation, Inc.
    Originally contributed by David Malcolm <dmalcolm@redhat.com>
 
    This is free software: you can redistribute it and/or modify it
@@ -453,3 +453,31 @@ temporary variable:
 ``LIBGCCJIT_ABI_34`` covers the addition of
 
  * :func:`gcc_jit_context_set_output_ident`
+
+.. _LIBGCCJIT_ABI_35:
+
+``LIBGCCJIT_ABI_35``
+--------------------
+``LIBGCCJIT_ABI_35`` covers the addition of functions to query the target
+information:
+
+  * :func:`gcc_jit_context_get_target_info`
+  * :func:`gcc_jit_target_info_release`
+  * :func:`gcc_jit_target_info_cpu_supports`
+  * :func:`gcc_jit_target_info_arch`
+  * :func:`gcc_jit_target_info_supports_target_dependent_type`
+
+.. _LIBGCCJIT_ABI_36:
+
+``LIBGCCJIT_ABI_36``
+--------------------
+``LIBGCCJIT_ABI_36`` covers the addition of
+
+ * :func:`gcc_jit_context_set_abort_on_unsupported_target_builtin`
+
+.. _LIBGCCJIT_ABI_37:
+
+``LIBGCCJIT_ABI_37``
+--------------------
+``LIBGCCJIT_ABI_37`` covers the addition of
+:func:`gcc_jit_context_new_array_type_u64`

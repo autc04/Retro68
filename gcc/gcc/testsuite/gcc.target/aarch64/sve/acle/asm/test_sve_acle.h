@@ -1,6 +1,13 @@
 #ifndef TEST_SVE_ACLE_H
 #define TEST_SVE_ACLE_H 1
 
+/* When compiling for e.g. C++98, we won't get the INt*_MIN macros that some
+   tests want without defining this macro.  */
+
+#ifndef __STDC_LIMIT_MACROS
+# define __STDC_LIMIT_MACROS 1
+#endif
+
 #include <arm_neon_sve_bridge.h>
 
 #if defined (TEST_OVERLOADS)
@@ -733,6 +740,7 @@
 #define TEST_X2_NARROW(NAME, TTYPE, ZTYPE, CODE1, CODE2)	\
   PROTO (NAME, void, ())					\
   {								\
+    register fpm_t fpm0 __asm ("x0");				\
     register TTYPE z0 __asm ("z0");				\
     register ZTYPE z5 __asm ("z5");				\
     register TTYPE z6 __asm ("z6");				\
@@ -749,6 +757,7 @@
 #define TEST_X4_NARROW(NAME, TTYPE, ZTYPE, CODE1, CODE2)	\
   PROTO (NAME, void, ())					\
   {								\
+    register fpm_t fpm0 __asm ("x0");				\
     register TTYPE z0 __asm ("z0");				\
     register TTYPE z4 __asm ("z4");				\
     register TTYPE z16 __asm ("z16");				\
@@ -767,6 +776,7 @@
 #define TEST_X2_WIDE(NAME, TTYPE, ZTYPE, CODE1, CODE2)		\
   PROTO (NAME, void, ())					\
   {								\
+    register fpm_t fpm0 __asm ("x0");				\
     register ZTYPE z0 __asm ("z0");				\
     register ZTYPE z5 __asm ("z5");				\
     register TTYPE z6 __asm ("z6");				\

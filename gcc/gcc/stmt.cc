@@ -1,5 +1,5 @@
 /* Expands front end tree to back end RTL for GCC
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -39,6 +39,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "emit-rtl.h"
 #include "pretty-print.h"
 #include "diagnostic-core.h"
+#include "output.h"
+#include "gimplify_reg_info.h"
 
 #include "fold-const.h"
 #include "varasm.h"
@@ -52,6 +54,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-cfg.h"
 #include "dumpfile.h"
 #include "builtins.h"
+#include "cfgexpand.h"
+#include "output.h"
 
 
 /* Functions and data structures for expanding case statements.  */
@@ -174,6 +178,77 @@ expand_label (tree label)
     maybe_set_first_label_num (label_r);
 }
 
+/* Parse a hard register constraint and return its number or -1 in case of an
+   error.  BEGIN should point to a string of the form `{regname}`.  For the
+   sake of simplicity assume that a register name is not longer than 31
+   characters, if not error out.  */
+
+int
+decode_hard_reg_constraint (const char *begin)
+{
+  if (*begin != '{')
+    return -1;
+  ++begin;
+  const char *end = begin;
+  while (*end != '}' && *end != '\0')
+    ++end;
+  if (*end != '}' || end == begin)
+    return -1;
+  ptrdiff_t len = end - begin;
+  if (len >= 31)
+    return -1;
+  char regname[32];
+  memcpy (regname, begin, len);
+  regname[len] = '\0';
+  int regno = decode_reg_name (regname);
+  return regno;
+}
+
+static bool
+eliminable_regno_p (int regnum)
+{
+  static const struct
+  {
+    const int from;
+    const int to;
+  } eliminables[] = ELIMINABLE_REGS;
+  for (size_t i = 0; i < ARRAY_SIZE (eliminables); i++)
+    if (regnum == eliminables[i].from)
+      return true;
+  return false;
+}
+
+/* Perform a similar check as done in make_decl_rtl().  */
+
+static bool
+hardreg_ok_p (int reg_number, machine_mode mode, int operand_num)
+{
+  if (mode == BLKmode)
+    error ("data type isn%'t suitable for register %s of operand %i",
+	   reg_names[reg_number], operand_num);
+  else if (!in_hard_reg_set_p (accessible_reg_set, mode, reg_number))
+    error ("register %s for operand %i cannot be accessed"
+	   " by the current target", reg_names[reg_number], operand_num);
+  else if (!in_hard_reg_set_p (operand_reg_set, mode, reg_number))
+    error ("register %s for operand %i is not general enough"
+	   " to be used as a register variable", reg_names[reg_number], operand_num);
+  else if (!targetm.hard_regno_mode_ok (reg_number, mode))
+    error ("register %s for operand %i isn%'t suitable for data type",
+	   reg_names[reg_number], operand_num);
+  else if (reg_number != HARD_FRAME_POINTER_REGNUM
+	   && (reg_number == FRAME_POINTER_REGNUM
+#ifdef RETURN_ADDRESS_POINTER_REGNUM
+	       || reg_number == RETURN_ADDRESS_POINTER_REGNUM
+#endif
+	       || reg_number == ARG_POINTER_REGNUM)
+	   && eliminable_regno_p (reg_number))
+    error ("register for operand %i is an internal GCC "
+	   "implementation detail", operand_num);
+  else
+    return true;
+  return false;
+}
+
 /* Parse the output constraint pointed to by *CONSTRAINT_P.  It is the
    OPERAND_NUMth output operand, indexed from zero.  There are NINPUTS
    inputs and NOUTPUTS outputs to this extended-asm.  Upon return,
@@ -190,7 +265,8 @@ expand_label (tree label)
 bool
 parse_output_constraint (const char **constraint_p, int operand_num,
 			 int ninputs, int noutputs, bool *allows_mem,
-			 bool *allows_reg, bool *is_inout)
+			 bool *allows_reg, bool *is_inout,
+			 gimplify_reg_info *reg_info)
 {
   const char *constraint = *constraint_p;
   const char *p;
@@ -244,6 +320,14 @@ parse_output_constraint (const char **constraint_p, int operand_num,
       constraint = *constraint_p;
     }
 
+  unsigned int alt = 0;
+  bool early_clobbered = false;
+  /* Currently, multiple hard register constraints in one alternative are not
+     supported.  A combination of hard register constraints and regular
+     register constraints is also not supported.  */
+  bool alt_has_hard_reg_cstr = false;
+  bool alt_has_reg_cstr = false;
+
   /* Loop through the constraint string.  */
   for (p = constraint + 1; *p; )
     {
@@ -263,12 +347,23 @@ parse_output_constraint (const char **constraint_p, int operand_num,
 	    }
 	  break;
 
-	case '?':  case '!':  case '*':  case '&':  case '#':
+	case '&':
+	  early_clobbered = true;
+	  break;
+
+	case '?':  case '!':  case '*':  case '#':
 	case '$':  case '^':
 	case 'E':  case 'F':  case 'G':  case 'H':
 	case 's':  case 'i':  case 'n':
 	case 'I':  case 'J':  case 'K':  case 'L':  case 'M':
-	case 'N':  case 'O':  case 'P':  case ',':  case '-':
+	case 'N':  case 'O':  case 'P':  case '-':
+	  break;
+
+	case ',':
+	  ++alt;
+	  early_clobbered = false;
+	  alt_has_hard_reg_cstr = false;
+	  alt_has_reg_cstr = false;
 	  break;
 
 	case '0':  case '1':  case '2':  case '3':  case '4':
@@ -293,17 +388,121 @@ parse_output_constraint (const char **constraint_p, int operand_num,
 	  *allows_mem = true;
 	  break;
 
+	case '{':
+	  {
+	    if (!targetm.lra_p ())
+	      {
+		error ("hard register constraints are only supported while using LRA");
+		return false;
+	      }
+	    if (reg_info)
+	      {
+		if (alt_has_reg_cstr)
+		  {
+		    error (
+			"hard register constraints and regular register "
+			"constraints in one alternative are not supported");
+		    return false;
+		  }
+		if (alt_has_hard_reg_cstr)
+		  {
+		    error (
+			"multiple hard register constraints in one "
+			"alternative are not supported");
+		    return false;
+		  }
+		alt_has_hard_reg_cstr = true;
+		int regno = decode_hard_reg_constraint (p);
+		if (regno < 0)
+		  {
+		    error ("invalid output constraint: %s", p);
+		    return false;
+		  }
+		int overlap_regno = reg_info->test_alt_output (alt, regno);
+		if (overlap_regno < 0)
+		  overlap_regno = reg_info->test_reg_asm_output (regno);
+		if (overlap_regno >= 0)
+		  {
+		    error ("multiple outputs to hard register: %s",
+			   reg_names[overlap_regno]);
+		    return false;
+		  }
+		reg_info->set_output (alt, regno);
+		if (early_clobbered)
+		  reg_info->set_early_clobbered (alt, operand_num, regno);
+		if (reg_info->is_clobbered (regno))
+		  {
+		    error ("hard register constraint for output %i conflicts "
+			   "with %<asm%> clobber list", operand_num);
+		    return false;
+		  }
+		if (VAR_P (reg_info->operand)
+		    && DECL_HARD_REGISTER (reg_info->operand))
+		  {
+		      tree id = DECL_ASSEMBLER_NAME (reg_info->operand);
+		      const char *asmspec = IDENTIFIER_POINTER (id) + 1;
+		      int regno_op = decode_reg_name (asmspec);
+		      if (regno != regno_op)
+			{
+			  error ("constraint and register %<asm%> for output "
+				 "operand %i are unsatisfiable", operand_num);
+			  return false;
+			}
+		  }
+		machine_mode mode = TYPE_MODE (TREE_TYPE (reg_info->operand));
+		if (!hardreg_ok_p (regno, mode, operand_num))
+		  return false;
+	      }
+	    *allows_reg = true;
+	    break;
+	  }
+
 	default:
 	  if (!ISALPHA (*p))
 	    break;
 	  enum constraint_num cn = lookup_constraint (p);
 	  if (reg_class_for_constraint (cn) != NO_REGS
 	      || insn_extra_address_constraint (cn))
-	    *allows_reg = true;
+	    {
+	      if (alt_has_hard_reg_cstr)
+		{
+		  error (
+		      "hard register constraints and regular register "
+		      "constraints in one alternative are not supported");
+		  return false;
+		}
+	      alt_has_reg_cstr = true;
+	      *allows_reg = true;
+	    }
 	  else if (insn_extra_memory_constraint (cn))
 	    *allows_mem = true;
 	  else
 	    insn_extra_constraint_allows_reg_mem (cn, allows_reg, allows_mem);
+	  if (reg_info && *allows_reg
+	      && VAR_P (reg_info->operand)
+	      && DECL_HARD_REGISTER (reg_info->operand))
+	    {
+		tree id = DECL_ASSEMBLER_NAME (reg_info->operand);
+		const char *asmspec = IDENTIFIER_POINTER (id) + 1;
+		int regno = decode_reg_name (asmspec);
+		if (regno < 0)
+		  {
+		    location_t loc = DECL_SOURCE_LOCATION (reg_info->operand);
+		    error_at (loc, "invalid register name for %q+D",
+			      reg_info->operand);
+		    return false;
+		  }
+		int overlap_regno = reg_info->test_alt_output (alt, regno);
+		if (overlap_regno >= 0)
+		  {
+		    error ("multiple outputs to hard register: %s",
+			   reg_names[overlap_regno]);
+		    return false;
+		  }
+		reg_info->set_reg_asm_output (regno);
+		if (early_clobbered)
+		  reg_info->set_early_clobbered (alt, operand_num, regno);
+	    }
 	  break;
 	}
 
@@ -321,7 +520,8 @@ bool
 parse_input_constraint (const char **constraint_p, int input_num,
 			int ninputs, int noutputs, int ninout,
 			const char * const * constraints,
-			bool *allows_mem, bool *allows_reg)
+			bool *allows_mem, bool *allows_reg,
+			gimplify_reg_info *reg_info)
 {
   const char *constraint = *constraint_p;
   const char *orig_constraint = constraint;
@@ -335,8 +535,15 @@ parse_input_constraint (const char **constraint_p, int input_num,
   *allows_mem = false;
   *allows_reg = false;
 
+  bool alt_has_hard_reg_cstr = false;
+  bool alt_has_reg_cstr = false;
+
   /* Make sure constraint has neither `=', `+', nor '&'.  */
 
+  unsigned int alt = 0;
+  unsigned long match = 0;
+
+repeat:
   for (j = 0; j < c_len; j += CONSTRAINT_LEN (constraint[j], constraint+j))
     switch (constraint[j])
       {
@@ -363,7 +570,7 @@ parse_input_constraint (const char **constraint_p, int input_num,
       case 'E':  case 'F':  case 'G':  case 'H':
       case 's':  case 'i':  case 'n':
       case 'I':  case 'J':  case 'K':  case 'L':  case 'M':
-      case 'N':  case 'O':  case 'P':  case ',':  case '-':
+      case 'N':  case 'O':  case 'P':  case '-':
 	break;
 
       case ':':
@@ -381,6 +588,12 @@ parse_input_constraint (const char **constraint_p, int input_num,
 	  }
 	break;
 
+      case ',':
+	++alt;
+	alt_has_hard_reg_cstr = false;
+	alt_has_reg_cstr = false;
+	break;
+
 	/* Whether or not a numeric constraint allows a register is
 	   decided by the matching constraint, and so there is no need
 	   to do anything special with them.  We must handle them in
@@ -390,7 +603,6 @@ parse_input_constraint (const char **constraint_p, int input_num,
       case '5':  case '6':  case '7':  case '8':  case '9':
 	{
 	  char *end;
-	  unsigned long match;
 
 	  saw_match = true;
 
@@ -409,12 +621,7 @@ parse_input_constraint (const char **constraint_p, int input_num,
 	      constraint = constraints[match];
 	      *constraint_p = constraint;
 	      c_len = strlen (constraint);
-	      j = 0;
-	      /* ??? At the end of the loop, we will skip the first part of
-		 the matched constraint.  This assumes not only that the
-		 other constraint is an output constraint, but also that
-		 the '=' or '+' come first.  */
-	      break;
+	      goto repeat;
 	    }
 	  else
 	    j = end - constraint;
@@ -428,6 +635,80 @@ parse_input_constraint (const char **constraint_p, int input_num,
 	*allows_mem = true;
 	break;
 
+      case '{':
+	{
+	  if (!targetm.lra_p ())
+	    {
+	      error ("hard register constraints are only supported while using LRA");
+	      return false;
+	    }
+	  if (reg_info)
+	    {
+	      if (alt_has_reg_cstr)
+		{
+		  error (
+		      "hard register constraints and regular register "
+		      "constraints in one alternative are not supported");
+		  return false;
+		}
+	      if (alt_has_hard_reg_cstr)
+		{
+		  error (
+		      "multiple hard register constraints in one "
+		      "alternative are not supported");
+		  return false;
+		}
+	      alt_has_hard_reg_cstr = true;
+	      int regno = decode_hard_reg_constraint (constraint + j);
+	      if (regno < 0)
+		{
+		  error ("invalid input constraint: %s", constraint + j);
+		  return false;
+		}
+	      int overlap_regno = reg_info->test_alt_input (alt, regno);
+	      if (overlap_regno < 0)
+		overlap_regno = reg_info->test_reg_asm_input (regno);
+	      if (overlap_regno >= 0)
+		{
+		  error ("multiple inputs to hard register: %s",
+			    reg_names[overlap_regno]);
+		  return false;
+		}
+	      reg_info->set_input (alt, regno);
+	      if (reg_info->is_clobbered (regno))
+		{
+		  error ("hard register constraint for input %i conflicts "
+			 "with %<asm%> clobber list", input_num);
+		  return false;
+		}
+	      if (constraint == orig_constraint
+		  && reg_info->test_early_clobbered_alt (alt, regno))
+		{
+		  error ("invalid hard register usage between earlyclobber "
+			 "operand and input operand");
+		  return false;
+		}
+	      if (VAR_P (reg_info->operand)
+		  && DECL_HARD_REGISTER (reg_info->operand))
+		{
+		    tree id = DECL_ASSEMBLER_NAME (reg_info->operand);
+		    const char *asmspec = IDENTIFIER_POINTER (id) + 1;
+		    int regno_op = decode_reg_name (asmspec);
+		    if (regno != regno_op)
+		      {
+			error ("constraint and register %<asm%> for input "
+			       "operand %i are unsatisfiable", input_num);
+			return false;
+		      }
+		}
+	      machine_mode mode = TYPE_MODE (TREE_TYPE (reg_info->operand));
+	      if (!hardreg_ok_p (regno, mode, input_num))
+		return false;
+	    }
+	  *allows_reg = true;
+	  break;
+	}
+
       default:
 	if (! ISALPHA (constraint[j]))
 	  {
@@ -437,13 +718,56 @@ parse_input_constraint (const char **constraint_p, int input_num,
 	enum constraint_num cn = lookup_constraint (constraint + j);
 	if (reg_class_for_constraint (cn) != NO_REGS
 	    || insn_extra_address_constraint (cn))
-	  *allows_reg = true;
+	  {
+	    if (alt_has_hard_reg_cstr)
+	      {
+		error (
+		    "hard register constraints and regular register "
+		    "constraints in one alternative are not supported");
+		return false;
+	      }
+	    alt_has_reg_cstr = true;
+	    *allows_reg = true;
+	  }
 	else if (insn_extra_memory_constraint (cn)
 		 || insn_extra_special_memory_constraint (cn)
 		 || insn_extra_relaxed_memory_constraint (cn))
 	  *allows_mem = true;
 	else
 	  insn_extra_constraint_allows_reg_mem (cn, allows_reg, allows_mem);
+	if (reg_info && *allows_reg
+	    && VAR_P (reg_info->operand)
+	    && DECL_HARD_REGISTER (reg_info->operand))
+	  {
+	      tree id = DECL_ASSEMBLER_NAME (reg_info->operand);
+	      const char *asmspec = IDENTIFIER_POINTER (id) + 1;
+	      int regno = decode_reg_name (asmspec);
+	      if (regno < 0)
+		{
+		  location_t loc = DECL_SOURCE_LOCATION (reg_info->operand);
+		  error_at (loc, "invalid register name for %q+D",
+			    reg_info->operand);
+		  return false;
+		}
+	      int overlap_regno = reg_info->test_alt_input (alt, regno);
+	      if (overlap_regno >= 0)
+		{
+		  error ("multiple inputs to hard register: %s",
+			 reg_names[overlap_regno]);
+		  return false;
+		}
+	      reg_info->set_reg_asm_input (regno);
+	      if ((constraint == orig_constraint
+		   && reg_info->test_early_clobbered_alt (alt, regno))
+		  || (constraint != orig_constraint
+		      && reg_info->is_early_clobbered_in_any_output_unequal
+			  (match, regno)))
+		{
+		  error ("invalid hard register usage between earlyclobber "
+			 "operand and input operand");
+		  return false;
+		}
+	  }
 	break;
       }
 
@@ -583,7 +907,8 @@ resolve_asm_operand_names (tree string, tree outputs, tree inputs, tree labels)
     {
       if (c[1] == '[')
 	break;
-      else if (ISALPHA (c[1]) && c[2] == '[')
+      else if (ISALPHA (c[1])
+	       && (c[2] == '[' || (ISALPHA (c[2]) && c[3] == '[')))
 	break;
       else
 	{
@@ -607,6 +932,8 @@ resolve_asm_operand_names (tree string, tree outputs, tree inputs, tree labels)
 	    p += 1;
 	  else if (ISALPHA (p[1]) && p[2] == '[')
 	    p += 2;
+	  else if (ISALPHA (p[1]) && ISALPHA (p[2]) && p[3] == '[')
+	    p += 3;
 	  else
 	    {
 	      p += 1 + (p[1] == '%');
@@ -1025,7 +1352,7 @@ expand_case (gswitch *stmt)
       && gimple_seq_unreachable_p (bb_seq (default_edge->dest)))
     {
       default_label = NULL;
-      remove_edge (default_edge);
+      expand_remove_edge (default_edge);
       default_edge = NULL;
     }
 

@@ -1,6 +1,5 @@
 # Check instructions with optimized encoding
 
-	.allow_index_reg
 	.text
 _start:
 	vandnpd %zmm1, %zmm1, %zmm5{%k7}
@@ -170,3 +169,78 @@ _start:
 	vporq		128(%eax), %ymm2, %ymm3
 	vpxord		128(%eax), %ymm2, %ymm3
 	vpxorq		128(%eax), %ymm2, %ymm3
+
+	pcmpgtb		%mm2, %mm2
+	pcmpgtb		%xmm2, %xmm2
+	vpcmpgtb	%xmm2, %xmm2, %xmm0
+	vpcmpgtb	%ymm2, %ymm2, %ymm0
+
+	pcmpgtw		%mm2, %mm2
+	pcmpgtw		%xmm2, %xmm2
+	vpcmpgtw	%xmm2, %xmm2, %xmm0
+	vpcmpgtw	%ymm2, %ymm2, %ymm0
+
+	pcmpgtd		%mm2, %mm2
+	pcmpgtd		%xmm2, %xmm2
+	vpcmpgtd	%xmm2, %xmm2, %xmm0
+	vpcmpgtd	%ymm2, %ymm2, %ymm0
+
+	pcmpgtq		%xmm2, %xmm2
+	vpcmpgtq	%xmm2, %xmm2, %xmm0
+	vpcmpgtq	%ymm2, %ymm2, %ymm0
+
+	pextrd		$0, %xmm1, %edx
+	pextrd		$0, %xmm1, (%edx)
+	vpextrd		$0, %xmm1, %edx
+	vpextrd		$0, %xmm1, (%edx)
+
+	extractps	$0, %xmm1, %edx
+	extractps	$0, %xmm1, (%edx)
+	vextractps	$0, %xmm1, %edx
+	vextractps	$0, %xmm1, (%edx)
+
+	vextractf128 $0, %ymm1, %xmm2
+	vextractf128 $0, %ymm1, (%edx)
+	vextracti128 $0, %ymm1, %xmm2
+	vextracti128 $0, %ymm1, (%edx)
+
+	vextractf32x4 $0, %ymm1, %xmm2
+	vextractf32x4 $0, %ymm1, (%edx)
+	vextracti32x4 $0, %ymm1, %xmm2
+	vextracti32x4 $0, %ymm1, (%edx)
+
+	vextractf64x2 $0, %ymm1, %xmm2
+	vextractf64x2 $0, %ymm1, (%edx)
+	vextracti64x2 $0, %ymm1, %xmm2
+	vextracti64x2 $0, %ymm1, (%edx)
+
+	vextractf32x8 $0, %zmm1, %ymm2
+	vextractf32x8 $0, %zmm1, (%edx)
+	vextracti32x8 $0, %zmm1, %ymm2
+	vextracti32x8 $0, %zmm1, (%edx)
+
+	vextractf64x4 $0, %zmm1, %ymm2
+	vextractf64x4 $0, %zmm1, (%edx)
+	vextracti64x4 $0, %zmm1, %ymm2
+	vextracti64x4 $0, %zmm1, (%edx)
+
+	insertps $0, %xmm1, %xmm2
+	insertps $0xce, (%ecx), %xmm2
+	insertps $0xff, %xmm1, %xmm2
+
+	vinsertps $0, %xmm1, %xmm2, %xmm3
+	vinsertps $0xce, (%ecx), %xmm2, %xmm2
+	vinsertps $0xff, %xmm1, %xmm2, %xmm3
+
+	bt	$15, %ax
+	bt	$16, %ax
+	btc	$15, %ax
+	btr	$15, %ax
+	bts	$15, %ax
+
+	.code16
+	bt	$15, %eax
+	bt	$16, %eax
+	btc	$15, %eax
+	btr	$15, %eax
+	bts	$15, %eax

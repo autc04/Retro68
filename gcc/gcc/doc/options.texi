@@ -1,4 +1,4 @@
-@c Copyright (C) 2003-2025 Free Software Foundation, Inc.
+@c Copyright (C) 2003-2026 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -10,6 +10,8 @@
 Most GCC command-line options are described by special option
 definition files, the names of which conventionally end in
 @code{.opt}.  This chapter describes the format of these files.
+For information about managing GCC options and the user experience,
+@ref{Guidelines for Options}.
 
 @menu
 * Option file format::   The general layout of the files
@@ -528,6 +530,12 @@ code generation.
 
 @item Param
 This is an option that is a parameter.
+
+@item NoOffload
+This option will not be passed through from the host compiler to any offload
+target compilers via the LTO mechanism.  It is intended for use with
+optimization tuning parameters where settings appropriate for the host system
+are likely to harm the performance of the offload device.
 
 @item Undocumented
 The option is deliberately missing documentation and should not

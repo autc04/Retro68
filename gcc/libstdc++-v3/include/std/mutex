@@ -1,6 +1,6 @@
 // <mutex> -*- C++ -*-
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -179,31 +179,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_M_try_lock_until(const chrono::time_point<chrono::system_clock,
 						   _Duration>& __atime)
 	{
-	  auto __s = chrono::time_point_cast<chrono::seconds>(__atime);
-	  auto __ns = chrono::duration_cast<chrono::nanoseconds>(__atime - __s);
-
-	  __gthread_time_t __ts = {
-	    static_cast<std::time_t>(__s.time_since_epoch().count()),
-	    static_cast<long>(__ns.count())
-	  };
-
+	  __gthread_time_t __ts = chrono::__to_timeout_gthread_time_t(__atime);
 	  return static_cast<_Derived*>(this)->_M_timedlock(__ts);
 	}
 
-#ifdef _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK
+#if _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK
       template<typename _Duration>
 	bool
 	_M_try_lock_until(const chrono::time_point<chrono::steady_clock,
 						   _Duration>& __atime)
 	{
-	  auto __s = chrono::time_point_cast<chrono::seconds>(__atime);
-	  auto __ns = chrono::duration_cast<chrono::nanoseconds>(__atime - __s);
-
-	  __gthread_time_t __ts = {
-	    static_cast<std::time_t>(__s.time_since_epoch().count()),
-	    static_cast<long>(__ns.count())
-	  };
-
+	  __gthread_time_t __ts = chrono::__to_timeout_gthread_time_t(__atime);
 	  return static_cast<_Derived*>(this)->_M_clocklock(CLOCK_MONOTONIC,
 							    __ts);
 	}
@@ -377,7 +363,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _M_timedlock(const __gthread_time_t& __ts)
       { return !__gthread_recursive_mutex_timedlock(&_M_mutex, &__ts); }
 
-#ifdef _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK
+#if _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK
       bool
       _M_clocklock(clockid_t __clockid, const __gthread_time_t& __ts)
       { return !pthread_mutex_clocklock(&_M_mutex, __clockid, &__ts); }
@@ -733,7 +719,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	}
     }
 
-#ifdef __cpp_lib_scoped_lock // C++ >= 17 && hosted && gthread
+#ifdef __cpp_lib_scoped_lock // C++ >= 17
   /** @brief A scoped lock type for multiple lockable objects.
    *
    * A scoped_lock controls mutex ownership within a scope, releasing
@@ -831,8 +817,24 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 # ifdef _GLIBCXX_HAVE_TLS
   // If TLS is available use thread-local state for the type-erased callable
   // that is being run by std::call_once in the current thread.
+#  ifdef _GLIBCXX_NO_EXTERN_THREAD_LOCAL
+
+  void*&
+  __get_once_callable() noexcept;
+
+  std::add_lvalue_reference<void (*)()>::type
+  __get_once_call() noexcept;
+
+  // These macros mean that all the code below uses the same syntax:
+#define __once_callable __get_once_callable()
+#define __once_call __get_once_call()
+
+#  else // ! _GLIBCXX_NO_EXTERN_THREAD_LOCAL
+
   extern __thread void* __once_callable;
   extern __thread void (*__once_call)();
+
+#  endif // ! _GLIBCXX_NO_EXTERN_THREAD_LOCAL
 
   // RAII type to set up state for pthread_once call.
   struct once_flag::_Prepare_execution
@@ -857,6 +859,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     _Prepare_execution(const _Prepare_execution&) = delete;
     _Prepare_execution& operator=(const _Prepare_execution&) = delete;
   };
+
+#undef __once_callable
+#undef __once_call
 
 # else
   // Without TLS use a global std::mutex and store the callable in a

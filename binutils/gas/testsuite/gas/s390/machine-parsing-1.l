@@ -1,2 +1,3 @@
 .*: Assembler messages:
-.*:5: Error: invalid machine .foo.*
+.*:7: Error: invalid machine .foo.*
+.*:8: Error: invalid machine .foo.*

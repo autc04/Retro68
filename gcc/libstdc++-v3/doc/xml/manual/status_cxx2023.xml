@@ -21,7 +21,7 @@ presence of the required flag.
 
 <para>
 This section describes the C++23 and library TS support in
-the GCC 15 release series.
+the GCC 16 release series.
 </para>
 
 <para>
@@ -175,14 +175,13 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> <code>starts_with</code> and <code>ends_with</code> </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p1659r3.html">
         P1659R3
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry> <code>__cpp_lib_ranges_starts_ends_with &gt;= 202106L</code> </entry>
     </row>
 
@@ -312,29 +311,32 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry> <code>ranges::to</code> </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1206r7.pdf">
         P1206R7
         </link>
       </entry>
-      <entry align="center"> 14.1 (<code>ranges::to</code> function) </entry>
+      <entry align="center">
+	<informaltable colsep="0" rowsep="0" rowheader="norowheader" frame="none"><tgroup cols="1"><tbody>
+	<row><entry> 14.1 (<code>ranges::to</code> function) </entry></row>
+	<row><entry> 15.1 (new members in containers) </entry></row>
+	</tbody></tgroup></informaltable>
+      </entry>
       <entry>
-	<code>__cpp_lib_containers_ranges &gt;= 202202L</code>,
-	<code>__cpp_lib_ranges_to_container &gt;= 202202L</code>
+	<code>__cpp_lib_ranges_to_container &gt;= 202202L</code>,
+	<code>__cpp_lib_containers_ranges &gt;= 202202L</code>
       </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> Ranges iterators as inputs to non-Ranges algorithms </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2408r5.html">
         P2408R5
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry>
 	<code>__cpp_lib_algorithm_iterator_requirements &gt;= 202207L</code>
       </entry>
@@ -355,7 +357,6 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>
 	<code>ranges::iota</code>, <code>ranges::shift_left</code>,
         and <code>ranges::shift_right</code>
@@ -365,7 +366,12 @@ or any notes about the implementation.
         P2440R1
         </link>
       </entry>
-      <entry align="center"> 13.1 (<code>ranges::iota</code>) </entry>
+      <entry align="center">
+	<informaltable colsep="0" rowsep="0" rowheader="norowheader" frame="none"><tgroup cols="1"><tbody>
+        <row><entry> 13.1 (<code>ranges::iota</code>) </entry></row>
+        <row><entry> 16.1 (shift algos) </entry></row>
+        </tbody></tgroup></informaltable>
+      </entry>
       <entry>
 	<code>__cpp_lib_ranges_iota &gt;= 202202L</code>,
 	<code>__cpp_lib_shift &gt;= 202202L</code>
@@ -395,14 +401,13 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> Making multi-param constructors of views explicit </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2711r1.html">
         P2711R1
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry/>
     </row>
 
@@ -418,14 +423,13 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> Relaxing Ranges Just A Smidge</entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2609r3.html">
         P2609R3
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 14.3 </entry>
       <entry> <code>__cpp_lib_ranges &gt;= 202302L</code> </entry>
     </row>
 
@@ -513,14 +517,13 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> Deprecate std::aligned_storage and std::aligned_union </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p1413r3.pdf">
         P1413R3
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 13.1 </entry>
       <entry />
     </row>
 
@@ -541,7 +544,6 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
         Move-only types for equality_comparable_with, totally_ordered_with,
 	and three_way_comparable_with
@@ -551,24 +553,22 @@ or any notes about the implementation.
         P2404R3
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry> <code>__cpp_lib_concepts &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> A trait for implicit lifetime types </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2674r1.pdf">
         P2674R1
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry> <code>__cpp_lib_is_implicit_lifetime &gt;= 202302L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	<code>common_reference_t</code> of <code>reference_wrapper</code>
 	Should Be a Reference Type
@@ -578,7 +578,7 @@ or any notes about the implementation.
         P2655R3
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 15.3 </entry>
       <entry> <code>__cpp_lib_common_reference &gt;= 202302L</code> </entry>
     </row>
 
@@ -623,55 +623,50 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> Heterogeneous erasure overloads for associative containers </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2077r3.html">
         P2077R3
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry> <code>__cpp_lib_associative_heterogeneous_erasure &gt;= 202110L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> <code>&lt;flat_map&gt;</code> </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p0429r9.pdf">
         P0429R9
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 15.1 </entry>
       <entry> <code>__cpp_lib_flat_map &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> <code>&lt;flat_set&gt;</code> </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1222r4.pdf">
         P1222R4
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 15.1 </entry>
       <entry> <code>__cpp_lib_flat_set &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> <code>mdspan</code> </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p0009r18.html">
         P0009R18
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry> <code>__cpp_lib_mdspan &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	<code>index_type</code> &amp; <code>size_type</code>
 	in <code>mdspan</code>
@@ -681,12 +676,11 @@ or any notes about the implementation.
         P2599R2
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry> <code>__cpp_lib_mdspan &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	<code>mdspan</code>: rename <code>pointer</code> and
 	<code>contiguous</code>
@@ -696,24 +690,22 @@ or any notes about the implementation.
         P2604R0
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry> <code>__cpp_lib_mdspan &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> Add the missing <code>empty</code> to <code>mdspan</code> </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2613r1.html">
         P2613R1
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry> <code>__cpp_lib_mdspan &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	<code>layout_stride</code> static extents default constructor fix
       </entry>
@@ -722,7 +714,7 @@ or any notes about the implementation.
         P2763R1
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry/>
     </row>
 
@@ -777,7 +769,6 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> <code> std::string::substr() &amp;&amp; </code> </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2438r2.html">
@@ -823,12 +814,11 @@ or any notes about the implementation.
         P2508R1
         </link>
       </entry>
-      <entry align="center"> 13.1 (feature test macro not defined)</entry>
+      <entry align="center"> 13.1 (feature test macro not updated until 15.1) </entry>
       <entry> <code>__cpp_lib_format &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	Clarify handling of encodings in localized formatting of chrono types
       </entry>
@@ -837,7 +827,7 @@ or any notes about the implementation.
         P2419R2
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 15.1 </entry>
       <entry> <code>__cpp_lib_format &gt;= 202207L</code> </entry>
     </row>
 
@@ -850,31 +840,34 @@ or any notes about the implementation.
         P2510R3
         </link>
       </entry>
-      <entry align="center"> 13.2 (feature test macro not defined)</entry>
+      <entry align="center"> 13.2 (feature test macro not updated until 15.1) </entry>
       <entry> <code>__cpp_lib_format &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> Formatting Ranges </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2286r8.html">
         P2286R8
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center">
+	<informaltable colsep="0" rowsep="0" rowheader="norowheader" frame="none"><tgroup cols="1"><tbody>
+	<row><entry> 15.1 (changes to adaptors missing) </entry></row>
+	<row><entry> 15.2 (complete) </entry></row>
+	</tbody></tgroup></informaltable>
+      </entry>
       <entry> <code>__cpp_lib_format_ranges &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> Improve default container formatting </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2585r1.html">
         P2585R1
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 15.1 (feature test macro not defined until 15.2) </entry>
       <entry> <code>__cpp_lib_format_ranges &gt;= 202207L</code> </entry>
     </row>
 
@@ -1173,14 +1166,13 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> Providing size feedback in the Allocator interface </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p0401r6.html">
         P0401R6
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry> <code>__cpp_lib_allocate_at_least &gt;= 202306L</code> </entry>
     </row>
 
@@ -1199,19 +1191,17 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry> Explicit lifetime management </entry>
       <entry>
         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2590r2.pdf">
         P2590R2
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry> <code>__cpp_lib_start_lifetime_as &gt;= 202207L</code> </entry>
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
 	Fixing <code>std::start_lifetime_as</code> and
 	<code>std::start_lifetime_as_array</code>
@@ -1221,7 +1211,7 @@ or any notes about the implementation.
         P2679R2
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 16.1 </entry>
       <entry/>
     </row>
 
@@ -1249,7 +1239,6 @@ or any notes about the implementation.
     </row>
 
     <row>
-      <?dbhtml bgcolor="#C8B0B0" ?>
       <entry>
         Standard Library Modules <code>std</code> and <code>std.compat</code>
       </entry>
@@ -1258,7 +1247,7 @@ or any notes about the implementation.
         P2465R3
         </link>
       </entry>
-      <entry align="center"> </entry>
+      <entry align="center"> 15.1 </entry>
       <entry> <code>__cpp_lib_modules &gt;= 202207L</code> </entry>
     </row>
 

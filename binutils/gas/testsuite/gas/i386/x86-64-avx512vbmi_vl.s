@@ -1,6 +1,5 @@
 # Check 64bit AVX512{VBMI,VL} instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpermb	%xmm28, %xmm29, %xmm30	 # AVX512{VBMI,VL}

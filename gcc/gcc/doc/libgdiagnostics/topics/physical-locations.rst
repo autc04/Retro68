@@ -1,4 +1,4 @@
-.. Copyright (C) 2024-2025 Free Software Foundation, Inc.
+.. Copyright (C) 2024-2026 Free Software Foundation, Inc.
    Originally contributed by David Malcolm <dmalcolm@redhat.com>
 
    This is free software: you can redistribute it and/or modify it
@@ -284,3 +284,39 @@ This diagnostic has three locations
             |   ~~ ^ ~~~~~
             |   |    |
             |   int  const char *
+
+.. function:: void diagnostic_add_location_with_label_via_msg_buf (diagnostic *diag, \
+						const diagnostic_physical_location *loc, \
+						diagnostic_message_buffer *msg_buf)
+
+   This is equivalent to :func:`diagnostic_add_location_with_label` but
+   using a message buffer rather than a text string.
+
+   ``diag`` and ``msg_buf`` must both be non-NULL.
+
+   Calling this function transfers ownership of ``msg_buf`` to the
+   diagnostic - do not call :func:`diagnostic_message_buffer_release` on
+   it.
+
+   This function was added in :ref:`LIBGDIAGNOSTICS_ABI_3`; you can
+   test for its presence using
+
+   .. code-block:: c
+
+      #ifdef LIBDIAGNOSTICS_HAVE_diagnostic_message_buffer
+
+.. function:: void diagnostic_manager_set_debug_physical_locations (diagnostic_manager *mgr, \
+						 int value)
+
+   Calling ``diagnostic_manager_set_debug_physical_locations (mgr, 1);``
+   will lead to debugging information being printed to ``stderr`` when
+   creating :type:`diagnostic_physical_location` instances.
+
+   The precise format of these messages is subject to change.
+
+   This function was added in :ref:`LIBGDIAGNOSTICS_ABI_5`; you can
+   test for its presence using
+
+   .. code-block:: c
+
+      #ifdef LIBDIAGNOSTICS_HAVE_diagnostic_manager_set_debug_physical_locations

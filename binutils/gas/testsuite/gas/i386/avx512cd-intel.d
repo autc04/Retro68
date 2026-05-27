@@ -1,4 +1,3 @@
-#as:
 #objdump: -dwMintel
 #name: i386 AVX512CD insns (Intel disassembly)
 #source: avx512cd.s
@@ -8,7 +7,7 @@
 
 Disassembly of section .text:
 
-0+ <_start>:
+0+ <cd>:
 [ 	]*[a-f0-9]+:	62 f2 7d 48 c4 f5    	vpconflictd zmm6,zmm5
 [ 	]*[a-f0-9]+:	62 f2 7d 4f c4 f5    	vpconflictd zmm6\{k7\},zmm5
 [ 	]*[a-f0-9]+:	62 f2 7d cf c4 f5    	vpconflictd zmm6\{k7\}\{z\},zmm5

@@ -1,5 +1,5 @@
 /* SSA operands management for trees.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -721,7 +721,7 @@ operands_scanner::get_asm_stmt_operands (gasm *stmt)
       constraint = TREE_STRING_POINTER (TREE_VALUE (TREE_PURPOSE (link)));
       oconstraints[i] = constraint;
       parse_output_constraint (&constraint, i, 0, 0, &allows_mem,
-	                       &allows_reg, &is_inout);
+			       &allows_reg, &is_inout, nullptr);
 
       /* This should have been split in gimplify_asm_expr.  */
       gcc_assert (!allows_reg || !is_inout);
@@ -740,7 +740,7 @@ operands_scanner::get_asm_stmt_operands (gasm *stmt)
       tree link = gimple_asm_input_op (stmt, i);
       constraint = TREE_STRING_POINTER (TREE_VALUE (TREE_PURPOSE (link)));
       parse_input_constraint (&constraint, 0, 0, noutputs, 0, oconstraints,
-	                      &allows_mem, &allows_reg);
+			      &allows_mem, &allows_reg, nullptr);
 
       /* Memory operands are addressable.  Note that STMT needs the
 	 address of this operand.  */
@@ -1416,3 +1416,23 @@ single_imm_use_1 (const ssa_use_operand_t *head,
   return single_use;
 }
 
+/* Gather all stmts SSAVAR is used on, eliminating duplicates.  */
+
+auto_vec<gimple *, 2>
+gather_imm_use_stmts (tree ssavar)
+{
+  auto_vec<gimple *, 2> stmts;
+  imm_use_iterator iter;
+  use_operand_p use_p;
+  FOR_EACH_IMM_USE_FAST (use_p, iter, ssavar)
+    {
+      gimple *use_stmt = USE_STMT (use_p);
+      if (use_stmt->ilf)
+	continue;
+      use_stmt->ilf = 1;
+      stmts.safe_push (use_stmt);
+    }
+  for (gimple *use_stmt : stmts)
+    use_stmt->ilf = 0;
+  return stmts;
+}

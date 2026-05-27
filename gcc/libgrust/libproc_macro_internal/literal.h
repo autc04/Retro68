@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Free Software Foundation, Inc.
+// Copyright (C) 2023-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU Proc Macro Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -105,8 +105,7 @@ public:
 };
 
 extern "C" {
-bool
-Literal__from_string (FFIString str, Literal *lit);
+bool Literal__from_string (FFIString str, Literal *lit);
 }
 } // namespace ProcMacro
 

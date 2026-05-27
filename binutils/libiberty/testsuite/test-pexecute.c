@@ -1,5 +1,5 @@
 /* Pexecute test program,
-   Copyright (C) 2005-2022 Free Software Foundation, Inc.
+   Copyright (C) 2005-2026 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@airs.com>.
 
    This file is part of GNU libiberty.
@@ -211,7 +211,7 @@ main (int argc, char **argv)
       const char *pex_run_err;						\
       if (trace)							\
 	fprintf (stderr, "Line %d: running %s %s\n",			\
-		 __LINE__, EXECUTABLE, ARGV[0]);			\
+		 __LINE__, EXECUTABLE, ARGV[1]);			\
       pex_run_err = pex_run (PEXOBJ, FLAGS, EXECUTABLE, ARGV, OUTNAME,	\
 			     ERRNAME, &err);				\
       if (pex_run_err != NULL)						\

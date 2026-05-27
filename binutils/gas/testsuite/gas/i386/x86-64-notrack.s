@@ -1,6 +1,5 @@
 # Check 64bit NOTRACK prefix
 
-	.allow_index_reg
 	.text
 _start:
 	notrack call *%rax
@@ -78,20 +77,14 @@ _start:
 	bnd notrack call QWORD PTR [eax]
 	bnd notrack call QWORD PTR [r8d]
 
+	.att_syntax prefix
 	# bnd notrack callq *%rax
-	.byte 0xf2
-	.byte 0x3e
-	.byte 0xff
-	.byte 0xd0
+	bnd
+	notrack call *%rax
 
-	# ds callw *%ax
-	.byte 0x3e
-	.byte 0x66
-	.byte 0xff
-	.byte 0xd0
+	# notrack callw *%ax
+	notrack call *%ax
 
-	# ds callw *%ax
+	# notrack callw *%ax
 	.byte 0x66
-	.byte 0x3e
-	.byte 0xff
-	.byte 0xd0
+	notrack call *%rax

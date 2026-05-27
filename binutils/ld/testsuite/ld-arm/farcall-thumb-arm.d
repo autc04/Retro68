@@ -10,7 +10,7 @@ Disassembly of section .text:
 01f01018 <__bar_from_thumb>:
  1f01018:	4778      	bx	pc
  1f0101a:	e7fd      	b.n	.+ <.+>
- 1f0101c:	e51ff004 	ldr	pc, \[pc, #-4\]	; 1f01020 <__bar_from_thumb\+0x8>
+ 1f0101c:	e51ff004 	ldr	pc, \[pc, #-4\]	@ 1f01020 <__bar_from_thumb\+0x8>
  1f01020:	02001014 	.word	0x02001014
 
 01f01024 <__bar_from_thumb>:

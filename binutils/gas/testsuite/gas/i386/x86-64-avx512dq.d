@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 AVX512DQ insns
 #source: x86-64-avx512dq.s

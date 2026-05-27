@@ -1,6 +1,6 @@
 # Test that the linker reports undefined symbol line number correctly.
 #
-#   Copyright (C) 2007-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2007-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -52,6 +52,6 @@ proc checkund { string testname } {
     }
 }
 
-set ml "undefined.c:9: undefined reference to `*this_function_is_not_defined'"
+set ml {undefined.c:9:(*): undefined reference to `*this_function_is_not_defined'}
 
 checkund $ml $testline

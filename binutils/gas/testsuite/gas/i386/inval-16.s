@@ -1,5 +1,5 @@
 	.text
-	.arch i186; .code16
+	.code16; .arch i186
 	vmovapd	%xmm0,%xmm1
 	vaddsd	%xmm4, %xmm5, %xmm6{%k7}
 	vfrczpd	%xmm7,%xmm7

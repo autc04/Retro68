@@ -1,18 +1,18 @@
-.macro cond op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().s16 q0, q1
-.endr
-.endm
-
 .syntax unified
 .thumb
 vqabs.u8 q0, q1
 vqneg.u16 q0, q1
 vqabs.s64 q0, q1
 vqnegs.s64 q0, q1
-cond vqabs
-cond vqneg
+
+.irp op, vqabs, vqneg
+.irp cond, eq, ne, gt, ge, lt, le
+it \cond
+\op\().s16 q0, q1
+.endr
+.endr
+
+
 it eq
 vqabseq.s32 q0, q1
 vqabseq.s32 q0, q1

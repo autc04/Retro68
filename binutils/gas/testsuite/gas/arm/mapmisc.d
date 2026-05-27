@@ -2,7 +2,7 @@
 #objdump: --syms --special-syms -d
 #name: ARM Mapping Symbols for miscellaneous directives
 # This test is only valid on EABI based ports.
-#target: *-*-*eabi* *-*-linux-* *-*-elf *-*-nacl*
+#target: *-*-*eabi* *-*-linux-* *-*-elf
 #source: mapmisc.s
 
 
@@ -58,48 +58,48 @@ SYMBOL TABLE:
 Disassembly of section .text:
 
 00000000 <foo>:
-   0:	e1a00000 	nop			; \(mov r0, r0\)
+   0:	e1a00000 	nop			@ \(mov r0, r0\)
    4:	64636261 	.word	0x64636261
-   8:	e1a00000 	nop			; \(mov r0, r0\)
+   8:	e1a00000 	nop			@ \(mov r0, r0\)
    c:	00636261 	.word	0x00636261
-  10:	e1a00000 	nop			; \(mov r0, r0\)
+  10:	e1a00000 	nop			@ \(mov r0, r0\)
   14:	00676665 	.word	0x00676665
-  18:	e1a00000 	nop			; \(mov r0, r0\)
+  18:	e1a00000 	nop			@ \(mov r0, r0\)
   1c:	006a6968 	.word	0x006a6968
-  20:	e1a00000 	nop			; \(mov r0, r0\)
+  20:	e1a00000 	nop			@ \(mov r0, r0\)
   24:	0000006b 	.word	0x0000006b
-  28:	e1a00000 	nop			; \(mov r0, r0\)
+  28:	e1a00000 	nop			@ \(mov r0, r0\)
   2c:	0000006c 	.word	0x0000006c
   30:	00000000 	.word	0x00000000
-  34:	e1a00000 	nop			; \(mov r0, r0\)
+  34:	e1a00000 	nop			@ \(mov r0, r0\)
   38:	0000006d 	.word	0x0000006d
 	...
-  48:	e1a00000 	nop			; \(mov r0, r0\)
+  48:	e1a00000 	nop			@ \(mov r0, r0\)
   4c:	3fc00000 	.word	0x3fc00000
-  50:	e1a00000 	nop			; \(mov r0, r0\)
+  50:	e1a00000 	nop			@ \(mov r0, r0\)
   54:	40200000 	.word	0x40200000
-  58:	e1a00000 	nop			; \(mov r0, r0\)
+  58:	e1a00000 	nop			@ \(mov r0, r0\)
   5c:	00000000 	.word	0x00000000
   60:	400c0000 	.word	0x400c0000
-  64:	e1a00000 	nop			; \(mov r0, r0\)
+  64:	e1a00000 	nop			@ \(mov r0, r0\)
   68:	00000000 	.word	0x00000000
   6c:	40120000 	.word	0x40120000
-  70:	e1a00000 	nop			; \(mov r0, r0\)
+  70:	e1a00000 	nop			@ \(mov r0, r0\)
   74:	00000004 	.word	0x00000004
   78:	00000004 	.word	0x00000004
   7c:	00000004 	.word	0x00000004
   80:	00000004 	.word	0x00000004
-  84:	e1a00000 	nop			; \(mov r0, r0\)
+  84:	e1a00000 	nop			@ \(mov r0, r0\)
   88:	00000000 	.word	0x00000000
-  8c:	e1a00000 	nop			; \(mov r0, r0\)
+  8c:	e1a00000 	nop			@ \(mov r0, r0\)
   90:	00000000 	.word	0x00000000
-  94:	e1a00000 	nop			; \(mov r0, r0\)
+  94:	e1a00000 	nop			@ \(mov r0, r0\)
   98:	00000000 	.word	0x00000000
-  9c:	e1a00000 	nop			; \(mov r0, r0\)
+  9c:	e1a00000 	nop			@ \(mov r0, r0\)
   a0:	7778797a 	.word	0x7778797a
-  a4:	e1a00000 	nop			; \(mov r0, r0\)
-  a8:	e1a00000 	nop			; \(mov r0, r0\)
-  ac:	e51f0000 	ldr	r0, \[pc, #-0\]	; b4 <string\+0x4>
+  a4:	e1a00000 	nop			@ \(mov r0, r0\)
+  a8:	e1a00000 	nop			@ \(mov r0, r0\)
+  ac:	e51f0000 	ldr	r0, \[pc, #-0\]	@ b4 <string\+0x4>
 000000b0 <string>:
   b0:	6261      	.short	0x6261
   b2:	63          	.byte	0x63

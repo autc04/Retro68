@@ -1,4 +1,4 @@
-@c Copyright (C) 2019-2025 Free Software Foundation, Inc.
+@c Copyright (C) 2019-2026 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 @c Contributed by David Malcolm <dmalcolm@redhat.com>.
@@ -38,17 +38,75 @@ If the analyzer ICEs before this is written out, one workaround is to use
 to bail out after analyzing the first basic block.
 @end quotation
 
-First, we build a @code{supergraph} which combines the callgraph and all
-of the CFGs into a single directed graph, with both interprocedural and
-intraprocedural edges.  The nodes and edges in the supergraph are called
-``supernodes'' and ``superedges'', and often referred to in code as
-@code{snodes} and @code{sedges}.  Basic blocks in the CFGs are split at
-interprocedural calls, so there can be more than one supernode per
-basic block.  Most statements will be in just one supernode, but a call
-statement can appear in two supernodes: at the end of one for the call,
-and again at the start of another for the return.
+First, we build a directed graph to represent the user's code.
+For historical reasons we call this the @code{supergraph}, although
+this is now a misnomer as we no longer add callgraph edges to this graph.
+The nodes and edges in the supergraph are called ``supernodes'' and
+``superedges'', and often referred to in code as @code{snodes} and
+@code{sedges}.
 
-The supergraph can be seen using @option{-fdump-analyzer-supergraph}.
+We make a node in the supergraph before every gimple statement, with
+edges representing the transitions between statements within a basic block,
+along with additional nodes and edges at CFG edges.
+
+The nodes in the supergraph represent locations in the user's code,
+and discrete points between operations.  The edges represent transitions
+between these locations.  Each edge in the supergraph can have an optional
+@code{operation} associated with it, representing a single state transition
+that occurs along the edge, such as
+
+@itemize @bullet
+
+@item
+individual non-control-flow gimple statements (such as an assignment)
+
+@item
+control flow statements on a CFG edge that impose a condition for the
+transition to be possible (e.g. a branch of a conditional or a
+@code{switch} case)
+
+@item
+the collection of phi nodes at the entry to a basic block, with an
+associated CFG edge (so that these all take effect simultaneously)
+
+@item
+etc
+@end itemize
+
+There can be multiple nodes and edges in the supergraph corresponding to
+a single CFG edge so that e.g. we can handle filtering states on a condition
+separately from handling the effect of the phi nodes if the condition
+was satisfied.
+
+The analyzer in GCC 10 - GCC 15 attempted to have a single supernode per
+basic block for the sake of efficiency, but given that state transitions
+can happen mid-block, this became unmaintainable, hence we now have
+fine-grained nodes with one node/edge per gimple statement.
+
+Having built the supergraph from the CFGs of all of the functions in
+the user's code, we manipulate it:
+
+@itemize @bullet
+@item
+We fixup locations to try to ensure that every supernode has a reasonable
+@code{location_t} value referring to the location in the user's source.
+This is necessary, since in the gimple IR seen by the analyzer, many gimple
+statements have no location associated with them.
+
+@item
+We simplify the supergraph to remove redundant nodes and edges, such as
+those that are simply no-ops that add no useful location information.
+This can eliminate about 5-10% of the nodes.
+
+@item
+We sort and renumber the nodes into an order that we hope will lead to
+efficient state merging when exploring the graph (see below).
+@end itemize
+
+The supergraph can be seen at each stage using
+@option{-fdump-analyzer-supergraph}, which creates a series of
+@file{SRC.supergraph.N.KIND.dot} GraphViz files files showing the state
+of the supergraph after each of the above.
 
 We then build an @code{analysis_plan} which walks the callgraph to
 determine which calls might be suitable for being summarized (rather
@@ -62,11 +120,11 @@ Nodes in the exploded graph correspond to <point,@w{ }state> pairs, as in
 we're not using the algorithm described in that paper, just the
 ``exploded graph'' terminology.
 
-We reuse nodes for <point, state> pairs we've already seen, and avoid
+We reuse nodes for <point,@w{ }state> pairs we've already seen, and avoid
 tracking state too closely, so that (hopefully) we rapidly converge
 on a final exploded graph, and terminate the analysis.  We also bail
-out if the number of exploded <end-of-basic-block, state> nodes gets
-larger than a particular multiple of the total number of basic blocks
+out if the number of exploded <point,@w{ }state> nodes gets
+larger than a particular multiple of the total number of supernodes,
 (to ensure termination in the face of pathological state-explosion
 cases, or bugs).  We also stop exploring a point once we hit a limit
 of states for that point.
@@ -82,18 +140,8 @@ instance.  For example, if we're finding the successors of
 then we can detect a double-free of "ptr".  We can then emit a path
 to reach the problem by finding the simplest route through the graph.
 
-Program points in the analysis are much more fine-grained than in the
-CFG and supergraph, with points (and thus potentially exploded nodes)
-for various events, including before individual statements.
-By default the exploded graph merges multiple consecutive statements
-in a supernode into one exploded edge to minimize the size of the
-exploded graph.  This can be suppressed via
-@option{-fanalyzer-fine-grained}.
-The fine-grained approach seems to make things simpler and more debuggable
-that other approaches I tried, in that each point is responsible for one
-thing.
-
-Program points in the analysis also have a "call string" identifying the
+Program points in the analysis are a combination of a supernode
+together with a "call string" identifying the
 stack of callsites below them, so that paths in the exploded graph
 correspond to interprocedurally valid paths: we always return to the
 correct call site, propagating state information accordingly.
@@ -113,7 +161,7 @@ are referred to throughout dumps in the form @samp{SN': @var{index}} and
 exploded nodes in the form @samp{EN: @var{index}} (e.g. @samp{SN: 2} and
 @samp{EN:29}).
 
-The supergraph can be seen using @option{-fdump-analyzer-supergraph-graph}.
+The supergraph can be seen using @option{-fdump-analyzer-supergraph}.
 
 The exploded graph can be seen using @option{-fdump-analyzer-exploded-graph}
 and other dump options.  Exploded nodes are color-coded in the .dot output
@@ -171,7 +219,7 @@ To prevent this, we follow various approaches:
 @enumerate a
 @item
 state pruning: which tries to discard state that won't be relevant
-later on withing the function.
+later on within the function.
 This can be disabled via @option{-fno-analyzer-state-purge}.
 
 @item
@@ -432,7 +480,7 @@ binop_svalue (mult_expr, initial_svalue(‘size_t’, decl_region(frame_region(�
 @subsection Analyzer Paths
 
 We need to explain to the user what the problem is, and to persuade them
-that there really is a problem.  Hence having a @code{diagnostic_path}
+that there really is a problem.  Hence having a @code{diagnostics::paths::path}
 isn't just an incidental detail of the analyzer; it's required.
 
 Paths ought to be:
@@ -491,7 +539,7 @@ and notes if it is infeasible.
 
 The above gives us a shortest feasible @code{exploded_path} through the
 @code{exploded_graph} (a list of @code{exploded_edge *}).  We use this
-@code{exploded_path} to build a @code{diagnostic_path} (a list of
+@code{exploded_path} to build a @code{diagnostics::paths::path} (a list of
 @strong{events} for the diagnostic subsystem) - specifically a
 @code{checker_path}.
 
@@ -571,7 +619,6 @@ together:
   OTHER_GCC_ARGS \
   -wrapper gdb,--args \
   -fdump-analyzer-stderr \
-  -fanalyzer-fine-grained \
   -fdump-ipa-analyzer=stderr
 @end smallexample
 
@@ -598,12 +645,6 @@ so that the logging interface is enabled and goes to stderr, which often
 gives valuable context into what's happening when stepping through the
 analyzer
 
-@item @code{-fanalyzer-fine-grained}
-which splits the effect of every statement into its own
-exploded_node, rather than the default (which tries to combine
-successive stmts to reduce the size of the exploded_graph).  This makes
-it easier to see exactly where a particular change happens.
-
 @item @code{-fdump-ipa-analyzer=stderr}
 which dumps the GIMPLE IR seen by the analyzer pass to stderr
 
@@ -612,12 +653,34 @@ which dumps the GIMPLE IR seen by the analyzer pass to stderr
 Other useful options:
 
 @itemize @bullet
-@item @code{-fdump-analyzer-exploded-graph}
-which dumps a @file{SRC.eg.dot} GraphViz file that I can look at (with
+@item @code{-fdump-analyzer-supergraph}
+which dumps @file{SRC.supergraph.N.KIND.dot} GraphViz files that I can look at (with
 python-xdot)
+
+@item @code{-fdump-analyzer-exploded-graph}
+which dumps a @file{SRC.eg.dot} GraphViz file
 
 @item @code{-fdump-analyzer-exploded-nodes-2}
 which dumps a @file{SRC.eg.txt} file containing the full @code{exploded_graph}.
+
+@item @code{-fdiagnostics-add-output=experimental-html:show-state-diagrams=yes}
+which writes out the diagnostics in HTML form, and generates SVG state
+diagrams visualizing the state of memory at each event (inspired by the
+"ddd" debugger).  These can be seen by pressing 'j' and 'k' to single-step
+forward and backward through events.  Note that these SVG diagrams are
+created from an intermediate SARIF directed graph representation generated from
+@code{program_state} objects.  The SARIF representation can be easier to
+read - for example, rather than storing the contents of memory via byte
+offsets, it uses fields for structs and element indexes for arrays,
+recursively.  However it is a different representation, and thus bugs could
+be hidden by this transformation.  Generating the SVG diagrams requires
+an invocation of "dot" per event, so it noticeably slows down diagnostic
+emission, hence the opt-in command-line flag.  The SARIF and ``dot''
+representations can be seen by @code{__analyzer_dump_xml} and
+@code{__analyzer_dump_dot} below (writing them to stderr), or by adding
+@code{show-state-diagrams-sarif=yes} and
+@code{show-state-diagrams-dot-src=yes} to the html sink, which shows
+them within the generated HTML next to the generated SVG.
 
 @end itemize
 
@@ -687,6 +750,15 @@ extern void __analyzer_dump_capacity (const void *ptr);
 
 will emit a warning describing the capacity of the base region of
 the region pointed to by the 1st argument.
+
+@item __analyzer_dump_dot
+@smallexample
+__analyzer_dump_dot ();
+@end smallexample
+
+will dump GraphViz .dot source to stderr reaches the call in its
+traversal of the source.  This .dot source implements a diagram
+describing the analyzer’s state.
 
 @item __analyzer_dump_escaped
 @smallexample
@@ -764,6 +836,14 @@ will emit a warning describing the state of the 2nd argument
 a name matching the 1st argument (which must be a string literal).
 This is for use when debugging, and may be of use in DejaGnu tests.
 
+@item __analyzer_dump_sarif
+@smallexample
+__analyzer_dump_sarif ();
+@end smallexample
+
+will dump the copious information about the analyzer's state each time it
+reaches the call in its traversal of the source.
+
 @item __analyzer_eval
 @smallexample
 __analyzer_eval (expr);
@@ -790,7 +870,7 @@ optimizer touching it).
 @subsection Other Debugging Techniques
 
 To compare two different exploded graphs, try
-@code{-fdump-analyzer-exploded-nodes-2 -fdump-noaddr -fanalyzer-fine-grained}.
+@code{-fdump-analyzer-exploded-nodes-2 -fdump-noaddr}.
 This will dump a @file{SRC.eg.txt} file containing the full
 @code{exploded_graph}. I use @code{diff -u50 -p} to compare two different
 such files (e.g. before and after a patch) to find the first place where the

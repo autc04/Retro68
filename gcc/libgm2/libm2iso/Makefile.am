@@ -104,6 +104,7 @@ M2DEFS = ChanConsts.def  CharClass.def \
          ConvTypes.def  COROUTINES.def \
          ErrnoCategory.def  EXCEPTIONS.def \
          GeneralUserExceptions.def  IOChan.def \
+         IOChanUtils.def \
          IOConsts.def  IOLink.def \
          IOResult.def  LongComplexMath.def \
          LongConv.def  LongIO.def \
@@ -149,7 +150,8 @@ M2MODS = ChanConsts.mod  CharClass.mod \
          ConvStringShort.mod \
          ConvTypes.mod  COROUTINES.mod \
          EXCEPTIONS.mod  GeneralUserExceptions.mod \
-         IOChan.mod  IOConsts.mod \
+         IOChan.mod  IOChanUtils.mod \
+         IOConsts.mod \
          IOLink.mod  IOResult.mod \
          LongComplexMath.mod  LongConv.mod \
          LongIO.mod  LongMath.mod \
@@ -204,6 +206,7 @@ libm2iso_la_M2FLAGS = \
   -fm2-pathname=m2iso -I. -Ilibm2iso -I$(GM2_SRC)/gm2-libs-iso \
   -fm2-pathname=m2pim -I$(GM2_SRC)/gm2-libs \
   -fiso -fextended-opaque -fm2-g -g -Wcase-enum \
+  -Wall \
   -Wreturn-type -fcase -fm2-prefix=m2iso
 
 if TARGET_DARWIN

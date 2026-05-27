@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -134,19 +134,6 @@ package body Fname is
       Renamings_Included : Boolean := True) return Boolean
    is
    begin
-      --  Definitely false if longer than 12 characters (8.3), except for the
-      --  Interfaces packages and also the implementation units of the 128-bit
-      --  types under System.
-
-      if Fname'Length > 12
-        and then Fname (Fname'First .. Fname'First + 1) /= "i-"
-        and then Fname (Fname'First .. Fname'First + 1) /= "s-"
-        and then not Has_Prefix (Fname, "system-")
-        and then not Has_Prefix (Fname, "interfac__")
-      then
-         return False;
-      end if;
-
       if not Has_Internal_Extension (Fname) then
          return False;
       end if;

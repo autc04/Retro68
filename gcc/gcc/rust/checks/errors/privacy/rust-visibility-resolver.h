@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -24,7 +24,7 @@
 #include "rust-hir-stmt.h"
 #include "rust-hir-item.h"
 #include "rust-hir-map.h"
-#include "rust-name-resolver.h"
+#include "rust-name-resolution-context.h"
 #include "rust-hir-visitor.h"
 
 namespace Rust {
@@ -34,7 +34,7 @@ class VisibilityResolver : public HIR::HIRVisItemVisitor
 {
 public:
   VisibilityResolver (Analysis::Mappings &mappings,
-		      Rust::Resolver::Resolver &resolver);
+		      const Resolver2_0::NameResolutionContext &resolver);
 
   /**
    * Perform visibility resolving on an entire crate
@@ -93,7 +93,7 @@ public:
 
 private:
   Analysis::Mappings &mappings;
-  Rust::Resolver::Resolver &resolver;
+  const Resolver2_0::NameResolutionContext &resolver;
   DefId current_module;
 };
 

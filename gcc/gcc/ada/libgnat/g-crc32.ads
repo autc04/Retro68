@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 2004-2025, AdaCore                     --
+--                     Copyright (C) 2004-2026, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -58,7 +58,7 @@ with Ada.Streams;
 with Interfaces;
 with System.CRC32;
 
-package GNAT.CRC32 is
+package GNAT.CRC32 with Pure, Always_Terminates is
 
    subtype CRC32 is System.CRC32.CRC32;
    --  Used to represent CRC32 values, which are 32 bit bit-strings

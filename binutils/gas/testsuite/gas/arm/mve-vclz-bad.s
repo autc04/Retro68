@@ -1,15 +1,15 @@
-.macro cond
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vclz.i32 q0, q1
-.endr
-.endm
-
 .syntax unified
 .thumb
 vclz.f32 q0, q1
 vclz.i64 q0, q1
-cond
+
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+vclz.i32 q0, q1
+
+.endr
+
 it eq
 vclzeq.i16 q0, q1
 vclzeq.i16 q0, q1

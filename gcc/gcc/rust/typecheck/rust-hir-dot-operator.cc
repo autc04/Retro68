@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -51,6 +51,9 @@ MethodResolver::Select (std::set<MethodCandidate> &candidates,
     {
       TyTy::BaseType *candidate_type = candidate.candidate.ty;
       rust_assert (candidate_type->get_kind () == TyTy::TypeKind::FNDEF);
+      if (candidate_type == nullptr
+	  || candidate_type->get_kind () != TyTy::TypeKind::FNDEF)
+	continue;
       TyTy::FnType &fn = *static_cast<TyTy::FnType *> (candidate_type);
 
       // match the number of arguments
@@ -102,26 +105,16 @@ MethodResolver::try_hook (const TyTy::BaseType &r)
     }
 }
 
-bool
-MethodResolver::select (TyTy::BaseType &receiver)
+std::vector<MethodResolver::impl_item_candidate>
+MethodResolver::assemble_inherent_impl_candidates (
+  const TyTy::BaseType &receiver)
 {
-  rust_debug ("MethodResolver::select reciever=[%s] path=[%s]",
-	      receiver.debug_str ().c_str (),
-	      segment_name.as_string ().c_str ());
-
-  struct impl_item_candidate
-  {
-    HIR::Function *item;
-    HIR::ImplBlock *impl_block;
-    TyTy::FnType *ty;
-  };
-
+  std::vector<impl_item_candidate> inherent_impl_fns;
   const TyTy::BaseType *raw = receiver.destructure ();
   bool receiver_is_raw_ptr = raw->get_kind () == TyTy::TypeKind::POINTER;
   bool receiver_is_ref = raw->get_kind () == TyTy::TypeKind::REF;
 
-  // assemble inherent impl items
-  std::vector<impl_item_candidate> inherent_impl_fns;
+  // Assemble inherent impl items (non-trait impl blocks)
   mappings.iterate_impl_items (
     [&] (HirId id, HIR::ImplItem *item, HIR::ImplBlock *impl) mutable -> bool {
       bool is_trait_impl = impl->has_trait_ref ();
@@ -138,7 +131,7 @@ MethodResolver::select (TyTy::BaseType &receiver)
 	return true;
 
       bool name_matches = func->get_function_name ().as_string ().compare (
-			    segment_name.as_string ())
+			    segment_name.to_string ())
 			  == 0;
       if (!name_matches)
 	return true;
@@ -146,11 +139,11 @@ MethodResolver::select (TyTy::BaseType &receiver)
       TyTy::BaseType *ty = nullptr;
       if (!query_type (func->get_mappings ().get_hirid (), &ty))
 	return true;
-      rust_assert (ty != nullptr);
-      if (ty->get_kind () == TyTy::TypeKind::ERROR)
+      if (ty == nullptr || ty->get_kind () == TyTy::TypeKind::ERROR)
+	return true;
+      if (ty->get_kind () != TyTy::TypeKind::FNDEF)
 	return true;
 
-      rust_assert (ty->get_kind () == TyTy::TypeKind::FNDEF);
       TyTy::FnType *fnty = static_cast<TyTy::FnType *> (ty);
       const TyTy::BaseType *impl_self
 	= TypeCheckItem::ResolveImplBlockSelf (*impl);
@@ -185,21 +178,24 @@ MethodResolver::select (TyTy::BaseType &receiver)
 	    return true;
 	}
 
-      inherent_impl_fns.push_back ({func, impl, fnty});
+      inherent_impl_fns.emplace_back (func, impl, fnty);
 
       return true;
     });
 
-  struct trait_item_candidate
-  {
-    const HIR::TraitItemFunc *item;
-    const HIR::Trait *trait;
-    TyTy::FnType *ty;
-    const TraitReference *reference;
-    const TraitItemReference *item_ref;
-  };
+  return inherent_impl_fns;
+}
 
-  std::vector<trait_item_candidate> trait_fns;
+void
+MethodResolver::assemble_trait_impl_candidates (
+  const TyTy::BaseType &receiver,
+  std::vector<impl_item_candidate> &impl_candidates,
+  std::vector<trait_item_candidate> &trait_candidates)
+{
+  const TyTy::BaseType *raw = receiver.destructure ();
+  bool receiver_is_raw_ptr = raw->get_kind () == TyTy::TypeKind::POINTER;
+  bool receiver_is_ref = raw->get_kind () == TyTy::TypeKind::REF;
+
   mappings.iterate_impl_blocks ([&] (HirId id,
 				     HIR::ImplBlock *impl) mutable -> bool {
     bool is_trait_impl = impl->has_trait_ref ();
@@ -219,7 +215,7 @@ MethodResolver::select (TyTy::BaseType &receiver)
 	  continue;
 
 	bool name_matches = func->get_function_name ().as_string ().compare (
-			      segment_name.as_string ())
+			      segment_name.to_string ())
 			    == 0;
 	if (!name_matches)
 	  continue;
@@ -227,10 +223,11 @@ MethodResolver::select (TyTy::BaseType &receiver)
 	TyTy::BaseType *ty = nullptr;
 	if (!query_type (func->get_mappings ().get_hirid (), &ty))
 	  continue;
-	if (ty->get_kind () == TyTy::TypeKind::ERROR)
+	if (ty == nullptr || ty->get_kind () == TyTy::TypeKind::ERROR)
+	  continue;
+	if (ty->get_kind () != TyTy::TypeKind::FNDEF)
 	  continue;
 
-	rust_assert (ty->get_kind () == TyTy::TypeKind::FNDEF);
 	TyTy::FnType *fnty = static_cast<TyTy::FnType *> (ty);
 	const TyTy::BaseType *impl_self
 	  = TypeCheckItem::ResolveImplBlockSelf (*impl);
@@ -266,7 +263,7 @@ MethodResolver::select (TyTy::BaseType &receiver)
 	      continue;
 	  }
 
-	inherent_impl_fns.push_back ({func, impl, fnty});
+	impl_candidates.emplace_back (func, impl, fnty);
 	return true;
       }
 
@@ -274,7 +271,7 @@ MethodResolver::select (TyTy::BaseType &receiver)
     rust_assert (!trait_ref->is_error ());
 
     auto item_ref
-      = trait_ref->lookup_trait_item (segment_name.as_string (),
+      = trait_ref->lookup_trait_item (segment_name.to_string (),
 				      TraitItemReference::TraitItemType::FN);
     if (item_ref->is_error ())
       return true;
@@ -289,35 +286,25 @@ MethodResolver::select (TyTy::BaseType &receiver)
       return true;
 
     TyTy::BaseType *ty = item_ref->get_tyty ();
-    rust_assert (ty->get_kind () == TyTy::TypeKind::FNDEF);
+    if (ty == nullptr || ty->get_kind () != TyTy::TypeKind::FNDEF)
+      return true;
     TyTy::FnType *fnty = static_cast<TyTy::FnType *> (ty);
 
-    trait_item_candidate candidate{func, trait, fnty, trait_ref, item_ref};
-    trait_fns.push_back (candidate);
+    trait_candidates.emplace_back (func, trait, fnty, trait_ref, item_ref);
 
     return true;
   });
+}
 
-  // lookup specified bounds for an associated item
-  struct precdicate_candidate
-  {
-    TyTy::TypeBoundPredicateItem lookup;
-    TyTy::FnType *fntype;
-  };
-
-  // https://github.com/rust-lang/rust/blob/7eac88abb2e57e752f3302f02be5f3ce3d7adfb4/compiler/rustc_typeck/src/check/method/probe.rs#L580-L694
-
-  rust_debug ("inherent_impl_fns found {%lu}, trait_fns found {%lu}, "
-	      "predicate_items found {%lu}",
-	      (unsigned long) inherent_impl_fns.size (),
-	      (unsigned long) trait_fns.size (),
-	      (unsigned long) predicate_items.size ());
-
+bool
+MethodResolver::try_select_predicate_candidates (TyTy::BaseType &receiver)
+{
   bool found_possible_candidate = false;
   for (const auto &predicate : predicate_items)
     {
       const TyTy::FnType *fn = predicate.fntype;
-      rust_assert (fn->is_method ());
+      if (!fn->is_method ())
+	continue;
 
       TyTy::BaseType *fn_self = fn->get_self_type ();
       rust_debug ("dot-operator predicate fn_self={%s} can_eq receiver={%s}",
@@ -346,23 +333,33 @@ MethodResolver::select (TyTy::BaseType &receiver)
 	  found_possible_candidate = true;
 	}
     }
-  if (found_possible_candidate)
-    {
-      return true;
-    }
+  return found_possible_candidate;
+}
 
-  for (auto &impl_item : inherent_impl_fns)
+bool
+MethodResolver::try_select_inherent_impl_candidates (
+  TyTy::BaseType &receiver, const std::vector<impl_item_candidate> &candidates,
+  bool trait_impl_blocks_only)
+{
+  bool found_possible_candidate = false;
+  for (auto &impl_item : candidates)
     {
       bool is_trait_impl_block = impl_item.impl_block->has_trait_ref ();
-      if (is_trait_impl_block)
+      if (trait_impl_blocks_only && !is_trait_impl_block)
+	continue;
+      if (!trait_impl_blocks_only && is_trait_impl_block)
 	continue;
 
       TyTy::FnType *fn = impl_item.ty;
-      rust_assert (fn->is_method ());
+      if (!fn->is_method ())
+	continue;
 
       TyTy::BaseType *fn_self = fn->get_self_type ();
-      rust_debug ("dot-operator impl_item fn_self={%s} can_eq receiver={%s}",
-		  fn_self->debug_str ().c_str (),
+
+      const char *debug_prefix
+	= trait_impl_blocks_only ? "trait_impl_item" : "impl_item";
+      rust_debug ("dot-operator %s fn_self={%s} can_eq receiver={%s}",
+		  debug_prefix, fn_self->debug_str ().c_str (),
 		  receiver.debug_str ().c_str ());
 
       auto res
@@ -382,51 +379,19 @@ MethodResolver::select (TyTy::BaseType &receiver)
 	  found_possible_candidate = true;
 	}
     }
-  if (found_possible_candidate)
-    {
-      return true;
-    }
+  return found_possible_candidate;
+}
 
-  for (auto &impl_item : inherent_impl_fns)
-    {
-      bool is_trait_impl_block = impl_item.impl_block->has_trait_ref ();
-      if (!is_trait_impl_block)
-	continue;
-
-      TyTy::FnType *fn = impl_item.ty;
-      rust_assert (fn->is_method ());
-
-      TyTy::BaseType *fn_self = fn->get_self_type ();
-      rust_debug (
-	"dot-operator trait_impl_item fn_self={%s} can_eq receiver={%s}",
-	fn_self->debug_str ().c_str (), receiver.debug_str ().c_str ());
-
-      auto res
-	= TypeCoercionRules::TryCoerce (&receiver, fn_self, UNDEF_LOCATION,
-					false /*allow-autoderef*/);
-      bool ok = !res.is_error ();
-      if (ok)
-	{
-	  std::vector<Adjustment> adjs = append_adjustments (res.adjustments);
-	  PathProbeCandidate::ImplItemCandidate c{impl_item.item,
-						  impl_item.impl_block};
-	  auto try_result = MethodCandidate{
-	    PathProbeCandidate (PathProbeCandidate::CandidateType::IMPL_FUNC,
-				fn, impl_item.item->get_locus (), c),
-	    adjs};
-	  result.insert (std::move (try_result));
-	  found_possible_candidate = true;
-	}
-    }
-  if (found_possible_candidate)
-    {
-      return true;
-    }
-
-  for (auto trait_item : trait_fns)
+bool
+MethodResolver::try_select_trait_impl_candidates (
+  TyTy::BaseType &receiver, const std::vector<trait_item_candidate> &candidates)
+{
+  bool found_possible_candidate = false;
+  for (auto trait_item : candidates)
     {
       TyTy::FnType *fn = trait_item.ty;
-      rust_assert (fn->is_method ());
+      if (!fn->is_method ())
+	continue;
 
       TyTy::BaseType *fn_self = fn->get_self_type ();
       rust_debug ("dot-operator trait_item fn_self={%s} can_eq receiver={%s}",
@@ -451,8 +416,51 @@ MethodResolver::select (TyTy::BaseType &receiver)
 	  found_possible_candidate = true;
 	}
     }
-
   return found_possible_candidate;
+}
+
+bool
+MethodResolver::select (TyTy::BaseType &receiver)
+{
+  rust_debug ("MethodResolver::select reciever=[%s] path=[%s]",
+	      receiver.debug_str ().c_str (),
+	      segment_name.to_string ().c_str ());
+
+  // Assemble candidates
+  std::vector<impl_item_candidate> inherent_impl_fns
+    = assemble_inherent_impl_candidates (receiver);
+  std::vector<impl_item_candidate> trait_impl_fns;
+  std::vector<trait_item_candidate> trait_fns;
+  assemble_trait_impl_candidates (receiver, trait_impl_fns, trait_fns);
+
+  // Combine inherent and trait impl functions
+  inherent_impl_fns.insert (inherent_impl_fns.end (), trait_impl_fns.begin (),
+			    trait_impl_fns.end ());
+
+  // https://github.com/rust-lang/rust/blob/7eac88abb2e57e752f3302f02be5f3ce3d7adfb4/compiler/rustc_typeck/src/check/method/probe.rs#L580-L694
+
+  rust_debug ("inherent_impl_fns found {%lu}, trait_fns found {%lu}, "
+	      "predicate_items found {%lu}",
+	      (unsigned long) inherent_impl_fns.size (),
+	      (unsigned long) trait_fns.size (),
+	      (unsigned long) predicate_items.size ());
+
+  // Try selection in the priority order defined by Rust's method resolution:
+
+  // 1. Try predicate candidates first (highest priority)
+  if (try_select_predicate_candidates (receiver))
+    return true;
+
+  // 2. Try inherent impl functions (non-trait impl blocks)
+  if (try_select_inherent_impl_candidates (receiver, inherent_impl_fns, false))
+    return true;
+
+  // 3. Try inherent impl functions from trait impl blocks
+  if (try_select_inherent_impl_candidates (receiver, inherent_impl_fns, true))
+    return true;
+
+  // 4. Try trait functions (lowest priority)
+  return try_select_trait_impl_candidates (receiver, trait_fns);
 }
 
 std::vector<MethodResolver::predicate_candidate>
@@ -463,20 +471,17 @@ MethodResolver::get_predicate_items (
   std::vector<predicate_candidate> predicate_items;
   for (auto &bound : specified_bounds)
     {
-      TyTy::TypeBoundPredicateItem lookup
-	= bound.lookup_associated_item (segment_name.as_string ());
-      if (lookup.is_error ())
+      tl::optional<TyTy::TypeBoundPredicateItem> lookup
+	= bound.lookup_associated_item (segment_name.to_string ());
+      if (!lookup.has_value ())
 	continue;
 
-      TyTy::BaseType *ty = lookup.get_tyty_for_receiver (&receiver);
+      TyTy::BaseType *ty = lookup->get_tyty_for_receiver (&receiver);
       if (ty->get_kind () == TyTy::TypeKind::FNDEF)
 	{
 	  TyTy::FnType *fnty = static_cast<TyTy::FnType *> (ty);
 	  if (fnty->is_method ())
-	    {
-	      predicate_candidate candidate{lookup, fnty};
-	      predicate_items.push_back (candidate);
-	    }
+	    predicate_items.emplace_back (lookup.value (), fnty);
 	}
     }
 

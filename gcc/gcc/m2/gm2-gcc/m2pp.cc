@@ -1,6 +1,6 @@
 /* m2pp.c pretty print trees, output in Modula-2 where possible.
 
-Copyright (C) 2007-2025 Free Software Foundation, Inc.
+Copyright (C) 2007-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius@glam.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -332,6 +332,19 @@ m2pp_decl_bool (pretty *s, tree t)
     m2pp_print (s, "external, ");
   if (DECL_SEEN_IN_BIND_EXPR_P (t))
     m2pp_print (s, "in bind expr, ");
+}
+
+/* Print statement stmt.  */
+
+void
+ps (tree stmt)
+{
+  if (stmt)
+    {
+      pretty *state = initPretty (M2PP_DUMP_STDOUT, 0);
+      m2pp_statement (state, stmt);
+      killPretty (state);
+    }
 }
 
 void
@@ -1961,6 +1974,22 @@ m2pp_binary_function (pretty *s, tree t, const char *funcname)
   m2pp_print (s, ")");
 }
 
+static void
+m2pp_shiftrotate_expr (pretty *s, tree t, const char *op)
+{
+  tree left = TREE_OPERAND (t, 0);
+  tree right = TREE_OPERAND (t, 1);
+  m2pp_print (s, "(");
+  m2pp_expression (s, left);
+  m2pp_print (s, ")");
+  m2pp_needspace (s);
+  m2pp_print (s, op);
+  m2pp_needspace (s);
+  m2pp_print (s, "(");
+  m2pp_expression (s, right);
+  m2pp_print (s, ")");
+}
+
 /* m2pp_simple_expression handle GCC expression tree.  */
 
 static void
@@ -2116,6 +2145,12 @@ m2pp_simple_expression (pretty *s, tree t)
       break;
     case TRUTH_ORIF_EXPR:
       m2pp_truth_expr (s, t, "OR");
+      break;
+    case LSHIFT_EXPR:
+      m2pp_shiftrotate_expr (s, t, "<<");
+      break;
+    case RSHIFT_EXPR:
+      m2pp_shiftrotate_expr (s, t, ">>");
       break;
     case LROTATE_EXPR:
       m2pp_binary_function (s, t, "LROTATE");

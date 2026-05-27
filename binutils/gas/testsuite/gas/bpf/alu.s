@@ -49,3 +49,15 @@
         arsh	%r4, 0x7eadbeef
         arsh	%r5, %r6
         neg     %r2
+	endle	%r9,16
+        endle	%r8,32
+        endle	%r7,64
+        endbe	%r6,16
+        endbe	%r5,32
+        endbe	%r4,64
+        movs    %r1,%r2,8
+        movs    %r1,%r2,16
+        movs    %r1,%r2,32
+        bswap   %r1, 16
+        bswap   %r2, 32
+        bswap   %r3, 64

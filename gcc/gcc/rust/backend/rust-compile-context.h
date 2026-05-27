@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -34,6 +34,10 @@ namespace Compile {
 
 struct fncontext
 {
+  fncontext (tree fndecl, ::Bvariable *ret_addr, TyTy::BaseType *retty)
+    : fndecl (fndecl), ret_addr (ret_addr), retty (retty)
+  {}
+
   tree fndecl;
   ::Bvariable *ret_addr;
   TyTy::BaseType *retty;
@@ -49,7 +53,7 @@ struct CustomDeriveInfo
 class Context
 {
 public:
-  Context ();
+  static Context *get ();
 
   void setup_builtins ();
 
@@ -90,7 +94,6 @@ public:
     return type;
   }
 
-  Resolver::Resolver *get_resolver () { return resolver; }
   Resolver::TypeCheckContext *get_tyctx () { return tyctx; }
   Analysis::Mappings &get_mappings () { return mappings; }
 
@@ -155,7 +158,7 @@ public:
     if (it == mono_fns.end ())
       mono_fns[dId] = {};
 
-    mono_fns[dId].push_back ({ref, fn});
+    mono_fns[dId].emplace_back (ref, fn);
   }
 
   void insert_closure_decl (const TyTy::ClosureType *ref, tree fn)
@@ -165,7 +168,7 @@ public:
     if (it == mono_closure_fns.end ())
       mono_closure_fns[dId] = {};
 
-    mono_closure_fns[dId].push_back ({ref, fn});
+    mono_closure_fns[dId].emplace_back (ref, fn);
   }
 
   tree lookup_closure_decl (const TyTy::ClosureType *ref)
@@ -280,7 +283,7 @@ public:
 
   void push_fn (tree fn, ::Bvariable *ret_addr, TyTy::BaseType *retty)
   {
-    fn_stack.push_back (fncontext{fn, ret_addr, retty});
+    fn_stack.emplace_back (fn, ret_addr, retty);
   }
   void pop_fn () { fn_stack.pop_back (); }
 
@@ -319,7 +322,13 @@ public:
 
   void push_loop_context (Bvariable *var) { loop_value_stack.push_back (var); }
 
-  Bvariable *peek_loop_context () { return loop_value_stack.back (); }
+  bool have_loop_context () const { return !loop_value_stack.empty (); }
+
+  Bvariable *peek_loop_context ()
+  {
+    rust_assert (!loop_value_stack.empty ());
+    return loop_value_stack.back ();
+  }
 
   Bvariable *pop_loop_context ()
   {
@@ -333,7 +342,11 @@ public:
     loop_begin_labels.push_back (label);
   }
 
-  tree peek_loop_begin_label () { return loop_begin_labels.back (); }
+  tree peek_loop_begin_label ()
+  {
+    rust_assert (!loop_begin_labels.empty ());
+    return loop_begin_labels.back ();
+  }
 
   tree pop_loop_begin_label ()
   {
@@ -391,7 +404,8 @@ public:
   }
 
 private:
-  Resolver::Resolver *resolver;
+  Context ();
+
   Resolver::TypeCheckContext *tyctx;
   Analysis::Mappings &mappings;
   Mangler mangler;

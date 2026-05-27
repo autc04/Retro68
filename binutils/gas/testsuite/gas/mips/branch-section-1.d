@@ -12,6 +12,6 @@ Disassembly of section \.text:
 	\.\.\.
 
 Disassembly of section \.init:
-[0-9a-f]+ <[^>]*> 03e00008 	jr	ra
+[0-9a-f]+ <[^>]*> 03e0000[89] 	jr	ra
 [0-9a-f]+ <[^>]*> 00000000 	nop
 	\.\.\.

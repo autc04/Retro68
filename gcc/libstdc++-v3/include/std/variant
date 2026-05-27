@@ -1,6 +1,6 @@
 // <variant> -*- C++ -*-
 
-// Copyright (C) 2016-2025 Free Software Foundation, Inc.
+// Copyright (C) 2016-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,6 +36,7 @@
 #define __glibcxx_want_freestanding_variant
 #define __glibcxx_want_variant
 #define __glibcxx_want_constrained_equality
+#define __glibcxx_want_constexpr_exceptions
 #include <bits/version.h>
 
 #ifdef __cpp_lib_variant // C++ >= 17
@@ -210,7 +211,7 @@ namespace __variant
     __as(const std::variant<_Types...>&& __v) noexcept
     { return std::move(__v); }
 
-#if __cpp_lib_variant < 202106L
+#if (__cpp_lib_variant < 202106L) && defined(_GLIBCXX_USE_VARIANT_CXX17_OLD_ABI)
   template<typename _Type, bool = std::is_trivially_destructible_v<_Type>>
     struct _Uninitialized;
 #else
@@ -229,7 +230,7 @@ namespace __variant
 	: _M_storage(std::forward<_Args>(__args)...)
 	{ }
 
-#if __cpp_lib_variant < 202106L
+#if (__cpp_lib_variant < 202106L) && defined(_GLIBCXX_USE_VARIANT_CXX17_OLD_ABI)
       constexpr const _Type& _M_get() const & noexcept
       { return _M_storage; }
 
@@ -246,10 +247,9 @@ namespace __variant
       _Type _M_storage;
     };
 
-#if __cpp_lib_variant < 202106L
+#if (__cpp_lib_variant < 202106L) && defined(_GLIBCXX_USE_VARIANT_CXX17_OLD_ABI)
   // This partial specialization is used for non-trivially destructible types
-  // in C++17, so that _Uninitialized<T> is trivially destructible and can be
-  // used as a union member in _Variadic_union.
+  // in C++17.
   template<typename _Type>
     struct _Uninitialized<_Type, false>
     {
@@ -290,7 +290,7 @@ namespace __variant
 	return __variant::__get_n<_Np - 3>(
 		 std::forward<_Union>(__u)._M_rest._M_rest._M_rest);
     }
-#else
+#else // !_GLIBCXX_USE_VARIANT_CXX17_OLD_ABI
   template<size_t _Np, typename _Union>
     constexpr auto&&
     __get_n(_Union&& __u) noexcept
@@ -305,7 +305,7 @@ namespace __variant
 	return __variant::__get_n<_Np - 3>(
 		 std::forward<_Union>(__u)._M_rest._M_rest._M_rest);
     }
-#endif
+#endif // !_GLIBCXX_USE_VARIANT_CXX17_OLD_ABI
 
   // Returns the typed storage for __v.
   template<size_t _Np, typename _Variant>
@@ -393,8 +393,8 @@ namespace __variant
 	_Variadic_union(in_place_index_t<_Np>, _Args&&...) = delete;
     };
 
-  template<bool __trivially_destructible, typename _First, typename... _Rest>
-    union _Variadic_union<__trivially_destructible, _First, _Rest...>
+  template<typename _First, typename... _Rest>
+    union _Variadic_union<true, _First, _Rest...>
     {
       constexpr _Variadic_union() : _M_rest() { }
 
@@ -410,24 +410,40 @@ namespace __variant
 	: _M_rest(in_place_index<_Np-1>, std::forward<_Args>(__args)...)
 	{ }
 
-#if __cpp_lib_variant >= 202106L
+      _Uninitialized<_First> _M_first;
+      _Variadic_union<true, _Rest...> _M_rest;
+    };
+
+  template<typename _First, typename... _Rest>
+    union _Variadic_union<false, _First, _Rest...>
+    {
+      constexpr _Variadic_union() : _M_rest() { }
+
+      template<typename... _Args>
+	constexpr
+	_Variadic_union(in_place_index_t<0>, _Args&&... __args)
+	: _M_first(in_place_index<0>, std::forward<_Args>(__args)...)
+	{ }
+
+      template<size_t _Np, typename... _Args>
+	constexpr
+	_Variadic_union(in_place_index_t<_Np>, _Args&&... __args)
+	: _M_rest(in_place_index<_Np-1>, std::forward<_Args>(__args)...)
+	{ }
+
       _Variadic_union(const _Variadic_union&) = default;
       _Variadic_union(_Variadic_union&&) = default;
       _Variadic_union& operator=(const _Variadic_union&) = default;
       _Variadic_union& operator=(_Variadic_union&&) = default;
 
-      ~_Variadic_union() = default;
-
       // If any alternative type is not trivially destructible then we need a
       // user-provided destructor that does nothing. The active alternative
       // will be destroyed by _Variant_storage::_M_reset() instead of here.
-      constexpr ~_Variadic_union()
-	requires (!__trivially_destructible)
+      _GLIBCXX20_CONSTEXPR ~_Variadic_union()
       { }
-#endif
 
       _Uninitialized<_First> _M_first;
-      _Variadic_union<__trivially_destructible, _Rest...> _M_rest;
+      _Variadic_union<(is_trivially_destructible_v<_Rest> && ...), _Rest...> _M_rest;
     };
 
   // _Never_valueless_alt is true for variant alternatives that can
@@ -1387,29 +1403,40 @@ namespace __detail::__variant
     noexcept(noexcept(__lhs.swap(__rhs)))
     { __lhs.swap(__rhs); }
 
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 2766. Swapping non-swappable types
   template<typename... _Types>
     enable_if_t<!((is_move_constructible_v<_Types> && ...)
 		   && (is_swappable_v<_Types> && ...))>
     swap(variant<_Types...>&, variant<_Types...>&) = delete;
 
-  [[noreturn]] void __throw_bad_variant_access(unsigned);
+#if __cpp_lib_constexpr_exceptions >= 202502L
+#define _GLIBCXX_CONSTEXPR_BAD_VARIANT_ACCESS constexpr
+#else
+#define _GLIBCXX_CONSTEXPR_BAD_VARIANT_ACCESS
+#endif
+  [[noreturn]] _GLIBCXX_CONSTEXPR_BAD_VARIANT_ACCESS void
+  __throw_bad_variant_access(unsigned);
 
   class bad_variant_access : public exception
   {
   public:
-    bad_variant_access() noexcept { }
+    _GLIBCXX_CONSTEXPR_BAD_VARIANT_ACCESS bad_variant_access() noexcept { }
 
-    const char* what() const noexcept override
+    _GLIBCXX_CONSTEXPR_BAD_VARIANT_ACCESS const char* what()
+    const noexcept override
     { return _M_reason; }
 
   private:
     // Must only be called with a string literal
+    _GLIBCXX_CONSTEXPR_BAD_VARIANT_ACCESS
     bad_variant_access(const char* __reason) noexcept : _M_reason(__reason) { }
 
     // Must point to a string with static storage duration:
     const char* _M_reason = "bad variant access";
 
-    friend void __throw_bad_variant_access([[maybe_unused]] unsigned __n)
+    friend _GLIBCXX_CONSTEXPR_BAD_VARIANT_ACCESS void
+    __throw_bad_variant_access([[maybe_unused]] unsigned __n)
     {
       [[maybe_unused]] static constexpr const char* __reasons[] = {
 	"std::get: wrong index for variant",
@@ -1419,6 +1446,7 @@ namespace __detail::__variant
       };
       _GLIBCXX_THROW_OR_ABORT(bad_variant_access(__reasons[__n % 4u]));
     }
+#undef _GLIBCXX_CONSTEXPR_BAD_VARIANT_ACCESS
   };
 
   template<typename... _Types>

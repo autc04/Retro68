@@ -1,10 +1,4 @@
 	.text
 # All the followings are bad opcodes for x86-64.
-	.byte 0xc5
-	.byte 0xac
-	.byte 0x46
-	.byte 0xf5
-	.byte 0xc5
-	.byte 0x2c
-	.byte 0x46
-	.byte 0xf5
+	.insn VEX.L1.0f 0x46, %k5, %r10d, %k6
+	.insn VEX.L1.0f 0x46, %k5, %r10d, %r14d

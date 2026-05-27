@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 AVX512-FP16,AVX512VL insns
 #source: avx512_fp16_vl.s
@@ -574,9 +573,11 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 18 66 29 7b[ 	]*vfpclassph \$0x7b,\(%ecx\)\{1to8\},%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 08 66 69 7f 7b[ 	]*vfpclassphx \$0x7b,0x7f0\(%ecx\),%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 1f 66 6a 80 7b[ 	]*vfpclassph \$0x7b,-0x100\(%edx\)\{1to8\},%k5\{%k7\}
+[ 	]*[a-f0-9]+:[ 	]*62 f3 7c 18 66 69 01 7b[ 	]*vfpclassph \$0x7b,0x2\(%ecx\)\{1to8\},%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 38 66 29 7b[ 	]*vfpclassph \$0x7b,\(%ecx\)\{1to16\},%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 28 66 69 7f 7b[ 	]*vfpclassphy \$0x7b,0xfe0\(%ecx\),%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 3f 66 6a 80 7b[ 	]*vfpclassph \$0x7b,-0x100\(%edx\)\{1to16\},%k5\{%k7\}
+[ 	]*[a-f0-9]+:[ 	]*62 f3 7c 38 66 69 01 7b[ 	]*vfpclassph \$0x7b,0x2\(%ecx\)\{1to16\},%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f6 7d 08 42 f5[ 	]*vgetexpph %xmm5,%xmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f6 7d 8f 42 f5[ 	]*vgetexpph %xmm5,%xmm6\{%k7\}\{z\}
 [ 	]*[a-f0-9]+:[ 	]*62 f6 7d 28 42 f5[ 	]*vgetexpph %ymm5,%ymm6

@@ -1,6 +1,6 @@
 (* M2Options.mod initializes the user options.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -54,6 +54,8 @@ FROM DynamicStrings IMPORT String, Length, InitString, Mark, Slice, EqualArray,
 
 CONST
    Debugging = FALSE ;
+   (* DefaultRuntimeModuleOverride must match
+      DEFAULT_RUNTIME_MODULE_OVERRIDE in libgm2/libm2iso/m2rts.h.  *)
    DefaultRuntimeModuleOverride = "m2iso:RTentity,m2iso:Storage,m2iso:SYSTEM,m2iso:M2RTS,m2iso:RTExceptions,m2iso:IOLink" ;
 
 VAR
@@ -85,6 +87,7 @@ VAR
    DumpDecl,         (* -fm2-dump=decl.  *)
    DumpGimple,       (* -fm2-dump=gimple.  *)
    DumpQuad,         (* -fq, -fm2-dump=quad dump quadruples.  *)
+   WidesetFlag,      (* -fwideset.  *)
    MFlag,
    MMFlag,
    MPFlag,
@@ -654,6 +657,26 @@ PROCEDURE SetStrictTypeChecking (value: BOOLEAN) ;
 BEGIN
    StrictTypeChecking := value
 END SetStrictTypeChecking ;
+
+
+(*
+   SetStrictTypeAssignment - assigns the StrictTypeAssignment flag to value.
+*)
+
+PROCEDURE SetStrictTypeAssignment (value: BOOLEAN) ;
+BEGIN
+   StrictTypeAssignment := value
+END SetStrictTypeAssignment ;
+
+
+(*
+   SetStrictTypeReason - assigns the StrictTypeReason flag to value.
+*)
+
+PROCEDURE SetStrictTypeReason (value: BOOLEAN) ;
+BEGIN
+   StrictTypeReason := value
+END SetStrictTypeReason ;
 
 
 (*
@@ -1306,12 +1329,14 @@ BEGIN
       Optimizing := TRUE ;
       OptimizeBasicBlock := TRUE ;
       OptimizeUncalledProcedures := TRUE ;
-      OptimizeCommonSubExpressions := TRUE
+      OptimizeCommonSubExpressions := TRUE ;
+      OptimizeSets := TRUE
    ELSE
       Optimizing := FALSE ;
       OptimizeBasicBlock := FALSE ;
       OptimizeUncalledProcedures := FALSE ;
-      OptimizeCommonSubExpressions := FALSE
+      OptimizeCommonSubExpressions := FALSE ;
+      OptimizeSets := FALSE
    END
 END SetOptimizing ;
 
@@ -2054,6 +2079,46 @@ BEGIN
 END GetFileOffsetBits ;
 
 
+(*
+   SetMemReport - set MemReport to value.
+*)
+
+PROCEDURE SetMemReport (value: BOOLEAN) ;
+BEGIN
+   MemReport := value
+END SetMemReport ;
+
+
+(*
+   SetTimeReport - set TimeReport to value.
+*)
+
+PROCEDURE SetTimeReport (value: BOOLEAN) ;
+BEGIN
+   TimeReport := value
+END SetTimeReport ;
+
+
+(*
+   SetWideset - set the Wideset flag to value.
+*)
+
+PROCEDURE SetWideset (value: BOOLEAN) ;
+BEGIN
+   WidesetFlag := value
+END SetWideset ;
+
+
+(*
+   GetWideset - return the Wideset flag value.
+*)
+
+PROCEDURE GetWideset () : BOOLEAN ;
+BEGIN
+   RETURN WidesetFlag
+END GetWideset ;
+
+
 BEGIN
    cflag                             := FALSE ;  (* -c.  *)
    RuntimeModuleOverride             := InitString (DefaultRuntimeModuleOverride) ;
@@ -2079,6 +2144,7 @@ BEGIN
    OptimizeBasicBlock                := FALSE ;
    OptimizeUncalledProcedures        := FALSE ;
    OptimizeCommonSubExpressions      := FALSE ;
+   OptimizeSets                      := FALSE ;
    NilChecking                       := FALSE ;
    WholeDivChecking                  := FALSE ;
    WholeValueChecking                := FALSE ;
@@ -2111,6 +2177,8 @@ BEGIN
    UnusedVariableChecking            := FALSE ;
    UnusedParameterChecking           := FALSE ;
    StrictTypeChecking                := TRUE ;
+   StrictTypeAssignment              := TRUE ;
+   StrictTypeReason                  := TRUE ;
    AutoInit                          := FALSE ;
    SaveTemps                         := FALSE ;
    ScaffoldDynamic                   := TRUE ;
@@ -2146,6 +2214,9 @@ BEGIN
    DumpGimple                        := FALSE ;
    M2Dump                            := NIL ;
    M2DumpFilter                      := NIL ;
+   TimeReport                        := FALSE ;
+   MemReport                         := FALSE ;
    EnableForward                     := TRUE ;
    OffTBits                          := 0 ;  (* Default to CSSIZE_T.  *)
+   WidesetFlag                       := TRUE ;
 END M2Options.

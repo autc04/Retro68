@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    Namelist transfer functions contributed by Paul Thomas
    F2003 I/O support contributed by Jerry DeLisle
@@ -3128,6 +3128,8 @@ data_transfer_init (st_parameter_dt *dtp, int read_flag)
   async_unit *au;
 
   NOTE ("data_transfer_init");
+
+  check_for_recursive (dtp);
 
   ionml = ((cf & IOPARM_DT_IONML_SET) != 0) ? dtp->u.p.ionml : NULL;
 

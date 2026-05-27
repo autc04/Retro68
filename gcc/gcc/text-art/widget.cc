@@ -1,5 +1,5 @@
 /* Hierarchical diagram elements.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -24,7 +24,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "pretty-print.h"
 #include "selftest.h"
-#include "make-unique.h"
 #include "text-art/selftests.h"
 #include "text-art/widget.h"
 
@@ -191,7 +190,7 @@ static void
 test_wrapper_widget ()
 {
   style_manager sm;
-  wrapper_widget w (::make_unique<test_widget> (canvas::size_t (3, 3), 'B'));
+  wrapper_widget w (std::make_unique<test_widget> (canvas::size_t (3, 3), 'B'));
   canvas c (w.to_canvas (sm));
   ASSERT_CANVAS_STREQ
     (c, false,
@@ -201,13 +200,22 @@ test_wrapper_widget ()
 }
 
 static void
+test_empty_wrapper_widget ()
+{
+  style_manager sm;
+  wrapper_widget w (nullptr);
+  canvas c (w.to_canvas (sm));
+  ASSERT_CANVAS_STREQ (c, false, "");
+}
+
+static void
 test_vbox_1 ()
 {
   style_manager sm;
   vbox_widget w;
   for (int i = 0; i < 5; i++)
     w.add_child
-      (::make_unique <text_widget>
+      (std::make_unique <text_widget>
        (styled_string::from_fmt (sm, nullptr,
 				 "this is line %i", i)));
   canvas c (w.to_canvas (sm));
@@ -225,9 +233,9 @@ test_vbox_2 ()
 {
   style_manager sm;
   vbox_widget w;
-  w.add_child (::make_unique<test_widget> (canvas::size_t (1, 3), 'A'));
-  w.add_child (::make_unique<test_widget> (canvas::size_t (4, 1), 'B'));
-  w.add_child (::make_unique<test_widget> (canvas::size_t (1, 2), 'C'));
+  w.add_child (std::make_unique<test_widget> (canvas::size_t (1, 3), 'A'));
+  w.add_child (std::make_unique<test_widget> (canvas::size_t (4, 1), 'B'));
+  w.add_child (std::make_unique<test_widget> (canvas::size_t (1, 2), 'C'));
   canvas c (w.to_canvas (sm));
   ASSERT_CANVAS_STREQ
     (c, false,
@@ -264,6 +272,7 @@ text_art_widget_cc_tests ()
   test_test_widget ();
   test_text_widget ();
   test_wrapper_widget ();
+  test_empty_wrapper_widget ();
   test_vbox_1 ();
   test_vbox_2 ();
   test_canvas_widget ();

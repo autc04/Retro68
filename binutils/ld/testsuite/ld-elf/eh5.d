@@ -4,7 +4,9 @@
 #ld:
 #readelf: -wf
 #target: [check_as_cfi]
-#xfail: alpha-*-*ecoff hppa64-*-* tile*-*-* visium-*-* loongarch64-*-*
+#xfail: alpha-*-*ecoff tile*-*-* visium-*-*
+# PR ld/25802
+#xfail: sparcv9-*-solaris2*
 
 Contents of the .eh_frame section:
 
@@ -14,7 +16,7 @@ Contents of the .eh_frame section:
   Code alignment factor: .*
   Data alignment factor: .*
   Return address column: .*
-  Augmentation data:     (0b|1b)
+  Augmentation data:     [01][bc]
 
   DW_CFA_nop
   DW_CFA_nop
@@ -24,44 +26,44 @@ Contents of the .eh_frame section:
 #?  DW_CFA_nop
 #?  DW_CFA_nop
 
-0+001[48] 0+0014 0+001[8c] FDE cie=0+0000 pc=.*
+0+001[48] 0+001[4c] 0+001[8c] FDE cie=0+0000 pc=.*
   DW_CFA_advance_loc: 4 to .*
   DW_CFA_def_cfa: r0(.*) ofs 16
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
 
-0+00(2c|30) 0+0014 0+0000 CIE
+0+00(2c|30|38) 0+0014 0+0000 CIE
   Version:               [13]
   Augmentation:          "zPR"
   Code alignment factor: .*
   Data alignment factor: .*
   Return address column: .*
-  Augmentation data:     03 .. .. .. .. (0b|1b)
+  Augmentation data:     03 .. .. .. .. [01][bc]
 
   DW_CFA_nop
 
-0+004[48] 0+0014 0+001c FDE cie=0+00(2c|30) pc=.*
+0+00(44|48|50) 0+001[4c] 0+001c FDE cie=0+00(2c|30|38) pc=.*
   DW_CFA_advance_loc: 4 to .*
   DW_CFA_def_cfa: r0(.*) ofs 16
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
 
-0+00(5c|60) 0+0014 0+006[04] FDE cie=0+0000 pc=.*
+0+00(5c|60|70) 0+001[4c] 0+00(60|64|74) FDE cie=0+0000 pc=.*
   DW_CFA_advance_loc: 4 to .*
   DW_CFA_def_cfa: r0(.*) ofs 16
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
 
-0+007[48] 0+001[8c] 0+0000 CIE
+0+00(74|78|90) 0+001[8c] 0+0000 CIE
   Version:               [13]
   Augmentation:          "zPLR"
   Code alignment factor: .*
   Data alignment factor: .*
   Return address column: .*
-  Augmentation data:     03 .. .. .. .. 0c (0b|1b)
+  Augmentation data:     03 .. .. .. .. 0c [01][bc]
 
   DW_CFA_nop
   DW_CFA_nop
@@ -71,7 +73,7 @@ Contents of the .eh_frame section:
 #?  DW_CFA_nop
 #?  DW_CFA_nop
 
-0+009[08] 0+001c 0+002[04] FDE cie=0+007[48] pc=.*
+0+00(90|98|b0) 0+00(1c|24) 0+002[04] FDE cie=0+00(74|78|90) pc=.*
   Augmentation data:     (ef be ad de 00 00 00 00|00 00 00 00 de ad be ef)
 
   DW_CFA_advance_loc: 4 to .*
@@ -80,13 +82,13 @@ Contents of the .eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+00b[08] 0+001[04] 0+0000 CIE
+0+00(b0|b8|d8) 0+001[04] 0+0000 CIE
   Version:               [13]
   Augmentation:          "zR"
   Code alignment factor: .*
   Data alignment factor: .*
   Return address column: .*
-  Augmentation data:     (0b|1b)
+  Augmentation data:     [01][bc]
 
   DW_CFA_def_cfa: r0(.*) ofs 16
 #?  DW_CFA_nop
@@ -94,7 +96,7 @@ Contents of the .eh_frame section:
 #?  DW_CFA_nop
 #?  DW_CFA_nop
 
-0+00(c4|d0) 0+001[04] 0+001[8c] FDE cie=0+00b[08] pc=.*
+0+00(c4|d0|f0) 0+001[048] 0+001[8c] FDE cie=0+00(b0|b8|d8) pc=.*
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -103,24 +105,28 @@ Contents of the .eh_frame section:
 #?  DW_CFA_nop
 #?  DW_CFA_nop
 
-0+00[de]8 0+0014 0+0000 CIE
+0+0(0d8|0e8|10c) 0+001[48] 0+0000 CIE
   Version:               [13]
   Augmentation:          "zPR"
   Code alignment factor: .*
   Data alignment factor: .*
   Return address column: .*
-  Augmentation data:     03 .. .. .. .. (0b|1b)
+  Augmentation data:     03 .. .. .. .. [01][bc]
 
   DW_CFA_nop
+#?  DW_CFA_nop
+#?  DW_CFA_nop
+#?  DW_CFA_nop
+#?  DW_CFA_nop
 
-0+0(0f|10)0 0+0014 0+001c FDE cie=0+00[de]8 pc=.*
+0+0(0f0|100|128) 0+001[4c] 0+00(1c|20) FDE cie=0+0(0d8|0e8|10c) pc=.*
   DW_CFA_advance_loc: 4 to .*
   DW_CFA_def_cfa: r0(.*) ofs 16
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
 
-0+01[01]8 0+001[04] 0+00(5c|64) FDE cie=0+00b[08] pc=.*
+0+01[014]8 0+001[048] 0+00(5c|64|74) FDE cie=0+00(b0|b8|d8) pc=.*
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -129,13 +135,13 @@ Contents of the .eh_frame section:
 #?  DW_CFA_nop
 #?  DW_CFA_nop
 
-0+01(1c|30) 0+001[8c] 0+0000 CIE
+0+01(1c|30|64) 0+001[8c] 0+0000 CIE
   Version:               [13]
   Augmentation:          "zPLR"
   Code alignment factor: .*
   Data alignment factor: .*
   Return address column: .*
-  Augmentation data:     03 .. .. .. .. 0c (0b|1b)
+  Augmentation data:     03 .. .. .. .. 0c [01][bc]
 
   DW_CFA_nop
   DW_CFA_nop
@@ -145,7 +151,7 @@ Contents of the .eh_frame section:
 #?  DW_CFA_nop
 #?  DW_CFA_nop
 
-0+01(38|50) 0+001c 0+002[04] FDE cie=0+01(1c|30) pc=.*
+0+01(38|50|80) 0+00(1c|24) 0+002[04] FDE cie=0+01(1c|30|64) pc=.*
   Augmentation data:     (ef be ad de 00 00 00 00|00 00 00 00 de ad be ef)
 
   DW_CFA_advance_loc: 4 to .*
@@ -154,7 +160,7 @@ Contents of the .eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+01(58|70) 0+0014 0+01(5c|74) FDE cie=0+0000 pc=.*
+0+01(58|70|a8) 0+001[4c] 0+01(5c|74|ac) FDE cie=0+0000 pc=.*
   DW_CFA_advance_loc: 4 to .*
   DW_CFA_def_cfa: r0(.*) ofs 16
   DW_CFA_nop
@@ -170,14 +176,14 @@ Contents of the .eh_frame section:
 #?  Augmentation data:     03 .. .. .. .. 1b
 #?  DW_CFA_nop
 
-0+01(70|88) 0+0014 0+0(01c|148|15c) FDE cie=0+0(02c|030|170) pc=.*
+0+01(70|88|c8) 0+001[4c] 0+0(01c|148|15c|194) FDE cie=0+0(02c|030|038|170) pc=.*
   DW_CFA_advance_loc: 4 to .*
   DW_CFA_def_cfa: r0(.*) ofs 16
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
 
-0+01(88|a0) 0+0014 0+01(8c|a4) FDE cie=0+0000 pc=.*
+0+01(88|a0|e8) 0+001[4c] 0+01(8c|a4|ec) FDE cie=0+0000 pc=.*
   DW_CFA_advance_loc: 4 to .*
   DW_CFA_def_cfa: r0(.*) ofs 16
   DW_CFA_nop
@@ -195,7 +201,7 @@ Contents of the .eh_frame section:
 #?  DW_CFA_nop
 #?  DW_CFA_nop
 
-0+01(a0|b8|d4) 0+001c 0+0(020|130|144) FDE cie=0+0(074|078|1b8) pc=.*
+0+0(1a0|1b8|1d4|208) 0+00(1c|24) 0+0(020|130|144|17c) FDE cie=0+0(074|078|090|1b8) pc=.*
   Augmentation data:     (ef be ad de 00 00 00 00|00 00 00 00 de ad be ef)
 
   DW_CFA_advance_loc: 4 to .*

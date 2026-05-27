@@ -1,16 +1,16 @@
-.macro cond op
+.syntax unified
+.thumb
+
+vsbc.i16 q0, q1, q2
+vsbci.i16 q0, q1, q2
+
+.irp op, vsbc, vsbci
 .irp cond, eq, ne, gt, ge, lt, le
 it \cond
 \op\().i32 q0, q1, q2
 .endr
-.endm
+.endr
 
-.syntax unified
-.thumb
-vsbc.i16 q0, q1, q2
-vsbci.i16 q0, q1, q2
-cond vsbc
-cond vsbci
 it eq
 vsbceq.i32 q0, q1, q2
 vsbceq.i32 q0, q1, q2

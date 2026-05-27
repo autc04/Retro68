@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -148,7 +148,7 @@ package body Interfaces.C.Pointers is
       S : Pointer := Source;
 
    begin
-      if Source = null or Target = null then
+      if Source = null or else Target = null then
          raise Dereference_Error;
       end if;
 

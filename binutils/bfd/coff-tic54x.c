@@ -1,5 +1,5 @@
 /* BFD back-end for TMS320C54X coff binaries.
-   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
    Contributed by Timothy Wall (twall@cygnus.com)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -107,23 +107,6 @@ bfd_ticoff_get_section_load_page (asection *sect)
     page = FLAG_TO_PG (sect->lma);
 
   return page;
-}
-
-/* Set the architecture appropriately.  Allow unkown architectures
-   (e.g. binary).  */
-
-static bool
-tic54x_set_arch_mach (bfd *abfd,
-		      enum bfd_architecture arch,
-		      unsigned long machine)
-{
-  if (arch == bfd_arch_unknown)
-    arch = bfd_arch_tic54x;
-
-  else if (arch != bfd_arch_tic54x)
-    return false;
-
-  return bfd_default_set_arch_mach (abfd, arch, machine);
 }
 
 static bfd_reloc_status_type
@@ -335,17 +318,6 @@ ticoff_bfd_is_local_label_name (bfd *abfd ATTRIBUTE_UNUSED,
 
 #include "coffcode.h"
 
-static bool
-tic54x_set_section_contents (bfd *abfd,
-			     sec_ptr section,
-			     const void * location,
-			     file_ptr offset,
-			     bfd_size_type bytes_to_do)
-{
-  return coff_set_section_contents (abfd, section, location,
-				    offset, bytes_to_do);
-}
-
 static void
 tic54x_reloc_processing (arelent *relent,
 			 struct internal_reloc *reloc,
@@ -357,7 +329,7 @@ tic54x_reloc_processing (arelent *relent,
 
   relent->address = reloc->r_vaddr;
 
-  if (reloc->r_symndx != -1)
+  if (reloc->r_symndx != -1 && symbols != NULL)
     {
       if (reloc->r_symndx < 0 || reloc->r_symndx >= obj_conv_table_size (abfd))
 	{
@@ -365,7 +337,7 @@ tic54x_reloc_processing (arelent *relent,
 	    /* xgettext: c-format */
 	    (_("%pB: warning: illegal symbol index %ld in relocs"),
 	     abfd, reloc->r_symndx);
-	  relent->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
+	  relent->sym_ptr_ptr = &bfd_abs_section_ptr->symbol;
 	  ptr = NULL;
 	}
       else
@@ -377,7 +349,7 @@ tic54x_reloc_processing (arelent *relent,
     }
   else
     {
-      relent->sym_ptr_ptr = section->symbol_ptr_ptr;
+      relent->sym_ptr_ptr = &section->symbol;
       ptr = *(relent->sym_ptr_ptr);
     }
 
@@ -416,6 +388,7 @@ const bfd_target tic54x_coff0_vec =
     15,				/* ar_max_namelen */
     0,				/* match priority.  */
     TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+    TARGET_MERGE_SECTIONS,
     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
@@ -448,7 +421,7 @@ const bfd_target tic54x_coff0_vec =
     BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
     BFD_JUMP_TABLE_SYMBOLS (coff),
     BFD_JUMP_TABLE_RELOCS (coff),
-    BFD_JUMP_TABLE_WRITE (tic54x),
+    BFD_JUMP_TABLE_WRITE (coff),
     BFD_JUMP_TABLE_LINK (coff),
     BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
     NULL,
@@ -478,6 +451,7 @@ const bfd_target tic54x_coff0_beh_vec =
 #else
     false,			/* keep unused section symbols.  */
 #endif
+    TARGET_MERGE_SECTIONS,
     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
@@ -510,7 +484,7 @@ const bfd_target tic54x_coff0_beh_vec =
     BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
     BFD_JUMP_TABLE_SYMBOLS (coff),
     BFD_JUMP_TABLE_RELOCS (coff),
-    BFD_JUMP_TABLE_WRITE (tic54x),
+    BFD_JUMP_TABLE_WRITE (coff),
     BFD_JUMP_TABLE_LINK (coff),
     BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
@@ -541,6 +515,7 @@ const bfd_target tic54x_coff1_vec =
 #else
     false,			/* keep unused section symbols.  */
 #endif
+    TARGET_MERGE_SECTIONS,
     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
@@ -573,7 +548,7 @@ const bfd_target tic54x_coff1_vec =
     BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
     BFD_JUMP_TABLE_SYMBOLS (coff),
     BFD_JUMP_TABLE_RELOCS (coff),
-    BFD_JUMP_TABLE_WRITE (tic54x),
+    BFD_JUMP_TABLE_WRITE (coff),
     BFD_JUMP_TABLE_LINK (coff),
     BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
@@ -604,6 +579,7 @@ const bfd_target tic54x_coff1_beh_vec =
 #else
     false,			/* keep unused section symbols.  */
 #endif
+    TARGET_MERGE_SECTIONS,
     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
@@ -636,7 +612,7 @@ const bfd_target tic54x_coff1_beh_vec =
     BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
     BFD_JUMP_TABLE_SYMBOLS (coff),
     BFD_JUMP_TABLE_RELOCS (coff),
-    BFD_JUMP_TABLE_WRITE (tic54x),
+    BFD_JUMP_TABLE_WRITE (coff),
     BFD_JUMP_TABLE_LINK (coff),
     BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
@@ -667,6 +643,7 @@ const bfd_target tic54x_coff2_vec =
 #else
     false,			/* keep unused section symbols.  */
 #endif
+    TARGET_MERGE_SECTIONS,
     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
@@ -699,7 +676,7 @@ const bfd_target tic54x_coff2_vec =
     BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
     BFD_JUMP_TABLE_SYMBOLS (coff),
     BFD_JUMP_TABLE_RELOCS (coff),
-    BFD_JUMP_TABLE_WRITE (tic54x),
+    BFD_JUMP_TABLE_WRITE (coff),
     BFD_JUMP_TABLE_LINK (coff),
     BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
@@ -730,6 +707,7 @@ const bfd_target tic54x_coff2_beh_vec =
 #else
     false,			/* keep unused section symbols.  */
 #endif
+    TARGET_MERGE_SECTIONS,
     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
     tic54x_getl32, tic54x_getl_signed_32, tic54x_putl32,
     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */
@@ -762,7 +740,7 @@ const bfd_target tic54x_coff2_beh_vec =
     BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
     BFD_JUMP_TABLE_SYMBOLS (coff),
     BFD_JUMP_TABLE_RELOCS (coff),
-    BFD_JUMP_TABLE_WRITE (tic54x),
+    BFD_JUMP_TABLE_WRITE (coff),
     BFD_JUMP_TABLE_LINK (coff),
     BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 

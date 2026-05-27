@@ -3,7 +3,7 @@
 	.word 1
 
 	# Make sure that a numeric value can be mixed with alpha values.
-	.section sec2, "a2048x"
+	.section sec2, "a128x"
 	.word 2
 
 	# Make sure that specifying further arguments to .sections is still supported

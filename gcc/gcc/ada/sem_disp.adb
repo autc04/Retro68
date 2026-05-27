@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,7 +26,6 @@
 with Atree;          use Atree;
 with Debug;          use Debug;
 with Elists;         use Elists;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Exp_Disp;       use Exp_Disp;
@@ -52,7 +51,6 @@ with Sem_Eval;       use Sem_Eval;
 with Sem_Type;       use Sem_Type;
 with Sem_Util;       use Sem_Util;
 with Snames;         use Snames;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Tbuild;         use Tbuild;
@@ -80,7 +78,7 @@ package body Sem_Disp is
    --  parameter); otherwise returns empty.
 
    function Find_Hidden_Overridden_Primitive (S : Entity_Id) return Entity_Id;
-   --  [Ada 2012:AI-0125] Find an inherited hidden primitive of the dispatching
+   --  [AI05-0125] Find an inherited hidden primitive of the dispatching
    --  type of S that has the same name of S, a type-conformant profile, an
    --  original corresponding operation O that is a primitive of a visible
    --  ancestor of the dispatching type of S and O is visible at the point of
@@ -91,7 +89,8 @@ package body Sem_Disp is
    --  This routine does not search for non-hidden primitives since they are
    --  covered by the normal Ada 2005 rules. Its name was motivated by an
    --  intermediate version of AI05-0125 where this term was proposed to
-   --  name these entities in the RM.
+   --  name these entities in the RM. FWIW, note that AI05-0125 was
+   --  not approved; it was voted "No Action".
 
    function Is_Inherited_Public_Operation (Op : Entity_Id) return Boolean;
    --  Check whether a primitive operation is inherited from an operation
@@ -585,8 +584,7 @@ package body Sem_Disp is
       Actual                 : Node_Id;
       Formal                 : Entity_Id;
       Control                : Node_Id := Empty;
-      Func                   : Entity_Id;
-      Subp_Entity            : Entity_Id;
+      Subp_Entity            : constant Entity_Id := Entity (Name (N));
 
       Indeterm_Ctrl_Type : Entity_Id := Empty;
       --  Type of a controlling formal whose actual is a tag-indeterminate call
@@ -967,7 +965,6 @@ package body Sem_Disp is
       --  Find a controlling argument, if any
 
       if Present (Parameter_Associations (N)) then
-         Subp_Entity := Entity (Name (N));
 
          Actual := First_Actual (N);
          Formal := First_Formal (Subp_Entity);
@@ -1095,55 +1092,6 @@ package body Sem_Disp is
 
                Next_Actual (Actual);
                Next_Formal (Formal);
-            end loop;
-
-            Check_Dispatching_Context (N);
-
-         elsif Nkind (N) /= N_Function_Call then
-
-            --  The call is not dispatching, so check that there aren't any
-            --  tag-indeterminate abstract calls left among its actuals.
-
-            Actual := First_Actual (N);
-            while Present (Actual) loop
-               if Is_Tag_Indeterminate (Actual) then
-
-                  --  Function call case
-
-                  if Nkind (Original_Node (Actual)) = N_Function_Call then
-                     Func := Entity (Name (Original_Node (Actual)));
-
-                  --  If the actual is an attribute then it can't be abstract
-                  --  (the only current case of a tag-indeterminate attribute
-                  --  is the stream Input attribute).
-
-                  elsif Nkind (Original_Node (Actual)) = N_Attribute_Reference
-                  then
-                     Func := Empty;
-
-                  --  Ditto if it is an explicit dereference
-
-                  elsif Nkind (Original_Node (Actual)) = N_Explicit_Dereference
-                  then
-                     Func := Empty;
-
-                  --  Only other possibility is a qualified expression whose
-                  --  constituent expression is itself a call.
-
-                  else
-                     Func :=
-                       Entity (Name (Original_Node
-                         (Expression (Original_Node (Actual)))));
-                  end if;
-
-                  if Present (Func) and then Is_Abstract_Subprogram (Func) then
-                     Error_Msg_N
-                       ("call to abstract function must be dispatching",
-                        Actual);
-                  end if;
-               end if;
-
-               Next_Actual (Actual);
             end loop;
 
             Check_Dispatching_Context (N);
@@ -1710,9 +1658,8 @@ package body Sem_Disp is
 
       Ovr_Subp := Old_Subp;
 
-      --  [Ada 2012:AI-0125]: Search for inherited hidden primitive that may be
-      --  overridden by Subp. This only applies to source subprograms, and
-      --  their declaration must carry an explicit overriding indicator.
+      --  Search for inherited hidden primitive that may be
+      --  overridden by Subp. This only applies to source subprograms.
 
       if No (Ovr_Subp)
         and then Ada_Version >= Ada_2012
@@ -1721,16 +1668,6 @@ package body Sem_Disp is
           Nkind (Unit_Declaration_Node (Subp)) = N_Subprogram_Declaration
       then
          Ovr_Subp := Find_Hidden_Overridden_Primitive (Subp);
-
-         --  Warn if the proper overriding indicator has not been supplied.
-
-         if Present (Ovr_Subp)
-           and then
-             not Must_Override (Specification (Unit_Declaration_Node (Subp)))
-           and then not In_Instance
-         then
-            Error_Msg_NE ("missing overriding indicator for&??", Subp, Subp);
-         end if;
       end if;
 
       --  Now it should be a correct primitive operation, put it in the list
@@ -2427,6 +2364,8 @@ package body Sem_Disp is
       Formal    : Entity_Id;
       Ctrl_Type : Entity_Id;
 
+   --  Start of processing for Find_Dispatching_Type
+
    begin
       if Ekind (Subp) in E_Function | E_Procedure
         and then Present (DTC_Entity (Subp))
@@ -3094,6 +3033,52 @@ package body Sem_Disp is
       then
          return Is_Tag_Indeterminate (Prefix (Orig_Node));
 
+      --  An if-expression is tag-indeterminate if all of the dependent
+      --  expressions are tag-indeterminate (RM 4.5.7 (17/3)).
+
+      elsif Nkind (Orig_Node) = N_If_Expression then
+         declare
+            Cond : constant Node_Id := First (Expressions (Orig_Node));
+            Expr : Node_Id := Next (Cond);
+
+         begin
+            if not Is_Tag_Indeterminate (Original_Node (Expr)) then
+               return False;
+            end if;
+
+            Next (Expr);
+
+            if Present (Expr)
+              and then not Is_Tag_Indeterminate (Original_Node (Expr))
+            then
+               return False;
+            end if;
+
+            return True;
+         end;
+
+      --  A case-expression is tag-indeterminate if all of the dependent
+      --  expressions are tag-indeterminate (RM 4.5.7 (17/3)).
+
+      elsif Nkind (Orig_Node) = N_Case_Expression then
+         declare
+            Alt  : Node_Id := First (Alternatives (Orig_Node));
+            Expr : Node_Id;
+
+         begin
+            while Present (Alt) loop
+               Expr := Expression (Alt);
+
+               if not Is_Tag_Indeterminate (Original_Node (Expr)) then
+                  return False;
+               end if;
+
+               Next (Alt);
+            end loop;
+
+            return True;
+         end;
+
       else
          return False;
       end if;
@@ -3254,6 +3239,7 @@ package body Sem_Disp is
       elsif Nkind (Actual) = N_Explicit_Dereference
         and then Nkind (Original_Node (Prefix (Actual))) = N_Function_Call
       then
+         pragma Assert (Is_Expanded_Dispatching_Call (Actual));
          return;
 
       --  When expansion is suppressed, an unexpanded call to 'Input can occur,
@@ -3336,6 +3322,7 @@ package body Sem_Disp is
                    Subtype_Mark =>
                      New_Occurrence_Of (Etype (Control), Sloc (Call_Node)),
                    Expression => Relocate_Node (Call_Node)));
+               Flag_Interface_Pointer_Displacement (Call_Node);
                Set_Etype (Call_Node, Etype (Control));
                Set_Analyzed (Call_Node);
 

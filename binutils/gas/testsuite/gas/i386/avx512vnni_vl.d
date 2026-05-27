@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 AVX512VNNI/VL insns
 #source: avx512vnni_vl.s
@@ -8,7 +7,7 @@
 
 Disassembly of section \.text:
 
-00000000 <_start>:
+00000000 <vnni>:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 5d 0b 52 d2[ 	]*vpdpwssd %xmm2,%xmm4,%xmm2\{%k3\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 5d 8b 52 d2[ 	]*vpdpwssd %xmm2,%xmm4,%xmm2\{%k3\}\{z\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 5d 09 52 94 f4 c0 1d fe ff[ 	]*vpdpwssd -0x1e240\(%esp,%esi,8\),%xmm4,%xmm2\{%k1\}

@@ -40,8 +40,8 @@ movgr2frh.w  $f0,$r5
 movfr2gr.s  $r4,$f1
 movfr2gr.d  $r4,$f1
 movfrh2gr.s  $r4,$f1
-movgr2fcsr  $r4,$r5
-movfcsr2gr  $r4,$r5
+movgr2fcsr  $fcsr0,$r5
+movfcsr2gr  $r4,$fcsr0
 movfr2cf  $fcc0,$f1
 movcf2fr  $f0,$fcc5
 movgr2cf  $fcc0,$r5
@@ -74,3 +74,7 @@ ffint.d.w  $f0,$f1
 ffint.d.l  $f0,$f1
 frint.s  $f0,$f1
 frint.d  $f0,$f1
+frecipe.s  $f0,$f1
+frecipe.d  $f0,$f1
+frsqrte.s  $f0,$f1
+frsqrte.d  $f0,$f1

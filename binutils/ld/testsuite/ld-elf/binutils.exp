@@ -1,5 +1,5 @@
 # Expect script for binutils tests
-# Copyright (C) 2006-2022 Free Software Foundation, Inc.
+# Copyright (C) 2006-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -25,7 +25,6 @@
 
 if { !([istarget *-*-linux*]
        || [istarget arm*-*-uclinuxfdpiceabi]
-       || [istarget *-*-nacl*]
        || [istarget *-*-gnu*]) || [istarget *ecoff] } then {
     return
 }
@@ -93,9 +92,7 @@ proc binutils_test { prog_name ld_options test {test_name ""} {readelf_options "
 			      || [istarget "hppa*-*-openbsd*"] \
 			      || [istarget "metag-*-*"] \
 			      || [istarget "mips*-*-*"] \
-			      || [istarget "nios2*-*-*"] \
 			      || [istarget "or1k-*-*"] \
-			      || [istarget "riscv*-*-*"] \
 			      || [istarget "sh*-*-*"] \
 			      || [istarget "x86_64-*-rdos*"])]
 	# Check if GNU_RELRO segment is generated.

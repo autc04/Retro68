@@ -1,15 +1,15 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: selected FPU does not support instruction -- `vcadd.f16 q0,q1,q2,#90'
-[^:]*:11: Error: bad type in SIMD instruction -- `vcadd.64 q0,q1,q2,#90'
-[^:]*:12: Error: immediate out of range -- `vcadd.i32 q0,q1,q2,#180'
-[^:]*:13: Error: immediate out of range -- `vcadd.i32 q0,q1,q2,#0'
-[^:]*:14: Warning: 32-bit element size and same first and third operand makes instruction UNPREDICTABLE
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:3: Error: selected FPU does not support instruction -- `vcadd.f16 q0,q1,q2,#90'
+[^:]*:4: Error: bad type in SIMD instruction -- `vcadd.64 q0,q1,q2,#90'
+[^:]*:5: Error: immediate out of range -- `vcadd.i32 q0,q1,q2,#180'
+[^:]*:6: Error: immediate out of range -- `vcadd.i32 q0,q1,q2,#0'
+[^:]*:7: Warning: 32-bit element size and same first and third operand makes instruction UNPREDICTABLE
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:17: Error: syntax error -- `vcaddeq.i16 q0,q1,q2,#90'
 [^:]*:18: Error: syntax error -- `vcaddeq.i16 q0,q1,q2,#90'
 [^:]*:20: Error: syntax error -- `vcaddeq.i16 q0,q1,q2,#90'

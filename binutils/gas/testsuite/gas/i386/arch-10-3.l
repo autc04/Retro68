@@ -22,6 +22,7 @@
 .*:60: Error: .*
 .*:62: Error: .*
 .*:64: Error: .*
+.*:66: Error: .*
 GAS LISTING .*
 
 
@@ -96,3 +97,5 @@ GAS LISTING .*
 [ 	]*62[ 	]+blsr %ecx,%ebx
 [ 	]*63[ 	]+\# TBM
 [ 	]*64[ 	]+blcfill %ecx,%ebx
+[ 	]*65[ 	]+\# MONITOR
+[ 	]*66[ 	]+monitor

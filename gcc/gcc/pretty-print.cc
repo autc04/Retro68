@@ -1,5 +1,5 @@
 /* Various declarations for language-independent pretty-print subroutines.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -27,20 +27,28 @@ along with GCC; see the file COPYING3.  If not see
 #include "pretty-print-format-impl.h"
 #include "pretty-print-markup.h"
 #include "pretty-print-urlifier.h"
-#include "diagnostic-color.h"
-#include "diagnostic-event-id.h"
+#include "diagnostics/color.h"
+#include "diagnostics/event-id.h"
+#include "diagnostics/dumping.h"
 #include "diagnostic-highlight-colors.h"
-#include "make-unique.h"
+#include "auto-obstack.h"
 #include "selftest.h"
 
 #if HAVE_ICONV
 #include <iconv.h>
 #endif
 
+static int
+decode_utf8_char (const unsigned char *, size_t len, unsigned int *);
+
 #ifdef __MINGW32__
 
 /* Replacement for fputs() that handles ANSI escape codes on Windows NT.
    Contributed by: Liu Hao (lh_mouse at 126 dot com)
+
+   Extended by: Peter Damianov
+   Converts UTF-8 to UTF-16 if outputting to a console, so that emojis and
+   various other unicode characters don't get mojibak'd.
 
    XXX: This file is compiled into libcommon.a that will be self-contained.
 	It looks like that these functions can be put nowhere else.  */
@@ -49,11 +57,132 @@ along with GCC; see the file COPYING3.  If not see
 #define WIN32_LEAN_AND_MEAN 1
 #include <windows.h>
 
+/* Convert UTF-8 string to UTF-16.
+   Returns true if conversion was performed, false if string is pure ASCII.
+
+   If the string contains only ASCII characters, returns false
+   without allocating any memory.  Otherwise, a buffer that the caller
+   must free is allocated and the string is converted into it.  */
+static bool
+mingw_utf8_str_to_utf16_str (const char *utf8_str, size_t utf8_len, wchar_t **utf16_str,
+	       size_t *utf16_len)
+{
+  if (utf8_len == 0)
+    {
+      *utf16_str = NULL;
+      *utf16_len = 0;
+      return false;  /* No conversion needed for empty string.  */
+    }
+
+  /* First pass: scan for non-ASCII and count UTF-16 code units needed.  */
+  size_t utf16_count = 0;
+  const unsigned char *p = (const unsigned char *) utf8_str;
+  const unsigned char *end = p + utf8_len;
+  bool found_non_ascii = false;
+
+  while (p < end)
+    {
+      if (*p <= 127)
+	{
+	  /* ASCII character - count as 1 UTF-16 unit and advance.  */
+	  utf16_count++;
+	  p++;
+	}
+      else
+	{
+	  /* Non-ASCII character - decode UTF-8 sequence.  */
+	  found_non_ascii = true;
+	  unsigned int codepoint;
+	  int utf8_char_len = decode_utf8_char (p, end - p, &codepoint);
+
+	  if (utf8_char_len == 0)
+	    return false;  /* Invalid UTF-8.  */
+
+	  if (codepoint <= 0xFFFF)
+	    utf16_count += 1;  /* Single UTF-16 unit.  */
+	  else
+	    utf16_count += 2;  /* Surrogate pair.  */
+
+	  p += utf8_char_len;
+	}
+    }
+
+  /* If string is pure ASCII, no conversion needed.  */
+  if (!found_non_ascii)
+    return false;
+
+  *utf16_str = (wchar_t *) xmalloc (utf16_count * sizeof (wchar_t));
+  *utf16_len = utf16_count;
+
+  /* Second pass: convert UTF-8 to UTF-16.  */
+  wchar_t *out = *utf16_str;
+  p = (const unsigned char *) utf8_str;
+
+  while (p < end)
+    {
+      if (*p <= 127)
+	{
+	  /* ASCII character.  */
+	  *out++ = (wchar_t) *p++;
+	}
+      else
+	{
+	  /* Non-ASCII character - decode and convert.  */
+	  unsigned int codepoint;
+	  int utf8_char_len = decode_utf8_char (p, end - p, &codepoint);
+
+	  if (codepoint <= 0xFFFF)
+	    {
+	      *out++ = (wchar_t) codepoint;
+	    }
+	  else
+	    {
+	      /* Convert to UTF-16 surrogate pair.  */
+	      codepoint -= 0x10000;
+	      *out++ = (wchar_t) (0xD800 + (codepoint >> 10));
+	      *out++ = (wchar_t) (0xDC00 + (codepoint & 0x3FF));
+	    }
+
+	  p += utf8_char_len;
+	}
+    }
+
+  return true;
+}
+
+/* Check if the handle is a console.  */
+static bool
+is_console_handle (HANDLE h)
+{
+	DWORD mode;
+	return GetConsoleMode (h, &mode);
+}
+
 /* Write all bytes in [s,s+n) into the specified stream.
-   Errors are ignored.  */
+	 If outputting to a Windows console, convert UTF-8 to UTF-16 if needed.
+	 Errors are ignored.  */
 static void
 write_all (HANDLE h, const char *s, size_t n)
 {
+	/* If writing to console, try to convert from UTF-8 to UTF-16 and use
+	   WriteConsoleW.  utf8_to_utf16 will return false if the string is pure
+	   ASCII, in which case we fall back to the regular WriteFile path.  */
+	if (is_console_handle (h))
+	  {
+	    wchar_t *utf16_str;
+	    size_t utf16_len;
+
+	    if (mingw_utf8_str_to_utf16_str (s, n, &utf16_str, &utf16_len))
+	{
+	  DWORD written;
+	  WriteConsoleW (h, utf16_str, utf16_len, &written, NULL);
+	  free (utf16_str);
+	  return;
+	}
+      /* If UTF-8 conversion returned false, fall back to WriteFile.  */
+    }
+
+  /* WriteFile for regular files or when UTF-16 conversion is not needed.  */
   size_t rem = n;
   DWORD step;
 
@@ -711,11 +840,9 @@ mingw_ansi_fputs (const char *str, FILE *fp)
 
 #endif /* __MINGW32__ */
 
-static int
-decode_utf8_char (const unsigned char *, size_t len, unsigned int *);
 static void pp_quoted_string (pretty_printer *, const char *, size_t = -1);
 
-static void
+extern void
 default_token_printer (pretty_printer *pp,
 		       const pp_token_list &tokens);
 
@@ -1328,6 +1455,15 @@ pp_token_list::push_back_text (label_text &&text)
 }
 
 void
+pp_token_list::push_back_byte (char ch)
+{
+  char buf[2];
+  buf[0] = ch;
+  buf[1] = '\0';
+  push_back_text (label_text::take (xstrdup (buf)));
+}
+
+void
 pp_token_list::push_back (std::unique_ptr<pp_token> tok)
 {
   if (!m_first)
@@ -1591,9 +1727,8 @@ pp_formatted_chunks::dump (FILE *out, int indent) const
 {
   for (size_t idx = 0; m_args[idx]; ++idx)
     {
-      fprintf (out, "%*s%i: ",
-	       indent, "",
-	       (int)idx);
+      diagnostics::dumping::emit_indent (out, indent);
+      fprintf (out, "%i: ", (int)idx);
       m_args[idx]->dump (out);
     }
 }
@@ -2035,6 +2170,16 @@ format_phase_2 (pretty_printer *pp,
 	    pp_string (pp, va_arg (*text.m_args_ptr, const char *));
 	  break;
 
+	case 'B':
+	  {
+	    string_slice s = *va_arg (*text.m_args_ptr, string_slice *);
+	    if (quote)
+	      pp_quoted_string (pp, s.begin (), s.size ());
+	    else
+	      pp_string_n (pp, s.begin (), s.size ());
+	    break;
+	  }
+
 	case 'p':
 	  pp_pointer (pp, va_arg (*text.m_args_ptr, void *));
 	  break;
@@ -2178,38 +2323,6 @@ format_phase_2 (pretty_printer *pp,
       gcc_assert (!formatters[argno]);
 }
 
-struct auto_obstack
-{
-  auto_obstack ()
-  {
-    obstack_init (&m_obstack);
-  }
-
-  ~auto_obstack ()
-  {
-    obstack_free (&m_obstack, NULL);
-  }
-
-  operator obstack & () { return m_obstack; }
-
-  void grow (const void *src, size_t length)
-  {
-    obstack_grow (&m_obstack, src, length);
-  }
-
-  void *object_base () const
-  {
-    return m_obstack.object_base;
-  }
-
-  size_t object_size () const
-  {
-    return obstack_object_size (&m_obstack);
-  }
-
-  obstack m_obstack;
-};
-
 /* Phase 3 of formatting a message (phases 1 and 2 done by pp_format).
 
    Pop a pp_formatted_chunks from chunk_obstack, collecting all the tokens from
@@ -2262,7 +2375,7 @@ pp_output_formatted_text (pretty_printer *pp,
 
 /* Default implementation of token printing.  */
 
-static void
+void
 default_token_printer (pretty_printer *pp,
 		       const pp_token_list &tokens)
 {
@@ -2462,7 +2575,7 @@ pretty_printer::pretty_printer (int maximum_length)
     m_indent_skip (0),
     m_wrapping (),
     m_format_decoder (nullptr),
-    m_format_postprocessor (NULL),
+    m_format_postprocessor (nullptr),
     m_token_printer (nullptr),
     m_emitted_prefix (false),
     m_need_newline (false),
@@ -2488,7 +2601,7 @@ pretty_printer::pretty_printer (const pretty_printer &other)
   m_indent_skip (other.m_indent_skip),
   m_wrapping (other.m_wrapping),
   m_format_decoder (other.m_format_decoder),
-  m_format_postprocessor (NULL),
+  m_format_postprocessor (nullptr),
   m_token_printer (other.m_token_printer),
   m_emitted_prefix (other.m_emitted_prefix),
   m_need_newline (other.m_need_newline),
@@ -2509,8 +2622,6 @@ pretty_printer::pretty_printer (const pretty_printer &other)
 
 pretty_printer::~pretty_printer ()
 {
-  if (m_format_postprocessor)
-    delete m_format_postprocessor;
   m_buffer->~output_buffer ();
   XDELETE (m_buffer);
   free (m_prefix);
@@ -2521,7 +2632,7 @@ pretty_printer::~pretty_printer ()
 std::unique_ptr<pretty_printer>
 pretty_printer::clone () const
 {
-  return ::make_unique<pretty_printer> (*this);
+  return std::make_unique<pretty_printer> (*this);
 }
 
 /* Append a string delimited by START and END to the output area of
@@ -2944,7 +3055,7 @@ identifier_to_locale (const char *ident)
 	      /* Repeat the whole conversion process as needed with
 		 larger buffers so non-reversible transformations can
 		 always be detected.  */
-	      ICONV_CONST char *inbuf = CONST_CAST (char *, ident);
+	      ICONV_CONST char *inbuf = const_cast<char *> (ident);
 	      char *outbuf;
 	      size_t inbytesleft = idlen;
 	      size_t outbytesleft = ret_alloc - 1;
@@ -3115,34 +3226,39 @@ pretty_printer::end_url ()
     pp_string (this, get_end_url_string (this));
 }
 
-/* Dump state of this pretty_printer to OUT, for debugging.  */
-
-void
-pretty_printer::dump (FILE *out, int indent) const
+static const char *
+get_url_format_as_string (diagnostic_url_format url_format)
 {
-  fprintf (out, "%*sm_show_color: %s\n",
-	   indent, "",
-	   m_show_color ? "true" : "false");
-
-  fprintf (out, "%*sm_url_format: ", indent, "");
-  switch (m_url_format)
+  switch (url_format)
     {
     case URL_FORMAT_NONE:
-      fprintf (out, "none");
-      break;
+      return "none";
     case URL_FORMAT_ST:
-      fprintf (out, "st");
-      break;
+      return "st";
     case URL_FORMAT_BEL:
-      fprintf (out, "bel");
-      break;
+      return "bel";
     default:
       gcc_unreachable ();
     }
-  fprintf (out, "\n");
+}
 
-  fprintf (out, "%*sm_buffer:\n", indent, "");
-  m_buffer->dump (out, indent + 2);
+/* Dump state of this pretty_printer to OUT, for debugging.  */
+
+void
+pretty_printer::dump (FILE *outfile, int indent) const
+{
+  namespace dumping = diagnostics::dumping;
+
+  DIAGNOSTICS_DUMPING_EMIT_BOOL_FIELD (m_show_color);
+  dumping::emit_string_field
+    (outfile, indent,
+     "m_url_format",
+     get_url_format_as_string (m_url_format));
+  dumping::emit_heading (outfile, indent, "m_buffer");
+  if (m_buffer)
+    m_buffer->dump (outfile, indent + 2);
+  else
+    dumping::emit_none (outfile, indent + 2);
 }
 
 /* class pp_markup::context.  */
@@ -3189,6 +3305,29 @@ pp_markup::context::end_highlight_color ()
 
   push_back_any_text ();
   m_formatted_token_list->push_back<pp_token_end_color> ();
+}
+
+void
+pp_markup::context::begin_url (const char *url)
+{
+  push_back_any_text ();
+  m_formatted_token_list->push_back<pp_token_begin_url>
+    (label_text::take (xstrdup (url)));
+}
+
+void
+pp_markup::context::end_url ()
+{
+  push_back_any_text ();
+  m_formatted_token_list->push_back<pp_token_end_url> ();
+}
+
+void
+pp_markup::context::add_event_id (diagnostic_event_id_t event_id)
+{
+  gcc_assert (event_id.known_p ());
+  push_back_any_text ();
+  m_formatted_token_list->push_back<pp_token_event_id> (event_id);
 }
 
 void
@@ -3405,8 +3544,8 @@ test_pp_format ()
 			    "foo", 0x12345678);
   /* Verify "%@".  */
   {
-    diagnostic_event_id_t first (2);
-    diagnostic_event_id_t second (7);
+    diagnostics::paths::event_id_t first (2);
+    diagnostics::paths::event_id_t second (7);
 
     ASSERT_PP_FORMAT_2 ("first `free' at (3); second `free' at (8)",
 			"first %<free%> at %@; second %<free%> at %@",
@@ -3542,7 +3681,7 @@ test_custom_tokens_1 ()
 
     void add_to_phase_2 (pp_markup::context &ctxt) final override
     {
-      auto val_ptr = make_unique<value> (*this);
+      auto val_ptr = std::make_unique<value> (*this);
       ctxt.m_formatted_token_list->push_back<pp_token_custom_data>
 	(std::move (val_ptr));
     }
@@ -3622,7 +3761,7 @@ test_custom_tokens_2 ()
 
     void add_to_phase_2 (pp_markup::context &ctxt) final override
     {
-      auto val_ptr = make_unique<value> (*this);
+      auto val_ptr = std::make_unique<value> (*this);
       ctxt.m_formatted_token_list->push_back<pp_token_custom_data>
 	(std::move (val_ptr));
     }

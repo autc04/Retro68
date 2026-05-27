@@ -1,6 +1,6 @@
 // Raw memory manipulators -*- C++ -*-
 
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -458,7 +458,8 @@ namespace ranges
   struct __uninitialized_fill_fn
   {
     template<__detail::__nothrow_forward_iterator _Iter,
-	     __detail::__nothrow_sentinel<_Iter> _Sent, typename _Tp>
+	     __detail::__nothrow_sentinel<_Iter> _Sent,
+	     typename _Tp _GLIBCXX26_DEF_VAL_T(iter_value_t<_Iter>)>
       requires constructible_from<iter_value_t<_Iter>, const _Tp&>
       _GLIBCXX26_CONSTEXPR
       _Iter
@@ -478,7 +479,8 @@ namespace ranges
 	  }
       }
 
-    template<__detail::__nothrow_forward_range _Range, typename _Tp>
+    template<__detail::__nothrow_forward_range _Range,
+	     typename _Tp _GLIBCXX26_DEF_VAL_T(range_value_t<_Range>)>
       requires constructible_from<range_value_t<_Range>, const _Tp&>
       _GLIBCXX26_CONSTEXPR
       borrowed_iterator_t<_Range>
@@ -492,7 +494,8 @@ namespace ranges
 
   struct __uninitialized_fill_n_fn
   {
-    template<__detail::__nothrow_forward_iterator _Iter, typename _Tp>
+    template<__detail::__nothrow_forward_iterator _Iter,
+	     typename _Tp _GLIBCXX26_DEF_VAL_T(iter_value_t<_Iter>)>
       requires constructible_from<iter_value_t<_Iter>, const _Tp&>
       _GLIBCXX26_CONSTEXPR
       _Iter
@@ -556,13 +559,12 @@ namespace ranges
     __destroy_fn::operator()(_Iter __first, _Sent __last) const noexcept
     {
       if constexpr (is_trivially_destructible_v<iter_value_t<_Iter>>)
-	return ranges::next(std::move(__first), __last);
-      else
-	{
-	  for (; __first != __last; ++__first)
-	    ranges::destroy_at(std::__addressof(*__first));
-	  return __first;
-	}
+	if (!is_constant_evaluated())
+	  return ranges::next(std::move(__first), __last);
+
+      for (; __first != __last; ++__first)
+	ranges::destroy_at(std::__addressof(*__first));
+      return __first;
     }
 
   template<__detail::__nothrow_input_range _Range>
@@ -581,13 +583,12 @@ namespace ranges
       operator()(_Iter __first, iter_difference_t<_Iter> __n) const noexcept
       {
 	if constexpr (is_trivially_destructible_v<iter_value_t<_Iter>>)
-	  return ranges::next(std::move(__first), __n);
-	else
-	  {
-	    for (; __n > 0; ++__first, (void)--__n)
-	      ranges::destroy_at(std::__addressof(*__first));
-	    return __first;
-	  }
+	  if (!is_constant_evaluated())
+	    return ranges::next(std::move(__first), __n);
+
+	for (; __n > 0; ++__first, (void)--__n)
+	  ranges::destroy_at(std::__addressof(*__first));
+	return __first;
       }
   };
 

@@ -1,6 +1,5 @@
 # Check ENQCMD[S] 64-bit instructions in x32 mode
 
-	.allow_index_reg
 	.text
 _start:
 	enqcmd (%rcx),%rax

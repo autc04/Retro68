@@ -1,20 +1,20 @@
-.macro cond, op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().s8 q0, q1
-.endr
-.endm
-
 .syntax unified
 .thumb
+
 vmaxa.u8 q0, q1
 vmaxa.s64 q0, q1
 vmaxa.f16 q0, q1
 vmina.u8 q0, q1
 vmina.s64 q0, q1
 vmina.f16 q0, q1
-cond vmaxa
-cond vmina
+
+.irp op, vmaxa, vmina
+.irp cond, eq, ne, gt, ge, lt, le
+it \cond
+\op\().s8 q0, q1
+.endr
+.endr
+
 it eq
 vmaxaeq.s8 q0, q1
 vmaxaeq.s8 q0, q1

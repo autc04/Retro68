@@ -1,6 +1,7 @@
 #source: tls-relax-ld-le-tiny.s
 #as: -mabi=ilp32
 #ld: -m [aarch64_choose_ilp32_emul] -T relocs-ilp32.ld -e0
+#notarget: *-*-nto*
 #objdump: -dr
 #...
  +10000:	910003fd 	mov	x29, sp

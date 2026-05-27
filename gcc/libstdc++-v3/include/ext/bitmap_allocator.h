@@ -1,6 +1,6 @@
 // Bitmap Allocator. -*- C++ -*-
 
-// Copyright (C) 2004-2025 Free Software Foundation, Inc.
+// Copyright (C) 2004-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -32,7 +32,7 @@
 #include <bits/requires_hosted.h> // GNU extensions are currently omitted
 
 #include <utility> // For std::pair.
-#include <bits/functexcept.h> // For __throw_bad_alloc().
+#include <bits/new_throw.h> // For __throw_bad_alloc().
 #include <bits/stl_function.h> // For greater_equal, and less_equal.
 #include <new> // For operator new.
 #include <debug/debug.h> // _GLIBCXX_DEBUG_ASSERT

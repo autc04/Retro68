@@ -1,6 +1,6 @@
 // Support for concurrent programing -*- C++ -*-
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,7 +35,7 @@
 
 #include <exception>
 #include <bits/gthr.h>
-#include <bits/functexcept.h>
+#include <bits/exception_defines.h>
 #include <bits/cpp_type_traits.h>
 #include <ext/type_traits.h>
 
@@ -290,22 +290,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
     }
 
-    void wait(__mutex *mutex)
+    void wait(__mutex *__mx)
     {
 #if __GTHREADS
       {
-	  if (__gthread_cond_wait(&_M_cond, mutex->gthread_mutex()) != 0)
+	  if (__gthread_cond_wait(&_M_cond, __mx->gthread_mutex()) != 0)
 	    __throw_concurrence_wait_error();
       }
 #endif
     }
 
-    void wait_recursive(__recursive_mutex *mutex)
+    void wait_recursive(__recursive_mutex *__mx)
     {
 #if __GTHREADS
       {
 	  if (__gthread_cond_wait_recursive(&_M_cond,
-					    mutex->gthread_recursive_mutex())
+					    __mx->gthread_recursive_mutex())
 	      != 0)
 	    __throw_concurrence_wait_error();
       }

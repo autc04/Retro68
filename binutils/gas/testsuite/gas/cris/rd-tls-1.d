@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: --em=criself
+#as: --emulation=criself
 #name: TLS non-PIC relocs.
 
 .*:     file format .*-cris

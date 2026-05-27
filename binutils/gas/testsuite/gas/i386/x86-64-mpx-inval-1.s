@@ -1,5 +1,4 @@
 # MPX instructions
-	.allow_index_reg
 	.text
 	bnd add %rax, %rbx  		# Bad
 	bnd stosw (%edi)    		# Bad

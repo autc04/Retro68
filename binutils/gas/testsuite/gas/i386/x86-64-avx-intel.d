@@ -2855,9 +2855,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e1 fb 2c 09       	vcvttsd2si rcx,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c4 e1 db 2a f1       	vcvtsi2sd xmm6,xmm4,rcx
 [ 	]*[a-f0-9]+:	c4 e1 db 2a 31       	vcvtsi2sd xmm6,xmm4,QWORD PTR \[rcx\]
-[ 	]*[a-f0-9]+:	c4 e1 db 2a 31       	vcvtsi2sd xmm6,xmm4,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c4 e1 da 2a f1       	vcvtsi2ss xmm6,xmm4,rcx
-[ 	]*[a-f0-9]+:	c4 e1 da 2a 31       	vcvtsi2ss xmm6,xmm4,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c4 e1 da 2a 31       	vcvtsi2ss xmm6,xmm4,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c4 e3 d9 22 f1 07    	vpinsrq xmm6,xmm4,rcx,0x7
 [ 	]*[a-f0-9]+:	c4 e3 d9 22 31 07    	vpinsrq xmm6,xmm4,QWORD PTR \[rcx\],0x7

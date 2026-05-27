@@ -1,4 +1,3 @@
-#as:
 #objdump: -drw
 #name: x86_64 AVX512_FP16 DAD insns
 #source: x86-64-avx512_fp16-bad.s

@@ -11,10 +11,12 @@ check:
 	cmpq	func@GOTPCREL(%rip), %rax
 	jne	.L3
 #ifdef __LP64__
-	cmpq	%rax, func_p(%rip)
+	movq	func_p@GOTPCREL(%rip), %rdx
+	cmpq	%rax, (%rdx)
 #else
 	rex
-	cmpl	%eax, func_p(%rip)
+	movl	func_p@GOTPCREL(%rip), %edx
+	cmpl	%eax, (%edx)
 #endif
 	jne	.L3
 	call	*func@GOTPCREL(%rip)

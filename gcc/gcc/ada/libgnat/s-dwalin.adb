@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2009-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2009-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1912,11 +1912,12 @@ package body System.Dwarf_Lines is
    ------------------------
 
    procedure Symbolic_Traceback
-     (Cin          :        Dwarf_Context;
-      Traceback    :        STE.Tracebacks_Array;
-      Suppress_Hex :        Boolean;
-      Symbol_Found :    out Boolean;
-      Res          : in out System.Bounded_Strings.Bounded_String)
+     (Cin              : Dwarf_Context;
+      Traceback        : STE.Tracebacks_Array;
+      Suppress_Hex     : Boolean;
+      Display_Mode     : Display_Mode_Type;
+      Symbol_Found     : out Boolean;
+      Res              : in out System.Bounded_Strings.Bounded_String)
    is
       use Ada.Characters.Handling;
       C : Dwarf_Context := Cin;
@@ -1953,7 +1954,7 @@ package body System.Dwarf_Lines is
 
          --  If we're not requested to suppress hex addresses, emit it now.
 
-         if not Suppress_Hex then
+         if not Suppress_Hex and then Display_Mode = Full then
             Append_Address (Res, Addr_In_Traceback);
             Append (Res, ' ');
          end if;
@@ -2006,10 +2007,12 @@ package body System.Dwarf_Lines is
                   Append (Res, "???");
                end if;
 
-               Append (Res, " at ");
-               Append (Res, String (File_Name (1 .. Last)));
-               Append (Res, ':');
-               Append (Res, Line_Image (2 .. Line_Image'Last));
+               if Display_Mode = Full then
+                  Append (Res, " at ");
+                  Append (Res, String (File_Name (1 .. Last)));
+                  Append (Res, ':');
+                  Append (Res, Line_Image (2 .. Line_Image'Last));
+               end if;
             end;
          else
             if Subprg_Name.Len > 0 then
@@ -2020,7 +2023,9 @@ package body System.Dwarf_Lines is
                Append (Res, "???");
             end if;
 
-            Append (Res, " at ???");
+            if Display_Mode = Full then
+               Append (Res, " at ???");
+            end if;
          end if;
 
          Append (Res, ASCII.LF);

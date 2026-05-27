@@ -4,7 +4,7 @@
 
 Raw dump of debug contents of section \.z?debug_line:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Length:                      .*
   DWARF Version:               4
   Prologue Length:             .*

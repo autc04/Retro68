@@ -1,6 +1,6 @@
 #readelf: -wl
 #source: binop-segref.s
-#as: --em=criself --gdwarf2
+#as: --emulation=criself --gdwarf2
 
 # Simple instruction sequence with content-emitting pseudo-ops.
 #...

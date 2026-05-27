@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 ENQCMD[S] insns
 #source: enqcmd.s

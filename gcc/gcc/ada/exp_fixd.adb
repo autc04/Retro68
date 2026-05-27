@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,7 +26,6 @@
 with Atree;          use Atree;
 with Checks;         use Checks;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Exp_Util;       use Exp_Util;
@@ -39,7 +38,6 @@ with Sem;            use Sem;
 with Sem_Eval;       use Sem_Eval;
 with Sem_Res;        use Sem_Res;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Stand;          use Stand;
 with Tbuild;         use Tbuild;
@@ -570,12 +568,16 @@ package body Exp_Fixd is
       --  Case where we can compute the denominator in Max_Integer_Size bits
 
       if QR_Id = RE_Null then
+         Mutate_Ekind (Qnn, E_Constant);
+         Mutate_Ekind (Rnn, E_Constant);
 
          --  Create temporaries for numerator and denominator and set Etypes,
          --  so that New_Occurrence_Of picks them up for Build_xxx calls.
 
          Nnn := Make_Temporary (Loc, 'N');
+         Mutate_Ekind (Nnn, E_Constant);
          Dnn := Make_Temporary (Loc, 'D');
+         Mutate_Ekind (Dnn, E_Constant);
 
          Set_Etype (Nnn, QR_Typ);
          Set_Etype (Dnn, QR_Typ);
@@ -591,7 +593,8 @@ package body Exp_Fixd is
              Defining_Identifier => Dnn,
              Object_Definition   => New_Occurrence_Of (QR_Typ, Loc),
              Constant_Present    => True,
-             Expression          => Build_Multiply (N, Y, Z)));
+             Expression          =>
+               Build_Conversion (N, QR_Typ, Build_Multiply (N, Y, Z))));
 
          Quo :=
            Build_Divide (N,
@@ -621,6 +624,8 @@ package body Exp_Fixd is
       --  to call the runtime routine to compute the quotient and remainder.
 
       else
+         Mutate_Ekind (Qnn, E_Variable);
+         Mutate_Ekind (Rnn, E_Variable);
          Rnd := Boolean_Literals (Rounded_Result_Set (N));
 
          Code := New_List (
@@ -650,8 +655,8 @@ package body Exp_Fixd is
 
    function Build_Multiply (N : Node_Id; L, R : Node_Id) return Node_Id is
       Loc         : constant Source_Ptr := Sloc (N);
-      Left_Type   : constant Entity_Id  := Etype (L);
-      Right_Type  : constant Entity_Id  := Etype (R);
+      Left_Type   : constant Entity_Id  := Base_Type (Etype (L));
+      Right_Type  : constant Entity_Id  := Base_Type (Etype (R));
       Left_Size   : Int;
       Right_Size  : Int;
       Result_Type : Entity_Id;
@@ -740,8 +745,8 @@ package body Exp_Fixd is
 
    function Build_Rem (N : Node_Id; L, R : Node_Id) return Node_Id is
       Loc         : constant Source_Ptr := Sloc (N);
-      Left_Type   : constant Entity_Id  := Etype (L);
-      Right_Type  : constant Entity_Id  := Etype (R);
+      Left_Type   : constant Entity_Id  := Base_Type (Etype (L));
+      Right_Type  : constant Entity_Id  := Base_Type (Etype (R));
       Result_Type : Entity_Id;
       Rnode       : Node_Id;
 
@@ -935,8 +940,13 @@ package body Exp_Fixd is
       --  Case where we can compute the numerator in Max_Integer_Size bits
 
       if QR_Id = RE_Null then
+         Mutate_Ekind (Qnn, E_Constant);
+         Mutate_Ekind (Rnn, E_Constant);
+
          Nnn := Make_Temporary (Loc, 'N');
+         Mutate_Ekind (Nnn, E_Constant);
          Dnn := Make_Temporary (Loc, 'D');
+         Mutate_Ekind (Dnn, E_Constant);
 
          --  Set Etypes, so that they can be picked up by New_Occurrence_Of
 
@@ -948,7 +958,8 @@ package body Exp_Fixd is
              Defining_Identifier => Nnn,
              Object_Definition   => New_Occurrence_Of (QR_Typ, Loc),
              Constant_Present    => True,
-             Expression          => Build_Multiply (N, X, Y)),
+             Expression          =>
+               Build_Conversion (N, QR_Typ, Build_Multiply (N, X, Y))),
 
            Make_Object_Declaration (Loc,
              Defining_Identifier => Dnn,
@@ -982,6 +993,9 @@ package body Exp_Fixd is
       --  to call the runtime routine to compute the quotient and remainder.
 
       else
+         Mutate_Ekind (Qnn, E_Variable);
+         Mutate_Ekind (Rnn, E_Variable);
+
          Rnd := Boolean_Literals (Rounded_Result_Set (N));
 
          Code := New_List (

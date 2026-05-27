@@ -26,4 +26,18 @@ prefix:
 	ds mov		%ss:(%ebp), %eax
 	ds mov		%ds:(%ebp), %eax
 
+.L386:
+	.arch i386
+	xacquire lock add [esi], eax
+	notrack call eax
+	bnd call eax
+
+.L286:
+	.code16
+	.arch i286
+	gs inc word ptr [si]
+	data32 nop
+	addr32 nop
+	{disp32} nop
+
 	.p2align	4,0

@@ -1,4 +1,4 @@
-#as: -madd-bnd-prefix
+#as: -madd-bnd-prefix -march=+mpx
 #warning_output: x86-64-mpx-add-bnd-prefix.e
 #objdump: -drw
 #name: Check -madd-bnd-prefix (x86-64)

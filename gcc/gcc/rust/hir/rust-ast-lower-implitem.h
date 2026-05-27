@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -49,7 +49,7 @@ class ASTLowerTraitItem : public ASTLoweringBase
 public:
   static HIR::TraitItem *translate (AST::AssociatedItem &item);
   void visit (AST::Function &func) override;
-  void visit (AST::TraitItemConst &constant) override;
+  void visit (AST::ConstantItem &constant) override;
   void visit (AST::TraitItemType &type) override;
 
 private:

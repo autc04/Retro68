@@ -1,5 +1,5 @@
 /* Perform doloop optimizations
-   Copyright (C) 2004-2025 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
    Based on code by Michael P. Hayes (m.hayes@elec.canterbury.ac.nz)
 
 This file is part of GCC.
@@ -598,8 +598,7 @@ doloop_modify (class loop *loop, class niter_desc *desc,
 	  /* Reset the counter to zero in the set_zero block.  */
 	  start_sequence ();
 	  convert_move (counter_reg, noloop, 0);
-	  sequence = get_insns ();
-	  end_sequence ();
+	  sequence = end_sequence ();
 	  emit_insn_after (sequence, BB_END (set_zero));
 
 	  set_immediate_dominator (CDI_DOMINATORS, set_zero,

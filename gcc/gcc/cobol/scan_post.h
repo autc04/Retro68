@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025 Symas Corporation
+ * Copyright (c) 2021-2026 Symas Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,13 +33,14 @@ start_condition_str( int sc ) {
   const char *state = "???";
   switch(sc) {
   case INITIAL: state = "INITIAL"; break;
-  case author_state: state = "author_state"; break;
+  case addr_of: state = "addr_of"; break;
   case basis: state = "basis"; break;
   case bool_state: state = "bool_state"; break;
   case cdf_state: state = "cdf_state"; break;
   case classify: state = "classify"; break;
-  case copy_state: state = "copy_state"; break;
+  case cobol_words: state = "cobol_words"; break;
   case comment_entries: state = "comment_entries"; break;
+  case copy_state: state = "copy_state"; break;
   case date_state: state = "date_state"; break;
   case datetime_fmt: state = "datetime_fmt"; break;
   case dot_state: state = "dot_state"; break;
@@ -62,8 +63,8 @@ start_condition_str( int sc ) {
   case quoted2: state = "quoted2"; break;
   case quoteq: state = "quoteq"; break;
   case raising: state = "raising"; break;
-  case subscripts: state = "subscripts"; break;
   case sort_state: state = "sort_state"; break;
+  case subscripts: state = "subscripts"; break;
   }
   return state;
 }
@@ -114,12 +115,13 @@ datetime_format_of( const char input[] ) {
 
     for( auto p = patterns; p < eopatterns; p++ ) {
       static const int cflags = REG_EXTENDED | REG_ICASE;
-      static char msg[80];
       int erc;
 
       if( 0 != (erc = regcomp(&p->re, p->regex, cflags)) ) {
+        static char msg[80];
         regerror(erc, &p->re, msg, sizeof(msg));
-        yywarn("%s:%d: %s: %s", __func__, __LINE__, keyword_str(p->token), msg);
+        cbl_internal_error("%s:%d: %s: %s", __func__, __LINE__,
+                           keyword_str(p->token), msg);
       }
     }
   }
@@ -157,6 +159,8 @@ is_cdf_token( int token ) {
   case CDF_DISPLAY:
   case CDF_IF:       case CDF_ELSE: case CDF_END_IF:
   case CDF_EVALUATE: case CDF_WHEN: case CDF_END_EVALUATE:
+  case CDF_PUSH:
+  case CDF_POP:
     return true;
   case CALL_COBOL:
   case CALL_VERBATIM:
@@ -258,13 +262,12 @@ prelex() {
   while( is_cdf_token(token) ) {
 
     if( ! run_cdf(token) ) {
-      dbgmsg( ">>CDF parser failed" );
-      return NO_CONDITION;
+      dbgmsg( ">>CDF parser failed, ydfchar %d", ydfchar );
     }
     // Return the CDF's discarded lookahead token, if extant.
     token = ydfchar > 0? ydfchar : next_token();
     if( token == NO_CONDITION && parsing.at_eof() ) {
-      return token = YYEOF;
+      return YYEOF;
     }
 
     // Reenter cdf parser only if next token could affect parsing state.
@@ -291,12 +294,12 @@ prelex() {
   if( YY_START == field_state && level_needed() ) {
     switch( token ) {
     case NUMSTR:
-      if( yy_flex_debug ) yywarn("final token is NUMSTR");
+      dbgmsg("final token is NUMSTR");
       yylval.number = level_of(yylval.numstr.string);
       token = LEVEL;
       break;
     case YDF_NUMBER:
-      if( yy_flex_debug ) yywarn("final token is YDF_NUMBER");
+      dbgmsg("final token is YDF_NUMBER");
       yylval.number = ydflval.number;
       token = LEVEL;
       break;
@@ -373,7 +376,7 @@ yylex(void) {
     token = prelex();
     if( yy_flex_debug ) {
       if( parsing.in_cdf() ) {
-        dbgmsg( "%s:%d: %s routing %s to CDF parser", __func__, __LINE__,
+        dbgmsg( "%s:%d: <%s> routing %s to CDF parser", __func__, __LINE__,
                start_condition_is(), keyword_str(token) );
       } else if( !parsing.on() ) {
         dbgmsg( "eating %s because conditional compilation is FALSE",
@@ -399,3 +402,12 @@ yylex(void) {
 
   return token;
 }
+
+/*
+ * Token name<->string utilities
+ */
+
+// tokens.h is generated as needed from parse.h with tokens.h.gen
+current_tokens_t::tokenset_t::tokenset_t() {
+#include "token_names.h"
+};

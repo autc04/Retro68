@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2022 Free Software Foundation, Inc.
+# Copyright (C) 2012-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -72,6 +72,9 @@ if { [is_elf_format] } then {
     if {[istarget "csky*-*-*"]} {
 	set target_machine -csky
     }
+    if {[istarget "loongarch*-*-*"]} then {
+	set dump_opts {{as -mno-relax}}
+    }
     if {[istarget "m32r*-*-*"]} then {
 	set target_machine -m32r
     }
@@ -93,6 +96,7 @@ if { [is_elf_format] } then {
     }
     if {[istarget "rx-*-*"]} then {
 	set target_machine -rx
+	set dump_opts {{as -muse-conventional-section-names}}
     }
     if {[istarget "score-*-*"]} then {
 	set target_machine -score
@@ -139,19 +143,20 @@ if { [is_elf_format] } then {
     run_dump_test "group0a"
     run_dump_test "group0b"
     run_dump_test "group0c"
-    run_dump_test "group1a"
+    run_dump_test "group1a" $dump_opts
     run_dump_test "group1b"
     run_dump_test "group2"
     run_dump_test "group3"
 
     run_dump_test "attach-1"
+    run_dump_test "attach-2"
     run_dump_test "attach-err"
 
     switch -glob $target_triplet {
 	hppa64*-*-hpux* { }
 	riscv*-*-* { }
 	default {
-	    run_dump_test "groupautoa"
+	    run_dump_test "groupautoa" $dump_opts
 	}
     }
     switch -glob $target_triplet {
@@ -190,6 +195,10 @@ if { [is_elf_format] } then {
 	}
     }
     run_dump_test "pseudo"
+    run_dump_test "text-prev" $dump_opts
+    run_dump_test "text-subsect" $dump_opts
+    run_dump_test "data-prev" $dump_opts
+    run_dump_test "data-subsect" $dump_opts
     run_dump_test "section0"
     run_dump_test "section1"
     # The h8300 port issues a warning message for
@@ -204,11 +213,15 @@ if { [is_elf_format] } then {
 	    riscv*-*-* {
 		set as_flags "$as_flags -march-attr"
 	    }
+	    mips*-*-irix* {
+		# Irix has no pdr section by default.
+		set as_flags "$as_flags -mpdr"
+	    }
 	}
 	run_elf_list_test "section2" "$target_machine" "$as_flags" "-s" ""
     }
     run_dump_test "section3"
-    run_dump_test "section4"
+    run_dump_test "section4" $dump_opts
     if {! [istarget "h8300-*-*"] && ! [istarget "rx-*-*"]} then {
 	# The h8300 port issues a warning message for
 	# new sections created without atrributes.
@@ -236,6 +249,7 @@ if { [is_elf_format] } then {
          || [istarget "mips*-*-*"]
          || [istarget "msp*-*-*"]
 	 || [istarget "visium-*-*"]
+	 || [istarget "kvx*-*-*"]
 	 || ![supports_gnu_unique]
      } then {
 	# hppa64 has a non-standard common directive
@@ -252,8 +266,8 @@ if { [is_elf_format] } then {
     run_dump_test "section7"
     run_dump_test "section8"
     run_dump_test "section9"
-    run_dump_test "section10"
-    run_dump_test "section11"
+    run_dump_test "section10" $dump_opts
+    run_dump_test "section11" $dump_opts
     run_dump_test "section12a"
     run_dump_test "section12b"
     run_dump_test "section13"
@@ -267,8 +281,7 @@ if { [is_elf_format] } then {
     run_dump_test "section20"
     run_dump_test "section21"
     run_dump_test "section22"
-    run_dump_test "section23a"
-    run_dump_test "section23b"
+    run_dump_test "section23"
     run_dump_test "section24a"
     run_dump_test "section24b"
     run_dump_test "section25"
@@ -276,8 +289,30 @@ if { [is_elf_format] } then {
     run_dump_test "section27"
     run_dump_test "section28"
     run_dump_test "section29"
+    run_dump_test "section30" $dump_opts
+    run_dump_test "sh-link-abs-1"
+    run_dump_test "sh-link-abs-2"
+    run_dump_test "sh-link-common-1"
+    run_dump_test "sh-link-common-2"
+    if [is_elf64 tmpdir/section30.o] {
+	run_dump_test "sh-link-abs-3-64"
+	run_dump_test "sh-link-abs-4-64"
+	run_dump_test "sh-link-common-3-64"
+	run_dump_test "sh-link-common-4-64"
+	run_dump_test "sh-link-large-common-1"
+	run_dump_test "sh-link-large-common-2"
+	run_dump_test "sh-link-large-common-3"
+	run_dump_test "sh-link-large-common-4"
+    } else {
+	run_dump_test "sh-link-abs-3-32"
+	run_dump_test "sh-link-abs-4-32"
+	run_dump_test "sh-link-common-3-32"
+	run_dump_test "sh-link-common-4-32"
+    }
     run_dump_test "sh-link-zero"
+    run_dump_test "string"
     run_dump_test "size"
+    run_dump_test "entsize"
     run_dump_test "dwarf2-1" $dump_opts
     run_dump_test "dwarf2-2" $dump_opts
     run_dump_test "dwarf2-3" $dump_opts
@@ -308,6 +343,8 @@ if { [is_elf_format] } then {
     run_dump_test "dwarf-5-cu" $dump_opts
     run_dump_test "dwarf-5-nop-for-line-table" $dump_opts
     run_dump_test "dwarf-5-irp" $dump_opts
+    run_dump_test "dwarf-5-macro" $dump_opts
+    run_dump_test "dwarf-5-macro-include" $dump_opts
     run_dump_test "dwarf-3-func" $dump_opts
     run_dump_test "dwarf-5-func" $dump_opts
     run_dump_test "dwarf-5-func-global" $dump_opts
@@ -322,8 +359,17 @@ if { [is_elf_format] } then {
 	run_list_test line
     }
 
+    run_list_test "line2" -I${srcdir}/$subdir
+
     run_dump_test "pr25917"
     run_dump_test "bss"
+    # Some targets treat .bss similar to .lcomm.
+    if { ![istarget "csky-*-*"]
+	 && ![istarget "mcore-*-*"]
+	 && ![istarget "spu-*-*"] } then {
+	run_dump_test "bss-prev" $dump_opts
+	run_dump_test "bss-subsect" $dump_opts
+    }
     run_dump_test "bad-bss"
     run_dump_test "bad-section-flag"
     run_dump_test "bad-size"
@@ -340,8 +386,16 @@ if { [is_elf_format] } then {
 
     # hpux has a non-standard common directive.
     if { ![istarget "*-*-hpux*"] } then {
-	run_dump_test "common3a"
-	run_dump_test "common3b"
+	switch -glob $target_triplet {
+	    ia64-*-* {
+		run_dump_test "common3a" { { as "--defsym lcomm_align=1" } }
+		run_dump_test "common3b" { { as "--defsym lcomm_align=1" } }
+	    }
+	    default {
+		run_dump_test "common3a"
+		run_dump_test "common3b"
+	    }
+	}
 	run_dump_test "common4a"
 	run_dump_test "common4b"
 	run_dump_test "common5a"
@@ -352,7 +406,7 @@ if { [is_elf_format] } then {
 
     run_dump_test "strtab"
 
-    run_dump_test "bignums"
+    run_dump_test "bignums" $dump_opts
     run_dump_test "section-symbol-redef"
     run_dump_test "pr27228"
 }

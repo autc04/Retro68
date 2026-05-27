@@ -1,0 +1,15 @@
+tmpdir/pr32969_64-1:     file format elf64-s390
+
+Disassembly of section .text:
+
+.* <_start>:
+.*:	c0 10 00 00 00 0e [	 ]*larl	%r1,10000cc <foo>
+.*:	c4 18 00 00 08 1d [	 ]*lgrl	%r1,10010f0 <_GLOBAL_OFFSET_TABLE_\+0x20>
+
+.* <b>:
+.*:	c4 18 00 00 08 1a [	 ]*lgrl	%r1,10010f0 <_GLOBAL_OFFSET_TABLE_\+0x20>
+#?.*	07 07 [	 ]*nopr	%r7
+
+.* <c>:
+.*	c4 18 00 00 08 16 [	 ]*lgrl	%r1,10010f0 <_GLOBAL_OFFSET_TABLE_\+0x20>
+#?.*	07 07 [	 ]*nopr	%r7

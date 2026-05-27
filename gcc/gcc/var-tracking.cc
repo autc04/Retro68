@@ -1,5 +1,5 @@
 /* Variable tracking routines for the GNU compiler.
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -1195,7 +1195,7 @@ adjust_mem_stores (rtx loc, const_rtx expr, void *data)
 					      adjust_mems, data);
       if (new_dest != SET_DEST (expr))
 	{
-	  rtx xexpr = CONST_CAST_RTX (expr);
+	  rtx xexpr = const_cast<rtx> (expr);
 	  validate_change (NULL_RTX, &SET_DEST (xexpr), new_dest, true);
 	}
     }
@@ -2519,7 +2519,8 @@ val_store (dataflow_set *set, rtx val, rtx loc, rtx_insn *insn,
 	  struct elt_loc_list *l;
 	  for (l = v->locs; l; l = l->next)
 	    {
-	      fprintf (dump_file, "\n%i: ", INSN_UID (l->setting_insn));
+	      fprintf (dump_file, "\n%i: ",
+		       l->setting_insn ? INSN_UID (l->setting_insn) : -1);
 	      print_inline_rtx (dump_file, l->loc, 0);
 	    }
 	}
@@ -6273,7 +6274,7 @@ prepare_call_arguments (basic_block bb, rtx_insn *insn)
 	  if (SYMBOL_REF_DECL (symbol))
 	    fndecl = SYMBOL_REF_DECL (symbol);
 	}
-      if (fndecl == NULL_TREE)
+      if (fndecl == NULL_TREE && MEM_P (XEXP (call, 0)))
 	fndecl = MEM_EXPR (XEXP (call, 0));
       if (fndecl
 	  && TREE_CODE (TREE_TYPE (fndecl)) != FUNCTION_TYPE
@@ -8397,7 +8398,7 @@ vt_expand_var_loc_chain (variable *var, bitmap regs, void *data,
 	  next = loc;
 	  cloc = cloc->next;
 	  if (unsuitable_loc (loc_from))
-	    continue;
+	    goto try_next_loc;
 	}
       else
 	{
@@ -8437,6 +8438,7 @@ vt_expand_var_loc_chain (variable *var, bitmap regs, void *data,
 	  result = NULL;
 	}
 
+    try_next_loc:
       /* Set it up in case we leave the loop.  */
       depth.complexity = depth.entryvals = 0;
       loc_from = NULL;

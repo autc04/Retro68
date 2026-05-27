@@ -1,6 +1,6 @@
 # libstdc++ "tool init file" for DejaGNU
 
-# Copyright (C) 2001-2025 Free Software Foundation, Inc.
+# Copyright (C) 2001-2026 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -68,6 +68,8 @@ load_gcc_lib target-supports-dg.exp
 load_lib prune.exp
 load_lib dg-options.exp
 load_gcc_lib scanasm.exp
+load_gcc_lib scandump.exp
+load_gcc_lib scantree.exp
 load_gcc_lib target-libpath.exp
 load_gcc_lib timeout.exp
 load_gcc_lib timeout-dg.exp
@@ -471,20 +473,23 @@ if { [info procs saved-dg-test] == [list] } {
     }
 }
 
-# Find the minimum standard required by a test, if higher than the default_std.
-proc v3-minimum-std { test default_std max_std } {
-    for {set s $default_std} {$s <= $max_std} {incr s 3} {
+# These should be adjusted whenever the compiler's default -std is updated
+# or a newer C++ effective target is added.
+set v3_default_std 20
+set v3_max_std 26
+
+# Find the minimum standard required by a test, if higher than $v3_default_std.
+proc v3-minimum-std { test } {
+    global v3_default_std
+    global v3_max_std
+    for {set s $v3_default_std} {$s <= $v3_max_std} {incr s 3} {
 	if [search_for $test "\{ dg-do * \{ target c++$s"] {
 	    return $s
 	} elseif [search_for $test "\{ dg-require-effective-target c++$s"] {
 	    return $s
 	}
     }
-    # TODO: replace all c++2a with c++20 and remove this case.
-    if [search_for $test "\{ dg-do * \{ target c++2a"] {
-	return 20
-    }
-    return $default_std
+    return $v3_default_std
 }
 
 # Allow v3_std_list to be set in configuration files, e.g., ~/.dejagnurc
@@ -496,10 +501,18 @@ if [info exists env(GLIBCXX_TESTSUITE_STDS)] {
     set v3_std_list [split $env(GLIBCXX_TESTSUITE_STDS) ","]
 }
 
+# Allow adjusting which -std we test with -fmodules.
+if ![info exists v3_modules_std] {
+    set v3_modules_std "$v3_max_std"
+}
+
 # Modified dg-runtest that runs tests in multiple standard modes,
 # unless they specifically specify one standard.
 proc v3-dg-runtest { testcases flags default-extra-flags } {
     global runtests
+    global v3_default_std
+    global v3_max_std
+    global v3_modules_std
 
     foreach test $testcases {
 	# If we're only testing specific files and this isn't one of them, skip it.
@@ -525,27 +538,24 @@ proc v3-dg-runtest { testcases flags default-extra-flags } {
 		# If the test requires a newer C++ version than which
 		# is tested by default, use that C++ version for that
 		# single test.
-		# These should be adjusted whenever the default -std is
-		# updated or newer C++ effective target is added.
-		set default_std 17
-		set max_std 26
-		set min_std [v3-minimum-std $test $default_std $max_std]
-		if { $min_std > $default_std } {
+		set min_std [v3-minimum-std $test]
+		if { $min_std > $v3_default_std } {
 		    set std_list $min_std
-		    if { $min_std != $max_std } {
+		    if { $min_std != $v3_max_std } {
 			# Also test the latest version.
-			lappend std_list "$max_std"
+			lappend std_list "$v3_max_std"
 		    }
 		} else {
 		    # Only run each test once with the default -std option.
 		    # This avoids increasing the run time for most testers.
 		    # Libstdc++ developers can override this with v3_std_list.
-		    set std_list $default_std
+		    set std_list $v3_default_std
 		}
 	    }
 	    set option_list { }
 	    foreach x $std_list {
 		if { $x eq "impcx" } then { set x "26 -fimplicit-constexpr" }
+		if { $x eq "modules" } then { set x "$v3_modules_std -fmodules -flang-info-include-translate" }
 		lappend option_list "${std_prefix}$x"
 	    }
 	} else {
@@ -586,6 +596,7 @@ proc v3_target_compile { source dest type options } {
     global tool
 
     lappend options "additional_flags=-fdiagnostics-plain-output"
+    lappend options "additional_flags=-Wabi=20";
 
     if { [target_info needs_status_wrapper] != "" && [info exists gluefile] } {
 	lappend options "libs=${gluefile}"
@@ -648,6 +659,11 @@ proc v3_target_compile { source dest type options } {
     set v3_additional_files {}
 
     set comp_output [target_compile $source $dest $type $options]
+
+    # Strip versioned namespace from the compiler output,
+    # so that dg-error and dg-warning patterns can ignore it:
+    regsub -all "std::__8::" $comp_output "std::" comp_output
+
     if { $type == "executable" && $file_to_delete != "" } {
 	file delete $file_to_delete
 	if { [istarget *-*-darwin*] && [file exists $file_to_delete.dSYM] } {
@@ -733,6 +749,7 @@ proc v3_target_compile_as_c { source dest type options } {
 proc v3-build_support { } {
     global env
     global srcdir
+    global blddir
     global v3-wchar_t
     global v3-threads
     global v3-symver
@@ -742,6 +759,7 @@ proc v3-build_support { } {
     set v3-wchar_t 0
     set v3-threads 0
     set v3-symver 0
+    set v3-modules 0
     set libtest_objs ""
 
     set config_src "config.cc"
@@ -779,6 +797,37 @@ proc v3-build_support { } {
 		remote_download "host" "$lang/LC_MESSAGES/libstdc++.mo" "$lang/LC_MESSAGES/libstdc++.mo"
 	    }
 	}
+    }
+
+    global v3_std_list
+    global v3_modules_std
+    if { "modules" in $v3_std_list } {
+	verbose -log "modules testing requested"
+	set v3-modules 1
+    }
+
+    # If we're doing modules testing, compile module std, std.compat, and the
+    # bits/stdc++.h header unit.
+    if { ${v3-modules} == 1 } {
+	set std_file "$blddir/include/bits/std.cc"
+	set std_compat_file "$blddir/include/bits/std.compat.cc"
+
+	if { ([v3_target_compile bits/stdc++.h /dev/null object \
+		   [list "additional_flags=-std=gnu++$v3_modules_std -fmodules -g -w -fsearch-include-path"]]
+	      != "") } {
+	    error "could not compile bits/stdc++.h"
+	}
+	if { ([v3_target_compile $std_file std.o object \
+		   [list "additional_flags=-std=gnu++$v3_modules_std -fmodules -g -w"]]
+	      != "") } {
+	    error "could not compile std.cc"
+	}
+	if { ([v3_target_compile $std_compat_file std.compat.o object \
+		   [list "additional_flags=-std=gnu++$v3_modules_std -fmodules -g -w"]]
+	      != "") } {
+	    error "could not compile std.compat.cc"
+	}
+	append libtest_objs "std.o std.compat.o "
     }
 
     # Build the support objects.
@@ -1013,8 +1062,8 @@ proc check_v3_target_time { } {
     }]
 }
 
-proc check_v3_target_namedlocale { args } {
-    set key "et_namedlocale $args"
+proc check_v3_target_namedlocale { locale } {
+    set key "et_namedlocale $locale"
     return [check_v3_target_prop_cached $key {
 	global tool
 	# Set up, compile, and execute a C++ test program that tries to use
@@ -1029,7 +1078,7 @@ proc check_v3_target_namedlocale { args } {
 	puts $f "using namespace std;"
 	puts $f "char *transform_locale(const char *name)"
 	puts $f "{"
-	puts $f "    char *result = new char\[50\];"
+	puts $f "    char *result = new char\[strlen(name)+6\];"
 	puts $f "    strcpy(result, name);"
 	puts $f "#if defined __FreeBSD__ || defined __DragonFly__ || defined __NetBSD__"
 	puts $f "    /* fall-through */"
@@ -1040,14 +1089,9 @@ proc check_v3_target_namedlocale { args } {
 	puts $f "#endif"
 	puts $f "    return result;"
 	puts $f "}"
-	puts $f "int main (int argc, char** argv)"
+	puts $f "int main ()"
 	puts $f "{"
-	puts $f "  if (argc < 2)"
-	puts $f "  {"
-	puts $f "    printf(\"locale support test not supported\\n\");"
-	puts $f "    return 1;"
-	puts $f "  }"
-	puts $f "  const char *namedloc = transform_locale(*(argv + 1));"
+	puts $f "  const char *namedloc = transform_locale(\"$locale\");"
 	puts $f "  try"
 	puts $f "  {"
 	puts $f "    locale((const char*)namedloc);"
@@ -1071,10 +1115,10 @@ proc check_v3_target_namedlocale { args } {
 	  return 0
 	}
 
-	set result [${tool}_load "./$exe" "$args" ""]
+	set result [${tool}_load "./$exe" "" ""]
 	set status [lindex $result 0]
 
-	verbose "check_v3_target_namedlocale <$args>: status is <$status>" 2
+	verbose "check_v3_target_namedlocale <$locale>: status is <$status>" 2
 
 	if { $status == "pass" } {
 	    return 1

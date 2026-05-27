@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  S p e c                                 --
 --                                                                          --
---            Copyright (C) 2014-2025, Free Software Foundation, Inc.       --
+--            Copyright (C) 2014-2026, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,7 +36,6 @@
 --  Preelaborate. This package is designed to be a bottom-level (leaf) package
 
 with Interfaces.C;
-with System.Parameters;
 
 package System.Linux is
    pragma Preelaborate;
@@ -45,23 +44,7 @@ package System.Linux is
    -- Time --
    ----------
 
-   subtype long        is Interfaces.C.long;
-   subtype suseconds_t is Interfaces.C.long;
-   type time_t is range -2 ** (System.Parameters.time_t_bits - 1)
-     .. 2 ** (System.Parameters.time_t_bits - 1) - 1;
    subtype clockid_t   is Interfaces.C.int;
-
-   type timespec is record
-      tv_sec  : time_t;
-      tv_nsec : long;
-   end record;
-   pragma Convention (C, timespec);
-
-   type timeval is record
-      tv_sec  : time_t;
-      tv_usec : suseconds_t;
-   end record;
-   pragma Convention (C, timeval);
 
    -----------
    -- Errno --
@@ -118,11 +101,19 @@ package System.Linux is
    SIG33      : constant := 33; --  glibc internal signal
    SIG34      : constant := 34; --  glibc internal signal
 
-   --  struct_sigaction offsets
+   --  struct_sigaction
 
-   sa_handler_pos : constant := 0;
-   sa_mask_pos    : constant := Standard'Address_Size / 8;
-   sa_flags_pos   : constant := 4 + sa_mask_pos;
+   generic
+      type sigset_t is private;
+   package Android_Sigaction is
+      type struct_sigaction is record
+         sa_handler  : System.Address;
+         sa_mask     : sigset_t;
+         sa_flags    : Interfaces.C.int;
+         sa_restorer : System.Address;
+      end record;
+      pragma Convention (C, struct_sigaction);
+   end Android_Sigaction;
 
    SA_SIGINFO  : constant := 16#00000004#;
    SA_ONSTACK  : constant := 16#08000000#;

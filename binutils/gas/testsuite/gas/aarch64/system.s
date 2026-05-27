@@ -1,5 +1,6 @@
 	.text
 	drps
+	eret
 
 	//
 	// HINTS
@@ -11,6 +12,9 @@
 	wfi
 	sev
 	sevl
+	dgh
+	csdb
+	clearbhb
 
 	.macro	all_hints from=0, to=127
 	hint \from
@@ -69,8 +73,10 @@
 
 	.macro	all_prefetchs op, from=0, to=31
 	\op	\from, LABEL1
+	.if	\from < 24
 	\op	\from, [sp, x15, lsl #0]
 	\op	\from, [x7, w30, uxtw #3]
+	.endif
 	\op	\from, [x3, #24]
 	.if	\to-\from
 	all_prefetchs \op, "(\from+1)", \to
@@ -84,9 +90,12 @@
 	//
 
 	.irp op, pld, pli, pst
-	.irp l, l1, l2, l3
+	.irp l, l1, l2, l3, slc
 	.irp t, keep, strm
 	prfm	\op\l\t, [x3, #24]
 	.endr
 	.endr
 	.endr
+
+	.inst	0xf8a04817
+	.inst	0xf8a04818

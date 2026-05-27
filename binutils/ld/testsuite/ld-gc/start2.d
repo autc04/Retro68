@@ -2,7 +2,7 @@
 #ld: --gc-sections -e _start -z start-stop-gc
 #nm: -n
 #notarget: [uses_genelf]
-#xfail: bfin-*-*linux* frv-*-*linux*
+#xfail: bfin-*-linux* frv-*-*linux*
 
 #failif
 #...

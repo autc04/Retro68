@@ -1,5 +1,5 @@
 /* Parse and display command line options.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -133,6 +133,7 @@ gfc_init_options_struct (struct gcc_options *opts)
   opts->frontend_set_flag_errno_math = true;
   opts->x_flag_associative_math = -1;
   opts->frontend_set_flag_associative_math = true;
+  opts->x_flag_complex_method = 1;
 }
 
 /* Get ready for options handling. Keep in sync with
@@ -369,7 +370,7 @@ gfc_post_options (const char **pfilename)
     gfc_add_include_path (".", true, true, false, false);
 
   if (canon_source_file != gfc_source_file)
-    free (CONST_CAST (char *, canon_source_file));
+    free (const_cast<char *> (canon_source_file));
 
   /* Decide which form the file will be read in as.  */
 
@@ -406,7 +407,8 @@ gfc_post_options (const char **pfilename)
       if (warn_line_truncation && !OPTION_SET_P (warnings_are_errors)
 	  && option_unspecified_p (OPT_Wline_truncation))
 	diagnostic_classify_diagnostic (global_dc, OPT_Wline_truncation,
-					DK_ERROR, UNKNOWN_LOCATION);
+					diagnostics::kind::error,
+					UNKNOWN_LOCATION);
     }
   else
     {
@@ -503,11 +505,19 @@ gfc_post_options (const char **pfilename)
 	flag_inline_matmul_limit = 30;
     }
 
-  /* Optimization implies front end optimization, unless the user
+  /* We can only have a 32-bit or a 64-bit version of BLAS, not both.  */
+
+  if (flag_external_blas && flag_external_blas64)
+    gfc_fatal_error ("32- and 64-bit version of BLAS cannot both be specified");
+
+  /* Optimizationx implies front end optimization, unless the user
      specified it directly.  */
 
   if (flag_frontend_optimize == -1)
     flag_frontend_optimize = optimize && !optimize_debug;
+
+  if (flag_external_blas64 && !flag_frontend_optimize)
+    gfc_fatal_error ("-ffrontend-optimize required for -fexternal-blas64");
 
   /* Same for front end loop interchange.  */
 
@@ -883,6 +893,10 @@ gfc_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
 	return false;  /* Not supported. */
       if (!strcmp ("omp_is_initial_device", arg))
 	gfc_option.disable_omp_is_initial_device = true;
+      else if (!strcmp ("omp_get_initial_device", arg))
+	gfc_option.disable_omp_get_initial_device = true;
+      else if (!strcmp ("omp_get_num_devices", arg))
+	gfc_option.disable_omp_get_num_devices = true;
       else if (!strcmp ("acc_on_device", arg))
 	gfc_option.disable_acc_on_device = true;
       else

@@ -10,3 +10,6 @@
 .*:33: Warning: SSE instruction `aesdec' is used
 .*:36: Warning: SSE instruction `sha1nexte' is used
 .*:39: Warning: SSE instruction `gf2p8mulb' is used
+.*:44: Warning: SSE instruction `aesdec128kl' is used
+.*:45: Warning: SSE instruction `encodekey128' is used
+.*:48: Warning: SSE instruction `aesencwide256kl' is used

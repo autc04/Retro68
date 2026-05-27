@@ -1,5 +1,5 @@
 ;;  Mips.md	     Machine Description for MIPS based processors
-;;  Copyright (C) 1989-2025 Free Software Foundation, Inc.
+;;  Copyright (C) 1989-2026 Free Software Foundation, Inc.
 ;;  Contributed by   A. Lichnewsky, lich@inria.inria.fr
 ;;  Changes by       Michael Meissner, meissner@osf.org
 ;;  64-bit r4000 support by Ian Lance Taylor, ian@cygnus.com, and
@@ -72,6 +72,7 @@
   m5100
   i6400
   p6600
+  allegrex
 ])
 
 (define_c_enum "unspec" [
@@ -835,9 +836,11 @@
 ;; conditional-move-type condition is needed.
 (define_mode_iterator MOVECC [SI (DI "TARGET_64BIT")
                               (CC "TARGET_HARD_FLOAT
+				   && !TARGET_ALLEGREX
 				   && !TARGET_LOONGSON_2EF
 				   && !TARGET_MIPS5900")
                               (CCE "TARGET_HARD_FLOAT
+				   && !TARGET_ALLEGREX
 				   && !TARGET_LOONGSON_2EF
 				   && !TARGET_MIPS5900")])
 
@@ -1792,9 +1795,12 @@
    (set_attr "mode"	"SI")
    (set_attr "insn_count" "1,1,2")
    (set (attr "enabled")
-        (cond [(eq_attr "alternative" "1,2")
-                  (const_string "yes")]
-              (const_string "no")))])
+       (cond [(eq_attr "alternative" "1")
+              (const_string "yes")
+              (and (eq_attr "alternative" "2")
+                   (match_test "ISA_HAS_MUL3"))
+              (const_string "yes")]
+           (const_string "no")))])
 
 ;; The same idea applies here.  The middle alternative needs one less
 ;; clobber than the final alternative, so we add "*?" as a counterweight.
@@ -2038,9 +2044,12 @@
    (set_attr "mode"     "SI")
    (set_attr "insn_count" "1,1,2")
    (set (attr "enabled")
-        (cond [(eq_attr "alternative" "1,2")
-                  (const_string "yes")]
-              (const_string "no")))])
+        (cond [(eq_attr "alternative" "1")
+               (const_string "yes")
+               (and (eq_attr "alternative" "2")
+                    (match_test "ISA_HAS_MUL3"))
+               (const_string "yes")]
+           (const_string "no")))])
 
 ;; Split *mul_sub_si if both the source and destination accumulator
 ;; values are GPRs.
@@ -2617,7 +2626,8 @@
 	(fma:ANYF (match_operand:ANYF 1 "register_operand")
 		  (match_operand:ANYF 2 "register_operand")
 		  (neg:ANYF (match_operand:ANYF 3 "register_operand"))))]
-  "(ISA_HAS_FUSED_MADD3 || ISA_HAS_FUSED_MADD4)")
+  "(ISA_HAS_FUSED_MADD3 || ISA_HAS_FUSED_MADD4)
+   || ISA_HAS_FUSED_MADDF")
 
 (define_insn "*fms<mode>4_msub3"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
@@ -2639,6 +2649,16 @@
   [(set_attr "type" "fmadd")
    (set_attr "mode" "<UNITMODE>")])
 
+(define_insn "*fms<mode>4_msubf"
+  [(set (match_operand:ANYF 0 "register_operand" "=f")
+	(fma:ANYF (match_operand:ANYF 1 "register_operand" "f")
+		  (match_operand:ANYF 2 "register_operand" "f")
+		  (neg:ANYF (match_operand:ANYF 3 "register_operand" "0"))))]
+  "ISA_HAS_FUSED_MADDF"
+  "msubf.<fmt>\t%0,%1,%2"
+  [(set_attr "type" "fmadd")
+   (set_attr "mode" "<UNITMODE>")])
+
 ;; fnma is defined in GCC as (fma (neg op1) op2 op3)
 ;; (-op1 * op2) + op3 ==> -(op1 * op2) + op3 ==> -((op1 * op2) - op3)
 ;; The mips nmsub instructions implement -((op1 * op2) - op3)
@@ -2650,8 +2670,9 @@
 	(fma:ANYF (neg:ANYF (match_operand:ANYF 1 "register_operand"))
 		  (match_operand:ANYF 2 "register_operand")
 		  (match_operand:ANYF 3 "register_operand")))]
-  "(ISA_HAS_FUSED_MADD3 || ISA_HAS_FUSED_MADD4)
-   && !HONOR_SIGNED_ZEROS (<MODE>mode)")
+  "((ISA_HAS_FUSED_MADD3 || ISA_HAS_FUSED_MADD4)
+   && !HONOR_SIGNED_ZEROS (<MODE>mode))
+   || ISA_HAS_FUSED_MADDF")
 
 (define_insn "*fnma<mode>4_nmsub3"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
@@ -2670,6 +2691,16 @@
 		  (match_operand:ANYF 3 "register_operand" "f")))]
   "ISA_HAS_FUSED_MADD4 && !HONOR_SIGNED_ZEROS (<MODE>mode)"
   "nmsub.<fmt>\t%0,%3,%1,%2"
+  [(set_attr "type" "fmadd")
+   (set_attr "mode" "<UNITMODE>")])
+
+(define_insn "*fnma<mode>4_msubf"
+  [(set (match_operand:ANYF 0 "register_operand" "=f")
+	(fma:ANYF (neg:ANYF (match_operand:ANYF 1 "register_operand" "f"))
+		  (match_operand:ANYF 2 "register_operand" "f")
+		  (match_operand:ANYF 3 "register_operand" "0")))]
+  "ISA_HAS_FUSED_MADDF"
+  "msubf.<fmt>\t%0,%1,%2"
   [(set_attr "type" "fmadd")
    (set_attr "mode" "<UNITMODE>")])
 
@@ -6016,16 +6047,29 @@
   "wsbh\t%0,%1"
   [(set_attr "type" "shift")])
 
-(define_insn_and_split "bswapsi2"
+(define_expand "bswapsi2"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+    (bswap:SI (match_operand:SI 1 "register_operand" "d")))]
+  "ISA_HAS_WSBW || (ISA_HAS_WSBH && ISA_HAS_ROR)"
+{
+  if (ISA_HAS_WSBW) {
+    emit_insn (gen_wsbwsi2 (operands[0], operands[1]));
+  }
+  else
+  {
+    rtx tmp = gen_reg_rtx (SImode);
+    emit_insn (gen_wsbh (tmp, operands[1]));
+    emit_insn (gen_rotrsi3 (operands[0], tmp, GEN_INT(16)));
+  }
+  DONE;
+})
+
+(define_insn "wsbwsi2"
   [(set (match_operand:SI 0 "register_operand" "=d")
 	(bswap:SI (match_operand:SI 1 "register_operand" "d")))]
-  "ISA_HAS_WSBH && ISA_HAS_ROR"
-  "#"
-  "&& 1"
-  [(set (match_dup 0) (unspec:SI [(match_dup 1)] UNSPEC_WSBH))
-   (set (match_dup 0) (rotatert:SI (match_dup 0) (const_int 16)))]
-  ""
-  [(set_attr "insn_count" "2")])
+  "ISA_HAS_WSBW"
+  "wsbw\t%0,%1"
+  [(set_attr "type" "shift")])
 
 (define_insn_and_split "bswapdi2"
   [(set (match_operand:DI 0 "register_operand" "=d")
@@ -7625,6 +7669,27 @@
   mips_expand_conditional_move (operands);
   DONE;
 })
+
+;; Min and max.
+
+(define_insn "sminsi3"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+        (smin:SI (match_operand:SI 1 "register_operand" "d")
+                 (match_operand:SI 2 "register_operand" "d")))]
+  "ISA_HAS_MIN_MAX"
+  "min\t%0,%1,%2"
+  [(set_attr "type"    "arith")
+   (set_attr "mode"    "SI")])
+
+(define_insn "smaxsi3"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+        (smax:SI (match_operand:SI 1 "register_operand" "d")
+                 (match_operand:SI 2 "register_operand" "d")))]
+  "ISA_HAS_MIN_MAX"
+  "max\t%0,%1,%2"
+  [(set_attr "type"    "arith")
+   (set_attr "mode"    "SI")])
+
 
 (define_expand "speculation_barrier"
   [(unspec_volatile [(const_int 0)] VUNSPEC_SPECULATION_BARRIER)]

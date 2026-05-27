@@ -1,6 +1,6 @@
 ; Xtensa uClinux options.
 
-; Copyright (C) 2015-2025 Free Software Foundation, Inc.
+; Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -24,9 +24,9 @@
 ; Please try to keep this file in ASCII collating order.
 
 elf2flt
-Driver
+Driver Undocumented
 
 elf2flt=
-Driver JoinedOrMissing
+Driver Undocumented JoinedOrMissing
 
 ; This comment is to ensure we retain the blank line above.

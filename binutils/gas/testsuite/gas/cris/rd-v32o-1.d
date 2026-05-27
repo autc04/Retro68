@@ -1,5 +1,5 @@
 #source: abs32-1.s
-#as: --underscore --em=criself --march=v32
+#as: --underscore --emulation=criself --march=v32
 #objdump: -p
 
 # Check that different command-line options result in different

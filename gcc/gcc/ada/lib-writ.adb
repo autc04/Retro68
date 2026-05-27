@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -116,12 +116,10 @@ package body Lib.Writ is
          Fatal_Error            => None,
          Generate_Code          => False,
          Has_RACW               => False,
-         Filler                 => False,
          Ident_String           => Empty,
          Is_Predefined_Renaming => False,
          Is_Internal_Unit       => False,
          Is_Predefined_Unit     => False,
-         Filler2                => False,
          Loading                => False,
          Main_Priority          => -1,
          Main_CPU               => -1,
@@ -175,12 +173,10 @@ package body Lib.Writ is
          Fatal_Error            => None,
          Generate_Code          => False,
          Has_RACW               => False,
-         Filler                 => False,
          Ident_String           => Empty,
          Is_Predefined_Renaming => False,
          Is_Internal_Unit       => True,
          Is_Predefined_Unit     => True,
-         Filler2                => False,
          Loading                => False,
          Main_Priority          => -1,
          Main_CPU               => -1,
@@ -909,7 +905,7 @@ package body Lib.Writ is
             --  Do not generate a with line for an ignored Ghost unit because
             --  the unit does not have an ALI file.
 
-            if Is_Ignored_Ghost_Entity (Cunit_Entity (Unum)) then
+            if Is_Ignored_Ghost_Entity_In_Codegen (Cunit_Entity (Unum)) then
                goto Next_With_Line;
             end if;
 

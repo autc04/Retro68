@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2025 Free Software Foundation, Inc.
+ * Copyright (C) 2007-2026 Free Software Foundation, Inc.
  *
  * This file is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -71,6 +71,10 @@
 /* %ebx  */
 #define bit_CLZERO	(1 << 0)
 #define bit_WBNOINVD	(1 << 9)
+
+/* Extended Features (%eax == 0x80000021) */
+/* %eax */
+#define bit_AMD_PREFETCHI (1 << 20)
 
 /* Extended Features Leaf (%eax == 7, %ecx == 0) */
 /* %ebx */
@@ -163,10 +167,12 @@
 #define bit_AESKLE	( 1<<0 )
 #define bit_WIDEKL	( 1<<2 )
 
+/* Sub leaf (%eax == 0x21) */
+#define bit_AVX512BMM	( 1<<23 )
+
 /* AMX sub leaf (%eax == 0x1e, %ecx == 1) */
 /* %eax */
 #define bit_AMX_FP8	(1 << 4)
-#define bit_AMX_TRANSPOSE	(1 << 5)
 #define bit_AMX_TF32	(1 << 6)
 #define bit_AMX_AVX512  (1 << 7)
 #define bit_AMX_MOVRS	(1 << 8)

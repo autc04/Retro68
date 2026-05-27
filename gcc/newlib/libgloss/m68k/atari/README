@@ -1,0 +1,35 @@
+Copyright (C) 2025 Mikael Hildenborg
+SPDX-License-Identifier: BSD-2-Clause
+
+Atari 16/32 bit TOS (not MINT) target.
+Target name: m68k-atari-elf.
+
+Stack and heap size:
+The symbol: "_stksize" defines how much memory that is reserved for stack and heap using the following scheme:
+1. If "_stksize" is undefined, then all available memory is reserved.
+2. If `int _stksize = SIZE;` is defined anywhere in the code, then "SIZE" is used in this way:
+   * SIZE == 0: then MINKEEP (64KB) memory is reserved.
+   * SIZE == 1: then 1/4 of all memory is reserved.
+   * SIZE == 2: then 2/4 of all memory is reserved.
+   * SIZE == 3: then 3/4 of all memory is reserved.
+   * SIZE >= 4: then SIZE memory is reserved.
+   * SIZE == -1, then all available memory is reserved (for mintlib compatibillity).
+   * SIZE < -1, then -SIZE memory is reserved (for mintlib compatibillity).
+The heap starts at the bottom of the shared memory and the stack starts at the top, and they grow towards eachother.
+A safety check for memory allocations is done to make sure that memory is not allocated and overwriting the stack.
+
+Program base page:
+A pointer to the program base page is stored at: _BasePage
+
+ELF output:
+The executable elf output have four interesting segments:
+".text", ".data", ".bss" and ".prgheader" as described in "atari-tos.ld".
+All relevant code and data have been properly sorted into those segments, and the ".prgheader"
+contains a valid atari prg header pointing to relevant segments.
+Relocation data from the link switch "--emit-relocs" (defaultted by "atari-tos.specs") is
+included in the elf output so additional fixup information can be added to the prg file.
+Addresses in elf and prg files are the same and thus compatible for interchangeable symbol lookup.
+
+More information:
+Can be found at: https://github.com/hildenborg/m68k-atari-dev
+Where build scripts for complete toolchain, executables for converting elf to prg, and a remote debug server with full symbolic debugging are available.

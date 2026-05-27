@@ -1,6 +1,6 @@
 ; Options for AVR 8-bit microcontrollers.
 
-; Copyright (C) 2005-2025 Free Software Foundation, Inc.
+; Copyright (C) 2005-2026 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -17,10 +17,6 @@
 ; You should have received a copy of the GNU General Public License
 ; along with GCC; see the file COPYING3.  If not see
 ; <http://www.gnu.org/licenses/>.
-
-mlra
-Target Var(avropt_lra_p) UInteger Init(0) Optimization Undocumented
-Usa LRA for reload instead of the old reload framework.  This option is experimental, and it may be removed in future versions of the compiler.
 
 mcall-prologues
 Target Mask(CALL_PROLOGUES) Optimization
@@ -163,6 +159,10 @@ Optimization. Run a post-reload pass that tweaks move instructions.
 mfuse-move=
 Target Joined RejectNegative UInteger Var(avropt_fuse_move) Init(0) Optimization IntegerRange(0, 23)
 -mfuse-move=<0,23>	Optimization. Run a post-reload pass that tweaks move instructions.
+
+mfuse-move2
+Target Var(avropt_fuse_move2) Init(0) Optimization
+Optimization. Fuse some move insns after insn combine.
 
 mabsdata
 Target Mask(ABSDATA)

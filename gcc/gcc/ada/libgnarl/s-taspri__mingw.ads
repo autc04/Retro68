@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  S p e c                                 --
 --                                                                          --
---          Copyright (C) 1991-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1991-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,9 +41,6 @@ package System.Task_Primitives is
    type Lock is limited private;
    --  Should be used for implementation of protected objects
 
-   type Suspension_Object is limited private;
-   --  Should be used for the implementation of Ada.Synchronous_Task_Control
-
    type Task_Body_Access is access procedure;
    --  Pointer to the task body's entry point (or possibly a wrapper
    --  declared local to the GNARL).
@@ -69,23 +66,6 @@ private
    end record;
 
    type Condition_Variable is new System.Win32.HANDLE;
-
-   type Suspension_Object is record
-      State : Boolean;
-      pragma Atomic (State);
-      --  Boolean that indicates whether the object is open. This field is
-      --  marked Atomic to ensure that we can read its value without locking
-      --  the access to the Suspension_Object.
-
-      Waiting : Boolean;
-      --  Flag showing if there is a task already suspended on this object
-
-      L : aliased System.OS_Locks.RTS_Lock;
-      --  Protection for ensuring mutual exclusion on the Suspension_Object
-
-      CV : aliased Win32.HANDLE;
-      --  Condition variable used to queue threads until condition is signaled
-   end record;
 
    type Private_Data is limited record
       Thread : aliased System.OS_Interface.Thread_Id;

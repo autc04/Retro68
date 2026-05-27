@@ -1,5 +1,5 @@
 	.file	"A.c"
-	.section	.ctf,"",@progbits
+	.section	.ctf,"",%progbits
 .Lctf0:
 	.2byte	0xdff2
 	.byte	0x2
@@ -41,4 +41,4 @@
 	.text
 	.comm	a,8,8
 	.ident	"GCC: (GNU) 8.3.1 20191121 (Red Hat 8.3.1-5.0.1)"
-	.section	.note.GNU-stack,"",@progbits
+	.section	.note.GNU-stack,"",%progbits

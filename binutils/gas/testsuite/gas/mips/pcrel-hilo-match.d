@@ -1,0 +1,28 @@
+#objdump: -r
+#as: -mabi=32 -mno-pdr
+#name: MIPS pcrel-hilo-match
+
+.*: +file format .*mips.*
+
+RELOCATION RECORDS FOR \[\.text\]:
+OFFSET +TYPE +VALUE
+00000010 R_MIPS_PCHI16     var4
+00000018 R_MIPS_PCLO16     var4
+00000008 R_MIPS_PCHI16     __var1
+00000020 R_MIPS_PCLO16     __var1
+0000001c R_MIPS_PCHI16     .sbss
+0000002c R_MIPS_PCLO16     .sbss
+00000028 R_MIPS_PCHI16     __var3
+00000034 R_MIPS_PCLO16     __var3
+00000030 R_MIPS_PCHI16     func4
+00000038 R_MIPS_PCLO16     func4
+00000024 R_MIPS_PCHI16     hilo_match
+0000003c R_MIPS_PCLO16     hilo_match
+00000040 R_MIPS_PCHI16     .bss
+00000048 R_MIPS_PCLO16     .bss
+00000044 R_MIPS_PCHI16     .bss
+0000004c R_MIPS_PCLO16     .bss
+00000050 R_MIPS_PCHI16     hilo_match
+00000058 R_MIPS_PCLO16     hilo_match
+00000054 R_MIPS_PCHI16     func3
+0000005c R_MIPS_PCLO16     func3

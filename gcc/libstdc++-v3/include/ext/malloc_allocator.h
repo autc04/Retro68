@@ -1,6 +1,6 @@
 // Allocator that wraps "C" malloc -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,7 @@
 #include <cstdlib>
 #include <cstddef>
 #include <new>
-#include <bits/functexcept.h>
+#include <bits/new_throw.h>
 #include <bits/move.h>
 #if __cplusplus >= 201103L
 #include <type_traits>

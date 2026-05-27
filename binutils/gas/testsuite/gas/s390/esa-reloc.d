@@ -1,4 +1,4 @@
-#name: s390 reloc
+#name: s390 reloc (esa reloc)
 #objdump: -dr
 
 .*: +file format .*
@@ -23,7 +23,7 @@ Disassembly of section .text:
   22:	a7 08 00 00 [ 	]*lhi	%r0,0
 [ 	]*24: R_390_GOT16	test_R_390_GOT16
   26:	a7 08 00 00 [ 	]*lhi	%r0,0
-[ 	]*28: R_390_16	test_R_390_PC16\+0x26
+[ 	]*28: R_390_PC16	test_R_390_PC16\+0x28
   2a:	a7 e5 00 00 [ 	]*bras	%r14,2a <foo\+0x2a>
 [ 	]*2c: R_390_PC16DBL	test_R_390_PC16DBL\+0x2
   2e:	a7 e5 00 00 [ 	]*bras	%r14,2e <foo\+0x2e>

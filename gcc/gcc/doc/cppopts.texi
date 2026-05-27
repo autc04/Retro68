@@ -1,4 +1,4 @@
-@c Copyright (C) 1999-2025 Free Software Foundation, Inc.
+@c Copyright (C) 1999-2026 Free Software Foundation, Inc.
 @c This is part of the CPP and GCC manuals.
 @c For copying conditions, see the file gcc.texi.
 
@@ -10,10 +10,15 @@
 @c formatted for inclusion in the CPP manual; otherwise the main GCC manual.
 
 @opindex D
+@opindex define-macro
 @item -D @var{name}
+@itemx --define-macro=@var{name}
+@itemx --define-macro @var{name}
 Predefine @var{name} as a macro, with definition @code{1}.
 
 @item -D @var{name}=@var{definition}
+@itemx --define-macro=@var{name}=@var{definition}
+@itemx --define-macro @var{name}=@var{definition}
 The contents of @var{definition} are tokenized and processed as if
 they appeared during translation phase three in a @samp{#define}
 directive.  In particular, the definition is truncated by
@@ -35,12 +40,17 @@ are given on the command line.  All @option{-imacros @var{file}} and
 @option{-D} and @option{-U} options.
 
 @opindex U
+@opindex undefine-macro
 @item -U @var{name}
+@itemx --undefine-macro=@var{name}
+@itemx --undefine-macro @var{name}
 Cancel any previous definition of @var{name}, either built in or
 provided with a @option{-D} option.
 
 @opindex include
 @item -include @var{file}
+@itemx --include=@var{file}
+@itemx --include @var{file}
 Process @var{file} as if @code{#include "file"} appeared as the first
 line of the primary source file.  However, the first directory searched
 for @var{file} is the preprocessor's working directory @emph{instead of}
@@ -53,6 +63,8 @@ in the order they appear on the command line.
 
 @opindex imacros
 @item -imacros @var{file}
+@itemx --imacros=@var{file}
+@itemx --imacros @var{file}
 Exactly like @option{-include}, except that any output produced by
 scanning @var{file} is thrown away.  Macros it defines remain defined.
 This allows you to acquire all the macros from a header without also
@@ -77,9 +89,11 @@ This option is supported on GNU/Linux targets, most other Unix derivatives,
 and also on x86 Cygwin and MinGW targets.
 
 @opindex M
+@opindex dependencies
 @cindex @command{make}
 @cindex dependencies, @command{make}
 @item -M
+@item --dependencies
 Instead of outputting the result of preprocessing, output a rule
 suitable for @command{make} describing the dependencies of the main
 source file.  The preprocessor outputs one @command{make} rule containing
@@ -105,7 +119,9 @@ Passing @option{-M} to the driver implies @option{-E}, and suppresses
 warnings with an implicit @option{-w}.
 
 @opindex MM
+@opindex user-dependencies
 @item -MM
+@itemx --user-dependencies
 Like @option{-M} but do not mention header files that are found in
 system header directories, nor header files that are included,
 directly or indirectly, from such a header.
@@ -128,7 +144,9 @@ When used with the driver options @option{-MD} or @option{-MMD},
 If @var{file} is @file{-}, then the dependencies are written to @file{stdout}.
 
 @opindex MG
+@opindex print-missing-file-dependencies
 @item -MG
+@itemx --print-missing-file-dependencies
 In conjunction with an option such as @option{-M} requesting
 dependency generation, @option{-MG} assumes missing header files are
 generated files and adds them to the dependency list without raising
@@ -190,7 +208,9 @@ The default target is automatically quoted, as if it were given with
 @option{-MQ}.
 
 @opindex MD
+@opindex write-dependencies
 @item -MD
+@itemx --write-dependencies
 @option{-MD} is equivalent to @option{-M -MF @var{file}}, except that
 @option{-E} is not implied.  The driver determines @var{file} based on
 whether an @option{-o} option is given.  If it is, the driver uses its
@@ -207,11 +227,14 @@ Since @option{-E} is not implied, @option{-MD} can be used to generate
 a dependency output file as a side effect of the compilation process.
 
 @opindex MMD
+@opindex write-user-dependencies
 @item -MMD
+@itemx --write-user-dependencies
 Like @option{-MD} except mention only user header files, not system
 header files.
 
 @opindex fpreprocessed
+@opindex fno-preprocessed
 @item -fpreprocessed
 Indicate to the preprocessor that the input file has already been
 preprocessed.  This suppresses things like macro expansion, trigraph
@@ -227,6 +250,7 @@ extensions that GCC uses for preprocessed files created by
 @option{-save-temps}.
 
 @opindex fdirectives-only
+@opindex fno-directives-only
 @item -fdirectives-only
 When preprocessing, handle directives, but do not expand macros.
 
@@ -249,6 +273,7 @@ With both @option{-E} and @option{-fpreprocessed}, the rules for
 files previously preprocessed with @code{-E -fdirectives-only}.
 
 @opindex fdollars-in-identifiers
+@opindex fno-dollars-in-identifiers
 @item -fdollars-in-identifiers
 @anchor{fdollars-in-identifiers}
 Accept @samp{$} in identifiers.
@@ -257,11 +282,13 @@ Accept @samp{$} in identifiers.
 @end ifset
 
 @opindex fextended-identifiers
+@opindex fno-extended-identifiers
 @item -fextended-identifiers
 Accept universal character names and extended characters in
 identifiers.  This option is enabled by default for C99 (and later C
 standard versions) and C++.
 
+@opindex fcanonical-system-headers
 @opindex fno-canonical-system-headers
 @item -fno-canonical-system-headers
 When preprocessing, do not shorten system header paths with canonicalization.
@@ -271,6 +298,7 @@ When preprocessing, do not shorten system header paths with canonicalization.
 Set the maximum depth of the nested #include. The default is 200. 
 
 @opindex fsearch-include-path
+@opindex fno-search-include-path
 @item -fsearch-include-path@r{[}=@var{kind}@r{]}
 Look for input files on the #include path, not just the current
 directory.  This is particularly useful with C++20 modules, for which
@@ -344,15 +372,20 @@ problems with encodings that do not fit exactly in @code{wchar_t}.
 @cindex character set, input
 @item -finput-charset=@var{charset}
 Set the input character set, used for translation from the character
-set of the input file to the source character set used by GCC@.  If the
-locale does not specify, or GCC cannot get this information from the
-locale, the default is UTF-8.  This can be overridden by either the locale
-or this command-line option.  Currently the command-line option takes
-precedence if there's a conflict.  @var{charset} can be any encoding
+set of the input file to the source character set used by GCC@.  The
+default is UTF-8.  @var{charset} can be any encoding
 supported by the system's @code{iconv} library routine.
+
+If the input character set is UTF-8, warnings about ill-formed code
+unit sequences are issued if @option{-Winvalid-utf8} is enabled.
+Otherwise no diagnostics are issued when the input character set
+matches the execution character set.  If they are different,
+ill-formed code unit sequences result in an error during transcoding
+to the execution character set.
 
 @ifclear cppmanual
 @opindex fpch-deps
+@opindex fno-pch-deps
 @item -fpch-deps
 When using precompiled headers (@pxref{Precompiled Headers}), this flag
 causes the dependency-output flags to also list the files from the
@@ -362,6 +395,7 @@ create it, because those files are not consulted when a precompiled
 header is used.
 
 @opindex fpch-preprocess
+@opindex fno-pch-preprocess
 @item -fpch-preprocess
 This option allows use of a precompiled header (@pxref{Precompiled
 Headers}) together with @option{-E}.  It inserts a special @code{#pragma},
@@ -396,22 +430,35 @@ form @option{-fno-working-directory}.  If the @option{-P} flag is
 present in the command line, this option has no effect, since no
 @code{#line} directives are emitted whatsoever.
 
+@c The documentation for this option is not helpful to users without
+@c the longer explanation that appears only in the CPP manual, plus
+@c it's been documented as obsolete and "do not use" since 2001!
+@ifset cppmanual
 @opindex A
+@opindex assert
 @item -A @var{predicate}=@var{answer}
+@itemx --assert @var{predicate}=@var{answer}
+@itemx --assert=@var{predicate}=@var{answer}
 Make an assertion with the predicate @var{predicate} and answer
 @var{answer}.  This form is preferred to the older form @option{-A
 @var{predicate}(@var{answer})}, which is still supported, because
 it does not use shell special characters.
-@ifset cppmanual
-@xref{Obsolete Features}.
-@end ifset
+
+Assertions are an obsolete feature of the preprocessor, supported only
+for compatibility with legacy system headers on some targets.
+@xref{Obsolete Features}, for more details on use.
 
 @item -A -@var{predicate}=@var{answer}
+@itemx --assert -@var{predicate}=@var{answer}
+@itemx --assert=-@var{predicate}=@var{answer}
 Cancel an assertion with the predicate @var{predicate} and answer
 @var{answer}.
+@end ifset
 
 @opindex C
+@opindex comments
 @item -C
+@itemx --comments
 Do not discard comments.  All comments are passed through to the output
 file, except for comments in processed directives, which are deleted
 along with the directive.
@@ -423,7 +470,9 @@ directive line have the effect of turning that line into an ordinary
 source line, since the first token on the line is no longer a @samp{#}.
 
 @opindex CC
+@opindex comments-in-macros
 @item -CC
+@itemx --comments-in-macros
 Do not discard comments, including during macro expansion.  This is
 like @option{-C}, except that comments contained within macros are
 also passed through to the output file where the macro is expanded.
@@ -437,7 +486,9 @@ the source line.
 The @option{-CC} option is generally used to support lint comments.
 
 @opindex P
+@opindex no-line-commands
 @item -P
+@itemx --no-line-commands
 Inhibit generation of linemarkers in the output from the preprocessor.
 This might be useful when running the preprocessor on something that is
 not C code, and will be sent to a program which might be confused by the
@@ -451,7 +502,9 @@ linemarkers.
 @opindex traditional-cpp
 @opindex traditional
 @item -traditional
+@itemx --traditional
 @itemx -traditional-cpp
+@itemx --traditional-cpp
 
 Try to imitate the behavior of pre-standard C preprocessors, as
 opposed to ISO C preprocessors.
@@ -468,6 +521,7 @@ switch, or when invoking CPP explicitly.
 
 @opindex trigraphs
 @item -trigraphs
+@itemx --trigraphs
 Support ISO C trigraphs.
 These are three-character sequences, all starting with @samp{??}, that
 are defined by ISO C to stand for single characters.  For example,
@@ -496,7 +550,9 @@ Enable special code to work around file systems which only permit very
 short file names, such as MS-DOS@.
 
 @opindex H
+@opindex trace-includes
 @item -H
+@itemx --trace-includes
 Print the name of each header file used, in addition to other normal
 activities.  Each name is indented to show how deep in the
 @samp{#include} stack it is.  Precompiled header files are also
@@ -504,7 +560,10 @@ printed, even if they are found to be invalid; an invalid precompiled
 header file is printed with @samp{...x} and a valid one with @samp{...!} .
 
 @opindex d
+@opindex dump
 @item -d@var{letters}
+@itemx --dump=@var{letters}
+@itemx --dump @var{letters}
 Says to make debugging dumps during compilation as specified by
 @var{letters}.  The flags documented here are those relevant to the
 preprocessor.  Other @var{letters} are interpreted
@@ -518,6 +577,7 @@ conflicts, the result is undefined.
 @table @gcctabopt
 @opindex dM
 @item -dM
+@itemx --dump=M
 Instead of the normal output, generate a list of @samp{#define}
 directives for all the macros defined during the execution of the
 preprocessor, including predefined macros.  This gives you a way of
@@ -539,21 +599,25 @@ interpreted as a synonym for @option{-fdump-rtl-mach}.
 
 @opindex dD
 @item -dD
+@itemx --dump=D
 Like @option{-dM} except that it outputs @emph{both} the @samp{#define}
 directives and the result of preprocessing.  Both kinds of output go to
 the standard output file.
 
 @opindex dN
 @item -dN
+@itemx --dump=N
 Like @option{-dD}, but emit only the macro names, not their expansions.
 
 @opindex dI
 @item -dI
+@itemx --dump=I
 Output @samp{#include} directives in addition to the result of
 preprocessing.
 
 @opindex dU
 @item -dU
+@itemx --dump=U
 Like @option{-dD} except that only macros that are expanded, or whose
 definedness is tested in preprocessor directives, are output; the
 output is delayed until the use or test of the macro; and
@@ -562,6 +626,7 @@ undefined at the time.
 @end table
 
 @opindex fdebug-cpp
+@opindex fno-debug-cpp
 @item -fdebug-cpp
 This option is only useful for debugging GCC.  When used from CPP or with
 @option{-E}, it dumps debugging information about location maps.  Every

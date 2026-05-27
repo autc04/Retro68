@@ -1,3 +1,3 @@
 #...
-Disassembly of section .lower.bss:
+.* \.lower\.bss +0+14 .*
 #pass

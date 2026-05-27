@@ -1,6 +1,5 @@
 # Check 64bit AVX512_4VNNIW instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vp4dpwssd	(%rcx), %zmm8, %zmm1	 # AVX512_4VNNIW

@@ -7,7 +7,7 @@
 --                                 S p e c                                  --
 --                        (VxWorks 7.x AARCH64 RTP)                         --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -66,8 +66,8 @@ package System is
 
    --  Storage-related Declarations
 
-   type Address is private;
-   pragma Preelaborable_Initialization (Address);
+   type Address is private
+   with Preelaborable_Initialization;
    Null_Address : constant Address;
 
    Storage_Unit : constant := 8;
@@ -119,9 +119,6 @@ package System is
    Default_Priority : constant Priority := 122;
 
 private
-
-   pragma Linker_Options ("--specs=vxworks7-rtp-base-link.spec");
-   --  Define the symbol wrs_rtp_base
 
    type Address is mod Memory_Size;
    for Address'Size use Standard'Address_Size;

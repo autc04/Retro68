@@ -1,0 +1,513 @@
+# Expect script for binutils tests with LTO
+# Copyright (C) 2025-2026 Free Software Foundation, Inc.
+#
+# This file is part of the GNU Binutils.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+# MA 02110-1301, USA.
+#
+
+# Make sure that binutils can correctly handle LTO IR in ELF.
+
+if { !([istarget *-*-linux*]
+       || [istarget arm*-*-uclinuxfdpiceabi]
+       || [istarget *-*-gnu*]) || [istarget *ecoff] } then {
+    return
+}
+
+# Check to see if the C and C++ compilers work
+if { ![check_compiler_available] || [which $CXX_FOR_TARGET] == 0 } {
+    return
+}
+
+# These tests require plugin and LTO.
+if { ![check_plugin_api_available]
+     || ![check_lto_available] } {
+    return
+}
+
+set lto_fat ""
+set lto_no_fat ""
+if { [check_lto_fat_available] } {
+  set lto_fat "-ffat-lto-objects"
+  set lto_no_fat "-fno-fat-lto-objects"
+  set no_lto "-fno-lto"
+}
+
+# List contains test-items:
+#  0:program name
+#  1:program options
+#  2:input file
+#  3:output file
+#  4:action list (optional)
+#
+proc run_lto_binutils_test { lto_tests } {
+    global srcdir
+    global subdir
+    global nm
+    global objcopy
+    global objdump
+    global READELF
+    global strip
+    global plug_opt
+
+    foreach testitem $lto_tests {
+	set prog_name [lindex $testitem 0]
+	set prog_options [lindex $testitem 1]
+	set input tmpdir/[lindex $testitem 2]
+	set output tmpdir/[lindex $testitem 3]
+	set actions [lindex $testitem 4]
+	set objfiles {}
+	set is_unresolved 0
+	set failed 0
+
+#	eval set prog \$$prog_name
+	switch -- $prog_name {
+	objcopy
+	    {
+		set prog $objcopy
+		set prog_output "$output"
+	    }
+	strip
+	    {
+		set prog $strip
+		set prog_output "-o $output"
+	    }
+	default
+	    {
+		perror "Unrecognized action $action"
+		set is_unresolved 1
+		break
+	    }
+	}
+
+	# Don't leave previous output around
+	if { $output ne "tmpdir/" } {
+	    remote_file host delete $output
+	}
+
+	append prog_options " $plug_opt"
+
+	set cmd_options "$prog_options $prog_output $input"
+	set test_name "$prog_name $cmd_options"
+
+	set cmd "$prog $cmd_options"
+	send_log "$cmd\n"
+	set got [remote_exec host "$cmd"]
+	if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
+	    send_log "$got\n"
+	    fail "$test_name"
+	    continue
+	}
+
+	if { $failed == 0 } {
+	    foreach actionlist $actions {
+		set action [lindex $actionlist 0]
+		set progopts [lindex $actionlist 1]
+
+		# There are actions where we run regexp_diff on the
+		# output, and there are other actions (presumably).
+		# Handling of the former look the same.
+		set dump_prog ""
+		switch -- $action {
+		    objdump
+			{ set dump_prog $objdump }
+		    nm
+			{ set dump_prog "$nm $plug_opt" }
+		    readelf
+			{ set dump_prog $READELF }
+		    default
+			{
+			    perror "Unrecognized action $action"
+			    set is_unresolved 1
+			    break
+			}
+		    }
+
+		if { $dump_prog != "" } {
+		    set dumpfile [lindex $actionlist 2]
+		    set binary $dump_prog
+
+		    # Ensure consistent sorting of symbols
+		    if {[info exists env(LC_ALL)]} {
+			set old_lc_all $env(LC_ALL)
+		    }
+		    set env(LC_ALL) "C"
+		    set cmd "$binary $progopts $output > tmpdir/dump.out"
+		    send_log "$cmd\n"
+		    catch "exec $cmd" comp_output
+		    if {[info exists old_lc_all]} {
+			set env(LC_ALL) $old_lc_all
+		    } else {
+			unset env(LC_ALL)
+		    }
+		    set comp_output [prune_warnings $comp_output]
+
+		    if ![string match "" $comp_output] then {
+			send_log "$comp_output\n"
+			set failed 1
+			break
+		    }
+
+		    if { [regexp_diff "tmpdir/dump.out" "$srcdir/$subdir/$dumpfile"] } then {
+			verbose -log "output is [file_contents "tmpdir/dump.out"]" 2
+			set failed 1
+			break
+		    }
+		}
+	    }
+	}
+
+	if { $failed } {
+	    fail $test_name
+	} elseif { $is_unresolved } {
+	    unresolved $test_name
+	} else {
+	    pass $test_name
+	}
+    }
+}
+
+run_cc_link_tests [list \
+    [list \
+	"Build strip-1a.o" \
+	"" \
+	"-O2 -flto $lto_no_fat" \
+	{ strip-1a.c } \
+    ] \
+    [list \
+	"Build libstrip-1a.a" \
+	"$plug_opt" \
+	"-O2 -flto $lto_no_fat" \
+	{ strip-1a.c } \
+	{} \
+	"libstrip-1a.a" \
+    ] \
+    [list \
+	"Build strip-1a-fat.o" \
+	"" \
+	"-O2 -flto $lto_fat" \
+	{ strip-1a-fat.c } \
+    ] \
+    [list \
+	"Build libstrip-1a-fat.a" \
+	"$plug_opt" \
+	"-O2 -flto $lto_fat" \
+	{ strip-1a-fat.c } \
+	{} \
+	"libstrip-1a-fat.a" \
+    ] \
+]
+
+run_lto_binutils_test [list \
+    [list \
+	"strip" \
+	"--strip-unneeded" \
+	"libstrip-1a.a" \
+	"libstrip-1a-s.a" \
+    ] \
+    [list \
+	"strip" \
+	"--strip-unneeded" \
+	"strip-1a.o" \
+	"strip-1a-s.o" \
+    ] \
+    [list \
+	"strip" \
+	"--strip-unneeded -R .gnu.*lto_* -N __gnu_lto_v1" \
+	"libstrip-1a-fat.a" \
+	"libstrip-1a-fat-s.a" \
+	{{readelf -SW strip-1a-fat.rd}} \
+    ] \
+    [list \
+	"strip" \
+	"--strip-unneeded -R .gnu.*lto_* -N __gnu_lto_v1" \
+	"strip-1a-fat.o" \
+	"strip-1a-fat-s.o" \
+	{{readelf -SW strip-1a-fat.rd}} \
+    ] \
+    [list \
+	"strip" \
+	"--strip-unneeded -R .gnu.debuglto_*" \
+	"libstrip-1a-fat.a" \
+	"libstrip-1b-fat-s.a" \
+	{{readelf -SW strip-1b-fat.rd}} \
+    ] \
+    [list \
+	"strip" \
+	"--strip-unneeded -R .gnu.debuglto_*" \
+	"strip-1a-fat.o" \
+	"strip-1b-fat-s.o" \
+	{{readelf -SW strip-1b-fat.rd}} \
+    ] \
+]
+
+run_cc_link_tests [list \
+    [list \
+	"Build strip-1a (strip-1a.o)" \
+	"" \
+	"-O2 -flto $lto_no_fat" \
+	{ strip-1b.c } \
+	{} \
+	"libstrip-1a" \
+	"C" \
+	"tmpdir/strip-1a.o" \
+    ] \
+    [list \
+	"Build strip-1b (strip-1a-s.o)" \
+	"" \
+	"-O2 -flto $lto_no_fat" \
+	{ strip-1b.c } \
+	{} \
+	"libstrip-1b" \
+	"C" \
+	"tmpdir/strip-1a-s.o" \
+    ] \
+    [list \
+	"Build strip-1c (libstrip-1a.a)" \
+	"" \
+	"-O2 -flto $lto_no_fat" \
+	{ strip-1b.c } \
+	{} \
+	"libstrip-1c" \
+	"C" \
+	"tmpdir/libstrip-1a.a" \
+    ] \
+    [list \
+	"Build strip-1d (libstrip-1a-s.a)" \
+	"" \
+	"-O2 -flto $lto_no_fat" \
+	{ strip-1b.c } \
+	{} \
+	"libstrip-1d" \
+	"C" \
+	"tmpdir/libstrip-1a-s.a" \
+    ] \
+    [list \
+	"Build strip-1e (strip-1a-fat-s.o)" \
+	"" \
+	"-O2 -flto $lto_fat" \
+	{ strip-1b-fat.c } \
+	{} \
+	"libstrip-1e" \
+	"C" \
+	"tmpdir/strip-1a-fat-s.o" \
+    ] \
+    [list \
+	"Build strip-1f (libstrip-1a-fat-s.a)" \
+	"" \
+	"-O2 -flto $lto_fat" \
+	{ strip-1b-fat.c } \
+	{} \
+	"libstrip-1f" \
+	"C" \
+	"tmpdir/libstrip-1a-fat-s.a" \
+    ] \
+    [list \
+	"Build strip-1g (strip-1b-fat-s.o)" \
+	"" \
+	"-O2 -flto $lto_fat" \
+	{ strip-1b-fat.c } \
+	{} \
+	"libstrip-1g" \
+	"C" \
+	"tmpdir/strip-1b-fat-s.o" \
+    ] \
+    [list \
+	"Build strip-1h (libstrip-1b-fat-s.a)" \
+	"" \
+	"-O2 -flto $lto_fat" \
+	{ strip-1b-fat.c } \
+	{} \
+	"libstrip-1h" \
+	"C" \
+	"tmpdir/libstrip-1b-fat-s.a" \
+    ] \
+]
+
+proc run_pr33246_test { llvm fat } {
+    global srcdir
+    global subdir
+    global plug_opt
+    global llvm_plug_opt
+    global ar
+    global CLANG_FOR_TARGET
+    global CC_FOR_TARGET
+    global NM
+    global READELF
+    global strip
+
+    set strip_flags "--strip-debug --enable-deterministic-archives"
+
+    set test pr33246
+    set testname "${test}${llvm}${fat} with $strip_flags"
+
+    if { "$llvm" == "-llvm" } {
+	# Skip native x32 and i?86 targets since system LLVMgold.so may
+	# not be compatible with native x32 and i?86 targets binutils.
+	if { [istarget "x86_64-*-linux*-gnux32"]
+	     || [istarget "i?86-*-*"]
+	     || ![info exists CLANG_FOR_TARGET]
+	     || [string match "" $llvm_plug_opt] } then {
+	    untested $testname
+	    return
+	}
+	set CC $CLANG_FOR_TARGET
+	set binutils_plug_opt "$llvm_plug_opt"
+    } else {
+	if { ![info exists CC_FOR_TARGET]
+	     || [string match "" $plug_opt] } then {
+	    untested $testname
+	    return
+	}
+	set CC $CC_FOR_TARGET
+	set binutils_plug_opt "$plug_opt"
+    }
+
+    append strip_flags " $binutils_plug_opt"
+
+    set src $srcdir/$subdir/${test}.c
+    set obj tmpdir/${test}${llvm}${fat}.o
+    set archive tmpdir/${test}${llvm}${fat}.a
+    set CFLAGS "-c -g -O2 -flto"
+    if { "$fat" == "-fat" } {
+	append CFLAGS " -ffat-lto-objects"
+    } else {
+	append CFLAGS " -fno-fat-lto-objects"
+    }
+
+    set cmd "$CC $CFLAGS -o $obj $src"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname ($obj)"
+	return
+    }
+
+    set cmd "$strip $strip_flags $obj -o ${obj}.strip"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname (strip $obj)"
+	return
+    }
+
+    set cmd "$NM $binutils_plug_opt ${obj}.strip"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![regexp "0+ T foo" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname (strip $obj)"
+	return
+    }
+
+    if { "$fat" == "-fat" } {
+	set cmd "$READELF -SW ${obj}.strip"
+	send_log "$cmd\n"
+	verbose "$cmd" 1
+	catch "exec $cmd" got
+	if [regexp " \.debug_" $got] then {
+	    send_log "$got\n"
+	    verbose "$got" 1
+	    fail "$testname (strip $obj)"
+	    return
+	}
+    } elseif { "$llvm" == "-llvm" } {
+	set cmd "cmp $obj ${obj}.strip"
+	send_log "$cmd\n"
+	verbose "$cmd" 1
+	catch "exec $cmd" got
+	if ![string match "" $got] then {
+	    send_log "$got\n"
+	    verbose "$got" 1
+	    fail "$testname (strip $obj)"
+	    return
+	}
+    }
+
+    pass "$testname (strip $obj)"
+
+    set cmd "$ar $binutils_plug_opt -D -s -r -c $archive $obj"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname ($archive)"
+	return
+    }
+
+    set cmd "$strip $strip_flags $archive -o ${archive}.strip"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname (strip $archive)"
+	return
+    }
+
+    set cmd "$NM $binutils_plug_opt ${archive}.strip"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![regexp "0+ T foo" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname (strip $archive)"
+	return
+    }
+
+    if { "$fat" == "-fat" } {
+	set cmd "$READELF -SW ${archive}.strip"
+	send_log "$cmd\n"
+	verbose "$cmd" 1
+	catch "exec $cmd" got
+	if [regexp " \.debug_" $got] then {
+	    send_log "$got\n"
+	    verbose "$got" 1
+	    fail "$testname (strip $archive)"
+	    return
+	}
+    } elseif { "$llvm" == "-llvm" } {
+	set cmd "cmp $archive ${archive}.strip"
+	send_log "$cmd\n"
+	verbose "$cmd" 1
+	catch "exec $cmd" got
+	if ![string match "" $got] then {
+	    send_log "$got\n"
+	    verbose "$got" 1
+	    fail "$testname (strip $archive)"
+	    return
+	}
+    }
+
+    pass "$testname (strip $archive)"
+}
+
+run_pr33246_test "" ""
+run_pr33246_test "" "-fat"
+run_pr33246_test "-llvm" ""
+run_pr33246_test "-llvm" "-fat"

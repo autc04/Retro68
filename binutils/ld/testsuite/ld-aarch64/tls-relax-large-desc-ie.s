@@ -1,8 +1,3 @@
-	.global var
-	.section	.tdata,"awT",%progbits
-var:
-	.word 2
-
 	.text
 test:
 	ldr x1, .Lgot

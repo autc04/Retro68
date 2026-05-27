@@ -21,3 +21,10 @@ _start:
 	call *%eax
 	.data
 	.byte 0
+
+	.text
+directive:
+	.nop
+	call	*%eax
+	.nops 3
+	ret

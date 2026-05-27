@@ -1,10 +1,10 @@
-@c Copyright (C) 2004-2025 Free Software Foundation, Inc.
+@c Copyright (C) 2004-2026 Free Software Foundation, Inc.
 @c This is part of the GNU Fortran manual.
 @c For copying conditions, see the file gfortran.texi.
 
 @ignore
 @c man begin COPYRIGHT
-Copyright @copyright{} 2004-2025 Free Software Foundation, Inc.
+Copyright @copyright{} 2004-2026 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -104,6 +104,7 @@ one is not the default.
 * Interoperability Options::  Options for interoperability with other
                               languages.
 * Environment Variables:: Environment variables that affect @command{gfortran}.
+* Shared-memory Coarrays:: Multiprocess shared-memory coarray support.
 @end menu
 
 @node Option Summary
@@ -149,9 +150,9 @@ by type.  Explanations are in the following sections.
 and warnings}.
 @gccoptlist{-Waliasing -Wall -Wampersand -Warray-bounds
 -Wc-binding-type -Wcharacter-truncation -Wconversion
--Wdo-subscript -Wfunction-elimination -Wimplicit-interface
--Wimplicit-procedure -Wintrinsic-shadow -Wuse-without-only
--Wintrinsics-std -Wline-truncation -Wno-align-commons
+-Wno-deprecated-openmp -Wdo-subscript -Wfunction-elimination
+-Wimplicit-interface -Wimplicit-procedure -Wintrinsic-shadow
+-Wuse-without-only -Wintrinsics-std -Wline-truncation -Wno-align-commons
 -Wno-overwrite-recursive -Wno-tabs -Wreal-q-constant -Wsurprising
 -Wunderflow -Wunused-parameter -Wrealloc-lhs -Wrealloc-lhs-all
 -Wfrontend-loop-interchange -Wtarget-lifetime -fmax-errors=@var{n}
@@ -189,7 +190,7 @@ and warnings}.
 -fbounds-check -ftail-call-workaround -ftail-call-workaround=@var{n}
 -fcheck-array-temporaries
 -fcheck=<all|array-temps|bits|bounds|do|mem|pointer|recursion>
--fcoarray=<none|single|lib> -fexternal-blas -ff2c
+-fcoarray=<none|single|lib> -fexternal-blas -fexternal-blas64 -ff2c
 -ffrontend-loop-interchange -ffrontend-optimize
 -finit-character=@var{n} -finit-integer=@var{n} -finit-local-zero
 -finit-derived -finit-logical=<true|false>
@@ -592,6 +593,8 @@ BOZ literal constant conversion, and I/O and calls to intrinsic procedures
 when passing a value to the @code{kind=} dummy argument.  Inspection of the
 intermediate representation of the translated Fortran code, produced by
 @option{-fdump-fortran-original} or @option{-fdump-tree-original}, is suggested.
+NOTE: These options are incompatible with user defined derived
+type I/O (DTIO).
 
 @opindex std=@var{std}
 @item -std=@var{std}
@@ -646,6 +649,10 @@ filename extension is @file{.F}, @file{.FOR}, @file{.FTN}, @file{.fpp},
 invoke the preprocessor on any file, use @option{-cpp}, to disable
 preprocessing on files where the preprocessor is run automatically, use
 @option{-nocpp}.
+
+When compiling a preprocessed file, use @option{-fpreprocessed}
+(@pxref{Preprocessor Options,,Options Controlling the Preprocessor,gcc,
+Using the GNU Compiler Collection (GCC)}).  This skips the C preprocessor.
 
 If a preprocessed file includes another file with the Fortran @code{INCLUDE}
 statement, the included file is not preprocessed.  To preprocess included
@@ -1069,6 +1076,11 @@ the expression after conversion. Implied by @option{-Wall}.
 Warn about implicit conversions between different types and kinds. This
 option does @emph{not} imply @option{-Wconversion}.
 
+@opindex Wdeprecated-openmp
+@cindex warnings
+@item -Wdeprecated-openmp
+Warn for usage of deprecated OpenMP code.
+
 @opindex Wexternal-argument-mismatch
 @cindex warnings, argument mismatch
 @cindex argment mismatch, warnings
@@ -1170,6 +1182,10 @@ A @code{CHARACTER} variable is declared with negative length.
 With @option{-fopenmp}, for fixed-form source code, when an @code{omx}
 vendor-extension sentinel is encountered. (The equivalent @code{ompx},
 used in free-form source code, is diagnosed by default.)
+
+@item
+With @option{-fopenacc}, when using named constances with clauses that
+take a variable as doing so has no effect.
 @end itemize
 
 @opindex Wtabs
@@ -2010,13 +2026,27 @@ for some matrix operations like @code{MATMUL}, instead of using our own
 algorithms, if the size of the matrices involved is larger than a given
 limit (see @option{-fblas-matmul-limit}).  This may be profitable if an
 optimized vendor BLAS library is available.  The BLAS library has
-to be specified at link time.
+to be specified at link time.  This option specifies a BLAS library
+with integer arguments of default kind (32 bits). It cannot be used
+together with @option{-fexternal-blas64}.
+
+@opindex fexternal-blas64
+@item -fexternal-blas64
+makes @command{gfortran} generate calls to BLAS functions
+for some matrix operations like @code{MATMUL}, instead of using our own
+algorithms, if the size of the matrices involved is larger than a given
+limit (see @option{-fblas-matmul-limit}).  This may be profitable if an
+optimized vendor BLAS library is available.  The BLAS library has
+to be specified at link time.  This option specifies a BLAS library
+with integer arguments of @code{KIND=8} (64 bits). It cannot be used
+together with @option{-fexternal-blas}, and requires a 64-bit system.
+This option also requires @option{-ffrontend-optimize}.
 
 @opindex fblas-matmul-limit
 @item -fblas-matmul-limit=@var{n}
-Only significant when @option{-fexternal-blas} is in effect.
-Matrix multiplication of matrices with size larger than (or equal to) @var{n}
-is performed by calls to BLAS functions, while others are
+Only significant when @option{-fexternal-blas} or @option{-fexternal-blas64}
+are in effect. Matrix multiplication of matrices with size larger than or equal
+to @var{n} is performed by calls to BLAS functions, while others are
 handled by @command{gfortran} internal algorithms. If the matrices
 involved are not square, the size comparison is performed using the
 geometric mean of the dimensions of the argument and result matrices.
@@ -2208,7 +2238,7 @@ shared by @command{gfortran}, @command{gcc}, and other GNU compilers.
 
 @table @gcctabopt
 
-@opindex c-prototypes
+@opindex fc-prototypes
 @cindex Generating C prototypes from Fortran BIND(C) enteties
 @item -fc-prototypes
 This option generates C prototypes from @code{BIND(C)} variable
@@ -2231,7 +2261,7 @@ $ gfortran -fc-prototypes -fsyntax-only foo.f90 > foo.h
 where the C code intended for interoperating with the Fortran code
 then uses @code{#include "foo.h"}.
 
-@opindex c-prototypes-external
+@opindex fc-prototypes-external
 @cindex Generating C prototypes from external procedures
 @item -fc-prototypes-external
 This option generates C prototypes from external functions and
@@ -2276,3 +2306,64 @@ variables.
 @xref{Runtime}, for environment variables that affect the
 run-time behavior of programs compiled with GNU Fortran.
 @c man end
+
+@node Shared-memory Coarrays
+@section Shared-memory Coarrays
+
+@c man begin SHARED-MEMORY COARRAYS
+
+@command{gfortran} supplies a runtime library for running coarray-enabled
+programs using a shared-memory multiprocess approach.  The library is supplied
+as a static link library with the @command{libgfortran} library, and is fully
+compatible with the ABI enabled when @command{gfortran} is invoked with
+@option{-fcoarray=lib}.  Link the shared-memory coarray to the executable
+produced by @command{gfortran} using @option{-lcaf_shmem}.
+
+The library @code{caf_shmem} can only be used on architectures that allow
+multiple processes to use the same memory at the same virtual memory address in
+each process' memory space.  This is the case on most Unix- and Windows-based
+systems.
+
+One can control some aspects of the library behavior at run time using
+environment variables:
+
+@env{GFORTRAN_NUM_IMAGES}: The number of images to spawn when running the
+executable.  Note, there is always one additional supervisor process, which
+does not participate in the computation, but is only responsible for starting
+the images and catching any (ab-)normal termination.  When the environment
+variable is not set, then the number of hardware threads reported by the OS is
+used. Over-provisioning is possible.  The number of images is limited only
+by the OS and the size of an integer variable on the architecture the program is
+running on.
+
+@env{GFORTRAN_SHARED_MEMORY_SIZE}: The size of the shared-memory segment made
+available to all images is fixed and needs to be set at program start.  It
+cannot grow or shrink.  The size can be given in bytes (no suffix), kilobytes
+(@code{k} or @code{K} suffix), megabytes (@code{m} or @code{M}) or gigabytes
+(@code{g} or @code{G}).  If the variable is not set, or not parseable, then on
+32-bit architectures 2^28 bytes and on 64-bit 2^34 bytes are chosen.  Note,
+although the size is set, most modern systems do not allocate the memory at
+program start.  This allows one to choose a shared-memory size larger than
+available memory.
+
+Warning: Choosing a large shared-memory size may produce large core dumps!
+
+@env{GFORTRAN_IMAGE_RESTARTS_LIMIT}: On certain platforms, esp. MacOS, the
+shared-memory segment needs to be placed on the same (virtual) address in every
+image or synchronization primitives do not work as expected.  Unfortunately some
+operating systems are somewhat arbitrary on when they can do this.  When the OS
+is not able to fulfill the request, the image aborts itself and is restarted by the
+supervisor until the OS complies.  This environment variable limits the total
+number of restarts of all images having an issue with shared-memory segment
+placement.  The default value is 4000.
+
+The shared-memory coarray library internally uses some additional environment
+variables, which are overwritten without notice or may result in failure to
+start.  These are: @code{GFORTRAN_IMAGE_NUM}, @code{GFORTRAN_SHMEM_PID}, and
+@code{GFORTRAN_SHMEM_BASE}.  Using these variables is strongly discouraged.
+Special care needs to be taken when one coarray program starts another coarray
+program as a child process.  In this case it is the spawning process'
+responsibility to remove the above variables from the environment.
+
+@c man end
+

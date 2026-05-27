@@ -1,16 +1,16 @@
 [^:]*: Assembler messages:
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:13: Error: bad type in SIMD instruction -- `vadc.i8 q0,q1,q2'
 [^:]*:14: Error: bad type in SIMD instruction -- `vadc.i16 q0,q1,q2'
 [^:]*:15: Error: bad type in SIMD instruction -- `vadc.i64 q0,q1,q2'

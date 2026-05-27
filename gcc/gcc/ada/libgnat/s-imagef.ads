@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---            Copyright (C) 2020-2025, Free Software Foundation, Inc.       --
+--            Copyright (C) 2020-2026, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,9 +34,7 @@
 --  point types whose Small is the ratio of two Int values.
 
 generic
-
    type Int is range <>;
-   type Uns is mod <>;
 
    with procedure Scaled_Divide
           (X, Y, Z : Int;

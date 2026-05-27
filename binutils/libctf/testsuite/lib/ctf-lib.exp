@@ -1,5 +1,5 @@
 # Support routines for libctf testsuite.
-#   Copyright (C) 1994-2022 Free Software Foundation, Inc.
+#   Copyright (C) 1994-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,6 +19,51 @@
 # MA 02110-1301, USA.
 
 load_file $srcdir/../../ld/testsuite/lib/ld-lib.exp
+
+# Returns true if the target linker deduplicates CTF.
+proc check_ctf_linker_dedup { } {
+    global ctf_linker_dedup_saved
+
+    if {![info exists ctf_linker_dedup_saved]} {
+	set ctf_linker_dedup_saved 0
+
+	if ([check_ctf_available]) {
+	    global objdump srcdir
+
+	    set basename "tmpdir/ctf_linker_dedups[pid]"
+	    compile_one_cc $srcdir/libctf-lookup/ambiguous-struct-A.c ${basename}-A.o "-gctf -fPIC -c"
+	    compile_one_cc $srcdir/libctf-lookup/ambiguous-struct-B.c ${basename}-B.o "-gctf -fPIC -c"
+	    compile_one_cc "${basename}-A.o ${basename}-B.o" $basename.so "-gctf -fPIC -shared"
+	    if {! [remote_file host exists $basename.so] } {
+		return 0
+	    }
+
+	    # Don't use run_host_cmd: it dumps the entire output into the log,
+	    # even on success.
+	    set cmdret [remote_exec host [concat sh -c [list "$objdump --ctf $basename.so >dump.out 2>dump.err"]] "" "/dev/null"]
+	    set cmdret [lindex $cmdret 0]
+	    remote_upload host "dump.out"
+	    remote_upload host "dump.err"
+	    set dump_out [prune_warnings [file_contents "dump.out"]]
+	    set dump_err [prune_warnings [file_contents "dump.err"]]
+	    remote_file host delete "dump.out" "dump.err"
+	    remote_file build delete "dump.out" "dump.err"
+
+	    if {$cmdret != 0} {
+		verbose -log "failed with $cmdret: stderr: $dump_err"
+		verbose -log "output: $dump_out"
+		return 0;
+	    }
+
+	    remote_file host delete $basename.so ${basename}-A.o ${basename}-B.o
+	    if [regexp {CTF archive member: } $dump_out] {
+		set ctf_linker_dedup_saved 1
+	    }
+	}
+    }
+    return $ctf_linker_dedup_saved
+}
+
 
 proc run_native_host_cmd { command } {
     global link_output
@@ -96,12 +141,27 @@ proc compile_link_one_host_cc { src output additional_args } {
 #
 #   link:
 #	If set, link the SOURCE together even if only one file is specified.
+#       If "objects", keep the input object files and pass them as additional
+#       arguments to LOOKUP.
 #
 #   link_flags:
 #	If set, extra flags to pass to the linker.
 #
+#   lookup_link:
+#       If set, extra libraries to link the lookup program with.
+#
 #   xfail: GLOB|PROC ...
 #	This test is expected to fail on a specified list of targets.
+#
+#   no_cross:
+#       If set, do not run this test when host != target.
+#
+#   host:
+#       If set, only run this test on hosts matching the given glob.
+#
+#   wrapper:
+#       Wrap invocations of LOOKUP in this command.  (Useful for valgrind
+#       invocations, etc.)
 #
 # Each option may occur at most once unless otherwise mentioned.
 #
@@ -110,7 +170,7 @@ proc compile_link_one_host_cc { src output additional_args } {
 # regexps in FILE.d.
 #
 proc run_lookup_test { name } {
-    global CC_FOR_TARGET CFLAGS_FOR_TARGET LIBS
+    global CC_FOR_TARGET CFLAGS_FOR_TARGET LIBS TEST_CROSS
     global copyfile env runtests srcdir subdir verbose
 
     if ![runtest_file_p $runtests $name] then {
@@ -123,22 +183,28 @@ proc run_lookup_test { name } {
     } else {
 	set file "$srcdir/$subdir/$name"
     }
+    # strip off the srcdir, which contains build host specific pathnames
+    set file4log [string map [list $srcdir/ ""] $file]
 
     set opt_array [slurp_options "${file}.lk"]
     if { $opt_array == -1 } {
 	perror "error reading options from $file.lk"
-	unresolved $subdir/$name
+	unresolved $file4log
 	return
     }
     set run_ld 0
     set shared "-shared"
     set opts(link) {}
     set opts(link_flags) {}
+    set opts(lookup_link) {}
     set opts(nonshared) {}
     set opts(lookup) {}
     set opts(name) {}
     set opts(source) {}
     set opts(xfail) {}
+    set opts(no_cross) {}
+    set opts(host) {}
+    set opts(wrapper) {}
 
     foreach i $opt_array {
 	set opt_name [lindex $i 0]
@@ -149,11 +215,22 @@ proc run_lookup_test { name } {
 	}
 	if ![info exists opts($opt_name)] {
 	    perror "unknown option $opt_name in file $file.lk"
-	    unresolved $subdir/$name
+	    unresolved $file4log
 	    return
 	}
 
 	set opts($opt_name) [concat $opts($opt_name) $opt_val]
+    }
+
+    if { [llength $opts(no_cross)] != 0
+	 && "$TEST_CROSS" eq "yes" } {
+	untested "$file4log not tested when cross-compiling"
+	return
+    }
+
+    if { [llength $opts(host)] != 0 && ![ishost $opts(host)] } {
+	untested "$file4log only runs on $opts(host)"
+	return
     }
 
     if { [llength $opts(lookup)] == 0 } {
@@ -175,13 +252,10 @@ proc run_lookup_test { name } {
 	set shared ""
     }
 
-    set testname $opts(name)
-    if { $opts(name) == "" } {
-	set testname "$subdir/$name"
-    }
+    set testname $file4log
 
     # Compile and link the lookup program.
-    set comp_output [prune_warnings [compile_link_one_host_cc $opts(lookup) "tmpdir/lookup" "libctf.la"]]
+    set comp_output [prune_warnings [compile_link_one_host_cc $opts(lookup) "tmpdir/lookup" "libctf.la $opts(lookup_link)"]]
 
     if { $comp_output != ""} {
 	send_log "compilation of lookup program $opts(lookup) failed with <$comp_output>"
@@ -193,11 +267,14 @@ proc run_lookup_test { name } {
     # Compile the inputs and posibly link them together.
 
     set lookup_output ""
+    set objs {}
     if { [llength $opts(source)] > 0 } {
 	set lookup_flags ""
+	set ld_flags ""
 	if { $run_ld } {
 	    set lookup_output "tmpdir/out.so"
-	    set lookup_flags "-gctf -fPIC $shared $opts(link_flags)"
+	    set lookup_flags "-gctf -fPIC"
+	    set ld_flags "$shared $opts(link_flags)"
 	} else {
 	    set lookup_output "tmpdir/out.o"
 	    set lookup_flags "-gctf -fPIC -c"
@@ -208,19 +285,38 @@ proc run_lookup_test { name } {
 	if [board_info [target_info name] exists ldflags] {
 	    append lookup_flags " [board_info [target_info name] ldflags]"
 	}
-	set src {}
+	set objsrcs {}
+	set local_srcs {}
 	foreach sfile $opts(source) {
+	    set local_src [file join [file dirname $file] $sfile]
+	    lappend local_srcs $local_src
+
 	    if [is_remote host] {
-		lappend src [remote_download host [file join [file dirname $file] $sfile]]
+		set src [remote_download host [file join [file dirname $file] $sfile]]
 	    } else {
-		lappend src [file join [file dirname $file] $sfile]
+		set src [file join [file dirname $file] $sfile]
+	    }
+
+	    if { $opts(link) == "objects" } {
+		set obj "tmpdir/[file rootname [file tail $src]].o"
+		set comp_output [prune_warnings [run_host_cmd "$CC_FOR_TARGET" "$CFLAGS_FOR_TARGET $lookup_flags $src -c -o $obj"]]
+
+		if { $comp_output != ""} {
+		    send_log "compilation of CTF program $local_src failed with <$comp_output>"
+		    fail $testname
+		    return 0
+		}
+		lappend objsrcs $obj
+		lappend objs $obj
+	    } else {
+		lappend objsrcs $src
 	    }
 	}
 
-	set comp_output [prune_warnings [run_host_cmd "$CC_FOR_TARGET" "$CFLAGS_FOR_TARGET $lookup_flags [concat $src] -o $lookup_output"]]
+	set comp_output [prune_warnings [run_host_cmd "$CC_FOR_TARGET" "$CFLAGS_FOR_TARGET $lookup_flags $ld_flags [concat $objsrcs] -o $lookup_output"]]
 
 	if { $comp_output != ""} {
-	    send_log "compilation of CTF program [concat $src] failed with <$comp_output>"
+	    send_log "compilation of CTF program [concat $local_srcs] failed with <$comp_output>"
 	    fail $testname
 	    return 0
 	}
@@ -234,9 +330,19 @@ proc run_lookup_test { name } {
 	}
     }
 
-    # Invoke the lookup program on the outputs.
+    # Invoke the lookup program on the outputs, possibly through the wrapper, including all
+    # the object file names if they were filled out.
 
-    set results [run_host_cmd tmpdir/lookup $lookup_output]
+    if { [llength $opts(wrapper)] == 0 } {
+	set results [run_host_cmd tmpdir/lookup "$lookup_output $objs"]
+    } else {
+	set results [run_host_cmd "$opts(wrapper) tmpdir/lookup" "$lookup_output $objs"]
+    }
+
+    if { [regexp {^UNSUPPORTED: (.*)$} $results -> reason] } {
+	unsupported "$testname: $reason"
+	return 0
+    }
 
     set f [open "tmpdir/lookup.out" "w"]
     puts $f $results

@@ -1,5 +1,5 @@
 ;; Machine description for AArch64 AdvSIMD architecture.
-;; Copyright (C) 2011-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2026 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 ;;
 ;; This file is part of GCC.
@@ -17,6 +17,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GCC; see the file COPYING3.  If not see
 ;; <http://www.gnu.org/licenses/>.
+
+;; Code organization: See block comment at the top of aarch64.md.
 
 ;; The following define_subst rules are used to produce patterns representing
 ;; the implicit zeroing effect of 64-bit Advanced SIMD operations, in effect
@@ -68,11 +70,32 @@
      contains CONST_POLY_INTs), build it up from individual elements instead.
      We should only need to do this before RA; aarch64_legitimate_constant_p
      should ensure that we don't try to rematerialize the constant later.  */
-  if (GET_CODE (operands[1]) == CONST_VECTOR
-      && targetm.cannot_force_const_mem (<MODE>mode, operands[1]))
+  if (GET_CODE (operands[1]) == CONST_VECTOR)
     {
-      aarch64_expand_vector_init (operands[0], operands[1]);
-      DONE;
+      if (targetm.cannot_force_const_mem (<MODE>mode, operands[1]))
+	{
+	  aarch64_expand_vector_init (operands[0], operands[1]);
+	  DONE;
+	}
+      else if (!aarch64_simd_imm_zero (operands[1], <MODE>mode)
+	       && !aarch64_simd_special_constant_p (operands[1], <MODE>mode)
+	       && !aarch64_simd_valid_mov_imm (operands[1]))
+	{
+	  rtx x;
+	  /* Expand into VDUP.  */
+	  if (TARGET_SIMD && const_vec_duplicate_p (operands[1], &x))
+	    {
+	      x = force_reg (GET_MODE_INNER (<MODE>mode), x);
+	      operands[1] = gen_vec_duplicate (<MODE>mode, x);
+	      emit_move_insn (operands[0], operands[1]);
+	      DONE;
+	    }
+
+	  /* Expand into a literal load using anchors.  */
+	  operands[1] = force_const_mem (<MODE>mode, operands[1]);
+	  emit_move_insn (operands[0], operands[1]);
+	  DONE;
+	}
     }
   "
 )
@@ -949,6 +972,17 @@
   }
 )
 
+(define_expand "vec_trunc_add_high<mode>"
+  [(set (match_operand:<VNARROWQ> 0 "register_operand")
+	(plus:VQN (match_operand:VQN 1 "register_operand")
+		  (match_operand:VQN 2 "register_operand")))]
+  "TARGET_SIMD"
+  {
+    emit_insn (gen_aarch64_addhn<mode> (operands[0], operands[1], operands[2]));
+    DONE;
+  }
+)
+
 (define_insn "aarch64_<su>abal<mode>"
   [(set (match_operand:<VWIDE> 0 "register_operand" "=w")
 	(plus:<VWIDE>
@@ -1117,17 +1151,17 @@
   [(set_attr "type" "neon_fp_abd_<stype><q>")]
 )
 
-;; For AND (vector, register) and BIC (vector, immediate)
+;; For AND (vector, register), BIC (vector, immediate) and FMOV (register)
 (define_insn "and<mode>3<vczle><vczbe>"
   [(set (match_operand:VDQ_I 0 "register_operand")
 	(and:VDQ_I (match_operand:VDQ_I 1 "register_operand")
 		   (match_operand:VDQ_I 2 "aarch64_reg_or_and_imm")))]
   "TARGET_SIMD"
-  {@ [ cons: =0 , 1 , 2   ]
-     [ w        , w , w   ] and\t%0.<Vbtype>, %1.<Vbtype>, %2.<Vbtype>
-     [ w        , 0 , Db  ] << aarch64_output_simd_and_imm (operands[2], <bitsize>);
+  {@ [ cons: =0 , 1 , 2  ; attrs: type   ]
+     [ w        , w , w  ; neon_logic<q> ] and\t%0.<Vbtype>, %1.<Vbtype>, %2.<Vbtype>
+     [ w        , w , Df ; fmov          ] << aarch64_output_fmov (operands[2]);
+     [ w        , 0 , Db ; neon_logic<q> ] << aarch64_output_simd_and_imm (operands[2], <bitsize>);
   }
-  [(set_attr "type" "neon_logic<q>")]
 )
 
 ;; For ORR (vector, register) and ORR (vector, immediate)
@@ -1144,7 +1178,7 @@
 )
 
 ;; For EOR (vector, register) and SVE EOR (vector, immediate)
-(define_insn "xor<mode>3<vczle><vczbe>"
+(define_insn "@xor<mode>3<vczle><vczbe>"
   [(set (match_operand:VDQ_I 0 "register_operand")
         (xor:VDQ_I (match_operand:VDQ_I 1 "register_operand")
                    (match_operand:VDQ_I 2 "aarch64_reg_or_xor_imm")))]
@@ -1190,15 +1224,20 @@
   [(set_attr "type" "neon_ins<q>, neon_from_gp<q>, neon_load1_one_lane<q>")]
 )
 
+;; Inserting from the zero register into a vector lane is treated as an
+;; expensive GP->FP move on all CPUs.  Avoid it when optimizing for speed.
 (define_insn "aarch64_simd_vec_set_zero<mode>"
   [(set (match_operand:VALL_F16 0 "register_operand" "=w")
 	(vec_merge:VALL_F16
-	    (match_operand:VALL_F16 1 "aarch64_simd_imm_zero" "")
-	    (match_operand:VALL_F16 3 "register_operand" "0")
+	    (match_operand:VALL_F16 1 "register_operand" "0")
+	    (match_operand:VALL_F16 3 "aarch64_simd_imm_zero" "")
 	    (match_operand:SI 2 "immediate_operand" "i")))]
-  "TARGET_SIMD && exact_log2 (INTVAL (operands[2])) >= 0"
+  "TARGET_SIMD && aarch64_exact_log2_inverse (<nunits>, operands[2]) >= 0
+   && optimize_function_for_size_p (cfun)"
   {
-    int elt = ENDIAN_LANE_N (<nunits>, exact_log2 (INTVAL (operands[2])));
+    int elt = ENDIAN_LANE_N (<nunits>,
+			     aarch64_exact_log2_inverse (<nunits>,
+							 operands[2]));
     operands[2] = GEN_INT ((HOST_WIDE_INT) 1 << elt);
     return "ins\\t%0.<Vetype>[%p2], <vwcore>zr";
   }
@@ -1626,6 +1665,24 @@
   }
 )
 
+(define_expand "vec_set<mode>"
+  [(match_operand:VSTRUCT_QD 0 "register_operand")
+   (match_operand:<VEL> 1 "aarch64_simd_nonimmediate_operand")
+   (match_operand:SI 2 "immediate_operand")]
+  "TARGET_SIMD"
+{
+  aarch64_decompose_vec_struct_index (<VSTRUCT_ELT>mode, &operands[0],
+				      &operands[2], true);
+  /* For tuples of 64-bit modes, <vstruct_elt> is the 64-bit scalar mode.
+     Allow gen_vec_set<vstruct_elt> to cope with those cases too.  */
+  auto gen_vec_setdi ATTRIBUTE_UNUSED = [](rtx x0, rtx x1, rtx)
+    {
+      return gen_move_insn (x0, x1);
+    };
+  auto gen_vec_setdf ATTRIBUTE_UNUSED = gen_vec_setdi;
+  emit_insn (gen_vec_set<vstruct_elt> (operands[0], operands[1], operands[2]));
+  DONE;
+})
 
 (define_insn "aarch64_mla<mode><vczle><vczbe>"
  [(set (match_operand:VDQ_BHSI 0 "register_operand" "=w")
@@ -1764,6 +1821,14 @@
 {
   enum rtx_code cmp_operator;
   rtx cmp_fmt;
+
+  /* SVE has native D-forms of the MIN/MAX instructions.  */
+  if (TARGET_SVE)
+    {
+      emit_insn (gen_<su><maxmin>v2di3_as_sve (operands[0], operands[1],
+					       operands[2]));
+      DONE;
+    }
 
   switch (<CODE>)
     {
@@ -3181,6 +3246,7 @@
     DONE;
   }
 )
+
 (define_insn "extend<mode><Vwide>2"
   [(set (match_operand:<VWIDE> 0 "register_operand" "=w")
 	(float_extend:<VWIDE>
@@ -3189,6 +3255,29 @@
   "fcvtl\\t%0<Vmwtype>, %1<Vmtype>"
   [(set_attr "type" "neon_fp_cvt_widen_s")]
 )
+
+/* A BF->SF is a shift left of 16, however shifts are expensive and the generic
+   middle-end expansion would force through DI move.  Instead use EXT to do the
+   shift to get better throughput and don't go through GPRs.  */
+
+(define_expand "extendbfsf2"
+  [(set (match_operand:SF 0 "register_operand" "=w")
+	(float_extend:SF
+	  (match_operand:BF 1 "register_operand" "w")))]
+  "TARGET_SIMD"
+{
+  rtx tmp0 = aarch64_gen_shareable_zero (V8BFmode);
+  rtx op0 = force_lowpart_subreg (V8BFmode, operands[1], BFmode);
+  rtx res = gen_reg_rtx (V8BFmode);
+  emit_insn (gen_aarch64_extv8bf (res, tmp0, op0, gen_int_mode (7, SImode)));
+  /* Subregs between floating point modes aren't allowed to change size, so go
+     through V4SFmode.  */
+  res = force_lowpart_subreg (V4SFmode, res, V8BFmode);
+  res = force_lowpart_subreg (SFmode, res, V4SFmode);
+  emit_move_insn (operands[0], res);
+  DONE;
+})
+
 
 ;; Float narrowing operations.
 
@@ -3424,6 +3513,186 @@
   emit_insn (gen_aarch64_faddpv4sf (scratch, operands[1], operands[1]));
   emit_insn (gen_aarch64_faddpv4sf (scratch, scratch, scratch));
   emit_insn (gen_aarch64_get_lanev4sf (operands[0], scratch, elt));
+  DONE;
+})
+
+;; AND tree reductions.
+;; Check if after a min pairwise reduction that all the lanes are 1.
+;;
+;;   uminp  v1.4s, v1.4s, v1.4s
+;;   fmov   x1, d1
+;;   cmn    x1, #1
+;;   cset   w0, eq
+;;
+;; or with SVE enabled
+;;
+;;  ptrue  p1.b, vl16
+;;  cmpeq  p0.b, p1/z, z1.b, #0
+;;  cset   w0, none
+;;
+(define_expand "reduc_sbool_and_scal_<mode>"
+  [(set (match_operand:QI 0 "register_operand")
+	(unspec:QI [(match_operand:VALLI 1 "register_operand")]
+		    UNSPEC_ANDV))]
+  "TARGET_SIMD"
+{
+  if (TARGET_SVE)
+    {
+      machine_mode full_mode = aarch64_full_sve_mode (<VEL>mode).require ();
+      rtx in = force_lowpart_subreg (full_mode, operands[1], <MODE>mode);
+      unsigned lanes
+	= exact_div (GET_MODE_BITSIZE (<MODE>mode), 8).to_constant ();
+      machine_mode pred_mode = aarch64_sve_pred_mode (full_mode);
+      rtx pred_res = gen_reg_rtx (pred_mode);
+      rtx gp = aarch64_ptrue_reg (VNx16BImode, lanes);
+      rtx cast_gp = lowpart_subreg (pred_mode, gp, VNx16BImode);
+      rtx gp_flag = gen_int_mode (SVE_MAYBE_NOT_PTRUE, SImode);
+      emit_insn (
+	gen_aarch64_pred_cmp_ptest (EQ, full_mode, pred_res, gp, in,
+				    CONST0_RTX (full_mode), cast_gp,
+				    gp_flag, cast_gp, gp_flag));
+      rtx cc_reg = gen_rtx_REG (CC_NZCmode, CC_REGNUM);
+      rtx cmp = gen_rtx_fmt_ee (EQ, SImode, cc_reg, const0_rtx);
+      rtx tmp2 = gen_reg_rtx (SImode);
+      emit_insn (gen_aarch64_cstoresi (tmp2, cmp, cc_reg));
+      emit_move_insn (operands[0], gen_lowpart (QImode, tmp2));
+      DONE;
+    }
+
+  rtx tmp = operands[1];
+  /* 128-bit vectors need to be compressed to 64-bits first.  */
+  if (known_eq (128, GET_MODE_BITSIZE (<MODE>mode)))
+    {
+      /* Always reduce using a V4SI.  */
+      rtx reduc = gen_lowpart (V4SImode, tmp);
+      rtx res = gen_reg_rtx (V4SImode);
+      emit_insn (gen_aarch64_uminpv4si (res, reduc, reduc));
+      tmp = gen_lowpart (<MODE>mode, res);
+    }
+
+  rtx val = force_lowpart_subreg (DImode, tmp, <MODE>mode);
+  rtx cc_reg = aarch64_gen_compare_reg (EQ, val, constm1_rtx);
+  rtx cmp = gen_rtx_fmt_ee (EQ, SImode, cc_reg, constm1_rtx);
+  rtx tmp2 = gen_reg_rtx (SImode);
+  emit_insn (gen_aarch64_cstoresi (tmp2, cmp, cc_reg));
+  emit_move_insn (operands[0], gen_lowpart (QImode, tmp2));
+  DONE;
+})
+
+;; IOR tree reductions.
+;; Check that after a MAX pairwise reduction any lane is not 0
+;;
+;;   umaxp  v1.4s, v1.4s, v1.4s
+;;   fmov   x1, d1
+;;   cmp    x1, 0
+;;   cset   w0, ne
+;;
+;; or with SVE enabled
+;;
+;;   ptrue  p1.b, vl16
+;;   cmpne  p0.b, p1/z, z1.b, #0
+;;   cset   w0, any
+;;
+(define_expand "reduc_sbool_ior_scal_<mode>"
+  [(set (match_operand:QI 0 "register_operand")
+	(unspec:QI [(match_operand:VALLI 1 "register_operand")]
+		    UNSPEC_IORV))]
+  "TARGET_SIMD"
+{
+  if (TARGET_SVE)
+    {
+      machine_mode full_mode = aarch64_full_sve_mode (<VEL>mode).require ();
+      rtx in = force_lowpart_subreg (full_mode, operands[1], <MODE>mode);
+      unsigned lanes
+	= exact_div (GET_MODE_BITSIZE (<MODE>mode), 8).to_constant ();
+      machine_mode pred_mode = aarch64_sve_pred_mode (full_mode);
+      rtx pred_res = gen_reg_rtx (pred_mode);
+      rtx gp = aarch64_ptrue_reg (VNx16BImode, lanes);
+      rtx cast_gp = lowpart_subreg (pred_mode, gp, VNx16BImode);
+      rtx gp_flag = gen_int_mode (SVE_MAYBE_NOT_PTRUE, SImode);
+      emit_insn (
+	gen_aarch64_pred_cmp_ptest (NE, full_mode, pred_res, gp, in,
+				    CONST0_RTX (full_mode), cast_gp,
+				    gp_flag, cast_gp, gp_flag));
+      rtx cc_reg = gen_rtx_REG (CC_NZCmode, CC_REGNUM);
+      rtx cmp = gen_rtx_fmt_ee (NE, SImode, cc_reg, const0_rtx);
+      rtx tmp2 = gen_reg_rtx (SImode);
+      emit_insn (gen_aarch64_cstoresi (tmp2, cmp, cc_reg));
+      emit_move_insn (operands[0], gen_lowpart (QImode, tmp2));
+      DONE;
+    }
+
+  rtx tmp = operands[1];
+  /* 128-bit vectors need to be compressed to 64-bits first.  */
+  if (known_eq (128, GET_MODE_BITSIZE (<MODE>mode)))
+    {
+      /* Always reduce using a V4SI.  */
+      rtx reduc = gen_lowpart (V4SImode, tmp);
+      rtx res = gen_reg_rtx (V4SImode);
+      emit_insn (gen_aarch64_umaxpv4si (res, reduc, reduc));
+      tmp = gen_lowpart (<MODE>mode, res);
+    }
+
+  rtx val = force_lowpart_subreg (DImode, tmp, <MODE>mode);
+  rtx cc_reg = aarch64_gen_compare_reg (NE, val, const0_rtx);
+  rtx cmp = gen_rtx_fmt_ee (NE, SImode, cc_reg, const0_rtx);
+  rtx tmp2 = gen_reg_rtx (SImode);
+  emit_insn (gen_aarch64_cstoresi (tmp2, cmp, cc_reg));
+  emit_move_insn (operands[0], gen_lowpart (QImode, tmp2));
+  DONE;
+})
+
+;; Unpredicated predicate XOR tree reductions.
+;; Check to see if the number of active lanes in the predicates is a multiple
+;; of 2.  We use a normal reduction after masking with 0x1.
+;;
+;;  movi  v1.16b, 0x1
+;;  and   v2.16b, v2.16b, v2.16b
+;;  addv  b3, v2.16b
+;;  fmov  w1, s3
+;;  and   w0, w1, 1
+;;
+;; or with SVE enabled
+;;
+;;   ptrue  p1.b, vl16
+;;   cmpne  p0.b, p1/z, z1+.b, #0
+;;   cntp   x1, p0, p0.b
+;;   and    w0, w1, 1
+;;
+(define_expand "reduc_sbool_xor_scal_<mode>"
+  [(set (match_operand:QI 0 "register_operand")
+	(unspec:QI [(match_operand:VALLI 1 "register_operand")]
+		    UNSPEC_XORV))]
+  "TARGET_SIMD"
+{
+  if (TARGET_SVE)
+    {
+      machine_mode full_mode = aarch64_full_sve_mode (<VEL>mode).require ();
+      rtx in = force_lowpart_subreg (full_mode, operands[1], <MODE>mode);
+      unsigned lanes
+	= exact_div (GET_MODE_BITSIZE (<MODE>mode), 8).to_constant ();
+      machine_mode pred_mode = aarch64_sve_pred_mode (full_mode);
+      rtx pred_res = gen_reg_rtx (pred_mode);
+      rtx gp = aarch64_ptrue_reg (VNx16BImode, lanes);
+      rtx cast_gp = lowpart_subreg (pred_mode, gp, VNx16BImode);
+      rtx gp_flag = gen_int_mode (SVE_MAYBE_NOT_PTRUE, SImode);
+      emit_insn (
+	gen_aarch64_pred_cmp (NE, full_mode, pred_res, cast_gp, gp_flag, in,
+			      CONST0_RTX (full_mode)));
+      emit_insn (gen_reduc_sbool_xor_scal (pred_mode, operands[0], pred_res));
+      DONE;
+    }
+
+  rtx tmp = gen_reg_rtx (<MODE>mode);
+  rtx one_reg = force_reg (<MODE>mode, CONST1_RTX (<MODE>mode));
+  emit_move_insn (tmp, gen_rtx_AND (<MODE>mode, operands[1], one_reg));
+  rtx tmp2 = gen_reg_rtx (<VEL>mode);
+  emit_insn (gen_reduc_plus_scal_<mode> (tmp2, tmp));
+  rtx tmp3 = gen_reg_rtx (DImode);
+  emit_move_insn (tmp3, gen_rtx_AND (DImode,
+				     lowpart_subreg (DImode, tmp2, <VEL>mode),
+				     const1_rtx));
+  emit_move_insn (operands[0], gen_lowpart (QImode, tmp2));
   DONE;
 })
 
@@ -3910,6 +4179,8 @@
 
 ;; Patterns comparing two vectors and conditionally jump
 
+;; Define cbranch on masks.  This optab is only called for BOOLEAN_VECTOR_TYPE_P
+;; which allows optimizing compares with zero.
 (define_expand "cbranch<mode>4"
   [(set (pc)
         (if_then_else
@@ -3946,7 +4217,84 @@
 
   rtx cc_reg = aarch64_gen_compare_reg (code, val, const0_rtx);
   rtx cmp_rtx = gen_rtx_fmt_ee (code, DImode, cc_reg, const0_rtx);
-  emit_jump_insn (gen_condjump (cmp_rtx, cc_reg, operands[3]));
+  emit_jump_insn (gen_aarch64_bcond (cmp_rtx, cc_reg, operands[3]));
+  DONE;
+})
+
+;; Define vec_cbranch_any and vec_cbranch_all
+;; Vector comparison and branch for Adv. SIMD Integer types using SVE
+;; instructions.
+(define_expand "<optab><mode>"
+  [(set (pc)
+	(unspec:VALL
+	  [(if_then_else
+	    (match_operator 0 "aarch64_cbranch_compare_operation"
+	      [(match_operand:VALL 1 "register_operand")
+	       (match_operand:VALL 2 "aarch64_simd_reg_or_zero")])
+	    (label_ref (match_operand 3 ""))
+	    (pc))]
+	 CBRANCH_CMP))]
+  "TARGET_SIMD"
+{
+  auto code = GET_CODE (operands[0]);
+  if (TARGET_SVE)
+    {
+      machine_mode full_mode = aarch64_full_sve_mode (<VEL>mode).require ();
+
+      rtx in1 = force_lowpart_subreg (full_mode, operands[1], <MODE>mode);
+      rtx in2;
+      if (CONST0_RTX (<MODE>mode) == operands[2])
+	in2 = CONST0_RTX (full_mode);
+      else
+	in2 = force_lowpart_subreg (full_mode, operands[2], <MODE>mode);
+
+      unsigned lanes
+	= exact_div (GET_MODE_BITSIZE (<MODE>mode), 8).to_constant ();
+      machine_mode pred_mode = aarch64_sve_pred_mode (full_mode);
+      rtx ptrue = aarch64_ptrue_reg (VNx16BImode, lanes);
+      rtx hint = gen_int_mode (SVE_MAYBE_NOT_PTRUE, SImode);
+
+      rtx tmp = gen_reg_rtx (pred_mode);
+      rtx cast_ptrue = gen_lowpart (pred_mode, ptrue);
+
+      if (FLOAT_MODE_P (full_mode))
+	{
+	  aarch64_expand_sve_vec_cmp<sve_cmp_suff> (tmp, code, in1, in2);
+	  emit_insn (gen_and3 (pred_mode, tmp, tmp, cast_ptrue));
+	  emit_insn (gen_aarch64_ptest (pred_mode, ptrue, cast_ptrue, hint,
+					tmp));
+	}
+      else
+	emit_insn (gen_aarch64_pred_cmp_ptest (code, full_mode, tmp, ptrue, in1,
+					       in2, cast_ptrue, hint,
+					       cast_ptrue, hint));
+
+      rtx cc_reg = gen_rtx_REG (CC_NZCmode, CC_REGNUM);
+      rtx cmp_reg = gen_rtx_<cbranch_op> (VOIDmode, cc_reg, const0_rtx);
+      emit_jump_insn (gen_aarch64_bcond (cmp_reg, cc_reg, operands[3]));
+      DONE;
+    }
+
+  rtx tmp = gen_reg_rtx (<V_INT_EQUIV>mode);
+  emit_insn (gen_vec_cmp<mode><v_int_equiv> (tmp, operands[0], operands[1],
+					     operands[2]));
+
+  /* For 128-bit vectors we need a reduction to 64-bit first.  */
+  if (known_eq (128, GET_MODE_BITSIZE (<MODE>mode)))
+    {
+      /* Always reduce using a V4SI.  */
+      rtx reduc = gen_lowpart (V4SImode, tmp);
+      rtx res = gen_reg_rtx (V4SImode);
+      emit_insn (gen_aarch64_umaxpv4si (res, reduc, reduc));
+      emit_move_insn (tmp, gen_lowpart (<V_INT_EQUIV>mode, res));
+    }
+
+  rtx val = gen_reg_rtx (DImode);
+  emit_move_insn (val, gen_lowpart (DImode, tmp));
+
+  rtx cc_reg = aarch64_gen_compare_reg (<cbranch_op>, val, const0_rtx);
+  rtx cmp_rtx = gen_rtx_fmt_ee (<cbranch_op>, DImode, cc_reg, const0_rtx);
+  emit_jump_insn (gen_aarch64_bcond (cmp_rtx, cc_reg, operands[3]));
   DONE;
 })
 
@@ -4605,7 +4953,7 @@
 
 ;; <su><addsub>w<q>.
 
-(define_expand "widen_ssum<mode>3"
+(define_expand "widen_ssum<Vdblw><mode>3"
   [(set (match_operand:<VDBLW> 0 "register_operand")
 	(plus:<VDBLW> (sign_extend:<VDBLW> 
 		        (match_operand:VQW 1 "register_operand"))
@@ -4622,7 +4970,7 @@
   }
 )
 
-(define_expand "widen_ssum<mode>3"
+(define_expand "widen_ssum<Vwide><mode>3"
   [(set (match_operand:<VWIDE> 0 "register_operand")
 	(plus:<VWIDE> (sign_extend:<VWIDE>
 		        (match_operand:VD_BHSI 1 "register_operand"))
@@ -4633,7 +4981,7 @@
   DONE;
 })
 
-(define_expand "widen_usum<mode>3"
+(define_expand "widen_usum<Vdblw><mode>3"
   [(set (match_operand:<VDBLW> 0 "register_operand")
 	(plus:<VDBLW> (zero_extend:<VDBLW> 
 		        (match_operand:VQW 1 "register_operand"))
@@ -4650,7 +4998,7 @@
   }
 )
 
-(define_expand "widen_usum<mode>3"
+(define_expand "widen_usum<Vwide><mode>3"
   [(set (match_operand:<VWIDE> 0 "register_operand")
 	(plus:<VWIDE> (zero_extend:<VWIDE>
 		        (match_operand:VD_BHSI 1 "register_operand"))
@@ -4661,6 +5009,38 @@
   DONE;
 })
 
+(define_expand "widen_ssum<mode><vsi2qi>3"
+  [(set (match_operand:VS 0 "register_operand")
+	(plus:VS (sign_extend:VS
+		   (match_operand:<VSI2QI> 1 "register_operand"))
+		 (match_operand:VS 2 "register_operand")))]
+  "TARGET_DOTPROD"
+  {
+    rtx ones = force_reg (<VSI2QI>mode, CONST1_RTX (<VSI2QI>mode));
+    emit_insn (gen_sdot_prod<mode><vsi2qi> (operands[0], operands[1], ones,
+					    operands[2]));
+    DONE;
+  }
+)
+
+;; Use dot product to perform double widening sum reductions by
+;; changing += a into += (a * 1).  i.e. we seed the multiplication with 1.
+(define_expand "widen_usum<mode><vsi2qi>3"
+  [(set (match_operand:VS 0 "register_operand")
+	(plus:VS (zero_extend:VS
+		        (match_operand:<VSI2QI> 1 "register_operand"))
+		      (match_operand:VS 2 "register_operand")))]
+  "TARGET_DOTPROD"
+  {
+    rtx ones = force_reg (<VSI2QI>mode, CONST1_RTX (<VSI2QI>mode));
+    emit_insn (gen_udot_prod<mode><vsi2qi> (operands[0], operands[1], ones,
+					    operands[2]));
+    DONE;
+  }
+)
+
+;; Use dot product to perform double widening sum reductions by
+;; changing += a into += (a * 1).  i.e. we seed the multiplication with 1.
 (define_insn "aarch64_<ANY_EXTEND:su>subw<mode>"
   [(set (match_operand:<VWIDE> 0 "register_operand" "=w")
 	(minus:<VWIDE> (match_operand:<VWIDE> 1 "register_operand" "w")
@@ -5025,6 +5405,36 @@
   emit_insn (gen_aarch64_uaddw<Vnarrowq> (operands[0], operands[4], tmp));
   DONE;
 })
+
+;; convert (truncate)(~x >> imm) into (truncate)(((u16)-1 - x) >> imm)
+;; because it will result in the 'not' being replaced with a constant load
+;; which allows for better loop optimization.
+;; We limit this to truncations that take the upper half and shift it to the
+;; lower half as we use subhn (patterns that would have generated an shrn
+;; otherwise).
+;; On some implementations the use of subhn also result in better throughput.
+(define_insn_and_split "*shrn_to_subhn_<mode>"
+  [(set (match_operand:<VNARROWQ> 0 "register_operand" "=&w")
+	(truncate:<VNARROWQ>
+	  (lshiftrt:VQN
+	    (not:VQN (match_operand:VQN 1 "register_operand" "w"))
+	    (match_operand:VQN 2 "aarch64_simd_shift_imm_vec_exact_top"))))]
+  "TARGET_SIMD"
+  "#"
+  "&& true"
+  [(const_int 0)]
+{
+  rtx tmp;
+  if (can_create_pseudo_p ())
+    tmp = gen_reg_rtx (<MODE>mode);
+  else
+    tmp = gen_rtx_REG (<MODE>mode, REGNO (operands[0]));
+  emit_move_insn (tmp, CONSTM1_RTX (<MODE>mode));
+  emit_insn (gen_aarch64_subhn<mode>_insn (operands[0], tmp,
+					   operands[1], operands[2]));
+  DONE;
+})
+
 
 ;; pmul.
 
@@ -6678,7 +7088,7 @@
 	(SAT_TRUNC:<VNARROWQ>
 	  (<TRUNC_SHIFT>:SD_HSDI
 	    (match_operand:SD_HSDI 1 "register_operand" "w")
-	    (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>"))))]
+	    (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>"))))]
   "TARGET_SIMD"
   "<shrn_op>shrn\t%<vn2>0<Vmntype>, %<v>1<Vmtype>, %2"
   [(set_attr "type" "neon_shift_imm_narrow_q")]
@@ -6700,7 +7110,7 @@
 	(ALL_TRUNC:<VNARROWQ>
 	  (<TRUNC_SHIFT>:VQN
 	    (match_operand:VQN 1 "register_operand")
-	    (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>"))))]
+	    (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>"))))]
   "TARGET_SIMD"
   {
     operands[2] = aarch64_simd_gen_const_vector_dup (<MODE>mode,
@@ -6731,7 +7141,7 @@
 	      (<TRUNCEXTEND>:<DWI>
 	        (match_operand:SD_HSDI 1 "register_operand" "w"))
 	      (match_operand:<DWI> 3 "aarch64_int_rnd_operand"))
-	    (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>"))))]
+	    (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>"))))]
   "TARGET_SIMD
    && aarch64_const_vec_rnd_cst_p (operands[3], operands[2])"
   "<shrn_op>rshrn\t%<vn2>0<Vmntype>, %<v>1<Vmtype>, %2"
@@ -6746,7 +7156,7 @@
 	      (<TRUNCEXTEND>:<V2XWIDE>
 	        (match_operand:SD_HSDI 1 "register_operand"))
 	      (match_dup 3))
-	    (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>"))))]
+	    (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>"))))]
   "TARGET_SIMD"
   {
     /* Use this expander to create the rounding constant vector, which is
@@ -6766,7 +7176,7 @@
 	      (<TRUNCEXTEND>:<V2XWIDE>
 	        (match_operand:VQN 1 "register_operand"))
 	      (match_dup 3))
-	    (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>"))))]
+	    (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>"))))]
   "TARGET_SIMD"
   {
     if (<CODE> == TRUNCATE
@@ -6808,7 +7218,7 @@
 	  (smax:SD_HSDI
 	    (ashiftrt:SD_HSDI
 	      (match_operand:SD_HSDI 1 "register_operand" "w")
-	      (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>"))
+	      (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>"))
 	    (const_int 0))
 	  (const_int <half_mask>)))]
   "TARGET_SIMD"
@@ -6819,7 +7229,7 @@
 (define_expand "aarch64_sqshrun_n<mode>"
   [(match_operand:<VNARROWQ> 0 "register_operand")
    (match_operand:SD_HSDI 1 "register_operand")
-   (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>")]
+   (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>")]
   "TARGET_SIMD"
   {
     rtx dst = gen_reg_rtx (<MODE>mode);
@@ -6837,7 +7247,7 @@
 	    (smax:VQN
 	      (ashiftrt:VQN
 		(match_operand:VQN 1 "register_operand")
-		(match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>"))
+		(match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>"))
 	      (match_dup 3))
 	    (match_dup 4))))]
   "TARGET_SIMD"
@@ -6879,7 +7289,7 @@
 		(sign_extend:<DWI>
 		  (match_operand:SD_HSDI 1 "register_operand" "w"))
 		(match_operand:<DWI> 3 "aarch64_int_rnd_operand"))
-	      (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>"))
+	      (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>"))
 	    (const_int 0))
 	  (const_int <half_mask>)))]
   "TARGET_SIMD
@@ -6891,7 +7301,7 @@
 (define_expand "aarch64_sqrshrun_n<mode>"
   [(match_operand:<VNARROWQ> 0 "register_operand")
    (match_operand:SD_HSDI 1 "register_operand")
-   (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>")]
+   (match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>")]
   "TARGET_SIMD"
   {
     int prec = GET_MODE_UNIT_PRECISION (<DWI>mode);
@@ -6914,7 +7324,7 @@
 		  (sign_extend:<V2XWIDE>
 		    (match_operand:VQN 1 "register_operand"))
 		  (match_dup 3))
-		(match_operand:SI 2 "aarch64_simd_shift_imm_offset_<ve_mode>"))
+		(match_operand:SI 2 "aarch64_simd_shift_imm_offset_<vn_mode>"))
 	      (match_dup 4))
 	    (match_dup 5))))]
   "TARGET_SIMD"
@@ -8881,6 +9291,26 @@
     DONE;
 })
 
+(define_expand "vec_extract<mode><Vel>"
+  [(match_operand:<VEL> 0 "aarch64_simd_nonimmediate_operand")
+   (match_operand:VSTRUCT_QD 1 "register_operand")
+   (match_operand:SI 2 "immediate_operand")]
+  "TARGET_SIMD"
+{
+  aarch64_decompose_vec_struct_index (<VSTRUCT_ELT>mode, &operands[1],
+				      &operands[2], false);
+  /* For tuples of 64-bit modes, <vstruct_elt> is the 64-bit scalar mode.
+     Allow gen_vec_extract<vstruct_elt><Vel> to cope with those cases too.  */
+  auto gen_vec_extractdidi ATTRIBUTE_UNUSED = [](rtx x0, rtx x1, rtx)
+    {
+      return gen_move_insn (x0, x1);
+    };
+  auto gen_vec_extractdfdf ATTRIBUTE_UNUSED = gen_vec_extractdidi;
+  emit_insn (gen_vec_extract<vstruct_elt><Vel> (operands[0], operands[1],
+						operands[2]));
+  DONE;
+})
+
 ;; Extract a 64-bit vector from one half of a 128-bit vector.
 (define_expand "vec_extract<mode><Vhalf>"
   [(match_operand:<VHALF> 0 "register_operand")
@@ -9110,13 +9540,25 @@
 ;; sha3
 
 (define_insn "eor3q<mode>4"
-  [(set (match_operand:VQ_I 0 "register_operand" "=w")
-	(xor:VQ_I
-	 (xor:VQ_I
-	  (match_operand:VQ_I 2 "register_operand" "w")
-	  (match_operand:VQ_I 3 "register_operand" "w"))
-	 (match_operand:VQ_I 1 "register_operand" "w")))]
+  [(set (match_operand:VDQ_I 0 "register_operand" "=w")
+	(xor:VDQ_I
+	 (xor:VDQ_I
+	  (match_operand:VDQ_I 2 "register_operand" "w")
+	  (match_operand:VDQ_I 3 "register_operand" "w"))
+	 (match_operand:VDQ_I 1 "register_operand" "w")))]
   "TARGET_SHA3"
+  "eor3\\t%0.16b, %1.16b, %2.16b, %3.16b"
+  [(set_attr "type" "crypto_sha3")]
+)
+
+(define_insn "*eor3q<mode>4"
+  [(set (match_operand:ALLI 0 "register_operand" "=w")
+	(xor:ALLI
+	 (xor:ALLI
+	  (match_operand:ALLI 2 "register_operand" "w")
+	  (match_operand:ALLI 3 "register_operand" "w"))
+	 (match_operand:ALLI 1 "register_operand" "w")))]
+  "TARGET_SHA3 && reload_completed"
   "eor3\\t%0.16b, %1.16b, %2.16b, %3.16b"
   [(set_attr "type" "crypto_sha3")]
 )
@@ -9142,9 +9584,13 @@
 	 (match_operand:V2DI 3 "aarch64_simd_lshift_imm" "Dl")))]
   "TARGET_SHA3"
   {
+    /* Translate the RTL left-rotate amount into the assembly right-rotate
+       amount.  Modulo by 64 to ensure that a left-rotate of 0 is emitted
+       as a right-rotate of 0 as accepted by the assembly instruction.  */
     operands[3]
-      = GEN_INT (64 - INTVAL (unwrap_const_vec_duplicate (operands[3])));
-    return "xar\\t%0.2d, %1.2d, %2.2d, %3";
+      = GEN_INT ((64 - INTVAL (unwrap_const_vec_duplicate (operands[3])))
+		  % 64);
+    return "xar\\t%0.2d, %1.2d, %2.2d, #%3";
   }
   [(set_attr "type" "crypto_sha3")]
 )
@@ -9164,19 +9610,22 @@
 	 (match_operand:SI 3 "aarch64_simd_shift_imm_di")))]
   "TARGET_SHA3"
   {
-    operands[3]
-      = aarch64_simd_gen_const_vector_dup (V2DImode,
-					   64 - INTVAL (operands[3]));
+      operands[3]
+        = aarch64_simd_gen_const_vector_dup (V2DImode,
+					     /* In the edge case of a 0 rotate
+						amount leave as is.  */
+					     operands[3] == CONST0_RTX (SImode)
+					       ? 0 : 64 - INTVAL (operands[3]));
   }
 )
 
 (define_insn "bcaxq<mode>4"
-  [(set (match_operand:VQ_I 0 "register_operand" "=w")
-	(xor:VQ_I
-	 (and:VQ_I
-	  (not:VQ_I (match_operand:VQ_I 3 "register_operand" "w"))
-	  (match_operand:VQ_I 2 "register_operand" "w"))
-	 (match_operand:VQ_I 1 "register_operand" "w")))]
+  [(set (match_operand:VDQ_I 0 "register_operand" "=w")
+	(xor:VDQ_I
+	 (and:VDQ_I
+	  (not:VDQ_I (match_operand:VDQ_I 3 "register_operand" "w"))
+	  (match_operand:VDQ_I 2 "register_operand" "w"))
+	 (match_operand:VDQ_I 1 "register_operand" "w")))]
   "TARGET_SHA3"
   "bcax\\t%0.16b, %1.16b, %2.16b, %3.16b"
   [(set_attr "type" "crypto_sha3")]
@@ -10231,3 +10680,18 @@
     return "<insn>\t%0.<V4SF_ONLY:Vtype>, %2.16b, %3.b[%4]";
   }
 )
+
+(define_insn "@aarch64_<insn><mode>"
+  [(set (match_operand:VDQ_HSF_FMMLA 0 "register_operand")
+	(unspec:VDQ_HSF_FMMLA
+	 [(match_operand:V16QI 2 "register_operand")
+	  (match_operand:V16QI 3 "register_operand")
+	  (match_operand:VDQ_HSF_FMMLA 1 "register_operand")
+	  (reg:DI FPM_REGNUM)]
+	 FMMLA))]
+  ""
+  {@ [ cons: =0 , 1 , 2 , 3 ]
+     [ w        , 0 , w , w ] <insn>\t%0.<Vtype>, %2.16b, %3.16b
+  }
+)
+

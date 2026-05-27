@@ -1,6 +1,6 @@
 (* M2Base.mod provides a mechanism to check fundamental types.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -96,7 +96,7 @@ FROM M2Options IMPORT NilChecking,
                       IndexChecking, RangeChecking,
                       ReturnChecking, CaseElseChecking, Exceptions,
 		      WholeValueChecking,
-                      DebugBuiltins,
+                      DebugBuiltins, GetWideset,
                       Iso, Pim, Pim2, Pim3 ;
 
 FROM m2type IMPORT GetIntegerType,
@@ -150,6 +150,7 @@ VAR
    Comp,
    Expr,
    Ass        : CompatibilityArray ;
+   m2wideset,
    Ord,
    OrdS, OrdL,
    Float,
@@ -222,7 +223,7 @@ BEGIN
    InitSystem ;
 
    MakeBitset ;  (* We do this after SYSTEM has been created as BITSET
-                    is dependant upon WORD.  *)
+                    is dependant upon WORD and BOOLEAN.  *)
 
    InitBaseConstants ;
    InitBaseFunctions ;
@@ -633,6 +634,14 @@ BEGIN
       MakeSize  (* SIZE is declared as a standard function in *)
                 (* ISO Modula-2 and PIM-[34] Modula-2 but not *)
                 (* PIM-2 Modula-2                             *)
+   END ;
+
+   IF GetWideset ()
+   THEN
+      (* Ensure that M2WIDESET is available if needed by M2GenGCC.mod.
+         By default -fwideset is TRUE however the user may override using
+         -fno-wideset.  *)
+      m2wideset := MakeDefinitionSource (BuiltinTokenNo, MakeKey('M2WIDESET'))
    END ;
 
    (*
@@ -1205,14 +1214,17 @@ BEGIN
       END ;
       IF IsUnknown(t1) AND IsUnknown(t2)
       THEN
+         (* --fixme-- spellcheck.  *)      
          s := ConCat(s, InitString('two different unknown types {%1a:{%2a:{%1a} and {%2a}}} must either be declared or imported)')) ;
          MetaErrorStringT2 (tok, s, t1, t2)
       ELSIF IsUnknown(t1)
       THEN
+         (* --fixme-- spellcheck.  *)      
          s := ConCat(s, InitString('this type {%1a} is currently unknown, it must be declared or imported')) ;
          MetaErrorStringT1 (tok, s, t1)
       ELSIF IsUnknown(t2)
       THEN
+         (* --fixme-- spellcheck.  *)      
          s := ConCat (s, InitString('this type {%1a} is currently unknown, it must be declared or imported')) ;
          MetaErrorStringT1 (tok, s, t2)
       ELSE

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2025 Free Software Foundation, Inc.
+// Copyright (C) 2014-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,7 +18,7 @@
 // { dg-do run { target c++11 } }
 // { dg-require-gthreads "" }
 // { dg-require-effective-target hosted }
-// { dg-additional-options "-Wno-deprecated" { target c++20 } }
+// { dg-additional-options "-Wno-deprecated-declarations" { target c++20 } }
 
 #include <memory>
 

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dwMintel
 #name: i386 INVPCID insns (Intel disassembly)
 #source: invpcid.s

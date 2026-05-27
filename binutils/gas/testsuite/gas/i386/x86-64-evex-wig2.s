@@ -1,6 +1,5 @@
 # Check non-WIG EVEX instructions with -mevexwig=1
 
-	.allow_index_reg
 	.text
 _start:
 	vcvtsi2ss %eax, {rd-sae}, %xmm25, %xmm6

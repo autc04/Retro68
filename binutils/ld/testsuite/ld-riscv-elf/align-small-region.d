@@ -1,5 +1,5 @@
 #source: align-small-region.s
-#as: -march=rv32i
+#as: -march=rv32i -mlittle-endian
 #ld: -melf32lriscv --relax -Talign-small-region.ld --defsym=_start=0x100
 #objdump: -d
 

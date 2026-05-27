@@ -1,6 +1,6 @@
 #source: expdref1.s
 #source: expdyn1w.s
-#as: --pic --no-underscore --em=criself -I$srcdir/$subdir
+#as: --pic --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: --shared -m crislinux --hash-style=sysv
 #ld_after_inputfiles: tmpdir/libdso-1b.so
 #objdump: -s -T

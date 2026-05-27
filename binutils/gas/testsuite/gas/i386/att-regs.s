@@ -1,8 +1,8 @@
 	.text
 	.att_syntax noprefix
 
-	.arch i286
 	.code16
+	.arch i286
 	mov	eax, ax			; add	al, (bx,si)
 	mov	rax, ax			; add	al, (bx,si)
 	mov	axl, ax			; add	al, (bx,si)

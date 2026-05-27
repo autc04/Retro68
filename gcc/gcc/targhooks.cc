@@ -1,5 +1,5 @@
 /* Default target hook functions.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -159,6 +159,23 @@ default_promote_function_mode_always_promote (const_tree type,
 					      const_tree funtype ATTRIBUTE_UNUSED,
 					      int for_return ATTRIBUTE_UNUSED)
 {
+  return promote_mode (type, mode, punsignedp);
+}
+
+/* Sign-extend signed 8/16-bit integer arguments to 32 bits and
+   zero-extend unsigned 8/16-bit integer arguments to 32 bits.  */
+
+machine_mode
+default_promote_function_mode_sign_extend (const_tree type,
+					   machine_mode mode,
+					   int *punsignedp,
+					   const_tree, int)
+{
+  if (GET_MODE_CLASS (mode) == MODE_INT
+      && (GET_MODE_SIZE (as_a <scalar_int_mode> (mode))
+	  < GET_MODE_SIZE (SImode)))
+    return SImode;
+
   return promote_mode (type, mode, punsignedp);
 }
 
@@ -1551,11 +1568,11 @@ default_builtin_vector_alignment_reachable (const_tree /*type*/, bool is_packed)
    is_packed is true if the memory access is defined in a packed struct.  */
 bool
 default_builtin_support_vector_misalignment (machine_mode mode,
-					     const_tree type
-					     ATTRIBUTE_UNUSED,
 					     int misalignment
 					     ATTRIBUTE_UNUSED,
 					     bool is_packed
+					     ATTRIBUTE_UNUSED,
+					     bool is_gather_scatter
 					     ATTRIBUTE_UNUSED)
 {
   if (optab_handler (movmisalign_optab, mode) != CODE_FOR_nothing)
@@ -1790,6 +1807,16 @@ default_addr_space_convert (rtx op ATTRIBUTE_UNUSED,
 {
   gcc_unreachable ();
 }
+
+
+/* The default hook for TARGET_ADDR_SPACE_FOR_ARTIFICIAL_RODATA.  */
+
+addr_space_t
+default_addr_space_for_artificial_rodata (tree, artificial_rodata)
+{
+  return ADDR_SPACE_GENERIC;
+}
+
 
 /* The defualt implementation of TARGET_HARD_REGNO_NREGS.  */
 
@@ -2754,6 +2781,14 @@ default_preferred_else_value (unsigned, tree type, unsigned, tree *)
   return build_zero_cst (type);
 }
 
+/* The default implementation of TARGET_INSTRUCTION_SELECTION.  */
+
+bool
+default_instruction_selection (function *, gimple_stmt_iterator *)
+{
+  return false;
+}
+
 /* Default implementation of TARGET_HAVE_SPECULATION_SAFE_VALUE.  */
 bool
 default_have_speculation_safe_value (bool active ATTRIBUTE_UNUSED)
@@ -2806,7 +2841,7 @@ default_memtag_can_tag_addresses ()
 }
 
 uint8_t
-default_memtag_tag_size ()
+default_memtag_tag_bitsize ()
 {
   return 8;
 }

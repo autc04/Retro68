@@ -1,5 +1,5 @@
 /* Lower complex number operations to scalar operations.
-   Copyright (C) 2004-2025 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -652,28 +652,64 @@ extract_component (gimple_stmt_iterator *gsi, tree t, bool imagpart_p,
 	if (imagpart_p)
 	  TREE_OPERAND (t, 2) = size_binop (PLUS_EXPR, TREE_OPERAND (t, 2),
 					    TYPE_SIZE (inner_type));
+
 	if (gimple_p)
-	  t = force_gimple_operand_gsi (gsi, t, true, NULL, true,
-					GSI_SAME_STMT);
+	  {
+	    tree new_lhs = make_ssa_name (inner_type);
+	    gimple *new_load = gimple_build_assign (new_lhs, t);
+	    gsi_insert_before (gsi, new_load, GSI_SAME_STMT);
+	    t = new_lhs;
+	  }
 	return t;
       }
 
+    case VIEW_CONVERT_EXPR:
+      /* Getting the real/imag parts of a VCE of a ssa-name
+         (or gimple invariant) requires to place the complex
+	 into a ssa name before getting the 2 parts.
+	 As `IMAGPART_EXPR<VIEW_CONVERT_EXPR<a_BN>>` is an invalid
+	 gimple. This will only show up when gimplifying it.
+	 Note this creates an extra copy.  The call to
+	 force_gimple_operand_gsi would create one too.  */
+      tree expr;
+      expr = TREE_OPERAND (t, 0);
+      if (TREE_CODE (expr) == SSA_NAME
+	  || (is_gimple_min_invariant (expr)
+	      && TREE_CODE (expr) != STRING_CST))
+	{
+	  gcc_assert (gimple_p);
+	  tree new_cplx = make_ssa_name (TREE_TYPE (t));
+	  gimple *vce = gimple_build_assign (new_cplx, unshare_expr (t));
+	  gsi_insert_before (gsi, vce, GSI_SAME_STMT);
+
+	  tree new_lhs = make_ssa_name (TREE_TYPE (TREE_TYPE (t)));
+	  t = build1 ((imagpart_p ? IMAGPART_EXPR : REALPART_EXPR),
+		      TREE_TYPE (TREE_TYPE (t)), new_cplx);
+	  gimple *new_ri = gimple_build_assign (new_lhs, t);
+	  gsi_insert_before (gsi, new_ri, GSI_SAME_STMT);
+	  t = new_lhs;
+	  return t;
+	}
+    /* FALLTHRU */
     case VAR_DECL:
     case RESULT_DECL:
     case PARM_DECL:
     case COMPONENT_REF:
     case ARRAY_REF:
-    case VIEW_CONVERT_EXPR:
     case MEM_REF:
       {
 	tree inner_type = TREE_TYPE (TREE_TYPE (t));
 
-	t = build1 ((imagpart_p ? IMAGPART_EXPR : REALPART_EXPR),
-		    inner_type, unshare_expr (t));
+	t = fold_build1 ((imagpart_p ? IMAGPART_EXPR : REALPART_EXPR),
+			 inner_type, unshare_expr (t));
 
 	if (gimple_p)
-	  t = force_gimple_operand_gsi (gsi, t, true, NULL, true,
-                                        GSI_SAME_STMT);
+	  {
+	    tree new_lhs = make_ssa_name (inner_type);
+	    gimple *new_load = gimple_build_assign (new_lhs, t);
+	    gsi_insert_before (gsi, new_load, GSI_SAME_STMT);
+	    t = new_lhs;
+	  }
 
 	return t;
       }
@@ -1042,10 +1078,10 @@ expand_complex_libcall (gimple_stmt_iterator *gsi, tree type, tree ar, tree ai,
 
   if (code == MULT_EXPR)
     bcode = ((enum built_in_function)
-	     (BUILT_IN_COMPLEX_MUL_MIN + mode - MIN_MODE_COMPLEX_FLOAT));
+	     (BUILT_IN_COMPLEX_MUL_MIN + (mode - MIN_MODE_COMPLEX_FLOAT)));
   else if (code == RDIV_EXPR)
     bcode = ((enum built_in_function)
-	     (BUILT_IN_COMPLEX_DIV_MIN + mode - MIN_MODE_COMPLEX_FLOAT));
+	     (BUILT_IN_COMPLEX_DIV_MIN + (mode - MIN_MODE_COMPLEX_FLOAT)));
   else
     gcc_unreachable ();
   fn = builtin_decl_explicit (bcode);
@@ -1714,6 +1750,10 @@ gimple_expand_builtin_cabs (gimple_stmt_iterator *gsi, gimple *old_stmt)
   gimple *new_stmt;
 
   tree lhs = gimple_call_lhs (old_stmt);
+
+  /* If there is not a LHS, then just keep the statement around.  */
+  if (!lhs)
+    return;
 
   real_part = extract_component (gsi, arg, false, true);
   imag_part = extract_component (gsi, arg, true, true);

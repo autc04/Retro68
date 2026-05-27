@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -28,15 +28,12 @@
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
 --                                                                          --
 ------------------------------------------------------------------------------
-pragma Assertion_Policy (Ghost => Ignore);
 
 with System.Arith_Double;
 
 package body System.Arith_64
   with SPARK_Mode
 is
-
-   subtype Uns64 is Interfaces.Unsigned_64;
    subtype Uns32 is Interfaces.Unsigned_32;
 
    use Interfaces;
@@ -52,9 +49,6 @@ is
    function Multiply_With_Ovflo_Check64 (X, Y : Int64) return Int64
      renames Impl.Multiply_With_Ovflo_Check;
 
-   function Round_Quotient (X, Y, Q, R : Big_Integer) return Big_Integer
-     renames Impl.Round_Quotient;
-
    procedure Scaled_Divide64
      (X, Y, Z : Int64;
       Q, R    : out Int64;
@@ -66,5 +60,14 @@ is
       Q, R    : out Int64;
       Round   : Boolean)
      renames Impl.Double_Divide;
+
+   function Uns_Add_With_Ovflo_Check64 (X, Y : Uns64) return Uns64
+     renames Impl.Add_With_Ovflo_Check;
+
+   function Uns_Subtract_With_Ovflo_Check64 (X, Y : Uns64) return Uns64
+     renames Impl.Subtract_With_Ovflo_Check;
+
+   function Uns_Multiply_With_Ovflo_Check64 (X, Y : Uns64) return Uns64
+     renames Impl.Multiply_With_Ovflo_Check;
 
 end System.Arith_64;

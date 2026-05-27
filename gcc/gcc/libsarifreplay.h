@@ -1,5 +1,5 @@
 /* A pure C API for replaying SARIF as diagnostics.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -31,6 +31,7 @@ struct replay_options
   bool m_echo_file;
   bool m_json_comments;
   bool m_verbose;
+  bool m_debug_physical_locations;
   enum diagnostic_colorize m_diagnostics_colorize;
 };
 

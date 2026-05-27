@@ -1,0 +1,13 @@
+.*: Assembler messages:
+.*: Error: expected index at operand 3 -- `luti6 {z0.h-z3.h},{z0.h-z1.h},{z0-z1}'
+.*: Error: too many registers in vector register list at operand 3 -- `luti6 {z0.h-z3.h},{z0.h-z1.h},{z0-z17}\[0]'
+.*: Error: the register list must have a stride of 1 at operand 1 -- `luti6 {z0.h,z4.h,z8.h,z12.h},{z0.h,z1.h},{z0-z3}\[0]'
+.*: Error: expected index at operand 3 -- `luti6 {z0.h,z4.h,z8.h,z12.h},{z0.h,z1.h},{z0-z1}'
+.*: Error: end of vector register list not found at operand 3 -- `luti6 {z0.h,z4.h,z8.h,z12.h},{z0.h,z1.h},{z0.h-z1.h}\[0]'
+.*: Error: too many registers in vector register list at operand 3 -- `luti6 {z0.b-z3.b},zt0,{z0-z5}'
+.*: Error: start register out of range at operand 3 -- `luti6 {z0.b-z3.b},zt0,{z8-z10}'
+.*: Error: end of vector register list not found at operand 3 -- `luti6 {z28.b-z31.b},zt0,{z0.b-z2.b}'
+.*: Error: unexpected characters following instruction at operand 3 -- `luti6 {z0.b-z3.b},zt0,{z0-z2}\[0]'
+.*: Error: immediate value out of range 1 to 8 at operand 3 -- `sqrshrn z0.b,{z0.h-z1.h},#-1'
+.*: Error: immediate value out of range 1 to 8 at operand 3 -- `sqrshrn z0.b,{z0.h-z1.h},#0'
+.*: Error: immediate value out of range 1 to 8 at operand 3 -- `sqrshrn z0.b,{z0.h-z1.h},#9'

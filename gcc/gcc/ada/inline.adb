@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -27,16 +27,13 @@ with Alloc;
 with Aspects;        use Aspects;
 with Atree;          use Atree;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
 with Errout;         use Errout;
 with Exp_Ch6;        use Exp_Ch6;
 with Exp_Ch7;        use Exp_Ch7;
-with Exp_Tss;        use Exp_Tss;
 with Exp_Util;       use Exp_Util;
-with Fname;          use Fname;
 with Fname.UF;       use Fname.UF;
 with Lib;            use Lib;
 with Namet;          use Namet;
@@ -50,7 +47,6 @@ with Sem_Ch12;       use Sem_Ch12;
 with Sem_Prag;       use Sem_Prag;
 with Sem_Res;        use Sem_Res;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
@@ -151,7 +147,7 @@ package body Inline is
    function Node_Hash (Id : Node_Id) return Node_Header_Num;
    --  Simple hash function for Node_Ids
 
-   package To_Pending_Instantiations is new GNAT.Htable.Simple_HTable
+   package To_Pending_Instantiations is new GNAT.HTable.Simple_HTable
      (Header_Num => Node_Header_Num,
       Element    => Int,
       No_Element => -1,
@@ -287,10 +283,6 @@ package body Inline is
    --  Return the entity node for the unit containing E. Always return the spec
    --  for a package.
 
-   function Has_Initialized_Type (E : Entity_Id) return Boolean;
-   --  If a candidate for inlining contains type declarations for types with
-   --  nontrivial initialization procedures, they are not worth inlining.
-
    function Has_Single_Return (N : Node_Id) return Boolean;
    --  In general we cannot inline functions that return unconstrained type.
    --  However, we can handle such functions if all return statements return
@@ -320,6 +312,7 @@ package body Inline is
    --    Exit_Cases
    --    Postcondition
    --    Precondition
+   --    Program_Exit
    --    Refined_Global
    --    Refined_Depends
    --    Refined_Post
@@ -757,14 +750,15 @@ package body Inline is
       --  an instance whose body will be analyzed anyway or the subprogram was
       --  generated as a body by the compiler (for example an initialization
       --  procedure) or its declaration was provided along with the body (for
-      --  example an expression function) and it does not declare types with
-      --  nontrivial initialization procedures.
+      --  example an expression function). Note that we need to test again the
+      --  Is_Inlined flag because Analyze_Subprogram_Body_Helper may have reset
+      --  it if the body contains excluded declarations or statements.
 
       if (Is_Inlined (Pack)
            or else Is_Generic_Instance (Pack)
            or else Nkind (Decl) = N_Subprogram_Body
            or else Present (Corresponding_Body (Decl)))
-        and then not Has_Initialized_Type (E)
+        and then Is_Inlined (E)
       then
          Register_Backend_Inlined_Subprogram (E);
 
@@ -1005,9 +999,9 @@ package body Inline is
          end loop;
 
          --  The list of inlined subprograms is an overestimate, because it
-         --  includes inlined functions called from functions that are compiled
-         --  as part of an inlined package, but are not themselves called. An
-         --  accurate computation of just those subprograms that are needed
+         --  includes inlined subprograms called from subprograms that are
+         --  declared in an inlined package, but are not themselves called.
+         --  An accurate computation of just those subprograms that are needed
          --  requires that we perform a transitive closure over the call graph,
          --  starting from calls in the main compilation unit.
 
@@ -1060,7 +1054,9 @@ package body Inline is
                E : constant Subprogram_Kind_Id := Inlined.Table (Index).Name;
 
             begin
-               if Is_Called (E) and then not Is_Ignored_Ghost_Entity (E) then
+               if Is_Called (E)
+                 and then not Is_Ignored_Ghost_Entity_In_Codegen (E)
+               then
                   Add_Inlined_Subprogram (E);
                end if;
             end;
@@ -1222,6 +1218,17 @@ package body Inline is
       end if;
 
       if Has_Excluded_Declaration (Spec_Id, Declarations (N)) then
+         return;
+      end if;
+
+      --  Do not inline ghost functions, because inlined functions are
+      --  difficult to detect and we must do it to reject exceptions propagated
+      --  from ghost calls to ordinary code.
+
+      if Ekind (Spec_Id) = E_Function
+        and then Is_Ghost_Entity (Spec_Id)
+      then
+         Cannot_Inline ("cannot inline & (ghost function)?", N, Spec_Id);
          return;
       end if;
 
@@ -3377,15 +3384,6 @@ package body Inline is
       --  be performed in a separate pass, using an instantiation of the
       --  previous subprogram over aspect specifications reachable from N.
 
-      function Process_Sloc (Nod : Node_Id) return Traverse_Result;
-      --  If the call being expanded is that of an internal subprogram, set the
-      --  sloc of the generated block to that of the call itself, so that the
-      --  expansion is skipped by the "next" command in gdb. Same processing
-      --  for a subprogram in a predefined file, e.g. Ada.Tags. If
-      --  Debug_Generated_Code is true, suppress this change to simplify our
-      --  own development. Same in GNATprove mode, to ensure that warnings and
-      --  diagnostics point to the proper location.
-
       procedure Reset_Dispatching_Calls (N : Node_Id);
       --  In subtree N search for occurrences of dispatching calls that use the
       --  Ada 2005 Object.Operation notation and the object is a formal of the
@@ -3395,10 +3393,6 @@ package body Inline is
       procedure Rewrite_Function_Call (N : Node_Id; Blk : Node_Id);
       --  If the function body is a single expression, replace call with
       --  expression, else insert block appropriately.
-
-      procedure Rewrite_Procedure_Call (N : Node_Id; Blk : Node_Id);
-      --  If procedure body has no local variables, inline body without
-      --  creating block, otherwise rewrite call with block.
 
       ---------------------
       -- Make_Exit_Label --
@@ -3648,22 +3642,6 @@ package body Inline is
       procedure Replace_Formals_In_Aspects is
         new Traverse_Proc (Process_Formals_In_Aspects);
 
-      ------------------
-      -- Process_Sloc --
-      ------------------
-
-      function Process_Sloc (Nod : Node_Id) return Traverse_Result is
-      begin
-         if not Debug_Generated_Code then
-            Set_Sloc (Nod, Sloc (N));
-            Set_Comes_From_Source (Nod, False);
-         end if;
-
-         return OK;
-      end Process_Sloc;
-
-      procedure Reset_Slocs is new Traverse_Proc (Process_Sloc);
-
       ------------------------------
       --  Reset_Dispatching_Calls --
       ------------------------------
@@ -3784,35 +3762,6 @@ package body Inline is
          end if;
       end Rewrite_Function_Call;
 
-      ----------------------------
-      -- Rewrite_Procedure_Call --
-      ----------------------------
-
-      procedure Rewrite_Procedure_Call (N : Node_Id; Blk : Node_Id) is
-         HSS : constant Node_Id := Handled_Statement_Sequence (Blk);
-
-      begin
-         --  If there is a transient scope for N, this will be the scope of the
-         --  actions for N, and the statements in Blk need to be within this
-         --  scope. For example, they need to have visibility on the constant
-         --  declarations created for the formals.
-
-         --  If N needs no transient scope, and if there are no declarations in
-         --  the inlined body, we can do a little optimization and insert the
-         --  statements for the body directly after N, and rewrite N to a
-         --  null statement, instead of rewriting N into a full-blown block
-         --  statement.
-
-         if not Scope_Is_Transient
-           and then Is_Empty_List (Declarations (Blk))
-         then
-            Insert_List_After (N, Statements (HSS));
-            Rewrite (N, Make_Null_Statement (Loc));
-         else
-            Rewrite (N, Blk);
-         end if;
-      end Rewrite_Procedure_Call;
-
    --  Start of processing for Expand_Inlined_Call
 
    begin
@@ -3828,6 +3777,17 @@ package body Inline is
          Is_Unc_Decl := Nkind (Parent (N)) = N_Object_Declaration
                           and then Is_Unc;
       end if;
+
+      --  Inlining function calls returning an object of unconstrained type as
+      --  function actuals or in a return statement is not supported: a
+      --  temporary variable will be declared of unconstrained type without
+      --  initializing expression.
+
+      pragma Assert
+        (not Uses_Back_End
+           or else Nkind (Parent (N)) not in
+             N_Function_Call | N_Simple_Return_Statement
+           or else not Is_Unc);
 
       --  Check for an illegal attempt to inline a recursive procedure. If the
       --  subprogram has parameters this is detected when trying to supply a
@@ -4077,6 +4037,7 @@ package body Inline is
             --  Replace call with temporary and create its declaration
 
             Temp := Make_Temporary (Loc, 'C');
+            Mutate_Ekind (Temp, E_Constant);
             Set_Is_Internal (Temp);
 
             --  For the unconstrained case, the generated temporary has the
@@ -4194,13 +4155,6 @@ package body Inline is
       Replace_Formals_In_Aspects (Blk);
       Set_Parent (Blk, N);
 
-      if GNATprove_Mode then
-         null;
-
-      elsif not Comes_From_Source (Subp) or else Is_Predef then
-         Reset_Slocs (Blk);
-      end if;
-
       if Is_Unc_Decl then
 
          --  No action needed since return statement has been already removed
@@ -4271,7 +4225,7 @@ package body Inline is
       end;
 
       if Ekind (Subp) = E_Procedure then
-         Rewrite_Procedure_Call (N, Blk);
+         Rewrite (N, Blk);
 
       else
          Rewrite_Function_Call (N, Blk);
@@ -4577,35 +4531,6 @@ package body Inline is
 
       return False;
    end Has_Excluded_Statement;
-
-   --------------------------
-   -- Has_Initialized_Type --
-   --------------------------
-
-   function Has_Initialized_Type (E : Entity_Id) return Boolean is
-      E_Body : constant Node_Id := Subprogram_Body (E);
-      Decl   : Node_Id;
-
-   begin
-      if No (E_Body) then -- imported subprogram
-         return False;
-
-      else
-         Decl := First (Declarations (E_Body));
-         while Present (Decl) loop
-            if Nkind (Decl) = N_Full_Type_Declaration
-              and then Comes_From_Source (Decl)
-              and then Present (Init_Proc (Defining_Identifier (Decl)))
-            then
-               return True;
-            end if;
-
-            Next (Decl);
-         end loop;
-      end if;
-
-      return False;
-   end Has_Initialized_Type;
 
    -----------------------
    -- Has_Single_Return --
@@ -4922,11 +4847,17 @@ package body Inline is
               and then Ekind (Info.Fin_Scop) = E_Package_Body
             then
                Set_In_Package_Body (Spec_Entity (Info.Fin_Scop), True);
+               Instantiate_Package_Body (Info);
+               Set_In_Package_Body (Spec_Entity (Info.Fin_Scop), False);
+            else
+               Instantiate_Package_Body (Info);
             end if;
 
-            Instantiate_Package_Body (Info);
+            --  No need to generate cleanups if the main unit is generic
 
-            if Present (Info.Fin_Scop) then
+            if Present (Info.Fin_Scop)
+               and then not Is_Generic_Unit (Main_Unit_Entity)
+            then
                Scop := Info.Fin_Scop;
 
                --  If the enclosing finalization scope is dynamic, the instance
@@ -4939,12 +4870,6 @@ package body Inline is
                end if;
 
                Add_Scope_To_Clean (Scop);
-
-               --  Reset the In_Package_Body flag if it was set above
-
-               if Ekind (Info.Fin_Scop) = E_Package_Body then
-                  Set_In_Package_Body (Spec_Entity (Info.Fin_Scop), False);
-               end if;
             end if;
 
          --  For subprogram instances, always instantiate the body
@@ -4964,10 +4889,6 @@ package body Inline is
          Expander_Active := (Operating_Mode = Opt.Generate_Code);
          Push_Scope (Standard_Standard);
          To_Clean := New_Elmt_List;
-
-         if Is_Generic_Unit (Cunit_Entity (Main_Unit)) then
-            Start_Generic;
-         end if;
 
          --  A body instantiation may generate additional instantiations, so
          --  the following loop must scan to the end of a possibly expanding
@@ -5007,16 +4928,10 @@ package body Inline is
             Pending_Instantiations.Init;
          end if;
 
-         --  We can now complete the cleanup actions of scopes that contain
-         --  pending instantiations (skipped for generic units, since we
-         --  never need any cleanups in generic units).
+         --  Expand the cleanup actions of scopes that contain instantiations
 
-         if Expander_Active
-           and then not Is_Generic_Unit (Main_Unit_Entity)
-         then
+         if Expander_Active then
             Cleanup_Scopes;
-         elsif Is_Generic_Unit (Cunit_Entity (Main_Unit)) then
-            End_Generic;
          end if;
 
          Pop_Scope;
@@ -5271,6 +5186,7 @@ package body Inline is
                                         | Name_Exit_Cases
                                         | Name_Postcondition
                                         | Name_Precondition
+                                        | Name_Program_Exit
                                         | Name_Refined_Global
                                         | Name_Refined_Depends
                                         | Name_Refined_Post

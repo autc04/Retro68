@@ -1,6 +1,6 @@
 /* Lower GIMPLE_SWITCH expressions to something more efficient than
    a jump table.
-   Copyright (C) 2006-2025 Free Software Foundation, Inc.
+   Copyright (C) 2006-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -971,7 +971,6 @@ switch_conversion::build_one_array (int num, tree arr_index_type,
   tree name;
   gimple *load;
   gimple_stmt_iterator gsi = gsi_for_stmt (m_switch);
-  location_t loc = gimple_location (m_switch);
 
   gcc_assert (m_default_values[num]);
 
@@ -1008,6 +1007,16 @@ switch_conversion::build_one_array (int num, tree arr_index_type,
       default_type = TREE_TYPE (m_default_values[num]);
       value_type = array_value_type (default_type, num);
       array_type = build_array_type (value_type, arr_index_type);
+      addr_space_t as
+	= targetm.addr_space.for_artificial_rodata (array_type,
+						    ARTIFICIAL_RODATA_CSWITCH);
+      if (!ADDR_SPACE_GENERIC_P (as))
+	{
+	  int quals = (TYPE_QUALS_NO_ADDR_SPACE (value_type)
+		       | ENCODE_QUAL_ADDR_SPACE (as));
+	  value_type = build_qualified_type (value_type, quals);
+	  array_type = build_array_type (value_type, arr_index_type);
+	}
       if (default_type != value_type)
 	{
 	  unsigned int i;
@@ -1020,7 +1029,7 @@ switch_conversion::build_one_array (int num, tree arr_index_type,
       TREE_CONSTANT (ctor) = true;
       TREE_STATIC (ctor) = true;
 
-      decl = build_decl (loc, VAR_DECL, NULL_TREE, array_type);
+      decl = build_decl (UNKNOWN_LOCATION, VAR_DECL, NULL_TREE, array_type);
       TREE_STATIC (decl) = 1;
       DECL_INITIAL (decl) = ctor;
 
@@ -1030,6 +1039,10 @@ switch_conversion::build_one_array (int num, tree arr_index_type,
       TREE_CONSTANT (decl) = 1;
       TREE_READONLY (decl) = 1;
       DECL_IGNORED_P (decl) = 1;
+      /* The decl is mergeable since we don't take the address ever and
+	 just reading from it. */
+      DECL_MERGEABLE (decl) = 1;
+
       if (offloading_function_p (cfun->decl))
 	DECL_ATTRIBUTES (decl)
 	  = tree_cons (get_identifier ("omp declare target"), NULL_TREE,
@@ -1060,7 +1073,7 @@ void
 switch_conversion::build_arrays ()
 {
   tree arr_index_type;
-  tree tidx, sub, utype, tidxtype;
+  tree tidx, uidx, sub, utype, tidxtype;
   gimple *stmt;
   gimple_stmt_iterator gsi;
   gphi_iterator gpi;
@@ -1085,18 +1098,24 @@ switch_conversion::build_arrays ()
     tidxtype = utype;
 
   arr_index_type = build_index_type (m_range_size);
-  tidx = make_ssa_name (tidxtype);
+  uidx = make_ssa_name (utype);
   sub = fold_build2_loc (loc, MINUS_EXPR, utype,
 			 fold_convert_loc (loc, utype, m_index_expr),
 			 fold_convert_loc (loc, utype, m_range_min));
-  sub = fold_convert (tidxtype, sub);
   sub = force_gimple_operand_gsi (&gsi, sub,
 				  false, NULL, true, GSI_SAME_STMT);
-  stmt = gimple_build_assign (tidx, sub);
+  stmt = gimple_build_assign (uidx, sub);
 
   gsi_insert_before (&gsi, stmt, GSI_SAME_STMT);
-  update_stmt (stmt);
   m_arr_ref_first = stmt;
+
+  tidx = uidx;
+  if (tidxtype != utype)
+    {
+      tidx = make_ssa_name (tidxtype);
+      stmt = gimple_build_assign (tidx, NOP_EXPR, uidx);
+      gsi_insert_before (&gsi, stmt, GSI_SAME_STMT);
+    }
 
   for (gpi = gsi_start_phis (m_final_bb), i = 0;
        !gsi_end_p (gpi); gsi_next (&gpi))
@@ -1773,133 +1792,6 @@ jump_table_cluster::is_beneficial (const vec<cluster *> &,
   return end - start + 1 >= case_values_threshold ();
 }
 
-/* Find bit tests of given CLUSTERS, where all members of the vector are of
-   type simple_cluster.  Use a fast algorithm that might not find the optimal
-   solution (minimal number of clusters on the output).  New clusters are
-   returned.
-
-   You should call find_bit_tests () instead of calling this function
-   directly.  */
-
-vec<cluster *>
-bit_test_cluster::find_bit_tests_fast (vec<cluster *> &clusters)
-{
-  unsigned l = clusters.length ();
-  vec<cluster *> output;
-
-  output.create (l);
-
-  /* Look at sliding BITS_PER_WORD sized windows in the switch value space
-     and determine if they are suitable for a bit test cluster.  Worst case
-     this can examine every value BITS_PER_WORD-1 times.  */
-  unsigned k;
-  for (unsigned i = 0; i < l; i += k)
-    {
-      hash_set<basic_block> targets;
-      cluster *start_cluster = clusters[i];
-
-      /* Find the biggest k such that clusters i to i+k-1 can be turned into a
-	 one big bit test cluster.  */
-      k = 0;
-      while (i + k < l)
-	{
-	  cluster *end_cluster = clusters[i + k];
-
-	  /* Does value range fit into the BITS_PER_WORD window?  */
-	  HOST_WIDE_INT w = cluster::get_range (start_cluster->get_low (),
-						end_cluster->get_high ());
-	  if (w == 0 || w > BITS_PER_WORD)
-	    break;
-
-	  /* Check for max # of targets.  */
-	  if (targets.elements () == m_max_case_bit_tests
-	      && !targets.contains (end_cluster->m_case_bb))
-	    break;
-
-	  targets.add (end_cluster->m_case_bb);
-	  k++;
-	}
-
-      if (is_beneficial (k, targets.elements ()))
-	{
-	  output.safe_push (new bit_test_cluster (clusters, i, i + k - 1,
-						  i == 0 && k == l));
-	}
-      else
-	{
-	  output.safe_push (clusters[i]);
-	  /* ??? Might be able to skip more.  */
-	  k = 1;
-	}
-    }
-
-  return output;
-}
-
-/* Find bit tests of given CLUSTERS, where all members of the vector
-   are of type simple_cluster.  Use a slow (quadratic) algorithm that always
-   finds the optimal solution (minimal number of clusters on the output).  New
-   clusters are returned.
-
-   You should call find_bit_tests () instead of calling this function
-   directly.  */
-
-vec<cluster *>
-bit_test_cluster::find_bit_tests_slow (vec<cluster *> &clusters)
-{
-  unsigned l = clusters.length ();
-  auto_vec<min_cluster_item> min;
-  min.reserve (l + 1);
-
-  min.quick_push (min_cluster_item (0, 0, 0));
-
-  for (unsigned i = 1; i <= l; i++)
-    {
-      /* Set minimal # of clusters with i-th item to infinite.  */
-      min.quick_push (min_cluster_item (INT_MAX, INT_MAX, INT_MAX));
-
-      for (unsigned j = 0; j < i; j++)
-	{
-	  if (min[j].m_count + 1 < min[i].m_count
-	      && can_be_handled (clusters, j, i - 1))
-	    min[i] = min_cluster_item (min[j].m_count + 1, j, INT_MAX);
-	}
-
-      gcc_checking_assert (min[i].m_count != INT_MAX);
-    }
-
-  /* No result.  */
-  if (min[l].m_count == l)
-    return clusters.copy ();
-
-  vec<cluster *> output;
-  output.create (4);
-
-  /* Find and build the clusters.  */
-  for (unsigned end = l;;)
-    {
-      int start = min[end].m_start;
-
-      if (is_beneficial (clusters, start, end - 1))
-	{
-	  bool entire = start == 0 && end == clusters.length ();
-	  output.safe_push (new bit_test_cluster (clusters, start, end - 1,
-						  entire));
-	}
-      else
-	for (int i = end - 1; i >= start; i--)
-	  output.safe_push (clusters[i]);
-
-      end = start;
-
-      if (start <= 0)
-	break;
-    }
-
-  output.reverse ();
-  return output;
-}
-
 /* Find bit tests of given CLUSTERS, where all members of the vector
    are of type simple_cluster.  MAX_C is the approx max number of cases per
    label.  New clusters are returned.  */
@@ -1910,13 +1802,109 @@ bit_test_cluster::find_bit_tests (vec<cluster *> &clusters, int max_c)
   if (!is_enabled () || max_c == 1)
     return clusters.copy ();
 
+  /* Dynamic programming algorithm.
+
+     In: List of simple clusters
+     Out: List of simple clusters and bit test clusters such that each bit test
+     cluster can_be_handled() and is_beneficial()
+
+     Tries to merge consecutive clusters into bigger (bit test) ones.  Tries to
+     end up with as few clusters as possible.  */
+
   unsigned l = clusters.length ();
 
-  /* Note: l + 1 is the number of cases of the switch.  */
-  if (l + 1 > (unsigned) param_switch_lower_slow_alg_max_cases)
-    return find_bit_tests_fast (clusters);
-  else
-    return find_bit_tests_slow (clusters);
+  if (l == 0)
+    return clusters.copy ();
+  gcc_checking_assert (l <= INT_MAX);
+
+  auto_vec<min_cluster_item> min;
+  min.reserve (l + 1);
+
+  int bits_in_word = GET_MODE_BITSIZE (word_mode);
+
+  /* First phase: Compute the minimum number of clusters for each prefix of the
+     input list incrementally
+
+     min[i] = (count, j, _) means that the prefix ending with the (i-1)-th
+     element can be made to contain as few as count clusters and that in such
+     clustering the last cluster is made up of input clusters [j, i-1]
+     (inclusive).  */
+  min.quick_push (min_cluster_item (0, 0, INT_MAX));
+  min.quick_push (min_cluster_item (1, 0, INT_MAX));
+  for (int i = 2; i <= (int) l; i++)
+    {
+      auto_vec<unsigned, m_max_case_bit_tests> unique_labels;
+
+      /* Since each cluster contains at least one case number and one bit test
+	 cluster can cover at most bits_in_word case numbers, we don't need to
+	 look farther than bits_in_word clusters back.  */
+      for (int j = i - 1; j >= 0 && j >= i - bits_in_word; j--)
+	{
+	  /* Consider creating a bit test cluster from input clusters [j, i-1]
+	     (inclusive)  */
+
+	  simple_cluster *sc = static_cast<simple_cluster *> (clusters[j]);
+	  unsigned label = sc->m_case_bb->index;
+	  if (!unique_labels.contains (label))
+	    {
+	      if (unique_labels.length () >= m_max_case_bit_tests)
+		/* is_beneficial() will be false for this and the following
+		   iterations.  */
+		break;
+	      unique_labels.quick_push (label);
+	    }
+
+	  unsigned new_count = min[j].m_count + 1;
+
+	  if (j == i - 1)
+	    {
+	      min.quick_push (min_cluster_item (new_count, j, INT_MAX));
+	      continue;
+	    }
+
+	  unsigned HOST_WIDE_INT range
+	    = get_range (clusters[j]->get_low (), clusters[i-1]->get_high ());
+	  if (new_count < min[i].m_count
+	      && can_be_handled (range, unique_labels.length ())
+	      && is_beneficial (i - j, unique_labels.length ()))
+	    min[i] = min_cluster_item (new_count, j, INT_MAX);
+	}
+    }
+
+  if (min[l].m_count == l)
+    /* No bit test clustering opportunities.  */
+    return clusters.copy ();
+
+  vec<cluster *> output;
+  output.create (4);
+
+  /* Second phase: Find and build the bit test clusters by traversing min
+     array backwards.  */
+  for (unsigned end = l;;)
+    {
+      unsigned start = min[end].m_start;
+      gcc_checking_assert (start < end);
+
+      /* This cluster will be made out of input clusters [start, end - 1].  */
+
+      if (start == end - 1)
+	/* Let the cluster be a simple cluster.  */
+	output.safe_push (clusters[start]);
+      else
+	{
+	  bool entire = start == 0 && end == l;
+	  output.safe_push (new bit_test_cluster (clusters, start, end - 1,
+						  entire));
+	}
+
+      end = start;
+
+      if (start <= 0)
+	break;
+    }
+
+  output.reverse ();
+  return output;
 }
 
 /* Return true when RANGE of case values with UNIQ labels
@@ -1930,47 +1918,10 @@ bit_test_cluster::can_be_handled (unsigned HOST_WIDE_INT range,
   if (range == 0)
     return false;
 
-  if (range >= GET_MODE_BITSIZE (word_mode))
+  if (range > GET_MODE_BITSIZE (word_mode))
     return false;
 
   return uniq <= m_max_case_bit_tests;
-}
-
-/* Return true when cluster starting at START and ending at END (inclusive)
-   can build a bit test.  */
-
-bool
-bit_test_cluster::can_be_handled (const vec<cluster *> &clusters,
-				  unsigned start, unsigned end)
-{
-  auto_vec<int, m_max_case_bit_tests> dest_bbs;
-  /* For algorithm correctness, bit test for a single case must return
-     true.  We bail out in is_beneficial if it's called just for
-     a single case.  */
-  if (start == end)
-    return true;
-
-  unsigned HOST_WIDE_INT range = get_range (clusters[start]->get_low (),
-					    clusters[end]->get_high ());
-
-  /* Make a guess first.  */
-  if (!can_be_handled (range, m_max_case_bit_tests))
-    return false;
-
-  for (unsigned i = start; i <= end; i++)
-    {
-      simple_cluster *sc = static_cast<simple_cluster *> (clusters[i]);
-      /* m_max_case_bit_tests is very small integer, thus the operation
-	 is constant. */
-      if (!dest_bbs.contains (sc->m_case_bb->index))
-	{
-	  if (dest_bbs.length () >= m_max_case_bit_tests)
-	    return false;
-	  dest_bbs.quick_push (sc->m_case_bb->index);
-	}
-    }
-
-  return true;
 }
 
 /* Return true when COUNT of cases of UNIQ labels is beneficial for bit test
@@ -1979,33 +1930,11 @@ bit_test_cluster::can_be_handled (const vec<cluster *> &clusters,
 bool
 bit_test_cluster::is_beneficial (unsigned count, unsigned uniq)
 {
+  /* NOTE: When modifying this, keep in mind the value of
+     m_max_case_bit_tests.  */
   return (((uniq == 1 && count >= 3)
 	   || (uniq == 2 && count >= 5)
 	   || (uniq == 3 && count >= 6)));
-}
-
-/* Return true if cluster starting at START and ending at END (inclusive)
-   is profitable transformation.  */
-
-bool
-bit_test_cluster::is_beneficial (const vec<cluster *> &clusters,
-				 unsigned start, unsigned end)
-{
-  /* Single case bail out.  */
-  if (start == end)
-    return false;
-
-  auto_bitmap dest_bbs;
-
-  for (unsigned i = start; i <= end; i++)
-    {
-      simple_cluster *sc = static_cast<simple_cluster *> (clusters[i]);
-      bitmap_set_bit (dest_bbs, sc->m_case_bb->index);
-    }
-
-  unsigned uniq = bitmap_count_bits (dest_bbs);
-  unsigned count = end - start + 1;
-  return is_beneficial (count, uniq);
 }
 
 /* Comparison function for qsort to order bit tests by decreasing
@@ -2348,13 +2277,6 @@ switch_decision_tree::analyze_switch_statement ()
     }
 
   reset_out_edges_aux (m_switch);
-
-  if (l > (unsigned) param_switch_lower_slow_alg_max_cases)
-    warning_at (gimple_location (m_switch), OPT_Wdisabled_optimization,
-	       "Using faster switch lowering algorithms. "
-	       "Number of switch cases (%d) exceeds "
-	       "%<--param=switch-lower-slow-alg-max-cases=%d%> limit.",
-	       l, param_switch_lower_slow_alg_max_cases);
 
   /* Find bit-test clusters.  */
   vec<cluster *> output = bit_test_cluster::find_bit_tests (clusters, max_c);

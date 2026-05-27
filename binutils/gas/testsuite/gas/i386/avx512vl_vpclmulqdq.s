@@ -1,6 +1,5 @@
 # Check 32bit AVX512VL,VPCLMULQDQ instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpclmulqdq	$0xab, %xmm2, %xmm2, %xmm3	 # AVX512VL,VPCLMULQDQ

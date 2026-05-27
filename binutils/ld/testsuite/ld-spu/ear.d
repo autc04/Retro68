@@ -1,5 +1,5 @@
 #as:
-#objdump: -Dr
+#objdump: -Dr -j.text -j.data -j.toe -j.data.blah
 #name: ear
 
 .*: +file format .*

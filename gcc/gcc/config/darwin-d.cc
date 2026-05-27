@@ -1,5 +1,5 @@
 /* Darwin support needed only by D front-end.
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free
@@ -30,6 +30,7 @@ darwin_d_os_builtins (void)
 {
   d_add_builtin_version ("Posix");
   d_add_builtin_version ("OSX");
+  d_add_builtin_version ("Apple");
   d_add_builtin_version ("darwin");
 }
 

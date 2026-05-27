@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---            Copyright (C) 2020-2025, Free Software Foundation, Inc.       --
+--            Copyright (C) 2020-2026, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -81,9 +81,6 @@ package body Ada.Wide_Wide_Text_IO.Fixed_IO is
          ((Num'Base'Small_Numerator = 1
             and then Num'Base'Small_Denominator <= 2**31)
            or else
-          (Num'Base'Small_Denominator = 1
-            and then Num'Base'Small_Numerator <= 2**31)
-           or else
           (Num'Base'Small_Numerator <= 2**27
             and then Num'Base'Small_Denominator <= 2**27));
    --  These conditions are derived from the prerequisites of System.Value_F
@@ -110,9 +107,6 @@ package body Ada.Wide_Wide_Text_IO.Fixed_IO is
          ((Num'Base'Small_Numerator = 1
             and then Num'Base'Small_Denominator <= 2**63)
            or else
-          (Num'Base'Small_Denominator = 1
-            and then Num'Base'Small_Numerator <= 2**63)
-           or else
           (Num'Base'Small_Numerator <= 2**59
             and then Num'Base'Small_Denominator <= 2**59));
    --  These conditions are derived from the prerequisites of System.Value_F
@@ -138,9 +132,6 @@ package body Ada.Wide_Wide_Text_IO.Fixed_IO is
        and then
          ((Num'Base'Small_Numerator = 1
             and then Num'Base'Small_Denominator <= 2**127)
-           or else
-          (Num'Base'Small_Denominator = 1
-            and then Num'Base'Small_Numerator <= 2**127)
            or else
           (Num'Base'Small_Numerator <= 2**123
             and then Num'Base'Small_Denominator <= 2**123));

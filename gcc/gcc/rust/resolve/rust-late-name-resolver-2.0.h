@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -37,12 +37,21 @@ public:
 
   void new_label (Identifier name, NodeId id);
 
+  // Specialized visit bits
+  void visit_function_params (AST::Function &function) override;
+
   // some more label declarations
   void visit (AST::LetStmt &) override;
+  void visit (AST::WhileLetLoopExpr &) override;
   // TODO: Do we need this?
   // void visit (AST::Method &) override;
   void visit (AST::IdentifierPattern &) override;
+  void visit (AST::StructPatternFieldIdent &) override;
+  void visit (AST::AltPattern &) override;
   void visit (AST::SelfParam &) override;
+  void visit (AST::MatchArm &) override;
+  void visit (AST::ForLoopExpr &) override;
+  void visit_if_let_patterns (AST::IfLetExpr &) override;
 
   // resolutions
   void visit (AST::IdentifierExpr &) override;
@@ -51,24 +60,25 @@ public:
   void visit (AST::ContinueExpr &) override;
   void visit (AST::LoopLabel &) override;
   void visit (AST::PathInExpression &) override;
+  void visit_impl_type (AST::Type &) override;
   void visit (AST::TypePath &) override;
+  void visit (AST::Visibility &) override;
   void visit (AST::Trait &) override;
   void visit (AST::StructExprStruct &) override;
   void visit (AST::StructExprStructBase &) override;
   void visit (AST::StructExprStructFields &) override;
-  void visit (AST::StructStruct &) override;
   void visit (AST::GenericArgs &) override;
   void visit (AST::GenericArg &);
-  void visit (AST::ClosureExprInner &) override;
-  void visit (AST::ClosureExprInnerTyped &) override;
+  void visit_closure_params (AST::ClosureExpr &) override;
+  void visit (AST::ClosureExpr &) override;
 
 private:
   void resolve_label (AST::Lifetime &lifetime);
 
-  /* Setup Rust's builtin types (u8, i32, !...) in the resolver */
-  void setup_builtin_types ();
-
   bool funny_error;
+
+  /* used to prevent "impl Self {}", "impl (Self, i32) {}", etc */
+  bool block_big_self;
 };
 
 // TODO: Add missing mappings and data structures

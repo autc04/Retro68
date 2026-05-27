@@ -1,5 +1,5 @@
 /* ACLE support for Arm MVE
-   Copyright (C) 2021-2025 Free Software Foundation, Inc.
+   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -410,8 +410,6 @@ register_builtin_types ()
 #include "arm-mve-builtins.def"
   for (unsigned int i = 0; i < NUM_VECTOR_TYPES; ++i)
     {
-      if (vector_types[i].requires_float && !TARGET_HAVE_MVE_FLOAT)
-	continue;
       tree eltype = scalar_types[i];
       tree vectype;
       if (eltype == boolean_type_node)
@@ -433,18 +431,6 @@ register_builtin_types ()
 static void
 register_vector_type (vector_type_index type)
 {
-
-  /* If the target does not have the mve.fp extension, but the type requires
-     it, then it needs to be assigned a non-dummy type so that functions
-     with those types in their signature can be registered.  This allows for
-     diagnostics about the missing extension, rather than about a missing
-     function definition.  */
-  if (vector_types[type].requires_float && !TARGET_HAVE_MVE_FLOAT)
-    {
-      acle_vector_types[0][type] = void_type_node;
-      return;
-    }
-
   tree vectype = abi_vector_types[type];
   tree id = get_identifier (vector_types[type].acle_name);
   tree decl = build_decl (input_location, TYPE_DECL, id, vectype);
@@ -470,13 +456,7 @@ register_builtin_tuple_types (vector_type_index type)
 {
   const vector_type_info* info = &vector_types[type];
 
-  /* If the target does not have the mve.fp extension, but the type requires
-     it, then it needs to be assigned a non-dummy type so that functions
-     with those types in their signature can be registered.  This allows for
-     diagnostics about the missing extension, rather than about a missing
-     function definition.  */
-  if (scalar_types[type] == boolean_type_node
-      || (info->requires_float && !TARGET_HAVE_MVE_FLOAT))
+  if (scalar_types[type] == boolean_type_node)
     {
       for (unsigned int num_vectors = 2; num_vectors <= 4; num_vectors += 2)
 	acle_vector_types[num_vectors >> 1][type] = void_type_node;
@@ -1014,7 +994,8 @@ function_builder::add_unique_function (const function_instance &instance,
 				       vec<tree> &argument_types,
 				       bool preserve_user_namespace,
 				       bool requires_float,
-				       bool force_direct_overloads)
+				       bool force_direct_overloads,
+				       unsigned int which_overload)
 {
   /* Add the function under its full (unique) name with prefix.  */
   char *name = get_name (instance, true, false);
@@ -1022,27 +1003,31 @@ function_builder::add_unique_function (const function_instance &instance,
 					   argument_types.length (),
 					   argument_types.address ());
   tree attrs = get_attributes (instance);
-  registered_function &rfn = add_function (instance, name, fntype, attrs,
-					   requires_float, false, false);
+  if (which_overload & NONOVERLOADED_FORM)
+    {
+      registered_function &rfn = add_function (instance, name, fntype, attrs,
+					       requires_float, false, false);
 
-  /* Enter the function into the hash table.  */
-  hashval_t hash = instance.hash ();
-  registered_function **rfn_slot
-    = function_table->find_slot_with_hash (instance, hash, INSERT);
-  gcc_assert (!*rfn_slot);
-  *rfn_slot = &rfn;
+      /* Enter the function into the hash table.  */
+      hashval_t hash = instance.hash ();
+      registered_function **rfn_slot
+	= function_table->find_slot_with_hash (instance, hash, INSERT);
+      gcc_assert (!*rfn_slot);
+      *rfn_slot = &rfn;
 
-  /* Also add the non-prefixed non-overloaded function, as placeholder
-     if the user namespace does not need to be preserved.  */
-  char *noprefix_name = get_name (instance, false, false);
-  attrs = get_attributes (instance);
-  add_function (instance, noprefix_name, fntype, attrs, requires_float,
-		false, preserve_user_namespace);
+      /* Also add the non-prefixed non-overloaded function, as placeholder
+	 if the user namespace does not need to be preserved.  */
+      char *noprefix_name = get_name (instance, false, false);
+      attrs = get_attributes (instance);
+      add_function (instance, noprefix_name, fntype, attrs, requires_float,
+		    false, preserve_user_namespace);
+    }
 
   /* Also add the function under its overloaded alias, if we want
      a separate decl for each instance of an overloaded function.  */
   char *overload_name = get_name (instance, true, true);
-  if (strcmp (name, overload_name) != 0)
+  if ((which_overload & OVERLOADED_FORM)
+      && (strcmp (name, overload_name) != 0))
     {
       /* Attribute lists shouldn't be shared.  */
       attrs = get_attributes (instance);
@@ -1249,6 +1234,18 @@ function_resolver::resolve_to (mode_suffix_index mode,
       gcc_unreachable ();
     }
   return res;
+}
+
+/* Pop an argument and resolve the function to one with the mode suffix given
+   by MODE and the type suffixes given by TYPE0 and TYPE1.  Return its function
+   decl on success, otherwise report an error and return error_mark_node.  */
+tree
+function_resolver::pop_and_resolve_to (mode_suffix_index mode,
+				       type_suffix_index type0,
+				       type_suffix_index type1)
+{
+  m_arglist.pop ();
+  return resolve_to (mode, type0, type1);
 }
 
 /* Require argument ARGNO to be a pointer to a scalar type that has a

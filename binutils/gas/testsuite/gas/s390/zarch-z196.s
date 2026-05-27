@@ -8,6 +8,7 @@ foo:
 	alsih	%r6,65000
 	alsihn	%r6,65000
 	brcth	%r6,.
+	jcth	%r6,.
 	chhr	%r6,%r7
 	chlr	%r6,%r7
 	chf	%r6,5555(%r7,%r8)
@@ -23,7 +24,17 @@ foo:
 	llch	%r6,-5555(%r7,%r8)
 	llhh	%r6,-5555(%r7,%r8)
 	risbhg	%r6,%r7,12,13,14
+	risbhg	%r6,%r7,12,13
+	risbhg	%r6,%r7,12,141,14
+	risbhg	%r6,%r7,12,141
+	risbhgz	%r6,%r7,12,13,14
+	risbhgz	%r6,%r7,12,13
 	risblg	%r6,%r7,12,13,14
+	risblg	%r6,%r7,12,13
+	risblg	%r6,%r7,12,141,14
+	risblg	%r6,%r7,12,141
+	risblgz	%r6,%r7,12,13,14
+	risblgz	%r6,%r7,12,13
 	stch	%r6,-5555(%r7,%r8)
 	sthh	%r6,-5555(%r7,%r8)
 	stfh	%r6,-5555(%r7,%r8)

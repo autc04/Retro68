@@ -1,6 +1,6 @@
 /* -*- indented-text -*- */
 /* Process source files and output type information.
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,17 +21,6 @@ along with GCC; see the file COPYING3.  If not see
 %option noinput
 
 %{
-#ifdef HOST_GENERATOR_FILE
-#include "config.h"
-#define GENERATOR_FILE 1
-#else
-#include "bconfig.h"
-#endif
-#include "system.h"
-
-#define malloc xmalloc
-#define realloc xrealloc
-
 #include "gengtype.h"
 
 #define YY_DECL int yylex (const char **yylval)

@@ -1,5 +1,5 @@
 ;; Constraint definitions for RISC-V target.
-;; Copyright (C) 2011-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2026 Free Software Foundation, Inc.
 ;; Contributed by Andrew Waterman (andrew@sifive.com).
 ;; Based on MIPS target for GNU compiler.
 ;;
@@ -42,6 +42,10 @@
 
 (define_register_constraint "cf" "TARGET_HARD_FLOAT ? RVC_FP_REGS : (TARGET_ZFINX ? RVC_GR_REGS : NO_REGS)"
   "RVC floating-point registers (f8-f15), if available, reuse GPR as FPR when use zfinx.")
+
+(define_register_constraint "cR" "RVC_GR_REGS"
+  "Even-odd RVC general purpose register (x8-x15)."
+  "regno % 2 == 0")
 
 ;; General constraints
 
@@ -233,10 +237,11 @@
  (and (match_code "const_vector")
       (match_test "rtx_equal_p (op, riscv_vector::gen_scalar_move_mask (GET_MODE (op)))")))
 
-(define_memory_constraint "Wdm"
+(define_constraint "Wdm"
   "Vector duplicate memory operand"
-  (and (match_code "mem")
-       (match_code "reg" "0")))
+  (and (match_test "strided_load_broadcast_p ()")
+       (and (match_code "mem")
+	    (match_code "reg" "0"))))
 
 ;; Vendor ISA extension constraints.
 
@@ -311,3 +316,31 @@
   "Shifting immediate for SIMD shufflei3."
   (and (match_code "const_int")
        (match_test "IN_RANGE (ival, -64, -1)")))
+
+(define_constraint "Ou01"
+  "A 1-bit unsigned immediate."
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (ival, 0, 1)")))
+
+(define_constraint "Ou02"
+  "A 2-bit unsigned immediate."
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (ival, 0, 3)")))
+
+(define_constraint "Q"
+  "An address operand that is valid for a prefetch instruction"
+  (match_operand 0 "prefetch_operand"))
+
+(define_address_constraint "ZD"
+  "An address operand that is valid for a mips prefetch instruction"
+  (match_test "TARGET_XMIPSCBOP && riscv_prefetch_offset_address_p (op, mode)"))
+
+(define_constraint "Ou07"
+  "A 7-bit unsigned immediate."
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (ival, 0, 127)")))
+
+(define_constraint "ads_Bext"
+  "Sequence bit extract."
+  (and (match_code "const_int")
+       (match_test "(ival & (ival + 1)) == 0")))

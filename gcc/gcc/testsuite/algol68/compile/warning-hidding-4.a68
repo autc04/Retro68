@@ -1,0 +1,7 @@
+{ dg-options "-Whidden-declarations" }
+begin
+      int bitspack = 10; { dg-warning "" }
+      op UPB = (int i, union (int,string) v) int: { dg-warning "hides" }
+         (v | (string s): UPB s | 0);
+      UPB "lala"
+end

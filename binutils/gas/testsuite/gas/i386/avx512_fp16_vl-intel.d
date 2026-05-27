@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 AVX512-FP16,AVX512VL insns (Intel disassembly)
 #source: avx512_fp16_vl.s
@@ -574,9 +573,11 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 18 66 29 7b[ 	 ]*vfpclassph k5,WORD BCST \[ecx\]\{1to8\},0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 08 66 69 7f 7b[ 	 ]*vfpclassph k5,XMMWORD PTR \[ecx\+0x7f0\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 1f 66 6a 80 7b[ 	 ]*vfpclassph k5\{k7\},WORD BCST \[edx-0x100\]\{1to8\},0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 f3 7c 18 66 69 01 7b[ 	 ]*vfpclassph k5,WORD BCST \[ecx\+0x2\]\{1to8\},0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 38 66 29 7b[ 	 ]*vfpclassph k5,WORD BCST \[ecx\]\{1to16\},0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 28 66 69 7f 7b[ 	 ]*vfpclassph k5,YMMWORD PTR \[ecx\+0xfe0\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 3f 66 6a 80 7b[ 	 ]*vfpclassph k5\{k7\},WORD BCST \[edx-0x100\]\{1to16\},0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 f3 7c 38 66 69 01 7b[ 	 ]*vfpclassph k5,WORD BCST \[ecx\+0x2\]\{1to16\},0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f6 7d 08 42 f5[ 	 ]*vgetexpph xmm6,xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f6 7d 8f 42 f5[ 	 ]*vgetexpph xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f6 7d 28 42 f5[ 	 ]*vgetexpph ymm6,ymm5

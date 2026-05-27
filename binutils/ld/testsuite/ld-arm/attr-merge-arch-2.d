@@ -2,4 +2,4 @@
 #source: attr-merge-arch-2b.s
 #as:
 #ld: -e main
-#error: conflicting CPU architectures 13/0
+#error: conflicting CPU architectures ARM v7E-M vs Pre v4 in .*

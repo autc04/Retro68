@@ -1,5 +1,5 @@
 /* Internals of libgccjit: classes for recording calls made to the JIT API.
-   Copyright (C) 2013-2025 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -847,7 +847,7 @@ recording::context::get_int_type (int num_bytes, int is_signed)
 recording::type *
 recording::context::new_array_type (recording::location *loc,
 				    recording::type *element_type,
-				    int num_elements)
+				    uint64_t num_elements)
 {
   if (struct_ *s = element_type->dyn_cast_struct ())
     if (!s->get_fields ())
@@ -1498,6 +1498,18 @@ recording::context::set_output_ident (const char *ident)
   record (memento);
 }
 
+bool
+recording::context::get_abort_on_unsupported_target_builtin ()
+{
+  return m_abort_on_unsupported_target_builtin;
+}
+
+void
+recording::context::set_abort_on_unsupported_target_builtin ()
+{
+  m_abort_on_unsupported_target_builtin = true;
+}
+
 /* Set the given integer option for this context, or add an error if
    it's not recognized.
 
@@ -1629,6 +1641,13 @@ recording::context::enable_dump (const char *dumpname,
 result *
 recording::context::compile ()
 {
+  if (m_populated_target_info)
+  {
+    add_error (NULL,
+      "cannot compile after calling gcc_jit_context_get_target_info");
+    return NULL;
+  }
+
   JIT_LOG_SCOPE (get_logger ());
 
   log_all_options ();
@@ -1659,6 +1678,13 @@ void
 recording::context::compile_to_file (enum gcc_jit_output_kind output_kind,
 				     const char *output_path)
 {
+  if (m_populated_target_info)
+  {
+    add_error (NULL,
+      "cannot compile after calling gcc_jit_context_get_target_info");
+    return;
+  }
+
   JIT_LOG_SCOPE (get_logger ());
 
   log_all_options ();
@@ -1677,15 +1703,47 @@ recording::context::compile_to_file (enum gcc_jit_output_kind output_kind,
   replayer.compile ();
 }
 
+void
+recording::context::populate_target_info ()
+{
+  JIT_LOG_SCOPE (get_logger ());
+
+  log_all_options ();
+
+  if (errors_occurred ())
+    return;
+
+  add_driver_option ("-fsyntax-only");
+  m_populated_target_info = true;
+
+  /* Set up a populate_target_info playback context.  */
+  ::gcc::jit::playback::populate_target_info replayer (this);
+
+  /* Use it.  */
+  replayer.compile ();
+
+  m_target_info = replayer.move_target_info ();
+}
+
 /* Format the given error using printf's conventions, print
    it to stderr, and add it to the context.  */
+
+void
+recording::context::add_diagnostic (location *loc,
+  diagnostics::kind diagnostic_kind, const char *fmt, ...)
+{
+  va_list ap;
+  va_start (ap, fmt);
+  add_error_va (loc, diagnostic_kind, fmt, ap);
+  va_end (ap);
+}
 
 void
 recording::context::add_error (location *loc, const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  add_error_va (loc, fmt, ap);
+  add_error_va (loc, diagnostics::kind::error, fmt, ap);
   va_end (ap);
 }
 
@@ -1693,7 +1751,8 @@ recording::context::add_error (location *loc, const char *fmt, ...)
    it to stderr, and add it to the context.  */
 
 void
-recording::context::add_error_va (location *loc, const char *fmt, va_list ap)
+recording::context::add_error_va (location *loc,
+  diagnostics::kind diagnostic_kind, const char *fmt, va_list ap)
 {
   int len;
   char *malloced_msg;
@@ -1714,7 +1773,9 @@ recording::context::add_error_va (location *loc, const char *fmt, va_list ap)
       has_ownership = true;
     }
   if (get_logger ())
-    get_logger ()->log ("error %i: %s", m_error_count, errmsg);
+    get_logger ()->log ("%s %i: %s",
+			diagnostics::get_text_for_kind (diagnostic_kind),
+			m_error_count, errmsg);
 
   const char *ctxt_progname =
     get_str_option (GCC_JIT_STR_OPTION_PROGNAME);
@@ -1726,13 +1787,15 @@ recording::context::add_error_va (location *loc, const char *fmt, va_list ap)
   if (print_errors_to_stderr)
   {
     if (loc)
-      fprintf (stderr, "%s: %s: error: %s\n",
+      fprintf (stderr, "%s: %s: %s: %s\n",
 	       ctxt_progname,
 	       loc->get_debug_string (),
+	       diagnostics::get_text_for_kind (diagnostic_kind),
 	       errmsg);
     else
-      fprintf (stderr, "%s: error: %s\n",
+      fprintf (stderr, "%s: %s: %s\n",
 	       ctxt_progname,
+	       diagnostics::get_text_for_kind (diagnostic_kind),
 	       errmsg);
   }
 
@@ -1748,7 +1811,8 @@ recording::context::add_error_va (location *loc, const char *fmt, va_list ap)
   m_last_error_str = const_cast <char *> (errmsg);
   m_owns_last_error_str = has_ownership;
 
-  m_error_count++;
+  if (diagnostic_kind == diagnostics::kind::error)
+    m_error_count++;
 }
 
 /* Get the message for the first error that occurred on this context, or
@@ -2598,6 +2662,18 @@ recording::memento_of_get_type::get_size ()
       m = targetm.c.mode_for_floating_type (TI_LONG_DOUBLE_TYPE);
       size = GET_MODE_PRECISION (m).to_constant ();
       break;
+    case GCC_JIT_TYPE_FLOAT16:
+      size = 16;
+      break;
+    case GCC_JIT_TYPE_FLOAT32:
+      size = 32;
+      break;
+    case GCC_JIT_TYPE_FLOAT64:
+      size = 64;
+      break;
+    case GCC_JIT_TYPE_FLOAT128:
+      size = 128;
+      break;
     case GCC_JIT_TYPE_SIZE_T:
       size = MAX_BITS_PER_WORD;
       break;
@@ -2654,6 +2730,10 @@ recording::memento_of_get_type::dereference ()
     case GCC_JIT_TYPE_BFLOAT16:
     case GCC_JIT_TYPE_DOUBLE:
     case GCC_JIT_TYPE_LONG_DOUBLE:
+    case GCC_JIT_TYPE_FLOAT16:
+    case GCC_JIT_TYPE_FLOAT32:
+    case GCC_JIT_TYPE_FLOAT64:
+    case GCC_JIT_TYPE_FLOAT128:
     case GCC_JIT_TYPE_COMPLEX_FLOAT:
     case GCC_JIT_TYPE_COMPLEX_DOUBLE:
     case GCC_JIT_TYPE_COMPLEX_LONG_DOUBLE:
@@ -2719,6 +2799,10 @@ recording::memento_of_get_type::is_int () const
     case GCC_JIT_TYPE_BFLOAT16:
     case GCC_JIT_TYPE_DOUBLE:
     case GCC_JIT_TYPE_LONG_DOUBLE:
+    case GCC_JIT_TYPE_FLOAT16:
+    case GCC_JIT_TYPE_FLOAT32:
+    case GCC_JIT_TYPE_FLOAT64:
+    case GCC_JIT_TYPE_FLOAT128:
       return false;
 
     case GCC_JIT_TYPE_CONST_CHAR_PTR:
@@ -2778,6 +2862,10 @@ recording::memento_of_get_type::is_signed () const
     case GCC_JIT_TYPE_BFLOAT16:
     case GCC_JIT_TYPE_DOUBLE:
     case GCC_JIT_TYPE_LONG_DOUBLE:
+    case GCC_JIT_TYPE_FLOAT16:
+    case GCC_JIT_TYPE_FLOAT32:
+    case GCC_JIT_TYPE_FLOAT64:
+    case GCC_JIT_TYPE_FLOAT128:
 
     case GCC_JIT_TYPE_CONST_CHAR_PTR:
 
@@ -2838,6 +2926,10 @@ recording::memento_of_get_type::is_float () const
     case GCC_JIT_TYPE_BFLOAT16:
     case GCC_JIT_TYPE_DOUBLE:
     case GCC_JIT_TYPE_LONG_DOUBLE:
+    case GCC_JIT_TYPE_FLOAT16:
+    case GCC_JIT_TYPE_FLOAT32:
+    case GCC_JIT_TYPE_FLOAT64:
+    case GCC_JIT_TYPE_FLOAT128:
       return true;
 
     case GCC_JIT_TYPE_CONST_CHAR_PTR:
@@ -2902,6 +2994,10 @@ recording::memento_of_get_type::is_bool () const
     case GCC_JIT_TYPE_BFLOAT16:
     case GCC_JIT_TYPE_DOUBLE:
     case GCC_JIT_TYPE_LONG_DOUBLE:
+    case GCC_JIT_TYPE_FLOAT16:
+    case GCC_JIT_TYPE_FLOAT32:
+    case GCC_JIT_TYPE_FLOAT64:
+    case GCC_JIT_TYPE_FLOAT128:
       return false;
 
     case GCC_JIT_TYPE_CONST_CHAR_PTR:
@@ -2979,8 +3075,11 @@ static const char * const get_type_strings[] = {
   "__int32_t",    /* GCC_JIT_TYPE_INT32_T */
   "__int64_t",    /* GCC_JIT_TYPE_INT64_T */
   "__int128_t",   /* GCC_JIT_TYPE_INT128_T */
-
-  "bfloat16", /* GCC_JIT_TYPE_BFLOAT16 */
+  "bfloat16",     /* GCC_JIT_TYPE_BFLOAT16 */
+  "_Float16",     /* GCC_JIT_TYPE_FLOAT16 */
+  "_Float32",     /* GCC_JIT_TYPE_FLOAT32 */
+  "_Float64",     /* GCC_JIT_TYPE_FLOAT64 */
+  "__float128",   /* GCC_JIT_TYPE_FLOAT128 */
 };
 
 /* Implementation of recording::memento::make_debug_string for
@@ -3027,6 +3126,10 @@ static const char * const get_type_enum_strings[] = {
   "GCC_JIT_TYPE_INT64_T",
   "GCC_JIT_TYPE_INT128_T",
   "GCC_JIT_TYPE_BFLOAT16",
+  "GCC_JIT_TYPE_FLOAT16",
+  "GCC_JIT_TYPE_FLOAT32",
+  "GCC_JIT_TYPE_FLOAT64",
+  "GCC_JIT_TYPE_FLOAT128",
 };
 
 void
@@ -3327,7 +3430,7 @@ recording::string *
 recording::array_type::make_debug_string ()
 {
   return string::from_printf (m_ctxt,
-			      "%s[%d]",
+			      "%s[%" PRIu64 "]",
 			      m_element_type->get_debug_string (),
 			      m_num_elements);
 }
@@ -3340,10 +3443,10 @@ recording::array_type::write_reproducer (reproducer &r)
 {
   const char *id = r.make_identifier (this, "array_type");
   r.write ("  gcc_jit_type *%s =\n"
-	   "    gcc_jit_context_new_array_type (%s,\n"
-	   "                                    %s, /* gcc_jit_location *loc */\n"
-	   "                                    %s, /* gcc_jit_type *element_type */\n"
-	   "                                    %i); /* int num_elements */\n",
+	   "    gcc_jit_context_new_array_type_u64 (%s,\n"
+	   "                                        %s, /* gcc_jit_location *loc */\n"
+	   "                                        %s, /* gcc_jit_type *element_type */\n"
+	   "                                        %" PRIu64 "); /* int num_elements */\n",
 	   id,
 	   r.get_identifier (get_context ()),
 	   r.get_identifier (m_loc),
@@ -4749,6 +4852,22 @@ static const char * const fn_attribute_reproducer_strings[] =
   "GCC_JIT_FN_ATTRIBUTE_CONST",
   "GCC_JIT_FN_ATTRIBUTE_WEAK",
   "GCC_JIT_FN_ATTRIBUTE_NONNULL",
+  "GCC_JIT_FN_ATTRIBUTE_ARM_CMSE_NONSECURE_CALL",
+  "GCC_JIT_FN_ATTRIBUTE_ARM_CMSE_NONSECURE_ENTRY",
+  "GCC_JIT_FN_ATTRIBUTE_ARM_PCS",
+  "GCC_JIT_FN_ATTRIBUTE_AVR_INTERRUPT",
+  "GCC_JIT_FN_ATTRIBUTE_AVR_NOBLOCK",
+  "GCC_JIT_FN_ATTRIBUTE_AVR_SIGNAL",
+  "GCC_JIT_FN_ATTRIBUTE_GCN_AMDGPU_HSA_KERNEL",
+  "GCC_JIT_FN_ATTRIBUTE_MSP430_INTERRUPT",
+  "GCC_JIT_FN_ATTRIBUTE_NVPTX_KERNEL",
+  "GCC_JIT_FN_ATTRIBUTE_RISCV_INTERRUPT",
+  "GCC_JIT_FN_ATTRIBUTE_X86_FAST_CALL",
+  "GCC_JIT_FN_ATTRIBUTE_X86_INTERRUPT",
+  "GCC_JIT_FN_ATTRIBUTE_X86_MS_ABI",
+  "GCC_JIT_FN_ATTRIBUTE_X86_STDCALL",
+  "GCC_JIT_FN_ATTRIBUTE_X86_SYSV_ABI",
+  "GCC_JIT_FN_ATTRIBUTE_X86_THIS_CALL",
 };
 
 std::string

@@ -273,12 +273,12 @@ Disassembly of section \.text:
 			27e: R_MIPS16_HI16	\.data
  282:	f400 35a0 	sll	a1,16
  286:	f000 9d80 	lw	a0,0\(a1\)
-			286: R_MIPS16_HI16	\.data
+			286: R_MIPS16_LO16	\.data
  28a:	f000 6d00 	li	a1,0
 			28a: R_MIPS16_HI16	\.data\+0x4
  28e:	f400 35a0 	sll	a1,16
  292:	f000 9d80 	lw	a0,0\(a1\)
-			292: R_MIPS16_HI16	\.data\+0x4
+			292: R_MIPS16_LO16	\.data\+0x4
  296:	f000 6d00 	li	a1,0
 			296: R_MIPS16_HI16	big_external_data_label
  29a:	f400 35a0 	sll	a1,16

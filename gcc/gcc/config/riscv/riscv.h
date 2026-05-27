@@ -1,5 +1,5 @@
 /* Definition of RISC-V target for GNU compiler.
-   Copyright (C) 2011-2025 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on MIPS target for GNU compiler.
 
@@ -43,7 +43,7 @@ along with GCC; see the file COPYING3.  If not see
 #endif
 
 #ifndef RISCV_TUNE_STRING_DEFAULT
-#define RISCV_TUNE_STRING_DEFAULT "rocket"
+#define RISCV_TUNE_STRING_DEFAULT "generic"
 #endif
 
 extern const char *riscv_expand_arch (int argc, const char **argv);
@@ -60,18 +60,19 @@ extern const char *riscv_arch_help (int argc, const char **argv);
   { "riscv_arch_help", riscv_arch_help },
 
 /* Support for a compile-time default CPU, et cetera.  The rules are:
-   --with-arch is ignored if -march or -mcpu is specified.
+   --with-arch and --with-cpu are ignored if -march or -mcpu is specified.
    --with-abi is ignored if -mabi is specified.
    --with-tune is ignored if -mtune or -mcpu is specified.
    --with-isa-spec is ignored if -misa-spec is specified.
    --with-tls is ignored if -mtls-dialect is specified.
 
-   But using default -march/-mtune value if -mcpu don't have valid option.  */
+   Uses default values if -mcpu doesn't have a valid option.  */
 #define OPTION_DEFAULT_SPECS \
   {"tune", "%{!mtune=*:"						\
 	   "  %{!mcpu=*:-mtune=%(VALUE)}"				\
 	   "  %{mcpu=*:-mtune=%:riscv_default_mtune(%* %(VALUE))}}" },	\
-  {"arch", "%{!march=*:"						\
+  {"cpu", "%{!march=*:%{!mcpu=*:%:riscv_expand_arch_from_cpu(%(VALUE))}}" }, \
+  {"arch", "%{!march=*|march=unset:"					\
 	   "  %{!mcpu=*:-march=%(VALUE)}"				\
 	   "  %{mcpu=*:%:riscv_expand_arch_from_cpu(%* %(VALUE))}}" },	\
   {"abi", "%{!mabi=*:-mabi=%(VALUE)}" },				\
@@ -111,13 +112,19 @@ extern const char *riscv_arch_help (int argc, const char **argv);
 %(subtarget_asm_spec)" \
 ASM_MISA_SPEC
 
+/* Drop all -march=* options before -march=unset.  */
+#define ARCH_UNSET_CLEANUP_SPECS  \
+  "%{march=unset:%<march=*} "  \
+
 #undef DRIVER_SELF_SPECS
 #define DRIVER_SELF_SPECS					\
+ARCH_UNSET_CLEANUP_SPECS \
 "%{march=help:%:riscv_arch_help()} "				\
 "%{print-supported-extensions:%:riscv_arch_help()} "		\
 "%{-print-supported-extensions:%:riscv_arch_help()} "		\
 "%{march=*:%:riscv_expand_arch(%*)} "				\
-"%{!march=*:%{mcpu=*:%:riscv_expand_arch_from_cpu(%*)}} "
+"%{!march=*|march=unset:%{mcpu=*:%:riscv_expand_arch_from_cpu(%*)}} " \
+"%{march=unset:%{!mcpu=*:%eAt least one valid -mcpu option must be given after -march=unset}} "
 
 #define LOCAL_LABEL_PREFIX	"."
 #define USER_LABEL_PREFIX	""
@@ -759,12 +766,6 @@ enum reg_class
 
 #define CALLEE_SAVED_FREG_NUMBER(REGNO) CALLEE_SAVED_REG_NUMBER (REGNO - 32)
 
-#define LIBCALL_VALUE(MODE) \
-  riscv_function_value (NULL_TREE, NULL_TREE, MODE)
-
-#define FUNCTION_VALUE(VALTYPE, FUNC) \
-  riscv_function_value (VALTYPE, FUNC, VOIDmode)
-
 /* 1 if N is a possible register number for function argument passing.
    We have no FP argument registers when soft-float.  */
 
@@ -779,12 +780,25 @@ enum riscv_cc
 {
   RISCV_CC_BASE = 0, /* Base standard RISC-V ABI.  */
   RISCV_CC_V, /* For functions that pass or return values in V registers.  */
+  /* For functions that pass or return values in V registers.  */
+  RISCV_CC_VLS_V_32,
+  RISCV_CC_VLS_V_64,
+  RISCV_CC_VLS_V_128,
+  RISCV_CC_VLS_V_256,
+  RISCV_CC_VLS_V_512,
+  RISCV_CC_VLS_V_1024,
+  RISCV_CC_VLS_V_2048,
+  RISCV_CC_VLS_V_4096,
+  RISCV_CC_VLS_V_8192,
+  RISCV_CC_VLS_V_16384,
   RISCV_CC_UNKNOWN
 };
 
 typedef struct {
   /* The calling convention that current function used.  */
   enum riscv_cc variant_cc;
+
+  unsigned int abi_vlen;
 
   /* Number of integer registers used so far, up to MAX_ARGS_IN_REGISTERS. */
   unsigned int num_gprs;
@@ -809,7 +823,7 @@ extern enum riscv_cc get_riscv_cc (const rtx use);
 
 #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT, N_NAMED_ARGS) \
   riscv_init_cumulative_args (&(CUM), (FNTYPE), (LIBNAME), (INDIRECT),     \
-			(N_NAMED_ARGS) != -1)
+			(N_NAMED_ARGS) != -1, /* check_only */false)
 
 #define EPILOGUE_USES(REGNO)	riscv_epilogue_uses (REGNO)
 
@@ -1192,6 +1206,7 @@ extern bool riscv_user_wants_strict_align;
 extern unsigned riscv_stack_boundary;
 extern unsigned riscv_bytes_per_vector_chunk;
 extern poly_uint16 riscv_vector_chunks;
+extern bool riscv_registering_builtins;
 extern poly_int64 riscv_v_adjust_nunits (enum machine_mode, int);
 extern poly_int64 riscv_v_adjust_nunits (machine_mode, bool, int, int);
 extern poly_int64 riscv_v_adjust_precision (enum machine_mode, int);
@@ -1318,5 +1333,16 @@ extern void riscv_remove_unneeded_save_restore_calls (void);
 #define TARGET_CLONES_ATTR_SEPARATOR '#'
 
 #define TARGET_HAS_FMV_TARGET_ATTRIBUTE 0
+
+/* mips pref valid offset range.  */
+#define MIPS_RISCV_9BIT_OFFSET_P(OFFSET) (IN_RANGE (OFFSET, 0, 511))
+
+/* mips pref cache hint type.  */
+typedef enum {
+    ICACHE_HINT = 0 << 3,
+    DCACHE_HINT = 1 << 3,
+    SCACHE_HINT = 2 << 3,
+    TCACHE_HINT = 3 << 3
+} CacheHint;
 
 #endif /* ! GCC_RISCV_H */

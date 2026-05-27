@@ -1,5 +1,5 @@
 /* Support routines for value queries.
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldyh@redhat.com> and
    Andrew MacLeod <amacleod@redhat.com>.
 
@@ -64,6 +64,12 @@ range_query::range_of_stmt (vrange &r, gimple *stmt, tree name)
   if (name)
     return range_of_expr (r, name);
   return false;
+}
+
+// Default for updating range info is to do nothing.
+void
+range_query::update_range_info (tree, const vrange &)
+{
 }
 
 // If the range of expr EXPR at STMT is a single value, return it.
@@ -294,17 +300,23 @@ range_query::~range_query ()
 
 bool
 range_query::invoke_range_of_expr (vrange &r, tree expr, gimple *stmt,
-				   basic_block bbentry, basic_block bbexit)
+				   basic_block bbentry, basic_block bbexit,
+				   edge e)
 {
   if (bbentry)
     {
-      gcc_checking_assert (!stmt && !bbexit);
+      gcc_checking_assert (!stmt && !bbexit && !e);
       return range_on_entry (r, bbentry, expr);
     }
   if (bbexit)
     {
-      gcc_checking_assert (!stmt);
+      gcc_checking_assert (!stmt && !e);
       return range_on_exit (r, bbexit, expr);
+    }
+  if (e)
+    {
+      gcc_checking_assert (!stmt);
+      return range_on_edge (r, e, expr);
     }
 
   return range_of_expr (r, expr, stmt);
@@ -316,7 +328,7 @@ range_query::invoke_range_of_expr (vrange &r, tree expr, gimple *stmt,
 
 bool
 range_query::get_tree_range (vrange &r, tree expr, gimple *stmt,
-			     basic_block bbentry, basic_block bbexit)
+			     basic_block bbentry, basic_block bbexit, edge e)
 {
   tree type;
   if (TYPE_P (expr))
@@ -364,7 +376,7 @@ range_query::get_tree_range (vrange &r, tree expr, gimple *stmt,
     case SSA_NAME:
       // If this is not an abnormal or virtual ssa, invoke range_of_expr.
       if (gimple_range_ssa_p (expr))
-	return invoke_range_of_expr (r, expr, stmt, bbentry, bbexit);
+	return invoke_range_of_expr (r, expr, stmt, bbentry, bbexit, e);
       gimple_range_global (r, expr);
       return true;
 
@@ -402,8 +414,8 @@ range_query::get_tree_range (vrange &r, tree expr, gimple *stmt,
 	{
 	  value_range r0 (TREE_TYPE (op0));
 	  value_range r1 (TREE_TYPE (op1));
-	  invoke_range_of_expr (r0, op0, stmt, bbentry, bbexit);
-	  invoke_range_of_expr (r1, op1, stmt, bbentry, bbexit);
+	  invoke_range_of_expr (r0, op0, stmt, bbentry, bbexit, e);
+	  invoke_range_of_expr (r1, op1, stmt, bbentry, bbexit, e);
 	  if (!op.fold_range (r, type, r0, r1))
 	    r.set_varying (type);
 	}
@@ -421,7 +433,7 @@ range_query::get_tree_range (vrange &r, tree expr, gimple *stmt,
 	  value_range r1 (type);
 	  r1.set_varying (type);
 	  invoke_range_of_expr (r0, TREE_OPERAND (expr, 0), stmt, bbentry,
-				bbexit);
+				bbexit, e);
 	  if (!op.fold_range (r, type, r0, r1))
 	    r.set_varying (type);
 	}

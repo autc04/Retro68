@@ -9,12 +9,18 @@
 [^:]*:17: Error: bad element type for instruction -- `vldrb.s64 q0,\[r0,q1\]'
 [^:]*:18: Warning: instruction is UNPREDICTABLE with PC operand
 [^:]*:19: Error: destination register and offset register may not be the same -- `vldrb.u32 q0,\[r0,q0\]'
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
 [^:]*:22: Error: syntax error -- `vldrbeq.u32 q0,\[r0,q1\]'
 [^:]*:23: Error: syntax error -- `vldrbeq.u32 q0,\[r0,q1\]'
 [^:]*:25: Error: syntax error -- `vldrbeq.u32 q0,\[r0,q1\]'
@@ -27,12 +33,18 @@
 [^:]*:34: Error: bad element type for instruction -- `vldrh.s64 q0,\[r0,q1\]'
 [^:]*:35: Warning: instruction is UNPREDICTABLE with PC operand
 [^:]*:36: Error: destination register and offset register may not be the same -- `vldrh.u32 q0,\[r0,q0\]'
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:37: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:37: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:37: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:37: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:37: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:37: *Info: macro .*
 [^:]*:39: Error: syntax error -- `vldrheq.u32 q0,\[r0,q1\]'
 [^:]*:40: Error: syntax error -- `vldrheq.u32 q0,\[r0,q1\]'
 [^:]*:42: Error: syntax error -- `vldrheq.u32 q0,\[r0,q1\]'
@@ -43,12 +55,18 @@
 [^:]*:49: Error: bad element type for instruction -- `vldrw.s64 q0,\[r0,q1\]'
 [^:]*:50: Warning: instruction is UNPREDICTABLE with PC operand
 [^:]*:51: Error: destination register and offset register may not be the same -- `vldrw.u32 q0,\[r0,q0\]'
-[^:]*:52: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:52: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:52: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:52: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:52: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:52: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:52: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:52: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:52: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:52: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:52: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:52: *Info: macro .*
 [^:]*:54: Error: syntax error -- `vldrweq.u32 q0,\[r0,q1\]'
 [^:]*:55: Error: syntax error -- `vldrweq.u32 q0,\[r0,q1\]'
 [^:]*:57: Error: syntax error -- `vldrweq.u32 q0,\[r0,q1\]'
@@ -67,32 +85,38 @@
 [^:]*:79: Error: bad element type for instruction -- `vldrd.u32 q0,\[r0,q1\]'
 [^:]*:80: Error: bad element type for instruction -- `vldrd.s32 q0,\[r0,q1\]'
 [^:]*:81: Error: bad element type for instruction -- `vldrd.f32 q0,\[r0,q1\]'
-[^:]*:82: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:82: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:82: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:82: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:82: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:82: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:65: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:82: *Info: macro .*
+[^:]*:65: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:82: *Info: macro .*
+[^:]*:65: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:82: *Info: macro .*
+[^:]*:65: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:82: *Info: macro .*
+[^:]*:65: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:82: *Info: macro .*
+[^:]*:65: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:82: *Info: macro .*
 [^:]*:84: Error: syntax error -- `vldrdeq.u64 q0,\[r0,q1\]'
 [^:]*:85: Error: syntax error -- `vldrdeq.u64 q0,\[r0,q1\]'
 [^:]*:87: Error: syntax error -- `vldrdeq.u64 q0,\[r0,q1\]'
 [^:]*:88: Error: vector predicated instruction should be in VPT/VPST block -- `vldrdt.u64 q0,\[r0,q1\]'
 [^:]*:90: Error: instruction missing MVE vector predication code -- `vldrd.u64 q0,\[r0,q1\]'
 [^:]*:92: Error: shift expression expected -- `vldrb.u8 q0,\[r0,q1,#0\]'
-[^:]*:93: Error: can not shift offsets when accessing less than half-word -- `vldrb.u8 q0,\[r0,q1,UXTW#1\]'
-[^:]*:94: Error: can not shift offsets when accessing less than half-word -- `vldrb.u16 q0,\[r0,q1,UXTW#1\]'
-[^:]*:95: Error: can not shift offsets when accessing less than half-word -- `vldrb.u32 q0,\[r0,q1,UXTW#1\]'
+[^:]*:93: Error: can not shift offsets when accessing less than half-word -- `vldrb.u8 q0,\[r0,q1,UXTW ?#1\]'
+[^:]*:94: Error: can not shift offsets when accessing less than half-word -- `vldrb.u16 q0,\[r0,q1,UXTW ?#1\]'
+[^:]*:95: Error: can not shift offsets when accessing less than half-word -- `vldrb.u32 q0,\[r0,q1,UXTW ?#1\]'
 [^:]*:96: Error: shift expression expected -- `vldrh.u16 q0,\[r0,q1,#1\]'
-[^:]*:97: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrh.u16 q0,\[r0,q1,UXTW#2\]'
-[^:]*:98: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrh.u32 q0,\[r0,q1,UXTW#2\]'
-[^:]*:99: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrh.u16 q0,\[r0,q1,UXTW#3\]'
-[^:]*:100: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrh.u32 q0,\[r0,q1,UXTW#3\]'
+[^:]*:97: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrh.u16 q0,\[r0,q1,UXTW ?#2\]'
+[^:]*:98: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrh.u32 q0,\[r0,q1,UXTW ?#2\]'
+[^:]*:99: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrh.u16 q0,\[r0,q1,UXTW ?#3\]'
+[^:]*:100: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrh.u32 q0,\[r0,q1,UXTW ?#3\]'
 [^:]*:101: Error: shift expression expected -- `vldrw.u32 q0,\[r0,q1,#2\]'
-[^:]*:102: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrw.u32 q0,\[r0,q1,UXTW#1\]'
-[^:]*:103: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrw.u32 q0,\[r0,q1,UXTW#3\]'
+[^:]*:102: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrw.u32 q0,\[r0,q1,UXTW ?#1\]'
+[^:]*:103: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrw.u32 q0,\[r0,q1,UXTW ?#3\]'
 [^:]*:104: Error: shift expression expected -- `vldrd.u64 q0,\[r0,q1,#3\]'
-[^:]*:105: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrd.u64 q0,\[r0,q1,UXTW#1\]'
-[^:]*:106: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrd.u64 q0,\[r0,q1,UXTW#2\]'
-[^:]*:107: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrd.u64 q0,\[r0,q1,UXTW#4\]'
+[^:]*:105: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrd.u64 q0,\[r0,q1,UXTW ?#1\]'
+[^:]*:106: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrd.u64 q0,\[r0,q1,UXTW ?#2\]'
+[^:]*:107: Error: shift immediate must be 1, 2 or 3 for half-word, word or double-word accesses respectively -- `vldrd.u64 q0,\[r0,q1,UXTW ?#4\]'
 
 

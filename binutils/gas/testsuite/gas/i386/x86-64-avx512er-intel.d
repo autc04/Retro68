@@ -1,4 +1,3 @@
-#as:
 #objdump: -dwMintel
 #name: x86_64 AVX512ER insns (Intel disassembly)
 #source: x86-64-avx512er.s

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -19,45 +19,61 @@
 #ifndef RUST_EXPAND_VISITOR_H
 #define RUST_EXPAND_VISITOR_H
 
+#include "rust-ast-pointer-visitor.h"
 #include "rust-ast-visitor.h"
+#include "rust-item.h"
 #include "rust-macro-expand.h"
 #include "rust-proc-macro.h"
 
 namespace Rust {
 
 /**
- * Whether or not an attribute is a derive attribute
- */
-bool
-is_derive (AST::Attribute &attr);
-
-/**
  * Whether or not an attribute is builtin
  */
-bool
-is_builtin (AST::Attribute &attr);
+bool is_builtin (AST::Attribute &attr);
 
-class ExpandVisitor : public AST::DefaultASTVisitor
+class ExpandVisitor : public AST::PointerVisitor
 {
 public:
-  ExpandVisitor (MacroExpander &expander) : expander (expander) {}
+  ExpandVisitor (MacroExpander &expander)
+    : expander (expander), macro_invoc_expect_id (UNKNOWN_NODEID)
+  {}
 
   /* Expand all of the macro invocations currently contained in a crate */
   void go (AST::Crate &crate);
 
-  using AST::DefaultASTVisitor::visit;
+  using AST::PointerVisitor::reseat;
+  using AST::PointerVisitor::visit;
 
-  /*
-     Maybe expand a macro invocation in lieu of an expression
-     expr : Core guidelines R33, this function reseat the pointer.
-  */
-  void maybe_expand_expr (std::unique_ptr<AST::Expr> &expr);
+  void reseat (std::unique_ptr<AST::Expr> &ptr) override
+  {
+    maybe_expand_expr (ptr);
+  }
 
-  /*
-     Maybe expand a macro invocation in lieu of a type
-     type : Core guidelines R33, this function reseat the pointer.
+  void reseat (std::unique_ptr<AST::Type> &ptr) override
+  {
+    maybe_expand_type (ptr);
+  }
+
+  void reseat (std::unique_ptr<AST::TypeNoBounds> &ptr) override
+  {
+    maybe_expand_type (ptr);
+  }
+
+  void reseat (std::unique_ptr<AST::Pattern> &ptr) override
+  {
+    maybe_expand_pattern (ptr);
+  }
+
+  /**
+   * Maybe expand a macro invocation in lieu of an expression, type or pattern.
+   *
+   * @ptr Core guidelines R33, this function reseats the pointer.
    */
-  void maybe_expand_type (std::unique_ptr<AST::Type> &type);
+  void maybe_expand_expr (std::unique_ptr<AST::Expr> &ptr);
+  void maybe_expand_type (std::unique_ptr<AST::Type> &ptr);
+  void maybe_expand_type (std::unique_ptr<AST::TypeNoBounds> &type);
+  void maybe_expand_pattern (std::unique_ptr<AST::Pattern> &ptr);
 
   /**
    * Expand all macro invocations in lieu of types within a vector of struct
@@ -89,7 +105,10 @@ public:
    */
   void expand_qualified_path_type (AST::QualifiedPathType &path_type);
 
-  // FIXME: Add documentation
+  /**
+   * Expand all macro invocations in lieu of types within a list of closure
+   * parameters
+   */
   void expand_closure_params (std::vector<AST::ClosureParam> &params);
   void expand_where_clause (AST::WhereClause &where_clause);
 
@@ -107,7 +126,7 @@ public:
    */
   template <typename T, typename U>
   void expand_macro_children (MacroExpander::ContextType ctx, T &values,
-			      std::function<U (AST::SingleASTNode)> extractor)
+			      U (AST::SingleASTNode::*extractor) (void))
   {
     expander.push_context (ctx);
 
@@ -123,14 +142,17 @@ public:
    */
   template <typename T, typename U>
   void expand_macro_children (T &values,
-			      std::function<U (AST::SingleASTNode)> extractor)
+			      U (AST::SingleASTNode::*extractor) (void))
   {
     for (auto it = values.begin (); it != values.end ();)
       {
 	auto &value = *it;
 
 	// Perform expansion
+	NodeId old_expect = value->get_node_id ();
+	std::swap (macro_invoc_expect_id, old_expect);
 	value->accept_vis (*this);
+	std::swap (macro_invoc_expect_id, old_expect);
 
 	auto final_fragment = expander.take_expanded_fragment ();
 
@@ -140,7 +162,7 @@ public:
 	    it = values.erase (it);
 	    for (auto &node : final_fragment.get_nodes ())
 	      {
-		U new_node = extractor (node);
+		U new_node = (node.*extractor) ();
 		if (new_node != nullptr)
 		  {
 		    it = values.insert (it, std::move (new_node));
@@ -199,6 +221,8 @@ public:
   void visit (AST::LifetimeParam &) override;
   void visit (AST::ConstGenericParam &) override;
 
+  void visit (AST::Attribute &attribute) override;
+
   void visit (AST::MacroInvocation &macro_invoc) override;
 
   void visit (AST::PathInExpression &path) override;
@@ -209,31 +233,20 @@ public:
 
   void visit (AST::LiteralExpr &expr) override;
   void visit (AST::AttrInputLiteral &) override;
-  void visit (AST::AttrInputMacro &) override;
+  void visit (AST::AttrInputExpr &) override;
   void visit (AST::MetaItemLitExpr &) override;
-  void visit (AST::MetaItemPathLit &) override;
-  void visit (AST::ErrorPropagationExpr &expr) override;
-  void visit (AST::ArithmeticOrLogicalExpr &expr) override;
-  void visit (AST::ComparisonExpr &expr) override;
-  void visit (AST::LazyBooleanExpr &expr) override;
-  void visit (AST::AssignmentExpr &expr) override;
-  void visit (AST::CompoundAssignmentExpr &expr) override;
-  void visit (AST::GroupedExpr &expr) override;
+  void visit (AST::MetaItemPathExpr &) override;
   void visit (AST::StructExprStruct &expr) override;
 
-  void visit (AST::CallExpr &expr) override;
-  void visit (AST::MethodCallExpr &expr) override;
   void visit (AST::ClosureExprInner &expr) override;
 
   void visit (AST::BlockExpr &expr) override;
 
   void visit (AST::ClosureExprInnerTyped &expr) override;
-  void visit (AST::ContinueExpr &expr) override;
   void visit (AST::IfExpr &expr) override;
   void visit (AST::IfExprConseqElse &expr) override;
   void visit (AST::IfLetExpr &expr) override;
   void visit (AST::IfLetExprConseqElse &expr) override;
-  void visit (AST::MatchExpr &expr) override;
   void visit (AST::TypeParam &param) override;
   void visit (AST::LifetimeWhereClauseItem &) override;
   void visit (AST::TypeBoundWhereClauseItem &item) override;
@@ -251,9 +264,6 @@ public:
   void visit (AST::EnumItemStruct &item) override;
   void visit (AST::EnumItemDiscriminant &item) override;
   void visit (AST::Union &union_item) override;
-  void visit (AST::ConstantItem &const_item) override;
-  void visit (AST::StaticItem &static_item) override;
-  void visit (AST::TraitItemConst &item) override;
   void visit (AST::Trait &trait) override;
   void visit (AST::InherentImpl &impl) override;
   void visit (AST::TraitImpl &impl) override;
@@ -270,13 +280,10 @@ public:
   void visit (AST::MetaListPaths &) override;
   void visit (AST::MetaListNameValueStr &) override;
   void visit (AST::StructPatternFieldIdent &field) override;
-  void visit (AST::GroupedPattern &pattern) override;
-
-  void visit (AST::LetStmt &stmt) override;
-  void visit (AST::ExprStmt &stmt) override;
 
   void visit (AST::BareFunctionType &type) override;
-  void visit (AST::FunctionParam &type) override;
+  void visit (AST::FunctionParam &param) override;
+  void visit (AST::VariadicParam &param) override;
   void visit (AST::SelfParam &type) override;
 
   template <typename T>
@@ -289,6 +296,17 @@ public:
 
 private:
   MacroExpander &expander;
+  NodeId macro_invoc_expect_id;
+
+  /**
+   * Helper to expand all macro invocations in lieu of types within a vector of
+   * fields (StructField or TupleField).
+   */
+  template <typename T> void expand_fields (std::vector<T> &fields)
+  {
+    for (auto &field : fields)
+      maybe_expand_type (field.get_field_type_ptr ());
+  }
 };
 
 } // namespace Rust

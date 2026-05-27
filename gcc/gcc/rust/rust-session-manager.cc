@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -20,23 +20,27 @@
 #include "rust-collect-lang-items.h"
 #include "rust-desugar-for-loops.h"
 #include "rust-desugar-question-mark.h"
+#include "rust-desugar-apit.h"
 #include "rust-diagnostics.h"
+#include "rust-expression-yeast.h"
 #include "rust-hir-pattern-analysis.h"
 #include "rust-immutable-name-resolution-context.h"
+#include "rust-location.h"
 #include "rust-unsafe-checker.h"
 #include "rust-lex.h"
 #include "rust-parse.h"
 #include "rust-macro-expand.h"
-#include "rust-ast-resolve.h"
 #include "rust-ast-lower.h"
 #include "rust-hir-type-check.h"
 #include "rust-privacy-check.h"
 #include "rust-const-checker.h"
+#include "rust-feature-collector.h"
 #include "rust-feature-gate.h"
 #include "rust-compile.h"
 #include "rust-cfg-parser.h"
 #include "rust-lint-scan-deadcode.h"
 #include "rust-lint-unused-var.h"
+#include "rust-unused-checker.h"
 #include "rust-readonly-check.h"
 #include "rust-hir-dump.h"
 #include "rust-ast-dump.h"
@@ -44,10 +48,11 @@
 #include "rust-imports.h"
 #include "rust-extern-crate.h"
 #include "rust-attributes.h"
-#include "rust-early-name-resolver.h"
 #include "rust-name-resolution-context.h"
 #include "rust-early-name-resolver-2.0.h"
 #include "rust-late-name-resolver-2.0.h"
+#include "rust-resolve-builtins.h"
+#include "rust-early-cfg-strip.h"
 #include "rust-cfg-strip.h"
 #include "rust-expand-visitor.h"
 #include "rust-unicode.h"
@@ -55,23 +60,25 @@
 #include "rust-borrow-checker.h"
 #include "rust-ast-validation.h"
 #include "rust-tyty-variance-analysis.h"
+#include "rust-attribute-checker.h"
+#include "rust-builtin-attribute-checker.h"
 
 #include "input.h"
 #include "selftest.h"
 #include "tm.h"
 #include "rust-target.h"
+#include "rust-system.h"
 
-extern bool
-saw_errors (void);
+extern bool saw_errors (void);
 
-extern Linemap *
-rust_get_linemap ();
+extern Linemap *rust_get_linemap ();
 
 namespace Rust {
 
 const char *kLexDumpFile = "gccrs.lex.dump";
 const char *kASTDumpFile = "gccrs.ast.dump";
 const char *kASTPrettyDumpFile = "gccrs.ast-pretty.dump";
+const char *kASTPrettyInternalDumpFile = "gccrs.ast-pretty-internal.dump";
 const char *kASTPrettyDumpFileExpanded = "gccrs.ast-pretty-expanded.dump";
 const char *kASTExpandedDumpFile = "gccrs.ast-expanded.dump";
 const char *kASTmacroResolutionDumpFile = "gccrs.ast-macro-resolution.dump";
@@ -150,13 +157,23 @@ validate_crate_name (const std::string &crate_name, Error &error)
     {
       if (!(is_alphabetic (c.value) || is_numeric (c.value) || c.value == '_'))
 	{
-	  error = Error (UNDEF_LOCATION,
-			 "invalid character %qs in crate name: %qs",
-			 c.as_string ().c_str (), crate_name.c_str ());
+	  error
+	    = Error (UNDEF_LOCATION, "invalid character %qs in crate name: %qs",
+		     c.as_string ().c_str (), crate_name.c_str ());
 	  return false;
 	}
     }
   return true;
+}
+
+static bool
+has_attribute (AST::Crate crate, std::string attribute)
+{
+  auto &crate_attrs = crate.get_inner_attrs ();
+  auto has_attr = [&attribute] (AST::Attribute &attr) {
+    return attr.as_string () == attribute;
+  };
+  return std::any_of (crate_attrs.begin (), crate_attrs.end (), has_attr);
 }
 
 void
@@ -193,7 +210,7 @@ Session::init_options ()
 bool
 Session::handle_option (
   enum opt_code code, const char *arg, HOST_WIDE_INT value ATTRIBUTE_UNUSED,
-  int kind ATTRIBUTE_UNUSED, location_t loc ATTRIBUTE_UNUSED,
+  int kind ATTRIBUTE_UNUSED, location_t loc,
   const struct cl_option_handlers *handlers ATTRIBUTE_UNUSED)
 {
   // used to store whether results of various stuff are successful
@@ -203,14 +220,16 @@ Session::handle_option (
   switch (code)
     {
     case OPT_I:
-      case OPT_L: {
+    case OPT_L:
+      {
 	// TODO: add search path
 	const std::string p = std::string (arg);
 	add_search_path (p);
       }
       break;
 
-      case OPT_frust_extern_: {
+    case OPT_frust_extern_:
+      {
 	std::string input (arg);
 	ret = handle_extern_option (input);
       }
@@ -235,6 +254,12 @@ Session::handle_option (
 	ret = false;
       break;
 
+    case OPT_frust_crate_attr_:
+      if (arg != nullptr)
+	{
+	  options.addional_attributes.emplace_back (arg, loc);
+	}
+      break;
     case OPT_frust_dump_:
       // enable dump and return whether this was successful
       if (arg != nullptr)
@@ -251,7 +276,8 @@ Session::handle_option (
       Compile::Mangler::set_mangling (flag_rust_mangling);
       break;
 
-      case OPT_frust_cfg_: {
+    case OPT_frust_cfg_:
+      {
 	auto string_arg = std::string (arg);
 	ret = handle_cfg_option (string_arg);
 	break;
@@ -323,6 +349,8 @@ Session::handle_cfg_option (std::string &input)
 bool
 Session::enable_dump (std::string arg)
 {
+  const std::string INTERNAL_DUMP_OPTION_TEXT = "internal";
+
   if (arg.empty ())
     {
       rust_error_at (
@@ -378,18 +406,57 @@ Session::enable_dump (std::string arg)
     {
       options.enable_dump_option (CompileOptions::BIR_DUMP);
     }
+  else if (!arg.compare (0, INTERNAL_DUMP_OPTION_TEXT.size (),
+			 INTERNAL_DUMP_OPTION_TEXT))
+    {
+      if (arg.size () == INTERNAL_DUMP_OPTION_TEXT.size ())
+	{
+	  options.enable_dump_option (CompileOptions::INTERNAL_DUMP);
+	}
+      else
+	{
+	  if (arg[INTERNAL_DUMP_OPTION_TEXT.size ()] != ':')
+	    {
+	      rust_error_at (UNDEF_LOCATION, "bad format for %qs",
+			     arg.c_str ());
+	      rust_inform (UNDEF_LOCATION,
+			   "to specify the nodes to ignore when "
+			   "dumping their description put a "
+			   "%<:%> then all the Nodes separated by comma");
+	      return false;
+	    }
+	  handle_excluded_node (arg);
+	  options.enable_dump_option (CompileOptions::INTERNAL_DUMP);
+	}
+    }
   else
     {
       rust_error_at (
 	UNDEF_LOCATION,
 	"dump option %qs was unrecognised. choose %<lex%>, %<ast-pretty%>, "
-	"%<register_plugins%>, %<injection%>, "
-	"%<expansion%>, %<resolution%>, %<target_options%>, %<hir%>, "
-	"%<hir-pretty%>, or %<all%>",
+	"%<internal[:ignore1,ignore2,...]%>, %<register_plugins%>, "
+	"%<injection%>, %<expansion%>, %<resolution%>, %<target_options%>, "
+	"%<hir%>, %<hir-pretty%>, or %<all%>",
 	arg.c_str ());
       return false;
     }
   return true;
+}
+
+/* Helper function to parse a string when dump internal to get node to blacklist
+ */
+
+void
+Session::handle_excluded_node (std::string arg)
+{
+  size_t colon = arg.find (":");
+  size_t suffix_size = arg.size () - colon;
+  std::istringstream blist_str (arg.substr (colon + 1, suffix_size));
+  std::string token;
+  while (std::getline (blist_str, token, ','))
+    {
+      options.add_excluded (token);
+    }
 }
 
 /* Actual main entry point for front-end. Called from langhook to parse files.
@@ -417,34 +484,33 @@ Session::handle_crate_name (const char *filename,
 
   for (const auto &attr : parsed_crate.inner_attrs)
     {
-      if (attr.get_path () != "crate_name")
+      if (attr.get_path () != Values::Attributes::CRATE_NAME)
 	continue;
-      if (!attr.has_attr_input ())
+
+      auto msg_str = Analysis::Attributes::extract_string_literal (attr);
+      if (!msg_str.has_value ())
 	{
 	  rust_error_at (attr.get_locus (),
-			 "%<crate_name%> accepts one argument");
+			 "malformed %<crate_name%> attribute input");
 	  continue;
 	}
 
-      auto &literal
-	= static_cast<AST::AttrInputLiteral &> (attr.get_attr_input ());
-      const auto &msg_str = literal.get_literal ().as_string ();
-      if (!validate_crate_name (msg_str, error))
+      if (!validate_crate_name (*msg_str, error))
 	{
 	  error.locus = attr.get_locus ();
 	  error.emit ();
 	  continue;
 	}
 
-      if (options.crate_name_set_manually && (options.crate_name != msg_str))
+      if (options.crate_name_set_manually && (options.crate_name != *msg_str))
 	{
 	  rust_error_at (attr.get_locus (),
 			 "%<-frust-crate-name%> and %<#[crate_name]%> are "
 			 "required to match, but %qs does not match %qs",
-			 options.crate_name.c_str (), msg_str.c_str ());
+			 options.crate_name.c_str (), msg_str->c_str ());
 	}
       crate_name_found = true;
-      options.set_crate_name (msg_str);
+      options.set_crate_name (*msg_str);
     }
 
   options.crate_name_set_manually |= crate_name_found;
@@ -476,6 +542,36 @@ Session::handle_crate_name (const char *filename,
 
   CrateNum crate_num = mappings.get_next_crate_num (options.get_crate_name ());
   mappings.set_current_crate (crate_num);
+}
+
+/** Parse additional attributes injected from the command line
+ *
+ */
+AST::AttrVec
+parse_cli_attributes (
+  std::vector<CompileOptions::CliAttributeContent> attributes)
+{
+  AST::AttrVec result;
+  result.reserve (attributes.size ());
+
+  for (auto attribute : attributes)
+    {
+      Session::get_instance ().linemap->start_file ("cli", 1);
+      Lexer lex (attribute.content, Session::get_instance ().linemap);
+      Parser<Lexer> parser (lex);
+
+      if (auto attr_body = parser.parse_attribute_body ())
+	{
+	  auto body = std::move (attr_body.value ());
+	  result.push_back (AST::Attribute (std::move (body.path),
+					    std::move (body.input), body.locus,
+					    true));
+	}
+
+      for (auto error : parser.get_errors ())
+	error.emit ();
+    }
+  return result;
 }
 
 // Parses a single file with filename filename.
@@ -529,6 +625,8 @@ Session::compile_crate (const char *filename)
       dump_lex_opt = dump_lex_stream;
     }
 
+  auto cli_attributes = parse_cli_attributes (options.addional_attributes);
+
   Lexer lex (filename, std::move (file_wrap), linemap, dump_lex_opt);
 
   if (!lex.input_source_is_valid_utf8 ())
@@ -548,10 +646,6 @@ Session::compile_crate (const char *filename)
   handle_crate_name (filename, *ast_crate.get ());
 
   // dump options except lexer dump
-  if (options.dump_option_enabled (CompileOptions::AST_DUMP_PRETTY))
-    {
-      dump_ast_pretty (*ast_crate.get ());
-    }
   if (options.dump_option_enabled (CompileOptions::TARGET_OPTION_DUMP))
     {
       options.target_data.dump_target_options ();
@@ -559,6 +653,15 @@ Session::compile_crate (const char *filename)
 
   if (saw_errors ())
     return;
+
+  if (options.dump_option_enabled (CompileOptions::AST_DUMP_PRETTY))
+    {
+      dump_ast_pretty (*ast_crate.get ());
+    }
+  if (options.dump_option_enabled (CompileOptions::INTERNAL_DUMP))
+    {
+      dump_ast_pretty_internal (*ast_crate.get ());
+    }
 
   // setup the mappings for this AST
   CrateNum current_crate = mappings.get_current_crate ();
@@ -595,7 +698,7 @@ Session::compile_crate (const char *filename)
     }
 
   // injection pipeline stage
-  injection (parsed_crate);
+  injection (parsed_crate, cli_attributes);
   rust_debug ("\033[0;31mSUCCESSFULLY FINISHED INJECTION \033[0m");
   if (options.dump_option_enabled (CompileOptions::INJECTION_DUMP))
     {
@@ -607,18 +710,36 @@ Session::compile_crate (const char *filename)
 
   Analysis::AttributeChecker ().go (parsed_crate);
 
+  EarlyCfgStrip ().go (parsed_crate);
+
+  auto parsed_crate_features
+    = Features::FeatureCollector{}.collect (parsed_crate);
+
+  // Do not inject core if some errors were emitted
+  if (!saw_errors ()
+      && !has_attribute (parsed_crate,
+			 std::string (Values::Attributes::NO_CORE)))
+    {
+      parsed_crate.inject_extern_crate ("core");
+      // #![no_core] implies #![no_std]
+      if (!has_attribute (parsed_crate,
+			  std::string (Values::Attributes::NO_STD)))
+	{
+	  parsed_crate.inject_extern_crate ("std");
+	}
+    }
+
   if (last_step == CompileOptions::CompileStep::Expansion)
     return;
-
-  AST::CollectLangItems ().go (parsed_crate);
 
   auto name_resolution_ctx = Resolver2_0::NameResolutionContext ();
   // expansion pipeline stage
 
   expansion (parsed_crate, name_resolution_ctx);
 
-  AST::DesugarForLoops ().go (parsed_crate);
-  AST::DesugarQuestionMark ().go (parsed_crate);
+  Analysis::BuiltinAttributeChecker ().go (parsed_crate);
+
+  AST::CollectLangItems ().go (parsed_crate);
 
   rust_debug ("\033[0;31mSUCCESSFULLY FINISHED EXPANSION \033[0m");
   if (options.dump_option_enabled (CompileOptions::EXPANSION_DUMP))
@@ -638,16 +759,14 @@ Session::compile_crate (const char *filename)
   // feature gating
   if (last_step == CompileOptions::CompileStep::FeatureGating)
     return;
-  FeatureGate ().check (parsed_crate);
+
+  FeatureGate (parsed_crate_features).check (parsed_crate);
 
   if (last_step == CompileOptions::CompileStep::NameResolution)
     return;
 
   // resolution pipeline stage
-  if (flag_name_resolution_2_0)
-    Resolver2_0::Late (name_resolution_ctx).go (parsed_crate);
-  else
-    Resolver::NameResolution::Resolve (parsed_crate);
+  Resolver2_0::Late (name_resolution_ctx).go (parsed_crate);
 
   if (options.dump_option_enabled (CompileOptions::RESOLUTION_DUMP))
     dump_name_resolution (name_resolution_ctx);
@@ -682,6 +801,7 @@ Session::compile_crate (const char *filename)
   Resolver2_0::ImmutableNameResolutionContext::init (name_resolution_ctx);
 
   // type resolve
+  Compile::Context *ctx = Compile::Context::get ();
   Resolver::TypeResolution::Resolve (hir);
 
   Resolver::TypeCheckContext::get ()->get_variance_analysis_ctx ().solve ();
@@ -729,16 +849,20 @@ Session::compile_crate (const char *filename)
     return;
 
   // do compile to gcc generic
-  Compile::Context ctx;
-  Compile::CompileCrate::Compile (hir, &ctx);
+  Compile::CompileCrate::Compile (hir, ctx);
 
   // we can't do static analysis if there are errors to worry about
   if (!saw_errors ())
     {
       // lints
       Analysis::ScanDeadcode::Scan (hir);
-      Analysis::UnusedVariables::Lint (ctx);
-      Analysis::ReadonlyCheck::Lint (ctx);
+
+      if (flag_unused_check_2_0)
+	Analysis::UnusedChecker ().go (hir);
+      else
+	Analysis::UnusedVariables::Lint (*ctx);
+
+      HIR::ReadonlyChecker ().go (hir);
 
       // metadata
       bool specified_emit_metadata
@@ -758,8 +882,11 @@ Session::compile_crate (const char *filename)
 	}
     }
 
+  if (saw_errors ())
+    return;
+
   // pass to GCC middle-end
-  ctx.write_to_backend ();
+  ctx->write_to_backend ();
 }
 
 void
@@ -782,7 +909,7 @@ contains_name (const AST::AttrVec &attrs, std::string name)
 }
 
 void
-Session::injection (AST::Crate &crate)
+Session::injection (AST::Crate &crate, AST::AttrVec cli_attributes)
 {
   rust_debug ("started injection");
 
@@ -837,6 +964,9 @@ Session::injection (AST::Crate &crate)
    * macros, cfg, and test should be prioritised since they seem to be used
    * the most. */
 
+  for (auto attribute : cli_attributes)
+    crate.inject_inner_attribute (attribute);
+
   // crate injection
   std::vector<std::string> names;
   if (contains_name (crate.inner_attrs, "no_core"))
@@ -874,7 +1004,7 @@ Session::injection (AST::Crate &crate)
 
       // create "extern crate" item with the name
       std::unique_ptr<AST::ExternCrate> extern_crate (
-	new AST::ExternCrate (*it, AST::Visibility::create_error (),
+	new AST::ExternCrate (*it, AST::Visibility::create_private (),
 			      {std::move (attr)}, UNKNOWN_LOCATION));
 
       // insert at beginning
@@ -937,28 +1067,23 @@ Session::expansion (AST::Crate &crate, Resolver2_0::NameResolutionContext &ctx)
   MacroExpander expander (crate, cfg, *this);
   std::vector<Error> macro_errors;
 
+  Resolver2_0::Builtins::setup_lang_prelude (ctx);
+
   while (!fixed_point_reached && iterations < cfg.recursion_limit)
     {
-      CfgStrip ().go (crate);
+      CfgStrip (cfg).go (crate);
       // Errors might happen during cfg strip pass
-      bool visitor_dirty = false;
 
-      if (flag_name_resolution_2_0)
-	{
-	  Resolver2_0::Early early (ctx);
-	  early.go (crate);
-	  macro_errors = early.get_macro_resolve_errors ();
-	  visitor_dirty = early.is_dirty ();
-	}
-      else
-	Resolver::EarlyNameResolver ().go (crate);
+      Resolver2_0::Early early (ctx);
+      early.go (crate);
+      macro_errors = early.get_macro_resolve_errors ();
 
       if (saw_errors ())
 	break;
 
       ExpandVisitor (expander).go (crate);
 
-      fixed_point_reached = !expander.has_changed () && !visitor_dirty;
+      fixed_point_reached = !expander.has_changed () && !early.is_dirty ();
       expander.reset_changed_state ();
       iterations++;
 
@@ -981,6 +1106,19 @@ Session::expansion (AST::Crate &crate, Resolver2_0::NameResolutionContext &ctx)
       range.add_range (last_def->get_locus ());
 
       rust_error_at (range, "reached recursion limit");
+    }
+
+  // handle AST desugaring
+  if (!saw_errors ())
+    {
+      AST::ExpressionYeast ().go (crate);
+
+      AST::DesugarApit ().go (crate);
+
+      // HACK: we may need a final TopLevel pass
+      // however, this should not count towards the recursion limit
+      // and we don't need a full Early pass
+      Resolver2_0::TopLevel (ctx).go (crate);
     }
 
   // error reporting - check unused macros, get missing fragment specifiers
@@ -1011,6 +1149,33 @@ Session::dump_ast_pretty (AST::Crate &crate, bool expanded) const
     }
 
   AST::Dump (out).go (crate);
+
+  out.close ();
+}
+
+void
+Session::dump_ast_pretty_internal (AST::Crate &crate) const
+{
+  std::ofstream out;
+  out.open (kASTPrettyInternalDumpFile);
+
+  if (out.fail ())
+    {
+      rust_error_at (UNKNOWN_LOCATION, "cannot open %s:%m; ignored",
+		     kASTDumpFile);
+      return;
+    }
+
+  std::set<std::string> str_tmp = options.get_excluded ();
+
+  AST::Dump (out,
+	     AST::Dump::Configuration{
+	       AST::Dump::Configuration::InternalComment::Dump,
+	       AST::Dump::Configuration::NodeDescription::Dump,
+	       AST::Dump::Configuration::Comment::Dump,
+	     },
+	     str_tmp)
+    .go (crate);
 
   out.close ();
 }
@@ -1048,7 +1213,7 @@ Session::dump_hir (HIR::Crate &crate) const
       return;
     }
 
-  out << crate.as_string ();
+  out << crate.to_string ();
   out.close ();
 }
 
@@ -1108,8 +1273,7 @@ Session::load_extern_crate (const std::string &crate_name, location_t locus)
   if (stream == NULL	       // No stream and
       && proc_macros.empty ()) // no proc macros
     {
-      rust_error_at (locus, "failed to locate crate %qs",
-		     import_name.c_str ());
+      rust_error_at (locus, "failed to locate crate %qs", import_name.c_str ());
       return UNKNOWN_NODEID;
     }
 
@@ -1176,17 +1340,6 @@ Session::load_extern_crate (const std::string &crate_name, location_t locus)
   mappings.insert_attribute_proc_macros (crate_num, attribute_macros);
   mappings.insert_bang_proc_macros (crate_num, bang_macros);
   mappings.insert_derive_proc_macros (crate_num, derive_macros);
-
-  // name resolve it
-  Resolver::NameResolution::Resolve (parsed_crate);
-
-  // perform hir lowering
-  std::unique_ptr<HIR::Crate> lowered
-    = HIR::ASTLowering::Resolve (parsed_crate);
-  HIR::Crate &hir = mappings.insert_hir_crate (std::move (lowered));
-
-  // perform type resolution
-  Resolver::TypeResolution::Resolve (hir);
 
   // always restore the crate_num
   mappings.set_current_crate (saved_crate_num);

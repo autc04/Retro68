@@ -1,8 +1,8 @@
 #name: MIPS relax-jalr-shared n32
 #source: relax-jalr.s
-#as: -march=from-abi -KPIC -n32 -EB
+#as: -KPIC
 #objdump: --prefix-addresses -d --show-raw-insn
-#ld: -shared -melf32btsmipn32
+#ld: -shared
 #target: [check_shared_lib_support]
 
 .*:     file format elf.*mips.*

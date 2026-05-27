@@ -1,6 +1,6 @@
 #as: -a32
 #source: xcoff-tls.s
-#objdump: -Dr
+#objdump: -Dr -j.data -j.tdata -j.tbss
 #name: XCOFF TLS relocation (32 bit)
 
 .*

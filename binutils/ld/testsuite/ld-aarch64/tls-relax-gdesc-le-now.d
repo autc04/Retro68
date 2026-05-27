@@ -11,7 +11,7 @@
  0x.+ \(PLTRELSZ\) \s+.+ \(bytes\)
  0x.+ \(PLTREL\)   \s+RELA
  0x.+ \(JMPREL\)   \s+0x.+
- 0x.+ \(BIND_NOW\) \s+
+ 0x.+ (\(BIND_NOW\) \s+|\(FLAGS\)  \s+   BIND_NOW)
  0x.+ \(FLAGS_1\)  \s+   Flags: NOW
  0x.+ \(NULL\)     \s+   0x0
 

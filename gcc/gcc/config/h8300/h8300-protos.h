@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler.
    Renesas H8/300 version
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Steve Chamberlain (sac@cygnus.com),
    Jim Wilson (wilson@cygnus.com), and Doug Evans (dje@cygnus.com).
 
@@ -36,8 +36,7 @@ extern const char *output_simode_bld (int, rtx[]);
 extern void final_prescan_insn (rtx_insn *, rtx *, int);
 extern int h8300_expand_movsi (rtx[]);
 extern machine_mode  h8300_select_cc_mode (RTX_CODE, rtx, rtx);
-extern const char *output_logical_op (machine_mode, rtx_code code,
-				      rtx *, rtx_insn *);
+extern const char *output_logical_op (machine_mode, rtx_code, rtx *, rtx);
 extern unsigned int compute_logical_op_length (machine_mode, rtx_code,
 					      rtx *, rtx_insn *);
 

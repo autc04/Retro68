@@ -1,7 +1,7 @@
 /* Dependency checks for instruction scheduling, shared between ARM and
    AARCH64.
 
-   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   Copyright (C) 1991-2026 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -655,8 +655,7 @@ arm_md_asm_adjust (vec<rtx> &outputs, vec<rtx> & /*inputs*/,
 	  emit_move_insn (dest, tmp);
 	}
     }
-  rtx_insn *seq = get_insns ();
-  end_sequence ();
+  rtx_insn *seq = end_sequence ();
 
   return saw_asm_flag ? seq : NULL;
 }

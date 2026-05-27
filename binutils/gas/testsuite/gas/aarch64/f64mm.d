@@ -1,4 +1,4 @@
-#as: -march=armv8.6-a+sve+f64mm
+#as: -march=armv8-a+sve+f64mm
 #objdump: -dr
 
 .*:     file format .*

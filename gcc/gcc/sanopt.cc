@@ -1,5 +1,5 @@
 /* Optimize and expand sanitizer functions.
-   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
    Contributed by Marek Polacek <polacek@redhat.com>
 
 This file is part of GCC.
@@ -814,7 +814,7 @@ sanopt_optimize_walker (basic_block bb, class sanopt_ctx *ctx)
       if (!is_gimple_call (stmt))
 	{
 	  /* Handle asm volatile or asm with "memory" clobber
-	     the same as potentionally freeing call.  */
+	     the same as potentially freeing call.  */
 	  gasm *asm_stmt = dyn_cast <gasm *> (stmt);
 	  if (asm_stmt
 	      && asan_check_optimize
@@ -1330,7 +1330,7 @@ pass_sanopt::execute (function *fun)
       sanitize_asan_mark_poison ();
     }
 
-  if (asan_sanitize_stack_p () || hwasan_sanitize_stack_p ())
+  if (asan_sanitize_stack_p () || hwassist_sanitize_stack_p ())
     sanitize_rewrite_addressable_params (fun);
 
   bool use_calls = param_asan_instrumentation_with_call_threshold < INT_MAX

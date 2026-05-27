@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -368,7 +368,7 @@ is
    -- Empty --
    -----------
 
-   function Empty (Capacity : Count_Type) return Map is
+   function Empty (Capacity : Count_Type := 10) return Map is
    begin
       return Result : Map (Capacity, 0) do
          null;

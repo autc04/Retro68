@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 HRESET insns
 #source: hreset.s

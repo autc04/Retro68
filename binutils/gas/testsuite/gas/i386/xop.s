@@ -1,6 +1,5 @@
 # Check XOP instructions (maxcombos=16, maxops=3, archbits=32, seed=1)
 
-	.allow_index_reg
 	.text
 _start:
 
@@ -911,20 +910,20 @@ _start:
     VPROTB         %xmm1,%xmm7,%xmm3
 # Tests for op VPROTB imm8, xmm2, xmm1  (at&t syntax)
     VPROTB         $0x3,%xmm5,%xmm2
-    VPROTB         $0xFF,%xmm0,%xmm0
-    VPROTB         $0xFF,%xmm5,%xmm7
+    VPROTB         $-1,%xmm0,%xmm0
+    VPROTB         $-1,%xmm5,%xmm7
     VPROTB         $0x0,%xmm5,%xmm7
     VPROTB         $0x0,%xmm7,%xmm7
     VPROTB         $0x0,%xmm0,%xmm2
-    VPROTB         $0xFF,%xmm5,%xmm0
+    VPROTB         $-1,%xmm5,%xmm0
     VPROTB         $0x3,%xmm0,%xmm0
     VPROTB         $0x3,%xmm5,%xmm0
     VPROTB         $0x0,%xmm0,%xmm7
-    VPROTB         $0xFF,%xmm7,%xmm0
-    VPROTB         $0xFF,%xmm0,%xmm2
-    VPROTB         $0xFF,%xmm7,%xmm2
+    VPROTB         $-1,%xmm7,%xmm0
+    VPROTB         $-1,%xmm0,%xmm2
+    VPROTB         $-1,%xmm7,%xmm2
     VPROTB         $0x3,%xmm7,%xmm7
-    VPROTB         $0xFF,%xmm5,%xmm2
+    VPROTB         $-1,%xmm5,%xmm2
     VPROTB         $0x3,%xmm0,%xmm2
 # Tests for op VPROTD xmm3, xmm2/mem128, xmm1  (at&t syntax)
     VPROTD         %xmm7,%xmm0,%xmm3
@@ -964,18 +963,18 @@ _start:
     VPROTD         $0x0,%xmm7,%xmm7
     VPROTD         $0x0,(%ebx),%xmm7
     VPROTD         $0x0,%xmm0,%xmm5
-    VPROTD         $0xFF,%xmm5,%xmm0
+    VPROTD         $-1,%xmm5,%xmm0
     VPROTD         $0x3,%xmm0,%xmm0
     VPROTD         $0x3,%xmm7,%xmm0
     VPROTD         $0x0,%xmm5,%xmm5
     VPROTD         $0x0,%xmm0,%xmm7
     VPROTD         $0x3,(%eax),%xmm0
-    VPROTD         $0xFF,(%ebx),%xmm0
+    VPROTD         $-1,(%ebx),%xmm0
     VPROTD         $0x0,(%eax),%xmm7
-    VPROTD         $0xFF,%xmm7,%xmm7
-    VPROTD         $0xFF,%xmm5,%xmm5
-    VPROTD         $0xFF,(%ebx),%xmm5
-    VPROTD         $0xFF,%xmm7,%xmm0
+    VPROTD         $-1,%xmm7,%xmm7
+    VPROTD         $-1,%xmm5,%xmm5
+    VPROTD         $-1,(%ebx),%xmm5
+    VPROTD         $-1,%xmm7,%xmm0
     VPROTD         $0x3,(%eax),%xmm7
 # Tests for op VPROTQ xmm3, xmm2/mem128, xmm1  (at&t syntax)
     VPROTQ         %xmm7,%xmm0,%xmm3
@@ -1015,18 +1014,18 @@ _start:
     VPROTQ         $0x0,%xmm7,%xmm7
     VPROTQ         $0x0,(%ebx),%xmm7
     VPROTQ         $0x0,%xmm0,%xmm5
-    VPROTQ         $0xFF,%xmm5,%xmm0
+    VPROTQ         $-1,%xmm5,%xmm0
     VPROTQ         $0x3,%xmm0,%xmm0
     VPROTQ         $0x3,%xmm7,%xmm0
     VPROTQ         $0x0,%xmm5,%xmm5
     VPROTQ         $0x0,%xmm0,%xmm7
     VPROTQ         $0x3,(%eax),%xmm0
-    VPROTQ         $0xFF,(%ebx),%xmm0
+    VPROTQ         $-1,(%ebx),%xmm0
     VPROTQ         $0x0,(%eax),%xmm7
-    VPROTQ         $0xFF,%xmm7,%xmm7
-    VPROTQ         $0xFF,%xmm5,%xmm5
-    VPROTQ         $0xFF,(%ebx),%xmm5
-    VPROTQ         $0xFF,%xmm7,%xmm0
+    VPROTQ         $-1,%xmm7,%xmm7
+    VPROTQ         $-1,%xmm5,%xmm5
+    VPROTQ         $-1,(%ebx),%xmm5
+    VPROTQ         $-1,%xmm7,%xmm0
     VPROTQ         $0x3,(%eax),%xmm7
 # Tests for op VPROTW xmm3, xmm2/mem128, xmm1  (at&t syntax)
     VPROTW         %xmm7,%xmm0,%xmm3
@@ -1066,18 +1065,18 @@ _start:
     VPROTW         $0x0,%xmm7,%xmm7
     VPROTW         $0x0,(%ebx),%xmm7
     VPROTW         $0x0,%xmm0,%xmm5
-    VPROTW         $0xFF,%xmm5,%xmm0
+    VPROTW         $-1,%xmm5,%xmm0
     VPROTW         $0x3,%xmm0,%xmm0
     VPROTW         $0x3,%xmm7,%xmm0
     VPROTW         $0x0,%xmm5,%xmm5
     VPROTW         $0x0,%xmm0,%xmm7
     VPROTW         $0x3,(%eax),%xmm0
-    VPROTW         $0xFF,(%ebx),%xmm0
+    VPROTW         $-1,(%ebx),%xmm0
     VPROTW         $0x0,(%eax),%xmm7
-    VPROTW         $0xFF,%xmm7,%xmm7
-    VPROTW         $0xFF,%xmm5,%xmm5
-    VPROTW         $0xFF,(%ebx),%xmm5
-    VPROTW         $0xFF,%xmm7,%xmm0
+    VPROTW         $-1,%xmm7,%xmm7
+    VPROTW         $-1,%xmm5,%xmm5
+    VPROTW         $-1,(%ebx),%xmm5
+    VPROTW         $-1,%xmm7,%xmm0
     VPROTW         $0x3,(%eax),%xmm7
 # Tests for op VPSHAB xmm3, xmm2/mem128, xmm1  (at&t syntax)
     VPSHAB         %xmm7,%xmm0,%xmm3

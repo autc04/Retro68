@@ -1,5 +1,5 @@
 /* Instruction scheduling pass.
-   Copyright (C) 1992-2025 Free Software Foundation, Inc.
+   Copyright (C) 1992-2026 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com) Enhanced by,
    and currently maintained by, Jim Wilson (wilson@cygnus.com)
 
@@ -2147,7 +2147,13 @@ model_recompute (rtx_insn *insn)
   for (use = INSN_REG_USE_LIST (insn); use != NULL; use = use->next_insn_use)
     {
       new_last = model_last_use_except (use);
-      if (new_last < point && bitmap_set_bit (tmp_bitmap, use->regno))
+      if (new_last < point
+	  && bitmap_set_bit (tmp_bitmap, use->regno)
+	  /* df_get_live_in has not necessarily been updated to reflect the
+	     effect of inter-block movement performed by earlier schedules.
+	     Cope with stale live-in sets by ignoring registers that are not
+	     currently assumed to be live.  */
+	  && bitmap_bit_p (curr_reg_live, use->regno))
 	{
 	  gcc_assert (num_uses < ARRAY_SIZE (uses));
 	  uses[num_uses].last_use = new_last;
@@ -6132,8 +6138,13 @@ choose_ready (struct ready_list *ready, bool first_cycle_insn_p,
       return -1;
     }
 
-  if (dfa_lookahead <= 0 || SCHED_GROUP_P (ready_element (ready, 0))
+  if (SCHED_GROUP_P (ready_element (ready, 0))
       || DEBUG_INSN_P (ready_element (ready, 0)))
+    {
+      *insn_ptr = ready_remove_first (ready);
+      return 0;
+    }
+  else if (dfa_lookahead <= 0)
     {
       if (targetm.sched.dispatch (NULL, IS_DISPATCH_ON))
 	*insn_ptr = ready_remove_first_dispatch (ready);

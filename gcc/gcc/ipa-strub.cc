@@ -1,5 +1,5 @@
 /* strub (stack scrubbing) support.
-   Copyright (C) 2021-2025 Free Software Foundation, Inc.
+   Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by Alexandre Oliva <oliva@adacore.com>.
 
 This file is part of GCC.
@@ -1770,8 +1770,7 @@ const pass_data pass_data_ipa_strub = {
   0,	    // properties_start
   TODO_update_ssa
   | TODO_cleanup_cfg
-  | TODO_rebuild_cgraph_edges
-  | TODO_verify_il, // properties_finish
+  | TODO_rebuild_cgraph_edges, // properties_finish
 };
 
 class pass_ipa_strub : public simple_ipa_opt_pass
@@ -3060,6 +3059,8 @@ pass_ipa_strub::execute (function *)
 			 TYPE_ATTRIBUTES (TREE_TYPE (nnode->decl)));
 	}
     }
+#else
+    (void) named_args;
 #endif
 
     {

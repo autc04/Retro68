@@ -1,6 +1,6 @@
 /* m2color.cc interface to gcc colorization.
 
-Copyright (C) 2019-2025 Free Software Foundation, Inc.
+Copyright (C) 2019-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius@glam.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -23,7 +23,7 @@ along with GNU Modula-2; see the file COPYING3.  If not see
 #include "m2color.h"
 
 #include "gcc-consolidation.h"
-#include "diagnostic-color.h"
+#include "diagnostics/color.h"
 
 
 char *

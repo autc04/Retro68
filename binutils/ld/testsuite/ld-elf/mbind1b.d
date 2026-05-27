@@ -1,5 +1,5 @@
 #source: mbind1.s
-#ld: -shared -z common-page-size=0x1000 -z max-page-size=0x200000
+#ld: -shared -z common-page-size=0x1000 -z max-page-size=0x200000 --no-rosegment
 #readelf: -S -l --wide
 #target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 #xfail: ![check_shared_lib_support] 

@@ -1,7 +1,7 @@
 #source: start1.s
 #source: tls-le-12s.s
 #source: tls-z.s
-#as: --no-underscore --em=criself -I$srcdir/$subdir
+#as: --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: -m crislinux
 #objdump: -d -s -t -r -p -h
 

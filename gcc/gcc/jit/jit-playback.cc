@@ -1,5 +1,5 @@
 /* Internals of libgccjit: classes for playing back recorded API calls.
-   Copyright (C) 2013-2025 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -50,6 +50,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "jit-result.h"
 #include "jit-builtins.h"
 #include "jit-tempdir.h"
+#include "jit-target.h"
 
 #ifdef _WIN32
 #include "jit-w32.h"
@@ -294,6 +295,39 @@ get_tree_node_for_type (enum gcc_jit_types type_)
       return double_type_node;
     case GCC_JIT_TYPE_LONG_DOUBLE:
       return long_double_type_node;
+    case GCC_JIT_TYPE_FLOAT16:
+      if (float16_type_node == NULL || TYPE_PRECISION (float16_type_node) != 16)
+      {
+	add_error (NULL, "gcc_jit_types value unsupported on this target: %i",
+		   type_);
+	return NULL;
+      }
+      return float16_type_node;
+    case GCC_JIT_TYPE_FLOAT32:
+      if (float32_type_node == NULL || TYPE_PRECISION (float32_type_node) != 32)
+      {
+	add_error (NULL, "gcc_jit_types value unsupported on this target: %i",
+		   type_);
+	return NULL;
+      }
+      return float32_type_node;
+    case GCC_JIT_TYPE_FLOAT64:
+      if (float64_type_node == NULL || TYPE_PRECISION (float64_type_node) != 64)
+      {
+	add_error (NULL, "gcc_jit_types value unsupported on this target: %i",
+		   type_);
+	return NULL;
+      }
+      return float64_type_node;
+    case GCC_JIT_TYPE_FLOAT128:
+      if (float128_type_node == NULL
+	  || TYPE_PRECISION (float128_type_node) != 128)
+      {
+	add_error (NULL, "gcc_jit_types value unsupported on this target: %i",
+		   type_);
+	return NULL;
+      }
+      return float128_type_node;
 
     case GCC_JIT_TYPE_SIZE_T:
       return size_type_node;
@@ -343,7 +377,7 @@ playback::type *
 playback::context::
 new_array_type (playback::location *loc,
 		playback::type *element_type,
-		int num_elements)
+		uint64_t num_elements)
 {
   gcc_assert (element_type);
 
@@ -546,6 +580,38 @@ const char* fn_attribute_to_string (gcc_jit_fn_attribute attr)
       return "weak";
     case GCC_JIT_FN_ATTRIBUTE_NONNULL:
       return "nonnull";
+    case GCC_JIT_FN_ATTRIBUTE_ARM_CMSE_NONSECURE_CALL:
+      return "cmse_nonsecure_call";
+    case GCC_JIT_FN_ATTRIBUTE_ARM_CMSE_NONSECURE_ENTRY:
+      return "cmse_nonsecure_entry";
+    case GCC_JIT_FN_ATTRIBUTE_ARM_PCS:
+      return "pcs";
+    case GCC_JIT_FN_ATTRIBUTE_AVR_INTERRUPT:
+      return "interrupt";
+    case GCC_JIT_FN_ATTRIBUTE_AVR_NOBLOCK:
+      return "noblock";
+    case GCC_JIT_FN_ATTRIBUTE_AVR_SIGNAL:
+      return "signal";
+    case GCC_JIT_FN_ATTRIBUTE_GCN_AMDGPU_HSA_KERNEL:
+      return "amdgpu_hsa_kernel";
+    case GCC_JIT_FN_ATTRIBUTE_MSP430_INTERRUPT:
+      return "interrupt";
+    case GCC_JIT_FN_ATTRIBUTE_NVPTX_KERNEL:
+      return "kernel";
+    case GCC_JIT_FN_ATTRIBUTE_RISCV_INTERRUPT:
+      return "interrupt";
+    case GCC_JIT_FN_ATTRIBUTE_X86_FAST_CALL:
+      return "fastcall";
+    case GCC_JIT_FN_ATTRIBUTE_X86_INTERRUPT:
+      return "interrupt";
+    case GCC_JIT_FN_ATTRIBUTE_X86_MS_ABI:
+      return "ms_abi";
+    case GCC_JIT_FN_ATTRIBUTE_X86_STDCALL:
+      return "stdcall";
+    case GCC_JIT_FN_ATTRIBUTE_X86_SYSV_ABI:
+      return "sysv_abi";
+    case GCC_JIT_FN_ATTRIBUTE_X86_THIS_CALL:
+      return "thiscall";
     case GCC_JIT_FN_ATTRIBUTE_MAX:
       return NULL;
   }
@@ -3605,6 +3671,7 @@ replay ()
   JIT_LOG_SCOPE (get_logger ());
 
   init_types ();
+  jit_target_init ();
 
   /* Replay the recorded events:  */
   timevar_push (TV_JIT_REPLAY);
@@ -3869,7 +3936,7 @@ add_error (location *loc, const char *fmt, ...)
   va_list ap;
   va_start (ap, fmt);
   m_recording_ctxt->add_error_va (loc ? loc->get_recording_loc () : NULL,
-				  fmt, ap);
+				  diagnostics::kind::error, fmt, ap);
   va_end (ap);
 }
 
@@ -3881,18 +3948,17 @@ playback::context::
 add_error_va (location *loc, const char *fmt, va_list ap)
 {
   m_recording_ctxt->add_error_va (loc ? loc->get_recording_loc () : NULL,
-				  fmt, ap);
+				  diagnostics::kind::error, fmt, ap);
 }
 
-/* Report a diagnostic up to the jit context as an error,
-   so that the compilation is treated as a failure.
-   For now, any kind of diagnostic is treated as an error by the jit
-   API.  */
+/* Report a diagnostic up to the jit context, so that the
+   compilation is treated as a failure if the diagnostic
+   is an error.  */
 
 void
 playback::context::
 add_diagnostic (const char *text,
-		const diagnostic_info &diagnostic)
+		const diagnostics::diagnostic_info &diagnostic)
 {
   /* Get location information (if any) from the diagnostic.
      The recording::context::add_error[_va] methods require a
@@ -3912,7 +3978,7 @@ add_diagnostic (const char *text,
 						  false);
     }
 
-  m_recording_ctxt->add_error (rec_loc, "%s", text);
+  m_recording_ctxt->add_diagnostic (rec_loc, diagnostic.m_kind, "%s", text);
 }
 
 /* Dealing with the linemap API.  */

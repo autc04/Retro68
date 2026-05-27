@@ -1,6 +1,7 @@
 #source: tls-relax-ie-le-3.s
 #as: -mabi=ilp32
 #ld: -m [aarch64_choose_ilp32_emul] -T relocs-ilp32.ld -e0
+#notarget: *-*-nto*
 #objdump: -dr
 #...
  +10000:	d53bd042 	mrs	x2, tpidr_el0

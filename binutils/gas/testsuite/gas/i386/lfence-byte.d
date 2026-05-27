@@ -27,4 +27,13 @@ Disassembly of section .text:
  +[a-f0-9]+:	f3 c3                	repz ret
  +[a-f0-9]+:	c3                   	ret
  +[a-f0-9]+:	f3 ff d0             	repz call \*%eax
+
+[a-f0-9]+ <directive>:
+ +[a-f0-9]+:	90                   	nop
+ +[a-f0-9]+:	0f ae e8             	lfence
+ +[a-f0-9]+:	ff d0                	call   \*%eax
+ +[a-f0-9]+:	8d 76 00             	lea    (0x)?0\(%esi\),%esi
+ +[a-f0-9]+:	83 0c 24 00          	orl    \$0x0,\(%esp\)
+ +[a-f0-9]+:	0f ae e8             	lfence
+ +[a-f0-9]+:	c3                   	ret
 #pass

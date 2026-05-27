@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,6 +39,9 @@ package body Table is
 
       Min : constant Int := Int (Table_Low_Bound);
       --  Subscript of the minimum entry in the currently allocated table
+
+      Max : Int := Min + (Table_Initial * Table_Factor) - 1;
+      --  Subscript of the maximum entry in the currently allocated table
 
       Length : Int := 0;
       --  Number of entries in currently allocated table. The value of zero
@@ -127,7 +130,7 @@ package body Table is
 
       begin
          Locked   := False;
-         Last_Val := Min - 1;
+         Clear;
          Max      := Min + (Table_Initial * Table_Factor) - 1;
          Length   := Max - Min + 1;
 
@@ -368,6 +371,24 @@ package body Table is
             Table (Index) := Item;
          end if;
       end Set_Item;
+
+      -----------
+      -- Clear --
+      -----------
+
+      procedure Clear is
+      begin
+         Last_Val := Min - 1;
+      end Clear;
+
+      --------------
+      -- Is_Empty --
+      --------------
+
+      function Is_Empty return Boolean is
+      begin
+         return Last_Val = Min - 1;
+      end Is_Empty;
 
       --------------
       -- Set_Last --

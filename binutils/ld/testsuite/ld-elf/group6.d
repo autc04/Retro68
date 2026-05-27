@@ -1,8 +1,6 @@
 #source: ../../../binutils/testsuite/binutils-all/group-4.s
 #ld: -r
 #readelf: -Sg --wide
-# xstormy uses a non-standard script, putting .data before .text.
-#xfail: xstormy*-*-*
 
 #...
   \[[ 0-9]+\] .group[ \t]+GROUP[ \t]+.*

@@ -35,4 +35,4 @@ Disassembly of section .text:
   64:	95 b1 aa c8 	fpsubs8  %f6, %f8, %f10
   68:	9d b2 aa ec 	fpsubus8  %f10, %f12, %f14
   6c:	a5 b3 aa 70 	fpsubus16  %f14, %f16, %f18
-  70:	bf b0 09 3f 	faligndata  %f0, %f62, %f4, %f62
+  70:	bf b0 09 24 	faligndata  %g0, %f62, %f4, %f62

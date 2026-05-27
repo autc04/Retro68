@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -142,7 +142,7 @@ BorrowCheckerDiagnostics::get_statement (Polonius::Point point)
 const BIR::Loan &
 BorrowCheckerDiagnostics::get_loan (Polonius::Loan loan)
 {
-  return bir_function.place_db.get_loans ()[{loan}];
+  return bir_function.place_db.get_loans ()[{(uint32_t) loan}];
 }
 
 const HIR::LifetimeParam *

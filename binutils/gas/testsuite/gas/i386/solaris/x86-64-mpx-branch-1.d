@@ -1,4 +1,4 @@
-#as: -J
+#as: -J -march=+mpx
 #source: ../x86-64-mpx-branch-1.s
 #objdump: -dwr
 #name: x86-64 MPX branch

@@ -4,5 +4,5 @@ SECTIONS
   .text : { *(.text) }
   . = 0x900000;
   .data : { *(.data) }
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

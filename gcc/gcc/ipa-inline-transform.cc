@@ -1,5 +1,5 @@
 /* Callgraph transformations to handle inlining
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -28,6 +28,7 @@ along with GCC; see the file COPYING3.  If not see
 
    The inline plan is applied on given function body by inline_transform.  */
 
+#define INCLUDE_ALGORITHM
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -58,27 +59,6 @@ along with GCC; see the file COPYING3.  If not see
 int ncalls_inlined;
 int nfunctions_inlined;
 
-/* Scale counts of NODE edges by NUM/DEN.  */
-
-static void
-update_noncloned_counts (struct cgraph_node *node,
-			 profile_count num, profile_count den)
-{
-  struct cgraph_edge *e;
-
-  profile_count::adjust_for_ipa_scaling (&num, &den);
-
-  for (e = node->callees; e; e = e->next_callee)
-    {
-      if (!e->inline_failed)
-        update_noncloned_counts (e->callee, num, den);
-      e->count = e->count.apply_scale (num, den);
-    }
-  for (e = node->indirect_calls; e; e = e->next_callee)
-    e->count = e->count.apply_scale (num, den);
-  node->count = node->count.apply_scale (num, den);
-}
-
 /* We removed or are going to remove the last call to NODE.
    Return true if we can and want proactively remove the NODE now.
    This is important to do, since we want inliner to know when offline
@@ -93,7 +73,7 @@ can_remove_node_now_p_1 (struct cgraph_node *node, struct cgraph_edge *e)
     {
       cgraph_node *alias = dyn_cast <cgraph_node *> (ref->referring);
       if ((alias->callers && alias->callers != e)
-          || !can_remove_node_now_p_1 (alias, e))
+	  || !can_remove_node_now_p_1 (alias, e))
 	return false;
     }
   /* FIXME: When address is taken of DECL_EXTERNAL function we still
@@ -162,12 +142,14 @@ master_clone_with_noninline_clones_p (struct cgraph_node *node)
    DUPLICATE is used for bookkeeping on whether we are actually creating new
    clones or re-using node originally representing out-of-line function call.
    By default the offline copy is removed, when it appears dead after inlining.
-   UPDATE_ORIGINAL prevents this transformation.
+   KEEP_OFFLINE_COPY prevents this transformation.
+   If UPDATE_ORIGINAL is set, clones profile is subtracted from the offline version.
    If OVERALL_SIZE is non-NULL, the size is updated to reflect the
    transformation.  */
 
 void
 clone_inlined_nodes (struct cgraph_edge *e, bool duplicate,
+		     bool keep_offline_copy,
 		     bool update_original, int *overall_size)
 {
   struct cgraph_node *inlining_into;
@@ -187,7 +169,7 @@ clone_inlined_nodes (struct cgraph_edge *e, bool duplicate,
       if (!e->callee->callers->next_caller
 	  /* Recursive inlining never wants the master clone to
 	     be overwritten.  */
-	  && update_original
+	  && !keep_offline_copy
 	  && can_remove_node_now_p (e->callee, e)
 	  /* We cannot overwrite a master clone with non-inline clones
 	     until after these clones are materialized.  */
@@ -212,7 +194,10 @@ clone_inlined_nodes (struct cgraph_edge *e, bool duplicate,
 	    }
 	  duplicate = false;
 	  e->callee->externally_visible = false;
-          update_noncloned_counts (e->callee, e->count, e->callee->count);
+	  profile_count num = e->count;
+	  profile_count den = e->callee->count;
+	  profile_count::adjust_for_ipa_scaling (&num, &den);
+	  e->callee->apply_scale (num, den);
 
 	  dump_callgraph_transformation (e->callee, inlining_into,
 					 "inlining to");
@@ -225,7 +210,7 @@ clone_inlined_nodes (struct cgraph_edge *e, bool duplicate,
 				       e->count,
 				       update_original, vNULL, true,
 				       inlining_into,
-				       NULL);
+				       NULL, NULL);
 	  n->used_as_abstract_origin = e->callee->used_as_abstract_origin;
 	  e->redirect_callee (n);
 	}
@@ -245,7 +230,8 @@ clone_inlined_nodes (struct cgraph_edge *e, bool duplicate,
     {
       next = e->next_callee;
       if (!e->inline_failed)
-        clone_inlined_nodes (e, duplicate, update_original, overall_size);
+        clone_inlined_nodes (e, duplicate, keep_offline_copy,
+			     update_original, overall_size);
     }
 }
 
@@ -323,7 +309,8 @@ mark_all_inlined_calls_cdtor (cgraph_node *node)
 
 
 /* Mark edge E as inlined and update callgraph accordingly.  UPDATE_ORIGINAL
-   specify whether profile of original function should be updated.  If any new
+   specify whether profile of original function should be updated and whether
+   offline copy should be removed if unnecesary.  If any new
    indirect edges are discovered in the process, add them to NEW_EDGES, unless
    it is NULL. If UPDATE_OVERALL_SUMMARY is false, do not bother to recompute overall
    size of caller after inlining. Caller is required to eventually do it via
@@ -345,11 +332,12 @@ inline_call (struct cgraph_edge *e, bool update_original,
   bool comdat_local = e->callee->comdat_local_p ();
   struct cgraph_node *callee = e->callee->ultimate_alias_target ();
   bool new_edges_found = false;
+  bool keep_offline_copy = !update_original;
 
   int estimated_growth = 0;
   if (! update_overall_summary)
     estimated_growth = estimate_edge_growth (e);
-  /* This is used only for assert bellow.  */
+  /* This is used only for assert below.  */
 #if 0
   bool predicated = inline_edge_summary (e)->predicate != NULL;
 #endif
@@ -362,6 +350,63 @@ inline_call (struct cgraph_edge *e, bool update_original,
   to = e->caller;
   if (to->inlined_to)
     to = to->inlined_to;
+
+  /* In case callee has AFDO profile but caller has GLOBAL0 we need
+     to re-scale it so it can have non-zero AFDO profile.  */
+  if (callee->count.quality () == AFDO
+      && e->count.nonzero_p ()
+      && (to->count.quality () == GUESSED_GLOBAL0_AFDO
+	  || to->count.quality () == GUESSED_GLOBAL0_ADJUSTED))
+    {
+      profile_count num = callee->count;
+      profile_count den = e->count;
+      profile_count::adjust_for_ipa_scaling (&num, &den);
+      if (dump_file)
+	{
+	  fprintf (dump_file, "Rescalling profile of caller %s "
+		   "to allow non-zero AFDO counts:",
+		   to->dump_name ());
+	  den.dump (dump_file);
+	  fprintf (dump_file, " -> ");
+	  num.dump (dump_file);
+	  fprintf (dump_file, "\n");
+	}
+      to->apply_scale (num, den);
+      to->frequency = std::max (to->frequency, callee->frequency);
+      /* Do not update original, so possible additional calls of callee
+	 are handled reasonably well.  */
+      update_original = false;
+      gcc_checking_assert (to->count.quality () == AFDO);
+      if (dump_file)
+	{
+	  fprintf (dump_file, "Scaled profile of %s: ", to->dump_name ());
+	  to->count.dump (dump_file);
+	  fprintf (dump_file, "\n");
+	}
+    }
+  /* Do sanity checking of the profile and in case of inconsistencies do not
+     update profile of original.  This reduces the chances that inlining
+     turns callee cold while in reality it is still hot.  */
+  if (!(callee->count.ipa ().force_nonzero () == callee->count.ipa ()))
+    {
+      if (dump_file)
+	fprintf (dump_file, "Callee count is 0; not updating callee profile\n");
+      update_original = false;
+    }
+  else if (e->count.ipa ().quality () == AFDO
+	   && !(e->count.ipa ().force_nonzero () == e->count.ipa ()))
+    {
+      if (dump_file)
+	fprintf (dump_file, "Edge count is AFDO 0; not updating callee profile\n");
+      update_original = false;
+    }
+  if (e->count.ipa () > callee->count.ipa ().apply_scale (9, 8))
+    {
+      if (dump_file)
+	fprintf (dump_file, "Calee count is too small (profile is inconsistent);"
+		 " not updating callee profile\n");
+      update_original = false;
+    }
   if (to->thunk)
     {
       struct cgraph_node *target = to->callees->callee;
@@ -438,8 +483,8 @@ inline_call (struct cgraph_edge *e, bool update_original,
 	     != opt_for_fn (to->decl, flag_finite_math_only)
 	  || opt_for_fn (callee->decl, flag_signaling_nans)
 	     != opt_for_fn (to->decl, flag_signaling_nans)
-	  || opt_for_fn (callee->decl, flag_cx_limited_range)
-	     != opt_for_fn (to->decl, flag_cx_limited_range)
+	  || opt_for_fn (callee->decl, flag_complex_method)
+	     != opt_for_fn (to->decl, flag_complex_method)
 	  || opt_for_fn (callee->decl, flag_signed_zeros)
 	     != opt_for_fn (to->decl, flag_signed_zeros)
 	  || opt_for_fn (callee->decl, flag_associative_math)
@@ -465,8 +510,8 @@ inline_call (struct cgraph_edge *e, bool update_original,
 	    = opt_for_fn (callee->decl, flag_finite_math_only);
 	  opts.x_flag_signaling_nans
 	    = opt_for_fn (callee->decl, flag_signaling_nans);
-	  opts.x_flag_cx_limited_range
-	    = opt_for_fn (callee->decl, flag_cx_limited_range);
+	  opts.x_flag_complex_method
+	    = opt_for_fn (callee->decl, flag_complex_method);
 	  opts.x_flag_signed_zeros
 	    = opt_for_fn (callee->decl, flag_signed_zeros);
 	  opts.x_flag_associative_math
@@ -513,7 +558,14 @@ inline_call (struct cgraph_edge *e, bool update_original,
 	}
     }
 
-  clone_inlined_nodes (e, true, update_original, overall_size);
+  if (callee->must_remain_in_tu_body)
+    {
+      gcc_assert (callee->lto_file_data == to->lto_file_data);
+      to->must_remain_in_tu_body = true;
+    }
+
+  clone_inlined_nodes (e, true, keep_offline_copy,
+		       update_original, overall_size);
 
   gcc_assert (curr->callee->inlined_to == to);
 
@@ -787,7 +839,8 @@ inline_transform (struct cgraph_node *node)
       FOR_ALL_BB_FN (bb, cfun)
 	{
 	  bb->count = bb->count.apply_scale (num, den);
-	  cfun->cfg->count_max = cfun->cfg->count_max.max (bb->count);
+	  cfun->cfg->count_max = profile_count::max_prefer_initialized
+		  (cfun->cfg->count_max, bb->count);
 	}
       ENTRY_BLOCK_PTR_FOR_FN (cfun)->count = node->count;
     }
@@ -798,7 +851,17 @@ inline_transform (struct cgraph_node *node)
       if (!e->inline_failed)
 	has_inline = true;
       next = e->next_callee;
-      cgraph_edge::redirect_call_stmt_to_callee (e);
+      if (e->has_callback)
+	{
+	  /* Redirect callback edges when redirecting their carrying edge.  */
+	  cgraph_edge *cbe;
+	  cgraph_edge::redirect_call_stmt_to_callee (e);
+	  for (cbe = e->first_callback_edge (); cbe;
+	       cbe = cbe->next_callback_edge ())
+	    cgraph_edge::redirect_call_stmt_to_callee (cbe);
+	}
+      else
+	cgraph_edge::redirect_call_stmt_to_callee (e);
     }
   node->remove_all_references ();
 

@@ -1,5 +1,5 @@
 /* i386 ISA table.
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -183,16 +183,13 @@ ISA_NAMES_TABLE_START
   ISA_NAMES_TABLE_ENTRY("sm4", FEATURE_SM4, P_NONE, "-msm4")
   ISA_NAMES_TABLE_ENTRY("apxf", FEATURE_APX_F, P_NONE, "-mapxf")
   ISA_NAMES_TABLE_ENTRY("usermsr", FEATURE_USER_MSR, P_NONE, "-musermsr")
-  ISA_NAMES_TABLE_ENTRY("avx10.1-256", FEATURE_AVX10_1_256, P_AVX10_1_256, "-mavx10.1-256")
   ISA_NAMES_TABLE_ENTRY("avx10.1", FEATURE_AVX10_1, P_AVX10_1, "-mavx10.1")
-  ISA_NAMES_TABLE_ENTRY("avx10.1-512", FEATURE_AVX10_1, P_AVX10_1, "-mavx10.1-512")
   ISA_NAMES_TABLE_ENTRY("avx10.2", FEATURE_AVX10_2, P_NONE, "-mavx10.2")
   ISA_NAMES_TABLE_ENTRY("amx-avx512", FEATURE_AMX_AVX512, P_NONE,
 			"-mamx-avx512")
   ISA_NAMES_TABLE_ENTRY("amx-tf32", FEATURE_AMX_TF32, P_NONE, "-mamx-tf32")
-  ISA_NAMES_TABLE_ENTRY("amx-transpose", FEATURE_AMX_TRANSPOSE,
-			P_NONE, "-mamx-transpose")
   ISA_NAMES_TABLE_ENTRY("amx-fp8", FEATURE_AMX_FP8, P_NONE, "-mamx-fp8")
   ISA_NAMES_TABLE_ENTRY("movrs", FEATURE_MOVRS, P_NONE, "-mmovrs")
   ISA_NAMES_TABLE_ENTRY("amx-movrs", FEATURE_AMX_MOVRS, P_NONE, "-mamx-movrs")
+  ISA_NAMES_TABLE_ENTRY("avx512bmm", FEATURE_AVX512BMM, P_NONE, "-mavx512bmm")
 ISA_NAMES_TABLE_END

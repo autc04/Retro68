@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -136,8 +136,6 @@
 
 #include <amxtf32intrin.h>
 
-#include <amxtransposeintrin.h>
-
 #include <amxfp8intrin.h>
 
 #include <prfchwintrin.h>
@@ -148,27 +146,21 @@
 
 #include <avx10_2mediaintrin.h>
 
-#include <avx10_2-512mediaintrin.h>
-
 #include <avx10_2convertintrin.h>
-
-#include <avx10_2-512convertintrin.h>
 
 #include <avx10_2bf16intrin.h>
 
-#include <avx10_2-512bf16intrin.h>
-
 #include <avx10_2satcvtintrin.h>
 
-#include <avx10_2-512satcvtintrin.h>
-
 #include <avx10_2minmaxintrin.h>
-
-#include <avx10_2-512minmaxintrin.h>
 
 #include <avx10_2copyintrin.h>
 
 #include <movrsintrin.h>
 
 #include <amxmovrsintrin.h>
+
+#include <avx512bmmintrin.h>
+
+#include <avx512bmmvlintrin.h>
 #endif /* _IMMINTRIN_H_INCLUDED */

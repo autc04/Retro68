@@ -1,4 +1,7 @@
 // { dg-additional-options "-fdump-tree-gimple" }
+#![feature(no_core)]
+#![no_core]
+
 #![feature(rustc_attrs)]
 
 #[rustc_builtin_macro]
@@ -34,7 +37,7 @@ fn print_str(s: &str) {
     }
 }
 
-// { dg-final { scan-assembler {"abheyho"} } }
+// { dg-final { scan-assembler {"abheyho(\\0)?"} } }
 static S: &str = concat!("a", 'b', a!(), a!(b c d e f a!()), '\0');
 
 fn main() {

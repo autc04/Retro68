@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -40,7 +40,7 @@ SubstituteCtx::substitute_dollar_crate (
   if (*def_crate == current_crate)
     {
       expanded.push_back (std::make_unique<AST::Token> (
-	Rust::Token::make_identifier (UNKNOWN_LOCATION, "crate")));
+	Rust::Token::make_identifier (origin, "crate")));
     }
   else
     {
@@ -49,9 +49,9 @@ SubstituteCtx::substitute_dollar_crate (
       rust_assert (name);
 
       expanded.push_back (std::make_unique<AST::Token> (
-	Rust::Token::make (SCOPE_RESOLUTION, UNKNOWN_LOCATION)));
+	Rust::Token::make (SCOPE_RESOLUTION, origin)));
       expanded.push_back (std::make_unique<AST::Token> (
-	Rust::Token::make_identifier (UNKNOWN_LOCATION, std::string (*name))));
+	Rust::Token::make_identifier (origin, std::string (*name))));
     }
 
   return true;
@@ -108,6 +108,12 @@ SubstituteCtx::substitute_metavar (
   return true;
 }
 
+static bool
+is_builtin_metavariable (AST::Token &token)
+{
+  return token.get_id () == CRATE;
+}
+
 bool
 SubstituteCtx::check_repetition_amount (size_t pattern_start,
 					size_t pattern_end,
@@ -125,6 +131,10 @@ SubstituteCtx::check_repetition_amount (size_t pattern_start,
 	      || frag_token->get_id () == IDENTIFIER)
 	    {
 	      auto it = fragments.find (frag_token->get_str ());
+
+	      if (is_builtin_metavariable (*frag_token))
+		continue;
+
 	      if (it == fragments.end ())
 		{
 		  // If the repetition is not anything we know (ie no declared
@@ -136,6 +146,7 @@ SubstituteCtx::check_repetition_amount (size_t pattern_start,
 				 frag_token->get_str ().c_str ());
 
 		  is_valid = false;
+		  continue;
 		}
 
 	      auto &fragment = *it->second;
@@ -226,7 +237,7 @@ SubstituteCtx::substitute_repetition (
 	}
 
       auto substitute_context
-	= SubstituteCtx (input, new_macro, sub_map, definition);
+	= SubstituteCtx (input, new_macro, sub_map, definition, origin);
       auto new_tokens = substitute_context.substitute_tokens ();
 
       // Skip the first repetition, but add the separator to the expanded
@@ -273,7 +284,8 @@ SubstituteCtx::substitute_token (size_t token_idx)
       // don't substitute, dollar sign is alone/metavar is unknown
       return {std::vector<std::unique_ptr<AST::Token>> (), 0};
 
-      case LEFT_PAREN: {
+    case LEFT_PAREN:
+      {
 	// We need to parse up until the closing delimiter and expand this
 	// fragment->n times.
 	rust_debug ("expanding repetition");

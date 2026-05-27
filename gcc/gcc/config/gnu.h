@@ -1,7 +1,7 @@
 /* Configuration common to all targets running the GNU system.  */
 
 /*
-Copyright (C) 1994-2025 Free Software Foundation, Inc.
+Copyright (C) 1994-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -18,6 +18,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GCC.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+/* C libraries used on GNU/Hurd.  */
+#define OPTION_GLIBC_P(opts)	(DEFAULT_LIBC == LIBC_GLIBC)
+#define OPTION_GLIBC		OPTION_GLIBC_P (&global_options)
 
 #undef GNU_USER_TARGET_OS_CPP_BUILTINS
 #define GNU_USER_TARGET_OS_CPP_BUILTINS()		\

@@ -25,3 +25,9 @@ foo:
 	sysretd
 	mov	rbp,rsp
 	sysretq
+
+	.att_syntax prefix
+	adcxl %ecx, %edx
+	adoxl %ecx, %edx
+	adcxq %rcx, %rdx
+	adoxq %rcx, %rdx

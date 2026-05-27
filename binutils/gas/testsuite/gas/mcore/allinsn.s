@@ -141,6 +141,5 @@ foolit:
 	test xtrb3  "r1, r13"
 	test zextb  r8
 	test zexth  r4
-	clrc			// These two instructions pad the object file
-	clrc			// out to a 16 byte boundary.
-	
+	test Bmaski "r4, 32"
+	clrc			// Pad to 4-byte boundary

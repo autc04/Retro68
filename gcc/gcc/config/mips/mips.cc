@@ -1,5 +1,5 @@
 /* Subroutines used for MIPS code generation.
-   Copyright (C) 1989-2025 Free Software Foundation, Inc.
+   Copyright (C) 1989-2026 Free Software Foundation, Inc.
    Contributed by A. Lichnewsky, lich@inria.inria.fr.
    Changes by Michael Meissner, meissner@osf.org.
    64-bit r4000 support by Ian Lance Taylor, ian@cygnus.com, and
@@ -1163,6 +1163,20 @@ static const struct mips_rtx_cost_data
     COSTS_N_INSNS (8),            /* int_div_di */
 		    2,            /* branch_cost */
 		    4             /* memory_latency */
+  },
+  { /* Allegrex */
+    /* Has hard-float support for single precision only. */
+    COSTS_N_INSNS (5),            /* fp_add */
+    COSTS_N_INSNS (5),            /* fp_mult_sf */
+    COSTS_N_INSNS (256),          /* fp_mult_df */
+    COSTS_N_INSNS (30),           /* fp_div_sf */
+    COSTS_N_INSNS (256),          /* fp_div_df */
+    COSTS_N_INSNS (7) ,           /* int_mult_si */
+    COSTS_N_INSNS (27),           /* int_mult_di */
+    COSTS_N_INSNS (21),           /* int_div_si */
+    COSTS_N_INSNS (256),          /* int_div_di */
+		     2,           /* branch_cost */
+		     4            /* memory_latency */
   }
 };
 
@@ -3315,7 +3329,7 @@ mips_unspec_address_offset (rtx base, rtx offset,
 			    enum mips_symbol_type symbol_type)
 {
   base = gen_rtx_UNSPEC (Pmode, gen_rtvec (1, base),
-			 UNSPEC_ADDRESS_FIRST + symbol_type);
+			 UNSPEC_ADDRESS_FIRST + (int) symbol_type);
   if (offset != const0_rtx)
     base = gen_rtx_PLUS (Pmode, base, offset);
   return gen_rtx_CONST (Pmode, base);
@@ -3621,9 +3635,7 @@ mips_call_tls_get_addr (rtx sym, enum mips_symbol_type type, rtx v0)
 			   const0_rtx, NULL_RTX, false);
   RTL_CONST_CALL_P (insn) = 1;
   use_reg (&CALL_INSN_FUNCTION_USAGE (insn), a0);
-  insn = get_insns ();
-
-  end_sequence ();
+  insn = end_sequence ();
 
   return insn;
 }
@@ -7478,6 +7490,9 @@ static void
 mips_start_function_definition (const char *name, bool mips16_p,
 				tree decl ATTRIBUTE_UNUSED)
 {
+  unsigned HOST_WIDE_INT patch_area_size = crtl->patch_area_size;
+  unsigned HOST_WIDE_INT patch_area_entry = crtl->patch_area_entry;
+
   if (mips16_p)
     fprintf (asm_out_file, "\t.set\tmips16\n");
   else
@@ -7490,6 +7505,10 @@ mips_start_function_definition (const char *name, bool mips16_p,
     fprintf (asm_out_file, "\t.set\tnomicromips\n");
 #endif
 
+  /* Emit the patching area before the entry label, if any.  */
+  if (patch_area_entry > 0)
+    default_print_patchable_function_entry (asm_out_file,
+					    patch_area_entry, true);
   if (!flag_inhibit_size_directive)
     {
       fputs ("\t.ent\t", asm_out_file);
@@ -7501,6 +7520,13 @@ mips_start_function_definition (const char *name, bool mips16_p,
 
   /* Start the definition proper.  */
   ASM_OUTPUT_FUNCTION_LABEL (asm_out_file, name, decl);
+
+  /* And the area after the label.  Record it if we haven't done so yet.  */
+  if (patch_area_size > patch_area_entry)
+    default_print_patchable_function_entry (asm_out_file,
+					    patch_area_size
+					    - patch_area_entry,
+					    patch_area_entry == 0);
 }
 
 /* End a function definition started by mips_start_function_definition.  */
@@ -15167,23 +15193,19 @@ mips_ls2_init_dfa_post_cycle_insn (void)
 {
   start_sequence ();
   emit_insn (gen_ls2_alu1_turn_enabled_insn ());
-  mips_ls2.alu1_turn_enabled_insn = get_insns ();
-  end_sequence ();
+  mips_ls2.alu1_turn_enabled_insn = end_sequence ();
 
   start_sequence ();
   emit_insn (gen_ls2_alu2_turn_enabled_insn ());
-  mips_ls2.alu2_turn_enabled_insn = get_insns ();
-  end_sequence ();
+  mips_ls2.alu2_turn_enabled_insn = end_sequence ();
 
   start_sequence ();
   emit_insn (gen_ls2_falu1_turn_enabled_insn ());
-  mips_ls2.falu1_turn_enabled_insn = get_insns ();
-  end_sequence ();
+  mips_ls2.falu1_turn_enabled_insn = end_sequence ();
 
   start_sequence ();
   emit_insn (gen_ls2_falu2_turn_enabled_insn ());
-  mips_ls2.falu2_turn_enabled_insn = get_insns ();
-  end_sequence ();
+  mips_ls2.falu2_turn_enabled_insn = end_sequence ();
 
   mips_ls2.alu1_core_unit_code = get_cpu_unit_code ("ls2_alu1_core");
   mips_ls2.alu2_core_unit_code = get_cpu_unit_code ("ls2_alu2_core");
@@ -19892,8 +19914,7 @@ mips16_split_long_branches (void)
 		emit_label (new_label);
 	      }
 
-	    jump_sequence = get_insns ();
-	    end_sequence ();
+	    jump_sequence = end_sequence ();
 
 	    emit_insn_after (jump_sequence, jump_insn);
 	    if (new_label)
@@ -23338,6 +23359,21 @@ mips_bit_clear_p (enum machine_mode mode, unsigned HOST_WIDE_INT m)
   return false;
 }
 
+/* define TARGET_ASM_PRINT_PATCHABLE_FUNCTION_ENTRY */
+
+/* The MIPS function start is implemented in the prologue function.
+   TARGET_ASM_PRINT_PATCHABLE_FUNCTION_ENTRY needs to be inserted
+   before or after the function name, so this function does not
+   use a public implementation. This function is implemented in
+   mips_start_function_definition. */
+
+void
+mips_print_patchable_function_entry (FILE *file ATTRIBUTE_UNUSED,
+				     unsigned HOST_WIDE_INT
+				     patch_area_size ATTRIBUTE_UNUSED,
+				     bool record_p ATTRIBUTE_UNUSED)
+{}
+
 /* Initialize the GCC target structure.  */
 #undef TARGET_ASM_ALIGNED_HI_OP
 #define TARGET_ASM_ALIGNED_HI_OP "\t.half\t"
@@ -23650,6 +23686,10 @@ mips_bit_clear_p (enum machine_mode mode, unsigned HOST_WIDE_INT m)
 
 #undef TARGET_DOCUMENTATION_NAME
 #define TARGET_DOCUMENTATION_NAME "MIPS"
+
+#undef TARGET_ASM_PRINT_PATCHABLE_FUNCTION_ENTRY
+#define TARGET_ASM_PRINT_PATCHABLE_FUNCTION_ENTRY \
+mips_print_patchable_function_entry
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 

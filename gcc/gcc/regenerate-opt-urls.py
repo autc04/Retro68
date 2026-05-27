@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2023-2025 Free Software Foundation, Inc.
+# Copyright (C) 2023-2026 Free Software Foundation, Inc.
 #
 # Script to regenerate FOO.opt.urls files for each FOO.opt in the
 # source tree.
@@ -46,6 +46,12 @@ import unittest
 def canonicalize_option_name(option_name):
     if option_name.endswith('='):
         option_name = option_name[0:-1]
+    # Options starting with two dashes are listed with one dash in the
+    # .opt file, plus we have already added the implicit dash to option_name.
+    # But the index entries have zero dashes, so we have to remove one of the
+    # dashes again to match them.
+    if option_name[:2] == '--':
+        option_name = option_name[1:]
     return option_name
 
 
@@ -175,6 +181,8 @@ class TestParsingIndex(unittest.TestCase):
                          {'gcc/Optimize-Options.html#index-O0'})
         self.assertEqual(index.get_url_suffixes('-Wframe-larger-than='),
                          {'gcc/Warning-Options.html#index-Wframe-larger-than_003d'})
+        self.assertEqual(index.get_url_suffixes('--static-pie'),
+                         {'gcc/Link-Options.html#index-static-pie'})
 
         # Check an option with duplicates: '-march'
         # The url_suffixes will be of the form
@@ -361,7 +369,8 @@ def write_url_file(index, optfile, dstfile):
 PER_LANGUAGE_OPTION_INDEXES = [
     ('gcc/Option-Index.html', None),
     ('gdc/Option-Index.html', 'D'),
-    ('gfortran/Option-Index.html', 'Fortran')
+    ('gfortran/Option-Index.html', 'Fortran'),
+    ('ga68/Option-Index.html', 'Algol68'),
 ]
 
 def main(args):

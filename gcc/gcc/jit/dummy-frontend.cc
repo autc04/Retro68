@@ -1,5 +1,5 @@
 /* jit.c -- Dummy "frontend" for use during JIT-compilation.
-   Copyright (C) 2013-2025 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -32,8 +32,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "attribs.h"
 #include "cgraph.h"
 #include "target.h"
-#include "diagnostic-format-text.h"
-#include "make-unique.h"
+#include "diagnostics/text-sink.h"
 #include "print-tree.h"
 
 #include <mpfr.h>
@@ -957,13 +956,15 @@ struct GTY(()) lang_identifier
 
 /* The resulting tree type.  */
 
+/* See lang_tree_node in gcc/c/c-decl.cc.  */
 union GTY((desc ("TREE_CODE (&%h.generic) == IDENTIFIER_NODE"),
-	   chain_next ("CODE_CONTAINS_STRUCT (TREE_CODE (&%h.generic), TS_COMMON) ? ((union lang_tree_node *) TREE_CHAIN (&%h.generic)) : NULL")))
-lang_tree_node
-{
-  union tree_node GTY((tag ("0"),
-		       desc ("tree_node_structure (&%h)"))) generic;
-  struct lang_identifier GTY((tag ("1"))) identifier;
+  chain_next ("(union lang_tree_node *) jit_tree_chain_next (&%h.generic)")))
+  lang_tree_node
+ {
+  union tree_node GTY ((tag ("0"),
+			desc ("tree_node_structure (&%h)")))
+    generic;
+  struct lang_identifier GTY ((tag ("1"))) identifier;
 };
 
 /* We don't use language_function.  */
@@ -994,16 +995,16 @@ struct ggc_root_tab jit_root_tab[] =
     LAST_GGC_ROOT_TAB
   };
 
-/* Subclass of diagnostic_output_format for libgccjit: like text
+/* Subclass of diagnostics::text_sink for libgccjit: like text
    output, but capture the message and call add_diagnostic with it
    on the active playback context.  */
 
-class jit_diagnostic_listener : public diagnostic_text_output_format
+class jit_diagnostic_listener : public diagnostics::text_sink
 {
 public:
-  jit_diagnostic_listener (diagnostic_context &dc,
+  jit_diagnostic_listener (diagnostics::context &dc,
 			   gcc::jit::playback::context &playback_ctxt)
-  : diagnostic_text_output_format (dc),
+  : diagnostics::text_sink (dc),
     m_playback_ctxt (playback_ctxt)
   {
   }
@@ -1016,13 +1017,13 @@ public:
 	     (void *)&m_playback_ctxt);
   }
 
-  void on_report_diagnostic (const diagnostic_info &info,
-			     diagnostic_t orig_diag_kind) final override
+  void on_report_diagnostic (const diagnostics::diagnostic_info &info,
+			     enum diagnostics::kind orig_diag_kind) final override
   {
     JIT_LOG_SCOPE (gcc::jit::active_playback_ctxt->get_logger ());
 
     /* Let the text output format do most of the work.  */
-    diagnostic_text_output_format::on_report_diagnostic (info, orig_diag_kind);
+    diagnostics::text_sink::on_report_diagnostic (info, orig_diag_kind);
 
     const char *text = pp_formatted_text (get_printer ());
 
@@ -1042,8 +1043,8 @@ private:
 /* Implementation of "begin_diagnostic".  */
 
 static void
-jit_begin_diagnostic (diagnostic_text_output_format &,
-		      const diagnostic_info */*diagnostic*/)
+jit_begin_diagnostic (diagnostics::text_sink &,
+		      const diagnostics::diagnostic_info */*diagnostic*/)
 {
   gcc_assert (gcc::jit::active_playback_ctxt);
   JIT_LOG_SCOPE (gcc::jit::active_playback_ctxt->get_logger ());
@@ -1055,9 +1056,9 @@ jit_begin_diagnostic (diagnostic_text_output_format &,
 /* Implementation of "end_diagnostic".  */
 
 static void
-jit_end_diagnostic (diagnostic_text_output_format &,
-		    const diagnostic_info *,
-		    diagnostic_t)
+jit_end_diagnostic (diagnostics::text_sink &,
+		    const diagnostics::diagnostic_info *,
+		    enum diagnostics::kind)
 {
   gcc_assert (gcc::jit::active_playback_ctxt);
   JIT_LOG_SCOPE (gcc::jit::active_playback_ctxt->get_logger ());
@@ -1082,12 +1083,13 @@ jit_langhook_init (void)
     }
 
   gcc_assert (global_dc);
-  diagnostic_text_starter (global_dc) = jit_begin_diagnostic;
-  diagnostic_text_finalizer (global_dc) = jit_end_diagnostic;
+  diagnostics::text_starter (global_dc) = jit_begin_diagnostic;
+  diagnostics::text_finalizer (global_dc) = jit_end_diagnostic;
   auto sink
-    = ::make_unique<jit_diagnostic_listener> (*global_dc,
-					      *gcc::jit::active_playback_ctxt);
-  global_dc->set_output_format (std::move (sink));
+    = std::make_unique<jit_diagnostic_listener>
+	(*global_dc,
+	 *gcc::jit::active_playback_ctxt);
+  global_dc->set_sink (std::move (sink));
 
   build_common_tree_nodes (flag_signed_char);
 
@@ -1170,6 +1172,9 @@ jit_langhook_type_for_mode (machine_mode mode, int unsignedp)
 
 recording::type* tree_type_to_jit_type (tree type)
 {
+  gcc_assert (gcc::jit::active_playback_ctxt);
+  gcc::jit::playback::context* ctxt = gcc::jit::active_playback_ctxt;
+
   if (TREE_CODE (type) == VECTOR_TYPE)
   {
     tree inner_type = TREE_TYPE (type);
@@ -1190,12 +1195,6 @@ recording::type* tree_type_to_jit_type (tree type)
     // FIXME: wrong type.
     return new recording::memento_of_get_type (&target_builtins_ctxt,
 					       GCC_JIT_TYPE_VOID);
-  /* TODO: Remove when we add support for sized floating-point types.  */
-  for (int i = 0; i < NUM_FLOATN_NX_TYPES; i++)
-    if (type == FLOATN_NX_TYPE_NODE (i))
-      // FIXME: wrong type.
-      return new recording::memento_of_get_type (&target_builtins_ctxt,
-						 GCC_JIT_TYPE_VOID);
   if (type == void_type_node)
     return new recording::memento_of_get_type (&target_builtins_ctxt,
 					       GCC_JIT_TYPE_VOID);
@@ -1261,6 +1260,26 @@ recording::type* tree_type_to_jit_type (tree type)
   else if (type == bfloat16_type_node)
     return new recording::memento_of_get_type (&target_builtins_ctxt,
 					       GCC_JIT_TYPE_BFLOAT16);
+  else if (type == float16_type_node)
+  {
+    return new recording::memento_of_get_type (&target_builtins_ctxt,
+					      GCC_JIT_TYPE_FLOAT16);
+  }
+  else if (type == float32_type_node)
+  {
+    return new recording::memento_of_get_type (&target_builtins_ctxt,
+					      GCC_JIT_TYPE_FLOAT32);
+  }
+  else if (type == float64_type_node)
+  {
+    return new recording::memento_of_get_type (&target_builtins_ctxt,
+					      GCC_JIT_TYPE_FLOAT64);
+  }
+  else if (type == float128_type_node)
+  {
+    return new recording::memento_of_get_type (&target_builtins_ctxt,
+					      GCC_JIT_TYPE_FLOAT128);
+  }
   else if (type == dfloat128_type_node)
     // FIXME: wrong type.
     return new recording::memento_of_get_type (&target_builtins_ctxt,
@@ -1282,6 +1301,39 @@ recording::type* tree_type_to_jit_type (tree type)
       return nullptr;
     return element_type->get_pointer ();
   }
+  else if (type == unsigned_intTI_type_node)
+    return new recording::memento_of_get_type (&target_builtins_ctxt,
+      GCC_JIT_TYPE_UINT128_T);
+  else if (INTEGRAL_TYPE_P (type))
+  {
+    unsigned int size = tree_to_uhwi (TYPE_SIZE_UNIT (type));
+    return target_builtins_ctxt.get_int_type (size, TYPE_UNSIGNED (type));
+  }
+  else if (SCALAR_FLOAT_TYPE_P (type))
+  {
+    unsigned int size = tree_to_uhwi (TYPE_SIZE_UNIT (type));
+    enum gcc_jit_types type;
+    switch (size)
+    {
+      case 2:
+	type = GCC_JIT_TYPE_BFLOAT16;
+	break;
+      case 4:
+	type = GCC_JIT_TYPE_FLOAT;
+	break;
+      case 8:
+	type = GCC_JIT_TYPE_DOUBLE;
+	break;
+      default:
+	if (ctxt->get_abort_on_unsupported_target_builtin ())
+	{
+	  fprintf (stderr, "Unexpected float size: %d\n", size);
+	  abort ();
+	}
+	return NULL;
+    }
+    return new recording::memento_of_get_type (&target_builtins_ctxt, type);
+  }
   else
   {
     // Attempt to find an unqualified type when the current type has qualifiers.
@@ -1300,6 +1352,13 @@ recording::type* tree_type_to_jit_type (tree type)
 	  return result;
 	}
       }
+    }
+
+    if (ctxt->get_abort_on_unsupported_target_builtin ())
+    {
+      fprintf (stderr, "Unknown type:\n");
+      debug_tree (type);
+      abort ();
     }
   }
 

@@ -1,5 +1,5 @@
 #notarget: cris*-*-linux-gnu
-#as: --em=criself --march=v32
+#as: --emulation=criself --march=v32
 #ld: -m criself --oformat binary --defsym ext1=0x4000 --defsym ext2=0x6000
 #objdump: -s -b binary
 

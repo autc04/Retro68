@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 MOVDIR[I,64B] insns (Intel disassembly)
 #source: movdir.s

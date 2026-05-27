@@ -37,3 +37,35 @@ ldr za[w13, -1], [x17, #1, mul vl]
 str za[w13, -1], [x17, #1, mul vl]
 ldr za[w13, 1], [x17, #-1, mul vl]
 str za[w13, 1], [x17, #-1, mul vl]
+
+ldr za.b[w12, 0], [x0]
+ldr za.h[w12, 0], [x0]
+ldr za.s[w12, 0], [x0]
+ldr za.d[w12, 0], [x0]
+ldr za.q[w12, 0], [x0]
+ldr za/z[w12, 0], [x0]
+ldr za.2b[w12, 0], [x0]
+
+ldr za0[w12, 0], [x0]
+ldr za0.b[w12, 0], [x0]
+ldr za0h[w12, 0], [x0]
+ldr za0h.h[w12, 0], [x0]
+ldr za0v[w12, 0], [x0]
+ldr za0v.s[w12, 0], [x0]
+
+ldr za[w12, 0, vgx2], [x0]
+ldr za[w12, 0, vgx4], [x0]
+ldr za[w12, 0, vgx8], [x0]
+
+str za[w12, 0, vgx2], [x0]
+str za[w12, 0, vgx4], [x0]
+str za[w12, 0, vgx8], [x0]
+
+ldr za.b[w12, 0, vgx2], [x0]
+str za.b[w12, 0, vgx4], [x0]
+
+ldr za[w12, 0:1], [x0]
+str za[w12, 0:2, vgx4], [x0]
+
+ldr za.b[w12, 0:1], [x0]
+str za.b[w12, 0:2, vgx4], [x0]

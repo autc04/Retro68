@@ -586,6 +586,7 @@ ac_unique_file="static-object.mk"
 ac_includes_default='/* none */'
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+WERROR
 md_unwind_header
 md_unwind_def_header
 unwind_header
@@ -609,6 +610,7 @@ accel_dir_suffix
 use_tm_clone_registry
 force_explicit_eh_registry
 CET_FLAGS
+NO_PIE_CFLAGS
 fixed_point
 enable_decimal_float
 decimal_float
@@ -720,6 +722,7 @@ enable_tm_clone_registry
 with_glibc_version
 enable_tls
 with_gcc_major_version_only
+enable_werror
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1362,6 +1365,7 @@ Optional Features:
                           installations without PT_GNU_EH_FRAME support
   --disable-tm-clone-registry    disable TM clone registry
   --enable-tls            Use thread-local storage [default=yes]
+  --enable-werror         build with -Werror for selected targets
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -4833,6 +4837,40 @@ $as_echo "$libgcc_cv_fixed_point" >&6; }
 fixed_point=$libgcc_cv_fixed_point
 
 
+# Check whether the compiler defines __PIE__ by default, so -fno-PIE is needed.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler defines __PIE__" >&5
+$as_echo_n "checking whether the compiler defines __PIE__... " >&6; }
+if ${libgcc_cv_no_pie_cflags+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#ifdef __PIE__
+#error __PIE__ defined
+#endif
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  libgcc_cv_no_pie_cflags=''
+else
+  libgcc_cv_no_pie_cflags='-fno-PIE'
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libgcc_cv_no_pie_cflags" >&5
+$as_echo "$libgcc_cv_no_pie_cflags" >&6; }
+
+NO_PIE_CFLAGS=$libgcc_cv_no_pie_cflags
+
+
 # For platforms with the unwind ABI which includes an unwind library,
 # libunwind, we can choose to use the system libunwind.
 # config.gcc also contains tests of with_system_libunwind.
@@ -5043,11 +5081,28 @@ $as_echo "$acl_cv_prog_gnu_ld" >&6; }
 with_gnu_ld=$acl_cv_prog_gnu_ld
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for thread model used by GCC" >&5
-$as_echo_n "checking for thread model used by GCC... " >&6; }
-target_thread_file=`$CC -v 2>&1 | sed -n 's/^Thread model: //p'`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $target_thread_file" >&5
-$as_echo "$target_thread_file" >&6; }
+
+# Specify the threading model for this GCC runtime library
+# Pass with no value to take from compiler's metadata
+# Pass with a value to specify a thread package
+# 'single' means single threaded -- without threads.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for the threading model used by GCC" >&5
+$as_echo_n "checking for the threading model used by GCC... " >&6; }
+if ${gcc_cv_target_thread_file+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+  # Set new cache variable
+  gcc_cv_target_thread_file=`$CC -v 2>&1 | sed -n 's/^Thread model: //p'`
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $gcc_cv_target_thread_file" >&5
+$as_echo "$gcc_cv_target_thread_file" >&6; }
+# Set variable name (not prefixed enough to be a good cache variable
+# name) traditionally used for this purpose, to avoid having to change
+# a bunch of configure scripts.
+target_thread_file="$gcc_cv_target_thread_file"
+
 
 # Check for assembler CFI support.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether assembler supports CFI directives" >&5
@@ -5281,6 +5336,32 @@ $as_echo "$libgcc_cv_powerpc_3_1_float128_hw" >&6; }
   CFLAGS="$saved_CFLAGS"
 esac
 
+case ${host} in
+s390*-*-linux*)
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking Support float16 on s390" >&5
+$as_echo_n "checking Support float16 on s390... " >&6; }
+if ${libgcc_cv_s390_float16+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#if ! __s390x__ || __ARCH__ < 8
+     # error "HF not supported"
+     #endif
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  libgcc_cv_s390_float16=yes
+else
+  libgcc_cv_s390_float16=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libgcc_cv_s390_float16" >&5
+$as_echo "$libgcc_cv_s390_float16" >&6; }
+  ;;
+esac
+
 # Collect host-machine-specific information.
 . ${srcdir}/config.host
 
@@ -5341,6 +5422,18 @@ case ${host} in
   ;;
 esac
 
+
+case ${host} in
+loongarch32*-*-*)
+  tmake_file="${tmake_file} loongarch/t-crtstuff-la32"
+  ;;
+esac
+
+case ${host} in
+loongarch64*-*-*)
+  tmake_file="${tmake_file} loongarch/t-crtstuff-la64"
+  ;;
+esac
 
 # Check if xtensa target is configured for windowed ABI and thus needs to use
 # custom unwind code.
@@ -5734,6 +5827,9 @@ case $target_thread_file in
     vxworks)	thread_header=config/gthr-vxworks.h ;;
     win32)	thread_header=config/i386/gthr-win32.h ;;
     mcf)	thread_header=config/i386/gthr-mcf.h ;;
+    *)
+        as_fn_error $? "No known header for threading model '$target_thread_file'." "$LINENO" 5
+        ;;
 esac
 
 
@@ -5786,6 +5882,22 @@ fi
 
 
 
+
+
+
+# Check whether --enable-werror was given.
+if test "${enable_werror+set}" = set; then :
+  enableval=$enable_werror;
+case ${enable_werror} in
+  no) WERROR="" ;;
+  *) WERROR="-Werror" ;;
+esac
+
+else
+
+WERROR="-Werror"
+
+fi
 
 
 

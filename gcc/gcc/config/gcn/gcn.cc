@@ -1,4 +1,4 @@
-/* Copyright (C) 2016-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2016-2026 Free Software Foundation, Inc.
 
    This file is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free
@@ -54,6 +54,7 @@
 #include "gimple.h"
 #include "cgraph.h"
 #include "case-cfn-macros.h"
+#include "opts.h"
 
 /* This file should be included last.  */
 #include "target-def.h"
@@ -183,6 +184,11 @@ gcn_option_override (void)
 
   if (flag_sram_ecc == HSACO_ATTR_DEFAULT)
     flag_sram_ecc = gcn_devices[gcn_arch].sramecc_default;
+
+  /* TODO: This seems to produce tighter loops, but the testsuites expects it
+     to be set to '2', so I'll leave it default for now.
+  SET_OPTION_IF_UNSET (&global_options, &global_options_set,
+		       param_vect_partial_vector_usage, 1);  */
 }
 
 /* }}}  */
@@ -499,6 +505,11 @@ VnMODE (int n, machine_mode mode)
 static unsigned char
 gcn_class_max_nregs (reg_class_t rclass, machine_mode mode)
 {
+  /* The aperture registers always hold a 64-bit value, though they can be
+     accessed as either full registers or their lower half.  */
+  if (rclass == MEMORY_APERTURE_REGS)
+    return 1;
+
   /* Scalar registers are 32bit, vector registers are in fact tuples of
      64 lanes.  */
   if (rclass == VGPR_REGS || rclass == AVGPR_REGS
@@ -585,9 +596,8 @@ gcn_hard_regno_mode_ok (unsigned int regno, machine_mode mode)
     case XNACK_MASK_HI_REG:
     case TBA_HI_REG:
     case TMA_HI_REG:
-      return mode == SImode;
     case VCC_HI_REG:
-      return false;
+      return mode == SImode;
     case EXEC_HI_REG:
       return mode == SImode /*|| mode == V32BImode */ ;
     case SCC_REG:
@@ -597,6 +607,14 @@ gcn_hard_regno_mode_ok (unsigned int regno, machine_mode mode)
     }
   if (regno == ARG_POINTER_REGNUM || regno == FRAME_POINTER_REGNUM)
     return true;
+
+  if (MEMORY_APERTURE_REG_P (regno))
+    /* Memory aperture registers are accessible either by their lower half
+       (that is always zero, but accessible anyway), or by their whole value.
+       We, for now, don't permit the former, since there's no use to those
+       values yet.  */
+    return mode == DImode;
+
   if (SGPR_REGNO_P (regno))
     /* We restrict double register values to aligned registers.  */
     return (sgpr_1reg_mode_p (mode)
@@ -640,6 +658,8 @@ gcn_regno_reg_class (int regno)
     case EXEC_HI_REG:
       return EXEC_MASK_REG;
     }
+  if (MEMORY_APERTURE_REG_P (regno))
+    return MEMORY_APERTURE_REGS;
   if (VGPR_REGNO_P (regno))
     return VGPR_REGS;
   if (AVGPR_REGNO_P (regno))
@@ -760,6 +780,9 @@ gcn_operand_part (machine_mode mode, rtx op, int n)
       if (REG_P (op))
 	{
 	  gcc_assert (REGNO (op) + n < FIRST_PSEUDO_REGISTER);
+	  gcc_assert (!MEMORY_APERTURE_REG_P (REGNO (op))
+		      /* We can't access the higher parts of aperture regs.  */
+		      || n == 0);
 	  return gen_rtx_REG (vsimode, REGNO (op) + n);
 	}
       if (GET_CODE (op) == CONST_VECTOR)
@@ -780,6 +803,9 @@ gcn_operand_part (machine_mode mode, rtx op, int n)
   else if (GET_MODE_SIZE (mode) == 8 && REG_P (op))
     {
       gcc_assert (REGNO (op) + n < FIRST_PSEUDO_REGISTER);
+      gcc_assert (!MEMORY_APERTURE_REG_P (REGNO (op))
+		  /* We can't access the higher parts of aperture regs.  */
+		  || n == 0);
       return gen_rtx_REG (SImode, REGNO (op) + n);
     }
   else
@@ -1276,13 +1302,13 @@ gen_##PREFIX##vN##SUFFIX (PARAMS) \
 }
 
 #define GEN_VNM_NOEXEC(PREFIX, SUFFIX, PARAMS, ARGS) \
-GEN_VN_NOEXEC (PREFIX, qi##SUFFIX, A(PARAMS), A(ARGS)) \
-GEN_VN_NOEXEC (PREFIX, hi##SUFFIX, A(PARAMS), A(ARGS)) \
-GEN_VN_NOEXEC (PREFIX, hf##SUFFIX, A(PARAMS), A(ARGS)) \
+USE_QHF (GEN_VN_NOEXEC (PREFIX, qi##SUFFIX, A(PARAMS), A(ARGS))) \
+USE_QHF (GEN_VN_NOEXEC (PREFIX, hi##SUFFIX, A(PARAMS), A(ARGS))) \
+USE_QHF (GEN_VN_NOEXEC (PREFIX, hf##SUFFIX, A(PARAMS), A(ARGS))) \
 GEN_VN_NOEXEC (PREFIX, si##SUFFIX, A(PARAMS), A(ARGS)) \
-GEN_VN_NOEXEC (PREFIX, sf##SUFFIX, A(PARAMS), A(ARGS)) \
+USE_QHF (GEN_VN_NOEXEC (PREFIX, sf##SUFFIX, A(PARAMS), A(ARGS))) \
 GEN_VN_NOEXEC (PREFIX, di##SUFFIX, A(PARAMS), A(ARGS)) \
-GEN_VN_NOEXEC (PREFIX, df##SUFFIX, A(PARAMS), A(ARGS)) \
+USE_QHF (GEN_VN_NOEXEC (PREFIX, df##SUFFIX, A(PARAMS), A(ARGS))) \
 static rtx \
 gen_##PREFIX##vNm##SUFFIX (PARAMS) \
 { \
@@ -1290,13 +1316,13 @@ gen_##PREFIX##vNm##SUFFIX (PARAMS) \
   \
   switch (mode) \
     { \
-    case E_QImode: return gen_##PREFIX##vNqi##SUFFIX (ARGS); \
-    case E_HImode: return gen_##PREFIX##vNhi##SUFFIX (ARGS); \
-    case E_HFmode: return gen_##PREFIX##vNhf##SUFFIX (ARGS); \
+    USE_QHF (case E_QImode: return gen_##PREFIX##vNqi##SUFFIX (ARGS);) \
+    USE_QHF (case E_HImode: return gen_##PREFIX##vNhi##SUFFIX (ARGS);) \
+    USE_QHF (case E_HFmode: return gen_##PREFIX##vNhf##SUFFIX (ARGS);) \
     case E_SImode: return gen_##PREFIX##vNsi##SUFFIX (ARGS); \
-    case E_SFmode: return gen_##PREFIX##vNsf##SUFFIX (ARGS); \
+    USE_QHF (case E_SFmode: return gen_##PREFIX##vNsf##SUFFIX (ARGS);) \
     case E_DImode: return gen_##PREFIX##vNdi##SUFFIX (ARGS); \
-    case E_DFmode: return gen_##PREFIX##vNdf##SUFFIX (ARGS); \
+    USE_QHF (case E_DFmode: return gen_##PREFIX##vNdf##SUFFIX (ARGS);) \
     default: \
       break; \
     } \
@@ -1341,13 +1367,13 @@ gen_##PREFIX##vN##SUFFIX (PARAMS, rtx merge_src=NULL, rtx exec=NULL) \
 }
 
 #define GEN_VNM(PREFIX, SUFFIX, PARAMS, ARGS) \
-GEN_VN (PREFIX, qi##SUFFIX, A(PARAMS), A(ARGS)) \
-GEN_VN (PREFIX, hi##SUFFIX, A(PARAMS), A(ARGS)) \
-GEN_VN (PREFIX, hf##SUFFIX, A(PARAMS), A(ARGS)) \
+USE_QHF (GEN_VN (PREFIX, qi##SUFFIX, A(PARAMS), A(ARGS))) \
+USE_QHF (GEN_VN (PREFIX, hi##SUFFIX, A(PARAMS), A(ARGS))) \
+USE_QHF (GEN_VN (PREFIX, hf##SUFFIX, A(PARAMS), A(ARGS))) \
 GEN_VN (PREFIX, si##SUFFIX, A(PARAMS), A(ARGS)) \
-GEN_VN (PREFIX, sf##SUFFIX, A(PARAMS), A(ARGS)) \
+USE_QHF (GEN_VN (PREFIX, sf##SUFFIX, A(PARAMS), A(ARGS))) \
 GEN_VN (PREFIX, di##SUFFIX, A(PARAMS), A(ARGS)) \
-GEN_VN (PREFIX, df##SUFFIX, A(PARAMS), A(ARGS)) \
+USE_QHF (GEN_VN (PREFIX, df##SUFFIX, A(PARAMS), A(ARGS))) \
 USE_TI (GEN_VN (PREFIX, ti##SUFFIX, A(PARAMS), A(ARGS))) \
 static rtx \
 gen_##PREFIX##vNm##SUFFIX (PARAMS, rtx merge_src=NULL, rtx exec=NULL) \
@@ -1356,15 +1382,22 @@ gen_##PREFIX##vNm##SUFFIX (PARAMS, rtx merge_src=NULL, rtx exec=NULL) \
   \
   switch (mode) \
     { \
-    case E_QImode: return gen_##PREFIX##vNqi##SUFFIX (ARGS, merge_src, exec); \
-    case E_HImode: return gen_##PREFIX##vNhi##SUFFIX (ARGS, merge_src, exec); \
-    case E_HFmode: return gen_##PREFIX##vNhf##SUFFIX (ARGS, merge_src, exec); \
-    case E_SImode: return gen_##PREFIX##vNsi##SUFFIX (ARGS, merge_src, exec); \
-    case E_SFmode: return gen_##PREFIX##vNsf##SUFFIX (ARGS, merge_src, exec); \
-    case E_DImode: return gen_##PREFIX##vNdi##SUFFIX (ARGS, merge_src, exec); \
-    case E_DFmode: return gen_##PREFIX##vNdf##SUFFIX (ARGS, merge_src, exec); \
-    case E_TImode: \
-	USE_TI (return gen_##PREFIX##vNti##SUFFIX (ARGS, merge_src, exec);) \
+    USE_QHF (case E_QImode: \
+	return gen_##PREFIX##vNqi##SUFFIX (ARGS, merge_src, exec);) \
+    USE_QHF (case E_HImode: \
+	return gen_##PREFIX##vNhi##SUFFIX (ARGS, merge_src, exec);) \
+    USE_QHF (case E_HFmode: \
+	return gen_##PREFIX##vNhf##SUFFIX (ARGS, merge_src, exec);) \
+    case E_SImode: \
+	return gen_##PREFIX##vNsi##SUFFIX (ARGS, merge_src, exec); \
+    USE_QHF (case E_SFmode: \
+	return gen_##PREFIX##vNsf##SUFFIX (ARGS, merge_src, exec);) \
+    case E_DImode: \
+	return gen_##PREFIX##vNdi##SUFFIX (ARGS, merge_src, exec); \
+    USE_QHF (case E_DFmode: \
+	return gen_##PREFIX##vNdf##SUFFIX (ARGS, merge_src, exec);) \
+    USE_TI (case E_TImode: \
+	return gen_##PREFIX##vNti##SUFFIX (ARGS, merge_src, exec);) \
     default: \
       break; \
     } \
@@ -1373,7 +1406,8 @@ gen_##PREFIX##vNm##SUFFIX (PARAMS, rtx merge_src=NULL, rtx exec=NULL) \
   return NULL_RTX; \
 }
 
-/* These have TImode support.  */
+/* These support everything.  */
+#define USE_QHF(ARGS) ARGS
 #define USE_TI(ARGS) ARGS
 GEN_VNM (mov,, A(rtx dest, rtx src), A(dest, src))
 GEN_VNM (vec_duplicate,, A(rtx dest, rtx src), A(dest, src))
@@ -1383,6 +1417,7 @@ GEN_VNM (vec_duplicate,, A(rtx dest, rtx src), A(dest, src))
 #define USE_TI(ARGS)
 GEN_VNM (add,3, A(rtx dest, rtx src1, rtx src2), A(dest, src1, src2))
 GEN_VN (add,si3_dup, A(rtx dest, rtx src1, rtx src2), A(dest, src1, src2))
+GEN_VN (add,di3_dup, A(rtx dest, rtx src1, rtx src2), A(dest, src1, src2))
 GEN_VN (add,si3_vcc_dup, A(rtx dest, rtx src1, rtx src2, rtx vcc),
 	A(dest, src1, src2, vcc))
 GEN_VN (add,di3_sext_dup2, A(rtx dest, rtx src1, rtx src2), A(dest, src1, src2))
@@ -1394,15 +1429,20 @@ GEN_VN (add,di3_vcc_zext_dup2, A(rtx dest, rtx src1, rtx src2, rtx vcc),
 GEN_VN (addc,si3, A(rtx dest, rtx src1, rtx src2, rtx vccout, rtx vccin),
 	A(dest, src1, src2, vccout, vccin))
 GEN_VN (and,si3, A(rtx dest, rtx src1, rtx src2), A(dest, src1, src2))
-GEN_VN (ashl,si3, A(rtx dest, rtx src, rtx shift), A(dest, src, shift))
 GEN_VNM_NOEXEC (ds_bpermute,, A(rtx dest, rtx addr, rtx src, rtx exec),
 		A(dest, addr, src, exec))
 GEN_VNM (gather,_expr, A(rtx dest, rtx addr, rtx as, rtx vol),
 	 A(dest, addr, as, vol))
-GEN_VN (mul,si3_dup, A(rtx dest, rtx src1, rtx src2), A(dest, src1, src2))
 GEN_VN (sub,si3, A(rtx dest, rtx src1, rtx src2), A(dest, src1, src2))
 GEN_VN_NOEXEC (vec_series,si, A(rtx dest, rtx x, rtx c), A(dest, x, c))
 
+/* These do not have QI, HI, or any FP support.  */
+#undef USE_QHF
+#define USE_QHF(ARGS)
+GEN_VNM (ashl,3, A(rtx dest, rtx src, rtx shift), A(dest, src, shift))
+GEN_VNM (mul,3_dup, A(rtx dest, rtx src1, rtx src2), A(dest, src1, src2))
+
+#undef USE_QHF
 #undef USE_TI
 #undef GEN_VNM
 #undef GEN_VN
@@ -1834,6 +1874,15 @@ gcn_addr_space_subset_p (addr_space_t subset, addr_space_t superset)
   return false;
 }
 
+static addr_space_t
+gcn_addr_space_resolve_default (addr_space_t as)
+{
+  if (as != ADDR_SPACE_DEFAULT)
+    return as;
+
+  return DEFAULT_ADDR_SPACE;
+}
+
 /* Convert from one address space to another.  */
 
 static rtx
@@ -1842,26 +1891,34 @@ gcn_addr_space_convert (rtx op, tree from_type, tree to_type)
   gcc_assert (POINTER_TYPE_P (from_type));
   gcc_assert (POINTER_TYPE_P (to_type));
 
-  addr_space_t as_from = TYPE_ADDR_SPACE (TREE_TYPE (from_type));
-  addr_space_t as_to = TYPE_ADDR_SPACE (TREE_TYPE (to_type));
+  addr_space_t as_from = (gcn_addr_space_resolve_default
+			  (TYPE_ADDR_SPACE (TREE_TYPE (from_type))));
+  addr_space_t as_to = (gcn_addr_space_resolve_default
+			  (TYPE_ADDR_SPACE (TREE_TYPE (to_type))));
 
   if (AS_LDS_P (as_from) && AS_FLAT_P (as_to))
     {
-      /* The high bits of the QUEUE_PTR_ARG register are used by
-	 GCN_BUILTIN_FIRST_CALL_THIS_THREAD_P, so mask them out.  */
-      rtx queue_reg = gen_rtx_REG (DImode,
-				   cfun->machine->args.reg[QUEUE_PTR_ARG]);
-      rtx queue_ptr = gen_reg_rtx (DImode);
-      emit_insn (gen_anddi3 (queue_ptr, queue_reg, GEN_INT (0xffffffffffff)));
-      rtx group_seg_aperture_hi = gen_rtx_MEM (SImode,
-				     gen_rtx_PLUS (DImode, queue_ptr,
-						   gen_int_mode (64, SImode)));
-      rtx tmp = gen_reg_rtx (DImode);
+      /* The LDS based pointer is held in SHARED_BASE.
 
+	 Per:
+
+	   For GFX9-GFX11 the aperture base addresses are directly available as
+	   inline constant registers SRC_SHARED_BASE/LIMIT and
+	   SRC_PRIVATE_BASE/LIMIT. In 64-bit address mode the aperture sizes
+	   are 2^32 bytes and the base is aligned to 2^32 which makes it easier
+	   to convert from flat to segment or segment to flat.
+	   -- User Guide for AMDGPU Backend (LLVM)
+
+	 ... we can safely assume that the SImode low-part of SHARED_BASE_REG
+	 contains all zeroes.  As OP is an LDS address, it is 32-bit.  Ergo,
+	 SHARED_BASE_REG+OP is equivalent to SHARED_BASE_REG|OP.  If
+	 SHARED_BASE_REG is in r[N:N+1], then, writing OP to rN should suffice.
+	 Ergo, this conversion can be implemented as two moves.  */
+      rtx group_seg_aperture = gen_rtx_REG (Pmode, SHARED_BASE_REG);
+      rtx tmp = gen_reg_rtx (Pmode);
+
+      emit_move_insn (tmp, group_seg_aperture);
       emit_move_insn (gen_lowpart (SImode, tmp), op);
-      emit_move_insn (gen_highpart_mode (SImode, DImode, tmp),
-		      group_seg_aperture_hi);
-
       return tmp;
     }
   else if (as_from == as_to)
@@ -1996,8 +2053,8 @@ gcn_expand_vector_init (rtx op0, rtx vec)
   rtx addr = gen_reg_rtx (addrmode);
 
   int unit_size = GET_MODE_SIZE (GET_MODE_INNER (GET_MODE (op0)));
-  emit_insn (gen_mulvNsi3_dup (ramp, gen_rtx_REG (offsetmode, VGPR_REGNO (1)),
-			       GEN_INT (unit_size)));
+  emit_insn (gen_mulvNsi3_dup (ramp, GEN_INT (unit_size),
+			       gen_rtx_REG (offsetmode, VGPR_REGNO (1))));
 
   bool simple_repeat = true;
 
@@ -2294,36 +2351,46 @@ gcn_expand_scalar_to_vector_address (machine_mode mode, rtx exec, rtx mem,
 
    Return values.
      ADDR_SPACE_FLAT   - return VnDImode vector of absolute addresses.
-     ADDR_SPACE_GLOBAL - return VnSImode vector of offsets.  */
+     ADDR_SPACE_GLOBAL - return VnSImode vector of offsets.
+     64-bit offsets    - return VnDImode vector of absolute addresses. */
 
 rtx
 gcn_expand_scaled_offsets (addr_space_t as, rtx base, rtx offsets, rtx scale,
 			   bool unsigned_p, rtx exec)
 {
   int vf = GET_MODE_NUNITS (GET_MODE (offsets));
-  rtx tmpsi = gen_reg_rtx (VnMODE (vf, SImode));
-  rtx tmpdi = gen_reg_rtx (VnMODE (vf, DImode));
+  rtx scaled_offsets = gen_reg_rtx (GET_MODE (offsets));
+  rtx abs_addr = gen_reg_rtx (VnMODE (vf, DImode));
+  bool use_di = GET_MODE_INNER (GET_MODE (scaled_offsets)) == DImode;
 
   if (CONST_INT_P (scale)
       && INTVAL (scale) > 0
       && exact_log2 (INTVAL (scale)) >= 0)
-    emit_insn (gen_ashlvNsi3 (tmpsi, offsets,
-			      GEN_INT (exact_log2 (INTVAL (scale))),
-			      NULL, exec));
+    emit_insn (gen_ashlvNm3 (scaled_offsets, offsets,
+			     GEN_INT (exact_log2 (INTVAL (scale))),
+			     NULL, exec));
   else
-     emit_insn (gen_mulvNsi3_dup (tmpsi, offsets, scale, NULL, exec));
+     emit_insn (gen_mulvNm3_dup (scaled_offsets, scale, offsets, NULL, exec));
 
+  /* No instructions support DImode offsets.  */
+  if (use_di)
+    {
+      emit_insn (gen_addvNdi3_dup (abs_addr, base, scaled_offsets, NULL, exec));
+      return abs_addr;
+    }
   /* "Global" instructions do not support negative register offsets.  */
-  if (as == ADDR_SPACE_FLAT || !unsigned_p)
+  else if (as == ADDR_SPACE_FLAT || !unsigned_p)
     {
       if (unsigned_p)
-	 emit_insn (gen_addvNdi3_zext_dup2 (tmpdi, tmpsi, base, NULL, exec));
+	emit_insn (gen_addvNdi3_zext_dup2 (abs_addr, scaled_offsets, base,
+					   NULL, exec));
       else
-	 emit_insn (gen_addvNdi3_sext_dup2 (tmpdi, tmpsi, base, NULL, exec));
-      return tmpdi;
+	emit_insn (gen_addvNdi3_sext_dup2 (abs_addr, scaled_offsets, base,
+					   NULL, exec));
+      return abs_addr;
     }
   else if (as == ADDR_SPACE_GLOBAL)
-    return tmpsi;
+    return scaled_offsets;
 
   gcc_unreachable ();
 }
@@ -2911,6 +2978,19 @@ gcn_init_cumulative_args (CUMULATIVE_ARGS *cum /* Argument info to init */ ,
   if (!caller && cfun->machine->normal_function)
     gcn_detect_incoming_pointer_arg (fndecl);
 
+  static bool warned_xnack = 0;
+  if (!warned_xnack
+      && (omp_requires_mask & (OMP_REQUIRES_UNIFIED_SHARED_MEMORY
+			       | OMP_REQUIRES_SELF_MAPS))
+      && gcn_devices[gcn_arch].xnack_default != HSACO_ATTR_UNSUPPORTED
+      && flag_xnack == HSACO_ATTR_OFF)
+    {
+      warning_at (UNKNOWN_LOCATION, 0,
+		  "Unified Shared Memory is required, but XNACK is disabled");
+      inform (UNKNOWN_LOCATION, "Try -foffload-options=-mxnack=any");
+      warned_xnack = 1;
+    }
+
   reinit_regs ();
 }
 
@@ -3096,8 +3176,7 @@ move_callee_saved_registers (rtx sp, machine_function *offsets,
 	saved_scalars++;
       }
 
-  rtx move_scalars = get_insns ();
-  end_sequence ();
+  rtx move_scalars = end_sequence ();
   start_sequence ();
 
   /* Ensure that all vector lanes are moved.  */
@@ -3232,8 +3311,7 @@ move_callee_saved_registers (rtx sp, machine_function *offsets,
 	offset += size;
       }
 
-  rtx move_vectors = get_insns ();
-  end_sequence ();
+  rtx move_vectors = end_sequence ();
 
   if (prologue)
     {
@@ -3360,8 +3438,7 @@ gcn_expand_prologue ()
 						 + offsets->callee_saves))));
 	}
 
-      rtx_insn *seq = get_insns ();
-      end_sequence ();
+      rtx_insn *seq = end_sequence ();
 
       emit_insn (seq);
     }
@@ -3674,7 +3751,8 @@ gcn_hard_regno_rename_ok (unsigned int from_reg, unsigned int to_reg)
       || from_reg == EXEC_LO_REG || from_reg == EXEC_HI_REG
       || to_reg == SCC_REG
       || to_reg == VCC_LO_REG || to_reg == VCC_HI_REG
-      || to_reg == EXEC_LO_REG || to_reg == EXEC_HI_REG)
+      || to_reg == EXEC_LO_REG || to_reg == EXEC_HI_REG
+      || MEMORY_APERTURE_REG_P (to_reg))
     return false;
 
   /* Allow the link register to be used if it was saved.  */
@@ -3969,6 +4047,8 @@ gcn_memory_move_cost (machine_mode mode, reg_class_t regclass, bool in)
     case SGPR_DST_REGS:
     case GENERAL_REGS:
     case AFP_REGS:
+      /* This one can't be written to.  */
+    case MEMORY_APERTURE_REGS:
       if (!in)
 	return (STORE_COST + 2) * nregs;
       return LOAD_COST * nregs;
@@ -4502,7 +4582,7 @@ gcn_expand_cmp_swap (tree exp, rtx target)
 
 static rtx
 gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
-		      machine_mode /*mode */ , int ignore,
+		      machine_mode mode, int ignore,
 		      struct gcn_builtin_description *)
 {
   tree fndecl = TREE_OPERAND (CALL_EXPR_FN (exp), 0);
@@ -4594,6 +4674,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg = force_reg (V64SFmode,
 			     expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					  V64SFmode,
@@ -4605,6 +4687,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg = force_reg (SFmode,
 			     expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					  SFmode,
@@ -4616,6 +4700,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg = force_reg (V64SFmode,
 			     expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					  V64SFmode,
@@ -4627,6 +4713,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg = force_reg (V64DFmode,
 			     expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					  V64DFmode,
@@ -4638,6 +4726,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg = force_reg (V64SFmode,
 			     expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					  V64SFmode,
@@ -4649,6 +4739,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg = force_reg (V64DFmode,
 			     expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					  V64DFmode,
@@ -4660,6 +4752,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg1 = force_reg (V64SFmode,
 			      expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					   V64SFmode,
@@ -4675,6 +4769,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg1 = force_reg (V64DFmode,
 			      expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					   V64DFmode,
@@ -4690,6 +4786,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg = force_reg (V64SFmode,
 			     expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					  V64SFmode,
@@ -4701,6 +4799,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg = force_reg (V64SFmode,
 			     expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					  V64SFmode,
@@ -4712,6 +4812,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg = force_reg (V64DFmode,
 			     expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					  V64DFmode,
@@ -4723,6 +4825,8 @@ gcn_expand_builtin_1 (tree exp, rtx target, rtx /*subtarget */ ,
       {
 	if (ignore)
 	  return target;
+	if (!REG_P (target))
+	  target = gen_reg_rtx (mode);
 	rtx arg = force_reg (V64DFmode,
 			     expand_expr (CALL_EXPR_ARG (exp, 0), NULL_RTX,
 					  V64DFmode,
@@ -5318,22 +5422,17 @@ gcn_preferred_vector_alignment (const_tree type)
 
 static bool
 gcn_vectorize_support_vector_misalignment (machine_mode ARG_UNUSED (mode),
-					   const_tree type, int misalignment,
-					   bool is_packed)
+					   int ARG_UNUSED (misalignment),
+					   bool is_packed,
+					   bool ARG_UNUSED (is_gather_scatter))
 {
-  if (is_packed)
-    return false;
+  /* All Flat and Global load instructions support arbitrary alignment, so
+     the types and such are irrelevant (Buffer instructions are not used).  */
 
-  /* If the misalignment is unknown, we should be able to handle the access
-     so long as it is not to a member of a packed data structure.  */
-  if (misalignment == -1)
-    return true;
-
-  /* Return true if the misalignment is a multiple of the natural alignment
-     of the vector's element type.  This is probably always going to be
-     true in practice, since we've already established that this isn't a
-     packed access.  */
-  return misalignment % TYPE_ALIGN_UNIT (type) == 0;
+  /* Disallow packed accesses because expand attempts to take scalar subregs of
+     vector registers, which is nonsense.
+     Testcase: gfortran.dg/recursive_alloc_comp_4.f08   */
+  return !is_packed;
 }
 
 /* Implement TARGET_VECTORIZE_VECTOR_ALIGNMENT_REACHABLE.
@@ -5765,6 +5864,16 @@ gcn_libc_has_function (enum function_class fn_class,
   return bsd_libc_has_function (fn_class, type);
 }
 
+/* Implement TARGET_VECTORIZE_PREFER_GATHER_SCATTER. */
+
+static bool
+gcn_prefer_gather_scatter (machine_mode ARG_UNUSED (mode),
+			   int ARG_UNUSED (scale),
+			   unsigned int ARG_UNUSED (group_size))
+{
+  return true;
+}
+
 /* }}}  */
 /* {{{ md_reorg pass.  */
 
@@ -5860,8 +5969,7 @@ gcn_restore_exec (rtx_insn *insn, rtx_insn *last_exec_def, int64_t curr_exec,
 	{
 	  start_sequence ();
 	  emit_move_insn (exec_save_reg, exec_reg);
-	  rtx_insn *seq = get_insns ();
-	  end_sequence ();
+	  rtx_insn *seq = end_sequence ();
 
 	  emit_insn_after (seq, last_exec_def);
 	  if (dump_file && (dump_flags & TDF_DETAILS))
@@ -5877,8 +5985,7 @@ gcn_restore_exec (rtx_insn *insn, rtx_insn *last_exec_def, int64_t curr_exec,
   /* Restore EXEC register before the usage.  */
   start_sequence ();
   emit_move_insn (exec_reg, exec);
-  rtx_insn *seq = get_insns ();
-  end_sequence ();
+  rtx_insn *seq = end_sequence ();
   emit_insn_before (seq, insn);
 
   if (dump_file && (dump_flags & TDF_DETAILS))
@@ -6039,8 +6146,7 @@ gcn_md_reorg (void)
 	    {
 	      start_sequence ();
 	      emit_move_insn (exec_reg, GEN_INT (new_exec));
-	      rtx_insn *seq = get_insns ();
-	      end_sequence ();
+	      rtx_insn *seq = end_sequence ();
 	      emit_insn_before (seq, insn);
 
 	      if (dump_file && (dump_flags & TDF_DETAILS))
@@ -6131,12 +6237,22 @@ gcn_md_reorg (void)
      detects the missed cases, and inserts the documented number of NOPs
      required for correct execution.  */
 
+  /* RDNA4 (not yet implemented) differs from RNDA 2/3/3.5 and requires some
+     s_nop, see 5.7 and esp. 5.7.2. in its ISA manual.
+     The assert here is a reminder to add those.  */
+  STATIC_ASSERT (ISA_CDNA1 - ISA_RDNA3 == 1);
+
+  if (TARGET_NO_MANUAL_NOPS)
+    return;
+
   const int max_waits = 5;
   struct ilist
   {
     rtx_insn *insn;
     attr_unit unit;
-    attr_delayeduse delayeduse;
+    attr_type type;
+    attr_flatmemaccess flatmemaccess;
+    bool delayeduse;
     HARD_REG_SET writes;
     HARD_REG_SET reads;
     int age;
@@ -6157,7 +6273,29 @@ gcn_md_reorg (void)
 
       attr_type itype = get_attr_type (insn);
       attr_unit iunit = get_attr_unit (insn);
-      attr_delayeduse idelayeduse = get_attr_delayeduse (insn);
+      attr_flatmemaccess iflatmemaccess = get_attr_flatmemaccess (insn);
+      bool delayeduse;
+      if (TARGET_CDNA3_NOPS)
+	switch (iflatmemaccess)
+	  {
+	  case FLATMEMACCESS_STORE:
+	  case FLATMEMACCESS_STOREX34:
+	  case FLATMEMACCESS_ATOMIC:
+	  case FLATMEMACCESS_CMPSWAPX2:
+	    delayeduse = true;
+	    break;
+	  case FLATMEMACCESS_LOAD:
+	  case FLATMEMACCESS_ATOMICWAIT:
+	  case FLATMEMACCESS_NO:
+	    delayeduse = false;
+	    break;
+	  default:
+	    gcc_unreachable ();
+	  }
+      else
+	delayeduse = (iflatmemaccess == FLATMEMACCESS_CMPSWAPX2
+		      || iflatmemaccess == FLATMEMACCESS_STOREX34);
+
       int ivccwait = get_attr_vccwait (insn);
       HARD_REG_SET ireads, iwrites;
       CLEAR_HARD_REG_SET (ireads);
@@ -6202,16 +6340,26 @@ gcn_md_reorg (void)
 		   && TEST_HARD_REG_BIT (ireads, VCCZ_REG))))
 	    nops_rqd = 5 - prev_insn->age;
 
-	  /* VALU writes SGPR/VCC followed by v_{read,write}lane using
-	     SGPR/VCC as lane select requires 4 wait states.  */
+	  /* VALU writes SGPR/VCC followed by
+	     - v_{read,write}lane using SGPR/VCC as lane select requires
+	       4 wait states
+	     - [CDNA3] VALU reads SGPR as constant requires 1 wait state
+	     - [CDNA3] VALU reads SGPR as carry-in requires no wait states  */
 	  if ((prev_insn->age + nops_rqd) < 4
 	      && prev_insn->unit == UNIT_VECTOR
-	      && get_attr_laneselect (insn) == LANESELECT_YES
+	      && get_attr_laneselect (insn) != LANESELECT_NO
 	      && (hard_reg_set_intersect_p
 		    (depregs, reg_class_contents[(int) SGPR_REGS])
 		  || hard_reg_set_intersect_p
 		       (depregs, reg_class_contents[(int) VCC_CONDITIONAL_REG])))
 	    nops_rqd = 4 - prev_insn->age;
+	  else if (TARGET_CDNA3_NOPS
+		   && (prev_insn->age + nops_rqd) < 1
+		   && prev_insn->unit == UNIT_VECTOR
+		   && iunit == UNIT_VECTOR
+		   && hard_reg_set_intersect_p
+			(depregs, reg_class_contents[(int) SGPR_REGS]))
+	    nops_rqd = 1 - prev_insn->age;
 
 	  /* VALU writes VGPR followed by VALU_DPP reading that VGPR
 	     requires 2 wait states.  */
@@ -6224,21 +6372,127 @@ gcn_md_reorg (void)
 		nops_rqd = 2 - prev_insn->age;
 	    }
 
+	  /* VALU writes EXEC followed by VALU DPP op requires 5 nop.  */
+	  if ((prev_insn->age + nops_rqd) < 5
+	      && itype == TYPE_VOP_DPP
+	      && prev_insn->unit == UNIT_VECTOR
+	      && TEST_HARD_REG_BIT (prev_insn->writes, EXECZ_REG))
+	    nops_rqd = 5 - prev_insn->age;
+
 	  /* Store that requires input registers are not overwritten by
-	     following instruction.  */
-	  if ((prev_insn->age + nops_rqd) < 1
-	      && prev_insn->delayeduse == DELAYEDUSE_YES
+	     following instruction.
+	     For CDNA3, only, VALU writes require 2 not 1 nop.
+	     CDNA3 additionally requires that 1 or 2 nop for global & scatch
+	     store/atomic.  */
+	  if (TARGET_CDNA3_NOPS
+	      && (prev_insn->age + nops_rqd) < 2
+	      && prev_insn->delayeduse
+	      && iunit == UNIT_VECTOR
+	      && ((hard_reg_set_intersect_p
+		   (prev_insn->reads, iwrites))))
+	    nops_rqd = 2 - prev_insn->age;
+	  else if ((prev_insn->age + nops_rqd) < 1
+	      && prev_insn->delayeduse
 	      && ((hard_reg_set_intersect_p
 		   (prev_insn->reads, iwrites))))
 	    nops_rqd = 1 - prev_insn->age;
 
-	  /* Instruction that requires VCC is not written too close before
-	     using it.  */
+	  /* Instruction (such as v_div_fmas) that requires VCC is not written
+	     too close before using it  */
 	  if (prev_insn->age < ivccwait
 	      && (hard_reg_set_intersect_p
 		  (prev_insn->writes,
 		   reg_class_contents[(int)VCC_CONDITIONAL_REG])))
 	    nops_rqd = ivccwait - prev_insn->age;
+
+	  /* NOTE: The following condition for adding wait state exists, but
+	     GCC does not access the special registers using their SGPR#.
+	     Thus, no action is required here.  The following wait-state
+	     condition exists at least for VEGA/gfx900+ to CDNA3:
+		Mixed use of VCC: alias vs. SGPR# - v_readlane,
+		v_readfirstlane, v_cmp, v_add_*i/u, v_sub_*i/u, v_div_*scale
+		followed by VALU reads VCC as constant requires 1 wait state.
+		(As carry-in, it requires none.)
+		[VCC can be accessed by name or logical SGPR that holds it.]  */
+
+	  /* Testing indicates that CDNA3 requires an s_nop between
+	     e.g. 'v_cmp_eq_u64 vcc, v[4:5], v[8:9]' and 'v_mov_b32 v0, vcc_lo'.
+	     Thus: add it between v_cmp writing VCC and VALU read of VCC.  */
+	  if (TARGET_CDNA3_NOPS
+	      && (prev_insn->age + nops_rqd) < 1
+	      && iunit == UNIT_VECTOR
+	      && (hard_reg_set_intersect_p
+		  (depregs, reg_class_contents[(int)VCC_CONDITIONAL_REG]))
+	      && get_attr_vcmp (prev_insn->insn) == VCMP_VCMP)
+	    nops_rqd = 1 - prev_insn->age;
+
+	  /* CDNA3: VALU writes SGPR/VCC: v_readlane, v_readfirstlane, v_cmp,
+	     v_add_*i/u, v_sub_*i/u, v_div_*scale - followed by:
+	     - VALU reads SGPR as constant requires 1 waite state
+	     - VALU reads SGPR as carry-in requires no waite state
+	     - v_readlane/v_writelane reads SGPR as lane select requires 4 wait
+	       states.  */
+	  if (TARGET_CDNA3_NOPS
+	      && (prev_insn->age + nops_rqd) < 4
+	      && iunit == UNIT_VECTOR
+	      && prev_insn->unit == UNIT_VECTOR
+	      && hard_reg_set_intersect_p
+		   (depregs, reg_class_contents[(int) SGPR_SRC_REGS]))
+	    {
+	      if (get_attr_laneselect (insn) != LANESELECT_NO)
+		nops_rqd = 4 - prev_insn->age;
+	      else if ((prev_insn->age + nops_rqd) < 1)
+		nops_rqd = 1 - prev_insn->age;
+	    }
+
+	  /* CDNA3: v_cmpx followed by
+	     - V_readlane, v_readfirstlane, v_writelane requires 4 wait states
+	     - VALU reads EXEC as constant requires 2 wait states
+	     - other VALU requires no wait state  */
+	  if (TARGET_CDNA3_NOPS
+	      && (prev_insn->age + nops_rqd) < 4
+	      && get_attr_vcmp (prev_insn->insn) == VCMP_VCMPX
+	      && get_attr_laneselect (insn) != LANESELECT_NO)
+	    nops_rqd = 4 - prev_insn->age;
+	  else if (TARGET_CDNA3_NOPS
+		   && (prev_insn->age + nops_rqd) < 2
+		   && iunit == UNIT_VECTOR
+		   && get_attr_vcmp (prev_insn->insn) == VCMP_VCMPX
+		   && TEST_HARD_REG_BIT (ireads, EXECZ_REG))
+	    nops_rqd = 2 - prev_insn->age;
+
+	  /* CDNA3: VALU writes VGPR followed by v_readlane vsrc0 reads VGPRn
+	     requires 1 wait state. */
+	  if (TARGET_CDNA3_NOPS
+	      && (prev_insn->age + nops_rqd) < 1
+	      && prev_insn->unit == UNIT_VECTOR
+	      && prev_insn->flatmemaccess != FLATMEMACCESS_LOAD
+	      && get_attr_laneselect (insn) == LANESELECT_READ
+	      && hard_reg_set_intersect_p
+		    (depregs, reg_class_contents[(int) VGPR_REGS]))
+	    nops_rqd = 1 - prev_insn->age;
+
+	  /* CDNA3: VALU op which uses OPSEL or SDWA with changes the result's
+	     bit position followed by VALU op consumes result of that op
+	     requires 1 wait state.
+	     FIXME: Handle OPSEL, once used.  */
+	  if (TARGET_CDNA3_NOPS
+	      && (prev_insn->age + nops_rqd) < 1
+	      && prev_insn->unit == UNIT_VECTOR
+	      && prev_insn->type == TYPE_VOP_SDWA
+	      && !hard_reg_set_empty_p (depregs))
+	    nops_rqd = 1 - prev_insn->age;
+
+	  /* CNDA3: VALU Trans Op (such as v_rcp_f64) followed by non-trans VALU
+	     op consumes result of that op requires 1 wait state.  */
+	  if (TARGET_CDNA3_NOPS
+	      && (prev_insn->age + nops_rqd) < 1
+	      && prev_insn->unit == UNIT_VECTOR
+	      && iunit == UNIT_VECTOR
+	      && get_attr_transop (prev_insn->insn) == TRANSOP_YES
+	      && get_attr_transop (insn) == TRANSOP_NO
+	      && !hard_reg_set_empty_p (depregs))
+	    nops_rqd = 1 - prev_insn->age;
 
 	  /* CDNA1: write VGPR before v_accvgpr_write reads it.  */
 	  if (TARGET_AVGPR_CDNA1_NOPS
@@ -6271,8 +6525,8 @@ gcn_md_reorg (void)
 	}
 
       /* Insert the required number of NOPs.  */
-      for (int i = nops_rqd; i > 0; i--)
-	emit_insn_after (gen_nop (), last_insn);
+      if (nops_rqd > 0)
+	emit_insn_after (gen_nops (GEN_INT (nops_rqd-1)), last_insn);
 
       /* Age the previous instructions.  We can also ignore writes to
          registers subsequently overwritten.  */
@@ -6295,7 +6549,9 @@ gcn_md_reorg (void)
       /* Track the current instruction as a previous instruction.  */
       back[oldest].insn = insn;
       back[oldest].unit = iunit;
-      back[oldest].delayeduse = idelayeduse;
+      back[oldest].type = itype;
+      back[oldest].flatmemaccess = iflatmemaccess;
+      back[oldest].delayeduse = delayeduse;
       back[oldest].writes = iwrites;
       back[oldest].reads = ireads;
       back[oldest].age = 0;
@@ -6576,10 +6832,6 @@ gcn_hsa_declare_function_name (FILE *file, const char *name,
 	avgpr = MAX_NORMAL_AVGPR_COUNT;
     }
 
-  /* SIMD32 devices count double in wavefront64 mode.  */
-  if (TARGET_WAVE64_COMPAT)
-    vgpr *= 2;
-
   /* Round up to the allocation block size.  */
   int vgpr_block_size = TARGET_VGPR_GRANULARITY;
   if (vgpr % vgpr_block_size)
@@ -6587,8 +6839,8 @@ gcn_hsa_declare_function_name (FILE *file, const char *name,
   if (avgpr % vgpr_block_size)
     avgpr += vgpr_block_size - (avgpr % vgpr_block_size);
 
-  fputs ("\t.rodata\n"
-	 "\t.p2align\t6\n"
+  switch_to_section (readonly_data_section);
+  fputs ("\t.p2align\t6\n"
 	 "\t.amdhsa_kernel\t", file);
   assemble_name (file, name);
   fputs ("\n", file);
@@ -6707,7 +6959,7 @@ gcn_hsa_declare_function_name (FILE *file, const char *name,
   fputs ("        .end_amdgpu_metadata\n", file);
 #endif
 
-  fputs ("\t.text\n", file);
+  switch_to_section (current_function_section ());
   fputs ("\t.align\t256\n", file);
   fputs ("\t.type\t", file);
   assemble_name (file, name);
@@ -6807,8 +7059,13 @@ print_reg (FILE *file, rtx x)
   machine_mode mode = GET_MODE (x);
   if (VECTOR_MODE_P (mode))
     mode = GET_MODE_INNER (mode);
-  if (mode == BImode || mode == QImode || mode == HImode || mode == SImode
-      || mode == HFmode || mode == SFmode)
+  if (MEMORY_APERTURE_REG_P (REGNO (x)))
+    {
+      gcc_assert (mode == DImode);
+      fprintf (file, "%s", reg_names[REGNO (x)]);
+    }
+  else if (mode == BImode || mode == QImode || mode == HImode || mode == SImode
+	   || mode == HFmode || mode == SFmode)
     fprintf (file, "%s", reg_names[REGNO (x)]);
   else if (mode == DImode || mode == DFmode)
     {
@@ -7108,11 +7365,19 @@ print_operand_address (FILE *file, rtx mem)
    E - print conditional code for v_cmp (eq_u64/ne_u64...)
    A - print address in formatting suitable for given address space.
    O - print offset:n for data share operations.
-   g - print "glc", if appropriate for given MEM
+   G - print "glc" (or for gfx94x: sc0) unconditionally [+ indep. of regnum]
+   g - print "glc" (or for gfx94x: sc0), if appropriate for given MEM
+       NOTE: Do not use 'G' or 'g with scalar memory access ('s_...') as those
+       require "glc" also with gfx94x.
    L - print low-part of a multi-reg value
    H - print second part of a multi-reg value (high-part of 2-reg value)
    J - print third part of a multi-reg value
    K - print fourth part of a multi-reg value
+   R   Print a scalar register number as an integer.  Temporary hack.
+   V - Print a vector register number as an integer.  Temporary hack.
+
+   Additionally, the standard builtin c, n, a, and l exist; see gccint's
+   "Output Templates and Operand Substitution" for details.
  */
 
 void
@@ -7724,10 +7989,13 @@ print_operand (FILE *file, rtx x, int code)
       else
 	output_addr_const (file, x);
       return;
+    case 'G':
+      fputs (TARGET_GLC_NAME, file);
+      return;
     case 'g':
       gcc_assert (xcode == MEM);
       if (MEM_VOLATILE_P (x))
-	fputs (" glc", file);
+	fputs (TARGET_GLC_NAME, file);
       return;
     default:
       output_operand_lossage ("invalid %%xn code");
@@ -7908,8 +8176,6 @@ gcn_dwarf_register_span (rtx rtl)
 #define TARGET_LEGITIMATE_CONSTANT_P gcn_legitimate_constant_p
 #undef  TARGET_LIBC_HAS_FUNCTION
 #define TARGET_LIBC_HAS_FUNCTION gcn_libc_has_function
-#undef  TARGET_LRA_P
-#define TARGET_LRA_P hook_bool_void_true
 #undef  TARGET_MACHINE_DEPENDENT_REORG
 #define TARGET_MACHINE_DEPENDENT_REORG gcn_md_reorg
 #undef  TARGET_MEMORY_MOVE_COST
@@ -7960,6 +8226,8 @@ gcn_dwarf_register_span (rtx rtl)
   gcn_vectorize_builtin_vectorized_function
 #undef  TARGET_VECTORIZE_GET_MASK_MODE
 #define TARGET_VECTORIZE_GET_MASK_MODE gcn_vectorize_get_mask_mode
+#undef  TARGET_VECTORIZE_PREFER_GATHER_SCATTER
+#define TARGET_VECTORIZE_PREFER_GATHER_SCATTER gcn_prefer_gather_scatter
 #undef  TARGET_VECTORIZE_PREFERRED_SIMD_MODE
 #define TARGET_VECTORIZE_PREFERRED_SIMD_MODE gcn_vectorize_preferred_simd_mode
 #undef  TARGET_VECTORIZE_PREFERRED_VECTOR_ALIGNMENT

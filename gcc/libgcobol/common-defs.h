@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025 Symas Corporation
+ * Copyright (c) 2021-2026 Symas Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,8 +30,16 @@
 #ifndef COMMON_DEFS_H_
 #define COMMON_DEFS_H_
 
-#include <stdint.h>
+#include <cassert>
+#include <cstdio>
+#include <cstdint>
+
+#include <algorithm>
 #include <list>
+#include <set>
+#include <vector>
+
+#include "encodings.h"
 
 #define COUNT_OF(X) (sizeof(X) / sizeof(X[0]))
 
@@ -50,12 +58,35 @@
 // COBOL tables can have up to seven subscripts
 #define MAXIMUM_TABLE_DIMENSIONS 7
 
-// This bit gets turned on in the first or last byte (depending on the leading_e attribute
-// phrase) of a NumericDisplay to indicate that the value is negative.
+/*  COBOL has the concept of Numeric Display values, which use an entire byte
+    per digit.  IBM also calls this "Zoned Decimal".
 
-// When running the EBCDIC character set, the meaning of this bit is flipped,
-// because an EBCDIC zero is 0xF0, while ASCII is 0x30
-#define NUMERIC_DISPLAY_SIGN_BIT 0x40
+    In ASCII, the digits are '0' through '9' (0x30 through 0x39'.  Signed
+    values are indicated by turning on the 0x40 bit in either the first
+    byte (for LEADING variables) or the last byte (for TRAILING).
+
+    In IBM EBCDIC, the representation is slightly more complex, because the
+    concept of Zone carries a little more information.  Unsigned numbers are
+    made up of just the EBCDIC digits '0' through '9' (0xF0 through 0xF9).
+
+    The TRAILING signed value +1234 has the byte sequence 0xF1 0xF2 0xF3 0xC3.
+    The TRAILING signed value -1234 has the byte sequence 0xF1 0xF2 0xF3 0xD3.
+    The LEADING  signed value +1234 has the byte sequence 0xC1 0xF2 0xF3 0xF3.
+    The LEADING  signed value -1234 has the byte sequence 0xD1 0xF2 0xF3 0xF3.
+
+    Note that for IBM EBCDIC, the nybble indicating sign has the same meaning
+    as for COMP-3/packed-decimal numbers.
+
+    The effective result of this is that for ASCII, the byte carrying the sign
+    is made negative by turning on the 0x40 bit.
+
+    For EBCDIC, the value must be constructed properly as a positive value by
+    setting the high nybble of the sign-carrying byte to 0xC0, after which the
+    value is flagged negative by turning on the 0x10 bit, turning the 0xC0 to
+    0xD0. */
+
+#define NUMERIC_DISPLAY_SIGN_BIT_ASCII  0x40
+#define NUMERIC_DISPLAY_SIGN_BIT_EBCDIC 0x20
 
 #define LEVEL01 (1)
 #define LEVEL49 (49)
@@ -63,7 +94,6 @@
 
 // In the __gg__move_literala() call, we piggyback this bit onto the
 // cbl_round_t parameter, just to cut down on the number of parameters passed
-
 #define REFER_ALL_BIT 0x80
 
 // Other bits for handling MOVE ALL and so on.
@@ -82,6 +112,14 @@
 
 #define MINIMUM_ALLOCATION_SIZE 16
 
+// This was part of an exercise to make cppcheck shut up about invalid
+// pointer type conversions.
+// It was also to avoid having reinterpret_cast<> all over the place.
+// So, instead of                 reinterpret_cast<char *>(VALUE)
+// I sometimes use                PTRCAST(char, VALUE)
+// Note that "(char *)" is implied by "PTRCAST(char, VALUE)"
+#define PTRCAST(TYPE, VALUE) static_cast<TYPE *>(static_cast<void *>(VALUE))
+
 /*
  * User-defined names in IBM COBOL can have at most 30 characters.
  * For DBCS, the maximum is 14.
@@ -90,6 +128,8 @@
  * "A COBOL word is a character-string of not more than 63 characters"
  */
 typedef char cbl_name_t[64];
+
+typedef void (callback_t)();
 
 // Note that the field_type enum is duplicated in the source code for the
 // COBOL-aware GDB, and so any changes here (or there) have to be reflected
@@ -118,7 +158,6 @@ enum cbl_field_type_t {
   FldSwitch,
   FldDisplay,
   FldPointer,
-  FldBlob,
 };
 
 
@@ -147,50 +186,50 @@ enum cbl_field_type_t {
  * A field is padded (in the unjustified direction) either with 0 or SPC.
  *   (But maybe the fill character should just be an explicit character.)
  */
-enum cbl_field_attr_t : size_t {
-  none_e            = 0x0000000000,
-  figconst_1_e      = 0x0000000001, // This needs to be 1 - don't change the position
-  figconst_2_e      = 0x0000000002, // This needs to be 2
-  figconst_4_e      = 0x0000000004, // This needs to be 4
-  rjust_e           = 0x0000000008, // justify right
-  ljust_e           = 0x0000000010, // justify left
-  zeros_e           = 0x0000000020, // zero fill
-  signable_e        = 0x0000000040,
-  constant_e        = 0x0000000080, // pre-assigned constant
-  function_e        = 0x0000000100,
-  quoted_e          = 0x0000000200,
-  filler_e          = 0x0000000400,
-  _spare_e          = 0x0000000800, //
-  intermediate_e    = 0x0000001000, // Compiler-defined temporary variable
-  embiggened_e      = 0x0000002000, // redefined numeric made 64-bit by USAGE POINTER
-  all_alpha_e       = 0x0000004000, // FldAlphanumeric, but all A's
-  all_x_e           = 0x0000008000, // picture is all X's
-  all_ax_e          = 0x000000a000, // picture is all A's or all X's
-  prog_ptr_e        = 0x0000010000, // FUNCTION-POINTER or PROGRAM-POINTER
-  scaled_e          = 0x0000020000,
-  refmod_e          = 0x0000040000, // Runtime; indicates a refmod is active
-  based_e           = 0x0000080000, // pointer capacity, for ADDRESS OF or ALLOCATE
-  any_length_e      = 0x0000100000, // inferred length of linkage in nested program
-  global_e          = 0x0000200000, // field has global scope
-  external_e        = 0x0000400000, // field has external scope
-  blank_zero_e      = 0x0000800000, // BLANK WHEN ZERO
+enum cbl_field_attr_t : uint64_t {
+  none_e            =  0x0000000000,
+  figconst_1_e      =  0x0000000001, // This needs to be 1 - don't change the position
+  figconst_2_e      =  0x0000000002, // This needs to be 2
+  figconst_4_e      =  0x0000000004, // This needs to be 4
+  rjust_e           =  0x0000000008, // justify right
+  ljust_e           =  0x0000000010, // justify left
+  zeros_e           =  0x0000000020, // zero fill
+  signable_e        =  0x0000000040,
+  constant_e        =  0x0000000080, // pre-assigned constant
+  function_e        =  0x0000000100,
+  quoted_e          =  0x0000000200,
+  filler_e          =  0x0000000400,
+  register_e        =  0x0000000800, // Data definition is found in constants.cc
+  intermediate_e    =  0x0000001000, // Compiler-defined temporary variable
+  embiggened_e      =  0x0000002000, // redefined numeric made 64-bit by USAGE POINTER
+  all_alpha_e       =  0x0000004000, // FldAlphanumeric, but all A's
+  all_x_e           =  0x0000008000, // picture is all X's
+  all_ax_e          =  0x000000a000, // picture is all A's or all X's
+  prog_ptr_e        =  0x0000010000, // FUNCTION-POINTER or PROGRAM-POINTER
+  scaled_e          =  0x0000020000,
+  refmod_e          =  0x0000040000, // Runtime; indicates a refmod is active
+  based_e           =  0x0000080000, // pointer capacity, for ADDRESS OF or ALLOCATE
+  any_length_e      =  0x0000100000, // inferred length of linkage in nested program
+  global_e          =  0x0000200000, // field has global scope
+  external_e        =  0x0000400000, // field has external scope
+  blank_zero_e      =  0x0000800000, // BLANK WHEN ZERO
   // data division uses 2 low bits of high byte
-  linkage_e         = 0x0001000000, // field is in linkage section
-  local_e           = 0x0002000000, // field is in local section
-  leading_e         = 0x0004000000, // leading sign (signable_e alone means trailing)
-  separate_e        = 0x0008000000, // separate sign
-  envar_e           = 0x0010000000, // names an environment variable
-   dnu_1_e          = 0x0020000000, // unused: this attribute bit is available
-  bool_encoded_e    = 0x0040000000, // data.initial is a boolean string
-  hex_encoded_e     = 0x0080000000, // data.initial is a hex-encoded string
-  depends_on_e      = 0x0100000000, // A group hierachy contains a DEPENDING_ON
-  initialized_e     = 0x0200000000, // Don't call parser_initialize from parser_symbol_add
-  has_value_e       = 0x0400000000, // Flag to hierarchical descendents to ignore .initial
-  ieeedec_e         = 0x0800000000, // Indicates a FldFloat is IEEE 754 decimal, rather than binary
-  big_endian_e      = 0x1000000000, // Indicates a value is big-endian
-  same_as_e         = 0x2000000000, // Field produced by SAME AS (cannot take new members)
-  record_key_e      = 0x4000000000,
-  typedef_e         = 0x8000000000, // IS TYPEDEF
+  linkage_e         =  0x0001000000, // field is in linkage section
+  local_e           =  0x0002000000, // field is in local section
+  leading_e         =  0x0004000000, // leading sign (signable_e alone means trailing)
+  separate_e        =  0x0008000000, // separate sign
+  envar_e           =  0x0010000000, // names an environment variable
+  encoded_e         =  0x0020000000, // data.initial matches codeset.encoding
+  bool_encoded_e    =  0x0040000000, // data.initial is a boolean string
+  hex_encoded_e     =  0x0080000000, // data.initial is a hex-encoded string
+  depends_on_e      =  0x0100000000, // A group hierachy contains a DEPENDING_ON
+  initialized_e     =  0x0200000000, // Don't call parser_initialize from parser_symbol_add
+  has_value_e       =  0x0400000000, // Flag to hierarchical descendents to ignore .initial
+  ieeedec_e         =  0x0800000000, // Indicates a FldFloat is IEEE 754 decimal, rather than binary
+  big_endian_e      =  0x1000000000, // Indicates a value is big-endian
+  same_as_e         =  0x2000000000, // Field produced by SAME AS (cannot take new members)
+  record_key_e      =  0x4000000000,
+  typedef_e         =  0x8000000000, // IS TYPEDEF
   strongdef_e       = typedef_e + intermediate_e, // STRONG TYPEDEF (not temporary)
 };
 // The separate_e value does double-duty for FldPacked/COMP-6, which is not
@@ -200,7 +239,13 @@ enum cbl_field_attr_t : size_t {
 // that there is no sign nybble.
 #define packed_no_sign_e separate_e
 
-enum cbl_figconst_t
+#define LOW_VALUE_E   figconst_1_e
+#define ZERO_VALUE_E  (figconst_2_e|figconst_1_e)
+#define SPACE_VALUE_E figconst_4_e
+#define QUOTE_VALUE_E  (figconst_4_e|figconst_1_e)
+#define HIGH_VALUE_E  (figconst_4_e|figconst_2_e)
+
+enum cbl_figconst_t : uint64_t
     {
     normal_value_e = 0, // This one must be zero
     low_value_e    = 1, // The order is important, because
@@ -212,7 +257,6 @@ enum cbl_figconst_t
     };
 #define FIGCONST_MASK (figconst_1_e|figconst_2_e|figconst_4_e)
 #define DATASECT_MASK (linkage_e | local_e)
-
 
 enum cbl_file_org_t {
   file_disorganized_e,
@@ -235,6 +279,7 @@ enum cbl_file_mode_t {
   file_mode_output_e = 'w',
   file_mode_extend_e = 'a',
   file_mode_io_e     = '+',
+  file_mode_any_e,
 };
 
 enum cbl_round_t {
@@ -284,6 +329,16 @@ enum bitop_t {
   bit_xor_op,
 };
 
+enum file_stmt_t {
+  file_stmt_delete_e,
+  file_stmt_merge_e,
+  file_stmt_read_e,
+  file_stmt_rewrite_e,
+  file_stmt_sort_e,
+  file_stmt_start_e,
+  file_stmt_write_e,
+};
+
 enum file_close_how_t {
   file_close_no_how_e     = 0x00,
   file_close_removal_e    = 0x01,
@@ -307,13 +362,6 @@ enum cbl_arith_format_t {
     not_expected_e,
     no_giving_e, giving_e,
     corresponding_e };
-
-enum cbl_encoding_t {
-  ASCII_e,   // STANDARD-1 (in caps to avoid conflict with ascii_e in libgcobol.cc)
-  iso646_e,  // STANDARD-2
-  EBCDIC_e,  // NATIVE or EBCDIC
-  custom_encoding_e,
-};
 
 enum cbl_truncation_mode {
     trunc_std_e,
@@ -376,6 +424,7 @@ cbl_file_mode_str( cbl_file_mode_t mode ) {
   case file_mode_output_e: return "file_mode_output_e: 'w'";
   case file_mode_io_e:     return "file_mode_io_e: '+'";
   case file_mode_extend_e: return "file_mode_extend_e: 'a'";
+  case file_mode_any_e:    return "file_mode_any_e";
   }
   return "???";
 };
@@ -388,58 +437,175 @@ enum module_type_t {
   module_toplevel_e,
 };
 
+enum convert_type_t {
+  convert_alpha_e      = 0x01,
+  convert_nat_e        = 0x02,
+  convert_any_e        = 0x03, // i.e., both
+  convert_byte_e       = 0x04,
+  convert_hex_e        = 0x08, // may be combined with alpha or national
+  convert_just_bit_e   = 0x10,
+  convert_just_e       = 0x18, // combined with HEX
+  convert_rjust_bit_e  = 0x20,
+  convert_rjust_e      = 0x38, // combined with JUSTIFY
+};
 
-static inline bool
-ec_cmp( ec_type_t raised, ec_type_t mask )
+/*
+ * Compare a "raised" EC to an enabled EC or of a declarative.  "raised" may in
+ * fact not be raised; in the compiler this function is used to compare a TURN
+ * directive to the list of enabled ECs.
+ */
+static bool
+ec_cmp( ec_type_t raised, ec_type_t ec )
 {
-  if( raised == mask ) return true;
+  if( raised == ec ) return true;
 
-  // Do not match on only the low byte.
-  if( 0 < (~EC_ALL_E & static_cast<uint32_t>(mask)) ) return false;
+  // If both low bytes are nonzero, we had to match exactly, above.
+  if( (~EC_ALL_E & static_cast<uint32_t>(raised))
+      &&
+      (~EC_ALL_E & static_cast<uint32_t>(ec)) ) {
+    return false;
+  }
 
-  return  0 != ( static_cast<uint32_t>(raised)
-                 &
-                 static_cast<uint32_t>(mask) );
+  // Level 1 and 2 have low byte of zero.
+  // If one low byte is zero, see if they're the same kind.
+  return 0xFF < ( static_cast<uint32_t>(raised)
+		  &
+		  static_cast<uint32_t>(ec) );
 }
 
 struct cbl_enabled_exception_t {
-  bool enabled, location;
+  bool location;
   ec_type_t ec;
   size_t file;
 
   cbl_enabled_exception_t()
-    : enabled(false)
-    , location(false)
+    : location(false)
     , ec(ec_none_e)
     , file(0)
   {}
 
-  cbl_enabled_exception_t( bool enabled, bool location,
-                           ec_type_t ec, size_t file = 0 )
-    : enabled(enabled)
-    , location(location)
+  cbl_enabled_exception_t( bool location, ec_type_t ec, size_t file = 0 )
+    : location(location)
     , ec(ec)
     , file(file)
   {}
 
-  // sort by  ec and file, not enablement
+  // sort by  ec and file
   bool operator<( const cbl_enabled_exception_t& that ) const {
     if( ec == that.ec ) return file < that.file;
     return ec < that.ec;
   }
-  // match on ec and file, not enablement
+  // match on ec and file
   bool operator==( const cbl_enabled_exception_t& that ) const {
     return ec == that.ec && file == that.file;
   }
+
+  void dump( int i ) const;
 };
 
+struct cbl_declarative_t {
+  enum { files_max = 16 };
+  size_t section; // implies program
+  bool global;
+  ec_type_t type;
+  size_t nfile;
+  uint64_t files[files_max];
+  cbl_file_mode_t mode;
 
-class cbl_enabled_exceptions_array_t;
+  explicit cbl_declarative_t( cbl_file_mode_t mode = file_mode_none_e )
+    : section(0)
+    , global(false)
+    , type(ec_none_e)
+    , nfile(0)
+    , mode(mode)
+  {
+    std::fill(files, files + COUNT_OF(files), 0);
+  }
+  explicit cbl_declarative_t( ec_type_t type )
+    : section(0)
+    , global(false)
+    , type(type)
+    , nfile(0)
+    , mode(file_mode_none_e)
+  {
+    std::fill(files, files + COUNT_OF(files), 0);
+  }
+
+  cbl_declarative_t( size_t section, ec_type_t type,
+                     const std::list<size_t>& files,
+                     cbl_file_mode_t mode,
+		     bool global = false )
+    : section(section), global(global)
+    , type(type)
+    , nfile(files.size())
+    , mode(mode)
+  {
+    assert( files.size() <= COUNT_OF(this->files) );
+    std::fill(this->files, this->files + COUNT_OF(this->files), 0);
+    if( nfile > 0 ) {
+      std::copy( files.begin(), files.end(), this->files );
+    }
+  }
+  cbl_declarative_t( const cbl_declarative_t& that )
+    : section(that.section)
+    , global(that.global)
+    , type(that.type)
+    , nfile(that.nfile)
+    , mode(that.mode)
+  {
+    std::fill(files, files + COUNT_OF(files), 0);
+    if( nfile > 0 ) {
+      std::copy( that.files, that.files + nfile, this->files );
+    }
+  }
+  cbl_declarative_t& operator=(const cbl_declarative_t&) = default;
+
+  std::vector<uint64_t> encode() const;
+
+  /*
+   * Sort file names before file modes, and file modes before non-IO.
+   * Sort file names before file modes, and file modes before non-IO.
+   */
+  bool operator<( const cbl_declarative_t& that ) const {
+    // file name declaratives first, in section order
+    if( nfile != 0 ) {
+      if( that.nfile != 0 ) return section < that.section;
+      return true;
+    }
+    // file mode declaratives between file name declaratives and non-IO
+    if( mode != file_mode_none_e ) {
+      if( that.nfile != 0 ) return false;
+      if( that.mode == file_mode_none_e ) return true;
+      return section < that.section;
+    }
+    // all others by section, after names and modes
+    if( that.nfile != 0 ) return false;
+    if( that.mode != file_mode_none_e ) return false;
+    return section < that.section;
+  }
+
+    // TRUE if there are no files to match, or the provided file is in the list.
+    bool match_file( size_t file ) const {
+    static const uint64_t * pend = files + nfile;
+
+    return nfile == 0 || pend != std::find(files, files + nfile, file);
+  }
+
+  // USE Format 1 names a file mode, or at least one file, and not an EC.
+  bool is_format_1() const {
+    return mode != file_mode_none_e;
+  }
+};
+
+typedef std::vector<cbl_declarative_t> cbl_declaratives_t;
 
 class cbl_enabled_exceptions_t : protected std::set<cbl_enabled_exception_t>
 {
-  friend cbl_enabled_exceptions_array_t;
-  void apply( const cbl_enabled_exception_t& elem ) {
+  void apply( bool enabled, const cbl_enabled_exception_t& elem ) {
+    if( ! enabled ) {
+      erase(elem);
+      return;
+    }
     auto inserted = insert( elem );
     if( ! inserted.second ) {
       erase(inserted.first);
@@ -448,57 +614,35 @@ class cbl_enabled_exceptions_t : protected std::set<cbl_enabled_exception_t>
   }
 
  public:
-  bool turn_on_off( bool enabled, bool location, ec_type_t type,
-                    std::set<size_t> files );
+  cbl_enabled_exceptions_t() {}
+  cbl_enabled_exceptions_t( size_t nec, const cbl_enabled_exception_t *ecs )
+    : std::set<cbl_enabled_exception_t>(ecs, ecs + nec)
+  {}
+  void turn_on_off( bool enabled, bool location, ec_type_t type,
+                    const std::set<size_t>& files );
 
-  const cbl_enabled_exception_t * match( ec_type_t type, size_t file = 0 );
+  const cbl_enabled_exception_t * match( ec_type_t ec, size_t file = 0 ) const;
 
   void dump() const;
+  void dump( const char tag[] ) const;
+  uint32_t status() const;
 
   void clear() { std::set<cbl_enabled_exception_t>::clear(); }
 
   bool   empty() const { return std::set<cbl_enabled_exception_t>::empty(); }
   size_t  size() const { return std::set<cbl_enabled_exception_t>::size(); }
 
+  std::vector<uint64_t> encode() const;
+  cbl_enabled_exceptions_t& decode( const std::vector<uint64_t>& encoded );
+
   cbl_enabled_exceptions_t& operator=( const cbl_enabled_exceptions_t& ) = default;
 };
 
-extern cbl_enabled_exceptions_t enabled_exceptions;
-
-/*
- * This class is passed to the runtime function evaluating the raised exception.
- * It is constructed in genapi.cc from the compile-time table.
- */
-struct cbl_enabled_exceptions_array_t {
-  size_t nec;
-  cbl_enabled_exception_t *ecs;
-
-  cbl_enabled_exceptions_array_t( size_t nec, cbl_enabled_exception_t *ecs )
-    : nec(nec), ecs(ecs) {}
-
-  cbl_enabled_exceptions_array_t( const cbl_enabled_exceptions_t& input =
-                                  cbl_enabled_exceptions_t() )
-    : nec(input.size())
-    , ecs(NULL)
-  {
-    if( ! input.empty() ) {
-      ecs = new cbl_enabled_exception_t[nec];
-      std::copy(input.begin(), input.end(), ecs);
-    }
-  }
-
-  cbl_enabled_exceptions_array_t&
-  operator=( const cbl_enabled_exceptions_array_t& input);
-
-
-  bool match( ec_type_t ec, size_t file = 0 ) const;
-
-  size_t nbytes() const { return nec * sizeof(ecs[0]); }
-};
+cbl_enabled_exceptions_t& cdf_enabled_exceptions();
 
 template <typename T>
 T enabled_exception_match( T beg, T end, ec_type_t type, size_t file ) {
-  cbl_enabled_exception_t input( true, true, // don't matter
+  cbl_enabled_exception_t input( true, // doesn't matter
                                  type, file );
   auto output = std::find(beg, end, input);
   if( output == end ) {

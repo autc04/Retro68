@@ -1,6 +1,65 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-02-12  Pietro Monteiro  <pietro@sociotechnical.xyz>
+	    Jakub Jelinek   <jakub@redhat.com>
+
+	PR libitm/69018
+	* testsuite/lib/libitm.exp (libitm_init): Check
+	GXX_UNDER_TEST.  Add "${blddir}/.libs" to
+	always_ld_library_path if blddir is not empty.  Use
+	"-fdiagnostics-plain-output".  Don't set compiler to GCC_UNDER_TEST.
+	* testsuite/libitm.c++/c++.exp: If $blddir is not empty set
+	libstdc++_library_path, shlib_ext, lang_include_flags, add
+	"${blddir}/${lang_library_paths}" to ld_library_path.
+	Unset libstdc++_library_path and shlib_ext if we skip C++
+	tests and at the end of the test run.
+	* testsuite/libitm.c/c.exp: Update the FSF address to the
+	website in the license text. Unset lang_library_paths and
+	lang_include_flags.  Set the compiler to $GCC_UNDER_TEST.
+
+2026-01-31  Pietro Monteiro  <pietro@sociotechnical.xyz>
+
+	PR libitm/69018
+	* testsuite/lib/libitm.exp (libitm_target_compile): Add
+	lang_include_flags and `-B${blddir}/${lang_library_paths}' to
+	additional_flags.
+	* testsuite/libitm.c++/c++.exp: Set lang_library_paths and lang_include_flags.
+
+2026-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* libitm.texi: Bump @copying's copyright year.
+
+2025-12-29  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure: Regenerate.
+
+2025-12-12  mengqinggang  <mengqinggang@loongson.cn>
+	    Jiajie Chen  <c@jia.je>
+
+	* config/loongarch/asm.h: Fix ilp32 detection.
+
+2025-11-19  Martin Liska  <martin.liska@hey.com>
+
+	* acinclude.m4:: Add detection for wild linker.
+	* configure: Regenerate.
+
+2025-11-03  Sam James  <sam@gentoo.org>
+
+	* configure: Regenerate.
+
+2025-10-05  Sam James  <sam@gentoo.org>
+
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* testsuite/Makefile.in: Regenerate.
+
+2025-05-09  David Malcolm  <dmalcolm@redhat.com>
+
+	PR other/116792
+	* testsuite/lib/libitm.exp: Add load_lib of scanhtml.exp.
 
 2025-01-02  Jakub Jelinek  <jakub@redhat.com>
 
@@ -2675,7 +2734,7 @@
 
 	* Initial commit.
 
-Copyright (C) 2008-2025 Free Software Foundation, Inc.
+Copyright (C) 2008-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

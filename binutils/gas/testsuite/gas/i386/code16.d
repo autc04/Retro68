@@ -1,5 +1,6 @@
 #objdump: -drw -mi8086
 #name: i386 with .code16
+#warning_output: code16.e
 
 .*: +file format .*
 

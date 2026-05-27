@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2022 Free Software Foundation, Inc.
+# Copyright (C) 2012-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -157,6 +157,10 @@ if [istarget sparc*-*-*] {
     run_dump_test "dcti-couples-v8"
     run_dump_test "dcti-couples-v9c"
     run_dump_test "pr20732"
+}
+
+if [istarget sparc*-*-solaris2*] {
+    run_dump_test "v8plus"
 }
 
 if [istarget sparc-*-vxworks*] {

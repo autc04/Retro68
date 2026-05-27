@@ -1,5 +1,5 @@
 ;;- Machine description for ARM for GNU compiler
-;;  Copyright (C) 1991-2025 Free Software Foundation, Inc.
+;;  Copyright (C) 1991-2026 Free Software Foundation, Inc.
 ;;  Contributed by Pieter `Tiggr' Schoenmakers (rcpieter@win.tue.nl)
 ;;  and Martin Simmons (@harleqn.co.uk).
 ;;  More major hacks by Richard Earnshaw (rearnsha@arm.com).
@@ -37,12 +37,12 @@
    (LR_REGNUM        14)	; Return address register
    (PC_REGNUM	     15)	; Program counter
    (LAST_ARM_REGNUM  15)	;
-   (CC_REGNUM       100)	; Condition code pseudo register
-   (VFPCC_REGNUM    101)	; VFP Condition code pseudo register
-   (APSRQ_REGNUM    104)	; Q bit pseudo register
-   (APSRGE_REGNUM   105)	; GE bits pseudo register
-   (VPR_REGNUM      106)	; Vector Predication Register - MVE register.
-   (RA_AUTH_CODE    107)	; Pseudo register to save PAC.
+   (CC_REGNUM        80)	; Condition code pseudo register
+   (VFPCC_REGNUM     81)	; VFP Condition code pseudo register
+   (APSRQ_REGNUM     84)	; Q bit pseudo register
+   (APSRGE_REGNUM    85)	; GE bits pseudo register
+   (VPR_REGNUM       86)	; Vector Predication Register - MVE register.
+   (RA_AUTH_CODE     87)	; Pseudo register to save PAC.
   ]
 )
 ;; 3rd operand to select_dominance_cc_mode
@@ -149,7 +149,7 @@
 ; This attribute is used to compute attribute "enabled",
 ; use type "any" to enable an alternative in all cases.
 (define_attr "arch" "any, a, t, 32, t1, t2, v6,nov6, v6t2, \
-		     v8mb, fix_vlldm, iwmmxt, iwmmxt2, armv6_or_vfpv3, \
+		     v8mb, fix_vlldm, armv6_or_vfpv3, \
 		     neon, mve"
   (const_string "any"))
 
@@ -195,10 +195,6 @@
 
 	 (and (eq_attr "arch" "fix_vlldm")
 	      (match_test "fix_vlldm"))
-	 (const_string "yes")
-
-	 (and (eq_attr "arch" "iwmmxt2")
-	      (match_test "TARGET_REALLY_IWMMXT2"))
 	 (const_string "yes")
 
 	 (and (eq_attr "arch" "armv6_or_vfpv3")
@@ -362,18 +358,7 @@
     alus_ext, alus_imm, alus_sreg,\
     alus_shift_imm, alus_shift_reg, bfm, csel, rev, logic_imm, logic_reg,\
     logic_shift_imm, logic_shift_reg, logics_imm, logics_reg,\
-    logics_shift_imm, logics_shift_reg, extend, shift_imm, float, fcsel,\
-    wmmx_wor, wmmx_wxor, wmmx_wand, wmmx_wandn, wmmx_wmov, wmmx_tmcrr,\
-    wmmx_tmrrc, wmmx_wldr, wmmx_wstr, wmmx_tmcr, wmmx_tmrc, wmmx_wadd,\
-    wmmx_wsub, wmmx_wmul, wmmx_wmac, wmmx_wavg2, wmmx_tinsr, wmmx_textrm,\
-    wmmx_wshufh, wmmx_wcmpeq, wmmx_wcmpgt, wmmx_wmax, wmmx_wmin, wmmx_wpack,\
-    wmmx_wunpckih, wmmx_wunpckil, wmmx_wunpckeh, wmmx_wunpckel, wmmx_wror,\
-    wmmx_wsra, wmmx_wsrl, wmmx_wsll, wmmx_wmadd, wmmx_tmia, wmmx_tmiaph,\
-    wmmx_tmiaxy, wmmx_tbcst, wmmx_tmovmsk, wmmx_wacc, wmmx_waligni,\
-    wmmx_walignr, wmmx_tandc, wmmx_textrc, wmmx_torc, wmmx_torvsc, wmmx_wsad,\
-    wmmx_wabs, wmmx_wabsdiff, wmmx_waddsubhx, wmmx_wsubaddhx, wmmx_wavg4,\
-    wmmx_wmulw, wmmx_wqmulm, wmmx_wqmulwm, wmmx_waddbhus, wmmx_wqmiaxy,\
-    wmmx_wmiaxy, wmmx_wmiawxy, wmmx_wmerge")
+    logics_shift_imm, logics_shift_reg, extend, shift_imm, float, fcsel")
 		(const_string "single")
 	        (const_string "multi")))
 
@@ -435,7 +420,6 @@
 	  (const_string "yes")
 	  (const_string "no"))))
 
-(include "marvell-f-iwmmxt.md")
 (include "arm-generic.md")
 (include "arm926ejs.md")
 (include "arm1020e.md")
@@ -1012,7 +996,7 @@
    (set_attr "type" "alus_sreg")]
 )
 
-(define_insn "subvsi3_intmin"
+(define_insn "sub_cmpVsi3_intmin"
   [(set (reg:CC_V CC_REGNUM)
 	(compare:CC_V
 	  (plus:DI
@@ -1432,15 +1416,15 @@
       operands[2] = GEN_INT (-INTVAL (operands[2]));
       /* Special case for INT_MIN.  */
       if (INTVAL (operands[2]) == 0x80000000)
-	emit_insn (gen_subvsi3_intmin (operands[0], operands[1]));
+	emit_insn (gen_sub_cmpVsi3_intmin (operands[0], operands[1]));
       else
 	emit_insn (gen_addsi3_compareV_imm (operands[0], operands[1],
-					  operands[2]));
+					    operands[2]));
     }
   else if (CONST_INT_P (operands[1]))
-    emit_insn (gen_subvsi3_imm1 (operands[0], operands[1], operands[2]));
+    emit_insn (gen_sub_cmpVsi3_imm1 (operands[0], operands[1], operands[2]));
   else
-    emit_insn (gen_subvsi3 (operands[0], operands[1], operands[2]));
+    emit_insn (gen_sub_cmpVsi3 (operands[0], operands[1], operands[2]));
 
   arm_gen_unlikely_cbranch (NE, CC_Vmode, operands[3]);
   DONE;
@@ -1513,14 +1497,16 @@
     hi_op2 = force_reg (SImode, hi_op2);
   rtx ccreg = gen_rtx_REG (mode, CC_REGNUM);
   if (CONST_INT_P (hi_op2))
-    emit_insn (gen_subvsi3_borrow_imm (hi_result, hi_op1, hi_op2,
+    emit_insn (gen_sub_cmpVsi3_borrow_imm (hi_result, hi_op1, hi_op2,
+					   gen_rtx_LTU (SImode, ccreg,
+							const0_rtx),
+					   gen_rtx_LTU (DImode, ccreg,
+							const0_rtx)));
+  else
+    emit_insn (gen_sub_cmpVsi3_borrow (hi_result, hi_op1, hi_op2,
 				       gen_rtx_LTU (SImode, ccreg, const0_rtx),
 				       gen_rtx_LTU (DImode, ccreg,
 						    const0_rtx)));
-  else
-    emit_insn (gen_subvsi3_borrow (hi_result, hi_op1, hi_op2,
-				   gen_rtx_LTU (SImode, ccreg, const0_rtx),
-				   gen_rtx_LTU (DImode, ccreg, const0_rtx)));
   arm_gen_unlikely_cbranch (NE, CC_Vmode, operands[3]);
 
   DONE;
@@ -1630,15 +1616,18 @@
     hi_op2 = force_reg (SImode, hi_op2);
   rtx ccreg = gen_rtx_REG (mode, CC_REGNUM);
   if (CONST_INT_P (hi_op2))
-    emit_insn (gen_usubvsi3_borrow_imm (hi_result, hi_op1, hi_op2,
-					GEN_INT (UINTVAL (hi_op2) & 0xffffffff),
+    emit_insn (gen_usub_cmpVsi3_borrow_imm (hi_result, hi_op1, hi_op2,
+					    GEN_INT (UINTVAL (hi_op2)
+						     & 0xffffffff),
+					    gen_rtx_LTU (SImode, ccreg,
+							 const0_rtx),
+					    gen_rtx_LTU (DImode, ccreg,
+							 const0_rtx)));
+  else
+    emit_insn (gen_usub_cmpVsi3_borrow (hi_result, hi_op1, hi_op2,
 					gen_rtx_LTU (SImode, ccreg, const0_rtx),
 					gen_rtx_LTU (DImode, ccreg,
 						     const0_rtx)));
-  else
-    emit_insn (gen_usubvsi3_borrow (hi_result, hi_op1, hi_op2,
-				    gen_rtx_LTU (SImode, ccreg, const0_rtx),
-				    gen_rtx_LTU (DImode, ccreg, const0_rtx)));
   arm_gen_unlikely_cbranch (LTU, CC_Bmode, operands[3]);
 
   DONE;
@@ -1657,7 +1646,7 @@
    (set_attr "type" "alus_sreg")]
 )
 
-(define_insn "subvsi3"
+(define_insn "sub_cmpVsi3"
   [(set (reg:CC_V CC_REGNUM)
 	(compare:CC_V
 	 (minus:DI
@@ -1674,7 +1663,7 @@
    (set_attr "type" "alus_sreg")]
 )
 
-(define_insn "subvsi3_imm1"
+(define_insn "sub_cmpVsi3_imm1"
   [(set (reg:CC_V CC_REGNUM)
 	(compare:CC_V
 	 (minus:DI
@@ -2131,7 +2120,7 @@
    (set_attr "type" "alus_imm")]
 )
 
-(define_insn "usubvsi3_borrow"
+(define_insn "usub_cmpVsi3_borrow"
   [(set (reg:CC_B CC_REGNUM)
 	(compare:CC_B
 	 (zero_extend:DI (match_operand:SI 1 "s_register_operand" "0,r"))
@@ -2149,7 +2138,7 @@
    (set_attr "length" "2,4")]
 )
 
-(define_insn "usubvsi3_borrow_imm"
+(define_insn "usub_cmpVsi3_borrow_imm"
   [(set (reg:CC_B CC_REGNUM)
 	(compare:CC_B
 	 (zero_extend:DI (match_operand:SI 1 "s_register_operand" "r,r"))
@@ -2168,7 +2157,7 @@
    (set_attr "type" "alus_imm")]
 )
 
-(define_insn "subvsi3_borrow"
+(define_insn "sub_cmpVsi3_borrow"
   [(set (reg:CC_V CC_REGNUM)
 	(compare:CC_V
 	 (minus:DI
@@ -2189,7 +2178,7 @@
    (set_attr "length" "2,4")]
 )
 
-(define_insn "subvsi3_borrow_imm"
+(define_insn "sub_cmpVsi3_borrow_imm"
   [(set (reg:CC_V CC_REGNUM)
 	(compare:CC_V
 	 (minus:DI
@@ -2893,14 +2882,12 @@
 ;; Split DImode and, ior, xor operations.  Simply perform the logical
 ;; operation on the upper and lower halves of the registers.
 ;; This is needed for atomic operations in arm_split_atomic_op.
-;; Avoid splitting IWMMXT instructions.
 (define_split
   [(set (match_operand:DI 0 "s_register_operand" "")
 	(match_operator:DI 6 "logical_binary_operator"
 	  [(match_operand:DI 1 "s_register_operand" "")
 	   (match_operand:DI 2 "s_register_operand" "")]))]
-  "TARGET_32BIT && reload_completed
-   && ! IS_IWMMXT_REGNUM (REGNO (operands[0]))"
+  "TARGET_32BIT && reload_completed"
   [(set (match_dup 0) (match_op_dup:SI 6 [(match_dup 1) (match_dup 2)]))
    (set (match_dup 3) (match_op_dup:SI 6 [(match_dup 4) (match_dup 5)]))]
   "
@@ -4606,10 +4593,8 @@
       if (arm_reg_or_long_shift_imm (operands[2], GET_MODE (operands[2]))
 	  && (REG_P (operands[2]) || INTVAL(operands[2]) != 32))
         {
-	  if (!reg_overlap_mentioned_p(operands[0], operands[1]))
-	    emit_insn (gen_movdi (operands[0], operands[1]));
-
-	  emit_insn (gen_thumb2_lsll (operands[0], operands[2]));
+	  operands[2] = convert_modes (QImode, SImode, operands[2], 0);
+	  emit_insn (gen_mve_lsll (operands[0], operands[1], operands[2]));
 	  DONE;
 	}
     }
@@ -4645,10 +4630,8 @@
   if (TARGET_HAVE_MVE && !BYTES_BIG_ENDIAN
       && arm_reg_or_long_shift_imm (operands[2], GET_MODE (operands[2])))
     {
-      if (!reg_overlap_mentioned_p(operands[0], operands[1]))
-	emit_insn (gen_movdi (operands[0], operands[1]));
-
-      emit_insn (gen_thumb2_asrl (operands[0], operands[2]));
+      operands[2] = convert_modes (QImode, SImode, operands[2], 0);
+      emit_insn (gen_mve_asrl (operands[0], operands[1], operands[2]));
       DONE;
     }
 
@@ -4680,10 +4663,7 @@
   if (TARGET_HAVE_MVE && !BYTES_BIG_ENDIAN
     && long_shift_imm (operands[2], GET_MODE (operands[2])))
     {
-      if (!reg_overlap_mentioned_p(operands[0], operands[1]))
-        emit_insn (gen_movdi (operands[0], operands[1]));
-
-      emit_insn (gen_thumb2_lsrl (operands[0], operands[2]));
+      emit_insn (gen_mve_lsrl (operands[0], operands[1], operands[2]));
       DONE;
     }
 
@@ -6345,7 +6325,6 @@
   "TARGET_32BIT
    && !(TARGET_HARD_FLOAT)
    && !(TARGET_HAVE_MVE || TARGET_HAVE_MVE_FLOAT)
-   && !TARGET_IWMMXT
    && (   register_operand (operands[0], DImode)
        || register_operand (operands[1], DImode))"
   "*
@@ -6554,7 +6533,7 @@
 (define_insn "*arm_movsi_insn"
   [(set (match_operand:SI 0 "nonimmediate_operand" "=rk,r,r,r,rk,m")
 	(match_operand:SI 1 "general_operand"      "rk, I,K,j,mi,rk"))]
-  "TARGET_ARM && !TARGET_IWMMXT && !TARGET_HARD_FLOAT
+  "TARGET_ARM && !TARGET_HARD_FLOAT
    && (   register_operand (operands[0], SImode)
        || register_operand (operands[1], SImode))"
   "@
@@ -8369,7 +8348,7 @@
 
 (define_expand "movhfcc"
   [(set (match_operand:HF 0 "s_register_operand")
-	(if_then_else:HF (match_operand 1 "arm_cond_move_operator")
+	(if_then_else:HF (match_operand 1 "expandable_comparison_operator")
 			 (match_operand:HF 2 "s_register_operand")
 			 (match_operand:HF 3 "s_register_operand")))]
   "TARGET_VFP_FP16INST"
@@ -8391,7 +8370,7 @@
 
 (define_expand "movsfcc"
   [(set (match_operand:SF 0 "s_register_operand")
-	(if_then_else:SF (match_operand 1 "arm_cond_move_operator")
+	(if_then_else:SF (match_operand 1 "expandable_comparison_operator")
 			 (match_operand:SF 2 "s_register_operand")
 			 (match_operand:SF 3 "s_register_operand")))]
   "TARGET_32BIT && TARGET_HARD_FLOAT"
@@ -8400,9 +8379,13 @@
     enum rtx_code code = GET_CODE (operands[1]);
     rtx ccreg;
 
+    /* Perverse combinations of architecture options can't be supported
+       as they need conditional instructions.  */
+    if (TARGET_THUMB2 && arm_restrict_it && !TARGET_VFP5)
+      FAIL;
     if (!arm_validize_comparison (&operands[1], &XEXP (operands[1], 0),
        				  &XEXP (operands[1], 1)))
-       FAIL;
+      FAIL;
 
     code = GET_CODE (operands[1]);
     ccreg = arm_gen_compare_reg (code, XEXP (operands[1], 0),
@@ -8413,7 +8396,7 @@
 
 (define_expand "movdfcc"
   [(set (match_operand:DF 0 "s_register_operand")
-	(if_then_else:DF (match_operand 1 "arm_cond_move_operator")
+	(if_then_else:DF (match_operand 1 "expandable_comparison_operator")
 			 (match_operand:DF 2 "s_register_operand")
 			 (match_operand:DF 3 "s_register_operand")))]
   "TARGET_32BIT && TARGET_HARD_FLOAT && TARGET_VFP_DOUBLE"
@@ -8422,9 +8405,13 @@
     enum rtx_code code = GET_CODE (operands[1]);
     rtx ccreg;
 
+    /* Perverse combinations of architecture options can't be supported
+       as they need conditional instructions.  */
+    if (TARGET_THUMB2 && arm_restrict_it && !TARGET_VFP5)
+      FAIL;
     if (!arm_validize_comparison (&operands[1], &XEXP (operands[1], 0), 
        				  &XEXP (operands[1], 1)))
-       FAIL;
+      FAIL;
     code = GET_CODE (operands[1]);
     ccreg = arm_gen_compare_reg (code, XEXP (operands[1], 0),
 				 XEXP (operands[1], 1), NULL_RTX);
@@ -8642,7 +8629,7 @@
     if (detect_cmse_nonsecure_call (addr))
       {
 	pat = gen_nonsecure_call_internal (operands[0], operands[1],
-					   operands[2]);
+					   operands[2], const0_rtx);
 	emit_call_insn (pat);
       }
     else
@@ -8684,10 +8671,10 @@
 	      (clobber (reg:SI LR_REGNUM))])])
 
 (define_expand "nonsecure_call_internal"
-  [(parallel [(call (unspec:SI [(match_operand 0 "memory_operand")]
-			       UNSPEC_NONSECURE_MEM)
+  [(parallel [(call (match_operand 0 "memory_operand")
 		    (match_operand 1 "general_operand"))
 	      (use (match_operand 2 "" ""))
+	      (unspec:SI [(match_operand 3)] UNSPEC_NONSECURE_MEM)
 	      (clobber (reg:SI LR_REGNUM))])]
   "use_cmse"
   {
@@ -8764,7 +8751,8 @@
     if (detect_cmse_nonsecure_call (addr))
       {
 	pat = gen_nonsecure_call_value_internal (operands[0], operands[1],
-						 operands[2], operands[3]);
+						 operands[2], operands[3],
+						 const0_rtx);
 	emit_call_insn (pat);
       }
     else
@@ -8798,10 +8786,10 @@
 
 (define_expand "nonsecure_call_value_internal"
   [(parallel [(set (match_operand       0 "" "")
-		   (call (unspec:SI [(match_operand 1 "memory_operand")]
-				    UNSPEC_NONSECURE_MEM)
+		   (call (match_operand 1 "memory_operand")
 			 (match_operand 2 "general_operand")))
 	      (use (match_operand 3 "" ""))
+	      (unspec:SI [(match_operand 4)] UNSPEC_NONSECURE_MEM)
 	      (clobber (reg:SI LR_REGNUM))])]
   "use_cmse"
   "
@@ -10145,6 +10133,7 @@
    (set_attr "type" "multiple")]
 )
 
+;; (pred4 && pred5) != 0
 (define_insn "*cmp_ite0"
   [(set (match_operand 6 "dominant_cc_register" "")
 	(compare
@@ -10161,7 +10150,11 @@
 	        "lPy,rI,L,lPy,lPy,rI,rI,L,L")])
 	  (const_int 0))
 	 (const_int 0)))]
-  "TARGET_32BIT"
+  "TARGET_32BIT
+   && GET_MODE (operands[6]) != CCmode
+   && (GET_MODE (operands[6])
+       == arm_select_dominance_cc_mode (operands[4], operands[5],
+					DOM_CC_X_AND_Y))"
   "*
   {
     static const char * const cmp1[NUM_OF_COND_CMP][2] =
@@ -10228,6 +10221,7 @@
            (const_int 10))])]
 )
 
+;; (!pred4 || pred5) != 0
 (define_insn "*cmp_ite1"
   [(set (match_operand 6 "dominant_cc_register" "")
 	(compare
@@ -10244,7 +10238,11 @@
 	        "lPy,rI,L,lPy,lPy,rI,rI,L,L")])
 	  (const_int 1))
 	 (const_int 0)))]
-  "TARGET_32BIT"
+  "TARGET_32BIT
+   && GET_MODE (operands[6]) != CCmode
+   && (GET_MODE (operands[6])
+       == arm_select_dominance_cc_mode (operands[4], operands[5],
+					DOM_CC_NX_OR_Y))"
   "*
   {
     static const char * const cmp1[NUM_OF_COND_CMP][2] =
@@ -10327,7 +10325,11 @@
 	    (match_operand:SI 3 "arm_add_operand"
 	        "lPy,rI,L,lPy,lPy,r,rI,rI,L,L")]))
 	 (const_int 0)))]
-  "TARGET_32BIT"
+  "TARGET_32BIT
+   && GET_MODE (operands[6]) != CCmode
+   && (GET_MODE (operands[6])
+       == arm_select_dominance_cc_mode (operands[4], operands[5],
+					DOM_CC_X_AND_Y))"
   "*
   {
     static const char *const cmp1[NUM_OF_COND_CMP][2] =
@@ -10412,7 +10414,11 @@
 	    (match_operand:SI 3 "arm_add_operand"
 	        "lPy,rI,L,lPy,lPy,r,rI,rI,L,L")]))
 	 (const_int 0)))]
-  "TARGET_32BIT"
+  "TARGET_32BIT
+   && GET_MODE (operands[6]) != CCmode
+   && (GET_MODE (operands[6])
+       == arm_select_dominance_cc_mode (operands[4], operands[5],
+					DOM_CC_X_OR_Y))"
   "*
   {
     static const char *const cmp1[NUM_OF_COND_CMP][2] =
@@ -13044,7 +13050,7 @@
   "arm_coproc_builtin_available (VUNSPEC_<MCRR>)"
 {
   arm_const_bounds (operands[0], 0, 16);
-  arm_const_bounds (operands[1], 0, 8);
+  arm_const_bounds (operands[1], 0, 16);
   arm_const_bounds (operands[3], 0, (1 << 5));
   return "<mcrr>\\tp%c0, %1, %Q2, %R2, CR%c3";
 }
@@ -13059,7 +13065,7 @@
   "arm_coproc_builtin_available (VUNSPEC_<MRRC>)"
 {
   arm_const_bounds (operands[1], 0, 16);
-  arm_const_bounds (operands[2], 0, 8);
+  arm_const_bounds (operands[2], 0, 16);
   arm_const_bounds (operands[3], 0, (1 << 5));
   return "<mrrc>\\tp%c1, %2, %Q0, %R0, CR%c3";
 }
@@ -13123,10 +13129,8 @@
   [(set_attr "conds" "unconditional")
    (set_attr "type" "nop")])
 
-;; Vector bits common to IWMMXT, Neon and MVE
+;; Vector bits common to Neon and MVE
 (include "vec-common.md")
-;; Load the Intel Wireless Multimedia Extension patterns
-(include "iwmmxt.md")
 ;; Load the VFP co-processor patterns
 (include "vfp.md")
 ;; Thumb-1 patterns

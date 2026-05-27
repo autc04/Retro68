@@ -1,5 +1,5 @@
 /* ACLE support for AArch64 SME.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -17,19 +17,27 @@
    along with GCC; see the file COPYING3.  If not see
    <http://www.gnu.org/licenses/>.  */
 
+/* Code organization: See block comment at the top of
+   aarch64-sve-builtins.def.  */
+
+#ifndef DEF_SME_FUNCTION_GS
+#define DEF_SME_FUNCTION_GS(NAME, SHAPE, TYPES, GROUPS, PREDS) \
+  DEF_SME_FUNCTION_GS_FPM (NAME, SHAPE, TYPES, GROUPS, PREDS, unused)
+#endif
+
 #ifndef DEF_SME_FUNCTION
 #define DEF_SME_FUNCTION(NAME, SHAPE, TYPES, PREDS) \
-  DEF_SME_FUNCTION_GS (NAME, SHAPE, TYPES, none, PREDS)
+  DEF_SME_FUNCTION_GS_FPM (NAME, SHAPE, TYPES, none, PREDS, unused)
 #endif
 
 #ifndef DEF_SME_ZA_FUNCTION_GS
 #define DEF_SME_ZA_FUNCTION_GS(NAME, SHAPE, TYPES, GROUP, PREDS) \
-  DEF_SME_FUNCTION_GS (NAME, SHAPE, TYPES, GROUP, PREDS)
+  DEF_SME_ZA_FUNCTION_GS_FPM (NAME, SHAPE, TYPES, GROUP, PREDS, unused)
 #endif
 
 #ifndef DEF_SME_ZA_FUNCTION
 #define DEF_SME_ZA_FUNCTION(NAME, SHAPE, TYPES, PREDS) \
-  DEF_SME_ZA_FUNCTION_GS (NAME, SHAPE, TYPES, none, PREDS)
+  DEF_SME_ZA_FUNCTION_GS_FPM (NAME, SHAPE, TYPES, none, PREDS, unused)
 #endif
 
 #define REQUIRED_EXTENSIONS streaming_compatible (0)
@@ -90,6 +98,12 @@ DEF_SME_ZA_FUNCTION (svmops, binary_za_m, za_d_float, za_m)
 DEF_SME_FUNCTION (svldr_zt, ldr_zt, none, none)
 DEF_SME_FUNCTION (svstr_zt, str_zt, none, none)
 DEF_SME_FUNCTION (svzero_zt, inherent_zt, none, none)
+#undef REQUIRED_EXTENSIONS
+
+#define REQUIRED_EXTENSIONS streaming_only (AARCH64_FL_SME2 \
+					    | AARCH64_FL_FAMINMAX)
+DEF_SME_FUNCTION_GS (svamin, binary_opt_single_n, all_float, x24, none)
+DEF_SME_FUNCTION_GS (svamax, binary_opt_single_n, all_float, x24, none)
 #undef REQUIRED_EXTENSIONS
 
 /* The d_za entries in this section just declare C _za64 overloads,
@@ -206,6 +220,32 @@ DEF_SME_ZA_FUNCTION_GS (svmls_lane, binary_za_slice_lane, za_d_float,
 DEF_SME_ZA_FUNCTION_GS (svsub, unary_za_slice, za_d_float, vg1x24, none)
 #undef REQUIRED_EXTENSIONS
 
+#define REQUIRED_EXTENSIONS streaming_only (AARCH64_FL_SME_F8F16)
+DEF_SME_ZA_FUNCTION_GS_FPM (svdot, binary_za_slice_opt_single, za_h_mf8,
+			    vg1x24, none, set)
+DEF_SME_ZA_FUNCTION_GS_FPM (svdot_lane, dot_za_slice_lane, za_h_mf8,
+			    vg1x24, none, set)
+#undef REQUIRED_EXTENSIONS
+
+#define REQUIRED_EXTENSIONS streaming_only (AARCH64_FL_SME_F8F32)
+DEF_SME_ZA_FUNCTION_GS_FPM (svdot, binary_za_slice_opt_single, za_s_mf8,
+			    vg1x24, none, set)
+DEF_SME_ZA_FUNCTION_GS_FPM (svdot_lane, dot_za_slice_lane, za_s_mf8,
+			    vg1x24, none, set)
+#undef REQUIRED_EXTENSIONS
+
+#define REQUIRED_EXTENSIONS streaming_only (AARCH64_FL_SME_F8F16)
+DEF_SME_ZA_FUNCTION_GS_FPM (svvdot_lane, dot_za_slice_lane, za_h_mf8,
+			    vg1x2, none, set)
+#undef REQUIRED_EXTENSIONS
+
+#define REQUIRED_EXTENSIONS streaming_only (AARCH64_FL_SME_F8F32)
+DEF_SME_ZA_FUNCTION_GS_FPM (svvdotb_lane, dot_half_za_slice_lane, za_s_mf8,
+			    vg1x4, none, set)
+DEF_SME_ZA_FUNCTION_GS_FPM (svvdott_lane, dot_half_za_slice_lane, za_s_mf8,
+			    vg1x4, none, set)
+#undef REQUIRED_EXTENSIONS
+
 #define REQUIRED_EXTENSIONS streaming_only (AARCH64_FL_SME_F16F16)
 DEF_SME_ZA_FUNCTION_GS (svadd, unary_za_slice, za_h_float, vg1x24, none)
 DEF_SME_ZA_FUNCTION_GS (svmla, binary_za_slice_opt_single, za_h_float,
@@ -247,6 +287,29 @@ DEF_SME_ZA_FUNCTION_GS (svzero, inherent_za_slice, d_za, vg2, none)
 DEF_SME_ZA_FUNCTION_GS (svzero, inherent_za_slice, d_za, vg4, none)
 #undef REQUIRED_EXTENSIONS
 
+#define REQUIRED_EXTENSIONS streaming_only (AARCH64_FL_SME_LUTv2)
+DEF_SME_FUNCTION_GS (svwrite_zt,      write_zt,      all_data,  none, none)
+DEF_SME_FUNCTION_GS (svwrite_lane_zt, write_lane_zt, all_data,  none, none)
+DEF_SME_FUNCTION_GS (svluti4_zt,      luti4_zt,      b_integer, x4,   none)
+#undef REQUIRED_EXTENSIONS
+
+#define REQUIRED_EXTENSIONS streaming_only (AARCH64_FL_SME_F8F16)
+DEF_SME_ZA_FUNCTION_GS_FPM (svmla_lane, binary_za_slice_lane, za_h_mf8,
+			    vg2, none, set)
+DEF_SME_ZA_FUNCTION_GS_FPM (svmla, binary_za_slice_opt_single, za_h_mf8, vg2, none, set)
+DEF_SME_ZA_FUNCTION_GS_FPM (svmla, binary_za_slice_opt_single, za_h_mf8, vg1x24, none, set)
+DEF_SME_ZA_FUNCTION_GS_FPM (svmopa, binary_za_m, za_h_mf8, none, za_m, set)
+#undef REQUIRED_EXTENSIONS
+
+#define REQUIRED_EXTENSIONS streaming_only (AARCH64_FL_SME_F8F32)
+DEF_SME_ZA_FUNCTION_GS_FPM (svmla_lane, binary_za_slice_lane, za_s_mf8,
+			    vg4, none, set)
+DEF_SME_ZA_FUNCTION_GS_FPM (svmla, binary_za_slice_opt_single, za_s_mf8, vg4, none, set)
+DEF_SME_ZA_FUNCTION_GS_FPM (svmla, binary_za_slice_opt_single, za_s_mf8, vg1x24, none, set)
+DEF_SME_ZA_FUNCTION_GS_FPM (svmopa, binary_za_m, za_s_mf8, none, za_m, set)
+#undef REQUIRED_EXTENSIONS
+
 #undef DEF_SME_ZA_FUNCTION
 #undef DEF_SME_ZA_FUNCTION_GS
+#undef DEF_SME_ZA_FUNCTION_GS_FPM
 #undef DEF_SME_FUNCTION

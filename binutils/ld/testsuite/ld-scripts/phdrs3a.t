@@ -11,5 +11,5 @@ SECTIONS
   . = 0x800000 + SIZEOF_HEADERS;
   .text : { *(.text) } :text
   .data : { *(.data) } :data
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

@@ -1,5 +1,5 @@
 # Expect script for --build-id tests.
-#   Copyright (C) 2021-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -31,47 +31,75 @@ if { [istarget frv-*-*] || [istarget lm32-*-*] } {
 
 if { !([istarget *-*-linux*]
        || [istarget arm*-*-uclinuxfdpiceabi]
-       || [istarget *-*-nacl*]
        || [istarget *-*-gnu*]) } then {
     return
 }
 
-run_ld_link_tests [list \
-    [list \
-	"pr28639a.o" \
-	"-r --build-id=md5" \
-	"" \
-	"" \
-	{start.s} \
-	{{readelf {--notes} pr28639a.rd}} \
-	"pr28639a.o" \
-    ] \
-    [list \
-	"pr28639a.o" \
-	"-r --build-id" \
-	"" \
-	"" \
-	{dummy.s} \
-	{{readelf {--notes} pr28639b.rd}} \
-	"pr28639b.o" \
-    ] \
-    [list \
-	"pr28639a" \
-	"--build-id tmpdir/pr28639a.o tmpdir/pr28639b.o" \
-	"" \
-	"" \
-	{dummy.s} \
-	{{readelf {--notes} pr28639b.rd}  \
-	 {readelf {--notes} pr28639c.rd}} \
-	"pr28639a" \
-    ] \
-    [list \
-	"pr28639b" \
-	"--build-id=none tmpdir/pr28639a.o tmpdir/pr28639b.o" \
-	"" \
-	"" \
-	{dummy.s} \
-	{{readelf {--notes} pr28639d.rd}} \
-	"pr28639b" \
-    ] \
-]
+
+set stylelist {"" "--build-id" "--build-id=none" "--build-id=md5"
+    "--build-id=sha1" "--build-id=guid" "--build-id=0xdeadbeef"}
+
+run_ld_link_tests {
+    {
+	"pr28639a.o"
+	"-r --build-id=md5"
+	""
+	""
+	{start.s}
+	{{readelf {--notes} pr28639a.rd}}
+	"pr28639a.o"
+    }
+    {
+	"pr28639b.o"
+	"-r --build-id"
+	""
+	""
+	{dummy.s}
+	{{readelf {--notes} pr28639b.rd}}
+	"pr28639b.o"
+    }
+    {
+	"pr28639a.o deadbeef"
+	"-r --build-id=0xdeadbeef"
+	""
+	""
+	{start.s}
+	{{readelf {--notes} pr28639e.rd}}
+	"pr28639a.o"
+    }
+    {
+	"pr28639a"
+	"--build-id tmpdir/pr28639a.o tmpdir/pr28639b.o"
+	""
+	""
+	{dummy.s}
+	{{readelf {--notes} pr28639b.rd}
+	 {readelf {--notes} pr28639c.rd}}
+	"pr28639a"
+    }
+    {
+	"pr28639b"
+	"--build-id=none tmpdir/pr28639a.o tmpdir/pr28639b.o"
+	""
+	""
+	{dummy.s}
+	{{readelf {--notes} pr28639d.rd}}
+	"pr28639b"
+    }
+}
+
+# see if linker supports xx style also
+catch "exec $ld --help | grep -A2 -- --build-id | grep Styles" tmp
+if {[string first ",xx," $tmp] >= 0} then {
+    run_ld_link_tests {
+        {
+            "pr28639a.o xx"
+            "-r --build-id=xx"
+            ""
+            ""
+            {start.s}
+            {{readelf {--notes} pr28639a.rd}} # 16 bytes
+            "pr28639a.o"
+        }
+    }
+}

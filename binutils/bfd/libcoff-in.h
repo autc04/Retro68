@@ -1,5 +1,5 @@
 /* BFD COFF object file private structure.
-   Copyright (C) 1990-2022 Free Software Foundation, Inc.
+   Copyright (C) 1990-2026 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -24,6 +24,8 @@
 
 #include "bfdlink.h"
 #include "coff-bfd.h"
+#include "hashtab.h"
+#include "hidden.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +41,7 @@ extern "C" {
 #define obj_relocbase(bfd)	      (coff_data (bfd)->relocbase)
 #define obj_raw_syments(bfd)	      (coff_data (bfd)->raw_syments)
 #define obj_raw_syment_count(bfd)     (coff_data (bfd)->raw_syment_count)
+#define obj_coff_keep_raw_syms(bfd)   (coff_data (bfd)->keep_raw_syms)
 #define obj_convert(bfd)	      (coff_data (bfd)->conversion_table)
 #define obj_conv_table_size(bfd)      (coff_data (bfd)->conv_table_size)
 #define obj_coff_external_syms(bfd)   (coff_data (bfd)->external_syms)
@@ -79,21 +82,36 @@ typedef struct coff_tdata
   /* The unswapped external symbols.  May be NULL.  Read by
      _bfd_coff_get_external_symbols.  */
   void * external_syms;
-  /* If this is TRUE, the external_syms may not be freed.  */
-  bool keep_syms;
 
   /* The string table.  May be NULL.  Read by
      _bfd_coff_read_string_table.  */
   char *strings;
   /* The length of the strings table.  For error checking.  */
   bfd_size_type strings_len;
+
+  /* Set if long section names are supported.  A writable copy of the COFF
+     backend flag _bfd_coff_long_section_names.  */
+  bool long_section_names;
+
+  /* If this is TRUE, raw_syments may not be released.  */
+  bool keep_raw_syms;
+  /* If this is TRUE, the external_syms may not be freed.  */
+  bool keep_syms;
   /* If this is TRUE, the strings may not be freed.  */
   bool keep_strings;
   /* If this is TRUE, the strings have been written out already.  */
   bool strings_written;
 
+  /* Is this a GO32 coff file?  */
+  bool go32;
+
   /* Is this a PE format coff file?  */
-  int pe;
+  bool pe;
+
+  /* Copy of some of the f_flags bits in the COFF filehdr structure,
+     used by ARM code.  */
+  flagword flags;
+
   /* Used by the COFF backend linker.  */
   struct coff_link_hash_entry **sym_hashes;
 
@@ -111,18 +129,18 @@ typedef struct coff_tdata
   /* The timestamp from the COFF file header.  */
   long timestamp;
 
-  /* Copy of some of the f_flags bits in the COFF filehdr structure,
-     used by ARM code.  */
-  flagword flags;
-
-  /* Is this a GO32 coff file?  */
-  bool go32;
-
   /* A stub (extra data prepended before the COFF image) and its size.
      Used by coff-go32-exe, it contains executable data that loads the
      COFF object into memory.  */
   char * stub;
   bfd_size_type stub_size;
+
+  /* Hash table containing sections by target index.  */
+  htab_t section_by_target_index;
+
+  /* Hash table containing sections by index.  */
+  htab_t section_by_index;
+
 } coff_data_type;
 
 /* Tdata for pe image files.  */
@@ -133,7 +151,7 @@ typedef struct pe_tdata
   int dll;
   int has_reloc_section;
   int dont_strip_reloc;
-  int dos_message[16];
+  char dos_message[64];
   /* The timestamp to insert into the output file.
      If the timestamp is -1 then the current time is used.  */
   int timestamp;
@@ -147,9 +165,21 @@ typedef struct pe_tdata
     const char *style;
     asection *sec;
   } build_id;
+
+  htab_t comdat_hash;
 } pe_data_type;
 
 #define pe_data(bfd)		((bfd)->tdata.pe_obj_data)
+
+struct comdat_hash_entry
+{
+  int target_index;
+  struct internal_syment isym;
+  char *symname;
+  flagword sec_flags;
+  char *comdat_name;
+  long comdat_symbol;
+};
 
 /* Tdata for XCOFF files.  */
 
@@ -276,6 +306,9 @@ struct coff_link_hash_table
   struct bfd_link_hash_table root;
   /* A pointer to information used to link stabs in sections.  */
   struct stab_info stab_info;
+  /* Hash table that maps undecorated names to their respective
+   * decorated coff_link_hash_entry as found in fixup_stdcalls  */
+  struct bfd_hash_table decoration_hash;
 };
 
 struct coff_reloc_cookie
@@ -307,77 +340,92 @@ struct coff_reloc_cookie
 
 #define coff_hash_table(p) ((struct coff_link_hash_table *) ((p)->hash))
 
+struct decoration_hash_entry
+{
+  struct bfd_hash_entry root;
+  struct bfd_link_hash_entry *decorated_link;
+};
+
 /* Functions in coffgen.c.  */
+extern void coff_object_cleanup
+  (bfd *) ATTRIBUTE_HIDDEN;
+extern bfd_cleanup coff_real_object_p
+  (bfd *, unsigned, struct internal_filehdr *, struct internal_aouthdr *)
+  ATTRIBUTE_HIDDEN;
 extern bfd_cleanup coff_object_p
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern struct bfd_section *coff_section_from_bfd_index
   (bfd *, int);
 extern long coff_get_symtab_upper_bound
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern long coff_canonicalize_symtab
-  (bfd *, asymbol **);
+  (bfd *, asymbol **) ATTRIBUTE_HIDDEN;
 extern int coff_count_linenumbers
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern bool coff_renumber_symbols
-  (bfd *, int *);
+  (bfd *, int *) ATTRIBUTE_HIDDEN;
 extern void coff_mangle_symbols
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern bool coff_write_symbols
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern bool coff_write_alien_symbol
   (bfd *, asymbol *, struct internal_syment *, bfd_vma *,
-   struct bfd_strtab_hash *, bool, asection **, bfd_size_type *);
+   struct bfd_strtab_hash *, bool, asection **, bfd_size_type *)
+  ATTRIBUTE_HIDDEN;
 extern bool coff_write_linenumbers
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern alent *coff_get_lineno
-  (bfd *, asymbol *);
+  (bfd *, asymbol *) ATTRIBUTE_HIDDEN;
 extern asymbol *coff_section_symbol
-  (bfd *, char *);
+  (bfd *, char *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_coff_get_external_symbols
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern const char *_bfd_coff_read_string_table
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_coff_free_symbols
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern struct coff_ptr_struct *coff_get_normalized_symtab
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern long coff_get_reloc_upper_bound
-  (bfd *, sec_ptr);
+  (bfd *, sec_ptr) ATTRIBUTE_HIDDEN;
 extern asymbol *coff_make_empty_symbol
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern void coff_print_symbol
-  (bfd *, void * filep, asymbol *, bfd_print_symbol_type);
+  (bfd *, void * filep, asymbol *, bfd_print_symbol_type) ATTRIBUTE_HIDDEN;
 extern void coff_get_symbol_info
-  (bfd *, asymbol *, symbol_info *ret);
+  (bfd *, asymbol *, symbol_info *ret) ATTRIBUTE_HIDDEN;
 #define coff_get_symbol_version_string \
   _bfd_nosymbols_get_symbol_version_string
 extern bool _bfd_coff_is_local_label_name
-  (bfd *, const char *);
+  (bfd *, const char *) ATTRIBUTE_HIDDEN;
 extern asymbol *coff_bfd_make_debug_symbol
-  (bfd *, void *, unsigned long);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern bool coff_find_nearest_line
   (bfd *, asymbol **, asection *, bfd_vma,
-   const char **, const char **, unsigned int *, unsigned int *);
+   const char **, const char **, unsigned int *, unsigned int *)
+  ATTRIBUTE_HIDDEN;
+#define coff_find_nearest_line_with_alt \
+  _bfd_nosymbols_find_nearest_line_with_alt
 #define coff_find_line _bfd_nosymbols_find_line
 struct dwarf_debug_section;
 extern bool coff_find_nearest_line_with_names
   (bfd *, asymbol **, asection *, bfd_vma, const char **, const char **,
-   unsigned int *, const struct dwarf_debug_section *);
+   unsigned int *, const struct dwarf_debug_section *) ATTRIBUTE_HIDDEN;
 extern bool coff_find_inliner_info
-  (bfd *, const char **, const char **, unsigned int *);
+  (bfd *, const char **, const char **, unsigned int *) ATTRIBUTE_HIDDEN;
 extern int coff_sizeof_headers
-  (bfd *, struct bfd_link_info *);
+  (bfd *, struct bfd_link_info *) ATTRIBUTE_HIDDEN;
 extern bool bfd_coff_reloc16_relax_section
-  (bfd *, asection *, struct bfd_link_info *, bool *);
+  (bfd *, asection *, struct bfd_link_info *, bool *) ATTRIBUTE_HIDDEN;
 extern bfd_byte *bfd_coff_reloc16_get_relocated_section_contents
   (bfd *, struct bfd_link_info *, struct bfd_link_order *,
-   bfd_byte *, bool, asymbol **);
+   bfd_byte *, bool, asymbol **) ATTRIBUTE_HIDDEN;
 extern bfd_vma bfd_coff_reloc16_get_value
-  (arelent *, struct bfd_link_info *, asection *);
+  (arelent *, struct bfd_link_info *, asection *) ATTRIBUTE_HIDDEN;
 extern void bfd_perform_slip
-  (bfd *, unsigned int, asection *, bfd_vma);
-extern bool _bfd_coff_close_and_cleanup
-  (bfd *);
+  (bfd *, unsigned int, asection *, bfd_vma) ATTRIBUTE_HIDDEN;
+extern bool _bfd_coff_free_cached_info
+  (bfd *) ATTRIBUTE_HIDDEN;
 
 /* Functions and types in cofflink.c.  */
 
@@ -552,67 +600,72 @@ struct coff_section_alignment_entry
   unsigned int alignment_power;
 };
 
+extern struct bfd_hash_entry *_decoration_hash_newfunc
+  (struct bfd_hash_entry *, struct bfd_hash_table *, const char *)
+  ATTRIBUTE_HIDDEN;
 extern struct bfd_hash_entry *_bfd_coff_link_hash_newfunc
-  (struct bfd_hash_entry *, struct bfd_hash_table *, const char *);
+  (struct bfd_hash_entry *, struct bfd_hash_table *, const char *)
+  ATTRIBUTE_HIDDEN;
 extern bool _bfd_coff_link_hash_table_init
   (struct coff_link_hash_table *, bfd *,
    struct bfd_hash_entry *(*) (struct bfd_hash_entry *,
 			       struct bfd_hash_table *,
 			       const char *),
-   unsigned int);
+   unsigned int) ATTRIBUTE_HIDDEN;
 extern struct bfd_link_hash_table *_bfd_coff_link_hash_table_create
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern const char *_bfd_coff_internal_syment_name
-  (bfd *, const struct internal_syment *, char *);
+  (bfd *, const struct internal_syment *, char *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_coff_section_already_linked
-  (bfd *, asection *, struct bfd_link_info *);
+  (bfd *, asection *, struct bfd_link_info *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_coff_link_add_symbols
-  (bfd *, struct bfd_link_info *);
+  (bfd *, struct bfd_link_info *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_coff_final_link
-  (bfd *, struct bfd_link_info *);
-extern struct internal_reloc *_bfd_coff_read_internal_relocs
+  (bfd *, struct bfd_link_info *) ATTRIBUTE_HIDDEN;
+extern struct internal_reloc *bfd_coff_read_internal_relocs
   (bfd *, asection *, bool, bfd_byte *, bool,
    struct internal_reloc *);
 extern bool _bfd_coff_generic_relocate_section
   (bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
-   struct internal_reloc *, struct internal_syment *, asection **);
+   struct internal_reloc *, struct internal_syment *, asection **)
+  ATTRIBUTE_HIDDEN;
 extern struct bfd_hash_entry *_bfd_coff_debug_merge_hash_newfunc
-  (struct bfd_hash_entry *, struct bfd_hash_table *, const char *);
+  (struct bfd_hash_entry *, struct bfd_hash_table *, const char *)
+  ATTRIBUTE_HIDDEN;
 extern bool _bfd_coff_write_global_sym
-  (struct bfd_hash_entry *, void *);
+  (struct bfd_hash_entry *, void *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_coff_write_task_globals
-  (struct coff_link_hash_entry *, void *);
+  (struct coff_link_hash_entry *, void *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_coff_link_input_bfd
-  (struct coff_final_link_info *, bfd *);
+  (struct coff_final_link_info *, bfd *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_coff_reloc_link_order
   (bfd *, struct coff_final_link_info *, asection *,
-   struct bfd_link_order *);
-extern bool bfd_coff_gc_sections
-  (bfd *, struct bfd_link_info *);
-extern const char *bfd_coff_group_name
-  (bfd *, const asection *);
-
-#define coff_get_section_contents_in_window \
-  _bfd_generic_get_section_contents_in_window
+   struct bfd_link_order *) ATTRIBUTE_HIDDEN;
+extern bool _bfd_coff_gc_sections
+  (bfd *, struct bfd_link_info *) ATTRIBUTE_HIDDEN;
+extern const char *_bfd_coff_group_name
+  (bfd *, const asection *) ATTRIBUTE_HIDDEN;
 
 /* Functions in xcofflink.c.  */
 
 extern long _bfd_xcoff_get_dynamic_symtab_upper_bound
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern long _bfd_xcoff_canonicalize_dynamic_symtab
-  (bfd *, asymbol **);
+  (bfd *, asymbol **) ATTRIBUTE_HIDDEN;
 extern long _bfd_xcoff_get_dynamic_reloc_upper_bound
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern long _bfd_xcoff_canonicalize_dynamic_reloc
-  (bfd *, arelent **, asymbol **);
+  (bfd *, arelent **, asymbol **) ATTRIBUTE_HIDDEN;
 extern struct bfd_link_hash_table *_bfd_xcoff_bfd_link_hash_table_create
-  (bfd *);
+  (bfd *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_xcoff_bfd_link_add_symbols
-  (bfd *, struct bfd_link_info *);
+  (bfd *, struct bfd_link_info *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_xcoff_bfd_final_link
-  (bfd *, struct bfd_link_info *);
+  (bfd *, struct bfd_link_info *) ATTRIBUTE_HIDDEN;
 extern bool _bfd_xcoff_define_common_symbol
-  (bfd *, struct bfd_link_info *, struct bfd_link_hash_entry *);
+  (bfd *, struct bfd_link_info *, struct bfd_link_hash_entry *)
+  ATTRIBUTE_HIDDEN;
 extern bool _bfd_ppc_xcoff_relocate_section
   (bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
-   struct internal_reloc *, struct internal_syment *, asection **);
+   struct internal_reloc *, struct internal_syment *, asection **)
+  ATTRIBUTE_HIDDEN;

@@ -1,0 +1,70 @@
+# Copyright (C) 2025-2026 Free Software Foundation, Inc.
+#
+# This file is part of the GNU Binutils.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+# MA 02110-1301, USA.
+#
+
+# This script tests the gmon conversion for "gprofng display gmon".
+
+global srcdir CC CLOCK_GETTIME_LINK
+set gprofng $::env(GPROFNG)
+set tdir "tmpdir/gp-gmon"
+
+proc check_gp_gmon { a_opt } {
+  global tdir gprofng
+  set cmd "$gprofng display gmon -O $tdir/$a_opt.er $tdir/a.out $tdir/gmon.out"
+  set output [run_native_host_cmd "$cmd"]
+  if { [lindex $output 0] != 0 } then {
+    set out [lindex $output 1]
+    send_log "'$cmd' failed\n"
+    fail $tdir
+    return -code break
+  }
+
+  run_native_host_cmd "mv $tdir/t.c $tdir/t.c.1"
+  set output [run_native_host_cmd "$gprofng display text -calltree $tdir/$a_opt.er"]
+  set out [lindex $output 1]
+ if {[string match "*\+-<Total>*" $output] &&
+     [string match "*\+-main*" $output] &&
+     [string match "*\+-gethrtime*" $output]} {
+     send_log "Output match!\n"
+  } else {
+    set out [lindex $output 1]
+    send_log "No calltree for '$cmd'\n"
+    fail $tdir
+    return -code break
+  }
+}
+
+run_native_host_cmd "mkdir -p $tdir"
+
+# Build test, create experiment:
+set output [run_native_host_cmd "cd $tdir && \
+  cat $srcdir/lib/smalltest.c | sed '1 i /* CORRECTSOURCE */' > t.c && \
+  $CC -pg -g t.c $CLOCK_GETTIME_LINK && ./a.out"]
+
+if { [lindex $output 0] != 0 } then {
+  set out [lindex $output 1]
+  send_log "gmon.out file is not created in $tdir\n"
+  fail $tdir
+  return
+}
+
+
+check_gp_gmon gmontst
+
+pass $tdir

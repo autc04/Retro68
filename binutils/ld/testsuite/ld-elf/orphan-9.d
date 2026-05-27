@@ -1,5 +1,5 @@
 #source: orphan-9.s
-#ld: -N -T orphan-9.ld
+#ld: -N -T orphan-9.ld --no-warn-rwx-segments
 #objdump: -h
 #xfail: [uses_genelf]
 

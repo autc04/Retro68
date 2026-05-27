@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2025 Free Software Foundation, Inc.
+# Copyright (C) 2017-2026 Free Software Foundation, Inc.
 #
 # Checks some of the GNU style formatting rules in a set of patches.
 # The script is a rewritten of the same bash script and should eventually
@@ -217,7 +217,7 @@ class BracesOnSeparateLineCheck:
                 line[:m.start(2)] + error_string(m.group(2)) + line[m.end(2):],
                 'braces should be on a separate line', m.start(2))
 
-class TrailinigOperatorCheck:
+class TrailingOperatorCheck:
     def __init__(self):
         regex = r'^\s.*(([^a-zA-Z_]\*)|([-%<=&|^?])|([^*]/)|([^:][+]))$'
         self.re = re.compile(regex)
@@ -272,16 +272,21 @@ def check_GNU_style_file(file, format):
         SentenceSeparatorCheck(), SentenceEndOfCommentCheck(),
         SentenceDotEndCheck(), FunctionParenthesisCheck(),
         SquareBracketCheck(), ClosingParenthesisCheck(),
-        BracesOnSeparateLineCheck(), TrailinigOperatorCheck(),
+        BracesOnSeparateLineCheck(), TrailingOperatorCheck(),
         SpacesAndTabsMixedCheck()]
     errors = []
 
     patch = PatchSet(file)
 
     for pfile in patch.added_files + patch.modified_files:
-        t = pfile.target_file.lstrip('b/')
+        t = pfile.target_file
+        if t.startswith('b/'):
+            t = t[2:]
         # Skip testsuite files
         if 'testsuite' in t or t.endswith('.py'):
+            continue
+        # Libstdc++ does not use GNU style
+        if t.startswith('libstdc++-v3/'):
             continue
 
         for hunk in pfile:

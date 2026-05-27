@@ -1,4 +1,7 @@
-#![feature(optin_builtin_traits)]
+#![feature(no_core)]
+#![no_core]
+
+#![feature(optin_builtin_traits, lang_items)]
 
 pub unsafe auto trait Send {}
 #[lang = "sync"]
@@ -15,7 +18,7 @@ fn foo(a: &(dyn A + Send + Sync)) {
 struct S;
 
 impl A for S {
-    fn a_method(&self) {} // { dg-warning "unused name" }
+    fn a_method(&self) {}
 }
 
 fn main() {

@@ -1,6 +1,6 @@
 // 1999-06-08 bkoz
 
-// Copyright (C) 1999-2025 Free Software Foundation, Inc.
+// Copyright (C) 1999-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -47,6 +47,7 @@ void test01(void)
   const size_t n3 = 128;
   try {
     std::bitset<n3> bit03(str01, 5);
+    VERIFY(false);
   }
   catch(std::invalid_argument& fail) {
     VERIFY( true );

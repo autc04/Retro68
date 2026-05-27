@@ -1,6 +1,6 @@
 /* This file contains the definitions for timing variables used to
    measure run-time performance of the compiler.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Alex Samuel <samuel@codesourcery.com>
 
    This file is part of GCC.
@@ -81,6 +81,7 @@ DEFTIMEVAR (TV_IPA_INLINING          , "ipa inlining heuristics")
 DEFTIMEVAR (TV_IPA_FNSPLIT           , "ipa function splitting")
 DEFTIMEVAR (TV_IPA_COMDATS	     , "ipa comdats")
 DEFTIMEVAR (TV_IPA_OPT		     , "ipa various optimizations")
+DEFTIMEVAR (TV_IPA_LTO_ASM	     , "ipa lto asm heuristics")
 DEFTIMEVAR (TV_IPA_LTO_DECOMPRESS    , "lto stream decompression")
 DEFTIMEVAR (TV_IPA_LTO_COMPRESS      , "lto stream compression")
 DEFTIMEVAR (TV_IPA_LTO_OUTPUT        , "lto stream output")
@@ -101,6 +102,7 @@ DEFTIMEVAR (TV_WHOPR_LTRANS          , "whopr ltrans")
 DEFTIMEVAR (TV_IPA_REFERENCE         , "ipa reference")
 DEFTIMEVAR (TV_IPA_PROFILE           , "ipa profile")
 DEFTIMEVAR (TV_IPA_AUTOFDO           , "auto profile")
+DEFTIMEVAR (TV_IPA_AUTOFDO_OFFLINE   , "auto profile offline")
 DEFTIMEVAR (TV_IPA_PURE_CONST        , "ipa pure const")
 DEFTIMEVAR (TV_IPA_ICF		     , "ipa icf")
 DEFTIMEVAR (TV_IPA_PTA               , "ipa points-to")
@@ -345,7 +347,10 @@ DEFTIMEVAR (TV_JIT_CLIENT_CODE   , "JIT client code")
 
 /* Analyzer timevars.  */
 DEFTIMEVAR (TV_ANALYZER              , "analyzer")
-DEFTIMEVAR (TV_ANALYZER_SUPERGRAPH   , "analyzer: supergraph")
+DEFTIMEVAR (TV_ANALYZER_SUPERGRAPH_CREATION, "analyzer: supergraph: creation")
+DEFTIMEVAR (TV_ANALYZER_SUPERGRAPH_FIXUP_LOCATIONS, "analyzer: supergraph: fixup locations")
+DEFTIMEVAR (TV_ANALYZER_SUPERGRAPH_SIMPLIFY, "analyzer: supergraph: simplify")
+DEFTIMEVAR (TV_ANALYZER_SUPERGRAPH_SORTING, "analyzer: supergraph: sorting")
 DEFTIMEVAR (TV_ANALYZER_STATE_PURGE  , "analyzer: state purge")
 DEFTIMEVAR (TV_ANALYZER_PLAN         , "analyzer: planning")
 DEFTIMEVAR (TV_ANALYZER_SCC          , "analyzer: scc")

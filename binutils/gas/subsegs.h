@@ -1,5 +1,5 @@
 /* subsegs.h -> subsegs.c
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -40,6 +40,7 @@
 #include "obstack.h"
 
 struct frch_cfi_data;
+struct frch_ginsn_data;
 
 struct frchain			/* control building of a frag chain */
 {				/* FRCH = FRagment CHain control */
@@ -52,6 +53,7 @@ struct frchain			/* control building of a frag chain */
   struct obstack frch_obstack;	/* for objects in this frag chain */
   fragS *frch_frag_now;		/* frag_now for this subsegment */
   struct frch_cfi_data *frch_cfi_data;
+  struct frch_ginsn_data *frch_ginsn_data;
 };
 
 typedef struct frchain frchainS;
@@ -60,9 +62,21 @@ typedef struct frchain frchainS;
    frag chain, even if it contains no (complete) frags.  */
 extern frchainS *frchain_now;
 
-typedef struct segment_info_struct {
+typedef struct segment_info_struct
+{
   frchainS *frchainP;
-  unsigned int hadone : 1;
+
+  /* Fixups for this segment.  This is only valid after the frchains
+     are run together.  */
+  fixS *fix_root;
+  fixS *fix_tail;
+
+  /* NULL, or pointer to the gas symbol that is the section symbol for
+     this section.  */
+  symbolS *sym;
+
+  /* Used by dwarf2dbg.c for this section's line table entries.  */
+  void *dwarf2_line_seg;
 
   /* This field is set if this is a .bss section which does not really
      have any contents.  Once upon a time a .bss section did not have
@@ -71,35 +85,21 @@ typedef struct segment_info_struct {
      there are frags.  */
   unsigned int bss : 1;
 
-  int user_stuff;
+  /* Set whenever dwarf2_emit_insn is called, and used to disable
+     .eh_frame and .debug_frame optimisation.  This is an anti-fuzzer
+     measure.  */
+  unsigned int insn_seen : 1;
 
-  /* Fixups for this segment.  This is only valid after the frchains
-     are run together.  */
-  fixS *fix_root;
-  fixS *fix_tail;
+  /* Used by the stabs code.  */
+  unsigned int stab_seen : 1;
 
-  symbolS *dot;
-
-  struct lineno_list *lineno_list_head;
-  struct lineno_list *lineno_list_tail;
-
-  /* Which BFD section does this gas segment correspond to?  */
-  asection *bfd_section;
-
-  /* NULL, or pointer to the gas symbol that is the section symbol for
-     this section.  sym->bsym and bfd_section->symbol should be the same.  */
-  symbolS *sym;
-
-  /* Used by dwarf2dbg.c for this section's line table entries.  */
-  void *dwarf2_line_seg;
-
-  union {
+  union
+  {
     /* Current size of section holding stabs strings.  */
     unsigned long stab_string_size;
     /* Initial frag for ELF.  */
     char *p;
-  }
-  stabu;
+  } stabu;
 
 #ifdef NEED_LITERAL_POOL
   unsigned long literal_pool_size;

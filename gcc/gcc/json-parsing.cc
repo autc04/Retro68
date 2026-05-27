@@ -1,5 +1,5 @@
 /* JSON parsing
-   Copyright (C) 2017-2025 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,13 +18,13 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#define INCLUDE_MAP
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
 #include "json-parsing.h"
 #include "pretty-print.h"
 #include "math.h"
-#include "make-unique.h"
 #include "selftest.h"
 
 using namespace json;
@@ -1037,7 +1037,7 @@ lexer::make_error (const char *msg)
   location_map::range r;
   r.m_start = p;
   r.m_end = p;
-  return ::make_unique<error> (r, xstrdup (msg));
+  return std::make_unique<error> (r, xstrdup (msg));
 }
 
 /* parser's ctor.  */
@@ -1092,7 +1092,7 @@ parser::parse_value (int depth)
 
     case TOK_STRING:
       {
-	auto val = ::make_unique<string> (tok->u.string);
+	auto val = std::make_unique<string> (tok->u.string);
 	m_lexer.consume ();
 	maybe_record_range (val.get (), tok->range);
 	return parser_result_t (std::move (val));
@@ -1103,7 +1103,7 @@ parser::parse_value (int depth)
 
     case TOK_FLOAT_NUMBER:
       {
-	auto val = ::make_unique<float_number> (tok->u.float_number);
+	auto val = std::make_unique<float_number> (tok->u.float_number);
 	m_lexer.consume ();
 	maybe_record_range (val.get (), tok->range);
 	return parser_result_t (std::move (val));
@@ -1111,7 +1111,7 @@ parser::parse_value (int depth)
 
     case TOK_INTEGER_NUMBER:
       {
-	auto val = ::make_unique<integer_number> (tok->u.integer_number);
+	auto val = std::make_unique<integer_number> (tok->u.integer_number);
 	m_lexer.consume ();
 	maybe_record_range (val.get (), tok->range);
 	return parser_result_t (std::move (val));
@@ -1119,7 +1119,7 @@ parser::parse_value (int depth)
 
     case TOK_TRUE:
       {
-	auto val = ::make_unique<literal> (JSON_TRUE);
+	auto val = std::make_unique<literal> (JSON_TRUE);
 	m_lexer.consume ();
 	maybe_record_range (val.get (), tok->range);
 	return parser_result_t (std::move (val));
@@ -1127,7 +1127,7 @@ parser::parse_value (int depth)
 
     case TOK_FALSE:
       {
-	auto val = ::make_unique<literal> (JSON_FALSE);
+	auto val = std::make_unique<literal> (JSON_FALSE);
 	m_lexer.consume ();
 	maybe_record_range (val.get (), tok->range);
 	return parser_result_t (std::move (val));
@@ -1135,7 +1135,7 @@ parser::parse_value (int depth)
 
     case TOK_NULL:
       {
-	auto val = ::make_unique<literal> (JSON_NULL);
+	auto val = std::make_unique<literal> (JSON_NULL);
 	m_lexer.consume ();
 	maybe_record_range (val.get (), tok->range);
 	return parser_result_t (std::move (val));
@@ -1160,7 +1160,7 @@ parser::parse_object (int depth)
 
   require (TOK_OPEN_CURLY);
 
-  auto obj = ::make_unique<object> ();
+  auto obj = std::make_unique<object> ();
 
   const token *tok = m_lexer.peek ();
   if (tok->id == TOK_CLOSE_CURLY)
@@ -1223,7 +1223,7 @@ parser::parse_array (int depth)
   if (auto err = require (TOK_OPEN_SQUARE))
     return parser_result_t (std::move (err));
 
-  auto arr = ::make_unique<array> ();
+  auto arr = std::make_unique<array> ();
 
   const token *tok = m_lexer.peek ();
   if (tok->id == TOK_CLOSE_SQUARE)
@@ -1340,7 +1340,7 @@ parser::error_at (const location_map::range &r, const char *fmt, ...)
   char *formatted_msg = xvasprintf (fmt, ap);
   va_end (ap);
 
-  return ::make_unique<error> (r, formatted_msg);
+  return std::make_unique<error> (r, formatted_msg);
 }
 
 /* Record that JV has range R within the input file.  */
@@ -1495,6 +1495,25 @@ assert_err_eq (const location &loc,
 		 (START_UNICHAR_IDX), (START_LINE), (START_COLUMN),	\
 		 (END_UNICHAR_IDX), (END_LINE), (END_COLUMN),	\
 		 (EXPECTED_MSG))
+
+/* Implementation detail of ASSERT_JSON_POINTER_EQ.  */
+
+static void
+assert_json_pointer_eq (const location &loc,
+			const json::value *jv,
+			const char *expected_str)
+{
+  pretty_printer pp;
+  ASSERT_TRUE_AT (loc, jv);
+  jv->print_pointer (&pp);
+  ASSERT_STREQ_AT (loc, pp_formatted_text (&pp), expected_str);
+}
+
+/* Assert that JV is a non-NULL json::value *, and that
+   jv->print_pointer prints EXPECTED_STR.  */
+
+#define ASSERT_JSON_POINTER_EQ(JV, EXPECTED_STR) \
+  assert_json_pointer_eq ((SELFTEST_LOCATION), (JV), (EXPECTED_STR))
 
 /* Verify that the JSON lexer works as expected.  */
 
@@ -2131,6 +2150,7 @@ test_parse_object ()
 		   0, line_1, 0,
 		   32, line_1, 32);
   const json::object *jo = static_cast <const json::object *> (jv);
+  ASSERT_JSON_POINTER_EQ (jv, "");
 
   json::value *foo_value = jo->get ("foo");
   ASSERT_NE (foo_value, nullptr);
@@ -2141,6 +2161,7 @@ test_parse_object ()
   ASSERT_RANGE_EQ (*range,
 		   8, line_1, 8,
 		   12, line_1, 12);
+  ASSERT_JSON_POINTER_EQ (foo_value, "/foo");
 
   json::value *baz_value = jo->get ("baz");
   ASSERT_NE (baz_value, nullptr);
@@ -2150,6 +2171,7 @@ test_parse_object ()
   ASSERT_RANGE_EQ (*range,
 		   22, line_1, 22,
 		   31, line_1, 31);
+  ASSERT_JSON_POINTER_EQ (baz_value, "/baz");
 
   json::array *baz_array = as_a <json::array *> (baz_value);
   ASSERT_EQ (baz_array->length (), 2);
@@ -2161,6 +2183,7 @@ test_parse_object ()
   ASSERT_RANGE_EQ (*range,
 		   23, line_1, 23,
 		   24, line_1, 24);
+  ASSERT_JSON_POINTER_EQ (element0, "/baz/0");
 
   json::value *element1 = baz_array->get (1);
   ASSERT_EQ (element1->get_kind (), JSON_NULL);
@@ -2169,6 +2192,7 @@ test_parse_object ()
   ASSERT_RANGE_EQ (*range,
 		   27, line_1, 27,
 		   30, line_1, 30);
+  ASSERT_JSON_POINTER_EQ (element1, "/baz/1");
 }
 
 /* Verify that the JSON literals "true", "false" and "null" are parsed
@@ -2298,6 +2322,28 @@ test_parsing_comments ()
   }
 }
 
+/* Verify that JSON Pointers are correctly escaped.  */
+
+static void
+test_pointer_escaping ()
+{
+  std::unique_ptr<error> err;
+  /* Example adapted from RFC 6901 section 5.  */
+  parser_testcase tc
+    ("     {\n"
+     "      \"a/b\": 1,\n"
+     "      \"m~n\": 8\n"
+     "   }\n");
+  ASSERT_EQ (tc.get_error (), nullptr);
+  const json::value *jv = tc.get_value ();
+  ASSERT_NE (jv, nullptr);
+  ASSERT_EQ (jv->get_kind (), JSON_OBJECT);
+
+  auto jo = static_cast <const json::object *> (jv);
+  ASSERT_JSON_POINTER_EQ (jo->get ("a/b"), "/a~1b");
+  ASSERT_JSON_POINTER_EQ (jo->get ("m~n"), "/m~0n");
+}
+
 /* Verify that we can parse an empty JSON string.  */
 
 static void
@@ -2379,6 +2425,7 @@ json_parser_cc_tests ()
   test_parse_jsonrpc ();
   test_parse_empty_object ();
   test_parsing_comments ();
+  test_pointer_escaping ();
   test_error_empty_string ();
   test_error_bad_token ();
   test_error_object_with_missing_comma ();

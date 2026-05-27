@@ -1,2 +1,2 @@
 .*: Assembler messages:
-.*:3: Fatal error: odd numbered general purpose register specified as register pair
+.*:3: Error: operand 1: odd numbered general purpose register specified as register pair

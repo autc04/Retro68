@@ -1,7 +1,7 @@
 # notarget: cris*-*-linux-gnu
 # source: start1.s --march=v0_v10
 # source: move-1.s --march=v32
-# as: --em=criself
+# as: --emulation=criself
 # ld: -m criself
 # error: contains CRIS v32 code
 

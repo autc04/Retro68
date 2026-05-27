@@ -21,5 +21,5 @@ Disassembly of section \.text:
 .*:	fb1d b023 	smlatb	r0, sp, r3, fp
 .*:	fb1d dd1d 	smlabt	sp, sp, sp, sp
 .*:	fb1d b013 	smlabt	r0, sp, r3, fp
-.*:	fb1d dd1d 	smlabt	sp, sp, sp, sp
-.*:	fb1d b013 	smlabt	r0, sp, r3, fp
+.*:	fb1d dd3d 	smlatt	sp, sp, sp, sp
+.*:	fb1d b033 	smlatt	r0, sp, r3, fp

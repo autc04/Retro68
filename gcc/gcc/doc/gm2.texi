@@ -1,6 +1,6 @@
 \input texinfo
 @c -*-texinfo-*-
-@c Copyright (C) 2001-2025 Free Software Foundation, Inc.
+@c Copyright (C) 2001-2026 Free Software Foundation, Inc.
 @c This is part of the GM2 manual.
 
 @c User level documentation for GNU Modula-2
@@ -15,7 +15,7 @@
 @include gcc-common.texi
 
 @c Copyright years for this manual.
-@set copyrights-gm2 1999-2025
+@set copyrights-gm2 1999-2026
 
 @copying
 @c man begin COPYRIGHT
@@ -143,11 +143,7 @@ available and access to assembly programming is achieved using the
 same syntax as that used by GCC.
 
 The gm2 driver allows third party libraries to be installed alongside
-gm2 libraries.  For example if the user specifies library @code{foo}
-using @code{-flibs=foo} the driver will check the standard GCC install
-directory for a sub directory @code{foo} containing the library
-contents.  The library module search path is altered accordingly
-for compile and link.
+gm2 libraries.  @xref{Module Search Path}.
 
 @node Development, Features, Why use GNU Modula-2, Overview
 @section How to get source code using git
@@ -229,6 +225,7 @@ such as the AVR and the ARM).
 * Standard procedures::   Permanently accessible base procedures.
 * High procedure function:: Behavior of the high procedure function.
 * Dialect::               GNU Modula-2 supported dialects.
+* Module Search Path::    How to add library modules.
 * Exceptions::            Exception implementation
 * Semantic checking::     How to detect run time problems at compile time.
 * Extensions::            GNU Modula-2 language extensions.
@@ -525,6 +522,15 @@ following include paths.
 for internal use only: used by the driver to copy the user facing @samp{-I}
 option.
 
+@item -fm2-pathname-root=@file{pathroot}
+add search paths derived from the specified @file{pathroot}.
+@xref{Module Search Path} for examples.
+
+@item -fm2-pathname-rootI
+for internal use only: used by the driver to copy every user
+@samp{-fm2-pathname-root=} facing option in order with all other
+@samp{-I} options.
+
 @item -fm2-plugin
 insert plugin to identify run time errors at compile time (default on).
 
@@ -539,6 +545,9 @@ lines compiled.
 
 @item -fm2-strict-type
 experimental flag to turn on the new strict type checker.
+
+@item -fm2-strict-type-reason
+provides more detail why the types are incompatible.
 
 @item -fm2-whole-program
 compile all implementation modules and program module at once.  Notice
@@ -713,6 +722,12 @@ or the top of a loop is encountered.
 The option @samp{-Wall} will turn on this flag with
 @samp{-Wuninit-variable-checking=known}.
 The @samp{-Wuninit-variable-checking=all} will increase compile time.
+
+@item -fwideset
+turn on access to the runtime support library module @samp{M2WIDESET}.
+By default this option is on.
+Wideset provision can be disabled by @samp{-fno-wideset}
+and no reference will be made to the run time @samp{M2WIDESET} library.
 
 @c the following warning options are complete but need to be
 @c regression tested against all other front ends
@@ -1376,7 +1391,7 @@ Actual parameter | HIGH (a) | a[HIGH (a)] = nul
  str3            | 3        | TRUE
 @end example
 
-@node Dialect, Exceptions, High procedure function, Using
+@node Dialect, Module Search Path, High procedure function, Using
 @section GNU Modula-2 supported dialects
 
 This section describes the dialects understood by GNU Modula-2.
@@ -1441,6 +1456,43 @@ implemented as above, apart from the exception calling in the ISO
 dialect.  Instead of exception handling the results are the same as the
 PIM4 dialect.  This is a temporary implementation situation.
 
+@node Module Search Path, Exceptions, Dialect, Using
+@section Module Search Path
+
+This section describes the default module search path and how this
+might be changed.  By default the compiler will search the current
+directory, local include dir, prefix include dir, gcc version specific
+modules and lastly native system header dir.  The exact location and
+whether all these directories are used depends upon the configuration
+options used when building GCC.
+
+The @samp{-I} option option can be used to introduce new directories
+in the module search path and for convenience the options @samp{-flibs=}
+and @samp{-fm2-pathname-root=} are also provided.
+
+The site wide modules are typically located at
+@var{prefix}@file{/include/m2}
+whereas the version specific modules are located in
+@var{libsubdir}@file{/m2}.  Both of these @file{/m2} directories
+are organized such that the non dialect specific modules are at the
+top and dialect specific modules are in subdirectories.
+
+The @samp{-fm2-pathname-root=} option is equivalent to adding a
+@samp{-I} path for every library dialect.  For example if the library
+dialect order is selected by @samp{-flibs=pim,iso,log} and
+@samp{-fm2-pathname-root=foo} is supplied then this is equivalent to
+the following pairs of options:
+
+@example
+-fm2-pathname=m2pim -I@file{foo/m2/m2pim}
+-fm2-pathname=m2iso -I@file{foo/m2/m2iso}
+-fm2-pathname=m2log -I@file{foo/m2/m2log}
+-fm2-pathname=- -I@file{foo/m2}
+@end example
+
+The option @samp{-fsources} will show the source module, path and
+pathname for each module parsed.
+
 @node Exceptions, Semantic checking, Dialect, Using
 @section Exception implementation
 
@@ -1495,7 +1547,7 @@ from @samp{bad} will cause an overflow to @samp{foo}.  If we compile
 the code with the following options:
 
 @example
-$ gm2 -g -fsoft-check-all -O2 -c assignvalue.mod
+$ gm2 -g -fsoft-check-all -O2 -fm2-plugin -c assignvalue.mod
 assignvalue.mod:16:0:inevitable that this error will occur at run time,
 assignment will result in an overflow
 @end example
@@ -2020,7 +2072,7 @@ CONST
 
 VAR
    head: List ;
-@end group   
+@end group
 @end example
 
 @example
@@ -2031,13 +2083,13 @@ VAR
 BEGIN
    p := head^.next ;
    printf ("\nunique data\n");
-   printf ("===========\n");   
+   printf ("===========\n");
    WHILE p # NIL DO
       printf ("%d\n", p^.value);
       p := p^.next
    END
 END Display ;
-@end group   
+@end group
 @end example
 
 @example
@@ -2050,7 +2102,7 @@ BEGIN
       next := NIL
    END
 END Add ;
-@end group   
+@end group
 @end example
 
 @example
@@ -2072,17 +2124,17 @@ EXCEPT
    THEN
       printf ("list was empty, add sentinal\n");
       Add (head, -1) ;
-      RETRY  (* Jump back to the begin statement.  *)      
+      RETRY  (* Jump back to the begin statement.  *)
    ELSIF p^.next = NIL
    THEN
       printf ("growing the list\n");
       Add (p^.next, val) ;
       RETRY  (* Jump back to the begin statement.  *)
    ELSE
-      printf ("should never reach here!\n");   
+      printf ("should never reach here!\n");
    END
 END Unique ;
-@end group   
+@end group
 @end example
 
 @example
@@ -2101,7 +2153,7 @@ BEGIN
    head := NIL ;
    unique
 END lazyunique.
-@end group   
+@end group
 @end example
 
 @example
@@ -2124,7 +2176,7 @@ unique data
 0
 2
 1
-@end group   
+@end group
 @end example
 
 @node Unbounded by reference, Building a shared library, Exception handling, Using
@@ -2252,8 +2304,8 @@ intersect.
 
 This section describes building a tiny shared library implemented in
 Modula-2 and built with @file{libtool}.  Suppose a project consists of
-two definition modules and two implementation modules and a program
-module @file{a.def}, @file{a.mod}, @file{b.def}, @file{b.mod} and
+three definition modules and three implementation modules
+@file{a.def}, @file{a.mod}, @file{b.def}, @file{b.mod} and
 @file{c.mod}.  The first step is to compile the modules using position
 independent code.  This can be achieved by the following three
 commands:
@@ -2264,27 +2316,107 @@ libtool --tag=CC --mode=compile gm2 -g -c b.mod -o b.lo
 libtool --tag=CC --mode=compile gm2 -g -c c.mod -o c.lo
 @end example
 
-The second step is to generate the shared library initialization and
-finalization routines.  We can do this by asking gm2 to generate a
-list of dependent modules and then use this to generate the scaffold.
-We also must compile the scaffold.
+The second step is to link these objects into a shared library.
 
 @example
-gm2 -c -g -fmakelist c.mod
-gm2 -c -g -fmakeinit -fshared c.mod
-libtool --tag=CC --mode=compile g++ -g -c c_m2.cpp -o c_m2.lo
-@end example
+export LIBDIR=$(gm2 -print-file-name=)../../../../lib64
 
-The third step is to link all these @file{.lo} files.
-
-@example
-libtool --mode=link gcc -g c_m2.lo a.lo b.lo c.lo \
-        -L$(prefix)/lib64 \
-        -rpath `pwd` -lgm2 -lstdc++ -lm -o libabc.la
+libtool --tag=CC --mode=link gcc -g a.lo b.lo c.lo \
+  -L$@{LIBDIR@} -rpath `pwd` -lm2pim -lm2iso -lstdc++ \
+  -lm -o libabc.la
 @end example
 
 At this point the shared library @file{libabc.so} will have been
 created inside the directory @file{.libs}.
+
+This library can be called from C++ using the following technique.
+The define @code{USER_LIB} is the name of the library dialect and
+maybe changed if required.
+The @code{DEFAULT_RUNTIME_MODULE_OVERRIDE} is a predefined string
+containing the default base core module initialization order.
+
+@example
+#include <stdio.h>
+#include <m2rts.h>
+
+#define USER_LIB NULL
+
+/* Add the runtime dependency for this file on modules a, b and c.  */
+
+void
+dep (void)
+@{
+  m2iso_M2RTS_RequestDependant (__FILE__, USER_LIB, "c", USER_LIB);
+  m2iso_M2RTS_RequestDependant (__FILE__, USER_LIB, "b", USER_LIB);
+  m2iso_M2RTS_RequestDependant (__FILE__, USER_LIB, "a", USER_LIB);
+@}
+
+void
+init (int, char *[], char *[])
+@{
+  printf ("test.c:init\n");
+@}
+
+void
+fini (int, char *[], char *[])
+@{
+  printf ("test.c:fini\n");
+@}
+
+void
+construct_scaffold (int argc, char *argv[], char *envp[])
+@{
+  m2iso_M2RTS_RegisterModule (__FILE__, USER_LIB,
+                              init, fini, dep);
+  m2iso_M2RTS_ConstructModules (__FILE__, USER_LIB,
+                                DEFAULT_RUNTIME_MODULE_OVERRIDE,
+                                argc, argv, envp);
+@}
+
+void
+deconstruct_scaffold (int argc, char *argv[], char *envp[])
+@{
+  m2iso_M2RTS_DeconstructModules (__FILE__, USER_LIB,
+                                  argc, argv, envp);
+@}
+
+int
+main (int argc, char *argv[], char *envp[])
+@{
+  printf ("main starts\n");
+  construct_scaffold (argc, argv, envp);
+  printf ("main application goes here\n");
+  deconstruct_scaffold (argc, argv, envp);
+  printf ("main tidying up\n");
+  return 0;
+@}
+@end example
+
+This source file can be compiled and linked using the following
+command:
+
+@example
+export INCLUDE=$(gm2 -print-file-name=)/m2/m2iso
+g++ -I$@{INCLUDE@} -g test.c -L. -l:.libs/libabc.so -L$@{LIBDIR@} -lm2iso
+@end example
+
+and finally run using:
+
+@example
+LD_LIBRARY_PATH=.libs:$@{LIBDIR@} ./a.out
+
+main starts
+init: module a
+init: module b
+init: module c
+test.c:init
+main application goes here
+test.c:fini
+finish: module c
+finish: module b
+finish: module a
+main tidying up
+@end example
 
 @node Interface for Python, Producing a Python module, Building a shared library, Using
 @section How to produce swig interface files

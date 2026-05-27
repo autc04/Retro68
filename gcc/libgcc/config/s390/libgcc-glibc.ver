@@ -1,4 +1,4 @@
-# Copyright (C) 2002-2025 Free Software Foundation, Inc.
+# Copyright (C) 2002-2026 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -114,3 +114,28 @@ GCC_4.1.0 {
   __floatditf
 %endif
 }
+
+%ifdef __s390x__
+%inherit GCC_16.0.0 GCC_4.1.0
+GCC_16.0.0 {
+  __mulbitint3
+  __divmodbitint4
+  __fixsfbitint
+  __fixdfbitint
+  __fixtfbitint
+  __floatbitinthf
+  __floatbitintsf
+  __floatbitintdf
+  __floatbitinttf
+  __truncsfhf2
+  __truncdfhf2
+  __trunctfhf2
+  __extendhfsf2
+  __extendhfdf2
+  __extendhftf2
+  __fixhfti
+  __fixunshfti
+  __floattihf
+  __floatuntihf
+}
+%endif

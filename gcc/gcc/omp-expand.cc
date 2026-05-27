@@ -2,7 +2,7 @@
    directives to separate functions, converts others into explicit calls to the
    runtime library (libgomp) and so forth
 
-Copyright (C) 2005-2025 Free Software Foundation, Inc.
+Copyright (C) 2005-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -1895,6 +1895,7 @@ expand_omp_for_init_counts (struct omp_for_data *fd, gimple_stmt_iterator *gsi,
 	}
     }
   bool rect_count_seen = false;
+  bool init_n2 = SSA_VAR_P (fd->loop.n2) && zero_iter1_bb;
   for (i = 0; i < (fd->ordered ? fd->ordered : fd->collapse); i++)
     {
       tree itype = TREE_TYPE (fd->loops[i].v);
@@ -1919,6 +1920,21 @@ expand_omp_for_init_counts (struct omp_for_data *fd, gimple_stmt_iterator *gsi,
 	{
 	  gcond *cond_stmt;
 	  tree n1, n2;
+	  if (init_n2 && i < fd->collapse && !rect_count_seen)
+	    {
+	      /* When called with non-NULL zero_iter1_bb, we won't clear
+		 fd->loop.n2 in the if (zero_iter_bb == NULL) code below
+		 and if it is prior to storing fd->loop.n2 where
+		 rect_count_seen is set, it could be used uninitialized.
+		 As zero_iter1_bb in that case can be reached also if there
+		 are non-zero iterations, the clearing can't be emitted
+		 to the zero_iter1_bb, but needs to be done before the
+		 condition.  */
+	      gassign *assign_stmt
+		= gimple_build_assign (fd->loop.n2, build_zero_cst (type));
+	      gsi_insert_before (gsi, assign_stmt, GSI_SAME_STMT);
+	      init_n2 = false;
+	    }
 	  n1 = fold_convert (itype, unshare_expr (fd->loops[i].n1));
 	  n1 = force_gimple_operand_gsi (gsi, n1, true, NULL_TREE,
 					 true, GSI_SAME_STMT);
@@ -3283,7 +3299,7 @@ extract_omp_for_update_vars (struct omp_for_data *fd, tree *nonrect_bounds,
 	  if (DECL_P (v) && TREE_ADDRESSABLE (v))
 	    v = force_gimple_operand_gsi (&gsi, v, true, NULL_TREE,
 					  false, GSI_CONTINUE_LINKING);
-	  t = fold_build2 (fd->loops[i].cond_code, boolean_type_node, v, t);
+	  t = build2 (fd->loops[i].cond_code, boolean_type_node, v, t);
 	  stmt = gimple_build_cond_empty (t);
 	  gsi_insert_after (&gsi, stmt, GSI_CONTINUE_LINKING);
 	  if (walk_tree (gimple_cond_lhs_ptr (as_a <gcond *> (stmt)),
@@ -6229,9 +6245,10 @@ expand_omp_for_static_chunk (struct omp_region *region,
 	    t = fold_build_pointer_plus (vmain, step);
 	  else
 	    t = fold_build2 (PLUS_EXPR, type, vmain, step);
-	  if (DECL_P (vback) && TREE_ADDRESSABLE (vback))
-	    t = force_gimple_operand_gsi (&gsi, t, true, NULL_TREE,
-					  true, GSI_SAME_STMT);
+	  t = force_gimple_operand_gsi (&gsi, t,
+					DECL_P (vback)
+					 && TREE_ADDRESSABLE (vback), NULL_TREE,
+					true, GSI_SAME_STMT);
 	  assign_stmt = gimple_build_assign (vback, t);
 	  gsi_insert_before (&gsi, assign_stmt, GSI_SAME_STMT);
 
@@ -7701,27 +7718,24 @@ expand_oacc_for (struct omp_region *region, struct omp_for_data *fd)
   basic_block bottom_bb = NULL;
 
   /* entry_bb has two successors; the branch edge is to the exit
-     block, fallthrough edge to body.  */
-  gcc_assert (EDGE_COUNT (entry_bb->succs) == 2
-	      && BRANCH_EDGE (entry_bb)->dest == exit_bb);
+     block (or to finalization blocks preceding it), fallthrough edge
+     to body.  */
+  gcc_assert (EDGE_COUNT (entry_bb->succs) == 2);
 
   /* If cont_bb non-NULL, it has 2 successors.  The branch successor is
      body_bb, or to a block whose only successor is the body_bb.  Its
      fallthrough successor is the final block (same as the branch
-     successor of the entry_bb).  */
+     successor of the entry_bb), possibly via finalization blocks.  */
   if (cont_bb)
     {
       basic_block body_bb = FALLTHRU_EDGE (entry_bb)->dest;
       basic_block bed = BRANCH_EDGE (cont_bb)->dest;
 
-      gcc_assert (FALLTHRU_EDGE (cont_bb)->dest == exit_bb);
+      gcc_assert (EDGE_COUNT (cont_bb->succs) == 2);
       gcc_assert (bed == body_bb || single_succ_edge (bed)->dest == body_bb);
     }
   else
     gcc_assert (!gimple_in_ssa_p (cfun));
-
-  /* The exit block only has entry_bb and cont_bb as predecessors.  */
-  gcc_assert (EDGE_COUNT (exit_bb->preds) == 1 + (cont_bb != NULL));
 
   tree chunk_no;
   tree chunk_max = NULL_TREE;

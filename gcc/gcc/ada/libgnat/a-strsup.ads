@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2003-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2003-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,10 +42,11 @@
 --  contract cases should not be executed at runtime as well, in order not to
 --  slow down the execution of these functions.
 
-pragma Assertion_Policy (Pre            => Ignore,
-                         Post           => Ignore,
-                         Contract_Cases => Ignore,
-                         Ghost          => Ignore);
+pragma Assertion_Policy (Pre             => Ignore,
+                         Post            => Ignore,
+                         Contract_Cases  => Ignore,
+                         Ghost           => Ignore,
+                         Ghost_Predicate => Ignore);
 
 with Ada.Strings.Maps; use type Ada.Strings.Maps.Character_Mapping_Function;
 with Ada.Strings.Search;

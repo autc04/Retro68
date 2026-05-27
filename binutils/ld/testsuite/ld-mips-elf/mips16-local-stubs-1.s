@@ -1,3 +1,5 @@
+	.module	mips4
+
 	.macro	makestub,type,func,section
 	.text
 	.set	\type

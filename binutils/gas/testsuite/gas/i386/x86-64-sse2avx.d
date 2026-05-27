@@ -655,7 +655,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 f9 50 cc          	vmovmskpd %xmm4,%ecx
 [ 	]*[a-f0-9]+:	c5 f8 50 cc          	vmovmskps %xmm4,%ecx
 [ 	]*[a-f0-9]+:	c5 f9 d7 cc          	vpmovmskb %xmm4,%ecx
-[ 	]*[a-f0-9]+:	c4 e3 79 17 e1 64    	vextractps \$0x64,%xmm4,%ecx
+[ 	]*[a-f0-9]+:	c4 e3 f9 17 e1 64    	vextractps \$0x64,%xmm4,%ecx
 [ 	]*[a-f0-9]+:	c4 e3 79 17 21 64    	vextractps \$0x64,%xmm4,\(%rcx\)
 [ 	]*[a-f0-9]+:	c4 e3 79 16 e1 64    	vpextrd \$0x64,%xmm4,%ecx
 [ 	]*[a-f0-9]+:	c4 e3 79 16 21 64    	vpextrd \$0x64,%xmm4,\(%rcx\)
@@ -713,33 +713,59 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 d9 73 d4 64       	vpsrlq \$0x64,%xmm4,%xmm4
 [ 	]*[a-f0-9]+:	c5 d9 71 d4 64       	vpsrlw \$0x64,%xmm4,%xmm4
 [ 	]*[a-f0-9]+:	c5 f9 c5 cc 64       	vpextrw \$0x64,%xmm4,%ecx
-[ 	]*[a-f0-9]+:	c5 f8 58 c0          	vaddps %xmm0,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c5 f8 58 04 00       	vaddps \(%rax,%rax(,1)?\),%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c5 f8 58 c0          	vaddps %xmm0,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c5 f8 58 04 00       	vaddps \(%rax,%rax(,1)?\),%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c5 38 58 c0          	vaddps %xmm0,%xmm8,%xmm8
-[ 	]*[a-f0-9]+:	c5 38 58 04 00       	vaddps \(%rax,%rax(,1)?\),%xmm8,%xmm8
-[ 	]*[a-f0-9]+:	c4 a1 78 58 c0       	vaddps %xmm0,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c4 a1 78 58 04 00    	vaddps \(%rax,%r8(,1)?\),%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c4 c1 78 58 c0       	vaddps %xmm8,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c4 c1 78 58 04 00    	vaddps \(%r8,%rax(,1)?\),%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c5 3a 10 c0          	vmovss %xmm0,%xmm8,%xmm8
-[ 	]*[a-f0-9]+:	c4 c1 7a 10 c0       	vmovss %xmm8,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c5 7a 11 c0          	vmovss %xmm8,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c4 c1 3a 11 c0       	vmovss %xmm0,%xmm8,%xmm8
+[ 	]*[a-f0-9]+:	c5 f0 58 c8          	vaddps %xmm0,%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c5 f0 58 0c 00       	vaddps \(%rax,%rax(,1)?\),%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c5 f0 58 c8          	vaddps %xmm0,%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c5 f0 58 0c 00       	vaddps \(%rax,%rax(,1)?\),%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c5 30 58 c8          	vaddps %xmm0,%xmm9,%xmm9
+[ 	]*[a-f0-9]+:	c5 30 58 0c 00       	vaddps \(%rax,%rax(,1)?\),%xmm9,%xmm9
+[ 	]*[a-f0-9]+:	c4 a1 70 58 c8       	vaddps %xmm0,%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c4 a1 70 58 0c 00    	vaddps \(%rax,%r8(,1)?\),%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c4 c1 70 58 c8       	vaddps %xmm8,%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c4 c1 70 58 0c 00    	vaddps \(%r8,%rax(,1)?\),%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c5 32 10 c8          	vmovss %xmm0,%xmm9,%xmm9
+[ 	]*[a-f0-9]+:	c4 c1 72 10 c8       	vmovss %xmm8,%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c5 72 11 c1          	vmovss %xmm8,%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c4 c1 32 11 c1       	vmovss %xmm0,%xmm9,%xmm9
 [ 	]*[a-f0-9]+:	c4 c1 39 71 f0 00    	vpsllw \$(0x)?0,%xmm8,%xmm8
-[ 	]*[a-f0-9]+:	c5 79 c5 c0 00       	vpextrw \$(0x)?0,%xmm0,%r8d
-[ 	]*[a-f0-9]+:	c4 c1 79 c5 c0 00    	vpextrw \$(0x)?0,%xmm8,%eax
-[ 	]*[a-f0-9]+:	c4 63 79 14 c0 00    	vpextrb \$(0x)?0,%xmm8,%eax
-[ 	]*[a-f0-9]+:	c4 c3 79 14 c0 00    	vpextrb \$(0x)?0,%xmm0,%r8d
-[ 	]*[a-f0-9]+:	c4 63 39 4a c0 00    	vblendvps %xmm0,%xmm0,%xmm8,%xmm8
-[ 	]*[a-f0-9]+:	c4 c3 79 4a c0 00    	vblendvps %xmm0,%xmm8,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c4 63 39 4a c0 00    	vblendvps %xmm0,%xmm0,%xmm8,%xmm8
-[ 	]*[a-f0-9]+:	c4 c3 79 4a c0 00    	vblendvps %xmm0,%xmm8,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	c4 c1 39 72 f0 00    	vpslld \$(0x)?0,%xmm8,%xmm8
+[ 	]*[a-f0-9]+:	c4 c1 39 73 f0 00    	vpsllq \$(0x)?0,%xmm8,%xmm8
+[ 	]*[a-f0-9]+:	c4 c1 39 71 e0 00    	vpsraw \$(0x)?0,%xmm8,%xmm8
+[ 	]*[a-f0-9]+:	c4 c1 39 72 e0 00    	vpsrad \$(0x)?0,%xmm8,%xmm8
+[ 	]*[a-f0-9]+:	c4 c1 39 71 d0 00    	vpsrlw \$(0x)?0,%xmm8,%xmm8
+[ 	]*[a-f0-9]+:	c4 c1 39 72 d0 00    	vpsrld \$(0x)?0,%xmm8,%xmm8
+[ 	]*[a-f0-9]+:	c4 c1 39 73 d0 00    	vpsrlq \$(0x)?0,%xmm8,%xmm8
+[ 	]*[a-f0-9]+:	c5 79 c5 c8 00       	vpextrw \$(0x)?0,%xmm0,%r9d
+[ 	]*[a-f0-9]+:	c4 c1 79 c5 c8 00    	vpextrw \$(0x)?0,%xmm8,%ecx
+[ 	]*[a-f0-9]+:	c4 63 79 14 c1 00    	vpextrb \$(0x)?0,%xmm8,%ecx
+[ 	]*[a-f0-9]+:	c4 c3 79 14 c1 00    	vpextrb \$(0x)?0,%xmm0,%r9d
+[ 	]*[a-f0-9]+:	c4 63 31 4a c8 00    	vblendvps %xmm0,%xmm0,%xmm9,%xmm9
+[ 	]*[a-f0-9]+:	c4 c3 71 4a c8 00    	vblendvps %xmm0,%xmm8,%xmm1,%xmm1
+[ 	]*[a-f0-9]+:	c4 63 31 4a c8 00    	vblendvps %xmm0,%xmm0,%xmm9,%xmm9
+[ 	]*[a-f0-9]+:	c4 c3 71 4a c8 00    	vblendvps %xmm0,%xmm8,%xmm1,%xmm1
 [ 	]*[a-f0-9]+:	c4 e1 fb 2a 00       	vcvtsi2sdq \(%rax\),%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	c4 e1 fa 2a 00       	vcvtsi2ssq \(%rax\),%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	c4 e3 f9 61 c0 00    	vpcmpestriq \$(0x)?0,%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	c4 e3 f9 60 c0 00    	vpcmpestrmq \$(0x)?0,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	c5 f9 7e c8          	vmovd  %xmm1,%eax
+[ 	]*[a-f0-9]+:	c5 f9 7e c8          	vmovd  %xmm1,%eax
+[ 	]*[a-f0-9]+:	c4 c1 79 7e c8       	vmovd  %xmm1,%r8d
+[ 	]*[a-f0-9]+:	c5 79 7e c8          	vmovd  %xmm9,%eax
+[ 	]*[a-f0-9]+:	c4 a1 79 7e c8       	vmovd  %xmm1,%eax
+[ 	]*[a-f0-9]+:	c4 e1 f9 7e c8       	vmovq  %xmm1,%rax
+[ 	]*[a-f0-9]+:	62 f1 7d 08 7e c8    	\{evex\} vmovd %xmm1,%eax
+[ 	]*[a-f0-9]+:	c5 f9 7e c8          	vmovd  %xmm1,%eax
+[ 	]*[a-f0-9]+:	c5 f9 7e c8          	vmovd  %xmm1,%eax
+[ 	]*[a-f0-9]+:	c4 e1 79 7e c8       	vmovd  %xmm1,%eax
+[ 	]*[a-f0-9]+:	62 f9 7d 08 7e c8    	vmovd  %xmm1,%r16d
+[ 	]*[a-f0-9]+:	62 f9 7d 08 7e c8    	vmovd  %xmm1,%r16d
+[ 	]*[a-f0-9]+:	62 d9 7d 08 7e c8    	vmovd  %xmm1,%r24d
+[ 	]*[a-f0-9]+:	62 79 7d 08 7e c8    	vmovd  %xmm9,%r16d
+[ 	]*[a-f0-9]+:	62 b9 7d 08 7e c8    	vmovd  %xmm1,%r16d
+[ 	]*[a-f0-9]+:	62 f9 fd 08 7e c8    	vmovq  %xmm1,%r16
+[ 	]*[a-f0-9]+:	62 f9 7d 08 7e c8    	vmovd  %xmm1,%r16d
+[ 	]*[a-f0-9]+:	62 f9 7d 08 7e c8    	vmovd  %xmm1,%r16d
+[ 	]*[a-f0-9]+:	62 f9 7d 08 7e c8    	vmovd  %xmm1,%r16d
 [ 	]*[a-f0-9]+:	c5 f8 ae 11          	vldmxcsr \(%rcx\)
 [ 	]*[a-f0-9]+:	c5 f8 ae 19          	vstmxcsr \(%rcx\)
 [ 	]*[a-f0-9]+:	c5 f8 5b f4          	vcvtdq2ps %xmm4,%xmm6
@@ -1291,7 +1317,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 f9 50 cc          	vmovmskpd %xmm4,%ecx
 [ 	]*[a-f0-9]+:	c5 f8 50 cc          	vmovmskps %xmm4,%ecx
 [ 	]*[a-f0-9]+:	c5 f9 d7 cc          	vpmovmskb %xmm4,%ecx
-[ 	]*[a-f0-9]+:	c4 e3 79 17 e1 64    	vextractps \$0x64,%xmm4,%ecx
+[ 	]*[a-f0-9]+:	c4 e3 f9 17 e1 64    	vextractps \$0x64,%xmm4,%ecx
 [ 	]*[a-f0-9]+:	c4 e3 79 17 21 64    	vextractps \$0x64,%xmm4,\(%rcx\)
 [ 	]*[a-f0-9]+:	c4 e3 79 16 e1 64    	vpextrd \$0x64,%xmm4,%ecx
 [ 	]*[a-f0-9]+:	c4 e3 79 16 21 64    	vpextrd \$0x64,%xmm4,\(%rcx\)

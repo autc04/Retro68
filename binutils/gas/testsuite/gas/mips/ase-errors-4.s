@@ -36,9 +36,10 @@
 	.set nomips3d
 
 	.set mips64r2
-	.set mt			# ERROR: not supported at all
-	dmt			# ERROR: not supported at all
+	.set mt			# OK
+	dmt			# OK
 	.set nomt
+	dmt			# ERROR: mt not enabled
 
 	.set mips64
 	.set smartmips		# ERROR: not supported at all

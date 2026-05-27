@@ -1,6 +1,5 @@
 # Check MOVDIR[I,64B] 32-bit instructions
 
-	.allow_index_reg
 	.text
 _start:
 	movdiri %eax, (%ecx)

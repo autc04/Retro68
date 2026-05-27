@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---            Copyright (C) 2020-2025, Free Software Foundation, Inc.       --
+--            Copyright (C) 2020-2026, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,9 +39,8 @@ with System.Image_D;
 package System.Img_Decimal_64 is
 
    subtype Int64 is Interfaces.Integer_64;
-   subtype Uns64 is Interfaces.Unsigned_64;
 
-   package Impl is new Image_D (Int64, Uns64);
+   package Impl is new Image_D (Int64);
 
    procedure Image_Decimal64
      (V     : Int64;

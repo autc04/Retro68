@@ -1,4 +1,4 @@
-#as: -mrelax-relocations=yes
+#as: -mrelax-relocations=yes -march=+mpx
 #objdump: -dwr
 
 .*: +file format .*

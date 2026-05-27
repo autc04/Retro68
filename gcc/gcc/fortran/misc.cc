@@ -1,5 +1,5 @@
 /* Miscellaneous stuff that doesn't fit anywhere else.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -213,6 +213,9 @@ gfc_typename (gfc_typespec *ts, bool for_hash)
       break;
     case BT_UNKNOWN:
       strcpy (buffer, "UNKNOWN");
+      break;
+    case BT_VOID:
+      strcpy (buffer, "VOID");
       break;
     default:
       gfc_internal_error ("gfc_typename(): Undefined type");
@@ -468,4 +471,25 @@ gfc_mpz_set_hwi (mpz_t rop, const HOST_WIDE_INT op)
 {
   const wide_int w = wi::shwi (op, HOST_BITS_PER_WIDE_INT);
   wi::to_mpz (w, rop, SIGNED);
+}
+
+
+/* Extract a name suitable for use in the name of the select type temporary
+   variable.  We pick the last component name in the data reference if there
+   is one, otherwise the user variable name, and return the empty string by
+   default.  */
+
+const char *
+gfc_var_name_for_select_type_temp (gfc_expr *e)
+{
+  const char *name = "";
+  if (e->symtree)
+    name = e->symtree->name;
+  for (gfc_ref *r = e->ref; r; r = r->next)
+    if (r->type == REF_COMPONENT
+	&& !(strcmp (r->u.c.component->name, "_data") == 0
+	     || strcmp (r->u.c.component->name, "_vptr") == 0))
+      name = r->u.c.component->name;
+
+  return name;
 }

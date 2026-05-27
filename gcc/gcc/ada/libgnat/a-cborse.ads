@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -100,8 +100,7 @@ is
       Process  : not null access procedure (Element : Element_Type));
 
    type Constant_Reference_Type
-      (Element : not null access constant Element_Type) is
-   private
+      (Element : not null access constant Element_Type) is limited private
    with
       Implicit_Dereference => Element;
 
@@ -290,7 +289,8 @@ is
          Process   : not null access
                        procedure (Element : in out Element_Type));
 
-      type Reference_Type (Element : not null access Element_Type) is private
+      type Reference_Type
+        (Element : not null access Element_Type) is limited private
       with
          Implicit_Dereference => Element;
 

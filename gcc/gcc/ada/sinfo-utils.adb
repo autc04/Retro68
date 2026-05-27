@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---           Copyright (C) 2020-2025, Free Software Foundation, Inc.        --
+--           Copyright (C) 2020-2026, Free Software Foundation, Inc.        --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -183,6 +183,9 @@ package body Sinfo.Utils is
    --     break nnd if n = 12345
    --  and run gnat1 again from the beginning.
 
+   --  NOTE WELL: Make sure gdb is in Ada mode, because "n = 12345" is always
+   --  true in C mode.
+
    --  The other way is to set a breakpoint near the beginning (e.g. on
    --  gnat1drv), and run. Then set Watch_Node (nickname "ww") to 12345 in gdb:
    --     ww := 12345
@@ -346,6 +349,19 @@ package body Sinfo.Utils is
          return Arg;
       end if;
    end Get_Pragma_Arg;
+
+   -----------------------
+   -- Loop_Flow_Keyword --
+   -----------------------
+
+   function Loop_Flow_Keyword (N : N_Loop_Flow_Statement_Id) return String is
+   begin
+      case Nkind (N) is
+         when N_Continue_Statement => return "continue";
+         when N_Exit_Statement => return "exit";
+         when others => pragma Assert (False);
+      end case;
+   end Loop_Flow_Keyword;
 
    procedure Destroy_Element (Elem : in out Union_Id);
    --  Does not do anything but is used to instantiate

@@ -2,6 +2,7 @@
 #source: armv8_1-m-pacbti.s
 #as: -march=armv8.1-m.main+pacbti
 #objdump: -dr --prefix-addresses --show-raw-insn
+#skip: *-*-pe *-wince-*
 
 .*: +file format .*arm.*
 

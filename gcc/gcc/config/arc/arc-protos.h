@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, Synopsys DesignWare ARC cpu.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -55,6 +55,7 @@ extern bool arc_check_mov_const (HOST_WIDE_INT );
 extern bool arc_split_mov_const (rtx *);
 extern bool arc_can_use_return_insn (void);
 extern bool arc_split_move_p (rtx *);
+extern void arc_gen_unlikely_cbranch (enum rtx_code, machine_mode, rtx);
 #endif /* RTX_CODE */
 
 

@@ -1,4 +1,4 @@
-#as: --underscore --em=criself --march=common_v10_v32
+#as: --underscore --emulation=criself --march=common_v10_v32
 #objdump: -dr
 
 # Check that branch offsets are computed as for v32.  The

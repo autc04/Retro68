@@ -1,4 +1,4 @@
-#name: ARM v8.2 FP16 support on SIMD (Thumb)
+#name: ARM v8.2 FP16 support on SIMD (ext, Thumb)
 #source: armv8-2-fp16-simd.s
 #objdump: -d
 #as: -march=armv8.2-a+fp16 -mthumb

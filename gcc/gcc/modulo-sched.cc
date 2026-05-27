@@ -1,5 +1,5 @@
 /* Swing Modulo Scheduling implementation.
-   Copyright (C) 2004-2025 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
    Contributed by Ayal Zaks and Mustafa Hagog <zaks,mustafa@il.ibm.com>
 
 This file is part of GCC.
@@ -356,7 +356,13 @@ doloop_register_get (rtx_insn *head, rtx_insn *tail)
     reg = XEXP (condition, 0);
   else if (GET_CODE (XEXP (condition, 0)) == PLUS
 	   && REG_P (XEXP (XEXP (condition, 0), 0)))
-    reg = XEXP (XEXP (condition, 0), 0);
+    {
+      if (CONST_INT_P (XEXP (condition, 1))
+	  && INTVAL (XEXP (condition, 1)) == -1)
+	reg = XEXP (XEXP (condition, 0), 0);
+      else
+	return NULL_RTX;
+    }
   else
     gcc_unreachable ();
 

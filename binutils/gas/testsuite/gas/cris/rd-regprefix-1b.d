@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #source: rd-regprefix-1.s
 #name: Register prefixes 1 defaulted to yes.
 

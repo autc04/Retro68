@@ -1,6 +1,6 @@
 (* FifoQueue.mod provides a simple fifo queue.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -31,6 +31,7 @@ TYPE
 
 VAR
    const,
+   set,
    subrange,
    enumeration,
    constructor: Fifo ;
@@ -150,6 +151,28 @@ END GetConstFromFifoQueue ;
 
 
 (*
+   PutSetIntoFifoQueue - places a set symbol
+                         into a fifo queue.
+*)
+
+PROCEDURE PutSetIntoFifoQueue (c: CARDINAL) ;
+BEGIN
+   PutInto (set, c)
+END PutSetIntoFifoQueue ;
+
+
+(*
+   GetSetFromFifoQueue - retrieves a set symbol
+                         from a fifo queue.
+*)
+
+PROCEDURE GetSetFromFifoQueue (VAR c: CARDINAL) ;
+BEGIN
+   GetFrom (set, c)
+END GetSetFromFifoQueue ;
+
+
+(*
    Init - initialize the fifo queue.
 *)
 
@@ -164,6 +187,7 @@ END Init ;
 
 BEGIN
    Init(const) ;
+   Init(set) ;
    Init(enumeration) ;
    Init(subrange) ;
    Init(constructor)

@@ -1,4 +1,4 @@
-.. Copyright (C) 2024-2025 Free Software Foundation, Inc.
+.. Copyright (C) 2024-2026 Free Software Foundation, Inc.
    Originally contributed by David Malcolm <dmalcolm@redhat.com>
 
    This is free software: you can redistribute it and/or modify it
@@ -30,3 +30,4 @@ The following tutorial gives an overview of how to use libgdiagnostics.
    05-warnings.rst
    06-fix-it-hints.rst
    07-execution-paths.rst
+   08-message-buffers.rst

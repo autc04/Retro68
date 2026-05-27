@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 SERIALIZE insns
 #source: serialize.s

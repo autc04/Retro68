@@ -1,5 +1,5 @@
 /* Common data structures used for builtin handling on S/390.
-   Copyright (C) 2015-2025 Free Software Foundation, Inc.
+   Copyright (C) 2015-2026 Free Software Foundation, Inc.
 
    Contributed by Andreas Krebbel (Andreas.Krebbel@de.ibm.com).
 
@@ -134,10 +134,10 @@ S390_OVERLOADED_BUILTIN_VAR_MAX
 
 #define S390_OVERLOADED_BUILTIN_OFFSET S390_BUILTIN_MAX
 #define S390_OVERLOADED_BUILTIN_VAR_OFFSET \
-  (S390_BUILTIN_MAX + S390_OVERLOADED_BUILTIN_MAX)
-#define S390_ALL_BUILTIN_MAX				\
-  (S390_BUILTIN_MAX + S390_OVERLOADED_BUILTIN_MAX +	\
-   S390_OVERLOADED_BUILTIN_VAR_MAX)
+  ((int)S390_BUILTIN_MAX + (int)S390_OVERLOADED_BUILTIN_MAX)
+#define S390_ALL_BUILTIN_MAX					\
+  ((int)S390_BUILTIN_MAX + (int)S390_OVERLOADED_BUILTIN_MAX +	\
+   (int)S390_OVERLOADED_BUILTIN_VAR_MAX)
 
 extern const unsigned int bflags_builtin[S390_BUILTIN_MAX + 1];
 extern const unsigned int opflags_builtin[S390_BUILTIN_MAX + 1];
@@ -172,6 +172,4 @@ opflags_for_builtin (int fcode)
     return opflags_builtin[fcode];
 }
 
-extern GTY(()) tree s390_builtin_decls[S390_BUILTIN_MAX +
-				       S390_OVERLOADED_BUILTIN_MAX +
-				       S390_OVERLOADED_BUILTIN_VAR_MAX];
+extern GTY(()) tree s390_builtin_decls[S390_ALL_BUILTIN_MAX];

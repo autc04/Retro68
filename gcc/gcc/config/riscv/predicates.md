@@ -1,5 +1,5 @@
 ;; Predicate description for RISC-V target.
-;; Copyright (C) 2011-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2026 Free Software Foundation, Inc.
 ;; Contributed by Andrew Waterman (andrew@sifive.com).
 ;; Based on MIPS target for GNU compiler.
 ;;
@@ -26,6 +26,36 @@
 (define_predicate "arith_operand"
   (ior (match_operand 0 "const_arith_operand")
        (match_operand 0 "register_operand")))
+
+(define_predicate "prefetch_const_operand"
+  (and (match_code "const_int")
+       (match_test "(IN_RANGE (INTVAL (op),  0, 511))")))
+
+;; REG or REG+D where D fits in a simm12 and has the low 5 bits
+;; off.  The REG+D form can be reloaded into a temporary if needed
+;; after FP elimination if that exposes an invalid offset.
+(define_predicate "zicbop_prefetch_operand"
+  (ior (match_operand 0 "register_operand")
+       (and (match_test "const_arith_operand (op, VOIDmode)")
+	    (match_test "(INTVAL (op) & 0x1f) == 0"))
+       (and (match_code "plus")
+	    (match_test "register_operand (XEXP (op, 0), word_mode)")
+	    (match_test "const_arith_operand (XEXP (op, 1), VOIDmode)")
+	    (match_test "(INTVAL (XEXP (op, 1)) & 0x1f) == 0"))))
+
+;; REG or REG+D where D fits in a uimm9
+(define_predicate "mips_prefetch_operand"
+  (ior (match_operand 0 "register_operand")
+       (match_test "prefetch_const_operand (op, VOIDmode)")
+       (and (match_code "plus")
+	(match_test "register_operand (XEXP (op, 0), word_mode)")
+	(match_test "prefetch_const_operand (XEXP (op, 1), VOIDmode)"))))
+
+;; MIPS specific or Standard RISCV Extension
+(define_predicate "prefetch_operand"
+  (if_then_else (match_test "TARGET_XMIPSCBOP")
+      (match_operand 0 "mips_prefetch_operand")
+      (match_operand 0 "zicbop_prefetch_operand")))
 
 (define_predicate "lui_operand"
   (and (match_code "const_int")
@@ -304,6 +334,13 @@
 	      && riscv_split_symbol_type (symbol_type)
 	      && symbol_type != SYMBOL_PCREL;
 
+    /* Be tight about the SUBREGs we accept.  In particular,
+       (subreg (mem)) has been discouraged for decades.  Just
+       allow (subreg (reg)) until such time as we see a strong
+       need to be more permissive.  */
+    case SUBREG:
+      return REG_P (SUBREG_REG (op));
+
     default:
       return true;
     }
@@ -380,14 +417,6 @@
   (and (match_code "const_int")
        (match_test "SINGLE_BIT_MASK_OPERAND (UINTVAL (op))")))
 
-;; Register, small constant or single bit constant for use in
-;; bseti/binvi.
-(define_predicate "arith_or_zbs_operand"
-  (ior (match_operand 0 "const_arith_operand")
-       (match_operand 0 "register_operand")
-       (and (match_test "TARGET_ZBS")
-	    (match_operand 0 "single_bit_mask_operand"))))
-
 (define_predicate "not_single_bit_mask_operand"
   (and (match_code "const_int")
        (match_test "SINGLE_BIT_MASK_OPERAND (~UINTVAL (op))")))
@@ -461,6 +490,10 @@
   (ior (match_operand 0 "const_int6_operand")
        (match_operand 0 "register_operand")))
 
+(define_predicate "const_int5_operand"
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (INTVAL (op), 0, 31)")))
+
 (define_predicate "const_int5s_operand"
   (and (match_code "const_int")
        (match_test "IN_RANGE (INTVAL (op), -16, 15)")))
@@ -513,6 +546,10 @@
        (match_operand 0 "vector_all_trues_mask_operand")))
 
 (define_predicate "vector_broadcast_mask_operand"
+  (ior (match_operand 0 "vector_least_significant_set_mask_operand")
+       (match_operand 0 "vector_all_trues_mask_operand")))
+
+(define_predicate "strided_broadcast_mask_operand"
   (ior (match_operand 0 "vector_least_significant_set_mask_operand")
     (ior (match_operand 0 "register_operand")
          (match_operand 0 "vector_all_trues_mask_operand"))))
@@ -574,16 +611,25 @@
 (define_predicate "comparison_except_ge_operator"
   (match_code "eq,ne,le,leu,gt,gtu,lt,ltu"))
 
+(define_predicate "comparison_swappable_operator"
+  (match_code "gtu,gt,geu"))
+
 (define_predicate "ge_operator"
   (match_code "ge,geu"))
 
-;; pmode_reg_or_uimm5_operand can be used by vsll.vx/vsrl.vx/vsra.vx instructions.
-;; Since it has the same predicate with vector_length_operand which allows register
-;; or immediate (0 ~ 31), we define this predicate same as vector_length_operand here.
-;; We don't use vector_length_operand directly to predicate vsll.vx/vsrl.vx/vsra.vx
-;; since it may be confusing.
+(define_special_predicate "riscv_cbranch_comparison_operator"
+  (match_code "eq,ne,le,lt,ge,gt,geu,gtu,leu,ltu,unordered,
+	       ordered,unlt,unle,unge,ungt")
+{
+  return TARGET_VECTOR;
+})
+
+;; pmode_reg_or_uimm5_operand can be used by vsll.vx/vsrl.vx/vsra.vx instructions
+;; It is *not* equivalent to vector_length_operand due to the vector_length_operand
+;; needing to conditionalize some behavior on XTHEADVECTOR.
 (define_special_predicate "pmode_reg_or_uimm5_operand"
-  (match_operand 0 "vector_length_operand"))
+  (ior (match_operand 0 "pmode_register_operand")
+       (match_operand 0 "const_csr_operand")))
 
 (define_special_predicate "pmode_reg_or_0_operand"
   (ior (match_operand 0 "const_0_operand")
@@ -613,7 +659,16 @@
 
 ;; The scalar operand can be directly broadcast by RVV instructions.
 (define_predicate "direct_broadcast_operand"
-  (match_test "riscv_vector::can_be_broadcasted_p (op)"))
+  (match_test "riscv_vector::can_be_broadcast_p (op)"))
+
+;; A strided broadcast is just a fallback pattern that loads from
+;; memory.
+(define_predicate "strided_broadcast_operand"
+  (match_test "riscv_vector::strided_broadcast_p (op)"))
+
+(define_predicate "any_broadcast_operand"
+  (ior (match_operand 0 "direct_broadcast_operand")
+       (match_operand 0 "strided_broadcast_operand")))
 
 ;; A CONST_INT operand that has exactly two bits cleared.
 (define_predicate "const_nottwobits_operand"
@@ -685,3 +740,49 @@
   (and (match_operand 0 "register_operand")
        (match_test "REGNO (op) == RETURN_ADDR_REGNUM
 		    || REGNO (op) == T0_REGNUM")))
+
+(define_predicate "bitpos_mask_operand"
+  (and (match_code "const_int")
+       (match_test "TARGET_64BIT ? INTVAL (op) == 63 : INTVAL (op) == 31")))
+
+(define_predicate "reg_or_const_int_operand"
+  (ior (match_operand 0 "const_int_operand")
+       (match_operand 0 "register_operand")))
+
+;; Branch-on-bit for AndesPerf.
+(define_predicate "ads_branch_bbcs_operand"
+  (match_code "const_int")
+{
+  if (TARGET_XANDESPERF && (INTVAL (op) >= 0))
+    {
+      if (TARGET_64BIT && INTVAL (op) <= 63)
+	return true;
+      else if (INTVAL (op) <=31)
+	return true;
+      else
+	return false;
+    }
+
+  return false;
+})
+
+;; Branch on small immediate range.
+(define_predicate "ads_branch_bimm_operand"
+  (match_code "const_int")
+{
+  if (TARGET_XANDESPERF)
+    return satisfies_constraint_Ou07 (op);
+  else
+    return false;
+})
+
+(define_predicate "ads_imm_extract_operand"
+  (match_test "satisfies_constraint_ads__Bext (op)"))
+
+(define_predicate "ads_extract_size_imm_si"
+  (and (match_code "const_int")
+	   (match_test "IN_RANGE (INTVAL (op), 1, 32)")))
+
+(define_predicate "ads_extract_size_imm_di"
+  (and (match_code "const_int")
+	   (match_test "IN_RANGE (INTVAL (op), 1, 64)")))

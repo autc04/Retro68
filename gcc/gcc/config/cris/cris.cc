@@ -1,5 +1,5 @@
 /* Definitions for GCC.  Part of the machine description for CRIS.
-   Copyright (C) 1998-2025 Free Software Foundation, Inc.
+   Copyright (C) 1998-2026 Free Software Foundation, Inc.
    Contributed by Axis Communications.  Written by Hans-Peter Nilsson.
 
 This file is part of GCC.
@@ -2061,7 +2061,7 @@ cris_rtx_costs (rtx x, machine_mode mode, int outer_code, int opno,
 	  }
       /* fall through */
 
-    case ZERO_EXTEND: case SIGN_EXTEND:
+    case ZERO_EXTEND: case SIGN_EXTEND: case POST_INC:
       *total = rtx_cost (XEXP (x, 0), VOIDmode, (enum rtx_code) outer_code,
 			 opno, speed);
       return true;
@@ -2692,8 +2692,7 @@ cris_split_movdx (rtx *operands)
   else
     internal_error ("unknown dest");
 
-  val = get_insns ();
-  end_sequence ();
+  val = end_sequence ();
   return val;
 }
 
@@ -2800,11 +2799,11 @@ cris_split_constant (HOST_WIDE_INT wval, enum rtx_code code,
 
 /* Try to change a comparison against a constant to be against zero, and
    an unsigned compare against zero to be an equality test.  Beware:
-   only valid for compares of integer-type operands.  Also, note that we
-   don't use operand 0 at the moment.  */
+   only valid for compares of integer-type operands.  Also forces one operand
+   to be a register, unless either is 0.  */
 
 void
-cris_reduce_compare (rtx *relp, rtx *, rtx *op1p)
+cris_reduce_compare (rtx *relp, rtx *op0p, rtx *op1p)
 {
   rtx op1 = *op1p;
   rtx_code code = GET_CODE (*relp);
@@ -2850,9 +2849,18 @@ cris_reduce_compare (rtx *relp, rtx *, rtx *op1p)
 
   if (code != GET_CODE (*relp))
   {
-    *op1p = const0_rtx;
+    op1 = const0_rtx;
+    *op1p = op1;
     PUT_CODE (*relp, code);
   }
+
+  if (op1 != const0_rtx && *op0p != const0_rtx)
+    {
+      machine_mode op1mode = GET_MODE (op1);
+
+      *op0p = force_reg (op1mode != VOIDmode ? op1mode : GET_MODE (*op0p),
+			 *op0p);
+    }
 }
 
 /* The expander for the prologue pattern name.  */
@@ -3712,9 +3720,11 @@ cris_md_asm_adjust (vec<rtx> &outputs, vec<rtx> &inputs,
   /* Determine if the source using MOF.  If it is, automatically
      clobbering MOF would cause it to have impossible constraints.  */
 
-  /* Look for a use of the MOF constraint letter: h.  */
+  /* Look for a use of the MOF constraint letter h or a hard register
+     constraint.  */
   for (unsigned i = 0, n = constraints.length(); i < n; ++i)
-    if (strchr (constraints[i], 'h') != NULL)
+    if (strchr (constraints[i], 'h') != NULL
+	|| strstr (constraints[i], "{mof}") != NULL)
       return NULL;
 
   /* Look for an output or an input that touches MOF.  */

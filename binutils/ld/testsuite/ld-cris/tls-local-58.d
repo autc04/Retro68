@@ -1,7 +1,7 @@
 #source: start1.s
 #source: tls-x.s
 #source: tls-local-58.s
-#as: --pic --no-underscore --em=criself -I$srcdir/$subdir
+#as: --pic --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: -m crislinux
 #objdump: -s -t -r -p
 

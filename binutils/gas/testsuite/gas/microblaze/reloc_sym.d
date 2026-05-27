@@ -30,6 +30,11 @@ Disassembly of section .text:
 100000a8:	30210020 	addik	r1, r1, 32
 100000ac:	b60f0008 	rtsd	r15, 8
 100000b0:	80000000 	or	r0, r0, r0
+100000b4:	14422003 	cmpu	r2, r2, r4
+100000b8:	be220004 	bneid	r2, 4	// 100000bc <reloc_none_test>
+
+100000bc <reloc_none_test>:
+100000bc:	a0630001 	ori	r3, r3, 1
 
 Disassembly of section .testsection:
 

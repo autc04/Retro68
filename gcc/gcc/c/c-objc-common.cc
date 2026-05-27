@@ -1,5 +1,5 @@
 /* Some code common to C and ObjC front ends.
-   Copyright (C) 2001-2025 Free Software Foundation, Inc.
+   Copyright (C) 2001-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,6 +23,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "c-tree.h"
 #include "intl.h"
 #include "c-family/c-pretty-print.h"
+#include "tree-core.h"
 #include "tree-pretty-print.h"
 #include "tree-pretty-print-markup.h"
 #include "gimple-pretty-print.h"
@@ -32,7 +33,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "stringpool.h"
 #include "attribs.h"
 #include "dwarf2.h"
-#include "make-unique.h"
 
 static bool c_tree_printer (pretty_printer *, text_info *, const char *,
 			    int, bool, bool, bool, bool *, pp_token_list &);
@@ -217,6 +217,11 @@ get_aka_type (tree type)
 	  return canonical ? canonical : type;
 	}
     }
+  /* For tagged types ignore attributes because they will otherwise
+     be ignored later causing a warning inside diagnostics which leads
+     to an ICE.  */
+  if (RECORD_OR_UNION_TYPE_P (type) || TREE_CODE (type) == ENUMERAL_TYPE)
+    return build_qualified_type (result, TYPE_QUALS (type));
   return build_type_attribute_qual_variant (result, TYPE_ATTRIBUTES (type),
 					    TYPE_QUALS (type));
 }
@@ -355,6 +360,11 @@ c_tree_printer (pretty_printer *pp, text_info *text, const char *spec,
       if (DECL_NAME (t))
 	{
 	  pp_identifier (cpp, lang_hooks.decl_printable_name (t, 2));
+	  if (TREE_CODE (t) == FUNCTION_DECL)
+	    {
+	      pp_c_function_target_version (cpp, t);
+	      pp_c_function_target_clones (cpp, t);
+	    }
 	  return true;
 	}
       break;
@@ -410,9 +420,9 @@ has_c_linkage (const_tree decl ATTRIBUTE_UNUSED)
 }
 
 void
-c_initialize_diagnostics (diagnostic_context *context)
+c_initialize_diagnostics (diagnostics::context *context)
 {
-  context->set_pretty_printer (::make_unique<c_pretty_printer> ());
+  context->set_pretty_printer (std::make_unique<c_pretty_printer> ());
   c_common_diagnostics_set_defaults (context);
   context->set_format_decoder (&c_tree_printer);
 }
@@ -428,7 +438,7 @@ c_types_compatible_p (tree x, tree y)
 bool
 c_var_mod_p (tree x, tree fn ATTRIBUTE_UNUSED)
 {
-  return C_TYPE_VARIABLY_MODIFIED (x);
+  return c_type_variably_modified_p (x);
 }
 
 /* Special routine to get the alias set of T for C.  */

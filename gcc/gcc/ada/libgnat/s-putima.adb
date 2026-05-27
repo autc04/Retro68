@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---            Copyright (C) 2020-2025, Free Software Foundation, Inc.       --
+--            Copyright (C) 2020-2026, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -158,6 +158,16 @@ package body System.Put_Images is
    begin
       Fat_Instance (S, X, "access");
    end Put_Image_Fat_Pointer;
+
+   procedure Ext_Acc_Instance is new
+     Put_Image_Pointer (Byte_String, Ext_Access_Pointer);
+
+   procedure Put_Image_Extended_Access_Pointer
+     (S : in out Sink'Class; X : Ext_Access_Pointer)
+   is
+   begin
+      Ext_Acc_Instance (S, X, "extended access");
+   end Put_Image_Extended_Access_Pointer;
 
    procedure Put_Image_Access_Subp (S : in out Sink'Class; X : Thin_Pointer) is
    begin

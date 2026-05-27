@@ -3,7 +3,7 @@
    building RTL.  These routines are used both during actual parsing
    and during the instantiation of template functions.
 
-   Copyright (C) 1998-2025 Free Software Foundation, Inc.
+   Copyright (C) 1998-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -33,6 +33,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "target.h"
 #include "decl.h"
 #include "flags.h"
+#include "contracts.h"
 
 /* Constructor for a lambda expression.  */
 
@@ -150,7 +151,7 @@ begin_lambda_type (tree lambda)
 
   /* Cross-reference the expression and the type.  */
   LAMBDA_EXPR_CLOSURE (lambda) = type;
-  CLASSTYPE_LAMBDA_EXPR (type) = lambda;
+  SET_CLASSTYPE_LAMBDA_EXPR (type, lambda);
 
   /* In C++17, assume the closure is literal; we'll clear the flag later if
      necessary.  */
@@ -218,22 +219,25 @@ lambda_capture_field_type (tree expr, bool explicit_init_p,
   tree type;
   bool is_this = is_this_parameter (tree_strip_nop_conversions (expr));
 
-  if (is_this)
-    type = TREE_TYPE (expr);
-  else if (explicit_init_p)
+  if (explicit_init_p)
     {
-      tree auto_node = make_auto ();
-
-      type = auto_node;
-      if (by_reference_p)
-	/* Add the reference now, so deduction doesn't lose
-	   outermost CV qualifiers of EXPR.  */
-	type = build_reference_type (type);
       if (uses_parameter_packs (expr))
-	/* Stick with 'auto' even if the type could be deduced.  */
-	TEMPLATE_TYPE_PARAMETER_PACK (auto_node) = true;
+	{
+	  /* Stick with 'auto...' even if the type could be deduced.  */
+	  type = make_auto_pack ();
+	  if (by_reference_p)
+	    type = build_reference_type (type);
+	}
       else
-	type = do_auto_deduction (type, expr, auto_node);
+	{
+	  tree auto_node = make_auto ();
+	  type = auto_node;
+	  if (by_reference_p)
+	    /* Add the reference now, so deduction doesn't lose
+	       outermost CV qualifiers of EXPR.  */
+	    type = build_reference_type (type);
+	  type = do_auto_deduction (type, expr, auto_node);
+	}
     }
   else if (!type_deducible_expression_p (expr))
     {
@@ -259,7 +263,7 @@ lambda_capture_field_type (tree expr, bool explicit_init_p,
 
       type = non_reference (unlowered_expr_type (expr));
 
-      if (by_reference_p || TREE_CODE (type) == FUNCTION_TYPE)
+      if ((by_reference_p && !is_this) || TREE_CODE (type) == FUNCTION_TYPE)
 	type = build_reference_type (type);
     }
 
@@ -348,7 +352,11 @@ insert_capture_proxy (tree var)
 
   /* And put a DECL_EXPR in the STATEMENT_LIST for the same block.  */
   var = build_stmt (DECL_SOURCE_LOCATION (var), DECL_EXPR, var);
-  tree stmt_list = (*stmt_list_stack)[1];
+  /* The first stmt_list is from start_preparsed_function.  Then there's a
+     possible stmt_list from begin_eh_spec_block, then the one from the
+     lambda's outer {}.  */
+  unsigned index = 1 + use_eh_spec_block (current_function_decl);
+  tree stmt_list = (*stmt_list_stack)[index];
   gcc_assert (stmt_list);
   append_to_statement_list_force (var, &stmt_list);
 }
@@ -407,10 +415,11 @@ lambda_proxy_type (tree ref)
 
 /* MEMBER is a capture field in a lambda closure class.  Now that we're
    inside the operator(), build a placeholder var for future lookups and
-   debugging.  */
+   debugging.  But if EARLY_P is true, we do not have the real operator()
+   yet and we have to proceed differently.  */
 
-static tree
-build_capture_proxy (tree member, tree init)
+tree
+build_capture_proxy (tree member, tree init, bool early_p)
 {
   tree var, object, fn, closure, name, lam, type;
 
@@ -436,13 +445,21 @@ build_capture_proxy (tree member, tree init)
   else
     name = get_identifier (IDENTIFIER_POINTER (DECL_NAME (member)) + 2);
 
-  type = lambda_proxy_type (object);
-
-  if (name == this_identifier && !INDIRECT_TYPE_P (type))
+  if (name == this_identifier && TYPE_PTR_P (TREE_TYPE (member)))
+    /* Avoid DECLTYPE_TYPE for by-ref 'this' capture in an xobj lambda; the
+       constness of the closure doesn't matter just like it doesn't matter to
+       other by-ref capture.  It's simpler to handle this special case here
+       than in lambda_proxy_type.  */
+    type = TREE_TYPE (member);
+  else
     {
-      type = build_pointer_type (type);
-      type = cp_build_qualified_type (type, TYPE_QUAL_CONST);
-      object = build_fold_addr_expr_with_type (object, type);
+      type = lambda_proxy_type (object);
+      if (name == this_identifier)
+	{
+	  type = build_pointer_type (type);
+	  type = cp_build_qualified_type (type, TYPE_QUAL_CONST);
+	  object = build_fold_addr_expr_with_type (object, type);
+	}
     }
 
   if (DECL_VLA_CAPTURE_P (member))
@@ -481,6 +498,8 @@ build_capture_proxy (tree member, tree init)
 	    init = PACK_EXPANSION_PATTERN (init);
 	}
 
+      init = strip_contract_const_wrapper (init);
+
       if (INDIRECT_REF_P (init))
 	init = TREE_OPERAND (init, 0);
       STRIP_NOPS (init);
@@ -493,11 +512,19 @@ build_capture_proxy (tree member, tree init)
 
   if (name == this_identifier)
     {
+      if (early_p)
+	return var;
       gcc_assert (LAMBDA_EXPR_THIS_CAPTURE (lam) == member);
       LAMBDA_EXPR_THIS_CAPTURE (lam) = var;
     }
 
-  if (fn == current_function_decl)
+  if (early_p)
+    {
+      gcc_checking_assert (current_binding_level->kind == sk_lambda);
+      /* insert_capture_proxy below wouldn't push into the lambda scope.  */
+      pushdecl (var);
+    }
+  else if (fn == current_function_decl)
     insert_capture_proxy (var);
   else
     vec_safe_push (LAMBDA_EXPR_PENDING_PROXIES (lam), var);
@@ -702,8 +729,19 @@ add_capture (tree lambda, tree id, tree orig_init, bool by_reference_p,
       && current_class_type == LAMBDA_EXPR_CLOSURE (lambda))
     {
       if (COMPLETE_TYPE_P (current_class_type))
-	internal_error ("trying to capture %qD in instantiation of "
-			"generic lambda", id);
+	{
+	  /* This can happen for code like [&]<auto e> { [:e:]; } where
+	     we can't figure out what the splice will designate while parsing;
+	     we'll only know it after we've substituted the splice, but then
+	     it's too late to capture anything.  This code is ill-formed as
+	     per [expr.prim.splice]/2.1.4.1: The expression is ill-formed if
+	     S is ... a local entity such that ... there is a lambda scope that
+	     intervenes between the expression and the point at which S was
+	     introduced and the expression would be potentially evaluated.  */
+	  error ("trying to capture %qD in instantiation of generic lambda",
+		 id);
+	  return error_mark_node;
+	}
       finish_member_declaration (member);
     }
 
@@ -717,7 +755,7 @@ add_capture (tree lambda, tree id, tree orig_init, bool by_reference_p,
     = tree_cons (listmem, initializer, LAMBDA_EXPR_CAPTURE_LIST (lambda));
 
   if (LAMBDA_EXPR_CLOSURE (lambda))
-    return build_capture_proxy (member, initializer);
+    return build_capture_proxy (member, initializer, /*early_p=*/false);
   /* For explicit captures we haven't started the function yet, so we wait
      and build the proxy from cp_parser_lambda_body.  */
   LAMBDA_CAPTURE_EXPLICIT_P (LAMBDA_EXPR_CAPTURE_LIST (lambda)) = true;
@@ -812,6 +850,14 @@ lambda_expr_this_capture (tree lambda, int add_capture_p)
   /* In unevaluated context this isn't an odr-use, so don't capture.  */
   if (cp_unevaluated_operand)
     add_capture_p = false;
+
+  /* If we captured 'this' but don't have a capture proxy yet, look up the
+     captured 'this' again.  */
+  if (this_capture && TREE_CODE (this_capture) == FIELD_DECL)
+    {
+      gcc_assert (!add_capture_p);
+      this_capture = NULL_TREE;
+    }
 
   /* Try to default capture 'this' if we can.  */
   if (!this_capture)
@@ -917,8 +963,9 @@ lambda_expr_this_capture (tree lambda, int add_capture_p)
   else
     {
       /* To make sure that current_class_ref is for the lambda.  */
-      gcc_assert (TYPE_MAIN_VARIANT (TREE_TYPE (current_class_ref))
-		  == LAMBDA_EXPR_CLOSURE (lambda));
+      gcc_assert (!current_class_ref
+		  || (TYPE_MAIN_VARIANT (TREE_TYPE (current_class_ref))
+		      == LAMBDA_EXPR_CLOSURE (lambda)));
 
       result = this_capture;
 
@@ -928,6 +975,9 @@ lambda_expr_this_capture (tree lambda, int add_capture_p)
 	 ensures that the transformed expression is an rvalue. ] */
       result = rvalue (result);
     }
+
+  gcc_checking_assert (!result || result == error_mark_node
+		       || TYPE_PTR_P (TREE_TYPE (result)));
 
   return result;
 }
@@ -958,10 +1008,14 @@ resolvable_dummy_lambda (tree object)
   tree type = TYPE_MAIN_VARIANT (TREE_TYPE (object));
   gcc_assert (!TYPE_PTR_P (type));
 
+  tree fn;
   if (type != current_class_type
       && current_class_type
       && LAMBDA_TYPE_P (current_class_type)
-      && lambda_function (current_class_type)
+      && (fn = lambda_function (current_class_type))
+      /* Even dummy lambdas have an operator() since P2036, but the
+	 dummy operator() doesn't have this set.  */
+      && DECL_LAMBDA_FUNCTION_P (fn)
       && DERIVED_FROM_P (type, nonlambda_method_basetype()))
     return CLASSTYPE_LAMBDA_EXPR (current_class_type);
 
@@ -1016,13 +1070,19 @@ maybe_generic_this_capture (tree object, tree fns)
       }
 }
 
-/* Returns the innermost non-lambda function.  */
+/* Returns the innermost non-lambda function.  If ONLY_SKIP_CONSTEVAL_BLOCK_P,
+   we only skip lambda functions that represent consteval blocks.  */
 
 tree
-current_nonlambda_function (void)
+current_nonlambda_function (bool only_skip_consteval_block_p/*=false*/)
 {
   tree fn = current_function_decl;
-  while (fn && LAMBDA_FUNCTION_P (fn))
+  tree lam;
+  while (fn && LAMBDA_FUNCTION_P (fn)
+	 && (!only_skip_consteval_block_p
+	     /* Only keep going if FN represents a consteval block.  */
+	     || ((lam = CLASSTYPE_LAMBDA_EXPR (CP_DECL_CONTEXT (fn)))
+		 && LAMBDA_EXPR_CONSTEVAL_BLOCK_P (lam))))
     fn = decl_function_context (fn);
   return fn;
 }
@@ -1033,12 +1093,9 @@ current_nonlambda_function (void)
 tree
 nonlambda_method_basetype (void)
 {
-  if (!current_class_ref)
-    return NULL_TREE;
-
   tree type = current_class_type;
   if (!type || !LAMBDA_TYPE_P (type))
-    return type;
+    return current_class_ref ? type : NULL_TREE;
 
   while (true)
     {
@@ -1050,7 +1107,7 @@ nonlambda_method_basetype (void)
 
       tree fn = TYPE_CONTEXT (type);
       if (!fn || TREE_CODE (fn) != FUNCTION_DECL
-	  || !DECL_IOBJ_MEMBER_FUNCTION_P (fn))
+	  || !DECL_OBJECT_MEMBER_FUNCTION_P (fn))
 	/* No enclosing non-lambda method.  */
 	return NULL_TREE;
       if (!LAMBDA_FUNCTION_P (fn))
@@ -1107,7 +1164,7 @@ prepare_op_call (tree fn, int nargs)
 bool
 generic_lambda_fn_p (tree callop)
 {
-  return (LAMBDA_FUNCTION_P (callop)
+  return (callop && LAMBDA_FUNCTION_P (callop)
 	  && DECL_TEMPLATE_INFO (callop)
 	  && PRIMARY_TEMPLATE_P (DECL_TI_TEMPLATE (callop)));
 }
@@ -1124,7 +1181,9 @@ maybe_add_lambda_conv_op (tree type)
   tree lam = CLASSTYPE_LAMBDA_EXPR (type);
 
   if (LAMBDA_EXPR_CAPTURE_LIST (lam) != NULL_TREE
-      || LAMBDA_EXPR_DEFAULT_CAPTURE_MODE (lam) != CPLD_NONE)
+      || LAMBDA_EXPR_DEFAULT_CAPTURE_MODE (lam) != CPLD_NONE
+      /* CWG2561 ...and no explicit object parameter.  */
+      || DECL_XOBJ_MEMBER_FUNCTION_P (callop))
     return;
 
   if (processing_template_decl)
@@ -1284,9 +1343,10 @@ maybe_add_lambda_conv_op (tree type)
     }
 
   tree stattype
-    = build_function_type (fn_result, FUNCTION_FIRST_USER_PARMTYPE (callop));
-  stattype = (cp_build_type_attribute_variant
-	      (stattype, TYPE_ATTRIBUTES (optype)));
+    = cp_build_function_type (fn_result,
+			      FUNCTION_FIRST_USER_PARMTYPE (callop));
+  stattype = cp_build_type_attribute_variant (stattype,
+					      TYPE_ATTRIBUTES (optype));
   if (flag_noexcept_type
       && TYPE_NOTHROW_P (TREE_TYPE (callop)))
     stattype = build_exception_variant (stattype, noexcept_true_spec);
@@ -1702,8 +1762,8 @@ compare_lambda_sig (tree fn_a, tree fn_b)
       || fn_b == error_mark_node)
     return false;
 
-  for (tree args_a = TREE_CHAIN (TYPE_ARG_TYPES (TREE_TYPE (fn_a))),
-	 args_b = TREE_CHAIN (TYPE_ARG_TYPES (TREE_TYPE (fn_b)));
+  for (tree args_a = FUNCTION_FIRST_USER_PARMTYPE (fn_a),
+	 args_b = FUNCTION_FIRST_USER_PARMTYPE (fn_b);
        args_a || args_b;
        args_a = TREE_CHAIN (args_a), args_b = TREE_CHAIN (args_b))
     {
@@ -1757,6 +1817,17 @@ record_lambda_scope_sig_discriminator (tree lambda, tree fn)
   LAMBDA_EXPR_SCOPE_SIG_DISCRIMINATOR (lambda) = sig->count++;
 }
 
+/* Push the proxies for any explicit captures in LAMBDA_EXPR.
+   If EARLY_P, we do not have the real operator() yet.  */
+
+void
+push_capture_proxies (tree lambda_expr, bool early_p)
+{
+  for (tree cap = LAMBDA_EXPR_CAPTURE_LIST (lambda_expr); cap;
+       cap = TREE_CHAIN (cap))
+    build_capture_proxy (TREE_PURPOSE (cap), TREE_VALUE (cap), early_p);
+}
+
 tree
 start_lambda_function (tree fco, tree lambda_expr)
 {
@@ -1769,9 +1840,7 @@ start_lambda_function (tree fco, tree lambda_expr)
   tree body = begin_function_body ();
 
   /* Push the proxies for any explicit captures.  */
-  for (tree cap = LAMBDA_EXPR_CAPTURE_LIST (lambda_expr); cap;
-       cap = TREE_CHAIN (cap))
-    build_capture_proxy (TREE_PURPOSE (cap), TREE_VALUE (cap));
+  push_capture_proxies (lambda_expr);
 
   return body;
 }
@@ -1859,11 +1928,10 @@ prune_lambda_captures (tree body)
   cp_walk_tree_without_duplicates (&body, mark_const_cap_r, &const_vars);
 
   tree bind_expr = expr_single (DECL_SAVED_TREE (lambda_function (lam)));
-  if (bind_expr && TREE_CODE (bind_expr) == MUST_NOT_THROW_EXPR)
+  bool noexcept_p = (bind_expr
+		     && TREE_CODE (bind_expr) == MUST_NOT_THROW_EXPR);
+  if (noexcept_p)
     bind_expr = expr_single (TREE_OPERAND (bind_expr, 0));
-  /* FIXME: We don't currently handle noexcept lambda captures correctly,
-     so bind_expr may not be set; see PR c++/119764.  */
-  gcc_assert (!bind_expr || TREE_CODE (bind_expr) == BIND_EXPR);
 
   tree *fieldp = &TYPE_FIELDS (LAMBDA_EXPR_CLOSURE (lam));
   for (tree *capp = &LAMBDA_EXPR_CAPTURE_LIST (lam); *capp; )
@@ -1872,10 +1940,22 @@ prune_lambda_captures (tree body)
       if (tree var = var_to_maybe_prune (cap))
 	{
 	  tree **use = const_vars.get (var);
-	  if (use && TREE_CODE (**use) == DECL_EXPR)
+	  if (TREE_CODE (**use) == DECL_EXPR)
 	    {
 	      /* All uses of this capture were folded away, leaving only the
 		 proxy declaration.  */
+
+	      if (noexcept_p)
+		{
+		  /* We didn't handle noexcept lambda captures correctly before
+		     the fix for PR c++/119764.  */
+		  if (abi_version_crosses (21))
+		    warning_at (location_of (lam), OPT_Wabi, "%qD is no longer"
+				" captured in noexcept lambda in ABI v21 "
+				"(GCC 16)", var);
+		  if (!abi_version_at_least (21))
+		    goto next;
+		}
 
 	      /* Splice the capture out of LAMBDA_EXPR_CAPTURE_LIST.  */
 	      *capp = TREE_CHAIN (cap);
@@ -1894,14 +1974,11 @@ prune_lambda_captures (tree body)
 
 	      /* And maybe out of the vars declared in the containing
 		 BIND_EXPR, if it's listed there.  */
-	      if (bind_expr)
-		{
-		  tree *bindp = &BIND_EXPR_VARS (bind_expr);
-		  while (*bindp && *bindp != DECL_EXPR_DECL (**use))
-		    bindp = &DECL_CHAIN (*bindp);
-		  if (*bindp)
-		    *bindp = DECL_CHAIN (*bindp);
-		}
+	      tree *bindp = &BIND_EXPR_VARS (bind_expr);
+	      while (*bindp && *bindp != DECL_EXPR_DECL (**use))
+		bindp = &DECL_CHAIN (*bindp);
+	      if (*bindp)
+		*bindp = DECL_CHAIN (*bindp);
 
 	      /* And remove the capture proxy declaration.  */
 	      **use = void_node;
@@ -1909,6 +1986,7 @@ prune_lambda_captures (tree body)
 	    }
 	}
 
+    next:
       capp = &TREE_CHAIN (cap);
     }
 }
@@ -1922,7 +2000,7 @@ finish_lambda_function (tree body)
 {
   finish_function_body (body);
 
-  prune_lambda_captures (body);
+  prune_lambda_captures (cur_stmt_list);
 
   /* Finish the function and generate code for it if necessary.  */
   tree fn = finish_function (/*inline_p=*/true);

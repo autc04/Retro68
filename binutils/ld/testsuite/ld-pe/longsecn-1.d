@@ -2,6 +2,7 @@
 #ld: --disable-long-section-names
 #objdump: -h
 #source: longsecn.s
+#xfail: mcore-*-*
 
 .*:     file format .*
 
@@ -17,6 +18,8 @@ Idx Name          Size      VMA +LMA +File off  Algn
                   CONTENTS, ALLOC, LOAD, DATA
   4 \.rodata\.      [0-9a-fA-F]+  [0-9a-fA-F]+  [0-9a-fA-F]+  [0-9a-fA-F]+  2\*\*[0-9]
                   CONTENTS, ALLOC, LOAD, DATA
-  5 \.idata        [0-9a-fA-F]+  [0-9a-fA-F]+  [0-9a-fA-F]+  [0-9a-fA-F]+  2\*\*[0-9]
-                  CONTENTS, ALLOC, LOAD, DATA
+  5 \.rdata        [0-9a-fA-F]+  [0-9a-fA-F]+  [0-9a-fA-F]+  [0-9a-fA-F]+  2\*\*[0-9]
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  6 \.idata        [0-9a-fA-F]+  [0-9a-fA-F]+  [0-9a-fA-F]+  [0-9a-fA-F]+  2\*\*[0-9]
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
 #...

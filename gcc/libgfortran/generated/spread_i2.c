@@ -1,5 +1,5 @@
 /* Special implementation of the SPREAD intrinsic
-   Copyright (C) 2008-2025 Free Software Foundation, Inc.
+   Copyright (C) 2008-2026 Free Software Foundation, Inc.
    Contributed by Thomas Koenig <tkoenig@gcc.gnu.org>, based on
    spread_generic.c written by Paul Brook <paul@nowt.org>
 
@@ -243,7 +243,8 @@ spread_scalar_i2 (gfc_array_i2 *ret, const GFC_INTEGER_2 *source,
 
   if (ret->base_addr == NULL)
     {
-      ret->base_addr = xmallocarray (ncopies, sizeof (GFC_INTEGER_2));
+      ret->base_addr = xmallocarray (ncopies > 0 ? ncopies : 0,
+				     sizeof (GFC_INTEGER_2));
       ret->offset = 0;
       GFC_DIMENSION_SET(ret->dim[0], 0, ncopies - 1, 1);
     }

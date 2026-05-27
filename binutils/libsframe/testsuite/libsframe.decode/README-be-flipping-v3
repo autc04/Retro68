@@ -1,0 +1,58 @@
+$ cat be-flipping-v3.s
+	.text
+	.type bar, @function
+bar:
+	.cfi_sections
+	.cfi_startproc
+	ldgr	%f0,%r14
+	.cfi_register 14, 16
+	ldgr	%f2,%r11
+	.cfi_register 11, 17
+	la	%r11,0
+	la	%r14,0
+.Lreturn:
+	lgdr	%r11,%f2
+	.cfi_restore 11
+	lgdr	%r14,%f0
+	.cfi_restore 14
+	br	%r14
+	.cfi_endproc
+	.size	bar,.-bar
+
+	.globl	_start
+	.type	_start, @function
+_start:
+	brasl	%r14,bar@PLT
+	.size	_start,.-_start
+
+$ s390x-ibm-linux-gnu-as --gsframe-3 -o be-flipping-v3.o be-flipping-v3.s
+
+Although running ld is not strictly necessary for the current set of tests, it
+is being done in case future testing desires invoking sframe_find_fre ().
+SFrame FDE lookup APIs in libsframe currently implement binary search of index
+entires (and check for SFRAME_F_FDE_SORTED).
+
+$ s390x-ibm-linux-gnu-ld be-flipping-v3.o -o be-flipping-v3
+$ s390x-ibm-linux-gnu-objdump --sframe be-flipping-v3
+
+be-flipping-v3:     file format elf64-s390
+
+Contents of the SFrame section .sframe:
+  Header :
+
+    Version: SFRAME_VERSION_3
+    Flags: SFRAME_F_FDE_SORTED,
+           SFRAME_F_FDE_FUNC_START_PCREL
+    Num FDEs: 1
+    Num FREs: 5
+
+  Function Index :
+
+    func idx [0]: pc = 0x10000b0, size = 26 bytes, attr = "F"
+    STARTPC         CFA       FP        RA
+    00000000010000b0  sp+160    u         u
+    00000000010000b4  sp+160    u         r16+0
+    00000000010000b8  sp+160    r17+0     r16+0
+    00000000010000c4  sp+160    u         r16+0
+    00000000010000c8  sp+160    u         u
+$ s390x-ibm-linux-gnu-objcopy --dump-section .sframe=DATA-BE-V3 be-flipping-v3

@@ -8,8 +8,8 @@ Disassembly of section \.text:
 0[0-9a-f]+ <[^>]+> bf01      	itttt	eq
 0[0-9a-f]+ <[^>]+> ef22 0152 	vorreq	q0, q1, q1
 0[0-9a-f]+ <[^>]+> ef21 0111 	vorreq	d0, d1, d1
-0[0-9a-f]+ <[^>]+> ef80 0050 	vmoveq\.i32	q0, #0	; 0x00000000
-0[0-9a-f]+ <[^>]+> ef80 0010 	vmoveq\.i32	d0, #0	; 0x00000000
+0[0-9a-f]+ <[^>]+> ef80 0050 	vmoveq\.i32	q0, #0	@ 0x00000000
+0[0-9a-f]+ <[^>]+> ef80 0010 	vmoveq\.i32	d0, #0	@ 0x00000000
 0[0-9a-f]+ <[^>]+> bf01      	itttt	eq
 0[0-9a-f]+ <[^>]+> ee20 2b10 	vmoveq\.32	d0\[1\], r2
 0[0-9a-f]+ <[^>]+> ec42 1b10 	vmoveq	d0, r1, r2

@@ -25,7 +25,7 @@ try_maybe_reporting (int report)
   ctf_dict_t *fp;
   ctf_id_t func, func2, func3, base, base2, base3;
   ctf_encoding_t e = { CTF_INT_SIGNED, 0, sizeof (long) };
-  ctf_id_t dummy;
+  ctf_id_t dummy = 0;
   ctf_funcinfo_t fi;
   ctf_next_t *i = NULL;
   ctf_id_t symtype;

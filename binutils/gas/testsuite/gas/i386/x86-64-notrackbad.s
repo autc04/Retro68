@@ -1,6 +1,5 @@
 # Check 64bit unsupported NOTRACK prefix
 
-	.allow_index_reg
 	.text
 _start:
 	notrack call foo

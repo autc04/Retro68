@@ -1,5 +1,5 @@
 # Expect script for ld-visibility tests
-#   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -36,7 +36,6 @@ if { ![istarget hppa*64*-*-hpux*] \
      && ![istarget hppa*-*-linux*] \
      && ![istarget i?86-*-linux*] \
      && ![istarget i?86-*-gnu*] \
-     && ![istarget *-*-nacl*] \
      && ![istarget ia64-*-linux*] \
      && ![istarget m68k-*-linux*] \
      && ![istarget mips*-*-linux*] \
@@ -49,6 +48,13 @@ if { ![istarget hppa*64*-*-hpux*] \
      && ![istarget x86_64-*-linux*] \
      && ![is_xcoff_format] } {
     return
+}
+
+set need_direct_extern_access ""
+if { [istarget i?86-*-linux*]
+     || [istarget i?86-*-gnu*] } then {
+    # These targets need direct extern access in some tests.
+    set need_direct_extern_access "$DIRECT_EXTERN_ACCESS_CFLAGS"
 }
 
 if [is_xcoff_format] {
@@ -114,7 +120,6 @@ if [istarget arm*-*-linux*] {
 set support_protected "no"
 
 if { [istarget *-*-linux*]
-     || [istarget *-*-nacl*]
      || [istarget *-*-gnu*] } {
     if [ld_compile "$CC_FOR_TARGET -g -DPROTECTED_CHECK" $srcdir/$subdir/main.c $tmpdir/main.o] {
       if [ld_link $CC_FOR_TARGET $tmpdir/main "$tmpdir/main.o"] {
@@ -134,6 +139,7 @@ proc visibility_test { visibility progname testname main sh1 sh2 dat args } {
     global tmpdir
 
     if [llength $args] { set shldflags [lindex $args 0] } else { set shldflags "" }
+    if { [llength $args] >= 2 } { set ldflags [lindex $args 1] } else { set ldflags "" }
 
     # Build the shared library.
     set shared -shared
@@ -169,7 +175,7 @@ proc visibility_test { visibility progname testname main sh1 sh2 dat args } {
 	set rpath /lib:$tmpdir
 	set exportflag " -Wl,-bexpall"
     }
-    if ![ld_link $CC_FOR_TARGET $tmpdir/$progname "-Wl,-rpath,$rpath $tmpdir/$main $tmpdir/$progname.so $exportflag"] {
+    if ![ld_link $CC_FOR_TARGET $tmpdir/$progname "-Wl,-rpath,$rpath $ldflags $tmpdir/$main $tmpdir/$progname.so $exportflag"] {
 	if { [ string match $visibility "hidden" ]
 	     && [regexp "undefined reference to \`\.?visibility\'" $link_output]
 	     && [regexp "undefined reference to \`visibility_var\'" $link_output] } {
@@ -235,9 +241,11 @@ proc visibility_run {visibility} {
     global shared_needs_pic
     global PLT_CFLAGS
     global NOPIE_CFLAGS
+    global NOPIE_LDFLAGS
     global COMPRESS_LDFLAG
     global NOSANITIZE_CFLAGS
     global NOLTO_CFLAGS
+    global need_direct_extern_access
 
     if [ string match $visibility "hidden" ] {
 	set VSBCFLAG "-DHIDDEN_TEST"
@@ -284,7 +292,7 @@ proc visibility_run {visibility} {
     } else {
     # Compile the main program.  Make sure that PLT is used since PLT
     # is expected.
-    if ![ld_compile "$CC_FOR_TARGET -g $PLT_CFLAGS $SHCFLAG $VSBCFLAG $NOSANITIZE_CFLAGS $NOLTO_CFLAGS" $srcdir/$subdir/main.c $tmpdir/mainnp.o] {
+    if ![ld_compile "$CC_FOR_TARGET -g $NOPIE_CFLAGS $PLT_CFLAGS $SHCFLAG $VSBCFLAG $NOSANITIZE_CFLAGS $NOLTO_CFLAGS $need_direct_extern_access" $srcdir/$subdir/main.c $tmpdir/mainnp.o] {
 	unsupported "visibility ($visibility) (non PIC)"
 	unsupported "visibility ($visibility)"
     } else {
@@ -294,8 +302,8 @@ proc visibility_run {visibility} {
 	# will need to do more relocation work.  However, note that not
 	# using -fpic will cause some of the tests to return different
 	# results.  Make sure that PLT is used since PLT is expected.
-	if { ![ld_compile "$CC_FOR_TARGET -g $NOPIE_CFLAGS $PLT_CFLAGS $SHCFLAG $VSBCFLAG $NOSANITIZE_CFLAGS $NOLTO_CFLAGS" $srcdir/$subdir/sh1.c $tmpdir/sh1np.o]
-	     || ![ld_compile "$CC_FOR_TARGET -g $NOPIE_CFLAGS $PLT_CFLAGS $SHCFLAG $VSBCFLAG $NOSANITIZE_CFLAGS $NOLTO_CFLAGS" $srcdir/$subdir/sh2.c $tmpdir/sh2np.o] } {
+	if { ![ld_compile "$CC_FOR_TARGET -g $NOPIE_CFLAGS $PLT_CFLAGS $SHCFLAG $VSBCFLAG $NOSANITIZE_CFLAGS $NOLTO_CFLAGS $need_direct_extern_access" $srcdir/$subdir/sh1.c $tmpdir/sh1np.o]
+	     || ![ld_compile "$CC_FOR_TARGET -g $NOPIE_CFLAGS $PLT_CFLAGS $SHCFLAG $VSBCFLAG $NOSANITIZE_CFLAGS $NOLTO_CFLAGS $need_direct_extern_access" $srcdir/$subdir/sh2.c $tmpdir/sh2np.o] } {
 	    unsupported "visibility ($visibility) (non PIC)"
 	} else {
 	    # SunOS non PIC shared libraries don't permit some cases of
@@ -343,7 +351,7 @@ proc visibility_run {visibility} {
 		setup_xfail "*-*-beos*"
 	    }
 
-	    visibility_test $visibility vnp "visibility ($visibility) (non PIC)" mainnp.o sh1np.o sh2np.o $datfile
+	    visibility_test $visibility vnp "visibility ($visibility) (non PIC)" mainnp.o sh1np.o sh2np.o $datfile "" $NOPIE_LDFLAGS
 
 	    # Test ELF shared library relocations with a non-zero load
 	    # address for the library.  Near as I can tell, the R_*_RELATIVE
@@ -395,7 +403,7 @@ proc visibility_run {visibility} {
 	    if { ![is_xcoff_format] } {
 		visibility_test $visibility vnp "visibility ($visibility) (non PIC, load offset)" \
 		    mainnp.o sh1np.o sh2np.o $datfile \
-		    "-Wl,-T,$srcdir/$subdir/elf-offset.ld,--hash-style=sysv"
+		    "-Wl,-T,$srcdir/$subdir/elf-offset.ld,--hash-style=sysv" $NOPIE_LDFLAGS
 	    }
 	}
 
@@ -411,7 +419,7 @@ proc visibility_run {visibility} {
 		    setup_xfail $target_triplet
 		}
 	    }
-	    visibility_test $visibility vp "visibility ($visibility)" mainnp.o sh1p.o sh2p.o $datfile $COMPRESS_LDFLAG
+	    visibility_test $visibility vp "visibility ($visibility)" mainnp.o sh1p.o sh2p.o $datfile $COMPRESS_LDFLAG $NOPIE_LDFLAGS
 	}
     }}
 
@@ -466,7 +474,7 @@ proc visibility_run {visibility} {
 		setup_xfail "*-*-beos*"
 	    }
 
-	    visibility_test $visibility vmpnp "visibility ($visibility) (PIC main, non PIC so)" mainp.o sh1np.o sh2np.o $datfile
+	    visibility_test $visibility vmpnp "visibility ($visibility) (PIC main, non PIC so)" mainp.o sh1np.o sh2np.o $datfile "" $NOPIE_LDFLAGS
 	} else {
 	    unsupported "visibility (PIC main, non PIC so)"
 	}
@@ -488,7 +496,7 @@ proc visibility_run {visibility} {
 		setup_xfail "*-*-beos*"
 	    }
 
-	    visibility_test $visibility vmpp "visibility ($visibility) (PIC main)" mainp.o sh1p.o sh2p.o $datfile
+	    visibility_test $visibility vmpp "visibility ($visibility) (PIC main)" mainp.o sh1p.o sh2p.o $datfile "" $NOPIE_LDFLAGS
 	} else {
 	    unsupported "visibility ($visibility) (PIC main)"
 	}

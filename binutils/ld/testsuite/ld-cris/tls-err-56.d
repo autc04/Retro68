@@ -1,5 +1,5 @@
 #source: tls-err-56.s
-#as: --pic --no-underscore --em=criself -I$srcdir/$subdir
+#as: --pic --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: --shared -m crislinux
 #error: \A[^\n]*\.o[^\n]*relocation R_CRIS_32_GOT_GD with non-zero addend 42 against symbol `tls128'[^\n]*\n[^\n]*bad value\Z
 

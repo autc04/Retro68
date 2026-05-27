@@ -1,68 +1,68 @@
 [^:]*: Assembler messages:
-[^:]*:12: Error: immediate value out of range -- `vcvt.f16.s16 q0,q1,#0'
-[^:]*:13: Error: immediate value out of range -- `vcvt.s16.f16 q0,q1,#0'
-[^:]*:14: Error: immediate value out of range -- `vcvt.f16.u16 q0,q1,#0'
-[^:]*:15: Error: immediate value out of range -- `vcvt.u16.f16 q0,q1,#0'
-[^:]*:16: Error: immediate value out of range -- `vcvt.f16.s16 q0,q1,#17'
-[^:]*:17: Error: immediate value out of range -- `vcvt.s16.f16 q0,q1,#17'
-[^:]*:18: Error: immediate value out of range -- `vcvt.f16.u16 q0,q1,#17'
-[^:]*:19: Error: immediate value out of range -- `vcvt.u16.f16 q0,q1,#17'
-[^:]*:20: Error: immediate value out of range -- `vcvt.f32.s32 q0,q1,#0'
-[^:]*:21: Error: immediate value out of range -- `vcvt.s32.f32 q0,q1,#0'
-[^:]*:22: Error: immediate value out of range -- `vcvt.f32.u32 q0,q1,#0'
-[^:]*:23: Error: immediate value out of range -- `vcvt.u32.f32 q0,q1,#0'
-[^:]*:24: Error: immediate value out of range -- `vcvt.f32.s32 q0,q1,#33'
-[^:]*:25: Error: immediate value out of range -- `vcvt.s32.f32 q0,q1,#33'
-[^:]*:26: Error: immediate value out of range -- `vcvt.f32.u32 q0,q1,#33'
-[^:]*:27: Error: immediate value out of range -- `vcvt.u32.f32 q0,q1,#33'
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:3: Error: immediate value out of range -- `vcvt.f16.s16 q0,q1,#0'
+[^:]*:4: Error: immediate value out of range -- `vcvt.s16.f16 q0,q1,#0'
+[^:]*:5: Error: immediate value out of range -- `vcvt.f16.u16 q0,q1,#0'
+[^:]*:6: Error: immediate value out of range -- `vcvt.u16.f16 q0,q1,#0'
+[^:]*:7: Error: immediate value out of range -- `vcvt.f16.s16 q0,q1,#17'
+[^:]*:8: Error: immediate value out of range -- `vcvt.s16.f16 q0,q1,#17'
+[^:]*:9: Error: immediate value out of range -- `vcvt.f16.u16 q0,q1,#17'
+[^:]*:10: Error: immediate value out of range -- `vcvt.u16.f16 q0,q1,#17'
+[^:]*:11: Error: immediate value out of range -- `vcvt.f32.s32 q0,q1,#0'
+[^:]*:12: Error: immediate value out of range -- `vcvt.s32.f32 q0,q1,#0'
+[^:]*:13: Error: immediate value out of range -- `vcvt.f32.u32 q0,q1,#0'
+[^:]*:14: Error: immediate value out of range -- `vcvt.u32.f32 q0,q1,#0'
+[^:]*:15: Error: immediate value out of range -- `vcvt.f32.s32 q0,q1,#33'
+[^:]*:16: Error: immediate value out of range -- `vcvt.s32.f32 q0,q1,#33'
+[^:]*:17: Error: immediate value out of range -- `vcvt.f32.u32 q0,q1,#33'
+[^:]*:18: Error: immediate value out of range -- `vcvt.u32.f32 q0,q1,#33'
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:29: Error: bad type in SIMD instruction -- `vcvt.f64.u64 q0,q1,#1'
 [^:]*:30: Error: bad type in SIMD instruction -- `vcvt.u64.f64 q0,q1,#1'
 [^:]*:31: Error: bad type in SIMD instruction -- `vcvt.f64.s64 q0,q1,#1'

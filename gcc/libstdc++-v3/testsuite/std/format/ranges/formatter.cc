@@ -4,9 +4,10 @@
 #include <format>
 #include <testsuite_hooks.h>
 #include <vector>
+#include <span>
 
 #define WIDEN_(C, S) ::std::__format::_Widen<C>(S, L##S)
-#define WIDEN(S) WIDEN_(_CharT, S)
+#define WIDEN(S) WIDEN_(CharT, S)
 
 template<typename T,
 	 template<typename, typename> class Formatter = std::range_formatter>
@@ -22,7 +23,6 @@ struct std::formatter<MyVector<T, Formatter>, CharT>
 {
   constexpr formatter() noexcept
   {
-    using _CharT = CharT;
     _formatter.set_brackets(WIDEN("<"), WIDEN(">"));
     _formatter.set_separator(WIDEN("; "));
   }
@@ -41,12 +41,12 @@ private:
   Formatter<T, CharT> _formatter;
 };
 
-template<typename _CharT, template<typename, typename> class Formatter>
+template<typename CharT, template<typename, typename> class Formatter>
 void
 test_default()
 {
   MyVector<int, Formatter> vec{1, 2, 3};
-  std::basic_string<_CharT> res;
+  std::basic_string<CharT> res;
 
   res = std::format(WIDEN("{}"), vec);
   VERIFY( res == WIDEN("<1; 2; 3>") );
@@ -93,13 +93,13 @@ test_default()
   VERIFY( res == WIDEN("< +1 ;  +2 ;  +3 >") );
 }
 
-template<typename _CharT, template<typename, typename> class Formatter>
+template<typename CharT, template<typename, typename> class Formatter>
 void
 test_override()
 {
-  MyVector<_CharT, Formatter> vc{'a', 'b', 'c', 'd'};
+  MyVector<CharT, Formatter> vc{'a', 'b', 'c', 'd'};
   MyVector<std::pair<int, int>, Formatter> vp{{1, 11}, {2, 21}};
-  std::basic_string<_CharT> res;
+  std::basic_string<CharT> res;
 
   res = std::format(WIDEN("{:s}"), vc);
   VERIFY( res == WIDEN("abcd") );
@@ -146,7 +146,7 @@ struct MyFlatMap : std::flat_map<int, int>
 
 template<typename CharT>
 struct std::formatter<MyFlatMap, CharT>
-  // This cannot apply format BitVector const&, because formatted type would
+  // We cannot format MyFlatMap const&, because formatted type would
   // be std::pair<int const&, int const&>, and formatter for
   // pair<int const&, int> cannot format it.
   : std::range_formatter<MyFlatMap::reference>
@@ -162,10 +162,21 @@ void test_const_ref_type_mismatch()
 template<typename T, typename CharT>
 using VectorFormatter = std::formatter<std::vector<T>, CharT>;
 
+template<template<typename> typename Range>
+void test_nonblocking()
+{
+  static_assert(!std::enable_nonlocking_formatter_optimization<
+		  Range<int>>);
+}
+
 int main()
 {
   test_outputs<std::range_formatter>();
   test_outputs<VectorFormatter>();
   test_nested();
   test_const_ref_type_mismatch();
+
+  test_nonblocking<std::span>();
+  test_nonblocking<std::vector>();
+  test_nonblocking<MyVector>();
 }

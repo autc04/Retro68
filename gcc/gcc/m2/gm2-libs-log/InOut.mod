@@ -1,6 +1,6 @@
 (* InOut.mod provides a compatible PIM [234] InOut module.
 
-Copyright (C) 2004-2025 Free Software Foundation, Inc.
+Copyright (C) 2004-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -257,16 +257,8 @@ END WriteString ;
 PROCEDURE LocalWrite (ch: CHAR) ;
 BEGIN
    FIO.WriteChar(outFile, ch) ;
-   Done := FIO.IsNoError(outFile)
-(*
-   IF outUsed
-   THEN
-      FIO.WriteChar(outFile, ch) ;
-      Done := FIO.IsNoError(outFile)
-   ELSE
-      Done := (write(stdout, ADR(ch), 1) = 1)
-   END
-*)
+   Done := FIO.IsNoError(outFile) ;
+   FIO.FlushBuffer (outFile)
 END LocalWrite ;
 
 

@@ -1,6 +1,6 @@
 // SGI's rope class implementation -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -42,7 +42,7 @@
 
 #include <cstdio>
 #include <ostream>
-#include <bits/functexcept.h>
+#include <bits/stdexcept_throw.h>
 
 #include <ext/algorithm> // For copy_n and lexicographical_compare_3way
 #include <ext/memory> // For uninitialized_copy_n
@@ -1355,7 +1355,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	    case __detail::_S_substringfn:
 	      {
 		_RopeFunction* __f = (_RopeFunction*)__r;
-		_CharT __result;
+		_CharT __result = _CharT();
 
 		(*(__f->_M_fn))(__i, 1, &__result);
 		return __result;

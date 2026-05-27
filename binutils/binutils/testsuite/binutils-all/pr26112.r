@@ -1,9 +1,9 @@
 Contents of the .debug_macro section:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Version:                     5
   Offset size:                 4
-  Offset into .debug_line:     0x0
+  Offset into .debug_line:     (0x)?0
 
  DW_MACRO_start_file - lineno: 0 filenum: 1
  DW_MACRO_define_strx lineno : 1 macro : -

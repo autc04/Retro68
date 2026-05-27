@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: --underscore --em=criself --pic
+#as: --underscore --emulation=criself --pic
 
 # Check that 16-bit PIC relocs aren't overflowing.
 # PR gas/1049.

@@ -1,6 +1,6 @@
 #source: tls-gd-3.s
 #source: tls-x.s
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: --shared -m crislinux
 #error: \A[^\n]*\.o, [^\n]*\n[^\n]*mixup[^\n]*\n[^\n]*invalid operation\Z
 

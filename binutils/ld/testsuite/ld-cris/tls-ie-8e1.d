@@ -1,4 +1,4 @@
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux
 #source: start1.s
 #source: tls-ie-8e.s

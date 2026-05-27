@@ -20,6 +20,6 @@ SECTIONS
     *(.bss .bss.*)
   } >FOO
 
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }
 

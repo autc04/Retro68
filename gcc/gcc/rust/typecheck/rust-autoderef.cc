@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -26,8 +26,7 @@
 namespace Rust {
 namespace Resolver {
 
-static bool
-resolve_operator_overload_fn (
+static bool resolve_operator_overload_fn (
   LangItem::Kind lang_item_type, TyTy::BaseType *ty, TyTy::FnType **resolved_fn,
   Adjustment::AdjustmentType *requires_ref_adjustment);
 
@@ -248,7 +247,6 @@ resolve_operator_overload_fn (
 	  const TyTy::ADTType *adt = static_cast<const TyTy::ADTType *> (lhs);
 
 	  auto s = fn->get_self_type ()->get_root ();
-	  rust_assert (s->can_eq (adt, false));
 	  rust_assert (s->get_kind () == TyTy::TypeKind::ADT);
 	  const TyTy::ADTType *self_adt
 	    = static_cast<const TyTy::ADTType *> (s);
@@ -427,8 +425,7 @@ AutoderefCycle::try_autoderefed (TyTy::BaseType *r)
   TyTy::ReferenceType *r1
     = new TyTy::ReferenceType (r->get_ref (), TyTy::TyVar (r->get_ref ()),
 			       Mutability::Imm);
-  adjustments.push_back (
-    Adjustment (Adjustment::AdjustmentType::IMM_REF, r, r1));
+  adjustments.emplace_back (Adjustment::AdjustmentType::IMM_REF, r, r1);
   if (select (*r1))
     return true;
 
@@ -438,8 +435,7 @@ AutoderefCycle::try_autoderefed (TyTy::BaseType *r)
   TyTy::ReferenceType *r2
     = new TyTy::ReferenceType (r->get_ref (), TyTy::TyVar (r->get_ref ()),
 			       Mutability::Mut);
-  adjustments.push_back (
-    Adjustment (Adjustment::AdjustmentType::MUT_REF, r, r2));
+  adjustments.emplace_back (Adjustment::AdjustmentType::MUT_REF, r, r2);
   if (select (*r2))
     return true;
 

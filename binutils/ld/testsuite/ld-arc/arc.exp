@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2022 Free Software Foundation, Inc.
+# Copyright (C) 2016-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -18,7 +18,7 @@
 # MA 02110-1301, USA.
 #
 
-if { ![istarget arc*-*-*] } {
+if { ![istarget arc-*-*] } {
     return
 }
 

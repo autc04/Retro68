@@ -1,6 +1,6 @@
 (* M2MetaError.mod provides a set of high level error routines.
 
-Copyright (C) 2008-2025 Free Software Foundation, Inc.
+Copyright (C) 2008-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -26,7 +26,11 @@ FROM M2Base IMPORT ZType, RType, IsPseudoBaseFunction, IsPseudoBaseProcedure ;
 FROM NameKey IMPORT Name, KeyToCharStar, NulName ;
 FROM StrLib IMPORT StrLen ;
 FROM M2LexBuf IMPORT GetTokenNo, UnknownTokenNo ;
-FROM M2Error IMPORT Error, NewError, NewWarning, NewNote, ErrorString, InternalError, ChainError, SetColor, FlushErrors, FlushWarnings ;
+
+FROM M2Error IMPORT Error, NewError, KillError,
+                    NewWarning, NewNote, ErrorString, InternalError,
+                    ChainError, SetColor, FlushErrors, FlushWarnings ;
+
 FROM FIO IMPORT StdOut, WriteLine ;
 FROM SFIO IMPORT WriteS ;
 FROM StringConvert IMPORT ctos ;
@@ -44,7 +48,8 @@ FROM Indexing IMPORT Index, InitIndex, KillIndex, GetIndice, PutIndice,
 
 FROM DynamicStrings IMPORT String, InitString, InitStringCharStar,
                            ConCat, ConCatChar, Mark, string, KillString,
-                           Dup, char, Length, Mult, EqualArray, Equal ;
+                           Dup, char, Length, Mult, EqualArray, Equal,
+                           RemoveWhitePostfix ;
 
 FROM SymbolTable IMPORT NulSym,
                         IsDefImp, IsModule, IsInnerModule,
@@ -65,6 +70,10 @@ FROM SymbolTable IMPORT NulSym,
 
 IMPORT M2ColorString ;
 IMPORT M2Error ;
+IMPORT FilterError ;
+
+FROM FilterError IMPORT Filter, AddSymError, IsSymError ;
+FROM M2StackSpell IMPORT GetDefModuleSpellHint, GetSpellHint ;
 
 
 CONST
@@ -83,11 +92,18 @@ TYPE
    errorBlock = RECORD
                    useError  : BOOLEAN ;
                    e         : Error ;
+                   symcause  : CARDINAL ;  (* The symbol (or NulSym) associated with the token no.  *)
+                   token     : CARDINAL ;
                    type      : errorType ;
                    out, in   : String ;
                    highplus1 : CARDINAL ;
                    len,
                    ini       : INTEGER ;
+                   vowel,
+                   filterDef,
+                   importHint,
+                   exportHint,
+                   withStackHint,
                    glyph,
                    chain,
                    root,
@@ -109,12 +125,13 @@ TYPE
 
 
 VAR
-   lastRoot  : Error ;
-   lastColor : colorType ;
-   seenAbort : BOOLEAN ;
-   dictionary : Index ;
-   outputStack: Index ;
-   freeEntry  : dictionaryEntry ;
+   lastRoot     : Error ;
+   lastColor    : colorType ;
+   seenAbort    : BOOLEAN ;
+   dictionary   : Index ;
+   outputStack  : Index ;
+   freeEntry    : dictionaryEntry ;
+   FilterUnknown: Filter ;
 
 
 (*
@@ -507,13 +524,20 @@ BEGIN
    WITH eb DO
       useError   := TRUE ;
       e          := NIL ;
-      type       := error ;  (* default to the error color.  *)
+      symcause   := NulSym ;
+      token      := UnknownTokenNo ;
+      type       := error ;  (* Default to the error color.  *)
       out        := InitString ('') ;
       in         := input ;
       highplus1  := HIGH (sym) + 1 ;
       len        := Length (input) ;
       ini        := 0 ;
-      glyph      := FALSE ;  (* nothing to output yet.  *)
+      glyph      := FALSE ;  (* Nothing to output yet.  *)
+      vowel      := FALSE ;  (* Check for a vowel when outputing string?  *)
+      filterDef  := FALSE ;  (* Filter on definition module list?  *)
+      importHint := FALSE;
+      exportHint := FALSE ;
+      withStackHint := FALSE ;
       quotes     := TRUE ;
       positive   := TRUE ;
       root       := FALSE ;
@@ -521,7 +545,7 @@ BEGIN
       currentCol := findColorType (input) ;
       beginCol   := unsetColor ;
       endCol     := unsetColor ;
-      stackPtr   := 0
+      stackPtr   := 0 ;
    END
 END initErrorBlock ;
 
@@ -533,16 +557,16 @@ END initErrorBlock ;
 
 PROCEDURE push (VAR newblock: errorBlock; oldblock: errorBlock) ;
 BEGIN
-   pushColor (oldblock) ;  (* save the current color.  *)
-   newblock := oldblock ;  (* copy all the fields.  *)
-   newblock.out := NIL ;  (* must do this before a clear as we have copied the address.  *)
+   pushColor (oldblock) ;  (* Save the current color.  *)
+   newblock := oldblock ;  (* Now copy all the fields.  *)
+   newblock.out := NIL ;  (* We must do this before a clear as we have copied the address.  *)
    clear (newblock) ;
    newblock.quotes := TRUE
 END push ;
 
 
 (*
-   pop - copies contents of oldblock into newblock.  It only copies the error
+   pop - copies contents of fromblock into toblock.  It only copies the error
          handle if the toblock.e is NIL.
 *)
 
@@ -550,25 +574,26 @@ PROCEDURE pop (VAR toblock, fromblock: errorBlock) ;
 VAR
    c: colorType ;
 BEGIN
+   checkVowel (toblock, fromblock) ;
    IF empty (fromblock)
    THEN
       toblock.stackPtr := fromblock.stackPtr ;
       toblock.colorStack := fromblock.colorStack ;
-      popColor (toblock)   (* and restore the color from the push start.  *)
+      popColor (toblock)   (* Lastly restore the color from the push start.  *)
    ELSE
       IF fromblock.quotes
       THEN
-         (* string needs to be quoted.  *)
+         (* The string needs to be quoted.  *)
          IF toblock.currentCol = unsetColor
          THEN
-            (* caller has not yet assigned a color, so use the callee color at the end.  *)
+            (* The caller has not yet assigned a color, so use the callee color at the end.  *)
             OutOpenQuote (toblock) ;
             OutGlyphS (toblock, fromblock.out) ;
             OutCloseQuote (toblock) ;
             changeColor (toblock, fromblock.currentCol)
          ELSE
             shutdownColor (fromblock) ;
-            (* caller has assigned a color, so use it after the new string.  *)
+            (* The caller has assigned a color, so use it after the new string.  *)
             c := toblock.currentCol ;
             OutOpenQuote (toblock) ;
             OutGlyphS (toblock, fromblock.out) ;
@@ -578,12 +603,12 @@ BEGIN
       ELSE
          IF toblock.currentCol = unsetColor
          THEN
-            OutGlyphS (toblock, fromblock.out) ;
+            JoinSentances (toblock, fromblock.out) ;
             toblock.endCol := fromblock.endCol ;
             changeColor (toblock, fromblock.endCol)
          ELSE
             pushColor (toblock) ;
-            OutGlyphS (toblock, fromblock.out) ;
+            JoinSentances (toblock, fromblock.out) ;
             toblock.endCol := fromblock.endCol ;
             popColor (toblock)
          END
@@ -593,10 +618,14 @@ BEGIN
    THEN
       toblock.e := fromblock.e
    END ;
+   IF toblock.symcause = NulSym
+   THEN
+      toblock.symcause := fromblock.symcause
+   END ;
    toblock.chain := fromblock.chain ;
    toblock.root := fromblock.root ;
    toblock.ini := fromblock.ini ;
-   toblock.type := fromblock.type   (* might have been changed by the callee.  *)
+   toblock.type := fromblock.type   (* It might have been changed by the callee.  *)
 END pop ;
 
 
@@ -708,7 +737,7 @@ END killErrorBlock ;
                        )
                  =:
 
-   op := {'a'|'q'|'t'|'d'|'n'|'s'|'B'|'D'|'F'|'G'|'H'|'M'|'U'|'E'|'V'|'W'|'A'} then =:
+   op := {'a'|'q'|'t'|'d'|'n'|'s'|'v'|'B'|'D'|'F'|'G'|'H'|'M'|'U'|'E'|'V'|'W'|'A'} then =:
 
    then := [ ':' ebnf ] =:
 *)
@@ -973,6 +1002,38 @@ END empty ;
 
 
 (*
+   checkVowel - checks to see if the from block word starts with
+                a vowel and if so adds an n to the to block output.
+*)
+
+PROCEDURE checkVowel (VAR to: errorBlock; from: errorBlock) ;
+BEGIN
+   IF from.vowel AND (NOT empty (from))
+   THEN
+      IF isVowel (char (from.out, 0))
+      THEN
+         IF Length (to.out) > 0
+         THEN
+            to.out := RemoveWhitePostfix (Mark (to.out)) ;
+            to.out := ConCat (to.out, Mark (InitString ('n '))) ;
+            from.vowel := FALSE
+         END
+      END
+   END
+END checkVowel ;
+
+
+(*
+   isVowel - returns TRUE if ch is a, e, i, o or u.
+*)
+
+PROCEDURE isVowel (ch: CHAR) : BOOLEAN ;
+BEGIN
+   RETURN (ch = 'a') OR (ch = 'e') OR (ch = 'i') OR (ch = 'o') OR (ch = 'u')
+END isVowel ;
+
+
+(*
    clear - remove the output string.
 *)
 
@@ -1130,27 +1191,46 @@ END doChain ;
    doError - creates and returns an error note.
 *)
 
-PROCEDURE doError (VAR eb: errorBlock; tok: CARDINAL) ;
+PROCEDURE doError (VAR eb: errorBlock; tok: CARDINAL; sym: CARDINAL) ;
 BEGIN
    IF eb.useError
    THEN
-      chooseError (eb, tok)
+      chooseError (eb, tok, sym)
    END
 END doError ;
 
 
 (*
-   defaultError - adds the default error location to, tok, if one has not already been
-                  assigned.
+   defaultError - adds the default error location to, tok,
+                  if one has not already been assigned.
 *)
 
 PROCEDURE defaultError (VAR eb: errorBlock; tok: CARDINAL) ;
 BEGIN
    IF eb.e = NIL
    THEN
-      doError (eb, tok)
+      doError (eb, tok, NulSym)
+   END ;
+   IF eb.token = UnknownTokenNo
+   THEN
+      eb.token := tok
    END
 END defaultError ;
+
+
+(*
+   updateTokSym - assign symcause to sym if not NulSym.
+                  Update token.
+*)
+
+PROCEDURE updateTokSym (VAR eb: errorBlock; tok: CARDINAL; sym: CARDINAL) ;
+BEGIN
+   IF sym # NulSym
+   THEN
+      eb.symcause := sym
+   END ;
+   eb.token := tok
+END updateTokSym ;
 
 
 (*
@@ -1158,7 +1238,7 @@ END defaultError ;
                  Either an error, warning or note will be generated.
 *)
 
-PROCEDURE chooseError (VAR eb: errorBlock; tok: CARDINAL) ;
+PROCEDURE chooseError (VAR eb: errorBlock; tok: CARDINAL; sym: CARDINAL) ;
 BEGIN
    IF eb.chain
    THEN
@@ -1174,19 +1254,22 @@ BEGIN
                    eb.e := NewError (tok)
                 ELSE
                    eb.e := MoveError (eb.e, tok)
-                END |
+                END ;
+                updateTokSym (eb, tok, sym) |
       warning:  IF eb.e=NIL
                 THEN
                    eb.e := NewWarning (tok)
                 ELSE
                    eb.e := MoveError (eb.e, tok)
-                END |
+                END ;
+                updateTokSym (eb, tok, sym) |
       note   :  IF eb.e=NIL
                 THEN
                    eb.e := NewNote (tok)
                 ELSE
                    eb.e := MoveError (eb.e, tok)
-                END
+                END ;
+                updateTokSym (eb, tok, sym)
 
       ELSE
          InternalError ('unexpected enumeration value')
@@ -1214,9 +1297,9 @@ BEGIN
    THEN
       IF IsInnerModule (scope)
       THEN
-         doError (eb, GetDeclaredMod (sym))
+         doError (eb, GetDeclaredMod (sym), sym)
       ELSE
-         doError (eb, GetDeclaredMod (sym))
+         doError (eb, GetDeclaredMod (sym), sym)
       END
    ELSE
       Assert (IsDefImp (scope)) ;
@@ -1226,9 +1309,9 @@ BEGIN
          UNTIL GetScope(OuterModule)=NulSym.  *)
       IF GetDeclaredModule (sym) = UnknownTokenNo
       THEN
-         doError (eb, GetDeclaredDef (sym))
+         doError (eb, GetDeclaredDef (sym), sym)
       ELSE
-         doError (eb, GetDeclaredMod (sym))
+         doError (eb, GetDeclaredMod (sym), sym)
       END
    END
 END doErrorScopeModule ;
@@ -1247,9 +1330,9 @@ BEGIN
    THEN
       IF IsInnerModule (scope)
       THEN
-         doError (eb, GetDeclaredFor (sym))
+         doError (eb, GetDeclaredFor (sym), sym)
       ELSE
-         doError (eb, GetDeclaredFor (sym))
+         doError (eb, GetDeclaredFor (sym), sym)
       END
    ELSE
       Assert (IsDefImp (scope)) ;
@@ -1259,9 +1342,9 @@ BEGIN
          UNTIL GetScope(OuterModule)=NulSym.  *)
       IF GetDeclaredModule (sym) = UnknownTokenNo
       THEN
-         doError (eb, GetDeclaredDef (sym))
+         doError (eb, GetDeclaredDef (sym), sym)
       ELSE
-         doError (eb, GetDeclaredFor (sym))
+         doError (eb, GetDeclaredFor (sym), sym)
       END
    END
 END doErrorScopeForward ;
@@ -1281,12 +1364,12 @@ BEGIN
    IF scope = NulSym
    THEN
       M2Error.EnterErrorScope (NIL) ;
-      doError (eb, GetDeclaredMod (sym))
+      doError (eb, GetDeclaredMod (sym), sym)
    ELSE
       M2Error.EnterErrorScope (GetErrorScope (scope)) ;
       IF IsProcedure (scope)
       THEN
-         doError (eb, GetDeclaredMod (sym))
+         doError (eb, GetDeclaredMod (sym), sym)
       ELSE
          doErrorScopeModule (eb, sym)
       END
@@ -1310,12 +1393,12 @@ BEGIN
    IF scope = NulSym
    THEN
       M2Error.EnterErrorScope (NIL) ;
-      doError (eb, GetDeclaredFor (sym))
+      doError (eb, GetDeclaredFor (sym), sym)
    ELSE
       M2Error.EnterErrorScope (GetErrorScope (scope)) ;
       IF IsProcedure (scope)
       THEN
-         doError (eb, GetDeclaredFor (sym))
+         doError (eb, GetDeclaredFor (sym), sym)
       ELSE
          doErrorScopeForward (eb, sym)
       END
@@ -1349,16 +1432,16 @@ BEGIN
    IF IsModule (scope)
    THEN
       (* No definition module for a program module.  *)
-      doError (eb, GetDeclaredMod (sym))
+      doError (eb, GetDeclaredMod (sym), sym)
    ELSE
       Assert (IsDefImp (scope)) ;
       IF GetDeclaredDefinition (sym) = UnknownTokenNo
       THEN
          (* Fall back to the implementation module if no declaration exists
             in the definition module.  *)
-         doError (eb, GetDeclaredMod (sym))
+         doError (eb, GetDeclaredMod (sym), sym)
       ELSE
-         doError (eb, GetDeclaredDef (sym))
+         doError (eb, GetDeclaredDef (sym), sym)
       END
    END
 END doErrorScopeDefinition ;
@@ -1378,12 +1461,12 @@ BEGIN
    IF scope = NulSym
    THEN
       M2Error.EnterErrorScope (NIL) ;
-      doError (eb, GetDeclaredFor (sym))
+      doError (eb, GetDeclaredFor (sym), sym)
    ELSE
       M2Error.EnterErrorScope (GetErrorScope (scope)) ;
       IF IsProcedure (scope)
       THEN
-         doError (eb, GetDeclaredDef (sym))
+         doError (eb, GetDeclaredDef (sym), sym)
       ELSE
          doErrorScopeDefinition (eb, sym)
       END
@@ -1434,38 +1517,25 @@ BEGIN
    IF scope = NulSym
    THEN
       M2Error.EnterErrorScope (NIL) ;
-      doError (eb, GetDeclaredDef (sym))
+      doError (eb, GetDeclaredDef (sym), sym)
    ELSE
       M2Error.EnterErrorScope (GetErrorScope (scope)) ;
-      IF IsProcedure (scope)
+      IF IsVar (sym) OR IsParameter (sym)
       THEN
-         IF IsVar (sym) OR IsParameter (sym)
-         THEN
-            doError (eb, GetVarParamTok (sym))
-         ELSE
-            doError (eb, GetDeclaredDef (sym))
-         END
+         doError (eb, GetVarParamTok (sym), sym)
+      ELSIF IsProcedure (scope)
+      THEN
+         doError (eb, GetDeclaredDef (sym), sym)
+      ELSIF IsModule (scope)
+      THEN
+         doError (eb, GetDeclaredMod (sym), sym)
       ELSE
-         IF IsModule (scope)
+         Assert (IsDefImp (scope)) ;
+         IF GetDeclaredDefinition (sym) = UnknownTokenNo
          THEN
-            IF IsInnerModule (scope)
-            THEN
-               doError (eb, GetDeclaredDef (sym))
-            ELSE
-               doError (eb, GetDeclaredDef (sym))
-            END
+            doError (eb, GetDeclaredMod (sym), sym)
          ELSE
-            Assert (IsDefImp (scope)) ;
-            (* if this fails then we need to skip to the outer scope.
-            REPEAT
-             OuterModule := GetScope(OuterModule)
-            UNTIL GetScope(OuterModule)=NulSym ;  *)
-            IF GetDeclaredDefinition (sym) = UnknownTokenNo
-            THEN
-               doError (eb, GetDeclaredMod (sym))
-            ELSE
-               doError (eb, GetDeclaredDef (sym))
-            END
+            doError (eb, GetDeclaredDef (sym), sym)
          END
       END
    END ;
@@ -1520,7 +1590,7 @@ PROCEDURE used (VAR eb: errorBlock; sym: ARRAY OF CARDINAL; bol: CARDINAL) ;
 BEGIN
    IF bol <= HIGH (sym)
    THEN
-      doError (eb, GetFirstUsed (sym[bol]))
+      doError (eb, GetFirstUsed (sym[bol]), sym[bol])
    END
 END used ;
 
@@ -1637,7 +1707,7 @@ BEGIN
       RETURN InitString('set')
    ELSIF IsUnknown(sym)
    THEN
-      RETURN InitString('an unknown')
+      RETURN InitString('unknown')
    ELSIF IsSubrange(sym)
    THEN
       RETURN InitString('subrange')
@@ -1689,9 +1759,10 @@ END copySym ;
 
 
 (*
-   op := {'!'|'a'|'c'|'d'|'k'|'n'|'p'|'q'|'s'|'t'|'u'|
+   op := {'!'|'a'|'c'|'d'|'k'|'n'|'p'|'q'|'s'|'t'|'u'|'v'|
           'A'|'B'|'C'|'D'|'E'|'F'|'G'|'H'|'K'|'M'|'N'|
-          'O'|'P'|'Q'|'R'|'S'|'T'|'U'|'V'|'W'|'X'|'Y'|'Z'} then =:
+          'O'|'P'|'Q'|'R'|'S'|'T'|'U'|'V'|'W'|'X'|'Y'|'Z'|
+          '&' } then =:
 *)
 
 PROCEDURE op (VAR eb: errorBlock;
@@ -1718,12 +1789,14 @@ BEGIN
       's':  doSkipType (eb, sym, bol) |
       't':  doType (eb, sym, bol) |
       'u':  eb.quotes := FALSE |
+      'v':  eb.vowel := TRUE |
       'A':  eb.type := aborta ;
             seenAbort := TRUE |
       'B':  declaredType (eb, sym, bol) |
       'C':  eb.chain := TRUE |
       'D':  declaredDef (eb, sym, bol) |
-      'E':  eb.type := error |
+      'E':  eb.type := error ;
+            eb.symcause := sym[bol] |
       'F':  filename (eb) ;
             DEC (eb.ini) |
       'G':  declaredFor (eb, sym, bol) |
@@ -1732,7 +1805,8 @@ BEGIN
             DEC (eb.ini) |
       'M':  declaredMod (eb, sym, bol) |
       'N':  doCount (eb, sym, bol) |
-      'O':  eb.type := note |
+      'O':  eb.type := note ;
+            eb.symcause := sym[bol] |
       'P':  pushColor (eb) |
       'Q':  resetDictionary |
       'R':  eb.root := TRUE |
@@ -1740,10 +1814,13 @@ BEGIN
       'T':  doGetType (eb, sym, bol) |
       'U':  used (eb, sym, bol) |
       'V':  declaredVar (eb, sym, bol) |
-      'W':  eb.type := warning |
+      'W':  eb.type := warning ;
+            eb.symcause := sym[bol] |
       'X':  pushOutput (eb) |
       'Y':  processDefine (eb) |
       'Z':  popOutput (eb) |
+      '&':  continuation (eb, sym, bol) ;
+            DEC (eb.ini) |
       ':':  ifNonNulThen (eb, sym) ;
             DEC (eb.ini) |
       '1':  InternalError ('incorrect format spec, expecting %1 rather than % spec 1') |
@@ -1762,6 +1839,43 @@ BEGIN
       dump (eb)
    END
 END op ;
+
+
+(*
+   continuation := {':'|'1'|'2'|'3'|'4'|'i'|'s'|'x'|'w'|'D'} =:
+*)
+
+PROCEDURE continuation (VAR eb: errorBlock;
+                        VAR sym: ARRAY OF CARDINAL; bol: CARDINAL) ;
+BEGIN
+   Assert ((eb.ini < eb.len) AND (char (eb.in, eb.ini) = '&')) ;
+   INC (eb.ini) ;
+   WHILE (eb.ini < eb.len) AND (char (eb.in, eb.ini) # '}') DO
+      CASE char (eb.in, eb.ini) OF
+
+      ':':  ifNonNulThen (eb, sym) ;
+            DEC (eb.ini) |
+      '1':  InternalError ('incorrect format spec, expecting %1 rather than % spec 1') |
+      '2':  InternalError ('incorrect format spec, expecting %2 rather than % spec 2') |
+      '3':  InternalError ('incorrect format spec, expecting %3 rather than % spec 3') |
+      '4':  InternalError ('incorrect format spec, expecting %4 rather than % spec 4') |
+      'i':  AddImportsHint (eb) |
+      's':  SpellHint (eb, sym, bol) |
+      'x':  AddExportsHint (eb) |
+      'w':  AddWithStackHint (eb) |
+      'D':  FilterOnDefinitionModule (eb)
+
+      ELSE
+         InternalFormat (eb, 'expecting one of [:1234isxw]',
+                         __LINE__)
+      END ;
+      INC (eb.ini)
+   END ;
+   IF (eb.ini < eb.len) AND (char (eb.in, eb.ini) # '}')
+   THEN
+      DEC (eb.ini)
+   END
+END continuation ;
 
 
 (*
@@ -1803,6 +1917,99 @@ BEGIN
       END
    END
 END percenttoken ;
+
+
+(*
+   IsPunct - returns TRUE if ch is a punctuation character.
+*)
+
+PROCEDURE IsPunct (ch: CHAR) : BOOLEAN ;
+BEGIN
+   RETURN (ch = '.') OR (ch = ',') OR (ch = ':') OR
+          (ch = ';') OR (ch = '!') OR (ch = '(') OR
+          (ch = ')') OR (ch = '[') OR (ch = ']')
+END IsPunct ;
+
+
+(*
+   JoinSentances - join s onto eb.  It removes trailing
+                   spaces from eb if s starts with a punctuation
+                   character.
+*)
+
+PROCEDURE JoinSentances (VAR eb: errorBlock; s: String) ;
+BEGIN
+   IF (s # NIL) AND (Length (s) > 0)
+   THEN
+      IF IsPunct (char (s, 0))
+      THEN
+         eb.out := RemoveWhitePostfix (eb.out)
+      END ;
+      flushColor (eb) ;
+      eb.out := ConCat (eb.out, s) ;
+      eb.glyph := TRUE ;
+      eb.quotes := FALSE
+   END
+END JoinSentances ;
+
+
+(*
+   SpellHint -
+*)
+
+PROCEDURE SpellHint (VAR eb: errorBlock; sym: ARRAY OF CARDINAL; bol: CARDINAL) ;
+BEGIN
+   IF bol <= HIGH (sym)
+   THEN
+      IF eb.filterDef AND IsDefImp (sym[bol])
+      THEN
+         JoinSentances (eb, GetDefModuleSpellHint (sym[bol]))
+      ELSIF IsUnknown (sym[bol])
+      THEN
+         JoinSentances (eb, GetSpellHint (sym[bol]))
+      END
+   END
+END SpellHint ;
+
+
+(*
+   AddImportsHint -
+*)
+
+PROCEDURE AddImportsHint (VAR eb: errorBlock) ;
+BEGIN
+   eb.importHint := TRUE
+END AddImportsHint ;
+
+
+(*
+   AddExportsHint -
+*)
+
+PROCEDURE AddExportsHint (VAR eb: errorBlock) ;
+BEGIN
+   eb.exportHint := TRUE
+END AddExportsHint ;
+
+
+(*
+   AddWithStackHint -
+*)
+
+PROCEDURE AddWithStackHint (VAR eb: errorBlock) ;
+BEGIN
+   eb.withStackHint := TRUE
+END AddWithStackHint ;
+
+
+(*
+   FilterOnDefinitionModule - turn on filtering and include all the definition modules.
+*)
+
+PROCEDURE FilterOnDefinitionModule (VAR eb: errorBlock) ;
+BEGIN
+   eb.filterDef := TRUE
+END FilterOnDefinitionModule ;
 
 
 (*
@@ -2142,9 +2349,10 @@ BEGIN
    printf1 ("\nLength (out) = %d", l) ;
    printf1 ("\nlen       = %d", eb.len) ;
    printf1 ("\nhighplus1 = %d", eb.highplus1) ;
-   printf1 ("\nglyph     = %d", eb.glyph) ;
+   (* printf1 ("\nglyph     = %d", eb.glyph) ;
    printf1 ("\nquotes    = %d", eb.quotes) ;
    printf1 ("\npositive  = %d", eb.positive) ;
+   *)
    printf0 ("\nbeginCol  = ") ; dumpColorType (eb.beginCol) ;
    printf0 ("\nendCol    = ") ; dumpColorType (eb.endCol) ;
    printf0 ("\ncurrentCol = ") ; dumpColorType (eb.currentCol) ;
@@ -2254,7 +2462,12 @@ BEGIN
    ebnf (eb, sym) ;
    flushColor (eb) ;
    defaultError (eb, tok) ;
-   ErrorString (eb.e, Dup (eb.out)) ;
+   IF isUniqueError (eb)
+   THEN
+      ErrorString (eb.e, Dup (eb.out)) ;
+   ELSE
+      KillError (eb.e)
+   END ;
    killErrorBlock (eb) ;
    checkAbort
 END MetaErrorStringT1 ;
@@ -2277,7 +2490,12 @@ BEGIN
    ebnf (eb, sym) ;
    flushColor (eb) ;
    defaultError (eb, tok) ;
-   ErrorString (eb.e, Dup (eb.out)) ;
+   IF isUniqueError (eb)
+   THEN
+      ErrorString (eb.e, Dup (eb.out))
+   ELSE
+      KillError (eb.e)
+   END ;
    killErrorBlock (eb) ;
    checkAbort
 END MetaErrorStringT2 ;
@@ -2302,7 +2520,12 @@ BEGIN
    ebnf (eb, sym) ;
    flushColor (eb) ;
    defaultError (eb, tok) ;
-   ErrorString (eb.e, Dup (eb.out)) ;
+   IF isUniqueError (eb)
+   THEN
+      ErrorString (eb.e, Dup (eb.out))
+   ELSE
+      KillError (eb.e)
+   END ;
    killErrorBlock (eb) ;
    checkAbort
 END MetaErrorStringT3 ;
@@ -2327,7 +2550,12 @@ BEGIN
    ebnf (eb, sym) ;
    flushColor (eb) ;
    defaultError (eb, tok) ;
-   ErrorString (eb.e, Dup (eb.out)) ;
+   IF isUniqueError (eb)
+   THEN
+      ErrorString (eb.e, Dup (eb.out))
+   ELSE
+      KillError (eb.e)
+   END ;
    killErrorBlock (eb) ;
    checkAbort
 END MetaErrorStringT4 ;
@@ -2370,6 +2598,31 @@ END MetaError4 ;
 
 
 (*
+   isUniqueError - return TRUE if the symbol associated with the
+                   error block is unknown and we have seen the same
+                   token before.
+*)
+
+PROCEDURE isUniqueError (VAR eb: errorBlock) : BOOLEAN ;
+BEGIN
+   IF (eb.symcause # NulSym) AND IsUnknown (eb.symcause)
+   THEN
+      (* A candidate for filtering.  *)
+      IF IsSymError (FilterUnknown, eb.symcause, eb.token)
+      THEN
+         (* Seen and reported about this unknown and token
+            location before.  *)
+         RETURN FALSE
+      ELSE
+         (* Remember this combination.  *)
+         AddSymError (FilterUnknown, eb.symcause, eb.token)
+      END
+   END ;
+   RETURN TRUE
+END isUniqueError ;
+
+
+(*
    wrapErrors -
 *)
 
@@ -2383,15 +2636,20 @@ BEGIN
    ebnf (eb, sym) ;
    flushColor (eb) ;
    defaultError (eb, tok) ;
-   lastRoot := eb.e ;
-   ErrorString (eb.e, Dup (eb.out)) ;
-   killErrorBlock (eb) ;
-   initErrorBlock (eb, InitString (m2), sym) ;
-   eb.type := chained ;
-   ebnf (eb, sym) ;
-   flushColor (eb) ;
-   defaultError (eb, tok) ;
-   ErrorString (eb.e, Dup (eb.out)) ;
+   IF isUniqueError (eb)
+   THEN
+      lastRoot := eb.e ;
+      ErrorString (eb.e, Dup (eb.out)) ;
+      killErrorBlock (eb) ;
+      initErrorBlock (eb, InitString (m2), sym) ;
+      eb.type := chained ;
+      ebnf (eb, sym) ;
+      flushColor (eb) ;
+      defaultError (eb, tok) ;
+      ErrorString (eb.e, Dup (eb.out))
+   ELSE
+      KillError (eb.e)
+   END ;
    killErrorBlock (eb)
 END wrapErrors ;
 
@@ -2723,5 +2981,6 @@ BEGIN
    seenAbort := FALSE ;
    outputStack := InitIndex (1) ;
    dictionary := InitIndex (1) ;
-   freeEntry := NIL
+   freeEntry := NIL ;
+   FilterUnknown := FilterError.Init ()
 END M2MetaError.

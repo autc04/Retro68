@@ -1,4 +1,7 @@
-#![feature(min_specialization)]
+#![feature(no_core)]
+#![no_core]
+
+#![feature(min_specialization, lang_items)]
 
 #[lang = "sized"]
 trait Sized {}

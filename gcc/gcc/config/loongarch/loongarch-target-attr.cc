@@ -1,5 +1,5 @@
 /* Subroutines used for LoongArch code generation.
-   Copyright (C) 2025 Free Software Foundation, Inc.
+   Copyright (C) 2025-2026 Free Software Foundation, Inc.
    Contributed by Loongson Ltd.
    Based on AArch64 target for GNU compiler.
 
@@ -21,6 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #define IN_TARGET_CODE 1
 
+#define INCLUDE_STRING
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -40,6 +41,32 @@ enum loongarch_attr_opt_type
   loongarch_attr_bool	/* Attribute sets or unsets a boolean variable.  */
 };
 
+/* Describes the priority of each feature.  The larger the value, the higher
+   the priority.  The priority setting rule is vector priority.
+
+   The highest priority currently is "-mlasx".
+   The second highest is "-march=la64v1.1" (lsx and la64v1.1 enabled
+   instructions).
+   The third highest is "-mlsx".
+ */
+enum features_prio
+{
+  LA_PRIO_NONE = 0,
+  LA_PRIO_LOONGARCH64,
+  LA_PRIO_STRICT_ALIGN,
+  LA_PRIO_FRECIPE,
+  LA_PRIO_DIV32 = LA_PRIO_FRECIPE,
+  LA_PRIO_LAM_BH = LA_PRIO_FRECIPE,
+  LA_PRIO_LAMCAS = LA_PRIO_FRECIPE,
+  LA_PRIO_SCQ = LA_PRIO_FRECIPE,
+  LA_PRIO_LD_SEQ_SA = LA_PRIO_FRECIPE,
+  LA_PRIO_LSX,
+  LA_PRIO_LA64V1_0,
+  LA_PRIO_LA64V1_1,
+  LA_PRIO_LASX,
+  LA_PRIO_MAX
+};
+
 /* All the information needed to handle a target attribute.
    NAME is the name of the attribute.
    ATTR_TYPE specifies the type of behavior of the attribute as described
@@ -52,28 +79,65 @@ enum loongarch_attr_opt_type
 struct loongarch_attribute_info
 {
   const char *name;
+  unsigned int opt_mask;
   enum loongarch_attr_opt_type attr_type;
-  bool allow_neg;
   enum opt_code opt_num;
+  bool allow_neg;
+  const loongarch_fmv_feature_mask feat_mask;
+  const unsigned int arch_ver;
+  enum features_prio priority;
 };
+
+/* Construct a loongarch_attributes from the given arguments.
+
+   OPTS is the name of the compilation option after the "-m" string.
+
+   OPTNUM is the opt_code corresponding to the compilation option.
+
+   OPTMASK is the mask corresponding to the mutation option.  If the
+   compilation option does not have a corresponding mask, pass 0.
+ */
+#define LARCH_ATTR_MASK(OPTS, OPTNUM, OPTMASK, FEATMASK, PRIO)		      \
+{									      \
+  OPTS, OPTMASK, loongarch_attr_mask, OPTNUM, true, 1ULL << FEATMASK,	      \
+  N_ARCH_TYPES,	PRIO							      \
+},
+
+#define LARCH_ATTR_ENUM(OPTS, OPTNUM, PRIO)				      \
+{									      \
+  OPTS, 0, loongarch_attr_enum, OPTNUM, false, 0, N_ARCH_TYPES, PRIO	      \
+},
+
+#define LARCH_ATTR_BOOL(OPTS, OPTNUM, OPTMASK, FEATMASK, ARCH_V, PRIO)	      \
+{									      \
+  OPTS, OPTMASK, loongarch_attr_bool, OPTNUM, true, 1ULL << FEATMASK, ARCH_V, \
+  PRIO									      \
+},
+
 /* The target attributes that we support.  */
 
 static const struct loongarch_attribute_info loongarch_attributes[] =
 {
-  { "strict-align", loongarch_attr_mask, true, OPT_mstrict_align },
-  { "cmodel", loongarch_attr_enum, false, OPT_mcmodel_ },
-  { "arch", loongarch_attr_enum, false, OPT_march_ },
-  { "tune", loongarch_attr_enum, false, OPT_mtune_ },
-  { "lsx", loongarch_attr_bool, true, OPT_mlsx },
-  { "lasx", loongarch_attr_bool, true, OPT_mlasx },
-  { NULL, loongarch_attr_bool, false, OPT____ }
+  LARCH_ATTR_MASK ("strict-align", OPT_mstrict_align, MASK_STRICT_ALIGN,
+		   FEAT_UAL, LA_PRIO_STRICT_ALIGN)
+  LARCH_ATTR_ENUM ("cmodel", OPT_mcmodel_, LA_PRIO_NONE)
+  LARCH_ATTR_ENUM ("arch", OPT_march_, LA_PRIO_NONE)
+  LARCH_ATTR_ENUM ("tune", OPT_mtune_, LA_PRIO_NONE)
+  LARCH_ATTR_BOOL ("lsx", OPT_mlsx, 0, FEAT_LSX, ARCH_LA64V1_0, LA_PRIO_LSX)
+  LARCH_ATTR_BOOL ("lasx", OPT_mlasx, 0, FEAT_LASX | FEAT_LSX, 0, LA_PRIO_LASX)
+#include "loongarch-evol-attr.def"
+  { NULL, 0, loongarch_attr_bool, OPT____, false, 0, N_ARCH_TYPES, LA_PRIO_NONE }
 };
+#undef LARCH_ATTR_MASK
+#undef LARCH_ATTR_ENUM
+#undef LARCH_ATTR_BOOL
 
-bool
+static void
 loongarch_handle_option (struct gcc_options *opts,
 			 struct gcc_options *opts_set ATTRIBUTE_UNUSED,
 			 const struct cl_decoded_option *decoded,
-			 location_t loc ATTRIBUTE_UNUSED)
+			 location_t loc ATTRIBUTE_UNUSED,
+			 unsigned int opt_mask ATTRIBUTE_UNUSED)
 {
   size_t code = decoded->opt_index;
   int val = decoded->value;
@@ -82,14 +146,14 @@ loongarch_handle_option (struct gcc_options *opts,
     {
     case OPT_mstrict_align:
       if (val)
-	opts->x_target_flags |= MASK_STRICT_ALIGN;
+	opts->x_target_flags |= opt_mask;
       else
-	opts->x_target_flags &= ~MASK_STRICT_ALIGN;
-      return true;
+	opts->x_target_flags &= ~opt_mask;
+      break;
 
     case OPT_mcmodel_:
       opts->x_la_opt_cmodel = val;
-      return true;
+      break;
 
     case OPT_march_:
       opts->x_la_opt_cpu_arch = val;
@@ -100,7 +164,7 @@ loongarch_handle_option (struct gcc_options *opts,
       opts->x_la_opt_simd = M_OPT_UNSET;
       opts->x_la_opt_fpu = M_OPT_UNSET;
       opts->x_la_isa_evolution = 0;
-      return true;
+      break;
 
     case OPT_mtune_:
       opts->x_la_opt_cpu_tune = val;
@@ -111,21 +175,10 @@ loongarch_handle_option (struct gcc_options *opts,
       opts->x_str_align_functions = NULL;
       opts->x_str_align_loops = NULL;
       opts->x_str_align_jumps = NULL;
-      return true;
-
-    case OPT_mlsx:
-      opts->x_la_opt_simd = val ? (la_opt_simd == ISA_EXT_SIMD_LASX
-	? ISA_EXT_SIMD_LASX : ISA_EXT_SIMD_LSX) : ISA_EXT_NONE;
-      return true;
-
-    case OPT_mlasx:
-      opts->x_la_opt_simd = val ? ISA_EXT_SIMD_LASX
-	: (la_opt_simd == ISA_EXT_SIMD_LASX || la_opt_simd == ISA_EXT_SIMD_LSX
-	   ? ISA_EXT_SIMD_LSX : ISA_EXT_NONE);
-      return true;
+      break;
 
     default:
-      return true;
+      gcc_unreachable ();
     }
 }
 
@@ -147,7 +200,6 @@ loongarch_process_one_target_attr (char *arg_str, location_t loc)
 
   char *str_to_check = (char *) alloca (len + 1);
   strcpy (str_to_check, arg_str);
-
   if (len > 3 && startswith (str_to_check, "no-"))
     {
       invert = true;
@@ -196,14 +248,21 @@ loongarch_process_one_target_attr (char *arg_str, location_t loc)
 	      decoded.value = !invert;
 
 	      loongarch_handle_option (&global_options, &global_options_set,
-				       &decoded, input_location);
+				       &decoded, input_location,
+				       p_attr->opt_mask);
 	      break;
 	    }
 
 	  /* Use the option setting machinery to set an option to an enum.  */
 	  case loongarch_attr_enum:
 	    {
-	      gcc_assert (arg);
+	      if (!arg)
+		{
+		  error_at (loc, "the value of pragma or attribute "
+			    "%<target(\"%s\")%> not be empty", str_to_check);
+		  return false;
+		}
+
 	      bool valid;
 	      int value;
 	      struct cl_decoded_option decoded;
@@ -216,7 +275,8 @@ loongarch_process_one_target_attr (char *arg_str, location_t loc)
 	      if (valid)
 		loongarch_handle_option (&global_options,
 					 &global_options_set,
-					 &decoded, input_location);
+					 &decoded, input_location,
+					 p_attr->opt_mask);
 	      else
 		error_at (loc, "pragma or attribute %<target(\"%s=%s\")%> is "
 			  "not valid", str_to_check, arg);
@@ -230,8 +290,34 @@ loongarch_process_one_target_attr (char *arg_str, location_t loc)
 
 	      generate_option (p_attr->opt_num, NULL, !invert,
 			       CL_TARGET, &decoded);
-	      loongarch_handle_option (&global_options, &global_options_set,
-				       &decoded, input_location);
+	      switch (decoded.opt_index)
+		{
+		case OPT_mlsx:
+		  global_options.x_la_opt_simd
+		    = decoded.value
+		    ? (la_opt_simd == ISA_EXT_SIMD_LASX
+		       ? ISA_EXT_SIMD_LASX : ISA_EXT_SIMD_LSX)
+		    : ISA_EXT_NONE;
+		  break;
+
+		case OPT_mlasx:
+		  global_options.x_la_opt_simd
+		    = decoded.value
+		    ? ISA_EXT_SIMD_LASX
+		    : (la_opt_simd == ISA_EXT_SIMD_LASX
+		       || la_opt_simd == ISA_EXT_SIMD_LSX
+		       ? ISA_EXT_SIMD_LSX : ISA_EXT_NONE);
+		  break;
+
+		default:
+		    {
+		      if (decoded.value)
+			global_options.x_la_isa_evolution |= p_attr->opt_mask;
+		      else
+			global_options.x_la_isa_evolution &= ~p_attr->opt_mask;
+		      global_options_set.x_la_isa_evolution |= p_attr->opt_mask;
+		    }
+		}
 	      break;
 	    }
 	default:
@@ -244,7 +330,7 @@ loongarch_process_one_target_attr (char *arg_str, location_t loc)
      were malformed we will have returned false already.  */
   if (!found)
     error_at (loc, "attribute %<target%> argument %qs is unknown",
-	      str_to_check);
+	      arg_str);
 
   return found;
 }
@@ -422,3 +508,250 @@ loongarch_option_valid_attribute_p (tree fndecl, tree, tree args, int)
   return ret;
 }
 
+/* Parse a function multiversioning feature string STR, as found in a
+   target_version or target_clones attribute.
+
+   If FEATURE_MASK is nonnull, then assign to it a bitmask representing
+   the set of features explicitly specified in the feature string.
+
+   If FEATURE_PRIORITY is nonnull, set one or two unsigned integer values
+   presenting the priority of the feature string.  When the priority is
+   set explicitly in the attribute string, the number of members of
+   feature_priority is 2, feature_priority[0] is the priority set in the
+   code, and feature_priority[1] is the priority calculated from the
+   feature string.  When the priority is not set in the attribute string,
+   the number of members of feature_priority is 1, and its value is the
+   priority calculated by the feature string.  */
+
+bool
+loongarch_parse_fmv_features (location_t loc, string_slice str,
+			      loongarch_fmv_feature_mask *feature_mask,
+			      auto_vec<unsigned int> *feature_priority)
+{
+  if (feature_mask)
+    *feature_mask = 0;
+
+  string_slice attr_str = string_slice::tokenize (&str, ";");
+  attr_str = attr_str.strip ();
+
+  if (attr_str == "default")
+    {
+      if (str.is_valid ())
+	{
+	  error_at (loc, "\"default\" cannot be set together with other "
+		    "features in %qs", attr_str.begin ());
+	  return false;
+	}
+
+      if (feature_priority)
+	feature_priority->safe_push (LA_PRIO_NONE);
+      return true;
+    }
+
+  if (attr_str.empty ())
+    {
+      error_at (loc, "character before %<;%> in attribute %qs cannot be empty",
+		attr_str.begin ());
+      return false;
+    }
+
+  /* At this time, str stores the string with the priority set in attribute.
+     If it does not exist, it is illegal.  */
+  if (str.is_valid ())
+    {
+      if (str.empty ())
+	{
+	  error_at (loc, "in attribute %qs priority cannot be empty",
+		    attr_str.begin ());
+	  return false;
+	}
+
+      string_slice prio_str = string_slice::tokenize (&str, ";");
+
+      if (str.is_valid ())
+	{
+	  error_at (loc, "in attribute %qs the number of features "
+		    "cannot exceed two", attr_str.begin ());
+	  return false;
+	}
+
+      prio_str = prio_str.strip ();
+      string_slice name = string_slice::tokenize (&prio_str, "=");
+
+      if (name == "priority" && prio_str.is_valid ())
+	{
+	  unsigned int tmp_prio = 0;
+	  unsigned int len = 0;
+
+	  for (char c : prio_str)
+	    {
+	      if (ISDIGIT (c))
+		len++;
+	      else
+		break;
+	    }
+
+	  if (len != prio_str.size ()
+	      || sscanf (prio_str.begin (), "%u", &tmp_prio) != 1)
+	    {
+	      error_at (loc, "Setting the priority value to %qs is "
+			"illegal in attribute %qs", prio_str.begin (),
+			attr_str.begin ());
+	      return false;
+	    }
+
+	  if (feature_priority)
+	    feature_priority->safe_push (tmp_prio + LA_PRIO_MAX);
+	}
+      else
+	{
+	  error_at (loc, "in attribute %qs, the second feature should be "
+		    "\"priority=%<num%>\" instead of %qs", attr_str.begin (),
+		    name.begin ());
+	  return false;
+	}
+    }
+
+  if (attr_str.is_valid ())
+    {
+      int num_features = ARRAY_SIZE (loongarch_attributes);
+
+      /* Handle arch= if specified.  For priority, set it to be 1 more than
+	 the best instruction set the processor can handle.  */
+      if (strstr (attr_str.begin (), "arch=") != NULL)
+	{
+	  string_slice arch_name = attr_str;
+	  string_slice::tokenize (&arch_name, "=");
+	  if (arch_name.empty ())
+	    {
+	      error_at (loc, "in attribute %qs you need to set a legal value "
+			"for \"arch\"", attr_str.begin ());
+	      return false;
+	    }
+
+	  loongarch_fmv_feature_mask tmp_mask = 0ULL;
+	  unsigned int tmp_prio = 0;
+
+	  if (arch_name == "loongarch64")
+	    {
+	      tmp_mask = 1UL << FEAT_LA64;
+	      tmp_prio = LA_PRIO_LOONGARCH64;
+	    }
+	  else if (arch_name == "la64v1.0")
+	    {
+	      tmp_mask = 1ULL << FEAT_LA64;
+	      for (int i = 0; i < num_features; i++)
+		if (loongarch_attributes[i].arch_ver == ARCH_LA64V1_0)
+		  tmp_mask |= loongarch_attributes[i].feat_mask;
+	      tmp_prio = LA_PRIO_LA64V1_0;
+	    }
+	  else if (arch_name == "la64v1.1")
+	    {
+	      tmp_mask = 1ULL << FEAT_LA64;
+	      for (int i = 0; i < num_features; i++)
+		if (loongarch_attributes[i].arch_ver == ARCH_LA64V1_0
+		    || loongarch_attributes[i].arch_ver == ARCH_LA64V1_1)
+		  tmp_mask |= loongarch_attributes[i].feat_mask;
+	      tmp_prio = LA_PRIO_LA64V1_1;
+	    }
+	  else
+	    {
+	      if (loc != UNKNOWN_LOCATION)
+		warning_at (loc, OPT_Wattributes,
+			    "in attribute %qs you need to set a legal value "
+			    "for \"arch\"", attr_str.begin ());
+	      return false;
+	    }
+
+	  if (feature_mask)
+	    *feature_mask = tmp_mask;
+
+	  if (feature_priority)
+	    feature_priority->safe_push (tmp_prio);
+	}
+      else
+	{
+	  int i;
+	  for (i = 0; i < num_features - 1; i++)
+	    {
+	      if (loongarch_attributes[i].name == attr_str
+		  || strstr (attr_str.begin (),
+			     loongarch_attributes[i].name) != NULL)
+		{
+		  if (loongarch_attributes[i].feat_mask == 0)
+		    {
+		      if (loc != UNKNOWN_LOCATION)
+			warning_at (loc, OPT_Wattributes,
+				    "attribute %qs is not supported in "
+				    "%<target_version%> or %<target_clones%>",
+				    attr_str.begin ());
+		      return false;
+		    }
+
+		  if (feature_mask)
+		    *feature_mask = loongarch_attributes[i].feat_mask;
+
+		  if (feature_priority)
+		    feature_priority->safe_push (loongarch_attributes[i].priority);
+		  break;
+		}
+	    }
+
+	  if (i == num_features - 1)
+	    {
+	      if (loc != UNKNOWN_LOCATION)
+		warning_at (loc, OPT_Wattributes,
+			    "%qs is not supported in target attribute",
+			    attr_str.begin ());
+	      return false;
+	    }
+	}
+    }
+
+  if (feature_priority)
+    gcc_assert (feature_priority->length () == 1
+		|| feature_priority->length () == 2);
+
+  return true;
+}
+
+/* Compare priorities of two version decls. Return:
+    1: decl1 has a higher priority
+   -1: decl2 has a higher priority
+    0: decl1 and decl2 have the same priority.
+*/
+
+int
+loongarch_compare_version_priority (tree decl1, tree decl2)
+{
+  auto_vec<unsigned int> prio1, prio2;
+
+  get_feature_mask_for_version (decl1, NULL, &prio1);
+  get_feature_mask_for_version (decl2, NULL, &prio2);
+
+  unsigned int max_prio1
+    = prio1.length () == 2 ? MAX (prio1[0], prio1[1]) : prio1[0];
+  unsigned int max_prio2
+    = prio2.length () == 2 ? MAX (prio2[0], prio2[1]) : prio2[0];
+
+  if (max_prio1 != max_prio2)
+    return max_prio1 > max_prio2 ? 1 : -1;
+
+  /* If max_prio1 == max_prio2, and max_prio1 >= LA_PRIO_MAX,
+     it means that the attribute strings of decl1 and decl2 are both
+     set with priorities, and the priority values are the same.
+     So next we use the priority calculated by the attribute string to
+     compare.  */
+  if (max_prio1 >= LA_PRIO_MAX)
+    {
+      unsigned int min_prio1
+	= prio1.length () == 2 ? MIN (prio1[0], prio1[1]) : prio1[0];
+      unsigned int min_prio2
+	= prio2.length () == 2 ? MIN (prio2[0], prio2[1]) : prio2[0];
+
+      if (min_prio1 != min_prio2)
+	return min_prio1 > min_prio2 ? 1 : -1;
+    }
+
+  return 0;
+}

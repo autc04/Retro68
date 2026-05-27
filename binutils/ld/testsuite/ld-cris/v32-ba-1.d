@@ -1,5 +1,5 @@
 # notarget: cris*-*-linux-gnu
-# as: --march=v32 --em=criself
+# as: --march=v32 --emulation=criself
 # ld: -m criself
 # objdump: -d
 

@@ -1,5 +1,5 @@
 /* Common subexpression elimination library for GNU compiler.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -1194,7 +1194,9 @@ cselib_redundant_set_p (rtx set)
   if (cselib_reg_set_mode (dest) != GET_MODE (dest))
     return false;
 
-  if (!rtx_equal_for_cselib_p (dest, SET_SRC (set)))
+  rtx src = SET_SRC (set);
+  if ((MEM_P (src) && MEM_VOLATILE_P (src))
+       || !rtx_equal_for_cselib_p (dest, src))
     return false;
 
   while (GET_CODE (dest) == SUBREG
@@ -1204,6 +1206,9 @@ cselib_redundant_set_p (rtx set)
 
   if (!flag_strict_aliasing || !MEM_P (dest))
     return true;
+
+  if (MEM_VOLATILE_P (dest))
+    return false;
 
   /* For a store we need to check that suppressing it will not change
      the effective alias set.  */
@@ -1242,7 +1247,6 @@ cselib_redundant_set_p (rtx set)
   /* We failed to find a recorded value in the cselib history, so try
      the source of this set; this catches cases such as *p = *q when p
      and q have the same value.  */
-  rtx src = SET_SRC (set);
   while (GET_CODE (src) == SUBREG)
     src = XEXP (src, 0);
 
@@ -3459,12 +3463,11 @@ cselib_finish (void)
   next_uid = 0;
 }
 
-/* Dump the cselib_val *X to FILE *OUT.  */
+/* Dump the cselib_val V to FILE *OUT.  */
 
 int
-dump_cselib_val (cselib_val **x, FILE *out)
+dump_cselib_val (cselib_val *v, FILE *out)
 {
-  cselib_val *v = *x;
   bool need_lf = true;
 
   print_inline_rtx (out, v->val_rtx, 0);
@@ -3533,15 +3536,27 @@ dump_cselib_val (cselib_val **x, FILE *out)
   return 1;
 }
 
+/* Dump the cselib_val *X to FILE *OUT.  */
+
+static int
+dump_cselib_val_ptr (cselib_val **x, FILE *out)
+{
+  cselib_val *v = *x;
+  return dump_cselib_val (v, out);
+}
+
 /* Dump to OUT everything in the CSELIB table.  */
 
 void
 dump_cselib_table (FILE *out)
 {
   fprintf (out, "cselib hash table:\n");
-  cselib_hash_table->traverse <FILE *, dump_cselib_val> (out);
-  fprintf (out, "cselib preserved hash table:\n");
-  cselib_preserved_hash_table->traverse <FILE *, dump_cselib_val> (out);
+  cselib_hash_table->traverse <FILE *, dump_cselib_val_ptr> (out);
+  if (cselib_preserved_hash_table)
+    {
+      fprintf (out, "cselib preserved hash table:\n");
+      cselib_preserved_hash_table->traverse <FILE *, dump_cselib_val_ptr> (out);
+    }
   if (first_containing_mem != &dummy_val)
     {
       fputs ("first mem ", out);

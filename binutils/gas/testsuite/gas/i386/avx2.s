@@ -1,6 +1,5 @@
 # Check i386 AVX2 instructions
 
-	.allow_index_reg
 	.text
 _start:
 

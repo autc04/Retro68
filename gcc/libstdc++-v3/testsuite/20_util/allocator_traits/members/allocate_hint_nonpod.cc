@@ -1,6 +1,6 @@
 // { dg-do run { target c++11 } }
 
-// Copyright (C) 2014-2025 Free Software Foundation, Inc.
+// Copyright (C) 2014-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -58,7 +58,7 @@ void test01()
 {
   typedef std::allocator_traits<Alloc<int>> traits_type;
   traits_type::allocator_type a;
-  traits_type::const_void_pointer v;
+  traits_type::const_void_pointer v = nullptr;
   traits_type::pointer p = traits_type::allocate(a, 1, v);
   traits_type::deallocate(a, p, 1);
 }

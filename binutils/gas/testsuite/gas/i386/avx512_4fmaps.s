@@ -1,6 +1,5 @@
 # Check 32bit AVX512_4FMAPS instructions
 
-	.allow_index_reg
 	.text
 _start:
 	v4fmaddps	(%ecx), %zmm4, %zmm1	 # AVX512_4FMAPS

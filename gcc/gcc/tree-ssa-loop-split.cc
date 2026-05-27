@@ -1,5 +1,5 @@
 /* Loop splitting.
-   Copyright (C) 2015-2025 Free Software Foundation, Inc.
+   Copyright (C) 2015-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -458,21 +458,15 @@ compute_new_first_bound (gimple_seq *stmts, class tree_niter_desc *niter,
   tree end = force_gimple_operand (niter->bound, &stmts2,
 					true, NULL_TREE);
   gimple_seq_add_seq_without_update (stmts, stmts2);
-  if (POINTER_TYPE_P (TREE_TYPE (enddiff)))
-    {
-      tree tem = gimple_convert (stmts, sizetype, enddiff);
-      tem = gimple_build (stmts, NEGATE_EXPR, sizetype, tem);
-      enddiff = gimple_build (stmts, POINTER_PLUS_EXPR,
-			      TREE_TYPE (enddiff),
-			      end, tem);
-    }
+  if (POINTER_TYPE_P (TREE_TYPE (controlbase)))
+    enddiff = gimple_build (stmts, POINTER_DIFF_EXPR,
+			    ssizetype, end, enddiff);
   else
     enddiff = gimple_build (stmts, MINUS_EXPR, TREE_TYPE (enddiff),
 			    end, enddiff);
 
   /* Compute guard_init + (end-beg).  */
   tree newbound;
-  enddiff = gimple_convert (stmts, TREE_TYPE (guard_init), enddiff);
   if (POINTER_TYPE_P (TREE_TYPE (guard_init)))
     {
       enddiff = gimple_convert (stmts, sizetype, enddiff);
@@ -481,8 +475,11 @@ compute_new_first_bound (gimple_seq *stmts, class tree_niter_desc *niter,
 			       guard_init, enddiff);
     }
   else
-    newbound = gimple_build (stmts, PLUS_EXPR, TREE_TYPE (guard_init),
-			     guard_init, enddiff);
+    {
+      enddiff = gimple_convert (stmts, TREE_TYPE (guard_init), enddiff);
+      newbound = gimple_build (stmts, PLUS_EXPR, TREE_TYPE (guard_init),
+			       guard_init, enddiff);
+    }
 
   /* Depending on the direction of the IVs the new bound for the first
      loop is the minimum or maximum of old bound and border.
@@ -663,11 +660,8 @@ split_loop (class loop *loop1)
 		gsi = gsi_start (stmts2);
 		while (!gsi_end_p (gsi))
 		  {
-		    gimple *stmt = gsi_stmt (gsi);
-		    if (is_gimple_assign (stmt)
-			&& arith_code_with_undefined_signed_overflow
-						(gimple_assign_rhs_code (stmt)))
-		      rewrite_to_defined_overflow (&gsi);
+		    if (gimple_needing_rewrite_undefined (gsi_stmt (gsi)))
+		      rewrite_to_defined_unconditional (&gsi);
 		    gsi_next (&gsi);
 		  }
 	      }

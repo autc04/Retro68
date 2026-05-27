@@ -1,6 +1,6 @@
 # Plugins for offload execution, Makefile.am fragment.
 #
-# Copyright (C) 2014-2025 Free Software Foundation, Inc.
+# Copyright (C) 2014-2026 Free Software Foundation, Inc.
 #
 # Contributed by Mentor Embedded.
 #
@@ -57,7 +57,8 @@ if PLUGIN_GCN
 # AMD GCN plugin
 libgomp_plugin_gcn_version_info = -version-info $(libtool_VERSION)
 toolexeclib_LTLIBRARIES += libgomp-plugin-gcn.la
-libgomp_plugin_gcn_la_SOURCES = plugin/plugin-gcn.c
+libgomp_plugin_gcn_la_SOURCES = plugin/plugin-gcn.c simple-allocator.c \
+				plugin/mutex.c
 libgomp_plugin_gcn_la_CPPFLAGS = $(AM_CPPFLAGS) \
 	-D_GNU_SOURCE
 libgomp_plugin_gcn_la_LDFLAGS = $(libgomp_plugin_gcn_version_info) \

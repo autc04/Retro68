@@ -1,5 +1,5 @@
 /* Subroutine headers for the gcc driver.
-   Copyright (C) 2021-2025 Free Software Foundation, Inc.
+   Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by Loongson Ltd.
 
 This file is part of GCC.
@@ -118,9 +118,13 @@ driver_get_normalized_m_opts (int argc, const char **argv);
 
 /* ABI spec strings.  */
 #define ABI_GRLEN_SPEC \
+  "%{mabi=ilp32*:32}"   \
   "%{mabi=lp64*:64}"   \
 
 #define ABI_SPEC \
+  "%{mabi=ilp32d:ilp32d}" \
+  "%{mabi=ilp32f:ilp32f}" \
+  "%{mabi=ilp32s:ilp32s}" \
   "%{mabi=lp64d:lp64d}" \
   "%{mabi=lp64f:lp64f}" \
   "%{mabi=lp64s:lp64s}" \

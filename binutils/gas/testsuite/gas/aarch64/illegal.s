@@ -1,7 +1,7 @@
 /* illegal.s Test file for AArch64 instructions that should be rejected
    by the assembler.
 
-   Copyright (C) 2011-2022 Free Software Foundation, Inc.  Contributed by ARM Ltd.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.  Contributed by ARM Ltd.
 
    This file is part of GAS.
 
@@ -593,5 +593,10 @@ one_label:
 	st2 {v0.16b-v1.16b}[1],[x0]
 	st3 {v0.16b-v2.16b}[2],[x0]
 	st4 {v0.8b-v3.8b}[4],[x0]
+
+	prfm	#0x18, [sp, x15, lsl #0]
+	prfm	#0x1f, [sp, x15, lsl #0]
+	prfm	#0x20, [sp, x15, lsl #0]
+	prfm	#0x20, FOO
 
 	// End (for errors during literal pool generation)

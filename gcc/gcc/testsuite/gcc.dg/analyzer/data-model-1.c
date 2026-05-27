@@ -178,7 +178,7 @@ struct coord
   long y;
 };
 
-int test_12d (struct coord c)
+void test_12d (struct coord c)
 {
   struct coord d;
   d = c;
@@ -374,7 +374,7 @@ void test_20 (int i, int j)
   __analyzer_eval (i & 1); /* { dg-warning "UNKNOWN" } */
   __analyzer_eval (i & j); /* { dg-warning "UNKNOWN" } */
 
-  __analyzer_eval (i | 1); /* { dg-warning "UNKNOWN" } */
+  __analyzer_eval (i | 1); /* { dg-warning "TRUE" } */
   __analyzer_eval (i | j); /* { dg-warning "UNKNOWN" } */
 
   __analyzer_eval (i ^ 1); /* { dg-warning "UNKNOWN" } */
@@ -848,7 +848,7 @@ int test_39 (void)
   return *ptr;
 }
 
-int test_40 (int flag)
+void test_40 (int flag)
 {
   int i;
   if (flag)

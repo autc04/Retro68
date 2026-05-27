@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: --underscore --em=criself
+#as: --underscore --emulation=criself
 
 # Consistency check, corresponding to rd-bcnst2-pic.d.
 

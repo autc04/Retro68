@@ -7,5 +7,5 @@
 
 
 Disassembly of section .text:
-[^>]*> f04f 0030 	mov.w	r0, #48	; 0x30
-[^>]*> f04f 40e0 	mov.w	r0, #1879048192	; 0x70000000
+[^>]*> f04f 0030 	mov.w	r0, #48	@ 0x30
+[^>]*> f04f 40e0 	mov.w	r0, #1879048192	@ 0x70000000

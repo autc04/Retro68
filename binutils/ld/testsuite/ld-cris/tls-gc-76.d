@@ -1,4 +1,4 @@
-#as: --pic --no-underscore --em=criself -I$srcdir/$subdir
+#as: --pic --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: -m crislinux --gc-sections -u gc76fn
 #source: start1.s
 #source: tls-gc-76.s

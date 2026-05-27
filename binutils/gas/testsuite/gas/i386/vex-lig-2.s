@@ -1,6 +1,5 @@
 # Check VEX non-LIG instructions with with -mavxscalar=256
 
-	.allow_index_reg
 	.text
 _start:
 	       vmovd	%eax, %xmm0

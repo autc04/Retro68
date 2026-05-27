@@ -1,6 +1,6 @@
 ; Options for the IA-32 and AMD64 ports of the compiler.
 
-; Copyright (C) 2005-2025 Free Software Foundation, Inc.
+; Copyright (C) 2005-2026 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -35,13 +35,6 @@ HOST_WIDE_INT ix86_isa_flags_explicit
 
 Variable
 HOST_WIDE_INT ix86_isa_flags2_explicit
-
-; Indicate if AVX512 and AVX10.1 are explicitly set no.
-Variable
-int ix86_no_avx512_explicit = 0
-
-Variable
-int ix86_no_avx10_1_explicit = 0
 
 ; Additional target flags
 Variable
@@ -102,14 +95,6 @@ HOST_WIDE_INT x_ix86_isa_flags2_explicit
 ;; which flags were passed by the user
 TargetSave
 HOST_WIDE_INT x_ix86_isa_flags_explicit
-
-;; which flags were passed by the user
-TargetSave
-HOST_WIDE_INT x_ix86_no_avx512_explicit
-
-;; which flags were passed by the user
-TargetSave
-HOST_WIDE_INT x_ix86_no_avx10_1_explicit
 
 ;; whether -mtune was not specified
 TargetSave
@@ -240,16 +225,19 @@ malign-double
 Target Mask(ALIGN_DOUBLE) Save
 Align some doubles on dword boundary.
 
+; Does nothing.
 malign-functions=
-Target RejectNegative Joined UInteger
+Target Undocumented RejectNegative Joined UInteger
 Function starts are aligned to this power of 2.
 
+; Does nothing.
 malign-jumps=
-Target RejectNegative Joined UInteger
+Target Undocumented RejectNegative Joined UInteger
 Jump targets are aligned to this power of 2.
 
+; Does nothing.
 malign-loops=
-Target RejectNegative Joined UInteger
+Target Undocumented RejectNegative Joined UInteger
 Loop code aligned to this power of 2.
 
 malign-stringops
@@ -292,7 +280,7 @@ EnumValue
 Enum(asm_dialect) String(att) Value(ASM_ATT)
 
 mbranch-cost=
-Target RejectNegative Joined UInteger Var(ix86_branch_cost) IntegerRange(0, 5)
+Target Undocumented RejectNegative Joined UInteger Var(ix86_branch_cost) IntegerRange(0, 5)
 Branches are this expensive (arbitrary units).
 
 mlarge-data-threshold=
@@ -343,8 +331,13 @@ mfancy-math-387
 Target RejectNegative InverseMask(NO_FANCY_MATH_387, USE_FANCY_MATH_387) Save
 Generate sin, cos, sqrt for FPU.
 
+; This option seems deliberately undocumented as other options added in
+; the same commit were properly documented in the manual.
+; DRAP is usually used only in functions that do dynamic stack
+; allocation (e.g. alloca), this makes it happen everywhere.  Maybe it
+; was intended for debugging?
 mforce-drap
-Target Var(ix86_force_drap)
+Target Undocumented Var(ix86_force_drap)
 Always use Dynamic Realigned Argument Pointer (DRAP) to realign stack.
 
 mfp-ret-in-387
@@ -614,8 +607,8 @@ the function.
 
 mstv
 Target Mask(STV) Save
-Disable Scalar to Vector optimization pass transforming 64-bit integer
-computations into a vector ones.
+Enable Scalar to Vector optimization pass transforming 64-bit integer
+computations into vector ones.
 
 -param=x86-stv-max-visits=
 Target Joined UInteger Var(x86_stv_max_visits) Init(10000) IntegerRange(1, 1000000) Param
@@ -659,8 +652,7 @@ Target RejectNegative Joined Var(ix86_move_max) Enum(prefer_vector_width) Init(P
 Maximum number of bits that can be moved from memory to memory efficiently.
 
 mstore-max=
-Target RejectNegative Joined Var(ix86_store_max) Enum(prefer_vector_width) Init(PVW_NONE) Save
-Maximum number of bits that can be stored to memory efficiently.
+Target RejectNegative Joined Uncoumented Var(ix86_move_max) Enum(prefer_vector_width) Init(PVW_NONE) Warn(%<-mstore-max=%> is deprecated; use %<-mmove-max=%> instead)
 
 mnoreturn-no-callee-saved-registers
 Target Var(ix86_noreturn_no_callee_saved_registers)
@@ -721,12 +713,8 @@ Target Mask(ISA_SSE4_2) Var(ix86_isa_flags) Save
 Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation.
 
 msse4
-Target RejectNegative Mask(ISA_SSE4_2) Var(ix86_isa_flags) Save
+Target Mask(ISA_SSE4_2) Var(ix86_isa_flags) Save
 Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation.
-
-mno-sse4
-Target RejectNegative InverseMask(ISA_SSE4_1) Var(ix86_isa_flags) Save
-Do not support SSE4.1 and SSE4.2 built-in functions and code generation.
 
 msse5
 Target Undocumented Alias(mavx) Warn(%<-msse5%> was removed)
@@ -746,27 +734,27 @@ Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F built
 
 mavx512cd
 Target Mask(ISA_AVX512CD) Var(ix86_isa_flags) Save
-Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512CD built-in functions and code generation.
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX512F and AVX512CD built-in functions and code generation.
 
 mavx512dq
 Target Mask(ISA_AVX512DQ) Var(ix86_isa_flags) Save
-Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512DQ built-in functions and code generation.
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX512F and AVX512DQ built-in functions and code generation.
 
 mavx512bw
 Target Mask(ISA_AVX512BW) Var(ix86_isa_flags) Save
-Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512BW built-in functions and code generation.
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX512F and AVX512BW built-in functions and code generation.
 
 mavx512vl
 Target Mask(ISA_AVX512VL) Var(ix86_isa_flags) Save
-Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512VL built-in functions and code generation.
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX512F and AVX512VL built-in functions and code generation.
 
 mavx512ifma
 Target Mask(ISA_AVX512IFMA) Var(ix86_isa_flags) Save
-Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512IFMA built-in functions and code generation.
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX512F and AVX512IFMA built-in functions and code generation.
 
 mavx512vbmi
 Target Mask(ISA_AVX512VBMI) Var(ix86_isa_flags) Save
-Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2 and AVX512F and AVX512VBMI built-in functions and code generation.
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX512F and AVX512VBMI built-in functions and code generation.
 
 mavx512vpopcntdq
 Target Mask(ISA_AVX512VPOPCNTDQ) Var(ix86_isa_flags) Save
@@ -1265,6 +1253,14 @@ munroll-only-small-loops
 Target Var(ix86_unroll_only_small_loops) Init(0) Optimization
 Enable conservative small loop unrolling.
 
+-param=ix86-vect-unroll-limit=
+Target Joined UInteger Var(ix86_vect_unroll_limit) Init(4) Param
+Limit how much the autovectorizer may unroll a loop.
+
+-param=ix86-vect-compare-costs=
+Target Joined UInteger Var(ix86_vect_compare_costs) Init(0) IntegerRange(0, 1) Param Optimization
+Whether x86 vectorizer cost modeling compares costs of different vector sizes.
+
 mlam=
 Target RejectNegative Joined Enum(lam_type) Var(ix86_lam_type) Init(lam_none)
 -mlam=[none|u48|u57] Instrument meta data position in user data pointers.
@@ -1306,11 +1302,11 @@ Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX and
 SM4 built-in functions and code generation.
 
 mgather
-Target Alias(mtune-ctrl=, use_gather, ^use_gather)
+Target Var(ix86_use_gather) Init(0) Optimization.
 Enable vectorization for gather instruction.
 
 mscatter
-Target Alias(mtune-ctrl=, use_scatter, ^use_scatter)
+Target Var(ix86_use_scatter) Init(0) Optimization
 Enable vectorization for scatter instruction.
 
 mapxf
@@ -1355,46 +1351,28 @@ mapx-inline-asm-use-gpr32
 Target Var(ix86_apx_inline_asm_use_gpr32) Init(0)
 Enable GPR32 in inline asm when APX_F enabled.
 
-mevex512
-Target Mask(ISA2_EVEX512) Var(ix86_isa_flags2) Save Warn(%<-mevex512%> will be deprecated in GCC 16 due to all machines 512 bit vector size supported)
-Support 512 bit vector built-in functions and code generation.
-
 musermsr
 Target Mask(ISA2_USER_MSR) Var(ix86_isa_flags2) Save
 Support USER_MSR built-in functions and code generation.
 
-mavx10.1-256
-Target Mask(ISA2_AVX10_1_256) Var(ix86_isa_flags2) Save Warn(%<-mavx10.1%> is aliased to 512 bit since GCC14.3 and GCC15.1 while %<-mavx10.1-256%> and %<-mavx10.1-512%> will be deprecated in GCC 16 due to all machines 512 bit vector size supported)
-Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2,
-and AVX10.1-256 built-in functions and code generation.
-
 mavx10.1
-Target Mask(ISA2_AVX10_1) Var(ix86_isa_flags2) Save Warn(%<-mavx10.1%> is aliased to 512 bit since GCC14.3 and GCC15.1 while %<-mavx10.1-256%> and %<-mavx10.1-512%> will be deprecated in GCC 16 due to all machines 512 bit vector size supported)
+Target Mask(ISA2_AVX10_1) Var(ix86_isa_flags2) Save
 Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2,
-and AVX10.1-512 built-in functions and code generation.
-
-mavx10.1-512
-Target Alias(mavx10.1)
-Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2,
-and AVX10.1-512 built-in functions and code generation.
+and AVX10.1 built-in functions and code generation.
 
 mavx10.2
 Target Mask(ISA2_AVX10_2) Var(ix86_isa_flags2) Save
 Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2,
-AVX10.1-512 and AVX10.2 built-in functions and code generation.
+AVX10.1 and AVX10.2 built-in functions and code generation.
 
 mamx-avx512
 Target Mask(ISA2_AMX_AVX512) Var(ix86_isa_flags2) Save
-Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX10.1-512,
-AVX10.2 and AMX-AVX512 built-in functions and code generation.
+Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2,
+AVX10.1, AVX10.2 and AMX-AVX512 built-in functions and code generation.
 
 mamx-tf32
 Target Mask(ISA2_AMX_TF32) Var(ix86_isa_flags2) Save
 Support AMX-TF32 built-in functions and code generation.
-
-mamx-transpose
-Target Mask(ISA2_AMX_TRANSPOSE) Var(ix86_isa_flags2) Save
-Support AMX-TRANSPOSE built-in functions and code generation.
 
 mamx-fp8
 Target Mask(ISA2_AMX_FP8) Var(ix86_isa_flags2) Save
@@ -1407,3 +1385,7 @@ Support MOVRS built-in functions and code generation.
 mamx-movrs
 Target Mask(ISA2_AMX_MOVRS) Var(ix86_isa_flags2) Save
 Support AMX-MOVRS built-in functions and code generation.
+
+mavx512bmm
+Target Mask(ISA2_AVX512BMM) Var(ix86_isa_flags2) Save
+Support AVX512BMM built-in functions and code generation.

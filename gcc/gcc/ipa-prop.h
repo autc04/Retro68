@@ -1,5 +1,5 @@
 /* Interprocedural analyses.
-   Copyright (C) 2005-2025 Free Software Foundation, Inc.
+   Copyright (C) 2005-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -72,7 +72,7 @@ along with GCC; see the file COPYING3.  If not see
 enum jump_func_type
 {
   IPA_JF_UNKNOWN = 0,  /* newly allocated and zeroed jump functions default */
-  IPA_JF_CONST,             /* represented by field costant */
+  IPA_JF_CONST,             /* represented by field constant */
   IPA_JF_PASS_THROUGH,	    /* represented by field pass_through */
   IPA_JF_LOAD_AGG,	    /* represented by field load_agg */
   IPA_JF_ANCESTOR	    /* represented by field ancestor */
@@ -658,15 +658,12 @@ public:
   unsigned analysis_done : 1;
   /* Whether the function is enqueued in ipa-cp propagation stack.  */
   unsigned node_enqueued : 1;
-  /* Whether we should create a specialized version based on values that are
-     known to be constant in all contexts.  */
-  unsigned do_clone_for_all_contexts : 1;
   /* Set if this is an IPA-CP clone for all contexts.  */
   unsigned is_all_contexts_clone : 1;
   /* Node has been completely replaced by clones and will be removed after
      ipa-cp is finished.  */
   unsigned node_dead : 1;
-  /* Node is involved in a recursion, potentionally indirect.  */
+  /* Node is involved in a recursion, potentially indirect.  */
   unsigned node_within_scc : 1;
   /* Node contains only direct recursion.  */
   unsigned node_is_self_scc : 1;
@@ -680,7 +677,7 @@ inline
 ipa_node_params::ipa_node_params ()
 : descriptors (NULL), lattices (vNULL), ipcp_orig_node (NULL),
   known_csts (vNULL), known_contexts (vNULL), analysis_done (0),
-  node_enqueued (0), do_clone_for_all_contexts (0), is_all_contexts_clone (0),
+  node_enqueued (0), is_all_contexts_clone (0),
   node_dead (0), node_within_scc (0), node_is_self_scc (0),
   node_calling_single_call (0), versionable (0)
 {
@@ -1209,6 +1206,7 @@ tree ipa_impossible_devirt_target (struct cgraph_edge *, tree);
 
 /* Functions related to both.  */
 void ipa_analyze_node (struct cgraph_node *);
+void ipa_analyze_var_static_initializer (varpool_node *node);
 
 /* Aggregate jump function related functions.  */
 tree ipa_find_agg_cst_from_init (tree scalar, HOST_WIDE_INT offset,
@@ -1265,6 +1263,8 @@ void ipa_push_agg_values_from_jfunc (ipa_node_params *info, cgraph_node *node,
 void ipa_dump_param (FILE *, class ipa_node_params *info, int i);
 void ipa_dump_jump_function (FILE *f, ipa_jump_func *jfunc,
 			     class ipa_polymorphic_call_context *ctx = NULL);
+void ipa_dump_noted_record_fnptrs (FILE *f);
+void ipa_debug_noted_record_fnptrs (void);
 void ipa_release_body_info (struct ipa_func_body_info *);
 tree ipa_get_callee_param_type (struct cgraph_edge *e, int i);
 bool ipcp_get_parm_bits (tree, tree *, widest_int *);
@@ -1274,11 +1274,9 @@ tree ipcp_get_aggregate_const (struct function *func, tree parm, bool by_ref,
 bool unadjusted_ptr_and_unit_offset (tree op, tree *ret,
 				     poly_int64 *offset_ret);
 void ipa_get_range_from_ip_invariant (vrange &r, tree val, cgraph_node *node);
+tree ipa_single_noted_fnptr_in_record (tree rectype, unsigned offset);
 void ipa_prop_cc_finalize (void);
-
-/* From tree-sra.cc:  */
-tree build_ref_for_offset (location_t, tree, poly_int64, bool, tree,
-			   gimple_stmt_iterator *, bool);
+void ipa_free_noted_fnptr_calls ();
 
 /* In ipa-cp.cc  */
 void ipa_cp_cc_finalize (void);

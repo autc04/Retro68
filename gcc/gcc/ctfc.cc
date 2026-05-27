@@ -1,5 +1,5 @@
 /* Generate CTF.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -107,6 +107,9 @@ ctf_dtu_d_union_selector (ctf_dtdef_ref ctftype)
       return CTF_DTU_D_ARGUMENTS;
     case CTF_K_SLICE:
       return CTF_DTU_D_SLICE;
+    case CTF_K_DECL_TAG:
+    case CTF_K_TYPE_TAG:
+      return CTF_DTU_D_TAG;
     default:
       /* The largest member as default.  */
       return CTF_DTU_D_ARRAY;
@@ -289,7 +292,7 @@ ctfc_strtable_add_str (ctf_strtable_t * str_table, const char * name,
      not add null strings, return the offset to the empty string for them.  */
   if ((!name || (name != NULL && !strcmp (name, ""))) && str_offset)
     {
-      ctf_string = CONST_CAST (char *, str_table->ctstab_estr);
+      ctf_string = const_cast<char *> (str_table->ctstab_estr);
       str_offset = 0;
     }
   else
@@ -297,7 +300,7 @@ ctfc_strtable_add_str (ctf_strtable_t * str_table, const char * name,
       gcc_assert (name);
       /* Add null-terminated strings to the string table.  */
       len = strlen (name) + 1;
-      ctf_string = CONST_CAST (char *, ggc_strdup (name));
+      ctf_string = const_cast<char *> (ggc_strdup (name));
 
       ctfc_strtable_append_str (str_table, ctf_string);
       /* Add string to the string table.  Keep number of strings updated.  */
@@ -354,7 +357,7 @@ ctf_add_cuname (ctf_container_ref ctfc, const char * filename)
     }
   else
     /* Filename is an absolute path.  */
-    cuname = CONST_CAST (char *, ggc_strdup (filename));
+    cuname = const_cast<char *> (ggc_strdup (filename));
 
   ctf_add_string (ctfc, cuname, &(ctfc->ctfc_cuname_offset));
   /* Add 1 as CTF strings in the CTF string table are null-terminated
@@ -441,6 +444,68 @@ ctf_add_reftype (ctf_container_ref ctfc, uint32_t flag, ctf_dtdef_ref ref,
   dtd->ref_type = ref;
 
   ctfc->ctfc_num_stypes++;
+
+  return dtd;
+}
+
+ctf_dtdef_ref
+ctf_add_type_tag (ctf_container_ref ctfc, uint32_t flag, const char *value,
+		  ctf_dtdef_ref ref_dtd)
+{
+  ctf_dtdef_ref dtd;
+   /* Create a DTD for the tag, but do not place it in the regular types list;
+      CTF format does not (yet) encode tags.  */
+  dtd = ggc_cleared_alloc<ctf_dtdef_t> ();
+
+  dtd->dtd_name = ctf_add_string (ctfc, value, &(dtd->dtd_data.ctti_name),
+				  CTF_AUX_STRTAB);
+  /* A single DW_TAG_GNU_annotation DIE may be referenced by multiple DIEs,
+     e.g. when multiple distinct types specify the same type tag.  We will
+     synthesize multiple CTF DTD records in that case, so we cannot tie them
+     all to the same key (the DW_TAG_GNU_annotation DIE) in ctfc_types.  */
+  dtd->dtd_key = NULL;
+  dtd->ref_type = ref_dtd;
+  dtd->dtd_data.ctti_info = CTF_TYPE_INFO (CTF_K_TYPE_TAG, flag, 0);
+  dtd->dtd_u.dtu_tag.ref_var = NULL; /* Not used for type tags.  */
+  dtd->dtd_u.dtu_tag.component_idx = 0; /* Not used for type tags.  */
+
+  /* Insert tag directly into the tag list.  Type ID will be assigned later.  */
+  vec_safe_push (ctfc->ctfc_tags, dtd);
+
+  /* Keep ctfc_aux_strlen updated.  */
+  if ((value != NULL) && strcmp (value, ""))
+    ctfc->ctfc_aux_strlen += strlen (value) + 1;
+
+  return dtd;
+}
+
+ctf_dtdef_ref
+ctf_add_decl_tag (ctf_container_ref ctfc, uint32_t flag, const char *value,
+		  ctf_dtdef_ref ref_dtd, uint32_t comp_idx)
+{
+   ctf_dtdef_ref dtd;
+   /* Create a DTD for the tag, but do not place it in the regular types list;
+      ctf format does not (yet) encode tags.  */
+  dtd = ggc_cleared_alloc<ctf_dtdef_t> ();
+
+  dtd->dtd_name = ctf_add_string (ctfc, value, &(dtd->dtd_data.ctti_name),
+				  CTF_AUX_STRTAB);
+  /* A single DW_TAG_GNU_annotation DIE may be referenced by multiple DIEs,
+     e.g. when multiple distinct declarations specify the same decl tag.
+     We will synthesize multiple CTF DTD records in that case, so we cannot tie
+     them all to the same key (the DW_TAG_GNU_annotation DIE) in ctfc_types.  */
+  dtd->dtd_key = NULL;
+  dtd->ref_type = ref_dtd;
+  dtd->dtd_data.ctti_info = CTF_TYPE_INFO (CTF_K_DECL_TAG, flag, 0);
+  dtd->dtd_u.dtu_tag.ref_var = NULL;
+  dtd->dtd_u.dtu_tag.component_idx = comp_idx;
+
+  /* Insert tag directly into the tag list.  Type ID will be assigned later.  */
+  vec_safe_push (ctfc->ctfc_tags, dtd);
+
+  /* Keep ctfc_aux_strlen updated.  */
+  if ((value != NULL) && strcmp (value, ""))
+    ctfc->ctfc_aux_strlen += strlen (value) + 1;
 
   return dtd;
 }
@@ -691,12 +756,12 @@ ctf_add_member_offset (ctf_container_ref ctfc, dw_die_ref sou,
   return 0;
 }
 
-int
+ctf_dvdef_ref
 ctf_add_variable (ctf_container_ref ctfc, const char * name, ctf_dtdef_ref ref,
 		  dw_die_ref die, unsigned int external_vis,
 		  dw_die_ref die_var_decl)
 {
-  ctf_dvdef_ref dvd, dvd_ignore;
+  ctf_dvdef_ref dvd = NULL, dvd_ignore;
 
   gcc_assert (name);
 
@@ -732,7 +797,7 @@ ctf_add_variable (ctf_container_ref ctfc, const char * name, ctf_dtdef_ref ref,
 	ctfc->ctfc_strlen += strlen (name) + 1;
     }
 
-  return 0;
+  return dvd;
 }
 
 int
@@ -798,7 +863,7 @@ ctf_add_function (ctf_container_ref ctfc, uint32_t flag, const char * name,
 
 ctf_dtdef_ref
 ctf_add_sou (ctf_container_ref ctfc, uint32_t flag, const char * name,
-	     uint32_t kind, size_t size, dw_die_ref die)
+	     uint32_t kind, unsigned HOST_WIDE_INT size, dw_die_ref die)
 {
   ctf_dtdef_ref dtd;
 
@@ -949,6 +1014,10 @@ new_ctf_container (void)
   tu_ctfc->ctfc_ignore_vars
     = hash_table<ctfc_dvd_hasher>::create_ggc (10);
 
+  vec_alloc (tu_ctfc->ctfc_tags, 100);
+  tu_ctfc->ctfc_type_tags_map
+    = hash_map<ctf_dtdef_ref, ctf_dtdef_ref>::create_ggc (100);
+
   return tu_ctfc;
 }
 
@@ -1002,6 +1071,11 @@ ctfc_delete_container (ctf_container_ref ctfc)
 
       ctfc->ctfc_ignore_vars->empty ();
       ctfc->ctfc_ignore_vars = NULL;
+
+      ctfc->ctfc_tags = NULL;
+
+      ctfc->ctfc_type_tags_map->empty ();
+      ctfc->ctfc_type_tags_map = NULL;
 
       ctfc_delete_strtab (&ctfc->ctfc_strtable);
       ctfc_delete_strtab (&ctfc->ctfc_aux_strtable);

@@ -1,6 +1,6 @@
 // Vector implementation -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -57,7 +57,7 @@
 #define _STL_VECTOR_H 1
 
 #include <bits/stl_iterator_base_funcs.h>
-#include <bits/functexcept.h>
+#include <bits/stdexcept_throw.h>
 #include <bits/concept_check.h>
 #if __cplusplus >= 201103L
 #include <initializer_list>
@@ -372,8 +372,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       _GLIBCXX20_CONSTEXPR
       ~_Vector_base() _GLIBCXX_NOEXCEPT
       {
-	_M_deallocate(_M_impl._M_start,
-		      _M_impl._M_end_of_storage - _M_impl._M_start);
+	ptrdiff_t __n = _M_impl._M_end_of_storage - _M_impl._M_start;
+	if (__n < 0)
+	  __builtin_unreachable();
+	_M_deallocate(_M_impl._M_start, size_t(__n));
       }
 
     public:
@@ -518,29 +520,17 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	return _S_nothrow_relocate(__is_move_insertable<_Tp_alloc_type>{});
       }
 
-      static pointer
-      _S_do_relocate(pointer __first, pointer __last, pointer __result,
-		     _Tp_alloc_type& __alloc, true_type) noexcept
-      {
-	return std::__relocate_a(__first, __last, __result, __alloc);
-      }
-
-      static pointer
-      _S_do_relocate(pointer, pointer, pointer __result,
-		     _Tp_alloc_type&, false_type) noexcept
-      { return __result; }
-
       static _GLIBCXX20_CONSTEXPR pointer
       _S_relocate(pointer __first, pointer __last, pointer __result,
 		  _Tp_alloc_type& __alloc) noexcept
       {
-#if __cpp_if_constexpr
-	// All callers have already checked _S_use_relocate() so just do it.
-	return std::__relocate_a(__first, __last, __result, __alloc);
-#else
-	using __do_it = __bool_constant<_S_use_relocate()>;
-	return _S_do_relocate(__first, __last, __result, __alloc, __do_it{});
-#endif
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions" // if constexpr
+	if constexpr (_S_use_relocate())
+	  return std::__relocate_a(__first, __last, __result, __alloc);
+	else
+	  return __result;
+#pragma GCC diagnostic pop
       }
 #endif // C++11
 
@@ -1118,7 +1108,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       {
 	ptrdiff_t __dif = this->_M_impl._M_finish - this->_M_impl._M_start;
 	if (__dif < 0)
-	   __builtin_unreachable ();
+	   __builtin_unreachable();
 	return size_type(__dif);
       }
 
@@ -1164,7 +1154,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       resize(size_type __new_size, const value_type& __x)
       {
 	if (__new_size > size())
-	  _M_fill_insert(end(), __new_size - size(), __x);
+	  _M_fill_append(__new_size - size(), __x);
 	else if (__new_size < size())
 	  _M_erase_at_end(this->_M_impl._M_start + __new_size);
       }
@@ -1185,7 +1175,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       resize(size_type __new_size, value_type __x = value_type())
       {
 	if (__new_size > size())
-	  _M_fill_insert(end(), __new_size - size(), __x);
+	  _M_fill_append(__new_size - size(), __x);
 	else if (__new_size < size())
 	  _M_erase_at_end(this->_M_impl._M_start + __new_size);
       }
@@ -1210,7 +1200,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	ptrdiff_t __dif = this->_M_impl._M_end_of_storage
 			  - this->_M_impl._M_start;
 	if (__dif < 0)
-	   __builtin_unreachable ();
+	   __builtin_unreachable();
 	return size_type(__dif);
       }
 
@@ -1981,8 +1971,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	_M_range_initialize_n(_Iterator __first, _Sentinel __last,
 			      size_type __n)
 	{
-	  pointer __start = this->_M_impl._M_start =
+	  pointer __start =
 	    this->_M_allocate(_S_check_init_len(__n, _M_get_Tp_allocator()));
+	  this->_M_impl._M_start = this->_M_impl._M_finish = __start;
 	  this->_M_impl._M_end_of_storage = __start + __n;
 	  this->_M_impl._M_finish
 	      = std::__uninitialized_copy_a(_GLIBCXX_MOVE(__first), __last,
@@ -2096,6 +2087,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       _GLIBCXX20_CONSTEXPR
       void
       _M_fill_insert(iterator __pos, size_type __n, const value_type& __x);
+
+      // Called by resize(n,x), and the _M_fill_insert(end(), n, x)
+      _GLIBCXX20_CONSTEXPR
+      void
+      _M_fill_append(size_type __n, const value_type& __x);
 
 #if __cplusplus >= 201103L
       // Called by resize(n).

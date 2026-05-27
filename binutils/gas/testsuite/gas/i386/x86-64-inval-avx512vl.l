@@ -1,6 +1,6 @@
 .*: Assembler messages:
-.*:5: Error: .*unsupported instruction.*
-.*:6: Error: .*unsupported instruction.*
+.*:5: Error: .*operand size mismatch.*
+.*:6: Error: .*operand size mismatch.*
 GAS LISTING .*
 
 

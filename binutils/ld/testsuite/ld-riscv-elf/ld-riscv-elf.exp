@@ -1,5 +1,5 @@
 # Expect script for RISC-V ELF linker tests
-#   Copyright (C) 2017-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2017-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -121,7 +121,11 @@ proc run_relax_twice_test {} {
 if [istarget "riscv*-*-*"] {
     run_dump_test "align-small-region"
     run_dump_test "call-relax"
+    run_dump_test "jal-to-cjal"
+    run_dump_test "j-to-cj-32"
+    run_dump_test "j-to-cj-64"
     run_dump_test "pcgp-relax-01"
+    run_dump_test "pcgp-relax-01-norelaxgp"
     run_dump_test "pcgp-relax-02"
     run_dump_test "c-lui"
     run_dump_test "c-lui-2"
@@ -130,6 +134,7 @@ if [istarget "riscv*-*-*"] {
     run_dump_test "pcrel-lo-addend-2a"
     run_dump_test "pcrel-lo-addend-2b"
     run_dump_test "pcrel-lo-addend-3a"
+    run_dump_test "pcrel-lo-addend-3a-emit-relocs"
     run_dump_test "pcrel-lo-addend-3b"
     run_dump_test "pcrel-lo-addend-3c"
     run_dump_test "code-model-medlow-01"
@@ -141,6 +146,7 @@ if [istarget "riscv*-*-*"] {
     run_dump_test "code-model-medany-weakref-01"
     run_dump_test "code-model-medany-weakref-02"
     run_dump_test "code-model-relax-medlow-01"
+    run_dump_test "code-model-relax-medlow-01-norelaxgp"
     run_dump_test "code-model-relax-medlow-02"
     run_dump_test "code-model-relax-medlow-weakref-01"
     run_dump_test "code-model-relax-medlow-weakref-02"
@@ -162,13 +168,12 @@ if [istarget "riscv*-*-*"] {
     run_dump_test "attr-merge-priv-spec-03"
     run_dump_test "attr-merge-user-ext-01"
     run_dump_test "attr-merge-stack-align-failed"
-    run_dump_test "attr-merge-priv-spec-failed-01"
-    run_dump_test "attr-merge-priv-spec-failed-02"
-    run_dump_test "attr-merge-priv-spec-failed-03"
-    run_dump_test "attr-merge-priv-spec-failed-04"
-    run_dump_test "attr-merge-priv-spec-failed-05"
-    run_dump_test "attr-merge-priv-spec-failed-06"
     run_dump_test "attr-phdr"
+    run_dump_test "relax-max-align-gp"
+    run_dump_test "relax-data-segment-align"
+    run_dump_test "uleb128"
+    run_dump_test "pr31179"
+    run_dump_test "pr31179-r"
     run_ld_link_tests [list \
 	[list "Weak reference 32" "-T weakref.ld -m[riscv_choose_ilp32_emul]" "" \
 	    "-march=rv32i -mabi=ilp32" {weakref32.s} \
@@ -210,12 +215,35 @@ if [istarget "riscv*-*-*"] {
 				    "gp-test-${abi}"]]
     }
 
-    run_ld_link_tests {
-	{ "Link non-pic code into a shared library (setup)"
-	    "-shared" "" "" {lib-nopic-01a.s}
-	    {} "lib-nopic-01a.so" }
-    }
-    run_dump_test "lib-nopic-01b"
+    run_dump_test "shared-lib-nopic-01"
+    run_dump_test "shared-lib-nopic-02"
+    run_dump_test "shared-lib-nopic-03"
+    run_dump_test "shared-lib-nopic-04"
+
+    run_dump_test "data-reloc-rv64-pic"
+    run_dump_test "data-reloc-rv64-pie"
+    run_dump_test "data-reloc-rv64-symbolic"
+    run_dump_test "data-reloc-rv32-pic"
+    run_dump_test "data-reloc-rv32-pie"
+    run_dump_test "data-reloc-rv32-symbolic"
+    run_dump_test "data-reloc-rv64-abs32-pic"
+    run_dump_test "data-reloc-rv64-addr32-pic"
+    run_dump_test "data-reloc-rv64-undef32-pic"
+
+    run_dump_test "property-zicfilp-unlabeled"
+    run_dump_test "property-zicfiss"
+    run_dump_test "property-combine-and-1"
+    run_dump_test "property-combine-and-2"
+    run_dump_test "property-combine-and-3"
+
+    run_dump_test "zicfilp-unlabeled-plt"
+
+    run_dump_test "pie-bind-locally-rv32"
+    run_dump_test "pie-bind-locally-rv64"
+
+    run_dump_test "discard-exe"
+    run_dump_test "discard-pie"
+    run_dump_test "discard-pic"
 
     # IFUNC testcases.
     # Check IFUNC by single type relocs.
@@ -263,12 +291,17 @@ if [istarget "riscv*-*-*"] {
     run_dump_test_ifunc "ifunc-plt-02" rv64 pie
     run_dump_test_ifunc "ifunc-plt-02" rv64 pic
     # Check the .rela.iplt overwrite issue.
-    run_dump_test_ifunc "ifunc-plt-got-overwrite" rv32 exe
-    run_dump_test_ifunc "ifunc-plt-got-overwrite" rv32 pie
-    run_dump_test_ifunc "ifunc-plt-got-overwrite" rv32 pic
-    run_dump_test_ifunc "ifunc-plt-got-overwrite" rv64 exe
-    run_dump_test_ifunc "ifunc-plt-got-overwrite" rv64 pie
-    run_dump_test_ifunc "ifunc-plt-got-overwrite" rv64 pic
+    run_dump_test_ifunc "ifunc-overwrite" rv32 exe
+    run_dump_test_ifunc "ifunc-overwrite" rv32 pie
+    run_dump_test_ifunc "ifunc-overwrite" rv32 pic
+    run_dump_test_ifunc "ifunc-overwrite" rv64 exe
+    run_dump_test_ifunc "ifunc-overwrite" rv64 pie
+    run_dump_test_ifunc "ifunc-overwrite" rv64 pic
+
+    # TODO: Make the following tests work under RV32.
+    if [istarget "riscv32-*-*"] {
+      return
+    }
 
     # Setup shared libraries.
     run_ld_link_tests {
@@ -293,4 +326,20 @@ if [istarget "riscv*-*-*"] {
     run_dump_test "ifunc-seperate-plt-pic"
     run_dump_test "ifunc-seperate-pcrel-pie"
     run_dump_test "ifunc-seperate-pcrel-pic"
+
+    # Tests related to mixing medany code into position-independent targets,
+    # where it's not always possible to generate correct addressing sequences.
+    run_dump_test "pcrel-reloc-rel-nopie"
+    run_dump_test "pcrel-reloc-rel-pie"
+    run_dump_test "pcrel-reloc-abs-nopie"
+    run_dump_test "pcrel-reloc-abs-pie"
+
+    run_ld_link_tests {
+       { "Build shared library for TLS runtime"
+	 "-shared" "" "" {tlslib.s}
+	 {} "tlslib.so" }
+    }
+    run_dump_test "tls"
+    run_dump_test "tlsbin"
+    run_dump_test "absolute-no-relative"
 }

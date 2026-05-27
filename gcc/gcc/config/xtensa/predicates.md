@@ -1,5 +1,5 @@
 ;; Predicate definitions for Xtensa.
-;; Copyright (C) 2005-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2026 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -147,7 +147,7 @@
      (ior (and (match_code "const_int")
 	       (match_test "(GET_MODE_CLASS (mode) == MODE_INT
 			     && xtensa_simm12b (INTVAL (op)))
-			    || ! xtensa_split1_finished_p ()"))
+			    || ! xtensa_postreload_completed_p ()"))
 	  (and (match_code "const_int,const_double,const,symbol_ref,label_ref")
 	       (match_test "(TARGET_CONST16 || TARGET_AUTO_LITPOOLS)
 			    && CONSTANT_P (op)")))))
@@ -183,24 +183,14 @@
   (and (match_code "const_int")
        (match_test "xtensa_mem_offset (INTVAL (op), SFmode)")))
 
-(define_predicate "reload_operand"
-  (match_code "mem")
-{
-  const_rtx addr = XEXP (op, 0);
-  if (REG_P (addr))
-    return REGNO (addr) == A1_REG;
-  if (GET_CODE (addr) == PLUS)
-    return REG_P (XEXP (addr, 0))
-	   && REGNO (XEXP (addr, 0)) == A1_REG
-	   && CONST_INT_P (XEXP (addr, 1));
-  return false;
-})
-
 (define_predicate "branch_operator"
   (match_code "eq,ne,lt,ge"))
 
 (define_predicate "ubranch_operator"
   (match_code "ltu,geu"))
+
+(define_predicate "alt_ubranch_operator"
+  (match_code "gtu,leu"))
 
 (define_predicate "boolean_operator"
   (match_code "eq,ne"))
@@ -212,7 +202,9 @@
   (match_code "plus,minus"))
 
 (define_predicate "xtensa_cstoresi_operator"
-  (match_code "eq,ne,gt,ge,lt,le,gtu,geu,ltu,leu"))
+  (if_then_else (match_test "TARGET_SALT")
+		(match_code "eq,ne,gt,ge,lt,le,gtu,geu,ltu,leu")
+		(match_code "eq,ne,gt,ge,lt,le")))
 
 (define_predicate "xtensa_shift_per_byte_operator"
   (match_code "ashift,ashiftrt,lshiftrt"))

@@ -20,18 +20,21 @@
 #include <mach/mach.h>
 
 // These are not available in older macOS SDKs.
-#ifndef CPU_SUBTYPE_X86_64_H
-#define CPU_SUBTYPE_X86_64_H  ((cpu_subtype_t)8)   /* Haswell */
-#endif
-#ifndef CPU_SUBTYPE_ARM_V7S
-#define CPU_SUBTYPE_ARM_V7S   ((cpu_subtype_t)11)  /* Swift */
-#endif
-#ifndef CPU_SUBTYPE_ARM_V7K
-#define CPU_SUBTYPE_ARM_V7K   ((cpu_subtype_t)12)
-#endif
-#ifndef CPU_TYPE_ARM64
-#define CPU_TYPE_ARM64        (CPU_TYPE_ARM | CPU_ARCH_ABI64)
-#endif
+#  ifndef CPU_SUBTYPE_X86_64_H
+#    define CPU_SUBTYPE_X86_64_H ((cpu_subtype_t)8) /* Haswell */
+#  endif
+#  ifndef CPU_SUBTYPE_ARM_V7S
+#    define CPU_SUBTYPE_ARM_V7S ((cpu_subtype_t)11) /* Swift */
+#  endif
+#  ifndef CPU_SUBTYPE_ARM_V7K
+#    define CPU_SUBTYPE_ARM_V7K ((cpu_subtype_t)12)
+#  endif
+#  ifndef CPU_TYPE_ARM64
+#    define CPU_TYPE_ARM64 (CPU_TYPE_ARM | CPU_ARCH_ABI64)
+#  endif
+#  ifndef CPU_SUBTYPE_ARM64E
+#    define CPU_SUBTYPE_ARM64E ((cpu_subtype_t)2)
+#  endif
 
 namespace __sanitizer {
 
@@ -42,7 +45,6 @@ struct MemoryMappedSegmentData {
   const char *current_load_cmd_addr;
   u32 lc_type;
   uptr base_virt_addr;
-  uptr addr_mask;
 };
 
 template <typename Section>
@@ -51,10 +53,58 @@ static void NextSectionLoad(LoadedModule *module, MemoryMappedSegmentData *data,
   const Section *sc = (const Section *)data->current_load_cmd_addr;
   data->current_load_cmd_addr += sizeof(Section);
 
-  uptr sec_start = (sc->addr & data->addr_mask) + data->base_virt_addr;
+  uptr sec_start = sc->addr + data->base_virt_addr;
   uptr sec_end = sec_start + sc->size;
   module->addAddressRange(sec_start, sec_end, /*executable=*/false, isWritable,
                           sc->sectname);
+}
+
+static bool VerifyMemoryMapping(MemoryMappingLayout* mapping) {
+  InternalMmapVector<LoadedModule> modules;
+  modules.reserve(128);  // matches DumpProcessMap
+  mapping->DumpListOfModules(&modules);
+
+  InternalMmapVector<LoadedModule::AddressRange> segments;
+  for (uptr i = 0; i < modules.size(); ++i) {
+    for (auto& range : modules[i].ranges()) {
+      segments.push_back(range);
+    }
+  }
+
+  // Verify that none of the segments overlap:
+  // 1. Sort the segments by the start address
+  // 2. Check that every segment starts after the previous one ends.
+  Sort(segments.data(), segments.size(),
+       [](LoadedModule::AddressRange& a, LoadedModule::AddressRange& b) {
+         return a.beg < b.beg;
+       });
+
+  // To avoid spam, we only print the report message once-per-process.
+  static bool invalid_module_map_reported = false;
+  bool well_formed = true;
+
+  for (size_t i = 1; i < segments.size(); i++) {
+    uptr cur_start = segments[i].beg;
+    uptr prev_end = segments[i - 1].end;
+    if (cur_start < prev_end) {
+      well_formed = false;
+      VReport(2, "Overlapping mappings: %s start = %p, %s end = %p\n",
+              segments[i].name, (void*)cur_start, segments[i - 1].name,
+              (void*)prev_end);
+      if (!invalid_module_map_reported) {
+        Report(
+            "WARN: Invalid dyld module map detected. This is most likely a bug "
+            "in the sanitizer.\n");
+        Report("WARN: Backtraces may be unreliable.\n");
+        invalid_module_map_reported = true;
+      }
+    }
+  }
+
+  for (auto& m : modules) m.clear();
+
+  mapping->Reset();
+  return well_formed;
 }
 
 void MemoryMappedSegment::AddAddressRanges(LoadedModule *module) {
@@ -82,6 +132,7 @@ void MemoryMappedSegment::AddAddressRanges(LoadedModule *module) {
 
 MemoryMappingLayout::MemoryMappingLayout(bool cache_enabled) {
   Reset();
+  VerifyMemoryMapping(this);
 }
 
 MemoryMappingLayout::~MemoryMappingLayout() {
@@ -146,13 +197,8 @@ static bool IsDyldHdr(const mach_header *hdr) {
 // until we hit a Mach header matching dyld instead. These recurse
 // calls are expensive, but the first memory map generation occurs
 // early in the process, when dyld is one of the only images loaded,
-// so it will be hit after only a few iterations.  These assumptions don't
-// hold on macOS 13+ anymore (dyld itself has moved into the shared cache).
-
-// FIXME: Unfortunately, the upstream revised version to deal with macOS 13+
-// is incompatible with GCC and also uses APIs not available on earlier
-// systems which we support; backed out for now.
-
+// so it will be hit after only a few iterations.  These assumptions don't hold
+// on macOS 13+ anymore (dyld itself has moved into the shared cache).
 static mach_header *GetDyldImageHeaderViaVMRegion() {
   vm_address_t address = 0;
 
@@ -176,17 +222,178 @@ static mach_header *GetDyldImageHeaderViaVMRegion() {
   }
 }
 
+extern "C" {
+struct dyld_shared_cache_dylib_text_info {
+  uint64_t version;  // current version 2
+  // following fields all exist in version 1
+  uint64_t loadAddressUnslid;
+  uint64_t textSegmentSize;
+  uuid_t dylibUuid;
+  const char *path;  // pointer invalid at end of iterations
+  // following fields all exist in version 2
+  uint64_t textSegmentOffset;  // offset from start of cache
+};
+typedef struct dyld_shared_cache_dylib_text_info
+    dyld_shared_cache_dylib_text_info;
+
+extern bool _dyld_get_shared_cache_uuid(uuid_t uuid);
+extern const void *_dyld_get_shared_cache_range(size_t *length);
+extern intptr_t _dyld_get_image_slide(const struct mach_header* mh);
+} // extern "C"
+
+#ifdef __BLOCKS__
+extern "C" {
+extern int dyld_shared_cache_iterate_text(
+    const uuid_t cacheUuid,
+    void (^callback)(const dyld_shared_cache_dylib_text_info *info));
+}  // extern "C"
+
+static mach_header *GetDyldImageHeaderViaSharedCache(uuid_t uuid) {
+  size_t cacheLength;
+  const uptr cacheStart = (uptr)_dyld_get_shared_cache_range(&cacheLength);
+  CHECK(cacheStart && cacheLength);
+
+  __block mach_header *dyldHdr = nullptr;
+  int res = dyld_shared_cache_iterate_text(
+      uuid, ^(const dyld_shared_cache_dylib_text_info *info) {
+        CHECK_GE(info->version, 2);
+        mach_header *hdr =
+            (mach_header *)(cacheStart + info->textSegmentOffset);
+        if (IsDyldHdr(hdr))
+          dyldHdr = hdr;
+      });
+  CHECK_EQ(res, 0);
+
+  return dyldHdr;
+}
+
+#else
+
+/* Here we implement a manual emulation of the Blocks closure and callback
+   that is needed by dyld_shared_cache_iterate_text ().  In the compiler-
+   generated code, the [local] names are mangled differently, but that
+   should not matter to the function (since all the entities are TU-local).  */
+
+extern "C" {
+/* Some descriptions of the blocks interfaces/runtime that we need.  */
+extern void *_NSConcreteStackBlock;
+extern void _Block_object_assign(void *, void *, int);
+extern void _Block_object_dispose(void *, int);
+enum {
+  BLOCK_FIELD_IS_OBJECT   =  3,  /* id, NSObject, __attribute__((NSObject)), block, ... */
+  BLOCK_FIELD_IS_BLOCK    =  7,  /* a block variable */
+  BLOCK_FIELD_IS_BYREF    =  8,  /* the on stack structure holding the __block variable */
+  BLOCK_FIELD_IS_WEAK     = 16,  /* declared __weak, only used in byref copy helpers */
+  BLOCK_BYREF_CALLER      = 128  /* called from __block (byref) copy/dispose support routines. */
+};
+
+/* 1. __block mach_header *dyldHdr; Uses this on-stack object.  */
+typedef struct __block_byref_dyldHdr {
+    void *__isa;
+    struct __block_byref_dyldHdr *forwarding;
+    int flags;   // 1<<25 iff we need copy helper;
+    int size;
+    mach_header *dyldHdr_cp;
+} dyldHdr_type;
+
+/* The closure, support functions and the actuall callback code.  */
+/* 1. closure descriptor.  A constant instance of this will be created.  */
+struct Block_descriptor_cb {
+  unsigned long int reserved;     // NULL
+  unsigned long int size;         // sizeof(struct Block_literal_cb)
+  // optional helper functions
+  void (*copy_helper)(struct Block_literal_cb *dst, struct Block_literal_cb *src);     // IFF (1<<25)
+  void (*dispose_helper)(struct Block_literal_cb *src);             // IFF (1<<25)
+  // required ABI.2010.3.16
+  const char *signature;                         // IFF (1<<30)
+  void *no_idea; // not documented in the current ABI
+};
+
+/* 2. This is the closure object.  In this case, it will be allocated on the
+      stack and does not need to be moved (since the closure never escapes
+      from its enclosing scope).  However, the infrastructure still provides
+      support for moving it to the heap if required.  */
+typedef struct Block_literal_cb {
+  void *__isa;
+  int flags;
+  int reserved;
+  void (*invoke) (Block_literal_cb*, const dyld_shared_cache_dylib_text_info *info);
+  const struct Block_descriptor_cb *descriptor;
+  dyldHdr_type *h_holder;
+  uptr cache_start;
+} CallbackBlk;
+
+/* 3. Supporting functions to allow for the closure to be copied to the heap on
+   demand.  */
+static void
+__block_copy_cb (struct Block_literal_cb *dst, struct Block_literal_cb *src)
+{
+  //_Block_byref_assign_copy(&dst->captured_i, src->captured_i);
+  _Block_object_assign(&dst->h_holder, src->h_holder, BLOCK_FIELD_IS_BYREF);
+}
+
+static void
+__block_dispose_cb (struct Block_literal_cb *src) {
+   //_Block_byref_release(src->captured_i);
+  _Block_object_dispose(src->h_holder, BLOCK_FIELD_IS_BYREF);
+}
+
+/* 4. Here is the actual code implementing the callback.  */
+static void
+__block_invoke_cb (struct Block_literal_cb *_block,
+		   const dyld_shared_cache_dylib_text_info *info)
+{
+  mach_header *hdr = (mach_header *)(_block->cache_start + info->textSegmentOffset);
+  if (IsDyldHdr(hdr))
+    _block->h_holder->forwarding->dyldHdr_cp = hdr;
+}
+
+/* 6. The constant instance of the descriptor mentioned in 1 above.  */
+static const struct Block_descriptor_cb cb_descr = {
+    0, sizeof (struct Block_literal_cb), __block_copy_cb, __block_dispose_cb,
+    "v16@?0r^{dyld_shared_cache_dylib_text_info=QQQ[16C]*Q}8", nullptr
+};
+
+/* Declare dyld_shared_cache_iterate_text () as taking a regular pointer to
+   the closure; we cannot use the ^ syntax yet in GCC.  */
+extern int dyld_shared_cache_iterate_text(const uuid_t cacheUuid, CallbackBlk*);
+}  // extern "C"
+
+/* The non-blocks version of GetDyldImageHeaderViaSharedCache ().  */
+static mach_header *GetDyldImageHeaderViaSharedCache(uuid_t uuid) {
+  size_t cacheLength;
+  const uptr cacheStart = (uptr)_dyld_get_shared_cache_range(&cacheLength);
+  CHECK(cacheStart && cacheLength);
+  /* __block mach_header *dyldHdr = nullptr; */
+  dyldHdr_type dyldHdr
+    = { nullptr, &dyldHdr, 0, sizeof (struct __block_byref_dyldHdr), nullptr };
+  /* Callback cb = ^(const dyld_shared_cache_dylib_text_info *info... */
+  CallbackBlk cb
+    = { _NSConcreteStackBlock, 0x42000000, 0, __block_invoke_cb,
+        &cb_descr, &dyldHdr, cacheStart };
+  int res = dyld_shared_cache_iterate_text ( uuid, &cb );
+  CHECK_EQ(res, 0);
+  return dyldHdr.forwarding->dyldHdr_cp;
+}
+#endif
+
 const mach_header *get_dyld_hdr() {
   if (!dyld_hdr) {
     // On macOS 13+, dyld itself has moved into the shared cache.  Looking it up
     // via vm_region_recurse_64() causes spins/hangs/crashes.
-    // FIXME: find a way to do this compatible with GCC.
     if (GetMacosAlignedVersion() >= MacosVersion(13, 0)) {
+      uuid_t uuid;
+      if (!_dyld_get_shared_cache_uuid(uuid))
+        VReport(1, "Failed get the shared cache on macOS 13+\n");
+      else
+        dyld_hdr = GetDyldImageHeaderViaSharedCache(uuid);
+      if (!dyld_hdr) {
         VReport(1,
-                "looking up the dyld image header in the shared cache on "
-                "macOS 13+ is not yet supported.  Falling back to "
+                "Failed to lookup the dyld image header in the shared cache on "
+                "macOS 13+ (or no shared cache in use).  Falling back to "
                 "lookup via vm_region_recurse_64().\n");
         dyld_hdr = GetDyldImageHeaderViaVMRegion();
+      }
     } else {
       dyld_hdr = GetDyldImageHeaderViaVMRegion();
     }
@@ -213,23 +420,21 @@ static bool NextSegmentLoad(MemoryMappedSegment *segment,
   layout_data->current_load_cmd_count--;
   if (((const load_command *)lc)->cmd == kLCSegment) {
     const SegmentCommand* sc = (const SegmentCommand *)lc;
-    uptr base_virt_addr, addr_mask;
-    if (layout_data->current_image == kDyldImageIdx) {
-      base_virt_addr = (uptr)get_dyld_hdr();
-      // vmaddr is masked with 0xfffff because on macOS versions < 10.12,
-      // it contains an absolute address rather than an offset for dyld.
-      // To make matters even more complicated, this absolute address
-      // isn't actually the absolute segment address, but the offset portion
-      // of the address is accurate when combined with the dyld base address,
-      // and the mask will give just this offset.
-      addr_mask = 0xfffff;
-    } else {
-      base_virt_addr =
-          (uptr)_dyld_get_image_vmaddr_slide(layout_data->current_image);
-      addr_mask = ~0;
+    if (internal_strcmp(sc->segname, "__LINKEDIT") == 0) {
+      // The LINKEDIT sections are for internal linker use, and may alias
+      // with the LINKEDIT section for other modules. (If we included them,
+      // our memory map would contain overlappping sections.)
+      return false;
     }
 
-    segment->start = (sc->vmaddr & addr_mask) + base_virt_addr;
+    uptr base_virt_addr;
+    if (layout_data->current_image == kDyldImageIdx)
+      base_virt_addr = (uptr)_dyld_get_image_slide(get_dyld_hdr());
+    else
+      base_virt_addr =
+          (uptr)_dyld_get_image_vmaddr_slide(layout_data->current_image);
+
+    segment->start = sc->vmaddr + base_virt_addr;
     segment->end = segment->start + sc->vmsize;
     // Most callers don't need section information, so only fill this struct
     // when required.
@@ -239,9 +444,9 @@ static bool NextSegmentLoad(MemoryMappedSegment *segment,
           (const char *)lc + sizeof(SegmentCommand);
       seg_data->lc_type = kLCSegment;
       seg_data->base_virt_addr = base_virt_addr;
-      seg_data->addr_mask = addr_mask;
       internal_strncpy(seg_data->name, sc->segname,
                        ARRAY_SIZE(seg_data->name));
+      seg_data->name[ARRAY_SIZE(seg_data->name) - 1] = 0;
     }
 
     // Return the initial protection.
@@ -255,6 +460,7 @@ static bool NextSegmentLoad(MemoryMappedSegment *segment,
                             ? kDyldPath
                             : _dyld_get_image_name(layout_data->current_image);
       internal_strncpy(segment->filename, src, segment->filename_size);
+      segment->filename[segment->filename_size - 1] = 0;
     }
     segment->arch = layout_data->current_arch;
     internal_memcpy(segment->uuid, layout_data->current_uuid, kModuleUUIDSize);
@@ -269,18 +475,26 @@ ModuleArch ModuleArchFromCpuType(cpu_type_t cputype, cpu_subtype_t cpusubtype) {
     case CPU_TYPE_I386:
       return kModuleArchI386;
     case CPU_TYPE_X86_64:
-      if (cpusubtype == CPU_SUBTYPE_X86_64_ALL) return kModuleArchX86_64;
-      if (cpusubtype == CPU_SUBTYPE_X86_64_H) return kModuleArchX86_64H;
+      if (cpusubtype == CPU_SUBTYPE_X86_64_ALL)
+        return kModuleArchX86_64;
+      if (cpusubtype == CPU_SUBTYPE_X86_64_H)
+        return kModuleArchX86_64H;
       CHECK(0 && "Invalid subtype of x86_64");
       return kModuleArchUnknown;
     case CPU_TYPE_ARM:
-      if (cpusubtype == CPU_SUBTYPE_ARM_V6) return kModuleArchARMV6;
-      if (cpusubtype == CPU_SUBTYPE_ARM_V7) return kModuleArchARMV7;
-      if (cpusubtype == CPU_SUBTYPE_ARM_V7S) return kModuleArchARMV7S;
-      if (cpusubtype == CPU_SUBTYPE_ARM_V7K) return kModuleArchARMV7K;
+      if (cpusubtype == CPU_SUBTYPE_ARM_V6)
+        return kModuleArchARMV6;
+      if (cpusubtype == CPU_SUBTYPE_ARM_V7)
+        return kModuleArchARMV7;
+      if (cpusubtype == CPU_SUBTYPE_ARM_V7S)
+        return kModuleArchARMV7S;
+      if (cpusubtype == CPU_SUBTYPE_ARM_V7K)
+        return kModuleArchARMV7K;
       CHECK(0 && "Invalid subtype of ARM");
       return kModuleArchUnknown;
     case CPU_TYPE_ARM64:
+      if (cpusubtype == CPU_SUBTYPE_ARM64E)
+        return kModuleArchARM64E;
       return kModuleArchARM64;
     default:
       CHECK(0 && "Invalid CPU type");
@@ -292,9 +506,22 @@ static const load_command *NextCommand(const load_command *lc) {
   return (const load_command *)((const char *)lc + lc->cmdsize);
 }
 
-static void FindUUID(const load_command *first_lc, u8 *uuid_output) {
-  for (const load_command *lc = first_lc; lc->cmd != 0; lc = NextCommand(lc)) {
-    if (lc->cmd != LC_UUID) continue;
+#  ifdef MH_MAGIC_64
+static constexpr size_t header_size = sizeof(mach_header_64);
+#  else
+static constexpr size_t header_size = sizeof(mach_header);
+#  endif
+
+static void FindUUID(const load_command *first_lc, const mach_header *hdr,
+                     u8 *uuid_output) {
+  uint32_t curcmd = 0;
+  for (const load_command *lc = first_lc; curcmd < hdr->ncmds;
+       curcmd++, lc = NextCommand(lc)) {
+    CHECK_LT((const char *)lc,
+             (const char *)hdr + header_size + hdr->sizeofcmds);
+
+    if (lc->cmd != LC_UUID)
+      continue;
 
     const uuid_command *uuid_lc = (const uuid_command *)lc;
     const uint8_t *uuid = &uuid_lc->uuid[0];
@@ -303,9 +530,16 @@ static void FindUUID(const load_command *first_lc, u8 *uuid_output) {
   }
 }
 
-static bool IsModuleInstrumented(const load_command *first_lc) {
-  for (const load_command *lc = first_lc; lc->cmd != 0; lc = NextCommand(lc)) {
-    if (lc->cmd != LC_LOAD_DYLIB) continue;
+static bool IsModuleInstrumented(const load_command *first_lc,
+                                 const mach_header *hdr) {
+  uint32_t curcmd = 0;
+  for (const load_command *lc = first_lc; curcmd < hdr->ncmds;
+       curcmd++, lc = NextCommand(lc)) {
+    CHECK_LT((const char *)lc,
+             (const char *)hdr + header_size + hdr->sizeofcmds);
+
+    if (lc->cmd != LC_LOAD_DYLIB)
+      continue;
 
     const dylib_command *dylib_lc = (const dylib_command *)lc;
     uint32_t dylib_name_offset = dylib_lc->dylib.name.offset;
@@ -351,10 +585,10 @@ bool MemoryMappingLayout::Next(MemoryMappedSegment *segment) {
           continue;
         }
       }
-      FindUUID((const load_command *)data_.current_load_cmd_addr,
+      FindUUID((const load_command *)data_.current_load_cmd_addr, hdr,
                data_.current_uuid);
       data_.current_instrumented = IsModuleInstrumented(
-          (const load_command *)data_.current_load_cmd_addr);
+          (const load_command *)data_.current_load_cmd_addr, hdr);
     }
 
     while (data_.current_load_cmd_count > 0) {

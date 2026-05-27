@@ -38,8 +38,8 @@ Disassembly of section .text:
 0+78 <[^>]+> e3400000 	movt	r0, #0
 0+7c <[^>]+> 13000000 	movwne	r0, #0
 0+80 <[^>]+> e3009000 	movw	r9, #0
-0+84 <[^>]+> e3000999 	movw	r0, #2457	; 0x999
-0+88 <[^>]+> e3090000 	movw	r0, #36864	; 0x9000
+0+84 <[^>]+> e3000999 	movw	r0, #2457	@ 0x999
+0+88 <[^>]+> e3090000 	movw	r0, #36864	@ 0x9000
 0+8c <[^>]+> e0f900b0 	ldrht	r0, \[r9\], #0
 0+90 <[^>]+> e0f900f0 	ldrsht	r0, \[r9\], #0
 0+94 <[^>]+> e0f900d0 	ldrsbt	r0, \[r9\], #0
@@ -51,8 +51,8 @@ Disassembly of section .text:
 0+ac <[^>]+> e07099b9 	ldrht	r9, \[r0\], #-153.*
 0+b0 <[^>]+> 10b090b9 	ldrhtne	r9, \[r0\], r9
 0+b4 <[^>]+> 103090b9 	ldrhtne	r9, \[r0\], -r9
-0+b8 <[^>]+> 10f099b9 	ldrhtne	r9, \[r0\], #153	; 0x99
-0+bc <[^>]+> 107099b9 	ldrhtne	r9, \[r0\], #-153	; 0xffffff67
+0+b8 <[^>]+> 10f099b9 	ldrhtne	r9, \[r0\], #153	@ 0x99
+0+bc <[^>]+> 107099b9 	ldrhtne	r9, \[r0\], #-153	@ 0xffffff67
 0+c0 <[^>]+> e02100b2 	strht	r0, \[r1\], -r2
 0+c4 <[^>]+> 102100b2 	strhtne	r0, \[r1\], -r2
 0+c8 <[^>]+> e0a100b2 	strht	r0, \[r1\], r2
@@ -61,4 +61,4 @@ Disassembly of section .text:
 0+d4 <[^>]+> e06100b2 	strht	r0, \[r1\], #-2
 0+d8 <[^>]+> 10e100b2 	strhtne	r0, \[r1\], #2
 0+dc <[^>]+> 106100b2 	strhtne	r0, \[r1\], #-2
-0+e0 <[^>]+> e3009999 	movw	r9, #2457	; 0x999
+0+e0 <[^>]+> e3009999 	movw	r9, #2457	@ 0x999

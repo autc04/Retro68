@@ -23,7 +23,7 @@
 .*:48: Warning: extended operand requested but not required
 .*:49: Warning: extended operand requested but not required
 .*:50: Warning: extended operand requested but not required
-.*:53: Error: unrecognized extended version of MIPS16 opcode `nop\.e '
+.*:53: Error: unrecognized extended version of MIPS16 opcode `nop\.e'
 .*:54: Error: unrecognized extended version of MIPS16 opcode `move\.e \$0,\$16'
 .*:55: Error: unrecognized extended version of MIPS16 opcode `move\.e \$16,\$0'
 .*:57: Warning: extended operand requested but not required
@@ -69,7 +69,7 @@
 .*:123: Error: unrecognized extended version of MIPS16 opcode `srav\.e \$16,\$16'
 .*:124: Error: operand 2 must be an immediate expression `sra\.e \$16,\$16'
 .*:125: Warning: extended operand requested but not required
-.*:126: Error: unrecognized extended version of MIPS16 opcode `entry\.e '
+.*:126: Error: unrecognized extended version of MIPS16 opcode `entry\.e'
 .*:127: Error: unrecognized extended version of MIPS16 opcode `entry\.e \$31'
 .*:128: Error: unrecognized extended version of MIPS16 opcode `exit\.e \$f0'
 .*:129: Error: unrecognized extended version of MIPS16 opcode `exit\.e'

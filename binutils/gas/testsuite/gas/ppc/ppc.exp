@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2022 Free Software Foundation, Inc.
+# Copyright (C) 2012-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ run_dump_test "bcy"
 run_dump_test "bcaterr"
 run_dump_test "bcat"
 run_dump_test "regnames"
+run_dump_test "regsyms"
 run_dump_test "misalign"
 run_dump_test "misalign2"
 run_dump_test "machine"
@@ -86,21 +87,16 @@ run_dump_test "vle-simple-4"
 run_dump_test "vle-simple-5"
 run_dump_test "vle-simple-6"
 run_dump_test "vle-mult-ld-st-insns"
-
-#fail expected until get_powerpc_dialect() patch not applied
-setup_xfail "*-*-*"
+run_dump_test "se_rfmci"
+run_dump_test "se_rfmci_bad"
 run_dump_test "lsp"
-
 run_dump_test "lsp-checks"
 run_dump_test "efs"
 run_dump_test "efs2"
 run_dump_test "spe2"
 run_dump_test "spe2-checks"
 run_dump_test "spe"
-
-setup_xfail "*-*-*"
 run_dump_test "spe_ambiguous"
-
 run_dump_test "altivec"
 run_dump_test "altivec2"
 run_dump_test "altivec3"
@@ -118,6 +114,7 @@ run_dump_test "e6500_nop"
 run_dump_test "power4_32"
 run_dump_test "power5"
 run_dump_test "power6"
+run_dump_test "power6-dfp"
 run_dump_test "power7"
 run_dump_test "power8"
 run_dump_test "power9"
@@ -149,7 +146,17 @@ run_dump_test "rightmost"
 run_dump_test "scalarquad"
 run_dump_test "rop"
 run_dump_test "rop-checks"
+run_dump_test "rfc02653"
+run_dump_test "rfc02658"
+run_dump_test "future"
+run_dump_test "future-raw"
 
 run_dump_test "dcbt"
 run_dump_test "pr27676"
 run_dump_test "raw"
+
+run_dump_test "setvl"
+run_dump_test "svstep"
+run_dump_test "svshape"
+run_dump_test "svremap"
+run_dump_test "svindex"

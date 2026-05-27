@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -71,5 +71,9 @@ package Exp_Prag is
    --  applies and Body_Decls are its body declarations. On exit, the argument
    --  of Prag is replaced with a reference to procedure with checks for the
    --  variant expressions.
+
+   procedure Expand_Pragma_Program_Exit (Prag : Node_Id);
+   --  This routine only exists for consistency with other pragmas, since
+   --  Program_Exit has no meaningful expansion.
 
 end Exp_Prag;

@@ -1,5 +1,5 @@
 /* Internal functions.
-   Copyright (C) 2011-2025 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -219,6 +219,7 @@ extern bool commutative_ternary_fn_p (internal_fn);
 extern int first_commutative_argument (internal_fn);
 extern bool associative_binary_fn_p (internal_fn);
 extern bool widening_fn_p (code_helper);
+extern bool widening_evenodd_fn_p (code_helper);
 
 extern bool set_edom_supported_p (void);
 
@@ -239,9 +240,14 @@ extern int internal_fn_mask_index (internal_fn);
 extern int internal_fn_len_index (internal_fn);
 extern int internal_fn_else_index (internal_fn);
 extern int internal_fn_stored_value_index (internal_fn);
+extern int internal_fn_offset_index (internal_fn fn);
+extern int internal_fn_scale_index (internal_fn fn);
+extern int internal_fn_alias_ptr_index (internal_fn fn);
 extern bool internal_gather_scatter_fn_supported_p (internal_fn, tree,
 						    tree, tree, int,
 						    vec<int> * = nullptr);
+extern bool internal_strided_fn_supported_p (internal_fn, tree,
+					      vec<int> * = nullptr);
 extern bool internal_check_ptrs_fn_supported_p (internal_fn, tree,
 						poly_uint64, unsigned int);
 

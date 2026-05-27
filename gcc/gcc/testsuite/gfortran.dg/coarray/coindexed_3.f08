@@ -9,13 +9,14 @@ program pr98903
   integer :: a[*]
   type(team_type) :: team
 
+  team = get_team()
   me = this_image()
   n = num_images()
   a = 42
   s = 42
 
-  ! Checking against single image only.  Therefore team statements are
-  ! not viable nor are they (yet) supported by GFortran.
+  sync all
+  
   if (a[1, team_number=-1, stat=s] /= 42) stop 1
   if (s /= 0) stop 2
 

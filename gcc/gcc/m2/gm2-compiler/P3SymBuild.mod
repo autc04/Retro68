@@ -1,6 +1,6 @@
 (* P3SymBuild.mod pass 3 symbol creation.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -35,6 +35,7 @@ FROM SymbolTable IMPORT NulSym, ModeOfAddr, ProcedureKind,
                         SetCurrentModule, GetCurrentModule, SetFileModule,
                         GetExported, IsExported, IsImplicityExported,
                         IsDefImp, IsModule, IsImported, IsIncludedByDefinition,
+                        IsUnknown,
                         RequestSym,
                         IsProcedure, PutOptArgInit,
                         IsFieldEnumeration, GetType,
@@ -62,7 +63,10 @@ FROM M2Comp IMPORT CompilingDefinitionModule,
 
 FROM FifoQueue IMPORT GetSubrangeFromFifoQueue ;
 FROM M2Reserved IMPORT NulTok, ImportTok ;
+FROM M2MetaError IMPORT MetaError2 ;
+
 IMPORT M2Error ;
+IMPORT M2StackSpell ;
 
 
 (*
@@ -93,6 +97,7 @@ BEGIN
    StartScope (ModuleSym) ;
    Assert (IsDefImp (ModuleSym)) ;
    Assert (CompilingDefinitionModule ()) ;
+   M2StackSpell.Push (ModuleSym) ;
    PushT (name) ;
    M2Error.EnterDefinitionScope (name)
 END P3StartBuildDefModule ;
@@ -114,19 +119,20 @@ END P3StartBuildDefModule ;
                               |------------|        |-----------|
 *)
 
-PROCEDURE P3EndBuildDefModule ;
+PROCEDURE P3EndBuildDefModule (tokno: CARDINAL) ;
 VAR
    NameStart,
    NameEnd  : CARDINAL ;
 BEGIN
    Assert(CompilingDefinitionModule()) ;
-   CheckForUnknownInModule ;
+   CheckForUnknownInModule (tokno) ;
    EndScope ;
+   M2StackSpell.Pop ;
    PopT(NameEnd) ;
    PopT(NameStart) ;
    IF NameStart#NameEnd
    THEN
-      WriteFormat2('inconsistant definition module was named (%a) and concluded as (%a)',
+      WriteFormat2('inconsistent definition module was named (%a) and concluded as (%a)',
                    NameStart, NameEnd)
    END ;
    M2Error.LeaveErrorScope
@@ -162,7 +168,8 @@ BEGIN
    Assert (IsDefImp(ModuleSym)) ;
    Assert (CompilingImplementationModule()) ;
    PushT (name) ;
-   M2Error.EnterImplementationScope (name)
+   M2Error.EnterImplementationScope (name) ;
+   M2StackSpell.Push (ModuleSym)
 END P3StartBuildImpModule ;
 
 
@@ -182,14 +189,15 @@ END P3StartBuildImpModule ;
                                   |------------|        |-----------|
 *)
 
-PROCEDURE P3EndBuildImpModule ;
+PROCEDURE P3EndBuildImpModule (tokno: CARDINAL) ;
 VAR
    NameStart,
    NameEnd  : Name ;
 BEGIN
    Assert(CompilingImplementationModule()) ;
-   CheckForUnknownInModule ;
+   CheckForUnknownInModule (tokno) ;
    EndScope ;
+   M2StackSpell.Pop ;
    PopT(NameEnd) ;
    PopT(NameStart) ;
    IF NameStart#NameEnd
@@ -235,7 +243,8 @@ BEGIN
    Assert(CompilingProgramModule()) ;
    Assert(NOT IsDefImp(ModuleSym)) ;
    PushT(name) ;
-   M2Error.EnterProgramScope (name)
+   M2Error.EnterProgramScope (name) ;
+   M2StackSpell.Push (ModuleSym)
 END P3StartBuildProgModule ;
 
 
@@ -255,13 +264,13 @@ END P3StartBuildProgModule ;
                            |------------|        |-----------|
 *)
 
-PROCEDURE P3EndBuildProgModule ;
+PROCEDURE P3EndBuildProgModule (tokno: CARDINAL) ;
 VAR
    NameStart,
    NameEnd  : Name ;
 BEGIN
    Assert(CompilingProgramModule()) ;
-   CheckForUnknownInModule ;
+   CheckForUnknownInModule (tokno) ;
    EndScope ;
    PopT(NameEnd) ;
    PopT(NameStart) ;
@@ -273,7 +282,8 @@ BEGIN
       WriteFormat0('too many errors in pass 3') ;
       FlushErrors
    END ;
-   M2Error.LeaveErrorScope
+   M2Error.LeaveErrorScope ;
+   M2StackSpell.Pop
 END P3EndBuildProgModule ;
 
 
@@ -305,7 +315,8 @@ BEGIN
    Assert(NOT IsDefImp(ModuleSym)) ;
    SetCurrentModule(ModuleSym) ;
    PushT(name) ;
-   M2Error.EnterModuleScope (name)
+   M2Error.EnterModuleScope (name) ;
+   M2StackSpell.Push (ModuleSym)
 END StartBuildInnerModule ;
 
 
@@ -325,12 +336,12 @@ END StartBuildInnerModule ;
                          |------------|        |-----------|
 *)
 
-PROCEDURE EndBuildInnerModule ;
+PROCEDURE EndBuildInnerModule (tokno: CARDINAL) ;
 VAR
    NameStart,
    NameEnd  : Name ;
 BEGIN
-   CheckForUnknownInModule ;
+   CheckForUnknownInModule (tokno) ;
    EndScope ;
    PopT(NameEnd) ;
    PopT(NameStart) ;
@@ -343,7 +354,8 @@ BEGIN
       FlushErrors
    END ;
    SetCurrentModule(GetModuleScope(GetCurrentModule())) ;
-   M2Error.LeaveErrorScope
+   M2Error.LeaveErrorScope ;
+   M2StackSpell.Pop
 END EndBuildInnerModule ;
 
 
@@ -409,32 +421,35 @@ END CheckImportListOuterModule ;
 
 
 (*
-   CheckCanBeImported - checks to see that it is legal to import, Sym, from, ModSym.
+   CheckCanBeImported - checks to see that it is legal to import Sym from ModSym.
 *)
 
 PROCEDURE CheckCanBeImported (ModSym, Sym: CARDINAL) ;
-VAR
-   n1, n2: Name ;
 BEGIN
-   IF IsDefImp(ModSym)
+   IF IsDefImp (ModSym)
    THEN
-      IF IsExported(ModSym, Sym)
+      IF IsExported (ModSym, Sym)
       THEN
-         (* great all done *)
+         (* All done.  *)
          RETURN
       ELSE
-         IF IsImplicityExported(ModSym, Sym)
+         IF IsImplicityExported (ModSym, Sym)
          THEN
-            (* this is also legal *)
+            (* This is also legal.  *)
             RETURN
-         ELSIF IsDefImp(Sym) AND IsIncludedByDefinition(ModSym, Sym)
+         ELSIF IsDefImp (Sym) AND IsIncludedByDefinition (ModSym, Sym)
          THEN
-            (* this is also legal (for a definition module) *)
+            (* This is also legal (for a definition module).  *)
             RETURN
          END ;
-         n1 := GetSymName(ModSym) ;
-         n2 := GetSymName(Sym) ;
-         WriteFormat2('symbol %a is not exported from definition module %a', n2, n1)
+         (* Use spell checker for Unknown symbols.  *)
+         IF IsUnknown (Sym)
+         THEN
+            (* Spellcheck.  *)
+            MetaError2 ('{%1Ua} is not exported from definition module {%2a} {%1&s}', Sym, ModSym)
+         ELSE
+            MetaError2 ('{%1Ua} is not exported from definition module {%2a}', Sym, ModSym)
+         END
       END
    END
 END CheckCanBeImported ;
@@ -467,7 +482,8 @@ BEGIN
    Assert (IsProcedure (ProcSym)) ;
    PushTtok (ProcSym, tok) ;
    StartScope (ProcSym) ;
-   M2Error.EnterProcedureScope (name)
+   M2Error.EnterProcedureScope (name) ;
+   M2StackSpell.Push (ProcSym)
 END StartBuildProcedure ;
 
 
@@ -511,7 +527,8 @@ BEGIN
       FlushErrors
    END ;
    EndScope ;
-   M2Error.LeaveErrorScope
+   M2Error.LeaveErrorScope ;
+   M2StackSpell.Pop
 END EndBuildProcedure ;
 
 
@@ -545,7 +562,8 @@ BEGIN
    THEN
       PopT(ProcSym) ;
       PopT(NameStart) ;
-      EndScope
+      EndScope ;
+      M2StackSpell.Pop
    END
 END BuildProcedureHeading ;
 
@@ -558,7 +576,8 @@ PROCEDURE EndBuildForward ;
 BEGIN
    PopN (2) ;
    EndScope ;
-   M2Error.LeaveErrorScope
+   M2Error.LeaveErrorScope ;
+   M2StackSpell.Pop
 END EndBuildForward ;
 
 

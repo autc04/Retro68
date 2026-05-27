@@ -1,6 +1,6 @@
 // Debugging support -*- C++ -*-
 
-// Copyright (C) 2013-2025 Free Software Foundation, Inc.
+// Copyright (C) 2013-2026 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -25,7 +25,7 @@
 
 #include <stdarg.h>
 #include <stddef.h>
-#include <bits/functexcept.h>
+#include <bits/stdexcept_throw.h>
 
 namespace __gnu_cxx {
 

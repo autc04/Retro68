@@ -1,5 +1,5 @@
 /* Tree SCC value numbering
-   Copyright (C) 2007-2025 Free Software Foundation, Inc.
+   Copyright (C) 2007-2026 Free Software Foundation, Inc.
    Contributed by Daniel Berlin <dberlin@dberlin.org>
 
    This file is part of GCC.
@@ -255,6 +255,7 @@ vn_nary_op_t alloc_vn_nary_op_noinit (unsigned int, struct obstack *);
 unsigned int vn_nary_length_from_stmt (gimple *);
 void init_vn_nary_op_from_stmt (vn_nary_op_t, gassign *);
 hashval_t vn_nary_op_compute_hash (const vn_nary_op_t);
+bool vn_pp_nary_for_addr (const vec<vn_reference_op_s>&, tree[2]);
 tree vn_nary_op_lookup_stmt (gimple *, vn_nary_op_t *);
 tree vn_nary_op_lookup_pieces (unsigned int, enum tree_code,
 			       tree, tree *, vn_nary_op_t *);
@@ -273,13 +274,17 @@ vn_reference_t vn_reference_insert_pieces (tree, alias_set_type, alias_set_type,
 					   poly_int64, poly_int64,
 					   tree, vec<vn_reference_op_s>,
 					   tree, unsigned int);
+void copy_reference_ops_from_ref (tree, vec<vn_reference_op_s> *);
+hashval_t vn_reference_compute_hash (const vn_reference_t vr1);
+
 void print_vn_reference_ops (FILE *, const vec<vn_reference_op_s>);
 
 bool vn_nary_op_eq (const_vn_nary_op_t const vno1,
 		    const_vn_nary_op_t const vno2);
 bool vn_nary_may_trap (vn_nary_op_t);
 bool vn_reference_may_trap (vn_reference_t);
-bool vn_reference_eq (const_vn_reference_t const, const_vn_reference_t const);
+bool vn_reference_eq (const_vn_reference_t const, const_vn_reference_t const,
+		      bool = false);
 
 unsigned int get_max_value_id (void);
 unsigned int get_max_constant_value_id (void);

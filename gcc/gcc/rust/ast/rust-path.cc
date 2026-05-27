@@ -1,5 +1,5 @@
 /* General AST-related method implementations for Rust frontend.
-   Copyright (C) 2009-2025 Free Software Foundation, Inc.
+   Copyright (C) 2009-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -119,7 +119,7 @@ ConstGenericParam::as_string () const
   str += "const " + name.as_string () + ": " + type->as_string ();
 
   if (has_default_value ())
-    str += " = " + get_default_value ().as_string ();
+    str += " = " + get_default_value_unchecked ().as_string ();
 
   return str;
 }
@@ -167,14 +167,13 @@ Path::convert_to_simple_path (bool with_opening_scope_resolution) const
   for (const auto &segment : segments)
     {
       // return empty path if doesn't meet simple path segment requirements
-      if (segment.is_error () || segment.has_generic_args ()
-	  || segment.as_string () == "Self")
+      if (segment.is_error () || segment.has_generic_args ())
 	return SimplePath::create_empty ();
 
       // create segment and add to vector
       std::string segment_str = segment.as_string ();
-      simple_segments.push_back (
-	SimplePathSegment (std::move (segment_str), segment.get_locus ()));
+      simple_segments.emplace_back (std::move (segment_str),
+				    segment.get_locus ());
     }
 
   // kind of a HACK to get locus depending on opening scope resolution
@@ -258,18 +257,44 @@ TypePath::as_simple_path () const
 
       // create segment and add to vector
       std::string segment_str = segment->as_string ();
-      simple_segments.push_back (
-	SimplePathSegment (std::move (segment_str), segment->get_locus ()));
+      simple_segments.emplace_back (std::move (segment_str),
+				    segment->get_locus ());
     }
 
   return SimplePath (std::move (simple_segments), has_opening_scope_resolution,
 		     locus);
 }
 
+std::string
+TypePath::make_debug_string () const
+{
+  rust_assert (!segments.empty ());
+
+  std::string output;
+
+  for (const auto &segment : segments)
+    {
+      if (segment != nullptr && !segment->is_lang_item ()
+	  && !segment->is_error ())
+	{
+	  if (!output.empty () || has_opening_scope_resolution_op ())
+	    output.append ("::");
+	  output.append (segment->get_ident_segment ().as_string ());
+	}
+    }
+
+  return output;
+}
+
 // hopefully definition here will prevent circular dependency issue
 TraitBound *
 TypePath::to_trait_bound (bool in_parens) const
 {
+  // If already in parentheses, don't convert to trait bound
+  // This ensures (TypePath) stays as ParenthesisedType in the parser
+  if (in_parens)
+    return nullptr;
+
   return new TraitBound (TypePath (*this), get_locus (), in_parens);
 }
 

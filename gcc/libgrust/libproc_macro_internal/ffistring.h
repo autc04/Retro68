@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Free Software Foundation, Inc.
+// Copyright (C) 2023-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU Proc Macro Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -43,11 +43,9 @@ public:
 };
 
 extern "C" {
-FFIString
-FFIString__new (const unsigned char *data, std::uint64_t len);
+FFIString FFIString__new (const unsigned char *data, std::uint64_t len);
 
-void
-FFIString__drop (FFIString *str);
+void FFIString__drop (FFIString *str);
 }
 
 } // namespace ProcMacro

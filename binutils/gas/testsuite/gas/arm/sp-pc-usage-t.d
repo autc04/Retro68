@@ -15,13 +15,13 @@ Disassembly of section .text:
 00000016 <foo\+0x16> ebad 0d00 	sub.w	sp, sp, r0
 0000001a <foo\+0x1a> ebad 0d40 	sub.w	sp, sp, r0, lsl #1
 0000001e <foo\+0x1e> 9800      	ldr	r0, \[sp, #0\]
-00000020 <foo\+0x20> 4800      	ldr	r0, \[pc, #0\]	; \(00000024 <foo\+0x24>\)
+00000020 <foo\+0x20> 4800      	ldr	r0, \[pc, #0\]	@ \(00000024 <foo\+0x24>\)
 00000022 <foo\+0x22> f8d0 f000 	ldr.w	pc, \[r0\]
 00000026 <foo\+0x26> f8d0 d000 	ldr.w	sp, \[r0\]
-0000002a <foo\+0x2a> f8df f000 	ldr.w	pc, \[pc\]	; 0000002c <foo\+0x2c>
+0000002a <foo\+0x2a> f8df f000 	ldr.w	pc, \[pc\]	@ 0000002c <foo\+0x2c>
 0000002e <foo\+0x2e> f8dd d000 	ldr.w	sp, \[sp\]
 00000032 <foo\+0x32> f8dd f000 	ldr.w	pc, \[sp\]
-00000036 <foo\+0x36> f8df d000 	ldr.w	sp, \[pc\]	; 00000038 <foo\+0x38>
+00000036 <foo\+0x36> f8df d000 	ldr.w	sp, \[pc\]	@ 00000038 <foo\+0x38>
 0000003a <foo\+0x3a> 9000      	str	r0, \[sp, #0\]
 0000003c <foo\+0x3c> f8c0 d000 	str.w	sp, \[r0\]
 00000040 <foo\+0x40> f8cd d000 	str.w	sp, \[sp\]
@@ -70,7 +70,7 @@ Disassembly of section .text:
 000000d4 <foo\+0xd4> ebbd 0040 	subs.w	r0, sp, r0, lsl #1
 000000d8 <foo\+0xd8> ebad 0d40 	sub.w	sp, sp, r0, lsl #1
 000000dc <foo\+0xdc> ebbd 0d40 	subs.w	sp, sp, r0, lsl #1
-000000e0 <foo\+0xe0> a001      	add	r0, pc, #4	; \(adr r0, 000000e8 <foo\+0xe8>\)
+000000e0 <foo\+0xe0> a001      	add	r0, pc, #4	@ \(adr r0, 000000e8 <foo\+0xe8>\)
 000000e2 <foo\+0xe2> f2af 0004 	subw	r0, pc, #4
 000000e6 <foo\+0xe6> f20f 0004 	addw	r0, pc, #4
 000000ea <foo\+0xea> f2af 0004 	subw	r0, pc, #4

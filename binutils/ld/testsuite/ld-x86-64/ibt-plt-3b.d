@@ -30,7 +30,7 @@ Contents of the .eh_frame section:
   DW_CFA_advance_loc: 6 to 00000000000001f6
   DW_CFA_def_cfa_offset: 24
   DW_CFA_advance_loc: 10 to 0000000000000200
-  DW_CFA_def_cfa_expression \(DW_OP_breg7 \(rsp\): 8; DW_OP_breg16 \(rip\): 0; DW_OP_lit15; DW_OP_and; DW_OP_lit10; DW_OP_ge; DW_OP_lit3; DW_OP_shl; DW_OP_plus\)
+  DW_CFA_def_cfa_expression \(DW_OP_breg7 \(rsp\): 8; DW_OP_breg16 \(rip\): 0; DW_OP_lit15; DW_OP_and; DW_OP_lit9; DW_OP_ge; DW_OP_lit3; DW_OP_shl; DW_OP_plus\)
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop

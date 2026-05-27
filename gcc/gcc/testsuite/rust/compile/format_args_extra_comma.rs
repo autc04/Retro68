@@ -1,4 +1,7 @@
-#![feature(rustc_attrs)]
+#![feature(no_core)]
+#![no_core]
+
+#![feature(rustc_attrs, lang_items)]
 
 #[rustc_builtin_macro]
 macro_rules! format_args {
@@ -35,7 +38,6 @@ pub mod core {
 
         impl Display for i32 {
             fn fmt(&self, _: &mut Formatter) -> Result {
-                // { dg-warning "unused name .self." "" { target *-*-* } .-1 }
                 Result
             }
         }

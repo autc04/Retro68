@@ -1,5 +1,5 @@
 /* C++ implementation of a pure C API for emitting diagnostics.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -19,22 +19,32 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #define INCLUDE_MAP
+#define INCLUDE_STRING
 #define INCLUDE_VECTOR
 #include "system.h"
 #include "coretypes.h"
 #include "intl.h"
 #include "diagnostic.h"
-#include "diagnostic-color.h"
-#include "diagnostic-url.h"
-#include "diagnostic-metadata.h"
-#include "diagnostic-path.h"
-#include "diagnostic-client-data-hooks.h"
-#include "diagnostic-format-sarif.h"
-#include "diagnostic-format-text.h"
-#include "logical-location.h"
-#include "edit-context.h"
-#include "make-unique.h"
+#include "diagnostics/color.h"
+#include "diagnostics/file-cache.h"
+#include "diagnostics/url.h"
+#include "diagnostics/metadata.h"
+#include "diagnostics/paths.h"
+#include "diagnostics/client-data-hooks.h"
+#include "diagnostics/sarif-sink.h"
+#include "diagnostics/text-sink.h"
+#include "diagnostics/output-spec.h"
+#include "diagnostics/digraphs.h"
+#include "diagnostics/state-graphs.h"
+#include "diagnostics/logical-locations.h"
+#include "diagnostics/dumping.h"
+#include "diagnostics/changes.h"
+#include "diagnostics/physical-location-maker.h"
 #include "libgdiagnostics.h"
+#include "libgdiagnostics-private.h"
+#include "pretty-print-format-impl.h"
+#include "pretty-print-markup.h"
+#include "auto-obstack.h"
 
 class owned_nullable_string
 {
@@ -163,7 +173,7 @@ as_location_t (const diagnostic_physical_location *loc)
 
 /* This has to be a "struct" as it is exposed in the C API.  */
 
-struct diagnostic_logical_location : public logical_location
+struct diagnostic_logical_location
 {
   diagnostic_logical_location (enum diagnostic_logical_location_kind_t kind,
 			       const diagnostic_logical_location *parent,
@@ -176,55 +186,6 @@ struct diagnostic_logical_location : public logical_location
     m_fully_qualified_name (fully_qualified_name),
     m_decorated_name (decorated_name)
   {
-  }
-
-  const char *get_short_name () const final override
-  {
-    return m_short_name.get_str ();
-  }
-  const char *get_name_with_scope () const final override
-  {
-    return m_fully_qualified_name.get_str ();
-  }
-  const char *get_internal_name () const final override
-  {
-    return m_decorated_name.get_str ();
-  }
-  enum logical_location_kind get_kind () const final override
-  {
-    switch (m_kind)
-      {
-      default:
-	gcc_unreachable ();
-      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_FUNCTION:
-	return LOGICAL_LOCATION_KIND_FUNCTION;
-      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_MEMBER:
-	return LOGICAL_LOCATION_KIND_MEMBER;
-      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_MODULE:
-	return LOGICAL_LOCATION_KIND_MODULE;
-      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_NAMESPACE:
-	return LOGICAL_LOCATION_KIND_NAMESPACE;
-      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_TYPE:
-	return LOGICAL_LOCATION_KIND_TYPE;
-      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_RETURN_TYPE:
-	return LOGICAL_LOCATION_KIND_RETURN_TYPE;
-      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_PARAMETER:
-	return LOGICAL_LOCATION_KIND_PARAMETER;
-      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_VARIABLE:
-	return LOGICAL_LOCATION_KIND_VARIABLE;
-      }
-  }
-
-  enum diagnostic_logical_location_kind_t get_external_kind () const
-  {
-    return m_kind;
-  }
-
-  const diagnostic_logical_location *get_parent () const { return m_parent; }
-
-  label_text get_name_for_path_output () const
-  {
-    return label_text::borrow (m_short_name.get_str ());
   }
 
   bool
@@ -244,7 +205,6 @@ struct diagnostic_logical_location : public logical_location
     return false;
   }
 
-private:
   enum diagnostic_logical_location_kind_t m_kind;
   const diagnostic_logical_location *m_parent;
   owned_nullable_string m_short_name;
@@ -253,7 +213,7 @@ private:
 };
 
 static diagnostic_event_id
-as_diagnostic_event_id (diagnostic_event_id_t id)
+as_diagnostic_event_id (diagnostics::paths::event_id_t id)
 {
   return id.zero_based ();
 }
@@ -275,7 +235,7 @@ public:
 			FILE *dst_stream,
 			enum diagnostic_colorize colorize);
 
-  diagnostic_source_printing_options &get_source_printing_options ()
+  diagnostics::source_printing_options &get_source_printing_options ()
   {
     return m_source_printing;
   }
@@ -284,12 +244,103 @@ public:
   set_colorize (enum diagnostic_colorize colorize);
 
   static void
-  text_starter (diagnostic_text_output_format &text_output,
-		const diagnostic_info *diagnostic);
+  text_starter (diagnostics::text_sink &text_output,
+		const diagnostics::diagnostic_info *diagnostic);
 
 private:
-  diagnostic_text_output_format *m_inner_sink; // borrowed from dc
-  diagnostic_source_printing_options m_source_printing;
+  diagnostics::text_sink *m_inner_sink; // borrowed from dc
+  diagnostics::source_printing_options m_source_printing;
+};
+
+/* A token_printer that makes a deep copy of the pp_token_list
+   into another obstack.  */
+
+class copying_token_printer : public token_printer
+{
+public:
+  copying_token_printer (obstack &dst_obstack,
+			 pp_token_list &dst_token_list)
+  : m_dst_obstack (dst_obstack),
+    m_dst_token_list (dst_token_list)
+  {
+  }
+
+  void
+  print_tokens (pretty_printer *,
+		const pp_token_list &tokens) final override
+  {
+    for (auto iter = tokens.m_first; iter; iter = iter->m_next)
+      switch (iter->m_kind)
+	{
+	default:
+	  gcc_unreachable ();
+
+	case pp_token::kind::text:
+	  {
+	    const pp_token_text *sub = as_a <const pp_token_text *> (iter);
+	    /* Copy the text, with null terminator.  */
+	    obstack_grow (&m_dst_obstack, sub->m_value.get (),
+			  strlen (sub->m_value.get ()) + 1);
+	    m_dst_token_list.push_back_text
+	      (label_text::borrow (XOBFINISH (&m_dst_obstack,
+					      const char *)));
+	  }
+	  break;
+
+	case pp_token::kind::begin_color:
+	  {
+	    pp_token_begin_color *sub = as_a <pp_token_begin_color *> (iter);
+	    /* Copy the color, with null terminator.  */
+	    obstack_grow (&m_dst_obstack, sub->m_value.get (),
+			  strlen (sub->m_value.get ()) + 1);
+	    m_dst_token_list.push_back<pp_token_begin_color>
+	      (label_text::borrow (XOBFINISH (&m_dst_obstack,
+					      const char *)));
+	  }
+	  break;
+	case pp_token::kind::end_color:
+	  m_dst_token_list.push_back<pp_token_end_color> ();
+	  break;
+
+	case pp_token::kind::begin_quote:
+	  m_dst_token_list.push_back<pp_token_begin_quote> ();
+	  break;
+	case pp_token::kind::end_quote:
+	  m_dst_token_list.push_back<pp_token_end_quote> ();
+	  break;
+
+	case pp_token::kind::begin_url:
+	  {
+	    pp_token_begin_url *sub = as_a <pp_token_begin_url *> (iter);
+	    /* Copy the URL, with null terminator.  */
+	    obstack_grow (&m_dst_obstack, sub->m_value.get (),
+			  strlen (sub->m_value.get ()) + 1);
+	    m_dst_token_list.push_back<pp_token_begin_url>
+	      (label_text::borrow (XOBFINISH (&m_dst_obstack,
+					      const char *)));
+	  }
+	  break;
+	case pp_token::kind::end_url:
+	  m_dst_token_list.push_back<pp_token_end_url> ();
+	  break;
+
+	case pp_token::kind::event_id:
+	  {
+	    pp_token_event_id *sub = as_a <pp_token_event_id *> (iter);
+	    m_dst_token_list.push_back<pp_token_event_id> (sub->m_event_id);
+	  }
+	  break;
+
+	case pp_token::kind::custom_data:
+	  /* These should have been eliminated by replace_custom_tokens.  */
+	  gcc_unreachable ();
+	  break;
+	}
+  }
+
+private:
+  obstack &m_dst_obstack;
+  pp_token_list &m_dst_token_list;
 };
 
 class sarif_sink : public sink
@@ -298,7 +349,108 @@ public:
   sarif_sink (diagnostic_manager &mgr,
 	      FILE *dst_stream,
 	      const diagnostic_file *main_input_file,
-	      enum sarif_version version);
+	      const diagnostics::sarif_generation_options &sarif_gen_opts);
+};
+
+struct diagnostic_message_buffer
+{
+  diagnostic_message_buffer ()
+  : m_tokens (m_obstack)
+  {
+  }
+
+  diagnostic_message_buffer (const char *gmsgid,
+			     va_list *args)
+  : m_tokens (m_obstack)
+  {
+    text_info text (gmsgid, args, errno);
+    pretty_printer pp;
+    pp.set_output_stream (nullptr);
+    copying_token_printer tok_printer (m_obstack, m_tokens);
+    pp.set_token_printer (&tok_printer);
+    pp_format (&pp, &text);
+    pp_output_formatted_text (&pp, nullptr);
+  }
+
+
+  std::string to_string () const;
+
+  auto_obstack m_obstack;
+  pp_token_list m_tokens;
+};
+
+/* A pp_element subclass that replays the saved tokens in a
+   diagnostic_message_buffer.  */
+
+class pp_element_message_buffer : public pp_element
+{
+public:
+  pp_element_message_buffer (diagnostic_message_buffer &msg_buf)
+    : m_msg_buf (msg_buf)
+  {
+  }
+
+  void add_to_phase_2 (pp_markup::context &ctxt) final override
+  {
+    /* Convert to text, possibly with colorization, URLs, etc.  */
+    for (auto iter = m_msg_buf.m_tokens.m_first; iter; iter = iter->m_next)
+      switch (iter->m_kind)
+	{
+	default:
+	  gcc_unreachable ();
+
+	case pp_token::kind::text:
+	  {
+	    pp_token_text *sub = as_a <pp_token_text *> (iter);
+	    pp_string (&ctxt.m_pp, sub->m_value.get ());
+	    ctxt.push_back_any_text ();
+	  }
+	  break;
+
+	case pp_token::kind::begin_color:
+	  {
+	    pp_token_begin_color *sub = as_a <pp_token_begin_color *> (iter);
+	    ctxt.begin_highlight_color (sub->m_value.get ());
+	  }
+	  break;
+	case pp_token::kind::end_color:
+	  ctxt.end_highlight_color ();
+	  break;
+
+	case pp_token::kind::begin_quote:
+	  ctxt.begin_quote ();
+	  break;
+	case pp_token::kind::end_quote:
+	  ctxt.end_quote ();
+	  break;
+
+	case pp_token::kind::begin_url:
+	  {
+	    pp_token_begin_url *sub = as_a <pp_token_begin_url *> (iter);
+	    ctxt.begin_url (sub->m_value.get ());
+	  }
+	  break;
+	case pp_token::kind::end_url:
+	  ctxt.end_url ();
+	  break;
+
+	case pp_token::kind::event_id:
+	  {
+	    pp_token_event_id *sub = as_a <pp_token_event_id *> (iter);
+	    gcc_assert (sub->m_event_id.known_p ());
+	    ctxt.add_event_id (sub->m_event_id);
+	  }
+	  break;
+
+	case pp_token::kind::custom_data:
+	  /* We don't have a way of handling custom_data tokens here.  */
+	  gcc_unreachable ();
+	  break;
+	}
+  }
+
+private:
+  diagnostic_message_buffer &m_msg_buf;
 };
 
 /* Helper for the linemap code.  */
@@ -309,25 +461,155 @@ round_alloc_size (size_t s)
   return s;
 }
 
-class impl_diagnostic_client_data_hooks : public diagnostic_client_data_hooks
+class impl_logical_location_manager
+  : public diagnostics::logical_locations::manager
+{
+public:
+  using key = diagnostics::logical_locations::key;
+  using kind = diagnostics::logical_locations::kind;
+
+  static const diagnostic_logical_location *
+  ptr_from_key (key k)
+  {
+    return k.cast_to<const diagnostic_logical_location *> ();
+  }
+
+  static key
+  key_from_ptr (const diagnostic_logical_location *ptr)
+  {
+    return key::from_ptr (ptr);
+  }
+
+  void dump (FILE *outfile, int indent) const final override
+  {
+    diagnostics::dumping::emit_heading
+      (outfile, indent, "impl_logical_location_manager");
+  }
+
+  label_text
+  get_short_name (key k) const final override
+  {
+    if (auto loc = ptr_from_key (k))
+      return label_text::borrow (loc->m_short_name.get_str ());
+    else
+      return label_text ();
+  }
+
+  label_text
+  get_name_with_scope (key k) const final override
+  {
+    if (auto loc = ptr_from_key (k))
+      return label_text::borrow (loc->m_fully_qualified_name.get_str ());
+    else
+      return label_text ();
+  }
+
+  label_text
+  get_internal_name (key k) const final override
+  {
+    if (auto loc = ptr_from_key (k))
+      return label_text::borrow (loc->m_decorated_name.get_str ());
+    else
+      return label_text ();
+  }
+
+  kind get_kind (key k) const final override
+  {
+    auto loc = ptr_from_key (k);
+    gcc_assert (loc);
+    switch (loc->m_kind)
+      {
+      default:
+	gcc_unreachable ();
+
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_FUNCTION:
+	return kind::function;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_MEMBER:
+	return kind::member;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_MODULE:
+	return kind::module_;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_NAMESPACE:
+	return kind::namespace_;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_TYPE:
+	return kind::type;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_RETURN_TYPE:
+	return kind::return_type;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_PARAMETER:
+	return kind::parameter;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_VARIABLE:
+	return kind::variable;
+
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_ELEMENT:
+	return kind::element;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_ATTRIBUTE:
+	return kind::attribute;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_TEXT:
+	return kind::text;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_COMMENT:
+	return kind::comment;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROCESSING_INSTRUCTION:
+	return kind::processing_instruction;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_DTD:
+	return kind::dtd;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_DECLARATION:
+	return kind::declaration;
+
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_OBJECT:
+	  return kind::object;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_ARRAY:
+	return kind::array;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROPERTY:
+	return kind::property;
+      case DIAGNOSTIC_LOGICAL_LOCATION_KIND_VALUE:
+	return kind::value;
+      }
+  }
+
+  label_text get_name_for_path_output (key k) const final override
+  {
+    auto loc = ptr_from_key (k);
+    gcc_assert (loc);
+    return label_text::borrow (loc->m_short_name.get_str ());
+  }
+
+  key get_parent (key k) const final override
+  {
+    auto loc = ptr_from_key (k);
+    gcc_assert (loc);
+    return key_from_ptr (loc->m_parent);
+  }
+};
+
+class impl_diagnostic_client_data_hooks : public diagnostics::client_data_hooks
 {
 public:
   impl_diagnostic_client_data_hooks (diagnostic_manager &mgr)
   : m_mgr (mgr)
   {}
 
-  const client_version_info *get_any_version_info () const final override;
-  const logical_location *get_current_logical_location () const final override;
+  const diagnostics::client_version_info *
+  get_any_version_info () const final override;
+
+  const diagnostics::logical_locations::manager *
+  get_logical_location_manager () const final override
+  {
+    return &m_logical_location_manager;
+  }
+  diagnostics::logical_locations::key
+  get_current_logical_location () const final override;
+
   const char * maybe_get_sarif_source_language (const char *filename)
     const final override;
-  void add_sarif_invocation_properties (sarif_object &invocation_obj)
+  void
+  add_sarif_invocation_properties (diagnostics::sarif_object &invocation_obj)
     const final override;
 
 private:
   diagnostic_manager &m_mgr;
+  impl_logical_location_manager m_logical_location_manager;
 };
 
-class impl_client_version_info : public client_version_info
+class impl_client_version_info : public diagnostics::client_version_info
 {
 public:
   const char *get_tool_name () const final override
@@ -367,8 +649,10 @@ struct diagnostic_manager
 {
 public:
   diagnostic_manager ()
-  : m_current_diag (nullptr),
-    m_prev_diag_logical_loc (nullptr)
+  : m_phys_loc_maker (&m_line_table),
+    m_current_diag (nullptr),
+    m_prev_diag_logical_loc (nullptr),
+    m_debug_physical_locations (false)
   {
     linemap_init (&m_line_table, BUILTINS_LOCATION);
     m_line_table.m_reallocator = xrealloc;
@@ -386,23 +670,26 @@ public:
     m_dc.set_show_cwe (true);
     m_dc.set_show_rules (true);
     m_dc.m_show_column = true;
-    m_dc.m_source_printing.enabled = true;
-    m_dc.m_source_printing.colorize_source_p = true;
+    auto &source_printing_opts = m_dc.get_source_printing_options ();
+    source_printing_opts.enabled = true;
+    source_printing_opts.colorize_source_p = true;
 
     /* We don't currently expose a way for clients to manipulate the
        following.  */
-    m_dc.m_source_printing.show_labels_p = true;
-    m_dc.m_source_printing.show_line_numbers_p = true;
-    m_dc.m_source_printing.min_margin_width = 6;
+    source_printing_opts.show_labels_p = true;
+    source_printing_opts.show_line_numbers_p = true;
+    source_printing_opts.min_margin_width = 6;
     m_dc.set_path_format (DPF_INLINE_EVENTS);
 
     m_dc.m_client_aux_data = this;
     m_dc.set_client_data_hooks
-      (::make_unique<impl_diagnostic_client_data_hooks> (*this));
+      (std::make_unique<impl_diagnostic_client_data_hooks> (*this));
 
-    diagnostic_text_starter (&m_dc) = diagnostic_text_sink::text_starter;
+    diagnostics::text_starter (&m_dc) = diagnostic_text_sink::text_starter;
 
-    m_edit_context = ::make_unique <edit_context> (m_dc.get_file_cache ());
+    m_change_set
+      = std::make_unique <diagnostics::changes::change_set>
+	  (m_dc.get_file_cache ());
   }
 
   ~diagnostic_manager ()
@@ -423,7 +710,15 @@ public:
   }
 
   line_maps *get_line_table () { return &m_line_table; }
-  diagnostic_context &get_dc () { return m_dc; }
+  diagnostics::context &get_dc () { return m_dc; }
+
+  const diagnostics::logical_locations::manager &
+  get_logical_location_manager () const
+  {
+    auto mgr = m_dc.get_logical_location_manager ();
+    gcc_assert (mgr);
+    return *mgr;
+  }
 
   void write_patch (FILE *dst_stream);
 
@@ -432,8 +727,14 @@ public:
     m_sinks.push_back (std::move (sink));
   }
 
-  void emit (diagnostic &diag, const char *msgid, va_list *args)
+  void emit_va (diagnostic &diag, const char *msgid, va_list *args)
     LIBGDIAGNOSTICS_PARAM_GCC_FORMAT_STRING(3, 0);
+
+  void emit (diagnostic &diag, const char *msgid, ...)
+    LIBGDIAGNOSTICS_PARAM_GCC_FORMAT_STRING(3, 4);
+
+  void emit_msg_buf (diagnostic &diag,
+		     diagnostic_message_buffer &msg_buf);
 
   diagnostic_file *
   new_file (const char *name,
@@ -459,8 +760,12 @@ public:
   new_location_from_file_and_line (const diagnostic_file *file,
 				   diagnostic_line_num_t line_num)
   {
-    ensure_linemap_for_file_and_line (file, line_num);
-    location_t loc = linemap_position_for_column (&m_line_table, 0);
+    if (m_debug_physical_locations)
+      fprintf (stderr, "new_location_from_file_and_line (%s, %i)",
+	       file->get_name (), line_num);
+    location_t loc
+      = m_phys_loc_maker.new_location_from_file_and_line (file->get_name (),
+							  line_num);
     return new_location (loc);
   }
 
@@ -469,8 +774,13 @@ public:
 				      diagnostic_line_num_t line_num,
 				      diagnostic_column_num_t column_num)
   {
-    ensure_linemap_for_file_and_line (file, line_num);
-    location_t loc = linemap_position_for_column (&m_line_table, column_num);
+    if (m_debug_physical_locations)
+      fprintf (stderr, "new_location_from_file_line_column (%s, %i, %i)",
+	       file->get_name (), line_num, column_num);
+    location_t loc
+      = m_phys_loc_maker.new_location_from_file_line_column (file->get_name (),
+							     line_num,
+							     column_num);
     return new_location (loc);
   }
 
@@ -479,10 +789,21 @@ public:
 			   const diagnostic_physical_location *loc_start,
 			   const diagnostic_physical_location *loc_end)
   {
+    if (m_debug_physical_locations)
+      fprintf (stderr, "new_location_from_range (%p, %p, %p)",
+	       (const void *)loc_caret,
+	       (const void *)loc_start,
+	       (const void *)loc_end);
     return new_location
       (m_line_table.make_location (as_location_t (loc_caret),
 				   as_location_t (loc_start),
 				   as_location_t (loc_end)));
+  }
+
+  void
+  set_debug_physical_locations (bool value)
+  {
+    m_debug_physical_locations = value;
   }
 
   const diagnostic_logical_location *
@@ -503,11 +824,11 @@ public:
       return (*iter).second.get ();
 
     std::unique_ptr<diagnostic_logical_location> logical_loc
-      = ::make_unique<diagnostic_logical_location> (kind,
-						    parent,
-						    short_name,
-						    fully_qualified_name,
-						    decorated_name);
+      = std::make_unique<diagnostic_logical_location> (kind,
+						       parent,
+						       short_name,
+						       fully_qualified_name,
+						       decorated_name);
     const diagnostic_logical_location *result = logical_loc.get ();
     m_logical_locs.insert
       (logical_locs_map_t::value_type (std::move (key),
@@ -541,7 +862,8 @@ public:
 
   const diagnostic *get_current_diag () { return m_current_diag; }
 
-  const client_version_info *get_client_version_info () const
+  const diagnostics::client_version_info *
+  get_client_version_info () const
   {
     return &m_client_version_info;
   }
@@ -572,40 +894,33 @@ public:
     return m_prev_diag_logical_loc;
   }
 
-private:
   void
-  ensure_linemap_for_file_and_line (const diagnostic_file *file,
-				    diagnostic_line_num_t linenum)
-  {
-    /* Build a simple linemap describing some locations. */
-    if (LINEMAPS_ORDINARY_USED (&m_line_table) == 0)
-      linemap_add (&m_line_table, LC_ENTER, false, file->get_name (), 0);
-    else
-      {
-	line_map *map
-	  = const_cast<line_map *>
-	    (linemap_add (&m_line_table, LC_RENAME_VERBATIM, false,
-			  file->get_name (), 0));
-	((line_map_ordinary *)map)->included_from = UNKNOWN_LOCATION;
-      }
-    linemap_line_start (&m_line_table, linenum, 100);
-  }
+  take_global_graph (std::unique_ptr<diagnostic_graph> graph);
 
   const diagnostic_physical_location *
   new_location (location_t loc)
   {
     if (loc == UNKNOWN_LOCATION)
       return nullptr;
+    if (m_debug_physical_locations)
+      fprintf (stderr, ": new_location (%lx)", loc);
     if (diagnostic_physical_location **slot = m_location_t_map.get (loc))
-      return *slot;
+      {
+	if (m_debug_physical_locations)
+	  fprintf (stderr, ": cache hit: %p\n", (const void *)*slot);
+	return *slot;
+      }
     diagnostic_physical_location *phys_loc
       = new diagnostic_physical_location (this, loc);
     m_location_t_map.put (loc, phys_loc);
+    if (m_debug_physical_locations)
+      fprintf (stderr, ": cache miss: %p\n", (const void *)phys_loc);
     return phys_loc;
   }
 
-  diagnostic_context m_dc;
+  diagnostics::context m_dc;
   line_maps m_line_table;
+  diagnostics::physical_location_maker m_phys_loc_maker;
   impl_client_version_info m_client_version_info;
   std::vector<std::unique_ptr<sink>> m_sinks;
   hash_map<nofree_string_hash, diagnostic_file *> m_str_to_file_map;
@@ -616,7 +931,8 @@ private:
   logical_locs_map_t m_logical_locs;
   const diagnostic *m_current_diag;
   const diagnostic_logical_location *m_prev_diag_logical_loc;
-  std::unique_ptr<edit_context> m_edit_context;
+  std::unique_ptr<diagnostics::changes::change_set> m_change_set;
+  bool m_debug_physical_locations;
 };
 
 class impl_rich_location : public rich_location
@@ -645,7 +961,7 @@ private:
   char *m_text;
 };
 
-class impl_rule : public diagnostic_metadata::rule
+class impl_rule : public diagnostics::metadata::rule
 {
 public:
   impl_rule (const char *title, const char *url)
@@ -671,23 +987,58 @@ private:
   owned_nullable_string m_url;
 };
 
-class libgdiagnostics_path_event : public diagnostic_event
+struct diagnostic_graph : public diagnostics::digraphs::digraph
+{
+  diagnostic_graph (diagnostic_manager &) {}
+
+  diagnostic_node *
+  add_node_with_id (std::string node_id,
+		    diagnostic_node *parent_node);
+  diagnostic_edge *
+  add_edge_with_label (const char *edge_id,
+		       diagnostic_node &src_node,
+		       diagnostic_node &dst_node,
+		       const char *label);
+};
+
+struct diagnostic_node : public diagnostics::digraphs::node
+{
+  diagnostic_node (diagnostic_graph &g,
+		   std::string id)
+  : node (g, std::move (id))
+  {
+  }
+};
+
+struct diagnostic_edge : public diagnostics::digraphs::edge
+{
+  diagnostic_edge (diagnostic_graph &g,
+		   const char *id,
+		   diagnostic_node &src_node,
+		   diagnostic_node &dst_node)
+  : edge (g, id, src_node, dst_node)
+  {
+  }
+};
+
+class libgdiagnostics_path_event : public diagnostics::paths::event
 {
 public:
   libgdiagnostics_path_event (const diagnostic_physical_location *physical_loc,
 			      const diagnostic_logical_location *logical_loc,
 			      unsigned stack_depth,
-			      const char *gmsgid,
-			      va_list *args)
+			      std::unique_ptr<diagnostic_graph> state_graph,
+			      std::unique_ptr<diagnostic_message_buffer> msg_buf)
   : m_physical_loc (physical_loc),
     m_logical_loc (logical_loc),
-    m_stack_depth (stack_depth)
+    m_stack_depth (stack_depth),
+    m_state_graph (std::move (state_graph)),
+    m_msg_buf (std::move (msg_buf))
   {
-    m_desc_uncolored = make_desc (gmsgid, args, false);
-    m_desc_colored = make_desc (gmsgid, args, true);
+    gcc_assert (m_msg_buf);
   }
 
-  /* diagnostic_event vfunc implementations.  */
+  /* diagnostics::paths::event vfunc implementations.  */
 
   location_t get_location () const final override
   {
@@ -701,15 +1052,17 @@ public:
 
   void print_desc (pretty_printer &pp) const final override
   {
-    if (pp_show_color (&pp))
-      pp_string (&pp, m_desc_colored.get ());
-    else
-      pp_string (&pp, m_desc_uncolored.get ());
+    if (m_msg_buf)
+      {
+	pp_element_message_buffer e_msg_buf (*m_msg_buf);
+	pp_printf (&pp, "%e", &e_msg_buf);
+      }
   }
 
-  const logical_location *get_logical_location () const
+  diagnostics::logical_locations::key
+  get_logical_location () const final override
   {
-    return m_logical_loc;
+    return impl_logical_location_manager::key_from_ptr (m_logical_loc);
   }
 
   meaning get_meaning () const final override
@@ -722,9 +1075,18 @@ public:
     return false; // TODO
   }
 
-  diagnostic_thread_id_t get_thread_id () const final override
+  diagnostics::paths::thread_id_t get_thread_id () const final override
   {
     return 0;
+  }
+
+  std::unique_ptr<diagnostics::digraphs::digraph>
+  maybe_make_diagnostic_state_graph (bool) const final override
+  {
+    if (!m_state_graph)
+      return nullptr;
+
+    return m_state_graph->clone ();
   }
 
 private:
@@ -752,11 +1114,11 @@ private:
   const diagnostic_physical_location *m_physical_loc;
   const diagnostic_logical_location *m_logical_loc;
   unsigned m_stack_depth;
-  label_text m_desc_uncolored;
-  label_text m_desc_colored;
+  std::unique_ptr<diagnostic_graph> m_state_graph;
+  std::unique_ptr<diagnostic_message_buffer> m_msg_buf;
 };
 
-class libgdiagnostics_path_thread : public diagnostic_thread
+class libgdiagnostics_path_thread : public diagnostics::paths::thread
 {
 public:
   libgdiagnostics_path_thread (const char *name) : m_name (name) {}
@@ -771,41 +1133,62 @@ private:
 
 /* This has to be a "struct" as it is exposed in the C API.  */
 
-struct diagnostic_execution_path : public diagnostic_path
+struct diagnostic_execution_path : public diagnostics::paths::path
 {
-  diagnostic_execution_path ()
-  : m_thread ("")
+  diagnostic_execution_path (const diagnostics::logical_locations::manager &logical_loc_mgr)
+  : diagnostics::paths::path (logical_loc_mgr),
+    m_thread ("")
   {
   }
 
-  diagnostic_event_id_t
+  diagnostics::paths::event_id_t
   add_event_va (const diagnostic_physical_location *physical_loc,
 		const diagnostic_logical_location *logical_loc,
 		unsigned stack_depth,
+		std::unique_ptr<diagnostic_graph> state_graph,
 		const char *gmsgid,
 		va_list *args)
   {
-    m_events.push_back (::make_unique<libgdiagnostics_path_event> (physical_loc,
-								   logical_loc,
-								   stack_depth,
-								   gmsgid,
-								   args));
+    auto msg_buf = std::make_unique<diagnostic_message_buffer> (gmsgid, args);
+
+    m_events.push_back
+      (std::make_unique<libgdiagnostics_path_event> (physical_loc,
+						     logical_loc,
+						     stack_depth,
+						     std::move (state_graph),
+						     std::move (msg_buf)));
     return m_events.size () - 1;
   }
 
-  /* diagnostic_path vfunc implementations.  */
+  diagnostic_event_id_t
+  add_event_via_msg_buf (const diagnostic_physical_location *physical_loc,
+			 const diagnostic_logical_location *logical_loc,
+			 unsigned stack_depth,
+			 std::unique_ptr<diagnostic_graph> state_graph,
+			 std::unique_ptr<diagnostic_message_buffer> msg_buf)
+  {
+    m_events.push_back
+      (std::make_unique<libgdiagnostics_path_event> (physical_loc,
+						     logical_loc,
+						     stack_depth,
+						     std::move (state_graph),
+						     std::move (msg_buf)));
+    return m_events.size () - 1;
+  }
+
+  /* diagnostics::paths::path vfunc implementations.  */
 
   unsigned num_events () const final override
   {
     return m_events.size ();
   }
-  const diagnostic_event & get_event (int idx) const final override
+  const diagnostics::paths::event & get_event (int idx) const final override
   {
     return *m_events[idx];
   }
   unsigned num_threads () const final override { return 1; }
-  const diagnostic_thread &
-  get_thread (diagnostic_thread_id_t) const final override
+  const diagnostics::paths::thread &
+  get_thread (diagnostics::paths::thread_id_t) const final override
   {
     return m_thread;
   }
@@ -814,9 +1197,10 @@ struct diagnostic_execution_path : public diagnostic_path
   same_function_p (int event_idx_a,
 		   int event_idx_b) const final override
   {
-    const logical_location *logical_loc_a
+    using logical_location = diagnostics::logical_locations::key;
+    logical_location logical_loc_a
       = m_events[event_idx_a]->get_logical_location ();
-    const logical_location *logical_loc_b
+    logical_location  logical_loc_b
       = m_events[event_idx_b]->get_logical_location ();
 
     /* Pointer equality, as we uniqify logical location instances.  */
@@ -826,6 +1210,28 @@ struct diagnostic_execution_path : public diagnostic_path
 private:
   libgdiagnostics_path_thread m_thread;
   std::vector<std::unique_ptr<libgdiagnostics_path_event>> m_events;
+};
+
+class prebuilt_digraphs
+  : public lazily_created<std::vector<std::unique_ptr<diagnostics::digraphs::digraph>>>
+{
+public:
+  using digraph = diagnostics::digraphs::digraph;
+
+  std::unique_ptr<std::vector<std::unique_ptr<digraph>>>
+  create_object () const final override
+  {
+    return std::make_unique<std::vector<std::unique_ptr<digraph>>> (std::move (m_digraphs));
+  }
+
+  void
+  take_graph (std::unique_ptr<diagnostic_graph> graph)
+  {
+    m_digraphs.push_back (std::move (graph));
+  }
+
+private:
+  mutable std::vector<std::unique_ptr<digraph>> m_digraphs;
 };
 
 /* This has to be a "struct" as it is exposed in the C API.  */
@@ -839,8 +1245,11 @@ public:
     m_level (level),
     m_rich_loc (diag_mgr.get_line_table ()),
     m_logical_loc (nullptr),
-    m_path (nullptr)
-  {}
+    m_path (nullptr),
+    m_nesting_level (0)
+  {
+    m_metadata.set_lazy_digraphs (&m_graphs);
+  }
 
   diagnostic_manager &get_manager () const
   {
@@ -850,7 +1259,7 @@ public:
   enum diagnostic_level get_level () const { return m_level; }
 
   rich_location *get_rich_location () { return &m_rich_loc; }
-  const diagnostic_metadata *get_metadata () { return &m_metadata; }
+  const diagnostics::metadata *get_metadata () { return &m_metadata; }
 
   void set_cwe (unsigned cwe_id)
   {
@@ -860,7 +1269,7 @@ public:
   void add_rule (const char *title,
 		 const char *url)
   {
-    std::unique_ptr<impl_rule> rule = ::make_unique<impl_rule> (title, url);
+    std::unique_ptr<impl_rule> rule = std::make_unique<impl_rule> (title, url);
     m_metadata.add_rule (*rule.get ());
     m_rules.push_back (std::move (rule));
   }
@@ -882,7 +1291,20 @@ public:
 			   const char *text)
   {
     std::unique_ptr<range_label> label
-      = ::make_unique <impl_range_label> (text);
+      = std::make_unique <impl_range_label> (text);
+    m_rich_loc.add_range (as_location_t (loc),
+			  SHOW_RANGE_WITHOUT_CARET,
+			  label.get ());
+    m_labels.push_back (std::move (label));
+  }
+
+  void
+  add_location_with_label (const diagnostic_physical_location *loc,
+			   std::unique_ptr<diagnostic_message_buffer> msg_buf)
+  {
+    std::string str = msg_buf->to_string ();
+    std::unique_ptr<range_label> label
+      = std::make_unique <impl_range_label> (str.c_str ());
     m_rich_loc.add_range (as_location_t (loc),
 			  SHOW_RANGE_WITHOUT_CARET,
 			  label.get ());
@@ -902,7 +1324,9 @@ public:
   diagnostic_execution_path *
   add_execution_path ()
   {
-    m_path = ::make_unique<diagnostic_execution_path> ();
+    m_path
+      = std::make_unique<diagnostic_execution_path>
+	  (m_diag_mgr.get_logical_location_manager ());
     m_rich_loc.set_path (m_path.get ());
     return m_path.get ();
   }
@@ -914,42 +1338,59 @@ public:
     m_rich_loc.set_path (path);
   }
 
+  void
+  take_graph (std::unique_ptr<diagnostic_graph> graph)
+  {
+    m_graphs.take_graph (std::move (graph));
+  }
+
+  const prebuilt_digraphs &
+  get_graphs () const
+  {
+    return m_graphs;
+  }
+
+  int get_nesting_level () const { return m_nesting_level; }
+  void set_nesting_level (int value) { m_nesting_level = value; }
+
 private:
   diagnostic_manager &m_diag_mgr;
   enum diagnostic_level m_level;
   impl_rich_location m_rich_loc;
   const diagnostic_logical_location *m_logical_loc;
-  diagnostic_metadata m_metadata;
+  diagnostics::metadata m_metadata;
+  prebuilt_digraphs m_graphs;
   std::vector<std::unique_ptr<range_label>> m_labels;
   std::vector<std::unique_ptr<impl_rule>> m_rules;
   std::unique_ptr<diagnostic_execution_path> m_path;
+  int m_nesting_level;
 };
 
-static diagnostic_t
-diagnostic_t_from_diagnostic_level (enum diagnostic_level level)
+static enum diagnostics::kind
+diagnostics_kind_from_diagnostic_level (enum diagnostic_level level)
 {
   switch (level)
     {
     default:
       gcc_unreachable ();
     case DIAGNOSTIC_LEVEL_ERROR:
-      return DK_ERROR;
+      return diagnostics::kind::error;
     case DIAGNOSTIC_LEVEL_WARNING:
-      return DK_WARNING;
+      return diagnostics::kind::warning;
     case DIAGNOSTIC_LEVEL_NOTE:
-      return DK_NOTE;
+      return diagnostics::kind::note;
     case DIAGNOSTIC_LEVEL_SORRY:
-      return DK_SORRY;
+      return diagnostics::kind::sorry;
     }
 }
 
 void
 diagnostic_file::set_buffered_content (const char *buf, size_t sz)
 {
-  m_content = ::make_unique<content_buffer> (buf, sz);
+  m_content = std::make_unique<content_buffer> (buf, sz);
 
   // Populate file_cache:
-  file_cache &fc = m_mgr.get_dc ().get_file_cache ();
+  diagnostics::file_cache &fc = m_mgr.get_dc ().get_file_cache ();
   fc.add_buffered_content (m_name.get_str (), buf, sz);
 }
 
@@ -967,18 +1408,19 @@ diagnostic_physical_location::get_file () const
 
 /* class impl_diagnostic_client_data_hooks.  */
 
-const client_version_info *
+const diagnostics::client_version_info *
 impl_diagnostic_client_data_hooks::get_any_version_info () const
 {
   return m_mgr.get_client_version_info ();
 }
 
-const logical_location *
+diagnostics::logical_locations::key
 impl_diagnostic_client_data_hooks::get_current_logical_location () const
 {
   gcc_assert (m_mgr.get_current_diag ());
 
-  return m_mgr.get_current_diag ()->get_logical_location ();
+  return impl_logical_location_manager::key_from_ptr
+    (m_mgr.get_current_diag ()->get_logical_location ());
 }
 
 const char *
@@ -990,7 +1432,7 @@ maybe_get_sarif_source_language (const char *filename) const
 
 void
 impl_diagnostic_client_data_hooks::
-add_sarif_invocation_properties (sarif_object &) const
+add_sarif_invocation_properties (diagnostics::sarif_object &) const
 {
   // No-op.
 }
@@ -1001,11 +1443,11 @@ diagnostic_text_sink::diagnostic_text_sink (diagnostic_manager &mgr,
 					    FILE *dst_stream,
 					    enum diagnostic_colorize colorize)
 : sink (mgr),
-  m_source_printing (mgr.get_dc ().m_source_printing)
+  m_source_printing (mgr.get_dc ().get_source_printing_options ())
 {
   auto inner_sink
-    = ::make_unique<diagnostic_text_output_format> (mgr.get_dc (),
-						    &m_source_printing);
+    = std::make_unique<diagnostics::text_sink> (mgr.get_dc (),
+						       &m_source_printing);
   inner_sink->get_printer ()->set_output_stream (dst_stream);
   m_inner_sink = inner_sink.get ();
   set_colorize (colorize);
@@ -1034,11 +1476,11 @@ diagnostic_text_sink::set_colorize (enum diagnostic_colorize colorize)
 }
 
 void
-diagnostic_text_sink::text_starter (diagnostic_text_output_format &text_output,
-				    const diagnostic_info *info)
+diagnostic_text_sink::text_starter (diagnostics::text_sink &text_output,
+				    const diagnostics::diagnostic_info *info)
 {
-  gcc_assert (info->x_data);
-  const diagnostic &diag = *static_cast<const diagnostic *> (info->x_data);
+  gcc_assert (info->m_x_data);
+  const diagnostic &diag = *static_cast<const diagnostic *> (info->m_x_data);
   pretty_printer *pp = text_output.get_printer ();
   const diagnostic_logical_location *diag_logical_loc
     = diag.get_logical_location ();
@@ -1046,21 +1488,57 @@ diagnostic_text_sink::text_starter (diagnostic_text_output_format &text_output,
   if (diag_logical_loc && diag_logical_loc != mgr.get_prev_diag_logical_loc ())
     {
       pp_set_prefix (pp, nullptr);
-      switch (diag_logical_loc->get_kind ())
+
+      /* This macro is used to ensure that all format strings are visible to gettext
+	 and checked at compile time.  */
+
+#define CASE(KIND, MSGID) \
+	case KIND:							\
+	  if (const char *name						\
+	      = diag_logical_loc->m_fully_qualified_name.get_str ())	\
+	    {								\
+	     pp_printf (pp, (MSGID), name);				\
+	     pp_character (pp, ':');					\
+	     pp_newline (pp);						\
+	    }								\
+	  break;
+
+      switch (diag_logical_loc->m_kind)
 	{
 	default:
 	  break;
-	case LOGICAL_LOCATION_KIND_FUNCTION:
-	  if (const char *name
-	      = diag_logical_loc->get_name_with_scope ())
-	    {
-	      pp_printf (pp, _("In function %qs"), name);
-	      pp_character (pp, ':');
-	      pp_newline (pp);
-	    }
-	  break;
-	  // TODO: handle other cases
+
+	/* Kinds within executable code.  */
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_FUNCTION, _("In function %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_MEMBER, _("In member %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_MODULE, _("In module %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_NAMESPACE, _("In namespace %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_TYPE, _("In type %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_RETURN_TYPE,
+	     _("In return type %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_PARAMETER, _("In parameter %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_VARIABLE, _("In variable %qs"))
+
+	/* Kinds within XML or HTML documents.  */
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_ELEMENT, _("In element %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_ATTRIBUTE, _("In attribute %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_TEXT, _("In text %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_COMMENT, _("In comment %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROCESSING_INSTRUCTION,
+	     _("In processing instruction %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_DTD, _("In DTD %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_DECLARATION,
+	     _("In declaration %qs"))
+
+	/* Kinds within JSON documents.  */
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_OBJECT, _("In JSON object %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_ARRAY, _("In JSON array %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROPERTY,
+	     _("In JSON property %qs"))
+	CASE(DIAGNOSTIC_LOGICAL_LOCATION_KIND_VALUE, _("In JSON value %qs"))
 	}
+
+#undef CASE
     }
   pp_set_prefix (pp,
 		 text_output.build_prefix (*info));
@@ -1068,20 +1546,82 @@ diagnostic_text_sink::text_starter (diagnostic_text_output_format &text_output,
 
 /* class sarif_sink : public sink.  */
 
-sarif_sink::sarif_sink (diagnostic_manager &mgr,
-			FILE *dst_stream,
-			const diagnostic_file *main_input_file,
-			enum sarif_version version)
+sarif_sink::
+sarif_sink (diagnostic_manager &mgr,
+	    FILE *dst_stream,
+	    const diagnostic_file *main_input_file,
+	    const diagnostics::sarif_generation_options &sarif_gen_opts)
 : sink (mgr)
 {
-  diagnostic_output_file output_file (dst_stream, false,
-				      label_text::borrow ("sarif_sink"));
+  diagnostics::output_file output_file (dst_stream, false,
+					label_text::borrow ("sarif_sink"));
+  auto serialization
+    = std::make_unique<diagnostics::sarif_serialization_format_json> (true);
   auto inner_sink = make_sarif_sink (mgr.get_dc (),
 				     *mgr.get_line_table (),
-				     main_input_file->get_name (),
-				     version,
+				     std::move (serialization),
+				     sarif_gen_opts,
 				     std::move (output_file));
+  inner_sink->set_main_input_filename (main_input_file->get_name ());
   mgr.get_dc ().add_sink (std::move (inner_sink));
+}
+
+// struct diagnostic_message_buffer
+
+std::string
+diagnostic_message_buffer::to_string () const
+{
+  std::string result;
+
+  /* Convert to text, dropping colorization, URLs, etc.  */
+  for (auto iter = m_tokens.m_first; iter; iter = iter->m_next)
+    switch (iter->m_kind)
+      {
+      default:
+	gcc_unreachable ();
+
+      case pp_token::kind::text:
+	{
+	  pp_token_text *sub = as_a <pp_token_text *> (iter);
+	  result += sub->m_value.get ();
+	}
+	break;
+
+      case pp_token::kind::begin_color:
+      case pp_token::kind::end_color:
+	// Skip
+	break;
+
+      case pp_token::kind::begin_quote:
+	result += open_quote;
+	break;
+
+      case pp_token::kind::end_quote:
+	result += close_quote;
+	break;
+
+      case pp_token::kind::begin_url:
+      case pp_token::kind::end_url:
+	// Skip
+	break;
+
+      case pp_token::kind::event_id:
+	{
+	  pp_token_event_id *sub = as_a <pp_token_event_id *> (iter);
+	  gcc_assert (sub->m_event_id.known_p ());
+	  result += '(';
+	  result += std::to_string (sub->m_event_id.one_based ());
+	  result += ')';
+	}
+	break;
+
+      case pp_token::kind::custom_data:
+	/* We don't have a way of handling custom_data tokens here.  */
+	gcc_unreachable ();
+	break;
+      }
+
+  return result;
 }
 
 /* struct diagnostic_manager.  */
@@ -1091,12 +1631,12 @@ diagnostic_manager::write_patch (FILE *dst_stream)
 {
   pretty_printer pp;
   pp.set_output_stream (dst_stream);
-  m_edit_context->print_diff (&pp, true);
+  m_change_set->print_diff (&pp, true);
   pp_flush (&pp);
 }
 
 void
-diagnostic_manager::emit (diagnostic &diag, const char *msgid, va_list *args)
+diagnostic_manager::emit_va (diagnostic &diag, const char *msgid, va_list *args)
 {
   set_line_table_global ();
 
@@ -1105,39 +1645,84 @@ diagnostic_manager::emit (diagnostic &diag, const char *msgid, va_list *args)
   {
     m_dc.begin_group ();
 
-    diagnostic_info info;
+    diagnostics::diagnostic_info info;
 GCC_DIAGNOSTIC_PUSH_IGNORED(-Wsuggest-attribute=format)
     diagnostic_set_info (&info, msgid, args, diag.get_rich_location (),
-			 diagnostic_t_from_diagnostic_level (diag.get_level ()));
+			 diagnostics_kind_from_diagnostic_level
+			   (diag.get_level ()));
 GCC_DIAGNOSTIC_POP
-    info.metadata = diag.get_metadata ();
-    info.x_data = &diag;
+    info.m_metadata = diag.get_metadata ();
+    info.m_x_data = &diag;
+    m_dc.set_nesting_level (diag.get_nesting_level ());
     diagnostic_report_diagnostic (&m_dc, &info);
-
+    m_dc.set_nesting_level (0);
     m_dc.end_group ();
   }
 
   rich_location *rich_loc = diag.get_rich_location ();
   if (rich_loc->fixits_can_be_auto_applied_p ())
-    m_edit_context->add_fixits (rich_loc);
+    m_change_set->add_fixits (rich_loc);
 
   m_prev_diag_logical_loc = diag.get_logical_location ();
   m_current_diag = nullptr;
 }
 
+void
+diagnostic_manager::emit (diagnostic &diag, const char *msgid, ...)
+{
+  va_list args;
+  va_start (args, msgid);
+  emit_va (diag, msgid, &args);
+  va_end (args);
+}
+
+void
+diagnostic_manager::emit_msg_buf (diagnostic &diag,
+				  diagnostic_message_buffer &msg_buf)
+{
+
+  pp_element_message_buffer e_msg_buf (msg_buf);
+  emit (diag, "%e", &e_msg_buf);
+}
+
 diagnostic_execution_path *
 diagnostic_manager::new_execution_path ()
 {
-  return new diagnostic_execution_path ();
+  auto mgr = m_dc.get_logical_location_manager ();
+  gcc_assert (mgr);
+  return new diagnostic_execution_path (*mgr);
 }
 
+void
+diagnostic_manager::take_global_graph (std::unique_ptr<diagnostic_graph> graph)
+{
+  class prebuilt_lazy_digraph : public lazily_created<diagnostics::digraphs::digraph>
+  {
+  public:
+    prebuilt_lazy_digraph (std::unique_ptr<diagnostic_graph> graph)
+      : m_graph (std::move (graph))
+    {
+    }
+
+    std::unique_ptr<diagnostics::digraphs::digraph>
+    create_object () const final override
+    {
+      return std::move (m_graph);
+    }
+
+  private:
+    mutable std::unique_ptr<diagnostic_graph> m_graph;
+  };
+
+  m_dc.report_global_digraph (prebuilt_lazy_digraph (std::move (graph)));
+}
 /* Error-checking at the API boundary.  */
 
 #define FAIL_IF_NULL(PTR_ARG) \
-  do {						    \
-    volatile const void *p = (PTR_ARG);		    \
-    if (!p) {					    \
-      fprintf (stderr, "%s: %s must be non-NULL\n",   \
+  do {							    \
+    volatile const void *ptr_arg = (PTR_ARG);		    \
+    if (!ptr_arg) {					    \
+      fprintf (stderr, "%s: %s must be non-NULL\n",	    \
 	       __func__, #PTR_ARG);		      \
       abort ();					      \
     }						    \
@@ -1271,7 +1856,7 @@ diagnostic_manager_add_sarif_sink (diagnostic_manager *diag_mgr,
   FAIL_IF_NULL (dst_stream);
   FAIL_IF_NULL (main_input_file);
 
-  enum sarif_version internal_version;
+  diagnostics::sarif_generation_options sarif_gen_opts;
   switch (version)
     {
     default:
@@ -1279,17 +1864,18 @@ diagnostic_manager_add_sarif_sink (diagnostic_manager *diag_mgr,
 	       __func__, (int)version);
       abort ();
     case DIAGNOSTIC_SARIF_VERSION_2_1_0:
-      internal_version = sarif_version::v2_1_0;
+      sarif_gen_opts.m_version = diagnostics::sarif_version::v2_1_0;
       break;
     case DIAGNOSTIC_SARIF_VERSION_2_2_PRERELEASE:
-      internal_version = sarif_version::v2_2_prerelease_2024_08_08;
+      sarif_gen_opts.m_version
+	= diagnostics::sarif_version::v2_2_prerelease_2024_08_08;
       break;
     }
 
-  diag_mgr->add_sink (make_unique<sarif_sink> (*diag_mgr,
-					       dst_stream,
-					       main_input_file,
-					       internal_version));
+  diag_mgr->add_sink (std::make_unique<sarif_sink> (*diag_mgr,
+						    dst_stream,
+						    main_input_file,
+						    sarif_gen_opts));
 }
 
 /* Public entrypoint.  */
@@ -1344,7 +1930,8 @@ diagnostic_manager_debug_dump_file (diagnostic_manager *,
 	fprintf (out, ", sarif_source_language=\"%s\"",
 		 file->get_sarif_source_language ());
       if (const content_buffer *buf = file->get_content ())
-	fprintf (out, ", content=(size=%zi)", buf->m_sz);
+	fprintf (out, ", content=(size=" HOST_SIZE_T_PRINT_DEC ")",
+		 buf->m_sz);
       fprintf (out, ")");
     }
   else
@@ -1412,12 +1999,12 @@ diagnostic_manager_debug_dump_location (const diagnostic_manager *diag_mgr,
       diag_mgr->set_line_table_global ();
       const expanded_location exp_loc (expand_location (cpplib_loc));
 
-      diagnostic_context dc;
+      diagnostics::context dc;
       diagnostic_initialize (&dc, 0);
       dc.m_show_column = true;
 
-      diagnostic_text_output_format text_format (dc);
-      label_text loc_text = text_format.get_location_text (exp_loc);
+      diagnostics::text_sink text_output (dc);
+      label_text loc_text = text_output.get_location_text (exp_loc);
       fprintf (out, "%s", loc_text.get ());
 
       diagnostic_finish (&dc);
@@ -1456,10 +2043,11 @@ diagnostic_manager_debug_dump_logical_location (const diagnostic_manager *diag_m
   if (loc)
     {
       fprintf (out, "logical_location(kind=");
-      switch (loc->get_external_kind ())
+      switch (loc->m_kind)
 	{
 	default:
 	  gcc_unreachable ();
+
 	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_FUNCTION:
 	  fprintf (out, "function");
 	  break;
@@ -1484,16 +2072,54 @@ diagnostic_manager_debug_dump_logical_location (const diagnostic_manager *diag_m
 	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_VARIABLE:
 	  fprintf (out, "variable");
 	  break;
+
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_ELEMENT:
+	  fprintf (out, "element");
+	  break;
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_ATTRIBUTE:
+	  fprintf (out, "attribute");
+	  break;
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_TEXT:
+	  fprintf (out, "text");
+	  break;
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_COMMENT:
+	  fprintf (out, "comment");
+	  break;
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROCESSING_INSTRUCTION:
+	  fprintf (out, "processing_instruction");
+	  break;
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_DTD:
+	  fprintf (out, "dtd");
+	  break;
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_DECLARATION:
+	  fprintf (out, "declaration");
+	  break;
+
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_OBJECT:
+	  fprintf (out, "object");
+	  break;
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_ARRAY:
+	  fprintf (out, "array");
+	  break;
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROPERTY:
+	  fprintf (out, "property");
+	  break;
+	case DIAGNOSTIC_LOGICAL_LOCATION_KIND_VALUE:
+	  fprintf (out, "value");
+	  break;
 	}
-      if (const diagnostic_logical_location *parent = loc->get_parent ())
-	diagnostic_manager_debug_dump_logical_location (diag_mgr,
-							parent,
-							out);
-      if (const char *val = loc->get_short_name ())
+      if (auto parent = loc->m_parent)
+	{
+         fprintf (out, ", parent=");
+	 diagnostic_manager_debug_dump_logical_location (diag_mgr,
+							 parent,
+							 out);
+	}
+      if (const char *val = loc->m_short_name.get_str ())
 	fprintf (out, ", short_name=\"%s\"", val);
-      if (const char *val = loc->get_name_with_scope ())
+      if (const char *val = loc->m_fully_qualified_name.get_str ())
 	fprintf (out, ", fully_qualified_name=\"%s\"", val);
-      if (const char *val = loc->get_internal_name ())
+      if (const char *val = loc->m_decorated_name.get_str ())
 	fprintf (out, ", decorated_name=\"%s\"", val);
       fprintf (out, ")");
     }
@@ -1717,10 +2343,12 @@ diagnostic_execution_path_add_event (diagnostic_execution_path *path,
 
   va_list args;
   va_start (args, gmsgid);
-  diagnostic_event_id_t result = path->add_event_va (physical_loc,
-						     logical_loc,
-						     stack_depth,
-						     gmsgid, &args);
+  diagnostics::paths::event_id_t result
+    = path->add_event_va (physical_loc,
+			  logical_loc,
+			  stack_depth,
+			  nullptr,
+			  gmsgid, &args);
   va_end (args);
 
   return as_diagnostic_event_id (result);
@@ -1739,10 +2367,12 @@ diagnostic_execution_path_add_event_va (diagnostic_execution_path *path,
   FAIL_IF_NULL (path);
   FAIL_IF_NULL (gmsgid);
 
-  diagnostic_event_id_t result = path->add_event_va (physical_loc,
-						     logical_loc,
-						     stack_depth,
-						     gmsgid, args);
+  diagnostics::paths::event_id_t result
+    = path->add_event_va (physical_loc,
+			  logical_loc,
+			  stack_depth,
+			  nullptr,
+			  gmsgid, args);
   return as_diagnostic_event_id (result);
 }
 
@@ -1772,7 +2402,7 @@ diagnostic_finish_va (diagnostic *diag, const char *gmsgid, va_list *args)
   else
     progname = "progname";
   auto_diagnostic_group d;
-  diag->get_manager ().emit (*diag, gmsgid, args);
+  diag->get_manager ().emit_va (*diag, gmsgid, args);
   delete diag;
 }
 
@@ -1785,4 +2415,613 @@ diagnostic_physical_location_get_file (const diagnostic_physical_location *physi
     return nullptr;
 
   return physical_loc->get_file ();
+}
+
+/* Public entrypoints for accessing logical location data.  */
+
+enum diagnostic_logical_location_kind_t
+diagnostic_logical_location_get_kind (const diagnostic_logical_location *loc)
+{
+  FAIL_IF_NULL (loc);
+
+  return loc->m_kind;
+}
+
+const diagnostic_logical_location *
+diagnostic_logical_location_get_parent (const diagnostic_logical_location *loc)
+{
+  FAIL_IF_NULL (loc);
+
+  return loc->m_parent;
+}
+
+const char *
+diagnostic_logical_location_get_short_name (const diagnostic_logical_location *loc)
+{
+  FAIL_IF_NULL (loc);
+
+  return loc->m_short_name.get_str ();
+}
+
+const char *
+diagnostic_logical_location_get_fully_qualified_name (const diagnostic_logical_location *loc)
+{
+  FAIL_IF_NULL (loc);
+
+  return loc->m_fully_qualified_name.get_str ();
+}
+
+const char *
+diagnostic_logical_location_get_decorated_name (const diagnostic_logical_location *loc)
+{
+  FAIL_IF_NULL (loc);
+
+  return loc->m_decorated_name.get_str ();
+}
+
+namespace {
+
+struct spec_context : public diagnostics::output_spec::context
+{
+public:
+  spec_context (const char *option_name,
+		const char *unparsed_spec,
+		diagnostic_manager &affected_mgr,
+		diagnostic_manager &control_mgr)
+  : context (option_name, unparsed_spec, nullptr,
+	     affected_mgr.get_line_table ()),
+    m_control_mgr (control_mgr)
+  {}
+
+  void report_error_va (const char *gmsgid, va_list *ap) const final override
+  {
+    diagnostic *diag
+      = diagnostic_begin (&m_control_mgr, DIAGNOSTIC_LEVEL_ERROR);
+    diagnostic_finish_va (diag, gmsgid, ap);
+  }
+
+  const char *
+  get_base_filename () const final override
+  {
+    return nullptr;
+  }
+
+private:
+  diagnostic_manager &m_control_mgr;
+};
+
+} // anon namespace
+
+/* Public entrypoint.  */
+
+int
+diagnostic_manager_add_sink_from_spec (diagnostic_manager *affected_mgr,
+				       const char *option_name,
+				       const char *spec,
+				       diagnostic_manager *control_mgr)
+{
+  FAIL_IF_NULL (affected_mgr);
+  FAIL_IF_NULL (option_name);
+  FAIL_IF_NULL (spec);
+  FAIL_IF_NULL (control_mgr);
+
+  spec_context ctxt (option_name, spec, *affected_mgr, *control_mgr);
+  auto inner_sink = ctxt.parse_and_make_sink (affected_mgr->get_dc ());
+  if (!inner_sink)
+    return -1;
+  affected_mgr->get_dc ().add_sink (std::move (inner_sink));
+  return 0;
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_manager_set_analysis_target (diagnostic_manager *mgr,
+					const diagnostic_file *file)
+{
+  FAIL_IF_NULL (mgr);
+  FAIL_IF_NULL (file);
+
+  mgr->get_dc ().set_main_input_filename (file->get_name ());
+}
+
+/* Public entrypoint.  */
+
+diagnostic_node *
+diagnostic_graph::add_node_with_id (std::string node_id,
+				    diagnostic_node *parent_node)
+{
+  auto node_up
+    = std::make_unique<diagnostic_node> (*this, std::move (node_id));
+  diagnostic_node *new_node = node_up.get ();
+  if (parent_node)
+    parent_node->add_child (std::move (node_up));
+  else
+    add_node (std::move (node_up));
+  return new_node;
+}
+
+/* Public entrypoint.  */
+
+diagnostic_edge *
+diagnostic_graph::add_edge_with_label (const char *edge_id,
+				       diagnostic_node &src_node,
+				       diagnostic_node &dst_node,
+				       const char *label)
+{
+  auto edge_up
+    = std::make_unique<diagnostic_edge> (*this, edge_id,
+					 src_node, dst_node);
+  diagnostic_edge *new_edge = edge_up.get ();
+  if (label)
+    new_edge->set_label (label);
+  add_edge (std::move (edge_up));
+  return new_edge;
+}
+
+/* Public entrypoint.  */
+
+diagnostic_graph *
+diagnostic_manager_new_graph (diagnostic_manager *manager)
+{
+  FAIL_IF_NULL (manager);
+
+  return new diagnostic_graph (*manager);
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_manager_take_global_graph (diagnostic_manager *manager,
+				      diagnostic_graph *graph)
+{
+  FAIL_IF_NULL (manager);
+  FAIL_IF_NULL (graph);
+
+  manager->take_global_graph (std::unique_ptr<diagnostic_graph> (graph));
+}
+
+void
+diagnostic_take_graph (diagnostic *diag,
+		       diagnostic_graph *graph)
+{
+  FAIL_IF_NULL (diag);
+  FAIL_IF_NULL (graph);
+
+  diag->take_graph (std::unique_ptr<diagnostic_graph> (graph));
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_graph_release (diagnostic_graph *graph)
+{
+  delete graph;
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_graph_set_description (diagnostic_graph *graph,
+				  const char *desc)
+{
+  FAIL_IF_NULL (graph);
+
+  graph->set_description (desc);
+}
+
+/* Public entrypoint.  */
+
+diagnostic_node *
+diagnostic_graph_add_node (diagnostic_graph *graph,
+			   const char *node_id,
+			   diagnostic_node *parent_node)
+{
+  FAIL_IF_NULL (graph);
+  FAIL_IF_NULL (node_id);
+
+  return graph->add_node_with_id (node_id, parent_node);
+}
+
+/* Public entrypoint.  */
+
+diagnostic_edge *
+diagnostic_graph_add_edge (diagnostic_graph *graph,
+			   const char *edge_id,
+			   diagnostic_node *src_node,
+			   diagnostic_node *dst_node,
+			   const char *label)
+{
+  FAIL_IF_NULL (graph);
+  FAIL_IF_NULL (src_node);
+  FAIL_IF_NULL (dst_node);
+
+  return graph->add_edge_with_label (edge_id, *src_node, *dst_node, label);
+}
+
+/* Public entrypoint.  */
+
+diagnostic_node *
+diagnostic_graph_get_node_by_id (diagnostic_graph *graph,
+				 const char *node_id)
+{
+  FAIL_IF_NULL (graph);
+  FAIL_IF_NULL (node_id);
+
+  return static_cast<diagnostic_node *> (graph->get_node_by_id (node_id));
+}
+
+/* Public entrypoint.  */
+
+diagnostic_edge *
+diagnostic_graph_get_edge_by_id (diagnostic_graph *graph,
+				 const char *edge_id)
+{
+  FAIL_IF_NULL (graph);
+  FAIL_IF_NULL (edge_id);
+
+  return static_cast<diagnostic_edge *> (graph->get_edge_by_id (edge_id));
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_node_set_location (diagnostic_node *node,
+			      const diagnostic_physical_location *loc)
+{
+  FAIL_IF_NULL (node);
+
+  node->set_physical_loc (loc ? loc->m_inner : UNKNOWN_LOCATION);
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_node_set_label (diagnostic_node *node,
+			   const char *label)
+{
+  FAIL_IF_NULL (node);
+
+  node->set_label (label);
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_node_set_logical_location (diagnostic_node *node,
+				      const diagnostic_logical_location *logical_loc)
+{
+  FAIL_IF_NULL (node);
+
+  node->set_logical_loc
+    (impl_logical_location_manager::key_from_ptr (logical_loc));
+}
+
+/* Private entrypoint.  */
+
+void
+private_diagnostic_graph_set_property_bag (diagnostic_graph &graph,
+					  std::unique_ptr<json::object> properties)
+{
+  graph.set_property_bag (std::move (properties));
+}
+
+/* Private entrypoint.  */
+
+void
+private_diagnostic_node_set_property_bag (diagnostic_node &node,
+					  std::unique_ptr<json::object> properties)
+{
+  node.set_property_bag (std::move (properties));
+}
+
+/* Private entrypoint.  */
+
+void
+private_diagnostic_edge_set_property_bag (diagnostic_edge &edge,
+					  std::unique_ptr<json::object> properties)
+{
+  edge.set_property_bag (std::move (properties));
+}
+
+/* Public entrypoint.  */
+
+diagnostic_message_buffer *
+diagnostic_message_buffer_new ()
+{
+  return new diagnostic_message_buffer ();
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_release (diagnostic_message_buffer *msg_buf)
+{
+  FAIL_IF_NULL (msg_buf);
+  delete msg_buf;
+}
+
+void
+diagnostic_message_buffer_append_str (diagnostic_message_buffer *msg_buf,
+				      const char *p)
+{
+  FAIL_IF_NULL (msg_buf);
+  FAIL_IF_NULL (p);
+  msg_buf->m_tokens.push_back_text (label_text::take (xstrdup (p)));
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_append_text (diagnostic_message_buffer *msg_buf,
+				       const char *p,
+				       size_t len)
+{
+  FAIL_IF_NULL (msg_buf);
+  FAIL_IF_NULL (p);
+  msg_buf->m_tokens.push_back_text (label_text::take (xstrndup (p, len)));
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_append_byte (diagnostic_message_buffer *msg_buf,
+				       char ch)
+{
+  FAIL_IF_NULL (msg_buf);
+  msg_buf->m_tokens.push_back_byte (ch);
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_append_printf (diagnostic_message_buffer *msg_buf,
+					 const char *fmt, ...)
+{
+  FAIL_IF_NULL (msg_buf);
+  FAIL_IF_NULL (fmt);
+
+  va_list args;
+  va_start (args, fmt);
+
+  char *formatted_buf = xvasprintf (fmt, args);
+
+  va_end (args);
+
+  msg_buf->m_tokens.push_back_text (label_text::take (formatted_buf));
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_append_event_id (diagnostic_message_buffer *msg_buf,
+					   diagnostic_event_id event_id)
+{
+  FAIL_IF_NULL (msg_buf);
+  msg_buf->m_tokens.push_back<pp_token_event_id> (event_id);
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_begin_url (diagnostic_message_buffer *msg_buf,
+				     const char *url)
+{
+  FAIL_IF_NULL (msg_buf);
+  FAIL_IF_NULL (url);
+  msg_buf->m_tokens.push_back<pp_token_begin_url>
+    (label_text::take (xstrdup (url)));
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_end_url (diagnostic_message_buffer *msg_buf)
+{
+  FAIL_IF_NULL (msg_buf);
+  msg_buf->m_tokens.push_back<pp_token_end_url> ();
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_begin_quote (diagnostic_message_buffer *msg_buf)
+{
+  FAIL_IF_NULL (msg_buf);
+  msg_buf->m_tokens.push_back<pp_token_begin_quote> ();
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_end_quote (diagnostic_message_buffer *msg_buf)
+{
+  FAIL_IF_NULL (msg_buf);
+  msg_buf->m_tokens.push_back<pp_token_end_quote> ();
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_begin_color (diagnostic_message_buffer *msg_buf,
+				       const char *color)
+{
+  FAIL_IF_NULL (msg_buf);
+  FAIL_IF_NULL (color);
+  msg_buf->m_tokens.push_back<pp_token_begin_color>
+    (label_text::take (xstrdup (color)));
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_end_color (diagnostic_message_buffer *msg_buf)
+{
+  FAIL_IF_NULL (msg_buf);
+  msg_buf->m_tokens.push_back<pp_token_end_color> ();
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_message_buffer_dump (const diagnostic_message_buffer *msg_buf,
+				FILE *outf)
+{
+  FAIL_IF_NULL (msg_buf);
+  FAIL_IF_NULL (outf);
+
+  msg_buf->m_tokens.dump (outf);
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_finish_via_msg_buf (diagnostic *diag,
+			       diagnostic_message_buffer *msg_buf)
+{
+  FAIL_IF_NULL (diag);
+  FAIL_IF_NULL (msg_buf);
+
+  if (const char *tool_name
+      = diag->get_manager ().get_client_version_info ()->m_name.get_str ())
+    progname = tool_name;
+  else
+    progname = "progname";
+  auto_diagnostic_group d;
+  diag->get_manager ().emit_msg_buf (*diag, *msg_buf);
+  delete diag;
+  delete msg_buf;
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_add_location_with_label_via_msg_buf (diagnostic *diag,
+						const diagnostic_physical_location *loc,
+						diagnostic_message_buffer *msg_buf)
+{
+  FAIL_IF_NULL (diag);
+  diag->get_manager ().assert_valid_diagnostic_physical_location (loc);
+  FAIL_IF_NULL (msg_buf);
+
+  std::unique_ptr<diagnostic_message_buffer> msg_buf_up (msg_buf);
+  diag->add_location_with_label (loc, std::move (msg_buf_up));
+}
+
+/* Public entrypoint.  */
+
+diagnostic_event_id
+diagnostic_execution_path_add_event_via_msg_buf (diagnostic_execution_path *path,
+						 const diagnostic_physical_location *physical_loc,
+						 const diagnostic_logical_location *logical_loc,
+						 unsigned stack_depth,
+						 diagnostic_message_buffer *msg_buf)
+{
+  FAIL_IF_NULL (path);
+  FAIL_IF_NULL (msg_buf);
+
+  std::unique_ptr<diagnostic_message_buffer> msg_buf_up (msg_buf);
+  diagnostic_event_id_t result
+    = path->add_event_via_msg_buf (physical_loc,
+				   logical_loc,
+				   stack_depth,
+				   nullptr,
+				   std::move (msg_buf_up));
+  return as_diagnostic_event_id (result);
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_graph_set_description_via_msg_buf (diagnostic_graph *graph,
+					      diagnostic_message_buffer *desc)
+{
+  FAIL_IF_NULL (graph);
+
+  if (desc)
+    graph->set_description (desc->to_string ());
+  else
+    graph->set_description (nullptr);
+}
+
+/* Public entrypoint.  */
+
+diagnostic_edge *
+diagnostic_graph_add_edge_via_msg_buf (diagnostic_graph *graph,
+				       const char *edge_id,
+				       diagnostic_node *src_node,
+				       diagnostic_node *dst_node,
+				       diagnostic_message_buffer *label)
+{
+  FAIL_IF_NULL (graph);
+  FAIL_IF_NULL (src_node);
+  FAIL_IF_NULL (dst_node);
+
+  if (label)
+    {
+      std::string label_str (label->to_string ());
+      return graph->add_edge_with_label (edge_id, *src_node, *dst_node,
+					 label_str.c_str ());
+    }
+  else
+    return graph->add_edge_with_label (edge_id, *src_node, *dst_node,
+				       nullptr);
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_node_set_label_via_msg_buf (diagnostic_node *node,
+				       diagnostic_message_buffer *label)
+{
+  FAIL_IF_NULL (node);
+
+  if (label)
+    node->set_label (label->to_string ());
+  else
+    node->set_label (nullptr);
+}
+
+/* Private entrypoint.  */
+
+diagnostic_event_id
+private_diagnostic_execution_path_add_event_3 (diagnostic_execution_path *path,
+					       const diagnostic_physical_location *physical_loc,
+					       const diagnostic_logical_location *logical_loc,
+					       unsigned stack_depth,
+					       diagnostic_graph *state_graph,
+					       diagnostic_message_buffer *msg_buf)
+{
+  FAIL_IF_NULL (path);
+  FAIL_IF_NULL (msg_buf);
+
+  diagnostic_event_id_t result
+    = path->add_event_via_msg_buf
+	(physical_loc,
+	 logical_loc,
+	 stack_depth,
+	 std::unique_ptr <diagnostic_graph> (state_graph),
+	 std::unique_ptr <diagnostic_message_buffer> (msg_buf));
+
+  return as_diagnostic_event_id (result);
+}
+
+/* Public entrypoint.  */
+
+void
+diagnostic_manager_set_debug_physical_locations (diagnostic_manager *mgr,
+						 int value)
+{
+  FAIL_IF_NULL (mgr);
+  mgr->set_debug_physical_locations (value);
+}
+
+/* Private entrypoint.  */
+
+void
+private_diagnostic_set_nesting_level (diagnostic *diag,
+				      int nesting_level)
+{
+  FAIL_IF_NULL (diag);
+  diag->set_nesting_level (nesting_level);
 }

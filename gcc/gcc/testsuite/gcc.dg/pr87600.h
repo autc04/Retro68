@@ -7,7 +7,10 @@
 #elif defined (__i386__)
 # define REG1 "%eax"
 # define REG2 "%edx"
-#elif defined (__powerpc__) || defined (__POWERPC__)
+#elif defined (__loongarch__)
+# define REG1 "$t0"
+# define REG2 "$t1"
+#elif defined (__powerpc__) || defined (__POWERPC__) || defined (__PPC__)
 # define REG1 "r3"
 # define REG2 "r4"
 #elif defined (__s390__)

@@ -7,7 +7,7 @@ Disassembly of section .text:
     8004:	00000000 	andeq	r0, r0, r0
 
 00008008 <__far_veneer>:
-    8008:	e51ff004 	ldr	pc, \[pc, #-4\]	; 800c <__far_veneer\+0x4>
+    8008:	e51ff004 	ldr	pc, \[pc, #-4\]	@ 800c <__far_veneer\+0x4>
     800c:	12340000 	\.word	0x12340000
 
 00008010 <after>:

@@ -13,6 +13,6 @@ Disassembly of section .text:
    6:	a75b           	mov3ql #3,%a3@\+
    8:	a964           	mov3ql #4,%a4@-
    a:	ab6d 04d2      	mov3ql #5,%a5@\(1234\)
-   e:	ad76 6803      	mov3ql #6,%fp@\(0+03,%d6:l\)
+   e:	ad76 6803      	mov3ql #6,%fp@\(0*3,%d6:l\)
   12:	af78 1234      	mov3ql #7,1234 (<test_mov3q\+0x1234>|<.data\+0x1218>)
   16:	a179 1234 5678 	mov3ql #-1,12345678 (<test_mov3q\+0x12345678>|<.data\+0x1234565c>)

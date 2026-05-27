@@ -1,6 +1,6 @@
 /* Language specific subroutines used for code generation on IBM S/390
    and zSeries
-   Copyright (C) 2015-2025 Free Software Foundation, Inc.
+   Copyright (C) 2015-2026 Free Software Foundation, Inc.
 
    Contributed by Andreas Krebbel (Andreas.Krebbel@de.ibm.com).
 
@@ -736,6 +736,9 @@ s390_adjust_builtin_arglist (unsigned int ob_fcode, tree decl,
 	      {
 		tree arg = (**arglist)[src_arg_index];
 
+		if (c_dialect_cxx () && TREE_CODE (arg) == NON_LVALUE_EXPR)
+		  arg = TREE_OPERAND (arg, 0);
+
 		if (TREE_CODE (arg) != INTEGER_CST)
 		  {
 		    error ("constant value required for builtin %qF argument %d",
@@ -758,8 +761,11 @@ s390_adjust_builtin_arglist (unsigned int ob_fcode, tree decl,
 			   src_arg_index + 1);
 		    return;
 		  }
-		folded_args->quick_push (build_int_cst (integer_type_node,
-							code));
+
+		arg = build_int_cst (integer_type_node, code);
+		if (c_dialect_cxx ())
+		  arg = build1 (NON_LVALUE_EXPR, integer_type_node, arg);
+		folded_args->quick_push (arg);
 		src_arg_index++;
 		arg_assigned_p = true;
 	      }
@@ -985,6 +991,19 @@ s390_resolve_overloaded_builtin (location_t loc, tree ob_fndecl,
   for (i = 0; i < in_args_num; i++)
     if ((*arglist)[i] == error_mark_node)
       return error_mark_node;
+
+  /* A difference in front ends is that in contrast to C the C++ FE does no
+     array-to-pointer conversion prior calling resolve_overloaded_builtin().
+     However, we depend on this for finding the proper overloaded builtin or in
+     case of direct expansion.  Therefore, do the conversion now.  */
+  if (c_dialect_cxx ())
+    for (i = 0; i < in_args_num; ++i)
+      {
+	tree t = (*arglist)[i];
+	if (TREE_CODE (t) == VIEW_CONVERT_EXPR
+	    && TREE_CODE (TREE_TYPE (t)) == ARRAY_TYPE)
+	  (*arglist)[i] = default_conversion (t);
+      }
 
   /* Overloaded builtins without any variants are directly expanded here.  */
   if (desc_start_for_overloaded_builtin[ob_fcode] ==

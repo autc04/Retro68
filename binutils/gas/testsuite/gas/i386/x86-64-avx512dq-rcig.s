@@ -1,6 +1,5 @@
 # Check 64bit AVX512DQ-RCIG instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vrangepd	$0xab, {sae}, %zmm28, %zmm29, %zmm30	 # AVX512DQ

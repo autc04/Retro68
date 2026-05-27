@@ -1,4 +1,4 @@
-.. Copyright (C) 2024-2025 Free Software Foundation, Inc.
+.. Copyright (C) 2024-2026 Free Software Foundation, Inc.
    Originally contributed by David Malcolm <dmalcolm@redhat.com>
 
    This is free software: you can redistribute it and/or modify it
@@ -22,6 +22,11 @@ Message formatting
 
 Various libgdiagnostics entrypoints take a format string and
 variadic arguments.
+
+.. note::
+
+   See also :type:`diagnostic_message_buffer`, which offers an
+   alternative way to build up messages.
 
 The format strings take codes prefixed by ``%``, or ``%q`` to put
 the result in quotes.  For example::

@@ -1,5 +1,5 @@
 #source: tls-gottprelm.s --defsym r=8190
-#as: --no-underscore --em=criself --pic
+#as: --no-underscore --emulation=criself --pic
 #ld: --shared -m crislinux
 #error: \A[^\n]*\.o: in function[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\Z
 

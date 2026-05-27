@@ -1,16 +1,3 @@
-.macro cond1
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vidup.u32 q0, r2, #1
-.endr
-.endm
-
-.macro cond2
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-viwdup.u32 q0, r2, r1, #1
-.endr
-.endm
 .syntax unified
 .thumb
 vidup.s16 q0, r0, #1
@@ -23,8 +10,21 @@ viwdup.u32 q0, r0, r1, #3
 viwdup.u32 q0, r0, r1, #0
 viwdup.u32 q0, r0, sp, #1
 viwdup.u32 q0, r0, pc, #1
-cond1
-cond2
+
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+vidup.u32 q0, r2, #1
+
+.endr
+
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+viwdup.u32 q0, r2, r1, #1
+
+.endr
+
 it eq
 vidupeq.u32 q0, r0, #1
 vidupeq.u32 q0, r0, #1

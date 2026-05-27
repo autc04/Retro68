@@ -1,5 +1,5 @@
 #source: rgn-at10.s
-#ld: -T rgn-at10.t
+#ld: -T rgn-at10.t --no-error-rwx-segments
 #objdump: -h --wide
 #xfail: hppa*64*-*-hpux* v850*-*-*
 # Test that lma is adjusted in case the section start vma is aligned and

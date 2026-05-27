@@ -1,5 +1,5 @@
 /* Command line option handling.
-   Copyright (C) 2006-2025 Free Software Foundation, Inc.
+   Copyright (C) 2006-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -18,6 +18,7 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 #define INCLUDE_STRING
+#define INCLUDE_VECTOR
 #include "config.h"
 #include "system.h"
 #include "intl.h"
@@ -1096,7 +1097,8 @@ decode_cmdline_options_to_array (unsigned int argc, const char **argv,
 	    "-fdiagnostics-urls=never",
 	    "-fdiagnostics-path-format=separate-events",
 	    "-fdiagnostics-text-art-charset=none",
-	    "-fno-diagnostics-show-event-links"
+	    "-fno-diagnostics-show-event-links",
+	    "-fno-diagnostics-show-nesting"
 	    /* We don't put "-fno-diagnostics-show-highlight-colors" here
 	       as -fdiagnostics-color=never makes it redundant.  */
 	  };
@@ -1282,9 +1284,9 @@ keep:
 
 /* Handle option DECODED for the language indicated by LANG_MASK,
    using the handlers in HANDLERS and setting fields in OPTS and
-   OPTS_SET.  KIND is the diagnostic_t if this is a diagnostics
-   option, DK_UNSPECIFIED otherwise, and LOC is the location of the
-   option for options from the source file, UNKNOWN_LOCATION
+   OPTS_SET.  KIND is the enum diagnostics::kind if this is a diagnostics
+   option, diagnostics::kind::unspecified otherwise, and LOC is the location
+   of the option for options from the source file, UNKNOWN_LOCATION
    otherwise.  GENERATED_P is true for an option generated as part of
    processing another option or otherwise generated internally, false
    for one explicitly passed by the user.  control_warning_option
@@ -1298,7 +1300,7 @@ handle_option (struct gcc_options *opts,
 	       const struct cl_decoded_option *decoded,
 	       unsigned int lang_mask, int kind, location_t loc,
 	       const struct cl_option_handlers *handlers,
-	       bool generated_p, diagnostic_context *dc)
+	       bool generated_p, diagnostics::context *dc)
 {
   size_t opt_index = decoded->opt_index;
   const char *arg = decoded->arg;
@@ -1336,7 +1338,7 @@ handle_generated_option (struct gcc_options *opts,
 			 size_t opt_index, const char *arg, HOST_WIDE_INT value,
 			 unsigned int lang_mask, int kind, location_t loc,
 			 const struct cl_option_handlers *handlers,
-			 bool generated_p, diagnostic_context *dc)
+			 bool generated_p, diagnostics::context *dc)
 {
   struct cl_decoded_option decoded;
 
@@ -1604,7 +1606,7 @@ read_cmdline_option (struct gcc_options *opts,
 		     location_t loc,
 		     unsigned int lang_mask,
 		     const struct cl_option_handlers *handlers,
-		     diagnostic_context *dc)
+		     diagnostics::context *dc)
 {
   const struct cl_option *option;
   const char *opt = decoded->orig_option_with_args_text;
@@ -1645,7 +1647,8 @@ read_cmdline_option (struct gcc_options *opts,
 
   gcc_assert (!decoded->errors);
 
-  if (!handle_option (opts, opts_set, decoded, lang_mask, DK_UNSPECIFIED,
+  if (!handle_option (opts, opts_set, decoded, lang_mask,
+		      static_cast<int> (diagnostics::kind::unspecified),
 		      loc, handlers, false, dc))
     error_at (loc, "unrecognized command-line option %qs", opt);
 }
@@ -1658,7 +1661,7 @@ read_cmdline_option (struct gcc_options *opts,
 void
 set_option (struct gcc_options *opts, struct gcc_options *opts_set,
 	    size_t opt_index, HOST_WIDE_INT value, const char *arg,
-	    int kind, location_t loc, diagnostic_context *dc,
+	    int kind, location_t loc, diagnostics::context *dc,
 	    HOST_WIDE_INT mask /* = 0 */)
 {
   const struct cl_option *option = &cl_options[opt_index];
@@ -1668,8 +1671,10 @@ set_option (struct gcc_options *opts, struct gcc_options *opts_set,
   if (!flag_var)
     return;
 
-  if ((diagnostic_t) kind != DK_UNSPECIFIED && dc != NULL)
-    diagnostic_classify_diagnostic (dc, opt_index, (diagnostic_t) kind, loc);
+  if ((enum diagnostics::kind) kind != diagnostics::kind::unspecified
+      && dc != nullptr)
+    diagnostic_classify_diagnostic (dc, opt_index,
+				    (enum diagnostics::kind) kind, loc);
 
   if (opts_set != NULL)
     set_flag_var = option_flag_var (opt_index, opts_set);
@@ -1873,8 +1878,8 @@ option_enabled (int opt_idx, unsigned lang_mask, void *opts)
 }
 
 int
-compiler_diagnostic_option_manager::
-option_enabled_p (diagnostic_option_id opt_id) const
+compiler_diagnostic_option_id_manager::
+option_enabled_p (diagnostics::option_id opt_id) const
 {
   return option_enabled (opt_id.m_idx, m_lang_mask, m_opts);
 }
@@ -1941,7 +1946,7 @@ control_warning_option (unsigned int opt_index, int kind, const char *arg,
 			const struct cl_option_handlers *handlers,
 			struct gcc_options *opts,
 			struct gcc_options *opts_set,
-			diagnostic_context *dc)
+			diagnostics::context *dc)
 {
   if (cl_options[opt_index].alias_target != N_OPTS)
     {
@@ -1954,7 +1959,9 @@ control_warning_option (unsigned int opt_index, int kind, const char *arg,
   if (opt_index == OPT_SPECIAL_ignore || opt_index == OPT_SPECIAL_warn_removed)
     return;
   if (dc)
-    diagnostic_classify_diagnostic (dc, opt_index, (diagnostic_t) kind, loc);
+    diagnostic_classify_diagnostic (dc, opt_index,
+				    static_cast<enum diagnostics::kind> (kind),
+				    loc);
   if (imply)
     {
       /* -Werror=foo implies -Wfoo.  */
@@ -2104,7 +2111,8 @@ jobserver_info::jobserver_info ()
       if (n != string::npos)
 	{
 	  string ending = makeflags.substr (n + js_needle.size ());
-	  if (ending.find (fifo_prefix) == 0)
+	  bool is_named_pipe = ending.find (fifo_prefix) == 0;
+	  if (is_named_pipe)
 	    {
 	      ending = ending.substr (fifo_prefix.size ());
 	      pipe_path = ending.substr (0, ending.find (' '));
@@ -2119,11 +2127,15 @@ jobserver_info::jobserver_info ()
 	    is_active = true;
 	  else
 	    {
-	      string dup = makeflags.substr (0, n);
-	      size_t pos = makeflags.find (' ', n);
-	      if (pos != string::npos)
-		dup += makeflags.substr (pos);
-	      skipped_makeflags = "MAKEFLAGS=" + dup;
+	      bool negative_fds = !is_named_pipe && rfd < 0 && wfd < 0;
+	      if (!negative_fds)
+	        {
+	          string dup = makeflags.substr (0, n);
+	          size_t pos = makeflags.find (' ', n);
+	          if (pos != string::npos)
+	            dup += makeflags.substr (pos);
+	         skipped_makeflags = "MAKEFLAGS=" + dup;
+	        }
 	      error_msg
 		= "cannot access %<" + js_needle + "%> file descriptors";
 	    }

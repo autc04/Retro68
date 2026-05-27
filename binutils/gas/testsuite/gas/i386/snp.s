@@ -11,10 +11,13 @@ att:
         psmash	%eax
         rmpupdate
         rmpupdate %rax, %rcx
-        rmpupdate %eax, %rcx
+        rmpupdate (%rcx), %rax
+        rmpupdate (%ecx), %rax
         rmpadjust
         rmpadjust %rax, %rcx, %rdx
         rmpadjust %eax, %rcx, %rdx
+        rmpread %rax, (%rcx)
+        rmpread %rax, (%ecx)
 .else
         pvalidate %ax, %ecx, %edx
 .endif
@@ -30,10 +33,13 @@ intel:
         psmash	eax
         rmpupdate
         rmpupdate rax, rcx
-        rmpupdate eax, rcx
+        rmpupdate rax, [rcx]
+        rmpupdate rax, [ecx]
         rmpadjust
         rmpadjust rax, rcx, rdx
         rmpadjust eax, rcx, rdx
+        rmpread [rcx], rax
+        rmpread [ecx], rax
 .else
         pvalidate ax, ecx, edx
 .endif

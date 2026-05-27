@@ -1,4 +1,4 @@
-#   Copyright (C) 1997-2025 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ load_lib scanipa.exp
 load_lib scanwpaipa.exp
 load_lib scanlang.exp
 load_lib scansarif.exp
+load_lib scanhtml.exp
 load_lib timeout.exp
 load_lib timeout-dg.exp
 load_lib prune.exp
@@ -1337,8 +1338,8 @@ proc dg-missed { args } {
 }
 
 # Look for messages with 'note: ' prefixes.
-# In addition to standard compiler diagnostics ('DK_NOTE', 'inform' functions,
-# "for additional details on an error message"),
+# In addition to standard compiler diagnostics (diagnostics::kind::note,
+# 'inform' functions, "for additional details on an error message"),
 # this also includes output from '-fopt-info' for 'MSG_NOTE':
 # a general optimization info.
 # By default, any *excess* notes are pruned, meaning their appearance doesn't
@@ -1373,11 +1374,12 @@ proc gdb-exists { args } {
 	    if [info exists GDB] {
 		setenv GDB_FOR_GCC_TESTING "$GDB"
 	    } else {
-		setenv GDB_FOR_GCC_TESTING "[transform gdb]"
+		setenv GDB_FOR_GCC_TESTING "gdb"
 	    }
 	}
     }
-    if { [which $::env(GDB_FOR_GCC_TESTING)] != 0 } {
+    if { [lindex [remote_exec target "$::env(GDB_FOR_GCC_TESTING)" "-v"] 0]
+	 == 0 } {
 	return 1;
     }
     return 0;

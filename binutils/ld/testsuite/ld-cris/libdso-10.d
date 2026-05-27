@@ -1,5 +1,5 @@
 #source: dso-1.s
-#as: --pic --no-underscore --march=v32 --em=criself
+#as: --pic --no-underscore --march=v32 --emulation=criself
 #ld: --shared -m crislinux --hash-style=sysv
 #objdump: -p -h
 

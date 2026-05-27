@@ -37,6 +37,12 @@
 // <bits/version.h> must have been included before this header:
 #ifdef __glibcxx_format // C++ >= 20 && HOSTED
 
+#include <concepts>
+#include <type_traits>
+#if __glibcxx_format_ranges // C++ >= 23 && HOSTED
+#  include <bits/ranges_base.h>  // input_range, range_reference_t
+#endif
+
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -50,6 +56,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   // [format.formatter], formatter
   template<typename _Tp, typename _CharT = char> struct formatter;
 
+/// @cond undocumented
 namespace __format
 {
 #ifdef _GLIBCXX_USE_WCHAR_T
@@ -60,9 +67,129 @@ namespace __format
     concept __char = same_as<_CharT, char>;
 #endif
 
-  template<__char _CharT>
-    struct __formatter_int;
+  enum class _Align : unsigned char {
+    _Align_default,
+    _Align_left,
+    _Align_right,
+    _Align_centre,
+  };
+  using enum _Align;
+
+  template<typename _CharT> struct _Spec;
+
+  template<__char _CharT> struct __formatter_str;
+  template<__char _CharT> struct __formatter_int;
+  template<__char _CharT> struct __formatter_ptr;
+
+  template<typename _Tp, typename _Context,
+	   typename _Formatter
+	     = typename _Context::template formatter_type<remove_const_t<_Tp>>,
+	   typename _ParseContext
+	     = basic_format_parse_context<typename _Context::char_type>>
+    concept __parsable_with
+      = semiregular<_Formatter>
+	  && requires (_Formatter __f, _ParseContext __pc)
+    {
+      { __f.parse(__pc) } -> same_as<typename _ParseContext::iterator>;
+    };
+
+  template<typename _Tp, typename _Context,
+	   typename _Formatter
+	     = typename _Context::template formatter_type<remove_const_t<_Tp>>,
+	   typename _ParseContext
+	     = basic_format_parse_context<typename _Context::char_type>>
+    concept __formattable_with
+      = semiregular<_Formatter>
+	  && requires (const _Formatter __cf, _Tp&& __t, _Context __fc)
+    {
+      { __cf.format(__t, __fc) } -> same_as<typename _Context::iterator>;
+    };
+
+  // An unspecified output iterator type used in the `formattable` concept.
+  template<typename _CharT>
+    struct _Iter_for;
+  template<typename _CharT>
+    using _Iter_for_t = typename _Iter_for<_CharT>::type;
+
+  template<typename _Tp, typename _CharT,
+	   typename _Context = basic_format_context<_Iter_for_t<_CharT>, _CharT>>
+    concept __formattable_impl
+      = __parsable_with<_Tp, _Context> && __formattable_with<_Tp, _Context>;
+
+  template<typename _Formatter>
+    concept __has_debug_format = requires(_Formatter __f)
+    {
+      __f.set_debug_format();
+    };
+} // namespace __format
+/// @endcond
+
+#if __glibcxx_format_ranges // C++ >= 23 && HOSTED
+  // [format.formattable], concept formattable
+  template<typename _Tp, typename _CharT>
+    concept formattable
+      = __format::__formattable_impl<remove_reference_t<_Tp>, _CharT>;
+
+   template<typename _Tp, __format::__char _CharT = char>
+     requires same_as<remove_cvref_t<_Tp>, _Tp> && formattable<_Tp, _CharT>
+     class range_formatter;
+
+/// @cond undocumented
+namespace __format
+{
+  template<typename _Rg, typename _CharT>
+    concept __const_formattable_range
+      = ranges::input_range<const _Rg>
+	  && formattable<ranges::range_reference_t<const _Rg>, _CharT>;
+
+  // _Rg& and const _Rg& are both formattable and use same formatter
+  // specialization for their references.
+  template<typename _Rg, typename _CharT>
+    concept __simply_formattable_range
+      = __const_formattable_range<_Rg, _CharT>
+	  && same_as<remove_cvref_t<ranges::range_reference_t<_Rg>>,
+		     remove_cvref_t<ranges::range_reference_t<const _Rg>>>;
+
+  template<typename _Rg, typename _CharT>
+    using __maybe_const_range
+      = __conditional_t<__const_formattable_range<_Rg, _CharT>, const _Rg, _Rg>;
+
+  template<typename _Tp, typename _CharT>
+    using __maybe_const
+      = __conditional_t<formattable<const _Tp, _CharT>, const _Tp, _Tp>;
 }
+
+  // [format.range], formatting of ranges
+  // [format.range.fmtkind], variable template format_kind
+  enum class range_format {
+    disabled,
+    map,
+    set,
+    sequence,
+    string,
+    debug_string
+  };
+
+  /** @brief A constant determining how a range should be formatted.
+   *
+   * The primary template of `std::format_kind` cannot be instantiated.
+   * There is a partial specialization for input ranges and you can
+   * specialize the variable template for your own cv-unqualified types
+   * that satisfy the `ranges::input_range` concept.
+   *
+   * @since C++23
+   */
+  template<typename _Rg>
+    constexpr auto format_kind = []{
+      static_assert(false, "cannot use primary template of 'std::format_kind'");
+      return type_identity<_Rg>{};
+    }();
+#endif // format_ranges
+
+#if __glibcxx_print >= 202403L
+  template<typename>
+    constexpr bool enable_nonlocking_formatter_optimization = false;
+#endif
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std

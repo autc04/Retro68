@@ -1,6 +1,482 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-04-17  Andre Vieira  <andre.simoesdiasvieira@arm.com>
+
+	* config/arm/sfp-exceptions.c: New file.
+	* config/arm/sfp-machine.h: Define FP_HANDLE_EXCEPTIONS, FP_EX_*
+	MACROs, _FP_DECL_EX, FP_ROUNDMODE, FP_INIT_ROUNDMODE, FP_RND_* MACROs
+	and declare __sfp_handle_exceptions.
+	* config/arm/t-softfp: Add sfp-exceptions.c to LIB2ADD.
+
+2026-04-15  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
+
+	* libgcov-driver-system.c (gcov_exit_open_gcda_file): Handle
+	potential NULL value from malloc.
+
+2026-03-30  Saurabh Jha  <saurabh.jha@arm.com>
+	    Evgeny Karpov  <evgeny.karpov@arm.com>
+
+	* config.host: Disable soft floating point.
+
+2026-03-28  Alexandre Oliva  <oliva@adacore.com>
+
+	* config/gthr-vxworks-tls.c (TLS_DELETE_HOOK_ARG): Type-cast
+	NULL constant to avoid warning.
+	* config/t-vxworks (LIBGCC2_CFLAGS): Tolerate unused-parameter
+	and discarded-qualifiers errors.
+
+2026-03-25  Alexandre Oliva  <oliva@adacore.com>
+
+	* config/gthr-vxworks.h (__GTHREAD_ALWAYS_INLINE,
+	__GTHREAD_INLINE): Copy from gthr-posix.h.  Replace static
+	inline with __GTHREAD_INLINE.
+
+2026-03-13  Andre Vieira  <andre.simoesdiasvieira@arm.com>
+
+	* config/arm/libgcc-bpabi.ver: Add new symbols.
+	* config/arm/t-softfp: Enable use of floatbitinthf and pass necessary options to build fp16.
+
+2026-03-06  Saurabh Jha  <saurabh.jha@arm.com>
+	    Evgeny Karpov  <evgeny.karpov@arm.com>
+
+	* config.host: Set tmake_eh_file for aarch64-*-mingw* and update
+	it for x86_64-*-mingw* and x86_64-*-cygwin*.
+	* config/i386/t-seh-eh: Move to...
+	* config/mingw/t-seh-eh: ...here.
+	* config/aarch64/t-no-eh: Removed.
+
+2026-03-05  Alice Carlotti  <alice.carlotti@arm.com>
+
+	PR target/124333
+	* config/aarch64/cpuinfo.c: Define __aarch64_cpu_features
+	unconditionally.
+
+2026-02-23  Alice Carlotti  <alice.carlotti@arm.com>
+
+	* config/aarch64/libgcc-sme.ver: Add __arm_get_current_vg.
+	* config/aarch64/t-aarch64: Add new source file.
+	* config/aarch64/__arm_get_current_vg.S: New file.
+
+2026-02-06  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
+
+	* config/i386/gthr-win32.h: Replace CONST_CAST2 with expanded
+	expression where used.
+	* config/pa/gthr-dce.h: Likewise.
+
+2026-01-24  Xin Wang  <wangxinw@hygon.cn>
+
+	* sync.c: Replace UOItype with UTItype and use mode(TI) pass 16, not
+	8, to DEFINE macro.
+
+2026-01-13  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libstdc++/123396
+	* config/t-slibgcc (SHLIB_ASNEEDED_SOLINK,
+	SHLIB_MAKE_ASNEEDED_SOLINK, SHLIB_INSTALL_ASNEEDED_SOLINK): New
+	vars.
+	(SHLIB_LINK): Include $(SHLIB_MAKE_ASNEEDED_SOLINK).
+	(SHLIB_INSTALL): Include $(SHLIB_INSTALL_ASNEEDED_SOLINK).
+
+2026-01-13  Kito Cheng  <kito.cheng@sifive.com>
+
+	PR target/117581
+	* config/riscv/libgcc-riscv.ver: New file.
+	* config/riscv/t-elf (SHLIB_MAPFILES): Add libgcc-riscv.ver.
+	* config/riscv/t-softfp32 (softfp_extras): Add floatbitinttf and
+	fixtfbitint.
+
+2026-01-11  Jerome Guitton  <guitton@adacore.com>
+
+	* config/gthr-vxworks.h: Remove #include of tickLib.h.
+
+2026-01-10  Stefan Schulze Frielinghaus  <stefansf@gcc.gnu.org>
+
+	* config.host: Include s390/t-float16.
+	* config/s390/libgcc-glibc.ver: Export symbols
+	__trunc{sf,df,tf}hf2, __extendhf{sf,df,tf}2, __fix{,uns}hfti,
+	__float{,un}tihf, __floatbitinthf.
+	* config/s390/t-softfp: Add to softfp_extras instead of setting
+	it.
+	* configure: Regenerate.
+	* configure.ac: Support float16 only for 64-bit targets z10 and
+	newer.
+	* config/s390/_dpd_dd_to_hf.c: New file.
+	* config/s390/_dpd_hf_to_dd.c: New file.
+	* config/s390/_dpd_hf_to_sd.c: New file.
+	* config/s390/_dpd_hf_to_td.c: New file.
+	* config/s390/_dpd_sd_to_hf.c: New file.
+	* config/s390/_dpd_td_to_hf.c: New file.
+	* config/s390/t-float16: New file.
+
+2026-01-07  Xinhui Yang  <cyan@cyano.uk>
+
+	* config.host (ia64): include unwind-compat only if the system
+	libunwind is being used.
+	* config/ia64/t-linux-libunwind: include libgcc symver definition
+	for libgcc symbols, since it bears the same role as t-linux
+	(except libunwind); Include fde-glibc.c since the unwind
+	implementation requires _Unwind_FindTableEntry in this file.
+	* config/ia64/unwind-ia64.c: protect _Unwind_FindTableEntry inside
+	inihbit_libc ifndefs to allow it to build with newlib or
+	without proper headers.
+
+2026-01-07  Vladimir Vishniakov  <volodia@hex-rays.com>
+
+	* config/v850/lib1funcs.S (__return_r26_r31): Use compact
+	add form to adjust stack pointer.
+	(__save_r27_r31): Likewise.
+	(__save_r29_r31): Likewise.
+	(__save_r31): Likewise.
+	(__return_r27_r31): Likewise.
+	(__return_r28_r31): Likewise.
+	(__return_r29_r31): Likewise.
+	(__return_r31): Likewise.
+	(__return_r2_r31): Likewise.
+
+2026-01-07  Vladimir Vishniakov  <volodia@hex-rays.com>
+
+	PR target/123403
+	* config/v850/lib1funcs.S (__return_r25_r29): Fix ! __EP__ clause to
+	use SP, not EP.
+	(__return_r2_r31): Fix offsets to match store offsets.
+
+2025-12-15  Peter Damianov  <peter0x44@disroot.org>
+
+	* config/score/crti.S: Delete.
+	* config/score/crtn.S: Delete.
+	* config/score/sfp-machine.h: Delete.
+
+2025-12-12  mengqinggang  <mengqinggang@loongson.cn>
+
+	* configure: Regenerate.
+	* configure.ac:
+	* config/loongarch/t-crtstuff-la32: New file.
+	* config/loongarch/t-crtstuff: Rename to t-crtstuff-la64.
+	* config/loongarch/t-crtstuff-la64: New file.
+
+2025-12-09  John Ericson  <git@JohnEricson.me>
+
+	* config/rs6000/t-slibgcc-aix: Instead of using a
+	TARGET_SYSTEM_ROOT make variable, just define a shell variable
+	as part of the rule and use that.
+
+2025-12-09  John Ericson  <git@JohnEricson.me>
+
+	* Makefile.in: Define NO_PIE_CFLAGS make variable via autoconf
+	substitution.
+	* configure: Regenerate.
+	* configure.ac: New configure check to define NO_PIE_CFLAGS
+	using the algorithm Andrew asked for in the linked mail.
+
+2025-12-09  John Ericson  <git@johnericson.me>
+
+	* configure: Regenerate.
+	* configure.ac: Use GCC_AC_THREAD_MODEL instead of hand-rolled
+
+2025-11-27  Lulu Cheng  <chenglulu@loongson.cn>
+
+	* config/loongarch/cpuinfo.c (HWCAP_LOONGARCH_LSX): Define
+	it if it is not defined.
+	(HWCAP_LOONGARCH_LASX): Likewise.
+
+2025-11-21  LIU Hao  <lh_mouse@126.com>
+
+	PR target/122275
+	* config/i386/32/dfp-machine.h (DFP_GET_ROUNDMODE): Change `_frnd_orig` to
+	`unsigned short` for x87 control word.
+	(DFP_SET_ROUNDMODE): Manipulate the x87 control word as `unsigned short`,
+	and manipulate the MXCSR as `unsigned int`.
+
+2025-11-11  Lulu Cheng  <chenglulu@loongson.cn>
+
+	* config/loongarch/t-loongarch64: Add cpuinfo.c to LIB2ADD.
+	* config/loongarch/cpuinfo.c: New file.
+
+2025-10-25  Olivier Hainque  <hainque@adacore.com>
+
+	* config/t-vxworks (LIBGCC2_INCLUDES): Replace $(VSB_DIR)
+	by sysroot references.
+
+2025-10-20  Olivier Hainque  <hainque@adacore.com>
+	    Ashley Gay  <gay@adacore.com>
+
+	* config/gthr-vxworks.h: Include stdatomic.h and prevent indirect
+	inclusion of contents from the system version of that header.
+
+2025-10-20  Olivier Hainque  <hainque@adacore.com>
+
+	* config/gthr-vxworks-thread.c (__init_gthread_tcb): Make static.
+	(__delete_gthread_tcb): Likewise.
+	(__task_wrapper): Likewise.
+	(__gthread_create): Convert __task_wrapper to (void *) before going
+	to (FUNCPTR).
+	* config/gthr-vxworks-tls.c (tls_delete_hook): Accommodate prototype
+	variations between kernel and rtp. Return STATUS.
+
+2025-10-20  Olivier Hainque  <hainque@adacore.com>
+
+	* config/t-vxworks: -include vxworks-predef.h explicitly, as the
+	automatic inclusion is disabled by -nostdinc.
+
+2025-10-07  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR target/120691
+	* Makefile.in (DECNUMINC): Add -I$(srcdir)/config/$(cpu_type).
+	* config/i386/dfp-machine.h: New file.
+	* config/i386/32/dfp-machine.h: Likewise.
+	* config/i386/64/dfp-machine.h: Likewise.
+
+2025-09-30  Andre Vieira  <andre.simoesdiasvieira@arm.com>
+
+	* config/t-softfp: Don't use softfp_wrap for bitint functions.
+	(softfp_cflags): New parameter that is passed to the building of bitint
+	functions.
+
+2025-09-25  John David Anglin  <danglin@gcc.gnu.org>
+
+	* config/pa/sync-libfuncs.c (atomic_store_8): Fix asm.
+
+2025-09-19  Jim Lin  <jim@andestech.com>
+
+	* config/riscv/save-restore.S: Only save/restore the registers
+	which are really used for ILP32E/LP64.
+
+2025-08-21  Dimitar Dimitrov  <dimitar@dinux.eu>
+
+	* config/pru/libgcc-eabi.ver: Add __pruabi_softmpyi and
+	__pruabi_softmpyll symbols.
+	* config/pru/t-pru: Add softmpy source files.
+	* config/pru/pru-softmpy.h: New file.
+	* config/pru/softmpyi.c: New file.
+	* config/pru/softmpyll.c: New file.
+
+2025-08-13  Yang Yujie  <yangyujie@loongson.cn>
+
+	PR target/117599
+	* config/loongarch/t-softfp-tf: Enable _BitInt helper functions.
+	* config/loongarch/t-loongarch: Same.
+	* config/loongarch/libgcc-loongarch.ver: New file.
+
+2025-08-13  Yang Yujie  <yangyujie@loongson.cn>
+
+	* config.host: Remove unused code. Include LoongArch-specific
+	tmake_files after the OS-specific ones.
+
+2025-08-08  Christophe Lyon  <christophe.lyon@linaro.org>
+
+	PR libgcc/117600
+	* Makefile.in (WERROR): New.
+	* config/aarch64/t-aarch64: Handle WERROR.
+	* configure: Regenerate.
+	* configure.ac: Add support for --enable-werror.
+
+2025-08-07  Stefan Schulze Frielinghaus  <stefansf@gcc.gnu.org>
+
+	* config/s390/libgcc-glibc.ver: Export _BitInt support
+	functions.
+	* config/s390/t-softfp (softfp_extras): Add fixtfbitint
+	floatbitinttf.
+
+2025-08-07  Stefan Schulze Frielinghaus  <stefansf@gcc.gnu.org>
+
+	* config.host: Include makefiles t-softfp for -m64.
+	* config/s390/sfp-exceptions.c: New file.
+	* config/s390/sfp-machine.h: New file.
+	* config/s390/t-softfp: New file.
+
+2025-08-06  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libgcc/121397
+	* enable-execute-stack-mprotect.c (check_enabling): Remove useless
+	forward declaration.
+
+2025-07-31  Wilco Dijkstra  <wilco.dijkstra@arm.com>
+
+	* config/aarch64/cpuinfo.c (__init_cpu_features_constructor):
+	Remove unused features, add support for CSSC and MOPS.
+
+2025-07-31  Wilco Dijkstra  <wilco.dijkstra@arm.com>
+
+	* config/aarch64/cpuinfo.c: Cleanup HWCAP defines.
+
+2025-07-31  Yury Khrustalev  <yury.khrustalev@arm.com>
+
+	* config/aarch64/cpuinfo.c (__ifunc_arg_t): Likewise.
+	(__init_cpu_features): obtain and assign values for the
+	fields _hwcap3 and _hwcap4.
+	(__init_cpu_features_constructor): check _size in the
+	arg argument.
+
+2025-07-17  Richard Sandiford  <richard.sandiford@arm.com>
+	    Yury Khrustalev  <yury.khrustalev@arm.com>
+
+	* config/aarch64/linux-unwind.h (aarch64_fallback_frame_state):
+	If a signal was raised while there was an uncommitted lazy save,
+	commit the save as part of the unwind process.
+
+2025-07-16  John Ericson  <git@JohnEricson.me>
+
+	* Makefile.in:  Delete dead `MACHMODE_H` variable
+
+2025-07-10  Jan Dubiec  <jdx@o2.pl>
+
+	PR target/116363
+	* libgcc2.c (__fixunssfDI): Fix SFtype to UDWtype conversion for targets
+	without LIBGCC2_HAS_DF_MODE defined
+
+2025-05-27  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/t-softfp (softfp_bid_list): Don't guard with
+	$(enable_decimal_float) == bid.
+	* soft-fp/bitint.h (__bid_pow10bitint): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_pow10bitint.
+	(__dpd_d2bbitint, __dpd_b2dbitint): Declare.
+	* soft-fp/bitintpow10.c (__dpd_d2bbitint, __dpd_b2dbitint): New
+	variables.
+	* soft-fp/fixsdbitint.c (__bid_fixsdbitint): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_fixsdbitint.
+	Add DPD support.  Fix big-endian support.
+	* soft-fp/fixddbitint.c (__bid_fixddbitint): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_fixddbitint.
+	Add DPD support.  Fix big-endian support.
+	* soft-fp/fixtdbitint.c (__bid_fixtdbitint): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_fixtdbitint.
+	Add DPD support.  Fix big-endian support.
+	* soft-fp/fixsdti.c (__bid_fixsdbitint): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_fixsdbitint.
+	(__bid_fixsdti): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine to
+	__dpd_fixsdti.
+	* soft-fp/fixddti.c (__bid_fixddbitint): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_fixddbitint.
+	(__bid_fixddti): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine to
+	__dpd_fixddti.
+	* soft-fp/fixtdti.c (__bid_fixtdbitint): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_fixtdbitint.
+	(__bid_fixtdti): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine to
+	__dpd_fixtdti.
+	* soft-fp/fixunssdti.c (__bid_fixsdbitint): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_fixsdbitint.
+	(__bid_fixunssdti): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine
+	to __dpd_fixunssdti.
+	* soft-fp/fixunsddti.c (__bid_fixddbitint): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_fixddbitint.
+	(__bid_fixunsddti): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine
+	to __dpd_fixunsddti.
+	* soft-fp/fixunstdti.c (__bid_fixtdbitint): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_fixtdbitint.
+	(__bid_fixunstdti): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine
+	to __dpd_fixunstdti.
+	* soft-fp/floatbitintsd.c (__bid_floatbitintsd): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_floatbitintsd.
+	Add DPD support.  Avoid calling __builtin_clzll with 0 argument.  Fix
+	big-endian support.
+	* soft-fp/floatbitintdd.c (__bid_floatbitintdd): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_floatbitintdd.
+	Add DPD support.  Avoid calling __builtin_clzll with 0 argument.  Fix
+	big-endian support.
+	* soft-fp/floatbitinttd.c (__bid_floatbitinttd): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_floatbitinttd.
+	Add DPD support.  Avoid calling __builtin_clzll with 0 argument.  Fix
+	big-endian support.
+	* soft-fp/floattisd.c (__bid_floatbitintsd): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_floatbitintsd.
+	(__bid_floattisd): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine to
+	__dpd_floattisd.
+	* soft-fp/floattidd.c (__bid_floatbitintdd): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_floatbitintdd.
+	(__bid_floattidd): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine to
+	__dpd_floattidd.
+	* soft-fp/floattitd.c (__bid_floatbitinttd): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_floatbitinttd.
+	(__bid_floattitd): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine to
+	__dpd_floattitd.
+	* soft-fp/floatuntisd.c (__bid_floatbitintsd): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_floatbitintsd.
+	(__bid_floatuntisd): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine
+	to __dpd_floatuntisd.
+	* soft-fp/floatuntidd.c (__bid_floatbitintdd): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_floatbitintdd.
+	(__bid_floatuntidd): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine
+	to __dpd_floatuntidd.
+	* soft-fp/floatuntitd.c (__bid_floatbitinttd): For
+	!defined(ENABLE_DECIMAL_BID_FORMAT) redefine to __dpd_floatbitinttd.
+	(__bid_floatuntitd): For !defined(ENABLE_DECIMAL_BID_FORMAT) redefine
+	to __dpd_floatuntitd.
+
+2025-05-25  LIU Hao  <lh_mouse@126.com>
+
+	* config.host: Enable mcf thread model for aarch64-*-mingw*.
+	* config/i386/t-mingw-mcfgthread: Move to...
+	* config/mingw/t-mingw-mcfgthread: ...here.
+
+2025-05-21  Alexandre Oliva  <oliva@adacore.com>
+
+	* config/gthr-vxworks-thread.c: Include string.h for memset.
+
+2025-05-20  Jakub Jelinek  <jakub@redhat.com>
+
+	* libgcc-std.ver.in (GCC_14.0.0): Remove bitint related exports
+	from here.
+	* config/i386/libgcc-glibc.ver (GCC_14.0.0): Add them here.
+	* config/i386/libgcc-darwin.ver (GCC_14.0.0): Likewise.
+	* config/i386/libgcc-sol2.ver (GCC_14.0.0): Likewise.
+	* config/aarch64/libgcc-softfp.ver (GCC_14.0.0): Likewise.
+
+2025-05-20  Jakub Jelinek  <jakub@redhat.com>
+
+	* libgcc2.c (bitint_reduce_prec): For big endian
+	__LIBGCC_BITINT_ORDER__ use ++*p and --*p instead of
+	++p and --p.
+	* soft-fp/bitint.h (bitint_reduce_prec): Likewise.
+
+2025-05-17  Oleg Endo  <olegendo@gcc.gnu.org>
+
+	* config/sh/lib1funcs.S (ashiftrt_r4_32): Increase alignment.
+	(movemem): Force alignment of the mova intruction.
+
+2025-04-25  Thomas Schwinge  <tschwinge@baylibre.com>
+
+	PR target/119853
+	PR target/119854
+	* config/gcn/crt0.c (_fini_array): Call
+	'__GCC_offload___cxa_finalize'.
+	* config/nvptx/gbl-ctors.c (__static_do_global_dtors): Likewise.
+
+2025-04-19  Jiaxun Yang  <jiaxun.yang@flygoat.com>
+
+	PR target/118257
+	* config/sh/sfp-machine.h (_FPU_GETCW): Implement with builtin.
+	(_FPU_SETCW): Likewise.
+	(FP_EX_ENABLE_SHIFT): Derive from arch spec.
+	(FP_EX_CAUSE_SHIFT): Likewise.
+	(FP_RND_MASK): Likewise.
+	(FP_EX_INVALID): Likewise.
+	(FP_EX_DIVZERO): Likewise.
+	(FP_EX_ALL): Likewise.
+	(FP_EX_OVERFLOW): Likewise.
+	(FP_EX_UNDERFLOW): Likewise.
+	(FP_EX_INEXACT): Likewise.
+	(_FP_DECL_EX): Declear default FCSR value.
+	(FP_RND_NEAREST): Derive from arch spec.
+	(FP_RND_ZERO): Likewise.
+	(FP_INIT_ROUNDMODE): Likewise.
+	(FP_ROUNDMODE): Likewise.
+	(FP_TRAPPING_EXCEPTIONS): Likewise.
+	(FP_HANDLE_EXCEPTIONS): Implement with _FPU_SETCW.
+
+2025-04-19  Jiaxun Yang  <jiaxun.yang@flygoat.com>
+
+	PR target/111814
+	* config/sh/sfp-machine.h (_FP_NANFRAC_B): Reverse signaling bit.
+	(_FP_NANFRAC_H): Likewise.
+	(_FP_NANFRAC_S): Likewise.
+	(_FP_NANFRAC_D): Likewise.
+	(_FP_NANFRAC_Q): Likewise.
+	(_FP_KEEPNANFRACP): Enable for target.
+	(_FP_QNANNEGATEDP): Enable for target.
+	(_FP_CHOOSENAN): Port from MIPS.
 
 2025-04-14  Thomas Schwinge  <tschwinge@baylibre.com>
 
@@ -14345,7 +14821,7 @@
 	shared-object.mk, siditi-object.mk, static-object.mk: New files.
 	* configure: Generated.
 
-Copyright (C) 2007-2025 Free Software Foundation, Inc.
+Copyright (C) 2007-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

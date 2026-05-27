@@ -1,5 +1,5 @@
 # Test address printed by --print-map
-# Copyright (C) 2002-2022 Free Software Foundation, Inc.
+# Copyright (C) 2002-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -32,6 +32,7 @@ if { [is_pecoff_format] } then {
     set IMAGE_BASE ""
 }
 
+setup_xfail "pdp11-*-*"
 if {![ld_link $ld tmpdir/map-address \
 	 "$LDFLAGS -T $srcdir/$subdir/map-address.t \
 	  $IMAGE_BASE tmpdir/map-address.o \
@@ -119,4 +120,50 @@ if {[regexp_diff \
     fail $testname
 } else {
     pass $testname
+}
+
+if { [is_elf_format] } {
+    set testname "map with locals"
+
+    if {![ld_link $ld tmpdir/map-address \
+	      "$LDFLAGS -T $srcdir/$subdir/map-address.t \
+	      $IMAGE_BASE tmpdir/map-address.o \
+	      -Map=tmpdir/map-locals.map --print-map-locals"]} {
+	fail $testname
+
+    } else {
+
+	if [is_remote host] then {
+	    remote_upload host "tmpdir/map-locals.map"
+	}
+
+	# Some ELF targets do not preserve their local symbols.
+	setup_xfail "d30v-*-*" "dlx-*-*" "pj-*-*" "s12z-*-*" "xgate-*-*"
+    
+	if {[regexp_diff \
+		 "tmpdir/map-locals.map" \
+		 "$srcdir/$subdir/map-locals.d"]} {
+	    fail $testname
+	} else {
+	    pass $testname
+	}
+    }
+}
+
+set testname "map with resource usage"
+
+if {![ld_link $ld tmpdir/map-address \
+	  "$LDFLAGS -T $srcdir/$subdir/map-address.t \
+	   $IMAGE_BASE tmpdir/map-address.o \
+	   -Map=tmpdir/map-locals.map \
+	   --stats=tmpdir/map-stats.map"]} {
+    fail $testname
+} else {
+    if {[regexp_diff \
+	     "tmpdir/map-stats.map" \
+	     "$srcdir/$subdir/map-stats.d"]} {
+	fail $testname
+    } else {
+	pass $testname
+    }
 }

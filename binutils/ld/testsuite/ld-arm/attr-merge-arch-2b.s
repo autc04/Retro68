@@ -4,5 +4,6 @@
         .align  2
         .global foo
         .type   foo, %function
+	.thumb_func
 foo:
         bx      lr

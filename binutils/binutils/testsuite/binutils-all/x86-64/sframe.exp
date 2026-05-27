@@ -1,0 +1,63 @@
+# Expect script for x86-64 object tests for SFrame.
+#   Copyright (C) 2026 Free Software Foundation, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+# MA 02110-1301, USA.
+
+if {![istarget "x86_64-*-linux*"] || [is_remote host]} {
+    return
+}
+
+set tempfile tmpdir/sframe-testbin
+
+set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.sframe.bz2]]
+foreach t $test_list {
+    # We need to strip the ".bz2", but can leave the dirname.
+    set test $subdir/[file tail $t]
+    set testname [file rootname $test]
+    verbose $testname
+
+    # We will check against the expected output in file named ${dumpfile}.dump
+    set dumpfile [file rootname $t]
+
+    if {[catch "system \"bzip2 -dc $t > $tempfile\""] != 0} {
+	untested "bzip2 -dc ($tempfile)"
+	continue
+    }
+
+    # Check readelf output of SFrame V2 sections.
+    set got [remote_exec host "$READELF --sframe $tempfile" "" "/dev/null" "${tempfile}.out"]
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
+	fail "readelf SFrame V2 ($testname)"
+	continue
+    }
+
+    if { [regexp_diff "${tempfile}.out" "${dumpfile}.dump"] } then {
+	fail "readelf SFrame V2 ($testname)"
+    }
+    pass "readelf SFrame V2 ($testname)"
+
+    # Check objdump output of SFrame V2 sections as well.
+    set got [remote_exec host "$OBJDUMP --sframe $tempfile" "" "/dev/null" "${tempfile}.out"]
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
+	fail "objdump SFrame V2 ($testname)"
+	continue
+    }
+
+    if { [regexp_diff "${tempfile}.out" "${dumpfile}.dump"] } then {
+	fail "objdump SFrame V2 ($testname)"
+    }
+    pass "objdump SFrame V2 ($testname)"
+}

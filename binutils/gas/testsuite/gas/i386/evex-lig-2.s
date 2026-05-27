@@ -1,6 +1,5 @@
 # Check EVEX non-LIG instructions with with -mevexlig=256
 
-	.allow_index_reg
 	.text
 _start:
 	{evex} vmovd %xmm4,(%ecx)

@@ -1,6 +1,126 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-04-27  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2026-04-22  Joseph Myers  <josmyers@redhat.com>
+
+	* gcc.pot: Regenerate.
+
+2026-04-21  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2026-04-08  Joseph Myers  <josmyers@redhat.com>
+
+	* zh_CN.po: Update.
+
+2026-04-07  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po, zh_CN.po: Update.
+
+2026-03-31  Joseph Myers  <josmyers@redhat.com>
+
+	* be.po, da.po, de.po, el.po, es.po, fi.po, fr.po, hr.po, id.po,
+	ja.po, ka.po, nl.po, ru.po, sr.po, sv.po, tr.po, uk.po, vi.po,
+	zh_CN.po, zh_TW.po: Update.
+
+2026-03-26  Joseph Myers  <josmyers@redhat.com>
+
+	* gcc.pot: Regenerate.
+
+2026-03-23  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2026-03-20  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2026-03-16  Joseph Myers  <josmyers@redhat.com>
+
+	* fr.po, sv.po: Update.
+
+2026-03-12  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2026-03-11  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2026-03-11  Joseph Myers  <josmyers@redhat.com>
+
+	* de.po, sv.po: Update.
+
+2026-03-06  Joseph Myers  <josmyers@redhat.com>
+
+	* fr.po: Update.
+
+2026-03-02  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2026-02-27  Joseph Myers  <josmyers@redhat.com>
+
+	* be.po, da.po, de.po, el.po, es.po, fi.po, fr.po, hr.po, id.po,
+	ja.po, ka.po, nl.po, ru.po, sr.po, sv.po, tr.po, uk.po, vi.po,
+	zh_CN.po, zh_TW.po: Update.
+
+2026-02-19  Joseph Myers  <josmyers@redhat.com>
+
+	* gcc.pot: Regenerate.
+
+2026-02-05  Joseph Myers  <josmyers@redhat.com>
+
+	* es.po: Update.
+
+2026-01-27  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2026-01-19  Joseph Myers  <josmyers@redhat.com>
+
+	* es.po: Update.
+
+2025-11-10  Joseph Myers  <josmyers@redhat.com>
+
+	* es.po: Update.
+
+2025-08-24  Joseph Myers  <josmyers@redhat.com>
+
+	* de.po: Update.
+
+2025-08-11  Joseph Myers  <josmyers@redhat.com>
+
+	* be.po, da.po, de.po, el.po, es.po, fi.po, fr.po, hr.po, id.po,
+	ja.po, ka.po, nl.po, ru.po, sr.po, sv.po, tr.po, uk.po, vi.po,
+	zh_CN.po, zh_TW.po: Update.
+
+2025-06-12  Joseph Myers  <josmyers@redhat.com>
+
+	* es.po: Update.
+
+2025-05-15  Joseph Myers  <josmyers@redhat.com>
+
+	* zh_CN.po: Update.
+
+2025-05-14  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2025-05-12  Joseph Myers  <josmyers@redhat.com>
+
+	* sv.po: Update.
+
+2025-04-30  Joseph Myers  <josmyers@redhat.com>
+
+	* be.po, da.po, de.po, el.po, es.po, fi.po, fr.po, hr.po, id.po,
+	ja.po, ka.po, nl.po, ru.po, sr.po, sv.po, tr.po, uk.po, vi.po,
+	zh_CN.po, zh_TW.po: Update.
 
 2025-04-23  Joseph Myers  <josmyers@redhat.com>
 
@@ -3459,7 +3579,7 @@ Sun Oct 31 17:17:18 1999  Jeffrey A Law  (law@cygnus.com)
 	Fix names of those files which are now living in egcs's
 	libiberty/include directories.
 
-Copyright (C) 1999-2025 Free Software Foundation, Inc.
+Copyright (C) 1999-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

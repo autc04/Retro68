@@ -1,5 +1,5 @@
 #source: rgn-at6.s
-#ld: -T rgn-at8.t
+#ld: -T rgn-at8.t --no-error-rwx-segments
 #objdump: -h --wide
 # Test that lma is aligned when lma_region!=region and requested by script.
 

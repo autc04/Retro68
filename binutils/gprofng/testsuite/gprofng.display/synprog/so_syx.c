@@ -1,4 +1,4 @@
-/* Copyright (C) 2021 Free Software Foundation, Inc.
+/* Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by Oracle.
 
    This file is part of GNU Binutils.
@@ -32,7 +32,7 @@ sx_cputime ()
   /* put a memory leak in here */
   (void) malloc (13);
 
-  fprintf (stderr, "sx_burncpu @ 0x%08x\n", (unsigned int) sx_burncpu);
+  fprintf (stderr, "sx_burncpu @ %p\n", sx_burncpu);
   sx_burncpu ();
   wlog ("end of sx_cputime", NULL);
   return 13;

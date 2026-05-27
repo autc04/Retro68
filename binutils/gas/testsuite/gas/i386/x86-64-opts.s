@@ -1,6 +1,5 @@
 # Check 64bit instructions with encoding options
 
-	.allow_index_reg
 	.text
 _start:
 

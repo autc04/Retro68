@@ -1,6 +1,6 @@
 (* M2System.mod defines the SYSTEM builtin types.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -509,8 +509,8 @@ END IsPseudoSystemFunction ;
 PROCEDURE IsPseudoSystemFunctionConstExpression (sym: CARDINAL) : BOOLEAN ;
 BEGIN
    RETURN(
-          (sym=Size) OR (sym=TSize) OR (sym=Rotate) OR (sym=Shift) OR
-          (Iso AND ((sym=Cast) OR (sym=MakeAdr)))
+          (sym=Size) OR (sym=TSize) OR (sym=TBitSize) OR (sym=Rotate) OR (sym=Shift) OR
+          (Iso AND ((sym=Cast) OR (sym=MakeAdr) OR (sym=TBitSize)))
          )
 END IsPseudoSystemFunctionConstExpression ;
 

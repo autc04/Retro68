@@ -1,6 +1,6 @@
-This is libitm.info, produced by makeinfo version 6.8 from libitm.texi.
+This is libitm.info, produced by makeinfo version 7.2 from libitm.texi.
 
-Copyright (C) 2011-2025 Free Software Foundation, Inc.
+Copyright © 2011-2026 Free Software Foundation, Inc.
 
    Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.2 or
@@ -15,7 +15,7 @@ END-INFO-DIR-ENTRY
 
    This manual documents the GNU Transactional Memory Library.
 
-   Copyright (C) 2011-2025 Free Software Foundation, Inc.
+   Copyright © 2011-2026 Free Software Foundation, Inc.
 
    Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.2 or
@@ -53,9 +53,9 @@ File: libitm.info,  Node: Enabling libitm,  Next: C/C++ Language Constructs for 
 1 Enabling libitm
 *****************
 
-To activate support for TM in C/C++, the compile-time flag '-fgnu-tm'
+To activate support for TM in C/C++, the compile-time flag ‘-fgnu-tm’
 must be specified.  This enables TM language-level constructs such as
-transaction statements (e.g., '__transaction_atomic', *note C/C++
+transaction statements (e.g., ‘__transaction_atomic’, *note C/C++
 Language Constructs for TM:: for details).
 
 
@@ -66,13 +66,13 @@ File: libitm.info,  Node: C/C++ Language Constructs for TM,  Next: The libitm AB
 
 Transactions are supported in C++ and C in the form of transaction
 statements, transaction expressions, and function transactions.  In the
-following example, both 'a' and 'b' will be read and the difference will
-be written to 'c', all atomically and isolated from other transactions:
+following example, both ‘a’ and ‘b’ will be read and the difference will
+be written to ‘c’, all atomically and isolated from other transactions:
 
      __transaction_atomic { c = a - b; }
 
    Therefore, another thread can use the following code to concurrently
-update 'b' without ever causing 'c' to hold a negative value (and
+update ‘b’ without ever causing ‘c’ to hold a negative value (and
 without having to use other synchronization constructs such as locks or
 C++11 atomics):
 
@@ -159,7 +159,7 @@ these stack frames' lifetimes will end before the transaction finishes.
 3.3.9 Store allocation
 ----------------------
 
-There is no 'getTransaction' function.
+There is no ‘getTransaction’ function.
 
 3.3.10 [No changes] Naming conventions
 --------------------------------------
@@ -172,8 +172,8 @@ Currently, this is not implemented.
 3.4 Types and macros list
 =========================
 
-'_ITM_codeProperties' has changed, *note Starting a transaction:
-txn-code-properties.  '_ITM_srcLocation' is not used.
+‘_ITM_codeProperties’ has changed, *note Starting a transaction:
+txn-code-properties.  ‘_ITM_srcLocation’ is not used.
 
 3.5 Function list
 =================
@@ -195,7 +195,7 @@ These functions are not part of the ABI.
 3.5.5 State manipulation functions
 ----------------------------------
 
-There is no 'getTransaction' function.  Transaction identifiers for
+There is no ‘getTransaction’ function.  Transaction identifiers for
 nested transactions will be ordered but not necessarily sequential
 (i.e., for a nested transaction's identifier IN and its enclosing
 transaction's identifier IE, it is guaranteed that IN >= IE).
@@ -209,15 +209,15 @@ transaction's identifier IE, it is guaranteed that IN >= IE).
 3.5.7.1 Transaction code properties
 ...................................
 
-The bit 'hasNoXMMUpdate' is instead called 'hasNoVectorUpdate'.  Iff it
+The bit ‘hasNoXMMUpdate’ is instead called ‘hasNoVectorUpdate’.  Iff it
 is set, vector register save/restore is not necessary for any target
 machine.
 
-   The 'hasNoFloatUpdate' bit ('0x0010') is new.  Iff it is set,
+   The ‘hasNoFloatUpdate’ bit (‘0x0010’) is new.  Iff it is set,
 floating point register save/restore is not necessary for any target
 machine.
 
-   'undoLogCode' is not supported and a fatal runtime error will be
+   ‘undoLogCode’ is not supported and a fatal runtime error will be
 raised if this bit is set.  It is not properly defined in the ABI why
 barriers other than undo logging are not present; Are they not necessary
 (e.g., a transaction operating purely on thread-local data) or have they
@@ -226,19 +226,19 @@ synchronization (e.g., serial mode) might perform better?  The
 specification suggests that the latter might be the case, but the former
 seems to be more useful.
 
-   The 'readOnly' bit ('0x4000') is new.  *TODO* Lexical or dynamic
+   The ‘readOnly’ bit (‘0x4000’) is new.  *TODO* Lexical or dynamic
 scope?
 
-   'hasNoRetry' is not supported.  If this bit is not set, but
-'hasNoAbort' is set, the library can assume that transaction rollback
+   ‘hasNoRetry’ is not supported.  If this bit is not set, but
+‘hasNoAbort’ is set, the library can assume that transaction rollback
 will not be requested.
 
    It would be useful if the absence of externally-triggered rollbacks
 would be reported for the dynamic scope as well, not just for the
-lexical scope ('hasNoAbort').  Without this, a library cannot exploit
+lexical scope (‘hasNoAbort’).  Without this, a library cannot exploit
 this together with flat nesting.
 
-   'exceptionBlock' is not supported because exception blocks are not
+   ‘exceptionBlock’ is not supported because exception blocks are not
 used.
 
 3.5.7.2 [No changes] Windows exception state
@@ -253,27 +253,27 @@ used.
 3.5.8 Aborting a transaction
 ----------------------------
 
-'_ITM_rollbackTransaction' is not supported.  '_ITM_abortTransaction' is
-supported but the abort reasons 'exceptionBlockAbort', 'TMConflict', and
-'userRetry' are not supported.  There are no exception blocks in
+‘_ITM_rollbackTransaction’ is not supported.  ‘_ITM_abortTransaction’ is
+supported but the abort reasons ‘exceptionBlockAbort’, ‘TMConflict’, and
+‘userRetry’ are not supported.  There are no exception blocks in
 general, so the related cases also do not have to be considered.  To
-encode '__transaction_cancel [[outer]]', compilers must set the new
-'outerAbort' bit ('0x10') additionally to the 'userAbort' bit in the
+encode ‘__transaction_cancel [[outer]]’, compilers must set the new
+‘outerAbort’ bit (‘0x10’) additionally to the ‘userAbort’ bit in the
 abort reason.
 
 3.5.9 Committing a transaction
 ------------------------------
 
 The exception handling (EH) scheme is different.  The Intel ABI requires
-the '_ITM_tryCommitTransaction' function that will return even when the
+the ‘_ITM_tryCommitTransaction’ function that will return even when the
 commit failed and will have to be matched with calls to either
-'_ITM_abortTransaction' or '_ITM_commitTransaction'.  In contrast, gcc
+‘_ITM_abortTransaction’ or ‘_ITM_commitTransaction’.  In contrast, gcc
 relies on transactional wrappers for the functions of the Exception
 Handling ABI and on one additional commit function (shown below).  This
 allows the TM to keep track of EH internally and thus it does not have
 to embed the cleanup of EH state into the existing EH code in the
-program.  '_ITM_tryCommitTransaction' is not supported.
-'_ITM_commitTransactionToId' is also not supported because the
+program.  ‘_ITM_tryCommitTransaction’ is not supported.
+‘_ITM_commitTransactionToId’ is also not supported because the
 propagation of thrown exceptions will not bypass commits of nested
 transactions.
 
@@ -285,44 +285,44 @@ transactions.
      void _ITM_cxa_end_catch (void);
 
    The EH scheme changed in version 6 of GCC. Previously, the compiler
-added a call to '_ITM_commitTransactionEH' to commit a transaction if an
-exception could be in flight at this position in the code; 'exc_ptr' is
+added a call to ‘_ITM_commitTransactionEH’ to commit a transaction if an
+exception could be in flight at this position in the code; ‘exc_ptr’ is
 the address of the current exception and must be non-zero.  Now, the
 compiler must catch all exceptions that are about to be thrown out of a
-transaction and call '_ITM_commitTransactionEH' from the catch clause,
-with 'exc_ptr' being zero.
+transaction and call ‘_ITM_commitTransactionEH’ from the catch clause,
+with ‘exc_ptr’ being zero.
 
    Note that the old EH scheme never worked completely in GCC's
 implementation; libitm currently does not try to be compatible with the
 old scheme.
 
-   The '_ITM_cxa...' functions are transactional wrappers for the
-respective '__cxa...' functions and must be called instead of these in
-transactional code.  '_ITM_cxa_free_exception' is new in GCC 6.
+   The ‘_ITM_cxa...’ functions are transactional wrappers for the
+respective ‘__cxa...’ functions and must be called instead of these in
+transactional code.  ‘_ITM_cxa_free_exception’ is new in GCC 6.
 
    To support this EH scheme, libstdc++ needs to provide one additional
-function ('_cxa_tm_cleanup'), which is used by the TM to clean up the
+function (‘_cxa_tm_cleanup’), which is used by the TM to clean up the
 exception handling state while rolling back a transaction:
 
      void __cxa_tm_cleanup (void *unthrown_obj, void *cleanup_exc,
                             unsigned int caught_count);
 
-   Since GCC 6, 'unthrown_obj' is not used anymore and always null;
-prior to that, 'unthrown_obj' is non-null if the program called
-'__cxa_allocate_exception' for this exception but did not yet called
-'__cxa_throw' for it.  'cleanup_exc' is non-null if the program is
+   Since GCC 6, ‘unthrown_obj’ is not used anymore and always null;
+prior to that, ‘unthrown_obj’ is non-null if the program called
+‘__cxa_allocate_exception’ for this exception but did not yet called
+‘__cxa_throw’ for it.  ‘cleanup_exc’ is non-null if the program is
 currently processing a cleanup along an exception path but has not
-caught this exception yet.  'caught_count' is the nesting depth of
-'__cxa_begin_catch' within the transaction (which can be counted by the
-TM using '_ITM_cxa_begin_catch' and '_ITM_cxa_end_catch');
-'__cxa_tm_cleanup' then performs rollback by essentially performing
-'__cxa_end_catch' that many times.
+caught this exception yet.  ‘caught_count’ is the nesting depth of
+‘__cxa_begin_catch’ within the transaction (which can be counted by the
+TM using ‘_ITM_cxa_begin_catch’ and ‘_ITM_cxa_end_catch’);
+‘__cxa_tm_cleanup’ then performs rollback by essentially performing
+‘__cxa_end_catch’ that many times.
 
 3.5.10 Exception handling support
 ---------------------------------
 
 Currently, there is no support for functionality like
-'__transaction_cancel throw' as described in the C++ TM specification.
+‘__transaction_cancel throw’ as described in the C++ TM specification.
 Supporting this should be possible with the EH scheme explained
 previously because via the transactional wrappers for the EH ABI, the TM
 is able to observe and intercept EH.
@@ -341,7 +341,7 @@ is able to observe and intercept EH.
 
 If either the source or destination memory region is to be accessed
 nontransactionally, then source and destination regions must not be
-overlapping.  The respective '_ITM_memmove' functions are still
+overlapping.  The respective ‘_ITM_memmove’ functions are still
 available but a fatal runtime error will be raised if such regions do
 overlap.  To support this functionality, the ABI would have to specify
 how the intersection of the regions has to be accessed (i.e.,
@@ -357,22 +357,22 @@ transactionally or nontransactionally).
 ----------------------------------------------
 
 Commit actions will get executed in the same order in which the
-respective calls to '_ITM_addUserCommitAction' happened.  Only
-'_ITM_noTransactionId' is allowed as value for the
-'resumingTransactionId' argument.  Commit actions get executed after
+respective calls to ‘_ITM_addUserCommitAction’ happened.  Only
+‘_ITM_noTransactionId’ is allowed as value for the
+‘resumingTransactionId’ argument.  Commit actions get executed after
 privatization safety has been ensured.
 
    Undo actions will get executed in reverse order compared to the order
-in which the respective calls to '_ITM_addUserUndoAction' happened.  The
+in which the respective calls to ‘_ITM_addUserUndoAction’ happened.  The
 ordering of undo actions w.r.t.  the roll-back of other actions (e.g.,
 data transfers or memory allocations) is undefined.
 
-   '_ITM_getThreadnum' is not supported currently because its only
+   ‘_ITM_getThreadnum’ is not supported currently because its only
 purpose is to provide a thread ID that matches some assumed performance
 tuning output, but this output is not part of the ABI nor further
 defined by it.
 
-   '_ITM_dropReferences' is not supported currently because its
+   ‘_ITM_dropReferences’ is not supported currently because its
 semantics and the intention behind it is not entirely clear.  The
 specification suggests that this function is necessary because of
 certain orderings of data transfer undos and the releasing of memory
@@ -401,7 +401,7 @@ live throughout the life-time of the TM runtime.
 
    *TODO* The intention was always to drop the registration functions
 entirely, and create a new ELF Phdr describing the linker-sorted table.
-Much like what currently happens for 'PT_GNU_EH_FRAME'.  This work kept
+Much like what currently happens for ‘PT_GNU_EH_FRAME’.  This work kept
 getting bogged down in how to represent the N different code generation
 variants.  We clearly needed at least two--SW and HW transactional
 clones--but there was always a suggestion of more variants for different
@@ -426,8 +426,8 @@ pointer, whereas the second will raise a fatal runtime error.
             __attribute__((__malloc__)) ITM_PURE;
      void _ITM_free (void *) ITM_PURE;
 
-   These functions are essentially transactional wrappers for 'malloc',
-'calloc', and 'free'.  Within transactions, the compiler should replace
+   These functions are essentially transactional wrappers for ‘malloc’,
+‘calloc’, and ‘free’.  Within transactions, the compiler should replace
 calls to the original functions with calls to the wrapper functions.
 
    libitm also provides transactional clones of C++ memory management
@@ -469,14 +469,14 @@ File: libitm.info,  Node: Internals,  Next: GNU Free Documentation License,  Pre
 
 libitm supports several ways of synchronizing transactions with each
 other.  These TM methods (or TM algorithms) are implemented in the form
-of subclasses of 'abi_dispatch', which provide methods for transactional
+of subclasses of ‘abi_dispatch’, which provide methods for transactional
 loads and stores as well as callbacks for rollback and commit.  All
 methods that are compatible with each other (i.e., that let concurrently
 running transactions still synchronize correctly even if different
 methods are used) belong to the same TM method group.  Pointers to TM
 methods can be obtained using the factory methods prefixed with
-'dispatch_' in 'libitm_i.h'.  There are two special methods,
-'dispatch_serial' and 'dispatch_serialirr', that are compatible with all
+‘dispatch_’ in ‘libitm_i.h’.  There are two special methods,
+‘dispatch_serial’ and ‘dispatch_serialirr’, that are compatible with all
 methods because they run transactions completely in serial mode.
 
 4.1.1 TM method life cycle
@@ -484,25 +484,25 @@ methods because they run transactions completely in serial mode.
 
 The state of TM methods does not change after construction, but they do
 alter the state of transactions that use this method.  However, because
-per-transaction data gets used by several methods, 'gtm_thread' is
+per-transaction data gets used by several methods, ‘gtm_thread’ is
 responsible for setting an initial state that is useful for all methods.
 After that, methods are responsible for resetting/clearing this state on
 each rollback or commit (of outermost transactions), so that the
 transaction executed next is not affected by the previous transaction.
 
    There is also global state associated with each method group, which
-is initialized and shut down ('method_group::init()' and 'fini()') when
-switching between method groups (see 'retry.cc').
+is initialized and shut down (‘method_group::init()’ and ‘fini()’) when
+switching between method groups (see ‘retry.cc’).
 
 4.1.2 Selecting the default method
 ----------------------------------
 
 The default method that libitm uses for freshly started transactions
 (but not necessarily for restarted transactions) can be set via an
-environment variable ('ITM_DEFAULT_METHOD'), whose value should be equal
+environment variable (‘ITM_DEFAULT_METHOD’), whose value should be equal
 to the name of one of the factory methods returning abi_dispatch
 subclasses but without the "dispatch_" prefix (e.g., "serialirr" instead
-of 'GTM::dispatch_serialirr()').
+of ‘GTM::dispatch_serialirr()’).
 
    Note that this environment variable is only a hint for libitm and
 might not be supported in the future.
@@ -522,7 +522,7 @@ independently of the enclosing transactions) are not supported.
 
    Flat nesting is the default nesting mode, but closed nesting is
 supported and used when transactions contain user-controlled aborts
-('__transaction_cancel' statements).  We assume that user-controlled
+(‘__transaction_cancel’ statements).  We assume that user-controlled
 aborts are rare in typical code and used mostly in exceptional
 situations.  Thus, it makes more sense to use flat nesting by default to
 avoid the performance overhead of the additional checkpoints required
@@ -578,10 +578,10 @@ public/shared part of a transaction object and most typical
 method-group-specific state.
 
    The former category (protected by the serial lock) includes:
-   * The list of active threads that have used transactions.
-   * The tables that map functions to their transactional clones.
-   * The current selection of which method group to use.
-   * Some method-group-specific data, or invariants of this data.  For
+   • The list of active threads that have used transactions.
+   • The tables that map functions to their transactional clones.
+   • The current selection of which method group to use.
+   • Some method-group-specific data, or invariants of this data.  For
      example, resetting a method group to its initial state is handled
      by switching to the same method group, so the serial lock protects
      such resetting as well.
@@ -606,24 +606,24 @@ also not released before commit.
 
    Lock acquisition / blocking rules:
 
-   * Transactions must become active or serial before they are allowed
+   • Transactions must become active or serial before they are allowed
      to use method-group-specific locks or blocking (i.e., the serial
      lock must be acquired before those other locks, either in serial or
      nonserial mode).
 
-   * Any number of threads that do not currently run active transactions
+   • Any number of threads that do not currently run active transactions
      can block while trying to get the serial lock in exclusive mode.
      Note that active transactions must not block when trying to upgrade
      to serial mode unless there is no other transaction that is trying
      that (the latter is ensured by the serial lock implementation.
 
-   * Method groups must prevent deadlocks on their locks.  In
+   • Method groups must prevent deadlocks on their locks.  In
      particular, they must also be prepared for another active
      transaction that has acquired method-group-specific locks but is
      blocked during an attempt to upgrade to being a serial transaction.
      See below for details.
 
-   * Serial transactions can acquire method-group-specific locks because
+   • Serial transactions can acquire method-group-specific locks because
      there will be no other active nor serial transaction.
 
    There is no single rule for per-method-group blocking because this
@@ -635,15 +635,15 @@ to consider a potential deadlock due to serial mode.
 
    If there can be upgrades to serial mode after the acquisition of
 per-method-group locks, then TM methods need to avoid those deadlocks:
-   * When upgrading to a serial transaction, after acquiring exclusive
+   • When upgrading to a serial transaction, after acquiring exclusive
      rights to the serial lock but before waiting for concurrent active
      transactions to finish (*note Serial lock implementation:
      serial-lock-impl. for details), we have to wake up all active
      transactions waiting on the upgrader's per-method-group locks.
-   * Active transactions blocking on per-method-group locks need to
+   • Active transactions blocking on per-method-group locks need to
      check the serial lock and abort if there is a pending serial
      transaction.
-   * Lost wake-ups have to be prevented (e.g., by changing a bit in each
+   • Lost wake-ups have to be prevented (e.g., by changing a bit in each
      per-method-group lock before doing the wake-up, and only blocking
      on this lock using a futex if this bit is not group).
 
@@ -700,8 +700,8 @@ serial lock (read-to-write upgrade is similar to write_lock:
      if (need_blocking) goto slowpath;
 
    Releasing a lock in this spin-lock version then just consists of
-resetting 'tx->shared_state' to inactive or clearing
-'serial_lock.exclusive'.
+resetting ‘tx->shared_state’ to inactive or clearing
+‘serial_lock.exclusive’.
 
    However, we can't rely on a pure spinlock because we need to get the
 OS involved at some time (e.g., when there are more threads than CPUs to
@@ -713,18 +713,18 @@ slow path, either based on pthread mutexes or Linux futexes.
 
 libitm has to consider the following cases of reentrancy:
 
-   * Transaction calls unsafe code that starts a new transaction: The
+   • Transaction calls unsafe code that starts a new transaction: The
      outer transaction will become a serial transaction before executing
      unsafe code.  Therefore, nesting within serial transactions must
      work, even if the nested transaction is called from within
      uninstrumented code.
 
-   * Transaction calls either a transactional wrapper or safe code,
+   • Transaction calls either a transactional wrapper or safe code,
      which in turn starts a new transaction: It is not yet defined in
      the specification whether this is allowed.  Thus, it is undefined
      whether libitm supports this.
 
-   * Code that starts new transactions might be called from within any
+   • Code that starts new transactions might be called from within any
      part of libitm: This kind of reentrancy would likely be rather
      complex and can probably be avoided.  Therefore, it is not
      supported.
@@ -804,7 +804,7 @@ GNU Free Documentation License
 
                      Version 1.3, 3 November 2008
 
-     Copyright (C) 2000, 2001, 2002, 2007, 2008 Free Software Foundation, Inc.
+     Copyright © 2000, 2001, 2002, 2007, 2008 Free Software Foundation, Inc.
      <https://www.fsf.org>
 
      Everyone is permitted to copy and distribute verbatim copies
@@ -813,7 +813,7 @@ GNU Free Documentation License
   0. PREAMBLE
 
      The purpose of this License is to make a manual, textbook, or other
-     functional and useful document "free" in the sense of freedom: to
+     functional and useful document “free” in the sense of freedom: to
      assure everyone the effective freedom to copy and redistribute it,
      with or without modifying it, either commercially or
      noncommercially.  Secondarily, this License preserves for the
@@ -1291,19 +1291,18 @@ Library Index
                                                                 (line 6)
 * Introduction:                          Top.                   (line 6)
 
-
 
 Tag Table:
-Node: Top1141
-Node: Enabling libitm2045
-Node: C/C++ Language Constructs for TM2440
-Node: The libitm ABI3923
-Ref: txn-code-properties7721
-Node: Internals18814
-Ref: serial-lock-impl28852
-Ref: progress-guarantees33613
-Node: GNU Free Documentation License35891
-Node: Library Index61026
+Node: Top1139
+Node: Enabling libitm2043
+Node: C/C++ Language Constructs for TM2446
+Node: The libitm ABI3949
+Ref: txn-code-properties7763
+Node: Internals19080
+Ref: serial-lock-impl29188
+Ref: progress-guarantees33963
+Node: GNU Free Documentation License36241
+Node: Library Index61379
 
 End Tag Table
 

@@ -1005,16 +1005,16 @@ Disassembly of section .text:
 [^>]*> ef1e e15e 	vbic	q7, q7, q7
 [^>]*> ef1e e15e 	vbic	q7, q7, q7
 [^>]*> ef1e e15e 	vbic	q7, q7, q7
-[^>]*> ef80 0170 	vbic.i32	q0, #0	; 0x00000000
-[^>]*> ff87 017f 	vbic.i32	q0, #255	; 0x000000ff
-[^>]*> ff87 037f 	vbic.i32	q0, #65280	; 0x0000ff00
-[^>]*> ff87 077f 	vbic.i32	q0, #4278190080	; 0xff000000
-[^>]*> ff87 057f 	vbic.i32	q0, #16711680	; 0x00ff0000
-[^>]*> ef80 0970 	vbic.i16	q0, #0	; 0x0000
-[^>]*> ff87 097f 	vbic.i16	q0, #255	; 0x00ff
-[^>]*> ff87 0b7f 	vbic.i16	q0, #65280	; 0xff00
+[^>]*> ef80 0170 	vbic.i32	q0, #0	@ 0x00000000
+[^>]*> ff87 017f 	vbic.i32	q0, #255	@ 0x000000ff
+[^>]*> ff87 037f 	vbic.i32	q0, #65280	@ 0x0000ff00
+[^>]*> ff87 077f 	vbic.i32	q0, #4278190080	@ 0xff000000
+[^>]*> ff87 057f 	vbic.i32	q0, #16711680	@ 0x00ff0000
+[^>]*> ef80 0970 	vbic.i16	q0, #0	@ 0x0000
+[^>]*> ff87 097f 	vbic.i16	q0, #255	@ 0x00ff
+[^>]*> ff87 0b7f 	vbic.i16	q0, #65280	@ 0xff00
 [^>]*> fe71 ef4d 	vpstete
 [^>]*> ef12 0154 	vbict	q0, q1, q2
 [^>]*> ef12 0154 	vbice	q0, q1, q2
-[^>]*> ef80 0170 	vbict.i32	q0, #0	; 0x00000000
-[^>]*> ff87 0b7f 	vbice.i16	q0, #65280	; 0xff00
+[^>]*> ef80 0170 	vbict.i32	q0, #0	@ 0x00000000
+[^>]*> ff87 0b7f 	vbice.i16	q0, #65280	@ 0xff00

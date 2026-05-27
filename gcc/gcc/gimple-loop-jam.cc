@@ -1,5 +1,5 @@
 /* Loop unroll-and-jam.
-   Copyright (C) 2017-2025 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -641,6 +641,7 @@ tree_loop_unroll_and_jam (void)
 	{
 	  cleanup_tree_cfg ();
 	  todo &= ~TODO_cleanup_cfg;
+	  todo |= loop_invariant_motion_in_fun (cfun, false);
 	}
       rewrite_into_loop_closed_ssa (NULL, 0);
       scev_reset ();

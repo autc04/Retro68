@@ -1,5 +1,5 @@
 /* Chains of recurrences.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <pop@cri.ensmp.fr>
 
 This file is part of GCC.
@@ -1490,7 +1490,7 @@ convert_affine_scev (class loop *loop, tree type,
   new_step = *step;
   if (TYPE_PRECISION (step_type) > TYPE_PRECISION (ct) && TYPE_UNSIGNED (ct))
     {
-      tree signed_ct = build_nonstandard_integer_type (TYPE_PRECISION (ct), 0);
+      tree signed_ct = signed_type_for (ct);
       new_step = chrec_convert (signed_ct, new_step, at_stmt,
                                 use_overflow_semantics);
     }

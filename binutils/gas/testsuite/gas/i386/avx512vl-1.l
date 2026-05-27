@@ -3,8 +3,8 @@
 .*:8: Error: .*corei7\.avx.*
 .*:9: Error: .*corei7\.avx.*
 .*:10: Error: .*corei7\.avx.*
-.*:15: Error: .*unsupported.*
-.*:16: Error: .*unsupported.*
+.*:15: Error: .*operand size mismatch.*
+.*:16: Error: .*operand size mismatch.*
 GAS LISTING .*
 #...
 [ 	]*1[ 	]+\.text

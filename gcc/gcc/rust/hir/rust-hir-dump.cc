@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -92,7 +92,7 @@ Dump::go (HIR::Crate &e)
   end ("Crate");
 }
 
-Dump::Dump (std::ostream &stream) : stream (stream) {}
+Dump::Dump (std::ostream &stream) : beg_of_line (false), stream (stream) {}
 
 /**
  * Writes TEXT with a final newline if ENDLINE is true.
@@ -298,7 +298,7 @@ Dump::do_vis_item (VisItem &e)
   do_item (e);
   std::string str = "none";
   if (e.has_visibility ())
-    str = e.get_visibility ().as_string ();
+    str = e.get_visibility ().to_string ();
   put_field ("visibility", str);
 }
 
@@ -326,7 +326,7 @@ Dump::do_pathpattern (PathPattern &e)
   std::string str = "";
 
   for (const auto &segment : e.get_segments ())
-    str += segment.as_string () + ", ";
+    str += segment.to_string () + ", ";
 
   put_field ("segments", str);
 }
@@ -366,7 +366,7 @@ Dump::do_matcharm (MatchArm &e)
   begin ("MatchArm");
   // FIXME Can't remember how to handle that. Let's see later.
   // do_outer_attrs(e);
-  visit_collection ("match_arm_patterns", e.get_patterns ());
+  visit_field ("match_arm_pattern", e.get_pattern ());
   if (e.has_match_arm_guard ())
     visit_field ("guard_expr", e.get_guard_expr ());
   end ("MatchArm");
@@ -399,7 +399,7 @@ Dump::do_typepathsegment (TypePathSegment &e)
   if (e.is_lang_item ())
     put_field ("ident_segment", LangItem::PrettyString (e.get_lang_item ()));
   else
-    put_field ("ident_segment", e.get_ident_segment ().as_string ());
+    put_field ("ident_segment", e.get_ident_segment ().to_string ());
 }
 
 void
@@ -474,7 +474,7 @@ Dump::do_baseloopexpr (BaseLoopExpr &e)
   if (!e.has_loop_label ())
     put_field ("label", "none");
   else
-    put_field ("label", e.get_loop_label ().as_string ());
+    put_field ("label", e.get_loop_label ().to_string ());
 
   visit_field ("loop_block", e.get_loop_block ());
 }
@@ -489,7 +489,7 @@ Dump::do_struct (Struct &e)
   if (!e.has_where_clause ())
     put_field ("where_clause", "none");
   else
-    put_field ("where clause", e.get_where_clause ().as_string ());
+    put_field ("where clause", e.get_where_clause ().to_string ());
 }
 
 void
@@ -522,7 +522,7 @@ void
 Dump::do_traitfunctiondecl (TraitFunctionDecl &e)
 {
   begin ("TraitFunctionDecl");
-  put_field ("qualifiers", e.get_qualifiers ().as_string ());
+  put_field ("qualifiers", e.get_qualifiers ().to_string ());
   put_field ("function_name", e.get_function_name ().as_string ());
   visit_collection ("generic_params", e.get_generic_params ());
 
@@ -542,12 +542,12 @@ Dump::do_traitfunctiondecl (TraitFunctionDecl &e)
     put_field ("return_type", "none");
 
   if (e.has_where_clause ())
-    put_field ("where_clause", e.get_where_clause ().as_string ());
+    put_field ("where_clause", e.get_where_clause ().to_string ());
   else
     put_field ("where_clause", "none");
 
   if (e.is_method ())
-    put_field ("self", e.get_self_unchecked ().as_string ());
+    put_field ("self", e.get_self_unchecked ().to_string ());
 
   end ("TraitFunctionDecl");
 }
@@ -562,7 +562,7 @@ Dump::do_externalitem (ExternalItem &e)
 
   std::string str = "none";
   if (e.has_visibility ())
-    str = e.get_visibility ().as_string ();
+    str = e.get_visibility ().to_string ();
   put_field ("visibility", str);
   put_field ("item_name", e.get_item_name ().as_string ());
 }
@@ -606,7 +606,7 @@ Dump::do_tuplefield (TupleField &e)
 
   std::string str = "none";
   if (e.has_visibility ())
-    str = e.get_visibility ().as_string ();
+    str = e.get_visibility ().to_string ();
   put_field ("visibility", str);
 
   visit_field ("field_type", e.get_field_type ());
@@ -621,7 +621,7 @@ Dump::do_structfield (StructField &e)
 
   std::string str = "none";
   if (e.has_visibility ())
-    str = e.get_visibility ().as_string ();
+    str = e.get_visibility ().to_string ();
   put_field ("visibility", str);
   put_field ("field_name", e.get_field_name ().as_string ());
   visit_field ("field_type", e.get_field_type ());
@@ -721,7 +721,7 @@ void
 Dump::visit (LifetimeParam &lifetimeparam)
 {
   begin ("Lifetimeparam");
-  put (lifetimeparam.as_string ());
+  put (lifetimeparam.to_debug_string ());
   end ("Lifetimeparam");
 }
 
@@ -1191,7 +1191,7 @@ Dump::visit (StructExprStructFields &e)
   if (!e.has_struct_base ())
     put_field ("struct_base", "none");
   else
-    put_field ("struct_base", e.get_struct_base ().as_string ());
+    put_field ("struct_base", e.get_struct_base ().to_string ());
 
   end ("StructExprStructFields");
 }
@@ -1202,7 +1202,7 @@ Dump::visit (StructExprStructBase &e)
   begin ("StructExprStructBase");
   do_structexprstruct (e);
 
-  put_field ("struct_base", e.get_struct_base ().as_string ());
+  put_field ("struct_base", e.get_struct_base ().to_string ());
 
   end ("StructExprStructBase");
 }
@@ -1226,7 +1226,7 @@ Dump::visit (MethodCallExpr &e)
   do_expr (e);
 
   visit_field ("receiver", e.get_receiver ());
-  put_field ("method_name", e.get_method_name ().as_string ());
+  put_field ("method_name", e.get_method_name ().to_string ());
   visit_collection ("params", e.get_arguments ());
 
   end ("MethodCallExpr");
@@ -1284,7 +1284,9 @@ Dump::visit (BlockExpr &e)
   do_expr (e);
   do_inner_attrs (e);
   put_field ("tail_reachable", std::to_string (e.is_tail_reachable ()));
-  put_field ("label", e.get_label ().as_string ());
+
+  if (e.has_label ())
+    put_field ("label", e.get_label ().to_string ());
 
   visit_collection ("statements", e.get_statements ());
 
@@ -1295,12 +1297,37 @@ Dump::visit (BlockExpr &e)
 }
 
 void
+Dump::visit (AnonConst &e)
+{
+  begin ("AnonConst");
+  do_expr (e);
+
+  if (e.is_deferred ())
+    put_field ("inner", "_");
+  else
+    visit_field ("inner", e.get_inner_expr ());
+
+  end ("AnonConst");
+}
+
+void
+Dump::visit (ConstBlock &e)
+{
+  begin ("ConstBlock");
+  do_expr (e);
+
+  visit_field ("inner", e.get_const_expr ());
+
+  end ("ConstBlock");
+}
+
+void
 Dump::visit (ContinueExpr &e)
 {
   begin ("ContinueExpr");
 
   if (e.has_label ())
-    put_field ("label", e.get_label ().as_string ());
+    put_field ("label", e.get_label ().to_string ());
   else
     put_field ("label", "none");
 
@@ -1314,7 +1341,7 @@ Dump::visit (BreakExpr &e)
   std::string str ("break ");
 
   if (e.has_label ())
-    put_field ("label", e.get_label ().as_string ());
+    put_field ("label", e.get_label ().to_string ());
   else
     put_field ("label", "none");
 
@@ -1434,7 +1461,7 @@ Dump::visit (WhileLetLoopExpr &e)
   begin ("WhileLetLoopExpr");
   do_baseloopexpr (e);
 
-  visit_collection ("match_arm_patterns", e.get_patterns ());
+  visit_field ("match_arm_patterns", e.get_pattern ());
 
   visit_field ("condition", e.get_cond ());
 
@@ -1505,7 +1532,89 @@ Dump::visit (AsyncBlockExpr &e)
 
 void
 Dump::visit (InlineAsm &e)
+{
+  begin ("InlineAsm");
+  do_expr (e);
+  for (auto &temp : e.get_template_ ())
+    {
+      put_field ("template", temp.string);
+    }
+
+  for (auto &temp_str : e.get_template_strs ())
+    {
+      put_field ("template_str", temp_str.symbol);
+    }
+
+  for (auto &operand : e.get_operands ())
+    {
+      switch (operand.get_register_type ())
+	{
+	case HIR::InlineAsmOperand::RegisterType::In:
+	  {
+	    const auto &in = operand.get_in ();
+	    visit_field ("in expr", *in.expr);
+	    break;
+	  }
+	case HIR::InlineAsmOperand::RegisterType::Out:
+	  {
+	    const auto &out = operand.get_out ();
+	    visit_field ("out expr", *out.expr);
+	    break;
+	  }
+	case HIR::InlineAsmOperand::RegisterType::InOut:
+	  {
+	    const auto &inout = operand.get_in_out ();
+	    visit_field ("inout expr", *inout.expr);
+	    break;
+	  }
+	case HIR::InlineAsmOperand::RegisterType::SplitInOut:
+	  {
+	    const auto &inout = operand.get_split_in_out ();
+	    begin ("Split in out");
+	    visit_field ("in expr", *inout.in_expr);
+	    visit_field ("out expr", *inout.out_expr);
+	    end ("Split in out");
+
+	    break;
+	  }
+	case HIR::InlineAsmOperand::RegisterType::Const:
+	  {
+	    auto &cnst = operand.get_const ();
+	    visit_field ("const expr", cnst.anon_const.get_inner_expr ());
+	    break;
+	  }
+	case HIR::InlineAsmOperand::RegisterType::Sym:
+	  {
+	    auto &sym = operand.get_sym ();
+	    visit_field ("sym expr", *sym.expr);
+	    break;
+	  }
+	case HIR::InlineAsmOperand::RegisterType::Label:
+	  {
+	    auto &label = operand.get_label ();
+	    put_field ("label name", label.label_name);
+	    do_expr (*label.expr);
+	    break;
+	  }
+	}
+    }
+  end ("InlineAsm");
+}
+
+void
+Dump::visit (LlvmInlineAsm &e)
 {}
+
+void
+Dump::visit (OffsetOf &e)
+{
+  begin ("OffsetOf");
+
+  put_field ("type", e.get_type ().to_debug_string ());
+  put_field ("field", e.get_field ());
+
+  end ("OffsetOf");
+}
 
 void
 Dump::visit (TypeParam &e)
@@ -1596,7 +1705,8 @@ Dump::visit (UseTreeGlob &e)
     case UseTreeGlob::PathType::GLOBAL:
       glob = "::*";
       break;
-      case UseTreeGlob::PathType::PATH_PREFIXED: {
+    case UseTreeGlob::PathType::PATH_PREFIXED:
+      {
 	path = e.get_path ().as_string ();
 	glob = "::*";
 	break;
@@ -1624,7 +1734,8 @@ Dump::visit (UseTreeList &e)
     case UseTreeList::PathType::GLOBAL:
       path_type = "::*";
       break;
-      case UseTreeList::PathType::PATH_PREFIXED: {
+    case UseTreeList::PathType::PATH_PREFIXED:
+      {
 	path = e.get_path ().as_string ();
 	path_type = "::*";
 	break;
@@ -1667,7 +1778,7 @@ Dump::visit (Function &e)
   begin ("Function");
   do_vis_item (e);
 
-  put_field ("function_qualifiers", e.get_qualifiers ().as_string ());
+  put_field ("function_qualifiers", e.get_qualifiers ().to_string ());
 
   visit_collection ("generic_params", e.get_generic_params ());
 
@@ -1691,11 +1802,11 @@ Dump::visit (Function &e)
   if (!e.has_where_clause ())
     put_field ("where_clause", "none");
   else
-    put_field ("where clause", e.get_where_clause ().as_string ());
+    put_field ("where clause", e.get_where_clause ().to_string ());
 
   visit_field ("function_body", e.get_definition ());
   if (e.is_method ())
-    put_field ("self", e.get_self_param_unchecked ().as_string ());
+    put_field ("self", e.get_self_param_unchecked ().to_string ());
 
   end ("Function");
 }
@@ -1714,9 +1825,9 @@ Dump::visit (TypeAlias &e)
   if (!e.has_where_clause ())
     put_field ("where_clause", "none");
   else
-    put_field ("where clause", e.get_where_clause ().as_string ());
+    put_field ("where clause", e.get_where_clause ().to_string ());
 
-  put_field ("type", e.get_type_aliased ().as_string ());
+  put_field ("type", e.get_type_aliased ().to_debug_string ());
 
   end ("TypeAlias");
 }
@@ -1840,7 +1951,7 @@ Dump::visit (Enum &e)
 
   std::string str = "none";
   if (e.has_where_clause ())
-    str = e.get_where_clause ().as_string ();
+    str = e.get_where_clause ().to_string ();
   put_field ("where clause", str);
 
   visit_collection ("items", e.get_variants ());
@@ -1858,7 +1969,7 @@ Dump::visit (Union &e)
 
   std::string str;
   if (e.has_where_clause ())
-    str = e.get_where_clause ().as_string ();
+    str = e.get_where_clause ().to_string ();
   else
     str = "none";
   put_field ("where clause", str);
@@ -1878,7 +1989,7 @@ Dump::visit (Union &e)
 
 	  std::string str = "none";
 	  if (elt.has_visibility ())
-	    str = elt.get_visibility ().as_string ();
+	    str = elt.get_visibility ().to_string ();
 	  put_field ("visibility", str);
 	  put_field ("field_name", elt.get_field_name ().as_string ());
 	  visit_field ("field_type", elt.get_field_type ());
@@ -1896,7 +2007,8 @@ Dump::visit (ConstantItem &e)
   do_vis_item (e);
   put_field ("identifier", e.get_identifier ().as_string ());
   visit_field ("type", e.get_type ());
-  visit_field ("const_expr", e.get_expr ());
+  if (e.has_expr ())
+    visit_field ("const_expr", e.get_expr ());
   end ("ConstantItem");
 }
 
@@ -1965,7 +2077,7 @@ Dump::visit (Trait &e)
 
   std::string str;
   if (e.has_where_clause ())
-    str = e.get_where_clause ().as_string ();
+    str = e.get_where_clause ().to_string ();
   else
     str = "none";
   put_field ("where clause", str);
@@ -1987,7 +2099,7 @@ Dump::visit (ImplBlock &e)
 
   std::string str;
   if (e.has_where_clause ())
-    str = e.get_where_clause ().as_string ();
+    str = e.get_where_clause ().to_string ();
   else
     str = "none";
   put_field ("where clause", str);
@@ -2010,7 +2122,7 @@ Dump::visit (ExternalStaticItem &e)
 
   std::string str = "none";
   if (e.has_visibility ())
-    str = e.get_visibility ().as_string ();
+    str = e.get_visibility ().to_string ();
   put_field ("visibility", str);
   //
 
@@ -2085,10 +2197,10 @@ Dump::visit (IdentifierPattern &e)
   put_field ("is_ref", std::to_string (e.get_is_ref ()));
   put_field ("mut", std::to_string (e.is_mut ()));
 
-  if (e.has_pattern_to_bind ())
-    put_field ("to_bind", e.get_to_bind ().as_string ());
+  if (e.has_subpattern ())
+    visit_field ("subpattern", e.get_subpattern ());
   else
-    put_field ("to_bind", "none");
+    put_field ("subpattern", "none");
 
   end ("IdentifierPattern");
 }
@@ -2113,7 +2225,7 @@ void
 Dump::visit (RangePatternBoundPath &e)
 {
   begin ("RangePatternBoundPath");
-  put_field ("path", e.get_path ().as_string ());
+  put_field ("path", e.get_path ().to_string ());
   end ("RangePatternBoundPath");
 }
 
@@ -2130,8 +2242,8 @@ Dump::visit (RangePattern &e)
 {
   begin ("RangePattern");
   do_mappings (e.get_mappings ());
-  put_field ("lower", e.get_lower_bound ().as_string ());
-  put_field ("upper", e.get_upper_bound ().as_string ());
+  put_field ("lower", e.get_lower_bound ().to_string ());
+  put_field ("upper", e.get_upper_bound ().to_string ());
   put_field ("has_ellipsis_syntax",
 	     std::to_string (e.get_has_ellipsis_syntax ()));
   end ("RangePattern");
@@ -2143,7 +2255,7 @@ Dump::visit (ReferencePattern &e)
   begin ("ReferencePattern");
   do_mappings (e.get_mappings ());
   put_field ("mut", std::to_string (e.is_mut ()));
-  put_field ("pattern", e.get_referenced_pattern ().as_string ());
+  put_field ("pattern", e.get_referenced_pattern ().to_debug_string ());
   end ("ReferencePattern");
 }
 
@@ -2155,7 +2267,7 @@ Dump::visit (StructPatternFieldTuplePat &e)
   auto oa = e.get_outer_attrs ();
   do_outer_attrs (oa);
   put_field ("index", std::to_string (e.get_index ()));
-  put_field ("tuple_pattern", e.get_tuple_pattern ().as_string ());
+  put_field ("tuple_pattern", e.get_tuple_pattern ().to_string ());
   end ("StructPatternFieldTuplePat");
 }
 
@@ -2166,7 +2278,7 @@ Dump::visit (StructPatternFieldIdentPat &e)
   auto oa = e.get_outer_attrs ();
   do_outer_attrs (oa);
   put_field ("ident", e.get_identifier ().as_string ());
-  put_field ("ident_pattern", e.get_pattern ().as_string ());
+  visit_field ("ident_pattern", e.get_pattern ());
   end ("StructPatternFieldIdentPat");
 }
 
@@ -2189,26 +2301,26 @@ Dump::visit (StructPattern &e)
   begin ("StructPattern");
 
   visit_field ("path", e.get_path ());
-  put_field ("elems", e.get_struct_pattern_elems ().as_string ());
+  put_field ("elems", e.get_struct_pattern_elems ().to_string ());
 
   end ("StructPattern");
 }
 
 void
-Dump::visit (TupleStructItemsNoRange &e)
+Dump::visit (TupleStructItemsNoRest &e)
 {
-  begin ("TupleStructItemsNoRange");
+  begin ("TupleStructItemsNoRest");
   visit_collection ("patterns", e.get_patterns ());
-  end ("TupleStructItemsNoRange");
+  end ("TupleStructItemsNoRest");
 }
 
 void
-Dump::visit (TupleStructItemsRange &e)
+Dump::visit (TupleStructItemsHasRest &e)
 {
-  begin ("TupleStructItemsRange");
+  begin ("TupleStructItemsHasRest");
   visit_collection ("lower_patterns", e.get_lower_patterns ());
   visit_collection ("upper_patterns", e.get_upper_patterns ());
-  end ("TupleStructItemsRange");
+  end ("TupleStructItemsHasRest");
 }
 
 void
@@ -2217,7 +2329,7 @@ Dump::visit (TupleStructPattern &e)
   begin ("TupleStructPattern");
   do_mappings (e.get_mappings ());
 
-  put_field ("path", e.get_path ().as_string ());
+  put_field ("path", e.get_path ().to_string ());
 
   visit_field ("items", e.get_items ());
 
@@ -2225,20 +2337,20 @@ Dump::visit (TupleStructPattern &e)
 }
 
 void
-Dump::visit (TuplePatternItemsMultiple &e)
+Dump::visit (TuplePatternItemsNoRest &e)
 {
-  begin ("TuplePatternItemsMultiple");
+  begin ("TuplePatternItemsNoRest");
   visit_collection ("patterns", e.get_patterns ());
-  end ("TuplePatternItemsMultiple");
+  end ("TuplePatternItemsNoRest");
 }
 
 void
-Dump::visit (TuplePatternItemsRanged &e)
+Dump::visit (TuplePatternItemsHasRest &e)
 {
-  begin ("TuplePatternItemsRanged");
+  begin ("TuplePatternItemsHasRest");
   visit_collection ("lower_patterns", e.get_lower_patterns ());
   visit_collection ("upper_patterns", e.get_upper_patterns ());
-  end ("TuplePatternItemsRanged");
+  end ("TuplePatternItemsHasRest");
 }
 
 void
@@ -2251,11 +2363,28 @@ Dump::visit (TuplePattern &e)
 }
 
 void
+Dump::visit (SlicePatternItemsNoRest &e)
+{
+  begin ("SlicePatternItemsNoRest");
+  visit_collection ("patterns", e.get_patterns ());
+  end ("SlicePatternItemsNoRest");
+}
+
+void
+Dump::visit (SlicePatternItemsHasRest &e)
+{
+  begin ("SlicePatternItemsHasRest");
+  visit_collection ("lower_patterns", e.get_lower_patterns ());
+  visit_collection ("upper_patterns", e.get_upper_patterns ());
+  end ("SlicePatternItemsHasRest");
+}
+
+void
 Dump::visit (SlicePattern &e)
 {
   begin ("SlicePattern");
   do_mappings (e.get_mappings ());
-  visit_collection ("items", e.get_items ());
+  visit_field ("items", e.get_items ());
   end ("SlicePattern");
 }
 
@@ -2284,7 +2413,7 @@ Dump::visit (LetStmt &e)
   auto oa = e.get_outer_attrs ();
   do_outer_attrs (oa);
 
-  put_field ("variable_pattern", e.get_pattern ().as_string ());
+  visit_field ("variable_pattern", e.get_pattern ());
 
   if (e.has_type ())
     visit_field ("type", e.get_type ());
@@ -2347,7 +2476,7 @@ Dump::visit (ParenthesisedType &e)
 {
   begin ("ParenthesisedType");
   do_type (e);
-  put_field ("type_in_parens", e.get_type_in_parens ().as_string ());
+  put_field ("type_in_parens", e.get_type_in_parens ().to_debug_string ());
   end ("ParenthesisedType");
 }
 
@@ -2374,7 +2503,7 @@ Dump::visit (RawPointerType &e)
   begin ("RawPointerType");
   do_type (e);
   put_field ("mut", Rust::enum_to_str (e.get_mut ()));
-  put_field ("type", e.get_type ().as_string ());
+  put_field ("type", e.get_type ().to_debug_string ());
   end ("RawPointerType");
 }
 
@@ -2383,9 +2512,9 @@ Dump::visit (ReferenceType &e)
 {
   begin ("ReferenceType");
   do_type (e);
-  put_field ("lifetime", e.get_lifetime ().as_string ());
+  put_field ("lifetime", e.get_lifetime ().to_string ());
   put_field ("mut", enum_to_str (e.get_mut ()));
-  put_field ("type", e.get_base_type ().as_string ());
+  put_field ("type", e.get_base_type ().to_debug_string ());
   end ("ReferenceType");
 }
 
@@ -2424,7 +2553,7 @@ Dump::visit (BareFunctionType &e)
 
   visit_collection ("for_lifetimes", e.get_for_lifetimes ());
 
-  put_field ("function_qualifiers", e.get_function_qualifiers ().as_string ());
+  put_field ("function_qualifiers", e.get_function_qualifiers ().to_string ());
 
   if (e.get_function_params ().empty ())
     {

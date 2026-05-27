@@ -1,6 +1,5 @@
 # Check 64bit AVX512_VPOPCNTDQ instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpopcntd	%zmm29, %zmm30	 # AVX512_VPOPCNTDQ

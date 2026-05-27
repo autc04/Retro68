@@ -6547,7 +6547,6 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	3020 ffff 	li	at,-1
 [ 0-9a-f]+:	b424 fffe 	bne	a0,at,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	.*
-[ 0-9a-f]+:	3020 0001 	li	at,1
 [ 0-9a-f]+:	5821 f808 	dsll32	at,at,0x1f
 [ 0-9a-f]+:	b423 fffe 	bne	v1,at,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	.*
@@ -6984,7 +6983,6 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	3020 ffff 	li	at,-1
 [ 0-9a-f]+:	b423 fffe 	bne	v1,at,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	.*
-[ 0-9a-f]+:	3020 0001 	li	at,1
 [ 0-9a-f]+:	5821 f808 	dsll32	at,at,0x1f
 [ 0-9a-f]+:	b420 fffe 	bne	zero,at,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	.*
@@ -7002,7 +7000,6 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	3020 ffff 	li	at,-1
 [ 0-9a-f]+:	b43f fffe 	bne	ra,at,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	.*
-[ 0-9a-f]+:	3020 0001 	li	at,1
 [ 0-9a-f]+:	5821 f808 	dsll32	at,at,0x1f
 [ 0-9a-f]+:	b420 fffe 	bne	zero,at,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	.*

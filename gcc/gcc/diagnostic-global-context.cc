@@ -1,5 +1,5 @@
 /* Language-independent diagnostic subroutines that implicitly use global_dc.
-   Copyright (C) 1999-2025 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@codesourcery.com>
 
 This file is part of GCC.
@@ -22,16 +22,21 @@ along with GCC; see the file COPYING3.  If not see
 /* This file implements the parts of the language independent aspect
    of diagnostic messages that implicitly use global_dc.  */
 
+#define INCLUDE_VECTOR
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
 #include "intl.h"
 #include "diagnostic.h"
-#include "diagnostic-format.h"
+#include "diagnostics/sink.h"
+#include "diagnostics/logging.h"
 
-/* A diagnostic_context surrogate for stderr.  */
-static diagnostic_context global_diagnostic_context;
-diagnostic_context *global_dc = &global_diagnostic_context;
+/* A diagnostics::context surrogate for stderr.  */
+static diagnostics::context global_diagnostic_context;
+diagnostics::context *global_dc = &global_diagnostic_context;
+
+using log_function_params = diagnostics::logging::log_function_params;
+using auto_inc_log_depth = diagnostics::logging::auto_inc_depth;
 
 /* Standard error reporting routines in increasing order of severity.  */
 
@@ -41,23 +46,34 @@ diagnostic_context *global_dc = &global_diagnostic_context;
 void
 verbatim (const char *gmsgid, ...)
 {
-  va_list ap;
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
 
+  va_list ap;
   va_start (ap, gmsgid);
   text_info text (_(gmsgid), &ap, errno);
   global_dc->report_verbatim (text);
   va_end (ap);
 }
 
-/* Wrapper around diagnostic_context::diagnostic_impl
+/* Wrapper around diagnostics::context::diagnostic_impl
    implying global_dc and taking a variable argument list.  */
 
 bool
-emit_diagnostic (diagnostic_t kind,
+emit_diagnostic (enum diagnostics::kind kind,
 		 location_t location,
-		 diagnostic_option_id option_id,
+		 diagnostics::option_id option_id,
 		 const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("location", location)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
@@ -65,50 +81,89 @@ emit_diagnostic (diagnostic_t kind,
   bool ret = global_dc->diagnostic_impl (&richloc, nullptr, option_id,
 					 gmsgid, &ap, kind);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("emit_diagnostic", ret);
+
   return ret;
 }
 
 /* As above, but for rich_location *.  */
 
 bool
-emit_diagnostic (diagnostic_t kind,
+emit_diagnostic (enum diagnostics::kind kind,
 		 rich_location *richloc,
-		 diagnostic_option_id option_id,
+		 diagnostics::option_id option_id,
 		 const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   bool ret = global_dc->diagnostic_impl (richloc, nullptr, option_id,
 					 gmsgid, &ap, kind);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("emit_diagnostic", ret);
+
   return ret;
 }
 
 /* As above, but taking a variable argument list.  */
 
 bool
-emit_diagnostic_valist (diagnostic_t kind,
+emit_diagnostic_valist (enum diagnostics::kind kind,
 			location_t location,
-			diagnostic_option_id option_id,
+			diagnostics::option_id option_id,
 			const char *gmsgid, va_list *ap)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("location", location)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   rich_location richloc (line_table, location);
-  return global_dc->diagnostic_impl (&richloc, nullptr, option_id,
-				     gmsgid, ap, kind);
+  bool ret = global_dc->diagnostic_impl (&richloc, nullptr, option_id,
+					 gmsgid, ap, kind);
+
+  if (logger)
+    logger->log_bool_return ("emit_diagnostic_valist", ret);
+
+  return ret;
 }
 
 /* As above, but with rich_location and metadata.  */
 
 bool
-emit_diagnostic_valist_meta (diagnostic_t kind,
+emit_diagnostic_valist_meta (enum diagnostics::kind kind,
 			     rich_location *richloc,
-			     const diagnostic_metadata *metadata,
-			     diagnostic_option_id option_id,
+			     const diagnostics::metadata *metadata,
+			     diagnostics::option_id option_id,
 			     const char *gmsgid, va_list *ap)
 {
-  return global_dc->diagnostic_impl (richloc, metadata, option_id,
-				     gmsgid, ap, kind);
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
+  bool ret = global_dc->diagnostic_impl (richloc, metadata, option_id,
+					 gmsgid, ap, kind);
+
+  if (logger)
+    logger->log_bool_return ("emit_diagnostic_valist_meta", ret);
+
+  return ret;
 }
 
 /* An informative note at LOCATION.  Use this for additional details on an error
@@ -116,11 +171,18 @@ emit_diagnostic_valist_meta (diagnostic_t kind,
 void
 inform (location_t location, const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("location", location)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, location);
-  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap, DK_NOTE);
+  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap,
+			      diagnostics::kind::note);
   va_end (ap);
 }
 
@@ -130,10 +192,17 @@ inform (rich_location *richloc, const char *gmsgid, ...)
 {
   gcc_assert (richloc);
 
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
-  global_dc->diagnostic_impl (richloc, nullptr, -1, gmsgid, &ap, DK_NOTE);
+  global_dc->diagnostic_impl (richloc, nullptr, -1, gmsgid, &ap,
+			      diagnostics::kind::note);
   va_end (ap);
 }
 
@@ -143,13 +212,19 @@ void
 inform_n (location_t location, unsigned HOST_WIDE_INT n,
 	  const char *singular_gmsgid, const char *plural_gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("location", location)
+    .log_params_n_gmsgids (n, singular_gmsgid, plural_gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   va_list ap;
   va_start (ap, plural_gmsgid);
   auto_diagnostic_group d;
   rich_location richloc (line_table, location);
   global_dc->diagnostic_n_impl (&richloc, nullptr, -1, n,
 				singular_gmsgid, plural_gmsgid,
-				&ap, DK_NOTE);
+				&ap, diagnostics::kind::note);
   va_end (ap);
 }
 
@@ -157,15 +232,26 @@ inform_n (location_t location, unsigned HOST_WIDE_INT n,
    to the relevant language specification but is likely to be buggy anyway.
    Returns true if the warning was printed, false if it was inhibited.  */
 bool
-warning (diagnostic_option_id option_id, const char *gmsgid, ...)
+warning (diagnostics::option_id option_id, const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, input_location);
   bool ret = global_dc->diagnostic_impl (&richloc, nullptr, option_id,
-					 gmsgid, &ap, DK_WARNING);
+					 gmsgid, &ap,
+					 diagnostics::kind::warning);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("warning", ret);
+
   return ret;
 }
 
@@ -175,16 +261,28 @@ warning (diagnostic_option_id option_id, const char *gmsgid, ...)
 
 bool
 warning_at (location_t location,
-	    diagnostic_option_id option_id,
+	    diagnostics::option_id option_id,
 	    const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("location", location)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, location);
   bool ret = global_dc->diagnostic_impl (&richloc, nullptr, option_id,
-					 gmsgid, &ap, DK_WARNING);
+					 gmsgid, &ap,
+					 diagnostics::kind::warning);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("warning_at", ret);
+
   return ret;
 }
 
@@ -192,17 +290,29 @@ warning_at (location_t location,
 
 bool
 warning_at (rich_location *richloc,
-	    diagnostic_option_id option_id,
+	    diagnostics::option_id option_id,
 	    const char *gmsgid, ...)
 {
   gcc_assert (richloc);
+
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
 
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   bool ret = global_dc->diagnostic_impl (richloc, nullptr, option_id,
-					 gmsgid, &ap, DK_WARNING);
+					 gmsgid, &ap,
+					 diagnostics::kind::warning);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("warning_at", ret);
+
   return ret;
 }
 
@@ -210,18 +320,30 @@ warning_at (rich_location *richloc,
 
 bool
 warning_meta (rich_location *richloc,
-	      const diagnostic_metadata &metadata,
-	      diagnostic_option_id option_id,
+	      const diagnostics::metadata &metadata,
+	      diagnostics::option_id option_id,
 	      const char *gmsgid, ...)
 {
   gcc_assert (richloc);
+
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
 
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   bool ret = global_dc->diagnostic_impl (richloc, &metadata, option_id,
-					 gmsgid, &ap, DK_WARNING);
+					 gmsgid, &ap,
+					 diagnostics::kind::warning);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("warning_meta", ret);
+
   return ret;
 }
 
@@ -229,19 +351,30 @@ warning_meta (rich_location *richloc,
 
 bool
 warning_n (rich_location *richloc,
-	   diagnostic_option_id option_id,
+	   diagnostics::option_id option_id,
 	   unsigned HOST_WIDE_INT n,
 	   const char *singular_gmsgid, const char *plural_gmsgid, ...)
 {
   gcc_assert (richloc);
+
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_option_id ("option_id", option_id)
+    .log_params_n_gmsgids (n, singular_gmsgid, plural_gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
 
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, plural_gmsgid);
   bool ret = global_dc->diagnostic_n_impl (richloc, nullptr, option_id, n,
 					   singular_gmsgid, plural_gmsgid,
-					   &ap, DK_WARNING);
+					   &ap, diagnostics::kind::warning);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("warning_n", ret);
+
   return ret;
 }
 
@@ -251,18 +384,29 @@ warning_n (rich_location *richloc,
 
 bool
 warning_n (location_t location,
-	   diagnostic_option_id option_id,
+	   diagnostics::option_id option_id,
 	   unsigned HOST_WIDE_INT n,
 	   const char *singular_gmsgid, const char *plural_gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("location", location)
+    .log_param_option_id ("option_id", option_id)
+    .log_params_n_gmsgids (n, singular_gmsgid, plural_gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, plural_gmsgid);
   rich_location richloc (line_table, location);
   bool ret = global_dc->diagnostic_n_impl (&richloc, nullptr, option_id, n,
 					   singular_gmsgid, plural_gmsgid,
-					   &ap, DK_WARNING);
+					   &ap, diagnostics::kind::warning);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("warning_n", ret);
+
   return ret;
 }
 
@@ -281,16 +425,28 @@ warning_n (location_t location,
 
 bool
 pedwarn (location_t location,
-	 diagnostic_option_id option_id,
+	 diagnostics::option_id option_id,
 	 const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("location", location)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, location);
   bool ret = global_dc->diagnostic_impl (&richloc, nullptr, option_id,
-					 gmsgid, &ap, DK_PEDWARN);
+					 gmsgid, &ap,
+					 diagnostics::kind::pedwarn);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("pedwarn", ret);
+
   return ret;
 }
 
@@ -298,17 +454,29 @@ pedwarn (location_t location,
 
 bool
 pedwarn (rich_location *richloc,
-	 diagnostic_option_id option_id,
+	 diagnostics::option_id option_id,
 	 const char *gmsgid, ...)
 {
   gcc_assert (richloc);
+
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
 
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   bool ret = global_dc->diagnostic_impl (richloc, nullptr, option_id,
-					 gmsgid, &ap, DK_PEDWARN);
+					 gmsgid, &ap,
+					 diagnostics::kind::pedwarn);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("pedwarn", ret);
+
   return ret;
 }
 
@@ -322,13 +490,23 @@ pedwarn (rich_location *richloc,
 bool
 permerror (location_t location, const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("location", location)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, location);
   bool ret = global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap,
-					 DK_PERMERROR);
+					 diagnostics::kind::permerror);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("permerror", ret);
+
   return ret;
 }
 
@@ -339,12 +517,22 @@ permerror (rich_location *richloc, const char *gmsgid, ...)
 {
   gcc_assert (richloc);
 
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   bool ret = global_dc->diagnostic_impl (richloc, nullptr, -1, gmsgid, &ap,
-					 DK_PERMERROR);
+					 diagnostics::kind::permerror);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("permerror", ret);
+
   return ret;
 }
 
@@ -354,16 +542,28 @@ permerror (rich_location *richloc, const char *gmsgid, ...)
 
 bool
 permerror_opt (location_t location,
-	       diagnostic_option_id option_id,
+	       diagnostics::option_id option_id,
 	       const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("location", location)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, location);
   bool ret = global_dc->diagnostic_impl (&richloc, nullptr, option_id,
-					 gmsgid, &ap, DK_PERMERROR);
+					 gmsgid, &ap,
+					 diagnostics::kind::permerror);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("permerror_opt", ret);
+
   return ret;
 }
 
@@ -371,17 +571,29 @@ permerror_opt (location_t location,
 
 bool
 permerror_opt (rich_location *richloc,
-	       diagnostic_option_id option_id,
+	       diagnostics::option_id option_id,
 	       const char *gmsgid, ...)
 {
   gcc_assert (richloc);
+
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_option_id ("option_id", option_id)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
 
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   bool ret = global_dc->diagnostic_impl (richloc, nullptr, option_id,
-					 gmsgid, &ap, DK_PERMERROR);
+					 gmsgid, &ap,
+					 diagnostics::kind::permerror);
   va_end (ap);
+
+  if (logger)
+    logger->log_bool_return ("permerror_opt", ret);
+
   return ret;
 }
 
@@ -390,11 +602,17 @@ permerror_opt (rich_location *richloc,
 void
 error (const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, input_location);
-  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap, DK_ERROR);
+  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap,
+			      diagnostics::kind::error);
   va_end (ap);
 }
 
@@ -404,13 +622,19 @@ void
 error_n (location_t location, unsigned HOST_WIDE_INT n,
 	 const char *singular_gmsgid, const char *plural_gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("location", location)
+    .log_params_n_gmsgids (n, singular_gmsgid, plural_gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, plural_gmsgid);
   rich_location richloc (line_table, location);
   global_dc->diagnostic_n_impl (&richloc, nullptr, -1, n,
 				singular_gmsgid, plural_gmsgid,
-				&ap, DK_ERROR);
+				&ap, diagnostics::kind::error);
   va_end (ap);
 }
 
@@ -418,11 +642,18 @@ error_n (location_t location, unsigned HOST_WIDE_INT n,
 void
 error_at (location_t loc, const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("loc", loc)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, loc);
-  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap, DK_ERROR);
+  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap,
+			      diagnostics::kind::error);
   va_end (ap);
 }
 
@@ -433,25 +664,39 @@ error_at (rich_location *richloc, const char *gmsgid, ...)
 {
   gcc_assert (richloc);
 
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
-  global_dc->diagnostic_impl (richloc, nullptr, -1, gmsgid, &ap, DK_ERROR);
+  global_dc->diagnostic_impl (richloc, nullptr, -1, gmsgid, &ap,
+			      diagnostics::kind::error);
   va_end (ap);
 }
 
 /* Same as above, but with metadata.  */
 
 void
-error_meta (rich_location *richloc, const diagnostic_metadata &metadata,
+error_meta (rich_location *richloc, const diagnostics::metadata &metadata,
 	    const char *gmsgid, ...)
 {
   gcc_assert (richloc);
 
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_rich_location ("richloc", richloc)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
-  global_dc->diagnostic_impl (richloc, &metadata, -1, gmsgid, &ap, DK_ERROR);
+  global_dc->diagnostic_impl (richloc, &metadata, -1, gmsgid, &ap,
+			      diagnostics::kind::error);
   va_end (ap);
 }
 
@@ -461,11 +706,17 @@ error_meta (rich_location *richloc, const diagnostic_metadata &metadata,
 void
 sorry (const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, input_location);
-  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap, DK_SORRY);
+  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap,
+			      diagnostics::kind::sorry);
   va_end (ap);
 }
 
@@ -473,11 +724,18 @@ sorry (const char *gmsgid, ...)
 void
 sorry_at (location_t loc, const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("loc", loc)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, loc);
-  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap, DK_SORRY);
+  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap,
+			      diagnostics::kind::sorry);
   va_end (ap);
 }
 
@@ -495,11 +753,18 @@ seen_error (void)
 void
 fatal_error (location_t loc, const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_location_t ("loc", loc)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, loc);
-  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap, DK_FATAL);
+  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap,
+			      diagnostics::kind::fatal);
   va_end (ap);
 
   gcc_unreachable ();
@@ -510,11 +775,17 @@ fatal_error (location_t loc, const char *gmsgid, ...)
 void
 internal_error (const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, input_location);
-  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap, DK_ICE);
+  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap,
+			      diagnostics::kind::ice);
   va_end (ap);
 
   gcc_unreachable ();
@@ -526,11 +797,17 @@ internal_error (const char *gmsgid, ...)
 void
 internal_error_no_backtrace (const char *gmsgid, ...)
 {
+  auto logger = global_dc->get_logger ();
+  log_function_params (logger, __func__)
+    .log_param_string ("gmsgid", gmsgid);
+  auto_inc_log_depth depth_sentinel (logger);
+
   auto_diagnostic_group d;
   va_list ap;
   va_start (ap, gmsgid);
   rich_location richloc (line_table, input_location);
-  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap, DK_ICE_NOBT);
+  global_dc->diagnostic_impl (&richloc, nullptr, -1, gmsgid, &ap,
+			      diagnostics::kind::ice_nobt);
   va_end (ap);
 
   gcc_unreachable ();

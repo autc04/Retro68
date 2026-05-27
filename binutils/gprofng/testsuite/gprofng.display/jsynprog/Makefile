@@ -1,4 +1,4 @@
-#   Copyright (C) 2021 Free Software Foundation, Inc.
+#   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -52,5 +52,5 @@ jsynprog.class: $(JAVA_SRCS)
 $(EXPERIMENT): $(TARGETS)
 	@echo " ---- Build: $@ -----"
 	rm -rf $@ 
-	$(COLLECT) $(COLLECT_FLAGS) -o $@ $(JAVA) $(JAVACFLAGS) jsynprog
+	$(COLLECT) $(COLLECT_FLAGS) -o $@ $(JAVA) $(JAVACFLAGS) jsynprog $(TARGET_FLAGS)
 

@@ -1,6 +1,6 @@
 // Safe container implementation  -*- C++ -*-
 
-// Copyright (C) 2014-2025 Free Software Foundation, Inc.
+// Copyright (C) 2014-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -44,9 +44,9 @@ namespace __gnu_debug
       typedef _SafeBase<_SafeContainer> _Base;
 
       _GLIBCXX20_CONSTEXPR
-      _SafeContainer&
-      _M_cont() _GLIBCXX_NOEXCEPT
-      { return *static_cast<_SafeContainer*>(this); }
+      const _SafeContainer&
+      _M_cont() const _GLIBCXX_NOEXCEPT
+      { return *static_cast<const _SafeContainer*>(this); }
 
     protected:
 #if __cplusplus >= 201103L
@@ -55,6 +55,11 @@ namespace __gnu_debug
       _Safe_container(_Safe_container&&) = default;
 
     private:
+      _GLIBCXX20_CONSTEXPR
+      void
+      _M_swap_base(const _Safe_container& __x) const noexcept
+      { _Base::_M_swap(__x); }
+
       _GLIBCXX20_CONSTEXPR
       _Safe_container(_Safe_container&& __x, const _Alloc&, std::true_type)
       : _Safe_container(std::move(__x))
@@ -67,7 +72,7 @@ namespace __gnu_debug
 	if (!std::__is_constant_evaluated())
 	  {
 	    if (__x._M_cont().get_allocator() == __a)
-	      _Base::_M_swap(__x);
+	      _M_swap_base(__x);
 	    else
 	      __x._M_invalidate_all();
 	  }
@@ -81,17 +86,22 @@ namespace __gnu_debug
       { }
 #endif
 
-      // Copy assignment invalidate all iterators.
-      _GLIBCXX20_CONSTEXPR
+#if __cplusplus < 201103L
       _Safe_container&
-      operator=(const _Safe_container&) _GLIBCXX_NOEXCEPT
+      operator=(const _Safe_container& __x)
       {
-	if (!std::__is_constant_evaluated())
-	  this->_M_invalidate_all();
+	_Base::operator=(__x);
 	return *this;
       }
 
-#if __cplusplus >= 201103L
+      void
+      _M_swap(const _Safe_container& __x) const throw()
+      { _Base::_M_swap(__x); }
+#else
+      _GLIBCXX20_CONSTEXPR
+      _Safe_container&
+      operator=(const _Safe_container&) noexcept = default;
+
       _GLIBCXX20_CONSTEXPR
       _Safe_container&
       operator=(_Safe_container&& __x) noexcept
@@ -115,12 +125,12 @@ namespace __gnu_debug
 	    bool __xfer_memory = _Alloc_traits::_S_propagate_on_move_assign()
 	      || _M_cont().get_allocator() == __x._M_cont().get_allocator();
 	    if (__xfer_memory)
-	      _Base::_M_swap(__x);
+	      _M_swap_base(__x);
 	    else
 	      this->_M_invalidate_all();
 	  }
 	else
-	  _Base::_M_swap(__x);
+	  _M_swap_base(__x);
 
 	__x._M_invalidate_all();
 	return *this;
@@ -128,7 +138,7 @@ namespace __gnu_debug
 
       _GLIBCXX20_CONSTEXPR
       void
-      _M_swap(_Safe_container& __x) noexcept
+      _M_swap(const _Safe_container& __x) const noexcept
       {
 	if (_IsCxx11AllocatorAware)
 	  {
@@ -139,7 +149,7 @@ namespace __gnu_debug
 					   __x._M_cont()._M_base());
 	  }
 
-	_Base::_M_swap(__x);
+	_M_swap_base(__x);
       }
 #endif
     };

@@ -1,7 +1,7 @@
 #source: expdyn1.s
 #source: expdref1.s --pic
 #source: comref1.s --pic
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux
 #objdump: -s -j .got
 

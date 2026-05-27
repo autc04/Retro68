@@ -9,9 +9,7 @@
 .LC2:
 	.asciz	"01234567abcdefg"
 
-	.text
-	.global _start
-_start:
+	.data
 	.long	.LC0
 	.long	.LC1
 	.long	.LC2

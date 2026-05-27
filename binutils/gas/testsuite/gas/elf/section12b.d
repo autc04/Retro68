@@ -1,7 +1,7 @@
 #source: section12.s
 #as: --no-pad-sections
 #objdump: -s
-#name: mbind section contents 16
+#name: mbind section contents 12
 # RX annoyingly reorders the sections so that they do not match the sequence
 # expected below.
 #xfail: rx-*-*

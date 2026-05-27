@@ -1,6 +1,19 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2025-12-29  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure: Regenerate.
+
+2025-11-03  Sam James  <sam@gentoo.org>
+
+	* configure: Regenerate.
+
+2025-10-05  Sam James  <sam@gentoo.org>
+
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
 
 2024-09-23  Andrew Kreimer  <algonell@gmail.com>
 
@@ -3690,7 +3703,7 @@ Mon Sep 21 23:27:10 1998  Ovidiu Predescu <ovidiu@slip.net>
 
 	* New directory.  Moved files from ../gcc/objc.
 
-Copyright (C) 1998-2025 Free Software Foundation, Inc.
+Copyright (C) 1998-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

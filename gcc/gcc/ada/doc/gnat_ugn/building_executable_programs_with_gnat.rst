@@ -957,22 +957,18 @@ compiled.
 .. index:: cannot generate code
 
 If you attempt to compile any of these files, you will get one of the
-following error messages (where ``fff`` is the name of the file you
+following error messages (where :file:`fff` is the name of the file you
 compiled):
 
-  ::
+.. code-block:: text
 
-    cannot generate code for file ``fff`` (package spec)
-    to check package spec, use -gnatc
+   cannot generate code for file fff (package spec)
 
-    cannot generate code for file ``fff`` (missing subunits)
-    to check parent unit, use -gnatc
+   cannot generate code for file fff (missing subunits)
 
-    cannot generate code for file ``fff`` (subprogram spec)
-    to check subprogram spec, use -gnatc
+   cannot generate code for file fff (subprogram spec)
 
-    cannot generate code for file ``fff`` (subunit)
-    to check subunit, use -gnatc
+   cannot generate code for file fff (subunit)
 
 
 As indicated by the above error messages, if you want to submit
@@ -1608,8 +1604,12 @@ Alphabetical List of All Switches
 
 .. index:: -gnateG  (gcc)
 
-:switch:`-gnateG`
-  Save result of preprocessing in a text file.
+:switch:`-gnateG[bce]`
+  Save result of preprocessing in a text file. An optional character (b, c,
+  or e) can be appended to indicate that filtered lines are to be replaced by
+  blank lines, comment lines that include the filtered line, or empty comment
+  lines ("--!"), respectively. The default is to replace filtered lines with
+  blank lines.
 
 
 .. index:: -gnateH  (gcc)
@@ -1933,13 +1933,13 @@ Alphabetical List of All Switches
   Ignore representation clauses. When this switch is used,
   representation clauses are treated as comments. This is useful
   when initially porting code where you want to ignore rep clause
-  problems, and also for compiling foreign code (particularly
-  for use with ASIS). The representation clauses that are ignored
-  are: enumeration_representation_clause, record_representation_clause,
-  and attribute_definition_clause for the following attributes:
-  Address, Alignment, Bit_Order, Component_Size, Machine_Radix,
-  Object_Size, Scalar_Storage_Order, Size, Small, Stream_Size,
-  and Value_Size. Pragma Default_Scalar_Storage_Order is also ignored.
+  problems, and also for compiling foreign code. The representation
+  clauses that are ignored are: enumeration_representation_clause,
+  record_representation_clause, and attribute_definition_clause for the
+  following attributes: Address, Alignment, Bit_Order, Component_Size,
+  Machine_Radix, Object_Size, Scalar_Storage_Order, Size, Small,
+  Stream_Size, and Value_Size.
+  Pragma Default_Scalar_Storage_Order is also ignored.
   Note that this option should be used only for compiling -- the
   code is likely to malfunction at run time.
 
@@ -2112,7 +2112,7 @@ Alphabetical List of All Switches
 
 .. index:: -gnatR  (gcc)
 
-:switch:`-gnatR[0|1|2|3|4][e][j][m][s]`
+:switch:`-gnatR[0|1|2|3|4][e][h][m][j][s]`
   Output representation information for declared types, objects and
   subprograms. Note that this switch is not allowed if a previous
   :switch:`-gnatD` switch has been given, since these two switches
@@ -2259,15 +2259,16 @@ Alphabetical List of All Switches
   ======= ==================================================================
    *n*     Effect
   ------- ------------------------------------------------------------------
-  *0*      No optimization, the default setting if no :switch:`-O` appears
-  *1*      Normal optimization, the default if you specify :switch:`-O` without an
-           operand. A good compromise between code quality and compilation
-           time.
-  *2*      Extensive optimization, may improve execution time, possibly at
+  *0*      No optimization, the default setting if no :switch:`-O` appears.
+  *1*      Moderate optimization, same as :switch:`-O` without an operand.
+           A good compromise between code quality and compilation time.
+  *2*      Extensive optimization, should improve execution time, possibly at
            the cost of substantially increased compilation time.
-  *3*      Same as :switch:`-O2`, and also includes inline expansion for small
-           subprograms in the same unit.
-  *s*      Optimize space usage
+  *3*      Full optimization, may further improve execution time, possibly at
+           the cost of substantially larger generated code.
+  *s*      Optimize for size (code and data) rather than speed.
+  *z*      Optimize aggressively for size (code and data) rather than speed.
+  *g*      Optimize for debugging experience rather than speed.
   ======= ==================================================================
 
   See also :ref:`Optimization_Levels`.
@@ -2735,9 +2736,9 @@ of the kinds of warnings that are generated.
 
 * Unreferenced or unmodified variables. Note that a special
   exemption applies to variables which contain any of the substrings
-  ``DISCARD, DUMMY, IGNORE, JUNK, UNUSED``, in any casing. Such variables
-  are considered likely to be intentionally used in a situation where
-  otherwise a warning would be given, so warnings of this kind are
+  ``DISCARD, DUMMY, IGNORE, JUNK, UNUSE, TMP, TEMP`` in any casing. Such
+  variables are considered likely to be intentionally used in a situation
+  where otherwise a warning would be given, so warnings of this kind are
   always suppressed for such variables.
 
 * Address overlays that could clobber memory
@@ -3582,13 +3583,13 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 :switch:`-gnatwp`
   *Activate warnings on ineffective pragma Inlines.*
 
-  This switch activates warnings for failure of front end inlining
-  (activated by :switch:`-gnatN`) to inline a particular call. There are
-  many reasons for not being able to inline a call, including most
-  commonly that the call is too complex to inline. The default is
-  that such warnings are not given.
-  Warnings on ineffective inlining by the gcc back end can be activated
-  separately, using the gcc switch -Winline.
+  This switch activates warnings for failure of cross-unit inlining
+  (activated by :switch:`-gnatn`) to inline calls to a subprogram.
+  There are many reasons for not being able to inline these calls,
+  including most commonly that the subprogram body is too complex
+  to inline. The default is that such warnings are not given.
+  Warnings on ineffective inlining (within units) by the back end
+  can be activated separately, using the -Winline switch.
 
 
 .. index:: -gnatwP  (gcc)
@@ -3750,7 +3751,7 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 
   * Assignment of an item to itself.
 
-  * Type conversion that converts an expression to its own type.
+  * Type conversion that converts an expression to its own subtype.
 
   * Use of the attribute ``Base`` where ``typ'Base`` is the same
     as ``typ``.
@@ -5409,64 +5410,8 @@ switches refine this default behavior.
   This switch controls the mode used for computing intermediate
   arithmetic integer operations, and also enables overflow checking.
   For a full description of overflow mode and checking control, see
-  the 'Overflow Check Handling in GNAT' appendix in this
+  the :ref:`Overflow_Check_Handling_in_GNAT` appendix in this
   User's Guide.
-
-  Overflow checks are always enabled by this switch. The argument
-  controls the mode, using the codes
-
-
-  *1 = STRICT*
-    In STRICT mode, intermediate operations are always done using the
-    base type, and overflow checking ensures that the result is within
-    the base type range.
-
-
-  *2 = MINIMIZED*
-    In MINIMIZED mode, overflows in intermediate operations are avoided
-    where possible by using a larger integer type for the computation
-    (typically ``Long_Long_Integer``). Overflow checking ensures that
-    the result fits in this larger integer type.
-
-
-  *3 = ELIMINATED*
-    In ELIMINATED mode, overflows in intermediate operations are avoided
-    by using multi-precision arithmetic. In this case, overflow checking
-    has no effect on intermediate operations (since overflow is impossible).
-
-  If two digits are present after :switch:`-gnato` then the first digit
-  sets the mode for expressions outside assertions, and the second digit
-  sets the mode for expressions within assertions. Here assertions is used
-  in the technical sense (which includes for example precondition and
-  postcondition expressions).
-
-  If one digit is present, the corresponding mode is applicable to both
-  expressions within and outside assertion expressions.
-
-  If no digits are present, the default is to enable overflow checks
-  and set STRICT mode for both kinds of expressions. This is compatible
-  with the use of :switch:`-gnato` in previous versions of GNAT.
-
-  .. index:: Machine_Overflows
-
-  Note that the :switch:`-gnato??` switch does not affect the code generated
-  for any floating-point operations; it applies only to integer semantics.
-  For floating-point, GNAT has the ``Machine_Overflows``
-  attribute set to ``False`` and the normal mode of operation is to
-  generate IEEE NaN and infinite values on overflow or invalid operations
-  (such as dividing 0.0 by 0.0).
-
-  The reason that we distinguish overflow checking from other kinds of
-  range constraint checking is that a failure of an overflow check, unlike
-  for example the failure of a range check, can result in an incorrect
-  value, but cannot cause random memory destruction (like an out of range
-  subscript), or a wild jump (from an out of range case value). Overflow
-  checking is also quite expensive in time and space, since in general it
-  requires the use of double length arithmetic.
-
-  Note again that the default is :switch:`-gnato11` (equivalent to :switch:`-gnato1`),
-  so overflow checking is performed in STRICT mode by default.
-
 
 .. index:: -gnatE  (gcc)
 .. index:: Elaboration checks
@@ -6088,7 +6033,7 @@ Debugging Control
 
 .. index:: -gnatR  (gcc)
 
-:switch:`-gnatR[0|1|2|3|4][e][j][m][s]`
+:switch:`-gnatR[0|1|2|3|4][e][h][m][j][s]`
   This switch controls output from the compiler of a listing showing
   representation information for declared types, objects and subprograms.
   For :switch:`-gnatR0`, no information is output (equivalent to omitting
@@ -6116,17 +6061,21 @@ Debugging Control
   extended representation information for record sub-components of records
   is included.
 
+  If the switch is followed by a ``h`` (e.g. :switch:`-gnatR3h`), then
+  the components of records are sorted by increasing offsets and holes
+  between consecutive components are flagged.
+
   If the switch is followed by an ``m`` (e.g. :switch:`-gnatRm`), then
   subprogram conventions and parameter passing mechanisms for all the
   subprograms are included.
 
-  If the switch is followed by a ``j`` (e.g., :switch:`-gnatRj`), then
+  If the switch is followed by a ``j`` (e.g. :switch:`-gnatRj`), then
   the output is in the JSON data interchange format specified by the
   ECMA-404 standard. The semantic description of this JSON output is
   available in the specification of the Repinfo unit present in the
   compiler sources.
 
-  If the switch is followed by an ``s`` (e.g., :switch:`-gnatR3s`), then
+  If the switch is followed by an ``s`` (e.g. :switch:`-gnatR3s`), then
   the output is to a file with the name :file:`file.rep` where ``file`` is
   the name of the corresponding source file, except if ``j`` is also
   specified, in which case the file name is :file:`file.json`.
@@ -8055,15 +8004,21 @@ passed between C and Ada as simple as practical.
 GNAT LLVM currently provides limited support for debugging data. It
 provides full line number information for declarations and statements,
 but not sufficient debugging data to display all Ada data
-structures. GNAT LLVM outputs complete debugging data only for types
-with a direct equivalent in C, namely records without discriminants
-and constrained arrays whose dimensions are known at compile time. You
-will not be able to use ``gdb`` print commands to look at objects not
-of those types or to display components of those types. You can use
-low-level ``gdb`` commands that display memory to view such data
-provided you know how they're laid out.  Debugging information may
-also be limited for bitfields (fields whose size and position
-aren't on byte boundaries)
+structures. GNAT LLVM outputs complete debugging data only for a
+subset of types: scalar types; records whose field offsets are known
+at compile time, including discriminated records fitting this
+description; and arrays. Records that have a field whose size or
+offset is only known at run time do not yet have correct debugging
+data. You will not be able to use ``gdb`` print commands to look at
+objects not of those types or to display components of those
+types. You can use low-level ``gdb`` commands that display memory to
+view such data provided you know how they're laid out.
+
+In some situations, a name in the source may not be available.
+Renamings are not currently emitted into the debugging data. When
+debugging a nested function, variables from enclosing scopes will not
+be available. You will have to examine those variables in their
+hosting frame.
 
 In addition, debugging information may be confusing if you have
 ``out`` parameters to subprograms. If you have a procedure with only
@@ -8111,17 +8066,18 @@ We provide two options that you can use to build code with GNAT LLVM:
 
 * ``gprbuild`` can detect and use GNAT LLVM when it is installed.
 
-  ``gprbuild`` uses the first applicable compiler on the executable
-  search path, including GNAT LLVM.  An easy way to build with GNAT
-  LLVM is to make it available on the operating system's search path
-  before any other Ada compiler (such as the GCC version of GNAT). To
-  avoid accidentally using a different compiler than the one you want
-  to use, we recommend generating an explicit toolchain configuration
-  file with ``gprconfig`` and using it with ``gprbuild``; see the
-  *GPRbuild and GPR Companion Tools User's Guide* for details. You
-  can determine from the first line of the :file:`.ali` file
-  which version of GNAT built that file because it contains either
-  :code:`GNAT` or :code:`GNAT-LLVM`.
+  ``gprbuild`` uses the first applicable compiler on the executable search
+  path, including GNAT LLVM. An easy way to build with GNAT LLVM is to make
+  it available on the operating system's search path before any other Ada
+  compiler (such as the GCC version of GNAT). To avoid accidentally using a
+  different compiler than the one you want to use, we recommend explicitly
+  selecting GNAT LLVM in your existing GPR project file by adding
+  :code:`for Toolchain_Name ("Ada") use "GNAT_LLVM";`. You can also
+  generate an explicit toolchain configuration file with ``gprconfig`` and
+  use it with ``gprbuild``; see the *GPRbuild and GPR Companion Tools
+  User's Guide* for details. You can determine from the first line of the
+  :file:`.ali` file which version of GNAT built that file because it
+  contains either :code:`GNAT` or :code:`GNAT-LLVM`.
 
 .. only:: PRO
 
@@ -8137,5 +8093,4 @@ GNAT.
 
 .. only:: PRO
 
-  It provides the same runtimes with the exception that light runtimes
-  are not currently included with the native compilers.
+  It provides the same runtimes.

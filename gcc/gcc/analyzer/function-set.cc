@@ -1,5 +1,5 @@
 /* Sets of function names.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -95,7 +95,7 @@ namespace selftest {
 static void
 test_empty ()
 {
-  function_set fs (NULL, 0);
+  function_set fs (nullptr, 0);
   fs.assert_sorted ();
   fs.assert_sane ();
   ASSERT_FALSE (fs.contains_name_p (""));

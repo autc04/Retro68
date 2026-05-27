@@ -1,6 +1,5 @@
 # Check 64bit AVX512{VBMI2,VL} instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpcompressb	%xmm30, (%rcx){%k7}	 # AVX512{VBMI2,VL}

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2007-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -558,6 +558,8 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 // #define UNCHANGED_BINARY_STATUS_FLAGS
 #endif
 // #define HPUX_OS
+
+#include <dfp-machine.h>
 
 // If DECIMAL_CALL_BY_REFERENCE is defined then numerical arguments and results
 // are passed by reference otherwise they are passed by value (except that

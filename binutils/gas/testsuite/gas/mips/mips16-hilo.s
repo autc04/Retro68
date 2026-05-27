@@ -181,13 +181,13 @@ stuff:
 	addiu	$4,%lo(small_local_common+0x1a5a5)
 	li	$5,%hi(0)
 	sll	$5,16
-	lw	$4,%hi(0)($5)
+	lw	$4,%lo(0)($5)
 	li	$5,%hi(data_label)
 	sll	$5,16
-	lw	$4,%hi(data_label)($5)
+	lw	$4,%lo(data_label)($5)
 	li	$5,%hi(data_label2)
 	sll	$5,16
-	lw	$4,%hi(data_label2)($5)
+	lw	$4,%lo(data_label2)($5)
 	li	$5,%hi(big_external_data_label)
 	sll	$5,16
 	lw	$4,%lo(big_external_data_label)($5)

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -99,7 +99,7 @@ public:
 	  = static_cast<AST::IdentifierPattern &> (param.get_pattern ());
 	Identifier param_name = param_kind == AST::Pattern::Kind::Identifier
 				  ? param_ident.get_ident ()
-				  : std::string ("_");
+				  : Identifier ("_", param.get_locus ());
 
 	HIR::Type *param_type = ASTLoweringType::translate (param.get_type ());
 
@@ -109,9 +109,8 @@ public:
 				       mappings.get_next_localdef_id (
 					 crate_num));
 
-	function_params.push_back (
-	  HIR::NamedFunctionParam (mapping, param_name,
-				   std::unique_ptr<HIR::Type> (param_type)));
+	function_params.emplace_back (mapping, param_name,
+				      std::unique_ptr<HIR::Type> (param_type));
       }
 
     auto crate_num = mappings.get_current_crate ();

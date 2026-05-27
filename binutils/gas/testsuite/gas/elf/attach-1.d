@@ -3,9 +3,9 @@
 #source: attach-1.s
 
 #...
-group section \[    1\] `\.group' \[foo\.group\] contains . sections:
+group section \[    1\] `\.group' \[foo\.group\] contains [24] sections:
    \[Index\]    Name
-   \[    .\]   .*
-   \[    .\]   foo
-#pass
-
+.* foo
+.* (\.text|P)
+#?.* \.xt\.prop
+#?.* \.rela\.xt\.prop

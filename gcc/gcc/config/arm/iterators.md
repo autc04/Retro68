@@ -1,6 +1,6 @@
 
 ;; Code and mode itertator and attribute definitions for the ARM backend
-;; Copyright (C) 2010-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2026 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 ;;
 ;; This file is part of GCC.
@@ -59,30 +59,25 @@
 ;; A list of modes which the VFP unit can handle
 (define_mode_iterator SDF [(SF "") (DF "TARGET_VFP_DOUBLE")])
 
-;; Integer element sizes implemented by IWMMXT.
-(define_mode_iterator VMMX [V2SI V4HI V8QI])
-
-(define_mode_iterator VMMX2 [V4HI V2SI])
-
 ;; Integer element sizes for shifts.
 (define_mode_iterator VSHFT [V4HI V2SI DI])
 
-;; Integer and float modes supported by Neon and IWMMXT.
+;; Integer and float modes supported by Neon.
 (define_mode_iterator VALL [V2DI V2SI V4HI V8QI V2SF V4SI V8HI V16QI V4SF])
 
-;; Integer and float modes supported by Neon, IWMMXT and MVE.
+;; Integer and float modes supported by Neon and MVE.
 (define_mode_iterator VNIM1 [V16QI V8HI V4SI V4SF V2DI])
 
-;; Integer and float modes supported by Neon and IWMMXT but not MVE.
+;; Integer and float modes supported by Neon but not MVE.
 (define_mode_iterator VNINOTM1 [V2SI V4HI V8QI V2SF])
 
-;; Integer and float modes supported by Neon and IWMMXT, except V2DI.
+;; Integer and float modes supported by Neon, except V2DI.
 (define_mode_iterator VALLW [V2SI V4HI V8QI V2SF V4SI V8HI V16QI V4SF])
 
-;; Integer modes supported by Neon and IWMMXT
+;; Integer modes supported by Neon
 (define_mode_iterator VINT [V2DI V2SI V4HI V8QI V4SI V8HI V16QI])
 
-;; Integer modes supported by Neon and IWMMXT, except V2DI
+;; Integer modes supported by Neon, except V2DI
 (define_mode_iterator VINTW [V2SI V4HI V8QI V4SI V8HI V16QI])
 
 ;; Double-width vector modes, on which we support arithmetic (no HF!)
@@ -1644,9 +1639,6 @@
 ;; distinguishes between 16-bit Thumb and 32-bit Thumb/ARM.
 (define_mode_attr arch [(CC_Z "32") (SI "t1")])
 
-;; Determine element size suffix from vector mode.
-(define_mode_attr MMX_char [(V8QI "b") (V4HI "h") (V2SI "w") (DI "d")])
-
 ;; vtbl<n> suffix for NEON vector modes.
 (define_mode_attr VTAB_n [(TI "2") (EI "3") (OI "4")])
 
@@ -1795,6 +1787,11 @@
 (define_mode_attr V_double_width [(V8QI "V4HI") (V16QI "V8HI")
                   (V4HI "V2SI") (V8HI "V4SI")
                   (V2SI "DI")   (V4SI "V2DI")])
+
+;; Modes with double-width elements.
+(define_mode_attr v_double_width [(V8QI "v4hi") (V16QI "v8hi")
+				  (V4HI "v2si") (V8HI "v4si")
+				  (V2SI "di")   (V4SI "v2di")])
 
 ;; Double-sized modes with the same element size.
 ;; Used for neon_vdup_lane, where the second operand is double-sized
@@ -2063,6 +2060,14 @@
 			     (V16BI "v16bi") (V8BI "v8bi") (V4BI "v4bi")
 			     (V2QI "v2qi")])
 (define_mode_attr MVE_vctp [(V16BI "8") (V8BI "16") (V4BI "32") (V2QI "64")])
+
+;; Assembly modifier for a const_int operand to narrow it to a
+;; specific mode.  For vector modes this is the element size.
+;; Currently only supports SI and HI.
+
+(define_mode_attr asm_const_size [(SI "") (HI "L")
+				  (V4SI "") (V2SI "")
+				  (V8HI "L") (V4HI "L")])
 
 ;;----------------------------------------------------------------------------
 ;; Code attributes
@@ -3022,3 +3027,20 @@
 ;; Define iterators for VCMLA operations as MUL
 (define_int_iterator VCMUL_OP [UNSPEC_VCMUL
 			       UNSPEC_VCMUL_CONJ])
+
+(define_int_attr VxCIQ_carry   [(VADCIQ_U "VADCIQ_U_carry")
+				(VADCIQ_S "VADCIQ_S_carry")
+				(VSBCIQ_U "VSBCIQ_U_carry")
+				(VSBCIQ_S "VSBCIQ_S_carry")])
+(define_int_attr VxCIQ_M_carry [(VADCIQ_M_U "VADCIQ_M_U_carry")
+				(VADCIQ_M_S "VADCIQ_M_S_carry")
+				(VSBCIQ_M_U "VSBCIQ_M_U_carry")
+				(VSBCIQ_M_S "VSBCIQ_M_S_carry")])
+(define_int_attr VxCQ_carry [(VADCQ_U "VADCQ_U_carry")
+			     (VADCQ_S "VADCQ_S_carry")
+			     (VSBCQ_U "VSBCQ_U_carry")
+			     (VSBCQ_S "VSBCQ_S_carry")])
+(define_int_attr VxCQ_M_carry [(VADCQ_M_U "VADCQ_M_U_carry")
+			       (VADCQ_M_S "VADCQ_M_S_carry")
+			       (VSBCQ_M_U "VSBCQ_M_U_carry")
+			       (VSBCQ_M_S "VSBCQ_M_S_carry")])

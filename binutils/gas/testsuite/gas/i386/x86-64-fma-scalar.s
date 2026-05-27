@@ -1,6 +1,5 @@
 # Check 64bit AVX scalar instructions
 
-	.allow_index_reg
 	.text
 _start:
 

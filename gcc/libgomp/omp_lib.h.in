@@ -1,4 +1,4 @@
-!  Copyright (C) 2005-2025 Free Software Foundation, Inc.
+!  Copyright (C) 2005-2026 Free Software Foundation, Inc.
 !  Contributed by Jakub Jelinek <jakub@redhat.com>.
 
 !  This file is part of the GNU Offloading and Multi Processing Library
@@ -74,7 +74,7 @@
       parameter (omp_lock_hint_nonspeculative = 4)
       parameter (omp_sync_hint_speculative = 8)
       parameter (omp_lock_hint_speculative = 8)
-      parameter (openmp_version = 201511)
+      parameter (openmp_version = 202111)
       integer omp_pause_resource_kind
       parameter (omp_pause_resource_kind = 4)
       integer (omp_pause_resource_kind) omp_pause_soft
@@ -162,6 +162,7 @@
       integer (omp_allocator_handle_kind) omp_pteam_mem_alloc
       integer (omp_allocator_handle_kind) omp_thread_mem_alloc
       integer (omp_allocator_handle_kind) ompx_gnu_pinned_mem_alloc
+      integer (omp_allocator_handle_kind) ompx_gnu_managed_mem_alloc
       parameter (omp_null_allocator = 0)
       parameter (omp_default_mem_alloc = 1)
       parameter (omp_large_cap_mem_alloc = 2)
@@ -172,19 +173,23 @@
       parameter (omp_pteam_mem_alloc = 7)
       parameter (omp_thread_mem_alloc = 8)
       parameter (ompx_gnu_pinned_mem_alloc = 200)
+      parameter (ompx_gnu_managed_mem_alloc = 201)
       integer (omp_memspace_handle_kind) omp_default_mem_space
       integer (omp_memspace_handle_kind) omp_large_cap_mem_space
       integer (omp_memspace_handle_kind) omp_const_mem_space
       integer (omp_memspace_handle_kind) omp_high_bw_mem_space
       integer (omp_memspace_handle_kind) omp_low_lat_mem_space
+      integer (omp_memspace_handle_kind) ompx_gnu_managed_mem_space
       parameter (omp_default_mem_space = 0)
       parameter (omp_large_cap_mem_space = 1)
       parameter (omp_const_mem_space = 2)
       parameter (omp_high_bw_mem_space = 3)
       parameter (omp_low_lat_mem_space = 4)
-      integer omp_initial_device, omp_invalid_device
+      parameter (ompx_gnu_managed_mem_space = 200)
+      integer omp_initial_device, omp_invalid_device, omp_default_device
       parameter (omp_initial_device = -1)
       parameter (omp_invalid_device = -4)
+      parameter (omp_default_device = -5)
       integer (omp_interop_kind) omp_interop_none
       parameter (omp_interop_none = 0_omp_interop_kind)
       integer (omp_interop_fr_kind) omp_ifr_cuda
@@ -503,6 +508,31 @@
           integer(omp_depend_kind), optional :: depobj_list(*)
         end function omp_target_memcpy_rect_async
       end interface
+
+      interface
+        function omp_target_memset (ptr, val, count, device_num) bind(c)
+          use, intrinsic :: iso_c_binding, only : c_ptr, c_int, c_size_t
+          type(c_ptr) omp_target_memset
+          type(c_ptr), value :: ptr
+          integer(c_size_t), value :: count
+          integer(c_int), value :: val, device_num
+        end function omp_target_memset
+      end interface
+
+      interface
+        function omp_target_memset_async (ptr, val, count, device_num,          &
+     &                                    depobj_count, depobj_list)            &
+     &      bind(c)
+          use, intrinsic :: iso_c_binding, only : c_ptr, c_int, c_size_t
+          import :: omp_depend_kind
+          type(c_ptr) :: omp_target_memset_async
+          type(c_ptr), value :: ptr
+          integer(c_size_t), value :: count
+          integer(c_int), value :: val, device_num, depobj_count
+          integer(omp_depend_kind), optional :: depobj_list(*)
+        end function omp_target_memset_async
+      end interface
+
 
       interface
         function omp_target_associate_ptr (host_ptr, device_ptr, size,          &

@@ -1,6 +1,6 @@
 // The  -*- C++ -*- type traits classes for internal use in libstdc++
 
-// Copyright (C) 2000-2025 Free Software Foundation, Inc.
+// Copyright (C) 2000-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -273,6 +273,12 @@ __INT_N(__GLIBCXX_TYPE_INT_N_2)
 __INT_N(__GLIBCXX_TYPE_INT_N_3)
 #endif
 
+#if defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
+// In strict modes __GLIBCXX_TYPE_INT_N_0 is not defined for __int128,
+// but we want to always treat signed/unsigned __int128 as integral types.
+__INT_N(__int128)
+#endif
+
 #undef __INT_N
 
   //
@@ -306,6 +312,15 @@ __INT_N(__GLIBCXX_TYPE_INT_N_3)
       enum { __value = 1 };
       typedef __true_type __type;
     };
+
+#ifdef _GLIBCXX_USE_FLOAT128
+  template<>
+    struct __is_floating<__float128>
+    {
+      enum { __value = 1 };
+      typedef __true_type __type;
+    };
+#endif
 
 #ifdef __STDCPP_FLOAT16_T__
   template<>
@@ -503,6 +518,13 @@ __INT_N(__GLIBCXX_TYPE_INT_N_3)
     struct __memcpyable_integer<volatile _Tp>
     { enum { __width = 0 }; };
 
+  // Assigning an integer to bool needs to convert all non-zero values to true
+  // so it is not a memcpyable integer.
+  // __memcpyable<bool*, bool*> is still true though.
+  template<>
+    struct __memcpyable_integer<bool>
+    { enum { __width = 0 }; };
+
   // Specializations for __intNN types with padding bits.
 #if defined __GLIBCXX_TYPE_INT_N_0 && __GLIBCXX_BITSIZE_INT_N_0 % __CHAR_BIT__
   __extension__
@@ -543,17 +565,6 @@ __INT_N(__GLIBCXX_TYPE_INT_N_3)
   template<>
     struct __memcpyable_integer<unsigned __GLIBCXX_TYPE_INT_N_3>
     { enum { __width = __GLIBCXX_BITSIZE_INT_N_3 }; };
-#endif
-
-#if defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
-  // In strict modes __is_integer<__int128> is false,
-  // but we want to allow memcpy between signed/unsigned __int128.
-  __extension__
-  template<>
-    struct __memcpyable_integer<__int128> { enum { __width = 128 }; };
-  __extension__
-  template<>
-    struct __memcpyable_integer<unsigned __int128> { enum { __width = 128 }; };
 #endif
 
 #if _GLIBCXX_DOUBLE_IS_IEEE_BINARY64 && _GLIBCXX_LDOUBLE_IS_IEEE_BINARY64

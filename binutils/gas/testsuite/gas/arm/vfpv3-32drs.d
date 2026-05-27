@@ -23,9 +23,9 @@ Disassembly of section \.text:
 0[0-9a-f]+ <[^>]+> edca5b01 	vstr	d21, \[sl, #4\]
 0[0-9a-f]+ <[^>]+> ecba5b04 	vldmia	sl!, {d5-d6}
 0[0-9a-f]+ <[^>]+> ecfa2b06 	vldmia	sl!, {d18-d20}
-0[0-9a-f]+ <[^>]+> ecba5b05 	fldmiax	sl!, {d5-d6}(	;@ Deprecated|)
-0[0-9a-f]+ <[^>]+> ecfa2b07 	fldmiax	sl!, {d18-d20}(	;@ Deprecated|)
-0[0-9a-f]+ <[^>]+> ed7a2b05 	fldmdbx	sl!, {d18-d19}(	;@ Deprecated|)
+0[0-9a-f]+ <[^>]+> ecba5b05 	fldmiax	sl!, {d5-d6}(	@ Deprecated|)
+0[0-9a-f]+ <[^>]+> ecfa2b07 	fldmiax	sl!, {d18-d20}(	@ Deprecated|)
+0[0-9a-f]+ <[^>]+> ed7a2b05 	fldmdbx	sl!, {d18-d19}(	@ Deprecated|)
 0[0-9a-f]+ <[^>]+> ecc94b0a 	vstmia	r9, {d20-d24}
 0[0-9a-f]+ <[^>]+> eeb03bc5 	(vabs\.f64|fabsd)	d3, d5
 0[0-9a-f]+ <[^>]+> eeb0cbe2 	(vabs\.f64|fabsd)	d12, d18

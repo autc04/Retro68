@@ -1,0 +1,46 @@
+# Expect script for ELF/s390 binutils tests on linker outputs.
+#   Copyright (C) 2025-2026 Free Software Foundation, Inc.
+#
+# This file is part of the GNU Binutils.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+# MA 02110-1301, USA.
+#
+
+if ![is_elf_format] {
+    return
+}
+
+if { ![istarget "s390x-*-*"] } {
+    return
+}
+
+run_ld_link_tests [list \
+    [list \
+	"Build libgot_64-1.so" \
+	"-shared -melf64_s390 --no-ld-generated-unwind-info \
+	-z noseparate-code -z max-page-size=0x200000 \
+	--hash-style=sysv $NO_DT_RELR_LDFLAGS \
+	--rosegment" \
+	"" \
+	"-m64 --generate-missing-build-notes=no" \
+	{got-1.s} \
+	{{readelf -rW libgot_64-1a.rd} \
+	 {readelf -aW libgot_64-1b.rd} \
+	 {readelf --got-contents libgot_64-1c.rd} \
+	 {readelf {--got-contents -W} libgot_64-1d.rd}} \
+	"libgot_64-1.so" \
+    ] \
+]

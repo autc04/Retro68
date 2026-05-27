@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -105,7 +105,7 @@ package body Debug is
    --  d.r  Disable reordering of components in record types
    --  d.s  Strict secondary stack management
    --  d.t  Disable static allocation of library level dispatch tables
-   --  d.u
+   --  d.u  Enable Unsigned_Base_Range aspect language extension
    --  d.v  Enforce SPARK elaboration rules in SPARK code
    --  d.w  Do not check for infinite loops
    --  d.x  No exception handlers
@@ -152,7 +152,7 @@ package body Debug is
    --  d_l  Disable strict alignment of array types with aliased component
    --  d_m  Run adareducer on crash
    --  d_n
-   --  d_o
+   --  d_o  Disable Backend_Overflow_Checks_On_Target; used for testing.
    --  d_p  Ignore assertion pragmas for elaboration
    --  d_q  Do not enforce freezing for equality operator of boolean subtype
    --  d_r  Disable the use of the return slot in functions
@@ -168,8 +168,8 @@ package body Debug is
    --  d_A  Stop generation of ALI file
    --  d_B  Warn on build-in-place function calls
    --  d_C
-   --  d_D  Use improved diagnostics
-   --  d_E  Print diagnostics and switch repository
+   --  d_D
+   --  d_E
    --  d_F  Encode full invocation paths in ALI files
    --  d_G
    --  d_H
@@ -186,9 +186,9 @@ package body Debug is
    --  d_S
    --  d_T  Output trace information on invocation path recording
    --  d_U  Disable prepending messages with "error:".
-   --  d_V  Enable verifications on the expanded tree
-   --  d_W
-   --  d_X  Disable assertions to check matching of extra formals
+   --  d_V  Enable VAST (verifications on the expanded tree)
+   --  d_W  Enable VAST in verbose mode
+   --  d_X
    --  d_Y
    --  d_Z
 
@@ -800,7 +800,8 @@ package body Debug is
    --       previous dynamic construction of tables. It is there as a possible
    --       work around if we run into trouble with the new implementation.
 
-   --  d.u
+   --  d.u  Enable the support for Unsigned_Base_Range aspect, attribute, and
+   --       pragma.
 
    --  d.v  This flag enforces the elaboration rules defined in the SPARK
    --       Reference Manual, chapter 7.7, to all SPARK code within a unit. As
@@ -995,6 +996,9 @@ package body Debug is
    --  d_l  The compiler does not enforce the strict alignment of array types
    --       that are declared with an aliased component.
 
+   --  d_o  The compiler disables Backend_Overflow_Checks_On_Target; used to
+   --       test the frontend support on targets without overflow checks.
+
    --  d_p  The compiler ignores calls to subprograms which verify the run-time
    --       semantics of invariants and postconditions in both the static and
    --       dynamic elaboration models.
@@ -1065,12 +1069,11 @@ package body Debug is
    --  d_U  Disable prepending 'error:' to error messages. This used to be the
    --       default and can be seen as the opposite of -gnatU.
 
-   --  d_V  Enable verification of the expanded code before calling the backend
-   --       and generate error messages on each inconsistency found.
+   --  d_V  Enable VAST (Verifier for the Ada Semantic Tree). This does
+   --       verification of the expanded code before calling the backend.
 
-   --  d_X  Disable assertions to check matching of extra formals; switch added
-   --       temporarily to disable these checks until this work is complete if
-   --       they cause unexpected assertion failures.
+   --  d_W  Same as d_V, but also prints lots of tracing/debugging output
+   --       as it walks the tree.
 
    --  d1   Error messages have node numbers where possible. Normally error
    --       messages have only source locations. This option is useful when
@@ -1285,15 +1288,15 @@ package body Debug is
    --      display the source file name, the time stamp expected and
    --      the time stamp found.
 
+   subtype Dig  is Character range '1' .. '9';
+   subtype LLet is Character range 'a' .. 'z';
+   subtype ULet is Character range 'A' .. 'Z';
+
    --------------------
    -- Set_Debug_Flag --
    --------------------
 
    procedure Set_Debug_Flag (C : Character; Val : Boolean := True) is
-      subtype Dig  is Character range '1' .. '9';
-      subtype LLet is Character range 'a' .. 'z';
-      subtype ULet is Character range 'A' .. 'Z';
-
    begin
       if C in Dig then
          case Dig (C) is
@@ -1436,10 +1439,6 @@ package body Debug is
    ---------------------------
 
    procedure Set_Dotted_Debug_Flag (C : Character; Val : Boolean := True) is
-      subtype Dig  is Character range '1' .. '9';
-      subtype LLet is Character range 'a' .. 'z';
-      subtype ULet is Character range 'A' .. 'Z';
-
    begin
       if C in Dig then
          case Dig (C) is
@@ -1585,10 +1584,6 @@ package body Debug is
      (C   : Character;
       Val : Boolean := True)
    is
-      subtype Dig  is Character range '1' .. '9';
-      subtype LLet is Character range 'a' .. 'z';
-      subtype ULet is Character range 'A' .. 'Z';
-
    begin
       if C in Dig then
          case Dig (C) is

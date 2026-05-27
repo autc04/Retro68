@@ -1,6 +1,6 @@
 #source: dso-1.s
 #source: dso-2.s
-#as: --pic --no-underscore --em=criself
+#as: --pic --no-underscore --emulation=criself
 #ld: --shared -m crislinux --hash-style=sysv --version-script $srcdir/$subdir/hide1
 #readelf: -S -s -r
 

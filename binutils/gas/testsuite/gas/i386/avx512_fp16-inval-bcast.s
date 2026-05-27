@@ -1,6 +1,5 @@
 # Check error for invalid {1toXX} and {2toXX} broadcasts.
 
-	.allow_index_reg
 	.text
 _start:
 	vcvtpd2ph (%ecx){1to16}, %xmm3

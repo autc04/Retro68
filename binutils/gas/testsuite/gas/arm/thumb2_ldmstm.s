@@ -21,6 +21,7 @@ ldmstm:
 	stmdb r6, {ip}
 	stmdb r6!, {fp}
 	stmdb r5!, {r8}
+	ldmia r0, {r0}		@ Use ldr r0, [r0]
 
 	@ Valid Thumb-2 encodings of LDM/LDMIA/LDMFD as specified by section
 	@ A8.6.53 of the ARM ARM

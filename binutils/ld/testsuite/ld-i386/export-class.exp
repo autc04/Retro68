@@ -1,6 +1,6 @@
 # Expect script for symbol export classes, i386 variation.
 #
-# Copyright (C) 2012-2022 Free Software Foundation, Inc.
+# Copyright (C) 2012-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -31,8 +31,9 @@ if { ![is_elf_format] } {
 
 # Exclude some more targets; feel free to include your favorite one
 # if you like.
-if { !([istarget i?86-*-linux*]
-       || [istarget i?86-*-gnu*]) } {
+if { !([istarget "i?86-*-linux*"]
+       || [istarget "i?86-*-gnu*"]
+       || [istarget "x86_64-*-linux*"]) } {
     return
 }
 
@@ -43,8 +44,9 @@ set testname "i386 symbol export class test"
 run_ld_link_tests [list \
     [list \
 	"$testname (auxiliary shared object)" \
-	"-shared -version-script ../ld-elf/export-class-lib.ver" "" \
+	"-melf_i386 -shared -version-script ../ld-elf/export-class-lib.ver" \
 	"" \
+	"--32" \
 	{ ../ld-elf/export-class-lib.s } \
 	{} \
 	"i386-export-class-lib.so" \
@@ -57,8 +59,8 @@ run_ld_link_tests [list \
 run_ld_link_tests [list \
     [list \
 	"$testname (initial static object)" \
-	"-r" "" \
-	"" \
+	"-r -melf_i386" "" \
+	"--32" \
 	{ ../ld-elf/export-class-ref.s } \
 	{} \
 	"i386-export-class-ref-r.o" \
@@ -74,8 +76,9 @@ run_ld_link_tests [list \
 run_ld_link_tests [list \
     [list \
 	"$testname (final shared object)" \
-	"-shared $NO_DT_RELR_LDFLAGS -Tdata=0x12340000 tmpdir/i386-export-class-ref-r.o tmpdir/i386-export-class-lib.so" "" \
+	"-shared -melf_i386 $NO_DT_RELR_LDFLAGS -Tdata=0x12340000 tmpdir/i386-export-class-ref-r.o tmpdir/i386-export-class-lib.so" \
 	"" \
+	"--32" \
 	{ ../ld-elf/export-class-dep.s ../ld-elf/export-class-def.s } \
 	{ \
 	    { readelf -r i386-export-class.rd } \

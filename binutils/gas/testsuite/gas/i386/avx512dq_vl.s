@@ -1,6 +1,5 @@
 # Check 32bit AVX512{DQ,VL} instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vbroadcastf64x2	(%ecx), %ymm6{%k7}	 # AVX512{DQ,VL}

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 XSAVES insns (Intel disassembly)
 #source: xsaves.s

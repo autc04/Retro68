@@ -1,5 +1,5 @@
 /* Tuning model description for AArch64 architecture.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -125,13 +125,6 @@ static const struct cpu_vector_cost generic_armv8_a_vector_cost =
   nullptr /* issue_info  */
 };
 
-/* Generic costs for branch instructions.  */
-static const struct cpu_branch_cost generic_armv8_a_branch_cost =
-{
-  1,  /* Predictable.  */
-  3   /* Unpredictable.  */
-};
-
 /* Generic approximation modes.  */
 static const cpu_approx_modes generic_armv8_a_approx_modes =
 {
@@ -158,7 +151,7 @@ static const struct tune_params generic_armv8_a_tunings =
   &generic_armv8_a_addrcost_table,
   &generic_armv8_a_regmove_cost,
   &generic_armv8_a_vector_cost,
-  &generic_armv8_a_branch_cost,
+  &generic_branch_cost,
   &generic_armv8_a_approx_modes,
   SVE_NOT_IMPLEMENTED, /* sve_width  */
   { 4, /* load_int.  */
@@ -186,7 +179,8 @@ static const struct tune_params generic_armv8_a_tunings =
    | AARCH64_EXTRA_TUNE_MATCHED_VECTOR_THROUGHPUT),	/* tune_flags.  */
   &generic_armv8_a_prefetch_tune,
   AARCH64_LDP_STP_POLICY_ALWAYS,   /* ldp_policy_model.  */
-  AARCH64_LDP_STP_POLICY_ALWAYS    /* stp_policy_model.  */
+  AARCH64_LDP_STP_POLICY_ALWAYS,   /* stp_policy_model.  */
+  nullptr	/* dispatch_constraints.  */
 };
 
 #endif /* GCC_AARCH64_H_GENERIC_ARMV8_A.  */

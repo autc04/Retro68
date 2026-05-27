@@ -1,6 +1,6 @@
 /* Subroutines for insn-output.cc for Windows NT.
    Contributed by Douglas Rupp (drupp@cs.washington.edu)
-   Copyright (C) 1995-2025 Free Software Foundation, Inc.
+   Copyright (C) 1995-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -339,6 +339,28 @@ mingw_pe_encode_section_info (tree decl, rtx rtl, int first)
   SYMBOL_REF_FLAGS (symbol) = flags;
 }
 
+/* Handle a "ms_abi" attribute; arguments as in struct
+   attribute_spec.handler.  */
+
+tree
+aarch64_handle_ms_abi_attribute (tree *node, tree name, tree, int,
+						bool *no_add_attrs)
+{
+  if (TREE_CODE (*node) != FUNCTION_TYPE
+      && TREE_CODE (*node) != METHOD_TYPE
+      && TREE_CODE (*node) != FIELD_DECL
+      && TREE_CODE (*node) != TYPE_DECL)
+    {
+      warning (OPT_Wattributes, "%qE attribute only applies to functions",
+	       name);
+      *no_add_attrs = true;
+
+      return NULL_TREE;
+    }
+
+  return NULL_TREE;
+}
+
 
 bool
 i386_pe_binds_local_p (const_tree exp)
@@ -391,6 +413,15 @@ i386_pe_strip_name_encoding_full (const char *str)
   return name;
 }
 
+section *
+mingw_pe_select_section (tree decl, int reloc, unsigned HOST_WIDE_INT align)
+{
+  if (TREE_CODE (decl) == VAR_DECL && DECL_THREAD_LOCAL_P (decl))
+    return get_named_section (decl, ".tls$", reloc);
+  else
+    return default_select_section (decl, reloc, align);
+}
+
 void
 mingw_pe_unique_section (tree decl, int reloc)
 {
@@ -415,6 +446,11 @@ mingw_pe_unique_section (tree decl, int reloc)
     prefix = ".text$";
   else if (decl_readonly_section (decl, reloc))
     prefix = ".rdata$";
+  /* Note that we need two dollar signs for TLS sections
+     because they need to be ASCII-sorted before .tls$ZZZ
+     to be properly laid out by the GNU linker.  */
+  else if (DECL_THREAD_LOCAL_P (decl))
+    prefix = ".tls$$";
   else
     prefix = ".data$";
   len = strlen (name) + strlen (prefix);
@@ -497,6 +533,8 @@ mingw_pe_asm_named_section (const char *name, unsigned int flags,
     }
   else
     {
+      if (startswith (name, ".tls$"))
+        *f++ = 'd';
       if (flags & SECTION_CODE)
         *f++ = 'x';
       if (flags & SECTION_WRITE)

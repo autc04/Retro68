@@ -1,4 +1,4 @@
-#as: --underscore --em=criself --march=v32
+#as: --underscore --emulation=criself --march=v32
 #source: brokw-1.s
 #objdump: -dr
 

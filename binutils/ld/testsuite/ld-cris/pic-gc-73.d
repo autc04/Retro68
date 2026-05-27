@@ -1,6 +1,6 @@
 #source: pic-gc-73.s
 #source: expdyn1.s
-#as: --pic --no-underscore --em=criself -I$srcdir/$subdir
+#as: --pic --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: --shared -m crislinux --gc-sections --hash-style=sysv
 #objdump: -s -t -R -p -T
 

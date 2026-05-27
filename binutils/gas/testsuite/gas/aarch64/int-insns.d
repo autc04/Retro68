@@ -1,5 +1,7 @@
 #objdump: -dr
 #as: -march=armv8-a -mabi=lp64
+# This test is only valid on ELF based ports.
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 .*:     file format .*
 

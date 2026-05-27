@@ -26,14 +26,21 @@ Disassembly of section .text:
  *[a-f0-9]+:	66 0f ba 30 01       	btrw   \$0x1,\(%rax\)
  *[a-f0-9]+:	66 0f ba 28 01       	btsw   \$0x1,\(%rax\)
  *[a-f0-9]+:	66 ff 10             	callw  \*\(%rax\)
+ *[a-f0-9]+:	62 f4 05 07 83 38 01[	 ]+ccmpaw \{dfv=\} \$0x1,\(%rax\)
+ *[a-f0-9]+:	62 f4 05 07 81 38 89 00[	 ]+ccmpaw \{dfv=\} \$0x89,\(%rax\)
+ *[a-f0-9]+:	62 f4 05 07 81 38 34 12[	 ]+ccmpaw \{dfv=\} \$0x1234,\(%rax\)
+ *[a-f0-9]+:	62 f4 05 07 81 38 78 56[	 ]+ccmpaw \{dfv=\} \$0x5678,\(%rax\)
  *[a-f0-9]+:	66 83 38 01          	cmpw   \$0x1,\(%rax\)
  *[a-f0-9]+:	66 81 38 89 00       	cmpw   \$0x89,\(%rax\)
  *[a-f0-9]+:	66 81 38 34 12       	cmpw   \$0x1234,\(%rax\)
  *[a-f0-9]+:	66 81 38 78 56       	cmpw   \$0x5678,\(%rax\)
- *[a-f0-9]+:	66 a7                	cmpsw  %es:\(%rdi\),%ds:\(%rsi\)
- *[a-f0-9]+:	66 a7                	cmpsw  %es:\(%rdi\),%ds:\(%rsi\)
+ *[a-f0-9]+:	66 a7                	cmpsw  \(%rdi\),\(%rsi\)
+ *[a-f0-9]+:	66 a7                	cmpsw  \(%rdi\),\(%rsi\)
  *[a-f0-9]+:	66 f2 0f 38 f1 00    	crc32w \(%rax\),%eax
  *[a-f0-9]+:	66 f2 48 0f 38 f1 00 	data16 crc32q \(%rax\),%rax
+ *[a-f0-9]+:	62 f4 05 07 f7 00 89 00[	 ]+ctestaw \{dfv=\} \$0x89,\(%rax\)
+ *[a-f0-9]+:	62 f4 05 07 f7 00 34 12[	 ]+ctestaw \{dfv=\} \$0x1234,\(%rax\)
+ *[a-f0-9]+:	62 f4 05 07 f7 00 78 56[	 ]+ctestaw \{dfv=\} \$0x5678,\(%rax\)
  *[a-f0-9]+:	66 ff 08             	decw   \(%rax\)
  *[a-f0-9]+:	66 f7 30             	divw   \(%rax\)
  *[a-f0-9]+:	66 d8 00             	data16 fadds \(%rax\)
@@ -64,8 +71,8 @@ Disassembly of section .text:
  *[a-f0-9]+:	66 e5 00             	in     \$0x0,%ax
  *[a-f0-9]+:	66 ed                	in     \(%dx\),%ax
  *[a-f0-9]+:	66 ff 00             	incw   \(%rax\)
- *[a-f0-9]+:	66 6d                	insw   \(%dx\),%es:\(%rdi\)
- *[a-f0-9]+:	66 6d                	insw   \(%dx\),%es:\(%rdi\)
+ *[a-f0-9]+:	66 6d                	insw   \(%dx\),\(%rdi\)
+ *[a-f0-9]+:	66 6d                	insw   \(%dx\),\(%rdi\)
  *[a-f0-9]+:	66 cf                	iretw
  *[a-f0-9]+:	66 ff 20             	jmpw   \*\(%rax\)
  *[a-f0-9]+:	66 ff 18             	lcallw \*\(%rax\)
@@ -74,8 +81,8 @@ Disassembly of section .text:
  *[a-f0-9]+:	66 ff 28             	ljmpw  \*\(%rax\)
  *[a-f0-9]+:	66 0f 00 10          	data16 lldt \(%rax\)
  *[a-f0-9]+:	66 0f 01 30          	data16 lmsw \(%rax\)
- *[a-f0-9]+:	66 ad                	lods   %ds:\(%rsi\),%ax
- *[a-f0-9]+:	66 ad                	lods   %ds:\(%rsi\),%ax
+ *[a-f0-9]+:	66 ad                	lods   \(%rsi\),%ax
+ *[a-f0-9]+:	66 ad                	lods   \(%rsi\),%ax
  *[a-f0-9]+:	66 cb                	lretw
  *[a-f0-9]+:	66 ca 04 00          	lretw  \$0x4
  *[a-f0-9]+:	66 0f 00 18          	data16 ltr \(%rax\)
@@ -84,8 +91,8 @@ Disassembly of section .text:
  *[a-f0-9]+:	66 c7 00 78 56       	movw   \$0x5678,\(%rax\)
  *[a-f0-9]+:	66 8c 00             	data16 mov %es,\(%rax\)
  *[a-f0-9]+:	66 8e 00             	data16 mov \(%rax\),%es
- *[a-f0-9]+:	66 a5                	movsw  %ds:\(%rsi\),%es:\(%rdi\)
- *[a-f0-9]+:	66 a5                	movsw  %ds:\(%rsi\),%es:\(%rdi\)
+ *[a-f0-9]+:	66 a5                	movsw  \(%rsi\),\(%rdi\)
+ *[a-f0-9]+:	66 a5                	movsw  \(%rsi\),\(%rdi\)
  *[a-f0-9]+:	66 0f be 00          	movsbw \(%rax\),%ax
  *[a-f0-9]+:	66 48 0f be 00       	data16 movsbq \(%rax\),%rax
  *[a-f0-9]+:	66 0f b6 00          	movzbw \(%rax\),%ax
@@ -100,52 +107,52 @@ Disassembly of section .text:
  *[a-f0-9]+:	66 81 08 78 56       	orw    \$0x5678,\(%rax\)
  *[a-f0-9]+:	66 e7 00             	out    %ax,\$0x0
  *[a-f0-9]+:	66 ef                	out    %ax,\(%dx\)
- *[a-f0-9]+:	66 6f                	outsw  %ds:\(%rsi\),\(%dx\)
- *[a-f0-9]+:	66 6f                	outsw  %ds:\(%rsi\),\(%dx\)
+ *[a-f0-9]+:	66 6f                	outsw  \(%rsi\),\(%dx\)
+ *[a-f0-9]+:	66 6f                	outsw  \(%rsi\),\(%dx\)
  *[a-f0-9]+:	66 8f 00             	popw   \(%rax\)
  *[a-f0-9]+:	66 0f a1             	popw   %fs
  *[a-f0-9]+:	66 ff 30             	pushw  \(%rax\)
  *[a-f0-9]+:	66 0f a0             	pushw  %fs
- *[a-f0-9]+:	66 d1 10             	rclw   \(%rax\)
+ *[a-f0-9]+:	66 d1 10             	rclw   \$1,\(%rax\)
  *[a-f0-9]+:	66 c1 10 02          	rclw   \$0x2,\(%rax\)
  *[a-f0-9]+:	66 d3 10             	rclw   %cl,\(%rax\)
- *[a-f0-9]+:	66 d1 10             	rclw   \(%rax\)
- *[a-f0-9]+:	66 d1 18             	rcrw   \(%rax\)
+ *[a-f0-9]+:	66 d1 10             	rclw   \$1,\(%rax\)
+ *[a-f0-9]+:	66 d1 18             	rcrw   \$1,\(%rax\)
  *[a-f0-9]+:	66 c1 18 02          	rcrw   \$0x2,\(%rax\)
  *[a-f0-9]+:	66 d3 18             	rcrw   %cl,\(%rax\)
- *[a-f0-9]+:	66 d1 18             	rcrw   \(%rax\)
- *[a-f0-9]+:	66 d1 00             	rolw   \(%rax\)
+ *[a-f0-9]+:	66 d1 18             	rcrw   \$1,\(%rax\)
+ *[a-f0-9]+:	66 d1 00             	rolw   \$1,\(%rax\)
  *[a-f0-9]+:	66 c1 00 02          	rolw   \$0x2,\(%rax\)
  *[a-f0-9]+:	66 d3 00             	rolw   %cl,\(%rax\)
- *[a-f0-9]+:	66 d1 00             	rolw   \(%rax\)
- *[a-f0-9]+:	66 d1 08             	rorw   \(%rax\)
+ *[a-f0-9]+:	66 d1 00             	rolw   \$1,\(%rax\)
+ *[a-f0-9]+:	66 d1 08             	rorw   \$1,\(%rax\)
  *[a-f0-9]+:	66 c1 08 02          	rorw   \$0x2,\(%rax\)
  *[a-f0-9]+:	66 d3 08             	rorw   %cl,\(%rax\)
- *[a-f0-9]+:	66 d1 08             	rorw   \(%rax\)
+ *[a-f0-9]+:	66 d1 08             	rorw   \$1,\(%rax\)
  *[a-f0-9]+:	66 83 18 01          	sbbw   \$0x1,\(%rax\)
  *[a-f0-9]+:	66 81 18 89 00       	sbbw   \$0x89,\(%rax\)
  *[a-f0-9]+:	66 81 18 34 12       	sbbw   \$0x1234,\(%rax\)
  *[a-f0-9]+:	66 81 18 78 56       	sbbw   \$0x5678,\(%rax\)
- *[a-f0-9]+:	66 af                	scas   %es:\(%rdi\),%ax
- *[a-f0-9]+:	66 af                	scas   %es:\(%rdi\),%ax
- *[a-f0-9]+:	66 d1 20             	shlw   \(%rax\)
+ *[a-f0-9]+:	66 af                	scas   \(%rdi\),%ax
+ *[a-f0-9]+:	66 af                	scas   \(%rdi\),%ax
+ *[a-f0-9]+:	66 d1 20             	shlw   \$1,\(%rax\)
  *[a-f0-9]+:	66 c1 20 02          	shlw   \$0x2,\(%rax\)
  *[a-f0-9]+:	66 d3 20             	shlw   %cl,\(%rax\)
- *[a-f0-9]+:	66 d1 20             	shlw   \(%rax\)
- *[a-f0-9]+:	66 d1 38             	sarw   \(%rax\)
+ *[a-f0-9]+:	66 d1 20             	shlw   \$1,\(%rax\)
+ *[a-f0-9]+:	66 d1 38             	sarw   \$1,\(%rax\)
  *[a-f0-9]+:	66 c1 38 02          	sarw   \$0x2,\(%rax\)
  *[a-f0-9]+:	66 d3 38             	sarw   %cl,\(%rax\)
- *[a-f0-9]+:	66 d1 38             	sarw   \(%rax\)
- *[a-f0-9]+:	66 d1 20             	shlw   \(%rax\)
+ *[a-f0-9]+:	66 d1 38             	sarw   \$1,\(%rax\)
+ *[a-f0-9]+:	66 d1 20             	shlw   \$1,\(%rax\)
  *[a-f0-9]+:	66 c1 20 02          	shlw   \$0x2,\(%rax\)
  *[a-f0-9]+:	66 d3 20             	shlw   %cl,\(%rax\)
- *[a-f0-9]+:	66 d1 20             	shlw   \(%rax\)
- *[a-f0-9]+:	66 d1 28             	shrw   \(%rax\)
+ *[a-f0-9]+:	66 d1 20             	shlw   \$1,\(%rax\)
+ *[a-f0-9]+:	66 d1 28             	shrw   \$1,\(%rax\)
  *[a-f0-9]+:	66 c1 28 02          	shrw   \$0x2,\(%rax\)
  *[a-f0-9]+:	66 d3 28             	shrw   %cl,\(%rax\)
- *[a-f0-9]+:	66 d1 28             	shrw   \(%rax\)
- *[a-f0-9]+:	66 ab                	stos   %ax,%es:\(%rdi\)
- *[a-f0-9]+:	66 ab                	stos   %ax,%es:\(%rdi\)
+ *[a-f0-9]+:	66 d1 28             	shrw   \$1,\(%rax\)
+ *[a-f0-9]+:	66 ab                	stos   %ax,\(%rdi\)
+ *[a-f0-9]+:	66 ab                	stos   %ax,\(%rdi\)
  *[a-f0-9]+:	66 83 28 01          	subw   \$0x1,\(%rax\)
  *[a-f0-9]+:	66 81 28 89 00       	subw   \$0x89,\(%rax\)
  *[a-f0-9]+:	66 81 28 34 12       	subw   \$0x1234,\(%rax\)

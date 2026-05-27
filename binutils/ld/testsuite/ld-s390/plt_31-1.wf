@@ -1,0 +1,32 @@
+#source: plt_31-1.s
+#as: -m31
+#ld: -m elf_s390 [-pic]
+#readelf: -wf
+#target: s390-*-*
+
+Contents of the .eh_frame section:
+
+
+00000000 00000010 00000000 CIE
+  Version:               1
+  Augmentation:          "zR"
+  Code alignment factor: 1
+  Data alignment factor: -4
+  Return address column: 14
+  Augmentation data:     1b
+  DW_CFA_def_cfa: r15 ofs 96
+
+00000014 00000020 00000018 FDE cie=00000000 pc=[0-9a-f]+..[0-9a-f]+
+  DW_CFA_remember_state
+  DW_CFA_advance_loc: 4 to [0-9a-f]+
+  DW_CFA_offset: r12 at cfa-48
+  DW_CFA_offset: r13 at cfa-44
+  DW_CFA_offset: r14 at cfa-40
+  DW_CFA_offset: r15 at cfa-36
+  DW_CFA_advance_loc: 6 to [0-9a-f]+
+  DW_CFA_def_cfa_offset: 192
+  DW_CFA_advance_loc: 42 to [0-9a-f]+
+  DW_CFA_restore_state
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop

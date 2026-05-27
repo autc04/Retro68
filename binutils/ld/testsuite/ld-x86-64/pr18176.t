@@ -35,5 +35,5 @@ SECTIONS
   . = ALIGN(64 / 8);
   _end = .; PROVIDE (end = .);
   . = DATA_SEGMENT_END (.);
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

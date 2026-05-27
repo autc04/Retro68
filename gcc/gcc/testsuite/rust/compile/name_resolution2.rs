@@ -1,10 +1,14 @@
+#![feature(no_core)]
+#![no_core]
+
+#![feature(lang_items)]
 #[lang = "sized"]
 pub trait Sized {}
 
 struct Bar;
 
 trait Foo {
-    fn bar(&self) {} // { dg-warning "unused name" }
+    fn bar(&self) {}
 }
 
 pub fn outer() {

@@ -1,5 +1,6 @@
 #objdump: -dr
 #as: -march=armv8.3-a
+#as: -march=armv8-a+jscvt
 
 .*:     file .*
 

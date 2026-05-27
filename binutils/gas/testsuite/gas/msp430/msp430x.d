@@ -230,3 +230,7 @@ Disassembly of section .text:
 0+0406 <[^>]*> 84 18 44 11 	rpt r4 \{ rrax.a	r4		;
 0+040a <[^>]*> 44 18 45 55 	rpt #5 \{ rlax.b	r5		;
 0+040e <[^>]*> 05 18 46 66 	rpt #6 \{ rlcx.a	r6		;
+0+0412 <[^>]*> ac 08 00 00 	adda	#524288,r12	;0x80000
+0+0416 <[^>]*> ab 07 ff ff 	adda	#524287,r11	;0x7ffff
+0+041a <[^>]*> ac 08 00 00 	adda	#524288,r12	;0x80000
+0+041e <[^>]*> ab 07 ff ff 	adda	#524287,r11	;0x7ffff

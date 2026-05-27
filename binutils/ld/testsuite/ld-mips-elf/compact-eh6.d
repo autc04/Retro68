@@ -4,7 +4,7 @@
 #as: -EB
 #readelf: -x .eh_frame_hdr
 #ld: -EB -e main
-#
+#notarget: mips64*-*-*-gnuabi64
 
 Hex dump of section \'\.eh_frame_hdr\':
 

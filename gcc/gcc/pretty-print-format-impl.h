@@ -1,5 +1,5 @@
 /* Implementation detail of pp_format.
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -22,7 +22,7 @@ along with GCC; see the file COPYING3.  If not see
 #define GCC_PRETTY_PRINT_FORMAT_IMPL_H
 
 #include "pretty-print.h"
-#include "diagnostic-event-id.h"
+#include "diagnostics/event-id.h"
 
 /* A struct representing a pending item to be printed within
    pp_format.
@@ -224,14 +224,14 @@ struct pp_token_end_url : public pp_token
 
 struct pp_token_event_id : public pp_token
 {
-  pp_token_event_id (diagnostic_event_id_t event_id)
+  pp_token_event_id (diagnostics::paths::event_id_t event_id)
   : pp_token (kind::event_id),
     m_event_id (event_id)
   {
     gcc_assert (event_id.known_p ());
   }
 
-  diagnostic_event_id_t m_event_id;
+  diagnostics::paths::event_id_t m_event_id;
 };
 
 template <>
@@ -334,6 +334,7 @@ public:
     push_back (std::move (tok));
   }
   void push_back_text (label_text &&text);
+  void push_back_byte (char ch);
   void push_back (std::unique_ptr<pp_token> tok);
   void push_back_list (pp_token_list &&list);
 

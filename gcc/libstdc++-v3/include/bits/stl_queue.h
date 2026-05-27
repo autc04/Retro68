@@ -1,6 +1,6 @@
 // Queue implementation -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -69,6 +69,10 @@
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+#if __glibcxx_format_ranges
+  template<typename, typename> class formatter;
+#endif
 
   /**
    *  @brief  A standard container giving FIFO behavior.
@@ -369,6 +373,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	swap(c, __q.c);
       }
 #endif // __cplusplus >= 201103L
+
+#if __glibcxx_format_ranges
+      friend class formatter<queue<_Tp, _Sequence>, char>;
+      friend class formatter<queue<_Tp, _Sequence>, wchar_t>;
+#endif
     };
 
 #if __cpp_deduction_guides >= 201606
@@ -676,6 +685,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *
        *  For more information on function objects, see the
        *  documentation on @link functors functor base classes@endlink.
+       *
+       *  @{
        */
 #if __cplusplus < 201103L
       template<typename _InputIterator>
@@ -721,7 +732,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  c.insert(c.end(), __first, __last);
 	  std::make_heap(c.begin(), c.end(), comp);
 	}
+#endif // C++11
+      /// @}
 
+#if __cplusplus >= 201103L
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 3506. Missing allocator-extended constructors for priority_queue
       template<typename _InputIterator, typename _Alloc,
@@ -764,7 +778,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  c.insert(c.end(), __first, __last);
 	  std::make_heap(c.begin(), c.end(), comp);
 	}
-#endif
+#endif // C++11
 
 #if __glibcxx_containers_ranges // C++ >= 23
       /**
@@ -898,6 +912,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	swap(comp, __pq.comp);
       }
 #endif // __cplusplus >= 201103L
+
+#if __glibcxx_format_ranges
+      friend class formatter<priority_queue<_Tp, _Sequence, _Compare>, char>;
+      friend class formatter<priority_queue<_Tp, _Sequence, _Compare>, wchar_t>;
+#endif
     };
 
 #if __cpp_deduction_guides >= 201606

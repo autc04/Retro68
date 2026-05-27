@@ -1,4 +1,4 @@
-#   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ if {![binutils_assemble $srcdir/$subdir/thumb2-cond.s tmpdir/thumb2-cond.o]} the
 
     # Make sure that conditional instructions are correctly decoded.
 
-    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble --start-address=6 $objfile"]
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble --disassembler-color=off --start-address=6 $objfile"]
 
     set want "bcc.w\[ \t\]*e12.*bx\[ \t\]*lr"
 
@@ -51,7 +51,7 @@ if {![binutils_assemble $srcdir/$subdir/thumb2-cond.s tmpdir/thumb2-cond.o]} the
 	fail "thumb2-cond test1"
     }
 
-    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble --start-address=10 $objfile"]
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble --disassembler-color=off --start-address=10 $objfile"]
 
     set want "bx\[ \t\]*lr"
 
@@ -78,7 +78,7 @@ if {![binutils_assemble $srcdir/$subdir/simple.s tmpdir/simple.o]} then {
 
     # Make sure multiple disassemblies come out the same
 
-    set got [binutils_run $OBJDUMP "-dr $objfile $objfile"]
+    set got [binutils_run $OBJDUMP "-dr --disassembler-color=off $objfile $objfile"]
 
     set want "$objfile:\[ \]*file format.*$objfile:\[ \]*file format.*push.*add.*sub.*str.*add.*ldmfd"
 

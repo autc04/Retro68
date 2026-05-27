@@ -1,6 +1,6 @@
 #!/bin/sh -- # This comment tells perl not to loop!
 
-#   Copyright (C) 2021 Free Software Foundation, Inc.
+#   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -25,16 +25,8 @@ if 0;
 use strict;
 require "acct.pm";
 
-my(@checkTime);
-
-if ("$ENV{DA_io}" eq "on") {
-    @checkTime = ();
-    acct::readAcct("synprog.acct2", @checkTime);
-} else {
-    @checkTime = (1, 2);
-    acct::readAcct("synprog.acct", @checkTime);
-}
-
+my(@checkTime) = (1, 2);  # columns 1 and 2 - time in seconds.
+acct::readAcct($ARGV[0], @checkTime);
 acct::read_er_print_out($ARGV[1], -1);
 acct::createDiff();
 exit acct::set_retVal(0);

@@ -1,4 +1,4 @@
-# Copyright (C) 2008-2025 Free Software Foundation, Inc.
+# Copyright (C) 2008-2026 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -47,6 +47,10 @@ i386-d.o: $(srcdir)/config/i386/i386-d.cc
 	$(POSTCOMPILE)
 
 i386-rust.o: $(srcdir)/config/i386/i386-rust.cc
+	$(COMPILE) $<
+	$(POSTCOMPILE)
+
+i386-jit.o: $(srcdir)/config/i386/i386-jit.cc
 	$(COMPILE) $<
 	$(POSTCOMPILE)
 

@@ -1,25 +1,25 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: bad type in SIMD instruction -- `vqrshl.s64 q0,q1,q2'
-[^:]*:11: Error: bad type in SIMD instruction -- `vqrshl.u64 q0,q1,q2'
-[^:]*:12: Error: bad type in SIMD instruction -- `vqrshl.i32 q0,q1,q2'
-[^:]*:13: Error: bad type in SIMD instruction -- `vqrshl.s64 q0,r2'
-[^:]*:14: Error: bad type in SIMD instruction -- `vqrshl.u64 q0,r2'
-[^:]*:15: Error: bad type in SIMD instruction -- `vqrshl.i32 q0,r2'
-[^:]*:16: Error: invalid instruction shape -- `vqrshl.s32 q0,q1,r2'
-[^:]*:17: Warning: instruction is UNPREDICTABLE with PC operand
-[^:]*:18: Warning: instruction is UNPREDICTABLE with SP operand
-[^:]*:19: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:19: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:19: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:19: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:19: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:19: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:3: Error: bad type in SIMD instruction -- `vqrshl.s64 q0,q1,q2'
+[^:]*:4: Error: bad type in SIMD instruction -- `vqrshl.u64 q0,q1,q2'
+[^:]*:5: Error: bad type in SIMD instruction -- `vqrshl.i32 q0,q1,q2'
+[^:]*:6: Error: bad type in SIMD instruction -- `vqrshl.s64 q0,r2'
+[^:]*:7: Error: bad type in SIMD instruction -- `vqrshl.u64 q0,r2'
+[^:]*:8: Error: bad type in SIMD instruction -- `vqrshl.i32 q0,r2'
+[^:]*:9: Error: invalid instruction shape -- `vqrshl.s32 q0,q1,r2'
+[^:]*:10: Warning: instruction is UNPREDICTABLE with PC operand
+[^:]*:11: Warning: instruction is UNPREDICTABLE with SP operand
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:22: Error: syntax error -- `vqrshleq.s32 q0,q1,q2'
 [^:]*:23: Error: syntax error -- `vqrshleq.s32 q0,q1,q2'
 [^:]*:25: Error: syntax error -- `vqrshleq.s32 q0,q1,q2'

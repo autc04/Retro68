@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -26,6 +26,7 @@
 #include "rust-default-resolver.h"
 #include "rust-rib.h"
 #include "rust-toplevel-name-resolver-2.0.h"
+#include "rust-pattern.h"
 
 namespace Rust {
 namespace Resolver2_0 {
@@ -36,6 +37,10 @@ class Early : public DefaultResolver
 
   TopLevel toplevel;
   bool dirty;
+
+  void visit_derive_attribute (AST::Attribute &, Analysis::Mappings &);
+  void visit_non_builtin_attribute (AST::Attribute &, Analysis::Mappings &,
+				    std::string &name);
 
 public:
   Early (NameResolutionContext &ctx);
@@ -58,9 +63,12 @@ public:
 
   void visit (AST::MacroInvocation &) override;
 
-  void visit (AST::Function &) override;
-  void visit (AST::StructStruct &) override;
   void visit (AST::UseDeclaration &) override;
+  void visit (AST::UseTreeList &) override;
+
+  void visit (AST::Attribute &) override;
+
+  void visit (AST::IdentifierPattern &) override;
 
   struct ImportData
   {
@@ -83,15 +91,15 @@ public:
       return ImportData (Kind::Rebind, std::move (definitions));
     }
 
-    static ImportData Glob (Rib::Definition module)
+    static ImportData Glob (Rib::Definition container)
     {
-      return ImportData (Kind::Glob, module);
+      return ImportData (Kind::Glob, container);
     }
 
-    Rib::Definition module () const
+    Rib::Definition container () const
     {
       rust_assert (kind == Kind::Glob);
-      return glob_module;
+      return glob_container;
     }
 
     std::vector<std::pair<Rib::Definition, Namespace>> definitions () const
@@ -107,8 +115,8 @@ public:
       : kind (kind), resolved_definitions (std::move (definitions))
     {}
 
-    ImportData (Kind kind, Rib::Definition module)
-      : kind (kind), glob_module (module)
+    ImportData (Kind kind, Rib::Definition container)
+      : kind (kind), glob_container (container)
     {}
 
     // TODO: Should this be a union?
@@ -117,7 +125,7 @@ public:
     std::vector<std::pair<Rib::Definition, Namespace>> resolved_definitions;
 
     // For Glob
-    Rib::Definition glob_module;
+    Rib::Definition glob_container;
   };
 
   struct ImportPair
@@ -167,8 +175,6 @@ public:
   };
 
 private:
-  void visit_attributes (std::vector<AST::Attribute> &attrs);
-
   /**
    * Insert a resolved macro invocation into the mappings once, meaning that we
    * can call this function each time the early name resolution pass is underway
@@ -218,7 +224,6 @@ private:
   std::vector<std::pair<Rib::Definition, Namespace>>
   resolve_path_in_all_ns (const P &path)
   {
-    const auto &segments = path.get_segments ();
     std::vector<std::pair<Rib::Definition, Namespace>> resolved;
 
     // Pair a definition with the namespace it was found in
@@ -229,12 +234,21 @@ private:
       };
     };
 
-    ctx.resolve_path (segments, Namespace::Values)
+    std::vector<Error> value_errors;
+    std::vector<Error> type_errors;
+    std::vector<Error> macro_errors;
+
+    ctx.resolve_path (path, value_errors, Namespace::Values)
       .map (pair_with_ns (Namespace::Values));
-    ctx.resolve_path (segments, Namespace::Types)
+    ctx.resolve_path (path, type_errors, Namespace::Types)
       .map (pair_with_ns (Namespace::Types));
-    ctx.resolve_path (segments, Namespace::Macros)
+    ctx.resolve_path (path, macro_errors, Namespace::Macros)
       .map (pair_with_ns (Namespace::Macros));
+
+    if (!value_errors.empty () && !type_errors.empty ()
+	&& !macro_errors.empty ())
+      for (auto &ent : value_errors)
+	collect_error (std::move (ent));
 
     return resolved;
   }
@@ -255,6 +269,9 @@ private:
 			     const Early::ImportPair &mapping);
 
   void finalize_rebind_import (const Early::ImportPair &mapping);
+
+  /* used to help conversion from IdentifierPattern to PathInExpression */
+  std::set<NodeId> ident_path_to_convert;
 };
 
 } // namespace Resolver2_0

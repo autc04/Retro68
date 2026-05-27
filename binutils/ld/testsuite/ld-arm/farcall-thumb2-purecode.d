@@ -13,10 +13,10 @@ Disassembly of section .foo:
 	\.\.\.
 
 02001028 <__bar_veneer>:
- 2001028:	f241 0c01 	movw	ip, #4097	; 0x1001
+ 2001028:	f241 0c01 	movw	ip, #4097	@ 0x1001
  200102c:	f2c0 0c00 	movt	ip, #0
  2001030:	4760      	bx	ip
- 2001032:	0000      	movs	r0, r0
+ 2001032:	bf00      	nop
  2001034:	0000      	movs	r0, r0
 	\.\.\.
 

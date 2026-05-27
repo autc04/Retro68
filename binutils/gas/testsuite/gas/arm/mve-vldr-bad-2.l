@@ -7,12 +7,18 @@
 [^:]*:15: Error: immediate must be a multiple of 4 in the range of \+/-\[0,508\] -- `vldrw.u32 q0,\[q1,#516\]'
 [^:]*:16: Error: immediate must be a multiple of 4 in the range of \+/-\[0,508\] -- `vldrw.u32 q0,\[q1,#-516\]'
 [^:]*:17: Error: destination register and offset register may not be the same -- `vldrw.u32 q0,\[q0,#4\]'
-[^:]*:18: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:18: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:18: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:18: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:18: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:18: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:18: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:18: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:18: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:18: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:18: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:18: *Info: macro .*
 [^:]*:20: Error: syntax error -- `vldrweq.u32 q0,\[q1\]'
 [^:]*:21: Error: syntax error -- `vldrweq.u32 q0,\[q1\]'
 [^:]*:23: Error: syntax error -- `vldrweq.u32 q0,\[q1\]'
@@ -27,12 +33,18 @@
 [^:]*:33: Error: immediate must be a multiple of 8 in the range of \+/-\[0,1016\] -- `vldrd.u64 q0,\[q1,#1024\]'
 [^:]*:34: Error: immediate must be a multiple of 8 in the range of \+/-\[0,1016\] -- `vldrd.u64 q0,\[q1,#-1024\]'
 [^:]*:35: Error: destination register and offset register may not be the same -- `vldrd.u64 q0,\[q0,#8\]'
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:36: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:36: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:36: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:36: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:36: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:36: *Info: macro .*
 [^:]*:38: Error: syntax error -- `vldrdeq.u64 q0,\[q1\]'
 [^:]*:39: Error: syntax error -- `vldrdeq.u64 q0,\[q1\]'
 [^:]*:41: Error: syntax error -- `vldrdeq.u64 q0,\[q1\]'

@@ -1,5 +1,5 @@
 # Expect script for ld-sparc tests
-#   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -94,6 +94,10 @@ set sparctests {
     {"32-bit: TLS -fpie" "-melf32_sparc -pie tmpdir/libtlslib32.so" ""
      "--32 -K PIC" {tlspie32.s}
      {{objdump -drj.text tlspie32.dd}} "tlspie32"}
+    {"32-bit: GOT definition"
+     "-melf32_sparc" ""
+     "--32 -K PIC" {got-def.s}
+     {} "got-def"}
     {"32-bit: GOTDATA relocations"
      "-shared -melf32_sparc --hash-style=sysv" ""
      "--32 -K PIC" {gotop32.s}
@@ -134,6 +138,10 @@ set sparc64tests {
      "-melf64_sparc -pie -Ttext-segment=0x100000 tmpdir/libtlslib64.so" ""
      "--64 -Av9 -K PIC" {tlspie64.s}
      {{objdump -drj.text tlspie64.dd}} "tlspie64"}
+    {"64-bit: GOT definition"
+     "-melf64_sparc" ""
+     "--64 -Av9 -K PIC" {got-def.s}
+     {} "got-def"}
     {"64-bit: GOTDATA relocations"
      "-shared -melf64_sparc --hash-style=sysv" ""
      "--64 -Av9 -K PIC" {gotop64.s}
@@ -142,19 +150,12 @@ set sparc64tests {
      "libgotop64.so"}
 }
 
-# The solaris2 targets do not support the generic SPARC ELF targets,
-# ie -melf32_sparc and -melf64_sparc, so we skip the next set of
-# tests for them.  Support could be added, but this then breaks the
-# creation of archives for those targets.  See PR 27666 for more
-# details.
-if { ![istarget "*-*-solaris2*"] } {
-    if { ![istarget "sparc64-*-elf*"] } {
-        run_ld_link_tests $sparctests
-    }
+if { ![istarget "sparc64-*-elf*"] } {
+    run_ld_link_tests $sparctests
+}
 
-    if { ![istarget "sparc-*-elf*"] } {
-        run_ld_link_tests $sparc64tests
-    }
+if { ![istarget "sparc-*-elf*"] } {
+    run_ld_link_tests $sparc64tests
 }
 
 if { [istarget "sparc*-*-linux*"] && [isnative] } {

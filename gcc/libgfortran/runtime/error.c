@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -631,6 +631,10 @@ translate_error (int code)
 
     case LIBERROR_BAD_WAIT_ID:
       p = "Bad ID in WAIT statement";
+      break;
+
+    case LIBERROR_RECURSIVE_IO:
+      p = "Recursive I/O not allowed";
       break;
 
     default:

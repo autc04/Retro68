@@ -1,6 +1,5 @@
 # Check 32bit NOTRACK prefix
 
-	.allow_index_reg
 	.text
 _start:
 	notrack call *%eax
@@ -54,14 +53,11 @@ _start:
 	bnd notrack call DWORD PTR [eax]
 	bnd notrack call WORD PTR [eax]
 
+	.att_syntax prefix
 	# bnd notrack call *%eax
-	.byte 0xf2
-	.byte 0x3e
-	.byte 0xff
-	.byte 0xd0
+	bnd
+	notrack call *%eax
 
 	# notrack callw *%ax
 	.byte 0x66
-	.byte 0x3e
-	.byte 0xff
-	.byte 0xd0
+	notrack call *%eax

@@ -25,13 +25,20 @@ Disassembly of section .text:
  *[a-f0-9]+:	48 0f ba 30 01       	btrq   \$0x1,\(%rax\)
  *[a-f0-9]+:	48 0f ba 28 01       	btsq   \$0x1,\(%rax\)
  *[a-f0-9]+:	48 ff 10             	rex\.W call \*\(%rax\)
+ *[a-f0-9]+:	62 f4 84 07 83 38 01[	 ]+ccmpaq \{dfv=\} \$0x1,\(%rax\)
+ *[a-f0-9]+:	62 f4 84 07 81 38 89 00 00 00[	 ]+ccmpaq \{dfv=\} \$0x89,\(%rax\)
+ *[a-f0-9]+:	62 f4 84 07 81 38 34 12 00 00[	 ]+ccmpaq \{dfv=\} \$0x1234,\(%rax\)
+ *[a-f0-9]+:	62 f4 84 07 81 38 78 56 34 12[	 ]+ccmpaq \{dfv=\} \$0x12345678,\(%rax\)
  *[a-f0-9]+:	48 83 38 01          	cmpq   \$0x1,\(%rax\)
  *[a-f0-9]+:	48 81 38 89 00 00 00 	cmpq   \$0x89,\(%rax\)
  *[a-f0-9]+:	48 81 38 34 12 00 00 	cmpq   \$0x1234,\(%rax\)
  *[a-f0-9]+:	48 81 38 78 56 34 12 	cmpq   \$0x12345678,\(%rax\)
- *[a-f0-9]+:	48 a7                	cmpsq  %es:\(%rdi\),%ds:\(%rsi\)
- *[a-f0-9]+:	48 a7                	cmpsq  %es:\(%rdi\),%ds:\(%rsi\)
+ *[a-f0-9]+:	48 a7                	cmpsq  \(%rdi\),\(%rsi\)
+ *[a-f0-9]+:	48 a7                	cmpsq  \(%rdi\),\(%rsi\)
  *[a-f0-9]+:	f2 48 0f 38 f1 00    	crc32q \(%rax\),%rax
+ *[a-f0-9]+:	62 f4 84 07 f7 00 89 00 00 00[	 ]+ctestaq \{dfv=\} \$0x89,\(%rax\)
+ *[a-f0-9]+:	62 f4 84 07 f7 00 34 12 00 00[	 ]+ctestaq \{dfv=\} \$0x1234,\(%rax\)
+ *[a-f0-9]+:	62 f4 84 07 f7 00 78 56 34 12[	 ]+ctestaq \{dfv=\} \$0x12345678,\(%rax\)
  *[a-f0-9]+:	48 ff 08             	decq   \(%rax\)
  *[a-f0-9]+:	48 f7 30             	divq   \(%rax\)
  *[a-f0-9]+:	48 d8 00             	rex\.W fadds \(%rax\)
@@ -62,8 +69,8 @@ Disassembly of section .text:
  *[a-f0-9]+:	48 e5 00             	rex\.W in \$0x0,%eax
  *[a-f0-9]+:	48 ed                	rex\.W in \(%dx\),%eax
  *[a-f0-9]+:	48 ff 00             	incq   \(%rax\)
- *[a-f0-9]+:	48 6d                	rex\.W insl \(%dx\),%es:\(%rdi\)
- *[a-f0-9]+:	48 6d                	rex\.W insl \(%dx\),%es:\(%rdi\)
+ *[a-f0-9]+:	48 6d                	rex\.W insl \(%dx\),\(%rdi\)
+ *[a-f0-9]+:	48 6d                	rex\.W insl \(%dx\),\(%rdi\)
  *[a-f0-9]+:	48 cf                	iretq
  *[a-f0-9]+:	48 ff 20             	rex\.W jmp \*\(%rax\)
  *[a-f0-9]+:	48 ff 18             	rex\.W lcall \*\(%rax\)
@@ -72,8 +79,8 @@ Disassembly of section .text:
  *[a-f0-9]+:	48 ff 28             	rex\.W ljmp \*\(%rax\)
  *[a-f0-9]+:	48 0f 00 10          	rex\.W lldt \(%rax\)
  *[a-f0-9]+:	48 0f 01 30          	rex\.W lmsw \(%rax\)
- *[a-f0-9]+:	48 ad                	lods   %ds:\(%rsi\),%rax
- *[a-f0-9]+:	48 ad                	lods   %ds:\(%rsi\),%rax
+ *[a-f0-9]+:	48 ad                	lods   \(%rsi\),%rax
+ *[a-f0-9]+:	48 ad                	lods   \(%rsi\),%rax
  *[a-f0-9]+:	48 cb                	lretq
  *[a-f0-9]+:	48 ca 04 00          	lretq  \$0x4
  *[a-f0-9]+:	48 0f 00 18          	rex\.W ltr \(%rax\)
@@ -82,8 +89,8 @@ Disassembly of section .text:
  *[a-f0-9]+:	48 c7 00 78 56 34 12 	movq   \$0x12345678,\(%rax\)
  *[a-f0-9]+:	48 8c 00             	rex\.W mov %es,\(%rax\)
  *[a-f0-9]+:	48 8e 00             	rex\.W mov \(%rax\),%es
- *[a-f0-9]+:	48 a5                	movsq  %ds:\(%rsi\),%es:\(%rdi\)
- *[a-f0-9]+:	48 a5                	movsq  %ds:\(%rsi\),%es:\(%rdi\)
+ *[a-f0-9]+:	48 a5                	movsq  \(%rsi\),\(%rdi\)
+ *[a-f0-9]+:	48 a5                	movsq  \(%rsi\),\(%rdi\)
  *[a-f0-9]+:	66 48 0f be 00       	data16 movsbq \(%rax\),%rax
  *[a-f0-9]+:	48 0f be 00          	movsbq \(%rax\),%rax
  *[a-f0-9]+:	66 48 0f b6 00       	data16 movzbq \(%rax\),%rax
@@ -98,53 +105,53 @@ Disassembly of section .text:
  *[a-f0-9]+:	48 81 08 78 56 34 12 	orq    \$0x12345678,\(%rax\)
  *[a-f0-9]+:	48 e7 00             	rex\.W out %eax,\$0x0
  *[a-f0-9]+:	48 ef                	rex\.W out %eax,\(%dx\)
- *[a-f0-9]+:	48 6f                	rex\.W outsl %ds:\(%rsi\),\(%dx\)
- *[a-f0-9]+:	48 6f                	rex\.W outsl %ds:\(%rsi\),\(%dx\)
+ *[a-f0-9]+:	48 6f                	rex\.W outsl \(%rsi\),\(%dx\)
+ *[a-f0-9]+:	48 6f                	rex\.W outsl \(%rsi\),\(%dx\)
  *[a-f0-9]+:	48 8f 00             	rex\.W pop \(%rax\)
  *[a-f0-9]+:	48 0f a1             	rex\.W pop %fs
  *[a-f0-9]+:	f3 48 0f ae 20       	ptwriteq \(%rax\)
  *[a-f0-9]+:	48 ff 30             	rex\.W push \(%rax\)
  *[a-f0-9]+:	48 0f a0             	rex\.W push %fs
- *[a-f0-9]+:	48 d1 10             	rclq   \(%rax\)
+ *[a-f0-9]+:	48 d1 10             	rclq   \$1,\(%rax\)
  *[a-f0-9]+:	48 c1 10 02          	rclq   \$0x2,\(%rax\)
  *[a-f0-9]+:	48 d3 10             	rclq   %cl,\(%rax\)
- *[a-f0-9]+:	48 d1 10             	rclq   \(%rax\)
- *[a-f0-9]+:	48 d1 18             	rcrq   \(%rax\)
+ *[a-f0-9]+:	48 d1 10             	rclq   \$1,\(%rax\)
+ *[a-f0-9]+:	48 d1 18             	rcrq   \$1,\(%rax\)
  *[a-f0-9]+:	48 c1 18 02          	rcrq   \$0x2,\(%rax\)
  *[a-f0-9]+:	48 d3 18             	rcrq   %cl,\(%rax\)
- *[a-f0-9]+:	48 d1 18             	rcrq   \(%rax\)
- *[a-f0-9]+:	48 d1 00             	rolq   \(%rax\)
+ *[a-f0-9]+:	48 d1 18             	rcrq   \$1,\(%rax\)
+ *[a-f0-9]+:	48 d1 00             	rolq   \$1,\(%rax\)
  *[a-f0-9]+:	48 c1 00 02          	rolq   \$0x2,\(%rax\)
  *[a-f0-9]+:	48 d3 00             	rolq   %cl,\(%rax\)
- *[a-f0-9]+:	48 d1 00             	rolq   \(%rax\)
- *[a-f0-9]+:	48 d1 08             	rorq   \(%rax\)
+ *[a-f0-9]+:	48 d1 00             	rolq   \$1,\(%rax\)
+ *[a-f0-9]+:	48 d1 08             	rorq   \$1,\(%rax\)
  *[a-f0-9]+:	48 c1 08 02          	rorq   \$0x2,\(%rax\)
  *[a-f0-9]+:	48 d3 08             	rorq   %cl,\(%rax\)
- *[a-f0-9]+:	48 d1 08             	rorq   \(%rax\)
+ *[a-f0-9]+:	48 d1 08             	rorq   \$1,\(%rax\)
  *[a-f0-9]+:	48 83 18 01          	sbbq   \$0x1,\(%rax\)
  *[a-f0-9]+:	48 81 18 89 00 00 00 	sbbq   \$0x89,\(%rax\)
  *[a-f0-9]+:	48 81 18 34 12 00 00 	sbbq   \$0x1234,\(%rax\)
  *[a-f0-9]+:	48 81 18 78 56 34 12 	sbbq   \$0x12345678,\(%rax\)
- *[a-f0-9]+:	48 af                	scas   %es:\(%rdi\),%rax
- *[a-f0-9]+:	48 af                	scas   %es:\(%rdi\),%rax
- *[a-f0-9]+:	48 d1 20             	shlq   \(%rax\)
+ *[a-f0-9]+:	48 af                	scas   \(%rdi\),%rax
+ *[a-f0-9]+:	48 af                	scas   \(%rdi\),%rax
+ *[a-f0-9]+:	48 d1 20             	shlq   \$1,\(%rax\)
  *[a-f0-9]+:	48 c1 20 02          	shlq   \$0x2,\(%rax\)
  *[a-f0-9]+:	48 d3 20             	shlq   %cl,\(%rax\)
- *[a-f0-9]+:	48 d1 20             	shlq   \(%rax\)
- *[a-f0-9]+:	48 d1 38             	sarq   \(%rax\)
+ *[a-f0-9]+:	48 d1 20             	shlq   \$1,\(%rax\)
+ *[a-f0-9]+:	48 d1 38             	sarq   \$1,\(%rax\)
  *[a-f0-9]+:	48 c1 38 02          	sarq   \$0x2,\(%rax\)
  *[a-f0-9]+:	48 d3 38             	sarq   %cl,\(%rax\)
- *[a-f0-9]+:	48 d1 38             	sarq   \(%rax\)
- *[a-f0-9]+:	48 d1 20             	shlq   \(%rax\)
+ *[a-f0-9]+:	48 d1 38             	sarq   \$1,\(%rax\)
+ *[a-f0-9]+:	48 d1 20             	shlq   \$1,\(%rax\)
  *[a-f0-9]+:	48 c1 20 02          	shlq   \$0x2,\(%rax\)
  *[a-f0-9]+:	48 d3 20             	shlq   %cl,\(%rax\)
- *[a-f0-9]+:	48 d1 20             	shlq   \(%rax\)
- *[a-f0-9]+:	48 d1 28             	shrq   \(%rax\)
+ *[a-f0-9]+:	48 d1 20             	shlq   \$1,\(%rax\)
+ *[a-f0-9]+:	48 d1 28             	shrq   \$1,\(%rax\)
  *[a-f0-9]+:	48 c1 28 02          	shrq   \$0x2,\(%rax\)
  *[a-f0-9]+:	48 d3 28             	shrq   %cl,\(%rax\)
- *[a-f0-9]+:	48 d1 28             	shrq   \(%rax\)
- *[a-f0-9]+:	48 ab                	stos   %rax,%es:\(%rdi\)
- *[a-f0-9]+:	48 ab                	stos   %rax,%es:\(%rdi\)
+ *[a-f0-9]+:	48 d1 28             	shrq   \$1,\(%rax\)
+ *[a-f0-9]+:	48 ab                	stos   %rax,\(%rdi\)
+ *[a-f0-9]+:	48 ab                	stos   %rax,\(%rdi\)
  *[a-f0-9]+:	48 83 28 01          	subq   \$0x1,\(%rax\)
  *[a-f0-9]+:	48 81 28 89 00 00 00 	subq   \$0x89,\(%rax\)
  *[a-f0-9]+:	48 81 28 34 12 00 00 	subq   \$0x1234,\(%rax\)

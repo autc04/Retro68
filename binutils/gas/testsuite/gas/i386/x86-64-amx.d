@@ -1,4 +1,3 @@
-#as:
 #objdump: -d
 #name: x86_64 AMX insns
 #source: x86-64-amx.s

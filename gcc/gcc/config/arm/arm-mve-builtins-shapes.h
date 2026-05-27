@@ -1,5 +1,5 @@
 /* ACLE support for Arm MVE (function shapes)
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -29,7 +29,8 @@ namespace arm_mve
 
      Also:
 
-     - "inherent" means that the function takes no arguments.  */
+     - "inherent" means that the function takes no arguments, except in its
+       overloaded form.  */
 
   namespace shapes
   {
@@ -60,12 +61,22 @@ namespace arm_mve
     extern const function_shape *const binary_widen_poly;
     extern const function_shape *const cmp;
     extern const function_shape *const create;
+    extern const function_shape *const getq_lane;
     extern const function_shape *const inherent;
     extern const function_shape *const load;
     extern const function_shape *const load_ext;
     extern const function_shape *const load_ext_gather_offset;
     extern const function_shape *const load_gather_base;
     extern const function_shape *const mvn;
+    extern const function_shape *const scalar_s32_shift;
+    extern const function_shape *const scalar_s32_shift_imm;
+    extern const function_shape *const scalar_u32_shift;
+    extern const function_shape *const scalar_u32_shift_imm;
+    extern const function_shape *const scalar_s64_shift;
+    extern const function_shape *const scalar_s64_shift_imm;
+    extern const function_shape *const scalar_u64_shift;
+    extern const function_shape *const scalar_u64_shift_imm;
+    extern const function_shape *const setq_lane;
     extern const function_shape *const store;
     extern const function_shape *const store_scatter_base;
     extern const function_shape *const store_scatter_offset;
@@ -90,6 +101,7 @@ namespace arm_mve
     extern const function_shape *const vcvtx;
     extern const function_shape *const viddup;
     extern const function_shape *const vidwdup;
+    extern const function_shape *const vpnot;
     extern const function_shape *const vpsel;
     extern const function_shape *const vshlc;
 

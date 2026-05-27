@@ -1,5 +1,5 @@
 /* Interprocedural scalar replacement of aggregates
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by Martin Jambor <mjambor@suse.cz>
 
 This file is part of GCC.
@@ -1847,6 +1847,12 @@ scan_expr_access (tree expr, gimple *stmt, isra_scan_context ctx,
   gensum_param_desc *desc = get_gensum_param_desc (base);
   if (!desc || !desc->split_candidate)
     return;
+
+  if (storage_order_barrier_p (expr))
+    {
+      disqualify_split_candidate (desc, "Encountered a storage order barrier.");
+      return;
+    }
 
   if (!poffset.is_constant (&offset)
       || !psize.is_constant (&size)
@@ -4644,7 +4650,7 @@ ipa_sra_summarize_function (cgraph_node *node)
 {
   if (dump_file)
     fprintf (dump_file, "Creating summary for %s/%i:\n", node->name (),
-	     node->order);
+	     node->get_uid ());
   gcc_obstack_init (&gensum_obstack);
   loaded_decls = new hash_set<tree>;
 

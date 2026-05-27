@@ -1,5 +1,5 @@
 /* A pure C API for emitting diagnostics.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -50,6 +50,13 @@ extern "C" {
 #define LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL(ARG_NUM)
   /* empty; for the human reader */
 
+# if (LIBGDIAGNOSTICS_GCC_VERSION >= 4001)
+#  define LIBGDIAGNOSTICS_PARAM_FORMAT_STRING(FMT_KIND, FMT_ARG_NUM, ARGS_ARG_NUM) \
+     __attribute__ ((__format__ (FMT_KIND, FMT_ARG_NUM, ARGS_ARG_NUM)))
+# else
+#  define LIBGDIAGNOSTICS_PARAM_FORMAT_STRING(FMT_KIND, FMT_ARG_NUM, ARGS_ARG_NUM)
+# endif /* GNUC >= 4.1 */
+
 #define LIBGDIAGNOSTICS_PARAM_GCC_FORMAT_STRING(FMT_ARG_NUM, ARGS_ARG_NUM) \
   LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (FMT_ARG_NUM)
   /* In theory we'd also add
@@ -58,6 +65,10 @@ extern "C" {
      However, doing so leads to warnings from -Wformat-diag, which is part
      of -Wall but undocumented, and much fussier than I'd want to inflict
      on users of libgdiagnostics.  */
+
+#define LIBGDIAGNOSTICS_PARAM_PRINTF_FORMAT_STRING(FMT_ARG_NUM, ARGS_ARG_NUM) \
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (FMT_ARG_NUM) \
+  LIBGDIAGNOSTICS_PARAM_FORMAT_STRING(gnu_printf, FMT_ARG_NUM, ARGS_ARG_NUM)
 
 /**********************************************************************
  Data structures and types.
@@ -161,6 +172,7 @@ typedef struct diagnostic_logical_location diagnostic_logical_location;
 
 enum diagnostic_logical_location_kind_t
 {
+ /* Kinds within executable code.  */
   DIAGNOSTIC_LOGICAL_LOCATION_KIND_FUNCTION,
   DIAGNOSTIC_LOGICAL_LOCATION_KIND_MEMBER,
   DIAGNOSTIC_LOGICAL_LOCATION_KIND_MODULE,
@@ -168,7 +180,22 @@ enum diagnostic_logical_location_kind_t
   DIAGNOSTIC_LOGICAL_LOCATION_KIND_TYPE,
   DIAGNOSTIC_LOGICAL_LOCATION_KIND_RETURN_TYPE,
   DIAGNOSTIC_LOGICAL_LOCATION_KIND_PARAMETER,
-  DIAGNOSTIC_LOGICAL_LOCATION_KIND_VARIABLE
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_VARIABLE,
+
+  /* Kinds within XML or HTML documents.  */
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_ELEMENT,
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_ATTRIBUTE,
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_TEXT,
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_COMMENT,
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROCESSING_INSTRUCTION,
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_DTD,
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_DECLARATION,
+
+  /* Kinds within JSON documents.  */
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_OBJECT,
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_ARRAY,
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROPERTY,
+  DIAGNOSTIC_LOGICAL_LOCATION_KIND_VALUE
 };
 
 /* A "diagnostic" is an opaque bundle of state for a particular
@@ -213,6 +240,8 @@ enum diagnostic_level
 /* Types for working with execution paths.  */
 typedef struct diagnostic_execution_path diagnostic_execution_path;
 typedef int diagnostic_event_id;
+
+typedef struct diagnostic_message_buffer diagnostic_message_buffer;
 
 /**********************************************************************
  API entrypoints.
@@ -487,6 +516,32 @@ diagnostic_manager_debug_dump_logical_location (const diagnostic_manager *diag_m
   LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2)
   LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (3);
 
+/* Accessors for logical locations (added in LIBGDIAGNOSTICS_ABI_1;
+   you can test for their presence using
+   #ifdef LIBDIAGNOSTICS_HAVE_LOGICAL_LOCATION_ACCESSORS
+*/
+#define LIBDIAGNOSTICS_HAVE_LOGICAL_LOCATION_ACCESSORS
+
+extern enum diagnostic_logical_location_kind_t
+diagnostic_logical_location_get_kind (const diagnostic_logical_location *loc)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+extern const diagnostic_logical_location *
+diagnostic_logical_location_get_parent (const diagnostic_logical_location *loc)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+extern const char *
+diagnostic_logical_location_get_short_name (const diagnostic_logical_location *loc)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+extern const char *
+diagnostic_logical_location_get_fully_qualified_name (const diagnostic_logical_location *loc)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+extern const char *
+diagnostic_logical_location_get_decorated_name (const diagnostic_logical_location *loc)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
 /* Diagnostic groups.  */
 
 /* Begin a diagnostic group.  All diagnostics emitted within
@@ -692,6 +747,384 @@ extern diagnostic_file *
 diagnostic_physical_location_get_file (const diagnostic_physical_location *physical_loc)
   LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL(0);
 
+/* Attempt to parse SPEC as if an argument to GCC's
+   -fdiagnostics-add-output=OUTPUT-SPEC.
+   If successful, add an output sink to AFFECTED_MGR and return zero.
+   Otherwise, emit a diagnostic to CONTROL_MGR and return non-zero.
+   Added in LIBGDIAGNOSTICS_ABI_2.  */
+#define LIBDIAGNOSTICS_HAVE_diagnostic_manager_add_sink_from_spec
+
+extern int
+diagnostic_manager_add_sink_from_spec (diagnostic_manager *affected_mgr,
+				       const char *option_name,
+				       const char *spec,
+				       diagnostic_manager *control_mgr)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (3)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (4);
+
+
+/* Set the main input file of MGR to be FILE.
+   This affects the <title> of generated HTML and
+   the "role" of the artifact in SARIF output (SARIF v2.1.0
+   section 3.24.6).
+   Added in LIBGDIAGNOSTICS_ABI_2.  */
+#define LIBDIAGNOSTICS_HAVE_diagnostic_manager_set_analysis_target
+
+extern void
+diagnostic_manager_set_analysis_target (diagnostic_manager *mgr,
+					const diagnostic_file *file)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* Directed graphs.  */
+
+typedef struct diagnostic_graph diagnostic_graph;
+typedef struct diagnostic_node diagnostic_node;
+typedef struct diagnostic_edge diagnostic_edge;
+
+/* Create a new graph.
+   This is owned by the caller and must have one of
+   diagnostic_manager_take_global_graph, diagnostic_take_graph,
+   or diagnostic_graph_release called on it.
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern diagnostic_graph *
+diagnostic_manager_new_graph (diagnostic_manager *manager)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+/* Report this graph "globally", taking ownership of it.
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern void
+diagnostic_manager_take_global_graph (diagnostic_manager *manager,
+				      diagnostic_graph *graph)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* Add this graph to DIAG, transferring ownership to it.
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern void
+diagnostic_take_graph (diagnostic *diag,
+		      diagnostic_graph *graph)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* Release this graph.  Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern void
+diagnostic_graph_release (diagnostic_graph *graph)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (1);
+
+/* Set the description of GRAPH for use
+   in the value of the SARIF "description" property
+   (SARIF v2.1.0 section 3.39.2).
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern void
+diagnostic_graph_set_description (diagnostic_graph *graph,
+				 const char *description)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2);
+
+/* Create and add a new node within GRAPH.
+   NODE_ID must be unique within nodes in GRAPH.
+   The new node is owned by GRAPH.
+   PARENT_NODE can be NULL (for a top-level node in the graph),
+   or non-null for a child node.
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern diagnostic_node *
+diagnostic_graph_add_node (diagnostic_graph *graph,
+			   const char *node_id,
+			   diagnostic_node *parent_node)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (3);
+
+/* Create and add a new edge within GRAPH.
+
+   If non-null, then EDGE_ID must be unique within edges in GRAPH;
+   if EDGE_ID is null then a unique id of the form "edge0", "edge1", etc
+   will be used automatically.
+
+   The new edge is owned by GRAPH.
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern diagnostic_edge *
+diagnostic_graph_add_edge (diagnostic_graph *graph,
+			   const char *edge_id,
+			   diagnostic_node *src_node,
+			   diagnostic_node *dst_node,
+			   const char *label)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (3)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (4)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (5);
+
+/* Get the node in GRAPH with the given id, or null.
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern diagnostic_node *
+diagnostic_graph_get_node_by_id (diagnostic_graph *graph,
+				 const char *node_id)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* Get the edge in GRAPH with the given id, or null.
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern diagnostic_edge *
+diagnostic_graph_get_edge_by_id (diagnostic_graph *graph,
+				 const char *edge_id)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* Set the label of NODE for use
+   in the value of the SARIF "label" property
+   (SARIF v2.1.0 section 3.40.3).
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern void
+diagnostic_node_set_label (diagnostic_node *node,
+			   const char *label)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2);
+
+/* Set the physical location of NODE.
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern void
+diagnostic_node_set_location (diagnostic_node *node,
+			      const diagnostic_physical_location *loc)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2);
+
+/* Set the logical location of NODE.
+   Added in LIBGDIAGNOSTICS_ABI_3.  */
+
+extern void
+diagnostic_node_set_logical_location (diagnostic_node *node,
+				      const diagnostic_logical_location *logical_loc)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2);
+
+/* Message buffers.  */
+
+#define LIBDIAGNOSTICS_HAVE_diagnostic_message_buffer
+
+/* Create a new diagnostic_message_buffer.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern diagnostic_message_buffer *
+diagnostic_message_buffer_new (void);
+
+/* Release a diagnostic_message_buffer that hasn't been used.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_release (diagnostic_message_buffer *msg_buf)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+/* Append a UTF-8 encoded null-terminated string to the buffer.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_append_str (diagnostic_message_buffer *msg_buf,
+				      const char *p)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* Append a UTF-8 encoded run of bytes to the buffer.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_append_text (diagnostic_message_buffer *msg_buf,
+				       const char *p,
+				       size_t len)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* Append a byte to to the buffer.  This should be either
+   ASCII, or part of UTF-8 encoded text.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_append_byte (diagnostic_message_buffer *msg_buf,
+				       char ch)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+/* Append a formatted string to the buffer, using the formatting rules
+   for "printf".
+   The string is assumed to be UTF-8 encoded.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_append_printf (diagnostic_message_buffer *msg_buf,
+					 const char *fmt, ...)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_PRINTF_FORMAT_STRING (2, 3);
+
+/* Append a diagnostic_event_id to the buffer in the form "(1)".
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_append_event_id (diagnostic_message_buffer *msg_buf,
+					   diagnostic_event_id event_id)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+/* Begin a run of text associated with the given URL.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_begin_url (diagnostic_message_buffer *msg_buf,
+				     const char *url)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* End a run of text started with diagnostic_message_buffer_begin_url.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_end_url (diagnostic_message_buffer *msg_buf)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+/* Begin a run of text to be printed in quotes.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_begin_quote (diagnostic_message_buffer *msg_buf)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+/* End a run of text started with diagnostic_message_buffer_begin_quote.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_end_quote (diagnostic_message_buffer *msg_buf)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+/* Begin a run of text to be printed with color.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_begin_color (diagnostic_message_buffer *msg_buf,
+				       const char *color)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* End a run of text started with diagnostic_message_buffer_begin_color.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_end_color (diagnostic_message_buffer *msg_buf)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1);
+
+/* Write a debugging representation of MSG_BUG to OUTF.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_message_buffer_dump (const diagnostic_message_buffer *msg_buf,
+				FILE *outf)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* As diagnostic_finish, but takes ownership of MSG_BUF.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_finish_via_msg_buf (diagnostic *diag,
+			       diagnostic_message_buffer *msg_buf)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2);
+
+/* As diagnostic_add_location_with_label but takes ownership of MSG_BUF.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_add_location_with_label_via_msg_buf (diagnostic *diag,
+						const diagnostic_physical_location *loc,
+						diagnostic_message_buffer *msg_buf)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (3);
+
+/* As diagnostic_execution_path_add_event but takes ownership of MSG_BUF.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern diagnostic_event_id
+diagnostic_execution_path_add_event_via_msg_buf (diagnostic_execution_path *path,
+						 const diagnostic_physical_location *physical_loc,
+						 const diagnostic_logical_location *logical_loc,
+						 unsigned stack_depth,
+						 diagnostic_message_buffer *msg_buf)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (3)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (5);
+
+/* Set the description of GRAPH for use
+   in the value of the SARIF "description" property
+   (SARIF v2.1.0 section 3.39.2).
+
+   Takes ownership of DESC, if non-null.
+
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_graph_set_description_via_msg_buf (diagnostic_graph *graph,
+					      diagnostic_message_buffer *desc)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2);
+
+/* Create and add a new edge within GRAPH.
+
+   If non-null, then EDGE_ID must be unique within edges in GRAPH;
+   if EDGE_ID is null then a unique id of the form "edge0", "edge1", etc
+   will be used automatically.
+
+   Takes ownership of LABEL, if non-null.
+
+   The new edge is owned by GRAPH.
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern diagnostic_edge *
+diagnostic_graph_add_edge_via_msg_buf (diagnostic_graph *graph,
+				       const char *edge_id,
+				       diagnostic_node *src_node,
+				       diagnostic_node *dst_node,
+				       diagnostic_message_buffer *label)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (3)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (4)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (5);
+
+/* Set the label of NODE for use
+   in the value of the SARIF "label" property
+   (SARIF v2.1.0 section 3.40.3).
+
+   Takes ownership of LABEL, if non-null.
+
+   Added in LIBGDIAGNOSTICS_ABI_4.  */
+
+extern void
+diagnostic_node_set_label_via_msg_buf (diagnostic_node *node,
+				       diagnostic_message_buffer *label)
+  LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (1)
+  LIBGDIAGNOSTICS_PARAM_CAN_BE_NULL (2);
+
+/* If non-zero, print debugging information to stderr when
+   creating diagnostic_physical_location instances.
+
+   Added in LIBGDIAGNOSTICS_ABI_5.  */
+#define LIBDIAGNOSTICS_HAVE_diagnostic_manager_set_debug_physical_locations
+
+extern void
+diagnostic_manager_set_debug_physical_locations (diagnostic_manager *mgr,
+						 int value);
+
 /* DEFERRED:
    - thread-safety
    - plural forms
@@ -699,6 +1132,7 @@ diagnostic_physical_location_get_file (const diagnostic_physical_location *physi
    - locations within binary files
    - options and URLs for warnings
    - enable/disable of warnings by kind
+   - command-line arguments
    - plugin metadata.  */
 
 #ifdef __cplusplus

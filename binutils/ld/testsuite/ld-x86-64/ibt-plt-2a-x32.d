@@ -1,6 +1,6 @@
 #source: ibt-plt-2.s
 #as: --x32
-#ld: -shared -m elf32_x86_64 -z ibtplt --hash-style=sysv -z max-page-size=0x200000 -z noseparate-code $NO_DT_RELR_LDFLAGS
+#ld: -shared -m elf32_x86_64 -z ibtplt --hash-style=sysv -z max-page-size=0x200000 -z noseparate-code $NO_DT_RELR_LDFLAGS -z nomark-plt
 #objdump: -dw
 
 .*: +file format .*

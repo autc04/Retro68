@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 XSAVEC insns
 #source: xsavec.s

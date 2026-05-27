@@ -10,7 +10,7 @@
 	.long	.startof.()		;# { dg-error "Error: expected symbol name" }
 ;# We don't really care about these, but I didn't find a way to discard
 ;# them, and I also don't want to use dg-excess-errors here.
-;# { dg-error "junk at end" "" { target *-*-* } 3 }
+;# { dg-error "junk at end" "junk" { target *-*-* } 3 }
 ;# { dg-error "junk at end" "junk" { target *-*-* } 4 }
 ;# { dg-error "junk at end" "junk" { target *-*-* } 5 }
 ;# { dg-error "junk at end" "junk" { target *-*-* } 6 }

@@ -1,6 +1,5 @@
 # Check 64bit AVX512ER-RCIG instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vexp2ps	{sae}, %zmm29, %zmm30	 # AVX512ER

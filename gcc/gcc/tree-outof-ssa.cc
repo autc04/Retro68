@@ -1,5 +1,5 @@
 /* Convert a program in SSA form into Normal form.
-   Copyright (C) 2004-2025 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
    Contributed by Andrew Macleod <amacleod@redhat.com>
 
 This file is part of GCC.
@@ -264,10 +264,7 @@ emit_partition_copy (rtx dest, rtx src, int unsignedsrcp, tree sizeexp)
     emit_move_insn (dest, src);
   do_pending_stack_adjust ();
 
-  rtx_insn *seq = get_insns ();
-  end_sequence ();
-
-  return seq;
+  return end_sequence ();
 }
 
 /* Insert a copy instruction from partition SRC to DEST onto edge E.  */
@@ -357,8 +354,7 @@ insert_value_copy_on_edge (edge e, int dest, tree src, location_t locus)
     emit_move_insn (dest_rtx, x);
   do_pending_stack_adjust ();
 
-  seq = get_insns ();
-  end_sequence ();
+  seq = end_sequence ();
 
   insert_insn_on_edge (seq, e);
 }
@@ -1009,9 +1005,8 @@ get_undefined_value_partitions (var_map map)
 }
 
 /* Given the out-of-ssa info object SA (with prepared partitions)
-   eliminate all phi nodes in all basic blocks.  Afterwards no
-   basic block will have phi nodes anymore and there are possibly
-   some RTL instructions inserted on edges.  */
+   eliminate all phi nodes in all basic blocks.  Afterwards there
+   are possibly some RTL instructions inserted on edges.  */
 
 void
 expand_phi_nodes (struct ssaexpand *sa)
@@ -1027,7 +1022,6 @@ expand_phi_nodes (struct ssaexpand *sa)
 	edge_iterator ei;
 	FOR_EACH_EDGE (e, ei, bb->preds)
 	  eliminate_phi (e, &g);
-	set_phi_nodes (bb, NULL);
 	/* We can't redirect EH edges in RTL land, so we need to do this
 	   here.  Redirection happens only when splitting is necessary,
 	   which it is only for critical edges, normally.  For EH edges

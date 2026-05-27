@@ -1,6 +1,6 @@
 (* M2Range.def exports procedures which maintain the range checking.
 
-Copyright (C) 2008-2025 Free Software Foundation, Inc.
+Copyright (C) 2008-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -288,6 +288,24 @@ PROCEDURE InitParameterRangeCheck (tokno: CARDINAL;
 
 PROCEDURE InitTypesExpressionCheck (tokno: CARDINAL; d, e: CARDINAL;
                                     strict, isin: BOOLEAN) : CARDINAL ;
+
+
+(*
+   InitTypesIndrXCheck - checks to see that the types of d and e
+                         are assignment compatible.  The type checking
+                         will dereference *e during the type check.
+                         d = *e.
+*)
+
+PROCEDURE InitTypesIndrXCheck (tokno: CARDINAL; d, e: CARDINAL) : CARDINAL ;
+
+
+(*
+   InitTypesReturnTypeCheck - checks to see that the type of val can
+                                   be returned from func.
+*)
+
+PROCEDURE InitTypesReturnTypeCheck (tokno: CARDINAL; func, val: CARDINAL) : CARDINAL ;
 
 
 (*

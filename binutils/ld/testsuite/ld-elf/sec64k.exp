@@ -1,5 +1,5 @@
 # Expect script for tests for >64k sections
-#   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -147,7 +147,7 @@ if { ![istarget "m32r-*-*"] } then {
     puts $ofd "#..."
     puts $ofd " 340..: 0+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+68... .*"
     puts $ofd "#..."
-    puts $ofd " 340..: 0+(2|4|8)\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[2-7\] bar_1$"
+    puts $ofd " 340..: 0+(2|4|8)\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[2-8\] bar_1$"
     puts $ofd "#..."
     puts $ofd ".* bar_34000$"
     puts $ofd "#..."
@@ -168,17 +168,24 @@ if [catch { set ofd [open "tmpdir/$test2.d" w] } x] {
     return
 }
 
-# too big for avr, d10v and msp
-# lack of fancy orphan section handling causes overlap on fr30 and iq2000
-# lm32 complains about relocations in read-only sections
+# Too big for avr, d10v and msp.
+# Lack of fancy orphan section handling causes overlap on fr30 and iq2000.
+# bfin and lm32 complain about relocations in read-only sections.
 if { ![istarget "d10v-*-*"]
      && ![istarget "avr-*-*"]
      && ![istarget "msp*-*-*"]
      && ![istarget "fr30-*-*"] 
      && ![istarget "iq2000-*-*"]
+     && ![istarget "bfin-*-linux*"]
      && ![istarget "lm32-*-linux*"]
      && ![istarget "pru-*-*"] } {
+
+    # Create a 64ksec.d test control file...
+    
+    # List the input files.
     foreach sfile $sfiles { puts $ofd "#source: $sfile" }
+
+    # Add any needed linker command line options.
     if { [istarget spu*-*-*] } {
 	puts $ofd "#ld: --local-store 0:0"
     } elseif { [istarget "i?86-*-linux*"] || [istarget "x86_64-*-linux*"] } {
@@ -186,10 +193,20 @@ if { ![istarget "d10v-*-*"]
     } else {
 	puts $ofd "#ld:"
     }
-    #force z80 target to compile for eZ80 in ADL mode
+
+    # Enable the accumulation of internal linker statistics in a separate file.
+    # Enabled this way as you cannot have multiple #ld: options in a .d file.
+    # The + character causes the file to opened in append mode, so that multiple
+    # runs of this test will accumulate data over time.  Thus allowing regular
+    # testers to see changes in the performance of the linker.
+    puts $ofd "#ld_after_inputfiles: --stats=+tmpdir/$test2.stats"
+    
+    # Force z80 target to compile for eZ80 in ADL mode.
     if { [istarget "z80-*-*"] } then {
 	puts $ofd "#as: -ez80-adl"
     }
+
+    # Add a test of the linked binary.
     puts $ofd "#readelf: -W -wN -Ss"
     puts $ofd "There are 660.. section headers.*:"
     puts $ofd "#..."
@@ -198,6 +215,7 @@ if { ![istarget "d10v-*-*"]
     puts $ofd "  \\\[65279\\\] \\.foo\\.\[0-9\]+ .*"
     puts $ofd "  \\\[65280\\\] \\.foo\\.\[0-9\]+ .*"
     puts $ofd "#..."
+
     if { [is_elf_unused_section_symbols ] } {
 	puts $ofd " 660..: \[0-9a-f\]+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+660...*"
 	puts $ofd "#..."
@@ -208,6 +226,7 @@ if { ![istarget "d10v-*-*"]
 	puts $ofd " 66...: \[0-9a-f\]+\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+660.. bar_66000$"
     }
     puts $ofd "#..."
+
     # Global symbols are not in "alphanumeric" order, so we just check
     # that the first and the last are present in any order (assuming no
     # duplicates).
@@ -216,9 +235,14 @@ if { ![istarget "d10v-*-*"]
     puts $ofd ".* (\[0-9\] foo_1|66... foo_66000)$"
     puts $ofd "#pass"
     close $ofd
+
+    # Now run the constructed test file.
     run_dump_test "tmpdir/$test2"
+
+    # Leave the test file around in case the user wants to examine it.
 }
 
-for { set i 1 } { $i < $max_sec / $secs_per_file } { incr i } {
-    catch "exec rm -f tmpdir/dump$i.o" status
+# Tidy up.
+for { set i 0 } { $i < $max_sec / $secs_per_file } { incr i } {
+    catch "exec rm -f tmpdir/sec64-$i.o" status
 }

@@ -1,6 +1,6 @@
 #source: start1.s
 #source: tls-tprelm.s --defsym r=32767
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux
 #objdump: -s -j .got -j .text -j .tdata
 

@@ -1,6 +1,52 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2025-10-07  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR target/120691
+	* bid128_div.c: Run DFP_INIT_ROUNDMODE at function entrace and
+	DFP_RESTORE_ROUNDMODE at function exit.
+	* bid128_rem.c: Likewise.
+	* bid128_sqrt.c: Likewise.
+	* bid64_div.c (bid64_div): Likewise.
+	* bid64_sqrt.c (bid64_sqrt): Likewise.
+	* bid_conf.h: Include <dfp-machine.h>.
+	* dfp-machine.h: New file.
+
+2025-08-30  liuhongt  <hongtao.liu@intel.com>
+
+	Revert:
+	2025-08-29  liuhongt  <hongtao.liu@intel.com>
+
+	PR target/120691
+	* bid128_div.c: Fix _Decimal128 arithmetic error under
+	FE_UPWARD.
+	* bid128_rem.c: Ditto.
+	* bid128_sqrt.c: Ditto.
+	* bid64_div.c (bid64_div): Ditto.
+	* bid64_sqrt.c (bid64_sqrt): Ditto.
+
+2025-08-29  liuhongt  <hongtao.liu@intel.com>
+
+	PR target/120691
+	* bid128_div.c: Fix _Decimal128 arithmetic error under
+	FE_UPWARD.
+	* bid128_rem.c: Ditto.
+	* bid128_sqrt.c: Ditto.
+	* bid64_div.c (bid64_div): Ditto.
+	* bid64_sqrt.c (bid64_sqrt): Ditto.
+
+2025-07-15  Andrew Pinski  <quic_apinski@quicinc.com>
+
+	* bid_binarydecimal.c (__mul_10x256_to_256): Mark c3 as being
+	used.
+
+2025-05-15  liuhongt  <hongtao.liu@intel.com>
+
+	* bid128_string.c (MIN_DIGITS): New macro.
+	(bid128_from_string): Bug fix. Conversion from very long input
+	string to decimal.
 
 2024-11-14  Christophe Lyon  <christophe.lyon@linaro.org>
 
@@ -612,7 +658,7 @@
 	* inline_bid_add.h: Likewise.
 	* sqrt_macros.h: Likewise.
 
-Copyright (C) 2007-2025 Free Software Foundation, Inc.
+Copyright (C) 2007-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

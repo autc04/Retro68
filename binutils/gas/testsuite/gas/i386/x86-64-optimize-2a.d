@@ -204,4 +204,24 @@ Disassembly of section .text:
  +[a-f0-9]+:	62 .*	vporq  0x80\(%rax\),%ymm2,%ymm3
  +[a-f0-9]+:	62 .*	vpxord 0x80\(%rax\),%ymm2,%ymm3
  +[a-f0-9]+:	62 .*	vpxorq 0x80\(%rax\),%ymm2,%ymm3
+ +[a-f0-9]+:	0f .*	pxor   %mm2,%mm2
+ +[a-f0-9]+:	66 .*	pxor   %xmm2,%xmm2
+ +[a-f0-9]+:	66 .*	pxor   %xmm12,%xmm12
+ +[a-f0-9]+:	c5 .*	vpxor  %xmm2,%xmm2,%xmm8
+ +[a-f0-9]+:	c5 .*	vpxor  %ymm0,%ymm0,%ymm1
+ +[a-f0-9]+:	0f .*	pxor   %mm2,%mm2
+ +[a-f0-9]+:	66 .*	pxor   %xmm2,%xmm2
+ +[a-f0-9]+:	66 .*	pxor   %xmm12,%xmm12
+ +[a-f0-9]+:	c5 .*	vpxor  %xmm2,%xmm2,%xmm8
+ +[a-f0-9]+:	c5 .*	vpxor  %ymm0,%ymm0,%ymm1
+ +[a-f0-9]+:	0f .*	pxor   %mm2,%mm2
+ +[a-f0-9]+:	66 .*	pxor   %xmm2,%xmm2
+ +[a-f0-9]+:	66 .*	pxor   %xmm12,%xmm12
+ +[a-f0-9]+:	c5 .*	vpxor  %xmm2,%xmm2,%xmm8
+ +[a-f0-9]+:	c5 .*	vpxor  %ymm0,%ymm0,%ymm1
+ +[a-f0-9]+:	66 .*	pxor   %xmm2,%xmm2
+ +[a-f0-9]+:	66 .*	pxor   %xmm12,%xmm12
+ +[a-f0-9]+:	c5 .*	vpxor  %xmm2,%xmm2,%xmm8
+ +[a-f0-9]+:	c5 .*	vpxor  %ymm0,%ymm0,%ymm1
+ +[a-f0-9]+:	c4 .*	vfnmadd231sd %xmm9,%xmm2,%xmm0
 #pass

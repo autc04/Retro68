@@ -1,6 +1,5 @@
 # Check 32bit AVX512{F,VL} instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vaddpd	%xmm4, %xmm5, %xmm6{%k7}	 # AVX512{F,VL}

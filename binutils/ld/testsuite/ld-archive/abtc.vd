@@ -1,0 +1,22 @@
+#...
+using ..ternal linker script:.*
+==================================================
+#...
+==================================================
+.*: mode .*
+attempt to open tmpdir/abc\.o succeeded
+tmpdir/abc\.o
+attempt to open tmpdir/abt\.a succeeded
+tmpdir/abt\.a
+Archive member included to satisfy reference by file \(symbol\)
+
+tmpdir/a\.o +tmpdir/abc\.o \(aa\)
+tmpdir/a\.o
+tmpdir/b\.o +tmpdir/abc\.o \(bb\)
+tmpdir/b\.o
+!(:?\()?tmpdir/.*
+#...
+LOAD tmpdir/abc\.o
+LOAD tmpdir/abt\.a
+!LOAD .*
+#pass

@@ -23,12 +23,18 @@
 [^:]*:31: Warning: instruction is UNPREDICTABLE with SP operand
 [^:]*:32: Warning: instruction is UNPREDICTABLE with SP operand
 [^:]*:33: Warning: instruction is UNPREDICTABLE with PC operand
-[^:]*:34: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:34: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:34: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:34: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:34: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:34: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:34: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:34: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:34: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:34: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:34: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:34: *Info: macro .*
 [^:]*:35: Error: bad element type for instruction -- `vstrb.u16 q0,\[r0\]'
 [^:]*:36: Error: bad element type for instruction -- `vstrb.s16 q0,\[r0\]'
 [^:]*:37: Error: bad element type for instruction -- `vstrb.f16 q0,\[r0\]'
@@ -70,12 +76,18 @@
 [^:]*:73: Warning: instruction is UNPREDICTABLE with SP operand
 [^:]*:74: Warning: instruction is UNPREDICTABLE with SP operand
 [^:]*:75: Warning: instruction is UNPREDICTABLE with PC operand
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:76: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:76: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:76: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:76: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:76: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:76: *Info: macro .*
 [^:]*:77: Error: bad element type for instruction -- `vstrh.8 q0,\[r0\]'
 [^:]*:78: Error: bad element type for instruction -- `vstrh.u8 q0,\[r0\]'
 [^:]*:79: Error: bad element type for instruction -- `vstrh.s8 q0,\[r0\]'
@@ -106,12 +118,18 @@
 [^:]*:104: Error: immediate must be a multiple of 4 in the range of \+/-\[0,508\] -- `vstrw.32 q0,\[r0\],#-516'
 [^:]*:105: Warning: instruction is UNPREDICTABLE with SP operand
 [^:]*:106: Warning: instruction is UNPREDICTABLE with PC operand
-[^:]*:107: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:107: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:107: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:107: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:107: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:107: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:107: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:107: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:107: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:107: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:107: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:107: *Info: macro .*
 [^:]*:108: Error: bad element type for instruction -- `vstrw.8 q0,\[r0\]'
 [^:]*:109: Error: bad element type for instruction -- `vstrw.u8 q0,\[r0\]'
 [^:]*:110: Error: bad element type for instruction -- `vstrw.s8 q0,\[r0\]'

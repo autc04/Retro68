@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Free Software Foundation, Inc.
+// Copyright (C) 2025-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -16,6 +16,13 @@
 // along with GCC; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
+#ifndef RUST_UNWRAP_SEGMENT_H
+#define RUST_UNWRAP_SEGMENT_H
+
+#include "rust-system.h"
+#include "optional.h"
+#include "rust-lang-item.h"
+#include "rust-mapping-common.h"
 #include <ast/rust-ast-full-decls.h>
 
 namespace Rust {
@@ -83,14 +90,11 @@ public:
 /*
  * Used to get the node id of a path segment object
  */
-NodeId
-unwrap_segment_node_id (const AST::TypePathSegment &seg);
+NodeId unwrap_segment_node_id (const AST::TypePathSegment &seg);
 
-NodeId
-unwrap_segment_node_id (const AST::SimplePathSegment &seg);
+NodeId unwrap_segment_node_id (const AST::SimplePathSegment &seg);
 
-NodeId
-unwrap_segment_node_id (const AST::PathExprSegment &seg);
+NodeId unwrap_segment_node_id (const AST::PathExprSegment &seg);
 
 template <class T>
 NodeId
@@ -118,4 +122,22 @@ unwrap_segment_get_lang_item (const std::unique_ptr<T> &ptr)
   return unwrap_segment_get_lang_item (*ptr);
 }
 
+/**
+ * Used to output a path in error messages
+ */
+
+inline static std::string
+unwrap_segment_error_string (const AST::TypePath &path)
+{
+  return path.make_debug_string ();
+}
+
+inline static std::string
+unwrap_segment_error_string (const AST::PathInExpression &path)
+{
+  return path.as_simple_path ().as_string ();
+}
+
 } // namespace Rust
+
+#endif // RUST_UNWRAP_SEGMENT_H

@@ -1,6 +1,6 @@
 /* Gldtoa.c provides access to long double string conversion.
 
-Copyright (C) 2016-2025 Free Software Foundation, Inc.
+Copyright (C) 2016-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius@glam.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -63,7 +63,7 @@ ldtoa_strtold (void *s, bool *error)
 }
 
 char *
-ldtoa_ldtoa (long double d, int mode, int ndigits, int *decpt, int *sign)
+ldtoa_ldtoa (long double d, int mode, int ndigits, int *decpt, bool *sign)
 {
   char format[50];
   char *p;

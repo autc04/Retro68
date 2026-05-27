@@ -1,6 +1,6 @@
 # Test --print-memory-usage linker functionality
 # By Tristan Gingold, AdaCore
-#   Copyright (C) 2015-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2015-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -51,7 +51,7 @@ run_ld_link_tests {
 
     {
 	"print-memory-usage-2"
-	"-T print-memory-usage-2.t --print-memory-usage"
+	"-T print-memory-usage-2.t --print-memory-usage --no-error-rwx-segments"
 	""
 	""
 	{ "print-memory-usage-1.s" }

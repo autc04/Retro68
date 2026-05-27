@@ -1,0 +1,40 @@
+# Copyright (C) 2012-2026 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+#
+# coff tests
+#
+
+if { ![is_coff_format] } then {
+    return
+}
+
+# We omit the ARM toolchains because they define locals to start with '.',
+#  which eliminates .eos, .text etc from the output.
+# Also omit c4x and c54x, since .tag and .def mean something different there.
+if {    ![istarget arm*-*-*]
+     && ![istarget *c4x*-*-*]
+     && ![istarget *c54x*-*-*] } {
+    run_dump_test tag
+}
+
+# Omit c4x and c54x, since .def means something different there.
+if { ![istarget *c4x*-*-*] && ![istarget *c54x*-*-*] } {
+    run_dump_test func1
+    run_dump_test func2
+    run_dump_test func3
+    run_dump_test func4
+}

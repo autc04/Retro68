@@ -1,5 +1,5 @@
 #source: tls-relax-gdesc-ie-2.s
-#ld: -T relocs.ld -e0
+#ld: -T relocs.ld -e0 tmpdir/tls-sharedlib.so
 #objdump: -dr
 #...
  +10000:	90000080 	adrp	x0, 20000 <_GLOBAL_OFFSET_TABLE_>

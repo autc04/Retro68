@@ -1,6 +1,5 @@
 # Check 64bit AVX512{BF16,VL} instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vcvtne2ps2bf16	%ymm28, %ymm29, %ymm30	 #AVX512{BF16,VL}

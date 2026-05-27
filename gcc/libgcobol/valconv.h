@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025 Symas Corporation
+ * Copyright (c) 2021-2026 Symas Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,16 +31,6 @@
 #ifndef __VALCONV_H
 #define __VALCONV_H
 
-extern int    __gg__decimal_point        ;
-extern int    __gg__decimal_separator    ;
-extern int    __gg__quote_character      ;
-extern int    __gg__low_value_character  ;
-extern int    __gg__high_value_character ;
-extern char **__gg__currency_signs       ;
-extern int    __gg__default_currency_sign;
-extern char  *__gg__ct_currency_signs[256];  // Compile-time currency signs
-
-
 // All "ordinals" are zero-based ordinals.  The COBOL spec's ordinal values
 // for ordinary ASCII/EBCDIC ranger from 1 to 256, so we call them zero through
 // 255.  We use unsigned ints so that when an custom alphabet is described, we
@@ -60,18 +50,19 @@ extern "C"
   void __gg__realloc_if_necessary(char **dest, size_t *dest_size, size_t new_size);
   void  __gg__alphabet_create(cbl_encoding_t encoding,
                               size_t alphabet_index,
-                              unsigned char *alphabet,
+                              const unsigned char *alphabet,
                               int low_char,
                               int high_char );
   bool __gg__string_to_numeric_edited(char * const dest,
-                                      char *source,       // ASCII
+                                      const char *source,       // ASCII
                                       int rdigits,
                                       int is_negative,
                                       const char *picture);
   void __gg__string_to_alpha_edited(char *dest,
-                                    char *source,
+                                    cbl_encoding_t dest_encoding,
+                                    const char *source,
                                     int slength,
-                                    char *picture);
+                                    const char *picture);
   void __gg__currency_sign_init();
   void __gg__currency_sign(int symbol, const char *sign);
   void __gg__remove_trailing_zeroes(char *p);

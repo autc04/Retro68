@@ -10,7 +10,7 @@ AC_INIT(package-unused, version-unused,, libgo)
 AC_CONFIG_SRCDIR(Makefile.am)
 AC_CONFIG_HEADER(config.h)
 
-libtool_VERSION=24:0:0
+libtool_VERSION=25:0:0
 AC_SUBST(libtool_VERSION)
 
 AM_ENABLE_MULTILIB(, ..)
@@ -441,6 +441,15 @@ AC_SUBST(OSCFLAGS)
 
 dnl Check if assembler supports disabling hardware capability support.
 GCC_CHECK_ASSEMBLER_HWCAP
+
+case "$target" in
+    *86*-*-solaris2.*)
+	# Link with -shared-libgcc on Solaris 11+/x86 as a workaround for
+	# PR go/64900.
+	OSLDFLAGS="-Wc,-shared-libgcc"
+	;;
+esac
+AC_SUBST(OSLDFLAGS)
 
 dnl Use -fsplit-stack when compiling C code if available.
 AC_CACHE_CHECK([whether -fsplit-stack is supported],

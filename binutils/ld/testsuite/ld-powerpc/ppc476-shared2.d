@@ -1,6 +1,6 @@
 #source: ppc476-shared.s
 #as: -a32
-#ld: -melf32ppc -shared -z common-page-size=0x10000 -z notext --ppc476-workaround -T ppc476-shared.lnk
+#ld: -melf32ppc -shared -z common-page-size=0x10000 -z notext --ppc476-workaround -T ppc476-shared.lnk --no-error-rwx-segments
 #objdump: -R
 #target: powerpc*-*-*
 

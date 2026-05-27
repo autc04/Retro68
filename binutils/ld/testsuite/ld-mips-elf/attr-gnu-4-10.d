@@ -1,7 +1,9 @@
 #source: attr-gnu-4-1.s
 #source: attr-gnu-4-0.s
+#as: -mpdr
 #ld: -r
 #readelf: -hA
+#notarget: mips64*-*-openbsd* mips64*-*-*-gnuabi64
 
 ELF Header:
   Magic:   .*

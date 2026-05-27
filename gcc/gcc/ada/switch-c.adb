@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -335,6 +335,7 @@ package body Switch.C is
                end if;
 
                Ptr := Ptr + 1;
+               Check_Semantics_Only_Mode := True;
                Operating_Mode := Check_Semantics;
 
             --  -gnatC (Generate CodePeer information)
@@ -634,6 +635,46 @@ package body Switch.C is
                   when 'G' =>
                      Generate_Processed_File := True;
                      Ptr := Ptr + 1;
+
+                     if Ptr <= Max
+                       and then Switch_Chars (Ptr) in 'b' | 'c' | 'e'
+                     then
+                        case Switch_Chars (Ptr) is
+                           when 'b' =>
+                              Opt.Blank_Deleted_Lines         := True;
+                              Opt.Comment_Deleted_Lines       := False;
+                              Opt.Empty_Comment_Deleted_Lines := False;
+
+                           when 'c' =>
+                              Opt.Blank_Deleted_Lines         := False;
+                              Opt.Comment_Deleted_Lines       := True;
+                              Opt.Empty_Comment_Deleted_Lines := False;
+
+                           when 'e' =>
+                              Opt.Blank_Deleted_Lines         := False;
+                              Opt.Comment_Deleted_Lines       := False;
+                              Opt.Empty_Comment_Deleted_Lines := True;
+
+                           when others =>
+                              raise Program_Error;
+                        end case;
+
+                        Ptr := Ptr + 1;
+
+                     --  Default to emitting blank lines for deleted lines
+                     --  when generating a preprocessor output file. This is
+                     --  despite the fact that when the file isn't being
+                     --  generated, we emit empty comment lines for the
+                     --  internally generated output (to avoid conflicts
+                     --  with style switches -gnatyu and -gnatyM), but is
+                     --  done for compatibility with the behavior of -gnateG
+                     --  prior to adding support for empty comment lines.
+
+                     else
+                        Opt.Blank_Deleted_Lines         := True;
+                        Opt.Comment_Deleted_Lines       := False;
+                        Opt.Empty_Comment_Deleted_Lines := False;
+                     end if;
 
                   --  -gnateH (set reverse Bit_Order threshold to 64)
 
@@ -1219,17 +1260,20 @@ package body Switch.C is
                      List_Representation_Info :=
                        Character'Pos (C) - Character'Pos ('0');
 
-                  when 's' =>
-                     List_Representation_Info_To_File := True;
+                  when 'e' =>
+                     List_Representation_Info_Extended := True;
 
-                  when 'j' =>
-                     List_Representation_Info_To_JSON := True;
+                  when 'h' =>
+                     List_Representation_Info_Holes := True;
 
                   when 'm' =>
                      List_Representation_Info_Mechanisms := True;
 
-                  when 'e' =>
-                     List_Representation_Info_Extended := True;
+                  when 'j' =>
+                     List_Representation_Info_To_JSON := True;
+
+                  when 's' =>
+                     List_Representation_Info_To_File := True;
 
                   when others =>
                      Bad_Switch ("-gnatR" & Switch_Chars (Ptr .. Max));
@@ -1242,6 +1286,12 @@ package body Switch.C is
                  and then List_Representation_Info_Extended
                then
                   Osint.Fail ("-gnatRe is incompatible with -gnatRj");
+               end if;
+
+               if List_Representation_Info_To_JSON
+                 and then List_Representation_Info_Holes
+               then
+                  Osint.Fail ("-gnatRh is incompatible with -gnatRj");
                end if;
 
             --  -gnats (syntax check only)

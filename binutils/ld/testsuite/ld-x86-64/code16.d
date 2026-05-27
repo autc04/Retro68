@@ -1,6 +1,6 @@
 #name: x86-64 R_X86_64_PC16 reloc in 16-bit mode
 #as: --64 -mx86-used-note=no --generate-missing-build-notes=no
-#source: ${srcdir}/../../../gas/testsuite/gas/i386/code16-2.s
+#source: ../../../gas/testsuite/gas/i386/code16-2.s
 #ld: -T code16.t
 #objdump: -dw -Mi8086
 

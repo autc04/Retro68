@@ -1,5 +1,5 @@
 /* Driver of optimization process
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -63,7 +63,7 @@ along with GCC; see the file COPYING3.  If not see
       final assembler is generated.  This is done in the following way. Note
       that with link time optimization the process is split into three
       stages (compile time, linktime analysis and parallel linktime as
-      indicated bellow).
+      indicated below).
 
       Compile time:
 
@@ -254,6 +254,8 @@ symtab_node::needed_p (void)
 
   /* If the user told us it is used, then it must be so.  */
   if (force_output)
+    return true;
+  if (ref_by_asm)
     return true;
 
   /* ABI forced symbols are needed when they are external.  */
@@ -737,7 +739,7 @@ process_symver_attribute (symtab_node *n)
 
   for (; value != NULL; value = TREE_CHAIN (value))
     {
-      /* Starting from bintuils 2.35 gas supports:
+      /* Starting from binutils 2.35 gas supports:
 	  # Assign foo to bar@V1 and baz@V2.
 	  .symver foo, bar@V1
 	  .symver foo, baz@V2
@@ -1109,10 +1111,13 @@ check_global_declaration (symtab_node *snode)
       if (warning_suppressed_p (decl, OPT_Wunused))
 	;
       else if (snode->referred_to_p (/*include_self=*/false))
-	pedwarn (input_location, 0, "%q+F used but never defined", decl);
-      else
-	warning (OPT_Wunused_function, "%q+F declared %<static%> but never "
-				       "defined", decl);
+	{
+	  if (pedwarn (input_location, 0, "%q+F used but never defined", decl))
+	    suppress_warning (decl, OPT_Wunused);
+	}
+      else if (warning (OPT_Wunused_function,
+			"%q+F declared %<static%> but never defined", decl))
+	suppress_warning (decl, OPT_Wunused);
     }
 
   /* Warn about static fns or vars defined but not used.  */
@@ -1210,8 +1215,8 @@ analyze_functions (bool first_time)
 
       /* First identify the trivially needed symbols.  */
       for (node = symtab->first_symbol ();
-	   node != first_analyzed
-	   && node != first_analyzed_var; node = node->next)
+	   node != first_analyzed && node != first_analyzed_var;
+	   node = safe_as_a<symtab_node *>(node->next))
 	{
 	  /* Convert COMDAT group designators to IDENTIFIER_NODEs.  */
 	  node->get_comdat_group_id ();
@@ -1264,6 +1269,15 @@ analyze_functions (bool first_time)
 	      if (!cnode->analyzed)
 		cnode->analyze ();
 
+	      /* A reference to a default node in a function set implies a
+		 reference to all versions in the set.  */
+	      cgraph_function_version_info *node_v = cnode->function_version ();
+	      if (node_v && is_function_default_version (node->decl))
+		for (cgraph_function_version_info *fvi = node_v->next;
+		     fvi;
+		     fvi = fvi->next)
+		  enqueue_node (fvi->this_node);
+
 	      for (edge = cnode->callees; edge; edge = edge->next_callee)
 		if (edge->callee->definition
 		    && (!DECL_EXTERNAL (edge->callee->decl)
@@ -1288,7 +1302,8 @@ analyze_functions (bool first_time)
 		  for (edge = cnode->indirect_calls; edge; edge = next)
 		    {
 		      next = edge->next_callee;
-		      if (edge->indirect_info->polymorphic)
+		      if (is_a <cgraph_polymorphic_indirect_info *>
+			  (edge->indirect_info))
 			walk_polymorphic_call_targets (&reachable_call_targets,
 						       edge);
 		    }
@@ -1364,7 +1379,7 @@ analyze_functions (bool first_time)
        node != first_handled
        && node != first_handled_var; node = next)
     {
-      next = node->next;
+      next = safe_as_a<symtab_node *>(node->next);
       /* For symbols declared locally we clear TREE_READONLY when emitting
 	 the constructor (if one is needed).  For external declarations we can
 	 not safely assume that the type is readonly because we may be called
@@ -1374,7 +1389,7 @@ analyze_functions (bool first_time)
 	  && TYPE_NEEDS_CONSTRUCTING (TREE_TYPE (node->decl))
 	  && DECL_EXTERNAL (node->decl))
 	TREE_READONLY (node->decl) = 0;
-      if (!node->aux && !node->referred_to_p ())
+      if (!node->aux && !node->referred_to_p () && !node->ref_by_asm)
 	{
 	  if (symtab->dump_file)
 	    fprintf (symtab->dump_file, " %s", node->dump_name ());
@@ -1419,7 +1434,7 @@ analyze_functions (bool first_time)
 	}
       node->aux = NULL;
     }
-  for (;node; node = node->next)
+  for (;node; node = safe_as_a<symtab_node *>(node->next))
     node->aux = NULL;
   first_analyzed = symtab->first_function ();
   first_analyzed_var = symtab->first_variable ();
@@ -2194,7 +2209,8 @@ output_in_order (void)
 	&& !DECL_HAS_VALUE_EXPR_P (vnode->decl))
       nodes.safe_push (cgraph_order_sort (vnode));
 
-  for (anode = symtab->first_asm_symbol (); anode; anode = anode->next)
+  for (anode = symtab->first_asm_symbol (); anode;
+       anode = safe_as_a<asm_node*>(anode->next))
     nodes.safe_push (cgraph_order_sort (anode));
 
   /* Sort nodes by order.  */
@@ -2400,9 +2416,10 @@ symbol_table::compile (void)
     if (node->alias
 	&& lookup_attribute ("weakref", DECL_ATTRIBUTES (node->decl)))
       {
-	IDENTIFIER_TRANSPARENT_ALIAS
-	   (DECL_ASSEMBLER_NAME (node->decl)) = 1;
-	TREE_CHAIN (DECL_ASSEMBLER_NAME (node->decl))
+	tree id = DECL_ASSEMBLER_NAME (node->decl);
+	gcc_assert (!IDENTIFIER_INTERNAL_P (id));
+	IDENTIFIER_TRANSPARENT_ALIAS (id) = 1;
+	TREE_CHAIN (id)
 	   = (node->alias_target ? node->alias_target
 	      : DECL_ASSEMBLER_NAME (node->get_alias_target ()->decl));
       }
@@ -2568,6 +2585,8 @@ symbol_table::finalize_compilation_unit (void)
 
   if (flag_dump_passes)
     dump_passes ();
+
+  analyze_toplevel_extended_asm ();
 
   /* Gimplify and lower all functions, compute reachability and
      remove unreachable nodes.  */

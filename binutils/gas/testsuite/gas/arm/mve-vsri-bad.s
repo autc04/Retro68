@@ -1,10 +1,3 @@
-.macro cond
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vsri.16 q0, q1, #4
-.endr
-.endm
-
 .syntax unified
 .thumb
 vsri.64 q0, q1, #1
@@ -14,7 +7,14 @@ vsri.16 q0, q1, #0
 vsri.16 q0, q1, #17
 vsri.32 q0, q1, #0
 vsri.32 q0, q1, #33
-cond
+
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+vsri.16 q0, q1, #4
+
+.endr
+
 it eq
 vsrieq.8 q0, q1, #2
 vsrieq.8 q0, q1, #2

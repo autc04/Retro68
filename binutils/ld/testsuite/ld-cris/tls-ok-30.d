@@ -1,5 +1,5 @@
 #source: tls-gdgotrelm.s --defsym r=8191
-#as: --no-underscore --em=criself --pic
+#as: --no-underscore --emulation=criself --pic
 #ld: --shared -m crislinux --hash-style=sysv
 #objdump: -s -j .got -R
 

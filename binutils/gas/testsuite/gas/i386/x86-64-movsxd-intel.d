@@ -1,5 +1,4 @@
 #source: x86-64-movsxd.s
-#as:
 #objdump: -dw -Mintel
 #name: x86-64 movsxd (AMD64) (Intel mode)
 

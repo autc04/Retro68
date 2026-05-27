@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -57,6 +57,9 @@ CompileStmt::visit (HIR::LetStmt &stmt)
 			"failed to lookup variable declaration type");
       return;
     }
+
+  rust_debug_loc (stmt.get_locus (), "   -> LetStmt %s",
+		  ty->as_string ().c_str ());
 
   // setup var decl nodes
   fncontext fnctx = ctx->peek_fn ();

@@ -8,5 +8,5 @@ SECTIONS {
 		_data_start = .;
 		*(.data)
 	}
-	/DISCARD/ : { *(.*) }
+	/DISCARD/ : { *(*) }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2025 Free Software Foundation, Inc.
+// Copyright (C) 2019-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -42,7 +42,7 @@ test01()
   std::ranges::advance(iter, -2);
   VERIFY( iter == r.begin() );
 
-  std::ranges::advance(iter, r.begin() + 1);
+  std::ranges::advance(iter, std::ranges::next(r.begin()));
   VERIFY( iter != r.begin() );
   VERIFY( iter != r.end() );
   std::ranges::advance(iter, r.begin());

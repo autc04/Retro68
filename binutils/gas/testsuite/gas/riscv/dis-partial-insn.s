@@ -1,0 +1,3 @@
+target:
+	.option norvc
+	nop

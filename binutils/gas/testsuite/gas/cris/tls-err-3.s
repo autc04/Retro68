@@ -1,7 +1,7 @@
 ; Check that TLS PIC suffixes aren't accepted when non-PIC.
 
 ; { dg-do assemble }
-; { dg-options "--no-underscore --em=criself" }
+; { dg-options "--no-underscore --emulation=criself" }
 
  .syntax no_register_prefix
  .text

@@ -4,6 +4,7 @@
 .option arch, -i
 .option arch, +e
 .option arch, -g
+.option arch, -c
 .option arch, +zsubset2p0
 .option arch, +f2p0_d2p0
 .option arch, +

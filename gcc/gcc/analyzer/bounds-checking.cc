@@ -1,5 +1,5 @@
 /* Bounds-checking of reads and writes to memory regions.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -17,21 +17,12 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "make-unique.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
+#include "analyzer/common.h"
+
 #include "intl.h"
-#include "gimple.h"
-#include "gimple-iterator.h"
-#include "diagnostic-core.h"
-#include "diagnostic-diagram.h"
-#include "diagnostic-format-sarif.h"
-#include "analyzer/analyzer.h"
+#include "diagnostics/diagram.h"
+#include "diagnostics/sarif-sink.h"
+
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/region-model.h"
 #include "analyzer/checker-event.h"
@@ -60,7 +51,7 @@ public:
     }
     void prepare_for_emission (checker_path *path,
 			       pending_diagnostic *pd,
-			       diagnostic_event_id_t emission_id) override
+			       diagnostics::paths::event_id_t emission_id) override
     {
       region_creation_event_capacity::prepare_for_emission (path,
 							    pd,
@@ -105,18 +96,19 @@ public:
        so we don't need an event for that.  */
     if (byte_capacity)
       emission_path.add_event
-	(make_unique<oob_region_creation_event_capacity> (byte_capacity,
-							  loc_info,
-							  *this));
+	(std::make_unique<oob_region_creation_event_capacity> (byte_capacity,
+							       loc_info,
+							       *this));
   }
 
-  void maybe_add_sarif_properties (sarif_object &result_obj)
+  void
+  maybe_add_sarif_properties (diagnostics::sarif_object &result_obj)
     const override
   {
-    sarif_property_bag &props = result_obj.get_or_create_properties ();
+    auto &props = result_obj.get_or_create_properties ();
 #define PROPERTY_PREFIX "gcc/analyzer/out_of_bounds/"
     props.set_string (PROPERTY_PREFIX "dir",
-		      get_dir () == DIR_READ ? "read" : "write");
+		      get_dir () == access_direction::read ? "read" : "write");
     props.set (PROPERTY_PREFIX "model", m_model.to_json ());
     props.set (PROPERTY_PREFIX "region", m_reg->to_json ());
     props.set (PROPERTY_PREFIX "diag_arg", tree_to_json (m_diag_arg));
@@ -190,7 +182,7 @@ protected:
 	       a problem.  Give up if that's happened.  */
 	    return;
 	  }
-	diagnostic_diagram diagram
+	diagnostics::diagram diagram
 	  (canvas,
 	   /* Alt text.  */
 	   _("Diagram visualizing the predicted out-of-bounds access"));
@@ -212,7 +204,7 @@ protected:
   const region *m_reg;
   tree m_diag_arg;
   const svalue *m_sval_hint;
-  diagnostic_event_id_t m_region_creation_event_id;
+  diagnostics::paths::event_id_t m_region_creation_event_id;
 };
 
 /* Abstract base class for all out-of-bounds warnings where the
@@ -237,11 +229,11 @@ public:
 	    && m_out_of_bounds_bits == other.m_out_of_bounds_bits);
   }
 
-  void maybe_add_sarif_properties (sarif_object &result_obj)
+  void maybe_add_sarif_properties (diagnostics::sarif_object &result_obj)
     const override
   {
     out_of_bounds::maybe_add_sarif_properties (result_obj);
-    sarif_property_bag &props = result_obj.get_or_create_properties ();
+    auto &props = result_obj.get_or_create_properties ();
 #define PROPERTY_PREFIX "gcc/analyzer/concrete_out_of_bounds/"
     props.set (PROPERTY_PREFIX "out_of_bounds_bits",
 	       m_out_of_bounds_bits.to_json ());
@@ -298,16 +290,16 @@ public:
   {
     if (m_byte_bound && TREE_CODE (m_byte_bound) == INTEGER_CST)
       emission_path.add_event
-	(make_unique<oob_region_creation_event_capacity> (m_byte_bound,
-							  loc_info,
-							  *this));
+	(std::make_unique<oob_region_creation_event_capacity> (m_byte_bound,
+							       loc_info,
+							       *this));
   }
 
-  void maybe_add_sarif_properties (sarif_object &result_obj)
+  void maybe_add_sarif_properties (diagnostics::sarif_object &result_obj)
     const final override
   {
     concrete_out_of_bounds::maybe_add_sarif_properties (result_obj);
-    sarif_property_bag &props = result_obj.get_or_create_properties ();
+    auto &props = result_obj.get_or_create_properties ();
 #define PROPERTY_PREFIX "gcc/analyzer/concrete_past_the_end/"
     props.set (PROPERTY_PREFIX "bit_bound",
 	       tree_to_json (m_bit_bound));
@@ -505,7 +497,7 @@ public:
       }
   }
 
-  enum access_direction get_dir () const final override { return DIR_WRITE; }
+  enum access_direction get_dir () const final override { return access_direction::write; }
 };
 
 /* Concrete subclass to complain about buffer over-reads.  */
@@ -516,7 +508,7 @@ public:
   concrete_buffer_over_read (const region_model &model,
 			     const region *reg, tree diag_arg,
 			     bit_range range, tree bit_bound)
-  : concrete_past_the_end (model, reg, diag_arg, range, bit_bound, NULL)
+  : concrete_past_the_end (model, reg, diag_arg, range, bit_bound, nullptr)
   {}
 
   const char *get_kind () const final override
@@ -689,7 +681,7 @@ public:
       }
   }
 
-  enum access_direction get_dir () const final override { return DIR_READ; }
+  enum access_direction get_dir () const final override { return access_direction::read; }
 };
 
 /* Concrete subclass to complain about buffer underwrites.  */
@@ -817,7 +809,7 @@ public:
       }
   }
 
-  enum access_direction get_dir () const final override { return DIR_WRITE; }
+  enum access_direction get_dir () const final override { return access_direction::write; }
 };
 
 /* Concrete subclass to complain about buffer under-reads.  */
@@ -828,7 +820,7 @@ public:
   concrete_buffer_under_read (const region_model &model,
 			      const region *reg, tree diag_arg,
 			      bit_range range)
-  : concrete_out_of_bounds (model, reg, diag_arg, range, NULL)
+  : concrete_out_of_bounds (model, reg, diag_arg, range, nullptr)
   {}
 
   const char *get_kind () const final override
@@ -945,7 +937,7 @@ public:
       }
   }
 
-  enum access_direction get_dir () const final override { return DIR_READ; }
+  enum access_direction get_dir () const final override { return access_direction::read; }
 };
 
 /* Abstract class to complain about out-of-bounds read/writes where
@@ -975,11 +967,12 @@ public:
 	    && pending_diagnostic::same_tree_p (m_capacity, other.m_capacity));
   }
 
-  void maybe_add_sarif_properties (sarif_object &result_obj)
+  void
+  maybe_add_sarif_properties (diagnostics::sarif_object &result_obj)
     const final override
   {
     out_of_bounds::maybe_add_sarif_properties (result_obj);
-    sarif_property_bag &props = result_obj.get_or_create_properties ();
+    auto &props = result_obj.get_or_create_properties ();
 #define PROPERTY_PREFIX "gcc/analyzer/symbolic_past_the_end/"
     props.set (PROPERTY_PREFIX "offset", tree_to_json (m_offset));
     props.set (PROPERTY_PREFIX "num_bytes", tree_to_json (m_num_bytes));
@@ -1116,7 +1109,7 @@ public:
     return true;
   }
 
-  enum access_direction get_dir () const final override { return DIR_WRITE; }
+  enum access_direction get_dir () const final override { return access_direction::write; }
 };
 
 /* Concrete subclass to complain about over-reads with symbolic values.  */
@@ -1128,7 +1121,7 @@ public:
 			     const region *reg, tree diag_arg, tree offset,
 			     tree num_bytes, tree capacity)
   : symbolic_past_the_end (model, reg, diag_arg, offset, num_bytes, capacity,
-			   NULL)
+			   nullptr)
   {
   }
 
@@ -1243,7 +1236,7 @@ public:
     return true;
   }
 
-  enum access_direction get_dir () const final override { return DIR_READ; }
+  enum access_direction get_dir () const final override { return access_direction::read; }
 };
 
 const svalue *
@@ -1334,18 +1327,18 @@ strip_types (const svalue *sval,
 	const widening_svalue *widening_sval = (const widening_svalue *)sval;
 	return mgr.get_or_create_widening_svalue
 	  (NULL_TREE,
-	   widening_sval->get_point (),
+	   widening_sval->get_snode (),
 	   strip_types (widening_sval->get_base_svalue (), mgr),
 	   strip_types (widening_sval->get_iter_svalue (), mgr));
       }
     case SK_COMPOUND:
       {
 	const compound_svalue *compound_sval = (const compound_svalue *)sval;
-	binding_map typeless_map;
+	binding_map typeless_map (*mgr.get_store_manager ());
 	for (auto iter : compound_sval->get_map ())
 	  {
-	    const binding_key *key = iter.first;
-	    const svalue *bound_sval = iter.second;
+	    const binding_key *key = iter.m_key;
+	    const svalue *bound_sval = iter.m_sval;
 	    typeless_map.put (key, strip_types (bound_sval, mgr));
 	  }
 	return mgr.get_or_create_compound_svalue (NULL_TREE, typeless_map);
@@ -1427,24 +1420,26 @@ region_model::check_symbolic_bounds (const region *base_reg,
 	default:
 	  gcc_unreachable ();
 	  break;
-	case DIR_READ:
+	case access_direction::read:
 	  gcc_assert (sval_hint == nullptr);
-	  ctxt->warn (make_unique<symbolic_buffer_over_read> (*this,
-							      sized_offset_reg,
-							      diag_arg,
-							      offset_tree,
-							      num_bytes_tree,
-							      capacity_tree));
+	  ctxt->warn
+	    (std::make_unique<symbolic_buffer_over_read> (*this,
+							  sized_offset_reg,
+							  diag_arg,
+							  offset_tree,
+							  num_bytes_tree,
+							  capacity_tree));
 	  return false;
 	  break;
-	case DIR_WRITE:
-	  ctxt->warn (make_unique<symbolic_buffer_overflow> (*this,
-							     sized_offset_reg,
-							     diag_arg,
-							     offset_tree,
-							     num_bytes_tree,
-							     capacity_tree,
-							     sval_hint));
+	case access_direction::write:
+	  ctxt->warn
+	    (std::make_unique<symbolic_buffer_overflow> (*this,
+							 sized_offset_reg,
+							 diag_arg,
+							 offset_tree,
+							 num_bytes_tree,
+							 capacity_tree,
+							 sval_hint));
 	  return false;
 	  break;
 	}
@@ -1535,18 +1530,20 @@ region_model::check_region_bounds (const region *reg,
 	default:
 	  gcc_unreachable ();
 	  break;
-	case DIR_READ:
+	case access_direction::read:
 	  gcc_assert (sval_hint == nullptr);
-	  ctxt->warn (make_unique<concrete_buffer_under_read> (*this, reg,
-							       diag_arg,
-							       bits_outside));
+	  ctxt->warn
+	    (std::make_unique<concrete_buffer_under_read> (*this, reg,
+							   diag_arg,
+							   bits_outside));
 	  oob_safe = false;
 	  break;
-	case DIR_WRITE:
-	  ctxt->warn (make_unique<concrete_buffer_underwrite> (*this,
-							       reg, diag_arg,
-							       bits_outside,
-							       sval_hint));
+	case access_direction::write:
+	  ctxt->warn
+	    (std::make_unique<concrete_buffer_underwrite> (*this,
+							   reg, diag_arg,
+							   bits_outside,
+							   sval_hint));
 	  oob_safe = false;
 	  break;
 	}
@@ -1571,20 +1568,22 @@ region_model::check_region_bounds (const region *reg,
 	default:
 	  gcc_unreachable ();
 	  break;
-	case DIR_READ:
+	case access_direction::read:
 	  gcc_assert (sval_hint == nullptr);
-	  ctxt->warn (make_unique<concrete_buffer_over_read> (*this,
-							      reg, diag_arg,
-							      bits_outside,
-							      bit_bound));
+	  ctxt->warn
+	    (std::make_unique<concrete_buffer_over_read> (*this,
+							  reg, diag_arg,
+							  bits_outside,
+							  bit_bound));
 	  oob_safe = false;
 	  break;
-	case DIR_WRITE:
-	  ctxt->warn (make_unique<concrete_buffer_overflow> (*this,
-							     reg, diag_arg,
-							     bits_outside,
-							     bit_bound,
-							     sval_hint));
+	case access_direction::write:
+	  ctxt->warn
+	    (std::make_unique<concrete_buffer_overflow> (*this,
+							 reg, diag_arg,
+							 bits_outside,
+							 bit_bound,
+							 sval_hint));
 	  oob_safe = false;
 	  break;
 	}

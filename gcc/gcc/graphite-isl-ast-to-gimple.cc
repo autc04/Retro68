@@ -1,5 +1,5 @@
 /* Translation of isl AST to Gimple.
-   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
    Contributed by Roman Gareev <gareevroman@gmail.com>.
 
 This file is part of GCC.
@@ -319,7 +319,7 @@ binary_op_to_tree (tree type, __isl_take isl_ast_expr *expr, ivs_params &ip)
   isl_ast_expr_free (expr);
 
   /* From our constraint generation we may get modulo operations that
-     we cannot represent explicitely but that are no-ops for TYPE.
+     we cannot represent explicitly but that are no-ops for TYPE.
      Elide those.  */
   if ((expr_type == isl_ast_op_pdiv_r
        || expr_type == isl_ast_op_zdiv_r

@@ -1,5 +1,5 @@
 /* Target Code for TI C6X
-   Copyright (C) 2010-2025 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
    Contributed by Andrew Jenner <andrew@codesourcery.com>
    Contributed by Bernd Schmidt <bernds@codesourcery.com>
 
@@ -1582,8 +1582,7 @@ c6x_expand_compare (rtx comparison, machine_mode mode)
 
 	  cmp = emit_library_call_value (libfunc, 0, LCT_CONST, SImode,
 					 op0, op_mode, op1, op_mode);
-	  insns = get_insns ();
-	  end_sequence ();
+	  insns = end_sequence ();
 
 	  emit_libcall_block (insns, cmp, cmp,
 			      gen_rtx_fmt_ee (code, SImode, op0, op1));

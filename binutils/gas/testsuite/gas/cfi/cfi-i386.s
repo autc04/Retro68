@@ -157,6 +157,15 @@ func_all_registers:
 	.cfi_undefined mm6	; nop
 	.cfi_undefined mm7	; nop
 
+	.cfi_undefined ymm0	; nop
+	.cfi_undefined ymm1	; nop
+	.cfi_undefined ymm2	; nop
+	.cfi_undefined ymm3	; nop
+	.cfi_undefined ymm4	; nop
+	.cfi_undefined ymm5	; nop
+	.cfi_undefined ymm6	; nop
+	.cfi_undefined ymm7	; nop
+
 	.cfi_undefined k0	; nop
 	.cfi_undefined k1	; nop
 	.cfi_undefined k2	; nop
@@ -165,5 +174,14 @@ func_all_registers:
 	.cfi_undefined k5	; nop
 	.cfi_undefined k6	; nop
 	.cfi_undefined k7	; nop
+
+	.cfi_undefined zmm0	; nop
+	.cfi_undefined zmm1	; nop
+	.cfi_undefined zmm2	; nop
+	.cfi_undefined zmm3	; nop
+	.cfi_undefined zmm4	; nop
+	.cfi_undefined zmm5	; nop
+	.cfi_undefined zmm6	; nop
+	.cfi_undefined zmm7	; nop
 
 	.cfi_endproc

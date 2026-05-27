@@ -4,15 +4,15 @@
 
 Raw dump of debug contents of section \.z?debug_line:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Length:                      .*
-  DWARF Version:               3
+  DWARF Version:               2
   Prologue Length:             .*
   Minimum Instruction Length:  1
   Initial value of 'is_stmt':  1
   Line Base:                   -5
   Line Range:                  14
-  Opcode Base:                 13
+  Opcode Base:                 10
 
  Opcodes:
   Opcode 1 has 0 args
@@ -24,9 +24,6 @@ Raw dump of debug contents of section \.z?debug_line:
   Opcode 7 has 0 args
   Opcode 8 has 0 args
   Opcode 9 has 1 arg
-  Opcode 10 has 0 args
-  Opcode 11 has 0 args
-  Opcode 12 has 1 arg
 
  The Directory Table is empty\.
 

@@ -1,4 +1,3 @@
 	.text
 start:
-	.byte 0xdd
-	.byte 0xf0
+	.insn 0xdd/6, %st(0)

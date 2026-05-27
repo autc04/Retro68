@@ -1,4 +1,5 @@
 # name: NOP<c> instructions
+# as: -march=armv7-a
 # objdump: -dr --prefix-addresses --show-raw-insn
 # skip: *-*-pe *-*-wince
 
@@ -7,6 +8,6 @@
 Disassembly of section \.text:
 0+000 <[^>]*> 0320f000 ?	nopeq	\{0\}
 0+004 <[^>]*> 7320f000 ?	nopvc	\{0\}
-0+008 <[^>]*> 7320d700 ?	nopvc	\{0\}	; <UNPREDICTABLE>
+0+008 <[^>]*> 7320d700 ?	nopvc	\{0\}	@ <UNPREDICTABLE>
 
 

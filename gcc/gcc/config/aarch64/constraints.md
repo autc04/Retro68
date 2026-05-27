@@ -1,5 +1,5 @@
 ;; Machine description for AArch64 architecture.
-;; Copyright (C) 2009-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2026 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 ;;
 ;; This file is part of GCC.
@@ -304,6 +304,18 @@
   (and (match_code "const_int")
        (match_test "(unsigned HOST_WIDE_INT) ival <= 7")))
 
+(define_constraint "Uc0"
+  "@internal
+  A constraint that matches the integers 0...63."
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (ival, 0, 63)")))
+
+(define_constraint "Uc1"
+  "@internal
+  A constraint that matches the integers 0...62."
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (ival, 0, 62)")))
+
 (define_constraint "Up3"
   "@internal
   A constraint that matches the integers 2^(0...4)."
@@ -333,6 +345,12 @@
   (and (match_code "mem")
        (match_test "aarch64_legitimate_address_p (GET_MODE (op), XEXP (op, 0),
 						  true, ADDR_QUERY_LDP_STP)")))
+
+(define_memory_constraint "Umg"
+  "@internal
+  A memory address for MTE load/store tag operation."
+  (and (match_code "mem")
+       (match_test "aarch64_granule16_memory_address_p (op)")))
 
 ;; Used for storing or loading pairs in an AdvSIMD register using an STP/LDP
 ;; as a vector-concat.  The address mode uses the same constraints as if it
@@ -466,6 +484,13 @@
  (and (match_code "const_vector")
       (match_test "aarch64_simd_valid_orr_imm (op)")))
 
+(define_constraint "Df"
+  "@internal
+   A constraint that matches a vector of immediates for and which can be
+   optimized as fmov."
+ (and (match_code "const_vector")
+      (match_test "aarch64_simd_valid_and_imm_fmov (op)")))
+
 (define_constraint "Db"
   "@internal
    A constraint that matches vector of immediates for and/bic."
@@ -580,6 +605,21 @@
   "@internal
  An address valid for a prefetch instruction."
  (match_test "aarch64_address_valid_for_prefetch_p (op, true)"))
+
+(define_constraint "Uag"
+  "@internal
+  A constant that can be used as address offset for an ADDG operation."
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (ival, 0, 1008)
+		    && !(ival & 0xf)")))
+
+(define_constraint "Ung"
+  "@internal
+  A constant that can be used as address offset for an SUBG operation (once
+  negated)."
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (ival, -1008, -1)
+		    && !(ival & 0xf)")))
 
 (define_constraint "vgb"
   "@internal

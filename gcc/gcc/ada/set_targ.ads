@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2013-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2013-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -93,7 +93,7 @@ package Set_Targ is
 
    type FPT_Mode_Entry is record
       NAME      : String_Ptr;     -- Name of mode (no null character at end)
-      DIGS      : Natural;        -- Digits for floating-point type
+      DIGS      : Positive;       -- Digits for floating-point type
       FLOAT_REP : Float_Rep_Kind; -- Float representation
       PRECISION : Natural;        -- Precision in bits
       SIZE      : Natural;        -- Size in bits

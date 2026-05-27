@@ -1,7 +1,7 @@
-/* General types and functions that are uselful for processing of OpenMP,
-   OpenACC and similar directivers at various stages of compilation.
+/* General types and functions that are useful for processing of OpenMP,
+   OpenACC and similar directives at various stages of compilation.
 
-   Copyright (C) 2005-2025 Free Software Foundation, Inc.
+   Copyright (C) 2005-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -200,9 +200,14 @@ enum omp_ctx_directive
     OMP_CTX_METADIRECTIVE };
 extern tree omp_check_context_selector (location_t loc, tree ctx,
 					enum omp_ctx_directive directive);
+extern tree omp_mangle_variant_name (tree base_id, tree ctx, const char *sep);
+extern bool omp_check_for_duplicate_variant (location_t loc,
+					     tree base_decl, tree ctx);
 extern void omp_mark_declare_variant (location_t loc, tree variant,
 				      tree construct);
-extern int omp_context_selector_matches (tree, tree, bool);
+extern int omp_context_selector_matches (tree, tree, bool, bool = false);
+extern tree omp_merge_context_selectors (location_t, tree, tree,
+					 enum omp_ctx_directive);
 extern tree resolve_omp_target_device_matches (tree node);
 extern tree omp_get_context_selector (tree, enum omp_tss_code,
 				      enum omp_ts_code);
@@ -253,6 +258,92 @@ get_openacc_privatization_dump_flags ()
 }
 
 extern tree omp_build_component_ref (tree obj, tree field);
+
+template <typename T>
+struct omp_name_type
+{
+  tree name;
+  T type;
+};
+
+template <>
+struct default_hash_traits <omp_name_type<tree> >
+  : typed_noop_remove <omp_name_type<tree> >
+{
+  GTY((skip)) typedef omp_name_type<tree> value_type;
+  GTY((skip)) typedef omp_name_type<tree> compare_type;
+
+  static hashval_t
+  hash (omp_name_type<tree> p)
+  {
+    return p.name ? iterative_hash_expr (p.name, TYPE_UID (p.type))
+		  : TYPE_UID (p.type);
+  }
+
+  static const bool empty_zero_p = true;
+
+  static bool
+  is_empty (omp_name_type<tree> p)
+  {
+    return p.type == NULL;
+  }
+
+  static bool
+  is_deleted (omp_name_type<tree>)
+  {
+    return false;
+  }
+
+  static bool
+  equal (const omp_name_type<tree> &a, const omp_name_type<tree> &b)
+  {
+    if (a.name == NULL_TREE && b.name == NULL_TREE)
+      return a.type == b.type;
+    else if (a.name == NULL_TREE || b.name == NULL_TREE)
+      return false;
+    else
+      return a.name == b.name && a.type == b.type;
+  }
+
+  static void
+  mark_empty (omp_name_type<tree> &e)
+  {
+    e.type = NULL;
+  }
+};
+
+template <typename T>
+struct omp_mapper_list
+{
+  hash_set<omp_name_type<T>> *seen_types;
+  vec<tree> *mappers;
+
+  omp_mapper_list (hash_set<omp_name_type<T>> *s, vec<tree> *m)
+    : seen_types (s), mappers (m) { }
+
+  void add_mapper (tree name, T type, tree mapperfn)
+  {
+    /* We can't hash a NULL_TREE...  */
+    if (!name)
+      name = void_node;
+
+    omp_name_type<T> n_t = { name, type };
+
+    if (seen_types->contains (n_t))
+      return;
+
+    seen_types->add (n_t);
+    mappers->safe_push (mapperfn);
+  }
+
+  bool contains (tree name, T type)
+  {
+    if (!name)
+      name = void_node;
+
+    return seen_types->contains ({ name, type });
+  }
+};
 
 namespace omp_addr_tokenizer {
 

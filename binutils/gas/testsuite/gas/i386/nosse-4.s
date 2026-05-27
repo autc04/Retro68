@@ -36,11 +36,9 @@
 	pabsd %xmm0, %xmm0
 	.arch .nossse3
 	pabsd %xmm0, %xmm0
-	mwait
 	emms
 	.arch .nommx
 	.arch .nosse3
-	mwait
 	lfence
 	emms
 	.arch .nosse2

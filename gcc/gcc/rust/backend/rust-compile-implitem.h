@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -56,7 +56,7 @@ public:
 
     if (is_query_mode && compiler.reference == error_mark_node)
       rust_internal_error_at (ref_locus, "failed to compile trait item: %s",
-			      item->as_string ().c_str ());
+			      item->to_string ().c_str ());
 
     return compiler.reference;
   }

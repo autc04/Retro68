@@ -1,5 +1,5 @@
 /* Function splitting pass
-   Copyright (C) 2010-2025 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
    Contributed by Jan Hubicka  <jh@suse.cz>
 
 This file is part of GCC.
@@ -1400,6 +1400,15 @@ split_function (basic_block return_bb, class split_point *split_point,
   if (fndecl_built_in_p (node->decl))
     set_decl_built_in_function (node->decl, NOT_BUILT_IN, 0);
 
+  /* Drop "clobber *this" attribute from first argument of the split
+     function if any.  Code before that might be initializing the
+     members.  */
+  if (tree arg = DECL_ARGUMENTS (node->decl))
+    if (lookup_attribute ("clobber *this", DECL_ATTRIBUTES (arg)))
+      DECL_ATTRIBUTES (arg)
+	= remove_attribute ("clobber *this",
+			    copy_list (DECL_ATTRIBUTES (arg)));
+
   /* If return_bb contains any clobbers that refer to SSA_NAMEs
      set in the split part, remove them.  Also reset debug stmts that
      refer to SSA_NAMEs set in the split part.  */
@@ -1449,18 +1458,43 @@ split_function (basic_block return_bb, class split_point *split_point,
     dump_function_to_file (node->decl, dump_file, dump_flags);
 
   /* Create the basic block we place call into.  It is the entry basic block
-     split after last label.  */
+     split after last label and after the last eos clobber and debug stmt.  */
   call_bb = split_point->entry_bb;
   for (gimple_stmt_iterator gsi = gsi_start_bb (call_bb); !gsi_end_p (gsi);)
-    if (gimple_code (gsi_stmt (gsi)) == GIMPLE_LABEL)
+    if (gimple_code (gsi_stmt (gsi)) == GIMPLE_LABEL
+	|| gimple_clobber_p (gsi_stmt (gsi), CLOBBER_STORAGE_END)
+	|| is_gimple_debug (gsi_stmt (gsi)))
       {
 	last_stmt = gsi_stmt (gsi);
 	gsi_next (&gsi);
       }
     else
       break;
+
+  /* Find the old return bb, it might contain some clobbers
+     which we want to copy back after the call.  */
+  basic_block old_return = nullptr;
+  if (split_part_return_p)
+    {
+      bool one_return_bb = true;
+      FOR_EACH_EDGE (e, ei, return_bb->preds)
+	if (bitmap_bit_p (split_point->split_bbs, e->src->index))
+	  {
+	    if (old_return != nullptr)
+	      {
+		one_return_bb = false;
+		break;
+	      }
+	    old_return = e->src;
+	  }
+      if (!one_return_bb)
+	old_return = nullptr;
+    }
+
   call_bb->count = split_point->count;
   e = split_block (split_point->entry_bb, last_stmt);
+  if (old_return == e->src)
+    old_return = e->dest;
   remove_edge (e);
 
   /* Produce the call statement.  */
@@ -1702,6 +1736,36 @@ split_function (basic_block return_bb, class split_point *split_point,
 	  gsi_insert_after (&gsi, ret, GSI_NEW_STMT);
 	}
     }
+
+  /* Move the clobbers from the old return bb to after the call.  */
+  if (old_return)
+    {
+      gimple_stmt_iterator ngsi = gsi_last_bb (call_bb);
+      gsi_next (&ngsi);
+      for (gimple_stmt_iterator ogsi = gsi_last_bb (old_return);
+	   !gsi_end_p (ogsi); )
+	{
+	  gimple *stmt = *ogsi;
+	  if (is_gimple_debug (stmt))
+	    {
+	      gsi_prev (&ogsi);
+	      continue;
+	    }
+	  if (!gimple_clobber_p (stmt, CLOBBER_STORAGE_END))
+	    break;
+	  /* Change the vdef/vuse of the clobber to be renamed.  */
+	  unlink_stmt_vdef (stmt);
+	  release_ssa_name (gimple_vdef (stmt));
+	  gimple_set_vuse (stmt, gimple_vop (cfun));
+	  gimple_set_vdef (stmt, gimple_vop (cfun));
+	  gimple_stmt_iterator nogsi = ogsi;
+
+	  /* Move to the previous stmt before the move happens.  */
+	  gsi_prev (&ogsi);
+	  gsi_move_before (&nogsi, &ngsi, GSI_NEW_STMT);
+	  update_stmt (stmt);
+	}
+    }
   free_dominance_info (CDI_DOMINATORS);
   free_dominance_info (CDI_POST_DOMINATORS);
   compute_fn_summary (node, true);
@@ -1941,7 +2005,9 @@ pass_split_functions::gate (function *)
   /* When doing profile feedback, we want to execute the pass after profiling
      is read.  So disable one in early optimization.  */
   return (flag_partial_inlining
-      && !profile_arc_flag && !flag_branch_probabilities);
+      && !profile_arc_flag
+      && !flag_branch_probabilities
+      && !flag_auto_profile);
 }
 
 } // anon namespace
@@ -1992,6 +2058,10 @@ public:
       return execute_feedback_split_functions ();
     }
 
+  opt_pass * clone () final override
+  {
+    return new pass_feedback_split_functions (m_ctxt);
+  }
 }; // class pass_feedback_split_functions
 
 bool
@@ -2000,7 +2070,7 @@ pass_feedback_split_functions::gate (function *)
   /* We don't need to split when profiling at all, we are producing
      lousy code anyway.  */
   return (flag_partial_inlining
-	  && flag_branch_probabilities);
+	  && (flag_branch_probabilities || flag_auto_profile));
 }
 
 } // anon namespace

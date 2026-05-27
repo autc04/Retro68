@@ -1,6 +1,6 @@
 // <memory> Forward declarations -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -48,6 +48,7 @@
 #endif
 
 #include <bits/c++config.h>
+#include <bits/version.h>
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -77,6 +78,18 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename>
     struct allocator_traits;
 #endif
+
+#ifdef __glibcxx_allocate_at_least  // C++23
+  // Result of, specifically, allocate_at_least(). `count` is the number
+  // of objects that may be indexed from `ptr`, not bytes.
+  template <typename _Pointer, typename _Size = size_t>
+    struct allocation_result
+    {
+      _Pointer ptr;
+      _Size count;
+    };
+#endif
+
 
   /// @} group memory
 

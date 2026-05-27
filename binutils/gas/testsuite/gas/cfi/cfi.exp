@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2022 Free Software Foundation, Inc.
+# Copyright (C) 2012-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ if  { [istarget "i*86-*-*"] || [istarget "x86_64-*-*"] } then {
     if { [gas_x86_64_check] } then {
 	set ASFLAGS "$ASFLAGS --64"
 	run_dump_test "cfi-x86_64"
+	run_dump_test "cfi-x86_64-2"
 	set ASFLAGS "$old_ASFLAGS"
     }
 
@@ -94,7 +95,7 @@ if  { [istarget "i*86-*-*"] || [istarget "x86_64-*-*"] } then {
     }
 
 } elseif [istarget "sh*-*"] then {
-    if { [istarget "*-pe" ] || [istarget "*-rtemscoff*"] } then {
+    if { [istarget "*-pe" ] } then {
 	return
     }
     run_dump_test "cfi-sh-1"
@@ -105,6 +106,7 @@ if  { [istarget "i*86-*-*"] || [istarget "x86_64-*-*"] } then {
 
     set nm_status [gas_host_run "$NM $NMFLAGS --help" ""]
     run_dump_test "cfi-sparc-1"
+    run_dump_test "cfi-sparc-2"
     if { [regexp "elf64\[_-\]sparc" [lindex $nm_status 1]] } then {
 	run_dump_test "cfi-sparc64-1"
     }
@@ -114,6 +116,11 @@ if  { [istarget "i*86-*-*"] || [istarget "x86_64-*-*"] } then {
 }
 
 run_list_test "cfi-diag-1" ""
+
+# ARC and HPPA use ';' as comment char rather than as statement separator.
+if { ![istarget "arc*-*-*"] && ![istarget "hppa*-*"] } then {
+    run_list_test "listing" "-aln --listing-cont-lines=1"
+}
 
 # HPPA64 uses 64-bit relocations, which results in all of the dump
 # offset numbers not matching up.
@@ -133,6 +140,9 @@ if { ![istarget "hppa64*-*"] } then {
   run_dump_test "cfi-common-7"
   run_dump_test "cfi-common-8"
   run_dump_test "cfi-common-9"
+  if { [is_elf64 tmpdir/cfi-common-9.o] } {
+      run_dump_test "cfi-common-10"
+  }
 
   run_dump_test "cie-version-0"
   run_dump_test "cie-version-1"

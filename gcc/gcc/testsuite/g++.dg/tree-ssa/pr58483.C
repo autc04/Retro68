@@ -1,5 +1,7 @@
 // { dg-do compile { target c++11 } }
 // { dg-options "-O1 -fdump-tree-optimized" }
+// { dg-skip-if "required hosted libstdc++ for vector" { ! hostedlib } }
+
 #include<vector>
 
 void f(int);
@@ -11,4 +13,5 @@ void use_idx_const_size_reserve() {
     for (std::vector<int>::size_type i = 0; i < s; i++)
         f(v[i]);
 }
-// { dg-final { scan-tree-dump-not "delete" "optimized" } }
+// For C++26 delete appears in ~bad_array() and ~bad_array_new_length() dtors.
+// { dg-final { scan-tree-dump-not "delete" "optimized" { target c++23_down } } }

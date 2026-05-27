@@ -1,4 +1,4 @@
-#   Copyright (C) 2015-2025 Free Software Foundation, Inc.
+#   Copyright (C) 2015-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -153,6 +153,9 @@ proc handle-multiline-outputs { text } {
     # If dg-enable-nn-line-numbers was provided, then obscure source-margin
     # line numbers by converting them to "NN" form.
     set text [maybe-handle-nn-line-numbers $text]
+
+    # Remove Windows .exe suffix
+    regsub -all "(as|cc1|cc1plus|collect2|f951|ld|lto-wrapper)\.exe?:" $text {\1:} text
     
     set index 0
     foreach entry $multiline_expected_outputs {

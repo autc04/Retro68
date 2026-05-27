@@ -1,4 +1,4 @@
-#target: *-*-*eabi* *-*-nacl*
+#target: *-*-*eabi*
 
 .*:     file format .*
 
@@ -10,7 +10,7 @@ Disassembly of section \.text:
 	...
 #...
 00800008 <__far_fn_from_thumb>:
-  800008:	e51ff004 	ldr	pc, \[pc, #-4\]	; 80000c <__far_fn_from_thumb\+0x4>
+  800008:	e51ff004 	ldr	pc, \[pc, #-4\]	@ 80000c <__far_fn_from_thumb\+0x4>
   80000c:	7fff0000 	.word	0x7fff0000
 
 00800010 <three>:
@@ -30,11 +30,11 @@ Disassembly of section \.text:
 	...
 
 00801018 <__far_fn2_from_thumb>:
-  801018:	e51ff004 	ldr	pc, \[pc, #-4\]	; 80101c <__far_fn2_from_thumb\+0x4>
+  801018:	e51ff004 	ldr	pc, \[pc, #-4\]	@ 80101c <__far_fn2_from_thumb\+0x4>
   80101c:	80000004 	.word	0x80000004
 
 00801020 <__far_fn1_from_thumb>:
-  801020:	e51ff004 	ldr	pc, \[pc, #-4\]	; 801024 <__far_fn1_from_thumb\+0x4>
+  801020:	e51ff004 	ldr	pc, \[pc, #-4\]	@ 801024 <__far_fn1_from_thumb\+0x4>
   801024:	80000000 	.word	0x80000000
   801028:	d001      	beq.n	80102e <__far_fn1_from_thumb\+0xe>
   80102a:	f7ff bfea 	b.w	801002 <label1\+0x8>

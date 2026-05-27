@@ -245,7 +245,7 @@ label_2:
 	.word -1311808516 - (272825489 - 19388681)
 	.int 19338670 + 260459768
 
-.macro .safe_word val
+.macro .safe_word val:vararg
 	.word (\val) & 0xffffffff
 .endm
 	

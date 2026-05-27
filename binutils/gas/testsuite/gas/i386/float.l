@@ -80,6 +80,15 @@
   67 0080 DEFB [ 	]*fdivrp	%st\(3\)
   68 0082 DEFB [ 	]*fdivrp	%st,%st\(3\)
   69 [ 	]*
-  70 0084 00000000 [ 	]*.p2align	4,0
-  70      00000000 
-  70      00000000 
+  70 0084 DDE9 [ 	]*fucomp %st\(1\)
+  71 0086 DDE2 [ 	]*fucom %st\(2\)
+  72 0088 DAE9 [ 	]*fucompp
+  73 008a DBF2 [ 	]*fcomi %st\(2\)
+  74 008c DFF3 [ 	]*fcomip %st\(3\)
+  75 008e DBEC [ 	]*fucomi %st\(4\)
+  76 0090 DFED [ 	]*fucomip %st\(5\)
+  77 [ 	]*
+  78 0092 00000000 [ 	]*.p2align	4,0
+  78      00000000 
+  78      00000000 
+  78      0000

@@ -1,19 +1,19 @@
 Contents of the .debug_info section:
 
-  Compilation Unit @ offset 0x0:
+  Compilation Unit @ offset (0x)?0:
    Length:        0x160 \(32-bit\)
    Version:       5
    Unit Type:     DW_UT_compile \(1\)
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  8
  <0><c>: Abbrev Number: 6 \(DW_TAG_compile_unit\)
     <d>   DW_AT_producer    : \(indirect string, offset: 0x43\): GNU C11 7.0.1 20170218 \(experimental\) -mtune=generic -march=x86-64 -gdwarf-5 -O2
     <11>   DW_AT_language    : 29	\(C11\)
     <12>   DW_AT_name        : \(indirect line string, offset: 0x14\): main.c
-    <16>   DW_AT_comp_dir    : \(indirect line string, offset: 0x0\): 
+    <16>   DW_AT_comp_dir    : \(indirect line string, offset: (0x)?0\): 
     <1a>   DW_AT_ranges      : 0xc
-    <1e>   DW_AT_low_pc      : 0x0
-    <26>   DW_AT_stmt_list   : 0x0
+    <1e>   DW_AT_low_pc      : (0x)?0
+    <26>   DW_AT_stmt_list   : (0x)?0
  <1><2a>: Abbrev Number: 1 \(DW_TAG_base_type\)
     <2b>   DW_AT_byte_size   : 1
     <2c>   DW_AT_encoding    : 8	\(unsigned char\)
@@ -25,7 +25,7 @@ Contents of the .debug_info section:
  <1><38>: Abbrev Number: 1 \(DW_TAG_base_type\)
     <39>   DW_AT_byte_size   : 4
     <3a>   DW_AT_encoding    : 7	\(unsigned\)
-    <3b>   DW_AT_name        : \(indirect string, offset: 0x0\): unsigned int
+    <3b>   DW_AT_name        : \(indirect string, offset: (0x)?0\): unsigned int
  <1><3f>: Abbrev Number: 1 \(DW_TAG_base_type\)
     <40>   DW_AT_byte_size   : 8
     <41>   DW_AT_encoding    : 7	\(unsigned\)
@@ -172,7 +172,7 @@ Contents of the .debug_info section:
 
 Contents of the .debug_abbrev section:
 
-  Number TAG \(0x0\)
+  Number TAG \((0x)?0\)
    1      DW_TAG_base_type    \[no children\]
     DW_AT_byte_size    DW_FORM_data1
     DW_AT_encoding     DW_FORM_data1
@@ -289,7 +289,7 @@ Contents of the .debug_rnglists section:
 
 Raw dump of debug contents of section .debug_line:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Length:                      144
   DWARF Version:               5
   Address size \(bytes\):        8
@@ -318,7 +318,7 @@ Raw dump of debug contents of section .debug_line:
 
  The Directory Table \(offset 0x22, lines 3, columns 1\):
   Entry	Name
-  0	\(indirect line string, offset: 0x0\): 
+  0	\(indirect line string, offset: (0x)?0\): 
   1	\(indirect line string, offset: 0x1\): 
   2	\(indirect line string, offset: 0x22\): /usr/include
 
@@ -348,13 +348,13 @@ Raw dump of debug contents of section .debug_line:
 Contents of the .debug_line section:
 
 main.c:
-File name                            Line number    Starting address    View    Stmt
-main.c                                         6              0x1234               x
-main.c                                         6             0x12346               x
-main.c                                         -              0x1234
+File name[ 	]+Line number[ 	]+Starting address[ 	]+View[ 	]+Stmt
+main.c[ 	]+6[ 	]+0x1234[ 	]+x
+main.c[ 	]+6[ 	]+0x12346[ 	]+x
+main.c[ 	]+-[ 	]+0x1234
 
-main.c                                         5              0x1234               x
-main.c                                         5              0x1234               x
-main.c                                         -              0x1234
+main.c[ 	]+5[ 	]+0x1234[ 	]+x
+main.c[ 	]+5[ 	]+0x1234[ 	]+x
+main.c[ 	]+-[ 	]+0x1234
 
 

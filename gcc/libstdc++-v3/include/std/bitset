@@ -1,6 +1,6 @@
 // <bitset> -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -46,8 +46,8 @@
 #pragma GCC system_header
 #endif
 
-#include <bits/functexcept.h>   // For invalid_argument, out_of_range,
-                                // overflow_error
+#include <bits/stdexcept_throw.h> // For invalid_argument, out_of_range,
+				  // overflow_error
 #include <bits/stl_algobase.h>  // For std::fill
 
 #if _GLIBCXX_HOSTED
@@ -61,7 +61,12 @@
 #endif
 
 #define __glibcxx_want_constexpr_bitset
+#define __glibcxx_want_bitset  // ...construct from string_view
 #include <bits/version.h>
+
+#ifdef __cpp_lib_bitset // ...construct from string_view
+# include <string_view>
+#endif
 
 #define _GLIBCXX_BITSET_BITS_PER_WORD  (__CHAR_BIT__ * __SIZEOF_LONG__)
 #define _GLIBCXX_BITSET_WORDS(__n) \
@@ -715,7 +720,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 
   namespace __bitset
   {
-#if _GLIBCXX_HOSTED
+#ifdef __cpp_lib_bitset // ...construct from string_view
+    template<typename _CharT>
+      using __string = std::basic_string_view<_CharT>;
+#elif _GLIBCXX_HOSTED
     template<typename _CharT>
       using __string = std::basic_string<_CharT>;
 #else
@@ -752,7 +760,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
    *  (Note that %bitset does @e not meet the formal requirements of a
    *  <a href="tables.html#65">container</a>.  Mainly, it lacks iterators.)
    *
-   *  The template argument, @a Nb, may be any non-negative number,
+   *  The template argument, `Nb`, may be any non-negative number,
    *  specifying the number of bits (e.g., "0", "12", "1024*1024").
    *
    *  In the general unoptimized case, storage is allocated in word-sized
@@ -816,28 +824,25 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       typedef _Base_bitset<_GLIBCXX_BITSET_WORDS(_Nb)> _Base;
       typedef unsigned long _WordT;
 
-#if _GLIBCXX_HOSTED
-      template<class _CharT, class _Traits, class _Alloc>
-      _GLIBCXX23_CONSTEXPR
-      void
-      _M_check_initial_position(const std::basic_string<_CharT, _Traits, _Alloc>& __s,
-				size_t __position) const
+      template<class _Str>
+      _GLIBCXX23_CONSTEXPR void
+      _M_check_initial_position(
+	const _Str& __s, typename _Str::size_type __position) const
       {
 	if (__position > __s.size())
-	  __throw_out_of_range_fmt(__N("bitset::bitset: __position "
-				       "(which is %zu) > __s.size() "
-				       "(which is %zu)"),
-				   __position, __s.size());
+	  __throw_out_of_range_fmt(
+	    __N("bitset::bitset:"
+		" __position (which is %zu) > __s.size() (which is %zu)"),
+	    size_t(__position), size_t(__s.size()));
       }
-#endif // HOSTED
 
       _GLIBCXX23_CONSTEXPR
       void _M_check(size_t __position, const char *__s) const
       {
 	if (__position >= _Nb)
-	  __throw_out_of_range_fmt(__N("%s: __position (which is %zu) "
-				       ">= _Nb (which is %zu)"),
-				   __s, __position, _Nb);
+	  __throw_out_of_range_fmt(
+	    __N("%s: __position (which is %zu) >= _Nb (which is %zu)"),
+	    __s, size_t(__position), size_t(_Nb));
       }
 
       _GLIBCXX23_CONSTEXPR
@@ -954,12 +959,12 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 #if _GLIBCXX_HOSTED
       /**
        *  Use a subset of a string.
-       *  @param  __s  A string of @a 0 and @a 1 characters.
-       *  @param  __position  Index of the first character in @a __s to use;
+       *  @param  __s  A string of `0` and `1` characters.
+       *  @param  __position  Index of the first character in `__s` to use;
        *                    defaults to zero.
-       *  @throw  std::out_of_range  If @a pos is bigger the size of @a __s.
+       *  @throw  std::out_of_range  If `__position > __s.size()`.
        *  @throw  std::invalid_argument  If a character appears in the string
-       *                                 which is neither @a 0 nor @a 1.
+       *                                 which is neither `0` nor `1`.
        */
       template<class _CharT, class _Traits, class _Alloc>
 	_GLIBCXX23_CONSTEXPR
@@ -976,13 +981,12 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 
       /**
        *  Use a subset of a string.
-       *  @param  __s  A string of @a 0 and @a 1 characters.
-       *  @param  __position  Index of the first character in @a __s to use.
+       *  @param  __s  A string of `0` and `1` characters.
+       *  @param  __position  Index of the first character in `__s` to use.
        *  @param  __n    The number of characters to copy.
-       *  @throw std::out_of_range If @a __position is bigger the size
-       *  of @a __s.
+       *  @throw  std::out_of_range  If `__position > __s.size()`.
        *  @throw  std::invalid_argument  If a character appears in the string
-       *                                 which is neither @a 0 nor @a 1.
+       *                                 which is neither `0` nor `1`.
        */
       template<class _CharT, class _Traits, class _Alloc>
 	_GLIBCXX23_CONSTEXPR
@@ -1008,17 +1012,50 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	}
 #endif // HOSTED
 
+#ifdef __cpp_lib_bitset // C++ >= 23
+      /**
+       *  Use a subset of a string view.
+       *  @param  __s  A `string_view` of a sequence of `0` and `1` characters.
+       *  @param  __position  Index of the first character in `__s` to use.
+       *  @param  __n    The maximum number of characters from `__s` to use.
+       *  @param  __zero The character corresponding to the value 0.
+       *  @param  __one  The character corresponding to the value 1.
+       *  @throw  std::out_of_range  If `__position > __s.size()`.
+       *  @throw  std::invalid_argument  If a character appears in `__s`
+       *                                 which is neither `0` nor `1`.
+       */
+      template<class _CharT, class _Traits>
+	constexpr explicit
+	bitset(basic_string_view<_CharT, _Traits> __s,
+	  basic_string_view<_CharT, _Traits>::size_type __position = 0,
+	  basic_string_view<_CharT, _Traits>::size_type __n =
+	    basic_string_view<_CharT, _Traits>::npos,
+	  _CharT __zero = _CharT('0'), _CharT __one = _CharT('1'))
+	: _Base()
+	{
+	  _M_check_initial_position(__s, __position);
+	  _M_copy_from_ptr<_CharT, _Traits>(
+	    __s.data(), __s.size(), __position, __n, __zero, __one);
+	}
+#endif
+
 #if __cplusplus >= 201103L
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 4294. bitset(const CharT*) constructor needs to be constrained
       /**
        *  Construct from a character %array.
-       *  @param  __str  An %array of characters @a zero and @a one.
+       *  @param  __str  An %array of characters `__zero` and `__one`.
        *  @param  __n    The number of characters to use.
        *  @param  __zero The character corresponding to the value 0.
        *  @param  __one  The character corresponding to the value 1.
        *  @throw  std::invalid_argument If a character appears in the string
-       *                                which is neither @a __zero nor @a __one.
+       *                                which is neither `__zero` nor `__one`.
        */
-      template<typename _CharT>
+      template<typename _CharT,
+	       typename = _Require<is_trivially_copyable<_CharT>,
+				   is_standard_layout<_CharT>,
+				   is_trivially_default_constructible<_CharT>,
+				   __not_<is_array<_CharT>>>>
 	[[__gnu__::__nonnull__]]
 	_GLIBCXX23_CONSTEXPR
         explicit
@@ -1028,10 +1065,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	       _CharT __zero = _CharT('0'), _CharT __one = _CharT('1'))
         : _Base()
         {
-#if _GLIBCXX_HOSTED
 	  if (!__str)
 	    __throw_logic_error(__N("bitset::bitset(const _CharT*, ...)"));
-#endif
 	  using _Traits = typename __bitset::__string<_CharT>::traits_type;
 
 	  if (__n == __bitset::__string<_CharT>::npos)
@@ -1255,11 +1290,25 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       _GLIBCXX23_CONSTEXPR
       reference
       operator[](size_t __position)
-      { return reference(*this, __position); }
+      {
+	__glibcxx_assert(__position < _Nb);
+	return reference(*this, __position);
+      }
 
       _GLIBCXX_CONSTEXPR bool
       operator[](size_t __position) const
-      { return _Unchecked_test(__position); }
+      {
+#if __cplusplus != 201103L
+	__glibcxx_assert(__position < _Nb);
+	return _Unchecked_test(__position);
+#elif defined(_GLIBCXX_ASSERTIONS)
+	// C++11 forbids a compound stmt in a constexpr function.
+	return __position < _Nb ? _Unchecked_test(__position)
+	  : (__builtin_trap(), false);
+#else
+	return _Unchecked_test(__position);
+#endif
+      }
       ///@}
 
       /**
@@ -1514,7 +1563,14 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 		       size_t __pos, size_t __n, _CharT __zero, _CharT __one)
       {
 	reset();
-	const size_t __nbits = std::min(_Nb, std::min(__n, size_t(__len - __pos)));
+	const size_t __rlen = std::min(__n, size_t(__len - __pos));
+	const size_t __nbits = std::min(_Nb, __rlen);
+	for (size_t __i = __rlen - __nbits; __i > 0; --__i)
+	  {
+	    const _CharT __c = __s[__pos + __rlen - __i];
+	    if (!_Traits::eq(__c, __zero) && !_Traits::eq(__c, __one))
+	      __throw_invalid_argument(__N("bitset::_M_copy_from_ptr"));
+	  }
 	for (size_t __i = __nbits; __i > 0; --__i)
 	  {
 	    const _CharT __c = __s[__pos + __nbits - __i];
@@ -1605,6 +1661,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       typedef std::basic_istream<_CharT, _Traits>  __istream_type;
       typedef typename __istream_type::ios_base    __ios_base;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions" // if constexpr
       struct _Buffer
       {
 	static _GLIBCXX_CONSTEXPR bool _S_use_alloca() { return _Nb <= 256; }
@@ -1613,18 +1671,19 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 
 	~_Buffer()
 	{
-	  if _GLIBCXX17_CONSTEXPR (!_S_use_alloca())
+	  if _GLIBCXX_CONSTEXPR (!_S_use_alloca())
 	    delete[] _M_ptr;
 	}
 
 	_CharT* const _M_ptr;
       };
       _CharT* __ptr;
-      if _GLIBCXX17_CONSTEXPR (_Buffer::_S_use_alloca())
+      if _GLIBCXX_CONSTEXPR (_Buffer::_S_use_alloca())
 	__ptr = (_CharT*)__builtin_alloca(_Nb);
       else
 	__ptr = new _CharT[_Nb];
       const _Buffer __buf(__ptr);
+#pragma GCC diagnostic pop
 
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 303. Bitset input operator underspecified
@@ -1673,7 +1732,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	    { __is._M_setstate(__ios_base::badbit); }
 	}
 
-      if _GLIBCXX17_CONSTEXPR (_Nb)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions" // if constexpr
+      if _GLIBCXX_CONSTEXPR (_Nb)
       {
 	if (size_t __len = __ptr - __buf._M_ptr)
 	  __x.template _M_copy_from_ptr<_CharT, _Traits>(__buf._M_ptr, __len,
@@ -1682,6 +1743,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	else
 	  __state |= __ios_base::failbit;
       }
+#pragma GCC diagnostic pop
       if (__state)
 	__is.setstate(__state);
       return __is;

@@ -5,7 +5,8 @@
 # The bfin target does not allow .subsection with an equated symbol as operand.
 # The d30v target emits sufficiently different debug info, apparently also covering padding it inserts.
 # The riscv targets do not support the subtraction of symbols.
-#xfail: am33*-* bfin-* cr16-* crx-* d30v-* ft32-* mn10*-* msp430-* nds32*-* riscv*-* rl78-*
+# The loongarch targets do not support the subtraction of symbols.
+#xfail: am33*-* bfin-* cr16-* crx-* d30v-* ft32-* loongarch*-* mn10*-* msp430-* nds32*-* riscv*-* rl78-*
 
 Raw dump of debug contents .*
 #...

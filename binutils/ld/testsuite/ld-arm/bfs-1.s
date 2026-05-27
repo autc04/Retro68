@@ -4,6 +4,7 @@
 .thumb
 .global _start
 .global target
+.type target, %function
 _start:
 target:
 	add	r0, r0, r1

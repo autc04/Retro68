@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -51,21 +51,12 @@ class TypePath;
 // A type generic parameter (as opposed to a lifetime generic parameter)
 class TypeParam : public GenericParam
 {
-  // bool has_outer_attribute;
-  // std::unique_ptr<Attribute> outer_attr;
   AST::AttrVec outer_attrs;
-
   Identifier type_representation;
-
-  // bool has_type_param_bounds;
-  // TypeParamBounds type_param_bounds;
-  std::vector<std::unique_ptr<TypeParamBound>>
-    type_param_bounds; // inlined form
-
-  // bool has_type;
+  std::vector<std::unique_ptr<TypeParamBound>> type_param_bounds;
   std::unique_ptr<Type> type;
-
   location_t locus;
+  bool was_impl_trait;
 
 public:
   Identifier get_type_representation () const { return type_representation; }
@@ -85,18 +76,19 @@ public:
 	     std::vector<std::unique_ptr<TypeParamBound>> type_param_bounds
 	     = std::vector<std::unique_ptr<TypeParamBound>> (),
 	     std::unique_ptr<Type> type = nullptr,
-	     AST::AttrVec outer_attrs = {})
+	     AST::AttrVec outer_attrs = {}, bool was_impl_trait = false)
     : GenericParam (Analysis::Mappings::get ().get_next_node_id ()),
       outer_attrs (std::move (outer_attrs)),
       type_representation (std::move (type_representation)),
       type_param_bounds (std::move (type_param_bounds)),
-      type (std::move (type)), locus (locus)
+      type (std::move (type)), locus (locus), was_impl_trait (was_impl_trait)
   {}
 
   // Copy constructor uses clone
   TypeParam (TypeParam const &other)
     : GenericParam (other.node_id), outer_attrs (other.outer_attrs),
-      type_representation (other.type_representation), locus (other.locus)
+      type_representation (other.type_representation), locus (other.locus),
+      was_impl_trait (other.was_impl_trait)
   {
     // guard to prevent null pointer dereference
     if (other.type != nullptr)
@@ -114,6 +106,7 @@ public:
     outer_attrs = other.outer_attrs;
     locus = other.locus;
     node_id = other.node_id;
+    was_impl_trait = other.was_impl_trait;
 
     // guard to prevent null pointer dereference
     if (other.type != nullptr)
@@ -153,16 +146,18 @@ public:
     return type;
   }
 
-  // TODO: mutable getter seems kinda dodgy
   std::vector<std::unique_ptr<TypeParamBound>> &get_type_param_bounds ()
   {
     return type_param_bounds;
   }
+
   const std::vector<std::unique_ptr<TypeParamBound>> &
   get_type_param_bounds () const
   {
     return type_param_bounds;
   }
+
+  bool from_impl_trait () const { return was_impl_trait; }
 
 protected:
   // Clone function implementation as virtual method
@@ -552,6 +547,7 @@ public:
 // Qualifiers for function, i.e. const, unsafe, extern etc.
 class FunctionQualifiers
 {
+  Default default_status;
   Async async_status;
   Const const_status;
   Unsafety unsafe_status;
@@ -560,12 +556,14 @@ class FunctionQualifiers
   location_t locus;
 
 public:
-  FunctionQualifiers (location_t locus, Async async_status, Const const_status,
+  FunctionQualifiers (location_t locus, Default default_status,
+		      Async async_status, Const const_status,
 		      Unsafety unsafe_status, bool has_extern = false,
 		      std::string extern_abi = std::string ())
-    : async_status (async_status), const_status (const_status),
-      unsafe_status (unsafe_status), has_extern (has_extern),
-      extern_abi (std::move (extern_abi)), locus (locus)
+    : default_status (default_status), async_status (async_status),
+      const_status (const_status), unsafe_status (unsafe_status),
+      has_extern (has_extern), extern_abi (std::move (extern_abi)),
+      locus (locus)
   {
     if (!this->extern_abi.empty ())
       {
@@ -576,6 +574,7 @@ public:
 
   std::string as_string () const;
 
+  bool is_default () const { return default_status == Default::Yes; }
   bool is_unsafe () const { return unsafe_status == Unsafety::Unsafe; }
   bool is_extern () const { return has_extern; }
   bool is_const () const { return const_status == Const::Yes; }
@@ -634,6 +633,12 @@ public:
   {
     rust_assert (param_name != nullptr);
     return *param_name;
+  }
+
+  std::unique_ptr<Pattern> &get_pattern_ptr ()
+  {
+    rust_assert (param_name != nullptr);
+    return param_name;
   }
 
   const Pattern &get_pattern () const
@@ -719,6 +724,12 @@ public:
     return *param_name;
   }
 
+  std::unique_ptr<Pattern> &get_pattern_ptr ()
+  {
+    rust_assert (param_name != nullptr);
+    return param_name;
+  }
+
   bool has_name () const { return param_name != nullptr; }
 
   // TODO: is this better? Or is a "vis_block" better?
@@ -743,7 +754,7 @@ public:
 };
 
 // Rust module item - abstract base class
-class Module : public VisItem
+class Module : public VisItem, public GlobContainer
 {
 public:
   // Type of the current module. A module can be either loaded or unloaded,
@@ -807,7 +818,7 @@ public:
   // Loaded module constructor, with items
   Module (Identifier name, location_t locus,
 	  std::vector<std::unique_ptr<Item>> items,
-	  Visibility visibility = Visibility::create_error (),
+	  Visibility visibility = Visibility::create_private (),
 	  Unsafety safety = Unsafety::Normal,
 	  std::vector<Attribute> inner_attrs = std::vector<Attribute> (),
 	  std::vector<Attribute> outer_attrs = std::vector<Attribute> ())
@@ -904,6 +915,11 @@ protected:
   /* Use covariance to implement clone function as returning this object
    * rather than base */
   Module *clone_item_impl () const override { return new Module (*this); }
+
+  GlobContainer::Kind get_glob_container_kind () const override
+  {
+    return GlobContainer::Kind::Module;
+  }
 };
 
 // Rust extern crate declaration AST node
@@ -1062,7 +1078,7 @@ public:
 
   void accept_vis (ASTVisitor &vis) override;
 
-  PathType get_glob_type () { return glob_type; }
+  PathType get_glob_type () const { return glob_type; }
 
   Kind get_kind () const override { return Glob; }
 
@@ -1331,7 +1347,6 @@ class Function : public VisItem, public AssociatedItem, public ExternalItem
   WhereClause where_clause;
   tl::optional<std::unique_ptr<BlockExpr>> function_body;
   location_t locus;
-  bool has_default;
   bool is_external_function;
 
 public:
@@ -1356,7 +1371,7 @@ public:
 
   bool has_body () const { return function_body.has_value (); }
 
-  bool is_default () const { return has_default; }
+  bool is_default () const { return qualifiers.is_default (); }
 
   // Mega-constructor with all possible fields
   Function (Identifier function_name, FunctionQualifiers qualifiers,
@@ -1365,8 +1380,7 @@ public:
 	    std::unique_ptr<Type> return_type, WhereClause where_clause,
 	    tl::optional<std::unique_ptr<BlockExpr>> function_body,
 	    Visibility vis, std::vector<Attribute> outer_attrs,
-	    location_t locus, bool has_default = false,
-	    bool is_external_function = false)
+	    location_t locus, bool is_external_function = false)
     : VisItem (std::move (vis), std::move (outer_attrs)),
       ExternalItem (Stmt::node_id), qualifiers (std::move (qualifiers)),
       function_name (std::move (function_name)),
@@ -1375,7 +1389,7 @@ public:
       return_type (std::move (return_type)),
       where_clause (std::move (where_clause)),
       function_body (std::move (function_body)), locus (locus),
-      has_default (has_default), is_external_function (is_external_function)
+      is_external_function (is_external_function)
   {}
 
   // TODO: add constructor with less fields
@@ -1572,6 +1586,9 @@ public:
 
   location_t get_locus () const override final { return locus; }
 
+  // needed to override AssociatedItem::get_node_id
+  NodeId get_node_id () const override final { return VisItem::get_node_id (); }
+
   void accept_vis (ASTVisitor &vis) override;
 
   // Invalid if existing type is null, so base stripping on that.
@@ -1598,6 +1615,12 @@ public:
   {
     rust_assert (existing_type != nullptr);
     return *existing_type;
+  }
+
+  std::unique_ptr<Type> &get_type_aliased_ptr ()
+  {
+    rust_assert (existing_type != nullptr);
+    return existing_type;
   }
 
   Identifier get_new_type_name () const { return new_type_name; }
@@ -1727,7 +1750,7 @@ public:
   bool has_outer_attributes () const { return !outer_attrs.empty (); }
 
   // Returns whether struct field has a non-private (non-default) visibility.
-  bool has_visibility () const { return !visibility.is_error (); }
+  bool has_visibility () const { return true; }
 
   StructField (Identifier field_name, std::unique_ptr<Type> field_type,
 	       Visibility vis, location_t locus,
@@ -1781,8 +1804,8 @@ public:
   // Creates an error state struct field.
   static StructField create_error ()
   {
-    return StructField (std::string (""), nullptr, Visibility::create_error (),
-			UNDEF_LOCATION);
+    return StructField (std::string (""), nullptr,
+			Visibility::create_private (), UNDEF_LOCATION);
   }
 
   std::string as_string () const;
@@ -1886,7 +1909,7 @@ public:
 
   /* Returns whether tuple field has a non-default visibility (i.e. a public
    * one) */
-  bool has_visibility () const { return !visibility.is_error (); }
+  bool has_visibility () const { return true; }
 
   // Complete constructor
   TupleField (std::unique_ptr<Type> field_type, Visibility vis,
@@ -1936,7 +1959,7 @@ public:
   // Creates an error state tuple field.
   static TupleField create_error ()
   {
-    return TupleField (nullptr, Visibility::create_error (), UNDEF_LOCATION);
+    return TupleField (nullptr, Visibility::create_private (), UNDEF_LOCATION);
   }
 
   std::string as_string () const;
@@ -2231,7 +2254,7 @@ protected:
 };
 
 // AST node for Rust "enum" - tagged union
-class Enum : public VisItem
+class Enum : public VisItem, public GlobContainer
 {
   Identifier enum_name;
 
@@ -2340,6 +2363,11 @@ public:
   WhereClause &get_where_clause () { return where_clause; }
 
   Item::Kind get_item_kind () const override { return Item::Kind::Enum; }
+
+  GlobContainer::Kind get_glob_container_kind () const override
+  {
+    return GlobContainer::Kind::Enum;
+  }
 
 protected:
   /* Use covariance to implement clone function as returning this object
@@ -2455,7 +2483,7 @@ class ConstantItem : public VisItem, public AssociatedItem
   // either has an identifier or "_" - maybe handle in identifier?
   // bool identifier_is_underscore;
   // if no identifier declared, identifier will be "_"
-  std::string identifier;
+  Identifier identifier;
 
   std::unique_ptr<Type> type;
   std::unique_ptr<Expr> const_expr;
@@ -2465,7 +2493,7 @@ class ConstantItem : public VisItem, public AssociatedItem
 public:
   std::string as_string () const override;
 
-  ConstantItem (std::string ident, Visibility vis, std::unique_ptr<Type> type,
+  ConstantItem (Identifier ident, Visibility vis, std::unique_ptr<Type> type,
 		std::unique_ptr<Expr> const_expr,
 		std::vector<Attribute> outer_attrs, location_t locus)
     : VisItem (std::move (vis), std::move (outer_attrs)),
@@ -2473,7 +2501,7 @@ public:
       const_expr (std::move (const_expr)), locus (locus)
   {}
 
-  ConstantItem (std::string ident, Visibility vis, std::unique_ptr<Type> type,
+  ConstantItem (Identifier ident, Visibility vis, std::unique_ptr<Type> type,
 		std::vector<Attribute> outer_attrs, location_t locus)
     : VisItem (std::move (vis), std::move (outer_attrs)),
       identifier (std::move (ident)), type (std::move (type)),
@@ -2516,13 +2544,16 @@ public:
 
   /* Returns whether constant item is an "unnamed" (wildcard underscore used
    * as identifier) constant. */
-  bool is_unnamed () const { return identifier == "_"; }
+  bool is_unnamed () const { return identifier.as_string () == "_"; }
 
   location_t get_locus () const override final { return locus; }
 
+  // needed to override AssociatedItem::get_node_id
+  NodeId get_node_id () const override final { return VisItem::get_node_id (); }
+
   void accept_vis (ASTVisitor &vis) override;
 
-  // Invalid if type or expression are null, so base stripping on that.
+  // Invalid if type and expression are null, so base stripping on that.
   void mark_for_strip () override
   {
     type = nullptr;
@@ -2533,7 +2564,7 @@ public:
     return type == nullptr && const_expr == nullptr;
   }
 
-  bool has_expr () { return const_expr != nullptr; }
+  bool has_expr () const { return const_expr != nullptr; }
 
   // TODO: is this better? Or is a "vis_block" better?
   Expr &get_expr ()
@@ -2561,7 +2592,7 @@ public:
     return type;
   }
 
-  std::string get_identifier () const { return identifier; }
+  const Identifier &get_identifier () const { return identifier; }
 
   Item::Kind get_item_kind () const override
   {
@@ -2700,123 +2731,6 @@ protected:
   }
 };
 
-// Constant item within traits
-class TraitItemConst : public TraitItem
-{
-  std::vector<Attribute> outer_attrs;
-  Identifier name;
-  std::unique_ptr<Type> type;
-
-  // bool has_expression;
-  std::unique_ptr<Expr> expr;
-
-public:
-  // Whether the constant item has an associated expression.
-  bool has_expression () const { return expr != nullptr; }
-
-  TraitItemConst (Identifier name, std::unique_ptr<Type> type,
-		  std::unique_ptr<Expr> expr,
-		  std::vector<Attribute> outer_attrs, location_t locus)
-    : TraitItem (locus), outer_attrs (std::move (outer_attrs)),
-      name (std::move (name)), type (std::move (type)), expr (std::move (expr))
-  {}
-
-  // Copy constructor with clones
-  TraitItemConst (TraitItemConst const &other)
-    : TraitItem (other.locus), outer_attrs (other.outer_attrs),
-      name (other.name)
-  {
-    node_id = other.node_id;
-
-    // guard to prevent null dereference
-    if (other.expr != nullptr)
-      expr = other.expr->clone_expr ();
-
-    // guard to prevent null dereference (only for error state)
-    if (other.type != nullptr)
-      type = other.type->clone_type ();
-  }
-
-  // Overloaded assignment operator to clone
-  TraitItemConst &operator= (TraitItemConst const &other)
-  {
-    TraitItem::operator= (other);
-    outer_attrs = other.outer_attrs;
-    name = other.name;
-    locus = other.locus;
-    node_id = other.node_id;
-
-    // guard to prevent null dereference
-    if (other.expr != nullptr)
-      expr = other.expr->clone_expr ();
-    else
-      expr = nullptr;
-
-    // guard to prevent null dereference (only for error state)
-    if (other.type != nullptr)
-      type = other.type->clone_type ();
-    else
-      type = nullptr;
-
-    return *this;
-  }
-
-  // move constructors
-  TraitItemConst (TraitItemConst &&other) = default;
-  TraitItemConst &operator= (TraitItemConst &&other) = default;
-
-  std::string as_string () const override;
-
-  location_t get_locus () const override { return locus; }
-
-  void accept_vis (ASTVisitor &vis) override;
-
-  // Invalid if type is null, so base stripping on that.
-  void mark_for_strip () override { type = nullptr; }
-  bool is_marked_for_strip () const override { return type == nullptr; }
-
-  // TODO: this mutable getter seems really dodgy. Think up better way.
-  std::vector<Attribute> &get_outer_attrs () { return outer_attrs; }
-  const std::vector<Attribute> &get_outer_attrs () const { return outer_attrs; }
-
-  bool has_expr () const { return expr != nullptr; }
-
-  // TODO: is this better? Or is a "vis_block" better?
-  Expr &get_expr ()
-  {
-    rust_assert (has_expr ());
-    return *expr;
-  }
-
-  std::unique_ptr<Expr> &get_expr_ptr ()
-  {
-    rust_assert (has_expr ());
-    return expr;
-  }
-
-  // TODO: is this better? Or is a "vis_block" better?
-  Type &get_type ()
-  {
-    rust_assert (type != nullptr);
-    return *type;
-  }
-
-  std::unique_ptr<Type> &get_type_ptr ()
-  {
-    rust_assert (type != nullptr);
-    return type;
-  }
-
-  Identifier get_identifier () const { return name; }
-
-protected:
-  // Clone function implementation as (not pure) virtual method
-  TraitItemConst *clone_associated_item_impl () const override
-  {
-    return new TraitItemConst (*this);
-  }
-};
-
 // Type items within traits
 class TraitItemType : public TraitItem
 {
@@ -2824,21 +2738,28 @@ class TraitItemType : public TraitItem
 
   Identifier name;
 
+  // Generic parameters for GATs (Generic Associated Types)
+  std::vector<std::unique_ptr<GenericParam>> generic_params;
+
   // bool has_type_param_bounds;
   // TypeParamBounds type_param_bounds;
   std::vector<std::unique_ptr<TypeParamBound>>
     type_param_bounds; // inlined form
 
 public:
+  bool has_generics () const { return !generic_params.empty (); }
+
   // Returns whether trait item type has type param bounds.
   bool has_type_param_bounds () const { return !type_param_bounds.empty (); }
 
   TraitItemType (Identifier name,
+		 std::vector<std::unique_ptr<GenericParam>> generic_params,
 		 std::vector<std::unique_ptr<TypeParamBound>> type_param_bounds,
 		 std::vector<Attribute> outer_attrs, Visibility vis,
 		 location_t locus)
     : TraitItem (vis, locus), outer_attrs (std::move (outer_attrs)),
-      name (std::move (name)), type_param_bounds (std::move (type_param_bounds))
+      name (std::move (name)), generic_params (std::move (generic_params)),
+      type_param_bounds (std::move (type_param_bounds))
   {}
 
   // Copy constructor with vector clone
@@ -2847,6 +2768,9 @@ public:
       name (other.name)
   {
     node_id = other.node_id;
+    generic_params.reserve (other.generic_params.size ());
+    for (const auto &e : other.generic_params)
+      generic_params.push_back (e->clone_generic_param ());
     type_param_bounds.reserve (other.type_param_bounds.size ());
     for (const auto &e : other.type_param_bounds)
       type_param_bounds.push_back (e->clone_type_param_bound ());
@@ -2861,6 +2785,9 @@ public:
     locus = other.locus;
     node_id = other.node_id;
 
+    generic_params.reserve (other.generic_params.size ());
+    for (const auto &e : other.generic_params)
+      generic_params.push_back (e->clone_generic_param ());
     type_param_bounds.reserve (other.type_param_bounds.size ());
     for (const auto &e : other.type_param_bounds)
       type_param_bounds.push_back (e->clone_type_param_bound ());
@@ -2884,7 +2811,15 @@ public:
   std::vector<Attribute> &get_outer_attrs () { return outer_attrs; }
   const std::vector<Attribute> &get_outer_attrs () const { return outer_attrs; }
 
-  // TODO: mutable getter seems kinda dodgy
+  std::vector<std::unique_ptr<GenericParam>> &get_generic_params ()
+  {
+    return generic_params;
+  }
+  const std::vector<std::unique_ptr<GenericParam>> &get_generic_params () const
+  {
+    return generic_params;
+  }
+
   std::vector<std::unique_ptr<TypeParamBound>> &get_type_param_bounds ()
   {
     return type_param_bounds;
@@ -3466,7 +3401,7 @@ public:
   bool has_outer_attrs () const { return !outer_attrs.empty (); }
 
   // Returns whether item has non-default visibility.
-  bool has_visibility () const { return !visibility.is_error (); }
+  bool has_visibility () const { return true; }
 
   location_t get_locus () const { return locus; }
 
@@ -3558,7 +3493,7 @@ public:
   bool has_outer_attrs () const { return !outer_attrs.empty (); }
 
   // Returns whether item has non-default visibility.
-  bool has_visibility () const { return !visibility.is_error (); }
+  bool has_visibility () const { return true; }
 
   location_t get_locus () const { return locus; }
 

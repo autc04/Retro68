@@ -28,13 +28,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	2e 74 00[ 	]+je,pn  +[0-9a-fx]+ <.*>
 [0-9a-f]+ <label>:
 [ 	]*[a-f0-9]+:	ff d0                	call   \*%rax
-[ 	]*[a-f0-9]+:	ff d0                	call   \*%rax
-[ 	]*[a-f0-9]+:	66 ff d0             	data16 call \*%rax
 [ 	]*[a-f0-9]+:	66 ff d0             	data16 call \*%rax
 [ 	]*[a-f0-9]+:	66 ff 10             	data16 call \*\(%rax\)
 [ 	]*[a-f0-9]+:	ff e0                	jmp    \*%rax
-[ 	]*[a-f0-9]+:	ff e0                	jmp    \*%rax
-[ 	]*[a-f0-9]+:	66 ff e0             	data16 jmp \*%rax
 [ 	]*[a-f0-9]+:	66 ff e0             	data16 jmp \*%rax
 [ 	]*[a-f0-9]+:	66 ff 20             	data16 jmp \*\(%rax\)
 [ 	]*[a-f0-9]+:	e8 .. 00 (00|10) 00       	call   [0-9a-fx]* <.*>

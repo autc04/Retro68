@@ -1,17 +1,17 @@
-.macro cond
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vmlas.s16 q0, q1, r2
-.endr
-.endm
-
 .syntax unified
 .thumb
 vmlas.s64 q0, q1, r2
 vmlas.f32 q0, q1, r2
 vmlas.u32 q0, q1, sp
 vmlas.u32 q0, q1, pc
-cond
+
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+vmlas.s16 q0, q1, r2
+
+.endr
+
 it eq
 vmlaseq.s16 q0, q1, r2
 vmlaseq.s16 q0, q1, r2

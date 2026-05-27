@@ -1,4 +1,4 @@
-# name: MVE vabs and vneg instructions
+# name: MVE vabav instructions
 # as: -march=armv8.1-m.main+mve.fp
 # objdump: -dr --prefix-addresses --show-raw-insn -marmv8.1-m.main
 

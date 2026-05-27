@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2025 Free Software Foundation, Inc.
+// Copyright (C) 2021-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with GCC; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
+
+#include "rust-system.h"
 
 // Common definitions useful for textual dump of IRs (AST and HIR).
 

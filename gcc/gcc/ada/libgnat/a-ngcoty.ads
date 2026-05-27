@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -45,8 +45,8 @@ package Ada.Numerics.Generic_Complex_Types is
 
    pragma Complex_Representation (Complex);
 
-   type Imaginary is private;
-   pragma Preelaborable_Initialization (Imaginary);
+   type Imaginary is private
+   with Preelaborable_Initialization;
 
    i : constant Imaginary;
    j : constant Imaginary;

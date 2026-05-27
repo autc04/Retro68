@@ -54,4 +54,11 @@ swapb:
     .global swaph
 swaph:
     swaph r0,r0
-
+    .text
+    .global bsefi
+bsefi:
+    bsefi r0,r0,1,1
+    .text
+    .global bsifi
+bsifi:
+    bsifi r0,r0,1,1

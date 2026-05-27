@@ -1,5 +1,6 @@
-/* simdhp.s Test file for AArch64 half-precision floating-point
-   vector instructions.  */
+/* Test file for AArch64 half-precision floating-point vector instructions.
+   This is also the only test for the single- and double-precison variants of
+   most of these instructions.  */
 
 	/* Vector three-same.  */
 
@@ -24,6 +25,7 @@
 	three_same fadd
 	three_same faddp
 	three_same fsub
+	three_same fabd
 	three_same fmulx
 	three_same fmul
 	three_same fcmeq
@@ -82,6 +84,11 @@
 	\op	v0.8h, v1.8h
 	.endm
 
+	.macro tworeg_misc_s, op
+	\op	v0.2s, v1.2s
+	\op	v0.4s, v1.4s
+	.endm
+
 	tworeg_misc fabs
 	tworeg_misc fneg
 
@@ -106,6 +113,8 @@
 
 	tworeg_misc fcvtas
 	tworeg_misc fcvtau
+	tworeg_misc_s urecpe
+	tworeg_misc_s ursqrte
 
 	tworeg_misc scvtf
 	tworeg_misc ucvtf

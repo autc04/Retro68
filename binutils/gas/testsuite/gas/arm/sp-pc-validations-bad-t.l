@@ -1,19 +1,49 @@
 [^:]*: Assembler messages:
-[^:]*:27: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0\]'
-[^:]*:28: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#0\]'
-[^:]*:29: Error: branch must be last instruction in IT block -- `ldreq r15,\[sp\]'
-[^:]*:30: Error: branch must be last instruction in IT block -- `ldreq r15,\[sp,#0\]'
-[^:]*:31: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0\]'
-[^:]*:32: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,#0\]'
-[^:]*:33: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#-4\]'
-[^:]*:34: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0\],#4'
-[^:]*:35: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#0\]!'
-[^:]*:38: Error: branch must be last instruction in IT block -- `ldreq r15,label'
-[^:]*:39: Error: branch must be last instruction in IT block -- `ldreq.w r15,label'
-[^:]*:40: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[pc,#-0\]'
-[^:]*:43: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,r1\]'
-[^:]*:44: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,r1\]'
-[^:]*:45: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,r1,LSL#2\]'
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0\]'
+[^:]*:17: *Info: macro .*
+[^:]*:27: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#0\]'
+[^:]*:17: *Info: macro .*
+[^:]*:28: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[sp\]'
+[^:]*:17: *Info: macro .*
+[^:]*:29: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[sp,#0\]'
+[^:]*:17: *Info: macro .*
+[^:]*:30: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0\]'
+[^:]*:21: *Info: macro .*
+[^:]*:31: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,#0\]'
+[^:]*:21: *Info: macro .*
+[^:]*:32: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#-4\]'
+[^:]*:17: *Info: macro .*
+[^:]*:33: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0\],#4'
+[^:]*:17: *Info: macro .*
+[^:]*:34: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#0\]!'
+[^:]*:17: *Info: macro .*
+[^:]*:35: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,label'
+[^:]*:17: *Info: macro .*
+[^:]*:38: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,label'
+[^:]*:21: *Info: macro .*
+[^:]*:39: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[pc,#-0\]'
+[^:]*:21: *Info: macro .*
+[^:]*:40: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,r1\]'
+[^:]*:17: *Info: macro .*
+[^:]*:43: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,r1\]'
+[^:]*:21: *Info: macro .*
+[^:]*:44: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,r1,LSL ?#2\]'
+[^:]*:21: *Info: macro .*
+[^:]*:45: *Info: macro .*
 [^:]*:48: Error: r15 not allowed here -- `ldrb pc,\[r0,#4\]'
 [^:]*:50: Error: r13 not allowed here -- `ldrb.w sp,\[r0,#4\]'
 [^:]*:51: Error: r15 not allowed here -- `ldrb.w pc,\[r0,#4\]'
@@ -29,10 +59,10 @@
 [^:]*:66: Error: r15 not allowed here -- `ldrb pc,\[r0,r1\]'
 [^:]*:67: Error: cannot use register index with PC-relative addressing -- `ldrb r0,\[pc,r1\]'
 [^:]*:68: Error: r15 not allowed here -- `ldrb r0,\[r1,pc\]'
-[^:]*:69: Error: r15 not allowed here -- `ldrb.w pc,\[r0,r1,LSL#1\]'
+[^:]*:69: Error: r15 not allowed here -- `ldrb.w pc,\[r0,r1,LSL ?#1\]'
 [^:]*:70: Error: r13 not allowed here -- `ldrb.w sp,\[r0,r1\]'
-[^:]*:71: Error: r15 not allowed here -- `ldrb.w r2,\[r0,pc,LSL#2\]'
-[^:]*:72: Error: r13 not allowed here -- `ldrb.w r2,\[r0,sp,LSL#2\]'
+[^:]*:71: Error: r15 not allowed here -- `ldrb.w r2,\[r0,pc,LSL ?#2\]'
+[^:]*:72: Error: r13 not allowed here -- `ldrb.w r2,\[r0,sp,LSL ?#2\]'
 [^:]*:75: Error: r15 not allowed here -- `ldrbt pc,\[r0,#4\]'
 [^:]*:76: Error: r13 not allowed here -- `ldrbt sp,\[r0,#4\]'
 [^:]*:79: Error: r15 not allowed here -- `ldrd pc,r0,\[r1\]'
@@ -93,10 +123,10 @@
 [^:]*:149: Error: r15 not allowed here -- `ldrh pc,\[r0,r1\]'
 [^:]*:150: Error: cannot use register index with PC-relative addressing -- `ldrh r0,\[pc,r1\]'
 [^:]*:151: Error: r15 not allowed here -- `ldrh r0,\[r1,pc\]'
-[^:]*:152: Error: r15 not allowed here -- `ldrh.w pc,\[r0,r1,LSL#1\]'
-[^:]*:153: Error: r13 not allowed here -- `ldrh.w sp,\[r0,r1,LSL#1\]'
-[^:]*:154: Error: r15 not allowed here -- `ldrh.w r2,\[r0,pc,LSL#1\]'
-[^:]*:155: Error: r13 not allowed here -- `ldrh.w r2,\[r0,sp,LSL#1\]'
+[^:]*:152: Error: r15 not allowed here -- `ldrh.w pc,\[r0,r1,LSL ?#1\]'
+[^:]*:153: Error: r13 not allowed here -- `ldrh.w sp,\[r0,r1,LSL ?#1\]'
+[^:]*:154: Error: r15 not allowed here -- `ldrh.w r2,\[r0,pc,LSL ?#1\]'
+[^:]*:155: Error: r13 not allowed here -- `ldrh.w r2,\[r0,sp,LSL ?#1\]'
 [^:]*:158: Error: r15 not allowed here -- `ldrht pc,\[r0,#4\]'
 [^:]*:159: Error: r13 not allowed here -- `ldrht sp,\[r0,#4\]'
 [^:]*:162: Error: r15 not allowed here -- `ldrsb pc,\[r0,#4\]'
@@ -114,10 +144,10 @@
 [^:]*:179: Error: r15 not allowed here -- `ldrsb pc,\[r0,r1\]'
 [^:]*:180: Error: cannot use register index with PC-relative addressing -- `ldrsb r0,\[pc,r1\]'
 [^:]*:181: Error: r15 not allowed here -- `ldrsb r0,\[r1,pc\]'
-[^:]*:182: Error: r15 not allowed here -- `ldrsb.w pc,\[r0,r1,LSL#2\]'
-[^:]*:184: Error: r13 not allowed here -- `ldrsb.w sp,\[r0,r1,LSL#2\]'
-[^:]*:185: Error: r15 not allowed here -- `ldrsb.w r2,\[r0,pc,LSL#2\]'
-[^:]*:186: Error: r13 not allowed here -- `ldrsb.w r2,\[r0,sp,LSL#2\]'
+[^:]*:182: Error: r15 not allowed here -- `ldrsb.w pc,\[r0,r1,LSL ?#2\]'
+[^:]*:184: Error: r13 not allowed here -- `ldrsb.w sp,\[r0,r1,LSL ?#2\]'
+[^:]*:185: Error: r15 not allowed here -- `ldrsb.w r2,\[r0,pc,LSL ?#2\]'
+[^:]*:186: Error: r13 not allowed here -- `ldrsb.w r2,\[r0,sp,LSL ?#2\]'
 [^:]*:190: Error: r15 not allowed here -- `ldrsbt pc,\[r0,#4\]'
 [^:]*:191: Error: r13 not allowed here -- `ldrsbt sp,\[r0,#4\]'
 [^:]*:195: Error: r15 not allowed here -- `ldrsh pc,\[r0,#4\]'
@@ -134,10 +164,10 @@
 [^:]*:210: Error: r15 not allowed here -- `ldrsh pc,\[r0,r1\]'
 [^:]*:211: Error: cannot use register index with PC-relative addressing -- `ldrsh r0,\[pc,r1\]'
 [^:]*:212: Error: r15 not allowed here -- `ldrsh r0,\[r1,pc\]'
-[^:]*:214: Error: r15 not allowed here -- `ldrsh.w pc,\[r0,r1,LSL#3\]'
-[^:]*:215: Error: r13 not allowed here -- `ldrsh.w sp,\[r0,r1,LSL#3\]'
-[^:]*:216: Error: r13 not allowed here -- `ldrsh.w r0,\[r1,sp,LSL#3\]'
-[^:]*:217: Error: r15 not allowed here -- `ldrsh.w r0,\[r1,pc,LSL#3\]'
+[^:]*:214: Error: r15 not allowed here -- `ldrsh.w pc,\[r0,r1,LSL ?#3\]'
+[^:]*:215: Error: r13 not allowed here -- `ldrsh.w sp,\[r0,r1,LSL ?#3\]'
+[^:]*:216: Error: r13 not allowed here -- `ldrsh.w r0,\[r1,sp,LSL ?#3\]'
+[^:]*:217: Error: r15 not allowed here -- `ldrsh.w r0,\[r1,pc,LSL ?#3\]'
 [^:]*:221: Error: r15 not allowed here -- `ldrsht pc,\[r0,#4\]'
 [^:]*:222: Error: r13 not allowed here -- `ldrsht sp,\[r0,#4\]'
 [^:]*:226: Error: r15 not allowed here -- `ldrt pc,\[r0,#4\]'
@@ -148,7 +178,7 @@
 [^:]*:235: Error: cannot use post-indexing with PC-relative addressing -- `str r0,\[pc\],#4'
 [^:]*:236: Error: cannot use writeback with PC-relative addressing -- `str r0,\[pc,#4\]!'
 [^:]*:239: Error: cannot use register index with PC-relative addressing -- `str.w r0,\[pc,r1\]'
-[^:]*:240: Error: cannot use register index with PC-relative addressing -- `str.w r0,\[pc,r1,LSL#2\]'
+[^:]*:240: Error: cannot use register index with PC-relative addressing -- `str.w r0,\[pc,r1,LSL ?#2\]'
 [^:]*:246: Error: cannot use register index with PC-relative addressing -- `strb.w r0,\[pc,#4\]'
 [^:]*:247: Error: r15 not allowed here -- `strb.w pc,\[r0,#4\]'
 [^:]*:248: Error: r13 not allowed here -- `strb.w sp,\[r0,#4\]'
@@ -162,15 +192,15 @@
 [^:]*:256: Error: r13 not allowed here -- `strb sp,\[r0\],#4'
 [^:]*:257: Error: r13 not allowed here -- `strb sp,\[r0,#4\]!'
 [^:]*:260: Error: cannot use register index with PC-relative addressing -- `strb.w r0,\[pc,r1\]'
-[^:]*:261: Error: cannot use register index with PC-relative addressing -- `strb.w r0,\[pc,r1,LSL#2\]'
+[^:]*:261: Error: cannot use register index with PC-relative addressing -- `strb.w r0,\[pc,r1,LSL ?#2\]'
 [^:]*:262: Error: r15 not allowed here -- `strb.w pc,\[r0,r1\]'
-[^:]*:263: Error: r15 not allowed here -- `strb.w pc,\[r0,r1,LSL#2\]'
+[^:]*:263: Error: r15 not allowed here -- `strb.w pc,\[r0,r1,LSL ?#2\]'
 [^:]*:264: Error: r13 not allowed here -- `strb.w sp,\[r0,r1\]'
-[^:]*:265: Error: r13 not allowed here -- `strb.w sp,\[r0,r1,LSL#2\]'
+[^:]*:265: Error: r13 not allowed here -- `strb.w sp,\[r0,r1,LSL ?#2\]'
 [^:]*:266: Error: r15 not allowed here -- `strb.w r0,\[r1,pc\]'
-[^:]*:267: Error: r15 not allowed here -- `strb.w r0,\[r1,pc,LSL#2\]'
+[^:]*:267: Error: r15 not allowed here -- `strb.w r0,\[r1,pc,LSL ?#2\]'
 [^:]*:268: Error: r13 not allowed here -- `strb.w r0,\[r1,sp\]'
-[^:]*:269: Error: r13 not allowed here -- `strb.w r0,\[r1,sp,LSL#2\]'
+[^:]*:269: Error: r13 not allowed here -- `strb.w r0,\[r1,sp,LSL ?#2\]'
 [^:]*:272: Error: cannot use register index with PC-relative addressing -- `strbt r0,\[pc,#4\]'
 [^:]*:273: Error: r15 not allowed here -- `strbt pc,\[r0,#4\]'
 [^:]*:274: Error: r13 not allowed here -- `strbt sp,\[r0,#4\]'
@@ -222,7 +252,7 @@
 [^:]*:335: Error: cannot use post-indexing with PC-relative addressing -- `strh r0,\[pc\],#4'
 [^:]*:336: Error: cannot use writeback with PC-relative addressing -- `strh r0,\[pc,#4\]!'
 [^:]*:339: Error: cannot use register index with PC-relative addressing -- `strh.w r0,\[pc,r1\]'
-[^:]*:340: Error: cannot use register index with PC-relative addressing -- `strh.w r0,\[pc,r1,LSL#2\]'
+[^:]*:340: Error: cannot use register index with PC-relative addressing -- `strh.w r0,\[pc,r1,LSL ?#2\]'
 [^:]*:341: Error: r15 not allowed here -- `strh.w pc,\[r0,#4\]'
 [^:]*:342: Error: r15 not allowed here -- `strh.w pc,\[r0\]'
 [^:]*:343: Error: r13 not allowed here -- `strh.w sp,\[r0,#4\]'
@@ -237,10 +267,10 @@
 [^:]*:352: Error: r13 not allowed here -- `strh.w sp,\[r0,r1\]'
 [^:]*:353: Error: r15 not allowed here -- `strh.w r0,\[r1,pc\]'
 [^:]*:354: Error: r13 not allowed here -- `strh.w r0,\[r1,sp\]'
-[^:]*:355: Error: r15 not allowed here -- `strh.w pc,\[r0,r1,LSL#2\]'
-[^:]*:356: Error: r13 not allowed here -- `strh.w sp,\[r0,r1,LSL#2\]'
-[^:]*:357: Error: r15 not allowed here -- `strh.w r0,\[r1,pc,LSL#2\]'
-[^:]*:358: Error: r13 not allowed here -- `strh.w r0,\[r1,sp,LSL#2\]'
+[^:]*:355: Error: r15 not allowed here -- `strh.w pc,\[r0,r1,LSL ?#2\]'
+[^:]*:356: Error: r13 not allowed here -- `strh.w sp,\[r0,r1,LSL ?#2\]'
+[^:]*:357: Error: r15 not allowed here -- `strh.w r0,\[r1,pc,LSL ?#2\]'
+[^:]*:358: Error: r13 not allowed here -- `strh.w r0,\[r1,sp,LSL ?#2\]'
 [^:]*:361: Error: cannot use register index with PC-relative addressing -- `strht r0,\[pc,#4\]'
 [^:]*:362: Error: r15 not allowed here -- `strht pc,\[r0,#4\]'
 [^:]*:363: Error: r13 not allowed here -- `strht sp,\[pc,#4\]'

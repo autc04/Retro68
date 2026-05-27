@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 VPCLMULQDQ insns (Intel disassembly)
 #source: vpclmulqdq.s

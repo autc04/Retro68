@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86-64 BMI insns
 

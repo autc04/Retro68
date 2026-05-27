@@ -1,6 +1,6 @@
 // Safe iterator implementation  -*- C++ -*-
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -224,7 +224,7 @@ namespace __gnu_debug
 			      _M_message(__msg_init_copy_singular)
 			      ._M_iterator(*this, "this")
 			      ._M_iterator(__x, "other"));
-	_Safe_sequence_base* __seq = __x._M_sequence;
+	const _Safe_sequence_base* __seq = __x._M_sequence;
 	__x._M_detach();
 	std::swap(base(), __x.base());
 	_M_attach(__seq);
@@ -445,12 +445,12 @@ namespace __gnu_debug
 
       /** Attach iterator to the given sequence. */
       void
-      _M_attach(_Safe_sequence_base* __seq)
+      _M_attach(const _Safe_sequence_base* __seq)
       { _Safe_base::_M_attach(__seq, _S_constant()); }
 
       /** Likewise, but not thread-safe. */
       void
-      _M_attach_single(_Safe_sequence_base* __seq)
+      _M_attach_single(const _Safe_sequence_base* __seq)
       { _Safe_base::_M_attach_single(__seq, _S_constant()); }
 
       /// Is the iterator dereferenceable?
@@ -500,7 +500,13 @@ namespace __gnu_debug
       typename __gnu_cxx::__conditional_type<
 	_IsConstant::__value, const _Sequence*, _Sequence*>::__type
       _M_get_sequence() const
-      { return static_cast<_Sequence*>(_M_sequence); }
+      {
+	// Looks like not const-correct, but if _IsConstant the constness
+	// is restored when returning the sequence pointer and if not
+	// _IsConstant we are allowed to remove constness.
+	return static_cast<_Sequence*>
+	  (const_cast<_Safe_sequence_base*>(_M_sequence));
+      }
 
       // Get distance to __rhs.
       typename _Distance_traits<_Iterator>::__type
@@ -1108,42 +1114,64 @@ namespace __gnu_debug
 
   /** Safe iterators know how to check if they form a valid range. */
   template<typename _Iterator, typename _Sequence, typename _Category>
+    _GLIBCXX20_CONSTEXPR
     inline bool
     __valid_range(const _Safe_iterator<_Iterator, _Sequence,
 				       _Category>& __first,
 		  const _Safe_iterator<_Iterator, _Sequence,
 				       _Category>& __last,
 		  typename _Distance_traits<_Iterator>::__type& __dist)
-    { return __first._M_valid_range(__last, __dist); }
+    {
+      if (std::__is_constant_evaluated())
+	return true;
+
+      return __first._M_valid_range(__last, __dist);
+    }
 
   template<typename _Iterator, typename _Sequence, typename _Category>
+    _GLIBCXX20_CONSTEXPR
     inline bool
     __valid_range(const _Safe_iterator<_Iterator, _Sequence,
 				       _Category>& __first,
 		  const _Safe_iterator<_Iterator, _Sequence,
 				       _Category>& __last)
     {
+      if (std::__is_constant_evaluated())
+	return true;
+
       typename _Distance_traits<_Iterator>::__type __dist;
       return __first._M_valid_range(__last, __dist);
     }
 
   template<typename _Iterator, typename _Sequence, typename _Category,
 	   typename _Size>
+    _GLIBCXX20_CONSTEXPR
     inline bool
     __can_advance(const _Safe_iterator<_Iterator, _Sequence, _Category>& __it,
 		  _Size __n)
-    { return __it._M_can_advance(__n); }
+    { 
+      if (std::__is_constant_evaluated())
+	return true;
+
+      return __it._M_can_advance(__n);
+    }
 
   template<typename _Iterator, typename _Sequence, typename _Category,
 	   typename _Diff>
+    _GLIBCXX20_CONSTEXPR
     inline bool
     __can_advance(const _Safe_iterator<_Iterator, _Sequence, _Category>& __it,
 		  const std::pair<_Diff, _Distance_precision>& __dist,
 		  int __way)
-    { return __it._M_can_advance(__dist, __way); }
+    {
+      if (std::__is_constant_evaluated())
+	return true;
+    
+      return __it._M_can_advance(__dist, __way);
+    }
 
   template<typename _Iterator, typename _Sequence>
-    _Iterator
+    _GLIBCXX20_CONSTEXPR _Iterator
     __base(const _Safe_iterator<_Iterator, _Sequence,
 				std::random_access_iterator_tag>& __it)
     { return __it.base(); }

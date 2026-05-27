@@ -1,4 +1,7 @@
 // { dg-options "-fsyntax-only" }
+#![feature(no_core)]
+#![no_core]
+
 #![feature(raw_ref_op)]
 
 pub struct Toto {
@@ -7,6 +10,4 @@ pub struct Toto {
 
 pub fn test(mut toto: Toto) {
     let _c = &raw toto.u; //{ dg-error "expecting .;. but .identifier. found" "" { target *-*-* }  }
-    //{ dg-excess-errors "Additional errors for parent items" { target *-*-* } }
-
 }

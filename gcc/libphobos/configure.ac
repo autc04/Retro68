@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-# Copyright (C) 2006-2025 Free Software Foundation, Inc.
+# Copyright (C) 2006-2026 Free Software Foundation, Inc.
 #
 # GCC is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -256,7 +256,7 @@ SPEC_PHOBOS_DEPS="$LIBS"
 AC_SUBST(SPEC_PHOBOS_DEPS)
 
 # Libdruntime / phobos soname version
-libtool_VERSION=6:0:0
+libtool_VERSION=7:0:0
 AC_SUBST(libtool_VERSION)
 
 # Set default flags (after DRUNTIME_WERROR!)

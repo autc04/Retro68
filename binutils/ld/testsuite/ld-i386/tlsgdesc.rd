@@ -41,22 +41,22 @@ Program Headers:
  +01 +.dynamic .got .got.plt *
  +02 +.dynamic *
 
-Relocation section '.rel.dyn' at offset 0x[0-9a-f]+ contains 8 entries:
+Relocation section '.rel.dyn' at offset 0x[0-9a-f]+ contains 10 entries:
  Offset +Info +Type +Sym.Value +Sym. Name
 [0-9a-f ]+R_386_TLS_TPOFF32 0+ +sG3
 [0-9a-f ]+R_386_TLS_TPOFF +0+ +sG5
 [0-9a-f ]+R_386_TLS_DTPMOD3 0+ +sG2
 [0-9a-f ]+R_386_TLS_DTPOFF3 0+ +sG2
+[0-9a-f ]+R_386_TLS_DESC +0+ +sG2
 [0-9a-f ]+R_386_TLS_TPOFF +0+ +sG4
 [0-9a-f ]+R_386_TLS_TPOFF32 0+ +sG6
 [0-9a-f ]+R_386_TLS_DTPMOD3 0+ +sG1
 [0-9a-f ]+R_386_TLS_DTPOFF3 0+ +sG1
+[0-9a-f ]+R_386_TLS_DESC +0+ +sG1
 
-Relocation section '.rel.plt' at offset 0x[0-9a-f]+ contains 3 entries:
+Relocation section '.rel.plt' at offset 0x[0-9a-f]+ contains 1 entry:
  Offset +Info +Type +Sym.Value +Sym. Name
 [0-9a-f ]+R_386_JUMP_SLOT +0+ +___tls_get_addr
-[0-9a-f ]+R_386_TLS_DESC +0+ +sG1
-[0-9a-f ]+R_386_TLS_DESC +0+ +sG2
 
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name

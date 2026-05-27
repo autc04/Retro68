@@ -1,18 +1,18 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: bad type in SIMD instruction -- `vsbc.i16 q0,q1,q2'
-[^:]*:11: Error: bad type in SIMD instruction -- `vsbci.i16 q0,q1,q2'
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Error: bad type in SIMD instruction -- `vsbc.i16 q0,q1,q2'
+[^:]*:5: Error: bad type in SIMD instruction -- `vsbci.i16 q0,q1,q2'
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:15: Error: syntax error -- `vsbceq.i32 q0,q1,q2'
 [^:]*:16: Error: syntax error -- `vsbceq.i32 q0,q1,q2'
 [^:]*:18: Error: syntax error -- `vsbceq.i32 q0,q1,q2'

@@ -158,6 +158,6 @@ foo:
  prefetcht2	(%ecx)
 
 # A bad sfence modrm byte
-.byte 0x65,0x0F,0xAE,0xff
+	.insn gs 0x0FAE/7, %edi
 # Pad out to good alignment
  .p2align 4,0

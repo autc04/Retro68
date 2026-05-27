@@ -1,6 +1,6 @@
 (* m2type.def definition module for m2type.cc.
 
-Copyright (C) 2011-2025 Free Software Foundation, Inc.
+Copyright (C) 2011-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -96,6 +96,14 @@ PROCEDURE BuildEndArrayConstructor (p: Constructor) : tree ;
 
 
 (*
+   ReverseArrayConstructorElements - reverse the list containing the
+                                     constant array elements.
+*)
+
+PROCEDURE ReverseArrayConstructorElements (p: Constructor) ;
+
+
+(*
    BuildEndArrayConstructor - returns a tree containing the array
                               compound literal.
 *)
@@ -136,7 +144,7 @@ PROCEDURE BuildEndSetConstructor (p: Constructor) : tree ;
     BuildSetConstructorElement - adds, value, to the constructor_element_list.
 *)
 
-PROCEDURE BuildSetConstructorElement (p: Constructor; value: tree) ;
+PROCEDURE BuildSetConstructorElement (location: location_t; p: Constructor; value: tree) ;
 
 
 (*
@@ -173,7 +181,7 @@ PROCEDURE BuildPointerType (totype: tree) : tree ;
                       It returns a copy of the value.  --fixme-- why do this?
 *)
 
-PROCEDURE BuildEnumerator (location: location_t; name: CharStar; value: tree;
+PROCEDURE BuildEnumerator (location: location_t; name: ConstCharStar; value: tree;
                            VAR enumvalues: tree) : tree ;
 
 
@@ -796,7 +804,7 @@ PROCEDURE BuildArrayStringConstructor (location: location_t; arrayType: tree; st
 
 
 (*
-    RealToTree - convert a real number into a Tree.
+    RealToTree - convert a real number into a tree.
 *)
 
 PROCEDURE RealToTree (name: CharStar) : tree ;
@@ -962,7 +970,8 @@ PROCEDURE GetArrayNoOfElements (location: location_t; arraytype: tree) : tree ;
                        and which has ElementType elements.
 *)
 
-PROCEDURE BuildEndArrayType (arraytype: tree; elementtype: tree; indextype: tree; type: INTEGER) : tree ;
+PROCEDURE BuildEndArrayType (arraytype: tree; elementtype: tree;
+                             indextype: tree; type: INTEGER) : tree ;
 
 
 (*
@@ -1002,6 +1011,13 @@ PROCEDURE SameRealType (a, b: tree) : BOOLEAN ;
 *)
 
 PROCEDURE IsGccStrictTypeEquivalent (left, right: tree) : BOOLEAN ;
+
+
+(*
+   GetBooleanEnumList - return a list containing boolean fields true and false.
+*)
+
+PROCEDURE GetBooleanEnumList (location: location_t) : tree ;
 
 
 END m2type.

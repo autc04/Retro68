@@ -1,6 +1,6 @@
 # Test NOCROSSREFS in a linker script.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -80,7 +80,7 @@ if [is_pecoff_format] {
     append flags " --image-base 0"
 }
 
-set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross1 -T $srcdir/$subdir/cross1.t tmpdir/cross1.o tmpdir/cross2.o"]
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross1 -T $srcdir/$subdir/cross1.t tmpdir/cross1.o tmpdir/cross2.o --no-error-rwx-segments"]
 
 set exec_output [prune_warnings $exec_output]
 
@@ -105,7 +105,7 @@ if { ![ld_compile "$CC_FOR_TARGET $NOSANITIZE_CFLAGS $NOLTO_CFLAGS" "$srcdir/$su
     return
 }
 
-set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross2 -T $srcdir/$subdir/cross2.t tmpdir/cross3.o"]
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross2 -T $srcdir/$subdir/cross2.t tmpdir/cross3.o --no-error-rwx-segments"]
 set exec_output [prune_warnings $exec_output]
 
 regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
@@ -135,7 +135,7 @@ if ![ld_relocate $ld tmpdir/cross3-partial.o "tmpdir/cross1.o tmpdir/cross4.o"] 
     return
 }
 
-set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross3 -T $srcdir/$subdir/cross3.t tmpdir/cross3-partial.o tmpdir/cross2.o"]
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross3 -T $srcdir/$subdir/cross3.t tmpdir/cross3-partial.o tmpdir/cross2.o --no-error-rwx-segments"]
 
 set exec_output [prune_warnings $exec_output]
 
@@ -148,7 +148,7 @@ if [string match "" $exec_output] then {
     fail $test3
 }
 
-set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross4 -T $srcdir/$subdir/cross4.t tmpdir/cross4.o"]
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross4 -T $srcdir/$subdir/cross4.t tmpdir/cross4.o --no-error-rwx-segments"]
 set exec_output [prune_warnings $exec_output]
 
 regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
@@ -160,7 +160,7 @@ if [string match "" $exec_output] then {
     fail $test4
 }
 
-set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross5 -T $srcdir/$subdir/cross5.t tmpdir/cross4.o"]
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross5 -T $srcdir/$subdir/cross5.t tmpdir/cross4.o --no-error-rwx-segments"]
 set exec_output [prune_warnings $exec_output]
 
 regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
@@ -176,7 +176,7 @@ if [string match "" $exec_output] then {
     }
 }
 
-set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross6 -T $srcdir/$subdir/cross6.t tmpdir/cross3.o"]
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross6 -T $srcdir/$subdir/cross6.t tmpdir/cross3.o --no-error-rwx-segments"]
 set exec_output [prune_warnings $exec_output]
 
 regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
@@ -188,7 +188,7 @@ if [string match "" $exec_output] then {
     fail $test6
 }
 
-set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross7 -T $srcdir/$subdir/cross7.t tmpdir/cross3.o"]
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross7 -T $srcdir/$subdir/cross7.t tmpdir/cross3.o --no-error-rwx-segments"]
 set exec_output [prune_warnings $exec_output]
 
 regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output

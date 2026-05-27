@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-# Copyright (C) 2019-2022 Free Software Foundation, Inc.
+# Copyright (C) 2019-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -33,7 +33,7 @@ static struct elf_linker_x86_params params;
 static void
 elf_x86_create_output_section_statements (void)
 {
-  _bfd_elf_linker_x86_set_options (&link_info, &params);
+  bfd_elf_linker_x86_set_options (&link_info, &params);
 }
 
 EOF

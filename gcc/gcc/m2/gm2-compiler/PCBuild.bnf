@@ -1,7 +1,7 @@
 --
 -- m2-c.bnf grammar and associated actions for pass C.
 --
--- Copyright (C) 2001-2025 Free Software Foundation, Inc.
+-- Copyright (C) 2001-2026 Free Software Foundation, Inc.
 -- Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 --
 -- This file is part of GNU Modula-2.
@@ -23,7 +23,7 @@
 (* output from m2-c.bnf, automatically generated do not edit if these
    are the top two lines in the file.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -65,7 +65,7 @@ FROM M2Quads IMPORT Top, PushT, PopT, PushTF, PopTF, PopNothing, OperandT, Opera
                     PushTFA,
                     PushTFn, PopTFn, PushTFtok, PopTtok, PopTFtok, PushTtok, PushTFntok,
                     PushT, PushTF, IsAutoPushOn, PushAutoOff, PushAutoOn, PopAuto,
-                    DupFrame,
+                    DupFrame, Annotate,
                     BuildTypeForConstructor, BuildConstructor, BuildConstructorEnd,
                     PopConstructor,
                     NextConstructorField, SilentBuildConstructor,
@@ -118,6 +118,7 @@ FROM SymbolTable IMPORT MakeGnuAsm, PutGnuAsmVolatile, PutGnuAsm, PutGnuAsmInput
                         PutIncluded,
                         IsVarParam, IsProcedure, IsDefImp, IsModule,
                         IsRecord, IsProcType,
+                        GetCurrentModule, IsInnerModule, IsImported,
                         RequestSym,
                         GetSym, GetLocalSym ;
 
@@ -412,6 +413,68 @@ BEGIN
    Expect(realtok, stopset0, stopset1, stopset2)
 END Real ;
 
+
+(*
+   PushTFQualident - push the result of the Qualident
+                     to the stack.  It checks to see if init
+		     is a procedure or proc type and if so
+		     it does not push the return type.
+*)
+
+PROCEDURE PushTFQualident (tok, tokstart: CARDINAL;
+                           init: CARDINAL) ;
+BEGIN
+   IF tok#tokstart
+   THEN
+      tok := MakeVirtualTok (tokstart, tokstart, tok)
+   END ;
+   IF IsProcedure (init) OR IsProcType (init)
+   THEN
+      PushTtok (init, tok) ;
+      Annotate ("%1s(%1d)||qualident procedure/proctype") ;
+   ELSE
+      Annotate ("%1s(%1d)|%1s(%1d)||qualident|type") ;
+      PushTFtok (init, GetType (init), tok) ;
+   END
+END PushTFQualident ;
+
+
+(*
+   CheckModuleQualident - check to see if the beginning ident of the qualident is an
+                          imported module.
+*)
+
+PROCEDURE CheckModuleQualident (stopset0: SetOfStop0;
+                                stopset1: SetOfStop1;
+				stopset2: SetOfStop2) ;
+VAR
+   name         : Name ;
+   init,
+   nextLevel,
+   tok, tokstart: CARDINAL ;
+BEGIN
+   PopTtok (name, tokstart) ;
+   tok := tokstart ;
+   init := RequestSym (tok, name) ;
+   IF IsImported (GetCurrentModule (), init) AND (IsDefImp (init) OR IsModule (init))
+   THEN
+      WHILE IsDefImp (init) OR IsModule (init) DO
+         Expect (periodtok, stopset0, stopset1, stopset2 + SetOfStop2{identtok}) ;
+         StartScope (init) ;
+         Ident (stopset0, stopset1, stopset2) ;
+	 PopTtok (name, tok) ;
+         nextLevel := RequestSym (tok, name) ;
+         EndScope ;
+	 CheckCanBeImported (init, nextLevel) ;
+	 init := nextLevel
+      END ;
+      PushTFQualident (tok, tokstart, init) ;
+      PutIncluded (init)
+   ELSE
+      PushTFQualident (tok, tokstart, init)
+   END
+END CheckModuleQualident ;
+
 % module PCBuild end
 BEGIN
    BlockState := InitState ()
@@ -535,7 +598,8 @@ FileUnit :=                                                                % Pus
               ImplementationOrProgramModule )                              % PopAuto %
          =:
 
-ProgramModule := "MODULE"                                                  % M2Error.DefaultProgramModule %
+ProgramModule := "MODULE"                                                  % VAR namet: CARDINAL ; %
+                                                                           % M2Error.DefaultProgramModule %
                                                                            % PushAutoOn %
                   Ident                                                    % PCStartBuildProgModule %
                                                                            % PushAutoOff %
@@ -545,11 +609,13 @@ ProgramModule := "MODULE"                                                  % M2E
                   { Import                                                 % PCBuildImportOuterModule %
                   }
                   Block                                                    % PushAutoOn %
-                  Ident                                                    % PCEndBuildProgModule %
+		                                                           % namet := GetTokenNo () %
+                  Ident                                                    % PCEndBuildProgModule (namet) %
                   "."                                                      % PopAuto ; PopAuto %
                   =:
 
-ImplementationModule := "IMPLEMENTATION"                                   % M2Error.DefaultImplementationModule %
+ImplementationModule := "IMPLEMENTATION"                                   % VAR namet: CARDINAL ; %
+                                                                           % M2Error.DefaultImplementationModule %
                                          "MODULE"                          % PushAutoOn %
                          Ident                                             % PCStartBuildImpModule %
                                                                            % PushAutoOff %
@@ -558,8 +624,8 @@ ImplementationModule := "IMPLEMENTATION"                                   % M2E
                          { Import                                          % PCBuildImportOuterModule %
                            }
                          Block                                             % PushAutoOn %
-
-                         Ident                                             % PCEndBuildImpModule %
+		                                                           % namet := GetTokenNo () %
+                         Ident                                             % PCEndBuildImpModule (namet) %
                          "."                                               % PopAuto ; PopAuto ; PopAuto %
                       =:
 
@@ -569,37 +635,11 @@ ImplementationOrProgramModule :=                                           % Pus
 
 Number := Integer | Real =:
 
-Qualident :=                                                               % VAR name          : Name ;
-                                                                                 init, ip1,
-                                                                                 tokstart, tok : CARDINAL ; %
-             Ident
+Qualident := Ident
                                                                            % IF IsAutoPushOn()
                                                                              THEN
-                                                                                PopTtok(name, tokstart) ;
-										tok := tokstart ;
-                                                                                init := RequestSym (tok, name) ;
-                                                                                WHILE IsDefImp (init) OR IsModule (init) DO
-                                                                                   Expect (periodtok, stopset0, stopset1, stopset2 + SetOfStop2{identtok}) ;
-                                                                                   StartScope (init) ;
-                                                                                   Ident (stopset0, stopset1, stopset2) ;
-                                                                                   PopTtok (name, tok) ;
-                                                                                   ip1 := RequestSym (tok, name) ;
-                                                                                   PutIncluded(ip1) ;
-                                                                                   EndScope ;
-                                                                                   CheckCanBeImported(init, ip1) ;
-                                                                                   init := ip1
-                                                                                END ;
-										IF tok#tokstart
-										THEN
-										   tok := MakeVirtualTok (tokstart, tokstart, tok)
-										END ;
-                                                                                IF IsProcedure(init) OR IsProcType(init)
-                                                                                THEN
-                                                                                   PushTtok(init, tok)
-                                                                                ELSE
-                                                                                   PushTFtok(init, GetType(init), tok) ;
-                                                                                END
-                                                                             ELSE %
+     										CheckModuleQualident (stopset0, stopset1, stopset2)
+                                                                             ELSE (* just parse qualident *) %
              { "." Ident }                                                 % END %
            =:
 
@@ -1234,7 +1274,8 @@ DefOptArg := "[" Ident ":" FormalType "=" ConstExpression "]" =:
 
 FormalType := { "ARRAY" "OF" } Qualident =:
 
-ModuleDeclaration := "MODULE"                                              % M2Error.DefaultInnerModule %
+ModuleDeclaration := "MODULE"                                              % VAR namet: CARDINAL ; %
+                                                                           % M2Error.DefaultInnerModule %
                                                                            % PushAutoOn %
                      Ident                                                 % PCStartBuildInnerModule %
                                                                            % PushAutoOff %
@@ -1243,7 +1284,8 @@ ModuleDeclaration := "MODULE"                                              % M2E
                         } [ Export
                             ]
                        Block                                               % PushAutoOn %
-                       Ident                                               % PCEndBuildInnerModule %
+		                                                           % namet := GetTokenNo () %
+                       Ident                                               % PCEndBuildInnerModule (namet) %
                                                                            % PopAuto ; PopAuto ; PopAuto %
                      =:
 
@@ -1262,7 +1304,8 @@ Import :=                                                                  % Pus
             IdentList ";" )                                                % PopAuto %
         =:
 
-DefinitionModule := "DEFINITION"                                           % M2Error.DefaultDefinitionModule %
+DefinitionModule := "DEFINITION"                                           % VAR namet: CARDINAL ; %
+                                                                           % M2Error.DefaultDefinitionModule %
                                  "MODULE"                                  % PushAutoOn %
                     [ "FOR" string ]
                     Ident                                                  % PCStartBuildDefModule ;
@@ -1273,7 +1316,8 @@ DefinitionModule := "DEFINITION"                                           % M2E
                                         ]
                     { Definition }
                                    "END"                                   % PushAutoOn %
-                                         Ident                             % PCEndBuildDefModule %
+				                                           % namet := GetTokenNo () %
+                                         Ident                             % PCEndBuildDefModule (namet) %
                                                "."                         % PopAuto ; PopAuto ; PopAuto %
                   =:
 

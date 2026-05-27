@@ -124,6 +124,34 @@ _start:
 	{store} xor %eax, (%edi)
 	{store} xor (%edi), %eax
 
+	.irp m, mov, adc, add, and, cmp, or, sbb, sub, test, xor
+	\m	$0x12, %al
+	\m	$0x345, %eax
+	{load} \m $0x12, %al		# bogus for MOV
+	{load} \m $0x345, %eax		# bogus for MOV
+	{store} \m $0x12, %al
+	{store} \m $0x345, %eax
+	.endr
+
+	.irp m, inc, dec, push, pop, bswap
+	\m	%ecx
+	{load} \m %ecx			# bogus for POP
+	{store} \m %ecx			# bogus for PUSH
+	.endr
+
+	xchg	%ecx, %esi
+	xchg	%esi, %ecx
+	{load} xchg %ecx, %esi
+	{store} xchg %ecx, %esi
+
+	xchg	%eax, %esi
+	{load} xchg %eax, %esi
+	{store} xchg %eax, %esi
+
+	xchg	%ecx, %eax
+	{load} xchg %ecx, %eax
+	{store} xchg %ecx, %eax
+
 	fadd %st, %st
 	{load} fadd %st, %st
 	{store} fadd %st, %st
@@ -380,3 +408,31 @@ _start:
 	.code16
 	{disp16} jmp .
 	.byte -1, -1
+
+	.att_syntax prefix
+	.code32
+{noimm8s} addl	$0,(%ebx)
+{noimm8s} addl	$255,(%ebx)
+{noimm8s} addw	$0,(%ebx)
+{noimm8s} addw	$255,(%ebx)
+{noimm8s} addb	$0,(%ebx)
+{noimm8s} addb	$255,(%ebx)
+{noimm8s} add	$0,%ebx
+{noimm8s} add	$255,%ebx
+{noimm8s} add	$0,%bx
+{noimm8s} add	$255,%bx
+{noimm8s} add	$0,%bl
+{noimm8s} add	$255,%bl
+{noimm8s} movl	$0,(%ebx)
+{noimm8s} movl	$255,(%ebx)
+{noimm8s} movw	$0,(%ebx)
+{noimm8s} movw	$255,(%ebx)
+{noimm8s} movb	$0,(%ebx)
+{noimm8s} movb	$255,(%ebx)
+{noimm8s} mov	$0,%ebx
+{noimm8s} mov	$255,%ebx
+{noimm8s} mov	$0,%bx
+{noimm8s} mov	$255,%bx
+{noimm8s} mov	$0,%bl
+{noimm8s} mov	$255,%bl
+{noimm8s} rol	$255,%ebx

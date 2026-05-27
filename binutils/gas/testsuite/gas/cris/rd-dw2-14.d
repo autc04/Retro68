@@ -1,12 +1,12 @@
 #readelf: -wl
 #source: unimplemented.s
-#as: --em=criself --gdwarf2
+#as: --emulation=criself --gdwarf2
 
 # Prefixes of various sizes.
 #...
  Line Number Statements:
-  \[0x.*\]  Extended opcode 2: set Address to 0x0
-  \[0x.*\]  Special opcode .*: advance Address by 0 to 0x0 and Line by 8 to 9
+  \[0x.*\]  Extended opcode 2: set Address to (0x)?0
+  \[0x.*\]  Special opcode .*: advance Address by 0 to (0x)?0 and Line by 8 to 9
   \[0x.*\]  Special opcode .*: advance Address by 2 to 0x2 and Line by 1 to 10
   \[0x.*\]  Special opcode .*: advance Address by 4 to 0x6 and Line by 1 to 11
   \[0x.*\]  Special opcode .*: advance Address by 4 to 0xa and Line by 1 to 12

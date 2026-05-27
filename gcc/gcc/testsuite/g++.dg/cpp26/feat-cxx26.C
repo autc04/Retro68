@@ -353,8 +353,8 @@
 
 #ifndef __cpp_deduction_guides
 #  error "__cpp_deduction_guides"
-#elif __cpp_deduction_guides != 201907
-#  error "__cpp_deduction_guides != 201907"
+#elif __cpp_deduction_guides != 202207
+#  error "__cpp_deduction_guides != 202207"
 #endif
 
 #ifndef __cpp_if_constexpr
@@ -395,8 +395,8 @@
 
 #ifndef __cpp_structured_bindings
 #  error "__cpp_structured_bindings"
-#elif __cpp_structured_bindings != 202403
-#  error "__cpp_structured_bindings != 202403"
+#elif __cpp_structured_bindings != 202411
+#  error "__cpp_structured_bindings != 202411"
 #endif
 
 #ifndef __cpp_template_template_args
@@ -624,13 +624,31 @@
 #endif
 
 #ifndef __cpp_pack_indexing
-# error "__cpp_pack_indexing"
+#  error "__cpp_pack_indexing"
 #elif __cpp_pack_indexing != 202311
 #  error "__cpp_pack_indexing != 202311"
 #endif
 
 #ifndef __cpp_pp_embed
-# error "__cpp_pp_embed"
+#  error "__cpp_pp_embed"
 #elif __cpp_pp_embed != 202502
 #  error "__cpp_pp_embed != 202502"
+#endif
+
+#ifndef __cpp_constexpr_virtual_inheritance
+#  error "__cpp_constexpr_virtual_inheritance"
+#elif __cpp_constexpr_virtual_inheritance != 202506
+#  error "__cpp_constexpr_virtual_inheritance != 202506"
+#endif
+
+#ifndef __cpp_constexpr_exceptions
+#  error "__cpp_constexpr_exceptions"
+#elif __cpp_constexpr_exceptions != 202411
+#  error "__cpp_constexpr_exceptions != 202411"
+#endif
+
+#ifndef __cpp_expansion_statements
+#  error "__cpp_expansion_statements"
+#elif __cpp_expansion_statements != 202506
+#  error "__cpp_expansion_statements != 202506"
 #endif

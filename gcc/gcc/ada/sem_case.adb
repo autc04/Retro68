@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,7 +24,6 @@
 ------------------------------------------------------------------------------
 
 with Atree;          use Atree;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
@@ -41,7 +40,6 @@ with Sem_Util;       use Sem_Util;
 with Sem_Type;       use Sem_Type;
 with Snames;         use Snames;
 with Stand;          use Stand;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Stringt;        use Stringt;
@@ -3684,13 +3682,15 @@ package body Sem_Case is
                            --  Use of nonstatic predicate is an error
 
                            if not Is_Discrete_Type (E)
-                             or else not Has_Static_Predicate (E)
+                             or else (not Has_Static_Predicate (E)
+                                        and then
+                                      not Has_Static_Predicate_Aspect (E))
                              or else Has_Dynamic_Predicate_Aspect (E)
                              or else Has_Ghost_Predicate_Aspect (E)
                            then
                               Bad_Predicated_Subtype_Use
-                                ("cannot use subtype& with non-static "
-                                 & "predicate as case alternative",
+                                ("cannot use subtype& with nonstatic "
+                                 & "predicate as choice in case alternative",
                                  Choice, E, Suggest_Static => True);
 
                            --  Static predicate case. The bounds are those of
@@ -3888,6 +3888,7 @@ package body Sem_Case is
                return True;
 
             when N_Empty
+               | N_Allocator
                | N_Statement_Other_Than_Procedure_Call
                | N_Procedure_Call_Statement
                | N_Declaration

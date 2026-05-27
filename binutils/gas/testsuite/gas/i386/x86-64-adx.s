@@ -1,5 +1,4 @@
 # Check 64 bit ADX instructions.
-        .allow_index_reg
 	.text
 _start:
 	adcx    400(%ecx), %eax

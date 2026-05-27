@@ -2,16 +2,16 @@
 #ld: -pie
 #readelf: -d
 
-Dynamic section at offset 0x208 contains 17 entries:
+Dynamic section at offset 0x220 contains 17 entries:
   Tag * Type * Name/Value
- 0x0+00000004 \(HASH\) * 0x368
- 0x0+00000005 \(STRTAB\) * 0x3c8
- 0x0+00000006 \(SYMTAB\) * 0x380
+ 0x0+00000004 \(HASH\) * 0x380
+ 0x0+00000005 \(STRTAB\) * 0x3e0
+ 0x0+00000006 \(SYMTAB\) * 0x398
  0x0+0000000a \(STRSZ\) * 28 \(bytes\)
  0x0+0000000b \(SYMENT\) * 24 \(bytes\)
- 0x0+70000035 \(MIPS_RLD_MAP_REL\) * 0x101c8
+ 0x0+70000035 \(MIPS_RLD_MAP_REL\) * 0x101a0
  0x0+00000015 \(DEBUG\) * 0x0
- 0x0+00000003 \(PLTGOT\) * 0x10430
+ 0x0+00000003 \(PLTGOT\) * 0x10420
  0x0+70000001 \(MIPS_RLD_VERSION\) * 1
  0x0+70000005 \(MIPS_FLAGS\) * NOTPOT
  0x0+70000006 \(MIPS_BASE_ADDRESS\) * 0x0

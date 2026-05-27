@@ -1,5 +1,5 @@
-/* Subclass of diagnostic_path for analyzer diagnostics.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+/* Subclass of diagnostics::paths::path for analyzer diagnostics.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,37 +18,22 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "diagnostic-core.h"
-#include "gimple-pretty-print.h"
-#include "fold-const.h"
-#include "diagnostic-path.h"
-#include "options.h"
-#include "cgraph.h"
-#include "cfg.h"
-#include "digraph.h"
-#include "diagnostic-event-id.h"
-#include "analyzer/analyzer.h"
+#include "analyzer/common.h"
+
+#include "tree-pretty-print.h"
+#include "sbitmap.h"
+#include "ordered-hash-map.h"
+#include "gimple-iterator.h"
+#include "inlining-iterator.h"
+
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/sm.h"
-#include "sbitmap.h"
-#include "bitmap.h"
-#include "ordered-hash-map.h"
 #include "analyzer/call-string.h"
 #include "analyzer/program-point.h"
 #include "analyzer/store.h"
 #include "analyzer/region-model.h"
 #include "analyzer/program-state.h"
 #include "analyzer/checker-path.h"
-#include "gimple-iterator.h"
-#include "inlining-iterator.h"
 #include "analyzer/supergraph.h"
 #include "analyzer/pending-diagnostic.h"
 #include "analyzer/diagnostic-manager.h"
@@ -56,7 +41,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "analyzer/diagnostic-manager.h"
 #include "analyzer/checker-path.h"
 #include "analyzer/exploded-graph.h"
-#include "make-unique.h"
 
 #if ENABLE_ANALYZER
 
@@ -105,7 +89,7 @@ checker_path::maybe_log (logger *logger, const char *desc) const
     {
       logger->start_log_line ();
       logger->log_partial ("%s[%i]: %s ", desc, i,
-			   event_kind_to_string (m_events[i]->m_kind));
+			   event_kind_to_string (m_events[i]->get_kind ()));
       m_events[i]->dump (logger->get_printer ());
       logger->end_log_line ();
     }
@@ -119,7 +103,7 @@ checker_path::add_event (std::unique_ptr<checker_event> event)
       m_logger->start_log_line ();
       m_logger->log_partial ("added event[%i]: %s ",
 			     m_events.length (),
-			     event_kind_to_string (event.get ()->m_kind));
+			     event_kind_to_string (event.get ()->get_kind ()));
       event.get ()->dump (m_logger->get_printer ());
       m_logger->end_log_line ();
     }
@@ -139,7 +123,7 @@ checker_path::debug () const
       fprintf (stderr,
 	       "[%i]: %s \"%s\"\n",
 	       i,
-	       event_kind_to_string (m_events[i]->m_kind),
+	       event_kind_to_string (m_events[i]->get_kind ()),
 	       event_desc.get ());
     }
 }
@@ -164,8 +148,8 @@ checker_path::add_region_creation_events (pending_diagnostic *pd,
   pd->add_region_creation_events (reg, capacity, loc_info, *this);
 
   if (debug)
-    add_event (make_unique<region_creation_event_debug> (reg, capacity,
-							 loc_info));
+    add_event (std::make_unique<region_creation_event_debug> (reg, capacity,
+							      loc_info));
 }
 
 void
@@ -183,8 +167,8 @@ checker_path::cfg_edge_pair_at_p (unsigned idx) const
 {
   if (m_events.length () < idx + 1)
     return false;
-  return (m_events[idx]->m_kind == EK_START_CFG_EDGE
-	  && m_events[idx + 1]->m_kind == EK_END_CFG_EDGE);
+  return (m_events[idx]->get_kind () == event_kind::start_cfg_edge
+	  && m_events[idx + 1]->get_kind () == event_kind::end_cfg_edge);
 }
 
 /* Consider a call from "outer" to "middle" which calls "inner",
@@ -202,38 +186,38 @@ checker_path::cfg_edge_pair_at_p (unsigned idx) const
    (for gcc.dg/analyzer/inlining-4.c):
 
     before[0]:
-      EK_FUNCTION_ENTRY "entry to ‘outer’"
+      event_kind::function_entry "entry to ‘outer’"
       (depth 1, fndecl ‘outer’, m_loc=511c4)
     before[1]:
-      EK_START_CFG_EDGE "following ‘true’ branch (when ‘flag != 0’)..."
+      event_kind::start_cfg_edge "following ‘true’ branch (when ‘flag != 0’)..."
       (depth 3 corrected from 1,
        fndecl ‘inner’ corrected from ‘outer’, m_loc=8000000f)
     before[2]:
-      EK_END_CFG_EDGE "...to here"
+      event_kind::end_cfg_edge "...to here"
       (depth 1, fndecl ‘outer’, m_loc=0)
     before[3]:
-      EK_WARNING "here (‘<unknown>’ is in state ‘null’)"
+      event_kind::warning "here (‘<unknown>’ is in state ‘null’)"
       (depth 1, fndecl ‘outer’, m_loc=80000004)
 
    We want to add inlined_call_events showing the calls, so that
    the above becomes:
 
     after[0]:
-      EK_FUNCTION_ENTRY "entry to ‘outer’"
+      event_kind::function_entry "entry to ‘outer’"
       (depth 1, fndecl ‘outer’, m_loc=511c4)
     after[1]:
-      EK_INLINED_CALL "inlined call to ‘middle’ from ‘outer’"
+      event_kind::inlined_call "inlined call to ‘middle’ from ‘outer’"
       (depth 1, fndecl ‘outer’, m_loc=53300)
     after[2]:
-      EK_INLINED_CALL "inlined call to ‘inner’ from ‘middle’"
+      event_kind::inlined_call "inlined call to ‘inner’ from ‘middle’"
       (depth 2, fndecl ‘middle’, m_loc=4d2e0)
     after[3]:
-      EK_START_CFG_EDGE "following ‘true’ branch (when ‘flag != 0’)..."
+      event_kind::start_cfg_edge "following ‘true’ branch (when ‘flag != 0’)..."
       (depth 3 corrected from 1,
        fndecl ‘inner’ corrected from ‘outer’, m_loc=8000000f)
-    after[4]: EK_END_CFG_EDGE "...to here"
+    after[4]: event_kind::end_cfg_edge "...to here"
       (depth 1, fndecl ‘outer’, m_loc=0)
-    after[5]: EK_WARNING "here (‘<unknown>’ is in state ‘null’)"
+    after[5]: event_kind::warning "here (‘<unknown>’ is in state ‘null’)"
       (depth 1, fndecl ‘outer’, m_loc=80000004)
 
     where we've added events between before[0] and before[1] to show
@@ -270,7 +254,7 @@ checker_path::inject_any_inlined_call_events (logger *logger)
 	{
 	  logger->start_log_line ();
 	  logger->log_partial ("event[%i]: %s ", ev_idx,
-			       event_kind_to_string (curr_event->m_kind));
+			       event_kind_to_string (curr_event->get_kind ()));
 	  curr_event->dump (logger->get_printer ());
 	  logger->end_log_line ();
 	  for (inlining_iterator iter (curr_event->get_location ());

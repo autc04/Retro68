@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -175,7 +175,7 @@ cpp_define_builtins (cpp_reader *pfile)
     cpp_define (pfile, "_OPENACC=201711");
 
   if (flag_openmp)
-    cpp_define (pfile, "_OPENMP=201511");
+    cpp_define (pfile, "_OPENMP=202111");
 
   /* The defines below are necessary for the TARGET_* macros.
 
@@ -679,6 +679,13 @@ gfc_cpp_preprocess (const char *source_file)
   if (!gfc_cpp_enabled ())
     return false;
 
+  if (gfc_option.flag_preprocessed)
+    {
+      if (gfc_cpp_preprocess_only ())
+	gfc_fatal_error ("%<-E%> is not supported with %<-fpreprocessed%>");
+      return false;
+    }
+
   cpp_change_file (cpp_in, LC_RENAME, source_file);
 
   if (cpp_option->traditional)
@@ -1063,7 +1070,7 @@ cb_used_define (cpp_reader *pfile, location_t line ATTRIBUTE_UNUSED,
 /* Return the gcc option code associated with the reason for a cpp
    message, or 0 if none.  */
 
-static diagnostic_option_id
+static diagnostics::option_id
 cb_cpp_diagnostic_cpp_option (enum cpp_warning_reason reason)
 {
   const struct cpp_reason_option_codes_t *entry;
@@ -1088,8 +1095,8 @@ cb_cpp_diagnostic (cpp_reader *pfile ATTRIBUTE_UNUSED,
 		   rich_location *richloc,
 		   const char *msg, va_list *ap)
 {
-  diagnostic_info diagnostic;
-  diagnostic_t dlevel;
+  diagnostics::diagnostic_info diagnostic;
+  enum diagnostics::kind dlevel;
   bool save_warn_system_headers = global_dc->m_warn_system_headers;
   bool ret;
 
@@ -1099,22 +1106,22 @@ cb_cpp_diagnostic (cpp_reader *pfile ATTRIBUTE_UNUSED,
       global_dc->m_warn_system_headers = 1;
       /* Fall through.  */
     case CPP_DL_WARNING:
-      dlevel = DK_WARNING;
+      dlevel = diagnostics::kind::warning;
       break;
     case CPP_DL_PEDWARN:
-      dlevel = DK_PEDWARN;
+      dlevel = diagnostics::kind::pedwarn;
       break;
     case CPP_DL_ERROR:
-      dlevel = DK_ERROR;
+      dlevel = diagnostics::kind::error;
       break;
     case CPP_DL_ICE:
-      dlevel = DK_ICE;
+      dlevel = diagnostics::kind::ice;
       break;
     case CPP_DL_NOTE:
-      dlevel = DK_NOTE;
+      dlevel = diagnostics::kind::note;
       break;
     case CPP_DL_FATAL:
-      dlevel = DK_FATAL;
+      dlevel = diagnostics::kind::fatal;
       break;
     default:
       gcc_unreachable ();

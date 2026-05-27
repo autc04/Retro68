@@ -47,3 +47,9 @@ Disassembly of section .text:
 
 00000040 <swaph>:
   40:	900001e2 	swaph	r0, r0
+
+00000044 <bsefi>:
+  44:	64004041 	bsefi	r0, r0, 1, 1
+
+00000048 <bsifi>:
+  48:	64008041 	bsifi	r0, r0, 1, 1

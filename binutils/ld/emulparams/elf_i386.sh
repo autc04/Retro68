@@ -5,6 +5,7 @@ source_sh ${srcdir}/emulparams/call_nop.sh
 source_sh ${srcdir}/emulparams/cet.sh
 source_sh ${srcdir}/emulparams/x86-report-relative.sh
 source_sh ${srcdir}/emulparams/x86-64-level.sh
+source_sh ${srcdir}/emulparams/x86-64-level-report.sh
 source_sh ${srcdir}/emulparams/static.sh
 source_sh ${srcdir}/emulparams/dt-relr.sh
 SCRIPT_NAME=elf
@@ -16,7 +17,7 @@ COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
 ARCH=i386
 MACHINE=
 TEMPLATE_NAME=elf
-EXTRA_EM_FILE="elf-x86"
+EXTRA_EM_FILE="elf-i386-glibc"
 GENERATE_SHLIB_SCRIPT=yes
 GENERATE_PIE_SCRIPT=yes
 NO_SMALL_DATA=yes
@@ -27,11 +28,21 @@ OTHER_PLT_SECTIONS="
 .plt.got      ${RELOCATING-0} : { *(.plt.got) }
 .plt.sec      ${RELOCATING-0} : { *(.plt.sec) }
 "
+OTHER_GOT_RELOC_SECTIONS="
+  .rel.tls	${RELOCATING-0} : { *(.rel.tls) }"
 
 # Linux modify the default library search path to first include
 # a 32-bit specific directory.
 case "$target" in
   x86_64*-linux* | i[3-7]86*-linux*)
+    case "$EMULATION_NAME" in
+      *i386*)
+	LIBPATH_SUFFIX=32
+	LIBPATH_SUFFIX_SKIP=64
+	;;
+    esac
+    ;;
+  x86_64*-freebsd*)
     case "$EMULATION_NAME" in
       *i386*)
 	LIBPATH_SUFFIX=32

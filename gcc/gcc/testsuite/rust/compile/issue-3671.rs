@@ -1,2 +1,5 @@
-impl Self<0> {}
+#![feature(no_core)]
+#![no_core]
+
+impl Foo<0> {}
 // { dg-error "could not resolve type path" "" { target *-*-* } .-1 }

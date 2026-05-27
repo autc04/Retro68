@@ -1,7 +1,7 @@
 /* Various declarations for language-independent diagnostics
    subroutines that are only for use in the compilers proper and not
    the driver or other programs.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -48,10 +48,10 @@ along with GCC; see the file COPYING3.  If not see
        ? diagnostic_abstract_origin (DI)		\
        : current_function_decl)
 
-void diagnostic_report_current_function (diagnostic_context *,
-					 const diagnostic_info *);
+void diagnostic_report_current_function (diagnostics::context *,
+					 const diagnostics::diagnostic_info *);
 
-void tree_diagnostics_defaults (diagnostic_context *context);
+void tree_diagnostics_defaults (diagnostics::context *);
 bool default_tree_printer (pretty_printer *, text_info *, const char *,
 			   int, bool, bool, bool, bool *, pp_token_list &);
 

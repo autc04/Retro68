@@ -1,4 +1,4 @@
-#as: --em=criself --march=v10 --underscore
+#as: --emulation=criself --march=v10 --underscore
 #objdump: -dr
 
 .*:     file format elf32-us-cris

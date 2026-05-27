@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -240,7 +240,8 @@ ExprStmtBuilder::visit (HIR::ArrayExpr &expr)
   auto &elems = expr.get_internal_elements ();
   switch (elems.get_array_expr_type ())
     {
-      case HIR::ArrayElems::VALUES: {
+    case HIR::ArrayElems::VALUES:
+      {
 	auto &elem_vals = (static_cast<HIR::ArrayElemsValues &> (elems));
 	auto init_values = visit_list (elem_vals.get_values ());
 	// collect locations
@@ -254,7 +255,8 @@ ExprStmtBuilder::visit (HIR::ArrayExpr &expr)
 		     lookup_type (expr), expr.get_locus ());
 	break;
       }
-      case HIR::ArrayElems::COPIED: {
+    case HIR::ArrayElems::COPIED:
+      {
 	auto &elem_copied = (static_cast<HIR::ArrayElemsCopied &> (elems));
 	auto init = visit_expr (elem_copied.get_elem_to_copy ());
 	return_expr (new InitializerExpr ({init}), lookup_type (expr),
@@ -322,6 +324,14 @@ ExprStmtBuilder::visit (HIR::CallExpr &expr)
 
 void
 ExprStmtBuilder::visit (HIR::InlineAsm &expr)
+{}
+
+void
+ExprStmtBuilder::visit (HIR::LlvmInlineAsm &expr)
+{}
+
+void
+ExprStmtBuilder::visit (HIR::OffsetOf &expr)
 {}
 
 void
@@ -408,6 +418,18 @@ ExprStmtBuilder::visit (HIR::BlockExpr &block)
     pop_scope ();
   else
     ctx.place_db.pop_scope ();
+}
+
+void
+ExprStmtBuilder::visit (HIR::AnonConst &block)
+{
+  rust_unreachable ();
+}
+
+void
+ExprStmtBuilder::visit (HIR::ConstBlock &block)
+{
+  rust_unreachable ();
 }
 
 void

@@ -20,4 +20,4 @@ main:
 
 	.data
 foo_addr:
-	.long	foo
+	.quad	foo

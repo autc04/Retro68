@@ -1,6 +1,6 @@
 // { dg-do compile { target c++11 } }
 
-// Copyright (C) 2007-2025 Free Software Foundation, Inc.
+// Copyright (C) 2007-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -53,8 +53,8 @@ void  operator delete[](void* ptr, const std::nothrow_t&) throw();
 #endif
 CXX26_CONSTEXPR void* operator new  (std::size_t size, void* ptr) throw();
 CXX26_CONSTEXPR void* operator new[](std::size_t size, void* ptr) throw();
-void  operator delete  (void* ptr, void*) throw();
-void  operator delete[](void* ptr, void*) throw();
+CXX26_CONSTEXPR void  operator delete  (void* ptr, void*) throw();
+CXX26_CONSTEXPR void  operator delete[](void* ptr, void*) throw();
 
 #if __cplusplus >= 201402L
 // C++14 sized deallocation functions

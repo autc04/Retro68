@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -123,5 +123,11 @@ package Exp_Ch4 is
    --  signed integer type is smaller than Standard.Integer. In such case we
    --  have special circuitry in Expand_N_Type_Conversion to promote both of
    --  the operands to type Integer.
+
+   procedure Fixup_Universal_Fixed_Operation (N : Node_Id);
+   --  N is a N_Op_Divide or N_Op_Multiply node whose result is universal
+   --  fixed. We do not have such a type at runtime, so the purpose of this
+   --  routine is to find the real type by looking up the tree. We also
+   --  determine if the operation must be rounded.
 
 end Exp_Ch4;

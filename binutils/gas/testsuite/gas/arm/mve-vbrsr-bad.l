@@ -1,10 +1,10 @@
 [^:]*: Assembler messages:
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:11: Error: bad type in SIMD instruction -- `vbrsr.64 q0,q1,r2'
 [^:]*:12: Error: ARM register expected -- `vbrsr.32 q0,q1,q2'
 [^:]*:14: Error: syntax error -- `vbrsreq.32 q0,q1,r2'

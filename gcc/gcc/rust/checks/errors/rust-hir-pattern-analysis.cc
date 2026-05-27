@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -28,15 +28,12 @@
 #include "rust-tyty.h"
 #include "rust-immutable-name-resolution-context.h"
 
-// for flag_name_resolution_2_0
-#include "options.h"
-
 namespace Rust {
 namespace Analysis {
 
 PatternChecker::PatternChecker ()
   : tyctx (*Resolver::TypeCheckContext::get ()),
-    resolver (*Resolver::Resolver::get ()),
+    resolver (Resolver2_0::ImmutableNameResolutionContext::get ().resolver ()),
     mappings (Analysis::Mappings::get ())
 {}
 
@@ -238,17 +235,9 @@ PatternChecker::visit (CallExpr &expr)
 
   NodeId ast_node_id = expr.get_fnexpr ().get_mappings ().get_nodeid ();
   NodeId ref_node_id;
-  if (flag_name_resolution_2_0)
-    {
-      auto &nr_ctx
-	= Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
-
-      if (auto id = nr_ctx.lookup (ast_node_id))
-	ref_node_id = *id;
-      else
-	return;
-    }
-  else if (!resolver.lookup_resolved_name (ast_node_id, &ref_node_id))
+  if (auto id = resolver.lookup (ast_node_id))
+    ref_node_id = *id;
+  else
     return;
 
   if (auto definition_id = mappings.lookup_node_to_hir (ref_node_id))
@@ -292,6 +281,18 @@ PatternChecker::visit (BlockExpr &expr)
 
   if (expr.has_expr ())
     expr.get_final_expr ().accept_vis (*this);
+}
+
+void
+PatternChecker::visit (AnonConst &expr)
+{
+  expr.get_inner_expr ().accept_vis (*this);
+}
+
+void
+PatternChecker::visit (ConstBlock &expr)
+{
+  expr.get_const_expr ().accept_vis (*this);
 }
 
 void
@@ -420,6 +421,14 @@ PatternChecker::visit (AsyncBlockExpr &)
 
 void
 PatternChecker::visit (InlineAsm &expr)
+{}
+
+void
+PatternChecker::visit (LlvmInlineAsm &expr)
+{}
+
+void
+PatternChecker::visit (OffsetOf &expr)
 {}
 
 void
@@ -620,11 +629,11 @@ PatternChecker::visit (StructPattern &)
 {}
 
 void
-PatternChecker::visit (TupleStructItemsNoRange &)
+PatternChecker::visit (TupleStructItemsNoRest &)
 {}
 
 void
-PatternChecker::visit (TupleStructItemsRange &)
+PatternChecker::visit (TupleStructItemsHasRest &)
 {}
 
 void
@@ -632,15 +641,23 @@ PatternChecker::visit (TupleStructPattern &)
 {}
 
 void
-PatternChecker::visit (TuplePatternItemsMultiple &)
+PatternChecker::visit (TuplePatternItemsNoRest &)
 {}
 
 void
-PatternChecker::visit (TuplePatternItemsRanged &)
+PatternChecker::visit (TuplePatternItemsHasRest &)
 {}
 
 void
 PatternChecker::visit (TuplePattern &)
+{}
+
+void
+PatternChecker::visit (SlicePatternItemsNoRest &)
+{}
+
+void
+PatternChecker::visit (SlicePatternItemsHasRest &)
 {}
 
 void
@@ -724,23 +741,27 @@ Constructor::is_covered_by (const Constructor &o) const
 
   switch (kind)
     {
-      case ConstructorKind::VARIANT: {
+    case ConstructorKind::VARIANT:
+      {
 	rust_assert (kind == ConstructorKind::VARIANT);
 	return variant_idx == o.variant_idx;
       }
       break;
-      case ConstructorKind::INT_RANGE: {
+    case ConstructorKind::INT_RANGE:
+      {
 	rust_assert (kind == ConstructorKind::INT_RANGE);
 	return int_range.lo >= o.int_range.lo && int_range.hi <= o.int_range.hi;
       }
       break;
-      case ConstructorKind::WILDCARD: {
+    case ConstructorKind::WILDCARD:
+      {
 	// TODO: wildcard is covered by a variant of enum with a single
 	// variant
 	return false;
       }
       break;
-      case ConstructorKind::STRUCT: {
+    case ConstructorKind::STRUCT:
+      {
 	// Struct pattern is always covered by a other struct constructor.
 	return true;
       }
@@ -896,23 +917,28 @@ PlaceInfo::specialize (const Constructor &c) const
   switch (c.get_kind ())
     {
     case Constructor::ConstructorKind::WILDCARD:
-      case Constructor::ConstructorKind::INT_RANGE: {
+    case Constructor::ConstructorKind::INT_RANGE:
+      {
 	return {};
       }
       break;
     case Constructor::ConstructorKind::STRUCT:
-      case Constructor::ConstructorKind::VARIANT: {
+    case Constructor::ConstructorKind::VARIANT:
+      {
 	rust_assert (ty->get_kind () == TyTy::TypeKind::ADT);
 	TyTy::ADTType *adt = static_cast<TyTy::ADTType *> (ty);
 	switch (adt->get_adt_kind ())
 	  {
 	  case TyTy::ADTType::ADTKind::ENUM:
 	  case TyTy::ADTType::ADTKind::STRUCT_STRUCT:
-	    case TyTy::ADTType::ADTKind::TUPLE_STRUCT: {
+	  case TyTy::ADTType::ADTKind::TUPLE_STRUCT:
+	    {
 	      TyTy::VariantDef *variant
 		= adt->get_variants ().at (c.get_variant_index ());
 	      if (variant->get_variant_type ()
-		  == TyTy::VariantDef::VariantType::NUM)
+		    == TyTy::VariantDef::VariantType::NUM
+		  || variant->get_variant_type ()
+		       == TyTy::VariantDef::VariantType::UNIT)
 		return {};
 
 	      std::vector<PlaceInfo> new_place_infos;
@@ -922,14 +948,16 @@ PlaceInfo::specialize (const Constructor &c) const
 	      return new_place_infos;
 	    }
 	    break;
-	    case TyTy::ADTType::ADTKind::UNION: {
+	  case TyTy::ADTType::ADTKind::UNION:
+	    {
 	      // TODO: support unions
 	      rust_unreachable ();
 	    }
 	  }
       }
       break;
-      default: {
+    default:
+      {
 	rust_unreachable ();
       }
       break;
@@ -951,7 +979,7 @@ Matrix::specialize (const Constructor &ctor) const
       if (ctor.is_covered_by (hd.ctor ()))
 	{
 	  pats.pop_head_constructor (ctor, subfields_place_info.size ());
-	  new_rows.push_back (MatrixRow (pats, row.is_under_guard ()));
+	  new_rows.emplace_back (pats, row.is_under_guard ());
 	}
     }
 
@@ -987,7 +1015,8 @@ WitnessPat::to_string () const
 {
   switch (ctor.get_kind ())
     {
-      case Constructor::ConstructorKind::STRUCT: {
+    case Constructor::ConstructorKind::STRUCT:
+      {
 	TyTy::ADTType *adt = static_cast<TyTy::ADTType *> (ty);
 	TyTy::VariantDef *variant
 	  = adt->get_variants ().at (ctor.get_variant_index ());
@@ -1012,7 +1041,8 @@ WitnessPat::to_string () const
 	return buf;
       }
       break;
-      case Constructor::ConstructorKind::VARIANT: {
+    case Constructor::ConstructorKind::VARIANT:
+      {
 	std::string buf;
 	TyTy::ADTType *adt = static_cast<TyTy::ADTType *> (ty);
 	buf += adt->get_identifier ();
@@ -1022,11 +1052,14 @@ WitnessPat::to_string () const
 
 	switch (variant->get_variant_type ())
 	  {
-	    case TyTy::VariantDef::VariantType::NUM: {
+	  case TyTy::VariantDef::VariantType::UNIT:
+	  case TyTy::VariantDef::VariantType::NUM:
+	    {
 	      return buf;
 	    }
 	    break;
-	    case TyTy::VariantDef::VariantType::TUPLE: {
+	  case TyTy::VariantDef::VariantType::TUPLE:
+	    {
 	      buf += "(";
 	      for (size_t i = 0; i < fields.size (); i++)
 		{
@@ -1038,7 +1071,8 @@ WitnessPat::to_string () const
 	      return buf;
 	    }
 	    break;
-	    case TyTy::VariantDef::VariantType::STRUCT: {
+	  case TyTy::VariantDef::VariantType::STRUCT:
+	    {
 	      buf += " {";
 	      if (!fields.empty ())
 		buf += " ";
@@ -1057,7 +1091,8 @@ WitnessPat::to_string () const
 	      buf += "}";
 	    }
 	    break;
-	    default: {
+	  default:
+	    {
 	      rust_unreachable ();
 	    }
 	    break;
@@ -1065,21 +1100,25 @@ WitnessPat::to_string () const
 	return buf;
       }
       break;
-      case Constructor::ConstructorKind::INT_RANGE: {
+    case Constructor::ConstructorKind::INT_RANGE:
+      {
 	// TODO: implement
 	rust_unreachable ();
       }
       break;
-      case Constructor::ConstructorKind::WILDCARD: {
+    case Constructor::ConstructorKind::WILDCARD:
+      {
 	return "_";
       }
       break;
-      case Constructor::ConstructorKind::REFERENCE: {
+    case Constructor::ConstructorKind::REFERENCE:
+      {
 	// TODO: implement
 	rust_unreachable ();
       }
       break;
-      default: {
+    default:
+      {
 	rust_unreachable ();
       }
       break;
@@ -1096,25 +1135,29 @@ WitnessMatrix::apply_constructor (const Constructor &ctor,
   // TODO: only support struct and variant ctor for now.
   switch (ctor.get_kind ())
     {
-      case Constructor::ConstructorKind::WILDCARD: {
+    case Constructor::ConstructorKind::WILDCARD:
+      {
 	arity = 0;
       }
       break;
     case Constructor::ConstructorKind::STRUCT:
-      case Constructor::ConstructorKind::VARIANT: {
+    case Constructor::ConstructorKind::VARIANT:
+      {
 	if (ty->get_kind () == TyTy::TypeKind::ADT)
 	  {
 	    TyTy::ADTType *adt = static_cast<TyTy::ADTType *> (ty);
 	    TyTy::VariantDef *variant
 	      = adt->get_variants ().at (ctor.get_variant_index ());
-	    if (variant->get_variant_type () == TyTy::VariantDef::NUM)
+	    if (variant->get_variant_type () == TyTy::VariantDef::NUM
+		|| variant->get_variant_type () == TyTy::VariantDef::UNIT)
 	      arity = 0;
 	    else
 	      arity = variant->get_fields ().size ();
 	  }
       }
       break;
-      default: {
+    default:
+      {
 	rust_unreachable ();
       }
     }
@@ -1144,7 +1187,7 @@ WitnessMatrix::apply_constructor (const Constructor &ctor,
 	    }
 	}
 
-      stack.push_back (WitnessPat (ctor, subfield, ty));
+      stack.emplace_back (ctor, subfield, ty);
     }
 }
 
@@ -1156,9 +1199,9 @@ WitnessMatrix::extend (const WitnessMatrix &other)
 }
 
 // forward declarations
-static DeconstructedPat
-lower_pattern (Resolver::TypeCheckContext *ctx, HIR::Pattern &pattern,
-	       TyTy::BaseType *scrutinee_ty);
+static DeconstructedPat lower_pattern (Resolver::TypeCheckContext *ctx,
+				       HIR::Pattern &pattern,
+				       TyTy::BaseType *scrutinee_ty);
 
 static DeconstructedPat
 lower_tuple_pattern (Resolver::TypeCheckContext *ctx,
@@ -1171,28 +1214,58 @@ lower_tuple_pattern (Resolver::TypeCheckContext *ctx,
   std::vector<DeconstructedPat> fields;
   switch (elems.get_item_type ())
     {
-      case HIR::TupleStructItems::ItemType::MULTIPLE: {
-	HIR::TupleStructItemsNoRange &multiple
-	  = static_cast<HIR::TupleStructItemsNoRange &> (elems);
+    case HIR::TupleStructItems::ItemType::NO_REST:
+      {
+	HIR::TupleStructItemsNoRest &items_no_rest
+	  = static_cast<HIR::TupleStructItemsNoRest &> (elems);
 
 	rust_assert (variant->get_fields ().size ()
-		     == multiple.get_patterns ().size ());
+		     == items_no_rest.get_patterns ().size ());
 
-	for (size_t i = 0; i < multiple.get_patterns ().size (); i++)
+	for (size_t i = 0; i < items_no_rest.get_patterns ().size (); i++)
 	  {
 	    fields.push_back (
-	      lower_pattern (ctx, *multiple.get_patterns ().at (i),
+	      lower_pattern (ctx, *items_no_rest.get_patterns ().at (i),
 			     variant->get_fields ().at (i)->get_field_type ()));
 	  }
 	return DeconstructedPat (ctor, arity, fields, pattern.get_locus ());
       }
       break;
-      case HIR::TupleStructItems::ItemType::RANGED: {
-	// TODO: ranged tuple struct items
-	rust_unreachable ();
+    case HIR::TupleStructItems::ItemType::HAS_REST:
+      {
+	HIR::TupleStructItemsHasRest &items_has_rest
+	  = static_cast<HIR::TupleStructItemsHasRest &> (elems);
+
+	size_t num_patterns = items_has_rest.get_lower_patterns ().size ()
+			      + items_has_rest.get_upper_patterns ().size ();
+
+	rust_assert (num_patterns <= variant->num_fields ());
+
+	size_t i = 0;
+	for (auto &pattern_member : items_has_rest.get_lower_patterns ())
+	  {
+	    fields.push_back (lower_pattern (
+	      ctx, *pattern_member,
+	      variant->get_fields ().at (i++)->get_field_type ()));
+	  }
+	while (i < variant->num_fields ()
+		     - items_has_rest.get_upper_patterns ().size ())
+	  {
+	    fields.push_back (
+	      DeconstructedPat::make_wildcard (pattern.get_locus ()));
+	    i++;
+	  }
+	for (auto &pattern_member : items_has_rest.get_upper_patterns ())
+	  {
+	    fields.push_back (lower_pattern (
+	      ctx, *pattern_member,
+	      variant->get_fields ().at (i++)->get_field_type ()));
+	  }
+	return DeconstructedPat (ctor, arity, fields, pattern.get_locus ());
       }
       break;
-      default: {
+    default:
+      {
 	rust_unreachable ();
       }
     }
@@ -1223,7 +1296,8 @@ lower_struct_pattern (Resolver::TypeCheckContext *ctx,
     {
       switch (elem->get_item_type ())
 	{
-	  case HIR::StructPatternField::ItemType::IDENT: {
+	case HIR::StructPatternField::ItemType::IDENT:
+	  {
 	    HIR::StructPatternFieldIdent *ident
 	      = static_cast<HIR::StructPatternFieldIdent *> (elem.get ());
 	    int field_idx
@@ -1232,7 +1306,8 @@ lower_struct_pattern (Resolver::TypeCheckContext *ctx,
 	      = DeconstructedPat::make_wildcard (pattern.get_locus ());
 	  }
 	  break;
-	  case HIR::StructPatternField::ItemType::IDENT_PAT: {
+	case HIR::StructPatternField::ItemType::IDENT_PAT:
+	  {
 	    HIR::StructPatternFieldIdentPat *ident_pat
 	      = static_cast<HIR::StructPatternFieldIdentPat *> (elem.get ());
 	    int field_idx
@@ -1242,12 +1317,18 @@ lower_struct_pattern (Resolver::TypeCheckContext *ctx,
 	      variant->get_fields ().at (field_idx)->get_field_type ());
 	  }
 	  break;
-	  case HIR::StructPatternField::ItemType::TUPLE_PAT: {
-	    // TODO: tuple: pat
-	    rust_unreachable ();
+	case HIR::StructPatternField::ItemType::TUPLE_PAT:
+	  {
+	    HIR::StructPatternFieldTuplePat *tuple_pat
+	      = static_cast<HIR::StructPatternFieldTuplePat *> (elem.get ());
+	    int field_idx = tuple_pat->get_index ();
+	    fields.at (field_idx) = lower_pattern (
+	      ctx, tuple_pat->get_tuple_pattern (),
+	      variant->get_fields ().at (field_idx)->get_field_type ());
 	  }
 	  break;
-	  default: {
+	default:
+	  {
 	    rust_unreachable ();
 	  }
 	}
@@ -1264,11 +1345,13 @@ lower_pattern (Resolver::TypeCheckContext *ctx, HIR::Pattern &pattern,
   switch (pat_type)
     {
     case HIR::Pattern::PatternType::WILDCARD:
-      case HIR::Pattern::PatternType::IDENTIFIER: {
+    case HIR::Pattern::PatternType::IDENTIFIER:
+      {
 	return DeconstructedPat::make_wildcard (pattern.get_locus ());
       }
       break;
-      case HIR::Pattern::PatternType::PATH: {
+    case HIR::Pattern::PatternType::PATH:
+      {
 	// TODO: support constants, associated constants, enum variants and
 	// structs
 	// https://doc.rust-lang.org/reference/patterns.html#path-patterns
@@ -1276,13 +1359,15 @@ lower_pattern (Resolver::TypeCheckContext *ctx, HIR::Pattern &pattern,
 	return DeconstructedPat::make_wildcard (pattern.get_locus ());
       }
       break;
-      case HIR::Pattern::PatternType::REFERENCE: {
+    case HIR::Pattern::PatternType::REFERENCE:
+      {
 	// TODO: unimplemented. Treat this pattern as wildcard for now.
 	return DeconstructedPat::make_wildcard (pattern.get_locus ());
       }
       break;
     case HIR::Pattern::PatternType::STRUCT:
-      case HIR::Pattern::PatternType::TUPLE_STRUCT: {
+    case HIR::Pattern::PatternType::TUPLE_STRUCT:
+      {
 	HirId path_id = UNKNOWN_HIRID;
 	if (pat_type == HIR::Pattern::PatternType::STRUCT)
 	  {
@@ -1339,37 +1424,44 @@ lower_pattern (Resolver::TypeCheckContext *ctx, HIR::Pattern &pattern,
 	  }
       }
       break;
-      case HIR::Pattern::PatternType::TUPLE: {
+    case HIR::Pattern::PatternType::TUPLE:
+      {
 	// TODO: unimplemented. Treat this pattern as wildcard for now.
 	return DeconstructedPat::make_wildcard (pattern.get_locus ());
       }
       break;
-      case HIR::Pattern::PatternType::SLICE: {
+    case HIR::Pattern::PatternType::SLICE:
+      {
 	// TODO: unimplemented. Treat this pattern as wildcard for now.
 	return DeconstructedPat::make_wildcard (pattern.get_locus ());
       }
       break;
-      case HIR::Pattern::PatternType::ALT: {
+    case HIR::Pattern::PatternType::ALT:
+      {
 	// TODO: unimplemented. Treat this pattern as wildcard for now.
 	return DeconstructedPat::make_wildcard (pattern.get_locus ());
       }
       break;
-      case HIR::Pattern::PatternType::LITERAL: {
+    case HIR::Pattern::PatternType::LITERAL:
+      {
 	// TODO: unimplemented. Treat this pattern as wildcard for now.
 	return DeconstructedPat::make_wildcard (pattern.get_locus ());
       }
       break;
-      case HIR::Pattern::PatternType::RANGE: {
+    case HIR::Pattern::PatternType::RANGE:
+      {
 	// TODO: unimplemented. Treat this pattern as wildcard for now.
 	return DeconstructedPat::make_wildcard (pattern.get_locus ());
       }
       break;
-      case HIR::Pattern::PatternType::GROUPED: {
+    case HIR::Pattern::PatternType::GROUPED:
+      {
 	// TODO: unimplemented. Treat this pattern as wildcard for now.
 	return DeconstructedPat::make_wildcard (pattern.get_locus ());
       }
       break;
-      default: {
+    default:
+      {
 	rust_unreachable ();
       }
     }
@@ -1379,10 +1471,10 @@ static MatchArm
 lower_arm (Resolver::TypeCheckContext *ctx, HIR::MatchCase &arm,
 	   TyTy::BaseType *scrutinee_ty)
 {
-  rust_assert (arm.get_arm ().get_patterns ().size () > 0);
+  rust_assert (arm.get_arm ().get_pattern () != nullptr);
 
   DeconstructedPat pat
-    = lower_pattern (ctx, *arm.get_arm ().get_patterns ().at (0), scrutinee_ty);
+    = lower_pattern (ctx, *arm.get_arm ().get_pattern (), scrutinee_ty);
   return MatchArm (pat, arm.get_arm ().has_match_arm_guard ());
 }
 
@@ -1537,7 +1629,7 @@ check_match_usefulness (Resolver::TypeCheckContext *ctx,
       MatchArm lowered = lower_arm (ctx, arm, scrutinee_ty);
       PatOrWild pat = PatOrWild::make_pattern (lowered.get_pat ());
       pats.push (pat);
-      rows.push_back (MatrixRow (pats, lowered.has_guard ()));
+      rows.emplace_back (pats, lowered.has_guard ());
     }
 
   std::vector<PlaceInfo> place_infos = {{PlaceInfo (scrutinee_ty)}};

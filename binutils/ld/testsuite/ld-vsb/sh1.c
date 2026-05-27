@@ -103,8 +103,7 @@ shlib_maincall ()
    confirms that the pointer compares equally.  */
 
 int 
-shlib_checkfunptr1 (p)
-     int (*p) ();
+shlib_checkfunptr1 (int (*p) ())
 {
   return p == shlib_shlibvar1;
 }
@@ -113,8 +112,7 @@ shlib_checkfunptr1 (p)
    confirms that the pointer compares equally.  */
 
 int
-shlib_checkfunptr2 (p)
-     int (*p) ();
+shlib_checkfunptr2 (int (*p) ())
 {
   return p == main_called;
 }

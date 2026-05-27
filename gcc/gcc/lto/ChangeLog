@@ -1,6 +1,162 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-04-09  Dhruv Chawla  <dhruvc@nvidia.com>
+
+	* Make-lang.in (create_fdas_for_lto1): Use $(AFDO_PROFILER) when passing
+	--profiler to create_gcov. Ensure that perf.data contains profile for
+	lto1. Make the console output more useful.
+
+2026-03-26  Michal Jires  <mjires@suse.cz>
+
+	* lto-partition.cc (enum map1to1_content): New.
+	(map_1_to_1): Use map1to1_content.
+	(lto_1_to_1_map): Likewise.
+	(create_asm_partitions): Likewise.
+	(lto_max_map): Likewise.
+	(lto_cache_map): Use create_asm_partitions.
+
+2026-03-18  Dhruv Chawla  <dhruvc@nvidia.com>
+
+	* Make-lang.in (lto1.fda): Add `--print-autofdo-gcov-version` to
+	profile_merger invocation.
+	(create_fdas_for_lto1): Add `--print-autofdo-gcov-version` to
+	create_gcov invocations.
+
+2026-02-13  Dhruv Chawla  <dhruvc@nvidia.com>
+
+	* Make-lang.in (lto1.fda): Likewise.
+
+2026-02-06  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
+
+	PR middle-end/123892
+	* lto-common.cc: Replace CONST_CAST with const_cast<>.
+	* lto.cc: Likewise.
+
+2026-02-06  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
+
+	PR middle-end/123892
+	* lto-common.cc: Replace CONST_CAST_TREE with const_cast<tree>.
+
+2026-01-11  Michal Jires  <mjires@suse.cz>
+
+	* lto-symtab.cc (lto_symtab_merge_symbols): Set body_removed
+	for symbols resolved outside of IR.
+
+2026-01-11  Michal Jires  <mjires@suse.cz>
+
+	* lto-partition.cc (join_partitions): Declare.
+	(lto_1_to_1_map): Split out to..
+	(map_1_to_1): ..here.
+	(create_asm_partition): Replaced by..
+	(create_asm_partitions): ..this.
+	(lto_max_map): Use new create_asm_partitions.
+	(lto_balanced_map): Use new create_asm_partitions.
+
+2026-01-11  Michal Jires  <mjires@suse.cz>
+
+	* lto-symtab.cc (lto_cgraph_replace_node): Propagate
+	must_remain_in_tu_*.
+	(lto_varpool_replace_node): Likewise.
+
+2026-01-11  Michal Jires  <mjires@suse.cz>
+
+	* lto-common.cc (read_cgraph_and_symbols): Call
+	input_toplevel_asms after decl merging.
+
+2026-01-11  Michal Jires  <mjires@suse.cz>
+
+	PR ipa/122458
+	* lto-common.cc (read_cgraph_and_symbols):
+	Call analyze_toplevel_extended_asm.
+
+2026-01-11  Michal Jires  <mjires@suse.cz>
+
+	* lto-symtab.cc (lto_cgraph_replace_node): Propagate ref_by_asm.
+	(lto_varpool_replace_node): Propagate ref_by_asm.
+
+2025-12-23  Dhruv Chawla  <dhruvc@nvidia.com>
+
+	* Make-lang.in: Bump GCOV version to 3.
+
+2025-12-19  Jakub Jelinek  <jakub@redhat.com>
+
+	* lto-common.cc (lto_resolution_read): Fix comment typo, explicitely
+	-> explicitly.
+
+2025-12-13  Andrew Pinski  <andrew.pinski@oss.qualcomm.com>
+
+	PR ipa/122955
+	* lto-partition.cc (lto_1_to_1_map): Use save_as_a<asm_node*> around next.
+	(create_asm_partition): Likewise.
+
+2025-11-25  Siddhesh Poyarekar  <siddhesh@gotplt.org>
+
+	PR lto/122515
+	* lto-common.cc (lto_read_section_data): Avoid using SSIZE_MAX.
+
+2025-11-13  Michal Jires  <mjires@suse.cz>
+
+	PR lto/122603
+	* lto-partition.cc (split_partition_into_nodes): Null check for
+	possible asm_node.
+
+2025-11-04  Siddhesh Poyarekar  <siddhesh@gotplt.org>
+
+	PR lto/122515
+	* lto.h (lto_section_slot): Set type of START to off_t.
+	* lto-common.cc (lto_read_section_data): Adjust.
+	* lto-object.cc (lto_obj_file_open): Set type of OFFSET to
+	int64_t.
+
+2025-10-30  Michal Jires  <mjires@suse.cz>
+
+	* lto.cc (stream_out_partitions): Remove asm_nodes_out.
+
+2025-10-30  Michal Jires  <mjires@suse.cz>
+
+	* lto-partition.cc (create_partition_if_empty): New.
+	(node_into_file_partition): Break out from ...
+	(lto_1_to_1_map): ... here. Partition toplevel assembly.
+	(create_asm_partition): New.
+	(lto_max_map): Use create_asm_partition.
+	(lto_balanced_map): Likewise.
+
+2025-10-30  Michal Jires  <mjires@suse.cz>
+
+	* lto-partition.cc (add_symbol_to_partition): Use toplevel_node.
+	(undo_partition): Likewise.
+	(join_partitions): Likewise.
+	(split_partition_into_nodes): Likewise.
+	(is_partition_reorder): Likewise.
+	(lto_balanced_map): Likewise.
+	(lto_promote_cross_file_statics): Likewise.
+	* lto.cc (lto_wpa_write_files): Likewise.
+
+2025-10-30  Michal Jires  <mjires@suse.cz>
+
+	* lto-partition.cc (lto_balanced_map): Simplify.
+
+2025-10-30  Michal Jires  <mjires@suse.cz>
+
+	* lto-symtab.cc (lto_symtab_merge_symbols_1): likewise.
+
+2025-10-30  Michal Jires  <mjires@suse.cz>
+
+	* lto-partition.cc (cmp_partitions_order): Reverse sort.
+	(node_cmp): Reverse sort.
+
+2025-10-27  Richard Biener  <rguenther@suse.de>
+
+	PR middle-end/122325
+	* lto-lang.cc (lto_init_options_struct): Remove set of
+	flag_default_complex_method.
+
+2025-10-01  Jan Hubicka  <hubicka@ucw.cz>
+
+	* Make-lang.in: Add lto_FDAS; enable FDA collection
+	(create_fdas_for_lto1): Be sure that build fails if create_gcov fails.
 
 2025-04-15  Kyrylo Tkachov  <ktkachov@nvidia.com>
 
@@ -6908,7 +7064,7 @@
 	* lto-tree.h: Likewise.
 	* lto-lang.c: Likewise.
 
-Copyright (C) 2006-2025 Free Software Foundation, Inc.
+Copyright (C) 2006-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

@@ -1,6 +1,6 @@
 #source: init.s
 #source: tls-gdgotrelm.s --defsym r=8203
-#as: --no-underscore --em=criself --pic
+#as: --no-underscore --emulation=criself --pic
 #ld: --shared -m crislinux
 #error: \A[^\n]*\.o: in[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\n[^\n]*\.o: in[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\n[^\n]*\.o: in[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\n[^\n]*\.o: in[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\n[^\n]*\.o: in[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\n[^\n]*\.o: in[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\n[^\n]*\.o: in[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\n[^\n]*\.o: in[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\n[^\n]*\.o: in[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\n[^\n]*\.o: in[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too many[^\n]*\n[^\n]*\.o: in[^\n]*\n[^\n]*omitted[^\n]*\Z
 

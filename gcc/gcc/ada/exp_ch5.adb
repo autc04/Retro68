@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -28,7 +28,6 @@ with Aspects;        use Aspects;
 with Atree;          use Atree;
 with Checks;         use Checks;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
@@ -49,7 +48,6 @@ with Opt;            use Opt;
 with Restrict;       use Restrict;
 with Rident;         use Rident;
 with Rtsfind;        use Rtsfind;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sem;            use Sem;
@@ -168,11 +166,12 @@ package body Exp_Ch5 is
    --  a procedure with an in-out parameter, and expanded as such.
 
    procedure Expand_Formal_Container_Loop (N : Node_Id);
-   --  Use the primitives specified in an Iterable aspect to expand a loop
-   --  over a so-called formal container, primarily for SPARK usage.
+   --  Use the primitives specified in an Iterable aspect to expand a loop.
+   --  The Iterable aspect is used by the SPARK formal containers, and can
+   --  also be used by user code.
 
    procedure Expand_Formal_Container_Element_Loop (N : Node_Id);
-   --  Same, for an iterator of the form " For E of C". In this case the
+   --  Same, for an iterator of the form "for E of C". In this case the
    --  iterator provides the name of the element, and the cursor is generated
    --  internally.
 
@@ -189,6 +188,9 @@ package body Exp_Ch5 is
    --  optional subtype mark, or "for Y in C". I_Spec is the iterator
    --  specification and Container is either the Container (for OF) or the
    --  iterator (for IN).
+
+   procedure Expand_Loop_Flow_Statement (N : N_Loop_Flow_Statement_Id);
+   --  Common processing for expansion of "loop flow" statements
 
    procedure Expand_Predicated_Loop (N : Node_Id);
    --  Expand for loop over predicated subtype
@@ -280,14 +282,11 @@ package body Exp_Ch5 is
           Statements => Stats,
           End_Label  => Empty);
 
-      --  If the contruct has a specified loop name, preserve it in the new
-      --  loop, for possible use in exit statements.
+      --  Preserve the construct's loop name in the new loop, for possible use
+      --  in exit statements.
 
-      if Present (Identifier (N))
-        and then Comes_From_Source (Identifier (N))
-      then
-         Set_Identifier (New_Loop, Identifier (N));
-      end if;
+      pragma Assert (Present (Identifier (N)));
+      Set_Identifier (New_Loop, Identifier (N));
    end Build_Formal_Container_Iteration;
 
    ------------------------------
@@ -1039,7 +1038,8 @@ package body Exp_Ch5 is
                          Prefix =>
                            Make_Indexed_Component (Loc,
                              Prefix =>
-                               Duplicate_Subexpr_Move_Checks (Larray, True),
+                               Duplicate_Subexpr_Move_Checks
+                                 (Larray, Name_Req => True),
                              Expressions => New_List (
                                Make_Attribute_Reference (Loc,
                                  Prefix =>
@@ -1054,7 +1054,8 @@ package body Exp_Ch5 is
                          Prefix =>
                            Make_Indexed_Component (Loc,
                              Prefix =>
-                               Duplicate_Subexpr_Move_Checks (Rarray, True),
+                               Duplicate_Subexpr_Move_Checks
+                                 (Rarray, Name_Req => True),
                              Expressions => New_List (
                                Make_Attribute_Reference (Loc,
                                  Prefix =>
@@ -1152,7 +1153,7 @@ package body Exp_Ch5 is
 
    exception
       when RE_Not_Available =>
-         return;
+         null;
    end Expand_Assign_Array;
 
    ------------------------------
@@ -1396,7 +1397,7 @@ package body Exp_Ch5 is
           Prefix =>
             Make_Indexed_Component (Loc,
               Prefix =>
-                Duplicate_Subexpr (Larray, True),
+                Duplicate_Subexpr (Larray, Name_Req => True),
               Expressions => New_List (New_Copy_Tree (Left_Lo))),
           Attribute_Name => Name_Address);
 
@@ -1405,7 +1406,7 @@ package body Exp_Ch5 is
           Prefix =>
             Make_Indexed_Component (Loc,
               Prefix =>
-                Duplicate_Subexpr (Larray, True),
+                Duplicate_Subexpr (Larray, Name_Req => True),
               Expressions => New_List (New_Copy_Tree (Left_Lo))),
           Attribute_Name => Name_Bit);
 
@@ -1414,7 +1415,7 @@ package body Exp_Ch5 is
           Prefix =>
             Make_Indexed_Component (Loc,
               Prefix =>
-                Duplicate_Subexpr (Rarray, True),
+                Duplicate_Subexpr (Rarray, Name_Req => True),
               Expressions => New_List (New_Copy_Tree (Right_Lo))),
           Attribute_Name => Name_Address);
 
@@ -1423,7 +1424,7 @@ package body Exp_Ch5 is
           Prefix =>
             Make_Indexed_Component (Loc,
               Prefix =>
-                Duplicate_Subexpr (Rarray, True),
+                Duplicate_Subexpr (Rarray, Name_Req => True),
               Expressions => New_List (New_Copy_Tree (Right_Lo))),
           Attribute_Name => Name_Bit);
 
@@ -1439,11 +1440,11 @@ package body Exp_Ch5 is
         Make_Op_Multiply (Loc,
           Make_Attribute_Reference (Loc,
             Prefix =>
-              Duplicate_Subexpr (Name (N), True),
+              Duplicate_Subexpr (Name (N), Name_Req => True),
             Attribute_Name => Name_Length),
           Make_Attribute_Reference (Loc,
             Prefix =>
-              Duplicate_Subexpr (Name (N), True),
+              Duplicate_Subexpr (Name (N), Name_Req => True),
             Attribute_Name => Name_Component_Size));
 
    begin
@@ -1527,11 +1528,11 @@ package body Exp_Ch5 is
         Make_Op_Multiply (Loc,
           Make_Attribute_Reference (Loc,
             Prefix =>
-              Duplicate_Subexpr (Name (N), True),
+              Duplicate_Subexpr (Name (N), Name_Req => True),
             Attribute_Name => Name_Length),
           Make_Attribute_Reference (Loc,
             Prefix =>
-              Duplicate_Subexpr (Larray, True),
+              Duplicate_Subexpr (Larray, Name_Req => True),
             Attribute_Name => Name_Component_Size));
 
       L_Arg, R_Arg, Call : Node_Id;
@@ -1582,7 +1583,7 @@ package body Exp_Ch5 is
       end if;
 
       return Make_Assignment_Statement (Loc,
-        Name => Duplicate_Subexpr (Larray, True),
+        Name => Duplicate_Subexpr (Larray, Name_Req => True),
         Expression => Unchecked_Convert_To (L_Typ, Call));
    end Expand_Assign_Array_Bitfield_Fast;
 
@@ -2252,7 +2253,8 @@ package body Exp_Ch5 is
       function Replace_Target (N : Node_Id) return Traverse_Result;
       --  Replace occurrences of the target name by the proper entity: either
       --  the entity of the LHS in simple cases, or the formal of the
-      --  constructed procedure otherwise.
+      --  constructed procedure otherwise. Mark all nodes as Analyzed=False
+      --  so reanalysis will occur.
 
       --------------------
       -- Replace_Target --
@@ -2262,20 +2264,6 @@ package body Exp_Ch5 is
       begin
          if Nkind (N) = N_Target_Name then
             Rewrite (N, New_Occurrence_Of (Ent, Sloc (N)));
-
-         --  The expression will be reanalyzed when the enclosing assignment
-         --  is reanalyzed, so reset the entity, which may be a temporary
-         --  created during analysis, e.g. a loop variable for an iterated
-         --  component association. However, if entity is callable then
-         --  resolution has established its proper identity (including in
-         --  rewritten prefixed calls) so we must preserve it.
-
-         elsif Is_Entity_Name (N) then
-            if Present (Entity (N))
-              and then not Is_Overloadable (Entity (N))
-            then
-               Set_Entity (N, Empty);
-            end if;
          end if;
 
          Set_Analyzed (N, False);
@@ -2537,6 +2525,20 @@ package body Exp_Ch5 is
             end if;
 
             Apply_Predicate_Check (Rhs, Typ);
+
+            --  If the generation of the check required capturing a function
+            --  call to remove its side effects, and the assignment initially
+            --  was to be done without controlled actions, then change it to
+            --  be done without finalization only, in other words restore the
+            --  adjustment of the LHS, because the RHS is now a temporary that
+            --  will be finalized after the assignment is complete.
+
+            if No_Ctrl_Actions (N)
+              and then Is_Captured_Function_Call (Rhs)
+            then
+               Set_No_Ctrl_Actions (N, False);
+               Set_No_Finalize_Actions (N, True);
+            end if;
          end if;
       end if;
 
@@ -3453,7 +3455,7 @@ package body Exp_Ch5 is
 
    exception
       when RE_Not_Available =>
-         return;
+         null;
    end Expand_N_Assignment_Statement;
 
    ------------------------------
@@ -4116,7 +4118,7 @@ package body Exp_Ch5 is
 
       if Compile_Time_Known_Value (Expr)
         and then Has_Predicates (Etype (Expr))
-        and then not Predicates_Ignored (Etype (Expr))
+        and then not Predicates_Ignored_In_Codegen (Etype (Expr))
         and then not Is_OK_Static_Expression (Expr)
       then
          Rewrite (N,
@@ -4201,7 +4203,7 @@ package body Exp_Ch5 is
          --  generated case statements).
 
          if Validity_Check_Default
-           and then not Predicates_Ignored (Etype (Expr))
+           and then not Predicates_Ignored_In_Codegen (Etype (Expr))
          then
             --  Recognize the simple case where Expr is an object reference
             --  and the case statement is directly preceded by an
@@ -4376,7 +4378,7 @@ package body Exp_Ch5 is
             --  predicate, and there is no Others choice, Constraint_Error
             --  must be raised (RM 4.5.7 (21/3) and 5.4 (13)).
 
-            if Predicates_Ignored (Etype (Expr)) then
+            if Predicates_Ignored_In_Codegen (Etype (Expr)) then
                declare
                   Except  : constant Node_Id :=
                               Make_Raise_Constraint_Error (Loc,
@@ -4423,16 +4425,98 @@ package body Exp_Ch5 is
       end;
    end Expand_N_Case_Statement;
 
+   ---------------------------------
+   -- Expand_N_Continue_Statement --
+   ---------------------------------
+
+   procedure Expand_N_Continue_Statement (N : Node_Id) is
+      X : constant Node_Id := Call_Or_Target_Loop (N);
+
+      Loc : constant Source_Ptr := Sloc (N);
+
+      Label : E_Label_Id;
+   begin
+      if No (X) then
+         return;
+      end if;
+
+      if Nkind (X) = N_Procedure_Call_Statement then
+         Replace (N, X);
+         Analyze (N);
+         return;
+      end if;
+
+      Expand_Loop_Flow_Statement (N);
+
+      declare
+         L : constant E_Loop_Id := Call_Or_Target_Loop (N);
+         M : constant Node_Id := Continue_Mark (L);
+         A : constant Node_Id := Next (M);
+      begin
+         if not (Present (A) and then Nkind (A) = N_Label) then
+            --  This is the first continue statement that is expanded for this
+            --  loop; we set up the label that the goto statement will target.
+            declare
+               P : constant Node_Id := Atree.Node_Parent (L);
+
+               Decl_List : constant List_Id :=
+                 (if Nkind (P) = N_Implicit_Label_Declaration
+                  then List_Containing (P)
+                  else Declarations (Parent (Parent (P))));
+
+               Label_Entity : constant Entity_Id :=
+                 Make_Defining_Identifier
+                   (Loc, New_External_Name (Chars (L), 'C'));
+               Label_Id     : constant N_Identifier_Id :=
+                 Make_Identifier (Loc, Chars (Label_Entity));
+               Label_Node   : constant N_Label_Id :=
+                 Make_Label (Loc, Label_Id);
+               Label_Decl   : constant N_Implicit_Label_Declaration_Id :=
+                 Make_Implicit_Label_Declaration
+                   (Loc, Label_Entity, Label_Node);
+            begin
+               Mutate_Ekind (Label_Entity, E_Label);
+               Set_Etype (Label_Entity, Standard_Void_Type);
+
+               Set_Entity (Label_Id, Label_Entity);
+               Set_Etype (Label_Id, Standard_Void_Type);
+
+               Insert_After (Node => Label_Node, After => M);
+
+               Append (Node => Label_Decl, To => Decl_List);
+
+               Label := Label_Entity;
+            end;
+         else
+            --  Some other continue statement for this loop was expanded
+            --  already, so we can reuse the label that is already set up.
+            Label := Entity (Identifier (A));
+         end if;
+      end;
+
+      declare
+         C       : constant Opt_N_Subexpr_Id := Condition (N);
+         Goto_St : constant N_Goto_Statement_Id :=
+           Make_Goto_Statement (Loc, New_Occurrence_Of (Label, Loc));
+
+         New_St : constant Node_Id :=
+           (if Present (C)
+            then Make_If_Statement (Sloc (N), C, New_List (Goto_St))
+            else Goto_St);
+      begin
+         Set_Parent (New_St, Parent (N));
+         Replace (N, New_St);
+      end;
+
+   end Expand_N_Continue_Statement;
+
    -----------------------------
    -- Expand_N_Exit_Statement --
    -----------------------------
 
-   --  The only processing required is to deal with a possible C/Fortran
-   --  boolean value used as the condition for the exit statement.
-
    procedure Expand_N_Exit_Statement (N : Node_Id) is
    begin
-      Adjust_Condition (Condition (N));
+      Expand_Loop_Flow_Statement (N);
    end Expand_N_Exit_Statement;
 
    ----------------------------------
@@ -4476,12 +4560,20 @@ package body Exp_Ch5 is
           Declarations               => New_List (Init_Decl),
           Handled_Statement_Sequence =>
             Make_Handled_Sequence_Of_Statements (Loc,
-              Statements => New_List (New_Loop))));
+              Statements => Empty_List)));
 
-      --  The loop parameter is declared by an object declaration, but within
-      --  the loop we must prevent user assignments to it, so we analyze the
-      --  declaration and reset the entity kind, before analyzing the rest of
-      --  the loop.
+      --  The loop parameter is declared by an object declaration (Init_Decl),
+      --  but within the loop we must prevent user assignments to it, so we
+      --  analyze Init_Decl and reset the entity kind, before analyzing the
+      --  rest of the loop. First Preanalyze the (empty) block statement,
+      --  to set its Identifier, and then push that as the scope in which
+      --  to analyze Init_Decl. Fill in the Statements after preanalysis;
+      --  otherwise we incorrectly duplicate whatever temps are created
+      --  for the loop.
+
+      Preanalyze (N);
+      Push_Scope (Entity (Identifier (N)));
+      Set_Statements (Handled_Statement_Sequence (N), New_List (New_Loop));
 
       Analyze (Init_Decl);
       Init_Name := Defining_Identifier (Init_Decl);
@@ -4492,6 +4584,8 @@ package body Exp_Ch5 is
       Reinit_Field_To_Zero (Init_Name, F_SPARK_Pragma);
       Reinit_Field_To_Zero (Init_Name, F_SPARK_Pragma_Inherited);
       Mutate_Ekind (Init_Name, E_Loop_Parameter);
+
+      Pop_Scope;
 
       --  Wrap the block statements with the condition specified in the
       --  iterator filter when one is present.
@@ -4512,15 +4606,6 @@ package body Exp_Ch5 is
 
       Set_Assignment_OK (Name (Advance));
       Analyze (N);
-
-      --  Because we have to analyze the initial declaration of the loop
-      --  parameter multiple times its scope is incorrectly set at this point
-      --  to the one surrounding the block statement - so set the scope
-      --  manually to be the actual block statement, and indicate that it is
-      --  not visible after the block has been analyzed.
-
-      Set_Scope (Init_Name, Entity (Identifier (N)));
-      Set_Is_Immediately_Visible (Init_Name, False);
    end Expand_Formal_Container_Loop;
 
    ------------------------------------------
@@ -4976,7 +5061,10 @@ package body Exp_Ch5 is
       Array_Dim  : constant Pos        := Number_Dimensions (Array_Typ);
       Id         : constant Entity_Id  := Defining_Identifier (I_Spec);
       Loc        : constant Source_Ptr := Sloc (Isc);
-      Stats      : List_Id    := Statements (N);
+
+      Stats : List_Id := Statements (N);
+      --  Maybe wrapped in a conditional if a filter is present
+
       Core_Loop  : Node_Id;
       Dim1       : Int;
       Ind_Comp   : Node_Id;
@@ -5266,7 +5354,7 @@ package body Exp_Ch5 is
       Id_Kind  : constant Entity_Kind := Ekind (Id);
       Loc      : constant Source_Ptr  := Sloc (N);
 
-      Stats    : List_Id     := Statements (N);
+      Stats : List_Id := Statements (N);
       --  Maybe wrapped in a conditional if a filter is present
 
       Cursor         : Entity_Id;
@@ -5754,7 +5842,6 @@ package body Exp_Ch5 is
       Loc    : constant Source_Ptr := Sloc (N);
       Scheme : constant Node_Id    := Iteration_Scheme (N);
       Stmt   : Node_Id;
-
    begin
       --  Delete null loop
 
@@ -5787,7 +5874,7 @@ package body Exp_Ch5 is
             Loop_Id : constant Entity_Id := Defining_Identifier (LPS);
             Ltype   : constant Entity_Id := Etype (Loop_Id);
             Btype   : constant Entity_Id := Base_Type (Ltype);
-            Stats   : constant List_Id   := Statements (N);
+
             Expr    : Node_Id;
             Decls   : List_Id;
             New_Id  : Entity_Id;
@@ -5808,7 +5895,7 @@ package body Exp_Ch5 is
                Set_Statements (N,
                   New_List (Make_If_Statement (Loc,
                     Condition => Iterator_Filter (LPS),
-                    Then_Statements => Stats)));
+                    Then_Statements => Statements (N))));
                Analyze_List (Statements (N));
             end if;
 
@@ -5928,7 +6015,7 @@ package body Exp_Ch5 is
                        Declarations => Decls,
                        Handled_Statement_Sequence =>
                          Make_Handled_Sequence_Of_Statements (Loc,
-                           Statements => Stats))),
+                           Statements => Statements (N)))),
 
                    End_Label => End_Label (N)));
 
@@ -5978,8 +6065,7 @@ package body Exp_Ch5 is
       --       ...
       --    end loop
 
-      elsif Present (Scheme)
-        and then Present (Condition_Actions (Scheme))
+      elsif Present (Condition_Actions (Scheme))
         and then Present (Condition (Scheme))
       then
          declare
@@ -6011,9 +6097,7 @@ package body Exp_Ch5 is
 
       --  Here to deal with iterator case
 
-      elsif Present (Scheme)
-        and then Present (Iterator_Specification (Scheme))
-      then
+      elsif Present (Iterator_Specification (Scheme)) then
          Expand_Iterator_Loop (N);
 
          --  An iterator loop may generate renaming declarations for elements
@@ -6043,6 +6127,18 @@ package body Exp_Ch5 is
 
       Process_Statements_For_Controlled_Objects (Stmt);
    end Expand_N_Loop_Statement;
+
+   --------------------------------
+   -- Expand_Loop_Flow_Statement --
+   --------------------------------
+
+   --  The only processing required is to deal with a possible C/Fortran
+   --  boolean value used as the condition for the statement.
+
+   procedure Expand_Loop_Flow_Statement (N : N_Loop_Flow_Statement_Id) is
+   begin
+      Adjust_Condition (Condition (N));
+   end Expand_Loop_Flow_Statement;
 
    ----------------------------
    -- Expand_Predicated_Loop --

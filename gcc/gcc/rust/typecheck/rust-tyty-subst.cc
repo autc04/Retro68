@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -18,18 +18,22 @@
 
 #include "rust-tyty-subst.h"
 
+#include "rust-hir-generic-param.h"
 #include "rust-system.h"
 #include "rust-tyty.h"
 #include "rust-hir-type-check.h"
 #include "rust-substitution-mapper.h"
 #include "rust-hir-type-check-type.h"
+#include "rust-hir-type-check-expr.h"
+#include "rust-compile-base.h"
 #include "rust-type-util.h"
+#include "tree.h"
 
 namespace Rust {
 namespace TyTy {
 
-SubstitutionParamMapping::SubstitutionParamMapping (HIR::TypeParam &generic,
-						    ParamType *param)
+SubstitutionParamMapping::SubstitutionParamMapping (HIR::GenericParam &generic,
+						    BaseGeneric *param)
   : generic (generic), param (param)
 {}
 
@@ -50,24 +54,30 @@ SubstitutionParamMapping::as_string () const
 SubstitutionParamMapping
 SubstitutionParamMapping::clone () const
 {
-  return SubstitutionParamMapping (generic,
-				   static_cast<ParamType *> (param->clone ()));
+  return SubstitutionParamMapping (generic, static_cast<BaseGeneric *> (
+					      param->clone ()));
 }
 
-ParamType *
+BaseGeneric *
 SubstitutionParamMapping::get_param_ty ()
 {
   return param;
 }
 
-const ParamType *
+const BaseGeneric *
 SubstitutionParamMapping::get_param_ty () const
 {
   return param;
 }
 
-HIR::TypeParam &
+HIR::GenericParam &
 SubstitutionParamMapping::get_generic_param ()
+{
+  return generic;
+}
+
+const HIR::GenericParam &
+SubstitutionParamMapping::get_generic_param () const
 {
   return generic;
 }
@@ -76,6 +86,12 @@ bool
 SubstitutionParamMapping::needs_substitution () const
 {
   return !(get_param_ty ()->is_concrete ());
+}
+
+Identifier
+SubstitutionParamMapping::get_type_representation () const
+{
+  return param->get_symbol ();
 }
 
 location_t
@@ -87,13 +103,35 @@ SubstitutionParamMapping::get_param_locus () const
 bool
 SubstitutionParamMapping::param_has_default_ty () const
 {
-  return generic.has_type ();
+  if (generic.get_kind () == HIR::GenericParam::GenericKind::TYPE)
+    {
+      const auto &type_param = static_cast<const HIR::TypeParam &> (generic);
+      return type_param.has_type ();
+    }
+
+  rust_assert (generic.get_kind () == HIR::GenericParam::GenericKind::CONST);
+  const auto &const_param
+    = static_cast<const HIR::ConstGenericParam &> (generic);
+  return const_param.has_default_expression ();
 }
 
 BaseType *
 SubstitutionParamMapping::get_default_ty () const
 {
-  TyVar var (generic.get_type_mappings ().get_hirid ());
+  if (generic.get_kind () == HIR::GenericParam::GenericKind::TYPE)
+    {
+      const auto &type_param = static_cast<const HIR::TypeParam &> (generic);
+      TyVar var (type_param.get_type_mappings ().get_hirid ());
+      return var.get_tyty ();
+    }
+
+  rust_assert (generic.get_kind () == HIR::GenericParam::GenericKind::CONST);
+  const auto &const_param
+    = static_cast<const HIR::ConstGenericParam &> (generic);
+  rust_assert (const_param.has_default_expression ());
+
+  const auto &expr = const_param.get_default_expression ();
+  TyVar var (expr.get_mappings ().get_hirid ());
   return var.get_tyty ();
 }
 
@@ -109,7 +147,8 @@ SubstitutionParamMapping::need_substitution () const
 
 bool
 SubstitutionParamMapping::fill_param_ty (
-  SubstitutionArgumentMappings &subst_mappings, location_t locus)
+  SubstitutionArgumentMappings &subst_mappings, location_t locus,
+  bool needs_bounds_check)
 {
   SubstitutionArg arg = SubstitutionArg::error ();
   bool ok = subst_mappings.get_argument_for_symbol (get_param_ty (), &arg);
@@ -124,17 +163,26 @@ SubstitutionParamMapping::fill_param_ty (
 
   if (type.get_kind () == TypeKind::PARAM)
     {
-      // delete param;
-      param = static_cast<ParamType *> (type.clone ());
+      param = static_cast<BaseGeneric *> (type.clone ());
     }
-  else
+  else if (type.get_kind () == TyTy::TypeKind::CONST)
     {
+      rust_assert (param->get_kind () == TyTy::TypeKind::CONST);
+      auto *const_type = type.as_const_type ();
+      if (const_type->const_kind () == TyTy::BaseConstType::ConstKind::Decl)
+	param = static_cast<BaseGeneric *> (type.clone ());
+      else
+	param->set_ty_ref (type.get_ref ());
+    }
+  else if (param->get_kind () == TypeKind::PARAM)
+    {
+      auto &p = *static_cast<TyTy::ParamType *> (param);
+
       // check the substitution is compatible with bounds
       rust_debug_loc (locus,
 		      "fill_param_ty bounds_compatible: param %s type %s",
 		      param->get_name ().c_str (), type.get_name ().c_str ());
-
-      if (!param->is_implicit_self_trait ())
+      if (needs_bounds_check && !p.is_implicit_self_trait ())
 	{
 	  if (!param->bounds_compatible (type, locus, true))
 	    return false;
@@ -145,7 +193,7 @@ SubstitutionParamMapping::fill_param_ty (
 	bound.handle_substitions (subst_mappings);
 
       param->set_ty_ref (type.get_ref ());
-      subst_mappings.on_param_subst (*param, arg);
+      subst_mappings.on_param_subst (p, arg);
     }
 
   return true;
@@ -191,12 +239,6 @@ SubstitutionArg::operator= (const SubstitutionArg &other)
 }
 
 BaseType *
-SubstitutionArg::get_tyty ()
-{
-  return argument;
-}
-
-const BaseType *
 SubstitutionArg::get_tyty () const
 {
   return argument;
@@ -208,7 +250,7 @@ SubstitutionArg::get_param_mapping () const
   return param;
 }
 
-const ParamType *
+const BaseGeneric *
 SubstitutionArg::get_param_ty () const
 {
   return original_param;
@@ -313,11 +355,11 @@ SubstitutionArgumentMappings::is_error () const
 
 bool
 SubstitutionArgumentMappings::get_argument_for_symbol (
-  const ParamType *param_to_find, SubstitutionArg *argument) const
+  const BaseGeneric *param_to_find, SubstitutionArg *argument) const
 {
   for (const auto &mapping : mappings)
     {
-      const ParamType *p = mapping.get_param_ty ();
+      const auto *p = mapping.get_param_ty ();
       if (p->get_symbol () == param_to_find->get_symbol ())
 	{
 	  *argument = mapping;
@@ -517,6 +559,7 @@ std::vector<SubstitutionParamMapping>
 SubstitutionRef::clone_substs () const
 {
   std::vector<SubstitutionParamMapping> clone;
+  clone.reserve (substitutions.size ());
 
   for (auto &sub : substitutions)
     clone.push_back (sub.clone ());
@@ -618,7 +661,6 @@ SubstitutionRef::get_mappings_from_generic_args (
 	  if (args.get_binding_args ().size () > get_num_associated_bindings ())
 	    {
 	      rich_location r (line_table, args.get_locus ());
-
 	      rust_error_at (r,
 			     "generic item takes at most %lu type binding "
 			     "arguments but %lu were supplied",
@@ -666,11 +708,17 @@ SubstitutionRef::get_mappings_from_generic_args (
 
   // for inherited arguments
   size_t offs = used_arguments.size ();
-  if (args.get_type_args ().size () + offs > substitutions.size ())
+  size_t total_arguments
+    = args.get_type_args ().size () + args.get_const_args ().size () + offs;
+  if (total_arguments > substitutions.size ())
     {
       rich_location r (line_table, args.get_locus ());
       if (!substitutions.empty ())
-	r.add_range (substitutions.front ().get_param_locus ());
+	{
+	  const auto &subst = substitutions.front ();
+	  const auto &generic = subst.get_generic_param ();
+	  r.add_range (generic.get_locus ());
+	}
 
       rust_error_at (
 	r,
@@ -680,10 +728,15 @@ SubstitutionRef::get_mappings_from_generic_args (
       return SubstitutionArgumentMappings::error ();
     }
 
-  if (args.get_type_args ().size () + offs < min_required_substitutions ())
+  if (total_arguments < min_required_substitutions ())
     {
       rich_location r (line_table, args.get_locus ());
-      r.add_range (substitutions.front ().get_param_locus ());
+      if (!substitutions.empty ())
+	{
+	  const auto &subst = substitutions.front ();
+	  const auto &generic = subst.get_generic_param ();
+	  r.add_range (generic.get_locus ());
+	}
 
       rust_error_at (
 	r, ErrorCode::E0107,
@@ -702,9 +755,125 @@ SubstitutionRef::get_mappings_from_generic_args (
 	  return SubstitutionArgumentMappings::error ();
 	}
 
-      SubstitutionArg subst_arg (&substitutions.at (offs), resolved);
+      const auto &param_mapping = substitutions.at (offs);
+      const auto &generic = param_mapping.get_generic_param ();
+      if (generic.get_kind () == HIR::GenericParam::GenericKind::TYPE)
+	{
+	  const auto &type_param
+	    = static_cast<const HIR::TypeParam &> (generic);
+	  if (type_param.from_impl_trait ())
+	    {
+	      rich_location r (line_table, arg->get_locus ());
+	      r.add_fixit_remove (arg->get_locus ());
+	      rust_error_at (r, ErrorCode::E0632,
+			     "cannot provide explicit generic arguments when "
+			     "%<impl Trait%> is used in argument position");
+	      return SubstitutionArgumentMappings::error ();
+	    }
+	}
+      else if (generic.get_kind () == HIR::GenericParam::GenericKind::CONST)
+	{
+	  if (resolved->get_kind () != TyTy::TypeKind::CONST)
+	    {
+	      rich_location r (line_table, arg->get_locus ());
+	      r.add_fixit_remove (arg->get_locus ());
+	      rust_error_at (r, ErrorCode::E0747,
+			     "type provided when a constant was expected");
+	      return SubstitutionArgumentMappings::error ();
+	    }
+	}
+
+      mappings.emplace_back (&param_mapping, resolved);
       offs++;
-      mappings.push_back (std::move (subst_arg));
+    }
+
+  for (auto &arg : args.get_const_args ())
+    {
+      auto &expr = *arg.get_expression ().get ();
+      BaseType *expr_type = Resolver::TypeCheckExpr::Resolve (expr);
+      if (expr_type == nullptr || expr_type->is<ErrorType> ())
+	return SubstitutionArgumentMappings::error ();
+
+      // validate this param is really a const generic
+      const auto &param_mapping = substitutions.at (offs);
+      const auto &generic = param_mapping.get_generic_param ();
+      if (generic.get_kind () != HIR::GenericParam::GenericKind::CONST)
+	{
+	  rich_location r (line_table, arg.get_locus ());
+	  r.add_fixit_remove (expr.get_locus ());
+	  rust_error_at (r, "invalid position for a const generic argument");
+	  return SubstitutionArgumentMappings::error ();
+	}
+
+      // get the const generic specified type
+      const auto base_generic = param_mapping.get_param_ty ();
+      rust_assert (base_generic->get_kind () == TyTy::TypeKind::CONST);
+      const auto const_param
+	= static_cast<const TyTy::ConstParamType *> (base_generic);
+      auto specified_type = const_param->get_specified_type ();
+
+      // validate this const generic is of the correct type
+      TyTy::BaseType *coereced_type = nullptr;
+      if (expr_type->get_kind () == TyTy::TypeKind::CONST)
+	{
+	  auto const_expr_type = expr_type->as_const_type ();
+	  auto const_value_type = const_expr_type->get_specified_type ();
+	  coereced_type
+	    = Resolver::coercion_site (expr.get_mappings ().get_hirid (),
+				       TyTy::TyWithLocation (specified_type),
+				       TyTy::TyWithLocation (const_value_type,
+							     expr.get_locus ()),
+				       arg.get_locus ());
+	}
+      else
+	{
+	  coereced_type
+	    = Resolver::coercion_site (expr.get_mappings ().get_hirid (),
+				       TyTy::TyWithLocation (specified_type),
+				       TyTy::TyWithLocation (expr_type,
+							     expr.get_locus ()),
+				       arg.get_locus ());
+	}
+
+      if (coereced_type == nullptr || coereced_type->is<ErrorType> ())
+	return SubstitutionArgumentMappings::error ();
+
+      TyTy::BaseType *const_value_ty = nullptr;
+      if (expr_type->get_kind () == TyTy::TypeKind::CONST)
+	const_value_ty = expr_type;
+      else
+	{
+	  // const fold it if available
+	  auto ctx = Compile::Context::get ();
+	  tree folded
+	    = Compile::HIRCompileBase::query_compile_const_expr (ctx,
+								 coereced_type,
+								 expr);
+
+	  if (folded == error_mark_node)
+	    {
+	      rich_location r (line_table, arg.get_locus ());
+	      r.add_range (expr.get_locus ());
+	      rust_error_at (r, "failed to resolve const expression");
+	      return SubstitutionArgumentMappings::error ();
+	    }
+
+	  // Use a fresh HirId to avoid conflicts with the expr's type
+	  auto &global_mappings = Analysis::Mappings::get ();
+	  HirId const_value_id = global_mappings.get_next_hir_id ();
+	  const_value_ty
+	    = new TyTy::ConstValueType (folded, coereced_type, const_value_id,
+					const_value_id, {});
+
+	  // Insert the ConstValueType into the context so it can be looked up
+	  auto context = Resolver::TypeCheckContext::get ();
+	  context->insert_type (
+	    Analysis::NodeMapping (0, 0, const_value_ty->get_ref (), 0),
+	    const_value_ty);
+	}
+
+      mappings.emplace_back (&param_mapping, const_value_ty);
+      offs++;
     }
 
   // we must need to fill out defaults
@@ -734,8 +903,7 @@ SubstitutionRef::get_mappings_from_generic_args (
 		return SubstitutionArgumentMappings::error ();
 	    }
 
-	  SubstitutionArg subst_arg (&param, resolved);
-	  mappings.push_back (std::move (subst_arg));
+	  mappings.emplace_back (&param, resolved);
 	}
     }
 
@@ -754,24 +922,31 @@ SubstitutionRef::infer_substitions (location_t locus)
     {
       if (p.needs_substitution ())
 	{
+	  const HIR::GenericParam &generic = p.get_generic_param ();
 	  const std::string &symbol = p.get_param_ty ()->get_symbol ();
 	  auto it = argument_mappings.find (symbol);
 	  bool have_mapping = it != argument_mappings.end ();
 
 	  if (have_mapping)
 	    {
-	      args.push_back (SubstitutionArg (&p, it->second));
+	      args.emplace_back (&p, it->second);
 	    }
-	  else
+	  else if (generic.get_kind () == HIR::GenericParam::GenericKind::TYPE)
 	    {
 	      TyVar infer_var = TyVar::get_implicit_infer_var (locus);
-	      args.push_back (SubstitutionArg (&p, infer_var.get_tyty ()));
+	      args.emplace_back (&p, infer_var.get_tyty ());
+	      argument_mappings[symbol] = infer_var.get_tyty ();
+	    }
+	  else if (generic.get_kind () == HIR::GenericParam::GenericKind::CONST)
+	    {
+	      TyVar infer_var = TyVar::get_implicit_const_infer_var (locus);
+	      args.emplace_back (&p, infer_var.get_tyty ());
 	      argument_mappings[symbol] = infer_var.get_tyty ();
 	    }
 	}
       else
 	{
-	  args.push_back (SubstitutionArg (&p, p.get_param_ty ()->resolve ()));
+	  args.emplace_back (&p, p.get_param_ty ()->resolve ());
 	}
     }
 
@@ -817,10 +992,7 @@ SubstitutionRef::adjust_mappings_for_this (
 
       bool ok = !arg.is_error ();
       if (ok || (trait_mode && i == 0))
-	{
-	  SubstitutionArg adjusted (&subst, arg.get_tyty ());
-	  resolved_mappings.push_back (std::move (adjusted));
-	}
+	resolved_mappings.emplace_back (&subst, arg.get_tyty ());
     }
 
   if (resolved_mappings.empty ())
@@ -864,10 +1036,7 @@ SubstitutionRef::are_mappings_bound (SubstitutionArgumentMappings &mappings)
 
       bool ok = !arg.is_error ();
       if (ok)
-	{
-	  SubstitutionArg adjusted (&subst, arg.get_tyty ());
-	  resolved_mappings.push_back (std::move (adjusted));
-	}
+	resolved_mappings.emplace_back (&subst, arg.get_tyty ());
     }
 
   return !resolved_mappings.empty ();
@@ -888,10 +1057,7 @@ SubstitutionRef::solve_mappings_from_receiver_for_self (
       SubstitutionArg &arg = mappings.get_mappings ().at (i);
 
       if (param_mapping.needs_substitution ())
-	{
-	  SubstitutionArg adjusted (&param_mapping, arg.get_tyty ());
-	  resolved_mappings.push_back (std::move (adjusted));
-	}
+	resolved_mappings.emplace_back (&param_mapping, arg.get_tyty ());
     }
 
   return SubstitutionArgumentMappings (resolved_mappings,
@@ -905,7 +1071,7 @@ SubstitutionRef::prepare_higher_ranked_bounds ()
 {
   for (const auto &subst : get_substs ())
     {
-      const TyTy::ParamType *pty = subst.get_param_ty ();
+      const auto pty = subst.get_param_ty ();
       for (const auto &bound : pty->get_specified_bounds ())
 	{
 	  const auto ref = bound.get ();
@@ -919,12 +1085,11 @@ SubstitutionRef::monomorphize ()
 {
   for (const auto &subst : get_substs ())
     {
-      const TyTy::ParamType *pty = subst.get_param_ty ();
-
+      const auto pty = subst.get_param_ty ();
       if (!pty->can_resolve ())
 	continue;
 
-      const TyTy::BaseType *binding = pty->resolve ();
+      TyTy::BaseType *binding = pty->resolve ();
       if (binding->get_kind () == TyTy::TypeKind::PARAM)
 	continue;
 

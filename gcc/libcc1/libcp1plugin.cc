@@ -1,5 +1,5 @@
 /* Library interface to C++ front end.
-   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.  As it interacts with GDB through libcc1,
    they all become a single program as regards the GNU GPL's requirements.
@@ -1568,7 +1568,8 @@ start_class_def (tree type,
 
 	  tree base = finish_base_specifier
 	    (convert_in (base_classes->elements[i]), access,
-	     (base_classes->flags[i] & GCC_CP_FLAG_BASECLASS_VIRTUAL) != 0);
+	     (base_classes->flags[i] & GCC_CP_FLAG_BASECLASS_VIRTUAL) != 0,
+	     NULL_TREE);
 	  TREE_CHAIN (base) = bases;
 	  bases = base;
 	}

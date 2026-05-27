@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -217,10 +217,11 @@ package Sem_Attr is
       -----------------------
 
       Attribute_Finalization_Size => True,
-      --  For every object or non-class-wide-type, Finalization_Size returns
-      --  the size of the hidden header used for finalization purposes as if
+      --  For every object or type, Finalization_Size returns the (possibly
+      --  zero) size of the hidden header used for finalization purposes as if
       --  the object or type was allocated on the heap. The size of the header
       --  does take into account any extra padding due to alignment issues.
+      --  See Sem_Util.Needs_Finalization for treatment of class-wide types.
 
       -----------------
       -- Fixed_Value --
@@ -318,6 +319,12 @@ package Sem_Attr is
       Attribute_Machine_Size => True,
       --  This attribute is identical to the Object_Size attribute. It is
       --  provided for compatibility with the DEC attribute of this name.
+
+      ----------
+      -- Make --
+      ----------
+
+      Attribute_Make => True,
 
       ----------------------
       -- Max_Integer_Size --
@@ -532,6 +539,15 @@ package Sem_Attr is
       --  subprograms means that Unrestricted_Access applied to a subprogram
       --  yields a value that can be called as long as the subprogram is in
       --  scope (normal Ada 95 accessibility rules restrict this usage).
+
+      -------------------------
+      -- Unsigned_Base_Range --
+      -------------------------
+
+      Attribute_Unsigned_Base_Range => True,
+      --  GNAT core extension. The prefix of 'Unsigned_Base_Range must be a
+      --  signed integer type. The static result is a boolean that indicates
+      --  whether the base range is unsigned.
 
       ---------------
       -- VADS_Size --

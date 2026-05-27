@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,7 +19,10 @@
 
 #include <atomic>
 
-std::atomic<const int> a; // { dg-error "here" }
+std::atomic<const int> ca; // { dg-error "here" }
+std::atomic<volatile int> va; // { dg-error "here" } 
+std::atomic<const volatile int> cva; // { dg-error "here" } 
+// { dg-error "assignment to read-only type" "" { target *-*-* } 0 }
 
 struct MoveOnly
 {
@@ -40,3 +43,4 @@ struct NoMove
 std::atomic<NoMove> c; // { dg-error "here" }
 
 // { dg-error "static assertion failed" "" { target *-*-* } 0 }
+// { dg-error "use of deleted function" "" { target *-*-* } 0 }

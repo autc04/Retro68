@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,11 +26,9 @@
 with Aspects;        use Aspects;
 with Atree;          use Atree;
 with Checks;         use Checks;
-with Debug;          use Debug;
-with Diagnostics.Constructors; use Diagnostics.Constructors;
-with Einfo;          use Einfo;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
+with Errid;          use Errid;
 with Errout;         use Errout;
 with Expander;       use Expander;
 with Exp_Tss;        use Exp_Tss;
@@ -60,7 +58,6 @@ with Sem_Res;        use Sem_Res;
 with Sem_Util;       use Sem_Util;
 with Sem_Type;       use Sem_Type;
 with Sem_Warn;       use Sem_Warn;
-with Sinfo;          use Sinfo;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Snames;         use Snames;
 with Stringt;        use Stringt;
@@ -1137,10 +1134,18 @@ package body Sem_Aggr is
    begin
       Error_Msg_Warn := SPARK_Mode /= On;
 
-      if Is_Modular_Integer_Type (Index_Typ) then
+      if Has_Modular_Operations (Index_Typ) then
          Error_Msg_N
            ("null array aggregate indexed by a modular type<<", N);
-      else
+
+      elsif Is_Modular_Integer_Type (Index_Typ)
+        and then Has_Unsigned_Base_Range_Aspect (Base_Type (Index_Typ))
+      then
+         Error_Msg_N
+           ("null array aggregate indexed by an unsigned base range type<<",
+            N);
+
+      elsif Is_Enumeration_Type (Index_Typ) then
          Error_Msg_N
            ("null array aggregate indexed by an enumeration type<<", N);
       end if;
@@ -3332,6 +3337,24 @@ package body Sem_Aggr is
                      --  Not needed if others, since missing impossible.
 
                      if No (Others_N) then
+                        --  We are dealing with a gap in the indicies. However
+                        --  we should also check for an out of bounds error. If
+                        --  there exists an out of bounds error then we should
+                        --  not be suggesting that the user should add the
+                        --  missing indices but rather remove the ones that are
+                        --  out of bounds.
+
+                        Aggr_Low := Table (1).Lo;
+                        Aggr_High := Table (Nb_Discrete_Choices).Hi;
+
+                        Check_Bounds
+                          (Index_Typ_Low, Index_Typ_High, Aggr_Low, Aggr_High);
+                        Check_Bounds
+                          (Index_Base_Low,
+                           Index_Base_High,
+                           Aggr_Low,
+                           Aggr_High);
+
                         for J in 2 .. Nb_Discrete_Choices loop
                            Lo_Val := Expr_Value (Table (J).Lo);
                            Hi_Val := Table (J - 1).Highest;
@@ -3359,11 +3382,13 @@ package body Sem_Aggr is
                                  if Hi_Val + 1 = Lo_Val - 1 then
                                     Error_Msg_N
                                       ("missing index value "
-                                       & "in array aggregate!", Error_Node);
+                                       & "in array aggregate!",
+                                       Error_Node);
                                  else
                                     Error_Msg_N
                                       ("missing index values "
-                                       & "in array aggregate!", Error_Node);
+                                       & "in array aggregate!",
+                                       Error_Node);
                                  end if;
 
                                  Output_Bad_Choices
@@ -3790,7 +3815,7 @@ package body Sem_Aggr is
       --  a subtype indication or an iterator specification that determines
       --  an element type.
 
-      Asp   : constant Node_Id := Find_Value_Of_Aspect (Typ, Aspect_Aggregate);
+      Asp : constant Node_Id := Find_Value_Of_Aspect (Typ, Aspect_Aggregate);
 
       Empty_Subp          : Node_Id := Empty;
       Add_Named_Subp      : Node_Id := Empty;
@@ -3807,65 +3832,50 @@ package body Sem_Aggr is
          Key_Type  : Entity_Id;
          Elmt_Type : Entity_Id)
       is
-         Loc           : constant Source_Ptr := Sloc (N);
+         Loc : constant Source_Ptr := Sloc (N);
+
          Choice        : Node_Id;
          Copy          : Node_Id;
-         Ent           : Entity_Id;
-         Expr          : Node_Id;
          Key_Expr      : Node_Id := Empty;
          Id            : Entity_Id;
-         Id_Name       : Name_Id;
-         Typ           : Entity_Id := Empty;
-         Loop_Param_Id : Entity_Id := Empty;
+         Scop          : Entity_Id;
+         Typ           : Entity_Id;
 
       begin
-         Error_Msg_Ada_2022_Feature ("iterated component", Loc);
+         Error_Msg_Ada_2022_Feature ("iterated element", Loc);
 
-         --  If this is an Iterated_Element_Association then either a
-         --  an Iterator_Specification or a Loop_Parameter specification
+         --  Create a scope in which to introduce an index, to make it visible
+         --  for the analysis of element expression.
+
+         Scop := New_Internal_Entity (E_Loop, Current_Scope, Sloc (Comp), 'L');
+         Set_Etype  (Scop, Standard_Void_Type);
+         Set_Parent (Scop, Parent (Comp));
+         Push_Scope (Scop);
+
+         --  If this is an Iterated_Element_Association, then either an
+         --  Iterator_Specification or a Loop_Parameter specification
          --  is present.
 
          if Nkind (Comp) = N_Iterated_Element_Association then
-
-            --  Create a temporary scope to avoid some modifications from
-            --  escaping the Analyze call below. The original Tree will be
-            --  reanalyzed later.
-
-            Ent := New_Internal_Entity
-                     (E_Loop, Current_Scope, Sloc (Comp), 'L');
-            Set_Etype  (Ent, Standard_Void_Type);
-            Set_Parent (Ent, Parent (Comp));
-            Push_Scope (Ent);
-
-            if Present (Loop_Parameter_Specification (Comp)) then
-               Copy := Copy_Separate_Tree (Comp);
-               Set_Parent (Copy, Parent (Comp));
-
-               Analyze
-                 (Loop_Parameter_Specification (Copy));
-
-               if Present (Iterator_Specification (Copy)) then
-                  Loop_Param_Id :=
-                    Defining_Identifier (Iterator_Specification (Copy));
-               else
-                  Loop_Param_Id :=
-                    Defining_Identifier (Loop_Parameter_Specification (Copy));
-               end if;
-
-               Id_Name := Chars (Loop_Param_Id);
+            if Present (Iterator_Specification (Comp)) then
+               Preanalyze (Iterator_Specification (Comp));
             else
-               Copy := Copy_Separate_Tree (Iterator_Specification (Comp));
-               Analyze (Copy);
+               Preanalyze (Loop_Parameter_Specification (Comp));
+            end if;
 
-               Loop_Param_Id := Defining_Identifier (Copy);
+            --  Note that analyzing Loop_Parameter_Specification (Comp) above
+            --  may have turned it into Iterator_Specification (Comp), so the
+            --  following statement cannot be merged with the above one.
 
-               Id_Name := Chars (Loop_Param_Id);
+            if Present (Iterator_Specification (Comp)) then
+               Id := Defining_Identifier (Iterator_Specification (Comp));
+            else
+               Id := Defining_Identifier (Loop_Parameter_Specification (Comp));
             end if;
 
             --  Key expression must have the type of the key. We preanalyze
-            --  a copy of the original expression, because it will be
-            --  reanalyzed and copied as needed during expansion of the
-            --  corresponding loop.
+            --  the expression, because it will be copied and reanalyzed as
+            --  needed during expansion of the corresponding loop.
 
             Key_Expr := Key_Expression (Comp);
             if Present (Key_Expr) then
@@ -3876,36 +3886,18 @@ package body Sem_Aggr is
                        & "(RM22 4.3.5(24))",
                      Comp);
                else
-                  Preanalyze_And_Resolve (New_Copy_Tree (Key_Expr), Key_Type);
+                  Preanalyze_And_Resolve (Key_Expr, Key_Type);
                end if;
             end if;
-            End_Scope;
 
-            Typ := Etype (Loop_Param_Id);
+         --  This is an N_Iterated_Component_Association. If there is iterator
+         --  specification, then its preanalysis will make the index visible.
 
          elsif Present (Iterator_Specification (Comp)) then
-            --  Create a temporary scope to avoid some modifications from
-            --  escaping the Analyze call below. The original Tree will be
-            --  reanalyzed later.
+            Preanalyze (Iterator_Specification (Comp));
+            Id := Defining_Identifier (Iterator_Specification (Comp));
 
-            Ent := New_Internal_Entity
-                     (E_Loop, Current_Scope, Sloc (Comp), 'L');
-            Set_Etype  (Ent, Standard_Void_Type);
-            Set_Parent (Ent, Parent (Comp));
-            Push_Scope (Ent);
-
-            Copy := Copy_Separate_Tree (Iterator_Specification (Comp));
-
-            Loop_Param_Id :=
-              Defining_Identifier (Iterator_Specification (Comp));
-
-            Id_Name := Chars (Loop_Param_Id);
-
-            Preanalyze (Copy);
-
-            End_Scope;
-
-            Typ := Etype (Defining_Identifier (Copy));
+         --  Otherwise, analyze discrete choices and make the index visible
 
          else
             Choice := First (Discrete_Choices (Comp));
@@ -3936,27 +3928,24 @@ package body Sem_Aggr is
               and then Present (Key_Type)
               and then Base_Type (Entity (Choice)) = Base_Type (Key_Type)
             then
-               null;
+               Typ := Entity (Choice);
 
             elsif Is_Object_Reference (Choice) then
-               declare
-                  I_Spec : constant Node_Id :=
-                    Make_Iterator_Specification (Sloc (N),
-                      Defining_Identifier =>
-                        Relocate_Node (Defining_Identifier (Comp)),
-                      Name                => Copy,
-                      Reverse_Present     => Reverse_Present (Comp),
-                      Iterator_Filter     => Empty,
-                      Subtype_Indication  => Empty);
-               begin
-                  Set_Iterator_Specification (Comp, I_Spec);
-                  Set_Defining_Identifier (Comp, Empty);
+               End_Scope;
 
-                  Resolve_Iterated_Association (Comp, Key_Type, Elmt_Type);
-                  --  Recursive call to expand association as iterator_spec
+               --  Recurse to expand association as Iterator_Specification
 
-                  return;
-               end;
+               Set_Iterator_Specification (Comp,
+                 Make_Iterator_Specification (Sloc (N),
+                   Defining_Identifier =>
+                     Relocate_Node (Defining_Identifier (Comp)),
+                   Name                => Copy,
+                   Reverse_Present     => Reverse_Present (Comp),
+                   Iterator_Filter     => Empty,
+                   Subtype_Indication  => Empty));
+               Set_Defining_Identifier (Comp, Empty);
+               Resolve_Iterated_Association (Comp, Key_Type, Elmt_Type);
+               return;
 
             elsif Present (Key_Type) then
                Analyze_And_Resolve (Choice, Key_Type);
@@ -3966,38 +3955,17 @@ package body Sem_Aggr is
                Typ := Etype (Choice);  --  assume unique for now
             end if;
 
-            Loop_Param_Id :=
-              Defining_Identifier (Comp);
+            Id := Defining_Identifier (Comp);
 
-            Id_Name := Chars (Loop_Param_Id);
+            Enter_Name (Id);
+
+            --  Decorate the index variable
+
+            Set_Etype (Id, Typ);
+            Mutate_Ekind (Id, E_Variable);
+            Set_Is_Not_Self_Hidden (Id);
+            Set_Scope (Id, Scop);
          end if;
-
-         --  Create a scope in which to introduce an index, which is usually
-         --  visible in the expression for the component, and needed for its
-         --  analysis.
-
-         Id := Make_Defining_Identifier (Sloc (Comp), Id_Name);
-         Ent := New_Internal_Entity (E_Loop,
-                  Current_Scope, Sloc (Comp), 'L');
-         Set_Etype  (Ent, Standard_Void_Type);
-         Set_Parent (Ent, Parent (Comp));
-         Push_Scope (Ent);
-
-         --  Insert and decorate the loop variable in the current scope.
-         --  The expression has to be analyzed once the loop variable is
-         --  directly visible. Mark the variable as referenced to prevent
-         --  spurious warnings, given that subsequent uses of its name in the
-         --  expression will reference the internal (synonym) loop variable.
-
-         Enter_Name (Id);
-
-         pragma Assert (Present (Typ));
-         Set_Etype (Id, Typ);
-
-         Mutate_Ekind (Id, E_Variable);
-         Set_Is_Not_Self_Hidden (Id);
-         Set_Scope (Id, Ent);
-         Set_Referenced (Id);
 
          --  Check for violation of 4.3.5(27/5)
 
@@ -4006,22 +3974,20 @@ package body Sem_Aggr is
            and then
              (Is_Indexed_Aggregate (N, Add_Unnamed_Subp, New_Indexed_Subp)
                or else Present (Add_Named_Subp))
-           and then Base_Type (Key_Type) /= Base_Type (Typ)
+           and then Base_Type (Key_Type) /= Base_Type (Etype (Id))
          then
             Error_Msg_Node_2 := Key_Type;
             Error_Msg_NE
               ("loop parameter type & must be same as key type & " &
-               "(RM22 4.3.5(27))", Loop_Param_Id, Typ);
+               "(RM22 4.3.5(27))", Id, Etype (Id));
          end if;
 
-         --  Analyze a copy of the expression, to verify legality. We use
-         --  a copy because the expression will be analyzed anew when the
-         --  enclosing aggregate is expanded, and the construct is rewritten
-         --  as a loop with a new index variable.
+         --  Preanalyze the expression, to verify legality. We preanalyze it
+         --  because the expression will be analyzed anew when the enclosing
+         --  aggregate is expanded, and the construct is rewritten as a loop
+         --  with a new index variable.
 
-         Expr := Copy_Separate_Tree (Expression (Comp));
-         Set_Parent (Expr, Comp);
-         Preanalyze_And_Resolve (Expr, Elmt_Type);
+         Preanalyze_And_Resolve (Expression (Comp), Elmt_Type);
          End_Scope;
       end Resolve_Iterated_Association;
 
@@ -4038,22 +4004,25 @@ package body Sem_Aggr is
       if Present (First (Expressions (N)))
         and then Present (First (Component_Associations (N)))
       then
-         if Debug_Flag_Underscore_DD then
-            Record_Mixed_Container_Aggregate_Error
-              (Aggr       => N,
-               Pos_Elem   => First (Expressions (N)),
-               Named_Elem => First (Component_Associations (N)));
-         else
-            Error_Msg_N
-              ("container aggregate cannot be both positional and named", N);
-         end if;
+         Error_Msg_N
+           (Msg        =>
+              "container aggregate cannot be both positional and named",
+            N          => N,
+            Error_Code => GNAT0006,
+            Spans      =>
+              (1 =>
+                 Secondary_Labeled_Span
+                   (First (Expressions (N)), "positional element "),
+               2 =>
+                 Secondary_Labeled_Span
+                   (First (Component_Associations (N)), "named element")));
          return;
       end if;
 
       if Present (Add_Unnamed_Subp)
         and then No (New_Indexed_Subp)
-        and then Present (Etype (Add_Unnamed_Subp))
-        and then Etype (Add_Unnamed_Subp) /= Any_Type
+        and then Present (Entity (Add_Unnamed_Subp))
+        and then Entity (Add_Unnamed_Subp) /= Any_Id
       then
          declare
             Elmt_Type : constant Entity_Id :=
@@ -4080,12 +4049,10 @@ package body Sem_Aggr is
                   Comp : Node_Id := First (Component_Associations (N));
                begin
                   while Present (Comp) loop
-                     if Nkind (Comp) in
-                       N_Iterated_Component_Association |
-                       N_Iterated_Element_Association
+                     if Nkind (Comp) in N_Iterated_Component_Association
+                                      | N_Iterated_Element_Association
                      then
-                        Resolve_Iterated_Association
-                          (Comp, Empty, Elmt_Type);
+                        Resolve_Iterated_Association (Comp, Empty, Elmt_Type);
                      else
                         Error_Msg_N ("illegal component association "
                           & "for unnamed container aggregate", Comp);
@@ -4099,7 +4066,8 @@ package body Sem_Aggr is
          end;
 
       elsif Present (Add_Named_Subp)
-        and then Etype (Add_Named_Subp) /= Any_Type
+        and then Present (Entity (Add_Named_Subp))
+        and then Entity (Add_Named_Subp) /= Any_Id
       then
          declare
             --  Retrieves types of container, key, and element from the
@@ -4140,12 +4108,10 @@ package body Sem_Aggr is
 
                   Analyze_And_Resolve (Expression (Comp), Elmt_Type);
 
-               elsif Nkind (Comp) in
-                 N_Iterated_Component_Association |
-                 N_Iterated_Element_Association
+               elsif Nkind (Comp) in N_Iterated_Component_Association
+                                   | N_Iterated_Element_Association
                then
-                  Resolve_Iterated_Association
-                    (Comp, Key_Type, Elmt_Type);
+                  Resolve_Iterated_Association (Comp, Key_Type, Elmt_Type);
                end if;
 
                Next (Comp);
@@ -4153,7 +4119,8 @@ package body Sem_Aggr is
          end;
 
       elsif Present (Assign_Indexed_Subp)
-        and then Etype (Assign_Indexed_Subp) /= Any_Type
+        and then Present (Entity (Assign_Indexed_Subp))
+        and then Entity (Assign_Indexed_Subp) /= Any_Id
       then
          --  Indexed Aggregate. Positional or indexed component
          --  can be present, but not both. Choices must be static
@@ -4199,9 +4166,8 @@ package body Sem_Aggr is
                         Analyze_And_Resolve (Expression (Comp), Comp_Type);
                      end if;
 
-                  elsif Nkind (Comp) in
-                    N_Iterated_Component_Association |
-                    N_Iterated_Element_Association
+                  elsif Nkind (Comp) in N_Iterated_Component_Association
+                                      | N_Iterated_Element_Association
                   then
                      Resolve_Iterated_Association
                        (Comp, Index_Type, Comp_Type);
@@ -5439,8 +5405,13 @@ package body Sem_Aggr is
 
             Hi := New_Copy_Tree (Lo);
 
-            Report_Null_Array_Constraint_Error (N, Index_Typ);
-            Set_Raises_Constraint_Error (N);
+            --  On multidimiensional arrays, avoid reporting the same error
+            --  several times.
+
+            if not Raises_Constraint_Error (N) then
+               Report_Null_Array_Constraint_Error (N, Index_Typ);
+               Set_Raises_Constraint_Error (N);
+            end if;
 
          else
             --  The upper bound is the predecessor of the lower bound
@@ -5453,6 +5424,15 @@ package body Sem_Aggr is
 
          Append (Make_Range (Loc, New_Copy_Tree (Lo), Hi), Constr);
          Analyze_And_Resolve (Last (Constr), Etype (Index));
+
+         if Known_Bounds
+           and then
+             (Nkind (High_Bound (Last (Constr))) = N_Raise_Constraint_Error
+                or else
+              Nkind (Low_Bound (Last (Constr))) = N_Raise_Constraint_Error)
+         then
+            Set_Raises_Constraint_Error (N);
+         end if;
 
          Next_Index (Index);
       end loop;
@@ -6351,7 +6331,12 @@ package body Sem_Aggr is
                & "has unknown discriminants", N, Typ);
          end if;
 
-         if Has_Unknown_Discriminants (Typ)
+         --  Mutably tagged class-wide types do not have discriminants;
+         --  however, all class-wide types are considered to have unknown
+         --  discriminants.
+
+         if not Is_Mutably_Tagged_Type (Typ)
+           and then Has_Unknown_Discriminants (Typ)
            and then Present (Underlying_Record_View (Typ))
          then
             Discrim := First_Discriminant (Underlying_Record_View (Typ));
@@ -6423,7 +6408,13 @@ package body Sem_Aggr is
       --  STEP 4: Set the Etype of the record aggregate
 
       if Has_Discriminants (Typ)
-        or else (Has_Unknown_Discriminants (Typ)
+
+         --  Handle types with unknown discriminants, excluding mutably tagged
+         --  class-wide types because, although they do not have discriminants,
+         --  all class-wide types are considered to have unknown discriminants.
+
+        or else (not Is_Mutably_Tagged_Type (Typ)
+                  and then Has_Unknown_Discriminants (Typ)
                   and then Present (Underlying_Record_View (Typ)))
       then
          Build_Constrained_Itype (N, Typ, New_Assoc_List);
@@ -6588,13 +6579,19 @@ package body Sem_Aggr is
 
          --  Typ is not a derived tagged type
 
-         else
+         elsif Nkind (Parent (Base_Type (Typ))) = N_Full_Type_Declaration then
             Record_Def := Type_Definition (Parent (Base_Type (Typ)));
 
             if Null_Present (Record_Def) then
                null;
 
-            elsif not Has_Unknown_Discriminants (Typ) then
+            --  Explicitly add here mutably class-wide types because they do
+            --  not have discriminants; however, all class-wide types are
+            --  considered to have unknown discriminants.
+
+            elsif not Has_Unknown_Discriminants (Typ)
+              or else Is_Mutably_Tagged_Type (Typ)
+            then
                Gather_Components
                  (Base_Type (Typ),
                   Component_List (Record_Def),
@@ -6780,6 +6777,11 @@ package body Sem_Aggr is
                   Set_Has_Self_Reference (N);
 
                elsif Needs_Simple_Initialization (Ctyp)
+
+                  --  Mutably tagged class-wide type components are initialized
+                  --  by the expander calling their IP subprogram.
+
+                 or else Is_Mutably_Tagged_CW_Equivalent_Type (Ctyp)
                  or else Has_Non_Null_Base_Init_Proc (Ctyp)
                  or else not Expander_Active
                then
@@ -6984,6 +6986,30 @@ package body Sem_Aggr is
       --  Check the dimensions of the components in the record aggregate
 
       Analyze_Dimension_Extension_Or_Record_Aggregate (N);
+
+      --  Do a pass for constructors which rely on things being fully expanded
+
+      declare
+         function Resolve_Make_Expr (N : Node_Id) return Traverse_Result;
+         --  Recurse in the aggregate and resolve references to 'Make
+
+         function Resolve_Make_Expr (N : Node_Id) return Traverse_Result is
+         begin
+            if Nkind (N) = N_Attribute_Reference
+              and then Attribute_Name (N) = Name_Make
+            then
+               Set_Analyzed (N, False);
+               Resolve (N);
+            end if;
+
+            return OK;
+         end Resolve_Make_Expr;
+
+         procedure Search_And_Resolve_Make_Expr is new
+           Traverse_Proc (Resolve_Make_Expr);
+      begin
+         Search_And_Resolve_Make_Expr (N);
+      end;
    end Resolve_Record_Aggregate;
 
    -----------------------------

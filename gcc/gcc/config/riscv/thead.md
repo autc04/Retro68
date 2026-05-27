@@ -1,5 +1,5 @@
 ;; Machine description for T-Head vendor extensions
-;; Copyright (C) 2021-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2021-2026 Free Software Foundation, Inc.
 
 ;; This file is part of GCC.
 
@@ -34,7 +34,7 @@
 (define_insn "*th_srri<mode>3"
   [(set (match_operand:GPR 0 "register_operand" "=r")
 	(rotatert:GPR (match_operand:GPR 1 "register_operand" "r")
-		     (match_operand 2 "const_int_operand" "n")))]
+		      (match_operand 2 "const_int_operand" "n")))]
   "TARGET_XTHEADBB && (TARGET_64BIT || <MODE>mode == SImode)"
   {
     bool wform = TARGET_64BIT && (<MODE>mode == SImode);
@@ -44,6 +44,22 @@
   }
   [(set_attr "type" "bitmanip")
    (set_attr "mode" "<GPR:MODE>")])
+
+;; Version with explicit sign extension to facilitate sign extension
+;; removal.
+(define_insn "*th_srrisi3_extended"
+  [(set (match_operand:DI 0 "register_operand" "=r")
+	(sign_extend:DI
+	  (rotatert:SI (match_operand:SI 1 "register_operand" "r")
+		       (match_operand 2 "const_int_operand" "n"))))]
+  "TARGET_XTHEADBB && TARGET_64BIT"
+  {
+    operands[2] = GEN_INT (INTVAL (operands[2])
+			   & (GET_MODE_BITSIZE (SImode) - 1));
+    return "th.srriw\t%0,%1,%2";
+  }
+  [(set_attr "type" "bitmanip")
+   (set_attr "mode" "SI")])
 
 (define_insn "*th_ext<mode>4"
   [(set (match_operand:GPR 0 "register_operand" "=r")
@@ -457,6 +473,27 @@
    (set_attr "length" "8")])
 
 ;; XTheadMemIdx
+
+;; Help reload to add a displacement for the base register.
+;; In the case `zext(*(uN*))(base+((rN<<1)&0x1fffffffe))` LRA splits
+;; off two new instructions: a) `new_base = base + disp`, and
+;; b) `index = (rN<<1)&0x1fffffffe`.  The index calculation has no
+;; corresponding instruction pattern and needs this insn_and_split
+;; to recover.
+
+(define_insn_and_split "*th_memidx_operand"
+  [(set (match_operand:DI 0 "register_operand" "=r")
+	(and:DI (ashift:DI (match_operand:DI 1 "register_operand" "r")
+			   (match_operand:QI 2 "imm123_operand" "Ds3"))
+		(match_operand 3 "const_int_operand" "n")))]
+  "TARGET_64BIT && TARGET_XTHEADMEMIDX && (lra_in_progress || reload_completed)
+   && (INTVAL (operands[3]) >> INTVAL (operands[2])) == 0xffffffff"
+  "#"
+  "&& !TARGET_ZBA && reload_completed"
+  [(set (match_dup 0) (zero_extend:DI (subreg:SI (match_dup 1) 0)))
+   (set (match_dup 0) (ashift:DI (match_dup 0) (match_dup 2)))]
+  ""
+  [(set_attr "type" "bitmanip")])
 
 (define_insn "*th_memidx_zero_extendqi<SUPERQI:mode>2"
   [(set (match_operand:SUPERQI 0 "register_operand" "=r,r,r,r,r,r")

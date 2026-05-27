@@ -84,3 +84,8 @@ foo .req p1
 bar .req w15
 psel foo, p15, p3.b[w15, 0]
 psel p2, p14, p5.b[bar, 0]
+
+// These were previously incorrectly decoded as PSELs.
+.inst 0x25244200
+.inst 0x25244010
+.inst 0x25244210

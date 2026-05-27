@@ -2,7 +2,7 @@
 
 %{
 
-/* Copyright (C) 1991-2022 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2026 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
    This file is part of the GNU Binutils.
@@ -120,11 +120,12 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
       parser_input = input_selected;
       switch (t)
 	{
-	case input_script: return INPUT_SCRIPT; break;
-	case input_mri_script: return INPUT_MRI_SCRIPT; break;
-	case input_version_script: return INPUT_VERSION_SCRIPT; break;
-	case input_dynamic_list: return INPUT_DYNAMIC_LIST; break;
-	case input_defsym: return INPUT_DEFSYM; break;
+	case input_script: return INPUT_SCRIPT;
+	case input_mri_script: return INPUT_MRI_SCRIPT;
+	case input_version_script: return INPUT_VERSION_SCRIPT;
+	case input_section_ordering_script: return INPUT_SECTION_ORDERING_SCRIPT;
+	case input_dynamic_list: return INPUT_DYNAMIC_LIST;
+	case input_defsym: return INPUT_DEFSYM;
 	default: abort ();
 	}
     }
@@ -133,12 +134,12 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 				comment (); }
 
 <MRI,EXPRESSION>"$"([0-9A-Fa-f])+ {
-				yylval.integer = bfd_scan_vma (yytext + 1, 0, 16);
+				yylval.integer = strtoull (yytext + 1, 0, 16);
 				yylval.bigint.str = NULL;
 				return INT;
 			}
 
-<MRI,EXPRESSION>([0-9A-Fa-f])+(H|h|X|x|B|b|O|o|D|d) {
+<MRI,EXPRESSION>((([0-9A-Fa-f])+(H|h|X|x))|(([0-1])+(B|b))|(([0-7])+(O|o))|(([0-9])+(D|d))) {
 				   int ibase ;
 				   switch (yytext[yyleng - 1]) {
 				    case 'X':
@@ -158,8 +159,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 				    default:
 				     ibase = 10;
 				   }
-				   yylval.integer = bfd_scan_vma (yytext, 0,
-								  ibase);
+				   yylval.integer = strtoull (yytext, 0, ibase);
 				   yylval.bigint.str = NULL;
 				   return INT;
 				 }
@@ -172,7 +172,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 				      ++s;
 				      ibase = 16;
 				    }
-				  yylval.integer = bfd_scan_vma (s, 0, ibase);
+				  yylval.integer = strtoull (s, 0, ibase);
 				  yylval.bigint.str = NULL;
 				  if (yytext[yyleng - 1] == 'M'
 				      || yytext[yyleng - 1] == 'm')
@@ -188,7 +188,8 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 					   && (yytext[1] == 'x'
 					       || yytext[1] == 'X'))
 				    {
-				      yylval.bigint.str = xstrdup (yytext + 2);
+				      yylval.bigint.str
+					= stat_strdup (yytext + 2);
 				    }
 				  return INT;
 				}
@@ -233,6 +234,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <SCRIPT,EXPRESSION,MRI,WILD>"/="	{ RTOKEN(DIVEQ); }
 <SCRIPT,EXPRESSION,MRI,WILD>"&="	{ RTOKEN(ANDEQ); }
 <SCRIPT,EXPRESSION,MRI,WILD>"|="	{ RTOKEN(OREQ); }
+<SCRIPT,EXPRESSION,MRI,WILD>"^="	{ RTOKEN(XOREQ); }
 <EXPRESSION,MRI>"&&"			{ RTOKEN(ANDAND); }
 <SCRIPT,EXPRESSION,MRI>">"		{ RTOKEN('>'); }
 <SCRIPT,EXPRESSION,MRI,INPUTLIST>","	{ RTOKEN(','); }
@@ -247,6 +249,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <EXPRESSION,MRI>"/"			{ RTOKEN('/'); }
 <EXPRESSION,MRI>"%"			{ RTOKEN('%'); }
 <EXPRESSION,MRI>"<"			{ RTOKEN('<'); }
+<EXPRESSION,MRI>"^"			{ RTOKEN('^'); }
 <SCRIPT,EXPRESSION,MRI,WILD>"="		{ RTOKEN('='); }
 <SCRIPT,EXPRESSION,MRI,WILD>"}"		{ RTOKEN('}'); }
 <SCRIPT,EXPRESSION,MRI,WILD>"{"		{ RTOKEN('{'); }
@@ -309,6 +312,8 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <WILD>"LONG"				{ RTOKEN(LONG); }
 <WILD>"SHORT"				{ RTOKEN(SHORT); }
 <WILD>"BYTE"				{ RTOKEN(BYTE); }
+<WILD>"ASCIZ"				{ RTOKEN(ASCIZ); }
+<WILD>"LINKER_VERSION"			{ RTOKEN(LINKER_VERSION); }
 <SCRIPT>"NOFLOAT"			{ RTOKEN(NOFLOAT); }
 <SCRIPT,EXPRESSION>"NOCROSSREFS"	{ RTOKEN(NOCROSSREFS); }
 <SCRIPT,EXPRESSION>"NOCROSSREFS_TO"	{ RTOKEN(NOCROSSREFS_TO); }
@@ -318,6 +323,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <WILD>"SORT"				{ RTOKEN(SORT_BY_NAME); }
 <WILD>"SORT_BY_INIT_PRIORITY"		{ RTOKEN(SORT_BY_INIT_PRIORITY); }
 <WILD>"SORT_NONE"			{ RTOKEN(SORT_NONE); }
+<WILD>"REVERSE"				{ RTOKEN(REVERSE); }
 <EXPRESSION>"NOLOAD"			{ RTOKEN(NOLOAD); }
 <EXPRESSION>"READONLY"			{ RTOKEN(READONLY); }
 <EXPRESSION>"DSECT"			{ RTOKEN(DSECT); }
@@ -386,32 +392,32 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 
 <MRI>{FILENAMECHAR1}{NOCFILENAMECHAR}*	{
 /* Filename without commas, needed to parse mri stuff */
-				  yylval.name = xstrdup (yytext);
+				  yylval.name = stat_strdup (yytext);
 				  return NAME;
 				}
 
 
 <SCRIPT,INPUTLIST>{FILENAMECHAR1}{FILENAMECHAR}*	{
-				  yylval.name = xstrdup (yytext);
+				  yylval.name = stat_strdup (yytext);
 				  return NAME;
 				}
 <INPUTLIST>"="{FILENAMECHAR1}{FILENAMECHAR}*	{
 /* Filename to be prefixed by --sysroot or when non-sysrooted, nothing.  */
-				  yylval.name = xstrdup (yytext);
+				  yylval.name = stat_strdup (yytext);
 				  return NAME;
 				}
 <INPUTLIST>"-l"{FILENAMECHAR}+ {
-				  yylval.name = xstrdup (yytext + 2);
+				  yylval.name = stat_strdup (yytext + 2);
 				  return LNAME;
 				}
 <EXPRESSION>{SYMBOLNAMECHAR1}{SYMBOLNAMECHAR}* {
-				  yylval.name = xstrdup (yytext);
+				  yylval.name = stat_strdup (yytext);
 				  return NAME;
 				}
   /* The following rule is to prevent a fill expression on the output
      section before /DISCARD/ interpreting the '/' as a divide.  */
 <EXPRESSION>"/DISCARD/"		{
-				  yylval.name = xstrdup (yytext);
+				  yylval.name = stat_strdup (yytext);
 				  return NAME;
 				}
 <WILD>{WILDCHAR}* {
@@ -426,14 +432,14 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 		  }
 		else
 		  {
-		    yylval.name = xstrdup (yytext);
+		    yylval.name = stat_strdup (yytext);
 		    return NAME;
 		  }
 	}
 
 <SCRIPT,EXPRESSION,WILD,VERS_NODE,INPUTLIST>"\""[^\"]*"\"" {
 		/* No matter the state, quotes give what's inside.  */
-		yylval.name = xmemdup (yytext + 1, yyleng - 2, yyleng - 1);
+		yylval.name = stat_memdup (yytext + 1, yyleng - 2, yyleng - 1);
 		return NAME;
 	}
 
@@ -452,10 +458,10 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 
 <VERS_NODE>extern		{ RTOKEN(EXTERN); }
 
-<VERS_NODE>{V_IDENTIFIER}	{ yylval.name = xstrdup (yytext);
+<VERS_NODE>{V_IDENTIFIER}	{ yylval.name = stat_strdup (yytext);
 				  return VERS_IDENTIFIER; }
 
-<VERS_SCRIPT>{V_TAG}		{ yylval.name = xstrdup (yytext);
+<VERS_SCRIPT>{V_TAG}		{ yylval.name = stat_strdup (yytext);
 				  return VERS_TAG; }
 
 <VERS_START>"{"			{ BEGIN(VERS_SCRIPT); return *yytext; }
@@ -472,6 +478,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 				}
 
 <<EOF>> {
+  yy_delete_buffer (YY_CURRENT_BUFFER);
   include_stack_ptr--;
   if (include_stack_ptr == 0)
     {
@@ -487,8 +494,8 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
   return END;
 }
 
-<SCRIPT,WILD,MRI,VERS_START,VERS_SCRIPT,VERS_NODE>.	lex_warn_invalid (" in script", yytext);
-<EXPRESSION>.	lex_warn_invalid (" in expression", yytext);
+<SCRIPT,WILD,MRI,VERS_START,VERS_SCRIPT,VERS_NODE>.	lex_warn_invalid (_(" in script"), yytext);
+<EXPRESSION>.	lex_warn_invalid (_(" in expression"), yytext);
 
 %%
 
@@ -500,9 +507,7 @@ void
 lex_push_file (FILE *file, const char *name, unsigned int sysrooted)
 {
   if (include_stack_ptr >= MAX_INCLUDE_DEPTH)
-    {
-      einfo (_("%F:includes nested too deeply\n"));
-    }
+    fatal (_("%P: includes nested too deeply\n"));
   file_name_stack[include_stack_ptr] = name;
   lineno_stack[include_stack_ptr] = lineno;
   sysrooted_stack[include_stack_ptr] = input_flags.sysrooted;
@@ -529,7 +534,7 @@ yy_create_string_buffer (const char *string, size_t size)
 
   /* yy_ch_buf has to be 2 characters longer than the size given because
      we need to put in 2 end-of-buffer characters.  */
-  b->yy_ch_buf = xmalloc ((size_t) b->yy_buf_size + 3);
+  b->yy_ch_buf = xmalloc (b->yy_buf_size + 3);
 
   b->yy_ch_buf[0] = '\n';
   strcpy (b->yy_ch_buf+1, string);
@@ -564,9 +569,7 @@ lex_redirect (const char *string, const char *fake_filename, unsigned int count)
 
   yy_init = 0;
   if (include_stack_ptr >= MAX_INCLUDE_DEPTH)
-    {
-      einfo (_("%F: macros nested too deeply\n"));
-    }
+    fatal (_("%P: macros nested too deeply\n"));
   file_name_stack[include_stack_ptr] = fake_filename;
   lineno_stack[include_stack_ptr] = lineno;
   include_stack[include_stack_ptr] = YY_CURRENT_BUFFER;
@@ -664,13 +667,13 @@ static int
 yy_input (char *buf, int max_size)
 {
   int result = 0;
-  if (YY_CURRENT_BUFFER->yy_input_file)
+  if (YY_CURRENT_BUFFER != NULL && YY_CURRENT_BUFFER->yy_input_file)
     {
       if (yyin)
 	{
 	  result = fread (buf, 1, max_size, yyin);
 	  if (result < max_size && ferror (yyin))
-	    einfo (_("%F%P: read in flex scanner failed\n"));
+	    fatal (_("%P: read in flex scanner failed\n"));
 	}
     }
   return result;
@@ -707,7 +710,7 @@ comment (void)
 
       if (c == 0)
 	{
-	  einfo (_("%F%P: EOF in comment\n"));
+	  fatal (_("%P: EOF in comment\n"));
 	  break;
 	}
     }
@@ -728,7 +731,7 @@ lex_warn_invalid (char *where, char *what)
   if (ldfile_assumed_script)
     {
       bfd_set_error (bfd_error_file_not_recognized);
-      einfo (_("%F%s: file not recognized: %E\n"), ldlex_filename ());
+      fatal (_("%s: file not recognized: %E\n"), ldlex_filename ());
     }
 
   if (! ISPRINT (*what))

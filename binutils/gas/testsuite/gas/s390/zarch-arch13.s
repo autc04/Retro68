@@ -6,7 +6,11 @@ foo:
 	nnrk	%r6,%r9,%r11
 	nngrk	%r6,%r9,%r11
 	nork	%r6,%r9,%r11
+	nork	%r6,%r7,%r7
+	notr	%r6,%r7
 	nogrk	%r6,%r9,%r11
+	nogrk	%r6,%r7,%r7
+	notgr	%r6,%r7
 	nxrk	%r6,%r9,%r11
 	nxgrk	%r6,%r9,%r11
 	ocrk	%r6,%r9,%r11

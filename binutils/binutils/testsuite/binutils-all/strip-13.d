@@ -1,7 +1,6 @@
 #PROG: strip
 #strip: -g
-#error: \A[^\n]*: unsupported relocation type 0x[0-9a-f]+\n
-#error:   [^\n]*: bad value\Z
+#error: \A[^\n]*: unsupported relocation type 0x[0-9a-f]+\Z
 #notarget: rx-*
 # The RX targets do not complain about unrecognised relocs, unless they
 #  are actually used

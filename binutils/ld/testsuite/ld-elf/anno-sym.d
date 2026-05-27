@@ -3,3 +3,5 @@
 #error_output: anno-sym.l
 # The mips-irix6 target fails this test because it does not find any function symbols.  Not sure why.
 #skip: *-*-irix*
+# The .align generate a local symbol .Lla-relax-align.
+#skip: loongarch*-*-*

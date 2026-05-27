@@ -119,3 +119,8 @@ movnti word ptr [rax], ax
 
 	.att_syntax prefix
 	movsd (%rsi), %ss:(%rdi), %ss:(%rax)
+
+	incl	(%dx)
+	incw	(%dx)
+	mov	(%dx), %ax
+	mov	%ax, (%dx)

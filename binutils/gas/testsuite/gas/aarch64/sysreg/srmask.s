@@ -1,0 +1,26 @@
+.include "sysreg-test-utils.inc"
+
+	rw_sys_reg sctlrmask_el1
+	rw_sys_reg sctlrmask_el2
+	rw_sys_reg sctlrmask_el12
+	rw_sys_reg cpacrmask_el1
+	rw_sys_reg cptrmask_el2
+	rw_sys_reg cpacrmask_el12
+	rw_sys_reg sctlr2mask_el1
+	rw_sys_reg sctlr2mask_el2
+	rw_sys_reg sctlr2mask_el12
+	rw_sys_reg cpacralias_el1
+	rw_sys_reg sctlralias_el1
+	rw_sys_reg sctlr2alias_el1
+	rw_sys_reg tcrmask_el1
+	rw_sys_reg tcrmask_el2
+	rw_sys_reg tcrmask_el12
+	rw_sys_reg tcr2mask_el1
+	rw_sys_reg tcr2mask_el2
+	rw_sys_reg tcr2mask_el12
+	rw_sys_reg tcralias_el1
+	rw_sys_reg tcr2alias_el1
+	rw_sys_reg actlrmask_el1
+	rw_sys_reg actlrmask_el2
+	rw_sys_reg actlrmask_el12
+	rw_sys_reg actlralias_el1

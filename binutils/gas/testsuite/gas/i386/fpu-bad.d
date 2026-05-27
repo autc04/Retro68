@@ -1,4 +1,4 @@
-#as: --32
+#as: --32 --divide
 #objdump: -dw
 #name: i386 fpu bad opcodes
 

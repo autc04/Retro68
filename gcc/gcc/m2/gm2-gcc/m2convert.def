@@ -1,6 +1,6 @@
 (* m2convert.def definition module for m2convert.cc.
 
-Copyright (C) 2011-2025 Free Software Foundation, Inc.
+Copyright (C) 2011-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -51,6 +51,20 @@ PROCEDURE ToInteger (location: location_t; expr: tree) : tree ;
 *)
 
 PROCEDURE ToBitset (location: location_t; expr: tree) : tree ;
+
+
+(*
+   ToLoc - convert an expression, expr, to a LOC.
+*)
+
+PROCEDURE ToLoc (location: location_t; expr: tree) : tree ;
+
+
+(*
+   ToPIMByte - convert an expression expr to a PIM BYTE.
+*)
+
+PROCEDURE ToPIMByte (location: location_t; expr: tree) : tree ;
 
 
 (*

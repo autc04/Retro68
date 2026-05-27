@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,14 +26,12 @@
 with Atree;          use Atree;
 with Casing;         use Casing;
 with Csets;          use Csets;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Errout;         use Errout;
 with Namet;          use Namet;
 with Nlists;         use Nlists;
 with Opt;            use Opt;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinput;         use Sinput;
 with Snames;         use Snames;
@@ -152,7 +150,7 @@ package body Style is
 
                   --  Second OK case, modular types
 
-                  elsif Is_Modular_Integer_Type (Etype (Node)) then
+                  elsif Has_Modular_Operations (Etype (Node)) then
                      return;
 
                   --  Third OK case, array types
@@ -345,12 +343,14 @@ package body Style is
    begin
       if Style_Check_Xtra_Parens_Precedence
         and then
-          Paren_Count (N) >
-            (if Nkind (N) in N_Case_Expression
-                           | N_Expression_With_Actions
-                           | N_If_Expression
-                           | N_Quantified_Expression
-                           | N_Raise_Expression
+          Paren_Count (Original_Node (N)) >
+            (if Nkind (Original_Node (N)) in N_Case_Expression
+                                           | N_Expression_With_Actions
+                                           | N_If_Expression
+                                           | N_Quantified_Expression
+                                           | N_Raise_Expression
+                                           | N_In
+                                           | N_Not_In
              then 1
              else 0)
       then

@@ -1,6 +1,6 @@
 // The -*- C++ -*- dynamic memory management header.
 
-// Copyright (C) 1994-2025 Free Software Foundation, Inc.
+// Copyright (C) 1994-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 //
@@ -47,6 +47,7 @@
 #define __glibcxx_want_destroying_delete
 #define __glibcxx_want_constexpr_new
 #include <bits/version.h>
+#include <bits/new_except.h> // std::bad_alloc, std::bad_array_new_length
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wc++11-extensions" // scoped enum
@@ -57,45 +58,6 @@ extern "C++" {
 
 namespace std 
 {
-  /**
-   *  @brief  Exception possibly thrown by @c new.
-   *  @ingroup exceptions
-   *
-   *  @c bad_alloc (or classes derived from it) is used to report allocation
-   *  errors from the throwing forms of @c new.  */
-  class bad_alloc : public exception
-  {
-  public:
-    bad_alloc() throw() { }
-
-#if __cplusplus >= 201103L
-    bad_alloc(const bad_alloc&) = default;
-    bad_alloc& operator=(const bad_alloc&) = default;
-#endif
-
-    // This declaration is not useless:
-    // http://gcc.gnu.org/onlinedocs/gcc-3.0.2/gcc_6.html#SEC118
-    virtual ~bad_alloc() throw();
-
-    // See comment in eh_exception.cc.
-    virtual const char* what() const throw();
-  };
-
-#if __cplusplus >= 201103L
-  class bad_array_new_length : public bad_alloc
-  {
-  public:
-    bad_array_new_length() throw() { }
-
-    // This declaration is not useless:
-    // http://gcc.gnu.org/onlinedocs/gcc-3.0.2/gcc_6.html#SEC118
-    virtual ~bad_array_new_length() throw();
-
-    // See comment in eh_exception.cc.
-    virtual const char* what() const throw();
-  };
-#endif
-
 #if __cpp_aligned_new
   enum class align_val_t: size_t {};
 #endif
@@ -211,15 +173,16 @@ void* operator new[](std::size_t, void* __p)
   _GLIBCXX_TXN_SAFE _GLIBCXX_USE_NOEXCEPT
 { return __p; }
 
+// Default placement versions of operator delete.
+_GLIBCXX_PLACEMENT_CONSTEXPR void operator delete  (void*, void*)
+  _GLIBCXX_TXN_SAFE _GLIBCXX_USE_NOEXCEPT
+{ }
+_GLIBCXX_PLACEMENT_CONSTEXPR void operator delete[](void*, void*)
+  _GLIBCXX_TXN_SAFE _GLIBCXX_USE_NOEXCEPT
+{ }
+
 #undef _GLIBCXX_PLACEMENT_CONSTEXPR
 
-// Default placement versions of operator delete.
-inline void operator delete  (void*, void*)
-  _GLIBCXX_TXN_SAFE _GLIBCXX_USE_NOEXCEPT
-{ }
-inline void operator delete[](void*, void*)
-  _GLIBCXX_TXN_SAFE _GLIBCXX_USE_NOEXCEPT
-{ }
 //@}
 } // extern "C++"
 

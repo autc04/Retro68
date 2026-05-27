@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2022 Free Software Foundation, Inc.
+# Copyright (C) 2012-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -47,6 +47,10 @@ if { ![istarget cris-*-*] && ![istarget crisv32-*-*]
      && ![istarget z80-*-*] } then {
     if { [istarget tic4x-*-*] } then {
 	set as_opt ""
+    } elseif { [istarget arm*-*-pe ]
+	       || [istarget arm*-*-elf]
+	       || [istarget arm*-*-nto*] } then {
+	set as_opt "--defsym hasnan=1 -mfpu=softvfp"
     } else {
 	set as_opt "--defsym hasnan=1"
     }
@@ -67,14 +71,14 @@ if {    ![istarget alpha*-*-*vms*]
      && ![istarget ft32-*-*]
      && ![istarget hppa*-*-*]
      && ![istarget microblaze-*-*]
+     && ![istarget loongarch*-*-*]
      && ![istarget mn10300-*-*]
      && ![istarget msp430*-*-*]
      && ![istarget powerpc*-*-aix*]
      && ![istarget riscv*-*-*]
      && ![istarget rl78-*-*]
      && ![istarget rs6000*-*-aix*]
-     && ![istarget rx-*-*]
-     && ![istarget loongarch*-*-*] } then {
+     && ![istarget rx-*-*] } then {
     gas_test_error "diff1.s" "" "difference of two undefined symbols"
 }
 
@@ -82,9 +86,18 @@ gas_test_error "equiv1.s" "" ".equiv for symbol already set to another one"
 gas_test_error "equiv2.s" "" ".equiv for symbol already set to an expression"
 
 # The inode comparison used to detect identical input and output files
-# doesn't work on non-Posix hosts.
+# doesn't work on non-Posix hosts.  Make a copy of the input file and
+# operate on it so as not to clobber the source tree should this test
+# fail.
 if { ![ishost "*-*-mingw*"] } then {
-    gas_test_error "none.s" "-o $srcdir/$subdir/none.s" "Output file must be distinct from input"
+    set testname "Output file must be distinct from input"
+    set filename tmpdir/none.s
+    if [catch {file copy -force $srcdir/$subdir/none.s $filename}] {
+	perror "Could not make a copy of the input file"
+	unresolved $testname
+    } else {
+	gas_test_error [gas_srcdir_path $filename] "-o $filename" $testname
+    }
 }
 
 # .equ works differently on some targets.
@@ -165,12 +178,12 @@ switch -glob $target_triplet {
 	# These targets fail redef2 because they disallow redefined
 	# symbols on relocs.
 	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*" "rl78-*-*"
-	setup_xfail "riscv*-*-*" "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
-	setup_xfail "loongarch*-*-*" "avr-*-*"
+	setup_xfail "loongarch*-*-*" "riscv*-*-*" "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
+	setup_xfail "avr-*-*"
 	run_dump_test redef2
 	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*" "rl78-*-*"
-	setup_xfail "riscv*-*-*" "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
-	setup_xfail "loongarch*-*-*" "avr-*-*"
+	setup_xfail "loongarch*-*-*" "riscv*-*-*" "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
+	setup_xfail "avr-*-*"
 	# rs6000-aix disallows redefinition via .comm.
 	if [is_xcoff_format] {
 	    setup_xfail *-*-*
@@ -278,10 +291,8 @@ if {    ![istarget *c30*-*-*]
      && ![istarget ft32-*-*]
      && ![istarget h8300*-*-*]
      && ![istarget hppa*-*-*] } then {
-    # The vax fails because VMS can apparently actually handle this
-    # case in relocs, so gas doesn't handle it itself.
     # msp430, mn10[23]00 and riscv emit two relocs to handle the difference of two symbols.
-    setup_xfail "am3*-*-*" "mn10200-*-*" "mn10300*-*-*" "msp430*-*-*" "riscv*-*-*" "vax*-*-vms*"
+    setup_xfail "am3*-*-*" "loongarch*-*-*" "mn10200-*-*" "mn10300*-*-*" "msp430*-*-*" "riscv*-*-*"
     do_930509a
 }
 
@@ -317,23 +328,6 @@ switch -glob $target_triplet {
 	    run_dump_test eval
 	}
     }
-}
-
-# This test is for any COFF target.
-# We omit the ARM toolchains because they define locals to
-#  start with '.', which eliminates .eos, .text etc from the output.
-# Omit c54x, since .tag and .def mean something different on that target
-if {   ([istarget *-*-coff*] && ![istarget arm*-*-coff] && ![istarget *c4x*-*-coff] && ![istarget *c54x*-*-coff]) \
-     ||([istarget *-*-pe*] && ![istarget arm*-*-pe*]) \
-     || [istarget i*86-*-aix*] \
-     || [istarget i*86-*-sco*] \
-     || [istarget i*86-*-isc*] \
-     || [istarget i*86-*-go32*] \
-     || [istarget i*86-*-cygwin*] \
-     || [istarget x86_64-*-mingw*] \
-     || [istarget i*86-*-*nt] \
-     || [istarget i*86-*-interix*] } {
-    run_dump_test cofftag
 }
 
 # Test omitting conditionals from listings.
@@ -389,7 +383,6 @@ if {    ![istarget avr-*-*]
      && ![istarget dlx-*-*]
      && ![istarget hppa*-*-*]
      && ![istarget m68k-*-*]
-     && ![istarget nios2-*-*]
      && ![istarget pj-*-*]
      && ![istarget sh*-*-*]
      && ![istarget *c4x-*-*]
@@ -431,9 +424,30 @@ if { ![istarget "tic4x*-*-*"] && ![istarget "tic54x*-*-*"] && ![istarget "hppa*-
 
 run_dump_test quad
 
+# ~ isn't an operator on PDP-11
+if { ![istarget "pdp11-*-*"] } {
+    run_dump_test quad2
+}
+
 # poor little PDP-11 can't handle 16-byte values
 if { ![istarget "pdp11-*-*"] } {
     run_dump_test octa
+}
+
+# Some x86 flavors use '/' as a comment char, yet that can be suppressed.
+# Some other target use '/' or '%' as a comment char, without a way to
+# suppress it.
+if { [istarget "i?86-*-*"] || [istarget "x86_64-*-*"] } {
+    run_dump_test quad-div {{as --divide}}
+    run_dump_test quad-div2 {{as --divide}}
+    run_dump_test octa-div {{as --divide}}
+} elseif { ![istarget "mcore-*-*"]
+	   && ![istarget "mmix-*-*"]
+	   && ![istarget "pdp11-*-*"]
+	   && ![istarget "pj*-*-*"] } {
+    run_dump_test quad-div
+    run_dump_test quad-div2
+    run_dump_test octa-div
 }
 
 # .set works differently on some targets.
@@ -450,9 +464,49 @@ switch -glob $target_triplet {
 	run_dump_test weakref1w
     }
 }
+
+# .end works differently on some targets. Also make sure to test the dot-less
+# form on targets setting NO_PSEUDO_DOT (and not overriding the directive).
+switch -glob $target_triplet {
+    alpha*-*-* { }
+    hppa*-*-* { }
+    iq2000-*-* { }
+    microblaze-*-* { }
+    mips*-*-* { }
+    score*-*-* { }
+    xtensa*-*-* { }
+    m68hc1*-*-* -
+    s12z-*-*    -
+    spu-*-*     -
+    xgate-*-*   -
+    z80-*-* {
+	run_list_test "end"
+	run_list_test "end-no-dot"
+    }
+    default {
+	run_list_test "end"
+    }
+}
+
+# This test uses a local label, which some targets don't support.
+# MeP can't deal with forward ref labels in .uleb128.
+switch -glob $target_triplet {
+    *c54x*-*-* { }
+    hppa*-*-* { }
+    ia64-*-*vms* { }
+    mep-*-* { }
+    sh-*-pe* { }
+    default {
+	run_list_test "cond-diag"
+    }
+}
+
 gas_test_error "weakref2.s" "" "e: would close weakref loop: e => a => b => c => d => e"
 gas_test_error "weakref3.s" "" "a: would close weakref loop: a => b => c => d => e => a"
 gas_test_error "weakref4.s" "" "is already defined"
+
+run_dump_test base64
+run_dump_test base64-bad
 
 run_dump_test string
 if [is_elf_format] {
@@ -460,6 +514,7 @@ if [is_elf_format] {
 }
 
 run_dump_test quoted-sym-names
+run_dump_test quoted-label-blank
 
 # Targets where # is not a line comment character don't transform
 # "# <line> <file>" into .linefile (PR gas/29120).
@@ -467,6 +522,15 @@ setup_xfail "tic30-*-*"
 run_list_test cond-2 "-al"
 setup_xfail "tic30-*-*"
 run_list_test linefile ""
+
+# Again, .byte does not emit 8 bits on either tic4x or tic54x.
+if { ![istarget "tic4x*-*-*"] && ![istarget "tic54x*-*-*"] } {
+    run_list_test const-1 "-alm"
+}
+
+if { ![istarget "tic30-*-*"] } {
+    run_dump_test "line-comment"
+}
 
 run_list_test macro "-alm"
 
@@ -513,3 +577,32 @@ run_dump_test "pr27384"
 run_dump_test "pr27381"
 run_dump_test "multibyte1"
 run_dump_test "multibyte2"
+run_list_test "multibyte3" "--multibyte-handling=warn"
+run_list_test "multibyte3" "-f --multibyte-handling=warn" "all multibyte3 -f"
+
+# EVAX has an extra line printed by objdump when there are no relocations,
+# and doesn't appear to enter absolute symbols into the symbol table.
+# SOM (HPPA) won't properly handle at least the latter two tests.
+switch -glob $target_triplet {
+    alpha-*-*vms* { }
+    hppa-*-hpux* { }
+    default {
+	run_dump_test "version"
+	# Non-ELF symbol tables may include section symbols.
+	# MSP430 adds references to library symbols.
+	# RL78 includes a special absolute symbol.
+	if { [is_elf_format]
+	     && ![istarget "msp430*-*-*"]
+	     && ![istarget "rl78*-*-*"] } {
+	    run_dump_test "version2"
+	}
+	# ECOFF/XCOFF don't look to (reliably) emit local absolute symbols.
+	# IA64, when targeting HPUX, deliberately omits unreferenced symbols.
+	if { ![is_xcoff_format]
+	     && ![istarget "alpha-*-linux*ecoff*"]
+	     && ![istarget "alpha-*-osf*"]
+	     && ![istarget "ia64-*-hpux*"] } {
+	    run_dump_test "version3"
+	}
+    }
+}

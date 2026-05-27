@@ -1,7 +1,7 @@
 #source: start.s
 #source: symbol1ref.s
 #source: symbol1w.s
-#ld: -T group.ld
+#ld: -T group.ld --no-warn-rwx-segments
 #warning: ^[^\n]*\): warning: witty one-liner$
 #readelf: -s
 #xfail: [is_generic]

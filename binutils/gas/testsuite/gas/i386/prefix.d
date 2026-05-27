@@ -89,7 +89,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 c5 f8 28 c0       	data16 vmovaps %xmm0,%xmm0
 [ 	]*[a-f0-9]+:	f3 c4 e1 78 28 c0    	repz vmovaps %xmm0,%xmm0
 [ 	]*[a-f0-9]+:	f2 c5 f8 28 c0       	repnz vmovaps %xmm0,%xmm0
-[ 	]*[a-f0-9]+:	f0 62 f1 7c 08 28 c0 	lock vmovaps %xmm0,%xmm0
+[ 	]*[a-f0-9]+:	f0 62 f1 7c 08 28 c0 	lock \{evex\} vmovaps %xmm0,%xmm0
 [ 	]*[a-f0-9]+:	c5 fb e6 40 20       	vcvtpd2dqx 0x20\(%eax\),%xmm0
 [ 	]*[a-f0-9]+:	62 f1 ff 18 e6 40 04 	vcvtpd2dq 0x20\(%eax\)\{1to2\},%xmm0
 [ 	]*[a-f0-9]+:	c5 fb e6 40 20       	vcvtpd2dqx 0x20\(%eax\),%xmm0

@@ -24,370 +24,311 @@
 
 # data16 movsd %xmm4,(%edx)
 	.byte 0xf2
-	.byte 0x66
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	movupd %xmm4, (%edx)
 
 # data16 movsd %xmm4,(%bp,%si)
 	.byte 0xf2
-	.byte 0x67
-	.byte 0x66
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	movupd %xmm4, (%bp,%si)
 
 # lock data16 movsd %xmm4,(%bp,%si)
 	.byte 0xf2
 	.byte 0x67
-	.byte 0xf0
-	.byte 0x66
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	lock
+	movupd %xmm4, (%edx)
 
 # data16 movss %xmm4,(%edx)
 	.byte 0xf3
-	.byte 0x66
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	movupd %xmm4, (%edx)
 
 # lock data16 movss %xmm4,(%bp,%si)
 	.byte 0xf3
 	.byte 0x67
-	.byte 0xf0
-	.byte 0x66
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	lock
+	movupd %xmm4, (%edx)
 
 # repz data16 movsd %xmm4,(%bp,%si)
-	.byte 0xf3
+	repz
 	.byte 0x67
 	.byte 0xf2
-	.byte 0x66
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	movupd %xmm4, (%edx)
 
 # data16 movss %xmm4,%ds:(%edx)
 	.byte 0xf3
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	ds
+	movups %xmm4, (%edx)
 
 # data16 movsd %xmm4,%ss:(%edx)
 	.byte 0xf2
 	.byte 0x66
-	.byte 0x36
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	movups %xmm4, %ss:(%edx)
 
 # repz lock data16 movsd %xmm4,%ss:(%edx)
-	.byte 0xf3
-	.byte 0xf0
+	repz
+	lock
 	.byte 0xf2
 	.byte 0x66
-	.byte 0x36
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	movups %xmm4, %ss:(%edx)
 
 # data16 ds movsd %xmm4,%ss:(%edx)
 	.byte 0xf2
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	ds
+	movups %xmm4, %ss:(%edx)
 
 # data16 ds movsd %xmm4,%ss:(%bp,%si)
 	.byte 0xf2
 	.byte 0x67
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	ds
+	movups %xmm4, %ss:(%edx)
 
 # lock data16 ds movsd %xmm4,%ss:(%bp,%si)
 	.byte 0xf2
 	.byte 0x67
-	.byte 0xf0
+	lock
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	ds
+	movups %xmm4, %ss:(%edx)
 
 # data16 ds movss %xmm4,%ss:(%edx)
 	.byte 0xf3
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	ds
+	movups %xmm4, %ss:(%edx)
 
 # lock data16 ds movss %xmm4,%ss:(%edx)
 	.byte 0xf3
-	.byte 0xf0
+	lock
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	ds
+	movups %xmm4, %ss:(%edx)
 
 # repz data16 ds movsd %xmm4,%ss:(%bp,%si)
 	.byte 0xf3
 	.byte 0x67
 	.byte 0xf2
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x0f
-	.byte 0x11
-	.byte 0x22
+	ds
+	movups %xmm4, %ss:(%edx)
 
 # repnz; xchg %ax,%ax
-	.byte 0xf2
-	.byte 0x66
-	.byte 0x90
+	repnz
+	xchg %ax, %ax
 
 # repnz; addr16 xchg %ax,%ax
-	.byte 0xf2
+	repnz
 	.byte 0x67
-	.byte 0x66
-	.byte 0x90
+	xchg %ax, %ax
 
 # repnz; addr16 lock xchg %ax,%ax
-	.byte 0xf2
+	repnz
 	.byte 0x67
-	.byte 0xf0
-	.byte 0x66
-	.byte 0x90
+	lock
+	xchg %ax, %ax
 
 # data16 pause
-	.byte 0xf3
-	.byte 0x66
-	.byte 0x90
+	repz
+	xchg %ax, %ax
 
 # addr16 lock data16 pause
 	.byte 0xf3
 	.byte 0x67
-	.byte 0xf0
-	.byte 0x66
-	.byte 0x90
+	lock
+	xchg %ax, %ax
 
 # repz; addr16; repnz; xchg %ax,%ax
-	.byte 0xf3
+	repz
 	.byte 0x67
-	.byte 0xf2
-	.byte 0x66
-	.byte 0x90
+	repnz
+	xchg %ax, %ax
 
 # repnz; ds nop
-	.byte 0xf2
-	.byte 0x3e
-	.byte 0x90
+	repnz
+	ds
+	nop
 
 # repnz; lock addr16 ds nop
-	.byte 0xf2
-	.byte 0xf0
+	repnz
+	lock
 	.byte 0x67
-	.byte 0x3e
-	.byte 0x90
+	ds
+	nop
 
 # ds pause
 	.byte 0xf3
-	.byte 0x3e
-	.byte 0x90
+	ds
+	nop
 
 # data16 ds pause
 	.byte 0xf3
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x90
+	ds
+	nop
 
 # lock ds pause
 	.byte 0xf3
-	.byte 0xf0
-	.byte 0x3e
-	.byte 0x90
+	lock
+	ds
+	nop
 
 # lock addr16 ds pause
 	.byte 0xf3
-	.byte 0xf0
+	lock
 	.byte 0x67
-	.byte 0x3e
-	.byte 0x90
+	ds
+	nop
 
 # repz; repnz; addr16 ds nop
 	.byte 0xf3
-	.byte 0xf2
+	repnz
 	.byte 0x67
-	.byte 0x3e
-	.byte 0x90
+	ds
+	nop
 
 # lock ss xchg %ax,%ax
 	.byte 0x66
-	.byte 0xf0
-	.byte 0x36
-	.byte 0x90
+	lock
+	ss
+	nop
 
 # repnz; ss nop
-	.byte 0xf2
-	.byte 0x36
-	.byte 0x90
+	repnz
+	ss
+	nop
 
 # repnz; ss xchg %ax,%ax
-	.byte 0xf2
+	repnz
 	.byte 0x66
-	.byte 0x36
-	.byte 0x90
+	ss
+	nop
 
 # repnz; lock ss nop
-	.byte 0xf2
-	.byte 0xf0
-	.byte 0x36
-	.byte 0x90
+	repnz
+	lock
+	ss
+	nop
 
 # repnz; lock addr16 ss nop
-	.byte 0xf2
-	.byte 0xf0
+	repnz
+	lock
 	.byte 0x67
-	.byte 0x36
-	.byte 0x90
+	ss
+	nop
 
 # ss pause
-	.byte 0xf3
-	.byte 0x36
-	.byte 0x90
+	repz
+	ss
+	nop
 
 # addr16 ss pause
-	.byte 0xf3
+	repz
 	.byte 0x67
-	.byte 0x36
-	.byte 0x90
+	ss
+	nop
 
 # lock addr16 ss pause
-	.byte 0xf3
-	.byte 0xf0
+	repz
+	lock
 	.byte 0x67
-	.byte 0x36
-	.byte 0x90
+	ss
+	nop
 
 # repz; repnz; ss nop
-	.byte 0xf3
-	.byte 0xf2
-	.byte 0x36
-	.byte 0x90
+	repz
+	repnz
+	ss
+	nop
 
 # repz; repnz; addr16 ss nop
-	.byte 0xf3
-	.byte 0xf2
+	repz
+	repnz
 	.byte 0x67
-	.byte 0x36
-	.byte 0x90
+	ss
+	nop
 
 # repz; lock; repnz; ss xchg %ax,%ax
-	.byte 0xf3
-	.byte 0xf0
-	.byte 0xf2
+	repz
+	lock
+	repnz
 	.byte 0x66
-	.byte 0x36
-	.byte 0x90
+	ss
+	nop
 
 # ds ss xchg %ax,%ax
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x90
+	ds
+	ss
+	nop
 
 # addr16 ds ss xchg %ax,%ax
 	.byte 0x67
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x90
+	ds
+	ss
+	nop
 
 # addr16 lock ds ss xchg %ax,%ax
 	.byte 0x67
-	.byte 0xf0
+	lock
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x90
+	ds
+	ss
+	nop
 
 # data16 ds ss pause
-	.byte 0xf3
+	repz
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x90
+	ds
+	ss
+	nop
 
 # lock data16 ds ss pause
-	.byte 0xf3
-	.byte 0xf0
+	repz
+	lock
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x90
+	ds
+	ss
+	nop
 
 # repz; repnz; addr16 ds ss nop
-	.byte 0xf3
-	.byte 0xf2
+	repz
+	repnz
 	.byte 0x67
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x90
+	ds
+	ss
+	nop
 
 # repz; addr16; repnz; ds ss xchg %ax,%ax
-	.byte 0xf3
+	repz
 	.byte 0x67
-	.byte 0xf2
+	repnz
 	.byte 0x66
-	.byte 0x3e
-	.byte 0x36
-	.byte 0x90
+	ds
+	ss
+	nop
 
 # repz; rdseed %eax
-	.byte 0xf3
-	.byte 0x0f
-	.byte 0xc7
-	.byte 0xf8
+	repz
+	rdseed %eax
 
 	nop
 
 # repz; rdrand %eax
-	.byte 0xf3
-	.byte 0x0f
-	.byte 0xc7
-	.byte 0xf0
+	repz
+	rdrand %eax
 
 	nop
 
 # repnz; rdseed %eax
-	.byte 0xf2
-	.byte 0x0f
-	.byte 0xc7
-	.byte 0xf8
+	repnz
+	rdseed %eax
 
 	nop
 
 # repnz; rdrand %eax
-	.byte 0xf2
-	.byte 0x0f
-	.byte 0xc7
-	.byte 0xf0
+	repnz
+	rdrand %eax
 
 	nop
 
@@ -395,59 +336,32 @@
 	int $3
 
 # "repz" vmovaps %xmm7, %xmm7
-	.byte 0xc5
-	.byte 0xfa
-	.byte 0x28
-	.byte 0xff
+	.insn VEX.128.f3.0f.W0 0x28, %xmm7, %xmm7
 
 	int $3
 
 # "repnz" {vex3} vmovaps %xmm7, %xmm7
-	.byte 0xc4
-	.byte 0xe1
-	.byte 0x7b
-	.byte 0x28
-	.byte 0xff
+	.insn {vex3} VEX.128.f2.0f.W0 0x28, %xmm7, %xmm7
 
 	int $3
 
 # "EVEX.W1" vmovaps %xmm7, %xmm7
-	.byte 0x62
-	.byte 0xf1
-	.byte 0xfc
-	.byte 0x08
-	.byte 0x28
-	.byte 0xff
+	.insn EVEX.128.0f.W1 0x28, %xmm7, %xmm7
 
 	int $3
 
 # "repz" vmovaps %xmm7, %xmm7
-	.byte 0x62
-	.byte 0xf1
-	.byte 0x7e
-	.byte 0x08
-	.byte 0x28
-	.byte 0xff
+	.insn EVEX.128.f3.0f.W0 0x28, %xmm7, %xmm7
 
 	int $3
 
 # "EVEX.W0" vmovapd %xmm7, %xmm7
-	.byte 0x62
-	.byte 0xf1
-	.byte 0x7d
-	.byte 0x08
-	.byte 0x28
-	.byte 0xff
+	.insn EVEX.128.66.0f.W0 0x28, %xmm7, %xmm7
 
 	int $3
 
 # "repnz" vmovapd %xmm7, %xmm7
-	.byte 0x62
-	.byte 0xf1
-	.byte 0xff
-	.byte 0x08
-	.byte 0x28
-	.byte 0xff
+	.insn EVEX.128.f2.0f.W1 0x28, %xmm7, %xmm7
 
 	int $3
 

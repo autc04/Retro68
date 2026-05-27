@@ -2,11 +2,10 @@
 #source: linkonce1b.s
 #ld: -r
 #objdump: -r
+#notarget: [is_generic]
 
 .*:     file format .*
 #...
-RELOCATION RECORDS FOR \[.debug_frame\]:
-OFFSET[ 	]+TYPE[ 	]+VALUE[ 	]*
-.*(NONE|unused|UNUSED).*\*ABS\*
+RELOCATION RECORDS FOR \[.debug_frame\]: \(none\)
 
 #pass

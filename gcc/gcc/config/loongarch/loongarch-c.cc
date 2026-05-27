@@ -1,5 +1,5 @@
 /* LoongArch-specific code for C family languages.
-   Copyright (C) 2021-2025 Free Software Foundation, Inc.
+   Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by Loongson Ltd.
 
 This file is part of GCC.
@@ -55,6 +55,11 @@ loongarch_define_unconditional_macros (cpp_reader *pfile)
       builtin_define ("__loongarch_grlen=64");
       builtin_define ("__loongarch64");
     }
+  else
+      builtin_define ("__loongarch_grlen=32");
+
+  if (TARGET_ABI_ILP32)
+      builtin_define ("__loongarch_ilp32");
 
   if (TARGET_ABI_LP64)
     {
@@ -132,6 +137,7 @@ loongarch_update_cpp_builtins (cpp_reader *pfile)
   loongarch_def_or_undef (ISA_HAS_LSX, "__loongarch_simd", pfile);
   loongarch_def_or_undef (ISA_HAS_LSX, "__loongarch_sx", pfile);
   loongarch_def_or_undef (ISA_HAS_LASX, "__loongarch_asx", pfile);
+  loongarch_def_or_undef (ISA_HAS_LASX, "__loongarch_asx_sx_conv", pfile);
 
   builtin_undef ("__loongarch_simd_width");
   if (ISA_HAS_LSX)

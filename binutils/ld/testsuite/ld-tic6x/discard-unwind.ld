@@ -11,5 +11,5 @@ SECTIONS
     *(.c6xabi.extab*)
   } =0
   /DISCARD/ : { *(.c6xabi.exidx*) }
-  .c6xabi.attribues 0 : { *(.c6xabi.atttributes) }
+  .c6xabi.attributes 0 : { *(.c6xabi.attributes) }
 }

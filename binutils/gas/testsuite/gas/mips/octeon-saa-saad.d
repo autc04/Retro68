@@ -1,4 +1,5 @@
 #objdump: -d -r --show-raw-insn
+#as: -32
 #name: MIPS-OCTEON octeon_saa_saad
 
 .*: +file format .*mips.*

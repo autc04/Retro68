@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2025 Free Software Foundation, Inc.
+// Copyright (C) 2019-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -21,6 +21,11 @@
 
 #include <atomic>
 #include <testsuite_hooks.h>
+#include <type_traits>
+
+template<typename T>
+using volatile_
+ = std::conditional_t<std::atomic_ref<T>::is_always_lock_free, volatile T, T>;
 
 void
 test01()
@@ -210,9 +215,15 @@ test03()
   int* ptr = 0;
   std::atomic_ref<int*> a0(ptr);
   std::atomic_ref<int*> a1(ptr);
+  std::atomic_ref<int* const> a1c(ptr);
+  std::atomic_ref<volatile_<int*>> a1v(ptr);
+  std::atomic_ref<volatile_<int* const>> a1cv(ptr);
   std::atomic_ref<int*> a2(a0);
   a0 = &i;
   VERIFY( a1 == &i );
+  VERIFY( a1c == &i );
+  VERIFY( a1v == &i );
+  VERIFY( a1cv == &i );
   VERIFY( a2 == &i );
 }
 

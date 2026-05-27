@@ -1,4 +1,4 @@
-.. Copyright (C) 2014-2025 Free Software Foundation, Inc.
+.. Copyright (C) 2014-2026 Free Software Foundation, Inc.
    Originally contributed by David Malcolm <dmalcolm@redhat.com>
 
    This is free software: you can redistribute it and/or modify it
@@ -119,6 +119,14 @@ Standard types
        -
      * - :c:data:`GCC_JIT_TYPE_LONG_DOUBLE`
        -
+     * - :c:data:`GCC_JIT_TYPE_FLOAT16`
+       -
+     * - :c:data:`GCC_JIT_TYPE_FLOAT32`
+       -
+     * - :c:data:`GCC_JIT_TYPE_FLOAT64`
+       -
+     * - :c:data:`GCC_JIT_TYPE_FLOAT128`
+       -
      * - :c:data:`GCC_JIT_TYPE_CONST_CHAR_PTR`
        - C type: ``(const char *)``
      * - :c:data:`GCC_JIT_TYPE_SIZE_T`
@@ -161,6 +169,24 @@ Pointers, `const`, and `volatile`
                                                int num_elements)
 
    Given non-`void` type "T", get type "T[N]" (for a constant N).
+
+.. function::  gcc_jit_type *\
+               gcc_jit_context_new_array_type_u64 (gcc_jit_context *ctxt, \
+                                                   gcc_jit_location *loc, \
+                                                   gcc_jit_type *element_type, \
+                                                   uint64_t num_elements)
+
+   Given non-`void` type "T", get type "T[N]" (for a constant N).
+
+   This is the same as gcc_jit_context_new_array_type, but the type of
+   ``num_elements` different and thus allows creating bigger array types.
+
+   This API entrypoint was added in :ref:`LIBGCCJIT_ABI_37`; you can test
+   for its presence using
+
+   .. code-block:: c
+
+      #ifdef LIBGCCJIT_HAVE_gcc_jit_context_new_array_type_u64
 
 .. function::  gcc_jit_type *\
                gcc_jit_type_get_aligned (gcc_jit_type *type, \

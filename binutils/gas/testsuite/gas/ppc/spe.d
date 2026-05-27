@@ -10,10 +10,10 @@ Disassembly of section .text:
 00000000 <.text>:
 .*:	10 01 12 00 	evaddw  r0,r1,r2
 .*:	10 1f 12 02 	evaddiw r0,r2,31
-.*:	10 01 12 04 	evsubfw r0,r1,r2
-.*:	10 01 12 04 	evsubfw r0,r1,r2
-.*:	10 1f 12 06 	evsubifw r0,31,r2
-.*:	10 1f 12 06 	evsubifw r0,31,r2
+.*:	10 01 12 04 	evsubw  r0,r2,r1
+.*:	10 01 12 04 	evsubw  r0,r2,r1
+.*:	10 1f 12 06 	evsubiw r0,r2,31
+.*:	10 1f 12 06 	evsubiw r0,r2,31
 .*:	10 01 02 08 	evabs   r0,r1
 .*:	10 01 02 09 	evneg   r0,r1
 .*:	10 01 02 0a 	evextsb r0,r1

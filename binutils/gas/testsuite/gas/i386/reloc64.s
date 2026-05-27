@@ -225,3 +225,14 @@ bad	.byte	xtrn@gotplt
 	vgatherdps %xmm2, xtrn(,%xmm1), %xmm0
 	addr32 vgatherdps %xmm2, xtrn(,%xmm1), %xmm0
 bad	.long	xtrn@plt - .
+
+	.text
+	movabs	$ptr@GOT, %rax
+	movabs	$Ldst@GOTOFF, %rdx
+	movq	$ptr@PLT, %rax
+
+	.data
+ptr:
+	.quad 0
+Ldst:
+	.quad 0

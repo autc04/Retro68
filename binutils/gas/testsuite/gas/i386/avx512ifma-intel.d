@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 AVX512IFMA insns (Intel disassembly)
 #source: avx512ifma.s
@@ -8,7 +7,7 @@
 
 Disassembly of section \.text:
 
-00000000 <_start>:
+00000000 <ifma>:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 d5 48 b4 f4[ 	]*vpmadd52luq zmm6,zmm5,zmm4
 [ 	]*[a-f0-9]+:[ 	]*62 f2 d5 4f b4 f4[ 	]*vpmadd52luq zmm6\{k7\},zmm5,zmm4
 [ 	]*[a-f0-9]+:[ 	]*62 f2 d5 cf b4 f4[ 	]*vpmadd52luq zmm6\{k7\}\{z\},zmm5,zmm4

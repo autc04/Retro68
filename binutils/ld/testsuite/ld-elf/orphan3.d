@@ -7,7 +7,7 @@
 #ld:
 #readelf: -S --wide
 #xfail: [uses_genelf]
-#xfail: xstormy16-*-*
+#xfail: xstormy16-*-* pru-*-*
 
 #...
   \[[ 0-9]+\] \.foo +PROGBITS +[0-9a-f]+ +[0-9a-f]+ +0+20 +0+ +A +0 +0 +[0-9]+

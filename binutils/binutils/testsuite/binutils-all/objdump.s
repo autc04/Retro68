@@ -2,6 +2,7 @@
 .*dw2-compressed.o:     file format .*
 
 Contents of section .zdebug_abbrev:
+ NOTE: This section is compressed, but its contents have NOT been expanded for this dump.
  0000 5a4c4942 00000000 00000033 785e6314  ZLIB.......3x\^c.
  0010 64146013 62146464 e650e510 e6666060  d.`.b.dd.P...f``
  0020 d263b0e7 b1e2b6e6 66e6f014 16641462  .c......f....d.b

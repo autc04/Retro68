@@ -2,7 +2,7 @@
 #source: hiddef1.s
 #source: hidrefgotplt1.s
 #ld: -shared -m crislinux --hash-style=sysv
-#as: --pic --no-underscore -I$srcdir/$subdir --em=criself
+#as: --pic --no-underscore -I$srcdir/$subdir --emulation=criself
 #readelf: -S -s -r
 
 # Regression test for mishandling of GOTPLT relocs against a

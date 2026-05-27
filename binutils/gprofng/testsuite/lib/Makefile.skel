@@ -1,5 +1,5 @@
 # Skeleton makefile for display tests
-#   Copyright (C) 2021 Free Software Foundation, Inc.
+#   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,7 +23,7 @@ CFLAGS      = -g -Wall
 SHAREDOPT	= -fpic	-shared
 
 #JAVABIN = /usr/java/latest/bin
-JAVABIN = $(shell dirname `which java`)
+JAVABIN = $(shell dirname `command -v java`)
 JAVA    = $(JAVABIN)/java
 JAVAC   = $(JAVABIN)/javac
 
@@ -39,12 +39,6 @@ DISPLAY	    = $(GPROFNG) display text
 EXPERIMENT  = test.er
 DISPLAY_LOG = display.log
 
-gprofng_dir := $(shell dirname $$(find ../root -name libgprofng.so.0 | head -1))
-export LD_LIBRARY_PATH := $(gprofng_dir):$(gprofng_dir)/..
-
-# Set GPROFNG_SYSCONFDIR to find out gprofng.rc:
-export GPROFNG_SYSCONFDIR := $(srcdir)/../../../src
-
 .PHONY: all collect compare clobber clean
 
 all: compare
@@ -57,7 +51,8 @@ $(DISPLAY_LOG): $(EXPERIMENT)
 	$(DISPLAY) $(DISPLAY_FLAGS) $(EXPERIMENT) > $@
 
 compare: $(DISPLAY_LOG)
-	perl -I $(srcdir)/../../lib $(srcdir)/check_results.pl $(ACCT_FILE) $(DISPLAY_LOG)
+	cat $(ACCT_FILE) $(ACCT_FILTER) > $(ACCT_FILE).fltr
+	perl -I $(srcdir)/../../lib $(srcdir)/check_results.pl $(ACCT_FILE).fltr $(DISPLAY_LOG)
 
 clobber clean:
 	rm -rf *.er

@@ -1,6 +1,5 @@
 # Check AVX WIG instructions
 
-	.allow_index_reg
 	.text
 _start:
 	andn (%eax), %eax, %eax

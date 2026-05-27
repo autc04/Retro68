@@ -1,0 +1,114 @@
+# Copyright (C) 2022-2026 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+if { ![is_elf_format] } then {
+    return
+}
+
+proc gas_x86_64_check { } {
+    global NM
+    global NMFLAGS
+
+    set status [gas_host_run "$NM $NMFLAGS --help" ""]
+    return [regexp "targets:.*x86-64" [lindex $status 1]];
+}
+
+# common tests
+if  { ([istarget "x86_64-*-*"] || [istarget "aarch64*-*-*"]
+       || [istarget "s390x-*-*"]) \
+      && [gas_sframe_check] } then {
+
+    global ASFLAGS
+    set old_ASFLAGS "$ASFLAGS"
+
+    run_dump_test "cfi-sframe-common-1"
+    run_dump_test "cfi-sframe-common-1b"
+    run_dump_test "cfi-sframe-common-1c"
+    run_dump_test "cfi-sframe-common-1d"
+    run_dump_test "cfi-sframe-common-2"
+    run_dump_test "cfi-sframe-common-3"
+    run_dump_test "cfi-sframe-common-4"
+    run_dump_test "cfi-sframe-common-5"
+    run_dump_test "cfi-sframe-common-6"
+    run_dump_test "cfi-sframe-common-7"
+    run_dump_test "cfi-sframe-common-8"
+    run_dump_test "cfi-sframe-common-9"
+    run_dump_test "cfi-sframe-common-10"
+    run_dump_test "cfi-sframe-common-11"
+    run_dump_test "cfi-sframe-common-12"
+    run_dump_test "cfi-sframe-common-13"
+
+    run_dump_test "common-empty-2"
+    run_dump_test "common-empty-3"
+
+    run_dump_test "cfi-sframe-common-pr33810"
+}
+
+# x86-64 specific tests
+if { [istarget "x86_64-*-*"] && [gas_sframe_check] } then {
+    if { [gas_x86_64_check] } then {
+	set ASFLAGS "$ASFLAGS --64"
+	run_dump_test "cfi-sframe-x86_64-1"
+	run_dump_test "cfi-sframe-x86_64-2"
+	run_dump_test "cfi-sframe-x86_64-3"
+	run_dump_test "cfi-sframe-x86_64-4"
+	run_dump_test "cfi-sframe-x86_64-5"
+	run_dump_test "cfi-sframe-x86_64-6"
+	run_dump_test "cfi-sframe-x86_64-7"
+	run_dump_test "cfi-sframe-x86_64-esc-expr-1"
+	run_dump_test "cfi-sframe-x86_64-esc-expr-2"
+	run_dump_test "cfi-sframe-x86_64-esc-expr-3"
+	run_dump_test "cfi-sframe-x86_64-pr33170"
+	run_dump_test "cfi-sframe-x86_64-pr33756"
+	run_dump_test "cfi-sframe-x86_64-signal-1"
+	run_dump_test "cfi-sframe-x86_64-empty-1"
+	run_dump_test "cfi-sframe-x86_64-empty-2"
+	run_dump_test "cfi-sframe-x86_64-empty-3"
+	run_dump_test "cfi-sframe-x86_64-empty-4"
+	run_dump_test "cfi-sframe-x86_64-empty-5"
+	run_dump_test "cfi-sframe-x86_64-empty-pr33277"
+	run_dump_test "cfi-sframe-x86_64-ra-undefined-1"
+	run_dump_test "cfi-sframe-x86_64-ra-undefined-flex-1"
+	set ASFLAGS "$old_ASFLAGS"
+    }
+}
+
+# aarch64 specific tests
+if { [istarget "aarch64*-*-*"] && [gas_sframe_check] } then {
+    run_dump_test "cfi-sframe-aarch64-1"
+    run_dump_test "cfi-sframe-aarch64-2"
+    run_dump_test "cfi-sframe-aarch64-3"
+    run_dump_test "cfi-sframe-aarch64-4"
+    run_dump_test "cfi-sframe-aarch64-pac-ab-key-1"
+    run_dump_test "cfi-sframe-aarch64-ra-undefined-1"
+}
+
+# s390x specific tests
+if { [istarget "s390x*-*-*"] && [gas_sframe_check] } then {
+    run_dump_test "cfi-sframe-s390x-1"
+    run_dump_test "cfi-sframe-s390x-2"
+    run_dump_test "cfi-sframe-s390x-3"
+    run_dump_test "cfi-sframe-s390x-err-3"
+    run_dump_test "cfi-sframe-s390x-fpra-offset-1"
+    run_dump_test "cfi-sframe-s390x-fpra-offset-2"
+    run_dump_test "cfi-sframe-s390x-fpra-register-1"
+    run_dump_test "cfi-sframe-s390x-fpra-register-2"
+    run_dump_test "cfi-sframe-s390x-sp-register"
+    run_dump_test "cfi-sframe-s390x-ra-undefined-1"
+    run_dump_test "cfi-sframe-s390x-pr33756"
+    run_dump_test "cfi-sframe-s390x-non-spfp-cfa-1"
+    run_dump_test "cfi-sframe-s390x-non-spfp-cfa-2"
+}

@@ -1,5 +1,5 @@
 /* function_shape declaration for RISC-V 'V' Extension for GNU compiler.
-   Copyright (C) 2022-2025 Free Software Foundation, Inc.
+   Copyright (C) 2022-2026 Free Software Foundation, Inc.
    Contributed by Ju-Zhe Zhong (juzhe.zhong@rivai.ai), RiVAI Technologies Ltd.
 
    This file is part of GCC.
@@ -62,6 +62,8 @@ extern const function_shape *const crypto_vv_no_op_type;
 /* Sifive vendor extension.  */
 extern const function_shape *const sf_vqmacc;
 extern const function_shape *const sf_vfnrclip;
+extern const function_shape *const sf_vcix_se;
+extern const function_shape *const sf_vcix;
 }
 
 } // end namespace riscv_vector

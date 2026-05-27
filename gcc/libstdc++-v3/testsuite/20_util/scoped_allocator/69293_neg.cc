@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2025 Free Software Foundation, Inc.
+// Copyright (C) 2016-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -41,6 +41,8 @@ using inner_alloc_type = scoped_alloc::inner_allocator_type;
 static_assert(uses_allocator<X, inner_alloc_type>{}, "");
 static_assert(!is_constructible<X, allocator_arg_t, inner_alloc_type>{}, "");
 static_assert(!is_constructible<X, inner_alloc_type>{}, "");
+
+// { dg-error "too many initializers" "" { target c++20 } 0 }
 
 void
 test01()

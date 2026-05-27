@@ -1,5 +1,5 @@
 ;; Machine description for AArch64 processor synchronization primitives.
-;; Copyright (C) 2009-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2026 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 ;;
 ;; This file is part of GCC.
@@ -679,13 +679,16 @@
 )
 
 (define_insn "aarch64_atomic_load<mode>_rcpc"
-  [(set (match_operand:ALLI 0 "register_operand" "=r")
+  [(set (match_operand:ALLI 0 "register_operand")
     (unspec_volatile:ALLI
-      [(match_operand:ALLI 1 "aarch64_sync_memory_operand" "Q")
+      [(match_operand:ALLI 1 "aarch64_rcpc_memory_operand")
        (match_operand:SI 2 "const_int_operand")]			;; model
       UNSPECV_LDAP))]
   "TARGET_RCPC"
-  "ldapr<atomic_sfx>\t%<w>0, %1"
+  {@ [ cons: =0 , 1   ; attrs: enable_ldapur  ]
+     [ r        , Q   ; any                   ] ldapr<atomic_sfx>\t%<w>0, %1
+     [ r        , Ust ; yes                   ] ldapur<atomic_sfx>\t%<w>0, %1
+  }
 )
 
 (define_insn "aarch64_atomic_load<mode>"
@@ -705,21 +708,24 @@
 )
 
 (define_insn "*aarch64_atomic_load<ALLX:mode>_rcpc_zext"
-  [(set (match_operand:SD_HSDI 0 "register_operand" "=r")
+  [(set (match_operand:SD_HSDI 0 "register_operand")
     (zero_extend:SD_HSDI
       (unspec_volatile:ALLX
-        [(match_operand:ALLX 1 "aarch64_sync_memory_operand" "Q")
+        [(match_operand:ALLX 1 "aarch64_rcpc_memory_operand")
          (match_operand:SI 2 "const_int_operand")]			;; model
        UNSPECV_LDAP)))]
   "TARGET_RCPC && (<SD_HSDI:sizen> > <ALLX:sizen>)"
-  "ldapr<ALLX:atomic_sfx>\t%w0, %1"
+  {@ [ cons: =0 , 1   ; attrs: enable_ldapur ]
+     [ r        , Q   ; any                  ] ldapr<ALLX:atomic_sfx>\t%w0, %1
+     [ r        , Ust ; yes                  ] ldapur<ALLX:atomic_sfx>\t%w0, %1
+  }
 )
 
 (define_insn "*aarch64_atomic_load<ALLX:mode>_rcpc_sext"
   [(set (match_operand:GPI  0 "register_operand" "=r")
     (sign_extend:GPI
       (unspec_volatile:ALLX
-        [(match_operand:ALLX 1 "aarch64_sync_memory_operand" "Q")
+        [(match_operand:ALLX 1 "aarch64_rcpc_memory_operand" "Ust")
          (match_operand:SI 2 "const_int_operand")]			;; model
        UNSPECV_LDAP)))]
   "TARGET_RCPC2 && (<GPI:sizen> > <ALLX:sizen>)"
@@ -734,6 +740,30 @@
       UNSPECV_STL))]
   ""
   {
+    enum memmodel model = memmodel_from_int (INTVAL (operands[2]));
+    if (is_mm_relaxed (model) || is_mm_consume (model) || is_mm_acquire (model))
+      return "str<atomic_sfx>\t%<w>1, %0";
+    else if (which_alternative == 0)
+      return "stlr<atomic_sfx>\t%<w>1, %0";
+    else
+      return "stlur<atomic_sfx>\t%<w>1, %0";
+  }
+  [(set_attr "arch" "*,rcpc8_4")]
+)
+
+(define_insn "@aarch64_atomic_store_stshh<mode>"
+  [(set (match_operand:ALLI 0 "aarch64_rcpc_memory_operand" "=Q,Ust")
+    (unspec_volatile:ALLI
+       [(match_operand:ALLI 1 "aarch64_reg_or_zero" "rZ,rZ")
+       (match_operand:SI 2 "const_int_operand")			;; model
+       (match_operand:SI 3 "const_int_operand")]		;; ret_policy
+      UNSPECV_STSHH))]
+  ""
+  {
+    if (INTVAL (operands[3]) == 0)
+      output_asm_insn ("stshh\tkeep", operands);
+    else
+      output_asm_insn ("stshh\tstrm", operands);
     enum memmodel model = memmodel_from_int (INTVAL (operands[2]));
     if (is_mm_relaxed (model) || is_mm_consume (model) || is_mm_acquire (model))
       return "str<atomic_sfx>\t%<w>1, %0";
@@ -864,7 +894,13 @@
     enum memmodel model = memmodel_from_int (INTVAL (operands[1]));
     if (is_mm_acquire (model))
       return "dmb\\tishld";
+    else if (is_mm_release (model))
+      return "dmb\\tishld\;dmb\\tishst";
     else
       return "dmb\\tish";
   }
+  [(set (attr "length")
+    (if_then_else
+     (match_test "is_mm_release (memmodel_from_int (INTVAL (operands[1])))")
+      (const_int 8) (const_int 4)))]
 )

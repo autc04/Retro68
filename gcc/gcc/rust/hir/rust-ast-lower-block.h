@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -212,8 +212,6 @@ public:
   }
 
   void visit (AST::WhileLoopExpr &expr) override;
-
-  void visit (AST::ForLoopExpr &expr) override;
 
   void visit (AST::MatchExpr &expr) override;
 

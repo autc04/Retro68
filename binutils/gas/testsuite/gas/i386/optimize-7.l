@@ -1,12 +1,11 @@
 .*: Assembler messages:
-.*:6: Error: .*
+.*:5: Error: .*
 GAS LISTING .*
 
 
 [ 	]*1[ 	]+\# Check instructions with optimized encoding
 [ 	]*2[ 	]+
-[ 	]*3[ 	]+\.allow_index_reg
-[ 	]*4[ 	]+\.text
-[ 	]*5[ 	]+_start:
-[ 	]*6[ 	]+vmovdqa32	%ymm1, %ymm2
+[ 	]*3[ 	]+\.text
+[ 	]*4[ 	]+_start:
+[ 	]*5[ 	]+vmovdqa32	%ymm1, %ymm2
 #pass

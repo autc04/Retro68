@@ -1,5 +1,5 @@
 /* Atomic 64-byte load/store instructions.  */
-.arch armv8.6-a+ls64
+.arch armv8-a+ls64
 
 /* Single-copy Atomic 64-byte Load.  */
 	ld64b x0, [x1]

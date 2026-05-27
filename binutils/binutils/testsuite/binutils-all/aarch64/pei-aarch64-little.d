@@ -1,7 +1,7 @@
 #skip: aarch64_be-*-*
 #ld: -e0
 #PROG: objcopy
-#objcopy: -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel -j .rela -j .rel.* -j .rela.* -j .rel* -j .rela* -j .reloc --target=efi-app-aarch64
+#objcopy: -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel -j .rela -j .rel.* -j .rela.* -j .rel* -j .rela* -j .reloc --output-target=efi-app-aarch64
 #objdump: -h -f
 #name: Check if efi app format is recognized
 

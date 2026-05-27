@@ -7,158 +7,158 @@
 
 Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> 00000000 	nop
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> 3b41      	0x3b41
+[0-9a-f]+ <[^>]*> 3b41      	.short	0x3b41
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> 3b42      	0x3b42
+[0-9a-f]+ <[^>]*> 3b42      	.short	0x3b42
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> 3b43      	0x3b43
+[0-9a-f]+ <[^>]*> 3b43      	.short	0x3b43
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> 3b44      	0x3b44
-[0-9a-f]+ <[^>]*> 3b41      	0x3b41
-[0-9a-f]+ <[^>]*> 3b42      	0x3b42
-[0-9a-f]+ <[^>]*> 3b44      	0x3b44
-[0-9a-f]+ <[^>]*> 3b48      	0x3b48
-[0-9a-f]+ <[^>]*> 3b50      	0x3b50
+[0-9a-f]+ <[^>]*> 3b44      	.short	0x3b44
+[0-9a-f]+ <[^>]*> 3b41      	.short	0x3b41
+[0-9a-f]+ <[^>]*> 3b42      	.short	0x3b42
+[0-9a-f]+ <[^>]*> 3b44      	.short	0x3b44
+[0-9a-f]+ <[^>]*> 3b48      	.short	0x3b48
+[0-9a-f]+ <[^>]*> 3b50      	.short	0x3b50
 [0-9a-f]+ <[^>]*> f100      	extend	0x100
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f200      	extend	0x200
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f400      	extend	0x400
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f001      	extend	0x1
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 3b5f      	0x3b5f
+[0-9a-f]+ <[^>]*> 3b5f      	.short	0x3b5f
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 3b5e      	0x3b5e
+[0-9a-f]+ <[^>]*> 3b5e      	.short	0x3b5e
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 3b5d      	0x3b5d
+[0-9a-f]+ <[^>]*> 3b5d      	.short	0x3b5d
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 3b5c      	0x3b5c
+[0-9a-f]+ <[^>]*> 3b5c      	.short	0x3b5c
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 3b58      	0x3b58
+[0-9a-f]+ <[^>]*> 3b58      	.short	0x3b58
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 3b50      	0x3b50
+[0-9a-f]+ <[^>]*> 3b50      	.short	0x3b50
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f7df      	extend	0x7df
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f79f      	extend	0x79f
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f71f      	extend	0x71f
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f61f      	extend	0x61f
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f41f      	extend	0x41f
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f01f      	extend	0x1f
-[0-9a-f]+ <[^>]*> 3b40      	0x3b40
+[0-9a-f]+ <[^>]*> 3b40      	.short	0x3b40
 [0-9a-f]+ <[^>]*> f7bf      	extend	0x7bf
-[0-9a-f]+ <[^>]*> fc40      	0xfc40
+[0-9a-f]+ <[^>]*> fc40      	.short	0xfc40
 [0-9a-f]+ <[^>]*> f6a0      	extend	0x6a0
-[0-9a-f]+ <[^>]*> fc54      	0xfc54
+[0-9a-f]+ <[^>]*> fc54      	.short	0xfc54
 [0-9a-f]+ <[^>]*> f001      	extend	0x1
-[0-9a-f]+ <[^>]*> fc40      	0xfc40
+[0-9a-f]+ <[^>]*> fc40      	.short	0xfc40
 [0-9a-f]+ <[^>]*> f0c1      	extend	0xc1
-[0-9a-f]+ <[^>]*> fc40      	0xfc40
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> fc40      	.short	0xfc40
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> f841      	0xf841
+[0-9a-f]+ <[^>]*> f841      	.short	0xf841
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> f842      	0xf842
+[0-9a-f]+ <[^>]*> f842      	.short	0xf842
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> f843      	0xf843
+[0-9a-f]+ <[^>]*> f843      	.short	0xf843
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> f844      	0xf844
-[0-9a-f]+ <[^>]*> f841      	0xf841
-[0-9a-f]+ <[^>]*> f842      	0xf842
-[0-9a-f]+ <[^>]*> f844      	0xf844
-[0-9a-f]+ <[^>]*> f848      	0xf848
-[0-9a-f]+ <[^>]*> f850      	0xf850
+[0-9a-f]+ <[^>]*> f844      	.short	0xf844
+[0-9a-f]+ <[^>]*> f841      	.short	0xf841
+[0-9a-f]+ <[^>]*> f842      	.short	0xf842
+[0-9a-f]+ <[^>]*> f844      	.short	0xf844
+[0-9a-f]+ <[^>]*> f848      	.short	0xf848
+[0-9a-f]+ <[^>]*> f850      	.short	0xf850
 [0-9a-f]+ <[^>]*> f100      	extend	0x100
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f200      	extend	0x200
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f400      	extend	0x400
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f001      	extend	0x1
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f85f      	0xf85f
+[0-9a-f]+ <[^>]*> f85f      	.short	0xf85f
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f85e      	0xf85e
+[0-9a-f]+ <[^>]*> f85e      	.short	0xf85e
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f85d      	0xf85d
+[0-9a-f]+ <[^>]*> f85d      	.short	0xf85d
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f85c      	0xf85c
+[0-9a-f]+ <[^>]*> f85c      	.short	0xf85c
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f858      	0xf858
+[0-9a-f]+ <[^>]*> f858      	.short	0xf858
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f850      	0xf850
+[0-9a-f]+ <[^>]*> f850      	.short	0xf850
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f7df      	extend	0x7df
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f79f      	extend	0x79f
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f71f      	extend	0x71f
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f61f      	extend	0x61f
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f41f      	extend	0x41f
-[0-9a-f]+ <[^>]*> f840      	0xf840
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
 [0-9a-f]+ <[^>]*> f01f      	extend	0x1f
-[0-9a-f]+ <[^>]*> f840      	0xf840
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> f840      	.short	0xf840
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> bb41      	0xbb41
+[0-9a-f]+ <[^>]*> bb41      	.short	0xbb41
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> bb42      	0xbb42
+[0-9a-f]+ <[^>]*> bb42      	.short	0xbb42
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> bb43      	0xbb43
-[0-9a-f]+ <[^>]*> bb41      	0xbb41
-[0-9a-f]+ <[^>]*> bb42      	0xbb42
-[0-9a-f]+ <[^>]*> bb44      	0xbb44
-[0-9a-f]+ <[^>]*> bb48      	0xbb48
-[0-9a-f]+ <[^>]*> bb50      	0xbb50
+[0-9a-f]+ <[^>]*> bb43      	.short	0xbb43
+[0-9a-f]+ <[^>]*> bb41      	.short	0xbb41
+[0-9a-f]+ <[^>]*> bb42      	.short	0xbb42
+[0-9a-f]+ <[^>]*> bb44      	.short	0xbb44
+[0-9a-f]+ <[^>]*> bb48      	.short	0xbb48
+[0-9a-f]+ <[^>]*> bb50      	.short	0xbb50
 [0-9a-f]+ <[^>]*> f080      	extend	0x80
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f100      	extend	0x100
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f200      	extend	0x200
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f400      	extend	0x400
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f001      	extend	0x1
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> bb5f      	0xbb5f
+[0-9a-f]+ <[^>]*> bb5f      	.short	0xbb5f
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> bb5e      	0xbb5e
+[0-9a-f]+ <[^>]*> bb5e      	.short	0xbb5e
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> bb5d      	0xbb5d
+[0-9a-f]+ <[^>]*> bb5d      	.short	0xbb5d
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> bb5c      	0xbb5c
+[0-9a-f]+ <[^>]*> bb5c      	.short	0xbb5c
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> bb58      	0xbb58
+[0-9a-f]+ <[^>]*> bb58      	.short	0xbb58
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> bb50      	0xbb50
+[0-9a-f]+ <[^>]*> bb50      	.short	0xbb50
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f7df      	extend	0x7df
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f79f      	extend	0x79f
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f71f      	extend	0x71f
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f61f      	extend	0x61f
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f41f      	extend	0x41f
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> f01f      	extend	0x1f
-[0-9a-f]+ <[^>]*> bb40      	0xbb40
+[0-9a-f]+ <[^>]*> bb40      	.short	0xbb40
 [0-9a-f]+ <[^>]*> 9b40      	lw	v0,0\(v1\)
 [0-9a-f]+ <[^>]*> f000 9b41 	lw	v0,1\(v1\)
 [0-9a-f]+ <[^>]*> f000 9b42 	lw	v0,2\(v1\)
@@ -325,147 +325,147 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> f61f a340 	lbu	v0,-512\(v1\)
 [0-9a-f]+ <[^>]*> f41f a340 	lbu	v0,-1024\(v1\)
 [0-9a-f]+ <[^>]*> f01f a340 	lbu	v0,-2048\(v1\)
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> 7b41      	0x7b41
+[0-9a-f]+ <[^>]*> 7b41      	.short	0x7b41
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> 7b42      	0x7b42
+[0-9a-f]+ <[^>]*> 7b42      	.short	0x7b42
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> 7b43      	0x7b43
+[0-9a-f]+ <[^>]*> 7b43      	.short	0x7b43
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> 7b44      	0x7b44
-[0-9a-f]+ <[^>]*> 7b41      	0x7b41
-[0-9a-f]+ <[^>]*> 7b42      	0x7b42
-[0-9a-f]+ <[^>]*> 7b44      	0x7b44
-[0-9a-f]+ <[^>]*> 7b48      	0x7b48
-[0-9a-f]+ <[^>]*> 7b50      	0x7b50
+[0-9a-f]+ <[^>]*> 7b44      	.short	0x7b44
+[0-9a-f]+ <[^>]*> 7b41      	.short	0x7b41
+[0-9a-f]+ <[^>]*> 7b42      	.short	0x7b42
+[0-9a-f]+ <[^>]*> 7b44      	.short	0x7b44
+[0-9a-f]+ <[^>]*> 7b48      	.short	0x7b48
+[0-9a-f]+ <[^>]*> 7b50      	.short	0x7b50
 [0-9a-f]+ <[^>]*> f100      	extend	0x100
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f200      	extend	0x200
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f400      	extend	0x400
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f001      	extend	0x1
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 7b5f      	0x7b5f
+[0-9a-f]+ <[^>]*> 7b5f      	.short	0x7b5f
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 7b5e      	0x7b5e
+[0-9a-f]+ <[^>]*> 7b5e      	.short	0x7b5e
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 7b5d      	0x7b5d
+[0-9a-f]+ <[^>]*> 7b5d      	.short	0x7b5d
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 7b5c      	0x7b5c
+[0-9a-f]+ <[^>]*> 7b5c      	.short	0x7b5c
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 7b58      	0x7b58
+[0-9a-f]+ <[^>]*> 7b58      	.short	0x7b58
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 7b50      	0x7b50
+[0-9a-f]+ <[^>]*> 7b50      	.short	0x7b50
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f7df      	extend	0x7df
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f79f      	extend	0x79f
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f71f      	extend	0x71f
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f61f      	extend	0x61f
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f41f      	extend	0x41f
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
 [0-9a-f]+ <[^>]*> f01f      	extend	0x1f
-[0-9a-f]+ <[^>]*> 7b40      	0x7b40
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> 7b40      	.short	0x7b40
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> f941      	0xf941
+[0-9a-f]+ <[^>]*> f941      	.short	0xf941
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> f942      	0xf942
+[0-9a-f]+ <[^>]*> f942      	.short	0xf942
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> f943      	0xf943
+[0-9a-f]+ <[^>]*> f943      	.short	0xf943
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> f944      	0xf944
-[0-9a-f]+ <[^>]*> f941      	0xf941
-[0-9a-f]+ <[^>]*> f942      	0xf942
-[0-9a-f]+ <[^>]*> f944      	0xf944
-[0-9a-f]+ <[^>]*> f948      	0xf948
-[0-9a-f]+ <[^>]*> f950      	0xf950
+[0-9a-f]+ <[^>]*> f944      	.short	0xf944
+[0-9a-f]+ <[^>]*> f941      	.short	0xf941
+[0-9a-f]+ <[^>]*> f942      	.short	0xf942
+[0-9a-f]+ <[^>]*> f944      	.short	0xf944
+[0-9a-f]+ <[^>]*> f948      	.short	0xf948
+[0-9a-f]+ <[^>]*> f950      	.short	0xf950
 [0-9a-f]+ <[^>]*> f100      	extend	0x100
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f200      	extend	0x200
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f400      	extend	0x400
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f001      	extend	0x1
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f95f      	0xf95f
+[0-9a-f]+ <[^>]*> f95f      	.short	0xf95f
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f95e      	0xf95e
+[0-9a-f]+ <[^>]*> f95e      	.short	0xf95e
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f95d      	0xf95d
+[0-9a-f]+ <[^>]*> f95d      	.short	0xf95d
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f95c      	0xf95c
+[0-9a-f]+ <[^>]*> f95c      	.short	0xf95c
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f958      	0xf958
+[0-9a-f]+ <[^>]*> f958      	.short	0xf958
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f950      	0xf950
+[0-9a-f]+ <[^>]*> f950      	.short	0xf950
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f7df      	extend	0x7df
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f79f      	extend	0x79f
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f71f      	extend	0x71f
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f61f      	extend	0x61f
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f41f      	extend	0x41f
-[0-9a-f]+ <[^>]*> f940      	0xf940
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
 [0-9a-f]+ <[^>]*> f01f      	extend	0x1f
-[0-9a-f]+ <[^>]*> f940      	0xf940
-[0-9a-f]+ <[^>]*> fa00      	0xfa00
+[0-9a-f]+ <[^>]*> f940      	.short	0xf940
+[0-9a-f]+ <[^>]*> fa00      	.short	0xfa00
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> fa01      	0xfa01
+[0-9a-f]+ <[^>]*> fa01      	.short	0xfa01
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> fa02      	0xfa02
+[0-9a-f]+ <[^>]*> fa02      	.short	0xfa02
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> fa03      	0xfa03
+[0-9a-f]+ <[^>]*> fa03      	.short	0xfa03
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> fa04      	0xfa04
-[0-9a-f]+ <[^>]*> fa01      	0xfa01
-[0-9a-f]+ <[^>]*> fa02      	0xfa02
-[0-9a-f]+ <[^>]*> fa04      	0xfa04
-[0-9a-f]+ <[^>]*> fa08      	0xfa08
-[0-9a-f]+ <[^>]*> fa10      	0xfa10
-[0-9a-f]+ <[^>]*> fa20      	0xfa20
-[0-9a-f]+ <[^>]*> fa40      	0xfa40
-[0-9a-f]+ <[^>]*> fa80      	0xfa80
+[0-9a-f]+ <[^>]*> fa04      	.short	0xfa04
+[0-9a-f]+ <[^>]*> fa01      	.short	0xfa01
+[0-9a-f]+ <[^>]*> fa02      	.short	0xfa02
+[0-9a-f]+ <[^>]*> fa04      	.short	0xfa04
+[0-9a-f]+ <[^>]*> fa08      	.short	0xfa08
+[0-9a-f]+ <[^>]*> fa10      	.short	0xfa10
+[0-9a-f]+ <[^>]*> fa20      	.short	0xfa20
+[0-9a-f]+ <[^>]*> fa40      	.short	0xfa40
+[0-9a-f]+ <[^>]*> fa80      	.short	0xfa80
 [0-9a-f]+ <[^>]*> f001      	extend	0x1
-[0-9a-f]+ <[^>]*> fa00      	0xfa00
+[0-9a-f]+ <[^>]*> fa00      	.short	0xfa00
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> fa1f      	0xfa1f
+[0-9a-f]+ <[^>]*> fa1f      	.short	0xfa1f
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> fa1e      	0xfa1e
+[0-9a-f]+ <[^>]*> fa1e      	.short	0xfa1e
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> fa1d      	0xfa1d
+[0-9a-f]+ <[^>]*> fa1d      	.short	0xfa1d
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> fa1c      	0xfa1c
+[0-9a-f]+ <[^>]*> fa1c      	.short	0xfa1c
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> fa18      	0xfa18
+[0-9a-f]+ <[^>]*> fa18      	.short	0xfa18
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> fa10      	0xfa10
+[0-9a-f]+ <[^>]*> fa10      	.short	0xfa10
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> fa00      	0xfa00
+[0-9a-f]+ <[^>]*> fa00      	.short	0xfa00
 [0-9a-f]+ <[^>]*> f7df      	extend	0x7df
-[0-9a-f]+ <[^>]*> fa00      	0xfa00
+[0-9a-f]+ <[^>]*> fa00      	.short	0xfa00
 [0-9a-f]+ <[^>]*> f79f      	extend	0x79f
-[0-9a-f]+ <[^>]*> fa00      	0xfa00
+[0-9a-f]+ <[^>]*> fa00      	.short	0xfa00
 [0-9a-f]+ <[^>]*> f71f      	extend	0x71f
-[0-9a-f]+ <[^>]*> fa00      	0xfa00
+[0-9a-f]+ <[^>]*> fa00      	.short	0xfa00
 [0-9a-f]+ <[^>]*> f61f      	extend	0x61f
-[0-9a-f]+ <[^>]*> fa00      	0xfa00
+[0-9a-f]+ <[^>]*> fa00      	.short	0xfa00
 [0-9a-f]+ <[^>]*> f41f      	extend	0x41f
-[0-9a-f]+ <[^>]*> fa00      	0xfa00
+[0-9a-f]+ <[^>]*> fa00      	.short	0xfa00
 [0-9a-f]+ <[^>]*> f01f      	extend	0x1f
-[0-9a-f]+ <[^>]*> fa00      	0xfa00
+[0-9a-f]+ <[^>]*> fa00      	.short	0xfa00
 [0-9a-f]+ <[^>]*> db40      	sw	v0,0\(v1\)
 [0-9a-f]+ <[^>]*> f000 db41 	sw	v0,1\(v1\)
 [0-9a-f]+ <[^>]*> f000 db42 	sw	v0,2\(v1\)
@@ -606,52 +606,52 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> f100 6a00 	li	v0,256
 [0-9a-f]+ <[^>]*> 675e      	move	v0,s8
 [0-9a-f]+ <[^>]*> 6592      	move	s4,v0
-[0-9a-f]+ <[^>]*> 4350      	0x4350
-[0-9a-f]+ <[^>]*> 4351      	0x4351
-[0-9a-f]+ <[^>]*> 435f      	0x435f
+[0-9a-f]+ <[^>]*> 4350      	.short	0x4350
+[0-9a-f]+ <[^>]*> 4351      	.short	0x4351
+[0-9a-f]+ <[^>]*> 435f      	.short	0x435f
 [0-9a-f]+ <[^>]*> f010      	extend	0x10
-[0-9a-f]+ <[^>]*> 4350      	0x4350
+[0-9a-f]+ <[^>]*> 4350      	.short	0x4350
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> 4350      	0x4350
-[0-9a-f]+ <[^>]*> e388      	0xe388
-[0-9a-f]+ <[^>]*> fd40      	0xfd40
-[0-9a-f]+ <[^>]*> fd41      	0xfd41
-[0-9a-f]+ <[^>]*> fd5f      	0xfd5f
+[0-9a-f]+ <[^>]*> 4350      	.short	0x4350
+[0-9a-f]+ <[^>]*> e388      	.short	0xe388
+[0-9a-f]+ <[^>]*> fd40      	.short	0xfd40
+[0-9a-f]+ <[^>]*> fd41      	.short	0xfd41
+[0-9a-f]+ <[^>]*> fd5f      	.short	0xfd5f
 [0-9a-f]+ <[^>]*> f020      	extend	0x20
-[0-9a-f]+ <[^>]*> fd40      	0xfd40
+[0-9a-f]+ <[^>]*> fd40      	.short	0xfd40
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> fd40      	0xfd40
+[0-9a-f]+ <[^>]*> fd40      	.short	0xfd40
 [0-9a-f]+ <[^>]*> f080      	extend	0x80
-[0-9a-f]+ <[^>]*> fd40      	0xfd40
+[0-9a-f]+ <[^>]*> fd40      	.short	0xfd40
 [0-9a-f]+ <[^>]*> f79f      	extend	0x79f
-[0-9a-f]+ <[^>]*> fd40      	0xfd40
+[0-9a-f]+ <[^>]*> fd40      	.short	0xfd40
 [0-9a-f]+ <[^>]*> f17f      	extend	0x17f
-[0-9a-f]+ <[^>]*> fe48      	0xfe48
+[0-9a-f]+ <[^>]*> fe48      	.short	0xfe48
 [0-9a-f]+ <[^>]*> f080      	extend	0x80
-[0-9a-f]+ <[^>]*> fe40      	0xfe40
+[0-9a-f]+ <[^>]*> fe40      	.short	0xfe40
 [0-9a-f]+ <[^>]*> f1c0      	extend	0x1c0
-[0-9a-f]+ <[^>]*> fe48      	0xfe48
+[0-9a-f]+ <[^>]*> fe48      	.short	0xfe48
 [0-9a-f]+ <[^>]*> f280      	extend	0x280
-[0-9a-f]+ <[^>]*> fe4c      	0xfe4c
-[0-9a-f]+ <[^>]*> fb00      	0xfb00
+[0-9a-f]+ <[^>]*> fe4c      	.short	0xfe4c
+[0-9a-f]+ <[^>]*> fb00      	.short	0xfb00
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> fb01      	0xfb01
+[0-9a-f]+ <[^>]*> fb01      	.short	0xfb01
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> fb1f      	0xfb1f
-[0-9a-f]+ <[^>]*> fb20      	0xfb20
-[0-9a-f]+ <[^>]*> fbe0      	0xfbe0
-[0-9a-f]+ <[^>]*> ff40      	0xff40
+[0-9a-f]+ <[^>]*> fb1f      	.short	0xfb1f
+[0-9a-f]+ <[^>]*> fb20      	.short	0xfb20
+[0-9a-f]+ <[^>]*> fbe0      	.short	0xfbe0
+[0-9a-f]+ <[^>]*> ff40      	.short	0xff40
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> ff41      	0xff41
+[0-9a-f]+ <[^>]*> ff41      	.short	0xff41
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> ff5f      	0xff5f
-[0-9a-f]+ <[^>]*> ff48      	0xff48
+[0-9a-f]+ <[^>]*> ff5f      	.short	0xff5f
+[0-9a-f]+ <[^>]*> ff48      	.short	0xff48
 [0-9a-f]+ <[^>]*> f7ff      	extend	0x7ff
-[0-9a-f]+ <[^>]*> ff40      	0xff40
+[0-9a-f]+ <[^>]*> ff40      	.short	0xff40
 [0-9a-f]+ <[^>]*> f080      	extend	0x80
-[0-9a-f]+ <[^>]*> ff40      	0xff40
+[0-9a-f]+ <[^>]*> ff40      	.short	0xff40
 [0-9a-f]+ <[^>]*> f79f      	extend	0x79f
-[0-9a-f]+ <[^>]*> ff40      	0xff40
+[0-9a-f]+ <[^>]*> ff40      	.short	0xff40
 [0-9a-f]+ <[^>]*> 4340      	addiu	v0,v1,0
 [0-9a-f]+ <[^>]*> 4341      	addiu	v0,v1,1
 [0-9a-f]+ <[^>]*> 434f      	addiu	v0,v1,-1
@@ -682,7 +682,7 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> 0220      	addiu	v0,sp,128
 [0-9a-f]+ <[^>]*> f79f 0200 	addiu	v0,sp,-128
 [0-9a-f]+ <[^>]*> 00000000 	nop
-[0-9a-f]+ <[^>]*> e38a      	0xe38a
+[0-9a-f]+ <[^>]*> e38a      	.short	0xe38a
 [0-9a-f]+ <[^>]*> e38b      	subu	v0,v1,a0
 [0-9a-f]+ <[^>]*> ea6b      	neg	v0,v1
 [0-9a-f]+ <[^>]*> ea6c      	and	v0,v1
@@ -707,32 +707,32 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> f100 7200 	cmpi	v0,256
 [0-9a-f]+ <[^>]*> ea6a      	cmp	v0,v1
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> 3261      	0x3261
-[0-9a-f]+ <[^>]*> 3265      	0x3265
-[0-9a-f]+ <[^>]*> 3261      	0x3261
+[0-9a-f]+ <[^>]*> 3261      	.short	0x3261
+[0-9a-f]+ <[^>]*> 3265      	.short	0x3265
+[0-9a-f]+ <[^>]*> 3261      	.short	0x3261
 [0-9a-f]+ <[^>]*> f240      	extend	0x240
-[0-9a-f]+ <[^>]*> 3261      	0x3261
+[0-9a-f]+ <[^>]*> 3261      	.short	0x3261
 [0-9a-f]+ <[^>]*> f7e0      	extend	0x7e0
-[0-9a-f]+ <[^>]*> 3261      	0x3261
-[0-9a-f]+ <[^>]*> eb54      	0xeb54
+[0-9a-f]+ <[^>]*> 3261      	.short	0x3261
+[0-9a-f]+ <[^>]*> eb54      	.short	0xeb54
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> e848      	0xe848
-[0-9a-f]+ <[^>]*> e948      	0xe948
-[0-9a-f]+ <[^>]*> e848      	0xe848
+[0-9a-f]+ <[^>]*> e848      	.short	0xe848
+[0-9a-f]+ <[^>]*> e948      	.short	0xe948
+[0-9a-f]+ <[^>]*> e848      	.short	0xe848
 [0-9a-f]+ <[^>]*> f240      	extend	0x240
-[0-9a-f]+ <[^>]*> e848      	0xe848
+[0-9a-f]+ <[^>]*> e848      	.short	0xe848
 [0-9a-f]+ <[^>]*> f7e0      	extend	0x7e0
-[0-9a-f]+ <[^>]*> e848      	0xe848
-[0-9a-f]+ <[^>]*> eb56      	0xeb56
+[0-9a-f]+ <[^>]*> e848      	.short	0xe848
+[0-9a-f]+ <[^>]*> eb56      	.short	0xeb56
 [0-9a-f]+ <[^>]*> f000      	extend	0x0
-[0-9a-f]+ <[^>]*> e853      	0xe853
-[0-9a-f]+ <[^>]*> e953      	0xe953
-[0-9a-f]+ <[^>]*> e853      	0xe853
+[0-9a-f]+ <[^>]*> e853      	.short	0xe853
+[0-9a-f]+ <[^>]*> e953      	.short	0xe953
+[0-9a-f]+ <[^>]*> e853      	.short	0xe853
 [0-9a-f]+ <[^>]*> f240      	extend	0x240
-[0-9a-f]+ <[^>]*> e853      	0xe853
+[0-9a-f]+ <[^>]*> e853      	.short	0xe853
 [0-9a-f]+ <[^>]*> f7e0      	extend	0x7e0
-[0-9a-f]+ <[^>]*> e853      	0xe853
-[0-9a-f]+ <[^>]*> eb57      	0xeb57
+[0-9a-f]+ <[^>]*> e853      	.short	0xe853
+[0-9a-f]+ <[^>]*> eb57      	.short	0xeb57
 [0-9a-f]+ <[^>]*> ea12      	mflo	v0
 [0-9a-f]+ <[^>]*> eb10      	mfhi	v1
 [0-9a-f]+ <[^>]*> f000 3260 	sll	v0,v1,0
@@ -753,15 +753,15 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> f240 3263 	sra	v0,v1,9
 [0-9a-f]+ <[^>]*> f7c0 3263 	sra	v0,v1,31
 [0-9a-f]+ <[^>]*> eb47      	srav	v0,v1
-[0-9a-f]+ <[^>]*> ea7c      	0xea7c
-[0-9a-f]+ <[^>]*> ea7d      	0xea7d
-[0-9a-f]+ <[^>]*> ea7e      	0xea7e
+[0-9a-f]+ <[^>]*> ea7c      	.short	0xea7c
+[0-9a-f]+ <[^>]*> ea7d      	.short	0xea7d
+[0-9a-f]+ <[^>]*> ea7e      	.short	0xea7e
 [0-9a-f]+ <[^>]*> 2b01      	bnez	v1,000007d4 <insns2\+0xb4>
 [0-9a-f]+ <[^>]*> e8e5      	break	0x7
 [0-9a-f]+ <[^>]*> ea12      	mflo	v0
 [0-9a-f]+ <[^>]*> 6500      	nop
 [0-9a-f]+ <[^>]*> 6500      	nop
-[0-9a-f]+ <[^>]*> ea7f      	0xea7f
+[0-9a-f]+ <[^>]*> ea7f      	.short	0xea7f
 [0-9a-f]+ <[^>]*> 2b01      	bnez	v1,000007e0 <insns2\+0xc0>
 [0-9a-f]+ <[^>]*> e8e5      	break	0x7
 [0-9a-f]+ <[^>]*> ea12      	mflo	v0

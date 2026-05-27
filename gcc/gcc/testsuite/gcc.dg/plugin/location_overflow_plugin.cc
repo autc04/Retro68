@@ -1,13 +1,14 @@
 /* Plugin for testing how gracefully we degrade in the face of very
    large source files.  */
 
+#define INCLUDE_VECTOR
 #include "config.h"
 #include "gcc-plugin.h"
 #include "system.h"
 #include "coretypes.h"
 #include "spellcheck.h"
 #include "diagnostic.h"
-#include "diagnostic-format-text.h"
+#include "diagnostics/text-sink.h"
 
 int plugin_is_GPL_compatible;
 
@@ -39,12 +40,12 @@ on_pragma_registration (void */*gcc_data*/, void */*user_data*/)
 /* We add some extra testing during diagnostics by chaining up
    to the text finalizer.  */
 
-static diagnostic_text_finalizer_fn original_text_finalizer = NULL;
+static diagnostics::text_finalizer_fn original_text_finalizer = NULL;
 
 static void
-verify_unpacked_ranges  (diagnostic_text_output_format &text_output,
-			 const diagnostic_info *diagnostic,
-			 diagnostic_t orig_diag_kind)
+verify_unpacked_ranges  (diagnostics::text_sink &text_output,
+			 const diagnostics::diagnostic_info *diagnostic,
+			 enum diagnostics::kind orig_diag_kind)
 {
   /* Verify that the locations are ad-hoc, not packed. */
   location_t loc = diagnostic_location (diagnostic);
@@ -56,9 +57,9 @@ verify_unpacked_ranges  (diagnostic_text_output_format &text_output,
 }
 
 static void
-verify_no_columns  (diagnostic_text_output_format &text_output,
-		    const diagnostic_info *diagnostic,
-		    diagnostic_t orig_diag_kind)
+verify_no_columns  (diagnostics::text_sink &text_output,
+		    const diagnostics::diagnostic_info *diagnostic,
+		    enum diagnostics::kind orig_diag_kind)
 {
   /* Verify that the locations have no columns. */
   location_t loc = diagnostic_location (diagnostic);
@@ -85,9 +86,18 @@ plugin_init (struct plugin_name_args *plugin_info,
     error_at (UNKNOWN_LOCATION, "missing plugin argument");
 
   /* With 64-bit locations, the thresholds are larger, so shift the base
-     location argument accordingly.  */
+     location argument accordingly, basically remap the GCC 14 32-bit
+     location_t argument values to 64-bit location_t counterparts.  There
+     is one exception for values slightly before the 32-bit location_t
+     LINE_MAP_MAX_LOCATION_WITH_PACKED_RANGES (0x50000000).  In that case
+     remap them to the same amount before the 64-bit location_t
+     LINE_MAP_MAX_LOCATION_WITH_PACKED_RANGES -
+     ((location_t) 0x50000000) << 31.  */
   gcc_assert (sizeof (location_t) == sizeof (uint64_t));
-  base_location = 1 + ((base_location - 1) << 31);
+  if (base_location >= 0x4f000000 && base_location <= 0x4fffffff)
+    base_location += (((location_t) 0x50000000) << 31) - 0x50000000;
+  else
+    base_location = 1 + ((base_location - 1) << 31);
 
   register_callback (plugin_info->base_name,
 		     PLUGIN_PRAGMAS,
@@ -95,19 +105,19 @@ plugin_init (struct plugin_name_args *plugin_info,
 		     NULL); /* void *user_data */
 
   /* Hack in additional testing, based on the exact value supplied.  */
-  original_text_finalizer = diagnostic_text_finalizer (global_dc);
+  original_text_finalizer = diagnostics::text_finalizer (global_dc);
   switch (base_location)
     {
     case LINE_MAP_MAX_LOCATION_WITH_PACKED_RANGES + 1:
-      diagnostic_text_finalizer (global_dc) = verify_unpacked_ranges;
+      diagnostics::text_finalizer (global_dc) = verify_unpacked_ranges;
       break;
 
     case LINE_MAP_MAX_LOCATION_WITH_COLS + 1:
-      diagnostic_text_finalizer (global_dc) = verify_no_columns;
+      diagnostics::text_finalizer (global_dc) = verify_no_columns;
       break;
 
     default:
-      error_at (UNKNOWN_LOCATION, "unrecognized value for plugin argument");
+      break;
     }
 
   return 0;

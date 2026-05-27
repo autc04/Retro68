@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -26,16 +26,18 @@ TypeParam::TypeParam (
   Analysis::NodeMapping mappings, Identifier type_representation,
   location_t locus,
   std::vector<std::unique_ptr<TypeParamBound>> type_param_bounds,
-  tl::optional<std::unique_ptr<Type>> type, AST::AttrVec outer_attrs)
+  tl::optional<std::unique_ptr<Type>> type, AST::AttrVec outer_attrs,
+  bool was_impl_trait)
   : GenericParam (mappings), outer_attrs (std::move (outer_attrs)),
     type_representation (std::move (type_representation)),
     type_param_bounds (std::move (type_param_bounds)), type (std::move (type)),
-    locus (locus)
+    locus (locus), was_impl_trait (was_impl_trait)
 {}
 
 TypeParam::TypeParam (TypeParam const &other)
   : GenericParam (other.mappings), outer_attrs (other.outer_attrs),
-    type_representation (other.type_representation), locus (other.locus)
+    type_representation (other.type_representation), locus (other.locus),
+    was_impl_trait (other.was_impl_trait)
 {
   // guard to prevent null pointer dereference
   if (other.has_type ())
@@ -55,6 +57,7 @@ TypeParam::operator= (TypeParam const &other)
   outer_attrs = other.outer_attrs;
   locus = other.locus;
   mappings = other.mappings;
+  was_impl_trait = other.was_impl_trait;
 
   // guard to prevent null pointer dereference
   if (other.has_type ())
@@ -713,17 +716,21 @@ TraitItemConst::operator= (TraitItemConst const &other)
 
 TraitItemType::TraitItemType (
   Analysis::NodeMapping mappings, Identifier name,
+  std::vector<std::unique_ptr<GenericParam>> generic_params,
   std::vector<std::unique_ptr<TypeParamBound>> type_param_bounds,
   AST::AttrVec outer_attrs, location_t locus)
   : TraitItem (mappings), outer_attrs (std::move (outer_attrs)),
-    name (std::move (name)), type_param_bounds (std::move (type_param_bounds)),
-    locus (locus)
+    name (std::move (name)), generic_params (std::move (generic_params)),
+    type_param_bounds (std::move (type_param_bounds)), locus (locus)
 {}
 
 TraitItemType::TraitItemType (TraitItemType const &other)
   : TraitItem (other.mappings), outer_attrs (other.outer_attrs),
     name (other.name), locus (other.locus)
 {
+  generic_params.reserve (other.generic_params.size ());
+  for (const auto &e : other.generic_params)
+    generic_params.push_back (e->clone_generic_param ());
   type_param_bounds.reserve (other.type_param_bounds.size ());
   for (const auto &e : other.type_param_bounds)
     type_param_bounds.push_back (e->clone_type_param_bound ());
@@ -738,6 +745,9 @@ TraitItemType::operator= (TraitItemType const &other)
   locus = other.locus;
   mappings = other.mappings;
 
+  generic_params.reserve (other.generic_params.size ());
+  for (const auto &e : other.generic_params)
+    generic_params.push_back (e->clone_generic_param ());
   type_param_bounds.reserve (other.type_param_bounds.size ());
   for (const auto &e : other.type_param_bounds)
     type_param_bounds.push_back (e->clone_type_param_bound ());

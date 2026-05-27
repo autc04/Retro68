@@ -1,5 +1,5 @@
 /* Function summary pass.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -271,6 +271,11 @@ redirect_to_unreachable (struct cgraph_edge *e)
   es->call_stmt_time = 0;
   if (callee)
     callee->remove_symbol_and_inline_clones ();
+  if (e->has_callback)
+    for (cgraph_edge *cbe = e->first_callback_edge (); cbe;
+	 cbe = cbe->next_callback_edge ())
+      /* If the carrying edge is unreachable, so are the callback calls.  */
+      redirect_to_unreachable (cbe);
   return e;
 }
 
@@ -990,7 +995,10 @@ ipa_call_summary_t::duplicate (struct cgraph_edge *src,
   info->predicate = NULL;
   edge_set_predicate (dst, srcinfo->predicate);
   info->param = srcinfo->param.copy ();
-  if (!dst->indirect_unknown_callee && src->indirect_unknown_callee)
+  if (!dst->indirect_unknown_callee && src->indirect_unknown_callee
+      /* Don't subtract the size when dealing with callback pairs, since the
+	 edge has no real size.  */
+      && !src->has_callback && !dst->callback)
     {
       info->call_stmt_size -= (eni_size_weights.indirect_call_cost
 			       - eni_size_weights.call_cost);
@@ -2356,7 +2364,8 @@ param_change_prob (ipa_func_body_info *fbi, gimple *stmt, int i)
       /* Lookup the most frequent update of the value and believe that
 	 it dominates all the other; precise analysis here is difficult.  */
       EXECUTE_IF_SET_IN_BITMAP (info.bb_set, 0, index, bi)
-	max = max.max (BASIC_BLOCK_FOR_FN (cfun, index)->count);
+	max = profile_count::max_prefer_initialized
+		(max, BASIC_BLOCK_FOR_FN (cfun, index)->count);
       if (dump_file)
 	{
           fprintf (dump_file, "     Set with count ");
@@ -3106,6 +3115,24 @@ analyze_function_body (struct cgraph_node *node, bool early)
 						     es, es3);
 		    }
 		}
+
+	      /* If dealing with a carrying edge, copy its summary over to its
+		 attached edges as well.  */
+	      if (edge->has_callback)
+		{
+		  cgraph_edge *cbe;
+		  for (cbe = edge->first_callback_edge (); cbe;
+		       cbe = cbe->next_callback_edge ())
+		    {
+		      ipa_call_summary *es2 = ipa_call_summaries->get_create (cbe);
+		      ipa_call_summaries->duplicate (edge, cbe, es, es2);
+		      /* Unlike speculative edges, callback edges have no real
+			 size or time; the call doesn't exist.  Reflect that in
+			 their summaries.  */
+		      es2->call_stmt_size = 0;
+		      es2->call_stmt_time = 0;
+		    }
+		}
 	    }
 
 	  /* TODO: When conditional jump or switch is known to be constant, but
@@ -3236,8 +3263,8 @@ analyze_function_body (struct cgraph_node *node, bool early)
 	  if (!loop->header->aux)
 	    continue;
 
-	  profile_count phdr_count = loop_preheader_edge (loop)->count ();
-	  sreal phdr_freq = phdr_count.to_sreal_scale (entry_count);
+	  profile_count hdr_count = loop->header->count;
+	  sreal hdr_freq = hdr_count.to_sreal_scale (entry_count);
 
 	  bb_predicate = *(ipa_predicate *)loop->header->aux;
 	  auto_vec<edge> exits = get_loop_exit_edges (loop);
@@ -3257,7 +3284,7 @@ analyze_function_body (struct cgraph_node *node, bool early)
 		loop_iterations &= will_be_nonconstant;
 	    }
 	  add_freqcounting_predicate (&s->loop_iterations, loop_iterations,
-				      phdr_freq, max_loop_predicates);
+				      hdr_freq, max_loop_predicates);
 	}
 
       /* To avoid quadratic behavior we analyze stride predicates only
@@ -3268,8 +3295,8 @@ analyze_function_body (struct cgraph_node *node, bool early)
 	{
 	  ipa_predicate loop_stride = true;
 	  basic_block *body = get_loop_body (loop);
-	  profile_count phdr_count = loop_preheader_edge (loop)->count ();
-	  sreal phdr_freq = phdr_count.to_sreal_scale (entry_count);
+	  profile_count hdr_count = loop->header->count;
+	  sreal hdr_freq = hdr_count.to_sreal_scale (entry_count);
 	  for (unsigned i = 0; i < loop->num_nodes; i++)
 	    {
 	      gimple_stmt_iterator gsi;
@@ -3309,7 +3336,7 @@ analyze_function_body (struct cgraph_node *node, bool early)
 		}
 	    }
 	  add_freqcounting_predicate (&s->loop_strides, loop_stride,
-				      phdr_freq, max_loop_predicates);
+				      hdr_freq, max_loop_predicates);
 	  free (body);
 	}
       scev_finalize ();
@@ -3421,6 +3448,21 @@ compute_fn_summary (struct cgraph_node *node, bool early)
 	 info->inlinable = tree_inlinable_function_p (node->decl);
 
        bool no_signature = false;
+
+       /* Don't allow signature changes for functions which have
+	  [[gnu::musttail]] or [[clang::musttail]] calls.  Sometimes
+	  (more often on targets which pass everything on the stack)
+	  signature changes can result in tail calls being impossible
+	  even when without the signature changes they would be ok.
+	  See PR121023.  */
+       if (cfun->has_musttail)
+	 {
+	   if (dump_file)
+	    fprintf (dump_file, "No signature change:"
+		     " function has calls with musttail attribute.\n");
+	   no_signature = true;
+	 }
+
        /* Type attributes can use parameter indices to describe them.
 	  Special case fn spec since we can safely preserve them in
 	  modref summaries.  */
@@ -3528,13 +3570,26 @@ estimate_edge_devirt_benefit (struct cgraph_edge *ie,
   if (!opt_for_fn (ie->caller->decl, flag_indirect_inlining))
     return false;
 
-  target = ipa_get_indirect_edge_target (ie, avals, &speculative);
+  target = ipa_get_indirect_edge_target
+    (ie->callee ? ie->speculative_call_indirect_edge () : ie,
+     avals, &speculative);
   if (!target || speculative)
     return false;
 
-  /* Account for difference in cost between indirect and direct calls.  */
-  *size -= (eni_size_weights.indirect_call_cost - eni_size_weights.call_cost);
-  *time -= (eni_time_weights.indirect_call_cost - eni_time_weights.call_cost);
+  /* If this is speculative call, turn its cost into 0; we will account
+     the call when processing the indirect call.  */
+  if (ie->callee)
+    {
+      gcc_checking_assert (ie->speculative && *size > 0);
+      *size = 0;
+      *time = 0;
+    }
+  else
+    {
+      /* Account for difference in cost between indirect and direct calls.  */
+      *size -= (eni_size_weights.indirect_call_cost - eni_size_weights.call_cost);
+      *time -= (eni_time_weights.indirect_call_cost - eni_time_weights.call_cost);
+    }
   gcc_checking_assert (*time >= 0);
   gcc_checking_assert (*size >= 0);
 
@@ -3566,9 +3621,12 @@ estimate_edge_size_and_time (struct cgraph_edge *e, int *size, int *min_size,
   int call_time = es->call_stmt_time;
   int cur_size;
 
-  if (!e->callee && hints && e->maybe_hot_p ()
+  if ((!e->callee || e->speculative)
       && estimate_edge_devirt_benefit (e, &call_size, &call_time, avals))
-    *hints |= INLINE_HINT_indirect_call;
+    {
+      if (hints && e->maybe_hot_p ())
+	*hints |= INLINE_HINT_indirect_call;
+    }
   cur_size = call_size * ipa_fn_summary::size_scale;
   *size += cur_size;
   if (min_size)
@@ -3697,12 +3755,12 @@ estimate_calls_size_and_time (struct cgraph_node *node, int *size,
     use_table = false;
   /* Do not calculate summaries for simple wrappers; it is waste
      of memory.  */
-  else if (node->callees && node->indirect_calls
+  else if (node->callees && !node->indirect_calls
            && node->callees->inline_failed && !node->callees->next_callee)
     use_table = false;
   /* If there is an indirect edge that may be optimized, we need
      to go the slow way.  */
-  else if (avals && hints
+  else if (avals
 	   && (avals->m_known_vals.length ()
 	       || avals->m_known_contexts.length ()
 	       || avals->m_known_aggs.length ()))

@@ -1,6 +1,6 @@
 (* PCSymBuild.mod pass C symbol creation.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -64,7 +64,7 @@ FROM SymbolTable IMPORT NulSym, ModeOfAddr, ProcedureKind,
                         GetFromOuterModule,
                         CheckForEnumerationInCurrentModule,
                         GetMode, PutVariableAtAddress, ModeOfAddr, SkipType,
-                        IsSet, PutConstSet,
+                        IsSet, PutConstSet, IsType,
                         IsConst, IsConstructor, PutConst, PutConstructor,
                         PopValue, PushValue,
                         MakeTemporary, PutVar,
@@ -257,19 +257,19 @@ END PCStartBuildDefModule ;
                               |------------|        |-----------|
 *)
 
-PROCEDURE PCEndBuildDefModule ;
+PROCEDURE PCEndBuildDefModule (tokno: CARDINAL) ;
 VAR
    NameStart,
    NameEnd  : CARDINAL ;
 BEGIN
    Assert(CompilingDefinitionModule()) ;
-   CheckForUnknownInModule ;
+   CheckForUnknownInModule (tokno) ;
    EndScope ;
    PopT(NameEnd) ;
    PopT(NameStart) ;
    IF NameStart#NameEnd
    THEN
-      WriteFormat2('inconsistant definition module was named (%a) and concluded as (%a)',
+      WriteFormat2('inconsistent definition module was named (%a) and concluded as (%a)',
                    NameStart, NameEnd)
    END ;
    M2Error.LeaveErrorScope
@@ -325,13 +325,13 @@ END PCStartBuildImpModule ;
                                   |------------|        |-----------|
 *)
 
-PROCEDURE PCEndBuildImpModule ;
+PROCEDURE PCEndBuildImpModule (tokno: CARDINAL) ;
 VAR
    NameStart,
    NameEnd  : Name ;
 BEGIN
    Assert(CompilingImplementationModule()) ;
-   CheckForUnknownInModule ;
+   CheckForUnknownInModule (tokno) ;
    EndScope ;
    PopT(NameEnd) ;
    PopT(NameStart) ;
@@ -398,13 +398,13 @@ END PCStartBuildProgModule ;
                            |------------|        |-----------|
 *)
 
-PROCEDURE PCEndBuildProgModule ;
+PROCEDURE PCEndBuildProgModule (tokno: CARDINAL) ;
 VAR
    NameStart,
    NameEnd  : Name ;
 BEGIN
    Assert(CompilingProgramModule()) ;
-   CheckForUnknownInModule ;
+   CheckForUnknownInModule (tokno) ;
    EndScope ;
    PopT(NameEnd) ;
    PopT(NameStart) ;
@@ -468,12 +468,12 @@ END PCStartBuildInnerModule ;
                          |------------|        |-----------|
 *)
 
-PROCEDURE PCEndBuildInnerModule ;
+PROCEDURE PCEndBuildInnerModule (tokno: CARDINAL) ;
 VAR
    NameStart,
    NameEnd  : Name ;
 BEGIN
-   CheckForUnknownInModule ;
+   CheckForUnknownInModule (tokno) ;
    EndScope ;
    PopT(NameEnd) ;
    PopT(NameStart) ;
@@ -1168,9 +1168,9 @@ BEGIN
          par := GetParam (p, i) ;
          IF IsParameterVar (par)
          THEN
-            PutProcTypeVarParam (t, GetType (par), IsParameterUnbounded (par))
+            PutProcTypeVarParam (tok, t, GetType (par), IsParameterUnbounded (par))
          ELSE
-            PutProcTypeParam (t, GetType (par), IsParameterUnbounded (par))
+            PutProcTypeParam (tok, t, GetType (par), IsParameterUnbounded (par))
          END ;
          INC(i)
       END ;
@@ -1408,9 +1408,10 @@ END TypeToMeta ;
 
 
 (*
-   buildConstFunction - we are only concerned about resolving the return type o
+   buildConstFunction - we are only concerned about resolving the return type of
                         a function, so we can ignore all parameters - except
-                        the first one in the case of VAL(type, foo).
+                        the first one in the case of VAL(type, foo)
+                        and the type of bar in MIN (bar) and MAX (bar).
                         buildConstFunction uses a unary exprNode to represent
                         a function.
 *)
@@ -1866,11 +1867,11 @@ BEGIN
             THEN
                IF (func=Min) OR (func=Max)
                THEN
-                  IF IsSet (sym)
+                  IF IsSet (sym) OR (IsType (sym) AND IsSet (SkipType (sym)))
                   THEN
-                     type := SkipType(GetType(sym))
+                     type := GetType (SkipType (sym))
                   ELSE
-                     (* sym is the type required for MAX, MIN and VAL *)
+                     (* sym is the type required for MAX, MIN and VAL.  *)
                      type := sym
                   END
                ELSE

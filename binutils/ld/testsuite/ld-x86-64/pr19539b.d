@@ -1,6 +1,6 @@
 #source: pr19539.s
 #as: --x32
-#ld: -pie -m elf32_x86_64 -T pr19539.t -z notext
+#ld: -pie -m elf32_x86_64 -T pr19539.t -z notext --no-error-rwx-segments
 #readelf: -r --wide
 
 Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 1 entry:

@@ -1,7 +1,7 @@
 /* General types and functions that are useful for processing of OpenMP,
    OpenACC and similar directives at various stages of compilation.
 
-   Copyright (C) 2005-2025 Free Software Foundation, Inc.
+   Copyright (C) 2005-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -1501,6 +1501,75 @@ omp_check_context_selector (location_t loc, tree ctx,
   return ctx;
 }
 
+/* Produce a mangled version of BASE_ID for the name of the variant
+   function with context selector CTX.  SEP is a separator string.
+   The return value is an IDENTIFIER_NODE.
+
+   Per the OpenMP spec, "the symbol names of two definitions of a function are
+   considered to be equal if and only if their effective context selectors are
+   equivalent".  However, if we did have two such definitions, we'd get an ODR
+   violation.  We already take steps in the front ends to make variant
+   functions internal to the compilation unit, since there is no (portable) way
+   to reference them directly by name or declare them as extern in another
+   compilation unit.  So, we can diagnose the would-be ODR violations by
+   checking that there is not already a variant for the same function with an
+   equivalent context selector, and otherwise just use a simple counter to name
+   the variant functions instead of any complicated scheme to encode the
+   context selector in the name.
+
+   C++ and Fortran modules are an exception to this, as variants in a module
+   interface unit are visible to implementation TUs for that module.  This
+   is handled in the C++ front end by adding an additional prefix to SEP for
+   variants in a module interface to prevent collisions with names in the
+   other TUs.  The Fortran and C++ front ends add the module name to the
+   output of this function using their normal mechanisms for symbols with
+   module linkage.  */
+tree
+omp_mangle_variant_name (tree base_id, tree ctx ATTRIBUTE_UNUSED,
+			 const char *sep)
+{
+  const char *base_name = IDENTIFIER_POINTER (base_id);
+
+  /* Now do the actual mangling.  */
+  static int variant_counter;
+  /* The numeric suffix and terminating byte ought to need way less than
+     32 bytes extra, that's just a magic number.  */
+  size_t buflen = (strlen (base_name) + strlen (sep) + strlen ("ompvariant")
+		   + 32);
+  char *buffer = (char *) alloca (buflen);
+  buflen = snprintf (buffer, buflen, "%s%sompvariant%d", base_name, sep,
+		     ++variant_counter);
+  return get_identifier_with_length (buffer, buflen);
+}
+
+/* Forward declaration.  */
+static int omp_context_selector_compare (tree ctx1, tree ctx2);
+
+/* Diagnose an error if there is already a variant with CTX registered
+   for BASE_DECL.  Returns true if OK, false otherwise.  */
+bool
+omp_check_for_duplicate_variant (location_t loc, tree base_decl, tree ctx)
+{
+  for (tree attr = DECL_ATTRIBUTES (base_decl); attr; attr = TREE_CHAIN (attr))
+    {
+      attr = lookup_attribute ("omp declare variant base", attr);
+      if (attr == NULL_TREE)
+	break;
+
+      tree selector = TREE_VALUE (TREE_VALUE (attr));
+      if (omp_context_selector_compare (ctx, selector) == 0)
+	{
+	  error_at (loc,
+		    "multiple definitions of variants with the same "
+		    "context selector violate the one-definition rule");
+	  inform (DECL_SOURCE_LOCATION (TREE_PURPOSE (attr)),
+		  "previous variant declaration here");
+	  return false;
+	}
+    }
+  return true;
+}
+
 /* Forward declarations.  */
 static int omp_context_selector_set_compare (enum omp_tss_code, tree, tree);
 static int omp_construct_simd_compare (tree, tree, bool);
@@ -1675,13 +1744,19 @@ omp_construct_traits_match (tree selector_traits, tree context_traits,
    CONSTRUCT_CONTEXT is known to be complete and not missing constructs
    filled in later during compilation.
 
+   If DECLARE_VARIANT_ELISION_P is true, the function implements the test
+   for elision of preprocessed code in "begin declare variant" constructs,
+   and returns 0 only for failure to match traits in the device and
+   implementation sets.
+
    Dynamic properties (which are evaluated at run-time) should always
    return 1.  */
 
 int
 omp_context_selector_matches (tree ctx,
 			      tree construct_context,
-			      bool complete_p)
+			      bool complete_p,
+			      bool declare_variant_elision_p)
 {
   int ret = 1;
   bool maybe_offloaded = omp_maybe_offloaded (construct_context);
@@ -1693,9 +1768,12 @@ omp_context_selector_matches (tree ctx,
 
       /* Immediately reject the match if there are any ignored
 	 selectors present.  */
-      for (tree ts = selectors; ts; ts = TREE_CHAIN (ts))
-	if (OMP_TS_CODE (ts) == OMP_TRAIT_INVALID)
-	  return 0;
+      if (!declare_variant_elision_p
+	  || set == OMP_TRAIT_SET_DEVICE
+	  || set == OMP_TRAIT_SET_IMPLEMENTATION)
+	for (tree ts = selectors; ts; ts = TREE_CHAIN (ts))
+	  if (OMP_TS_CODE (ts) == OMP_TRAIT_INVALID)
+	    return 0;
 
       if (set == OMP_TRAIT_SET_CONSTRUCT)
 	{
@@ -2049,6 +2127,13 @@ omp_context_selector_matches (tree ctx,
 	      break;
 	    case OMP_TRAIT_USER_CONDITION:
 	      gcc_assert (set == OMP_TRAIT_SET_USER);
+	      /* The spec does not include the "user" set in the things that
+		 can trigger code elision in "begin declare variant".  */
+	      if (declare_variant_elision_p)
+		{
+		  ret = -1;
+		  break;
+		}
 	      for (tree p = OMP_TS_PROPERTIES (ts); p; p = TREE_CHAIN (p))
 		if (OMP_TP_NAME (p) == NULL_TREE)
 		  {
@@ -2063,6 +2148,10 @@ omp_context_selector_matches (tree ctx,
 		      break;
 		    ret = -1;
 		  }
+	      break;
+	    case OMP_TRAIT_INVALID:
+	      /* This is only for the declare_variant_elision_p case.  */
+	      ret = -1;
 	      break;
 	    default:
 	      break;
@@ -2659,10 +2748,16 @@ omp_selector_is_dynamic (tree ctx)
 static tree
 omp_device_num_check (tree *device_num, bool *is_host)
 {
+  /* C++ may wrap the device_num expr in a CLEANUP_POINT_EXPR; we want
+     to look inside of it for the special cases.  */
+  tree t = *device_num;
+  if (TREE_CODE (t) == CLEANUP_POINT_EXPR)
+    t = TREE_OPERAND (t, 0);
+
   /* First check for some constant values we can treat specially.  */
-  if (tree_fits_shwi_p (*device_num))
+  if (tree_fits_shwi_p (t))
     {
-      HOST_WIDE_INT num = tree_to_shwi (*device_num);
+      HOST_WIDE_INT num = tree_to_shwi (t);
       if (num < -1)
 	return integer_zero_node;
       /* Initial device?  */
@@ -2681,9 +2776,9 @@ omp_device_num_check (tree *device_num, bool *is_host)
 
   /* Also test for direct calls to OpenMP routines that return valid
      device numbers.  */
-  if (TREE_CODE (*device_num) == CALL_EXPR)
+  if (TREE_CODE (t) == CALL_EXPR)
     {
-      tree fndecl = get_callee_fndecl (*device_num);
+      tree fndecl = get_callee_fndecl (t);
       if (fndecl && omp_runtime_api_call (fndecl))
 	{
 	  const char *fnname = IDENTIFIER_POINTER (DECL_NAME (fndecl));
@@ -2727,7 +2822,7 @@ omp_dynamic_cond (tree ctx, tree supercontext)
 
       /* The user condition is not dynamic if it is constant.  */
       if (!tree_fits_shwi_p (expr))
-	user_cond = expr;
+	user_cond = unshare_expr (expr);
     }
 
   /* Build the "target_device" part of the dynamic selector.  In the
@@ -4922,3 +5017,137 @@ omp_maybe_apply_loop_xforms (tree *expr_p, tree for_clauses)
     }
 }
 
+/* The next group of functions support merging of context selectors for
+   nested "begin declare variant" directives.  The spec says:
+
+     ...the effective context selectors of the outer directive are
+     appended to the context selector of the inner directive to form the
+     effective context selector of the inner directive.  If a
+     trait-set-selector is present on both directives, the trait-selector
+     list of the outer directive is appended to the trait-selector list
+     of the inner directive after equivalent trait-selectors have been
+     removed from the outer list.
+
+   In other words, there is no requirement to combine non-equivalent
+   trait-selectors according to their peculiar semantics, such as allowing
+   "any" as a wildcard, ANDing trait-property-expressions of "condition" trait
+   property expressions together, etc.  Also there is no special provision for
+   treating the "construct" selector as an ordered list.
+
+   Note that the spec does not explicitly say what "equivalent" means;
+   whether the properties and score of the trait-selectors must be identical,
+   or only the name of the trait-selector.  This code assumes the former
+   except for the construct trait set where the order of selectors
+   is significant (so that it is *not* equivalent to have the same
+   trait-selector appearing in a different order in the list).  */
+
+/* Copy traits from FROM_TS and push them onto TAIL.  */
+
+static tree
+omp_copy_trait_set (tree from_ts, tree tail)
+{
+  for (tree ts = from_ts; ts; ts = TREE_CHAIN (ts))
+    tail = make_trait_selector (OMP_TS_CODE (ts), OMP_TS_SCORE (ts),
+				OMP_TS_PROPERTIES (ts), tail);
+  return nreverse (tail);
+}
+
+/* Return true if trait selectors TS1 and TS2 for set TSS are "equivalent".  */
+
+static bool
+omp_trait_selectors_equivalent (tree ts1, tree ts2, enum omp_tss_code tss)
+{
+  if (OMP_TS_CODE (ts1) != OMP_TS_CODE (ts2))
+    return false;
+
+  tree score1 = OMP_TS_SCORE (ts1);
+  tree score2 = OMP_TS_SCORE (ts2);
+  if ((score1 && score2 && !simple_cst_equal (score1, score2))
+      || (score1 && !score2)
+      || (!score1 && score2))
+    return false;
+
+  return (omp_context_selector_props_compare (tss, OMP_TS_CODE (ts1),
+					      OMP_TS_PROPERTIES (ts1),
+					      OMP_TS_PROPERTIES (ts2))
+	  == 0);
+}
+
+/* Merge lists of the trait selectors OUTER_TS and INNER_TS for selector set
+   TSS: "the trait-selector list of the outer directive is appended to the
+   trait-selector list of the inner directive after equivalent trait-selectors
+   have been removed from the outer list".  */
+
+static tree
+omp_combine_trait_sets (tree outer_ts, tree inner_ts, enum omp_tss_code tss)
+{
+  unsigned HOST_WIDE_INT inner_traits = 0;
+  tree to_list = NULL_TREE;
+
+  for (tree inner = inner_ts; inner; inner = TREE_CHAIN (inner))
+    {
+      omp_ts_code ts_code = OMP_TS_CODE (inner);
+      inner_traits |= 1 << ts_code;
+      to_list
+	= make_trait_selector (ts_code, OMP_TS_SCORE (inner),
+			       unshare_expr (OMP_TS_PROPERTIES (inner)),
+			       to_list);
+    }
+
+  for (tree outer = outer_ts; outer; outer = TREE_CHAIN (outer))
+    {
+      omp_ts_code ts_code = OMP_TS_CODE (outer);
+      bool remove = false;
+      if (inner_traits & (1 << ts_code))
+	for (tree inner = inner_ts; inner; inner = TREE_CHAIN (inner))
+	  if (OMP_TS_CODE (inner) == ts_code)
+	    {
+	      if (omp_trait_selectors_equivalent (inner, outer, tss))
+		remove = true;
+	      break;
+	    }
+      if (!remove)
+	to_list
+	  = make_trait_selector (ts_code, OMP_TS_SCORE (outer),
+				 unshare_expr (OMP_TS_PROPERTIES (outer)),
+				 to_list);
+    }
+
+  return nreverse (to_list);
+}
+
+/* Merge context selector INNER_CTX with OUTER_CTX.  LOC and DIRECTIVE are
+   used for error checking.  Returns the merged context, or error_mark_node
+   if the contexts cannot be merged.  */
+
+tree
+omp_merge_context_selectors (location_t loc, tree outer_ctx, tree inner_ctx,
+			     enum omp_ctx_directive directive)
+{
+  tree merged_ctx = NULL_TREE;
+
+  if (inner_ctx == error_mark_node || outer_ctx == error_mark_node)
+    return error_mark_node;
+
+  for (unsigned i = OMP_TRAIT_SET_CONSTRUCT; i != OMP_TRAIT_SET_LAST; i++)
+    {
+      omp_tss_code tss_code = static_cast<omp_tss_code>(i);
+      tree outer_ts = omp_get_context_selector_list (outer_ctx, tss_code);
+      tree inner_ts = omp_get_context_selector_list (inner_ctx, tss_code);
+      tree merged_ts = NULL_TREE;
+
+      if (inner_ts && outer_ts)
+	merged_ts = omp_combine_trait_sets (outer_ts, inner_ts, tss_code);
+      else if (inner_ts)
+	merged_ts = omp_copy_trait_set (inner_ts, NULL_TREE);
+      else if (outer_ts)
+	merged_ts = omp_copy_trait_set (outer_ts, NULL_TREE);
+
+      if (merged_ts)
+	merged_ctx = make_trait_set_selector (tss_code, merged_ts,
+					      merged_ctx);
+    }
+
+  merged_ctx = nreverse (merged_ctx);
+  return omp_check_context_selector (loc, merged_ctx, directive);
+}

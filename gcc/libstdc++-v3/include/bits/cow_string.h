@@ -1,6 +1,6 @@
 // Definition of gcc4-compatible Copy-on-Write basic_string -*- C++ -*-
 
-// Copyright (C) 1997-2025 Free Software Foundation, Inc.
+// Copyright (C) 1997-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -1080,7 +1080,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       reserve(size_type __res_arg);
 
       /// Equivalent to shrink_to_fit().
-#if __cplusplus > 201703L
+#if __cplusplus >= 202002L
       [[deprecated("use shrink_to_fit() instead")]]
 #endif
       void
@@ -2124,7 +2124,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	{
 	  _GLIBCXX_DEBUG_PEDASSERT(_M_ibegin() <= __i1 && __i1 <= __i2
 				   && __i2 <= _M_iend());
-	  __glibcxx_requires_valid_range(__k1, __k2);
 	  typedef typename std::__is_integer<_InputIterator>::__type _Integral;
 	  return _M_replace_dispatch(__i1, __i2, __k1, __k2, _Integral());
 	}
@@ -2919,6 +2918,25 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { return basic_string(*this,
 			    _M_check(__pos, "basic_string::substr"), __n); }
 
+#ifdef __glibcxx_string_subview // >= C++26
+      /**
+       *  @brief  Get a subview.
+       *  @param __pos  Index of first character (default 0).
+       *  @param __n  Number of characters in subview (default remainder).
+       *  @return  The subview.
+       *  @throw  std::out_of_range  If __pos > size().
+       *
+       *  Construct and return a subview using the `__n` characters starting at
+       *  `__pos`.  If the string is too short, use the remainder of the
+       *  characters.  If `__pos` is beyond the end of the string, out_of_range
+       *  is thrown.
+      */
+      [[nodiscard]]
+      constexpr basic_string_view<_CharT, _Traits>
+      subview(size_type __pos = 0, size_type __n = npos) const
+      { return __sv_type(*this).subview(__pos, __n); }
+#endif
+
       /**
        *  @brief  Compare to a string.
        *  @param __str  String to compare against.
@@ -2979,7 +2997,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       template<typename _Tp>
 	_If_sv<_Tp, int>
 	compare(size_type __pos, size_type __n, const _Tp& __svt) const
-	noexcept(is_same<_Tp, __sv_type>::value)
 	{
 	  __sv_type __sv = __svt;
 	  return __sv_type(*this).substr(__pos, __n).compare(__sv);
@@ -2999,7 +3016,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_If_sv<_Tp, int>
 	compare(size_type __pos1, size_type __n1, const _Tp& __svt,
 		size_type __pos2, size_type __n2 = npos) const
-	noexcept(is_same<_Tp, __sv_type>::value)
 	{
 	  __sv_type __sv = __svt;
 	  return __sv_type(*this)
@@ -3178,7 +3194,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	return __r;
       }
 
-#if __cplusplus > 201703L
+#if __cplusplus >= 202002L
       bool
       starts_with(basic_string_view<_CharT, _Traits> __x) const noexcept
       { return __sv_type(this->data(), this->size()).starts_with(__x); }
@@ -3816,6 +3832,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _M_replace_dispatch(iterator __i1, iterator __i2, _InputIterator __k1,
 			  _InputIterator __k2, __false_type)
       {
+	__glibcxx_requires_valid_range(__k1, __k2);
 	const basic_string __s(__k1, __k2);
 	const size_type __n1 = __i2 - __i1;
 	_M_check_length(__n1, __s.size(), "basic_string::_M_replace_dispatch");

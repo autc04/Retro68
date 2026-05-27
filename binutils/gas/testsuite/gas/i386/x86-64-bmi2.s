@@ -1,6 +1,5 @@
 # Check 64bit BMI2 instructions
 
-	.allow_index_reg
 	.text
 _start:
 

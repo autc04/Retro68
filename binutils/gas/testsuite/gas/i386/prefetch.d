@@ -1,3 +1,4 @@
+#as: --divide
 #objdump: -dw
 #name: i386 prefetch
 
@@ -20,7 +21,7 @@ Disassembly of section .text:
 \s*[a-f0-9]+:	0f 18 08             	prefetcht0 \(%eax\)
 \s*[a-f0-9]+:	0f 18 10             	prefetcht1 \(%eax\)
 \s*[a-f0-9]+:	0f 18 18             	prefetcht2 \(%eax\)
-\s*[a-f0-9]+:	0f 18 20             	nopl   \(%eax\)
+\s*[a-f0-9]+:	0f 18 20             	prefetchrst2 \(%eax\)
 \s*[a-f0-9]+:	0f 18 28             	nopl   \(%eax\)
 \s*[a-f0-9]+:	0f 18 30             	nopl   \(%eax\)
 \s*[a-f0-9]+:	0f 18 38             	nopl   \(%eax\)

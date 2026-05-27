@@ -1,5 +1,5 @@
 /* Definitions for Sun SPARC64 running FreeBSD using the ELF format
-   Copyright (C) 2001-2025 Free Software Foundation, Inc.
+   Copyright (C) 2001-2026 Free Software Foundation, Inc.
    Contributed by David E. O'Brien <obrien@FreeBSD.org> and BSDi.
 
 This file is part of GCC.
@@ -117,13 +117,6 @@ along with GCC; see the file COPYING3.  If not see
    RELATIVE relocations.  */
 
 /* #define DWARF_OFFSET_SIZE PTR_SIZE */
-
-#ifdef HAVE_AS_TLS
-#undef TARGET_SUN_TLS
-#undef TARGET_GNU_TLS
-#define TARGET_SUN_TLS 0
-#define TARGET_GNU_TLS 1
-#endif
 
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC						\

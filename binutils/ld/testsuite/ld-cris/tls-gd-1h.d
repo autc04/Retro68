@@ -1,4 +1,4 @@
-#as: --pic --no-underscore --em=criself
+#as: --pic --no-underscore --emulation=criself
 #ld: --shared -m crislinux --hash-style=sysv
 #source: tls-gd-1.s
 #source: tls128g.s

@@ -134,6 +134,85 @@ _start:
 	{load} xor (%rdi), %eax
 	{store} xor %eax, (%rdi)
 	{store} xor (%rdi), %eax
+	{load}  add    %r31,(%r8),%r16
+	{load}	add    (%r8),%r31,%r16
+	{store} add    %r31,(%r8),%r16
+	{store}	add    (%r8),%r31,%r16
+	{load} 	sub    %r15d,(%r8),%r18d
+	{load}	sub    (%r8),%r15d,%r18d
+	{store} sub    %r15d,(%r8),%r18d
+	{store} sub    (%r8),%r15d,%r18d
+	{load} 	sbb    %r15d,(%r8),%r18d
+	{load}	sbb    (%r8),%r15d,%r18d
+	{store} sbb    %r15d,(%r8),%r18d
+	{store} sbb    (%r8),%r15d,%r18d
+	{load} 	and    %r15d,(%r8),%r18d
+	{load}	and    (%r8),%r15d,%r18d
+	{store} and    %r15d,(%r8),%r18d
+	{store} and    (%r8),%r15d,%r18d
+	{load} 	or     %r15d,(%r8),%r18d
+	{load}	or     (%r8),%r15d,%r18d
+	{store} or     %r15d,(%r8),%r18d
+	{store} or     (%r8),%r15d,%r18d
+	{load} 	xor    %r15d,(%r8),%r18d
+	{load}	xor    (%r8),%r15d,%r18d
+	{store} xor    %r15d,(%r8),%r18d
+	{store} xor    (%r8),%r15d,%r18d
+	{load} 	adc    %r15d,(%r8),%r18d
+	{load}	adc    (%r8),%r15d,%r18d
+	{store} adc    %r15d,(%r8),%r18d
+	{store} adc    (%r8),%r15d,%r18d
+
+	{store} add    %r31,%r8,%r16
+	{load}  add    %r31,%r8,%r16
+	{store} sub    %r15b,%r17b,%r18b
+	{load}	sub    %r15b,%r17b,%r18b
+	{store}	sbb    %r15b,%r17b,%r18b
+	{load}	sbb    %r15b,%r17b,%r18b
+	{store}	and    %r15b,%r17b,%r18b
+	{load}	and    %r15b,%r17b,%r18b
+	{store}	or     %r15b,%r17b,%r18b
+	{load}	or     %r15b,%r17b,%r18b
+	{store}	xor    %r15b,%r17b,%r18b
+	{load}	xor    %r15b,%r17b,%r18b
+	{store}	adc    %r15b,%r17b,%r18b
+	{load}	adc    %r15b,%r17b,%r18b
+
+	.irp m, mov, adc, add, and, cmp, or, sbb, sub, test, xor
+	\m	$0x12, %al
+	\m	$0x345, %eax
+	{load} \m $0x12, %al		# bogus for MOV
+	{load} \m $0x345, %eax		# bogus for MOV
+	{store} \m $0x12, %al
+	{store} \m $0x345, %eax
+	.endr
+
+	# There should be no effect of the pseudo-prefixes on any of these.
+	mov	$0x123456789, %rcx
+	{load} mov $0x123456789, %rcx
+	{store} mov $0x123456789, %rcx
+	movabs	$0x12345678, %rcx
+	{load} movabs $0x12345678, %rcx
+	{store} movabs $0x12345678, %rcx
+
+	.irp m, push, pop, bswap
+	\m	%rcx
+	{load} \m %rcx			# bogus for POP
+	{store} \m %rcx			# bogus for PUSH
+	.endr
+
+	xchg	%ecx, %esi
+	xchg	%esi, %ecx
+	{load} xchg %ecx, %esi
+	{store} xchg %ecx, %esi
+
+	xchg	%eax, %esi
+	{load} xchg %eax, %esi
+	{store} xchg %eax, %esi
+
+	xchg	%ecx, %eax
+	{load} xchg %ecx, %eax
+	{store} xchg %ecx, %eax
 
 	fadd %st, %st
 	{load} fadd %st, %st
@@ -324,6 +403,18 @@ _start:
 	{rex} movaps (%r8),%xmm2
 	{rex} phaddw (%rcx),%mm0
 	{rex} phaddw (%r8),%mm0
+	{rex2} mov %al,%ah
+	{rex2} shl %cl, %eax
+	{rex2} cmp %cl, %dl
+	{rex2} mov $1, %bl
+	{rex2} movl %eax,%ebx
+	{rex2} movl %eax,%r14d
+	{rex2} movl %eax,(%r8)
+	{rex2} movaps %xmm7,%xmm2
+	{rex2} movaps %xmm7,%xmm12
+	{rex2} movaps (%rcx),%xmm2
+	{rex2} movaps (%r8),%xmm2
+	{rex2} pmullw %mm0,%mm6
 
 	movb (%rbp),%al
 	{disp8} movb (%rbp),%al
@@ -386,6 +477,15 @@ _start:
 	{rex} movaps xmm2,XMMWORD PTR [r8]
 	{rex} phaddw mm0,QWORD PTR [rcx]
 	{rex} phaddw mm0,QWORD PTR [r8]
+	{rex2} mov ah,al
+	{rex2} mov ebx,eax
+	{rex2} mov r14d,eax
+	{rex2} mov DWORD PTR [r8],eax
+	{rex2} movaps xmm2,xmm7
+	{rex2} movaps xmm12,xmm7
+	{rex2} movaps xmm2,XMMWORD PTR [rcx]
+	{rex2} movaps xmm2,XMMWORD PTR [r8]
+	{rex2} pmullw mm6,mm0
 
 	mov al, BYTE PTR [rbp]
 	{disp8} mov al, BYTE PTR [rbp]
@@ -402,3 +502,39 @@ _start:
 	mov al, BYTE PTR [r13]
 	{disp8} mov al, BYTE PTR [r13d]
 	{disp32} mov al, BYTE PTR [r13d]
+
+	.insn {rex} 0x8a, al, cl
+
+	.att_syntax prefix
+{noimm8s} addq	$0,(%rbx)
+{noimm8s} addq	$255,(%rbx)
+{noimm8s} addl	$0,(%rbx)
+{noimm8s} addl	$255,(%rbx)
+{noimm8s} addw	$0,(%rbx)
+{noimm8s} addw	$255,(%rbx)
+{noimm8s} addb	$0,(%rbx)
+{noimm8s} addb	$255,(%rbx)
+{noimm8s} add	$0,%rbx
+{noimm8s} add	$255,%rbx
+{noimm8s} add	$0,%ebx
+{noimm8s} add	$255,%ebx
+{noimm8s} add	$0,%bx
+{noimm8s} add	$255,%bx
+{noimm8s} add	$0,%bl
+{noimm8s} add	$255,%bl
+{noimm8s} movq	$0,(%rbx)
+{noimm8s} movq	$255,(%rbx)
+{noimm8s} movl	$0,(%rbx)
+{noimm8s} movl	$255,(%rbx)
+{noimm8s} movw	$0,(%rbx)
+{noimm8s} movw	$255,(%rbx)
+{noimm8s} movb	$0,(%rbx)
+{noimm8s} movb	$255,(%rbx)
+{noimm8s} mov	$0,%ebx
+{noimm8s} mov	$255,%ebx
+{noimm8s} mov	$0,%bx
+{noimm8s} mov	$255,%bx
+{noimm8s} mov	$0,%bl
+{noimm8s} mov	$255,%bl
+{noimm8s} rol	$255,%rbx
+{noimm8s} rol	$255,%ebx

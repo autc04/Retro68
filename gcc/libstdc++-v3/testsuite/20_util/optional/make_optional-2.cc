@@ -1,6 +1,6 @@
 // { dg-do compile { target c++17 }  }
 
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -70,7 +70,9 @@ static_assert( can_make_optional2<int, int&>::value );
 static_assert( noexcept(std::make_optional(i)) );
 static_assert( ! can_make_optional2<void, void>::value );
 static_assert( can_make_optional2<Cont, Cont>::value );
+#if __cplusplus <= 202302
 static_assert( noexcept(std::make_optional<Cont>({})) );
+#endif
 static_assert( can_make_optional2<Cont, const Cont&>::value );
 static_assert( ! noexcept(std::make_optional(c)) );
 static_assert( can_make_optional2<Cont, int>::value );

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -27,7 +27,6 @@
 --  specific types of tree nodes.
 
 with Namet;          use Namet;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Types;          use Types;
 with Uintp;          use Uintp;
@@ -59,6 +58,10 @@ package Tbuild is
    --  used when a function returning a Node_Id value is called for its side
    --  effect (e.g. a call to the parser to parse a list of compilation
    --  units), but the List_Id value is not required.
+
+   function Make_Assertion_Level
+     (Loc : Source_Ptr; Nam : Name_Id) return Entity_Id;
+   --  Create a new Defining_Identifier node for an Assertion_Level
 
    function Make_Byte_Aligned_Attribute_Reference
      (Sloc           : Source_Ptr;

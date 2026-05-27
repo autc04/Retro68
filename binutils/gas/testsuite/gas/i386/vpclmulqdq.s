@@ -1,6 +1,5 @@
 # Check VPCLMULQDQ instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpclmulqdq	$0xab, %ymm4, %ymm5, %ymm6

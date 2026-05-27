@@ -1,4 +1,4 @@
-#name: s390x opcode
+#name: s390x opcodes (z196)
 #objdump: -drw
 
 .*: +file format .*
@@ -13,7 +13,8 @@ Disassembly of section .text:
 .*:	b9 da 80 67 [	 ]*alhhlr	%r6,%r7,%r8
 .*:	cc 6a 00 00 fd e8 [	 ]*alsih	%r6,65000
 .*:	cc 6b 00 00 fd e8 [	 ]*alsihn	%r6,65000
-.*:	cc 66 00 00 00 00 [	 ]*brcth	%r6,22 <foo\+0x22>
+ *([\da-f]+):	cc 66 00 00 00 00 [	 ]*brcth	%r6,\1 <foo\+0x\1>
+ *([\da-f]+):	cc 66 00 00 00 00 [	 ]*brcth	%r6,\1 <foo\+0x\1>
 .*:	b9 cd 00 67 [	 ]*chhr	%r6,%r7
 .*:	b9 dd 00 67 [	 ]*chlr	%r6,%r7
 .*:	e3 67 85 b3 01 cd [	 ]*chf	%r6,5555\(%r7,%r8\)
@@ -29,7 +30,17 @@ Disassembly of section .text:
 .*:	e3 67 8a 4d fe c2 [	 ]*llch	%r6,-5555\(%r7,%r8\)
 .*:	e3 67 8a 4d fe c6 [	 ]*llhh	%r6,-5555\(%r7,%r8\)
 .*:	ec 67 0c 0d 0e 5d [	 ]*risbhg	%r6,%r7,12,13,14
+.*:	ec 67 0c 0d 00 5d [	 ]*risbhg	%r6,%r7,12,13
+.*:	ec 67 0c 8d 0e 5d [	 ]*risbhgz	%r6,%r7,12,13,14
+.*:	ec 67 0c 8d 00 5d [	 ]*risbhgz	%r6,%r7,12,13
+.*:	ec 67 0c 8d 0e 5d [	 ]*risbhgz	%r6,%r7,12,13,14
+.*:	ec 67 0c 8d 00 5d [	 ]*risbhgz	%r6,%r7,12,13
 .*:	ec 67 0c 0d 0e 51 [	 ]*risblg	%r6,%r7,12,13,14
+.*:	ec 67 0c 0d 00 51 [	 ]*risblg	%r6,%r7,12,13
+.*:	ec 67 0c 8d 0e 51 [	 ]*risblgz	%r6,%r7,12,13,14
+.*:	ec 67 0c 8d 00 51 [	 ]*risblgz	%r6,%r7,12,13
+.*:	ec 67 0c 8d 0e 51 [	 ]*risblgz	%r6,%r7,12,13,14
+.*:	ec 67 0c 8d 00 51 [	 ]*risblgz	%r6,%r7,12,13
 .*:	e3 67 8a 4d fe c3 [	 ]*stch	%r6,-5555\(%r7,%r8\)
 .*:	e3 67 8a 4d fe c7 [	 ]*sthh	%r6,-5555\(%r7,%r8\)
 .*:	e3 67 8a 4d fe cb [	 ]*stfh	%r6,-5555\(%r7,%r8\)
@@ -259,4 +270,3 @@ Disassembly of section .text:
 .*:	b9 2c 00 00 [	 ]*pcc
 .*:	b9 2d 60 59 [	 ]*kmctr	%r5,%r6,%r9
 .*:	b9 28 00 00 [	 ]*pckmo
-.*:	07 07 [	 ]*nopr	%r7

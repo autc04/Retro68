@@ -1,4 +1,4 @@
-#name: s390x opcode
+#name: s390x opcodes (z900)
 #objdump: -drw
 
 .*: +file format .*
@@ -19,12 +19,12 @@ Disassembly of section .text:
 .*:	b9 0a 00 96 [ 	]*algr	%r9,%r6
 .*:	e3 95 af ff 00 46 [ 	]*bctg	%r9,4095\(%r5,%r10\)
 .*:	b9 46 00 96 [ 	]*bctgr	%r9,%r6
-.*:	a7 97 00 00 [	 ]*brctg	%r9,40 \<foo\+0x40\>
-.*:	a7 67 00 00 [	 ]*brctg	%r6,44 <foo\+0x44>
-.*:	ec 96 00 00 00 44 [ 	]*brxhg	%r9,%r6,48 <foo\+0x48>
-.*:	ec 69 00 00 00 44 [	 ]*brxhg	%r6,%r9,4e <foo\+0x4e>
-.*:	ec 96 00 00 00 45 [ 	]*brxlg	%r9,%r6,54 <foo\+0x54>
-.*:	ec 69 00 00 00 45 [	 ]*brxlg	%r6,%r9,5a <foo\+0x5a>
+ *([\da-f]+):	a7 97 00 00 [	 ]*brctg	%r9,\1 <foo\+0x\1>
+ *([\da-f]+):	a7 67 00 00 [	 ]*brctg	%r6,\1 <foo\+0x\1>
+ *([\da-f]+):	ec 96 00 00 00 44 [ 	]*brxhg	%r9,%r6,\1 <foo\+0x\1>
+ *([\da-f]+):	ec 69 00 00 00 44 [	 ]*brxhg	%r6,%r9,\1 <foo\+0x\1>
+ *([\da-f]+):	ec 96 00 00 00 45 [ 	]*brxlg	%r9,%r6,\1 <foo\+0x\1>
+ *([\da-f]+):	ec 69 00 00 00 45 [	 ]*brxlg	%r6,%r9,\1 <foo\+0x\1>
 .*:	eb 96 5f ff 00 44 [ 	]*bxhg	%r9,%r6,4095\(%r5\)
 .*:	eb 96 5f ff 00 45 [ 	]*bxleg	%r9,%r6,4095\(%r5\)
 .*:	b3 a5 00 96 [ 	]*cdgbr	%f9,%r6
@@ -84,6 +84,7 @@ Disassembly of section .text:
 .*:	a5 9c ff ff [ 	]*llihh	%r9,65535
 .*:	a5 9d ff ff [ 	]*llihl	%r9,65535
 .*:	a5 9e ff ff [ 	]*llilh	%r9,65535
+.*:	a5 9f ff ff [ 	]*llill	%r9,65535
 .*:	a5 9f ff ff [ 	]*llill	%r9,65535
 .*:	ef 96 5f ff af ff [ 	]*lmd	%r9,%r6,4095\(%r5\),4095\(%r10\)
 .*:	eb 96 5f ff 00 04 [ 	]*lmg	%r9,%r6,4095\(%r5\)
@@ -149,4 +150,10 @@ Disassembly of section .text:
 .*:	eb 96 5f ff 00 0f [ 	]*tracg	%r9,%r6,4095\(%r5\)
 .*:	e3 95 af ff 00 82 [ 	]*xg	%r9,4095\(%r5,%r10\)
 .*:	b9 82 00 96 [ 	]*xgr	%r9,%r6
+ *([\da-f]+):	c0 65 00 00 00 00 [ 	]*brasl	%r6,\1 <foo\+0x\1>
+ *([\da-f]+):	c0 65 00 00 00 00 [ 	]*brasl	%r6,\1 <foo\+0x\1>
+ *([\da-f]+):	c0 65 80 00 00 00 [ 	]*brasl	%r6,ffffffff0+\1 <foo\+0xffffffff0+\1>
+ *([\da-f]+):	c0 65 80 00 00 00 [ 	]*brasl	%r6,ffffffff0+\1 <foo\+0xffffffff0+\1>
+.*:	c0 65 7f ff ff ff [ 	]*brasl	%r6,1000002d4 <foo\+0x1000002d4>
+.*:	c0 65 7f ff ff ff [ 	]*brasl	%r6,1000002da <foo\+0x1000002da>
 .*:	07 07 [	 ]*nopr	%r7

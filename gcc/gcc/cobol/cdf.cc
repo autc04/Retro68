@@ -81,9 +81,11 @@
 
 
 #include "cobol-system.h"
-#include "coretypes.h"
-#include "tree.h"
+#include <coretypes.h>
+#include <tree.h>
+
 #undef yy_flex_debug
+
 #include "../../libgcobol/ec.h"
 #include "../../libgcobol/common-defs.h"
 #include "util.h"
@@ -146,90 +148,31 @@ void input_file_status_notify();
         }                                                               \
       location_dump("cdf.c", __LINE__, "current", (Current));		\
       input_file_status_notify();					\
-      gcc_location_set( location_set(Current) );			\
+      location_set(Current);                                            \
   } while (0)
 
-#line 154 "cdf.y"
+#line 161 "cdf.y"
 
 static char *display_msg;
 const char * keyword_str( int token );
 
-static class exception_turns_t {
-  typedef std::list<size_t> filelist_t;
-  typedef std::map<ec_type_t, filelist_t> ec_filemap_t;
-  ec_filemap_t exceptions;
- public:
-  bool enabled, location;
-
-  exception_turns_t() : enabled(false), location(false) {};
-
-  const ec_filemap_t& exception_files() const { return exceptions; }
-
-  struct args_t {
-    size_t nexception;
-    cbl_exception_files_t *exceptions;
-  };
-
-  bool add_exception( ec_type_t type, const filelist_t files = filelist_t() ) {
-    ec_disposition_t disposition = ec_type_disposition(type);
-    if( disposition != ec_implemented(disposition) ) {
-	cbl_unimplementedw("CDF: exception '%s'", ec_type_str(type));
-    }
-    auto elem = exceptions.find(type);
-    if( elem != exceptions.end() ) return false; // cannot add twice
-
-    exceptions[type] = files;
-    return true;
-  }
-
-  args_t args() const {
-    args_t args;
-    args.nexception = exceptions.size();
-    args.exceptions = NULL;
-    if( args.nexception ) {
-      args.exceptions = new cbl_exception_files_t[args.nexception];
-    }
-    std::transform( exceptions.begin(), exceptions.end(), args.exceptions,
-                    []( auto& input ) {
-                      cbl_exception_files_t output;
-                      output.type = input.first;
-                      output.nfile = input.second.size();
-                      output.files = NULL;
-                      if( output.nfile ) {
-                        output.files = new size_t[output.nfile];
-                        std::copy(input.second.begin(),
-                                       input.second.end(),
-                                       output.files );
-                      }
-                      return output;
-                    } );
-    return args;
-  }
-
-  void clear() {
-    for( auto& ex : exceptions ) {
-      ex.second.clear();
-    }
-    exceptions.clear();
-    enabled = location = false;
-  }
-
-} exception_turns;
-
-
-static bool
-apply_cdf_turn( exception_turns_t& turns ) {
-  for( auto elem : turns.exception_files() ) {
+exception_turn_t exception_turn;
+			
+bool
+apply_cdf_turn( const exception_turn_t& turn ) {
+  cbl_enabled_exceptions_t& enabled_exceptions( cdf_enabled_exceptions() );
+  
+  for( auto elem : turn.exception_files() ) {
     std::set<size_t> files(elem.second.begin(), elem.second.end());
-    enabled_exceptions.turn_on_off(turns.enabled,
-                                   turns.location,
+    enabled_exceptions.turn_on_off(turn.enabled,
+                                   turn.location,
                                    elem.first, files);
   }
   if( getenv("GCOBOL_SHOW") ) enabled_exceptions.dump();
   return true;
 }
 
-#line 233 "cdf.cc"
+#line 176 "cdf.cc"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -285,85 +228,95 @@ enum yysymbol_kind_t
   YYSYMBOL_CDF_EVALUATE = 25,              /* ">>EVALUATE"  */
   YYSYMBOL_CDF_WHEN = 26,                  /* ">>WHEN"  */
   YYSYMBOL_CDF_END_EVALUATE = 27,          /* ">>END-EVALUATE"  */
-  YYSYMBOL_AS = 28,                        /* AS  */
-  YYSYMBOL_CONSTANT = 29,                  /* CONSTANT  */
-  YYSYMBOL_DEFINED = 30,                   /* DEFINED  */
-  YYSYMBOL_OTHER = 31,                     /* OTHER  */
-  YYSYMBOL_PARAMETER_kw = 32,              /* "PARAMETER"  */
-  YYSYMBOL_OFF = 33,                       /* OFF  */
-  YYSYMBOL_OVERRIDE = 34,                  /* OVERRIDE  */
-  YYSYMBOL_THRU = 35,                      /* THRU  */
-  YYSYMBOL_TRUE_kw = 36,                   /* "True"  */
-  YYSYMBOL_CALL_COBOL = 37,                /* "CALL"  */
-  YYSYMBOL_CALL_VERBATIM = 38,             /* "CALL (as C)"  */
-  YYSYMBOL_TURN = 39,                      /* TURN  */
-  YYSYMBOL_CHECKING = 40,                  /* CHECKING  */
-  YYSYMBOL_LOCATION = 41,                  /* LOCATION  */
-  YYSYMBOL_ON = 42,                        /* ON  */
-  YYSYMBOL_WITH = 43,                      /* WITH  */
-  YYSYMBOL_OR = 44,                        /* OR  */
-  YYSYMBOL_AND = 45,                       /* AND  */
-  YYSYMBOL_NOT = 46,                       /* NOT  */
-  YYSYMBOL_47_ = 47,                       /* '<'  */
-  YYSYMBOL_48_ = 48,                       /* '>'  */
-  YYSYMBOL_49_ = 49,                       /* '='  */
-  YYSYMBOL_NE = 50,                        /* NE  */
-  YYSYMBOL_LE = 51,                        /* LE  */
-  YYSYMBOL_GE = 52,                        /* GE  */
-  YYSYMBOL_53_ = 53,                       /* '-'  */
-  YYSYMBOL_54_ = 54,                       /* '+'  */
-  YYSYMBOL_55_ = 55,                       /* '*'  */
-  YYSYMBOL_56_ = 56,                       /* '/'  */
-  YYSYMBOL_NEG = 57,                       /* NEG  */
-  YYSYMBOL_58_ = 58,                       /* '.'  */
-  YYSYMBOL_59_ = 59,                       /* '('  */
-  YYSYMBOL_60_ = 60,                       /* ')'  */
-  YYSYMBOL_YYACCEPT = 61,                  /* $accept  */
-  YYSYMBOL_top = 62,                       /* top  */
-  YYSYMBOL_completes = 63,                 /* completes  */
-  YYSYMBOL_complete = 64,                  /* complete  */
-  YYSYMBOL_cdf_display = 65,               /* cdf_display  */
-  YYSYMBOL_strings = 66,                   /* strings  */
-  YYSYMBOL_partials = 67,                  /* partials  */
-  YYSYMBOL_partial = 68,                   /* partial  */
-  YYSYMBOL_cdf_define = 69,                /* cdf_define  */
-  YYSYMBOL_cdf_constant = 70,              /* cdf_constant  */
-  YYSYMBOL_override = 71,                  /* override  */
-  YYSYMBOL_cdf_turn = 72,                  /* cdf_turn  */
-  YYSYMBOL_cdf_call_convention = 73,       /* cdf_call_convention  */
-  YYSYMBOL_except_names = 74,              /* except_names  */
-  YYSYMBOL_except_name = 75,               /* except_name  */
-  YYSYMBOL_except_check = 76,              /* except_check  */
-  YYSYMBOL_filenames = 77,                 /* filenames  */
-  YYSYMBOL_filename = 78,                  /* filename  */
-  YYSYMBOL_cdf_if = 79,                    /* cdf_if  */
-  YYSYMBOL_80_1 = 80,                      /* $@1  */
-  YYSYMBOL_cdf_evaluate = 81,              /* cdf_evaluate  */
-  YYSYMBOL_cdf_eval_when = 82,             /* cdf_eval_when  */
-  YYSYMBOL_cdf_eval_obj = 83,              /* cdf_eval_obj  */
-  YYSYMBOL_cdf_cond_expr = 84,             /* cdf_cond_expr  */
-  YYSYMBOL_cdf_bool_expr = 85,             /* cdf_bool_expr  */
-  YYSYMBOL_cdf_and = 86,                   /* cdf_and  */
-  YYSYMBOL_cdf_reloper = 87,               /* cdf_reloper  */
-  YYSYMBOL_cdf_relexpr = 88,               /* cdf_relexpr  */
-  YYSYMBOL_cdf_expr = 89,                  /* cdf_expr  */
-  YYSYMBOL_cdf_factor = 90,                /* cdf_factor  */
-  YYSYMBOL_copy = 91,                      /* copy  */
-  YYSYMBOL_copy_impl = 92,                 /* copy_impl  */
-  YYSYMBOL_copybook_name = 93,             /* copybook_name  */
-  YYSYMBOL_replace_bys = 94,               /* replace_bys  */
-  YYSYMBOL_replace_by = 95,                /* replace_by  */
-  YYSYMBOL_suppress = 96,                  /* suppress  */
-  YYSYMBOL_name_any = 97,                  /* name_any  */
-  YYSYMBOL_name_one = 98,                  /* name_one  */
-  YYSYMBOL_namelit = 99,                   /* namelit  */
-  YYSYMBOL_name = 100,                     /* name  */
-  YYSYMBOL_inof = 101,                     /* inof  */
-  YYSYMBOL_subscripts = 102,               /* subscripts  */
-  YYSYMBOL_subscript = 103,                /* subscript  */
-  YYSYMBOL_as = 104,                       /* as  */
-  YYSYMBOL_on = 105,                       /* on  */
-  YYSYMBOL_with = 106                      /* with  */
+  YYSYMBOL_ALL = 28,                       /* ALL  */
+  YYSYMBOL_CALL_CONVENTION = 29,           /* ">>CALL-CONVENTION"  */
+  YYSYMBOL_COBOL_WORDS = 30,               /* ">>COBOL-WORDS"  */
+  YYSYMBOL_CDF_PUSH = 31,                  /* ">>PUSH"  */
+  YYSYMBOL_CDF_POP = 32,                   /* ">>POP"  */
+  YYSYMBOL_SOURCE_FORMAT = 33,             /* ">>SOURCE FORMAT"  */
+  YYSYMBOL_AS = 34,                        /* AS  */
+  YYSYMBOL_CONSTANT = 35,                  /* CONSTANT  */
+  YYSYMBOL_DEFINED = 36,                   /* DEFINED  */
+  YYSYMBOL_OTHER = 37,                     /* OTHER  */
+  YYSYMBOL_PARAMETER_kw = 38,              /* "PARAMETER"  */
+  YYSYMBOL_OFF = 39,                       /* OFF  */
+  YYSYMBOL_OVERRIDE = 40,                  /* OVERRIDE  */
+  YYSYMBOL_THRU = 41,                      /* THRU  */
+  YYSYMBOL_TRUE_kw = 42,                   /* "True"  */
+  YYSYMBOL_CALL_COBOL = 43,                /* "CALL"  */
+  YYSYMBOL_CALL_VERBATIM = 44,             /* "CALL (as C)"  */
+  YYSYMBOL_TURN = 45,                      /* TURN  */
+  YYSYMBOL_CHECKING = 46,                  /* CHECKING  */
+  YYSYMBOL_LOCATION = 47,                  /* LOCATION  */
+  YYSYMBOL_ON = 48,                        /* ON  */
+  YYSYMBOL_WITH = 49,                      /* WITH  */
+  YYSYMBOL_OR = 50,                        /* OR  */
+  YYSYMBOL_AND = 51,                       /* AND  */
+  YYSYMBOL_NOT = 52,                       /* NOT  */
+  YYSYMBOL_53_ = 53,                       /* '<'  */
+  YYSYMBOL_54_ = 54,                       /* '>'  */
+  YYSYMBOL_EQ = 55,                        /* EQ  */
+  YYSYMBOL_56_EQUAL_ = 56,                 /* "EQUAL"  */
+  YYSYMBOL_NE = 57,                        /* NE  */
+  YYSYMBOL_LE = 58,                        /* LE  */
+  YYSYMBOL_GE = 59,                        /* GE  */
+  YYSYMBOL_60_ = 60,                       /* '-'  */
+  YYSYMBOL_61_ = 61,                       /* '+'  */
+  YYSYMBOL_62_ = 62,                       /* '*'  */
+  YYSYMBOL_63_ = 63,                       /* '/'  */
+  YYSYMBOL_NEG = 64,                       /* NEG  */
+  YYSYMBOL_65_ = 65,                       /* '.'  */
+  YYSYMBOL_66_ = 66,                       /* '('  */
+  YYSYMBOL_67_ = 67,                       /* ')'  */
+  YYSYMBOL_YYACCEPT = 68,                  /* $accept  */
+  YYSYMBOL_top = 69,                       /* top  */
+  YYSYMBOL_completes = 70,                 /* completes  */
+  YYSYMBOL_complete = 71,                  /* complete  */
+  YYSYMBOL_cdf_display = 72,               /* cdf_display  */
+  YYSYMBOL_strings = 73,                   /* strings  */
+  YYSYMBOL_partials = 74,                  /* partials  */
+  YYSYMBOL_partial = 75,                   /* partial  */
+  YYSYMBOL_cdf_define = 76,                /* cdf_define  */
+  YYSYMBOL_cdf_constant = 77,              /* cdf_constant  */
+  YYSYMBOL_override = 78,                  /* override  */
+  YYSYMBOL_cdf_turn = 79,                  /* cdf_turn  */
+  YYSYMBOL_cdf_call_convention = 80,       /* cdf_call_convention  */
+  YYSYMBOL_cdf_push = 81,                  /* cdf_push  */
+  YYSYMBOL_cdf_pop = 82,                   /* cdf_pop  */
+  YYSYMBOL_cdf_stackable = 83,             /* cdf_stackable  */
+  YYSYMBOL_except_names = 84,              /* except_names  */
+  YYSYMBOL_except_name = 85,               /* except_name  */
+  YYSYMBOL_except_check = 86,              /* except_check  */
+  YYSYMBOL_filenames = 87,                 /* filenames  */
+  YYSYMBOL_filename = 88,                  /* filename  */
+  YYSYMBOL_cdf_if = 89,                    /* cdf_if  */
+  YYSYMBOL_90_1 = 90,                      /* $@1  */
+  YYSYMBOL_cdf_evaluate = 91,              /* cdf_evaluate  */
+  YYSYMBOL_cdf_eval_when = 92,             /* cdf_eval_when  */
+  YYSYMBOL_cdf_eval_obj = 93,              /* cdf_eval_obj  */
+  YYSYMBOL_cdf_cond_expr = 94,             /* cdf_cond_expr  */
+  YYSYMBOL_cdf_bool_expr = 95,             /* cdf_bool_expr  */
+  YYSYMBOL_cdf_and = 96,                   /* cdf_and  */
+  YYSYMBOL_cdf_reloper = 97,               /* cdf_reloper  */
+  YYSYMBOL_cdf_relexpr = 98,               /* cdf_relexpr  */
+  YYSYMBOL_cdf_expr = 99,                  /* cdf_expr  */
+  YYSYMBOL_cdf_factor = 100,               /* cdf_factor  */
+  YYSYMBOL_copy = 101,                     /* copy  */
+  YYSYMBOL_copy_impl = 102,                /* copy_impl  */
+  YYSYMBOL_copybook_name = 103,            /* copybook_name  */
+  YYSYMBOL_replace_bys = 104,              /* replace_bys  */
+  YYSYMBOL_replace_by = 105,               /* replace_by  */
+  YYSYMBOL_suppress = 106,                 /* suppress  */
+  YYSYMBOL_name_any = 107,                 /* name_any  */
+  YYSYMBOL_name_one = 108,                 /* name_one  */
+  YYSYMBOL_namelit = 109,                  /* namelit  */
+  YYSYMBOL_name = 110,                     /* name  */
+  YYSYMBOL_inof = 111,                     /* inof  */
+  YYSYMBOL_subscripts = 112,               /* subscripts  */
+  YYSYMBOL_subscript = 113,                /* subscript  */
+  YYSYMBOL_as = 114,                       /* as  */
+  YYSYMBOL_on = 115,                       /* on  */
+  YYSYMBOL_with = 116                      /* with  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -692,21 +645,21 @@ union yyalloc
 #endif /* !YYCOPY_NEEDED */
 
 /* YYFINAL -- State number of the termination state.  */
-#define YYFINAL  65
+#define YYFINAL  76
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   190
+#define YYLAST   198
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  61
+#define YYNTOKENS  68
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  46
+#define YYNNTS  49
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  117
+#define YYNRULES  126
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  163
+#define YYNSTATES  174
 
 /* YYMAXUTOK -- Last valid token kind.  */
-#define YYMAXUTOK   939
+#define YYMAXUTOK   961
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
@@ -724,9 +677,9 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-      59,    60,    55,    54,     2,    53,    58,    56,     2,     2,
+      66,    67,    62,    61,     2,    60,    65,    63,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-      47,    49,    48,     2,     2,     2,     2,     2,     2,     2,
+      53,     2,    54,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -749,61 +702,27 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        6,     2,     2,     2,     2,     2,    11,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,    16,     2,     2,
-       2,     2,     5,     2,    12,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,    29,
-       8,    30,     2,     4,     2,    18,    32,    34,     2,     2,
-      20,     2,     2,    19,    17,     2,     2,     2,     2,     2,
-       2,    21,     9,    22,    23,    24,    25,    26,    27,    37,
-      38,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,    55,    16,
+       2,     2,     2,     2,     5,     2,    12,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,    28,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     7,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,    40,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,    35,     8,    36,     2,     4,     2,    18,
+      38,    40,     2,     2,    20,     2,     2,    19,    17,     2,
+       2,     2,    30,     2,     2,    21,     9,    22,    23,    24,
+      25,    26,    27,    29,    43,    44,    31,    32,    33,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,    28,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,    10,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,    41,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,    13,    33,     2,    42,
-       2,     2,     2,     2,     2,     2,     2,     2,    31,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,    14,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,    15,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,    36,     2,    39,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,    43,     2,     2,     2,     2,     2,     2,     2,     2,
+      34,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     7,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,    46,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -812,26 +731,64 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,    35,
-      44,    45,    46,    50,    51,    52,     2,    57,     2,     3
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,    10,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+      47,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,    13,    39,     2,
+      48,     2,     2,     2,     2,     2,     2,     2,     2,    37,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,    14,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,    15,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,    42,     2,    45,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,    49,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+      41,    50,    51,    52,    57,    58,    59,     2,    64,     2,
+       3,    56
 };
 
 #if YDFDEBUG
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   315,   315,   316,   324,   328,   331,   332,   333,   335,
-     336,   337,   338,   347,   355,   358,   365,   369,   374,   375,
-     376,   377,   378,   379,   382,   400,   406,   410,   424,   430,
-     437,   438,   440,   441,   444,   452,   455,   461,   462,   464,
-     468,   477,   478,   479,   485,   489,   498,   509,   512,   512,
-     519,   520,   523,   526,   527,   528,   531,   532,   547,   548,
-     559,   560,   563,   564,   567,   568,   571,   572,   573,   586,
-     600,   601,   602,   605,   606,   607,   608,   609,   610,   611,
-     612,   615,   628,   629,   630,   641,   643,   644,   646,   654,
-     665,   666,   669,   700,   701,   707,   708,   713,   723,   724,
-     727,   737,   746,   747,   750,   751,   760,   761,   764,   765,
-     774,   775,   785,   786,   789,   790,   793,   794
+       0,   274,   274,   275,   283,   287,   290,   291,   292,   294,
+     295,   296,   297,   298,   299,   308,   316,   319,   326,   330,
+     335,   336,   337,   338,   339,   340,   343,   367,   373,   377,
+     392,   399,   407,   408,   410,   411,   414,   422,   425,   430,
+     441,   453,   454,   455,   456,   457,   460,   461,   463,   467,
+     474,   475,   476,   482,   486,   495,   506,   509,   509,   515,
+     516,   519,   522,   523,   524,   527,   528,   543,   544,   555,
+     556,   559,   560,   563,   564,   567,   568,   569,   582,   596,
+     597,   598,   601,   602,   603,   604,   605,   606,   607,   608,
+     611,   626,   627,   628,   639,   641,   642,   644,   652,   663,
+     664,   667,   698,   699,   705,   706,   711,   722,   723,   726,
+     737,   746,   747,   750,   751,   760,   761,   764,   765,   774,
+     775,   785,   786,   789,   790,   793,   794
 };
 #endif
 
@@ -852,14 +809,16 @@ static const char *const yytname[] =
   "NAME", "\"numeric literal\"", "OF", "PSEUDOTEXT", "REPLACING",
   "LITERAL", "SUPPRESS", "\"(\"", "SUBSCRIPT", "\")\"", "\">>DEFINE\"",
   "\">>IF\"", "\">>ELSE\"", "\">>END-IF\"", "\">>EVALUATE\"", "\">>WHEN\"",
-  "\">>END-EVALUATE\"", "AS", "CONSTANT", "DEFINED", "OTHER",
-  "\"PARAMETER\"", "OFF", "OVERRIDE", "THRU", "\"True\"", "\"CALL\"",
-  "\"CALL (as C)\"", "TURN", "CHECKING", "LOCATION", "ON", "WITH", "OR",
-  "AND", "NOT", "'<'", "'>'", "'='", "NE", "LE", "GE", "'-'", "'+'", "'*'",
-  "'/'", "NEG", "'.'", "'('", "')'", "$accept", "top", "completes",
-  "complete", "cdf_display", "strings", "partials", "partial",
-  "cdf_define", "cdf_constant", "override", "cdf_turn",
-  "cdf_call_convention", "except_names", "except_name", "except_check",
+  "\">>END-EVALUATE\"", "ALL", "\">>CALL-CONVENTION\"",
+  "\">>COBOL-WORDS\"", "\">>PUSH\"", "\">>POP\"", "\">>SOURCE FORMAT\"",
+  "AS", "CONSTANT", "DEFINED", "OTHER", "\"PARAMETER\"", "OFF", "OVERRIDE",
+  "THRU", "\"True\"", "\"CALL\"", "\"CALL (as C)\"", "TURN", "CHECKING",
+  "LOCATION", "ON", "WITH", "OR", "AND", "NOT", "'<'", "'>'", "EQ",
+  "\"EQUAL\"", "NE", "LE", "GE", "'-'", "'+'", "'*'", "'/'", "NEG", "'.'",
+  "'('", "')'", "$accept", "top", "completes", "complete", "cdf_display",
+  "strings", "partials", "partial", "cdf_define", "cdf_constant",
+  "override", "cdf_turn", "cdf_call_convention", "cdf_push", "cdf_pop",
+  "cdf_stackable", "except_names", "except_name", "except_check",
   "filenames", "filename", "cdf_if", "$@1", "cdf_evaluate",
   "cdf_eval_when", "cdf_eval_obj", "cdf_cond_expr", "cdf_bool_expr",
   "cdf_and", "cdf_reloper", "cdf_relexpr", "cdf_expr", "cdf_factor",
@@ -875,12 +834,12 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#define YYPACT_NINF (-42)
+#define YYPACT_NINF (-113)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
 
-#define YYTABLE_NINF (-117)
+#define YYTABLE_NINF (-126)
 
 #define yytable_value_is_error(Yyn) \
   0
@@ -889,23 +848,24 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
-     100,   159,    -1,     7,     1,   -42,   -42,    -2,    15,   -42,
-     -42,   -42,    19,    21,   107,   -42,   -42,   125,   -42,   -42,
-     -42,   -42,   -42,   -42,   -42,     6,   -42,    13,   -42,   -42,
-     -42,    55,   -42,    75,    64,   -42,    24,   -42,   -42,    69,
-     -42,    77,   -42,   -42,    61,    61,    61,    51,   -42,    73,
-      68,   -42,   111,    87,   -42,   -42,   -42,    87,   -42,   -42,
-     -42,    40,   108,     2,   -42,   -42,   -42,   -42,   -42,   -42,
-     -42,   -42,   103,   159,   -42,   -42,   -10,   -12,   112,   -42,
-     -42,   111,   -42,   -42,   -20,    51,    51,    61,    61,    61,
-      61,    61,    61,    61,    61,    61,    61,    61,   -42,   108,
-     -42,    11,   -42,   -42,   153,   -42,   -42,   -42,    61,    17,
-     -42,   -42,    68,   -42,    87,    87,    87,    87,    87,    87,
-       3,     3,   -42,   -42,    87,   -42,   -42,   -42,     0,   -42,
-     -42,   -42,   -42,   153,   -42,   146,   -42,    93,   101,   132,
-     -42,   101,   -42,   127,   -42,   153,   -42,   -42,    60,   -42,
-     161,    60,   -42,   -42,   -42,   -42,   -42,   -42,   -42,   154,
-     -42,   -42,   -42
+     122,    95,     0,    11,     1,  -113,  -113,    14,    17,  -113,
+      87,    87,  -113,  -113,    39,    23,   147,  -113,  -113,   171,
+    -113,  -113,  -113,  -113,  -113,  -113,  -113,  -113,  -113,     6,
+    -113,    32,  -113,  -113,  -113,    42,  -113,    15,    55,  -113,
+      44,  -113,  -113,    37,  -113,    40,  -113,  -113,    98,    98,
+      98,    74,  -113,    31,    67,  -113,   127,   100,  -113,  -113,
+    -113,   100,  -113,  -113,  -113,    61,  -113,  -113,  -113,  -113,
+    -113,  -113,  -113,   108,     2,  -113,  -113,  -113,  -113,  -113,
+    -113,  -113,  -113,   110,    95,  -113,  -113,    -4,   -23,   103,
+    -113,  -113,   127,  -113,  -113,   -16,    74,    74,    98,    98,
+      98,    98,    98,    98,    98,    98,    98,    98,    98,  -113,
+     108,  -113,    24,  -113,  -113,   125,  -113,  -113,  -113,    98,
+      -2,  -113,  -113,    67,  -113,   100,   100,   100,   100,   100,
+     100,    25,    25,  -113,  -113,   100,  -113,  -113,  -113,    21,
+    -113,  -113,  -113,  -113,   125,  -113,   121,  -113,    47,   -22,
+      89,  -113,   -22,  -113,    85,  -113,   125,  -113,  -113,    86,
+    -113,   131,    86,  -113,  -113,  -113,  -113,  -113,  -113,  -113,
+     113,  -113,  -113,  -113
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -913,43 +873,44 @@ static const yytype_int16 yypact[] =
    means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       0,     0,     0,    30,     0,    19,    20,     0,     0,    23,
-      35,    36,     0,     0,     5,     6,    10,     2,    16,     9,
-      11,    12,    18,    21,    22,     0,    85,    93,    97,    98,
-      99,    88,    14,    13,   112,    31,     0,    48,    56,     0,
-      82,    81,    84,    83,     0,     0,     0,     0,    47,    58,
-      61,    63,    64,    72,    80,    81,    51,    50,    55,    52,
-      53,    72,    39,     0,    37,     1,     7,     8,    17,     4,
-       3,    94,    87,     0,    15,   113,     0,   112,     0,    59,
-      57,    65,    78,    77,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,     0,     0,     0,    46,    40,
-      44,   114,    38,    34,     0,    89,    29,    28,     0,     0,
-      49,    79,    60,    62,    66,    71,    68,    69,    67,    70,
-      74,    73,    75,    76,    54,    45,    42,   115,    41,   104,
-     102,    96,   103,    86,    90,     0,    95,   100,    32,    32,
-      26,    32,   117,     0,    91,     0,   106,   107,     0,   110,
-       0,   101,   108,    33,    25,    27,    24,    43,    92,     0,
-     105,   109,   111
+       0,     0,     0,    32,     0,    21,    22,     0,     0,    25,
+       0,     0,    37,    38,     0,     0,     5,     6,    10,     2,
+      18,     9,    11,    12,    13,    14,    20,    23,    24,     0,
+      94,   102,   106,   107,   108,    97,    16,    15,   121,    33,
+       0,    57,    65,     0,    91,    90,    93,    92,     0,     0,
+       0,     0,    56,    67,    70,    72,    73,    81,    89,    90,
+      60,    59,    64,    61,    62,    81,    44,    41,    42,    43,
+      45,    39,    40,    48,     0,    46,     1,     7,     8,    19,
+       4,     3,   103,    96,     0,    17,   122,     0,   121,     0,
+      68,    66,    74,    87,    86,     0,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,    55,
+      49,    53,   123,    47,    36,     0,    98,    31,    30,     0,
+       0,    58,    88,    69,    71,    75,    80,    77,    78,    76,
+      79,    83,    82,    84,    85,    63,    54,    51,   124,    50,
+     113,   111,   105,   112,    95,    99,     0,   104,   109,    34,
+      34,    28,    34,   126,     0,   100,     0,   115,   116,     0,
+     119,     0,   110,   117,    35,    27,    29,    26,    52,   101,
+       0,   114,   118,   120
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int16 yypgoto[] =
 {
-     -42,   -42,   -42,   163,   -42,   -42,   -42,    31,   -42,   -42,
-     -41,   -42,   -42,   -42,   115,   -42,   -42,    80,   -42,   -42,
-     -42,   -42,   -42,   172,   134,    97,    98,   139,    -7,   -42,
-     -42,   -42,   -42,   -42,    52,   -42,    41,   114,   -42,   -42,
-     -42,   -42,    25,   113,   -42,   -42
+    -113,  -113,  -113,   134,  -113,  -113,  -113,     8,  -113,  -113,
+     -68,  -113,  -113,  -113,  -113,   140,  -113,    64,  -113,  -113,
+      45,  -113,  -113,  -113,  -113,  -113,   144,   106,    79,    80,
+     128,    -7,  -113,  -113,  -113,  -113,  -113,    43,  -113,    27,
+     104,  -113,  -113,  -113,  -113,  -112,   101,  -113,  -113
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_uint8 yydefgoto[] =
 {
-       0,    13,    14,    15,    16,    33,    17,    18,    19,    36,
-     154,    20,    21,    63,    64,   103,    99,   100,    22,    78,
-      23,    24,    59,    48,    49,    50,    51,    52,    53,    54,
-      25,    26,    27,   133,   134,    72,   135,    31,   136,   137,
-     150,   151,   152,    76,   128,   143
+       0,    15,    16,    17,    18,    37,    19,    20,    21,    40,
+     165,    22,    23,    24,    25,    71,    74,    75,   114,   110,
+     111,    26,    89,    27,    28,    63,    52,    53,    54,    55,
+      56,    57,    58,    29,    30,    31,   144,   145,    83,   146,
+      35,   147,   148,   161,   162,   163,    87,   139,   154
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -957,50 +918,50 @@ static const yytype_uint8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int16 yytable[] =
 {
-      57,    61,    37,    40,    38,    39,    40,    69,    62,    55,
-      42,    34,    41,    42,    43,    32,    75,    43,    38,    39,
-      40,    65,    40,   106,    85,    62,    41,    42,    55,    42,
-      71,    43,   107,    43,    56,    77,    35,   108,    82,    83,
-     111,  -116,   101,   142,   126,    67,    58,    44,    68,   139,
-     140,    45,    46,   127,    45,    46,    40,    47,    95,    96,
-      47,    44,    55,    42,    70,    73,    40,    43,    45,    46,
-      45,    46,    55,    42,    47,    97,    47,    43,   148,   149,
-     114,   115,   116,   117,   118,   119,   120,   121,   122,   123,
-     124,    74,    75,    93,    94,    95,    96,    44,   155,    79,
-     156,   138,   141,   146,    45,    46,   147,    80,     1,     2,
-      47,   148,   149,    86,    45,    46,     2,    85,   104,    98,
-      47,     3,     4,     5,     6,     7,     8,     9,     3,     4,
-       5,     6,     7,     8,     9,   153,   110,    10,    11,    12,
-      93,    94,    95,    96,    10,    11,    12,     4,     5,     6,
-       7,     8,     9,   145,    93,    94,    95,    96,    87,    88,
-      89,    90,    91,    92,   129,   130,   153,   131,   157,   132,
-      28,    29,   160,   159,   162,    30,   161,    66,   102,   125,
-      60,    84,   112,    81,   113,   144,   158,   105,     0,     0,
-     109
+      61,    65,    41,    44,    42,    43,    44,    80,    73,    59,
+      46,    86,    45,    46,    47,    38,    36,    47,   164,    44,
+      42,    43,    44,    76,    78,    59,    46,    79,    45,    46,
+      47,    85,   119,    47,    96,   117,   150,   151,   104,   105,
+     106,   107,    93,    94,   118,    73,    39,   170,   112,    82,
+     172,   122,    84,    48,    62,    88,    60,   157,    49,    50,
+     158,    49,    50,   137,    51,   159,   160,    51,  -125,    48,
+     153,    81,   138,    90,    49,    50,    91,    49,    50,    44,
+      51,    96,   166,    51,   167,    59,    46,   106,   107,    86,
+      47,   125,   126,   127,   128,   129,   130,   131,   132,   133,
+     134,   135,   108,    44,   159,   160,    32,    33,    66,    59,
+      46,    34,   149,   152,    47,    67,    68,    69,    97,   109,
+      70,   104,   105,   106,   107,   115,    48,   121,   156,   164,
+       1,     2,   168,   173,    49,    50,   140,   141,   113,   142,
+      51,   143,   171,     3,     4,     5,     6,     7,     8,     9,
+      77,    72,    64,    10,    11,   136,     2,    95,    49,    50,
+     104,   105,   106,   107,    51,    12,    13,    14,     3,     4,
+       5,     6,     7,     8,     9,   123,    92,   124,    10,    11,
+      98,    99,   100,   169,   101,   102,   103,   155,   116,   120,
+      12,    13,    14,     4,     5,     6,     7,     8,     9
 };
 
-static const yytype_int16 yycheck[] =
+static const yytype_uint8 yycheck[] =
 {
        7,     8,     1,     5,     3,     4,     5,     1,     6,    11,
-      12,     4,    11,    12,    16,    16,    28,    16,     3,     4,
-       5,     0,     5,    33,    44,     6,    11,    12,    11,    12,
-      17,    16,    42,    16,    36,    11,    29,    49,    45,    46,
-      60,    41,    40,    43,    33,    14,    31,    46,    17,    32,
-      33,    53,    54,    42,    53,    54,     5,    59,    55,    56,
-      59,    46,    11,    12,    58,    10,     5,    16,    53,    54,
-      53,    54,    11,    12,    59,    35,    59,    16,    18,    19,
-      87,    88,    89,    90,    91,    92,    93,    94,    95,    96,
-      97,    16,    28,    53,    54,    55,    56,    46,   139,    30,
-     141,   108,   109,    10,    53,    54,    13,    30,     8,     9,
-      59,    18,    19,    45,    53,    54,     9,    44,    15,    11,
-      59,    21,    22,    23,    24,    25,    26,    27,    21,    22,
-      23,    24,    25,    26,    27,    34,    24,    37,    38,    39,
-      53,    54,    55,    56,    37,    38,    39,    22,    23,    24,
-      25,    26,    27,     7,    53,    54,    55,    56,    47,    48,
-      49,    50,    51,    52,    11,    12,    34,    14,    41,    16,
-      11,    12,    11,   148,    20,    16,   151,    14,    63,    99,
-       8,    47,    85,    44,    86,   133,   145,    73,    -1,    -1,
-      77
+      12,    34,    11,    12,    16,     4,    16,    16,    40,     5,
+       3,     4,     5,     0,    16,    11,    12,    19,    11,    12,
+      16,    16,    55,    16,    50,    39,    38,    39,    60,    61,
+      62,    63,    49,    50,    48,     6,    35,   159,    46,    17,
+     162,    67,    10,    52,    37,    11,    42,    10,    60,    61,
+      13,    60,    61,    39,    66,    18,    19,    66,    47,    52,
+      49,    65,    48,    36,    60,    61,    36,    60,    61,     5,
+      66,    50,   150,    66,   152,    11,    12,    62,    63,    34,
+      16,    98,    99,   100,   101,   102,   103,   104,   105,   106,
+     107,   108,    41,     5,    18,    19,    11,    12,    21,    11,
+      12,    16,   119,   120,    16,    28,    29,    30,    51,    11,
+      33,    60,    61,    62,    63,    15,    52,    24,     7,    40,
+       8,     9,    47,    20,    60,    61,    11,    12,    74,    14,
+      66,    16,    11,    21,    22,    23,    24,    25,    26,    27,
+      16,    11,     8,    31,    32,   110,     9,    51,    60,    61,
+      60,    61,    62,    63,    66,    43,    44,    45,    21,    22,
+      23,    24,    25,    26,    27,    96,    48,    97,    31,    32,
+      53,    54,    55,   156,    57,    58,    59,   144,    84,    88,
+      43,    44,    45,    22,    23,    24,    25,    26,    27
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
@@ -1008,56 +969,59 @@ static const yytype_int16 yycheck[] =
 static const yytype_int8 yystos[] =
 {
        0,     8,     9,    21,    22,    23,    24,    25,    26,    27,
-      37,    38,    39,    62,    63,    64,    65,    67,    68,    69,
-      72,    73,    79,    81,    82,    91,    92,    93,    11,    12,
-      16,    98,    16,    66,     4,    29,    70,     1,     3,     4,
-       5,    11,    12,    16,    46,    53,    54,    59,    84,    85,
-      86,    87,    88,    89,    90,    11,    36,    89,    31,    83,
-      84,    89,     6,    74,    75,     0,    64,    68,    68,     1,
-      58,    17,    96,    10,    16,    28,   104,    11,    80,    30,
-      30,    88,    89,    89,    85,    44,    45,    47,    48,    49,
-      50,    51,    52,    53,    54,    55,    56,    35,    11,    77,
-      78,    40,    75,    76,    15,    98,    33,    42,    49,   104,
-      24,    60,    86,    87,    89,    89,    89,    89,    89,    89,
-      89,    89,    89,    89,    89,    78,    33,    42,   105,    11,
-      12,    14,    16,    94,    95,    97,    99,   100,    89,    32,
-      33,    89,    43,   106,    95,     7,    10,    13,    18,    19,
-     101,   102,   103,    34,    71,    71,    71,    41,    97,   103,
-      11,   103,    20
+      31,    32,    43,    44,    45,    69,    70,    71,    72,    74,
+      75,    76,    79,    80,    81,    82,    89,    91,    92,   101,
+     102,   103,    11,    12,    16,   108,    16,    73,     4,    35,
+      77,     1,     3,     4,     5,    11,    12,    16,    52,    60,
+      61,    66,    94,    95,    96,    97,    98,    99,   100,    11,
+      42,    99,    37,    93,    94,    99,    21,    28,    29,    30,
+      33,    83,    83,     6,    84,    85,     0,    71,    75,    75,
+       1,    65,    17,   106,    10,    16,    34,   114,    11,    90,
+      36,    36,    98,    99,    99,    95,    50,    51,    53,    54,
+      55,    57,    58,    59,    60,    61,    62,    63,    41,    11,
+      87,    88,    46,    85,    86,    15,   108,    39,    48,    55,
+     114,    24,    67,    96,    97,    99,    99,    99,    99,    99,
+      99,    99,    99,    99,    99,    99,    88,    39,    48,   115,
+      11,    12,    14,    16,   104,   105,   107,   109,   110,    99,
+      38,    39,    99,    49,   116,   105,     7,    10,    13,    18,
+      19,   111,   112,   113,    40,    78,    78,    78,    47,   107,
+     113,    11,   113,    20
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    61,    62,    62,    62,    62,    63,    63,    63,    64,
-      64,    64,    64,    65,    66,    66,    67,    67,    68,    68,
-      68,    68,    68,    68,    69,    69,    69,    69,    69,    69,
-      70,    70,    71,    71,    72,    73,    73,    74,    74,    75,
-      75,    76,    76,    76,    77,    77,    78,    79,    80,    79,
-      81,    81,    82,    83,    83,    83,    84,    84,    84,    84,
-      85,    85,    86,    86,    87,    87,    88,    88,    88,    88,
-      88,    88,    88,    89,    89,    89,    89,    89,    89,    89,
-      89,    90,    90,    90,    90,    91,    92,    92,    93,    93,
-      94,    94,    95,    96,    96,    97,    97,    98,    98,    98,
-      99,    99,    99,    99,   100,   100,   101,   101,   102,   102,
-     103,   103,   104,   104,   105,   105,   106,   106
+       0,    68,    69,    69,    69,    69,    70,    70,    70,    71,
+      71,    71,    71,    71,    71,    72,    73,    73,    74,    74,
+      75,    75,    75,    75,    75,    75,    76,    76,    76,    76,
+      76,    76,    77,    77,    78,    78,    79,    80,    80,    81,
+      82,    83,    83,    83,    83,    83,    84,    84,    85,    85,
+      86,    86,    86,    87,    87,    88,    89,    90,    89,    91,
+      91,    92,    93,    93,    93,    94,    94,    94,    94,    95,
+      95,    96,    96,    97,    97,    98,    98,    98,    98,    98,
+      98,    98,    99,    99,    99,    99,    99,    99,    99,    99,
+     100,   100,   100,   100,   101,   102,   102,   103,   103,   104,
+     104,   105,   106,   106,   107,   107,   108,   108,   108,   109,
+     109,   109,   109,   110,   110,   111,   111,   112,   112,   113,
+     113,   114,   114,   115,   115,   116,   116
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
        0,     2,     1,     2,     2,     1,     1,     2,     2,     1,
-       1,     1,     1,     2,     1,     2,     1,     2,     1,     1,
-       1,     1,     1,     1,     6,     6,     5,     6,     4,     4,
-       0,     1,     0,     1,     3,     1,     1,     1,     2,     1,
-       2,     2,     2,     4,     1,     2,     1,     2,     0,     4,
-       2,     2,     2,     1,     3,     1,     1,     2,     1,     2,
-       3,     1,     3,     1,     1,     2,     3,     3,     3,     3,
-       3,     3,     1,     3,     3,     3,     3,     2,     2,     3,
-       1,     1,     1,     1,     1,     1,     4,     2,     2,     4,
-       1,     2,     3,     0,     1,     1,     1,     1,     1,     1,
-       1,     2,     1,     1,     1,     3,     1,     1,     1,     2,
-       1,     3,     0,     1,     0,     1,     0,     1
+       1,     1,     1,     1,     1,     2,     1,     2,     1,     2,
+       1,     1,     1,     1,     1,     1,     6,     6,     5,     6,
+       4,     4,     0,     1,     0,     1,     3,     1,     1,     2,
+       2,     1,     1,     1,     1,     1,     1,     2,     1,     2,
+       2,     2,     4,     1,     2,     1,     2,     0,     4,     2,
+       2,     2,     1,     3,     1,     1,     2,     1,     2,     3,
+       1,     3,     1,     1,     2,     3,     3,     3,     3,     3,
+       3,     1,     3,     3,     3,     3,     2,     2,     3,     1,
+       1,     1,     1,     1,     1,     4,     2,     2,     4,     1,
+       2,     3,     0,     1,     1,     1,     1,     1,     1,     1,
+       2,     1,     1,     1,     3,     1,     1,     1,     2,     1,
+       3,     0,     1,     0,     1,     0,     1
 };
 
 
@@ -1224,136 +1188,166 @@ yy_symbol_value_print (FILE *yyo,
   YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
   switch (yykind)
     {
+    case YYSYMBOL_BOOL: /* BOOL  */
+#line 192 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).boolean)? "true" : "false" ); }
+#line 1195 "cdf.cc"
+        break;
+
     case YYSYMBOL_NAME: /* NAME  */
-#line 244 "cdf.y"
+#line 193 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
+#line 1201 "cdf.cc"
+        break;
+
+    case YYSYMBOL_NUMSTR: /* "numeric literal"  */
+#line 193 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
+#line 1207 "cdf.cc"
+        break;
+
+    case YYSYMBOL_PSEUDOTEXT: /* PSEUDOTEXT  */
+#line 193 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
+#line 1213 "cdf.cc"
+        break;
+
+    case YYSYMBOL_LITERAL: /* LITERAL  */
+#line 193 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
+#line 1219 "cdf.cc"
+        break;
+
+    case YYSYMBOL_LSUB: /* "("  */
+#line 193 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
+#line 1225 "cdf.cc"
+        break;
+
+    case YYSYMBOL_SUBSCRIPT: /* SUBSCRIPT  */
+#line 193 "cdf.y"
          { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
 #line 1231 "cdf.cc"
         break;
 
-    case YYSYMBOL_NUMSTR: /* "numeric literal"  */
-#line 244 "cdf.y"
+    case YYSYMBOL_RSUB: /* ")"  */
+#line 193 "cdf.y"
          { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
 #line 1237 "cdf.cc"
         break;
 
-    case YYSYMBOL_PSEUDOTEXT: /* PSEUDOTEXT  */
-#line 244 "cdf.y"
-         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
+    case YYSYMBOL_DEFINED: /* DEFINED  */
+#line 192 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).boolean)? "true" : "false" ); }
 #line 1243 "cdf.cc"
         break;
 
-    case YYSYMBOL_LITERAL: /* LITERAL  */
-#line 244 "cdf.y"
-         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
+    case YYSYMBOL_override: /* override  */
+#line 192 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).boolean)? "true" : "false" ); }
 #line 1249 "cdf.cc"
         break;
 
-    case YYSYMBOL_LSUB: /* "("  */
-#line 244 "cdf.y"
-         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
+    case YYSYMBOL_except_check: /* except_check  */
+#line 192 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).boolean)? "true" : "false" ); }
 #line 1255 "cdf.cc"
         break;
 
-    case YYSYMBOL_SUBSCRIPT: /* SUBSCRIPT  */
-#line 244 "cdf.y"
-         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
+    case YYSYMBOL_cdf_cond_expr: /* cdf_cond_expr  */
+#line 192 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).boolean)? "true" : "false" ); }
 #line 1261 "cdf.cc"
         break;
 
-    case YYSYMBOL_RSUB: /* ")"  */
-#line 244 "cdf.y"
-         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
-#line 1267 "cdf.cc"
-        break;
-
     case YYSYMBOL_cdf_bool_expr: /* cdf_bool_expr  */
-#line 248 "cdf.y"
-         { fprintf(yyo, "%ld '%s'",
-		   ((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
-#line 1274 "cdf.cc"
+#line 198 "cdf.y"
+         { fprintf(yyo, HOST_SIZE_T_PRINT_DEC " '%s'",
+		   (fmt_size_t)((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
+#line 1268 "cdf.cc"
         break;
 
     case YYSYMBOL_cdf_and: /* cdf_and  */
-#line 248 "cdf.y"
-         { fprintf(yyo, "%ld '%s'",
-		   ((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
-#line 1281 "cdf.cc"
+#line 198 "cdf.y"
+         { fprintf(yyo, HOST_SIZE_T_PRINT_DEC " '%s'",
+		   (fmt_size_t)((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
+#line 1275 "cdf.cc"
         break;
 
     case YYSYMBOL_cdf_reloper: /* cdf_reloper  */
-#line 248 "cdf.y"
-         { fprintf(yyo, "%ld '%s'",
-		   ((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
-#line 1288 "cdf.cc"
+#line 198 "cdf.y"
+         { fprintf(yyo, HOST_SIZE_T_PRINT_DEC " '%s'",
+		   (fmt_size_t)((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
+#line 1282 "cdf.cc"
         break;
 
     case YYSYMBOL_cdf_relexpr: /* cdf_relexpr  */
-#line 248 "cdf.y"
-         { fprintf(yyo, "%ld '%s'",
-		   ((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
-#line 1295 "cdf.cc"
+#line 198 "cdf.y"
+         { fprintf(yyo, HOST_SIZE_T_PRINT_DEC " '%s'",
+		   (fmt_size_t)((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
+#line 1289 "cdf.cc"
         break;
 
     case YYSYMBOL_cdf_expr: /* cdf_expr  */
-#line 248 "cdf.y"
-         { fprintf(yyo, "%ld '%s'",
-		   ((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
-#line 1302 "cdf.cc"
+#line 198 "cdf.y"
+         { fprintf(yyo, HOST_SIZE_T_PRINT_DEC " '%s'",
+		   (fmt_size_t)((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
+#line 1296 "cdf.cc"
         break;
 
     case YYSYMBOL_cdf_factor: /* cdf_factor  */
-#line 248 "cdf.y"
-         { fprintf(yyo, "%ld '%s'",
-		   ((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
-#line 1309 "cdf.cc"
+#line 198 "cdf.y"
+         { fprintf(yyo, HOST_SIZE_T_PRINT_DEC " '%s'",
+		   (fmt_size_t)((*yyvaluep).cdfval).number, ((*yyvaluep).cdfval).string? ((*yyvaluep).cdfval).string : "" ); }
+#line 1303 "cdf.cc"
         break;
 
     case YYSYMBOL_name_any: /* name_any  */
-#line 245 "cdf.y"
+#line 194 "cdf.y"
          { fprintf(yyo, "%s '%s'",
 		   keyword_str(((*yyvaluep).cdfarg).token),
 		   ((*yyvaluep).cdfarg).string? ((*yyvaluep).cdfarg).string : "<nil>" ); }
-#line 1317 "cdf.cc"
+#line 1311 "cdf.cc"
         break;
 
     case YYSYMBOL_name_one: /* name_one  */
-#line 245 "cdf.y"
+#line 194 "cdf.y"
          { fprintf(yyo, "%s '%s'",
 		   keyword_str(((*yyvaluep).cdfarg).token),
 		   ((*yyvaluep).cdfarg).string? ((*yyvaluep).cdfarg).string : "<nil>" ); }
-#line 1325 "cdf.cc"
+#line 1319 "cdf.cc"
         break;
 
     case YYSYMBOL_namelit: /* namelit  */
-#line 245 "cdf.y"
+#line 194 "cdf.y"
          { fprintf(yyo, "%s '%s'",
 		   keyword_str(((*yyvaluep).cdfarg).token),
 		   ((*yyvaluep).cdfarg).string? ((*yyvaluep).cdfarg).string : "<nil>" ); }
-#line 1333 "cdf.cc"
+#line 1327 "cdf.cc"
         break;
 
     case YYSYMBOL_name: /* name  */
-#line 244 "cdf.y"
+#line 193 "cdf.y"
+         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
+#line 1333 "cdf.cc"
+        break;
+
+    case YYSYMBOL_inof: /* inof  */
+#line 193 "cdf.y"
          { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
 #line 1339 "cdf.cc"
         break;
 
-    case YYSYMBOL_inof: /* inof  */
-#line 244 "cdf.y"
+    case YYSYMBOL_subscripts: /* subscripts  */
+#line 193 "cdf.y"
          { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
 #line 1345 "cdf.cc"
         break;
 
-    case YYSYMBOL_subscripts: /* subscripts  */
-#line 244 "cdf.y"
+    case YYSYMBOL_subscript: /* subscript  */
+#line 193 "cdf.y"
          { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
 #line 1351 "cdf.cc"
-        break;
-
-    case YYSYMBOL_subscript: /* subscript  */
-#line 244 "cdf.y"
-         { fprintf(yyo, "'%s'", ((*yyvaluep).string) ); }
-#line 1357 "cdf.cc"
         break;
 
       default:
@@ -2041,13 +2035,13 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* top: partials  */
-#line 315 "cdf.y"
+#line 274 "cdf.y"
                          { YYACCEPT; }
-#line 2047 "cdf.cc"
+#line 2041 "cdf.cc"
     break;
 
   case 3: /* top: copy '.'  */
-#line 317 "cdf.y"
+#line 276 "cdf.y"
                 {
 		  const char *library = copybook.library();
 		  if( !library ) library = "SYSLIB";
@@ -2055,26 +2049,26 @@ yyreduce:
 		  dbgmsg("COPY %s from %s", source, library);
 		  YYACCEPT;
 		}
-#line 2059 "cdf.cc"
+#line 2053 "cdf.cc"
     break;
 
   case 4: /* top: copy error  */
-#line 324 "cdf.y"
+#line 283 "cdf.y"
                            {
-		  error_msg((yylsp[0]), "COPY directive must end in a '.'");
-		  YYACCEPT;
+		  error_msg((yylsp[0]), "COPY directive must end in a %<.%>");
+		  YYABORT;
 		}
-#line 2068 "cdf.cc"
+#line 2062 "cdf.cc"
     break;
 
   case 5: /* top: completes  */
-#line 328 "cdf.y"
+#line 287 "cdf.y"
                           { YYACCEPT; }
-#line 2074 "cdf.cc"
+#line 2068 "cdf.cc"
     break;
 
-  case 13: /* cdf_display: ">>DISPLAY" strings  */
-#line 347 "cdf.y"
+  case 15: /* cdf_display: ">>DISPLAY" strings  */
+#line 308 "cdf.y"
                                     {
 		  if( scanner_parsing() ) {
 		    fprintf(stderr, "%s\n", display_msg);
@@ -2082,63 +2076,63 @@ yyreduce:
 		    display_msg = NULL;
 		  }
 		}
-#line 2086 "cdf.cc"
+#line 2080 "cdf.cc"
     break;
 
-  case 14: /* strings: LITERAL  */
-#line 355 "cdf.y"
+  case 16: /* strings: LITERAL  */
+#line 316 "cdf.y"
                         {
 		  display_msg = xstrdup((yyvsp[0].string));
 		}
-#line 2094 "cdf.cc"
+#line 2088 "cdf.cc"
     break;
 
-  case 15: /* strings: strings LITERAL  */
-#line 358 "cdf.y"
+  case 17: /* strings: strings LITERAL  */
+#line 319 "cdf.y"
                                 {
 		  char *p = display_msg;
 		  display_msg = xasprintf("%s %s", p, (yyvsp[0].string));
 		  free(p);
 		}
-#line 2104 "cdf.cc"
+#line 2098 "cdf.cc"
     break;
 
-  case 16: /* partials: partial  */
-#line 366 "cdf.y"
+  case 18: /* partials: partial  */
+#line 327 "cdf.y"
                 {
 		  if( ! scanner_parsing() ) YYACCEPT;
 		}
-#line 2112 "cdf.cc"
+#line 2106 "cdf.cc"
     break;
 
-  case 17: /* partials: partials partial  */
-#line 370 "cdf.y"
+  case 19: /* partials: partials partial  */
+#line 331 "cdf.y"
                 {
 		  if( ! scanner_parsing() ) YYACCEPT;
 		}
+#line 2114 "cdf.cc"
+    break;
+
+  case 21: /* partial: ">>ELSE"  */
+#line 336 "cdf.y"
+                                  { scanner_parsing_toggle(); }
 #line 2120 "cdf.cc"
     break;
 
-  case 19: /* partial: ">>ELSE"  */
-#line 375 "cdf.y"
-                                  { scanner_parsing_toggle(); }
+  case 22: /* partial: ">>END-IF"  */
+#line 337 "cdf.y"
+                                  { scanner_parsing_pop(); }
 #line 2126 "cdf.cc"
     break;
 
-  case 20: /* partial: ">>END-IF"  */
-#line 376 "cdf.y"
+  case 25: /* partial: ">>END-EVALUATE"  */
+#line 340 "cdf.y"
                                   { scanner_parsing_pop(); }
 #line 2132 "cdf.cc"
     break;
 
-  case 23: /* partial: ">>END-EVALUATE"  */
-#line 379 "cdf.y"
-                                  { scanner_parsing_pop(); }
-#line 2138 "cdf.cc"
-    break;
-
-  case 24: /* cdf_define: ">>DEFINE" cdf_constant NAME as cdf_expr override  */
-#line 383 "cdf.y"
+  case 26: /* cdf_define: ">>DEFINE" cdf_constant NAME as cdf_expr override  */
+#line 344 "cdf.y"
                 {
 		  if( keyword_tok((yyvsp[-3].string)) ) {
 		    error_msg((yylsp[-3]), "%s is a COBOL keyword", (yyvsp[-3].string));
@@ -2146,6 +2140,7 @@ yyreduce:
 		  }
 		  if( !cdfval_add( (yyvsp[-3].string), cdfval_t((yyvsp[-1].cdfval)), (yyvsp[0].boolean)) ) {
 		    error_msg((yylsp[-3]), "name already in dictionary: %s", (yyvsp[-3].string));
+                    cdf_values_t& dictionary( cdf_dictionary() );
 		    const cdfval_t& entry = dictionary[(yyvsp[-3].string)];
 		    if( entry.filename ) {
 		      error_msg((yylsp[-3]), "%s previously defined in %s:%d",
@@ -2155,12 +2150,17 @@ yyreduce:
 		    }
 		    YYERROR;
 		  }
+                  if( symbols_begin() < symbols_end() ) {
+                    cbl_field_t field = cdf_literalize((yyvsp[-3].string), (yyvsp[-1].cdfval));
+                    symbol_field_add(current_program_index(), &field);                    
+                  }
+
 		}
 #line 2160 "cdf.cc"
     break;
 
-  case 25: /* cdf_define: ">>DEFINE" cdf_constant NAME '=' cdf_expr override  */
-#line 401 "cdf.y"
+  case 27: /* cdf_define: ">>DEFINE" cdf_constant NAME EQ cdf_expr override  */
+#line 368 "cdf.y"
                 {  /* accept, but as error */
 		  if( scanner_parsing() ) {
 		    error_msg((yylsp[-3]), "CDF error: %s = value invalid", (yyvsp[-3].string));
@@ -2169,149 +2169,210 @@ yyreduce:
 #line 2170 "cdf.cc"
     break;
 
-  case 26: /* cdf_define: ">>DEFINE" cdf_constant NAME as OFF  */
-#line 407 "cdf.y"
+  case 28: /* cdf_define: ">>DEFINE" cdf_constant NAME as OFF  */
+#line 374 "cdf.y"
                 {
 		  cdfval_off( (yyvsp[-2].string));
 		}
 #line 2178 "cdf.cc"
     break;
 
-  case 27: /* cdf_define: ">>DEFINE" cdf_constant NAME as "PARAMETER" override  */
-#line 418 "cdf.y"
+  case 29: /* cdf_define: ">>DEFINE" cdf_constant NAME as "PARAMETER" override  */
+#line 385 "cdf.y"
                 {
-		  if( 0 == dictionary.count((yyvsp[-3].string)) ) {
-		    yywarn("CDF: '%s' is defined AS PARAMETER "
-			    "but was not defined", (yyvsp[-3].string));
+		  if( 0 == cdf_dictionary().count((yyvsp[-3].string)) ) {
+                    cbl_message((yylsp[-3]), CdfParameterW,
+                                "CDF: '%s' is defined AS PARAMETER "
+                                "but was not defined", (yyvsp[-3].string));
 		  }
 		}
-#line 2189 "cdf.cc"
+#line 2190 "cdf.cc"
     break;
 
-  case 28: /* cdf_define: ">>DEFINE" FEATURE as ON  */
-#line 424 "cdf.y"
+  case 30: /* cdf_define: ">>DEFINE" FEATURE as ON  */
+#line 392 "cdf.y"
                                          {
 		  auto feature = cbl_gcobol_feature_t((yyvsp[-2].number));
 		  if( ! cobol_gcobol_feature_set(feature, true) ) {
-		    error_msg((yylsp[-2]), ">>DEFINE %EBCDIC-MODE is invalid within program body");
+		    error_msg((yylsp[-2]),
+                              "%<>>DEFINE %%EBCDIC-MODE%> is invalid within program body");
 		  }
 		}
-#line 2200 "cdf.cc"
+#line 2202 "cdf.cc"
     break;
 
-  case 29: /* cdf_define: ">>DEFINE" FEATURE as OFF  */
-#line 430 "cdf.y"
+  case 31: /* cdf_define: ">>DEFINE" FEATURE as OFF  */
+#line 399 "cdf.y"
                                           {
 		  auto feature = cbl_gcobol_feature_t((yyvsp[-2].number));
 		  if( ! cobol_gcobol_feature_set(feature, false) ) {
-		    error_msg((yylsp[-2]), ">>DEFINE %EBCDIC-MODE is invalid within program body");
+		    error_msg((yylsp[-2]),
+                              "%<>>DEFINE %%EBCDIC-MODE%> is invalid within program body");
 		  }
 		}
-#line 2211 "cdf.cc"
+#line 2214 "cdf.cc"
     break;
 
-  case 32: /* override: %empty  */
-#line 440 "cdf.y"
+  case 34: /* override: %empty  */
+#line 410 "cdf.y"
                          { (yyval.boolean) = false; }
-#line 2217 "cdf.cc"
+#line 2220 "cdf.cc"
     break;
 
-  case 33: /* override: OVERRIDE  */
-#line 441 "cdf.y"
+  case 35: /* override: OVERRIDE  */
+#line 411 "cdf.y"
                          { (yyval.boolean) = true; }
-#line 2223 "cdf.cc"
+#line 2226 "cdf.cc"
     break;
 
-  case 34: /* cdf_turn: TURN except_names except_check  */
-#line 445 "cdf.y"
+  case 36: /* cdf_turn: TURN except_names except_check  */
+#line 415 "cdf.y"
                 {
-		  apply_cdf_turn(exception_turns);
-		  exception_turns.clear();
+		  apply_cdf_turn(exception_turn);
+		  exception_turn.clear();
 		}
-#line 2232 "cdf.cc"
+#line 2235 "cdf.cc"
     break;
 
-  case 35: /* cdf_call_convention: "CALL"  */
-#line 452 "cdf.y"
+  case 37: /* cdf_call_convention: "CALL"  */
+#line 422 "cdf.y"
                            {
                   current_call_convention(cbl_call_cobol_e);
                 }
-#line 2240 "cdf.cc"
+#line 2243 "cdf.cc"
     break;
 
-  case 36: /* cdf_call_convention: "CALL (as C)"  */
-#line 455 "cdf.y"
+  case 38: /* cdf_call_convention: "CALL (as C)"  */
+#line 425 "cdf.y"
                               {
                   current_call_convention(cbl_call_verbatim_e);
                 }
-#line 2248 "cdf.cc"
+#line 2251 "cdf.cc"
     break;
 
-  case 39: /* except_name: "EXCEPTION NAME"  */
-#line 464 "cdf.y"
-                                   {
-		  assert((yyvsp[0].number) != ec_none_e);
-		  exception_turns.add_exception(ec_type_t((yyvsp[0].number)));
-		}
-#line 2257 "cdf.cc"
+  case 39: /* cdf_push: ">>PUSH" cdf_stackable  */
+#line 430 "cdf.y"
+                                       {
+		  switch( (yyvsp[0].number) ) {
+                  case YDF_ALL: 		cdf_push(); break;
+                  case YDF_CALL_CONVENTION: cdf_push_call_convention(); break;
+                  case YDF_CDF_DEFINE: 	cdf_push_dictionary(); break;
+                  case YDF_COBOL_WORDS: 	cdf_push_current_tokens(); break;
+                  case YDF_SOURCE_FORMAT:	cdf_push_source_format(); break;
+                  default: gcc_unreachable(); 
+                  }
+                }
+#line 2266 "cdf.cc"
     break;
 
-  case 40: /* except_name: "EXCEPTION NAME" filenames  */
-#line 468 "cdf.y"
-                                             {
-		  assert((yyvsp[-1].number) != ec_none_e);
-		  std::list<size_t> files;
-		  std::copy( (yyvsp[0].files)->begin(), (yyvsp[0].files)->end(),
-		                  std::back_inserter(files) );
-		  exception_turns.add_exception(ec_type_t((yyvsp[-1].number)), files);
-		}
-#line 2269 "cdf.cc"
-    break;
-
-  case 41: /* except_check: CHECKING on  */
-#line 477 "cdf.y"
-                             { exception_turns.enabled = true; }
-#line 2275 "cdf.cc"
-    break;
-
-  case 42: /* except_check: CHECKING OFF  */
-#line 478 "cdf.y"
-                             { exception_turns.enabled = false; }
+  case 40: /* cdf_pop: ">>POP" cdf_stackable  */
+#line 441 "cdf.y"
+                                      {
+		  switch( (yyvsp[0].number) ) {
+                  case YDF_ALL: 		cdf_pop(); break;
+                  case YDF_CALL_CONVENTION: cdf_pop_call_convention(); break;
+                  case YDF_CDF_DEFINE: 	cdf_pop_dictionary(); break;
+                  case YDF_COBOL_WORDS: 	cdf_pop_current_tokens(); break;
+                  case YDF_SOURCE_FORMAT:	cdf_pop_source_format(); break; 
+                  default: gcc_unreachable(); 
+                  }
+                }
 #line 2281 "cdf.cc"
     break;
 
-  case 43: /* except_check: CHECKING on with LOCATION  */
-#line 480 "cdf.y"
-                {
-		  exception_turns.enabled = exception_turns.location = true;
-		}
-#line 2289 "cdf.cc"
+  case 41: /* cdf_stackable: ALL  */
+#line 453 "cdf.y"
+                                { (yyval.number) = YDF_ALL; }
+#line 2287 "cdf.cc"
     break;
 
-  case 44: /* filenames: filename  */
-#line 485 "cdf.y"
+  case 42: /* cdf_stackable: ">>CALL-CONVENTION"  */
+#line 454 "cdf.y"
+                                { (yyval.number) = YDF_CALL_CONVENTION; }
+#line 2293 "cdf.cc"
+    break;
+
+  case 43: /* cdf_stackable: ">>COBOL-WORDS"  */
+#line 455 "cdf.y"
+                                { (yyval.number) = YDF_COBOL_WORDS; }
+#line 2299 "cdf.cc"
+    break;
+
+  case 44: /* cdf_stackable: ">>DEFINE"  */
+#line 456 "cdf.y"
+                                { (yyval.number) = YDF_CDF_DEFINE; }
+#line 2305 "cdf.cc"
+    break;
+
+  case 45: /* cdf_stackable: ">>SOURCE FORMAT"  */
+#line 457 "cdf.y"
+                                { (yyval.number) = YDF_SOURCE_FORMAT; }
+#line 2311 "cdf.cc"
+    break;
+
+  case 48: /* except_name: "EXCEPTION NAME"  */
+#line 463 "cdf.y"
+                                   {
+		  assert((yyvsp[0].number) != ec_none_e);
+		  exception_turn.add_exception(ec_type_t((yyvsp[0].number)));
+		}
+#line 2320 "cdf.cc"
+    break;
+
+  case 49: /* except_name: "EXCEPTION NAME" filenames  */
+#line 467 "cdf.y"
+                                             {
+		  assert((yyvsp[-1].number) != ec_none_e);
+		  std::list<size_t> files((yyvsp[0].files)->begin(), (yyvsp[0].files)->end());
+		  exception_turn.add_exception(ec_type_t((yyvsp[-1].number)), files);
+		}
+#line 2330 "cdf.cc"
+    break;
+
+  case 50: /* except_check: CHECKING on  */
+#line 474 "cdf.y"
+                             { (yyval.boolean) = exception_turn.enable(true); }
+#line 2336 "cdf.cc"
+    break;
+
+  case 51: /* except_check: CHECKING OFF  */
+#line 475 "cdf.y"
+                             { (yyval.boolean) = exception_turn.enable(false); }
+#line 2342 "cdf.cc"
+    break;
+
+  case 52: /* except_check: CHECKING on with LOCATION  */
+#line 477 "cdf.y"
+                {
+		  (yyval.boolean) = exception_turn.enable(true, true);
+		}
+#line 2350 "cdf.cc"
+    break;
+
+  case 53: /* filenames: filename  */
+#line 482 "cdf.y"
                          {
 		  (yyval.files) = new std::set<size_t>;
 		  (yyval.files)->insert(symbol_index(symbol_elem_of((yyvsp[0].file))));
 		}
-#line 2298 "cdf.cc"
+#line 2359 "cdf.cc"
     break;
 
-  case 45: /* filenames: filenames filename  */
-#line 489 "cdf.y"
+  case 54: /* filenames: filenames filename  */
+#line 486 "cdf.y"
                                    {
 		  (yyval.files) = (yyvsp[-1].files);
 		  auto inserted = (yyval.files)->insert(symbol_index(symbol_elem_of((yyvsp[0].file))));
 		  if( ! inserted.second ) {
 		    error_msg((yylsp[0]), "%s: No file-name shall be specified more than "
-			      " once for one exception condition", (yyvsp[0].file)->name);
+			      "once for one exception condition", (yyvsp[0].file)->name);
 		  }
 		}
-#line 2311 "cdf.cc"
+#line 2372 "cdf.cc"
     break;
 
-  case 46: /* filename: NAME  */
-#line 499 "cdf.y"
+  case 55: /* filename: NAME  */
+#line 496 "cdf.y"
                 {
                   struct symbol_elem_t *e = symbol_file(PROGRAM, (yyvsp[0].string));
                   if( !(e && e->type == SymFile) ) {
@@ -2320,101 +2381,100 @@ yyreduce:
                   }
                   (yyval.file) = cbl_file_of(e);
                 }
-#line 2324 "cdf.cc"
+#line 2385 "cdf.cc"
     break;
 
-  case 47: /* cdf_if: ">>IF" cdf_cond_expr  */
-#line 509 "cdf.y"
+  case 56: /* cdf_if: ">>IF" cdf_cond_expr  */
+#line 506 "cdf.y"
                                      {
 		  scanner_parsing(YDF_CDF_IF, (yyvsp[0].boolean));
 		}
-#line 2332 "cdf.cc"
+#line 2393 "cdf.cc"
     break;
 
-  case 48: /* $@1: %empty  */
-#line 512 "cdf.y"
+  case 57: /* $@1: %empty  */
+#line 509 "cdf.y"
                              {
-		  ////if( scanner_parsing() ) yyerrok;
 		}
-#line 2340 "cdf.cc"
+#line 2400 "cdf.cc"
     break;
 
-  case 49: /* cdf_if: ">>IF" error $@1 ">>END-IF"  */
-#line 514 "cdf.y"
+  case 58: /* cdf_if: ">>IF" error $@1 ">>END-IF"  */
+#line 510 "cdf.y"
                              { // not pushed, don't pop
 		  if( ! scanner_parsing() ) YYACCEPT;
 		}
-#line 2348 "cdf.cc"
+#line 2408 "cdf.cc"
     break;
 
-  case 57: /* cdf_cond_expr: NAME DEFINED  */
-#line 533 "cdf.y"
+  case 66: /* cdf_cond_expr: NAME DEFINED  */
+#line 529 "cdf.y"
                 {
+                  cdf_values_t& dictionary( cdf_dictionary() );
 		  auto p = dictionary.find((yyvsp[-1].string));
 		  bool found = p != dictionary.end();
 		  if( !(yyvsp[0].boolean) ) found = ! found;
-		  if( ! found ) {
-		    (yyval.boolean) = !(yyvsp[0].boolean);
-		    dbgmsg("CDF: %s not found in dictionary (result %s)",
+		  (yyval.boolean) = found;
+		  if( found ) {
+		    dbgmsg("CDF: %s found in dictionary (result %s)",
 			   (yyvsp[-1].string), (yyval.boolean)? "true" : "false");
 		  } else {
-		    (yyval.boolean) = (yyvsp[0].boolean);
-		    dbgmsg("CDF: %s found in dictionary (result %s)",
+		    dbgmsg("CDF: %s not found in dictionary (result %s)",
 			   (yyvsp[-1].string), (yyval.boolean)? "true" : "false");
 		  }
 		}
-#line 2367 "cdf.cc"
+#line 2427 "cdf.cc"
     break;
 
-  case 58: /* cdf_cond_expr: cdf_bool_expr  */
-#line 547 "cdf.y"
+  case 67: /* cdf_cond_expr: cdf_bool_expr  */
+#line 543 "cdf.y"
                               { (yyval.boolean) = (yyvsp[0].cdfval)((yylsp[0])) == 0? false : true; }
-#line 2373 "cdf.cc"
+#line 2433 "cdf.cc"
     break;
 
-  case 59: /* cdf_cond_expr: FEATURE DEFINED  */
-#line 548 "cdf.y"
+  case 68: /* cdf_cond_expr: FEATURE DEFINED  */
+#line 544 "cdf.y"
                                 {
 		  const auto& feature((yyvsp[-1].number));
 		  (yyval.boolean) = (feature == int(feature & cbl_gcobol_features));
 		  dbgmsg("CDF: feature 0x%02x is %s", (yyvsp[-1].number), (yyval.boolean)? "ON" : "OFF");
 		}
-#line 2383 "cdf.cc"
+#line 2443 "cdf.cc"
     break;
 
-  case 60: /* cdf_bool_expr: cdf_bool_expr OR cdf_and  */
-#line 559 "cdf.y"
+  case 69: /* cdf_bool_expr: cdf_bool_expr OR cdf_and  */
+#line 555 "cdf.y"
                                          { (yyval.cdfval) = cdfval_t((yyvsp[-2].cdfval)((yylsp[-2])) || (yyvsp[0].cdfval)((yylsp[0]))); }
-#line 2389 "cdf.cc"
+#line 2449 "cdf.cc"
     break;
 
-  case 62: /* cdf_and: cdf_and AND cdf_reloper  */
-#line 563 "cdf.y"
+  case 71: /* cdf_and: cdf_and AND cdf_reloper  */
+#line 559 "cdf.y"
                                         { (yyval.cdfval) = cdfval_t((yyvsp[-2].cdfval)((yylsp[-2])) && (yyvsp[0].cdfval)((yylsp[0]))); }
-#line 2395 "cdf.cc"
+#line 2455 "cdf.cc"
     break;
 
-  case 65: /* cdf_reloper: NOT cdf_relexpr  */
-#line 568 "cdf.y"
+  case 74: /* cdf_reloper: NOT cdf_relexpr  */
+#line 564 "cdf.y"
                                 { (yyval.cdfval) = cdfval_t((yyvsp[0].cdfval).number? 1 : 0); }
-#line 2401 "cdf.cc"
+#line 2461 "cdf.cc"
     break;
 
-  case 66: /* cdf_relexpr: cdf_relexpr '<' cdf_expr  */
-#line 571 "cdf.y"
+  case 75: /* cdf_relexpr: cdf_relexpr '<' cdf_expr  */
+#line 567 "cdf.y"
                                          { (yyval.cdfval) = (yyvsp[-2].cdfval)((yylsp[-2])) <  (yyvsp[0].cdfval)((yylsp[0])); }
-#line 2407 "cdf.cc"
+#line 2467 "cdf.cc"
     break;
 
-  case 67: /* cdf_relexpr: cdf_relexpr LE cdf_expr  */
-#line 572 "cdf.y"
+  case 76: /* cdf_relexpr: cdf_relexpr LE cdf_expr  */
+#line 568 "cdf.y"
                                          { (yyval.cdfval) = (yyvsp[-2].cdfval)((yylsp[-2])) <= (yyvsp[0].cdfval)((yylsp[0])); }
-#line 2413 "cdf.cc"
+#line 2473 "cdf.cc"
     break;
 
-  case 68: /* cdf_relexpr: cdf_relexpr '=' cdf_expr  */
-#line 573 "cdf.y"
-                                         {
+  case 77: /* cdf_relexpr: cdf_relexpr EQ cdf_expr  */
+#line 569 "cdf.y"
+                                        {
 		  (yyval.cdfval) = cdfval_t(false);
 		  if( ( (yyvsp[-2].cdfval).string &&  (yyvsp[0].cdfval).string) ||
 		      (!(yyvsp[-2].cdfval).string && !(yyvsp[0].cdfval).string) )
@@ -2424,14 +2484,14 @@ yyreduce:
 		    const char *msg = (yyvsp[-2].cdfval).string?
 		      "incommensurate comparison is FALSE: '%s' = %ld" :
 		      "incommensurate comparison is FALSE: %ld = '%s'" ;
-		    error_msg((yylsp[-2]), msg);
+		    error_msg((yylsp[-2]), "%s", msg);
 		  }
 		}
-#line 2431 "cdf.cc"
+#line 2491 "cdf.cc"
     break;
 
-  case 69: /* cdf_relexpr: cdf_relexpr NE cdf_expr  */
-#line 587 "cdf.y"
+  case 78: /* cdf_relexpr: cdf_relexpr NE cdf_expr  */
+#line 583 "cdf.y"
                 {
 		  (yyval.cdfval) = cdfval_t(false);
 		  if( ( (yyvsp[-2].cdfval).string &&  (yyvsp[0].cdfval).string) ||
@@ -2442,137 +2502,139 @@ yyreduce:
 		    const char *msg = (yyvsp[-2].cdfval).string?
 		      "incommensurate comparison is FALSE: '%s' = %ld" :
 		      "incommensurate comparison is FALSE: %ld = '%s'" ;
-		    error_msg((yylsp[-2]), msg);
+		    error_msg((yylsp[-2]), "%s", msg);
 		  }
 		}
-#line 2449 "cdf.cc"
+#line 2509 "cdf.cc"
     break;
 
-  case 70: /* cdf_relexpr: cdf_relexpr GE cdf_expr  */
-#line 600 "cdf.y"
+  case 79: /* cdf_relexpr: cdf_relexpr GE cdf_expr  */
+#line 596 "cdf.y"
                                          { (yyval.cdfval) = (yyvsp[-2].cdfval)((yylsp[-2])) >= (yyvsp[0].cdfval)((yylsp[0])); }
-#line 2455 "cdf.cc"
+#line 2515 "cdf.cc"
     break;
 
-  case 71: /* cdf_relexpr: cdf_relexpr '>' cdf_expr  */
-#line 601 "cdf.y"
+  case 80: /* cdf_relexpr: cdf_relexpr '>' cdf_expr  */
+#line 597 "cdf.y"
                                          { (yyval.cdfval) = (yyvsp[-2].cdfval)((yylsp[-2])) >  (yyvsp[0].cdfval)((yylsp[0])); }
-#line 2461 "cdf.cc"
+#line 2521 "cdf.cc"
     break;
 
-  case 73: /* cdf_expr: cdf_expr '+' cdf_expr  */
-#line 605 "cdf.y"
+  case 82: /* cdf_expr: cdf_expr '+' cdf_expr  */
+#line 601 "cdf.y"
                                       { (yyval.cdfval) = (yyvsp[-2].cdfval)((yylsp[-2])) + (yyvsp[0].cdfval)((yylsp[0])); }
-#line 2467 "cdf.cc"
+#line 2527 "cdf.cc"
     break;
 
-  case 74: /* cdf_expr: cdf_expr '-' cdf_expr  */
-#line 606 "cdf.y"
+  case 83: /* cdf_expr: cdf_expr '-' cdf_expr  */
+#line 602 "cdf.y"
                                       { (yyval.cdfval) = (yyvsp[-2].cdfval)((yylsp[-2])) - (yyvsp[0].cdfval)((yylsp[0])); }
-#line 2473 "cdf.cc"
+#line 2533 "cdf.cc"
     break;
 
-  case 75: /* cdf_expr: cdf_expr '*' cdf_expr  */
-#line 607 "cdf.y"
+  case 84: /* cdf_expr: cdf_expr '*' cdf_expr  */
+#line 603 "cdf.y"
                                       { (yyval.cdfval) = (yyvsp[-2].cdfval)((yylsp[-2])) * (yyvsp[0].cdfval)((yylsp[0])); }
-#line 2479 "cdf.cc"
+#line 2539 "cdf.cc"
     break;
 
-  case 76: /* cdf_expr: cdf_expr '/' cdf_expr  */
-#line 608 "cdf.y"
+  case 85: /* cdf_expr: cdf_expr '/' cdf_expr  */
+#line 604 "cdf.y"
                                       { (yyval.cdfval) = (yyvsp[-2].cdfval)((yylsp[-2])) / (yyvsp[0].cdfval)((yylsp[0])); }
-#line 2485 "cdf.cc"
+#line 2545 "cdf.cc"
     break;
 
-  case 77: /* cdf_expr: '+' cdf_expr  */
-#line 609 "cdf.y"
+  case 86: /* cdf_expr: '+' cdf_expr  */
+#line 605 "cdf.y"
                                                 { (yyval.cdfval) = (yyvsp[0].cdfval)((yylsp[0])); }
-#line 2491 "cdf.cc"
+#line 2551 "cdf.cc"
     break;
 
-  case 78: /* cdf_expr: '-' cdf_expr  */
-#line 610 "cdf.y"
+  case 87: /* cdf_expr: '-' cdf_expr  */
+#line 606 "cdf.y"
                                                 { (yyval.cdfval) = negate((yyvsp[0].cdfval)((yylsp[0]))); }
-#line 2497 "cdf.cc"
+#line 2557 "cdf.cc"
     break;
 
-  case 79: /* cdf_expr: '(' cdf_bool_expr ')'  */
-#line 611 "cdf.y"
+  case 88: /* cdf_expr: '(' cdf_bool_expr ')'  */
+#line 607 "cdf.y"
                                                 { (yyval.cdfval) = (yyvsp[-1].cdfval)((yylsp[-1])); }
-#line 2503 "cdf.cc"
+#line 2563 "cdf.cc"
     break;
 
-  case 81: /* cdf_factor: NAME  */
-#line 615 "cdf.y"
+  case 90: /* cdf_factor: NAME  */
+#line 611 "cdf.y"
                      {
+                  cdf_values_t& dictionary( cdf_dictionary() );
 		  auto that = dictionary.find((yyvsp[0].string));
 		  if( that != dictionary.end() ) {
 		    (yyval.cdfval) = that->second;
 		  } else {
 		    if( ! scanner_parsing() ) {
-		      yywarn("CDF skipping: no such variable '%s' (ignored)", (yyvsp[0].string));
+		      cbl_message(CdfNotFoundW,
+                                  "CDF skipping: no such variable '%s'", (yyvsp[0].string));
 		    } else {
 		      error_msg((yylsp[0]), "CDF error: no such variable '%s'", (yyvsp[0].string));
 		    }
 		    (yyval.cdfval) = cdfval_t();
 		  }
 		}
-#line 2521 "cdf.cc"
+#line 2583 "cdf.cc"
     break;
 
-  case 82: /* cdf_factor: NUMBER  */
-#line 628 "cdf.y"
+  case 91: /* cdf_factor: NUMBER  */
+#line 626 "cdf.y"
                        { (yyval.cdfval) = cdfval_t((yyvsp[0].number)); }
-#line 2527 "cdf.cc"
+#line 2589 "cdf.cc"
     break;
 
-  case 83: /* cdf_factor: LITERAL  */
-#line 629 "cdf.y"
+  case 92: /* cdf_factor: LITERAL  */
+#line 627 "cdf.y"
                         { (yyval.cdfval) = cdfval_t((yyvsp[0].string)); }
-#line 2533 "cdf.cc"
+#line 2595 "cdf.cc"
     break;
 
-  case 84: /* cdf_factor: "numeric literal"  */
-#line 630 "cdf.y"
+  case 93: /* cdf_factor: "numeric literal"  */
+#line 628 "cdf.y"
                        {
 		  auto value = integer_literal((yyvsp[0].string));
 		  if( !value.second ) {
-		    error_msg((yylsp[0]), "CDF error: parsed %s as %ld",
+		    error_msg((yylsp[0]), "CDF error: parsed %qs as %lld",
 		             (yyvsp[0].string), value.first);
 		    YYERROR;
 		  }
 		  (yyval.cdfval) = cdfval_t(value.first);
 		}
-#line 2547 "cdf.cc"
+#line 2609 "cdf.cc"
     break;
 
-  case 88: /* copybook_name: COPY name_one  */
-#line 647 "cdf.y"
+  case 97: /* copybook_name: COPY name_one  */
+#line 645 "cdf.y"
                 {
 		  if( -1 == copybook.open((yylsp[0]), (yyvsp[0].cdfarg).string) ) {
 		    error_msg((yylsp[0]), "could not open copybook file "
 		             "for '%s'", (yyvsp[0].cdfarg).string);
-		    YYERROR;
+		    YYABORT;
 		  }
 		}
-#line 2559 "cdf.cc"
+#line 2621 "cdf.cc"
     break;
 
-  case 89: /* copybook_name: COPY name_one IN name_one  */
-#line 655 "cdf.y"
+  case 98: /* copybook_name: COPY name_one IN name_one  */
+#line 653 "cdf.y"
                 {
 		  copybook.library((yylsp[0]), (yyvsp[0].cdfarg).string);
 		  if( -1 == copybook.open((yylsp[-2]), (yyvsp[-2].cdfarg).string) ) {
 		    error_msg((yylsp[-2]), "could not open copybook file "
-		             "for '%s' in '%'s'", (yyvsp[-2].cdfarg).string, (yyvsp[0].cdfarg).string);
-		    YYERROR;
+		             "for %<%s%> in %<%s%>", (yyvsp[-2].cdfarg).string, (yyvsp[0].cdfarg).string);
+		    YYABORT;
 		  }
 		}
-#line 2572 "cdf.cc"
+#line 2634 "cdf.cc"
     break;
 
-  case 92: /* replace_by: name_any BY name_any  */
-#line 670 "cdf.y"
+  case 101: /* replace_by: name_any BY name_any  */
+#line 668 "cdf.y"
                 {
 		  bool add_whitespace = false;
 		  replace_type_t type = {};
@@ -2601,28 +2663,29 @@ yyreduce:
 		  }
 		  copybook.replacement( type, (yyvsp[-2].cdfarg).string, replacement );
 		}
-#line 2605 "cdf.cc"
+#line 2667 "cdf.cc"
     break;
 
-  case 94: /* suppress: SUPPRESS  */
-#line 702 "cdf.y"
+  case 103: /* suppress: SUPPRESS  */
+#line 700 "cdf.y"
                 {
 		  copybook.suppress();
 		}
-#line 2613 "cdf.cc"
+#line 2675 "cdf.cc"
     break;
 
-  case 96: /* name_any: PSEUDOTEXT  */
-#line 708 "cdf.y"
+  case 105: /* name_any: PSEUDOTEXT  */
+#line 706 "cdf.y"
                            {
 		  (yyval.cdfarg) = cdf_arg_t{YDF_PSEUDOTEXT, (yyvsp[0].string)};
 		}
-#line 2621 "cdf.cc"
+#line 2683 "cdf.cc"
     break;
 
-  case 97: /* name_one: NAME  */
-#line 714 "cdf.y"
+  case 106: /* name_one: NAME  */
+#line 712 "cdf.y"
                 {
+                  cdf_values_t& dictionary( cdf_dictionary() );
 		  cdf_arg_t arg = { YDF_NAME, (yyvsp[0].string) };
 		  auto p = dictionary.find((yyvsp[0].string));
 
@@ -2631,24 +2694,25 @@ yyreduce:
 		  }
 		  (yyval.cdfarg) = arg;
 		}
-#line 2635 "cdf.cc"
+#line 2698 "cdf.cc"
     break;
 
-  case 98: /* name_one: "numeric literal"  */
-#line 723 "cdf.y"
+  case 107: /* name_one: "numeric literal"  */
+#line 722 "cdf.y"
                         { (yyval.cdfarg) = cdf_arg_t{YDF_NUMSTR, (yyvsp[0].string)}; }
-#line 2641 "cdf.cc"
+#line 2704 "cdf.cc"
     break;
 
-  case 99: /* name_one: LITERAL  */
-#line 724 "cdf.y"
+  case 108: /* name_one: LITERAL  */
+#line 723 "cdf.y"
                         { (yyval.cdfarg) = cdf_arg_t{YDF_LITERAL, (yyvsp[0].string)}; }
-#line 2647 "cdf.cc"
+#line 2710 "cdf.cc"
     break;
 
-  case 100: /* namelit: name  */
-#line 728 "cdf.y"
+  case 109: /* namelit: name  */
+#line 727 "cdf.y"
                 {
+                  cdf_values_t& dictionary( cdf_dictionary() );
 		  cdf_arg_t arg = { YDF_NAME, (yyvsp[0].string) };
 		  auto p = dictionary.find((yyvsp[0].string));
 
@@ -2657,10 +2721,10 @@ yyreduce:
 		  }
 		  (yyval.cdfarg) = arg;
 		}
-#line 2661 "cdf.cc"
+#line 2725 "cdf.cc"
     break;
 
-  case 101: /* namelit: name subscripts  */
+  case 110: /* namelit: name subscripts  */
 #line 738 "cdf.y"
                 {
 		  char *s = xasprintf( "%s%s", (yyvsp[-1].string), (yyvsp[0].string) );
@@ -2670,22 +2734,22 @@ yyreduce:
 		  cdf_arg_t arg = { YDF_NAME, s };
 		  (yyval.cdfarg) = arg;
 		}
-#line 2674 "cdf.cc"
+#line 2738 "cdf.cc"
     break;
 
-  case 102: /* namelit: "numeric literal"  */
+  case 111: /* namelit: "numeric literal"  */
 #line 746 "cdf.y"
                         { (yyval.cdfarg) = cdf_arg_t{YDF_NUMSTR, (yyvsp[0].string)}; }
-#line 2680 "cdf.cc"
+#line 2744 "cdf.cc"
     break;
 
-  case 103: /* namelit: LITERAL  */
+  case 112: /* namelit: LITERAL  */
 #line 747 "cdf.y"
                         { (yyval.cdfarg) = cdf_arg_t{YDF_LITERAL, (yyvsp[0].string)}; }
-#line 2686 "cdf.cc"
+#line 2750 "cdf.cc"
     break;
 
-  case 105: /* name: name inof NAME  */
+  case 114: /* name: name inof NAME  */
 #line 752 "cdf.y"
                 {
 		  char *s = xasprintf( "%s %s %s", (yyvsp[-2].string), (yyvsp[-1].string), (yyvsp[0].string) );
@@ -2694,22 +2758,22 @@ yyreduce:
 		  free(const_cast<char*>((yyvsp[0].string)));
 		  (yyval.string) = s;
 		}
-#line 2698 "cdf.cc"
+#line 2762 "cdf.cc"
     break;
 
-  case 106: /* inof: IN  */
+  case 115: /* inof: IN  */
 #line 760 "cdf.y"
                    { static const char in[] = "IN"; (yyval.string) = in; }
-#line 2704 "cdf.cc"
+#line 2768 "cdf.cc"
     break;
 
-  case 107: /* inof: OF  */
+  case 116: /* inof: OF  */
 #line 761 "cdf.y"
                    { static const char of[] = "OF"; (yyval.string) = of; }
-#line 2710 "cdf.cc"
+#line 2774 "cdf.cc"
     break;
 
-  case 109: /* subscripts: subscripts subscript  */
+  case 118: /* subscripts: subscripts subscript  */
 #line 766 "cdf.y"
                 {
 		  char *s = xasprintf("%s%s", (yyvsp[-1].string), (yyvsp[0].string) );
@@ -2718,10 +2782,10 @@ yyreduce:
 		  free(const_cast<char*>((yyvsp[0].string)));
 		  (yyval.string) = s;
 		}
-#line 2722 "cdf.cc"
+#line 2786 "cdf.cc"
     break;
 
-  case 111: /* subscript: "(" subscript ")"  */
+  case 120: /* subscript: "(" subscript ")"  */
 #line 776 "cdf.y"
                 {
 		  char *s = xasprintf( "%s%s%s", (yyvsp[-2].string), (yyvsp[-1].string), (yyvsp[0].string) );
@@ -2730,11 +2794,11 @@ yyreduce:
 		  free(const_cast<char*>((yyvsp[0].string)));
 		  (yyval.string) = s;
 		}
-#line 2734 "cdf.cc"
+#line 2798 "cdf.cc"
     break;
 
 
-#line 2738 "cdf.cc"
+#line 2802 "cdf.cc"
 
       default: break;
     }
@@ -2976,6 +3040,7 @@ location_set( const YYLTYPE& loc ) {
 bool // used by cobol1.cc
 defined_cmd( const char arg[] )
 {
+  cdf_values_t& dictionary( cdf_dictionary() );
   cdfval_t value(1);
 
   char *name = xstrdup(arg);
@@ -2998,7 +3063,8 @@ defined_cmd( const char arg[] )
 
   if( yydebug ) {
     if( cdf_name->second.is_numeric() ) {
-      dbgmsg("%s: added -D %s = %ld", __func__, name, cdf_name->second.as_number());
+      dbgmsg("%s: added -D %s = " HOST_SIZE_T_PRINT_DEC,
+             __func__, name, (fmt_size_t)cdf_name->second.as_number());
     } else {
       dbgmsg("%s: added -D %s = \"%s\"", __func__, name, cdf_name->second.string);
     }
@@ -3097,7 +3163,8 @@ static int ydflex(void) {
 }
 
 bool
-cdf_value( const char name[], cdfval_t value ) {
+cdf_value( const char name[], const cdfval_t& value ) {
+  cdf_values_t& dictionary( cdf_dictionary() );
   auto p = dictionary.find(name);
 
   if( p != dictionary.end() ) return false;
@@ -3108,6 +3175,7 @@ cdf_value( const char name[], cdfval_t value ) {
 
 const cdfval_t *
 cdf_value( const char name[] ) {
+  cdf_values_t& dictionary( cdf_dictionary() );
   auto p = dictionary.find(name);
 
   if( p == dictionary.end() ) return NULL;
@@ -3127,5 +3195,8 @@ verify_integer( const YDFLTYPE& loc, const cdfval_base_t& val ) {
 const cdfval_base_t&
 cdfval_base_t::operator()( const YDFLTYPE& loc ) {
   static cdfval_t zero(0);
+  // cppcheck-suppress returnTempReference
   return verify_integer(loc, *this) ? *this : zero;
 }
+
+  

@@ -1,4 +1,3 @@
-#as:
 #objdump: -d -Mintel
 #name: x86_64 AMX insns in Intel syntax
 #source: x86-64-amx.s

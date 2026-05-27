@@ -1,6 +1,6 @@
 #source: start1.s
 #source: tls-tprelm.s --defsym r=32768
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux
 #error: \A[^\n]*\.o: in function[^\n]*\n[^\n]*truncated[^\n]*\n[^\n]*too big[^\n]*\Z
 

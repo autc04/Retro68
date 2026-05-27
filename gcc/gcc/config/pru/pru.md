@@ -1,5 +1,5 @@
 ;; Machine Description for TI PRU.
-;; Copyright (C) 2014-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2026 Free Software Foundation, Inc.
 ;; Contributed by Dimitar Dimitrov <dimitar@dinux.eu>
 ;; Based on the NIOS2 GCC port.
 ;;
@@ -215,7 +215,7 @@
     mov\\t%0, %1
     ldi\\t%0, %%pmem(%1)
     ldi\\t%0, %1
-    fill\\t%0, 4
+    * return TARGET_OPT_FILLZERO ? \"fill\\t%0, 4\" : \"ldi32\\t%0, 0xffffffff\";
     ldi32\\t%0, %1"
   [(set_attr "type" "st,ld,alu,alu,alu,alu,alu")
    (set_attr "length" "4,4,4,4,4,4,8")])
@@ -259,9 +259,11 @@
     case 1:
       return "lb%B1o\\t%b0, %1, %S1";
     case 2:
-      return "zero\\t%F0, 8";
+      return TARGET_OPT_FILLZERO ? "zero\\t%F0, 8"
+				 : "ldi\\t%F0, 0\;ldi\\t%N0, 0";
     case 3:
-      return "fill\\t%F0, 8";
+      return TARGET_OPT_FILLZERO ? "fill\\t%F0, 8"
+				 : "ldi32\\t%F0, 0xffffffff\;mov\\t%N0, %F0";
     case 4:
       /* careful with overlapping source and destination regs.  */
       gcc_assert (GP_REG_P (REGNO (operands[0])));
@@ -282,6 +284,83 @@
 }
   [(set_attr "type" "st,ld,alu,alu,alu,alu,alu,alu")
    (set_attr "length" "4,4,4,4,8,8,8,16")])
+
+; Break 64-bit register-to-register moves into 32-bit moves.
+; If only a subreg of the destination is used, this split would allow
+; for the other 32-bit subreg of the DI register to be eliminated.
+(define_split
+  [(set (match_operand:DI 0 "register_operand")
+	(match_operand:DI 1 "register_operand"))]
+  "
+   /* TODO - LRA does not yet handle subregs efficiently.
+      So it is profitable to split only after register allocation is
+      complete.
+      Once https://gcc.gnu.org/pipermail/gcc-patches/2024-May/651366.html
+      is merged, this condition should be removed to allow splitting
+      before LRA.  */
+   reload_completed
+   /* Sign-extended paradoxical registers require expansion
+      of the proper pattern.  We can do only zero extension here.  */
+   && (SUBREG_P (operands[1]) && paradoxical_subreg_p (operands[1])
+	? SUBREG_PROMOTED_VAR_P (operands[1])
+	  && SUBREG_PROMOTED_UNSIGNED_P (operands[1]) > 0
+	: true)"
+  [(set (match_dup 0) (match_dup 1))
+   (set (match_dup 2) (match_dup 3))]
+  "
+  rtx dst_lo = simplify_gen_subreg (SImode, operands[0], DImode, 0);
+  rtx dst_hi = simplify_gen_subreg (SImode, operands[0], DImode, 4);
+  rtx src_lo = simplify_gen_subreg (SImode, operands[1], DImode, 0);
+  rtx src_hi = simplify_gen_subreg (SImode, operands[1], DImode, 4);
+
+  if (SUBREG_P (operands[1]) && paradoxical_subreg_p (operands[1]))
+    {
+      gcc_assert (SUBREG_PROMOTED_VAR_P (operands[1]));
+      gcc_assert (SUBREG_PROMOTED_UNSIGNED_P (operands[1]) > 0);
+
+      operands[0] = dst_lo;
+      operands[1] = src_lo;
+      operands[2] = dst_hi;
+      operands[3] = const0_rtx;
+    }
+  else if (!reg_overlap_mentioned_p (dst_lo, src_hi))
+    {
+      operands[0] = dst_lo;
+      operands[1] = src_lo;
+      operands[2] = dst_hi;
+      operands[3] = src_hi;
+    }
+  else
+    {
+      operands[0] = dst_hi;
+      operands[1] = src_hi;
+      operands[2] = dst_lo;
+      operands[3] = src_lo;
+    }
+  "
+)
+
+; Break loading of non-trivial 64-bit constant integers.  The split
+; will not generate better code sequence, but at least would allow
+; dropping a non-live 32-bit part of the destination, or better
+; constant propagation.
+(define_split
+  [(set (match_operand:DI 0 "register_operand")
+	(match_operand:DI 1 "const_int_operand"))]
+  "reload_completed
+   && !satisfies_constraint_Z (operands[1])
+   && !satisfies_constraint_Um (operands[1])
+   && !satisfies_constraint_T (operands[1])"
+
+  [(set (match_dup 0) (match_dup 1))
+   (set (match_dup 2) (match_dup 3))]
+  "
+  operands[2] = simplify_gen_subreg (SImode, operands[0], DImode, 4);
+  operands[3] = simplify_gen_subreg (SImode, operands[1], DImode, 4);;
+  operands[0] = simplify_gen_subreg (SImode, operands[0], DImode, 0);
+  operands[1] = simplify_gen_subreg (SImode, operands[1], DImode, 0);
+  "
+)
 
 ;
 ; load_multiple pattern(s).
@@ -425,7 +504,7 @@
 (define_insn "zero_extendqidi2"
   [(set (match_operand:DI 0 "register_operand" "=r,r")
 	(zero_extend:DI (match_operand:QI 1 "register_operand" "0,r")))]
-  ""
+  "TARGET_OPT_FILLZERO"
   "@
     zero\\t%F0.b1, 7
     mov\\t%F0.b0, %1\;zero\\t%F0.b1, 7"
@@ -435,7 +514,7 @@
 (define_insn "zero_extendhidi2"
   [(set (match_operand:DI 0 "register_operand" "=r,r")
 	(zero_extend:DI (match_operand:HI 1 "register_operand" "0,r")))]
-  ""
+  "TARGET_OPT_FILLZERO"
   "@
     zero\\t%F0.b2, 6
     mov\\t%F0.w0, %1\;zero\\t%F0.b2, 6"
@@ -445,7 +524,7 @@
 (define_insn "zero_extendsidi2"
   [(set (match_operand:DI 0 "register_operand" "=r,r")
 	(zero_extend:DI (match_operand:SI 1 "register_operand" "0,r")))]
-  ""
+  "TARGET_OPT_FILLZERO"
   "@
     zero\\t%N0, 4
     mov\\t%F0, %1\;zero\\t%N0, 4"
@@ -458,7 +537,7 @@
 (define_expand "extend<EQS0:mode><EQDHIDI:mode>2"
   [(set (match_operand:EQDHIDI 0 "register_operand" "=r")
 	(sign_extend:EQDHIDI (match_operand:EQS0 1 "register_operand" "r")))]
-  ""
+  "TARGET_OPT_FILLZERO"
 {
   rtx_code_label *skip_hiset_label;
 
@@ -667,7 +746,7 @@
 	(ior:HIDI
 	   (match_operand:HIDI 1 "register_operand" "0")
 	   (match_operand:HIDI 2 "const_fillbytes_operand" "Uf")))]
-  ""
+  "TARGET_OPT_FILLZERO"
 {
   static char line[64];
   pru_byterange r;
@@ -690,7 +769,7 @@
 	(and:HIDI
 	   (match_operand:HIDI 1 "register_operand" "0")
 	   (match_operand:HIDI 2 "const_zerobytes_operand" "Uz")))]
-  ""
+  "TARGET_OPT_FILLZERO"
 {
   static char line[64];
   pru_byterange r;
@@ -1037,7 +1116,8 @@
   /* Try with the more efficient zero/fill patterns first.  */
   if (<LOGICAL_BITOP:CODE> == IOR
       && CONST_INT_P (operands[2])
-      && const_fillbytes_operand (operands[2], DImode))
+      && const_fillbytes_operand (operands[2], DImode)
+      && TARGET_OPT_FILLZERO)
     {
       rtx insn = maybe_gen_pru_ior_fillbytes (DImode,
 					      operands[0],
@@ -1053,7 +1133,8 @@
     }
   if (<LOGICAL_BITOP:CODE> == AND
       && CONST_INT_P (operands[2])
-      && const_zerobytes_operand (operands[2], DImode))
+      && const_zerobytes_operand (operands[2], DImode)
+      && TARGET_OPT_FILLZERO)
     {
       rtx insn = maybe_gen_pru_and_zerobytes (DImode,
 					      operands[0],
@@ -1135,7 +1216,7 @@
   [(set (match_operand:SI 0 "pru_muldst_operand"	   "=Rmd0")
 	(mult:SI (match_operand:SI 1 "pru_mulsrc0_operand" "%Rms0")
 		 (match_operand:SI 2 "pru_mulsrc1_operand" "Rms1")))]
-  ""
+  "TARGET_OPT_MUL"
   "nop\;xin\\t0, %0, 4"
   [(set_attr "type" "alu")
    (set_attr "length" "8")])
@@ -1208,7 +1289,9 @@
 		    (match_operand 1 ""))
 	      (clobber (reg:HI RA_REGNUM))])]
   ""
-  "")
+{
+  operands[0] = pru_fixup_jump_address_operand (operands[0]);
+})
 
 (define_expand "call_value"
   [(parallel [(set (match_operand 0 "")
@@ -1216,7 +1299,9 @@
 			 (match_operand 2 "")))
 	      (clobber (reg:HI RA_REGNUM))])]
   ""
-  "")
+{
+  operands[1] = pru_fixup_jump_address_operand (operands[1]);
+})
 
 (define_insn "*call"
   [(call (mem:SI (match_operand:SI 0 "call_operand" "i,r"))
@@ -1244,7 +1329,9 @@
 		    (match_operand 1 ""))
 	      (return)])]
   ""
-  "")
+{
+  operands[0] = pru_fixup_jump_address_operand (operands[0]);
+})
 
 (define_expand "sibcall_value"
   [(parallel [(set (match_operand 0 "")
@@ -1252,7 +1339,9 @@
 			 (match_operand 2 "")))
 	      (return)])]
   ""
-  "")
+{
+  operands[1] = pru_fixup_jump_address_operand (operands[1]);
+})
 
 (define_insn "*sibcall"
  [(call (mem:SI (match_operand:SI 0 "call_operand" "i,Rsib"))

@@ -1,4 +1,4 @@
-#as: -march=generic64+avx+vmx+smx+xsave+xsaveopt+aes+pclmul+fma+movbe+cx16+ept+clflush+syscall+rdtscp+3dnowa+sse4a+svme+abm+padlock+bmi+tbm
+#as: -march=generic64+avx+vmx+smx+xsave+xsaveopt+aes+pclmul+fma+movbe+cx16+lahf_sahf+ept+clflush+syscall+rdtscp+3dnowa+sse4a+svme+abm+padlock+bmi+tbm
 #objdump: -dw
 #name: x86-64 arch 2
 
@@ -38,4 +38,5 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f a7 c0             	xstore-rng
 [ 	]*[a-f0-9]+:	c4 e2 60 f3 c9       	blsr   %ecx,%ebx
 [ 	]*[a-f0-9]+:	8f e9 60 01 c9       	blcfill %ecx,%ebx
+[ 	]*[a-f0-9]+:	9f                   	lahf
 #pass

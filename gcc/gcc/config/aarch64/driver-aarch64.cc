@@ -1,5 +1,5 @@
 /* Native CPU detection for aarch64.
-   Copyright (C) 2015-2025 Free Software Foundation, Inc.
+   Copyright (C) 2015-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -63,7 +63,7 @@ struct aarch64_core_data
 #define DEFAULT_CPU "generic-armv8-a"
 
 #define AARCH64_CORE(CORE_NAME, CORE_IDENT, SCHED, ARCH, FLAGS, COSTS, IMP, PART, VARIANT) \
-  { CORE_NAME, #ARCH, IMP, PART, VARIANT, feature_deps::cpu_##CORE_IDENT },
+  { CORE_NAME, #ARCH, IMP, PART, unsigned(VARIANT), feature_deps::cpu_##CORE_IDENT },
 
 static CONSTEXPR const aarch64_core_data aarch64_cpu_data[] =
 {
@@ -368,18 +368,30 @@ host_detect_local_cpu (int argc, const char **argv)
 		  continue;
 		}
 
+	      /* This may be a multi-token feature string.  We need to match
+		 all parts in one of the "|" separated sublists.  */
 	      bool enabled = true;
+	      size_t cur = 0;
+	      while (cur < val.length ())
+		{
+		  size_t end = val.find_first_of (" ", cur);
+		  if (end == std::string::npos)
+		    end = val.length ();
+		  std::string word = val.substr (cur, end - cur);
+		  cur = end + 1;
 
-	      /* This may be a multi-token feature string.  We need
-		 to match all parts, which could be in any order.  */
-	      std::set<std::string> tokens;
-	      split_words (val, tokens);
-	      std::set<std::string>::iterator it;
-
-	      /* Iterate till the first feature isn't found or all of them
-		 are found.  */
-	      for (it = tokens.begin (); enabled && it != tokens.end (); ++it)
-		enabled = enabled && features.count (*it);
+		  if (word == "|")
+		    {
+		      /* If we've matched everything in the current sublist, we
+			 can stop now.  */
+		      if (enabled)
+			break;
+		      /* Otherwise, start again with the next sublist.  */
+		      enabled = true;
+		      continue;
+		    }
+		  enabled = enabled && features.count (word);
+		}
 
 	      if (enabled)
 		extension_flags |= aarch64_extensions[i].flag;

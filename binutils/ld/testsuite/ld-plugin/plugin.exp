@@ -1,5 +1,5 @@
 # Expect script for ld-plugin tests
-#   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -87,11 +87,11 @@ set regcln "-plugin-opt registercleanup"
 set failed_compile 0
 set _ ""
 set plugin_nm_output ""
-set old_CFLAGS "$CFLAGS_FOR_TARGET"
-append CFLAGS_FOR_TARGET " $NOSANITIZE_CFLAGS $NOLTO_CFLAGS"
+set old_CFLAGS "$CFLAGS_FOR_TARGET_TEST"
+append CFLAGS_FOR_TARGET_TEST " $NOSANITIZE_CFLAGS $NOLTO_CFLAGS"
 if { [istarget m681*-*-*] || [istarget m68hc1*-*-*] || [istarget m9s12x*-*-*] } {
     # otherwise get FAILS due to _.frame
-    append CFLAGS_FOR_TARGET " -fomit-frame-pointer"
+    append CFLAGS_FOR_TARGET_TEST " -fomit-frame-pointer"
 }
 
 if { $can_compile && \
@@ -291,7 +291,7 @@ if { !$can_compile || $failed_compile } {
 	    unsupported [lindex $testitem 0]
 	}
     }
-    set CFLAGS_FOR_TARGET "$old_CFLAGS"
+    set CFLAGS_FOR_TARGET_TEST "$old_CFLAGS"
     return
 }
 
@@ -394,4 +394,4 @@ if [ar_simple_create $ar "--plugin $plugin4_path" "tmpdir/libpr20070.a" \
     unsupported "PR ld/20070"
 }
 
-set CFLAGS_FOR_TARGET "$old_CFLAGS"
+set CFLAGS_FOR_TARGET_TEST "$old_CFLAGS"

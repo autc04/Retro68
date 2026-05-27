@@ -1,6 +1,5 @@
 # Check 64bit AVX512F,VAES instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vaesdec	%zmm28, %zmm29, %zmm30	 # AVX512F,VAES

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -305,7 +305,7 @@ begin
    --  it is a semantic error, not a syntactic one (we have already checked
    --  the syntax for the unrecognized pragma as required by (RM 2.8(11)).
 
-   if Prag_Id = Unknown_Pragma then
+   if Prag_Id = Pragma_Unknown then
       return Pragma_Node;
    end if;
 
@@ -1394,6 +1394,7 @@ begin
          | Pragma_Annotate
          | Pragma_Assert
          | Pragma_Assert_And_Cut
+         | Pragma_Assertion_Level
          | Pragma_Assertion_Policy
          | Pragma_Assume
          | Pragma_Assume_No_Invalid_Values
@@ -1548,6 +1549,7 @@ begin
          | Pragma_Priority_Specific_Dispatching
          | Pragma_Profile
          | Pragma_Profile_Warnings
+         | Pragma_Program_Exit
          | Pragma_Propagate_Exceptions
          | Pragma_Provide_Shift_Operators
          | Pragma_Psect_Object
@@ -1606,6 +1608,7 @@ begin
          | Pragma_Unreferenced
          | Pragma_Unreferenced_Objects
          | Pragma_Unreserve_All_Interrupts
+         | Pragma_Unsigned_Base_Range
          | Pragma_Unsuppress
          | Pragma_Unused
          | Pragma_Use_VADS_Size
@@ -1619,12 +1622,12 @@ begin
          null;
 
       --------------------
-      -- Unknown_Pragma --
+      -- Pragma_Unknown --
       --------------------
 
       --  Should be impossible, since we excluded this case earlier on
 
-      when Unknown_Pragma =>
+      when Pragma_Unknown =>
          raise Program_Error;
 
    end case;

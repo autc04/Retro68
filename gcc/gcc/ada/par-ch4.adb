@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -82,14 +82,15 @@ package body Ch4 is
    function P_Relation                              return Node_Id;
    function P_Term                                  return Node_Id;
    function P_Declare_Expression                    return Node_Id;
-   function P_Reduction_Attribute_Reference (S : Node_Id)
-      return Node_Id;
 
    function P_Binary_Adding_Operator                return Node_Kind;
    function P_Logical_Operator                      return Node_Kind;
    function P_Multiplying_Operator                  return Node_Kind;
    function P_Relational_Operator                   return Node_Kind;
    function P_Unary_Adding_Operator                 return Node_Kind;
+
+   function P_Simple_Name        (Instance_OK : Boolean) return Node_Id;
+   function P_Simple_Name_Resync (Instance_OK : Boolean) return Node_Id;
 
    procedure Bad_Range_Attribute (Loc : Source_Ptr);
    --  Called to place complaint about bad range attribute at the given
@@ -107,6 +108,10 @@ package body Ch4 is
    --  Scan a range attribute reference. The caller has scanned out the
    --  prefix. The current token is known to be an apostrophe and the
    --  following token is known to be RANGE.
+
+   function P_Reduction_Attribute_Reference (Pref : Node_Id) return Node_Id;
+   --  Scan a reduction attribute reference. The caller has scanned out the
+   --  prefix. The current token is known to be an identifier.
 
    function P_Case_Expression return Node_Id;
    --  Scans out a case expression. Called with Token pointing to the CASE
@@ -152,9 +157,10 @@ package body Ch4 is
    --  NAME ::=
    --    DIRECT_NAME        | EXPLICIT_DEREFERENCE
    --  | INDEXED_COMPONENT  | SLICE
-   --  | SELECTED_COMPONENT | ATTRIBUTE
+   --  | SELECTED_COMPONENT | ATTRIBUTE_REFERENCE
    --  | TYPE_CONVERSION    | FUNCTION_CALL
    --  | CHARACTER_LITERAL  | TARGET_NAME
+   --  | STRUCTURAL_GENERIC_INSTANCE_NAME
 
    --  DIRECT_NAME ::= IDENTIFIER | OPERATOR_SYMBOL
 
@@ -191,6 +197,8 @@ package body Ch4 is
    --  EXPLICIT_ACTUAL_PARAMETER ::= EXPRESSION | variable_NAME
 
    --  TARGET_NAME ::= @   (AI12-0125-3: abbreviation for LHS)
+
+   --  STRUCTURAL_GENERIC_INSTANCE_NAME ::= NAME GENERIC_ACTUAL_PART
 
    --  Note: syntactically a procedure call looks just like a function call,
    --  so this routine is in practice used to scan out procedure calls as well.
@@ -474,7 +482,12 @@ package body Ch4 is
          elsif Token = Tok_Identifier then
             Attr_Name := Token_Name;
 
-            if not Is_Attribute_Name (Attr_Name) then
+            --  Attribute Unsigned_Base_Range temporarily disabled
+
+            if not Is_Attribute_Name (Attr_Name)
+              or else (Attr_Name = Name_Unsigned_Base_Range
+                         and then not Debug_Flag_Dot_U)
+            then
                if Apostrophe_Should_Be_Semicolon then
                   Expr_Form := EF_Name;
                   return Name_Node;
@@ -592,6 +605,20 @@ package body Ch4 is
                                Explicit_Actual_Parameter => Rnam));
                            exit;
 
+                        --  'Make is a special attribute that takes a variable
+                        --  amount of parameters.
+
+                        elsif All_Extensions_Allowed
+                          and then Attr_Name = Name_Make
+                        then
+                           Scan;
+                           Rnam := P_Expression;
+                           Append_To (Expressions (Name_Node),
+                             Make_Parameter_Association (Sloc (Rnam),
+                               Selector_Name             => Expr,
+                               Explicit_Actual_Parameter => Rnam));
+                           exit;
+
                         --  For all other cases named notation is illegal
 
                         else
@@ -654,13 +681,13 @@ package body Ch4 is
 
       --   (discrete_range)
 
-      --      This is a slice. This case is handled in LP_State_Init
+      --      This is a slice
 
       --   (expression, expression, ..)
 
       --      This is interpreted as an indexed component, i.e. as a
       --      case of a name which can be extended in the normal manner.
-      --      This case is handled by LP_State_Name or LP_State_Expr.
+      --      This case is handled by LP_State_Expr.
 
       --      Note: if and case expressions (without an extra level of
       --      parentheses) are permitted in this context).
@@ -669,6 +696,7 @@ package body Ch4 is
 
       --      If there is at least one occurrence of identifier => (but
       --      none of the other cases apply), then we have a call.
+      --      This case is handled by LP_State_Call.
 
       --  Test for Id => case
 
@@ -888,8 +916,7 @@ package body Ch4 is
       --  have seen at least one named parameter already.
 
       Error_Msg_SC
-         ("positional parameter association " &
-           "not allowed after named one");
+        ("positional parameter association not allowed after named one");
 
       Error_Loc := Token_Ptr;
 
@@ -915,203 +942,296 @@ package body Ch4 is
 
    end P_Name;
 
-   --  This function parses a restricted form of Names which are either
-   --  designators, or designators preceded by a sequence of prefixes
-   --  that are direct names.
-
-   --  Error recovery: cannot raise Error_Resync
-
-   function P_Function_Name return Node_Id is
-      Designator_Node : Node_Id;
-      Prefix_Node     : Node_Id;
-      Selector_Node   : Node_Id;
-      Dot_Sloc        : Source_Ptr := No_Location;
-
-   begin
-      --  Prefix_Node is set to the gathered prefix so far, Empty means that
-      --  no prefix has been scanned. This allows us to build up the result
-      --  in the required right recursive manner.
-
-      Prefix_Node := Empty;
-
-      --  Loop through prefixes
-
-      loop
-         Designator_Node := Token_Node;
-
-         if Token not in Token_Class_Desig then
-            return P_Identifier; -- let P_Identifier issue the error message
-
-         else -- Token in Token_Class_Desig
-            Scan; -- past designator
-            exit when Token /= Tok_Dot;
-         end if;
-
-         --  Here at a dot, with token just before it in Designator_Node
-
-         if No (Prefix_Node) then
-            Prefix_Node := Designator_Node;
-         else
-            Selector_Node := New_Node (N_Selected_Component, Dot_Sloc);
-            Set_Prefix (Selector_Node, Prefix_Node);
-            Set_Selector_Name (Selector_Node, Designator_Node);
-            Prefix_Node := Selector_Node;
-         end if;
-
-         Dot_Sloc := Token_Ptr;
-         Scan; -- past dot
-      end loop;
-
-      --  Fall out of the loop having just scanned a designator
-
-      if No (Prefix_Node) then
-         return Designator_Node;
-      else
-         Selector_Node := New_Node (N_Selected_Component, Dot_Sloc);
-         Set_Prefix (Selector_Node, Prefix_Node);
-         Set_Selector_Name (Selector_Node, Designator_Node);
-         return Selector_Node;
-      end if;
-
-   exception
-      when Error_Resync =>
-         return Error;
-   end P_Function_Name;
-
-   --  This function parses a restricted form of Names which are either
-   --  identifiers, or identifiers preceded by a sequence of prefixes
-   --  that are direct names.
-
-   --  Error recovery: cannot raise Error_Resync
-
-   function P_Qualified_Simple_Name return Node_Id is
-      Designator_Node : Node_Id;
-      Prefix_Node     : Node_Id;
-      Selector_Node   : Node_Id;
-      Dot_Sloc        : Source_Ptr := No_Location;
-
-   begin
-      --  Prefix node is set to the gathered prefix so far, Empty means that
-      --  no prefix has been scanned. This allows us to build up the result
-      --  in the required right recursive manner.
-
-      Prefix_Node := Empty;
-
-      --  Loop through prefixes
-
-      loop
-         Designator_Node := Token_Node;
-
-         if Token = Tok_Identifier then
-            Scan; -- past identifier
-            exit when Token /= Tok_Dot;
-
-         elsif Token not in Token_Class_Desig then
-            return P_Identifier; -- let P_Identifier issue the error message
-
-         else
-            Scan; -- past designator
-
-            if Token /= Tok_Dot then
-               Error_Msg_SP ("identifier expected");
-               return Error;
-            end if;
-         end if;
-
-         --  Here at a dot, with token just before it in Designator_Node
-
-         if No (Prefix_Node) then
-            Prefix_Node := Designator_Node;
-         else
-            Selector_Node := New_Node (N_Selected_Component, Dot_Sloc);
-            Set_Prefix (Selector_Node, Prefix_Node);
-            Set_Selector_Name (Selector_Node, Designator_Node);
-            Prefix_Node := Selector_Node;
-         end if;
-
-         Dot_Sloc := Token_Ptr;
-         Scan; -- past dot
-      end loop;
-
-      --  Fall out of the loop having just scanned an identifier
-
-      if No (Prefix_Node) then
-         return Designator_Node;
-      else
-         Selector_Node := New_Node (N_Selected_Component, Dot_Sloc);
-         Set_Prefix (Selector_Node, Prefix_Node);
-         Set_Selector_Name (Selector_Node, Designator_Node);
-         return Selector_Node;
-      end if;
-
-   exception
-      when Error_Resync =>
-         return Error;
-   end P_Qualified_Simple_Name;
-
-   --  This procedure differs from P_Qualified_Simple_Name only in that it
-   --  raises Error_Resync if any error is encountered. It only returns after
-   --  scanning a valid qualified simple name.
+   --  These functions parse a restricted form of Names which are either
+   --  designators or structural generic instance names, and are preceded,
+   --  or not, by a sequence of prefixes that are either direct names or
+   --  structural generic instance names.
 
    --  Error recovery: can raise Error_Resync
 
-   function P_Qualified_Simple_Name_Resync return Node_Id is
-      Designator_Node : Node_Id;
-      Prefix_Node     : Node_Id;
-      Selector_Node   : Node_Id;
-      Dot_Sloc        : Source_Ptr := No_Location;
+   function P_Exception_Name return Node_Id is
+   begin
+      return P_Simple_Name_Resync (Instance_OK => False);
+   end P_Exception_Name;
+
+   function P_Label_Name return Node_Id is
+   begin
+      return P_Simple_Name_Resync (Instance_OK => False);
+   end P_Label_Name;
+
+   function P_Loop_Name return Node_Id is
+   begin
+      return P_Simple_Name_Resync (Instance_OK => False);
+   end P_Loop_Name;
+
+   function P_Subtype_Name_Resync return Node_Id is
+   begin
+      return P_Simple_Name_Resync (Instance_OK => False);
+   end P_Subtype_Name_Resync;
+
+   --  Error recovery: cannot raise Error_Resync
+
+   function P_Generic_Unit_Name return Node_Id is
+   begin
+      return P_Simple_Name (Instance_OK => False);
+   end P_Generic_Unit_Name;
+
+   function P_Library_Unit_Name return Node_Id is
+   begin
+      return P_Simple_Name (Instance_OK => False);
+   end P_Library_Unit_Name;
+
+   function P_Package_Name return Node_Id is
+   begin
+      return P_Simple_Name (Instance_OK => True);
+   end P_Package_Name;
+
+   function P_Parent_Unit_Name return Node_Id is
+   begin
+      return P_Simple_Name (Instance_OK => False);
+   end P_Parent_Unit_Name;
+
+   function P_Subtype_Name return Node_Id is
+   begin
+      return P_Simple_Name (Instance_OK => False);
+   end P_Subtype_Name;
+
+   --  This function parses a restricted form of Names which are either
+   --  designators or structural generic instance names, and are preceded,
+   --  or not, by a sequence of prefixes that are either direct names or
+   --  structural generic instance names.
+
+   --  If Instance_OK is False, the simple name cannot be a structural
+   --  generic instance name, preceded or not by prefixes (Instance_OK
+   --  has no effects on the accepted prefixes, if any).
+
+   --  Error recovery: cannot raise Error_Resync
+
+   function P_Simple_Name (Instance_OK : Boolean) return Node_Id is
+   begin
+      return P_Simple_Name_Resync (Instance_OK);
+   exception
+      when Error_Resync =>
+         return Error;
+   end P_Simple_Name;
+
+   --  This procedure differs from P_Simple_Name only in that it raises
+   --  Error_Resync if any error is encountered. It only returns after
+   --  scanning a valid simple name.
+
+   --  Error recovery: can raise Error_Resync
+
+   function P_Simple_Name_Resync (Instance_OK : Boolean) return Node_Id is
+      Arg_Node      : Node_Id;
+      Ident_Node    : Node_Id;
+      Name_Node     : Node_Id;
+      Prefix_Node   : Node_Id;
+      Scan_State_Id : Saved_Scan_State;
+      Scan_State_LP : Saved_Scan_State;
+
+      Arg_List  : List_Id := No_List; -- kill junk warning
 
    begin
-      Prefix_Node := Empty;
+      --  Case of not a designator
 
-      --  Loop through prefixes
-
-      loop
-         Designator_Node := Token_Node;
-
-         if Token = Tok_Identifier then
-            Scan; -- past identifier
-            exit when Token /= Tok_Dot;
-
-         elsif Token not in Token_Class_Desig then
-            Discard_Junk_Node (P_Identifier); -- to issue the error message
-            raise Error_Resync;
-
-         else
-            Scan; -- past designator
-
-            if Token /= Tok_Dot then
-               Error_Msg_SP ("identifier expected");
-               raise Error_Resync;
-            end if;
-         end if;
-
-         --  Here at a dot, with token just before it in Designator_Node
-
-         if No (Prefix_Node) then
-            Prefix_Node := Designator_Node;
-         else
-            Selector_Node := New_Node (N_Selected_Component, Dot_Sloc);
-            Set_Prefix (Selector_Node, Prefix_Node);
-            Set_Selector_Name (Selector_Node, Designator_Node);
-            Prefix_Node := Selector_Node;
-         end if;
-
-         Dot_Sloc := Token_Ptr;
-         Scan; -- past period
-      end loop;
-
-      --  Fall out of the loop having just scanned an identifier
-
-      if No (Prefix_Node) then
-         return Designator_Node;
-      else
-         Selector_Node := New_Node (N_Selected_Component, Dot_Sloc);
-         Set_Prefix (Selector_Node, Prefix_Node);
-         Set_Selector_Name (Selector_Node, Designator_Node);
-         return Selector_Node;
+      if Token not in Token_Class_Desig then
+         Discard_Junk_Node (P_Identifier); -- to issue the error message
+         raise Error_Resync;
       end if;
-   end P_Qualified_Simple_Name_Resync;
+
+      Name_Node := Token_Node;
+
+      Scan; -- past designator
+
+      --  Loop scanning past name extensions. A label is used for control
+      --  transfer for this loop for ease of interfacing with the finite state
+      --  machine in the parenthesis scanning circuit, and also to allow for
+      --  passing in control to the appropriate point from the above code.
+
+      <<Scan_Name_Extension>>
+
+      case Token is
+         when Tok_Left_Paren =>
+            Save_Scan_State (Scan_State_LP); -- at left paren
+            Scan; -- past left paren
+            Arg_List := New_List;
+            goto Scan_Name_Extension_Left_Paren;
+
+         when Tok_Dot =>
+            Scan; -- past dot
+            goto Scan_Name_Extension_Dot;
+
+         when others =>
+            return Name_Node;
+      end case;
+
+      --  Case of name extended by dot (selection), dot is already skipped
+      --  and the scan state at the point of the dot is saved in Scan_State.
+
+      <<Scan_Name_Extension_Dot>>
+
+      if Token in Token_Class_Desig then
+         Prefix_Node := Name_Node;
+         Name_Node := New_Node (N_Selected_Component, Prev_Token_Ptr);
+         Set_Prefix (Name_Node, Prefix_Node);
+         Set_Selector_Name (Name_Node, Token_Node);
+         Scan; -- past selector
+         goto Scan_Name_Extension;
+
+      --  Here if nothing legal after the dot
+
+      else
+         Discard_Junk_Node (P_Identifier); -- to issue the error message
+         raise Error_Resync;
+      end if;
+
+      --  Here for left parenthesis extending name (left paren skipped)
+
+      <<Scan_Name_Extension_Left_Paren>>
+
+      --  We now have to scan through a list of items, terminated by a
+      --  right parenthesis. The scan is handled by a finite state
+      --  machine. The possibilities are:
+
+      --   (expression, expression, ..)
+
+      --      This is interpreted as an indexed component, i.e. as a
+      --      case of a name which can be extended in the normal manner.
+      --      This case is handled by LP_State_Expr.
+
+      --      Note: if and case expressions (without an extra level of
+      --      parentheses) are permitted in this context).
+
+      --   (..., identifier => expression , ...)
+
+      --      If there is at least one occurrence of identifier => (but
+      --      none of the other cases apply), then we have a call.
+      --      This case is handled by LP_State_Call.
+
+      --  Test for Id => case
+
+      if Token in Tok_Identifier | Tok_Operator_Symbol | Tok_Others then
+         Save_Scan_State (Scan_State_Id); -- at Id
+         Scan; -- past Id
+
+         --  Test for => (allow := as an error substitute)
+
+         if Token in Tok_Arrow | Tok_Colon_Equal then
+            Restore_Scan_State (Scan_State_Id); -- to Id
+            goto LP_State_Call;
+
+         else
+            Restore_Scan_State (Scan_State_Id); -- to Id
+         end if;
+      end if;
+
+      --  Here we have an expression after all
+
+      <<LP_State_Expr>>
+
+      if Token in Tok_Box | Tok_Right_Paren then
+         goto LP_State_Rewind;
+      end if;
+
+      Append (P_Expression_Or_Range_Attribute_If_OK, Arg_List);
+
+      if Token = Tok_Comma then
+         Scan; -- past comma
+         goto Scan_Name_Extension_Left_Paren;
+
+      elsif Token = Tok_Right_Paren then
+         Scan; -- past right paren
+
+         if not Instance_OK and then Token /= Tok_Dot then
+            goto LP_State_Rewind;
+         end if;
+
+         Prefix_Node := Name_Node;
+         Name_Node := New_Node (N_Indexed_Component, Sloc (Prefix_Node));
+         Set_Prefix (Name_Node, Prefix_Node);
+         Set_Expressions (Name_Node, Arg_List);
+         goto Scan_Name_Extension;
+
+      else
+         goto LP_State_Rewind;
+      end if;
+
+      --  LP_State_Call corresponds to the situation in which at least one
+      --  instance of Id => Expression has been encountered, so we know that
+      --  we do not have a name, but rather a call. We enter it with the
+      --  scan pointer pointing to the next argument to scan, and Arg_List
+      --  containing the list of arguments scanned so far.
+
+      <<LP_State_Call>>
+
+      --  Test for case of Id => Expression (named parameter)
+
+      if Token in Tok_Identifier | Tok_Operator_Symbol | Tok_Others then
+         Save_Scan_State (Scan_State_Id); -- at Id
+
+         if Token = Tok_Others then
+            Ident_Node := Empty; -- used below only in case of syntax error
+         else
+            Ident_Node := Token_Node;
+         end if;
+
+         Scan; -- past Id
+
+         --  Deal with => (allow := as incorrect substitute)
+
+         if Token in Tok_Arrow | Tok_Colon_Equal then
+            Arg_Node := New_Node (N_Parameter_Association, Prev_Token_Ptr);
+            T_Arrow;
+            if Token in Tok_Box then
+               goto LP_State_Rewind;
+            end if;
+            Set_Selector_Name (Arg_Node, Ident_Node);
+            Set_Explicit_Actual_Parameter (Arg_Node, P_Expression);
+            Append (Arg_Node, Arg_List);
+
+            --  If a comma follows, go back and scan next entry
+
+            if Comma_Present then
+               goto LP_State_Call;
+
+            --  Otherwise we have the end of a call
+
+            else
+               T_Right_Paren; -- past right paren
+
+               if not Instance_OK and then Token /= Tok_Dot then
+                  goto LP_State_Rewind;
+               end if;
+
+               Prefix_Node := Name_Node;
+               Name_Node := New_Node (N_Function_Call, Sloc (Prefix_Node));
+               Set_Name (Name_Node, Prefix_Node);
+               Set_Parameter_Associations (Name_Node, Arg_List);
+               goto Scan_Name_Extension;
+            end if;
+
+         --  Filter out tokens that may appear in constraints
+
+         elsif Token in Tok_Vertical_Bar then
+            goto LP_State_Rewind;
+
+         --  Not named parameter: Id started an expression after all
+
+         else
+            Restore_Scan_State (Scan_State_Id); -- to Id
+         end if;
+      end if;
+
+      --  Here if entry did not start with Id => which means that it
+      --  is a positional parameter, which is not allowed, since we
+      --  have seen at least one named parameter already.
+
+      goto LP_State_Expr;
+
+      <<LP_State_Rewind>>
+      Restore_Scan_State (Scan_State_LP);
+      return Name_Node;
+   end P_Simple_Name_Resync;
 
    ----------------------
    -- 4.1  Direct_Name --
@@ -1227,7 +1347,7 @@ package body Ch4 is
    -- P_Reduction_Attribute_Reference --
    -------------------------------------
 
-   function P_Reduction_Attribute_Reference (S : Node_Id)
+   function P_Reduction_Attribute_Reference (Pref : Node_Id)
       return Node_Id
    is
       Attr_Node  : Node_Id;
@@ -1242,7 +1362,7 @@ package body Ch4 is
          Error_Msg ("Reduce attribute expected", Prev_Token_Ptr);
       end if;
 
-      Set_Prefix (Attr_Node, S);
+      Set_Prefix (Attr_Node, Pref);
       Set_Expressions (Attr_Node, New_List);
       T_Left_Paren;
       Append (P_Name, Expressions (Attr_Node));
@@ -1593,8 +1713,13 @@ package body Ch4 is
          --  Improper use of WITH
 
          elsif Token = Tok_With then
-            Error_Msg_SC ("WITH must be preceded by single expression in " &
-                          "extension aggregate");
+            if Inside_Abstract_State then
+               Error_Msg_SC ("state name with options must be enclosed in " &
+                             "parentheses");
+            else
+               Error_Msg_SC ("WITH must be preceded by single expression in " &
+                             "extension aggregate");
+            end if;
             raise Error_Resync;
 
          --  Range attribute can only appear as part of a discrete choice list
@@ -2664,15 +2789,23 @@ package body Ch4 is
       --  not the first token on a line (as determined by checking the
       --  previous token position with the start of the current line),
       --  then we insist that we have an appropriate terminating token.
-      --  Consider the following two examples:
+      --  Consider the following examples:
 
       --   1)  if A nad B then ...
 
-      --   2)  A := B
+      --   2)  if A [B] then ...
+      --            ^
+      --   2)  A := [B[;
+      --              ^
+
+      --   3)  A := B
       --       C := D
 
       --  In the first example, we would like to issue a binary operator
       --  expected message and resynchronize to the then. In the second
+      --  example, a left bracket was found instead of a left parenthesis (eg.
+      --  array indexing), or instead of a closing right bracket; in both cases
+      --  we issue an incorrect or mismatching bracket message. In the third
       --  example, we do not want to issue a binary operator message, so
       --  that instead we will get the missing semicolon message. This
       --  distinction is of course a heuristic which does not always work,
@@ -2707,6 +2840,11 @@ package body Ch4 is
             if Ada_Version >= Ada_2012 then
                Error_Msg_SC ("\qualify expression to turn it into a name");
             end if;
+
+         --  Mistake of using brackets instead of parentheses
+
+         elsif Token = Tok_Left_Bracket then
+            Error_Msg_SC ("incorrect or mismatching bracket");
 
          --  Normal case for binary operator expected message
 
@@ -3473,8 +3611,9 @@ package body Ch4 is
 
    function P_Allocator return Node_Id is
       Alloc_Node             : Node_Id;
-      Type_Node              : Node_Id;
       Null_Exclusion_Present : Boolean;
+      Scan_State             : Saved_Scan_State;
+      Type_Node              : Node_Id;
 
    begin
       Alloc_Node := New_Node (N_Allocator, Token_Ptr);
@@ -3496,6 +3635,31 @@ package body Ch4 is
 
       Null_Exclusion_Present := P_Null_Exclusion;
       Set_Null_Exclusion_Present (Alloc_Node, Null_Exclusion_Present);
+
+      --  Check for 'Make
+
+      if All_Extensions_Allowed
+        and then Token = Tok_Identifier
+      then
+         Save_Scan_State (Scan_State);
+         Type_Node := P_Subtype_Name_Resync;
+         if Token = Tok_Apostrophe then
+            Scan;
+            if Token_Name = Name_Make then
+               Restore_Scan_State (Scan_State);
+               Set_Expression
+                 (Alloc_Node,
+                  Make_Qualified_Expression (Token_Ptr,
+                    Subtype_Mark => Check_Subtype_Mark (Type_Node),
+                    Expression   => P_Expression_Or_Range_Attribute));
+               return Alloc_Node;
+            end if;
+         end if;
+         Restore_Scan_State (Scan_State);
+      end if;
+
+      --  Otherwise continue parsing the subtype
+
       Type_Node := P_Subtype_Mark_Resync;
 
       if Token = Tok_Apostrophe then

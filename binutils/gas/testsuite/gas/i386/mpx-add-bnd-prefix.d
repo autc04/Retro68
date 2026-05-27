@@ -1,4 +1,4 @@
-#as: -madd-bnd-prefix
+#as: -madd-bnd-prefix -march=+mpx
 #warning_output: mpx-add-bnd-prefix.e
 #objdump: -drw
 #name: Check -madd-bnd-prefix

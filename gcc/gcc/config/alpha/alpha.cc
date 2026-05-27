@@ -1,5 +1,5 @@
 /* Subroutines used for code generation on the DEC Alpha.
-   Copyright (C) 1992-2025 Free Software Foundation, Inc.
+   Copyright (C) 1992-2026 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
 This file is part of GCC.
@@ -1036,8 +1036,7 @@ alpha_legitimize_address_1 (rtx x, rtx scratch, machine_mode mode)
 	    RTL_CONST_CALL_P (insn) = 1;
 	    use_reg (&CALL_INSN_FUNCTION_USAGE (insn), r16);
 
-	    insn = get_insns ();
-	    end_sequence ();
+	    insn = end_sequence ();
 
 	    emit_libcall_block (insn, dest, r0, x);
 	    return dest;
@@ -1059,8 +1058,7 @@ alpha_legitimize_address_1 (rtx x, rtx scratch, machine_mode mode)
 	    RTL_CONST_CALL_P (insn) = 1;
 	    use_reg (&CALL_INSN_FUNCTION_USAGE (insn), r16);
 
-	    insn = get_insns ();
-	    end_sequence ();
+	    insn = end_sequence ();
 
 	    eqv = gen_rtx_UNSPEC (Pmode, gen_rtvec (1, const0_rtx),
 				  UNSPEC_TLSLDM_CALL);
@@ -3214,8 +3212,7 @@ alpha_emit_xfloating_libcall (rtx func, rtx target, rtx operands[],
   CALL_INSN_FUNCTION_USAGE (tmp) = usage;
   RTL_CONST_CALL_P (tmp) = 1;
 
-  tmp = get_insns ();
-  end_sequence ();
+  tmp = end_sequence ();
 
   emit_libcall_block (tmp, target, reg, equiv);
 }
@@ -4291,14 +4288,10 @@ alpha_get_mem_rtx_alignment_and_offset (rtx expr, int &a, HOST_WIDE_INT &o)
 
   tree mem = MEM_EXPR (expr);
   if (mem != NULL_TREE)
-    switch (TREE_CODE (mem))
-      {
-      case MEM_REF:
-	tree_offset = mem_ref_offset (mem).force_shwi ();
-	tree_align = get_object_alignment (get_base_address (mem));
-	break;
+    {
+      HOST_WIDE_INT comp_offset = 0;
 
-      case COMPONENT_REF:
+      for (; TREE_CODE (mem) == COMPONENT_REF; mem = TREE_OPERAND (mem, 0))
 	{
 	  tree byte_offset = component_ref_field_offset (mem);
 	  tree bit_offset = DECL_FIELD_BIT_OFFSET (TREE_OPERAND (mem, 1));
@@ -4307,14 +4300,15 @@ alpha_get_mem_rtx_alignment_and_offset (rtx expr, int &a, HOST_WIDE_INT &o)
 	      || !poly_int_tree_p (byte_offset, &offset)
 	      || !tree_fits_shwi_p (bit_offset))
 	    break;
-	  tree_offset = offset + tree_to_shwi (bit_offset) / BITS_PER_UNIT;
+	  comp_offset += offset + tree_to_shwi (bit_offset) / BITS_PER_UNIT;
 	}
-	tree_align = get_object_alignment (get_base_address (mem));
-	break;
 
-      default:
-	break;
-      }
+      if (TREE_CODE (mem) == MEM_REF)
+	{
+	  tree_offset = comp_offset + mem_ref_offset (mem).force_shwi ();
+	  tree_align = get_object_alignment (get_base_address (mem));
+	}
+    }
 
   if (reg_align > mem_align)
     {
@@ -5599,8 +5593,7 @@ alpha_gp_save_rtx (void)
       m = validize_mem (m);
       emit_move_insn (m, pic_offset_table_rtx);
 
-      seq = get_insns ();
-      end_sequence ();
+      seq = end_sequence ();
 
       /* We used to simply emit the sequence after entry_of_function.
 	 However this breaks the CFG if the first instruction in the
@@ -6571,6 +6564,7 @@ alpha_build_builtin_va_list (void)
   DECL_CHAIN (base) = ofs;
 
   TYPE_FIELDS (record) = base;
+  TREE_PUBLIC (type_decl) = 1;
   layout_type (record);
 
   va_list_gpr_counter_field = ofs;

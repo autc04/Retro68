@@ -1,4 +1,4 @@
-.. Copyright (C) 2024-2025 Free Software Foundation, Inc.
+.. Copyright (C) 2024-2026 Free Software Foundation, Inc.
    Originally contributed by David Malcolm <dmalcolm@redhat.com>
 
    This is free software: you can redistribute it and/or modify it
@@ -134,8 +134,6 @@ Here's the above example in full:
    :end-before:  end full example
 
 
-Moving on
-*********
-
-That's the end of the tutorial.  For more information on libgdiagnostics, see
-the :doc:`topic guide <../topics/index>`.
+See the :doc:`guide to execution paths <../topics/execution-paths>`
+for more information, or go on to
+:doc:`the next section of the tutorial <08-message-buffers>`.

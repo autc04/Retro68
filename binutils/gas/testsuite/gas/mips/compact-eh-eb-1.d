@@ -8,14 +8,15 @@
 
 RELOCATION RECORDS FOR \[.eh_frame_entry\]:
 OFFSET +TYPE +VALUE
-00000000 R_MIPS_PC32       .text.*
+0+000000 R_MIPS_PC32       .text.*
+#?.*R_MIPS_NONE.*
+#?.*R_MIPS_NONE.*
 
 
 Contents of section .text:
  0000 00000000.*
-Contents of section .reginfo:
- 0000 00000000 00000000 00000000 00000000  .*
- 0010 00000000 00000000                    .*
+Contents of section (.reginfo|.MIPS.options):
+#...
 Contents of section .MIPS.abiflags:
  .*
  .*

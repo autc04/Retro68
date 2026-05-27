@@ -1,5 +1,5 @@
 # Test PHDRS with empty sections in a linker script.
-# Copyright (C) 2005-2022 Free Software Foundation, Inc.
+# Copyright (C) 2005-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -20,7 +20,6 @@
 
 # PHDRS2 is only meaningful for ELF.
 if { !([istarget *-*-sysv4*]
-       || [istarget *-*-unixware*]
        || [istarget *-*-elf*]
        || [istarget *-*-eabi*]
        || [istarget hppa*64*-*-hpux*]

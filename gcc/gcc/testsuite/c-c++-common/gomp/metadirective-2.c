@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-
+// { dg-additional-options "-Wno-deprecated-openmp" }
 #define N 100
 
 int
@@ -61,7 +61,7 @@ main (void)
     when (device={arch("gcn")}: teams num_teams(256)) \
     default (teams num_teams(4))
   {
-    //__label__ l1, l2;
+    __label__ l1, l2;
 
     if (x)
       goto l1;

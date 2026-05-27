@@ -309,12 +309,25 @@ test_modifiers()
   is >> parse("%5M", min);
   VERIFY( is.eof() && is.fail() );
 
-  std::chrono::seconds s;
+  std::chrono::seconds s{};
   is.clear();
   is.str("000000000012345");
   is >> parse("%12S", s); // Read more than 10 digits to check overflow logic.
   VERIFY( is.good() );
   VERIFY( s == 12s );
+}
+
+void
+test_wchar()
+{
+  std::wistringstream is;
+  std::chrono::duration<double, std::milli> ms;
+
+  is.clear();
+  is.str(L"0.125");
+  is >> parse(L"%S", ms);
+  VERIFY( is.good() );
+  VERIFY( ms.count() == 125 );
 }
 
 int main()
@@ -324,4 +337,5 @@ int main()
   test_whitespace();
   test_errors();
   test_modifiers();
+  test_wchar();
 }

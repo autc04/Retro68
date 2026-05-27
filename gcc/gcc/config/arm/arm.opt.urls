@@ -19,7 +19,7 @@ marm
 UrlSuffix(gcc/ARM-Options.html#index-marm)
 
 mbig-endian
-UrlSuffix(gcc/ARM-Options.html#index-mbig-endian-2)
+UrlSuffix(gcc/ARM-Options.html#index-mbig-endian-1)
 
 mcallee-super-interworking
 UrlSuffix(gcc/ARM-Options.html#index-mcallee-super-interworking)
@@ -36,9 +36,6 @@ UrlSuffix(gcc/ARM-Options.html#index-mfloat-abi)
 mcmse
 UrlSuffix(gcc/ARM-Options.html#index-mcmse)
 
-mflip-thumb
-UrlSuffix(gcc/ARM-Options.html#index-mflip-thumb)
-
 mfp16-format=
 UrlSuffix(gcc/ARM-Options.html#index-mfp16-format)
 
@@ -48,7 +45,7 @@ UrlSuffix(gcc/ARM-Options.html#index-mfpu-1)
 ; skipping UrlSuffix for 'mhard-float' due to finding no URLs
 
 mlittle-endian
-UrlSuffix(gcc/ARM-Options.html#index-mlittle-endian-2)
+UrlSuffix(gcc/ARM-Options.html#index-mlittle-endian-1)
 
 mlong-calls
 UrlSuffix(gcc/ARM-Options.html#index-mlong-calls-2)
@@ -92,13 +89,13 @@ mtpcs-leaf-frame
 UrlSuffix(gcc/ARM-Options.html#index-mtpcs-leaf-frame)
 
 mtune=
-UrlSuffix(gcc/ARM-Options.html#index-mtune-4)
+UrlSuffix(gcc/ARM-Options.html#index-mtune-3)
 
-mprint-tune-info
-UrlSuffix(gcc/ARM-Options.html#index-mprint-tune-info)
+mvectorize-with-neon-quad
+UrlSuffix(gcc/ARM-Options.html#index-mvectorize-with-neon-quad)
 
-mverbose-cost-dump
-UrlSuffix(gcc/ARM-Options.html#index-mverbose-cost-dump-1)
+mvectorize-with-neon-double
+UrlSuffix(gcc/ARM-Options.html#index-mvectorize-with-neon-double)
 
 mword-relocations
 UrlSuffix(gcc/ARM-Options.html#index-mword-relocations)
@@ -112,11 +109,14 @@ UrlSuffix(gcc/ARM-Options.html#index-mfix-cortex-m3-ldrd)
 mfix-cmse-cve-2021-35465
 UrlSuffix(gcc/ARM-Options.html#index-mfix-cmse-cve-2021-35465)
 
+mfix-cortex-a57-aes-1742098
+UrlSuffix(gcc/ARM-Options.html#index-mfix-cortex-a57-aes-1742098)
+
+mfix-cortex-a72-aes-1655431
+UrlSuffix(gcc/ARM-Options.html#index-mfix-cortex-a72-aes-1655431)
+
 munaligned-access
 UrlSuffix(gcc/ARM-Options.html#index-munaligned-access)
-
-mneon-for-64bits
-UrlSuffix(gcc/ARM-Options.html#index-mneon-for-64bits)
 
 mslow-flash-data
 UrlSuffix(gcc/ARM-Options.html#index-mslow-flash-data)
@@ -129,6 +129,9 @@ UrlSuffix(gcc/ARM-Options.html#index-mpure-code)
 
 mbe8
 UrlSuffix(gcc/ARM-Options.html#index-mbe8)
+
+mbe32
+UrlSuffix(gcc/ARM-Options.html#index-mbe32)
 
 ; skipping UrlSuffix for 'mbranch-cost=' due to finding no URLs
 

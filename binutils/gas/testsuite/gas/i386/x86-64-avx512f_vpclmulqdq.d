@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 AVX512F/VPCLMULQDQ insns
 #source: x86-64-avx512f_vpclmulqdq.s

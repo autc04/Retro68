@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -1375,7 +1375,7 @@ exponent:
 
   /* At this point a digit string is required.  We calculate the value
      of the exponent in order to take account of the scale factor and
-     the d parameter before explict conversion takes place.  */
+     the d parameter before explicit conversion takes place.  */
 
   if (w == 0)
     {

@@ -1,6 +1,5 @@
 # Check 64bit AVX512F-RCIG instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vcmpeqpd	{sae}, %zmm29, %zmm30, %k5	 # AVX512F

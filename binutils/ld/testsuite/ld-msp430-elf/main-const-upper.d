@@ -1,3 +1,3 @@
 #...
-Disassembly of section .upper.rodata:
+.* \.upper\.rodata +0+14 .*
 #pass

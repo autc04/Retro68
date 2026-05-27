@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025 Symas Corporation
+ * Copyright (c) 2021-2026 Symas Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +30,8 @@
 #ifndef GCOBOLIO_H_
 #define GCOBOLIO_H_
 
-#include <stdio.h>
+#include <cstdio>
+
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -55,12 +56,13 @@ typedef struct cblc_field_t
     struct cblc_field_t *parent;// This field's immediate parent field
     size_t occurs_lower;        // non-zero for a table
     size_t occurs_upper;        // non-zero for a table
-    size_t attr;                // See cbl_field_attr_t
+    unsigned long long attr;    // See cbl_field_attr_t
     signed char type;           // A one-byte copy of cbl_field_type_t
     signed char level;          // This variable's level in the naming heirarchy
     signed char digits;         // Digits specified in PIC string; e.g. 5 for 99v999
     signed char rdigits;        // Digits to the right of the decimal point. 3 for 99v999
-    int    dummy;               // GCC seems to want an even number of 32-bit values
+    cbl_encoding_t encoding;    //
+    int            alphabet;    // Same as cbl_field_t::codeset::language
     } cblc_field_t;
 
 /*
@@ -79,6 +81,7 @@ enum cblc_file_prior_op_t
   file_op_rewrite,
   file_op_delete,
   file_op_close,
+  file_op_remove,
   };
 
 /* end implementation details */
@@ -96,6 +99,7 @@ typedef struct cblc_file_t
     {
     // This structure must match the code in structs.cc
     char                *name;             // This is the name of the structure; might be the name of an environment variable
+    size_t               symbol_table_index;  // of the related cbl_field_t structure
     char                *filename;         // The name of the file to be opened
     FILE                *file_pointer;     // The FILE *pointer
     cblc_field_t        *default_record;   // The record_area
@@ -119,12 +123,14 @@ typedef struct cblc_file_t
     int                  errnum;           // most recent errno; can't reuse "errno" as the name
     file_status_t        io_status;        // See 2014 standard, section 9.1.12
     int                  padding;          // Actually a char
-    int                  delimiter;        // ends a record; defaults to '\n'.
+    uint32_t             delimiter;        // ends a record; defaults to '\n'.
+    int                  stride;           // Width of a character
     int                  flags;            // cblc_file_flags_t
-    int                  recent_char;      // This is the most recent char sent to the file
+    uint32_t             recent_char;      // This is the most recent char sent to the file
     int                  recent_key;
     cblc_file_prior_op_t prior_op;         // run-time type is INT
-    int                  dummy;
+    cbl_encoding_t       encoding;         // We assume size int
+    int                  alphabet;         // Actually cbl_encoding_t
     } cblc_file_t;
 
 

@@ -1,6 +1,6 @@
 /* m2block.h header file for m2block.cc.
 
-Copyright (C) 2012-2025 Free Software Foundation, Inc.
+Copyright (C) 2012-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius@glam.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -72,6 +72,8 @@ EXTERN void m2block_includeDecl (tree);
 EXTERN tree m2block_add_stmt (location_t location, tree t);
 EXTERN void m2block_addStmtNote (location_t location);
 EXTERN void m2block_removeStmtNote (void);
+EXTERN int m2block_GetTotalConstants (void);
+EXTERN int m2block_GetGlobalTypes (void);
 
 EXTERN void m2block_init (void);
 

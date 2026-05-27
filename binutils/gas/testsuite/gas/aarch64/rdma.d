@@ -1,5 +1,6 @@
 #objdump: -dr
 #as: -march=armv8-a+rdma
+#as: -march=armv8-a+rdm
 
 .*:     file format .*
 

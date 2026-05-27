@@ -1,5 +1,5 @@
 /* d-attribs.c -- D attributes handling.
-   Copyright (C) 2015-2025 Free Software Foundation, Inc.
+   Copyright (C) 2015-2026 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -81,6 +81,7 @@ static tree d_handle_restrict_attribute (tree *, tree, tree, int, bool *);
 static tree d_handle_used_attribute (tree *, tree, tree, int, bool *);
 static tree d_handle_visibility_attribute (tree *, tree, tree, int, bool *);
 static tree d_handle_no_sanitize_attribute (tree *, tree, tree, int, bool *);
+static tree d_handle_no_split_stack_attribute (tree *, tree, tree, int, bool *);
 static tree d_handle_simd_attribute (tree *, tree, tree, int, bool *);
 
 /* Helper to define attribute exclusions.  */
@@ -234,6 +235,8 @@ static const attribute_spec d_langhook_gnu_attributes[] =
 	     d_handle_cold_attribute, attr_cold_hot_exclusions),
   ATTR_SPEC ("no_sanitize", 1, -1, true, false, false, false,
 	     d_handle_no_sanitize_attribute, NULL),
+  ATTR_SPEC ("no_split_stack", 0, 0, true, false, false, false,
+	     d_handle_no_split_stack_attribute, NULL),
   ATTR_SPEC ("register", 1, 1, true, false, false, false,
 	     d_handle_register_attribute, NULL),
   ATTR_SPEC ("restrict", 0, 0, true, false, false, false,
@@ -376,7 +379,7 @@ build_attributes (Expressions *eattrs)
 	  continue;
 	}
 
-      StringExp *se = e0->toStringExp ();
+      StringExp *se = dmd::toStringExp (e0);
       gcc_assert (se->sz == 1);
 
       /* Empty string attribute, just ignore it.  */
@@ -1406,7 +1409,7 @@ d_handle_no_sanitize_attribute (tree *node, tree name, tree args, int,
       return NULL_TREE;
     }
 
-  unsigned int flags = 0;
+  sanitize_code_type flags = 0;
   for (; args; args = TREE_CHAIN (args))
     {
       tree id = TREE_VALUE (args);
@@ -1424,17 +1427,35 @@ d_handle_no_sanitize_attribute (tree *node, tree name, tree args, int,
      merge existing flags if no_sanitize was previously handled.  */
   if (tree attr = lookup_attribute ("no_sanitize", DECL_ATTRIBUTES (*node)))
     {
-      unsigned int old_value = tree_to_uhwi (TREE_VALUE (attr));
+      sanitize_code_type old_value =
+	tree_to_sanitize_code_type (TREE_VALUE (attr));
       flags |= old_value;
 
       if (flags != old_value)
-	TREE_VALUE (attr) = build_int_cst (d_uint_type, flags);
+	TREE_VALUE (attr) = build_int_cst (d_ulong_type, flags);
     }
   else
     {
       DECL_ATTRIBUTES (*node) = tree_cons (get_identifier ("no_sanitize"),
-					   build_int_cst (d_uint_type, flags),
+					   build_int_cst (d_ulong_type, flags),
 					   DECL_ATTRIBUTES (*node));
+    }
+
+  return NULL_TREE;
+}
+
+/* Handle a "no_split_stack" attribute; arguments as in
+   struct attribute_spec.handler.  */
+
+static tree
+d_handle_no_split_stack_attribute (tree *node, tree name, tree, int,
+				   bool *no_add_attrs)
+{
+  if (TREE_CODE (*node) != FUNCTION_DECL)
+    {
+      error_at (DECL_SOURCE_LOCATION (*node),
+		"%qE attribute applies only to functions", name);
+      *no_add_attrs = true;
     }
 
   return NULL_TREE;

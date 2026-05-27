@@ -2,7 +2,7 @@
 #source: globsym1ref.s
 #source: globsymw2.s
 #target: cris-*-*elf* cris-*-*aout*
-#as: --em=criself
+#as: --emulation=criself
 #ld: -mcriself
 #warning: warning: isatty is not implemented and will always fail$
 #objdump: -p

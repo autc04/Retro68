@@ -1,6 +1,6 @@
 // mutex -*- C++ -*-
 
-// Copyright (C) 2008-2025 Free Software Foundation, Inc.
+// Copyright (C) 2008-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,6 +33,20 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #ifdef _GLIBCXX_HAVE_TLS
   __thread void* __once_callable;
   __thread void (*__once_call)();
+
+# ifdef _GLIBCXX_NO_EXTERN_THREAD_LOCAL
+
+  // When thread-local variables can't be exported, these functions are called
+  // to retrieve these variables.
+  void*&
+  __get_once_callable() noexcept
+  { return __once_callable; }
+
+  std::add_lvalue_reference<void (*)()>::type
+  __get_once_call() noexcept
+  { return __once_call; }
+
+# endif // _GLIBCXX_NO_EXTERN_THREAD_LOCAL
 
   extern "C" void __once_proxy()
   {

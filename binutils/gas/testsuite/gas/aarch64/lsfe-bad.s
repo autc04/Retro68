@@ -1,0 +1,6 @@
+	ldfadd	h0, s1, [x2]
+	ldbfadd	s0, s1, [x2]
+	stfmax	w0, w1, [x2]
+	stfmaxa	s0, s1, [x2]
+	stfmaxal	s0, s1, [x2]
+	stbfmin	s0, [x2]

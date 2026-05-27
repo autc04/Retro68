@@ -1,5 +1,9 @@
+#![feature(no_core)]
+#![no_core]
+
 #![feature(negative_impls)]
 
+#![feature(lang_items)]
 #[lang = "sized"]
 pub trait Sized {}
 

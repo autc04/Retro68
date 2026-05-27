@@ -1,4 +1,4 @@
-#as: -march=armv8.2-a+crypto+sm4+sha3+fp16fml
+#as: -march=armv8-a+crypto+sm4+sha3+fp16fml
 #objdump: -dr
 
 .*:     file format .*

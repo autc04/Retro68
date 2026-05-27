@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -308,6 +308,10 @@ package Opt is
    --  GNATMAKE
    --  Set to True to check readonly files during the make process
 
+   Check_Semantics_Only_Mode : Boolean := False;
+   --  GNATMAKE
+   --  Set to True when -gnatc is present to only perform semantic checking.
+
    Check_Source_Files : Boolean := True;
    --  GNATBIND, GNATMAKE
    --  Set to True to enable consistency checking for any source files that
@@ -334,7 +338,7 @@ package Opt is
    --  True if echoed commands to be written to stdout instead of stderr
 
    Comment_Deleted_Lines : Boolean := False;
-   --  GNATPREP
+   --  GNAT, GNATPREP
    --  True if source lines removed by the preprocessor should be commented
    --  in the output file.
 
@@ -504,6 +508,11 @@ package Opt is
    Elab_Order_Output : Boolean := False;
    --  GNATBIND
    --  Set to True to output chosen elaboration order
+
+   Empty_Comment_Deleted_Lines : Boolean := False;
+   --  GNAT, GNATPREP
+   --  True if source lines removed by the preprocessor are to be replaced
+   --  by empty comment lines ("--!" and no other text) in the output file.
 
    Enable_128bit_Types : Boolean := False;
    --  GNAT
@@ -742,9 +751,38 @@ package Opt is
    --  Possible legal modes that can be set by aspect/pragma Ghost as well as
    --  value None, which indicates that no such aspect/pragma applies.
 
-   Ghost_Mode : Ghost_Mode_Type := None;
+   type Ghost_Config_Type is record
+      Ghost_Mode : Ghost_Mode_Type := None;
+      --  The current Ghost mode in effect
+
+      Ignored_Ghost_Region : Node_Id := Empty;
+      --  The start of the current ignored Ghost region. This value must always
+      --  reflect the starting node of the outermost ignored Ghost region. If a
+      --  nested ignored Ghost region is entered, the value must remain
+      --  unchanged.
+
+      Ghost_Mode_Assertion_Level : Entity_Id := Empty;
+      --  The Assertion_Level that is applied to the current ghost region.
+      --  It is either:
+      --  * Empty - when there is no ghost region
+      --  * Assertion_Level - if the ghost aspect/pragama had an
+      --    Assertion_Levle associated with it.
+      --  * Standard_Default_Level - if the ghost aspect/pragama did not have
+      --    an Assertion_Level associated to it.
+
+      Current_Region : Node_Id := Empty;
+      --  Latest ghost region
+
+      Is_Inside_Statement_Or_Pragma : Boolean := False;
+      --  A flag to tag whether we are currently in a region that originated
+      --  from a Statement or a pragma. Inside those regions the ghost policy
+      --  in effect for implicitly defined entities is not the policy for Ghost
+      --  but instead the policy for the region (SPARK RM 6.9 (3)).
+   end record;
+
+   Ghost_Config : Ghost_Config_Type;
    --  GNAT
-   --  The current Ghost mode in effect
+   --  All relevant Ghost mode settings
 
    Global_Discard_Names : Boolean := False;
    --  GNAT, GNATBIND
@@ -806,17 +844,11 @@ package Opt is
    --  use of -gnateu, causing subsequent unrecognized switches to result in
    --  a warning rather than an error.
 
-   Ignored_Ghost_Region : Node_Id := Empty;
-   --  GNAT
-   --  The start of the current ignored Ghost region. This value must always
-   --  reflect the starting node of the outermost ignored Ghost region. If a
-   --  nested ignored Ghost region is entered, the value must remain unchanged.
-
    Implicit_Packing : Boolean := False;
    --  GNAT
-   --  If set True, then a Size attribute clause on an array is allowed to
-   --  cause implicit packing instead of generating an error message. Set by
-   --  use of pragma Implicit_Packing.
+   --  If set True, then a Size attribute clause on an array or record is
+   --  allowed to cause implicit packing instead of generating an error
+   --  message. Set by use of pragma Implicit_Packing.
 
    Init_Or_Norm_Scalars : Boolean := False;
    --  GNAT, GNATBIND
@@ -939,6 +971,21 @@ package Opt is
 
    --  WARNING: There is a matching C declaration of this variable in fe.h
 
+   List_Representation_Info_Extended : Boolean := False;
+   --  GNAT
+   --  Set true by -gnatRe switch. Causes extended information for record types
+   --  to be included in the representation output information.
+
+   List_Representation_Info_Holes : Boolean := False;
+   --  GNAT
+   --  Set true by -gnatRh switch. Causes information for holes between record
+   --  components to be included in the representation output information.
+
+   List_Representation_Info_Mechanisms : Boolean := False;
+   --  GNAT
+   --  Set true by -gnatRm switch. Causes information on mechanisms to be
+   --  included in the representation output information.
+
    List_Representation_Info_To_File : Boolean := False;
    --  GNAT
    --  Set true by -gnatRs switch. Causes information from -gnatR[1-4]m to be
@@ -950,16 +997,6 @@ package Opt is
    --  GNAT
    --  Set true by -gnatRj switch. Causes information from -gnatR[1-4]m to be
    --  output in the JSON data interchange format.
-
-   List_Representation_Info_Mechanisms : Boolean := False;
-   --  GNAT
-   --  Set true by -gnatRm switch. Causes information on mechanisms to be
-   --  included in the representation output information.
-
-   List_Representation_Info_Extended : Boolean := False;
-   --  GNAT
-   --  Set true by -gnatRe switch. Causes extended information for record types
-   --  to be included in the representation output information.
 
    List_Preprocessing_Symbols : Boolean := False;
    --  GNAT, GNATPREP
@@ -1517,10 +1554,6 @@ package Opt is
    --  Remember location of previous Task_Dispatching_Policy pragma. This is
    --  used for inconsistency error messages. A value of System_Location is
    --  used if the policy is set in package System.
-
-   Tasking_Used : Boolean := False;
-   --  Set True if any tasking construct is encountered. Used to activate the
-   --  output of the Q, L and T lines in ALI files.
 
    Time_Slice_Set : Boolean := False;
    --  GNATBIND

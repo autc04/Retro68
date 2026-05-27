@@ -1,6 +1,6 @@
 #name: Inter-section branch relocations
 #This test is only valid on EABI based ports.
-#target: *-*-*eabi* *-*-nacl*
+#target: *-*-*eabi*
 #as: -march=armv5t
 #objdump: -rd
 #warning_output: branch-reloc.l
@@ -13,7 +13,7 @@
 Disassembly of section .text:
 
 00000000 <arm_glob_sym1-0x4>:
-   0:	e1a00000 	nop			; \(mov r0, r0\)
+   0:	e1a00000 	nop			@ \(mov r0, r0\)
 
 00000004 <arm_glob_sym1>:
    4:	ebfffffe 	bl	46 <thumb_glob_sym1>
@@ -36,11 +36,11 @@ Disassembly of section .text:
   2c:	fafffffe 	blx	13c <arm_glob_sym2>
 			2c: R_ARM_CALL	arm_glob_sym2
   30:	eb000001 	bl	3c <arm_sym1>
-  34:	e1a00000 	nop			; \(mov r0, r0\)
+  34:	e1a00000 	nop			@ \(mov r0, r0\)
   38:	e12fff1e 	bx	lr
 
 0000003c <arm_sym1>:
-  3c:	e1a00000 	nop			; \(mov r0, r0\)
+  3c:	e1a00000 	nop			@ \(mov r0, r0\)
   40:	e12fff1e 	bx	lr
 
 00000044 <thumb_sym1>:
@@ -75,11 +75,11 @@ Disassembly of section foo:
  128:	f7ff effe 	blx	100 <thumb_glob_sym2>
 			128: R_ARM_THM_CALL	thumb_glob_sym2
  12c:	f000 f802 	bl	134 <thumb_sym2>
- 130:	46c0      	nop			; \(mov r8, r8\)
+ 130:	46c0      	nop			@ \(mov r8, r8\)
  132:	4770      	bx	lr
 
 00000134 <thumb_sym2>:
- 134:	46c0      	nop			; \(mov r8, r8\)
+ 134:	46c0      	nop			@ \(mov r8, r8\)
  136:	4770      	bx	lr
 
 00000138 <arm_sym2>:

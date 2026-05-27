@@ -1,6 +1,6 @@
 #objdump: -rst --special-syms -mips16
 #name: MIPS16 reloc
-#as: -32 -mips16
+#as: -32 -mips16 -mips1 -mpdr
 
 # Check MIPS16 reloc processing
 

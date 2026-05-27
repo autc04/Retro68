@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: -march=armv8-a+pan
+#as: -menable-sysreg-checking -march=armv8-a+pan
 
 .*:     file format .*
 

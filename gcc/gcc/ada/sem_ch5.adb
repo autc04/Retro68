@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -27,7 +27,6 @@ with Aspects;        use Aspects;
 with Atree;          use Atree;
 with Checks;         use Checks;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Errout;         use Errout;
@@ -60,7 +59,6 @@ with Sem_Util;       use Sem_Util;
 with Sem_Warn;       use Sem_Warn;
 with Snames;         use Snames;
 with Stand;          use Stand;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Targparm;       use Targparm;
@@ -89,6 +87,12 @@ package body Sem_Ch5 is
    --  CASE or block statement. This is used for the generation of warning
    --  messages. This variable is recursively saved on entry to processing the
    --  construct, and restored on exit.
+
+   function Analyze_Loop_Flow_Statement
+     (N : N_Loop_Flow_Statement_Id) return Opt_E_Loop_Id;
+   --  Perform analysis that is common to continue statements and exit
+   --  statements. On success, the return value is the entity of the loop
+   --  referenced by the statement.
 
    function Has_Sec_Stack_Call (N : Node_Id) return Boolean;
    --  N is the node for an arbitrary construct. This function searches the
@@ -379,8 +383,7 @@ package body Sem_Ch5 is
 
       --  Local variables
 
-      Saved_GM  : constant Ghost_Mode_Type := Ghost_Mode;
-      Saved_IGR : constant Node_Id         := Ignored_Ghost_Region;
+      Saved_Ghost_Config : constant Ghost_Config_Type := Ghost_Config;
       --  Save the Ghost-related attributes to restore on exit
 
       T1 : Entity_Id;
@@ -415,7 +418,6 @@ package body Sem_Ch5 is
       end if;
 
       Analyze (Lhs);
-      Analyze (Rhs);
 
       --  Ensure that we never do an assignment on a variable marked as
       --  Is_Safe_To_Reevaluate.
@@ -429,91 +431,151 @@ package body Sem_Ch5 is
 
       T1 := Etype (Lhs);
 
+      if not Is_Overloaded (Lhs) then
+         Analyze (Rhs);
+
       --  In the most general case, both Lhs and Rhs can be overloaded, and we
       --  must compute the intersection of the possible types on each side.
+      --  Note that only nonlimited interpretations are considered (see
+      --  AI22-0112, RM 5.2(4/6)).
 
-      if Is_Overloaded (Lhs) then
-         declare
-            I  : Interp_Index;
-            It : Interp;
+      else
+         --  When there are target names ("@") present in the expression,
+         --  the assignment's left-hand side must be resolved as a complete
+         --  context (RM 8.6(9.1/5)), and the determined type will then be used
+         --  to resolve the right-hand side expression.
 
-         begin
-            T1 := Any_Type;
-            Get_First_Interp (Lhs, I, It);
+         if Has_Target_Names (N) then
+            declare
+               I  : Interp_Index;
+               It : Interp;
 
-            while Present (It.Typ) loop
+            begin
+               T1 := Any_Type;
+               Get_First_Interp (Lhs, I, It);
 
-               --  An indexed component with generalized indexing is always
-               --  overloaded with the corresponding dereference. Discard the
-               --  interpretation that yields a reference type, which is not
-               --  assignable.
+               while Present (It.Typ) loop
+                  --  AI22-0112 restores the Ada 95 rule that excludes limited
+                  --  types from consideration during resolution of the target
+                  --  variable in assignment statements.
 
-               if Nkind (Lhs) = N_Indexed_Component
-                 and then Present (Generalized_Indexing (Lhs))
-                 and then Has_Implicit_Dereference (It.Typ)
-               then
-                  null;
-
-               elsif Has_Compatible_Type (Rhs, It.Typ) then
-                  if T1 = Any_Type then
-                     T1 := It.Typ;
-                  else
-                     --  An explicit dereference is overloaded if the prefix
-                     --  is. Try to remove the ambiguity on the prefix, the
-                     --  error will be posted there if the ambiguity is real.
-
-                     if Nkind (Lhs) = N_Explicit_Dereference then
-                        declare
-                           PI    : Interp_Index;
-                           PI1   : Interp_Index := 0;
-                           PIt   : Interp;
-                           Found : Boolean;
-
-                        begin
-                           Found := False;
-                           Get_First_Interp (Prefix (Lhs), PI, PIt);
-
-                           while Present (PIt.Typ) loop
-                              if Is_Access_Type (PIt.Typ)
-                                and then Has_Compatible_Type
-                                           (Rhs, Designated_Type (PIt.Typ))
-                              then
-                                 if Found then
-                                    PIt :=
-                                      Disambiguate (Prefix (Lhs),
-                                        PI1, PI, Any_Type);
-
-                                    if PIt = No_Interp then
-                                       Error_Msg_N
-                                         ("ambiguous left-hand side in "
-                                          & "assignment", Lhs);
-                                       exit;
-                                    else
-                                       Resolve (Prefix (Lhs), PIt.Typ);
-                                    end if;
-
-                                    exit;
-                                 else
-                                    Found := True;
-                                    PI1 := PI;
-                                 end if;
-                              end if;
-
-                              Get_Next_Interp (PI, PIt);
-                           end loop;
-                        end;
-
-                     else
-                        Error_Msg_N
-                          ("ambiguous left-hand side in assignment", Lhs);
-                        exit;
+                  if Is_Limited_Type (It.Typ) then
+                     if not Has_Implicit_Dereference (It.Typ) then
+                        Remove_Interp (I);
                      end if;
+                  elsif T1 = Any_Type then
+                     T1 := It.Typ;
                   end if;
+
+                  Get_Next_Interp (I, It);
+               end loop;
+
+               if Is_Ambiguous_Operand (Lhs, Report_Errors  => False) then
+                  Error_Msg_N ("ambiguous left-hand side in assignment", Lhs);
+
+                  Kill_Lhs;
+                  goto Leave;
                end if;
 
-               Get_Next_Interp (I, It);
-            end loop;
-         end;
+               if T1 = Any_Type then
+                  Error_Msg_N
+                    ("no valid types for left-hand side for assignment", Lhs);
+                  Kill_Lhs;
+                  goto Leave;
+               end if;
+
+            end;
+
+            --  We delay analyzing Rhs until Lhs has been resolved, so that the
+            --  type of Lhs has been determined and can be used for the type of
+            --  target names occurring in Rhs.
+
+            Analyze (Rhs);
+
+         --  Case where Lhs is overloaded, but Rhs does not have target names
+
+         else
+            Analyze (Rhs);
+
+            declare
+               I  : Interp_Index;
+               It : Interp;
+
+            begin
+               T1 := Any_Type;
+               Get_First_Interp (Lhs, I, It);
+
+               while Present (It.Typ) loop
+                  --  AI22-0112 restores the Ada 95 rule that excludes limited
+                  --  types from consideration during resolution of the target
+                  --  variable in assignment statements.
+
+                  if Is_Limited_Type (It.Typ) then
+                     if not Has_Implicit_Dereference (It.Typ) then
+                        Remove_Interp (I);
+                     end if;
+
+                  elsif Has_Compatible_Type (Rhs, It.Typ) then
+                     if T1 = Any_Type then
+                        T1 := It.Typ;
+                     else
+                        --  An explicit dereference is overloaded if the prefix
+                        --  is. Try to remove the ambiguity on the prefix, the
+                        --  error will be posted there if ambiguity is real.
+
+                        if Nkind (Lhs) = N_Explicit_Dereference then
+                           declare
+                              PI    : Interp_Index;
+                              PI1   : Interp_Index := 0;
+                              PIt   : Interp;
+                              Found : Boolean;
+
+                           begin
+                              Found := False;
+                              Get_First_Interp (Prefix (Lhs), PI, PIt);
+
+                              while Present (PIt.Typ) loop
+                                 if Is_Access_Type (PIt.Typ)
+                                   and then Has_Compatible_Type
+                                              (Rhs, Designated_Type (PIt.Typ))
+                                 then
+                                    if Found then
+                                       PIt :=
+                                         Disambiguate (Prefix (Lhs),
+                                           PI1, PI, Any_Type);
+
+                                       if PIt = No_Interp then
+                                          Error_Msg_N
+                                            ("ambiguous left-hand side in "
+                                             & "assignment", Lhs);
+                                          exit;
+                                       else
+                                          Resolve (Prefix (Lhs), PIt.Typ);
+                                       end if;
+
+                                       exit;
+                                    else
+                                       Found := True;
+                                       PI1 := PI;
+                                    end if;
+                                 end if;
+
+                                 Get_Next_Interp (PI, PIt);
+                              end loop;
+                           end;
+
+                        else
+                           Error_Msg_N
+                             ("ambiguous left-hand side in assignment", Lhs);
+                           exit;
+                        end if;
+                     end if;
+                  end if;
+
+                  Get_Next_Interp (I, It);
+               end loop;
+            end;
+         end if;
 
          if T1 = Any_Type then
             Error_Msg_N
@@ -534,7 +596,11 @@ package body Sem_Ch5 is
       if In_Inlined_Body then
          null;
 
-      elsif not Is_Variable (Lhs) then
+      elsif not Is_Variable (Lhs)
+        and then not (not Comes_From_Source (Lhs)
+                       and then Nkind (Lhs) in N_Has_Etype
+                       and then Needs_Construction (Etype (Lhs)))
+      then
 
          --  Ada 2005 (AI-327): Check assignment to the attribute Priority of a
          --  protected object.
@@ -608,12 +674,13 @@ package body Sem_Ch5 is
       --  Error of assigning to limited type. We do however allow this in
       --  certain cases where the front end generates the assignments.
       --  Comes_From_Source test is needed to allow compiler-generated
-      --  streaming/put_image subprograms, which may ignore privacy.
+      --  constructor calls or streaming/put_image subprograms, which may
+      --  ignore privacy.
 
       elsif Is_Limited_Type (T1)
         and then not Assignment_OK (Lhs)
         and then not Assignment_OK (Original_Node (Lhs))
-        and then (Comes_From_Source (N) or Is_Immutably_Limited_Type (T1))
+        and then Comes_From_Source (N)
       then
          --  CPP constructors can only be called in declarations
 
@@ -797,7 +864,14 @@ package body Sem_Ch5 is
 
       if Is_Tag_Indeterminate (Rhs) then
          if Is_Class_Wide_Type (T1) then
-            Propagate_Tag (Lhs, Rhs);
+
+            --  No need to propagate the tag when the RHS has function calls
+            --  that already propagated it (see Expand_Call_Helper), or if
+            --  some error was reported analyzing RHS.
+
+            if not (Error_Posted (Rhs) or else Tag_Propagated (Lhs)) then
+               Propagate_Tag (Lhs, Rhs);
+            end if;
 
          elsif Nkind (Rhs) = N_Function_Call
            and then Is_Entity_Name (Name (Rhs))
@@ -1176,7 +1250,7 @@ package body Sem_Ch5 is
       Analyze_Dimension (N);
 
    <<Leave>>
-      Restore_Ghost_Region (Saved_GM, Saved_IGR);
+      Restore_Ghost_Region (Saved_Ghost_Config);
 
       --  If the right-hand side contains target names, expansion has been
       --  disabled to prevent expansion that might move target names out of
@@ -1659,6 +1733,117 @@ package body Sem_Ch5 is
       end if;
    end Analyze_Case_Statement;
 
+   --------------------------------
+   -- Analyze_Continue_Statement --
+   --------------------------------
+
+   procedure Analyze_Continue_Statement (N : Node_Id) is
+      Ignore_Errors_On_Entry : constant Boolean := Get_Ignore_Errors;
+
+      Loc : constant Source_Ptr := Sloc (N);
+
+      Nam : constant Node_Id := Name (N);
+      Cond : constant Node_Id := Condition (N);
+
+      function Make_Call return N_Procedure_Call_Statement_Id;
+      --  Build a node that corresponds to the procedure call interpretation of
+      --  N.
+
+      function Make_Stmt return N_Continue_Statement_Id;
+      --  Build a node that corresponds to the continue statement
+      --  interpretation of N.
+
+      function Make_Call return N_Procedure_Call_Statement_Id is
+         Id : constant Node_Id := Make_Identifier (Loc, Name_Continue);
+         X : constant N_Procedure_Call_Statement_Id :=
+           Make_Procedure_Call_Statement (Loc, Id);
+      begin
+         --  If we settle for the procedure call interpretation, we set
+         --  Comes_From_Source since the user did type out the call explicitly.
+         Set_Comes_From_Source (Id);
+         Set_Comes_From_Source (X);
+         return X;
+      end Make_Call;
+
+      function Make_Stmt return N_Continue_Statement_Id is
+      begin
+         return Make_Continue_Statement (Loc, Nam, Cond);
+      end Make_Stmt;
+
+      Continue_Is_Available : constant Boolean :=
+        Ada_Version = Ada_With_All_Extensions;
+
+      Maybe_Procedure_Call : constant Boolean :=
+        No (Name (N)) and then No (Condition (N));
+   begin
+      if Maybe_Procedure_Call and then Continue_Is_Available then
+         --  This is the tricky case. The idea is to do a kind of overload
+         --  resolution of a procedure call, but with "continue statement" as
+         --  an additional possible interpretation. To achieve this, we
+         --  temporarily replace N with a procedure call statement and analyze
+         --  it in "ignore errors" mode.
+         Replace (N, Make_Call);
+         Set_Ignore_Errors (True);
+         Analyze (N);
+         Set_Ignore_Errors (Ignore_Errors_On_Entry);
+
+         declare
+            C : constant N_Procedure_Call_Statement_Id := New_Copy (N);
+            --  C is the result of our procedure call interpretation analysis
+         begin
+            --  We restore N to a continue statement
+            Replace (N, Make_Stmt);
+
+            if Is_Overloaded (Name (C)) then
+               --  There are multiple valid procedure call interpretations; we
+               --  don't mention the possible interpretation as a continue
+               --  statement for now. It might be possible to add this in the
+               --  future.
+
+               Set_Call_Or_Target_Loop (N, Make_Call);
+            elsif Etype (C) = Any_Type then
+               --  There is no valid procedure call interpretation. We go for
+               --  the continue statement interpretation. It might not be valid
+               --  either, but we make the assumption that the user meant to
+               --  write a continue statement and not a procedure call and emit
+               --  error messages accordingly.
+
+               Set_Call_Or_Target_Loop (N, Analyze_Loop_Flow_Statement (N));
+            else
+               --  There is a unique valid procedure call interpretation. We
+               --  test whether the interpretation as a continue statement is
+               --  valid.
+
+               declare
+                  L : Opt_E_Loop_Id;
+               begin
+                  Set_Ignore_Errors (True);
+                  L := Analyze_Loop_Flow_Statement (N);
+                  Set_Ignore_Errors (Ignore_Errors_On_Entry);
+
+                  if Present (L) then
+                     --  If the continue statement interpretation makes sense,
+                     --  we post an ad hoc ambiguity error.
+                     Error_Msg_N
+                       ("ambiguity between continue statement and call", N);
+                  else
+                     Set_Call_Or_Target_Loop (N, Make_Call);
+                  end if;
+               end;
+            end if;
+         end;
+      elsif Maybe_Procedure_Call then
+         Set_Call_Or_Target_Loop (N, Make_Call);
+      elsif Continue_Is_Available then
+         Set_Call_Or_Target_Loop (N, Analyze_Loop_Flow_Statement (N));
+      else
+         Error_Msg_GNAT_Extension
+           (Extension         => "continue",
+            Loc               => Sloc (N),
+            Is_Core_Extension => False);
+      end if;
+   end Analyze_Continue_Statement;
+
    ----------------------------
    -- Analyze_Exit_Statement --
    ----------------------------
@@ -1678,99 +1863,16 @@ package body Sem_Ch5 is
    --    in a loop. The exit must be the last statement in the if-statement.
 
    procedure Analyze_Exit_Statement (N : Node_Id) is
-      Target   : constant Node_Id := Name (N);
-      Cond     : constant Node_Id := Condition (N);
-      Scope_Id : Entity_Id := Empty;  -- initialize to prevent warning
-      U_Name   : Entity_Id;
-      Kind     : Entity_Kind;
-
+      L : constant Opt_E_Loop_Id := Analyze_Loop_Flow_Statement (N);
    begin
-      if No (Cond) then
-         Check_Unreachable_Code (N);
+      if Present (L) then
+         Set_Has_Exit (L);
+
+         --  Chain exit statement to associated loop entity
+
+         Set_Next_Exit_Statement (N, First_Exit_Statement (L));
+         Set_First_Exit_Statement (L, N);
       end if;
-
-      if Present (Target) then
-         Analyze (Target);
-         U_Name := Entity (Target);
-
-         if not In_Open_Scopes (U_Name) or else Ekind (U_Name) /= E_Loop then
-            Error_Msg_N ("invalid loop name in exit statement", N);
-            return;
-
-         else
-            Set_Has_Exit (U_Name);
-         end if;
-
-      else
-         U_Name := Empty;
-      end if;
-
-      for J in reverse 0 .. Scope_Stack.Last loop
-         Scope_Id := Scope_Stack.Table (J).Entity;
-         Kind := Ekind (Scope_Id);
-
-         if Kind = E_Loop and then (No (Target) or else Scope_Id = U_Name) then
-            Set_Has_Exit (Scope_Id);
-            exit;
-
-         elsif Kind = E_Block
-           or else Kind = E_Loop
-           or else Kind = E_Return_Statement
-         then
-            null;
-
-         else
-            Error_Msg_N
-              ("cannot exit from program unit or accept statement", N);
-            return;
-         end if;
-      end loop;
-
-      Finally_Legality_Check : declare
-         --  The following value can actually be a block statement due to
-         --  expansion, but we call it Target_Loop_Statement because it was
-         --  originally a loop statement.
-         Target_Loop_Statement : constant Node_Id :=
-           (if Present (U_Name) then Label_Construct ((Parent (U_Name)))
-            else Empty);
-
-         X : Node_Id := N;
-      begin
-         while Present (X) loop
-            if Nkind (X) = N_Loop_Statement
-              and then (No (Target_Loop_Statement)
-                        or else X = Target_Loop_Statement)
-            then
-               exit;
-            elsif Nkind (Parent (X)) = N_Handled_Sequence_Of_Statements
-              and then Is_List_Member (X)
-              and then List_Containing (X) = Finally_Statements (Parent (X))
-            then
-               Error_Msg_N ("cannot exit out of finally part", N);
-               exit;
-            end if;
-            X := Parent (X);
-         end loop;
-      end Finally_Legality_Check;
-
-      --  Verify that if present the condition is a Boolean expression
-
-      if Present (Cond) then
-         Analyze_And_Resolve (Cond, Any_Boolean);
-         Check_Unset_Reference (Cond);
-      end if;
-
-      --  Chain exit statement to associated loop entity
-
-      Set_Next_Exit_Statement  (N, First_Exit_Statement (Scope_Id));
-      Set_First_Exit_Statement (Scope_Id, N);
-
-      --  Since the exit may take us out of a loop, any previous assignment
-      --  statement is not useless, so clear last assignment indications. It
-      --  is OK to keep other current values, since if the exit statement
-      --  does not exit, then the current values are still valid.
-
-      Kill_Current_Values (Last_Assignment_Only => True);
    end Analyze_Exit_Statement;
 
    ----------------------------
@@ -2068,7 +2170,7 @@ package body Sem_Ch5 is
       --  A label declared within a Ghost region becomes Ghost (SPARK RM
       --  6.9(2)).
 
-      if Ghost_Mode > None then
+      if Ghost_Config.Ghost_Mode > None then
          Set_Is_Ghost_Entity (Id);
       end if;
    end Analyze_Implicit_Label_Declaration;
@@ -2116,7 +2218,10 @@ package body Sem_Ch5 is
       Loc       : constant Source_Ptr := Sloc (N);
       Subt      : constant Node_Id    := Subtype_Indication (N);
 
+      Assoc : Node_Id;
       Bas : Entity_Id := Empty;  -- initialize to prevent warning
+      Iter_Asp  : Node_Id;
+      Iter_Func : Node_Id;
       Typ : Entity_Id;
 
       procedure Check_Reverse_Iteration (Typ : Entity_Id);
@@ -2826,18 +2931,34 @@ package body Sem_Ch5 is
             --  in the container package. We obtain it by name for a predefined
             --  container, or through the Iterable aspect for a formal one.
 
-            if Has_Aspect (Typ, Aspect_Iterable) then
-               Set_Etype (Def_Id,
-                 Get_Cursor_Type
-                   (Parent (Find_Value_Of_Aspect (Typ, Aspect_Iterable)),
-                    Typ));
-
+            Iter_Asp := Find_Aspect (Typ, Aspect_Iterable);
+            if Present (Iter_Asp) then
+               Set_Etype (Def_Id, Get_Cursor_Type (Iter_Asp, Typ));
             else
                Set_Etype (Def_Id, Get_Cursor_Type (Typ));
                Check_Reverse_Iteration (Etype (Iter_Name));
             end if;
 
          end if;
+      end if;
+
+      --  Validate the ghost context of he iterator function used for the
+      --  iterable aspect.
+
+      Iter_Asp := Find_Aspect (Typ, Aspect_Iterable);
+      if Present (Iter_Asp) then
+         Assoc := First (Component_Associations (Expression (Iter_Asp)));
+         while Present (Assoc) loop
+            Iter_Func := Expression (Assoc);
+            if Nkind (Iter_Func) in N_Has_Entity
+               and then Present (Entity (Iter_Func))
+               and then Is_Ghost_Entity (Entity (Iter_Func))
+            then
+               Check_Ghost_Context (Entity (Iter_Func), Parent (N));
+            end if;
+
+            Next (Assoc);
+         end loop;
       end if;
 
       --  Preanalyze the filter. Expansion will take place when enclosing
@@ -3145,6 +3266,7 @@ package body Sem_Ch5 is
    --  Start of processing for Analyze_Loop_Parameter_Specification
 
    begin
+      Mutate_Ekind (Id, E_Loop_Parameter);
       Enter_Name (Id);
 
       --  We always consider the loop variable to be referenced, since the loop
@@ -3250,7 +3372,6 @@ package body Sem_Ch5 is
                --  subsequent analysis of the condition in a quantified
                --  expression.
 
-               Mutate_Ekind (Id, E_Loop_Parameter);
                return;
             end;
 
@@ -3313,7 +3434,6 @@ package body Sem_Ch5 is
          Make_Index (DS, N);
       end if;
 
-      Mutate_Ekind (Id, E_Loop_Parameter);
       Set_Etype (Id, Etype (DS));
 
       Set_Is_Not_Self_Hidden (Id);
@@ -3557,10 +3677,6 @@ package body Sem_Ch5 is
    ----------------------------
 
    procedure Analyze_Loop_Statement (N : Node_Id) is
-
-      --  The following exception is raised by routine Prepare_Loop_Statement
-      --  to avoid further analysis of a transformed loop.
-
       procedure Prepare_Loop_Statement
         (Iter            : Node_Id;
          Stop_Processing : out Boolean);
@@ -3998,6 +4114,18 @@ package body Sem_Ch5 is
          Set_Has_Created_Identifier (N);
       end if;
 
+      if No (Continue_Mark (Ent)) then
+         --  If Continue_Mark wasn't set on the loop entity, we know that N
+         --  does not come from the expansion of iterators that append
+         --  statements to advance the loop, so right after the last statement
+         --  in the list is where continue statements must jump to.
+         Set_Continue_Mark (Ent, Last (Statements (N)));
+      else
+         --  Otherwise, N somehow derives from another loop statement, the
+         --  analysis of which set Continue_Mark adequately already.
+         null;
+      end if;
+
       --  Determine whether the loop statement must be transformed prior to
       --  analysis, and if so, perform it. This early modification is needed
       --  when:
@@ -4206,6 +4334,105 @@ package body Sem_Ch5 is
          Check_Unreachable_Code (Stmt);
       end if;
    end Analyze_Loop_Statement;
+
+   ---------------------------------
+   -- Analyze_Loop_Flow_Statement --
+   ---------------------------------
+
+   function Analyze_Loop_Flow_Statement
+     (N : N_Loop_Flow_Statement_Id) return Opt_E_Loop_Id
+   is
+      Target   : constant Node_Id := Name (N);
+      Cond     : constant Node_Id := Condition (N);
+      Scope_Id : Entity_Id := Empty;
+      U_Name   : Entity_Id;
+      Kind     : Entity_Kind;
+
+      S : constant String := Loop_Flow_Keyword (N);
+   begin
+      if No (Cond) then
+         Check_Unreachable_Code (N);
+      end if;
+
+      if Present (Target) then
+         Analyze (Target);
+         U_Name := Entity (Target);
+
+         if not In_Open_Scopes (U_Name) or else Ekind (U_Name) /= E_Loop then
+            Error_Msg_N ("invalid loop name in " & S & " statement", N);
+            return Empty;
+         end if;
+
+      else
+         U_Name := Empty;
+      end if;
+
+      for J in reverse 0 .. Scope_Stack.Last loop
+         Scope_Id := Scope_Stack.Table (J).Entity;
+         Kind := Ekind (Scope_Id);
+
+         if Kind = E_Loop and then (No (Target) or else Scope_Id = U_Name) then
+            exit;
+
+         elsif Kind = E_Block
+           or else Kind = E_Loop
+           or else Kind = E_Return_Statement
+         then
+            null;
+
+         else
+            Error_Msg_N
+              ("cannot " & S & " from program unit or accept statement", N);
+            return Empty;
+         end if;
+      end loop;
+
+      Finally_Legality_Check :
+      declare
+         --  The following value can actually be a block statement due to
+         --  expansion, but we call it Target_Loop_Statement because it was
+         --  originally a loop statement.
+         Target_Loop_Statement : constant Node_Id :=
+           (if Present (U_Name)
+            then Label_Construct ((Parent (U_Name)))
+            else Empty);
+
+         X : Node_Id := N;
+      begin
+         while Present (X) loop
+            if Nkind (X) = N_Loop_Statement
+              and then (No (Target_Loop_Statement)
+                        or else X = Target_Loop_Statement)
+            then
+               exit;
+            elsif Nkind (Parent (X)) = N_Handled_Sequence_Of_Statements
+              and then Is_List_Member (X)
+              and then List_Containing (X) = Finally_Statements (Parent (X))
+            then
+               Error_Msg_N ("cannot " & S & " out of finally part", N);
+               exit;
+            end if;
+            X := Parent (X);
+         end loop;
+      end Finally_Legality_Check;
+
+      --  Verify that if present the condition is a Boolean expression
+
+      if Present (Cond) then
+         Analyze_And_Resolve (Cond, Any_Boolean);
+         Check_Unset_Reference (Cond);
+      end if;
+
+      --  Since the statement may take us out of the current iteration of the
+      --  loop, any previous assignment statement is not useless, so clear last
+      --  assignment indications. It is OK to keep other current values, since
+      --  if the statement does not stop the current iteration, then the
+      --  current values are still valid.
+
+      Kill_Current_Values (Last_Assignment_Only => True);
+
+      return Scope_Id;
+   end Analyze_Loop_Flow_Statement;
 
    ----------------------------
    -- Analyze_Null_Statement --

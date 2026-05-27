@@ -1,5 +1,5 @@
 /* Partial redundancy elimination / Hoisting for RTL.
-   Copyright (C) 1997-2025 Free Software Foundation, Inc.
+   Copyright (C) 1997-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -2094,8 +2094,7 @@ prepare_copy_insn (rtx reg, rtx exp)
 	gcc_unreachable ();
     }
 
-  pat = get_insns ();
-  end_sequence ();
+  pat = end_sequence ();
 
   return pat;
 }
@@ -4239,8 +4238,15 @@ execute_hardreg_pre (void)
     {
       int changed;
       current_hardreg_regno = regnos[i];
+      if (!df_regs_ever_live_p (current_hardreg_regno))
+	{
+	  if (dump_file)
+	    fprintf (dump_file, "Skipping hardreg PRE for regno %d, which is never live\n",
+		     current_hardreg_regno);
+	  continue;
+	}
       if (dump_file)
-	fprintf(dump_file, "Entering hardreg PRE for regno %d\n",
+	fprintf (dump_file, "Entering hardreg PRE for regno %d\n",
 		current_hardreg_regno);
       delete_unreachable_blocks ();
       df_analyze ();

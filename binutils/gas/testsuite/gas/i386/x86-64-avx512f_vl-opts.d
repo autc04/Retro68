@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Msuffix
 #name: x86_64 AVX512F/VL opts insns
 #source: x86-64-avx512f_vl-opts.s

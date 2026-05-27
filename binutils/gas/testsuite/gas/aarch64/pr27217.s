@@ -13,4 +13,13 @@ foo:
 	add	x0, x0, :lo12:bar
 	ret
 	.size	foo, .-foo
-	.ident	"GCC: (GNU) 10.2.1 20201030 (RTEMS 6, RSB "
+
+	.p2align 4
+	.type	dot, %function
+dot:
+	adrp	x0, .
+	add	x0, x0, :lo12:. - 4
+	adrp	x1, . + 4
+	add	x1, x1, :lo12:.
+	ret
+	.size	dot, .-dot

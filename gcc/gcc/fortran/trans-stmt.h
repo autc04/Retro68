@@ -1,5 +1,5 @@
 /* Header for statement translation functions
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Paul Brook
 
 This file is part of GCC.
@@ -58,6 +58,7 @@ tree gfc_trans_sync (gfc_code *, gfc_exec_op);
 tree gfc_trans_lock_unlock (gfc_code *, gfc_exec_op);
 tree gfc_trans_event_post_wait (gfc_code *, gfc_exec_op);
 tree gfc_trans_fail_image (gfc_code *);
+void gfc_trans_sync_stat (struct sync_stat *, gfc_se *, tree *, tree *, tree *);
 tree gfc_trans_forall (gfc_code *);
 tree gfc_trans_form_team (gfc_code *);
 tree gfc_trans_change_team (gfc_code *);

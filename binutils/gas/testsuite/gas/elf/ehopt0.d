@@ -1,5 +1,8 @@
 #objdump: -s -j .eh_frame
 #name: elf ehopt0 
+# The loongarch target do not evaluate .eh_frame fde cfa advance loc at assembly time.
+# Because loongarch use add/sub reloc evaluate cfa advance loc, so gas should write 0 to cfa advance loc address.
+#xfail: loongarch*-*
 
 .*: +file format .*
 

@@ -1,6 +1,7 @@
-#as: --EL
-#objdump: -dr
-#name: eBPF JUMP32 instructions
+#as: -EL -mdialect=normal
+#objdump: -dr -M dec
+#source: jump32.s
+#name: eBPF JUMP32 instructions, normal syntax
 
 .*: +file format .*bpf.*
 

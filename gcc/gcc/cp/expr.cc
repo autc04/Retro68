@@ -1,6 +1,6 @@
 /* Convert language-specific tree expression to rtl instructions,
    for GNU compiler.
-   Copyright (C) 1988-2025 Free Software Foundation, Inc.
+   Copyright (C) 1988-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -102,6 +102,9 @@ mark_use (tree expr, bool rvalue_p, bool read_p,
   if (reject_builtin && reject_gcc_builtin (expr, loc))
     return error_mark_node;
 
+  if (TREE_TYPE (expr) && VOID_TYPE_P (TREE_TYPE (expr)))
+    read_p = false;
+
   if (read_p)
     mark_exp_read (expr);
 
@@ -180,7 +183,16 @@ mark_use (tree expr, bool rvalue_p, bool read_p,
 	    }
 	  tree r = mark_rvalue_use (ref, loc, reject_builtin);
 	  if (r != ref)
-	    expr = convert_from_reference (r);
+	    {
+	      if (!rvalue_p)
+		{
+		  /* Make sure we still return an lvalue.  */
+		  gcc_assert (TREE_CODE (r) == NOP_EXPR);
+		  TREE_TYPE (r) = cp_build_reference_type (TREE_TYPE (r),
+							   false);
+		}
+	      expr = convert_from_reference (r);
+	    }
 	}
       break;
 
@@ -211,7 +223,7 @@ mark_use (tree expr, bool rvalue_p, bool read_p,
 	    }
 	  return expr;
 	}
-      gcc_fallthrough();
+      gcc_fallthrough ();
     CASE_CONVERT:
       recurse_op[0] = true;
       break;
@@ -352,6 +364,9 @@ mark_exp_read (tree exp)
   if (exp == NULL)
     return;
 
+  if (TREE_TYPE (exp) && VOID_TYPE_P (TREE_TYPE (exp)))
+    return;
+
   switch (TREE_CODE (exp))
     {
     case VAR_DECL:
@@ -361,16 +376,20 @@ mark_exp_read (tree exp)
     case PARM_DECL:
       DECL_READ_P (exp) = 1;
       break;
+    CASE_CONVERT:
     case ARRAY_REF:
     case COMPONENT_REF:
     case MODIFY_EXPR:
     case REALPART_EXPR:
     case IMAGPART_EXPR:
-    CASE_CONVERT:
     case ADDR_EXPR:
     case INDIRECT_REF:
     case FLOAT_EXPR:
     case VIEW_CONVERT_EXPR:
+    case PREINCREMENT_EXPR:
+    case PREDECREMENT_EXPR:
+    case POSTINCREMENT_EXPR:
+    case POSTDECREMENT_EXPR:
       mark_exp_read (TREE_OPERAND (exp, 0));
       break;
     case COMPOUND_EXPR:
@@ -419,4 +438,20 @@ fold_for_warn (tree x)
     x = maybe_constant_value (x);
 
   return c_fully_fold (x, /*for_init*/false, /*maybe_constp*/NULL);
+}
+
+/* Make EXPR only execute during constant evaluation by wrapping it in a
+   statement-expression containing 'if consteval'.  */
+
+tree
+wrap_with_if_consteval (tree expr)
+{
+  tree stmtex = begin_stmt_expr ();
+  tree ifcev = begin_if_stmt ();
+  IF_STMT_CONSTEVAL_P (ifcev) = true;
+  finish_if_stmt_cond (boolean_false_node, ifcev);
+  finish_expr_stmt (expr);
+  finish_then_clause (ifcev);
+  finish_if_stmt (ifcev);
+  return finish_stmt_expr (stmtex, /*no scope*/true);
 }

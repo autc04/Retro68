@@ -1,11 +1,407 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-04-01  David Faust  <david.faust@oracle.com>
+
+	* MAINTAINERS: Add my bugzilla account.
+
+2026-04-01  David Faust  <david.faust@oracle.com>
+
+	* MAINTAINERS: Update Qing Zhao email address.
+
+2026-03-17  Prachi Godbole  <pgodbole@nvidia.com>
+
+	* MAINTAINERS: Add myself to write after approval and DCO.
+
+2026-02-27  Christophe Lyon  <christophe.lyon@arm.com>
+
+	* .forgejo/workflows/sanity-checks.yaml: Rename testjob to
+	format-checks. Rename file to ...
+	* .forgejo/workflows/format-checks.yaml: ... this.
+
+2026-02-18  Maciej W. Rozycki  <macro@orcam.me.uk>
+
+	* configure.ac <amdgcn-*-*> (noconfigdirs): Add `ld' and `gas'.
+	* configure: Regenerate.
+
+2026-02-05  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	PR d/116975
+	* Makefile.in: Regenerate.
+	* Makefile.tpl (STAGE[+id+]_GDCFLAGS): New.
+	(STAGE2_GDCFLAGS): Add -fno-checking.
+	(STAGE3_GDCFLAGS): Add -fchecking=1.
+	(BASE_FLAGS_TO_PASS): Pass STAGE[+id+]_GDCFLAGS down.
+	(configure-stage[+id+]-[+prefix+][+module+]): Set GDCFLAGS for all gcc
+	module stages.
+	(all-stage[+id+]-[+prefix+][+module+]): Likewise.
+
+2026-02-04  Jakub Jelinek  <jakub@redhat.com>
+
+	* Makefile.tpl (STAGE1_CONFIGURE_FLAGS, STAGE2_CONFIGURE_FLAGS,
+	STAGEprofile_CONFIGURE_FLAGS): Append --disable-libstdcxx-pch if
+	target-libstdc++-v3-bootstrap.
+	* Makefile.in: Regenerate.
+
+2026-01-22  Alejandro Colomar  <alx@kernel.org>
+
+	* MAINTAINERS: Add myself to Write After Approval and DCO
+
+2026-01-19  Stefan Schulze Frielinghaus  <stefansf@gcc.gnu.org>
+
+	* configure: Regenerate.
+	* configure.ac: Deprecate -m31.
+
+2026-01-14  Vineet Gupta  <vineet.gupta@linux.dev>
+
+	* MAINTAINERS: Update to my linux.dev email.
+
+2026-01-14  Jason Merrill  <jason@redhat.com>
+
+	* MAINTAINERS: Update Paolo Carlini email address.
+
+2026-01-14  Daniel Barboza  <daniel.barboza@oss.qualcomm.com>
+
+	* MAINTAINERS: Add myself to write after approval.
+
+2026-01-10  Jakub Jelinek  <jakub@redhat.com>
+
+	PR ada/123490
+	* config-ml.in: Restore ml_subdir being empty instead of /.
+	for the primary multilib.
+
+2026-01-09  Ben Boeckel  <ben.boeckel@kitware.com>
+
+	* config-ml.in: Replace gcc-bugs@ with bug reporting link.
+	* symlink-tree: Replace gcc-bugs@ with bug reporting link.
+
+2026-01-08  Aleksandar Rakic  <aleksandar.rakic@htecgroup.com>
+
+	* config-ml.in: Use with_multi_buildlist to build multidirs.
+	Skip configuration for subdir returned by
+	--print-multi-directory.
+	* configure: Regenerate.
+	* configure.ac: Source target-specific configuration fragment
+	for GCC. Pass through with_multi_buildlist to host and target.
+
+2026-01-08  Karl Meakin  <karl.meakin@arm.com>
+
+	* MAINTAINERS: Add myself to write after approval.
+
+2026-01-08  Pietro Monteiro  <pietro@sociotechnical.xyz>
+
+	* .forgejo/workflows/build-containers.yaml: New file.
+
+2026-01-06  Andrew Pinski  <andrew.pinski@oss.qualcomm.com>
+
+	* MAINTAINERS: Add myself as global reviewer.
+
+2026-01-06  supers1ngular  <supers1ngular@baylibre.com>
+
+	* MAINTAINERS: Add my bugzilla account.
+
+2026-01-05  Filip Kastl  <fkastl@suse.cz>
+
+	* MAINTAINERS: Put <jeffrey.law@oss.qualcomm.com> before
+	<jeffreyalaw@gmail.com>.
+
+2025-12-30  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* Makefile.def (flags_to_pass): Rename GA68, GA68FLAGS,
+	GA68_FOR_TARGET, GA68FLAGS_FOR_TARGET to A68, A68FLAGS,
+	A68_FOR_TARGET and A68FLAGS_FOR_TARGET.
+	* Makefile.tpl: Use A68, A68FLAGS, A68_FOR_BUILD and
+	A68_FOR_TARGET rather than GA68, GA68FLAGS, GA68_FOR_BUILD and
+	GA68_FOR_TARGET.
+	* Makefile.in: Regenerate.
+	* configure.ac: Set A68_FOR_BUILD rather than GA68_FOR_BUILD, and
+	invoke ACX_PROG_A68 rather than ACX_PROG_GA68.
+	Subst A68_FOR_BUILD rather than GA68_FOR_BUILD.
+	Subst A68 and A68FLAGS rather than GA68 and GA68FLAGS.
+	Set A68_FOR_TARGET rather than GA68_FOR_TARGET.
+	* configure: Regenerate.
+	* config-ml.in: Handle A68FLAGS and define A68 in sub-configures.
+
+2025-12-29  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* libtool.m4: Cherry-pick libtool commit
+	9196966580f6853a31187a7a3c7e7ff36ef08982.
+
+2025-12-19  Lewis Hyatt  <lhyatt@gmail.com>
+
+	PR bootstrap/12407
+	* configure.ac: Add feature to parsing of --enable-languages so that
+	a language can be disabled by prefixing it with a caret.
+	* configure: Regenerate.
+
+2025-12-17  Jeff Law  <jlaw@ventanamicro.com>
+
+	* MAINTAINERS: Use my oss.qualcomm.com address.
+
+2025-12-15  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* MAINTAINERS: Add myself to DCO section.
+
+2025-12-12  Pietro Monteiro  <pietro@sociotechnical.xyz>
+
+	* MAINTAINERS: add myself to write after approval
+
+2025-12-11  Jeff Law  <jlaw@ventanamicro.com>
+
+	* MAINTAINERS: Update entries for contributors formerly at
+	Ventana Microsystems to refer to Qualcomm instead.
+
+2025-12-11  supers1ngular  <supers1ngular@baylibre.com>
+
+	* MAINTAINERS: add myself to write after approval
+
+2025-12-11  Pengxuan Zheng  <pengxuan.zheng@oss.qualcomm.com>
+
+	* MAINTAINERS (Pengxuan Zheng): Update email address.
+
+2025-12-08  Nathan Myers  <ncm@cantrip.org>
+
+	* MAINTAINERS: add ncm
+
+2025-11-30  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* MAINTAINERS: Add Algol 68 subsystems.
+	* SECURITY.txt: add libga68 to list of libraries.
+
+2025-11-20  Claudio Bantaloukas  <claudio.bantaloukas@arm.com>
+
+	* MAINTAINERS:  Add myself in forge integration maintainers
+
+2025-11-20  Josef Melcr  <josef.melcr@suse.com>
+
+	* MAINTAINERS: Update my email address.
+
+2025-11-20  Arsen Arsenović  <aarsenovic@baylibre.com>
+
+	* MAINTAINERS: Update my email.
+
+2025-11-19  Martin Liska  <martin.liska@hey.com>
+
+	* MAINTAINERS: Add myself to write after approval (DSO).
+
+2025-11-16  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure.ac (md_exec_prefix): Don't set on Solaris.
+	* configure: Regenerate.
+
+2025-11-03  Sam James  <sam@gentoo.org>
+
+	* configure: Regenerate.
+
+2025-10-30  Robin Dapp  <rdapp@ventanamicro.com>
+
+	* MAINTAINERS: Add myself to reviewers/maintainers.
+
+2025-10-28  Richard Earnshaw  <rearnsha@arm.com>
+
+	* .editorconfig: Explicitly set tab_width whenever a
+	config rule has indent_style = tab and indent_size != 8.
+
+2025-10-28  Artemiy Volkov  <artemiy.volkov@arm.com>
+
+	* MAINTAINERS: Add myself to write after approval.
+
+2025-10-27  Jennifer Schmitz  <jschmitz@nvidia.com>
+
+	* MAINTAINERS: Change email address.
+
+2025-10-24  Thomas Schwinge  <tschwinge@baylibre.com>
+
+	PR driver/81358
+	* Makefile.tpl: Move generation of dependencies for libatomic out
+	of loop over 'target_modules'.
+	* Makefile.in: Regenerate.
+
+2025-10-22  Josef Melcr  <jmelcr02@gmail.com>
+
+	* MAINTAINERS: Update my contact information.
+
+2025-10-20  Tamar Christina  <tamar.christina@arm.com>
+
+	* MAINTAINERS (Various Maintainers): Add myself for the vectorizer.
+
+2025-10-20  Christophe Lyon  <christophe.lyon@linaro.org>
+
+	* .forgejo/workflows/sanity-checks.yaml: New file.
+
+2025-10-20  Richard Biener  <rguenther@suse.de>
+
+	* MAINTAINERS (auto-vectorizer): Change attribution to
+	vectorizer (+ tree-if-conv).
+
+2025-10-15  Basil Milanich  <bmilanich@gmail.com>
+
+	* Makefile.tpl (distclean): Remove extraenous semicolon.
+	* Makefile.in: Rebuilt.
+
+2025-10-11  Ben Boeckel  <ben.boeckel@kitware.com>
+
+	* config-ml.in: Update patch email address.
+	* symlink-tree: Ditto.
+
+2025-10-09  Prathamesh Kulkarni  <prathameshk@nvidia.com>
+	    Matthew Malcolmson  <mmalcolmson@nvidia.com>
+
+	PR driver/81358
+	* Makefile.def: Add no_atomic=true for libraries that don't depend on
+	libatomic.
+	* Makefile.tpl: Export TARGET_CONFIGDIRS and create rule to
+	add dependencies for libatomic.
+	* configure.ac: Add libatomic to bootstrap_target_libs.
+	* Makefile.in: Regenerate.
+	* configure: Regenerate.
+
+2025-10-02  H.J. Lu  <hjl.tools@gmail.com>
+
+	* Makefile.in: Regenerated.
+	* configure: Likewise.
+	* Makefile.tpl: Synced from binutils-gdb.
+	* configure.ac: Likewise.
+	* libtool.m4: Likewise.
+
+2025-10-01  Richard Earnshaw  <rearnsha@arm.com>
+
+	* .editorconfig: Unify the GCC and GDB/binutils root config.
+
+2025-09-23  Richard Earnshaw  <rearnsha@arm.com>
+
+	* .editorconfig: Fix glob patterns.
+
+2025-09-22  Jonathan Wakely  <jwakely@redhat.com>
+
+	* .editorconfig: New file.
+
+2025-09-04  Wilco Dijkstra  <wilco.dijkstra@arm.com>
+
+	* MAINTAINERS (Reviewers): Add myself for the aarch64 port.
+
+2025-09-03  Alice Carlotti  <alice.carlotti@arm.com>
+
+	* MAINTAINERS: Add myself as an aarch64 port reviewer.
+
+2025-08-28  Yuao Ma  <c8ef@outlook.com>
+
+	* MAINTAINERS: add myself to write after approval
+
+2025-08-21  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	* MAINTAINERS: Update my email address and stand down as AArch64
+	maintainer.
+
+2025-08-18  Spencer Abson  <spencer.abson@student.manchester.ac.uk>
+
+	* MAINTAINERS: Update my email address.
+
+2025-08-17  Filip Kastl  <fkastl@suse.cz>
+
+	* MAINTAINERS: Switch around Andrew Pinski's entries in
+	Contributing under DCO.
+
+2025-08-16  Mikael Pettersson  <mikpelinux@gmail.com>
+
+	* MAINTAINERS: Add myself to write after approval.
+
+2025-08-14  Avinash Jayakar  <avinashd@linux.ibm.com>
+
+	* MAINTAINERS: Add myself to write after approval.
+
+2025-08-08  Andrew Pinski  <andrew.pinski@oss.qualcomm.com>
+
+	* MAINTAINERS (Andrew Pinski): Update email address.
+
+2025-08-07  Pengfei Li  <Pengfei.Li2@arm.com>
+
+	* MAINTAINERS: Add myself.
+
+2025-08-05  Thomas Schwinge  <tschwinge@baylibre.com>
+
+	* .gitignore: Remove 'libgrust/*/target/'.
+
+2025-08-01  Luis Machado  <luis.machado.foss@gmail.com>
+
+	* MAINTAINERS: Update my e-mail address.
+
+2025-07-22  Patrick Palka  <ppalka@redhat.com>
+
+	* MAINTAINERS: Add myself as C++ front end reviewer.
+
+2025-07-07  Tamar Christina  <tamar.christina@arm.com>
+
+	* MAINTAINERS: Add myself to AArch64 pot.
+
+2025-07-04  Andrew Pinski  <quic_apinski@quicinc.com>
+
+	* MAINTAINERS: Replace tabs with spaces.
+
+2025-07-04  Alex Coplan  <alex.coplan@arm.com>
+
+	* MAINTAINERS (Reviewers): Add myself for the aarch64 port.
+
+2025-07-03  Andrew Pinski  <quic_apinski@quicinc.com>
+
+	* MAINTAINERS: Add myself as an aarch64 port reviewer.
+
+2025-06-22  Nicolas Boulenguez  <nicolas@debian.org>
+
+	PR ada/120106
+	* Makefile.tpl: Add GNATMAKE_FOR_BUILD to {HOST,BASE_TARGET}_EXPORTS
+	* Makefile.in: Regenerate.
+	* configure.ac: Set the default and substitute the variable.
+	* configure: Regenerate.
+
+2025-06-09  Kugan Vivekanandarajah  <kvivekananda@nvidia.com>
+
+	* configure.ac: Special case cpu_type for x86_64.
+	* configure: Regenerate.
+
+2025-06-09  Peter Bergner  <bergner@tenstorrent.com>
+
+	* MAINTAINERS: Update my email address and add myself to DCO.
+
+2025-05-28  Kugan Vivekanandarajah  <kvivekananda@nvidia.com>
+
+	* Makefile.def: Fix typo in cpu_type
+	* Makefile.tpl: Add cpu_type
+
+2025-05-26  Kugan Vivekanandarajah  <kvivekananda@nvidia.com>
+
+	* Makefile.def: AUTO_PROFILE based on cpu_type.
+	* Makefile.in: Likewise.
+	* configure: Regenerate.
+	* configure.ac: Set autofdo_target.
+
+2025-05-23  Kishan Parmar  <kishan@linux.ibm.com>
+
+	* MAINTAINERS: Add myself to write after approval.
+
+2025-05-23  Dhruv Chawla  <dhruvc@nvidia.com>
+
+	* MAINTAINERS: Add myself to write after approval and DCO.
+
+2025-05-21  Stephanos Ioannidis  <root@stephanos.io>
+
+	* configure.ac: Always add pre-installed heades to search path.
+	* configure: Regenerate.
+
+2025-05-16  Spencer Abson  <spencer.abson@arm.com>
+
+	* MAINTAINERS: Add myself to write after approval.
+
+2025-05-14  Richard Earnshaw  <rearnsha@arm.com>
+
+	* MAINTAINERS: Marcus Shawcroft has resigned from the project.
+
+2025-04-28  Kwok Cheung Yeung  <kcyeung@baylibre.com>
+
+	* MAINTAINERS (kcy): Add gcc.gnu.org username.
 
 2025-04-22  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
-
-	Backported from master:
-	2025-04-22  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
 
 	PR cobol/119217
 	* configure.ac: Restrict cobol to aarch64-*-linux*,

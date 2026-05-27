@@ -1,6 +1,6 @@
 // The template and inlines for the numeric_limits classes. -*- C++ -*-
 
-// Copyright (C) 1999-2025 Free Software Foundation, Inc.
+// Copyright (C) 1999-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -1639,7 +1639,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #define __INT_N_U201103(TYPE)
 #endif
 
-#if !defined(__STRICT_ANSI__)
 #ifdef __GLIBCXX_TYPE_INT_N_0
   __INT_N(__GLIBCXX_TYPE_INT_N_0, __GLIBCXX_BITSIZE_INT_N_0,
 	  __INT_N_201103 (__GLIBCXX_TYPE_INT_N_0),
@@ -1661,7 +1660,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  __INT_N_U201103 (__GLIBCXX_TYPE_INT_N_3))
 #endif
 
-#elif defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
+#if defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
   __INT_N(__int128, 128,
 	  __INT_N_201103 (__int128),
 	  __INT_N_U201103 (__int128))
@@ -2129,7 +2128,7 @@ __glibcxx_float_n(128)
       static _GLIBCXX_USE_CONSTEXPR int digits = 113;
       static _GLIBCXX_USE_CONSTEXPR int digits10 = 33;
 #if __cplusplus >= 201103L
-      static constexpr int max_digits10 = 35;
+      static constexpr int max_digits10 = 36;
 #endif
       static _GLIBCXX_USE_CONSTEXPR bool is_signed = true;
       static _GLIBCXX_USE_CONSTEXPR bool is_integer = false;

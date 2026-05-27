@@ -1,6 +1,5 @@
 # Check error for destination and source operands have the same register .
 
-	.allow_index_reg
 	.text
 _start:
 	vfcmaddcph 8128(%rcx), %zmm29, %zmm29

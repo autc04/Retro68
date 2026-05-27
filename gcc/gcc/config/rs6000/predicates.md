@@ -1,5 +1,5 @@
 ;; Predicate definitions for POWER and PowerPC.
-;; Copyright (C) 2005-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2026 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -2166,3 +2166,8 @@
   (and (match_code "subreg")
        (match_test "subreg_lowpart_offset (mode, GET_MODE (SUBREG_REG (op)))
 		    == SUBREG_BYTE (op)")))
+
+; Else operand for LEN_LOAD.
+(define_predicate "lxvl_else_operand"
+  (and (match_code "const_vector")
+       (match_test "op == CONST0_RTX (GET_MODE (op))")))

@@ -2,7 +2,7 @@
 #source: tls-le-12s.s
 #source: tls-z.s
 #source: tls128.s
-#as: --no-underscore --em=criself -I$srcdir/$subdir
+#as: --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: -m crislinux
 #objdump: -d -s -t -r -p -h
 

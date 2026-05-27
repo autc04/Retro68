@@ -1,4 +1,4 @@
-#as: --pic --underscore --em=criself --defsym extra=-819
+#as: --pic --underscore --emulation=criself --defsym extra=-819
 #objdump: -dr
 #source: rd-bkw5.s
 

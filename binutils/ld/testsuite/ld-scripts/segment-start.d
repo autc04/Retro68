@@ -3,7 +3,7 @@
 #ld: -e 0 -u __executable_start -T segment-start.ld
 #nm: -B
 #xfail: mmix-*-* pdp11-*-*
-#xfail: tic30-*-*aout* c54x*-*-*coff* tic54x-*-*coff*
+#xfail: c54x*-*-*coff* tic54x-*-*coff*
 # XFAIL targets that are not expected to handle SEGMENT_START correctly.
 
 # Make sure `__executable_start' is regular:

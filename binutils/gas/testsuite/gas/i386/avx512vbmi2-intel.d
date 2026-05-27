@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 AVX512VBMI2 insns (Intel disassembly)
 #source: avx512vbmi2.s
@@ -8,7 +7,7 @@
 
 Disassembly of section \.text:
 
-00000000 <_start>:
+00000000 <vbmi2>:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 4f 63 31[ 	]*vpcompressb ZMMWORD PTR \[ecx\]\{k7\},zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 63 b4 f4 c0 1d fe ff[ 	]*vpcompressb ZMMWORD PTR \[esp\+esi\*8-0x1e240\],zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 63 72 7e[ 	]*vpcompressb ZMMWORD PTR \[edx\+0x7e\],zmm6

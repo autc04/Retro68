@@ -1,6 +1,6 @@
 // Iterators -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -1164,188 +1164,201 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       const _Iterator&
       base() const _GLIBCXX_NOEXCEPT
       { return _M_current; }
-    };
 
-  // Note: In what follows, the left- and right-hand-side iterators are
-  // allowed to vary in types (conceptually in cv-qualification) so that
-  // comparison between cv-qualified and non-cv-qualified iterators be
-  // valid.  However, the greedy and unfriendly operators in std::rel_ops
-  // will make overload resolution ambiguous (when in scope) if we don't
-  // provide overloads whose operands are of the same type.  Can someone
-  // remind me what generic programming is about? -- Gaby
+    private:
+      // Note: In what follows, the left- and right-hand-side iterators are
+      // allowed to vary in types (conceptually in cv-qualification) so that
+      // comparison between cv-qualified and non-cv-qualified iterators be
+      // valid.  However, the greedy and unfriendly operators in std::rel_ops
+      // will make overload resolution ambiguous (when in scope) if we don't
+      // provide overloads whose operands are of the same type.  Can someone
+      // remind me what generic programming is about? -- Gaby
 
 #ifdef __cpp_lib_three_way_comparison
-  template<typename _IteratorL, typename _IteratorR, typename _Container>
-    [[nodiscard, __gnu__::__always_inline__]]
-    constexpr bool
-    operator==(const __normal_iterator<_IteratorL, _Container>& __lhs,
-	       const __normal_iterator<_IteratorR, _Container>& __rhs)
-    noexcept(noexcept(__lhs.base() == __rhs.base()))
-    requires requires {
-      { __lhs.base() == __rhs.base() } -> std::convertible_to<bool>;
-    }
-    { return __lhs.base() == __rhs.base(); }
+      template<typename _Iter>
+	[[nodiscard, __gnu__::__always_inline__]]
+	friend
+	constexpr bool
+	operator==(const __normal_iterator& __lhs,
+		   const __normal_iterator<_Iter, _Container>& __rhs)
+	noexcept(noexcept(__lhs.base() == __rhs.base()))
+	requires requires {
+	  { __lhs.base() == __rhs.base() } -> std::convertible_to<bool>;
+	}
+	{ return __lhs.base() == __rhs.base(); }
 
-  template<typename _IteratorL, typename _IteratorR, typename _Container>
-    [[nodiscard, __gnu__::__always_inline__]]
-    constexpr std::__detail::__synth3way_t<_IteratorR, _IteratorL>
-    operator<=>(const __normal_iterator<_IteratorL, _Container>& __lhs,
-		const __normal_iterator<_IteratorR, _Container>& __rhs)
-    noexcept(noexcept(std::__detail::__synth3way(__lhs.base(), __rhs.base())))
-    { return std::__detail::__synth3way(__lhs.base(), __rhs.base()); }
+      [[nodiscard, __gnu__::__always_inline__]]
+      friend
+      constexpr bool
+      operator==(const __normal_iterator& __lhs, const __normal_iterator& __rhs)
+      noexcept(noexcept(__lhs.base() == __rhs.base()))
+      requires requires {
+	{ __lhs.base() == __rhs.base() } -> std::convertible_to<bool>;
+      }
+      { return __lhs.base() == __rhs.base(); }
 
-  template<typename _Iterator, typename _Container>
-    [[nodiscard, __gnu__::__always_inline__]]
-    constexpr bool
-    operator==(const __normal_iterator<_Iterator, _Container>& __lhs,
-	       const __normal_iterator<_Iterator, _Container>& __rhs)
-    noexcept(noexcept(__lhs.base() == __rhs.base()))
-    requires requires {
-      { __lhs.base() == __rhs.base() } -> std::convertible_to<bool>;
-    }
-    { return __lhs.base() == __rhs.base(); }
-
-  template<typename _Iterator, typename _Container>
-    [[nodiscard, __gnu__::__always_inline__]]
-    constexpr std::__detail::__synth3way_t<_Iterator>
-    operator<=>(const __normal_iterator<_Iterator, _Container>& __lhs,
-		const __normal_iterator<_Iterator, _Container>& __rhs)
-    noexcept(noexcept(std::__detail::__synth3way(__lhs.base(), __rhs.base())))
-    { return std::__detail::__synth3way(__lhs.base(), __rhs.base()); }
+      template<typename _Iter>
+	[[nodiscard, __gnu__::__always_inline__]]
+	friend
+	constexpr std::__detail::__synth3way_t<_Iterator, _Iter>
+	operator<=>(const __normal_iterator& __lhs,
+		    const __normal_iterator<_Iter, _Container>& __rhs)
+	noexcept(noexcept(std::__detail::__synth3way(__lhs.base(), __rhs.base())))
+	requires requires {
+	  std::__detail::__synth3way(__lhs.base(), __rhs.base());
+	}
+	{ return std::__detail::__synth3way(__lhs.base(), __rhs.base()); }
 #else
-   // Forward iterator requirements
-  template<typename _IteratorL, typename _IteratorR, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator==(const __normal_iterator<_IteratorL, _Container>& __lhs,
-	       const __normal_iterator<_IteratorR, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() == __rhs.base(); }
+       // Forward iterator requirements
+      template<typename _Iter>
+	_GLIBCXX_NODISCARD __attribute__((__always_inline__))
+	friend
+	_GLIBCXX_CONSTEXPR
+	bool
+	operator==(const __normal_iterator& __lhs,
+		   const __normal_iterator<_Iter, _Container>& __rhs)
+	_GLIBCXX_NOEXCEPT
+	{ return __lhs.base() == __rhs.base(); }
 
-  template<typename _Iterator, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator==(const __normal_iterator<_Iterator, _Container>& __lhs,
-	       const __normal_iterator<_Iterator, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() == __rhs.base(); }
+      _GLIBCXX_NODISCARD __attribute__((__always_inline__))
+      friend
+      _GLIBCXX_CONSTEXPR
+      bool
+      operator==(const __normal_iterator& __lhs, const __normal_iterator& __rhs)
+      _GLIBCXX_NOEXCEPT
+      { return __lhs.base() == __rhs.base(); }
 
-  template<typename _IteratorL, typename _IteratorR, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator!=(const __normal_iterator<_IteratorL, _Container>& __lhs,
-	       const __normal_iterator<_IteratorR, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() != __rhs.base(); }
+      template<typename _Iter>
+	_GLIBCXX_NODISCARD __attribute__((__always_inline__))
+	friend
+	_GLIBCXX_CONSTEXPR
+	bool
+	operator!=(const __normal_iterator& __lhs,
+		   const __normal_iterator<_Iter, _Container>& __rhs)
+	_GLIBCXX_NOEXCEPT
+	{ return __lhs.base() != __rhs.base(); }
 
-  template<typename _Iterator, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator!=(const __normal_iterator<_Iterator, _Container>& __lhs,
-	       const __normal_iterator<_Iterator, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() != __rhs.base(); }
+      _GLIBCXX_NODISCARD __attribute__((__always_inline__))
+      friend
+      _GLIBCXX_CONSTEXPR
+      bool
+      operator!=(const __normal_iterator& __lhs, const __normal_iterator& __rhs)
+      _GLIBCXX_NOEXCEPT
+      { return __lhs.base() != __rhs.base(); }
 
-  // Random access iterator requirements
-  template<typename _IteratorL, typename _IteratorR, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator<(const __normal_iterator<_IteratorL, _Container>& __lhs,
-	      const __normal_iterator<_IteratorR, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() < __rhs.base(); }
+      // Random access iterator requirements
+      template<typename _Iter>
+	_GLIBCXX_NODISCARD __attribute__((__always_inline__))
+	friend
+	_GLIBCXX_CONSTEXPR
+	inline bool
+	operator<(const __normal_iterator& __lhs,
+		  const __normal_iterator<_Iter, _Container>& __rhs)
+	_GLIBCXX_NOEXCEPT
+	{ return __lhs.base() < __rhs.base(); }
 
-  template<typename _Iterator, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX20_CONSTEXPR
-    inline bool
-    operator<(const __normal_iterator<_Iterator, _Container>& __lhs,
-	      const __normal_iterator<_Iterator, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() < __rhs.base(); }
+      _GLIBCXX_NODISCARD __attribute__((__always_inline__))
+      friend
+      _GLIBCXX20_CONSTEXPR
+      bool
+      operator<(const __normal_iterator& __lhs, const __normal_iterator& __rhs)
+      _GLIBCXX_NOEXCEPT
+      { return __lhs.base() < __rhs.base(); }
 
-  template<typename _IteratorL, typename _IteratorR, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator>(const __normal_iterator<_IteratorL, _Container>& __lhs,
-	      const __normal_iterator<_IteratorR, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() > __rhs.base(); }
+      template<typename _Iter>
+	_GLIBCXX_NODISCARD __attribute__((__always_inline__))
+	friend
+	_GLIBCXX_CONSTEXPR
+	bool
+	operator>(const __normal_iterator& __lhs,
+		  const __normal_iterator<_Iter, _Container>& __rhs)
+	_GLIBCXX_NOEXCEPT
+	{ return __lhs.base() > __rhs.base(); }
 
-  template<typename _Iterator, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator>(const __normal_iterator<_Iterator, _Container>& __lhs,
-	      const __normal_iterator<_Iterator, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() > __rhs.base(); }
+      _GLIBCXX_NODISCARD __attribute__((__always_inline__))
+      friend
+      _GLIBCXX_CONSTEXPR
+      bool
+      operator>(const __normal_iterator& __lhs, const __normal_iterator& __rhs)
+      _GLIBCXX_NOEXCEPT
+      { return __lhs.base() > __rhs.base(); }
 
-  template<typename _IteratorL, typename _IteratorR, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator<=(const __normal_iterator<_IteratorL, _Container>& __lhs,
-	       const __normal_iterator<_IteratorR, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() <= __rhs.base(); }
+      template<typename _Iter>
+	_GLIBCXX_NODISCARD __attribute__((__always_inline__))
+	friend
+	_GLIBCXX_CONSTEXPR
+	bool
+	operator<=(const __normal_iterator& __lhs,
+		   const __normal_iterator<_Iter, _Container>& __rhs)
+	_GLIBCXX_NOEXCEPT
+	{ return __lhs.base() <= __rhs.base(); }
 
-  template<typename _Iterator, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator<=(const __normal_iterator<_Iterator, _Container>& __lhs,
-	       const __normal_iterator<_Iterator, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() <= __rhs.base(); }
+      _GLIBCXX_NODISCARD __attribute__((__always_inline__))
+      friend
+      _GLIBCXX_CONSTEXPR
+      bool
+      operator<=(const __normal_iterator& __lhs, const __normal_iterator& __rhs)
+      _GLIBCXX_NOEXCEPT
+      { return __lhs.base() <= __rhs.base(); }
 
-  template<typename _IteratorL, typename _IteratorR, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator>=(const __normal_iterator<_IteratorL, _Container>& __lhs,
-	       const __normal_iterator<_IteratorR, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() >= __rhs.base(); }
+      template<typename _Iter>
+	_GLIBCXX_NODISCARD __attribute__((__always_inline__))
+	friend
+	_GLIBCXX_CONSTEXPR
+	bool
+	operator>=(const __normal_iterator& __lhs,
+		   const __normal_iterator<_Iter, _Container>& __rhs)
+	_GLIBCXX_NOEXCEPT
+	{ return __lhs.base() >= __rhs.base(); }
 
-  template<typename _Iterator, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline bool
-    operator>=(const __normal_iterator<_Iterator, _Container>& __lhs,
-	       const __normal_iterator<_Iterator, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() >= __rhs.base(); }
+      _GLIBCXX_NODISCARD __attribute__((__always_inline__))
+      friend
+      _GLIBCXX_CONSTEXPR
+      bool
+      operator>=(const __normal_iterator& __lhs, const __normal_iterator& __rhs)
+      _GLIBCXX_NOEXCEPT
+      { return __lhs.base() >= __rhs.base(); }
 #endif // three-way comparison
 
-  // _GLIBCXX_RESOLVE_LIB_DEFECTS
-  // According to the resolution of DR179 not only the various comparison
-  // operators but also operator- must accept mixed iterator/const_iterator
-  // parameters.
-  template<typename _IteratorL, typename _IteratorR, typename _Container>
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 179. Comparison of const_iterators to iterators doesn't work
+      // According to the resolution of DR179 not only the various comparison
+      // operators but also operator- must accept mixed iterator/const_iterator
+      // parameters.
+      template<typename _Iter>
 #if __cplusplus >= 201103L
-    // DR 685.
-    [[__nodiscard__, __gnu__::__always_inline__]]
-    constexpr auto
-    operator-(const __normal_iterator<_IteratorL, _Container>& __lhs,
-	      const __normal_iterator<_IteratorR, _Container>& __rhs) noexcept
-    -> decltype(__lhs.base() - __rhs.base())
+	[[__nodiscard__, __gnu__::__always_inline__]]
+	friend
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 685. reverse_iterator/move_iterator difference has invalid signatures
+	constexpr auto
+	operator-(const __normal_iterator& __lhs,
+		  const __normal_iterator<_Iter, _Container>& __rhs) noexcept
+	-> decltype(__lhs.base() - __rhs.base())
 #else
-    inline typename __normal_iterator<_IteratorL, _Container>::difference_type
-    operator-(const __normal_iterator<_IteratorL, _Container>& __lhs,
-	      const __normal_iterator<_IteratorR, _Container>& __rhs)
+	friend
+	difference_type
+	operator-(const __normal_iterator& __lhs,
+		  const __normal_iterator<_Iter, _Container>& __rhs)
 #endif
-    { return __lhs.base() - __rhs.base(); }
+	{ return __lhs.base() - __rhs.base(); }
 
-  template<typename _Iterator, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline typename __normal_iterator<_Iterator, _Container>::difference_type
-    operator-(const __normal_iterator<_Iterator, _Container>& __lhs,
-	      const __normal_iterator<_Iterator, _Container>& __rhs)
-    _GLIBCXX_NOEXCEPT
-    { return __lhs.base() - __rhs.base(); }
+      _GLIBCXX_NODISCARD __attribute__((__always_inline__))
+      friend
+      _GLIBCXX_CONSTEXPR
+      difference_type
+      operator-(const __normal_iterator& __lhs, const __normal_iterator& __rhs)
+	_GLIBCXX_NOEXCEPT
+      { return __lhs.base() - __rhs.base(); }
 
-  template<typename _Iterator, typename _Container>
-    _GLIBCXX_NODISCARD __attribute__((__always_inline__)) _GLIBCXX_CONSTEXPR
-    inline __normal_iterator<_Iterator, _Container>
-    operator+(typename __normal_iterator<_Iterator, _Container>::difference_type
-	      __n, const __normal_iterator<_Iterator, _Container>& __i)
-    _GLIBCXX_NOEXCEPT
-    { return __normal_iterator<_Iterator, _Container>(__i.base() + __n); }
+      _GLIBCXX_NODISCARD __attribute__((__always_inline__))
+      friend
+      _GLIBCXX_CONSTEXPR
+      __normal_iterator
+      operator+(difference_type __n, const __normal_iterator& __i)
+	_GLIBCXX_NOEXCEPT
+      { return __normal_iterator(__i.base() + __n); }
+    };
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace __gnu_cxx
@@ -2511,17 +2524,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	[[nodiscard]]
 	friend constexpr iter_difference_t<_It2>
 	operator-(const counted_iterator& __x,
-		  const counted_iterator<_It2>& __y)
+		  const counted_iterator<_It2>& __y) noexcept
 	{ return __y._M_length - __x._M_length; }
 
       [[nodiscard]]
       friend constexpr iter_difference_t<_It>
-      operator-(const counted_iterator& __x, default_sentinel_t)
+      operator-(const counted_iterator& __x, default_sentinel_t) noexcept
       { return -__x._M_length; }
 
       [[nodiscard]]
       friend constexpr iter_difference_t<_It>
-      operator-(default_sentinel_t, const counted_iterator& __y)
+      operator-(default_sentinel_t, const counted_iterator& __y) noexcept
       { return __y._M_length; }
 
       constexpr counted_iterator&
@@ -2548,19 +2561,19 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	[[nodiscard]]
 	friend constexpr bool
 	operator==(const counted_iterator& __x,
-		   const counted_iterator<_It2>& __y)
+		   const counted_iterator<_It2>& __y) noexcept
 	{ return __x._M_length == __y._M_length; }
 
       [[nodiscard]]
       friend constexpr bool
-      operator==(const counted_iterator& __x, default_sentinel_t)
+      operator==(const counted_iterator& __x, default_sentinel_t) noexcept
       { return __x._M_length == 0; }
 
       template<common_with<_It> _It2>
 	[[nodiscard]]
 	friend constexpr strong_ordering
 	operator<=>(const counted_iterator& __x,
-		    const counted_iterator<_It2>& __y)
+		    const counted_iterator<_It2>& __y) noexcept
 	{ return __y._M_length <=> __x._M_length; }
 
       [[nodiscard]]
@@ -3086,8 +3099,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #if __cpp_deduction_guides >= 201606
   // These helper traits are used for deduction guides
   // of associative containers.
+
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 4223. Deduction guides for maps are mishandling tuples and references
   template<typename _InputIterator>
-    using __iter_key_t = remove_const_t<
+    using __iter_key_t = __remove_cvref_t<
 #ifdef __glibcxx_tuple_like // >= C++23
       tuple_element_t<0, typename iterator_traits<_InputIterator>::value_type>>;
 #else
@@ -3095,11 +3111,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
 
   template<typename _InputIterator>
-    using __iter_val_t
+    using __iter_val_t = __remove_cvref_t<
 #ifdef __glibcxx_tuple_like // >= C++23
-      = tuple_element_t<1, typename iterator_traits<_InputIterator>::value_type>;
+      tuple_element_t<1, typename iterator_traits<_InputIterator>::value_type>>;
 #else
-      = typename iterator_traits<_InputIterator>::value_type::second_type;
+      typename iterator_traits<_InputIterator>::value_type::second_type>;
 #endif
 
   template<typename _T1, typename _T2>

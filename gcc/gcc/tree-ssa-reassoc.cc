@@ -1,5 +1,5 @@
 /* Reassociation for trees.
-   Copyright (C) 2005-2025 Free Software Foundation, Inc.
+   Copyright (C) 2005-2026 Free Software Foundation, Inc.
    Contributed by Daniel Berlin <dan@dberlin.org>
 
 This file is part of GCC.
@@ -1568,7 +1568,8 @@ build_and_add_sum (tree type, tree op1, tree op2, enum tree_code opcode)
   if ((!op1def || gimple_nop_p (op1def))
       && (!op2def || gimple_nop_p (op2def)))
     {
-      gsi = gsi_after_labels (single_succ (ENTRY_BLOCK_PTR_FOR_FN (cfun)));
+      gsi = gsi_start_nondebug_after_labels_bb
+		(single_succ (ENTRY_BLOCK_PTR_FOR_FN (cfun)));
       if (!gsi_end_p (gsi)
 	  && is_gimple_call (gsi_stmt (gsi))
 	  && (gimple_call_flags (gsi_stmt (gsi)) & ECF_RETURNS_TWICE))
@@ -2925,30 +2926,22 @@ update_range_test (struct range_entry *range, struct range_entry *otherrange,
 	 !gsi_end_p (gsi); gsi_next (&gsi))
       {
 	gimple *stmt = gsi_stmt (gsi);
-	if (is_gimple_assign (stmt))
-	  if (tree lhs = gimple_assign_lhs (stmt))
-	    if ((INTEGRAL_TYPE_P (TREE_TYPE (lhs))
-		 || POINTER_TYPE_P (TREE_TYPE (lhs)))
-		&& TYPE_OVERFLOW_UNDEFINED (TREE_TYPE (lhs)))
-	      {
-		enum tree_code code = gimple_assign_rhs_code (stmt);
-		if (arith_code_with_undefined_signed_overflow (code))
-		  {
-		    gimple_stmt_iterator gsip = gsi;
-		    gimple_stmt_iterator gsin = gsi;
-		    gsi_prev (&gsip);
-		    gsi_next (&gsin);
-		    rewrite_to_defined_overflow (&gsi);
-		    unsigned uid = gimple_uid (stmt);
-		    if (gsi_end_p (gsip))
-		      gsip = gsi_after_labels (bb);
-		    else
-		      gsi_next (&gsip);
-		    for (; gsi_stmt (gsip) != gsi_stmt (gsin);
-			 gsi_next (&gsip))
-		      gimple_set_uid (gsi_stmt (gsip), uid);
-		  }
-	      }
+	if (gimple_needing_rewrite_undefined (stmt))
+	  {
+	    gimple_stmt_iterator gsip = gsi;
+	    gimple_stmt_iterator gsin = gsi;
+	    gsi_prev (&gsip);
+	    gsi_next (&gsin);
+	    rewrite_to_defined_unconditional (&gsi);
+	    unsigned uid = gimple_uid (stmt);
+	    if (gsi_end_p (gsip))
+	      gsip = gsi_after_labels (bb);
+	    else
+	      gsi_next (&gsip);
+	    for (; gsi_stmt (gsip) != gsi_stmt (gsin);
+		 gsi_next (&gsip))
+	      gimple_set_uid (gsi_stmt (gsip), uid);
+	  }
       }
 
   if (opcode == BIT_IOR_EXPR
@@ -5276,6 +5269,9 @@ rewrite_expr_tree (gimple *stmt, enum tree_code rhs_code, unsigned int opindex,
 
       oe1 = ops[opindex];
       oe2 = ops[opindex + 1];
+      if (commutative_tree_code (rhs_code)
+	  && tree_swap_operands_p (oe1->op, oe2->op))
+	std::swap (oe1, oe2);
 
       if (rhs1 != oe1->op || rhs2 != oe2->op)
 	{
@@ -7175,9 +7171,10 @@ reassociate_bb (basic_block bb)
 
 		  /* If the target support FMA, rank_ops_for_fma will detect if
 		     the chain has fmas and rearrange the ops if so.  */
-		  if (direct_internal_fn_supported_p (IFN_FMA,
-						      TREE_TYPE (lhs),
-						      opt_type)
+		  if (!reassoc_insert_powi_p
+		      && direct_internal_fn_supported_p (IFN_FMA,
+							 TREE_TYPE (lhs),
+							 opt_type)
 		      && (rhs_code == PLUS_EXPR || rhs_code == MINUS_EXPR))
 		    {
 		      mult_num = rank_ops_for_fma (&ops);
@@ -7208,7 +7205,8 @@ reassociate_bb (basic_block bb)
 			 to make sure the ones that get the double
 			 binary op are chosen wisely.  */
 		      int len = ops.length ();
-		      if (len >= 3
+		      if (!reassoc_insert_powi_p
+			  && len >= 3
 			  && (!has_fma
 			      /* width > 1 means ranking ops results in better
 				 parallelism.  Check current value to avoid

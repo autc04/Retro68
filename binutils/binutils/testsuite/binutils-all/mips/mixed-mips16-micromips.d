@@ -1,4 +1,5 @@
 #PROG: objcopy
+#as: -march=from-abi
 #objdump: -drt
 #name: Mixed MIPS16 and microMIPS disassembly
 

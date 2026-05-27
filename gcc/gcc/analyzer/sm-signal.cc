@@ -1,7 +1,7 @@
 /* An experimental state machine, for tracking bad calls from within
    signal handlers.
 
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -20,39 +20,28 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "make-unique.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "options.h"
-#include "bitmap.h"
-#include "diagnostic-core.h"
-#include "diagnostic-path.h"
-#include "analyzer/analyzer.h"
-#include "diagnostic-event-id.h"
-#include "analyzer/analyzer-logging.h"
-#include "analyzer/sm.h"
-#include "analyzer/pending-diagnostic.h"
+#include "analyzer/common.h"
+
+#include "diagnostics/event-id.h"
 #include "sbitmap.h"
 #include "ordered-hash-map.h"
 #include "selftest.h"
+#include "cfg.h"
+#include "gimple-iterator.h"
+#include "cgraph.h"
+#include "shortest-paths.h"
+
+#include "analyzer/analyzer-logging.h"
+#include "analyzer/sm.h"
+#include "analyzer/pending-diagnostic.h"
 #include "analyzer/call-string.h"
 #include "analyzer/program-point.h"
 #include "analyzer/store.h"
 #include "analyzer/region-model.h"
 #include "analyzer/program-state.h"
 #include "analyzer/checker-path.h"
-#include "cfg.h"
-#include "gimple-iterator.h"
-#include "cgraph.h"
 #include "analyzer/supergraph.h"
 #include "analyzer/diagnostic-manager.h"
-#include "shortest-paths.h"
 #include "analyzer/exploded-graph.h"
 #include "analyzer/function-set.h"
 #include "analyzer/analyzer-selftests.h"
@@ -74,7 +63,6 @@ public:
   bool inherited_state_p () const final override { return false; }
 
   bool  on_stmt (sm_context &sm_ctxt,
-		const supernode *node,
 		const gimple *stmt) const final override;
 
   bool can_purge_p (state_t s) const final override;
@@ -95,7 +83,7 @@ class signal_unsafe_call
   : public pending_diagnostic_subclass<signal_unsafe_call>
 {
 public:
-  signal_unsafe_call (const signal_state_machine &sm, const gcall *unsafe_call,
+  signal_unsafe_call (const signal_state_machine &sm, const gcall &unsafe_call,
 		      tree unsafe_fndecl)
   : m_sm (sm), m_unsafe_call (unsafe_call), m_unsafe_fndecl (unsafe_fndecl)
   {
@@ -106,7 +94,7 @@ public:
 
   bool operator== (const signal_unsafe_call &other) const
   {
-    return m_unsafe_call == other.m_unsafe_call;
+    return &m_unsafe_call == &other.m_unsafe_call;
   }
 
   int get_controlling_option () const final override
@@ -126,7 +114,7 @@ public:
 	   suggesting the replacement.  */
 	if (const char *replacement = get_replacement_fn ())
 	  {
-	    location_t note_loc = gimple_location (m_unsafe_call);
+	    location_t note_loc = gimple_location (&m_unsafe_call);
 	    /* It would be nice to add a fixit, but the gimple call
 	       location covers the whole call expression.  It isn't
 	       currently possible to cut this down to just the call
@@ -170,7 +158,7 @@ public:
 
 private:
   const signal_state_machine &m_sm;
-  const gcall *m_unsafe_call;
+  const gcall &m_unsafe_call;
   tree m_unsafe_fndecl;
 
   /* Returns a replacement function as text if it exists.  Currently
@@ -184,7 +172,7 @@ private:
     if (id_equal ("exit", DECL_NAME (m_unsafe_fndecl)))
       return "_exit";
 
-    return NULL;
+    return nullptr;
   }
 };
 
@@ -207,7 +195,7 @@ update_model_for_signal_handler (region_model *model,
   gcc_assert (model);
   /* Purge all state within MODEL.  */
   *model = region_model (model->get_manager ());
-  model->push_frame (handler_fun, NULL, NULL);
+  model->push_frame (handler_fun, nullptr, nullptr, nullptr);
 }
 
 /* Custom exploded_edge info: entry into a signal-handler.  */
@@ -232,14 +220,15 @@ public:
   }
 
   void add_events_to_path (checker_path *emission_path,
-			   const exploded_edge &eedge ATTRIBUTE_UNUSED)
+			   const exploded_edge &eedge ATTRIBUTE_UNUSED,
+			   pending_diagnostic &)
     const final override
   {
     emission_path->add_event
-      (make_unique<precanned_custom_event>
-       (event_loc_info (UNKNOWN_LOCATION, NULL_TREE, 0),
-	"later on,"
-	" when the signal is delivered to the process"));
+      (std::make_unique<precanned_custom_event>
+         (event_loc_info (UNKNOWN_LOCATION, NULL_TREE, 0),
+	  "later on,"
+	  " when the signal is delivered to the process"));
   }
 };
 
@@ -269,7 +258,6 @@ public:
       = program_point::from_function_entry (*ext_state.get_model_manager (),
 					    eg->get_supergraph (),
 					    *handler_fun);
-
     program_state state_entering_handler (ext_state);
     update_model_for_signal_handler (state_entering_handler.m_region_model,
 				     *handler_fun);
@@ -280,9 +268,9 @@ public:
 						       state_entering_handler,
 						       src_enode);
     if (dst_enode)
-      eg->add_edge (src_enode, dst_enode, NULL, /*state_change (),*/
+      eg->add_edge (src_enode, dst_enode, nullptr, /*state_change (),*/
 		    true, /* assume does work  */
-		    make_unique<signal_delivery_edge_info_t> ());
+		    std::make_unique<signal_delivery_edge_info_t> ());
   }
 
   const signal_state_machine &m_sm;
@@ -335,16 +323,15 @@ signal_unsafe_p (tree fndecl)
 
 bool
 signal_state_machine::on_stmt (sm_context &sm_ctxt,
-			       const supernode *node,
 			       const gimple *stmt) const
 {
   const state_t global_state = sm_ctxt.get_global_state ();
   if (global_state == m_start)
     {
       if (const gcall *call = dyn_cast <const gcall *> (stmt))
-	if (tree callee_fndecl = sm_ctxt.get_fndecl_for_call (call))
-	  if (is_named_call_p (callee_fndecl, "signal", call, 2)
-	      || is_std_named_call_p (callee_fndecl, "signal", call, 2))
+	if (tree callee_fndecl = sm_ctxt.get_fndecl_for_call (*call))
+	  if (is_named_call_p (callee_fndecl, "signal", *call, 2)
+	      || is_std_named_call_p (callee_fndecl, "signal", *call, 2))
 	    {
 	      tree handler = gimple_call_arg (call, 1);
 	      if (TREE_CODE (handler) == ADDR_EXPR
@@ -359,12 +346,12 @@ signal_state_machine::on_stmt (sm_context &sm_ctxt,
   else if (global_state == m_in_signal_handler)
     {
       if (const gcall *call = dyn_cast <const gcall *> (stmt))
-	if (tree callee_fndecl = sm_ctxt.get_fndecl_for_call (call))
+	if (tree callee_fndecl = sm_ctxt.get_fndecl_for_call (*call))
 	  if (signal_unsafe_p (callee_fndecl))
 	    if (sm_ctxt.get_global_state () == m_in_signal_handler)
-	      sm_ctxt.warn (node, stmt, NULL_TREE,
-			    make_unique<signal_unsafe_call>
-			     (*this, call, callee_fndecl));
+	      sm_ctxt.warn (NULL_TREE,
+			    std::make_unique<signal_unsafe_call>
+			     (*this, *call, callee_fndecl));
     }
 
   return false;
@@ -380,10 +367,10 @@ signal_state_machine::can_purge_p (state_t s ATTRIBUTE_UNUSED) const
 
 /* Internal interface to this file. */
 
-state_machine *
+std::unique_ptr<state_machine>
 make_signal_state_machine (logger *logger)
 {
-  return new signal_state_machine (logger);
+  return std::make_unique<signal_state_machine> (logger);
 }
 
 #if CHECKING_P

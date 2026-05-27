@@ -1,6 +1,6 @@
 #objdump: -dr --prefix-addresses --show-raw-insn -M gpr-names=numeric -mmips:5900
 #name: MIPS R5900 VU0
-#as: -march=r5900
+#as: -32 -march=r5900
 
 .*: +file format .*mips.*
 

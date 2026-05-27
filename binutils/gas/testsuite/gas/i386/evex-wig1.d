@@ -9,14 +9,14 @@
 Disassembly of section .text:
 
 0+ <_start>:
-[ 	]*[a-f0-9]+:	62 f1 fe 08 2a c0    	vcvtsi2ss %eax,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	62 f1 fe 08 2a 40 01 	vcvtsi2ss 0x4\(%eax\),%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	62 f1 ff 08 2a c0    	vcvtsi2sd %eax,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	62 f1 ff 08 2a 40 01 	vcvtsi2sd 0x4\(%eax\),%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	62 f1 fe 08 2d c0    	vcvtss2si %xmm0,%eax
-[ 	]*[a-f0-9]+:	62 f1 ff 08 2d c0    	vcvtsd2si %xmm0,%eax
-[ 	]*[a-f0-9]+:	62 f1 fe 08 2c c0    	vcvttss2si %xmm0,%eax
-[ 	]*[a-f0-9]+:	62 f1 ff 08 2c c0    	vcvttsd2si %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2a c0    	\{evex\} vcvtsi2ss %eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2a 40 01 	\{evex\} vcvtsi2ss 0x4\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2a c0    	\{evex\} vcvtsi2sd %eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2a 40 01 	\{evex\} vcvtsi2sd 0x4\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2d c0    	\{evex\} vcvtss2si %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2d c0    	\{evex\} vcvtsd2si %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2c c0    	\{evex\} vcvttss2si %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2c c0    	\{evex\} vcvttsd2si %xmm0,%eax
 [ 	]*[a-f0-9]+:	62 f1 fe 08 7b c0    	vcvtusi2ss %eax,%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	62 f1 fe 08 7b 40 01 	vcvtusi2ss 0x4\(%eax\),%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	62 f1 ff 08 7b c0    	vcvtusi2sd %eax,%xmm0,%xmm0
@@ -25,26 +25,26 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 f1 ff 08 79 c0    	vcvtsd2usi %xmm0,%eax
 [ 	]*[a-f0-9]+:	62 f1 fe 08 78 c0    	vcvttss2usi %xmm0,%eax
 [ 	]*[a-f0-9]+:	62 f1 ff 08 78 c0    	vcvttsd2usi %xmm0,%eax
-[ 	]*[a-f0-9]+:	62 f3 fd 08 17 c0 00 	vextractps \$0x0,%xmm0,%eax
-[ 	]*[a-f0-9]+:	62 f3 fd 08 17 40 01 00 	vextractps \$0x0,%xmm0,0x4\(%eax\)
-[ 	]*[a-f0-9]+:	62 f1 fd 08 6e c0    	vmovd  %eax,%xmm0
-[ 	]*[a-f0-9]+:	62 f1 fd 08 6e 40 01 	vmovd  0x4\(%eax\),%xmm0
-[ 	]*[a-f0-9]+:	62 f1 fd 08 7e c0    	vmovd  %xmm0,%eax
-[ 	]*[a-f0-9]+:	62 f1 fd 08 7e 40 01 	vmovd  %xmm0,0x4\(%eax\)
+[ 	]*[a-f0-9]+:	62 f3 fd 08 17 c0 00 	\{evex\} vextractps \$0x0,%xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 17 40 01 00 	\{evex\} vextractps \$0x0,%xmm0,0x4\(%eax\)
+[ 	]*[a-f0-9]+:	62 f1 fd 08 6e c0    	\{evex\} vmovd %eax,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 6e 40 01 	\{evex\} vmovd 0x4\(%eax\),%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 7e c0    	\{evex\} vmovd %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 fd 08 7e 40 01 	\{evex\} vmovd %xmm0,0x4\(%eax\)
 [ 	]*[a-f0-9]+:	62 f2 fd 08 7c c0    	vpbroadcastd %eax,%xmm0
-[ 	]*[a-f0-9]+:	62 f3 fd 08 14 c0 00 	vpextrb \$0x0,%xmm0,%eax
-[ 	]*[a-f0-9]+:	62 f3 fd 08 14 40 01 00 	vpextrb \$0x0,%xmm0,0x1\(%eax\)
-[ 	]*[a-f0-9]+:	62 f3 fd 08 16 c0 00 	vpextrd \$0x0,%xmm0,%eax
-[ 	]*[a-f0-9]+:	62 f3 fd 08 16 40 01 00 	vpextrd \$0x0,%xmm0,0x4\(%eax\)
-[ 	]*[a-f0-9]+:	62 f1 fd 08 c5 c0 00 	vpextrw \$0x0,%xmm0,%eax
-[ 	]*[a-f0-9]+:	62 f3 fd 08 15 c0 00 	vpextrw \$0x0,%xmm0,%eax
-[ 	]*[a-f0-9]+:	62 f3 fd 08 15 40 01 00 	vpextrw \$0x0,%xmm0,0x2\(%eax\)
-[ 	]*[a-f0-9]+:	62 f3 fd 08 20 c0 00 	vpinsrb \$0x0,%eax,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	62 f3 fd 08 20 40 01 00 	vpinsrb \$0x0,0x1\(%eax\),%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	62 f3 fd 08 22 c0 00 	vpinsrd \$0x0,%eax,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	62 f3 fd 08 22 40 01 00 	vpinsrd \$0x0,0x4\(%eax\),%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 c0 00 	vpinsrw \$0x0,%eax,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 40 01 00 	vpinsrw \$0x0,0x2\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 14 c0 00 	\{evex\} vpextrb \$0x0,%xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 14 40 01 00 	\{evex\} vpextrb \$0x0,%xmm0,0x1\(%eax\)
+[ 	]*[a-f0-9]+:	62 f3 fd 08 16 c0 00 	\{evex\} vpextrd \$0x0,%xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 16 40 01 00 	\{evex\} vpextrd \$0x0,%xmm0,0x4\(%eax\)
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c5 c0 00 	\{evex\} vpextrw \$0x0,%xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 15 c0 00 	\{evex\} vpextrw \$0x0,%xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 15 40 01 00 	\{evex\} vpextrw \$0x0,%xmm0,0x2\(%eax\)
+[ 	]*[a-f0-9]+:	62 f3 fd 08 20 c0 00 	\{evex\} vpinsrb \$0x0,%eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 20 40 01 00 	\{evex\} vpinsrb \$0x0,0x1\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 22 c0 00 	\{evex\} vpinsrd \$0x0,%eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 22 40 01 00 	\{evex\} vpinsrd \$0x0,0x4\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 c0 00 	\{evex\} vpinsrw \$0x0,%eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 40 01 00 	\{evex\} vpinsrw \$0x0,0x2\(%eax\),%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	62 f1 7e 0f 10 c0    	vmovss %xmm0,%xmm0,%xmm0\{%k7\}
 [ 	]*[a-f0-9]+:	62 f1 7e 0f 10 00    	vmovss \(%eax\),%xmm0\{%k7\}
 [ 	]*[a-f0-9]+:	62 f1 7e 0f 11 00    	vmovss %xmm0,\(%eax\)\{%k7\}

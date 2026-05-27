@@ -1,7 +1,7 @@
 # name: Little endian float16 literals (IEEE 754 & Alternative)
 # source: float16.s
 # objdump: -s --section=.data
-# as: -mlittle-endian
+# as: -mlittle-endian -mfpu=softvfp
 
 .*: +file format .*arm.*
 

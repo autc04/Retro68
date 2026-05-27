@@ -1,5 +1,5 @@
 #source: gotrel2.s
-#as: --pic --no-underscore --em=criself
+#as: --pic --no-underscore --emulation=criself
 #ld: -m crislinux tmpdir/libdso-1.so --hash-style=sysv
 #objdump: -s -j .got
 

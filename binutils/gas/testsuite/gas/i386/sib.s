@@ -30,6 +30,14 @@ foo:
 	mov	(%eax, %eax, (1 << 1)), %eax
 	mov	(%eax, %eax, (1 << 2)), %eax
 	mov	(%eax, %eax, (1 << 3)), %eax
+	.equ "scale(1)", 1
+	mov	(%eax, %ecx, "scale(1)"), %edx
+	.equiv "scale[2]", 2
+	mov	(%eax, %ecx, "scale[2]"), %edx
+	.eqv "scale{4}", 4
+	mov	(%eax, %ecx, "scale{4}"), %edx
+	.set "scale<8>", 8
+	mov	(%eax, %ecx, "scale<8>"), %edx
 	.intel_syntax noprefix
         mov    eax,DWORD PTR [eiz*1-30]
         mov    eax,DWORD PTR [eiz*2-30]

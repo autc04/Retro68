@@ -1,6 +1,6 @@
 # Expect script for linker support of STB_GNU_UNIQUE symbols
 #
-#   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2026 Free Software Foundation, Inc.
 #   Contributed by Red Hat.
 #
 # This file is part of the GNU Binutils.
@@ -113,17 +113,8 @@ if ![ld_compile "$CC_FOR_TARGET -c" "$srcdir/$subdir/unique_empty.s" "tmpdir/uni
     set fails [expr $fails + 1]
 }
 
-# When using GCC as the linker driver, we need to specify board cflags when
-# linking because cflags may contain linker options.  For example when linker
-# options are included in GCC spec files then we need the -specs option.
-if [board_info [target_info name] exists cflags] {
-  set board_cflags " [board_info [target_info name] cflags]"
-} else {
-  set board_cflags ""
-}
-
 # Create executable containing unique symbol.
-if ![ld_link "$CC_FOR_TARGET $NOPIE_LDFLAGS $board_cflags" "tmpdir/unique_prog" "tmpdir/unique.o"] {
+if ![ld_link "$CC_FOR_TARGET $NOPIE_LDFLAGS" "tmpdir/unique_prog" "tmpdir/unique.o"] {
     fail "Could not link a unique executable"
     set fails [expr $fails + 1]
 }

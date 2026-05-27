@@ -1,9 +1,8 @@
 #name: non-contiguous-arm6
 #source: non-contiguous-arm.s
-#ld: --enable-non-contiguous-regions -T non-contiguous-arm6.ld
+#ld: --enable-non-contiguous-regions -T non-contiguous-arm6.ld -z max-page-size=0x10000
 #objdump: -rdth
 #xfail: [is_generic]
-#skip: arm*nacl
 
 .*:     file format elf32-(little|big)arm
 
@@ -35,21 +34,21 @@ SYMBOL TABLE:
 Disassembly of section .raml:
 
 1fff0000 \<code1\>:
-1fff0000:	e1a00000 	nop			; \(mov r0, r0\)
-1fff0004:	e1a00000 	nop			; \(mov r0, r0\)
+1fff0000:	e1a00000 	nop			@ \(mov r0, r0\)
+1fff0004:	e1a00000 	nop			@ \(mov r0, r0\)
 1fff0008:	ebffffff 	bl	1fff000c \<code2\>
 
 1fff000c \<code2\>:
-1fff000c:	e1a00000 	nop			; \(mov r0, r0\)
-1fff0010:	e1a00000 	nop			; \(mov r0, r0\)
+1fff000c:	e1a00000 	nop			@ \(mov r0, r0\)
+1fff0010:	e1a00000 	nop			@ \(mov r0, r0\)
 1fff0014:	ebffffff 	bl	1fff0018 \<code3\>
 
 1fff0018 \<code3\>:
-1fff0018:	e1a00000 	nop			; \(mov r0, r0\)
+1fff0018:	e1a00000 	nop			@ \(mov r0, r0\)
 1fff001c:	ebffffff 	bl	1fff0020 \<__code4_veneer\>
 
 1fff0020 \<__code4_veneer\>:
-1fff0020:	e51ff004 	ldr	pc, \[pc, #-4\]	; 1fff0024 \<__code4_veneer\+0x4\>
+1fff0020:	e51ff004 	ldr	pc, \[pc, #-4\]	@ 1fff0024 \<__code4_veneer\+0x4\>
 1fff0024:	40040000 	.word	0x40040000
 
 Disassembly of section .ramz:

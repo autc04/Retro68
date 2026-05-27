@@ -1,5 +1,5 @@
 /* Subroutines used for parsing target attribute for RISC-V.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -34,7 +34,7 @@ namespace {
 class riscv_target_attr_parser
 {
 public:
-  riscv_target_attr_parser (location_t loc)
+  riscv_target_attr_parser (location_t *loc)
     : m_found_arch_p (false)
     , m_found_tune_p (false)
     , m_found_cpu_p (false)
@@ -44,6 +44,7 @@ public:
     , m_cpu_info (nullptr)
     , m_tune (nullptr)
     , m_priority (0)
+    , m_max_vect (false)
   {
   }
 
@@ -51,6 +52,7 @@ public:
   bool handle_cpu (const char *);
   bool handle_tune (const char *);
   bool handle_priority (const char *);
+  bool handle_max_vect (const char *);
 
   void update_settings (struct gcc_options *opts) const;
 private:
@@ -62,35 +64,39 @@ private:
   bool m_found_cpu_p;
   bool m_found_priority_p;
   riscv_subset_list *m_subset_list;
-  location_t m_loc;
+  location_t *m_loc;
   const  riscv_cpu_info *m_cpu_info;
   const char *m_tune;
   int m_priority;
+  bool m_max_vect;
 };
 }
 
 /* All the information needed to handle a target attribute.
    NAME is the name of the attribute.
-   HANDLER is the function that takes the attribute string as an argument.  */
+   HANDLER is the function that takes the attribute string as an argument.
+   REQUIRES_ARG indicates whether this attribute requires an argument value.  */
 
 struct riscv_attribute_info
 {
   const char *name;
   bool (riscv_target_attr_parser::*handler) (const char *);
+  bool requires_arg;
 };
 
 /* The target attributes that we support.  */
 
 static const struct riscv_attribute_info riscv_target_attrs[]
-  = {{"arch", &riscv_target_attr_parser::handle_arch},
-     {"cpu", &riscv_target_attr_parser::handle_cpu},
-     {"tune", &riscv_target_attr_parser::handle_tune},
-     {NULL, NULL}};
+  = {{"arch", &riscv_target_attr_parser::handle_arch, true},
+     {"cpu", &riscv_target_attr_parser::handle_cpu, true},
+     {"tune", &riscv_target_attr_parser::handle_tune, true},
+     {"max-vectorization", &riscv_target_attr_parser::handle_max_vect, false},
+     {NULL, NULL, false}};
 
 static const struct riscv_attribute_info riscv_target_version_attrs[]
-  = {{"arch", &riscv_target_attr_parser::handle_arch},
-     {"priority", &riscv_target_attr_parser::handle_priority},
-     {NULL, NULL}};
+  = {{"arch", &riscv_target_attr_parser::handle_arch, true},
+     {"priority", &riscv_target_attr_parser::handle_priority, true},
+     {NULL, NULL, false}};
 
 bool
 riscv_target_attr_parser::parse_arch (const char *str)
@@ -102,15 +108,17 @@ riscv_target_attr_parser::parse_arch (const char *str)
     {
       if (TARGET_64BIT && strncmp ("32", str + 2, strlen ("32")) == 0)
 	{
-	  error_at (m_loc, "unexpected arch for %<target()%> attribute: "
-		    "must start with rv64 but found %qs", str);
+	  if (m_loc)
+	    error_at (*m_loc, "unexpected arch for %<target()%> attribute: "
+		      "must start with rv64 but found %qs", str);
 	  goto fail;
 	}
 
       if (!TARGET_64BIT && strncmp ("64", str + 2, strlen ("64")) == 0)
 	{
-	  error_at (m_loc, "unexpected arch for %<target()%> attribute: "
-		    "must start with rv32 but found %qs", str);
+	  if (m_loc)
+	    error_at (*m_loc, "unexpected arch for %<target()%> attribute: "
+		      "must start with rv32 but found %qs", str);
 	  goto fail;
 	}
 
@@ -140,21 +148,19 @@ riscv_target_attr_parser::parse_arch (const char *str)
 	{
 	  if (token[0] != '+')
 	    {
-	      error_at (
-		m_loc,
-		"unexpected arch for %<target()%> attribute: must start "
-		"with + or rv");
+	      if (*m_loc)
+		error_at (*m_loc, "unexpected arch for %<target()%> "
+			  "attribute: must start with + or rv");
 	      goto fail;
 	    }
 
 	  const char *result = m_subset_list->parse_single_ext (token + 1);
 	  /* Check parse_single_ext has consume all string.  */
-	  if (*result != '\0')
+	  if (result == nullptr || *result != '\0')
 	    {
-	      error_at (
-		m_loc,
-		"unexpected arch for %<target()%> attribute: bad "
-		"string found %qs", token);
+	      if (m_loc)
+		error_at (*m_loc, "unexpected arch for %<target()%> "
+			  "attribute: bad string found %qs", token);
 	      goto fail;
 	    }
 
@@ -179,8 +185,8 @@ fail:
 bool
 riscv_target_attr_parser::handle_arch (const char *str)
 {
-  if (m_found_arch_p)
-    error_at (m_loc, "%<target()%> attribute: arch appears more than once");
+  if (m_found_arch_p && m_loc)
+    error_at (*m_loc, "%<target()%> attribute: arch appears more than once");
   m_found_arch_p = true;
   return parse_arch (str);
 }
@@ -190,15 +196,16 @@ riscv_target_attr_parser::handle_arch (const char *str)
 bool
 riscv_target_attr_parser::handle_cpu (const char *str)
 {
-  if (m_found_cpu_p)
-    error_at (m_loc, "%<target()%> attribute: cpu appears more than once");
+  if (m_found_cpu_p && m_loc)
+    error_at (*m_loc, "%<target()%> attribute: cpu appears more than once");
 
   m_found_cpu_p = true;
   const riscv_cpu_info *cpu_info = riscv_find_cpu (str);
 
   if (!cpu_info)
     {
-      error_at (m_loc, "%<target()%> attribute: unknown CPU %qs", str);
+      if (m_loc)
+	error_at (*m_loc, "%<target()%> attribute: unknown CPU %qs", str);
       return false;
     }
 
@@ -218,14 +225,15 @@ riscv_target_attr_parser::handle_cpu (const char *str)
 bool
 riscv_target_attr_parser::handle_tune (const char *str)
 {
-  if (m_found_tune_p)
-    error_at (m_loc, "%<target()%> attribute: tune appears more than once");
+  if (m_found_tune_p && m_loc)
+    error_at (*m_loc, "%<target()%> attribute: tune appears more than once");
   m_found_tune_p = true;
   const struct riscv_tune_info *tune = riscv_parse_tune (str, true);
 
   if (tune == nullptr)
     {
-      error_at (m_loc, "%<target()%> attribute: unknown TUNE %qs", str);
+      if (m_loc)
+	error_at (*m_loc, "%<target()%> attribute: unknown TUNE %qs", str);
       return false;
     }
 
@@ -237,15 +245,28 @@ riscv_target_attr_parser::handle_tune (const char *str)
 bool
 riscv_target_attr_parser::handle_priority (const char *str)
 {
-  if (m_found_priority_p)
-    error_at (m_loc, "%<target()%> attribute: priority appears more than once");
+  if (m_found_priority_p && m_loc)
+    error_at (*m_loc, "%<target()%> attribute: priority appears "
+	      "more than once");
   m_found_priority_p = true;
 
   if (sscanf (str, "%d", &m_priority) != 1)
     {
-      error_at (m_loc, "%<target()%> attribute: invalid priority %qs", str);
+      if (m_loc)
+	error_at (*m_loc, "%<target()%> attribute: invalid priority %qs", str);
       return false;
     }
+
+  return true;
+}
+
+/* Handle max-vectorization.  There are no further options, just
+   enable it.  */
+
+bool
+riscv_target_attr_parser::handle_max_vect (const char *str ATTRIBUTE_UNUSED)
+{
+  m_max_vect = true;
 
   return true;
 }
@@ -257,11 +278,7 @@ riscv_target_attr_parser::update_settings (struct gcc_options *opts) const
     {
       std::string local_arch = m_subset_list->to_string (true);
       const char* local_arch_str = local_arch.c_str ();
-      struct cl_target_option *default_opts
-	= TREE_TARGET_OPTION (target_option_default_node);
-      if (opts->x_riscv_arch_string != default_opts->x_riscv_arch_string)
-	free (CONST_CAST (void *, (const void *) opts->x_riscv_arch_string));
-      opts->x_riscv_arch_string = xstrdup (local_arch_str);
+      opts->x_riscv_arch_string = ggc_strdup (local_arch_str);
 
       riscv_set_arch_by_subset_list (m_subset_list, opts);
     }
@@ -279,6 +296,9 @@ riscv_target_attr_parser::update_settings (struct gcc_options *opts) const
 
   if (m_priority)
     opts->x_riscv_fmv_priority = m_priority;
+
+  if (m_max_vect)
+    opts->x_riscv_max_vectorization = true;
 }
 
 /* Parse ARG_STR which contains the definition of one target attribute.
@@ -286,7 +306,7 @@ riscv_target_attr_parser::update_settings (struct gcc_options *opts) const
 
 static bool
 riscv_process_one_target_attr (char *arg_str,
-			       location_t loc,
+			       location_t *loc,
 			       riscv_target_attr_parser &attr_parser,
 			       const struct riscv_attribute_info *attrs)
 {
@@ -294,7 +314,8 @@ riscv_process_one_target_attr (char *arg_str,
 
   if (len == 0)
     {
-      error_at (loc, "malformed %<target()%> attribute");
+      if (loc)
+	error_at (*loc, "malformed %<target()%> attribute");
       return false;
     }
 
@@ -302,33 +323,50 @@ riscv_process_one_target_attr (char *arg_str,
   char *str_to_check = buf.get();
   strcpy (str_to_check, arg_str);
 
+  /* Split attribute name from argument (if present).  */
   char *arg = strchr (str_to_check, '=');
-
-  if (!arg)
+  if (arg)
     {
-      error_at (
-	loc,
-	"attribute %<target(\"%s\")%> does not accept an argument",
-	str_to_check);
-      return false;
+      *arg = '\0';
+      ++arg;
+      /* Check for empty argument after '='.  */
+      if (*arg == '\0')
+	{
+	  if (loc)
+	    error_at (*loc, "attribute %<target(\"%s\")%> has empty argument",
+		      str_to_check);
+	  return false;
+	}
     }
 
-  arg[0] = '\0';
-  ++arg;
-  for (const auto *attr = attrs;
-       attr->name;
-       ++attr)
+  /* Find matching attribute.  */
+  for (const auto *attr = attrs; attr->name; ++attr)
     {
-      /* If the names don't match up, or the user has given an argument
-	 to an attribute that doesn't accept one, or didn't give an argument
-	 to an attribute that expects one, fail to match.  */
-      if (strncmp (str_to_check, attr->name, strlen (attr->name)) != 0)
+      if (strcmp (str_to_check, attr->name) != 0)
 	continue;
+
+      /* Validate argument presence matches expectations.  */
+      if (attr->requires_arg && !arg)
+	{
+	  if (loc)
+	    error_at (*loc, "attribute %<target(\"%s\")%> expects "
+		      "an argument", str_to_check);
+	  return false;
+	}
+
+      if (!attr->requires_arg && arg)
+	{
+	  if (loc)
+	    error_at (*loc, "attribute %<target(\"%s\")%> does not "
+		      "accept an argument", str_to_check);
+	  return false;
+	}
 
       return (&attr_parser->*attr->handler) (arg);
     }
 
-  error_at (loc, "Got unknown attribute %<target(\"%s\")%>", str_to_check);
+  if (loc)
+    error_at (*loc, "unknown attribute %<target(\"%s\")%>", str_to_check);
   return false;
 }
 
@@ -351,14 +389,15 @@ num_occurrences_in_str (char c, char *str)
 }
 
 /* Parse the string in ARGS that contains the target attribute information
-   and update the global target options space.  */
+   and update the global target options space.  If LOC is nonnull, report
+   diagnostics against location *LOC, otherwise remain silent.  */
 
 bool
-riscv_process_target_attr (const char *args,
-			   location_t loc,
-			   const struct riscv_attribute_info *attrs)
+riscv_process_target_str (string_slice args,
+			  location_t *loc,
+			  const struct riscv_attribute_info *attrs)
 {
-  size_t len = strlen (args);
+  size_t len = args.size ();
 
   /* No need to emit warning or error on empty string here, generic code already
      handle this case.  */
@@ -369,7 +408,8 @@ riscv_process_target_attr (const char *args,
 
   std::unique_ptr<char[]> buf (new char[len+1]);
   char *str_to_check = buf.get ();
-  strcpy (str_to_check, args);
+  str_to_check[len] = '\0';
+  strncpy (str_to_check, args.begin (), args.size ());
 
   /* Used to catch empty spaces between semi-colons i.e.
      attribute ((target ("attr1;;attr2"))).  */
@@ -391,8 +431,8 @@ riscv_process_target_attr (const char *args,
 
   if (num_attrs != num_semicolons + 1)
     {
-      error_at (loc, "malformed %<target(\"%s\")%> attribute",
-		args);
+      if (loc)
+	error_at (*loc, "malformed %<target(\"%B\")%> attribute", &args);
       return false;
     }
 
@@ -403,11 +443,12 @@ riscv_process_target_attr (const char *args,
 }
 
 /* Parse the tree in ARGS that contains the target attribute information
-   and update the global target options space.  */
+   and update the global target options space.  If LOC is nonnull, report
+   diagnostics against *LOC, otherwise remain silent.  */
 
 static bool
 riscv_process_target_attr (tree args,
-			   location_t loc,
+			   location_t *loc,
 			   const struct riscv_attribute_info *attrs)
 {
   if (TREE_CODE (args) == TREE_LIST)
@@ -428,11 +469,12 @@ riscv_process_target_attr (tree args,
 
   if (TREE_CODE (args) != STRING_CST)
     {
-      error_at (loc, "attribute %<target%> argument not a string");
+      if (loc)
+	error_at (*loc, "attribute %<target%> argument not a string");
       return false;
     }
 
-  return riscv_process_target_attr (TREE_STRING_POINTER (args), loc, attrs);
+  return riscv_process_target_str (TREE_STRING_POINTER (args), loc, attrs);
 }
 
 /* Implement TARGET_OPTION_VALID_ATTRIBUTE_P.
@@ -470,7 +512,7 @@ riscv_option_valid_attribute_p (tree fndecl, tree, tree args, int)
 			      TREE_TARGET_OPTION (target_option_default_node));
 
   /* Now we can parse the attributes and set &global_options accordingly.  */
-  ret = riscv_process_target_attr (args, loc, riscv_target_attrs);
+  ret = riscv_process_target_attr (args, &loc, riscv_target_attrs);
   if (ret)
     {
       riscv_override_options_internal (&global_options);
@@ -484,17 +526,31 @@ riscv_option_valid_attribute_p (tree fndecl, tree, tree args, int)
   return ret;
 }
 
-/* Parse the tree in ARGS that contains the target_version attribute
-   information and update the global target options space.  */
+/* Public wrapper for pragma processing.
+   Parse ARGS (a TREE_LIST of target attributes) and update global_options.
+   This is used by #pragma GCC target.  */
 
 bool
-riscv_process_target_version_attr (tree args, location_t loc)
+riscv_process_target_attr_for_pragma (tree args)
+{
+  location_t loc = UNKNOWN_LOCATION;
+  return riscv_process_target_attr (args, &loc, riscv_target_attrs);
+}
+
+/* Parse the tree in ARGS that contains the target_version attribute
+   information and update the global target options space.  If LOC is nonnull,
+   report diagnostics against *LOC, otherwise remain silent.  */
+
+bool
+riscv_process_target_version_attr (tree args, location_t *loc)
 {
   if (TREE_CODE (args) == TREE_LIST)
     {
       if (TREE_CHAIN (args))
 	{
-	  error ("attribute %<target_version%> has multiple values");
+	  if (loc)
+	    error_at (*loc, "attribute %<target_version%> "
+		      "has multiple values");
 	  return false;
 	}
       args = TREE_VALUE (args);
@@ -502,7 +558,8 @@ riscv_process_target_version_attr (tree args, location_t loc)
 
   if (!args || TREE_CODE (args) != STRING_CST)
     {
-      error ("attribute %<target_version%> argument not a string");
+      if (loc)
+	error_at (*loc, "attribute %<target_version%> argument not a string");
       return false;
     }
 
@@ -510,9 +567,18 @@ riscv_process_target_version_attr (tree args, location_t loc)
   if (strcmp (str, "default") == 0)
     return true;
 
-  return riscv_process_target_attr (str, loc, riscv_target_version_attrs);
+  return riscv_process_target_str (str, loc, riscv_target_version_attrs);
 }
 
+/* Parse the version string in STR and update the global target options space.
+   If LOC is nonnull, report diagnostics against location *LOC, otherwise
+   remain silent.  */
+
+bool
+riscv_process_target_version_str (string_slice str, location_t *loc)
+{
+  return riscv_process_target_str (str, loc, riscv_target_version_attrs);
+}
 
 /* Implement TARGET_OPTION_VALID_VERSION_ATTRIBUTE_P.  This is used to
    process attribute ((target_version ("..."))).  */
@@ -545,7 +611,7 @@ riscv_option_valid_version_attribute_p (tree fndecl, tree, tree args, int)
     cl_target_option_restore (&global_options, &global_options_set,
 			      TREE_TARGET_OPTION (target_option_current_node));
 
-  ret = riscv_process_target_version_attr (args, loc);
+  ret = riscv_process_target_version_attr (args, &loc);
 
   /* Set up any additional state.  */
   if (ret)

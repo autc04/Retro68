@@ -1,6 +1,6 @@
 #source: icache1.s
 #ld: --soft-icache --num-lines=4 --non-ia-text --auto-overlay=tmpdir/icache1.lnk --auto-relink
-#objdump: -D
+#objdump: -D -j.text -j.data -j.bss -j.ovl.init -j.ovly1 -j.ovly2 -j.ovly3 -j.ovly4 -j.ovly5 -j.ovly6 -j.ovly7 -j.ovly8
 
 .* elf32-spu
 

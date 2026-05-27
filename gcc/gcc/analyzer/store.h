@@ -1,5 +1,5 @@
 /* Classes for modeling the state of memory.
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -222,9 +222,9 @@ public:
   static int cmp (const binding_key *, const binding_key *);
 
   virtual const concrete_binding *dyn_cast_concrete_binding () const
-  { return NULL; }
+  { return nullptr; }
   virtual const symbolic_binding *dyn_cast_symbolic_binding () const
-  { return NULL; }
+  { return nullptr; }
 };
 
 /* A concrete range of bits.  */
@@ -298,6 +298,24 @@ struct bit_range
   static bool from_mask (unsigned HOST_WIDE_INT mask, bit_range *out);
 
   bool as_byte_range (byte_range *out) const;
+
+  bool
+  operator< (const bit_range &other) const
+  {
+    if (m_start_bit_offset < other.m_start_bit_offset)
+      return true;
+    if (m_start_bit_offset > other.m_start_bit_offset)
+      return false;
+    return (m_size_in_bits < other.m_size_in_bits);
+  }
+
+  hashval_t hash () const
+  {
+    inchash::hash hstate;
+    hstate.add_wide_int (m_start_bit_offset);
+    hstate.add_wide_int (m_size_in_bits);
+    return hstate.end ();
+  }
 
   bit_offset_t m_start_bit_offset;
   bit_size_t m_size_in_bits;
@@ -386,13 +404,7 @@ public:
   }
   bool concrete_p () const final override { return true; }
 
-  hashval_t hash () const
-  {
-    inchash::hash hstate;
-    hstate.add_wide_int (m_bit_range.m_start_bit_offset);
-    hstate.add_wide_int (m_bit_range.m_size_in_bits);
-    return hstate.end ();
-  }
+  hashval_t hash () const { return m_bit_range.hash (); }
   bool operator== (const concrete_binding &other) const
   {
     return m_bit_range == other.m_bit_range;
@@ -482,10 +494,10 @@ public:
   static int cmp_ptr_ptr (const void *, const void *);
 
   void mark_deleted () { m_region = reinterpret_cast<const region *> (1); }
-  void mark_empty () { m_region = NULL; }
+  void mark_empty () { m_region = nullptr; }
   bool is_deleted () const
   { return m_region == reinterpret_cast<const region *> (1); }
-  bool is_empty () const { return m_region == NULL; }
+  bool is_empty () const { return m_region == nullptr; }
 
 private:
   const region *m_region;
@@ -502,15 +514,100 @@ template <> struct default_hash_traits<ana::symbolic_binding>
 namespace ana {
 
 /* A mapping from binding_keys to svalues, for use by binding_cluster
-   and compound_svalue.  */
+   and compound_svalue.
+   We store a map from concrete keys to svalues, which is ordered by
+   the start offset.
+   We also store a vector of (symbolic key, svalue) pairs, but for now
+   this has maximum length of 1.  */
 
 class binding_map
 {
 public:
-  typedef hash_map <const binding_key *, const svalue *> map_t;
-  typedef map_t::iterator iterator_t;
+  struct symbolic_binding
+  {
+    bool operator== (const symbolic_binding &other) const
+    {
+      return (m_region == other.m_region
+	      && m_sval == other.m_sval);
+    }
 
-  binding_map () : m_map () {}
+    const region *m_region;
+    const svalue *m_sval;
+  };
+  using concrete_bindings_t = std::map<bit_range, const svalue *>;
+  using symbolic_bindings_t = std::vector<symbolic_binding>;
+
+  struct binding_pair
+  {
+    binding_pair (const binding_key *key,
+		  const svalue *sval)
+    : m_key (key),
+      m_sval (sval)
+    {
+    }
+
+    const binding_key *m_key;
+    const svalue *m_sval;
+  };
+
+  typedef class const_iterator
+  {
+  public:
+    const_iterator (const binding_map &map,
+		    concrete_bindings_t::const_iterator concrete_iter,
+		    symbolic_bindings_t::const_iterator symbolic_iter)
+    : m_map (map),
+      m_concrete (concrete_iter),
+      m_symbolic (symbolic_iter)
+    {
+    }
+    bool operator== (const const_iterator &other) const;
+    bool operator!= (const const_iterator &other) const
+    {
+      return !(*this == other);
+    }
+    const_iterator &operator++ ();
+
+    binding_pair operator* ();
+    const svalue *get_svalue () const;
+
+  private:
+    const binding_map &m_map;
+    concrete_bindings_t::const_iterator m_concrete;
+    symbolic_bindings_t::const_iterator m_symbolic;
+  } const_iterator_t;
+
+  typedef class iterator
+  {
+  public:
+    friend class binding_map;
+
+    iterator (const binding_map &map,
+	      concrete_bindings_t::iterator concrete_iter,
+	      symbolic_bindings_t::iterator symbolic_iter)
+    : m_map (map),
+      m_concrete (concrete_iter),
+      m_symbolic (symbolic_iter)
+    {
+    }
+    bool operator== (const iterator &other) const;
+    bool operator!= (const iterator &other) const
+    {
+      return !(*this == other);
+    }
+    iterator &operator++ ();
+
+    binding_pair operator* ();
+
+    const binding_key *get_key () const;
+
+  private:
+    const binding_map &m_map;
+    concrete_bindings_t::iterator m_concrete;
+    symbolic_bindings_t::iterator m_symbolic;
+  } iterator_t;
+
+  binding_map (store_manager &store_mgr);
   binding_map (const binding_map &other);
   binding_map& operator=(const binding_map &other);
 
@@ -522,29 +619,32 @@ public:
 
   hashval_t hash () const;
 
-  const svalue *get (const binding_key *key) const
+  const svalue *get (const binding_key *key) const;
+  void put (const binding_key *k, const svalue *v);
+  void overwrite (iterator_t &pos, const svalue *v);
+
+  void remove (const binding_key *k);
+  void clear ()
   {
-    const svalue **slot = const_cast<map_t &> (m_map).get (key);
-    if (slot)
-      return *slot;
-    else
-      return NULL;
-  }
-  bool put (const binding_key *k, const svalue *v)
-  {
-    gcc_assert (v);
-    return m_map.put (k, v);
+    m_concrete.clear ();
+    m_symbolic.clear ();
   }
 
-  void remove (const binding_key *k) { m_map.remove (k); }
-  void empty () { m_map.empty (); }
+  bool empty_p () const
+  {
+    return m_concrete.empty () && m_symbolic.empty ();
+  }
 
-  iterator_t begin () const { return m_map.begin (); }
-  iterator_t end () const { return m_map.end (); }
-  size_t elements () const { return m_map.elements (); }
+  const_iterator_t begin () const;
+  const_iterator_t end () const;
+  iterator_t begin ();
+  iterator_t end ();
+  size_t elements () const;
 
   void dump_to_pp (pretty_printer *pp, bool simple, bool multiline) const;
   void dump (bool simple) const;
+
+  void validate () const;
 
   std::unique_ptr<json::object> to_json () const;
 
@@ -562,6 +662,12 @@ public:
 				    svalue_set *maybe_live_values,
 				    bool always_overlap);
 
+  const concrete_bindings_t &
+  get_concrete_bindings () const { return m_concrete; }
+
+  const symbolic_bindings_t &
+  get_symbolic_bindings () const { return m_symbolic; }
+
 private:
   void get_overlapping_bindings (const binding_key *key,
 				 auto_vec<const binding_key *> *out);
@@ -573,15 +679,10 @@ private:
 					region_model_manager *mgr,
 					tree index, tree val);
 
-  map_t m_map;
+  store_manager &m_store_mgr;
+  concrete_bindings_t m_concrete;
+  symbolic_bindings_t m_symbolic;
 };
-
-/* Concept: BindingVisitor, for use by binding_cluster::for_each_binding
-   and store::for_each_binding.
-
-   Should implement:
-     void on_binding (const binding_key *key, const svalue *&sval);
-*/
 
 /* All of the bindings within a store for regions that share the same
    base region.  */
@@ -591,10 +692,10 @@ class binding_cluster
 public:
   friend class store;
 
-  typedef hash_map <const binding_key *, const svalue *> map_t;
-  typedef map_t::iterator iterator_t;
+  typedef binding_map::const_iterator const_iterator_t;
+  typedef binding_map::iterator iterator_t;
 
-  binding_cluster (const region *base_region);
+  binding_cluster (store_manager &store_mgr, const region *base_region);
   binding_cluster (const binding_cluster &other);
   binding_cluster& operator=(const binding_cluster &other);
 
@@ -651,8 +752,8 @@ public:
   void for_each_value (void (*cb) (const svalue *sval, T user_data),
 		       T user_data) const
   {
-    for (map_t::iterator iter = m_map.begin (); iter != m_map.end (); ++iter)
-      cb ((*iter).second, user_data);
+    for (auto iter = m_map.begin (); iter != m_map.end (); ++iter)
+      cb (iter.get_svalue (), user_data);
   }
 
   static bool can_merge_p (const binding_cluster *cluster_a,
@@ -666,7 +767,7 @@ public:
 				 store_manager *mgr);
 
   void mark_as_escaped ();
-  void on_unknown_fncall (const gcall *call, store_manager *mgr,
+  void on_unknown_fncall (const gcall &call, store_manager *mgr,
 			  const conjured_purge &p);
   void on_asm (const gasm *stmt, store_manager *mgr,
 	       const conjured_purge &p);
@@ -675,7 +776,7 @@ public:
   bool touched_p () const { return m_touched; }
 
   bool redundant_p () const;
-  bool empty_p () const { return m_map.elements () == 0; }
+  bool empty_p () const { return m_map.empty_p (); }
 
   void get_representative_path_vars (const region_model *model,
 				     svalue_set *visited,
@@ -686,21 +787,14 @@ public:
 
   const svalue *maybe_get_simple_value (store_manager *mgr) const;
 
-  template <typename BindingVisitor>
-  void for_each_binding (BindingVisitor &v) const
-  {
-    for (map_t::iterator iter = m_map.begin (); iter != m_map.end (); ++iter)
-      {
-	const binding_key *key = (*iter).first;
-	const svalue *&sval = (*iter).second;
-	v.on_binding (key, sval);
-      }
-  }
+  const_iterator_t begin () const { return m_map.begin (); }
+  const_iterator_t end () const { return m_map.end (); }
 
-  iterator_t begin () const { return m_map.begin (); }
-  iterator_t end () const { return m_map.end (); }
+  iterator_t begin () { return m_map.begin (); }
+  iterator_t end () { return m_map.end (); }
 
   const binding_map &get_map () const { return m_map; }
+  binding_map &get_map () { return m_map; }
 
 private:
   const svalue *get_any_value (const binding_key *key) const;
@@ -783,7 +877,8 @@ public:
 
   const binding_cluster *get_cluster (const region *base_reg) const;
   binding_cluster *get_cluster (const region *base_reg);
-  binding_cluster *get_or_create_cluster (const region *base_reg);
+  binding_cluster *get_or_create_cluster (store_manager &store_mgr,
+					  const region *base_reg);
   void purge_cluster (const region *base_reg);
 
   template <typename T>
@@ -799,8 +894,8 @@ public:
 			   store *out_store, store_manager *mgr,
 			   model_merger *merger);
 
-  void mark_as_escaped (const region *base_reg);
-  void on_unknown_fncall (const gcall *call, store_manager *mgr,
+  void mark_as_escaped (store_manager &mgr, const region *base_reg);
+  void on_unknown_fncall (const gcall &call, store_manager *mgr,
 			  const conjured_purge &p);
   bool escaped_p (const region *reg) const;
 
@@ -816,14 +911,6 @@ public:
   tristate eval_alias (const region *base_reg_a,
 		       const region *base_reg_b) const;
 
-  template <typename BindingVisitor>
-  void for_each_binding (BindingVisitor &v)
-  {
-    for (cluster_map_t::iterator iter = m_cluster_map.begin ();
-	 iter != m_cluster_map.end (); ++iter)
-      (*iter).second->for_each_binding (v);
-  }
-
   void canonicalize (store_manager *mgr);
   void loop_replay_fixup (const store *other_store,
 			  region_model_manager *mgr);
@@ -833,7 +920,8 @@ public:
   void replay_call_summary_cluster (call_summary_replay &r,
 				    const store &summary,
 				    const region *base_reg);
-  void on_maybe_live_values (const svalue_set &maybe_live_values);
+  void on_maybe_live_values (store_manager &mgr,
+			     const svalue_set &maybe_live_values);
 
 private:
   void remove_overlapping_bindings (store_manager *mgr, const region *reg,

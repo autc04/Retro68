@@ -1,6 +1,5 @@
 # Check SSE to AVX instructions
 
-	.allow_index_reg
 	.text
 _start:
 # Tests for op mem64

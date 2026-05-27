@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -124,6 +124,8 @@ package body Ch12 is
             Check_Misspelling_Of (Tok_Renames);
 
             if Token = Tok_Renames then
+               Scan; -- past RENAMES
+
                if Ren_Token = Tok_Package then
                   Decl_Node := New_Node
                     (N_Generic_Package_Renaming_Declaration, Gen_Sloc);
@@ -137,10 +139,8 @@ package body Ch12 is
                     (N_Generic_Function_Renaming_Declaration, Gen_Sloc);
                end if;
 
-               Scan; -- past RENAMES
                Set_Defining_Unit_Name (Decl_Node, Def_Unit);
-               Set_Name (Decl_Node, P_Name);
-
+               Set_Name (Decl_Node, P_Generic_Unit_Name);
                P_Aspect_Specifications (Decl_Node, Semicolon => False);
                TF_Semicolon;
                return Decl_Node;
@@ -420,32 +420,17 @@ package body Ch12 is
 
    procedure P_Formal_Object_Declarations (Decls : List_Id) is
       Decl_Node        : Node_Id;
-      Ident            : Pos;
       Not_Null_Present : Boolean := False;
-      Num_Idents       : Pos;
       Scan_State       : Saved_Scan_State;
 
-      Idents : array (Pos range 1 .. 4096) of Entity_Id;
-      --  This array holds the list of defining identifiers. The upper bound
-      --  of 4096 is intended to be essentially infinite, and we do not even
-      --  bother to check for it being exceeded.
+      Def_Ids : Defining_Identifiers;
+      Ident   : Pos;
 
    begin
-      Idents (1) := P_Defining_Identifier (C_Comma_Colon);
-      Num_Idents := 1;
-      while Comma_Present loop
-         Num_Idents := Num_Idents + 1;
-         Idents (Num_Idents) := P_Defining_Identifier (C_Comma_Colon);
-      end loop;
-
+      P_Def_Ids (Def_Ids);
       T_Colon;
 
-      --  If there are multiple identifiers, we repeatedly scan the
-      --  type and initialization expression information by resetting
-      --  the scan pointer (so that we get completely separate trees
-      --  for each occurrence).
-
-      if Num_Idents > 1 then
+      if Def_Ids.Num_Idents > 1 then
          Save_Scan_State (Scan_State);
       end if;
 
@@ -454,7 +439,7 @@ package body Ch12 is
       Ident := 1;
       Ident_Loop : loop
          Decl_Node := New_Node (N_Formal_Object_Declaration, Token_Ptr);
-         Set_Defining_Identifier (Decl_Node, Idents (Ident));
+         Set_Defining_Identifier (Decl_Node, Def_Ids.Idents (Ident));
          P_Mode (Decl_Node);
 
          Not_Null_Present := P_Null_Exclusion;  --  Ada 2005 (AI-423)
@@ -481,20 +466,20 @@ package body Ch12 is
          end if;
 
          No_Constraint;
-         Set_Default_Expression (Decl_Node, Init_Expr_Opt);
+         Set_Expression (Decl_Node, Init_Expr_Opt);
          P_Aspect_Specifications (Decl_Node, Semicolon => True);
 
          if Ident > 1 then
             Set_Prev_Ids (Decl_Node, True);
          end if;
 
-         if Ident < Num_Idents then
+         if Ident < Def_Ids.Num_Idents then
             Set_More_Ids (Decl_Node, True);
          end if;
 
          Append (Decl_Node, Decls);
 
-         exit Ident_Loop when Ident = Num_Idents;
+         exit Ident_Loop when Ident = Def_Ids.Num_Idents;
          Ident := Ident + 1;
          Restore_Scan_State (Scan_State);
       end loop Ident_Loop;
@@ -959,7 +944,7 @@ package body Ch12 is
          Set_Interface_List (Def_Node, New_List);
 
          loop
-            Append (P_Qualified_Simple_Name, Interface_List (Def_Node));
+            Append (P_Subtype_Name, Interface_List (Def_Node));
             exit when Token /= Tok_And;
             Scan; -- past AND
          end loop;
@@ -1300,7 +1285,7 @@ package body Ch12 is
       Set_Defining_Identifier (Def_Node, P_Defining_Identifier (C_Is));
       T_Is;
       T_New;
-      Set_Name (Def_Node, P_Qualified_Simple_Name);
+      Set_Name (Def_Node, P_Generic_Unit_Name);
 
       if Token = Tok_Left_Paren then
          Save_Scan_State (Scan_State); -- at the left paren

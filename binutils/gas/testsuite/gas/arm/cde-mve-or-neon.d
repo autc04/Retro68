@@ -1,4 +1,4 @@
-#name: Custom Datapath Extension (CDE)
+#name: Custom Datapath Extension (CDE) - MVE/Neon
 #source: cde-mve-or-neon.s
 #as: -mno-warn-deprecated -march=armv8-m.main+cdecp0+cdecp7+fp -I$srcdir/$subdir
 #as: -mno-warn-deprecated -march=armv8-m.main+cdecp0+cdecp1+cdecp2+cdecp3+cdecp4+cdecp5+cdecp6+cdecp7+fp -I$srcdir/$subdir

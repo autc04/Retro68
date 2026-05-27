@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2005-2026 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@redhat.com>.
 
    This file is part of the GNU Offloading and Multi Processing Library
@@ -1135,6 +1135,10 @@ extern int gomp_get_num_devices (void);
 extern bool gomp_target_task_fn (void *);
 extern void gomp_target_rev (uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,
 			     int, struct goacc_asyncqueue *);
+extern void *gomp_managed_alloc (size_t size);
+extern void gomp_managed_free (void *device_ptr);
+extern bool gomp_page_locked_host_alloc (void **, size_t);
+extern void gomp_page_locked_host_free (void *);
 
 /* Splay tree definitions.  */
 typedef struct splay_tree_node_s *splay_tree_node;
@@ -1360,6 +1364,7 @@ typedef struct acc_dispatch_t
     __typeof (GOMP_OFFLOAD_openacc_async_exec) *exec_func;
     __typeof (GOMP_OFFLOAD_openacc_async_dev2host) *dev2host_func;
     __typeof (GOMP_OFFLOAD_openacc_async_host2dev) *host2dev_func;
+    __typeof (GOMP_OFFLOAD_openacc_async_dev2dev) *dev2dev_func;
   } async;
 
   __typeof (GOMP_OFFLOAD_openacc_get_property) *get_property_func;
@@ -1418,11 +1423,17 @@ struct gomp_device_descr
   __typeof (GOMP_OFFLOAD_unload_image) *unload_image_func;
   __typeof (GOMP_OFFLOAD_alloc) *alloc_func;
   __typeof (GOMP_OFFLOAD_free) *free_func;
+  __typeof (GOMP_OFFLOAD_managed_alloc) *managed_alloc_func;
+  __typeof (GOMP_OFFLOAD_managed_free) *managed_free_func;
+  __typeof (GOMP_OFFLOAD_is_accessible_ptr) *is_accessible_ptr_func;
+  __typeof (GOMP_OFFLOAD_page_locked_host_alloc) *page_locked_host_alloc_func;
+  __typeof (GOMP_OFFLOAD_page_locked_host_free) *page_locked_host_free_func;
   __typeof (GOMP_OFFLOAD_dev2host) *dev2host_func;
   __typeof (GOMP_OFFLOAD_host2dev) *host2dev_func;
+  __typeof (GOMP_OFFLOAD_dev2dev) *dev2dev_func;
   __typeof (GOMP_OFFLOAD_memcpy2d) *memcpy2d_func;
   __typeof (GOMP_OFFLOAD_memcpy3d) *memcpy3d_func;
-  __typeof (GOMP_OFFLOAD_dev2dev) *dev2dev_func;
+  __typeof (GOMP_OFFLOAD_memset) *memset_func;
   __typeof (GOMP_OFFLOAD_can_run) *can_run_func;
   __typeof (GOMP_OFFLOAD_run) *run_func;
   __typeof (GOMP_OFFLOAD_async_run) *async_run_func;
@@ -1467,11 +1478,14 @@ extern void gomp_copy_host2dev (struct gomp_device_descr *,
 extern void gomp_copy_dev2host (struct gomp_device_descr *,
 				struct goacc_asyncqueue *, void *, const void *,
 				size_t);
+extern void gomp_copy_dev2dev (struct gomp_device_descr *,
+			       struct goacc_asyncqueue *, void *, const void *,
+			       size_t);
 extern uintptr_t gomp_map_val (struct target_mem_desc *, void **, size_t);
-extern void gomp_attach_pointer (struct gomp_device_descr *,
+extern bool gomp_attach_pointer (struct gomp_device_descr *,
 				 struct goacc_asyncqueue *, splay_tree,
 				 splay_tree_key, uintptr_t, size_t,
-				 struct gomp_coalesce_buf *, bool);
+				 struct gomp_coalesce_buf *, bool, bool);
 extern void gomp_detach_pointer (struct gomp_device_descr *,
 				 struct goacc_asyncqueue *, splay_tree_key,
 				 uintptr_t, bool, struct gomp_coalesce_buf *);
@@ -1662,5 +1676,8 @@ gomp_thread_to_pthread_t (struct gomp_thread *thr)
   return gomp_thread_self ();
 }
 #endif
+
+/* simple-allocator.c has its prototypes in libgomp-plugin.h so it's
+   accessible from both.  */
 
 #endif /* LIBGOMP_H */

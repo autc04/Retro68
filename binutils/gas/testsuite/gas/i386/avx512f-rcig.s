@@ -1,6 +1,5 @@
 # Check 32bit AVX512F-RCIG instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vcmppd	$0xab, {sae}, %zmm5, %zmm6, %k5	 # AVX512F

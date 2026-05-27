@@ -10,3 +10,15 @@
     dsb nshnxs
     dsb ishnxs
     dsb synxs
+
+.arch armv8-a+xs
+
+    dsb #16
+    dsb #20
+    dsb #24
+    dsb #28
+
+    dsb oshnxs
+    dsb nshnxs
+    dsb ishnxs
+    dsb synxs

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 CLDEMOTE insns (Intel disassembly)
 #source: cldemote.s

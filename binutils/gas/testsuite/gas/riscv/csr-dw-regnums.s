@@ -1,6 +1,8 @@
 # Check that CFI directives can accept all of the CSR names (including
 # aliases).  The results for this test also ensures that the DWARF
 # register numbers for the CSRs shouldn't change.
+# The register numbers are specified to be CSR-ID + 4096 (see psABI spec).
+# The CFI offsets in this file are CSR-ID x 4.
 
 	.text
 	.global _start
@@ -307,6 +309,23 @@ _start:
 	.cfi_offset vstval, 2316
 	.cfi_offset vsip, 2320
 	.cfi_offset vsatp, 2560
+	# Smaia extension
+	.cfi_offset miselect, 3392
+	.cfi_offset mireg, 3396
+	.cfi_offset mtopei, 3440
+	.cfi_offset mtopi, 16064
+	.cfi_offset mvien, 3104
+	.cfi_offset mvip, 3108
+	.cfi_offset midelegh, 3148
+	.cfi_offset mieh, 3152
+	.cfi_offset mvienh, 3168
+	.cfi_offset mviph, 3172
+	.cfi_offset miph, 3408
+	# Smcntrpmf extension
+	.cfi_offset mcyclecfg, 3204
+	.cfi_offset minstretcfg, 3208
+	.cfi_offset mcyclecfgh, 7300
+	.cfi_offset minstretcfgh, 7304
 	# Smstateen extension
 	.cfi_offset mstateen0, 3120
 	.cfi_offset mstateen1, 3124
@@ -328,6 +347,28 @@ _start:
 	.cfi_offset hstateen1h, 6260
 	.cfi_offset hstateen2h, 6264
 	.cfi_offset hstateen3h, 6268
+	# Ssaia extension
+	.cfi_offset siselect, 1344
+	.cfi_offset sireg, 1348
+	.cfi_offset stopei, 1392
+	.cfi_offset stopi, 14016
+	.cfi_offset sieh, 1104
+	.cfi_offset siph, 1360
+	.cfi_offset hvien, 6176
+	.cfi_offset hvictl, 6180
+	.cfi_offset hviprio1, 6424
+	.cfi_offset hviprio2, 6428
+	.cfi_offset vsiselect, 2368
+	.cfi_offset vsireg, 2372
+	.cfi_offset vstopei, 2416
+	.cfi_offset vstopi, 15040
+	.cfi_offset hidelegh, 6220
+	.cfi_offset hvienh, 6240
+	.cfi_offset hviph, 6484
+	.cfi_offset hviprio1h, 6488
+	.cfi_offset hviprio2h, 6492
+	.cfi_offset vsieh, 2128
+	.cfi_offset vsiph, 2384
 	# Sscofpmf extension
 	.cfi_offset scountovf, 13952
 	.cfi_offset mhpmevent3h, 7308
@@ -364,20 +405,15 @@ _start:
 	.cfi_offset stimecmph, 1396
 	.cfi_offset vstimecmp, 2356
 	.cfi_offset vstimecmph, 2420
+	# Ssctr/Smctr extension
+	.cfi_offset sctrctl, 1336
+	.cfi_offset sctrstatus, 1340
+	.cfi_offset sctrdepth, 1404
+	.cfi_offset vsctrctl, 2360
+	.cfi_offset mctrctl, 3384
+	# Zicfiss extension
+	.cfi_offset ssp, 324
 	# dropped
-	.cfi_offset ubadaddr, 268	# aliases
-	.cfi_offset sbadaddr, 1292	# aliases
-	.cfi_offset sptbr, 1536		# aliases
-	.cfi_offset mbadaddr, 3340	# aliases
-	.cfi_offset mucounteren, 3200	# aliases
-	.cfi_offset mbase, 3584
-	.cfi_offset mbound, 3588
-	.cfi_offset mibase, 3592
-	.cfi_offset mibound, 3596
-	.cfi_offset mdbase, 3600
-	.cfi_offset mdbound, 3604
-	.cfi_offset mscounteren, 3204
-	.cfi_offset mhcounteren, 3208
 	.cfi_offset ustatus, 0
 	.cfi_offset uie, 16
 	.cfi_offset utvec, 20

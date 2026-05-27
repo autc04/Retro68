@@ -1005,16 +1005,16 @@ Disassembly of section .text:
 [^>]*> ef2e e15e 	vmov	q7, q7
 [^>]*> ef2e e15e 	vmov	q7, q7
 [^>]*> ef2e e15e 	vmov	q7, q7
-[^>]*> ef80 0150 	vorr.i32	q0, #0	; 0x00000000
-[^>]*> ff87 015f 	vorr.i32	q0, #255	; 0x000000ff
-[^>]*> ff87 035f 	vorr.i32	q0, #65280	; 0x0000ff00
-[^>]*> ff87 075f 	vorr.i32	q0, #4278190080	; 0xff000000
-[^>]*> ff87 055f 	vorr.i32	q0, #16711680	; 0x00ff0000
-[^>]*> ef80 0950 	vorr.i16	q0, #0	; 0x0000
-[^>]*> ff87 095f 	vorr.i16	q0, #255	; 0x00ff
-[^>]*> ff87 0b5f 	vorr.i16	q0, #65280	; 0xff00
+[^>]*> ef80 0150 	vorr.i32	q0, #0	@ 0x00000000
+[^>]*> ff87 015f 	vorr.i32	q0, #255	@ 0x000000ff
+[^>]*> ff87 035f 	vorr.i32	q0, #65280	@ 0x0000ff00
+[^>]*> ff87 075f 	vorr.i32	q0, #4278190080	@ 0xff000000
+[^>]*> ff87 055f 	vorr.i32	q0, #16711680	@ 0x00ff0000
+[^>]*> ef80 0950 	vorr.i16	q0, #0	@ 0x0000
+[^>]*> ff87 095f 	vorr.i16	q0, #255	@ 0x00ff
+[^>]*> ff87 0b5f 	vorr.i16	q0, #65280	@ 0xff00
 [^>]*> fe71 ef4d 	vpstete
 [^>]*> ef22 0154 	vorrt	q0, q1, q2
 [^>]*> ef22 0154 	vorre	q0, q1, q2
-[^>]*> ef80 0150 	vorrt.i32	q0, #0	; 0x00000000
-[^>]*> ff87 0b5f 	vorre.i16	q0, #65280	; 0xff00
+[^>]*> ef80 0150 	vorrt.i32	q0, #0	@ 0x00000000
+[^>]*> ff87 0b5f 	vorre.i16	q0, #65280	@ 0xff00

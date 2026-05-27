@@ -1,10 +1,3 @@
-.macro cond op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().s16 q0, q1
-.endr
-.endm
-
 .syntax unified
 .thumb
 vqmovnt.s8 q0, q1
@@ -23,10 +16,17 @@ vqmovunt.u16 q0, q1
 vqmovunt.u32 q0, q1
 vqmovunb.u16 q0, q1
 vqmovunb.u32 q0, q1
-cond vqmovnt
-cond vqmovnb
-cond vqmovunt
-cond vqmovunb
+
+.irp op, vqmovnt, vqmovnb, vqmovunt, vqmovunb
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+\op\().s16 q0, q1
+
+.endr
+.endr
+
+
 it eq
 vqmovnteq.s16 q0, q1
 vqmovnteq.s16 q0, q1

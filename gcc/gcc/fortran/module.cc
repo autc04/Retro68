@@ -1,6 +1,6 @@
 /* Handle modules, which amounts to loading and saving symbols and
    their attendant structures.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -2092,8 +2092,9 @@ enum ab_attribute
   AB_ARRAY_OUTER_DEPENDENCY, AB_MODULE_PROCEDURE, AB_OACC_DECLARE_CREATE,
   AB_OACC_DECLARE_COPYIN, AB_OACC_DECLARE_DEVICEPTR,
   AB_OACC_DECLARE_DEVICE_RESIDENT, AB_OACC_DECLARE_LINK,
-  AB_OMP_DECLARE_TARGET_LINK, AB_PDT_KIND, AB_PDT_LEN, AB_PDT_TYPE,
-  AB_PDT_TEMPLATE, AB_PDT_ARRAY, AB_PDT_STRING,
+  AB_OMP_DECLARE_TARGET_LINK, AB_OMP_DECLARE_TARGET_LOCAL,
+  AB_PDT_KIND, AB_PDT_LEN, AB_PDT_TYPE,
+  AB_PDT_COMP, AB_PDT_TEMPLATE, AB_PDT_ARRAY, AB_PDT_STRING,
   AB_OACC_ROUTINE_LOP_GANG, AB_OACC_ROUTINE_LOP_WORKER,
   AB_OACC_ROUTINE_LOP_VECTOR, AB_OACC_ROUTINE_LOP_SEQ,
   AB_OACC_ROUTINE_NOHOST,
@@ -2102,7 +2103,7 @@ enum ab_attribute
   AB_OMP_REQ_MEM_ORDER_SEQ_CST, AB_OMP_REQ_MEM_ORDER_ACQ_REL,
   AB_OMP_REQ_MEM_ORDER_ACQUIRE, AB_OMP_REQ_MEM_ORDER_RELEASE,
   AB_OMP_REQ_MEM_ORDER_RELAXED, AB_OMP_DEVICE_TYPE_NOHOST,
-  AB_OMP_DEVICE_TYPE_HOST, AB_OMP_DEVICE_TYPE_ANY
+  AB_OMP_DEVICE_TYPE_HOST, AB_OMP_DEVICE_TYPE_ANY, AB_OMP_GROUPPRIVATE
 };
 
 static const mstring attr_bits[] =
@@ -2166,12 +2167,15 @@ static const mstring attr_bits[] =
     minit ("OACC_DECLARE_DEVICE_RESIDENT", AB_OACC_DECLARE_DEVICE_RESIDENT),
     minit ("OACC_DECLARE_LINK", AB_OACC_DECLARE_LINK),
     minit ("OMP_DECLARE_TARGET_LINK", AB_OMP_DECLARE_TARGET_LINK),
+    minit ("OMP_DECLARE_TARGET_LOCAL", AB_OMP_DECLARE_TARGET_LOCAL),
+    minit ("OMP_GROUPPRIVATE", AB_OMP_GROUPPRIVATE),
     minit ("PDT_KIND", AB_PDT_KIND),
     minit ("PDT_LEN", AB_PDT_LEN),
     minit ("PDT_TYPE", AB_PDT_TYPE),
     minit ("PDT_TEMPLATE", AB_PDT_TEMPLATE),
     minit ("PDT_ARRAY", AB_PDT_ARRAY),
     minit ("PDT_STRING", AB_PDT_STRING),
+    minit ("PDT_COMP", AB_PDT_COMP),
     minit ("OACC_ROUTINE_LOP_GANG", AB_OACC_ROUTINE_LOP_GANG),
     minit ("OACC_ROUTINE_LOP_WORKER", AB_OACC_ROUTINE_LOP_WORKER),
     minit ("OACC_ROUTINE_LOP_VECTOR", AB_OACC_ROUTINE_LOP_VECTOR),
@@ -2398,12 +2402,18 @@ mio_symbol_attribute (symbol_attribute *attr)
 	MIO_NAME (ab_attribute) (AB_OACC_DECLARE_LINK, attr_bits);
       if (attr->omp_declare_target_link)
 	MIO_NAME (ab_attribute) (AB_OMP_DECLARE_TARGET_LINK, attr_bits);
+      if (attr->omp_declare_target_local)
+	MIO_NAME (ab_attribute) (AB_OMP_DECLARE_TARGET_LOCAL, attr_bits);
+      if (attr->omp_groupprivate)
+	MIO_NAME (ab_attribute) (AB_OMP_GROUPPRIVATE, attr_bits);
       if (attr->pdt_kind)
 	MIO_NAME (ab_attribute) (AB_PDT_KIND, attr_bits);
       if (attr->pdt_len)
 	MIO_NAME (ab_attribute) (AB_PDT_LEN, attr_bits);
       if (attr->pdt_type)
 	MIO_NAME (ab_attribute) (AB_PDT_TYPE, attr_bits);
+      if (attr->pdt_comp)
+	MIO_NAME (ab_attribute) (AB_PDT_COMP , attr_bits);
       if (attr->pdt_template)
 	MIO_NAME (ab_attribute) (AB_PDT_TEMPLATE, attr_bits);
       if (attr->pdt_array)
@@ -2651,6 +2661,12 @@ mio_symbol_attribute (symbol_attribute *attr)
 	    case AB_OMP_DECLARE_TARGET_LINK:
 	      attr->omp_declare_target_link = 1;
 	      break;
+	    case AB_OMP_DECLARE_TARGET_LOCAL:
+	      attr->omp_declare_target_local = 1;
+	      break;
+	    case AB_OMP_GROUPPRIVATE:
+	      attr->omp_groupprivate = 1;
+	      break;
 	    case AB_ARRAY_OUTER_DEPENDENCY:
 	      attr->array_outer_dependency =1;
 	      break;
@@ -2680,6 +2696,9 @@ mio_symbol_attribute (symbol_attribute *attr)
 	      break;
 	    case AB_PDT_TYPE:
 	      attr->pdt_type = 1;
+	      break;
+	    case AB_PDT_COMP:
+	      attr->pdt_comp = 1;
 	      break;
 	    case AB_PDT_TEMPLATE:
 	      attr->pdt_template = 1;
@@ -3622,7 +3641,9 @@ static const mstring expr_types[] = {
     minit ("ARRAY", EXPR_ARRAY),
     minit ("NULL", EXPR_NULL),
     minit ("COMPCALL", EXPR_COMPCALL),
-    minit (NULL, -1)
+    minit ("PPC", EXPR_PPC),
+    minit ("CONDITIONAL", EXPR_CONDITIONAL),
+    minit (NULL, -1),
 };
 
 /* INTRINSIC_ASSIGN is missing because it is used as an index for
@@ -3843,6 +3864,12 @@ mio_expr (gfc_expr **ep)
 
       break;
 
+    case EXPR_CONDITIONAL:
+      mio_expr (&e->value.conditional.condition);
+      mio_expr (&e->value.conditional.true_expr);
+      mio_expr (&e->value.conditional.false_expr);
+      break;
+
     case EXPR_FUNCTION:
       mio_symtree_ref (&e->symtree);
       mio_actual_arglist (&e->value.function.actual, false);
@@ -3909,10 +3936,9 @@ mio_expr (gfc_expr **ep)
       break;
 
     case EXPR_SUBSTRING:
-      e->value.character.string
-	= CONST_CAST (gfc_char_t *,
-		      mio_allocated_wide_string (e->value.character.string,
-						 e->value.character.length));
+      e->value.character.string = const_cast<gfc_char_t *>
+	(mio_allocated_wide_string (e->value.character.string,
+				    e->value.character.length));
       mio_ref_list (&e->ref);
       break;
 
@@ -3949,10 +3975,9 @@ mio_expr (gfc_expr **ep)
 	  hwi = e->value.character.length;
 	  mio_hwi (&hwi);
 	  e->value.character.length = hwi;
-	  e->value.character.string
-	    = CONST_CAST (gfc_char_t *,
-			  mio_allocated_wide_string (e->value.character.string,
-						     e->value.character.length));
+	  e->value.character.string = const_cast<gfc_char_t *>
+	    (mio_allocated_wide_string (e->value.character.string,
+					e->value.character.length));
 	  break;
 
 	default:
@@ -5254,6 +5279,8 @@ load_commons (void)
       if (flags & 2)
 	p->threadprivate = 1;
       p->omp_device_type = (gfc_omp_device_type) ((flags >> 2) & 3);
+      if ((flags >> 4) & 1)
+	p->omp_groupprivate = 1;
       p->use_assoc = 1;
 
       /* Get whether this was a bind(c) common or not.  */
@@ -5813,6 +5840,21 @@ read_module (void)
 		  || startswith (name, "__vtype_")))
 	    p = name;
 
+	  /* Include pdt_types if their associated pdt_template is in a
+	     USE, ONLY list.  */
+	  if (p == NULL && name[0] == 'P'
+	      && startswith (name, PDT_PREFIX)
+	      && module_list)
+	    {
+	      gfc_use_list *ml = module_list;
+	      for (; ml; ml = ml->next)
+		if (ml->rename
+		    && !strncmp (&name[PDT_PREFIX_LEN],
+				 ml->rename->use_name,
+				 strlen (ml->rename->use_name)))
+		  p = name;
+	    }
+
 	  /* Skip symtree nodes not in an ONLY clause, unless there
 	     is an existing symtree loaded from another USE statement.  */
 	  if (p == NULL)
@@ -6177,6 +6219,7 @@ write_common_0 (gfc_symtree *st, bool this_module)
       if (p->threadprivate)
 	flags |= 2;
       flags |= p->omp_device_type << 2;
+      flags |= p->omp_groupprivate << 4;
       mio_integer (&flags);
 
       /* Write out whether the common block is bind(c) or not.  */
@@ -7277,10 +7320,13 @@ create_int_parameter_array (const char *name, int size, gfc_expr *value,
   tmp_symtree = gfc_find_symtree (gfc_current_ns->sym_root, name);
   if (tmp_symtree != NULL)
     {
-      if (strcmp (modname, tmp_symtree->n.sym->module) == 0)
+      if (tmp_symtree->n.sym->module &&
+	  strcmp (modname, tmp_symtree->n.sym->module) == 0)
 	return;
       else
-	gfc_error ("Symbol %qs already declared", name);
+	gfc_error ("Symbol %qs already declared at %L conflicts with "
+		   "symbol in %qs at %C", name,
+		   &tmp_symtree->n.sym->declared_at, modname);
     }
 
   gfc_get_sym_tree (name, gfc_current_ns, &tmp_symtree, false);

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -17,11 +17,11 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-compile-type.h"
-#include "rust-compile-expr.h"
 #include "rust-constexpr.h"
-#include "rust-gcc.h"
+#include "rust-compile-base.h"
 
 #include "tree.h"
+#include "fold-const.h"
 #include "stor-layout.h"
 
 namespace Rust {
@@ -121,6 +121,13 @@ TyTyResolveCompile::visit (const TyTy::InferType &type)
 
   if (orig == lookup)
     {
+      TyTy::BaseType *def = nullptr;
+      if (type.default_type (&def))
+	{
+	  translated = TyTyResolveCompile::compile (ctx, def);
+	  return;
+	}
+
       translated = error_mark_node;
       return;
     }
@@ -129,7 +136,31 @@ TyTyResolveCompile::visit (const TyTy::InferType &type)
 }
 
 void
-TyTyResolveCompile::visit (const TyTy::ParamType &)
+TyTyResolveCompile::visit (const TyTy::ParamType &type)
+{
+  translated = error_mark_node;
+}
+
+void
+TyTyResolveCompile::visit (const TyTy::ConstParamType &type)
+{
+  translated = error_mark_node;
+}
+
+void
+TyTyResolveCompile::visit (const TyTy::ConstValueType &type)
+{
+  translated = error_mark_node;
+}
+
+void
+TyTyResolveCompile::visit (const TyTy::ConstInferType &type)
+{
+  translated = error_mark_node;
+}
+
+void
+TyTyResolveCompile::visit (const TyTy::ConstErrorType &type)
 {
   translated = error_mark_node;
 }
@@ -173,8 +204,8 @@ TyTyResolveCompile::visit (const TyTy::ClosureType &type)
       // this should be based on the closure move-ability
       tree decl_type = TyTyResolveCompile::compile (ctx, lookup);
       tree capture_type = build_reference_type (decl_type);
-      fields.push_back (Backend::typed_identifier (mappings_name, capture_type,
-						   type.get_ident ().locus));
+      fields.emplace_back (mappings_name, capture_type,
+			   type.get_ident ().locus);
     }
 
   tree type_record = Backend::struct_type (fields);
@@ -189,7 +220,7 @@ TyTyResolveCompile::visit (const TyTy::ClosureType &type)
 void
 TyTyResolveCompile::visit (const TyTy::FnType &type)
 {
-  Backend::typed_identifier receiver;
+  Backend::typed_identifier receiver ("", NULL_TREE, UNKNOWN_LOCATION);
   std::vector<Backend::typed_identifier> parameters;
   std::vector<Backend::typed_identifier> results;
 
@@ -204,8 +235,7 @@ TyTyResolveCompile::visit (const TyTy::FnType &type)
       auto ret = TyTyResolveCompile::compile (ctx, hir_type, trait_object_mode);
       location_t return_type_locus
 	= ctx->get_mappings ().lookup_location (hir_type->get_ref ());
-      results.push_back (
-	Backend::typed_identifier ("_", ret, return_type_locus));
+      results.emplace_back ("_", ret, return_type_locus);
     }
 
   for (auto &param_pair : type.get_params ())
@@ -214,11 +244,10 @@ TyTyResolveCompile::visit (const TyTy::FnType &type)
       auto compiled_param_type
 	= TyTyResolveCompile::compile (ctx, param_tyty, trait_object_mode);
 
-      auto compiled_param = Backend::typed_identifier (
-	param_pair.get_pattern ().as_string (), compiled_param_type,
-	ctx->get_mappings ().lookup_location (param_tyty->get_ref ()));
-
-      parameters.push_back (compiled_param);
+      parameters.emplace_back (param_pair.get_pattern ().to_string (),
+			       compiled_param_type,
+			       ctx->get_mappings ().lookup_location (
+				 param_tyty->get_ref ()));
     }
 
   if (!type.is_variadic ())
@@ -264,10 +293,9 @@ TyTyResolveCompile::visit (const TyTy::ADTType &type)
 	  tree compiled_field_ty
 	    = TyTyResolveCompile::compile (ctx, field->get_field_type ());
 
-	  Backend::typed_identifier f (field->get_name (), compiled_field_ty,
-				       ctx->get_mappings ().lookup_location (
-					 type.get_ty_ref ()));
-	  fields.push_back (std::move (f));
+	  fields.emplace_back (field->get_name (), compiled_field_ty,
+			       ctx->get_mappings ().lookup_location (
+				 type.get_ty_ref ()));
 	}
 
       type_record = type.is_union () ? Backend::union_type (fields, false)
@@ -344,10 +372,9 @@ TyTyResolveCompile::visit (const TyTy::ADTType &type)
 		  == TyTy::VariantDef::VariantType::TUPLE)
 		field_name = "__" + field->get_name ();
 
-	      Backend::typed_identifier f (
-		field_name, compiled_field_ty,
-		ctx->get_mappings ().lookup_location (type.get_ty_ref ()));
-	      fields.push_back (std::move (f));
+	      fields.emplace_back (field_name, compiled_field_ty,
+				   ctx->get_mappings ().lookup_location (
+				     type.get_ty_ref ()));
 	    }
 
 	  tree variant_record = Backend::struct_type (fields);
@@ -369,10 +396,9 @@ TyTyResolveCompile::visit (const TyTy::ADTType &type)
 	  TyTy::VariantDef *variant = type.get_variants ().at (i++);
 	  std::string implicit_variant_name = variant->get_identifier ();
 
-	  Backend::typed_identifier f (implicit_variant_name, variant_record,
-				       ctx->get_mappings ().lookup_location (
-					 type.get_ty_ref ()));
-	  enum_fields.push_back (std::move (f));
+	  enum_fields.emplace_back (implicit_variant_name, variant_record,
+				    ctx->get_mappings ().lookup_location (
+				      type.get_ty_ref ()));
 	}
 
       //
@@ -447,14 +473,13 @@ TyTyResolveCompile::visit (const TyTy::TupleType &type)
       // this, rather than simply emitting the integer, is that this
       // approach makes it simpler to use a C-only debugger, or
       // GDB's C mode, when debugging Rust.
-      Backend::typed_identifier f ("__" + std::to_string (i), compiled_field_ty,
-				   ctx->get_mappings ().lookup_location (
-				     type.get_ty_ref ()));
-      fields.push_back (std::move (f));
+      fields.emplace_back ("__" + std::to_string (i), compiled_field_ty,
+			   ctx->get_mappings ().lookup_location (
+			     type.get_ty_ref ()));
     }
 
   tree struct_type_record = Backend::struct_type (fields);
-  translated = Backend::named_type (type.as_string (), struct_type_record,
+  translated = Backend::named_type (type.get_name (), struct_type_record,
 				    type.get_ident ().locus);
 }
 
@@ -463,26 +488,29 @@ TyTyResolveCompile::visit (const TyTy::ArrayType &type)
 {
   tree element_type
     = TyTyResolveCompile::compile (ctx, type.get_element_type ());
+  auto const_capacity = type.get_capacity ();
 
-  ctx->push_const_context ();
+  // Check if capacity is a const type
+  if (const_capacity->get_kind () != TyTy::TypeKind::CONST)
+    {
+      rust_error_at (type.get_locus (), "array capacity is not a const type");
+      translated = error_mark_node;
+      return;
+    }
 
-  HIR::Expr &hir_capacity_expr = type.get_capacity_expr ();
-  TyTy::BaseType *capacity_expr_ty = nullptr;
-  bool ok = ctx->get_tyctx ()->lookup_type (
-    hir_capacity_expr.get_mappings ().get_hirid (), &capacity_expr_ty);
-  rust_assert (ok);
-  tree capacity_expr = HIRCompileBase::compile_constant_expr (
-    ctx, hir_capacity_expr.get_mappings ().get_hirid (), capacity_expr_ty,
-    capacity_expr_ty, Resolver::CanonicalPath::create_empty (),
-    hir_capacity_expr, type.get_locus (), hir_capacity_expr.get_locus ());
+  auto *capacity_const = const_capacity->as_const_type ();
 
-  ctx->pop_const_context ();
+  rust_assert (capacity_const->const_kind ()
+	       == TyTy::BaseConstType::ConstKind::Value);
+  auto &capacity_value = *static_cast<TyTy::ConstValueType *> (capacity_const);
+  auto folded_capacity_expr = capacity_value.get_value ();
 
-  tree folded_capacity_expr = fold_expr (capacity_expr);
+  // build_index_type takes the maximum index, which is one less than
+  // the length.
+  tree index_type_tree = build_index_type (
+    fold_build2 (MINUS_EXPR, sizetype, folded_capacity_expr, size_one_node));
 
-  translated = Backend::array_type (element_type, folded_capacity_expr);
-  if (translated != error_mark_node)
-    translated = ctx->insert_compiled_type (translated);
+  translated = build_array_type (element_type, index_type_tree, false);
 }
 
 void
@@ -755,7 +783,9 @@ TyTyResolveCompile::visit (const TyTy::DynamicObjectType &type)
 void
 TyTyResolveCompile::visit (const TyTy::OpaqueType &type)
 {
-  translated = error_mark_node;
+  rust_assert (type.can_resolve ());
+  auto underlying = type.resolve ();
+  translated = TyTyResolveCompile::compile (ctx, underlying, trait_object_mode);
 }
 
 tree
@@ -768,17 +798,15 @@ TyTyResolveCompile::create_dyn_obj_record (const TyTy::DynamicObjectType &type)
   tree uint = Backend::integer_type (true, Backend::get_pointer_size ());
   tree uintptr_ty = build_pointer_type (uint);
 
-  Backend::typed_identifier f ("pointer", uintptr_ty,
-			       ctx->get_mappings ().lookup_location (
-				 type.get_ty_ref ()));
-  fields.push_back (std::move (f));
+  fields.emplace_back ("pointer", uintptr_ty,
+		       ctx->get_mappings ().lookup_location (
+			 type.get_ty_ref ()));
 
   tree vtable_size = build_int_cst (size_type_node, items.size ());
   tree vtable_type = Backend::array_type (uintptr_ty, vtable_size);
-  Backend::typed_identifier vtf ("vtable", vtable_type,
-				 ctx->get_mappings ().lookup_location (
-				   type.get_ty_ref ()));
-  fields.push_back (std::move (vtf));
+  fields.emplace_back ("vtable", vtable_type,
+		       ctx->get_mappings ().lookup_location (
+			 type.get_ty_ref ()));
 
   tree record = Backend::struct_type (fields);
   RS_DST_FLAG (record) = 1;

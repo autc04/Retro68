@@ -1,17 +1,17 @@
-.macro cond
+.syntax unified
+.thumb
+
 .irp top, t, b
 .irp cond, eq, ne, gt, ge, lt, le
 .irp size, .f16.f32, .f32.f16
+
 it \cond
 vcvt\top\size q0, q1
-.endr
-.endr
-.endr
-.endm
 
-.syntax unified
-.thumb
-cond
+.endr
+.endr
+.endr
+
 vcvt.f64.f16 q0, q1
 vcvt.f64.f32 q0, q1
 vcvt.f16.f64 q0, q1

@@ -1,6 +1,6 @@
 ## Makefile for the C++11 sources of the GNU C++ Standard library.
 ##
-## Copyright (C) 1997-2025 Free Software Foundation, Inc.
+## Copyright (C) 1997-2026 Free Software Foundation, Inc.
 ##
 ## This file is part of the libstdc++ version 3 distribution.
 ## Process this file with automake to produce Makefile.in.
@@ -145,7 +145,8 @@ libstdc___la_LIBADD = \
 	$(top_builddir)/src/c++98/libc++98convenience.la \
 	$(top_builddir)/src/c++11/libc++11convenience.la \
 	$(top_builddir)/src/c++17/libc++17convenience.la \
-	$(top_builddir)/src/c++20/libc++20convenience.la
+	$(top_builddir)/src/c++20/libc++20convenience.la \
+	$(top_builddir)/src/c++23/libmodulesconvenience.la
 
 libstdc___la_DEPENDENCIES = \
 	${version_dep} \
@@ -153,7 +154,8 @@ libstdc___la_DEPENDENCIES = \
 	$(top_builddir)/src/c++98/libc++98convenience.la \
 	$(top_builddir)/src/c++11/libc++11convenience.la \
 	$(top_builddir)/src/c++17/libc++17convenience.la \
-	$(top_builddir)/src/c++20/libc++20convenience.la
+	$(top_builddir)/src/c++20/libc++20convenience.la \
+	$(top_builddir)/src/c++23/libmodulesconvenience.la
 
 if ENABLE_DARWIN_AT_RPATH
 libstdc___darwin_rpath = -Wc,-nodefaultrpaths

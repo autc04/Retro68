@@ -1,7 +1,7 @@
 # Test that the linker reports undefined symbol errors correctly.
 # By Ian Lance Taylor, Cygnus Support
 #
-#   Copyright (C) 1995-2022 Free Software Foundation, Inc.
+#   Copyright (C) 1995-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -74,6 +74,7 @@ if { ![check_compiler_available] } {
     # in a literal pool outside the function, so that both the
     # "undefined function" and "undefined line" tests fail.
     setup_xfail xtensa*-*-linux*
+    setup_xfail loongarch*-*-*
 
     set mf "tmpdir/undefined.o* in function `function':"
     checkund $mf $testfn
@@ -89,7 +90,7 @@ if { ![check_compiler_available] } {
 	#setup_xfail "arm*-*-pe*"
     }
 
-    set ml "undefined.c:9: undefined reference to `*this_function_is_not_defined'"
+    set ml {undefined.c:9:(*): undefined reference to `*this_function_is_not_defined'}
     # With targets that use elf/dwarf2, such as the arm-elf toolchain,
     # the code in bfd/elf.c:_bfd_elf_find_nearest_line() is called in
     # order to locate the file name/line number where the undefined
@@ -141,7 +142,12 @@ if { ![check_compiler_available] } {
     # error message is 8 instead of 9. On 64 bit s/390 this works
     # because of the new brasl instruction that doesn't need a literal
     # pool entry.
-    setup_xfail s390-*-*
+    # FIXME: this test has been an XPASS since 2021-04 (and maybe
+    # earlier, that's just where my logs went back to).  Testing the
+    # gcc version is a wild guess at what might have changed.
+    if ![at_least_gcc_version 11 0] {
+	setup_xfail s390-*-*
+    }
 
     # See comments above for Xtensa.
     setup_xfail xtensa*-*-linux*
@@ -149,6 +155,7 @@ if { ![check_compiler_available] } {
 
     # eBPF doesn't support dwarf yet.
     setup_xfail bpf-*-*
+    setup_xfail loongarch*-*-*
 
     checkund $ml $testline
 }
@@ -201,7 +208,8 @@ if { ![is_elf_format] || ![check_shared_lib_support]} then {
     # triplets, and S+core targets using an extra R_SCORE_NONE
     # relocation, so adjust for that.
     switch -glob $target_triplet {
-	"mips64*-*-openbsd*" {
+	"mips64*-*-openbsd*" -
+	"mips64*-*-*-gnuabi64" {
 	    set none_count 6
 	    set reloc_count 4
 	}

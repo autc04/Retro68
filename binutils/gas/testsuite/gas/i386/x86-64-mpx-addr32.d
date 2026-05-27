@@ -1,3 +1,4 @@
+#as: -march=+mpx
 #objdump: -drw
 #name: x86-64 MPX addr32 tests
 

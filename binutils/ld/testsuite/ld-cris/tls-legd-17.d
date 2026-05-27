@@ -6,7 +6,7 @@
 #source: tls-x.s
 #source: tls-z.s
 #source: tls-x1x2.s
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux
 #objdump: -d -s -h -t -r -p
 

@@ -1,6 +1,7 @@
 /* { dg-skip-if "" { powerpc*-*-aix* } } */
 /* Verify that we can disable -Wanalyzer-too-complex via pragmas.  */
 /* { dg-additional-options "-Wanalyzer-too-complex -Werror=analyzer-too-complex -fno-analyzer-state-merge -g" } */
+/* { dg-additional-options "-fno-exceptions" } */
 /* { dg-skip-if "requires hosted libstdc++ for stdlib malloc" { ! hostedlib } } */
 
 #include <stdlib.h>
@@ -47,7 +48,7 @@ void test (void)
 	  *pp = malloc (16); /* { dg-warning "leak" } */
 	  break;
 	case 1:
-	  free (*pp);
+	  free (*pp); /* { dg-warning "double-free" } */
 	  break;
 	case 2:
 	  /* no-op.  */

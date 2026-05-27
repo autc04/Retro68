@@ -1,6 +1,10 @@
 /* { dg-output "0\r*\n2\r*\n" } */
+#![feature(no_core)]
+#![no_core]
+
 #![feature(intrinsics)]
 
+#![feature(lang_items)]
 #[lang = "sized"]
 pub trait Sized {}
 

@@ -1,6 +1,6 @@
 #source: dso-1.s
 #source: locref3.s
-#as: --pic --no-underscore --em=criself
+#as: --pic --no-underscore --emulation=criself
 #ld: --shared -m crislinux
 #readelf: --dyn-syms -r
 

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dwMintel
 #name: i386 PREFETCHWT1 insns (Intel disassembly)
 #source: prefetchwt1.s

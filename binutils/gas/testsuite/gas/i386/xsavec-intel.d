@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 XSAVEC insns (Intel disassembly)
 #source: xsavec.s

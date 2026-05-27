@@ -1,5 +1,4 @@
 # MPX instructions
-	.allow_index_reg
 	.text
 start:
 	### bndmk
@@ -215,35 +214,19 @@ start:
 
 foo:	bnd ret
 
+	.att_syntax prefix
 bad:
-	# bndldx (%eax),(bad)
-	.byte 0x0f
-	.byte 0x1a
-	.byte 0x30
+	# bndldx (%rax),(bad)
+	.insn 0x0f1a, (%rax), %esi
 
 	# bndmov (bad),%bnd0
-	.byte 0x66
-	.byte 0x0f
-	.byte 0x1a
-	.byte 0xc4
+	.insn 0x660f1a, %esp, %bnd0
 
 	# bndmov with REX.B set
-	.byte 0x66
-	.byte 0x41
-	.byte 0x0f
-	.byte 0x1a
-	.byte 0xc0
+	.insn 0x660f1a, %r8d, %bnd0
 
 	# bndmov with REX.R set
-	.byte 0x66
-	.byte 0x44
-	.byte 0x0f
-	.byte 0x1a
-	.byte 0xc0
+	.insn 0x660f1a, %bnd0, %r8d
 
 	# bndmk (bad),%bnd0
-	.byte 0xf3
-	.byte 0x0f
-	.byte 0x1b
-	.byte 0x05
-	.long 0x90909090
+	.insn 0xf30f1b, -0x6f6f6f70(%rip), %bnd0

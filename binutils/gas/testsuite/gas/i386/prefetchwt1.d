@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 PREFETCHWT1 insns
 

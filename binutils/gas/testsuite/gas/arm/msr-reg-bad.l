@@ -1,5 +1,5 @@
 [^:]*: Assembler messages:
-[^:]*:8: writing to APSR without specifying a bitmask is deprecated
+[^:]*:8: Warning: writing to APSR without specifying a bitmask is deprecated
 [^:]*:9: Error: selected processor does not support DSP extension -- `msr APSR_g,r9'
 [^:]*:11: Error: selected processor does not support DSP extension -- `msr APSR_nzcvqg,r9'
 [^:]*:14: Error: selected processor does not support requested special purpose register -- `msr CPSR,r9'

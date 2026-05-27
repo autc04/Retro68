@@ -1,6 +1,3 @@
-
-.*:     file format.*msp430.*
-
-
-Disassembly of section .upper.text:
 #...
+.* \.upper\.text +0+38 .*
+#pass

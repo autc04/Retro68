@@ -1,8 +1,7 @@
 # Check 32bit AVX512IFMA instructions
 
-	.allow_index_reg
 	.text
-_start:
+ifma:
 	vpmadd52luq	%zmm4, %zmm5, %zmm6	 # AVX512IFMA
 	vpmadd52luq	%zmm4, %zmm5, %zmm6{%k7}	 # AVX512IFMA
 	vpmadd52luq	%zmm4, %zmm5, %zmm6{%k7}{z}	 # AVX512IFMA

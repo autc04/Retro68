@@ -90,7 +90,6 @@ extern void test_user_msr (void)		__attribute__((__target__("usermsr")));
 extern void test_avx10_2 (void)			__attribute__((__target__("avx10.2")));
 extern void test_amx_avx512 (void)		__attribute__((__target__("amx-avx512")));
 extern void test_amx_tf32 (void)		__attribute__((__target__("amx-tf32")));
-extern void test_amx_transpose (void)		__attribute__((__target__("amx-transpose")));
 extern void test_amx_fp8 (void)                 __attribute__((__target__("amx-fp8")));
 extern void test_movrs (void)			__attribute__((__target__("movrs")));
 extern void test_amx_movrs (void)		__attribute__((__target__("amx-movrs")));
@@ -185,7 +184,6 @@ extern void test_no_user_msr (void)		__attribute__((__target__("no-usermsr")));
 extern void test_no_avx10_2 (void)		__attribute__((__target__("no-avx10.2")));
 extern void test_no_amx_avx512 (void)		__attribute__((__target__("no-amx-avx512")));
 extern void test_no_amx_tf32 (void)		__attribute__((__target__("no-amx-tf32")));
-extern void test_no_amx_transpose (void)	__attribute__((__target__("no-amx-transpose")));
 extern void test_no_amx_fp8 (void)              __attribute__((__target__("no-amx-fp8")));
 extern void test_no_movrs (void)		__attribute__((__target__("no-movrs")));
 extern void test_no_amx_movrs (void)		__attribute__((__target__("no-amx-movrs")));
@@ -219,6 +217,7 @@ extern void test_arch_arrowlake (void)		__attribute__((__target__("arch=arrowlak
 extern void test_arch_arrowlake_s (void)	__attribute__((__target__("arch=arrowlake-s")));
 extern void test_arch_pantherlake (void)	__attribute__((__target__("arch=pantherlake")));
 extern void test_arch_diamondrapids (void)	__attribute__((__target__("arch=diamondrapids")));
+extern void test_arch_novalake (void)		__attribute__((__target__("arch=novalake")));
 extern void test_arch_lujiazui (void)		__attribute__((__target__("arch=lujiazui")));
 extern void test_arch_yongfeng (void)		__attribute__((__target__("arch=yongfeng")));
 extern void test_arch_shijidadao (void)		__attribute__((__target__("arch=shijidadao")));
@@ -239,6 +238,7 @@ extern void test_arch_znver2 (void)             __attribute__((__target__("arch=
 extern void test_arch_znver3 (void)             __attribute__((__target__("arch=znver3")));
 extern void test_arch_znver4 (void)             __attribute__((__target__("arch=znver4")));
 extern void test_arch_znver5 (void)             __attribute__((__target__("arch=znver5")));
+extern void test_arch_znver6 (void)             __attribute__((__target__("arch=znver6")));
 
 extern void test_tune_nocona (void)		__attribute__((__target__("tune=nocona")));
 extern void test_tune_core2 (void)		__attribute__((__target__("tune=core2")));
@@ -266,6 +266,7 @@ extern void test_tune_znver2 (void)             __attribute__((__target__("tune=
 extern void test_tune_znver3 (void)             __attribute__((__target__("tune=znver3")));
 extern void test_tune_znver4 (void)             __attribute__((__target__("tune=znver4")));
 extern void test_tune_znver5 (void)             __attribute__((__target__("tune=znver5")));
+extern void test_tune_znver6 (void)             __attribute__((__target__("tune=znver6")));
 
 extern void test_fpmath_sse (void)		__attribute__((__target__("sse2,fpmath=sse")));
 extern void test_fpmath_387 (void)		__attribute__((__target__("sse2,fpmath=387")));

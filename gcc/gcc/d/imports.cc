@@ -1,5 +1,5 @@
 /* imports.cc -- Build imported modules/declarations.
-   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -130,7 +130,7 @@ public:
   void visit (VarDeclaration *d) final override
   {
     /* Not all kinds of manifest constants create a CONST_DECL.  */
-    if (!d->canTakeAddressOf () && !d->type->isScalar ())
+    if (!d->canTakeAddressOf () && !dmd::isScalar (d->type))
       return;
 
     visit ((Declaration *) d);
@@ -144,11 +144,11 @@ public:
   /* Alias symbols aren't imported, but their targets are.  */
   void visit (AliasDeclaration *d) final override
   {
-    Dsymbol *dsym = d->toAlias ();
+    Dsymbol *dsym = dmd::toAlias (d);
 
     if (dsym == d)
       {
-	Type *type = d->getType ();
+	Type *type = dmd::getType (d);
 
 	/* Type imports should really be part of their own visit method.  */
 	if (type != NULL)

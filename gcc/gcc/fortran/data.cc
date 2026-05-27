@@ -1,5 +1,5 @@
 /* Supporting functions for resolving DATA statement.
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Lifang Zeng <zlf605@hotmail.com>
 
 This file is part of GCC.
@@ -593,7 +593,13 @@ gfc_assign_data_value (gfc_expr *lvalue, gfc_expr *rvalue, mpz_t index,
 	{
 	  /* Point the container at the new expression.  */
 	  if (last_con == NULL)
-	    symbol->value = expr;
+	    {
+	      symbol->value = expr;
+	      /* For a new initializer use the location from the
+		 constructor as fallback.  */
+	      if (!GFC_LOCUS_IS_SET(expr->where) && con != NULL)
+		symbol->value->where = con->where;
+	    }
 	  else
 	    last_con->expr = expr;
 	}

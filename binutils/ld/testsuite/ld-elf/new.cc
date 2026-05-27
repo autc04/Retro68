@@ -1,4 +1,5 @@
 #include <new>
+#include "dl5.h"
 
 using std::bad_alloc;
 
@@ -44,4 +45,9 @@ void *
 operator new[] (std::size_t sz, const std::nothrow_t& nothrow) throw()
 {
   return ::operator new(sz, nothrow);
+}
+
+void
+foo (A *)
+{
 }

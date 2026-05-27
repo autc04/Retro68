@@ -1,6 +1,6 @@
 #source: pr19609-6.s
 #as: --64 -mrelax-relocations=yes
-#ld: -melf_x86_64 --defsym foobar=0x80000000 --no-relax -z max-page-size=0x1000 -z separate-code
+#ld: -melf_x86_64 --defsym foobar=0x80000000 --no-relax -z max-page-size=0x1000 -z separate-code --no-rosegment
 #objdump: -dw
 
 .*: +file format .*

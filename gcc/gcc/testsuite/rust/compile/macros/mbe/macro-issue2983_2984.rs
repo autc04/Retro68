@@ -1,3 +1,6 @@
+#![feature(no_core)]
+#![no_core]
+
 pub struct ReadDir {
     pub inner: i32,
     #[cfg(not(A))]
@@ -18,10 +21,9 @@ fn main() {
 
     // Error
     let _ = ReadDir {
+        // { dg-error "unknown field .end_of_stream_but_different. .E0560." "" { target *-*-* } .-1 }
         inner: 14,
         end_of_stream: false,
-        end_of_stream_but_different: false, // { dg-error "failed to resolve type for field" }
-        // { dg-error "unknown field" "" { target *-*-* } .-1 }
-        // { dg-prune-output "compilation terminated" }
+        end_of_stream_but_different: false,
     };
 }

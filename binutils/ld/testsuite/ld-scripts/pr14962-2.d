@@ -1,7 +1,7 @@
 #ld: -T pr14962-2.t
 #source: pr14962a.s
 #nm: -n
-#xfail: frv-*-*linux*
+#xfail: bfin-*-linux* frv-*-*linux*
 
 #...
 0+2000 [AT] _start

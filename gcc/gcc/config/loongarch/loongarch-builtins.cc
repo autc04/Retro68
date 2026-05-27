@@ -1,5 +1,5 @@
 /* Subroutines used for expanding LoongArch builtins.
-   Copyright (C) 2021-2025 Free Software Foundation, Inc.
+   Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by Loongson Ltd.
 
 This file is part of GCC.
@@ -117,6 +117,8 @@ struct loongarch_builtin_description
   unsigned int (*avail) (void);
 };
 
+AVAIL_ALL (la64, TARGET_64BIT)
+AVAIL_ALL (la64_or_la32s, (TARGET_64BIT || TARGET_32BIT_S))
 AVAIL_ALL (hard_float, TARGET_HARD_FLOAT_ABI)
 AVAIL_ALL (lsx, ISA_HAS_LSX)
 AVAIL_ALL (lasx, ISA_HAS_LASX)
@@ -865,6 +867,27 @@ AVAIL_ALL (lasx_frecipe, ISA_HAS_LASX && ISA_HAS_FRECIPE)
 #define CODE_FOR_lasx_xvmaddwod_q_du	CODE_FOR_lasx_maddwod_q_du_punned
 #define CODE_FOR_lasx_xvmaddwod_q_du_d	CODE_FOR_lasx_maddwod_q_du_d_punned
 
+
+/* Add mutual conversion between 128 and 256 vectors.  */
+#define CODE_FOR_lasx_extract_128_lo_s	CODE_FOR_vec_extract_lo_v8sf
+#define CODE_FOR_lasx_extract_128_hi_s	CODE_FOR_vec_extract_hi_v8sf
+#define CODE_FOR_lasx_extract_128_lo_d	CODE_FOR_vec_extract_lo_v4df
+#define CODE_FOR_lasx_extract_128_hi_d	CODE_FOR_vec_extract_hi_v4df
+#define CODE_FOR_lasx_extract_128_lo	CODE_FOR_vec_extract_lo_v4di
+#define CODE_FOR_lasx_extract_128_hi	CODE_FOR_vec_extract_hi_v4di
+#define CODE_FOR_lasx_insert_128_lo_s	CODE_FOR_vec_insert_lo_v8sf
+#define CODE_FOR_lasx_insert_128_hi_s	CODE_FOR_vec_insert_hi_v8sf
+#define CODE_FOR_lasx_insert_128_lo_d	CODE_FOR_vec_insert_lo_v4df
+#define CODE_FOR_lasx_insert_128_hi_d	CODE_FOR_vec_insert_hi_v4df
+#define CODE_FOR_lasx_insert_128_lo	CODE_FOR_vec_insert_lo_v4di
+#define CODE_FOR_lasx_insert_128_hi	CODE_FOR_vec_insert_hi_v4di
+#define CODE_FOR_lasx_concat_128_s	CODE_FOR_vec_concatv8sf
+#define CODE_FOR_lasx_concat_128_d	CODE_FOR_vec_concatv4df
+#define CODE_FOR_lasx_concat_128	CODE_FOR_vec_concatv4di
+#define CODE_FOR_lasx_cast_128_s   	CODE_FOR_vec_castv8sf
+#define CODE_FOR_lasx_cast_128_d  	CODE_FOR_vec_castv4df
+#define CODE_FOR_lasx_cast_128   	CODE_FOR_vec_castv4di
+
 static const struct loongarch_builtin_description loongarch_builtins[] = {
 #define LARCH_MOVFCSR2GR 0
   DIRECT_BUILTIN (movfcsr2gr, LARCH_USI_FTYPE_UQI, hard_float),
@@ -872,44 +895,44 @@ static const struct loongarch_builtin_description loongarch_builtins[] = {
   DIRECT_NO_TARGET_BUILTIN (movgr2fcsr, LARCH_VOID_FTYPE_UQI_USI, hard_float),
 
   DIRECT_NO_TARGET_BUILTIN (cacop_w, LARCH_VOID_FTYPE_USI_USI_SI, default),
-  DIRECT_NO_TARGET_BUILTIN (cacop_d, LARCH_VOID_FTYPE_USI_UDI_SI, default),
+  DIRECT_NO_TARGET_BUILTIN (cacop_d, LARCH_VOID_FTYPE_USI_UDI_SI, la64),
   DIRECT_NO_TARGET_BUILTIN (dbar, LARCH_VOID_FTYPE_USI, default),
   DIRECT_NO_TARGET_BUILTIN (ibar, LARCH_VOID_FTYPE_USI, default),
 
-  DIRECT_BUILTIN (lddir_d, LARCH_DI_FTYPE_DI_UQI, default),
-  DIRECT_BUILTIN (lddir_w, LARCH_SI_FTYPE_SI_UQI, default),
-  DIRECT_NO_TARGET_BUILTIN (ldpte_d, LARCH_VOID_FTYPE_DI_UQI, default),
-  DIRECT_NO_TARGET_BUILTIN (ldpte_w, LARCH_VOID_FTYPE_SI_UQI, default),
+  DIRECT_BUILTIN (lddir_d, LARCH_DI_FTYPE_DI_UQI, la64),
+  DIRECT_BUILTIN (lddir_w, LARCH_SI_FTYPE_SI_UQI,  la64_or_la32s),
+  DIRECT_NO_TARGET_BUILTIN (ldpte_d, LARCH_VOID_FTYPE_DI_UQI, la64),
+  DIRECT_NO_TARGET_BUILTIN (ldpte_w, LARCH_VOID_FTYPE_SI_UQI,  la64_or_la32s),
 
   /* CRC Instrinsic */
 
-  DIRECT_BUILTIN (crc_w_b_w, LARCH_SI_FTYPE_QI_SI, default),
-  DIRECT_BUILTIN (crc_w_h_w, LARCH_SI_FTYPE_HI_SI, default),
-  DIRECT_BUILTIN (crc_w_w_w, LARCH_SI_FTYPE_SI_SI, default),
-  DIRECT_BUILTIN (crc_w_d_w, LARCH_SI_FTYPE_DI_SI, default),
-  DIRECT_BUILTIN (crcc_w_b_w, LARCH_SI_FTYPE_QI_SI, default),
-  DIRECT_BUILTIN (crcc_w_h_w, LARCH_SI_FTYPE_HI_SI, default),
-  DIRECT_BUILTIN (crcc_w_w_w, LARCH_SI_FTYPE_SI_SI, default),
-  DIRECT_BUILTIN (crcc_w_d_w, LARCH_SI_FTYPE_DI_SI, default),
+  DIRECT_BUILTIN (crc_w_b_w, LARCH_SI_FTYPE_QI_SI, la64),
+  DIRECT_BUILTIN (crc_w_h_w, LARCH_SI_FTYPE_HI_SI, la64),
+  DIRECT_BUILTIN (crc_w_w_w, LARCH_SI_FTYPE_SI_SI, la64),
+  DIRECT_BUILTIN (crc_w_d_w, LARCH_SI_FTYPE_DI_SI, la64),
+  DIRECT_BUILTIN (crcc_w_b_w, LARCH_SI_FTYPE_QI_SI, la64),
+  DIRECT_BUILTIN (crcc_w_h_w, LARCH_SI_FTYPE_HI_SI, la64),
+  DIRECT_BUILTIN (crcc_w_w_w, LARCH_SI_FTYPE_SI_SI, la64),
+  DIRECT_BUILTIN (crcc_w_d_w, LARCH_SI_FTYPE_DI_SI, la64),
 
   DIRECT_BUILTIN (csrrd_w, LARCH_USI_FTYPE_USI, default),
-  DIRECT_BUILTIN (csrrd_d, LARCH_UDI_FTYPE_USI, default),
+  DIRECT_BUILTIN (csrrd_d, LARCH_UDI_FTYPE_USI, la64),
   DIRECT_BUILTIN (csrwr_w, LARCH_USI_FTYPE_USI_USI, default),
-  DIRECT_BUILTIN (csrwr_d, LARCH_UDI_FTYPE_UDI_USI, default),
+  DIRECT_BUILTIN (csrwr_d, LARCH_UDI_FTYPE_UDI_USI, la64),
   DIRECT_BUILTIN (csrxchg_w, LARCH_USI_FTYPE_USI_USI_USI, default),
-  DIRECT_BUILTIN (csrxchg_d, LARCH_UDI_FTYPE_UDI_UDI_USI, default),
+  DIRECT_BUILTIN (csrxchg_d, LARCH_UDI_FTYPE_UDI_UDI_USI, la64),
   DIRECT_BUILTIN (iocsrrd_b, LARCH_UQI_FTYPE_USI, default),
   DIRECT_BUILTIN (iocsrrd_h, LARCH_UHI_FTYPE_USI, default),
   DIRECT_BUILTIN (iocsrrd_w, LARCH_USI_FTYPE_USI, default),
-  DIRECT_BUILTIN (iocsrrd_d, LARCH_UDI_FTYPE_USI, default),
+  DIRECT_BUILTIN (iocsrrd_d, LARCH_UDI_FTYPE_USI, la64),
   DIRECT_NO_TARGET_BUILTIN (iocsrwr_b, LARCH_VOID_FTYPE_UQI_USI, default),
   DIRECT_NO_TARGET_BUILTIN (iocsrwr_h, LARCH_VOID_FTYPE_UHI_USI, default),
   DIRECT_NO_TARGET_BUILTIN (iocsrwr_w, LARCH_VOID_FTYPE_USI_USI, default),
-  DIRECT_NO_TARGET_BUILTIN (iocsrwr_d, LARCH_VOID_FTYPE_UDI_USI, default),
+  DIRECT_NO_TARGET_BUILTIN (iocsrwr_d, LARCH_VOID_FTYPE_UDI_USI, la64),
 
   DIRECT_BUILTIN (cpucfg, LARCH_USI_FTYPE_USI, default),
-  DIRECT_NO_TARGET_BUILTIN (asrtle_d, LARCH_VOID_FTYPE_DI_DI, default),
-  DIRECT_NO_TARGET_BUILTIN (asrtgt_d, LARCH_VOID_FTYPE_DI_DI, default),
+  DIRECT_NO_TARGET_BUILTIN (asrtle_d, LARCH_VOID_FTYPE_DI_DI, la64),
+  DIRECT_NO_TARGET_BUILTIN (asrtgt_d, LARCH_VOID_FTYPE_DI_DI, la64),
   DIRECT_NO_TARGET_BUILTIN (syscall, LARCH_VOID_FTYPE_USI, default),
   DIRECT_NO_TARGET_BUILTIN (break, LARCH_VOID_FTYPE_USI, default),
 
@@ -1468,10 +1491,10 @@ static const struct loongarch_builtin_description loongarch_builtins[] = {
   LSX_BUILTIN (vfrintrp_d, LARCH_V2DF_FTYPE_V2DF),
   LSX_BUILTIN (vfrintrm_s, LARCH_V4SF_FTYPE_V4SF),
   LSX_BUILTIN (vfrintrm_d, LARCH_V2DF_FTYPE_V2DF),
-  LSX_NO_TARGET_BUILTIN (vstelm_b, LARCH_VOID_FTYPE_V16QI_CVPOINTER_SI_UQI),
-  LSX_NO_TARGET_BUILTIN (vstelm_h, LARCH_VOID_FTYPE_V8HI_CVPOINTER_SI_UQI),
-  LSX_NO_TARGET_BUILTIN (vstelm_w, LARCH_VOID_FTYPE_V4SI_CVPOINTER_SI_UQI),
-  LSX_NO_TARGET_BUILTIN (vstelm_d, LARCH_VOID_FTYPE_V2DI_CVPOINTER_SI_UQI),
+  LSX_NO_TARGET_BUILTIN (vstelm_b, LARCH_VOID_FTYPE_V16QI_VPOINTER_SI_UQI),
+  LSX_NO_TARGET_BUILTIN (vstelm_h, LARCH_VOID_FTYPE_V8HI_VPOINTER_SI_UQI),
+  LSX_NO_TARGET_BUILTIN (vstelm_w, LARCH_VOID_FTYPE_V4SI_VPOINTER_SI_UQI),
+  LSX_NO_TARGET_BUILTIN (vstelm_d, LARCH_VOID_FTYPE_V2DI_VPOINTER_SI_UQI),
   LSX_BUILTIN (vaddwev_d_w, LARCH_V2DI_FTYPE_V4SI_V4SI),
   LSX_BUILTIN (vaddwev_w_h, LARCH_V4SI_FTYPE_V8HI_V8HI),
   LSX_BUILTIN (vaddwev_h_b, LARCH_V8HI_FTYPE_V16QI_V16QI),
@@ -1641,7 +1664,7 @@ static const struct loongarch_builtin_description loongarch_builtins[] = {
   LSX_BUILTIN (vssrarni_du_q, LARCH_UV2DI_FTYPE_UV2DI_V2DI_USI),
   LSX_BUILTIN (vpermi_w, LARCH_V4SI_FTYPE_V4SI_V4SI_USI),
   LSX_BUILTIN (vld, LARCH_V16QI_FTYPE_CVPOINTER_SI),
-  LSX_NO_TARGET_BUILTIN (vst, LARCH_VOID_FTYPE_V16QI_CVPOINTER_SI),
+  LSX_NO_TARGET_BUILTIN (vst, LARCH_VOID_FTYPE_V16QI_VPOINTER_SI),
   LSX_BUILTIN (vssrlrn_b_h, LARCH_V16QI_FTYPE_V8HI_V8HI),
   LSX_BUILTIN (vssrlrn_h_w, LARCH_V8HI_FTYPE_V4SI_V4SI),
   LSX_BUILTIN (vssrlrn_w_d, LARCH_V4SI_FTYPE_V2DI_V2DI),
@@ -1652,7 +1675,7 @@ static const struct loongarch_builtin_description loongarch_builtins[] = {
   LSX_BUILTIN (vldi, LARCH_V2DI_FTYPE_HI),
   LSX_BUILTIN (vshuf_b, LARCH_V16QI_FTYPE_V16QI_V16QI_V16QI),
   LSX_BUILTIN (vldx, LARCH_V16QI_FTYPE_CVPOINTER_DI),
-  LSX_NO_TARGET_BUILTIN (vstx, LARCH_VOID_FTYPE_V16QI_CVPOINTER_DI),
+  LSX_NO_TARGET_BUILTIN (vstx, LARCH_VOID_FTYPE_V16QI_VPOINTER_DI),
   LSX_BUILTIN (vextl_qu_du, LARCH_UV2DI_FTYPE_UV2DI),
 
   /* Built-in functions for LASX */
@@ -2181,11 +2204,11 @@ static const struct loongarch_builtin_description loongarch_builtins[] = {
   LASX_BUILTIN (xvfrintrm_s, LARCH_V8SF_FTYPE_V8SF),
   LASX_BUILTIN (xvfrintrm_d, LARCH_V4DF_FTYPE_V4DF),
   LASX_BUILTIN (xvld, LARCH_V32QI_FTYPE_CVPOINTER_SI),
-  LASX_NO_TARGET_BUILTIN (xvst, LARCH_VOID_FTYPE_V32QI_CVPOINTER_SI),
-  LASX_NO_TARGET_BUILTIN (xvstelm_b, LARCH_VOID_FTYPE_V32QI_CVPOINTER_SI_UQI),
-  LASX_NO_TARGET_BUILTIN (xvstelm_h, LARCH_VOID_FTYPE_V16HI_CVPOINTER_SI_UQI),
-  LASX_NO_TARGET_BUILTIN (xvstelm_w, LARCH_VOID_FTYPE_V8SI_CVPOINTER_SI_UQI),
-  LASX_NO_TARGET_BUILTIN (xvstelm_d, LARCH_VOID_FTYPE_V4DI_CVPOINTER_SI_UQI),
+  LASX_NO_TARGET_BUILTIN (xvst, LARCH_VOID_FTYPE_V32QI_VPOINTER_SI),
+  LASX_NO_TARGET_BUILTIN (xvstelm_b, LARCH_VOID_FTYPE_V32QI_VPOINTER_SI_UQI),
+  LASX_NO_TARGET_BUILTIN (xvstelm_h, LARCH_VOID_FTYPE_V16HI_VPOINTER_SI_UQI),
+  LASX_NO_TARGET_BUILTIN (xvstelm_w, LARCH_VOID_FTYPE_V8SI_VPOINTER_SI_UQI),
+  LASX_NO_TARGET_BUILTIN (xvstelm_d, LARCH_VOID_FTYPE_V4DI_VPOINTER_SI_UQI),
   LASX_BUILTIN (xvinsve0_w, LARCH_V8SI_FTYPE_V8SI_V8SI_UQI),
   LASX_BUILTIN (xvinsve0_d, LARCH_V4DI_FTYPE_V4DI_V4DI_UQI),
   LASX_BUILTIN (xvpickve_w, LARCH_V8SI_FTYPE_V8SI_UQI),
@@ -2201,7 +2224,7 @@ static const struct loongarch_builtin_description loongarch_builtins[] = {
   LASX_BUILTIN (xvorn_v, LARCH_UV32QI_FTYPE_UV32QI_UV32QI),
   LASX_BUILTIN (xvldi, LARCH_V4DI_FTYPE_HI),
   LASX_BUILTIN (xvldx, LARCH_V32QI_FTYPE_CVPOINTER_DI),
-  LASX_NO_TARGET_BUILTIN (xvstx, LARCH_VOID_FTYPE_V32QI_CVPOINTER_DI),
+  LASX_NO_TARGET_BUILTIN (xvstx, LARCH_VOID_FTYPE_V32QI_VPOINTER_DI),
   LASX_BUILTIN (xvextl_qu_du, LARCH_UV4DI_FTYPE_UV4DI),
 
   /* LASX */
@@ -2407,7 +2430,25 @@ static const struct loongarch_builtin_description loongarch_builtins[] = {
   LASX_BUILTIN (xvssrarni_bu_h, LARCH_UV32QI_FTYPE_UV32QI_V32QI_USI),
   LASX_BUILTIN (xvssrarni_hu_w, LARCH_UV16HI_FTYPE_UV16HI_V16HI_USI),
   LASX_BUILTIN (xvssrarni_wu_d, LARCH_UV8SI_FTYPE_UV8SI_V8SI_USI),
-  LASX_BUILTIN (xvssrarni_du_q, LARCH_UV4DI_FTYPE_UV4DI_V4DI_USI)
+  LASX_BUILTIN (xvssrarni_du_q, LARCH_UV4DI_FTYPE_UV4DI_V4DI_USI),
+  LASX_BUILTIN (extract_128_lo_s, LARCH_V4SF_FTYPE_V8SF),
+  LASX_BUILTIN (extract_128_hi_s, LARCH_V4SF_FTYPE_V8SF),
+  LASX_BUILTIN (extract_128_lo_d, LARCH_V2DF_FTYPE_V4DF),
+  LASX_BUILTIN (extract_128_hi_d, LARCH_V2DF_FTYPE_V4DF),
+  LASX_BUILTIN (extract_128_lo, LARCH_V2DI_FTYPE_V4DI),
+  LASX_BUILTIN (extract_128_hi, LARCH_V2DI_FTYPE_V4DI),
+  LASX_BUILTIN (insert_128_lo_s, LARCH_V8SF_FTYPE_V8SF_V4SF),
+  LASX_BUILTIN (insert_128_hi_s, LARCH_V8SF_FTYPE_V8SF_V4SF),
+  LASX_BUILTIN (insert_128_lo_d, LARCH_V4DF_FTYPE_V4DF_V2DF),
+  LASX_BUILTIN (insert_128_hi_d, LARCH_V4DF_FTYPE_V4DF_V2DF),
+  LASX_BUILTIN (insert_128_lo, LARCH_V4DI_FTYPE_V4DI_V2DI),
+  LASX_BUILTIN (insert_128_hi, LARCH_V4DI_FTYPE_V4DI_V2DI),
+  LASX_BUILTIN (concat_128_s, LARCH_V8SF_FTYPE_V4SF_V4SF),
+  LASX_BUILTIN (concat_128_d, LARCH_V4DF_FTYPE_V2DF_V2DF),
+  LASX_BUILTIN (concat_128, LARCH_V4DI_FTYPE_V2DI_V2DI),
+  LASX_BUILTIN (cast_128_s, LARCH_V8SF_FTYPE_V4SF),
+  LASX_BUILTIN (cast_128_d, LARCH_V4DF_FTYPE_V2DF),
+  LASX_BUILTIN (cast_128, LARCH_V4DI_FTYPE_V2DI)
 };
 
 /* Index I is the function declaration for loongarch_builtins[I], or null if
@@ -2451,11 +2492,25 @@ loongarch_build_cvpointer_type (void)
   return cache;
 }
 
+/* Return a type for 'volatile void *'.  */
+
+static tree
+loongarch_build_vpointer_type (void)
+{
+  static tree cache;
+
+  if (cache == NULL_TREE)
+    cache = build_pointer_type (build_qualified_type (void_type_node,
+						      TYPE_QUAL_VOLATILE));
+  return cache;
+}
+
 /* Source-level argument types.  */
 #define LARCH_ATYPE_VOID void_type_node
 #define LARCH_ATYPE_INT integer_type_node
 #define LARCH_ATYPE_POINTER ptr_type_node
 #define LARCH_ATYPE_CVPOINTER loongarch_build_cvpointer_type ()
+#define LARCH_ATYPE_VPOINTER loongarch_build_vpointer_type ()
 #define LARCH_ATYPE_BOOLEAN boolean_type_node
 /* Standard mode-based argument types.  */
 #define LARCH_ATYPE_QI intQI_type_node
@@ -3001,6 +3056,10 @@ loongarch_expand_builtin_direct (enum insn_code icode, rtx target, tree exp,
 {
   struct expand_operand ops[MAX_RECOG_OPERANDS];
   int opno, argno;
+  /* For vector extraction/insertion operations, sel_high_p being true
+     indicates that the high of the data is selected/retained from the
+     vector register.  */
+  bool sel_high_p = true;
 
   /* Map any target to operand 0.  */
   opno = 0;
@@ -3018,6 +3077,51 @@ loongarch_expand_builtin_direct (enum insn_code icode, rtx target, tree exp,
       loongarch_prepare_builtin_arg (&ops[2], exp, 0);
       create_input_operand (&ops[1], CONST1_RTX (ops[0].mode), ops[0].mode);
       return loongarch_expand_builtin_insn (icode, 3, ops, has_target_p);
+
+    case CODE_FOR_vec_extract_lo_v8sf:
+    case CODE_FOR_vec_extract_lo_v4df:
+    case CODE_FOR_vec_extract_lo_v4di:
+      sel_high_p = false;
+    /* Fall through.  */
+    case CODE_FOR_vec_extract_hi_v8sf:
+    case CODE_FOR_vec_extract_hi_v4df:
+    case CODE_FOR_vec_extract_hi_v4di:
+      {
+	/* The selection method for constructing the high/low half.  */
+	loongarch_prepare_builtin_arg (&ops[1], exp, 0);
+	int nelts = GET_MODE_NUNITS (GET_MODE (ops[1].value));
+	int half_nelts = nelts / 2;
+	int base = sel_high_p ? half_nelts : 0;
+
+	rtx pat_rtx
+	    = loongarch_gen_stepped_int_parallel (half_nelts, base, 1);
+	create_input_operand (&ops[2], pat_rtx, ops[1].mode);
+
+	return loongarch_expand_builtin_insn (icode, 3, ops, has_target_p);
+      }
+
+    case CODE_FOR_vec_insert_hi_v8sf:
+    case CODE_FOR_vec_insert_hi_v4df:
+    case CODE_FOR_vec_insert_hi_v4di:
+      sel_high_p = false;
+    /* Fall through.  */
+    case CODE_FOR_vec_insert_lo_v8sf:
+    case CODE_FOR_vec_insert_lo_v4df:
+    case CODE_FOR_vec_insert_lo_v4di:
+      {
+	/* The selection method for constructing the high/low half.  */
+	loongarch_prepare_builtin_arg (&ops[1], exp, 0);
+	loongarch_prepare_builtin_arg (&ops[2], exp, 1);
+	int nelts = GET_MODE_NUNITS (GET_MODE (ops[1].value));
+	int half_nelts = nelts / 2;
+	int base = sel_high_p ? half_nelts : 0;
+
+	rtx pat_rtx
+	    = loongarch_gen_stepped_int_parallel (half_nelts, base, 1);
+	create_input_operand (&ops[3], pat_rtx, ops[1].mode);
+
+	return loongarch_expand_builtin_insn (icode, 4, ops, has_target_p);
+      }
 
     default:
       break;
@@ -3171,3 +3275,5 @@ loongarch_build_builtin_va_list (void)
 {
   return ptr_type_node;
 }
+
+#include "gt-loongarch-builtins.h"

@@ -1,5 +1,5 @@
 /* Common declarations for all of GNU Fortran libcaf implementations.
-   Copyright (C) 2011-2025 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
    Contributed by Tobias Burnus <burnus@net-b.de>
 
 This file is part of the GNU Fortran Coarray Runtime Library (libcaf).
@@ -26,21 +26,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #ifndef LIBCAF_H
 #define LIBCAF_H
 
-#include <stdbool.h>
-#include <stddef.h>	/* For size_t.  */
-
 #include "libgfortran.h"
-
-#if 0
-#ifndef __GNUC__
-#define __attribute__(x)
-#define likely(x)       (x)
-#define unlikely(x)     (x)
-#else
-#define likely(x)       __builtin_expect(!!(x), 1)
-#define unlikely(x)     __builtin_expect(!!(x), 0)
-#endif
-#endif
 
 /* Definitions of the Fortran 2008 standard; need to kept in sync with
    ISO_FORTRAN_ENV, cf. gcc/fortran/libgfortran.h.  */
@@ -50,14 +36,24 @@ typedef enum
   CAF_STAT_LOCKED,
   CAF_STAT_LOCKED_OTHER_IMAGE,
   CAF_STAT_STOPPED_IMAGE = 6000,
-  CAF_STAT_FAILED_IMAGE  = 6001
+  CAF_STAT_FAILED_IMAGE  = 6001,
+  CAF_STAT_UNLOCKED_FAILED_IMAGE = 6002
 }
 caf_stat_codes_t;
 
+/* Definitions of the Fortran 2018 standard; need to kept in sync with
+   ISO_FORTRAN_ENV, cf. gcc/fortran/libgfortran.h.  */
+typedef enum
+{
+  CAF_INITIAL_TEAM = 0,
+  CAF_PARENT_TEAM,
+  CAF_CURRENT_TEAM
+} caf_team_level_t;
 
 /* Describes what type of array we are registerring.  Keep in sync with
    gcc/fortran/trans.h.  */
-typedef enum caf_register_t {
+typedef enum caf_register_t
+{
   CAF_REGTYPE_COARRAY_STATIC,
   CAF_REGTYPE_COARRAY_ALLOC,
   CAF_REGTYPE_LOCK_STATIC,
@@ -66,9 +62,9 @@ typedef enum caf_register_t {
   CAF_REGTYPE_EVENT_STATIC,
   CAF_REGTYPE_EVENT_ALLOC,
   CAF_REGTYPE_COARRAY_ALLOC_REGISTER_ONLY,
-  CAF_REGTYPE_COARRAY_ALLOC_ALLOCATE_ONLY
-}
-caf_register_t;
+  CAF_REGTYPE_COARRAY_ALLOC_ALLOCATE_ONLY,
+  CAF_REGTYPE_COARRAY_MAP_EXISTING,
+} caf_register_t;
 
 /* Describes the action to take on _caf_deregister.  Keep in sync with
    gcc/fortran/trans.h.  */
@@ -78,8 +74,8 @@ typedef enum caf_deregister_t {
 }
 caf_deregister_t;
 
-typedef void* caf_token_t;
-typedef void * caf_team_t;
+typedef void *caf_token_t;
+typedef void *caf_team_t;
 typedef gfc_array_void gfc_descriptor_t;
 
 /* Linked list of static coarrays registered.  */
@@ -93,8 +89,8 @@ caf_static_t;
 void _gfortran_caf_init (int *, char ***);
 void _gfortran_caf_finalize (void);
 
-int _gfortran_caf_this_image (int);
-int _gfortran_caf_num_images (int, int);
+int _gfortran_caf_this_image (caf_team_t);
+int _gfortran_caf_num_images (caf_team_t, int32_t *);
 
 void _gfortran_caf_register (size_t, caf_register_t, caf_token_t *,
 			     gfc_descriptor_t *, int *, char *, size_t);
@@ -176,13 +172,17 @@ void _gfortran_caf_event_post (caf_token_t, size_t, int, int *, char *, size_t);
 void _gfortran_caf_event_wait (caf_token_t, size_t, int, int *, char *, size_t);
 void _gfortran_caf_event_query (caf_token_t, size_t, int, int *, int *);
 
-void _gfortran_caf_failed_images (gfc_descriptor_t *,
-				  caf_team_t * __attribute__ ((unused)), int *);
-int _gfortran_caf_image_status (int, caf_team_t * __attribute__ ((unused)));
-void _gfortran_caf_stopped_images (gfc_descriptor_t *,
-				   caf_team_t * __attribute__ ((unused)),
-				   int *);
+void _gfortran_caf_failed_images (gfc_descriptor_t *, caf_team_t *, int *);
+int _gfortran_caf_image_status (int, caf_team_t *);
+void _gfortran_caf_stopped_images (gfc_descriptor_t *, caf_team_t *, int *);
 
 void _gfortran_caf_random_init (bool, bool);
+
+void _gfortran_caf_form_team (int, caf_team_t *, int *, int *, char *, size_t);
+void _gfortran_caf_change_team (caf_team_t, int *, char *, size_t);
+void _gfortran_caf_end_team (int *, char *, size_t);
+void _gfortran_caf_sync_team (caf_team_t, int *, char *, size_t);
+int _gfortran_caf_team_number (caf_team_t);
+caf_team_t _gfortran_caf_get_team (int32_t *);
 
 #endif  /* LIBCAF_H  */

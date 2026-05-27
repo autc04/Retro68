@@ -10,13 +10,13 @@ Disassembly of section .text:
 00000000 <label-0xc>:
    0:	ee001910 	vmov.f16	s0, r1
    4:	ee100990 	vmov.f16	r0, s1
-   8:	eeb00900 	vmov.f16	s0, #0	; 0x40000000  2.0
+   8:	eeb00900 	vmov.f16	s0, #0	@ 0x40000000  2.0
 
 0000000c <label>:
    c:	00000ffe 	.word	0x00000ffe
-  10:	ed5f1906 	vldr.16	s3, \[pc, #-12\]	; c <label>
-  14:	ed1f3902 	vldr.16	s6, \[pc, #-4\]	; 18 <label\+0xc>
-  18:	eddf1902 	vldr.16	s3, \[pc, #4\]	; 24 <label\+0x18>
+  10:	ed5f1906 	vldr.16	s3, \[pc, #-12\]	@ c <label>
+  14:	ed1f3902 	vldr.16	s6, \[pc, #-4\]	@ 18 <label\+0xc>
+  18:	eddf1902 	vldr.16	s3, \[pc, #4\]	@ 24 <label\+0x18>
   1c:	edd00902 	vldr.16	s1, \[r0, #4\]
   20:	ed101902 	vldr.16	s2, \[r0, #-4\]
   24:	ed803902 	vstr.16	s6, \[r0, #4\]

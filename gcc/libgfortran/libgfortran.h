@@ -1,5 +1,5 @@
 /* Common declarations for all of libgfortran.
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>, and
    Andy Vaught <andy@xena.eas.asu.edu>
 
@@ -913,6 +913,11 @@ internal_proto(xcalloc);
 
 extern void *xrealloc (void *, size_t);
 internal_proto(xrealloc);
+
+extern void cfi_deep_copy_array (gfc_array_void *,
+				 gfc_array_void *,
+				 void (*copy_element) (void *, void *));
+export_proto(cfi_deep_copy_array);
 
 /* environ.c */
 

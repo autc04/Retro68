@@ -1,5 +1,7 @@
 	flh		fa0, 0(a1)
+	flh		fa0, hval, t0
 	fsh		fa0, 0(a1)
+	fsh		fa0, hval, t0
 
 	fmv.h		fa0, fa1
 	fneg.h		fa0, fa1

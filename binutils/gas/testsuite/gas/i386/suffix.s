@@ -22,3 +22,7 @@ foo:
 	iret
 	sysretd
 	sysret
+
+	.att_syntax prefix
+	adcxl %ecx, %edx
+	adoxl %ecx, %edx

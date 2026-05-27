@@ -1,5 +1,5 @@
 /* Tail call optimization on trees.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -528,8 +528,20 @@ empty_eh_cleanup (basic_block bb, int *eh_has_tsan_func_exit, int cnt)
 	  *eh_has_tsan_func_exit = 1;
 	  continue;
 	}
-      if (is_gimple_resx (g) && stmt_can_throw_external (cfun, g))
-	return true;
+      if (eh_has_tsan_func_exit
+	  && sanitize_flags_p (SANITIZE_ADDRESS)
+	  && asan_mark_p (g, ASAN_MARK_POISON))
+	continue;
+      if (is_gimple_resx (g))
+	{
+	  if (stmt_can_throw_external (cfun, g))
+	    return true;
+	  if (single_succ_p (bb)
+	      && (single_succ_edge (bb)->flags & EDGE_EH)
+	      && cnt > 1)
+	    return empty_eh_cleanup (single_succ (bb), eh_has_tsan_func_exit,
+				     cnt - 1);
+	}
       return false;
     }
   if (!single_succ_p (bb))
@@ -544,8 +556,9 @@ empty_eh_cleanup (basic_block bb, int *eh_has_tsan_func_exit, int cnt)
 static live_vars_map *live_vars;
 static vec<bitmap_head> live_vars_vec;
 
-/* Finds tailcalls falling into basic block BB.  The list of found tailcalls is
-   added to the start of RET.  When ONLY_MUSTTAIL is set only handle musttail.
+/* Finds tailcalls falling into basic block BB when coming from edge ESUCC (or
+   NULL).  The list of found tailcalls is added to the start of RET.
+   When ONLY_MUSTTAIL is set only handle musttail.
    Update OPT_TAILCALLS as output parameter.  If DIAG_MUSTTAIL, diagnose
    failures for musttail calls.  RETRY_TSAN_FUNC_EXIT is initially 0 and
    in that case the last call is attempted to be tail called, including
@@ -554,12 +567,15 @@ static vec<bitmap_head> live_vars_vec;
    will retry with it set to 1 (regardless of whether turning the
    __tsan_func_exit was successfully detected as tail call or not) and that
    will allow turning musttail calls before that call into tail calls as well
-   by adding __tsan_func_exit call before the call.  */
+   by adding __tsan_func_exit call before the call.
+   IGNORED_EDGES and MUST_SEE_BBS are used in recursive calls when handling
+   GIMPLE_CONDs for cleanups.  */
 
 static void
-find_tail_calls (basic_block bb, struct tailcall **ret, bool only_musttail,
-		 bool &opt_tailcalls, bool diag_musttail,
-		 int &retry_tsan_func_exit)
+find_tail_calls (basic_block bb, edge esucc, struct tailcall **ret,
+		 bool only_musttail, bool &opt_tailcalls, bool diag_musttail,
+		 int &retry_tsan_func_exit, hash_set<edge> *ignored_edges,
+		 hash_set<basic_block> *must_see_bbs)
 {
   tree ass_var = NULL_TREE, ret_var, func, param;
   gimple *stmt;
@@ -575,14 +591,30 @@ find_tail_calls (basic_block bb, struct tailcall **ret, bool only_musttail,
   bool only_tailr = false;
   bool has_tsan_func_exit = false;
   int eh_has_tsan_func_exit = -1;
+  bool delete_ignored_edges = false;
 
   if (!single_succ_p (bb)
       && (EDGE_COUNT (bb->succs) || !cfun->has_musttail || !diag_musttail))
     {
+      if (EDGE_COUNT (bb->succs) == 2
+	  && esucc
+	  && cfun->has_musttail
+	  && diag_musttail
+	  && (EDGE_SUCC (bb, 0)->flags & (EDGE_TRUE_VALUE | EDGE_FALSE_VALUE))
+	  && (EDGE_SUCC (bb, 1)->flags & (EDGE_TRUE_VALUE | EDGE_FALSE_VALUE))
+	  && (stmt = last_nondebug_stmt (bb))
+	  && gimple_code (stmt) == GIMPLE_COND)
+	;
+      else if (esucc
+	       && cfun->has_musttail
+	       && diag_musttail
+	       && (stmt = last_nondebug_stmt (bb))
+	       && gimple_code (stmt) == GIMPLE_SWITCH)
+	;
       /* If there is an abnormal edge assume it's the only extra one.
 	 Tolerate that case so that we can give better error messages
 	 for musttail later.  */
-      if (!has_abnormal_or_eh_outgoing_edge_p (bb))
+      else if (!has_abnormal_or_eh_outgoing_edge_p (bb))
 	{
 	  if (dump_file)
 	    fprintf (dump_file, "Basic block %d has extra exit edges\n",
@@ -619,6 +651,131 @@ find_tail_calls (basic_block bb, struct tailcall **ret, bool only_musttail,
 	    continue;
 	}
 
+      if (cfun->has_musttail
+	  && sanitize_flags_p (SANITIZE_ADDRESS)
+	  && asan_mark_p (stmt, ASAN_MARK_POISON)
+	  && diag_musttail)
+	continue;
+
+      /* Especially at -O0 with -fsanitize=address we can end up with
+	 code like
+	   _26 = foo (x_24(D)); [must tail call]
+	   finally_tmp.3_27 = 0;
+	   goto <bb 5>; [INV]
+
+	   ...
+
+	   <bb 5> :
+	   # _6 = PHI <_26(3), _23(D)(4)>
+	   # finally_tmp.3_8 = PHI <finally_tmp.3_27(3), finally_tmp.3_22(4)>
+	   .ASAN_MARK (POISON, &c, 4);
+	   if (finally_tmp.3_8 == 1)
+	     goto <bb 7>; [INV]
+	   else
+	     goto <bb 6>; [INV]
+	 When walking backwards, ESUCC is the edge we are coming from,
+	 depending on its EDGE_TRUE_FLAG, comparison code
+	 and value compared against try to find out through which edge
+	 we need to go and which edge should be ignored.  The code handles
+	 both INTEGER_CST PHI arguments and SSA_NAMEs set to constants
+	 (for -O0 where those aren't propagated).  */
+      if (cfun->has_musttail
+	  && diag_musttail
+	  && esucc
+	  && gimple_code (stmt) == GIMPLE_COND
+	  && TREE_CODE (gimple_cond_lhs (stmt)) == SSA_NAME
+	  && TREE_CODE (gimple_cond_rhs (stmt)) == INTEGER_CST
+	  && INTEGRAL_TYPE_P (TREE_TYPE (gimple_cond_lhs (stmt)))
+	  && tree_int_cst_sgn (gimple_cond_rhs (stmt)) >= 0)
+	{
+	  tree lhs = gimple_cond_lhs (stmt);
+	  tree_code ccode = gimple_cond_code (stmt);
+	  tree rhsv = gimple_cond_rhs (stmt);
+	  if ((esucc->flags & EDGE_FALSE_VALUE) != 0)
+	    ccode = invert_tree_comparison (ccode, false);
+	  if (!ignored_edges)
+	    {
+	      ignored_edges = new hash_set<edge>;
+	      must_see_bbs = new hash_set<basic_block>;
+	      delete_ignored_edges = true;
+	    }
+	  if (is_gimple_assign (SSA_NAME_DEF_STMT (lhs))
+	      && (gimple_assign_rhs_code (SSA_NAME_DEF_STMT (lhs))
+		  == INTEGER_CST))
+	    {
+	      tree lhsv = gimple_assign_rhs1 (SSA_NAME_DEF_STMT (lhs));
+
+	      if (const_binop (ccode, boolean_type_node, lhsv, rhsv)
+		  == boolean_true_node)
+		continue;
+	    }
+	  else if (gimple_code (SSA_NAME_DEF_STMT (lhs)) == GIMPLE_PHI)
+	    {
+	      gimple *phi = SSA_NAME_DEF_STMT (lhs);
+	      basic_block pbb = gimple_bb (phi);
+	      must_see_bbs->add (pbb);
+	      edge_iterator ei;
+	      FOR_EACH_EDGE (e, ei, pbb->preds)
+		{
+		  tree lhsv = gimple_phi_arg_def_from_edge (phi, e);
+		  if (TREE_CODE (lhsv) == SSA_NAME
+		      && is_gimple_assign (SSA_NAME_DEF_STMT (lhsv))
+		      && (gimple_assign_rhs_code (SSA_NAME_DEF_STMT (lhsv))
+			  == INTEGER_CST))
+		    lhsv = gimple_assign_rhs1 (SSA_NAME_DEF_STMT (lhsv));
+		  if (TREE_CODE (lhsv) != INTEGER_CST
+		      || const_binop (ccode, boolean_type_node,
+				      lhsv, rhsv) != boolean_true_node)
+		    ignored_edges->add (e);
+		}
+	      continue;
+	    }
+	}
+      if (cfun->has_musttail
+	  && diag_musttail
+	  && esucc
+	  && gimple_code (stmt) == GIMPLE_SWITCH
+	  && (TREE_CODE (gimple_switch_index (as_a <gswitch *> (stmt)))
+	      == SSA_NAME))
+	{
+	  gswitch *swtch = as_a <gswitch *> (stmt);
+	  tree idx = gimple_switch_index (swtch);
+	  if (!ignored_edges)
+	    {
+	      ignored_edges = new hash_set<edge>;
+	      must_see_bbs = new hash_set<basic_block>;
+	      delete_ignored_edges = true;
+	    }
+	  if (is_gimple_assign (SSA_NAME_DEF_STMT (idx))
+	      && (gimple_assign_rhs_code (SSA_NAME_DEF_STMT (idx))
+		  == INTEGER_CST))
+	    {
+	      tree val = gimple_assign_rhs1 (SSA_NAME_DEF_STMT (idx));
+	      if (find_taken_edge_switch_expr (swtch, val) == esucc)
+		continue;
+	    }
+	  else if (gimple_code (SSA_NAME_DEF_STMT (idx)) == GIMPLE_PHI)
+	    {
+	      gimple *phi = SSA_NAME_DEF_STMT (idx);
+	      basic_block pbb = gimple_bb (phi);
+	      must_see_bbs->add (pbb);
+	      edge_iterator ei;
+	      FOR_EACH_EDGE (e, ei, pbb->preds)
+		{
+		  tree val = gimple_phi_arg_def_from_edge (phi, e);
+		  if (TREE_CODE (val) == SSA_NAME
+		      && is_gimple_assign (SSA_NAME_DEF_STMT (val))
+		      && (gimple_assign_rhs_code (SSA_NAME_DEF_STMT (val))
+			  == INTEGER_CST))
+		    val = gimple_assign_rhs1 (SSA_NAME_DEF_STMT (val));
+		  if (TREE_CODE (val) != INTEGER_CST
+		      || find_taken_edge_switch_expr (swtch, val) != esucc)
+		    ignored_edges->add (e);
+		}
+	      continue;
+	    }
+	}
+
       if (!last_stmt)
 	last_stmt = stmt;
       /* Check for a call.  */
@@ -627,12 +784,20 @@ find_tail_calls (basic_block bb, struct tailcall **ret, bool only_musttail,
 	  call = as_a <gcall *> (stmt);
 	  /* Handle only musttail calls when not optimizing.  */
 	  if (only_musttail && !gimple_call_must_tail_p (call))
-	    return;
+	    {
+	    maybe_delete_ignored_edges:
+	      if (delete_ignored_edges)
+		{
+		  delete ignored_edges;
+		  delete must_see_bbs;
+		}
+	      return;
+	    }
 	  if (bad_stmt)
 	    {
 	      maybe_error_musttail (call, _("memory reference or volatile "
 					    "after call"), diag_musttail);
-	      return;
+	      goto maybe_delete_ignored_edges;
 	    }
 	  ass_var = gimple_call_lhs (call);
 	  break;
@@ -661,17 +826,34 @@ find_tail_calls (basic_block bb, struct tailcall **ret, bool only_musttail,
     }
 
   if (bad_stmt)
-    return;
+    goto maybe_delete_ignored_edges;
 
   if (gsi_end_p (gsi))
     {
+      if (must_see_bbs)
+	must_see_bbs->remove (bb);
+
       edge_iterator ei;
       /* Recurse to the predecessors.  */
       FOR_EACH_EDGE (e, ei, bb->preds)
-	find_tail_calls (e->src, ret, only_musttail, opt_tailcalls,
-			 diag_musttail, retry_tsan_func_exit);
+	{
+	  if (ignored_edges && ignored_edges->contains (e))
+	    continue;
+	  find_tail_calls (e->src, e, ret, only_musttail, opt_tailcalls,
+			   diag_musttail, retry_tsan_func_exit, ignored_edges,
+			   must_see_bbs);
+	}
 
-      return;
+      goto maybe_delete_ignored_edges;
+    }
+
+  if (must_see_bbs && !must_see_bbs->is_empty ())
+    goto maybe_delete_ignored_edges;
+
+  if (delete_ignored_edges)
+    {
+      delete ignored_edges;
+      delete must_see_bbs;
     }
 
   if (!suitable_for_tail_opt_p (call, diag_musttail))
@@ -827,8 +1009,7 @@ find_tail_calls (basic_block bb, struct tailcall **ret, bool only_musttail,
 		  ? !is_gimple_reg (param)
 		  : (!is_gimple_variable (param)
 		     || TREE_THIS_VOLATILE (param)
-		     || may_be_aliased (param)
-		     || !gimple_call_must_tail_p (call)))
+		     || may_be_aliased (param)))
 		break;
 	    }
 	}
@@ -964,11 +1145,12 @@ find_tail_calls (basic_block bb, struct tailcall **ret, bool only_musttail,
       tree tmp_m = NULL_TREE;
       gsi_next (&agsi);
 
+    new_bb:
       while (gsi_end_p (agsi))
 	{
 	  edge e = single_non_eh_succ_edge (abb);
 	  ass_var = propagate_through_phis (ass_var, e);
-	  if (!ass_var)
+	  if (!ass_var || ignored_edges)
 	    edges.safe_push (e);
 	  abb = e->dest;
 	  agsi = gsi_start_bb (abb);
@@ -994,6 +1176,157 @@ find_tail_calls (basic_block bb, struct tailcall **ret, bool only_musttail,
 	{
 	  has_tsan_func_exit = true;
 	  continue;
+	}
+
+      if (cfun->has_musttail
+	  && sanitize_flags_p (SANITIZE_ADDRESS)
+	  && asan_mark_p (stmt, ASAN_MARK_POISON)
+	  && diag_musttail)
+	continue;
+
+      /* See earlier comment on GIMPLE_CONDs.  Here we need to propagate
+	 through on the forward walk, so based on the edges vector we've
+	 walked through determine which edge to follow.  */ 
+      if (ignored_edges)
+	{
+	  if (is_gimple_assign (stmt)
+	      && gimple_assign_rhs_code (stmt) == INTEGER_CST
+	      && tree_int_cst_sgn (gimple_assign_rhs1 (stmt)) >= 0)
+	    {
+	      use_operand_p use_p;
+	      imm_use_iterator imm_iter;
+	      bool bad_p = false;
+	      FOR_EACH_IMM_USE_FAST (use_p, imm_iter,
+				     gimple_assign_lhs (stmt))
+		{
+		  gimple *use_stmt = USE_STMT (use_p);
+		  if (is_gimple_debug (use_stmt)
+		      || gimple_code (use_stmt) == GIMPLE_COND
+		      || gimple_code (use_stmt) == GIMPLE_SWITCH)
+		    continue;
+		  if (gimple_code (use_stmt) == GIMPLE_PHI)
+		    {
+		      use_operand_p use_p2;
+		      imm_use_iterator imm_iter2;
+		      FOR_EACH_IMM_USE_FAST (use_p2, imm_iter2,
+					     gimple_phi_result (use_stmt))
+			{
+			  gimple *use_stmt2 = USE_STMT (use_p2);
+			  if (is_gimple_debug (use_stmt2)
+			      || gimple_code (use_stmt2) == GIMPLE_COND
+			      || gimple_code (use_stmt2) == GIMPLE_SWITCH)
+			    continue;
+			  bad_p = true;
+			  break;
+			}
+		      if (bad_p)
+			break;
+		    }
+		  else
+		    {
+		      bad_p = true;
+		      break;
+		    }
+		}
+	      if (!bad_p)
+		continue;
+	    }
+	  if (gimple_code (stmt) == GIMPLE_COND
+	      && TREE_CODE (gimple_cond_lhs (stmt)) == SSA_NAME
+	      && TREE_CODE (gimple_cond_rhs (stmt)) == INTEGER_CST
+	      && INTEGRAL_TYPE_P (TREE_TYPE (gimple_cond_lhs (stmt)))
+	      && tree_int_cst_sgn (gimple_cond_rhs (stmt)) >= 0)
+	    {
+	      edge e = NULL, et, ef;
+	      enum tree_code ccode = gimple_cond_code (stmt);
+	      tree lhs = gimple_cond_lhs (stmt);
+	      tree rhsv = gimple_cond_rhs (stmt);
+	      extract_true_false_edges_from_block (gimple_bb (stmt), &et, &ef);
+	      if (is_gimple_assign (SSA_NAME_DEF_STMT (lhs))
+		  && (gimple_assign_rhs_code (SSA_NAME_DEF_STMT (lhs))
+		      == INTEGER_CST))
+		{
+		  tree lhsv = gimple_assign_rhs1 (SSA_NAME_DEF_STMT (lhs));
+		  tree r = const_binop (ccode, boolean_type_node, lhsv, rhsv);
+		  if (r == boolean_true_node)
+		    e = et;
+		  else if (r == boolean_false_node)
+		    e = ef;
+		}
+	      else if (gimple_code (SSA_NAME_DEF_STMT (lhs)) == GIMPLE_PHI)
+		{
+		  gimple *phi = SSA_NAME_DEF_STMT (lhs);
+		  basic_block pbb = gimple_bb (phi);
+		  for (edge e2 : edges)
+		    if (e2->dest == pbb)
+		      {
+			tree lhsv = gimple_phi_arg_def_from_edge (phi, e2);
+			if (TREE_CODE (lhsv) == SSA_NAME)
+			  if (gimple *g = SSA_NAME_DEF_STMT (lhsv))
+			    if (is_gimple_assign (g)
+				&& gimple_assign_rhs_code (g) == INTEGER_CST)
+			      lhsv = gimple_assign_rhs1 (g);
+			tree r = const_binop (ccode, boolean_type_node,
+					      lhsv, rhsv);
+			if (r == boolean_true_node)
+			  e = et;
+			else if (r == boolean_false_node)
+			  e = ef;
+			break;
+		      }
+		}
+	      if (e)
+		{
+		  ass_var = propagate_through_phis (ass_var, e);
+		  if (!ass_var || ignored_edges)
+		    edges.safe_push (e);
+		  abb = e->dest;
+		  agsi = gsi_start_bb (abb);
+		  goto new_bb;
+		}
+	    }
+	  if (gimple_code (stmt) == GIMPLE_SWITCH
+	      && (TREE_CODE (gimple_switch_index (as_a <gswitch *> (stmt)))
+		  == SSA_NAME))
+	    {
+	      edge e = NULL;
+	      gswitch *swtch = as_a <gswitch *> (stmt);
+	      tree idx = gimple_switch_index (swtch);
+	      if (is_gimple_assign (SSA_NAME_DEF_STMT (idx))
+		  && (gimple_assign_rhs_code (SSA_NAME_DEF_STMT (idx))
+		      == INTEGER_CST))
+		{
+		  tree val = gimple_assign_rhs1 (SSA_NAME_DEF_STMT (idx));
+		  e = find_taken_edge_switch_expr (swtch, val);
+		}
+	      else if (gimple_code (SSA_NAME_DEF_STMT (idx)) == GIMPLE_PHI)
+		{
+		  gimple *phi = SSA_NAME_DEF_STMT (idx);
+		  basic_block pbb = gimple_bb (phi);
+		  for (edge e2 : edges)
+		    if (e2->dest == pbb)
+		      {
+			tree val = gimple_phi_arg_def_from_edge (phi, e2);
+			if (TREE_CODE (val) == SSA_NAME)
+			  if (gimple *g = SSA_NAME_DEF_STMT (val))
+			    if (is_gimple_assign (g)
+				&& gimple_assign_rhs_code (g) == INTEGER_CST)
+			      val = gimple_assign_rhs1 (g);
+			if (TREE_CODE (val) == INTEGER_CST)
+			  e = find_taken_edge_switch_expr (swtch, val);
+			break;
+		      }
+		}
+	      if (e)
+		{
+		  ass_var = propagate_through_phis (ass_var, e);
+		  if (!ass_var || ignored_edges)
+		    edges.safe_push (e);
+		  abb = e->dest;
+		  agsi = gsi_start_bb (abb);
+		  goto new_bb;
+		}
+	    }
 	}
 
       if (gimple_code (stmt) != GIMPLE_ASSIGN)
@@ -1083,57 +1416,74 @@ find_tail_calls (basic_block bb, struct tailcall **ret, bool only_musttail,
     {
       bool ok = false;
       value_range val;
-      tree valr;
-      /* If IPA-VRP proves called function always returns a singleton range,
-	 the return value is replaced by the only value in that range.
-	 For tail call purposes, pretend such replacement didn't happen.  */
       if (ass_var == NULL_TREE && !tail_recursion)
-	if (tree type = gimple_range_type (call))
-	  if (tree callee = gimple_call_fndecl (call))
-	    if ((INTEGRAL_TYPE_P (type)
-		 || SCALAR_FLOAT_TYPE_P (type)
-		 || POINTER_TYPE_P (type))
-		&& useless_type_conversion_p (TREE_TYPE (TREE_TYPE (callee)),
-					      type)
-		&& useless_type_conversion_p (TREE_TYPE (ret_var), type)
-		&& ipa_return_value_range (val, callee)
-		&& val.singleton_p (&valr))
+	{
+	  tree other_value = NULL_TREE;
+	  /* If we have a function call that we know the return value is the same
+	     as the argument, try the argument too. */
+	  int flags = gimple_call_return_flags (call);
+	  if ((flags & ERF_RETURNS_ARG) != 0
+	      && (flags & ERF_RETURN_ARG_MASK) < gimple_call_num_args (call))
+	    {
+	      tree arg = gimple_call_arg (call, flags & ERF_RETURN_ARG_MASK);
+	      if (useless_type_conversion_p (TREE_TYPE (ret_var), TREE_TYPE (arg) ))
+		other_value = arg;
+	    }
+	  /* If IPA-VRP proves called function always returns a singleton range,
+	     the return value is replaced by the only value in that range.
+	     For tail call purposes, pretend such replacement didn't happen.  */
+	  else if (tree type = gimple_range_type (call))
+	    if (tree callee = gimple_call_fndecl (call))
 	      {
-		tree rv = ret_var;
-		unsigned int i = edges.length ();
-		/* If ret_var is equal to valr, we can tail optimize.  */
-		if (operand_equal_p (ret_var, valr, 0))
-		  ok = true;
-		else
-		  /* Otherwise, if ret_var is a PHI result, try to find out
-		     if valr isn't propagated through PHIs on the path from
-		     call's bb to SSA_NAME_DEF_STMT (ret_var)'s bb.  */
-		  while (TREE_CODE (rv) == SSA_NAME
-			 && gimple_code (SSA_NAME_DEF_STMT (rv)) == GIMPLE_PHI)
-		    {
-		      tree nrv = NULL_TREE;
-		      gimple *g = SSA_NAME_DEF_STMT (rv);
-		      for (; i; --i)
-			{
-			  if (edges[i - 1]->dest == gimple_bb (g))
-			    {
-			      nrv
-				= gimple_phi_arg_def_from_edge (g,
-								edges[i - 1]);
-			      --i;
-			      break;
-			    }
-			}
-		      if (nrv == NULL_TREE)
-			break;
-		      if (operand_equal_p (nrv, valr, 0))
-			{
-			  ok = true;
-			  break;
-			}
-		      rv = nrv;
-		    }
+		tree valr;
+		if ((INTEGRAL_TYPE_P (type)
+		     || SCALAR_FLOAT_TYPE_P (type)
+		     || POINTER_TYPE_P (type))
+		    && useless_type_conversion_p (TREE_TYPE (TREE_TYPE (callee)),
+					      type)
+		    && useless_type_conversion_p (TREE_TYPE (ret_var), type)
+		    && ipa_return_value_range (val, callee)
+		    && val.singleton_p (&valr))
+		  other_value = valr;
 	      }
+
+	  if (other_value)
+	    {
+	      tree rv = ret_var;
+	      unsigned int i = edges.length ();
+	      /* If ret_var is equal to other_value, we can tail optimize.  */
+	      if (operand_equal_p (ret_var, other_value, 0))
+		ok = true;
+	      else
+		/* Otherwise, if ret_var is a PHI result, try to find out
+		   if other_value isn't propagated through PHIs on the path from
+		   call's bb to SSA_NAME_DEF_STMT (ret_var)'s bb.  */
+		while (TREE_CODE (rv) == SSA_NAME
+		      && gimple_code (SSA_NAME_DEF_STMT (rv)) == GIMPLE_PHI)
+		  {
+		    tree nrv = NULL_TREE;
+		    gimple *g = SSA_NAME_DEF_STMT (rv);
+		    for (; i; --i)
+		      {
+			if (edges[i - 1]->dest == gimple_bb (g))
+			  {
+			    nrv = gimple_phi_arg_def_from_edge (g,
+								edges[i - 1]);
+			    --i;
+			    break;
+			  }
+		      }
+		    if (nrv == NULL_TREE)
+		      break;
+		    if (operand_equal_p (nrv, other_value, 0))
+		      {
+			ok = true;
+			break;
+		      }
+		      rv = nrv;
+		  }
+	  }
+	}
       if (!ok)
 	{
 	  maybe_error_musttail (call, _("call and return value are different"),
@@ -1613,14 +1963,14 @@ tree_optimize_tail_calls_1 (bool opt_tailcalls, bool only_musttail,
       if (safe_is_a <greturn *> (*gsi_last_bb (e->src)))
 	{
 	  int retry_tsan_func_exit = 0;
-	  find_tail_calls (e->src, &tailcalls, only_musttail, opt_tailcalls,
-			   diag_musttail, retry_tsan_func_exit);
+	  find_tail_calls (e->src, e, &tailcalls, only_musttail, opt_tailcalls,
+			   diag_musttail, retry_tsan_func_exit, NULL, NULL);
 	  if (retry_tsan_func_exit == -1)
 	    {
 	      retry_tsan_func_exit = 1;
-	      find_tail_calls (e->src, &tailcalls, only_musttail,
+	      find_tail_calls (e->src, e, &tailcalls, only_musttail,
 			       opt_tailcalls, diag_musttail,
-			       retry_tsan_func_exit);
+			       retry_tsan_func_exit, NULL, NULL);
 	    }
 	}
     }
@@ -1636,8 +1986,9 @@ tree_optimize_tail_calls_1 (bool opt_tailcalls, bool only_musttail,
 	    if (is_gimple_call (c)
 		&& gimple_call_must_tail_p (as_a <gcall *> (c))
 		&& gimple_call_noreturn_p (as_a <gcall *> (c)))
-	      find_tail_calls (bb, &tailcalls, only_musttail, opt_tailcalls,
-			       diag_musttail, retry_tsan_func_exit);
+	      find_tail_calls (bb, NULL, &tailcalls, only_musttail,
+			       opt_tailcalls, diag_musttail,
+			       retry_tsan_func_exit, NULL, NULL);
     }
 
   if (live_vars)

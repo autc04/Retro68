@@ -1,5 +1,5 @@
 /* Structure for saving state for a nested function.
-   Copyright (C) 1989-2025 Free Software Foundation, Inc.
+   Copyright (C) 1989-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -274,6 +274,11 @@ struct GTY(()) function {
      the same uid.  This is used for condition coverage.  */
   hash_map <gcond*, unsigned> *GTY((skip)) cond_uids;
 
+  /* Per-function copyid allocator for hierarchical discriminators.
+     Tracks the next available copyid for each location to ensure uniqueness
+     across code duplication passes (unrolling, vectorization, etc.).  */
+  struct copyid_allocator *GTY((skip)) copyid_alloc;
+
   /* For function.cc.  */
 
   /* Points to the FUNCTION_DECL of this function.  */
@@ -333,7 +338,6 @@ struct GTY(()) function {
 
   /* Properties used by the pass manager.  */
   unsigned int curr_properties;
-  unsigned int last_verified;
 
   /* Different from normal TODO_flags which are handled right at the
      beginning or the end of one pass execution, the pending_TODOs

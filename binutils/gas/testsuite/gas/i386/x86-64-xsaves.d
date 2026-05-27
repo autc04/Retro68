@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 XSAVES insns
 #source: x86-64-xsaves.s

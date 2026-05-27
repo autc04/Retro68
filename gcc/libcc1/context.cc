@@ -1,5 +1,5 @@
 /* Generic plugin context
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -31,6 +31,7 @@ along with GCC; see the file COPYING3.  If not see
 #undef PACKAGE_TARNAME
 #undef PACKAGE_VERSION
 
+#define INCLUDE_VECTOR
 #include "gcc-plugin.h"
 #include "system.h"
 #include "coretypes.h"
@@ -39,7 +40,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic.h"
 #include "langhooks.h"
 #include "langhooks-def.h"
-#include "diagnostic-format-text.h"
+#include "diagnostics/text-sink.h"
 
 #include "gcc-interface.h"
 
@@ -63,9 +64,9 @@ cc1_plugin::plugin_context *cc1_plugin::current_context;
 // This is put into the lang hooks when the plugin starts.
 
 static void
-plugin_print_error_function (diagnostic_text_output_format &text_output,
+plugin_print_error_function (diagnostics::text_sink &text_output,
 			     const char *file,
-			     const diagnostic_info *diagnostic)
+			     const diagnostics::diagnostic_info *diagnostic)
 {
   if (current_function_decl != NULL_TREE
       && DECL_NAME (current_function_decl) != NULL_TREE

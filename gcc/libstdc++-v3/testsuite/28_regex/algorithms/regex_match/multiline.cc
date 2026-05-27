@@ -3,8 +3,8 @@
 #include <testsuite_hooks.h>
 
 #if __cplusplus >= 201703L || !defined __STRICT_ANSI__
-static_assert( std::regex_constants::multiline == std::regex::multiline );
-static_assert( std::regex_constants::__multiline == std::regex::multiline );
+static_assert( std::regex_constants::multiline == std::regex::multiline, "" );
+static_assert( std::regex_constants::__multiline == std::regex::multiline, "" );
 #else
 namespace test { constexpr int multiline = 0; }
 namespace check {
@@ -27,11 +27,11 @@ test01()
   VERIFY(std::regex_search("x\nab\nx", ml));
 
   ml.assign("a$\n^b$\n^c", ECMAScript|__multiline);
-  VERIFY( ml.flags() == ECMAScript|__multiline );
+  VERIFY( ml.flags() == (ECMAScript|__multiline) );
   VERIFY( regex_search("a\nb\nc", ml) );
 
   ml.assign("a$\n^b$\n^c", ECMAScript|__multiline|icase);
-  VERIFY( ml.flags() == ECMAScript|__multiline|icase );
+  VERIFY( ml.flags() == (ECMAScript|__multiline|icase) );
   VERIFY( regex_search("A\nB\nC", ml) );
 }
 

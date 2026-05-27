@@ -1,12 +1,6 @@
-.macro cond op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().i32 q0, q1, #1
-.endr
-.endm
-
 .syntax unified
 .thumb
+
 vshrnt.i64 q0, q1, #1
 vshrnb.i64 q0, q1, #1
 vrshrnt.i64 q0, q1, #1
@@ -19,10 +13,16 @@ vshrnb.i16 q0, q1, #0
 vshrnb.i16 q0, q1, #9
 vshrnb.i32 q0, q1, #0
 vshrnb.i32 q0, q1, #17
-cond vshrnt
-cond vshrnb
-cond vrshrnt
-cond vrshrnb
+
+.irp op, vshrnt, vshrnb, vrshrnt, vrshrnb
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+\op\().i32 q0, q1, #1
+
+.endr
+.endr
+
 it eq
 vshrnteq.i32 q0, q1, #1
 vshrnteq.i32 q0, q1, #1

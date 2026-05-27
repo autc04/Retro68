@@ -1,124 +1,124 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: bad type in SIMD instruction -- `vrmlaldavh.s16 r0,r1,q2,q3'
-[^:]*:11: Error: bad type in SIMD instruction -- `vrmlaldavh.i32 r0,r1,q2,q3'
-[^:]*:12: Error: bad type in SIMD instruction -- `vrmlaldavha.s16 r0,r1,q2,q3'
-[^:]*:13: Error: bad type in SIMD instruction -- `vrmlaldavha.i32 r0,r1,q2,q3'
-[^:]*:14: Error: bad type in SIMD instruction -- `vrmlalvh.s16 r0,r1,q2,q3'
-[^:]*:15: Error: bad type in SIMD instruction -- `vrmlalvh.i32 r0,r1,q2,q3'
-[^:]*:16: Error: bad type in SIMD instruction -- `vrmlalvha.s16 r0,r1,q2,q3'
-[^:]*:17: Error: bad type in SIMD instruction -- `vrmlalvha.i32 r0,r1,q2,q3'
-[^:]*:18: Error: bad type in SIMD instruction -- `vrmlaldavhx.u32 r0,r1,q2,q3'
-[^:]*:19: Error: bad type in SIMD instruction -- `vrmlaldavhax.u32 r0,r1,q2,q3'
-[^:]*:20: Error: bad type in SIMD instruction -- `vrmlaldavhx.i32 r0,r1,q2,q3'
-[^:]*:21: Error: bad type in SIMD instruction -- `vrmlaldavhax.i32 r0,r1,q2,q3'
-[^:]*:22: Error: bad type in SIMD instruction -- `vrmlsldavh.s16 r0,r1,q2,q3'
-[^:]*:23: Error: bad type in SIMD instruction -- `vrmlsldavh.u32 r0,r1,q2,q3'
-[^:]*:24: Error: bad type in SIMD instruction -- `vrmlsldavha.s16 r0,r1,q2,q3'
-[^:]*:25: Error: bad type in SIMD instruction -- `vrmlsldavha.u32 r0,r1,q2,q3'
-[^:]*:26: Error: bad type in SIMD instruction -- `vrmlsldavhx.s16 r0,r1,q2,q3'
-[^:]*:27: Error: bad type in SIMD instruction -- `vrmlsldavhx.u32 r0,r1,q2,q3'
-[^:]*:28: Error: bad type in SIMD instruction -- `vrmlsldavhax.s16 r0,r1,q2,q3'
-[^:]*:29: Error: bad type in SIMD instruction -- `vrmlsldavhax.u32 r0,r1,q2,q3'
-[^:]*:30: Error: Odd register not allowed here -- `vrmlaldavh.s32 r1,r1,q2,q3'
-[^:]*:31: Error: Even register not allowed here -- `vrmlaldavh.s32 r0,r0,q2,q3'
-[^:]*:32: Error: r13 not allowed here -- `vrmlaldavh.s32 r0,sp,q2,q3'
-[^:]*:33: Error: r15 not allowed here -- `vrmlaldavh.s32 r0,pc,q2,q3'
-[^:]*:34: Error: Odd register not allowed here -- `vrmlaldavha.s32 r1,r1,q2,q3'
-[^:]*:35: Error: Even register not allowed here -- `vrmlaldavha.s32 r0,r0,q2,q3'
-[^:]*:36: Error: r13 not allowed here -- `vrmlaldavha.s32 r0,sp,q2,q3'
-[^:]*:37: Error: r15 not allowed here -- `vrmlaldavha.s32 r0,pc,q2,q3'
-[^:]*:38: Error: Odd register not allowed here -- `vrmlaldavhx.s32 r1,r1,q2,q3'
-[^:]*:39: Error: Even register not allowed here -- `vrmlaldavhx.s32 r0,r0,q2,q3'
-[^:]*:40: Error: r13 not allowed here -- `vrmlaldavhx.s32 r0,sp,q2,q3'
-[^:]*:41: Error: r15 not allowed here -- `vrmlaldavhx.s32 r0,pc,q2,q3'
-[^:]*:42: Error: Odd register not allowed here -- `vrmlaldavhax.s32 r1,r1,q2,q3'
-[^:]*:43: Error: Even register not allowed here -- `vrmlaldavhax.s32 r0,r0,q2,q3'
-[^:]*:44: Error: r13 not allowed here -- `vrmlaldavhax.s32 r0,sp,q2,q3'
-[^:]*:45: Error: r15 not allowed here -- `vrmlaldavhax.s32 r0,pc,q2,q3'
-[^:]*:46: Error: Odd register not allowed here -- `vrmlalvh.s32 r1,r1,q2,q3'
-[^:]*:47: Error: Even register not allowed here -- `vrmlalvh.s32 r0,r0,q2,q3'
-[^:]*:48: Error: r13 not allowed here -- `vrmlalvh.s32 r0,sp,q2,q3'
-[^:]*:49: Error: r15 not allowed here -- `vrmlalvh.s32 r0,pc,q2,q3'
-[^:]*:50: Error: Odd register not allowed here -- `vrmlalvha.s32 r1,r1,q2,q3'
-[^:]*:51: Error: Even register not allowed here -- `vrmlalvha.s32 r0,r0,q2,q3'
-[^:]*:52: Error: r13 not allowed here -- `vrmlalvha.s32 r0,sp,q2,q3'
-[^:]*:53: Error: r15 not allowed here -- `vrmlalvha.s32 r0,pc,q2,q3'
-[^:]*:54: Error: Odd register not allowed here -- `vrmlsldavh.s32 r1,r1,q2,q3'
-[^:]*:55: Error: Even register not allowed here -- `vrmlsldavh.s32 r0,r0,q2,q3'
-[^:]*:56: Warning: instruction is UNPREDICTABLE with SP operand
-[^:]*:57: Error: r15 not allowed here -- `vrmlsldavh.s32 r0,pc,q2,q3'
-[^:]*:58: Error: Odd register not allowed here -- `vrmlsldavha.s32 r1,r1,q2,q3'
-[^:]*:59: Error: Even register not allowed here -- `vrmlsldavha.s32 r0,r0,q2,q3'
-[^:]*:60: Warning: instruction is UNPREDICTABLE with SP operand
-[^:]*:61: Error: r15 not allowed here -- `vrmlsldavha.s32 r0,pc,q2,q3'
-[^:]*:62: Error: Odd register not allowed here -- `vrmlsldavhx.s32 r1,r1,q2,q3'
-[^:]*:63: Error: Even register not allowed here -- `vrmlsldavhx.s32 r0,r0,q2,q3'
-[^:]*:64: Warning: instruction is UNPREDICTABLE with SP operand
-[^:]*:65: Error: r15 not allowed here -- `vrmlsldavhx.s32 r0,pc,q2,q3'
-[^:]*:66: Error: Odd register not allowed here -- `vrmlsldavhax.s32 r1,r1,q2,q3'
-[^:]*:67: Error: Even register not allowed here -- `vrmlsldavhax.s32 r0,r0,q2,q3'
-[^:]*:68: Warning: instruction is UNPREDICTABLE with SP operand
-[^:]*:69: Error: r15 not allowed here -- `vrmlsldavhax.s32 r0,pc,q2,q3'
-[^:]*:70: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:70: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:70: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:70: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:70: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:70: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:71: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:71: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:71: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:71: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:71: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:71: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:72: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:72: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:72: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:72: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:72: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:72: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:73: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:73: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:73: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:73: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:73: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:73: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:5: Error: bad type in SIMD instruction -- `vrmlaldavh.s16 r0,r1,q2,q3'
+[^:]*:6: Error: bad type in SIMD instruction -- `vrmlaldavh.i32 r0,r1,q2,q3'
+[^:]*:7: Error: bad type in SIMD instruction -- `vrmlaldavha.s16 r0,r1,q2,q3'
+[^:]*:8: Error: bad type in SIMD instruction -- `vrmlaldavha.i32 r0,r1,q2,q3'
+[^:]*:9: Error: bad type in SIMD instruction -- `vrmlalvh.s16 r0,r1,q2,q3'
+[^:]*:10: Error: bad type in SIMD instruction -- `vrmlalvh.i32 r0,r1,q2,q3'
+[^:]*:11: Error: bad type in SIMD instruction -- `vrmlalvha.s16 r0,r1,q2,q3'
+[^:]*:12: Error: bad type in SIMD instruction -- `vrmlalvha.i32 r0,r1,q2,q3'
+[^:]*:13: Error: bad type in SIMD instruction -- `vrmlaldavhx.u32 r0,r1,q2,q3'
+[^:]*:14: Error: bad type in SIMD instruction -- `vrmlaldavhax.u32 r0,r1,q2,q3'
+[^:]*:15: Error: bad type in SIMD instruction -- `vrmlaldavhx.i32 r0,r1,q2,q3'
+[^:]*:16: Error: bad type in SIMD instruction -- `vrmlaldavhax.i32 r0,r1,q2,q3'
+[^:]*:18: Error: bad type in SIMD instruction -- `vrmlsldavh.s16 r0,r1,q2,q3'
+[^:]*:19: Error: bad type in SIMD instruction -- `vrmlsldavh.u32 r0,r1,q2,q3'
+[^:]*:20: Error: bad type in SIMD instruction -- `vrmlsldavha.s16 r0,r1,q2,q3'
+[^:]*:21: Error: bad type in SIMD instruction -- `vrmlsldavha.u32 r0,r1,q2,q3'
+[^:]*:22: Error: bad type in SIMD instruction -- `vrmlsldavhx.s16 r0,r1,q2,q3'
+[^:]*:23: Error: bad type in SIMD instruction -- `vrmlsldavhx.u32 r0,r1,q2,q3'
+[^:]*:24: Error: bad type in SIMD instruction -- `vrmlsldavhax.s16 r0,r1,q2,q3'
+[^:]*:25: Error: bad type in SIMD instruction -- `vrmlsldavhax.u32 r0,r1,q2,q3'
+[^:]*:27: Error: Odd register not allowed here -- `vrmlaldavh.s32 r1,r1,q2,q3'
+[^:]*:28: Error: Even register not allowed here -- `vrmlaldavh.s32 r0,r0,q2,q3'
+[^:]*:29: Error: r13 not allowed here -- `vrmlaldavh.s32 r0,sp,q2,q3'
+[^:]*:30: Error: r15 not allowed here -- `vrmlaldavh.s32 r0,pc,q2,q3'
+[^:]*:31: Error: Odd register not allowed here -- `vrmlaldavha.s32 r1,r1,q2,q3'
+[^:]*:32: Error: Even register not allowed here -- `vrmlaldavha.s32 r0,r0,q2,q3'
+[^:]*:33: Error: r13 not allowed here -- `vrmlaldavha.s32 r0,sp,q2,q3'
+[^:]*:34: Error: r15 not allowed here -- `vrmlaldavha.s32 r0,pc,q2,q3'
+[^:]*:35: Error: Odd register not allowed here -- `vrmlaldavhx.s32 r1,r1,q2,q3'
+[^:]*:36: Error: Even register not allowed here -- `vrmlaldavhx.s32 r0,r0,q2,q3'
+[^:]*:37: Error: r13 not allowed here -- `vrmlaldavhx.s32 r0,sp,q2,q3'
+[^:]*:38: Error: r15 not allowed here -- `vrmlaldavhx.s32 r0,pc,q2,q3'
+[^:]*:39: Error: Odd register not allowed here -- `vrmlaldavhax.s32 r1,r1,q2,q3'
+[^:]*:40: Error: Even register not allowed here -- `vrmlaldavhax.s32 r0,r0,q2,q3'
+[^:]*:41: Error: r13 not allowed here -- `vrmlaldavhax.s32 r0,sp,q2,q3'
+[^:]*:42: Error: r15 not allowed here -- `vrmlaldavhax.s32 r0,pc,q2,q3'
+[^:]*:43: Error: Odd register not allowed here -- `vrmlalvh.s32 r1,r1,q2,q3'
+[^:]*:44: Error: Even register not allowed here -- `vrmlalvh.s32 r0,r0,q2,q3'
+[^:]*:45: Error: r13 not allowed here -- `vrmlalvh.s32 r0,sp,q2,q3'
+[^:]*:46: Error: r15 not allowed here -- `vrmlalvh.s32 r0,pc,q2,q3'
+[^:]*:47: Error: Odd register not allowed here -- `vrmlalvha.s32 r1,r1,q2,q3'
+[^:]*:48: Error: Even register not allowed here -- `vrmlalvha.s32 r0,r0,q2,q3'
+[^:]*:49: Error: r13 not allowed here -- `vrmlalvha.s32 r0,sp,q2,q3'
+[^:]*:50: Error: r15 not allowed here -- `vrmlalvha.s32 r0,pc,q2,q3'
+[^:]*:52: Error: Odd register not allowed here -- `vrmlsldavh.s32 r1,r1,q2,q3'
+[^:]*:53: Error: Even register not allowed here -- `vrmlsldavh.s32 r0,r0,q2,q3'
+[^:]*:54: Warning: instruction is UNPREDICTABLE with SP operand
+[^:]*:55: Error: r15 not allowed here -- `vrmlsldavh.s32 r0,pc,q2,q3'
+[^:]*:56: Error: Odd register not allowed here -- `vrmlsldavha.s32 r1,r1,q2,q3'
+[^:]*:57: Error: Even register not allowed here -- `vrmlsldavha.s32 r0,r0,q2,q3'
+[^:]*:58: Warning: instruction is UNPREDICTABLE with SP operand
+[^:]*:59: Error: r15 not allowed here -- `vrmlsldavha.s32 r0,pc,q2,q3'
+[^:]*:60: Error: Odd register not allowed here -- `vrmlsldavhx.s32 r1,r1,q2,q3'
+[^:]*:61: Error: Even register not allowed here -- `vrmlsldavhx.s32 r0,r0,q2,q3'
+[^:]*:62: Warning: instruction is UNPREDICTABLE with SP operand
+[^:]*:63: Error: r15 not allowed here -- `vrmlsldavhx.s32 r0,pc,q2,q3'
+[^:]*:64: Error: Odd register not allowed here -- `vrmlsldavhax.s32 r1,r1,q2,q3'
+[^:]*:65: Error: Even register not allowed here -- `vrmlsldavhax.s32 r0,r0,q2,q3'
+[^:]*:66: Warning: instruction is UNPREDICTABLE with SP operand
+[^:]*:67: Error: r15 not allowed here -- `vrmlsldavhax.s32 r0,pc,q2,q3'
 [^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:75: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:75: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:75: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:75: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:75: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:75: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:76: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:77: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:77: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:77: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:77: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:77: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:77: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:78: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:78: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:78: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:78: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:78: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:78: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:79: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:79: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:79: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:79: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:79: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:79: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:74: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:81: Error: syntax error -- `vrmlaldavheq.s32 r0,r1,q2,q3'
 [^:]*:82: Error: syntax error -- `vrmlaldavheq.s32 r0,r1,q2,q3'
 [^:]*:84: Error: syntax error -- `vrmlaldavheq.s32 r0,r1,q2,q3'

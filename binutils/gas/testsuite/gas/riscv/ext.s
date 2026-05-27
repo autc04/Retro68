@@ -1,5 +1,5 @@
 target:
-	.option arch, -c
+	.option norvc
 	zext.b	a0, a0
 	zext.h	a0, a0
 	sext.b	a0, a0

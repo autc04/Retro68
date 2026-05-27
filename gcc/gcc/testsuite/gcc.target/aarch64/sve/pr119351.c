@@ -14,7 +14,6 @@ int x[N] __attribute__((aligned(32)));
 **	...
 **	ld1w	z[0-9]+.s, p[0-9]+/z, \[x[0-9], x[0-9], lsl 2\]
 **	cmple	p[0-9]+.s, p[0-9]+/z, z[0-9]+.s, #0
-**	ptest	p[0-9]+, p[0-9]+.b
 **	...
 */
 
@@ -34,6 +33,5 @@ foo (void)
 }
 
 /* { dg-final { scan-tree-dump "LOOP VECTORIZED" "vect" } } */
-/* { dg-final { scan-tree-dump "pfa_iv_offset" "vect" } } */
 /* { dg-final { scan-tree-dump "Alignment of access forced using peeling" "vect" } } */
 

@@ -1,6 +1,6 @@
 // <chrono> -*- C++ -*-
 
-// Copyright (C) 2008-2025 Free Software Foundation, Inc.
+// Copyright (C) 2008-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,6 +22,8 @@
 // see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 // <http://www.gnu.org/licenses/>.
 
+// [time]
+
 /** @file include/chrono
  *  This is a Standard C++ Library header.
  *  @ingroup chrono
@@ -42,23 +44,29 @@
 # include <bits/c++0x_warning.h>
 #else
 
-#include <bits/chrono.h>
-
-#if __cplusplus >= 202002L
-# include <bit> // __countr_zero
-#endif
-#if __cplusplus >= 202002L && _GLIBCXX_HOSTED
-# include <sstream>
-# include <string>
-# include <vector>
-# include <bits/stl_algo.h> // upper_bound
-# include <bits/shared_ptr.h>
-# include <bits/unique_ptr.h>
-#endif
-
 #define __glibcxx_want_chrono
 #define __glibcxx_want_chrono_udls
 #include <bits/version.h>
+
+#include <bits/chrono.h>
+
+#if __cpp_lib_bitops >= 201907L
+# include <bit> // __countr_zero
+#endif
+#ifdef __glibcxx_chrono_cxx20
+# include <bits/stl_algo.h>     // upper_bound
+# include <bits/range_access.h> // begin/end for arrays
+#endif
+#if __cpp_lib_chrono >= 201803L // C++20 && HOSTED && USE_CXX11_ABI
+# include <sstream>
+# include <string>
+# include <vector>
+# include <bits/shared_ptr.h>
+# include <bits/unique_ptr.h>
+#endif
+#if __glibcxx_chrono_cxx20 >= 202306L // C++26
+# include <bits/functional_hash.h>
+#endif
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -79,7 +87,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    */
   namespace chrono
   {
-#if __cplusplus >= 202002L
+#ifdef __glibcxx_chrono_cxx20
     /// @addtogroup chrono
     /// @{
     struct local_t { };
@@ -175,13 +183,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       using period                    = system_clock::period;
       using duration                  = chrono::duration<rep, period>;
       using time_point                = chrono::time_point<tai_clock>;
-      static constexpr bool is_steady = false; // XXX true for CLOCK_TAI?
+      static constexpr bool is_steady = false;
 
-      // TODO move into lib, use CLOCK_TAI on linux, add extension point.
       [[nodiscard]]
       static time_point
-      now()
-      { return from_utc(utc_clock::now()); }
+      now();  // in src/c++20/clock.cc
 
       template<typename _Duration>
 	[[nodiscard]]
@@ -215,13 +221,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       using period                    = system_clock::period;
       using duration                  = chrono::duration<rep, period>;
       using time_point                = chrono::time_point<gps_clock>;
-      static constexpr bool is_steady = false; // XXX
+      static constexpr bool is_steady = false;
 
-      // TODO move into lib, add extension point.
       [[nodiscard]]
       static time_point
-      now()
-      { return from_utc(utc_clock::now()); }
+      now();  // in src/c++20/clock.cc
 
       template<typename _Duration>
 	[[nodiscard]]
@@ -297,12 +301,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  { return utc_clock::to_sys(__t); }
       };
 
+    /// @cond undocumented
     template<typename _Tp, typename _Clock>
       inline constexpr bool __is_time_point_for_v = false;
 
     template<typename _Clock, typename _Duration>
       inline constexpr bool
        __is_time_point_for_v<time_point<_Clock, _Duration>, _Clock> = true;
+    /// @endcond
 
     // Conversions between system_clock and other clocks
 
@@ -513,6 +519,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     inline constexpr last_spec last{};
 
+    /// @cond undocumented
     namespace __detail
     {
       // Helper to __add_modulo and __sub_modulo.
@@ -560,7 +567,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       inline constexpr unsigned __days_per_month[12]
 	= { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-    }
+    } // namespace __detail
+    /// @endcond
 
     // DAY
 
@@ -1434,6 +1442,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     // YEAR_MONTH
 
+    /// @cond undocumented
     namespace __detail
     {
       // [time.cal.ym], [time.cal.ymd], etc constrain the 'months'-based
@@ -1450,6 +1459,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       // 'years'.
       using __months_years_conversion_disambiguator = void;
     }
+    /// @endcond
 
     class year_month
     {
@@ -2305,8 +2315,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  __r *= 10;
 	return __r;
       }
-
-      template<typename _Duration> struct __utc_leap_second;
     }
     /// @endcond
 
@@ -2359,6 +2367,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	    _M_ss._M_r = duration_cast<precision>(__ss).count();
 	}
 
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 4274. hh_mm_ss constructor is ill-formed for unsigned durations
 	static constexpr _Duration
 	_S_abs(_Duration __d)
 	{
@@ -2481,40 +2491,21 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	__byte_duration<ratio<1>>   _M_s{};
 	bool			    _M_is_neg{};
 	__subseconds<precision>	    _M_ss{};
-
-	template<typename> friend struct __detail::__utc_leap_second;
       };
-
-    /// @cond undocumented
-    namespace __detail
-    {
-      // Represents a time that is within a leap second insertion.
-      template<typename _Duration>
-	struct __utc_leap_second
-	{
-	  explicit
-	  __utc_leap_second(const sys_time<_Duration>& __s)
-	  : _M_date(chrono::floor<days>(__s)), _M_time(__s - _M_date)
-	  {
-	    ++_M_time._M_s;
-	  }
-
-	  sys_days _M_date;
-	  hh_mm_ss<common_type_t<_Duration, days>> _M_time;
-	};
-    }
-    /// @endcond
 
     // 12/24 HOURS FUNCTIONS
 
+    /// True if a `chrono::hours` value represents a time before midday.
     constexpr bool
     is_am(const hours& __h) noexcept
     { return 0h <= __h && __h <= 11h; }
 
+    /// True if a `chrono::hours` value represents a time after midday.
     constexpr bool
     is_pm(const hours& __h) noexcept
     { return 12h <= __h && __h <= 23h; }
 
+    /// Convert a 24-hour time into a 12-hour time.
     constexpr hours
     make12(const hours& __h) noexcept
     {
@@ -2525,6 +2516,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       return __h;
     }
 
+    /// Convert a 12-hour time and p.m. flag into a 24-hour time.
     constexpr hours
     make24(const hours& __h, bool __is_pm) noexcept
     {
@@ -2622,6 +2614,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	}
     };
 
+    /// @cond undocumented
     template<typename _Duration>
       [[noreturn]] void
       __throw_bad_local_time(const local_time<_Duration>& __tp,
@@ -2635,6 +2628,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	__builtin_abort();
 #endif
       }
+    /// @endcond
 
     enum class choose { earliest, latest };
 
@@ -3260,7 +3254,7 @@ namespace __detail
       };
       // The list above is known to be valid until (at least) this date
       // and only contains positive leap seconds.
-      const sys_seconds __expires(1766880000s); // 2025-12-28 00:00:00 UTC
+      constexpr sys_seconds __expires(1798416000s); // 2026-12-28 00:00:00 UTC
 
 #if _GLIBCXX_USE_CXX11_ABI || ! _GLIBCXX_USE_DUAL_ABI
       if (__ss > __expires)
@@ -3345,7 +3339,330 @@ namespace __detail
 #endif // C++20
   } // namespace chrono
 
-#if __cplusplus >= 202002L
+#if __glibcxx_chrono_cxx20 >= 202306 // C++26
+  // Hash support [time.hash]
+
+  template<typename _Tp>
+    concept __is_nothrow_copy_hashable = requires(const _Tp& __t) {
+      { hash<_Tp>{}(_Tp(__t)) } noexcept -> same_as<size_t>;
+    };
+
+ namespace chrono {
+
+   /// @cond undocumented
+   template<typename _T1, typename... _Ts>
+     [[__gnu__::__always_inline__]]
+     constexpr auto
+     __pack_ints(_T1 __v1, _Ts... __vs)
+     {
+       using _ResT = decltype([] {
+         constexpr size_t __tsize = (sizeof(_T1) + ... + sizeof(_Ts));
+	 if constexpr (__tsize <= 1)
+	   return static_cast<unsigned char>(0);
+	 else if constexpr (__tsize <= 2)
+	   return static_cast<__UINT16_TYPE__>(0);
+	 else if constexpr (__tsize <= 4)
+	   return static_cast<__UINT32_TYPE__>(0);
+	 else if constexpr (__tsize <= 8)
+	   return static_cast<__UINT64_TYPE__>(0);
+	 else
+	   static_assert(__tsize <= 8);
+       }());
+
+       _ResT __res = __v1;
+       ((__res = (__res << (sizeof(_Ts) * __CHAR_BIT__) | _ResT(__vs))), ...);
+       return __res;
+     }
+    
+   template<typename _Tp>
+     [[__gnu__::__always_inline__]]
+     constexpr auto
+     __as_int(_Tp __val)
+     {
+       if constexpr (is_same_v<_Tp, year>)
+	 return static_cast<unsigned short>(static_cast<int>(__val));
+       else if constexpr (is_same_v<_Tp, month> || is_same_v<_Tp, day>)
+	 return static_cast<unsigned char>(static_cast<unsigned>(__val));
+       else if constexpr (is_same_v<_Tp, weekday>)
+	 return static_cast<unsigned char>(__val.c_encoding());
+       else if constexpr (is_same_v<_Tp, weekday_indexed>)
+	 return __pack_ints(chrono::__as_int(__val.weekday()),
+			    static_cast<unsigned char>(__val.index()));
+       else if constexpr (is_same_v<_Tp, weekday_last>)
+	 return chrono::__as_int(__val.weekday());
+       else
+	 static_assert(false);
+     }
+
+   template<typename _Arg, typename... _Args>
+     size_t
+     __int_hash(_Arg __arg, _Args... __args)
+     {
+       static_assert((is_integral_v<_Arg> && ... && is_integral_v<_Args>));
+
+       // TODO consider using a better quality hasher
+       using _Hasher = _Hash_impl;
+       size_t __result = _Hasher::hash(__arg);
+       ((__result = _Hasher::__hash_combine(__args, __result)), ...);
+       return __result;
+     }
+
+   template<typename... _Tps>
+     [[__gnu__::__always_inline__]]
+     inline size_t
+     __hash(_Tps... __vals)
+     {
+       if constexpr (sizeof...(_Tps) == 1)
+	 return chrono::__int_hash(chrono::__as_int(__vals)...);
+       else
+	 {
+	   auto __res = chrono::__pack_ints(chrono::__as_int(__vals)...);
+	   return chrono::__int_hash(__res);
+	 }
+     }
+   /// @endcond
+ } // namespace chrono
+
+  // duration
+  template<typename _Rep, typename _Period>
+    requires __is_hash_enabled_for<_Rep>
+    struct hash<chrono::duration<_Rep, _Period>>
+    {
+      size_t
+      operator()(const chrono::duration<_Rep, _Period>& __val) const
+      noexcept(__is_nothrow_copy_hashable<_Rep>)
+      {	
+	if constexpr (is_integral_v<_Rep>)
+	  return chrono::__int_hash(__val.count());
+	else
+	  return hash<_Rep>{}(__val.count());
+      }
+    };
+
+  template<typename _Rep, typename _Period>
+    struct __is_fast_hash<hash<chrono::duration<_Rep, _Period>>>
+    : __is_fast_hash<hash<_Rep>>
+    {};
+
+  // time_point
+  template<typename _Clock, typename _Dur>
+    requires __is_hash_enabled_for<_Dur>
+    struct hash<chrono::time_point<_Clock, _Dur>>
+    {
+      size_t
+      operator()(const chrono::time_point<_Clock, _Dur>& __val) const
+      noexcept(__is_nothrow_copy_hashable<_Dur>)
+      { return hash<_Dur>{}(__val.time_since_epoch()); }
+    };
+
+  template<typename _Clock, typename _Dur>
+    struct __is_fast_hash<hash<chrono::time_point<_Clock, _Dur>>>
+    : __is_fast_hash<hash<_Dur>>
+    {};
+
+  // day
+  template<>
+    struct hash<chrono::day>
+    {
+      size_t
+      operator()(chrono::day __val) const noexcept
+      { return chrono::__hash(__val); }
+    };
+
+  // month
+  template<>
+    struct hash<chrono::month>
+    {
+      size_t
+      operator()(chrono::month __val) const noexcept
+      { return chrono::__hash(__val); }
+    };
+
+  // year
+  template<>
+    struct hash<chrono::year>
+    {
+      size_t
+      operator()(chrono::year __val) const noexcept
+      { return chrono::__hash(__val); }
+    };
+
+  // weekday
+  template<>
+    struct hash<chrono::weekday>
+    {
+      size_t
+      operator()(chrono::weekday __val) const noexcept
+      { return chrono::__hash(__val); }
+    };
+
+  // weekday_indexed
+  template<>
+    struct hash<chrono::weekday_indexed>
+    {
+      size_t
+      operator()(chrono::weekday_indexed __val) const noexcept
+      { return chrono::__hash(__val); }
+    };
+
+  // weekday_last
+  template<>
+    struct hash<chrono::weekday_last>
+    {
+      size_t
+      operator()(chrono::weekday_last __val) const noexcept
+      { return chrono::__hash(__val); }
+    };
+
+  // month_day
+  template<>
+    struct hash<chrono::month_day>
+    {
+      size_t
+      operator()(chrono::month_day __val) const noexcept
+      { return chrono::__hash(__val.month(), __val.day()); }
+    };
+
+  // month_day_last
+  template<>
+    struct hash<chrono::month_day_last>
+    {
+      size_t operator()(chrono::month_day_last __val) const noexcept
+      { return chrono::__hash(__val.month()); }
+    };
+
+  // month_weekday
+  template<>
+    struct hash<chrono::month_weekday>
+    {
+      size_t
+      operator()(chrono::month_weekday __val) const noexcept
+      { return chrono::__hash(__val.month(), __val.weekday_indexed()); }
+    };
+
+  // month_weekday_last
+  template<>
+    struct hash<chrono::month_weekday_last>
+    {
+      size_t
+      operator()(chrono::month_weekday_last __val) const noexcept
+      { return chrono::__hash(__val.month(), __val.weekday_last()); }
+    };
+
+  // year_month
+  template<>
+    struct hash<chrono::year_month>
+    {
+      size_t
+      operator()(chrono::year_month __val) const noexcept
+      { return chrono::__hash(__val.year(), __val.month()); }
+    };
+
+  // year_month_day
+  template<>
+    struct hash<chrono::year_month_day>
+    {
+      size_t
+      operator()(chrono::year_month_day __val) const noexcept
+      { return chrono::__hash(__val.year(), __val.month(), __val.day()); }
+    };
+
+  // year_month_day_last
+  template<>
+    struct hash<chrono::year_month_day_last>
+    {
+      size_t
+      operator()(chrono::year_month_day_last __val) const noexcept
+      { return chrono::__hash(__val.year(), __val.month()); }
+    };
+
+  // year_month_weekday
+  template<>
+    struct hash<chrono::year_month_weekday>
+    {
+      size_t
+      operator()(chrono::year_month_weekday __val) const noexcept
+      { 
+	return chrono::__hash(__val.year(), __val.month(),
+			      __val.weekday_indexed());
+      }
+    };
+
+  // year_month_weekday_last
+  template<>
+    struct hash<chrono::year_month_weekday_last>
+    {
+      size_t
+      operator()(chrono::year_month_weekday_last __val) const noexcept
+      { 
+	return chrono::__hash(__val.year(), __val.month(),
+			      __val.weekday_last());
+      }
+    };
+
+#if _GLIBCXX_HOSTED
+#if _GLIBCXX_USE_CXX11_ABI || ! _GLIBCXX_USE_DUAL_ABI
+  // zoned_time
+  template<typename _Duration, typename _TimeZonePtr>
+    requires __is_hash_enabled_for<
+	       typename chrono::zoned_time<_Duration, _TimeZonePtr>::duration>
+	     && __is_hash_enabled_for<_TimeZonePtr>
+    struct hash<chrono::zoned_time<_Duration, _TimeZonePtr>>
+    {
+    private:
+      using _ActualDuration =
+	typename chrono::zoned_time<_Duration, _TimeZonePtr>::duration;
+
+    public:
+      size_t
+      operator()(const chrono::zoned_time<_Duration, _TimeZonePtr>& __val) const
+      noexcept(__is_nothrow_copy_hashable<_ActualDuration>
+	       && __is_nothrow_copy_hashable<_TimeZonePtr>)
+      {
+	const auto __iduration = [&] {
+	  const _ActualDuration __sd = __val.get_sys_time().time_since_epoch();
+	  if constexpr (is_integral_v<typename _ActualDuration::rep>)
+	    return __sd.count();
+	  else
+	    return hash<_ActualDuration>{}(__sd);
+	}();
+
+	const auto __izone = [&] {
+	  const _TimeZonePtr __tz = __val.get_time_zone();
+	  if constexpr (is_same_v<_TimeZonePtr, const chrono::time_zone*>)
+	    return reinterpret_cast<uintptr_t>(__tz);
+	  else
+	    return hash<_TimeZonePtr>{}(__tz);
+	}();
+
+	return chrono::__int_hash(__iduration, __izone);
+      }
+    };
+
+  template<typename _Duration, typename _TimeZonePtr>
+    struct __is_fast_hash<hash<chrono::zoned_time<_Duration, _TimeZonePtr>>>
+    : __and_<__is_fast_hash<hash<
+	       typename chrono::zoned_time<_Duration, _TimeZonePtr>::duration>>,
+	     __is_fast_hash<hash<_TimeZonePtr>>>
+    {};
+
+  // leap_second
+  template<>
+    struct hash<chrono::leap_second>
+    {
+      size_t
+      operator()(chrono::leap_second __val) const noexcept
+      { 
+	return chrono::__int_hash(
+		 __val.date().time_since_epoch().count(),
+		 __val.value().count());
+      }
+    };
+#endif // _GLIBCXX_USE_CXX11_ABI || ! _GLIBCXX_USE_DUAL_ABI
+#endif // _GLIBCXX_HOSTED
+#endif // __glibcxx_chrono_cxx20 >= 202306
+
+#ifdef __glibcxx_chrono_cxx20
   inline namespace literals
   {
   inline namespace chrono_literals
@@ -3374,7 +3691,7 @@ namespace __detail
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 
-#if __cplusplus >= 202002L && _GLIBCXX_HOSTED
+#if defined __glibcxx_chrono_cxx20 && _GLIBCXX_HOSTED
 # include <bits/chrono_io.h>
 #endif
 

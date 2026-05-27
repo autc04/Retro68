@@ -1,6 +1,66 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-04-29  Jakub Jelinek  <jakub@redhat.com>
+
+	Backported from master:
+	2026-04-29  Jakub Jelinek  <jakub@redhat.com>
+
+	* sanitizer_common/sanitizer_platform_limits_posix.cpp: Cherry picked
+	from LLVM commit 3dc4fd6dd41100f051a63642f449b16324389c96.
+
+2026-04-21  Marian Buschsieweke  <maribu@users.noreply.github.com>
+
+	PR sanitizer/124248
+	* sanitizer_common/sanitizer_platform_limits_posix.cpp (struct_sock_fprog_sz):
+	Make available on non-glibc Linux systems.
+
+2025-12-29  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure: Regenerate.
+
+2025-12-10  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* LOCAL_PATCHES: Update.
+
+2025-12-02  Jakub Jelinek  <jakub@redhat.com>
+
+	* LOCAL_PATCHES: Update.
+
+2025-12-02  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* configure.tgt: Enable for Darwin22+.
+
+2025-12-02  Jakub Jelinek  <jakub@redhat.com>
+
+	* MERGE: Merge from master.
+
+2025-11-03  Sam James  <sam@gentoo.org>
+
+	* configure: Regenerate.
+
+2025-10-05  Sam James  <sam@gentoo.org>
+
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* asan/Makefile.in: Regenerate.
+	* configure: Regenerate.
+	* hwasan/Makefile.in: Regenerate.
+	* interception/Makefile.in: Regenerate.
+	* libbacktrace/Makefile.in: Regenerate.
+	* lsan/Makefile.in: Regenerate.
+	* sanitizer_common/Makefile.in: Regenerate.
+	* tsan/Makefile.in: Regenerate.
+	* ubsan/Makefile.in: Regenerate.
+
+2025-05-02  Florian Weimer  <fweimer@redhat.com>
+	    Tom Stellard  <tstellar@redhat.com>
+
+	* sanitizer_common/sanitizer_common_interceptors_ioctl.inc: Cherry
+	picked from LLVM commit 59978b21ad9c65276ee8e14f26759691b8a65763.
+	* sanitizer_common/sanitizer_platform_limits_posix.cpp: Likewise.
+	* sanitizer_common/sanitizer_platform_limits_posix.h: Likewise.
 
 2025-01-06  Stefan Schulze Frielinghaus  <stefansf@gcc.gnu.org>
 

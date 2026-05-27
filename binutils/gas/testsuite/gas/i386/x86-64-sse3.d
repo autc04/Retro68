@@ -13,6 +13,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	df 88 90 90 90 00 [ 	]*fisttps 0x909090\(%rax\)
 [ 	]*[a-f0-9]+:	db 88 90 90 90 00 [ 	]*fisttpl 0x909090\(%rax\)
 [ 	]*[a-f0-9]+:	dd 88 90 90 90 00 [ 	]*fisttpll 0x909090\(%rax\)
+[ 	]*[a-f0-9]+:	dd 88 90 90 90 00 [ 	]*fisttpll 0x909090\(%rax\)
 [ 	]*[a-f0-9]+:	66 0f 7c 65 00 [ 	]*haddpd 0x0\(%rbp\),%xmm4
 [ 	]*[a-f0-9]+:	66 0f 7c ee [ 	]*haddpd %xmm6,%xmm5
 [ 	]*[a-f0-9]+:	f2 0f 7c 37 [ 	]*haddps \(%rdi\),%xmm6

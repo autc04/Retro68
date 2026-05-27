@@ -1,6 +1,6 @@
 #source: pcgp-relax-02.s
 #as:
-#ld: --relax
+#ld: --relax --relax-gp
 #objdump: -d
 
 .*:[ 	]+file format .*

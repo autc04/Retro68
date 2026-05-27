@@ -132,3 +132,6 @@ Disassembly of section .text:
 [ 	]+1e8:[ 	]+00df04a4 [ 	]+bstrpick.d[ 	]+[ 	]+\$a0, \$a1, 0x1f, 0x1
 [ 	]+1ec:[ 	]+00e000a4 [ 	]+bstrpick.d[ 	]+[ 	]+\$a0, \$a1, 0x20, 0x0
 [ 	]+1f0:[ 	]+00ff00a4 [ 	]+bstrpick.d[ 	]+[ 	]+\$a0, \$a1, 0x3f, 0x0
+[ 	]+1f4:[ 	]+00006004 [ 	]+rdcntvl.w[ 	]+[ 	]+\$a0
+[ 	]+1f8:[ 	]+000060a0 [ 	]+rdcntid.w[ 	]+[ 	]+\$a1
+[ 	]+1fc:[ 	]+00006404 [ 	]+rdcntvh.w[ 	]+[ 	]+\$a0

@@ -1,4 +1,4 @@
 #name: TLS IE->LE transition check (R_386_TLS_GOTIE)
-#as: --32
+#as: --32 -mtls-check=no
 #ld: -melf_i386
-#error: .*TLS transition from R_386_TLS_GOTIE to R_386_TLS_LE_32 against `foo'.*failed.*
+#error: .*: relocation R_386_TLS_GOTIE against `foo' must be used in ADD, SUB or MOV only

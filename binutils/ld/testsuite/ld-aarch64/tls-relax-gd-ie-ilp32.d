@@ -1,6 +1,7 @@
 #source: tls-relax-gd-ie.s
 #as: -mabi=ilp32
-#ld: -m [aarch64_choose_ilp32_emul] -T relocs-ilp32.ld -e0
+#ld: -m [aarch64_choose_ilp32_emul] -T relocs-ilp32.ld -e0 tmpdir/tls-sharedlib-ilp32.so
+#notarget: *-*-nto*
 #objdump: -dr
 #...
  +10000:	90000080 	adrp	x0, 20000 <_GLOBAL_OFFSET_TABLE_>

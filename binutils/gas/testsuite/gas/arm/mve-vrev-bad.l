@@ -1,26 +1,26 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: elements must be smaller than reversal region -- `vrev16.16 q0,q1'
-[^:]*:11: Error: elements must be smaller than reversal region -- `vrev32.32 q0,q1'
-[^:]*:12: Error: elements must be smaller than reversal region -- `vrev64.64 q0,q1'
-[^:]*:13: Warning: 64-bit element size and same destination and source operands makes instruction UNPREDICTABLE
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:3: Error: elements must be smaller than reversal region -- `vrev16.16 q0,q1'
+[^:]*:4: Error: elements must be smaller than reversal region -- `vrev32.32 q0,q1'
+[^:]*:5: Error: elements must be smaller than reversal region -- `vrev64.64 q0,q1'
+[^:]*:6: Warning: 64-bit element size and same destination and source operands makes instruction UNPREDICTABLE
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:18: Error: syntax error -- `vrev16eq.8 q0,q1'
 [^:]*:19: Error: syntax error -- `vrev16eq.8 q0,q1'
 [^:]*:21: Error: syntax error -- `vrev16eq.8 q0,q1'

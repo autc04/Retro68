@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 PTWRITE insns
 #source: x86-64-ptwrite.s

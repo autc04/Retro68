@@ -1,6 +1,6 @@
 /* Process the ObjC-specific declarations and variables for
    the Objective-C++ compiler.
-   Copyright (C) 2005-2025 Free Software Foundation, Inc.
+   Copyright (C) 2005-2026 Free Software Foundation, Inc.
    Contributed by Ziemowit Laski  <zlaski@apple.com>
 
 This file is part of GCC.
@@ -60,7 +60,7 @@ extern tree objcp_end_compound_stmt (tree, int);
 #define OBJC_SET_TYPE_NAME(type, name) (TYPE_IDENTIFIER (type) = (name))
 
 #undef TYPE_OBJC_INFO
-#define TYPE_OBJC_INFO(TYPE) LANG_TYPE_CLASS_CHECK (TYPE)->objc_info
+#define TYPE_OBJC_INFO(TYPE) LANG_TYPE_CLASS_CHECK (TYPE)->info.objc_info
 #undef SIZEOF_OBJC_TYPE_LANG_SPECIFIC
 #define SIZEOF_OBJC_TYPE_LANG_SPECIFIC sizeof (struct lang_type)
 #undef ALLOC_OBJC_TYPE_LANG_SPECIFIC

@@ -1,0 +1,66 @@
+# Expect script for ELF/x86-64 binutils tests on linker outputs.
+#   Copyright (C) 2025-2026 Free Software Foundation, Inc.
+#
+# This file is part of the GNU Binutils.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+# MA 02110-1301, USA.
+#
+
+if ![is_elf_format] {
+    return
+}
+
+if { ![istarget "x86_64-*-*"] } {
+    return
+}
+
+# Tests here need -melf_x86_64 support.
+set status [catch "exec $LD -V -melf_x86_64" got]
+if { $status == 0 } {
+    run_ld_link_tests [list \
+	[list \
+	    "Build libgot-1-x64.so" \
+	    "-shared -melf_x86_64 --no-ld-generated-unwind-info \
+	     -z noseparate-code -z max-page-size=0x200000 \
+	     --hash-style=sysv -z nomark-plt $NO_DT_RELR_LDFLAGS \
+	     --rosegment" \
+	    "" \
+	    "--64 -mx86-used-note=no --generate-missing-build-notes=no" \
+	    {got-1.s} \
+	    {{readelf {-rW --got-contents} libgot-1.rd}} \
+	    "libgot-1-x64.so" \
+	] \
+    ]
+}
+
+# Tests here need -melf32_x86_64 support.
+set status [catch "exec $LD -V -melf32_x86_64" got]
+if { $status == 0 } {
+    run_ld_link_tests [list \
+	[list \
+	    "Build libgot-1-x32.so" \
+	    "-shared -melf32_x86_64 --no-ld-generated-unwind-info \
+	     -z noseparate-code -z max-page-size=0x200000 \
+	     --hash-style=sysv -z nomark-plt $NO_DT_RELR_LDFLAGS \
+	     --rosegment" \
+	    "" \
+	    "--x32 -mx86-used-note=no --generate-missing-build-notes=no" \
+	    {got-1.s} \
+	    {{readelf {-rW --got-contents} libgot-1-x32.rd}} \
+	    "libgot-1-x32.so" \
+	] \
+    ]
+}

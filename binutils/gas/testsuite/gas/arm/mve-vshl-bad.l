@@ -9,24 +9,42 @@
 [^:]*:17: Warning: instruction is UNPREDICTABLE with PC operand
 [^:]*:18: Error: bad type in SIMD instruction -- `vshl.s64 q0,q1,q2'
 [^:]*:19: Error: bad type in SIMD instruction -- `vshl.i32 q0,q1,q2'
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:20: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:20: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:22: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:22: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:22: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:22: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:22: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:22: *Info: macro .*
 [^:]*:24: Error: syntax error -- `vshleq.i16 q0,q1,#0'
 [^:]*:25: Error: syntax error -- `vshleq.i16 q0,q1,#0'
 [^:]*:27: Error: syntax error -- `vshleq.i16 q0,q1,#0'

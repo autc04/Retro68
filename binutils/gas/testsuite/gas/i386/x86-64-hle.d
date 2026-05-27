@@ -424,6 +424,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f0 f2 20 01          	lock xacquire and %al,\(%rcx\)
 [ 	]*[a-f0-9]+:	f0 f3 20 01          	lock xrelease and %al,\(%rcx\)
 [ 	]*[a-f0-9]+:	f3 88 01             	xrelease mov %al,\(%rcx\)
+[ 	]*[a-f0-9]+:	f3 88 04 25 78 56 34 12 	xrelease mov %al,0x12345678
+[ 	]*[a-f0-9]+:	67 f3 88 04 25 21 43 65 87 	xrelease mov %al,0x87654321\(,%eiz,1\)
 [ 	]*[a-f0-9]+:	f2 f0 08 01          	xacquire lock or %al,\(%rcx\)
 [ 	]*[a-f0-9]+:	f2 f0 08 01          	xacquire lock or %al,\(%rcx\)
 [ 	]*[a-f0-9]+:	f3 f0 08 01          	xrelease lock or %al,\(%rcx\)
@@ -475,6 +477,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f0 f2 66 21 01       	lock xacquire and %ax,\(%rcx\)
 [ 	]*[a-f0-9]+:	f0 f3 66 21 01       	lock xrelease and %ax,\(%rcx\)
 [ 	]*[a-f0-9]+:	66 f3 89 01          	xrelease mov %ax,\(%rcx\)
+[ 	]*[a-f0-9]+:	66 f3 89 04 25 78 56 34 12 	xrelease mov %ax,0x12345678
+[ 	]*[a-f0-9]+:	67 66 f3 89 04 25 21 43 65 87 	xrelease mov %ax,0x87654321\(,%eiz,1\)
 [ 	]*[a-f0-9]+:	66 f2 f0 09 01       	xacquire lock or %ax,\(%rcx\)
 [ 	]*[a-f0-9]+:	66 f2 f0 09 01       	xacquire lock or %ax,\(%rcx\)
 [ 	]*[a-f0-9]+:	66 f3 f0 09 01       	xrelease lock or %ax,\(%rcx\)
@@ -526,6 +530,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f0 f2 21 01          	lock xacquire and %eax,\(%rcx\)
 [ 	]*[a-f0-9]+:	f0 f3 21 01          	lock xrelease and %eax,\(%rcx\)
 [ 	]*[a-f0-9]+:	f3 89 01             	xrelease mov %eax,\(%rcx\)
+[ 	]*[a-f0-9]+:	f3 89 04 25 78 56 34 12 	xrelease mov %eax,0x12345678
+[ 	]*[a-f0-9]+:	67 f3 89 04 25 21 43 65 87 	xrelease mov %eax,0x87654321\(,%eiz,1\)
 [ 	]*[a-f0-9]+:	f2 f0 09 01          	xacquire lock or %eax,\(%rcx\)
 [ 	]*[a-f0-9]+:	f2 f0 09 01          	xacquire lock or %eax,\(%rcx\)
 [ 	]*[a-f0-9]+:	f3 f0 09 01          	xrelease lock or %eax,\(%rcx\)
@@ -577,6 +583,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f0 f2 48 21 01       	lock xacquire and %rax,\(%rcx\)
 [ 	]*[a-f0-9]+:	f0 f3 48 21 01       	lock xrelease and %rax,\(%rcx\)
 [ 	]*[a-f0-9]+:	f3 48 89 01          	xrelease mov %rax,\(%rcx\)
+[ 	]*[a-f0-9]+:	f3 48 89 04 25 78 56 34 12 	xrelease mov %rax,0x12345678
+[ 	]*[a-f0-9]+:	67 f3 48 89 04 25 21 43 65 87 	xrelease mov %rax,0x87654321\(,%eiz,1\)
 [ 	]*[a-f0-9]+:	f2 f0 48 09 01       	xacquire lock or %rax,\(%rcx\)
 [ 	]*[a-f0-9]+:	f2 f0 48 09 01       	xacquire lock or %rax,\(%rcx\)
 [ 	]*[a-f0-9]+:	f3 f0 48 09 01       	xrelease lock or %rax,\(%rcx\)

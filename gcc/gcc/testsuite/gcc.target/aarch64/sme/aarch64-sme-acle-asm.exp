@@ -1,5 +1,5 @@
 #  Assembly-based regression-test driver for the SME ACLE.
-#  Copyright (C) 2009-2025 Free Software Foundation, Inc.
+#  Copyright (C) 2009-2026 Free Software Foundation, Inc.
 #
 #  This file is part of GCC.
 #
@@ -34,7 +34,7 @@ dg-init
 if { [check_effective_target_aarch64_sme] } {
     set sme_flags ""
 } else {
-    set sme_flags "-march=armv9-a+sme"
+    set sme_flags "-march=armv8-a+sme"
 }
 
 # Turn off any codegen tweaks by default that may affect expected assembly.

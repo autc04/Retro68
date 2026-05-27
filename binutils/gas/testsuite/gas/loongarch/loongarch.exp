@@ -1,5 +1,5 @@
 # Expect script for LoongArch assembler tests.
-#   Copyright (C) 2021-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -20,4 +20,23 @@
 
 if [istarget loongarch*-*-*] {
     run_dump_tests [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+    gas_test_old bfd_reloc_8.s "" "bfd_reloc_8"
+    if [file exist "tls_le_insn_format_check.s "] {
+      set format [run_host_cmd "as" "tls_le_insn_format_check.s"]
+      if { [ regexp ".*no match insn.*" $format] } {
+	pass "loongarch tls le insn format pass"
+      } {
+	pass "loongarch tls le insn format fail"
+      }
+    }
+
+  run_list_test "align"
+  run_list_test "reg-s9"
+
+  if [istarget loongarch64-*-*] {
+    run_list_test "illegal-operand"
+    run_list_test "pseudo_op_option_fail"
+    run_list_test "negative_right_shift"
+    run_list_test "div_zero"
+  }
 }

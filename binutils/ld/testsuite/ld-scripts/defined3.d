@@ -1,4 +1,4 @@
-#ld: -Tdefined3.t
+#ld: -Tdefined3.t --no-error-rwx-segments
 #nm: -B
 #source: phdrs.s
 #source: defined.s

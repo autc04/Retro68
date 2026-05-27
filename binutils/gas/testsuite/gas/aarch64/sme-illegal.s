@@ -4,6 +4,7 @@
 addha za4.s, p0/m, p1/m, z1.s
 addha za15.s, p2/m, p3/m, z2.s
 addha za0.s, p2/m, p3/m, z2.d
+addha z0.s, p0/m, p1/m, z1.s
 
 /* ADDHA 64-bit variant.  */
 addha za8.d, p0/m, p1/m, z1.d

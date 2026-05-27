@@ -1,3 +1,7 @@
+#![feature(no_core)]
+#![no_core]
+
+#![feature(lang_items)]
 #[lang = "sized"]
 pub trait Sized {}
 
@@ -11,7 +15,6 @@ impl Add for u32 {
     type Output = u32;
 
     fn add(self) -> u32 {
-        // { dg-warning "unused name" "" { target *-*-* } .-1 }
         0
     }
 }
@@ -20,7 +23,6 @@ impl<'a> Add for &'a u32 {
     type Output = u32;
 
     fn add(self) -> <u32 as Add>::Output {
-        // { dg-warning "unused name" "" { target *-*-* } .-1 }
         0
     }
 }

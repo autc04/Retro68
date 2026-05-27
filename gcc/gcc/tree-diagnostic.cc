@@ -1,7 +1,7 @@
 /* Language-independent diagnostic subroutines for the GNU Compiler
    Collection that are only for use in the compilers proper and not
    the driver or other programs.
-   Copyright (C) 1999-2025 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -19,6 +19,8 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#define INCLUDE_LIST
+#define INCLUDE_VECTOR
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -27,29 +29,30 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-pretty-print.h"
 #include "gimple-pretty-print.h"
 #include "tree-diagnostic.h"
-#include "diagnostic-client-data-hooks.h"
+#include "diagnostics/client-data-hooks.h"
 #include "langhooks.h"
 #include "intl.h"
-#include "diagnostic-format-text.h"
+#include "diagnostics/text-sink.h"
+#include "tree-diagnostic-sink-extensions.h"
 
 /* Prints out, if necessary, the name of the current function
    that caused an error.  */
 void
-diagnostic_report_current_function (diagnostic_text_output_format &text_output,
-				    const diagnostic_info *diagnostic)
+diagnostic_report_current_function (diagnostics::text_sink &text_output,
+				    const diagnostics::diagnostic_info *diag)
 {
-  location_t loc = diagnostic_location (diagnostic);
+  location_t loc = diagnostic_location (diag);
   text_output.report_current_module (loc);
-  lang_hooks.print_error_function (text_output, LOCATION_FILE (loc), diagnostic);
+  lang_hooks.print_error_function (text_output, LOCATION_FILE (loc), diag);
 }
 
 static void
-default_tree_diagnostic_text_starter (diagnostic_text_output_format &text_output,
-				      const diagnostic_info *diagnostic)
+default_tree_diagnostic_text_starter (diagnostics::text_sink &text_output,
+				      const diagnostics::diagnostic_info *diag)
 {
   pretty_printer *const pp = text_output.get_printer ();
-  diagnostic_report_current_function (text_output, diagnostic);
-  pp_set_prefix (pp, text_output.build_prefix (*diagnostic));
+  diagnostic_report_current_function (text_output, diag);
+  pp_set_prefix (pp, text_output.build_prefix (*diag));
 }
 
 /* Default tree printer.   Handles declarations only.  */
@@ -110,8 +113,8 @@ default_tree_printer (pretty_printer *pp, text_info *text, const char *spec,
    to the DIAGNOSTIC location.  */
 
 static void
-set_inlining_locations (diagnostic_context *,
-			diagnostic_info *diagnostic)
+set_inlining_locations (const diagnostics::context &,
+			diagnostics::diagnostic_info *diagnostic)
 {
   location_t loc = diagnostic_location (diagnostic);
   tree block = LOCATION_BLOCK (loc);
@@ -169,17 +172,20 @@ set_inlining_locations (diagnostic_context *,
   /* Set if all locations are in a system header.  */
   diagnostic->m_iinfo.m_allsyslocs = nsyslocs == ilocs.length ();
 
-  if (tree *ao = pp_ti_abstract_origin (&diagnostic->message))
+  if (tree *ao = pp_ti_abstract_origin (&diagnostic->m_message))
     *ao = (tree)diagnostic->m_iinfo.m_ao;
 }
 
+static const compiler_extension_factory compiler_ext_factory;
+
 /* Sets CONTEXT to use language independent diagnostics.  */
 void
-tree_diagnostics_defaults (diagnostic_context *context)
+tree_diagnostics_defaults (diagnostics::context *context)
 {
-  diagnostic_text_starter (context) = default_tree_diagnostic_text_starter;
-  diagnostic_text_finalizer (context) = default_diagnostic_text_finalizer;
+  diagnostics::text_starter (context) = default_tree_diagnostic_text_starter;
+  diagnostics::text_finalizer (context) = diagnostics::default_text_finalizer;
   context->set_format_decoder (default_tree_printer);
   context->set_set_locations_callback (set_inlining_locations);
   context->set_client_data_hooks (make_compiler_data_hooks ());
+  gcc_extension_factory::singleton = &compiler_ext_factory;
 }

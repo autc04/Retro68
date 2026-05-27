@@ -1,5 +1,5 @@
 #source: ifunc-20.s
-#ld: -shared -m elf_x86_64 -z nocombreloc
+#ld: -shared -m elf_x86_64 -z nocombreloc -z nomark-plt
 #as: --64
 #readelf: -r --wide
 #target: x86_64-*-*

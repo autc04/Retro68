@@ -1,5 +1,5 @@
 # Expect script for various ELF tests.
-#   Copyright (C) 2006-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -259,13 +259,13 @@ if { [check_gc_sections_available] } {
 	    "pr20828-v.so"] \
 	[list \
 	    "PR ld/20828 forcibly exported symbol version without section GC" \
-	    "$LFLAGS --no-dynamic-linker -e foo -E -T pr20828-v.ld" "" "" \
+	    "$LFLAGS --no-dynamic-linker -e foo -E -T pr20828-v.ld --no-error-rwx-segments" "" "" \
 	    {pr20828-v.s} \
 	    {{objdump -p pr20828-v.od}} \
 	    "pr20828-v-1"] \
 	[list \
 	    "PR ld/20828 forcibly exported symbol version with section GC" \
-	    "$LFLAGS --no-dynamic-linker -e foo --gc-sections -E -T pr20828-v.ld" "" "" \
+	    "$LFLAGS --no-dynamic-linker -e foo --gc-sections -E -T pr20828-v.ld --no-error-rwx-segments" "" "" \
 	    {pr20828-v.s} \
 	    {{objdump -p pr20828-v.od}} \
 	    "pr20828-v-2"]]
@@ -282,7 +282,7 @@ if { [check_gc_sections_available] } {
 	[list \
 	    "PR ld/21233 dynamic symbols with section GC\
 	     (auxiliary shared library)" \
-	    "$LFLAGS -shared -T pr21233.ld" "" "$AFLAGS_PIC" \
+	    "$LFLAGS -shared -T pr21233.ld --no-error-rwx-segments" "" "$AFLAGS_PIC" \
 	    {pr21233-l.s} \
 	    {{readelf --dyn-syms pr21233-l.sd}} \
 	    "libpr21233.so"]]
@@ -290,7 +290,7 @@ if { [check_gc_sections_available] } {
     run_ld_link_tests [list \
 	[list \
 	    "PR ld/21233 dynamic symbols with section GC (--undefined)" \
-	    "$LFLAGS --gc-sections -e foo --undefined=bar -T pr21233.ld" \
+	    "$LFLAGS --gc-sections -e foo --undefined=bar -T pr21233.ld --no-error-rwx-segments" \
 	    "tmpdir/libpr21233.so" "" \
 	    {pr21233.s} \
 	    {{readelf --dyn-syms pr21233.sd}} \
@@ -300,7 +300,7 @@ if { [check_gc_sections_available] } {
 	[list \
 	    "PR ld/21233 dynamic symbols with section GC (--require-defined)" \
 	    "$LFLAGS --gc-sections -e foo --require-defined=bar\
-	     -T pr21233.ld" \
+	     -T pr21233.ld --no-error-rwx-segments" \
 	    "tmpdir/libpr21233.so" "" \
 	    {pr21233.s} \
 	    {{readelf --dyn-syms pr21233.sd}} \
@@ -309,7 +309,7 @@ if { [check_gc_sections_available] } {
     run_ld_link_tests [list \
 	[list \
 	    "PR ld/21233 dynamic symbols with section GC (EXTERN)" \
-	    "$LFLAGS --gc-sections -e foo -T pr21233-e.ld" \
+	    "$LFLAGS --gc-sections -e foo -T pr21233-e.ld --no-error-rwx-segments" \
 	    "tmpdir/libpr21233.so" "" \
 	    {pr21233.s} \
 	    {{readelf --dyn-syms pr21233.sd}} \
@@ -346,6 +346,7 @@ if { [check_gc_sections_available] } {
 	mips*-*-* { }
 	tic6x-*-* { }
 	xtensa-*-* { }
+	loongarch*-*-* { }
 	default {
 	    run_ld_link_tests [list \
 		[list \
@@ -392,14 +393,13 @@ run_ld_link_tests [list \
 ]
 
 # Targets that use _bfd_generic_link_add_symbols won't pass pr21703 tests
-# Nor will hppa64 with dot-symbols.
 run_ld_link_tests [list \
     [list "PR ld/21703 shared" \
 	"$LFLAGS -shared --allow-multiple-definition --version-script pr21703.ver\
 	 tmpdir/pr21703-3.o tmpdir/pr21703-4.o" "" "$AFLAGS_PIC" \
 	{pr21703-3.s pr21703-4.s} {{readelf {--dyn-syms} pr21703-shared.sd}} \
 	"pr21703.so" ] \
-] \[is_generic\] hppa64-*-*
+] \[is_generic\]
 
 # This target requires extra GAS options when building non-PIC code
 # for linking with shared libraries.
@@ -465,9 +465,9 @@ run_ld_link_tests [list \
 ]
 
 # These targets don't copy dynamic variables into .bss.
-setup_xfail "alpha-*-*" "bfin-*-*" "ia64-*-*" "xtensa-*-*"
+setup_xfail "alpha-*-*" "bfin-*-*" "ia64-*-*" "xtensa-*-*" *loongarch*-*-*
 # or don't have .data.rel.ro
-setup_xfail "hppa*64*-*-hpux*" "tic6x-*-*"
+setup_xfail "hppa*64*-*-hpux*" "tic6x-*-*" "kvx*-*-*"
 # or complain about relocs in read-only sections
 setup_xfail frv-*-* lm32-*-*
 run_ld_link_tests [list \
@@ -485,7 +485,8 @@ run_ld_link_tests [list \
 	{pr20995c.s} {{readelf {-l --wide} pr20995-2so.r}} "pr20995-2.so"] \
 ] {![check_relro_support]}
 
-setup_xfail alpha-*-* xtensa-*-*
+# LoongArch: Read-only sections, merged into text segment in normal exe.
+setup_xfail alpha-*-* xtensa-*-* loongarch*-*-*
 run_ld_link_tests [list \
     [list \
 	"pr20995-2" \
@@ -502,7 +503,8 @@ run_ld_link_tests [list \
 # but that is just an optimization so don't complain loudly.
 setup_xfail *-*-*
 clear_xfail alpha-*-* bfin-*-linux* csky-*-* frv-*-* hppa*-*-* i?86-*-*
-clear_xfail ia64-*-* microblaze-*-* powerpc*-*-* x86_64-*-* xtensa-*-*
+clear_xfail ia64-*-* loongarch*-*-* microblaze-*-* powerpc*-*-* x86_64-*-*
+clear_xfail xtensa-*-*
 run_ld_link_tests {
     {"pr22374 function pointer initialization"
 	"" "tmpdir/pr22374.so" "" "pr22374a.s"
@@ -512,7 +514,7 @@ run_ld_link_tests {
 }
 
 if { [istarget *-*-linux*]
-     || [istarget *-*-nacl*]
+     || [istarget kvx-*-*]
      || [istarget *-*-gnu*] } {
     run_ld_link_tests {
 	{"Weak symbols in dynamic objects 1 (support)"
@@ -548,10 +550,10 @@ set build_tests {
    "-shared" "-fPIC"
    {begin.c end.c} {} "libbar.so"}
   {"Build warn libbar.so"
-   "-shared" "-fPIC"
+   "-shared" "-fPIC -g"
   {beginwarn.c end.c}
   {{readelf {-S --wide} libbarw.rd}
-   {warning "^.*beginwarn.c:7: warning: function foo is deprecated\n?$"}}
+   {warning {^.*beginwarn.c:7:\(.*\): warning: function foo is deprecated\n?$}}}
   "libbarw.so" "c"}
   {"Build hidden libbar.so"
    "-shared" "-fPIC"
@@ -706,7 +708,7 @@ set build_tests {
    "-r -nostdlib" ""
    {pr14862-1.c} {} "libpr14862-1.o"}
   {"Build libpr14862.so"
-   "-shared -Wl,--version-script=pr11138-1.map" "-fPIC"
+   "-shared -Wl,--version-script=pr14862.map" "-fPIC"
    {pr14862-2.c} {} "libpr14862.so"}
   {"Build libneeded1b.so"
    "-shared" "-fPIC"
@@ -908,6 +910,38 @@ run_cc_link_tests [list \
 	{{readelf {--dyn-syms --wide} pr28348.rd}} \
 	"pr28348" \
     ] \
+    [list \
+	"Build pr31482b-no-lto.so" \
+	"-shared" \
+	"-fPIC" \
+	{pr31482b-no-lto.c} \
+	{} \
+	"pr31482b-no-lto.so" \
+    ] \
+    [list \
+	"Build pr31482c-no-lto.a" \
+	"" \
+	"" \
+	{pr31482c-no-lto.c} \
+	{} \
+	"pr31482c-no-lto.a" \
+    ] \
+    [list \
+	"Build pr31482d-no-lto.a" \
+	"" \
+	"" \
+	{pr31482d-no-lto.c} \
+	{} \
+	"pr31482d-no-lto.a" \
+    ] \
+    [list \
+	"Build pr21086" \
+	"-static -Wl,--dynamic-list=pr21086.list" \
+	"" \
+	{pr21086.c} \
+	{{readelf -d pr21086.rd}} \
+	"pr21086" \
+    ] \
 ]
 
 # pr19073.s uses .set, which has a different meaning on alpha.
@@ -945,7 +979,13 @@ append build_tests {
    {pr26580-b.c} {} "libpr26580-2.so"}
 }
 
+set old_CFLAGS "$CFLAGS_FOR_TARGET_TEST"
+set old_CXXFLAGS "$CXXFLAGS_FOR_TARGET_TEST"
+append CFLAGS_FOR_TARGET_TEST " $NOSANITIZE_CFLAGS"
+append CXXFLAGS_FOR_TARGET_TEST " $NOSANITIZE_CFLAGS"
 run_cc_link_tests $build_tests
+set CFLAGS_FOR_TARGET_TEST "$old_CFLAGS"
+set CXXFLAGS_FOR_TARGET_TEST "$old_CXXFLAGS"
 
 run_cc_link_tests [list \
     [list \
@@ -983,6 +1023,20 @@ run_cc_link_tests [list \
 	 {nm {-u -D --with-symbol-versions} pr26302.nd}} \
 	"pr26302b.so" \
     ] \
+    [list \
+	"Build pr33409a.o" \
+	"" \
+	"$DIRECT_EXTERN_ACCESS_CFLAGS" \
+	{pr33409a.c} \
+    ] \
+    [list \
+	"Build pr33409.so" \
+	"-shared" \
+	"-fPIC" \
+	{pr33409b.c} \
+	{} \
+	"pr33409.so" \
+    ] \
 ]
 
 run_ld_link_tests [list \
@@ -1014,7 +1068,7 @@ set run_tests [list \
     [list "Run warn with versioned libfoo.so" \
      "-Wl,--no-as-needed tmpdir/beginwarn.o tmpdir/libfoov.so" "" \
      {main.c} "warn" "warn.out" \
-     "" "c" {^.*beginwarn.c:7: warning: function foo is deprecated\n?$} ] \
+     "" "c" {^.*beginwarn.c:7:\(.*\): warning: function foo is deprecated\n?$} ] \
     [list "Run protected with versioned libfoo.so" \
      "-Wl,--no-as-needed tmpdir/begin.o tmpdir/libfoov.so tmpdir/endprotected.o" "" \
      {main.c} "protected" "normal.out" ] \
@@ -1161,6 +1215,29 @@ set run_tests [list \
      "" "" \
      {pr26590c.c pr26590d.c} "pr26590" "pass.out" "" "c" "" \
      "-Wl,--as-needed tmpdir/libpr26590a.so tmpdir/libpr26590b.so" ] \
+    [list "Run pr31482 (no-lto)" \
+     "-Wl,--no-as-needed" \
+     "" \
+     {pr31482a-no-lto.c} \
+     "pr31482-no-lto" \
+     "pass.out" \
+     "" \
+     "c" \
+     "" \
+     "tmpdir/pr31482b-no-lto.so tmpdir/pr31482c-no-lto.a \
+      tmpdir/pr31482d-no-lto.a" \
+    ] \
+    [list "Run pr33409" \
+     "-Wl,-z,text" \
+     "" \
+     {pr33409c.c} \
+     "pr33409" \
+     "pass.out" \
+     "$NO_DIRECT_EXTERN_ACCESS_CFLAGS" \
+     "c" \
+     "" \
+     "tmpdir/pr33409a.o tmpdir/pr33409.so" \
+    ] \
 ]
 
 # NetBSD ELF systems do not currently support the .*_array sections.
@@ -1220,10 +1297,10 @@ if [check_libdl_available] {
   # XFAIL on NetBSD ELF systems as they do not currently support the .*_array
   # sections.
   # Disable all sanitizers.
-  set old_CFLAGS "$CFLAGS_FOR_TARGET"
-  append CFLAGS_FOR_TARGET " $NOSANITIZE_CFLAGS"
+  set old_CFLAGS "$CFLAGS_FOR_TARGET_TEST"
+  append CFLAGS_FOR_TARGET_TEST " $NOSANITIZE_CFLAGS"
   run_ld_link_exec_tests $dlopen_run_tests "*-*-netbsd*"
-  set CFLAGS_FOR_TARGET "$old_CFLAGS"
+  set CFLAGS_FOR_TARGET_TEST "$old_CFLAGS"
 }
 
 # Check --no-add-needed and --no-copy-dt-needed-entries
@@ -1334,7 +1411,6 @@ run_cc_link_tests $build_cxx_tests
 run_ld_link_exec_tests $run_cxx_tests
 
 if { [istarget *-*-linux*]
-     || [istarget *-*-nacl*]
      || [istarget *-*-gnu*] } {
     run_cc_link_tests [list \
 	[list \
@@ -1370,7 +1446,7 @@ if { [istarget *-*-linux*]
 	] \
 	[list \
 	    "Build pr22393-2a.so" \
-	    "-shared -Wl,-z,separate-code" \
+	    "-shared -Wl,-z,separate-code,--no-rosegment" \
 	    "-fPIC" \
 	    {pr22393-2a.c} \
 	    {{readelf -lW pr22393-2a.rd} \
@@ -1379,7 +1455,7 @@ if { [istarget *-*-linux*]
 	] \
 	[list \
 	    "Build pr22393-2a-now.so" \
-	    "-shared -Wl,-z,separate-code,-z,now" \
+	    "-shared -Wl,-z,separate-code,-z,now,--no-rosegment" \
 	    "-fPIC" \
 	    {pr22393-2a.c} \
 	    {{readelf -lW pr22393-2a.rd} \
@@ -1388,7 +1464,7 @@ if { [istarget *-*-linux*]
 	] \
 	[list \
 	    "Build pr22393-2" \
-	    "$NOPIE_LDFLAGS -Wl,-z,separate-code,--no-as-needed tmpdir/pr22393-2a.so" \
+	    "$NOPIE_LDFLAGS -Wl,-z,separate-code,--no-rosegment,--no-as-needed tmpdir/pr22393-2a.so" \
 	    "$NOPIE_CFLAGS" \
 	    {pr22393-2b.c} \
 	    {{readelf -lW pr22393-2a.rd} \
@@ -1397,7 +1473,7 @@ if { [istarget *-*-linux*]
 	] \
 	[list \
 	    "Build pr22393-2 (PIE)" \
-	    "-pie -Wl,-z,separate-code,--no-as-needed tmpdir/pr22393-2a-now.so" \
+	    "-pie -Wl,-z,separate-code,--no-rosegment,--no-as-needed tmpdir/pr22393-2a-now.so" \
 	    "-fPIE" \
 	    {pr22393-2b.c} \
 	    {{readelf -lW pr22393-2a.rd} \
@@ -1406,7 +1482,7 @@ if { [istarget *-*-linux*]
 	] \
 	[list \
 	    "Build pr22393-2 (static)" \
-	    "-static -Wl,-z,separate-code" \
+	    "-static -Wl,-z,separate-code,--no-rosegment" \
 	    "" \
 	    {pr22393-2a.c pr22393-2b.c} \
 	    {{readelf -lW pr22393-2a.rd} \
@@ -1578,12 +1654,12 @@ if { [istarget *-*-linux*]
 	] \
 	[list \
 	    "Run pr21964-4" \
-	    "" \
+	    "$NOPIE_LDFLAGS" \
 	    "" \
 	    {pr21964-4.c} \
 	    "pr21964-4" \
 	    "pass.out" \
-	    "" \
+	    "$NOPIE_CFLAGS" \
 	    "" \
 	    "" \
 	    "-ldl" \
@@ -1624,7 +1700,7 @@ proc mix_pic_and_non_pic {xfails cflags ldflags exe} {
 
     run_ld_link_exec_tests [list \
 	[list \
-	    "Run $exe fun defined" \
+	    "Run $exe fun undefined" \
 	    "-Wl,--no-as-needed,-rpath,tmpdir $ldflags tmpdir/libpr19719b.o tmpdir/libpr19719.so" \
 	    "" \
 	    { pr19719a.c pr19719c.c } \
@@ -1642,19 +1718,19 @@ proc mix_pic_and_non_pic {xfails cflags ldflags exe} {
     }
 
     if ![isnative] {
-	unsupported "Run $exe fun undefined"
+	unsupported "Run $exe fun defined"
 	return
     }
 
     set exec_output [run_host_cmd "tmpdir/$exe" ""]
-    if {![string match "PASS" $exec_output]} {
-	fail "Run $exe fun undefined"
+    if {![string match "PASS\n" $exec_output]} {
+	fail "Run $exe fun defined"
     } else {
-	pass "Run $exe fun undefined"
+	pass "Run $exe fun defined"
     }
 }
 
-mix_pic_and_non_pic [list "arm*-*-*" "aarch64*-*-*"] "" "" "pr19719"
+mix_pic_and_non_pic [list "arm*-*-*"] "$NOPIE_CFLAGS" "$NOPIE_LDFLAGS" "pr19719"
 mix_pic_and_non_pic [] "-fPIE" "-pie" "pr19719pie"
 
 set AFLAGS_PIE ""
@@ -1667,7 +1743,6 @@ if [istarget "sparc*-*-*"] {
 }
 
 if { ([istarget "*-*-linux*"]
-      || [istarget "*-*-nacl*"]
       || [istarget "*-*-gnu*"])
      && ![istarget "mips*-*-*"] } {
     run_ld_link_tests [list \
@@ -1727,7 +1802,7 @@ if { ([istarget "*-*-linux*"]
 	    "" \
 	    $AFLAGS_PIE \
 	    { pr23161b.c } \
-	    {{readelf {--dyn-syms -rW} pr23161b.rd}} \
+	    {{readelf {--dyn-syms -W} pr23161b.rd}} \
 	    "pr23161a" \
 	    "-fPIC -O0 $NOSANITIZE_CFLAGS" \
 	] \
@@ -1747,23 +1822,17 @@ if { ([istarget "*-*-linux*"]
 	    "" \
 	    $AFLAGS_PIE \
 	    { pr23161b.c } \
-	    {{readelf {--dyn-syms -rW} pr23161b.rd}} \
+	    {{readelf {--dyn-syms -W} pr23161b.rd}} \
 	    "pr23161b" \
 	    "-fPIC -O0 $NOSANITIZE_CFLAGS" \
 	] \
-    ]
-}
-
-if { [istarget "i?86-*-*"]
-     || [istarget "x86_64-*-*"] } {
-    run_ld_link_tests [list \
 	[list \
 	    "Build libpr23161c.so" \
 	    "-shared" \
 	    "" \
 	    "$AFLAGS_PIC" \
 	    { pr23161c.c } \
-	    {{readelf {--dyn-syms -rW} pr23161c.rd}} \
+	    {{readelf {--dyn-syms -W} pr23161c.rd}} \
 	    "libpr23161c.so" \
 	    "-fPIC -O2 $NOSANITIZE_CFLAGS" \
 	] \
@@ -1773,7 +1842,7 @@ if { [istarget "i?86-*-*"]
 	    "" \
 	    $AFLAGS_PIE \
 	    { pr23161b.c } \
-	    {{readelf {--dyn-syms -rW} pr23161d.rd}} \
+	    {{readelf {--dyn-syms -W} pr23161c.rd}} \
 	    "pr23161c" \
 	    "-fPIC -O0 $NOSANITIZE_CFLAGS" \
 	] \

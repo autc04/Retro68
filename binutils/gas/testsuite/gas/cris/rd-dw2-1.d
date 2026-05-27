@@ -1,11 +1,11 @@
 #readelf: -wl
 #source: addi.s
-#as: --em=criself --gdwarf2
+#as: --emulation=criself --gdwarf2
 # A most simple instruction sequence.
 #...
  Line Number Statements:
-  \[0x.*\]  Extended opcode 2: set Address to 0x0
-  \[0x.*\]  Special opcode .*: advance Address by 0 to 0x0 and Line by 4 to 5
+  \[0x.*\]  Extended opcode 2: set Address to (0x)?0
+  \[0x.*\]  Special opcode .*: advance Address by 0 to (0x)?0 and Line by 4 to 5
   \[0x.*\]  Special opcode .*: advance Address by 2 to 0x2 and Line by 1 to 6
   \[0x.*\]  Special opcode .*: advance Address by 2 to 0x4 and Line by 1 to 7
   \[0x.*\]  Special opcode .*: advance Address by 2 to 0x6 and Line by 1 to 8

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: x86_64 AVX512VL/VAES insns (Intel disassembly)
 #source: x86-64-avx512vl_vaes.s

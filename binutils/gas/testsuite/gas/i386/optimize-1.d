@@ -147,4 +147,63 @@ Disassembly of section .text:
  +[a-f0-9]+:	62 .*	vporq  0x80\(%eax\),%ymm2,%ymm3
  +[a-f0-9]+:	62 .*	vpxord 0x80\(%eax\),%ymm2,%ymm3
  +[a-f0-9]+:	62 .*	vpxorq 0x80\(%eax\),%ymm2,%ymm3
+ +[a-f0-9]+:	0f .*	pxor   %mm2,%mm2
+ +[a-f0-9]+:	66 .*	pxor   %xmm2,%xmm2
+ +[a-f0-9]+:	c5 .*	vpxor  %xmm2,%xmm2,%xmm0
+ +[a-f0-9]+:	c5 .*	vpxor  %ymm2,%ymm2,%ymm0
+ +[a-f0-9]+:	0f .*	pxor   %mm2,%mm2
+ +[a-f0-9]+:	66 .*	pxor   %xmm2,%xmm2
+ +[a-f0-9]+:	c5 .*	vpxor  %xmm2,%xmm2,%xmm0
+ +[a-f0-9]+:	c5 .*	vpxor  %ymm2,%ymm2,%ymm0
+ +[a-f0-9]+:	0f .*	pxor   %mm2,%mm2
+ +[a-f0-9]+:	66 .*	pxor   %xmm2,%xmm2
+ +[a-f0-9]+:	c5 .*	vpxor  %xmm2,%xmm2,%xmm0
+ +[a-f0-9]+:	c5 .*	vpxor  %ymm2,%ymm2,%ymm0
+ +[a-f0-9]+:	66 .*	pxor   %xmm2,%xmm2
+ +[a-f0-9]+:	c5 .*	vpxor  %xmm2,%xmm2,%xmm0
+ +[a-f0-9]+:	c5 .*	vpxor  %ymm2,%ymm2,%ymm0
+ +[a-f0-9]+:	66 .*	movd   %xmm1,%edx
+ +[a-f0-9]+:	66 .*	movd   %xmm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovd  %xmm1,%edx
+ +[a-f0-9]+:	c5 .*	vmovd  %xmm1,\(%edx\)
+ +[a-f0-9]+:	66 .*	movd   %xmm1,%edx
+ +[a-f0-9]+:	f3 .*	movss  %xmm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovd  %xmm1,%edx
+ +[a-f0-9]+:	c5 .*	vmovss %xmm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovaps %xmm1,%xmm2
+ +[a-f0-9]+:	c5 .*	vmovups %xmm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovdqa %xmm1,%xmm2
+ +[a-f0-9]+:	c5 .*	vmovdqu %xmm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovaps %xmm1,%xmm2
+ +[a-f0-9]+:	c5 .*	vmovups %xmm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovdqa %xmm1,%xmm2
+ +[a-f0-9]+:	c5 .*	vmovdqu %xmm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovapd %xmm1,%xmm2
+ +[a-f0-9]+:	c5 .*	vmovupd %xmm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovdqa %xmm1,%xmm2
+ +[a-f0-9]+:	c5 .*	vmovdqu %xmm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovaps %ymm1,%ymm2
+ +[a-f0-9]+:	c5 .*	vmovups %ymm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovdqa %ymm1,%ymm2
+ +[a-f0-9]+:	c5 .*	vmovdqu %ymm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovapd %ymm1,%ymm2
+ +[a-f0-9]+:	c5 .*	vmovupd %ymm1,\(%edx\)
+ +[a-f0-9]+:	c5 .*	vmovdqa %ymm1,%ymm2
+ +[a-f0-9]+:	c5 .*	vmovdqu %ymm1,\(%edx\)
+ +[a-f0-9]+:	f3 .*	movss  %xmm1,%xmm2
+ +[a-f0-9]+:	f3 .*	movss  \(%ecx\),%xmm2
+ +[a-f0-9]+:	0f .*	xorps  %xmm2,%xmm2
+ +[a-f0-9]+:	c5 .*	vmovss %xmm1,%xmm2,%xmm3
+ +[a-f0-9]+:	c5 .*	vmovss \(%ecx\),%xmm2
+ +[a-f0-9]+:	c5 .*	vxorps %xmm3,%xmm3,%xmm3
+ +[a-f0-9]+:	0f ba e0 0f          	bt     \$0xf,%eax
+ +[a-f0-9]+:	66 0f ba e0 10       	bt     \$0x10,%ax
+ +[a-f0-9]+:	0f ba f8 0f          	btc    \$0xf,%eax
+ +[a-f0-9]+:	0f ba f0 0f          	btr    \$0xf,%eax
+ +[a-f0-9]+:	0f ba e8 0f          	bts    \$0xf,%eax
+ +[a-f0-9]+:	0f ba e0 0f          	bt     \$0xf,%eax
+ +[a-f0-9]+:	66 0f ba e0 10       	bt     \$0x10,%ax
+ +[a-f0-9]+:	0f ba f8 0f          	btc    \$0xf,%eax
+ +[a-f0-9]+:	0f ba f0 0f          	btr    \$0xf,%eax
+ +[a-f0-9]+:	0f ba e8 0f          	bts    \$0xf,%eax
 #pass

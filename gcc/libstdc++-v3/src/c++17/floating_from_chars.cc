@@ -1,6 +1,6 @@
 // std::from_chars implementation for floating-point types -*- C++ -*-
 
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -45,7 +45,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <locale.h>
-#include <bits/functexcept.h>
 #if _GLIBCXX_HAVE_XLOCALE_H
 # include <xlocale.h>
 #endif

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -72,7 +72,9 @@ public:
     return path;
   }
 
-  std::string as_string () const;
+  std::string to_string () const;
+
+  location_t get_locus () const { return locus; }
 };
 } // namespace HIR
 } // namespace Rust

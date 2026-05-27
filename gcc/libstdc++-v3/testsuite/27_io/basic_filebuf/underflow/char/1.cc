@@ -1,6 +1,6 @@
 // 2003-05-03  Petur Runolfsson  <peturr02@ru.is>
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,7 +35,7 @@ protected:
 
   virtual result
   do_in(state_type&, const char* from, const char*, const char*& from_next,
-	char* to, char*, char*& to_next)
+	char* to, char*, char*& to_next) const
   {
     from_next = from;
     to_next = to;

@@ -2,7 +2,7 @@
 #objdump: --syms --special-syms -d
 #name: ARM Mapping Symbols with multiple sections
 # This test is only valid on EABI based ports.
-#target: *-*-*eabi* *-*-linux-* *-*-elf *-*-nacl*
+#target: *-*-*eabi* *-*-linux-* *-*-elf
 #source: mapsecs.s
 
 
@@ -29,17 +29,17 @@ SYMBOL TABLE:
 Disassembly of section .text.f1:
 
 00000000 <f1>:
-   0:	e1a00000 	nop			; \(mov r0, r0\)
-   4:	e1a00000 	nop			; \(mov r0, r0\)
+   0:	e1a00000 	nop			@ \(mov r0, r0\)
+   4:	e1a00000 	nop			@ \(mov r0, r0\)
 
 00000008 <f1a>:
-   8:	e1a00000 	nop			; \(mov r0, r0\)
+   8:	e1a00000 	nop			@ \(mov r0, r0\)
 
 Disassembly of section .text.f2:
 
 00000000 <f2>:
-   0:	e1a00000 	nop			; \(mov r0, r0\)
+   0:	e1a00000 	nop			@ \(mov r0, r0\)
    4:	00000001 	.word	0x00000001
 
 00000008 <f2a>:
-   8:	e1a00000 	nop			; \(mov r0, r0\)
+   8:	e1a00000 	nop			@ \(mov r0, r0\)

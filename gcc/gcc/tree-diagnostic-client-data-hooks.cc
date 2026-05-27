@@ -1,6 +1,6 @@
-/* Implementation of diagnostic_client_data_hooks for the compilers
+/* Implementation of diagnostics::client_data_hooks for the compilers
    (e.g. with knowledge of "tree", lang_hooks, and timevars).
-   Copyright (C) 2022-2025 Free Software Foundation, Inc.
+   Copyright (C) 2022-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -19,6 +19,7 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#define INCLUDE_VECTOR
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -26,19 +27,18 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree.h"
 #include "diagnostic.h"
 #include "tree-logical-location.h"
-#include "diagnostic-client-data-hooks.h"
-#include "diagnostic-format-sarif.h"
+#include "diagnostics/client-data-hooks.h"
+#include "diagnostics/sarif-sink.h"
 #include "langhooks.h"
 #include "plugin.h"
 #include "timevar.h"
-#include "make-unique.h"
 
-/* Concrete class for supplying a diagnostic_context with information
+/* Concrete class for supplying a diagnostics::context with information
    about a specific plugin within the client, when the client is the
    compiler (i.e. a GCC plugin).  */
 
 class compiler_diagnostic_client_plugin_info
-  : public diagnostic_client_plugin_info
+  : public diagnostics::client_plugin_info
 {
 public:
   compiler_diagnostic_client_plugin_info (const plugin_name_args *args)
@@ -68,7 +68,7 @@ private:
 /* Concrete subclass of client_version_info for use by compilers proper,
    (i.e. using lang_hooks, and with knowledge of GCC plugins).  */
 
-class compiler_version_info : public client_version_info
+class compiler_version_info : public diagnostics::client_version_info
 {
 public:
   const char *get_tool_name () const final override
@@ -113,23 +113,28 @@ private:
   }
 };
 
-/* Subclass of diagnostic_client_data_hooks for use by compilers proper
+/* Subclass of diagnostics::client_data_hooks for use by compilers proper
    i.e. with knowledge of "tree", access to langhooks, timevars etc.  */
 
-class compiler_data_hooks : public diagnostic_client_data_hooks
+class compiler_data_hooks : public diagnostics::client_data_hooks
 {
 public:
-  const client_version_info *get_any_version_info () const final override
+  const diagnostics::client_version_info *
+  get_any_version_info () const final override
   {
     return &m_version_info;
   }
 
-  const logical_location *get_current_logical_location () const final override
+  const diagnostics::logical_locations::manager *
+  get_logical_location_manager () const final override
   {
-    if (current_function_decl)
-      return &m_current_fndecl_logical_loc;
-    else
-      return NULL;
+    return &m_logical_location_manager;
+  }
+
+  diagnostics::logical_locations::key
+  get_current_logical_location () const final override
+  {
+    return m_logical_location_manager.key_from_tree (current_function_decl);
   }
 
   const char *
@@ -139,13 +144,13 @@ public:
   }
 
   void
-  add_sarif_invocation_properties (sarif_object &invocation_obj)
+  add_sarif_invocation_properties (diagnostics::sarif_object &invocation_obj)
     const final override
   {
     if (g_timer)
       if (auto timereport_val = g_timer->make_json ())
 	{
-	  sarif_property_bag &bag_obj
+	  auto &bag_obj
 	    = invocation_obj.get_or_create_properties ();
 	  bag_obj.set ("gcc/timeReport", std::move (timereport_val));
 
@@ -154,20 +159,20 @@ public:
 	     stderr.
 	     Implement this by cleaning up the global timer instance now.  */
 	  delete g_timer;
-	  g_timer = NULL;
+	  g_timer = nullptr;
 	}
   }
 
 private:
   compiler_version_info m_version_info;
-  current_fndecl_logical_location m_current_fndecl_logical_loc;
+  tree_logical_location_manager m_logical_location_manager;
 };
 
 /* Create a compiler_data_hooks (so that the class can be local
    to this file).  */
 
-std::unique_ptr<diagnostic_client_data_hooks>
+std::unique_ptr<diagnostics::client_data_hooks>
 make_compiler_data_hooks ()
 {
-  return ::make_unique<compiler_data_hooks> ();
+  return std::make_unique<compiler_data_hooks> ();
 }

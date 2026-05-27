@@ -9,6 +9,8 @@ pre16:	.ascii "<<"
 	.ascii ">>>>>>>"
 pre1f:	.ascii "<"
 
+	mov	$.text@secidx16, %ax
+
 .data
 
 	.ascii ">>>>"
@@ -75,5 +77,9 @@ nex16:	.ascii "<<"
 	.ascii ">>>>>>>"
 nex1f:	.ascii "<"
 	.ascii ">>>>"
+
+	.word	.@secidx16
+
+	.ascii "<<<<"
 
 	.p2align 4,0

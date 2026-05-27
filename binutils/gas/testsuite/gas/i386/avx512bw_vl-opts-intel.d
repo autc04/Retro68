@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel -Msuffix
 #name: i386 AVX512BW/VL opts insns (Intel disassembly)
 #source: avx512bw_vl-opts.s

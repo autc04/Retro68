@@ -1,3 +1,6 @@
+#![feature(no_core)]
+#![no_core]
+
 pub mod foo {
     pub mod bar {
         pub fn baz() {}
@@ -6,8 +9,8 @@ pub mod foo {
     }
 }
 
-pub(in foo::fah::baz) struct A1; // { dg-error "cannot find simple path segment .fah." }
-pub(in fro::bulator::saindoux) struct A2; // { dg-error "cannot find simple path segment .fro." }
-pub(in foo::bar::saindoux) struct A3; // { dg-error "cannot find simple path segment .saindoux." }
+pub(in foo::fah::baz) struct A1; // { dg-error "could not resolve path .foo::fah::baz." }
+pub(in fro::bulator::saindoux) struct A2; // { dg-error "could not resolve path .fro::bulator::saindoux." }
+pub(in foo::bar::saindoux) struct A3; // { dg-error "could not resolve path .foo::bar::saindoux." }
 
 fn main() {}

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 AVX512VBMI2 insns
 #source: x86-64-avx512vbmi2.s

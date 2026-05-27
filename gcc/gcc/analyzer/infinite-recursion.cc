@@ -1,5 +1,5 @@
 /* Detection of infinite recursion.
-   Copyright (C) 2022-2025 Free Software Foundation, Inc.
+   Copyright (C) 2022-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,28 +18,15 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "fold-const.h"
-#include "gcc-rich-location.h"
-#include "alloc-pool.h"
-#include "fibonacci_heap.h"
-#include "shortest-paths.h"
-#include "diagnostic-core.h"
-#include "diagnostic-event-id.h"
-#include "diagnostic-path.h"
-#include "function.h"
-#include "pretty-print.h"
-#include "sbitmap.h"
-#include "bitmap.h"
-#include "tristate.h"
-#include "ordered-hash-map.h"
-#include "selftest.h"
-#include "json.h"
-#include "analyzer/analyzer.h"
+#include "analyzer/common.h"
+
+#include "cfg.h"
+#include "gimple-iterator.h"
+#include "gimple-pretty-print.h"
+#include "cgraph.h"
+#include "digraph.h"
+#include "diagnostics/sarif-sink.h"
+
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/call-string.h"
 #include "analyzer/program-point.h"
@@ -49,20 +36,11 @@ along with GCC; see the file COPYING3.  If not see
 #include "analyzer/sm.h"
 #include "analyzer/pending-diagnostic.h"
 #include "analyzer/diagnostic-manager.h"
-#include "cfg.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "gimple-iterator.h"
-#include "gimple-pretty-print.h"
-#include "cgraph.h"
-#include "digraph.h"
 #include "analyzer/supergraph.h"
 #include "analyzer/program-state.h"
 #include "analyzer/exploded-graph.h"
-#include "make-unique.h"
 #include "analyzer/checker-path.h"
 #include "analyzer/feasible-graph.h"
-#include "diagnostic-format-sarif.h"
 
 /* A subclass of pending_diagnostic for complaining about suspected
    infinite recursion.  */
@@ -77,7 +55,7 @@ public:
   : m_prev_entry_enode (prev_entry_enode),
     m_new_entry_enode (new_entry_enode),
     m_callee_fndecl (callee_fndecl),
-    m_prev_entry_event (NULL)
+    m_prev_entry_event (nullptr)
   {}
 
   const char *get_kind () const final override
@@ -130,9 +108,10 @@ public:
     {
     public:
       recursive_function_entry_event (const program_point &dst_point,
+				      const program_state &dst_state,
 				      const infinite_recursion_diagnostic &pd,
 				      bool topmost)
-      : function_entry_event (dst_point),
+      : function_entry_event (dst_point, dst_state),
 	m_pd (pd),
 	m_topmost (topmost)
       {
@@ -168,16 +147,19 @@ public:
     const program_point &dst_point = dst_node->get_point ();
     if (eedge.m_dest == m_prev_entry_enode)
       {
-	gcc_assert (m_prev_entry_event == NULL);
+	gcc_assert (m_prev_entry_event == nullptr);
 	std::unique_ptr<checker_event> prev_entry_event
-	  = make_unique <recursive_function_entry_event> (dst_point,
-							  *this, false);
+	  = std::make_unique <recursive_function_entry_event>
+	      (dst_point,
+	       dst_node->get_state (),
+	       *this, false);
 	m_prev_entry_event = prev_entry_event.get ();
 	emission_path->add_event (std::move (prev_entry_event));
       }
     else if (eedge.m_dest == m_new_entry_enode)
       emission_path->add_event
-	(make_unique<recursive_function_entry_event> (dst_point, *this, true));
+	(std::make_unique<recursive_function_entry_event>
+	 (dst_point, dst_node->get_state (), *this, true));
     else
       pending_diagnostic::add_function_entry_event (eedge, emission_path);
   }
@@ -193,9 +175,9 @@ public:
   {
     gcc_assert (m_new_entry_enode);
     emission_path->add_event
-      (make_unique<warning_event>
+      (std::make_unique<warning_event>
        (event_loc_info (m_new_entry_enode->get_supernode
-			  ()->get_start_location (),
+			  ()->get_location (),
 			m_callee_fndecl,
 			m_new_entry_enode->get_stack_depth ()),
 	enode,
@@ -205,8 +187,7 @@ public:
   /* Reject paths in which conjured svalues have affected control flow
      since m_prev_entry_enode.  */
 
-  bool check_valid_fpath_p (const feasible_node &final_fnode,
-			    const gimple *)
+  bool check_valid_fpath_p (const feasible_node &final_fnode)
     const final override
   {
     /* Reject paths in which calls with unknown side effects have occurred
@@ -241,10 +222,11 @@ public:
     return false;
   }
 
-  void maybe_add_sarif_properties (sarif_object &result_obj)
+  void
+  maybe_add_sarif_properties (diagnostics::sarif_object &result_obj)
     const final override
   {
-    sarif_property_bag &props = result_obj.get_or_create_properties ();
+    auto &props = result_obj.get_or_create_properties ();
 #define PROPERTY_PREFIX "gcc/analyzer/infinite_recursion_diagnostic/"
     props.set_integer (PROPERTY_PREFIX "prev_entry_enode",
 		       m_prev_entry_enode->m_index);
@@ -262,18 +244,20 @@ private:
     const superedge *sedge = eedge->m_sedge;
     if (!sedge)
       return false;
-    const cfg_superedge *cfg_sedge = sedge->dyn_cast_cfg_superedge ();
-    if (!cfg_sedge)
+    auto op = sedge->get_op ();
+    if (!op)
       return false;
-    const gimple *last_stmt = sedge->m_src->get_last_stmt ();
-    if (!last_stmt)
+    const control_flow_op *ctrlflow_op = op->dyn_cast_control_flow_op ();
+    if (!ctrlflow_op)
       return false;
+
+    const gimple &last_stmt = ctrlflow_op->get_ctrlflow_stmt ();
 
     const feasible_node *dst_fnode
       = static_cast<const feasible_node *> (fedge->m_dest);
     const region_model &model = dst_fnode->get_state ().get_model ();
 
-    if (const gcond *cond_stmt = dyn_cast <const gcond *> (last_stmt))
+    if (const gcond *cond_stmt = dyn_cast <const gcond *> (&last_stmt))
       {
 	if (expr_uses_conjured_svalue_p (model, gimple_cond_lhs (cond_stmt)))
 	  return true;
@@ -281,7 +265,7 @@ private:
 	  return true;
       }
     else if (const gswitch *switch_stmt
-	       = dyn_cast <const gswitch *> (last_stmt))
+	       = dyn_cast <const gswitch *> (&last_stmt))
       {
 	if (expr_uses_conjured_svalue_p (model,
 					 gimple_switch_index (switch_stmt)))
@@ -309,7 +293,7 @@ private:
       bool m_found_conjured_svalues;
     };
 
-    const svalue *sval = model.get_rvalue (expr, NULL);
+    const svalue *sval = model.get_rvalue (expr, nullptr);
     conjured_svalue_finder v;
     sval->accept (&v);
     return v.m_found_conjured_svalues;
@@ -321,8 +305,7 @@ private:
   const checker_event *m_prev_entry_event;
 };
 
-/* Return true iff ENODE is the PK_BEFORE_SUPERNODE at a function
-   entrypoint.  */
+/* Return true iff ENODE is at a function entrypoint.  */
 
 static bool
 is_entrypoint_p (exploded_node *enode)
@@ -331,12 +314,7 @@ is_entrypoint_p (exploded_node *enode)
   const supernode *snode = enode->get_supernode ();
   if (!snode)
     return false;
-  if (!snode->entry_p ())
-    return false;;
-  const program_point &point = enode->get_point ();
-  if (point.get_kind () != PK_BEFORE_SUPERNODE)
-    return false;
-  return true;
+  return snode->entry_p ();
 }
 
 /* Walk backwards through the eg, looking for the first
@@ -369,7 +347,7 @@ exploded_graph::find_previous_entry_to (function *top_of_stack_fun,
     }
 
   /* Not found.  */
-  return NULL;
+  return nullptr;
 }
 
 /* Given BASE_REG within ENCLOSING_FRAME (such as a function parameter),
@@ -403,7 +381,7 @@ remap_enclosing_frame (const region *base_reg,
 	const decl_region *decl_reg = (const decl_region *)base_reg;
 	return equiv_prev_frame->get_region_for_local (mgr,
 						       decl_reg->get_decl (),
-						       NULL);
+						       nullptr);
       }
     }
 }
@@ -418,7 +396,7 @@ contains_unknown_p (const svalue *sval)
   if (const compound_svalue *compound_sval
 	= sval->dyn_cast_compound_svalue ())
     for (auto iter : *compound_sval)
-      if (iter.second->get_kind () == SK_UNKNOWN)
+      if (iter.m_sval->get_kind () == SK_UNKNOWN)
 	return true;
   return false;
 }
@@ -445,7 +423,7 @@ sufficiently_different_region_binding_p (exploded_node *new_entry_enode,
 
   /* Get the value within the new frame.  */
   const svalue *new_sval
-    = new_model.get_store_value (base_reg, NULL);
+    = new_model.get_store_value (base_reg, nullptr);
 
   /* If any part of the value is UNKNOWN (e.g. due to hitting
      complexity limits) assume that it differs from the previous
@@ -465,7 +443,7 @@ sufficiently_different_region_binding_p (exploded_node *new_entry_enode,
 	 to the recursion.  */
       const int old_stack_depth = prev_entry_enode->get_stack_depth ();
       if (enclosing_frame->get_stack_depth () < old_stack_depth)
-	prev_sval = prev_model.get_store_value (base_reg, NULL);
+	prev_sval = prev_model.get_store_value (base_reg, nullptr);
       else
 	{
 	  /* Ignore bindings within frames below the new entry node.  */
@@ -487,11 +465,11 @@ sufficiently_different_region_binding_p (exploded_node *new_entry_enode,
 				     equiv_prev_frame,
 				     new_model.get_manager ());
 	  prev_sval
-	    = prev_model.get_store_value (equiv_prev_base_reg, NULL);
+	    = prev_model.get_store_value (equiv_prev_base_reg, nullptr);
 	}
     }
   else
-    prev_sval = prev_model.get_store_value (base_reg, NULL);
+    prev_sval = prev_model.get_store_value (base_reg, nullptr);
 
   /* If the prev_sval contains UNKNOWN (e.g. due to hitting complexity limits)
      assume that it will differ from any new value.  */
@@ -635,17 +613,11 @@ exploded_graph::detect_infinite_recursion (exploded_node *enode)
 
   /* Otherwise, the state of memory is effectively the same between the two
      recursion levels; warn.  */
-
-  const supernode *caller_snode = call_string.get_top_of_stack ().m_caller;
-  const supernode *snode = enode->get_supernode ();
-  gcc_assert (caller_snode->m_returning_call);
   pending_location ploc (enode,
-			 snode,
-			 caller_snode->m_returning_call,
-			 nullptr);
+			 call_string.get_top_of_stack ().get_call_stmt ().location);
   get_diagnostic_manager ().add_diagnostic
-    (ploc,
-     make_unique<infinite_recursion_diagnostic> (prev_entry_enode,
-						 enode,
-						 fndecl));
+    (std::move (ploc),
+     std::make_unique<infinite_recursion_diagnostic> (prev_entry_enode,
+						      enode,
+						      fndecl));
 }

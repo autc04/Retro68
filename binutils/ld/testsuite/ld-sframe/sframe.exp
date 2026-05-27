@@ -1,0 +1,186 @@
+# Copyright (C) 2022-2026 Free Software Foundation, Inc.
+#
+# This file is part of the GNU Binutils.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+# MA 02110-1301, USA.
+#
+
+# Test infrastructure for bug 33401
+# https://sourceware.org/bugzilla/show_bug.cgi?id=33401
+# Sframe section contains R_*_NONE relocations intermingled with other
+# relas in the output relocatable object.
+#
+proc check_dump { binfile dumpfile } {
+    global srcdir
+    global READELF
+    global subdir
+    global env
+
+    set binary $READELF
+    set progopts "-j .rela.sframe"
+
+    set cmd "$binary $progopts $binfile > dump.out"
+    send_log "$cmd\n"
+    catch "exec $cmd" comp_output
+
+    set comp_output [prune_warnings $comp_output]
+    if ![string match "" $comp_output] then {
+	send_log "$comp_output\n"
+	return 1
+    }
+
+    if { [regexp_diff "dump.out" "$srcdir/$subdir/$dumpfile"] } then {
+	verbose -log "output is [file_contents "dump.out"]" 2
+	return 1
+    }
+    return 0
+}
+
+proc check_pr33401 { } {
+    global CXX_FOR_TARGET
+    global ld
+    global srcdir
+    global subdir
+    global as
+    global LDFLAGS
+    global env
+
+    set objfiles {}
+    set testname "PR ld/33401"
+    set failed 0
+    set linkfile "tmpdir/pr33401.o"
+    set src_files [list "StateClient.cpp" "StatePlaying.cpp"]
+
+    # Check to see if the C and C++ compilers work
+    if { ![check_compiler_available] || [which $CXX_FOR_TARGET] == 0 } {
+	unsupported $testname
+	return
+    }
+
+    # 1. First step: Create a relocatable object (pr33401.o) from
+    #    sources.  Some R_*_NONE are expected for this input.  We
+    #    cannot use run_cc_link_tests procedure as we need to control
+    #    every aspect of the compilation, assembling and linking
+    #    process.
+    foreach src_file $src_files {
+	set fileroot "[file rootname [file tail $src_file]]"
+	set objfile "tmpdir/$fileroot.o"
+
+	if { [file extension $src_file] == ".cpp" } {
+	    set as_file "tmpdir/$fileroot.s"
+	    set cmd "$CXX_FOR_TARGET -S -g -O2 -w"
+	    if ![ld_compile $cmd $srcdir/$subdir/$src_file $as_file] {
+		set failed 1
+		break
+	    }
+	} else {
+	    set as_file "$srcdir/$subdir/$src_file"
+	}
+	if { ![ld_assemble $as "--gsframe $as_file" $objfile] } {
+	    set failed 1
+	    break
+	}
+	lappend objfiles $objfile
+    }
+
+    # Catch previous action errors.
+    if { $failed } {
+	verbose -log "Error during compiling/assembling one of the input files."
+	unresolved $testname
+	return
+    }
+
+    # Do the first linking. If this fails, we cannot resolve the test.
+    if { ![ld_link $ld $linkfile "-L$srcdir/$subdir -r $objfiles"] } {
+	verbose -log "Error during linking assembled objects."
+	unresolved $testname
+	return
+    }
+
+    # Check the output of the first ld invocation
+    if { [check_dump $linkfile pr33401.rd] } {
+	verbose -log "No R_*_NONE in .rela.sframe"
+	untested $testname
+	return
+    }
+
+    # Clear error and warning counts.
+    reset_vars
+
+    # 2. Final step: Run ld -r again on the output of step 1.
+    #	 The assertion failure in PR 33401 occurred when processing input BFDs
+    #	 containing R_*_NONE relocations in the .sframe section.
+    if { ![ld_link $ld /dev/null "-L$srcdir/$subdir -r $linkfile"] } {
+	fail $testname
+    } else {
+	pass $testname
+    }
+}
+
+if [skip_sframe_tests] {
+    unsupported "no SFrame format support in the assembler, or SFrame disabled"
+    return 0
+}
+
+if ![is_elf_format] {
+    unsupported "SFrame not supported"
+    return 0
+}
+
+if {[info exists env(LC_ALL)]} {
+    set old_lc_all $env(LC_ALL)
+}
+set env(LC_ALL) "C"
+
+set sframe_test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+
+foreach sframe_test $sframe_test_list {
+    verbose [file rootname $sframe_test]
+    run_dump_test [file rootname $sframe_test]
+}
+
+check_pr33401
+
+# Run other compile and link tests.
+if { [check_compiler_available] } {
+    run_cc_link_tests [list \
+	[list \
+	    "Build pr32789-1a.o pr32789-1b.o" \
+	    "-r -nostdlib" \
+	    "-Wa,--gsframe" \
+	    { pr32789-1a.c pr32789-1b.c } \
+	    {{readelf --sframe pr32789-1.sd}
+	     {readelf -r pr32789-1.rd}} \
+	    "pr32789-1.o" \
+	    "c" \
+	] \
+    ]
+}
+
+set sframe_link_tests {
+    { "pr32769"
+	"--gc-sections -e foo" "" "--gsframe-3" {pr32769.s}
+	{{readelf --sframe pr32769.rd}}
+	"pr32769.x" }
+}
+
+run_ld_link_tests $sframe_link_tests
+
+if {[info exists old_lc_all]} {
+    set env(LC_ALL) $old_lc_all
+} else {
+    unset env(LC_ALL)
+}

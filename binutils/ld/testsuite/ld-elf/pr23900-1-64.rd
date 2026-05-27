@@ -1,7 +1,7 @@
 #source: pr23900-1.s
 #ld:
 #readelf: -l --wide
-#target: *-*-linux* *-*-gnu* *-*-nacl*
+#target: *-*-linux* *-*-gnu*
 
 #...
   GNU_PROPERTY .* +0x8

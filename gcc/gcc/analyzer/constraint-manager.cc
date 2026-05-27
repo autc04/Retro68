@@ -1,5 +1,5 @@
 /* Tracking equivalence classes and constraints at a point on an execution path.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,28 +18,17 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "gimple-iterator.h"
+#include "analyzer/common.h"
+
 #include "fold-const.h"
-#include "selftest.h"
-#include "diagnostic-core.h"
-#include "graphviz.h"
-#include "analyzer/analyzer.h"
 #include "ordered-hash-map.h"
-#include "options.h"
 #include "cgraph.h"
 #include "cfg.h"
 #include "digraph.h"
-#include "analyzer/supergraph.h"
 #include "sbitmap.h"
-#include "bitmap.h"
+#include "tree-pretty-print.h"
+
+#include "analyzer/supergraph.h"
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/call-string.h"
 #include "analyzer/program-point.h"
@@ -48,8 +37,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "analyzer/constraint-manager.h"
 #include "analyzer/call-summary.h"
 #include "analyzer/analyzer-selftests.h"
-#include "tree-pretty-print.h"
-#include "make-unique.h"
 
 #if ENABLE_ANALYZER
 
@@ -117,7 +104,7 @@ minus_one (tree cst)
    closed one.  */
 
 void
-bound::ensure_closed (enum bound_kind bound_kind)
+bound::ensure_closed (enum bound_kind bnd_kind)
 {
   if (!m_closed)
     {
@@ -126,7 +113,7 @@ bound::ensure_closed (enum bound_kind bound_kind)
 	 and convert x < 5 into x <= 4.  */
       gcc_assert (CONSTANT_CLASS_P (m_constant));
       gcc_assert (INTEGRAL_TYPE_P (TREE_TYPE (m_constant)));
-      m_constant = fold_build2 (bound_kind == BK_UPPER ? MINUS_EXPR : PLUS_EXPR,
+      m_constant = fold_build2 (bnd_kind == bound_kind::upper ? MINUS_EXPR : PLUS_EXPR,
 				TREE_TYPE (m_constant),
 				m_constant, integer_one_node);
       gcc_assert (CONSTANT_CLASS_P (m_constant));
@@ -203,8 +190,8 @@ range::constrained_to_single_element ()
     return NULL_TREE;
 
   /* Convert any open bounds to closed bounds.  */
-  m_lower_bound.ensure_closed (BK_LOWER);
-  m_upper_bound.ensure_closed (BK_UPPER);
+  m_lower_bound.ensure_closed (bound_kind::lower);
+  m_upper_bound.ensure_closed (bound_kind::upper);
 
   // Are they equal?
   tree comparison = fold_binary (EQ_EXPR, boolean_type_node,
@@ -303,30 +290,30 @@ range::above_upper_bound (tree rhs_const) const
    Return true if feasible; false if infeasible.  */
 
 bool
-range::add_bound (bound b, enum bound_kind bound_kind)
+range::add_bound (bound b, enum bound_kind bnd_kind)
 {
   /* Bail out on floating point constants.  */
   if (!INTEGRAL_TYPE_P (TREE_TYPE (b.m_constant)))
     return true;
 
-  b.ensure_closed (bound_kind);
+  b.ensure_closed (bnd_kind);
 
-  switch (bound_kind)
+  switch (bnd_kind)
     {
     default:
       gcc_unreachable ();
-    case BK_LOWER:
+    case bound_kind::lower:
       /* Discard redundant bounds.  */
       if (m_lower_bound.m_constant)
 	{
-	  m_lower_bound.ensure_closed (BK_LOWER);
+	  m_lower_bound.ensure_closed (bound_kind::lower);
 	  if (tree_int_cst_le (b.m_constant,
 			       m_lower_bound.m_constant))
 	    return true;
 	}
       if (m_upper_bound.m_constant)
 	{
-	  m_upper_bound.ensure_closed (BK_UPPER);
+	  m_upper_bound.ensure_closed (bound_kind::upper);
 	  /* Reject B <= V <= UPPER when B > UPPER.  */
 	  if (!tree_int_cst_le (b.m_constant,
 				m_upper_bound.m_constant))
@@ -335,18 +322,18 @@ range::add_bound (bound b, enum bound_kind bound_kind)
       m_lower_bound = b;
       break;
 
-    case BK_UPPER:
+    case bound_kind::upper:
       /* Discard redundant bounds.  */
       if (m_upper_bound.m_constant)
 	{
-	  m_upper_bound.ensure_closed (BK_UPPER);
+	  m_upper_bound.ensure_closed (bound_kind::upper);
 	  if (!tree_int_cst_lt (b.m_constant,
 				m_upper_bound.m_constant))
 	    return true;
 	}
       if (m_lower_bound.m_constant)
 	{
-	  m_lower_bound.ensure_closed (BK_LOWER);
+	  m_lower_bound.ensure_closed (bound_kind::lower);
 	  /* Reject LOWER <= V <= B when LOWER > B.  */
 	  if (!tree_int_cst_le (m_lower_bound.m_constant,
 				b.m_constant))
@@ -371,16 +358,16 @@ range::add_bound (enum tree_code op, tree rhs_const)
       return true;
     case LT_EXPR:
       /* "V < RHS_CONST"  */
-      return add_bound (bound (rhs_const, false), BK_UPPER);
+      return add_bound (bound (rhs_const, false), bound_kind::upper);
     case LE_EXPR:
       /* "V <= RHS_CONST"  */
-      return add_bound (bound (rhs_const, true), BK_UPPER);
+      return add_bound (bound (rhs_const, true), bound_kind::upper);
     case GE_EXPR:
       /* "V >= RHS_CONST"  */
-      return add_bound (bound (rhs_const, true), BK_LOWER);
+      return add_bound (bound (rhs_const, true), bound_kind::lower);
     case GT_EXPR:
       /* "V > RHS_CONST"  */
-      return add_bound (bound (rhs_const, false), BK_LOWER);
+      return add_bound (bound (rhs_const, false), bound_kind::lower);
     }
 }
 
@@ -449,7 +436,7 @@ bounded_range::dump (bool show_types) const
 std::unique_ptr<json::object>
 bounded_range::to_json () const
 {
-  auto range_obj = ::make_unique<json::object> ();
+  auto range_obj = std::make_unique<json::object> ();
   set_json_attr (*range_obj, "lower", m_lower);
   set_json_attr (*range_obj, "upper", m_upper);
   return range_obj;
@@ -525,13 +512,28 @@ bounded_range::operator== (const bounded_range &other) const
 	  && tree_int_cst_equal (m_upper, other.m_upper));
 }
 
+static int
+cmp_types (const_tree type1, const_tree type2)
+{
+  int t1 = TYPE_UID (type1);
+  int t2 = TYPE_UID (type2);
+  return t1 - t2;
+}
+
 int
 bounded_range::cmp (const bounded_range &br1, const bounded_range &br2)
 {
-  if (int cmp_lower = tree_int_cst_compare (br1.m_lower,
-					    br2.m_lower))
+  if (int cmp_lower = tree_int_cst_compare (br1.m_lower, br2.m_lower))
     return cmp_lower;
-  return tree_int_cst_compare (br1.m_upper, br2.m_upper);
+  if (int cmp_upper = tree_int_cst_compare (br1.m_upper, br2.m_upper))
+    return cmp_upper;
+  if (int cmp_lower_type = cmp_types (TREE_TYPE (br1.m_lower),
+				      TREE_TYPE (br2.m_lower)))
+    return cmp_lower_type;
+  if (int cmp_upper_type = cmp_types (TREE_TYPE (br1.m_upper),
+				      TREE_TYPE (br2.m_upper)))
+    return cmp_upper_type;
+  return 0;
 }
 
 /* struct bounded_ranges.  */
@@ -622,7 +624,7 @@ bounded_ranges::canonicalize ()
     {
       bounded_range *prev = &m_ranges[i - 1];
       const bounded_range *next = &m_ranges[i];
-      if (prev->intersects_p (*next, NULL)
+      if (prev->intersects_p (*next, nullptr)
 	  || (can_plus_one_p (prev->m_upper)
 	      && tree_int_cst_equal (plus_one (prev->m_upper),
 				     next->m_lower)))
@@ -718,7 +720,7 @@ bounded_ranges::dump (bool show_types) const
 std::unique_ptr<json::value>
 bounded_ranges::to_json () const
 {
-  auto arr_obj = ::make_unique<json::array> ();
+  auto arr_obj = std::make_unique<json::array> ();
 
   for (unsigned i = 0; i < m_ranges.length (); ++i)
     arr_obj->append (m_ranges[i].to_json ());
@@ -943,53 +945,6 @@ bounded_ranges_manager::consolidate (bounded_ranges *inst)
   return inst;
 }
 
-/* Get the bounded_ranges instance for EDGE of SWITCH_STMT,
-   creating it if necessary, and caching it by edge.  */
-
-const bounded_ranges *
-bounded_ranges_manager::
-get_or_create_ranges_for_switch (const switch_cfg_superedge *edge,
-				 const gswitch *switch_stmt)
-{
-  /* Look in per-edge cache.  */
-  if (const bounded_ranges ** slot = m_edge_cache.get (edge))
-    return *slot;
-
-  /* Not yet in cache.  */
-  const bounded_ranges *all_cases_ranges
-    = create_ranges_for_switch (*edge, switch_stmt);
-  m_edge_cache.put (edge, all_cases_ranges);
-  return all_cases_ranges;
-}
-
-/* Get the bounded_ranges instance for EDGE of SWITCH_STMT,
-   creating it if necessary, for edges for which the per-edge
-   cache has not yet been populated.  */
-
-const bounded_ranges *
-bounded_ranges_manager::
-create_ranges_for_switch (const switch_cfg_superedge &edge,
-			  const gswitch *switch_stmt)
-{
-  /* Get the ranges for each case label.  */
-  auto_vec <const bounded_ranges *> case_ranges_vec
-    (gimple_switch_num_labels (switch_stmt));
-
-  for (tree case_label : edge.get_case_labels ())
-    {
-      /* Get the ranges for this case label.  */
-      const bounded_ranges *case_ranges
-	= make_case_label_ranges (switch_stmt, case_label);
-      case_ranges_vec.quick_push (case_ranges);
-    }
-
-  /* Combine all the ranges for each case label into a single collection
-     of ranges.  */
-  const bounded_ranges *all_cases_ranges
-    = get_or_create_union (case_ranges_vec);
-  return all_cases_ranges;
-}
-
 /* Get the bounded_ranges instance for CASE_LABEL within
    SWITCH_STMT.  */
 
@@ -1071,7 +1026,7 @@ bounded_ranges_manager::log_stats (logger *logger, bool show_objs) const
 /* equiv_class's default ctor.  */
 
 equiv_class::equiv_class ()
-: m_constant (NULL_TREE), m_cst_sval (NULL), m_vars ()
+: m_constant (NULL_TREE), m_cst_sval (nullptr), m_vars ()
 {
 }
 
@@ -1116,9 +1071,9 @@ equiv_class::print (pretty_printer *pp) const
 std::unique_ptr<json::object>
 equiv_class::to_json () const
 {
-  auto ec_obj = ::make_unique<json::object> ();
+  auto ec_obj = std::make_unique<json::object> ();
 
-  auto sval_arr = ::make_unique<json::array> ();
+  auto sval_arr = std::make_unique<json::array> ();
   for (const svalue *sval : m_vars)
     sval_arr->append (sval->to_json ());
   ec_obj->set ("svals", std::move (sval_arr));
@@ -1188,7 +1143,7 @@ equiv_class::hash () const
    meaningful.  */
 
 bool
-equiv_class::operator== (const equiv_class &other)
+equiv_class::operator== (const equiv_class &other) const
 {
   if (m_constant != other.m_constant)
     return false; // TODO: use tree equality here?
@@ -1383,7 +1338,7 @@ constraint::print (pretty_printer *pp, const constraint_manager &cm) const
 std::unique_ptr<json::object>
 constraint::to_json () const
 {
-  auto con_obj = ::make_unique<json::object> ();
+  auto con_obj = std::make_unique<json::object> ();
 
   con_obj->set_integer ("lhs", m_lhs.as_int ());
   con_obj->set_string ("op", constraint_op_code (m_op));
@@ -1471,7 +1426,7 @@ bounded_ranges_constraint::print (pretty_printer *pp,
 std::unique_ptr<json::object>
 bounded_ranges_constraint::to_json () const
 {
-  auto con_obj = ::make_unique<json::object> ();
+  auto con_obj = std::make_unique<json::object> ();
 
   con_obj->set_integer ("ec", m_ec_id.as_int ());
   con_obj->set ("ranges", m_ranges->to_json ());
@@ -1784,11 +1739,11 @@ debug (const constraint_manager &cm)
 std::unique_ptr<json::object>
 constraint_manager::to_json () const
 {
-  auto cm_obj = ::make_unique<json::object> ();
+  auto cm_obj = std::make_unique<json::object> ();
 
   /* Equivalence classes.  */
   {
-    auto ec_arr = ::make_unique<json::array> ();
+    auto ec_arr = std::make_unique<json::array> ();
     for (const equiv_class *ec : m_equiv_classes)
       ec_arr->append (ec->to_json ());
     cm_obj->set ("ecs", std::move (ec_arr));
@@ -1796,7 +1751,7 @@ constraint_manager::to_json () const
 
   /* Constraints.  */
   {
-    auto con_arr = ::make_unique<json::array> ();
+    auto con_arr = std::make_unique<json::array> ();
     for (const constraint &c : m_constraints)
       con_arr->append (c.to_json ());
     cm_obj->set ("constraints", std::move (con_arr));
@@ -1804,7 +1759,7 @@ constraint_manager::to_json () const
 
   /* m_bounded_ranges_constraints.  */
   {
-    auto con_arr = ::make_unique<json::array> ();
+    auto con_arr = std::make_unique<json::array> ();
     for (const auto &c : m_bounded_ranges_constraints)
       con_arr->append (c.to_json ());
     cm_obj->set ("bounded_ranges_constraints", std::move (con_arr));
@@ -2578,12 +2533,12 @@ constraint_manager::get_ec_bounds (equiv_class_id ec_id) const
 
 	      case CONSTRAINT_LT:
 		/* We have "EC_ID < OTHER_CST".  */
-		result.add_bound (bound (other_cst, false), BK_UPPER);
+		result.add_bound (bound (other_cst, false), bound_kind::upper);
 		break;
 
 	      case CONSTRAINT_LE:
 		/* We have "EC_ID <= OTHER_CST".  */
-		result.add_bound (bound (other_cst, true), BK_UPPER);
+		result.add_bound (bound (other_cst, true), bound_kind::upper);
 		break;
 	      }
 	}
@@ -2600,13 +2555,13 @@ constraint_manager::get_ec_bounds (equiv_class_id ec_id) const
 	      case CONSTRAINT_LT:
 		/* We have "OTHER_CST < EC_ID"
 		   i.e. "EC_ID > OTHER_CST".  */
-		result.add_bound (bound (other_cst, false), BK_LOWER);
+		result.add_bound (bound (other_cst, false), bound_kind::lower);
 		break;
 
 	      case CONSTRAINT_LE:
 		/* We have "OTHER_CST <= EC_ID"
 		   i.e. "EC_ID >= OTHER_CST".  */
-		result.add_bound (bound (other_cst, true), BK_LOWER);
+		result.add_bound (bound (other_cst, true), bound_kind::lower);
 		break;
 	      }
 	}
@@ -3037,7 +2992,7 @@ on_liveness_change (const svalue_set &live_svalues,
 		    const region_model *model)
 {
   dead_svalue_purger p (live_svalues, model);
-  purge (p, NULL);
+  purge (p, nullptr);
 }
 
 class svalue_purger
@@ -3060,7 +3015,7 @@ void
 constraint_manager::purge_state_involving (const svalue *sval)
 {
   svalue_purger p (sval);
-  purge (p, NULL);
+  purge (p, nullptr);
 }
 
 /* Comparator for use by constraint_manager::canonicalize.
@@ -3204,7 +3159,7 @@ public:
   {
     /* Special-case for widening.  */
     if (lhs->get_kind () == SK_WIDENING)
-      if (!m_cm_b->get_equiv_class_by_svalue (lhs, NULL))
+      if (!m_cm_b->get_equiv_class_by_svalue (lhs, nullptr))
 	{
 	  /* LHS isn't constrained within m_cm_b.  */
 	  bool sat = m_out->add_constraint (lhs, code, rhs);
@@ -3528,7 +3483,7 @@ test_constraint_conditions ()
     ADD_SAT_CONSTRAINT (model, x, EQ_EXPR, x);
     ADD_SAT_CONSTRAINT (model, int_42, EQ_EXPR, int_42);
     /* ...even when done directly via svalues: */
-    const svalue *sval_int_42 = model.get_rvalue (int_42, NULL);
+    const svalue *sval_int_42 = model.get_rvalue (int_42, nullptr);
     bool sat = model.get_constraints ()->add_constraint (sval_int_42,
 							  EQ_EXPR,
 							  sval_int_42);
@@ -4317,8 +4272,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 1);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should have an empty constraint_manager.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 0);
@@ -4335,8 +4290,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 2);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should just have the constraint/ECs involving b != 0.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 2);
@@ -4354,8 +4309,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 1);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should just have the EC involving b == 0.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 1);
@@ -4372,8 +4327,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 0);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should have an empty constraint_manager.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 0);
@@ -4390,8 +4345,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 1);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should just have the constraint/ECs involving b != 0.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 2);
@@ -4409,8 +4364,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 0);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should just have the EC involving b == 0.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 1);
@@ -4472,8 +4427,8 @@ test_bounded_range ()
   bounded_range br_u8_64_128 (u8_64, u8_128);
   ASSERT_DUMP_BOUNDED_RANGE_EQ (br_u8_64_128, "[64, 128]");
 
-  ASSERT_FALSE (br_u8_0.intersects_p (br_u8_64_128, NULL));
-  ASSERT_FALSE (br_u8_64_128.intersects_p (br_u8_0, NULL));
+  ASSERT_FALSE (br_u8_0.intersects_p (br_u8_64_128, nullptr));
+  ASSERT_FALSE (br_u8_64_128.intersects_p (br_u8_0, nullptr));
 
   bounded_range br_u8_128_255 (u8_128, u8_255);
   ASSERT_DUMP_BOUNDED_RANGE_EQ (br_u8_128_255, "[128, 255]");

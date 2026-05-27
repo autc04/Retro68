@@ -1,6 +1,6 @@
 #source: ssbs.s
 #objdump: -dr
-#as: -march=armv8-a+ssbs --defsym SUCCESS=1
+#as: -menable-sysreg-checking -march=armv8-a+ssbs --defsym SUCCESS=1
 
 .*:     file format .*
 

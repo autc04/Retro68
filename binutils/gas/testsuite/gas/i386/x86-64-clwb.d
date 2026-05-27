@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 CLWB insns
 #source: x86-64-clwb.s

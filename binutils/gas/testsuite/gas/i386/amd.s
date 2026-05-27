@@ -32,4 +32,4 @@ foo:
 
 # This is a 3DNow! instruction, with a prefix, that isn't quite right
 # Everything's good bar the opcode suffix
-.byte 0x2e, 0x0f, 0x0f, 0x54, 0xc3, 0x07, 0xc3
+ .insn 0x0f0f, $0xc3, %cs:7(%ebx,%eax,8), %mm2

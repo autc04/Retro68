@@ -1,5 +1,5 @@
 /* Subroutines used by or related to instruction recognition.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -25,6 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "target.h"
 #include "rtl.h"
 #include "tree.h"
+#include "stmt.h"
 #include "cfghooks.h"
 #include "df.h"
 #include "memmodel.h"
@@ -607,7 +608,11 @@ cancel_changes (int num)
       else
 	*changes[i].loc = changes[i].old;
       if (changes[i].object && !MEM_P (changes[i].object))
-	INSN_CODE (changes[i].object) = changes[i].old_code;
+	{
+	  INSN_CODE (changes[i].object) = changes[i].old_code;
+	  if (recog_data.insn == changes[i].object)
+	    recog_data.insn = nullptr;
+	}
     }
   num_changes = num;
 }
@@ -1595,7 +1600,11 @@ general_operand (rtx op, machine_mode mode)
     {
       rtx y = XEXP (op, 0);
 
-      if (! volatile_ok && MEM_VOLATILE_P (op))
+      /* If -ffuse-ops-with-volatile-access is enabled, allow volatile
+	 memory reference.  */
+      if (!flag_fuse_ops_with_volatile_access
+	  && !volatile_ok
+	  && MEM_VOLATILE_P (op))
 	return false;
 
       /* Use the mem's mode, since it will be reloaded thus.  LRA can
@@ -2025,7 +2034,7 @@ extract_asm_operands (rtx body)
 int
 asm_noperands (const_rtx body)
 {
-  rtx asm_op = extract_asm_operands (CONST_CAST_RTX (body));
+  rtx asm_op = extract_asm_operands (const_cast<rtx> (body));
   int i, n_sets = 0;
 
   if (asm_op == NULL)
@@ -2363,7 +2372,8 @@ asm_operand_ok (rtx op, const char *constraint, const char **constraints)
 	    {
 	    case CT_REGISTER:
 	      if (!result
-		  && reg_class_for_constraint (cn) != NO_REGS
+		  && (reg_class_for_constraint (cn) != NO_REGS
+		      || constraint[0] == '{')
 		  && GET_MODE (op) != BLKmode
 		  && register_operand (op, VOIDmode))
 		result = 1;
@@ -3301,6 +3311,13 @@ constrain_operands (int strict, alternative_mask alternatives)
 		      win = true;
 		  }
 		else if (strict < 0 || general_operand (op, mode))
+		  win = true;
+		break;
+
+	      case '{':
+		if ((REG_P (op) && HARD_REGISTER_P (op)
+		     && (int) REGNO (op) == decode_hard_reg_constraint (p))
+		    || !reload_completed)
 		  win = true;
 		break;
 

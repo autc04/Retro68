@@ -1,4 +1,7 @@
-// { dg-options "-frust-name-resolution-2.0 -frust-compile-until=lowering" }
+// { dg-options "-frust-compile-until=lowering" }
+#![feature(no_core)]
+#![no_core]
+
 
 pub mod foo {
     pub mod bar {

@@ -1,6 +1,6 @@
 #source: start1.s
 #source: stabs1.s
 #target: cris-*-*elf* cris-*-*aout*
-#as: --em=criself
+#as: --emulation=criself
 #ld: -mcriself
-#error: .o:/blah/foo.c:96: undefined reference to `globsym1'$
+#error: .o:/blah/foo.c:96:\(.*\): undefined reference to `globsym1'$

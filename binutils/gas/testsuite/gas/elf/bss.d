@@ -2,7 +2,7 @@
 #as: --defsym okay=1
 #warning: Warning: zero assumed
 #readelf: -sSW
-#target: i?86-*-* x86_64-*-* ia64-*-* arm-*-* aarch64-*-*
+#target: i?86-*-* x86_64-*-* ia64-*-* arm-*-* aarch64-*-* kvx-*-* s390*-*-*
 
 There are [1-9][0-9]* section headers, starting at offset 0x[0-9a-f]*:
 

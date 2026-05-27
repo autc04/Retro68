@@ -19,6 +19,10 @@ foo:
 	wrgsbase %r8d
 	wrgsbase %r8
 
+	data16 rdfsbase %ecx
+	repe
+	.insn 0x0fae/3, %cx
+
 	.intel_syntax noprefix
 	rdfsbase ebx
 	rdfsbase rbx

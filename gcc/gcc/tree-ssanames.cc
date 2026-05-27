@@ -1,5 +1,5 @@
 /* Generic routines for manipulating SSA_NAME expressions
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -406,6 +406,10 @@ make_ssa_name_fn (struct function *fn, tree var, gimple *stmt,
   SSA_NAME_IN_FREE_LIST (t) = 0;
   SSA_NAME_IS_DEFAULT_DEF (t) = 0;
   init_ssa_name_imm_use (t);
+#if defined ENABLE_GIMPLE_CHECKING
+  t->ssa_name.active_iterated_stmt = NULL;
+  t->ssa_name.fast_iteration_depth = 0;
+#endif
 
   return t;
 }
@@ -453,6 +457,8 @@ set_range_info (tree name, const vrange &r)
       tmp.dump (dump_file);
       fputc ('\n', dump_file);
     }
+  // Update the active query, if needed.
+  get_range_query (cfun)->update_range_info (name, r);
   return true;
 }
 
@@ -488,7 +494,7 @@ set_bitmask (tree name, const wide_int &value, const wide_int &mask)
 {
   gcc_assert (!POINTER_TYPE_P (TREE_TYPE (name)));
 
-  int_range<2> r (TREE_TYPE (name));
+  int_range_max r (TREE_TYPE (name));
   r.update_bitmask (irange_bitmask (value, mask));
   set_range_info (name, r);
 }
@@ -508,6 +514,14 @@ get_nonzero_bits_1 (const_tree name)
   /* Use element_precision instead of TYPE_PRECISION so complex and
      vector types get a non-zero precision.  */
   unsigned int precision = element_precision (TREE_TYPE (name));
+
+  if (VECTOR_TYPE_P (TREE_TYPE (name)))
+    {
+      tree elem = uniform_vector_p (name);
+      if (elem)
+	return get_nonzero_bits_1 (elem);
+    }
+
   if (TREE_CODE (name) != SSA_NAME)
     return wi::shwi (-1, precision);
 
@@ -576,11 +590,11 @@ get_known_nonzero_bits_1 (const_tree name)
   if (tmp.undefined_p ())
     return wi::shwi (0, precision);
   irange_bitmask bm = tmp.get_bitmask ();
-  return bm.value () & ~bm.mask ();
+  return wi::bit_and_not (bm.value (), bm.mask ());
 }
 
 /* Return a wide_int with known non-zero bits in SSA_NAME
-   NAME, the constant for INTEGER_CST, or -1 if unknown.
+   NAME, the constant for INTEGER_CST, or 0 if unknown.
    In addition to what get_known_nonzero_bits_1 handles, this handles one
    level of BIT_IOR_EXPR, either as a def_stmt or tree directly.  */
 
@@ -603,15 +617,15 @@ get_known_nonzero_bits (const_tree name)
   return get_known_nonzero_bits_1 (name);
 }
 
-/* Return TRUE is OP, an SSA_NAME has a range of values [0..1], false
-   otherwise.
+/* Return TRUE is OP, an SSA_NAME has a range of values [0..1] at the
+   STMT, false otherwise.
 
    This can be because it is a boolean type, any unsigned integral
    type with a single bit of precision, or has known range of [0..1]
    via range analysis.  */
 
 bool
-ssa_name_has_boolean_range (tree op)
+ssa_name_has_boolean_range (tree op, gimple *stmt)
 {
   gcc_assert (TREE_CODE (op) == SSA_NAME);
 
@@ -628,7 +642,7 @@ ssa_name_has_boolean_range (tree op)
       && (TYPE_PRECISION (TREE_TYPE (op)) > 1))
     {
       int_range<2> r;
-      if (get_range_query (cfun)->range_of_expr (r, op)
+      if (get_range_query (cfun)->range_of_expr (r, op, stmt)
 	  && r == range_true_and_false (TREE_TYPE (op)))
 	return true;
 

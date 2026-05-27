@@ -1,5 +1,5 @@
 /* Detection of infinite loops.
-   Copyright (C) 2022-2025 Free Software Foundation, Inc.
+   Copyright (C) 2022-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,28 +18,15 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "fold-const.h"
-#include "gcc-rich-location.h"
-#include "alloc-pool.h"
-#include "fibonacci_heap.h"
-#include "shortest-paths.h"
-#include "diagnostic-core.h"
-#include "diagnostic-event-id.h"
-#include "diagnostic-path.h"
-#include "function.h"
-#include "pretty-print.h"
-#include "sbitmap.h"
-#include "bitmap.h"
-#include "tristate.h"
-#include "ordered-hash-map.h"
-#include "selftest.h"
-#include "json.h"
-#include "analyzer/analyzer.h"
+#include "analyzer/common.h"
+
+#include "cfg.h"
+#include "gimple-iterator.h"
+#include "gimple-pretty-print.h"
+#include "cgraph.h"
+#include "digraph.h"
+#include "diagnostics/sarif-sink.h"
+
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/call-string.h"
 #include "analyzer/program-point.h"
@@ -49,20 +36,11 @@ along with GCC; see the file COPYING3.  If not see
 #include "analyzer/sm.h"
 #include "analyzer/pending-diagnostic.h"
 #include "analyzer/diagnostic-manager.h"
-#include "cfg.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "gimple-iterator.h"
-#include "gimple-pretty-print.h"
-#include "cgraph.h"
-#include "digraph.h"
 #include "analyzer/supergraph.h"
 #include "analyzer/program-state.h"
 #include "analyzer/exploded-graph.h"
 #include "analyzer/checker-path.h"
 #include "analyzer/feasible-graph.h"
-#include "make-unique.h"
-#include "diagnostic-format-sarif.h"
 
 /* A bundle of data characterizing a particular infinite loop
    identified within the exploded graph.  */
@@ -108,9 +86,9 @@ struct infinite_loop
   std::unique_ptr<json::object>
   to_json () const
   {
-    auto loop_obj = ::make_unique<json::object> ();
+    auto loop_obj = std::make_unique<json::object> ();
     loop_obj->set_integer ("enode", m_enode.m_index);
-    auto edge_arr = ::make_unique<json::array> ();
+    auto edge_arr = std::make_unique<json::array> ();
     for (auto eedge : m_eedge_vec)
       edge_arr->append (eedge->to_json ());
     loop_obj->set ("eedges", std::move (edge_arr));
@@ -130,8 +108,9 @@ class perpetual_start_cfg_edge_event : public start_cfg_edge_event
 {
 public:
   perpetual_start_cfg_edge_event (const exploded_edge &eedge,
-				  const event_loc_info &loc_info)
-  : start_cfg_edge_event (eedge, loc_info)
+				  const event_loc_info &loc_info,
+				  const control_flow_op *op)
+  : start_cfg_edge_event (eedge, loc_info, op)
   {
   }
 
@@ -141,10 +120,12 @@ public:
     label_text edge_desc (m_sedge->get_description (user_facing));
     if (user_facing)
       {
-	if (edge_desc.get () && strlen (edge_desc.get ()) > 0)
+	if (edge_desc.get ()
+	    && strlen (edge_desc.get ()) > 0
+	    && m_op)
 	  {
 	    label_text cond_desc
-	      = maybe_describe_condition (pp_show_color (&pp));
+	      = m_op->maybe_describe_condition (pp_show_color (&pp));
 	    if (cond_desc.get ())
 	      pp_printf (&pp,
 			 "%s: always following %qs branch...",
@@ -165,8 +146,9 @@ class looping_back_event : public start_cfg_edge_event
 {
 public:
   looping_back_event (const exploded_edge &eedge,
-		      const event_loc_info &loc_info)
-  : start_cfg_edge_event (eedge, loc_info)
+		      const event_loc_info &loc_info,
+		      const control_flow_op *op)
+  : start_cfg_edge_event (eedge, loc_info, op)
   {
   }
 
@@ -211,8 +193,8 @@ public:
     return ctxt.warn ("infinite loop");
   }
 
-  bool maybe_add_custom_events_for_superedge (const exploded_edge &,
-					      checker_path *)
+  bool maybe_add_custom_events_for_eedge (const exploded_edge &,
+					  checker_path *)
     final override
   {
     /* Don't add any regular events; instead we add them after pruning as
@@ -237,7 +219,7 @@ public:
 			checker_path *emission_path) final override
   {
     emission_path->add_event
-      (make_unique<warning_event>
+      (std::make_unique<warning_event>
        (event_loc_info (m_inf_loop->m_loc,
 			enode->get_function ()->decl,
 			enode->get_stack_depth ()),
@@ -257,9 +239,8 @@ public:
 	if (!eedge->m_sedge)
 	  continue;
 
-	const cfg_superedge *cfg_sedge
-	  = eedge->m_sedge->dyn_cast_cfg_superedge ();
-	if (!cfg_sedge)
+	::edge cfg_edge = eedge->m_sedge->get_any_cfg_edge ();
+	if (!cfg_edge)
 	  continue;
 
 	const exploded_node *src_node = eedge->m_src;
@@ -268,68 +249,82 @@ public:
 	const program_point &dst_point = dst_node->get_point ();
 	const int src_stack_depth = src_point.get_stack_depth ();
 	const int dst_stack_depth = dst_point.get_stack_depth ();
-	const gimple *last_stmt = src_point.get_supernode ()->get_last_stmt ();
-
 	event_loc_info loc_info_from
-	  (last_stmt ? last_stmt->location : cfg_sedge->get_goto_locus (),
+	  (src_point.get_supernode ()->get_location (),
 	   src_point.get_fndecl (),
 	   src_stack_depth);
 	event_loc_info loc_info_to
-	  (dst_point.get_supernode ()->get_start_location (),
+	  (dst_point.get_supernode ()->get_location (),
 	   dst_point.get_fndecl (),
 	   dst_stack_depth);
+	if (auto base_op = eedge->m_sedge->get_op ())
+	  if (auto control_flow_op = base_op->dyn_cast_control_flow_op ())
+	    {
+	      if (control_flow_op->get_kind () == operation::switch_edge)
+		{
+		  const switch_case_op &case_op
+		    = *(const switch_case_op *)base_op;
+		  if (case_op.implicitly_created_default_p ())
+		    {
+		      emission_path->add_event
+			(std::make_unique<perpetual_start_cfg_edge_event>
+			 (*eedge,
+			  loc_info_from,
+			  control_flow_op));
+		      emission_path->add_event
+			(std::make_unique<end_cfg_edge_event>
+			 (*eedge,
+			  loc_info_to,
+			  control_flow_op));
+		    }
+		}
+	      else if (cfg_edge->flags & EDGE_TRUE_VALUE)
+		{
+		  emission_path->add_event
+		    (std::make_unique<perpetual_start_cfg_edge_event>
+		     (*eedge,
+		      loc_info_from,
+		      control_flow_op));
+		  emission_path->add_event
+		    (std::make_unique<end_cfg_edge_event>
+		     (*eedge,
+		      loc_info_to,
+		      control_flow_op));
+		}
+	      else if (cfg_edge->flags & EDGE_FALSE_VALUE)
+		{
+		  emission_path->add_event
+		    (std::make_unique<perpetual_start_cfg_edge_event>
+		     (*eedge,
+		      loc_info_from,
+		      control_flow_op));
+		  emission_path->add_event
+		    (std::make_unique<end_cfg_edge_event>
+		     (*eedge,
+		      loc_info_to,
+		      control_flow_op));
+		}
+	    }
 
-	if (const switch_cfg_superedge *switch_cfg_sedge
-	      = cfg_sedge->dyn_cast_switch_cfg_superedge ())
-	  {
-	    if (switch_cfg_sedge->implicitly_created_default_p ())
-	      {
-		emission_path->add_event
-		  (make_unique<perpetual_start_cfg_edge_event> (*eedge,
-								loc_info_from));
-		emission_path->add_event
-		  (make_unique<end_cfg_edge_event>
-		   (*eedge,
-		    loc_info_to));
-	      }
-	  }
-
-	if (cfg_sedge->true_value_p ())
+	if (cfg_edge->flags & EDGE_DFS_BACK)
 	  {
 	    emission_path->add_event
-	      (make_unique<perpetual_start_cfg_edge_event> (*eedge,
-							    loc_info_from));
+	      (std::make_unique<looping_back_event> (*eedge, loc_info_from,
+						     nullptr));
 	    emission_path->add_event
-	      (make_unique<end_cfg_edge_event>
-	       (*eedge,
-		loc_info_to));
-	  }
-	else if (cfg_sedge->false_value_p ())
-	  {
-	    emission_path->add_event
-	      (make_unique<perpetual_start_cfg_edge_event> (*eedge,
-							    loc_info_from));
-	    emission_path->add_event
-	      (make_unique<end_cfg_edge_event>
-	       (*eedge,
-		loc_info_to));
-	  }
-	else if (cfg_sedge->back_edge_p ())
-	  {
-	    emission_path->add_event
-	      (make_unique<looping_back_event> (*eedge, loc_info_from));
-	    emission_path->add_event
-	      (make_unique<end_cfg_edge_event>
-	       (*eedge,
-		loc_info_to));
+	      (std::make_unique<end_cfg_edge_event>
+		 (*eedge,
+		  loc_info_to,
+		  nullptr));
 	  }
       }
   }
 
-  void maybe_add_sarif_properties (sarif_object &result_obj)
+  void
+  maybe_add_sarif_properties (diagnostics::sarif_object &result_obj)
     const final override
   {
-    sarif_property_bag &props = result_obj.get_or_create_properties ();
+    auto &props = result_obj.get_or_create_properties ();
 #define PROPERTY_PREFIX "gcc/analyzer/infinite_loop_diagnostic/"
     props.set (PROPERTY_PREFIX "inf_loop", m_inf_loop->to_json ());
 #undef PROPERTY_PREFIX
@@ -351,11 +346,9 @@ get_in_edge_back_edge (const exploded_node &enode)
       const superedge *sedge = in_edge->m_sedge;
       if (!sedge)
 	continue;
-      const cfg_superedge *cfg_sedge = sedge->dyn_cast_cfg_superedge ();
-      if (!cfg_sedge)
-	continue;
-      if (cfg_sedge->back_edge_p ())
-	return in_edge;
+      if (::edge cfg_in_edge = sedge->get_any_cfg_edge ())
+	if (cfg_in_edge->flags & EDGE_DFS_BACK)
+	  return in_edge;
     }
   return nullptr;
 }
@@ -415,7 +408,7 @@ starts_infinite_loop_p (const exploded_node &enode,
   feasible_node *curr_fnode = nullptr;
 
   if (flag_dump_analyzer_infinite_loop)
-    fg = ::make_unique<feasible_graph> ();
+    fg = std::make_unique<feasible_graph> ();
 
   location_t first_loc = UNKNOWN_LOCATION;
   const exploded_node *iter = &enode;
@@ -432,7 +425,7 @@ starts_infinite_loop_p (const exploded_node &enode,
       if (logger)
 	logger->log ("iter: EN: %i", iter->m_index);
       /* Analysis bailed out before processing this node.  */
-      if (iter->get_status () == exploded_node::STATUS_WORKLIST)
+      if (iter->get_status () == exploded_node::status::worklist)
 	{
 	  if (logger)
 	    logger->log ("rejecting: EN: %i is still in worklist",
@@ -460,10 +453,10 @@ starts_infinite_loop_p (const exploded_node &enode,
 		  fg->dump_dot (filename, nullptr, dump_args);
 		  free (filename);
 		}
-	      return ::make_unique<infinite_loop> (enode,
-						   first_loc,
-						   std::move (eedges),
-						   logger);
+	      return std::make_unique<infinite_loop> (enode,
+						      first_loc,
+						      std::move (eedges),
+						      logger);
 	    }
 	  else
 	    {
@@ -476,9 +469,17 @@ starts_infinite_loop_p (const exploded_node &enode,
       visited.add (iter);
       if (first_loc == UNKNOWN_LOCATION)
 	{
-	  location_t enode_loc = iter->get_point ().get_location ();
-	  if (enode_loc != UNKNOWN_LOCATION)
-	    first_loc = enode_loc;
+	  auto snode = iter->get_supernode ();
+	  gcc_assert (snode);
+	  /* Ignore initial location in loop if it's a merger node,
+	     to avoid using locations of phi nodes that are at the end
+	     of the loop in the source.  */
+	  if (!(iter == &enode && snode->m_state_merger_node))
+	    {
+	      location_t enode_loc = snode->get_location ();
+	      if (useful_location_p (enode_loc))
+		first_loc = enode_loc;
+	    }
 	}
 
       /* Find the out-edges that are feasible, given the
@@ -573,8 +574,6 @@ exploded_graph::detect_infinite_loops ()
       if (std::unique_ptr<infinite_loop> inf_loop
 	    = starts_infinite_loop_p (*enode, *this, get_logger ()))
 	{
-	  const supernode *snode = enode->get_supernode ();
-
 	  if (get_logger ())
 	    get_logger ()->log ("EN: %i from starts_infinite_loop_p",
 				enode->m_index);
@@ -591,10 +590,11 @@ exploded_graph::detect_infinite_loops ()
 	      continue;
 	    }
 
-	  pending_location ploc (enode, snode, inf_loop->m_loc);
+	  pending_location ploc (enode, inf_loop->m_loc);
 	  auto d
-	    = ::make_unique<infinite_loop_diagnostic> (std::move (inf_loop));
-	  get_diagnostic_manager ().add_diagnostic (ploc, std::move (d));
+	    = std::make_unique<infinite_loop_diagnostic> (std::move (inf_loop));
+	  get_diagnostic_manager ().add_diagnostic (std::move (ploc),
+						    std::move (d));
 	}
     }
 }

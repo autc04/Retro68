@@ -39,7 +39,7 @@ regressions, ABI, and performance.
   of the C++ standard (ISO 14882) are files within the following
   directories:
 
-   <programlisting>
+<programlisting>
     17_intro
     18_support
     19_diagnostics
@@ -54,7 +54,7 @@ regressions, ABI, and performance.
     28_regex
     29_atomics
     30_threads
-   </programlisting>
+</programlisting>
 </para>
 
    <para>
@@ -167,7 +167,7 @@ regressions, ABI, and performance.
       This test case expects some kind of interactive input in order
       to finish or pass. At the moment, the interactive tests are not
       run by default. Instead, they are run by hand, like:
-      <programlisting>
+<programlisting>
 g++ 27_io/objects/char/3_xin.cc
 cat 27_io/objects/char/3_xin.in | a.out</programlisting>
   </listitem>
@@ -343,7 +343,7 @@ cat 27_io/objects/char/3_xin.in | a.out</programlisting>
       Also, here is an example of how to run the libstdc++ testsuite
       for a multilibed build directory with different ABI settings:
 
- <programlisting>
+<programlisting>
     make check-target-libstdc++-v3 RUNTESTFLAGS='--target_board \"unix{-mabi=32,,-mabi=64}\"'
 </programlisting>
     </para>
@@ -357,9 +357,9 @@ cat 27_io/objects/char/3_xin.in | a.out</programlisting>
       run programs on, e.g. <code>x86_64-pc-linux-gnu</code>, as a few tests
       still execute the code they build.  Here's an example of how to run the
       testsuite with libstdc++ in freestanding mode:
-      <programlisting>
+<programlisting>
     make check-target-libstdc++-v3 RUNTESTFLAGS='--target_board=unix/-ffreestanding'
-      </programlisting>
+</programlisting>
     </para>
 
     <para>
@@ -585,18 +585,6 @@ cat 27_io/objects/char/3_xin.in | a.out</programlisting>
     </para>
 
     <para>
-      The <option>--target_board</option> option can also be used to run the
-      tests multiple times in different variations. For example, to run the
-      entire testsuite three times using <option>-O3</option> but with
-      different <option>-std</option> options:
-<programlisting>    make check 'RUNTESTFLAGS=--target_board=unix/-O3\"{-std=gnu++98,-std=gnu++11,-std=gnu++17}\"'</programlisting>
-      N.B. that set of variations could also be written as
-      <literal>unix/-O3\"{-std=gnu++98,-std=gnu++11,}\"</literal> so that
-      the third variation would use the default for <option>-std</option>
-      (which is <option>-std=gnu++17</option> as of GCC 11).
-    </para>
-
-    <para>
       Since GCC 14, the libstdc++ testsuite has built-in support for running
       tests with more than one <option>-std</option>, similar to the G++ tests.
       Adding <code>set v3_std_list { 11 17 23 }</code> to
@@ -607,6 +595,9 @@ cat 27_io/objects/char/3_xin.in | a.out</programlisting>
       as a comma-separated list in the <envar>GLIBCXX_TESTSUITE_STDS</envar>
       environment variable, e.g. <envar>GLIBCXX_TESTSUITE_STDS=11,17,23</envar>
       is equivalent to the <code>v3_std_list</code> value above.
+      Before GCC 14, the <option>--target_board</option> option could be
+      used to run the tests with different <option>-std</option> options,
+      but this no longer works.
     </para>
 
     <para>
@@ -659,10 +650,16 @@ cat 27_io/objects/char/3_xin.in | a.out</programlisting>
     We no longer require that, because most tests are uninteresting
     and contain no "original authorship", and so would not be protected
     by copyright anyway.
-    If you do want to add the FSF copyright notice and GPL licence text,
+    Adding the FSF copyright notice to new tests is incorrect unless you
+    (or your employer) have a copyright assignment on file with the FSF,
+    or if the test contains code copied from another test under FSF copyright.
+    In particular, new tests that contain original code are not copyright FSF
+    if contributed under the <link xmlns:xlink="http://www.w3.org/1999/xlink"
+      xlink:href="https://gcc.gnu.org/dco.html">DCO</link> terms.
+    If new tests do add the FSF copyright notice and GPL licence text,
     then the first copyright year should correspond to the date
-    the file was checked in to version control. If a test is copied from
-    an existing file it should retain the copyright years from the
+    the file was checked in to version control. If the test code is copied
+    from an existing file it should retain the copyright years from the
     original file.
    </para>
 
@@ -691,20 +688,6 @@ cat 27_io/objects/char/3_xin.in | a.out</programlisting>
     <function>__builtin_abort</function>
     (to avoid using <literal>assert</literal> and being affected by
     <literal>NDEBUG</literal>).
-   </para>
-
-   <para>
-    Prior to GCC 7.1, <literal>VERIFY</literal> was defined differently.
-    It usually expanded to the standard <literal>assert</literal> macro, but
-    allowed targets to define it to something different. In order to support
-    the alternative expansions of <literal>VERIFY</literal>, before any use
-    of the macro there needed to be a variable called <varname>test</varname>
-    in scope, which was usually defined like so (the attribute avoids
-    warnings about an unused variable):
-    <programlisting>
-    bool test __attribute__((unused)) = true;
-    </programlisting>
-    This is no longer needed, and should not be added to new tests.
    </para>
 
    <para>

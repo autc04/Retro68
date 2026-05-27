@@ -1,5 +1,5 @@
 # Expect script for ld-xtensa tests
-#   Copyright (C) 2008-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2008-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -41,3 +41,5 @@ run_dump_test "relax-undef-weak-pie-export-dynamic"
 run_dump_test "relax-undef-weak-local-pie"
 run_dump_test "relax-undef-weak-shared"
 run_dump_test "relax-undef-weak-local-shared"
+
+run_dump_test "startstop"

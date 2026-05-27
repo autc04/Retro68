@@ -1,4 +1,4 @@
-#as: --underscore --em=criself --march=v32
+#as: --underscore --emulation=criself --march=v32
 #source: rd-bkw4.s
 #objdump: -dr
 

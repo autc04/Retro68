@@ -1,6 +1,5 @@
 # Check 32bit AVX512F,GFNI instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vgf2p8affineqb	$0xab, %zmm4, %zmm5, %zmm6	 # AVX512F,GFNI

@@ -1,5 +1,5 @@
 /* Hierarchical diagram elements.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -146,15 +146,20 @@ class wrapper_widget : public widget
   }
   canvas::size_t calc_req_size () override
   {
-    return m_child->get_req_size ();
+    if (m_child)
+      return m_child->get_req_size ();
+    else
+      return canvas::size_t (0,0);
   }
   void update_child_alloc_rects () override
   {
-    m_child->set_alloc_rect (get_alloc_rect ());
+    if (m_child)
+      m_child->set_alloc_rect (get_alloc_rect ());
   }
   void paint_to_canvas (canvas &canvas) override
   {
-    m_child->paint_to_canvas (canvas);
+    if (m_child)
+      m_child->paint_to_canvas (canvas);
   }
  private:
   std::unique_ptr<widget> m_child;

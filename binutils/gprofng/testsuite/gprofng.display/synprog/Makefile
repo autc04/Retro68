@@ -1,4 +1,4 @@
-#   Copyright (C) 2021 Free Software Foundation, Inc.
+#   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -50,7 +50,7 @@ HDRS= \
 
 $(TARGET): $(SRCS) $(HDRS) so_syx.so so_syn.so
 	@echo " ---- Build: $@ -----"
-	$(CC) $(CFLAGS) -o $@ $(SRCS) -ldl -lc -lrt
+	$(CC) $(CFLAGS) -Wl,-E -o $@ $(SRCS) -ldl -lc -lrt
 
 so_syx.so: $(srcdir)/so_syx.c
 	@echo " ---- Build: $@ -----"

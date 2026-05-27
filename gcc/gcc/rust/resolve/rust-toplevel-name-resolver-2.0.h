@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -67,10 +67,10 @@ public:
     } kind;
 
     static ImportKind Glob (AST::SimplePath &&to_resolve, Rib &values_rib,
-			    Rib &types_rib, Rib &macros_rib)
+			    Rib &types_rib, Rib &macros_rib, bool is_prelude)
     {
       return ImportKind (Kind::Glob, std::move (to_resolve), values_rib,
-			 types_rib, macros_rib);
+			 types_rib, macros_rib, is_prelude);
     }
 
     static ImportKind Simple (AST::SimplePath &&to_resolve, Rib &values_rib,
@@ -84,8 +84,10 @@ public:
 			      AST::UseTreeRebind &&rebind, Rib &values_rib,
 			      Rib &types_rib, Rib &macros_rib)
     {
-      return ImportKind (Kind::Rebind, std::move (to_resolve), values_rib,
-			 types_rib, macros_rib, std::move (rebind));
+      return ImportKind (
+	Kind::Rebind, std::move (to_resolve), values_rib, types_rib, macros_rib,
+	false /* is_prelude: rebind imports can never be preludes */,
+	std::move (rebind));
     }
 
     // The path for `Early` to resolve.
@@ -98,13 +100,17 @@ public:
     Rib &types_rib;
     Rib &macros_rib;
 
+    // Can only be true if we are dealing with a glob import with the
+    // #[prelude_import] attribute
+    bool is_prelude = false;
+
   private:
     ImportKind (Kind kind, AST::SimplePath &&to_resolve, Rib &values_rib,
-		Rib &types_rib, Rib &macros_rib,
+		Rib &types_rib, Rib &macros_rib, bool is_prelude = false,
 		tl::optional<AST::UseTreeRebind> &&rebind = tl::nullopt)
       : kind (kind), to_resolve (std::move (to_resolve)),
 	rebind (std::move (rebind)), values_rib (values_rib),
-	types_rib (types_rib), macros_rib (macros_rib)
+	types_rib (types_rib), macros_rib (macros_rib), is_prelude (is_prelude)
     {}
   };
 
@@ -136,11 +142,12 @@ public:
 
   template <typename T>
   void insert_enum_variant_or_error_out (const Identifier &identifier,
-					 const T &node);
+					 const T &node, bool is_also_value);
 
   void insert_enum_variant_or_error_out (const Identifier &identifier,
 					 const location_t &locus,
-					 const NodeId node_id);
+					 const NodeId node_id,
+					 bool is_also_value);
 
 private:
   // If a new export has been defined whilst visiting the visitor is considered
@@ -160,8 +167,7 @@ private:
 
   void visit (AST::Module &module) override;
   void visit (AST::Trait &trait) override;
-  void visit (AST::InherentImpl &impl) override;
-  void visit (AST::TraitImpl &impl) override;
+  void maybe_insert_big_self (AST::Impl &impl) override;
   void visit (AST::TraitItemType &trait_item) override;
   void visit (AST::MacroRulesDefinition &macro) override;
   void visit (AST::Function &function) override;
@@ -177,7 +183,7 @@ private:
   void visit (AST::Union &union_item) override;
   void visit (AST::ConstantItem &const_item) override;
   void visit (AST::TypeAlias &type_item) override;
-  void visit (AST::ExternCrate &crate) override;
+  void visit_extern_crate (AST::ExternCrate &, AST::Crate &, CrateNum) override;
   void visit (AST::TypeParam &type_param) override;
   void visit (AST::ConstGenericParam &const_param) override;
 

@@ -1,5 +1,7 @@
 #as: -mabi=ilp32
 #objdump: -dr
+# This test is only valid on ELF based ports.
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 .*:     file format elf32-.*aarch64
 

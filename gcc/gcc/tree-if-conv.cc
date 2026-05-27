@@ -1,5 +1,5 @@
 /* If-conversion for vectorizer.
-   Copyright (C) 2004-2025 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
    Contributed by Devang Patel <dpatel@apple.com>
 
 This file is part of GCC.
@@ -494,6 +494,10 @@ fold_or_predicates (location_t loc, tree c1, tree c2)
 static tree
 fold_build_cond_expr (tree type, tree cond, tree rhs, tree lhs)
 {
+  /* Short cut the case where both rhs and lhs are the same. */
+  if (operand_equal_p (rhs, lhs))
+    return rhs;
+
   /* If COND is comparison r != 0 and r has boolean type, convert COND
      to SSA_NAME to accept by vect bool pattern.  */
   if (TREE_CODE (cond) == NE_EXPR)
@@ -1002,6 +1006,21 @@ ifcvt_can_predicate (gimple *stmt)
   if (gimple_assign_single_p (stmt))
     return ifcvt_can_use_mask_load_store (stmt);
 
+  tree callee;
+  if (gimple_call_builtin_p (stmt))
+    if ((callee = gimple_call_fndecl (stmt))
+	&& fndecl_built_in_p (callee, BUILT_IN_NORMAL))
+      {
+	auto ifn = associated_internal_fn (callee);
+	auto cond_ifn = get_conditional_internal_fn (ifn);
+	tree type = TREE_TYPE (gimple_call_fntype (stmt));
+	return (cond_ifn != IFN_LAST
+		&& vectorized_internal_fn_supported_p (cond_ifn, type));
+      }
+
+  if (!is_gimple_assign (stmt))
+    return false;
+
   tree_code code = gimple_assign_rhs_code (stmt);
   tree lhs_type = TREE_TYPE (gimple_assign_lhs (stmt));
   tree rhs_type = TREE_TYPE (gimple_assign_rhs1 (stmt));
@@ -1066,11 +1085,7 @@ if_convertible_gimple_assign_stmt_p (gimple *stmt,
 	fprintf (dump_file, "tree could trap...\n");
       return false;
     }
-  else if ((INTEGRAL_TYPE_P (TREE_TYPE (lhs))
-	    || POINTER_TYPE_P (TREE_TYPE (lhs)))
-	   && TYPE_OVERFLOW_UNDEFINED (TREE_TYPE (lhs))
-	   && arith_code_with_undefined_signed_overflow
-				(gimple_assign_rhs_code (stmt)))
+  else if (gimple_needing_rewrite_undefined (stmt))
     /* We have to rewrite stmts with undefined overflow.  */
     need_to_rewrite_undefined = true;
 
@@ -1105,6 +1120,36 @@ if_convertible_switch_p (gswitch *sw)
   return true;
 }
 
+/* Return true when STMT is an if-convertible SIMD clone stmts.
+
+   A SIMD clone statement is if-convertible if:
+    - it is an GIMPLE_CALL,
+    - it has a FNDECL,
+    - it has SIMD clones,
+    - it has at least one inbranch clone.  */
+static bool
+if_convertible_simdclone_stmt_p (gimple *stmt)
+{
+  if (!is_gimple_call (stmt))
+    return false;
+
+  tree fndecl = gimple_call_fndecl (stmt);
+  if (fndecl)
+    {
+      /* We can vectorize some builtins and functions with SIMD "inbranch"
+	 clones.  */
+      struct cgraph_node *node = cgraph_node::get (fndecl);
+      if (node && node->simd_clones != NULL)
+	/* Ensure that at least one clone can be "inbranch".  */
+	for (struct cgraph_node *n = node->simd_clones; n != NULL;
+	     n = n->simdclone->next_clone)
+	  if (n->simdclone->inbranch)
+	    return true;
+    }
+
+  return false;
+}
+
 /* Return true when STMT is if-convertible.
 
    A statement is if-convertible if:
@@ -1132,22 +1177,29 @@ if_convertible_stmt_p (gimple *stmt, vec<data_reference_p> refs)
 
     case GIMPLE_CALL:
       {
-	tree fndecl = gimple_call_fndecl (stmt);
-	if (fndecl)
+	/* Check if stmt is a simd clone first.  */
+	if (if_convertible_simdclone_stmt_p (stmt))
 	  {
-	    /* We can vectorize some builtins and functions with SIMD
-	       "inbranch" clones.  */
-	    struct cgraph_node *node = cgraph_node::get (fndecl);
-	    if (node && node->simd_clones != NULL)
-	      /* Ensure that at least one clone can be "inbranch".  */
-	      for (struct cgraph_node *n = node->simd_clones; n != NULL;
-		   n = n->simdclone->next_clone)
-		if (n->simdclone->inbranch)
-		  {
-		    gimple_set_plf (stmt, GF_PLF_2, true);
-		    need_to_predicate = true;
-		    return true;
-		  }
+	    gimple_set_plf (stmt, GF_PLF_2, true);
+	    need_to_predicate = true;
+	    return true;
+	  }
+
+	/* Check if the call can trap and if so require predication.  */
+	if (gimple_could_trap_p (stmt))
+	  {
+	    if (ifcvt_can_predicate (stmt))
+	      {
+		gimple_set_plf (stmt, GF_PLF_2, true);
+		need_to_predicate = true;
+		return true;
+	      }
+	    else
+	      {
+		if (dump_file && (dump_flags & TDF_DETAILS))
+		  fprintf (dump_file, "stmt could trap...\n");
+		return false;
+	      }
 	  }
 
 	/* There are some IFN_s that are used to replace builtins but have the
@@ -1961,6 +2013,7 @@ convert_scalar_cond_reduction (gimple *reduc, gimple_stmt_iterator *gsi,
   ifn = get_conditional_internal_fn (reduction_op);
   if (loop_versioned && ifn != IFN_LAST
       && vectorized_internal_fn_supported_p (ifn, TREE_TYPE (lhs))
+      && !VECTOR_TYPE_P (TREE_TYPE (lhs))
       && !swap)
     {
       gcall *cond_call = gimple_build_call_internal (ifn, 4,
@@ -2112,6 +2165,215 @@ gen_phi_arg_condition (gphi *phi, ifcvt_arg_entry_t &arg,
     }
   gcc_assert (cond != NULL_TREE);
   return cond;
+}
+
+/* Find the operand which is different between ARG0_OP and ARG1_OP.
+   Returns the operand num where the difference is.
+   Set NEWARG0 and NEWARG1 from the different argument.
+   Returns -1 if none is found.
+   If ARG0_OP/ARG1_OP is commutative also try swapping the
+   two commutative operands and return the operand number where
+   the difference happens in ARG0_OP. */
+
+static int
+find_different_opnum (const gimple_match_op &arg0_op,
+		      const gimple_match_op &arg1_op,
+		      tree *new_arg0, tree *new_arg1)
+{
+  unsigned opnum = -1;
+  unsigned first;
+  first = first_commutative_argument (arg1_op.code, arg1_op.type);
+  for (unsigned i = 0; i < arg0_op.num_ops; i++)
+    {
+      if (!operand_equal_for_phi_arg_p (arg0_op.ops[i],
+					arg1_op.ops[i]))
+	{
+	  /* Can handle only one non equal operand. */
+	  if (opnum != -1u)
+	    {
+	      /* Though if opnum is right before i and opnum is equal
+		 to the first communtative argument, handle communtative
+		 specially. */
+	      if (i == opnum + 1 && opnum == first)
+		goto commutative;
+	      return -1;
+	    }
+	  opnum = i;
+	}
+  }
+  /* If all operands are equal only do this is there was single
+     operand.  */
+  if (opnum == -1u)
+    {
+      if (arg0_op.num_ops != 1)
+	return -1;
+      opnum = 0;
+    }
+  *new_arg0 = arg0_op.ops[opnum];
+  *new_arg1 = arg1_op.ops[opnum];
+  return opnum;
+
+/* Handle commutative operations. */
+commutative:
+  gcc_assert (first != -1u);
+
+  /* Check the rest of the arguments to make sure they are the same. */
+  for (unsigned i = first + 2; i < arg0_op.num_ops; i++)
+    if (!operand_equal_for_phi_arg_p (arg0_op.ops[i],
+				      arg1_op.ops[i]))
+      return -1;
+
+  /* If the arg0[first+1] and arg1[first] are the same
+     then the one which is different is arg0[first] and arg1[first+1]
+     return first since this is based on arg0.  */
+  if (operand_equal_for_phi_arg_p (arg0_op.ops[first + 1],
+				   arg1_op.ops[first]))
+    {
+       *new_arg0 = arg0_op.ops[first];
+       *new_arg1 = arg1_op.ops[first + 1];
+       return first;
+    }
+  /* If the arg0[first] and arg1[first+1] are the same
+     then the one which is different is arg0[first+1] and arg1[first]
+     return first+1 since this is based on arg0.  */
+  if (operand_equal_for_phi_arg_p (arg0_op.ops[first],
+				   arg1_op.ops[first + 1]))
+    {
+       *new_arg0 = arg0_op.ops[first + 1];
+       *new_arg1 = arg1_op.ops[first];
+       return first + 1;
+    }
+  return -1;
+}
+
+/* Factors out an operation from *ARG0 and *ARG1 and
+   create the new statement at GSI. *RES is the
+   result of that new statement. Update *ARG0 and *ARG1
+   and *RES to the new values if the factoring happened.
+   Loops until all of the factoring is completed.  */
+
+static void
+factor_out_operators (tree *res, gimple_stmt_iterator *gsi,
+		      tree *arg0, tree *arg1, gphi *phi)
+{
+  gimple_match_op arg0_op, arg1_op;
+  bool repeated = false;
+
+again:
+  if (TREE_CODE (*arg0) != SSA_NAME || TREE_CODE (*arg1) != SSA_NAME)
+    return;
+
+  if (operand_equal_p (*arg0, *arg1))
+    return;
+
+  /* If either args have > 1 use, then this transformation actually
+     increases the number of expressions evaluated at runtime.  */
+  if (repeated
+      ? (!has_zero_uses (*arg0) || !has_zero_uses (*arg1))
+      : (!has_single_use (*arg0) || !has_single_use (*arg1)))
+    return;
+
+  gimple *arg0_def_stmt = SSA_NAME_DEF_STMT (*arg0);
+  if (!gimple_extract_op (arg0_def_stmt, &arg0_op))
+    return;
+
+  /* At this point there should be no ssa names occuring in abnormals.  */
+  gcc_assert (!arg0_op.operands_occurs_in_abnormal_phi ());
+
+  gimple *arg1_def_stmt = SSA_NAME_DEF_STMT (*arg1);
+  if (!gimple_extract_op (arg1_def_stmt, &arg1_op))
+    return;
+
+  /* At this point there should be no ssa names occuring in abnormals.  */
+  gcc_assert (!arg1_op.operands_occurs_in_abnormal_phi ());
+
+  /* No factoring can happen if the codes are different
+     or the number operands.  */
+  if (arg1_op.code != arg0_op.code
+      || arg1_op.num_ops != arg0_op.num_ops)
+    return;
+
+  tree new_arg0, new_arg1;
+  int opnum = find_different_opnum (arg0_op, arg1_op, &new_arg0, &new_arg1);
+  if (opnum == -1)
+    return;
+
+  /* BIT_FIELD_REF and BIT_INSERT_EXPR can't be factored out for non-0 operands
+     as the other operands require constants. */
+  if ((arg1_op.code == BIT_FIELD_REF
+       || arg1_op.code == BIT_INSERT_EXPR)
+      && opnum != 0)
+    return;
+
+  /* It is not profitability to factor out vec_perm with
+     constant masks (operand 2).  The target might not support it
+     and that might be invalid to do as such. Also with constants
+     masks, the number of elements of the mask type does not need
+     to match tne number of elements of other operands and can be
+     arbitrary integral vector type so factoring that out can't work.
+     Note in the case where one mask is a constant and the other is not,
+     the next check for compatiable types will reject the case the
+     constant mask has the incompatible type.  */
+  if (arg1_op.code == VEC_PERM_EXPR && opnum == 2
+      && TREE_CODE (new_arg0) == VECTOR_CST
+      && TREE_CODE (new_arg1) == VECTOR_CST)
+    return;
+
+  if (!types_compatible_p (TREE_TYPE (new_arg0), TREE_TYPE (new_arg1)))
+    return;
+  tree new_res = make_ssa_name (TREE_TYPE (new_arg0), NULL);
+
+  /* Create the operation stmt if possible and insert it.  */
+
+  gimple_match_op new_op = arg0_op;
+  new_op.ops[opnum] = new_res;
+  gimple_seq seq = NULL;
+  tree result = *res;
+  result = maybe_push_res_to_seq (&new_op, &seq, result);
+
+  /* If we can't create the new statement, release the temp name
+     and return back.  */
+  if (!result)
+    {
+      release_ssa_name (new_res);
+      return;
+    }
+  gsi_insert_seq_before (gsi, seq, GSI_CONTINUE_LINKING);
+
+  if (dump_file && (dump_flags & TDF_DETAILS))
+    {
+      fprintf (dump_file, "PHI ");
+      print_generic_expr (dump_file, gimple_phi_result (phi));
+      fprintf (dump_file,
+	       " changed to factor operation out from COND_EXPR.\n");
+      fprintf (dump_file, "New stmt with OPERATION that defines ");
+      print_generic_expr (dump_file, result);
+      fprintf (dump_file, ".\n");
+    }
+
+  /* Remove the old operation(s) that has single use.  */
+  gimple_stmt_iterator gsi_for_def;
+
+  gsi_for_def = gsi_for_stmt (arg0_def_stmt);
+  gsi_remove (&gsi_for_def, true);
+  release_defs (arg0_def_stmt);
+  gsi_for_def = gsi_for_stmt (arg1_def_stmt);
+  gsi_remove (&gsi_for_def, true);
+  release_defs (arg1_def_stmt);
+
+  /* Update the arguments and try again.  */
+  *arg0 = new_arg0;
+  *arg1 = new_arg1;
+  *res = new_res;
+
+  /* Update the phi node too. */
+  gimple_phi_set_result (phi, new_res);
+  gimple_phi_arg (phi, 0)->def = new_arg0;
+  gimple_phi_arg (phi, 1)->def = new_arg1;
+  update_stmt (phi);
+
+  repeated = true;
+  goto again;
 }
 
 /* Create the smallest nested conditional possible.  On pre-order we record
@@ -2293,6 +2555,11 @@ predicate_scalar_phi (gphi *phi, gimple_stmt_iterator *gsi, bool loop_versioned)
 	  arg0 = gimple_phi_arg_def (phi, 0);
 	  arg1 = gimple_phi_arg_def (phi, 1);
 	}
+
+      /* Factor out operand if possible. This can only be done easily
+	 for PHI with 2 elements.  */
+      factor_out_operators (&res, gsi, &arg0, &arg1, phi);
+
       if (is_cond_scalar_reduction (phi, &reduc, arg0, arg1,
 				    &op0, &op1, false, &has_nop,
 				    &nop_reduc))
@@ -2639,20 +2906,38 @@ value_available_p (gimple *stmt, hash_set<tree_ssa_name_hash> *ssa_names,
    SSA names defined earlier in STMT's block.  */
 
 static gimple *
-predicate_rhs_code (gassign *stmt, tree mask, tree cond,
+predicate_rhs_code (gimple *stmt, tree mask, tree cond,
 		    hash_set<tree_ssa_name_hash> *ssa_names)
 {
-  tree lhs = gimple_assign_lhs (stmt);
-  tree_code code = gimple_assign_rhs_code (stmt);
-  unsigned int nops = gimple_num_ops (stmt);
-  internal_fn cond_fn = get_conditional_internal_fn (code);
+  internal_fn cond_fn;
+  if (is_gimple_assign (stmt))
+    {
+      tree_code code = gimple_assign_rhs_code (stmt);
+      cond_fn = get_conditional_internal_fn (code);
+    }
+  else if (tree callee = gimple_call_fndecl (stmt))
+    {
+      auto ifn = associated_internal_fn (callee);
+      cond_fn = get_conditional_internal_fn (ifn);
+    }
+  else
+    return NULL;
+
+  if (cond_fn == IFN_LAST)
+    {
+      gcc_assert (!gimple_could_trap_p (stmt));
+      return NULL;
+    }
+
+  tree lhs = gimple_get_lhs (stmt);
+  unsigned int nops = gimple_num_args (stmt) + 1;
 
   /* Construct the arguments to the conditional internal function.   */
   auto_vec<tree, 8> args;
   args.safe_grow (nops + 1, true);
   args[0] = mask;
-  for (unsigned int i = 1; i < nops; ++i)
-    args[i] = gimple_op (stmt, i);
+  for (unsigned int i = 0; i < nops - 1; ++i)
+    args[i+1] = gimple_arg (stmt, i);
   args[nops] = NULL_TREE;
 
   /* Look for uses of the result to see whether they are COND_EXPRs that can
@@ -2829,9 +3114,9 @@ predicate_statements (loop_p loop)
 
       for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi);)
 	{
-	  gassign *stmt = dyn_cast <gassign *> (gsi_stmt (gsi));
-	  tree lhs;
-	  if (!stmt)
+	  gimple *stmt = gsi_stmt (gsi);
+	  if (!is_gimple_assign (stmt)
+	      && !gimple_call_builtin_p (stmt))
 	    ;
 	  else if (is_false_predicate (cond)
 		   && gimple_vdef (stmt))
@@ -2842,9 +3127,15 @@ predicate_statements (loop_p loop)
 	      continue;
 	    }
 	  else if (gimple_plf (stmt, GF_PLF_2)
-		   && is_gimple_assign (stmt))
+		   && (is_gimple_assign (stmt)
+		       || (gimple_call_builtin_p (stmt)
+			   && !if_convertible_simdclone_stmt_p (stmt))))
 	    {
-	      tree lhs = gimple_assign_lhs (stmt);
+	      tree lhs = gimple_get_lhs (stmt);
+	      /* ?? Assume that calls without an LHS are not data processing
+		 and so no issues with traps.  */
+	      if (!lhs)
+		continue;
 	      tree mask;
 	      gimple *new_stmt;
 	      gimple_seq stmts = NULL;
@@ -2880,19 +3171,17 @@ predicate_statements (loop_p loop)
 		  vect_masks.safe_push (mask);
 		}
 	      if (gimple_assign_single_p (stmt))
-		new_stmt = predicate_load_or_store (&gsi, stmt, mask);
+		new_stmt = predicate_load_or_store (&gsi,
+						    as_a <gassign *> (stmt),
+						    mask);
 	      else
 		new_stmt = predicate_rhs_code (stmt, mask, cond, &ssa_names);
 
-	      gsi_replace (&gsi, new_stmt, true);
+	      if (new_stmt)
+		gsi_replace (&gsi, new_stmt, true);
 	    }
-	  else if (((lhs = gimple_assign_lhs (stmt)), true)
-		   && (INTEGRAL_TYPE_P (TREE_TYPE (lhs))
-		       || POINTER_TYPE_P (TREE_TYPE (lhs)))
-		   && TYPE_OVERFLOW_UNDEFINED (TREE_TYPE (lhs))
-		   && arith_code_with_undefined_signed_overflow
-						(gimple_assign_rhs_code (stmt)))
-	    rewrite_to_defined_overflow (&gsi);
+	  else if (gimple_needing_rewrite_undefined (stmt))
+	    rewrite_to_defined_unconditional (&gsi);
 	  else if (gimple_vdef (stmt))
 	    {
 	      tree lhs = gimple_assign_lhs (stmt);
@@ -2946,7 +3235,7 @@ predicate_statements (loop_p loop)
 	      gsi_replace (&gsi, new_call, true);
 	    }
 
-	  lhs = gimple_get_lhs (gsi_stmt (gsi));
+	  tree lhs = gimple_get_lhs (gsi_stmt (gsi));
 	  if (lhs && TREE_CODE (lhs) == SSA_NAME)
 	    ssa_names.add (lhs);
 	  gsi_next (&gsi);
@@ -3014,12 +3303,10 @@ combine_blocks (class loop *loop, bool loop_versioned)
 
   /* Reset flow-sensitive info before predicating stmts or PHIs we
      might fold.  */
-  bool *predicated = XNEWVEC (bool, orig_loop_num_nodes);
   for (i = 0; i < orig_loop_num_nodes; i++)
     {
       bb = ifc_bbs[i];
-      predicated[i] = is_predicated (bb);
-      if (predicated[i])
+      if (is_predicated (bb))
 	{
 	  for (auto gsi = gsi_start_phis (bb);
 	       !gsi_end_p (gsi); gsi_next (&gsi))
@@ -3221,7 +3508,6 @@ combine_blocks (class loop *loop, bool loop_versioned)
 
   free (ifc_bbs);
   ifc_bbs = NULL;
-  free (predicated);
 }
 
 /* Version LOOP before if-converting it; the original loop
@@ -3260,7 +3546,7 @@ version_loop_for_if_conversion (class loop *loop, vec<gimple *> *preds)
     }
 
   initialize_original_copy_tables ();
-  /* At this point we invalidate porfile confistency until IFN_LOOP_VECTORIZED
+  /* At this point we invalidate profile consistency until IFN_LOOP_VECTORIZED
      is re-merged in the vectorizer.  */
   new_loop = loop_version (loop, cond, &cond_bb,
 			   profile_probability::always (),

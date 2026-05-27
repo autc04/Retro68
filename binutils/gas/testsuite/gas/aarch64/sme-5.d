@@ -87,7 +87,3 @@ Disassembly of section \.text:
  134:	e1dffe2f 	ld1q	{za15v.q\[w15, 0\]}, p7/z, \[x17, xzr, lsl #4\]
  138:	e000ffef 	ld1b	{za0v.b\[w15, 15\]}, p7/z, \[sp, x0\]
  13c:	e0010000 	ld1b	{za0h.b\[w12, 0\]}, p0/z, \[x0, x1\]
- 140:	e0410000 	ld1h	{za0h.h\[w12, 0\]}, p0/z, \[x0, x1, lsl #1\]
- 144:	e0819c0f 	ld1w	{za3v.s\[w12, 3\]}, p7/z, \[x0, x1, lsl #2\]
- 148:	e0c10000 	ld1d	{za0h.d\[w12, 0\]}, p0/z, \[x0, x1, lsl #3\]
- 14c:	e1c18000 	ld1q	{za0v.q\[w12, 0\]}, p0/z, \[x0, x1, lsl #4\]

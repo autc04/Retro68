@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2022 Free Software Foundation, Inc.
+# Copyright (C) 2012-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 #
 # Some generic VAX tests
 #
+if ![istarget vax-*-* ] then {
+    return
+}
 
 proc do_quad {} {
     set testname "quad.s: quadword immediate values"
@@ -42,12 +45,12 @@ proc do_quad {} {
     if [all_ones $x1 $x2 $x3] then { pass $testname } else { fail $testname }
 }
 
-if [istarget vax-*-* ] then {
-    do_quad
 
-    run_dump_test "flonum"
+do_quad
 
-    if { [istarget vax-*-*elf*] || [istarget vax-*-linux-*] } then {
-	run_dump_test "elf-rel"
-    }
+run_dump_test flonum
+run_dump_test broken_word
+
+if { [istarget vax-*-*elf*] || [istarget vax-*-linux-*] } then {
+    run_dump_test elf-rel
 }

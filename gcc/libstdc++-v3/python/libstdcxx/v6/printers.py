@@ -1,6 +1,6 @@
 # Pretty-printers for libstdc++.
 
-# Copyright (C) 2008-2025 Free Software Foundation, Inc.
+# Copyright (C) 2008-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -133,7 +133,11 @@ def lookup_templ_spec(templ, *args):
     """
     Lookup template specialization templ<args...>.
     """
-    t = '{}<{}>'.format(templ, ', '.join([str(a) for a in args]))
+    # Similar to PR67440, str(a) might contain unexpected type qualifiers.
+    t = '{}<{}>'.format(templ, ', '.join([ \
+            a.tag if isinstance(a, gdb.Type) and a.tag \
+            else str(a) \
+        for a in args]))
     try:
         return gdb.lookup_type(t)
     except gdb.error as e:
@@ -287,7 +291,17 @@ class SharedPointerPrinter(printer_base):
     def _get_refcounts(self):
         if self._typename == 'std::atomic':
             # A tagged pointer is stored as uintptr_t.
-            ptr_val = self._val['_M_refcount']['_M_val']['_M_i']
+            val = self._val['_M_refcount']['_M_val']
+            # GCC 16 stores it directly as uintptr_t
+            # GCC 12-15 stores std::atomic<uintptr_t>
+            if hasattr(val.type, 'is_scalar'): # Added in GDB 12.1
+                val_is_uintptr = val.type.is_scalar
+            else:
+                val_is_uintptr = val.type.tag is None
+            if val_is_uintptr:
+                ptr_val = val
+            else:
+                ptr_val = val['_M_i']
             ptr_val = ptr_val - (ptr_val % 2)  # clear lock bit
             ptr_type = find_type(self._val['_M_refcount'].type, 'pointer')
             return ptr_val.cast(ptr_type)
@@ -568,7 +582,10 @@ class StdVectorPrinter(printer_base):
                               self._val['_M_impl']['_M_finish'],
                               self._is_bool)
 
-    def to_string(self):
+    # Helper to compute the bounds of the vector.
+    # Returns a tuple: (length, capacity, suffix)
+    # SUFFIX is a type-name suffix to print.
+    def _bounds(self):
         start = self._val['_M_impl']['_M_start']
         finish = self._val['_M_impl']['_M_finish']
         end = self._val['_M_impl']['_M_end_of_storage']
@@ -578,13 +595,27 @@ class StdVectorPrinter(printer_base):
             fo = self._val['_M_impl']['_M_finish']['_M_offset']
             itype = start.dereference().type
             bl = 8 * itype.sizeof
-            length = bl * (finish - start) + fo
-            capacity = bl * (end - start)
-            return ('%s<bool> of length %d, capacity %d'
-                    % (self._typename, int(length), int(capacity)))
+            length = int(bl * (finish - start) + fo)
+            capacity = int(bl * (end - start))
+            suffix = '<bool>'
         else:
-            return ('%s of length %d, capacity %d'
-                    % (self._typename, int(finish - start), int(end - start)))
+            length = int(finish - start)
+            capacity = int(end - start)
+            suffix = ''
+        if length < 0:
+            # Probably uninitialized.
+            length = 0
+            capacity = 0
+        return (length, capacity, suffix)
+
+    def to_string(self):
+        (length, capacity, suffix) = self._bounds()
+        return ('%s%s of length %d, capacity %d'
+                % (self._typename, suffix, length, capacity))
+
+    def num_children(self):
+        (length, capacity, suffix) = self._bounds()
+        return length
 
     def display_hint(self):
         return 'array'
@@ -729,6 +760,11 @@ class StdStackOrQueuePrinter(printer_base):
         return '%s wrapping: %s' % (self._typename,
                                     self._visualizer.to_string())
 
+    def num_children(self):
+        if hasattr(self._visualizer, 'num_children'):
+            return self._visualizer.num_children()
+        return None
+
     def display_hint(self):
         if hasattr(self._visualizer, 'display_hint'):
             return self._visualizer.display_hint()
@@ -872,6 +908,9 @@ class StdMapPrinter(printer_base):
         node = lookup_node_type('_Rb_tree_node', self._val.type).pointer()
         return self._iter(RbtreeIterator(self._val), node)
 
+    def num_children(slf):
+        return len(RbtreeIterator(self._val))
+
     def display_hint(self):
         return 'map'
 
@@ -911,6 +950,8 @@ class StdSetPrinter(printer_base):
         node = lookup_node_type('_Rb_tree_node', self._val.type).pointer()
         return self._iter(RbtreeIterator(self._val), node)
 
+    def num_children(slf):
+        return len(RbtreeIterator(self._val))
 
 class StdBitsetPrinter(printer_base):
     """Print a std::bitset."""
@@ -1002,7 +1043,8 @@ class StdDequePrinter(printer_base):
         else:
             self._buffer_size = 1
 
-    def to_string(self):
+    # Helper to compute the size.
+    def _size(self):
         start = self._val['_M_impl']['_M_start']
         end = self._val['_M_impl']['_M_finish']
 
@@ -1010,15 +1052,20 @@ class StdDequePrinter(printer_base):
         delta_s = start['_M_last'] - start['_M_cur']
         delta_e = end['_M_cur'] - end['_M_first']
 
-        size = self._buffer_size * delta_n + delta_s + delta_e
+        return long(self._buffer_size * delta_n + delta_s + delta_e)
 
-        return '%s with %s' % (self._typename, num_elements(long(size)))
+    def to_string(self):
+        size = self._size()
+        return '%s with %s' % (self._typename, num_elements(size))
 
     def children(self):
         start = self._val['_M_impl']['_M_start']
         end = self._val['_M_impl']['_M_finish']
         return self._iter(start['_M_node'], start['_M_cur'], start['_M_last'],
                           end['_M_cur'], self._buffer_size)
+
+    def num_children(self):
+        return self._size()
 
     def display_hint(self):
         return 'array'
@@ -1206,6 +1253,9 @@ class Tr1UnorderedSetPrinter(printer_base):
             return izip(counter, Tr1HashtableIterator(self._hashtable()))
         return izip(counter, StdHashtableIterator(self._hashtable()))
 
+    def num_children(self):
+        return int(self._hashtable()['_M_element_count'])
+
 
 class Tr1UnorderedMapPrinter(printer_base):
     """Print a std::unordered_map or tr1::unordered_map."""
@@ -1249,6 +1299,9 @@ class Tr1UnorderedMapPrinter(printer_base):
             imap(self._format_one, StdHashtableIterator(self._hashtable())))
         # Zip the two iterators together.
         return izip(counter, data)
+
+    def num_children(self):
+        return int(self._hashtable()['_M_element_count'])
 
     def display_hint(self):
         return 'map'
@@ -1749,7 +1802,11 @@ class StdCmpCatPrinter(printer_base):
         if self._typename == 'strong_ordering' and self._val == 0:
             name = 'equal'
         else:
-            names = {2: 'unordered', -1: 'less', 0: 'equivalent', 1: 'greater'}
+            names = {
+                -1: 'less', 0: 'equivalent', 1: 'greater',
+                # GCC 10-15 used 2 for unordered
+                -128: 'unordered', 2: 'unordered'
+            }
             name = names[int(self._val)]
         return 'std::{}::{}'.format(self._typename, name)
 
@@ -1940,6 +1997,9 @@ class StdSpanPrinter(printer_base):
 
     def children(self):
         return self._iterator(self._val['_M_ptr'], self._size)
+
+    def num_children(self):
+        return int(self._size)
 
     def display_hint(self):
         return 'array'
@@ -2348,6 +2408,37 @@ class StdTextEncodingPrinter(printer_base):
         if rep['_M_id'] == 2:
             return 'unknown'
         return rep['_M_name']
+
+class StdStacktraceEntryPrinter(printer_base):
+    """Print a std::stacktrace_entry."""
+
+    def __init__(self, typename, val):
+        self._val = val
+        self._typename = typename
+
+    def to_string(self):
+        block = gdb.current_progspace().block_for_pc(self._val['_M_pc'])
+        if block is None or block.function is None:
+            return "<unknown>"
+        sym = block.function
+        return "{{{} at {}:{}}}".format(sym.print_name, sym.symtab.filename, sym.line)
+
+class StdStacktracePrinter(printer_base):
+    """Print a std::stacktrace."""
+
+    def __init__(self, typename, val):
+        self._val = val
+        self._typename = typename
+        self._size = self._val['_M_impl']['_M_size']
+
+    def to_string(self):
+        return '%s of length %d' % (self._typename, self._size)
+
+    def children(self):
+        return StdSpanPrinter._iterator(self._val['_M_impl']['_M_frames'], self._size)
+
+    def display_hint(self):
+        return 'array'
 
 # A "regular expression" printer which conforms to the
 # "SubPrettyPrinter" protocol from gdb.printing.
@@ -2968,6 +3059,12 @@ def build_libstdcxx_dictionary():
         'std::chrono::', 'tzdb', StdChronoTzdbPrinter)
     # libstdcxx_printer.add_version('std::chrono::(anonymous namespace)', 'Rule',
     #                              StdChronoTimeZoneRulePrinter)
+
+    # C++23 components
+    libstdcxx_printer.add_version('std::', 'stacktrace_entry',
+                                  StdStacktraceEntryPrinter)
+    libstdcxx_printer.add_version('std::', 'basic_stacktrace',
+                                  StdStacktracePrinter)
 
     # C++26 components
     libstdcxx_printer.add_version('std::', 'text_encoding',

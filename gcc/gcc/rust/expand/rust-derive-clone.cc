@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -42,13 +42,10 @@ DeriveClone::clone_call (std::unique_ptr<Expr> &&to_clone)
 
   // Not sure how to call it properly in the meantime...
 
-  auto path = std::unique_ptr<Expr> (
-    new PathInExpression (builder.path_in_expression ({"Clone", "clone"})));
-
   auto args = std::vector<std::unique_ptr<Expr>> ();
   args.emplace_back (std::move (to_clone));
 
-  return builder.call (std::move (path), std::move (args));
+  return builder.qualified_call ({"Clone", "clone"}, std::move (args));
 }
 
 /**
@@ -64,11 +61,10 @@ DeriveClone::clone_fn (std::unique_ptr<Expr> &&clone_expr)
     new BlockExpr ({}, std::move (clone_expr), {}, {}, tl::nullopt, loc, loc));
   auto big_self_type = builder.single_type_path ("Self");
 
-  std::unique_ptr<SelfParam> self (new SelfParam (tl::nullopt,
-						  /* is_mut */ false, loc));
-
   std::vector<std::unique_ptr<Param>> params;
-  params.push_back (std::move (self));
+
+  params.emplace_back (new SelfParam (tl::nullopt,
+				      /* is_mut */ false, loc));
 
   return std::unique_ptr<AssociatedItem> (
     new Function ({"clone"}, builder.fn_qualifiers (), /* generics */ {},
@@ -90,22 +86,20 @@ DeriveClone::clone_impl (
   std::unique_ptr<AssociatedItem> &&clone_fn, std::string name,
   const std::vector<std::unique_ptr<GenericParam>> &type_generics)
 {
-  // we should have two of these, so we don't run into issues with
-  // two paths sharing a node id
-  auto clone_bound = builder.type_path (LangItem::Kind::CLONE);
-  auto clone_trait_path = builder.type_path (LangItem::Kind::CLONE);
+  auto clone_trait_path
+    = [this] () { return builder.type_path (LangItem::Kind::CLONE); };
 
   auto trait_items = vec (std::move (clone_fn));
 
-  auto generics = setup_impl_generics (name, type_generics,
-				       builder.trait_bound (clone_bound));
+  auto generics = setup_impl_generics (name, type_generics, [&, this] () {
+    return builder.trait_bound (clone_trait_path ());
+  });
 
-  return builder.trait_impl (clone_trait_path, std::move (generics.self_type),
+  return builder.trait_impl (clone_trait_path (),
+			     std::move (generics.self_type),
 			     std::move (trait_items),
 			     std::move (generics.impl));
 }
-
-// TODO: Create new `make_qualified_call` helper function
 
 DeriveClone::DeriveClone (location_t loc)
   : DeriveVisitor (loc), expanded (nullptr)
@@ -211,7 +205,7 @@ DeriveClone::clone_enum_tuple (PathInExpression variant_path,
     }
 
   auto pattern_items = std::unique_ptr<TupleStructItems> (
-    new TupleStructItemsNoRange (std::move (patterns)));
+    new TupleStructItemsNoRest (std::move (patterns)));
 
   auto pattern = std::unique_ptr<Pattern> (new ReferencePattern (
     std::unique_ptr<Pattern> (new TupleStructPattern (
@@ -293,8 +287,14 @@ DeriveClone::clone_enum_struct (PathInExpression variant_path,
     new ReferencePattern (std::unique_ptr<Pattern> (new StructPattern (
 			    variant_path, loc, pattern_elts)),
 			  false, false, loc));
+
+  PathInExpression new_path (variant_path.get_segments (),
+			     variant_path.get_outer_attrs (),
+			     variant_path.get_locus (),
+			     variant_path.opening_scope_resolution ());
+
   auto expr = std::unique_ptr<Expr> (
-    new StructExprStructFields (variant_path, std::move (cloned_fields), loc));
+    new StructExprStructFields (new_path, std::move (cloned_fields), loc));
 
   return builder.match_case (std::move (pattern), std::move (expr));
 }

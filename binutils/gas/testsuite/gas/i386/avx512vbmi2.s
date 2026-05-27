@@ -1,8 +1,7 @@
 # Check 32bit AVX512VBMI2 instructions
 
-	.allow_index_reg
 	.text
-_start:
+vbmi2:
 	vpcompressb	%zmm6, (%ecx){%k7}	 # AVX512VBMI2
 	vpcompressb	%zmm6, -123456(%esp,%esi,8)	 # AVX512VBMI2
 	vpcompressb	%zmm6, 126(%edx)	 # AVX512VBMI2 Disp8

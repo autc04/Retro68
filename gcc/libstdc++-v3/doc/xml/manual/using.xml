@@ -16,8 +16,9 @@
       The standard library conforms to the dialect of C++ specified by the
       <option>-std</option> option passed to the compiler.
       By default, <command>g++</command> is equivalent to
-      <command>g++ -std=gnu++17</command> since GCC 11, and
-      <command>g++ -std=gnu++14</command> in GCC 6, 7, 8, 9, and 10, and
+      <command>g++ -std=gnu++20</command> since GCC 16, and
+      <command>g++ -std=gnu++17</command> in GCC 11-15, and
+      <command>g++ -std=gnu++14</command> in GCC 6-10, and
       <command>g++ -std=gnu++98</command> for older releases.
     </para>
 
@@ -83,6 +84,8 @@
         is required for use of experimental C++ library features.
         This currently provides support for the C++23 types defined in the
         <filename class="headerfile">&lt;stacktrace&gt;</filename> header,
+	the C++23 functions defined in the
+	<filename class="headerfile">&lt;print&gt;</filename> header,
         the Filesystem library extensions defined in the
         <filename class="headerfile">&lt;experimental/filesystem&gt;</filename>
         header,
@@ -1343,6 +1346,39 @@ g++ -Winvalid-pch -I. -include stdc++.h -H -g -O2 hello.cc -o test.exe
 	database are not (because they require OS support).
       </para>
     </listitem></varlistentry>
+    <varlistentry><term><code>_GLIBCXX_USE_OLD_GENERATE_CANONICAL</code></term>
+    <listitem>
+      <para>
+	Undefined by default. When defined <code>generate_canonical</code>
+	reverts to the algorithm used prior to the implementation of
+	<link xmlns:xlink="http://www.w3.org/1999/xlink"
+	xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p0952r2.html">
+	P0952: A new specification for std::generate_canonical</link> in GCC-16.
+      </para>
+    </listitem></varlistentry>
+    <varlistentry><term><code>_GLIBCXX_USE_VARIANT_CXX17_OLD_ABI</code></term>
+    <listitem>
+      <para>
+	Undefined by default. When defined <code>variant</code> in C++17
+	mode will revert to the non-conforming implementation used prior to the
+	<link xmlns:xlink="http://www.w3.org/1999/xlink"
+	xlink:href="https://gcc.gnu.org/bugzilla/show_bug.cgi?id=112591">PR112591</link>
+	in GCC-16. Has no impact for C++20 or later modes.
+      </para>
+    </listitem></varlistentry>
+    <varlistentry><term><code>_GLIBCXX_NO_INLINE_PRINT</code></term>
+    <listitem>
+      <para>
+	Undefined by default. When defined <code>std::print</code> and
+	<code>std::println</code> are not implemented using inline functions.
+	This means that code using those functions will compile faster,
+	but <option>-lstdc++exp</option> must be used when linking.
+	The non-inline definitions are compiled using
+	<option>-fexec-charset=UTF-8</option> so might give incorrect results
+	if called from a source file that uses a non-Unicode encoding,
+	especially for format strings using non-ASCII fill characters.
+      </para>
+    </listitem></varlistentry>
     </variablelist>
 
   </section>
@@ -1951,7 +1987,7 @@ The standard places requirements on the library to ensure that no data
 races are caused by the library itself or by programs which use the
 library correctly (as described below).
 The C++11 memory model and library requirements are a more formal version
-of the <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://web.archive.org/web/20171225062613/http://www.sgi.com/tech/stl/thread_safety.html">SGI STL</link> definition of thread safety, which the library used
+of the <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://web.archive.org/web/20171221154911/http://www.sgi.com/tech/stl/thread_safety.html">SGI STL</link> definition of thread safety, which the library used
 prior to the 2011 standard.
 </para>
 
@@ -2018,7 +2054,7 @@ gcc version 4.1.2 20070925 (Red Hat 4.1.2-33)
 	 into great detail, here is an example which requires user-level
 	 locks:
       </para>
-      <programlisting>
+<programlisting>
      library_class_a shared_object_a;
 
      void thread_main () {
@@ -2032,7 +2068,7 @@ gcc version 4.1.2 20070925 (Red Hat 4.1.2-33)
 	 another thread, here is an example that does not require any
 	 user-level locks:
       </para>
-      <programlisting>
+<programlisting>
      void thread_main () {
        library_class_a object_a;
        library_class_b *object_b = new library_class_b;
@@ -2089,7 +2125,7 @@ gcc version 4.1.2 20070925 (Red Hat 4.1.2-33)
          globally-visible object, the library ensures that the reference
          count updates are atomic and do not introduce data races:
       </para>
-      <programlisting>
+<programlisting>
     std::shared_ptr&lt;int&gt; global_sp;
 
     void thread_main() {
@@ -2112,7 +2148,7 @@ gcc version 4.1.2 20070925 (Red Hat 4.1.2-33)
       t1.join();
       t2.join();
     }
-      </programlisting>
+</programlisting>
 
       <para>For further details of the C++11 memory model see Hans-J. Boehm's
       <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.hboehm.info/c++mm/">Threads
@@ -2236,10 +2272,10 @@ gcc version 4.1.2 20070925 (Red Hat 4.1.2-33)
    </para>
    <para>Two excellent pages to read when working with the Standard C++
       containers and threads are
-      <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://web.archive.org/web/20171225062613/http://www.sgi.com/tech/stl/thread_safety.html">SGI's
-      https://web.archive.org/web/20171225062613/http://www.sgi.com/tech/stl/thread_safety.html</link> and
-      <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://web.archive.org/web/20171225062613/http://www.sgi.com/tech/stl/Allocators.html">SGI's
-      https://web.archive.org/web/20171225062613/http://www.sgi.com/tech/stl/Allocators.html</link>.
+      <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://web.archive.org/web/20171221154911/http://www.sgi.com/tech/stl/thread_safety.html">SGI's
+      https://web.archive.org/web/20171221154911/http://www.sgi.com/tech/stl/thread_safety.html</link> and
+      <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://web.archive.org/web/20171108142526/http://www.sgi.com/tech/stl/Allocators.html">SGI's
+      https://web.archive.org/web/20171108142526/http://www.sgi.com/tech/stl/Allocators.html</link>.
    </para>
    <para><emphasis>However, please ignore all discussions about the user-level
       configuration of the lock implementation inside the STL

@@ -1,8 +1,7 @@
 #name: MIPS relax-jalr n64
 #source: relax-jalr.s
-#as: -march=from-abi -KPIC -64 -EB
+#as: -KPIC
 #objdump: --prefix-addresses -d --show-raw-insn
-#ld: -melf64btsmip
 
 .*:     file format elf.*mips.*
 

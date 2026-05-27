@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2025 Free Software Foundation, Inc.
+# Copyright (C) 2020-2026 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -47,7 +47,14 @@ ignored_commits = {
         '72677e1119dc40aa680755d009e079ad49446c46',
         '10d76b7f1e5b63ad6d2b92940c39007913ced037',
         'de3b277247ce98d189f121155b75f490725a42f6',
-        '13cf22eb557eb5e3d796822247d8d4957bdb25da'}
+        '13cf22eb557eb5e3d796822247d8d4957bdb25da',
+        'b40ef6e9dc096c8c19399e94947a1965258a6942',
+        'e69bea9b4ccfe79efeec6e87d7d24e6350f31375',
+        '9a7da540b63e7d77e747b5cdd6fdbbd3954e28c8',
+        '69a2c243dd2cf9f77150c0eb86dfbc0931876bc1',
+        'eec8da328cf1f91db302ab4cee803e269e68ad33',
+        '9df40f1f4bec855da864f535e242308ceb1cd5ad',
+        'd5fb79718b22207253d62c92dcf8b1c16e1ea370'}
 
 FORMAT = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
 logging.basicConfig(level=logging.INFO, format=FORMAT,
@@ -86,7 +93,7 @@ def prepend_to_changelog_files(repo, folder, git_commit, add_to_git):
 
 
 active_refs = ['master',
-               'releases/gcc-12', 'releases/gcc-13', 'releases/gcc-14']
+               'releases/gcc-13', 'releases/gcc-14', 'releases/gcc-15']
 
 parser = argparse.ArgumentParser(description='Update DATESTAMP and generate '
                                  'ChangeLog entries')

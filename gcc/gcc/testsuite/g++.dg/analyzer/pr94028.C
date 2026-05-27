@@ -19,7 +19,7 @@ struct j
     throw()
 #endif
   {
-    return calloc (b, sizeof (int)); // { dg-bogus "leak" "" { xfail c++98_only } }
+    return calloc (b, sizeof (int));
   }
   j (B *, int)
   {
@@ -30,12 +30,12 @@ j *
 f (B * b, int h, bool)
 {
   d (b->cls);
-  return new j (b, h); // { dg-warning "leak" }
+  return new j (b, h);
 }
 
 void
 m ()
 {
   if (i)
-    f (&k, 0, false);
+    f (&k, 0, false); // { dg-warning "leak" }
 }

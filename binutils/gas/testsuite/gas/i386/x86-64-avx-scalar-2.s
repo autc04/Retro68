@@ -1,6 +1,5 @@
 # Check VEX.128 scalar instructions with -mavxscalar=256 -msse2avx
 
-	.allow_index_reg
 	.text
 _start:
 	movd %xmm4,(%rcx)

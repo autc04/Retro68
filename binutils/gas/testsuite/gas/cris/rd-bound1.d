@@ -1,4 +1,4 @@
-#as: --underscore --em=criself
+#as: --underscore --emulation=criself
 #objdump: -dr
 .*:     file format elf32-us-cris
 Disassembly of section \.text:

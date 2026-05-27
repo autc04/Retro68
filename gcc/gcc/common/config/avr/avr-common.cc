@@ -1,5 +1,5 @@
 /* Common hooks for AVR 8-bit microcontrollers.
-   Copyright (C) 1998-2025 Free Software Foundation, Inc.
+   Copyright (C) 1998-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -29,6 +29,12 @@
 /* Implement TARGET_OPTION_OPTIMIZATION_TABLE.  */
 static const struct default_options avr_option_optimization_table[] =
   {
+    // There is no way to filter out unwanted cswtch transformations:
+    // - Code bload as mentioned in PR81540.
+    // - When tree-switch-conversion.cc::build_one_array() finds a
+    //   linear function, it will use a formula that involves a
+    //   multiplication without even trying to work out the costs.
+    { OPT_LEVELS_ALL, OPT_ftree_switch_conversion, NULL, 0 },
     // The only effect of -fcaller-saves might be that it triggers
     // a frame without need when it tries to be smart around calls.
     { OPT_LEVELS_ALL, OPT_fcaller_saves, NULL, 0 },
@@ -38,6 +44,7 @@ static const struct default_options avr_option_optimization_table[] =
     { OPT_LEVELS_1_PLUS, OPT_mmain_is_OS_task, NULL, 1 },
     { OPT_LEVELS_1_PLUS, OPT_mfuse_add_, NULL, 1 },
     { OPT_LEVELS_2_PLUS, OPT_mfuse_add_, NULL, 2 },
+    { OPT_LEVELS_1_PLUS, OPT_mfuse_move2, NULL, 1 },
     { OPT_LEVELS_1_PLUS_NOT_DEBUG, OPT_mfuse_move_, NULL, 3 },
     { OPT_LEVELS_2_PLUS, OPT_mfuse_move_, NULL, 23 },
     { OPT_LEVELS_2_PLUS, OPT_msplit_bit_shift, NULL, 1 },

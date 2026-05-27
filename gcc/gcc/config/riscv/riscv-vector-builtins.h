@@ -1,5 +1,5 @@
 /* Builtins definitions for RISC-V 'V' Extension for GNU compiler.
-   Copyright (C) 2022-2025 Free Software Foundation, Inc.
+   Copyright (C) 2022-2026 Free Software Foundation, Inc.
    Contributed by Ju-Zhe Zhong (juzhe.zhong@rivai.ai), RiVAI Technologies Ltd.
 
    This file is part of GCC.
@@ -115,6 +115,9 @@ static const unsigned int CP_WRITE_CSR = 1U << 5;
 enum required_ext
 {
   VECTOR_EXT,		/* Vector extension */
+  VECTOR_EXT_NO_XTHEAD, /* Vector extensions parts unsupported by
+			   TheadVector. */
+  XTHEADVECTOR_EXT,	/* XTheadVector extension */
   ZVBB_EXT,		/* Crypto vector Zvbb sub-ext */
   ZVBB_OR_ZVKB_EXT,	/* Crypto vector Zvbb or zvkb sub-ext */
   ZVBC_EXT,		/* Crypto vector Zvbc sub-ext */
@@ -124,20 +127,65 @@ enum required_ext
   ZVKNHB_EXT,		/* Crypto vector Zvknhb sub-ext */
   ZVKSED_EXT,		/* Crypto vector Zvksed sub-ext */
   ZVKSH_EXT,		/* Crypto vector Zvksh sub-ext */
-  XTHEADVECTOR_EXT,	/* XTheadVector extension */
   ZVFBFMIN_EXT,		/* Zvfbfmin extension */
   ZVFBFWMA_EXT,		/* Zvfbfwma extension */
   XSFVQMACCQOQ_EXT,	/* XSFVQMACCQOQ extension */
   XSFVQMACCDOD_EXT,	/* XSFVQMACCDOD extension */
   XSFVFNRCLIPXFQF_EXT,	/* XSFVFNRCLIPXFQF extension */
-  /* Please update below to isa_name func when add or remove enum type(s).  */
+  XSFVCP_EXT,		/* XSFVCP extension */
+  XANDESVBFHCVT_EXT,	/* XANDESVBFHCVT extension */
+  XANDESVSINTLOAD_EXT,	/* XANDESVSINTLOAD extension */
+  XANDESVPACKFPH_EXT,	/* XANDESVPACKFPH extension */
+  XANDESVDOT_EXT,	/* XANDESVDOT extension */
+  /* Please update required_ext_to_isa_name and required_extensions_specified
+     when adding or removing enum values.  */
 };
+
+enum rvv_builtin_partition
+{
+  RVV_PARTITION_VECTOR,
+  RVV_PARTITION_VECTOR_NO_XTHEAD,
+  RVV_PARTITION_XTHEADVECTOR,
+  RVV_PARTITION_ZVBB,
+  RVV_PARTITION_ZVBB_OR_ZVKB,
+  RVV_PARTITION_ZVBC,
+  RVV_PARTITION_ZVKG,
+  RVV_PARTITION_ZVKNED,
+  RVV_PARTITION_ZVKNHA_OR_ZVKNHB,
+  RVV_PARTITION_ZVKNHB,
+  RVV_PARTITION_ZVKSED,
+  RVV_PARTITION_ZVKSH,
+  RVV_PARTITION_ZVFBFMIN,
+  RVV_PARTITION_ZVFBFWMA,
+  RVV_PARTITION_ZVFHMIN,
+  RVV_PARTITION_ZVFH,
+  RVV_PARTITION_XSFVQMACCQOQ,
+  RVV_PARTITION_XSFVQMACCDOD,
+  RVV_PARTITION_XSFVFNRCLIPXFQF,
+  RVV_PARTITION_XSFVCP,
+  RVV_PARTITION_XANDESVBFHCVT,
+  RVV_PARTITION_XANDESVSINTLOAD,
+  RVV_PARTITION_XANDESVPACKFPH,
+  RVV_PARTITION_XANDESVDOT,
+  NUM_RVV_EXT_PARTITIONS
+};
+
+/* Partition encoding for builtin function codes.
+     Bit 0:       RISCV_BUILTIN_VECTOR (class bit)
+     Bits 1-8:    Partition (rvv_builtin_partition enum)
+     Bits 9+:     Index within partition.
+     */
+const unsigned int RVV_EXT_PARTITION_BITS = 8;
+const unsigned int RVV_EXT_PARTITION_SHIFT = 1; /* Class Bit.  */
+const unsigned int RVV_SUBCODE_SHIFT = RVV_EXT_PARTITION_SHIFT
+				       + RVV_EXT_PARTITION_BITS;
 
 static inline const char * required_ext_to_isa_name (enum required_ext required)
 {
   switch (required)
   {
     case VECTOR_EXT:
+    case VECTOR_EXT_NO_XTHEAD:
       return "v";
     case ZVBB_EXT:
       return "zvbb";
@@ -169,6 +217,16 @@ static inline const char * required_ext_to_isa_name (enum required_ext required)
       return "xsfvqmaccdod";
     case XSFVFNRCLIPXFQF_EXT:
       return "xsfvfnrclipxfqf";
+    case XSFVCP_EXT:
+      return "xsfvcp";
+    case XANDESVBFHCVT_EXT:
+      return "xandesvbfhcvt";
+    case XANDESVSINTLOAD_EXT:
+      return "xandesvsintload";
+    case XANDESVPACKFPH_EXT:
+      return "xandesvpackfph";
+    case XANDESVDOT_EXT:
+      return "xandesvdot";
     default:
       gcc_unreachable ();
   }
@@ -181,7 +239,9 @@ static inline bool required_extensions_specified (enum required_ext required)
   switch (required)
   {
     case VECTOR_EXT:
-      return TARGET_VECTOR;;
+      return TARGET_VECTOR;
+    case VECTOR_EXT_NO_XTHEAD:
+      return TARGET_VECTOR && !TARGET_XTHEADVECTOR;
     case ZVBB_EXT:
       return TARGET_ZVBB;
     case ZVBB_OR_ZVKB_EXT:
@@ -212,6 +272,16 @@ static inline bool required_extensions_specified (enum required_ext required)
       return TARGET_XSFVQMACCDOD;
     case XSFVFNRCLIPXFQF_EXT:
       return TARGET_XSFVFNRCLIPXFQF;
+    case XSFVCP_EXT:
+      return TARGET_XSFVCP;
+    case XANDESVBFHCVT_EXT:
+      return TARGET_XANDESVBFHCVT;
+    case XANDESVSINTLOAD_EXT:
+      return TARGET_XANDESVSINTLOAD;
+    case XANDESVPACKFPH_EXT:
+      return TARGET_XANDESVPACKFPH;
+    case XANDESVDOT_EXT:
+      return TARGET_XANDESVDOT;
     default:
       gcc_unreachable ();
   }
@@ -297,6 +367,7 @@ struct rvv_arg_type_info
   tree get_tree_type (vector_type_index) const;
   tree get_tuple_subpart_type (vector_type_index) const;
   tree get_xfqf_float_type (vector_type_index) const;
+  tree get_scalar_float_type (vector_type_index) const;
 };
 
 /* Static information for each operand.  */
@@ -325,43 +396,7 @@ struct function_group_info
   /* Return true if required extension is enabled */
   bool match (required_ext ext_value) const
   {
-    switch (ext_value)
-    {
-      case VECTOR_EXT:
-        return TARGET_VECTOR;
-      case ZVBB_EXT:
-        return TARGET_ZVBB;
-      case ZVBB_OR_ZVKB_EXT:
-        return (TARGET_ZVBB || TARGET_ZVKB);
-      case ZVBC_EXT:
-        return TARGET_ZVBC;
-      case ZVKG_EXT:
-        return TARGET_ZVKG;
-      case ZVKNED_EXT:
-        return TARGET_ZVKNED;
-      case ZVKNHA_OR_ZVKNHB_EXT:
-        return (TARGET_ZVKNHA || TARGET_ZVKNHB);
-      case ZVKNHB_EXT:
-        return TARGET_ZVKNHB;
-      case ZVKSED_EXT:
-        return TARGET_ZVKSED;
-      case ZVKSH_EXT:
-        return TARGET_ZVKSH;
-      case XTHEADVECTOR_EXT:
-	return TARGET_XTHEADVECTOR;
-      case ZVFBFMIN_EXT:
-	return TARGET_ZVFBFMIN;
-      case ZVFBFWMA_EXT:
-	return TARGET_ZVFBFWMA;
-      case XSFVQMACCQOQ_EXT:
-	return TARGET_XSFVQMACCQOQ;
-      case XSFVQMACCDOD_EXT:
-	return TARGET_XSFVQMACCDOD;
-      case XSFVFNRCLIPXFQF_EXT:
-	return TARGET_XSFVFNRCLIPXFQF;
-      default:
-        gcc_unreachable ();
-    }
+    return required_extensions_specified (ext_value);
   }
   /* The base name, as a string.  */
   const char *base_name;
@@ -407,6 +442,7 @@ public:
   bool any_type_float_p () const;
 
   tree get_return_type () const;
+  bool function_returns_void_p () const;
   tree get_arg_type (unsigned opno) const;
 
   /* The properties of the function.  (The explicit "enum"s are required
@@ -444,7 +480,7 @@ private:
   tree get_attributes (const function_instance &);
 
   registered_function &add_function (const function_instance &, const char *,
-				     tree, tree, bool, const char *,
+				     tree, tree, const char *,
 				     const vec<tree> &, enum required_ext,
 				     bool);
 
@@ -462,21 +498,12 @@ class function_call_info : public function_instance
 public:
   function_call_info (location_t, const function_instance &, tree);
 
-  bool function_returns_void_p ();
-
   /* The location of the call.  */
   location_t location;
 
   /* The FUNCTION_DECL that is being called.  */
   tree fndecl;
 };
-
-/* Return true if the function has no return value.  */
-inline bool
-function_call_info::function_returns_void_p ()
-{
-  return TREE_TYPE (TREE_TYPE (fndecl)) == void_type_node;
-}
 
 /* A class for folding a gimple function call.  */
 class gimple_folder : public function_call_info
@@ -521,12 +548,15 @@ public:
   machine_mode ret_mode (void) const;
 
   rtx use_exact_insn (insn_code);
+  int prepare_contiguous_load_insn ();
   rtx use_contiguous_load_insn (insn_code);
+  rtx use_fof_load_insn ();
   rtx use_contiguous_store_insn (insn_code);
   rtx use_compare_insn (rtx_code, insn_code);
   rtx use_ternop_insn (bool, insn_code);
   rtx use_widen_ternop_insn (insn_code);
   rtx use_scalar_move_insn (insn_code);
+  rtx use_scalar_broadcast_insn (insn_code);
   rtx generate_insn (insn_code);
 
   /* The function call expression.  */

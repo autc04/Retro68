@@ -3,6 +3,10 @@
 
 .*: +file format pe-i386
 
+RELOCATION RECORDS FOR \[\.text\]:
+OFFSET[ 	]+TYPE[ 	]+VALUE
+0+22 secidx            \.text
+
 RELOCATION RECORDS FOR \[\.data\]:
 OFFSET[ 	]+TYPE[ 	]+VALUE
 0+24 secidx            \.text
@@ -22,9 +26,14 @@ OFFSET[ 	]+TYPE[ 	]+VALUE
 0+72 secidx            ext36
 0+75 secidx            ext3f
 
+RELOCATION RECORDS FOR \[\.rdata\]:
+OFFSET[ 	]+TYPE[ 	]+VALUE
+0+24 secidx            \.rdata
+
 Contents of section \.text:
  0000 3e3e3e3e 3c3c3c3c 3e3e3e3e 3e3c3c3c  >>>><<<<>>>>><<<
  0010 3e3e3e3e 3e3e3c3c 3e3e3e3e 3e3e3e3c  >>>>>><<>>>>>>><
+ 0020 66b80000 .*
 Contents of section \.data:
  0000 3e3e3e3e 3c3c3c3c 3e3e3e3e 3e3c3c3c  >>>><<<<>>>>><<<
  0010 3e3e3e3e 3e3e3c3c 3e3e3e3e 3e3e3e3c  >>>>>><<>>>>>>><
@@ -37,4 +46,4 @@ Contents of section \.data:
 Contents of section \.rdata:
  0000 3e3e3e3e 3c3c3c3c 3e3e3e3e 3e3c3c3c  >>>><<<<>>>>><<<
  0010 3e3e3e3e 3e3e3c3c 3e3e3e3e 3e3e3e3c  >>>>>><<>>>>>>><
- 0020 3e3e3e3e 00000000 00000000 00000000  >>>>............
+ 0020 3e3e3e3e 24003c3c 3c3c0000 00000000  >>>>..<<<<......

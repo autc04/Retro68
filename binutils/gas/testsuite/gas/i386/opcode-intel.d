@@ -1,5 +1,5 @@
 #source: opcode.s
-#as: -J
+#as: -J --divide
 #objdump: -dwMintel
 #name: i386 opcodes (Intel disassembly)
 
@@ -102,7 +102,7 @@ Disassembly of section .text:
  *[0-9a-f]+:	60[ 	]+pusha
  *[0-9a-f]+:	61[ 	]+popa
  *[0-9a-f]+:	62 90 90 90 90 90[ 	]+bound[ 	]+edx,(QWORD PTR )?\[eax-0x6f6f6f70\]
- *[0-9a-f]+:	63 90 90 90 90 90[ 	]+arpl[ 	]+(WORD PTR )?\[eax-0x6f6f6f70\],dx
+ *[0-9a-f]+:	63 90 90 90 90 90[ 	]+arpl[ 	]+(WORD PTR )?\[eax-0x6f6f6f70\],edx
  *[0-9a-f]+:	68 90 90 90 90[ 	]+push[ 	]+0x90909090
  *[0-9a-f]+:	69 90 90 90 90 90 90 90 90 90[ 	]+imul[ 	]+edx,(DWORD PTR )?\[eax-0x6f6f6f70\],0x90909090
  *[0-9a-f]+:	6a 90[ 	]+push[ 	]+0xffffff90
@@ -588,20 +588,25 @@ Disassembly of section .text:
  *[0-9a-f]+:	85 c3 [ 	]*test[ 	]+ebx,eax
  *[0-9a-f]+:	85 d8 [ 	]*test[ 	]+eax,ebx
  *[0-9a-f]+:	85 18 [ 	]*test[ 	]+(DWORD PTR )?\[eax\],ebx
- *[0-9a-f]+:	f1[ 	]+int1
+[ 	]*[a-f0-9]+:	f1[ 	]*int1
+[ 	]*[a-f0-9]+:	d6[ 	]*salc
 [ 	]*[a-f0-9]+:	0f 4a 90 90 90 90 90 	cmovp  edx,DWORD PTR \[eax-0x6f6f6f70\]
 [ 	]*[a-f0-9]+:	0f 4b 90 90 90 90 90 	cmovnp edx,DWORD PTR \[eax-0x6f6f6f70\]
 [ 	]*[a-f0-9]+:	66 0f 4a 90 90 90 90 90 	cmovp  dx,WORD PTR \[eax-0x6f6f6f70\]
 [ 	]*[a-f0-9]+:	66 0f 4b 90 90 90 90 90 	cmovnp dx,WORD PTR \[eax-0x6f6f6f70\]
+[ 	]*[a-f0-9]+:	df 28                	fild   QWORD PTR \[eax\]
+[ 	]*[a-f0-9]+:	df 28                	fild   QWORD PTR \[eax\]
+[ 	]*[a-f0-9]+:	df 38                	fistp  QWORD PTR \[eax\]
+[ 	]*[a-f0-9]+:	df 38                	fistp  QWORD PTR \[eax\]
  +[a-f0-9]+:	82 c3 01             	add    bl,0x1
- +[a-f0-9]+:	82 f3 01             	xor    bl,0x1
+ +[a-f0-9]+:	82 cb 01             	or     bl,0x1
  +[a-f0-9]+:	82 d3 01             	adc    bl,0x1
  +[a-f0-9]+:	82 db 01             	sbb    bl,0x1
  +[a-f0-9]+:	82 e3 01             	and    bl,0x1
  +[a-f0-9]+:	82 eb 01             	sub    bl,0x1
  +[a-f0-9]+:	82 f3 01             	xor    bl,0x1
  +[a-f0-9]+:	82 fb 01             	cmp    bl,0x1
- +[a-f0-9]+:	62 f3 7d 08 15 e8 ab 	vpextrw eax,xmm5,0xab
+ +[a-f0-9]+:	62 f3 7d 08 15 e8 ab 	\{evex\} vpextrw eax,xmm5,0xab
  +[a-f0-9]+:	f6 c9 01             	test   cl,(0x)?0*1
  +[a-f0-9]+:	66 f7 c9 02 00       	test   cx,(0x)?0*2
  +[a-f0-9]+:	f7 c9 04 00 00 00    	test   ecx,(0x)?0*4

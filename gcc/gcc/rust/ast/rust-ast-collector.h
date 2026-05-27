@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -23,6 +23,7 @@
 #include "rust-ast-visitor.h"
 #include "rust-ast.h"
 #include "rust-ast-full.h"
+#include "rust-system.h"
 
 namespace Rust {
 namespace AST {
@@ -33,15 +34,39 @@ public:
   enum class Kind
   {
     Comment,
+    InternalComment,
+    BeginNodeDescription,
+    EndNodeDescription,
     Newline,
     Indentation,
     Token,
   };
 
   CollectItem (TokenPtr token) : token (token), kind (Kind::Token) {}
-  CollectItem (std::string comment) : comment (comment), kind (Kind::Comment) {}
   CollectItem (Kind kind) : kind (kind) { rust_assert (kind != Kind::Token); }
   CollectItem (size_t level) : indent_level (level), kind (Kind::Indentation) {}
+
+  static CollectItem make_internal_comment (const std::string &internal_comment)
+  {
+    return CollectItem (internal_comment, Kind::InternalComment);
+  }
+
+  static CollectItem make_comment (const std::string &comment)
+  {
+    return CollectItem (comment, Kind::Comment);
+  }
+
+  static CollectItem
+  make_begin_node_description (const std::string &node_description)
+  {
+    return CollectItem (node_description, Kind::BeginNodeDescription);
+  }
+
+  static CollectItem
+  make_end_node_description (const std::string &node_description)
+  {
+    return CollectItem (node_description, Kind::EndNodeDescription);
+  }
 
   Kind get_kind () { return kind; }
 
@@ -63,11 +88,30 @@ public:
     return indent_level;
   }
 
+  std::string get_internal_comment ()
+  {
+    rust_assert (kind == Kind::InternalComment);
+    return comment;
+  }
+
+  std::string get_node_description ()
+  {
+    rust_assert (kind == Kind::BeginNodeDescription
+		 || kind == Kind::EndNodeDescription);
+    return comment;
+  }
+
+  bool is_debug () { return debug; }
+
 private:
+  CollectItem (std::string comment, Kind kind) : comment (comment), kind (kind)
+  {}
+
   TokenPtr token;
   std::string comment;
   size_t indent_level;
   Kind kind;
+  bool debug = false;
 };
 
 class TokenCollector : public ASTVisitor
@@ -164,6 +208,9 @@ private:
       }
   }
 
+  void describe_node (const std::string &node_name,
+		      std::function<void ()> visitor);
+
   void trailing_comma ();
   void newline ();
   void indentation ();
@@ -244,9 +291,9 @@ public:
   // rust-expr.h
   void visit (LiteralExpr &expr);
   void visit (AttrInputLiteral &attr_input);
-  void visit (AttrInputMacro &attr_input);
+  void visit (AttrInputExpr &attr_input);
   void visit (MetaItemLitExpr &meta_item);
-  void visit (MetaItemPathLit &meta_item);
+  void visit (MetaItemPathExpr &meta_item);
   void visit (BorrowExpr &expr);
   void visit (DereferenceExpr &expr);
   void visit (ErrorPropagationExpr &expr);
@@ -277,6 +324,8 @@ public:
   void visit (ClosureParam &param);
   void visit (ClosureExprInner &expr);
   void visit (BlockExpr &expr);
+  void visit (AnonConst &expr);
+  void visit (ConstBlock &expr);
   void visit (ClosureExprInnerTyped &expr);
   void visit (ContinueExpr &expr);
   void visit (BreakExpr &expr);
@@ -287,6 +336,7 @@ public:
   void visit (RangeFromToInclExpr &expr);
   void visit (RangeToInclExpr &expr);
   void visit (ReturnExpr &expr);
+  void visit (TryExpr &expr);
   void visit (BoxExpr &expr);
   void visit (UnsafeBlockExpr &expr);
   void visit (LoopExpr &expr);
@@ -303,6 +353,7 @@ public:
   void visit (AwaitExpr &expr);
   void visit (AsyncBlockExpr &expr);
   void visit (InlineAsm &expr);
+  void visit (LlvmInlineAsm &expr);
   // rust-item.h
   void visit (TypeParam &param);
   void visit (LifetimeWhereClauseItem &item);
@@ -326,7 +377,6 @@ public:
   void visit (ConstantItem &const_item);
   void visit (StaticItem &static_item);
   void visit (SelfParam &param);
-  void visit (TraitItemConst &item);
   void visit (TraitItemType &item);
   void visit (Trait &trait);
   void visit (InherentImpl &impl);
@@ -366,14 +416,16 @@ public:
   void visit (StructPatternFieldIdent &field);
   void visit (StructPattern &pattern);
   // void visit(TupleStructItems& tuple_items);
-  void visit (TupleStructItemsNoRange &tuple_items);
-  void visit (TupleStructItemsRange &tuple_items);
+  void visit (TupleStructItemsNoRest &tuple_items);
+  void visit (TupleStructItemsHasRest &tuple_items);
   void visit (TupleStructPattern &pattern);
   // void visit(TuplePatternItems& tuple_items);
-  void visit (TuplePatternItemsMultiple &tuple_items);
-  void visit (TuplePatternItemsRanged &tuple_items);
+  void visit (TuplePatternItemsNoRest &tuple_items);
+  void visit (TuplePatternItemsHasRest &tuple_items);
   void visit (TuplePattern &pattern);
   void visit (GroupedPattern &pattern);
+  void visit (SlicePatternItemsNoRest &items);
+  void visit (SlicePatternItemsHasRest &items);
   void visit (SlicePattern &pattern);
   void visit (AltPattern &pattern);
 
@@ -399,6 +451,7 @@ public:
   void visit (BareFunctionType &type);
 
   void visit (FormatArgs &fmt);
+  void visit (OffsetOf &offset_of);
 };
 } // namespace AST
 

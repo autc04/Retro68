@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: -march=armv8.1-a
+#as: -menable-sysreg-checking -march=armv8.1-a
 #source: virthostext.s
 
 

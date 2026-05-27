@@ -1,5 +1,5 @@
 /* MIPS-specific support for 32-bit ELF
-   Copyright (C) 1993-2022 Free Software Foundation, Inc.
+   Copyright (C) 1993-2026 Free Software Foundation, Inc.
 
    Most of the information added by Ian Lance Taylor, Cygnus Support,
    <ian@cygnus.com>.
@@ -410,7 +410,7 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 
   /* High 16 bits of displacement in global offset table.  */
   HOWTO (R_MIPS_GOT_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -513,7 +513,7 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 
   /* High 16 bits of displacement in global offset table.  */
   HOWTO (R_MIPS_CALL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -670,13 +670,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 
   /* TLS local dynamic offset.  */
   HOWTO (R_MIPS_TLS_DTPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 _bfd_mips_elf_hi16_reloc, /* special_function */
 	 "R_MIPS_TLS_DTPREL_HI16",	/* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -690,8 +690,8 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_mips_elf_lo16_reloc, /* special_function */
 	 "R_MIPS_TLS_DTPREL_LO16",	/* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -732,13 +732,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 
   /* TLS thread pointer offset.  */
   HOWTO (R_MIPS_TLS_TPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 _bfd_mips_elf_hi16_reloc, /* special_function */
 	 "R_MIPS_TLS_TPREL_HI16", /* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -752,8 +752,8 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_mips_elf_lo16_reloc, /* special_function */
 	 "R_MIPS_TLS_TPREL_LO16", /* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -847,7 +847,7 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 true,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc,   /* special_function */
+	 _bfd_mips_elf_hi16_reloc, /* special_function */
 	 "R_MIPS_PCHI16",	/* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -861,7 +861,7 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 true,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc,   /* special_function */
+	 _bfd_mips_elf_lo16_reloc, /* special_function */
 	 "R_MIPS_PCLO16",	/* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -954,7 +954,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 
   /* High 16 bits of symbol value.  */
   HOWTO (R_MIPS_HI16,		/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -1170,7 +1170,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 
   /* High 16 bits of displacement in global offset table.  */
   HOWTO (R_MIPS_GOT_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -1264,7 +1264,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 
   /* Get the higher value of a 64 bit addend.  */
   HOWTO (R_MIPS_HIGHER,		/* type */
-	 0,			/* rightshift */
+	 32,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -1279,7 +1279,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 
   /* Get the highest value of a 64 bit addend.  */
   HOWTO (R_MIPS_HIGHEST,	/* type */
-	 0,			/* rightshift */
+	 48,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -1294,7 +1294,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 
   /* High 16 bits of displacement in global offset table.  */
   HOWTO (R_MIPS_CALL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -1452,7 +1452,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 
   /* TLS local dynamic offset.  */
   HOWTO (R_MIPS_TLS_DTPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -1472,7 +1472,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
+	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MIPS_TLS_DTPREL_LO16",	/* name */
 	 false,			/* partial_inplace */
@@ -1514,7 +1514,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 
   /* TLS thread pointer offset.  */
   HOWTO (R_MIPS_TLS_TPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -1534,7 +1534,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
+	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MIPS_TLS_TPREL_LO16", /* name */
 	 false,			/* partial_inplace */
@@ -1779,13 +1779,13 @@ static reloc_howto_type elf_mips16_howto_table_rel[] =
 
   /* MIPS16 TLS local dynamic offset.  */
   HOWTO (R_MIPS16_TLS_DTPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 _bfd_mips_elf_hi16_reloc, /* special_function */
 	 "R_MIPS16_TLS_DTPREL_HI16",	/* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -1799,8 +1799,8 @@ static reloc_howto_type elf_mips16_howto_table_rel[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_mips_elf_lo16_reloc, /* special_function */
 	 "R_MIPS16_TLS_DTPREL_LO16",	/* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -1824,13 +1824,13 @@ static reloc_howto_type elf_mips16_howto_table_rel[] =
 
   /* MIPS16 TLS thread pointer offset.  */
   HOWTO (R_MIPS16_TLS_TPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 _bfd_mips_elf_hi16_reloc, /* special_function */
 	 "R_MIPS16_TLS_TPREL_HI16", /* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -1844,8 +1844,8 @@ static reloc_howto_type elf_mips16_howto_table_rel[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_mips_elf_lo16_reloc, /* special_function */
 	 "R_MIPS16_TLS_TPREL_LO16", /* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -1911,7 +1911,7 @@ static reloc_howto_type elf_mips16_howto_table_rela[] =
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_mips_elf_got16_reloc, /* special_function */
+	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MIPS16_GOT16",	/* name */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -1941,7 +1941,7 @@ static reloc_howto_type elf_mips16_howto_table_rela[] =
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_mips_elf_hi16_reloc, /* special_function */
+	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MIPS16_HI16",	/* name */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -1956,7 +1956,7 @@ static reloc_howto_type elf_mips16_howto_table_rela[] =
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_mips_elf_lo16_reloc, /* special_function */
+	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MIPS16_LO16",	/* name */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -1995,7 +1995,7 @@ static reloc_howto_type elf_mips16_howto_table_rela[] =
 
   /* MIPS16 TLS local dynamic offset.  */
   HOWTO (R_MIPS16_TLS_DTPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -2015,7 +2015,7 @@ static reloc_howto_type elf_mips16_howto_table_rela[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
+	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MIPS16_TLS_DTPREL_LO16",	/* name */
 	 false,			/* partial_inplace */
@@ -2040,7 +2040,7 @@ static reloc_howto_type elf_mips16_howto_table_rela[] =
 
   /* MIPS16 TLS thread pointer offset.  */
   HOWTO (R_MIPS16_TLS_TPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -2060,7 +2060,7 @@ static reloc_howto_type elf_mips16_howto_table_rela[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
+	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MIPS16_TLS_TPREL_LO16", /* name */
 	 false,			/* partial_inplace */
@@ -2291,7 +2291,7 @@ static reloc_howto_type elf_micromips_howto_table_rel[] =
 
   /* High 16 bits of displacement in global offset table.  */
   HOWTO (R_MICROMIPS_GOT_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -2343,7 +2343,7 @@ static reloc_howto_type elf_micromips_howto_table_rel[] =
 
   /* High 16 bits of displacement in global offset table.  */
   HOWTO (R_MICROMIPS_CALL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -2455,13 +2455,13 @@ static reloc_howto_type elf_micromips_howto_table_rel[] =
 
   /* TLS local dynamic offset.  */
   HOWTO (R_MICROMIPS_TLS_DTPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 _bfd_mips_elf_hi16_reloc, /* special_function */
 	 "R_MICROMIPS_TLS_DTPREL_HI16",	/* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -2475,8 +2475,8 @@ static reloc_howto_type elf_micromips_howto_table_rel[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_mips_elf_lo16_reloc, /* special_function */
 	 "R_MICROMIPS_TLS_DTPREL_LO16",	/* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -2503,13 +2503,13 @@ static reloc_howto_type elf_micromips_howto_table_rel[] =
 
   /* TLS thread pointer offset.  */
   HOWTO (R_MICROMIPS_TLS_TPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 _bfd_mips_elf_hi16_reloc, /* special_function */
 	 "R_MICROMIPS_TLS_TPREL_HI16", /* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -2523,8 +2523,8 @@ static reloc_howto_type elf_micromips_howto_table_rel[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_mips_elf_lo16_reloc, /* special_function */
 	 "R_MICROMIPS_TLS_TPREL_LO16", /* name */
 	 true,			/* partial_inplace */
 	 0x0000ffff,		/* src_mask */
@@ -2595,7 +2595,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_mips_elf_hi16_reloc, /* special_function */
+	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MICROMIPS_HI16",	/* name */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -2610,7 +2610,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_mips_elf_lo16_reloc, /* special_function */
+	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MICROMIPS_LO16",	/* name */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -2655,7 +2655,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_mips_elf_got16_reloc, /* special_function */
+	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MICROMIPS_GOT16",	/* name */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -2770,7 +2770,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 
   /* High 16 bits of displacement in global offset table.  */
   HOWTO (R_MICROMIPS_GOT_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -2815,7 +2815,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 
   /* Get the higher value of a 64 bit addend.  */
   HOWTO (R_MICROMIPS_HIGHER,	/* type */
-	 0,			/* rightshift */
+	 32,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -2830,7 +2830,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 
   /* Get the highest value of a 64 bit addend.  */
   HOWTO (R_MICROMIPS_HIGHEST,	/* type */
-	 0,			/* rightshift */
+	 48,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -2845,7 +2845,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 
   /* High 16 bits of displacement in global offset table.  */
   HOWTO (R_MICROMIPS_CALL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -2957,7 +2957,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 
   /* TLS local dynamic offset.  */
   HOWTO (R_MICROMIPS_TLS_DTPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -2977,7 +2977,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
+	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MICROMIPS_TLS_DTPREL_LO16",	/* name */
 	 false,			/* partial_inplace */
@@ -3005,7 +3005,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 
   /* TLS thread pointer offset.  */
   HOWTO (R_MICROMIPS_TLS_TPREL_HI16,	/* type */
-	 0,			/* rightshift */
+	 16,			/* rightshift */
 	 4,			/* size */
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
@@ -3025,7 +3025,7 @@ static reloc_howto_type elf_micromips_howto_table_rela[] =
 	 16,			/* bitsize */
 	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
+	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_mips_elf_generic_reloc, /* special_function */
 	 "R_MICROMIPS_TLS_TPREL_LO16", /* name */
 	 false,			/* partial_inplace */
@@ -3300,7 +3300,8 @@ mips_elf_gprel16_reloc (bfd *abfd ATTRIBUTE_UNUSED, arelent *reloc_entry,
   else
     {
       relocatable = false;
-      output_bfd = symbol->section->output_section->owner;
+      if (symbol->section->output_section != NULL)
+	output_bfd = symbol->section->output_section->owner;
     }
 
   ret = mips_elf_final_gp (output_bfd, symbol, relocatable, error_message,
@@ -3340,7 +3341,8 @@ mips_elf_literal_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
   else
     {
       relocatable = false;
-      output_bfd = symbol->section->output_section->owner;
+      if (symbol->section->output_section != NULL)
+	output_bfd = symbol->section->output_section->owner;
     }
 
   ret = mips_elf_final_gp (output_bfd, symbol, relocatable, error_message,
@@ -3383,7 +3385,8 @@ mips_elf_gprel32_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
   else
     {
       relocatable = false;
-      output_bfd = symbol->section->output_section->owner;
+      if (symbol->section->output_section != NULL)
+	output_bfd = symbol->section->output_section->owner;
 
       ret = mips_elf_final_gp (output_bfd, symbol, relocatable,
 			       error_message, &gp);
@@ -3408,10 +3411,14 @@ gprel32_with_gp (bfd *abfd, asymbol *symbol, arelent *reloc_entry,
   else
     relocation = symbol->value;
 
-  relocation += symbol->section->output_section->vma;
-  relocation += symbol->section->output_offset;
+  if (symbol->section->output_section != NULL)
+    {
+      relocation += symbol->section->output_section->vma;
+      relocation += symbol->section->output_offset;
+    }
 
-  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
+  if (!bfd_reloc_offset_in_range (reloc_entry->howto, abfd, input_section,
+				  reloc_entry->address))
     return bfd_reloc_outofrange;
 
   if (reloc_entry->howto->src_mask == 0)
@@ -3483,13 +3490,18 @@ mips16_gprel_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
   else
     {
       relocatable = false;
-      output_bfd = symbol->section->output_section->owner;
+       if (symbol->section->output_section != NULL)
+	 output_bfd = symbol->section->output_section->owner;
     }
 
   ret = mips_elf_final_gp (output_bfd, symbol, relocatable, error_message,
 			   &gp);
   if (ret != bfd_reloc_ok)
     return ret;
+
+  if (!_bfd_mips_reloc_offset_in_range (abfd, input_section, reloc_entry,
+					check_shuffle))
+    return bfd_reloc_outofrange;
 
   location = (bfd_byte *) data + reloc_entry->address;
   _bfd_mips_elf_reloc_unshuffle (abfd, reloc_entry->howto->type, false,
@@ -3514,6 +3526,7 @@ static const struct elf_reloc_map mips_reloc_map[] =
 {
   { BFD_RELOC_NONE, R_MIPS_NONE },
   { BFD_RELOC_MIPS_16, R_MIPS_16 },
+  { BFD_RELOC_16, R_MIPS_REL16 },
   { BFD_RELOC_32, R_MIPS_32 },
   /* There is no BFD reloc for R_MIPS_REL32.  */
   { BFD_RELOC_CTOR, R_MIPS_32 },
@@ -3672,9 +3685,9 @@ bfd_elf32_bfd_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
       return &elf_mips_gnu_pcrel32;
     case BFD_RELOC_MIPS_EH:
       return &elf_mips_eh_howto;
-    case BFD_RELOC_MIPS_COPY:
+    case BFD_RELOC_COPY:
       return &elf_mips_copy_howto;
-    case BFD_RELOC_MIPS_JUMP_SLOT:
+    case BFD_RELOC_JMP_SLOT:
       return &elf_mips_jump_slot_howto;
     default:
       bfd_set_error (bfd_error_bad_value);
@@ -4125,10 +4138,7 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 #define elf_backend_get_target_dtag	_bfd_mips_elf_get_target_dtag
 #define elf_backend_adjust_dynamic_symbol \
 					_bfd_mips_elf_adjust_dynamic_symbol
-#define elf_backend_always_size_sections \
-					_bfd_mips_elf_always_size_sections
-#define elf_backend_size_dynamic_sections \
-					_bfd_mips_elf_size_dynamic_sections
+#define elf_backend_late_size_sections	_bfd_mips_elf_late_size_sections
 #define elf_backend_init_index_section	_bfd_elf_init_1_index_section
 #define elf_backend_relocate_section	_bfd_mips_elf_relocate_section
 #define elf_backend_finish_dynamic_symbol \
@@ -4174,7 +4184,11 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 #define elf_backend_mips_rtype_to_howto	mips_elf_n32_rtype_to_howto
 #define bfd_elf32_bfd_is_target_special_symbol \
 					_bfd_mips_elf_is_target_special_symbol
+#define bfd_elf32_finalize_section_relocs \
+					_bfd_mips_elf_finalize_section_relocs
 #define bfd_elf32_find_nearest_line	_bfd_mips_elf_find_nearest_line
+#define bfd_elf32_find_nearest_line_with_alt \
+				_bfd_mips_elf_find_nearest_line_with_alt
 #define bfd_elf32_find_inliner_info	_bfd_mips_elf_find_inliner_info
 #define bfd_elf32_new_section_hook	_bfd_mips_elf_new_section_hook
 #define bfd_elf32_set_section_contents	_bfd_mips_elf_set_section_contents
@@ -4189,6 +4203,7 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 #define bfd_elf32_bfd_print_private_bfd_data \
 					_bfd_mips_elf_print_private_bfd_data
 #define bfd_elf32_mkobject		mips_elf_n32_mkobject
+#define bfd_elf32_bfd_free_cached_info	_bfd_mips_elf_free_cached_info
 
 /* Support for SGI-ish mips targets using n32 ABI.  */
 
@@ -4241,6 +4256,8 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 
 #undef	ELF_OSABI
 #define	ELF_OSABI			ELFOSABI_FREEBSD
+#undef	ELF_OSABI_EXACT
+#define	ELF_OSABI_EXACT			1
 
 #undef	elf32_bed
 #define elf32_bed				elf32_fbsd_tradbed

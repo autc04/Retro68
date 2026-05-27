@@ -1,5 +1,5 @@
 /* BFD back-end for ALPHA Extended-Coff files.
-   Copyright (C) 1993-2022 Free Software Foundation, Inc.
+   Copyright (C) 1993-2026 Free Software Foundation, Inc.
    Modified from coff-mips.c by Steve Chamberlain <sac@cygnus.com> and
    Ian Lance Taylor <ian@cygnus.com>.
 
@@ -97,7 +97,7 @@ static bfd_reloc_status_type
 reloc_nil (bfd *abfd ATTRIBUTE_UNUSED,
 	   arelent *reloc ATTRIBUTE_UNUSED,
 	   asymbol *sym ATTRIBUTE_UNUSED,
-	   void * data ATTRIBUTE_UNUSED,
+	   void *data ATTRIBUTE_UNUSED,
 	   asection *sec ATTRIBUTE_UNUSED,
 	   bfd *output_bfd ATTRIBUTE_UNUSED,
 	   char **error_message ATTRIBUTE_UNUSED)
@@ -419,7 +419,7 @@ alpha_ecoff_object_p (bfd *abfd)
 	 On output we will set the lnnoptr field and force the
 	 alignment.  */
       sec = bfd_get_section_by_name (abfd, _PDATA);
-      if (sec != (asection *) NULL)
+      if (sec != NULL)
 	{
 	  bfd_size_type size;
 
@@ -438,7 +438,7 @@ alpha_ecoff_object_p (bfd *abfd)
 
 static bool
 alpha_ecoff_bad_format_hook (bfd *abfd ATTRIBUTE_UNUSED,
-			     void * filehdr)
+			     void *filehdr)
 {
   struct internal_filehdr *internal_f = (struct internal_filehdr *) filehdr;
 
@@ -458,15 +458,15 @@ alpha_ecoff_bad_format_hook (bfd *abfd ATTRIBUTE_UNUSED,
    specific information.  */
 
 static void *
-alpha_ecoff_mkobject_hook (bfd *abfd, void * filehdr, void * aouthdr)
+alpha_ecoff_mkobject_hook (bfd *abfd, void *filehdr, void *aouthdr)
 {
-  void * ecoff;
+  void *ecoff;
 
   ecoff = _bfd_ecoff_mkobject_hook (abfd, filehdr, aouthdr);
 
   if (ecoff != NULL)
     {
-      struct internal_filehdr *internal_f = (struct internal_filehdr *) filehdr;
+      struct internal_filehdr *internal_f = filehdr;
 
       /* Set additional BFD flags according to the object type from the
 	 machine specific file header flags.  */
@@ -491,10 +491,10 @@ alpha_ecoff_mkobject_hook (bfd *abfd, void * filehdr, void * aouthdr)
 
 static void
 alpha_ecoff_swap_reloc_in (bfd *abfd,
-			   void * ext_ptr,
+			   void *ext_ptr,
 			   struct internal_reloc *intern)
 {
-  const RELOC *ext = (RELOC *) ext_ptr;
+  const RELOC *ext = ext_ptr;
 
   intern->r_vaddr = H_GET_64 (abfd, ext->r_vaddr);
   intern->r_symndx = H_GET_32 (abfd, ext->r_symndx);
@@ -517,8 +517,7 @@ alpha_ecoff_swap_reloc_in (bfd *abfd,
 	 value is not actually a symbol index, but is instead a
 	 special code.  We put the code in the r_size field, and
 	 clobber the symndx.  */
-      if (intern->r_size != 0)
-	abort ();
+      BFD_ASSERT (intern->r_size == 0);
       intern->r_size = intern->r_symndx;
       intern->r_symndx = RELOC_SECTION_NONE;
     }
@@ -526,11 +525,15 @@ alpha_ecoff_swap_reloc_in (bfd *abfd,
     {
       /* The IGNORE reloc generally follows a GPDISP reloc, and is
 	 against the .lita section.  The section is irrelevant.  */
-      if (! intern->r_extern &&
-	  intern->r_symndx == RELOC_SECTION_ABS)
-	abort ();
+      BFD_ASSERT (intern->r_extern || intern->r_symndx != RELOC_SECTION_ABS);
       if (! intern->r_extern && intern->r_symndx == RELOC_SECTION_LITA)
 	intern->r_symndx = RELOC_SECTION_ABS;
+    }
+  else if (intern->r_type == ALPHA_R_OP_STORE)
+    {
+      /* Size of 64 bits is encoded as 0 in this 6-bit field.  */
+      if (intern->r_size == 0)
+	intern->r_size = 64;
     }
 }
 
@@ -539,9 +542,9 @@ alpha_ecoff_swap_reloc_in (bfd *abfd,
 static void
 alpha_ecoff_swap_reloc_out (bfd *abfd,
 			    const struct internal_reloc *intern,
-			    void * dst)
+			    void *dst)
 {
-  RELOC *ext = (RELOC *) dst;
+  RELOC *ext = dst;
   long symndx;
   unsigned char size;
 
@@ -602,7 +605,7 @@ alpha_adjust_reloc_in (bfd *abfd,
 			  abfd, intern->r_type);
       bfd_set_error (bfd_error_bad_value);
       rptr->addend = 0;
-      rptr->howto  = NULL;
+      rptr->howto = NULL;
       return;
     }
 
@@ -664,7 +667,7 @@ alpha_adjust_reloc_in (bfd *abfd,
 	 some reason the address of this reloc type is not adjusted by
 	 the section vma.  We record the gp value for this object file
 	 here, for convenience when doing the GPDISP relocation.  */
-      rptr->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
+      rptr->sym_ptr_ptr = &bfd_abs_section_ptr->symbol;
       rptr->address = intern->r_vaddr;
       rptr->addend = ecoff_data (abfd)->gp;
       break;
@@ -713,6 +716,50 @@ alpha_adjust_reloc_out (bfd *abfd ATTRIBUTE_UNUSED,
     }
 }
 
+/* Write VAL to a little-endian bitfield specified by BITOFFSET and
+   BITSIZE at CONTENTS + SECOFFSET.  Verify that these parameter are
+   valid for SEC in ABFD.  */
+
+static bool
+write_bit_field (bfd *abfd, asection *sec,
+		 bfd_byte *contents, bfd_size_type secoffset,
+		 unsigned int bitoffset, unsigned int bitsize, uint64_t val)
+{
+  if (bitsize == 0)
+    return true;
+
+  bfd_size_type secsize = bfd_get_section_limit_octets (abfd, sec);
+  unsigned int startbyte = bitoffset >> 3;
+  unsigned int endbyte = (bitoffset + bitsize - 1) >> 3;
+
+  if (secoffset > secsize || secsize - secoffset <= endbyte)
+    return false;
+
+  unsigned int startbit = bitoffset & 7;
+  unsigned int endbit = (bitoffset + bitsize - 1) & 7;
+  unsigned int mask = -1u << startbit;
+  unsigned char *p = contents + secoffset;
+  if (startbyte != endbyte)
+    {
+      p[startbyte] = (p[startbyte] & ~mask) | ((val << startbit) & mask);
+      val = val >> (8 - startbit);
+
+      for (unsigned int off = startbyte + 1; off < endbyte; ++off)
+	{
+	  p[off] = val;
+	  val >>= 8;
+	}
+      mask = ~(-1u << (1 + endbit));
+    }
+  else
+    {
+      val = val << startbit;
+      mask = mask & ~(-1u << (1 + endbit));
+    }
+  p[endbyte] = (p[endbyte] & ~mask) | (val & mask);
+  return true;
+}
+
 /* The size of the stack for the relocation evaluator.  */
 #define RELOC_STACKSIZE (10)
 
@@ -735,7 +782,7 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
   long reloc_size;
   arelent **reloc_vector;
   long reloc_count;
-  bfd *output_bfd = relocatable ? abfd : (bfd *) NULL;
+  bfd *output_bfd = relocatable ? abfd : NULL;
   bfd_vma gp;
   bool gp_undefined;
   bfd_vma stack[RELOC_STACKSIZE];
@@ -745,6 +792,7 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
   if (reloc_size < 0)
     return NULL;
 
+  bfd_byte *orig_data = data;
   if (!bfd_get_full_section_contents (input_bfd, input_section, &data))
     return NULL;
 
@@ -754,9 +802,9 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
   if (reloc_size == 0)
     return data;
 
-  reloc_vector = (arelent **) bfd_malloc (reloc_size);
+  reloc_vector = bfd_malloc (reloc_size);
   if (reloc_vector == NULL)
-    return NULL;
+    goto error_return;
 
   reloc_count = bfd_canonicalize_reloc (input_bfd, input_section,
 					reloc_vector, symbols);
@@ -776,7 +824,7 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 	  bfd_vma lo;
 
 	  /* Make up a value.  */
-	  lo = (bfd_vma) -1;
+	  lo = -1;
 	  for (sec = abfd->sections; sec != NULL; sec = sec->next)
 	    {
 	      if (sec->vma < lo
@@ -796,7 +844,7 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 
 	  h = bfd_link_hash_lookup (link_info->hash, "_gp", false, false,
 				    true);
-	  if (h == (struct bfd_link_hash_entry *) NULL
+	  if (h == NULL
 	      || h->type != bfd_link_hash_defined)
 	    gp_undefined = true;
 	  else
@@ -809,15 +857,25 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 	}
     }
 
-  for (; *reloc_vector != (arelent *) NULL; reloc_vector++)
+  for (arelent **relp = reloc_vector; *relp != NULL; relp++)
     {
       arelent *rel;
       bfd_reloc_status_type r;
-      char *err;
+      char *err = NULL;
+      unsigned int r_type;
 
-      rel = *reloc_vector;
-      r = bfd_reloc_ok;
-      switch (rel->howto->type)
+      rel = *relp;
+      if (rel->howto == NULL)
+	{
+	  r = bfd_reloc_notsupported;
+	  r_type = ALPHA_R_IGNORE;
+	}
+      else
+	{
+	  r = bfd_reloc_ok;
+	  r_type = rel->howto->type;
+	}
+      switch (r_type)
 	{
 	case ALPHA_R_IGNORE:
 	  rel->address += input_section->output_offset;
@@ -874,25 +932,15 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 	     use.  This would not be particularly difficult, but it is
 	     not currently implemented.  */
 
-	  {
-	    unsigned long insn;
-
-	    /* I believe that the LITERAL reloc will only apply to a
-	       ldq or ldl instruction, so check my assumption.  */
-	    insn = bfd_get_32 (input_bfd, data + rel->address);
-	    BFD_ASSERT (((insn >> 26) & 0x3f) == 0x29
-			|| ((insn >> 26) & 0x3f) == 0x28);
-
-	    rel->addend -= gp;
-	    r = bfd_perform_relocation (input_bfd, rel, data, input_section,
-					output_bfd, &err);
-	    if (r == bfd_reloc_ok && gp_undefined)
-	      {
-		r = bfd_reloc_dangerous;
-		err =
-		  (char *) _("GP relative relocation used when GP not defined");
-	      }
-	  }
+	  rel->addend -= gp;
+	  r = bfd_perform_relocation (input_bfd, rel, data, input_section,
+				      output_bfd, &err);
+	  if (r == bfd_reloc_ok && gp_undefined)
+	    {
+	      r = bfd_reloc_dangerous;
+	      err = (char *) _("GP relative relocation used"
+			       " when GP not defined");
+	    }
 	  break;
 
 	case ALPHA_R_LITUSE:
@@ -907,54 +955,46 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 	     current location.  The second of the pair is r_size bytes
 	     ahead; it used to be marked with an ALPHA_R_IGNORE reloc,
 	     but that no longer happens in OSF/1 3.2.  */
-	  {
-	    unsigned long insn1, insn2;
-	    bfd_vma addend;
+	  if (bfd_reloc_offset_in_range (rel->howto, input_bfd, input_section,
+					 rel->address)
+	      && bfd_reloc_offset_in_range (rel->howto, input_bfd, input_section,
+					    rel->address + rel->addend))
+	    {
+	      /* Get the two instructions.  */
+	      bfd_byte *p = data + rel->address;
+	      bfd_vma insn1 = bfd_get_32 (input_bfd, p);
+	      bfd_vma insn2 = bfd_get_32 (input_bfd, p + rel->addend);
 
-	    /* Get the two instructions.  */
-	    insn1 = bfd_get_32 (input_bfd, data + rel->address);
-	    insn2 = bfd_get_32 (input_bfd, data + rel->address + rel->addend);
+	      BFD_ASSERT (((insn1 >> 26) & 0x3f) == 0x09); /* ldah */
+	      BFD_ASSERT (((insn2 >> 26) & 0x3f) == 0x08); /* lda */
 
-	    BFD_ASSERT (((insn1 >> 26) & 0x3f) == 0x09); /* ldah */
-	    BFD_ASSERT (((insn2 >> 26) & 0x3f) == 0x08); /* lda */
+	      /* Get the existing addend.  We must account for the sign
+		 extension done by lda and ldah.  */
+	      bfd_vma addend = (((((insn1 & 0xffff) ^ 0x8000) - 0x8000) << 16)
+				+ ((((insn2 & 0xffff) ^ 0x8000) - 0x8000)));
 
-	    /* Get the existing addend.  We must account for the sign
-	       extension done by lda and ldah.  */
-	    addend = ((insn1 & 0xffff) << 16) + (insn2 & 0xffff);
-	    if (insn1 & 0x8000)
-	      {
-		addend -= 0x80000000;
-		addend -= 0x80000000;
-	      }
-	    if (insn2 & 0x8000)
-	      addend -= 0x10000;
+	      /* The existing addend includes the different between the
+		 gp of the input BFD and the address in the input BFD.
+		 Subtract this out.  */
+	      addend -= ecoff_data (input_bfd)->gp - input_section->vma;
 
-	    /* The existing addend includes the different between the
-	       gp of the input BFD and the address in the input BFD.
-	       Subtract this out.  */
-	    addend -= (ecoff_data (input_bfd)->gp
-		       - (input_section->vma + rel->address));
+	      /* Now add in the final gp value, and subtract out the
+		 final address.  */
+	      addend += gp - (input_section->output_section->vma
+			      + input_section->output_offset);
 
-	    /* Now add in the final gp value, and subtract out the
-	       final address.  */
-	    addend += (gp
-		       - (input_section->output_section->vma
-			  + input_section->output_offset
-			  + rel->address));
+	      /* Change the instructions, accounting for the sign
+		 extension, and write them out.  */
+	      insn1 = (insn1 & ~0xffff) | (((addend + 0x8000) >> 16) & 0xffff);
+	      insn2 = (insn2 & ~0xffff) | (addend & 0xffff);
 
-	    /* Change the instructions, accounting for the sign
-	       extension, and write them out.  */
-	    if (addend & 0x8000)
-	      addend += 0x10000;
-	    insn1 = (insn1 & 0xffff0000) | ((addend >> 16) & 0xffff);
-	    insn2 = (insn2 & 0xffff0000) | (addend & 0xffff);
+	      bfd_put_32 (input_bfd, insn1, p);
+	      bfd_put_32 (input_bfd, insn2, p + rel->addend);
+	    }
+	  else
+	    r = bfd_reloc_outofrange;
 
-	    bfd_put_32 (input_bfd, (bfd_vma) insn1, data + rel->address);
-	    bfd_put_32 (input_bfd, (bfd_vma) insn2,
-			data + rel->address + rel->addend);
-
-	    rel->address += input_section->output_offset;
-	  }
+	  rel->address += input_section->output_offset;
 	  break;
 
 	case ALPHA_R_OP_PUSH:
@@ -984,7 +1024,10 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 	    relocation += rel->addend;
 
 	    if (tos >= RELOC_STACKSIZE)
-	      abort ();
+	      {
+		r = bfd_reloc_notsupported;
+		break;
+	      }
 
 	    stack[tos++] = relocation;
 	  }
@@ -993,9 +1036,6 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 	case ALPHA_R_OP_STORE:
 	  /* Store a value from the reloc stack into a bitfield.  */
 	  {
-	    bfd_vma val;
-	    int offset, size;
-
 	    if (relocatable)
 	      {
 		rel->address += input_section->output_offset;
@@ -1003,17 +1043,20 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 	      }
 
 	    if (tos == 0)
-	      abort ();
+	      {
+		r = bfd_reloc_notsupported;
+		break;
+	      }
 
-	    /* The offset and size for this reloc are encoded into the
-	       addend field by alpha_adjust_reloc_in.  */
-	    offset = (rel->addend >> 8) & 0xff;
-	    size = rel->addend & 0xff;
+	    /* The offset and size in bits for this reloc are encoded
+	       into the addend field by alpha_adjust_reloc_in.  */
+	    unsigned int offset = (rel->addend >> 8) & 0xff;
+	    unsigned int size = rel->addend & 0xff;
 
-	    val = bfd_get_64 (abfd, data + rel->address);
-	    val &=~ (((1 << size) - 1) << offset);
-	    val |= (stack[--tos] & ((1 << size) - 1)) << offset;
-	    bfd_put_64 (abfd, val, data + rel->address);
+	    if (!write_bit_field (input_bfd, input_section,
+				  data, rel->address,
+				  offset, size, stack[--tos]))
+	      r = bfd_reloc_outofrange;
 	  }
 	  break;
 
@@ -1044,7 +1087,10 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 	    relocation += rel->addend;
 
 	    if (tos == 0)
-	      abort ();
+	      {
+		r = bfd_reloc_notsupported;
+		break;
+	      }
 
 	    stack[tos - 1] -= relocation;
 	  }
@@ -1077,7 +1123,10 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 	    relocation += rel->addend;
 
 	    if (tos == 0)
-	      abort ();
+	      {
+		r = bfd_reloc_notsupported;
+		break;
+	      }
 
 	    stack[tos - 1] >>= relocation;
 	  }
@@ -1090,7 +1139,8 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 	  break;
 
 	default:
-	  abort ();
+	  r = bfd_reloc_notsupported;
+	  break;
 	}
 
       if (relocatable)
@@ -1104,33 +1154,15 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 
       if (r != bfd_reloc_ok)
 	{
-	  switch (r)
-	    {
-	    case bfd_reloc_undefined:
-	      (*link_info->callbacks->undefined_symbol)
-		(link_info, bfd_asymbol_name (*rel->sym_ptr_ptr),
-		 input_bfd, input_section, rel->address, true);
-	      break;
-	    case bfd_reloc_dangerous:
-	      (*link_info->callbacks->reloc_dangerous)
-		(link_info, err, input_bfd, input_section, rel->address);
-	      break;
-	    case bfd_reloc_overflow:
-	      (*link_info->callbacks->reloc_overflow)
-		(link_info, NULL, bfd_asymbol_name (*rel->sym_ptr_ptr),
-		 rel->howto->name, rel->addend, input_bfd,
-		 input_section, rel->address);
-	      break;
-	    case bfd_reloc_outofrange:
-	    default:
-	      abort ();
-	      break;
-	    }
+	  _bfd_link_reloc_status_error (abfd, link_info, input_section,
+					rel, err, r);
+	  if (r == bfd_reloc_outofrange || r == bfd_reloc_notsupported)
+	    goto error_return;
 	}
     }
 
   if (tos != 0)
-    abort ();
+    goto error_return;
 
  successful_return:
   free (reloc_vector);
@@ -1138,6 +1170,8 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
 
  error_return:
   free (reloc_vector);
+  if (orig_data == NULL)
+    free (data);
   return NULL;
 }
 
@@ -1189,7 +1223,7 @@ alpha_bfd_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
       alpha_type = ALPHA_R_SREL64;
       break;
     default:
-      return (reloc_howto_type *) NULL;
+      return NULL;
     }
 
   return &alpha_howto_table[alpha_type];
@@ -1243,7 +1277,7 @@ alpha_convert_external_reloc (bfd *output_bfd ATTRIBUTE_UNUSED,
       hsec = h->root.u.def.section;
       name = bfd_section_name (hsec->output_section);
 
-      r_symndx = (unsigned long) -1;
+      r_symndx = -1ul;
       switch (name[1])
 	{
 	case 'A':
@@ -1300,7 +1334,7 @@ alpha_convert_external_reloc (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  break;
 	}
 
-      if (r_symndx == (unsigned long) -1)
+      if (r_symndx == -1ul)
 	abort ();
 
       /* Add the section VMA and the symbol value.  */
@@ -1313,7 +1347,7 @@ alpha_convert_external_reloc (bfd *output_bfd ATTRIBUTE_UNUSED,
       /* Change the symndx value to the right one for
 	 the output BFD.  */
       r_symndx = h->indx;
-      if (r_symndx == (unsigned long) -1)
+      if (r_symndx == -1ul)
 	{
 	  /* Caller must give an error.  */
 	  r_symndx = 0;
@@ -1337,7 +1371,7 @@ alpha_relocate_section (bfd *output_bfd,
 			bfd *input_bfd,
 			asection *input_section,
 			bfd_byte *contents,
-			void * external_relocs)
+			void *external_relocs)
 {
   asection **symndx_to_section, *lita_sec;
   struct ecoff_link_hash_entry **sym_hashes;
@@ -1348,15 +1382,16 @@ alpha_relocate_section (bfd *output_bfd,
   struct external_reloc *ext_rel;
   struct external_reloc *ext_rel_end;
   bfd_size_type amt;
+  bool ret = true;
 
   /* We keep a table mapping the symndx found in an internal reloc to
      the appropriate section.  This is faster than looking up the
      section by name each time.  */
   symndx_to_section = ecoff_data (input_bfd)->symndx_to_section;
-  if (symndx_to_section == (asection **) NULL)
+  if (symndx_to_section == NULL)
     {
       amt = NUM_RELOC_SECTIONS * sizeof (asection *);
-      symndx_to_section = (asection **) bfd_alloc (input_bfd, amt);
+      symndx_to_section = bfd_alloc (input_bfd, amt);
       if (!symndx_to_section)
 	return false;
 
@@ -1413,9 +1448,7 @@ alpha_relocate_section (bfd *output_bfd,
       lita_sec_data = ecoff_section_data (input_bfd, lita_sec);
       if (lita_sec_data == NULL)
 	{
-	  amt = sizeof (struct ecoff_section_tdata);
-	  lita_sec_data = ((struct ecoff_section_tdata *)
-			   bfd_zalloc (input_bfd, amt));
+	  lita_sec_data = bfd_zalloc (input_bfd, sizeof (*lita_sec_data));
 	  lita_sec->used_by_bfd = lita_sec_data;
 	}
 
@@ -1434,7 +1467,7 @@ alpha_relocate_section (bfd *output_bfd,
 	  lita_size = lita_sec->size;
 
 	  if (gp == 0
-	      || lita_vma <  gp - 0x8000
+	      || lita_vma < gp - 0x8000
 	      || lita_vma + lita_size >= gp + 0x8000)
 	    {
 	      /* Either gp hasn't been set at all or the current gp
@@ -1445,8 +1478,7 @@ alpha_relocate_section (bfd *output_bfd,
 		{
 		  (*info->callbacks->warning) (info,
 					       _("using multiple gp values"),
-					       (char *) NULL, output_bfd,
-					       (asection *) NULL, (bfd_vma) 0);
+					       NULL, output_bfd, NULL, 0);
 		  ecoff_data (output_bfd)->issued_multiple_gp_warning = true;
 		}
 	      if (lita_vma < gp - 0x8000)
@@ -1467,7 +1499,7 @@ alpha_relocate_section (bfd *output_bfd,
   BFD_ASSERT (bfd_header_little_endian (output_bfd));
   BFD_ASSERT (bfd_header_little_endian (input_bfd));
 
-  ext_rel = (struct external_reloc *) external_relocs;
+  ext_rel = external_relocs;
   ext_rel_end = ext_rel + input_section->reloc_count;
   for (; ext_rel < ext_rel_end; ext_rel++)
     {
@@ -1481,6 +1513,7 @@ alpha_relocate_section (bfd *output_bfd,
       bool adjust_addrp;
       bool gp_usedp;
       bfd_vma addend;
+      bfd_reloc_status_type r;
 
       r_vaddr = H_GET_64 (input_bfd, ext_rel->r_vaddr);
       r_symndx = H_GET_32 (input_bfd, ext_rel->r_symndx);
@@ -1498,27 +1531,13 @@ alpha_relocate_section (bfd *output_bfd,
       adjust_addrp = true;
       gp_usedp = false;
       addend = 0;
+      r = bfd_reloc_ok;
 
       switch (r_type)
 	{
-	case ALPHA_R_GPRELHIGH:
-	  _bfd_error_handler (_("%pB: %s unsupported"),
-			      input_bfd, "ALPHA_R_GPRELHIGH");
-	  bfd_set_error (bfd_error_bad_value);
-	  continue;
-
-	case ALPHA_R_GPRELLOW:
-	  _bfd_error_handler (_("%pB: %s unsupported"),
-			      input_bfd, "ALPHA_R_GPRELLOW");
-	  bfd_set_error (bfd_error_bad_value);
-	  continue;
-
 	default:
-	  /* xgettext:c-format */
-	  _bfd_error_handler (_("%pB: unsupported relocation type %#x"),
-			      input_bfd, (int) r_type);
-	  bfd_set_error (bfd_error_bad_value);
-	  continue;
+	  r = bfd_reloc_notsupported;
+	  break;
 
 	case ALPHA_R_IGNORE:
 	  /* This reloc appears after a GPDISP reloc.  On earlier
@@ -1575,17 +1594,6 @@ alpha_relocate_section (bfd *output_bfd,
 	     use.  This would not be particularly difficult, but it is
 	     not currently implemented.  */
 
-	  /* I believe that the LITERAL reloc will only apply to a ldq
-	     or ldl instruction, so check my assumption.  */
-	  {
-	    unsigned long insn;
-
-	    insn = bfd_get_32 (input_bfd,
-			       contents + r_vaddr - input_section->vma);
-	    BFD_ASSERT (((insn >> 26) & 0x3f) == 0x29
-			|| ((insn >> 26) & 0x3f) == 0x28);
-	  }
-
 	  relocatep = true;
 	  addend = ecoff_data (input_bfd)->gp - gp;
 	  gp_usedp = true;
@@ -1602,58 +1610,45 @@ alpha_relocate_section (bfd *output_bfd,
 	     current location.  The second of the pair is r_symndx
 	     bytes ahead.  It used to be marked with an ALPHA_R_IGNORE
 	     reloc, but OSF/1 3.2 no longer does that.  */
-	  {
-	    unsigned long insn1, insn2;
+	  if (r_vaddr >= input_section->vma
+	      && r_vaddr - input_section->vma < input_section->size
+	      && input_section->size - (r_vaddr - input_section->vma) > r_symndx
+	      && (input_section->size - (r_vaddr - input_section->vma)
+		  - r_symndx >= 4))
+	    {
+	      /* Get the two instructions.  */
+	      bfd_byte *p = contents + r_vaddr - input_section->vma;
+	      bfd_vma insn1 = bfd_get_32 (input_bfd, p);
+	      bfd_vma insn2 = bfd_get_32 (input_bfd, p + r_symndx);
 
-	    /* Get the two instructions.  */
-	    insn1 = bfd_get_32 (input_bfd,
-				contents + r_vaddr - input_section->vma);
-	    insn2 = bfd_get_32 (input_bfd,
-				(contents
-				 + r_vaddr
-				 - input_section->vma
-				 + r_symndx));
+	      BFD_ASSERT (((insn1 >> 26) & 0x3f) == 0x09); /* ldah */
+	      BFD_ASSERT (((insn2 >> 26) & 0x3f) == 0x08); /* lda */
 
-	    BFD_ASSERT (((insn1 >> 26) & 0x3f) == 0x09); /* ldah */
-	    BFD_ASSERT (((insn2 >> 26) & 0x3f) == 0x08); /* lda */
+	      /* Get the existing addend.  We must account for the sign
+		 extension done by lda and ldah.  */
+	      addend = (((((insn1 & 0xffff) ^ 0x8000) - 0x8000) << 16)
+			+ (((insn2 & 0xffff) ^ 0x8000) - 0x8000));
 
-	    /* Get the existing addend.  We must account for the sign
-	       extension done by lda and ldah.  */
-	    addend = ((insn1 & 0xffff) << 16) + (insn2 & 0xffff);
-	    if (insn1 & 0x8000)
-	      {
-		/* This is addend -= 0x100000000 without causing an
-		   integer overflow on a 32 bit host.  */
-		addend -= 0x80000000;
-		addend -= 0x80000000;
-	      }
-	    if (insn2 & 0x8000)
-	      addend -= 0x10000;
+	      /* The existing addend includes the difference between the
+		 gp of the input BFD and the address in the input BFD.
+		 We want to change this to the difference between the
+		 final GP and the final address.  */
+	      addend -= ecoff_data (input_bfd)->gp - input_section->vma;
+	      addend += gp - (input_section->output_section->vma
+			      + input_section->output_offset);
 
-	    /* The existing addend includes the difference between the
-	       gp of the input BFD and the address in the input BFD.
-	       We want to change this to the difference between the
-	       final GP and the final address.  */
-	    addend += (gp
-		       - ecoff_data (input_bfd)->gp
-		       + input_section->vma
-		       - (input_section->output_section->vma
-			  + input_section->output_offset));
+	      /* Change the instructions, accounting for the sign
+		 extension, and write them out.  */
+	      insn1 = (insn1 & ~0xffff) | (((addend + 0x8000) >> 16) & 0xffff);
+	      insn2 = (insn2 & ~0xffff) | (addend & 0xffff);
 
-	    /* Change the instructions, accounting for the sign
-	       extension, and write them out.  */
-	    if (addend & 0x8000)
-	      addend += 0x10000;
-	    insn1 = (insn1 & 0xffff0000) | ((addend >> 16) & 0xffff);
-	    insn2 = (insn2 & 0xffff0000) | (addend & 0xffff);
+	      bfd_put_32 (input_bfd, insn1, p);
+	      bfd_put_32 (input_bfd, insn2, p + r_symndx);
 
-	    bfd_put_32 (input_bfd, (bfd_vma) insn1,
-			contents + r_vaddr - input_section->vma);
-	    bfd_put_32 (input_bfd, (bfd_vma) insn2,
-			contents + r_vaddr - input_section->vma + r_symndx);
-
-	    gp_usedp = true;
-	  }
+	      gp_usedp = true;
+	    }
+	  else
+	    r = bfd_reloc_outofrange;
 	  break;
 
 	case ALPHA_R_OP_PUSH:
@@ -1668,8 +1663,11 @@ alpha_relocate_section (bfd *output_bfd,
 	      asection *s;
 
 	      s = symndx_to_section[r_symndx];
-	      if (s == (asection *) NULL)
-		abort ();
+	      if (s == NULL)
+		{
+		  r = bfd_reloc_notsupported;
+		  break;
+		}
 	      addend = s->output_section->vma + s->output_offset - s->vma;
 	    }
 	  else
@@ -1677,8 +1675,11 @@ alpha_relocate_section (bfd *output_bfd,
 	      struct ecoff_link_hash_entry *h;
 
 	      h = sym_hashes[r_symndx];
-	      if (h == (struct ecoff_link_hash_entry *) NULL)
-		abort ();
+	      if (h == NULL)
+		{
+		  r = bfd_reloc_notsupported;
+		  break;
+		}
 
 	      if (! bfd_link_relocatable (info))
 		{
@@ -1695,7 +1696,7 @@ alpha_relocate_section (bfd *output_bfd,
 			 relocated.  */
 		      (*info->callbacks->undefined_symbol)
 			(info, h->root.root.string, input_bfd,
-			 input_section, (bfd_vma) 0, true);
+			 input_section, 0, true);
 		      addend = 0;
 		    }
 		}
@@ -1710,7 +1711,7 @@ alpha_relocate_section (bfd *output_bfd,
 			 above.  */
 		      (*info->callbacks->unattached_reloc)
 			(info, h->root.root.string,
-			 input_bfd, input_section, (bfd_vma) 0);
+			 input_bfd, input_section, 0);
 		    }
 
 		  addend = alpha_convert_external_reloc (output_bfd, info,
@@ -1732,19 +1733,28 @@ alpha_relocate_section (bfd *output_bfd,
 		{
 		case ALPHA_R_OP_PUSH:
 		  if (tos >= RELOC_STACKSIZE)
-		    abort ();
+		    {
+		      r = bfd_reloc_notsupported;
+		      break;
+		    }
 		  stack[tos++] = addend;
 		  break;
 
 		case ALPHA_R_OP_PSUB:
 		  if (tos == 0)
-		    abort ();
+		    {
+		      r = bfd_reloc_notsupported;
+		      break;
+		    }
 		  stack[tos - 1] -= addend;
 		  break;
 
 		case ALPHA_R_OP_PRSHIFT:
 		  if (tos == 0)
-		    abort ();
+		    {
+		      r = bfd_reloc_notsupported;
+		      break;
+		    }
 		  stack[tos - 1] >>= addend;
 		  break;
 		}
@@ -1759,28 +1769,13 @@ alpha_relocate_section (bfd *output_bfd,
 	     adjust the address of the reloc.  */
 	  if (! bfd_link_relocatable (info))
 	    {
-	      bfd_vma mask;
-	      bfd_vma val;
-
 	      if (tos == 0)
-		abort ();
-
-	      /* Get the relocation mask.  The separate steps and the
-		 casts to bfd_vma are attempts to avoid a bug in the
-		 Alpha OSF 1.3 C compiler.  See reloc.c for more
-		 details.  */
-	      mask = 1;
-	      mask <<= (bfd_vma) r_size;
-	      mask -= 1;
-
-	      /* FIXME: I don't know what kind of overflow checking,
-		 if any, should be done here.  */
-	      val = bfd_get_64 (input_bfd,
-				contents + r_vaddr - input_section->vma);
-	      val &=~ mask << (bfd_vma) r_offset;
-	      val |= (stack[--tos] & mask) << (bfd_vma) r_offset;
-	      bfd_put_64 (input_bfd, val,
-			  contents + r_vaddr - input_section->vma);
+		r = bfd_reloc_notsupported;
+	      else if (!write_bit_field (input_bfd, input_section,
+					 contents,
+					 r_vaddr - input_section->vma,
+					 r_offset, r_size, stack[--tos]))
+		r = bfd_reloc_outofrange;
 	    }
 	  break;
 
@@ -1791,13 +1786,12 @@ alpha_relocate_section (bfd *output_bfd,
 	  break;
 	}
 
-      if (relocatep)
+      if (relocatep && r == bfd_reloc_ok)
 	{
 	  reloc_howto_type *howto;
 	  struct ecoff_link_hash_entry *h = NULL;
 	  asection *s = NULL;
 	  bfd_vma relocation;
-	  bfd_reloc_status_type r;
 
 	  /* Perform a relocation.  */
 
@@ -1809,8 +1803,8 @@ alpha_relocate_section (bfd *output_bfd,
 	      /* If h is NULL, that means that there is a reloc
 		 against an external symbol which we thought was just
 		 a debugging symbol.  This should not happen.  */
-	      if (h == (struct ecoff_link_hash_entry *) NULL)
-		abort ();
+	      if (h == NULL)
+		r = bfd_reloc_notsupported;
 	    }
 	  else
 	    {
@@ -1819,11 +1813,14 @@ alpha_relocate_section (bfd *output_bfd,
 	      else
 		s = symndx_to_section[r_symndx];
 
-	      if (s == (asection *) NULL)
-		abort ();
+	      if (s == NULL)
+		r = bfd_reloc_notsupported;
+
 	    }
 
-	  if (bfd_link_relocatable (info))
+	  if (r != bfd_reloc_ok)
+	    ;
+	  else if (bfd_link_relocatable (info))
 	    {
 	      /* We are generating relocatable output, and must
 		 convert the existing reloc.  */
@@ -1889,12 +1886,7 @@ alpha_relocate_section (bfd *output_bfd,
 				    + hsec->output_offset);
 		    }
 		  else
-		    {
-		      (*info->callbacks->undefined_symbol)
-			(info, h->root.root.string, input_bfd, input_section,
-			 r_vaddr - input_section->vma, true);
-		      relocation = 0;
-		    }
+		    r = bfd_reloc_undefined;
 		}
 	      else
 		{
@@ -1909,37 +1901,14 @@ alpha_relocate_section (bfd *output_bfd,
 		    relocation += input_section->vma;
 		}
 
-	      r = _bfd_final_link_relocate (howto,
-					    input_bfd,
-					    input_section,
-					    contents,
-					    r_vaddr - input_section->vma,
-					    relocation,
-					    addend);
-	    }
-
-	  if (r != bfd_reloc_ok)
-	    {
-	      switch (r)
-		{
-		default:
-		case bfd_reloc_outofrange:
-		  abort ();
-		case bfd_reloc_overflow:
-		  {
-		    const char *name;
-
-		    if (r_extern)
-		      name = sym_hashes[r_symndx]->root.root.string;
-		    else
-		      name = bfd_section_name (symndx_to_section[r_symndx]);
-		    (*info->callbacks->reloc_overflow)
-		      (info, NULL, name, alpha_howto_table[r_type].name,
-		       (bfd_vma) 0, input_bfd, input_section,
-		       r_vaddr - input_section->vma);
-		  }
-		  break;
-		}
+	      if (r == bfd_reloc_ok)
+		r = _bfd_final_link_relocate (howto,
+					      input_bfd,
+					      input_section,
+					      contents,
+					      r_vaddr - input_section->vma,
+					      relocation,
+					      addend);
 	    }
 	}
 
@@ -1956,20 +1925,64 @@ alpha_relocate_section (bfd *output_bfd,
 
       if (gp_usedp && gp_undefined)
 	{
-	  (*info->callbacks->reloc_dangerous)
-	    (info, _("GP relative relocation used when GP not defined"),
-	     input_bfd, input_section, r_vaddr - input_section->vma);
+	  r = bfd_reloc_dangerous;
 	  /* Only give the error once per link.  */
 	  gp = 4;
 	  _bfd_set_gp_value (output_bfd, gp);
 	  gp_undefined = false;
 	}
+
+      if (r != bfd_reloc_ok)
+	{
+	  switch (r)
+	    {
+	    case bfd_reloc_overflow:
+	      {
+		const char *name;
+
+		if (r_extern)
+		  name = sym_hashes[r_symndx]->root.root.string;
+		else
+		  name = bfd_section_name (symndx_to_section[r_symndx]);
+		(*info->callbacks->reloc_overflow)
+		  (info, NULL, name, alpha_howto_table[r_type].name,
+		   0, input_bfd, input_section, r_vaddr - input_section->vma);
+	      }
+	      break;
+	    case bfd_reloc_outofrange:
+	      (*info->callbacks->einfo)
+		/* xgettext:c-format */
+		(_("%X%P: %pB(%pA): relocation out of range\n"),
+		 input_bfd, input_section);
+	      break;
+	    case bfd_reloc_undefined:
+	      (*info->callbacks->undefined_symbol)
+		(info, sym_hashes[r_symndx]->root.root.string,
+		 input_bfd, input_section,
+		 r_vaddr - input_section->vma, true);
+	      break;
+	    case bfd_reloc_notsupported:
+	      (*info->callbacks->einfo)
+		/* xgettext:c-format */
+		(_("%X%P: %pB(%pA): relocation is not supported\n"),
+		 input_bfd, input_section);
+	      break;
+	    case bfd_reloc_dangerous:
+	      (*info->callbacks->reloc_dangerous)
+		(info, _("GP relative relocation used when GP not defined"),
+		 input_bfd, input_section, r_vaddr - input_section->vma);
+	      break;
+	    default:
+	      abort ();
+	    }
+	  ret = false;
+	}
     }
 
   if (tos != 0)
-    abort ();
+    ret = false;
 
-  return true;
+  return ret;
 }
 
 /* Do final adjustments to the filehdr and the aouthdr.  This routine
@@ -2016,7 +2029,7 @@ alpha_ecoff_read_ar_hdr (bfd *abfd)
   struct areltdata *ret;
   struct ar_hdr *h;
 
-  ret = (struct areltdata *) _bfd_generic_read_ar_hdr_mag (abfd, ARFZMAG);
+  ret = _bfd_generic_read_ar_hdr_mag (abfd, ARFZMAG);
   if (ret == NULL)
     return NULL;
 
@@ -2027,9 +2040,9 @@ alpha_ecoff_read_ar_hdr (bfd *abfd)
 
       /* This is a compressed file.  We must set the size correctly.
 	 The size is the eight bytes after the dummy file header.  */
-      if (bfd_seek (abfd, (file_ptr) FILHSZ, SEEK_CUR) != 0
-	  || bfd_bread (ab, (bfd_size_type) 8, abfd) != 8
-	  || bfd_seek (abfd, (file_ptr) (- (FILHSZ + 8)), SEEK_CUR) != 0)
+      if (bfd_seek (abfd, FILHSZ, SEEK_CUR) != 0
+	  || bfd_read (ab, 8, abfd) != 8
+	  || bfd_seek (abfd, -(FILHSZ + 8), SEEK_CUR) != 0)
 	{
 	  free (ret);
 	  return NULL;
@@ -2053,7 +2066,7 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos,
   struct ar_hdr *hdr;
   bfd_byte ab[8];
   bfd_size_type size;
-  bfd_byte *buf, *p;
+  bfd_byte *buf;
   struct bfd_in_memory *bim;
   ufile_ptr filesize;
 
@@ -2068,24 +2081,24 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos,
       return nbfd;
     }
 
-  tdata = (struct areltdata *) nbfd->arelt_data;
+  tdata = nbfd->arelt_data;
   hdr = (struct ar_hdr *) tdata->arch_header;
   if (strncmp (hdr->ar_fmag, ARFZMAG, 2) != 0)
     return nbfd;
 
   /* We must uncompress this element.  We do this by copying it into a
-     memory buffer, and making bfd_bread and bfd_seek use that buffer.
+     memory buffer, and making bfd_read and bfd_seek use that buffer.
      This can use a lot of memory, but it's simpler than getting a
      temporary file, making that work with the file descriptor caching
      code, and making sure that it is deleted at all appropriate
      times.  It can be changed if it ever becomes important.  */
 
   /* The compressed file starts with a dummy ECOFF file header.  */
-  if (bfd_seek (nbfd, (file_ptr) FILHSZ, SEEK_SET) != 0)
+  if (bfd_seek (nbfd, FILHSZ, SEEK_SET) != 0)
     goto error_return;
 
   /* The next eight bytes are the real file size.  */
-  if (bfd_bread (ab, (bfd_size_type) 8, nbfd) != 8)
+  if (bfd_read (ab, 8, nbfd) != 8)
     goto error_return;
   size = H_GET_64 (nbfd, ab);
 
@@ -2099,12 +2112,12 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos,
 
   if (size != 0)
     {
+      bfd_byte *p;
       bfd_size_type left;
       bfd_byte dict[4096];
       unsigned int h;
-      bfd_byte b;
 
-      buf = (bfd_byte *) bfd_malloc (size);
+      buf = bfd_malloc (size);
       if (buf == NULL)
 	goto error_return;
       p = buf;
@@ -2112,7 +2125,7 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos,
       left = size;
 
       /* I don't know what the next eight bytes are for.  */
-      if (bfd_bread (ab, (bfd_size_type) 8, nbfd) != 8)
+      if (bfd_read (ab, 8, nbfd) != 8)
 	goto error_return;
 
       /* This is the uncompression algorithm.  It's a simple
@@ -2123,11 +2136,13 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos,
 	 next eight bytes in the output stream.  */
       memset (dict, 0, sizeof dict);
       h = 0;
-      while (bfd_bread (&b, (bfd_size_type) 1, nbfd) == 1)
+      do
 	{
-	  unsigned int i;
+	  bfd_byte b;
+	  if (bfd_read (&b, 1, nbfd) != 1)
+	    goto error_return;
 
-	  for (i = 0; i < 8; i++, b >>= 1)
+	  for (unsigned int i = 0; i < 8; i++, b >>= 1)
 	    {
 	      bfd_byte n;
 
@@ -2135,7 +2150,7 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos,
 		n = dict[h];
 	      else
 		{
-		  if (bfd_bread (&n, 1, nbfd) != 1)
+		  if (bfd_read (&n, 1, nbfd) != 1)
 		    goto error_return;
 		  dict[h] = n;
 		}
@@ -2150,27 +2165,25 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos,
 	      h ^= n;
 	      h &= sizeof dict - 1;
 	    }
-
-	  if (left == 0)
-	    break;
 	}
+      while (left != 0);
     }
 
   /* Now the uncompressed file contents are in buf.  */
-  bim = ((struct bfd_in_memory *)
-	 bfd_malloc ((bfd_size_type) sizeof (struct bfd_in_memory)));
+  bim = bfd_malloc (sizeof (*bim));
   if (bim == NULL)
     goto error_return;
   bim->size = size;
   bim->buffer = buf;
 
   nbfd->mtime_set = true;
-  nbfd->mtime = strtol (hdr->ar_date, (char **) NULL, 10);
+  nbfd->mtime = strtol (hdr->ar_date, NULL, 10);
 
   nbfd->flags |= BFD_IN_MEMORY;
   nbfd->iostream = bim;
   nbfd->iovec = &_bfd_memory_iovec;
   nbfd->origin = 0;
+  nbfd->size = 0;
   BFD_ASSERT (! nbfd->cacheable);
 
   return nbfd;
@@ -2201,7 +2214,7 @@ alpha_ecoff_openr_next_archived_file (bfd *archive, bfd *last_file)
 	 which is the uncompressed size.  We need the compressed size.  */
       t = (struct areltdata *) last_file->arelt_data;
       h = (struct ar_hdr *) t->arch_header;
-      size = strtol (h->ar_size, (char **) NULL, 10);
+      size = strtol (h->ar_size, NULL, 10);
 
       /* Pad to an even boundary...
 	 Note that last_file->origin can be odd in the case of
@@ -2227,8 +2240,7 @@ alpha_ecoff_get_elt_at_index (bfd *abfd, symindex sym_index)
   carsym *entry;
 
   entry = bfd_ardata (abfd)->symdefs + sym_index;
-  return alpha_ecoff_get_elt_at_filepos (abfd, entry->file_offset,
-					 NULL);
+  return alpha_ecoff_get_elt_at_filepos (abfd, entry->file_offset, NULL);
 }
 
 static void
@@ -2313,7 +2325,7 @@ static const struct ecoff_backend_data alpha_ecoff_backend_data =
     alpha_ecoff_mkobject_hook, _bfd_ecoff_styp_to_sec_flags,
     _bfd_ecoff_set_alignment_hook, _bfd_ecoff_slurp_symbol_table,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL
+    NULL, NULL, NULL,
   },
   /* Supported architecture.  */
   bfd_arch_alpha,
@@ -2394,17 +2406,12 @@ static const struct ecoff_backend_data alpha_ecoff_backend_data =
 #define _bfd_ecoff_bfd_get_relocated_section_contents \
   alpha_ecoff_get_relocated_section_contents
 
-/* Handling file windows is generic.  */
-#define _bfd_ecoff_get_section_contents_in_window \
-  _bfd_generic_get_section_contents_in_window
-
 /* Input section flag lookup is generic.  */
 #define _bfd_ecoff_bfd_lookup_section_flags bfd_generic_lookup_section_flags
 
 /* Relaxing sections is generic.  */
 #define _bfd_ecoff_bfd_relax_section bfd_generic_relax_section
 #define _bfd_ecoff_bfd_gc_sections bfd_generic_gc_sections
-#define _bfd_ecoff_bfd_merge_sections bfd_generic_merge_sections
 #define _bfd_ecoff_bfd_is_group_section bfd_generic_is_group_section
 #define _bfd_ecoff_bfd_group_name bfd_generic_group_name
 #define _bfd_ecoff_bfd_discard_group bfd_generic_discard_group
@@ -2416,7 +2423,7 @@ static const struct ecoff_backend_data alpha_ecoff_backend_data =
 #define _bfd_ecoff_bfd_link_check_relocs    _bfd_generic_link_check_relocs
 
 /* Installing internal relocations in a section is also generic.  */
-#define _bfd_ecoff_set_reloc _bfd_generic_set_reloc
+#define _bfd_ecoff_finalize_section_relocs _bfd_generic_finalize_section_relocs
 
 const bfd_target alpha_ecoff_le_vec =
 {
@@ -2436,6 +2443,7 @@ const bfd_target alpha_ecoff_le_vec =
   15,				/* ar_max_namelen */
   0,				/* match priority.  */
   TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+  TARGET_MERGE_SECTIONS,
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
      bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* data */

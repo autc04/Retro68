@@ -1,6 +1,6 @@
 #source: pr19636-2.s
 #as: --64 -mrelax-relocations=no
-#ld: -pie -m elf_x86_64 --no-dynamic-linker --hash-style=sysv -z dynamic-undefined-weak -z max-page-size=0x200000 -z noseparate-code $NO_DT_RELR_LDFLAGS
+#ld: -pie -m elf_x86_64 --no-dynamic-linker --hash-style=sysv -z dynamic-undefined-weak -z max-page-size=0x200000 -z noseparate-code $NO_DT_RELR_LDFLAGS -z nomark-plt
 #objdump: -dw
 #warning: -z dynamic-undefined-weak ignored
 

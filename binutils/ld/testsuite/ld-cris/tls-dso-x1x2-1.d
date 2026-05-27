@@ -1,6 +1,6 @@
 #source: tls-hx.s
 #source: tls-x1x2.s
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux --shared --hash-style=sysv
 #objdump: -T
 

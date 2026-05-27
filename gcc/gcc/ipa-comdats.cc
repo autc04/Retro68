@@ -1,5 +1,5 @@
 /* Localize comdats.
-   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -262,6 +262,7 @@ ipa_comdats (void)
        user section names.  */
     else if (symbol->externally_visible
 	     || symbol->force_output
+	     || symbol->ref_by_asm
 	     || symbol->used_from_other_partition
 	     || TREE_THIS_VOLATILE (symbol->decl)
 	     || symbol->get_section ()

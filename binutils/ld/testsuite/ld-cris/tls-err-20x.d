@@ -3,7 +3,7 @@
 #source: tls-ld-6.s --pic
 #source: tls-ie-10.s --pic
 #source: tls-hx.s --pic
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux
 #error: \A[^\n]*: warning: cannot find entry symbol _start; defaulting to [0-9a-f]*\n[^\n]*: in function `tlsdsofn9':\n[^\n]*: undefined reference to `x1'\n[^\n]*: undefined reference to `x2'\Z
 

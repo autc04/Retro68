@@ -5,5 +5,5 @@ SECTIONS
   {
     *(TEST)
   }
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -59,7 +59,7 @@ TypeCheckCallExpr::visit (ADTType &type)
   if (variant.get_variant_type () != TyTy::VariantDef::VariantType::TUPLE)
     {
       rust_error_at (
-	call.get_locus (), ErrorCode::E0423,
+	call.get_locus (), ErrorCode::E0618,
 	"expected function, tuple struct or tuple variant, found struct %qs",
 	type.get_name ().c_str ());
       return;
@@ -171,7 +171,8 @@ TypeCheckCallExpr::visit (FnType &type)
 	    {
 	    case TyTy::TypeKind::ERROR:
 	      return;
-	      case TyTy::TypeKind::INT: {
+	    case TyTy::TypeKind::INT:
+	      {
 		auto &int_ty
 		  = static_cast<TyTy::IntType &> (*argument_expr_tyty);
 		if ((int_ty.get_int_kind () == TyTy::IntType::IntKind::I8)
@@ -186,7 +187,8 @@ TypeCheckCallExpr::visit (FnType &type)
 		  }
 		break;
 	      }
-	      case TyTy::TypeKind::UINT: {
+	    case TyTy::TypeKind::UINT:
+	      {
 		auto &uint_ty
 		  = static_cast<TyTy::UintType &> (*argument_expr_tyty);
 		if ((uint_ty.get_uint_kind () == TyTy::UintType::UintKind::U8)
@@ -202,7 +204,8 @@ TypeCheckCallExpr::visit (FnType &type)
 		  }
 		break;
 	      }
-	      case TyTy::TypeKind::FLOAT: {
+	    case TyTy::TypeKind::FLOAT:
+	      {
 		if (static_cast<TyTy::FloatType &> (*argument_expr_tyty)
 		      .get_float_kind ()
 		    == TyTy::FloatType::FloatKind::F32)
@@ -216,14 +219,16 @@ TypeCheckCallExpr::visit (FnType &type)
 		  }
 		break;
 	      }
-	      case TyTy::TypeKind::BOOL: {
+	    case TyTy::TypeKind::BOOL:
+	      {
 		rich_location richloc (line_table, arg_locus);
 		richloc.add_fixit_replace ("cast the value to c_int: as c_int");
 		rust_error_at (arg_locus, ErrorCode::E0617,
 			       "expected %<c_int%> variadic argument");
 		return;
 	      }
-	      case TyTy::TypeKind::FNDEF: {
+	    case TyTy::TypeKind::FNDEF:
+	      {
 		rust_error_at (
 		  arg_locus, ErrorCode::E0617,
 		  "unexpected function definition type as variadic "
@@ -246,7 +251,7 @@ TypeCheckCallExpr::visit (FnType &type)
     }
 
   type.monomorphize ();
-  resolved = type.get_return_type ()->clone ();
+  resolved = type.get_return_type ()->monomorphized_clone ();
 }
 
 void
@@ -322,8 +327,8 @@ TypeCheckMethodCallExpr::go (FnType *ref, HIR::MethodCallExpr &call,
 	  return new ErrorType (ref->get_ref ());
 	}
 
-      Argument a (arg->get_mappings (), argument_expr_tyty, arg->get_locus ());
-      args.push_back (std::move (a));
+      args.emplace_back (arg->get_mappings (), argument_expr_tyty,
+			 arg->get_locus ());
     }
 
   TypeCheckMethodCallExpr checker (call.get_mappings (), args,

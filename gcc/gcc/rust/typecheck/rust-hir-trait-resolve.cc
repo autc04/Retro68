@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2025 Free Software Foundation, Inc.
+// Copyright (C) 2021-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -21,9 +21,6 @@
 #include "rust-substitution-mapper.h"
 #include "rust-type-util.h"
 #include "rust-immutable-name-resolution-context.h"
-
-// used for flag_name_resolution_2_0
-#include "options.h"
 
 namespace Rust {
 namespace Resolver {
@@ -123,27 +120,15 @@ bool
 TraitResolver::resolve_path_to_trait (const HIR::TypePath &path,
 				      HIR::Trait **resolved) const
 {
+  auto &nr_ctx
+    = Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
+
   NodeId ref;
-  bool ok;
-  if (flag_name_resolution_2_0)
+  if (auto ref_opt = nr_ctx.lookup (path.get_mappings ().get_nodeid ()))
     {
-      auto &nr_ctx
-	= Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
-
-      auto ref_opt = nr_ctx.lookup (path.get_mappings ().get_nodeid ());
-
-      if ((ok = ref_opt.has_value ()))
-	ref = *ref_opt;
+      ref = *ref_opt;
     }
   else
-    {
-      auto path_nodeid = path.get_mappings ().get_nodeid ();
-      ok = resolver->lookup_resolved_type (path_nodeid, &ref)
-	   || resolver->lookup_resolved_name (path_nodeid, &ref)
-	   || resolver->lookup_resolved_macro (path_nodeid, &ref);
-    }
-
-  if (!ok)
     {
       rust_error_at (path.get_locus (), "Failed to resolve path to node-id");
       return false;
@@ -224,7 +209,8 @@ TraitResolver::resolve_trait (HIR::Trait *trait_reference)
 	  // handling.
 	  break;
 
-	  case HIR::GenericParam::GenericKind::TYPE: {
+	case HIR::GenericParam::GenericKind::TYPE:
+	  {
 	    auto &typaram = static_cast<HIR::TypeParam &> (*generic_param);
 	    bool is_self
 	      = typaram.get_type_representation ().as_string ().compare ("Self")
@@ -238,8 +224,7 @@ TraitResolver::resolve_trait (HIR::Trait *trait_reference)
 						  apply_sized);
 
 	    context->insert_type (generic_param->get_mappings (), param_type);
-	    substitutions.push_back (
-	      TyTy::SubstitutionParamMapping (typaram, param_type));
+	    substitutions.emplace_back (typaram, param_type);
 
 	    if (is_self)
 	      {
@@ -261,17 +246,17 @@ TraitResolver::resolve_trait (HIR::Trait *trait_reference)
 
   // copy the substitition mappings
   std::vector<TyTy::SubstitutionParamMapping> self_subst_copy;
+  self_subst_copy.reserve (substitutions.size ());
+
   for (auto &sub : substitutions)
     self_subst_copy.push_back (sub.clone ());
 
   // They also inherit themselves as a bound this enables a trait item to
   // reference other Self::trait_items
-  auto self_hrtb
-    = TyTy::TypeBoundPredicate (trait_reference->get_mappings ().get_defid (),
-				std::move (self_subst_copy),
-				BoundPolarity::RegularBound,
-				trait_reference->get_locus ());
-  specified_bounds.push_back (self_hrtb);
+  specified_bounds.emplace_back (trait_reference->get_mappings ().get_defid (),
+				 std::move (self_subst_copy),
+				 BoundPolarity::RegularBound,
+				 trait_reference->get_locus ());
 
   // look for any
   std::vector<TyTy::TypeBoundPredicate> super_traits;
@@ -287,7 +272,8 @@ TraitResolver::resolve_trait (HIR::Trait *trait_reference)
 
 	      auto predicate = get_predicate_from_bound (
 		b->get_path (),
-		tl::nullopt /*this will setup a PLACEHOLDER for self*/);
+		tl::nullopt /*this will setup a PLACEHOLDER for self*/,
+		BoundPolarity::RegularBound, false, true);
 	      if (predicate.is_error ())
 		return &TraitReference::error_node ();
 
@@ -304,6 +290,8 @@ TraitResolver::resolve_trait (HIR::Trait *trait_reference)
     {
       // make a copy of the substs
       std::vector<TyTy::SubstitutionParamMapping> item_subst;
+      item_subst.reserve (substitutions.size ());
+
       for (auto &sub : substitutions)
 	item_subst.push_back (sub.clone ());
 
@@ -384,7 +372,26 @@ TraitItemReference::resolve_item (HIR::TraitItemType &type)
 void
 TraitItemReference::resolve_item (HIR::TraitItemConst &constant)
 {
-  // TODO
+  TyTy::BaseType *ty = nullptr;
+  if (constant.has_type ())
+    ty = TypeCheckType::Resolve (constant.get_type ());
+
+  TyTy::BaseType *expr = nullptr;
+  if (constant.has_expr ())
+    expr = TypeCheckExpr::Resolve (constant.get_expr ());
+
+  bool have_specified_ty = ty != nullptr && !ty->is<TyTy::ErrorType> ();
+  bool have_expr_ty = expr != nullptr && !expr->is<TyTy::ErrorType> ();
+
+  if (have_specified_ty && have_expr_ty)
+    {
+      coercion_site (constant.get_mappings ().get_hirid (),
+		     TyTy::TyWithLocation (ty,
+					   constant.get_type ().get_locus ()),
+		     TyTy::TyWithLocation (expr,
+					   constant.get_expr ().get_locus ()),
+		     constant.get_locus ());
+    }
 }
 
 void
@@ -424,10 +431,26 @@ TraitItemReference::associated_type_set (TyTy::BaseType *ty) const
 {
   rust_assert (get_trait_item_type () == TraitItemType::TYPE);
 
+  // this isnt super safe there are cases like the FnTraits where the type is
+  // set to the impls placeholder associated type. For example
+  //
+  // type Output = F::Output; -- see the fn trait impls in libcore
+  //
+  // then this projection ends up resolving back to this placeholder so it just
+  // ends up being cyclical
+
   TyTy::BaseType *item_ty = get_tyty ();
   rust_assert (item_ty->get_kind () == TyTy::TypeKind::PLACEHOLDER);
   TyTy::PlaceholderType *placeholder
     = static_cast<TyTy::PlaceholderType *> (item_ty);
+
+  if (ty->is<TyTy::ProjectionType> ())
+    {
+      const auto &projection = *static_cast<const TyTy::ProjectionType *> (ty);
+      const auto resolved = projection.get ();
+      if (resolved == item_ty)
+	return;
+    }
 
   placeholder->set_associated_type (ty->get_ty_ref ());
 }
@@ -524,15 +547,16 @@ AssociatedImplTrait::setup_associated_types (
 	  // handling.
 	  break;
 
-	  case HIR::GenericParam::GenericKind::TYPE: {
+	case HIR::GenericParam::GenericKind::TYPE:
+	  {
 	    TyTy::BaseType *l = nullptr;
 	    bool ok = context->lookup_type (
 	      generic_param->get_mappings ().get_hirid (), &l);
 	    if (ok && l->get_kind () == TyTy::TypeKind::PARAM)
 	      {
-		substitutions.push_back (TyTy::SubstitutionParamMapping (
-		  static_cast<HIR::TypeParam &> (*generic_param),
-		  static_cast<TyTy::ParamType *> (l)));
+		substitutions.emplace_back (static_cast<HIR::TypeParam &> (
+					      *generic_param),
+					    static_cast<TyTy::ParamType *> (l));
 	      }
 	  }
 	  break;
@@ -556,14 +580,13 @@ AssociatedImplTrait::setup_associated_types (
       if (p.needs_substitution () && infer)
 	{
 	  TyTy::TyVar infer_var = TyTy::TyVar::get_implicit_infer_var (locus);
-	  subst_args.push_back (
-	    TyTy::SubstitutionArg (&p, infer_var.get_tyty ()));
+	  subst_args.emplace_back (&p, infer_var.get_tyty ());
 	}
       else
 	{
-	  TyTy::ParamType *param = p.get_param_ty ();
-	  TyTy::BaseType *resolved = param->destructure ();
-	  subst_args.push_back (TyTy::SubstitutionArg (&p, resolved));
+	  auto param = p.get_param_ty ();
+	  auto resolved = param->destructure ();
+	  subst_args.emplace_back (&p, resolved);
 	  param_mappings[param->get_symbol ()] = resolved->get_ref ();
 	}
     }
@@ -590,8 +613,8 @@ AssociatedImplTrait::setup_associated_types (
       if (i == 0)
 	continue;
 
-      const TyTy::ParamType *p = arg.get_param_ty ();
-      TyTy::BaseType *r = p->resolve ();
+      const auto p = arg.get_param_ty ();
+      auto r = p->resolve ();
       if (!r->is_concrete ())
 	{
 	  r = SubstMapperInternal::Resolve (r, infer_arguments);
@@ -607,8 +630,8 @@ AssociatedImplTrait::setup_associated_types (
       if (i == 0)
 	continue;
 
-      const TyTy::ParamType *p = arg.get_param_ty ();
-      TyTy::BaseType *r = p->resolve ();
+      const auto p = arg.get_param_ty ();
+      auto r = p->resolve ();
       if (!r->is_concrete ())
 	{
 	  r = SubstMapperInternal::Resolve (r, infer_arguments);
@@ -734,7 +757,8 @@ TraitItemReference::is_object_safe () const
   // https://doc.rust-lang.org/reference/items/traits.html#object-safety
   switch (get_trait_item_type ())
     {
-      case TraitItemReference::TraitItemType::FN: {
+    case TraitItemReference::TraitItemType::FN:
+      {
 	// lets be boring and just check that this is indeed a method will do
 	// for now
 	const HIR::TraitItem *item = get_hir_trait_item ();

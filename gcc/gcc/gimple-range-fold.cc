@@ -1,5 +1,5 @@
 /* Code for GIMPLE range related routines.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by Andrew MacLeod <amacleod@redhat.com>
    and Aldy Hernandez <aldyh@redhat.com>.
 
@@ -51,6 +51,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "sreal.h"
 #include "ipa-cp.h"
 #include "ipa-prop.h"
+#include "rtl.h"
 // Construct a fur_source, and set the m_query field.
 
 fur_source::fur_source (range_query *q)
@@ -88,24 +89,26 @@ fur_source::query_relation (tree op1 ATTRIBUTE_UNUSED,
   return VREL_VARYING;
 }
 
-// Default registers nothing.
+// Default registers nothing and returns false meaning nothing changed.
 
-void
+bool
 fur_source::register_relation (gimple *s ATTRIBUTE_UNUSED,
 			       relation_kind k ATTRIBUTE_UNUSED,
 			       tree op1 ATTRIBUTE_UNUSED,
 			       tree op2 ATTRIBUTE_UNUSED)
 {
+  return false;
 }
 
-// Default registers nothing.
+// Default registers nothing and returns false meaning nothing changed.
 
-void
+bool
 fur_source::register_relation (edge e ATTRIBUTE_UNUSED,
 			       relation_kind k ATTRIBUTE_UNUSED,
 			       tree op1 ATTRIBUTE_UNUSED,
 			       tree op2 ATTRIBUTE_UNUSED)
 {
+  return false;
 }
 
 // Get the value of EXPR on edge m_edge.
@@ -161,29 +164,50 @@ fur_stmt::query_relation (tree op1, tree op2)
   return m_query->relation ().query (m_stmt, op1, op2);
 }
 
-// Instantiate a stmt based fur_source with a GORI object.
+// Instantiate a stmt based fur_source with a GORI object and a ranger cache.
 
-
-fur_depend::fur_depend (gimple *s, range_query *q)
-  : fur_stmt (s, q)
+fur_depend::fur_depend (gimple *s, range_query *q, ranger_cache *c)
+  : fur_stmt (s, q), m_cache (c)
 {
   m_depend_p = true;
 }
 
-// Register a relation on a stmt if there is an oracle.
+// Register a relation on a stmt if there is an oracle.  Return false if
+// no new relation is registered.
 
-void
+bool
 fur_depend::register_relation (gimple *s, relation_kind k, tree op1, tree op2)
 {
-  m_query->relation ().record (s, k, op1, op2);
+  if (!m_query->relation ().record (s, k, op1, op2))
+    return false;
+
+  // This new relation could cause different calculations, so mark the operands
+  // with a new timestamp, forcing recalculations.
+  if (m_cache)
+    {
+      m_cache->update_consumers (op1);
+      m_cache->update_consumers (op2);
+    }
+  return true;
 }
 
-// Register a relation on an edge if there is an oracle.
+// Register a relation on an edge if there is an oracle.  Return false if
+// no new relation is registered.
 
-void
+bool
 fur_depend::register_relation (edge e, relation_kind k, tree op1, tree op2)
 {
-  m_query->relation ().record (e, k, op1, op2);
+  if (!m_query->relation ().record (e, k, op1, op2))
+    return false;
+
+  // This new relation could cause different calculations, so mark the operands
+  // with a new timestamp, forcing recalculations.
+  if (m_cache)
+    {
+      m_cache->update_consumers (op1);
+      m_cache->update_consumers (op2);
+    }
+  return true;
 }
 
 // This version of fur_source will pick a range up from a list of ranges
@@ -386,9 +410,9 @@ class fur_relation : public fur_stmt
 {
 public:
   fur_relation (gimple *s, range_query *q = NULL);
-  virtual void register_relation (gimple *stmt, relation_kind k, tree op1,
+  virtual bool register_relation (gimple *stmt, relation_kind k, tree op1,
 				  tree op2);
-  virtual void register_relation (edge e, relation_kind k, tree op1,
+  virtual bool register_relation (edge e, relation_kind k, tree op1,
 				  tree op2);
   relation_trio trio() const;
 private:
@@ -409,15 +433,18 @@ fur_relation::trio () const
 }
 
 // Don't support edges, but avoid a compiler warning by providing the routine.
+// Return false indicating nothing has changed.
 
-void
+bool
 fur_relation::register_relation (edge, relation_kind, tree, tree)
 {
+  return false;
 }
 
-// Register relation K between OP1 and OP2 on STMT.
+// Register relation K between OP1 and OP2 on STMT.  Return false if there
+// is no relation.
 
-void
+bool
 fur_relation::register_relation (gimple *stmt, relation_kind k, tree op1,
 				 tree op2)
 {
@@ -461,6 +488,8 @@ fur_relation::register_relation (gimple *stmt, relation_kind k, tree op1,
       else if (op2 == a1 && op1 == a2)
 	op1_op2 = relation_swap (k);
     }
+  return def_op1 == VREL_VARYING && def_op2 == VREL_VARYING
+	 && op1_op2 == VREL_VARYING;
 }
 
 // Return the relation trio for stmt S using query Q.
@@ -638,10 +667,14 @@ fold_using_range::fold_stmt (vrange &r, gimple *s, fur_source &src, tree name)
   if (!name)
     name = gimple_get_lhs (s);
 
-  // Process addresses.
-  if (gimple_code (s) == GIMPLE_ASSIGN
-      && gimple_assign_rhs_code (s) == ADDR_EXPR)
-    return range_of_address (as_a <prange> (r), s, src);
+  // Process addresses and loads from static constructors.
+  if (gimple_code (s) == GIMPLE_ASSIGN)
+    {
+      if (gimple_assign_rhs_code (s) == ADDR_EXPR)
+	return range_of_address (as_a <prange> (r), s, src);
+      if (range_from_readonly_var (r, s))
+	return true;
+    }
 
   gimple_range_op_handler handler (s);
   if (handler)
@@ -759,15 +792,17 @@ fold_using_range::range_of_range_op (vrange &r,
 		}
 	      if (gimple_range_ssa_p (op1))
 		{
-		  rel = handler.lhs_op1_relation (r, range1, range2, rel);
-		  if (rel != VREL_VARYING)
-		    src.register_relation (s, rel, lhs, op1);
+		  relation_kind rel2 = handler.lhs_op1_relation (r, range1,
+								 range2, rel);
+		  if (rel2 != VREL_VARYING)
+		    src.register_relation (s, rel2, lhs, op1);
 		}
 	      if (gimple_range_ssa_p (op2))
 		{
-		  rel = handler.lhs_op2_relation (r, range1, range2, rel);
-		  if (rel != VREL_VARYING)
-		    src.register_relation (s, rel, lhs, op2);
+		  relation_kind rel2 = handler.lhs_op2_relation (r, range1,
+								 range2, rel);
+		  if (rel2 != VREL_VARYING)
+		    src.register_relation (s, rel2, lhs, op2);
 		}
 	    }
 	  // Check for an existing BB, as we maybe asked to fold an
@@ -776,11 +811,14 @@ fold_using_range::range_of_range_op (vrange &r,
 	    {
 	      basic_block bb = gimple_bb (s);
 	      edge e0 = EDGE_SUCC (bb, 0);
-	      edge e1 = EDGE_SUCC (bb, 1);
+	      /* During RTL expansion one of the edges can be removed
+		 if expansion proves the jump is unconditional.  */
+	      edge e1 = single_succ_p (bb) ? NULL : EDGE_SUCC (bb, 1);
 
+	      gcc_checking_assert (e1 || currently_expanding_to_rtl);
 	      if (!single_pred_p (e0->dest))
 		e0 = NULL;
-	      if (!single_pred_p (e1->dest))
+	      if (e1 && !single_pred_p (e1->dest))
 		e1 = NULL;
 	      src.register_outgoing_edges (as_a<gcond *> (s),
 					   as_a <irange> (r), e0, e1);
@@ -883,6 +921,195 @@ fold_using_range::range_of_address (prange &r, gimple *stmt, fur_source &src)
   // Otherwise return varying.
   r.set_varying (TREE_TYPE (gimple_assign_rhs1 (stmt)));
   return true;
+}
+
+/* If TYPE is a pointer, return false.  Otherwise, add zero of TYPE (which must
+   be an integer) to R and return true.  */
+
+static bool
+range_from_missing_constructor_part (vrange &r, tree type)
+{
+  if (POINTER_TYPE_P (type))
+    return false;
+  gcc_checking_assert (irange::supports_p (type));
+  wide_int zero = wi::zero (TYPE_PRECISION (type));
+  r.union_ (int_range<1> (type, zero, zero));
+  return true;
+}
+
+// One step of fold_using_range::range_from_readonly_var.  Process expressions
+// in COMPS which together load a value of TYPE, from index I to 0 according to
+// the corresponding static initializer in CST which should be either a scalar
+// invariant or a constructor.  Currently TYPE must be either a pointer or an
+// integer.  If TYPE is a pointer, return true if all potentially loaded values
+// are known not to be zero and false if any of them can be zero.  Otherwise
+// return true if it is possible to add all constants which can be loaded from
+// CST (which must be storable to TYPE) to R and do so.
+// TODO: Add support for franges.
+
+static bool
+range_from_readonly_load (vrange &r, tree type, tree cst,
+			  const vec <tree> &comps, unsigned i)
+{
+  if (i == 0)
+    {
+      if (!useless_type_conversion_p (type, TREE_TYPE (cst)))
+	return false;
+
+      if (POINTER_TYPE_P (type))
+	{
+	  bool strict_overflow_p;
+	  return tree_single_nonzero_warnv_p (cst, &strict_overflow_p);
+	}
+
+      if (TREE_CODE (cst) != INTEGER_CST)
+	return false;
+
+      wide_int wi_cst = wi::to_wide (cst);
+      r.union_ (int_range<1> (type, wi_cst, wi_cst));
+      return true;
+    }
+  /* TODO: Perhaps handle RAW_DATA_CST too.  */
+  if (TREE_CODE (cst) != CONSTRUCTOR)
+    return false;
+
+  i--;
+  tree expr = comps[i];
+  unsigned ix;
+  tree index, val;
+
+  if (TREE_CODE (expr) == COMPONENT_REF)
+    {
+      tree ref_fld = TREE_OPERAND (expr, 1);
+      FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (cst), ix, index, val)
+	{
+	  if (index != ref_fld)
+	    continue;
+	  return range_from_readonly_load (r, type, val, comps, i);
+	}
+      if (TREE_CODE (TREE_TYPE (cst)) == RECORD_TYPE)
+	return range_from_missing_constructor_part (r, type);
+      else
+	/* Missing constructor of a union field just isn't like other missing
+	   constructor parts.  */
+	return false;
+    }
+
+  gcc_assert (TREE_CODE (expr) == ARRAY_REF);
+  tree op1 = TREE_OPERAND (expr, 1);
+
+  if (TREE_CODE (op1) == INTEGER_CST)
+    {
+      unsigned ctor_idx;
+      val = get_array_ctor_element_at_index (cst, wi::to_offset (op1),
+					     &ctor_idx);
+      if (!val)
+	{
+	  if (ctor_idx < CONSTRUCTOR_NELTS (cst))
+	    return false;
+	  return range_from_missing_constructor_part (r, type);
+	}
+      return range_from_readonly_load (r, type, val, comps, i);
+    }
+
+  tree arr_type = TREE_TYPE (cst);
+  tree domain = TYPE_DOMAIN (arr_type);
+  if (!TYPE_MIN_VALUE (domain)
+      || !TYPE_MAX_VALUE (domain)
+      || !tree_fits_uhwi_p (TYPE_MIN_VALUE (domain))
+      || !tree_fits_uhwi_p (TYPE_MAX_VALUE (domain)))
+    return false;
+  unsigned HOST_WIDE_INT needed_count
+    = (tree_to_uhwi (TYPE_MAX_VALUE (domain))
+       - tree_to_uhwi (TYPE_MIN_VALUE (domain)) + 1);
+  if (CONSTRUCTOR_NELTS (cst) < needed_count)
+    {
+      if (!range_from_missing_constructor_part (r, type))
+	return false;
+    }
+
+  FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (cst), ix, index, val)
+    {
+      /* TODO: If the array index in the expr is an SSA_NAME with a known
+	 range, we could use just values loaded from the corresponding array
+	 elements.  */
+      if (!range_from_readonly_load (r, type, val, comps, i))
+	return false;
+    }
+
+  return true;
+}
+
+// Attempt to calculate the range of value loaded by STMT (which must be an
+// assignment) if it is a load from a read-only aggregate variable.  If
+// successful, return true and set the discovered range in R.  Otherwise return
+// false and leave R untouched.
+
+bool
+fold_using_range::range_from_readonly_var (vrange &r, gimple *stmt)
+{
+  gcc_checking_assert (gimple_code (stmt) == GIMPLE_ASSIGN);
+  tree type = TREE_TYPE (gimple_assign_lhs (stmt));
+  /* TODO: Add support for frange.  */
+  if (!irange::supports_p (type)
+      && !prange::supports_p (type))
+    return false;
+
+  unsigned HOST_WIDE_INT limit = param_vrp_cstload_limit;
+  if (!limit)
+    return false;
+
+  tree t = gimple_assign_rhs1 (stmt);
+  if (!tree_fits_uhwi_p (TYPE_SIZE_UNIT (TREE_TYPE (t))))
+    return false;
+  limit *= tree_to_uhwi (TYPE_SIZE_UNIT (TREE_TYPE (t)));
+
+  unsigned count = 0;
+  while (TREE_CODE (t) == ARRAY_REF
+	 || TREE_CODE (t) == COMPONENT_REF)
+    {
+      count++;
+      t = TREE_OPERAND (t, 0);
+    }
+  if (!count
+      || (TREE_CODE (t) != VAR_DECL
+	  && TREE_CODE (t) != CONST_DECL))
+    return false;
+
+  if (!tree_fits_uhwi_p (DECL_SIZE_UNIT (t))
+      || tree_to_uhwi (DECL_SIZE_UNIT (t)) > limit)
+    return false;
+
+  /* TODO: We perhaps should try to handle at least some cases when the
+     declaration is wrapped in a MEM_REF, but we need to be careful to look at
+     the right part of the constructor then.  */
+  tree ctor = ctor_for_folding (t);
+  if (!ctor
+      || TREE_CODE (ctor) != CONSTRUCTOR)
+    return false;
+
+  t = gimple_assign_rhs1 (stmt);
+  auto_vec <tree, 4> comps;
+  comps.safe_grow (count, true);
+  int i = 0;
+  while (TREE_CODE (t) == ARRAY_REF
+	 || TREE_CODE (t) == COMPONENT_REF)
+    {
+      comps[i] = t;
+      t = TREE_OPERAND (t, 0);
+      i++;
+    }
+
+  value_range tmp (type);
+  bool res = range_from_readonly_load (tmp, type, ctor, comps, count);
+  if (res)
+    {
+      if (POINTER_TYPE_P (type))
+	r.set_nonzero (type);
+      else
+	r = tmp;
+    }
+  return res;
 }
 
 // Calculate a range for phi statement S and return it in R.
@@ -989,31 +1216,9 @@ fold_using_range::range_of_phi (vrange &r, gphi *phi, fur_source &src)
 	}
     }
 
-  // If PHI analysis is available, see if there is an iniital range.
-  if (phi_analysis_available_p ()
-      && irange::supports_p (TREE_TYPE (phi_def)))
-    {
-      phi_group *g = (phi_analysis())[phi_def];
-      if (g && !(g->range ().varying_p ()))
-	{
-	  if (dump_file && (dump_flags & TDF_DETAILS))
-	    {
-	      fprintf (dump_file, "PHI GROUP query for ");
-	      print_generic_expr (dump_file, phi_def, TDF_SLIM);
-	      fprintf (dump_file, " found : ");
-	      g->range ().dump (dump_file);
-	      fprintf (dump_file, " and adjusted original range from :");
-	      r.dump (dump_file);
-	    }
-	  r.intersect (g->range ());
-	  if (dump_file && (dump_flags & TDF_DETAILS))
-	    {
-	      fprintf (dump_file, " to :");
-	      r.dump (dump_file);
-	      fprintf (dump_file, "\n");
-	    }
-	}
-    }
+  // Incorporate any global value.  If a PHI analysis phase was run, there may
+  // be a restricted global range already.  Query the range with no context
+  // to get a global range.
 
   // If SCEV is available, query if this PHI has any known values.
   if (scev_initialized_p ()
@@ -1181,6 +1386,17 @@ fold_using_range::condexpr_adjust (vrange &r1, vrange &r2, gimple *, tree cond,
 	  ssa2, src))
 	r2.intersect (tmp2);
     }
+  // If the same name is specified in the condition and COND_EXPR,
+  // combine the calculated condition range and the other one provided. ie:
+  // c_1 = b_2 < 10
+  // f_3 = c_1 ? 0 : b_2
+  // With b_2 providing the false value, the value of f_3 will be
+  // either 0 UNION  (0 = b_2 < 10), which is [-INF, 9].
+  // COND_EXPR is
+  if (ssa1 && cond_name == ssa1)
+    r1 = cond_true;
+  else if (ssa2 && cond_name == ssa2)
+    r2 = cond_false;
   return true;
 }
 
@@ -1244,11 +1460,15 @@ fold_using_range::range_of_ssa_name_with_loop_info (vrange &r, tree name,
 						    class loop *l, gphi *phi,
 						    fur_source &src)
 {
+  static bool in_scev_call = false;
   gcc_checking_assert (TREE_CODE (name) == SSA_NAME);
+  // Avoid SCEV callbacks causing infinite recursion.
+  if (in_scev_call)
+    r.set_varying (TREE_TYPE (name));
   // SCEV currently invokes get_range_query () for values.  If the query
   // being passed in is not the same SCEV will use, do not invoke SCEV.
   // This can be remove if/when SCEV uses a passed in range-query.
-  if (src.query () != get_range_query (cfun))
+  else if (src.query () != get_range_query (cfun))
     {
       r.set_varying (TREE_TYPE (name));
       // Report the msmatch if SRC is not the global query.  The cache
@@ -1258,8 +1478,13 @@ fold_using_range::range_of_ssa_name_with_loop_info (vrange &r, tree name,
 	fprintf (dump_file,
 	  "fold_using-range:: SCEV not invoked due to mismatched queries\n");
     }
-  else if (!range_of_var_in_loop (r, name, l, phi, src.query ()))
-      r.set_varying (TREE_TYPE (name));
+  else
+    {
+      in_scev_call = true;
+      if (!range_of_var_in_loop (r, name, l, phi, src.query ()))
+	r.set_varying (TREE_TYPE (name));
+      in_scev_call = false;
+    }
 }
 
 // -----------------------------------------------------------------------

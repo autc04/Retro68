@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -24,16 +24,14 @@
 #include "rust-attribute-values.h"
 #include "rust-system.h"
 #include "rust-immutable-name-resolution-context.h"
-
-// for flag_name_resolution_2_0
-#include "options.h"
+#include "rust-intrinsic-values.h"
 
 namespace Rust {
 namespace HIR {
 
 UnsafeChecker::UnsafeChecker ()
   : context (*Resolver::TypeCheckContext::get ()),
-    resolver (*Resolver::Resolver::get ()),
+    resolver (Resolver2_0::ImmutableNameResolutionContext::get ().resolver ()),
     mappings (Analysis::Mappings::get ())
 {}
 
@@ -95,42 +93,44 @@ check_unsafe_call (HIR::Function *fn, location_t locus, const std::string &kind)
 static bool
 is_safe_intrinsic (const std::string &fn_name)
 {
+  using Intrinsics = Values::Intrinsics;
+
   static const std::unordered_set<std::string> safe_intrinsics = {
-    "abort",
-    "size_of",
-    "min_align_of",
-    "needs_drop",
-    "caller_location",
-    "add_with_overflow",
-    "sub_with_overflow",
-    "mul_with_overflow",
-    "wrapping_add",
-    "wrapping_sub",
-    "wrapping_mul",
-    "saturating_add",
-    "saturating_sub",
-    "rotate_left",
-    "rotate_right",
-    "ctpop",
-    "ctlz",
-    "cttz",
-    "bswap",
-    "bitreverse",
-    "discriminant_value",
-    "type_id",
-    "likely",
-    "unlikely",
-    "ptr_guaranteed_eq",
-    "ptr_guaranteed_ne",
-    "minnumf32",
-    "minnumf64",
-    "maxnumf32",
-    "rustc_peek",
-    "maxnumf64",
-    "type_name",
-    "forget",
-    "black_box",
-    "variant_count",
+    Intrinsics::ABORT,
+    Intrinsics::SIZE_OF,
+    Intrinsics::MIN_ALIGN_OF,
+    Intrinsics::NEEDS_DROP,
+    Intrinsics::CALLER_LOCATION,
+    Intrinsics::ADD_WITH_OVERFLOW,
+    Intrinsics::SUB_WITH_OVERFLOW,
+    Intrinsics::MUL_WITH_OVERFLOW,
+    Intrinsics::WRAPPING_ADD,
+    Intrinsics::WRAPPING_SUB,
+    Intrinsics::WRAPPING_MUL,
+    Intrinsics::SATURATING_ADD,
+    Intrinsics::SATURATING_SUB,
+    Intrinsics::ROTATE_LEFT,
+    Intrinsics::ROTATE_RIGHT,
+    Intrinsics::CTPOP,
+    Intrinsics::CTLZ,
+    Intrinsics::CTTZ,
+    Intrinsics::BSWAP,
+    Intrinsics::BITREVERSE,
+    Intrinsics::DISCRIMINANT_VALUE,
+    Intrinsics::TYPE_ID,
+    Intrinsics::LIKELY,
+    Intrinsics::UNLIKELY,
+    Intrinsics::PTR_GUARANTEED_EQ,
+    Intrinsics::PTR_GUARANTEED_NE,
+    Intrinsics::MINNUMF32,
+    Intrinsics::MINNUMF64,
+    Intrinsics::MAXNUMF32,
+    Intrinsics::MAXNUMF64,
+    Intrinsics::RUSTC_PEEK,
+    Intrinsics::TYPE_NAME,
+    Intrinsics::FORGET,
+    Intrinsics::BLACK_BOX,
+    Intrinsics::VARIANT_COUNT,
   };
 
   return safe_intrinsics.find (fn_name) != safe_intrinsics.end ();
@@ -220,23 +220,10 @@ UnsafeChecker::visit (PathInExpression &path)
   NodeId ast_node_id = path.get_mappings ().get_nodeid ();
   NodeId ref_node_id;
 
-  if (flag_name_resolution_2_0)
-    {
-      auto &nr_ctx
-	= Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
-
-      auto resolved = nr_ctx.lookup (ast_node_id);
-
-      if (!resolved.has_value ())
-	return;
-
-      ref_node_id = resolved.value ();
-    }
+  if (auto resolved = resolver.lookup (ast_node_id))
+    ref_node_id = resolved.value ();
   else
-    {
-      if (!resolver.lookup_resolved_name (ast_node_id, &ref_node_id))
-	return;
-    }
+    return;
 
   if (auto definition_id = mappings.lookup_node_to_hir (ref_node_id))
     {
@@ -434,26 +421,10 @@ UnsafeChecker::visit (CallExpr &expr)
   NodeId ast_node_id = expr.get_fnexpr ().get_mappings ().get_nodeid ();
   NodeId ref_node_id;
 
-  // There are no unsafe types, and functions are defined in the name resolver.
-  // If we can't find the name, then we're dealing with a type and should return
-  // early.
-  if (flag_name_resolution_2_0)
-    {
-      auto &nr_ctx
-	= Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
-
-      auto resolved = nr_ctx.lookup (ast_node_id);
-
-      if (!resolved.has_value ())
-	return;
-
-      ref_node_id = resolved.value ();
-    }
+  if (auto resolved = resolver.lookup (ast_node_id))
+    ref_node_id = resolved.value ();
   else
-    {
-      if (!resolver.lookup_resolved_name (ast_node_id, &ref_node_id))
-	return;
-    }
+    return;
 
   if (auto definition_id = mappings.lookup_node_to_hir (ref_node_id))
     {
@@ -481,9 +452,14 @@ UnsafeChecker::visit (MethodCallExpr &expr)
   TyTy::BaseType *method_type;
   context.lookup_type (expr.get_method_name ().get_mappings ().get_hirid (),
 		       &method_type);
+  if (!method_type || !method_type->is<TyTy::FnType> ())
+    return;
 
   auto &fn = static_cast<TyTy::FnType &> (*method_type);
 
+  // FIXME
+  // should probably use the defid lookup instead
+  // tl::optional<HIR::Item *> lookup_defid (DefId id);
   auto method = mappings.lookup_hir_implitem (fn.get_ref ());
   if (!unsafe_context.is_in_context () && method)
     check_unsafe_call (static_cast<Function *> (method->first),
@@ -532,6 +508,18 @@ UnsafeChecker::visit (BlockExpr &expr)
 
   if (expr.has_expr ())
     expr.get_final_expr ().accept_vis (*this);
+}
+
+void
+UnsafeChecker::visit (AnonConst &expr)
+{
+  expr.get_inner_expr ().accept_vis (*this);
+}
+
+void
+UnsafeChecker::visit (ConstBlock &expr)
+{
+  expr.get_const_expr ().accept_vis (*this);
 }
 
 void
@@ -663,6 +651,23 @@ UnsafeChecker::visit (InlineAsm &expr)
   rust_error_at (
     expr.get_locus (), ErrorCode::E0133,
     "use of inline assembly is unsafe and requires unsafe function or block");
+}
+
+void
+UnsafeChecker::visit (LlvmInlineAsm &expr)
+{
+  if (unsafe_context.is_in_context ())
+    return;
+
+  rust_error_at (
+    expr.get_locus (), ErrorCode::E0133,
+    "use of inline assembly is unsafe and requires unsafe function or block");
+}
+
+void
+UnsafeChecker::visit (OffsetOf &expr)
+{
+  // nothing to do, offset_of!() is safe
 }
 
 void
@@ -892,11 +897,11 @@ UnsafeChecker::visit (StructPattern &)
 {}
 
 void
-UnsafeChecker::visit (TupleStructItemsNoRange &)
+UnsafeChecker::visit (TupleStructItemsNoRest &)
 {}
 
 void
-UnsafeChecker::visit (TupleStructItemsRange &)
+UnsafeChecker::visit (TupleStructItemsHasRest &)
 {}
 
 void
@@ -904,15 +909,23 @@ UnsafeChecker::visit (TupleStructPattern &)
 {}
 
 void
-UnsafeChecker::visit (TuplePatternItemsMultiple &)
+UnsafeChecker::visit (TuplePatternItemsNoRest &)
 {}
 
 void
-UnsafeChecker::visit (TuplePatternItemsRanged &)
+UnsafeChecker::visit (TuplePatternItemsHasRest &)
 {}
 
 void
 UnsafeChecker::visit (TuplePattern &)
+{}
+
+void
+UnsafeChecker::visit (SlicePatternItemsNoRest &)
+{}
+
+void
+UnsafeChecker::visit (SlicePatternItemsHasRest &)
 {}
 
 void

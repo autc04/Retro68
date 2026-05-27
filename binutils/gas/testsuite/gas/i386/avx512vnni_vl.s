@@ -1,8 +1,7 @@
 # Check 32bit AVX512{VNNI,VL} instructions
 
-	.allow_index_reg
 	.text
-_start:
+vnni:
 	vpdpwssd	%xmm2, %xmm4, %xmm2{%k3}	 # AVX512{VNNI,VL}
 	vpdpwssd	%xmm2, %xmm4, %xmm2{%k3}{z}	 # AVX512{VNNI,VL}
 	vpdpwssd	-123456(%esp,%esi,8), %xmm4, %xmm2{%k1}	 # AVX512{VNNI,VL}

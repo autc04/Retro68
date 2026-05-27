@@ -1,5 +1,5 @@
 #source: tls-relax-large-desc-ie.s
-#ld: -T relocs.ld -e0
+#ld: -T relocs.ld -e0 tmpdir/tls-sharedlib.so
 #notarget: aarch64_be-*-*
 #objdump: -dr
 #...

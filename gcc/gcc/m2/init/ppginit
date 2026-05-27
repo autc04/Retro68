@@ -1,6 +1,6 @@
 # ppginit list of Modula-2 modules used by ppg.
 #
-# Copyright (C) 2000-2025 Free Software Foundation, Inc.
+# Copyright (C) 2000-2026 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -25,6 +25,7 @@ RTExceptions
 M2EXCEPTION
 M2RTS
 SysExceptions
+M2Diagnostic
 StrLib
 errno
 termios
@@ -45,6 +46,7 @@ UnixArgs
 FIO
 SFIO
 StrCase
+StringConvert
 bnflex
 Lists
 Args

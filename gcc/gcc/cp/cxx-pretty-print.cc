@@ -1,5 +1,5 @@
 /* Implementation of subroutines for the GNU C++ pretty-printer.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -24,7 +24,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "cp-tree.h"
 #include "cxx-pretty-print.h"
 #include "tree-pretty-print.h"
-#include "make-unique.h"
 
 static void pp_cxx_unqualified_id (cxx_pretty_printer *, tree);
 static void pp_cxx_nested_name_specifier (cxx_pretty_printer *, tree);
@@ -814,6 +813,7 @@ pp_cxx_delete_expression (cxx_pretty_printer *pp, tree t)
       sizeof ... ( identifier )
       new-expression
       delete-expression
+      reflect-expression
 
    unary-operator: one of
       *   &   +   -  !
@@ -897,6 +897,19 @@ cxx_pretty_printer::unary_expression (tree t)
     case UNARY_PLUS_EXPR:
       pp_plus (this);
       pp_cxx_cast_expression (this, TREE_OPERAND (t, 0));
+      break;
+
+    case REFLECT_EXPR:
+      {
+	pp_cxx_ws_string (this, "^^");
+	tree h = REFLECT_EXPR_HANDLE (t);
+	if (DECL_P (h))
+	  declaration (h);
+	else if (TYPE_P (h))
+	  type_id (h);
+	else
+	  expression (h);
+      }
       break;
 
     default:
@@ -1185,6 +1198,7 @@ cxx_pretty_printer::expression (tree t)
     case ALIGNOF_EXPR:
     case NOEXCEPT_EXPR:
     case UNARY_PLUS_EXPR:
+    case REFLECT_EXPR:
       unary_expression (t);
       break;
 
@@ -1426,6 +1440,10 @@ cxx_pretty_printer::simple_type_specifier (tree t)
 
     case TRAIT_TYPE:
       pp_cxx_trait (this, t);
+      break;
+
+    case META_TYPE:
+      pp_cxx_ws_string (this, "std::meta::info");
       break;
 
     default:
@@ -1924,6 +1942,7 @@ cxx_pretty_printer::type_id (tree t)
     case NULLPTR_TYPE:
     case TEMPLATE_ID_EXPR:
     case OFFSET_TYPE:
+    case META_TYPE:
       pp_cxx_type_specifier_seq (this, t);
       if (TYPE_PTRMEM_P (t))
 	abstract_declarator (t);
@@ -2134,6 +2153,29 @@ cxx_pretty_printer::statement (tree t)
       pp_cxx_right_paren (this);
       pp_newline_and_indent (this, 3);
       statement (FOR_BODY (t));
+      pp_indentation (this) -= 3;
+      pp_needs_newline (this) = true;
+      break;
+
+    case TEMPLATE_FOR_STMT:
+      pp_cxx_ws_string (this, "template for");
+      pp_space (this);
+      pp_cxx_left_paren (this);
+      if (TEMPLATE_FOR_INIT_STMT (t))
+	{
+	  statement (TEMPLATE_FOR_INIT_STMT (t));
+	  pp_needs_newline (this) = false;
+	  pp_cxx_whitespace (this);
+	}
+      statement (TEMPLATE_FOR_DECL (t));
+      pp_space (this);
+      pp_needs_newline (this) = false;
+      pp_colon (this);
+      pp_space (this);
+      statement (TEMPLATE_FOR_EXPR (t));
+      pp_cxx_right_paren (this);
+      pp_newline_and_indent (this, 3);
+      statement (TEMPLATE_FOR_BODY (t));
       pp_indentation (this) -= 3;
       pp_needs_newline (this) = true;
       break;
@@ -2954,5 +2996,5 @@ cxx_pretty_printer::cxx_pretty_printer ()
 std::unique_ptr<pretty_printer>
 cxx_pretty_printer::clone () const
 {
-  return ::make_unique<cxx_pretty_printer> (*this);
+  return std::make_unique<cxx_pretty_printer> (*this);
 }

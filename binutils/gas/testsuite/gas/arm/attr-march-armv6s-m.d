@@ -1,9 +1,9 @@
-# name: attributes for -march=armv6-m
+# name: attributes for -march=armv6s-m
 # source: blank.s
 # as: -march=armv6-m
 # readelf: -A
 # This test is only valid on EABI based ports.
-# target: *-*-*eabi* *-*-nacl*
+# target: *-*-*eabi*
 
 Attribute Section: aeabi
 File Attributes

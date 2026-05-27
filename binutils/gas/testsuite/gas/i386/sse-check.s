@@ -39,3 +39,10 @@ _start:
 	gf2p8mulb %xmm1,%xmm2
 	vgf2p8mulb %xmm0, %xmm0, %xmm0{%k1}
 	vgf2p8mulb %zmm0, %zmm0, %zmm0
+
+# KeyLocker instructions
+	aesdec128kl (%eax), %xmm0
+	encodekey128 %eax, %edi
+
+# WideKL instructions
+	aesencwide256kl (%eax)

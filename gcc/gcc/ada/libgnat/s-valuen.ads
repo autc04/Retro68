@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---             Copyright (C) 2021-2025, Free Software Foundation, Inc.      --
+--             Copyright (C) 2021-2026, Free Software Foundation, Inc.      --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,8 +30,8 @@
 ------------------------------------------------------------------------------
 
 --  This package is used to compute the Value attribute for enumeration types
---  other than those in packages Standard and System. See unit Exp_Imgv for
---  details of the format of constructed image tables.
+--  other than those in package Standard. See unit Exp_Imgv for details of the
+--  format of constructed image tables.
 
 generic
 

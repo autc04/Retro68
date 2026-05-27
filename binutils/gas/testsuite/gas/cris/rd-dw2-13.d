@@ -1,12 +1,12 @@
 #readelf: -wl
 #source: rd-pic-1.s
-#as: --em=criself --pic --gdwarf2
+#as: --emulation=criself --pic --gdwarf2
 
 # PIC prefix relocs.
 #...
  Line Number Statements:
-  \[0x.*\]  Extended opcode 2: set Address to 0x0
-  \[0x.*\]  Special opcode .*: advance Address by 0 to 0x0 and Line by 5 to 6
+  \[0x.*\]  Extended opcode 2: set Address to (0x)?0
+  \[0x.*\]  Special opcode .*: advance Address by 0 to (0x)?0 and Line by 5 to 6
   \[0x.*\]  Special opcode .*: advance Address by 6 to 0x6 and Line by 1 to 7
   \[0x.*\]  Special opcode .*: advance Address by 8 to 0xe and Line by 1 to 8
   \[0x.*\]  Special opcode .*: advance Address by 6 to 0x14 and Line by 1 to 9

@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: --pic --underscore --em=criself
+#as: --pic --underscore --emulation=criself
 #source: rd-bcnst.s
 
 # Catches an error in the relaxation machinery and checks that there's no

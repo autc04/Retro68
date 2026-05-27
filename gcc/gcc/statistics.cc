@@ -1,5 +1,5 @@
 /* Optimization statistics functions.
-   Copyright (C) 2008-2025 Free Software Foundation, Inc.
+   Copyright (C) 2008-2026 Free Software Foundation, Inc.
    Contributed by Richard Guenther  <rguenther@suse.de>
 
 This file is part of GCC.
@@ -74,7 +74,7 @@ stats_counter_hasher::equal (const statistics_counter *c1,
 inline void
 stats_counter_hasher::remove (statistics_counter *v)
 {
-  free (CONST_CAST (char *, v->id));
+  free (const_cast<char *> (v->id));
   free (v);
 }
 

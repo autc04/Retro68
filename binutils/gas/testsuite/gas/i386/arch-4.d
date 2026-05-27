@@ -6,7 +6,9 @@
 Disassembly of section .text:
 
 0+ <.text>:
+[ 	]*[a-f0-9]+:	0f ff cc [ 	]*ud0    %esp,%ecx
 [ 	]*[a-f0-9]+:	0f ff 07 [ 	]*ud0    \(%edi\),%eax
+[ 	]*[a-f0-9]+:	0f b9 cc [ 	]*ud1    %esp,%ecx
 [ 	]*[a-f0-9]+:	0f b9 07 [ 	]*ud1    \(%edi\),%eax
 [ 	]*[a-f0-9]+:	0f 0b                	ud2
 [ 	]*[a-f0-9]+:	0f 0b                	ud2

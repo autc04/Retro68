@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1992-2025, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2026, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,17 +38,12 @@ with Ada.Unchecked_Conversion;
 
 with Interfaces.C;
 
+with System.C_Time;
 with System.Float_Control;
 with System.Interrupt_Management;
 with System.Multiprocessors;
 with System.OS_Constants;
 with System.Tasking.Debug;
-
-with System.Soft_Links;
---  We use System.Soft_Links instead of System.Tasking.Initialization
---  because the later is a higher level package that we shouldn't depend
---  on. For example when using the restricted run time, it is replaced by
---  System.Tasking.Restricted.Stages.
 
 with System.Task_Info;
 with System.VxWorks.Ext;
@@ -56,7 +51,6 @@ with System.VxWorks.Ext;
 package body System.Task_Primitives.Operations is
 
    package OSC renames System.OS_Constants;
-   package SSL renames System.Soft_Links;
 
    use System.OS_Interface;
    use System.OS_Locks;
@@ -172,10 +166,6 @@ package body System.Task_Primitives.Operations is
 
    procedure Install_Signal_Handlers;
    --  Install the default signal handlers for the current task
-
-   function Is_Task_Context return Boolean;
-   --  This function returns True if the current execution is in the context of
-   --  a task, and False if it is an interrupt context.
 
    type Set_Stack_Limit_Proc_Acc is access procedure;
    pragma Convention (C, Set_Stack_Limit_Proc_Acc);
@@ -681,12 +671,12 @@ package body System.Task_Primitives.Operations is
    ---------------------
 
    function Monotonic_Clock return Duration is
-      TS     : aliased timespec;
+      TS     : aliased C_Time.timespec;
       Result : int;
    begin
       Result := clock_gettime (OSC.CLOCK_RT_Ada, TS'Unchecked_Access);
       pragma Assert (Result = 0);
-      return To_Duration (TS);
+      return C_Time.To_Duration (TS);
    end Monotonic_Clock;
 
    -------------------
@@ -985,184 +975,6 @@ package body System.Task_Primitives.Operations is
            Signal (Interrupt_Management.Abort_Task_Interrupt));
       pragma Assert (Result = 0);
    end Abort_Task;
-
-   ----------------
-   -- Initialize --
-   ----------------
-
-   procedure Initialize (S : in out Suspension_Object) is
-   begin
-      --  Initialize internal state (always to False (RM D.10(6)))
-
-      S.State := False;
-      S.Waiting := False;
-
-      --  Initialize internal mutex
-
-      --  Use simpler binary semaphore instead of VxWorks mutual exclusion
-      --  semaphore, because we don't need the fancier semantics and their
-      --  overhead.
-
-      S.L := semBCreate (SEM_Q_FIFO, SEM_FULL);
-
-      --  Initialize internal condition variable
-
-      S.CV := semBCreate (SEM_Q_FIFO, SEM_EMPTY);
-   end Initialize;
-
-   --------------
-   -- Finalize --
-   --------------
-
-   procedure Finalize (S : in out Suspension_Object) is
-      pragma Unmodified (S);
-      --  S may be modified on other targets, but not on VxWorks
-
-      Result : STATUS;
-
-   begin
-      --  Destroy internal mutex
-
-      Result := semDelete (S.L);
-      pragma Assert (Result = OK);
-
-      --  Destroy internal condition variable
-
-      Result := semDelete (S.CV);
-      pragma Assert (Result = OK);
-   end Finalize;
-
-   -------------------
-   -- Current_State --
-   -------------------
-
-   function Current_State (S : Suspension_Object) return Boolean is
-   begin
-      --  We do not want to use lock on this read operation. State is marked
-      --  as Atomic so that we ensure that the value retrieved is correct.
-
-      return S.State;
-   end Current_State;
-
-   ---------------
-   -- Set_False --
-   ---------------
-
-   procedure Set_False (S : in out Suspension_Object) is
-      Result : STATUS;
-
-   begin
-      SSL.Abort_Defer.all;
-
-      Result := semTake (S.L, WAIT_FOREVER);
-      pragma Assert (Result = OK);
-
-      S.State := False;
-
-      Result := semGive (S.L);
-      pragma Assert (Result = OK);
-
-      SSL.Abort_Undefer.all;
-   end Set_False;
-
-   --------------
-   -- Set_True --
-   --------------
-
-   procedure Set_True (S : in out Suspension_Object) is
-      Result : STATUS;
-
-   begin
-      --  Set_True can be called from an interrupt context, in which case
-      --  Abort_Defer is undefined.
-
-      if Is_Task_Context then
-         SSL.Abort_Defer.all;
-      end if;
-
-      Result := semTake (S.L, WAIT_FOREVER);
-      pragma Assert (Result = OK);
-
-      --  If there is already a task waiting on this suspension object then we
-      --  resume it, leaving the state of the suspension object to False, as it
-      --  is specified in (RM D.10 (9)). Otherwise, it just leaves the state to
-      --  True.
-
-      if S.Waiting then
-         S.Waiting := False;
-         S.State := False;
-
-         Result := semGive (S.CV);
-         pragma Assert (Result = OK);
-      else
-         S.State := True;
-      end if;
-
-      Result := semGive (S.L);
-      pragma Assert (Result = OK);
-
-      --  Set_True can be called from an interrupt context, in which case
-      --  Abort_Undefer is undefined.
-
-      if Is_Task_Context then
-         SSL.Abort_Undefer.all;
-      end if;
-
-   end Set_True;
-
-   ------------------------
-   -- Suspend_Until_True --
-   ------------------------
-
-   procedure Suspend_Until_True (S : in out Suspension_Object) is
-      Result : STATUS;
-
-   begin
-      SSL.Abort_Defer.all;
-
-      Result := semTake (S.L, WAIT_FOREVER);
-
-      if S.Waiting then
-
-         --  Program_Error must be raised upon calling Suspend_Until_True
-         --  if another task is already waiting on that suspension object
-         --  (RM D.10(10)).
-
-         Result := semGive (S.L);
-         pragma Assert (Result = OK);
-
-         SSL.Abort_Undefer.all;
-
-         raise Program_Error;
-
-      else
-         --  Suspend the task if the state is False. Otherwise, the task
-         --  continues its execution, and the state of the suspension object
-         --  is set to False (RM D.10 (9)).
-
-         if S.State then
-            S.State := False;
-
-            Result := semGive (S.L);
-            pragma Assert (Result = OK);
-
-            SSL.Abort_Undefer.all;
-
-         else
-            S.Waiting := True;
-
-            --  Release the mutex before sleeping
-
-            Result := semGive (S.L);
-            pragma Assert (Result = OK);
-
-            SSL.Abort_Undefer.all;
-
-            Result := semTake (S.CV, WAIT_FOREVER);
-            pragma Assert (Result = 0);
-         end if;
-      end if;
-   end Suspend_Until_True;
 
    ----------------
    -- Check_Exit --

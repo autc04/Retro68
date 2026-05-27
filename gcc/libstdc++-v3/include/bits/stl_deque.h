@@ -1,6 +1,6 @@
 // Deque implementation -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -632,7 +632,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
    *  @brief Layout storage.
    *  @param  __num_elements  The count of T's for which to allocate space
    *                          at first.
-   *  @return   Nothing.
    *
    *  The initial underlying memory layout is a bit complicated...
   */
@@ -1331,7 +1330,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       {
 	size_type __sz = this->_M_impl._M_finish - this->_M_impl._M_start;
 	if (__sz > max_size ())
-	  __builtin_unreachable ();
+	  __builtin_unreachable();
 	return __sz;
       }
 
@@ -1985,7 +1984,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  @brief Fills the deque with whatever is in [first,last).
        *  @param  __first  An input iterator.
        *  @param  __last  An input iterator.
-       *  @return   Nothing.
        *
        *  If the iterators are actually forward iterators (or better), then the
        *  memory layout can be done all at once.  Else we move forward using
@@ -2006,7 +2004,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       /**
        *  @brief Fills the %deque with copies of value.
        *  @param  __value  Initial value.
-       *  @return   Nothing.
        *  @pre _M_start and _M_finish have already been initialized,
        *  but none of the %deque's elements have yet been constructed.
        *
@@ -2163,6 +2160,35 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       iterator
       _M_insert_aux(iterator __pos, const value_type& __x);
 #else
+      struct _Temporary_value
+      {
+	template<typename... _Args>
+	  _GLIBCXX20_CONSTEXPR explicit
+	  _Temporary_value(deque* __deque, _Args&&... __args) : _M_this(__deque)
+	  {
+	    _Alloc_traits::construct(_M_this->_M_impl, _M_ptr(),
+				     std::forward<_Args>(__args)...);
+	  }
+
+	_GLIBCXX20_CONSTEXPR
+	~_Temporary_value()
+	{ _Alloc_traits::destroy(_M_this->_M_impl, _M_ptr()); }
+
+	_GLIBCXX20_CONSTEXPR value_type&
+	_M_val() noexcept { return __tmp_val; }
+
+      private:
+	_GLIBCXX20_CONSTEXPR _Tp*
+	_M_ptr() noexcept { return std::__addressof(__tmp_val); }
+
+	union
+	{
+	  _Tp __tmp_val;
+	};
+
+	deque* _M_this;
+      };
+
       iterator
       _M_insert_aux(iterator __pos, const value_type& __x)
       { return _M_emplace_aux(__pos, __x); }

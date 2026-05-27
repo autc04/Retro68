@@ -1,5 +1,5 @@
 /* Definitions for code generation pass of GNU compiler.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -338,6 +338,7 @@ extern tree string_constant (tree, tree *, tree *, tree *);
    a constant.  */
 extern tree byte_representation (tree, tree *, tree *, tree *);
 
+extern enum rtx_code convert_tree_comp_to_rtx (enum tree_code, int);
 extern enum tree_code maybe_optimize_mod_cmp (enum tree_code, tree *, tree *);
 extern void maybe_optimize_sub_cmp_0 (enum tree_code, tree *, tree *);
 
@@ -387,5 +388,9 @@ extern void generate_reflecting_code_standard (rtx *);
 extern void expand_crc_table_based (rtx, rtx, rtx, rtx, machine_mode);
 extern void expand_reversed_crc_table_based (rtx, rtx, rtx, rtx, machine_mode,
 					     void (*) (rtx *));
+
+/* Cache of the "extended" flag in the target's _BitInt description
+   for use during expand.  */
+extern int bitint_extended;
 
 #endif /* GCC_EXPR_H */

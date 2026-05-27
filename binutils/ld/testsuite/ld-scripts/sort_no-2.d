@@ -1,6 +1,6 @@
 #source: sort_b_a.s
 #ld: -T sort_no.t
-#name: no SORT_BY_NAME/SORT_BY_ALIGNMENT/SORT
+#name: no SORT_BY_NAME/SORT_BY_ALIGNMENT/SORT (2)
 #nm: -n
 
 #...

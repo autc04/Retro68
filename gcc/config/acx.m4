@@ -107,9 +107,9 @@ AC_SUBST([target_subdir]) []dnl
 
 
 ####
-# _NCN_TOOL_PREFIXES:  Some stuff that oughtta be done in AC_CANONICAL_SYSTEM 
+# _NCN_TOOL_PREFIXES:  Some stuff that oughtta be done in AC_CANONICAL_TARGET
 # or AC_INIT.
-# These demand that AC_CANONICAL_SYSTEM be called beforehand.
+# These demand that AC_CANONICAL_HOST and AC_CANONICAL_TARGET be called beforehand.
 AC_DEFUN([_NCN_TOOL_PREFIXES],
 [ncn_tool_prefix=
 test -n "$host_alias" && ncn_tool_prefix=$host_alias-
@@ -433,6 +433,12 @@ if test "x$CARGO" != xno; then
 else
   have_cargo=no
 fi])
+
+# Test for Algol 68
+AC_DEFUN([ACX_PROG_A68],
+[AC_REQUIRE([AC_CHECK_TOOL_PREFIX])
+AC_REQUIRE([AC_PROG_CC])
+AC_CHECK_TOOL(A68, ga68, no)])
 
 # Test for D.
 AC_DEFUN([ACX_PROG_GDC],

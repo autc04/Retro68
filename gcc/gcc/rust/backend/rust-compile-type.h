@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -50,6 +50,10 @@ public:
   void visit (const TyTy::ReferenceType &) override;
   void visit (const TyTy::PointerType &) override;
   void visit (const TyTy::ParamType &) override;
+  void visit (const TyTy::ConstParamType &) override;
+  void visit (const TyTy::ConstValueType &) override;
+  void visit (const TyTy::ConstInferType &) override;
+  void visit (const TyTy::ConstErrorType &) override;
   void visit (const TyTy::StrType &) override;
   void visit (const TyTy::NeverType &) override;
   void visit (const TyTy::PlaceholderType &) override;

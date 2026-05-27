@@ -1,5 +1,5 @@
 # Basic expect script for LD Regression Tests
-#   Copyright (C) 1993-2022 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -20,6 +20,23 @@
 #
 # Written by Jeffrey Wheat (cassidy@cygnus.com)
 #
+
+if [info exists env(LD_UNDER_TEST)] {
+    # LD_UNDER_TEST must be an absolute full path.
+    if {[file pathtype $env(LD_UNDER_TEST)] ne "absolute"} {
+	perror "**************************************************"
+	perror "Environment variable LD_UNDER_TEST ($env(LD_UNDER_TEST)) isn't an absolute full path."
+	perror "**************************************************"
+	exit 1
+    } elseif {![file exists $env(LD_UNDER_TEST)]} {
+	perror "**************************************************"
+	perror "Environment variable LD_UNDER_TEST ($env(LD_UNDER_TEST)) doesn't exist."
+	perror "**************************************************"
+	exit 1
+    }
+    set ld "$env(LD_UNDER_TEST)"
+    set LD "$ld"
+}
 
 if ![info exists ld] then {
     set ld [findfile $base_dir/ld-new $base_dir/ld-new [transform ld]]
@@ -57,14 +74,26 @@ remote_exec host "mkdir -p tmpdir"
 
 # Make symlinks from tmpdir/ld to the linker and assembler in the
 # build tree, so that we can use a -B option to gcc to force it to use
-# the newly built linker and assembler. 
-if {![file isdirectory tmpdir/ld]} then {
+# the newly built linker and assembler.
+# The variable ld_testsuite_bindir allows to provide another directory
+# for -B option. This can be useful when launching the testsuite outside
+# the build tree as the symlinks will be wrong in this case.
+if {[info exists ld_testsuite_bindir]} {
+    set gcc_B_opt "-B$ld_testsuite_bindir/"
+} else {
+    # Delete tmpdir/ld first to remove tmpdir/ld/ld created by the
+    # previous LD_UNDER_TEST runs.
+    file delete -force tmpdir/ld
     catch "exec mkdir tmpdir/ld" status
-    catch "exec ln -s ../../ld-new tmpdir/ld/ld" status
+    if [info exists env(LD_UNDER_TEST)] {
+	catch "exec ln -s $env(LD_UNDER_TEST) tmpdir/ld/ld" status
+    } else {
+	catch "exec ln -s ../../ld-new tmpdir/ld/ld" status
+    }
     catch "exec ln -s ld tmpdir/ld/collect-ld" status
     catch "exec ln -s ../../../gas/as-new tmpdir/ld/as" status
+    set gcc_B_opt "-B[pwd]/tmpdir/ld/"
 }
-set gcc_B_opt "-B[pwd]/tmpdir/ld/"
 
 # load the linker path
 set ld_L_opt ""
@@ -88,11 +117,17 @@ if {![info exists CC_FOR_TARGET]} {
 if {![info exists CFLAGS_FOR_TARGET]} {
     set CFLAGS_FOR_TARGET "-g -O2"
 }
+if {![info exists CFLAGS_FOR_TARGET_TEST]} {
+    set CFLAGS_FOR_TARGET_TEST ""
+}
 if {![info exists CXX_FOR_TARGET]} {
     set CXX_FOR_TARGET [find_g++]
 }
 if {![info exists CXXFLAGS_FOR_TARGET]} {
     set CXXFLAGS_FOR_TARGET ""
+}
+if {![info exists CXXFLAGS_FOR_TARGET_TEST]} {
+    set CXXFLAGS_FOR_TARGET_TEST ""
 }
 
 # This allows us to run the linker testsuite with clang as the compilation
@@ -156,8 +191,11 @@ if {[istarget mips64*-*-linux*] &&
 }
 
 if { [istarget rx-*-*] } {
-    global ASFLAGS
     set ASFLAGS "-muse-conventional-section-names"
+}
+
+if { [istarget ia64-*-*] } {
+    set ASFLAGS "-x"
 }
 
 # Blackfin ELF targets require selection of an explicit CPU.  Use the sim.
@@ -353,6 +391,14 @@ if { ![info exists NO_DT_RELR_CC_LDFLAGS] } then {
     }
 }
 
+if { ![info exists NO_MEMORY_SEAL_LDFLAGS] } then {
+    if { [check_memory_seal_support] } then {
+	set NO_MEMORY_SEAL_LDFLAGS "-z nomemory-seal"
+    } else {
+	set NO_MEMORY_SEAL_LDFLAGS {}
+    }
+}
+
 # Set LD_CLASS to "64bit" for a 64-bit *host* linker.
 if { ![info exists LD_CLASS] } then {
     set REAL_LD [findfile $base_dir/.libs/ld-new .libs/ld-new $LD [transform ld]]
@@ -376,6 +422,7 @@ proc compiler_supports { flag args } {
 	    append flags " [board_info [target_info name] ldflags]"
 	}
 	set fn "cs[pid].c"
+	set rfno "cs[pid].exe"
 	set f [open $fn "w"]
 	if { [llength $args] > 0 } {
 	    puts $f [lindex $args 0]
@@ -384,7 +431,8 @@ proc compiler_supports { flag args } {
 	}
 	close $f
 	set rfn [remote_download host $fn]
-	set avail [run_host_cmd_yesno "$CC_FOR_TARGET" "$flags $flag $rfn -o /dev/null"]
+	set avail [run_host_noleak "$CC_FOR_TARGET" "$flags $flag $rfn -o $rfno"]
+	remote_file host delete $rfno
 	remote_file host delete $rfn
 	file delete $fn
 	return $avail
@@ -405,6 +453,22 @@ if { ![info exists NOPIE_CFLAGS] || ![info exists NOPIE_LDFLAGS] } then {
     if [compiler_supports "-fno-PIE -no-pie"] {
 	set NOPIE_CFLAGS "-fno-PIE"
 	set NOPIE_LDFLAGS "-no-pie"
+    }
+}
+
+if { ![info exists DIRECT_EXTERN_ACCESS_CFLAGS] } then {
+    set DIRECT_EXTERN_ACCESS_CFLAGS ""
+    set NO_DIRECT_EXTERN_ACCESS_CFLAGS ""
+    # Exclude LoongArch since -mdirect-extern-access on LoongArch works
+    # only without dynamic linker.
+    if { ![istarget loongarch*-*-*] } {
+	if [compiler_supports "-mdirect-extern-access"] {
+	    set DIRECT_EXTERN_ACCESS_CFLAGS "-mdirect-extern-access"
+	    set NO_DIRECT_EXTERN_ACCESS_CFLAGS "-mno-direct-extern-access"
+	} elseif [compiler_supports "-fdirect-access-external-data"] {
+	    set DIRECT_EXTERN_ACCESS_CFLAGS "-fdirect-access-external-data"
+	    set NO_DIRECT_EXTERN_ACCESS_CFLAGS "-fno-direct-access-external-data"
+	}
     }
 }
 
@@ -450,6 +514,9 @@ if { ![info exists NOSANITIZE_CFLAGS] } then {
     }
 }
 
+append CFLAGS_FOR_TARGET " $NOSANITIZE_CFLAGS"
+append CXXFLAGS_FOR_TARGET " $NOSANITIZE_CFLAGS"
+
 if { ![info exists NOLTO_CFLAGS] } then {
     set NOLTO_CFLAGS ""
     if [compiler_supports "-fno-lto"] {
@@ -464,7 +531,7 @@ if { [istarget alpha*-*-*vms*] } {
     close $f
     if { [ld_assemble $as $src tmpdir/empty.o]
 	 && ![ld_link $LD tmpdir/empty tmpdir/empty.o]
-	 && [regsub -all {[^\n]*: cannot find -l([^\n]*)} $exec_output {tmpdir/lib\1.a } missing_libs] } {
+	 && [regsub -all {[^\n]*: cannot find -l([^\n :]*)[^\n]*} $exec_output {tmpdir/lib\1.a } missing_libs] } {
 	regsub -all {\$} $missing_libs {\\\$} missing_libs
 	for { set i 0 } { $i < [llength $missing_libs] } { incr i } {
 	    set f [lindex $missing_libs $i]
@@ -485,9 +552,9 @@ if { [check_compiler_available] } {
 	cyglto_plugin-0.dll
     }
     foreach plug $plugin_names {
-	set plug_so [run_host_cmd $CC_FOR_TARGET "--print-prog-name $plug"]
+	set plug_so [string trim [run_host_cmd $CC_FOR_TARGET "--print-prog-name $plug"]]
 	if { $plug_so eq $plug } then {
-	    set plug_so [run_host_cmd $CC_FOR_TARGET "--print-file-name $plug"]
+	    set plug_so [string trim [run_host_cmd $CC_FOR_TARGET "--print-file-name $plug"]]
 	}
 	if { $plug_so ne $plug } then {
 	    set plug_opt "--plugin $plug_so"
@@ -496,10 +563,11 @@ if { [check_compiler_available] } {
     }
 }
 
-if {[file exists .libs/libdep.so]} {
-  set dep_plug_opt "--plugin .libs/libdep.so"
-} elseif {[file exists .libs/libdep.dll]} {
-  set dep_plug_opt "--plugin .libs/libdep.dll"
-} else {
-    set dep_plug_opt ""
+set dep_plug_opt ""
+if [check_plugin_api_available] {
+    if {[file exists .libs/libdep.so]} {
+	set dep_plug_opt "--plugin .libs/libdep.so"
+    } elseif {[file exists .libs/libdep.dll]} {
+	set dep_plug_opt "--plugin .libs/libdep.dll"
+    }
 }

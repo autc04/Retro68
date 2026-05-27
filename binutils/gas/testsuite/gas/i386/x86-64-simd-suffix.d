@@ -132,18 +132,10 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f3 0f 5b 0d 78 56 34 12 	cvttps2dq 0x12345678\(%rip\),%xmm1        # [0-9a-f]+ <_start\+0x[0-9a-f]+>
 [ 	]*[a-f0-9]+:	f3 0f 2a c8          	cvtsi2ssl %eax,%xmm1
 [ 	]*[a-f0-9]+:	f2 0f 2a c8          	cvtsi2sdl %eax,%xmm1
-[ 	]*[a-f0-9]+:	f3 0f 2a c8          	cvtsi2ssl %eax,%xmm1
-[ 	]*[a-f0-9]+:	f2 0f 2a c8          	cvtsi2sdl %eax,%xmm1
-[ 	]*[a-f0-9]+:	f3 48 0f 2a c8       	cvtsi2ssq %rax,%xmm1
-[ 	]*[a-f0-9]+:	f2 48 0f 2a c8       	cvtsi2sdq %rax,%xmm1
 [ 	]*[a-f0-9]+:	f3 48 0f 2a c8       	cvtsi2ssq %rax,%xmm1
 [ 	]*[a-f0-9]+:	f2 48 0f 2a c8       	cvtsi2sdq %rax,%xmm1
 [ 	]*[a-f0-9]+:	f3 0f 2a 08          	cvtsi2ssl \(%rax\),%xmm1
 [ 	]*[a-f0-9]+:	f2 0f 2a 08          	cvtsi2sdl \(%rax\),%xmm1
-[ 	]*[a-f0-9]+:	f3 0f 2a 08          	cvtsi2ssl \(%rax\),%xmm1
-[ 	]*[a-f0-9]+:	f2 0f 2a 08          	cvtsi2sdl \(%rax\),%xmm1
-[ 	]*[a-f0-9]+:	f3 48 0f 2a 08       	cvtsi2ssq \(%rax\),%xmm1
-[ 	]*[a-f0-9]+:	f2 48 0f 2a 08       	cvtsi2sdq \(%rax\),%xmm1
 [ 	]*[a-f0-9]+:	f3 48 0f 2a 08       	cvtsi2ssq \(%rax\),%xmm1
 [ 	]*[a-f0-9]+:	f2 48 0f 2a 08       	cvtsi2sdq \(%rax\),%xmm1
 [ 	]*[a-f0-9]+:	f2 0f 7c 0d 78 56 34 12 	haddps 0x12345678\(%rip\),%xmm1        # [0-9a-f]+ <_start\+0x[0-9a-f]+>

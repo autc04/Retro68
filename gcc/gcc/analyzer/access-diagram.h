@@ -1,5 +1,5 @@
 /* Text art visualizations within -fanalyzer.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -24,7 +24,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "text-art/canvas.h"
 #include "text-art/theme.h"
 #include "text-art/widget.h"
-#include "analyzer/analyzer.h"
+
 #include "analyzer/store.h"
 
 namespace ana {
@@ -152,7 +152,7 @@ class access_diagram : public text_art::wrapper_widget
 {
 public:
   access_diagram (const access_operation &op,
-		  diagnostic_event_id_t region_creation_event_id,
+		  diagnostics::paths::event_id_t region_creation_event_id,
 		  text_art::style_manager &sm,
 		  const text_art::theme &theme,
 		  logger *logger);

@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2015-2026 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -44,6 +44,8 @@ AARCH64_EXTRA_TUNING_OPTION ("avoid_cross_loop_fma", AVOID_CROSS_LOOP_FMA)
 
 AARCH64_EXTRA_TUNING_OPTION ("fully_pipelined_fma", FULLY_PIPELINED_FMA)
 
+AARCH64_EXTRA_TUNING_OPTION ("avoid_ldapur", AVOID_LDAPUR)
+
 /* Enable is the target prefers to use a fresh register for predicate outputs
    rather than re-use an input predicate register.  */
 AARCH64_EXTRA_TUNING_OPTION ("avoid_pred_rmw", AVOID_PRED_RMW)
@@ -66,5 +68,12 @@ AARCH64_EXTRA_TUNING_OPTION ("cheap_fpmr_write", CHEAP_FPMR_WRITE)
 /* Baseline tuning settings suitable for all modern cores.  */
 #define AARCH64_EXTRA_TUNE_BASE (AARCH64_EXTRA_TUNE_CHEAP_SHIFT_EXTEND	\
 				 | AARCH64_EXTRA_TUNE_FULLY_PIPELINED_FMA)
+
+/* Enables dispatch scheduling.  */
+AARCH64_EXTRA_TUNING_OPTION ("dispatch_sched", DISPATCH_SCHED)
+
+/* Enables narrowing of 64-bit GP register writes to 32-bit when the upper
+   32 bits are unused.  */
+AARCH64_EXTRA_TUNING_OPTION ("narrow_gp_writes", NARROW_GP_WRITES)
 
 #undef AARCH64_EXTRA_TUNING_OPTION

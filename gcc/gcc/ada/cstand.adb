@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,7 +26,6 @@
 with Atree;          use Atree;
 with Csets;          use Csets;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
@@ -41,8 +40,8 @@ with Targparm;       use Targparm;
 with Tbuild;         use Tbuild;
 with Ttypes;         use Ttypes;
 with Sem_Mech;       use Sem_Mech;
+with Sem_Prag;       use Sem_Prag;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Snames;         use Snames;
@@ -67,10 +66,10 @@ package body CStand is
 
    procedure Build_Float_Type
      (E     : Entity_Id;
-      Digs  : Int;
+      Digs  : Pos;
       Rep   : Float_Rep_Kind;
       Siz   : Int;
-      Align : Int);
+      Align : Nat);
    --  Procedure to build standard predefined float base type. The first
    --  parameter is the entity for the type. The second parameter is the
    --  digits value. The third parameter indicates the representation to
@@ -192,10 +191,10 @@ package body CStand is
 
    procedure Build_Float_Type
      (E     : Entity_Id;
-      Digs  : Int;
+      Digs  : Pos;
       Rep   : Float_Rep_Kind;
       Siz   : Int;
-      Align : Int)
+      Align : Nat)
    is
    begin
       Set_Type_Definition (Parent (E),
@@ -297,6 +296,7 @@ package body CStand is
       Build_Float_Type
         (To, UI_To_Int (Digits_Value (From)), Float_Rep (From),
          UI_To_Int (Esize (From)), UI_To_Int (Alignment (From)));
+      Set_Is_IEEE_Extended_Precision (To, Is_IEEE_Extended_Precision (From));
    end Copy_Float_Type;
 
    ----------------------
@@ -456,6 +456,11 @@ package body CStand is
       procedure Make_Dummy_Index (E : Entity_Id);
       --  Called to provide a dummy index field value for Any_Array/Any_String
 
+      function Make_Assertion_Level_Definition
+        (Nam : Name_Id) return Entity_Id;
+      --  Create an Assertion_Level definition with the given name in the'
+      --  Sandard package.
+
       procedure Pack_String_Type (String_Type : Entity_Id);
       --  Generate proper tree for pragma Pack that applies to given type, and
       --  mark type as having the pragma.
@@ -558,6 +563,18 @@ package body CStand is
          Set_First_Index (E, Index);
       end Make_Dummy_Index;
 
+      -------------------------------------
+      -- Make_Assertion_Level_Definition --
+      -------------------------------------
+
+      function Make_Assertion_Level_Definition (Nam : Name_Id) return Entity_Id
+      is
+         Level : constant Entity_Id := Make_Assertion_Level (Stloc, Nam);
+      begin
+         Insert_Assertion_Level (Level);
+         return Level;
+      end Make_Assertion_Level_Definition;
+
       ----------------------
       -- Pack_String_Type --
       ----------------------
@@ -612,27 +629,14 @@ package body CStand is
       Set_Is_Pure (Standard_Standard);
       Set_Is_Compilation_Unit (Standard_Standard);
 
-      --  Create type/subtype declaration nodes for standard types
+      --  Create type declaration nodes for standard types
 
       for S in S_Types loop
-
-         --  Subtype declaration case
-
-         if S = S_Natural or else S = S_Positive then
-            Decl := New_Node (N_Subtype_Declaration, Stloc);
-            Set_Subtype_Indication (Decl,
-              New_Occurrence_Of (Standard_Integer, Stloc));
-
-         --  Full type declaration case
-
-         else
+         if S not in S_Natural | S_Positive then
             Decl := New_Node (N_Full_Type_Declaration, Stloc);
+            Set_Defining_Identifier (Decl, Standard_Entity (S));
+            Append (Decl, Decl_S);
          end if;
-
-         Set_Is_Frozen (Standard_Entity (S));
-         Set_Is_Public (Standard_Entity (S));
-         Set_Defining_Identifier (Decl, Standard_Entity (S));
-         Append (Decl, Decl_S);
       end loop;
 
       Create_Back_End_Float_Types;
@@ -1023,6 +1027,14 @@ package body CStand is
         Hb  => Intval (High_Bound (Scalar_Range (Standard_Integer))));
       Set_Is_Constrained (Standard_Natural);
 
+      Append_To
+        (Decl_S,
+         Make_Subtype_Declaration
+           (Stloc,
+            Standard_Natural,
+            Subtype_Indication =>
+              New_Occurrence_Of (Standard_Integer, Stloc)));
+
       --  Setup entity for Positive
 
       Mutate_Ekind (Standard_Positive, E_Signed_Integer_Subtype);
@@ -1039,6 +1051,14 @@ package body CStand is
          Lb  => Uint_1,
          Hb  => Intval (High_Bound (Scalar_Range (Standard_Integer))));
       Set_Is_Constrained   (Standard_Positive);
+
+      Append_To
+        (Decl_S,
+         Make_Subtype_Declaration
+           (Stloc,
+            Standard_Positive,
+            Subtype_Indication =>
+              New_Occurrence_Of (Standard_Integer, Stloc)));
 
       --  Create declaration for package ASCII
 
@@ -1073,7 +1093,6 @@ package body CStand is
             Set_Never_Set_In_Source    (A_Char, True);
             Set_Is_True_Constant       (A_Char, True);
             Set_Etype                  (A_Char, Standard_Character);
-            Set_Scope                  (A_Char, Standard_Entity (S_ASCII));
             Set_Is_Immediately_Visible (A_Char, False);
             Set_Is_Public              (A_Char, True);
             Set_Is_Known_Valid         (A_Char, True);
@@ -1492,6 +1511,11 @@ package body CStand is
          Set_Size_Known_At_Compile_Time (Standard_Duration);
       end Build_Duration;
 
+      Standard_Level_Static := Make_Assertion_Level_Definition (Name_Static);
+      Standard_Level_Runtime := Make_Assertion_Level_Definition (Name_Runtime);
+      Standard_Level_Default :=
+        Make_Assertion_Level_Definition (Name_uDefault_Assertion_Level);
+
       --  Build standard exception type. Note that the type name here is
       --  actually used in the generated code, so it must be set correctly.
       --  The type Standard_Exception_Type must be consistent with the type
@@ -1729,7 +1753,6 @@ package body CStand is
    begin
       Mutate_Ekind                  (Id, E_Component);
       Set_Etype                     (Id, Typ);
-      Set_Scope                     (Id, Rec);
       Reinit_Component_Location     (Id);
       Set_Original_Record_Component (Id, Id);
       Set_Is_Aliased                (Id);
@@ -1747,7 +1770,6 @@ package body CStand is
    begin
       Mutate_Ekind  (Formal, E_In_Parameter);
       Set_Mechanism (Formal, Default_Mechanism);
-      Set_Scope     (Formal, Standard_Standard);
       Set_Etype     (Formal, Typ);
 
       return Formal;
@@ -1777,7 +1799,6 @@ package body CStand is
       Set_Is_Pure    (Ident_Node, True);
       Mutate_Ekind   (Ident_Node, E_Operator);
       Set_Etype      (Ident_Node, Typ);
-      Set_Scope      (Ident_Node, Standard_Standard);
       Set_Homonym    (Ident_Node, Get_Name_Entity_Id (Op));
       Set_Convention (Ident_Node, Convention_Intrinsic);
 
@@ -1936,6 +1957,10 @@ package body CStand is
       P ("--  characteristics of the Standard types for this compiler");
       Write_Eol;
 
+      P ("pragma Assertion_Level (Runtime);");
+      P ("pragma Assertion_Level (Static);");
+      Write_Eol;
+
       P ("package Standard is");
       P ("pragma Pure (Standard);");
       Write_Eol;
@@ -2074,16 +2099,21 @@ package body CStand is
       Size      : Positive;
       Alignment : Natural)
    is
-      pragma Unreferenced (Precision);
-      --  See Build_Float_Type for the rationale
-
       Ent : constant Entity_Id := New_Standard_Entity (Name);
 
+      IEEE_Extended_Precision_Size : constant := 80;
    begin
       Set_Defining_Identifier (New_Node (N_Full_Type_Declaration, Stloc), Ent);
       Set_Scope (Ent, Standard_Standard);
       Build_Float_Type
-        (Ent, Pos (Digs), Float_Rep, Int (Size), Int (Alignment / 8));
+        (Ent, Pos (Digs), Float_Rep, Int (Size), Nat (Alignment / 8));
+
+      --  We mostly disregard Precision, see Build_Float_Type for the
+      --  rationale. The only thing we use it for is to detect 80-bit IEEE
+      --  extended precision, in order to adjust the behavior of 'Write.
+      if Precision = IEEE_Extended_Precision_Size then
+         Set_Is_IEEE_Extended_Precision (Ent);
+      end if;
 
       Append_New_Elmt (Ent, Back_End_Float_Types);
    end Register_Float_Type;
@@ -2092,7 +2122,7 @@ package body CStand is
    -- Set_Float_Bounds --
    ----------------------
 
-   procedure Set_Float_Bounds (Id  : Entity_Id) is
+   procedure Set_Float_Bounds (Id : Entity_Id) is
       L : Node_Id;
       H : Node_Id;
       --  Low and high bounds of literal value

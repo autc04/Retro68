@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -27,7 +27,6 @@ with Ada.Unchecked_Conversion;
 with Aspects;              use Aspects;
 with Atree;                use Atree;
 with Debug;                use Debug;
-with Einfo;                use Einfo;
 with Einfo.Entities;       use Einfo.Entities;
 with Einfo.Utils;          use Einfo.Utils;
 with Elists;               use Elists;
@@ -38,7 +37,6 @@ with Nlists;               use Nlists;
 with Output;               use Output;
 with Seinfo;               use Seinfo;
 with Sem_Eval;             use Sem_Eval;
-with Sinfo;                use Sinfo;
 with Sinfo.Nodes;          use Sinfo.Nodes;
 with Sinfo.Utils;          use Sinfo.Utils;
 with Snames;               use Snames;
@@ -87,7 +85,7 @@ package body Treepr is
    procedure Destroy (Value : in out Nat) is null;
    pragma Annotate (CodePeer, False_Positive, "unassigned parameter",
                     "in out parameter is required to instantiate generic");
-   --  Dummy routine for destroing hashed values
+   --  Dummy routine for destroying hashed values
 
    package Serial_Numbers is new Dynamic_Hash_Tables
      (Key_Type              => Int,
@@ -140,7 +138,10 @@ package body Treepr is
    procedure Print_Init;
    --  Initialize for printing of tree with descendants
 
-   procedure Print_End_Span (N : Node_Id);
+   procedure Print_End_Span
+     (Prefix : String;
+      Field  : Node_Field;
+      N      : Node_Id);
    --  Print contents of End_Span field of node N. The format includes the
    --  implicit source location as well as the value of the field.
 
@@ -328,6 +329,8 @@ package body Treepr is
             return "Ignore_SPARK_Mode_Pragmas";
          when F_Is_CPP_Class =>
             return "Is_CPP_Class";
+         when F_Is_CPP_Constructor =>
+            return "Is_CPP_Constructor";
          when F_Is_CUDA_Kernel =>
             return "Is_CUDA_Kernel";
          when F_Is_DIC_Procedure =>
@@ -338,6 +341,8 @@ package body Treepr is
             return "Is_Elaboration_Checks_OK_Id";
          when F_Is_Elaboration_Warnings_OK_Id =>
             return "Is_Elaboration_Warnings_OK_Id";
+         when F_Is_IEEE_Extended_Precision =>
+            return "Is_IEEE_Extended_Precision";
          when F_Is_RACW_Stub_Type =>
             return "Is_RACW_Stub_Type";
          when F_LSP_Subprogram =>
@@ -411,6 +416,34 @@ package body Treepr is
    --------
 
    procedure pe (N : Union_Id) renames pn;
+
+   ---------
+   -- pec --
+   ---------
+
+   procedure pec (From : Entity_Id) is
+   begin
+      Push_Output;
+      Set_Standard_Output;
+
+      Print_Entity_Chain (From);
+
+      Pop_Output;
+   end pec;
+
+   ----------
+   -- rpec --
+   ----------
+
+   procedure rpec (From : Entity_Id) is
+   begin
+      Push_Output;
+      Set_Standard_Output;
+
+      Print_Entity_Chain (From, Rev => True);
+
+      Pop_Output;
+   end rpec;
 
    --------
    -- pl --
@@ -575,10 +608,16 @@ package body Treepr is
    -- Print_End_Span --
    --------------------
 
-   procedure Print_End_Span (N : Node_Id) is
+   procedure Print_End_Span
+     (Prefix : String;
+      Field  : Node_Field;
+      N      : Node_Id)
+   is
       Val : constant Uint := End_Span (N);
 
    begin
+      Write_Str (Prefix);
+      Write_Str (Image (Field) & " = ");
       UI_Write (Val);
       Write_Str (" (Uint = ");
       Write_Str (UI_Image (Val));
@@ -587,7 +626,39 @@ package body Treepr is
       if Present (Val) then
          Write_Location (End_Location (N));
       end if;
+
+      Write_Eol;
    end Print_End_Span;
+
+   ------------------------
+   -- Print_Entity_Chain --
+   ------------------------
+
+   procedure Print_Entity_Chain (From : Entity_Id; Rev : Boolean := False) is
+      Ent : Entity_Id := From;
+   begin
+      Printing_Descendants := False;
+      Phase := Printing;
+
+      loop
+         declare
+            Next_Ent : constant Entity_Id :=
+              (if Rev then Prev_Entity (Ent) else Next_Entity (Ent));
+
+            Prefix_Char : constant Character :=
+              (if Present (Next_Ent) then '|' else ' ');
+         begin
+            Print_Node (Ent, "", Prefix_Char);
+
+            exit when No (Next_Ent);
+
+            Ent := Next_Ent;
+
+            Print_Char ('|');
+            Print_Eol;
+         end;
+      end loop;
+   end Print_Entity_Chain;
 
    -----------------------
    -- Print_Entity_Info --
@@ -989,9 +1060,11 @@ package body Treepr is
       FD     : Field_Descriptor;
       Format : UI_Format := Auto)
    is
-      NN : constant Node_Id := Node_To_Fetch_From (N, Field);
+      NN : constant Node_Id := Node_To_Fetch_From_If_Set (N, Field);
+      --  If NN is Empty, it means that we cannot compute the
+      --  Node_To_Fetch_From, so we simply skip this field.
    begin
-      if not Field_Is_Initial_Zero (N, Field) then
+      if Present (NN) and then not Field_Is_Initial_Zero (N, Field) then
          Print_Field (Prefix, Image (Field), NN, FD, Format);
       end if;
    end Print_Entity_Field;
@@ -1144,8 +1217,8 @@ package body Treepr is
       end if;
 
       if not Is_List_Member (N) then
-         Print_Str (Prefix_Str);
-         Print_Str (" Parent = ");
+         Print_Str (Prefix);
+         Print_Str ("Parent = ");
          Print_Node_Ref (Parent (N));
          Print_Eol;
       end if;
@@ -1377,7 +1450,7 @@ package body Treepr is
                      --  End_Location.
 
                      if Fields (Field_Index) = F_End_Span then
-                        Print_End_Span (N);
+                        Print_End_Span (Prefix, F_End_Span, N);
 
                      else
                         Print_Node_Field
@@ -1542,19 +1615,17 @@ package body Treepr is
          --  If this is a discrete expression whose value is known, print that
          --  value.
 
-         if Nkind (N) in N_Subexpr
+         if ((Is_Entity_Name (N) -- e.g. enumeration literal
+               and then Present (Entity (N)))
+              or else Nkind (N) in N_Integer_Literal
+                                 | N_Character_Literal
+                                 | N_Unchecked_Type_Conversion)
            and then Compile_Time_Known_Value (N)
            and then Present (Etype (N))
            and then Is_Discrete_Type (Etype (N))
          then
-            if Is_Entity_Name (N) -- e.g. enumeration literal
-              or else Nkind (N) in N_Integer_Literal
-                                 | N_Character_Literal
-                                 | N_Unchecked_Type_Conversion
-            then
-               Print_Str (" val = ");
-               UI_Write (Expr_Value (N));
-            end if;
+            Print_Str (" val = ");
+            UI_Write (Expr_Value (N));
          end if;
 
          if Nkind (N) in N_Entity then
@@ -1957,17 +2028,16 @@ package body Treepr is
          --  Case of descendant is a node
 
          if D in Node_Range then
-
-            --  Don't bother about Empty or Error descendants
-
-            if D <= Union_Id (Empty_Or_Error) then
-               return;
-            end if;
-
             declare
                Nod : constant Node_Or_Entity_Id := Node_Or_Entity_Id (D);
 
             begin
+               --  Don't bother about Empty or Error descendants
+
+               if Nod in Empty | Error then
+                  return;
+               end if;
+
                --  Descendants in one of the standardly compiled internal
                --  packages are normally ignored, unless the parent is also
                --  in such a package (happens when Standard itself is output)

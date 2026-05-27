@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025 Symas Corporation
+ * Copyright (c) 2021-2026 Symas Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,11 +31,12 @@
 #include "config.h"
 
 #include "io.h"
-#include "stdio.h"
-#include "stdlib.h"
-#include <errno.h>
-#include <stdbool.h>
-#include <stdint.h>
+
+#include <cstdio>
+#include <cstdlib>
+#include <cerrno>
+#include <cstdbool>
+#include <cstdint>
 
 /*
  * The Cobol runtime support is responsible to set the file status

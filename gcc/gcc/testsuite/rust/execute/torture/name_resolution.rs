@@ -1,5 +1,7 @@
-// { dg-additional-options "-frust-name-resolution-2.0" }
 // { dg-output "Value is 10\r*\n" }
+#![feature(no_core)]
+#![no_core]
+
 
 const BAZ: i32 = 10;
 

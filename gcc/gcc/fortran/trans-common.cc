@@ -1,5 +1,5 @@
 /* Common block and equivalence list handling
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Canqun Yang <canqun@nudt.edu.cn>
 
 This file is part of GCC.
@@ -469,9 +469,6 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
 
       gfc_set_decl_location (decl, &com->where);
 
-      if (com->threadprivate)
-	set_decl_tls_model (decl, decl_default_tls_model (decl));
-
       if (com->omp_device_type != OMP_DEVICE_TYPE_UNSET)
 	{
 	  tree c = build_omp_clause (UNKNOWN_LOCATION, OMP_CLAUSE_DEVICE_TYPE);
@@ -491,6 +488,17 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
 	    }
 	  omp_clauses = c;
 	}
+      /* Also check trans-decl.cc when updating/removing the following;
+	 also update f95.c's gfc_gnu_attributes.  */
+      if (com->omp_groupprivate)
+	gfc_error ("Sorry, OMP GROUPPRIVATE not implemented, used by common "
+		   "block %</%s/%> declared at %L", com->name, &com->where);
+      else if (com->omp_declare_target_local)
+	/* Use 'else if' as groupprivate implies 'local'.  */
+	gfc_error ("Sorry, OMP DECLARE TARGET with LOCAL clause not implemented"
+		   ", used by common block %</%s/%> declared at %L",
+		   com->name, &com->where);
+
       if (com->omp_declare_target_link)
 	DECL_ATTRIBUTES (decl)
 	  = tree_cons (get_identifier ("omp declare target link"),
@@ -500,10 +508,12 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
 	  = tree_cons (get_identifier ("omp declare target"),
 		       omp_clauses, DECL_ATTRIBUTES (decl));
 
-      if (com->omp_declare_target_link || com->omp_declare_target)
+      if (com->omp_declare_target_link || com->omp_declare_target
+	  /* FIXME: || com->omp_declare_target_local */)
 	{
-	  /* Add to offload_vars; get_create does so for omp_declare_target,
-	     omp_declare_target_link requires manual work.  */
+	  /* Add to offload_vars; get_create does so for omp_declare_target
+	     and omp_declare_target_local, omp_declare_target_link requires
+	     manual work.  */
 	  gcc_assert (symtab_node::get (decl) == 0);
 	  symtab_node *node = symtab_node::get_create (decl);
 	  if (node != NULL && com->omp_declare_target_link)
@@ -536,6 +546,10 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
       DECL_COMMON (decl) = 0;
       DECL_DEFER_OUTPUT (decl) = 0;
     }
+
+  if (com->threadprivate)
+    set_decl_tls_model (decl, decl_default_tls_model (decl));
+
   return decl;
 }
 
@@ -1044,8 +1058,10 @@ accumulate_equivalence_attributes (symbol_attribute *dummy_symbol, gfc_equiv *e)
   dummy_symbol->generic |= attr.generic;
   dummy_symbol->automatic |= attr.automatic;
   dummy_symbol->threadprivate |= attr.threadprivate;
+  dummy_symbol->omp_groupprivate |= attr.omp_groupprivate;
   dummy_symbol->omp_declare_target |= attr.omp_declare_target;
   dummy_symbol->omp_declare_target_link |= attr.omp_declare_target_link;
+  dummy_symbol->omp_declare_target_local |= attr.omp_declare_target_local;
   dummy_symbol->oacc_declare_copyin |= attr.oacc_declare_copyin;
   dummy_symbol->oacc_declare_create |= attr.oacc_declare_create;
   dummy_symbol->oacc_declare_deviceptr |= attr.oacc_declare_deviceptr;

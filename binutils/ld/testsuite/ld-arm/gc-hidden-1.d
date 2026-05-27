@@ -18,7 +18,7 @@ DYNAMIC SYMBOL TABLE:
 Disassembly of section .text:
 
 0+[0-9a-f]+ <_start>:
-\s*[0-9a-f]+:\s+e52de004\s+push	{lr}		; \(str lr, \[sp, #-4\]!\)
+\s*[0-9a-f]+:\s+e52de004\s+push	{lr}		@ \(str lr, \[sp, #-4\]!\)
 \s*[0-9a-f]+:\s+eb000000\s+bl	[0-9a-f]+ <hidfn>
 \s*[0-9a-f]+:\s+e8bd8000\s+ldmfd	sp!, {pc}
 

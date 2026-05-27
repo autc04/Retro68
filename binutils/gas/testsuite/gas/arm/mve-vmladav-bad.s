@@ -1,16 +1,16 @@
-.macro cond, op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().s16 r0, q1, q2
-.endr
-.endm
-
 .syntax unified
 .thumb
-cond vmladav
-cond vmladava
-cond vmladavx
-cond vmladavax
+
+.irp op, vmladav, vmladava, vmladavx, vmladavax
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+\op\().s16 r0, q1, q2
+
+.endr
+.endr
+
+
 vmladav.s64 r0, q1, q2
 vmladav.f32 r0, q1, q2
 vmladava.s64 r0, q1, q2

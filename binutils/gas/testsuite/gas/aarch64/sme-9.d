@@ -1,5 +1,6 @@
 #name: SVE2 instructions added to support SME
 #as: -march=armv8-a+sme
+#as: -march=armv8-a+sve2p1
 #objdump: -dr
 
 .*:     file format .*
@@ -71,3 +72,6 @@ Disassembly of section \.text:
   f4:	44cbc544 	uclamp	z4.d, z10.d, z11.d
   f8:	25277c61 	psel	p1, p15, p3.b\[w15, 0\]
   fc:	252778a2 	psel	p2, p14, p5.b\[w15, 0\]
+ 100:	25244200 	\.inst	0x25244200 ; undefined
+ 104:	25244010 	whilege	pn8.b, x0, x4, vlx2
+ 108:	25244210 	whilege	pn8.b, x16, x4, vlx2

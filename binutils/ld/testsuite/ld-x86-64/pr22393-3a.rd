@@ -1,5 +1,5 @@
 #source: pr22393-1.s
-#ld: -shared -z separate-code
+#ld: -shared -z separate-code --no-rosegment
 #readelf: -l --wide
 #target: *-*-linux-gnu *-*-gnu*
 

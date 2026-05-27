@@ -221,6 +221,44 @@ func_all_registers:
 	.cfi_undefined xmm30	; nop
 	.cfi_undefined xmm31	; nop
 
+	.cfi_undefined ymm0	; nop
+	.cfi_undefined ymm1	; nop
+	.cfi_undefined ymm2	; nop
+	.cfi_undefined ymm3	; nop
+	.cfi_undefined ymm4	; nop
+	.cfi_undefined ymm5	; nop
+	.cfi_undefined ymm6	; nop
+	.cfi_undefined ymm7	; nop
+	.cfi_undefined ymm8	; nop
+	.cfi_undefined ymm9	; nop
+	.cfi_undefined ymm10	; nop
+	.cfi_undefined ymm11	; nop
+	.cfi_undefined ymm12	; nop
+	.cfi_undefined ymm13	; nop
+	.cfi_undefined ymm14	; nop
+	.cfi_undefined ymm15	; nop
+	.cfi_undefined ymm16	; nop
+	.cfi_undefined ymm17	; nop
+	.cfi_undefined ymm18	; nop
+	.cfi_undefined ymm19	; nop
+	.cfi_undefined ymm20	; nop
+	.cfi_undefined ymm21	; nop
+	.cfi_undefined ymm22	; nop
+	.cfi_undefined ymm23	; nop
+	.cfi_undefined ymm24	; nop
+	.cfi_undefined ymm25	; nop
+	.cfi_undefined ymm26	; nop
+	.cfi_undefined ymm27	; nop
+	.cfi_undefined ymm28	; nop
+	.cfi_undefined ymm29	; nop
+	.cfi_undefined ymm30	; nop
+	.cfi_undefined ymm31	; nop
+
+	.cfi_undefined bnd0	; nop
+	.cfi_undefined bnd1	; nop
+	.cfi_undefined bnd2	; nop
+	.cfi_undefined bnd3	; nop
+
 	.cfi_undefined k0	; nop
 	.cfi_undefined k1	; nop
 	.cfi_undefined k2	; nop
@@ -229,5 +267,38 @@ func_all_registers:
 	.cfi_undefined k5	; nop
 	.cfi_undefined k6	; nop
 	.cfi_undefined k7	; nop
+
+	.cfi_undefined zmm0	; nop
+	.cfi_undefined zmm1	; nop
+	.cfi_undefined zmm2	; nop
+	.cfi_undefined zmm3	; nop
+	.cfi_undefined zmm4	; nop
+	.cfi_undefined zmm5	; nop
+	.cfi_undefined zmm6	; nop
+	.cfi_undefined zmm7	; nop
+	.cfi_undefined zmm8	; nop
+	.cfi_undefined zmm9	; nop
+	.cfi_undefined zmm10	; nop
+	.cfi_undefined zmm11	; nop
+	.cfi_undefined zmm12	; nop
+	.cfi_undefined zmm13	; nop
+	.cfi_undefined zmm14	; nop
+	.cfi_undefined zmm15	; nop
+	.cfi_undefined zmm16	; nop
+	.cfi_undefined zmm17	; nop
+	.cfi_undefined zmm18	; nop
+	.cfi_undefined zmm19	; nop
+	.cfi_undefined zmm20	; nop
+	.cfi_undefined zmm21	; nop
+	.cfi_undefined zmm22	; nop
+	.cfi_undefined zmm23	; nop
+	.cfi_undefined zmm24	; nop
+	.cfi_undefined zmm25	; nop
+	.cfi_undefined zmm26	; nop
+	.cfi_undefined zmm27	; nop
+	.cfi_undefined zmm28	; nop
+	.cfi_undefined zmm29	; nop
+	.cfi_undefined zmm30	; nop
+	.cfi_undefined zmm31	; nop
 
 	.cfi_endproc

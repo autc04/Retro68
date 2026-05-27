@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -22,7 +22,20 @@
 namespace Rust {
 namespace AST {
 
-Dump::Dump (std::ostream &stream) : stream (stream), indentation (Indent ()) {}
+Dump::Dump (std::ostream &stream)
+  : stream (stream), indentation (Indent ()),
+    configuration (Configuration{
+      Configuration::InternalComment::Hide,
+      Configuration::NodeDescription::Hide,
+      Configuration::Comment::Dump,
+    })
+{}
+
+Dump::Dump (std::ostream &stream, Configuration configuration,
+	    std::set<std::string> excluded_node)
+  : stream (stream), indentation (Indent ()), configuration (configuration),
+    excluded_node (excluded_node)
+{}
 
 bool
 Dump::require_spacing (TokenPtr previous, TokenPtr current)
@@ -91,4 +104,17 @@ void
 debug (Rust::AST::Visitable &v)
 {
   Rust::AST::Dump::debug (v);
+}
+
+void
+debug (Rust::AST::Crate &crate)
+{
+  for (auto &inner_attr : crate.get_inner_attrs ())
+    {
+      debug (inner_attr);
+    }
+  for (auto &item : crate.items)
+    {
+      debug (*item);
+    }
 }

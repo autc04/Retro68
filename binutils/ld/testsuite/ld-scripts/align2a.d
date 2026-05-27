@@ -1,4 +1,4 @@
-# ld: --defsym data_align=16 -T align2.t
+# ld: --defsym data_align=16 -T align2.t --no-error-rwx-segments
 # objdump: --section-headers
 
 [^:]+: +file format.*

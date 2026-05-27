@@ -1,5 +1,5 @@
 /* Support routines for vrange storage.
-   Copyright (C) 2022-2025 Free Software Foundation, Inc.
+   Copyright (C) 2022-2026 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldyh@redhat.com>.
 
 This file is part of GCC.
@@ -87,7 +87,7 @@ private:
 
   enum value_range_kind m_kind : 3;
 
-  // The length of this is m_num_ranges * 2 + 2 to accomodate the bitmask.
+  // The length of this is m_num_ranges * 2 + 2 to accommodate the bitmask.
   HOST_WIDE_INT m_val[1];
 
   // Another variable-length part of the structure following the HWIs.

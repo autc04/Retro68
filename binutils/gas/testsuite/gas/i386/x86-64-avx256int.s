@@ -1,6 +1,5 @@
 # Check x86-64 256it integer AVX instructions
 
-	.allow_index_reg
 	.text
 _start:
 

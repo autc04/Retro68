@@ -8,7 +8,7 @@ ELF Header:
   Type:                              REL \(Relocatable file\)
   Machine:                           .*
   Version:                           0x1
-  Entry point address:               0x0
+  Entry point address:               (0x)?0
   Start of program headers:          0 \(bytes into file\)
   Start of section headers:          .* \(bytes into file\)
   Flags:                             .*

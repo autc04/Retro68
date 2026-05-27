@@ -1,7 +1,7 @@
 #source: dsov32-1.s
 #source: dsov32-2.s
 #source: dsofn4g.s
-#as: --pic --no-underscore --march=v32 --em=criself
+#as: --pic --no-underscore --march=v32 --emulation=criself
 #ld: --shared -m crislinux --hash-style=sysv
 #objdump: -d -R
 

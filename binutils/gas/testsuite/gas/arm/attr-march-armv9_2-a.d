@@ -1,9 +1,9 @@
-# name: check for armv9-a command line option settings
+# name: check for armv9.2-a command line option settings
 # source: blank.s
 # as: -march=armv9.2-a
 # readelf: -A
 # This test is only valid on EABI based ports.
-# target: *-*-*eabi* *-*-nacl*
+# target: *-*-*eabi*
 
 Attribute Section: aeabi
 File Attributes

@@ -13,15 +13,15 @@
 .*:     file format elf64-(little|big)aarch64
 
 SYMBOL TABLE:
-0+8000 l    d  \.text	0+ \.text
-0+0000 l    df \*ABS\*	0+ .*
-0+8000 g       \.text	0+ _start
+0+10000 l    d  \.text	0+ \.text
+0+00000 l    df \*ABS\*	0+ .*
+0+10000 g       \.text	0+ _start
 
 Contents of section .text:
- 8000 1f2003d5                             .*
+ 10000 1f2003d5                             .*
 
-Disassembly of section .text:
+Disassembly of section \.text:
 
-0+8000 \<_start>:
-    8000:	d503201f 	nop
+0+10000 \<_start>:
+   10000:	d503201f 	nop
 

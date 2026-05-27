@@ -76,9 +76,9 @@
 [^:]*:[0-9]+: Error: r15 not allowed here -- `cmn.w r0,r15'
 [^:]*:[0-9]+: Error: r15 not allowed here -- `cmp.w r15,#1'
 [^:]*:[0-9]+: Error: r15 not allowed here -- `cmp r15,r0'
-[^:]*:[0-9]+: use of r13 is deprecated
+[^:]*:[0-9]+: Warning: use of r13 is deprecated
 [^:]*:[0-9]+: Error: r15 not allowed here -- `cmp r0,r15'
-[^:]*:[0-9]+: use of r13 is deprecated
+[^:]*:[0-9]+: Warning: use of r13 is deprecated
 [^:]*:[0-9]+: Error: r15 not allowed here -- `cmp.n r0,r15'
 [^:]*:[0-9]+: Error: r15 not allowed here -- `cmp.w r15,r0'
 [^:]*:[0-9]+: Error: r13 not allowed here -- `cmp.w r0,r13'
@@ -147,10 +147,10 @@
 [^:]*:[0-9]+: Error: r15 not allowed here -- `mov.w r15,r13'
 [^:]*:[0-9]+: Error: r15 not allowed here -- `mov.w r13,r15'
 [^:]*:[0-9]+: Error: r15 not allowed here -- `mov.w r15,r15'
-[^:]*:[0-9]+: Use of r13 as a source register is deprecated when r13 is the destination register.
-[^:]*:[0-9]+: Use of r13 as a source register is deprecated when r15 is the destination register.
-[^:]*:[0-9]+: Use of r15 as a source register is deprecated when r13 is the destination register.
-[^:]*:[0-9]+: Use of r15 as a source register is deprecated when r15 is the destination register.
+[^:]*:[0-9]+: Warning: Use of r13 as a source register is deprecated when r13 is the destination register.
+[^:]*:[0-9]+: Warning: Use of r13 as a source register is deprecated when r15 is the destination register.
+[^:]*:[0-9]+: Warning: Use of r15 as a source register is deprecated when r13 is the destination register.
+[^:]*:[0-9]+: Warning: Use of r15 as a source register is deprecated when r15 is the destination register.
 [^:]*:[0-9]+: Error: r13 not allowed here -- `movs r13,r13'
 [^:]*:[0-9]+: Error: r15 not allowed here -- `movs r15,r13'
 [^:]*:[0-9]+: Error: r13 not allowed here -- `movs r13,r15'
@@ -514,7 +514,7 @@
 [^:]*:[0-9]+: Error: r15 not allowed here -- `ssat r15,#1,r0'
 [^:]*:[0-9]+: Error: r13 not allowed here -- `ssat r0,#1,r13'
 [^:]*:[0-9]+: Error: r15 not allowed here -- `ssat r0,#1,r15'
-[^:]*:[0-9]+: Error: shift expression is too large -- `ssat r1,#1,r3,asr#32'
+[^:]*:[0-9]+: Error: shift expression is too large -- `ssat r1,#1,r3,asr ?#32'
 [^:]*:[0-9]+: Error: r13 not allowed here -- `ssat16 r13,#1,r0'
 [^:]*:[0-9]+: Error: r15 not allowed here -- `ssat16 r15,#1,r0'
 [^:]*:[0-9]+: Error: r13 not allowed here -- `ssat16 r0,#1,r13'
@@ -742,7 +742,7 @@
 [^:]*:[0-9]+: Error: r15 not allowed here -- `usat r15,#1,r0'
 [^:]*:[0-9]+: Error: r13 not allowed here -- `usat r0,#1,r13'
 [^:]*:[0-9]+: Error: r15 not allowed here -- `usat r0,#1,r15'
-[^:]*:[0-9]+: Error: shift expression is too large -- `usat r1,#1,r3,asr#32'
+[^:]*:[0-9]+: Error: shift expression is too large -- `usat r1,#1,r3,asr ?#32'
 [^:]*:[0-9]+: Error: r13 not allowed here -- `usat16 r13,#1,r0'
 [^:]*:[0-9]+: Error: r15 not allowed here -- `usat16 r15,#1,r0'
 [^:]*:[0-9]+: Error: r13 not allowed here -- `usat16 r0,#1,r13'

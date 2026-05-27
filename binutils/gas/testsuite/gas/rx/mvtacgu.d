@@ -7,7 +7,7 @@
 Disassembly of section \.text:
 
 00000000 <\.text>:
-   0:	fd 17 30                      	mvtacgu	a0, r0
-   3:	fd 17 3f                      	mvtacgu	a0, r15
-   6:	fd 17 b0                      	mvtacgu	a1, r0
-   9:	fd 17 bf                      	mvtacgu	a1, r15
+   0:	fd 17 30                      	mvtacgu	r0, a0
+   3:	fd 17 3f                      	mvtacgu	r15, a0
+   6:	fd 17 b0                      	mvtacgu	r0, a1
+   9:	fd 17 bf                      	mvtacgu	r15, a1

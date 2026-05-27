@@ -3,7 +3,7 @@
 #source: tls-gd-1.s
 #source: tls-ldgd-14.s
 #source: tls-hx1x2.s
-#as: --pic --no-underscore --em=criself
+#as: --pic --no-underscore --emulation=criself
 #ld: --shared -m crislinux --hash-style=sysv tmpdir/tls-dso-xz-1.so
 #objdump: -s -h -t -T -R -r -p
 

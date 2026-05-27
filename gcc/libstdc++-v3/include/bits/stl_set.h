@@ -1,6 +1,6 @@
 // Set implementation -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -63,6 +63,7 @@
 #if __glibcxx_containers_ranges // C++ >= 23
 # include <bits/ranges_base.h> // ranges::begin, ranges::distance etc.
 #endif
+// #include <bits/stl_tree.h>  // done in std/set
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -547,6 +548,22 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       }
 #endif
 
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<set> _Kt>
+	pair<iterator, bool>
+	insert(_Kt&& __k)
+	{
+	  auto [__left, __node] =_M_t._M_get_insert_unique_pos_tr(__k);
+	  if (__node)
+	    {
+	      iterator __i = _M_t._M_emplace_here(
+		(__left == __node), __node, std::forward<_Kt>(__k));
+	      return { __i, true };
+	    }
+	  return { iterator(__left), false };
+	}
+#endif
+
       /**
        *  @brief Attempts to insert an element into the %set.
        *  @param  __position  An iterator that serves as a hint as to where the
@@ -564,7 +581,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  For more on @a hinting, see:
        *  https://gcc.gnu.org/onlinedocs/libstdc++/manual/associative.html#containers.associative.insert_hints
        *
+       *  If a heterogeneous key __k matches a range of elements, an iterator
+       *  to the first is returned.
+       *
        *  Insertion requires logarithmic time (if the hint is not taken).
+       *  @{
        */
       iterator
       insert(const_iterator __position, const value_type& __x)
@@ -575,6 +596,22 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       insert(const_iterator __position, value_type&& __x)
       { return _M_t._M_insert_unique_(__position, std::move(__x)); }
 #endif
+
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<set> _Kt>
+	iterator
+	insert(const_iterator __position, _Kt&& __k)
+	{
+	  auto [__left, __node] =
+	    _M_t._M_get_insert_hint_unique_pos_tr(__position, __k);
+	  if (__node)
+	    return _M_t._M_emplace_here(
+	      (__left == __node), __node, std::forward<_Kt>(__k));
+	  else
+	    return iterator(__left);
+	}
+#endif
+      ///@}
 
       /**
        *  @brief A template function that attempts to insert a range
@@ -638,6 +675,13 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       node_type
       extract(const key_type& __x)
       { return _M_t.extract(__x); }
+
+#ifdef __glibcxx_associative_heterogeneous_erasure // C++23
+      template <__heterogeneous_tree_key<set> _Kt>
+	node_type
+	extract(_Kt&& __key)
+	{ return _M_t._M_extract_tr(__key); }
+#endif
 
       /// Re-insert an extracted node.
       insert_return_type
@@ -728,7 +772,17 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        */
       size_type
       erase(const key_type& __x)
-      { return _M_t.erase(__x); }
+      { return _M_t._M_erase_unique(__x); }
+
+#ifdef __glibcxx_associative_heterogeneous_erasure // C++23
+      // Note that for some types _Kt this may erase more than
+      // one element, such as if _Kt::operator< checks only part
+      // of the key.
+      template <__heterogeneous_tree_key<set> _Kt>
+	size_type
+	erase(_Kt&& __key)
+	{ return _M_t._M_erase_tr(__key); }
+#endif
 
 #if __cplusplus >= 201103L
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
@@ -794,7 +848,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       count(const key_type& __x) const
       { return _M_t.find(__x) == _M_t.end() ? 0 : 1; }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	count(const _Kt& __x) const
@@ -844,7 +898,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       find(const key_type& __x) const
       { return _M_t.find(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	find(const _Kt& __x)
@@ -879,7 +933,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       lower_bound(const key_type& __x) const
       { return _M_t.lower_bound(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	lower_bound(const _Kt& __x)
@@ -909,7 +963,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       upper_bound(const key_type& __x) const
       { return _M_t.upper_bound(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	upper_bound(const _Kt& __x)
@@ -948,7 +1002,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       equal_range(const key_type& __x) const
       { return _M_t.equal_range(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	equal_range(const _Kt& __x)
@@ -1119,7 +1173,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 
 _GLIBCXX_END_NAMESPACE_CONTAINER
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17 && HOSTED
   // Allow std::set access to internals of compatible sets.
   template<typename _Val, typename _Cmp1, typename _Alloc, typename _Cmp2>
     struct

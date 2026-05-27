@@ -1,4 +1,5 @@
 #objdump: -dw
+#as: -march=+mpx
 #name: i386 NOTRACK prefix
 
 .*: +file format .*

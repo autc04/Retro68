@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -57,10 +57,11 @@ public:
     return *this;
   }
 
-  static CanonicalPath new_seg (NodeId id, const std::string &path)
+  static CanonicalPath new_seg (NodeId id, std::string path)
   {
     rust_assert (!path.empty ());
-    return CanonicalPath ({std::pair<NodeId, std::string> (id, path)},
+    return CanonicalPath ({std::pair<NodeId, std::string> (id,
+							   std::move (path))},
 			  UNKNOWN_CRATENUM);
   }
 
@@ -68,14 +69,18 @@ public:
   trait_impl_projection_seg (NodeId id, const CanonicalPath &trait_seg,
 			     const CanonicalPath &impl_type_seg)
   {
-    return CanonicalPath::new_seg (id, "<" + impl_type_seg.get () + " as "
+    // https://doc.rust-lang.org/reference/paths.html#canonical-paths
+    // should be "<X>"?
+    return CanonicalPath::new_seg (id, "<impl " + impl_type_seg.get () + " as "
 					 + trait_seg.get () + ">");
   }
 
   static CanonicalPath inherent_impl_seg (NodeId id,
 					  const CanonicalPath &impl_type_seg)
   {
-    return CanonicalPath::new_seg (id, "<" + impl_type_seg.get () + ">");
+    // https://doc.rust-lang.org/reference/paths.html#canonical-paths
+    // should be "<X as Y>"?
+    return CanonicalPath::new_seg (id, "<impl " + impl_type_seg.get () + ">");
   }
 
   std::string get () const
@@ -109,6 +114,8 @@ public:
       return CanonicalPath (other.segs, crate_num);
 
     std::vector<std::pair<NodeId, std::string>> copy (segs);
+    copy.reserve (other.segs.size ());
+
     for (auto &s : other.segs)
       copy.push_back (s);
 

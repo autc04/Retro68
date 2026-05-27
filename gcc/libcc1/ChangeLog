@@ -1,6 +1,57 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-01-15  Marek Polacek  <polacek@redhat.com>
+	    Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/120775
+	PR c++/123081
+	PR c++/122634
+	* libcp1plugin.cc (start_class_def): Update the call to
+	finish_base_specifier.
+
+2025-12-29  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure: Regenerate.
+
+2025-12-02  Andrew Pinski  <andrew.pinski@oss.qualcomm.com>
+
+	* cc1plugin-config.h.in: Regenerate.
+
+2025-12-01  John David Anglin  <danglin@gcc.gnu.org>
+
+	* configure.ac: Check for libgen.h header.
+	* configure: Regenerate.
+
+2025-11-03  Sam James  <sam@gentoo.org>
+
+	* configure: Regenerate.
+
+2025-10-09  David Malcolm  <dmalcolm@redhat.com>
+
+	* context.cc: Define INCLUDE_VECTOR.
+
+2025-10-05  Sam James  <sam@gentoo.org>
+
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+
+2025-10-02  H.J. Lu  <hjl.tools@gmail.com>
+
+	* Makefile.in: Regenerated.
+	* aclocal.m4: Likewise.
+	* configure: Likewise.
+
+2025-07-25  David Malcolm  <dmalcolm@redhat.com>
+
+	* context.cc: Update usage of "diagnostic_info" to explicitly
+	refer to "diagnostics::diagnostic_info".
+
+2025-07-25  David Malcolm  <dmalcolm@redhat.com>
+
+	* context.cc: Update for move of diagnostics output formats into
+	namespace "diagnostics" as "sinks".
 
 2024-12-23  Simon Martin  <simon@nasilyan.com>
 

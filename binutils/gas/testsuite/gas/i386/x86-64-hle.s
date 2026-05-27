@@ -1,6 +1,5 @@
 # Check 64bit HLE instructions
 
-	.allow_index_reg
 	.text
 _start:
 
@@ -442,6 +441,8 @@ _start:
 	.byte 0xf0; .byte 0xf2; andb %al,(%rcx)
 	.byte 0xf0; .byte 0xf3; andb %al,(%rcx)
 	xrelease movb %al,(%rcx)
+	xrelease movb %al,0x12345678
+	xrelease addr32 movb %al,0x87654321
 	xacquire lock orb %al,(%rcx)
 	lock xacquire orb %al,(%rcx)
 	xrelease lock orb %al,(%rcx)
@@ -496,6 +497,8 @@ _start:
 	.byte 0xf0; .byte 0xf2; andw %ax,(%rcx)
 	.byte 0xf0; .byte 0xf3; andw %ax,(%rcx)
 	xrelease movw %ax,(%rcx)
+	xrelease movw %ax,0x12345678
+	xrelease addr32 movw %ax,0x87654321
 	xacquire lock orw %ax,(%rcx)
 	lock xacquire orw %ax,(%rcx)
 	xrelease lock orw %ax,(%rcx)
@@ -550,6 +553,8 @@ _start:
 	.byte 0xf0; .byte 0xf2; andl %eax,(%rcx)
 	.byte 0xf0; .byte 0xf3; andl %eax,(%rcx)
 	xrelease movl %eax,(%rcx)
+	xrelease movl %eax,0x12345678
+	xrelease addr32 movl %eax,0x87654321
 	xacquire lock orl %eax,(%rcx)
 	lock xacquire orl %eax,(%rcx)
 	xrelease lock orl %eax,(%rcx)
@@ -604,6 +609,8 @@ _start:
 	.byte 0xf0; .byte 0xf2; andq %rax,(%rcx)
 	.byte 0xf0; .byte 0xf3; andq %rax,(%rcx)
 	xrelease movq %rax,(%rcx)
+	xrelease movq %rax,0x12345678
+	xrelease addr32 movq %rax,0x87654321
 	xacquire lock orq %rax,(%rcx)
 	lock xacquire orq %rax,(%rcx)
 	xrelease lock orq %rax,(%rcx)

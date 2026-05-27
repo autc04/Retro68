@@ -1,7 +1,7 @@
 /* The tracer pass for the GNU compiler.
    Contributed by Jan Hubicka, SuSE Labs.
    Adapted to work on GIMPLE instead of RTL by Robert Kidd, UIUC.
-   Copyright (C) 2001-2025 Free Software Foundation, Inc.
+   Copyright (C) 2001-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -139,7 +139,8 @@ analyze_bb (basic_block bb, int *count)
     }
   *count = n;
 
-  cache_can_duplicate_bb_p (bb, can_duplicate_block_p (CONST_CAST_BB (bb)));
+  cache_can_duplicate_bb_p (bb, can_duplicate_block_p (const_cast<basic_block>
+						       (bb)));
 }
 
 /* Return true if E1 is more frequent than E2.  */

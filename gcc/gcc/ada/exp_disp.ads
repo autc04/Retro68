@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -235,9 +235,6 @@ package Exp_Disp is
 
    function Has_CPP_Constructors (Typ : Entity_Id) return Boolean;
    --  Returns true if the type has CPP constructors
-
-   function Is_Expanded_Dispatching_Call (N : Node_Id) return Boolean;
-   --  Returns true if N is the expanded code of a dispatching call
 
    function Make_DT (Typ : Entity_Id) return List_Id;
    --  Expand the declarations for the Dispatch Table of Typ

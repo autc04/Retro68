@@ -1,4 +1,3 @@
-#as:
 #objdump: -dwMintel
 #name: i386 BMI insns (Intel disassembly)
 #source: bmi.s

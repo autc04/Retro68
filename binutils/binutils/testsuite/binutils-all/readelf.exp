@@ -1,4 +1,4 @@
-#   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -188,12 +188,13 @@ proc readelf_wi_test {} {
 	".*DW_TAG_compile_unit.*"
 	".*DW_TAG_subprogram.*"
 	".*DW_TAG_base_type.*"
-	".*DW_AT_producer.*(GNU C|indirect string).*"
+	".*DW_AT_producer.*(GNU C|indirect string|indexed string).*"
 	".*DW_AT_language.*(ANSI C|C11).*"
-	".*DW_AT_name.*(testprog.c|indirect string).*"
+	".*DW_AT_name.*(testprog.c|indirect string|indexed string).*"
 	".*DW_AT_name.*fn.*"
+	".*DW_AT_name.*(main|indirect string|indexed string).*"
+	".*(DW_OP_addr: 0|DW_OP_addrx <0>).*"
 	".*DW_AT_name.*(main|indirect string).*"
-	".*\(DW_OP_addr: 0\).*"
     }
 
     # The MSP430 in LARGE mode does not generate a DW_OP_addr.
@@ -316,24 +317,21 @@ proc readelf_thin_archive_test {} {
 
     if ![is_remote host] {
 	set tempfile tmpdir/bintest.o
-        set templib  tmpdir/bintest.thin.a
         set libname  tmpdir/bintest.thin.a
     } else {
 	set tempfile [remote_download host tmpdir/bintest.o]
-        set templib  [remote_download host tmpdir/bintest.thin.a]
         set libname  bintest.thin.a
     }
 
     set testname "readelf -h bintest.thin"
+    file_on_host delete $libname
     set got [binutils_run $AR "rcT $libname ${tempfile}"]
     if ![string match "" $got] {
         fail $testname
         return
     }
 
-    readelf_test -h $templib readelf.h.thin
-
-    pass $testname
+    readelf_test -h $libname readelf.h.thin
 }
 
 if ![is_remote host] {
@@ -401,6 +399,7 @@ if {[which $AS] != 0} then {
     run_dump_test "retain1b"
     run_dump_test "readelf-maskos-1a"
     run_dump_test "readelf-maskos-1b"
+    run_dump_test "readelf-debug-str-offsets-dw4"
     if {![istarget *-*-hpux*]} then {
 	run_dump_test pr26548
 	if {![binutils_assemble_flags $srcdir/$subdir/pr26548.s tmpdir/pr26548e.o {--defsym ERROR=1}]} then {
@@ -488,18 +487,23 @@ if {![binutils_assemble $srcdir/$subdir/z.s tmpdir/z.o]} then {
     readelf_test {--decompress --hex-dump .debug_loc} $tempfile readelf.z
 }
 
-set hpux ""
+set flags ""
 
 # Skip the next test for the RISCV architectures because they
 # do not support .ULEB128 pseudo-ops with non-constant values.
 if ![istarget "riscv*-*-*"] then {
 
     if [istarget "hppa*64*-*-hpux*"] {
-	set hpux "--defsym HPUX=1"
+	set flags "--defsym HPUX=1"
     }
 
+    # LoongArch relax align add nops, so label subtractions will increase
+    if [istarget "loongarch*-*-*"] {
+	set flags "-mno-relax"
+     }
+
     # Assemble the DWARF-5 test file.
-    if {![binutils_assemble_flags $srcdir/$subdir/dw5.S tmpdir/dw5.o $hpux]} then {
+    if {![binutils_assemble_flags $srcdir/$subdir/dw5.S tmpdir/dw5.o $flags]} then {
 	unsupported "readelf -wiaoRlL dw5 (failed to assemble)"
     } else {
 
@@ -596,10 +600,22 @@ if ![is_remote host] {
     } else {
 	readelf_test {--debug-dump=macro -wN} $tempfile pr26112.r
     }
+
+    set test $srcdir/$subdir/pr26160.dwp.bz2
+    # We need to strip the ".bz2", but can leave the dirname.
+    set t $subdir/[file tail $test]
+    set testname [file rootname $t]
+    verbose $testname
+    set tempfile tmpdir/pr26160.dwp
+    if {[catch "system \"bzip2 -dc $test > $tempfile\""] != 0} {
+	untested "bzip2 -dc ($testname)"
+    } else {
+	readelf_test {-wi} $tempfile pr26160.r
+    }
 }
 
 # Check dwarf-5 support for DW_OP_addrx.
-if {![binutils_assemble_flags $srcdir/$subdir/dw5-op.S tmpdir/dw5-op.o $hpux]} then {
+if {![binutils_assemble_flags $srcdir/$subdir/dw5-op.S tmpdir/dw5-op.o $flags]} then {
     unsupported "readelf -wi dw5-op (failed to assemble)"
 } else {
 
@@ -611,8 +627,83 @@ if ![is_remote host] {
 }
 
 # First, determine the size, so specific output matchers can be used.
-readelf_find_size $tempfile 2
+readelf_find_size $tempfile 4
 
 # Make sure that readelf can decode the contents.
 readelf_test -wi $tempfile dw5-op.W
 }
+
+# Test the -j/--display-section option.
+# Check that multiple options accumulate.
+# Check that both numbers and names can be used.
+readelf_test {-j .rela.debug_info --display-section=.rel.debug_info} $tempfile display-section-rel.r
+readelf_test --display-section=0 $tempfile display-section-0.r
+
+
+# Test that RELR relocations are display correctly.
+proc readelf_relr_test {} {
+    global srcdir
+    global subdir
+    global READELF
+    global READELFFLAGS
+    
+    set testname "readelf -r (RELR)"
+
+    # Assemble the RELR test file (using magic to work for both 32-bit and
+    # 64-bit targets).
+    if {![binutils_assemble $srcdir/$subdir/relr.s tmpdir/relr.o]} then {
+      unsupported "$testname: failed to assemble RELR test file"
+      return
+    }
+
+    # Download it.
+    set tempfile [remote_download host tmpdir/relr.o]
+
+    # Run "readelf -r" on it.
+    set got [remote_exec host "$READELF $READELFFLAGS -r $tempfile" "" "/dev/null" "readelf.out"]
+    set got [lindex $got 1]
+
+    # Upload the results.
+    set output [remote_upload host readelf.out]
+
+    # Check for something going wrong.
+    if ![string match "" $got] then {
+	fail "$testname: unexpected output"
+	send_log $got
+	send_log "\n"
+	return
+    }
+
+    # Search for strings that should be in the output.
+    # There will also be these strings:
+    #   readelf: Error: Section 4 has invalid sh_entsize of 0
+    #   readelf: Error: (Using the expected size of 8 for the rest of this dump)
+    # But we ignore them...
+
+    set sought {
+	"0000:  0+01000 0+01000 .*"
+	"0001:  0+00003 0+0100. .*"
+    }
+
+    foreach looked_for $sought {
+	set lines [grep $output $looked_for]
+	if ![llength $lines] then {
+	    fail "$testname: missing: $looked_for"
+	    send_log readelf.out
+	    return
+	}
+    }
+
+    file_on_host delete $tempfile
+    file_on_host delete $output
+
+    # All done.
+    pass "$testname"
+}
+
+# The AVR, H8300, IP2K and Z80 targets' .dc.a pseudo-op creates a
+# 16-bit entry rather than a 32-bit entry.  Thus creating an
+# invalid RELR relocation.
+setup_xfail "avr-*-*" "h8300-*-*" "ip2k-*-*" "z80-*-*"
+
+readelf_relr_test

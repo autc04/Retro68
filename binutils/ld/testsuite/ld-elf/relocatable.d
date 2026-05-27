@@ -2,7 +2,7 @@
 #source: simple.s
 #ld: -r -T relocatable.t
 #readelf: -S --wide
-#xfail: hppa-*-*
+#xfail: hppa-*-* hppa[12]*-*-*
 
 #...
   \[[ 0-9]+\] \.text.*[ \t]+PROGBITS[ \t]+0+800000[ \t0-9a-f]+AX.*

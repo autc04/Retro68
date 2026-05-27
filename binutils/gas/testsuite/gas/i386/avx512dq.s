@@ -1,6 +1,5 @@
 # Check 32bit AVX512DQ instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vbroadcastf32x8	(%ecx), %zmm6	 # AVX512DQ

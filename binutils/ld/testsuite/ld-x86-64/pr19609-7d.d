@@ -1,6 +1,6 @@
 #source: pr19609-7.s
 #as: --x32 -mrelax-relocations=yes
-#ld: -melf32_x86_64 -Ttext=0x80000000 --no-relax -z max-page-size=0x1000 -z separate-code
+#ld: -melf32_x86_64 -Ttext=0x80000000 --no-relax -z max-page-size=0x1000 -z separate-code --no-rosegment
 #objdump: -dw
 
 .*: +file format .*

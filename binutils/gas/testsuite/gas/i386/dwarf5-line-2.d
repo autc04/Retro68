@@ -4,7 +4,7 @@
 
 Raw dump of debug contents of section \.z?debug_line:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Length:                      .*
   DWARF Version:               5
   Address size \(bytes\):        .*
@@ -33,7 +33,7 @@ Raw dump of debug contents of section \.z?debug_line:
 
  The Directory Table \(offset 0x.*, lines 1, columns 1\):
   Entry	Name
-  0	\(indirect line string, offset: 0x.*\): .*/gas/testsuite
+  0	\(indirect line string, offset: 0.*\): .*/gas/testsuite
 
  The File Name Table \(offset 0x.*, lines 1, columns 3\):
   Entry	Dir	MD5				Name

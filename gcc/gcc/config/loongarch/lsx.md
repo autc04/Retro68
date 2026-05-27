@@ -1,6 +1,6 @@
 ;; Machine Description for LARCH Loongson SX ASE
 ;;
-;; Copyright (C) 2018-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2018-2026 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -45,7 +45,6 @@
   UNSPEC_LSX_VSAT_U
   UNSPEC_LSX_VSRAR
   UNSPEC_LSX_VSRLR
-  UNSPEC_LSX_VSHUF
   UNSPEC_LSX_VEXTW_S
   UNSPEC_LSX_VEXTW_U
   UNSPEC_LSX_VSLLWIL_S
@@ -86,7 +85,6 @@
   UNSPEC_LSX_VSSRLN
   UNSPEC_LSX_VSSRLRN
   UNSPEC_LSX_VLDI
-  UNSPEC_LSX_VSHUF_B
   UNSPEC_LSX_VSTX
   UNSPEC_LSX_VEXTL_QU_DU
   UNSPEC_LSX_VSETEQZ_V
@@ -133,20 +131,11 @@
 ;; Only used for copy_{u,s}.w and vilvh.
 (define_mode_iterator LSX_W    [V4SI V4SF])
 
-;; As ILSX but excludes V16QI.
-(define_mode_iterator ILSX_DWH [V2DI V4SI V8HI])
-
-;; As LSX but excludes V16QI.
-(define_mode_iterator LSX_DWH  [V2DF V4SF V2DI V4SI V8HI])
-
 ;; As ILSX but excludes V2DI.
 (define_mode_iterator ILSX_WHB [V4SI V8HI V16QI])
 
 ;; Only integer modes equal or larger than a word.
 (define_mode_iterator ILSX_DW  [V2DI V4SI])
-
-;; Only integer modes smaller than a word.
-(define_mode_iterator ILSX_HB  [V8HI V16QI])
 
 ;;;; Only integer modes for fixed-point madd_q/maddr_q.
 ;;(define_mode_iterator ILSX_WH  [V4SI V8HI])
@@ -524,28 +513,19 @@
 })
 
 (define_expand "vec_perm<mode>"
- [(match_operand:LSX 0 "register_operand")
-  (match_operand:LSX 1 "register_operand")
-  (match_operand:LSX 2 "register_operand")
-  (match_operand:<VIMODE> 3 "register_operand")]
-  "ISA_HAS_LSX"
-{
-  loongarch_expand_vec_perm (operands[0], operands[1],
-			     operands[2], operands[3]);
-  DONE;
-})
-
-(define_insn "lsx_vshuf_<lsxfmt_f>"
-  [(set (match_operand:LSX_DWH 0 "register_operand" "=f")
-	(unspec:LSX_DWH [(match_operand:LSX_DWH 1 "register_operand" "0")
-			 (match_operand:LSX_DWH 2 "register_operand" "f")
-			 (match_operand:LSX_DWH 3 "register_operand" "f")]
-			UNSPEC_LSX_VSHUF))]
-  "ISA_HAS_LSX"
-  "vshuf.<lsxfmt>\t%w0,%w2,%w3"
-  [(set_attr "type" "simd_sld")
-   (set_attr "mode" "<MODE>")])
-
+ [(set (match_dup 4)
+       (and:<VIMODE> (match_operand:<VIMODE> 3 "register_operand")
+		     (match_dup 5)))
+  (set (match_operand:LSX 0 "register_operand")
+       (unspec:LSX [(match_operand:LSX 2 "register_operand")
+                    (match_operand:LSX 1 "register_operand")
+                    (match_dup 4)]
+		   UNSPEC_SIMD_VSHUF))]
+ "ISA_HAS_LSX"
+ {
+   operands[4] = gen_reg_rtx (<VIMODE>mode);
+   operands[5] = gen_const_vec_duplicate (<VIMODE>mode, GEN_INT (0x1f));
+ })
 
 ;; Integer operations
 (define_insn "add<mode>3"
@@ -652,59 +632,6 @@
   "ISA_HAS_LSX"
 { return loongarch_lsx_output_division ("vmod.<lsxfmt_u>\t%w0,%w1,%w2", operands); }
   [(set_attr "type" "simd_div")
-   (set_attr "mode" "<MODE>")])
-
-(define_insn "xor<mode>3"
-  [(set (match_operand:LSX 0 "register_operand" "=f,f,f")
-	(xor:LSX
-	  (match_operand:LSX 1 "register_operand" "f,f,f")
-	  (match_operand:LSX 2 "reg_or_vector_same_val_operand" "f,YC,Urv8")))]
-  "ISA_HAS_LSX"
-  "@
-   vxor.v\t%w0,%w1,%w2
-   vbitrevi.%v0\t%w0,%w1,%V2
-   vxori.b\t%w0,%w1,%B2"
-  [(set_attr "type" "simd_logic,simd_bit,simd_logic")
-   (set_attr "mode" "<MODE>")])
-
-(define_insn "ior<mode>3"
-  [(set (match_operand:LSX 0 "register_operand" "=f,f,f")
-	(ior:LSX
-	  (match_operand:LSX 1 "register_operand" "f,f,f")
-	  (match_operand:LSX 2 "reg_or_vector_same_val_operand" "f,YC,Urv8")))]
-  "ISA_HAS_LSX"
-  "@
-   vor.v\t%w0,%w1,%w2
-   vbitseti.%v0\t%w0,%w1,%V2
-   vori.b\t%w0,%w1,%B2"
-  [(set_attr "type" "simd_logic,simd_bit,simd_logic")
-   (set_attr "mode" "<MODE>")])
-
-(define_insn "and<mode>3"
-  [(set (match_operand:LSX 0 "register_operand" "=f,f,f")
-	(and:LSX
-	  (match_operand:LSX 1 "register_operand" "f,f,f")
-	  (match_operand:LSX 2 "reg_or_vector_same_val_operand" "f,YZ,Urv8")))]
-  "ISA_HAS_LSX"
-{
-  switch (which_alternative)
-    {
-    case 0:
-      return "vand.v\t%w0,%w1,%w2";
-    case 1:
-      {
-	rtx elt0 = CONST_VECTOR_ELT (operands[2], 0);
-	unsigned HOST_WIDE_INT val = ~UINTVAL (elt0);
-	operands[2] = loongarch_gen_const_int_vector (<MODE>mode, val & (-val));
-	return "vbitclri.%v0\t%w0,%w1,%V2";
-      }
-    case 2:
-      return "vandi.b\t%w0,%w1,%B2";
-    default:
-      gcc_unreachable ();
-    }
-}
-  [(set_attr "type" "simd_logic,simd_bit,simd_logic")
    (set_attr "mode" "<MODE>")])
 
 (define_insn "one_cmpl<mode>2"
@@ -849,16 +776,6 @@
 		  (match_operand:FLSX 3 "register_operand" "f")))]
   "ISA_HAS_LSX"
   "vfmadd.<flsxfmt>\t%w0,%w1,%w2,%w3"
-  [(set_attr "type" "simd_fmadd")
-   (set_attr "mode" "<MODE>")])
-
-(define_insn "fnma<mode>4"
-  [(set (match_operand:FLSX 0 "register_operand" "=f")
-	(fma:FLSX (neg:FLSX (match_operand:FLSX 1 "register_operand" "f"))
-		  (match_operand:FLSX 2 "register_operand" "f")
-		  (match_operand:FLSX 3 "register_operand" "0")))]
-  "ISA_HAS_LSX"
-  "vfnmsub.<flsxfmt>\t%w0,%w1,%w2,%w0"
   [(set_attr "type" "simd_fmadd")
    (set_attr "mode" "<MODE>")])
 
@@ -1697,6 +1614,39 @@
   [(set_attr "type" "simd_shf")
    (set_attr "mode" "<MODE>")])
 
+(define_insn_and_split "lsx_vshuf4i_mem_w_0"
+  [(set (match_operand:V4SI 0 "register_operand" "=f")
+       (vec_merge:V4SI
+         (vec_duplicate:V4SI
+           (mem:SI (match_operand:DI 1 "register_operand" "r")))
+         (vec_duplicate:V4SI
+           (mem:SI (plus:DI (match_dup 1) (const_int 4))))
+         (match_operand 2 "const_uimm4_operand" "")))]
+  "ISA_HAS_LSX"
+  "#"
+  "&& reload_completed"
+  [(const_int 0)]
+{
+  operands[0] = gen_rtx_REG (V2DImode, REGNO (operands[0]));
+  emit_insn (gen_lsx_vldrepl_d_insn_0 (operands[0], operands[1]));
+
+  operands[0] = gen_rtx_REG (V4SImode, REGNO (operands[0]));
+  rtx sel[4];
+  int op2 = INTVAL (operands[2]);
+  int mask = 1;
+
+  /* Convert imm to an selection.  */
+  for (int i = 0; i < 4; ++i)
+    {
+      sel[i] =  (op2 & mask) ? const0_rtx : const1_rtx;
+      mask = mask << 1;
+    }
+
+  rtx shuf4i_mask = gen_rtx_PARALLEL (V4SImode, gen_rtvec_v (4, sel));
+  emit_insn (gen_lsx_vshuf4i_w (operands[0], operands[0], shuf4i_mask));
+  DONE;
+})
+
 (define_insn "lsx_vsrar_<lsxfmt>"
   [(set (match_operand:ILSX 0 "register_operand" "=f")
 	(unspec:ILSX [(match_operand:ILSX 1 "register_operand" "f")
@@ -1746,11 +1696,15 @@
   [(set_attr "type" "simd_splat")
    (set_attr "mode" "<MODE>")])
 
+;; UNSPEC_LSX_VREPLVEI_MIRROR describes the mirror operation that copies
+;; the lower 64 bits of a 128-bit register to the upper 64 bits. It is only
+;; called when the high half-part is the same as the low.
+
 (define_insn "lsx_vreplvei_mirror_<lsxfmt_f>"
   [(set (match_operand:LSX 0 "register_operand" "=f")
 	(unspec: LSX [(match_operand:LSX 1 "register_operand" "f")
-				(match_operand 2 "const_<indeximm>_operand" "")]
-				UNSPEC_LSX_VREPLVEI_MIRROR))]
+		      (match_operand 2 "const_0_or_1_operand" "")]
+		      UNSPEC_LSX_VREPLVEI_MIRROR))]
   "ISA_HAS_LSX"
   "vreplvei.d\t%w0,%w1,%2"
   [(set_attr "type" "simd_splat")
@@ -2289,59 +2243,6 @@
   [(set_attr "type" "simd_int_arith")
    (set_attr "mode" "<MODE>")])
 
-(define_expand "copysign<mode>3"
-  [(set (match_dup 4)
-	(and:FLSX
-	  (not:FLSX (match_dup 3))
-	  (match_operand:FLSX 1 "register_operand")))
-   (set (match_dup 5)
-	(and:FLSX (match_dup 3)
-		  (match_operand:FLSX 2 "reg_or_vector_same_val_operand")))
-   (set (match_operand:FLSX 0 "register_operand")
-	(ior:FLSX (match_dup 4) (match_dup 5)))]
-  "ISA_HAS_LSX"
-{
-  /* copysign (x, -1) should instead be expanded as setting the sign
-     bit.  */
-  if (!REG_P (operands[2]))
-    {
-      rtx op2_elt = unwrap_const_vec_duplicate (operands[2]);
-      if (GET_CODE (op2_elt) == CONST_DOUBLE
-	  && real_isneg (CONST_DOUBLE_REAL_VALUE (op2_elt)))
-	{
-	  rtx n = GEN_INT (8 * GET_MODE_SIZE (<UNITMODE>mode) - 1);
-	  operands[0] = lowpart_subreg (<VIMODE>mode, operands[0],
-					<MODE>mode);
-	  operands[1] = lowpart_subreg (<VIMODE>mode, operands[1],
-					<MODE>mode);
-	  emit_insn (gen_lsx_vbitseti_<lsxfmt> (operands[0], operands[1],
-						n));
-	  DONE;
-	}
-    }
-
-  operands[2] = force_reg (<MODE>mode, operands[2]);
-  operands[3] = loongarch_build_signbit_mask (<MODE>mode, 1, 0);
-
-  operands[4] = gen_reg_rtx (<MODE>mode);
-  operands[5] = gen_reg_rtx (<MODE>mode);
-})
-
-(define_expand "@xorsign<mode>3"
-  [(set (match_dup 4)
-    (and:FLSX (match_dup 3)
-        (match_operand:FLSX 2 "register_operand")))
-   (set (match_operand:FLSX 0 "register_operand")
-    (xor:FLSX (match_dup 4)
-         (match_operand:FLSX 1 "register_operand")))]
-  "ISA_HAS_LSX"
-{
-  operands[3] = loongarch_build_signbit_mask (<MODE>mode, 1, 0);
-
-  operands[4] = gen_reg_rtx (<MODE>mode);
-})
-
-
 (define_insn "absv2df2"
   [(set (match_operand:V2DF 0 "register_operand" "=f")
 	(abs:V2DF (match_operand:V2DF 1 "register_operand" "f")))]
@@ -2616,6 +2517,35 @@
    (set_attr "mode" "<MODE>")
    (set_attr "length" "4")])
 
+;; In 128-bits register, the template implements the load of identical
+;; consecutive SImode data into both the upper 64 bits and lower 64 bits.
+;; Operand[2] performs a vec_merge operation on two consecutive addresses
+;; SImode data items, and places the result in either the lower 64 bits or
+;; the upper 64 bits. When operand[3] is 0, the lower 64 bits are copied
+;; to the upper 64 bits; when operand[3] is 1, the upper 64 bits are copied
+;; to the lower 64 bits.
+
+(define_insn "lsx_vldrepl_merge_w_0"
+  [(set (match_operand:V4SI 0 "register_operand" "=f")
+       (unspec:V4SI
+         [(vec_merge:V4SI
+           (vec_duplicate:V4SI
+             (mem:SI (match_operand:DI 1 "register_operand" "r")))
+           (vec_duplicate:V4SI
+             (mem:SI (plus:DI (match_dup 1) (const_int 4))))
+           (match_operand 2 "const_uimm4_operand" ""))
+         (match_operand 3 "const_0_or_1_operand" "")]
+         UNSPEC_LSX_VREPLVEI_MIRROR))]
+  "ISA_HAS_LSX
+   && (INTVAL (operands[3]) ? (INTVAL (operands[2]) & 0xc) == 0x4
+			    : (INTVAL (operands[2]) & 0x3) == 0x1)"
+{
+  return "vldrepl.d\t%w0,%1,0";
+}
+  [(set_attr "type" "simd_load")
+   (set_attr "mode" "V4SI")
+   (set_attr "length" "4")])
+
 ;; Offset store by sel
 (define_expand "lsx_vstelm_<lsxfmt_f>"
   [(match_operand:LSX 0 "register_operand")
@@ -2733,17 +2663,6 @@
 }
   [(set_attr "type" "simd_load")
    (set_attr "mode" "V2DI")])
-
-(define_insn "lsx_vshuf_b"
-  [(set (match_operand:V16QI 0 "register_operand" "=f")
-	(unspec:V16QI [(match_operand:V16QI 1 "register_operand" "f")
-		       (match_operand:V16QI 2 "register_operand" "f")
-		       (match_operand:V16QI 3 "register_operand" "f")]
-		      UNSPEC_LSX_VSHUF_B))]
-  "ISA_HAS_LSX"
-  "vshuf.b\t%w0,%w1,%w2,%w3"
-  [(set_attr "type" "simd_shf")
-   (set_attr "mode" "V16QI")])
 
 (define_insn "lsx_vstx"
   [(set (mem:V16QI (plus:DI (match_operand:DI 1 "register_operand" "r")
@@ -3220,3 +3139,48 @@
   [(set (match_dup 0)
 	(vec_duplicate:V2DI (match_dup 1)))]
   "")
+
+(define_expand "vec_widen_<su><optab>_<hi_lo>_<mode>"
+  [(match_operand:<VDMODE> 0 "register_operand")
+   (match_operand:ILSX_WHB 1 "register_operand")
+   (match_operand:ILSX_WHB 2 "register_operand")
+   (any_extend (const_int 0))
+   (addsub (const_int 0) (const_int 0))
+   (const_int zero_one)]
+  "ISA_HAS_LSX"
+{
+  rtx t_even = gen_reg_rtx (<VDMODE>mode);
+  rtx t_odd = gen_reg_rtx (<VDMODE>mode);
+  emit_insn (gen_lsx_v<optab>wev_<dlsxfmt>_<lsxfmt><u> (t_even, operands[1],
+	operands[2]));
+  emit_insn (gen_lsx_v<optab>wod_<dlsxfmt>_<lsxfmt><u> (t_odd, operands[1],
+	operands[2]));
+  if (<zero_one>)
+    emit_insn (gen_lsx_vilvh_<dlsxfmt> (operands[0], t_even, t_odd));
+  else
+    emit_insn (gen_lsx_vilvl_<dlsxfmt> (operands[0], t_even, t_odd));
+
+  DONE;
+})
+
+(define_expand "vec_widen_<su>mult_<hi_lo>_<mode>"
+  [(match_operand:<VDMODE> 0 "register_operand")
+   (match_operand:ILSX_WHB 1 "register_operand")
+   (match_operand:ILSX_WHB 2 "register_operand")
+   (any_extend (const_int 0))
+   (const_int zero_one)]
+  "ISA_HAS_LSX"
+{
+  rtx t_even = gen_reg_rtx (<VDMODE>mode);
+  rtx t_odd = gen_reg_rtx (<VDMODE>mode);
+  emit_insn (gen_lsx_vmulwev_<dlsxfmt>_<lsxfmt><u> (t_even, operands[1],
+	operands[2]));
+  emit_insn (gen_lsx_vmulwod_<dlsxfmt>_<lsxfmt><u> (t_odd, operands[1],
+	operands[2]));
+  if (<zero_one>)
+    emit_insn (gen_lsx_vilvh_<dlsxfmt> (operands[0], t_even, t_odd));
+  else
+    emit_insn (gen_lsx_vilvl_<dlsxfmt> (operands[0], t_even, t_odd));
+
+  DONE;
+})

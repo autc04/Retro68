@@ -1,4 +1,3 @@
-#as:
 #objdump: -dwMintel
 #name: i386 AVX GATHER insns (Intel disassembly)
 #source: avx-gather.s

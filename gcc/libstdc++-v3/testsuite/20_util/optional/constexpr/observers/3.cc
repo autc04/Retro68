@@ -1,6 +1,6 @@
 // { dg-do run { target c++17 } }
 
-// Copyright (C) 2013-2025 Free Software Foundation, Inc.
+// Copyright (C) 2013-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,11 +18,44 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <optional>
+#include <testsuite_hooks.h>
 
 struct value_type
 {
   int i;
 };
+
+#if __cpp_lib_constexpr_exceptions >= 202502L
+void eat(int x)
+{
+}
+
+constexpr bool test01()
+{
+  enum outcome_type { nothrow, caught, bad_catch };
+
+  outcome_type outcome {};
+  std::optional<value_type> o = std::nullopt;
+
+  try
+  {
+    eat(o.value().i);
+  }
+  catch(std::bad_optional_access const& x)
+  {
+    outcome = caught;
+    long c = x.what()[0];
+    VERIFY( c == x.what()[0] );
+  }
+  catch(...)
+  { outcome = bad_catch; }
+
+  VERIFY( outcome == caught );
+  return true;
+}
+
+static_assert( test01() );
+#endif
 
 int main()
 {

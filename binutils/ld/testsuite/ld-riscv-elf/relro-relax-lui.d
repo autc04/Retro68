@@ -1,5 +1,6 @@
 #source: relro-relax-lui.s
-#ld: -zrelro --relax
+#as: -march=rv64i
+#ld: -zrelro --relax -m[riscv_choose_lp64_emul]
 #objdump: -d -Mno-aliases
 
 .*:[ 	]+file format .*

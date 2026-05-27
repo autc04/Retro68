@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: x86_64 CLDEMOTE insns (Intel disassembly)
 #source: x86-64-cldemote.s

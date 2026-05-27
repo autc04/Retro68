@@ -1,5 +1,5 @@
 /* FR30 specific functions.
-   Copyright (C) 1998-2025 Free Software Foundation, Inc.
+   Copyright (C) 1998-2026 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
    This file is part of GCC.
@@ -976,8 +976,7 @@ fr30_move_double (rtx * operands)
     /* This should have been prevented by the constraints on movdi_insn.  */
     gcc_unreachable ();
 
-  val = get_insns ();
-  end_sequence ();
+  val = end_sequence ();
 
   return val;
 }

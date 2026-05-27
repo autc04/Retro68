@@ -6,7 +6,7 @@ SYMBOL TABLE:
 0+402010 g       .data	0000000000000000 initdummy
 0+400000 g       .text\$mn	0000000000000000 __executable_start
 0+401000 g       .text\$mn	0000000000000000 begin
-0+402012 g       .bss	0000000000000000 __bss_start
+0+402014 g       .bss	0000000000000000 __bss_start
 0+402000 g       .data	0000000000000000 Struct
 0+402011 g       .data	0000000000000000 initializedVar
 0+402012 g       .data	0000000000000000 _edata

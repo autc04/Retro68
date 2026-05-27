@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -47,8 +47,8 @@ package Ada.Strings.Wide_Bounded is
 
       Max_Length : constant Positive := Max;
 
-      type Bounded_Wide_String is private;
-      pragma Preelaborable_Initialization (Bounded_Wide_String);
+      type Bounded_Wide_String is private
+      with Preelaborable_Initialization;
 
       Null_Bounded_Wide_String : constant Bounded_Wide_String;
 

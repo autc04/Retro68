@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1997-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1997-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -27,7 +27,6 @@ with ALI;            use ALI;
 with Atree;          use Atree;
 with Checks;         use Checks;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
@@ -53,7 +52,6 @@ with Sem_Ch8;        use Sem_Ch8;
 with Sem_Disp;       use Sem_Disp;
 with Sem_Prag;       use Sem_Prag;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
@@ -9892,7 +9890,7 @@ package body Sem_Elab is
                --  The corresponding subunit was previously loaded
 
                if Present (Lib_Unit) then
-                  return Lib_Unit;
+                  return Proper_Body (Unit (Lib_Unit));
 
                --  Otherwise attempt to load the corresponding subunit
 
@@ -11199,7 +11197,7 @@ package body Sem_Elab is
         (Id : Entity_Id) return Extended_Ghost_Mode
       is
       begin
-         return To_Ghost_Mode (Is_Ignored_Ghost_Entity (Id));
+         return To_Ghost_Mode (Is_Ignored_Ghost_Entity_In_Codegen (Id));
       end Ghost_Mode_Of_Entity;
 
       ------------------------
@@ -15236,7 +15234,15 @@ package body Sem_Elab is
             end if;
 
             Body_Decl := Unit_Declaration_Node (Body_Id);
-            Region    := Find_Early_Call_Region (Body_Decl);
+
+            --  For subprogram bodies in subunits we check where the subprogram
+            --  body stub is declared.
+
+            if Nkind (Parent (Body_Decl)) = N_Subunit then
+               Body_Decl := Corresponding_Stub (Parent (Body_Decl));
+            end if;
+
+            Region := Find_Early_Call_Region (Body_Decl);
 
             --  The freeze node appears prior to the early call region of the
             --  primitive body.
@@ -17461,7 +17467,7 @@ package body Sem_Elab is
       --  Stuff that happens only at the outer level
 
       if No (Outer_Scope) then
-         Elab_Visited.Set_Last (0);
+         Elab_Visited.Clear;
 
          --  Nothing to do if current scope is Standard (this is a bit odd, but
          --  it happens in the case of generic instantiations).

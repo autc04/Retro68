@@ -1,0 +1,9 @@
+LIBRARY "symbols-ordinals-hints.dll"
+EXPORTS
+; define symbols in no specific order
+; define ordinals also in no specific order
+sym2 @5
+sym5
+sym3 @1 NONAME
+sym1 @2
+sym4

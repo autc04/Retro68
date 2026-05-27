@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2007-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -132,6 +132,7 @@ UINT64 CY;                                                      \
   __mul_10x64(p1,c1,a1,c0);                                     \
   __mul_10x64(p2,c2,a2,c1);                                     \
   __mul_10x64(p3,c3,a3,c2);                                     \
+  (void)c3;							\
 }
 
 // Set up indices for low and high parts, depending on the endian-ness.

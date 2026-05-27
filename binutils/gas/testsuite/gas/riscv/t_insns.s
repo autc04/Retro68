@@ -1,2 +1,3 @@
 target:
+	.option norvc
 	nop

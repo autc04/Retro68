@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,7 +30,6 @@ with Checks;
 with CStand;
 with Debug;          use Debug;
 with Elists;
-with Exp_Ch6;
 with Exp_Dbug;
 with Exp_Unst;
 with Fmap;
@@ -56,11 +55,11 @@ with Scn;            use Scn;
 with Sem;            use Sem;
 with Sem_Aux;
 with Sem_Ch8;
+with Sem_Ch12;
 with Sem_SCIL;
 with Sem_Elab;       use Sem_Elab;
 with Sem_Prag;       use Sem_Prag;
 with Sem_Warn;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
@@ -68,7 +67,6 @@ with Sinput.L;       use Sinput.L;
 with SCIL_LL;
 with Tbuild;         use Tbuild;
 with Types;          use Types;
-with VAST;
 with Warnsw;         use Warnsw;
 
 procedure Frontend is
@@ -368,11 +366,12 @@ begin
       --  If we have restriction No_Exception_Propagation, and we did not have
       --  an explicit switch turning off Warn_On_Non_Local_Exception, then turn
       --  on this warning by default if we have encountered an exception
-      --  handler.
+      --  handler. We do not override the setting of GNATprove.
 
       if Restriction_Check_Required (No_Exception_Propagation)
         and then not No_Warn_On_Non_Local_Exception
         and then Exception_Handler_Encountered
+        and then not GNATprove_Mode
       then
          Warn_On_Non_Local_Exception := True;
       end if;
@@ -431,6 +430,18 @@ begin
                   Analyze_Inlined_Bodies;
                end if;
 
+               --  Mark the structural instances spawned by the main unit as
+               --  Link Once because other units may spawn them too.
+
+               Sem_Ch12.Mark_Link_Once
+                 (Declarations (Aux_Decls_Node (Cunit (Main_Unit))));
+
+               if Nkind (Unit (Cunit (Main_Unit))) = N_Package_Body then
+                  Sem_Ch12.Mark_Link_Once
+                    (Declarations
+                      (Aux_Decls_Node (Spec_Lib_Unit (Cunit (Main_Unit)))));
+               end if;
+
                --  Remove entities from program that do not have any execution
                --  time references.
 
@@ -476,7 +487,7 @@ begin
             --  executable. This action must be performed very late because it
             --  heavily alters the tree.
 
-            if Operating_Mode = Generate_Code or else GNATprove_Mode then
+            if Operating_Mode = Generate_Code and not CodePeer_Mode then
                Remove_Ignored_Ghost_Code;
             end if;
 
@@ -502,22 +513,6 @@ begin
    if Generate_SCIL then
       pragma Debug (Sem_SCIL.Check_SCIL_Nodes (Cunit (Main_Unit)));
       null;
-   end if;
-
-   --  Verify the validity of the tree
-
-   if Debug_Flag_Underscore_VV then
-      VAST.Check_Tree (Cunit (Main_Unit));
-   end if;
-
-   --  Validate all the subprogram calls; this work will be done by VAST; in
-   --  the meantime it is done to check extra formals and it can be disabled
-   --  using -gnatd_X (which also disables all the other assertions on extra
-   --  formals). It is invoked using pragma Debug to avoid adding any cost
-   --  when the compiler is built with assertions disabled.
-
-   if not Debug_Flag_Underscore_XX then
-      pragma Debug (Exp_Ch6.Validate_Subprogram_Calls (Cunit (Main_Unit)));
    end if;
 
    --  Dump the source now. Note that we do this as soon as the analysis

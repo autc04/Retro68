@@ -33,5 +33,5 @@ Disassembly of section .text:
 0+5c <[^>]*> e5910000 	ldr	r0, \[r1\]
 0+60 <[^>]*> e5832000 	str	r2, \[r3\]
 0+64 <[^>]*> e321f011 	msr	CPSR_c, #17
-0+68 <[^>]*> e1a00000 ?	nop[ 	]+; \(mov r0, r0\)
-0+6c <[^>]*> e1a00000 ?	nop[ 	]+; \(mov r0, r0\)
+0+68 <[^>]*> e1a00000 ?	nop[ 	]+@ \(mov r0, r0\)
+0+6c <[^>]*> e1a00000 ?	nop[ 	]+@ \(mov r0, r0\)

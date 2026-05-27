@@ -1,5 +1,5 @@
 # Expect script for ld-s390 tests
-#   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -50,14 +50,41 @@ set s390tests {
       {objdump -sj.got tlsbin.sd} {objdump -sj.tdata tlsbin.td}}
      "tlsbin"}
     {"GOT: symbol address load from got to larl"
-     "-shared -melf_s390 --hash-style=sysv --version-script=gotreloc-1.ver" ""
+     "-shared -melf_s390 --hash-style=sysv --version-script=gotreloc-1.ver --emit-relocs" ""
      "-m31" {gotreloc-1.s}
-     {{objdump -dzrj.text gotreloc_31-1.dd}}
-     "gotreloc_31-1"}
+     {{objdump -dzrj.text gotreloc_31-1a.dd}}
+     "gotreloc_31-1a"}
+    {"GOT: no symbol address load from got to larl (--no-relax)"
+     "-shared -melf_s390 --hash-style=sysv --version-script=gotreloc-1.ver --emit-relocs --no-relax" ""
+     "-m31" {gotreloc-1.s}
+     {{objdump -dzrj.text gotreloc_31-1b.dd}}
+     "gotreloc_31-1b"}
+    {"GOT: no-pie symbol address load from got to larl"
+     "-shared -melf_s390 --no-pie --hash-style=sysv --version-script=gotreloc-1.ver --emit-relocs" ""
+     "-m31" {gotreloc-1.s}
+     {{objdump -dzrj.text gotreloc_31-no-pie-1a.dd}}
+     "gotreloc_31-1a"}
+    {"GOT: no no-pie symbol address load from got to larl (--no-relax)"
+     "-shared -melf_s390 --no-pie --hash-style=sysv --version-script=gotreloc-1.ver --emit-relocs --no-relax" ""
+     "-m31" {gotreloc-1.s}
+     {{objdump -dzrj.text gotreloc_31-no-pie-1b.dd}}
+     "gotreloc_31-1b"}
+    {"Helper shared library (PLT test)"
+     "-shared -m elf_s390" "" "-m31" {pltlib.s}
+     {}
+     "libpltlib_31.so"}
+    {"PLT: PLT generation (non-PIC/PIE)"
+     "-m elf_s390 tmpdir/libpltlib_31.so" "" "-m31" {plt_31-1.s}
+     {{objdump "-M insnlength -dzrj.plt" plt_31_non-pic-1.pd} {readelf "-wf" plt_31-1.wf}}
+     "plt_31_non-pic-1"}
+    {"PLT: PLT generation (PIC/PIE)"
+     "-m elf_s390 tmpdir/libpltlib_31.so -pic" "" "-m31" {plt_31-1.s}
+     {{objdump "-M insnlength -dzrj.plt" plt_31_pic-1.pd} {readelf "-wf" plt_31-1.wf}}
+     "plt_31_pic-1"}
 }
 
 set s390xtests {
-    {"TLS -fpic -shared transitions" "-shared -melf64_s390 --hash-style=sysv" ""
+    {"TLS -fpic -shared transitions" "-shared -melf64_s390 --hash-style=sysv --no-ld-generated-unwind-info" ""
      "-m64 -Aesame" {tlspic1_64.s tlspic2_64.s}
      {{readelf -WSsrl tlspic_64.rd} {objdump -dzrj.text tlspic_64.dd}
       {objdump -sj.got tlspic_64.sd} {objdump -sj.tdata tlspic_64.td}}
@@ -65,40 +92,109 @@ set s390xtests {
     {"Helper shared library" "-shared -melf64_s390" ""
      "-m64 -Aesame" {tlslib_64.s} {} "libtlslib_64.so"}
     {"TLS -fpic and -fno-pic exec transitions"
-     "-melf64_s390 tmpdir/libtlslib_64.so --hash-style=sysv" ""
+     "-melf64_s390 tmpdir/libtlslib_64.so --hash-style=sysv --no-ld-generated-unwind-info" ""
      "-m64 -Aesame" {tlsbinpic_64.s tlsbin_64.s}
      {{readelf -WSsrl tlsbin_64.rd} {objdump -dzrj.text tlsbin_64.dd}
       {objdump -sj.got tlsbin_64.sd} {objdump -sj.tdata tlsbin_64.td}}
      "tlsbin_64"}
     {"GOT: norelro symbol address load from got to larl"
-     "-shared -melf64_s390 -z norelro --hash-style=sysv --version-script=gotreloc-1.ver" ""
+     "-shared -melf64_s390 -z norelro --hash-style=sysv --version-script=gotreloc-1.ver --emit-relocs" ""
      "-m64" {gotreloc-1.s}
-     {{objdump -dzrj.text gotreloc_64-norelro-1.dd}}
-     "gotreloc_64-1"}
+     {{objdump -dzrj.text gotreloc_64-norelro-1a.dd}}
+     "gotreloc_64-1a"}
+    {"GOT: no norelro symbol address load from got (--no-relax)"
+     "-shared -melf64_s390 -z norelro --hash-style=sysv --version-script=gotreloc-1.ver --emit-relocs --no-relax" ""
+     "-m64" {gotreloc-1.s}
+     {{objdump -dzrj.text gotreloc_64-norelro-1b.dd}}
+     "gotreloc_64-1b"}
     {"GOT: relro symbol address load from got to larl"
-     "-shared -melf64_s390 -z relro --hash-style=sysv --version-script=gotreloc-1.ver" ""
+     "-shared -melf64_s390 -z relro --hash-style=sysv --version-script=gotreloc-1.ver --emit-relocs" ""
      "-m64" {gotreloc-1.s}
-     {{objdump -dzrj.text gotreloc_64-relro-1.dd}}
-     "gotreloc_64-1"}
+     {{objdump -dzrj.text gotreloc_64-relro-1a.dd}}
+     "gotreloc_64-1a"}
+    {"GOT: relro symbol address load from got (--no-relax)"
+     "-shared -melf64_s390 -z relro --hash-style=sysv --version-script=gotreloc-1.ver --emit-relocs --no-relax" ""
+     "-m64" {gotreloc-1.s}
+     {{objdump -dzrj.text gotreloc_64-relro-1b.dd}}
+     "gotreloc_64-1b"}
+    {"GOT: no-pie symbol address load from got to larl"
+     "-shared -melf64_s390 --no-pie --hash-style=sysv --version-script=gotreloc-1.ver --emit-relocs" ""
+     "-m64" {gotreloc-1.s}
+     {{objdump -dzrj.text gotreloc_64-no-pie-1a.dd}}
+     "gotreloc_64-1a"}
+    {"GOT: no-pie symbol address load from got (--no-relax)"
+     "-shared -melf64_s390 --no-pie --hash-style=sysv --version-script=gotreloc-1.ver --emit-relocs --no-relax" ""
+     "-m64" {gotreloc-1.s}
+     {{objdump -dzrj.text gotreloc_64-no-pie-1b.dd}}
+     "gotreloc_64-1b"}
     {"PLT: offset test"
-     "-shared -m elf64_s390 -dT pltoffset-1.ld" ""
+     "-shared -m elf64_s390 -dT pltoffset-1.ld --no-error-rwx-segments" ""
      "-m64" {pltoffset-1.s}
      {{objdump "-dzrj.text --stop-address=16" pltoffset-1.dd}}
      "pltoffset-1"}
+    {"WEAKUNDEF1: overflow test (PC32DBL)"
+     "-m elf64_s390 -dT 8GB.ld --emit-relocs --no-error-rwx-segments" "" "-m64" {weakundef-1.s}
+     {{objdump "-dzrj.text" weakundef-1a.dd}} "weakundef-1a"}
+    {"WEAKUNDEF2: overflow test (PLT32DBL)"
+     "-m elf64_s390 -dT 8GB.ld --emit-relocs --no-error-rwx-segments -no-pie" "" "-m64" {weakundef-2.s}
+     {{objdump "-dzrj.text" weakundef-2a.dd}} "weakundef-2a"}
+    {"Helper shared library (PLT test)"
+     "-shared -m elf64_s390" "" "-m64" {pltlib.s}
+     {}
+     "libpltlib_64.so"}
+    {"PLT: PLT generation without .eh_frame unwind info"
+     "-m elf64_s390 tmpdir/libpltlib_64.so --no-ld-generated-unwind-info" "" "-m64" {plt_64-1.s}
+     {{objdump "-dzrj.plt" plt_64-1.pd} {readelf "-wf" plt_64-1.wf}}
+     "plt_64-1"}
+    {"PLT: PLT generation with .eh_frame unwind info"
+     "-m elf64_s390 tmpdir/libpltlib_64.so" "" "-m64" {plt_64-1.s}
+     {{objdump "-dzrj.plt" plt_64-1.pd} {readelf "-wf" plt_64-1_eh.wf}}
+     "plt_64-1_eh"}
+    {"PR32969-1: do not rewrite load of misaligned COMDAT symbol address"
+     "-m elf64_s390" "" "-m64" {pr32969a.s pr32969b.s pr32969c.s}
+     {{objdump "-dzrj.text" pr32969_64-1.dd}}
+     "pr32969_64-1"}
+    {"PR32969-2: rewrite load of aligned COMDAT symbol address"
+     "-m elf64_s390" "" "-m64" {pr32969a.s pr32969c.s pr32969b.s}
+     {{objdump "-dzrj.text" pr32969_64-2.dd}}
+     "pr32969_64-2"}
+    {"Build pr33141a.o"
+     "" "" "-m64" { pr33141a.s }}
+    {"Build pr33141b.so"
+     "-m elf64_s390 -shared" "" "-m64" { pr33141b.s }
+     {}
+     "pr33141b.so"}
+    {"Build pr33141"
+     "-m elf64_s390 -pie -z notext tmpdir/pr33141a.o tmpdir/pr33141b.so" "" "-m64" {}
+     {{readelf {-rW} pr33141.rd}}
+     "pr33141"}
+    {"Build pr33141.so"
+     "-m elf64_s390 -shared -Bsymbolic -z notext" "" "-m64" { pr33141a.s }
+     {{readelf {-rW} pr33141.rd}}
+     "pr33141.so"}
 }
 
-if [istarget "s390-*-*"] {
+if { [istarget "s390-*-*"] || [istarget "s390x-*-*"] } {
     run_ld_link_tests $s390tests
+
+    run_dump_test "pr26918-1"
+    run_dump_test "reloccheck-1"
+    run_dump_test "reloctlsle-1"
+
 }
 
 if [istarget "s390x-*-*"] {
-    run_ld_link_tests $s390tests
     run_ld_link_tests $s390xtests
-}
 
-set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
-foreach t $test_list {
-    # We need to strip the ".d", but can leave the dirname.
-    verbose [file rootname $t]
-    run_dump_test [file rootname $t]
+    run_dump_test "weakundef-1b"
+    run_dump_test "weakundef-2b"
+
+    if { ![skip_sframe_tests] } {
+	run_dump_test "sframe-simple-1"
+	run_dump_test "sframe-plt-1"
+	# Test --discard-sframe
+	run_dump_test "sframe-command-line-1"
+	# Test --no-ld-generated-unwind-info
+	run_dump_test "sframe-command-line-2"
+    }
 }

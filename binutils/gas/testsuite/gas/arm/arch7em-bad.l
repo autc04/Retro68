@@ -3,10 +3,10 @@
 [^:]*:9: Error: selected processor does not support `pkhbt r9,r0,r0' in Thumb mode
 [^:]*:10: Error: selected processor does not support `pkhbt r0,r9,r0' in Thumb mode
 [^:]*:11: Error: selected processor does not support `pkhbt r0,r0,r9' in Thumb mode
-[^:]*:12: Error: selected processor does not support `pkhbt r0,r0,r0,lsl#0x14' in Thumb mode
-[^:]*:13: Error: selected processor does not support `pkhbt r0,r0,r0,lsl#3' in Thumb mode
+[^:]*:12: Error: selected processor does not support `pkhbt r0,r0,r0,lsl ?#0x14' in Thumb mode
+[^:]*:13: Error: selected processor does not support `pkhbt r0,r0,r0,lsl ?#3' in Thumb mode
 [^:]*:14: Error: selected processor does not support `pkhtb r1,r2,r3' in Thumb mode
-[^:]*:15: Error: selected processor does not support `pkhtb r1,r2,r3,asr#0x11' in Thumb mode
+[^:]*:15: Error: selected processor does not support `pkhtb r1,r2,r3,asr ?#0x11' in Thumb mode
 [^:]*:18: Error: selected processor does not support `qadd r1,r2,r3' in Thumb mode
 [^:]*:19: Error: selected processor does not support `qadd16 r1,r2,r3' in Thumb mode
 [^:]*:20: Error: selected processor does not support `qadd8 r1,r2,r3' in Thumb mode
@@ -121,10 +121,10 @@
 [^:]*:143: Error: selected processor does not support `uxtb16 r1,r2' in Thumb mode
 [^:]*:144: Error: selected processor does not support `uxtb16 r8,r9' in Thumb mode
 [^:]*:147: Error: selected processor does not support `sxtab r0,r0,r0' in Thumb mode
-[^:]*:148: Error: selected processor does not support `sxtab r0,r0,r0,ror#0' in Thumb mode
-[^:]*:149: Error: selected processor does not support `sxtab r9,r0,r0,ror#8' in Thumb mode
-[^:]*:150: Error: selected processor does not support `sxtab r0,r9,r0,ror#16' in Thumb mode
-[^:]*:151: Error: selected processor does not support `sxtab r0,r0,r9,ror#24' in Thumb mode
+[^:]*:148: Error: selected processor does not support `sxtab r0,r0,r0,ror ?#0' in Thumb mode
+[^:]*:149: Error: selected processor does not support `sxtab r9,r0,r0,ror ?#8' in Thumb mode
+[^:]*:150: Error: selected processor does not support `sxtab r0,r9,r0,ror ?#16' in Thumb mode
+[^:]*:151: Error: selected processor does not support `sxtab r0,r0,r9,ror ?#24' in Thumb mode
 [^:]*:153: Error: selected processor does not support `sxtab16 r1,r2,r3' in Thumb mode
 [^:]*:154: Error: selected processor does not support `sxtah r1,r2,r3' in Thumb mode
 [^:]*:155: Error: selected processor does not support `uxtab r1,r2,r3' in Thumb mode

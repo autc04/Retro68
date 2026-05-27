@@ -1,6 +1,6 @@
 (* LowLong.mod implement ISO LowLong specification.
 
-Copyright (C) 2010-2025 Free Software Foundation, Inc.
+Copyright (C) 2010-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -182,7 +182,7 @@ BEGIN
    IF n<0
    THEN
       (* exception raised *)
-      RAISE(except, ORD(badparam),
+      RAISE(exceptSrc, ORD(badparam),
             'LowLong.trunc: cannot truncate to a negative number of digits') ;
       RETURN x
    ELSE
@@ -230,7 +230,7 @@ BEGIN
    IF n<0
    THEN
       (* exception raised *)
-      RAISE(except, ORD(badparam),
+      RAISE(exceptSrc, ORD(badparam),
             'LowLong.round: cannot round to a negative number of digits') ;
       RETURN x
    ELSE
@@ -287,12 +287,12 @@ END currentMode ;
 
 PROCEDURE IsLowException () : BOOLEAN ;
 BEGIN
-   RETURN( IsExceptionalExecution() AND IsCurrentSource(except) )
+   RETURN( IsExceptionalExecution () AND IsCurrentSource (exceptSrc) )
 END IsLowException ;
 
 
 VAR
-   except: ExceptionSource ;
+   exceptSrc: ExceptionSource ;
 BEGIN
-   AllocateSource(except)
+   AllocateSource (exceptSrc)
 END LowLong.

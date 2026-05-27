@@ -1,5 +1,5 @@
 /* Tree-based target query functions relating to optabs
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -82,6 +82,9 @@ optab_for_tree_code (enum tree_code code, const_tree type,
 	return unknown_optab;
       /* FALLTHRU */
     case RDIV_EXPR:
+      gcc_assert (FLOAT_TYPE_P (type)
+		  || ALL_FIXED_POINT_MODE_P (TYPE_MODE (type)));
+      /* FALLTHRU */
     case TRUNC_DIV_EXPR:
     case EXACT_DIV_EXPR:
       if (TYPE_SATURATING (type))
@@ -612,28 +615,27 @@ target_supports_len_load_store_p (machine_mode mode, bool is_load,
 {
   optab op = is_load ? len_load_optab : len_store_optab;
   optab masked_op = is_load ? mask_len_load_optab : mask_len_store_optab;
+  internal_fn which_ifn;
 
-  if (direct_optab_handler (op, mode))
+  enum insn_code icode;
+  if ((icode = direct_optab_handler (op, mode)) != CODE_FOR_nothing)
     {
-      if (ifn)
-	*ifn = is_load ? IFN_LEN_LOAD : IFN_LEN_STORE;
-      return true;
+      which_ifn = is_load ? IFN_LEN_LOAD : IFN_LEN_STORE;
     }
   machine_mode mask_mode;
-  enum insn_code icode;
-  if (targetm.vectorize.get_mask_mode (mode).exists (&mask_mode)
+  if (!icode
+      && targetm.vectorize.get_mask_mode (mode).exists (&mask_mode)
       && ((icode = convert_optab_handler (masked_op, mode, mask_mode))
 	  != CODE_FOR_nothing))
-    {
-      if (ifn)
-	*ifn = is_load ? IFN_MASK_LEN_LOAD : IFN_MASK_LEN_STORE;
-      if (elsvals && is_load)
-	get_supported_else_vals (icode,
-				 internal_fn_else_index (IFN_MASK_LEN_LOAD),
-				 *elsvals);
-      return true;
-    }
-  return false;
+    which_ifn = is_load ? IFN_MASK_LEN_LOAD : IFN_MASK_LEN_STORE;
+
+  if (icode && elsvals && is_load)
+    get_supported_else_vals (icode, internal_fn_else_index (which_ifn),
+			     *elsvals);
+
+  if (icode && ifn)
+    *ifn = which_ifn;
+  return icode;
 }
 
 /* If target supports vector load/store with length for vector mode MODE,

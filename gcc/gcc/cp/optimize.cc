@@ -1,5 +1,5 @@
 /* Perform optimizations on tree structure.
-   Copyright (C) 1998-2025 Free Software Foundation, Inc.
+   Copyright (C) 1998-2026 Free Software Foundation, Inc.
    Written by Mark Michell (mark@codesourcery.com).
 
 This file is part of GCC.
@@ -309,8 +309,8 @@ maybe_thunk_body (tree fn, bool force)
       defer_mangling_aliases = save_defer_mangling_aliases;
       cgraph_node::get_create (fns[0])->set_comdat_group (comdat_group);
       cgraph_node::get_create (fns[1])->add_to_same_comdat_group
-	(cgraph_node::get_create (fns[0]));
-      symtab_node::get (fn)->add_to_same_comdat_group
+	(cgraph_node::get (fns[0]));
+      symtab_node::get_create (fn)->add_to_same_comdat_group
 	(symtab_node::get (fns[0]));
       if (fns[2])
 	/* If *[CD][12]* dtors go into the *[CD]5* comdat group and dtor is

@@ -1,4 +1,5 @@
 #objdump: -drwMsuffix
+#as: -march=+mpx
 #name: encoding option
 
 .*: +file format .*

@@ -5,7 +5,7 @@
 foo:
 	.prologue 2, 2
 	.vframe r2
-	mov r2 = r12
+	mov r2 = r12;;
 	.body
 	.restore sp
 	mov r12 = r2

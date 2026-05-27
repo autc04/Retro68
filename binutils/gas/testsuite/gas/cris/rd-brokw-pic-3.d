@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: --underscore --pic --em=criself
+#as: --underscore --pic --emulation=criself
 #source: brokw-3.s
 
 .*:     file format .*-cris

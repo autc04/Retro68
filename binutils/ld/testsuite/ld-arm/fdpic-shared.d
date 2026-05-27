@@ -7,13 +7,13 @@ start address 0x.*
 Disassembly of section .plt:
 
 .* <.plt>:
- .*:	e59fc008 	ldr	ip, \[pc, #8\]	; .* <.plt\+0x10>
+ .*:	e59fc008 	ldr	ip, \[pc, #8\]	@ .* <.plt\+0x10>
  .*:	e08cc009 	add	ip, ip, r9
  .*:	e59c9004 	ldr	r9, \[ip, #4\]
  .*:	e59cf000 	ldr	pc, \[ip\]
  .*:	0000000c 	.word	0x0000000c
  .*:	00000000 	.word	0x00000000
- .*:	e51fc00c 	ldr	ip, \[pc, #-12\]	; .* <.plt\+0x14>
+ .*:	e51fc00c 	ldr	ip, \[pc, #-12\]	@ .* <.plt\+0x14>
  .*:	e92d1000 	stmfd	sp!, {ip}
  .*:	e599c004 	ldr	ip, \[r9, #4\]
  .*:	e599f000 	ldr	pc, \[r9\]

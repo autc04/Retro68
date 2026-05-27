@@ -7,8 +7,8 @@ start address 0x00008[0-9a-f]+
 Disassembly of section .text:
 
 00008[0-9a-f]+ <foo>:
-    8[0-9a-f]+:	e1a00000 	nop			; \(mov r0, r0\)
-    8[0-9a-f]+:	e1a00000 	nop			; \(mov r0, r0\)
+    8[0-9a-f]+:	e1a00000 	nop			@ \(mov r0, r0\)
+    8[0-9a-f]+:	e1a00000 	nop			@ \(mov r0, r0\)
     8[0-9a-f]+:	e1a0f00e 	mov	pc, lr
     8[0-9a-f]+:	000080bc 	.word	0x000080bc
     8[0-9a-f]+:	000080b4 	.word	0x000080b4

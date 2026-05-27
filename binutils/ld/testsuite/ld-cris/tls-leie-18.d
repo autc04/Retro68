@@ -3,7 +3,7 @@
 #source: tls-le-13s.s
 #source: tls-ie-9.s --pic
 #source: tls-x1x2.s
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux
 #objdump: -d -s -h -t -r -p
 

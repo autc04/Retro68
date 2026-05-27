@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2005-2026 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@redhat.com>.
 
    This file is part of the GNU Offloading and Multi Processing Library
@@ -152,7 +152,26 @@ gomp_team_barrier_cancelled (gomp_barrier_t *bar)
 static inline void
 gomp_team_barrier_done (gomp_barrier_t *bar, gomp_barrier_state_t state)
 {
-  bar->generation = (state & -BAR_INCR) + BAR_INCR;
+  /* Need the atomic store for acquire-release synchronisation with the
+     load in `gomp_team_barrier_wait_{cancel_,}end`.  See PR112356  */
+  __atomic_store_n (&bar->generation, (state & -BAR_INCR) + BAR_INCR,
+		    MEMMODEL_RELEASE);
+}
+
+static inline bool
+gomp_barrier_state_is_incremented (gomp_barrier_state_t gen,
+				   gomp_barrier_state_t state)
+{
+  unsigned next_state = (state & -BAR_INCR) + BAR_INCR;
+  return next_state > state ? gen >= next_state : gen < state;
+}
+
+static inline bool
+gomp_barrier_has_completed (gomp_barrier_state_t state, gomp_barrier_t *bar)
+{
+  /* Handling overflow in the generation.  The "next" state could be less than
+     or greater than the current one.  */
+  return gomp_barrier_state_is_incremented (bar->generation, state);
 }
 
 #endif /* GOMP_BARRIER_H */

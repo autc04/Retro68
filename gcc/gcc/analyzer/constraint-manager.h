@@ -1,5 +1,5 @@
 /* Tracking equivalence classes and constraints at a point on an execution path.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -25,10 +25,10 @@ namespace ana {
 
 class constraint_manager;
 
-enum bound_kind
+enum class bound_kind
 {
-  BK_LOWER,
-  BK_UPPER
+  lower,
+  upper
 };
 
 /* One of the end-points of a range.  */
@@ -172,19 +172,12 @@ template <> struct default_hash_traits<bounded_ranges::key_t>
 
 namespace ana {
 
-/* An object to own and consolidate bounded_ranges instances.
-   This also caches the mapping from switch_cfg_superedge
-   bounded_ranges instances, so that get_or_create_ranges_for_switch is
-   memoized.  */
+/* An object to own and consolidate bounded_ranges instances.  */
 
 class bounded_ranges_manager
 {
 public:
   ~bounded_ranges_manager ();
-
-  const bounded_ranges *
-  get_or_create_ranges_for_switch (const switch_cfg_superedge *edge,
-				   const gswitch *switch_stmt);
 
   const bounded_ranges *get_or_create_empty ();
   const bounded_ranges *get_or_create_point (const_tree value);
@@ -200,15 +193,11 @@ public:
 
   void log_stats (logger *logger, bool show_objs) const;
 
-private:
-  const bounded_ranges *
-  create_ranges_for_switch (const switch_cfg_superedge &edge,
-			    const gswitch *switch_stmt);
-
   const bounded_ranges *
   make_case_label_ranges (const gswitch *switch_stmt,
 			  tree case_label);
 
+private:
   const bounded_ranges *consolidate (bounded_ranges *);
 
   struct hash_traits_t : public typed_noop_remove<bounded_ranges *>
@@ -226,8 +215,8 @@ private:
     {
       return k->get_hash ();
     }
-    static inline bool is_empty (key_type k) { return k == NULL; }
-    static inline void mark_empty (key_type &k) { k = NULL; }
+    static inline bool is_empty (key_type k) { return k == nullptr; }
+    static inline void mark_empty (key_type &k) { k = nullptr; }
     static inline bool is_deleted (key_type k)
     {
       return k == reinterpret_cast<key_type> (1);
@@ -241,10 +230,6 @@ private:
   };
   typedef hash_map<bounded_ranges *, bounded_ranges *, traits_t> map_t;
   map_t m_map;
-
-  typedef hash_map<const switch_cfg_superedge *,
-		   const bounded_ranges *> edge_cache_t;
-  edge_cache_t m_edge_cache;
 };
 
 /* An equivalence class within a constraint manager: a set of
@@ -258,7 +243,7 @@ public:
   equiv_class (const equiv_class &other);
 
   hashval_t hash () const;
-  bool operator== (const equiv_class &other);
+  bool operator== (const equiv_class &other) const;
 
   void add (const svalue *sval);
   bool del (const svalue *sval);

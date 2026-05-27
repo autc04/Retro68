@@ -1,5 +1,5 @@
 /* ACLE support for AArch64 SVE (__ARM_FEATURE_SVE intrinsics)
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -64,6 +64,8 @@ namespace aarch64_sve
     extern const function_base *const svcvt1;
     extern const function_base *const svcvt2;
     extern const function_base *const svcvtl;
+    extern const function_base *const svcvtl1;
+    extern const function_base *const svcvtl2;
     extern const function_base *const svcvtlt;
     extern const function_base *const svcvtlt1;
     extern const function_base *const svcvtlt2;

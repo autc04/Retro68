@@ -1,0 +1,12 @@
+plbi	vmalle1os, x0
+plbi	vmalle1osnxs, x0
+plbi	vmalle1is, x0
+plbi	vmalle1isnxs, x0
+plbi	alle2os, x0
+plbi	alle2osnxs, x0
+plbi	alle1os, x0
+plbi	alle1osnxs, x0
+plbi	alle2is, x0
+plbi	alle2isnxs, x0
+plbi	alle1is, x0
+plbi	alle1isnxs, x0

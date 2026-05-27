@@ -1,4 +1,4 @@
-/* Copyright (C) 2019-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2019-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -28,9 +28,9 @@
 #ifndef __AVX512FP16VLINTRIN_H_INCLUDED
 #define __AVX512FP16VLINTRIN_H_INCLUDED
 
-#if !defined(__AVX512VL__) || !defined(__AVX512FP16__) || defined (__EVEX512__)
+#if !defined(__AVX512VL__) || !defined(__AVX512FP16__)
 #pragma GCC push_options
-#pragma GCC target("avx512fp16,avx512vl,no-evex512")
+#pragma GCC target("avx512fp16,avx512vl")
 #define __DISABLE_AVX512FP16VL__
 #endif /* __AVX512FP16VL__ */
 

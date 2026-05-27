@@ -1,6 +1,6 @@
 (* SFIO.mod provides a String interface to the opening routines of FIO.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -29,10 +29,12 @@ IMPLEMENTATION MODULE SFIO ;
 FROM ASCII IMPORT nul ;
 
 FROM DynamicStrings IMPORT string, Length, InitString, ConCatChar,
+                           InitStringCharStar,
                            InitStringDB, InitStringCharStarDB,
                            InitStringCharDB, MultDB, DupDB, SliceDB ;
 
-FROM FIO IMPORT exists, openToRead, openToWrite, openForRandom, WriteNBytes, ReadChar,
+FROM FIO IMPORT exists, openToRead, openToWrite, openForRandom,
+                WriteNBytes, ReadChar, getFileName,
                 EOLN, EOF, IsNoError ;
 
 (*
@@ -142,6 +144,17 @@ BEGIN
    END ;
    RETURN s
 END ReadS ;
+
+
+(*
+   GetFileName - return a new string containing the name of the file.
+                 The string should be killed by the caller.
+*)
+
+PROCEDURE GetFileName (file: File) : String ;
+BEGIN
+   RETURN InitStringCharStar (getFileName (file))
+END GetFileName ;
 
 
 END SFIO.

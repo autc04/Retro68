@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -27,6 +27,8 @@ class SubstituteCtx
   std::vector<std::unique_ptr<AST::Token>> &macro;
   std::map<std::string, MatchedFragmentContainer *> &fragments;
   AST::MacroRulesDefinition &definition;
+  // Macro invocation location
+  location_t origin;
 
   /**
    * Find the repetition amount to use when expanding a repetition, and
@@ -43,9 +45,9 @@ public:
   SubstituteCtx (std::vector<std::unique_ptr<AST::Token>> &input,
 		 std::vector<std::unique_ptr<AST::Token>> &macro,
 		 std::map<std::string, MatchedFragmentContainer *> &fragments,
-		 AST::MacroRulesDefinition &definition)
+		 AST::MacroRulesDefinition &definition, location_t origin)
     : input (input), macro (macro), fragments (fragments),
-      definition (definition)
+      definition (definition), origin (origin)
   {}
 
   /**

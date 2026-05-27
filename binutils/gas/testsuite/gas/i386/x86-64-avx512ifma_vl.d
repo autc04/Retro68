@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 AVX512IFMA/VL insns
 #source: x86-64-avx512ifma_vl.s

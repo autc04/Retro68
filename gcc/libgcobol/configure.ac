@@ -40,6 +40,11 @@ AM_MAINTAINER_MODE
 
 AM_INIT_AUTOMAKE([1.15.1 no-define foreign no-dist -Wall -Wno-portability])
 
+AC_MSG_CHECKING([for --enable-libgcobol])
+AC_ARG_ENABLE(libgcobol,
+  [AS_HELP_STRING([--enable-libgcobol], [Enable libgcobol])])
+AC_MSG_RESULT($enable_libgcobol)
+
 AC_MSG_CHECKING([for --enable-version-specific-runtime-libs])
 AC_ARG_ENABLE(version-specific-runtime-libs,
 AS_HELP_STRING([--enable-version-specific-runtime-libs],
@@ -138,6 +143,14 @@ AC_CHECK_SIZEOF([void *])
 unset LIBGCOBOL_SUPPORTED
 . ${srcdir}/configure.tgt
 
+# Decide if it's usable.
+case $LIBGCOBOL_SUPPORTED:$enable_libgcobol in
+*:no)  use_libgcobol=no  ;;
+*:yes) use_libgcobol=yes ;;
+yes:*) use_libgcobol=yes ;;
+*:*)   use_libgcobol=no  ;;
+esac
+
 # -----------------
 # __int128 support
 # -----------------
@@ -164,14 +177,14 @@ AC_CACHE_CHECK([whether __int128 is supported], [libgcobol_cv_have_int128],
     libgcobol_cv_have_int128=no
 ])])
 
-AM_CONDITIONAL(BUILD_LIBGCOBOL, [test "x$LIBGCOBOL_SUPPORTED" = xyes && test "x$libgcobol_cv_have_int128" = xyes])
+AM_CONDITIONAL(BUILD_LIBGCOBOL, [test "x$use_libgcobol" = xyes && test "x$libgcobol_cv_have_int128" = xyes])
 
 # Check if functions are available in libc before adding extra libs.
 AC_SEARCH_LIBS([malloc], [c])
 AC_SEARCH_LIBS([clock_gettime], [c rt])
 
 # libgcobol soname version
-LIBGCOBOL_VERSION=1:0:0
+LIBGCOBOL_VERSION=2:0:0
 AC_SUBST(LIBGCOBOL_VERSION)
 
 ## added, currently unused.
@@ -188,7 +201,19 @@ esac
 AC_SUBST(extra_ldflags_libgcobol)
 
 AC_CHECK_HEADERS_ONCE(floatingpoint.h ieeefp.h fenv.h fptrap.h \
-complex.h stdlib.h)
+complex.h stdlib.h errno.h)
+
+# Look for a way to represent the program name
+# First, check the GLIBC case
+AC_CHECK_DECLS([program_invocation_short_name], , ,[
+#if HAVE_ERRNO_H
+# define _GNU_SOURCE
+# include <errno.h>
+#endif
+])
+
+# Check an alternate
+AC_CHECK_FUNCS_ONCE(getprogname)
 
 # These are GLIBC
 AC_CHECK_FUNCS_ONCE(random_r srandom_r initstate_r setstate_r)
@@ -206,6 +231,115 @@ libgcobol_have_sinf128=no
 AC_SEARCH_LIBS([sinf128], [c m], libgcobol_have_sinf128=yes)
 libgcobol_have_cacosf128=no
 AC_SEARCH_LIBS([cacosf128], [c m], libgcobol_have_cacosf128=yes)
+
+# These are libxml2.
+AC_ARG_WITH([target-libxml2],
+[AS_HELP_STRING([--with-target-libxml2=PATHLIST],
+		[specify prefix directory for installed libxml2 package.
+		 Equivalent to --with-target-libxml2-include=PATH/include
+		 plus --with-target-libxml2-lib=PATH/lib])])
+AC_ARG_WITH([target-libxml2-include],
+[AS_HELP_STRING([--with-target-libxml2-include=PATHLIST],
+		[specify directories for installed libxml2 include files])])
+AC_ARG_WITH([target-libxml2-lib],
+[AS_HELP_STRING([--with-target-libxml2-lib=PATHLIST],
+		[specify directories for installed libxml2 library])])
+
+if test "x$use_libgcobol" = xyes && test "x$libgcobol_cv_have_int128" = xyes; then
+  AC_MSG_CHECKING([for libxml2])
+  if test "x$with_target_libxml2$with_target_libxml2_include$with_target_libxml2_lib" = x; then
+    dnl no libxml2 options, assuming libxml2 in default locations
+    LIBXML2_CPPFLAGS="-I /usr/include/libxml2"
+    LIBXML2_LIBS="-lxml2"
+  else
+    dnl libxml2 options passed by configure flags
+    if test "x$with_target_libxml2_include" = x && test "x$with_target_libxml2_lib" != x; then
+      AC_MSG_ERROR([found --with-target-libxml2-lib but --with-target-libxml2-include missing])
+    elif test "x$with_target_libxml2_include" != x && test "x$with_target_libxml2_lib" = x; then
+      AC_MSG_ERROR([found --with-target-libxml2-include but --with-target-libxml2-lib missing])
+    else
+      AC_MSG_RESULT([using paths configured with --with-target-libxml2 options])
+    fi
+    mldir=`${CC-gcc} --print-multi-directory 2>/dev/null`
+    libxml2_val=
+    if test "x$with_target_libxml2" != x; then
+      for i in `echo $with_target_libxml2 | tr ',' ' '`; do
+        case "$i" in
+          *=*) sd=${i%%=*}; d=${i#*=} ;;
+          *) sd=.; d=$i ;;
+        esac
+        if test "$mldir" = "$sd"; then
+          libxml2_val=$d
+        fi
+      done
+      if test "x$libxml2_val" = x; then
+        AC_MSG_ERROR([no multilib path ($mldir) found in --with-target-libxml2])
+      fi
+      libxml2_inc_dir="$libxml2_val/include"
+      libxml2_lib_dir="$libxml2_val/lib"
+    fi
+    libxml2_val=
+    if test "x$with_target_libxml2_include" != x; then
+      for i in `echo $with_target_libxml2_include | tr ',' ' '`; do
+        case "$i" in
+          *=*) sd=${i%%=*}; d=${i#*=} ;;
+          *) sd=.; d=$i; fallback=$i ;;
+        esac
+        if test "$mldir" = "$sd"; then
+          libxml2_val=$d
+        fi
+      done
+      if test "x$libxml2_val" = x && test "x$libxml2_inc_dir" = x && test "x$fallback" != x; then
+        libxml2_inc_dir="$fallback"
+      elif test "x$libxml2_val" = x; then
+        AC_MSG_ERROR([no multilib path ($mldir) found in --with-target-libxml2-include])
+      else
+        libxml2_inc_dir="$libxml2_val"
+      fi
+    fi
+    libxml2_val=
+    if test "x$with_target_libxml2_lib" != x; then
+      for i in `echo $with_target_libxml2_lib | tr ',' ' '`; do
+        case "$i" in
+          *=*) sd=${i%%=*}; d=${i#*=} ;;
+          *) sd=.; d=$i ;;
+        esac
+        if test "$mldir" = "$sd"; then
+          libxml2_val=$d
+        fi
+      done
+      if test "x$libxml2_val" = x; then
+        AC_MSG_ERROR([no multilib path ($mldir) found in --with-target-libxml2-lib])
+      fi
+      libxml2_lib_dir="$libxml2_val"
+    fi
+    if test "x$libxml2_inc_dir" = x; then
+      AC_MSG_ERROR([no multilib path ($mldir) found in --with-target-libxml2-include])
+    fi
+    if test "x$libxml2_lib_dir" = x; then
+      AC_MSG_ERROR([no multilib path ($mldir) found in --with-target-libxml2-lib])
+    fi
+    LIBXML2_CPPFLAGS="-I$libxml2_inc_dir"
+    LIBXML2_LIBS="-L$libxml2_lib_dir -lxml2"
+    AC_MSG_RESULT([found])
+  fi
+else
+  LIBXML2_CPPFLAGS=
+  LIBXML2_LIBS=
+fi
+AC_SUBST(LIBXML2_CPPFLAGS)
+AC_SUBST(LIBXML2_LIBS)
+
+# Copied from gcc/configure.ac. 2025-06-05 R.J.Dubner
+# At least for glibc, clock_gettime is in librt.  But don't pull that
+# in if it still doesn't give us the function we want.
+ac_cv_func_clock_gettime=no
+if test $ac_cv_func_clock_gettime = no; then
+  AC_CHECK_LIB(rt, clock_gettime,
+    [LIBS="-lrt $LIBS"
+     AC_DEFINE(HAVE_CLOCK_GETTIME, 1,
+	       [Define to 1 if you have the `clock_gettime' function.])])
+fi
 
 have_iec_60559_libc_support=no
 if test "x$ac_cv_func_strtof128$ac_cv_func_strfromf128" = xyesyes \
@@ -230,6 +364,9 @@ elif test "${ENABLE_LIBQUADMATH_SUPPORT}" = "default" ; then
   enable_libquadmath_support=default
 fi
 LIBGCOBOL_CHECK_FLOAT128
+
+# struct tm tm_zone is a POSIX.1-2024 addition.
+AC_CHECK_MEMBERS([struct tm.tm_zone],,,[#include <time.h>])
 
 if test "${multilib}" = "yes"; then
   multilib_arg="--enable-multilib"

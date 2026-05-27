@@ -1,6 +1,6 @@
 /* Plugin for NVPTX execution.
 
-   Copyright (C) 2013-2025 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
    Contributed by Mentor Embedded.
 
@@ -59,6 +59,14 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
+
+/* Create hash-table for declare target's indirect clause on the host;
+   see build-target-indirect-htab.h for details.  */
+#define USE_HASHTAB_LOOKUP_FOR_INDIRECT
+#ifdef USE_HASHTAB_LOOKUP_FOR_INDIRECT
+static void* create_target_indirect_map (size_t *, size_t,
+					 uint64_t *, uint64_t *);
+#endif
 
 /* An arbitrary fixed limit (128MB) for the size of the OpenMP soft stacks
    block to cache between kernel invocations.  For soft-stacks blocks bigger
@@ -344,6 +352,8 @@ struct ptx_device
 };
 
 static struct ptx_device **ptx_devices;
+
+static bool using_usm = false;
 
 /* "Native" GPU thread stack size.  */
 static unsigned native_gpu_thread_stack_size = 0;
@@ -1125,11 +1135,13 @@ nvptx_stacks_free (struct ptx_device *ptx_dev, bool force)
 }
 
 static void *
-nvptx_alloc (size_t s, bool suppress_errors)
+nvptx_alloc (size_t s, bool suppress_errors, bool managed)
 {
   CUdeviceptr d;
 
-  CUresult r = CUDA_CALL_NOCHECK (cuMemAlloc, &d, s);
+  CUresult r = (managed ? CUDA_CALL_NOCHECK (cuMemAllocManaged, &d, s,
+					     CU_MEM_ATTACH_GLOBAL)
+		: CUDA_CALL_NOCHECK (cuMemAlloc, &d, s));
   if (suppress_errors && r == CUDA_ERROR_OUT_OF_MEMORY)
     return NULL;
   else if (r != CUDA_SUCCESS)
@@ -1238,6 +1250,24 @@ nvptx_get_current_cuda_context (void)
   return nvthd->ptx_dev->ctx;
 }
 
+#if 0  /* TODO: Use to enable self-mapping/USM automatically.  */
+/* FIXME: The auto-self-map feature depends on still mapping 'declare target'
+   variables, even if ignoring all other mappings. Cf. PR 115279.  */
+
+/* Return TRUE if the GPU is integrated with host memory, i.e. GPU and
+   host share the same memory controller.  As of Oct 2025, no such
+   Nvidia GPU seems to exist.  */
+static bool
+is_integrated_apu (struct ptx_device *ptx_dev)
+{
+  int pi;
+  CUresult r;
+  r = CUDA_CALL_NOCHECK (cuDeviceGetAttribute, &pi,
+			 CU_DEVICE_ATTRIBUTE_INTEGRATED, ptx_dev->dev);
+  return (r == CUDA_SUCCESS && pi == 1);
+}
+#endif
+
 /* Plugin entry points.  */
 
 const char *
@@ -1315,15 +1345,20 @@ GOMP_OFFLOAD_get_num_devices (unsigned int omp_requires_mask)
   if (num_devices > 0
       && (omp_requires_mask
 	  & (GOMP_REQUIRES_UNIFIED_SHARED_MEMORY | GOMP_REQUIRES_SELF_MAPS)))
-    for (int dev = 0; dev < num_devices; dev++)
-      {
-	int pi;
-	CUresult r;
-	r = CUDA_CALL_NOCHECK (cuDeviceGetAttribute, &pi,
-			       CU_DEVICE_ATTRIBUTE_PAGEABLE_MEMORY_ACCESS, dev);
-	if (r != CUDA_SUCCESS || pi == 0)
-	  return -1;
-      }
+    {
+      for (int dev = 0; dev < num_devices; dev++)
+	{
+	  int pi;
+	  CUresult r;
+	  r = CUDA_CALL_NOCHECK (cuDeviceGetAttribute, &pi,
+				 CU_DEVICE_ATTRIBUTE_PAGEABLE_MEMORY_ACCESS,
+				 dev);
+	  if (r != CUDA_SUCCESS || pi == 0)
+	    return -1;
+	}
+
+      using_usm = true;
+    }
   return num_devices;
 }
 
@@ -1626,39 +1661,71 @@ GOMP_OFFLOAD_load_image (int ord, unsigned version, const void *target_data,
       if (r != CUDA_SUCCESS)
 	GOMP_PLUGIN_fatal ("cuMemcpyDtoH error: %s", cuda_error (r));
 
-      /* Build host->target address map for indirect functions.  */
-      uint64_t ind_fn_map[ind_fn_entries * 2 + 1];
-      for (unsigned k = 0; k < ind_fn_entries; k++)
-	{
-	  ind_fn_map[k * 2] = host_ind_fn_table[k];
-	  ind_fn_map[k * 2 + 1] = ind_fn_table[k];
-	  GOMP_PLUGIN_debug (0, "Indirect function %d: %lx->%lx\n",
-			     k, host_ind_fn_table[k], ind_fn_table[k]);
-	}
-      ind_fn_map[ind_fn_entries * 2] = 0;
+      /* For newer binaries, the hash table for 'indirect' is created on the
+	 host. Older binaries don't have GOMP_INDIRECT_ADDR_HMAP on the
+	 device side - and have to create the table themselves using
+	 GOMP_INDIRECT_ADDR_MAP.  */
 
-      /* Write the map onto the target.  */
-      void *map_target_addr
-	= GOMP_OFFLOAD_alloc (ord, sizeof (ind_fn_map));
-      GOMP_PLUGIN_debug (0, "Allocated indirect map at %p\n", map_target_addr);
-
-      GOMP_OFFLOAD_host2dev (ord, map_target_addr,
-			     (void*) ind_fn_map,
-			     sizeof (ind_fn_map));
-
-      /* Write address of the map onto the target.  */
       CUdeviceptr varptr;
       size_t varsize;
+      bool host_init_htab = true;
+      #ifdef USE_HASHTAB_LOOKUP_FOR_INDIRECT
       r = CUDA_CALL_NOCHECK (cuModuleGetGlobal, &varptr, &varsize,
-			     module, XSTRING (GOMP_INDIRECT_ADDR_MAP));
+			     module, XSTRING (GOMP_INDIRECT_ADDR_HMAP));
+      if (r != CUDA_SUCCESS)
+      #endif
+	{
+	  host_init_htab = false;
+	  r = CUDA_CALL_NOCHECK (cuModuleGetGlobal, &varptr, &varsize,
+				 module, XSTRING (GOMP_INDIRECT_ADDR_MAP));
+	}
       if (r != CUDA_SUCCESS)
 	GOMP_PLUGIN_fatal ("Indirect map variable not found in image: %s",
 			   cuda_error (r));
-
       GOMP_PLUGIN_debug (0,
-			 "Indirect map variable found at %llx with size %ld\n",
+			 "%s-style indirect map variable found at %llx with "
+			 "size %ld\n", host_init_htab ? "New" : "Old",
 			 varptr, varsize);
 
+      void *map_target_addr;
+      if (!host_init_htab)
+	{
+	  /* Build host->target address map for indirect functions.  */
+	  uint64_t ind_fn_map[ind_fn_entries * 2 + 1];
+	  for (unsigned k = 0; k < ind_fn_entries; k++)
+	    {
+	      ind_fn_map[k * 2] = host_ind_fn_table[k];
+	      ind_fn_map[k * 2 + 1] = ind_fn_table[k];
+	      GOMP_PLUGIN_debug (0, "Indirect function %d: %lx->%lx\n",
+				 k, host_ind_fn_table[k], ind_fn_table[k]);
+	    }
+	  ind_fn_map[ind_fn_entries * 2] = 0;
+	  /* Write the map onto the target.  */
+	  map_target_addr = GOMP_OFFLOAD_alloc (ord, sizeof (ind_fn_map));
+	  GOMP_OFFLOAD_host2dev (ord, map_target_addr,
+				 (void *) ind_fn_map, sizeof (ind_fn_map));
+	}
+      #ifdef USE_HASHTAB_LOOKUP_FOR_INDIRECT
+      else
+	{
+	  /* FIXME: Handle multi-kernel load and unload, cf. PR 114690.  */
+	  size_t host_map_size;
+	  void *host_map;
+	  host_map = create_target_indirect_map (&host_map_size, ind_fn_entries,
+						 host_ind_fn_table,
+						 ind_fn_table);
+	  for (unsigned k = 0; k < ind_fn_entries; k++)
+	    GOMP_PLUGIN_debug (0, "Indirect function %d: %lx->%lx\n",
+			       k, host_ind_fn_table[k], ind_fn_table[k]);
+	  /* Write the map onto the target.  */
+	  map_target_addr = GOMP_OFFLOAD_alloc (ord, host_map_size);
+	  GOMP_OFFLOAD_host2dev (ord, map_target_addr, host_map, host_map_size);
+	}
+      #endif
+
+      GOMP_PLUGIN_debug (0, "Allocated indirect map at %p\n", map_target_addr);
+
+      /* Write address of the map onto the target.  */
       GOMP_OFFLOAD_host2dev (ord, (void *) varptr, &map_target_addr,
 			     sizeof (map_target_addr));
     }
@@ -1785,8 +1852,8 @@ GOMP_OFFLOAD_unload_image (int ord, unsigned version, const void *target_data)
   return ret;
 }
 
-void *
-GOMP_OFFLOAD_alloc (int ord, size_t size)
+static void *
+cleanup_and_alloc (int ord, size_t size, bool managed)
 {
   if (!nvptx_attach_host_thread_to_device (ord))
     return NULL;
@@ -1809,7 +1876,7 @@ GOMP_OFFLOAD_alloc (int ord, size_t size)
       blocks = tmp;
     }
 
-  void *d = nvptx_alloc (size, true);
+  void *d = nvptx_alloc (size, true, managed);
   if (d)
     return d;
   else
@@ -1817,8 +1884,20 @@ GOMP_OFFLOAD_alloc (int ord, size_t size)
       /* Memory allocation failed.  Try freeing the stacks block, and
 	 retrying.  */
       nvptx_stacks_free (ptx_dev, true);
-      return nvptx_alloc (size, false);
+      return nvptx_alloc (size, false, managed);
     }
+}
+
+void *
+GOMP_OFFLOAD_alloc (int ord, size_t size)
+{
+  return cleanup_and_alloc (ord, size, false);
+}
+
+void *
+GOMP_OFFLOAD_managed_alloc (int ord, size_t size)
+{
+  return cleanup_and_alloc (ord, size, true);
 }
 
 bool
@@ -1826,6 +1905,89 @@ GOMP_OFFLOAD_free (int ord, void *ptr)
 {
   return (nvptx_attach_host_thread_to_device (ord)
 	  && nvptx_free (ptr, ptx_devices[ord]));
+}
+
+bool
+GOMP_OFFLOAD_managed_free (int ord, void *ptr)
+{
+  return GOMP_OFFLOAD_free (ord, ptr);
+}
+
+int
+GOMP_OFFLOAD_is_accessible_ptr (int ord,
+				const void *ptr, size_t size)
+{
+  /* USM implies access.  */
+  if (using_usm)
+    return 1;
+
+  struct ptx_device *ptx_dev = ptx_devices[ord];
+  CUcontext old_ctx;
+  CUDA_CALL_ERET (false, cuCtxPushCurrent, ptx_dev->ctx);
+
+  /* The Cuda API does not permit testing a whole range, so we test each
+     4K page within the range.  If any page is inaccessible return false.  */
+  const void *p = ptr;
+  int result = 1;  /* All pages accessible.  */
+  do
+    {
+      CUmemorytype mem_type;
+      CUresult res = CUDA_CALL_NOCHECK (cuPointerGetAttribute, &mem_type,
+					CU_POINTER_ATTRIBUTE_MEMORY_TYPE,
+					(CUdeviceptr)p);
+      if (res != CUDA_SUCCESS)
+	/* Memory is not registered, and therefore not accessible.  */
+	result = 0;
+
+      switch (mem_type)
+	{
+	case CU_MEMORYTYPE_HOST:
+	case CU_MEMORYTYPE_UNIFIED:
+	case CU_MEMORYTYPE_DEVICE:
+	  break;
+	case CU_MEMORYTYPE_ARRAY:
+	default:
+	  result = 0;  /* This page isn't accessible.  */
+	}
+
+      p = (void*)(((uintptr_t)p + 4096) & ~0xfffUL);
+    } while (result && p < ptr + size);
+
+  CUDA_CALL_ASSERT (cuCtxPopCurrent, &old_ctx);
+  return result;
+}
+
+bool
+GOMP_OFFLOAD_page_locked_host_alloc (void **ptr, size_t size)
+{
+  if (size == 0)
+    {
+      /* Special case to ensure omp_alloc specification compliance.  */
+      *ptr = NULL;
+      return true;
+    }
+
+  CUresult r;
+
+  unsigned int flags = 0;
+  /* Given 'CU_DEVICE_ATTRIBUTE_UNIFIED_ADDRESSING', we don't need
+     'flags |= CU_MEMHOSTALLOC_PORTABLE;' here.  */
+  r = CUDA_CALL_NOCHECK (cuMemHostAlloc, ptr, size, flags);
+  if (r == CUDA_ERROR_OUT_OF_MEMORY)
+    *ptr = NULL;
+  else if (r != CUDA_SUCCESS)
+    {
+      GOMP_PLUGIN_error ("cuMemHostAlloc error: %s", cuda_error (r));
+      return false;
+    }
+  return true;
+}
+
+bool
+GOMP_OFFLOAD_page_locked_host_free (void *ptr)
+{
+  CUDA_CALL (cuMemFreeHost, ptr);
+  return true;
 }
 
 void
@@ -2019,6 +2181,34 @@ GOMP_OFFLOAD_openacc_async_queue_callback (struct goacc_asyncqueue *aq,
 }
 
 static bool
+cuda_memcpy_dev_sanity_check (const void *d1, const void *d2, size_t s)
+{
+  CUdeviceptr pb1, pb2;
+  size_t ps1, ps2;
+  if (!s)
+    return true;
+  if (!d1 || !d2)
+    {
+      GOMP_PLUGIN_error ("invalid device address");
+      return false;
+    }
+  CUDA_CALL (cuMemGetAddressRange, &pb1, &ps1, (CUdeviceptr) d1);
+  CUDA_CALL (cuMemGetAddressRange, &pb2, &ps2, (CUdeviceptr) d2);
+  if (!pb1 || !pb2)
+    {
+      GOMP_PLUGIN_error ("invalid device address");
+      return false;
+    }
+  if ((void *)(d1 + s) > (void *)(pb1 + ps1)
+      || (void *)(d2 + s) > (void *)(pb2 + ps2))
+    {
+      GOMP_PLUGIN_error ("invalid size");
+      return false;
+    }
+  return true;
+}
+
+static bool
 cuda_memcpy_sanity_check (const void *h, const void *d, size_t s)
 {
   CUdeviceptr pb;
@@ -2077,6 +2267,9 @@ GOMP_OFFLOAD_dev2host (int ord, void *dst, const void *src, size_t n)
 bool
 GOMP_OFFLOAD_dev2dev (int ord, void *dst, const void *src, size_t n)
 {
+  if (!nvptx_attach_host_thread_to_device (ord)
+      || !cuda_memcpy_dev_sanity_check (dst, src, n))
+    return false;
   CUDA_CALL (cuMemcpyDtoDAsync, (CUdeviceptr) dst, (CUdeviceptr) src, n, NULL);
   return true;
 }
@@ -2267,6 +2460,15 @@ GOMP_OFFLOAD_memcpy3d (int dst_ord, int src_ord, size_t dim2_size,
 }
 
 bool
+GOMP_OFFLOAD_memset (int ord, void *ptr, int val, size_t count)
+{
+  if (!nvptx_attach_host_thread_to_device (ord))
+    return false;
+  CUDA_CALL (cuMemsetD8, (CUdeviceptr) ptr, (unsigned char) val, count);
+  return true;
+}
+
+bool
 GOMP_OFFLOAD_openacc_async_host2dev (int ord, void *dst, const void *src,
 				     size_t n, struct goacc_asyncqueue *aq)
 {
@@ -2285,6 +2487,18 @@ GOMP_OFFLOAD_openacc_async_dev2host (int ord, void *dst, const void *src,
       || !cuda_memcpy_sanity_check (dst, src, n))
     return false;
   CUDA_CALL (cuMemcpyDtoHAsync, dst, (CUdeviceptr) src, n, aq->cuda_stream);
+  return true;
+}
+
+bool
+GOMP_OFFLOAD_openacc_async_dev2dev (int ord, void *dst, const void *src,
+				    size_t n, struct goacc_asyncqueue *aq)
+{
+  if (!nvptx_attach_host_thread_to_device (ord)
+      || !cuda_memcpy_dev_sanity_check (dst, src, n))
+    return false;
+  CUDA_CALL (cuMemcpyDtoDAsync, (CUdeviceptr) dst, (CUdeviceptr) src, n,
+	     aq->cuda_stream);
   return true;
 }
 
@@ -2846,3 +3060,7 @@ GOMP_OFFLOAD_run (int ord, void *tgt_fn, void *tgt_vars, void **args)
 }
 
 /* TODO: Implement GOMP_OFFLOAD_async_run. */
+
+#ifdef USE_HASHTAB_LOOKUP_FOR_INDIRECT
+  #include "build-target-indirect-htab.h"
+#endif

@@ -1,5 +1,5 @@
 // Function-related RTL SSA classes                                 -*- C++ -*-
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -131,7 +131,22 @@ public:
 
   // Look for a definition of RESOURCE at INSN.  Return the result of the
   // search as a def_lookup; see the comments there for more details.
+  //
+  // NOTE: This is not the function to use if INSN is known to be a real
+  // instruction (one with an RTL pattern) and if the caller is only
+  // interested in definitions within INSN itself.  In those cases
+  // it is better to use find_access.
   def_lookup find_def (resource_info resource, insn_info *insn);
+
+  // Search for a use of DEF around non-debug instruction INSN and return the
+  // result of the search as a use_lookup.  See the comment above the class
+  // for more details about the result means.
+  //
+  // NOTE: This is not the function to use if INSN is known to be a real
+  // instruction (one with an RTL pattern) and if the caller is only
+  // interested in uses within INSN itself.  In those cases it is better
+  // to use find_access.
+  use_lookup find_use (set_info *def, insn_info *insn);
 
   // Return an RAII object that owns all temporary RTL SSA memory
   // allocated during a change attempt.  The object should remain in
@@ -293,7 +308,7 @@ private:
   void add_reg_unused_notes (insn_info *);
 
   void add_live_out_use (bb_info *, set_info *);
-  set_info *live_out_value (bb_info *, set_info *);
+  void commit_make_use_available (use_info *);
 
   void append_phi (ebb_info *, phi_info *);
   void remove_phi (phi_info *);
@@ -320,6 +335,7 @@ private:
   void create_ebbs (build_info &);
   void add_entry_block_defs (build_info &);
   void calculate_ebb_live_in_for_debug (build_info &);
+  phi_info *create_degenerate_phi (build_info &, set_info *);
   void add_phi_nodes (build_info &);
   void add_artificial_accesses (build_info &, df_ref_flags);
   void add_block_contents (build_info &);

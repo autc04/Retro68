@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-additional-options "--param vect-epilogues-nomask=0" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -59,8 +60,8 @@ main1 ()
         abort ();
     }
   
-  /* Not vectorizable because of data dependencies: distance 3 is greater than 
-     the actual VF with SLP (2), but the analysis fail to detect that for now.  */
+  /* Dependence distance 3 is greater than the actual VF with SLP (2),
+     thus vectorizable.  */
   for (i = 3; i < N/4; i++)
     {
       in3[i*4] = in3[(i-3)*4] + 5;
@@ -91,7 +92,6 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target { ! vect32 } } } } */
-/* { dg-final { scan-tree-dump-times "vectorized 2 loops" 1 "vect" { target vect32 } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 1 "vect" { target { ! vect32 } } } } */
+/* { dg-final { scan-tree-dump-times "vectorized 2 loops" 1 "vect" } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 2 "vect" } } */
   

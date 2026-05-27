@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -22,7 +22,7 @@
 #include "rust-hir-visitor.h"
 #include "rust-hir-type-check.h"
 #include "rust-stacked-contexts.h"
-#include "rust-name-resolver.h"
+#include "rust-name-resolution-context.h"
 
 namespace Rust {
 namespace HIR {
@@ -72,7 +72,7 @@ private:
     std::vector<std::unique_ptr<GenericParam>> &param, ConstGenericCtx context);
 
   StackedContexts<HirId> const_context;
-  Resolver::Resolver &resolver;
+  const Resolver2_0::NameResolutionContext &resolver;
   Analysis::Mappings &mappings;
 
   virtual void visit (Lifetime &lifetime) override;
@@ -113,6 +113,8 @@ private:
   virtual void visit (FieldAccessExpr &expr) override;
   virtual void visit (ClosureExpr &expr) override;
   virtual void visit (BlockExpr &expr) override;
+  virtual void visit (AnonConst &expr) override;
+  virtual void visit (ConstBlock &expr) override;
   virtual void visit (ContinueExpr &expr) override;
   virtual void visit (BreakExpr &expr) override;
   virtual void visit (RangeFromToExpr &expr) override;
@@ -132,6 +134,8 @@ private:
   virtual void visit (AwaitExpr &expr) override;
   virtual void visit (AsyncBlockExpr &expr) override;
   virtual void visit (InlineAsm &expr) override;
+  virtual void visit (LlvmInlineAsm &expr) override;
+  virtual void visit (OffsetOf &expr) override;
 
   virtual void visit (TypeParam &param) override;
   virtual void visit (ConstGenericParam &param) override;
@@ -176,12 +180,14 @@ private:
   virtual void visit (StructPatternFieldIdentPat &field) override;
   virtual void visit (StructPatternFieldIdent &field) override;
   virtual void visit (StructPattern &pattern) override;
-  virtual void visit (TupleStructItemsNoRange &tuple_items) override;
-  virtual void visit (TupleStructItemsRange &tuple_items) override;
+  virtual void visit (TupleStructItemsNoRest &tuple_items) override;
+  virtual void visit (TupleStructItemsHasRest &tuple_items) override;
   virtual void visit (TupleStructPattern &pattern) override;
-  virtual void visit (TuplePatternItemsMultiple &tuple_items) override;
-  virtual void visit (TuplePatternItemsRanged &tuple_items) override;
+  virtual void visit (TuplePatternItemsNoRest &tuple_items) override;
+  virtual void visit (TuplePatternItemsHasRest &tuple_items) override;
   virtual void visit (TuplePattern &pattern) override;
+  virtual void visit (SlicePatternItemsNoRest &items) override;
+  virtual void visit (SlicePatternItemsHasRest &items) override;
   virtual void visit (SlicePattern &pattern) override;
   virtual void visit (AltPattern &pattern) override;
   virtual void visit (EmptyStmt &stmt) override;

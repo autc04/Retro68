@@ -1,5 +1,5 @@
 # Expect script for ELF compressed debug section tests.
-#   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -253,4 +253,20 @@ if { [regexp_diff tmpdir/$test.out $srcdir/$subdir/$test.rt] } then {
     fail "$test_name"
 } else {
     pass "$test_name"
+}
+
+if { [ld_assemble $as "--compress-debug-sections=zstd $srcdir/$subdir/empty.s" tmpdir/emptyzstd.o ] } {
+    set build_tests {
+      {"Build libzstdfoo.so with zstd compressed debug sections"
+       "-shared" "-fPIC -g -Wa,--compress-debug-sections=zstd -Wl,--compress-debug-sections=zstd"
+       {foo.c} {} "libzstdfoo.so"}
+    }
+    set run_tests {
+	{"Run zstdnormal with libzstdfoo.so with zstd compressed debug sections"
+	 "tmpdir/begin.o tmpdir/libzstdfoo.so tmpdir/end.o -Wl,--compress-debug-sections=zstd" ""
+	 {main.c} "zstdnormal" "normal.out" "-Wa,--compress-debug-sections=zstd"}
+    }
+
+    run_cc_link_tests $build_tests
+    run_ld_link_exec_tests $run_tests
 }

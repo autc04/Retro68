@@ -1,6 +1,5 @@
 # Check AVX2 WIG instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vmovntdqa (%ecx),%ymm4

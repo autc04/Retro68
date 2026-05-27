@@ -1,5 +1,5 @@
 # Expect script for ld-i386 tests
-#   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -191,7 +191,7 @@ set i386tests {
     {"Reloc section order"
      "-shared -melf_i386 -z nocombreloc -z notext" "" "--32"
      {reloc.s} {{objdump -hw reloc.d}} "reloc.so"}
-    {"Basic --emit-relocs support" "-shared -melf_i386 --emit-relocs" "" "--32"
+    {"Basic --emit-relocs support" "-shared -melf_i386 --emit-relocs --no-rosegment" "" "--32"
      {emit-relocs.s} {{readelf --relocs emit-relocs.rd}} "emit-relocs.so"}
     {"-z combreloc relocation sections" "-shared -melf_i386 -z combreloc" ""
      "--32" {combreloc.s} {{readelf -r combreloc.d}} "combreloc.so"}
@@ -314,6 +314,7 @@ run_dump_test "tlsie2"
 run_dump_test "tlsie3"
 run_dump_test "tlsie4"
 run_dump_test "tlsie5"
+run_dump_test "tlsle1"
 run_dump_test "hidden1"
 run_dump_test "hidden2"
 run_dump_test "hidden3"
@@ -368,10 +369,15 @@ run_dump_test "load2"
 run_dump_test "load3"
 run_dump_test "load4a"
 run_dump_test "load4b"
+run_dump_test "load4c"
 run_dump_test "load5a"
 run_dump_test "load5b"
+run_dump_test "load5c"
 run_dump_test "load6"
 run_dump_test "load7"
+run_dump_test "load8"
+run_dump_test "load9a"
+run_dump_test "load9b"
 run_dump_test "pr19175"
 run_dump_test "pr19615"
 run_dump_test "pr19636-1a"
@@ -509,8 +515,17 @@ run_dump_test "pr27491-3"
 run_dump_test "pr27491-4"
 run_dump_test "dt-relr-1a"
 run_dump_test "dt-relr-1b"
+run_dump_test "dt-relr-1c"
+run_dump_test "dt-relr-1d"
+run_dump_test "dt-relr-2"
 run_dump_test "pr28870"
 run_dump_test "pr28894"
+run_dump_test "pr30787"
+run_dump_test "pr31047"
+run_dump_test "pr32191"
+run_dump_test "pr33260"
+run_dump_test "pr33260-2"
+run_dump_test "pr28387"
 
 if { !([istarget "i?86-*-linux*"]
        || [istarget "i?86-*-gnu*"]
@@ -539,6 +554,12 @@ run_dump_test "tlsdesc2"
 run_dump_test "report-reloc-1"
 run_dump_test "pr27998a"
 run_dump_test "pr27998b"
+run_dump_test "pr31868a"
+run_dump_test "pr31868b"
+run_dump_test "pr31868c"
+run_dump_test "tlsgdesc1"
+run_dump_test "tlsgdesc2"
+run_dump_test "tlsgdesc3"
 
 proc undefined_weak {cflags ldflags} {
     set testname "Undefined weak symbol"
@@ -548,9 +569,9 @@ proc undefined_weak {cflags ldflags} {
 
     if { [string match "*-fPIE*" $cflags]
 	 && ![string match "*-z nodynamic-undefined-weak*" $ldflags] } {
-	set weak_symbol "Weak defined"
+	set weak_symbol "Weak defined\n"
     } else {
-	set weak_symbol "Weak undefined"
+	set weak_symbol "Weak undefined\n"
     }
 
     run_cc_link_tests [list \
@@ -577,7 +598,8 @@ proc undefined_weak {cflags ldflags} {
     run_ld_link_exec_tests [list \
 	[list \
 	    "Run pr19704" \
-	    "$ldflags tmpdir/libpr19704.so -Wl,-R,tmpdir" \
+	    "$ldflags -Wl,--no-as-needed tmpdir/libpr19704.so \
+	     -Wl,-R,tmpdir" \
 	    "-Wa,-mrelax-relocations=yes" \
 	    { pr19704a.c } \
 	    "pr19704" \
@@ -694,7 +716,7 @@ if { [isnative]
 	[list \
 	    "Build pr17689.so" \
 	    "-shared" \
-	    "-fPIC -Wa,-mrelax-relocations=yes" \
+	    "-fPIC $DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mrelax-relocations=yes" \
 	    { pr17689a.c } \
 	    {} \
 	    "pr17689.so" \
@@ -718,7 +740,7 @@ if { [isnative]
 	[list \
 	    "Build pr17689.a" \
 	    "" \
-	    "-Wa,-mrelax-relocations=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mrelax-relocations=yes" \
 	    { pr17689b.S } \
 	    {} \
 	    "pr17689.a" \
@@ -726,7 +748,7 @@ if { [isnative]
 	[list \
 	    "Build pr17689 with PIE and GOTOFF" \
 	    "tmpdir/pr17689b.o tmpdir/pr17689.so -pie" \
-	    "-Wa,-mrelax-relocations=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mrelax-relocations=yes" \
 	    { dummy.c } \
 	    {{readelf {-Wr} pr17689.rd}} \
 	    "pr17689" \
@@ -734,7 +756,7 @@ if { [isnative]
 	[list \
 	    "Build pr17689 with PIE, -z now and GOTOFF" \
 	    "tmpdir/pr17689b.o tmpdir/pr17689.so -pie -Wl,-z,now" \
-	    "-Wa,-mrelax-relocations=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mrelax-relocations=yes" \
 	    { dummy.c } \
 	    {{readelf {-Wr} pr17689now.rd}} \
 	    "pr17689now" \
@@ -742,7 +764,7 @@ if { [isnative]
 	[list \
 	    "Build pr17689ver with PIE and GOTOFF" \
 	    "tmpdir/pr17689b.o tmpdir/pr17689ver.so -pie" \
-	    "-Wa,-mrelax-relocations=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mrelax-relocations=yes" \
 	    { dummy.c } \
 	    {{readelf {-Wr} pr17689ver.rd}} \
 	    "pr17689ver" \
@@ -750,7 +772,7 @@ if { [isnative]
 	[list \
 	    "Build pr17827 with PIE and GOTOFF" \
 	    "tmpdir/pr17689b.o tmpdir/pr17689.so -pie" \
-	    "-Wa,-mrelax-relocations=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mrelax-relocations=yes" \
 	    { dummy.c } \
 	    {{readelf {-Wr} pr17827.rd}} \
 	    "pr17827" \
@@ -856,7 +878,7 @@ if { [isnative]
 	[list \
 	    "Build property 1 (.o)" \
 	    "-r -nostdlib" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mx86-used-note=yes" \
 	    {pass.c property-no-copy.S} \
 	    {{readelf {-n} property-1a.r}} \
 	    "property-1.o" \
@@ -880,7 +902,7 @@ if { [isnative]
 	[list \
 	    "Build property 2 (.o)" \
 	    "-r -nostdlib" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mx86-used-note=yes" \
 	    {pass.c property-stack.S} \
 	    {{readelf {-n} property-2a.r}} \
 	    "property-2.o" \
@@ -904,7 +926,7 @@ if { [isnative]
 	[list \
 	    "Build property 3 (.o)" \
 	    "-r -nostdlib" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mx86-used-note=yes" \
 	    {pass.c property-x86-1.S property-stack.S} \
 	    {{readelf {-n} property-3a.r}} \
 	    "property-3.o" \
@@ -928,7 +950,7 @@ if { [isnative]
 	[list \
 	    "Build property 4 (.o)" \
 	    "-r -nostdlib" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mx86-used-note=yes" \
 	    {pass.c property-x86-2.S property-x86-1.S property-stack.S} \
 	    {{readelf {-n} property-4a.r}} \
 	    "property-4.o" \
@@ -960,7 +982,7 @@ if { [isnative]
 	[list \
 	    "Build property 5 (.o)" \
 	    "-r -nostdlib -Wl,-z,stack-size=0x900000" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mx86-used-note=yes" \
 	    {pass.c property-x86-2.S property-x86-1.S property-stack.S} \
 	    {{readelf {-n} property-5a.r}} \
 	    "property-5.o" \
@@ -984,7 +1006,7 @@ if { [isnative]
 	[list \
 	    "Build property-6.o" \
 	    "-r -nostdlib" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mx86-used-note=yes" \
 	    {property-6b.c property-stack.S} \
 	    {{readelf {-n} property-2a.r}} \
 	    "property-6.o" \
@@ -1051,6 +1073,7 @@ if { [isnative]
 	    { dummy.c } \
 	    "pr17689" \
 	    "pr17689.out" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS" \
 	] \
 	[list \
 	    "Run pr17689 with PIE, -z now and GOTOFF" \
@@ -1059,6 +1082,7 @@ if { [isnative]
 	    { dummy.c } \
 	    "pr17689now" \
 	    "pr17689.out" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS" \
 	] \
 	[list \
 	    "Run pr17689ver with PIE and GOTOFF" \
@@ -1067,6 +1091,7 @@ if { [isnative]
 	    { dummy.c } \
 	    "pr17689ver" \
 	    "pr17689.out" \
+	    "$DIRECT_EXTERN_ACCESS_CFLAGS" \
 	] \
 	[list \
 	    "Run pr18900" \
@@ -1078,7 +1103,7 @@ if { [isnative]
 	] \
 	[list \
 	    "Run pr19031" \
-	    "$NOPIE_LDFLAGS tmpdir/pr19031.so" \
+	    "$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr19031.so" \
 	    "-Wa,-mx86-used-note=yes" \
 	    { pr19031b.S pr19031c.c } \
 	    "pr19031" \
@@ -1087,7 +1112,7 @@ if { [isnative]
 	] \
 	[list \
 	    "Run got1" \
-	    "$NOPIE_LDFLAGS tmpdir/got1d.so" \
+	    "$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/got1d.so" \
 	    "-Wa,-mx86-used-note=yes" \
 	    { got1a.S got1b.c got1c.c } \
 	    "got1" \
@@ -1222,7 +1247,7 @@ if { [isnative]
 	    ] \
 	    [list \
 		"Build ifunc-1a with PIE -z ibtplt" \
-		"-Wl,-z,ibtplt -pie tmpdir/ifunc-1a.o \
+		"-Wl,-z,ibtplt -Wl,-z,lazy -pie tmpdir/ifunc-1a.o \
 		 tmpdir/ifunc-1b.o tmpdir/ifunc-1c.o tmpdir/ifunc-1d.o" \
 		"-Wa,-mx86-used-note=yes" \
 		{ dummy.c } \
@@ -1302,7 +1327,7 @@ if { [isnative]
 	[list \
 	    "Build pr28875" \
 	    "$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr28875.so" \
-	    "$NOPIE_CFLAGS" \
+	    "$NOPIE_CFLAGS $DIRECT_EXTERN_ACCESS_CFLAGS" \
 	    { pr28875b.c } \
 	    {{error_output "pr28875.err"}} \
 	    "pr28875" \
@@ -1310,12 +1335,35 @@ if { [isnative]
 	[list \
 	    "Build pr21997-1" \
 	    "$NOPIE_LDFLAGS -Wl,--no-as-needed,-z,notext tmpdir/pr21997-1.so" \
-	    "$NOPIE_CFLAGS -Wa,-mx86-used-note=yes" \
+	    "$NOPIE_CFLAGS $DIRECT_EXTERN_ACCESS_CFLAGS -Wa,-mx86-used-note=yes" \
 	    { pr21997-1b.c } \
 	    {{error_output "pr21997-1.err"}} \
 	    "pr21997-1" \
 	] \
+	[list \
+	    "Build pr32067" \
+	    "-Wl,--oformat,binary -nostdlib -nostartfiles" \
+	    "" \
+	    { start.s ../ld-x86-64/pr32067.s } \
+	    {} \
+	    "pr32067" \
+	] \
     ]
+
+    # The musl C library does not support TEXTRELs.
+    if { ![istarget i?86-*-musl] } {
+	run_ld_link_exec_tests [list \
+	    [list \
+		"Run pr22001-1" \
+		"$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed,-z,notext tmpdir/pr22001-1.so" \
+		"-Wa,-mx86-used-note=yes" \
+		{ pr22001-1b.c } \
+		"pr22001-1" \
+		"pass.out" \
+		"$NOPIE_CFLAGS" \
+	    ] \
+	]
+    }
 
     run_ld_link_exec_tests [list \
 	[list \
@@ -1327,16 +1375,7 @@ if { [isnative]
 	    "pass.out" \
 	    "$NOPIE_CFLAGS" \
 	] \
-	[list \
-	    "Run pr22001-1" \
-	    "$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed,-z,notext tmpdir/pr22001-1.so" \
-	    "-Wa,-mx86-used-note=yes" \
-	    { pr22001-1b.c } \
-	    "pr22001-1" \
-	    "pass.out" \
-	    "$NOPIE_CFLAGS" \
-	] \
-	[list \
+ 	[list \
 	    "Run pr22001-1 (PIE 1)" \
 	    "$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
 	    "-Wa,-mx86-used-note=yes" \
@@ -1483,6 +1522,55 @@ run_ld_link_tests [list \
 	"pr21626" \
     ] \
 ]
+
+# The musl C library does not support --gnu-tls-tag nor --gnu2-tls-tag.
+if { ![istarget *-*-musl]
+     && [istarget "i?86-*-linux*"]
+     && [check_compiler_available] } {
+    run_cc_link_tests [list \
+	[list \
+	    "Build gnu-tls-1a.so" \
+	    "-shared -Wl,--no-as-needed,--gnu-tls-tag" \
+	    "-fPIC" \
+	    { gnu-tls-1.s } \
+	    {{readelf {-W --version-info} gnu-tls-1a.rd}} \
+	    "gnu-tls-1a.so" \
+	] \
+	[list \
+	    "Build gnu-tls-1b.so" \
+	    "-shared -Wl,--no-as-needed,--no-gnu-tls-tag" \
+	    "-fPIC" \
+	    { gnu-tls-1.s } \
+	    {{readelf {-W --version-info} gnu-tls-1b.rd}} \
+	    "gnu-tls-1b.so" \
+	] \
+	[list \
+	    "Build gnu2-tls-1a.so" \
+	    "-shared -Wl,--no-as-needed,--gnu2-tls-tag" \
+	    "-fPIC" \
+	    { gnu2-tls-1.s } \
+	    {{readelf {-W --version-info} gnu2-tls-1a.rd}} \
+	    "gnu2-tls-1a.so" \
+	] \
+	[list \
+	    "Build gnu2-tls-1b.so" \
+	    "-shared -Wl,--no-as-needed,--no-gnu2-tls-tag" \
+	    "-fPIC" \
+	    { gnu2-tls-1.s } \
+	    {{readelf {-W --version-info} gnu2-tls-1b.rd}} \
+	    "gnu2-tls-1b.so" \
+	] \
+	[list \
+	    "Build no-tls" \
+	    "-Wl,--gnu-tls-tag,--gnu2-tls-tag" \
+	    "" \
+	    { no-tls.c } \
+	    {{readelf {-W --version-info} gnu-tls-1b.rd} \
+	     {readelf {-W --version-info} gnu2-tls-1b.rd}} \
+	    "no-tls" \
+	] \
+    ]
+}
 
 # Linux only tests
 run_dump_test "pltgot-1"

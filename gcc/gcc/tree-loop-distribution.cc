@@ -1,5 +1,5 @@
 /* Loop distribution.
-   Copyright (C) 2006-2025 Free Software Foundation, Inc.
+   Copyright (C) 2006-2026 Free Software Foundation, Inc.
    Contributed by Georges-Andre Silber <Georges-Andre.Silber@ensmp.fr>
    and Sebastian Pop <sebastian.pop@amd.com>.
 
@@ -1353,6 +1353,7 @@ destroy_loop (class loop *loop)
   redirect_edge_pred (exit, src);
   exit->flags &= ~(EDGE_TRUE_VALUE|EDGE_FALSE_VALUE);
   exit->flags |= EDGE_FALLTHRU;
+  exit->probability = profile_probability::always ();
   cancel_loop_tree (loop);
   rescan_loop_exit (exit, false, true);
 
@@ -3966,7 +3967,8 @@ loop_distribution::execute (function *fun)
   if (changed)
     {
       /* Destroy loop bodies that could not be reused.  Do this late as we
-	 otherwise can end up refering to stale data in control dependences.  */
+	 otherwise can end up referring to stale data in control
+	 dependences.  */
       unsigned i;
       class loop *loop;
       FOR_EACH_VEC_ELT (loops_to_be_destroyed, i, loop)

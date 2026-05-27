@@ -1,5 +1,5 @@
 #source: abs32-1.s
-#as: --em=criself
+#as: --emulation=criself
 #objdump: -dr
 
 # Check that jump-type instructions to absolute addresses

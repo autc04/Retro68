@@ -1,5 +1,5 @@
 /* This file is tc-sh.h
-   Copyright (C) 1993-2022 Free Software Foundation, Inc.
+   Copyright (C) 1993-2026 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -53,10 +53,10 @@ extern int sh_optimize_expr (expressionS *, operatorT, expressionS *);
 
 /* When relaxing, we need to generate relocations for alignment
    directives.  */
-#define HANDLE_ALIGN(frag) sh_handle_align (frag)
+#define HANDLE_ALIGN(sec, frag) sh_handle_align (frag)
 extern void sh_handle_align (fragS *);
 
-#define MAX_MEM_FOR_RS_ALIGN_CODE (1 + 2)
+#define MAX_MEM_FOR_RS_ALIGN_CODE(p2align, max) (1 + 2)
 
 /* We need to force out some relocations when relaxing.  */
 #define TC_FORCE_RELOCATION(fix) sh_force_relocation (fix)
@@ -130,8 +130,6 @@ extern void sh_frob_file (void);
 #ifdef OBJ_COFF
 /* COFF specific definitions.  */
 
-#define COFF_MAGIC (!target_big_endian ? SH_ARCH_MAGIC_LITTLE : SH_ARCH_MAGIC_BIG)
-
 #define tc_coff_symbol_emit_hook(a) ; /* Not used.  */
 
 #define TC_KEEP_FX_OFFSET 1
@@ -140,7 +138,8 @@ extern void sh_frob_file (void);
 
 /* We align most sections to a 16 byte boundary.  */
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN)			\
-  (startswith (SEG_NAME (SEG), ".stabstr")		\
+  ((startswith (SEG_NAME (SEG), ".stabstr")		\
+    || do_not_pad_sections_to_alignment)		\
    ? 0							\
    : ((startswith (SEG_NAME (SEG), ".stab")	\
        || strcmp (SEG_NAME (SEG), ".ctors") == 0	\
