@@ -240,7 +240,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       Windows31J = 2024,
       GB2312 = 2025,
       Big5 = 2026,
+#pragma push_macro("Macintosh")
+#undef Macintosh
       Macintosh = 2027,
+#pragma pop_macro("Macintosh")
       IBM037 = 2028,
       IBM038 = 2029,
       IBM273 = 2030,

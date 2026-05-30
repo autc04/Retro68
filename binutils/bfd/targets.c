@@ -1241,7 +1241,7 @@ static const bfd_target * const _bfd_target_vector[] =
 	&powerpc_elf64_fbsd_vec,
 	&powerpc_elf64_fbsd_le_vec,
 #endif
-#if 0
+#if 1
 	/* This has the same magic number as RS/6000.  */
 	&powerpc_xcoff_vec,
 #endif

@@ -168,6 +168,15 @@ extern int isnan (double);
    #else
     /* Implementation-defined.  Assume float_t and double_t have been
      * defined previously for this configuration (e.g. config.h). */
+
+   /* If __DOUBLE_TYPE is defined (__FLOAT_TYPE is then supposed to be
+      defined as well) float_t and double_t definition is suggested by
+      an arch specific header.  */
+   #ifdef __DOUBLE_TYPE
+    typedef __DOUBLE_TYPE double_t;
+    typedef __FLOAT_TYPE float_t;
+   #endif
+   /* Assume config.h has provided these types.  */
   #endif
 #else
     /* Assume basic definitions.  */
@@ -436,7 +445,9 @@ extern float hypotf (float, float);
    simply call the double functions.  On Cygwin the long double functions
    are implemented independently from newlib to be able to use optimized
    assembler functions despite using the Microsoft x86_64 ABI. */
-#if defined (_LDBL_EQ_DBL) || defined (__CYGWIN__)
+#if defined (_LDBL_EQ_DBL) || defined (__CYGWIN__) || \
+	defined(__aarch64__) || defined(__i386__) || defined(__x86_64__) || \
+	defined(__riscv)
 /* Reentrant ANSI C functions.  */
 #ifndef __math_68881
 extern long double atanl (long double);

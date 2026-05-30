@@ -82,6 +82,11 @@ The global pointer <<environ>> is also required.
 #include <reent.h>
 #include <errno.h>
 
+#ifdef _REENT_THREAD_LOCAL
+_Thread_local int _tls_inc;
+_Thread_local char _tls_emergency[_REENT_EMERGENCY_SIZE];
+#endif
+
 /* Try to open the file specified, if it can't be opened then try
    another one.  Return nonzero if successful, otherwise zero.  */
 
@@ -104,7 +109,7 @@ worker (struct _reent *ptr,
       t = _open_r (ptr, result, O_RDONLY, 0);
       if (t == -1)
 	{
-	  if (ptr->_errno == ENOSYS)
+	  if (_REENT_ERRNO(ptr) == ENOSYS)
 	    {
 	      result[0] = '\0';
 	      return 0;
@@ -135,9 +140,9 @@ _tmpnam_r (struct _reent *p,
     }
   pid = _getpid_r (p);
 
-  if (worker (p, result, P_tmpdir, "t", pid, &p->_inc))
+  if (worker (p, result, P_tmpdir, "t", pid, &_REENT_INC(p)))
     {
-      p->_inc++;
+      _REENT_INC(p)++;
       return result;
     }
 
@@ -162,7 +167,7 @@ _tempnam_r (struct _reent *p,
   if (filename)
     {
       if (! worker (p, filename, dir, prefix,
-		    _getpid_r (p) ^ (int) (_POINTER_INT) p, &p->_inc))
+		    _getpid_r (p) ^ (int) (_POINTER_INT) p, &_REENT_INC(p)))
 	return NULL;
     }
   return filename;

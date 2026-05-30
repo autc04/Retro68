@@ -1,3 +1,66 @@
+*** Major changes in newlib version 4.6.0:
+
+- multiple updates for POSIX-1.2024
+- fixed problem when REENTRANT_SYSCALLS_PROVIDED and
+  MISSING_SYSCALL_NAMES are defined together
+- improved performance for mem[p]cpy/memmove optimized code
+- new --enable-newlib-hw-misaligned-access option added
+- mips libgloss support fixed
+- optimized mem and str functions for riscv
+- locale code rework to drop global_locale_string and adding
+  locale_string to every locale_t
+- new m68k-atari-elf target support added
+- strtorQ method created based on FreeBSD's gdtoa library
+  and used for strtold to support 128-bit long double
+- old PRU core libgloss support added
+- data tables updated to Unicode 17.0
+- various fixes
+
+*** Major changes in newlib version 4.5.0:
+
+- major clean-up of libgloss build including merging a number of platforms
+  into top-level Makefile (moxie, v850, i960, msp430, frv, i386, ...) and
+  removal of dead platforms such as xc16x
+- strverscmp fixed for comparison of digit sequence with non-digits
+- proper locking added from amdgcn
+- numerous improvements to arc support including support of 16-entry 
+  register file
+- long double complex functions are now skipped if long double != double
+- support for POSIX.1-2024 added to features.h
+- arc64: port added for Synopsys Designware ARCv3 ISA
+- sys/xtensa removed and replaced by machine/xtensa and libgloss
+- fixes to powf
+- fixes for building with gcc-15
+
+*** Major changes in newlib version 4.4.0:
+
+- long double support for i386, aarch64, and x86_64 added from FreeBSD
+- RISC-V Zfinx/Zdinx extension support
+- wildcard support added to allow arbitrary include dirs to be specified for a platform
+- Xtensa port added
+- printf family helper functions split out into separate files to save space when linking
+- wide-oriented I/O fixes including proper split of byte and wide-oriented stdio functions
+- support added for RISC-V long double math
+- fixes for c99/gcc-14 warnings treated as errors in multiple platforms
+
+*** Major changes in newlib version 4.3.0:
+
+
+- remove i?86-pc-linux-gnu support
+- remove decstation & sunos support
+- remove phoenix OS support
+- remove unused members from struct _reent (see also --enable-newlib-reent-binary-compat)
+- build system internals heavily rewritten & updated
+- make arm jmp_buf size and alignment ABI-conformant
+- fixed bug in arm setjmp/longjmp to preserve floating-point register values
+- add --enable-newlib-reent-thread-local configuration option
+- add --enable-newlib-reent-binary-compat configuration option
+- add 64-bit powerpc setjmp/longjmp support
+- use global stdio streams for all configurations
+- use global atexit data for all configurations
+- vectorized math routines added for amdgcn platform
+- nvptx: remove newlib ELIX level 1 restriction
+
 *** Major changes in newlib version 4.2.0:
 
 - remove use of --cygnus option for automake

@@ -696,6 +696,7 @@
 #  if defined(__glibcxx_want_all) || defined(__glibcxx_want_chrono)
 #   define __cpp_lib_chrono 201611L
 #  endif
+#else
 # endif
 #endif /* !defined(__cpp_lib_chrono) */
 #undef __glibcxx_want_chrono

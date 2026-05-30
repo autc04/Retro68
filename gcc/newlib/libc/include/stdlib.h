@@ -221,11 +221,13 @@ char *	ecvtbuf (double, int, int*, int*, char *);
 char *	fcvtbuf (double, int, int*, int*, char *);
 char *	ecvtf (float,int,int *,int *);
 #endif
+#if !defined (__CYGWIN__) || defined (_LIBC)
 char *	__itoa (int, char *, int);
 char *	__utoa (unsigned, char *, int);
-#if __MISC_VISIBLE
+# if __MISC_VISIBLE
 char *	itoa (int, char *, int);
 char *	utoa (unsigned, char *, int);
+# endif
 #endif
 #if __POSIX_VISIBLE
 int	rand_r (unsigned *__seed);
@@ -331,10 +333,13 @@ extern long double strtold (const char *__restrict, char **__restrict);
 #if __ISO_C_VISIBLE >= 2011
 void *	aligned_alloc(size_t, size_t) __malloc_like __alloc_align(1)
 	    __alloc_size(2) __result_use_check;
+#endif /* __ISO_C_VISIBLE >= 2011 */
+
+#if (__ISO_C_VISIBLE >= 2011 || __POSIX_VISIBLE >= 202405)
 int	at_quick_exit(void (*)(void));
 _Noreturn void
 	quick_exit(int);
-#endif /* __ISO_C_VISIBLE >= 2011 */
+#endif /* __ISO_C_VISIBLE >= 2011 || __POSIX_VISIBLE >= 202405 */
 
 _END_STD_C
 

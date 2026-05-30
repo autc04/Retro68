@@ -1630,9 +1630,26 @@ set_noop_p (const_rtx set)
     return true;
 
   if (MEM_P (dst) && MEM_P (src))
-    return (rtx_equal_p (dst, src)
-	    && !side_effects_p (dst)
-	    && !side_effects_p (src));
+  {
+    if (rtx_equal_p (dst, src) && !side_effects_p (dst))
+	  return 1;
+
+    src = XEXP(src, 0); 
+    dst = XEXP(dst, 0);
+
+    if( GET_CODE(src) == POST_INC && GET_CODE(dst) == PRE_DEC )
+      {
+	src = XEXP(src, 0);
+	dst = XEXP(dst, 0);
+        if ((rtx_equal_p (dst, src)
+	  && !side_effects_p (dst)
+	  && !side_effects_p (src)))
+	  return 1;
+
+      }
+
+    return 0;
+  }
 
   if (GET_CODE (dst) == ZERO_EXTRACT)
     return (rtx_equal_p (XEXP (dst, 0), src)

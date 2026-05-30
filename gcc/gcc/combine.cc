@@ -14516,10 +14516,10 @@ distribute_notes (rtx notes, rtx_insn *from_insn, rtx_insn *i3, rtx_insn *i2,
 	      old_size = fixup_args_size_notes (PREV_INSN (i3), i3, args_size);
 	      /* emit_call_1 adds for !ACCUMULATE_OUTGOING_ARGS
 		 REG_ARGS_SIZE note to all noreturn calls, allow that here.  */
-	      gcc_assert (maybe_ne (old_size, args_size)
+	     /* gcc_assert (maybe_ne (old_size, args_size)
 			  || (CALL_P (i3)
 			      && !ACCUMULATE_OUTGOING_ARGS
-			      && find_reg_note (i3, REG_NORETURN, NULL_RTX)));
+			      && find_reg_note (i3, REG_NORETURN, NULL_RTX))); ### */
 	    }
 	  break;
 

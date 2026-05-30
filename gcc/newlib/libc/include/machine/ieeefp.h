@@ -90,6 +90,13 @@
 #ifndef __SOFTFP__
 # define _SUPPORTS_ERREXCEPT
 #endif
+/* As per ISO/IEC TS 18661 '__FLT_EVAL_METHOD__' will be defined to 16
+   (if compiling with +fp16 support) so it can't be used by math.h to
+   define float_t and double_t.  For values of '__FLT_EVAL_METHOD__'
+   other than 0, 1, 2 the definition of float_t and double_t is
+   implementation-defined.  */
+#define __DOUBLE_TYPE double
+#define __FLOAT_TYPE float
 #endif
 
 #if defined (__aarch64__)
@@ -102,6 +109,13 @@
 #ifdef __ARM_FP
 # define _SUPPORTS_ERREXCEPT
 #endif
+/* As per ISO/IEC TS 18661 '__FLT_EVAL_METHOD__' will be defined to 16
+   (if compiling with +fp16 support) so it can't be used by math.h to
+   define float_t and double_t.  For values of '__FLT_EVAL_METHOD__'
+   other than 0, 1, 2 the definition of float_t and double_t is
+   implementation-defined.  */
+#define __DOUBLE_TYPE double
+#define __FLOAT_TYPE float
 #endif
 
 #ifdef __epiphany__
@@ -204,8 +218,13 @@
 #else
 #define __IEEE_LITTLE_ENDIAN
 #endif
-#ifdef __riscv_flen
+#if defined(__riscv_flen) || defined (__riscv_zfinx)
 # define _SUPPORTS_ERREXCEPT
+#endif
+#if (__riscv_flen == 64) || defined (__riscv_zdinx)
+# define __OBSOLETE_MATH_DEFAULT 0
+#else
+# define __OBSOLETE_MATH_DEFAULT 1
 #endif
 #endif
 
@@ -244,9 +263,15 @@
 
 #ifdef __MIPSEL__
 #define __IEEE_LITTLE_ENDIAN
+#if __SIZEOF_DOUBLE__ == 4
+#define _DOUBLE_IS_32BITS
+#endif
 #endif
 #ifdef __MIPSEB__
 #define __IEEE_BIG_ENDIAN
+#if __SIZEOF_DOUBLE__ == 4
+#define _DOUBLE_IS_32BITS
+#endif
 #endif
 
 #ifdef __MMIX__
@@ -316,6 +341,10 @@
 #else
 #define __IEEE_LITTLE_ENDIAN
 #endif
+#endif
+
+#ifdef __ARC64__
+#define __IEEE_LITTLE_ENDIAN
 #endif
 
 #ifdef __CRX__
@@ -485,6 +514,10 @@
 
 #ifdef __XTENSA_EL__
 #define __IEEE_LITTLE_ENDIAN
+#endif
+
+#ifdef __XTENSA_EB__
+#define __IEEE_BIG_ENDIAN
 #endif
 
 #ifdef __CYGWIN__

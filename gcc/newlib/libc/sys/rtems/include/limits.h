@@ -56,12 +56,14 @@
 #define _POSIX_TZNAME_MAX       3
 
 /*
- *  Definitions of the following may be omitted if the value is >= stated
- *  minimum but is indeterminate.
+ * Definitions of the following may be omitted if the value is >= stated
+ * minimum but is indeterminate. The following are not defined because
+ * RTEMS does not have an inherent limit.
+ *
+ * - AIO_LISTIO_MAX
+ * - AIO_MAX
  */
 
-#define AIO_LISTIO_MAX          2
-#define AIO_MAX                 1
 #define AIO_PRIO_DELTA_MAX      0
 #define DELAYTIMER_MAX          32
 #define MQ_OPEN_MAX             8

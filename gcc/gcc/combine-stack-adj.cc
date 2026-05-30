@@ -828,7 +828,10 @@ public:
       rest_of_handle_stack_adjustments ();
       return 0;
     }
-
+  virtual opt_pass *clone ()
+    {
+      return new pass_stack_adjustments(m_ctxt);
+    }
 }; // class pass_stack_adjustments
 
 bool

@@ -3233,6 +3233,8 @@ static size_t cp_parser_skip_balanced_tokens (cp_parser *, size_t);
 static bool cp_parser_next_tokens_can_be_canon_loop (cp_parser *,
 						     enum tree_code, bool);
 static tree cp_parser_omp_loop_nest (cp_parser *, bool *);
+static tree cp_parser_inline_opcodes
+  (cp_parser *);
 
 // -------------------------------------------------------------------------- //
 // Unevaluated Operand Guard
@@ -4880,6 +4882,7 @@ cp_parser_string_literal_common (cp_parser *parser, bool translate,
   tree string_tree;
   tree suffix_id = NULL_TREE;
   bool curr_tok_is_userdef_p = false;
+  bool pascal_string = false;
 
   tok = cp_lexer_peek_token (parser->lexer);
   if (!cp_parser_is_string_literal (tok))
@@ -5023,9 +5026,21 @@ cp_parser_string_literal_common (cp_parser *parser, bool translate,
   if (uneval)
     type = CPP_UNEVAL_STRING;
 
+  if (!strncmp((const char*)strs[0].text, "\"\\p", 3))
+    {
+       pascal_string = true;
+       /* replace \p by a valid escape sequence */
+       ((unsigned char*)strs[0].text)[2] = 'n';
+    }
+
   if ((translate ? cpp_interpret_string : cpp_interpret_string_notranslate)
       (parse_in, strs, count, &istr, type))
     {
+      if (pascal_string)
+        {
+          /* put the real string length in */
+          ((unsigned char*)istr.text)[0] = (unsigned char) (istr.len - 2);
+        }
       value = build_string (istr.len, (const char *)istr.text);
       free (const_cast<unsigned char *> (istr.text));
       if (count > 1)
@@ -5039,7 +5054,10 @@ cp_parser_string_literal_common (cp_parser *parser, bool translate,
 	{
 	default:
 	case CPP_STRING:
-	  TREE_TYPE (value) = char_array_type_node;
+          if (pascal_string)
+            TREE_TYPE (value) = uchar_array_type_node;
+          else
+            TREE_TYPE (value) = char_array_type_node;
 	  break;
 	case CPP_UTF8STRING:
 	  if (flag_char8_t)
@@ -26318,20 +26336,42 @@ cp_parser_init_declarator (cp_parser* parser,
     {
       if (function_declarator_p (declarator))
 	{
-	   if (initialization_kind == CPP_EQ)
-	     initializer = cp_parser_pure_specifier (parser);
-	   else
-	     {
-	       /* If the declaration was erroneous, we don't really
+	  if (initialization_kind == CPP_EQ)
+            {
+              if(member_p)
+                initializer = cp_parser_pure_specifier (parser);
+              else
+                {
+                  cp_token *token;
+                  cp_lexer_consume_token (parser->lexer);
+                  token = cp_lexer_peek_token (parser->lexer);
+                  if (token->keyword == RID_DEFAULT
+                      || token->keyword == RID_DELETE)
+                    {
+                      cp_lexer_consume_token (parser->lexer);
+                      maybe_warn_cpp0x (CPP0X_DEFAULTED_DELETED);
+                      initializer = token->u.value;
+                    }
+                  else
+                    {
+                      is_initialized = false;
+                      tree rawinline_attr = cp_parser_inline_opcodes (parser);
+                      decl_attributes (&decl, rawinline_attr, 0);                   
+                    }
+                }
+            }
+	  else
+	    {
+	      /* If the declaration was erroneous, we don't really
 		  know what the user intended, so just silently
 		  consume the initializer.  */
-	       if (decl != error_mark_node)
+	      if (decl != error_mark_node)
 		 error_at (tmp_init_loc, "initializer provided for function");
-	       cp_parser_skip_to_closing_parenthesis (parser,
+	      cp_parser_skip_to_closing_parenthesis (parser,
 						      /*recovering=*/true,
 						      /*or_comma=*/false,
 						      /*consume_paren=*/true);
-	     }
+	    }
 	}
       else
 	{
@@ -57782,6 +57822,49 @@ finish_fully_implicit_template (cp_parser *parser, tree member_decl_opt)
   --parser->num_template_parameter_lists;
 
   return member_decl_opt;
+}
+
+
+static tree cp_parser_inline_opcodes(cp_parser * parser)
+{
+  tree attr_args;
+  bool braced = false;
+    
+  braced = cp_lexer_next_token_is(parser->lexer, CPP_OPEN_BRACE);
+  if(braced)
+    cp_lexer_consume_token(parser->lexer);
+  
+  vec<tree, va_gc> *expr_list = make_tree_vector ();
+
+  if(!braced || !cp_lexer_next_token_is(parser->lexer, CPP_CLOSE_BRACE))
+  {
+    for(;;)
+    {
+      tree val = cp_parser_constant_expression (parser,
+                                                /*allow_non_constant_p=*/false,
+                                                NULL);
+      val = cp_fully_fold(val);						
+      vec_safe_push (expr_list, val);
+
+      if(cp_lexer_next_token_is(parser->lexer, CPP_COMMA))
+        cp_lexer_consume_token(parser->lexer);
+      else
+        break;
+    }
+  }
+
+  attr_args = build_tree_list_vec (expr_list);
+  release_tree_vector (expr_list);
+
+  if(braced)
+    {
+      if(cp_lexer_next_token_is(parser->lexer, CPP_CLOSE_BRACE))
+        cp_lexer_consume_token(parser->lexer);
+      else
+        cp_parser_error (parser, "expected %<}%>");
+    }
+  
+  return build_tree_list (canonicalize_attr_name(get_identifier("__raw_inline__")), attr_args);
 }
 
 /* Like finish_fully_implicit_template, but to be used in error

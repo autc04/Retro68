@@ -1628,6 +1628,8 @@ lex_string (const cpp_token *tok, tree *valp, bool objc_string, bool translate)
      zero '@' before each string.  */
   bool objc_at_sign_was_seen = false;
 
+  bool pascal_string = false;
+
  retry:
   tok = get_token (parse_in);
   switch (tok->type)
@@ -1695,10 +1697,22 @@ lex_string (const cpp_token *tok, tree *valp, bool objc_string, bool translate)
     warning (OPT_Wtraditional,
 	     "traditional C rejects string constant concatenation");
 
+  if (!strncmp((const char*)strs[0].text, "\"\\p", 3))
+    {
+       pascal_string = true;
+       /* replace \p by a valid escape sequence */
+       ((unsigned char*)strs[0].text)[2] = 'n';
+    }
+
   if ((translate
        ? cpp_interpret_string : cpp_interpret_string_notranslate)
       (parse_in, strs, concats + 1, &istr, type))
     {
+      if (pascal_string)
+        {
+          /* put the real string length in */
+          ((unsigned char*)istr.text)[0] = (unsigned char) (istr.len - 2);
+        }
       value = build_string (istr.len, (const char *) istr.text);
       free (const_cast<unsigned char *> (istr.text));
       if (concats)
@@ -1750,7 +1764,10 @@ lex_string (const cpp_token *tok, tree *valp, bool objc_string, bool translate)
     {
     default:
     case CPP_STRING:
-      TREE_TYPE (value) = char_array_type_node;
+      if (pascal_string)
+        TREE_TYPE (value) = uchar_array_type_node;
+      else
+        TREE_TYPE (value) = char_array_type_node;
       break;
     case CPP_UTF8STRING:
       if (flag_char8_t)

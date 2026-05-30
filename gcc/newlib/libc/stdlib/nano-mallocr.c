@@ -36,6 +36,7 @@
 #include <string.h>
 #include <errno.h>
 #include <malloc.h>
+#include <stdint.h>
 
 #if DEBUG
 #include <assert.h>
@@ -50,7 +51,7 @@
 
 #define _SBRK_R(X) _sbrk_r(X)
 
-#ifdef INTERNAL_NEWLIB
+#ifdef _LIBC
 
 #include <sys/config.h>
 #include <reent.h>
@@ -63,7 +64,7 @@
 #define MALLOC_LOCK __malloc_lock(reent_ptr)
 #define MALLOC_UNLOCK __malloc_unlock(reent_ptr)
 
-#define RERRNO reent_ptr->_errno
+#define RERRNO _REENT_ERRNO(reent_ptr)
 
 #define nano_malloc		_malloc_r
 #define nano_free		_free_r
@@ -78,7 +79,7 @@
 #define nano_mallinfo		_mallinfo_r
 #define nano_mallopt		_mallopt_r
 
-#else /* ! INTERNAL_NEWLIB */
+#else /* ! _LIBC */
 
 #define RARG
 #define RONEARG
@@ -100,7 +101,7 @@
 #define nano_malloc_stats	malloc_stats
 #define nano_mallinfo		mallinfo
 #define nano_mallopt		mallopt
-#endif /* ! INTERNAL_NEWLIB */
+#endif /* ! _LIBC */
 
 /* Redefine names to avoid conflict with user names */
 #define free_list __malloc_free_list
@@ -322,19 +323,33 @@ void * nano_malloc(RARG malloc_size_t s)
                 r=r->next;
             }
 
-            if ((char *)p + p->size == (char *)_SBRK_R(RCALL 0))
+            if (p != NULL && (char *)p + p->size == (char *)_SBRK_R(RCALL 0))
             {
                /* The last free item has the heap end as neighbour.
                 * Let's ask for a smaller amount and merge */
                alloc_size -= p->size;
-               alloc_size = ALIGN_SIZE(alloc_size, CHUNK_ALIGN); /* size of aligned data load */
-               alloc_size += MALLOC_PADDING; /* padding */
-               alloc_size += CHUNK_OFFSET; /* size of chunk head */
-               alloc_size = MAX(alloc_size, MALLOC_MINCHUNK);
 
                if (sbrk_aligned(RCALL alloc_size) != (void *)-1)
                {
                    p->size += alloc_size;
+
+                   /* Remove chunk from free_list. Since p != NULL there is
+                      at least one chunk */
+                   r = free_list;
+                   if (r->next == NULL)
+                   {
+                       /* There is only a single chunk, remove it */
+                       free_list = NULL;
+                   }
+                   else
+                   {
+                       /* Search for the chunk before the one to be removed */
+                       while (p != r->next)
+                       {
+                           r = r->next;
+                       }
+                       r->next = NULL;
+                   }
                    r = p;
                }
                else
@@ -381,7 +396,7 @@ void * nano_malloc(RARG malloc_size_t s)
         *(long *)((char *)r + offset) = -offset;
     }
 
-    assert(align_ptr + size <= (char *)r + alloc_size);
+    assert(align_ptr + s <= (char *)r + alloc_size);
     return align_ptr;
 }
 #endif /* DEFINE_MALLOC */

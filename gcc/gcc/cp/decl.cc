@@ -12386,6 +12386,12 @@ grokfndecl (tree ctype,
 		  (IDENTIFIER_POINTER (declarator))))))
     SET_DECL_LANGUAGE (decl, lang_c);
 
+  if (attrlist && lookup_attribute ("pascal", *attrlist))
+    {
+	    // paradoxical, but true: Mac pascal function names aren't mangled.
+      SET_DECL_LANGUAGE (decl, lang_c);
+    }
+
   DECL_STATIC_FUNCTION_P (decl)
     = !xobj_func_p && ctype && TREE_CODE (type) == FUNCTION_TYPE;
   DECL_FUNCTION_XOBJ_FLAG (decl) = xobj_func_p;

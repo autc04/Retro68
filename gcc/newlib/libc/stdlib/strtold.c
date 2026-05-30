@@ -58,47 +58,45 @@ __flt_rounds(void)
 #define FLT_ROUNDS 0
 #endif
 
-long double
-_strtold_r (struct _reent *ptr, const char *__restrict s00,
-	    char **__restrict se)
-{
-#ifdef _LDBL_EQ_DBL
-  /* On platforms where long double is as wide as double.  */
-  return _strtod_l (ptr, s00, se, __get_current_locale ());
-#else
+/*
+ * The core implementation for the strtold family of functions, handling
+ * different long double formats.
+ */
+static long double
+_strtold_impl(struct _reent *ptr, const char *__restrict s00,
+              char **__restrict se, locale_t loc) {
+#if defined(_LDBL_EQ_DBL)
+  /* On platforms where long double is as wide as double. */
+  return _strtod_l(ptr, s00, se, loc);
+#elif LDBL_MANT_DIG == 64 /* For 80 bit long doubles */
   long double result;
-
-  _strtorx_l (ptr, s00, se, FLT_ROUNDS, &result, __get_current_locale ());
+  _strtorx_l(ptr, s00, se, FLT_ROUNDS, &result, loc);
   return result;
+#elif LDBL_MANT_DIG == 113 /* For 128bit long doubles */
+  long double result;
+  _strtorQ_l(ptr, s00, se, FLT_ROUNDS, &result, loc);
+  return result;
+#else
+#warning "strtold not implemented for this long double format"
+  return (long double)_strtod_l(ptr, s00, se, loc);
 #endif
 }
 
 long double
-strtold_l (const char *__restrict s00, char **__restrict se, locale_t loc)
-{
-#ifdef _LDBL_EQ_DBL
-  /* On platforms where long double is as wide as double.  */
-  return _strtod_l (_REENT, s00, se, loc);
-#else
-  long double result;
+_strtold_r(struct _reent *ptr, const char *__restrict s00,
+           char **__restrict se) {
+  return _strtold_impl(ptr, s00, se, __get_current_locale());
+}
 
-  _strtorx_l (_REENT, s00, se, FLT_ROUNDS, &result, loc);
-  return result;
-#endif
+long double
+strtold_l(const char *__restrict s00, char **__restrict se, locale_t loc) {
+  return _strtold_impl(_REENT, s00, se, loc);
 }
 
 long double
 strtold (const char *__restrict s00, char **__restrict se)
 {
-#ifdef _LDBL_EQ_DBL
-  /* On platforms where long double is as wide as double.  */
-  return _strtod_l (_REENT, s00, se, __get_current_locale ());
-#else
-  long double result;
-
-  _strtorx_l (_REENT, s00, se, FLT_ROUNDS, &result, __get_current_locale ());
-  return result;
-#endif
+  return _strtold_impl(_REENT, s00, se, __get_current_locale());
 }
 
 #endif /* _HAVE_LONG_DOUBLE */

@@ -360,7 +360,7 @@ do
 changequote(,)dnl
     powerpc*-aix5.[01])
 	;;
-    powerpc*-aix[5-9].*)
+    powerpc*-aix[5-9].* | powerpc-*-macos)
 changequote([,])dnl
 	OBJDUMP_DEFS="-DAIX_WEAK_SUPPORT"
 	;;

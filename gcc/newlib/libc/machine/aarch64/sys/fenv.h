@@ -80,9 +80,17 @@ extern const fenv_t	*_fe_dfl_env;
 
 #if __BSD_VISIBLE
 
-/* We currently provide no external definitions of the functions below. */
+/* We currently provide no external definitions of the functions below
+   except of for Cygwin where those functions are exported by
+   winsup/cygwin/cygwin.din. */
 
-static inline int
+#ifdef __CYGWIN__
+#define __cygwin_fenv_static __fenv_static
+#else
+#define __cygwin_fenv_static static
+#endif
+
+__cygwin_fenv_static inline int
 feenableexcept(int __mask)
 {
 	fenv_t __old_r, __new_r;
@@ -93,7 +101,7 @@ feenableexcept(int __mask)
 	return ((__old_r >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
 }
 
-static inline int
+__cygwin_fenv_static inline int
 fedisableexcept(int __mask)
 {
 	fenv_t __old_r, __new_r;
@@ -104,7 +112,7 @@ fedisableexcept(int __mask)
 	return ((__old_r >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
 }
 
-static inline int
+__cygwin_fenv_static inline int
 fegetexcept(void)
 {
 	fenv_t __r;
@@ -115,6 +123,21 @@ fegetexcept(void)
 
 #endif /* __BSD_VISIBLE */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+#ifdef __CYGWIN__
+
+#if __MISC_VISIBLE
+int fegetprec (void);
+int fesetprec (int __prec);
+#endif
+
+#endif /* __CYGWIN__ */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* !_FENV_H_ */

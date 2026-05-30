@@ -201,7 +201,7 @@ __ssputs_r (struct _reent *ptr,
 	  str = (unsigned char *)_malloc_r (ptr, newsize);
 	  if (!str)
 	    {
-	      ptr->_errno = ENOMEM;
+	      _REENT_ERRNO(ptr) = ENOMEM;
 	      goto err;
 	    }
 	  memcpy (str, fp->_bf._base, curpos);
@@ -215,7 +215,7 @@ __ssputs_r (struct _reent *ptr,
 	      /* Free unneeded buffer.  */
 	      _free_r (ptr, fp->_bf._base);
 	      /* Ensure correct errno, even if free changed it.  */
-	      ptr->_errno = ENOMEM;
+	      _REENT_ERRNO(ptr) = ENOMEM;
 	      goto err;
 	    }
 	}
@@ -291,7 +291,7 @@ __ssprint_r (struct _reent *ptr,
 	      str = (unsigned char *)_malloc_r (ptr, newsize);
 	      if (!str)
 		{
-		  ptr->_errno = ENOMEM;
+		  _REENT_ERRNO(ptr) = ENOMEM;
 		  goto err;
 		}
 	      memcpy (str, fp->_bf._base, curpos);
@@ -306,7 +306,7 @@ __ssprint_r (struct _reent *ptr,
 		  /* Free unneeded buffer.  */
 		  _free_r (ptr, fp->_bf._base);
 		  /* Ensure correct errno, even if free changed it.  */
-		  ptr->_errno = ENOMEM;
+		  _REENT_ERRNO(ptr) = ENOMEM;
 		  goto err;
 		}
 	    }
@@ -356,7 +356,7 @@ __sprint_r (struct _reent *ptr,
       uio->uio_iovcnt = 0;
       return 0;
     }
-#ifdef _WIDE_ORIENT
+#if defined _WIDE_ORIENT && (!defined _ELIX_LEVEL || _ELIX_LEVEL >= 4)
     if (fp->_flags2 & __SWID)
       {
 	struct __siov *iov;
@@ -407,7 +407,7 @@ __sfputs_r (struct _reent *ptr,
 {
   register int i;
 
-#ifdef _WIDE_ORIENT
+#if defined _WIDE_ORIENT && (!defined _ELIX_LEVEL || _ELIX_LEVEL >= 4)
   if (fp->_flags2 & __SWID)
     {
       wchar_t *p;
@@ -501,7 +501,7 @@ _VFPRINTF_R (struct _reent *data,
       fp->_bf._base = fp->_p = _malloc_r (data, 64);
       if (!fp->_p)
 	{
-	  data->_errno = ENOMEM;
+	  _REENT_ERRNO(data) = ENOMEM;
 	  return EOF;
 	}
       fp->_bf._size = 64;
@@ -627,6 +627,7 @@ _VFPRINTF_R (struct _reent *data,
 		GET_ARG (N, ap_copy, _LONG_DOUBLE);
 	      else
 		GET_ARG (N, ap_copy, double);
+	      n = 0;
 	    }
 	  else
             n = _printf_float (data, &prt_data, fp, pfunc, &ap_copy);

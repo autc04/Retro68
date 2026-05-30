@@ -39,11 +39,11 @@ SYNOPSIS
 	int posix_spawn(pid_t *<[pid]>, const char *<[path]>,
 			const posix_spawn_file_actions_t *<[file_actions]>,
 			const posix_spawnattr_t *<[attrp]>,
-			char *const <[argv]>, char *const <[envp]>);
+			char *const <[argv]>[], char *const <[envp]>[]);
 	int posix_spawnp(pid_t *<[pid]>, const char *<[file]>,
 			const posix_spawn_file_actions_t *<[file_actions]>,
 			const posix_spawnattr_t *<[attrp]>,
-			char *const <[argv]>, char *const <[envp]>);
+			char *const <[argv]>[], char *const <[envp]>[]);
 
 DESCRIPTION
 Use <<posix_spawn>> and <<posix_spawnp>> to create a new child process
@@ -102,45 +102,12 @@ Supporting OS subroutines required: <<_close>>, <<dup2>>, <<_fcntl>>,
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "posix_spawn.h"
 
 /* Only deal with a pointer to environ, to work around subtle bugs with shared
    libraries and/or small data systems where the user declares his own
    'environ'.  */
 static char ***p_environ = &environ;
-
-struct __posix_spawnattr {
-	short			sa_flags;
-	pid_t			sa_pgroup;
-	struct sched_param	sa_schedparam;
-	int			sa_schedpolicy;
-	sigset_t		sa_sigdefault;
-	sigset_t		sa_sigmask;
-};
-
-struct __posix_spawn_file_actions {
-	STAILQ_HEAD(, __posix_spawn_file_actions_entry) fa_list;
-};
-
-typedef struct __posix_spawn_file_actions_entry {
-	STAILQ_ENTRY(__posix_spawn_file_actions_entry) fae_list;
-	enum { FAE_OPEN, FAE_DUP2, FAE_CLOSE } fae_action;
-
-	int fae_fildes;
-	union {
-		struct {
-			char *path;
-#define fae_path	fae_data.open.path
-			int oflag;
-#define fae_oflag	fae_data.open.oflag
-			mode_t mode;
-#define fae_mode	fae_data.open.mode
-		} open;
-		struct {
-			int newfildes;
-#define fae_newfildes	fae_data.dup2.newfildes
-		} dup2;
-	} fae_data;
-} posix_spawn_file_actions_entry_t;
 
 /*
  * Spawn routines
@@ -189,6 +156,8 @@ process_spawnattr(const posix_spawnattr_t sa)
 
 	if (sa->sa_flags & POSIX_SPAWN_SETSIGDEF) {
 		for (i = 1; i < NSIG; i++) {
+			if (i == SIGKILL || i == SIGSTOP)
+				continue;
 			if (sigismember(&sa->sa_sigdefault, i))
 				if (sigaction(i, &sigact, NULL) != 0)
 					return (errno);
@@ -210,23 +179,31 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
 		if (fd < 0)
 			return (errno);
 		if (fd != fae->fae_fildes) {
+#ifdef HAVE_FCNTL
+			int fdflags = _fcntl(fd, F_GETFD);
+			if (fdflags == -1)
+				return (errno);
+#endif
 			if (dup2(fd, fae->fae_fildes) == -1)
 				return (errno);
 			if (_close(fd) != 0) {
 				if (errno == EBADF)
 					return (EBADF);
 			}
-		}
 #ifdef HAVE_FCNTL
-		if (_fcntl(fae->fae_fildes, F_SETFD, 0) == -1)
-			return (errno);
+			if (_fcntl(fae->fae_fildes, F_SETFD, fdflags) == -1)
+				return (errno);
 #endif /* HAVE_FCNTL */
+		}
 		break;
 	case FAE_DUP2:
 		/* Perform a dup2() */
 		if (dup2(fae->fae_fildes, fae->fae_newfildes) == -1)
 			return (errno);
 #ifdef HAVE_FCNTL
+		/* This is necessary because POSIX says the FD_CLOEXEC flag
+		 * must be clear, even though dup2 is specified to not clear
+		 * the FD_CLOEXEC flag if the two file descriptors are equal */
 		if (_fcntl(fae->fae_newfildes, F_SETFD, 0) == -1)
 			return (errno);
 #endif /* HAVE_FCNTL */
@@ -235,7 +212,21 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
 		/* Perform a close(), do not fail if already closed */
 		(void)_close(fae->fae_fildes);
 		break;
+#ifdef HAVE_CHDIR
+	case FAE_CHDIR:
+		/* Perform a chdir. */
+		if (chdir (fae->fae_dir) == -1)
+			return (errno);
+		break;
+#endif
+#ifdef HAVE_FCHDIR
+	case FAE_FCHDIR:
+		/* Perform a chdir. */
+		if (fchdir (fae->fae_dirfd) == -1)
+			return (errno);
+		break;
 	}
+#endif
 	return (0);
 }
 
@@ -407,8 +398,18 @@ posix_spawn_file_actions_destroy (posix_spawn_file_actions_t *fa)
 		STAILQ_REMOVE_HEAD(&(*fa)->fa_list, fae_list);
 
 		/* Deallocate file action entry */
-		if (fae->fae_action == FAE_OPEN)
+		switch (fae->fae_action) {
+		case FAE_OPEN:
 			free(fae->fae_path);
+			break;
+#ifdef HAVE_CHDIR
+		case FAE_CHDIR:
+			free(fae->fae_dir);
+			break;
+#endif
+		default:
+			break;
+		}
 		free(fae);
 	}
 
@@ -495,6 +496,62 @@ posix_spawn_file_actions_addclose (posix_spawn_file_actions_t *fa,
 	STAILQ_INSERT_TAIL(&(*fa)->fa_list, fae, fae_list);
 	return (0);
 }
+
+#ifdef HAVE_CHDIR
+int
+posix_spawn_file_actions_addchdir_np (
+	posix_spawn_file_actions_t * __restrict fa,
+	const char * __restrict path)
+{
+	posix_spawn_file_actions_entry_t *fae;
+	int error;
+
+	/* Allocate object */
+	fae = malloc(sizeof(posix_spawn_file_actions_entry_t));
+	if (fae == NULL)
+		return (errno);
+
+	/* Set values and store in queue */
+	fae->fae_action = FAE_CHDIR;
+	fae->fae_dir = strdup(path);
+	if (fae->fae_dir == NULL) {
+		error = errno;
+		free(fae);
+		return (error);
+	}
+
+	STAILQ_INSERT_TAIL(&(*fa)->fa_list, fae, fae_list);
+	return (0);
+}
+#endif
+
+#ifdef HAVE_FCHDIR
+int
+posix_spawn_file_actions_addfchdir_np (
+	posix_spawn_file_actions_t * __restrict fa,
+	int fd)
+{
+	posix_spawn_file_actions_entry_t *fae;
+
+	/* POSIX proposal documents it as implemented in FreeBSD and Musl.
+	   Return EBADF if fd is negative.
+	   https://www.austingroupbugs.net/view.php?id=1208 */
+	if (fd < 0)
+		return EBADF;
+
+	/* Allocate object */
+	fae = malloc(sizeof(posix_spawn_file_actions_entry_t));
+	if (fae == NULL)
+		return (errno);
+
+	/* Set values and store in queue */
+	fae->fae_action = FAE_FCHDIR;
+	fae->fae_dirfd = fd;
+
+	STAILQ_INSERT_TAIL(&(*fa)->fa_list, fae, fae_list);
+	return (0);
+}
+#endif
 
 /*
  * Spawn attributes

@@ -2945,7 +2945,7 @@ narrow_str_to_charconst (cpp_reader *pfile, cpp_string str,
 		   "character not encodable in a single code unit");
       i = max_chars;
     }
-  else if (i > 1 && CPP_OPTION (pfile, warn_multichar))
+  else if (i > 1 && i != 4 && CPP_OPTION (pfile, warn_multichar))
     cpp_warning (pfile, CPP_W_MULTICHAR, "multi-character character constant");
 
   /* Multichar constants are of type int and therefore signed.  */

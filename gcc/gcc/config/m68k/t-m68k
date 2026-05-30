@@ -2,3 +2,7 @@
 
 M68K_MLIB_CPU += && (CPU !~ "^mcf")
 M68K_ARCH := m68k
+
+M68K_MLIB_CPU += && (CPU !~ "^m68060") && (CPU !~ "^cpu32") && (CPU !~ "^fidoa")
+
+PASSES_EXTRA += $(srcdir)/config/m68k/m68k-passes.def

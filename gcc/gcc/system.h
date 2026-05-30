@@ -145,7 +145,7 @@ extern int fgetc_unlocked (FILE *);
 extern char *fgets_unlocked (char *, int, FILE *);
 #  endif
 # endif
-# ifdef HAVE_FPUTS_UNLOCKED
+# if defined (HAVE_FPUTS_UNLOCKED) && !defined (__CYGWIN__)
 #  undef fputs
 #  define fputs(String, Stream) fputs_unlocked (String, Stream)
 #  if defined (HAVE_DECL_FPUTS_UNLOCKED) && !HAVE_DECL_FPUTS_UNLOCKED

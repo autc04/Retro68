@@ -17,6 +17,9 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#include <string>
+#include <map>
+#include <vector>
 #define IN_TARGET_CODE 1
 
 #include "config.h"
@@ -41,6 +44,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "output.h"
 #include "insn-attr.h"
 #include "recog.h"
+#include "hashtab.h"
 #include "diagnostic-core.h"
 #include "flags.h"
 #include "expmed.h"
@@ -66,10 +70,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "optabs.h"
 #include "builtins.h"
 #include "rtl-iter.h"
+#include "stringpool.h"
 #include "toplev.h"
 
 /* This file should be included last.  */
 #include "target-def.h"
+
+
+std::map< std::string, std::vector<int> > pragma_parameter_directives;
+
 
 enum reg_class regno_reg_class[] =
 {
@@ -191,6 +200,9 @@ static bool m68k_output_addr_const_extra (FILE *, rtx);
 static void m68k_init_sync_libfuncs (void) ATTRIBUTE_UNUSED;
 static enum flt_eval_method
 m68k_excess_precision (enum excess_precision_type);
+
+static tree m68k_mangle_decl_assembler_name (tree decl, tree id);
+static pad_direction m68k_function_arg_padding (machine_mode mode, const_tree type);
 static unsigned int m68k_hard_regno_nregs (unsigned int, machine_mode);
 static bool m68k_hard_regno_mode_ok (unsigned int, machine_mode);
 static bool m68k_modes_tieable_p (machine_mode, machine_mode);
@@ -282,8 +294,8 @@ static bool m68k_use_lra_p (void);
 #undef TARGET_ATTRIBUTE_TABLE
 #define TARGET_ATTRIBUTE_TABLE m68k_attribute_table
 
-#undef TARGET_PROMOTE_PROTOTYPES
-#define TARGET_PROMOTE_PROTOTYPES hook_bool_const_tree_true
+//#undef TARGET_PROMOTE_PROTOTYPES
+//#define TARGET_PROMOTE_PROTOTYPES hook_bool_const_tree_true
 
 #undef TARGET_STRUCT_VALUE_RTX
 #define TARGET_STRUCT_VALUE_RTX m68k_struct_value_rtx
@@ -358,6 +370,15 @@ static bool m68k_use_lra_p (void);
 #undef TARGET_PROMOTE_FUNCTION_MODE
 #define TARGET_PROMOTE_FUNCTION_MODE m68k_promote_function_mode
 
+#undef TARGET_FUNCTION_VALUE
+#define TARGET_FUNCTION_VALUE m68k_function_value
+
+#undef TARGET_MANGLE_DECL_ASSEMBLER_NAME
+#define TARGET_MANGLE_DECL_ASSEMBLER_NAME m68k_mangle_decl_assembler_name
+
+#undef TARGET_FUNCTION_ARG_PADDING
+#define TARGET_FUNCTION_ARG_PADDING m68k_function_arg_padding
+
 #undef  TARGET_HAVE_SPECULATION_SAFE_VALUE
 #define TARGET_HAVE_SPECULATION_SAFE_VALUE speculation_safe_value_not_needed
 
@@ -379,6 +400,12 @@ TARGET_GNU_ATTRIBUTES (m68k_attribute_table,
   { "interrupt_handler", 0, 0, true,  false, false, false,
     m68k_handle_fndecl_attribute, NULL },
   { "interrupt_thread", 0, 0, true,  false, false, false,
+    m68k_handle_fndecl_attribute, NULL },
+  { "pascal", 0, 0, false, true, true, true,
+    m68k_handle_fndecl_attribute, NULL },
+  { "regparam", 1, 1, false, true, true, true,
+    m68k_handle_fndecl_attribute, NULL },
+  { "raw_inline", 1, 32, false, true, true, false,
     m68k_handle_fndecl_attribute, NULL }
 });
 
@@ -647,6 +674,8 @@ m68k_option_override (void)
 	 clear how intentional that is.  */
       flag_no_function_cse = 1;
     }
+  else if(TARGET_PCREL)
+    m68k_symbolic_call_var = M68K_SYMBOLIC_CALL_BSRW_C;
 
   switch (m68k_symbolic_call_var)
     {
@@ -660,6 +689,10 @@ m68k_option_override (void)
 
     case M68K_SYMBOLIC_CALL_BSR_P:
       m68k_symbolic_call = "bsr%.l %p0";
+      break;
+
+    case M68K_SYMBOLIC_CALL_BSRW_C:
+      m68k_symbolic_call = "bsr%.w %c0";
       break;
 
     case M68K_SYMBOLIC_CALL_NONE:
@@ -799,6 +832,9 @@ m68k_handle_fndecl_attribute (tree *node, tree name,
 			      int flags ATTRIBUTE_UNUSED,
 			      bool *no_add_attrs)
 {
+  if (TREE_CODE (*node) != FUNCTION_TYPE && TREE_CODE (*node) != TYPE_DECL)
+  {
+
   if (TREE_CODE (*node) != FUNCTION_DECL)
     {
       warning (OPT_Wattributes, "%qE attribute only applies to functions",
@@ -819,6 +855,9 @@ m68k_handle_fndecl_attribute (tree *node, tree name,
       *no_add_attrs = true;
     }
 
+  return NULL_TREE;
+  }
+  else
   return NULL_TREE;
 }
 
@@ -918,7 +957,7 @@ m68k_initial_elimination_offset (int from, int to)
 static bool
 m68k_save_reg (unsigned int regno, bool interrupt_handler)
 {
-  if (flag_pic && regno == PIC_REG)
+  if (!TARGET_SEP_DATA && flag_pic && regno == PIC_REG)
     {
       if (crtl->saves_all_registers)
 	return true;
@@ -1409,6 +1448,9 @@ m68k_ok_for_sibcall_p (tree decl, tree exp)
   if (CALL_EXPR_STATIC_CHAIN (exp))
     return false;
 
+  if (decl && lookup_attribute ("raw_inline", TYPE_ATTRIBUTES( TREE_TYPE(decl) )))
+    return false;
+
   if (!VOID_TYPE_P (TREE_TYPE (DECL_RESULT (cfun->decl))))
     {
       /* Check that the return value locations are the same.  For
@@ -1417,9 +1459,9 @@ m68k_ok_for_sibcall_p (tree decl, tree exp)
       rtx cfun_value;
       rtx call_value;
 
-      cfun_value = FUNCTION_VALUE (TREE_TYPE (DECL_RESULT (cfun->decl)),
-				   cfun->decl);
-      call_value = FUNCTION_VALUE (TREE_TYPE (exp), decl);
+      cfun_value = m68k_function_value (TREE_TYPE (DECL_RESULT (cfun->decl)),
+				   cfun->decl, false);
+      call_value = m68k_function_value (TREE_TYPE (exp), decl, false);
 
       /* Check that the values are equal or that the result the callee
 	 function returns is superset of what the current function returns.  */
@@ -1443,11 +1485,106 @@ m68k_ok_for_sibcall_p (tree decl, tree exp)
   return false;
 }
 
-/* On the m68k all args are always pushed.  */
+/* On the m68k all args are always pushed - NOT.  */
+
+void m68k_init_cumulative_args (CUMULATIVE_ARGS *cum,
+    const_tree fntype,
+    rtx libname ATTRIBUTE_UNUSED,
+    const_tree fndecl,
+    int n_named_args)
+{
+  cum->bytes = 0;
+  cum->index = 0;
+  cum->regparam = false;
+
+  if(!fntype)
+    return;
+
+  tree regparam = lookup_attribute ("regparam", TYPE_ATTRIBUTES( fntype ));
+  cum->regparam = regparam != NULL;
+  if(regparam)
+    {
+      regparam = TREE_VALUE(TREE_VALUE(regparam));
+      if(TREE_CODE(regparam) == STRING_CST)
+        {
+          const char *paramstr = TREE_STRING_POINTER(regparam);
+
+          const char *p = paramstr;
+
+          bool ok = true;
+          int idx = 0;
+          cum->arg_regs[0] = 0;
+          if(*p == '(')
+          {
+            idx = 1;
+            p++;
+          }
+          while(*p)
+            {
+              while(*p && (*p == '_' || *p == '%' || *p == ',' || *p == '(' || *p == ')' || *p == ' ' || *p == '\t'))
+                p++;
+
+              if(!*p)
+                break;
+
+              if(*p != 'a' && *p != 'd' && *p != 'A' && *p != 'D')
+                { ok = false; break; }
+              if(p[1] < '0' || p[1] > '7')
+                { ok = false; break; }
+              cum->arg_regs[idx++] = p[1] - '0'
+                + (*p == 'a' || *p == 'A' ? 8 : 0);
+
+              p += 2;
+
+            }
+          // TODO: error checking
+          cum->total_count = idx - 1;
+          if(cum->total_count < 0)
+            cum->total_count = 0;
+        }
+    }
+
+  if(!regparam && fndecl)
+    {
+      std::map< std::string, std::vector<int> >::iterator p
+        = pragma_parameter_directives.find(IDENTIFIER_POINTER(DECL_NAME(fndecl)));
+      if(p != pragma_parameter_directives.end())
+        {
+          cum->regparam = true;
+          cum->total_count = p->second.size()-1;
+          for(unsigned i = 0; i < p->second.size(); i++)
+            cum->arg_regs[i] = p->second[i];
+        }
+    }
+
+
+}
+
+int
+m68k_is_pascal_func(tree fntype, tree fndecl)
+{
+  if(!fntype)
+    return false;
+  if(lookup_attribute ("pascal", TYPE_ATTRIBUTES (fntype)))
+    {
+      CUMULATIVE_ARGS cum;
+      m68k_init_cumulative_args(&cum, fntype, NULL, fndecl, -1);
+      return !cum.regparam;
+    }
+  else
+    return false;
+}
 
 static rtx
-m68k_function_arg (cumulative_args_t, const function_arg_info &)
+m68k_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
 {
+  CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
+  if(!cum->regparam)
+    return NULL_RTX;
+
+  if(cum->index < cum->total_count)
+    return gen_rtx_REG (arg.mode, cum->arg_regs[cum->index+1]);
+  else
   return NULL_RTX;
 }
 
@@ -1457,8 +1594,10 @@ m68k_function_arg_advance (cumulative_args_t cum_v,
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
 
-  *cum += (arg.promoted_size_in_bytes () + 3) & ~3;
+  cum->bytes += (arg.type_size_in_bytes() + 1) & ~1;
+  cum->index ++;
 }
+
 
 /* Convert X to a legitimate function call memory reference and return the
    result.  */
@@ -1627,7 +1766,7 @@ m68k_find_flags_value (rtx op0, rtx op1, rtx_code code)
 
 /* Called through CC_STATUS_INIT, which is invoked by final whenever a
    label is encountered.  */
-
+ 
 void
 m68k_init_cc ()
 {
@@ -3289,7 +3428,7 @@ output_move_simode (rtx *operands)
 const char *
 output_move_himode (rtx *operands)
 {
-  if (GET_CODE (operands[1]) == CONST_INT)
+ if (GET_CODE (operands[1]) == CONST_INT)
     {
       if (operands[1] == const0_rtx
 	  && (DATA_REG_P (operands[0])
@@ -3322,7 +3461,7 @@ output_move_qimode (rtx *operands)
 
   /* 68k family always modifies the stack pointer by at least 2, even for
      byte pushes.  The 5200 (ColdFire) does not do this.  */
-
+  
   /* This case is generated by pushqi1 pattern now.  */
   gcc_assert (!(GET_CODE (operands[0]) == MEM
 		&& GET_CODE (XEXP (operands[0], 0)) == PRE_DEC
@@ -3360,7 +3499,7 @@ output_move_qimode (rtx *operands)
     {
       if (ADDRESS_REG_P (operands[1]))
 	CC_STATUS_INIT;
-      return "move%.w %1,%0";
+    return "move%.w %1,%0";
     }
   return "move%.b %1,%0";
 }
@@ -4417,24 +4556,24 @@ m68k_output_compare_di (rtx op0, rtx op1, rtx sc1, rtx sc2, rtx_insn *insn,
       return code;
     }
   else
-    {
+	{
       output_asm_insn ("sub%.l %R0,%R3\n\tsubx%.l %0,%3", ops);
       return swap_condition (code);
-    }
+	}
 }
 
 static void
 remember_compare_flags (rtx op0, rtx op1)
 {
   if (side_effects_p (op0) || side_effects_p (op1))
-    CC_STATUS_INIT;
+	CC_STATUS_INIT; 
   else
-    {
+	{
       flags_compare_op0 = op0;
       flags_compare_op1 = op1;
       flags_operand1 = flags_operand2 = NULL_RTX;
       flags_valid = FLAGS_VALID_SET;
-    }
+	}
 }
 
 /* Emit a comparison between OP0 and OP1.  CODE is the code of the
@@ -4522,11 +4661,11 @@ m68k_output_compare_qi (rtx op0, rtx op1, rtx_code code)
   else if (GET_CODE (op0) == MEM && GET_CODE (op1) == MEM)
     output_asm_insn ("cmpm%.b %1,%0", ops);
   else if (REG_P (op1) || (!REG_P (op0) && GET_CODE (op0) != MEM))
-    {
+	{
       output_asm_insn ("cmp%.b %d0,%d1", ops);
       std::swap (flags_compare_op0, flags_compare_op1);
       return swap_condition (code);
-    }
+	}
   else
     output_asm_insn ("cmp%.b %d1,%d0", ops);
   return code;
@@ -4558,14 +4697,14 @@ m68k_output_compare_fp (rtx op0, rtx op1, rtx_code code)
 	    output_asm_insn ("ftst%.d %0", ops);
 	  else
 	    output_asm_insn ("ftst%.x %0", ops);
-	}
-      else
+    }
+  else
 	output_asm_insn (("ftst%." + prec + " %0").c_str (), ops);
       return code;
     }
 
   switch (which_alternative)
-    {
+      {
     case 0:
       if (TARGET_COLDFIRE_FPU)
 	output_asm_insn ("fcmp%.d %1,%0", ops);
@@ -4574,7 +4713,7 @@ m68k_output_compare_fp (rtx op0, rtx op1, rtx_code code)
       break;
     case 1:
       output_asm_insn (("fcmp%." + prec + " %f1,%0").c_str (), ops);
-      break;
+	break;
     case 2:
       output_asm_insn (("fcmp%." + prec + " %0,%f1").c_str (), ops);
       std::swap (flags_compare_op0, flags_compare_op1);
@@ -4686,7 +4825,7 @@ m68k_output_scc (rtx_code code)
       return "spl %0";
     case MINUS:
       return "smi %0";
-    default:
+      default:
       gcc_unreachable ();
     }
 }
@@ -4768,7 +4907,7 @@ m68k_output_branch_float_rev (rtx_code code)
       return "fjueq %l3";
     default:
       gcc_unreachable ();
-    }
+      }
 }
 
 /* Return an output template for a floating point scc
@@ -5606,6 +5745,42 @@ output_xorsi3 (rtx *operands)
 const char *
 output_call (rtx x)
 {
+  if(GET_CODE (x) == SYMBOL_REF)
+    {
+      tree decl = SYMBOL_REF_DECL(x);
+      if(decl)
+        {
+          tree attr = lookup_attribute ("raw_inline", TYPE_ATTRIBUTES( TREE_TYPE(decl) ));
+          if(attr)
+            {
+              tree arg = TREE_VALUE(attr);
+
+              static char buf[512];
+              char *p = buf, *e = buf + sizeof(buf);
+              bool first = true;
+              p += snprintf(p, e-p, ".short ");
+
+              while(arg)
+                {
+                  tree word_tree = TREE_VALUE(arg);
+		  gcc_assert(TREE_CODE(word_tree) == INTEGER_CST);
+                  if (TREE_CODE(word_tree) == INTEGER_CST)
+                    {
+                      int word = TREE_INT_CST_LOW(word_tree);
+                      if(!first)
+                        p += snprintf(p, e-p, ", ");
+                      first = false;
+                      p += snprintf(p, e-p, "0x%04x", word);
+                    }
+                  arg = TREE_CHAIN(arg);
+                }
+
+                if(p < e)
+                  return buf;
+            }
+        }
+    }
+
   if (symbolic_operand (x, VOIDmode))
     return m68k_symbolic_call;
   else
@@ -5869,7 +6044,7 @@ m68k_preferred_reload_class (rtx x, enum reg_class rclass)
    If there is need for a hard-float ABI it is probably worth doing it
    properly and also passing function arguments in FP registers.  */
 rtx
-m68k_libcall_value (machine_mode mode)
+m68k_libcall_value (enum machine_mode mode)
 {
   switch (mode) {
   case E_SFmode:
@@ -5889,11 +6064,27 @@ m68k_libcall_value (machine_mode mode)
    NOTE: Due to differences in ABIs, don't call this function directly,
    use FUNCTION_VALUE instead.  */
 rtx
-m68k_function_value (const_tree valtype, const_tree func ATTRIBUTE_UNUSED)
+m68k_function_value (const_tree valtype, const_tree func_decl_or_type, bool outgoing)
 {
   machine_mode mode;
 
   mode = TYPE_MODE (valtype);
+
+  const_tree decl = NULL, type = NULL;
+  if(func_decl_or_type)
+    {
+      CUMULATIVE_ARGS cum;
+      decl = func_decl_or_type;
+      type = func_decl_or_type;
+      if(TREE_CODE(type) == FUNCTION_DECL)
+        type = TREE_TYPE(type);
+      else
+        decl = NULL;
+      m68k_init_cumulative_args(&cum, type, NULL, decl, -1);
+      if(cum.regparam)
+        return gen_rtx_REG (mode, cum.arg_regs[0]);
+    }
+
   switch (mode) {
   case E_SFmode:
   case E_DFmode:
@@ -5905,8 +6096,11 @@ m68k_function_value (const_tree valtype, const_tree func ATTRIBUTE_UNUSED)
     break;
   }
 
+#if 1 /* POINTERS_IN_D0 */
+  return gen_rtx_REG (mode, D0_REG);
+#else
   /* If the function returns a pointer, push that into %a0.  */
-  if (func && POINTER_TYPE_P (TREE_TYPE (TREE_TYPE (func))))
+  if (type && POINTER_TYPE_P (TREE_TYPE (type)) && !outgoing)
     /* For compatibility with the large body of existing code which
        does not always properly declare external functions returning
        pointer types, the m68k/SVR4 convention is to copy the value
@@ -5927,6 +6121,7 @@ m68k_function_value (const_tree valtype, const_tree func ATTRIBUTE_UNUSED)
     return gen_rtx_REG (mode, A0_REG);
   else
     return gen_rtx_REG (mode, D0_REG);
+#endif
 }
 
 /* Worker function for TARGET_RETURN_IN_MEMORY.  */
@@ -7098,6 +7293,8 @@ m68k_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 static poly_int64
 m68k_return_pops_args (tree fundecl, tree funtype, poly_int64 size)
 {
+  if (lookup_attribute ("pascal", TYPE_ATTRIBUTES (funtype)))
+    return size;
   return ((TARGET_RTD
 	   && (!fundecl
 	       || TREE_CODE (fundecl) != IDENTIFIER_NODE)
@@ -7175,6 +7372,66 @@ m68k_excess_precision (enum excess_precision_type type)
 	gcc_unreachable ();
     }
   return FLT_EVAL_METHOD_UNPREDICTABLE;
+}
+
+extern int retro68_hack_asm_rts_counter;
+
+void
+m68k_write_macsbug_name(FILE *file, const char *name, tree decl)
+{
+  int len = strlen(name);
+  if(len > 255)
+    len = 255;
+
+  const char *section_name = DECL_SECTION_NAME (decl);
+  if(flag_function_sections && section_name)
+      fprintf(file, "\t.pushsection %s.macsbug,\"ax\",@progbits\n", section_name);
+  fprintf(file, "# macsbug symbol\n");
+  if(!retro68_hack_asm_rts_counter)
+    fprintf(file, "\trts\n");
+  if(len < 32)
+    fprintf(file, "\t.byte %d\n", len | 0x80);
+  else
+    fprintf(file, "\t.byte 0x80\n\t.byte %d\n", len);
+
+  ASM_OUTPUT_ASCII(file, name, len);
+  fprintf(file, "\t.align 2,0\n\t.short 0\n");
+  if(flag_function_sections && section_name)
+        fprintf(file, "\t.popsection\n", section_name);
+}
+
+static tree
+m68k_mangle_decl_assembler_name (tree decl, tree id)
+{
+  tree new_id = NULL_TREE;
+
+  if (TREE_CODE (decl) == FUNCTION_DECL)
+    {
+      tree attrs = TYPE_ATTRIBUTES ( TREE_TYPE(decl) );
+      if (attrs != NULL_TREE)
+        {
+          if (lookup_attribute ("pascal", attrs))
+            {
+              const char *old_str = IDENTIFIER_POINTER (id != NULL_TREE ? id : DECL_NAME (decl));
+              char *new_str, *p;
+              int len = strlen(old_str);
+              new_str = XALLOCAVEC (char, 1 + len);
+              for(int i = 0; i < len; i++)
+                new_str[i] = TOUPPER(old_str[i]);
+              new_str[len] = 0;
+
+              return get_identifier (new_str);
+            }
+        }
+    }
+
+  return id;
+}
+
+static pad_direction
+m68k_function_arg_padding (machine_mode mode, const_tree type)
+{
+  return PAD_UPWARD;
 }
 
 /* Implement PUSH_ROUNDING.  On the 680x0, sp@- in a byte insn really pushes
@@ -7264,6 +7521,25 @@ static bool
 m68k_use_lra_p ()
 {
   return m68k_lra_p;
+}
+
+/* Return true if X is a SYMBOL_REF referring to a raw_inline function.  */
+
+bool
+m68k_rawinline_p (rtx x)
+{
+  if (GET_CODE (x) == SYMBOL_REF)
+    {
+      tree decl = SYMBOL_REF_DECL (x);
+      if (decl)
+	{
+	  tree attr = lookup_attribute ("raw_inline",
+					TYPE_ATTRIBUTES (TREE_TYPE (decl)));
+	  if (attr)
+	    return true;
+	}
+    }
+  return false;
 }
 
 #include "gt-m68k.h"

@@ -2417,6 +2417,20 @@ assign_parms_augmented_arg_list (struct assign_parm_data_all *all)
       all->function_result_decl = decl;
     }
 
+#ifdef IS_PASCAL_FUNC
+  if (IS_PASCAL_FUNC(fntype, fndecl))
+    {
+        // reverse argument order
+      unsigned n = fnargs.length(), n2 = fnargs.length() / 2;
+      for(unsigned i = 0; i < n2; i++)
+      {
+        tree tmp = fnargs[i];
+        fnargs[i] = fnargs[n - 1 - i];
+        fnargs[n - 1 - i] = tmp;
+      }
+    }
+#endif
+
   /* If the target wants to split complex arguments into scalars, do so.  */
   if (targetm.calls.split_complex_arg)
     split_complex_args (&fnargs);
@@ -5477,6 +5491,20 @@ expand_function_end (void)
       tree decl_result = DECL_RESULT (current_function_decl);
       rtx decl_rtl = DECL_RTL (decl_result);
 
+#ifdef IS_PASCAL_FUNC
+      if (IS_PASCAL_FUNC(TREE_TYPE(current_function_decl), current_function_decl))
+	{
+	  enum machine_mode mode = GET_MODE(decl_rtl);;
+
+	  rtx return_slot = gen_int_mode(crtl->args.pops_args + 8, Pmode);
+	  return_slot = gen_rtx_PLUS(Pmode, arg_pointer_rtx, return_slot);
+	  return_slot = gen_rtx_MEM(mode, return_slot);
+	  MEM_VOLATILE_P(return_slot) = true;
+	  emit_move_insn (return_slot, decl_rtl);
+	  crtl->return_rtx = return_slot;
+	}
+      else
+#endif
       if ((REG_P (decl_rtl)
 	   ? REGNO (decl_rtl) >= FIRST_PSEUDO_REGISTER
 	   : DECL_REGISTER (decl_result))

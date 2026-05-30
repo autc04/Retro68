@@ -295,6 +295,7 @@ case ${generic_target} in
   m68hc12-*-* | m6812-*-*)		fmt=elf ;;
 
   m68k-*-elf*)				fmt=elf ;;
+  m68k-*-macos*)			fmt=elf ;;
   m68k-*-linux-*)			fmt=elf em=linux ;;
   m68k-*-uclinux*)			fmt=elf em=uclinux ;;
   m68k-*-gnu*)				fmt=elf ;;
@@ -359,7 +360,7 @@ case ${generic_target} in
   ppc-*-aix5.[01])			fmt=coff em=aix5 ;;
   ppc-*-aix[5-9].*)			fmt=coff em=aix5 ;;
   ppc-*-aix*)				fmt=coff em=aix ;;
-  ppc-*-beos*)				fmt=coff ;;
+  ppc-*-beos*)        fmt=coff ;;
   ppc-*-*n*bsd* | ppc-*-elf*)		fmt=elf ;;
   ppc-*-eabi* | ppc-*-sysv4*)		fmt=elf ;;
   ppc-*-haiku*)				fmt=elf em=haiku ;;

@@ -31,6 +31,7 @@
 #undef PACKAGE_TARNAME
 #undef PACKAGE_VERSION
 
+#define INCLUDE_VECTOR
 #define INCLUDE_MEMORY
 #define INCLUDE_VECTOR
 #include "gcc-plugin.h"

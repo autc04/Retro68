@@ -385,6 +385,8 @@ double		_strtod_l (struct _reent *ptr, const char *__restrict s00,
 #if defined (_HAVE_LONG_DOUBLE) && !defined (_LDBL_EQ_DBL)
 int		_strtorx_l (struct _reent *, const char *, char **, int,
 			    void *, locale_t);
+int		_strtorQ_l (struct _reent *, const char *, char **, int,
+			    void *, locale_t);
 int		_strtodg_l (struct _reent *p, const char *s00, char **se,
 			    struct FPI *fpi, Long *exp, __ULong *bits,
 			    locale_t);

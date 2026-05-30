@@ -47,7 +47,7 @@ __sfp (struct _reent *d)
       return &__fp[i];
     }
   }
-  d->_errno = EMFILE;
+  _REENT_ERRNO(d) = EMFILE;
   return NULL;
 }
 
@@ -65,17 +65,16 @@ __cleanup (struct _reent *s)
 void
 __sinit (struct _reent *s)
 {
-  s->__cleanup = __cleanup;
-  s->__sdidinit = 1;
+  _REENT_CLEANUP(s) = __cleanup;
 
-  s->_stdin = &s->__sf[0];
-  s->_stdin->_fp = SPE_STDIN;
+  _REENT_STDIN(s) = &s->__sf[0];
+  _REENT_STDIN(s)->_fp = SPE_STDIN;
 
-  s->_stdout = &s->__sf[1];
-  s->_stdout->_fp = SPE_STDOUT;
+  _REENT_STDOUT(s) = &s->__sf[1];
+  _REENT_STDOUT(s)->_fp = SPE_STDOUT;
 
-  s->_stderr = &s->__sf[2];
-  s->_stderr->_fp = SPE_STDERR;
+  _REENT_STDERR(s) = &s->__sf[2];
+  _REENT_STDERR(s)->_fp = SPE_STDERR;
 }
 
 void

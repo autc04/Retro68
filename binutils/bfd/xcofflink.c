@@ -1932,6 +1932,12 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	      }
 	    csect = section;
 	    value = sym.n_value - csect->vma;
+
+		// RetroPPC: keep constructors & exception tables
+	    if(strncmp(name, "_GLOBAL__", 9) == 0)
+	      {
+		csect->flags |= SEC_KEEP;
+	      }
 	  }
 	  break;
 
@@ -1988,7 +1994,9 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	  if (xcoff_link_add_symbols_to_hash_table (sym, aux))
 	    {
 	      csect->flags |= SEC_IS_COMMON;
-	      csect->size = 0;
+	      // Retro68: see AutomatedTests/LocalStatic.cc
+	      if (sym.n_sclass != C_AIX_WEAKEXT)
+	        csect->size = 0;
 	      section = csect;
 	      value = aux.x_csect.x_scnlen.u64;
 	    }
@@ -2195,8 +2203,12 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	    {
 	      if ((*sym_hash)->root.type != bfd_link_hash_common
 		  || (*sym_hash)->root.u.c.p->section != csect)
-		/* We don't need the common csect we just created.  */
-		csect->size = 0;
+		{
+		  // Retro68: see AutomatedTests/LocalStatic.cc
+		  if ((*sym_hash)->root.type != bfd_link_hash_defweak)
+		    /* We don't need the common csect we just created.  */
+		     csect->size = 0;
+		}
 	      else
 		(*sym_hash)->root.u.c.p->alignment_power
 		  = csect->alignment_power;
@@ -2960,8 +2972,10 @@ xcoff_mark_symbol (struct bfd_link_info *info, struct xcoff_link_hash_entry *h)
 
 	  /* Treat this symbol as undefined if the descriptor was.  */
 	  if ((hds->flags & XCOFF_WAS_UNDEFINED) != 0)
-	    h->flags |= XCOFF_WAS_UNDEFINED;
-
+          {
+            if(h->root.type != bfd_link_hash_undefweak)
+	      h->flags |= XCOFF_WAS_UNDEFINED;
+          }
 	  /* Allocate room for the global linkage code itself.  */
 	  sec = xcoff_hash_table (info)->linkage_section;
 	  h->root.type = bfd_link_hash_defined;
@@ -3948,6 +3962,10 @@ bfd_xcoff_size_dynamic_sections (bfd *output_bfd,
 		}
 	    }
 	}
+        // mark entry point, the XCOFF_ENTRY flag is needed later
+      if (entry != NULL
+          && !xcoff_mark_symbol_by_name (info, entry, XCOFF_ENTRY))
+        goto error_return;
     }
   else
     {
@@ -3960,6 +3978,20 @@ bfd_xcoff_size_dynamic_sections (bfd *output_bfd,
       if (info->fini_function != NULL
 	  && !xcoff_mark_symbol_by_name (info, info->fini_function, 0))
 	goto error_return;
+
+	// RetroPPC: mark sections with SEC_KEEP flag set
+      for (sub = info->input_bfds; sub != NULL; sub = sub->link.next)
+	{
+	  asection *o;
+
+	  for (o = sub->sections; o != NULL; o = o->next)
+	    {
+	      if (o->flags & SEC_KEEP)
+	        xcoff_mark(info, o);
+	    }
+	}
+
+
       if (auto_export_flags != 0)
 	{
 	  xcoff_link_hash_traverse (xcoff_hash_table (info),

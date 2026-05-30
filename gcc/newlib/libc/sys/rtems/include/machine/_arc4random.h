@@ -28,7 +28,7 @@
 
 __BEGIN_DECLS
 
-void _arc4random_getentropy_fail(void);
+_Noreturn void _arc4random_getentropy_fail(void);
 
 #define _ARC4RANDOM_GETENTROPY_FAIL() _arc4random_getentropy_fail()
 

@@ -60,7 +60,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $FreeBSD: head/sys/netinet6/in6.h 349369 2019-06-25 11:54:41Z hselasky $
+ * $FreeBSD$
  */
 
 #ifndef __KAME_NETINET_IN_H_INCLUDED_
@@ -265,8 +265,13 @@ extern const struct in6_addr in6addr_linklocal_allv2routers;
  * IP6 route structure
  */
 #if __BSD_VISIBLE
+struct nhop_object;
 struct route_in6 {
+#if __FreeBSD_version >= 1300092
+	struct nhop_object *ro_nh;
+#else
 	struct	rtentry *ro_rt;
+#endif
 	struct	llentry *ro_lle;
 	/*
 	 * ro_prepend and ro_plen are only used for bpf to pass in a
@@ -381,6 +386,10 @@ struct route_in6 {
 #define	IPV6_MSFILTER		74 /* struct __msfilterreq;
 				    * set/get multicast source filter list.
 				    */
+
+/* The following option deals with the 802.1Q Ethernet Priority Code Point */
+#define	IPV6_VLAN_PCP		75  /* int; set/get PCP used for packet, */
+				    /*      -1 use interface default */
 
 /* to define items, should talk with KAME guys first, for *BSD compatibility */
 

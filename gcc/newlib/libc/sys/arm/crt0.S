@@ -12,7 +12,7 @@
 #error __USER_LABEL_PREFIX is not defined
 #endif
 
-#ifdef HAVE_INITFINI_ARRAY
+#ifdef _HAVE_INITFINI_ARRAY
 #define _init	__libc_init_array
 #define _fini	__libc_fini_array
 #endif
@@ -48,6 +48,7 @@
 	.thumb
 .macro FUNC_START name
 	.global \name
+	.type \name, %function
 	.thumb_func
 \name:
 .endm
@@ -55,6 +56,7 @@
 	.code 32
 .macro FUNC_START name
 	.global \name
+	.type \name, %function
 \name:
 .endm
 #endif
@@ -122,10 +124,10 @@
 *   +-----+ <- SP_svc         of getting in and out of secure state are not as
 *   |     |                   simple as writing to the CPSR mode bits.
 *   | IRQ | -= 0x2000       - Mode switch via CPSR is not allowed once in
-*   |     |                   non-privileged mode, so we take care not to enter
-* ^ +-----+ <- SP_und         "User" to set up its SP, and also skip most
-* s |     |                   operations if already in that mode.
-* t | UND | -= 0x1000
+*   |     |                   non-privileged mode or in hypervisor mode, so we
+* ^ +-----+ <- SP_und         take care not to enter "User" or "Hypervisor" mode
+* s |     |                   to set up its SP, and also skip most operations if
+* t | UND | -= 0x1000         already in these modes.
 * a |     |                Input parameters:
 * c +-----+ <- SP_und       - sp - Initialized SP
 * k |     |                 - r2 - May contain SL value from semihosting
@@ -149,12 +151,11 @@
 #if (__ARM_ARCH_PROFILE != 'M')
 	/* Following code is compatible for both ARM and Thumb ISA.  */
 	mrs	r4, CPSR
-	/* Test mode bits - in User of all are 0.  */
-	tst	r4, #(CPSR_M_MASK)
-	/* "eq" means r4 AND #0x0F is 0.  */
-	beq	.Lskip_cpu_modes
-
 	mov	r3, sp /* Save input SP value.  */
+	ands	r1, r4, #(CPSR_M_MASK)
+	beq	.Lskip_cpu_modes
+	cmp	r1, #(CPSR_M_HYP)
+	beq	.Lskip_cpu_modes
 
 	/* FIQ mode, interrupts disabled.  */
 	mov	r1, #(CPSR_M_FIQ|CPSR_M_32BIT|CPSR_I_MASK|CPSR_F_MASK)
@@ -556,7 +557,7 @@ change_back:
 
 	/* For Thumb, constants must be after the code since only 
 	   positive offsets are supported for PC relative addresses.  */
-	.align 0
+	.p2align 2
 .LC0:
 #ifdef ARM_RDI_MONITOR
 	.word	HeapBase

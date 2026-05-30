@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)termios.h	8.3 (Berkeley) 3/28/94
- * $FreeBSD: head/include/termios.h 326024 2017-11-20 19:45:28Z pfg $
+ * $FreeBSD$
  */
 
 #ifndef _TERMIOS_H_
@@ -38,6 +38,9 @@
 #include <sys/cdefs.h>
 #include <sys/_termios.h>
 #include <sys/_types.h>
+#if __BSD_VISIBLE
+#include <sys/_winsize.h>
+#endif
 
 #ifndef _PID_T_DECLARED
 typedef	__pid_t		pid_t;
@@ -92,6 +95,9 @@ int	tcsetsid(int, pid_t);
 void	cfmakeraw(struct termios *);
 void	cfmakesane(struct termios *);
 int	cfsetspeed(struct termios *, speed_t);
+
+int	tcgetwinsize(int, struct winsize *);
+int	tcsetwinsize(int, const struct winsize *);
 #endif
 __END_DECLS
 

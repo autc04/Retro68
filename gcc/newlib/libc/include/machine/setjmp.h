@@ -12,13 +12,26 @@ _BEGIN_STD_C
 #if defined(__arm__) || defined(__thumb__)
 /*
  * All callee preserved registers:
- * v1 - v7, fp, ip, sp, lr, f4, f5, f6, f7
+ *  core registers:
+ *   r4 - r10, fp, sp, lr
+ *  VFP registers (architectural support dependent):
+ *   d8 - d15
  */
-#define _JBLEN 23
+#define _JBLEN 20
+#define _JBTYPE long long
 #endif
 
 #if defined(__aarch64__)
-#define _JBLEN 22
+# if defined(__CYGWIN__)
+/*
+ * Windows Arm64 ABI requires saving x19-x28, FP, LR, SP, FPCR, FPSR, d8-d15
+ * and jump address to jmp_buf. On top of that, Cygwin requires saving
+ * TLS stack pointer.
+ */
+#  define _JBLEN 25
+# else
+#  define _JBLEN 22
+# endif
 #define _JBTYPE long long
 #endif
 
@@ -173,10 +186,18 @@ _BEGIN_STD_C
 #endif
 
 #ifdef __PPC__
+#ifdef __powerpc64__
+#ifdef __ALTIVEC__
+#define _JBLEN 70
+#else
+#define _JBLEN 43
+#endif
+#else
 #ifdef __ALTIVEC__
 #define _JBLEN 64
 #else
 #define _JBLEN 32
+#endif
 #endif
 #define _JBTYPE double
 #endif
@@ -269,8 +290,18 @@ _BEGIN_STD_C
 #endif
 
 #ifdef __arc__
-#define _JBLEN 25 /* r13-r30,blink,lp_count,lp_start,lp_end,mlo,mhi,status32 */
+#define _JBLEN 25 /* r13-r30,blink,lp_count,lp_start,lp_end,status32,r58,r59 */
 #endif
+
+#ifdef __ARC64__
+/* r14-r27,sp,ilink,r30,blink  */
+#define _JBLEN 18
+#ifdef __ARC64_ARCH64__
+#define _JBTYPE long long
+#else  /* __ARC64_ARCH32__ */
+#define _JBTYPE long
+#endif
+#endif /* __ARC64__ */
 
 #ifdef __MMIX__
 /* Using a layout compatible with GCC's built-in.  */
@@ -291,6 +322,35 @@ _BEGIN_STD_C
 /* 4 GPRs plus SP plus PC. */
 #define _JBLEN 8
 #endif
+
+#ifdef __XTENSA__
+#if __XTENSA_WINDOWED_ABI__
+
+/* The jmp_buf structure for Xtensa windowed ABI holds the following
+   (where "proc" is the procedure that calls setjmp): 4-12 registers
+   from the window of proc, the 4 words from the save area at proc's $sp
+   (in case a subsequent alloca in proc moves $sp), and the return
+   address within proc. Everything else is saved on the stack in the
+   normal save areas. The jmp_buf structure is:
+
+   struct jmp_buf {
+      int regs[12];
+      int save[4];
+      void *return_address;
+   }
+
+   See the setjmp code for details.  */
+
+/* sizeof(struct jmp_buf) */
+#define _JBLEN 17
+
+#else /* __XTENSA_CALL0_ABI__ */
+
+/* a0, a1, a12, a13, a14, a15 */
+#define _JBLEN 6
+
+#endif /* __XTENSA_CALL0_ABI__ */
+#endif /* __XTENSA__ */
 
 #ifdef __mep__
 /* 16 GPRs, pc, hi, lo */

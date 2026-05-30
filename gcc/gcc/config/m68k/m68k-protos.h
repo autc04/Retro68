@@ -79,7 +79,7 @@ extern rtx m68k_legitimize_tls_address (rtx);
 extern bool m68k_tls_reference_p (rtx, bool);
 extern int valid_dbcc_comparison_p_2 (rtx, machine_mode);
 extern rtx m68k_libcall_value (machine_mode);
-extern rtx m68k_function_value (const_tree, const_tree);
+extern rtx m68k_function_value (const_tree, const_tree, bool);
 extern int emit_move_sequence (rtx *, machine_mode, rtx);
 extern bool m68k_movem_pattern_p (rtx, rtx, HOST_WIDE_INT, bool);
 extern const char *m68k_output_movem (rtx *, rtx, HOST_WIDE_INT, bool);
@@ -114,4 +114,8 @@ extern void init_68881_table (void);
 extern rtx m68k_legitimize_call_address (rtx);
 extern rtx m68k_legitimize_sibcall_address (rtx);
 extern int m68k_hard_regno_rename_ok(unsigned int, unsigned int);
+
+extern void m68k_write_macsbug_name(FILE *, const char *, tree decl);
 extern poly_int64 m68k_push_rounding (poly_int64);
+
+extern bool m68k_rawinline_p (rtx x);

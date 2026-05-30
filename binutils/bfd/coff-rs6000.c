@@ -494,7 +494,18 @@ _bfd_xcoff_swap_aux_in (bfd *abfd, void * ext1, int type ATTRIBUTE_UNUSED,
 	    H_GET_32 (abfd, ext->x_file.x_n.x_n.x_offset);
 	}
       else
-	memcpy (in->x_file.x_n.x_fname, ext->x_file.x_n.x_fname, FILNMLEN);
+	{
+	  if (numaux > 1)
+	    {
+	      if (indx == 0)
+		memcpy (in->x_file.x_n.x_fname, ext->x_file.x_n.x_fname,
+			numaux * sizeof (AUXENT));
+	    }
+	  else
+	    {
+	      memcpy (in->x_file.x_n.x_fname, ext->x_file.x_n.x_fname, FILNMLEN);
+	    }
+	}
       in->x_file.x_ftype = H_GET_8 (abfd, ext->x_file.x_ftype);
       break;
 
@@ -3824,7 +3835,8 @@ xcoff_ppc_relocate_section (bfd *output_bfd,
 	  else
 	    {
 	      if (info->unresolved_syms_in_objects != RM_IGNORE
-		  && (h->flags & XCOFF_WAS_UNDEFINED) != 0)
+		  && (h->flags & XCOFF_WAS_UNDEFINED) != 0
+                  && h->root.type != bfd_link_hash_undefweak)
 		(*info->callbacks->undefined_symbol)
 		  (info, h->root.root.string,
 		   input_bfd, input_section,
@@ -3840,13 +3852,18 @@ xcoff_ppc_relocate_section (bfd *output_bfd,
 			 + sec->output_section->vma
 			 + sec->output_offset);
 		}
-	      else if (h->root.type == bfd_link_hash_common)
-		{
-		  sec = h->root.u.c.p->section;
-		  val = (sec->output_section->vma
-			 + sec->output_offset);
+              else if (h->root.type == bfd_link_hash_common)
+                {
+                  sec = h->root.u.c.p->section;
+                  val = (sec->output_section->vma
+                         + sec->output_offset);
 
-		}
+                }
+              else if (h->root.type == bfd_link_hash_undefweak)
+                {
+                  sec = 0;
+                  val = 0;
+                }
 	      else
 		{
 		  BFD_ASSERT (bfd_link_relocatable (info)
