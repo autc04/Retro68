@@ -1,5 +1,5 @@
 #name: SME mode selection and state access instructions
-#as: -march=armv8-a+sme
+#as: -menable-sysreg-checking -march=armv8-a+sme
 #objdump: -dr
 
 .*:     file format .*

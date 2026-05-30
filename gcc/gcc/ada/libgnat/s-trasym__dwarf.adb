@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 1999-2025, AdaCore                     --
+--                     Copyright (C) 1999-2026, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,6 +41,7 @@ with System.Soft_Links;
 with System.CRTL;
 with System.Dwarf_Lines;
 with System.Exception_Traces;
+with System.OS_Lib;
 with System.Standard_Library;
 with System.Traceback_Entries;
 with System.Strings;
@@ -96,12 +97,14 @@ package body System.Traceback.Symbolic is
 
    function Symbolic_Traceback
      (Traceback    : System.Traceback_Entries.Tracebacks_Array;
-      Suppress_Hex : Boolean) return String;
+      Suppress_Hex : Boolean;
+      Display_Mode : Display_Mode_Type) return String;
    function Symbolic_Traceback
      (E            : Ada.Exceptions.Exception_Occurrence;
       Suppress_Hex : Boolean) return String;
    --  Suppress_Hex means do not print any hexadecimal addresses, even if the
-   --  symbol is not available.
+   --  symbol is not available. Display_Mode configures how frames for which
+   --  symbols are available are printed.
 
    function Lt (Left, Right : Module_Cache_Acc) return Boolean;
    --  Sort function for Module_Cache
@@ -165,29 +168,33 @@ package body System.Traceback.Symbolic is
    --  Non-symbolic traceback (simply write addresses in hexa)
 
    procedure Symbolic_Traceback_No_Lock
-     (Traceback    :        Tracebacks_Array;
-      Suppress_Hex :        Boolean;
+     (Traceback    : Tracebacks_Array;
+      Suppress_Hex : Boolean;
+      Display_Mode : Display_Mode_Type;
       Res          : in out Bounded_String);
-   --  Like the public Symbolic_Traceback_No_Lock except there is no provision
-   --  against concurrent accesses.
+   --  Like the public Symbolic_Traceback except there is no provision against
+   --  concurrent accesses.
 
    procedure Module_Symbolic_Traceback
-     (Traceback    :        Tracebacks_Array;
-      Module       :        Module_Cache;
-      Suppress_Hex :        Boolean;
+     (Traceback    : Tracebacks_Array;
+      Module       : Module_Cache;
+      Suppress_Hex : Boolean;
+      Display_Mode : Display_Mode_Type;
       Res          : in out Bounded_String);
    --  Returns the Traceback for a given module
 
    procedure Multi_Module_Symbolic_Traceback
-     (Traceback    :        Tracebacks_Array;
-      Suppress_Hex :        Boolean;
+     (Traceback    : Tracebacks_Array;
+      Suppress_Hex : Boolean;
+      Display_Mode : Display_Mode_Type;
       Res          : in out Bounded_String);
    --  Build string containing symbolic traceback for the given call chain
 
    procedure Multi_Module_Symbolic_Traceback
-     (Traceback    :        Tracebacks_Array;
-      Module       :        Module_Cache;
-      Suppress_Hex :        Boolean;
+     (Traceback    : Tracebacks_Array;
+      Module       : Module_Cache;
+      Suppress_Hex : Boolean;
+      Display_Mode : Display_Mode_Type;
       Res          : in out Bounded_String);
    --  Likewise but using Module
 
@@ -327,6 +334,38 @@ package body System.Traceback.Symbolic is
       Module_Cache_Array_Sort (Modules_Cache.all);
    end Enable_Cache;
 
+   function Calling_Entity return String is
+      N_Skipped_Frames : constant Natural := 3;
+      --  We ask Call_Chain to skip the following frames:
+      --
+      --  1. The frame of Call_Chain itself.
+      --  2. The frame of Calling_Entity.
+      --  3. The frame of Calling_Entity's caller.
+      --
+      --  The frame above that is the function the caller is looking for.
+
+      Traceback : Tracebacks_Array (1 .. 1);
+      Len       : Natural;
+   begin
+      Call_Chain (Traceback, 1, Len, Skip_Frames => N_Skipped_Frames);
+
+      if Len = 0 then
+         return "???";
+      end if;
+
+      declare
+         With_Trailing_Newline : constant String :=
+           Symbolic_Traceback
+             (Traceback,
+              Suppress_Hex => True,
+              Display_Mode => Subprg_Name_Only);
+      begin
+         return
+           With_Trailing_Newline
+             (With_Trailing_Newline'First .. With_Trailing_Newline'Last - 1);
+      end;
+   end Calling_Entity;
+
    ---------------------
    -- Executable_Name --
    ---------------------
@@ -413,6 +452,23 @@ package body System.Traceback.Symbolic is
          return;
       end if;
 
+      --  On some platforms, we use dladdr and the dli_fname field to get the
+      --  pathname, but that pathname might be relative and not point to the
+      --  right thing in our context. That happens when the executable is
+      --  dynamically linked and was started through execvp; dli_fname only
+      --  contains the executable name passed to execvp in that case.
+      --
+      --  Because of this, we might be about to open a file that's in fact not
+      --  a shared object but something completely unrelated. It's hard to
+      --  detect this in general, but we perform a sanity check that
+      --  Module_Name does not designate a directory; if it does, it's
+      --  definitely not a shared object.
+
+      if System.OS_Lib.Is_Directory (Module_Name) then
+         Success := False;
+         return;
+      end if;
+
       Open (Module_Name, Module.C, Success);
 
       --  If a module can't be opened just return now, we just cannot give more
@@ -432,28 +488,28 @@ package body System.Traceback.Symbolic is
    -------------------------------
 
    procedure Module_Symbolic_Traceback
-     (Traceback    :        Tracebacks_Array;
-      Module       :        Module_Cache;
-      Suppress_Hex :        Boolean;
+     (Traceback    : Tracebacks_Array;
+      Module       : Module_Cache;
+      Suppress_Hex : Boolean;
+      Display_Mode : Display_Mode_Type;
       Res          : in out Bounded_String)
    is
       Success : Boolean;
    begin
-      if Symbolic.Module_Name.Is_Supported then
+      if Symbolic.Module_Name.Is_Supported and then Display_Mode = Full then
          Append (Res, '[');
          Append (Res, Module.Name.all);
          Append (Res, ']' & ASCII.LF);
       end if;
 
       Dwarf_Lines.Symbolic_Traceback
-        (Module.C,
-         Traceback,
-         Suppress_Hex,
-         Success,
-         Res);
+        (Module.C, Traceback, Suppress_Hex, Display_Mode, Success, Res);
 
       if not Success then
-         Hexa_Traceback (Traceback, Suppress_Hex, Res);
+         Hexa_Traceback
+           (Traceback,
+            Suppress_Hex or else Display_Mode = Subprg_Name_Only,
+            Res);
       end if;
 
       --  We must not allow an unhandled exception here, since this function
@@ -461,7 +517,7 @@ package body System.Traceback.Symbolic is
 
    exception
       when others =>
-         return;
+         null;
    end Module_Symbolic_Traceback;
 
    -------------------------------------
@@ -469,8 +525,9 @@ package body System.Traceback.Symbolic is
    -------------------------------------
 
    procedure Multi_Module_Symbolic_Traceback
-     (Traceback    :        Tracebacks_Array;
-      Suppress_Hex :        Boolean;
+     (Traceback    : Tracebacks_Array;
+      Suppress_Hex : Boolean;
+      Display_Mode : Display_Mode_Type;
       Res          : in out Bounded_String)
    is
       F : constant Natural := Traceback'First;
@@ -497,6 +554,7 @@ package body System.Traceback.Symbolic is
                     (Traceback,
                      Modules_Cache (Mid).all,
                      Suppress_Hex,
+                     Display_Mode,
                      Res);
                   return;
                else
@@ -509,6 +567,7 @@ package body System.Traceback.Symbolic is
             Multi_Module_Symbolic_Traceback
               (Traceback (F + 1 .. Traceback'Last),
                Suppress_Hex,
+               Display_Mode,
                Res);
          end;
       else
@@ -516,10 +575,7 @@ package body System.Traceback.Symbolic is
          --  First try the executable
          if Is_Inside (Exec_Module.C, Traceback (F)) then
             Multi_Module_Symbolic_Traceback
-              (Traceback,
-               Exec_Module,
-               Suppress_Hex,
-               Res);
+              (Traceback, Exec_Module, Suppress_Hex, Display_Mode, Res);
             return;
          end if;
 
@@ -535,10 +591,7 @@ package body System.Traceback.Symbolic is
             Init_Module (Module, Success, M_Name, Load_Addr);
             if Success then
                Multi_Module_Symbolic_Traceback
-                 (Traceback,
-                  Module,
-                  Suppress_Hex,
-                  Res);
+                 (Traceback, Module, Suppress_Hex, Display_Mode, Res);
                Close_Module (Module);
             else
                --  Module not found
@@ -546,6 +599,7 @@ package body System.Traceback.Symbolic is
                Multi_Module_Symbolic_Traceback
                  (Traceback (F + 1 .. Traceback'Last),
                   Suppress_Hex,
+                  Display_Mode,
                   Res);
             end if;
          end;
@@ -553,9 +607,10 @@ package body System.Traceback.Symbolic is
    end Multi_Module_Symbolic_Traceback;
 
    procedure Multi_Module_Symbolic_Traceback
-     (Traceback    :        Tracebacks_Array;
-      Module       :        Module_Cache;
-      Suppress_Hex :        Boolean;
+     (Traceback    : Tracebacks_Array;
+      Module       : Module_Cache;
+      Suppress_Hex : Boolean;
+      Display_Mode : Display_Mode_Type;
       Res          : in out Bounded_String)
    is
       Pos : Positive;
@@ -581,11 +636,10 @@ package body System.Traceback.Symbolic is
         (Traceback (Traceback'First .. Pos - 1),
          Module,
          Suppress_Hex,
+         Display_Mode,
          Res);
       Multi_Module_Symbolic_Traceback
-        (Traceback (Pos .. Traceback'Last),
-         Suppress_Hex,
-         Res);
+        (Traceback (Pos .. Traceback'Last), Suppress_Hex, Display_Mode, Res);
    end Multi_Module_Symbolic_Traceback;
 
    --------------------
@@ -615,23 +669,24 @@ package body System.Traceback.Symbolic is
    --------------------------------
 
    procedure Symbolic_Traceback_No_Lock
-     (Traceback    :        Tracebacks_Array;
-      Suppress_Hex :        Boolean;
-      Res          : in out Bounded_String)
-   is
+     (Traceback    : Tracebacks_Array;
+      Suppress_Hex : Boolean;
+      Display_Mode : Display_Mode_Type;
+      Res          : in out Bounded_String) is
    begin
       if Symbolic.Module_Name.Is_Supported then
-         Multi_Module_Symbolic_Traceback (Traceback, Suppress_Hex, Res);
+         Multi_Module_Symbolic_Traceback
+           (Traceback, Suppress_Hex, Display_Mode, Res);
       else
          if Exec_Module_State = Failed then
             Append (Res, "Call stack traceback locations:" & ASCII.LF);
-            Hexa_Traceback (Traceback, Suppress_Hex, Res);
+            Hexa_Traceback
+              (Traceback,
+               Suppress_Hex or else Display_Mode = Subprg_Name_Only,
+               Res);
          else
             Module_Symbolic_Traceback
-              (Traceback,
-               Exec_Module,
-               Suppress_Hex,
-               Res);
+              (Traceback, Exec_Module, Suppress_Hex, Display_Mode, Res);
          end if;
       end if;
    end Symbolic_Traceback_No_Lock;
@@ -645,7 +700,8 @@ package body System.Traceback.Symbolic is
 
    function Symbolic_Traceback
      (Traceback    : Tracebacks_Array;
-      Suppress_Hex : Boolean) return String
+      Suppress_Hex : Boolean;
+      Display_Mode : Display_Mode_Type) return String
    is
       Load_Address : constant Address := Get_Executable_Load_Address;
       Res          : Bounded_String (Max_Length => Max_String_Length);
@@ -653,12 +709,12 @@ package body System.Traceback.Symbolic is
    begin
       System.Soft_Links.Lock_Task.all;
       Init_Exec_Module;
-      if Load_Address /= Null_Address then
+      if Display_Mode = Full and then Load_Address /= Null_Address then
          Append (Res, LDAD_Header);
          Append_Address (Res, Load_Address);
          Append (Res, ASCII.LF);
       end if;
-      Symbolic_Traceback_No_Lock (Traceback, Suppress_Hex, Res);
+      Symbolic_Traceback_No_Lock (Traceback, Suppress_Hex, Display_Mode, Res);
       System.Soft_Links.Unlock_Task.all;
 
       return To_String (Res);
@@ -672,13 +728,17 @@ package body System.Traceback.Symbolic is
    function Symbolic_Traceback
      (Traceback : System.Traceback_Entries.Tracebacks_Array) return String is
    begin
-      return Symbolic_Traceback (Traceback, Suppress_Hex => False);
+      return
+        Symbolic_Traceback
+          (Traceback, Suppress_Hex => False, Display_Mode => Full);
    end Symbolic_Traceback;
 
    function Symbolic_Traceback_No_Hex
      (Traceback : System.Traceback_Entries.Tracebacks_Array) return String is
    begin
-      return Symbolic_Traceback (Traceback, Suppress_Hex => True);
+      return
+        Symbolic_Traceback
+          (Traceback, Suppress_Hex => True, Display_Mode => Full);
    end Symbolic_Traceback_No_Hex;
 
    function Symbolic_Traceback
@@ -686,9 +746,9 @@ package body System.Traceback.Symbolic is
       Suppress_Hex : Boolean) return String
    is
    begin
-      return Symbolic_Traceback
-          (Ada.Exceptions.Traceback.Tracebacks (E),
-           Suppress_Hex);
+      return
+        Symbolic_Traceback
+          (Ada.Exceptions.Traceback.Tracebacks (E), Suppress_Hex, Full);
    end Symbolic_Traceback;
 
    function Symbolic_Traceback

@@ -7,5 +7,5 @@ SECTIONS
     ASSERT (. < 0x400, oops);
   }
   .bss : { *(.bss) }
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

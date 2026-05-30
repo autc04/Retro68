@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1999-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -344,6 +344,38 @@ package Repinfo is
    --  the necessary Create_Dynamic_SO_Ref calls to associate the node
    --  and entity id values and the back end makes Get_Dynamic_SO_Ref
    --  calls to retrieve them.
+
+   generic
+      with procedure Visit_Unop (Code : TCode; Op : Node_Ref_Or_Val);
+      --  Visit a unary operation. The opcode and argument are passed
+      --  in.
+
+      with procedure Visit_Binop (Code : TCode; Lhs : Node_Ref_Or_Val;
+                                  Rhs : Node_Ref_Or_Val);
+      --  Visit a binary operation. The opcode and the arguments are
+      --  passed in.
+
+      with procedure Visit_Cond_Expr (Test : Node_Ref_Or_Val;
+                                      Lhs : Node_Ref_Or_Val;
+                                      Rhs : Node_Ref_Or_Val);
+      --  Visit a conditional operation. The arguments are passed in
+      --  (the opcode is always Cond_Expr).
+
+      with procedure Visit_Constant (Val : Node_Ref_Or_Val);
+      --  Visit a constant operand. The constant is passed in.
+
+      with procedure Visit_Discriminant (Val : Node_Ref_Or_Val);
+      --  Visit a discriminant. The discriminant number is passed in.
+
+      with procedure Visit_Variable (Val : Node_Ref_Or_Val);
+      --  Visit a variable reference. The variable's index (see
+      --  Dynamic_Val) is passed in.
+
+   procedure Visit (Expr : Node_Ref_Or_Val);
+   --  A way to walk over a back annotation expression. The user
+   --  provides callbacks which are called with the operands and (when
+   --  needed) the code. Users can recurse on the operands by calling
+   --  Visit again.
 
    ------------------------------
    -- External tools Interface --

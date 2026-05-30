@@ -1,4 +1,6 @@
-// { dg-options "-frust-name-resolution-2.0" }
+#![feature(no_core)]
+#![no_core]
+
 struct Marker;
 struct Foo(Marker);
 

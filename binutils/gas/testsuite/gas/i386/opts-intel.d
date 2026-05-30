@@ -1,4 +1,5 @@
 #objdump: -drwMintel,suffix
+#as: -march=+mpx
 #name: encoding option (Intel mode)
 #source: opts.s
 

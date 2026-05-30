@@ -1,5 +1,5 @@
 /* Helper class for handling a call with specific arguments.
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,27 +18,19 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "diagnostic-core.h"
-#include "analyzer/analyzer.h"
-#include "analyzer/analyzer-logging.h"
+#include "analyzer/common.h"
+
 #include "diagnostic.h"
 #include "tree-diagnostic.h" /* for default_tree_printer.  */
 #include "gimple-pretty-print.h"
+#include "stringpool.h"
+#include "attribs.h"
+#include "diagnostics/sarif-sink.h"
+
+#include "analyzer/analyzer-logging.h"
 #include "analyzer/region-model.h"
 #include "analyzer/call-details.h"
 #include "analyzer/ranges.h"
-#include "stringpool.h"
-#include "attribs.h"
-#include "make-unique.h"
-#include "diagnostic-format-sarif.h"
 
 #if ENABLE_ANALYZER
 
@@ -48,13 +40,13 @@ namespace ana {
 
 /* call_details's ctor.  */
 
-call_details::call_details (const gcall *call, region_model *model,
+call_details::call_details (const gcall &call, region_model *model,
 			    region_model_context *ctxt)
 : m_call (call), m_model (model), m_ctxt (ctxt),
-  m_lhs_type (NULL_TREE), m_lhs_region (NULL)
+  m_lhs_type (NULL_TREE), m_lhs_region (nullptr)
 {
   m_lhs_type = NULL_TREE;
-  if (tree lhs = gimple_call_lhs (call))
+  if (tree lhs = gimple_call_lhs (&call))
     {
       m_lhs_region = model->get_lvalue (lhs, ctxt);
       m_lhs_type = TREE_TYPE (lhs);
@@ -66,9 +58,11 @@ call_details::call_details (const gcall *call, region_model *model,
 
 call_details::call_details (const call_details &cd,
 			    region_model_context *ctxt)
+: m_call (cd.m_call), m_model (cd.m_model),
+  m_ctxt (ctxt),
+  m_lhs_type (cd.m_lhs_type),
+  m_lhs_region (cd.m_lhs_region)
 {
-  *this = cd;
-  m_ctxt = ctxt;
 }
 
 /* Get the manager from m_model.  */
@@ -87,7 +81,7 @@ call_details::get_logger () const
   if (m_ctxt)
     return m_ctxt->get_logger ();
   else
-    return NULL;
+    return nullptr;
 }
 
 /* Get any uncertainty_t associated with the region_model_context.  */
@@ -98,7 +92,7 @@ call_details::get_uncertainty () const
   if (m_ctxt)
     return m_ctxt->get_uncertainty ();
   else
-    return NULL;
+    return nullptr;
 }
 
 /* If the callsite has a left-hand-side region, set it to RESULT
@@ -133,25 +127,25 @@ const_fn_p (const call_details &cd)
 
 /* If this CD is known to be a call to a function with
    __attribute__((const)), attempt to get a const_fn_result_svalue
-   based on the arguments, or return NULL otherwise.  */
+   based on the arguments, or return nullptr otherwise.  */
 
 static const svalue *
 maybe_get_const_fn_result (const call_details &cd)
 {
   if (!const_fn_p (cd))
-    return NULL;
+    return nullptr;
 
   unsigned num_args = cd.num_args ();
   if (num_args > const_fn_result_svalue::MAX_INPUTS)
     /* Too many arguments.  */
-    return NULL;
+    return nullptr;
 
   auto_vec<const svalue *> inputs (num_args);
   for (unsigned arg_idx = 0; arg_idx < num_args; arg_idx++)
     {
       const svalue *arg_sval = cd.get_arg_svalue (arg_idx);
       if (!arg_sval->can_have_associated_state_p ())
-	return NULL;
+	return nullptr;
       inputs.quick_push (arg_sval);
     }
 
@@ -228,8 +222,8 @@ call_details::set_any_lhs_with_defaults () const
       if (lookup_function_attribute ("malloc"))
 	{
 	  const region *new_reg
-	    = m_model->get_or_create_region_for_heap_alloc (NULL, m_ctxt);
-	  m_model->mark_region_as_unknown (new_reg, NULL);
+	    = m_model->get_or_create_region_for_heap_alloc (nullptr, m_ctxt);
+	  m_model->mark_region_as_unknown (new_reg, nullptr);
 	  sval = mgr->get_ptr_svalue (get_lhs_type (), new_reg);
 	}
       else
@@ -252,7 +246,7 @@ call_details::set_any_lhs_with_defaults () const
 unsigned
 call_details::num_args () const
 {
-  return gimple_call_num_args (m_call);
+  return gimple_call_num_args (&m_call);
 }
 
 /* Return true if argument IDX is a size_t (or compatible with it).  */
@@ -268,7 +262,7 @@ call_details::arg_is_size_p (unsigned idx) const
 location_t
 call_details::get_location () const
 {
-  return m_call->location;
+  return m_call.location;
 }
 
 /* Get argument IDX at the callsite as a tree.  */
@@ -276,7 +270,7 @@ call_details::get_location () const
 tree
 call_details::get_arg_tree (unsigned idx) const
 {
-  return gimple_call_arg (m_call, idx);
+  return gimple_call_arg (&m_call, idx);
 }
 
 /* Get the type of argument IDX.  */
@@ -284,7 +278,7 @@ call_details::get_arg_tree (unsigned idx) const
 tree
 call_details::get_arg_type (unsigned idx) const
 {
-  return TREE_TYPE (gimple_call_arg (m_call, idx));
+  return TREE_TYPE (gimple_call_arg (&m_call, idx));
 }
 
 /* Get argument IDX at the callsite as an svalue.  */
@@ -298,7 +292,7 @@ call_details::get_arg_svalue (unsigned idx) const
 
 /* If argument IDX's svalue at the callsite is of pointer type,
    return the region it points to.
-   Otherwise return NULL.  */
+   Otherwise return nullptr.  */
 
 const region *
 call_details::deref_ptr_arg (unsigned idx) const
@@ -307,7 +301,7 @@ call_details::deref_ptr_arg (unsigned idx) const
   return m_model->deref_rvalue (ptr_sval, get_arg_tree (idx), m_ctxt);
 }
 
-/* Attempt to get the string literal for argument IDX, or return NULL
+/* Attempt to get the string literal for argument IDX, or return nullptr
    otherwise.
    For use when implementing "__analyzer_*" functions that take
    string literals.  */
@@ -322,7 +316,7 @@ call_details::get_arg_string_literal (unsigned idx) const
 	tree string_cst = string_reg->get_string_cst ();
 	return TREE_STRING_POINTER (string_cst);
       }
-  return NULL;
+  return nullptr;
 }
 
 /* Attempt to get the fndecl used at this call, if known, or NULL_TREE
@@ -340,7 +334,7 @@ void
 call_details::dump_to_pp (pretty_printer *pp, bool simple) const
 {
   pp_string (pp, "gcall: ");
-  pp_gimple_stmt_1 (pp, m_call, 0 /* spc */, TDF_NONE /* flags */);
+  pp_gimple_stmt_1 (pp, &m_call, 0 /* spc */, TDF_NONE /* flags */);
   pp_newline (pp);
   pp_string (pp, "return region: ");
   if (m_lhs_region)
@@ -348,7 +342,7 @@ call_details::dump_to_pp (pretty_printer *pp, bool simple) const
   else
     pp_string (pp, "NULL");
   pp_newline (pp);
-  for (unsigned i = 0; i < gimple_call_num_args (m_call); i++)
+  for (unsigned i = 0; i < gimple_call_num_args (&m_call); i++)
     {
       const svalue *arg_sval = get_arg_svalue (i);
       pp_printf (pp, "arg %i: ", i);
@@ -366,6 +360,65 @@ call_details::dump (bool simple) const
   dump_to_pp (&pp, simple);
 }
 
+/* Dump a tree-like representation of this call to stderr.  */
+
+DEBUG_FUNCTION void
+call_details::dump () const
+{
+  text_art::dump (*this);
+}
+
+std::unique_ptr<text_art::tree_widget>
+call_details::make_dump_widget (const text_art::dump_widget_info &dwi) const
+{
+  using text_art::tree_widget;
+  std::unique_ptr<tree_widget> cd_widget
+    (tree_widget::from_fmt (dwi, nullptr, "Call Details"));
+
+  {
+    pretty_printer the_pp;
+    pretty_printer * const pp = &the_pp;
+    pp_format_decoder (pp) = default_tree_printer;
+    pp_string (pp, "gcall: ");
+    pp_gimple_stmt_1 (pp, &m_call, 0 /* spc */, TDF_NONE /* flags */);
+    cd_widget->add_child (tree_widget::make (dwi, pp));
+  }
+  {
+    pretty_printer the_pp;
+    pretty_printer * const pp = &the_pp;
+    pp_format_decoder (pp) = default_tree_printer;
+    pp_string (pp, "return region: ");
+    if (m_lhs_region)
+      m_lhs_region->dump_to_pp (pp, true);
+    else
+      pp_string (pp, "NULL");
+    auto w = tree_widget::make (dwi, pp);
+    if (m_lhs_region)
+      w->add_child (m_lhs_region->make_dump_widget (dwi));
+    cd_widget->add_child (std::move (w));
+  }
+  if (gimple_call_num_args (&m_call) > 0)
+    {
+      std::unique_ptr<tree_widget> args_widget
+	(tree_widget::from_fmt (dwi, nullptr, "Arguments"));
+      for (unsigned i = 0; i < gimple_call_num_args (&m_call); i++)
+	{
+	  pretty_printer the_pp;
+	  pretty_printer * const pp = &the_pp;
+	  pp_format_decoder (pp) = default_tree_printer;
+	  const svalue *arg_sval = get_arg_svalue (i);
+	  pp_printf (pp, "%i: ", i);
+	  arg_sval->dump_to_pp (pp, true);
+	  auto w = tree_widget::make (dwi, pp);
+	  w->add_child (arg_sval->make_dump_widget (dwi));
+	  args_widget->add_child (std::move (w));
+	}
+      cd_widget->add_child (std::move (args_widget));
+    }
+
+  return cd_widget;
+}
+
 /* Get a conjured_svalue for this call for REG,
    and purge any state already relating to that conjured_svalue.  */
 
@@ -373,7 +426,7 @@ const svalue *
 call_details::get_or_create_conjured_svalue (const region *reg) const
 {
   region_model_manager *mgr = m_model->get_manager ();
-  return mgr->get_or_create_conjured_svalue (reg->get_type (), m_call, reg,
+  return mgr->get_or_create_conjured_svalue (reg->get_type (), &m_call, reg,
 					     conjured_purge (m_model, m_ctxt));
 }
 
@@ -388,7 +441,7 @@ call_details::lookup_function_attribute (const char *attr_name) const
   if (tree fndecl = get_fndecl_for_call ())
     allocfntype = TREE_TYPE (fndecl);
   else
-    allocfntype = gimple_call_fntype (m_call);
+    allocfntype = gimple_call_fntype (&m_call);
 
   if (!allocfntype)
     return NULL_TREE;
@@ -475,10 +528,10 @@ public:
     return true;
   }
 
-  void maybe_add_sarif_properties (sarif_object &result_obj)
+  void maybe_add_sarif_properties (diagnostics::sarif_object &result_obj)
     const final override
   {
-    sarif_property_bag &props = result_obj.get_or_create_properties ();
+    auto &props = result_obj.get_or_create_properties ();
 #define PROPERTY_PREFIX "gcc/analyzer/overlapping_buffers/"
     props.set (PROPERTY_PREFIX "bytes_range_a",
 	       m_byte_range_a.to_json ());
@@ -540,10 +593,10 @@ call_details::complain_about_overlap (unsigned arg_idx_a,
   if (!byte_range_a.intersection (byte_range_b, *model).is_true ())
     return;
 
-  ctxt->warn (make_unique<overlapping_buffers> (get_fndecl_for_call (),
-						byte_range_a,
-						byte_range_b,
-						num_bytes_read_sval));
+  ctxt->warn (std::make_unique<overlapping_buffers> (get_fndecl_for_call (),
+						     byte_range_a,
+						     byte_range_b,
+						     num_bytes_read_sval));
 }
 
 } // namespace ana

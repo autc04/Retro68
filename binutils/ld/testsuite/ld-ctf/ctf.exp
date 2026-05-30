@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2022 Free Software Foundation, Inc.
+# Copyright (C) 2020-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -38,6 +38,11 @@ if {[info exists env(LC_ALL)]} {
 }
 set env(LC_ALL) "C"
 
+set saved_ASFLAGS "$ASFLAGS"
+if [istarget "sparc-*-*"] {
+    append ASFLAGS " -Av8plus"
+}
+
 set ctf_test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
 
 foreach ctf_test $ctf_test_list {
@@ -49,6 +54,8 @@ foreach ctf_test $ctf_test_list {
     verbose [file rootname $ctf_test]
     run_dump_test [file rootname $ctf_test] { { cc "-gctf -fPIC" } }
 }
+
+set ASFLAGS "$saved_ASFLAGS"
 
 if {[info exists old_lc_all]} {
     set env(LC_ALL) $old_lc_all

@@ -1,6 +1,5 @@
 # Check 32bit AVX512PF instructions
 
-	.allow_index_reg
 	.text
 _start:
 

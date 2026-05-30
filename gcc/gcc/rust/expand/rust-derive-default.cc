@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Free Software Foundation, Inc.
+// Copyright (C) 2025-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -69,14 +69,17 @@ DeriveDefault::default_impl (
   std::unique_ptr<AssociatedItem> &&default_fn, std::string name,
   const std::vector<std::unique_ptr<GenericParam>> &type_generics)
 {
-  auto default_path = builder.type_path ({"core", "default", "Default"}, true);
+  auto default_path = [this] () {
+    return builder.type_path ({"core", "default", "Default"}, true);
+  };
 
   auto trait_items = vec (std::move (default_fn));
 
-  auto generics = setup_impl_generics (name, type_generics,
-				       builder.trait_bound (default_path));
+  auto generics = setup_impl_generics (name, type_generics, [&, this] () {
+    return builder.trait_bound (default_path ());
+  });
 
-  return builder.trait_impl (default_path, std::move (generics.self_type),
+  return builder.trait_impl (default_path (), std::move (generics.self_type),
 			     std::move (trait_items),
 			     std::move (generics.impl));
 }
@@ -98,7 +101,8 @@ DeriveDefault::visit_struct (StructStruct &item)
   for (auto &field : item.get_fields ())
     {
       auto name = field.get_field_name ().as_string ();
-      auto expr = default_call (field.get_field_type ().clone_type ());
+      auto type = field.get_field_type ().reconstruct ();
+      auto expr = default_call (std::move (type));
 
       cloned_fields.emplace_back (
 	builder.struct_expr_field (std::move (name), std::move (expr)));
@@ -119,7 +123,7 @@ DeriveDefault::visit_tuple (TupleStruct &tuple_item)
 
   for (auto &field : tuple_item.get_fields ())
     {
-      auto type = field.get_field_type ().clone_type ();
+      auto type = field.get_field_type ().reconstruct ();
 
       defaulted_fields.emplace_back (default_call (std::move (type)));
     }

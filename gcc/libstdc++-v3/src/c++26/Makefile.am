@@ -1,6 +1,6 @@
 ## Makefile for the C++26 sources of the GNU C++ Standard library.
 ##
-## Copyright (C) 1997-2025 Free Software Foundation, Inc.
+## Copyright (C) 1997-2026 Free Software Foundation, Inc.
 ##
 ## This file is part of the libstdc++ version 3 distribution.
 ## Process this file with automake to produce Makefile.in.
@@ -35,7 +35,9 @@ else
 inst_sources =
 endif
 
-sources = text_encoding.cc
+sources = \
+	  debugging.cc \
+	  text_encoding.cc
 
 vpath % $(top_srcdir)/src/c++26
 

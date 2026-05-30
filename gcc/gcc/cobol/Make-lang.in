@@ -1,5 +1,5 @@
 # Top level -*- makefile -*- fragment for Cobol
-#   Copyright (C) 2021-2025 Free Software Foundation, Inc.
+#   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 
 # This file is part of GCC.
 
@@ -33,6 +33,9 @@
 # - making any compiler driver (eg: g++)
 # - the compiler proper (eg: cc1plus)
 # - define the names for selecting the language in LANGUAGES.
+
+# Use strict warnings for this front end.
+cobol-warn = $(STRICT_WARN)
 
 GCOBOL_INSTALL_NAME := $(shell echo gcobol|sed '$(program_transform_name)')
 GCOBOLIO_INSTALL_NAME := $(shell echo gcobol-io|sed '$(program_transform_name)')
@@ -68,6 +71,7 @@ cobol1_OBJS =    \
  cobol/genmath.o    \
  cobol/gengen.o     \
  cobol/lexio.o      \
+ cobol/messages.o   \
  cobol/parse.o      \
  cobol/scan.o       \
  cobol/structs.o    \
@@ -157,10 +161,9 @@ cobol/cdf.cc: cobol/cdf.y
 FLEX_WARNING = warning, dangerous trailing context
 
 cobol/scan.cc: cobol/scan.l
-	$(FLEX) -o$@ $(LFLAGS) $< >$@~ 2>&1
+	$(FLEX) -o$@ $(LFLAGS) $< 2>$@~ || { cat $@~ >&1; exit 1; }
 	awk  '! /$(FLEX_WARNING)/ {print > "/dev/stderr"; nerr++}	\
-	     END {print "$(FLEX):", NR, "messages" > "/dev/stderr";	\
-		  exit nerr}' $@~
+	     END {print "$(FLEX):", NR, "messages" > "/dev/stderr"}' $@~
 	@rm $@~
 
 
@@ -223,6 +226,7 @@ cobol/scan.o: cobol/scan.cc			\
 	$(srcdir)/cobol/scan_post.h		\
 	$(srcdir)/cobol/symbols.h		\
 	$(srcdir)/cobol/util.h			\
+	$(srcdir)/cobol/token_names.h		\
 	$(srcdir)/hwint.h			\
 	$(srcdir)/system.h			\
 	$(srcdir)/../include/ansidecl.h		\
@@ -238,6 +242,15 @@ cobol/scan.o: cobol/scan.cc			\
 	config.h 				\
 	cobol/cdf.cc				\
 	cobol/parse.cc
+
+# Update token names if the generator script is installed
+# (by a developer) and there's been a change. 
+$(srcdir)/cobol/token_names.h: cobol/parse.cc
+	@if [ -f $@.gen ]; then			\
+		$@.gen $(subst .cc,.h,$^)	\
+		| diff -u $@ -			\
+		| patch -t --set-time $@ ;	\
+	fi
 
 #
 # The src<foo> targets are executed if
@@ -285,12 +298,10 @@ cobol.install-common: installdirs
 	    rm -f $(DESTDIR)$(bindir)/$(GCOBOL_TARGET_INSTALL_NAME)$(exeext); \
 	    rm -f $(DESTDIR)$(bindir)/$(GCOBC_TARGET_INSTALL_NAME)$(exeext); \
 	    ( cd $(DESTDIR)$(bindir) && \
-	      $(LN) $(GCOBOL_INSTALL_NAME)$(exeext) $(GCOBOL_TARGET_INSTALL_NAME)$(exeext) ); \
+	      $(LN) $(GCOBOL_INSTALL_NAME)$(exeext) $(GCOBOL_TARGET_INSTALL_NAME)$(exeext) && \
 	      $(LN) $(GCOBC_INSTALL_NAME)$(exeext) $(GCOBC_TARGET_INSTALL_NAME)$(exeext) ); \
 	  fi; \
 	fi
-	mkdir -p $(DESTDIR)$(datadir)/gcobol/udf
-	$(INSTALL_DATA) $(srcdir)/cobol/udf/*   $(DESTDIR)$(datadir)/gcobol/udf/
 
 cobol.install-man: installdirs
 	$(INSTALL_DATA) $(srcdir)/cobol/gcobol.1 $(DESTDIR)$(man1dir)/$(GCOBOL_INSTALL_NAME)$(man1ext)
@@ -318,7 +329,7 @@ cobol.srcpdf: gcobol.pdf gcobol-io.pdf
 	ln $^ $(srcdir)/cobol/
 
 gcobol.pdf: $(srcdir)/cobol/gcobol.1
-	groff -mdoc -T pdf  $^ > $@~
+	groff -mdoc -t -T pdf  $^ > $@~
 	@mv $@~ $@
 gcobol-io.pdf: $(srcdir)/cobol/gcobol.3
 	groff -mdoc -T pdf  $^ > $@~
@@ -351,9 +362,15 @@ cobol.srcman:
 
 cobol.mostlyclean:
 
-cobol.clean:
+gcobol.clean:
+# This is intended for non-general use.  It is a last-ditch effort to flush
+# out all oject files and executable code for gcobol and libgcobol, causing 
+# a complete rebuild of all executable code.
 	rm -fr gcobol cobol1 cobol/*		\
 	../*/libgcobol/*
+
+cobol.clean:
+	rm -fr gcobol cobol1 cobol/*
 
 cobol.distclean:
 
@@ -376,3 +393,4 @@ cobol.stagefeedback: stagefeedback-start
 selftest-cobol:
 
 lang_checks += check-cobol
+

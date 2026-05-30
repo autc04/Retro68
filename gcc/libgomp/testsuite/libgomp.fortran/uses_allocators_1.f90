@@ -1,4 +1,5 @@
 ! { dg-do compile }
+! { dg-additional-options "-Wno-deprecated-openmp" }
 
 subroutine test
   use omp_lib
@@ -146,9 +147,9 @@ subroutine traits_checks
   integer(kind=omp_allocator_handle_kind) :: a1
 
   ! Sensible - but not (yet?) valid - an array constructor:
-  !$omp target uses_allocators(traits ([omp_alloctrait :: ]) : a1 )  ! { dg-error "Invalid character in name" }
+  !$omp target uses_allocators(traits ([omp_alloctrait :: ]) : a1 )  ! { dg-error "39: Expected ',', '\\)' or ';' at .1." }
   block; end block
-  !$omp target uses_allocators(a1 ([omp_alloctrait :: ]))  ! { dg-error "Invalid character in name" }
+  !$omp target uses_allocators(a1 ([omp_alloctrait :: ]))  ! { dg-error "35: Expected ',', '\\)' or ';' at .1." }
   block; end block
 
   !$omp target uses_allocators(traits (trait1) : a1 )  ! { dg-error "Traits array 'trait1' in USES_ALLOCATORS .1. must be a one-dimensional named constant array of type 'omp_alloctrait'" }
@@ -164,5 +165,20 @@ subroutine traits_checks
   !$omp target uses_allocators(traits (trait3) : a1 )  ! { dg-error "Traits array 'trait3' in USES_ALLOCATORS .1. must be a one-dimensional named constant array of type 'omp_alloctrait'" }
   block; end block
   !$omp target uses_allocators(a1 (trait3))  ! { dg-error "Traits array 'trait3' in USES_ALLOCATORS .1. must be a one-dimensional named constant array of type 'omp_alloctrait'" }
+  block; end block
+end
+
+subroutine null_allocator_ok
+  use omp_lib
+  implicit none
+  integer(omp_allocator_handle_kind) ::  my, my2
+  integer(omp_allocator_handle_kind), parameter ::  my3 = -9
+  !$omp target uses_allocators(my, my2) ! OK -> default settings
+  block; end block
+  !$omp target uses_allocators(my3) ! { dg-error "'my3' at .1. in USES_ALLOCATORS must either a variable or a predefined allocator" }
+  block; end block
+  !$omp target uses_allocators(omp_default_mem_alloc, omp_null_allocator) ! OK -> omp_null_allocator
+  block; end block
+  !$omp target uses_allocators(my, omp_null_allocator) firstprivate(my) ! { dg-error "Symbol 'my' present on both data and map clauses" }
   block; end block
 end

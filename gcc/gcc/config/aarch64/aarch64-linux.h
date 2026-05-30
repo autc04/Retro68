@@ -1,5 +1,5 @@
 /* Machine description for AArch64 architecture.
-   Copyright (C) 2009-2025 Free Software Foundation, Inc.
+   Copyright (C) 2009-2026 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -48,7 +48,9 @@
    %{static-pie:-Bstatic -pie --no-dynamic-linker -z text} \
    -X						\
    %{mbig-endian:-EB} %{mlittle-endian:-EL}     \
-   -maarch64linux%{mabi=ilp32:32}%{mbig-endian:b}"
+   -maarch64linux%{mabi=ilp32:32}%{mbig-endian:b} \
+   %{%:sanitize(memtag-stack):%{!fsanitize-memtag-mode:-z memtag-stack -z memtag-mode=sync}} \
+   %{%:sanitize(memtag-stack):%{fsanitize-memtag-mode=*:-z memtag-stack -z memtag-mode=%}}"
 
 
 #define LINK_SPEC LINUX_TARGET_LINK_SPEC AARCH64_ERRATA_LINK_SPEC

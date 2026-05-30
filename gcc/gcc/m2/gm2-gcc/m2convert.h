@@ -1,6 +1,6 @@
 /* m2convert.h header file for m2convert.cc.
 
-Copyright (C) 2012-2025 Free Software Foundation, Inc.
+Copyright (C) 2012-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius@glam.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -47,6 +47,8 @@ EXTERN tree m2convert_ToInteger (location_t location, tree expr);
 EXTERN tree m2convert_ToWord (location_t location, tree expr);
 EXTERN tree m2convert_ToBitset (location_t location, tree expr);
 EXTERN tree m2convert_ToLoc (location_t location, tree expr);
+EXTERN tree m2convert_ToPIMByte (location_t location, tree expr);
+
 EXTERN tree m2convert_GenericToType (location_t location, tree type,
                                      tree expr);
 

@@ -1,7 +1,7 @@
 # name: Little endian bfloat16 literal directives
 # source: bfloat16-directive.s
 # objdump: -s --section=.data
-# as: -mlittle-endian
+# as: -mlittle-endian -mfpu=softvfp
 
 .*: +file format .*
 

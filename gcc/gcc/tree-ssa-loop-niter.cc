@@ -1,5 +1,5 @@
 /* Functions to determine/estimate number of iterations of a loop.
-   Copyright (C) 2004-2025 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -1218,7 +1218,7 @@ number_of_iterations_lt_to_ne (tree type, affine_iv *iv0, affine_iv *iv1,
     }
 
   /* IV0 < IV1 does not loop if IV0->base >= IV1->base.  */
-  if (mpz_cmp (mmod, bnds->below) < 0)
+  if (fv_comp_no_overflow && mpz_cmp (mmod, bnds->below) < 0)
     noloop = boolean_false_node;
   else
     noloop = fold_build2 (GE_EXPR, boolean_type_node,
@@ -1752,14 +1752,21 @@ dump_affine_iv (FILE *file, affine_iv *iv)
   if (!integer_zerop (iv->step))
     fprintf (file, "[");
 
-  print_generic_expr (dump_file, iv->base, TDF_SLIM);
+  print_generic_expr (file, iv->base, TDF_SLIM);
 
   if (!integer_zerop (iv->step))
     {
       fprintf (file, ", + , ");
-      print_generic_expr (dump_file, iv->step, TDF_SLIM);
+      print_generic_expr (file, iv->step, TDF_SLIM);
       fprintf (file, "]%s", iv->no_overflow ? "(no_overflow)" : "");
     }
+}
+
+DEBUG_FUNCTION void
+debug (affine_iv *iv)
+{
+  dump_affine_iv (stderr, iv);
+  fputc ('\n', stderr);
 }
 
 /* Determine the number of iterations according to condition (for staying
@@ -2321,6 +2328,48 @@ is_rshift_by_1 (gassign *stmt)
   return false;
 }
 
+/* Helper for number_of_iterations_cltz that uses ranger to determine
+   if SRC's range, shifted left (when LEFT_SHIFT is true) or right
+   by NUM_IGNORED_BITS, is guaranteed to be != 0 on LOOP's preheader
+   edge.
+   Return true if so or false otherwise.  */
+
+static bool
+shifted_range_nonzero_p (loop_p loop, tree src,
+			 bool left_shift, int num_ignored_bits)
+{
+  int_range_max r (TREE_TYPE (src));
+  gcc_assert (num_ignored_bits >= 0);
+
+  if (get_range_query (cfun)->range_on_edge
+      (r, loop_preheader_edge (loop), src)
+      && !r.varying_p ()
+      && !r.undefined_p ())
+    {
+      if (num_ignored_bits)
+	{
+	  range_op_handler op (left_shift ? LSHIFT_EXPR : RSHIFT_EXPR);
+	  int_range_max shifted_range (TREE_TYPE (src));
+	  wide_int shift_count = wi::shwi (num_ignored_bits,
+					   TYPE_PRECISION (TREE_TYPE
+							   (src)));
+	  int_range_max shift_amount
+	    (TREE_TYPE (src), shift_count, shift_count);
+
+	  if (op.fold_range (shifted_range, TREE_TYPE (src), r,
+			     shift_amount))
+	    r = shifted_range;
+	}
+
+      /* If the range does not contain zero we are good.  */
+      if (!range_includes_zero_p (r))
+	return true;
+    }
+
+  return false;
+}
+
+
 /* See comment below for number_of_iterations_bitcount.
    For c[lt]z, we have:
 
@@ -2438,6 +2487,9 @@ number_of_iterations_cltz (loop_p loop, edge exit,
   tree src = gimple_phi_arg_def (phi, loop_preheader_edge (loop)->dest_idx);
   int src_precision = TYPE_PRECISION (TREE_TYPE (src));
 
+  /* Save the original SSA name before preprocessing for ranger queries.  */
+  tree unshifted_src = src;
+
   /* Apply any needed preprocessing to src.  */
   int num_ignored_bits;
   if (left_shift)
@@ -2463,10 +2515,52 @@ number_of_iterations_cltz (loop_p loop, edge exit,
 
   expr = fold_convert (unsigned_type_node, expr);
 
-  tree assumptions = fold_build2 (NE_EXPR, boolean_type_node, src,
-				  build_zero_cst (TREE_TYPE (src)));
+  /* If the copy-header (ch) pass peeled one iteration we're shifting
+     SRC by preprocessing it above.
 
-  niter->assumptions = simplify_using_initial_conditions (loop, assumptions);
+     A loop like
+      if (bits)
+	{
+	  while (!(bits & 1))
+	    {
+	      bits >>= 1;
+	      cnt += 1;
+	    }
+	  return cnt;
+	}
+     ch (roughly) transforms into:
+      if (bits)
+	{
+	  if (!(bits & 1)
+	    {
+	      do
+		{
+		  bits >>= 1;
+		  cnt += 1;
+		} while (!(bits & 1));
+	    }
+	   else
+	     cnt = 1;
+	  return cnt;
+	}
+
+     Then, our preprocessed SRC (that is used for c[tl]z computation)
+     will be bits >> 1, and the assumption is bits >> 1 != 0.  */
+
+  tree assumptions;
+  if (shifted_range_nonzero_p (loop, unshifted_src,
+			       left_shift, num_ignored_bits))
+    assumptions = boolean_true_node;
+  else
+    {
+      /* If ranger couldn't prove the assumption, try
+	 simplify_using_initial_conditions.  */
+      assumptions = fold_build2 (NE_EXPR, boolean_type_node, src,
+				 build_zero_cst (TREE_TYPE (src)));
+      assumptions = simplify_using_initial_conditions (loop, assumptions);
+    }
+
+  niter->assumptions = assumptions;
   niter->may_be_zero = boolean_false_node;
   niter->niter = simplify_using_initial_conditions (loop, expr);
 
@@ -2990,6 +3084,15 @@ simplify_using_initial_conditions (class loop *loop, tree expr)
 
   if (TREE_CODE (expr) == INTEGER_CST)
     return expr;
+
+  value_range expr_range (TREE_TYPE (expr));
+  tree val;
+  if (TREE_TYPE (expr) == boolean_type_node
+      && get_range_query (cfun)->range_on_edge (expr_range,
+						loop_preheader_edge (loop),
+						expr)
+      && expr_range.singleton_p (&val))
+    return val;
 
   backup = expanded = expand_simple_operations (expr);
 
@@ -4701,7 +4804,7 @@ maybe_lower_iteration_bound (class loop *loop)
 
      TODO: Due to the way record_estimate choose estimates to store, the bounds
      will be always nb_iterations_upper_bound-1.  We can change this to record
-     also statements not dominating the loop latch and update the walk bellow
+     also statements not dominating the loop latch and update the walk below
      to the shortest path algorithm.  */
   for (elt = loop->bounds; elt; elt = elt->next)
     {

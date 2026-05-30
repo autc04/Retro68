@@ -1,5 +1,10 @@
 // { dg-additional-options "-w" }
 // { dg-output "foo_deref\r*\nimm_deref\r*\n" }
+#![feature(no_core)]
+#![no_core]
+
+#![feature(lang_items)]
+
 extern "C" {
     fn printf(s: *const i8, ...);
 }

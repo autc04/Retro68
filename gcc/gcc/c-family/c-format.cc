@@ -1,5 +1,5 @@
 /* Check calls to formatted I/O functions (-Wformat).
-   Copyright (C) 1992-2025 Free Software Foundation, Inc.
+   Copyright (C) 1992-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -32,7 +32,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic.h"
 #include "substring-locations.h"
 #include "selftest.h"
-#include "selftest-diagnostic.h"
+#include "diagnostics/selftest-context.h"
+#include "diagnostics/file-cache.h"
 #include "builtins.h"
 #include "attribs.h"
 #include "c-family/c-type-mismatch.h"
@@ -70,6 +71,7 @@ static GTY(()) tree local_event_ptr_node;
 static GTY(()) tree local_pp_element_ptr_node;
 static GTY(()) tree local_gimple_ptr_node;
 static GTY(()) tree local_cgraph_node_ptr_node;
+static GTY(()) tree local_string_slice_node;
 static GTY(()) tree locus;
 
 static bool decode_format_attr (const_tree, tree, tree, function_format_info *,
@@ -770,6 +772,7 @@ static const format_char_info asm_fprintf_char_table[] =
   { "p",   1, STD_C89, { T89_V,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "q",  "c",  NULL }, \
   { "r",   1, STD_C89, { T89_C,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "",    "//cR",   NULL }, \
   { "@",   1, STD_C89, { T_EVENT_PTR,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "", "\"",   NULL }, \
+  { "B",   1, STD_C89, { T_STRING_SLICE,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "q", "",   NULL }, \
   { "e",   1, STD_C89, { T_PP_ELEMENT_PTR,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "", "\"", NULL }, \
   { "<",   0, STD_C89, NOARGUMENTS, "",      "<",   NULL }, \
   { ">",   0, STD_C89, NOARGUMENTS, "",      ">",   NULL }, \
@@ -2124,7 +2127,7 @@ flag_chars_t::validate (const format_kind_info *fki,
 	{
 	  format_warning_at_char (format_string_loc, format_string_cst,
 				  format_chars - orig_format_chars - 1,
-				  OPT_Wformat_,
+				  OPT_Wformat_diag,
 				  "%s used within a quoted sequence",
 				  _(s->name));
 	}
@@ -2137,7 +2140,7 @@ flag_chars_t::validate (const format_kind_info *fki,
     {
       format_warning_at_char (format_string_loc, format_string_cst,
 			      format_chars - orig_format_chars,
-			      OPT_Wformat_,
+			      OPT_Wformat_diag,
 			      "%qc conversion used unquoted",
 			      format_char);
     }
@@ -4632,7 +4635,7 @@ get_corrected_substring (const substring_loc &fmt_loc,
   if (caret.column > finish.column)
     return NULL;
 
-  char_span line
+  diagnostics::char_span line
     = global_dc->get_file_cache ().get_source_line (start.file, start.line);
   if (!line)
     return NULL;
@@ -4644,7 +4647,8 @@ get_corrected_substring (const substring_loc &fmt_loc,
      specification, up to the (but not including) the length modifier.
      In the above example, this would be "%-+*.*".  */
   int length_up_to_type = caret.column - start.column;
-  char_span prefix_span = line.subspan (start.column - 1, length_up_to_type);
+  diagnostics::char_span prefix_span
+    = line.subspan (start.column - 1, length_up_to_type);
   char *prefix = prefix_span.xstrdup ();
 
   /* Now attempt to generate a suggestion for the rest of the specification
@@ -5211,6 +5215,11 @@ init_dynamic_diag_info (void)
       || local_cgraph_node_ptr_node == void_type_node)
     local_cgraph_node_ptr_node = get_named_type ("cgraph_node");
 
+  /* Similar to the above but for string_slice*.  */
+  if (!local_string_slice_node
+      || local_string_slice_node == void_type_node)
+    local_string_slice_node = get_named_type ("string_slice");
+
   /* Similar to the above but for diagnostic_event_id_t*.  */
   if (!local_event_ptr_node
       || local_event_ptr_node == void_type_node)
@@ -5577,10 +5586,12 @@ test_type_mismatch_range_labels ()
   gcc_rich_location richloc (fmt, &fmt_label, nullptr);
   richloc.add_range (param, SHOW_RANGE_WITHOUT_CARET, &param_label);
 
-  test_diagnostic_context dc;
+  diagnostics::selftest::test_context dc;
   diagnostic_show_locus (&dc,
-			 dc.m_source_printing,
-			 &richloc, DK_ERROR, dc.get_reference_printer ());
+			 dc.get_source_printing_options (),
+			 &richloc,
+			 diagnostics::kind::error,
+			 dc.get_reference_printer ());
   if (c_dialect_cxx ())
     /* "char*", without a space.  */
     ASSERT_STREQ ("   printf (\"msg: %i\\n\", msg);\n"

@@ -1,5 +1,5 @@
 /* Declarations for objc-act.cc.
-   Copyright (C) 1990-2025 Free Software Foundation, Inc.
+   Copyright (C) 1990-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -228,7 +228,7 @@ enum objc_property_nullability {
 
 /* The following three macros must be overridden (in objcp/objcp-decl.h)
    for Objective-C++.  */
-#define TYPE_OBJC_INFO(TYPE) TYPE_LANG_SPECIFIC (TYPE)->objc_info
+#define TYPE_OBJC_INFO(TYPE) TYPE_LANG_SPECIFIC (TYPE)->info.objc_info
 #define SIZEOF_OBJC_TYPE_LANG_SPECIFIC sizeof (struct lang_type)
 #define ALLOC_OBJC_TYPE_LANG_SPECIFIC(NODE)				\
   do {									\

@@ -1,4 +1,4 @@
-@c Copyright (C) 1988-2025 Free Software Foundation, Inc.
+@c Copyright (C) 1988-2026 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -37,6 +37,8 @@ through the macros defined in the @file{.h} file.
 * Trampolines::         Code set up at run time to enter a nested function.
 * Library Calls::       Controlling how library routines are implicitly called.
 * Addressing Modes::    Defining addressing modes valid for memory operands.
+* Vectorization::       Controlling how the vectorizer operates.
+* OpenMP and OpenACC::  Defining how OpenMP and OpenACC features should work.
 * Anchored Addresses::  Defining how @option{-fsection-anchors} should work.
 * Condition Code::      Defining how insns update the condition code.
 * Costs::               Defining relative costs of different operations.
@@ -54,6 +56,7 @@ through the macros defined in the @file{.h} file.
 * C++ ABI::             Controlling C++ ABI changes.
 * D Language and ABI::  Controlling D ABI changes.
 * Rust Language and ABI:: Controlling Rust ABI changes.
+* JIT Language and ABI:: JIT ABI parameters
 * Named Address Spaces:: Adding support for named address spaces
 * Misc::                Everything else.
 @end menu
@@ -124,6 +127,14 @@ If targets initialize @code{targetrustm} themselves, they should set
 @code{target_has_targetrustm=yes} in @file{config.gcc}; otherwise a
 default definition is used.
 
+Similarly, there is a @code{targetjitm} variable for hooks that are
+specific to the jit front end, documented as ``JIT Target Hook''.
+This is declared in @file{jit/jit-target.h}, the initializer
+@code{TARGETJITM_INITIALIZER} in @file{jit/jit-target-def.h}.  If targets
+initialize @code{targetjitm} themselves, they should set
+@code{target_has_targetjitm=yes} in @file{config.gcc}; otherwise a default
+definition is used.
+
 @node Driver
 @section Controlling the Compilation Driver, @file{gcc}
 @cindex driver
@@ -173,6 +184,14 @@ Do not define this macro if it does not need to do anything.
 A C string constant that tells the GCC driver program options to
 pass to CPP@.  It can also specify how to translate options you
 give to GCC into options for GCC to pass to the CPP@.
+
+Do not define this macro if it does not need to do anything.
+@end defmac
+
+@defmac LIBC_CPP_SPEC
+A C string constant which is appended to the value of
+@code{CPP_SPEC}. @code{LIBC_CPP_SPEC} is intended to depend upon the
+C library in use.
 
 Do not define this macro if it does not need to do anything.
 @end defmac
@@ -239,6 +258,14 @@ see @file{mips.h} for instance.
 A C string constant that tells the GCC driver program options to
 pass to the linker.  It can also specify how to translate options you
 give to GCC into options for GCC to pass to the linker.
+
+Do not define this macro if it does not need to do anything.
+@end defmac
+
+@defmac LIBC_LINK_SPEC
+A C string constant which is appended to the value of
+@code{LINK_SPEC}. @code{LIBC_LINK_SPEC} is intended to depend upon the
+C library in use.
 
 Do not define this macro if it does not need to do anything.
 @end defmac
@@ -1424,10 +1451,10 @@ the smaller of @var{computed} and @code{BIGGEST_ALIGNMENT}
 
 @defmac MAX_FIXED_MODE_SIZE
 An integer expression for the size in bits of the largest integer
-machine mode that should actually be used.  All integer machine modes of
-this size or smaller can be used for structures and unions with the
-appropriate sizes.  If this macro is undefined, @code{GET_MODE_BITSIZE
-(DImode)} is assumed.
+machine mode that should actually be used by GCC internally.
+All integer machine modes of this size or smaller can be used for
+structures and unions with the appropriate sizes.  If this macro is
+undefined, @code{MAX (BITS_PER_WORD * 2, 64)} is assumed.
 @end defmac
 
 @defmac STACK_SAVEAREA_MODE (@var{save_level})
@@ -1814,6 +1841,7 @@ int}.
 @defmacx UINT_FAST64_TYPE
 @defmacx INTPTR_TYPE
 @defmacx UINTPTR_TYPE
+@defmacx PID_TYPE
 C expressions for the standard types @code{sig_atomic_t},
 @code{int8_t}, @code{int16_t}, @code{int32_t}, @code{int64_t},
 @code{uint8_t}, @code{uint16_t}, @code{uint32_t}, @code{uint64_t},
@@ -1822,8 +1850,8 @@ C expressions for the standard types @code{sig_atomic_t},
 @code{uint_least32_t}, @code{uint_least64_t}, @code{int_fast8_t},
 @code{int_fast16_t}, @code{int_fast32_t}, @code{int_fast64_t},
 @code{uint_fast8_t}, @code{uint_fast16_t}, @code{uint_fast32_t},
-@code{uint_fast64_t}, @code{intptr_t}, and @code{uintptr_t}.  See
-@code{SIZE_TYPE} above for more information.
+@code{uint_fast64_t}, @code{intptr_t}, and @code{uintptr_t} and the
+built-in type @code{pid_t}.  See @code{SIZE_TYPE} above for more information.
 
 If any of these macros evaluates to a null pointer, the corresponding
 type is not supported; if GCC is configured to provide
@@ -4050,7 +4078,8 @@ control passing certain arguments in registers.
 @deftypefn {Target Hook} bool TARGET_PROMOTE_PROTOTYPES (const_tree @var{fntype})
 This target hook returns @code{true} if an argument declared in a
 prototype as an integral type smaller than @code{int} should actually be
-passed as an @code{int}.  In addition to avoiding errors in certain
+passed as an @code{int}.  This also applies to the type of the first member
++in a transparent union argument.  In addition to avoiding errors in certain
 cases of mismatch, it also makes for better code on certain machines.
 The default is to not promote prototypes.
 @end deftypefn
@@ -4773,10 +4802,6 @@ the @code{parallel} contains the whole return value, callers will use
 that element as the canonical location and ignore the others.  The m68k
 port uses this type of @code{parallel} to return pointers in both
 @samp{%a0} (the canonical location) and @samp{%d0}.
-
-If @code{TARGET_PROMOTE_FUNCTION_RETURN} returns true, you must apply
-the same promotion rules specified in @code{PROMOTE_MODE} if
-@var{valtype} is a scalar type.
 
 If the precise function being called is known, @var{func} is a tree
 node (@code{FUNCTION_DECL}) for it; otherwise, @var{func} is a null
@@ -6286,6 +6311,10 @@ reciprocal of the machine-specific builtin function @var{fndecl}, or
 @code{NULL_TREE} if such a function is not available.
 @end deftypefn
 
+@node Vectorization
+@section Vectorization
+@cindex Vectorization
+
 @deftypefn {Target Hook} tree TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD (void)
 This hook should return the DECL of a function @var{f} that given an
 address @var{addr} as an argument returns a mask @var{m} that can be
@@ -6386,12 +6415,14 @@ return type of the vectorized function shall be of vector type
 @var{vec_type_out} and the argument types should be @var{vec_type_in}.
 @end deftypefn
 
-@deftypefn {Target Hook} bool TARGET_VECTORIZE_SUPPORT_VECTOR_MISALIGNMENT (machine_mode @var{mode}, const_tree @var{type}, int @var{misalignment}, bool @var{is_packed})
+@deftypefn {Target Hook} bool TARGET_VECTORIZE_SUPPORT_VECTOR_MISALIGNMENT (machine_mode @var{mode}, int @var{misalignment}, bool @var{is_packed}, bool @var{is_gather_scatter})
 This hook should return true if the target supports misaligned vector
 store/load of a specific factor denoted in the @var{misalignment}
-parameter.  The vector store/load should be of machine mode @var{mode} and
-the elements in the vectors should be of type @var{type}.  @var{is_packed}
-parameter is true if the memory access is defined in a packed struct.
+parameter.  The vector store/load should be of machine mode @var{mode}.
+The @var{is_packed} parameter is true if the original memory access is
+not naturally aligned.  @var{is_gather_scatter} is true if the
+load/store is a gather or scatter.  In that case misalignment
+denotes the misalignment of @var{mode}'s element mode.
 @end deftypefn
 
 @deftypefn {Target Hook} machine_mode TARGET_VECTORIZE_PREFERRED_SIMD_MODE (scalar_mode @var{mode})
@@ -6515,6 +6546,19 @@ The default is @code{NULL_TREE} which means to not vectorize scatter
 stores.
 @end deftypefn
 
+@deftypefn {Target Hook} bool TARGET_VECTORIZE_PREFER_GATHER_SCATTER (machine_mode @var{mode}, int @var{scale}, unsigned int @var{group_size})
+This hook returns TRUE if gather loads or scatter stores are cheaper on
+this target than a sequence of elementwise loads or stores.  The @var{mode}
+and @var{scale} correspond to the @code{gather_load} and
+@code{scatter_store} instruction patterns.  The @var{group_size} is the
+number of scalar elements in each scalar loop iteration that are to be
+combined into the vector.
+@end deftypefn
+
+@node OpenMP and OpenACC
+@section OpenMP and OpenACC
+@cindex OpenMP and OpenACC
+
 @deftypefn {Target Hook} int TARGET_SIMD_CLONE_COMPUTE_VECSIZE_AND_SIMDLEN (struct cgraph_node *@var{}, struct cgraph_simd_clone *@var{}, @var{tree}, @var{int}, @var{bool})
 This hook should set @var{vecsize_mangle}, @var{vecsize_int}, @var{vecsize_float}
 fields in @var{simd_clone} structure pointed by @var{clone_info} argument and also
@@ -6600,6 +6644,20 @@ and @samp{@var{ops}[1]} are conditionally added together.
 This hook is only relevant if the target supports conditional patterns
 like @code{cond_add@var{m}}.  The default implementation returns a zero
 constant of type @var{type}.
+@end deftypefn
+
+@deftypefn {Target Hook} bool TARGET_INSTRUCTION_SELECTION (function *@var{fun}, gimple_stmt_iterator *@var{gsi})
+This hook allows a target to perform custom instruction selection for an
+instruction or sequence of instructions before expand to allow expansion to
+generate more efficient code.
+
+@var{fun} is the current function being considered and @var{gsi} is the
+iterator pointing to the current instruction being optimized.  The default
+implementation does not do any rewriting and returns false.  The result of
+the function should be whether any changes were made to the CFG or not.  If a
+change was made then the @var{gsi} should be left at the same position as at
+the function start.  The caller is allowed to change the CFG at any point
+before the current statement @var{gsi} is pointing to but not afterwards.
 @end deftypefn
 
 @deftypefn {Target Hook} tree TARGET_GOACC_ADJUST_PRIVATE_DECL (location_t @var{loc}, tree @var{var}, int @var{level})
@@ -9562,9 +9620,10 @@ It is false if we must use @command{collect2}.
 
 @deftypevr {Target Hook} bool TARGET_DTORS_FROM_CXA_ATEXIT
 This value is true if the target wants destructors to be queued to be
-run from __cxa_atexit.  If this is the case then, for each priority level,
-a new constructor will be entered that registers the destructors for that
-level with __cxa_atexit (and there will be no destructors emitted).
+run from @code{__cxa_atexit}.  If this is the case then, for each
+priority level, a new constructor will be entered that registers the
+destructors for that level with @code{__cxa_atexit} (and there will be
+no destructors emitted).
 It is false the method implied by @code{have_ctors_dtors} is used.
 @end deftypevr
 
@@ -10907,6 +10966,16 @@ the function declaration to hold a pointer to a target-specific
 @code{struct cl_target_option} structure.
 @end deftypefn
 
+@defmac TARGET_HAS_FMV_TARGET_ATTRIBUTE
+Define this macro to zero to use @code{target_version} attributes for function
+multiversioning (FMV) rather than @code{target} attributes.
+
+Targets using @code{target_version} attributes will also have
+"target_version" FMV semantics, which allow for FMV sets defined across TU's
+and using a combination of @code{target_version} and @code{target_clones}
+attributed declarations in the definition of a FMV function set.
+@end defmac
+
 @defmac TARGET_CLONES_ATTR_SEPARATOR
 Define this char-typed macro to select a character that separates each
 target specific attributes from the @code{attribute(target_clones("..."))}
@@ -10960,12 +11029,34 @@ changed via the optimize attribute or pragma, see
 @code{TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE}
 @end deftypefn
 
-@deftypefn {Target Hook} bool TARGET_OPTION_FUNCTION_VERSIONS (tree @var{decl1}, tree @var{decl2})
-This target hook returns @code{true} if @var{DECL1} and @var{DECL2} are
-versions of the same function.  @var{DECL1} and @var{DECL2} are function
-versions if and only if they have the same function signature and
-different target specific attributes, that is, they are compiled for
-different target machines.
+@deftypefn {Target Hook} bool TARGET_OPTION_SAME_FUNCTION_VERSIONS (string_slice @var{fn1}, const_tree @var{decl1}, string_slice @var{fn2}, const_tree @var{decl2})
+This target hook returns @code{true} if the target/target-version strings
+@var{fn1} and @var{fn2} imply the same function version.
+
+If @var{decl1} and @var{decl2} are non @code{NULL} then @var{fn1} and
+@var{fn2} are from an earlier and a later declaration respectively, and the
+hook diagnoses any version string incompatibility for these decls.
+If the version strings are incompatible and the declarations can not be
+merged, then hook emits an error.
+@end deftypefn
+
+@deftypefn {Target Hook} bool TARGET_OPTION_FUNCTIONS_B_RESOLVABLE_FROM_A (tree @var{decl_a}, tree @var{decl_v}, tree @var{base})
+@var{decl_b} is a function declaration with a function multi-versioning
+(FMV) attribute; this attribute is either @code{target} or
+@code{target_version}, depending on @code{TARGET_HAS_FMV_TARGET_ATTRIBUTE}.
+@var{decl_a} is a function declaration that may or may not have an FMV
+attribute.
+
+Return true if we have enough information to determine that the
+requirements of @var{decl_b}'s FMV attribute are met whenever @var{decl_a}
+is executed, given that the target supports all features required by
+function declaration @var{base}.
+
+The default implementation just checks whether @var{decl_a} has the same
+FMV attribute as @var{decl_b}.  This is conservatively correct,
+but ports can do better by taking the relationships between architecture
+features into account.  For example, on AArch64, @code{sve} is present
+whenever @code{sve2} is present.
 @end deftypefn
 
 @deftypefn {Target Hook} bool TARGET_CAN_INLINE_P (tree @var{caller}, tree @var{callee})
@@ -11352,6 +11443,17 @@ Similar to @code{TARGET_RUST_CPU_INFO}, but is used for configuration info
 relating to the target operating system.
 @end deftypefn
 
+@node JIT Language and ABI
+@section JIT ABI parameters
+@cindex parameters, jit abi
+
+@deftypefn {JIT Target Hook} void TARGET_JIT_REGISTER_CPU_TARGET_INFO (void)
+Register all target information keys relating to the target CPU using the
+function @code{jit_add_target_info}, which takes a key and a value.  The
+keys added by this hook are made available at compile time by calling
+get_target_info.
+@end deftypefn
+
 @node Named Address Spaces
 @section Adding support for named address spaces
 @cindex named address spaces
@@ -11466,6 +11568,31 @@ was not registered with @code{c_register_addr_space}.  @var{as} is
 the address space as registered with @code{c_register_addr_space}.
 @var{loc} is the location of the address space qualifier token.
 The default implementation does nothing.
+@end deftypefn
+
+@deftypefn {Target Hook} addr_space_t TARGET_ADDR_SPACE_FOR_ARTIFICIAL_RODATA (tree @var{type}, enum artificial_rodata @var{purpose})
+Define this hook to return a named address space to be used for
+@var{type}, usually the type of an artificial lookup-table that would
+reside in @code{.rodata} and in the generic address space.
+
+The hook can be used to put compiler-generated, artificial lookup tables in
+static storage into a non-generic address space when it is better suited
+than the generic address space.
+The compiler will generate all accesses to the respective data
+so that all associated accesses will also use the specified address space
+and pointer mode.
+
+@var{type} is the type of the lookup table. @var{purpose} specifies
+the purpose of the lookup table.  It is one of:
+@table @code
+@item ARTIFICIAL_RODATA_CSWITCH
+@file{tree-switch-conversion.cc} lowered a GIMPLE_SWITCH expressions
+to something more efficient than a jump table.
+@item ARTIFICIAL_RODATA_CRC
+@file{gimple-crc-optimization.cc} optimized a CRC computation by
+using a polynomial lookup table.
+@end table
+The default implementation of the hook returns @code{ADDR_SPACE_GENERIC}.
 @end deftypefn
 
 @node Misc
@@ -12272,6 +12399,15 @@ function version at run-time for a given set of function versions.
 body must be generated.
 @end deftypefn
 
+@deftypefn {Target Hook} bool TARGET_CHECK_TARGET_CLONE_VERSION (string_slice @var{str}, location_t *@var{loc})
+This hook is used to check if a version specified in a @code{target_clones}
+annotation is valid. @var{str} is the version to be considered.
+If @var{loc} is not @code{NULL} then emit warnings for invalid versions at
+that location.  Otherwise emit no diagnostics.
+Returns @code{true} if @var{str} is a valid version string, and @code{false}
+otherwise
+@end deftypefn
+
 @deftypefn {Target Hook} bool TARGET_PREDICT_DOLOOP_P (class loop *@var{loop})
 Return true if we can predict it is possible to use a low-overhead loop
 for a particular loop.  The parameter @var{loop} is a pointer to the loop.
@@ -12864,7 +13000,7 @@ At preset, this feature does not support address spaces.  It also requires
 @code{Pmode} to be the same as @code{ptr_mode}.
 @end deftypefn
 
-@deftypefn {Target Hook} uint8_t TARGET_MEMTAG_TAG_SIZE ()
+@deftypefn {Target Hook} uint8_t TARGET_MEMTAG_TAG_BITSIZE ()
 Return the size of a tag (in bits) for this platform.
 
 The default returns 8.
@@ -12888,6 +13024,8 @@ Return an RTX representing the value of @var{untagged} but with a
 (possibly) random tag in it.
 Put that value into @var{target} if it is convenient to do so.
 This function is used to generate a tagged base for the current stack frame.
+It is also used by memtag-stack sanitizer to emit specific memory tagging
+instructions.
 @end deftypefn
 
 @deftypefn {Target Hook} rtx TARGET_MEMTAG_ADD_TAG (rtx @var{base}, poly_int64 @var{addr_offset}, uint8_t @var{tag_offset})
@@ -12898,7 +13036,7 @@ The resulting RTX must either be a valid memory address or be able to get
 put into an operand with @code{force_operand}.
 
 Unlike other memtag hooks, this must return an expression and not emit any
-RTL.
+RTL.  In the case of memtag-stack sanitizer, this constraint is not enforced.
 @end deftypefn
 
 @deftypefn {Target Hook} rtx TARGET_MEMTAG_SET_TAG (rtx @var{untagged_base}, rtx @var{tag}, rtx @var{target})
@@ -12913,6 +13051,8 @@ The default of this hook is to set the top byte of @var{untagged_base} to
 Return an RTX representing the tag stored in @var{tagged_pointer}.
 Store the result in @var{target} if it is convenient.
 The default represents the top byte of the original pointer.
+In the case of memtag-stack sanitizer for targets that can process
+tagged pointers (i.e. AArch64), this hook can return a tagged pointer.
 @end deftypefn
 
 @deftypefn {Target Hook} rtx TARGET_MEMTAG_UNTAGGED_POINTER (rtx @var{tagged_pointer}, rtx @var{target})

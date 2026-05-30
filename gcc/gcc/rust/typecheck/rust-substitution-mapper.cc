@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -268,6 +268,30 @@ SubstMapperInternal::visit (TyTy::ParamType &type)
 }
 
 void
+SubstMapperInternal::visit (TyTy::ConstParamType &type)
+{
+  resolved = type.handle_substitions (mappings);
+}
+
+void
+SubstMapperInternal::visit (TyTy::ConstValueType &type)
+{
+  resolved = type.clone ();
+}
+
+void
+SubstMapperInternal::visit (TyTy::ConstInferType &type)
+{
+  resolved = type.clone ();
+}
+
+void
+SubstMapperInternal::visit (TyTy::ConstErrorType &type)
+{
+  resolved = type.clone ();
+}
+
+void
 SubstMapperInternal::visit (TyTy::PlaceholderType &type)
 {
   rust_assert (type.can_resolve ());
@@ -304,15 +328,15 @@ SubstMapperInternal::visit (TyTy::SliceType &type)
 {
   resolved = type.handle_substitions (mappings);
 }
+void
+SubstMapperInternal::visit (TyTy::FnPtr &type)
+{
+  resolved = type.handle_substitions (mappings);
+}
 
 // nothing to do for these
 void
 SubstMapperInternal::visit (TyTy::InferType &type)
-{
-  resolved = type.clone ();
-}
-void
-SubstMapperInternal::visit (TyTy::FnPtr &type)
 {
   resolved = type.clone ();
 }
@@ -374,7 +398,7 @@ SubstMapperInternal::visit (TyTy::DynamicObjectType &type)
 void
 SubstMapperInternal::visit (TyTy::OpaqueType &type)
 {
-  resolved = type.handle_substitions (mappings);
+  resolved = type.clone ();
 }
 
 // SubstMapperFromExisting

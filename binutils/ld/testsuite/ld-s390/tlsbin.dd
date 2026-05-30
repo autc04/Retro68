@@ -76,19 +76,19 @@ Disassembly of section .text:
   +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # GD -> LE with global variable defined in executable
   +[0-9a-f]+:	58 20 d0 10       	l	%r2,16\(%r13\)
-  +[0-9a-f]+:	47 00 00 00       	nop	0
+  +[0-9a-f]+:	47 00 00 00       	nop
   +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # GD -> LE with local variable defined in executable
   +[0-9a-f]+:	58 20 d0 14       	l	%r2,20\(%r13\)
-  +[0-9a-f]+:	47 00 00 00       	nop	0
+  +[0-9a-f]+:	47 00 00 00       	nop
   +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # GD -> LE with hidden variable defined in executable
   +[0-9a-f]+:	58 20 d0 18       	l	%r2,24\(%r13\)
-  +[0-9a-f]+:	47 00 00 00       	nop	0
+  +[0-9a-f]+:	47 00 00 00       	nop
   +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # LD -> LE
   +[0-9a-f]+:	58 20 d0 1c       	l	%r2,28\(%r13\)
-  +[0-9a-f]+:	47 00 00 00       	nop	0
+  +[0-9a-f]+:	47 00 00 00       	nop
   +[0-9a-f]+:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
   +[0-9a-f]+:	58 40 d0 20       	l	%r4,32\(%r13\)
   +[0-9a-f]+:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
@@ -96,7 +96,7 @@ Disassembly of section .text:
   +[0-9a-f]+:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
 # LD -> LE against hidden variables
   +[0-9a-f]+:	58 20 d0 28       	l	%r2,40\(%r13\)
-  +[0-9a-f]+:	47 00 00 00       	nop	0
+  +[0-9a-f]+:	47 00 00 00       	nop
   +[0-9a-f]+:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
   +[0-9a-f]+:	58 40 d0 2c       	l	%r4,44\(%r13\)
   +[0-9a-f]+:	41 54 30 00       	la	%r5,0\(%r4,%r3\)

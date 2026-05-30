@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -19,7 +19,9 @@
 #ifndef RUST_AST_TYPE_H
 #define RUST_AST_TYPE_H
 
+#include "optional.h"
 #include "rust-ast.h"
+#include "rust-expr.h"
 #include "rust-path.h"
 
 namespace Rust {
@@ -73,6 +75,13 @@ public:
       type_path (std::move (type_path)), locus (locus)
   {}
 
+  TraitBound (TraitBound const &other)
+    : TypeParamBound (other.get_node_id ()), in_parens (other.in_parens),
+      opening_question_mark (other.opening_question_mark),
+      for_lifetimes (other.for_lifetimes), type_path (other.type_path),
+      locus (other.locus)
+  {}
+
   std::string as_string () const override;
 
   location_t get_locus () const override final { return locus; }
@@ -99,6 +108,11 @@ protected:
     return new TraitBound (node_id, type_path, locus, in_parens,
 			   opening_question_mark, for_lifetimes);
   }
+  TraitBound *reconstruct_impl () const override
+  {
+    return new TraitBound (type_path, locus, in_parens, opening_question_mark,
+			   for_lifetimes);
+  }
 };
 
 // definition moved to rust-ast.h
@@ -120,6 +134,10 @@ protected:
   {
     return new ImplTraitType (*this);
   }
+  ImplTraitType *reconstruct_impl () const override
+  {
+    return new ImplTraitType (reconstruct_vec (type_param_bounds), locus);
+  }
 
 public:
   ImplTraitType (
@@ -129,7 +147,8 @@ public:
   {}
 
   // copy constructor with vector clone
-  ImplTraitType (ImplTraitType const &other) : locus (other.locus)
+  ImplTraitType (ImplTraitType const &other)
+    : Type (other.node_id), locus (other.locus)
   {
     type_param_bounds.reserve (other.type_param_bounds.size ());
     for (const auto &e : other.type_param_bounds)
@@ -158,7 +177,6 @@ public:
 
   void accept_vis (ASTVisitor &vis) override;
 
-  // TODO: mutable getter seems kinda dodgy
   std::vector<std::unique_ptr<TypeParamBound> > &get_type_param_bounds ()
   {
     return type_param_bounds;
@@ -168,6 +186,8 @@ public:
   {
     return type_param_bounds;
   }
+
+  Type::Kind get_type_kind () const override { return Type::Kind::ImplTrait; }
 };
 
 // An opaque value of another type that implements a set of traits
@@ -184,6 +204,11 @@ protected:
   {
     return new TraitObjectType (*this);
   }
+  TraitObjectType *reconstruct_impl () const override
+  {
+    return new TraitObjectType (reconstruct_vec (type_param_bounds), locus,
+				has_dyn);
+  }
 
 public:
   TraitObjectType (
@@ -195,7 +220,7 @@ public:
 
   // copy constructor with vector clone
   TraitObjectType (TraitObjectType const &other)
-    : has_dyn (other.has_dyn), locus (other.locus)
+    : Type (other.node_id), has_dyn (other.has_dyn), locus (other.locus)
   {
     type_param_bounds.reserve (other.type_param_bounds.size ());
     for (const auto &e : other.type_param_bounds)
@@ -226,7 +251,6 @@ public:
 
   bool is_dyn () const { return has_dyn; }
 
-  // TODO: mutable getter seems kinda dodgy
   std::vector<std::unique_ptr<TypeParamBound> > &get_type_param_bounds ()
   {
     return type_param_bounds;
@@ -236,6 +260,8 @@ public:
   {
     return type_param_bounds;
   }
+
+  Type::Kind get_type_kind () const override { return Type::Kind::TraitObject; }
 };
 
 // A type with parentheses around it, used to avoid ambiguity.
@@ -250,6 +276,10 @@ protected:
   ParenthesisedType *clone_type_no_bounds_impl () const override
   {
     return new ParenthesisedType (*this);
+  }
+  ParenthesisedType *reconstruct_impl () const override
+  {
+    return new ParenthesisedType (type_in_parens->reconstruct (), locus);
   }
 
 public:
@@ -300,25 +330,28 @@ public:
     rust_assert (type_in_parens != nullptr);
     return type_in_parens;
   }
+
+  Type::Kind get_type_kind () const override
+  {
+    return Type::Kind::Parenthesised;
+  }
 };
 
 // Impl trait with a single bound? Poor reference material here.
 class ImplTraitTypeOneBound : public TypeNoBounds
 {
-  TraitBound trait_bound;
+  std::unique_ptr<TypeParamBound> trait_bound;
   location_t locus;
 
-protected:
-  /* Use covariance to implement clone function as returning this object rather
-   * than base */
-  ImplTraitTypeOneBound *clone_type_no_bounds_impl () const override
-  {
-    return new ImplTraitTypeOneBound (*this);
-  }
-
 public:
-  ImplTraitTypeOneBound (TraitBound trait_bound, location_t locus)
+  ImplTraitTypeOneBound (std::unique_ptr<TypeParamBound> trait_bound,
+			 location_t locus)
     : trait_bound (std::move (trait_bound)), locus (locus)
+  {}
+
+  ImplTraitTypeOneBound (ImplTraitTypeOneBound const &other)
+    : trait_bound (other.trait_bound->clone_type_param_bound ()),
+      locus (other.locus)
   {}
 
   std::string as_string () const override;
@@ -327,11 +360,20 @@ public:
 
   void accept_vis (ASTVisitor &vis) override;
 
-  // TODO: would a "vis_type" be better?
-  TraitBound &get_trait_bound ()
+  std::unique_ptr<TypeParamBound> &get_trait_bound () { return trait_bound; }
+
+  TypeNoBounds *clone_type_no_bounds_impl () const override
   {
-    // TODO: check to ensure invariants are met?
-    return trait_bound;
+    return new ImplTraitTypeOneBound (*this);
+  }
+  TypeNoBounds *reconstruct_impl () const override
+  {
+    return new ImplTraitTypeOneBound (trait_bound->reconstruct (), locus);
+  }
+
+  Type::Kind get_type_kind () const override
+  {
+    return Type::Kind::ImplTraitTypeOneBound;
   }
 };
 
@@ -349,6 +391,10 @@ protected:
   TraitObjectTypeOneBound *clone_type_no_bounds_impl () const override
   {
     return new TraitObjectTypeOneBound (*this);
+  }
+  TraitObjectTypeOneBound *reconstruct_impl () const override
+  {
+    return new TraitObjectTypeOneBound (trait_bound, locus, has_dyn);
   }
 
 public:
@@ -380,6 +426,11 @@ public:
   }
 
   bool is_dyn () const { return has_dyn; }
+
+  Type::Kind get_type_kind () const override
+  {
+    return Type::Kind::TraitObjectTypeOneBound;
+  }
 };
 
 class TypePath; // definition moved to "rust-path.h"
@@ -429,7 +480,6 @@ public:
 
   void accept_vis (ASTVisitor &vis) override;
 
-  // TODO: mutable getter seems kinda dodgy
   std::vector<std::unique_ptr<Type> > &get_elems () { return elems; }
   const std::vector<std::unique_ptr<Type> > &get_elems () const
   {
@@ -443,6 +493,12 @@ protected:
   {
     return new TupleType (*this);
   }
+  TupleType *reconstruct_impl () const override
+  {
+    return new TupleType (reconstruct_vec (elems), locus);
+  }
+
+  Type::Kind get_type_kind () const override { return Type::Kind::Tuple; }
 };
 
 /* A type with no values, representing the result of computations that never
@@ -459,6 +515,10 @@ protected:
   {
     return new NeverType (*this);
   }
+  NeverType *reconstruct_impl () const override
+  {
+    return new NeverType (locus);
+  }
 
 public:
   NeverType (location_t locus) : locus (locus) {}
@@ -468,6 +528,8 @@ public:
   location_t get_locus () const override final { return locus; }
 
   void accept_vis (ASTVisitor &vis) override;
+
+  Type::Kind get_type_kind () const override { return Type::Kind::Never; }
 };
 
 // A type consisting of a pointer without safety or liveness guarantees
@@ -529,6 +591,15 @@ public:
     return *type;
   }
 
+  std::unique_ptr<TypeNoBounds> &get_type_pointed_to_ptr ()
+  {
+    rust_assert (type != nullptr);
+    return type;
+  }
+
+  // Getter for direct access to the type unique_ptr
+  std::unique_ptr<TypeNoBounds> &get_type_ptr () { return type; }
+
 protected:
   /* Use covariance to implement clone function as returning this object rather
    * than base */
@@ -536,6 +607,12 @@ protected:
   {
     return new RawPointerType (*this);
   }
+  RawPointerType *reconstruct_impl () const override
+  {
+    return new RawPointerType (pointer_type, type->reconstruct (), locus);
+  }
+
+  Type::Kind get_type_kind () const override { return Type::Kind::RawPointer; }
 };
 
 // A type pointing to memory owned by another value
@@ -597,12 +674,21 @@ public:
     return *type;
   }
 
+  std::unique_ptr<TypeNoBounds> &get_type_referenced_ptr ()
+  {
+    rust_assert (type != nullptr);
+    return type;
+  }
+
   bool get_has_mut () const { return has_mut; }
 
   Lifetime &get_lifetime () { return lifetime.value (); }
   const Lifetime &get_lifetime () const { return lifetime.value (); }
 
   TypeNoBounds &get_base_type () { return *type; }
+
+  // Getter for direct access to the type unique_ptr
+  std::unique_ptr<TypeNoBounds> &get_type_ptr () { return type; }
 
 protected:
   /* Use covariance to implement clone function as returning this object rather
@@ -611,33 +697,44 @@ protected:
   {
     return new ReferenceType (*this);
   }
+  ReferenceType *reconstruct_impl () const override
+  {
+    return new ReferenceType (has_mut, type->reconstruct (), locus,
+			      // TODO: Improve this - it's ugly!
+			      has_lifetime () ? tl::make_optional<Lifetime> (
+				lifetime->get_lifetime_type (),
+				lifetime->get_lifetime_name (),
+				lifetime->get_locus ())
+					      : tl::nullopt);
+  }
+
+  Type::Kind get_type_kind () const override { return Type::Kind::Reference; }
 };
 
 // A fixed-size sequence of elements of a specified type
 class ArrayType : public TypeNoBounds
 {
   std::unique_ptr<Type> elem_type;
-  std::unique_ptr<Expr> size;
+  AnonConst size;
   location_t locus;
 
 public:
   // Constructor requires pointers for polymorphism
-  ArrayType (std::unique_ptr<Type> type, std::unique_ptr<Expr> array_size,
-	     location_t locus)
+  ArrayType (std::unique_ptr<Type> type, AnonConst array_size, location_t locus)
     : elem_type (std::move (type)), size (std::move (array_size)), locus (locus)
   {}
 
   // Copy constructor requires deep copies of both unique pointers
   ArrayType (ArrayType const &other)
-    : elem_type (other.elem_type->clone_type ()),
-      size (other.size->clone_expr ()), locus (other.locus)
+    : elem_type (other.elem_type->clone_type ()), size (other.size),
+      locus (other.locus)
   {}
 
   // Overload assignment operator to deep copy pointers
   ArrayType &operator= (ArrayType const &other)
   {
     elem_type = other.elem_type->clone_type ();
-    size = other.size->clone_expr ();
+    size = other.size;
     locus = other.locus;
     return *this;
   }
@@ -659,12 +756,21 @@ public:
     return *elem_type;
   }
 
-  // TODO: would a "vis_expr" be better?
-  Expr &get_size_expr ()
+  std::unique_ptr<Type> &get_elem_type_ptr ()
   {
-    rust_assert (size != nullptr);
-    return *size;
+    rust_assert (elem_type != nullptr);
+    return elem_type;
   }
+
+  // TODO: would a "vis_expr" be better?
+  AnonConst &get_size_expr ()
+  {
+    // rust_assert (size != nullptr);
+
+    return size;
+  }
+
+  std::unique_ptr<Type> &get_element_type () { return elem_type; }
 
 protected:
   /* Use covariance to implement clone function as returning this object rather
@@ -673,6 +779,14 @@ protected:
   {
     return new ArrayType (*this);
   }
+  ArrayType *reconstruct_impl () const override
+  {
+    return new ArrayType (elem_type->reconstruct (),
+			  size /* FIXME: This should be `reconstruct_expr()` */,
+			  locus);
+  }
+
+  Type::Kind get_type_kind () const override { return Type::Kind::Array; }
 };
 
 /* A dynamically-sized type representing a "view" into a sequence of elements of
@@ -719,13 +833,22 @@ public:
     return *elem_type;
   }
 
+  // Getter for direct access to the elem_type unique_ptr
+  std::unique_ptr<Type> &get_elem_type_ptr () { return elem_type; }
+
 protected:
-  /* Use covariance to implement clone function as returning this object rather
-   * than base */
+  /* Use covariance to implement clone function as returning this object
+   * rather than base */
   SliceType *clone_type_no_bounds_impl () const override
   {
     return new SliceType (*this);
   }
+  SliceType *reconstruct_impl () const override
+  {
+    return new SliceType (elem_type->reconstruct (), locus);
+  }
+
+  Type::Kind get_type_kind () const override { return Type::Kind::Slice; }
 };
 
 /* Type used in generic arguments to explicitly request type inference (wildcard
@@ -736,11 +859,19 @@ class InferredType : public TypeNoBounds
 
   // e.g. Vec<_> = whatever
 protected:
-  /* Use covariance to implement clone function as returning this object rather
-   * than base */
+  /* Use covariance to implement clone function as returning this object
+   * rather than base */
   InferredType *clone_type_no_bounds_impl () const override
   {
+    // This goes through the copy constructor
     return new InferredType (*this);
+  }
+
+  InferredType *reconstruct_impl () const override
+  {
+    // This goes through the base constructor which calls the base
+    // TypeNoBounds constructor, which allocates a new NodeId
+    return new InferredType (locus);
   }
 
 public:
@@ -751,6 +882,8 @@ public:
   location_t get_locus () const override final { return locus; }
 
   void accept_vis (ASTVisitor &vis) override;
+
+  Type::Kind get_type_kind () const override { return Type::Kind::Inferred; }
 };
 
 class QualifiedPathInType; // definition moved to "rust-path.h"
@@ -901,7 +1034,7 @@ public:
       return_type (std::move (type)), locus (locus)
   {
     if (!variadic_attrs.empty ())
-      is_variadic = true;
+      _is_variadic = true;
   }
 
   // Copy constructor with clone
@@ -959,14 +1092,37 @@ public:
     return *return_type;
   }
 
+  std::unique_ptr<TypeNoBounds> &get_return_type_ptr ()
+  {
+    rust_assert (has_return_type ());
+    return return_type;
+  }
+
   FunctionQualifiers &get_function_qualifiers () { return function_qualifiers; }
 
+  BareFunctionType *reconstruct_impl () const override
+  {
+    std::unique_ptr<TypeNoBounds> ret_type = nullptr;
+    if (return_type != nullptr)
+      ret_type = return_type->reconstruct ();
+
+    return new BareFunctionType (
+      for_lifetimes, function_qualifiers, params,
+      /* FIXME: Should params be reconstruct() as well? */
+      _is_variadic, variadic_attrs, std::move (ret_type), locus);
+  }
+
 protected:
-  /* Use covariance to implement clone function as returning this object rather
-   * than base */
+  /* Use covariance to implement clone function as returning this object
+   * rather than base */
   BareFunctionType *clone_type_no_bounds_impl () const override
   {
     return new BareFunctionType (*this);
+  }
+
+  Type::Kind get_type_kind () const override
+  {
+    return Type::Kind::BareFunction;
   }
 };
 
@@ -980,13 +1136,13 @@ class MacroInvocation;
  * function item type?
  * closure expression types?
  * primitive types (bool, int, float, char, str (the slice))
- * Although supposedly TypePaths are used to reference these types (including
- * primitives) */
+ * Although supposedly TypePaths are used to reference these types
+ * (including primitives) */
 
 /* FIXME: Incomplete spec references:
- *  anonymous type parameters, aka "impl Trait in argument position" - impl then
- * trait bounds abstract return types, aka "impl Trait in return position" -
- * impl then trait bounds */
+ *  anonymous type parameters, aka "impl Trait in argument position" - impl
+ * then trait bounds abstract return types, aka "impl Trait in return
+ * position" - impl then trait bounds */
 } // namespace AST
 } // namespace Rust
 

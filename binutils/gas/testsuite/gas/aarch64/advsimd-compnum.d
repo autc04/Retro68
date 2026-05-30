@@ -1,4 +1,5 @@
 #as: -march=armv8.2-a+compnum -I$srcdir/$subdir
+#as: -march=armv8.2-a+fcma -I$srcdir/$subdir
 #objdump: -dr
 
 .*:     file format .*

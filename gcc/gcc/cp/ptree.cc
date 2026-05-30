@@ -1,5 +1,5 @@
 /* Prints out trees in human readable form.
-   Copyright (C) 1992-2025 Free Software Foundation, Inc.
+   Copyright (C) 1992-2026 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GCC.
@@ -355,6 +355,7 @@ cxx_print_xnode (FILE *file, tree node, int indent)
       print_node (file, "template", TI_TEMPLATE (node), indent+4);
       print_node (file, "args", TI_ARGS (node), indent+4);
       if (TI_TEMPLATE (node)
+	  && TREE_CODE (TI_TEMPLATE (node)) == TEMPLATE_DECL
 	  && PRIMARY_TEMPLATE_P (TI_TEMPLATE (node)))
 	print_node (file, "partial", TI_PARTIAL_INFO (node), indent+4);
       if (TI_PENDING_TEMPLATE_FLAG (node))
@@ -408,6 +409,15 @@ cxx_print_xnode (FILE *file, tree node, int indent)
       break;
     case PTRMEM_CST:
       print_node (file, "member", PTRMEM_CST_MEMBER (node), indent+4);
+      break;
+    case TU_LOCAL_ENTITY:
+      print_node (file, "name", TU_LOCAL_ENTITY_NAME (node), indent+4);
+      if (location_t loc = TU_LOCAL_ENTITY_LOCATION (node))
+	{
+	  expanded_location xloc = expand_location (loc);
+	  indent_to (file, indent+4);
+	  fprintf (file, "%s:%d:%d", xloc.file, xloc.line, xloc.column);
+	}
       break;
     default:
       break;

@@ -1,3 +1,3 @@
 #...
-Disassembly of section .lower.data:
+.* \.lower\.data +0+14 .*
 #pass

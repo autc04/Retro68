@@ -1,6 +1,54 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-04-13  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
+
+	PR target/69639
+	* mh-cygwin: Increase to 64MB stack reserve.
+	* mh-mingw: Likewise.
+
+2026-02-04  Prachi Godbole  <pgodbole@nvidia.com>
+
+	* bootstrap-lto-locality.mk (STAGEprofile_CFLAGS): Remove
+	-fipa-reorder-for-locality.
+	(STAGEtrain_CFLAGS): Ditto.
+
+2026-01-20  Prachi Godbole  <pgodbole@nvidia.com>
+
+	* bootstrap-lto-locality-cpp-template.mk: New file.
+
+2025-12-30  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* acx.m4: Define ACX_PROG_A68 rather than ACX_PROG_GA68.
+	(ACX_PROG_A68): Set A68 rather than GA68.
+
+2025-12-09  John Ericson  <git@johnericson.me>
+
+	* gthr.m4: Create new GCC_AC_THREAD_MODEL macro
+
+2025-11-30  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* acx.m4 (ACX_PROG_GA68): New defun.
+
+2025-11-03  Sam James  <sam@gentoo.org>
+
+	* clang-plugin.m4: Sync with binutils.
+	* gcc-plugin.m4: Ditto.
+
+2025-10-02  H.J. Lu  <hjl.tools@gmail.com>
+
+	* clang-plugin.m4: Synced from binutils-gdb.
+	* gcc-plugin.m4: Likewise.
+
+2025-08-10  Ijaz, Abdul B  <abdul.b.ijaz@intel.com>
+
+	* lib-link.m4: Handle dash in the library name for
+	AC_LIB_LINKFLAGS_BODY.
+
+2025-05-23  Andi Kleen  <ak@gcc.gnu.org>
+
+	* bootstrap-native.mk: New file.
 
 2025-04-15  Kyrylo Tkachov  <ktkachov@nvidia.com>
 

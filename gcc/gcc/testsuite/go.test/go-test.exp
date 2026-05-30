@@ -1,4 +1,4 @@
-#   Copyright (C) 2009-2025 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2026 Free Software Foundation, Inc.
 #   Written by Ian Lance Taylor <iant@google.com>.
 
 # This program is free software; you can redistribute it and/or modify
@@ -82,9 +82,9 @@ proc errchk { test opts } {
 	set filename "errchk-$filename"
     }
     set fdin [open $test r]
-    fconfigure $fdin -encoding binary
+    fconfigure $fdin -translation binary
     set fdout [open $filename w]
-    fconfigure $fdout -encoding binary
+    fconfigure $fdout -translation binary
     while { [gets $fdin copy_line] >= 0 } {
 	if [string match "*////*" $copy_line] {
 	    puts $fdout $copy_line

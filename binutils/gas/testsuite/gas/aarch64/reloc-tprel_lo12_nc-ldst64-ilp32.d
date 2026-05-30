@@ -1,6 +1,8 @@
 #as: -mabi=ilp32
 #source: reloc-tprel_lo12_nc-ldst64.s
 #objdump: -dr
+# This test is only valid on ELF based ports.
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 .*:     file format .*
 

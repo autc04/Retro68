@@ -1,6 +1,6 @@
 // Components for manipulating sequences of characters -*- C++ -*-
 
-// Copyright (C) 1997-2025 Free Software Foundation, Inc.
+// Copyright (C) 1997-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -116,17 +116,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     S::_S_construct(const C*, const C*, const allocator<C>&,
 		    forward_iterator_tag);
 #endif
-
-_GLIBCXX_END_NAMESPACE_VERSION
-} // namespace
-
-namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
-{
-_GLIBCXX_BEGIN_NAMESPACE_VERSION
-
-  using std::S;
-  template bool operator==(const S::iterator&, const S::iterator&);
-  template bool operator==(const S::const_iterator&, const S::const_iterator&);
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace

@@ -1,5 +1,5 @@
 /* IR-agnostic target query functions relating to optabs
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -358,7 +358,9 @@ can_conditionally_move_p (machine_mode mode)
 opt_machine_mode
 qimode_for_vec_perm (machine_mode mode)
 {
-  if (GET_MODE_INNER (mode) != QImode)
+  if (GET_MODE_INNER (mode) != QImode
+      && multiple_p (GET_MODE_PRECISION (GET_MODE_INNER (mode)),
+		     GET_MODE_PRECISION (QImode)))
     return related_vector_mode (mode, QImode, GET_MODE_SIZE (mode));
   return opt_machine_mode ();
 }
@@ -719,13 +721,9 @@ supports_vec_gather_load_p (machine_mode mode, vec<int> *elsvals)
 	= (icode != CODE_FOR_nothing) ? 1 : -1;
     }
 
-  /* For gather the optab's operand indices do not match the IFN's because
-     the latter does not have the extension operand (operand 3).  It is
-     implicitly added during expansion so we use the IFN's else index + 1.
-     */
   if (elsvals && icode != CODE_FOR_nothing)
     get_supported_else_vals
-      (icode, internal_fn_else_index (IFN_MASK_GATHER_LOAD) + 1, *elsvals);
+      (icode, internal_fn_else_index (IFN_MASK_GATHER_LOAD), *elsvals);
 
   return this_fn_optabs->supports_vec_gather_load[mode] > 0;
 }

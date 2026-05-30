@@ -1,5 +1,8 @@
 .. role:: switch(samp)
 
+.. role:: ada(code)
+   :language: ada
+
 .. _Representation_Clauses_and_Pragmas:
 
 **********************************
@@ -40,8 +43,8 @@ The default alignment values are as follows:
 
   For elementary types, the alignment is the minimum of the actual size of
   objects of the type divided by ``Storage_Unit``,
-  and the maximum alignment supported by the target.
-  (This maximum alignment is given by the GNAT-specific attribute
+  and the maximum default alignment supported by the target.
+  (This maximum default alignment is given by the GNAT-specific attribute
   ``Standard'Maximum_Alignment``; see :ref:`Attribute_Maximum_Alignment`.)
 
   .. index:: Maximum_Alignment attribute
@@ -96,8 +99,7 @@ The default alignment values are as follows:
   strict alignment.
 
 An alignment clause may specify a larger alignment than the default value
-up to some maximum value dependent on the target (obtainable by using the
-attribute reference ``Standard'Maximum_Alignment``). It may also specify
+up to some maximum value dependent on the target. It may also specify
 a smaller alignment than the default value for enumeration, integer and
 fixed point types, as well as for record types, for example
 
@@ -561,24 +563,24 @@ description of the ``Object_Size`` attribute.
 To get a feel for the difference, consider the following examples (note
 that in each case the base is ``Short_Short_Integer`` with a size of 8):
 
-+---------------------------------------------+-------------+-------------+
-|Type or subtype declaration                  | Object_Size |   Value_Size|
-+=============================================+=============+=============+
-|``type x1 is range 0 .. 5;``                 |  8          |    3        |
-+---------------------------------------------+-------------+-------------+
-|``type x2 is range 0 .. 5;``                 | 16          |   12        |
-|``for x2'size use 12;``                      |             |             |
-+---------------------------------------------+-------------+-------------+
-|``subtype x3 is x2 range 0 .. 3;``           | 16          |    2        |
-+---------------------------------------------+-------------+-------------+
-|``subtype x4 is x2'base range 0 .. 10;``     |  8          |    4        |
-+---------------------------------------------+-------------+-------------+
-|``dynamic : x2'Base range -64 .. +63;``      |             |             |
-+---------------------------------------------+-------------+-------------+
-|``subtype x5 is x2 range 0 .. dynamic;``     | 16          |    3*       |
-+---------------------------------------------+-------------+-------------+
-|``subtype x6 is x2'base range 0 .. dynamic;``|  8          |    7*       |
-+---------------------------------------------+-------------+-------------+
++------------------------------------------------+-------------+-------------+
+|Type or subtype declaration                     | Object_Size |   Value_Size|
++================================================+=============+=============+
+|:ada:`type X1 is range 0 .. 5;`                 |  8          |    3        |
++------------------------------------------------+-------------+-------------+
+|:ada:`type X2 is range 0 .. 5;                  | 16          |   12        |
+|for X2'Size use 12;`                            |             |             |
++------------------------------------------------+-------------+-------------+
+|:ada:`subtype X3 is X2 range 0 .. 3;`           | 16          |    2        |
++------------------------------------------------+-------------+-------------+
+|:ada:`subtype X4 is X2'Base range 0 .. 10;`     |  8          |    4        |
++------------------------------------------------+-------------+-------------+
+|:ada:`Dynamic : X2'Base range -64 .. +63;`      |             |             |
++------------------------------------------------+-------------+-------------+
+|:ada:`subtype X5 is X2 range 0 .. Dynamic;`     | 16          |    3*       |
++------------------------------------------------+-------------+-------------+
+|:ada:`subtype X6 is X2'Base range 0 .. Dynamic;`|  8          |    7*       |
++------------------------------------------------+-------------+-------------+
 
 Note: the entries marked '*' are not actually specified by the Ada
 Reference Manual, which has nothing to say about size in the dynamic
@@ -1580,8 +1582,7 @@ machines with strict alignment requirements, GNAT
 checks (at compile time if possible, generating a warning, or at execution
 time with a run-time check) that the alignment is appropriate.  If the
 run-time check fails, then ``Program_Error`` is raised.  This run-time
-check is suppressed if range checks are suppressed, or if the special GNAT
-check Alignment_Check is suppressed, or if
+check is suppressed if the GNAT check Alignment_Check is suppressed, or if
 ``pragma Restrictions (No_Elaboration_Code)`` is in effect. It is also
 suppressed by default on non-strict alignment machines (such as the x86).
 
@@ -1872,7 +1873,7 @@ conventions, and for example records are laid out in a manner that is
 consistent with C.  This means that specifying convention C (for example)
 has no effect.
 
-There are four exceptions to this general rule:
+There are three exceptions to this general rule:
 
 * *Convention Fortran and array subtypes*.
 

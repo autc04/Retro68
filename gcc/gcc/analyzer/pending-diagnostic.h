@@ -1,5 +1,5 @@
 /* Classes for analyzer diagnostics.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -21,8 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_ANALYZER_PENDING_DIAGNOSTIC_H
 #define GCC_ANALYZER_PENDING_DIAGNOSTIC_H
 
-#include "diagnostic-metadata.h"
-#include "diagnostic-path.h"
+#include "diagnostics/metadata.h"
 #include "analyzer/sm.h"
 
 namespace ana {
@@ -44,7 +43,7 @@ struct interesting_t
 };
 
 /* Various bundles of information used for generating more precise
-   messages for events within a diagnostic_path, for passing to the
+   messages for events within a diagnostic path, for passing to the
    various "describe_*" vfuncs of pending_diagnostic.  See those
    for more information.  */
 
@@ -58,7 +57,7 @@ struct state_change
 		tree origin,
 		state_machine::state_t old_state,
 		state_machine::state_t new_state,
-		diagnostic_event_id_t event_id,
+		diagnostics::paths::event_id_t event_id,
 		const state_change_event &event)
   : m_expr (expr), m_origin (origin),
     m_old_state (old_state), m_new_state (new_state),
@@ -71,7 +70,7 @@ struct state_change
   tree m_origin;
   state_machine::state_t m_old_state;
   state_machine::state_t m_new_state;
-  diagnostic_event_id_t m_event_id;
+  diagnostics::paths::event_id_t m_event_id;
   const state_change_event &m_event;
 };
 
@@ -131,14 +130,14 @@ struct final_event
     pending_diagnostic::emit vfunc.
 
     The rich_location will have already been populated with a
-    diagnostic_path.  */
+    diagnostics::paths::path.  */
 
 class diagnostic_emission_context
 {
 public:
   diagnostic_emission_context (const saved_diagnostic &sd,
 			       rich_location &rich_loc,
-			       diagnostic_metadata &metadata,
+			       diagnostics::metadata &metadata,
 			       logger *logger)
   : m_sd (sd),
     m_rich_loc (rich_loc),
@@ -156,7 +155,7 @@ public:
   logger *get_logger () const { return m_logger; }
 
   void add_cwe (int cwe) { m_metadata.add_cwe (cwe); }
-  void add_rule (const diagnostic_metadata::rule &r)
+  void add_rule (const diagnostics::metadata::rule &r)
   {
     m_metadata.add_rule (r);
   }
@@ -164,7 +163,7 @@ public:
 private:
   const saved_diagnostic &m_sd;
   rich_location &m_rich_loc;
-  diagnostic_metadata &m_metadata;
+  diagnostics::metadata &m_metadata;
   logger *m_logger;
 };
 
@@ -182,7 +181,7 @@ private:
 
    As well as emitting a diagnostic, the class has various "precision of
    wording" virtual functions, for generating descriptions for events
-   within a diagnostic_path.  These are optional, but implementing these
+   within a diagnostic path.  These are optional, but implementing these
    allows for more precise wordings than the more generic
    implementation.  */
 
@@ -238,7 +237,7 @@ class pending_diagnostic
   virtual location_t fixup_location (location_t loc, bool primary) const;
 
   /* Precision-of-wording vfunc for describing a critical state change
-     within the diagnostic_path.
+     within the diagnostic path.
 
      For example, a double-free diagnostic might use the descriptions:
      - "first 'free' happens here"
@@ -260,13 +259,13 @@ class pending_diagnostic
     return false;
   }
 
-  /* Vfunc for implementing diagnostic_event::get_meaning for
+  /* Vfunc for implementing event::get_meaning for
      state_change_event.  */
-  virtual diagnostic_event::meaning
+  virtual diagnostics::paths::event::meaning
   get_meaning_for_state_change (const evdesc::state_change &) const
   {
     /* Default no-op implementation.  */
-    return diagnostic_event::meaning ();
+    return diagnostics::paths::event::meaning ();
   }
 
   /* Precision-of-wording vfunc for describing an interprocedural call
@@ -285,7 +284,7 @@ class pending_diagnostic
   }
 
   /* Precision-of-wording vfunc for describing an interprocedural return
-     within the diagnostic_path that carries critial state for the
+     within the diagnostic path that carries critial state for the
      diagnostic, from callee back to caller.
 
      For example, a deref-of-unchecked-malloc diagnostic might use:
@@ -301,7 +300,7 @@ class pending_diagnostic
   }
 
   /* Precision-of-wording vfunc for describing the final event within a
-     diagnostic_path.
+     diagnostic path.
 
      For example a double-free diagnostic might use:
       - "second 'free' here; first 'free' was at (3)"
@@ -326,16 +325,15 @@ class pending_diagnostic
 			    checker_path *emission_path);
 
   /* Vfunc for extending/overriding creation of the events for an
-     exploded_edge that corresponds to a superedge, allowing for custom
-     events to be created that are pertinent to a particular
-     pending_diagnostic subclass.
+     exploded_edge, allowing for custom events to be created that are
+     pertinent to a particular pending_diagnostic subclass.
 
      For example, the -Wanalyzer-stale-setjmp-buffer diagnostic adds a
      custom event showing when the pertinent stack frame is popped
      (and thus the point at which the jmp_buf becomes invalid).  */
 
-  virtual bool maybe_add_custom_events_for_superedge (const exploded_edge &,
-						      checker_path *)
+  virtual bool maybe_add_custom_events_for_eedge (const exploded_edge &,
+						  checker_path *)
   {
     return false;
   }
@@ -344,7 +342,8 @@ class pending_diagnostic
      the varargs diagnostics can add a custom event subclass that annotates
      the variadic arguments.  */
   virtual void add_call_event (const exploded_edge &,
-			       checker_path *);
+			       const gcall &call_stmt,
+			       checker_path &emission_path);
 
   /* Vfunc for adding any events for the creation of regions identified
      by the mark_interesting_stuff vfunc.
@@ -363,6 +362,12 @@ class pending_diagnostic
 				const event_loc_info &loc_info,
 				tree var, state_machine::state_t state,
 				checker_path *emission_path);
+
+  virtual const program_state *
+  get_final_state () const
+  {
+    return nullptr;
+  }
 
   /* Vfunc for determining that this pending_diagnostic supercedes OTHER,
      and that OTHER should therefore not be emitted.
@@ -385,8 +390,7 @@ class pending_diagnostic
   /* Vfunc to give diagnostic subclasses the opportunity to reject diagnostics
      by imposing their own additional feasibility checks on the path to a
      given feasible_node.  */
-  virtual bool check_valid_fpath_p (const feasible_node &,
-				    const gimple *) const
+  virtual bool check_valid_fpath_p (const feasible_node &) const
   {
     /* Default implementation: accept this path.  */
     return true;
@@ -396,7 +400,8 @@ class pending_diagnostic
      the opportunity to add diagnostic-specific properties to the SARIF
      "result" object for the diagnostic.
      This is intended for use when debugging a diagnostic.  */
-  virtual void maybe_add_sarif_properties (sarif_object &/*result_obj*/) const
+  virtual void
+  maybe_add_sarif_properties (diagnostics::sarif_object &/*result_obj*/) const
   {
     /* Default no-op implementation.  */
   }

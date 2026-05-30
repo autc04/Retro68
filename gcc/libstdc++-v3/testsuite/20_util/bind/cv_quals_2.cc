@@ -1,4 +1,4 @@
-// Copyright (C) 2011-2025 Free Software Foundation, Inc.
+// Copyright (C) 2011-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -43,6 +43,9 @@ void test01()
   VERIFY( b2() == 2 ); // { dg-warning "deprecated" "" { target c++17_only } }
 		       // { dg-error "no match" "" { target c++20 } 43 }
 }
+
+// Ignore the reasons for deduction/substitution failure in the headers.
+// { dg-prune-output "no type named 'type' in 'struct std::enable_if<false" }
 
 int main()
 {

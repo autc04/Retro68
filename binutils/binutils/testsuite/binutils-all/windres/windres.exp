@@ -1,4 +1,4 @@
-# Copyright (C) 2001-2022 Free Software Foundation, Inc.
+# Copyright (C) 2001-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ foreach res $res_list {
 	}
     }
 
-    verbose "$wr -J rc -O res $res tmpdir/$broot.res" 1
+    verbose "$wr $cpp_opts -J rc -O res $res tmpdir/$broot.res" 1
     catch "exec $wr $cpp_opts -J rc -O res $res tmpdir/$broot.res" err
 
     if ![string match "" $err] then {
@@ -107,6 +107,22 @@ foreach res $res_list {
 	}
     }
     if { $done != 0 } {
+	continue
+    }
+
+    verbose "$wr -J res -O rc tmpdir/$broot.res tmpdir/$broot.rc" 1
+    catch "exec $wr -J res -O rc tmpdir/$broot.res tmpdir/$broot.rc" err
+    file delete "tmpdir/$broot.rc"
+
+    if ![string match "" $err] then {
+	send_log "$err\n"
+	verbose "$err" 1
+	fail "windres/$broot (res to rc)"
+	continue
+    }
+    pass "windres/$broot (res to rc)"
+
+    if { ![file exists "$sroot.rsd"] } {
 	continue
     }
 

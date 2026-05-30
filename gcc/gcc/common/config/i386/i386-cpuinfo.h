@@ -1,5 +1,5 @@
 /* Get CPU type and Features for x86 processors.
-   Copyright (C) 2012-2025 Free Software Foundation, Inc.
+   Copyright (C) 2012-2026 Free Software Foundation, Inc.
    Contributed by Sriraman Tallam (tmsriram@google.com)
 
 This file is part of GCC.
@@ -106,6 +106,8 @@ enum processor_subtypes
   AMDFAM1AH_ZNVER5,
   ZHAOXIN_FAM7H_SHIJIDADAO,
   INTEL_COREI7_DIAMONDRAPIDS,
+  INTEL_COREI7_NOVALAKE,
+  AMDFAM1AH_ZNVER6,
   CPU_SUBTYPE_MAX
 };
 
@@ -148,8 +150,7 @@ enum feature_priority
   P_AVX512F,
   P_PROC_AVX512F,
   P_X86_64_V4,
-  P_AVX10_1_256,
-  P_AVX10_1,
+  P_AVX10_1 = 34,
   P_PROC_AVX10_1,
   P_PROC_DYNAMIC
 };
@@ -266,15 +267,14 @@ enum processor_features
   FEATURE_SM4,
   FEATURE_APX_F,
   FEATURE_USER_MSR,
-  FEATURE_AVX10_1_256,
-  FEATURE_AVX10_1,
+  FEATURE_AVX10_1 = 114,
   FEATURE_AVX10_2 = 116,
   FEATURE_AMX_AVX512,
   FEATURE_AMX_TF32,
-  FEATURE_AMX_TRANSPOSE,
-  FEATURE_AMX_FP8, 
+  FEATURE_AMX_FP8 = 120,
   FEATURE_MOVRS,
   FEATURE_AMX_MOVRS,
+  FEATURE_AVX512BMM,
   CPU_FEATURE_MAX
 };
 
@@ -287,7 +287,7 @@ enum processor_features
 
 #define M_CPU_TYPE_START (BUILTIN_VENDOR_MAX)
 #define M_CPU_SUBTYPE_START \
-  (M_CPU_TYPE_START + BUILTIN_CPU_TYPE_MAX)
+  (M_CPU_TYPE_START + int (BUILTIN_CPU_TYPE_MAX))
 #define M_VENDOR(a) (a)
-#define M_CPU_TYPE(a) (M_CPU_TYPE_START + a)
+#define M_CPU_TYPE(a) (M_CPU_TYPE_START + int (a))
 #define M_CPU_SUBTYPE(a) (M_CPU_SUBTYPE_START + a)

@@ -3,7 +3,7 @@
 #source: pr23658-1c.s
 #source: pr23658-1d.s
 #source: start.s
-#ld: --build-id -shared
+#ld: --build-id --no-rosegment -shared
 #readelf: -l --wide
 #target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 #xfail: ![check_shared_lib_support] 

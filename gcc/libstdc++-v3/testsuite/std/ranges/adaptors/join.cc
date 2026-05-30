@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -233,6 +233,24 @@ test14()
   VERIFY( ranges::equal(v | views::join, (int[]){1, 2, 3}) );
 }
 
+void
+test15()
+{
+  // PR libstdc++/119962 - __maybe_present_t misses initialization
+  constexpr decltype(views::join(views::single(views::single(0))).begin()) it;
+}
+
+void
+test16()
+{
+  // PR libstdc++/121804 - join_view::iterator::_M_get_inner should be noexcept
+  std::vector<std::vector<int>> vv;
+  ranges::join_view j{vv};
+  auto jit = j.begin();
+  static_assert(noexcept(ranges::iter_move(jit)));
+  static_assert(noexcept(ranges::iter_swap(jit, jit)));
+}
+
 int
 main()
 {
@@ -250,4 +268,6 @@ main()
   test12();
   test13();
   test14();
+  test15();
+  test16();
 }

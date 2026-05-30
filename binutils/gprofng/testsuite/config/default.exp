@@ -1,5 +1,5 @@
 # Basic expect script for gprofng tests
-#   Copyright (C) 2021 Free Software Foundation, Inc.
+#   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,6 +19,7 @@
 # MA 02110-1301, USA.
 #
 
+
 # The "make check" target in the Makefile passes in
 # "CC=$(CC_FOR_TARGET)".  But, if the user invokes runtest directly,
 # these flags may not be set.
@@ -32,7 +33,39 @@ if {![info exists CFLAGS]} {
     set CFLAGS "-g -O2"
 }
 
-# Make a temporary install dir to run gprofng from, and point at it
-remote_exec host "sh -c \"rm -rf tmpdir; mkdir -p tmpdir; $MAKE -C .. install-gprofng program_transform_name= DESTDIR=`pwd`/tmpdir/root\""
+remote_exec host "sh -c \"rm -rf tmpdir; mkdir -p tmpdir\""
+if { "$CHECK_TARGET" == "check-install" } {
+    set ::env(GPROFNG) "$PREFIX/bin/gprofng"
+} else {
+    set ld_library_path "${BUILDDIR}/src/.libs:${BUILDDIR}/libcollector/.libs"
+    set orig_ld_library_path ""
+    catch { set orig_ld_library_path $::env(LD_LIBRARY_PATH) }
+    if [file exists "${BUILDDIR}/../bfd/.libs/libbfd.a"] {
+        append ld_library_path ":${BUILDDIR}/../bfd/.libs"
+    }
+    if [file exists "${BUILDDIR}/../opcodes/.libs/libopcodes.a"] {
+        append ld_library_path ":${BUILDDIR}/../opcodes/.libs"
+    }
+    if [file exists "${BUILDDIR}/../libsframe/.libs/libsframe.a"] {
+        append ld_library_path ":${BUILDDIR}/../libsframe/.libs"
+    }
+    if [file exists "${BUILDDIR}/../libiberty/libiberty.a"] {
+        append ld_library_path ":${BUILDDIR}/../libiberty"
+    }
+
+    set f [open "gprofng_wrapper" w+]
+    puts $f "#!$BASH"
+    puts $f "LD_LIBRARY_PATH=$ld_library_path:$orig_ld_library_path"
+    puts $f "GPROFNG_SYSCONFDIR=$env(srcroot)/src"
+    puts $f "GPROFNG_PRELOAD_LIBDIRS=$BUILDDIR/libcollector/.libs"
+    puts $f "export LD_LIBRARY_PATH GPROFNG_SYSCONFDIR GPROFNG_PRELOAD_LIBDIRS"
+    puts $f "${BUILDDIR}/src/gprofng \"\$@\""
+    close $f
+    file attributes gprofng_wrapper -permissions +rx
+    set ::env(GPROFNG) "$BUILDDIR/gprofng_wrapper"
+}
+puts "### GPROFNG: $env(GPROFNG)"
+
+set TEST_TIMEOUT 300
 
 load_lib display-lib.exp

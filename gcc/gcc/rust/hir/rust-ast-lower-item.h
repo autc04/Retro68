@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -45,6 +45,7 @@ public:
   void visit (AST::TraitImpl &impl_block) override;
   void visit (AST::ExternBlock &extern_block) override;
   void visit (AST::MacroRulesDefinition &rules_def) override;
+  void visit (AST::ExternCrate &extern_crate) override;
 
 private:
   ASTLoweringItem () : translated (nullptr) {}

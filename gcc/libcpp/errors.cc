@@ -1,5 +1,5 @@
 /* Default error handlers for CPP Library.
-   Copyright (C) 1986-2025 Free Software Foundation, Inc.
+   Copyright (C) 1986-2026 Free Software Foundation, Inc.
    Written by Per Bothner, 1994.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -50,6 +50,16 @@ cpp_diagnostic_get_current_location (cpp_reader *pfile)
     {
       return pfile->cur_token[-1].src_loc;
     }
+}
+
+/* Sometimes a diagnostic needs to be generated before libcpp has been able
+   to generate a valid location for the current token; in that case, the
+   non-zero location returned by this function is the preferred one to use.  */
+
+location_t
+cpp_get_diagnostic_override_loc (const cpp_reader *pfile)
+{
+  return pfile->diagnostic_override_loc;
 }
 
 /* Print a diagnostic at the given location.  */

@@ -1,6 +1,6 @@
 // class template regex -*- C++ -*-
 
-// Copyright (C) 2013-2025 Free Software Foundation, Inc.
+// Copyright (C) 2013-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -598,7 +598,7 @@ namespace __detail
   template<typename _TraitsT, bool __icase, bool __collate>
     bool
     _BracketMatcher<_TraitsT, __icase, __collate>::
-    _M_apply(_CharT __ch, false_type) const
+    _M_apply(_CharT __ch) const
     {
       return [this, __ch]
       {

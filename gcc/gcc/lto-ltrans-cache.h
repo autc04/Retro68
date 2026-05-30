@@ -1,5 +1,5 @@
 /* File caching.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -122,8 +122,7 @@ private:
   std::map<checksum_t, item*> map_checksum;
   std::map<std::string, item*> map_input;
 
-  /* Cached filenames are in format "prefix%d[.ltrans]suffix".  */
-  const char* prefix;
+  /* Cached filenames are in format "cache_prefix%d[.ltrans]suffix".  */
   const char* suffix;
 
   /* If cache items count is larger, prune deletes old items.  */

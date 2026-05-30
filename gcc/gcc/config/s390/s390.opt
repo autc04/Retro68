@@ -1,6 +1,6 @@
 ; Options for the S/390 / zSeries port of the compiler.
 
-; Copyright (C) 2005-2025 Free Software Foundation, Inc.
+; Copyright (C) 2005-2026 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -196,6 +196,24 @@ mno-stack-guard
 Target RejectNegative Alias(mstack-guard=,0) Negative(mstack-guard=)
 Switches off the -mstack-guard= option.
 
+mstack-protector-guard=
+Target RejectNegative Joined Enum(stack_protector_guard) Var(s390_stack_protector_guard) Init(SP_TLS)
+Use given stack-protector guard.
+
+Enum
+Name(stack_protector_guard) Type(enum stack_protector_guard)
+Valid arguments to -mstack-protector-guard=:
+
+EnumValue
+Enum(stack_protector_guard) String(tls) Value(SP_TLS)
+
+EnumValue
+Enum(stack_protector_guard) String(global) Value(SP_GLOBAL)
+
+mstack-protector-guard-record
+Target Var(flag_s390_stack_protector_guard_record)
+Generate section __stack_protector_loc containing pointers to all instructions which load the address of the global guard.
+
 mstack-size=
 Target RejectNegative Joined UInteger Var(s390_stack_size) Save
 Emit extra code in the function prologue in order to trap if the stack size exceeds the given limit.
@@ -229,8 +247,9 @@ mzarch
 Target RejectNegative Negative(mesa) Mask(ZARCH)
 z/Architecture.
 
+; This option was added to fix some testsuite failures.
 mbranch-cost=
-Target Joined RejectNegative UInteger Var(s390_branch_cost) Init(1) Save
+Target Undocumented Joined RejectNegative UInteger Var(s390_branch_cost) Init(1) Save
 Set the branch costs for conditional branch instructions.  Reasonable
 values are small, non-negative integers.  The default branch cost is
 1.

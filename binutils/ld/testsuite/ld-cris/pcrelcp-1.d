@@ -1,4 +1,4 @@
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -shared -m crislinux -z nocombreloc
 #ld_after_inputfiles: tmpdir/libdso-1b.so
 #warning: \A[^\n]*\.o, section `.text', to symbol `expfn@@TST2':[^\n]*recompile with -fPIC\Z

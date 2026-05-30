@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    hosting on Windows32, using GNU tools and the Windows32 API Library.
-   Copyright (C) 1997-2025 Free Software Foundation, Inc.
+   Copyright (C) 1997-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -307,6 +307,19 @@ do {						         \
 
 #undef TARGET_N_FORMAT_TYPES
 #define TARGET_N_FORMAT_TYPES 3
+
+#undef TARGET_WIN32_TLS
+#define TARGET_WIN32_TLS 1
+
+#undef TARGET_ASM_SELECT_SECTION
+#define TARGET_ASM_SELECT_SECTION mingw_pe_select_section
+
+#undef DEFAULT_TLS_SEG_REG
+#define DEFAULT_TLS_SEG_REG \
+  (TARGET_64BIT ? ADDR_SPACE_SEG_GS : ADDR_SPACE_SEG_FS)
+
+#undef DEFAULT_TLS_SEG_OFFSET
+#define DEFAULT_TLS_SEG_OFFSET (TARGET_64BIT ? 88 : 44)
 
 #define HAVE_ENABLE_EXECUTE_STACK
 #undef  CHECK_EXECUTE_STACK_ENABLED

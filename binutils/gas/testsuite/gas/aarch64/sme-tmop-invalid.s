@@ -1,0 +1,5 @@
+	ftmopa	za0.s, { z0.s-z1.s }, z0.s, z0[0]
+	stmopa	za0.s, { z0.h-z1.h }, z0.h, z7[0]
+	utmopa	za0.s, { z0.b-z1.b }, z0.b, z19[0]
+	bftmopa	za0.s, { z0.h-z1.h }, z0.h, z27[0]
+	ftmopa	za0.s, { z0.s-z1.s }, z0.s, z20[4]

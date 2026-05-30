@@ -1,4 +1,4 @@
-!  Copyright (C) 2005-2025 Free Software Foundation, Inc.
+!  Copyright (C) 2005-2026 Free Software Foundation, Inc.
 !  Contributed by Jakub Jelinek <jakub@redhat.com>.
 
 !  This file is part of the GNU Offloading and Multi Processing Library
@@ -164,6 +164,8 @@
                  parameter :: omp_thread_mem_alloc = 8
         integer (kind=omp_allocator_handle_kind), &
                  parameter :: ompx_gnu_pinned_mem_alloc = 200
+        integer (kind=omp_allocator_handle_kind), &
+                 parameter :: ompx_gnu_managed_mem_alloc = 201
         integer (omp_memspace_handle_kind), &
                  parameter :: omp_default_mem_space = 0
         integer (omp_memspace_handle_kind), &
@@ -174,8 +176,11 @@
                  parameter :: omp_high_bw_mem_space = 3
         integer (omp_memspace_handle_kind), &
                  parameter :: omp_low_lat_mem_space = 4
+        integer (omp_memspace_handle_kind), &
+                 parameter :: ompx_gnu_managed_mem_space = 200
         integer, parameter :: omp_initial_device = -1
         integer, parameter :: omp_invalid_device = -4
+        integer, parameter :: omp_default_device = -5
         integer (omp_interop_kind), &
                  parameter :: omp_interop_none = 0_omp_interop_kind
         integer (omp_interop_fr_kind), parameter :: omp_ifr_cuda = 1
@@ -220,7 +225,7 @@
       module omp_lib
         use omp_lib_kinds
         implicit none
-        integer, parameter :: openmp_version = 201511
+        integer, parameter :: openmp_version = 202111
 
         interface
           subroutine omp_init_lock (svar)
@@ -901,6 +906,29 @@
                                              src_dimensions(*)
             integer(omp_depend_kind), optional :: depobj_list(*)
           end function omp_target_memcpy_rect_async
+        end interface
+
+        interface
+          function omp_target_memset (ptr, val, count, device_num) bind(c)
+            use, intrinsic :: iso_c_binding, only : c_ptr, c_int, c_size_t
+            type(c_ptr) :: omp_target_memset
+            type(c_ptr), value :: ptr
+            integer(c_size_t), value :: count
+            integer(c_int), value :: val, device_num
+          end function omp_target_memset
+        end interface
+
+        interface
+          function omp_target_memset_async (ptr, val, count, device_num, &
+                                            depobj_count, depobj_list) bind(c)
+            use, intrinsic :: iso_c_binding, only : c_ptr, c_int, c_size_t
+            import :: omp_depend_kind
+            type(c_ptr) :: omp_target_memset_async
+            type(c_ptr), value :: ptr
+            integer(c_size_t), value :: count
+            integer(c_int), value :: val, device_num, depobj_count
+            integer(omp_depend_kind), optional :: depobj_list(*)
+          end function omp_target_memset_async
         end interface
 
         interface

@@ -7,5 +7,5 @@
 .*: +file format .*arm.*
 
 Disassembly of section \.text:
-0+000 <[^>]+> 46c0      	nop			; \(mov r8, r8\)
-0+002 <[^>]+> 46c0      	nop			; \(mov r8, r8\)
+0+000 <[^>]+> 46c0      	nop			@ \(mov r8, r8\)
+0+002 <[^>]+> 46c0      	nop			@ \(mov r8, r8\)

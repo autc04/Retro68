@@ -1,5 +1,5 @@
 /* Convert function calls to rtl insns, for GNU C compiler.
-   Copyright (C) 1989-2025 Free Software Foundation, Inc.
+   Copyright (C) 1989-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -295,29 +295,17 @@ prepare_call_address (tree fndecl_or_type, rtx funexp, rtx static_chain_value,
     }
   else
     {
-      int is_magic = 0;
+      /* funexp could be a SYMBOL_REF represents a function pointer which is
+	 of ptr_mode.  In this case, it should be converted into address mode
+	 to be a valid address for memory rtx pattern.  See PR 64971.  */
+      if (GET_MODE (funexp) != Pmode)
+	funexp = convert_memory_address (Pmode, funexp);
 
-      if (fndecl_or_type)
-        {
-          tree fntype = TREE_TYPE(fndecl_or_type);
-          if(fntype && lookup_attribute ("raw_inline", TYPE_ATTRIBUTES (fntype)))
-            is_magic = 1;
-        }
-    
-      if (!is_magic)
-        {
-          /* funexp could be a SYMBOL_REF represents a function pointer which is
-	     of ptr_mode.  In this case, it should be converted into address mode
-	     to be a valid address for memory rtx pattern.  See PR 64971.  */
-          if (GET_MODE (funexp) != Pmode)
-	    funexp = convert_memory_address (Pmode, funexp);
-
-          if (!(flags & ECF_SIBCALL))
-	    {
-	      if (!NO_FUNCTION_CSE && optimize && ! flag_no_function_cse)
-	        funexp = force_reg (Pmode, funexp);
-	    }
-        }
+      if (!(flags & ECF_SIBCALL))
+	{
+	  if (!NO_FUNCTION_CSE && optimize && ! flag_no_function_cse)
+	    funexp = force_reg (Pmode, funexp);
+	}
     }
 
   if (static_chain_value != 0
@@ -1345,8 +1333,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 				 rtx *old_stack_level,
 				 poly_int64 *old_pending_adj,
 				 bool *must_preallocate, int *ecf_flags,
-				 bool *may_tailcall, bool call_from_thunk_p,
-				 bool reverse_args)
+				 bool *may_tailcall, bool call_from_thunk_p)
 {
   CUMULATIVE_ARGS *args_so_far_pnt = get_cumulative_args (args_so_far);
   location_t loc = EXPR_LOCATION (exp);
@@ -1354,7 +1341,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
   /* Count arg position in order args appear.  */
   int argpos;
 
-  int i, inc;
+  int i;
 
   args_size->constant = 0;
   args_size->var = 0;
@@ -1362,17 +1349,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
   /* In this loop, we consider args in the order they are written.
      We fill up ARGS from the back.  */
 
-  if (!reverse_args)
-    {
-      i = num_actuals - 1, inc = -1;
-      /* In this case, must reverse order of args
-	 so that we compute and push the last arg first.  */
-    }
-  else
-    {
-      i = 0, inc = 1;
-    }
-
+  i = num_actuals - 1;
   {
     int j = i;
     call_expr_arg_iterator iter;
@@ -1381,7 +1358,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
     if (struct_value_addr_value)
       {
 	args[j].tree_value = struct_value_addr_value;
-	j += inc;
+	j--;
       }
     argpos = 0;
     FOR_EACH_CALL_EXPR_ARG (arg, iter, exp)
@@ -1395,18 +1372,23 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 	  {
 	    tree subtype = TREE_TYPE (argtype);
 	    args[j].tree_value = build1 (REALPART_EXPR, subtype, arg);
-	    j += inc;
+	    j--;
 	    args[j].tree_value = build1 (IMAGPART_EXPR, subtype, arg);
 	  }
 	else
 	  args[j].tree_value = arg;
-	j += inc;
+	j--;
 	argpos++;
       }
   }
 
+  bool promote_p
+    = targetm.calls.promote_prototypes (fndecl
+					? TREE_TYPE (fndecl)
+					: fntype);
+
   /* I counts args in order (to be) pushed; ARGPOS counts in order written.  */
-  for (argpos = 0; argpos < num_actuals; i += inc, argpos++)
+  for (argpos = 0; argpos < num_actuals; i--, argpos++)
     {
       tree type = TREE_TYPE (args[i].tree_value);
       int unsignedp;
@@ -1555,6 +1537,11 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 	}
 
       unsignedp = TYPE_UNSIGNED (type);
+      if (promote_p
+	  && INTEGRAL_TYPE_P (type)
+	  && TYPE_PRECISION (type) < TYPE_PRECISION (integer_type_node))
+	type = integer_type_node;
+
       arg.type = type;
       arg.mode
 	= promote_function_mode (type, TYPE_MODE (type), &unsignedp,
@@ -2603,7 +2590,8 @@ can_implement_as_sibling_call_p (tree exp,
       return false;
     }
 
-  if (TYPE_VOLATILE (TREE_TYPE (TREE_TYPE (addr))))
+  if (TYPE_VOLATILE (TREE_TYPE (TREE_TYPE (addr)))
+      && !CALL_EXPR_MUST_TAIL_CALL (exp))
     {
       maybe_complain_about_tail_call (exp, _("volatile function type"));
       return false;
@@ -2811,10 +2799,6 @@ expand_call (tree exp, rtx target, int ignore)
   unsigned HOST_WIDE_INT preferred_unit_stack_boundary;
   /* The static chain value to use for this call.  */
   rtx static_chain_value;
-
-  /* True if this is a call to a pascal-declared function. */
-  bool is_pascal = false;
-
   /* See if this is "nothrow" function call.  */
   if (TREE_NOTHROW (exp))
     flags |= ECF_NOTHROW;
@@ -2838,10 +2822,6 @@ expand_call (tree exp, rtx target, int ignore)
   rettype = TREE_TYPE (exp);
 
   struct_value = targetm.calls.struct_value_rtx (fntype, 0);
-
-#ifdef IS_PASCAL_FUNC
-  is_pascal = IS_PASCAL_FUNC(fntype, fndecl);
-#endif
 
   /* Warn if this value is an aggregate type,
      regardless of which calling convention we are using for it.  */
@@ -3065,8 +3045,7 @@ expand_call (tree exp, rtx target, int ignore)
 				   args_so_far, reg_parm_stack_space,
 				   &old_stack_level, &old_pending_adj,
 				   &must_preallocate, &flags,
-				   &try_tail_call, CALL_FROM_THUNK_P (exp),
-				   is_pascal);
+				   &try_tail_call, CALL_FROM_THUNK_P (exp));
 
   if (args_size.var)
     must_preallocate = true;
@@ -3139,9 +3118,6 @@ expand_call (tree exp, rtx target, int ignore)
      optimization, attempt it.  */
   if (CALL_EXPR_MUST_TAIL_CALL (exp))
     try_tail_call = 1;
-
-  if (is_pascal)
-    try_tail_call = 0;
 
   /*  Rest of purposes for tail call optimizations to fail.  */
   if (try_tail_call)
@@ -3259,11 +3235,6 @@ expand_call (tree exp, rtx target, int ignore)
       /* Precompute any arguments as needed.  */
       if (pass)
 	precompute_arguments (num_actuals, args);
-
-      /* Now we are about to start emitting insns that can be deleted
-	 if a libcall is deleted.  */
-      if (pass && (flags & ECF_MALLOC))
-	start_sequence ();
 
       /* Check the canary value for sibcall or function which doesn't
 	 return and could throw.  */
@@ -3576,16 +3547,6 @@ expand_call (tree exp, rtx target, int ignore)
 					      &low_to_save, &high_to_save);
 #endif
 
-      if (is_pascal)
-	{
-	  auto pascal_return_mode = TYPE_MODE (TREE_TYPE (funtype));
-	  poly_uint16 modesize = GET_MODE_SIZE (pascal_return_mode);
-#ifdef PUSH_ROUNDING
-	  modesize = PUSH_ROUNDING (modesize);
-#endif
-	  push_block (gen_int_mode (modesize, Pmode), 0, 0);
-	}
-
       /* Now store (and compute if necessary) all non-register parms.
 	 These come before register parms, since they can require block-moves,
 	 which could clobber the registers used for register parms.
@@ -3619,7 +3580,8 @@ expand_call (tree exp, rtx target, int ignore)
 		      && check_sibcall_argument_overlap (before_arg,
 							 &args[i], true)))
 		sibcall_failure = true;
-	      }
+	      gcc_checking_assert (!args[i].stack || argblock);
+	    }
 
 	  if (args[i].stack)
 	    call_fusage
@@ -3685,8 +3647,7 @@ expand_call (tree exp, rtx target, int ignore)
       /* Figure out the register where the value, if any, will come back.  */
       valreg = 0;
       if (TYPE_MODE (rettype) != VOIDmode
-	  && ! structure_value_addr
-	  && ! is_pascal)
+	  && ! structure_value_addr)
 	{
 	  if (pcc_struct_value)
 	    valreg = hard_function_value (build_pointer_type (rettype),
@@ -3716,6 +3677,32 @@ expand_call (tree exp, rtx target, int ignore)
           && !ACCUMULATE_OUTGOING_ARGS
 	  && !must_preallocate && reg_parm_stack_space > 0)
 	anti_adjust_stack (GEN_INT (reg_parm_stack_space));
+
+      /* Cover pushed arguments with call usage, so that cselib knows to
+	 invalidate the stores in them at the call insn.  */
+      if (pass == 1 && !argblock
+	  && (maybe_ne (adjusted_args_size.constant, 0)
+	      || adjusted_args_size.var))
+	{
+	  rtx addr = virtual_outgoing_args_rtx;
+	  poly_int64 size = adjusted_args_size.constant;
+	  if (!STACK_GROWS_DOWNWARD)
+	    {
+	      if (adjusted_args_size.var)
+		/* ??? We can't compute the exact base address.  */
+		addr = gen_rtx_PLUS (GET_MODE (addr), addr,
+				     gen_rtx_SCRATCH (GET_MODE (addr)));
+	      else
+		addr = plus_constant (GET_MODE (addr), addr, -size);
+	    }
+	  rtx fu = gen_rtx_MEM (BLKmode, addr);
+	  if (adjusted_args_size.var == 0)
+	    set_mem_size (fu, size);
+	  call_fusage
+	    = gen_rtx_EXPR_LIST (BLKmode,
+				 gen_rtx_USE (VOIDmode, fu),
+				 call_fusage);
+	}
 
       /* Pass the function the address in which to return a
 	 structure value.  */
@@ -3773,40 +3760,16 @@ expand_call (tree exp, rtx target, int ignore)
 		   next_arg_reg, valreg, old_inhibit_defer_pop, call_fusage,
 		   flags, args_so_far);
 
-      if (is_pascal)
-      {
-	if (TYPE_MODE (rettype) != VOIDmode
-	    && ! structure_value_addr)
-	  {
-	    valreg = gen_reg_rtx(TYPE_MODE(rettype));
-
-	    poly_uint16 modesize = GET_MODE_SIZE (GET_MODE (valreg));
-#ifdef PUSH_ROUNDING
-	    modesize = PUSH_ROUNDING (modesize);
-#endif
-	    emit_move_insn(valreg,
-			   gen_rtx_MEM( GET_MODE (valreg),
-					stack_pointer_rtx
-			   ));
-
-	    adjust_stack(gen_int_mode (modesize, Pmode));
-	  }
-	}
-
-
-      if (flag_ipa_ra)
+      rtx_call_insn *last;
+      rtx datum = NULL_RTX;
+      if (fndecl != NULL_TREE)
 	{
-	  rtx_call_insn *last;
-	  rtx datum = NULL_RTX;
-	  if (fndecl != NULL_TREE)
-	    {
-	      datum = XEXP (DECL_RTL (fndecl), 0);
-	      gcc_assert (datum != NULL_RTX
-			  && GET_CODE (datum) == SYMBOL_REF);
-	    }
-	  last = last_call_insn ();
-	  add_reg_note (last, REG_CALL_DECL, datum);
+	  datum = XEXP (DECL_RTL (fndecl), 0);
+	  gcc_assert (datum != NULL_RTX
+		      && GET_CODE (datum) == SYMBOL_REF);
 	}
+      last = last_call_insn ();
+      add_reg_note (last, REG_CALL_DECL, datum);
 
       /* If the call setup or the call itself overlaps with anything
 	 of the argument setup we probably clobbered our call address.
@@ -3831,26 +3794,23 @@ expand_call (tree exp, rtx target, int ignore)
 	  valreg = gen_rtx_REG (TYPE_MODE (rettype), REGNO (valreg));
 	}
 
-      if (pass && (flags & ECF_MALLOC))
+      /* If the return register exists, for malloc like
+	 function calls, mark the return register with the
+	 alignment and noalias reg note.  */
+      if (pass && (flags & ECF_MALLOC) && valreg)
 	{
 	  rtx temp = gen_reg_rtx (GET_MODE (valreg));
-	  rtx_insn *last, *insns;
+	  rtx_insn *last;
 
 	  /* The return value from a malloc-like function is a pointer.  */
 	  if (TREE_CODE (rettype) == POINTER_TYPE)
 	    mark_reg_pointer (temp, MALLOC_ABI_ALIGNMENT);
 
-	  emit_move_insn (temp, valreg);
+	  last = emit_move_insn (temp, valreg);
 
 	  /* The return value from a malloc-like function cannot alias
 	     anything else.  */
-	  last = get_last_insn ();
 	  add_reg_note (last, REG_NOALIAS, temp);
-
-	  /* Write out the sequence.  */
-	  insns = get_insns ();
-	  end_sequence ();
-	  emit_insn (insns);
 	  valreg = temp;
 	}
 
@@ -4065,8 +4025,7 @@ expand_call (tree exp, rtx target, int ignore)
 
       targetm.calls.end_call_args (args_so_far);
 
-      insns = get_insns ();
-      end_sequence ();
+      insns = end_sequence ();
 
       if (pass == 0)
 	{
@@ -4864,13 +4823,10 @@ emit_library_call_value_1 (int retval, rtx orgfun, rtx value,
 	       struct_value_size, call_cookie, valreg,
 	       old_inhibit_defer_pop + 1, call_fusage, flags, args_so_far);
 
-  if (flag_ipa_ra)
-    {
-      rtx datum = orgfun;
-      gcc_assert (GET_CODE (datum) == SYMBOL_REF);
-      rtx_call_insn *last = last_call_insn ();
-      add_reg_note (last, REG_CALL_DECL, datum);
-    }
+  rtx datum = orgfun;
+  gcc_assert (GET_CODE (datum) == SYMBOL_REF);
+  rtx_call_insn *last = last_call_insn ();
+  add_reg_note (last, REG_CALL_DECL, datum);
 
   /* Right-shift returned value if necessary.  */
   if (!pcc_struct_value

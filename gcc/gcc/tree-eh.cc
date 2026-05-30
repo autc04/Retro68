@@ -1,5 +1,5 @@
 /* Exception handling semantics and decomposition for trees.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -517,6 +517,48 @@ replace_goto_queue_1 (gimple *stmt, struct leh_tf_state *tf,
 	}
       break;
 
+    case GIMPLE_ASM:
+      if (int n = gimple_asm_nlabels (as_a <gasm *> (stmt)))
+	{
+	  temp.g = stmt;
+	  gasm *asm_stmt = as_a <gasm *> (stmt);
+	  location_t loc = gimple_location (stmt);
+	  tree bypass_label = NULL_TREE;
+	  for (int i = 0; i < n; ++i)
+	    {
+	      tree elt = gimple_asm_label_op (asm_stmt, i);
+	      temp.tp = &TREE_VALUE (elt);
+	      seq = find_goto_replacement (tf, temp);
+	      if (!seq)
+		continue;
+	      if (gimple_seq_singleton_p (seq)
+		  && gimple_code (gimple_seq_first_stmt (seq)) == GIMPLE_GOTO)
+		{
+		  TREE_VALUE (elt)
+		    = gimple_goto_dest (gimple_seq_first_stmt (seq));
+		  continue;
+		}
+
+	      if (bypass_label == NULL_TREE)
+		{
+		  bypass_label = create_artificial_label (loc);
+		  gsi_insert_after (gsi, gimple_build_goto (bypass_label),
+				    GSI_CONTINUE_LINKING);
+		}
+
+	      tree label = create_artificial_label (loc);
+	      TREE_VALUE (elt) = label;
+	      gsi_insert_after (gsi, gimple_build_label (label),
+				GSI_CONTINUE_LINKING);
+	      gsi_insert_seq_after (gsi, gimple_seq_copy (seq),
+				    GSI_CONTINUE_LINKING);
+	    }
+	  if (bypass_label)
+	    gsi_insert_after (gsi, gimple_build_label (bypass_label),
+			      GSI_CONTINUE_LINKING);
+	}
+      break;
+
     case GIMPLE_COND:
       replace_goto_queue_cond_clause (gimple_op_ptr (stmt, 2), tf, gsi);
       replace_goto_queue_cond_clause (gimple_op_ptr (stmt, 3), tf, gsi);
@@ -685,10 +727,26 @@ maybe_record_in_goto_queue (struct leh_state *state, gimple *stmt)
 				    EXPR_LOCATION (*new_stmt.tp));
       }
       break;
+
     case GIMPLE_GOTO:
       new_stmt.g = stmt;
       record_in_goto_queue_label (tf, new_stmt, gimple_goto_dest (stmt),
 				  gimple_location (stmt));
+      break;
+
+    case GIMPLE_ASM:
+      if (int n = gimple_asm_nlabels (as_a <gasm *> (stmt)))
+	{
+	  new_stmt.g = stmt;
+	  gasm *asm_stmt = as_a <gasm *> (stmt);
+	  for (int i = 0; i < n; ++i)
+	    {
+	      tree elt = gimple_asm_label_op (asm_stmt, i);
+	      new_stmt.tp = &TREE_VALUE (elt);
+	      record_in_goto_queue_label (tf, new_stmt, TREE_VALUE (elt),
+					  gimple_location (stmt));
+	    }
+	}
       break;
 
     case GIMPLE_RETURN:
@@ -2082,6 +2140,7 @@ lower_eh_constructs_2 (struct leh_state *state, gimple_stmt_iterator *gsi)
     case GIMPLE_COND:
     case GIMPLE_GOTO:
     case GIMPLE_RETURN:
+    case GIMPLE_ASM:
       maybe_record_in_goto_queue (state, stmt);
       break;
 
@@ -2538,6 +2597,13 @@ operation_could_trap_helper_p (enum tree_code op,
       /* Constructing an object cannot trap.  */
       return false;
 
+    case FIX_TRUNC_EXPR:
+    case VEC_PACK_FIX_TRUNC_EXPR:
+    case VEC_UNPACK_FIX_TRUNC_HI_EXPR:
+    case VEC_UNPACK_FIX_TRUNC_LO_EXPR:
+      /* The FIX_TRUNC family are always potentially trapping.  */
+      return flag_trapping_math;
+
     case COND_EXPR:
     case VEC_COND_EXPR:
       /* Whether *COND_EXPR can trap depends on whether the
@@ -2667,6 +2733,25 @@ access_in_bounds_of_type_p (tree type, poly_uint64 size, poly_uint64 offset)
   return true;
 }
 
+/* Return whether an access at [off, refsz[ to an object spanning [0, size[
+   accesses storage outside of the object.  */
+
+static bool
+ref_outside_object_p (tree size, poly_offset_int off, tree refsz)
+{
+  if (size == NULL_TREE
+      || refsz == NULL_TREE
+      || !poly_int_tree_p (size)
+      || !poly_int_tree_p (refsz)
+      || maybe_le (wi::to_poly_offset (size), off)
+      || maybe_gt (off + wi::to_poly_offset (refsz),
+		   wi::to_poly_offset (size)))
+    return true;
+  /* Now we are sure the whole base of the access is inside
+     the object.  */
+  return false;
+}
+
 /* Return true if EXPR can trap, as in dereferencing an invalid pointer
    location or floating point arithmetic.  C.f. the rtl version, may_trap_p.
    This routine expects only GIMPLE lhs or rhs input.  */
@@ -2764,17 +2849,23 @@ tree_could_trap_p (tree expr)
 	    return maybe_le (TREE_STRING_LENGTH (base), off);
 	  tree size = DECL_SIZE_UNIT (base);
 	  tree refsz = TYPE_SIZE_UNIT (TREE_TYPE (expr));
-	  if (size == NULL_TREE
-	      || refsz == NULL_TREE
-	      || !poly_int_tree_p (size)
-	      || !poly_int_tree_p (refsz)
-	      || maybe_le (wi::to_poly_offset (size), off)
-	      || maybe_gt (off + wi::to_poly_offset (refsz),
-			   wi::to_poly_offset (size)))
+	  return ref_outside_object_p (size, off, refsz);
+	}
+      if (cfun
+	  && TREE_CODE (TREE_TYPE (cfun->decl)) == METHOD_TYPE
+	  && ((TREE_CODE (TREE_OPERAND (expr, 0)) == SSA_NAME
+	       && SSA_NAME_IS_DEFAULT_DEF (TREE_OPERAND (expr, 0))
+	       && (SSA_NAME_VAR (TREE_OPERAND (expr, 0))
+		   == DECL_ARGUMENTS (cfun->decl)))
+	      || TREE_OPERAND (expr, 0) == DECL_ARGUMENTS (cfun->decl)))
+	{
+	  poly_offset_int off = mem_ref_offset (expr);
+	  if (maybe_lt (off, 0))
 	    return true;
-	  /* Now we are sure the whole base of the access is inside
-	     the object.  */
-	  return false;
+	  tree size = TYPE_SIZE_UNIT
+			(TYPE_METHOD_BASETYPE (TREE_TYPE (cfun->decl)));
+	  tree refsz = TYPE_SIZE_UNIT (TREE_TYPE (expr));
+	  return ref_outside_object_p (size, off, refsz);
 	}
       return true;
 
@@ -3770,6 +3861,18 @@ sink_clobbers (basic_block bb,
     }
   if (first_sunk)
     {
+      /* If there isn't a single predecessor but no virtual PHI node
+	 create one and arrange for virtual operands to be renamed as
+	 we cannot be sure all incoming edges will updated from sinking
+	 something.  */
+      if (!vphi && !single_pred_p (succbb))
+	{
+	  vphi = create_phi_node (gimple_vop (cfun), succbb);
+	  FOR_EACH_EDGE (e, ei, succbb->preds)
+	    add_phi_arg (vphi, gimple_vop (cfun), e, UNKNOWN_LOCATION);
+	  mark_virtual_operands_for_renaming (cfun);
+	  todo |= TODO_update_ssa_only_virtuals;
+	}
       /* Adjust virtual operands if we sunk across a virtual PHI.  */
       if (vphi)
 	{
@@ -3788,14 +3891,6 @@ sink_clobbers (basic_block bb,
 	  SET_USE (PHI_ARG_DEF_PTR_FROM_EDGE (vphi, succe),
 		   gimple_vuse (last_sunk));
 	  SET_USE (gimple_vuse_op (last_sunk), phi_def);
-	}
-      /* If there isn't a single predecessor but no virtual PHI node
-         arrange for virtual operands to be renamed.  */
-      else if (!single_pred_p (succbb)
-	       && TREE_CODE (gimple_vuse (last_sunk)) == SSA_NAME)
-	{
-	  mark_virtual_operand_for_renaming (gimple_vuse (last_sunk));
-	  todo |= TODO_update_ssa_only_virtuals;
 	}
     }
 

@@ -1,6 +1,6 @@
 #source: pr19175.s
 #as: --64
-#ld: -Bsymbolic -shared -melf_x86_64 -T pr19175.t
+#ld: -Bsymbolic -shared -melf_x86_64 -T pr19175.t --no-error-rwx-segments
 #objdump: -dw
 
 .*: +file format .*

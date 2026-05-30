@@ -1,6 +1,6 @@
 // Debugging list implementation -*- C++ -*-
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -321,7 +321,8 @@ namespace __debug
       void
       resize(size_type __sz)
       {
-	this->_M_detach_singular();
+	const list* __this = this;
+	__this->_M_detach_singular();
 
 	// if __sz < size(), invalidate all iterators in [begin + __sz, end())
 	_Base_iterator __victim = _Base::begin();
@@ -338,7 +339,7 @@ namespace __debug
 	  }
 	__catch(...)
 	  {
-	    this->_M_revalidate_singular();
+	    __this->_M_revalidate_singular();
 	    __throw_exception_again;
 	  }
       }
@@ -346,7 +347,8 @@ namespace __debug
       void
       resize(size_type __sz, const _Tp& __c)
       {
-	this->_M_detach_singular();
+	const list* __this = this;
+	__this->_M_detach_singular();
 
 	// if __sz < size(), invalidate all iterators in [begin + __sz, end())
 	_Base_iterator __victim = _Base::begin();
@@ -363,7 +365,7 @@ namespace __debug
 	  }
 	__catch(...)
 	  {
-	    this->_M_revalidate_singular();
+	    __this->_M_revalidate_singular();
 	    __throw_exception_again;
 	  }
       }
@@ -371,7 +373,8 @@ namespace __debug
       void
       resize(size_type __sz, _Tp __c = _Tp())
       {
-	this->_M_detach_singular();
+	const list* __this = this;
+	__this->_M_detach_singular();
 
 	// if __sz < size(), invalidate all iterators in [begin + __sz, end())
 	_Base_iterator __victim = _Base::begin();
@@ -388,7 +391,7 @@ namespace __debug
 	  }
 	__catch(...)
 	  {
-	    this->_M_revalidate_singular();
+	    __this->_M_revalidate_singular();
 	    __throw_exception_again;
 	  }
       }
@@ -1028,6 +1031,27 @@ namespace __debug
     { __lhs.swap(__rhs); }
 
 } // namespace __debug
+
+#ifdef __glibcxx_erase_if // C++ >= 20 && HOSTED
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+  template<typename _Tp, typename _Alloc, typename _Predicate>
+    inline typename __debug::list<_Tp, _Alloc>::size_type
+    erase_if(__debug::list<_Tp, _Alloc>& __cont, _Predicate __pred)
+    { return __cont.remove_if(__pred); }
+
+  template<typename _Tp, typename _Alloc,
+	   typename _Up _GLIBCXX26_DEF_VAL_T(_Tp)>
+    inline typename __debug::list<_Tp, _Alloc>::size_type
+    erase(__debug::list<_Tp, _Alloc>& __cont, const _Up& __value)
+    {
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 4135. helper lambda of std::erase for list should specify return type
+      return std::erase_if(__cont, [&](const auto& __elem) -> bool {
+	  return __elem == __value;
+      });
+    }
+_GLIBCXX_END_NAMESPACE_VERSION
+#endif // __glibcxx_erase_if
 } // namespace std
 
 namespace __gnu_debug

@@ -1,7 +1,7 @@
 // { dg-do run { target c++11 } }
 // { dg-require-sleep "" }
 
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -37,7 +37,20 @@ test01()
   VERIFY( (chr::system_clock::now() - begin) >= ms );
 }
 
+void
+test_negative()
+{
+  chr::system_clock::time_point begin = chr::system_clock::now();
+
+  std::this_thread::sleep_for(-chr::hours(8));
+
+  // That should have completed immediately, but be generous because we don't
+  // want spurious failures on busy machines.
+  VERIFY( (chr::system_clock::now() - begin) < chr::seconds(10) );
+}
+
 int main()
 {
   test01();
+  test_negative();
 }

@@ -15,13 +15,12 @@
 .*:34: Warning: the 64-bit microMIPS architecture does not support the `mips3d' extension
 .*:35: Error: unrecognized opcode `addr.ps \$f4,\$f6,\$f8'
 # ----------------------------------------------------------------------------
-.*:39: Warning: the 64-bit microMIPS architecture does not support the `mt' extension
-.*:40: Error: unrecognized opcode `dmt *'
+.*:42: Error: opcode not supported.* `dmt *'
 # ----------------------------------------------------------------------------
-.*:44: Warning: the 64-bit microMIPS architecture does not support the `smartmips' extension
-.*:45: Error: unrecognized opcode `maddp \$4,\$5'
+.*:45: Warning: the 64-bit microMIPS architecture does not support the `smartmips' extension
+.*:46: Error: unrecognized opcode `maddp \$4,\$5'
 # ----------------------------------------------------------------------------
-.*:54: Error: opcode not supported.* `hypcall *'
-.*:55: Error: opcode not supported.* `dmfgc0 \$3,\$29'
+.*:55: Error: opcode not supported.* `hypcall *'
+.*:56: Error: opcode not supported.* `dmfgc0 \$3,\$29'
 # ----------------------------------------------------------------------------
-.*:63: Error: opcode not supported.* `lbue \$4,16\(\$5\)'
+.*:64: Error: opcode not supported.* `lbue \$4,16\(\$5\)'

@@ -1,5 +1,5 @@
 #source: pushpopv32.s
-#as: --underscore --march=v32 --em=criself
+#as: --underscore --march=v32 --emulation=criself
 #objdump: -dr
 
 .*:[ 	]+file format .*-cris

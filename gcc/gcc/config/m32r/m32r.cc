@@ -1,5 +1,5 @@
 /* Subroutines used for code generation on the Renesas M32R cpu.
-   Copyright (C) 1996-2025 Free Software Foundation, Inc.
+   Copyright (C) 1996-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -1150,8 +1150,7 @@ gen_split_move_double (rtx operands[])
   else
     gcc_unreachable ();
 
-  val = get_insns ();
-  end_sequence ();
+  val = end_sequence ();
   return val;
 }
 

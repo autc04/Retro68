@@ -1,6 +1,6 @@
 /* Threads compatibility routines for libgcc2 and libobjc for VxWorks.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1997-2025 Free Software Foundation, Inc.
+/* Copyright (C) 1997-2026 Free Software Foundation, Inc.
    Contributed by Mike Stump <mrs@wrs.com>.
 
 This file is part of GCC.
@@ -34,6 +34,19 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #else
 
+/* VxWorks provides its own version of the standard stdatomic.h, possibly
+   relying on non-gcc builtins, and our implementation of the gthr API resorts
+   to VxWorks specific functions for atomicity features.
+
+   When compiling libgcc (with gcc), make sure gcc's version of stdatomic.h
+   is used: #include it here, first, then define the macro used to guard the
+   system version so it doesn't get expanded when included indirectly by
+   other system headers.  */
+#if defined(IN_LIBGCC2)
+#include <../include/stdatomic.h>
+#define __INCstdatomich
+#endif
+
 #include <vxWorks.h>
 #include <_vxworks-versions.h>
 
@@ -49,6 +62,25 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #include <errnoLib.h>
 
+/* For C++ modules that end up calling gthr functions, we need the symbols to
+   have global linkage, so static inline won't do, see
+   e.g. g++.dg/module/xtreme-headers-8.C.  Making them always_inline in C++
+   brings about higher but similar inlinability as static inline in C.  */
+
+#ifdef __has_attribute
+# if __has_attribute(__always_inline__)
+#  define __GTHREAD_ALWAYS_INLINE __attribute__((__always_inline__))
+# endif
+#endif
+#ifndef __GTHREAD_ALWAYS_INLINE
+# define __GTHREAD_ALWAYS_INLINE
+#endif
+
+#ifdef __cplusplus
+# define __GTHREAD_INLINE inline __GTHREAD_ALWAYS_INLINE
+#else
+# define __GTHREAD_INLINE static inline
+#endif
 
 /* --------------------- Test & Set/Swap internal API --------------------- */
 
@@ -118,7 +150,7 @@ typedef SEM_ID __gthread_recursive_mutex_t;
 /* Non re-entrant mutex implementation. Libstdc++ expects the default
    gthread mutex to be non reentrant.  */
 
-static inline void
+__GTHREAD_INLINE void
 __gthread_mutex_init (__gthread_mutex_t * __mutex)
 {
   if (!__mutex)
@@ -126,7 +158,7 @@ __gthread_mutex_init (__gthread_mutex_t * __mutex)
   *__mutex = semBCreate (SEM_Q_PRIORITY, SEM_FULL);
 }
 
-static inline int
+__GTHREAD_INLINE int
 __gthread_mutex_destroy (__gthread_mutex_t * __mutex)
 {
   if (!__mutex)
@@ -134,7 +166,7 @@ __gthread_mutex_destroy (__gthread_mutex_t * __mutex)
   return __CHECK_RESULT (semDelete (*__mutex));
 }
 
-static inline int
+__GTHREAD_INLINE int
 __gthread_mutex_lock (__gthread_mutex_t * __mutex)
 {
   if (!__mutex)
@@ -142,7 +174,7 @@ __gthread_mutex_lock (__gthread_mutex_t * __mutex)
   return __CHECK_RESULT (semTake(*__mutex, WAIT_FOREVER));
 }
 
-static inline int
+__GTHREAD_INLINE int
 __gthread_mutex_trylock (__gthread_mutex_t * __mutex)
 {
   if (!__mutex)
@@ -150,7 +182,7 @@ __gthread_mutex_trylock (__gthread_mutex_t * __mutex)
   return __CHECK_RESULT (semTake (*__mutex, NO_WAIT));
 }
 
-static inline int
+__GTHREAD_INLINE int
 __gthread_mutex_unlock (__gthread_mutex_t * __mutex)
 {
   if (!__mutex)
@@ -161,7 +193,7 @@ __gthread_mutex_unlock (__gthread_mutex_t * __mutex)
 /* Recursive mutex implementation. The only change is that we use semMCreate()
    instead of semBCreate().  */
 
-static inline void
+__GTHREAD_INLINE void
 __gthread_recursive_mutex_init (__gthread_recursive_mutex_t * __mutex)
 {
   if (!__mutex)
@@ -170,25 +202,25 @@ __gthread_recursive_mutex_init (__gthread_recursive_mutex_t * __mutex)
     semMCreate (SEM_Q_PRIORITY | SEM_INVERSION_SAFE | SEM_DELETE_SAFE);
 }
 
-static inline int
+__GTHREAD_INLINE int
 __gthread_recursive_mutex_destroy (__gthread_recursive_mutex_t * __mutex)
 {
   return __gthread_mutex_destroy (__mutex);
 }
 
-static inline int
+__GTHREAD_INLINE int
 __gthread_recursive_mutex_lock (__gthread_recursive_mutex_t * __mutex)
 {
   return __gthread_mutex_lock (__mutex);
 }
 
-static inline int
+__GTHREAD_INLINE int
 __gthread_recursive_mutex_trylock (__gthread_recursive_mutex_t * __mutex)
 {
   return __gthread_mutex_trylock (__mutex);
 }
 
-static inline int
+__GTHREAD_INLINE int
 __gthread_recursive_mutex_unlock (__gthread_recursive_mutex_t * __mutex)
 {
   return __gthread_mutex_unlock (__mutex);
@@ -276,7 +308,6 @@ extern int __gthread_cond_wait_recursive (__gthread_cond_t *cond,
 
 #include <limits.h>
 #include <time.h>
-#include <tickLib.h>
 #include <sysLib.h>
 #include <version.h>
 
@@ -340,5 +371,8 @@ extern __gthread_t __gthread_self (void);
 #endif
 
 #endif /* not _LIBOBJC */
+
+#undef __GTHREAD_INLINE
+#undef __GTHREAD_ALWAYS_INLINE
 
 #endif /* gthr-vxworks.h */

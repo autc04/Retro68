@@ -1,6 +1,6 @@
 (* M2EXCEPTION.mod implement M2Exception and IsM2Exception.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -33,7 +33,7 @@ FROM RTExceptions IMPORT EHBlock, GetExceptionBlock, GetNumber, Raise,
 
 (* If the program or coroutine is in the exception state then return the enumeration
    value representing the exception cause.  If it is not in the exception state then
-   raises and exception (exException).  *)
+   raises an exException exception.  *)
 
 PROCEDURE M2Exception () : M2Exceptions;
 VAR
@@ -45,7 +45,8 @@ BEGIN
    IF n = MAX (CARDINAL)
    THEN
       Raise (ORD (exException), ADR (__FILE__), __LINE__, __COLUMN__, ADR (__FUNCTION__),
-             ADR ('current coroutine is not in the exceptional execution state'))
+             ADR ('current coroutine is not in the exceptional execution state')) ;
+      RETURN exException
    ELSE
       RETURN VAL (M2Exceptions, n)
    END

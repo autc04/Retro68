@@ -1,6 +1,6 @@
 // Components for manipulating non-owning sequences of characters -*- C++ -*-
 
-// Copyright (C) 2013-2025 Free Software Foundation, Inc.
+// Copyright (C) 2013-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -40,15 +40,19 @@
 #define __glibcxx_want_constexpr_char_traits
 #define __glibcxx_want_constexpr_string_view
 #define __glibcxx_want_freestanding_string_view
-#define __glibcxx_want_string_view
 #define __glibcxx_want_starts_ends_with
 #define __glibcxx_want_string_contains
+#define __glibcxx_want_string_subview
+#define __glibcxx_want_string_view
 #include <bits/version.h>
 
 #if __cplusplus >= 201703L
 
 #include <bits/char_traits.h>
-#include <bits/functexcept.h>
+#ifndef __glibcxx_exc_in_string
+#define __glibcxx_exc_in_string 2
+#include <bits/stdexcept_throw.h>
+#endif
 #include <bits/functional_hash.h>
 #include <bits/range_access.h>
 #include <bits/stl_algobase.h>
@@ -341,6 +345,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	const size_type __rlen = std::min<size_t>(__n, _M_len - __pos);
 	return basic_string_view{_M_str + __pos, __rlen};
       }
+
+#ifdef __glibcxx_string_subview // >= C++26
+      [[nodiscard]]
+      constexpr basic_string_view
+      subview(size_type __pos = 0, size_type __n = npos) const
+      { return substr(__pos, __n); }
+#endif
 
       [[nodiscard]]
       constexpr int
@@ -910,6 +921,14 @@ _GLIBCXX_END_NAMESPACE_VERSION
 
 #include <bits/string_view.tcc>
 
-#endif // __cplusplus <= 201402L
+#if __glibcxx_exc_in_string == 2
+#undef __glibcxx_exc_in_string
+#if (_GLIBCXX_HOSTED && __cpp_exceptions && __cplusplus > 202302L \
+     && __cpp_constexpr_exceptions >= 202411L)
+#include <bits/stdexcept_throw.h>
+#endif
+#endif
 
-#endif // _GLIBCXX_EXPERIMENTAL_STRING_VIEW
+#endif // C++17
+
+#endif // _GLIBCXX_STRING_VIEW

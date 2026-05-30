@@ -1,7 +1,7 @@
 /* Bits of OpenMP and OpenACC handling that is specific to device offloading
    and a lowering pass for OpenACC device directives.
 
-   Copyright (C) 2005-2025 Free Software Foundation, Inc.
+   Copyright (C) 2005-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -261,7 +261,8 @@ omp_discover_declare_target_tgt_fn_r (tree *tp, int *walk_subtrees, void *data)
 			       DECL_ATTRIBUTES (decl)))
 	return NULL_TREE;
 
-      if (!DECL_EXTERNAL (decl) && DECL_SAVED_TREE (decl))
+      if (DECL_SAVED_TREE (decl)
+	  && (!DECL_EXTERNAL (decl) || DECL_DECLARED_INLINE_P (decl)))
 	((vec<tree> *) data)->safe_push (decl);
       DECL_ATTRIBUTES (decl) = tree_cons (id, NULL_TREE,
 					  DECL_ATTRIBUTES (decl));
@@ -915,7 +916,7 @@ oacc_parse_default_dims (const char *dims)
 	      const char *eptr;
 
 	      errno = 0;
-	      val = strtol (pos, CONST_CAST (char **, &eptr), 10);
+	      val = strtol (pos, const_cast<char **> (&eptr), 10);
 	      if (errno || val <= 0 || (int) val != val)
 		goto malformed;
 	      pos = eptr;

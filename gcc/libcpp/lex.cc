@@ -1,5 +1,5 @@
 /* CPP Library - lexical analysis.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Per Bothner, 1994-95.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -1353,6 +1353,8 @@ get_location_for_byte_range_in_cur_line (cpp_reader *pfile,
 					 const unsigned char *const start,
 					 size_t num_bytes)
 {
+  if (pfile->forced_token_location)
+    return pfile->forced_token_location;
   gcc_checking_assert (num_bytes > 0);
 
   /* CPP_BUF_COLUMN and linemap_position_for_column both refer
@@ -2035,6 +2037,7 @@ warn_about_normalization (cpp_reader *pfile,
       /* If possible, create a location range for the token.  */
       if (loc >= RESERVED_LOCATION_COUNT
 	  && token->type != CPP_EOF
+	  && !pfile->forced_token_location
 	  /* There must be no line notes to process.  */
 	  && (!(pfile->buffer->cur
 		>= pfile->buffer->notes[pfile->buffer->cur_note].pos
@@ -2711,8 +2714,9 @@ lex_raw_string (cpp_reader *pfile, cpp_token *token, const uchar *base)
 		       || c == '!' || c == '=' || c == ','
 		       || c == '"' || c == '\''
 		       || ((c == '$' || c == '@' || c == '`')
-			   && CPP_OPTION (pfile, cplusplus)
-			   && CPP_OPTION (pfile, lang) > CLK_CXX23)))
+			   && (CPP_OPTION (pfile, cplusplus)
+			       ? CPP_OPTION (pfile, lang) > CLK_CXX23
+			       : CPP_OPTION (pfile, low_ucns)))))
 	    prefix[prefix_len++] = c;
 	  else
 	    {
@@ -3504,6 +3508,7 @@ cpp_maybe_module_directive (cpp_reader *pfile, cpp_token *result)
   cpp_token *keyword = peek;
   cpp_hashnode *(&n_modules)[spec_nodes::M_HWM][2] = pfile->spec_nodes.n_modules;
   int header_count = 0;
+  bool eol = false;
 
   /* Make sure the incoming state is as we expect it.  This way we
      can restore it using constants.  */
@@ -3563,10 +3568,10 @@ cpp_maybe_module_directive (cpp_reader *pfile, cpp_token *result)
      tokens.  C++ keywords are not yet relevant.  */
   if (peek->type == CPP_NAME
       || peek->type == CPP_COLON
-      ||  (header_count
-	   ? (peek->type == CPP_LESS
-	      || (peek->type == CPP_STRING && peek->val.str.text[0] != 'R')
-	      || peek->type == CPP_HEADER_NAME)
+      || (header_count
+	  ? (peek->type == CPP_LESS
+	     || (peek->type == CPP_STRING && peek->val.str.text[0] != 'R')
+	     || peek->type == CPP_HEADER_NAME)
 	   : peek->type == CPP_SEMICOLON))
     {
       pfile->state.pragma_allow_expansion = !CPP_OPTION (pfile, preprocessed);
@@ -3669,6 +3674,15 @@ cpp_maybe_module_directive (cpp_reader *pfile, cpp_token *result)
 		      peek->flags |= NO_DOT_COLON;
 		      break;
 		    }
+		  else if (peek->type == CPP_PRAGMA_EOL)
+		    {
+		      /* This is a broken module-directive; undo the clearing
+			 of in_deferred_pragma from _cpp_lex_direct so callers
+			 don't crash, and make sure we process the EOL again.  */
+		      pfile->state.in_deferred_pragma = true;
+		      eol = true;
+		      break;
+		    }
 		  else
 		    break;
 		}
@@ -3688,22 +3702,19 @@ cpp_maybe_module_directive (cpp_reader *pfile, cpp_token *result)
       pfile->state.in_deferred_pragma = false;
       /* Do not let this remain on.  */
       pfile->state.angled_headers = false;
+      /* If we saw EOL, we should drop it, because this isn't a module
+	 control-line after all.  */
+      eol = peek->type == CPP_PRAGMA_EOL;
     }
 
   /* In either case we want to backup the peeked tokens.  */
-  if (backup)
+  if (backup && (!eol || backup > 1))
     {
-      /* If we saw EOL, we should drop it, because this isn't a module
-	 control-line after all.  */
-      bool eol = peek->type == CPP_PRAGMA_EOL;
-      if (!eol || backup > 1)
-	{
-	  /* Put put the peeked tokens back  */
-	  _cpp_backup_tokens_direct (pfile, backup);
-	  /* But if the last one was an EOL, forget it.  */
-	  if (eol)
-	    pfile->lookaheads--;
-	}
+      /* Put the peeked tokens back.  */
+      _cpp_backup_tokens_direct (pfile, backup);
+      /* But if the last one was an EOL, forget it.  */
+      if (eol)
+	pfile->lookaheads--;
     }
 }
 
@@ -4310,6 +4321,10 @@ _cpp_lex_direct (cpp_reader *pfile)
 	  else
 	    result->flags |= COLON_SCOPE;
 	}
+      else if (*buffer->cur == ']'
+	       && CPP_OPTION (pfile, cplusplus)
+	       && CPP_OPTION (pfile, lang) >= CLK_GNUCXX26)
+	buffer->cur++, result->type = CPP_CLOSE_SPLICE;
       else if (*buffer->cur == '>' && CPP_OPTION (pfile, digraphs))
 	{
 	  buffer->cur++;
@@ -4321,7 +4336,15 @@ _cpp_lex_direct (cpp_reader *pfile)
     case '*': IF_NEXT_IS ('=', CPP_MULT_EQ, CPP_MULT); break;
     case '=': IF_NEXT_IS ('=', CPP_EQ_EQ, CPP_EQ); break;
     case '!': IF_NEXT_IS ('=', CPP_NOT_EQ, CPP_NOT); break;
-    case '^': IF_NEXT_IS ('=', CPP_XOR_EQ, CPP_XOR); break;
+    case '^':
+      result->type = CPP_XOR;
+      if (*buffer->cur == '=')
+	buffer->cur++, result->type = CPP_XOR_EQ;
+      else if (*buffer->cur == '^'
+	       && CPP_OPTION (pfile, cplusplus)
+	       && CPP_OPTION (pfile, lang) >= CLK_GNUCXX26)
+	buffer->cur++, result->type = CPP_REFLECT_OP;
+      break;
     case '#': IF_NEXT_IS ('#', CPP_PASTE, CPP_HASH); result->val.token_no = 0; break;
 
     case '?': result->type = CPP_QUERY; break;
@@ -4329,7 +4352,24 @@ _cpp_lex_direct (cpp_reader *pfile)
     case ',': result->type = CPP_COMMA; break;
     case '(': result->type = CPP_OPEN_PAREN; break;
     case ')': result->type = CPP_CLOSE_PAREN; break;
-    case '[': result->type = CPP_OPEN_SQUARE; break;
+    case '[':
+      result->type = CPP_OPEN_SQUARE;
+      /* C++ [lex.pptoken]/4.3: "Otherwise, if the next three characters are
+	 [:: and the subsequent character is not :, or if the next three
+	 characters are [:>, the [ is treated as a preprocessing token by
+	 itself and not as the first character of the preprocessing token [:."
+	 Also, the tokens [: and :] cannot be composed from digraphs.  */
+      if (*buffer->cur == ':'
+	  && CPP_OPTION (pfile, cplusplus)
+	  && CPP_OPTION (pfile, lang) >= CLK_GNUCXX26)
+	{
+	  if ((buffer->cur[1] == ':' && buffer->cur[2] != ':')
+	      || buffer->cur[1] == '>')
+	    break;
+	  else
+	    buffer->cur++, result->type = CPP_OPEN_SPLICE;
+	}
+      break;
     case ']': result->type = CPP_CLOSE_SQUARE; break;
     case '{': result->type = CPP_OPEN_BRACE; break;
     case '}': result->type = CPP_CLOSE_BRACE; break;
@@ -4400,7 +4440,8 @@ _cpp_lex_direct (cpp_reader *pfile)
 
   /* Potentially convert the location of the token to a range.  */
   if (result->src_loc >= RESERVED_LOCATION_COUNT
-      && result->type != CPP_EOF)
+      && result->type != CPP_EOF
+      && !pfile->forced_token_location)
     {
       /* Ensure that any line notes are processed, so that we have the
 	 correct physical line/column for the end-point of the token even
@@ -5458,7 +5499,13 @@ cpp_directive_only_process (cpp_reader *pfile,
 		    switch (c)
 		      {
 		      case '\\':
-			esc = true;
+			if (esc)
+			  {
+			    star = false;
+			    esc = false;
+			  }
+			else
+			  esc = true;
 			break;
 
 		      case '\r':
@@ -5489,7 +5536,7 @@ cpp_directive_only_process (cpp_reader *pfile,
 			break;
 
 		      case '/':
-			if (star)
+			if (star && !esc)
 			  goto done_comment;
 			/* FALLTHROUGH  */
 

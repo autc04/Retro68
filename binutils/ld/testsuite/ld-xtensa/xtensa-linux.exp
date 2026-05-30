@@ -1,5 +1,5 @@
 # Expect script for ld-xtensa tests
-#   Copyright (C) 2008-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2008-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -51,6 +51,14 @@ set xtensatests {
       {objdump "-sj.text --stop-address=0x400238" tlsbin.sd}
       {objdump -sj.tdata tlsbin.td}}
       "tlsbin"}
+    {"TLS PIE transitions"
+     "-pie -melf32xtensa tmpdir/libtlslib.so --hash-style=sysv" ""
+     "" {tlsbin.s}
+     {{readelf -WSsrl tlspie.rd}
+      {objdump "-dRj.text --start-address=0x238" tlspie.dd}
+      {objdump "-sj.text --stop-address=0x238" tlspie.sd}
+      {objdump -sj.tdata tlspie.td}}
+      "tlspie"}
 }
 
 run_ld_link_tests $xtensatests

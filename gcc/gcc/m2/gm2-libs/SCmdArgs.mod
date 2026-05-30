@@ -1,6 +1,6 @@
 (* SCmdArgs.mod provides procedures to retrieve arguments from strings.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -132,26 +132,27 @@ PROCEDURE GetArg (CmdLine: String;
 VAR
    i         : CARDINAL ;
    sn,
-   start, end: INTEGER ;
+   startPos,
+   endPos    : INTEGER ;
    ch        : CHAR ;
 BEGIN
    i := 0 ;
-   start := 0 ;
-   end := Length(CmdLine) ;
+   startPos := 0 ;
+   endPos := Length(CmdLine) ;
    WHILE i<n DO
-      start := skipWhite(CmdLine, start, end) ;
-      sn := skipNextArg(CmdLine, start, end) ;
-      IF sn<end
+      startPos := skipWhite(CmdLine, startPos, endPos) ;
+      sn := skipNextArg(CmdLine, startPos, endPos) ;
+      IF sn<endPos
       THEN
-         start := sn ;
+         startPos := sn ;
          INC(i)
       ELSE
          RETURN( FALSE )
       END
    END ;
-   start := skipWhite(CmdLine, start, end) ;
-   sn := skipNextArg(CmdLine, start, end) ;
-   Argi := Slice(CmdLine, start, sn) ;
+   startPos := skipWhite(CmdLine, startPos, endPos) ;
+   sn := skipNextArg(CmdLine, startPos, endPos) ;
+   Argi := Slice(CmdLine, startPos, sn) ;
    RETURN( TRUE )
 END GetArg ;
 
@@ -165,17 +166,18 @@ PROCEDURE Narg (CmdLine: String) : CARDINAL ;
 VAR
    n         : CARDINAL ;
    s,
-   start, end: INTEGER ;
+   startPos,
+   endPos    : INTEGER ;
 BEGIN
    n := 0 ;
-   start := 0 ;
-   end := Length(CmdLine) ;
+   startPos := 0 ;
+   endPos := Length(CmdLine) ;
    LOOP
-      start := skipWhite(CmdLine, start, end) ;
-      s := skipNextArg(CmdLine, start, end) ;
-      IF s<end
+      startPos := skipWhite(CmdLine, startPos, endPos) ;
+      s := skipNextArg(CmdLine, startPos, endPos) ;
+      IF s<endPos
       THEN
-         start := s ;
+         startPos := s ;
          INC(n)
       ELSE
          RETURN( n )

@@ -9,9 +9,9 @@ Disassembly of section .text:
 0+ <_start>:
  +[a-f0-9]+:	31 c0                	xor    %eax,%eax
  +[a-f0-9]+:	85 c0                	test   %eax,%eax
- +[a-f0-9]+:	8d 74 26 00          	lea    0x0\(%esi,%eiz,1\),%esi
- +[a-f0-9]+:	8d 74 26 00          	lea    0x0\(%esi,%eiz,1\),%esi
- +[a-f0-9]+:	8d 76 00             	lea    0x0\(%esi\),%esi
+ +[a-f0-9]+:	90                   	nop
+ +[a-f0-9]+:	2e 8d 74 26 00       	lea    %cs:(0x)?0\(%esi,%eiz,1\),%esi
+ +[a-f0-9]+:	2e 8d 74 26 00       	lea    %cs:(0x)?0\(%esi,%eiz,1\),%esi
  +[a-f0-9]+:	31 c0                	xor    %eax,%eax
  +[a-f0-9]+:	31 c0                	xor    %eax,%eax
 

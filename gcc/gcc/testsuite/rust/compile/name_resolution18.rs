@@ -1,4 +1,8 @@
-// { dg-options "-frust-name-resolution-2.0" }
+#![feature(no_core)]
+#![no_core]
+
+#![feature(no_core)]
+#![no_core]
 
 struct Marker;
 
@@ -7,7 +11,8 @@ struct Foo {
 }
 
 pub mod foo {
-    struct Foo {
+    use crate::Marker;
+    pub struct Foo {
         b: Marker,
     }
 }

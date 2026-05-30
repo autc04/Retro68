@@ -1,5 +1,5 @@
 ;; Predicate definitions for ARM and Thumb
-;; Copyright (C) 2004-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2026 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 
 ;; This file is part of GCC.
@@ -806,14 +806,8 @@
 
 ;;-------------------------------------------------------------------------
 ;;
-;; iWMMXt predicates
-;;
-
-(define_predicate "imm_or_reg_operand"
-  (ior (match_operand 0 "immediate_operand")
-       (match_operand 0 "register_operand")))
-
 ;; Neon predicates
+;;
 
 (define_predicate "const_multiple_of_8_operand"
   (match_code "const_int")
@@ -907,7 +901,8 @@
 
 (define_predicate "mem_noofs_operand"
   (and (match_code "mem")
-       (match_code "reg" "0")))
+       (match_code "reg" "0")
+       (match_operand 0 "memory_operand")))
 
 (define_predicate "call_insn_operand"
   (ior (and (match_code "symbol_ref")

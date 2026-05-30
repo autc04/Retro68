@@ -1,6 +1,108 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-02-05  Matthieu Longo  <matthieu.longo@arm.com>
+
+	* doubly-linked-list.h
+	(LINKED_LIST_SWAP_LISTS): Add new helper.
+	(LINKED_LIST_DECL_SWAP_LISTS): Likewise.
+	(LINKED_LIST_DEFN_SWAP_LISTS): Likewise.
+	(LWRAPPERTYPE##_swap_lists): Likewise.
+
+2026-02-03  Andrew Stubbs  <ams@baylibre.com>
+
+	* cuda/cuda.h (CUpointer_attribute): New enum.
+	(cuPointerGetAttribute): New prototype.
+
+2025-12-12  mengqinggang  <mengqinggang@loongson.cn>
+	    Jiajie Chen  <c@jia.je>
+
+	* longlong.h (count_leading_zeros): Delete because LA32R no clz.
+	(count_trailing_zeros): Delete because LA32R no ctz.
+	(COUNT_LEADING_ZEROS_0): Delete.
+
+2025-12-01  Andrew Stubbs  <ams@baylibre.com>
+
+	* hsa.h: Import newer version.
+	* hsa_ext_amd.h: Likewise.
+	* hsa_ext_image.h: Likewise.
+
+2025-11-30  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* dwarf2.h (DW_LANG_Algol68): Define.
+	(DW_LNAME_Algol68): Likewise.
+
+2025-11-13  Andrew Stubbs  <ams@codesourcery.com>
+	    Kwok Cheung Yeung  <kcyeung@baylibre.com>
+	    Thomas Schwinge  <tschwinge@baylibre.com>
+
+	* cuda/cuda.h (cuMemAllocManaged): Add declaration and related
+	CU_MEM_ATTACH_GLOBAL flag.
+	* gomp-constants.h (GOMP_OMPX_PREDEF_ALLOC_MAX): Update to 201.
+	(GOMP_OMP_PREDEF_MEMSPACE_MAX): New constant.
+	(GOMP_OMPX_PREDEF_MEMSPACE_MIN): New constant.
+	(GOMP_OMPX_PREDEF_MEMSPACE_MAX): New constant.
+
+2025-10-16  David Faust  <david.faust@oracle.com>
+
+	* dwarf2.def (DW_TAG_GNU_annotation): Add link to wiki page
+	documenting the extension.
+	(DW_AT_GNU_annotation): Likewise.
+
+2025-10-10  Tobias Burnus  <tburnus@baylibre.com>
+
+	* hsa_ext_amd.h (enum hsa_amd_agent_info_s): Add
+	HSA_AMD_AGENT_INFO_MEMORY_PROPERTIES.
+	(enum): Add HSA_AMD_MEMORY_PROPERTY_AGENT_IS_APU.
+
+2025-10-09  David Faust  <david.faust@oracle.com>
+
+	* btf.h (BTF_KIND_DECL_TAG, BTF_KIND_TYPE_TAG) New defines.
+	(struct btf_decl_tag): New.
+
+2025-10-09  David Faust  <david.faust@oracle.com>
+
+	* ctf.h (CTF_K_DECL_TAG, CTF_K_TYPE_TAG): New defines.
+
+2025-10-09  David Faust  <david.faust@oracle.com>
+
+	* dwarf2.def (DW_TAG_GNU_annotation): New DWARF extension.
+	(DW_AT_GNU_annotation): Likewise.
+
+2025-08-17  Nathaniel Shead  <nathanieloshead@gmail.com>
+
+	PR c++/120503
+	PR c++/120824
+	* demangle.h (enum demangle_component_type): Add enumeration
+	DEMANGLE_COMPONENT_UNNAMED_ENUM.
+
+2025-07-09  Matthieu Longo  <matthieu.longo@arm.com>
+
+	* doubly-linked-list.h: New file.
+
+2025-06-20  Sosutha Sethuramapandian  <ssethuramapa@marvell.com>
+
+	PR target/110181
+	* longlong.h  [__riscv] (count_leading_zeros): Define.
+	[__riscv] (count_trailing_zeros): Likewise.
+	[__riscv] (COUNT_LEADING_ZEROS_0): Likewise.
+
+2025-06-02  Tobias Burnus  <tburnus@baylibre.com>
+
+	PR libgomp/120444
+	* cuda/cuda.h (cuMemsetD8, cuMemsetD8Async): Declare.
+
+2025-05-30  Julian Brown  <julian@codesourcery.com>
+	    Tobias Burnus  <tburnus@baylibre.com>
+
+	* gomp-constants.h (gomp_map_kind): Add GOMP_MAP_UNSET,
+	GOMP_MAP_PUSH_MAPPER_NAME, GOMP_MAP_POP_MAPPER_NAME artificial mapping
+	clause types.
+
+2025-05-14  Andreas Schwab  <schwab@suse.de>
+
+	* libiberty.h (mkstemps): Remove duplicate.
 
 2025-03-29  Iain Sandoe  <iain@sandoe.co.uk>
 

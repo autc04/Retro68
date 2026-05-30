@@ -1,6 +1,6 @@
 /* Gimple walk support.
 
-   Copyright (C) 2007-2025 Free Software Foundation, Inc.
+   Copyright (C) 2007-2026 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldyh@redhat.com>
 
 This file is part of GCC.
@@ -118,7 +118,7 @@ walk_gimple_asm (gasm *stmt, walk_tree_fn callback_op,
       if (wi)
 	{
 	  if (parse_output_constraint (&constraint, i, 0, 0, &allows_mem,
-				       &allows_reg, &is_inout))
+				       &allows_reg, &is_inout, nullptr))
 	    wi->val_only = (allows_reg || !allows_mem);
 	}
       if (wi)
@@ -137,7 +137,8 @@ walk_gimple_asm (gasm *stmt, walk_tree_fn callback_op,
       if (wi)
 	{
 	  if (parse_input_constraint (&constraint, 0, 0, noutputs, 0,
-				      oconstraints, &allows_mem, &allows_reg))
+				      oconstraints, &allows_mem, &allows_reg,
+				      nullptr))
 	    {
 	      wi->val_only = (allows_reg || !allows_mem);
 	      /* Although input "m" is not really a LHS, we need a lvalue.  */
@@ -534,7 +535,7 @@ walk_gimple_op (gimple *stmt, walk_tree_fn callback_op,
       break;
 
     case GIMPLE_PHI:
-      /* PHIs are not GSS_WITH_OPS so we need to handle them explicitely.  */
+      /* PHIs are not GSS_WITH_OPS so we need to handle them explicitly.  */
       {
 	gphi *phi = as_a <gphi *> (stmt);
 	if (wi)
@@ -897,7 +898,7 @@ walk_stmt_load_store_addr_ops (gimple *stmt, void *data,
 		    (TREE_VALUE (TREE_PURPOSE (link)));
 		oconstraints[i] = constraint;
 		parse_output_constraint (&constraint, i, 0, 0, &allows_mem,
-					 &allows_reg, &is_inout);
+					 &allows_reg, &is_inout, nullptr);
 		if (op && !allows_reg && allows_mem)
 		  ret |= visit_addr (stmt, op, TREE_VALUE (link), data);
 	      }
@@ -922,8 +923,8 @@ walk_stmt_load_store_addr_ops (gimple *stmt, void *data,
 			constraint = TREE_STRING_POINTER
 			    (TREE_VALUE (TREE_PURPOSE (link)));
 			parse_input_constraint (&constraint, 0, 0, noutputs,
-						0, oconstraints,
-						&allows_mem, &allows_reg);
+						0, oconstraints, &allows_mem,
+						&allows_reg, nullptr);
 			if (!allows_reg && allows_mem)
 			  ret |= visit_addr (stmt, op, TREE_VALUE (link),
 					     data);

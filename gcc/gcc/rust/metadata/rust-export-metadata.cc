@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -23,6 +23,7 @@
 #include "rust-ast-dump.h"
 #include "rust-abi.h"
 #include "rust-item.h"
+#include "rust-macro.h"
 #include "rust-object-export.h"
 
 #include "md5.h"
@@ -91,8 +92,8 @@ ExportContext::emit_function (const HIR::Function &fn)
       AST::Function &function = static_cast<AST::Function &> (vis_item);
 
       std::vector<std::unique_ptr<AST::ExternalItem>> external_items;
-      external_items.push_back (std::unique_ptr<AST::ExternalItem> (
-	static_cast<AST::ExternalItem *> (&function)));
+      external_items.emplace_back (
+	static_cast<AST::ExternalItem *> (&function));
 
       AST::ExternBlock extern_block (get_string_from_abi (Rust::ABI::RUST),
 				     std::move (external_items),
@@ -111,14 +112,12 @@ ExportContext::emit_function (const HIR::Function &fn)
 }
 
 void
-ExportContext::emit_macro (NodeId macro)
+ExportContext::emit_macro (AST::MacroRulesDefinition &macro)
 {
   std::stringstream oss;
   AST::Dump dumper (oss);
 
-  AST::Item *item = mappings.lookup_ast_item (macro).value ();
-
-  dumper.go (*item);
+  dumper.go (macro);
 
   public_interface_buffer += oss.str ();
 }
@@ -195,7 +194,7 @@ PublicInterface::gather_export_data ()
 	vis_item.accept_vis (visitor);
     }
 
-  for (const auto &macro : mappings.get_exported_macros ())
+  for (auto &macro : mappings.get_exported_macros ())
     context.emit_macro (macro);
 }
 
@@ -263,8 +262,7 @@ PublicInterface::write_to_path (const std::string &path) const
   FILE *nfd = fopen (path.c_str (), "wb");
   if (nfd == NULL)
     {
-      rust_error_at (UNDEF_LOCATION,
-		     "failed to open file %qs for writing: %s",
+      rust_error_at (UNDEF_LOCATION, "failed to open file %qs for writing: %s",
 		     path.c_str (), xstrerror (errno));
       return;
     }

@@ -16,5 +16,5 @@ SECTIONS
   .got            : { *(.got) *(.got.plt)}
   . = 0x12340000;
   .far : { *(.far) }
-  .c6xabi.attribues 0 : { *(.c6xabi.atttributes) }
+  .c6xabi.attributes 0 : { *(.c6xabi.attributes) }
 }

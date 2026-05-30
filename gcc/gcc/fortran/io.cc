@@ -1,5 +1,5 @@
 /* Deal with I/O statements & related stuff.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -29,7 +29,7 @@ along with GCC; see the file COPYING3.  If not see
 
 gfc_st_label
 format_asterisk = {0, NULL, NULL, -1, ST_LABEL_FORMAT, ST_LABEL_FORMAT, NULL,
-		   0, {NULL, NULL}, NULL, 0};
+		   0, {NULL, {NULL}}, NULL, 0};
 
 typedef struct
 {
@@ -103,7 +103,7 @@ static const io_tag
 	tag_err		= {"ERR", " err =", " %l", BT_UNKNOWN},
 	tag_end		= {"END", " end =", " %l", BT_UNKNOWN},
 	tag_eor		= {"EOR", " eor =", " %l", BT_UNKNOWN},
-	tag_id		= {"ID", " id =", " %v", BT_INTEGER},
+	tag_id		= {"ID", " id =", " %e", BT_INTEGER},
 	tag_pending	= {"PENDING", " pending =", " %v", BT_LOGICAL},
 	tag_newunit	= {"NEWUNIT", " newunit =", " %v", BT_INTEGER},
 	tag_s_iqstream	= {"STREAM", " stream =", " %v", BT_CHARACTER};
@@ -256,7 +256,7 @@ format_lex (void)
 	{
 	  c = next_char_not_space ();
 	  if (ISDIGIT (c))
-	    value = 10 * value + c - '0';
+	    value = 10 * value + (c - '0');
 	}
       while (ISDIGIT (c));
 
@@ -287,7 +287,7 @@ format_lex (void)
 	  c = next_char_not_space ();
 	  if (ISDIGIT (c))
 	    {
-	      value = 10 * value + c - '0';
+	      value = 10 * value + (c - '0');
 	      if (c != '0')
 		zflag = 0;
 	    }
@@ -1129,13 +1129,16 @@ data_desc:
       break;
 
     case FMT_H:
-      if (!(gfc_option.allow_std & GFC_STD_GNU) && !inhibit_warnings)
+      if (!(gfc_option.allow_std & GFC_STD_LEGACY))
 	{
-	  if (mode != MODE_FORMAT)
-	    format_locus.nextc += format_string_pos;
-	  gfc_warning (0, "The H format specifier at %L is"
-		       " a Fortran 95 deleted feature", &format_locus);
+	  error = G_("The H format specifier at %L is a Fortran 95 deleted"
+		     " feature");
+	  goto syntax;
 	}
+      if (mode != MODE_FORMAT)
+	format_locus.nextc += format_string_pos;
+      gfc_warning (0, "The H format specifier at %L is"
+		   " a Fortran 95 deleted feature", &format_locus);
       if (mode == MODE_STRING)
 	{
 	  format_string += value;
@@ -1144,7 +1147,7 @@ data_desc:
 	}
       else
 	{
-	  while (repeat >0)
+	  while (repeat > 0)
 	   {
 	     next_char (INSTRING_WARN);
 	     repeat -- ;
@@ -1228,7 +1231,8 @@ between_desc:
     default:
       if (mode != MODE_FORMAT)
 	format_locus.nextc += format_string_pos - 1;
-      if (!gfc_notify_std (GFC_STD_GNU, "Missing comma at %L", &format_locus))
+      if (!gfc_notify_std (GFC_STD_LEGACY,
+	  "Missing comma in FORMAT string at %L", &format_locus))
 	return false;
       /* If we do not actually return a failure, we need to unwind this
          before the next round.  */
@@ -1290,7 +1294,8 @@ extension_optional_comma:
     default:
       if (mode != MODE_FORMAT)
 	format_locus.nextc += format_string_pos;
-      if (!gfc_notify_std (GFC_STD_GNU, "Missing comma at %L", &format_locus))
+      if (!gfc_notify_std (GFC_STD_LEGACY,
+	  "Missing comma in FORMAT string at %L", &format_locus))
 	return false;
       /* If we do not actually return a failure, we need to unwind this
          before the next round.  */
@@ -2242,10 +2247,6 @@ check_open_constraints (gfc_open *open, locus *where)
   /* Checks on the BLANK specifier.  */
   if (open->blank)
     {
-      if (!gfc_notify_std (GFC_STD_F2003, "BLANK= at %L "
-			   "not allowed in Fortran 95", &open->blank->where))
-	return false;
-
       if (open->blank->expr_type == EXPR_CONSTANT)
 	{
 	  static const char *blank[] = { "ZERO", "NULL", NULL };
@@ -4218,7 +4219,21 @@ match_io (io_kind k)
       if (gfc_current_form == FORM_FREE)
 	{
 	  char c = gfc_peek_ascii_char ();
-	  if (c != ' ' && c != '*' && c != '\'' && c != '"')
+
+	  /* Issue a warning for an invalid tab in 'print<tab>*'.  After
+	     the warning is issued, consume any other whitespace and check
+	     that the next char is an *, ', or ".  */
+	  if (c == '\t')
+	    {
+	      gfc_gobble_whitespace ();
+	      c = gfc_peek_ascii_char ();
+	      if (c != '*' && c != '\'' && c != '"')
+		{
+		  m = MATCH_NO;
+		  goto cleanup;
+		}
+	    }
+	  else if (c != ' ' && c != '*' && c != '\'' && c != '"')
 	    {
 	      m = MATCH_NO;
 	      goto cleanup;
@@ -4550,7 +4565,7 @@ match_inquire_element (gfc_inquire *inquire)
   RETM m = match_vtag (&tag_convert, &inquire->convert);
   RETM m = match_out_tag (&tag_strm_out, &inquire->strm_pos);
   RETM m = match_vtag (&tag_pending, &inquire->pending);
-  RETM m = match_vtag (&tag_id, &inquire->id);
+  RETM m = match_etag (&tag_id, &inquire->id);
   RETM m = match_vtag (&tag_s_iqstream, &inquire->iqstream);
   RETM m = match_dec_vtag (&tag_v_share, &inquire->share);
   RETM m = match_dec_vtag (&tag_v_cc, &inquire->cc);

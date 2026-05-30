@@ -1,5 +1,5 @@
 // -*- C++ -*- Implement the members of exception_ptr.
-// Copyright (C) 2008-2025 Free Software Foundation, Inc.
+// Copyright (C) 2008-2026 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -219,5 +219,21 @@ std::rethrow_exception(std::exception_ptr ep)
   __cxa_begin_catch (&dep->unwindHeader);
   std::terminate();
 }
+
+const void*
+std::__exception_ptr::exception_ptr::_M_exception_ptr_cast(const type_info& t)
+  const noexcept
+{
+  void *ptr = _M_exception_object;
+  if (__builtin_expect(ptr == nullptr, false))
+    return nullptr;
+  __cxa_refcounted_exception *eh
+    = __get_refcounted_exception_header_from_obj (_M_exception_object);
+  const type_info* __thr_type = eh->exc.exceptionType;
+  if (t.__do_catch(__thr_type, &ptr, 1))
+    return ptr;
+  return nullptr;
+}
+
 
 #undef _GLIBCXX_EH_PTR_COMPAT

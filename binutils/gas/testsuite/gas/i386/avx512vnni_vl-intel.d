@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 AVX512VNNI/VL insns (Intel disassembly)
 #source: avx512vnni_vl.s
@@ -8,7 +7,7 @@
 
 Disassembly of section \.text:
 
-00000000 <_start>:
+00000000 <vnni>:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 5d 0b 52 d2[ 	]*vpdpwssd xmm2\{k3\},xmm4,xmm2
 [ 	]*[a-f0-9]+:[ 	]*62 f2 5d 8b 52 d2[ 	]*vpdpwssd xmm2\{k3\}\{z\},xmm4,xmm2
 [ 	]*[a-f0-9]+:[ 	]*62 f2 5d 09 52 94 f4 c0 1d fe ff[ 	]*vpdpwssd xmm2\{k1\},xmm4,XMMWORD PTR \[esp\+esi\*8-0x1e240\]

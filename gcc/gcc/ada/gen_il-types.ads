@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2020-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2020-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -103,6 +103,7 @@ package Gen_IL.Types is
       N_Is_Range,
       N_Multiplying_Operator,
       N_Later_Decl_Item,
+      N_Loop_Flow_Statement,
       N_Membership_Test,
       N_Numeric_Or_String_Literal,
       N_Op,
@@ -328,6 +329,7 @@ package Gen_IL.Types is
       N_Code_Statement,
       N_Compound_Statement,
       N_Conditional_Entry_Call,
+      N_Continue_Statement,
       N_Delay_Relative_Statement,
       N_Delay_Until_Statement,
       N_Entry_Call_Statement,
@@ -443,6 +445,7 @@ package Gen_IL.Types is
       --  Concrete entity types:
 
       E_Void,
+      E_Assertion_Level,
       E_Component,
       E_Constant,
       E_Discriminant,

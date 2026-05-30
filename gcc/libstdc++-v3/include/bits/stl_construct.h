@@ -1,6 +1,6 @@
 // nonstandard construct and destroy functions -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -82,7 +82,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       if constexpr (__cplusplus > 201703L && is_array_v<_Tp>)
 	{
 	  for (auto& __x : *__location)
-	    std::destroy_at(std::__addressof(__x));
+	    std::destroy_at(std::addressof(__x));
 	}
       else
 	__location->~_Tp();
@@ -123,7 +123,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     _Construct(_Tp* __p, _Args&&... __args)
     {
 #if __cpp_constexpr_dynamic_alloc // >= C++20
-      if (std::__is_constant_evaluated())
+      if (std::is_constant_evaluated())
 	{
 	  // Allow std::_Construct to be used in constant expressions.
 	  std::construct_at(__p, std::forward<_Args>(__args)...);
@@ -181,6 +181,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  for (; __first != __last; ++__first)
 	    std::_Destroy(std::__addressof(*__first));
 	}
+
+      template<typename _ForwardIterator, typename _Size>
+	static _GLIBCXX20_CONSTEXPR _ForwardIterator
+	__destroy_n(_ForwardIterator __first, _Size __count)
+	{
+	  for (; __count > 0; (void)++__first, --__count)
+	    std::_Destroy(std::__addressof(*__first));
+	  return __first;
+	}
     };
 
   template<>
@@ -189,6 +198,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       template<typename _ForwardIterator>
         static void
         __destroy(_ForwardIterator, _ForwardIterator) { }
+
+      template<typename _ForwardIterator, typename _Size>
+	static _ForwardIterator
+	__destroy_n(_ForwardIterator __first, _Size __count)
+	{
+	  std::advance(__first, __count);
+	  return __first;
+	}
     };
 #endif
 
@@ -204,49 +221,19 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef typename iterator_traits<_ForwardIterator>::value_type
                        _Value_type;
 #if __cplusplus >= 201103L
-      // A deleted destructor is trivial, this ensures we reject such types:
-      static_assert(is_destructible<_Value_type>::value,
-		    "value type is destructible");
-      if constexpr (!__has_trivial_destructor(_Value_type))
+      if constexpr (!is_trivially_destructible<_Value_type>::value)
 	for (; __first != __last; ++__first)
-	  std::_Destroy(std::__addressof(*__first));
+	  std::_Destroy(std::addressof(*__first));
 #if __cpp_constexpr_dynamic_alloc // >= C++20
-      else if (std::__is_constant_evaluated())
+      else if (std::is_constant_evaluated())
 	for (; __first != __last; ++__first)
-	  std::destroy_at(std::__addressof(*__first));
+	  std::destroy_at(std::addressof(*__first));
 #endif
 #else
       std::_Destroy_aux<__has_trivial_destructor(_Value_type)>::
 	__destroy(__first, __last);
 #endif
     }
-
-#if __cplusplus < 201103L
-  template<bool>
-    struct _Destroy_n_aux
-    {
-      template<typename _ForwardIterator, typename _Size>
-	static _GLIBCXX20_CONSTEXPR _ForwardIterator
-	__destroy_n(_ForwardIterator __first, _Size __count)
-	{
-	  for (; __count > 0; (void)++__first, --__count)
-	    std::_Destroy(std::__addressof(*__first));
-	  return __first;
-	}
-    };
-
-  template<>
-    struct _Destroy_n_aux<true>
-    {
-      template<typename _ForwardIterator, typename _Size>
-        static _ForwardIterator
-        __destroy_n(_ForwardIterator __first, _Size __count)
-	{
-	  std::advance(__first, __count);
-	  return __first;
-	}
-    };
-#endif
 
   /**
    * Destroy a range of objects.  If the value_type of the object has
@@ -260,22 +247,19 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef typename iterator_traits<_ForwardIterator>::value_type
                        _Value_type;
 #if __cplusplus >= 201103L
-      // A deleted destructor is trivial, this ensures we reject such types:
-      static_assert(is_destructible<_Value_type>::value,
-		    "value type is destructible");
-      if constexpr (!__has_trivial_destructor(_Value_type))
+      if constexpr (!is_trivially_destructible<_Value_type>::value)
 	for (; __count > 0; (void)++__first, --__count)
-	  std::_Destroy(std::__addressof(*__first));
+	  std::_Destroy(std::addressof(*__first));
 #if __cpp_constexpr_dynamic_alloc // >= C++20
-      else if (std::__is_constant_evaluated())
+      else if (std::is_constant_evaluated())
 	for (; __count > 0; (void)++__first, --__count)
-	  std::destroy_at(std::__addressof(*__first));
+	  std::destroy_at(std::addressof(*__first));
 #endif
       else
 	std::advance(__first, __count);
       return __first;
 #else
-      return std::_Destroy_n_aux<__has_trivial_destructor(_Value_type)>::
+      return std::_Destroy_aux<__has_trivial_destructor(_Value_type)>::
 	__destroy_n(__first, __count);
 #endif
     }
@@ -296,6 +280,129 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       return std::_Destroy_n(__first, __count);
     }
 #endif // C++17
+
+#if __glibcxx_start_lifetime_as >= 202207L // C++ >= 23
+  template<typename _Tp>
+    [[__gnu__::__always_inline__]]
+    inline _Tp*
+    start_lifetime_as(void* __p) noexcept
+    {
+#if __glibcxx_is_implicit_lifetime >= 202302L
+      static_assert(is_implicit_lifetime_v<_Tp>);
+#endif
+      auto __q = reinterpret_cast<_Tp*>(__p);
+      __asm__ __volatile__("" : "=g" (__q), "=m" (*__q)
+			   : "0" (__q), "m" (*__q));
+      return __q;
+    }
+
+  template<typename _Tp>
+    [[__gnu__::__always_inline__]]
+    inline const _Tp*
+    start_lifetime_as(const void* __p) noexcept
+    {
+#if __glibcxx_is_implicit_lifetime >= 202302L
+      static_assert(is_implicit_lifetime_v<_Tp>);
+#endif
+      auto __q = reinterpret_cast<const _Tp*>(__p);
+      auto __r = reinterpret_cast<_Tp*>(const_cast<void*>(__p));
+      __asm__ __volatile__("" : "=g" (__q), "=m" (*__r)
+			   : "0" (__q), "m" (*__q));
+      return __q;
+    }
+
+  template<typename _Tp>
+    [[__gnu__::__always_inline__]]
+    inline volatile _Tp*
+    start_lifetime_as(volatile void* __p) noexcept
+    {
+#if __glibcxx_is_implicit_lifetime >= 202302L
+      static_assert(is_implicit_lifetime_v<_Tp>);
+#endif
+      auto __q = reinterpret_cast<volatile _Tp*>(__p);
+      auto __r = reinterpret_cast<_Tp*>(const_cast<void*>(__p));
+      __asm__ __volatile__("" : "=g" (__q), "=m" (*__r)
+			   : "0" (__q), "m" (*__q));
+      return __q;
+    }
+
+  template<typename _Tp>
+    [[__gnu__::__always_inline__]]
+    inline const volatile _Tp*
+    start_lifetime_as(const volatile void* __p) noexcept
+    {
+#if __glibcxx_is_implicit_lifetime >= 202302L
+      static_assert(is_implicit_lifetime_v<_Tp>);
+#endif
+      auto __q = reinterpret_cast<const volatile _Tp*>(__p);
+      auto __r = reinterpret_cast<_Tp*>(const_cast<void*>(__p));
+      __asm__ __volatile__("" : "=g" (__q), "=m" (*__r)
+			   : "0" (__q), "m" (*__q));
+      return __q;
+    }
+
+  template<typename _Tp>
+    [[__gnu__::__always_inline__]]
+    inline _Tp*
+    start_lifetime_as_array(void* __p, size_t __n) noexcept
+    {
+      auto __q = reinterpret_cast<_Tp*>(__p);
+      if (!__n)
+	return __q;
+      auto __r = (__extension__ reinterpret_cast<_Tp(*)[__n]>(__p));
+      __asm__ __volatile__("" : "=g" (__q), "=m" (*__r)
+			   : "0" (__q), "m" (*__r));
+      return __q;
+    }
+
+  template<typename _Tp>
+    [[__gnu__::__always_inline__]]
+    inline const _Tp*
+    start_lifetime_as_array(const void* __p, size_t __n) noexcept
+    {
+      auto __q = reinterpret_cast<const _Tp*>(__p);
+      if (!__n)
+	return __q;
+      auto __r = (__extension__ reinterpret_cast<const _Tp(*)[__n]>(__p));
+      auto __s = (__extension__
+		  reinterpret_cast<_Tp(*)[__n]>(const_cast<void*>(__p)));
+      __asm__ __volatile__("" : "=g" (__q), "=m" (*__s)
+			   : "0" (__q), "m" (*__r));
+      return __q;
+    }
+
+  template<typename _Tp>
+    [[__gnu__::__always_inline__]]
+    inline volatile _Tp*
+    start_lifetime_as_array(volatile void* __p, size_t __n) noexcept
+    {
+      auto __q = reinterpret_cast<volatile _Tp*>(__p);
+      if (!__n)
+	return __q;
+      auto __r = (__extension__ reinterpret_cast<volatile _Tp(*)[__n]>(__p));
+      auto __s = (__extension__
+		  reinterpret_cast<_Tp(*)[__n]>(const_cast<void*>(__p)));
+      __asm__ __volatile__("" : "=g" (__q), "=m" (*__s)
+			   : "0" (__q), "m" (*__r));
+      return __q;
+    }
+
+  template<typename _Tp>
+    [[__gnu__::__always_inline__]]
+    inline const volatile _Tp*
+    start_lifetime_as_array(const volatile void* __p, size_t __n) noexcept
+    {
+      auto __q = reinterpret_cast<const volatile _Tp*>(__p);
+      if (!__n)
+	return __q;
+      auto __r = (__extension__ reinterpret_cast<const volatile _Tp(*)[__n]>(__p));
+      auto __s = (__extension__
+		  reinterpret_cast<_Tp(*)[__n]>(const_cast<void*>(__p)));
+      __asm__ __volatile__("" : "=g" (__q), "=m" (*__s)
+			   : "0" (__q), "m" (*__r));
+      return __q;
+    }
+#endif // C++23
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std

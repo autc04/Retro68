@@ -1,5 +1,5 @@
 # libgcc host-specific configuration file.
-# Copyright (C) 1997-2025 Free Software Foundation, Inc.
+# Copyright (C) 1997-2026 Free Software Foundation, Inc.
 
 #This file is part of GCC.
 
@@ -141,19 +141,6 @@ lm32*-*-*)
 	;;
 loongarch*-*)
 	cpu_type=loongarch
-	tmake_file="loongarch/t-loongarch"
-	if test "${libgcc_cv_loongarch_hard_float}" = yes; then
-		tmake_file="${tmake_file} t-hardfp-sfdf t-hardfp"
-	else
-		tmake_file="${tmake_file} t-softfp-sfdf"
-	fi
-	if test "${ac_cv_sizeof_long_double}" = 16; then
-		tmake_file="${tmake_file} loongarch/t-softfp-tf"
-	fi
-	if test "${host_address}" = 64; then
-		tmake_file="${tmake_file} loongarch/t-loongarch64"
-	fi
-	tmake_file="${tmake_file} t-softfp"
 	;;
 m32r*-*-*)
         cpu_type=m32r
@@ -472,13 +459,16 @@ aarch64-*-mingw*)
 	  posix)
 	    tmake_thr_file="mingw/t-mingw-pthread"
 	    ;;
+	  mcf)
+	    tmake_thr_file="mingw/t-mingw-mcfgthread"
+	    ;;
 	esac
-	tmake_file="${tmake_file} ${cpu_type}/t-no-eh ${tmake_thr_file}"
+	tmake_file="${tmake_file} mingw/t-seh-eh ${tmake_thr_file}"
 	tmake_file="${tmake_file} t-dfprules"
 	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
 	tmake_file="${tmake_file} ${cpu_type}/t-mingw"
 	tmake_file="${tmake_file} ${cpu_type}/t-lse"
-	tmake_file="${tmake_file} ${cpu_type}/t-softfp t-softfp t-crtfm"
+	tmake_file="${tmake_file} t-crtfm"
 	;;
 alpha*-*-linux*)
 	tmake_file="${tmake_file} alpha/t-alpha alpha/t-ieee t-crtfm alpha/t-linux"
@@ -880,7 +870,7 @@ x86_64-*-cygwin*)
 	        # biarch -m32 with --disable-sjlj-exceptions
 	     	tmake_eh_file="i386/t-dw2-eh"
 	else
-		tmake_eh_file="i386/t-seh-eh"
+		tmake_eh_file="mingw/t-seh-eh"
 	fi
 	# Shared libgcc DLL install dir depends on cross/native build.
 	if test x${build} = x${host} ; then
@@ -904,7 +894,7 @@ i[34567]86-*-mingw*)
 	    tmake_thr_file="mingw/t-mingw-pthread"
 	    ;;
 	  mcf)
-	    tmake_thr_file="i386/t-mingw-mcfgthread"
+	    tmake_thr_file="mingw/t-mingw-mcfgthread"
 	    ;;
 	esac
 	# This has to match the logic for DWARF2_UNWIND_INFO in gcc/config/i386/cygming.h
@@ -931,7 +921,7 @@ x86_64-*-mingw*)
 	    tmake_thr_file="mingw/t-mingw-pthread"
 	    ;;
 	  mcf)
-	    tmake_thr_file="i386/t-mingw-mcfgthread"
+	    tmake_thr_file="mingw/t-mingw-mcfgthread"
 	    ;;
 	esac
 	# This has to match the logic for DWARF2_UNWIND_INFO in gcc/config/i386/cygming.h
@@ -942,7 +932,7 @@ x86_64-*-mingw*)
 	     	tmake_eh_file="i386/t-dw2-eh"
 		md_unwind_header=i386/w32-unwind.h
 	else
-		tmake_eh_file="i386/t-seh-eh"
+		tmake_eh_file="mingw/t-seh-eh"
 	fi
 	# Shared libgcc DLL install dir depends on cross/native build.
 	if test x${build} = x${host} ; then
@@ -967,9 +957,11 @@ ia64*-*-freebsd*)
 ia64*-*-linux*)
 	# Don't use crtbeginT.o from *-*-linux* default.
 	extra_parts="crtbegin.o crtend.o crtbeginS.o crtendS.o crtfastmath.o"
-	tmake_file="$tmake_file ia64/t-ia64 ia64/t-ia64-elf t-crtfm t-softfp-tf ia64/t-softfp t-softfp ia64/t-softfp-compat ia64/t-eh-ia64 t-libunwind ia64/t-linux"
+	tmake_file="${tmake_file} ia64/t-ia64 ia64/t-ia64-elf t-crtfm t-softfp-tf ia64/t-softfp t-softfp ia64/t-softfp-compat ia64/t-eh-ia64"
 	if test x$with_system_libunwind != xyes ; then
 		tmake_file="${tmake_file} t-libunwind-elf ia64/t-linux-libunwind"
+	else
+		tmake_file="${tmake_file} ia64/t-linux t-libunwind"
 	fi
 	md_unwind_header=ia64/linux-unwind.h
 	;;
@@ -1000,16 +992,22 @@ lm32-*-uclinux*)
 	;;
 loongarch*-linux*)
 	extra_parts="$extra_parts crtfastmath.o"
-	tmake_file="${tmake_file} t-crtfm loongarch/t-crtstuff"
-	case ${host} in
-	  *)
-	    tmake_file="${tmake_file} t-slibgcc-libgcc"
-	    ;;
-	esac
 	md_unwind_header=loongarch/linux-unwind.h
+	tmake_file="${tmake_file} loongarch/t-loongarch t-softfp-sfdf loongarch/t-softfp-tf"
+	if test "${host_address}" = 64; then
+		tmake_file="${tmake_file} loongarch/t-loongarch64"
+	fi
+	tmake_file="${tmake_file} t-softfp"
+	tmake_file="${tmake_file} t-crtfm loongarch/t-crtstuff"
+	tmake_file="${tmake_file} t-slibgcc-libgcc"
 	;;
 loongarch*-elf*)
 	extra_parts="$extra_parts crtfastmath.o"
+	tmake_file="${tmake_file} loongarch/t-loongarch t-softfp-sfdf loongarch/t-softfp-tf"
+	if test "${host_address}" = 64; then
+		tmake_file="${tmake_file} loongarch/t-loongarch64"
+	fi
+	tmake_file="${tmake_file} t-softfp"
 	tmake_file="${tmake_file} t-crtfm loongarch/t-crtstuff"
 	tmake_file="${tmake_file} t-slibgcc-libgcc"
 	;;
@@ -1021,10 +1019,6 @@ m32rle-*-elf*)
 	tmake_file=t-fdpbit
 	;;
 m68k-*-elf* | fido-*-elf)
-	tmake_file="$tmake_file m68k/t-floatlib"
-	;;
-m68k-*-macos)
-	extra_parts="crtbegin.o crtend.o"
 	tmake_file="$tmake_file m68k/t-floatlib"
 	;;
 m68k*-*-netbsdelf*)
@@ -1379,9 +1373,6 @@ rs6000-ibm-aix[56789].* | powerpc-ibm-aix[56789].*)
 	tmake_file="t-fdpbit rs6000/t-ppc64-fp rs6000/t-slibgcc-aix rs6000/t-ibm-ldouble rs6000/t-aix-cxa"
 	extra_parts="crtcxa.o crtcxa_s.o crtdbase.o crtcxa_64.o crtcxa_64_s.o crtdbase_64.o"
 	;;
-powerpc-*-macos)
-	tmake_file="t-fdpbit rs6000/t-ibm-ldouble"
-	;;
 rl78-*-elf)
 	tmake_file="$tm_file t-fdpbit rl78/t-rl78"
 	;;
@@ -1401,6 +1392,11 @@ s390x-*-linux*)
 	tmake_file="${tmake_file} s390/t-crtstuff s390/t-linux t-stack s390/t-stack-s390"
 	if test "${host_address}" = 32; then
 	   tmake_file="${tmake_file} s390/32/t-floattodi"
+	else
+	   if test "$libgcc_cv_s390_float16" = "yes"; then
+		tmake_file="${tmake_file} s390/t-float16"
+	   fi
+	   tmake_file="${tmake_file} s390/t-softfp t-softfp"
 	fi
 	md_unwind_header=s390/linux-unwind.h
 	;;

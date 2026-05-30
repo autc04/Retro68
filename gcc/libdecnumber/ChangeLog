@@ -1,6 +1,11 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-01-09  Ben Boeckel  <ben.boeckel@kitware.com>
+
+	* configure: Regenerate.
+	* configure.ac: Replace gcc-bugs@ with bug reporting link.
 
 2024-04-02  Jakub Jelinek  <jakub@redhat.com>
 
@@ -792,7 +797,7 @@
 	* decDPD.h: Likewise.
 	* decLibrary.c, decRound.c: Likewise.
 
-Copyright (C) 2005-2025 Free Software Foundation, Inc.
+Copyright (C) 2005-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

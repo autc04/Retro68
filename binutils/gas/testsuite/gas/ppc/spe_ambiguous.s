@@ -17,5 +17,5 @@
 	evsubw          rS, rB, rA
 	evsubifw        rS, UIMM, rB
 	evsubiw         rS, rB, UIMM
-	evnor           rS, rA, rB
+	evnor           rS, rA, rA
 	evnot           rS, rA

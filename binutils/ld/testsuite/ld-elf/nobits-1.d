@@ -1,4 +1,4 @@
-#ld: -Tnobits-1.t
+#ld: -Tnobits-1.t --no-warn-rwx-segments
 #readelf: -l --wide
 
 #...

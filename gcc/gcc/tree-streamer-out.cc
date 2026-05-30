@@ -1,6 +1,6 @@
 /* Routines for emitting trees to a file stream.
 
-   Copyright (C) 2011-2025 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
    Contributed by Diego Novillo <dnovillo@google.com>
 
 This file is part of GCC.
@@ -372,7 +372,8 @@ pack_ts_type_common_value_fields (struct bitpack_d *bp, tree expr)
     bp_pack_value (bp, TYPE_STRING_FLAG (expr), 1);
   if (AGGREGATE_TYPE_P (expr))
     bp_pack_value (bp, TYPE_TYPELESS_STORAGE (expr), 1);
-  bp_pack_value (bp, TYPE_EMPTY_P (expr), 1);
+  if (!lto_stream_offload_p)
+    bp_pack_value (bp, TYPE_EMPTY_P (expr), 1);
   if (FUNC_OR_METHOD_TYPE_P (expr))
     bp_pack_value (bp, TYPE_NO_NAMED_ARGS_STDARG_P (expr), 1);
   if (RECORD_OR_UNION_TYPE_P (expr))

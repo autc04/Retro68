@@ -313,3 +313,26 @@
 	ldxp	x26, x1, [x26]
 	st4	{v0.16b-v3.16b}[4], [x0]
 	stlxp	w3, w26, w26, [x3]
+
+	ldr	x0, [1]
+	ldr	x0, []
+	ldr	x0, [,xzr]
+
+	zip2	x1
+	uxtw	d2
+	usra	x3
+	ushr	z4
+	umull	z5
+	umin	d6
+	stur	v7
+	sel	v8
+	orn	d9
+	frecpx	v10
+	bics	z11
+	rev	wsp
+	orr	b12
+	neg	p13
+	fcvtpu	za14h
+	fcmlt	z15
+	clastb	sp
+	ldr	sp

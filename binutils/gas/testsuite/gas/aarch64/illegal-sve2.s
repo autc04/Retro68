@@ -166,6 +166,7 @@ eortb z32.h, z0.h, z0.h
 eortb z0.s, z32.s, z0.s
 eortb z0.s, z0.s, z32.s
 
+ext z0.b, {,}, #0
 ext z0.b, { z0.b, z2.b }, #0
 ext z0.h, { z0.b, z1.b }, #0
 ext z0.b, { z0.h, z1.b }, #0
@@ -1525,6 +1526,7 @@ tbl z0.b, { z0.b, z1.b }, z0.h
 tbl z0.b, { z0.b, z1.h }, z0.b
 tbl z0.b, { z0.h, z0.b }, z0.b
 tbl z0.h, { z0.b, z0.b }, z0.b
+tbl z0.h, { z0.b, z1.b }, z0.b
 
 tbx z32.h, z0.b, z0.b
 tbx z0.h, z32.b, z0.b
@@ -2072,3 +2074,6 @@ xar z0.s, z0.s, z0.s, #0
 xar z0.s, z0.s, z0.s, #33
 xar z0.d, z0.d, z0.d, #0
 xar z0.d, z0.d, z0.d, #64
+
+.equ z0.h, 1
+sqshl z1.s, p0/m, z1.s, z0.h

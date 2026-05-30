@@ -1,5 +1,5 @@
 /* Subroutines used for code generation on Renesas RL78 processors.
-   Copyright (C) 2011-2025 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
    Contributed by Red Hat.
 
    This file is part of GCC.
@@ -4953,8 +4953,7 @@ rl78_emit_libcall (const char *name, enum rtx_code code,
       gcc_unreachable ();
     }
 
-  insns = get_insns ();
-  end_sequence ();
+  insns = end_sequence ();
   emit_libcall_block (insns, operands[0], ret, equiv);
   return ret;
 }

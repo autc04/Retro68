@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Free Software Foundation, Inc.
+// Copyright (C) 2023-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU Proc Macro Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -47,17 +47,13 @@ public:
 
 extern "C" {
 
-Ident
-Ident__new (FFIString str, Span span);
+Ident Ident__new (FFIString str, Span span);
 
-Ident
-Ident__new_raw (FFIString str, Span span);
+Ident Ident__new_raw (FFIString str, Span span);
 
-void
-Ident__drop (Ident *ident);
+void Ident__drop (Ident *ident);
 
-Ident
-Ident__clone (const Ident *ident);
+Ident Ident__clone (const Ident *ident);
 }
 
 } // namespace ProcMacro

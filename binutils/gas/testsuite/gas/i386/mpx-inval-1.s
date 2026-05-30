@@ -1,5 +1,4 @@
 # MPX instructions
-	.allow_index_reg
 	.text
 	.extern xxx
 foo:

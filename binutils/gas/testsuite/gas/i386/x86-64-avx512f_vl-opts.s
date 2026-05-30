@@ -1,6 +1,5 @@
 # Check 64bit AVX512{F,VL} swap instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vmovapd	%xmm29, %xmm30	 # AVX512{F,VL}

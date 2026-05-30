@@ -1,5 +1,5 @@
 /* Map (unsigned int) keys to (source file, line, column) triples.
-   Copyright (C) 2001-2025 Free Software Foundation, Inc.
+   Copyright (C) 2001-2026 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -621,8 +621,8 @@ linemap_add (line_maps *set, enum lc_reason reason,
 	 #include "included", inside the same "includer" file.  */
 
       linemap_assert (!MAIN_FILE_P (map - 1));
-      /* (MAP - 1) points to the map we are leaving. The
-	 map from which (MAP - 1) got included should be the map
+      /* (MAP - 1) points to the map we are leaving.  The
+	 map from which (MAP - 1) got included should be usually the map
 	 that comes right before MAP in the same file.  */
       from = linemap_included_from_linemap (set, map - 1);
 
@@ -630,7 +630,24 @@ linemap_add (line_maps *set, enum lc_reason reason,
       if (to_file == NULL)
 	{
 	  to_file = ORDINARY_MAP_FILE_NAME (from);
-	  to_line = SOURCE_LINE (from, from[1].start_location);
+	  /* Compute the line on which the map resumes, for #include this
+	     should be the line after the #include line.  Usually FROM is
+	     the map right before LC_ENTER map - the first map of the included
+	     file, and in that case SOURCE_LINE (from, from[1].start_location);
+	     computes the right line (and does handle even some special cases
+	     (e.g. where for returning from <command line> we still want to
+	     be at line 0 or some -traditional-cpp cases).  In rare cases
+	     FROM can be followed by LC_RENAME created by linemap_line_start
+	     for line right after #include line.  If that happens,
+	     start_location of the FROM[1] map will be the same as
+	     start_location of FROM[2] LC_ENTER, but FROM[1] start_location
+	     might not have advance enough for moving to a full next line.
+	     In that case compute the line of #include line and add 1 to it
+	     to advance to the next line.  See PR120061.  */
+	  if (from[1].reason == LC_RENAME)
+	    to_line = SOURCE_LINE (from, linemap_included_from (map - 1)) + 1;
+	  else
+	    to_line = SOURCE_LINE (from, from[1].start_location);
 	  sysp = ORDINARY_MAP_IN_SYSTEM_HEADER_P (from);
 	}
       else
@@ -660,11 +677,26 @@ linemap_add (line_maps *set, enum lc_reason reason,
       if (set->depth == 0)
 	map->included_from = 0;
       else
-	/* The location of the end of the just-closed map.  */
-	map->included_from
-	  = (((map[0].start_location - 1 - map[-1].start_location)
-	      & ~((loc_one << map[-1].m_column_and_range_bits) - 1))
-	     + map[-1].start_location);
+	{
+	  /* Compute location from whence this line map was included.
+	     For #include this should be preferrably column 0 of the
+	     line on which #include directive appears.
+	     map[-1] is the just closed map and usually included_from
+	     falls within that map.  In rare cases linemap_line_start
+	     can insert a new LC_RENAME map for the line immediately
+	     after #include line, in that case map[-1] will have the
+	     same start_location as the new one and so included_from
+	     would not be from map[-1] but likely map[-2].  If that
+	     happens, mask off map[-2] m_column_and_range_bits bits
+	     instead of map[-1].  See PR120061.  */
+	  int i = -1;
+	  while (map[i].start_location == map[0].start_location)
+	    --i;
+	  map->included_from
+	    = (((map[0].start_location - 1 - map[i].start_location)
+		& ~((loc_one << map[i].m_column_and_range_bits) - 1))
+	       + map[i].start_location);
+	}
       set->depth++;
       if (set->trace_includes)
 	trace_include (set, map);
@@ -733,6 +765,19 @@ linemap_module_restore (line_maps *set, line_map_uint_t lwm)
     }
 
   return 0;
+}
+
+/* TRUE iff the location comes from a module import.  */
+
+bool
+linemap_location_from_module_p (const line_maps *set, location_t loc)
+{
+  const line_map_ordinary *map = nullptr;
+  linemap_resolve_location (set, loc, LRK_SPELLING_LOCATION, &map);
+
+  while (map && map->reason != LC_MODULE)
+    map = linemap_included_from_linemap (set, map);
+  return !!map;
 }
 
 /* Returns TRUE if the line table set tracks token locations across
@@ -1917,6 +1962,28 @@ linemap_expand_location (const line_maps *set,
   return xloc;
 }
 
+bool
+operator== (const expanded_location &a,
+	    const expanded_location &b)
+{
+  /* "file" can be null; for them to be equal they must both
+     have either null or nonnull values, and if non-null
+     they must compare as equal.  */
+  if ((a.file == nullptr) != (b.file == nullptr))
+    return false;
+  if (a.file && strcmp (a.file, b.file))
+    return false;
+
+  if (a.line != b.line)
+    return false;
+  if (a.column != b.column)
+    return false;
+  if (a.data != b.data)
+    return false;
+  if (a.sysp != b.sysp)
+    return false;
+  return true;
+}
 
 /* Dump line map at index IX in line table SET to STREAM.  If STREAM
    is NULL, use stderr.  IS_MACRO is true if the caller wants to
@@ -2261,7 +2328,7 @@ rich_location::get_expanded_location (unsigned int idx) const
        {
 	  m_expanded_location
 	    = linemap_client_expand_location_to_spelling_point
-		(m_line_table, get_loc (0), LOCATION_ASPECT_CARET);
+		(m_line_table, get_loc (0), location_aspect::caret);
 	  if (m_column_override)
 	    m_expanded_location.column = m_column_override;
 	  m_have_expanded_location = true;
@@ -2271,7 +2338,7 @@ rich_location::get_expanded_location (unsigned int idx) const
    }
   else
     return linemap_client_expand_location_to_spelling_point
-	     (m_line_table, get_loc (idx), LOCATION_ASPECT_CARET);
+	     (m_line_table, get_loc (idx), location_aspect::caret);
 }
 
 /* Set the column of the primary location, with 0 meaning
@@ -2546,11 +2613,11 @@ rich_location::maybe_add_fixit (location_t start,
   expanded_location exploc_start
     = linemap_client_expand_location_to_spelling_point (m_line_table,
 							start,
-							LOCATION_ASPECT_START);
+							location_aspect::start);
   expanded_location exploc_next_loc
     = linemap_client_expand_location_to_spelling_point (m_line_table,
 							next_loc,
-							LOCATION_ASPECT_START);
+							location_aspect::start);
   /* They must be within the same file...  */
   if (exploc_start.file != exploc_next_loc.file)
     {
@@ -2652,7 +2719,7 @@ fixit_hint::affects_line_p (const line_maps *set,
   expanded_location exploc_start
     = linemap_client_expand_location_to_spelling_point (set,
 							m_start,
-							LOCATION_ASPECT_START);
+							location_aspect::start);
   if (file != exploc_start.file)
     return false;
   if (line < exploc_start.line)
@@ -2660,7 +2727,7 @@ fixit_hint::affects_line_p (const line_maps *set,
   expanded_location exploc_next_loc
     = linemap_client_expand_location_to_spelling_point (set,
 							m_next_loc,
-							LOCATION_ASPECT_START);
+							location_aspect::start);
   if (file != exploc_next_loc.file)
     return false;
   if (line > exploc_next_loc.line)

@@ -1,5 +1,5 @@
 /* Support for offering suggestions for handling unrecognized names.
-   Copyright (C) 2016-2025 Free Software Foundation, Inc.
+   Copyright (C) 2016-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -85,8 +85,10 @@ class name_hint
 public:
   name_hint () : m_suggestion (NULL), m_deferred () {}
 
-  name_hint (const char *suggestion, deferred_diagnostic *deferred)
-  : m_suggestion (suggestion), m_deferred (deferred)
+  name_hint (const char *suggestion,
+	     std::unique_ptr<deferred_diagnostic> deferred)
+  : m_suggestion (suggestion),
+    m_deferred (std::move (deferred))
   {
   }
 

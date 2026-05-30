@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -71,8 +71,8 @@ package Ada.Tags is
    pragma Preelaborate;
    --  In accordance with Ada 2005 AI-362
 
-   type Tag is private;
-   pragma Preelaborable_Initialization (Tag);
+   type Tag is private
+   with Preelaborable_Initialization;
 
    No_Tag : constant Tag;
 

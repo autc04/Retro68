@@ -1,5 +1,5 @@
 /* Header file to the Fortran front-end and runtime library
-   Copyright (C) 2007-2025 Free Software Foundation, Inc.
+   Copyright (C) 2007-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -143,6 +143,7 @@ typedef enum
   LIBERROR_INQUIRE_INTERNAL_UNIT, /* Must be different from STAT_STOPPED_IMAGE.  */
   LIBERROR_BAD_WAIT_ID,
   LIBERROR_NO_MEMORY,
+  LIBERROR_RECURSIVE_IO,
   LIBERROR_LAST			/* Not a real error, the last error # + 1.  */
 }
 libgfortran_error_codes;
@@ -154,9 +155,17 @@ typedef enum
   GFC_STAT_LOCKED,
   GFC_STAT_LOCKED_OTHER_IMAGE,
   GFC_STAT_STOPPED_IMAGE = 6000, /* See LIBERROR_INQUIRE_INTERNAL_UNIT above. */
-  GFC_STAT_FAILED_IMAGE  = 6001
+  GFC_STAT_FAILED_IMAGE  = 6001,
+  GFC_STAT_UNLOCKED_FAILED_IMAGE = 6002
 }
 libgfortran_stat_codes;
+
+typedef enum
+{
+  GFC_CAF_INITIAL_TEAM = 0,
+  GFC_CAF_PARENT_TEAM,
+  GFC_CAF_CURRENT_TEAM
+} libgfortran_team_levels;
 
 typedef enum
 {

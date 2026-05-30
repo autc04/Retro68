@@ -1,6 +1,6 @@
 # name: rgn-at4
 # source: rgn-at.s
-# ld: -T rgn-at4.t
+# ld: -T rgn-at4.t --no-error-rwx-segments
 # objdump: -w -h
 # xfail: rx-*-*
 #   FAILS on the RX because the linker has to set LMA == VMA for the

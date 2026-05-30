@@ -1,5 +1,5 @@
 /* BFD back-end for Motorola MCore COFF/PE
-   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -17,6 +17,10 @@
    along with this program; if not, write to the Free Software
    Foundation, 51 Franklin Street - Fifth Floor,
    Boston, MA 02110-1301, USA.  */
+
+#ifndef COFF_WITH_PE
+#error non-PE COFF unsupported
+#endif
 
 #include "sysdep.h"
 #include "bfd.h"
@@ -220,7 +224,7 @@ mcore_emit_base_file_entry (struct bfd_link_info *info,
 		 + input_section->output_offset
 		 + input_section->output_section->vma;
 
-  if (coff_data (output_bfd)->pe)
+  if (obj_pe (output_bfd))
      addr -= pe_data (output_bfd)->pe_opthdr.ImageBase;
 
   if (fwrite (&addr, sizeof (addr), 1, (FILE *) info->base_file) == 1)
@@ -434,7 +438,13 @@ coff_mcore_relocate_section (bfd * output_bfd,
 		my_name = "*unknown*";
 	      else if (   sym->_n._n_n._n_zeroes == 0
 		       && sym->_n._n_n._n_offset != 0)
-		my_name = obj_coff_strings (input_bfd) + sym->_n._n_n._n_offset;
+		{
+		  if (sym->_n._n_n._n_offset < obj_coff_strings_len (input_bfd))
+		    my_name = (obj_coff_strings (input_bfd)
+			       + sym->_n._n_n._n_offset);
+		  else
+		    my_name = "?";
+		}
 	      else
 		{
 		  strncpy (buf, sym->_n._n_name, SYMNMLEN);
@@ -554,8 +564,8 @@ extern const bfd_target TARGET_LITTLE_SYM;
 
 /* The transfer vectors that lead the outside world to all of the above.  */
 CREATE_BIG_COFF_TARGET_VEC (TARGET_BIG_SYM, TARGET_BIG_NAME, D_PAGED,
-			    (SEC_CODE | SEC_DATA | SEC_DEBUGGING | SEC_READONLY | SEC_LINK_ONCE | SEC_LINK_DUPLICATES),
+			    SEC_DEBUGGING,
 			    0, & TARGET_LITTLE_SYM, COFF_SWAP_TABLE)
 CREATE_LITTLE_COFF_TARGET_VEC (TARGET_LITTLE_SYM, TARGET_LITTLE_NAME, D_PAGED,
-			       (SEC_CODE | SEC_DATA | SEC_DEBUGGING | SEC_READONLY | SEC_LINK_ONCE | SEC_LINK_DUPLICATES),
+			       SEC_DEBUGGING,
 			       0, & TARGET_BIG_SYM, COFF_SWAP_TABLE)

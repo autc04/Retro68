@@ -1,5 +1,5 @@
 /* Optimize by combining instructions for GNU compiler.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -195,7 +195,7 @@ struct reg_stat_type {
      sign bits copies it was known to have when it was last set.  */
 
   unsigned HOST_WIDE_INT	last_set_nonzero_bits;
-  char				last_set_sign_bit_copies;
+  unsigned short		last_set_sign_bit_copies;
   ENUM_BITFIELD(machine_mode)	last_set_mode : MACHINE_MODE_BITSIZE;
 
   /* Set to true if references to register n in expressions should not be
@@ -216,7 +216,7 @@ struct reg_stat_type {
 
      If an entry is zero, it means that we don't know anything special.  */
 
-  unsigned char			sign_bit_copies;
+  unsigned short		sign_bit_copies;
 
   unsigned HOST_WIDE_INT	nonzero_bits;
 
@@ -458,6 +458,7 @@ static rtx simplify_shift_const (rtx, enum rtx_code, machine_mode, rtx,
 				 int);
 static int recog_for_combine (rtx *, rtx_insn *, rtx *, unsigned = 0, unsigned = 0);
 static rtx gen_lowpart_for_combine (machine_mode, rtx);
+static rtx gen_lowpart_for_combine_no_emit (machine_mode, rtx);
 static enum rtx_code simplify_compare_const (enum rtx_code, machine_mode,
 					     rtx *, rtx *);
 static enum rtx_code simplify_comparison (enum rtx_code, rtx *, rtx *);
@@ -491,7 +492,7 @@ static rtx gen_lowpart_or_truncate (machine_mode, rtx);
 
 /* Our implementation of gen_lowpart never emits a new pseudo.  */
 #undef RTL_HOOKS_GEN_LOWPART_NO_EMIT
-#define RTL_HOOKS_GEN_LOWPART_NO_EMIT      gen_lowpart_for_combine
+#define RTL_HOOKS_GEN_LOWPART_NO_EMIT      gen_lowpart_for_combine_no_emit
 
 #undef RTL_HOOKS_REG_NONZERO_REG_BITS
 #define RTL_HOOKS_REG_NONZERO_REG_BITS     reg_nonzero_bits_for_combine
@@ -2614,6 +2615,8 @@ try_combine (rtx_insn *i3, rtx_insn *i2, rtx_insn *i1, rtx_insn *i0,
 	    }
 	  else if (BINARY_P (src) && CONSTANT_P (XEXP (src, 1)))
 	    ngood++;
+	  else if (GET_CODE (src) == IF_THEN_ELSE)
+	    ngood++;
 	  else if (GET_CODE (src) == ASHIFT || GET_CODE (src) == ASHIFTRT
 		   || GET_CODE (src) == LSHIFTRT)
 	    nshift++;
@@ -4020,34 +4023,34 @@ try_combine (rtx_insn *i3, rtx_insn *i2, rtx_insn *i1, rtx_insn *i0,
 	 in i3, so we need to make sure that we won't wrongly hoist a SET
 	 to i2 that would conflict with a death note present in there, or
 	 would have its dest modified or used between i2 and i3.  */
-      if (!modified_between_p (SET_SRC (set1), i2, i3)
-	  && !(REG_P (SET_DEST (set1))
-	       && find_reg_note (i2, REG_DEAD, SET_DEST (set1)))
-	  && !(GET_CODE (SET_DEST (set1)) == SUBREG
-	       && find_reg_note (i2, REG_DEAD,
-				 SUBREG_REG (SET_DEST (set1))))
-	  && SET_DEST (set1) != pc_rtx
-	  && !reg_used_between_p (SET_DEST (set1), i2, i3)
+      if ((set_noop_p (set1)
+	   || (!modified_between_p (SET_SRC (set1), i2, i3)
+	       && !(REG_P (SET_DEST (set1))
+		    && find_reg_note (i2, REG_DEAD, SET_DEST (set1)))
+	       && !(GET_CODE (SET_DEST (set1)) == SUBREG
+		    && find_reg_note (i2, REG_DEAD,
+				      SUBREG_REG (SET_DEST (set1))))
+	       && !modified_between_p (SET_DEST (set1), i2, i3)
+	       && !reg_used_between_p (SET_DEST (set1), i2, i3)))
 	  /* If I3 is a jump, ensure that set0 is a jump so that
 	     we do not create invalid RTL.  */
-	  && (!JUMP_P (i3) || SET_DEST (set0) == pc_rtx)
-	 )
+	  && (!JUMP_P (i3) || SET_DEST (set0) == pc_rtx))
 	{
 	  newi2pat = set1;
 	  newpat = set0;
 	}
-      else if (!modified_between_p (SET_SRC (set0), i2, i3)
-	       && !(REG_P (SET_DEST (set0))
-		    && find_reg_note (i2, REG_DEAD, SET_DEST (set0)))
-	       && !(GET_CODE (SET_DEST (set0)) == SUBREG
-		    && find_reg_note (i2, REG_DEAD,
-				      SUBREG_REG (SET_DEST (set0))))
-	       && SET_DEST (set0) != pc_rtx
-	       && !reg_used_between_p (SET_DEST (set0), i2, i3)
+      else if ((set_noop_p (set0)
+		|| (!modified_between_p (SET_SRC (set0), i2, i3)
+		    && !(REG_P (SET_DEST (set0))
+			 && find_reg_note (i2, REG_DEAD, SET_DEST (set0)))
+		    && !(GET_CODE (SET_DEST (set0)) == SUBREG
+			 && find_reg_note (i2, REG_DEAD,
+					   SUBREG_REG (SET_DEST (set0))))
+		    && !modified_between_p (SET_DEST (set0), i2, i3)
+		    && !reg_used_between_p (SET_DEST (set0), i2, i3)))
 	       /* If I3 is a jump, ensure that set1 is a jump so that
 		  we do not create invalid RTL.  */
-	       && (!JUMP_P (i3) || SET_DEST (set1) == pc_rtx)
-	      )
+	       && (!JUMP_P (i3) || SET_DEST (set1) == pc_rtx))
 	{
 	  newi2pat = set0;
 	  newpat = set1;
@@ -5280,6 +5283,12 @@ find_split_point (rtx *loc, rtx_insn *insn, bool set_src)
 	  SUBST (XEXP (x, 0), XEXP (x, 1));
 	  SUBST (XEXP (x, 1), tem);
 	}
+      /* Many targets have a `(and (not X) Y)` and/or `(ior (not X) Y)` instructions.
+	 Split at that insns.  However if this is
+	 the SET_SRC, we likely do not have such an instruction and it's
+	 worthless to try this split.  */
+      if (!set_src && GET_CODE (XEXP (x, 0)) == NOT)
+	return loc;
       break;
 
     case PLUS:
@@ -7608,7 +7617,7 @@ make_extraction (machine_mode mode, rtx inner, HOST_WIDE_INT pos,
   if (GET_CODE (inner) == SUBREG
       && subreg_lowpart_p (inner)
       && (paradoxical_subreg_p (inner)
-	  /* If trying or potentionally trying to extract
+	  /* If trying or potentially trying to extract
 	     bits outside of is_mode, don't look through
 	     non-paradoxical SUBREGs.  See PR82192.  */
 	  || (pos_rtx == NULL_RTX
@@ -7657,7 +7666,7 @@ make_extraction (machine_mode mode, rtx inner, HOST_WIDE_INT pos,
 	}
     }
   else if (GET_CODE (inner) == TRUNCATE
-	   /* If trying or potentionally trying to extract
+	   /* If trying or potentially trying to extract
 	      bits outside of is_mode, don't look through
 	      TRUNCATE.  See PR82192.  */
 	   && pos_rtx == NULL_RTX
@@ -7922,7 +7931,7 @@ make_extraction (machine_mode mode, rtx inner, HOST_WIDE_INT pos,
      mode.  */
   else if (!MEM_P (inner))
     {
-      /* On the LHS, don't create paradoxical subregs implicitely truncating
+      /* On the LHS, don't create paradoxical subregs implicitly truncating
 	 the register unless TARGET_TRULY_NOOP_TRUNCATION.  */
       if (in_dest
 	  && !TRULY_NOOP_TRUNCATION_MODES_P (GET_MODE (inner),
@@ -11752,7 +11761,8 @@ recog_for_combine (rtx *pnewpat, rtx_insn *insn, rtx *pnotes,
       rtx src = SET_SRC (pat);
       if (CONSTANT_P (src)
 	  && !CONST_INT_P (src)
-	  && crtl->uses_const_pool)
+	  && crtl->uses_const_pool
+	  && SET_DEST (pat) != pc_rtx)
 	{
 	  machine_mode mode = GET_MODE (src);
 	  if (mode == VOIDmode)
@@ -11848,7 +11858,8 @@ gen_lowpart_for_combine (machine_mode omode, rtx x)
       /* If we want to refer to something bigger than the original memref,
 	 generate a paradoxical subreg instead.  That will force a reload
 	 of the original memref X.  */
-      if (paradoxical_subreg_p (omode, imode))
+      if (paradoxical_subreg_p (omode, imode)
+	  && validate_subreg (omode, GET_MODE (x), x, 0))
 	return gen_rtx_SUBREG (omode, x, 0);
 
       poly_int64 offset = byte_lowpart_offset (omode, imode);
@@ -11884,6 +11895,22 @@ gen_lowpart_for_combine (machine_mode omode, rtx x)
  fail:
   return gen_rtx_CLOBBER (omode, const0_rtx);
 }
+
+/* Like gen_lowpart_for_combine but returns NULL_RTX
+   for an error instead of CLOBBER.
+   Note no_emit is not called directly from combine but rather from
+   simplify_rtx and is expecting a NULL on failure rather than
+   a CLOBBER.  */
+
+static rtx
+gen_lowpart_for_combine_no_emit (machine_mode omode, rtx x)
+{
+  rtx tem = gen_lowpart_for_combine (omode, x);
+  if (!tem || GET_CODE (tem) == CLOBBER)
+    return NULL_RTX;
+  return tem;
+}
+
 
 /* Try to simplify a comparison between OP0 and a constant OP1,
    where CODE is the comparison code that will be tested, into a
@@ -13108,7 +13135,7 @@ simplify_comparison (enum rtx_code code, rtx *pop0, rtx *pop1)
     }
 
   /* Now make any compound operations involved in this comparison.  Then,
-     check for an outmost SUBREG on OP0 that is not doing anything or is
+     check for an outermost SUBREG on OP0 that is not doing anything or is
      paradoxical.  The latter transformation must only be performed when
      it is known that the "extra" bits will be the same in op0 and op1 or
      that they don't matter.  There are three cases to consider:
@@ -13756,7 +13783,7 @@ record_truncated_value (rtx x)
 }
 
 /* Callback for note_uses.  Find hardregs and subregs of pseudos and
-   the modes they are used in.  This can help truning TRUNCATEs into
+   the modes they are used in.  This can help turning TRUNCATEs into
    SUBREGs.  */
 
 static void
@@ -14489,10 +14516,10 @@ distribute_notes (rtx notes, rtx_insn *from_insn, rtx_insn *i3, rtx_insn *i2,
 	      old_size = fixup_args_size_notes (PREV_INSN (i3), i3, args_size);
 	      /* emit_call_1 adds for !ACCUMULATE_OUTGOING_ARGS
 		 REG_ARGS_SIZE note to all noreturn calls, allow that here.  */
-	     /* gcc_assert (maybe_ne (old_size, args_size)
+	      gcc_assert (maybe_ne (old_size, args_size)
 			  || (CALL_P (i3)
 			      && !ACCUMULATE_OUTGOING_ARGS
-			      && find_reg_note (i3, REG_NORETURN, NULL_RTX))); ### */
+			      && find_reg_note (i3, REG_NORETURN, NULL_RTX)));
 	    }
 	  break;
 
@@ -14896,7 +14923,7 @@ distribute_notes (rtx notes, rtx_insn *from_insn, rtx_insn *i3, rtx_insn *i2,
 		 that is unused, we must arrange for an appropriate REG_DEAD
 		 note to be added for it.  However, we can't just emit a USE
 		 and tag the note to it, since the register might actually
-		 be dead; so we recourse, and the recursive call then finds
+		 be dead; so we recurse, and the recursive call then finds
 		 the previous insn that used this register.  */
 
 	      if (place && REG_NREGS (XEXP (note, 0)) > 1)

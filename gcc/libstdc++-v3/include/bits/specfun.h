@@ -1,6 +1,6 @@
 // Mathematical Special Functions for -*- C++ -*-
 
-// Copyright (C) 2006-2025 Free Software Foundation, Inc.
+// Copyright (C) 2006-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -40,6 +40,7 @@
 # error include <cmath> and define __STDCPP_WANT_MATH_SPEC_FUNCS__
 #endif
 
+#include <bits/stdexcept_throw.h>
 #include <bits/stl_algobase.h>
 #include <limits>
 #include <type_traits>

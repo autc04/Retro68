@@ -1,7 +1,7 @@
 // { dg-do run }
 // { dg-options "-std=c++98 -ffp-contract=off" }
 
-// Copyright (C) 2019-2025 Free Software Foundation, Inc.
+// Copyright (C) 2019-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,7 +36,6 @@ template<typename _Tp>
   void
   test_m_gt_l()
   {
-    bool test __attribute__((unused)) = true;
     unsigned int larr[4] = {0u, 1u, 2u, 5u};
     for (unsigned int l = 0; l < 4; ++l)
       for (unsigned int m = larr[l] + 1u; m <= larr[l] + 2u; ++m)

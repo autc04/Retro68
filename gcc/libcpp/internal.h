@@ -1,5 +1,5 @@
 /* Part of CPP library.
-   Copyright (C) 1997-2025 Free Software Foundation, Inc.
+   Copyright (C) 1997-2026 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -282,6 +282,9 @@ struct lexer_state
   /* Nonzero to skip evaluating part of an expression.  */
   unsigned int skip_eval;
 
+  /* Nonzero if CPP_COMMA is valid in expression in C++.  */
+  unsigned int comma_ok;
+
   /* Nonzero when tokenizing a deferred pragma.  */
   unsigned char in_deferred_pragma;
 
@@ -540,6 +543,14 @@ struct cpp_reader
      wide execution character set.  */
   struct cset_converter wide_cset_desc;
 
+  /* Descriptor for converting from the execution character set to the
+     source character set.  */
+  struct cset_converter reverse_narrow_cset_desc;
+
+  /* Descriptor for converting from the UTF-8 execution character set to the
+     source character set.  */
+  struct cset_converter reverse_utf8_cset_desc;
+
   /* Date and time text.  Calculated together if either is requested.  */
   const unsigned char *date;
   const unsigned char *time;
@@ -622,8 +633,8 @@ struct cpp_reader
      zero of said file.  */
   location_t main_loc;
 
-  /* If non-zero, override diagnostic locations (other than DK_NOTE
-     diagnostics) to this one.  */
+  /* If non-zero, override diagnostic locations (other than
+     diagnostics::kind::note diagnostics) to this one.  */
   location_t diagnostic_override_loc;
 
   /* Returns true iff we should warn about UTF-8 bidirectional control
@@ -785,9 +796,6 @@ extern void _cpp_pop_file_buffer (cpp_reader *, struct _cpp_file *,
 				  const unsigned char *);
 extern bool _cpp_save_file_entries (cpp_reader *pfile, FILE *f);
 extern bool _cpp_read_file_entries (cpp_reader *, FILE *);
-extern const char *_cpp_get_file_name (_cpp_file *);
-extern struct stat *_cpp_get_file_stat (_cpp_file *);
-extern struct cpp_dir *_cpp_get_file_dir (_cpp_file *);
 extern bool _cpp_has_header (cpp_reader *, const char *, int,
 			     enum include_type);
 

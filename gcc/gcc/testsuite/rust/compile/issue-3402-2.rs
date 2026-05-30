@@ -1,3 +1,8 @@
+#![feature(no_core)]
+#![no_core]
+
+#![feature(lang_items)]
+
 pub struct Bar(i32);
 
 #[lang = "sized"]

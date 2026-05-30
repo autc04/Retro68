@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 AVX512VBMI/VL insns
 #source: avx512vbmi_vl.s
@@ -8,7 +7,7 @@
 
 Disassembly of section \.text:
 
-00000000 <_start>:
+00000000 <vbmi>:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 55 0f 8d f4[ 	]*vpermb %xmm4,%xmm5,%xmm6\{%k7\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 55 8f 8d f4[ 	]*vpermb %xmm4,%xmm5,%xmm6\{%k7\}\{z\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 55 0f 8d 31[ 	]*vpermb \(%ecx\),%xmm5,%xmm6\{%k7\}

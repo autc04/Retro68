@@ -96,9 +96,12 @@ FLAGS_TO_PASS = $(AM_MAKEFLAGS)
 if BUILD_PIMLIB
 toolexeclib_LTLIBRARIES = libm2pim.la
 
-M2MODS = ASCII.mod IO.mod \
-       Args.mod M2RTS.mod \
+M2MODS = ASCII.mod \
+       Args.mod BinDict.mod \
+       IO.mod M2RTS.mod \
        M2Dependent.mod \
+       M2Diagnostic.mod \
+       M2WIDESET.mod \
        Assertion.mod NumberIO.mod \
        Break.mod SYSTEM.mod \
        CmdArgs.mod Scan.mod \
@@ -118,14 +121,21 @@ M2MODS = ASCII.mod IO.mod \
        Indexing.mod \
        LMathLib0.mod LegacyReal.mod \
        MemUtils.mod gdbif.mod \
-       GetOpt.mod OptLib.mod
+       GetOpt.mod OptLib.mod \
+       ARRAYOFCHAR.mod \
+       CHAR.mod \
+       StringFileSysOp.mod \
+       String.mod \
+       FileSysOp.mod
 
 # COROUTINES.mod has been removed as it is implemented in ../libm2iso.
 
 M2DEFS = Args.def   ASCII.def \
-         Assertion.def  Break.def \
+         Assertion.def  BinDict.def \
+         Break.def \
          Builtins.def  cbuiltin.def \
-         CmdArgs.def COROUTINES.def \
+         CmdArgs.def CFileSysOp.def \
+         COROUTINES.def \
          cxxabi.def  Debug.def \
          dtoa.def  DynamicStrings.def \
          Environment.def  errno.def \
@@ -136,8 +146,10 @@ M2DEFS = Args.def   ASCII.def \
          LegacyReal.def  libc.def \
          libm.def  LMathLib0.def \
          M2Dependent.def \
+         M2Diagnostic.def \
          M2EXCEPTION.def \
          M2RTS.def \
+         M2WIDESET.def \
          MathLib0.def  MemUtils.def \
          NumberIO.def  PushBackInput.def \
          RTExceptions.def  RTint.def \
@@ -153,7 +165,12 @@ M2DEFS = Args.def   ASCII.def \
          termios.def  TimeString.def \
          UnixArgs.def  wrapc.def  \
          GetOpt.def OptLib.def \
-         cgetopt.def
+         cgetopt.def \
+         ARRAYOFCHAR.def \
+         CHAR.def \
+         StringFileSysOp.def \
+         String.def \
+         FileSysOp.def
 
 libm2pim_la_SOURCES = $(M2MODS) \
                       UnixArgs.cc \
@@ -161,7 +178,8 @@ libm2pim_la_SOURCES = $(M2MODS) \
                       errno.cc dtoa.cc \
                       ldtoa.cc termios.cc \
                       SysExceptions.cc target.c \
-                      wrapc.cc cgetopt.cc
+                      wrapc.cc cgetopt.cc \
+                      CFileSysOp.cc
 
 libm2pimdir = libm2pim
 libm2pim_la_DEPENDENCIES = SYSTEM.def $(addsuffix .lo, $(basename $(libm2pim_la_SOURCES)))
@@ -173,6 +191,7 @@ libm2pim_la_M2FLAGS = \
   -fm2-pathname=m2pim -I. -I$(GM2_SRC)/gm2-libs \
   -fm2-pathname=m2iso -I$(GM2_SRC)/gm2-libs-iso \
   -fm2-g -g -Wcase-enum -Wreturn-type \
+  -Wall \
   -fcase -fm2-prefix=m2pim
 
 if TARGET_DARWIN

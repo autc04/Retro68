@@ -131,8 +131,8 @@ l:
 
 	@ Miscellaneous
 	bkpt	#257
-	cpsie	ai,#5
-	cpsid	ai,#5
+	cpsie	ai, #5
+	cpsid	ai, #5
 
 	@ Conditional suffixes
 	addeq	r0,r1,r2

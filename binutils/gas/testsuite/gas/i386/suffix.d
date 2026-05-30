@@ -22,4 +22,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	cf                   	iretl
 [ 	]*[a-f0-9]+:	0f 07                	sysretl
 [ 	]*[a-f0-9]+:	0f 07                	sysretl
+[ 	]*[a-f0-9]+:	66 0f 38 f6 d1       	adcxl  %ecx,%edx
+[ 	]*[a-f0-9]+:	f3 0f 38 f6 d1       	adoxl  %ecx,%edx
 #pass

@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005-2025 Free Software Foundation, Inc.
+// Copyright (C) 2005-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -55,7 +55,8 @@
 #include <ostream>
 #include <stdexcept>
 #include <utility>
-#include <bits/functexcept.h>
+#include <bits/new_throw.h>
+#include <bits/stdexcept_throw.h>
 #include <bits/move.h>
 #if __cplusplus >= 201103L
 # include <functional>

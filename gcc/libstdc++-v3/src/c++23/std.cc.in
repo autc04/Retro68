@@ -23,11 +23,14 @@
 
 module;
 
+#include <bits/stdc++.h>
+
 // stdc++.h doesn't include <execution> because of TBB issues;
 // FIXME for now let's avoid the problem by suppressing TBB.
-#define _GLIBCXX_USE_TBB_PAR_BACKEND 0
-
-#include <bits/stdc++.h>
+#ifdef _PSTL_PAR_BACKEND_TBB
+#undef _PSTL_PAR_BACKEND_TBB
+#define _PSTL_PAR_BACKEND_SERIAL
+#endif
 #include <execution>
 
 // Module std does include deprecated library interfaces.
@@ -277,11 +280,14 @@ export namespace std
     using std::ranges::shuffle;
   }
   using std::shift_left;
-  namespace ranges
-  {}
   using std::shift_right;
+#if __cpp_lib_shift >= 202202L // >= C++23
   namespace ranges
-  {}
+  {
+    using std::ranges::shift_left;
+    using std::ranges::shift_right;
+  }
+#endif
   using std::sort;
   namespace ranges
   {
@@ -496,7 +502,9 @@ export namespace std
     using ranges::fold_left;
     using ranges::fold_left_first;
     using ranges::fold_left_first_with_iter;
+    using ranges::fold_left_first_with_iter_result;
     using ranges::fold_left_with_iter;
+    using ranges::fold_left_with_iter_result;
     using ranges::fold_right;
     using ranges::fold_right_last;
     using ranges::in_value_result;
@@ -507,11 +515,14 @@ export namespace std
     using ranges::find_last_if;
     using ranges::find_last_if_not;
 #endif
+#if __cpp_lib_ranges_starts_ends_with
+    using ranges::starts_with;
+    using ranges::ends_with;
+#endif
   }
 }
 
 // 22.7.2 <any>
-#if __cpp_lib_any
 export namespace std
 {
   using std::any;
@@ -520,7 +531,6 @@ export namespace std
   using std::make_any;
   using std::swap;
 }
-#endif
 
 // 24.3.2 <array>
 export namespace std
@@ -560,17 +570,29 @@ export namespace std
   using std::atomic_fetch_sub_explicit;
   using std::atomic_fetch_xor;
   using std::atomic_fetch_xor_explicit;
+#ifdef __cpp_lib_atomic_min_max
+  using std::atomic_fetch_min;
+  using std::atomic_fetch_min_explicit;
+  using std::atomic_fetch_max;
+  using std::atomic_fetch_max_explicit;
+#endif
   using std::atomic_flag;
   using std::atomic_flag_clear;
   using std::atomic_flag_clear_explicit;
+#if __cpp_lib_atomic_wait
   using std::atomic_flag_notify_all;
   using std::atomic_flag_notify_one;
+#endif
+#if __cpp_lib_atomic_flag_test
   using std::atomic_flag_test;
   using std::atomic_flag_test_and_set;
   using std::atomic_flag_test_and_set_explicit;
   using std::atomic_flag_test_explicit;
+#endif
+#if __cpp_lib_atomic_wait
   using std::atomic_flag_wait;
   using std::atomic_flag_wait_explicit;
+#endif
   using std::atomic_init;
   using std::atomic_int;
   using std::atomic_int16_t;
@@ -592,14 +614,18 @@ export namespace std
   using std::atomic_load;
   using std::atomic_load_explicit;
   using std::atomic_long;
+#if __cpp_lib_atomic_wait
   using std::atomic_notify_all;
   using std::atomic_notify_one;
+#endif
   using std::atomic_ptrdiff_t;
   using std::atomic_ref;
   using std::atomic_schar;
   using std::atomic_short;
   using std::atomic_signal_fence;
+#ifdef __cpp_lib_atomic_lock_free_type_aliases
   using std::atomic_signed_lock_free;
+#endif
   using std::atomic_size_t;
   using std::atomic_store;
   using std::atomic_store_explicit;
@@ -622,10 +648,14 @@ export namespace std
   using std::atomic_uintptr_t;
   using std::atomic_ullong;
   using std::atomic_ulong;
+#ifdef __cpp_lib_atomic_lock_free_type_aliases
   using std::atomic_unsigned_lock_free;
+#endif
   using std::atomic_ushort;
+#if __cpp_lib_atomic_wait
   using std::atomic_wait;
   using std::atomic_wait_explicit;
+#endif
   using std::atomic_wchar_t;
   using std::kill_dependency;
   using std::memory_order;
@@ -662,6 +692,9 @@ export namespace std
   using std::popcount;
   using std::rotl;
   using std::rotr;
+#if __cpp_lib_byteswap // >= C++23
+  using std::byteswap;
+#endif
 }
 
 // 22.9 <bitset>
@@ -694,7 +727,6 @@ export namespace std
 }
 
 // 29.2 <chrono>
-#if __cpp_lib_chrono
 export namespace std
 {
   namespace chrono
@@ -848,7 +880,6 @@ export namespace std::inline literals::inline chrono_literals
 export namespace std::chrono {
   using namespace literals::chrono_literals;
 }
-#endif // __cpp_lib_chrono
 
 // <codecvt>: deprecated C++17, removed C++26
 export namespace std
@@ -860,7 +891,6 @@ export namespace std
 }
 
 // 17.11.1 <compare>
-#if __cpp_lib_three_way_comparison
 export namespace std
 {
   using std::common_comparison_category;
@@ -885,8 +915,11 @@ export namespace std
   using std::partial_order;
   using std::strong_order;
   using std::weak_order;
+#if __glibcxx_type_order >= 202506L
+  using std::type_order;
+  using std::type_order_v;
+#endif
 }
-#endif // __cpp_lib_three_way_comparison
 
 // 28.4 <complex>
 export namespace std
@@ -940,7 +973,6 @@ export namespace std::inline literals::inline complex_literals
 }
 
 // 18 <concepts>
-#if __cpp_lib_concepts
 export namespace std
 {
   using std::assignable_from;
@@ -979,9 +1011,9 @@ export namespace std
   using std::totally_ordered;
   using std::totally_ordered_with;
 }
-#endif
 
 // 33.7 <condition_variable>
+#if _GLIBCXX_HAS_GTHREADS
 export namespace std
 {
   using std::condition_variable;
@@ -989,6 +1021,19 @@ export namespace std
   using std::cv_status;
   using std::notify_all_at_thread_exit;
 }
+#endif
+
+// 17.10.1 <contracts>
+#if __cpp_lib_contracts
+export namespace std::contracts
+{
+  using std::contracts::assertion_kind;
+  using std::contracts::evaluation_semantic;
+  using std::contracts::detection_mode;
+  using std::contracts::contract_violation;
+  using std::contracts::invoke_default_contract_violation_handler;
+}
+#endif // __cpp_lib_contracts
 
 // 17.12.2 <coroutine>
 #if __cpp_lib_coroutine
@@ -1050,6 +1095,9 @@ export namespace std
   using std::throw_with_nested;
   using std::uncaught_exception;
   using std::uncaught_exceptions;
+#if __cpp_lib_exception_ptr_cast >= 202506L
+  using std::exception_ptr_cast;
+#endif
 }
 
 // 34.4 <execution>
@@ -1315,15 +1363,14 @@ export namespace std
   using std::format_to_n;
   using std::format_to_n_result;
   using std::formatted_size;
-// FIXME __cpp_lib_format_ranges
-#if __cplusplus > 202002L
+#if __cpp_lib_format_ranges
   using std::formattable;
 #endif
   using std::formatter;
   using std::make_format_args;
   using std::make_wformat_args;
-#if __cpp_lib_format >= 202311L // >= C++26
-  using std::runtime_format;
+#if __cpp_lib_format >= 202603L // >= C++26
+  using std::dynamic_format;
 #endif
   using std::vformat;
   using std::vformat_to;
@@ -1332,11 +1379,13 @@ export namespace std
   using std::wformat_context;
   using std::wformat_parse_context;
   using std::wformat_string;
-// FIXME __cpp_lib_format_ranges
-#ifdef __glibcxx_format_ranges
+#ifdef __cpp_lib_format_ranges
   using std::format_kind;
   using std::range_format;
   using std::range_formatter;
+#endif
+#if __glibcxx_print >= 202403L
+  using std::enable_nonlocking_formatter_optimization;
 #endif
 }
 
@@ -1409,6 +1458,12 @@ export namespace std
   using std::modulus;
 #if __cpp_lib_move_only_function
   using std::move_only_function;
+#endif
+#if __cpp_lib_copyable_function
+  using std::copyable_function;
+#endif
+#if __cpp_lib_function_ref
+  using std::function_ref;
 #endif
   using std::multiplies;
   using std::negate;
@@ -1498,7 +1553,15 @@ export namespace std
   using std::initializer_list;
 }
 
-// <inplace_vector> FIXME
+// <inplace_vector>
+#if __cpp_lib_inplace_vector
+export namespace std
+{
+  using std::inplace_vector;
+  using std::erase;
+  using std::erase_if;
+}
+#endif
 
 // <iomanip>
 export namespace std
@@ -1568,15 +1631,17 @@ export namespace std
   using std::u32streampos;
   using std::u8streampos;
   using std::wstreampos;
-  using std::basic_osyncstream;
-  using std::basic_syncbuf;
   using std::istreambuf_iterator;
   using std::ostreambuf_iterator;
+  using std::fpos;
+#ifdef __cpp_lib_syncbuf
+  using std::basic_osyncstream;
+  using std::basic_syncbuf;
   using std::osyncstream;
   using std::syncbuf;
   using std::wosyncstream;
   using std::wsyncbuf;
-  using std::fpos;
+#endif
 }
 
 // <iostream>
@@ -1724,22 +1789,18 @@ export namespace std
   using std::make_const_iterator;
   using std::make_const_sentinel;
 #endif
-}
-// FIXME these should be friends of __normal_iterator to avoid exporting
-// __gnu_cxx.
-export namespace __gnu_cxx
-{
-  using __gnu_cxx::operator==;
-  using __gnu_cxx::operator<=>;
-  using __gnu_cxx::operator+;
-  using __gnu_cxx::operator-;
+#if __glibcxx_algorithm_default_value_type // >= C++26
+  using std::projected_value_t;
+#endif
 }
 
 // <latch>
+#if __cpp_lib_latch
 export namespace std
 {
   using std::latch;
 }
+#endif
 
 // 17.3.3 <limits> [limits.syn]
 export namespace std
@@ -1831,7 +1892,39 @@ export namespace std
   }
 }
 
-// FIXME <mdspan>
+// <mdspan>
+#if __glibcxx_mdspan
+export namespace std
+{
+  using std::extents;
+  using std::dextents;
+#if __glibcxx_mdspan >= 202406L
+  using std::dims;
+#endif
+  using std::layout_left;
+  using std::layout_right;
+  using std::layout_stride;
+  using std::default_accessor;
+#if __glibcxx_aligned_accessor
+  using std::aligned_accessor;
+#endif
+  using std::mdspan;
+#if __glibcxx_padded_layouts
+  using std::layout_left_padded;
+  using std::layout_right_padded;
+#endif
+#if __glibcxx_submdspan
+  using std::extent_slice;
+  using std::range_slice;
+  using std::full_extent_t;
+  using std::full_extent;
+  using std::submdspan_mapping_result;
+  using std::canonical_slices;
+  using std::subextents;
+  using std::submdspan;
+#endif
+}
+#endif
 
 // 20.2 <memory>
 export namespace std
@@ -1842,6 +1935,9 @@ export namespace std
   using std::allocator_arg_t;
   using std::allocator_traits;
   using std::assume_aligned;
+#if __glibcxx_is_sufficiently_aligned
+  using std::is_sufficiently_aligned;
+#endif  
   using std::make_obj_using_allocator;
   using std::pointer_traits;
   using std::to_address;
@@ -1944,6 +2040,27 @@ export namespace std
 #if __cpp_lib_out_ptr
   using std::out_ptr;
   using std::inout_ptr;
+  using std::out_ptr_t;
+  using std::inout_ptr_t;
+#endif
+#if __cpp_lib_indirect
+  using std::indirect;
+  namespace pmr { using std::pmr::indirect; }
+#endif
+#if __cpp_lib_polymorphic
+  using std::polymorphic;
+  namespace pmr { using std::pmr::polymorphic; }
+#endif
+#if __cpp_lib_smart_ptr_owner_equality
+  using std::owner_equal;
+  using std::owner_hash;
+#endif
+#if __cpp_lib_start_lifetime_as
+  using std::start_lifetime_as;
+  using std::start_lifetime_as_array;
+#endif
+#ifdef __glibcxx_allocate_at_least
+  using std::allocation_result;
 #endif
 }
 
@@ -1959,9 +2076,271 @@ export namespace std::pmr
   using std::pmr::polymorphic_allocator;
   using std::pmr::pool_options;
   using std::pmr::set_default_resource;
+#if _GLIBCXX_HAS_GTHREADS
   using std::pmr::synchronized_pool_resource;
+#endif
   using std::pmr::unsynchronized_pool_resource;
 }
+
+// <meta>
+#if __glibcxx_reflection >= 202603L
+export namespace std
+{
+#if __has_builtin(__builtin_is_string_literal)
+  using std::is_string_literal;
+#endif
+  using std::define_static_string;
+  using std::define_static_array;
+  using std::define_static_object;
+  namespace meta
+  {
+    using std::meta::info;
+    using std::meta::exception;
+    using std::meta::operators;
+    using enum std::meta::operators;
+    using std::meta::operator_of;
+    using std::meta::symbol_of;
+    using std::meta::u8symbol_of;
+    using std::meta::has_identifier;
+    using std::meta::identifier_of;
+    using std::meta::u8identifier_of;
+    using std::meta::display_string_of;
+    using std::meta::u8display_string_of;
+    using std::meta::source_location_of;
+    using std::meta::type_of;
+    using std::meta::object_of;
+    using std::meta::constant_of;
+    using std::meta::is_public;
+    using std::meta::is_protected;
+    using std::meta::is_private;
+    using std::meta::is_virtual;
+    using std::meta::is_pure_virtual;
+    using std::meta::is_override;
+    using std::meta::is_final;
+    using std::meta::is_deleted;
+    using std::meta::is_defaulted;
+    using std::meta::is_user_provided;
+    using std::meta::is_user_declared;
+    using std::meta::is_explicit;
+    using std::meta::is_noexcept;
+    using std::meta::is_bit_field;
+    using std::meta::is_enumerator;
+    using std::meta::is_annotation;
+    using std::meta::is_const;
+    using std::meta::is_volatile;
+    using std::meta::is_mutable_member;
+    using std::meta::is_lvalue_reference_qualified;
+    using std::meta::is_rvalue_reference_qualified;
+    using std::meta::has_static_storage_duration;
+    using std::meta::has_thread_storage_duration;
+    using std::meta::has_automatic_storage_duration;
+    using std::meta::has_internal_linkage;
+    using std::meta::has_module_linkage;
+    using std::meta::has_external_linkage;
+    using std::meta::has_c_language_linkage;
+    using std::meta::has_linkage;
+    using std::meta::is_complete_type;
+    using std::meta::is_enumerable_type;
+    using std::meta::is_variable;
+    using std::meta::is_type;
+    using std::meta::is_namespace;
+    using std::meta::is_type_alias;
+    using std::meta::is_namespace_alias;
+    using std::meta::is_function;
+    using std::meta::is_conversion_function;
+    using std::meta::is_operator_function;
+    using std::meta::is_literal_operator;
+    using std::meta::is_special_member_function;
+    using std::meta::is_constructor;
+    using std::meta::is_default_constructor;
+    using std::meta::is_copy_constructor;
+    using std::meta::is_move_constructor;
+    using std::meta::is_assignment;
+    using std::meta::is_copy_assignment;
+    using std::meta::is_move_assignment;
+    using std::meta::is_destructor;
+    using std::meta::is_function_parameter;
+    using std::meta::is_explicit_object_parameter;
+    using std::meta::has_default_argument;
+    using std::meta::is_vararg_function;
+    using std::meta::is_template;
+    using std::meta::is_function_template;
+    using std::meta::is_variable_template;
+    using std::meta::is_class_template;
+    using std::meta::is_alias_template;
+    using std::meta::is_conversion_function_template;
+    using std::meta::is_operator_function_template;
+    using std::meta::is_literal_operator_template;
+    using std::meta::is_constructor_template;
+    using std::meta::is_concept;
+    using std::meta::is_value;
+    using std::meta::is_object;
+    using std::meta::is_structured_binding;
+    using std::meta::is_class_member;
+    using std::meta::is_namespace_member;
+    using std::meta::is_nonstatic_data_member;
+    using std::meta::is_static_member;
+    using std::meta::is_base;
+    using std::meta::has_default_member_initializer;
+    using std::meta::has_parent;
+    using std::meta::parent_of;
+    using std::meta::dealias;
+    using std::meta::has_template_arguments;
+    using std::meta::template_of;
+    using std::meta::template_arguments_of;
+    using std::meta::parameters_of;
+    using std::meta::variable_of;
+    using std::meta::return_type_of;
+    using std::meta::access_context;
+    using std::meta::is_accessible;
+    using std::meta::has_inaccessible_nonstatic_data_members;
+    using std::meta::has_inaccessible_bases;
+    using std::meta::has_inaccessible_subobjects;
+    using std::meta::current_function;
+    using std::meta::current_class;
+    using std::meta::current_namespace;
+    using std::meta::members_of;
+    using std::meta::bases_of;
+    using std::meta::static_data_members_of;
+    using std::meta::nonstatic_data_members_of;
+    using std::meta::subobjects_of;
+    using std::meta::enumerators_of;
+    using std::meta::member_offset;
+    using std::meta::offset_of;
+    using std::meta::size_of;
+    using std::meta::alignment_of;
+    using std::meta::bit_size_of;
+    using std::meta::extract;
+    using std::meta::reflection_range;
+    using std::meta::can_substitute;
+    using std::meta::substitute;
+    using std::meta::reflect_constant;
+    using std::meta::reflect_object;
+    using std::meta::reflect_function;
+    using std::meta::reflect_constant_string;
+    using std::meta::reflect_constant_array;
+    using std::meta::data_member_options;
+    using std::meta::data_member_spec;
+    using std::meta::is_data_member_spec;
+    using std::meta::define_aggregate;
+    using std::meta::is_void_type;
+    using std::meta::is_null_pointer_type;
+    using std::meta::is_integral_type;
+    using std::meta::is_floating_point_type;
+    using std::meta::is_array_type;
+    using std::meta::is_pointer_type;
+    using std::meta::is_lvalue_reference_type;
+    using std::meta::is_rvalue_reference_type;
+    using std::meta::is_member_object_pointer_type;
+    using std::meta::is_member_function_pointer_type;
+    using std::meta::is_enum_type;
+    using std::meta::is_union_type;
+    using std::meta::is_class_type;
+    using std::meta::is_function_type;
+    using std::meta::is_reflection_type;
+    using std::meta::is_reference_type;
+    using std::meta::is_arithmetic_type;
+    using std::meta::is_fundamental_type;
+    using std::meta::is_object_type;
+    using std::meta::is_scalar_type;
+    using std::meta::is_compound_type;
+    using std::meta::is_member_pointer_type;
+    using std::meta::is_const_type;
+    using std::meta::is_volatile_type;
+    using std::meta::is_trivially_copyable_type;
+    using std::meta::is_standard_layout_type;
+    using std::meta::is_empty_type;
+    using std::meta::is_polymorphic_type;
+    using std::meta::is_abstract_type;
+    using std::meta::is_final_type;
+    using std::meta::is_aggregate_type;
+#if __glibcxx_is_structural >= 202603L
+    using std::meta::is_structural_type;
+#endif
+    using std::meta::is_signed_type;
+    using std::meta::is_unsigned_type;
+    using std::meta::is_bounded_array_type;
+    using std::meta::is_unbounded_array_type;
+    using std::meta::is_scoped_enum_type;
+    using std::meta::is_constructible_type;
+    using std::meta::is_default_constructible_type;
+    using std::meta::is_copy_constructible_type;
+    using std::meta::is_move_constructible_type;
+    using std::meta::is_assignable_type;
+    using std::meta::is_copy_assignable_type;
+    using std::meta::is_move_assignable_type;
+    using std::meta::is_swappable_with_type;
+    using std::meta::is_swappable_type;
+    using std::meta::is_destructible_type;
+    using std::meta::is_trivially_constructible_type;
+    using std::meta::is_trivially_default_constructible_type;
+    using std::meta::is_trivially_copy_constructible_type;
+    using std::meta::is_trivially_move_constructible_type;
+    using std::meta::is_trivially_assignable_type;
+    using std::meta::is_trivially_copy_assignable_type;
+    using std::meta::is_trivially_move_assignable_type;
+    using std::meta::is_trivially_destructible_type;
+    using std::meta::is_nothrow_constructible_type;
+    using std::meta::is_nothrow_default_constructible_type;
+    using std::meta::is_nothrow_copy_constructible_type;
+    using std::meta::is_nothrow_move_constructible_type;
+    using std::meta::is_nothrow_assignable_type;
+    using std::meta::is_nothrow_copy_assignable_type;
+    using std::meta::is_nothrow_move_assignable_type;
+    using std::meta::is_nothrow_swappable_with_type;
+    using std::meta::is_nothrow_swappable_type;
+    using std::meta::is_nothrow_destructible_type;
+    using std::meta::is_implicit_lifetime_type;
+    using std::meta::has_virtual_destructor;
+    using std::meta::has_unique_object_representations;
+    using std::meta::reference_constructs_from_temporary;
+    using std::meta::reference_converts_from_temporary;
+    using std::meta::rank;
+    using std::meta::extent;
+    using std::meta::is_same_type;
+    using std::meta::is_base_of_type;
+    using std::meta::is_virtual_base_of_type;
+    using std::meta::is_convertible_type;
+    using std::meta::is_nothrow_convertible_type;
+    using std::meta::is_layout_compatible_type;
+    using std::meta::is_pointer_interconvertible_base_of_type;
+    using std::meta::is_invocable_type;
+    using std::meta::is_invocable_r_type;
+    using std::meta::is_nothrow_invocable_type;
+    using std::meta::is_nothrow_invocable_r_type;
+    using std::meta::remove_const;
+    using std::meta::remove_volatile;
+    using std::meta::remove_cv;
+    using std::meta::add_const;
+    using std::meta::add_volatile;
+    using std::meta::add_cv;
+    using std::meta::remove_reference;
+    using std::meta::add_lvalue_reference;
+    using std::meta::add_rvalue_reference;
+    using std::meta::make_signed;
+    using std::meta::make_unsigned;
+    using std::meta::remove_extent;
+    using std::meta::remove_all_extents;
+    using std::meta::remove_pointer;
+    using std::meta::add_pointer;
+    using std::meta::remove_cvref;
+    using std::meta::decay;
+    using std::meta::common_type;
+    using std::meta::common_reference;
+    using std::meta::underlying_type;
+    using std::meta::invoke_result;
+    using std::meta::unwrap_reference;
+    using std::meta::unwrap_ref_decay;
+    using std::meta::tuple_size;
+    using std::meta::tuple_element;
+    using std::meta::variant_size;
+    using std::meta::variant_alternative;
+    using std::meta::type_order;
+    using std::meta::annotations_of;
+    using std::meta::annotations_of_with_type;
+  }
+}
+#endif
 
 // <mutex>
 export namespace std
@@ -1973,13 +2352,19 @@ export namespace std
   using std::defer_lock_t;
   using std::lock;
   using std::lock_guard;
+#if _GLIBCXX_HAS_GTHREADS
   using std::mutex;
+#endif
   using std::once_flag;
+#if _GLIBCXX_HAS_GTHREADS
   using std::recursive_mutex;
   using std::recursive_timed_mutex;
+#endif
   using std::scoped_lock;
   using std::swap;
+#if _GLIBCXX_HAS_GTHREADS
   using std::timed_mutex;
+#endif
   using std::try_lock;
   using std::try_to_lock;
   using std::try_to_lock_t;
@@ -2060,14 +2445,18 @@ export namespace std
   using std::lcm;
   using std::midpoint;
 #if __cpp_lib_ranges_iota
-  namespace ranges { using ranges::iota; }
+  namespace ranges
+  {
+    using ranges::iota;
+    using ranges::iota_result;
+  }
 #endif
 #if __cpp_lib_saturation_arithmetic
-  using std::add_sat;
-  using std::sub_sat;
-  using std::mul_sat;
-  using std::div_sat;
-  using std::saturate_cast;
+  using std::saturating_add;
+  using std::saturating_sub;
+  using std::saturating_mul;
+  using std::saturating_div;
+  using std::saturating_cast;
 #endif
 }
 
@@ -2100,9 +2489,11 @@ export namespace std
   using std::ostream;
   using std::wostream;
   using std::operator<<;
+#ifdef __cpp_lib_syncbuf
   using std::emit_on_flush;
   using std::noemit_on_flush;
   using std::flush_emit;
+#endif
 }
 
 // <print>
@@ -2112,9 +2503,9 @@ export namespace std
   using std::print;
   using std::println;
   using std::vprint_unicode;
-  //FIXME using std::vprint_unicode_buffered;
+  using std::vprint_unicode_buffered;
   using std::vprint_nonunicode;
-  //FIXME using std::vprint_nonunicode_buffered;
+  using std::vprint_nonunicode_buffered;
 }
 #endif
 
@@ -2177,6 +2568,11 @@ export namespace std
   using std::uniform_random_bit_generator;
   using std::uniform_real_distribution;
   using std::weibull_distribution;
+#if __cpp_lib_philox_engine
+  using std::philox_engine;
+  using std::philox4x32;
+  using std::philox4x64;
+#endif
 }
 
 // <ranges>
@@ -2404,9 +2800,12 @@ export namespace std
     using ranges::cache_latest_view;
     namespace views { using views::cache_latest; }
 #endif
-#if __glibcxx_ranges_to_input // C++ >= 26
-    using ranges::to_input_view;
-    namespace views { using views::to_input; }
+#if __glibcxx_ranges_as_input // C++ >= 26
+    using ranges::as_input_view;
+    namespace views { using views::as_input; }
+#endif
+#ifdef __cpp_lib_ranges_indices // C++ >= 26
+    namespace views { using views::indices; }
 #endif
   }
 #if __glibcxx_ranges_to_container // C++ >= 23
@@ -2471,6 +2870,43 @@ export namespace std
     using std::regex_constants::operator|;
     using std::regex_constants::operator|=;
     using std::regex_constants::operator~;
+    using std::regex_constants::awk;
+    using std::regex_constants::basic;
+    using std::regex_constants::collate;
+    using std::regex_constants::ECMAScript;
+    using std::regex_constants::egrep;
+    using std::regex_constants::extended;
+    using std::regex_constants::grep;
+    using std::regex_constants::icase;
+    using std::regex_constants::multiline;
+    using std::regex_constants::nosubs;
+    using std::regex_constants::optimize;
+    using std::regex_constants::format_default;
+    using std::regex_constants::format_first_only;
+    using std::regex_constants::format_no_copy;
+    using std::regex_constants::format_sed;
+    using std::regex_constants::match_any;
+    using std::regex_constants::match_continuous;
+    using std::regex_constants::match_default;
+    using std::regex_constants::match_not_bol;
+    using std::regex_constants::match_not_bow;
+    using std::regex_constants::match_not_eol;
+    using std::regex_constants::match_not_eow;
+    using std::regex_constants::match_not_null;
+    using std::regex_constants::match_prev_avail;
+    using std::regex_constants::error_backref;
+    using std::regex_constants::error_badbrace;
+    using std::regex_constants::error_badrepeat;
+    using std::regex_constants::error_brace;
+    using std::regex_constants::error_brack;
+    using std::regex_constants::error_collate;
+    using std::regex_constants::error_complexity;
+    using std::regex_constants::error_ctype;
+    using std::regex_constants::error_escape;
+    using std::regex_constants::error_paren;
+    using std::regex_constants::error_range;
+    using std::regex_constants::error_space;
+    using std::regex_constants::error_stack;
   }
   using std::basic_regex;
   using std::csub_match;
@@ -2506,11 +2942,13 @@ export namespace std
   using std::wsregex_token_iterator;
   namespace pmr
   {
+#if _GLIBCXX_USE_CXX11_ABI
     using std::pmr::cmatch;
     using std::pmr::match_results;
     using std::pmr::smatch;
     using std::pmr::wcmatch;
     using std::pmr::wsmatch;
+#endif
   }
 }
 
@@ -2522,11 +2960,13 @@ export namespace std
 }
 
 // <semaphore>
+#if __cpp_lib_semaphore
 export namespace std
 {
   using std::binary_semaphore;
   using std::counting_semaphore;
 }
+#endif
 
 // <set>
 export namespace std
@@ -2548,8 +2988,10 @@ export namespace std
 export namespace std
 {
   using std::shared_lock;
+#if _GLIBCXX_HAS_GTHREADS
   using std::shared_mutex;
   using std::shared_timed_mutex;
+#endif
   using std::swap;
 }
 
@@ -2736,12 +3178,14 @@ export namespace std
   using std::wstring;
   namespace pmr
   {
+#if _GLIBCXX_USE_CXX11_ABI
     using std::pmr::basic_string;
     using std::pmr::string;
     using std::pmr::u16string;
     using std::pmr::u32string;
     using std::pmr::u8string;
     using std::pmr::wstring;
+#endif
   }
   using std::hash;
 }
@@ -2786,6 +3230,7 @@ export namespace std
 // <syncstream>
 export namespace std
 {
+#ifdef __cpp_lib_syncbuf
   using std::basic_syncbuf;
   using std::swap;
   using std::basic_osyncstream;
@@ -2793,6 +3238,7 @@ export namespace std
   using std::syncbuf;
   using std::wosyncstream;
   using std::wsyncbuf;
+#endif
 }
 
 // 19.5 <system_error>
@@ -2830,7 +3276,9 @@ export namespace std
 {
   using std::swap;
   using std::thread;
+#if __cpp_lib_jthread
   using std::jthread;
+#endif
   namespace this_thread
   {
     using std::this_thread::get_id;
@@ -2897,6 +3345,10 @@ export namespace std
   using std::conditional_t;
   using std::conjunction;
   using std::conjunction_v;
+#if __cpp_lib_constant_wrapper
+  using std::constant_wrapper;
+  using std::cw;
+#endif
   using std::decay;
   using std::decay_t;
   using std::disjunction;
@@ -3105,11 +3557,28 @@ export namespace std
 #if __cpp_lib_is_layout_compatible
   using std::is_corresponding_member;
   using std::is_layout_compatible;
+  using std::is_layout_compatible_v;
 #endif
 #if __cpp_lib_is_pointer_interconvertible
   using std::is_pointer_interconvertible_base_of;
   using std::is_pointer_interconvertible_base_of_v;
   using std::is_pointer_interconvertible_with_class;
+#endif
+#if __cpp_lib_is_scoped_enum
+  using std::is_scoped_enum;
+  using std::is_scoped_enum_v;
+#endif
+#if __cpp_lib_is_implicit_lifetime
+  using std::is_implicit_lifetime;
+  using std::is_implicit_lifetime_v;
+#endif
+#if __cpp_impl_reflection >= 202506L
+  using std::is_reflection;
+  using std::is_reflection_v;
+#endif
+#if __glibcxx_is_structural >= 202603L
+  using std::is_structural;
+  using std::is_structural_v;
 #endif
 }
 
@@ -3213,6 +3682,9 @@ export namespace std
 #pragma GCC diagnostic pop
 #if __cpp_lib_unreachable
   using std::unreachable;
+#endif
+#if __cpp_lib_observable_checkpoint
+  using std::observable_checkpoint;
 #endif
 }
 

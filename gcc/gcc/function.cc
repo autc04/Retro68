@@ -1,5 +1,5 @@
 /* Expands front end tree to back end RTL for GCC.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -85,6 +85,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "value-range.h"
 #include "gimple-range.h"
 #include "insn-attr.h"
+#include "hierarchical_discriminator.h"
 
 /* So we can assign to cfun in this file.  */
 #undef cfun
@@ -217,6 +218,7 @@ free_after_compilation (struct function *f)
   f->cfg = NULL;
   f->curr_properties &= ~PROP_cfg;
   delete f->cond_uids;
+  free_copyid_allocator (f);
 
   regno_reg_rtx = NULL;
 }
@@ -1355,8 +1357,7 @@ emit_initial_value_sets (void)
   start_sequence ();
   for (i = 0; i < ivs->num_entries; i++)
     emit_move_insn (ivs->entries[i].pseudo, ivs->entries[i].hard_reg);
-  seq = get_insns ();
-  end_sequence ();
+  seq = end_sequence ();
 
   emit_insn_at_entry (seq);
 }
@@ -1574,8 +1575,7 @@ instantiate_virtual_regs_in_insn (rtx_insn *insn)
 	  if (x != new_rtx)
 	    emit_move_insn (new_rtx, x);
 
-	  seq = get_insns ();
-	  end_sequence ();
+	  seq = end_sequence ();
 
 	  emit_insn_before (seq, insn);
 	  delete_insn (insn);
@@ -1601,8 +1601,7 @@ instantiate_virtual_regs_in_insn (rtx_insn *insn)
 	  if (x != SET_DEST (set))
 	    emit_move_insn (SET_DEST (set), x);
 
-	  seq = get_insns ();
-	  end_sequence ();
+	  seq = end_sequence ();
 
 	  emit_insn_before (seq, insn);
 	  delete_insn (insn);
@@ -1631,8 +1630,7 @@ instantiate_virtual_regs_in_insn (rtx_insn *insn)
 	    {
 	      start_sequence ();
 	      emit_move_insn (SET_DEST (set), new_rtx);
-	      seq = get_insns ();
-	      end_sequence ();
+	      seq = end_sequence ();
 
 	      emit_insn_before (seq, insn);
 	      delete_insn (insn);
@@ -1692,8 +1690,7 @@ instantiate_virtual_regs_in_insn (rtx_insn *insn)
 		addr = force_reg (GET_MODE (addr), addr);
 		x = replace_equiv_address (x, addr, true);
 	      }
-	    seq = get_insns ();
-	    end_sequence ();
+	    seq = end_sequence ();
 	    if (seq)
 	      emit_insn_before (seq, insn);
 	  }
@@ -1718,8 +1715,7 @@ instantiate_virtual_regs_in_insn (rtx_insn *insn)
 	      x = expand_simple_binop (GET_MODE (x), PLUS, new_rtx,
 				       gen_int_mode (offset, GET_MODE (x)),
 				       NULL_RTX, 1, OPTAB_LIB_WIDEN);
-	      seq = get_insns ();
-	      end_sequence ();
+	      seq = end_sequence ();
 	      emit_insn_before (seq, insn);
 	    }
 	  break;
@@ -1728,20 +1724,17 @@ instantiate_virtual_regs_in_insn (rtx_insn *insn)
 	  new_rtx = instantiate_new_reg (SUBREG_REG (x), &offset);
 	  if (new_rtx == NULL)
 	    continue;
+	  start_sequence ();
 	  if (maybe_ne (offset, 0))
-	    {
-	      start_sequence ();
-	      new_rtx = expand_simple_binop
-		(GET_MODE (new_rtx), PLUS, new_rtx,
-		 gen_int_mode (offset, GET_MODE (new_rtx)),
-		 NULL_RTX, 1, OPTAB_LIB_WIDEN);
-	      seq = get_insns ();
-	      end_sequence ();
-	      emit_insn_before (seq, insn);
-	    }
-	  x = simplify_gen_subreg (recog_data.operand_mode[i], new_rtx,
-				   GET_MODE (new_rtx), SUBREG_BYTE (x));
+	    new_rtx = expand_simple_binop
+	      (GET_MODE (new_rtx), PLUS, new_rtx,
+	       gen_int_mode (offset, GET_MODE (new_rtx)),
+	       NULL_RTX, 1, OPTAB_LIB_WIDEN);
+	  x = force_subreg (recog_data.operand_mode[i], new_rtx,
+			    GET_MODE (new_rtx), SUBREG_BYTE (x));
 	  gcc_assert (x);
+	  seq = end_sequence ();
+	  emit_insn_before (seq, insn);
 	  break;
 
 	default:
@@ -1761,8 +1754,7 @@ instantiate_virtual_regs_in_insn (rtx_insn *insn)
 	    }
 	  else
 	    x = force_reg (insn_data[insn_code].operand[i].mode, x);
-	  seq = get_insns ();
-	  end_sequence ();
+	  seq = end_sequence ();
 	  if (seq)
 	    emit_insn_before (seq, insn);
 	}
@@ -2425,20 +2417,6 @@ assign_parms_augmented_arg_list (struct assign_parm_data_all *all)
       all->function_result_decl = decl;
     }
 
-#ifdef IS_PASCAL_FUNC
-  if (IS_PASCAL_FUNC(fntype, fndecl))
-    {
-        // reverse argument order
-      unsigned n = fnargs.length(), n2 = fnargs.length() / 2;
-      for(unsigned i = 0; i < n2; i++)
-      {
-        tree tmp = fnargs[i];
-        fnargs[i] = fnargs[n - 1 - i];
-        fnargs[n - 1 - i] = tmp;
-      }
-    }
-#endif
-
   /* If the target wants to split complex arguments into scalars, do so.  */
   if (targetm.calls.split_complex_arg)
     split_complex_args (&fnargs);
@@ -2847,7 +2825,7 @@ assign_parm_remove_parallels (struct assign_parm_data_one *data)
    always valid and properly aligned.  */
 
 static void
-assign_parm_adjust_stack_rtl (struct assign_parm_data_one *data)
+assign_parm_adjust_stack_rtl (tree parm, struct assign_parm_data_one *data)
 {
   rtx stack_parm = data->stack_parm;
 
@@ -2862,7 +2840,14 @@ assign_parm_adjust_stack_rtl (struct assign_parm_data_one *data)
 						 MEM_ALIGN (stack_parm))))
 	  || (data->nominal_type
 	      && TYPE_ALIGN (data->nominal_type) > MEM_ALIGN (stack_parm)
-	      && MEM_ALIGN (stack_parm) < PREFERRED_STACK_BOUNDARY)))
+	      && ((MEM_ALIGN (stack_parm)
+		   < MIN (BIGGEST_ALIGNMENT, MAX_SUPPORTED_STACK_ALIGNMENT))
+		  /* If its address is taken, make a local copy whose
+		     maximum alignment is MAX_SUPPORTED_STACK_ALIGNMENT.
+		   */
+		  || (TREE_ADDRESSABLE (parm)
+		      && (MEM_ALIGN (stack_parm)
+			  < MAX_SUPPORTED_STACK_ALIGNMENT))))))
     stack_parm = NULL;
 
   /* If parm was passed in memory, and we need to convert it on entry,
@@ -2959,7 +2944,7 @@ assign_parm_setup_block (struct assign_parm_data_all *all,
   if (stack_parm == 0)
     {
       HOST_WIDE_INT parm_align
-	= (STRICT_ALIGNMENT
+	= ((STRICT_ALIGNMENT || BITS_PER_WORD <= MAX_SUPPORTED_STACK_ALIGNMENT)
 	   ? MAX (DECL_ALIGN (parm), BITS_PER_WORD) : DECL_ALIGN (parm));
 
       SET_DECL_ALIGN (parm, parm_align);
@@ -3736,7 +3721,7 @@ assign_parms (tree fndecl)
       else
 	set_decl_incoming_rtl (parm, data.entry_parm, false);
 
-      assign_parm_adjust_stack_rtl (&data);
+      assign_parm_adjust_stack_rtl (parm, &data);
 
       if (assign_parm_setup_block_p (&data))
 	assign_parm_setup_block (&all, parm, &data);
@@ -4989,6 +4974,10 @@ prepare_function_start (void)
 
   /* Indicate we have no need of a frame pointer yet.  */
   frame_pointer_needed = 0;
+
+  /* Reset the cache of the "extended" flag in the target's
+     _BitInt info struct.  */
+  bitint_extended = -1;
 }
 
 void
@@ -5431,8 +5420,7 @@ expand_function_end (void)
 	      anti_adjust_stack_and_probe (max_frame_size, true);
 	    else
 	      probe_stack_range (STACK_OLD_CHECK_PROTECT, max_frame_size);
-	    seq = get_insns ();
-	    end_sequence ();
+	    seq = end_sequence ();
 	    set_insn_locations (seq, prologue_location);
 	    emit_insn_before (seq, stack_check_probe_note);
 	    break;
@@ -5489,20 +5477,6 @@ expand_function_end (void)
       tree decl_result = DECL_RESULT (current_function_decl);
       rtx decl_rtl = DECL_RTL (decl_result);
 
-#ifdef IS_PASCAL_FUNC
-      if (IS_PASCAL_FUNC(TREE_TYPE(current_function_decl), current_function_decl))
-	{
-	  enum machine_mode mode = GET_MODE(decl_rtl);;
-
-	  rtx return_slot = gen_int_mode(crtl->args.pops_args + 8, Pmode);
-	  return_slot = gen_rtx_PLUS(Pmode, arg_pointer_rtx, return_slot);
-	  return_slot = gen_rtx_MEM(mode, return_slot);
-	  MEM_VOLATILE_P(return_slot) = true;
-	  emit_move_insn (return_slot, decl_rtl);
-	  crtl->return_rtx = return_slot;
-	}
-      else
-#endif
       if ((REG_P (decl_rtl)
 	   ? REGNO (decl_rtl) >= FIRST_PSEUDO_REGISTER
 	   : DECL_REGISTER (decl_result))
@@ -5625,8 +5599,7 @@ expand_function_end (void)
     {
       start_sequence ();
       clobber_return_register ();
-      rtx_insn *seq = get_insns ();
-      end_sequence ();
+      rtx_insn *seq = end_sequence ();
 
       emit_insn_after (seq, clobber_after);
     }
@@ -5658,8 +5631,7 @@ expand_function_end (void)
 
       start_sequence ();
       emit_stack_save (SAVE_FUNCTION, &tem);
-      rtx_insn *seq = get_insns ();
-      end_sequence ();
+      rtx_insn *seq = end_sequence ();
       emit_insn_before (seq, parm_birth_insn);
 
       emit_stack_restore (SAVE_FUNCTION, tem);
@@ -5691,8 +5663,7 @@ get_arg_pointer_save_area (void)
       start_sequence ();
       emit_move_insn (validize_mem (copy_rtx (ret)),
                       crtl->args.internal_arg_pointer);
-      rtx_insn *seq = get_insns ();
-      end_sequence ();
+      rtx_insn *seq = end_sequence ();
 
       push_topmost_sequence ();
       emit_insn_after (seq, entry_of_function ());
@@ -5881,8 +5852,7 @@ make_split_prologue_seq (void)
 
   start_sequence ();
   emit_insn (targetm.gen_split_stack_prologue ());
-  rtx_insn *seq = get_insns ();
-  end_sequence ();
+  rtx_insn *seq = end_sequence ();
 
   record_insns (seq, NULL, &prologue_insn_hash);
   set_insn_locations (seq, prologue_location);
@@ -5918,8 +5888,7 @@ make_prologue_seq (void)
   if (!targetm.profile_before_prologue () && crtl->profile)
     emit_insn (gen_blockage ());
 
-  seq = get_insns ();
-  end_sequence ();
+  seq = end_sequence ();
   set_insn_locations (seq, prologue_location);
 
   return seq;
@@ -6022,16 +5991,14 @@ gen_call_used_regs_seq (rtx_insn *ret, unsigned int zero_regs_type)
      all call used registers.  */
   gcc_assert (hard_reg_set_subset_p (zeroed_hardregs, all_call_used_regs));
 
-  rtx_insn *seq = get_insns ();
-  end_sequence ();
+  rtx_insn *seq = end_sequence ();
   if (seq)
     {
       /* Emit the memory blockage and register clobber asm volatile before
 	 the whole sequence.  */
       start_sequence ();
       expand_asm_reg_clobber_mem_blockage (zeroed_hardregs);
-      rtx_insn *seq_barrier = get_insns ();
-      end_sequence ();
+      rtx_insn *seq_barrier = end_sequence ();
 
       emit_insn_before (seq_barrier, ret);
       emit_insn_before (seq, ret);
@@ -6300,8 +6267,7 @@ thread_prologue_and_epilogue_insns (void)
 	{
 	  start_sequence ();
 	  targetm.emit_epilogue_for_sibcall (as_a<rtx_call_insn *> (insn));
-	  ep_seq = get_insns ();
-	  end_sequence ();
+	  ep_seq = end_sequence ();
 	}
       else
 	ep_seq = targetm.gen_sibcall_epilogue ();
@@ -6310,8 +6276,7 @@ thread_prologue_and_epilogue_insns (void)
 	  start_sequence ();
 	  emit_note (NOTE_INSN_EPILOGUE_BEG);
 	  emit_insn (ep_seq);
-	  rtx_insn *seq = get_insns ();
-	  end_sequence ();
+	  rtx_insn *seq = end_sequence ();
 
 	  /* Retain a map of the epilogue insns.  Used in life analysis to
 	     avoid getting rid of sibcall epilogue insns.  Do this before we
@@ -7000,8 +6965,7 @@ match_asm_constraints_1 (rtx_insn *insn, rtx *p_sets, int noutputs)
 
       start_sequence ();
       emit_move_insn (output, copy_rtx (input));
-      insns = get_insns ();
-      end_sequence ();
+      insns = end_sequence ();
       emit_insn_before (insns, insn);
 
       constraint = ASM_OPERANDS_OUTPUT_CONSTRAINT(SET_SRC(p_sets[match]));
@@ -7051,6 +7015,115 @@ match_asm_constraints_1 (rtx_insn *insn, rtx *p_sets, int noutputs)
 						   input, output);
 	  }
 
+      changed = true;
+    }
+
+  if (changed)
+    df_insn_rescan (insn);
+}
+
+/* It is expected and desired that optimizations coalesce multiple pseudos into
+   one whenever possible.  However, in case of hard register constraints we may
+   have to undo this and introduce copies since otherwise we could constraint a
+   single pseudo to different hard registers.  For example, during register
+   allocation the following insn would be unsatisfiable since pseudo 60 is
+   constrained to hard register r5 and r6 at the same time.
+
+   (insn 7 5 0 2 (asm_operands/v ("foo") ("") 0 [
+	       (reg:DI 60) repeated x2
+	   ]
+	    [
+	       (asm_input:DI ("{r5}") t.c:4)
+	       (asm_input:DI ("{r6}") t.c:4)
+	   ]
+	    [] t.c:4) "t.c":4:3 -1
+	(expr_list:REG_DEAD (reg:DI 60)
+	   (nil)))
+
+   Therefore, introduce a copy of pseudo 60 and transform it into
+
+   (insn 10 5 7 2 (set (reg:DI 62)
+	   (reg:DI 60)) "t.c":4:3 1503 {*movdi_64}
+	(nil))
+   (insn 7 10 11 2 (asm_operands/v ("foo") ("") 0 [
+	       (reg:DI 60)
+	       (reg:DI 62)
+	   ]
+	    [
+	       (asm_input:DI ("{r5}") t.c:4)
+	       (asm_input:DI ("{r6}") t.c:4)
+	   ]
+	    [] t.c:4) "t.c":4:3 -1
+	(expr_list:REG_DEAD (reg:DI 62)
+	   (expr_list:REG_DEAD (reg:DI 60)
+	       (nil))))
+
+   Now, LRA can assign pseudo 60 to r5, and pseudo 62 to r6.
+
+   TODO: The current implementation is conservative and we could do a bit
+   better in case of alternatives.  For example
+
+   (insn 7 5 0 2 (asm_operands/v ("foo") ("") 0 [
+	       (reg:DI 60) repeated x2
+	   ]
+	    [
+	       (asm_input:DI ("r,{r5}") t.c:4)
+	       (asm_input:DI ("{r6},r") t.c:4)
+	   ]
+	    [] t.c:4) "t.c":4:3 -1
+	(expr_list:REG_DEAD (reg:DI 60)
+	   (nil)))
+
+   For this insn we wouldn't need to come up with a copy of pseudo 60 since in
+   each alternative pseudo 60 is constrained exactly one time.  */
+
+static void
+match_asm_constraints_2 (rtx_insn *insn, rtx pat)
+{
+  rtx op;
+  if (GET_CODE (pat) == SET && GET_CODE (SET_SRC (pat)) == ASM_OPERANDS)
+    op = SET_SRC (pat);
+  else if (GET_CODE (pat) == ASM_OPERANDS)
+    op = pat;
+  else
+    return;
+  int ninputs = ASM_OPERANDS_INPUT_LENGTH (op);
+  rtvec inputs = ASM_OPERANDS_INPUT_VEC (op);
+  bool changed = false;
+  auto_bitmap constrained_regs;
+
+  for (int i = 0; i < ninputs; ++i)
+    {
+      rtx input = RTVEC_ELT (inputs, i);
+      const char *constraint = ASM_OPERANDS_INPUT_CONSTRAINT (op, i);
+      if ((!REG_P (input) && !SUBREG_P (input))
+	  || (REG_P (input) && HARD_REGISTER_P (input))
+	  || strchr (constraint, '{') == nullptr)
+	continue;
+      int regno;
+      if (SUBREG_P (input))
+	{
+	  if (REG_P (SUBREG_REG (input)))
+	    regno = REGNO (SUBREG_REG (input));
+	  else
+	    continue;
+	}
+      else
+	regno = REGNO (input);
+      /* Keep the first usage of a constrained pseudo as is and only
+	 introduce copies for subsequent usages.  */
+      if (! bitmap_bit_p (constrained_regs, regno))
+	{
+	  bitmap_set_bit (constrained_regs, regno);
+	  continue;
+	}
+      rtx tmp = gen_reg_rtx (GET_MODE (input));
+      start_sequence ();
+      emit_move_insn (tmp, input);
+      rtx_insn *insns = get_insns ();
+      end_sequence ();
+      emit_insn_before (insns, insn);
+      RTVEC_ELT (inputs, i) = tmp;
       changed = true;
     }
 
@@ -7114,6 +7187,13 @@ pass_match_asm_constraints::execute (function *fun)
 	    continue;
 
 	  pat = PATTERN (insn);
+
+	  if (GET_CODE (pat) == PARALLEL)
+	    for (int i = XVECLEN (pat, 0) - 1; i >= 0; --i)
+	      match_asm_constraints_2 (insn, XVECEXP (pat, 0, i));
+	  else
+	    match_asm_constraints_2 (insn, pat);
+
 	  if (GET_CODE (pat) == PARALLEL)
 	    p_sets = &XVECEXP (pat, 0, 0), noutputs = XVECLEN (pat, 0);
 	  else if (GET_CODE (pat) == SET)

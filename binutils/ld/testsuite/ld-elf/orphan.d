@@ -1,5 +1,5 @@
 #source: orphan.s
-#ld: -T orphan.ld
+#ld: -T orphan.ld --no-warn-rwx-segments
 #readelf: -S --wide
 #xfail: [uses_genelf]
 # if not using elf.em, you don't get fancy orphan handling

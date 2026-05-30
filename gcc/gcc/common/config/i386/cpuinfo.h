@@ -1,5 +1,5 @@
 /* Get CPU type and Features for x86 processors.
-   Copyright (C) 2012-2025 Free Software Foundation, Inc.
+   Copyright (C) 2012-2026 Free Software Foundation, Inc.
    Contributed by Sriraman Tallam (tmsriram@google.com)
 
 This file is part of GCC.
@@ -312,11 +312,20 @@ get_amd_cpu (struct __processor_model *cpu_model,
       break;
     case 0x1a:
       cpu_model->__cpu_type = AMDFAM1AH;
-      if (model <= 0x77)
+      if (model <= 0x4f || (model >= 0x60 && model <= 0x77) ||
+	  (model >= 0xd0 && model <= 0xd7))
 	{
 	  cpu = "znver5";
 	  CHECK___builtin_cpu_is ("znver5");
 	  cpu_model->__cpu_subtype = AMDFAM1AH_ZNVER5;
+	}
+      else if ((model >= 0x50 && model <= 0x5f) ||
+	       (model >= 0x80 && model <= 0xcf) ||
+	       (model >= 0xd8 && model <= 0xe7))
+	{
+	  cpu = "znver6";
+	  CHECK___builtin_cpu_is ("znver6");
+	  cpu_model->__cpu_subtype = AMDFAM1AH_ZNVER6;
 	}
       else if (has_cpu_feature (cpu_model, cpu_features2,
 				FEATURE_AVX512VP2INTERSECT))
@@ -324,6 +333,13 @@ get_amd_cpu (struct __processor_model *cpu_model,
 	  cpu = "znver5";
 	  CHECK___builtin_cpu_is ("znver5");
 	  cpu_model->__cpu_subtype = AMDFAM1AH_ZNVER5;
+	}
+      else if (has_cpu_feature (cpu_model, cpu_features2,
+				FEATURE_AVX512BMM))
+	{
+	  cpu = "znver6";
+	  CHECK___builtin_cpu_is ("znver6");
+	  cpu_model->__cpu_subtype = AMDFAM1AH_ZNVER6;
 	}
       break;
     default:
@@ -627,11 +643,29 @@ get_intel_cpu (struct __processor_model *cpu_model,
 	break;
       case 0xcc:
 	/* Panther Lake.  */
+      case 0xd5:
+	/* Wildcat Lake.  */
 	cpu = "pantherlake";
 	CHECK___builtin_cpu_is ("corei7");
 	CHECK___builtin_cpu_is ("pantherlake");
 	cpu_model->__cpu_type = INTEL_COREI7;
 	cpu_model->__cpu_subtype = INTEL_COREI7_PANTHERLAKE;
+	break;
+      default:
+	break;
+      }
+  /* Parse family and model for family 0x12.  */
+  else if (cpu_model2->__cpu_family == 0x12)
+    switch (cpu_model2->__cpu_model)
+      {
+      case 0x01:
+      case 0x03:
+	/* Nova Lake.  */
+	cpu = "novalake";
+	CHECK___builtin_cpu_is ("corei7");
+	CHECK___builtin_cpu_is ("novalake");
+	cpu_model->__cpu_type = INTEL_COREI7;
+	cpu_model->__cpu_subtype = INTEL_COREI7_NOVALAKE;
 	break;
       default:
 	break;
@@ -1023,12 +1057,20 @@ get_available_features (struct __processor_model *cpu_model,
 	    set_feature (FEATURE_AMX_AVX512);
 	  if (eax & bit_AMX_TF32)
 	    set_feature (FEATURE_AMX_TF32);
-	  if (eax & bit_AMX_TRANSPOSE)
-	    set_feature (FEATURE_AMX_TRANSPOSE);
 	  if (eax & bit_AMX_FP8)
 	    set_feature (FEATURE_AMX_FP8);
 	  if (eax & bit_AMX_MOVRS)
 	    set_feature (FEATURE_AMX_MOVRS);
+	}
+    }
+
+  /* Get Advanced Features at level 0x21 (eax = 0x21).  */
+  if (max_cpuid_level >= 0x21)
+    {
+      __cpuid (0x21, eax, ebx, ecx, edx);
+      if (eax & bit_AVX512BMM)
+	{
+	  set_feature (FEATURE_AVX512BMM);
 	}
     }
 
@@ -1044,11 +1086,9 @@ get_available_features (struct __processor_model *cpu_model,
 	  /* Fall through.  */
 	case 1:
 	  set_feature (FEATURE_AVX10_1);
-	  set_feature (FEATURE_AVX10_1_256);
 	  break;
 	default:
 	  set_feature (FEATURE_AVX10_1);
-	  set_feature (FEATURE_AVX10_1_256);
 	  break;
 	}
     }
@@ -1102,6 +1142,15 @@ get_available_features (struct __processor_model *cpu_model,
 	set_feature (FEATURE_CLZERO);
       if (ebx & bit_WBNOINVD)
 	set_feature (FEATURE_WBNOINVD);
+    }
+
+  if (ext_level >= 0x80000021)
+    {
+      __cpuid (0x80000021, eax, ebx, ecx, edx);
+      if (eax & bit_AMD_PREFETCHI)
+	{
+	  set_feature (FEATURE_PREFETCHI);
+	}
     }
 
 #undef set_feature

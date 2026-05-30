@@ -3,15 +3,15 @@
 
 Contents of the .debug_info section:
 
-  Compilation Unit @ offset 0x0:
+  Compilation Unit @ offset (0x)?0:
    Length:        0x5e \(32-bit\)
    Version:       2
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  4
  <0><b>: Abbrev Number: 1 \(DW_TAG_compile_unit\)
-    <c>   DW_AT_stmt_list   : 0x0
+    <c>   DW_AT_stmt_list   : (0x)?0
     <10>   DW_AT_high_pc     : 0x4
-    <14>   DW_AT_low_pc      : 0x0
+    <14>   DW_AT_low_pc      : (0x)?0
     <18>   DW_AT_name        : file1.txt
     <22>   DW_AT_producer    : GNU C 3.3.3
     <2e>   DW_AT_language    : 1	\(ANSI C\)
@@ -21,7 +21,7 @@ Contents of the .debug_info section:
     <32>   DW_AT_decl_line   : 2
     <33>   DW_AT_name        : func_cu1
     <3c>   DW_AT_type        : <0x85>
-    <40>   DW_AT_low_pc      : 0x0
+    <40>   DW_AT_low_pc      : (0x)?0
     <44>   DW_AT_high_pc     : 0x4
     <48>   DW_AT_frame_base  : 1 byte block: 55 	\(DW_OP_reg5 \([^()]*\)\)
  <1><4a>: Abbrev Number: 3 \(DW_TAG_base_type\)
@@ -58,7 +58,7 @@ Contents of the .debug_info section:
 
 Contents of the .debug_abbrev section:
 
-  Number TAG \(0x0\)
+  Number TAG \((0x)?0\)
    1      DW_TAG_compile_unit    \[has children\]
     DW_AT_stmt_list    DW_FORM_data4
     DW_AT_high_pc      DW_FORM_addr
@@ -112,7 +112,7 @@ Contents of the .debug_abbrev section:
 
 Raw dump of debug contents of section .debug_line:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Length:                      62
   DWARF Version:               2
   Prologue Length:             35
@@ -146,7 +146,7 @@ Raw dump of debug contents of section .debug_line:
   1	0	0	0	file1.txt
 
  Line Number Statements:
-  \[0x0000002d\]  Extended opcode 2: set Address to 0x0
+  \[0x0000002d\]  Extended opcode 2: set Address to (0x)?0
   \[0x00000034\]  Advance Line by 3 to 4
   \[0x00000036\]  Copy
   \[0x00000037\]  Copy \(view 1\)

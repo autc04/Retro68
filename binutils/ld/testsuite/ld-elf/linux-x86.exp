@@ -1,5 +1,5 @@
 # Expect script for simple native Linux/x86 tests.
-#   Copyright (C) 2018-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2018-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -84,9 +84,9 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"Build indirect-extern-access-1a without PIE" \
-	"$NOPIE_LDFLAGS -Wl,--no-as-needed -z noexecstack \
+	"$NOPIE_LDFLAGS $DIRECT_EXTERN_ACCESS_CFLAGS -Wl,--no-as-needed -z noexecstack \
 	 tmpdir/indirect-extern-access-1.so" \
-	"$NOPIE_CFLAGS" \
+	"$NOPIE_CFLAGS $DIRECT_EXTERN_ACCESS_CFLAGS" \
 	{ indirect-extern-access.S indirect-extern-access-1b.c } \
 	{{readelf -rn indirect-extern-access-1.rd}} \
 	"indirect-extern-access-1a" \
@@ -101,9 +101,9 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"Build indirect-extern-access-2a without PIE" \
-	"$NOPIE_LDFLAGS -Wl,--no-as-needed -z noexecstack \
+	"$NOPIE_LDFLAGS $DIRECT_EXTERN_ACCESS_CFLAGS -Wl,--no-as-needed -z noexecstack \
 	 tmpdir/indirect-extern-access-2.so" \
-	"$NOPIE_CFLAGS" \
+	"$NOPIE_CFLAGS $DIRECT_EXTERN_ACCESS_CFLAGS" \
 	{ indirect-extern-access.S indirect-extern-access-1b.c } \
 	{{readelf -rn indirect-extern-access-2.rd}} \
 	"indirect-extern-access-2a" \
@@ -202,6 +202,21 @@ run_ld_link_exec_tests [list \
 	"tmpdir/indirect-extern-access-2.so" \
     ] \
 ]
+
+# Run-time tests which require working ifunc attribute support.
+if { [check_ifunc_attribute_available] } {
+    run_ld_link_exec_tests [list \
+	[list \
+	    "Run pr29797" \
+	    "-s" \
+	    "" \
+	    { pr29797.c } \
+	    "pr29797" \
+	    "pass.out" \
+	    "-O0" \
+	] \
+    ]
+}
 
 # Old gcc silently ignores __attribute__ ((aligned())) with too big alignment.
 proc compiler_honours_aligned { } {
@@ -360,11 +375,11 @@ proc check_pr25749a {testname srcfilea srcfileb cflags ldflags lderror} {
 
 check_pr25749a "pr25749-1a" "pr25749-1.c" "pr25749-1a.c" "$NOPIE_CFLAGS" "$NOPIE_LDFLAGS" ""
 check_pr25749a "pr25749-1a" "pr25749-1.c" "pr25749-1a.c" "-fPIE" "-pie" ""
-check_pr25749a "pr25749-1b" "pr25749-1.c" "pr25749-1b.c" "$NOPIE_CFLAGS" "$NOPIE_LDFLAGS" ""
+check_pr25749a "pr25749-1b" "pr25749-1.c" "pr25749-1b.c" "$NOPIE_CFLAGS $DIRECT_EXTERN_ACCESS_CFLAGS" "$NOPIE_LDFLAGS" ""
 if { [istarget "i?86-*-linux*"] || ![at_least_gcc_version 5 1] } {
-    check_pr25749a "pr25749-1b" "pr25749-1.c" "pr25749-1b.c" "-fPIE" "-pie" ""
+    check_pr25749a "pr25749-1b" "pr25749-1.c" "pr25749-1b.c" "-fPIE $DIRECT_EXTERN_ACCESS_CFLAGS" "-pie" ""
 } else {
-    check_pr25749a "pr25749-1b" "pr25749-1.c" "pr25749-1b.c" "-fPIE" "-pie" "pr25749-1b.err"
+    check_pr25749a "pr25749-1b" "pr25749-1.c" "pr25749-1b.c" "-fPIE $DIRECT_EXTERN_ACCESS_CFLAGS" "-pie" "pr25749-1b.err"
 }
 check_pr25749a "pr25749-1c" "pr25749-1.c" "pr25749-1c.c" "-fPIC" "-shared" "pr25749-1b.err"
 check_pr25749a "pr25749-2a" "pr25749-2.c" "pr25749-2a.s" "$NOPIE_CFLAGS" "$NOPIE_LDFLAGS" ""

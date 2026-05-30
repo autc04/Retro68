@@ -1,6 +1,6 @@
 /* init.cc initializes the modules of the GNU Modula-2 front end.
 
-Copyright (C) 2012-2025 Free Software Foundation, Inc.
+Copyright (C) 2012-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius@glam.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -107,6 +107,8 @@ EXTERN void _M2_M2SSA_init (int argc, char *argv[], char *envp[]);
 EXTERN void _M2_M2SymInit_init (int argc, char *argv[], char *envp[]);
 EXTERN void _M2_M2StateCheck_init (int argc, char *argv[], char *envp[]);
 EXTERN void _M2_P3Build_init (int argc, char *argv[], char *envp[]);
+EXTERN void _M2_M2Diagnostic_init (int argc, char *argv[], char *envp[]);
+EXTERN void _M2_M2StackSpell_init (int argc, char *argv[], char *envp[]);
 EXTERN void exit (int);
 EXTERN void M2Comp_compile (const char *filename);
 EXTERN void RTExceptions_DefaultErrorCatch (void);
@@ -126,6 +128,7 @@ init_FrontEndInit (void)
   _M2_M2Dependent_init (0, NULL, NULL);
   _M2_M2RTS_init (0, NULL, NULL);
   _M2_SysExceptions_init (0, NULL, NULL);
+  _M2_M2Diagnostic_init (0, NULL, NULL);
   _M2_DynamicStrings_init (0, NULL, NULL);
   _M2_Assertion_init (0, NULL, NULL);
   _M2_FormatStrings_init (0, NULL, NULL);
@@ -203,6 +206,7 @@ init_PerCompilationInit (const char *filename)
   _M2_M2Check_init (0, NULL, NULL);
   _M2_M2LangDump_init (0, NULL, NULL);
   _M2_M2StateCheck_init (0, NULL, NULL);
+  _M2_M2StackSpell_init (0, NULL, NULL);
   _M2_P3Build_init (0, NULL, NULL);
   M2Comp_compile (filename);
 }

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 1999-2025, AdaCore                     --
+--                     Copyright (C) 1999-2026, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -105,4 +105,7 @@ package System.Traceback.Symbolic is
    --  with default value), but backward compatibility for direct calls
    --  is supported.
 
+   function Calling_Entity return String;
+   --  Return the name of the caller of the current subprogram if it's
+   --  available. Otherwise return "???".
 end System.Traceback.Symbolic;

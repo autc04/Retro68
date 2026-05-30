@@ -2,6 +2,7 @@
 // { dg-timeout-factor 2 }
 
 #include <chrono>
+#include <vector>
 #include <testsuite_hooks.h>
 
 void
@@ -78,6 +79,13 @@ test_bad_format_strings()
   VERIFY( not is_format_string_for("{:%OOy}", t) );
   VERIFY( not is_format_string_for("{:%OEy}", t) );
   VERIFY( not is_format_string_for("{:%EOy}", t) );
+
+  // weekday and month values for which ok() is false
+  VERIFY( not is_format_string_for("{:%a}", std::chrono::weekday(8)) );
+  VERIFY( not is_format_string_for("{:%A}", std::chrono::weekday(8)) );
+  VERIFY( not is_format_string_for("{:%b}", std::chrono::month(13)) );
+  VERIFY( not is_format_string_for("{:%h}", std::chrono::month(13)) );
+  VERIFY( not is_format_string_for("{:%B}", std::chrono::month(13)) );
 }
 
 template<typename I>

@@ -23,10 +23,14 @@ Disassembly of section .text:
 [ 	]*42: R_390_GOTPLT64	test_R_390_GOTPLT64
   4a:	c0 10 00 00 00 00 [ 	]*larl	%r1,4a <foo\+0x4a>
 [ 	]*4c: R_390_GOTPLTENT	test_R_390_GOTPLTENT\+0x2
+  50:	c0 11 00 00 00 00 [ 	]*lgfi	%r1,0
+[ 	]*52: R_390_32	test_R_390_32
+  56:	c0 11 00 00 00 00 [ 	]*lgfi	%r1,0
+[ 	]*58: R_390_PC32	test_R_390_PC32\+0x58
 
 .* <bar>:
-  50:	c0 e5 00 00 00 00 [ 	]*brasl	%r14,50 <bar>
-[ 	]*52: R_390_PLT32DBL	foo\+0x2
+  5c:	c0 e5 00 00 00 00 [ 	]*brasl	%r14,5c <bar>
+[ 	]*5e: R_390_PLT32DBL	foo\+0x2
 [ 	]*...
-[ 	]*56: R_390_PLT64	foo\+0x6
-  5e:	07 07 [ 	]*nopr	%r7
+[ 	]*62: R_390_PLT64	foo\+0x6
+  6a:	07 07 [ 	]*nopr	%r7

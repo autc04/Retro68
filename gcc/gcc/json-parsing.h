@@ -1,5 +1,5 @@
 /* JSON parsing
-   Copyright (C) 2017-2025 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -53,6 +53,30 @@ public:
   virtual ~location_map () {}
   virtual void record_range_for_value (json::value *jv, const range &r) = 0;
   virtual void on_finished_parsing () {}
+};
+
+/* Implementation of json::location_map that records ranges to a std::map.  */
+
+class simple_location_map : public location_map
+{
+public:
+  void
+  record_range_for_value (json::value *jv,
+			  const range &r) final override
+  {
+    m_map_jv_to_range[jv] = r;
+  }
+
+  const json::location_map::range &
+  get_range_for_value (const json::value &jv) const
+  {
+    auto iter = m_map_jv_to_range.find (&jv);
+    gcc_assert (iter != m_map_jv_to_range.end ());
+    return iter->second;
+  }
+
+private:
+  std::map<const json::value *, range> m_map_jv_to_range;
 };
 
 /* Class for recording an error within a JSON file.  */

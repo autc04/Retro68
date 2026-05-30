@@ -22,7 +22,7 @@ SECTIONS
   . = ALIGN (0x400);
   .bss : { *(.bss .bss.*) }
 
-  /DISCARD/ : { *(.reginfo) *(.MIPS.abiflags) }
+  /DISCARD/ : { *(.reginfo) *(.MIPS.abiflags) *(.MIPS.options) }
 }
 
 VERSION

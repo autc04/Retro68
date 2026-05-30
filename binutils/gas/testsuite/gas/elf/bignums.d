@@ -1,8 +1,6 @@
 #readelf: -x .data
 #name: bignum byte values
-#xfail: rx-*
-# The RX target sometimes calls its data section D_1.
-# 
+
 # Test that 8-bit and 16-bit constants can be specified via bignums.
 # 
 # Note - we should really apply this test to all targets, not just

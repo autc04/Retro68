@@ -1,10 +1,10 @@
 [^:]*: Assembler messages:
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:12: Error: syntax error -- `vpnoteq'
 [^:]*:13: Error: syntax error -- `vpnoteq'
 [^:]*:15: Error: syntax error -- `vpnoteq'

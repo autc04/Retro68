@@ -1,6 +1,6 @@
 (* m2statement.def definition module for m2statement.cc.
 
-Copyright (C) 2011-2025 Free Software Foundation, Inc.
+Copyright (C) 2011-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -24,14 +24,14 @@ DEFINITION MODULE FOR "C" m2statement ;
 FROM gcctypes IMPORT location_t, tree ;
 FROM CDataTypes IMPORT CharStar ;
 FROM m2expr IMPORT BuildUnarySetFunction ;
+FROM SYSTEM IMPORT ADDRESS ;
 
 
 (*
-   DoJump - jump to the appropriate label depending whether
-            result of the expression is TRUE or FALSE.
+   IfExprJump - if expr then jump to the label.
 *)
 
-PROCEDURE DoJump (location: location_t; exp: tree; falselabel, truelabel: CharStar) ;
+PROCEDURE IfExprJump (location: location_t; exp: tree; label: CharStar) ;
 
 
 (*
@@ -69,14 +69,6 @@ PROCEDURE BuildPushFunctionContext ;
 *)
 
 PROCEDURE BuildPopFunctionContext ;
-
-
-(*
-   BuildAssignmentTree - builds the assignment of, des, and, expr.
-                         It returns, des.
-*)
-
-PROCEDURE BuildAssignmentTree (location: location_t; des, expr: tree) : tree ;
 
 
 (*
@@ -222,19 +214,6 @@ PROCEDURE BuildAsm (location: location_t; instr: tree;
 
 
 (*
-    BuildUnaryForeachWordDo - provides the large set operators.
-                              Each word (or less) of the set can be
-                              calculated by unop.
-                              This procedure iterates over each word
-                              of the large set invoking the unop.
-*)
-
-PROCEDURE BuildUnaryForeachWordDo (location: location_t; type: tree; op1: tree; op2: tree;
-                                   unop: BuildUnarySetFunction;
-                                   is_op1lvalue, is_op2lvalue, is_op1const, is_op2const: BOOLEAN) ;
-
-
-(*
     BuildExcludeVarConst - builds the EXCL(op1, 1<<op2) operation for a small sets. Large
                            sets call this routine to exclude the bit in the particular word.
                            op2 is a constant.
@@ -324,6 +303,21 @@ PROCEDURE BuildBuiltinCallTree (func: tree) : tree ;
 *)
 
 PROCEDURE CopyByField (location: location_t; des, expr: tree) ;
+
+
+(*
+   CopyMemcpy - copy bytes from src into dest using builtin_memcpy.
+*)
+
+PROCEDURE CopyMemcpy (location: location_t; dest, src, bytes: tree) ;
+
+
+(*
+   IfBitInSetJump - if bit in set jump to label.
+*)
+
+PROCEDURE IfBitInSetJump (location: location_t; invertCondition: BOOLEAN;
+                          setvalue, bit: tree; label: ADDRESS) ;
 
 
 END m2statement.

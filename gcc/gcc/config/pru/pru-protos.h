@@ -1,5 +1,5 @@
 /* Subroutine declarations for TI PRU target support.
-   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
    Contributed by Dimitar Dimitrov <dimitar@dinux.eu>
 
    This file is part of GCC.
@@ -23,7 +23,7 @@
 
 struct pru_ctable_entry {
     bool valid;
-    unsigned HOST_WIDE_INT base;
+    HOST_WIDE_INT base;
 };
 
 extern struct pru_ctable_entry pru_ctable[32];
@@ -66,14 +66,20 @@ pru_regno_ok_for_index_p (int regno, bool strict_p)
   return pru_regno_ok_for_base_p (regno, strict_p);
 }
 
-extern int pru_get_ctable_exact_base_index (unsigned HOST_WIDE_INT caddr);
-extern int pru_get_ctable_base_index (unsigned HOST_WIDE_INT caddr);
-extern int pru_get_ctable_base_offset (unsigned HOST_WIDE_INT caddr);
+extern int pru_get_ctable_exact_base_index (HOST_WIDE_INT caddr);
+extern int pru_get_ctable_base_index (HOST_WIDE_INT caddr);
+extern int pru_get_ctable_base_offset (HOST_WIDE_INT caddr);
 
 extern int pru_symref2ioregno (rtx op);
 
-extern rtl_opt_pass *make_pru_tiabi_check (gcc::context *);
-extern rtl_opt_pass *make_pru_minrt_check (gcc::context *);
+extern rtx pru_fixup_jump_address_operand (rtx op);
+
+/* Forward declarations to avoid unnecessarily including headers.  */
+class simple_ipa_opt_pass;
+class gimple_opt_pass;
+
+extern simple_ipa_opt_pass *make_pru_tiabi_check (gcc::context *);
+extern gimple_opt_pass *make_pru_minrt_check (gcc::context *);
 
 #endif /* RTX_CODE */
 

@@ -67,11 +67,11 @@
 
 
 /* First part of user prologue.  */
-#line 1 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 1 "arparse.y"
 
 /* arparse.y - Strange script language parser */
 
-/* Copyright (C) 1992-2022 Free Software Foundation, Inc.
+/* Copyright (C) 1992-2026 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -103,7 +103,7 @@ extern int verbose;
 extern int yylex (void);
 static void yyerror (const char *);
 
-#line 107 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 107 "arparse.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -128,8 +128,8 @@ static void yyerror (const char *);
 
 /* Use api.header.include to #include this header
    instead of duplicating it here.  */
-#ifndef YY_YY__HOME_WOLFGANG_PROJECTS_RETRO_BINUTILS_BINUTILS_ARPARSE_H_INCLUDED
-# define YY_YY__HOME_WOLFGANG_PROJECTS_RETRO_BINUTILS_BINUTILS_ARPARSE_H_INCLUDED
+#ifndef YY_YY_ARPARSE_H_INCLUDED
+# define YY_YY_ARPARSE_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -196,13 +196,13 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 37 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 37 "arparse.y"
 
   char *name;
 struct list *list ;
 
 
-#line 206 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 206 "arparse.c"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -217,7 +217,7 @@ extern YYSTYPE yylval;
 int yyparse (void);
 
 
-#endif /* !YY_YY__HOME_WOLFGANG_PROJECTS_RETRO_BINUTILS_BINUTILS_ARPARSE_H_INCLUDED  */
+#endif /* !YY_YY_ARPARSE_H_INCLUDED  */
 /* Symbol kind.  */
 enum yysymbol_kind_t
 {
@@ -1256,143 +1256,143 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* $@1: %empty  */
-#line 68 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 68 "arparse.y"
         { prompt(); }
-#line 1262 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1262 "arparse.c"
     break;
 
   case 6: /* command_line: command NEWLINE  */
-#line 77 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 77 "arparse.y"
                                 { prompt(); }
-#line 1268 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1268 "arparse.c"
     break;
 
   case 19: /* command: END  */
-#line 93 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 93 "arparse.y"
                          { ar_end(); return 0; }
-#line 1274 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1274 "arparse.c"
     break;
 
   case 21: /* command: FILENAME  */
-#line 95 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 95 "arparse.y"
                          { yyerror("foo"); }
-#line 1280 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1280 "arparse.c"
     break;
 
   case 23: /* extract_command: EXTRACT modulename  */
-#line 102 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 102 "arparse.y"
                 { ar_extract((yyvsp[0].list)); }
-#line 1286 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1286 "arparse.c"
     break;
 
   case 24: /* replace_command: REPLACE modulename  */
-#line 107 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 107 "arparse.y"
                 { ar_replace((yyvsp[0].list)); }
-#line 1292 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1292 "arparse.c"
     break;
 
   case 25: /* clear_command: CLEAR  */
-#line 112 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 112 "arparse.y"
                 { ar_clear(); }
-#line 1298 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1298 "arparse.c"
     break;
 
   case 26: /* delete_command: DELETE modulename  */
-#line 117 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 117 "arparse.y"
                 { ar_delete((yyvsp[0].list)); }
-#line 1304 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1304 "arparse.c"
     break;
 
   case 27: /* addmod_command: ADDMOD modulename  */
-#line 121 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 121 "arparse.y"
                 { ar_addmod((yyvsp[0].list)); }
-#line 1310 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1310 "arparse.c"
     break;
 
   case 28: /* list_command: LIST  */
-#line 126 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 126 "arparse.y"
                 { ar_list(); }
-#line 1316 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1316 "arparse.c"
     break;
 
   case 29: /* save_command: SAVE  */
-#line 131 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 131 "arparse.y"
                 { ar_save(); }
-#line 1322 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1322 "arparse.c"
     break;
 
   case 30: /* open_command: OPEN FILENAME  */
-#line 138 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 138 "arparse.y"
                 { ar_open((yyvsp[0].name),0); }
-#line 1328 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1328 "arparse.c"
     break;
 
   case 31: /* create_command: CREATE FILENAME  */
-#line 143 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 143 "arparse.y"
                 { ar_open((yyvsp[0].name),1); }
-#line 1334 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1334 "arparse.c"
     break;
 
   case 32: /* addlib_command: ADDLIB FILENAME modulelist  */
-#line 149 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 149 "arparse.y"
                 { ar_addlib((yyvsp[-1].name),(yyvsp[0].list)); }
-#line 1340 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1340 "arparse.c"
     break;
 
   case 33: /* directory_command: DIRECTORY FILENAME modulelist optional_filename  */
-#line 153 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 153 "arparse.y"
                 { ar_directory((yyvsp[-2].name), (yyvsp[-1].list), (yyvsp[0].name)); }
-#line 1346 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1346 "arparse.c"
     break;
 
   case 34: /* optional_filename: FILENAME  */
-#line 160 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 160 "arparse.y"
                 { (yyval.name) = (yyvsp[0].name); }
-#line 1352 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1352 "arparse.c"
     break;
 
   case 35: /* optional_filename: %empty  */
-#line 161 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 161 "arparse.y"
                 { (yyval.name) = 0; }
-#line 1358 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1358 "arparse.c"
     break;
 
   case 36: /* modulelist: '(' modulename ')'  */
-#line 166 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 166 "arparse.y"
                 { (yyval.list) = (yyvsp[-1].list); }
-#line 1364 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1364 "arparse.c"
     break;
 
   case 37: /* modulelist: %empty  */
-#line 168 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 168 "arparse.y"
                 { (yyval.list) = 0; }
-#line 1370 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1370 "arparse.c"
     break;
 
   case 38: /* modulename: modulename optcomma FILENAME  */
-#line 173 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 173 "arparse.y"
                 { 	struct list *n  = (struct list *) malloc(sizeof(struct list));
 			n->next = (yyvsp[-2].list);
 			n->name = (yyvsp[0].name);
 			(yyval.list) = n;
 		 }
-#line 1380 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1380 "arparse.c"
     break;
 
   case 39: /* modulename: %empty  */
-#line 178 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 178 "arparse.y"
                 { (yyval.list) = 0; }
-#line 1386 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1386 "arparse.c"
     break;
 
   case 42: /* verbose_command: VERBOSE  */
-#line 190 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 190 "arparse.y"
                 { verbose = !verbose; }
-#line 1392 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1392 "arparse.c"
     break;
 
 
-#line 1396 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.c"
+#line 1396 "arparse.c"
 
       default: break;
     }
@@ -1585,7 +1585,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 194 "/home/wolfgang/Projects/Retro68/binutils/binutils/arparse.y"
+#line 194 "arparse.y"
 
 
 static void

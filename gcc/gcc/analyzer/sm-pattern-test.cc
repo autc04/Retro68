@@ -1,7 +1,7 @@
 /* A state machine for use in DejaGnu tests, to check that
    pattern-matching works as expected.
 
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -20,19 +20,11 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "make-unique.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
-#include "gimple.h"
+#include "analyzer/common.h"
+
 #include "tree-pretty-print.h"
-#include "diagnostic-path.h"
-#include "analyzer/analyzer.h"
-#include "diagnostic-event-id.h"
+#include "diagnostics/event-id.h"
+
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/sm.h"
 #include "analyzer/pending-diagnostic.h"
@@ -58,12 +50,9 @@ public:
   bool inherited_state_p () const final override { return false; }
 
   bool on_stmt (sm_context &sm_ctxt,
-		const supernode *node,
 		const gimple *stmt) const final override;
 
   void on_condition (sm_context &sm_ctxt,
-		     const supernode *node,
-		     const gimple *stmt,
 		     const svalue *lhs,
 		     enum tree_code op,
 		     const svalue *rhs) const final override;
@@ -110,7 +99,6 @@ pattern_test_state_machine::pattern_test_state_machine (logger *logger)
 
 bool
 pattern_test_state_machine::on_stmt (sm_context &sm_ctxt ATTRIBUTE_UNUSED,
-				     const supernode *node ATTRIBUTE_UNUSED,
 				     const gimple *stmt ATTRIBUTE_UNUSED) const
 {
   return false;
@@ -124,23 +112,18 @@ pattern_test_state_machine::on_stmt (sm_context &sm_ctxt ATTRIBUTE_UNUSED,
 
 void
 pattern_test_state_machine::on_condition (sm_context &sm_ctxt,
-					  const supernode *node,
-					  const gimple *stmt,
 					  const svalue *lhs,
 					  enum tree_code op,
 					  const svalue *rhs) const
 {
-  if (stmt == NULL)
-    return;
-
   tree rhs_cst = rhs->maybe_get_constant ();
   if (!rhs_cst)
     return;
 
   if (tree lhs_expr = sm_ctxt.get_diagnostic_tree (lhs))
     {
-      sm_ctxt.warn (node, stmt, lhs_expr,
-		    make_unique<pattern_match> (lhs_expr, op, rhs_cst));
+      sm_ctxt.warn (lhs_expr,
+		    std::make_unique<pattern_match> (lhs_expr, op, rhs_cst));
     }
 }
 
@@ -154,10 +137,10 @@ pattern_test_state_machine::can_purge_p (state_t s ATTRIBUTE_UNUSED) const
 
 /* Internal interface to this file. */
 
-state_machine *
+std::unique_ptr<state_machine>
 make_pattern_test_state_machine (logger *logger)
 {
-  return new pattern_test_state_machine (logger);
+  return std::make_unique<pattern_test_state_machine> (logger);
 }
 
 } // namespace ana

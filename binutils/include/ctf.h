@@ -1,5 +1,5 @@
 /* CTF format description.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
 
    This file is part of libctf.
 
@@ -213,8 +213,9 @@ typedef struct ctf_header
 #define CTF_F_NEWFUNCINFO 0x2		/* New v3 func info section format.  */
 #define CTF_F_IDXSORTED 0x4		/* Index sections already sorted.  */
 #define CTF_F_DYNSTR 0x8		/* Strings come from .dynstr.  */
+#define CTF_F_ARRNELEMS 0x10		/* Array elems no longer reversed.  */
 #define CTF_F_MAX (CTF_F_COMPRESS | CTF_F_NEWFUNCINFO | CTF_F_IDXSORTED	\
-		   | CTF_F_DYNSTR)
+		   | CTF_F_DYNSTR | CTF_F_ARRNELEMS)
 
 typedef struct ctf_lblent
 {
@@ -599,13 +600,13 @@ struct ctf_archive
   /* Offset of the name table.  */
   uint64_t ctfa_names;
 
-  /* Offset of the CTF table.  Each element starts with a size (a uint64_t
-     in network byte order) then a ctf_dict_t of that size.  */
+  /* Offset of the CTF table.  Each element starts with a size (a little-
+     endian uint64_t) then a ctf_dict_t of that size.  */
   uint64_t ctfa_ctfs;
 };
 
-/* An array of ctfa_nnamed of this structure lies at
-   ctf_archive[ctf_archive->ctfa_modents] and gives the ctfa_ctfs or
+/* An array of ctfa_ndicts of this structure lies at
+   ctf_archive[sizeof(struct ctf_archive)] and gives the ctfa_ctfs or
    ctfa_names-relative offsets of each name or ctf_dict_t.  */
 
 typedef struct ctf_archive_modent

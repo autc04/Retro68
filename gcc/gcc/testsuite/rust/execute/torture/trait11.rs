@@ -1,4 +1,8 @@
 /* { dg-output "3\r*\n" } */
+#![feature(no_core)]
+#![no_core]
+
+#![feature(lang_items)]
 #[lang = "sized"]
 pub trait Sized {}
 
@@ -13,7 +17,6 @@ trait FnLike<A, R> {
 struct S;
 impl<'a, T> FnLike<&'a T, &'a T> for S {
     fn call(&self, arg: &'a T) -> &'a T {
-        // { dg-warning "unused name .self." "" { target *-*-* } .-1 }
         arg
     }
 }

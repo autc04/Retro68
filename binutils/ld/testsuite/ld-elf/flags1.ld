@@ -9,5 +9,5 @@ SECTIONS
   {
     . += 0x160;
   }
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

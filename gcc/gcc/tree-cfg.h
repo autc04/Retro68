@@ -1,5 +1,5 @@
 /* Data and Control Flow Analysis for Trees.
-   Copyright (C) 2001-2025 Free Software Foundation, Inc.
+   Copyright (C) 2001-2026 Free Software Foundation, Inc.
    Contributed by Diego Novillo <dnovillo@redhat.com>
 
 This file is part of GCC.
@@ -113,7 +113,8 @@ extern basic_block gimple_switch_default_bb (function *, gswitch *);
 extern edge gimple_switch_edge (function *, gswitch *, unsigned);
 extern edge gimple_switch_default_edge (function *, gswitch *);
 extern bool cond_only_block_p (basic_block);
-extern void copy_phi_arg_into_existing_phi (edge, edge);
+extern void copy_phi_arg_into_existing_phi (edge, edge, bool = false);
+extern bool make_forwarders_with_degenerate_phis (function *, bool = false);
 
 /* Return true if the LHS of a call should be removed.  */
 

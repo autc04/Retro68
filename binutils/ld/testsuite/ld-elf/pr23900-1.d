@@ -1,6 +1,6 @@
 #ld:
 #readelf: --notes --wide -l
-#target: *-*-linux* *-*-gnu* *-*-nacl*
+#target: *-*-linux* *-*-gnu*
 
 #...
   GNU_PROPERTY .*

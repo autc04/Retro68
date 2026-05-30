@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -19,6 +19,7 @@
 #include "rust-compile-block.h"
 #include "rust-compile-stmt.h"
 #include "rust-compile-expr.h"
+#include "rust-hir-expr.h"
 
 namespace Rust {
 namespace Compile {

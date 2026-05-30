@@ -1,19 +1,19 @@
-.macro cond op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().8 q0, q1
-.endr
-.endm
-
 .syntax unified
 .thumb
 vrev16.16 q0, q1
 vrev32.32 q0, q1
 vrev64.64 q0, q1
 vrev64.8  q0, q0
-cond vrev16
-cond vrev32
-cond vrev64
+
+.irp op, vrev16, vrev32, vrev64
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+\op\().8 q0, q1
+
+.endr
+.endr
+
 it eq
 vrev16eq.8 q0, q1
 vrev16eq.8 q0, q1

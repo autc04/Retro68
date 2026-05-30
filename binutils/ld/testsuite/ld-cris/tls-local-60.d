@@ -1,6 +1,6 @@
 #source: tls-x.s
 #source: tls-local-59.s
-#as: --pic --no-underscore --em=criself -I$srcdir/$subdir
+#as: --pic --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: -m crislinux --shared --hash-style=sysv
 #objdump: -s -t -r -p -R -T
 

@@ -86,11 +86,13 @@ test_deduction_guide()
   std::unordered_multimap m9(std::from_range, r2);
   static_assert(std::is_same_v<
     decltype(m9),
-    std::unordered_multimap<long, const float>>);
+    std::unordered_multimap<long, float>>);
 
-  // LWG4223: deduces map<const long&, float&>
-  // __gnu_test::test_input_range<std::pair<const long&, float&>> r3(0, 0);
-  // std::unordered_multimap m10(std::from_range, r3);
+  __gnu_test::test_input_range<std::pair<const long&, float&>> r3(0, 0);
+  std::unordered_multimap m10(std::from_range, r3);
+  static_assert(std::is_same_v<
+    decltype(m10),
+    std::unordered_multimap<long, float>>);
 
   __gnu_test::test_input_range<std::tuple<long, float>> r4(0, 0);
   std::unordered_multimap m11(std::from_range, r4);
@@ -112,10 +114,10 @@ constexpr bool is_equal(std::equal_to<T>, std::equal_to<U>)
 { return true; }
 
 constexpr bool is_equal(StateHash lhs, StateHash rhs)
-{ return lhs.state = rhs.state; }
+{ return lhs.state == rhs.state; }
 
 constexpr bool is_equal(StateEq lhs, StateEq rhs)
-{ return lhs.state = rhs.state; }
+{ return lhs.state == rhs.state; }
 
 template<typename Range, typename Alloc, typename Hash, typename Equal>
 constexpr void

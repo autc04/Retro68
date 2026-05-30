@@ -1,5 +1,5 @@
 /* Process source files and output type information.
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -1605,7 +1605,7 @@ static outf_p
 create_file (const char *name, const char *oname)
 {
   static const char *const hdr[] = {
-    "   Copyright (C) 2004-2025 Free Software Foundation, Inc.\n",
+    "   Copyright (C) 2004-2026 Free Software Foundation, Inc.\n",
     "\n",
     "This file is part of GCC.\n",
     "\n",
@@ -1722,7 +1722,7 @@ open_base_files (void)
       "target-globals.h", "ipa-ref.h", "cgraph.h", "symbol-summary.h",
       "sreal.h", "ipa-cp.h", "ipa-prop.h", "ipa-fnsummary.h", "dwarf2out.h",
       "omp-general.h", "omp-offload.h", "ipa-modref-tree.h", "ipa-modref.h",
-      "symtab-thunks.h", "symtab-clones.h", "diagnostic-spec.h", "ctfc.h",
+      "symtab-thunks.h", "symtab-clones.h", "gcc-diagnostic-spec.h", "ctfc.h",
       NULL
     };
     const char *const *ifp;
@@ -2060,8 +2060,8 @@ header_dot_h_frul (input_file* inpf, char**poutname,
 static outf_p
 source_dot_cc_frul (input_file* inpf, char**poutname, char**pforname)
 {
-  char *newbasename = CONST_CAST (char*, get_file_basename (inpf));
-  char *newoutname = CONST_CAST (char*, get_file_gtfilename (inpf));
+  char *newbasename = const_cast<char*> (get_file_basename (inpf));
+  char *newoutname = const_cast<char*> (get_file_gtfilename (inpf));
   DBGPRINTF ("inpf %p inpname %s original outname %s forname %s",
 	     (void*) inpf, get_input_file_name (inpf),
 	     *poutname, *pforname);
@@ -2529,7 +2529,7 @@ output_mangled_typename (outf_p of, const_type_p t)
 	  oprintf (of, "%lu%s", (unsigned long) strlen (id_for_tag),
 		   id_for_tag);
 	  if (id_for_tag != t->u.s.tag)
-	    free (CONST_CAST (char *, id_for_tag));
+	    free (const_cast<char *> (id_for_tag));
 	}
 	break;
       case TYPE_ARRAY:
@@ -2635,6 +2635,7 @@ walk_subclasses (type_p base, struct walk_type_data *d,
 	  d->indent += 2;
 	  oprintf (d->of, "%*s%s *sub = static_cast <%s *> (x);\n",
 		   d->indent, "", sub->u.s.tag, sub->u.s.tag);
+	  oprintf (d->of, "%*s(void) sub;\n", d->indent, "");
 	  const char *old_val = d->val;
 	  d->val = "(*sub)";
 	  walk_type (sub, d);
@@ -3302,7 +3303,7 @@ get_output_file_for_structure (const_type_p s)
 
   /* The call to get_output_file_with_visibility may update fn by
      caching its result inside, so we need the CONST_CAST.  */
-  return get_output_file_with_visibility (CONST_CAST (input_file*, fn));
+  return get_output_file_with_visibility (const_cast<input_file*> (fn));
 }
 
 
@@ -3367,7 +3368,7 @@ write_marker_function_name (outf_p of, type_p s, const char *prefix)
       const char *id_for_tag = filter_type_name (s->u.s.tag);
       oprintf (of, "gt_%sx_%s", prefix, id_for_tag);
       if (id_for_tag != s->u.s.tag)
-	free (CONST_CAST (char *, id_for_tag));
+	free (const_cast<char *> (id_for_tag));
     }
   else
     gcc_unreachable ();
@@ -3709,7 +3710,7 @@ write_types (outf_p output_header, type_p structures,
 			   "#define gt_%sx_%s gt_%sx_%s\n",
 			   wtd->prefix, s->u.s.tag, wtd->prefix, t_id_for_tag);
 		  if (t_id_for_tag != t->u.s.tag)
-		    free (CONST_CAST (char *, t_id_for_tag));
+		    free (const_cast<char *> (t_id_for_tag));
 		}
 	      else
 		error_at_line (&s->u.s.line,
@@ -3725,7 +3726,7 @@ write_types (outf_p output_header, type_p structures,
 		 wtd->prefix, s_id_for_tag);
 
 	if (s_id_for_tag != s->u.s.tag)
-	  free (CONST_CAST (char *, s_id_for_tag));
+	  free (const_cast<char *> (s_id_for_tag));
 
 	if (s->u.s.line.file == NULL)
 	  {
@@ -4112,7 +4113,7 @@ put_mangled_filename (outf_p f, const input_file *inpf)
   /* The call to get_output_file_name may indirectly update fn since
      get_output_file_with_visibility caches its result inside, so we
      need the CONST_CAST.  */
-  const char *name = get_output_file_name (CONST_CAST (input_file*, inpf));
+  const char *name = get_output_file_name (const_cast<input_file*> (inpf));
   if (!f || !name)
     return;
   for (; *name != 0; name++)
@@ -4426,7 +4427,7 @@ write_root (outf_p f, pair_p v, type_p type, const char *name, int has_length,
 	    else
 	      oprintf (f, "    NULL");
 	    if (id_for_tag != tp->u.s.tag)
-	      free (CONST_CAST (char *, id_for_tag));
+	      free (const_cast<char *> (id_for_tag));
 	  }
 	else if (has_length
 		 && (tp->kind == TYPE_POINTER || union_or_struct_p (tp)))
@@ -4530,7 +4531,7 @@ write_roots (pair_p variables, bool emit_pch)
   for (v = variables; v; v = v->next)
     {
       outf_p f =
-	get_output_file_with_visibility (CONST_CAST (input_file*,
+	get_output_file_with_visibility (const_cast<input_file*> (
 						     v->line.file));
       struct flist *fli;
       const char *length = NULL;
@@ -4583,7 +4584,7 @@ write_roots (pair_p variables, bool emit_pch)
 
   for (v = variables; v; v = v->next)
     {
-      outf_p f = get_output_file_with_visibility (CONST_CAST (input_file*,
+      outf_p f = get_output_file_with_visibility (const_cast<input_file*> (
 							      v->line.file));
       struct flist *fli;
       int skip_p = 0;
@@ -4619,7 +4620,7 @@ write_roots (pair_p variables, bool emit_pch)
 
   for (v = variables; v; v = v->next)
     {
-      outf_p f = get_output_file_with_visibility (CONST_CAST (input_file*,
+      outf_p f = get_output_file_with_visibility (const_cast<input_file*> (
 							      v->line.file));
       struct flist *fli;
       int skip_p = 1;
@@ -4653,7 +4654,7 @@ write_roots (pair_p variables, bool emit_pch)
 
   for (v = variables; v; v = v->next)
     {
-      outf_p f = get_output_file_with_visibility (CONST_CAST (input_file*,
+      outf_p f = get_output_file_with_visibility (const_cast<input_file*> (
 							      v->line.file));
       struct flist *fli;
       options_p o;
@@ -4688,7 +4689,7 @@ write_roots (pair_p variables, bool emit_pch)
 
   for (v = variables; v; v = v->next)
     {
-      outf_p f = get_output_file_with_visibility (CONST_CAST (input_file*,
+      outf_p f = get_output_file_with_visibility (const_cast<input_file*> (
 							      v->line.file));
       struct flist *fli;
       int skip_p = 0;

@@ -1,6 +1,6 @@
 # name: rgn-over6
 # source: rgn-over.s
-# ld: -T rgn-over6.t -Map tmpdir/rgn-over6.map
+# ld: -T rgn-over6.t -Map tmpdir/rgn-over6.map --no-error-rwx-segments
 # error: \A[^ \n]*?ld[^:\n]*?: [^\n]*?section `\.text' will not fit in region `r1'\n[^ \n]*?ld[^:\n]*?: [^\n]*?section `\.text' will not fit in region `v1'\n[^ \n]*?ld[^:\n]*?: region `r1' overflowed by 16 bytes\n[^ \n]*?ld[^:\n]*?: region `v1' overflowed by 16 bytes\Z
 
 #...

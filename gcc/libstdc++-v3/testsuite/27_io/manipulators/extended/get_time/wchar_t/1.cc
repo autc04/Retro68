@@ -2,7 +2,7 @@
 
 // 2014-04-14 Rüdiger Sonderfeld  <ruediger@c-plusplus.de>
 
-// Copyright (C) 2014-2025 Free Software Foundation, Inc.
+// Copyright (C) 2014-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,8 +36,8 @@ void test01()
   tm time1;
   iss >> get_time(&time1, L"%H:%M:%S %Y");
   VERIFY( static_cast<bool>(iss) );
-  VERIFY(time1.tm_hour = 12);
-  VERIFY(time1.tm_min = 1);
+  VERIFY(time1.tm_hour == 12);
+  VERIFY(time1.tm_min == 1);
   VERIFY(time1.tm_sec == 30);
   VERIFY(time1.tm_year == 71);
 }

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -27,13 +27,11 @@ with Atree;          use Atree;
 with Casing;         use Casing;
 with Csets;          use Csets;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
 with Errout;         use Errout;
 with Exp_Dist;
-with Fname;          use Fname;
 with Fname.UF;       use Fname.UF;
 with Ghost;          use Ghost;
 with Lib;            use Lib;
@@ -47,10 +45,9 @@ with Restrict;       use Restrict;
 with Sem;            use Sem;
 with Sem_Aux;        use Sem_Aux;
 with Sem_Ch7;        use Sem_Ch7;
-with Sem_Ch12;        use Sem_Ch12;
+with Sem_Ch12;       use Sem_Ch12;
 with Sem_Dist;       use Sem_Dist;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Stand;          use Stand;
@@ -566,11 +563,11 @@ package body Rtsfind is
 
    subtype Ada_Numerics_Descendant is Ada_Descendant
      range Ada_Numerics_Big_Numbers ..
-           Ada_Numerics_Big_Numbers_Big_Integers_Ghost;
+           Ada_Numerics_Big_Numbers_Big_Integers;
 
    subtype Ada_Numerics_Big_Numbers_Descendant is Ada_Descendant
      range Ada_Numerics_Big_Numbers_Big_Integers ..
-           Ada_Numerics_Big_Numbers_Big_Integers_Ghost;
+           Ada_Numerics_Big_Numbers_Big_Integers;
 
    subtype Ada_Real_Time_Descendant is Ada_Descendant
      range Ada_Real_Time_Delays .. Ada_Real_Time_Timing_Events;
@@ -1030,8 +1027,7 @@ package body Rtsfind is
       U        : RT_Unit_Table_Record renames RT_Unit_Table (U_Id);
       Priv_Par : constant Elist_Id := New_Elmt_List;
       Lib_Unit : Node_Id;
-      Saved_GM  : constant Ghost_Mode_Type := Ghost_Mode;
-      Saved_IGR : constant Node_Id         := Ignored_Ghost_Region;
+      Saved_Ghost_Config : constant Ghost_Config_Type := Ghost_Config;
       Saved_ISMP : constant Boolean        :=
                      Ignore_SPARK_Mode_Pragmas_In_Instance;
       Saved_SM  : constant SPARK_Mode_Type := SPARK_Mode;
@@ -1099,7 +1095,7 @@ package body Rtsfind is
       procedure Restore_SPARK_Context is
       begin
          Ignore_SPARK_Mode_Pragmas_In_Instance := Saved_ISMP;
-         Restore_Ghost_Region (Saved_GM, Saved_IGR);
+         Restore_Ghost_Region (Saved_Ghost_Config);
          Restore_SPARK_Mode   (Saved_SM, Saved_SMP);
       end Restore_SPARK_Context;
 
@@ -1115,7 +1111,7 @@ package body Rtsfind is
       --  Provide a clean environment for the unit
 
       Ignore_SPARK_Mode_Pragmas_In_Instance := False;
-      Install_Ghost_Region (None, Empty);
+      Install_Ghost_Region (None, Empty, Empty);
       Install_SPARK_Mode   (None, Empty);
 
       --  Otherwise we need to load the unit, First build unit name from the
@@ -1289,7 +1285,7 @@ package body Rtsfind is
 
       declare
          LibUnit  : constant Node_Id         := Unit (Cunit (U.Unum));
-         Saved_GM : constant Ghost_Mode_Type := Ghost_Mode;
+         Saved_GM : constant Ghost_Mode_Type := Ghost_Config.Ghost_Mode;
          Clause   : Node_Id;
          Withn    : Node_Id;
 
@@ -1308,13 +1304,13 @@ package body Rtsfind is
          --  later, after ignored ghost code is converted to a null
          --  statement.
 
-         Ghost_Mode := None;
+         Ghost_Config.Ghost_Mode := None;
          Withn :=
            Make_With_Clause (Standard_Location,
              Name =>
                Make_Unit_Name
                  (U, Defining_Unit_Name (Specification (LibUnit))));
-         Ghost_Mode := Saved_GM;
+         Ghost_Config.Ghost_Mode := Saved_GM;
 
          Set_Corresponding_Spec  (Withn, U.Entity);
          Set_First_Name          (Withn);
@@ -1627,7 +1623,9 @@ package body Rtsfind is
       --  is pulled within an ignored Ghost context because all this code will
       --  disappear.
 
-      if U_Id = System_Secondary_Stack and then Ghost_Mode /= Ignore then
+      if U_Id = System_Secondary_Stack
+        and then Ghost_Config.Ghost_Mode /= Ignore
+      then
          Sec_Stack_Used := True;
       end if;
 

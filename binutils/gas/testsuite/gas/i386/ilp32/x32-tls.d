@@ -1,3 +1,4 @@
+#as: -mtls-check=no
 #objdump: -dw
 #name: x86-64 (ILP32) TLS
 

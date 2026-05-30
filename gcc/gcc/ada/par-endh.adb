@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,12 +23,12 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Errid;    use Errid;
 with Namet.Sp; use Namet.Sp;
 with Stringt;  use Stringt;
 with Uintp;    use Uintp;
 
 with GNAT.Spelling_Checker; use GNAT.Spelling_Checker;
-with Diagnostics.Constructors; use Diagnostics.Constructors;
 
 separate (Par)
 package body Endh is
@@ -156,12 +156,12 @@ package body Endh is
    function Same_Label (Label1, Label2 : Node_Id) return Boolean;
    --  This function compares the two names associated with the given nodes.
    --  If they are both simple (i.e. have Chars fields), then they have to
-   --  be the same name. Otherwise they must both be N_Selected_Component
-   --  nodes, referring to the same set of names, or Label1 is an N_Designator
-   --  referring to the same set of names as the N_Defining_Program_Unit_Name
-   --  in Label2. Any other combination returns False. This routine is used
-   --  to compare the End_Labl scanned from the End line with the saved label
-   --  value in the scope stack.
+   --  be the same name. If they are both N_Selected_Component or
+   --  N_Attribute_Reference nodes, they must refer to the same set of names.
+   --  Otherwise, Label1 must be a N_Designator referring to the same set of
+   --  names as the N_Defining_Program_Unit_Name in Label2. Any other
+   --  combination returns False. This routine is used to compare the End_Labl
+   --  scanned from the End line with the saved label value in the scope stack.
 
    ---------------
    -- Check_End --
@@ -270,6 +270,16 @@ package body Endh is
                end if;
 
                End_Labl := P_Designator;
+
+               --  Case of direct attribute definition
+
+               if Token = Tok_Apostrophe then
+                  Error_Msg_GNAT_Extension
+                    ("direct attribute definition", Token_Ptr);
+
+                  End_Labl := P_Attribute_Designators (End_Labl);
+               end if;
+
                End_Labl_Present := True;
 
                --  We have now scanned out a name. Here is where we do a check
@@ -300,7 +310,7 @@ package body Endh is
             else
                End_Labl := Scopes (Scope.Last).Labl;
 
-               if End_Labl > Empty_Or_Error then
+               if End_Labl not in Empty | Error then
 
                   --  The task here is to construct a designator from the
                   --  opening label, with the components all marked as not
@@ -658,8 +668,6 @@ package body Endh is
             Scan; -- past junk token on same line
          end loop;
       end if;
-
-      return;
    end End_Skip;
 
    --------------------
@@ -899,6 +907,8 @@ package body Endh is
 
       Wrong_End_Start : Source_Ptr;
       Wrong_End_Finish : Source_Ptr;
+
+      Wrong_End_Span : Source_Span;
    begin
       --  Suppress message if this was a potentially junk entry (e.g. a record
       --  entry where no record keyword was present).
@@ -919,7 +929,7 @@ package body Endh is
 
       --  Suppress message if error was posted on opening label
 
-      if Error_Msg_Node_1 > Empty_Or_Error
+      if Error_Msg_Node_1 not in Empty | Error
         and then Error_Posted (Error_Msg_Node_1)
       then
          return;
@@ -936,31 +946,38 @@ package body Endh is
       elsif End_Type = E_Loop then
          if Error_Msg_Node_1 = Empty then
 
-            if Debug_Flag_Underscore_DD then
+            Wrong_End_Start := Token_Ptr;
 
-               --  TODO: This is a quick hack to get the location of the
-               --  END LOOP for the demonstration.
+            while Token /= Tok_Semicolon loop
+               Scan; -- past semicolon
+            end loop;
 
-               Wrong_End_Start := Token_Ptr;
+            Wrong_End_Finish := Token_Ptr;
 
-               while Token /= Tok_Semicolon loop
-                  Scan; -- past semicolon
-               end loop;
+            Wrong_End_Span :=
+              To_Span
+                (First => Wrong_End_Start,
+                 Ptr   => Wrong_End_Start,
+                 Last  => Wrong_End_Finish);
 
-               Wrong_End_Finish := Token_Ptr;
+            Restore_Scan_State (Scan_State);
 
-               Restore_Scan_State (Scan_State);
-
-               Record_End_Loop_Expected_Error
-                 (End_Loc   => To_Span (First => Wrong_End_Start,
-                                        Ptr   => Wrong_End_Start,
-                                        Last  => Wrong_End_Finish),
-                  Start_Loc => Error_Msg_Sloc);
-
-            else
-               Error_Msg_SC -- CODEFIX
-                 ("`END LOOP;` expected@ for LOOP#!");
-            end if;
+            Error_Msg -- CODEFIX
+              (Msg        => "`END LOOP;` expected@ for LOOP#!",
+               Flag_Span  => Wrong_End_Span,
+               N          => Empty,
+               Error_Code => GNAT0004,
+               Spans      =>
+                 (1 => Secondary_Labeled_Span (To_Span (Error_Msg_Sloc))),
+               Fixes      =>
+                 (1 =>
+                    Fix
+                      (Description => "Replace with 'end loop;'",
+                       Edits       =>
+                         (1 =>
+                            Edit
+                              (Text => "end loop;",
+                               Span => Wrong_End_Span)))));
          else
             Error_Msg_SC -- CODEFIX
               ("`END LOOP &;` expected@!");
@@ -1351,6 +1368,12 @@ package body Endh is
       then
          return Same_Label (Prefix (Label1), Prefix (Label2)) and then
            Same_Label (Selector_Name (Label1), Selector_Name (Label2));
+
+      elsif Nkind (Label1) = N_Attribute_Reference
+        and then Nkind (Label2) = N_Attribute_Reference
+      then
+         return Same_Label (Prefix (Label1), Prefix (Label2)) and then
+           Attribute_Name (Label1) = Attribute_Name (Label2);
 
       elsif Nkind (Label1) = N_Designator
         and then Nkind (Label2) = N_Defining_Program_Unit_Name

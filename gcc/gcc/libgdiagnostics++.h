@@ -1,5 +1,5 @@
 /* A C++ wrapper API around libgdiagnostics.h for emitting diagnostics.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -34,6 +34,10 @@ class execution_path;
 class group;
 class manager;
 class diagnostic;
+class graph;
+class node;
+class edge;
+class message_buffer;
 
 /* Wrapper around a borrowed diagnostic_text_sink *.  */
 
@@ -109,7 +113,85 @@ public:
   : m_inner (logical_loc)
   {}
 
+  operator bool() { return m_inner != nullptr; }
+
+  // Various accessors
+  enum diagnostic_logical_location_kind_t get_kind () const;
+  logical_location get_parent () const;
+  const char *get_short_name () const;
+  const char *get_fully_qualified_name () const;
+  const char *get_decorated_name () const;
+
+  bool operator== (const logical_location &other) const
+  {
+    return m_inner == other.m_inner;
+  }
+
+  bool operator!= (const logical_location &other) const
+  {
+    return m_inner != other.m_inner;
+  }
+
   const diagnostic_logical_location *m_inner;
+};
+
+/* Wrapper around a diagnostic_message_buffer *, with ownership.  */
+
+class message_buffer
+{
+public:
+  message_buffer () : m_inner (nullptr) {}
+  message_buffer (diagnostic_message_buffer *inner) : m_inner (inner) {}
+  ~message_buffer ()
+  {
+    if (m_inner)
+      diagnostic_message_buffer_release (m_inner);
+  }
+  message_buffer (const message_buffer &) = delete;
+  message_buffer (message_buffer &&other)
+  {
+    m_inner = other.m_inner;
+    other.m_inner = nullptr;
+  }
+  message_buffer& operator= (const message_buffer &) = delete;
+  message_buffer& operator= (message_buffer &&other)
+  {
+    if (m_inner)
+      diagnostic_message_buffer_release (m_inner);
+    m_inner = other.m_inner;
+    other.m_inner = nullptr;
+    return *this;
+  }
+
+  message_buffer&
+  operator+= (const char *str)
+  {
+    diagnostic_message_buffer_append_str (m_inner, str);
+    return *this;
+  }
+
+  message_buffer&
+  operator+= (char ch)
+  {
+    diagnostic_message_buffer_append_byte (m_inner, ch);
+    return *this;
+  }
+
+  message_buffer &
+  begin_url (const char *url)
+  {
+    diagnostic_message_buffer_begin_url (m_inner, url);
+    return *this;
+  }
+
+  message_buffer &
+  end_url ()
+  {
+    diagnostic_message_buffer_end_url (m_inner);
+    return *this;
+  }
+
+  diagnostic_message_buffer *m_inner;
 };
 
 /* RAII class around a diagnostic_execution_path *.  */
@@ -169,6 +251,12 @@ public:
 		va_list *args)
     LIBGDIAGNOSTICS_PARAM_GCC_FORMAT_STRING (5, 0);
 
+  diagnostic_event_id
+  add_event_via_msg_buf (physical_location physical_loc,
+			 logical_location logical_loc,
+			 unsigned stack_depth,
+			 message_buffer &&msg_buf);
+
   diagnostic_execution_path *m_inner;
   bool m_owned;
 };
@@ -209,6 +297,10 @@ public:
 			   const char *text);
 
   void
+  add_location_with_label (physical_location loc,
+			   message_buffer &&text);
+
+  void
   set_logical_location (logical_location loc);
 
   void
@@ -227,6 +319,9 @@ public:
   take_execution_path (execution_path path);
 
   void
+  take_graph (graph g);
+
+  void
   finish (const char *fmt, ...)
     LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2)
     LIBGDIAGNOSTICS_PARAM_GCC_FORMAT_STRING (2, 3);
@@ -235,6 +330,9 @@ public:
   finish_va (const char *fmt, va_list *args)
     LIBGDIAGNOSTICS_PARAM_MUST_BE_NON_NULL (2)
     LIBGDIAGNOSTICS_PARAM_GCC_FORMAT_STRING (2, 0);
+
+  void
+  finish_via_msg_buf (message_buffer &&msg_buf);
 
   ::diagnostic * const m_inner;
 };
@@ -310,6 +408,17 @@ public:
 				       version);
   }
 
+  bool
+  add_sink_from_spec (const char *option_name,
+		      const char *spec,
+		      manager control_mgr)
+  {
+    return diagnostic_manager_add_sink_from_spec (m_inner,
+						  option_name,
+						  spec,
+						  control_mgr.m_inner);
+  }
+
   void
   write_patch (FILE *dst_stream)
   {
@@ -362,9 +471,109 @@ public:
   diagnostic
   begin_diagnostic (enum diagnostic_level level);
 
+  void
+  set_analysis_target (file f);
+
+  void
+  take_global_graph (graph g);
+
+  void
+  set_debug_physical_locations (bool value);
 
   diagnostic_manager *m_inner;
   bool m_owned;
+};
+
+class graph
+{
+public:
+  graph () : m_inner (nullptr), m_owned (false) {}
+
+  graph (diagnostic_graph *graph)
+  : m_inner (graph), m_owned (true)
+  {}
+
+  graph (const diagnostic_graph *graph)
+  : m_inner (const_cast<diagnostic_graph *> (graph)),
+    m_owned (false)
+  {}
+
+  graph (const graph &other) = delete;
+  graph &operator= (const graph &other) = delete;
+
+  graph (graph &&other)
+  : m_inner (other.m_inner),
+    m_owned (other.m_owned)
+  {
+    other.m_inner = nullptr;
+    other.m_owned = false;
+  }
+
+  graph &operator= (graph &&other)
+  {
+    m_inner = other.m_inner;
+    m_owned = other.m_owned;
+    other.m_inner = nullptr;
+    other.m_owned = false;
+    return *this;
+  }
+
+  ~graph ()
+  {
+    if (m_owned)
+      diagnostic_graph_release (m_inner);
+  }
+
+  void
+  set_description (const char *);
+  void
+  set_description (message_buffer &&);
+
+  node
+  get_node_by_id (const char *id) const;
+
+  edge
+  get_edge_by_id (const char *id) const;
+
+  edge
+  add_edge (const char *id, node src_node, node dst_node, const char *label);
+  edge
+  add_edge (const char *id, node src_node, node dst_node, message_buffer &&label);
+
+  diagnostic_graph *m_inner;
+  bool m_owned;
+};
+
+// Borrowed pointer to a diagnostic_node.
+
+class node
+{
+public:
+  node () : m_inner (nullptr) {}
+  node (diagnostic_node *node_) : m_inner (node_) {}
+
+  void
+  set_label (const char *);
+  void
+  set_label (message_buffer &&);
+
+  void
+  set_location (physical_location loc);
+
+  void
+  set_logical_location (logical_location loc);
+
+  diagnostic_node *m_inner;
+};
+
+// Borrowed edge to a diagnostic_edge.
+
+class edge
+{
+public:
+  edge (diagnostic_edge *edge_) : m_inner (edge_) {}
+
+  diagnostic_edge *m_inner;
 };
 
 // Implementation
@@ -383,6 +592,51 @@ inline file
 physical_location::get_file () const
 {
   return file (diagnostic_physical_location_get_file (m_inner));
+}
+
+// class logical_location
+
+inline enum diagnostic_logical_location_kind_t
+logical_location::get_kind () const
+{
+  // m_inner must be non-null
+  return diagnostic_logical_location_get_kind (m_inner);
+}
+
+inline logical_location
+logical_location::get_parent () const
+{
+  if (m_inner)
+    return diagnostic_logical_location_get_parent (m_inner);
+  else
+    return nullptr;
+}
+
+inline const char *
+logical_location::get_short_name () const
+{
+  if (m_inner)
+    return diagnostic_logical_location_get_short_name (m_inner);
+  else
+    return nullptr;
+}
+
+inline const char *
+logical_location::get_fully_qualified_name () const
+{
+  if (m_inner)
+    return diagnostic_logical_location_get_fully_qualified_name (m_inner);
+  else
+    return nullptr;
+}
+
+inline const char *
+logical_location::get_decorated_name () const
+{
+  if (m_inner)
+    return diagnostic_logical_location_get_decorated_name (m_inner);
+  else
+    return nullptr;
 }
 
 // class execution_path
@@ -417,6 +671,21 @@ execution_path::add_event_va (physical_location physical_loc,
 						 stack_depth,
 						 fmt,
 						 args);
+}
+
+inline diagnostic_event_id
+execution_path::add_event_via_msg_buf (physical_location physical_loc,
+				       logical_location logical_loc,
+				       unsigned stack_depth,
+				       message_buffer &&msg_buf)
+{
+  diagnostic_message_buffer *inner_msg_buf = msg_buf.m_inner;
+  msg_buf.m_inner = nullptr;
+  return diagnostic_execution_path_add_event_via_msg_buf (m_inner,
+							  physical_loc.m_inner,
+							  logical_loc.m_inner,
+							  stack_depth,
+							  inner_msg_buf);
 }
 
 // class group
@@ -459,6 +728,17 @@ diagnostic::add_location_with_label (physical_location loc,
 				     const char *text)
 {
   diagnostic_add_location_with_label (m_inner, loc.m_inner, text);
+}
+
+inline void
+diagnostic::add_location_with_label (physical_location loc,
+				     message_buffer &&msg_buf)
+{
+  diagnostic_message_buffer *inner_msg_buf = msg_buf.m_inner;
+  msg_buf.m_inner = nullptr;
+  diagnostic_add_location_with_label_via_msg_buf (m_inner,
+						  loc.m_inner,
+						  inner_msg_buf);
 }
 
 inline void
@@ -516,6 +796,14 @@ diagnostic::take_execution_path (execution_path path)
 }
 
 inline void
+diagnostic::take_graph (graph g)
+{
+  diagnostic_take_graph (m_inner,
+			 g.m_inner);
+  g.m_owned = false;
+}
+
+inline void
 diagnostic::finish (const char *fmt, ...)
 {
   va_list ap;
@@ -528,6 +816,14 @@ inline void
 diagnostic::finish_va (const char *fmt, va_list *args)
 {
   diagnostic_finish_va (m_inner, fmt, args);
+}
+
+inline void
+diagnostic::finish_via_msg_buf (message_buffer &&msg_buf)
+{
+  diagnostic_message_buffer *inner_msg_buf = msg_buf.m_inner;
+  msg_buf.m_inner = nullptr;
+  diagnostic_finish_via_msg_buf (m_inner, inner_msg_buf);
 }
 
 // class manager
@@ -617,6 +913,109 @@ inline diagnostic
 manager::begin_diagnostic (enum diagnostic_level level)
 {
   return diagnostic (diagnostic_begin (m_inner, level));
+}
+
+inline void
+manager::set_analysis_target (file f)
+{
+  diagnostic_manager_set_analysis_target (m_inner, f.m_inner);
+}
+
+inline void
+manager::take_global_graph (graph g)
+{
+  diagnostic_manager_take_global_graph (m_inner,
+					g.m_inner);
+  g.m_owned = false;
+}
+
+inline void
+manager::set_debug_physical_locations (bool value)
+{
+  diagnostic_manager_set_debug_physical_locations (m_inner,
+						   value ? 1 : 0);
+}
+
+// class graph
+
+inline void
+graph::set_description (const char *desc)
+{
+  diagnostic_graph_set_description (m_inner, desc);
+}
+
+inline void
+graph::set_description (message_buffer &&msg_buf)
+{
+  diagnostic_message_buffer *inner_msg_buf = msg_buf.m_inner;
+  msg_buf.m_inner = nullptr;
+  diagnostic_graph_set_description_via_msg_buf (m_inner, inner_msg_buf);
+}
+
+inline node
+graph::get_node_by_id (const char *id) const
+{
+  return node (diagnostic_graph_get_node_by_id (m_inner, id));
+}
+
+inline edge
+graph::get_edge_by_id (const char *id) const
+{
+  return edge (diagnostic_graph_get_edge_by_id (m_inner, id));
+}
+
+inline edge
+graph::add_edge (const char *id,
+		 node src_node, node dst_node,
+		 const char *label)
+{
+  return edge (diagnostic_graph_add_edge (m_inner,
+					  id,
+					  src_node.m_inner,
+					  dst_node.m_inner,
+					  label));
+}
+
+inline edge
+graph::add_edge (const char *id,
+		 node src_node, node dst_node,
+		 message_buffer &&label)
+{
+  diagnostic_message_buffer *inner_label = label.m_inner;
+  label.m_inner = nullptr;
+  return edge (diagnostic_graph_add_edge_via_msg_buf (m_inner,
+						      id,
+						      src_node.m_inner,
+						      dst_node.m_inner,
+						      inner_label));
+}
+
+// class node
+
+inline void
+node::set_label (const char *label)
+{
+  diagnostic_node_set_label (m_inner, label);
+}
+
+inline void
+node::set_label (message_buffer &&label)
+{
+  diagnostic_message_buffer *inner_label = label.m_inner;
+  label.m_inner = nullptr;
+  diagnostic_node_set_label_via_msg_buf (m_inner, inner_label);
+}
+
+inline void
+node::set_location (physical_location loc)
+{
+  diagnostic_node_set_location (m_inner, loc.m_inner);
+}
+
+inline void
+node::set_logical_location (logical_location loc)
+{
+  diagnostic_node_set_logical_location (m_inner, loc.m_inner);
 }
 
 } // namespace libgdiagnostics

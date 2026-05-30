@@ -1,12 +1,7 @@
-.macro cond op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().s32 r0, r1, q2, q3
-.endr
-.endm
 
 .syntax unified
 .thumb
+
 vrmlaldavh.s16 r0, r1, q2, q3
 vrmlaldavh.i32 r0, r1, q2, q3
 vrmlaldavha.s16 r0, r1, q2, q3
@@ -19,6 +14,7 @@ vrmlaldavhx.u32 r0, r1, q2, q3
 vrmlaldavhax.u32 r0, r1, q2, q3
 vrmlaldavhx.i32 r0, r1, q2, q3
 vrmlaldavhax.i32 r0, r1, q2, q3
+
 vrmlsldavh.s16 r0, r1, q2, q3
 vrmlsldavh.u32 r0, r1, q2, q3
 vrmlsldavha.s16 r0, r1, q2, q3
@@ -27,6 +23,7 @@ vrmlsldavhx.s16 r0, r1, q2, q3
 vrmlsldavhx.u32 r0, r1, q2, q3
 vrmlsldavhax.s16 r0, r1, q2, q3
 vrmlsldavhax.u32 r0, r1, q2, q3
+
 vrmlaldavh.s32 r1, r1, q2, q3
 vrmlaldavh.s32 r0, r0, q2, q3
 vrmlaldavh.s32 r0, sp, q2, q3
@@ -51,6 +48,7 @@ vrmlalvha.s32 r1, r1, q2, q3
 vrmlalvha.s32 r0, r0, q2, q3
 vrmlalvha.s32 r0, sp, q2, q3
 vrmlalvha.s32 r0, pc, q2, q3
+
 vrmlsldavh.s32 r1, r1, q2, q3
 vrmlsldavh.s32 r0, r0, q2, q3
 vrmlsldavh.s32 r0, sp, q2, q3
@@ -67,16 +65,18 @@ vrmlsldavhax.s32 r1, r1, q2, q3
 vrmlsldavhax.s32 r0, r0, q2, q3
 vrmlsldavhax.s32 r0, sp, q2, q3
 vrmlsldavhax.s32 r0, pc, q2, q3
-cond vrmlaldavh
-cond vrmlaldavha
-cond vrmlaldavhx
-cond vrmlaldavhax
-cond vrmlalvh
-cond vrmlalvha
-cond vrmlsldavh
-cond vrmlsldavha
-cond vrmlsldavhx
-cond vrmlsldavhax
+
+.irp op, vrmlaldavh, vrmlaldavha, vrmlaldavhx, vrmlaldavhax, vrmlalvh, vrmlalvha, vrmlsldavh, vrmlsldavha, vrmlsldavhx, vrmlsldavhax
+
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+\op\().s32 r0, r1, q2, q3
+
+.endr
+
+.endr
+
 it eq
 vrmlaldavheq.s32 r0, r1, q2, q3
 vrmlaldavheq.s32 r0, r1, q2, q3

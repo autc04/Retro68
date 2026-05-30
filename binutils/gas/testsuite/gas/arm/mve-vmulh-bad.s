@@ -1,10 +1,3 @@
-.macro cond op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().u16 q0, q1, q2
-.endr
-.endm
-
 .syntax unified
 .thumb
 vmulh.f16 q0, q1, q2
@@ -13,8 +6,15 @@ vmulh.s64 q0, q1, q2
 vrmulh.f16 q0, q1, q2
 vrmulh.i32 q0, q1, q2
 vrmulh.s64 q0, q1, q2
-cond vmulh
-cond vrmulh
+
+.irp op, vmulh, vrmulh
+.irp cond, eq, ne, gt, ge, lt, le
+it \cond
+\op\().u16 q0, q1, q2
+.endr
+.endr
+
+
 it eq
 vmulheq.s16 q0, q1, q2
 vmulheq.s16 q0, q1, q2

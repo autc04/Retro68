@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -177,8 +177,10 @@ package Ttypes is
    ----------------------------------------
 
    Maximum_Alignment : constant Pos := Set_Targ.Maximum_Alignment;
-   --  The maximum alignment, in storage units, that an object or type may
-   --  require on the target machine.
+   --  The maximum default alignment, in storage units, that an object or type
+   --  may require on the target machine. The implementation must never choose
+   --  a larger alignment on its own, that is to say when it is not explicitly
+   --  requested by an alignment aspect/clause in the source code.
 
    System_Allocator_Alignment : constant Pos :=
                                   Set_Targ.System_Allocator_Alignment;

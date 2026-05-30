@@ -733,10 +733,10 @@
 /* { dg-final { scan-assembler-times "lasx_xvfcmp_sun_s:.*xvfcmp\\.sun\\.s.*lasx_xvfcmp_sun_s" 1 } } */
 /* { dg-final { scan-assembler-times "lasx_xvpickve_d_f:.*xvpickve\\.d.*lasx_xvpickve_d_f" 1 } } */
 /* { dg-final { scan-assembler-times "lasx_xvpickve_w_f:.*xvpickve\\.w.*lasx_xvpickve_w_f" 1 } } */
-/* { dg-final { scan-assembler-times "lasx_xvrepli_b:.*xvrepli\\.b.*lasx_xvrepli_b" 1 } } */
-/* { dg-final { scan-assembler-times "lasx_xvrepli_d:.*xvrepli\\.d.*lasx_xvrepli_d" 1 } } */
-/* { dg-final { scan-assembler-times "lasx_xvrepli_h:.*xvrepli\\.h.*lasx_xvrepli_h" 1 } } */
-/* { dg-final { scan-assembler-times "lasx_xvrepli_w:.*xvrepli\\.w.*lasx_xvrepli_w" 1 } } */
+/* { dg-final { scan-assembler-times "lasx_xvrepli_b:.*xvldi.*lasx_xvrepli_b" 1 } } */
+/* { dg-final { scan-assembler-times "lasx_xvrepli_d:.*xvldi.*lasx_xvrepli_d" 1 } } */
+/* { dg-final { scan-assembler-times "lasx_xvrepli_h:.*xvldi.*lasx_xvrepli_h" 1 } } */
+/* { dg-final { scan-assembler-times "lasx_xvrepli_w:.*xvldi.*lasx_xvrepli_w" 1 } } */
 
 typedef signed char v32i8 __attribute__ ((vector_size (32), aligned (32)));
 typedef signed char v32i8_b __attribute__ ((vector_size (32), aligned (1)));
@@ -3301,7 +3301,7 @@ __lasx_vext2xv_du_bu (v32i8 _1)
 v32i8
 __lasx_xvpermi_q (v32i8 _1, v32i8 _2)
 {
-  return __builtin_lasx_xvpermi_q (_1, _2, 1);
+  return __builtin_lasx_xvpermi_q (_1, _2, 0x20);
 }
 v4i64
 __lasx_xvpermi_d (v4i64 _1)

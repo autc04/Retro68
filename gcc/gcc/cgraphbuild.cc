@@ -1,5 +1,5 @@
 /* Callgraph construction.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -214,9 +214,27 @@ mark_address (gimple *stmt, tree addr, tree, void *data)
   addr = get_base_address (addr);
   if (TREE_CODE (addr) == FUNCTION_DECL)
     {
+      cgraph_node *caller = (cgraph_node *) data;
       cgraph_node *node = cgraph_node::get_create (addr);
+      /* If NODE was cloned and the caller is a callback-dispatching function,
+	 the gimple call might not be updated yet.  Check whether that's the
+	 case and if so, replace NODE with the correct callee.  */
+      cgraph_edge *e = caller->get_edge (stmt);
+      if (e && e->has_callback)
+	{
+	  for (cgraph_edge *cbe = e->first_callback_edge ();
+	       cbe;
+	       cbe = cbe->next_callback_edge ())
+	    {
+	      if (cbe->callee->is_clone_of (node))
+		{
+		  node = cbe->callee;
+		  break;
+		}
+	    }
+	}
       node->mark_address_taken ();
-      ((symtab_node *)data)->create_reference (node, IPA_REF_ADDR, stmt);
+      caller->create_reference (node, IPA_REF_ADDR, stmt);
     }
   else if (addr && VAR_P (addr)
 	   && (TREE_STATIC (addr) || DECL_EXTERNAL (addr)))

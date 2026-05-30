@@ -7,7 +7,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2000-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2000-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1764,6 +1764,17 @@ CND(SIZEOF_tv_usec, "tv_usec")
 #endif
 CNS(MAX_tv_sec, "")
 }
+
+{
+  struct timespec ts;
+/*
+   --  Sizes (in bytes) of the components of struct timespec.
+   --  The tv_sec field is the same as in struct timeval.
+*/
+#define SIZEOF_tv_nsec (sizeof (ts.tv_nsec))
+CND(SIZEOF_tv_nsec, "tv_nsec");
+}
+
 /*
 
    --  Sizes of various data types
@@ -1790,6 +1801,9 @@ struct sockaddr_un {
 #endif
 #define SIZEOF_sockaddr_un (sizeof (struct sockaddr_un))
 CND(SIZEOF_sockaddr_un, "struct sockaddr_un")
+
+#define BACKLOG_MAX 15
+CND(BACKLOG_MAX, "number of outstanding connections in the socket's listen queue")
 
 #define SIZEOF_fd_set (sizeof (fd_set))
 CND(SIZEOF_fd_set, "fd_set")
@@ -1868,6 +1882,7 @@ CND(IF_NAMESIZE, "Max size of interface name with 0 terminator");
 #endif
 
 #elif defined(_WIN32)
+#undef  POLLPRI
 #define POLLPRI 0
 /*  If the POLLPRI flag is set on a socket for the Microsoft Winsock provider,
  *  the WSAPoll function will fail. */
@@ -1976,7 +1991,7 @@ CND(CLOCK_THREAD_CPUTIME_ID, "Thread CPU clock")
 #if defined(__linux__) || defined(__FreeBSD__) \
  || (defined(_AIX) && defined(_AIXVERSION_530)) \
  || defined(__DragonFly__) || defined(__QNX__) \
- || defined (__vxworks)
+ || (defined (__vxworks) && /* VxWorks7 */ defined (_VSB_CONFIG_FILE))
 /** On these platforms use system provided monotonic clock instead of
  ** the default CLOCK_REALTIME. We then need to set up cond var attributes
  ** appropriately (see thread.c).
@@ -1985,6 +2000,10 @@ CND(CLOCK_THREAD_CPUTIME_ID, "Thread CPU clock")
  ** pthread_cond_timedwait (and does not have pthread_condattr_setclock),
  ** hence the conditionalization on AIX version above). _AIXVERSION_530
  ** is defined in AIX 5.3 and more recent versions.
+ **
+ ** VxWorks6 lacks pthread_condattr_setclock, so define CLOCK_RT_Ada to
+ ** CLOCK_REALTIME to get the dummy definition of __gnat_pthread_condattr_setup
+ ** in libgnarl/thread.c.
  **/
 # define CLOCK_RT_Ada "CLOCK_MONOTONIC"
 

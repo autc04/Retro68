@@ -1,4 +1,4 @@
-#   Copyright (C) 1993-2022 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -249,6 +249,23 @@ if { [ remote_file host exists $testarchive ] } then {
     test_objdump_d $testarchive bintest2.${obj}
 }
 
+# AIX gas doesn't add local symbols to the symbol table.
+# TI C30 and C54x ld emits various "address .. of tmpdir/dump section `...' is
+# not within region `...'" errors, which look bogus for relocatable linking.
+# alpha-vms doesn't support relocatable linking.
+# i?86-msdos ld generates an executable despite being passed -r.
+# Don't chance other than our own ld improperly handling -r.
+if { ![istarget "*-*-aix*"]
+     && ![istarget "*c30-*-*"]
+     && ![istarget "*c54x-*-*"]
+     && ![istarget "alpha-*-*vms*"]
+     && ![istarget "i?86-*-msdos"]
+     && [file normalize "$LD"] == [file normalize "$objdir/../ld/ld-new"]} then {
+    run_dump_test multi-1
+    run_dump_test multi-2
+    run_dump_test multi-3
+}
+
 # Test objdump --disassemble=<symbol>
 proc test_objdump_d_sym { testfile dumpfile } {
     global OBJDUMP
@@ -375,6 +392,32 @@ if { [is_elf_format] } then {
     }
 }
 
+proc test_objdump_d_show_all_symbols { testfile dumpfile } {
+    global OBJDUMP
+    global OBJDUMPFLAGS
+
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -d --show-all-symbols $testfile"]
+
+    set want "${dumpfile}.*:.*00+0 <text_symbol>"
+    if ![regexp $want $got] then {
+	fail "objdump -d --show-all-symbols $testfile: Missing 'text_symbol'"
+	return
+    }
+
+    set want "${dumpfile}.*:.*00+0 <static_text_symbol>"
+    if ![regexp $want $got] then {
+	fail "objdump -d --show-all-symbols $testfile: Missing 'static_text_symbol'"
+	return
+    }
+
+    pass "objdump -d --show-all-symbols $testfile"
+}
+
+# The AIX and ECOFF assemblers default to makeing symbols local, not global.
+# So they do not show up in this test.
+setup_xfail "*-*-*aix*"
+setup_xfail "*-*-*ecoff"
+test_objdump_d_show_all_symbols $testfile $testfile
 
 # Test objdump -s
 
@@ -411,7 +454,7 @@ if { ![is_elf_format] } then {
 	set compressed_testfile tmpdir/dw2-compressed.${obj}
     }
 
-    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -s -j .zdebug_abbrev $compressed_testfile" "" "/dev/null" "objdump.out"]
+    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -s -j .zdebug_abbrev $compressed_testfile" "" "/dev/null" "tmpdir/objdump.out"]
 
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	fail "objdump -s -j .zdebug_abbrev (reason: unexpected output)"
@@ -419,7 +462,7 @@ if { ![is_elf_format] } then {
 	send_log "\n"
     }
 
-    if { [regexp_diff objdump.out $srcdir/$subdir/objdump.s] } then {
+    if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/objdump.s] } then {
 	fail "objdump -s -j .zdebug_abbrev"
     } else {
 	pass "objdump -s -j .zdebug_abbrev"
@@ -427,7 +470,7 @@ if { ![is_elf_format] } then {
 
     # Test objdump -W on a file that contains some compressed .debug sections
 
-    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -W $compressed_testfile" "" "/dev/null" "objdump.out"]
+    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -W $compressed_testfile" "" "/dev/null" "tmpdir/objdump.out"]
 
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	fail "objdump -W (reason: unexpected output)"
@@ -435,10 +478,26 @@ if { ![is_elf_format] } then {
 	send_log "\n"
     }
 
-    if { [regexp_diff objdump.out $srcdir/$subdir/objdump.W] } then {
+    if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/objdump.W] } then {
 	fail "objdump -W"
     } else {
 	pass "objdump -W"
+    }
+
+    # Test objdump -Z -s on a file that contains some compressed .debug sections
+
+    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -Z -s -j .zdebug_abbrev $compressed_testfile" "" "/dev/null" "tmpdir/objdump.out"]
+
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
+	fail "objdump -Z -s (reason: unexpected output)"
+	send_log $got
+	send_log "\n"
+    }
+
+    if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/objdump.Zs] } then {
+	fail "objdump -Z -s"
+    } else {
+	pass "objdump -Z -s"
     }
 }
 
@@ -456,6 +515,8 @@ if { ![is_elf_format]
 } else {
     if { [istarget "or1k*-*-*"] } then {
         set decodedline_testsrc $srcdir/$subdir/dw2-decodedline-1.S
+    } elseif { [istarget "kvx*-*-*"] } {
+        set decodedline_testsrc $srcdir/$subdir/dw2-decodedline-2.S
     } else {
         set decodedline_testsrc $srcdir/$subdir/dw2-decodedline.S
     }
@@ -469,7 +530,7 @@ if { ![is_elf_format]
 	set decodedline_testfile tmpdir/dw2-decodedline.${obj}
     }
 
-    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -WL $decodedline_testfile" "" "/dev/null" "objdump.out"]
+    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -WL $decodedline_testfile" "" "/dev/null" "tmpdir/objdump.out"]
 
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	fail "objdump -WL (reason: unexpected output)"
@@ -477,7 +538,7 @@ if { ![is_elf_format]
 	send_log "\n"
     }
 
-    if { [regexp_diff objdump.out $srcdir/$subdir/objdump.WL] } then {
+    if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/objdump.WL] } then {
 	fail "objdump -WL"
     } else {
 	pass "objdump -WL"
@@ -497,7 +558,7 @@ if { ![is_elf_format] } then {
 	set ranges_testfile tmpdir/dw2-ranges.${obj}
     }
 
-    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS --dwarf=Ranges $ranges_testfile" "" "/dev/null" "objdump.out"]
+    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS --dwarf=Ranges $ranges_testfile" "" "/dev/null" "tmpdir/objdump.out"]
 
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	fail "objdump -W for debug_ranges (reason: unexpected output)"
@@ -506,7 +567,7 @@ if { ![is_elf_format] } then {
     }
 
     setup_xfail "msp430-*-*"
-    if { [regexp_diff objdump.out $srcdir/$subdir/dw2-ranges.W] } then {
+    if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/dw2-ranges.W] } then {
 	fail "objdump -W for debug_ranges"
     } else {
 	pass "objdump -W for debug_ranges"
@@ -526,7 +587,7 @@ if { ![is_elf_format] } then {
        set op_testfile tmpdir/dw5-op.${obj}
     }
 
-    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -Wi $op_testfile" "" "/dev/null" "objdump.out"]
+    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -Wi $op_testfile" "" "/dev/null" "tmpdir/objdump.out"]
 
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
        fail "objdump -Wi (reason: unexpected output)"
@@ -534,8 +595,8 @@ if { ![is_elf_format] } then {
        send_log "\n"
     }
 
-    set got [remote_exec host "tail -n +4 objdump.out" "" "/dev/null" "objdump.out"]
-    set output [remote_upload host objdump.out]
+    set got [remote_exec host {sed -e 1,3d tmpdir/objdump.out} {} /dev/null tmpdir/objdump.tail]
+    set output [remote_upload host tmpdir/objdump.tail]
 
     if ![file size $output] then {
        # If the output file is empty, then this target does not
@@ -545,7 +606,7 @@ if { ![is_elf_format] } then {
        return
     }
 
-    if { [regexp_diff objdump.out $srcdir/$subdir/dw5-op.W] } then {
+    if { [regexp_diff tmpdir/objdump.tail $srcdir/$subdir/dw5-op.W] } then {
        fail "objdump -Wi for DW_OP_*"
     } else {
        pass "objdump -Wi for DW_OP_*"
@@ -554,7 +615,7 @@ if { ![is_elf_format] } then {
     file_on_host delete $output
 }
 
-proc test_build_id_debuglink {} {
+proc test_build_id_debuglink {option} {
     global srcdir
     global subdir
     global env
@@ -564,13 +625,13 @@ proc test_build_id_debuglink {} {
     global CFLAGS_FOR_TARGET
     global exe
     
-    set test "build-id-debuglink"
+    set test "build-id-debuglink ($option)"
 
     # Use a fixed build-id.
     if { [info exists CFLAGS_FOR_TARGET] } {
 	set save_CFLAGS_FOR_TARGET $CFLAGS_FOR_TARGET
     }
-    set CFLAGS_FOR_TARGET "-g -Wl,--build-id=0x12345678abcdef01"
+    set CFLAGS_FOR_TARGET "-g -Wl,--build-id=0x12345678abcdef01,--compress-debug-sections=$option"
 
     if { [target_compile $srcdir/$subdir/testprog.c tmpdir/testprog${exe} executable debug] != "" } {
 	unsupported "$test (build)"
@@ -632,7 +693,8 @@ proc test_build_id_debuglink {} {
 }
 
 if {[is_elf_format]} then {
-    test_build_id_debuglink
+    test_build_id_debuglink none
+    test_build_id_debuglink zlib
 }
 
 # Test objdump -Wk on a file containing debug links.
@@ -650,7 +712,7 @@ if { [is_elf_format] } then {
 	set testfile tmpdir/debuglink.${obj}
     }
 
-    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -Wk -WN $testfile" "" "/dev/null" "objdump.out"]
+    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -Wk -WN $testfile" "" "/dev/null" "tmpdir/objdump.out"]
 
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	fail "objdump -Wk (reason: unexpected output)"
@@ -658,7 +720,7 @@ if { [is_elf_format] } then {
 	send_log "\n"
     }
 
-    if { [regexp_diff objdump.out $srcdir/$subdir/objdump.Wk] } then {
+    if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/objdump.Wk] } then {
 	fail "objdump -Wk (reason: output does not match expectations)"
     } else {
 	pass "objdump -Wk"
@@ -702,7 +764,7 @@ proc test_follow_debuglink { options dumpfile } {
 
     if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/$dumpfile] } then {
 	fail $test
-	verbose "output is \n[file_contents objdump.out]" 2
+	verbose "output is \n[file_contents tmpdir/objdump.out]" 2
 	return
     }
 
@@ -786,6 +848,12 @@ proc test_objdump_dotnet_assemblies {} {
     global base_dir
 
     set test "dotnet-assemblies"
+
+    # If gentestdlls isn't available, skip instead of crashing below.
+    if ![file exists $base_dir/testsuite/gentestdlls] {
+	untested $test
+	return
+    }
 
     set got [binutils_run "$base_dir/testsuite/gentestdlls" "tmpdir pei-i386 pei-x86-64"]
     set want "wrote linux-pei-x86-64.dll"
@@ -890,6 +958,60 @@ proc test_objdump_S { } {
 }
 
 test_objdump_S
+
+# Test objdump --private
+proc test_objdump_P {} {
+    global srcdir
+    global subdir
+    global OBJDUMP
+    global OBJDUMPFLAGS
+    global obj
+    
+    set test "objdump -P"
+    
+    if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.${obj}]} then {
+	unsupported "$test (build)"
+	return
+    }
+
+    if [is_remote host] {
+	set testfile [remote_download host tmpdir/bintest.${obj}]
+    } else {
+	set testfile tmpdir/bintest.${obj}
+    }
+
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -P header $testfile"]
+
+    # FIXME: We should probably test the output further than this...
+    set want "Machine Num"
+    
+    if [regexp $want $got] then {
+	pass "$test (dump headers)"
+    } else {
+	fail "$test (dump headers)"
+    }
+
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --private=sections $testfile"]
+
+    # FIXME: We should probably test the output further than this...
+    set want "EXECUTE,READ"
+
+    if [regexp $want $got] then {
+	pass "$test (dump sections)"
+    } else {
+	fail "$test (dump sections)"
+    }
+
+    # remote_file host delete $testfile
+}
+
+# Test objdump --private of a PE format file.
+if { [istarget "*-*-pe*"]
+     || [istarget "*-*-cygwin*"]
+     || [istarget "*-*-mingw*"]
+} then {
+    test_objdump_P
+}
 
 # Options which are not tested: -a -D -R -T -x -l --stabs
 # I don't see any generic way to test any of these other than -a.

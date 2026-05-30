@@ -1,5 +1,5 @@
 ; Command line options for the Renesas RX port of GCC.
-; Copyright (C) 2008-2025 Free Software Foundation, Inc.
+; Copyright (C) 2008-2026 Free Software Foundation, Inc.
 ; Contributed by Red Hat.
 ;
 ; This file is part of GCC.
@@ -119,11 +119,11 @@ Warn when multiple, different, fast interrupt handlers are in the compilation un
 ;---------------------------------------------------
 
 mgcc-abi
-Target RejectNegative Mask(GCC_ABI)
+Target Undocumented RejectNegative Mask(GCC_ABI)
 Enable the use of the old, broken, ABI where all stacked function arguments are aligned to 32-bits.
 
 mrx-abi
-Target RejectNegative InverseMask(GCC_ABI)
+Target Undocumented RejectNegative InverseMask(GCC_ABI)
 Enable the use the standard RX ABI where all stacked function arguments are naturally aligned.  This is the default.
 
 ;---------------------------------------------------

@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2025 Free Software Foundation, Inc.
+// Copyright (C) 2021-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -30,21 +30,25 @@ class TypeBoundsProbe : public TypeCheckBase
 {
 public:
   static std::vector<std::pair<TraitReference *, HIR::ImplBlock *>>
-  Probe (const TyTy::BaseType *receiver);
+  Probe (TyTy::BaseType *receiver);
 
   static bool is_bound_satisfied_for_type (TyTy::BaseType *receiver,
 					   TraitReference *ref);
 
 private:
   void scan ();
-  void assemble_sized_builtin ();
+  bool
+  process_impl_block (HirId id, HIR::ImplBlock *impl,
+		      std::vector<std::pair<HIR::TypePath *, HIR::ImplBlock *>>
+			&possible_trait_paths);
+  void assemble_marker_builtins ();
   void add_trait_bound (HIR::Trait *trait);
   void assemble_builtin_candidate (LangItem::Kind item);
 
 private:
-  TypeBoundsProbe (const TyTy::BaseType *receiver);
+  TypeBoundsProbe (TyTy::BaseType *receiver);
 
-  const TyTy::BaseType *receiver;
+  TyTy::BaseType *receiver;
   std::vector<std::pair<TraitReference *, HIR::ImplBlock *>> trait_references;
 };
 

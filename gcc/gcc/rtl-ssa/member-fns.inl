@@ -1,5 +1,5 @@
 // Implementation of public inline member functions for RTL SSA     -*- C++ -*-
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -476,6 +476,36 @@ def_lookup::matching_set_or_first_def_of_next_group () const
   if (set_info *set = matching_set ())
     return set;
   return first_def_of_next_group ();
+}
+
+inline use_info *
+use_lookup::prev_use () const
+{
+  return !use || comparison > 0 ? use : use->prev_use ();
+}
+
+inline use_info *
+use_lookup::next_use () const
+{
+  return !use || comparison < 0 ? use : use->next_nondebug_insn_use ();
+}
+
+inline use_info *
+use_lookup::matching_use () const
+{
+  return comparison == 0 ? use : nullptr;
+}
+
+inline use_info *
+use_lookup::matching_or_prev_use () const
+{
+  return comparison == 0 ? use : prev_use ();
+}
+
+inline use_info *
+use_lookup::matching_or_next_use () const
+{
+  return comparison == 0 ? use : next_use ();
 }
 
 inline insn_note::insn_note (insn_note_kind kind)

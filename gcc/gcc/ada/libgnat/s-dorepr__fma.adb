@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---            Copyright (C) 2021-2025, Free Software Foundation, Inc.       --
+--            Copyright (C) 2021-2026, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -78,7 +78,7 @@ package body Product is
       E : Num;
 
    begin
-      if Is_Infinity (P) or else Is_Zero (P) then
+      if Is_Infinity_Or_NaN (P) or else Is_Zero (P) then
          return (P, 0.0);
 
       else

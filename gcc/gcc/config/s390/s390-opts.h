@@ -1,5 +1,5 @@
 /* Definitions for option handling for IBM S/390.
-   Copyright (C) 1999-2025 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -52,5 +52,13 @@ enum indirect_branch {
   indirect_branch_thunk,
   indirect_branch_thunk_inline,
   indirect_branch_thunk_extern
+};
+
+
+/* Where to get the canary for the stack protector.  */
+enum stack_protector_guard
+{
+  SP_TLS,       /* per-thread canary in TLS block */
+  SP_GLOBAL     /* global canary */
 };
 #endif

@@ -43,11 +43,30 @@
 	.endm
 
 	.text
-	.irp op, fabs, fneg, fsqrt, frintn, frintp, frintm, frintz
+	.irp op, fabs, fneg, fsqrt
 	sdp1src \op
 	.endr
 
-	.irp op, frinta, frintx, frinti
+	fcvt s0, h0
+	fcvt s31, h0
+	fcvt s0, h31
+	fcvt d0, h0
+	fcvt d31, h0
+	fcvt d0, h31
+	fcvt h0, s0
+	fcvt h31, s0
+	fcvt h0, s31
+	fcvt d0, s0
+	fcvt d31, s0
+	fcvt d0, s31
+	fcvt h0, d0
+	fcvt h31, d0
+	fcvt h0, d31
+	fcvt s0, d0
+	fcvt s31, d0
+	fcvt s0, d31
+
+	.irp op, frintn, frintp, frintm, frintz, frinta, frintx, frinti
 	sdp1src \op
 	.endr
 
@@ -125,6 +144,11 @@
 
 	.text
 	.irp op, fcvtps, fcvtpu, fcvtms, fcvtmu
+	scvt_fp2int \op
+	.endr
+
+	.text
+	.irp op, fcvtzs, fcvtzu
 	scvt_fp2int \op
 	.endr
 

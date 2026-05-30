@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2025 Free Software Foundation, Inc.
+# Copyright (C) 2017-2026 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -85,4 +85,10 @@ GCC_9.0.0 {
   __gnu_gtdf2
   __gnu_eqsf2
   __gnu_eqdf2
+}
+
+%inherit GCC_16.0.0 GCC_9.0.0
+GCC_16.0.0 {
+  __pruabi_softmpyi
+  __pruabi_softmpyll
 }

@@ -1,5 +1,5 @@
 /* Tree inlining.
-   Copyright (C) 2001-2025 Free Software Foundation, Inc.
+   Copyright (C) 2001-2026 Free Software Foundation, Inc.
    Contributed by Alexandre Oliva <aoliva@redhat.com>
 
 This file is part of GCC.
@@ -986,6 +986,30 @@ is_parm (tree decl)
   return (TREE_CODE (decl) == PARM_DECL);
 }
 
+/* Copy the TREE_THIS_NOTRAP flag from OLD to T if it is appropriate to do so.
+   T and OLD must be both either INDIRECT_REF or MEM_REF.  */
+
+static void
+maybe_copy_this_notrap (copy_body_data *id, tree t, tree old)
+{
+  gcc_assert (TREE_CODE (t) == TREE_CODE (old));
+
+  /* We cannot blindly propagate the TREE_THIS_NOTRAP flag if we have remapped
+     a parameter as the property might be valid only for the parameter itself,
+     typically when it is passed by reference.  But we propagate the flag when
+     this is the dereference of an entire object done in a type that has self-
+     referential size, to avoid the static size check in tree_could_trap_p.  */
+  if (TREE_THIS_NOTRAP (old)
+      && (!is_parm (TREE_OPERAND (old, 0))
+	  || (!id->transform_parameter && is_parm (TREE_OPERAND (t, 0)))
+	  || ((TREE_CODE (t) == INDIRECT_REF
+	       || integer_zerop (TREE_OPERAND (t, 1)))
+	      && TREE_CODE (TREE_OPERAND (t, 0)) == ADDR_EXPR
+	      && DECL_P (TREE_OPERAND (TREE_OPERAND (t, 0), 0))
+	      && type_contains_placeholder_p (TREE_TYPE (t)))))
+    TREE_THIS_NOTRAP (t) = 1;
+}
+
 /* Remap the dependence CLIQUE from the source to the destination function
    as specified in ID.  */
 
@@ -1118,13 +1142,7 @@ remap_gimple_op_r (tree *tp, int *walk_subtrees, void *data)
 	        = remap_dependence_clique (id, MR_DEPENDENCE_CLIQUE (old));
 	      MR_DEPENDENCE_BASE (*tp) = MR_DEPENDENCE_BASE (old);
 	    }
-	  /* We cannot propagate the TREE_THIS_NOTRAP flag if we have
-	     remapped a parameter as the property might be valid only
-	     for the parameter itself.  */
-	  if (TREE_THIS_NOTRAP (old)
-	      && (!is_parm (TREE_OPERAND (old, 0))
-		  || (!id->transform_parameter && is_parm (ptr))))
-	    TREE_THIS_NOTRAP (*tp) = 1;
+	  maybe_copy_this_notrap (id, *tp, old);
 	  REF_REVERSE_STORAGE_ORDER (*tp) = REF_REVERSE_STORAGE_ORDER (old);
 	  *walk_subtrees = 0;
 	  return NULL;
@@ -1352,13 +1370,7 @@ copy_tree_body_r (tree *tp, int *walk_subtrees, void *data)
 		      TREE_THIS_VOLATILE (*tp) = TREE_THIS_VOLATILE (old);
 		      TREE_SIDE_EFFECTS (*tp) = TREE_SIDE_EFFECTS (old);
 		      TREE_READONLY (*tp) = TREE_READONLY (old);
-		      /* We cannot propagate the TREE_THIS_NOTRAP flag if we
-			 have remapped a parameter as the property might be
-			 valid only for the parameter itself.  */
-		      if (TREE_THIS_NOTRAP (old)
-			  && (!is_parm (TREE_OPERAND (old, 0))
-			      || (!id->transform_parameter && is_parm (ptr))))
-		        TREE_THIS_NOTRAP (*tp) = 1;
+		      maybe_copy_this_notrap (id, *tp, old);
 		    }
 		}
 	      *walk_subtrees = 0;
@@ -1384,13 +1396,7 @@ copy_tree_body_r (tree *tp, int *walk_subtrees, void *data)
 		= remap_dependence_clique (id, MR_DEPENDENCE_CLIQUE (old));
 	      MR_DEPENDENCE_BASE (*tp) = MR_DEPENDENCE_BASE (old);
 	    }
-	  /* We cannot propagate the TREE_THIS_NOTRAP flag if we have
-	     remapped a parameter as the property might be valid only
-	     for the parameter itself.  */
-	  if (TREE_THIS_NOTRAP (old)
-	      && (!is_parm (TREE_OPERAND (old, 0))
-		  || (!id->transform_parameter && is_parm (ptr))))
-	    TREE_THIS_NOTRAP (*tp) = 1;
+	  maybe_copy_this_notrap (id, *tp, old);
 	  REF_REVERSE_STORAGE_ORDER (*tp) = REF_REVERSE_STORAGE_ORDER (old);
 	  *walk_subtrees = 0;
 	  return NULL;
@@ -1460,10 +1466,7 @@ copy_tree_body_r (tree *tp, int *walk_subtrees, void *data)
 		   || OMP_CLAUSE_CODE (*tp) == OMP_CLAUSE_DEPEND))
 	{
 	  tree t = OMP_CLAUSE_DECL (*tp);
-	  if (t
-	      && TREE_CODE (t) == TREE_LIST
-	      && TREE_PURPOSE (t)
-	      && TREE_CODE (TREE_PURPOSE (t)) == TREE_VEC)
+	  if (t && OMP_ITERATOR_DECL_P (t))
 	    {
 	      *walk_subtrees = 0;
 	      OMP_CLAUSE_DECL (*tp) = copy_node (t);
@@ -2239,7 +2242,7 @@ copy_bb (copy_body_data *id, basic_block bb,
 		}
 	      else if (nargs != 0)
 		{
-		  tree newlhs = create_tmp_reg_or_ssa_name (integer_type_node);
+		  tree newlhs = make_ssa_name (integer_type_node);
 		  count = build_int_cst (integer_type_node, nargs);
 		  new_stmt = gimple_build_assign (gimple_call_lhs (stmt),
 						  PLUS_EXPR, newlhs, count);
@@ -2355,6 +2358,19 @@ copy_bb (copy_body_data *id, basic_block bb,
 							 + indir_cnt);
 			  indirect->count
 			     = copy_basic_block->count.apply_probability (prob);
+			}
+		      /* If edge is a callback-carrying edge, copy all its
+			 attached edges as well.  */
+		      else if (edge->has_callback)
+			{
+			  edge
+			    = edge->clone (id->dst_node, call_stmt,
+					   gimple_uid (stmt), num, den, true);
+			  cgraph_edge *e;
+			  for (e = old_edge->first_callback_edge (); e;
+			       e = e->next_callback_edge ())
+			    edge = e->clone (id->dst_node, call_stmt,
+					     gimple_uid (stmt), num, den, true);
 			}
 		      else
 			{
@@ -2733,6 +2749,9 @@ copy_edges_for_bb (basic_block bb, profile_count num, profile_count den,
 	      make_single_succ_edge (copy_stmt_bb, abnormal_goto_dest,
 				     EDGE_ABNORMAL);
 	      gimple_call_set_ctrl_altering (copy_stmt, true);
+	      if (is_a <gcall *> (copy_stmt)
+		  && (gimple_call_flags (copy_stmt) & ECF_NORETURN))
+		fixup_noreturn_call (copy_stmt);
 	    }
 	}
 
@@ -2866,7 +2885,6 @@ initialize_cfun (tree new_fndecl, tree callee_fndecl, profile_count count)
   cfun->nonlocal_goto_save_area = src_cfun->nonlocal_goto_save_area;
   cfun->function_end_locus = src_cfun->function_end_locus;
   cfun->curr_properties = src_cfun->curr_properties;
-  cfun->last_verified = src_cfun->last_verified;
   cfun->va_list_gpr_size = src_cfun->va_list_gpr_size;
   cfun->va_list_fpr_size = src_cfun->va_list_fpr_size;
   cfun->has_nonlocal_label = src_cfun->has_nonlocal_label;
@@ -2889,11 +2907,9 @@ initialize_cfun (tree new_fndecl, tree callee_fndecl, profile_count count)
   profile_count::adjust_for_ipa_scaling (&num, &den);
 
   ENTRY_BLOCK_PTR_FOR_FN (cfun)->count =
-    ENTRY_BLOCK_PTR_FOR_FN (src_cfun)->count.apply_scale (count,
-				ENTRY_BLOCK_PTR_FOR_FN (src_cfun)->count);
+    ENTRY_BLOCK_PTR_FOR_FN (src_cfun)->count.apply_scale (num, den);
   EXIT_BLOCK_PTR_FOR_FN (cfun)->count =
-    EXIT_BLOCK_PTR_FOR_FN (src_cfun)->count.apply_scale (count,
-				ENTRY_BLOCK_PTR_FOR_FN (src_cfun)->count);
+    EXIT_BLOCK_PTR_FOR_FN (src_cfun)->count.apply_scale (num, den);
   if (src_cfun->eh)
     init_eh_for_function ();
 
@@ -3051,8 +3067,18 @@ redirect_all_calls (copy_body_data * id, basic_block bb)
 	    {
 	      if (!id->killed_new_ssa_names)
 		id->killed_new_ssa_names = new hash_set<tree> (16);
-	      cgraph_edge::redirect_call_stmt_to_callee (edge,
-		id->killed_new_ssa_names);
+	      cgraph_edge::redirect_call_stmt_to_callee (
+		edge, id->killed_new_ssa_names);
+	      if (edge->has_callback)
+		{
+		  /* When redirecting a carrying edge, we need to redirect its
+		     attached edges as well.  */
+		  cgraph_edge *cbe;
+		  for (cbe = edge->first_callback_edge (); cbe;
+		       cbe = cbe->next_callback_edge ())
+		    cgraph_edge::redirect_call_stmt_to_callee (
+		      cbe, id->killed_new_ssa_names);
+		}
 
 	      if (stmt == last && id->call_stmt && maybe_clean_eh_stmt (stmt))
 		gimple_purge_dead_eh_edges (bb);
@@ -3085,7 +3111,7 @@ copy_cfg_body (copy_body_data * id,
   /* Register specific tree functions.  */
   gimple_register_cfg_hooks ();
 
-  /* If we are inlining just region of the function, make sure to connect
+  /* If we are offlining region of the function, make sure to connect
      new entry to ENTRY_BLOCK_PTR_FOR_FN (cfun).  Since new entry can be
      part of loop, we must compute frequency and probability of
      ENTRY_BLOCK_PTR_FOR_FN (cfun) based on the frequencies and
@@ -3094,12 +3120,14 @@ copy_cfg_body (copy_body_data * id,
     {
       edge e;
       edge_iterator ei;
-      den = profile_count::zero ();
+      ENTRY_BLOCK_PTR_FOR_FN (cfun)->count = profile_count::zero ();
 
       FOR_EACH_EDGE (e, ei, new_entry->preds)
 	if (!e->src->aux)
-	  den += e->count ();
-      ENTRY_BLOCK_PTR_FOR_FN (cfun)->count = den;
+	  ENTRY_BLOCK_PTR_FOR_FN (cfun)->count += e->count ();
+      /* Do not scale - the profile of offlined region should
+	 remain unchanged.  */
+      num = den = profile_count::one ();
     }
 
   profile_count::adjust_for_ipa_scaling (&num, &den);
@@ -3344,7 +3372,9 @@ copy_debug_stmts (copy_body_data *id)
     return;
 
   for (gdebug *stmt : id->debug_stmts)
-    copy_debug_stmt (stmt, id);
+    /* But avoid re-processing debug stmts that have been elided.  */
+    if (gimple_bb (stmt))
+      copy_debug_stmt (stmt, id);
 
   id->debug_stmts.release ();
 }
@@ -4847,7 +4877,9 @@ expand_call_inline (basic_block bb, gimple *stmt, copy_body_data *id,
     goto egress;
 
   cg_edge = id->dst_node->get_edge (stmt);
-  gcc_checking_assert (cg_edge);
+  /* Edge should exist and speculations should be resolved at this
+     stage.  */
+  gcc_checking_assert (cg_edge && !cg_edge->speculative);
   /* First, see if we can figure out what function is being called.
      If we cannot, then there is no hope of inlining the function.  */
   if (cg_edge->indirect_unknown_callee)
@@ -5015,6 +5047,9 @@ expand_call_inline (basic_block bb, gimple *stmt, copy_body_data *id,
 	loc = LOCATION_LOCUS (DECL_SOURCE_LOCATION (fn));
       if (loc == UNKNOWN_LOCATION)
 	loc = BUILTINS_LOCATION;
+      if (has_discriminator (gimple_location (stmt)))
+	loc = location_with_discriminator
+		(loc, get_discriminator_from_loc (gimple_location (stmt)));
       id->block = make_node (BLOCK);
       BLOCK_ABSTRACT_ORIGIN (id->block) = DECL_ORIGIN (fn);
       BLOCK_SOURCE_LOCATION (id->block) = loc;
@@ -5303,7 +5338,20 @@ expand_call_inline (basic_block bb, gimple *stmt, copy_body_data *id,
   if (use_retvar && gimple_call_lhs (stmt))
     {
       gimple *old_stmt = stmt;
-      stmt = gimple_build_assign (gimple_call_lhs (stmt), use_retvar);
+      tree lhs = gimple_call_lhs (stmt);
+      if (!is_gimple_reg (lhs)
+	  && !is_gimple_reg (use_retvar)
+	  && is_gimple_reg_type (TREE_TYPE (lhs)))
+	{
+	  /* If both lhs and use_retvar aren't gimple regs, yet have
+	     gimple reg type, copy through a temporary SSA_NAME.  */
+	  gimple *g = gimple_build_assign (make_ssa_name (TREE_TYPE (lhs)),
+					   use_retvar);
+	  gimple_set_location (g, gimple_location (old_stmt));
+	  gsi_insert_before (&stmt_gsi, g, GSI_SAME_STMT);
+	  use_retvar = gimple_assign_lhs (g);
+	}
+      stmt = gimple_build_assign (lhs, use_retvar);
       gimple_set_location (stmt, gimple_location (old_stmt));
       gsi_replace (&stmt_gsi, stmt, false);
       maybe_clean_or_replace_eh_stmt (old_stmt, stmt);
@@ -5862,7 +5910,7 @@ replace_locals_op (tree *tp, int *walk_subtrees, void *data)
       /* Before the omplower pass completes, some OMP clauses can contain
 	 sequences that are neither copied by gimple_seq_copy nor walked by
 	 walk_gimple_seq.  To make copy_gimple_seq_and_replace_locals work even
-	 in those situations, we have to copy and process them explicitely.  */
+	 in those situations, we have to copy and process them explicitly.  */
 
       if (OMP_CLAUSE_CODE (expr) == OMP_CLAUSE_LASTPRIVATE)
 	{
@@ -6006,24 +6054,6 @@ copy_gimple_seq_and_replace_locals (gimple_seq seq)
     }
 
   return copy;
-}
-
-
-/* Allow someone to determine if SEARCH is a child of TOP from gdb.  */
-
-static tree
-debug_find_tree_1 (tree *tp, int *walk_subtrees ATTRIBUTE_UNUSED, void *data)
-{
-  if (*tp == data)
-    return (tree) data;
-  else
-    return NULL;
-}
-
-DEBUG_FUNCTION bool
-debug_find_tree (tree top, tree search)
-{
-  return walk_tree_without_duplicates (&top, debug_find_tree_1, search) != 0;
 }
 
 

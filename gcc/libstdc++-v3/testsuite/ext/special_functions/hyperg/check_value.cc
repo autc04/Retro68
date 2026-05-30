@@ -3,7 +3,7 @@
 // { dg-additional-options "-ffloat-store" { target { m68*-*-* || ia32 } } }
 // { dg-skip-if "no extensions in strict dialects" { *-*-* } { "-std=c++*" } }
 //
-// Copyright (C) 2016-2025 Free Software Foundation, Inc.
+// Copyright (C) 2016-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -12293,7 +12293,6 @@ template<typename Ret, unsigned int Num>
   void
   test(const testcase_hyperg<Ret> (&data)[Num], Ret toler)
   {
-    bool test __attribute__((unused)) = true;
     const Ret eps = std::numeric_limits<Ret>::epsilon();
     Ret max_abs_diff = -Ret(1);
     Ret max_abs_frac = -Ret(1);

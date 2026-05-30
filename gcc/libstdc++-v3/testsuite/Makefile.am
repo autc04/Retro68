@@ -1,6 +1,6 @@
 ## Makefile for the testsuite subdirectory of the GNU C++ Standard library.
 ##
-## Copyright (C) 2001-2025 Free Software Foundation, Inc.
+## Copyright (C) 2001-2026 Free Software Foundation, Inc.
 ##
 ## This file is part of the libstdc++ version 3 distribution.
 ## Process this file with automake to produce Makefile.in.
@@ -84,13 +84,7 @@ baseline_symbols:
 
 new-abi-baseline:
 	-@$(mkinstalldirs) ${baseline_dir}/${baseline_subdir}
-	-@(output=${baseline_dir}/${baseline_subdir}/baseline_symbols.txt; \
-	  if test -f $${output}; then \
-	    output=$${output}.new; \
-	    t=`echo $${output} | sed 's=.*config/abi/=='`; \
-	    echo "Baseline file already exists, writing to $${t} instead."; \
-	  fi; \
-	  ${extract_symvers} ../src/.libs/libstdc++.so $${output})
+	-@${extract_symvers} ../src/.libs/libstdc++.so ${baseline_dir}/${baseline_subdir}/baseline_symbols.txt
 
 %/site.exp: site.exp
 	-@test -d $* || mkdir $*
@@ -178,7 +172,7 @@ check-compile: testsuite_files ${compile_script}
 
 # Runs the testsuite/performance tests.
 # Some of these tests create large (~75MB) files, allocate huge
-# ammounts of memory, or otherwise tie up machine resources. Thus,
+# amounts of memory, or otherwise tie up machine resources. Thus,
 # running this is off by default.
 # XXX Need to add dependency on libtestc++.a
 check_performance_script=${glibcxx_srcdir}/scripts/check_performance
@@ -247,7 +241,7 @@ check-performance-parallel: testsuite_files_performance ${performance_script}
 # By adding these files here, automake will remove them for 'make clean'
 CLEANFILES = *.txt *.tst *.exe core* filebuf_* tmp* ostream_* *.log *.sum \
 	     testsuite_* site.exp abi_check baseline_symbols *TEST* *.dat \
-	     *.ii *.s *.o *.cc *.x *.a *.so *.xml *.raw *.out *.gdb
+	     *.ii *.s *.o *.cc *.x *.a *.so *.xml *.raw *.out *.gdb gcm.cache
 
 # To remove directories.
 clean-local:

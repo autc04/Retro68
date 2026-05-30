@@ -1,5 +1,5 @@
 ;; Predicate definitions for HP PA-RISC.
-;; Copyright (C) 2005-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2026 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -472,16 +472,6 @@
   if (! MEM_P (op))
     return false;
 
-  /* Until problems with management of the REG_POINTER flag are resolved,
-     we need to delay creating move insns with unscaled indexed addresses
-     until CSE is not expected.  */
-  if (!TARGET_NO_SPACE_REGS
-      && !cse_not_expected
-      && GET_CODE (XEXP (op, 0)) == PLUS
-      && REG_P (XEXP (XEXP (op, 0), 0))
-      && REG_P (XEXP (XEXP (op, 0), 1)))
-    return false;
-
   return memory_address_p (mode, XEXP (op, 0));
 })
 
@@ -494,16 +484,6 @@
     op = SUBREG_REG (op);
 
   if (! MEM_P (op))
-    return false;
-
-  /* Until problems with management of the REG_POINTER flag are resolved,
-     we need to delay creating move insns with unscaled indexed addresses
-     until CSE is not expected.  */
-  if (!TARGET_NO_SPACE_REGS
-      && !cse_not_expected
-      && GET_CODE (XEXP (op, 0)) == PLUS
-      && REG_P (XEXP (XEXP (op, 0), 0))
-      && REG_P (XEXP (XEXP (op, 0), 1)))
     return false;
 
   return (memory_address_p (mode, XEXP (op, 0)));

@@ -4,7 +4,7 @@ mapp-regs
 UrlSuffix(gcc/V850-Options.html#index-mapp-regs-1)
 
 mbig-switch
-UrlSuffix(gcc/V850-Options.html#index-mbig-switch-1)
+UrlSuffix(gcc/V850-Options.html#index-mbig-switch)
 
 ; skipping UrlSuffix for 'mdebug' due to finding no URLs
 
@@ -18,7 +18,7 @@ mghs
 UrlSuffix(gcc/V850-Options.html#index-mghs)
 
 mlong-calls
-UrlSuffix(gcc/V850-Options.html#index-mlong-calls-7)
+UrlSuffix(gcc/V850-Options.html#index-mlong-calls-8)
 
 mprolog-function
 UrlSuffix(gcc/V850-Options.html#index-mprolog-function)
@@ -26,13 +26,20 @@ UrlSuffix(gcc/V850-Options.html#index-mprolog-function)
 msda=
 UrlSuffix(gcc/V850-Options.html#index-msda)
 
+msmall-sld
+UrlSuffix(gcc/V850-Options.html#index-msmall-sld)
+
 mspace
 UrlSuffix(gcc/V850-Options.html#index-mspace)
 
 mtda=
 UrlSuffix(gcc/V850-Options.html#index-mtda)
 
-; skipping UrlSuffix for 'mno-strict-align' due to finding no URLs
+mno-strict-align
+UrlSuffix(gcc/V850-Options.html#index-mno-strict-align-6)
+
+mjump-tables-in-data-section
+UrlSuffix(gcc/V850-Options.html#index-mjump-tables-in-data-section)
 
 mv850
 UrlSuffix(gcc/V850-Options.html#index-mv850)
@@ -65,16 +72,16 @@ mzda=
 UrlSuffix(gcc/V850-Options.html#index-mzda)
 
 mrelax
-UrlSuffix(gcc/V850-Options.html#index-mrelax-9)
+UrlSuffix(gcc/V850-Options.html#index-mrelax-10)
 
 mlong-jumps
 UrlSuffix(gcc/V850-Options.html#index-mlong-jumps)
 
 msoft-float
-UrlSuffix(gcc/V850-Options.html#index-msoft-float-14)
+UrlSuffix(gcc/V850-Options.html#index-msoft-float-13)
 
 mhard-float
-UrlSuffix(gcc/V850-Options.html#index-mhard-float-9)
+UrlSuffix(gcc/V850-Options.html#index-mhard-float-8)
 
 mrh850-abi
 UrlSuffix(gcc/V850-Options.html#index-mrh850-abi)

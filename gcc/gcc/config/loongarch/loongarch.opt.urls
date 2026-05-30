@@ -4,7 +4,7 @@ mfpu=
 UrlSuffix(gcc/LoongArch-Options.html#index-mfpu-2)
 
 msoft-float
-UrlSuffix(gcc/LoongArch-Options.html#index-msoft-float-5)
+UrlSuffix(gcc/LoongArch-Options.html#index-msoft-float-4)
 
 msingle-float
 UrlSuffix(gcc/LoongArch-Options.html#index-msingle-float)
@@ -15,11 +15,17 @@ UrlSuffix(gcc/LoongArch-Options.html#index-mdouble-float-1)
 msimd=
 UrlSuffix(gcc/LoongArch-Options.html#index-msimd-1)
 
+mlsx
+UrlSuffix(gcc/LoongArch-Options.html#index-mlsx)
+
+mlasx
+UrlSuffix(gcc/LoongArch-Options.html#index-mlasx)
+
 march=
 UrlSuffix(gcc/LoongArch-Options.html#index-march-7)
 
 mtune=
-UrlSuffix(gcc/LoongArch-Options.html#index-mtune-8)
+UrlSuffix(gcc/LoongArch-Options.html#index-mtune-7)
 
 mabi=
 UrlSuffix(gcc/LoongArch-Options.html#index-mabi-2)
@@ -47,6 +53,9 @@ UrlSuffix(gcc/LoongArch-Options.html#index-mstrict-align-1)
 
 mmax-inline-memcpy-size=
 UrlSuffix(gcc/LoongArch-Options.html#index-mmax-inline-memcpy-size)
+
+mbreak-code=
+UrlSuffix(gcc/LoongArch-Options.html#index-mbreak-code)
 
 mexplicit-relocs=
 UrlSuffix(gcc/LoongArch-Options.html#index-mexplicit-relocs-1)
@@ -89,6 +98,9 @@ UrlSuffix(gcc/LoongArch-Options.html#index-mlam-bh)
 
 mlamcas
 UrlSuffix(gcc/LoongArch-Options.html#index-mlamcas)
+
+mscq
+UrlSuffix(gcc/LoongArch-Options.html#index-mscq)
 
 mld-seq-sa
 UrlSuffix(gcc/LoongArch-Options.html#index-mld-seq-sa)

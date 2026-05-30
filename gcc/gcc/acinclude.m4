@@ -1,4 +1,4 @@
-dnl Copyright (C) 2005-2025 Free Software Foundation, Inc.
+dnl Copyright (C) 2005-2026 Free Software Foundation, Inc.
 dnl
 dnl This file is part of GCC.
 dnl
@@ -307,7 +307,7 @@ int (*fp) (void) __attribute__ ((section (".init_array"))) = foo;
 	     && test $in_tree_ld_is_elf = yes; then
 	    gcc_cv_initfini_array=yes
 	  fi
-	elif test x$gcc_cv_as != x -a x$gcc_cv_ld != x -a x$gcc_cv_objdump != x ; then
+	elif test x"$gcc_cv_as" != x -a x"$gcc_cv_ld" != x -a x"$gcc_cv_objdump" != x ; then
 	  case $target:$gas in
 	    *:yes)
 	      sh_flags='"a"'
@@ -464,24 +464,69 @@ dnl # Used by gcc_GAS_CHECK_FEATURE
 dnl #
 AC_DEFUN([gcc_GAS_FLAGS],
 [AC_CACHE_CHECK([assembler flags], gcc_cv_as_flags,
-[ case "$target" in
-  i[[34567]]86-*-linux*)
-    dnl Override the default, which may be incompatible.
-    gcc_cv_as_flags=--32
+[ case "$target:$gas" in
+  *-*-darwin*:*)
+    dnl Darwin with the native assembler uses -arch i386/x86_64/ppc/ppc64.
+    dnl
+    dnl Old cctools versions of the Darwin assembler identify as "GNU
+    dnl assembler version 1.38", but still accept the same options as later
+    dnl clang-based ones, so treat them all the same regardless.
+    case "$target" in
+      i?86-*-*)
+	gcc_cv_as_flags="-arch i386"
+	;;
+      powerpc64*-*-*)
+	gcc_cv_as_flags="-arch ppc64"
+	;;
+      powerpc*-*-*)
+	gcc_cv_as_flags="-arch ppc"
+	;;
+      x86_64-*-*)
+	gcc_cv_as_flags="-arch x86_64"
+	;;
+    esac
+    case "$target" in
+      i?86-*-* | x86_64-*-*)
+	as_32_opt="-arch i386"
+	as_64_opt="-arch x86_64"
+	;;
+    esac
     ;;
-  x86_64-*-linux-gnux32)
-    dnl Override the default, which may be incompatible.
-    gcc_cv_as_flags=--x32
+  *-*-solaris2*:no)
+    dnl Solaris with the native assembler uses -m32/-m64 consistently.
+    case "$target" in
+      i?86-*-* | sparc-*-*)
+	gcc_cv_as_flags=-m32
+	;;
+      x86_64-*-* | sparcv9-*-* | sparc64-*-*)
+	gcc_cv_as_flags=-m64
+	;;
+    esac
+    as_32_opt=-m32
+    as_64_opt=-m64
     ;;
-  x86_64-*-linux*)
-    dnl Override the default, which may be incompatible.
-    gcc_cv_as_flags=--64
+  i?86-*-*:* | x86_64-*-*:* | sparc*-*-*:*)
+    dnl Otherwise x86 and SPARC use GNU assembler options --32/--64/--x32.
+    case "$target" in
+      i?86-*-* | sparc-*-*)
+	gcc_cv_as_flags=--32
+	;;
+      x86_64-*-linux-gnux32*)
+	gcc_cv_as_flags=--x32
+	;;
+      x86_64-*-* | sparcv9-*-* | sparc64-*-*)
+	gcc_cv_as_flags=--64
+	;;
+    esac
+    as_32_opt=--32
+    as_64_opt=--64
     ;;
-  powerpc*-*-darwin*)
-    dnl Always pass -arch ppc to assembler.
-    gcc_cv_as_flags="-arch ppc"
+  amdgcn*:*)
+    dnl Currently, only the llvm-mc assembler is supported.
+    dnl Add flags to ensure an amdgcn ELF file is written.
+    gcc_cv_as_flags="--filetype=obj -triple=amdgcn--amdhsa"
     ;;
-  *)
+  *:*)
     gcc_cv_as_flags=" "
     ;;
   esac])
@@ -500,7 +545,7 @@ AC_DEFUN([gcc_GAS_CHECK_FEATURE],
 [AC_REQUIRE([gcc_GAS_FLAGS])dnl
 AC_CACHE_CHECK([assembler for $1], [$2],
  [[$2]=no
-  if test x$gcc_cv_as != x; then
+  if test x"$gcc_cv_as" != x; then
     AS_ECHO([ifelse(m4_substr([$4],0,1),[$], "[$4]", '[$4]')]) > conftest.s
     if AC_TRY_COMMAND([$gcc_cv_as $gcc_cv_as_flags $3 -o conftest.o conftest.s >&AS_MESSAGE_LOG_FD])
     then

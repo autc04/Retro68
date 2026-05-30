@@ -1,5 +1,5 @@
 /* ==> Do not modify this file!!  It is created automatically
-   from /home/wolfgang/Projects/Retro68/binutils/gprof/bsd_callg_bl.m using the gen-c-prog.awk script.  <== */
+   from bsd_callg_bl.m using the gen-c-prog.awk script.  <== */
 
 #include <stdio.h>
 #include "ansidecl.h"
@@ -116,7 +116,7 @@ bsd_callg_blurb (FILE *file)
   fputs ("          the members of the cycle, and their contributions\n", file);
   fputs ("          to the time and call counts of the cycle.\n", file);
   fputs ("\n", file);
-  fputs ("Copyright (C) 2012-2022 Free Software Foundation, Inc.\n", file);
+  fputs ("Copyright (C) 2012-2026 Free Software Foundation, Inc.\n", file);
   fputs ("\n", file);
   fputs ("Copying and distribution of this file, with or without modification,\n", file);
   fputs ("are permitted in any medium without royalty provided the copyright\n", file);

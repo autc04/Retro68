@@ -1,5 +1,5 @@
 # Linker script for libgdiagnostics.so
-#   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+#   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 #   Contributed by David Malcolm <dmalcolm@redhat.com>.
 #
 # This file is part of GCC.
@@ -69,7 +69,83 @@ LIBGDIAGNOSTICS_ABI_0
     diagnostic_finish;
     diagnostic_finish_va;
 
+
     diagnostic_physical_location_get_file;
 
   local: *;
 };
+
+# Add accessors for diagnostic_logical_location.
+LIBGDIAGNOSTICS_ABI_1 {
+  global:
+    diagnostic_logical_location_get_kind;
+    diagnostic_logical_location_get_parent;
+    diagnostic_logical_location_get_short_name;
+    diagnostic_logical_location_get_fully_qualified_name;
+    diagnostic_logical_location_get_decorated_name;
+} LIBGDIAGNOSTICS_ABI_0;
+
+# Add hooks needed for HTML output from sarif-replay
+LIBGDIAGNOSTICS_ABI_2 {
+  global:
+    diagnostic_manager_add_sink_from_spec;
+    diagnostic_manager_set_analysis_target;
+} LIBGDIAGNOSTICS_ABI_1;
+
+# Add hooks needed for diagnostic_graph support.
+LIBGDIAGNOSTICS_ABI_3 {
+  global:
+    diagnostic_manager_new_graph;
+    diagnostic_manager_take_global_graph;
+    diagnostic_take_graph;
+    diagnostic_graph_release;
+    diagnostic_graph_set_description;
+    diagnostic_graph_add_node;
+    diagnostic_graph_add_edge;
+    diagnostic_graph_get_node_by_id;
+    diagnostic_graph_get_edge_by_id;
+    diagnostic_node_set_label;
+    diagnostic_node_set_location;
+    diagnostic_node_set_logical_location;
+
+    # Private hooks used by sarif-replay
+    private_diagnostic_graph_set_property_bag;
+    private_diagnostic_node_set_property_bag;
+    private_diagnostic_edge_set_property_bag;
+} LIBGDIAGNOSTICS_ABI_2;
+
+# Add diagnostic_message_buffer
+LIBGDIAGNOSTICS_ABI_4 {
+  global:
+    diagnostic_message_buffer_new;
+    diagnostic_message_buffer_release;
+    diagnostic_message_buffer_append_str;
+    diagnostic_message_buffer_append_text;
+    diagnostic_message_buffer_append_byte;
+    diagnostic_message_buffer_append_printf;
+    diagnostic_message_buffer_append_event_id;
+    diagnostic_message_buffer_begin_url;
+    diagnostic_message_buffer_end_url;
+    diagnostic_message_buffer_begin_quote;
+    diagnostic_message_buffer_end_quote;
+    diagnostic_message_buffer_begin_color;
+    diagnostic_message_buffer_end_color;
+    diagnostic_message_buffer_dump;
+    diagnostic_finish_via_msg_buf;
+    diagnostic_add_location_with_label_via_msg_buf;
+    diagnostic_execution_path_add_event_via_msg_buf;
+    diagnostic_graph_set_description_via_msg_buf;
+    diagnostic_graph_add_edge_via_msg_buf;
+    diagnostic_node_set_label_via_msg_buf;
+
+    # Private hook used by sarif-replay
+    private_diagnostic_execution_path_add_event_3;
+} LIBGDIAGNOSTICS_ABI_3;
+
+LIBGDIAGNOSTICS_ABI_5 {
+  global:
+    diagnostic_manager_set_debug_physical_locations;
+
+    # Private hook used by sarif-replay
+    private_diagnostic_set_nesting_level;
+} LIBGDIAGNOSTICS_ABI_4;

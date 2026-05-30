@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2025 Free Software Foundation, Inc.
+# Copyright (C) 2000-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -153,6 +153,53 @@ proc hidden-scan-for { symbol } {
 
 }
 
+proc weak-scan-for { symbol } {
+
+    set objformat [gcc_target_object_format]
+
+    switch $objformat {
+        default  { return "weak\[^ \t\]*\[ \t\]_?$symbol" }
+    }
+}
+
+# Check that a symbol is defined as a weak symbol in the .s file
+# produced by the compiler.
+
+proc scan-weak { args } {
+    set testcase [testname-for-summary]
+    # The name might include a list of options; extract the file name.
+    set filename [lindex $testcase 0]
+    set output_file "[file rootname [file tail $filename]].s"
+
+    if { [llength $args] > 0 } {
+	set symbol [lindex $args 0]
+
+	set weak_scan [weak-scan-for $symbol]
+
+	set args [lreplace $args 0 0 "$weak_scan"]
+    }
+
+    dg-scan "scan-weak" 1 $testcase $output_file $args
+}
+
+# Check that a symbol is not defined as a weak symbol in the .s file
+# produced by the compiler.
+
+proc scan-not-weak { args } {
+    set testcase [testname-for-summary]
+    # The name might include a list of options; extract the file name.
+    set filename [lindex $testcase 0]
+    set output_file "[file rootname [file tail $filename]].s"
+
+    if { [llength $args] > 0 } {
+	set symbol [lindex $args 0]
+	set weak_scan [weak-scan-for $symbol]
+
+	set args [lreplace $args 0 0 "$weak_scan"]
+    }
+
+    dg-scan "scan-not-weak" 0 $testcase $output_file $args
+}
 
 # Check that a symbol is defined as a hidden symbol in the .s file
 # produced by the compiler.
@@ -885,6 +932,8 @@ proc configure_check-function-bodies { config } {
 	set up_config(end) {^\}$}
     } elseif { [istarget *-*-darwin*] } {
 	set up_config(end) {^LFE[0-9]+}
+    } elseif { [istarget aarch64*-*-mingw32] } {
+	set up_config(end) {seh_endproc}
     } else {
 	set up_config(end) {^\s*\.size}
     }
@@ -896,6 +945,10 @@ proc configure_check-function-bodies { config } {
 	set up_config(fluff) {^\s*(?://)}
     } elseif { [istarget *-*-darwin*] } {
 	set up_config(fluff) {^\s*(?:\.|//|@)|^L[0-9ABCESV]}
+    } elseif { [istarget s390*-*-*] } {
+	# Additionally to the defaults skip lines beginning with a # resulting
+	# from inline asm.
+	set up_config(fluff) {^\s*(?:\.|//|@|$|#)}
     } else {
 	# Skip lines beginning with labels ('.L[...]:') or other directives
 	# ('.align', '.cfi_startproc', '.quad [...]', '.text', etc.), '//' or
@@ -975,10 +1028,38 @@ proc check_function_body { functions name body_regexp } {
     if { ![info exists up_functions($name)] } {
 	return 0
     }
-    set fn_res [regexp "^$body_regexp\$" $up_functions($name)]
+    set body $up_functions($name)
+    set fn_res [regexp "^$body_regexp\$" $body]
     if { !$fn_res } {
-      verbose -log "body: $body_regexp"
-      verbose -log "against: $up_functions($name)"
+      # Find the longest initial set of lines in body_regexp that matches the
+      # function.  We can't just use a binary search here, because adding more
+      # lines to a broken regexp might make it start to match.
+      # Unfortunately this makes runtime quadratic in the number of lines, but
+      # failures in large check-function-body regexps are hopefully rare.
+      set ok_index [string length $body_regexp]
+      incr ok_index -1
+      while { $ok_index >= 0 } {
+	set short_regexp [string range $body_regexp 0 $ok_index]
+	set match_found 0
+	# Not all initial sets of lines are valid.  Ignore any broken regexps.
+	if { ![catch { regexp "^$short_regexp" $body } res] && $res } {
+	  break
+	}
+	set ok_index [string last "\n" $body_regexp $ok_index-1]
+      }
+      set head [string range $body_regexp 0 $ok_index]
+      set tail [string range $body_regexp $ok_index+1 end]
+      if { $ok_index == -1 } {
+	verbose -log "no initial matching lines"
+      } else {
+	verbose -log "initial matched regexp:\n$head"
+      }
+      if { [string length $tail] == 0 } {
+	verbose -log "excess lines found after matching regexp\n"
+      } else {
+	verbose -log "mismatch in remaining regexp:\n$tail"
+      }
+      verbose -log "compared against output:\n$body"
     }
     return $fn_res
 }
@@ -1108,6 +1189,8 @@ proc check-function-bodies { args } {
 	    } elseif { [string equal $line "..."] } {
 		append function_regexp ".*"
 	    } elseif { [regexp {^\.L} $line] } {
+		append function_regexp $line "\n"
+	    } elseif { [regexp {^[0-9]+:} $line] } {
 		append function_regexp $line "\n"
 	    } else {
 		append function_regexp $config(line_prefix) $line "\n"

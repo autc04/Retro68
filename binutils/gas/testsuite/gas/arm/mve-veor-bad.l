@@ -1,10 +1,10 @@
 [^:]*: Assembler messages:
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:10: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:12: Error: syntax error -- `veoreq q0,q1,q2'
 [^:]*:13: Error: syntax error -- `veoreq q0,q1,q2'
 [^:]*:15: Error: syntax error -- `veoreq q0,q1,q2'

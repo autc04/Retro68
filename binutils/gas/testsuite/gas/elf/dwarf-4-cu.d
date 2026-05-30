@@ -3,9 +3,9 @@
 #readelf: -wi
 
 #...
-  Compilation Unit @ offset 0x0:
+  Compilation Unit @ offset (0x)?0:
    Length:        0x.*
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  .
 #pass

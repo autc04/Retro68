@@ -2,8 +2,8 @@
 	.code16
 	rep; movsd
 	rep; cmpsd
-	rep movsd %ds:(%si),%es:(%di)
-	rep cmpsd %es:(%di),%ds:(%si)
+	rep movsl %ds:(%si),%es:(%di)
+	rep cmpsl %es:(%di),%ds:(%si)
 
 	mov	%cr2, %ecx
 	mov	%ecx, %cr2

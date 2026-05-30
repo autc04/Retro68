@@ -62,3 +62,5 @@ nopl (%eax)
 blsr %ecx,%ebx
 # TBM
 blcfill %ecx,%ebx
+# MONITOR
+monitor

@@ -1,6 +1,6 @@
 // Debugging bitset implementation -*- C++ -*-
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -164,11 +164,28 @@ namespace __debug
 	       _CharT __zero, _CharT __one = _CharT('1'))
 	: _Base(__str, __pos, __n, __zero, __one) { }
 
+#ifdef __cpp_lib_bitset // ... from string_view
+      template<class _CharT, class _Traits>
+	constexpr explicit
+	bitset(std::basic_string_view<_CharT, _Traits> __s,
+	  std::basic_string_view<_CharT, _Traits>::size_type __position = 0,
+	  std::basic_string_view<_CharT, _Traits>::size_type __n =
+	    std::basic_string_view<_CharT, _Traits>::npos,
+	  _CharT __zero = _CharT('0'), _CharT __one = _CharT('1'))
+	: _Base(__s, __position, __n, __zero, __one) { }
+#endif
+
       _GLIBCXX23_CONSTEXPR
       bitset(const _Base& __x) : _Base(__x) { }
 
 #if __cplusplus >= 201103L
-      template<typename _CharT>
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 4294. bitset(const CharT*) constructor needs to be constrained
+      template<typename _CharT,
+	       typename = _Require<is_trivially_copyable<_CharT>,
+				   is_standard_layout<_CharT>,
+				   is_trivially_default_constructible<_CharT>,
+				   __not_<is_array<_CharT>>>>
 	_GLIBCXX23_CONSTEXPR
         explicit
         bitset(const _CharT* __str,

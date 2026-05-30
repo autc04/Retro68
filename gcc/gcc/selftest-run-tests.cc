@@ -1,5 +1,5 @@
 /* Implementation of selftests.
-   Copyright (C) 2015-2025 Free Software Foundation, Inc.
+   Copyright (C) 2015-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -28,6 +28,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "stringpool.h"
 #include "attribs.h"
 #include "analyzer/analyzer-selftests.h"
+#include "diagnostics/diagnostics-selftests.h"
 #include "text-art/selftests.h"
 
 /* This function needed to be split out from selftest.cc as it references
@@ -80,6 +81,9 @@ selftest::run_tests ()
   optinfo_emit_json_cc_tests ();
   ordered_hash_map_tests_cc_tests ();
   splay_tree_cc_tests ();
+  xml_cc_tests ();
+  graphviz_cc_tests ();
+  pub_sub_cc_tests ();
 
   /* Mid-level data structures.  */
   input_cc_tests ();
@@ -93,22 +97,17 @@ selftest::run_tests ()
   tristate_cc_tests ();
   ipa_modref_tree_cc_tests ();
 
+  /* Run the diagnostics selftests.  */
+  diagnostics::selftest::run_diagnostics_selftests ();
+
   /* Higher-level tests, or for components that other selftests don't
      rely on.  */
-  diagnostic_color_cc_tests ();
-  diagnostic_show_locus_cc_tests ();
-  diagnostic_format_json_cc_tests ();
-  diagnostic_format_sarif_cc_tests ();
-  edit_context_cc_tests ();
   fold_const_cc_tests ();
   spellcheck_cc_tests ();
   spellcheck_tree_cc_tests ();
   tree_cfg_cc_tests ();
-  diagnostic_path_cc_tests ();
   simple_diagnostic_path_cc_tests ();
-  lazy_diagnostic_path_cc_tests ();
   attribs_cc_tests ();
-  opts_diagnostic_cc_tests ();
   path_coverage_cc_tests ();
 
   /* This one relies on most of the above.  */

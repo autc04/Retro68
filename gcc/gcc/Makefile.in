@@ -1,7 +1,7 @@
 # Makefile for GNU Compiler Collection
 # Run 'configure' to generate Makefile from Makefile.in
 
-# Copyright (C) 1987-2025 Free Software Foundation, Inc.
+# Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 #This file is part of GCC.
 
@@ -187,8 +187,6 @@ C_STRICT_WARN = @c_strict_warn@
 
 NOEXCEPTION_FLAGS = @noexception_flags@
 
-ALIASING_FLAGS = @aliasing_flags@
-
 # This is set by --disable-maintainer-mode (default) to "#"
 # FIXME: 'MAINT' will always be set to an empty string, no matter if
 # --disable-maintainer-mode is used or not.  This is because the
@@ -253,7 +251,6 @@ gengtype-lex.o-warn = -Wno-error
 libgcov-util.o-warn = -Wno-error
 libgcov-driver-tool.o-warn = -Wno-error
 libgcov-merge-tool.o-warn = -Wno-error
-gimple-match-exports.o-warn = -Wno-unused
 dfp.o-warn = -Wno-strict-aliasing
 
 # All warnings have to be shut off in stage1 if the compiler used then
@@ -481,6 +478,7 @@ USER_H = $(srcdir)/ginclude/float.h \
 	 $(srcdir)/ginclude/stdalign.h \
 	 $(srcdir)/ginclude/stdatomic.h \
 	 $(srcdir)/ginclude/stdckdint.h \
+	 $(srcdir)/ginclude/stdcountof.h \
 	 $(EXTRA_HEADERS)
 
 USER_H_INC_NEXT_PRE = @user_headers_inc_next_pre@
@@ -615,6 +613,8 @@ tm_d_file_list=@tm_d_file_list@
 tm_d_include_list=@tm_d_include_list@
 tm_rust_file_list=@tm_rust_file_list@
 tm_rust_include_list=@tm_rust_include_list@
+tm_jit_file_list=@tm_jit_file_list@
+tm_jit_include_list=@tm_jit_include_list@
 build_xm_file_list=@build_xm_file_list@
 build_xm_include_list=@build_xm_include_list@
 build_xm_defines=@build_xm_defines@
@@ -652,6 +652,9 @@ else
     if_multiarch =
   endif
 endif
+
+# Multilib control
+with_multi_buildlist = @with_multi_buildlist@
 
 # ------------------------
 # Installation directories
@@ -919,6 +922,7 @@ TCONFIG_H = tconfig.h $(xm_file_list)
 TM_P_H    = tm_p.h    $(tm_p_file_list) $(TREE_H)
 TM_D_H    = tm_d.h    $(tm_d_file_list)
 TM_RUST_H = tm_rust.h $(tm_rust_file_list)
+TM_JIT_H  = tm_jit.h    $(tm_jit_file_list)
 GTM_H     = tm.h      $(tm_file_list) insn-constants.h
 TM_H      = $(GTM_H) insn-flags.h $(OPTIONS_H)
 
@@ -972,17 +976,20 @@ endif
 DUMPFILE_H = $(srcdir)/../libcpp/include/line-map.h dumpfile.h
 VEC_H = vec.h statistics.h $(GGC_H)
 HASH_TABLE_H = $(HASHTAB_H) hash-table.h $(GGC_H)
+BITMAP_H = bitmap.h $(HASHTAB_H) statistics.h
 EXCEPT_H = except.h $(HASHTAB_H)
 TARGET_DEF = target.def target-hooks-macros.h target-insns.def
 C_TARGET_DEF = c-family/c-target.def target-hooks-macros.h
 COMMON_TARGET_DEF = common/common-target.def target-hooks-macros.h
 D_TARGET_DEF = d/d-target.def target-hooks-macros.h
 RUST_TARGET_DEF = rust/rust-target.def target-hooks-macros.h
+JIT_TARGET_DEF = jit/jit-target.def target-hooks-macros.h
 TARGET_H = $(TM_H) target.h $(TARGET_DEF) insn-modes.h insn-codes.h
 C_TARGET_H = c-family/c-target.h $(C_TARGET_DEF)
 COMMON_TARGET_H = common/common-target.h $(INPUT_H) $(COMMON_TARGET_DEF)
 D_TARGET_H = d/d-target.h $(D_TARGET_DEF)
 RUST_TARGET_H = rust/rust-target.h $(RUST_TARGET_DEF)
+JIT_TARGET_H = jit/jit-target.h $(JIT_TARGET_DEF)
 MACHMODE_H = machmode.h mode-classes.def
 HOOKS_H = hooks.h
 HOSTHOOKS_DEF_H = hosthooks-def.h $(HOOKS_H)
@@ -1023,6 +1030,8 @@ FLAGS_H = flags.h flag-types.h $(OPTIONS_H)
 OPTIONS_H = options.h flag-types.h $(OPTIONS_H_EXTRA)
 FUNCTION_H = function.h $(HASHTAB_H) $(TM_H) hard-reg-set.h \
 	$(VEC_H) $(INPUT_H)
+BACKEND_H = backend.h $(TM_H) $(FUNCTION_H) $(BITMAP_H) sbitmap.h \
+	$(BASIC_BLOCK_H) cfg.h
 EXPR_H = expr.h insn-config.h $(FUNCTION_H) $(RTL_H) $(FLAGS_H) $(TREE_H) \
 	$(EMIT_RTL_H)
 OPTABS_H = optabs.h insn-codes.h insn-opinit.h
@@ -1066,7 +1075,7 @@ TREE_SSA_H = tree-ssa.h tree-ssa-operands.h \
 PRETTY_PRINT_H = pretty-print.h $(INPUT_H) $(OBSTACK_H) wide-int-print.h
 TREE_PRETTY_PRINT_H = tree-pretty-print.h $(PRETTY_PRINT_H)
 GIMPLE_PRETTY_PRINT_H = gimple-pretty-print.h $(TREE_PRETTY_PRINT_H)
-DIAGNOSTIC_CORE_H = diagnostic-core.h $(INPUT_H) bversion.h diagnostic.def
+DIAGNOSTIC_CORE_H = diagnostic-core.h $(INPUT_H) bversion.h diagnostics/kinds.def
 DIAGNOSTIC_H = diagnostic.h $(DIAGNOSTIC_CORE_H) $(PRETTY_PRINT_H)
 C_PRETTY_PRINT_H = c-family/c-pretty-print.h $(PRETTY_PRINT_H) \
 	$(C_COMMON_H) $(TREE_H)
@@ -1076,7 +1085,6 @@ LTO_STREAMER_H = lto-streamer.h $(LINKER_PLUGIN_API_H) $(TARGET_H) \
 		$(CGRAPH_H) $(VEC_H) $(HASH_TABLE_H) $(TREE_H) $(GIMPLE_H) \
 		$(GCOV_IO_H) $(DIAGNOSTIC_H) alloc-pool.h
 IPA_PROP_H = ipa-prop.h $(TREE_H) $(VEC_H) $(CGRAPH_H) $(GIMPLE_H) alloc-pool.h
-BITMAP_H = bitmap.h $(HASHTAB_H) statistics.h
 GCC_PLUGIN_H = gcc-plugin.h highlev-plugin-common.h plugin.def \
 		$(CONFIG_H) $(SYSTEM_H) $(HASHTAB_H)
 PLUGIN_H = plugin.h $(GCC_PLUGIN_H)
@@ -1125,7 +1133,7 @@ ALL_LINKERFLAGS = $(ALL_CXXFLAGS) $(LD_PICFLAG)
 
 # Use the "pic" build of libiberty if --enable-host-shared or --enable-host-pie,
 # unless we are building for mingw.
-LIBIBERTY_PICDIR=$(if $(findstring mingw,$(target)),,pic)
+LIBIBERTY_PICDIR=$(if $(findstring mingw,$(host)),,pic)
 ifneq ($(enable_host_shared)$(enable_host_pie),)
 LIBIBERTY = ../libiberty/$(LIBIBERTY_PICDIR)/libiberty.a
 else
@@ -1297,6 +1305,9 @@ CXX_TARGET_OBJS=@cxx_target_objs@
 # Target specific, D specific object file
 D_TARGET_OBJS=@d_target_objs@
 
+# Target specific, JIT specific object file
+JIT_TARGET_OBJS=@jit_target_objs@
+
 # Target specific, Fortran specific object file
 FORTRAN_TARGET_OBJS=@fortran_target_objs@
 
@@ -1323,6 +1334,7 @@ C_COMMON_OBJS = c-family/c-common.o c-family/c-cppbuiltin.o c-family/c-dump.o \
 # Analyzer object files
 ANALYZER_OBJS = \
 	analyzer/access-diagram.o \
+	analyzer/ana-state-to-diagnostic-state.o \
 	analyzer/analysis-plan.o \
 	analyzer/analyzer.o \
 	analyzer/analyzer-language.o \
@@ -1349,6 +1361,7 @@ ANALYZER_OBJS = \
 	analyzer/kf-analyzer.o \
 	analyzer/kf-lang-cp.o \
 	analyzer/known-function-manager.o \
+	analyzer/ops.o \
 	analyzer/pending-diagnostic.o \
 	analyzer/program-point.o \
 	analyzer/program-state.o \
@@ -1370,6 +1383,9 @@ ANALYZER_OBJS = \
 	analyzer/state-purge.o \
 	analyzer/store.o \
 	analyzer/supergraph.o \
+	analyzer/supergraph-fixup-locations.o \
+	analyzer/supergraph-simplify.o \
+	analyzer/supergraph-sorting.o \
 	analyzer/svalue.o \
 	analyzer/symbol.o \
 	analyzer/trimmed-graph.o \
@@ -1400,6 +1416,7 @@ OBJS = \
 	adjust-alignment.o \
 	alias.o \
 	alloc-pool.o \
+	asm-toplevel.o \
 	auto-inc-dec.o \
 	auto-profile.o \
 	bb-reorder.o \
@@ -1447,6 +1464,8 @@ OBJS = \
 	dce.o \
 	ddg.o \
 	debug.o \
+	hierarchical_discriminator.o \
+	dep-fusion.o \
 	df-core.o \
 	df-problems.o \
 	df-scan.o \
@@ -1535,7 +1554,6 @@ OBJS = \
 	godump.o \
 	graph.o \
 	graphds.o \
-	graphviz.o \
 	graphite.o \
 	graphite-isl-ast-to-gimple.o \
 	graphite-dependences.o \
@@ -1593,7 +1611,6 @@ OBJS = \
 	jump.o \
 	langhooks.o \
 	late-combine.o \
-	lazy-diagnostic-path.o \
 	lcm.o \
 	lists.o \
 	loop-doloop.o \
@@ -1621,6 +1638,7 @@ OBJS = \
 	mcf.o \
 	mode-switching.o \
 	modulo-sched.o \
+	diagnostic-context-rich-location.o \
 	multiple_target.o \
 	omp-offload.o \
 	omp-expand.o \
@@ -1733,6 +1751,7 @@ OBJS = \
 	tree-data-ref.o \
 	tree-dfa.o \
 	tree-diagnostic.o \
+	tree-diagnostic-cfg.o \
 	tree-diagnostic-client-data-hooks.o \
 	tree-dump.o \
 	tree-eh.o \
@@ -1794,6 +1813,8 @@ OBJS = \
 	tree-ssa-sink.o \
 	tree-ssa-strlen.o \
 	tree-ssa-structalias.o \
+	pta-andersen.o \
+	gimple-ssa-pta-constraints.o \
 	tree-ssa-tail-merge.o \
 	tree-ssa-ter.o \
 	tree-ssa-threadbackward.o \
@@ -1842,6 +1863,7 @@ OBJS = \
 	web.o \
 	wide-int.o \
 	wide-int-print.o \
+	attr-callback.o \
 	$(out_object_file) \
 	$(ANALYZER_OBJS) \
 	$(EXTRA_OBJS) \
@@ -1849,23 +1871,47 @@ OBJS = \
 
 # Objects in libcommon.a, potentially used by all host binaries and with
 # no target dependencies.
-OBJS-libcommon = diagnostic-spec.o diagnostic.o diagnostic-color.o \
-	diagnostic-format-json.o \
-	diagnostic-format-sarif.o \
-	diagnostic-format-text.o \
+OBJS-libcommon = \
+	custom-sarif-properties/cfg.o \
+	custom-sarif-properties/digraphs.o \
+	custom-sarif-properties/state-graphs.o \
 	diagnostic-global-context.o \
-	diagnostic-macro-unwinding.o \
-	diagnostic-path.o \
-	diagnostic-show-locus.o \
-	edit-context.o \
+	diagnostics/buffering.o \
+	diagnostics/changes.o \
+	diagnostics/color.o \
+	diagnostics/context.o \
+	diagnostics/digraphs.o \
+	diagnostics/dumping.o \
+	diagnostics/digraphs-to-dot.o \
+	diagnostics/digraphs-to-dot-from-cfg.o \
+	diagnostics/file-cache.o \
+	diagnostics/output-spec.o \
+	diagnostics/html-sink.o \
+	diagnostics/sarif-sink.o \
+	diagnostics/text-sink.o \
+	diagnostics/lazy-paths.o \
+	diagnostics/logging.o \
+	diagnostics/macro-unwinding.o \
+	diagnostics/option-classifier.o \
+	diagnostics/paths.o \
+	diagnostics/paths-output.o \
+	diagnostics/physical-location-maker.o \
+	diagnostics/source-printing.o \
+	diagnostics/state-graphs-to-dot.o \
+	diagnostics/selftest-context.o \
+	diagnostics/selftest-logical-locations.o \
+	diagnostics/selftest-paths.o \
+	diagnostics/diagnostics-selftests.o \
+	gcc-diagnostic-spec.o \
+	graphviz.o pex.o \
 	pretty-print.o intl.o \
-	json.o json-parsing.o \
+	json.o json-parsing.o json-diagnostic.o \
+	pub-sub.o \
+	xml.o \
 	sbitmap.o \
 	vec.o input.o hash-table.o ggc-none.o memory-block.o \
-	selftest.o selftest-diagnostic.o sort.o \
-	selftest-diagnostic-path.o \
+	selftest.o sort.o \
 	selftest-json.o \
-	selftest-logical-location.o \
 	text-art/box-drawing.o \
 	text-art/canvas.o \
 	text-art/ruler.o \
@@ -1888,6 +1934,9 @@ OBJS-libcommon-target = $(common_out_object_file) prefix.o \
 # This lists all host objects for the front ends.
 ALL_HOST_FRONTEND_OBJS = $(foreach v,$(CONFIG_LANGUAGES),$($(v)_OBJS))
 
+# All auto-profile files
+ALL_FDAS = $(foreach v,$(CONFIG_LANGUAGES),$($(v)_FDAS))
+
 ALL_HOST_BACKEND_OBJS = $(GCC_OBJS) $(OBJS) $(OBJS-libcommon) \
   $(OBJS-libcommon-target) main.o c-family/cppspec.o \
   $(COLLECT2_OBJS) $(EXTRA_GCC_OBJS) $(GCOV_OBJS) $(GCOV_DUMP_OBJS) \
@@ -1898,9 +1947,15 @@ ALL_HOST_BACKEND_OBJS = $(GCC_OBJS) $(OBJS) $(OBJS-libcommon) \
 # is likely the most exercised during the build
 ifeq ($(if $(wildcard ../stage_current),$(shell cat \
   ../stage_current)),stageautofeedback)
-$(ALL_HOST_BACKEND_OBJS): ALL_COMPILERFLAGS += -fauto-profile=cc1plus.fda
-$(ALL_HOST_BACKEND_OBJS): cc1plus.fda
+$(ALL_HOST_BACKEND_OBJS): ALL_COMPILERFLAGS += -fauto-profile=all.fda
+$(ALL_HOST_BACKEND_OBJS): all.fda
 endif
+
+# Path to the perf utility
+PERF = @PERF@
+
+# The profiler to be used by autoprofiledbootstrap
+AFDO_PROFILER = @AFDO_PROFILER@
 
 # This lists all host object files, whether they are included in this
 # compilation or not.
@@ -1912,7 +1967,7 @@ endif
 
 # libbackend.a objs that might not be in some cases linked into the compiler,
 # yet they are supposed to be part of the plugin ABI.  See PR116143.
-EXTRA_BACKEND_OBJS = simple-diagnostic-path.o lazy-diagnostic-path.o
+EXTRA_BACKEND_OBJS = simple-diagnostic-path.o diagnostics/lazy-paths.o
 
 BACKEND = $(EXTRA_BACKEND_OBJS) libbackend.a main.o libcommon-target.a \
 	libcommon.a $(CPPLIB) $(LIBDECNUMBER)
@@ -2082,6 +2137,7 @@ tm.h: cs-tm.h ; @true
 tm_p.h: cs-tm_p.h ; @true
 tm_d.h: cs-tm_d.h ; @true
 tm_rust.h: cs-tm_rust.h ; @true
+tm_jit.h: cs-tm_jit.h ; @true
 
 cs-config.h: Makefile
 	TARGET_CPU_DEFAULT="" \
@@ -2120,6 +2176,11 @@ cs-tm_rust.h: Makefile
 	TARGET_CPU_DEFAULT="" \
 	HEADERS="$(tm_rust_include_list)" DEFINES="" \
 	$(SHELL) $(srcdir)/mkconfig.sh tm_rust.h
+
+cs-tm_jit.h: Makefile
+	TARGET_CPU_DEFAULT="" \
+	HEADERS="$(tm_jit_include_list)" DEFINES="" \
+	$(SHELL) $(srcdir)/mkconfig.sh tm_jit.h
 
 # Don't automatically run autoconf, since configure.ac might be accidentally
 # newer than configure.  Also, this writes into the source directory which
@@ -2319,7 +2380,7 @@ LIBGDIAGNOSTICS_VERSION_NUM = 0
 LIBGDIAGNOSTICS_MINOR_NUM = 0
 LIBGDIAGNOSTICS_RELEASE_NUM = 1
 
-ifneq (,$(findstring mingw,$(target)))
+ifneq (,$(findstring mingw,$(host)))
 LIBGDIAGNOSTICS_FILENAME = libgdiagnostics-$(LIBGDIAGNOSTICS_VERSION_NUM).dll
 LIBGDIAGNOSTICS_IMPORT_LIB = libgdiagnostics.dll.a
 
@@ -2392,7 +2453,7 @@ libgdiagnostics.serial = $(LIBGDIAGNOSTICS_FILENAME)
 # Tell GNU make to ignore these if they exist.
 .PHONY: libgdiagnostics
 
-ifneq (,$(findstring mingw,$(target)))
+ifneq (,$(findstring mingw,$(host)))
 # Create import library
 LIBGDIAGNOSTICS_EXTRA_OPTS = -Wl,--out-implib,$(LIBGDIAGNOSTICS_IMPORT_LIB)
 else
@@ -2420,7 +2481,7 @@ $(LIBGDIAGNOSTICS_FILENAME): $(libgdiagnostics_OBJS) $(CPPLIB) $(EXTRA_GCC_LIBS)
 	@$(call LINK_PROGRESS,$(INDEX.libgdiagnostics),end)
 
 # Create symlinks when not building for Windows
-ifeq (,$(findstring mingw,$(target)))
+ifeq (,$(findstring mingw,$(host)))
 
 ifeq (,$(findstring darwin,$(host)))
 # but only one level for Darwin, version info is embedded.
@@ -2463,13 +2524,6 @@ libgcc.mvars: config.status Makefile specs xgcc$(exeext)
 	: > tmp-libgcc.mvars
 	echo GCC_CFLAGS = '$(GCC_CFLAGS)' >> tmp-libgcc.mvars
 	echo INHIBIT_LIBC_CFLAGS = '$(INHIBIT_LIBC_CFLAGS)' >> tmp-libgcc.mvars
-	echo TARGET_SYSTEM_ROOT = '$(TARGET_SYSTEM_ROOT)' >> tmp-libgcc.mvars
-	if test @enable_default_pie@ = yes; then \
-	  NO_PIE_CFLAGS="-fno-PIE"; \
-	else \
-	  NO_PIE_CFLAGS=; \
-	fi; \
-	echo NO_PIE_CFLAGS = "$$NO_PIE_CFLAGS" >> tmp-libgcc.mvars
 
 	mv tmp-libgcc.mvars libgcc.mvars
 
@@ -2491,11 +2545,12 @@ s-mlib: $(srcdir)/genmultilib Makefile
 	    "$(MULTILIB_REQUIRED)" \
 	    "$(if $(MULTILIB_OSDIRNAMES),,$(MULTIARCH_DIRNAME))" \
 	    "$(MULTILIB_REUSE)" \
+	    "$(if $(with_multi_buildlist),true,false)" \
 	    "@enable_multilib@" \
 	    > tmp-mlib.h; \
 	else \
 	  $(SHELL) $(srcdir)/genmultilib '' '' '' '' '' '' '' '' \
-	    "$(MULTIARCH_DIRNAME)" '' no \
+	    "$(MULTIARCH_DIRNAME)" '' 'false' no \
 	    > tmp-mlib.h; \
 	fi
 	$(SHELL) $(srcdir)/../move-if-change tmp-mlib.h multilib.h
@@ -2585,6 +2640,12 @@ prefix.o: $(BASEVER)
 # Files used by the D language front end.
 
 default-d.o: config/default-d.cc
+	$(COMPILE) $<
+	$(POSTCOMPILE)
+
+# Files used by the JIT language front end.
+
+default-jit.o: config/default-jit.cc
 	$(COMPILE) $<
 	$(POSTCOMPILE)
 
@@ -2940,6 +3001,15 @@ s-rust-target-hooks-def-h: build/genhooks$(build_exeext)
 					     rust/rust-target-hooks-def.h
 	$(STAMP) s-rust-target-hooks-def-h
 
+jit/jit-target-hooks-def.h: s-jit-target-hooks-def-h; @true
+
+s-jit-target-hooks-def-h: build/genhooks$(build_exeext)
+	$(RUN_GEN) build/genhooks$(build_exeext) "JIT Target Hook" \
+					     > tmp-jit-target-hooks-def.h
+	$(SHELL) $(srcdir)/../move-if-change tmp-jit-target-hooks-def.h \
+					     jit/jit-target-hooks-def.h
+	$(STAMP) s-jit-target-hooks-def-h
+
 # check if someone mistakenly only changed tm.texi.
 # We use a different pathname here to avoid a circular dependency.
 s-tm-texi: $(srcdir)/doc/../doc/tm.texi
@@ -3029,7 +3099,7 @@ GTFILES = $(CPPLIB_H) $(srcdir)/input.h $(srcdir)/coretypes.h \
   $(srcdir)/ipa-modref-tree.h \
   $(srcdir)/ipa-locality-cloning.cc \
   $(srcdir)/signop.h \
-  $(srcdir)/diagnostic-spec.h $(srcdir)/diagnostic-spec.cc \
+  $(srcdir)/gcc-diagnostic-spec.h $(srcdir)/gcc-diagnostic-spec.cc \
   $(srcdir)/dwarf2out.h \
   $(srcdir)/dwarf2asm.cc \
   $(srcdir)/dwarf2cfi.cc \
@@ -3137,8 +3207,8 @@ s-gtype: $(EXTRA_GTYPE_DEPS) build/gengtype$(build_exeext) \
                     -r gtype.state
 	$(STAMP) s-gtype
 
-generated_files = config.h tm.h $(TM_P_H) $(TM_D_H) $(TM_H) multilib.h \
-       $(simple_generated_h) specs.h \
+generated_files = config.h tm.h $(TM_P_H) $(TM_D_H) $(TM_JIT_H) $(TM_H) \
+       multilib.h $(simple_generated_h) specs.h \
        tree-check.h genrtl.h insn-modes.h insn-modes-inline.h \
        tm-preds.h tm-constrs.h \
        $(ALL_GTFILES_H) gtype-desc.cc gtype-desc.h version.h \
@@ -3149,6 +3219,7 @@ generated_files = config.h tm.h $(TM_P_H) $(TM_D_H) $(TM_H) multilib.h \
        c-family/c-target-hooks-def.h d/d-target-hooks-def.h \
        $(TM_RUST_H) rust/rust-target-hooks-def.h \
        case-cfn-macros.h \
+       jit/jit-target-hooks-def.h case-cfn-macros.h \
        cfn-operators.pd omp-device-properties.h
 
 #
@@ -3282,8 +3353,8 @@ build/genrecog.o : genrecog.cc $(RTL_BASE_H) $(BCONFIG_H) $(SYSTEM_H)	\
   $(CORETYPES_H) $(GTM_H) errors.h $(READ_MD_H) $(GENSUPPORT_H)		\
   $(HASH_TABLE_H) inchash.h
 build/genhooks.o : genhooks.cc $(TARGET_DEF) $(C_TARGET_DEF)		\
-  $(COMMON_TARGET_DEF) $(D_TARGET_DEF) $(RUST_TARGET_DEF) $(BCONFIG_H) \
-  $(SYSTEM_H) errors.h
+  $(COMMON_TARGET_DEF) $(D_TARGET_DEF) $(RUST_TARGET_DEF) $(JIT_TARGET_DEF) \
+  $(BCONFIG_H) $(SYSTEM_H) errors.h
 build/genmddump.o : genmddump.cc $(RTL_BASE_H) $(BCONFIG_H) $(SYSTEM_H)	\
   $(CORETYPES_H) $(GTM_H) errors.h $(READ_MD_H) $(GENSUPPORT_H)
 build/genmatch.o : genmatch.cc $(BCONFIG_H) $(SYSTEM_H) $(CORETYPES_H) \
@@ -3384,6 +3455,9 @@ gengtype-lex.cc : gengtype-lex.l
 	  echo '#else'                     >> $@.tmp; \
 	  echo '#include "bconfig.h"'      >> $@.tmp; \
 	  echo '#endif'                    >> $@.tmp; \
+	  echo '#define FLEX_SCANNER'      >> $@.tmp; \
+	  echo '#include "system.h"'       >> $@.tmp; \
+	  echo '#undef FLEX_SCANNER'       >> $@.tmp; \
 	  cat $@ >> $@.tmp; \
 	  mv $@.tmp $@; \
 	}
@@ -3475,9 +3549,10 @@ gcov-tool$(exeext): $(GCOV_TOOL_OBJS) $(LIBDEPS)
 stmp-int-hdrs: $(STMP_FIXINC) $(T_GLIMITS_H) $(T_STDINT_GCC_H) $(USER_H) fixinc_list
 # Copy in the headers provided with gcc.
 #
-# The sed command gets just the last file name component;
-# this is necessary because VPATH could add a dirname.
-# Using basename would be simpler, but some systems don't have it.
+# If the sequence /././ appears somewhere after srcdir in a USER_H
+# name, install the header with the name after the marker, even if
+# that name involves subdirectories.  Otherwise, install it as the
+# basename (but some systems don't have the basename program).
 #
 # The touch command is here to workaround an AIX/Linux NFS bug.
 #
@@ -3488,10 +3563,20 @@ stmp-int-hdrs: $(STMP_FIXINC) $(T_GLIMITS_H) $(T_STDINT_GCC_H) $(USER_H) fixinc_
 	-if [ -d include-fixed ] ; then true; else mkdir include-fixed; chmod a+rx include-fixed; fi
 	for file in .. $(USER_H); do \
 	  if [ X$$file != X.. ]; then \
-	    realfile=`echo $$file | sed -e 's|.*/\([^/]*\)$$|\1|'`; \
+	    case $$file in \
+	      "$(srcdir)"*/././*) \
+		realfile=`echo $$file | sed -e 's|^.*/\./\./||'`; \
+		case $$realfile in \
+		  */*) \
+		    realdir=`echo $$realfile | sed -e 's|/[^/]*$$||'`; \
+		    $(install_sh) -d include/$$realdir;; \
+		esac;; \
+	      *) \
+		realfile=`echo $$file | sed -e 's|.*/\([^/]*\)$$|\1|'`;; \
+	    esac; \
 	    $(STAMP) include/$$realfile; \
 	    rm -f include/$$realfile; \
-	    cp $$file include; \
+	    cp $$file include/$$realfile; \
 	    chmod a+r include/$$realfile; \
 	  fi; \
 	done
@@ -3564,10 +3649,23 @@ fixinc_list: s-fixinc_list; @true
 s-fixinc_list : $(GCC_PASSES)
 # Build up a list of multilib directories and corresponding sysroot
 # suffixes, in form sysroot;multilib.
+# Use a filtered multilib list if requested.
 	if $(GCC_FOR_TARGET) -print-sysroot-headers-suffix > /dev/null 2>&1; then \
 	  set -e; for ml in `$(GCC_FOR_TARGET) -print-multi-lib`; do \
 	    multi_dir=`echo $${ml} | sed -e 's/;.*$$//'`; \
 	    flags=`echo $${ml} | sed -e 's/^[^;]*;//' -e 's/@/ -/g'`; \
+	    if [ x$(with_multi_buildlist) != x ]; then \
+	      if [ ! -f $(with_multi_buildlist) ]; then \
+		echo "fixinc_list: Failed to find $(with_multi_buildlist)"; \
+		exit 1; \
+	      fi; \
+	      set +e; \
+	      found=`grep "^$${multi_dir}$$" $(with_multi_buildlist)`; \
+	      set -e; \
+	      if [ -z "$$found" ]; then \
+		continue; \
+	      fi; \
+	    fi; \
 	    sfx=`$(GCC_FOR_TARGET) $${flags} -print-sysroot-headers-suffix`; \
 	    if [ "$${multi_dir}" = "." ]; \
 	      then multi_dir=""; \
@@ -3702,7 +3800,7 @@ TEXI_GCC_FILES = gcc.texi gcc-common.texi gcc-vers.texi frontends.texi	\
 	 contribute.texi compat.texi funding.texi gnu.texi gpl_v3.texi	\
 	 fdl.texi contrib.texi cppenv.texi cppopts.texi avr-mmcu.texi	\
 	 implement-c.texi implement-cxx.texi gcov-tool.texi gcov-dump.texi \
-	 lto-dump.texi
+	 lto-dump.texi riscv-ext.texi riscv-mcpu.texi riscv-mtune.texi
 
 # we explicitly use $(srcdir)/doc/tm.texi here to avoid confusion with
 # the generated tm.texi; the latter might have a more recent timestamp,
@@ -3716,7 +3814,8 @@ TEXI_GCCINT_FILES = gccint.texi gcc-common.texi gcc-vers.texi		\
 	 gnu.texi gpl_v3.texi fdl.texi contrib.texi languages.texi	\
 	 sourcebuild.texi gty.texi libgcc.texi cfg.texi tree-ssa.texi	\
 	 loop.texi generic.texi gimple.texi plugins.texi optinfo.texi   \
-	 match-and-simplify.texi analyzer.texi ux.texi poly-int.texi
+	 match-and-simplify.texi analyzer.texi ux.texi poly-int.texi	\
+	 params.texi specs.texi ifn.texi
 
 TEXI_GCCINSTALL_FILES = install.texi fdl.texi		\
 	 gcc-common.texi gcc-vers.texi
@@ -3832,7 +3931,8 @@ $(build_htmldir)/gccinstall/index.html: $(TEXI_GCCINSTALL_FILES)
 .PHONY: regenerate-opt-urls
 OPT_URLS_HTML_DEPS = $(build_htmldir)/gcc/Option-Index.html \
 	$(build_htmldir)/gdc/Option-Index.html \
-	$(build_htmldir)/gfortran/Option-Index.html
+	$(build_htmldir)/gfortran/Option-Index.html \
+	$(build_htmldir)/ga68/Option-Index.html
 $(OPT_URLS_HTML_DEPS): %/Option-Index.html: %/index.html
 
 regenerate-opt-urls: $(srcdir)/regenerate-opt-urls.py $(OPT_URLS_HTML_DEPS)
@@ -3845,7 +3945,7 @@ regenerate-opt-urls-unit-test: $(OPT_URLS_HTML_DEPS)
 
 # Regenerate attr-urls.def from the generated html.
 .PHONY: regenerate-attr-urls
-ATTR_URLS_HTML_DEPS = $(build_htmldir)/gcc/Concept-and-Symbol-Index.html
+ATTR_URLS_HTML_DEPS = $(build_htmldir)/gcc/Attribute-Index.html
 
 regenerate-attr-urls: $(srcdir)/regenerate-attr-urls.py $(ATTR_URLS_HTML_DEPS)
 	$(srcdir)/regenerate-attr-urls.py $(build_htmldir) $(shell dirname $(srcdir))
@@ -4062,7 +4162,7 @@ PLUGIN_HEADERS = $(TREE_H) $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) \
   fold-const.h fold-const-call.h tree-cfg.h tree-into-ssa.h tree-ssanames.h \
   print-tree.h varasm.h context.h tree-phinodes.h stor-layout.h \
   ssa-iterators.h $(RESOURCE_H) tree-cfgcleanup.h attribs.h calls.h \
-  cfgexpand.h diagnostic-color.h gcc-symtab.h gimple-builder.h gimple-low.h \
+  cfgexpand.h gcc-symtab.h gimple-builder.h gimple-low.h \
   gimple-walk.h gimplify-me.h pass_manager.h print-rtl.h stmt.h \
   tree-dfa.h tree-hasher.h tree-nested.h tree-object-size.h tree-outof-ssa.h \
   tree-parloops.h tree-ssa-address.h tree-ssa-coalesce.h tree-ssa-dom.h \
@@ -4072,7 +4172,8 @@ PLUGIN_HEADERS = $(TREE_H) $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) \
   hash-set.h dominance.h cfg.h cfgrtl.h cfganal.h cfgbuild.h cfgcleanup.h \
   lcm.h cfgloopmanip.h file-prefix-map.h builtins.def $(INSN_ATTR_H) \
   pass-instances.def params.list $(srcdir)/../include/gomp-constants.h \
-  $(EXPR_H) $(srcdir)/analyzer/*.h
+  $(EXPR_H) $(srcdir)/analyzer/*.h $(srcdir)/diagnostics/*.h \
+  $(srcdir)/text-art/*.h $(srcdir)/topics/*.h
 
 # generate the 'build fragment' b-header-vars
 s-header-vars: Makefile
@@ -4110,6 +4211,9 @@ install-plugin: installdirs lang.install-plugin s-header-vars install-gengtype
 	  fi; \
 	  case $$path in \
 	  "$(srcdir)"/analyzer/* \
+	  | "$(srcdir)"/diagnostics/* \
+	  | "$(srcdir)"/text-art/* \
+	  | "$(srcdir)"/topics/* \
 	  | "$(srcdir)"/config/* | "$(srcdir)"/common/config/* \
 	  | "$(srcdir)"/c-family/* | "$(srcdir)"/*.def ) \
 	    base=`echo "$$path" | sed -e "s|$$srcdirstrip/||"`;; \
@@ -4182,7 +4286,8 @@ install-driver: installdirs xgcc$(exeext)
 	      $(LN) $(GCC_INSTALL_NAME)$(exeext) $(FULL_DRIVER_NAME) ); \
 	  fi; \
 	  if [ ! -f gcc-cross$(exeext) ] \
-	      && [ "$(GCC_INSTALL_NAME)" != "$(GCC_TARGET_INSTALL_NAME)" ]; then \
+	      && [ "$(GCC_INSTALL_NAME)" != "$(GCC_TARGET_INSTALL_NAME)" ] \
+	      && [ "$(GCC_TARGET_INSTALL_NAME)$(exeext)" != "$(FULL_DRIVER_NAME)" ] ; then \
 	    rm -f $(DESTDIR)$(bindir)/$(target_noncanonical)-gcc-tmp$(exeext); \
 	    ( cd $(DESTDIR)$(bindir) && \
 	      $(LN) $(GCC_INSTALL_NAME)$(exeext) $(target_noncanonical)-gcc-tmp$(exeext) && \
@@ -4196,7 +4301,7 @@ libgdiagnostics.install-headers: installdirs
 	$(INSTALL_DATA) $(srcdir)/libgdiagnostics++.h \
 	  $(DESTDIR)$(includedir)/libgdiagnostics++.h
 
-ifneq (,$(findstring mingw,$(target)))
+ifneq (,$(findstring mingw,$(host)))
 libgdiagnostics.install-common: installdirs libgdiagnostics.install-headers
 # Install import library
 	$(INSTALL_PROGRAM) $(LIBGDIAGNOSTICS_IMPORT_LIB) \
@@ -4719,6 +4824,9 @@ paranoia.o: $(srcdir)/../contrib/paranoia.cc $(CONFIG_H) $(SYSTEM_H) $(TREE_H)
 
 paranoia: paranoia.o real.o $(LIBIBERTY)
 	g++ -o $@ paranoia.o real.o $(LIBIBERTY)
+
+all.fda: $(ALL_FDAS)
+	$(PROFILE_MERGER) $(ALL_FDAS) --output_file all.fda -gcov_version `../stage1-gcc/xgcc$(exeext) --print-autofdo-gcov-version`
 
 # These exist for maintenance purposes.
 

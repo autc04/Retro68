@@ -1,5 +1,5 @@
 /* -Winfinite-recursion support.
-   Copyright (C) 2021-2025 Free Software Foundation, Inc.
+   Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by Martin Sebor <msebor@redhat.com>
 
    This file is part of GCC.
@@ -190,6 +190,7 @@ pass_warn_recursion::execute (function *func)
   if (find_function_exit (entry_bb) || m_calls->length () == 0)
     return 0;
 
+  auto_diagnostic_group d;
   if (warning_at (DECL_SOURCE_LOCATION (func->decl),
 		  OPT_Winfinite_recursion,
 		  "infinite recursion detected"))

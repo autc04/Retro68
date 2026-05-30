@@ -1,6 +1,6 @@
 /* OMP constructs' SIMD clone supporting code.
 
-Copyright (C) 2005-2025 Free Software Foundation, Inc.
+Copyright (C) 2005-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -892,6 +892,10 @@ simd_clone_adjust_argument_types (struct cgraph_node *node)
       sc->args[i].orig_type = base_type;
       sc->args[i].arg_type = SIMD_CLONE_ARG_TYPE_MASK;
       sc->args[i].vector_type = mask_type;
+      /* Record the number of mask copies when that is difficult to
+	 compute.  */
+      if (sc->mask_mode != VOIDmode)
+	sc->args[i].linear_step = k;
     }
 
   if (!node->definition)

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2010-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2010-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,11 +24,10 @@
 ------------------------------------------------------------------------------
 
 with Atree;          use Atree;
-with Einfo;          use Einfo;
+with Debug;          use Debug;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Nlists;         use Nlists;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 
@@ -280,6 +279,14 @@ package body Aspects is
 
    function Get_Aspect_Id (Name : Name_Id) return Aspect_Id is
    begin
+      --  Aspect Unsigned_Base_Range temporarily disabled
+
+      if Name = Name_Unsigned_Base_Range
+        and then not Debug_Flag_Dot_U
+      then
+         return No_Aspect;
+      end if;
+
       return Aspect_Id_Hash_Table.Get (Name);
    end Get_Aspect_Id;
 
@@ -572,7 +579,7 @@ package body Aspects is
         return UAD_Pragma_Map_Header
       is (UAD_Pragma_Map_Header (Chars mod UAD_Pragma_Map_Size));
 
-      package UAD_Pragma_Map is new GNAT.Htable.Simple_Htable
+      package UAD_Pragma_Map is new GNAT.HTable.Simple_HTable
         (Header_Num => UAD_Pragma_Map_Header,
          Key        => Name_Id,
          Element    => Opt_N_Pragma_Id,

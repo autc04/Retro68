@@ -1,6 +1,43 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-01-26  Pietro Monteiro  <pietro@sociotechnical.xyz>
+
+	* update_web_docs_git (MANUALS): Add ga68-coding-guidelines.
+
+2025-12-21  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* update_web_docs_git: Avoid redirects from Sphinx stylesheets.
+
+2025-12-16  Pietro Monteiro  <pietro@sociotechnical.xyz>
+
+	* update_web_docs_git (MANUALS): Add ga68 and ga68-internals.
+
+2025-09-01  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* update_web_docs_libstdcxx_git: Copy our "inner" documentation
+	into the web area using rsync instead of cpio and remove orphaned
+	files.
+
+2025-07-04  Richard Biener  <rguenther@suse.de>
+
+	* crontab: Stop doing GCC 12 snapshots.
+
+2025-05-23  Richard Biener  <rguenther@suse.de>
+
+	* update_web_docs_git: Conditionalize libgdiagnostic processing
+	on presence.
+
+2025-04-25  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc_release: Allow optional \[[0-9]+\] before GCC major.minor
+	in the NEWS file.
+
+2025-04-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* crontab: Snapshots from trunk are now GCC 16 related.
+	Add GCC 15 snapshots from the respective branch.
 
 2025-04-07  Jakub Jelinek  <jakub@redhat.com>
 

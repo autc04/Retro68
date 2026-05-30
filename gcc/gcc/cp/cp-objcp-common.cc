@@ -1,5 +1,5 @@
 /* Some code common to C++ and ObjC++ front ends.
-   Copyright (C) 2004-2025 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
    Contributed by Ziemowit Laski  <zlaski@apple.com>
 
 This file is part of GCC.
@@ -26,7 +26,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "c-family/c-common.h"
 #include "dwarf2.h"
 #include "stringpool.h"
-#include "contracts.h"
 
 /* Class to determine whether a given C++ language feature is available.
    Used to implement __has_{feature,extension}.  */
@@ -180,12 +179,6 @@ cxx_get_alias_set (tree t)
        complete type.  */
     return get_alias_set (TYPE_CONTEXT (t));
 
-  /* Punt on PMFs until we canonicalize functions properly.  */
-  if (TYPE_PTRMEMFUNC_P (t)
-      || (INDIRECT_TYPE_P (t)
-	  && TYPE_PTRMEMFUNC_P (TREE_TYPE (t))))
-    return 0;
-
   return c_common_get_alias_set (t);
 }
 
@@ -296,7 +289,7 @@ cp_get_debug_type (const_tree type)
      the debug info depend on the collection points.  */
   if (dtype)
     {
-      tree ktype = CONST_CAST_TREE (type);
+      tree ktype = const_cast<tree> (type);
       if (tree *slot = hash_map_safe_get (debug_type_map, ktype))
 	return *slot;
       hash_map_safe_put<hm_ggc> (debug_type_map, ktype, dtype);
@@ -588,6 +581,7 @@ names_builtin_p (const char *name)
     case RID_BUILTIN_BIT_CAST:
     case RID_OFFSETOF:
     case RID_VA_ARG:
+    case RID_C23_VA_START:
       return 1;
     case RID_BUILTIN_OPERATOR_NEW:
     case RID_BUILTIN_OPERATOR_DELETE:
@@ -614,6 +608,8 @@ cp_register_dumps (gcc::dump_manager *dumps)
     (".raw", "lang-raw", "lang-raw", DK_lang, OPTGROUP_NONE, false);
   coro_dump_id = dumps->dump_register
     (".coro", "lang-coro", "lang-coro", DK_lang, OPTGROUP_NONE, false);
+  tinst_dump_id = dumps->dump_register
+    (".tinst", "lang-tinst", "lang-tinst", DK_lang, OPTGROUP_NONE, false);
 }
 
 void
@@ -649,6 +645,8 @@ cp_common_init_ts (void)
   MARK_TS_TYPE_NON_COMMON (TEMPLATE_TYPE_PARM);
   MARK_TS_TYPE_NON_COMMON (TYPE_PACK_EXPANSION);
   MARK_TS_TYPE_NON_COMMON (PACK_INDEX_TYPE);
+  MARK_TS_TYPE_NON_COMMON (META_TYPE);
+  MARK_TS_TYPE_NON_COMMON (SPLICE_SCOPE);
 
   /* Statements.  */
   MARK_TS_EXP (CLEANUP_STMT);
@@ -657,6 +655,7 @@ cp_common_init_ts (void)
   MARK_TS_EXP (IF_STMT);
   MARK_TS_EXP (OMP_DEPOBJ);
   MARK_TS_EXP (RANGE_FOR_STMT);
+  MARK_TS_EXP (TEMPLATE_FOR_STMT);
   MARK_TS_EXP (TRY_BLOCK);
   MARK_TS_EXP (USING_STMT);
 
@@ -698,6 +697,8 @@ cp_common_init_ts (void)
   MARK_TS_EXP (VEC_INIT_EXPR);
   MARK_TS_EXP (VEC_NEW_EXPR);
   MARK_TS_EXP (SPACESHIP_EXPR);
+  MARK_TS_EXP (SPLICE_EXPR);
+  MARK_TS_EXP (REFLECT_EXPR);
 
   /* Fold expressions.  */
   MARK_TS_EXP (BINARY_LEFT_FOLD_EXPR);
@@ -738,38 +739,6 @@ cp_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
 {
   if (handle_module_option (unsigned (scode), arg, value))
     return true;
-
-  enum opt_code code = (enum opt_code) scode;
-  bool handled_p = true;
-
-  switch (code)
-    {
-    case OPT_fcontract_build_level_:
-      handle_OPT_fcontract_build_level_ (arg);
-      break;
-
-    case OPT_fcontract_assumption_mode_:
-      handle_OPT_fcontract_assumption_mode_ (arg);
-      break;
-
-    case OPT_fcontract_continuation_mode_:
-      handle_OPT_fcontract_continuation_mode_ (arg);
-      break;
-
-    case OPT_fcontract_role_:
-      handle_OPT_fcontract_role_ (arg);
-      break;
-
-    case OPT_fcontract_semantic_:
-      handle_OPT_fcontract_semantic_ (arg);
-      break;
-
-    default:
-      handled_p = false;
-      break;
-    }
-  if (handled_p)
-    return handled_p;
 
   return c_common_handle_option (scode, arg, value, kind, loc, handlers);
 }

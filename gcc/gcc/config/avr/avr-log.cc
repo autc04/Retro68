@@ -1,5 +1,5 @@
 /* Subroutines for log output for AVR 8-bit microcontrollers.
-   Copyright (C) 2011-2025 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
    Contributed by Georg-Johann Lay (avr@gjlay.de)
 
    This file is part of GCC.
@@ -373,7 +373,6 @@ avr_log_set_avr_log (void)
       SET_DUMP_DETAIL (insn_addresses);
       SET_DUMP_DETAIL (legitimate_address_p);
       SET_DUMP_DETAIL (legitimize_address);
-      SET_DUMP_DETAIL (legitimize_reload_address);
       SET_DUMP_DETAIL (progmem);
       SET_DUMP_DETAIL (rtx_costs);
 

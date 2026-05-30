@@ -1,5 +1,5 @@
 #objdump: -dr --prefix-addresses --show-raw-insn -M force-thumb
-#name: SB instruction (Thumb) with +sb
+#name: SB instruction (Thumb) with +sb (pe)
 #source: sb.s
 #as: -march=armv8-a+sb -mthumb
 

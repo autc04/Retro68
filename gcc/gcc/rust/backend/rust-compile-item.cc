@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -50,33 +50,21 @@ CompileItem::visit (HIR::StaticItem &var)
 
   tree type = TyTyResolveCompile::compile (ctx, resolved_type);
 
-  tl::optional<Resolver::CanonicalPath> canonical_path;
+  auto &nr_ctx
+    = Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
 
-  if (flag_name_resolution_2_0)
-    {
-      auto &nr_ctx
-	= Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
-
-      canonical_path
-	= nr_ctx.values.to_canonical_path (var.get_mappings ().get_nodeid ());
-    }
-  else
-    {
-      canonical_path = ctx->get_mappings ().lookup_canonical_path (
-	var.get_mappings ().get_nodeid ());
-    }
-
-  rust_assert (canonical_path.has_value ());
+  Resolver::CanonicalPath canonical_path
+    = nr_ctx.to_canonical_path (var.get_mappings ().get_nodeid ());
 
   ctx->push_const_context ();
   tree value
     = compile_constant_item (var.get_mappings ().get_hirid (), expr_type,
-			     resolved_type, *canonical_path, const_value_expr,
+			     resolved_type, canonical_path, const_value_expr,
 			     var.get_locus (), const_value_expr.get_locus ());
   ctx->pop_const_context ();
 
-  std::string name = canonical_path->get ();
-  std::string asm_name = ctx->mangle_item (resolved_type, *canonical_path);
+  std::string name = canonical_path.get ();
+  std::string asm_name = ctx->mangle_item (resolved_type, canonical_path);
 
   bool is_external = false;
   bool is_hidden = false;
@@ -115,23 +103,22 @@ CompileItem::visit (HIR::ConstantItem &constant)
     const_value_expr.get_mappings ().get_hirid (), &expr_type);
   rust_assert (ok);
 
+  auto &nr_ctx
+    = Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
+
   // canonical path
   Resolver::CanonicalPath canonical_path
-    = Resolver::CanonicalPath::create_empty ();
-
-  if (flag_name_resolution_2_0)
+    = nr_ctx.to_canonical_path (mappings.get_nodeid ());
+  if (constant_type->is<const TyTy::FnType> ())
     {
-      auto &nr_ctx
-	= Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
+      if (concrete == nullptr)
+	return;
 
-      canonical_path
-	= nr_ctx.values.to_canonical_path (mappings.get_nodeid ()).value ();
-    }
-  else
-    {
-      canonical_path = ctx->get_mappings ()
-			 .lookup_canonical_path (mappings.get_nodeid ())
-			 .value ();
+      rust_assert (concrete->get_kind () == TyTy::TypeKind::FNDEF);
+      TyTy::FnType *concrete_fnty = static_cast<TyTy::FnType *> (concrete);
+
+      concrete_fnty->override_context ();
+      constant_type = expr_type = concrete_fnty->get_return_type ();
     }
 
   ctx->push_const_context ();
@@ -142,8 +129,11 @@ CompileItem::visit (HIR::ConstantItem &constant)
 			     const_value_expr.get_locus ());
   ctx->pop_const_context ();
 
-  ctx->push_const (const_expr);
-  ctx->insert_const_decl (mappings.get_hirid (), const_expr);
+  if (const_expr != error_mark_node)
+    {
+      ctx->push_const (const_expr);
+      ctx->insert_const_decl (mappings.get_hirid (), const_expr);
+    }
   reference = const_expr;
 }
 
@@ -210,26 +200,11 @@ CompileItem::visit (HIR::Function &function)
 	}
     }
 
+  auto &nr_ctx
+    = Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
+
   Resolver::CanonicalPath canonical_path
-    = Resolver::CanonicalPath::create_empty ();
-
-  if (flag_name_resolution_2_0)
-    {
-      auto &nr_ctx
-	= Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
-
-      auto path = nr_ctx.values.to_canonical_path (
-	function.get_mappings ().get_nodeid ());
-
-      canonical_path = path.value ();
-    }
-  else
-    {
-      auto path = ctx->get_mappings ().lookup_canonical_path (
-	function.get_mappings ().get_nodeid ());
-
-      canonical_path = *path;
-    }
+    = nr_ctx.to_canonical_path (function.get_mappings ().get_nodeid ());
 
   const std::string asm_name = ctx->mangle_item (fntype, canonical_path);
 
@@ -298,6 +273,66 @@ CompileItem::visit (HIR::Module &module)
 {
   for (auto &item : module.get_items ())
     CompileItem::compile (item.get (), ctx);
+}
+
+void
+CompileItem::visit (HIR::TupleStruct &tuple_struct_decl)
+{
+  TyTy::BaseType *lookup = nullptr;
+  if (!ctx->get_tyctx ()->lookup_type (
+	tuple_struct_decl.get_mappings ().get_hirid (), &lookup))
+    {
+      rust_error_at (tuple_struct_decl.get_locus (), "failed to resolve type");
+      return;
+    }
+
+  if (lookup->is_concrete ())
+    TyTyResolveCompile::compile (ctx, lookup);
+}
+
+void
+CompileItem::visit (HIR::Enum &enum_decl)
+{
+  TyTy::BaseType *lookup = nullptr;
+  if (!ctx->get_tyctx ()->lookup_type (enum_decl.get_mappings ().get_hirid (),
+				       &lookup))
+    {
+      rust_error_at (enum_decl.get_locus (), "failed to resolve type");
+      return;
+    }
+
+  if (lookup->is_concrete ())
+    TyTyResolveCompile::compile (ctx, lookup);
+}
+
+void
+CompileItem::visit (HIR::Union &union_decl)
+{
+  TyTy::BaseType *lookup = nullptr;
+  if (!ctx->get_tyctx ()->lookup_type (union_decl.get_mappings ().get_hirid (),
+				       &lookup))
+    {
+      rust_error_at (union_decl.get_locus (), "failed to resolve type");
+      return;
+    }
+
+  if (lookup->is_concrete ())
+    TyTyResolveCompile::compile (ctx, lookup);
+}
+
+void
+CompileItem::visit (HIR::StructStruct &struct_decl)
+{
+  TyTy::BaseType *lookup = nullptr;
+  if (!ctx->get_tyctx ()->lookup_type (struct_decl.get_mappings ().get_hirid (),
+				       &lookup))
+    {
+      rust_error_at (struct_decl.get_locus (), "failed to resolve type");
+      return;
+    }
+
+  if (lookup->is_concrete ())
+    TyTyResolveCompile::compile (ctx, lookup);
 }
 
 } // namespace Compile

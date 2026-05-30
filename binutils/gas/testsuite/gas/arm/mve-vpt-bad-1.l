@@ -1,16 +1,16 @@
 [^:]*: Assembler messages:
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:8: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:15: Warning: instruction is UNPREDICTABLE with SP operand
 [^:]*:17: Error: bad type in SIMD instruction -- `vpt.i64 eq,q0,q1'
 [^:]*:18: Error: selected FPU does not support instruction -- `vpt.f16 eq,q0,q1'

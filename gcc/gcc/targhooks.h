@@ -1,5 +1,5 @@
 /* Default target hook functions.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -33,6 +33,8 @@ extern machine_mode default_promote_function_mode (const_tree, machine_mode,
 							int *, const_tree, int);
 extern machine_mode default_promote_function_mode_always_promote
 			(const_tree, machine_mode, int *, const_tree, int);
+extern machine_mode default_promote_function_mode_sign_extend
+  (const_tree, machine_mode, int *, const_tree, int);
 
 extern machine_mode default_cc_modes_compatible (machine_mode,
 						      machine_mode);
@@ -113,8 +115,7 @@ extern poly_uint64 default_preferred_vector_alignment (const_tree);
 extern bool default_builtin_vector_alignment_reachable (const_tree, bool);
 extern bool
 default_builtin_support_vector_misalignment (machine_mode mode,
-					     const_tree,
-					     int, bool);
+					     int, bool, bool);
 extern machine_mode default_preferred_simd_mode (scalar_mode mode);
 extern machine_mode default_split_reduction (machine_mode);
 extern unsigned int default_autovectorize_vector_modes (vector_modes *, bool);
@@ -215,6 +216,8 @@ extern bool default_addr_space_subset_p (addr_space_t, addr_space_t);
 extern bool default_addr_space_zero_address_valid (addr_space_t);
 extern int default_addr_space_debug (addr_space_t);
 extern void default_addr_space_diagnose_usage (addr_space_t, location_t);
+extern addr_space_t default_addr_space_for_artificial_rodata (tree,
+							      artificial_rodata);
 extern rtx default_addr_space_convert (rtx, tree, tree);
 extern unsigned int default_case_values_threshold (void);
 extern bool default_have_conditional_execution (void);
@@ -304,13 +307,13 @@ extern machine_mode default_mode_for_floating_type (enum tree_index);
 extern HOST_WIDE_INT default_stack_clash_protection_alloca_probe_range (void);
 extern void default_select_early_remat_modes (sbitmap);
 extern tree default_preferred_else_value (unsigned, tree, unsigned, tree *);
-
+extern bool default_instruction_selection (function *, gimple_stmt_iterator *);
 extern bool default_have_speculation_safe_value (bool);
 extern bool speculation_safe_value_not_needed (bool);
 extern rtx default_speculation_safe_value (machine_mode, rtx, rtx, rtx);
 
 extern bool default_memtag_can_tag_addresses ();
-extern uint8_t default_memtag_tag_size ();
+extern uint8_t default_memtag_tag_bitsize ();
 extern uint8_t default_memtag_granule_size ();
 extern rtx default_memtag_insert_random_tag (rtx, rtx);
 extern rtx default_memtag_add_tag (rtx, poly_int64, uint8_t);

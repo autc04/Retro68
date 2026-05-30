@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <new>
+#include "dl5.h"
 
 int pass = 0;
 
@@ -30,22 +31,14 @@ operator delete (void *ptr) throw ()
     free (ptr);
 }
 
-class A 
-{
-public:
-  A() {}
-  ~A() { }
-  int a;
-  int b;
-};
-
-
 int
 main (void)
 {
   A *bb = new A[10];
+  foo (bb);
   delete [] bb;
   bb = new (std::nothrow) A [10];
+  foo (bb);
   delete [] bb;
 
   if (pass == 4)

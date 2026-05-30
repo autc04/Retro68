@@ -6,15 +6,15 @@ Contents of the .debug_str section \(loaded from .*debuglink.o\):
 #...
 Contents of the .debug_info section \(loaded from .*debuglink.o\):
 
-  Compilation Unit @ offset 0x0:
+  Compilation Unit @ offset (0x)?0:
    Length:        0x12 \(32-bit\)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  4
  <0><b>: Abbrev Number: 1 \(DW_TAG_compile_unit\)
-    <c>   DW_AT_name        : \(indirect string, offset: 0x0\): string-1
+    <c>   DW_AT_name        : \(indirect string, offset: (0x)?0\): string-1
  <0><10>: Abbrev Number: 2 \(DW_TAG_subprogram\)
-    <11>   DW_AT_name        : \(alt indirect string, offset: 0x0\) string-3
+    <11>   DW_AT_name        : \(alt indirect string, offset: (0x)?0\) string-3
 #...
 Contents of the .debug_str section \(loaded from .*linkdebug.debug\):
 

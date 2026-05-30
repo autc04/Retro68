@@ -1,6 +1,6 @@
 (* LowShort.mod provides access to limits of the gm2 SHORTREAL.
 
-Copyright (C) 2010-2025 Free Software Foundation, Inc.
+Copyright (C) 2010-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -183,8 +183,8 @@ BEGIN
    IF n<0
    THEN
       (* exception raised *)
-      RAISE(except, ORD(badparam),
-            'LowLong.trunc: cannot truncate to a negative number of digits') ;
+      RAISE (exceptSrc, ORD(badparam),
+             'LowLong.trunc: cannot truncate to a negative number of digits') ;
       RETURN x
    ELSE
       r := dtoa(x, maxsignificant, 100, point, sign) ;
@@ -231,8 +231,8 @@ BEGIN
    IF n<0
    THEN
       (* exception raised *)
-      RAISE(except, ORD(badparam),
-            'LowLong.round: cannot round to a negative number of digits') ;
+      RAISE (exceptSrc, ORD(badparam),
+             'LowLong.round: cannot round to a negative number of digits') ;
       RETURN x
    ELSE
       s := RealToFloatString(x, n) ;
@@ -288,12 +288,12 @@ END currentMode ;
 
 PROCEDURE IsLowException () : BOOLEAN ;
 BEGIN
-   RETURN( IsExceptionalExecution() AND IsCurrentSource(except) )
+   RETURN( IsExceptionalExecution () AND IsCurrentSource (exceptSrc) )
 END IsLowException ;
 
 
 VAR
-   except: ExceptionSource ;
+   exceptSrc: ExceptionSource ;
 BEGIN
-   AllocateSource(except)
+   AllocateSource (exceptSrc)
 END LowShort.

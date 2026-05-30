@@ -1,6 +1,6 @@
 ; Options for the RISC-V port of the compiler
 ;
-; Copyright (C) 2011-2025 Free Software Foundation, Inc.
+; Copyright (C) 2011-2026 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -34,7 +34,7 @@ Target RejectNegative Joined UInteger Var(riscv_branch_cost)
 -mbranch-cost=N	Set the cost of branches to roughly N instructions.
 
 mplt
-Target Alias(fplt)
+Target Alias(fplt) Undocumented
 This option is deprecated; use -fplt or -fno-plt instead.
 
 mabi=
@@ -107,7 +107,7 @@ Target RejectNegative Joined Var(riscv_cpu_string) Save
 -mcpu=PROCESSOR	Use architecture of and optimize the output for PROCESSOR.
 
 msmall-data-limit=
-Target Joined UInteger Var(g_switch_value) Init(8)
+Target Joined UInteger Var(g_switch_value) Init(8) RejectNegative
 -msmall-data-limit=N	Put global and static data smaller than <number> bytes into a special section (on some targets).
 
 msave-restore
@@ -168,23 +168,14 @@ momit-leaf-frame-pointer
 Target Mask(OMIT_LEAF_FRAME_POINTER) Save
 Omit the frame pointer in leaf functions.
 
-Mask(64BIT)
+TargetVariable
+int riscv_isa_flags
 
-Mask(MUL)
+Mask(64BIT) Var(riscv_isa_flags)
 
-Mask(ATOMIC)
+Mask(VECTOR) Var(riscv_isa_flags)
 
-Mask(HARD_FLOAT)
-
-Mask(DOUBLE_FLOAT)
-
-Mask(RVC)
-
-Mask(RVE)
-
-Mask(VECTOR)
-
-Mask(FULL_V)
+Mask(FULL_V) Var(riscv_isa_flags)
 
 mriscv-attribute
 Target Var(riscv_emit_attribute_p) Init(-1)
@@ -233,93 +224,6 @@ TargetVariable
 long riscv_stack_protector_guard_offset = 0
 
 TargetVariable
-int riscv_zi_subext
-
-Mask(ZICSR)       Var(riscv_zi_subext)
-
-Mask(ZIFENCEI)    Var(riscv_zi_subext)
-
-Mask(ZIHINTNTL)   Var(riscv_zi_subext)
-
-Mask(ZIHINTPAUSE) Var(riscv_zi_subext)
-
-Mask(ZICOND)      Var(riscv_zi_subext)
-
-Mask(ZICCAMOA)    Var(riscv_zi_subext)
-
-Mask(ZICCIF)      Var(riscv_zi_subext)
-
-Mask(ZICCLSM)     Var(riscv_zi_subext)
-
-Mask(ZICCRSE)     Var(riscv_zi_subext)
-
-Mask(ZICFISS)     Var(riscv_zi_subext)
-
-Mask(ZICFILP)     Var(riscv_zi_subext)
-
-TargetVariable
-int riscv_za_subext
-
-Mask(ZAWRS)  Var(riscv_za_subext)
-
-Mask(ZAAMO)  Var(riscv_za_subext)
-
-Mask(ZALRSC) Var(riscv_za_subext)
-
-Mask(ZABHA) Var(riscv_za_subext)
-
-Mask(ZACAS) Var(riscv_za_subext)
-
-Mask(ZA64RS)  Var(riscv_za_subext)
-
-Mask(ZA128RS) Var(riscv_za_subext)
-
-TargetVariable
-int riscv_zb_subext
-
-Mask(ZBA) Var(riscv_zb_subext)
-
-Mask(ZBB) Var(riscv_zb_subext)
-
-Mask(ZBC) Var(riscv_zb_subext)
-
-Mask(ZBS) Var(riscv_zb_subext)
-
-TargetVariable
-int riscv_zinx_subext
-
-Mask(ZFINX)    Var(riscv_zinx_subext)
-
-Mask(ZDINX)    Var(riscv_zinx_subext)
-
-Mask(ZHINX)    Var(riscv_zinx_subext)
-
-Mask(ZHINXMIN) Var(riscv_zinx_subext)
-
-TargetVariable
-int riscv_zk_subext
-
-Mask(ZBKB)  Var(riscv_zk_subext)
-
-Mask(ZBKC)  Var(riscv_zk_subext)
-
-Mask(ZBKX)  Var(riscv_zk_subext)
-
-Mask(ZKNE)  Var(riscv_zk_subext)
-
-Mask(ZKND)  Var(riscv_zk_subext)
-
-Mask(ZKNH)  Var(riscv_zk_subext)
-
-Mask(ZKR)   Var(riscv_zk_subext)
-
-Mask(ZKSED) Var(riscv_zk_subext)
-
-Mask(ZKSH)  Var(riscv_zk_subext)
-
-Mask(ZKT)   Var(riscv_zk_subext)
-
-TargetVariable
 int riscv_vector_elen_flags
 
 Mask(VECTOR_ELEN_32)    Var(riscv_vector_elen_flags)
@@ -333,207 +237,6 @@ Mask(VECTOR_ELEN_FP_64) Var(riscv_vector_elen_flags)
 Mask(VECTOR_ELEN_FP_16) Var(riscv_vector_elen_flags)
 
 Mask(VECTOR_ELEN_BF_16) Var(riscv_vector_elen_flags)
-
-TargetVariable
-int riscv_zvl_flags
-
-Mask(ZVL32B)    Var(riscv_zvl_flags)
-
-Mask(ZVL64B)    Var(riscv_zvl_flags)
-
-Mask(ZVL128B)   Var(riscv_zvl_flags)
-
-Mask(ZVL256B)   Var(riscv_zvl_flags)
-
-Mask(ZVL512B)   Var(riscv_zvl_flags)
-
-Mask(ZVL1024B)  Var(riscv_zvl_flags)
-
-Mask(ZVL2048B)  Var(riscv_zvl_flags)
-
-Mask(ZVL4096B)  Var(riscv_zvl_flags)
-
-Mask(ZVL8192B)  Var(riscv_zvl_flags)
-
-Mask(ZVL16384B) Var(riscv_zvl_flags)
-
-Mask(ZVL32768B) Var(riscv_zvl_flags)
-
-Mask(ZVL65536B) Var(riscv_zvl_flags)
-
-TargetVariable
-int riscv_zvb_subext
-
-Mask(ZVBB) Var(riscv_zvb_subext)
-
-Mask(ZVBC) Var(riscv_zvb_subext)
-
-Mask(ZVKB) Var(riscv_zvb_subext)
-
-TargetVariable
-int riscv_zvk_subext
-
-Mask(ZVKG)   Var(riscv_zvk_subext)
-
-Mask(ZVKNED) Var(riscv_zvk_subext)
-
-Mask(ZVKNHA) Var(riscv_zvk_subext)
-
-Mask(ZVKNHB) Var(riscv_zvk_subext)
-
-Mask(ZVKSED) Var(riscv_zvk_subext)
-
-Mask(ZVKSH)  Var(riscv_zvk_subext)
-
-Mask(ZVKN)   Var(riscv_zvk_subext)
-
-Mask(ZVKNC)  Var(riscv_zvk_subext)
-
-Mask(ZVKNG)  Var(riscv_zvk_subext)
-
-Mask(ZVKS)   Var(riscv_zvk_subext)
-
-Mask(ZVKSC)  Var(riscv_zvk_subext)
-
-Mask(ZVKSG)  Var(riscv_zvk_subext)
-
-Mask(ZVKT)   Var(riscv_zvk_subext)
-
-TargetVariable
-int riscv_zicmo_subext
-
-Mask(ZICBOZ) Var(riscv_zicmo_subext)
-
-Mask(ZICBOM) Var(riscv_zicmo_subext)
-
-Mask(ZICBOP) Var(riscv_zicmo_subext)
-
-Mask(ZIC64B) Var(riscv_zicmo_subext)
-
-TargetVariable
-int riscv_mop_subext
-
-Mask(ZIMOP) Var(riscv_mop_subext)
-
-Mask(ZCMOP) Var(riscv_mop_subext)
-
-TargetVariable
-int riscv_zf_subext
-
-Mask(ZFBFMIN)  Var(riscv_zf_subext)
-
-Mask(ZFHMIN)  Var(riscv_zf_subext)
-
-Mask(ZFH)     Var(riscv_zf_subext)
-
-Mask(ZVFBFMIN) Var(riscv_zf_subext)
-
-Mask(ZVFBFWMA) Var(riscv_zf_subext)
-
-Mask(ZVFHMIN) Var(riscv_zf_subext)
-
-Mask(ZVFH)    Var(riscv_zf_subext)
-
-TargetVariable
-int riscv_zfa_subext
-
-Mask(ZFA) Var(riscv_zfa_subext)
-
-TargetVariable
-int riscv_zm_subext
-
-Mask(ZMMUL) Var(riscv_zm_subext)
-
-TargetVariable
-int riscv_zc_subext
-
-Mask(ZCA)  Var(riscv_zc_subext)
-
-Mask(ZCB)  Var(riscv_zc_subext)
-
-Mask(ZCE)  Var(riscv_zc_subext)
-
-Mask(ZCF)  Var(riscv_zc_subext)
-
-Mask(ZCD)  Var(riscv_zc_subext)
-
-Mask(ZCMP) Var(riscv_zc_subext)
-
-Mask(ZCMT) Var(riscv_zc_subext)
-
-Mask(XCVBI) Var(riscv_xcv_subext)
-
-TargetVariable
-int riscv_sv_subext
-
-Mask(SVINVAL) Var(riscv_sv_subext)
-
-Mask(SVNAPOT) Var(riscv_sv_subext)
-
-Mask(SVVPTC) Var(riscv_sv_subext)
-
-TargetVariable
-int riscv_ztso_subext
-
-Mask(ZTSO) Var(riscv_ztso_subext)
-
-TargetVariable
-int riscv_xcv_subext
-
-Mask(XCVMAC) Var(riscv_xcv_subext)
-
-Mask(XCVALU) Var(riscv_xcv_subext)
-
-Mask(XCVELW) Var(riscv_xcv_subext)
-
-Mask(XCVSIMD) Var(riscv_xcv_subext)
-
-TargetVariable
-int riscv_xthead_subext
-
-Mask(XTHEADBA)      Var(riscv_xthead_subext)
-
-Mask(XTHEADBB)      Var(riscv_xthead_subext)
-
-Mask(XTHEADBS)      Var(riscv_xthead_subext)
-
-Mask(XTHEADCMO)     Var(riscv_xthead_subext)
-
-Mask(XTHEADCONDMOV) Var(riscv_xthead_subext)
-
-Mask(XTHEADFMEMIDX) Var(riscv_xthead_subext)
-
-Mask(XTHEADFMV)     Var(riscv_xthead_subext)
-
-Mask(XTHEADINT)     Var(riscv_xthead_subext)
-
-Mask(XTHEADMAC)     Var(riscv_xthead_subext)
-
-Mask(XTHEADMEMIDX)  Var(riscv_xthead_subext)
-
-Mask(XTHEADMEMPAIR) Var(riscv_xthead_subext)
-
-Mask(XTHEADSYNC)    Var(riscv_xthead_subext)
-
-Mask(XTHEADVECTOR)  Var(riscv_xthead_subext)
-
-TargetVariable
-int riscv_xventana_subext
-
-Mask(XVENTANACONDOPS) Var(riscv_xventana_subext)
-
-TargetVariable
-int riscv_sifive_subext
-
-Mask(XSFVCP) Var(riscv_sifive_subext)
-
-Mask(XSFCEASE) Var(riscv_sifive_subext)
-
-Mask(XSFVQMACCQOQ) Var(riscv_sifive_subext)
-
-Mask(XSFVQMACCDOD) Var(riscv_sifive_subext)
-
-Mask(XSFVFNRCLIPXFQF) Var(riscv_sifive_subext)
 
 TargetVariable
 int riscv_fmv_priority = 0
@@ -579,6 +282,26 @@ Inline strlen calls if possible.
 Target RejectNegative Joined UInteger Var(riscv_strcmp_inline_limit) Init(64)
 Max number of bytes to compare as part of inlined strcmp/strncmp routines (default: 64).
 
+-param=gpr2vr-cost=
+Target RejectNegative Joined UInteger Var(gpr2vr_cost) Init(GPR2VR_COST_UNPROVIDED)
+Set the cost value of the rvv instruction when operate from GPR to VR.
+
+-param=vr2gpr-cost=
+Target RejectNegative Joined UInteger Var(vr2gpr_cost) Init(VR2GPR_COST_UNPROVIDED)
+Set the cost value of the rvv instruction when operate from VR to GPR .
+
+-param=fpr2vr-cost=
+Target RejectNegative Joined UInteger Var(fpr2vr_cost) Init(FPR2VR_COST_UNPROVIDED)
+Set the cost value of the rvv instruction when operate from FPR to VR.
+
+-param=vr2fpr-cost=
+Target RejectNegative Joined UInteger Var(vr2fpr_cost) Init(VR2FPR_COST_UNPROVIDED)
+Set the cost value of the rvv instruction when operate from VR to FPR.
+
+-param=riscv-autovec-mode=
+Target Undocumented RejectNegative Joined Var(riscv_autovec_mode) Save
+Set the only autovec mode to try.
+
 Enum
 Name(rvv_max_lmul) Type(enum rvv_max_lmul_enum)
 The RVV possible LMUL (-mrvv-max-lmul=):
@@ -597,6 +320,9 @@ Enum(rvv_max_lmul) String(m8) Value(RVV_M8)
 
 EnumValue
 Enum(rvv_max_lmul) String(dynamic) Value(RVV_DYNAMIC)
+
+EnumValue
+Enum(rvv_max_lmul) String(conv-dynamic) Value(RVV_CONV_DYNAMIC)
 
 mrvv-max-lmul=
 Target RejectNegative Joined Enum(rvv_max_lmul) Var(rvv_max_lmul) Init(RVV_M1)
@@ -626,6 +352,10 @@ Target Undocumented RejectNegative Joined Enum(vsetvl_strategy) Var(vsetvl_strat
 Target Undocumented Uinteger Var(riscv_two_source_permutes) Init(0)
 -param=riscv-two-source-permutes Enable permutes with two source vectors.
 
+mmax-vectorization
+Target Var(riscv_max_vectorization) Save
+Override the scalar cost model such that vectorization is always profitable.
+
 Enum
 Name(stringop_strategy) Type(enum stringop_strategy_enum)
 Valid arguments to -mstringop-strategy=:
@@ -645,6 +375,18 @@ Enum(stringop_strategy) String(vector) Value(STRATEGY_VECTOR)
 mstringop-strategy=
 Target RejectNegative Joined Enum(stringop_strategy) Var(stringop_strategy) Init(STRATEGY_AUTO)
 Specify stringop expansion strategy.
+
+-param=memcpy-size-threshold=
+Target Joined UInteger Var(riscv_memcpy_size_threshold) Init(-1) Param
+Constant memcpy size in bytes above which to start using libcalls over inlining.
+
+-param=memmove-size-threshold=
+Target Joined UInteger Var(riscv_memmove_size_threshold) Init(-1) Param
+Constant memmove size in bytes above which to start using libcalls over inlining.
+
+-param=memset-size-threshold=
+Target Joined UInteger Var(riscv_memset_size_threshold) Init(-1) Param
+Constant memset size in bytes above which to start using libcalls over inlining.
 
 Enum
 Name(rvv_vector_bits) Type(enum rvv_vector_bits_enum)

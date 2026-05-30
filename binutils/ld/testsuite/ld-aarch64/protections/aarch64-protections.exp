@@ -1,0 +1,75 @@
+# Expect script for AARCH64 ELF tests related to GNU properties.
+# Copyright (C) 2009-2026 Free Software Foundation, Inc.
+#
+# This file is part of the GNU Binutils.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+# MA 02110-1301, USA.
+
+# Exclude non-aarch64-ELF targets.
+if { ![is_elf_format] || ![istarget "aarch64*-*-*"] } {
+  return
+}
+
+load_file $srcdir/$subdir/../lib/aarch64-elf-lib.exp
+
+set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+set test_lp64_list [lsort [glob -nocomplain $srcdir/$subdir/bti-far-*.d]]
+
+# Remove lp64 tests from test_list to avoid executing them twice.
+foreach test_lp64 $test_lp64_list {
+  set idx [lsearch $test_list $test_lp64]
+  set test_list [lreplace $test_list $idx $idx]
+  unset idx
+}
+
+# See definition of run_ld_link_tests in testsuite/lib/ld-lib.exp for more
+# details.
+set aarch64elflinktests {
+  {"Build bti-plt-so for PLT tests"
+   "-shared" ""
+   "-I$srcdir/$subdir -defsym __property_bti__=1"
+   {bti-plt-so.s} {} "libbti-plt-so.so"}
+
+  {"Build gcs-so for GCS tests"
+   "-shared" ""
+   "-I$srcdir/$subdir -defsym __property_gcs__=1"
+   {gcs-so.s} {} "libgcs-so.so"}
+
+  {"Build nogcs-so for GCS tests"
+   "-shared" ""
+   "-I$srcdir/$subdir"
+   {gcs-so.s} {} "libnogcs-so.so"}
+
+  {"Build gcs-so2 for GCS tests"
+   "-shared" ""
+   "-I$srcdir/$subdir -defsym __property_gcs__=1"
+   {gcs-so2.s} {} "libgcs-so2.so"}
+}
+
+if [check_shared_lib_support] {
+  run_ld_link_tests $aarch64elflinktests
+}
+
+foreach t $test_lp64_list {
+  # We need to strip the ".d", but can leave the dirname.
+  run_dump_test_lp64 [file rootname $t]
+}
+
+foreach t $test_list {
+  # We need to strip the ".d", but can leave the dirname.
+  run_dump_test [file rootname $t] \
+    [list [list as "-I\$srcdir/\$subdir"]]
+}

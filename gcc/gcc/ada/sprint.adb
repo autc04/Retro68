@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -28,7 +28,6 @@ with Atree;          use Atree;
 with Casing;         use Casing;
 with Csets;          use Csets;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Lib;            use Lib;
@@ -39,7 +38,6 @@ with Output;         use Output;
 with Rtsfind;        use Rtsfind;
 with Sem_Eval;       use Sem_Eval;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
@@ -73,7 +71,7 @@ package body Sprint is
    --  Set True if the -gnatdo (dump original tree) flag is set
 
    Dump_Generated_Only : Boolean;
-   --  Set True if the -gnatdG (dump generated tree) debug flag is set
+   --  Set True if the -gnatdg (dump generated tree) debug flag is set
    --  or for Print_Generated_Code (-gnatG) or Dump_Generated_Code (-gnatD).
 
    Dump_Freeze_Null : Boolean;
@@ -1772,8 +1770,8 @@ package body Sprint is
             Sprint_Node (Name (Node));
             Write_Char (';');
 
-         when N_Exit_Statement =>
-            Write_Indent_Str_Sloc ("exit");
+         when N_Loop_Flow_Statement =>
+            Write_Indent_Str_Sloc (Loop_Flow_Keyword (Node));
             Sprint_Opt_Node (Name (Node));
 
             if Present (Condition (Node)) then
@@ -1963,9 +1961,9 @@ package body Sprint is
                   Sprint_Node (Access_Definition (Node));
                end if;
 
-               if Present (Default_Expression (Node)) then
+               if Present (Expression (Node)) then
                   Write_Str (" := ");
-                  Sprint_Node (Default_Expression (Node));
+                  Sprint_Node (Expression (Node));
                end if;
 
                Write_Char (';');
@@ -2187,6 +2185,13 @@ package body Sprint is
                Write_Indent_Str ("exception");
                Indent_Begin;
                Sprint_Node_List (Exception_Handlers (Node));
+               Indent_End;
+            end if;
+
+            if Present (Finally_Statements (Node)) then
+               Write_Indent_Str ("finally");
+               Indent_Begin;
+               Sprint_Node_List (Finally_Statements (Node));
                Indent_End;
             end if;
 
@@ -4634,7 +4639,7 @@ package body Sprint is
                            Param : Entity_Id;
 
                         begin
-                           Param := First_Entity (Typ);
+                           Param := First_Formal (Typ);
                            loop
                               Write_Id (Param);
                               Write_Str (" : ");
@@ -4646,7 +4651,7 @@ package body Sprint is
                               end if;
 
                               Write_Id (Etype (Param));
-                              Next_Entity (Param);
+                              Next_Formal (Param);
                               exit when No (Param);
                               Write_Str (", ");
                            end loop;

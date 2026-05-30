@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Free Software Foundation, Inc.
+// Copyright (C) 2023-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU Proc Macro Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -96,8 +96,7 @@ struct ProcmacroArray
   Procmacro *macros;
 };
 
-extern "C" bool
-bridge_is_available ();
+extern "C" bool bridge_is_available ();
 
 } // namespace ProcMacro
 

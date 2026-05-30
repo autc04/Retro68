@@ -6,7 +6,7 @@
 
 Disassembly of section .text:
 0[0-9a-f]+ <[^>]+> e1400070 	hvc	0
-0[0-9a-f]+ <[^>]+> e14fff7f 	hvc	65535	; 0xffff
+0[0-9a-f]+ <[^>]+> e14fff7f 	hvc	65535	@ 0xffff
 0[0-9a-f]+ <[^>]+> e160006e 	eret
 0[0-9a-f]+ <[^>]+> e1001200 	mrs	r1, R8_usr
 0[0-9a-f]+ <[^>]+> e1011200 	mrs	r1, R9_usr
@@ -75,7 +75,7 @@ Disassembly of section .text:
 0[0-9a-f]+ <[^>]+> e12ef301 	msr	ELR_hyp, r1
 0[0-9a-f]+ <[^>]+> e16ef301 	msr	SPSR_hyp, r1
 0[0-9a-f]+ <[^>]+> f7e0 8000 	hvc	#0
-0[0-9a-f]+ <[^>]+> f7ef 8fff 	hvc	#65535	; 0xffff
+0[0-9a-f]+ <[^>]+> f7ef 8fff 	hvc	#65535	@ 0xffff
 0[0-9a-f]+ <[^>]+> f3de 8f00 	subs	pc, lr, #0
 0[0-9a-f]+ <[^>]+> f3e0 8120 	mrs	r1, R8_usr
 0[0-9a-f]+ <[^>]+> f3e1 8120 	mrs	r1, R9_usr

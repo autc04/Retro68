@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for IBM S/390
-   Copyright (C) 1999-2025 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
    Contributed by Hartmut Penner (hpenner@de.ibm.com) and
 		  Ulrich Weigand (uweigand@de.ibm.com).
 		  Andreas Krebbel (Andreas.Krebbel@de.ibm.com)
@@ -250,6 +250,9 @@ enum processor_flags
   (TARGET_Z10								\
    && (s390_tune < PROCESSOR_2964_Z13 || (VAL) != const0_rtx)		\
    && (!CONST_INT_P (LEN) || INTVAL ((LEN)) > TARGET_SETMEM_PREFETCH_DISTANCE))
+
+#define TARGET_SP_GLOBAL_GUARD (s390_stack_protector_guard == SP_GLOBAL)
+#define TARGET_SP_TLS_GUARD    (s390_stack_protector_guard == SP_TLS)
 
 /* Run-time target specification.  */
 
@@ -1001,10 +1004,10 @@ do {									\
 #define FUNCTION_MODE QImode
 
 /* Specify the value which is used when clz operand is zero.  */
-#define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE) ((VALUE) = 64, 1)
+#define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE) ((VALUE) = GET_MODE_PRECISION (MODE), 2)
 
 /* Specify the value which is used when ctz operand is zero.  */
-#define CTZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE) ((VALUE) = 64, 1)
+#define CTZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE) ((VALUE) = 64, 2)
 
 /* Machine-specific symbol_ref flags.  */
 #define SYMBOL_FLAG_ALIGN_SHIFT	  SYMBOL_FLAG_MACH_DEP_SHIFT

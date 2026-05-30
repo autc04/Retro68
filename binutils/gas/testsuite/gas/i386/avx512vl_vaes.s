@@ -1,6 +1,5 @@
 # Check 32bit AVX512VL,VAES instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vaesdec	%xmm4, %xmm5, %xmm6	 # AVX512VL,VAES

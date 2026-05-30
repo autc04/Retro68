@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 1999-2025, AdaCore                     --
+--                     Copyright (C) 1999-2026, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -123,4 +123,8 @@ package body System.Traceback.Symbolic is
       null;
    end Enable_Cache;
 
+   function Calling_Entity return String is
+   begin
+      return "???";
+   end Calling_Entity;
 end System.Traceback.Symbolic;

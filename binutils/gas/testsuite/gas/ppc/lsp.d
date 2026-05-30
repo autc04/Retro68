@@ -1,5 +1,5 @@
-#as: -a32 -mbig -mvle
-#objdump: -d -Mvle
+#as: -a32 -mbig -me200z2
+#objdump: -d -Me200z2
 #name: Validate LSP instructions
 
 .*: +file format elf.*-powerpc.*

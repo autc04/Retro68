@@ -1,6 +1,6 @@
 // align implementation -*- C++ -*-
 
-// Copyright (C) 2014-2025 Free Software Foundation, Inc.
+// Copyright (C) 2014-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -101,6 +101,26 @@ align(size_t __align, size_t __size, void*& __ptr, size_t& __space) noexcept
 	}
     }
 #endif // __glibcxx_assume_aligned
+
+#ifdef __glibcxx_is_sufficiently_aligned // C++ >= 26
+  /** @brief Is `__ptr` aligned to an _Align byte boundary?
+   *
+   *  @tparam _Align An alignment value
+   *  @tparam _Tp    An object type
+   *
+   *  C++26 20.2.5 [ptr.align]
+   *
+   *  @ingroup memory
+   */
+  template<size_t _Align, class _Tp>
+    [[nodiscard,__gnu__::__always_inline__]]
+    inline bool
+    is_sufficiently_aligned(_Tp* __ptr)
+    {
+      static_assert(std::has_single_bit(_Align));
+      return reinterpret_cast<__UINTPTR_TYPE__>(__ptr) % _Align == 0;
+    }
+#endif // __glibcxx_is_sufficiently_aligned
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace

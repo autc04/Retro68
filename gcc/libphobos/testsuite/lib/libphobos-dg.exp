@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2025 Free Software Foundation, Inc.
+# Copyright (C) 2017-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ load_gcc_lib scanasm.exp
 load_gcc_lib scanlang.exp
 load_gcc_lib scanrtl.exp
 load_gcc_lib scansarif.exp
+load_gcc_lib scanhtml.exp
 load_gcc_lib scantree.exp
 load_gcc_lib scanipa.exp
 load_gcc_lib torture-options.exp

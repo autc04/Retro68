@@ -1,14 +1,14 @@
 [^:]*: Assembler messages:
-[^:]*:11: Error: bad type in SIMD instruction -- `vdup.64 q0,r1'
-[^:]*:12: Error: selected FPU does not support instruction -- `vdup.32 q0,d0\[1\]'
-[^:]*:13: Warning: instruction is UNPREDICTABLE with SP operand
-[^:]*:14: Warning: instruction is UNPREDICTABLE with PC operand
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Error: bad type in SIMD instruction -- `vdup.64 q0,r1'
+[^:]*:5: Error: selected FPU does not support instruction -- `vdup.32 q0,d0\[1\]'
+[^:]*:6: Warning: instruction is UNPREDICTABLE with SP operand
+[^:]*:7: Warning: instruction is UNPREDICTABLE with PC operand
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:17: Error: syntax error -- `vdupeq.32 q0,r2'
 [^:]*:18: Error: syntax error -- `vdupeq.32 q0,r2'
 [^:]*:20: Error: syntax error -- `vdupeq.32 q0,r2'

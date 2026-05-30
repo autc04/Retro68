@@ -1,5 +1,5 @@
 ; lang.opt -- Options for the D front end.
-; Copyright (C) 2006-2025 Free Software Foundation, Inc.
+; Copyright (C) 2006-2026 Free Software Foundation, Inc.
 ;
 ; GCC is free software; you can redistribute it and/or modify it under
 ; the terms of the GNU General Public License as published by the Free
@@ -518,6 +518,14 @@ Link the standard D library statically in the compilation.
 shared-libphobos
 Driver
 Link the standard D library dynamically in the compilation.
+
+std=d2024
+D
+Conform to the 2024 D language edition.
+
+std=d202y
+D
+Conform to the latest 202Y D language edition (experimental).
 
 v
 D

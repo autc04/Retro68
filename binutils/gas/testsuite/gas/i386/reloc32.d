@@ -1,4 +1,4 @@
-#as: -mrelax-relocations=yes
+#as: -mrelax-relocations=yes -mtls-check=no
 #objdump: -Drw
 #name: i386 relocs
 
@@ -43,6 +43,7 @@ Disassembly of section \.text:
 .*[ 	]+R_386_TLS_LE[ 	]+xtrn
 .*[ 	]+R_386_TLS_LE_32[ 	]+xtrn
 .*[ 	]+R_386_TLS_LE_32[ 	]+xtrn
+.*[ 	]+R_386_PLT32[ 	]+ptr
 Disassembly of section \.data:
 #...
 .*[ 	]+R_386_32[ 	]+xtrn

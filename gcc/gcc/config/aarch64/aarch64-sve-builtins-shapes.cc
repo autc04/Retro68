@@ -1,5 +1,5 @@
 /* ACLE support for AArch64 SVE (function shapes)
-   Copyright (C) 2018-2025 Free Software Foundation, Inc.
+   Copyright (C) 2018-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -17,11 +17,15 @@
    along with GCC; see the file COPYING3.  If not see
    <http://www.gnu.org/licenses/>.  */
 
+#define INCLUDE_ALGORITHM
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
+#include "basic-block.h"
 #include "tree.h"
+#include "function.h"
+#include "gimple.h"
 #include "rtl.h"
 #include "tm_p.h"
 #include "memmodel.h"
@@ -68,23 +72,36 @@ za_group_is_pure_overload (const function_group_info &group)
    types in ARGUMENT_TYPES.  RETURN_TYPE is the type returned by the
    function.  */
 static void
-apply_predication (const function_instance &instance, tree return_type,
+apply_predication (function_instance &instance, tree return_type,
 		   vec<tree> &argument_types)
 {
+  /* Initially mark the function as not being predicated.  */
+  instance.gp_index = -1;
+
   /* There are currently no SME ZA instructions that have both merging and
      unpredicated forms, so for simplicity, the predicates are always included
      in the original format string.  */
   if (instance.pred != PRED_none && instance.pred != PRED_za_m)
     {
       argument_types.quick_insert (0, instance.gp_type ());
+      instance.gp_index = 0;
       /* For unary merge operations, the first argument is a vector with
 	 the same type as the result.  For unary_convert_narrowt it also
 	 provides the "bottom" half of active elements, and is present
 	 for all types of predication.  */
       auto nargs = argument_types.length () - 1;
       if (instance.shape->has_merge_argument_p (instance, nargs))
-	argument_types.quick_insert (0, return_type);
+	{
+	  argument_types.quick_insert (0, return_type);
+	  instance.gp_index = 1;
+	}
     }
+
+  /* In this case the predicate type we added above is a non-governing
+     predicate operand (and there is no GP), so update the gp_index value
+     accordingly.  */
+  if (!instance.shape->has_gp_argument_p (instance))
+    instance.gp_index = -1;
 }
 
 /* Parse and move past an element type in FORMAT and return it as a type
@@ -162,7 +179,7 @@ parse_element_type (const function_instance &instance, const char *&format)
 			       type_suffixes[suffix].element_bits / 2);
     }
 
-  if (ch == '0' || ch == '1')
+  if (ch == '0' || ch == '1' || ch == '2')
     return instance.type_suffix_ids[ch - '0'];
 
   gcc_unreachable ();
@@ -178,10 +195,13 @@ parse_element_type (const function_instance &instance, const char *&format)
    b       - base vector type (from a _<m0>base suffix)
    c0      - the result of a conversion, based on type and group suffixes
    c1      - the source of a conversion, based on type and group suffixes
+   c2      - the source of a conversion, based on type and group suffixes
    d       - displacement vector type (from a _<m1>index or _<m1>offset suffix)
    e<name> - an enum with the given name
    s<elt>  - a scalar type with the given element suffix
    t<elt>  - a vector or tuple type with given element suffix [*1]
+   T<elt>  - a vector or tuple type with given element suffix [*2]
+   u<elt>  - a vector or tuple type with given element suffix [*3]
    v<elt>  - a vector with the given element suffix
    D<elt>  - a 64 bit neon vector
    Q<elt>  - a 128 bit neon vector
@@ -189,7 +209,10 @@ parse_element_type (const function_instance &instance, const char *&format)
    where <elt> has the format described above parse_element_type
 
    [*1] the vectors_per_tuple function indicates whether the type should
-        be a tuple, and if so, how many vectors it should contain.  */
+	be a tuple, and if so, how many vectors it should contain.
+   [*2] same as for [*1], but the tuple contains half as many vectors.
+   [*3] same as for [*1], but the tuple contains twice as many vectors.
+*/
 static tree
 parse_type (const function_instance &instance, const char *&format)
 {
@@ -216,16 +239,19 @@ parse_type (const function_instance &instance, const char *&format)
   if (ch == 'c')
     {
       int ch = *format++;
-      gcc_assert (ch == '0' || ch == '1');
-      unsigned int id = (ch == '0' ? 0 : 1);
+      gcc_assert (ch == '0' || ch == '1' || ch == '2');
+      unsigned int id = ch - '0';
       auto vector_type = instance.type_suffix (id).vector_type;
       unsigned int num_vectors = instance.group_suffix ().vectors_per_tuple;
       if (num_vectors != 1)
 	{
-	  unsigned int bits = instance.type_suffix (id).element_bits;
-	  unsigned int other_bits = instance.type_suffix (1 - id).element_bits;
-	  if (other_bits > bits)
-	    num_vectors /= other_bits / bits;
+	  unsigned int type_bits = instance.type_suffix (id).element_bits;
+	  unsigned int max_bits = std::max ( std:: max (
+	    instance.type_suffix (0).element_bits,
+	    instance.type_suffix (1).element_bits),
+	    instance.type_suffix (2).element_bits);
+	  if (max_bits > type_bits)
+	    num_vectors /= max_bits / type_bits;
 	}
       return acle_vector_types[num_vectors - 1][vector_type];
     }
@@ -259,6 +285,21 @@ parse_type (const function_instance &instance, const char *&format)
       type_suffix_index suffix = parse_element_type (instance, format);
       vector_type_index vector_type = type_suffixes[suffix].vector_type;
       unsigned int num_vectors = instance.vectors_per_tuple ();
+      return acle_vector_types[num_vectors - 1][vector_type];
+    }
+  if (ch == 'T')
+    {
+      type_suffix_index suffix = parse_element_type (instance, format);
+      vector_type_index vector_type = type_suffixes[suffix].vector_type;
+      unsigned int num_vectors = instance.vectors_per_tuple () / 2;
+      return acle_vector_types[num_vectors - 1][vector_type];
+    }
+
+  if (ch == 'u')
+    {
+      type_suffix_index suffix = parse_element_type (instance, format);
+      vector_type_index vector_type = type_suffixes[suffix].vector_type;
+      unsigned int num_vectors = instance.vectors_per_tuple () * 2;
       return acle_vector_types[num_vectors - 1][vector_type];
     }
 
@@ -666,7 +707,7 @@ struct binary_za_m_base : public overloaded_base<1>
   resolve (function_resolver &r) const override
   {
     type_suffix_index type;
-    if (!r.check_num_arguments (5)
+    if (!r.check_num_arguments (r.fpm_mode == FPM_set ? 6: 5)
 	|| !r.require_integer_immediate (0)
 	|| !r.require_vector_type (1, VECTOR_TYPE_svbool_t)
 	|| !r.require_vector_type (2, VECTOR_TYPE_svbool_t)
@@ -703,7 +744,7 @@ struct binary_za_slice_lane_base : public overloaded_base<1>
   resolve (function_resolver &r) const override
   {
     sve_type type;
-    if (!r.check_num_arguments (4)
+    if (!r.check_num_arguments (r.fpm_mode == FPM_set ? 5: 4)
 	|| !r.require_scalar_type (0, "uint32_t")
 	|| !(type = r.infer_tuple_type (1))
 	|| !r.require_derived_vector_type (2, 1, type, TCLASS)
@@ -732,7 +773,7 @@ struct binary_za_slice_opt_single_base : public overloaded_base<1>
   resolve (function_resolver &r) const override
   {
     sve_type type;
-    if (!r.check_num_arguments (3)
+    if (!r.check_num_arguments (r.fpm_mode == FPM_set ? 4: 3)
 	|| !r.require_scalar_type (0, "uint32_t")
 	|| !(type = r.infer_tuple_type (1)))
       return error_mark_node;
@@ -824,7 +865,7 @@ struct load_contiguous_base : public overloaded_base<0>
       return error_mark_node;
 
     return r.resolve_to (r.mode_suffix_id, type, NUM_TYPE_SUFFIXES,
-			 r.group_suffix_id);
+			 NUM_TYPE_SUFFIXES, r.group_suffix_id);
   }
 };
 
@@ -973,9 +1014,29 @@ struct luti_lane_zt_base : public nonoverloaded_base
   }
 };
 
+/* LUTI4 (four registers, 8-bit)
+   Variants are also available for: _u8
+   svint8x4_t svluti4_zt_s8_x4 (uint64_t zt0, svuint8x2_t zn)
+	      __arm_streaming __arm_in ("zt0");  */
+template <unsigned int BITS> struct luti_zt_base : public nonoverloaded_base
+{
+  void build (function_builder &b,
+	      const function_group_info &group) const override
+  {
+    build_all (b, "t0,su64,Tu0", group, MODE_none);
+  }
+
+  bool check (function_checker &c) const override
+  {
+    return c.require_immediate_range (0, 0, 0);
+  }
+};
+
 /* sv<t0>_t svfoo[_t0](sv<t0>_t, sv<t0:quarter>_t,
 		       sv<t0:quarter>_t)  (for integer t0)
    sv<t0>_t svmmla[_t0](sv<t0>_t, sv<t0>_t, sv<t0>_t)  (for floating-point t0)
+   sv<t0>_t svmmla[_t0](sv<t0>_t, sv<t1>_t, sv<t1>_t)
+		       (for floating-point t0, t1)
 
    The functions act like the equivalent of "ternary_qq" for integer elements
    and normal vector-only ternary functions for floating-point elements.  */
@@ -986,7 +1047,12 @@ struct mmla_def : public overloaded_base<0>
   {
     b.add_overloaded_functions (group, MODE_none);
     if (type_suffixes[group.types[0][0]].float_p)
-      build_all (b, "v0,v0,v0,v0", group, MODE_none);
+      {
+	if (group.types[0][1] == NUM_TYPE_SUFFIXES)
+	  build_all (b, "v0,v0,v0,v0", group, MODE_none);
+	else
+	  build_all (b, "v0,v0,v1,v1", group, MODE_none);
+      }
     else
       build_all (b, "v0,v0,vq0,vq0", group, MODE_none);
   }
@@ -995,24 +1061,39 @@ struct mmla_def : public overloaded_base<0>
   resolve (function_resolver &r) const override
   {
     unsigned int i, nargs;
-    type_suffix_index type;
+    type_suffix_index type1, type2;
     if (!r.check_gp_argument (3, i, nargs)
-	|| (type = r.infer_vector_type (i)) == NUM_TYPE_SUFFIXES)
+	|| (type1 = r.infer_vector_type (i)) == NUM_TYPE_SUFFIXES
+	|| (type2 = r.infer_vector_type (i + 1)) == NUM_TYPE_SUFFIXES)
       return error_mark_node;
 
+    bool float_p = type_suffixes[type1].float_p;
     /* Make sure that the function exists now, since not all forms
        follow a set pattern after this point.  */
-    tree res = r.resolve_to (r.mode_suffix_id, type);
+    tree res = (float_p && type1 != type2)
+	       ? r.resolve_to (r.mode_suffix_id, type1, type2)
+	       : r.resolve_to (r.mode_suffix_id, type1);
     if (res == error_mark_node)
       return res;
 
-    bool float_p = type_suffixes[type].float_p;
-    unsigned int modifier = float_p ? r.SAME_SIZE : r.QUARTER_SIZE;
-    if (!r.require_derived_vector_type (i + 1, i, type, r.SAME_TYPE_CLASS,
-					modifier)
-	|| !r.require_derived_vector_type (i + 2, i, type, r.SAME_TYPE_CLASS,
-					   modifier))
-      return error_mark_node;
+    if (float_p)
+      {
+	/* In the float case, require arg i+1 to have same type as i+2.  */
+	if (!r.require_derived_vector_type (i + 2, i + 1, type2,
+					    r.SAME_TYPE_CLASS, r.SAME_SIZE))
+	  return error_mark_node;
+      }
+    else
+      {
+	/* In the int case, require arg i+1 and i+2 to have a quarter the size
+	   of arg i.  */
+	if (!r.require_derived_vector_type (i + 1, i, type1, r.SAME_TYPE_CLASS,
+					    r.QUARTER_SIZE)
+	    || !r.require_derived_vector_type (i + 2, i, type1,
+					       r.SAME_TYPE_CLASS,
+					       r.QUARTER_SIZE))
+	  return error_mark_node;
+      }
 
     return res;
   }
@@ -2274,7 +2355,7 @@ struct compare_scalar_def : public overloaded_base<1>
       return error_mark_node;
 
     return r.resolve_to (r.mode_suffix_id, r.type_suffix_ids[0], type,
-			 r.group_suffix_id);
+			 NUM_TYPE_SUFFIXES, r.group_suffix_id);
   }
 };
 SHAPE (compare_scalar)
@@ -2462,6 +2543,43 @@ struct dot_za_slice_lane_def : public binary_za_slice_lane_base<>
   constexpr dot_za_slice_lane_def () : binary_za_slice_lane_base<> (0) {}
 };
 SHAPE (dot_za_slice_lane)
+
+/* void svvdott_lane_za32[_mf8]_vg1x4_fpm (uint32_t slice, svmfloat8x2_t zn,
+					   svmfloat8_t zm, uint64_t imm_idx,
+					   fpm_t fpm) __arm_streaming
+						      __arm_inout ("za");
+   void svvdotb_lane_za32[_mf8]_vg1x4_fpm (uint32_t slice, svmfloat8x2_t zn,
+					   svmfloat8_t zm, uint64_t imm_idx,
+					   fpm_t fpm) __arm_streaming
+						      __arm_inout ("za");  */
+struct dot_half_za_slice_lane_def : public binary_za_slice_lane_base<>
+{
+
+  constexpr dot_half_za_slice_lane_def () : binary_za_slice_lane_base<> (0)
+  {}
+
+  void build (function_builder &b,
+	      const function_group_info &group) const override
+  {
+    b.add_overloaded_functions (group, MODE_none);
+    build_all (b, "_,su32,T1,v1,su64", group, MODE_none);
+  }
+
+  tree
+  resolve (function_resolver &r) const override
+  {
+    sve_type type;
+    if (!r.check_num_arguments (5)
+	|| !r.require_scalar_type (0, "uint32_t")
+	|| !(type = r.infer_vector_or_tuple_type (1, 2))
+	|| !r.require_vector_type (2, VECTOR_TYPE_svmfloat8_t)
+	|| !r.require_integer_immediate (3))
+      return error_mark_node;
+
+    return r.resolve_to (r.mode_suffix_id, type);
+  }
+};
+SHAPE (dot_half_za_slice_lane)
 
 /* void svfoo_lane_t0[_t1]_g(uint32_t, sv<t1>x<g>_t, sv<t1:uint>_t, uint64_t)
 
@@ -3207,6 +3325,9 @@ SHAPE (luti2_lane_zt)
 using luti4_lane_zt_def = luti_lane_zt_base<4>;
 SHAPE (luti4_lane_zt)
 
+using luti4_zt_def = luti_zt_base<4>;
+SHAPE (luti4_zt)
+
 /* svbool_t svfoo(enum svpattern).  */
 struct pattern_pred_def : public nonoverloaded_base
 {
@@ -3300,6 +3421,14 @@ struct pmov_to_vector_lane_def : public overloaded_base<0>
        ??? This should probably be folded into function_checker::m_base_arg,
        but it doesn't currently have the necessary information.  */
     return c.require_immediate_range (1, 1, bytes - 1);
+  }
+
+  /* This function has a predicate argument, and is a merging instruction, but
+     the predicate is not a GP.  */
+  bool
+  has_gp_argument_p (const function_instance &) const override
+  {
+    return false;
   }
 };
 SHAPE (pmov_to_vector_lane)
@@ -4075,7 +4204,8 @@ struct ternary_mfloat8_def
 	|| !r.require_scalar_type (3, "uint64_t"))
       return error_mark_node;
 
-    return r.resolve_to (r.mode_suffix_id, type, TYPE_SUFFIX_mf8, GROUP_none);
+    return r.resolve_to (r.mode_suffix_id, type, TYPE_SUFFIX_mf8,
+			 NUM_TYPE_SUFFIXES, GROUP_none);
   }
 };
 SHAPE (ternary_mfloat8)
@@ -4127,7 +4257,8 @@ struct ternary_mfloat8_lane_def
 	|| !r.require_scalar_type (4, "uint64_t"))
       return error_mark_node;
 
-    return r.resolve_to (r.mode_suffix_id, type, TYPE_SUFFIX_mf8, GROUP_none);
+    return r.resolve_to (r.mode_suffix_id, type, TYPE_SUFFIX_mf8,
+			 NUM_TYPE_SUFFIXES, GROUP_none);
   }
 };
 SHAPE (ternary_mfloat8_lane)
@@ -4198,7 +4329,8 @@ struct ternary_mfloat8_opt_n_def
     else if (!r.require_vector_type (2, VECTOR_TYPE_svmfloat8_t))
       return error_mark_node;
 
-    return r.resolve_to (mode, type, TYPE_SUFFIX_mf8, GROUP_none);
+    return r.resolve_to (mode, type, TYPE_SUFFIX_mf8, NUM_TYPE_SUFFIXES,
+			 GROUP_none);
   }
 };
 SHAPE (ternary_mfloat8_opt_n)
@@ -5269,4 +5401,75 @@ struct write_za_slice_def : public overloaded_base<1>
 };
 SHAPE (write_za_slice)
 
+/* MOVT (vector to table)
+   Variants are also available for:
+   [_s8], [_u16], [_s16], [_u32], [_s32], [_u64], [_s64]
+   [_bf16], [_f16], [_f32], [_f64]
+   void svwrite_zt[_u8] (uint64_t zt0, svuint8_t zt, uint64_t idx)
+	__arm_streaming __arm_out ("zt0");  */
+struct write_zt_def : public overloaded_base<0>
+{
+  void build (function_builder &b,
+	      const function_group_info &group) const override
+  {
+    b.add_overloaded_functions (group, MODE_none);
+    build_all (b, "_,su64,v0", group, MODE_none);
+  }
+
+  tree resolve (function_resolver &r) const override
+  {
+    sve_type type;
+
+    if (!r.check_num_arguments (2)
+	|| !r.require_scalar_type (0, "uint64_t")
+	|| !r.require_integer_immediate (0)
+	|| !(type = r.infer_vector_type (1)))
+      return error_mark_node;
+
+    return r.resolve_to (r.mode_suffix_id, type);
+  }
+
+  bool check (function_checker &c) const override
+  {
+    return c.require_immediate_range (0, 0, 0);
+  }
+};
+SHAPE (write_zt);
+
+/* MOVT (vector to table)
+   Variants are also available for:
+   [_s8], [_u16], [_s16], [_u32], [_s32], [_u64], [_s64]
+   [_bf16], [_f16], [_f32], [_f64]
+   void svwrite_lane_zt[_u8] (uint64_t zt0, svuint8_t zt, uint64_t idx)
+	__arm_streaming __arm_out ("zt0");  */
+struct write_lane_zt_def : public overloaded_base<0>
+{
+  void build (function_builder &b,
+	      const function_group_info &group) const override
+  {
+    b.add_overloaded_functions (group, MODE_none);
+    build_all (b, "_,su64,v0,su64", group, MODE_none);
+  }
+
+  tree resolve (function_resolver &r) const override
+  {
+    sve_type type;
+
+    if (!r.check_num_arguments (3)
+	|| !r.require_scalar_type (0, "uint64_t")
+	|| !r.require_integer_immediate (0)
+	|| !(type = r.infer_vector_type (1))
+	|| !r.require_scalar_type (2, "uint64_t"))
+      return error_mark_node;
+
+    return r.resolve_to (r.mode_suffix_id, type);
+  }
+
+  bool check (function_checker &c) const override
+  {
+    return c.require_immediate_range (0, 0, 0)
+	   && c.require_immediate_range (2, 0, 3);
+  }
+};
+SHAPE (write_lane_zt);
 }

@@ -1,5 +1,5 @@
 /* Symbol table.
-   Copyright (C) 2012-2025 Free Software Foundation, Inc.
+   Copyright (C) 2012-2026 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -303,8 +303,14 @@ symbol_table::change_decl_assembler_name (tree decl, tree name)
 	warning (0, "%qD renamed after being referenced in assembly", decl);
 
       SET_DECL_ASSEMBLER_NAME (decl, name);
+      if (DECL_RTL_SET_P (decl))
+	{
+	  SET_DECL_RTL (decl, NULL);
+	  make_decl_rtl (decl);
+	}
       if (alias)
 	{
+	  gcc_assert (!IDENTIFIER_INTERNAL_P (name));
 	  IDENTIFIER_TRANSPARENT_ALIAS (name) = 1;
 	  TREE_CHAIN (name) = alias;
 	}
@@ -867,7 +873,16 @@ symtab_node::dump_referring (FILE *file)
   fprintf (file, "\n");
 }
 
-static const char * const symtab_type_names[] = {"symbol", "function", "variable"};
+static const char * const toplevel_type_names[] =
+{
+ "base",
+ "asm",
+ "symbol",
+ "function",
+ "variable",
+};
+
+static_assert (ARRAY_SIZE(toplevel_type_names) == TOPLEVEL_MAX, "");
 
 /* Dump the visibility of the symbol.  */
 
@@ -883,7 +898,7 @@ symtab_node::get_visibility_string () const
 const char *
 symtab_node::get_symtab_type_string () const
 {
-  return symtab_type_names[type];
+  return toplevel_type_names[type];
 }
 
 /* Dump base fields of symtab nodes to F.  Not to be used directly.  */
@@ -898,7 +913,7 @@ symtab_node::dump_base (FILE *f)
   fprintf (f, "%s (%s)", dump_asm_name (), name ());
   if (dump_flags & TDF_ADDRESS)
     dump_addr (f, " @", (void *)this);
-  fprintf (f, "\n  Type: %s", symtab_type_names[type]);
+  fprintf (f, "\n  Type: %s", toplevel_type_names[type]);
 
   if (definition)
     fprintf (f, " definition");
@@ -989,10 +1004,10 @@ symtab_node::dump_base (FILE *f)
 	     same_comdat_group->dump_asm_name ());
   if (next_sharing_asm_name)
     fprintf (f, "  next sharing asm name: %i\n",
-	     next_sharing_asm_name->order);
+	     next_sharing_asm_name->get_uid ());
   if (previous_sharing_asm_name)
     fprintf (f, "  previous sharing asm name: %i\n",
-	     previous_sharing_asm_name->order);
+	     previous_sharing_asm_name->get_uid ());
 
   if (address_taken)
     fprintf (f, "  Address is taken.\n");
@@ -1470,7 +1485,9 @@ symtab_node::verify_symtab_nodes (void)
   hash_map<tree, symtab_node *> comdat_head_map (251);
   asm_node *anode;
 
-  for (anode = symtab->first_asm_symbol (); anode; anode = anode->next)
+  for (anode = symtab->first_asm_symbol ();
+       anode;
+       anode = safe_as_a<asm_node*>(anode->next))
     if (anode->order < 0 || anode->order >= symtab->order)
        {
 	  error ("invalid order in asm node %i", anode->order);
@@ -1880,11 +1897,9 @@ symtab_node::set_init_priority (priority_type priority)
   if (is_a <cgraph_node *> (this))
     gcc_assert (DECL_STATIC_CONSTRUCTOR (this->decl));
 
-  if (priority == DEFAULT_INIT_PRIORITY)
-    {
-      gcc_assert (get_init_priority() == priority);
-      return;
-    }
+  if (priority == DEFAULT_INIT_PRIORITY
+      && get_init_priority() == priority)
+    return;
   h = priority_info ();
   h->init = priority;
 }
@@ -1898,11 +1913,9 @@ cgraph_node::set_fini_priority (priority_type priority)
 
   gcc_assert (DECL_STATIC_DESTRUCTOR (this->decl));
 
-  if (priority == DEFAULT_INIT_PRIORITY)
-    {
-      gcc_assert (get_fini_priority() == priority);
-      return;
-    }
+  if (priority == DEFAULT_INIT_PRIORITY
+      && get_fini_priority() == priority)
+    return;
   h = priority_info ();
   h->fini = priority;
 }
@@ -2435,7 +2448,7 @@ address_matters_1 (symtab_node *n, void *)
 
   if (!n->address_can_be_compared_p ())
     return false;
-  if (n->externally_visible || n->force_output)
+  if (n->externally_visible || n->force_output || n->ref_by_asm)
     return true;
 
   for (unsigned int i = 0; n->iterate_referring (i, ref); i++)

@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for IBM RS/6000.
-   Copyright (C) 1992-2025 Free Software Foundation, Inc.
+   Copyright (C) 1992-2026 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
    This file is part of GCC.
@@ -550,7 +550,7 @@ extern int rs6000_vector_align[];
 			 && (TARGET_PPC_GFXOPT || VECTOR_UNIT_VSX_P (DFmode)))
 
 /* Macro to say whether we can do optimizations where we need to do parts of
-   the calculation in 64-bit GPRs and then is transfered to the vector
+   the calculation in 64-bit GPRs and then is transferred to the vector
    registers.  */
 #define TARGET_DIRECT_MOVE_64BIT	(TARGET_DIRECT_MOVE		\
 					 && TARGET_POWERPC64)

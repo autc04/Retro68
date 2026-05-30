@@ -53,8 +53,6 @@
 	vabs2h		r0,r2
 	vabss2h		r0,r2
 	vadd4b		r0,r2,r4
-	vadds2h		r0,r2,r4
-	vaddsubs2h	r0,r2,r4
 	valgn2h		r0,r2,r4
 	vasl2h		r0,r2,r4
 	vasls2h		r0,r2,r4
@@ -86,5 +84,3 @@
 	vsext2bhl	r0,r2
 	vsext2bhm	r0,r2
 	vsub4b		r0,r2,r4
-	vsubadds2h	r0,r2,r4
-	vsubs2h		r0,r2,r4

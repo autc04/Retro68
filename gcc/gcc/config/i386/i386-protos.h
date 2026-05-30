@@ -1,5 +1,5 @@
 /* Definitions of target machine for GCC for IA-32.
-   Copyright (C) 1988-2025 Free Software Foundation, Inc.
+   Copyright (C) 1988-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -60,7 +60,7 @@ extern int standard_sse_constant_p (rtx, machine_mode);
 extern const char *standard_sse_constant_opcode (rtx_insn *, rtx *);
 extern bool ix86_standard_x87sse_constant_load_p (const rtx_insn *, rtx);
 extern bool ix86_pre_reload_split (void);
-extern bool symbolic_reference_mentioned_p (rtx);
+extern bool symbolic_reference_mentioned_p (const_rtx);
 extern bool extended_reg_mentioned_p (rtx);
 extern bool x86_extended_QIreg_mentioned_p (rtx_insn *);
 extern bool x86_extended_reg_mentioned_p (rtx);
@@ -78,6 +78,7 @@ extern void substitute_vpternlog_operands (rtx[]);
 extern bool ix86_expand_strlen (rtx, rtx, rtx, rtx);
 extern bool ix86_expand_set_or_cpymem (rtx, rtx, rtx, rtx, rtx, rtx,
 				       rtx, rtx, rtx, rtx, bool);
+extern bool ix86_expand_movmem (rtx[]);
 extern bool ix86_expand_cmpstrn_or_cmpmem (rtx, rtx, rtx, rtx, rtx, bool);
 
 extern enum reg_class ix86_insn_base_reg_class (rtx_insn *);
@@ -186,6 +187,7 @@ extern void ix86_expand_v2di_ashiftrt (rtx[]);
 extern rtx ix86_replace_reg_with_reg (rtx, rtx, rtx);
 extern rtx ix86_find_base_term (rtx);
 extern bool ix86_check_movabs (rtx, int);
+extern bool ix86_check_movs (rtx, int);
 extern bool ix86_check_no_addr_space (rtx);
 extern void ix86_split_idivmod (machine_mode, rtx[], bool);
 extern bool ix86_hardreg_mov_ok (rtx, rtx);
@@ -198,6 +200,7 @@ extern int ix86_attr_length_vex_default (rtx_insn *, bool, bool);
 extern rtx ix86_libcall_value (machine_mode);
 extern bool ix86_function_arg_regno_p (int);
 extern void ix86_asm_output_function_label (FILE *, const char *, tree);
+extern void ix86_asm_output_labelref (FILE *, const char *, const char *);
 extern void ix86_call_abi_override (const_tree);
 extern int ix86_reg_parm_stack_space (const_tree);
 
@@ -280,6 +283,7 @@ extern tree ix86_valid_target_attribute_tree (tree, tree,
 					      struct gcc_options *,
 					      struct gcc_options *, bool);
 extern unsigned int ix86_get_callcvt (const_tree);
+extern bool ix86_type_no_callee_saved_registers_p (const_tree);
 
 #endif
 
@@ -287,6 +291,7 @@ extern rtx ix86_tls_module_base (void);
 extern bool ix86_gpr_tls_address_pattern_p (rtx);
 extern bool ix86_tls_address_pattern_p (rtx);
 extern rtx ix86_rewrite_tls_address (rtx);
+extern rtx ix86_tls_get_addr (void);
 
 extern void ix86_expand_vector_init (bool, rtx, rtx);
 extern void ix86_expand_vector_set (bool, rtx, rtx, int);
@@ -427,12 +432,21 @@ extern rtl_opt_pass *make_pass_insert_endbr_and_patchable_area
   (gcc::context *);
 extern rtl_opt_pass *make_pass_remove_partial_avx_dependency
   (gcc::context *);
+extern rtl_opt_pass *make_pass_x86_cse (gcc::context *);
 extern rtl_opt_pass *make_pass_apx_nf_convert (gcc::context *);
 extern rtl_opt_pass *make_pass_align_tight_loops (gcc::context *);
 
 extern bool ix86_has_no_direct_extern_access;
 extern bool ix86_rpad_gate ();
 
+extern sbitmap ix86_get_separate_components (void);
+extern sbitmap ix86_components_for_bb (basic_block);
+extern void ix86_disqualify_components (sbitmap, edge, sbitmap, bool);
+extern void ix86_emit_prologue_components (sbitmap);
+extern void ix86_emit_epilogue_components (sbitmap);
+extern void ix86_set_handled_components (sbitmap);
+
 /* In i386-expand.cc.  */
 bool ix86_check_builtin_isa_match (unsigned int, HOST_WIDE_INT*,
 				   HOST_WIDE_INT*);
+rtx ix86_vgf2p8affine_shift_matrix (rtx, rtx, enum rtx_code);

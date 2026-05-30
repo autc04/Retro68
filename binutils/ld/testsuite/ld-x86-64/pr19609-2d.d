@@ -9,5 +9,5 @@
 Disassembly of section .text:
 
 70000000 <_start>:
-#pass
 [ 	]*[a-f0-9]+:	48 3b 05 ([0-9a-f]{2} ){4}	cmp    -?0x[a-f0-9]+\(%rip\),%rax        # .*
+#pass

@@ -4136,16 +4136,16 @@ Disassembly of section .text:
 [^>]*> ee35 eb10 	vmov.32	lr, d5\[1\]
 [^>]*> ee39 eb10 	vmov.32	lr, d9\[1\]
 [^>]*> ee3f eb10 	vmov.32	lr, d15\[1\]
-[^>]*> ef80 0050 	vmov.i32	q0, #0	; 0x00000000
-[^>]*> ff87 005f 	vmov.i32	q0, #255	; 0x000000ff
-[^>]*> ff87 025f 	vmov.i32	q0, #65280	; 0x0000ff00
-[^>]*> ff87 065f 	vmov.i32	q0, #4278190080	; 0xff000000
-[^>]*> ff87 045f 	vmov.i32	q0, #16711680	; 0x00ff0000
-[^>]*> ef80 0850 	vmov.i16	q0, #0	; 0x0000
-[^>]*> ff87 085f 	vmov.i16	q0, #255	; 0x00ff
-[^>]*> ff87 0a5f 	vmov.i16	q0, #65280	; 0xff00
-[^>]*> ef80 0e50 	vmov.i8	q0, #0	; 0x00
-[^>]*> ff87 0e5f 	vmov.i8	q0, #255	; 0xff
+[^>]*> ef80 0050 	vmov.i32	q0, #0	@ 0x00000000
+[^>]*> ff87 005f 	vmov.i32	q0, #255	@ 0x000000ff
+[^>]*> ff87 025f 	vmov.i32	q0, #65280	@ 0x0000ff00
+[^>]*> ff87 065f 	vmov.i32	q0, #4278190080	@ 0xff000000
+[^>]*> ff87 045f 	vmov.i32	q0, #16711680	@ 0x00ff0000
+[^>]*> ef80 0850 	vmov.i16	q0, #0	@ 0x0000
+[^>]*> ff87 085f 	vmov.i16	q0, #255	@ 0x00ff
+[^>]*> ff87 0a5f 	vmov.i16	q0, #65280	@ 0xff00
+[^>]*> ef80 0e50 	vmov.i8	q0, #0	@ 0x00
+[^>]*> ff87 0e5f 	vmov.i8	q0, #255	@ 0xff
 [^>]*> ff80 0e70 	vmov.i64	q0, #0xff00000000000000
 [^>]*> ef84 0e70 	vmov.i64	q0, #0x00ff000000000000
 [^>]*> ef82 0e70 	vmov.i64	q0, #0x0000ff0000000000

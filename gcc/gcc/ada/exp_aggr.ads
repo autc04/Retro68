@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -58,6 +58,10 @@ package Exp_Aggr is
    --  Return True if N is an aggregate that is to be expanded in two passes.
    --  This is the case if it consists only of iterated component associations
    --  with iterator specifications, see RM 4.3.3(20.2/5).
+
+   function Parent_Is_Regular_Aggregate (Par : Node_Id) return Boolean;
+   --  Return True if Par is an aggregate that is not a container aggregate, or
+   --  a component association of such an aggregate.
 
    function Static_Array_Aggregate (N : Node_Id) return Boolean;
    --  N is an array aggregate that may have a component association with

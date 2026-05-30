@@ -41,6 +41,10 @@ noreg:
 	pfx btr		$1, (%rax)
 	pfx bts		$1, (%rax)
 	pfx call	*(%rax)
+	pfx ccmpa	$1, (%rax)
+	pfx ccmpa	$0x89, (%rax)
+	pfx ccmpa	$0x1234, (%rax)
+	pfx ccmpa	$0x12345678, (%rax)
 	pfx cmp		$1, (%rax)
 	pfx cmp		$0x89, (%rax)
 	pfx cmp		$0x1234, (%rax)
@@ -49,6 +53,9 @@ noreg:
 	pfx cmps	%es:(%rdi), (%rsi)
 	pfx crc32	(%rax), %eax
 	pfx16 crc32	(%rax), %rax
+	pfx ctesta	$0x89, (%rax)
+	pfx ctesta	$0x1234, (%rax)
+	pfx ctesta	$0x12345678, (%rax)
 	pfx dec		(%rax)
 	pfx div		(%rax)
 	pfx fadd	(%rax)

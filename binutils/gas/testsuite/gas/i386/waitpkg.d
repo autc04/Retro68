@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 WAITPKG insns
 #source: waitpkg.s

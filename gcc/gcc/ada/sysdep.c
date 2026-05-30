@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *         Copyright (C) 1992-2025, Free Software Foundation, Inc.          *
+ *         Copyright (C) 1992-2026, Free Software Foundation, Inc.          *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -39,6 +39,12 @@
    as ENOENT. On later versions:
    - either they are defined as ENOENT (vx7r2);
    - or the corresponding system includes are not provided (Helix Cert).  */
+
+#if __has_include ("strings.h")
+/* On VxWorks6, FD_ZERO uses bzero, and index is also declared in strings.h,
+   but since it's not a standard header, don't require it.  */
+#include "strings.h"
+#endif
 
 #if __has_include ("dosFsLib.h")
 /* On helix-cert, this include is only provided for RTPs.  */
@@ -331,7 +337,7 @@ __gnat_ttyname (int filedes ATTRIBUTE_UNUSED)
 #endif /* defined (__vxworks) */
 }
 #endif
-
+
 #if defined (__linux__) || defined (__sun__) \
   || defined (WINNT) \
   || defined (__MACHTEN__) || defined (__hpux__) || defined (_AIX) \
@@ -901,7 +907,7 @@ __gnat_get_task_options (void)
 
      Note that the same error occurs in both RTP and Kernel mode, but
      VX_DEALLOC_TCB is not defined in the RTP headers, so we need to
-     explicitely check if VX_PRIVATE_UMASK has value 0x8000
+     explicitly check if VX_PRIVATE_UMASK has value 0x8000
   */
 # if defined (VX_PRIVATE_UMASK) && (0x8000 == VX_PRIVATE_UMASK)
   options &= ~VX_PRIVATE_UMASK;
@@ -1069,6 +1075,11 @@ int
 _getpagesize (void)
 {
   return getpagesize ();
+}
+
+int
+__gnat_has_cap_sys_nice () {
+  return 0;
 }
 #endif
 

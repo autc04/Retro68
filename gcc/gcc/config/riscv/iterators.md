@@ -1,5 +1,5 @@
 ;; Iterators for the machine description for RISC-V
-;; Copyright (C) 2011-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2026 Free Software Foundation, Inc.
 
 ;; This file is part of GCC.
 ;;
@@ -70,6 +70,9 @@
 
 ;; Iterator for hardware integer modes narrower than XLEN, same as ANYI.
 (define_mode_iterator ANYI1 [QI HI SI (DI "TARGET_64BIT")])
+
+;; Iterator for integer modes less than or equal to 32bit.
+(define_mode_iterator ANYLE32 [QI HI SI])
 
 (define_mode_iterator ANYI_DOUBLE_TRUNC [HI SI (DI "TARGET_64BIT")])
 
@@ -169,9 +172,18 @@
 ;; the controlling mode.
 (define_mode_attr HALFMODE [(DF "SI") (DI "SI") (TF "DI")])
 
+;; Give the number of bits in the mode
+(define_mode_attr sizen [(QI "8") (HI "16") (SI "32") (DI "64")])
+
 ; bitmanip mode attribute
 (define_mode_attr shiftm1 [(SI "const_si_mask_operand") (DI "const_di_mask_operand")])
 (define_mode_attr shiftm1p [(SI "DsS") (DI "DsD")])
+
+; mode shift limit attribute
+(define_mode_attr sh_limit [(QI "7") (HI "15")])
+
+; mode shift bit limit attribute
+(define_mode_attr sh_bit [(SI "5") (DI "6")])
 
 ; zcmp mode attribute
 (define_mode_attr slot0_offset  [(SI "-4")  (DI "-8")])
@@ -195,6 +207,16 @@
 ;; This code iterator allows signed and unsigned widening multiplications
 ;; to use the same template.
 (define_code_iterator any_extend [sign_extend zero_extend])
+(define_code_attr extend_name [
+  (sign_extend "extend") (zero_extend "zero_extend")
+])
+
+;; This code iterator captures cases where a zero value for an operand
+;; neutralizes the operation.  ie, a + 0 -> a.  That basic idea forms
+;; conditional operations.
+(define_code_iterator zero_is_neutral_op [plus minus ior xor ashift lshiftrt
+					  ashiftrt rotatert rotate])
+(define_code_iterator zero_is_neutral_op_c [plus ior xor])
 
 ;; These code iterators allow unsigned and signed extraction to be generated
 ;; from the same template.
@@ -211,6 +233,8 @@
 ;; This code iterator allows the three shift instructions to be generated
 ;; from the same template.
 (define_code_iterator any_shift [ashift ashiftrt lshiftrt])
+
+(define_code_iterator any_shift_rotate [ashift ashiftrt lshiftrt rotate rotatert])
 
 ;; This code iterator allows the three bitwise instructions to be generated
 ;; from the same template.
@@ -252,6 +276,14 @@
 
 (define_code_iterator bitmanip_minmax [smin umin smax umax])
 
+(define_code_iterator bitmanip_minmax_cmp_op [lt ltu le leu ge geu gt gtu])
+
+; Map a comparison operator to a min or max.
+(define_code_attr bitmanip_minmax_cmp_insn [(lt "min") (ltu "minu")
+					    (le "min") (leu "minu")
+					    (ge "max") (geu "maxu")
+					    (gt "max") (gtu "maxu")])
+
 (define_code_iterator clz_ctz_pcnt [clz ctz popcount])
 
 (define_code_iterator bitmanip_rotate [rotate rotatert])
@@ -261,6 +293,9 @@
 (define_code_iterator fix_ops [fix unsigned_fix])
 
 (define_code_attr fix_uns [(fix "fix") (unsigned_fix "fixuns")])
+
+(define_code_attr OPTAB [(ior "IOR")
+                         (xor "XOR")])
 
 
 ;; -------------------------------------------------------------------
@@ -280,6 +315,9 @@
 
 ;; <su> is like <u>, but the signed form expands to "s" rather than "".
 (define_code_attr su [(sign_extend "s") (zero_extend "u")])
+
+;; eq expand to "c" and ne expand to "s".
+(define_code_attr cs [(eq "c") (ne "s")])
 
 ;; <optab> expands to the name of the optab for a particular code.
 (define_code_attr optab [(ashift "ashl")

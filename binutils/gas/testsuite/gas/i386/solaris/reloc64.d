@@ -1,4 +1,4 @@
-#as: -mx86-used-note=no
+#as: -mx86-used-note=no -mtls-check=no
 #source: ../reloc64.s
 #objdump: -Drw
 #name: x86-64 relocs
@@ -57,6 +57,9 @@ Disassembly of section \.text:
 .*[ 	]+R_X86_64_32[ 	]+xtrn
 .*[ 	]+R_X86_64_32S[ 	]+xtrn
 .*[ 	]+R_X86_64_32[ 	]+xtrn
+.*[ 	]+R_X86_64_GOT64[ 	]+ptr
+.*[ 	]+R_X86_64_GOTOFF64[ 	]+Ldst
+.*[ 	]+R_X86_64_PLT32[ 	]+ptr
 Disassembly of section \.data:
 #...
 .*[ 	]+R_X86_64_64[ 	]+xtrn
@@ -97,3 +100,8 @@ Disassembly of section \.data:
 .*[ 	]+R_X86_64_GOT32[ 	]+xtrn-0x4
 .*[ 	]+R_X86_64_GOT32[ 	]+xtrn\+0x4
 .*[ 	]+R_X86_64_GOTPLT64[ 	]+xtrn
+
+.* <ptr>:
+	...
+.* <Ldst>:
+	...

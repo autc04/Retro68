@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -199,6 +199,12 @@ public:
   {
     rust_assert (variables_pattern != nullptr);
     return *variables_pattern;
+  }
+
+  std::unique_ptr<Pattern> &get_pattern_ptr ()
+  {
+    rust_assert (variables_pattern != nullptr);
+    return variables_pattern;
   }
 
   Type &get_type ()

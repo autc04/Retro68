@@ -1,6 +1,6 @@
 /* m2options.h header file for M2Options.mod.
 
-Copyright (C) 2012-2025 Free Software Foundation, Inc.
+Copyright (C) 2012-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius@glam.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -168,6 +168,12 @@ EXTERN char *M2Options_GetM2DumpFilter (void);
 EXTERN void M2Options_SetM2DebugTraceFilter (bool value, const char *arg);
 EXTERN bool M2Options_SetM2Dump (bool value, const char *arg);
 EXTERN bool M2Options_GetDumpGimple (void);
+EXTERN void M2Options_SetTimeReport (bool value);
+EXTERN void M2Options_SetMemReport (bool value);
+EXTERN void M2Options_SetWideset (bool value);
+EXTERN bool M2Options_GetWideset (void);
+EXTERN void M2Options_SetStrictTypeAssignment (bool value);
+EXTERN void M2Options_SetStrictTypeReason (bool value);
 
 #undef EXTERN
 #endif /* m2options_h.  */

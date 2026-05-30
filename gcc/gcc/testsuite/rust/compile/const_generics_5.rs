@@ -1,4 +1,6 @@
-// { dg-options "-w" }
+#![feature(no_core)]
+#![no_core]
+
 struct Foo<const N: usize = { 14 }>;
 
 const M: usize = 15;
@@ -8,5 +10,6 @@ fn main() {
     let _: Foo<15> = Foo;
     let _: Foo<{ M }> = Foo;
     let _: Foo<M> = Foo;
-    // let _: Foo<N> = Foo; this causes an ICE we need to do const generics
+    let _: Foo<N> = Foo;
+    // { dg-error {type provided when a constant was expected .E0747.} "" { target *-*-* } .-1 }
 }

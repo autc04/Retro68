@@ -1,6 +1,6 @@
 # Test ALIGN in a linker script.
 # By Nathan Sidwell, CodeSourcery LLC
-#   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -48,6 +48,14 @@ if ![is_aout_format] {
     run_dump_test align5
 }
 run_dump_test align2c
+
+if { [is_elf_format] } {
+    # FIXME: Currently this test is only run for ELF targets as other formats
+    # do not necessarily support these large alignments.  It could be tweaked
+    # to work with other formats.
+    run_dump_test subalign
+}
+
 set LDFLAGS "$saved_LDFLAGS"
 
 if { [is_elf_format] && ![uses_genelf] } {

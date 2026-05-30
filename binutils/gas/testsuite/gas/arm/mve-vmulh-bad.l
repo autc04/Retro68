@@ -1,22 +1,22 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: bad type in SIMD instruction -- `vmulh.f16 q0,q1,q2'
-[^:]*:11: Error: bad type in SIMD instruction -- `vmulh.i32 q0,q1,q2'
-[^:]*:12: Error: bad type in SIMD instruction -- `vmulh.s64 q0,q1,q2'
-[^:]*:13: Error: bad type in SIMD instruction -- `vrmulh.f16 q0,q1,q2'
-[^:]*:14: Error: bad type in SIMD instruction -- `vrmulh.i32 q0,q1,q2'
-[^:]*:15: Error: bad type in SIMD instruction -- `vrmulh.s64 q0,q1,q2'
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:3: Error: bad type in SIMD instruction -- `vmulh.f16 q0,q1,q2'
+[^:]*:4: Error: bad type in SIMD instruction -- `vmulh.i32 q0,q1,q2'
+[^:]*:5: Error: bad type in SIMD instruction -- `vmulh.s64 q0,q1,q2'
+[^:]*:6: Error: bad type in SIMD instruction -- `vrmulh.f16 q0,q1,q2'
+[^:]*:7: Error: bad type in SIMD instruction -- `vrmulh.i32 q0,q1,q2'
+[^:]*:8: Error: bad type in SIMD instruction -- `vrmulh.s64 q0,q1,q2'
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:19: Error: syntax error -- `vmulheq.s16 q0,q1,q2'
 [^:]*:20: Error: syntax error -- `vmulheq.s16 q0,q1,q2'
 [^:]*:22: Error: syntax error -- `vmulheq.s16 q0,q1,q2'

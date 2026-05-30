@@ -1,6 +1,6 @@
 (* Processes.mod implement the ISO Processes specification.
 
-Copyright (C) 2009-2025 Free Software Foundation, Inc.
+Copyright (C) 2009-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -441,7 +441,7 @@ PROCEDURE Wait ;
 VAR
    calling,
    best   : ProcessId ;
-   from   : COROUTINE ;
+   fromCor: COROUTINE ;
 BEGIN
    IF debugging
    THEN
@@ -451,17 +451,17 @@ BEGIN
    OnWaitingQueue (calling) ;
    best := chooseProcess () ;
    currentId := best ;
-   from := calling^.context ;
+   fromCor := calling^.context ;
    IF debugging
    THEN
       displayProcesses ("Wait about to perform IOTRANSFER")
    END ;
-   IOTRANSFER (from, currentId^.context) ;
+   IOTRANSFER (fromCor, currentId^.context) ;
    IF debugging
    THEN
       displayProcesses ("Wait after IOTRANSFER")
    END ;
-   currentId^.context := from ;
+   currentId^.context := fromCor ;
    currentId := calling ;
    OnReadyQueue (calling) ;
    IF debugging

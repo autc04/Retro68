@@ -1,6 +1,5 @@
 # Check ENQCMD[S] 32-bit instructions
 
-	.allow_index_reg
 	.text
 _start:
 	enqcmd (%ecx),%eax

@@ -1,5 +1,5 @@
 ;; Matrix-Multiply Assist (MMA) patterns.
-;; Copyright (C) 2020-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2026 Free Software Foundation, Inc.
 ;; Contributed by Peter Bergner <bergner@linux.ibm.com> and
 ;;		  Michael Meissner <meissner@linux.ibm.com>
 ;;
@@ -401,8 +401,8 @@
   rtx src;
   int regoff = INTVAL (operands[2]);
   src = gen_rtx_UNSPEC (V16QImode,
-			gen_rtvec (2, operands[1], GEN_INT (regoff)),
-			UNSPEC_MMA_EXTRACT);
+                        gen_rtvec (2, operands[1], GEN_INT (regoff)),
+                        UNSPEC_MMA_EXTRACT);
   emit_move_insn (operands[0], src);
   DONE;
 })
@@ -410,8 +410,8 @@
 (define_insn_and_split "*vsx_disassemble_pair"
   [(set (match_operand:V16QI 0 "mma_disassemble_output_operand" "=mwa")
        (unspec:V16QI [(match_operand:OO 1 "vsx_register_operand" "wa")
-		      (match_operand 2 "const_0_to_1_operand")]
-		      UNSPEC_MMA_EXTRACT))]
+                      (match_operand 2 "const_0_to_1_operand")]
+                      UNSPEC_MMA_EXTRACT))]
   "TARGET_MMA
    && vsx_register_operand (operands[1], OOmode)"
   "#"
@@ -475,8 +475,8 @@
   rtx src;
   int regoff = INTVAL (operands[2]);
   src = gen_rtx_UNSPEC (V16QImode,
-			gen_rtvec (2, operands[1], GEN_INT (regoff)),
-			UNSPEC_MMA_EXTRACT);
+                        gen_rtvec (2, operands[1], GEN_INT (regoff)),
+                        UNSPEC_MMA_EXTRACT);
   emit_move_insn (operands[0], src);
   DONE;
 })
@@ -484,8 +484,8 @@
 (define_insn_and_split "*mma_disassemble_acc"
   [(set (match_operand:V16QI 0 "mma_disassemble_output_operand" "=mwa")
        (unspec:V16QI [(match_operand:XO 1 "fpr_reg_operand" "d")
-		      (match_operand 2 "const_0_to_3_operand")]
-		      UNSPEC_MMA_EXTRACT))]
+                      (match_operand 2 "const_0_to_3_operand")]
+                      UNSPEC_MMA_EXTRACT))]
   "TARGET_MMA
    && fpr_reg_operand (operands[1], XOmode)"
   "#"

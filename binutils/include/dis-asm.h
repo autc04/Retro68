@@ -1,6 +1,6 @@
 /* Interface between the opcode library and its callers.
 
-   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +61,13 @@ enum disassembler_style
      These should be things that correspond to real machine
      instructions.  */
   dis_style_mnemonic,
+
+  /* Some architectures include additional mnemonic like fields within the
+     instruction operands, e.g. on aarch64 'add w16, w7, w1, lsl #2' where
+     the 'lsl' is an additional piece of text that describes how the
+     instruction should behave.  This sub-mnemonic style can be used for
+     these pieces of text.  */
+  dis_style_sub_mnemonic,
 
   /* For things that aren't real machine instructions, but rather
      assembler directives, e.g. .byte, etc.  */
@@ -232,9 +239,9 @@ typedef struct disassemble_info
   size_t buffer_length;
 
   /* This variable may be set by the instruction decoder.  It suggests
-      the number of bytes objdump should display on a single line.  If
-      the instruction decoder sets this, it should always set it to
-      the same value in order to get reasonable looking output.  */
+     the number of bytes objdump should display on a single line.  If
+     the instruction decoder sets this, it should always set it to
+     the same value in order to get reasonable looking output.  */
   int bytes_per_line;
 
   /* The next two variables control the way objdump displays the raw data.  */
@@ -280,7 +287,13 @@ typedef struct disassemble_info
 				   zero if unknown.  */
   bfd_vma target2;		/* Second target address for dref2 */
 
-  /* Command line options specific to the target disassembler.  */
+  /* Command line options specific to the target disassembler.
+     Note that if this string contains multiple comma-separated
+     options, then it must not be in read-only memory.  Commas may be
+     temporarily modified by the target disassembler when parsing
+     options.  The string is const in the sense that on return from
+     the target disassembler the string will be exactly the same as
+     on entry.  */
   const char *disassembler_options;
 
   /* If non-zero then try not disassemble beyond this address, even if
@@ -311,7 +324,8 @@ typedef struct
   /* Option argument name to use in descriptions.  */
   const char *name;
 
-  /* Vector of acceptable option argument values, NULL-terminated.  */
+  /* Vector of acceptable option argument values, NULL-terminated.
+     NULL if any values are accepted.  */
   const char **values;
 } disasm_option_arg_t;
 
@@ -377,9 +391,11 @@ extern void print_ppc_disassembler_options (FILE *);
 extern void print_riscv_disassembler_options (FILE *);
 extern void print_arm_disassembler_options (FILE *);
 extern void print_arc_disassembler_options (FILE *);
+extern void print_kvx_disassembler_options(FILE *);
 extern void print_s390_disassembler_options (FILE *);
 extern void print_wasm32_disassembler_options (FILE *);
 extern void print_loongarch_disassembler_options (FILE *);
+extern void print_bpf_disassembler_options (FILE *);
 extern bool aarch64_symbol_is_valid (asymbol *, struct disassemble_info *);
 extern bool arm_symbol_is_valid (asymbol *, struct disassemble_info *);
 extern bool csky_symbol_is_valid (asymbol *, struct disassemble_info *);
@@ -419,26 +435,10 @@ extern void disassembler_usage (FILE *);
 /* Remove whitespace and consecutive commas.  */
 extern char *remove_whitespace_and_extra_commas (char *);
 
-/* Like STRCMP, but treat ',' the same as '\0' so that we match
-   strings like "foobar" against "foobar,xxyyzz,...".  */
-extern int disassembler_options_cmp (const char *, const char *);
-
-/* A helper function for FOR_EACH_DISASSEMBLER_OPTION.  */
-static inline const char *
-next_disassembler_option (const char *options)
-{
-  const char *opt = strchr (options, ',');
-  if (opt != NULL)
-    opt++;
-  return opt;
-}
-
-/* A macro for iterating over each comma separated option in OPTIONS.  */
-#define FOR_EACH_DISASSEMBLER_OPTION(OPT, OPTIONS) \
-  for ((OPT) = (OPTIONS); \
-       (OPT) != NULL; \
-       (OPT) = next_disassembler_option (OPT))
-
+/* Iterate over each comma separated option in disassembler_options.  */
+extern bool for_each_disassembler_option (struct disassemble_info *,
+					  bool (*) (const char *, void *),
+					  void *);
 
 /* This block of definitions is for particular callers who read instructions
    into a buffer before calling the instruction decoder.  */

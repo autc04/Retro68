@@ -4,8 +4,8 @@
 #ld: -T fill.t
 #objdump: -s -j .text
 #notarget: [is_aout_format]
-#skip: arm-*-coff i[3-7]86-*-coff [is_xcoff_format]
-#xfail: alpha*-*-*ecoff sparc*-*-coff
+#skip: [is_xcoff_format]
+#xfail: alpha*-*-*ecoff
 #xfail: tic30-*-coff tic4x-*-* tic54x-*-* z8k-*-*
 #xfail: z80-*-coff
 #
@@ -17,8 +17,6 @@
 # alpha-linuxecoff pads out code to 16 bytes.
 # arm-coff always aligns code to 4 bytes.
 # i386-coff always aligns code to 4 bytes.
-# sh-pe pads out code sections to 16 bytes
-# sparc-coff aligns to 8 bytes
 # tic30-coff aligns to 2 bytes
 # tic4x has 4 octet bytes
 # tic54x doesn't support .p2align

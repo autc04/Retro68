@@ -1,5 +1,5 @@
 /* Declarations and definitions dealing with attribute handling.
-   Copyright (C) 2013-2025 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -45,7 +45,7 @@ extern bool cxx11_attribute_p (const_tree);
 extern tree get_attribute_name (const_tree);
 extern tree get_attribute_namespace (const_tree);
 extern void apply_tm_attr (tree, tree);
-extern tree make_attribute (const char *, const char *, tree);
+extern tree make_attribute (string_slice, string_slice, tree);
 extern bool attribute_ignored_p (tree);
 extern bool attribute_ignored_p (const attribute_spec *const);
 extern bool any_nonignored_attribute_p (tree);
@@ -54,9 +54,9 @@ extern struct scoped_attributes *
   register_scoped_attributes (const scoped_attribute_specs &, bool = false);
 
 extern char *sorted_attr_string (tree);
-extern bool common_function_versions (tree, tree);
 extern tree make_dispatcher_decl (const tree);
 extern bool is_function_default_version (const tree);
+extern bool functions_b_resolvable_from_a (tree, tree, tree);
 extern void handle_ignored_attributes_option (vec<char *> *);
 
 /* Return a type like TTYPE except that its TYPE_ATTRIBUTES

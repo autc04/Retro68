@@ -28,4 +28,4 @@
 	fpsubs8	%f6, %f8, %f10
 	fpsubus8 %f10, %f12, %f14
 	fpsubus16 %f14, %f16, %f18
-	faligndata %f0, %f62, %f4, %f62
+	faligndata %g0, %f62, %f4, %f62

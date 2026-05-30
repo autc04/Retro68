@@ -1,5 +1,5 @@
 ;; Predicate definitions for IA-32 and x86-64.
-;; Copyright (C) 2004-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2026 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -218,6 +218,7 @@
 	  case UNSPEC_DTPOFF:
 	  case UNSPEC_GOTNTPOFF:
 	  case UNSPEC_NTPOFF:
+	  case UNSPEC_SECREL32:
 	    return true;
 	  default:
 	    break;
@@ -392,6 +393,23 @@
   return false;
 })
 
+;; Return true if VALUE is a constant integer whose negation satisfies
+;; x86_64_immediate_operand.
+(define_predicate "x86_64_neg_const_int_operand"
+  (match_code "const_int")
+{
+  HOST_WIDE_INT val = -UINTVAL (op);
+  if (mode == DImode && trunc_int_for_mode (val, SImode) != val)
+    return false;
+  if (flag_cf_protection & CF_BRANCH)
+    {
+      unsigned HOST_WIDE_INT endbr = TARGET_64BIT ? 0xfa1e0ff3 : 0xfb1e0ff3;
+      if ((val & HOST_WIDE_INT_C (0xffffffff)) == endbr)
+	return false;
+    }
+  return true;
+})
+
 ;; Return true if VALUE is a constant integer whose low and high words satisfy
 ;; x86_64_immediate_operand.
 (define_predicate "x86_64_hilo_int_operand"
@@ -525,12 +543,12 @@
   /* Rule out relocations that translate into 64bit constants.  */
   if (TARGET_64BIT && GET_CODE (op) == CONST)
     {
-      op = XEXP (op, 0);
-      if (GET_CODE (op) == PLUS && CONST_INT_P (XEXP (op, 1)))
-	op = XEXP (op, 0);
-      if (GET_CODE (op) == UNSPEC
-	  && (XINT (op, 1) == UNSPEC_GOTOFF
-	      || XINT (op, 1) == UNSPEC_GOT))
+      rtx tmp = XEXP (op, 0);
+      if (GET_CODE (tmp) == PLUS && CONST_INT_P (XEXP (tmp, 1)))
+	tmp = XEXP (tmp, 0);
+      if (GET_CODE (tmp) == UNSPEC
+	  && (XINT (tmp, 1) == UNSPEC_GOTOFF
+	      || XINT (tmp, 1) == UNSPEC_GOT))
 	return false;
     }
 
@@ -555,11 +573,12 @@
 
     case CONST:
       op = XEXP (op, 0);
-      if (GET_CODE (op) == SYMBOL_REF
-	  || GET_CODE (op) == LABEL_REF
+      if (SYMBOL_REF_P (op)
+	  || LABEL_REF_P (op)
 	  || (GET_CODE (op) == UNSPEC
 	      && (XINT (op, 1) == UNSPEC_GOT
 		  || XINT (op, 1) == UNSPEC_GOTOFF
+		  || XINT (op, 1) == UNSPEC_SECREL32
 		  || XINT (op, 1) == UNSPEC_PCREL
 		  || XINT (op, 1) == UNSPEC_GOTPCREL)))
 	return true;
@@ -568,17 +587,18 @@
 	return false;
 
       op = XEXP (op, 0);
-      if (GET_CODE (op) == SYMBOL_REF
-	  || GET_CODE (op) == LABEL_REF)
+      if (SYMBOL_REF_P (op)
+	  || LABEL_REF_P (op))
 	return true;
-      /* Only @GOTOFF gets offsets.  */
+      /* Only @GOTOFF and @SECREL32 get offsets.  */
       if (GET_CODE (op) != UNSPEC
-	  || XINT (op, 1) != UNSPEC_GOTOFF)
+	  || (XINT (op, 1) != UNSPEC_GOTOFF
+	      && XINT (op, 1) != UNSPEC_SECREL32))
 	return false;
 
       op = XVECEXP (op, 0, 0);
-      if (GET_CODE (op) == SYMBOL_REF
-	  || GET_CODE (op) == LABEL_REF)
+      if (SYMBOL_REF_P (op)
+	  || LABEL_REF_P (op))
 	return true;
       return false;
 
@@ -596,10 +616,10 @@
       && CONST_INT_P (XEXP (XEXP (op, 0), 1)))
     op = XEXP (XEXP (op, 0), 0);
 
-  if (GET_CODE (op) == LABEL_REF)
+  if (LABEL_REF_P (op))
     return true;
 
-  if (GET_CODE (op) != SYMBOL_REF)
+  if (!SYMBOL_REF_P (op))
     return false;
 
   if (SYMBOL_REF_TLS_MODEL (op))
@@ -631,7 +651,7 @@
       && CONST_INT_P (XEXP (XEXP (op, 0), 1)))
     op = XEXP (XEXP (op, 0), 0);
 
-  if (GET_CODE (op) == SYMBOL_REF
+  if (SYMBOL_REF_P (op)
       && !SYMBOL_REF_FUNCTION_P (op))
     return false;
 
@@ -646,8 +666,9 @@
 ;; same segment as the GOT.  Unfortunately, the flexibility of linker
 ;; scripts means that we can't be sure of that in general, so assume
 ;; @GOTOFF is not valid on VxWorks, except with the large code model.
+;; The comments above seem to apply only to VxWorks releases before 7.
 (define_predicate "gotoff_operand"
-  (and (ior (not (match_test "TARGET_VXWORKS_RTP"))
+  (and (ior (not (match_test "TARGET_VXWORKS_VAROFF"))
             (match_test "ix86_cmodel == CM_LARGE")
             (match_test "ix86_cmodel == CM_LARGE_PIC"))
        (match_operand 0 "local_symbolic_operand")))
@@ -1126,7 +1147,7 @@
   unsigned n_elts;
   op = avoid_constant_pool_reference (op);
 
-  if (GET_CODE (op) != CONST_VECTOR)
+  if (!CONST_VECTOR_P (op))
     return false;
 
   n_elts = CONST_VECTOR_NUNITS (op);
@@ -1154,7 +1175,7 @@
   if (MEM_P (op))
     {
       op = get_pool_constant (XEXP (op, 0));
-      if (GET_CODE (op) != CONST_VECTOR)
+      if (!CONST_VECTOR_P (op))
 	return false;
 
       if (GET_MODE (op) != mode
@@ -1267,12 +1288,19 @@
        (match_operand 0 "vector_memory_operand")
        (match_code "const_vector")))
 
+; Return true when OP is register_operand, vector_memory_operand,
+; const_vector zero or const_vector all ones.
+(define_predicate "vector_or_0_or_1s_operand"
+  (ior (match_operand 0 "register_operand")
+       (match_operand 0 "vector_memory_operand")
+       (match_operand 0 "const0_operand")
+       (match_operand 0 "int_float_vector_all_ones_operand")))
+
 (define_predicate "bcst_mem_operand"
   (and (match_code "vec_duplicate")
        (and (match_test "TARGET_AVX512F")
 	    (ior (match_test "TARGET_AVX512VL")
-		 (and (match_test "GET_MODE_SIZE (GET_MODE (op)) == 64")
-		      (match_test "TARGET_EVEX512"))))
+		 (match_test "GET_MODE_SIZE (GET_MODE (op)) == 64")))
        (match_test "VALID_BCST_MODE_P (GET_MODE_INNER (GET_MODE (op)))")
        (match_test "GET_MODE (XEXP (op, 0))
 		    == GET_MODE_INNER (GET_MODE (op))")
@@ -1333,6 +1361,12 @@
   (ior (match_operand 0 "nonimmediate_operand")
        (match_operand 0 "const0_operand")))
 
+; Return true when OP is a nonimmediate or zero or all ones.
+(define_predicate "nonimm_or_0_or_1s_operand"
+  (ior (match_operand 0 "nonimmediate_operand")
+       (match_operand 0 "const0_operand")
+       (match_operand 0 "int_float_vector_all_ones_operand")))
+
 ;; Return true for RTX codes that force SImode address.
 (define_predicate "SImode_address_operand"
   (match_code "subreg,zero_extend,and"))
@@ -1390,8 +1424,8 @@
 	}
       if (TARGET_64BIT
 	  && flag_pic
-	  && (GET_CODE (disp) == SYMBOL_REF
-	      || GET_CODE (disp) == LABEL_REF))
+	  && (SYMBOL_REF_P (disp)
+	      || LABEL_REF_P (disp)))
 	return false;
     }
 
@@ -1552,6 +1586,9 @@
 (define_predicate "add_comparison_operator"
   (match_code "geu,ltu"))
 
+(define_predicate "ieee_maxmin_comparison_operator"
+  (match_code "lt,gt"))
+
 ;; Return true if OP is a valid comparison operator in valid mode.
 (define_predicate "ix86_comparison_operator"
   (match_operand 0 "comparison_operator")
@@ -1682,9 +1719,13 @@
 (define_predicate "div_operator"
   (match_code "div"))
 
-;; Return true if this is a and, ior or xor operation.
+;; Return true if this is an and, ior or xor operation.
 (define_predicate "logic_operator"
   (match_code "and,ior,xor"))
+
+;; Return true if this is an and operation.
+(define_predicate "and_operator"
+  (match_code "and"))
 
 ;; Return true if this is a plus, minus, and, ior or xor operation.
 (define_predicate "plusminuslogic_operator"
@@ -1708,8 +1749,12 @@
 (define_predicate "compare_operator"
   (match_code "compare"))
 
-(define_predicate "extract_operator"
-  (match_code "zero_extract,sign_extract"))
+(define_predicate "extract_high_operator"
+  (match_code "zero_extract,sign_extract,ashiftrt,lshiftrt")
+{
+  return (const8_operand (XEXP (op, 1), VOIDmode)
+	  && (BINARY_P (op) || const8_operand (XEXP (op, 2), VOIDmode)));
+})
 
 ;; Return true if OP is a memory operand, aligned to
 ;; less than its natural alignment.
@@ -1858,7 +1903,7 @@
 {
   int nelt = XVECLEN (op, 0);
   int elt, i;
-  
+
   if (nelt < 2)
     return false;
 
@@ -2031,6 +2076,25 @@
   for (i = 1; i < nelt; ++i)
     if (XVECEXP (op, 0, i) != elt)
       return false;
+  return true;
+})
+
+;; Return true if OP is a parallel for a vbroadcastf128 permute.
+(define_predicate "avx_vbroadcast128_operand"
+  (and (match_code "parallel")
+       (match_code "const_int" "a"))
+{
+  int i, nelt = XVECLEN (op, 0);
+  int half = nelt / 2;
+
+  for (i = 0; i < nelt; ++i)
+    {
+      int index = INTVAL (XVECEXP (op, 0, i));
+      if ((i < half && index != i)
+	  || (i >= half && index != (i - half)))
+	return false;
+    }
+
   return true;
 })
 

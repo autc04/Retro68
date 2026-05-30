@@ -46,9 +46,9 @@ namespace std _GLIBCXX_VISIBILITY(default)
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   /// Add two integers, with saturation in case of overflow.
-  template<typename _Tp> requires __is_standard_integer<_Tp>::value
+  template<typename _Tp> requires __is_signed_or_unsigned_integer<_Tp>::value
     constexpr _Tp
-    add_sat(_Tp __x, _Tp __y) noexcept
+    saturating_add(_Tp __x, _Tp __y) noexcept
     {
       _Tp __z;
       if (!__builtin_add_overflow(__x, __y, &__z))
@@ -62,9 +62,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   /// Subtract one integer from another, with saturation in case of overflow.
-  template<typename _Tp> requires __is_standard_integer<_Tp>::value
+  template<typename _Tp> requires __is_signed_or_unsigned_integer<_Tp>::value
     constexpr _Tp
-    sub_sat(_Tp __x, _Tp __y) noexcept
+    saturating_sub(_Tp __x, _Tp __y) noexcept
     {
       _Tp __z;
       if (!__builtin_sub_overflow(__x, __y, &__z))
@@ -78,25 +78,25 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   /// Multiply two integers, with saturation in case of overflow.
-  template<typename _Tp> requires __is_standard_integer<_Tp>::value
+  template<typename _Tp> requires __is_signed_or_unsigned_integer<_Tp>::value
     constexpr _Tp
-    mul_sat(_Tp __x, _Tp __y) noexcept
+    saturating_mul(_Tp __x, _Tp __y) noexcept
     {
       _Tp __z;
       if (!__builtin_mul_overflow(__x, __y, &__z))
 	return __z;
       if constexpr (is_unsigned_v<_Tp>)
 	return __gnu_cxx::__int_traits<_Tp>::__max;
-      else if (__x < 0 != __y < 0)
+      else if ((__x < 0) != (__y < 0))
 	return __gnu_cxx::__int_traits<_Tp>::__min;
       else
 	return __gnu_cxx::__int_traits<_Tp>::__max;
     }
 
   /// Divide one integer by another, with saturation in case of overflow.
-  template<typename _Tp> requires __is_standard_integer<_Tp>::value
+  template<typename _Tp> requires __is_signed_or_unsigned_integer<_Tp>::value
     constexpr _Tp
-    div_sat(_Tp __x, _Tp __y) noexcept
+    saturating_div(_Tp __x, _Tp __y) noexcept
     {
       __glibcxx_assert(__y != 0);
       if constexpr (is_signed_v<_Tp>)
@@ -107,10 +107,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   /// Divide one integer by another, with saturation in case of overflow.
   template<typename _Res, typename _Tp>
-    requires __is_standard_integer<_Res>::value
-      && __is_standard_integer<_Tp>::value
+    requires __is_signed_or_unsigned_integer<_Res>::value
+      && __is_signed_or_unsigned_integer<_Tp>::value
     constexpr _Res
-    saturate_cast(_Tp __x) noexcept
+    saturating_cast(_Tp __x) noexcept
     {
       constexpr int __digits_R = __gnu_cxx::__int_traits<_Res>::__digits;
       constexpr int __digits_T = __gnu_cxx::__int_traits<_Tp>::__digits;

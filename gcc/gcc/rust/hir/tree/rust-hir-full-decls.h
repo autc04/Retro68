@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -95,6 +95,8 @@ class FieldAccessExpr;
 struct ClosureParam;
 class ClosureExpr;
 class BlockExpr;
+class AnonConst;
+class ConstBlock;
 class ContinueExpr;
 class BreakExpr;
 class RangeExpr;
@@ -123,9 +125,10 @@ class AwaitExpr;
 class AsyncBlockExpr;
 class InlineAsmReg;
 class InlineAsmRegClass;
-struct AnonConst;
 class InlineAsmOperand;
 class InlineAsm;
+class LlvmInlineAsm;
+class OffsetOf;
 
 // rust-stmt.h
 class EmptyStmt;
@@ -196,13 +199,15 @@ class StructPatternFieldIdentPat;
 class StructPatternFieldIdent;
 class StructPattern;
 class TupleStructItems;
-class TupleStructItemsNoRange;
-class TupleStructItemsRange;
+class TupleStructItemsNoRest;
+class TupleStructItemsHasRest;
 class TupleStructPattern;
 class TuplePatternItems;
-class TuplePatternItemsMultiple;
-class TuplePatternItemsRanged;
+class TuplePatternItemsNoRest;
+class TuplePatternItemsHasRest;
 class TuplePattern;
+class SlicePatternItemsNoRest;
+class SlicePatternItemsHasRest;
 class SlicePattern;
 class AltPattern;
 

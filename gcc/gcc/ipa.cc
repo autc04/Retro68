@@ -1,5 +1,5 @@
 /* Basic IPA optimizations and utilities.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -310,6 +310,7 @@ bool
 symbol_table::remove_unreachable_nodes (FILE *file)
 {
   symtab_node *first = (symtab_node *) (void *) 1;
+  symtab_node *snode;
   struct cgraph_node *node, *next;
   varpool_node *vnode, *vnext;
   bool changed = false;
@@ -357,6 +358,12 @@ symbol_table::remove_unreachable_nodes (FILE *file)
 	reachable.add (vnode);
 	enqueue_node (vnode, &first, &reachable);
       }
+
+  /* Declarations or symbols in other partitions are also needed if referenced
+     from asm.  */
+  FOR_EACH_SYMBOL (snode)
+    if (snode->ref_by_asm)
+      enqueue_node (snode, &first, &reachable);
 
   /* Perform reachability analysis.  */
   while (first != (symtab_node *) (void *) 1)
@@ -428,11 +435,12 @@ symbol_table::remove_unreachable_nodes (FILE *file)
 		  for (e = cnode->indirect_calls; e; e = next)
 		    {
 		      next = e->next_callee;
-		      if (e->indirect_info->polymorphic)
+		      if (usable_polymorphic_info_p (e->indirect_info))
 			walk_polymorphic_call_targets (&reachable_call_targets,
 						       e, &first, &reachable);
 		    }
 		}
+
 	      for (e = cnode->callees; e; e = e->next_callee)
 		{
 	          symtab_node *body = e->callee->function_symbol ();
@@ -475,6 +483,15 @@ symbol_table::remove_unreachable_nodes (FILE *file)
 	    }
 	  else if (cnode->thunk)
 	    enqueue_node (cnode->callees->callee, &first, &reachable);
+
+	  /* A reference to the default node implies use of all the other
+	     versions (they get used in the function resolver made later
+	     in multiple_target.cc)  */
+	  cgraph_function_version_info *node_v = cnode->function_version ();
+	  if (node_v && is_function_default_version (node->decl))
+	    for (cgraph_function_version_info *fvi = node_v->next; fvi;
+		 fvi = fvi->next)
+	      enqueue_node (fvi->this_node, &first, &reachable);
 
 	  /* If any reachable function has simd clones, mark them as
 	     reachable as well.  */

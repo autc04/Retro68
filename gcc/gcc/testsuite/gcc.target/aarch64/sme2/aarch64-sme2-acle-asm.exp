@@ -1,5 +1,5 @@
 #  Assembly-based regression-test driver for the SME2 ACLE.
-#  Copyright (C) 2009-2025 Free Software Foundation, Inc.
+#  Copyright (C) 2009-2026 Free Software Foundation, Inc.
 #
 #  This file is part of GCC.
 #
@@ -34,12 +34,13 @@ dg-init
 if { [check_effective_target_aarch64_sme2] } {
     set sme2_flags ""
 } else {
-    set sme2_flags "-march=armv9-a+sme2"
+    set sme2_flags "-march=armv8-a+sme2"
 }
 
 # Turn off any codegen tweaks by default that may affect expected assembly.
 # Tests relying on those should turn them on explicitly.
-set sme2_flags "$sme2_flags -mtune=generic -moverride=tune=none"
+# Reduce testsuite churn when writing to fmpr
+set sme2_flags "$sme2_flags -mtune=generic -moverride=tune=none -moverride=tune=cheap_fpmr_write"
 
 global gcc_runtest_parallelize_limit_minor
 if { [info exists gcc_runtest_parallelize_limit_minor] } {

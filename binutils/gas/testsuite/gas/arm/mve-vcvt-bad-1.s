@@ -1,12 +1,3 @@
-.macro cond
-.irp cond, eq, ne, gt, ge, lt, le
-.irp size, .f16.s16, .s16.f16, .f16.u16, .u16.f16, .f32.s32, .s32.f32, .f32.u32, .u32.f32
-it \cond
-vcvt\size q0, q1, #1
-.endr
-.endr
-.endm
-
 .syntax unified
 .thumb
 vcvt.f16.s16 q0, q1, #0
@@ -25,7 +16,16 @@ vcvt.f32.s32 q0, q1, #33
 vcvt.s32.f32 q0, q1, #33
 vcvt.f32.u32 q0, q1, #33
 vcvt.u32.f32 q0, q1, #33
-cond
+
+.irp cond, eq, ne, gt, ge, lt, le
+.irp size, .f16.s16, .s16.f16, .f16.u16, .u16.f16, .f32.s32, .s32.f32, .f32.u32, .u32.f32
+
+it \cond
+vcvt\size q0, q1, #1
+
+.endr
+.endr
+
 vcvt.f64.u64 q0, q1, #1
 vcvt.u64.f64 q0, q1, #1
 vcvt.f64.s64 q0, q1, #1

@@ -1,5 +1,5 @@
 /* Gimple range GORI functions.
-   Copyright (C) 2017-2025 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
    Contributed by Andrew MacLeod <amacleod@redhat.com>
    and Aldy Hernandez <aldyh@redhat.com>.
 
@@ -381,6 +381,28 @@ gori_map::exports (basic_block bb)
   if (bb->index >= (signed int)m_outgoing.length () || !m_outgoing[bb->index])
     calculate_gori (bb);
   return m_outgoing[bb->index];
+}
+
+// Return the bitmap vector of all exports AND their dependencies from BB
+// in TMPBIT.  Calculate if necessary.  Return TMPBIT.
+
+bitmap
+gori_map::exports_and_deps (basic_block bb, bitmap tmpbit)
+{
+  if (bb->index >= (signed int)m_outgoing.length () || !m_outgoing[bb->index])
+    calculate_gori (bb);
+  bitmap_copy (tmpbit, m_outgoing[bb->index]);
+  if (!bitmap_empty_p (tmpbit))
+    {
+      tree name;
+      FOR_EACH_GORI_EXPORT_NAME (this, bb, name)
+	{
+	  bitmap dep = get_def_chain (name);
+	  if (dep)
+	    bitmap_ior_into (tmpbit, dep);
+	}
+    }
+  return tmpbit;
 }
 
 // Return the bitmap vector of all imports to BB.  Calculate if necessary.
@@ -1325,9 +1347,10 @@ gori_compute::may_recompute_p (tree name, basic_block bb, int depth)
   if (!dep1)
     return false;
 
-  // Don't recalculate PHIs or statements with side_effects.
+  // Only recalculate range-op statements that are recomputable.
   gimple *s = SSA_NAME_DEF_STMT (name);
-  if (is_a<gphi *> (s) || gimple_has_side_effects (s))
+  gimple_range_op_handler handler (s);
+  if (!handler || !handler.recomputable_p ())
     return false;
 
   if (!dep2)

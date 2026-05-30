@@ -1,5 +1,7 @@
 # warning_output: mops_invalid_2.l
 # objdump: -dr -M notes
+# This test is only valid on ELF based ports.
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 .*
 

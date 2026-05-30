@@ -1,15 +1,15 @@
-.macro cond
-.irp cond, eq, ne, gt, ge, lt, le
-.irp mnem, vadc.i32, vadci.i32
-it \cond
-\mnem q0, q1, q2
-.endr
-.endr
-.endm
-
 .syntax unified
 .thumb
-cond
+
+.irp cond, eq, ne, gt, ge, lt, le
+.irp mnem, vadc.i32, vadci.i32
+
+it \cond
+\mnem q0, q1, q2
+
+.endr
+.endr
+
 vadc.i8 q0, q1, q2
 vadc.i16 q0, q1, q2
 vadc.i64 q0, q1, q2

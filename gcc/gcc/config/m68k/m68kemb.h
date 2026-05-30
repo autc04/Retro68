@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler.  "embedded" 68XXX.
    This is meant to be included after m68k.h.
-   Copyright (C) 1994-2025 Free Software Foundation, Inc.  */
+   Copyright (C) 1994-2026 Free Software Foundation, Inc.  */
 
 /* Override the SVR4 ABI for this target.  */
 
@@ -17,6 +17,8 @@
    and unions in registers, which is slightly more efficient.  */
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
+#undef FUNCTION_VALUE
+#define FUNCTION_VALUE(VALTYPE,FUNC) LIBCALL_VALUE (TYPE_MODE (VALTYPE))
 
 #undef LIBCALL_VALUE
 #define LIBCALL_VALUE(MODE)					\

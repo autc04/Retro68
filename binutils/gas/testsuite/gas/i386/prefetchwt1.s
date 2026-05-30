@@ -1,6 +1,5 @@
-# Check 32bit AVX512PF instructions
+# Check 32bit PREFETCHWT1 instructions
 
-	.allow_index_reg
 	.text
 _start:
 

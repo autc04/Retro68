@@ -1,5 +1,5 @@
 /* Handling for the various __analyzer_* known functions.
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,24 +18,17 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "diagnostic-core.h"
-#include "analyzer/analyzer.h"
-#include "analyzer/analyzer-logging.h"
+#include "analyzer/common.h"
+
 #include "diagnostic.h"
 #include "tree-diagnostic.h" /* for default_tree_printer.  */
+#include "pretty-print-markup.h"
+
+#include "analyzer/analyzer-logging.h"
 #include "analyzer/region-model.h"
 #include "analyzer/pending-diagnostic.h"
 #include "analyzer/call-details.h"
-#include "make-unique.h"
-#include "pretty-print-markup.h"
+#include "analyzer/program-state.h"
 
 #if ENABLE_ANALYZER
 
@@ -110,7 +103,7 @@ public:
     const region *base_reg = reg->get_base_region ();
     const svalue *capacity = model->get_capacity (base_reg);
     label_text desc = capacity->get_desc (true);
-    warning_at (cd.get_call_stmt ()->location, 0,
+    warning_at (cd.get_call_stmt ().location, 0,
 		"capacity: %qs", desc.get ());
   }
 };
@@ -268,6 +261,11 @@ class dump_path_diagnostic
   : public pending_diagnostic_subclass<dump_path_diagnostic>
 {
 public:
+  dump_path_diagnostic (const program_state &state)
+  : m_state (state)
+  {
+  }
+
   int get_controlling_option () const final override
   {
     return 0;
@@ -288,6 +286,15 @@ public:
   {
     return true;
   }
+
+  const program_state *
+  get_final_state () const final override
+  {
+    return &m_state;
+  }
+
+private:
+  program_state m_state;
 };
 
 /* Handle calls to "__analyzer_dump_path" by queuing a diagnostic at this
@@ -305,7 +312,8 @@ public:
     region_model_context *ctxt = cd.get_ctxt ();
     if (!ctxt)
       return;
-    ctxt->warn (make_unique<dump_path_diagnostic> ());
+    if (const program_state *state = ctxt->get_state ())
+      ctxt->warn (std::make_unique<dump_path_diagnostic> (*state));
   }
 };
 
@@ -382,22 +390,28 @@ public:
 void
 register_known_analyzer_functions (known_function_manager &kfm)
 {
-  kfm.add ("__analyzer_break", make_unique<kf_analyzer_break> ());
-  kfm.add ("__analyzer_describe", make_unique<kf_analyzer_describe> ());
+  kfm.add ("__analyzer_break",
+	   std::make_unique<kf_analyzer_break> ());
+  kfm.add ("__analyzer_describe",
+	   std::make_unique<kf_analyzer_describe> ());
   kfm.add ("__analyzer_dump_capacity",
-	   make_unique<kf_analyzer_dump_capacity> ());
-  kfm.add ("__analyzer_dump_escaped", make_unique<kf_analyzer_dump_escaped> ());
+	   std::make_unique<kf_analyzer_dump_capacity> ());
+  kfm.add ("__analyzer_dump_escaped",
+	   std::make_unique<kf_analyzer_dump_escaped> ());
   kfm.add ("__analyzer_dump_exploded_nodes",
-	   make_unique<kf_analyzer_dump_exploded_nodes> ());
+	   std::make_unique<kf_analyzer_dump_exploded_nodes> ());
   kfm.add ("__analyzer_dump_named_constant",
-	   make_unique<kf_analyzer_dump_named_constant> ());
-  kfm.add ("__analyzer_dump_path", make_unique<kf_analyzer_dump_path> ());
+	   std::make_unique<kf_analyzer_dump_named_constant> ());
+  kfm.add ("__analyzer_dump_path",
+	   std::make_unique<kf_analyzer_dump_path> ());
   kfm.add ("__analyzer_dump_region_model",
-	   make_unique<kf_analyzer_dump_region_model> ());
-  kfm.add ("__analyzer_eval", make_unique<kf_analyzer_eval> ());
+	   std::make_unique<kf_analyzer_dump_region_model> ());
+  kfm.add ("__analyzer_eval",
+	   std::make_unique<kf_analyzer_eval> ());
   kfm.add ("__analyzer_get_unknown_ptr",
-	   make_unique<kf_analyzer_get_unknown_ptr> ());
-  kfm.add ("__analyzer_get_strlen", make_kf_strlen ());
+	   std::make_unique<kf_analyzer_get_unknown_ptr> ());
+  kfm.add ("__analyzer_get_strlen",
+	   make_kf_strlen ());
 }
 
 } // namespace ana

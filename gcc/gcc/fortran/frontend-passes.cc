@@ -1,5 +1,5 @@
 /* Pass manager for Fortran front end.
-   Copyright (C) 2010-2025 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
    Contributed by Thomas König.
 
 This file is part of GCC.
@@ -1481,7 +1481,8 @@ optimize_namespace (gfc_namespace *ns)
       gfc_code_walker (&ns->code, convert_elseif, dummy_expr_callback, NULL);
       gfc_code_walker (&ns->code, cfe_code, cfe_expr_0, NULL);
       gfc_code_walker (&ns->code, optimize_code, optimize_expr, NULL);
-      if (flag_inline_matmul_limit != 0 || flag_external_blas)
+      if (flag_inline_matmul_limit != 0 || flag_external_blas
+	  || flag_external_blas64)
 	{
 	  bool found;
 	  do
@@ -1496,7 +1497,7 @@ optimize_namespace (gfc_namespace *ns)
 			   NULL);
 	}
 
-      if (flag_external_blas)
+      if (flag_external_blas || flag_external_blas64)
 	gfc_code_walker (&ns->code, call_external_blas, dummy_expr_callback,
 			 NULL);
 
@@ -2745,6 +2746,66 @@ insert_index (gfc_expr *e, gfc_symbol *sym, mpz_t val, mpz_t ret)
 
 }
 
+static bool
+evaluate_loop_bound (gfc_expr *e, gfc_symbol *sym, mpz_t val, mpz_t ret)
+{
+  if (e->expr_type == EXPR_CONSTANT)
+    {
+      mpz_init_set (ret, e->value.integer);
+      return true;
+    }
+
+  return insert_index (e, sym, val, ret);
+}
+
+/* Return true if any loop nested inside LOOP_INDEX is not provably entered
+   after substituting OUTER_VAL for OUTER_SYM.  In that case the guarded array
+   reference may never be evaluated, so do not warn from the outer loop alone.  */
+
+static bool
+inner_loop_may_be_skipped (int loop_index, gfc_symbol *outer_sym, mpz_t outer_val)
+{
+  int k;
+  do_t *lp;
+
+  FOR_EACH_VEC_ELT_FROM (doloop_list, k, lp, loop_index + 1)
+    {
+      gfc_code *loop = lp->c;
+      int sgn, cmp;
+      mpz_t do_start, do_end, do_step;
+
+      if (loop == NULL || loop->ext.iterator == NULL || loop->ext.iterator->var == NULL)
+	return true;
+
+      if (!evaluate_loop_bound (loop->ext.iterator->step, outer_sym, outer_val, do_step))
+	return true;
+
+      sgn = mpz_cmp_ui (do_step, 0);
+      if (sgn == 0)
+	{
+	  mpz_clear (do_step);
+	  return true;
+	}
+
+      if (!evaluate_loop_bound (loop->ext.iterator->start, outer_sym, outer_val, do_start)
+	  || !evaluate_loop_bound (loop->ext.iterator->end, outer_sym, outer_val, do_end))
+	{
+	  mpz_clear (do_step);
+	  return true;
+	}
+
+      cmp = mpz_cmp (do_end, do_start);
+      mpz_clear (do_start);
+      mpz_clear (do_end);
+      mpz_clear (do_step);
+
+      if ((sgn > 0 && cmp < 0) || (sgn < 0 && cmp > 0))
+	return true;
+    }
+
+  return false;
+}
+
 /* Check array subscripts for possible out-of-bounds accesses in DO
    loops with constant bounds.  */
 
@@ -2879,10 +2940,15 @@ do_subscript (gfc_expr **e)
 		  mpz_clear (rem);
 		}
 
+	      bool skip_start = have_do_start
+				&& inner_loop_may_be_skipped (j, do_sym, do_start);
+	      bool skip_end = have_do_end
+			      && inner_loop_may_be_skipped (j, do_sym, do_end);
+
 	      for (i = 0; i< ar->dimen; i++)
 		{
 		  mpz_t val;
-		  if (ar->dimen_type[i] == DIMEN_ELEMENT && have_do_start
+		  if (ar->dimen_type[i] == DIMEN_ELEMENT && have_do_start && !skip_start
 		      && insert_index (ar->start[i], do_sym, do_start, val))
 		    {
 		      if (ar->as->lower[i]
@@ -2908,7 +2974,7 @@ do_subscript (gfc_expr **e)
 		      mpz_clear (val);
 		    }
 
-		  if (ar->dimen_type[i] == DIMEN_ELEMENT && have_do_end
+		  if (ar->dimen_type[i] == DIMEN_ELEMENT && have_do_end && !skip_end
 		      && insert_index (ar->start[i], do_sym, do_end, val))
 		    {
 		      if (ar->as->lower[i]
@@ -4644,6 +4710,7 @@ call_external_blas (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
   enum matrix_case m_case;
   bool realloc_c;
   gfc_code **next_code_point;
+  int arg_kind;
 
   /* Many of the tests for inline matmul also apply here.  */
 
@@ -4929,13 +4996,20 @@ call_external_blas (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
 				       transb, 1);
   actual->next = next;
 
-  c1 = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (a->expr), 1,
-			       gfc_integer_4_kind);
-  c2 = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (b->expr), 2,
-			       gfc_integer_4_kind);
+  if (flag_external_blas)
+    arg_kind = gfc_integer_4_kind;
+  else
+    {
+      gcc_assert (flag_external_blas64);
+      arg_kind = gfc_integer_8_kind;
+    }
 
+  c1 = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (a->expr), 1,
+			       arg_kind);
+  c2 = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (b->expr), 2,
+			       arg_kind);
   b1 = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (b->expr), 1,
-			       gfc_integer_4_kind);
+			       arg_kind);
 
   /* Argument M. */
   actual = next;
@@ -4975,7 +5049,7 @@ call_external_blas (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
   actual = next;
   next = gfc_get_actual_arglist ();
   next->expr = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (matrix_a),
-				       1, gfc_integer_4_kind);
+				       1, arg_kind);
   actual->next = next;
 
   /* Argument B.  */
@@ -4988,7 +5062,7 @@ call_external_blas (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
   actual = next;
   next = gfc_get_actual_arglist ();
   next->expr = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (matrix_b),
-				       1, gfc_integer_4_kind);
+				       1, arg_kind);
   actual->next = next;
 
   /* Argument BETA - set to zero.  */
@@ -5012,7 +5086,7 @@ call_external_blas (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
   actual = next;
   next = gfc_get_actual_arglist ();
   next->expr = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (expr1),
-				       1, gfc_integer_4_kind);
+				       1, arg_kind);
   actual->next = next;
 
   return 0;
@@ -5218,6 +5292,11 @@ gfc_expr_walker (gfc_expr **e, walk_expr_fn_t exprfn, void *data)
 	    for (a = (*e)->value.function.actual; a; a = a->next)
 	      WALK_SUBEXPR (a->expr);
 	    break;
+	  case EXPR_CONDITIONAL:
+	    WALK_SUBEXPR ((*e)->value.conditional.condition);
+	    WALK_SUBEXPR ((*e)->value.conditional.true_expr);
+	    WALK_SUBEXPR ((*e)->value.conditional.false_expr);
+	    break;
 	  case EXPR_COMPCALL:
 	  case EXPR_PPC:
 	    WALK_SUBEXPR ((*e)->value.compcall.base_object);
@@ -5340,6 +5419,7 @@ gfc_code_walker (gfc_code **c, walk_code_fn_t codefn, walk_expr_fn_t exprfn,
 	    {
 
 	    case EXEC_BLOCK:
+	    case EXEC_CHANGE_TEAM:
 	      WALK_SUBCODE (co->ext.block.ns->code);
 	      if (co->ext.block.assoc)
 		{
@@ -5630,6 +5710,7 @@ gfc_code_walker (gfc_code **c, walk_code_fn_t codefn, walk_expr_fn_t exprfn,
 		  WALK_SUBEXPR (co->ext.omp_clauses->num_tasks);
 		  WALK_SUBEXPR (co->ext.omp_clauses->priority);
 		  WALK_SUBEXPR (co->ext.omp_clauses->detach);
+		  WALK_SUBEXPR (co->ext.omp_clauses->dyn_groupprivate);
 		  WALK_SUBEXPR (co->ext.omp_clauses->novariants);
 		  WALK_SUBEXPR (co->ext.omp_clauses->nocontext);
 		  for (idx = 0; idx < ARRAY_SIZE (list_types); idx++)

@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2025 Free Software Foundation, Inc.
+// Copyright (C) 2015-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,6 +17,7 @@
 
 // { dg-do run { target { c++11 && { ! simulator } } } }
 // { dg-require-cstdint "" }
+// { dg-additional-options -fexcess-precision=standard }
 
 #include <random>
 #include <testsuite_hooks.h>
@@ -25,6 +26,7 @@
 void
 test01()
 {
+#ifdef _GLIBCXX_USE_OLD_GENERATE_CANONICAL
   std::mt19937 rng(8890);
   std::uniform_real_distribution<float> dist;
 
@@ -34,6 +36,9 @@ test01()
       auto n = dist(rng);
       VERIFY( n != 1.f );
     }
+#else
+  // New generate_canonical is tested in ./gencanon.cc
+#endif
 }
 
 // libstdc++/63176
@@ -47,14 +52,19 @@ test02()
   std::mt19937 rng2{rng};
   for (int i = 0; i < 20; ++i)
   {
-    float n =
-      std::generate_canonical<float, std::numeric_limits<float>::digits>(rng);
+    float n = std::generate_canonical<float, -1u>(rng);
     VERIFY( n != 1.f );
 
-    // PR libstdc++/80137
     rng2.discard(1);
-    VERIFY( rng == rng2 );
   }
+
+  // PR libstdc++/80137
+#ifdef _GLIBCXX_USE_OLD_GENERATE_CANONICAL
+  // Each std::generate_canonical call should consume exactly one value.
+#else
+  rng2.discard(1);  // account for a 1.0 generated and discarded.
+#endif
+  VERIFY( rng == rng2 );
 }
 
 int

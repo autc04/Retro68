@@ -1,5 +1,5 @@
 // rust-gcc.cc -- Rust frontend to gcc IR.
-// Copyright (C) 2011-2025 Free Software Foundation, Inc.
+// Copyright (C) 2011-2026 Free Software Foundation, Inc.
 // Contributed by Ian Lance Taylor, Google.
 // forked from gccgo
 
@@ -57,6 +57,30 @@ public:
 private:
   tree t_;
   tree orig_type_;
+};
+
+// like Bvariable, but orig_type_ == nullptr always holds
+// could be any variable which isn't a zero-sized global
+class LocalVariable
+{
+public:
+  LocalVariable (tree t) : t (t) {}
+
+  // Get the tree for use as an expression.
+  tree get_tree (location_t) const;
+
+  // Get the actual decl;
+  tree get_decl () const { return t; }
+
+  // Create an error variable.  This is used for cases which should
+  // not occur in a correct program, in order to keep the compilation
+  // going without crashing.
+  static LocalVariable error_variable ();
+
+  operator Bvariable * () const { return new Bvariable (t); }
+
+private:
+  tree t;
 };
 
 #endif // RUST_GCC

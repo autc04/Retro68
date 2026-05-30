@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -38,6 +38,9 @@ public:
     const Resolver::CanonicalPath &canonical_path, HIR::Expr &const_value_expr,
     location_t locus, location_t expr_locus);
 
+  static tree query_compile_const_expr (Context *ctx, TyTy::BaseType *expr_ty,
+					HIR::Expr &const_value_expr);
+
 protected:
   HIRCompileBase (Context *ctx) : ctx (ctx) {}
 
@@ -53,7 +56,7 @@ protected:
 		       TyTy::BaseType *expected, location_t lvalue_locus,
 		       location_t rvalue_locus);
 
-  tree coerce_to_dyn_object (tree compiled_ref, const TyTy::BaseType *actual,
+  tree coerce_to_dyn_object (tree compiled_ref, TyTy::BaseType *actual,
 			     const TyTy::DynamicObjectType *ty,
 			     location_t locus);
 

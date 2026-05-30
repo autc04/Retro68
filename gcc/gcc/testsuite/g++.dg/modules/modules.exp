@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2025 Free Software Foundation, Inc.
+# Copyright (C) 2017-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@ if ![info exists DEFAULT_CXXFLAGS] then {
     set DEFAULT_CXXFLAGS " -pedantic-errors -Wno-long-long"
 }
 set DEFAULT_MODFLAGS $DEFAULT_CXXFLAGS
-set MOD_STD_LIST { 17 2a 2b }
 
 dg-init
 
@@ -54,6 +53,50 @@ global module_do
 global module_cmis
 
 set DEFAULT_REPO "gcm.cache"
+
+set devnull "/dev/null"
+if { [info exists ::env(OS)] && [string match "Windows*" $::env(OS)] } {
+    # Windows uses special file named "nul" as a substitute for /dev/null
+    set devnull "nul"
+}
+
+# Return the pathname for <HNAME>.
+# On failure this will return garbage that results in the understandable
+# FAIL: g++.dg/modules/compile-std1.C module-cmi <bits/stdcx++.h> (gcm.cache/,/ader_path1095619.C:1:10: fatal error: bits/stdcx++.h: No such file or directory.gcm)
+# ??? it would be nice to have a simple --print-include-name flag.
+proc host_header_path {hname} {
+    global tool
+    global devnull
+    set src header_path[pid].C
+    set f [open $src "w"]
+    puts $f "#include <$hname>"
+    close $f
+    set opts [list "additional_flags=-H" "additional_flags=-fdirectives-only"]
+    set lines [${tool}_target_compile $src $devnull preprocess $opts]
+    file delete $f
+    # The first line of the -H output is ". /path/to/hname"
+    set newline_idx [expr {[string first "\n" $lines] - 1}]
+    set path [string range $lines 2 $newline_idx]
+    verbose "header_path: $path" 1
+    return $path
+}
+
+# Return the pathname CMI munged like the compiler.
+proc munge_cmi {cmi} {
+    if { [string index $cmi 0] == "/" } {
+	set cmi [string range $cmi 1 end]
+    } else {
+	set cmi ",/$cmi"
+    }
+    set path [file split $cmi]
+    # subst /../ -> /,,/
+    # sadly tcl 8.5 does not have lmap
+    set rplac {}
+    foreach elt $path {lappend rplac [expr {$elt == ".." ? ",," : $elt}]}
+    set cmi [file join {*}$rplac]
+    verbose "munge_cmi: $cmi" 1
+    return $cmi
+}
 
 # Register the module name this produces.
 # dg-module-cmi !?=?NAME WHEN?
@@ -84,18 +127,11 @@ proc dg-module-cmi { args } {
 	if { $name == "" } {
 	    # get the source file name.  ick!
 	    upvar prog srcname
-	    set cmi "$srcname.gcm"
-	    if { [string index $cmi 0] == "/" } {
-		set cmi [string range $cmi 1 end]
-	    } else {
-		set cmi ",/$cmi"
-	    }
-	    set path [file split $cmi]
-	    # subst /../ -> /,,/
-	    # sadly tcl 8.5 does not have lmap
-	    set rplac {}
-	    foreach elt $path {lappend rplac [expr {$elt == ".." ? ",," : $elt}]}
-	    set cmi [file join {*}$rplac]
+	    set cmi [munge_cmi "$srcname.gcm"]
+	} elseif { [string index $name 0] == "<"
+		   && [string index $name end] == ">" } {
+	    set header "[regsub {<(.*)>} $name {\1}]"
+	    set cmi [munge_cmi "[host_header_path $header].gcm"]
 	} else {
 	    set cmi "[regsub : $name -].gcm"
 	}
@@ -261,44 +297,17 @@ proc srcdir {} {
     return $testdir
 }
 
-# Return set of std options to iterate over, taken from g++-dg.exp & compat.exp
+# Return set of std options to iterate over.
 proc module-init { src } {
-    set tmp [dg-get-options $src]
-    set option_list {}
-    set have_std 0
-    set std_prefix "-std=c++"
+    set option_list [g++-std-flags $src]
     global extra_tool_flags
     set extra_tool_flags {}
-    global MOD_STD_LIST
 
-    foreach op $tmp {
-	switch [lindex $op 0] {
-	    "dg-options" {
-		set std_prefix "-std=gnu++"
-		if { [string match "*-std=*" [lindex $op 2]] } {
-		    set have_std 1
-		}
-		eval lappend extra_tool_flags [lindex $op 2]
-	    }
-	    "dg-additional-options" {
-		if { [string match "*-std=*" [lindex $op 2]] } {
-		    set have_std 1
-		}
-		eval lappend extra_tool_flags [lindex $op 2]
-	    }
-	}
-    }
-
-    if { $have_std } {
-	lappend option_list ""
-    } elseif { [string match "*xtreme*" $src] } {
+    if { [llength $option_list]
+	 && ( [string match "*xtreme*" $src]
+	      || [string match "*compile-std*" $src] ) } {
 	# Only run the xtreme tests once.
-	set x [lindex $MOD_STD_LIST end]
-	lappend option_list "${std_prefix}$x"
-    } else {
-	foreach x $MOD_STD_LIST {
-	    lappend option_list "${std_prefix}$x"
-	}
+	set option_list [lrange [lsort $option_list] end end]
     }
 
     return $option_list

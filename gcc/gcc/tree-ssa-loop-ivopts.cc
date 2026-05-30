@@ -1,5 +1,5 @@
 /* Induction variable optimizations.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -132,6 +132,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-vectorizer.h"
 #include "dbgcnt.h"
 #include "cfganal.h"
+#include "gimple-fold.h"
 
 /* For lang_hooks.types.type_for_mode.  */
 #include "langhooks.h"
@@ -147,7 +148,7 @@ along with GCC; see the file COPYING3.  If not see
    The average trip count is computed from profile data if it
    exists. */
 
-static inline HOST_WIDE_INT
+static inline unsigned HOST_WIDE_INT
 avg_loop_niter (class loop *loop)
 {
   HOST_WIDE_INT niter = estimated_stmt_executions_int (loop);
@@ -2117,11 +2118,15 @@ idx_record_use (tree base, tree *idx,
    signedness of TOP and BOT.  */
 
 static bool
-constant_multiple_of (tree top, tree bot, widest_int *mul)
+constant_multiple_of (tree top, tree bot, widest_int *mul,
+		      struct ivopts_data *data)
 {
   aff_tree aff_top, aff_bot;
-  tree_to_aff_combination (top, TREE_TYPE (top), &aff_top);
-  tree_to_aff_combination (bot, TREE_TYPE (bot), &aff_bot);
+  tree_to_aff_combination_expand (top, TREE_TYPE (top), &aff_top,
+				  &data->name_expansion_cache);
+  tree_to_aff_combination_expand (bot, TREE_TYPE (bot), &aff_bot,
+				  &data->name_expansion_cache);
+
   poly_widest_int poly_mul;
   if (aff_combination_constant_multiple_p (&aff_top, &aff_bot, &poly_mul)
       && poly_mul.is_constant (mul))
@@ -3195,6 +3200,12 @@ add_candidate_1 (struct ivopts_data *data, tree base, tree step, bool important,
 static bool
 allow_ip_end_pos_p (class loop *loop)
 {
+  /* Do not allow IP_END when creating the IV would need to split the
+     latch edge as that makes all IP_NORMAL invalid.  */
+  auto pos = gsi_last_bb (ip_end_pos (loop));
+  if (!gsi_end_p (pos) && stmt_ends_bb_p (*pos))
+    return false;
+
   if (!ip_normal_pos (loop))
     return true;
 
@@ -3883,8 +3894,7 @@ computation_cost (tree expr, bool speed)
   walk_tree (&expr, prepare_decl_rtl, &regno, NULL);
   start_sequence ();
   rslt = expand_expr (expr, NULL_RTX, TYPE_MODE (type), EXPAND_NORMAL);
-  seq = get_insns ();
-  end_sequence ();
+  seq = end_sequence ();
   default_rtl_profile ();
   node->frequency = real_frequency;
 
@@ -3946,13 +3956,14 @@ determine_common_wider_type (tree *a, tree *b)
 }
 
 /* Determines the expression by that USE is expressed from induction variable
-   CAND at statement AT in LOOP.  The expression is stored in two parts in a
-   decomposed form.  The invariant part is stored in AFF_INV; while variant
-   part in AFF_VAR.  Store ratio of CAND.step over USE.step in PRAT if it's
-   non-null.  Returns false if USE cannot be expressed using CAND.  */
+   CAND at statement AT in DATA's current loop.  The expression is stored in
+   two parts in a decomposed form.  The invariant part is stored in AFF_INV;
+   while variant part in AFF_VAR.  Store ratio of CAND.step over USE.step in
+   PRAT if it's non-null.  Returns false if USE cannot be expressed using
+   CAND.  */
 
 static bool
-get_computation_aff_1 (class loop *loop, gimple *at, struct iv_use *use,
+get_computation_aff_1 (struct ivopts_data *data, gimple *at, struct iv_use *use,
 		       struct iv_cand *cand, class aff_tree *aff_inv,
 		       class aff_tree *aff_var, widest_int *prat = NULL)
 {
@@ -3967,7 +3978,7 @@ get_computation_aff_1 (class loop *loop, gimple *at, struct iv_use *use,
   if (TYPE_PRECISION (utype) > TYPE_PRECISION (ctype))
     return false;
 
-  var = var_at_stmt (loop, cand, at);
+  var = var_at_stmt (data->current_loop, cand, at);
   uutype = unsigned_type_for (utype);
 
   /* If the conversion is not noop, perform it.  */
@@ -4012,7 +4023,7 @@ get_computation_aff_1 (class loop *loop, gimple *at, struct iv_use *use,
       gcc_assert (gimple_assign_lhs (use->stmt) == cand->var_after);
       rat = 1;
     }
-  else if (!constant_multiple_of (ustep, cstep, &rat))
+  else if (!constant_multiple_of (ustep, cstep, &rat, data))
     return false;
 
   if (prat)
@@ -4031,7 +4042,7 @@ get_computation_aff_1 (class loop *loop, gimple *at, struct iv_use *use,
   tree_to_aff_combination (var, uutype, aff_var);
 
   /* We need to shift the value if we are after the increment.  */
-  if (stmt_after_increment (loop, cand, at))
+  if (stmt_after_increment (data->current_loop, cand, at))
     {
       aff_tree cstep_aff;
 
@@ -4054,16 +4065,17 @@ get_computation_aff_1 (class loop *loop, gimple *at, struct iv_use *use,
 }
 
 /* Determines the expression by that USE is expressed from induction variable
-   CAND at statement AT in LOOP.  The expression is stored in a decomposed
-   form into AFF.  Returns false if USE cannot be expressed using CAND.  */
+   CAND at statement AT in DATA's current loop.  The expression is stored in a
+   decomposed form into AFF.  Returns false if USE cannot be expressed using
+   CAND.  */
 
 static bool
-get_computation_aff (class loop *loop, gimple *at, struct iv_use *use,
+get_computation_aff (struct ivopts_data *data, gimple *at, struct iv_use *use,
 		     struct iv_cand *cand, class aff_tree *aff)
 {
   aff_tree aff_var;
 
-  if (!get_computation_aff_1 (loop, at, use, cand, aff, &aff_var))
+  if (!get_computation_aff_1 (data, at, use, cand, aff, &aff_var))
     return false;
 
   aff_combination_add (aff, &aff_var);
@@ -4093,16 +4105,17 @@ get_use_type (struct iv_use *use)
 }
 
 /* Determines the expression by that USE is expressed from induction variable
-   CAND at statement AT in LOOP.  The computation is unshared.  */
+   CAND at statement AT in DATA's current loop.  The computation is
+   unshared.  */
 
 static tree
-get_computation_at (class loop *loop, gimple *at,
+get_computation_at (struct ivopts_data *data, gimple *at,
 		    struct iv_use *use, struct iv_cand *cand)
 {
   aff_tree aff;
   tree type = get_use_type (use);
 
-  if (!get_computation_aff (loop, at, use, cand, &aff))
+  if (!get_computation_aff (data, at, use, cand, &aff))
     return NULL_TREE;
   unshare_aff_combination (&aff);
   return fold_convert (type, aff_combination_to_tree (&aff));
@@ -4112,10 +4125,10 @@ get_computation_at (class loop *loop, gimple *at,
    is more expensive.  Intended for debug stmts.  */
 
 static tree
-get_debug_computation_at (class loop *loop, gimple *at,
+get_debug_computation_at (struct ivopts_data *data, gimple *at,
 			  struct iv_use *use, struct iv_cand *cand)
 {
-  if (tree ret = get_computation_at (loop, at, use, cand))
+  if (tree ret = get_computation_at (data, at, use, cand))
     return ret;
 
   tree ubase = use->iv->base, ustep = use->iv->step;
@@ -4132,7 +4145,7 @@ get_debug_computation_at (class loop *loop, gimple *at,
      try to express
      use = ubase + (var - cbase) / ratio.  */
   if (!constant_multiple_of (cstep, fold_convert (TREE_TYPE (cstep), ustep),
-			     &rat))
+			     &rat, data))
     return NULL_TREE;
 
   bool neg_p = false;
@@ -4161,7 +4174,7 @@ get_debug_computation_at (class loop *loop, gimple *at,
       && TYPE_PRECISION (utype) + bits > TYPE_PRECISION (ctype))
     return NULL_TREE;
 
-  var = var_at_stmt (loop, cand, at);
+  var = var_at_stmt (data->current_loop, cand, at);
 
   if (POINTER_TYPE_P (ctype))
     {
@@ -4171,7 +4184,7 @@ get_debug_computation_at (class loop *loop, gimple *at,
       var = fold_convert (ctype, var);
     }
 
-  if (stmt_after_increment (loop, cand, at))
+  if (stmt_after_increment (data->current_loop, cand, at))
     var = fold_build2 (MINUS_EXPR, TREE_TYPE (var), var,
 		       unshare_expr (cstep));
 
@@ -4207,7 +4220,9 @@ adjust_setup_cost (struct ivopts_data *data, int64_t cost,
     return cost;
   else if (optimize_loop_for_speed_p (data->current_loop))
     {
-      int64_t niters = (int64_t) avg_loop_niter (data->current_loop);
+      uint64_t niters = avg_loop_niter (data->current_loop);
+      if (niters > (uint64_t) cost)
+	return (round_up_p && cost != 0) ? 1 : 0;
       return (cost + (round_up_p ? niters - 1 : 0)) / niters;
     }
   else
@@ -4874,8 +4889,7 @@ get_computation_cost (struct ivopts_data *data, struct iv_use *use,
 	return infinite_cost;
     }
 
-  if (!get_computation_aff_1 (data->current_loop, at, use,
-			      cand, &aff_inv, &aff_var, &rat)
+  if (!get_computation_aff_1 (data, at, use, cand, &aff_inv, &aff_var, &rat)
       || !wi::fits_shwi_p (rat))
     return infinite_cost;
 
@@ -5016,8 +5030,6 @@ determine_group_iv_cost_address (struct ivopts_data *data,
 	sum_cost = infinite_cost;
     }
 
-  /* Uses in a group can share setup code, so only add setup cost once.  */
-  cost -= cost.scratch;
   /* Compute and add costs for rest uses of this group.  */
   for (i = 1; i < group->vuses.length () && !sum_cost.infinite_cost_p (); i++)
     {
@@ -5033,7 +5045,12 @@ determine_group_iv_cost_address (struct ivopts_data *data,
 	    if (!inv_exprs)
 	      inv_exprs = BITMAP_ALLOC (NULL);
 
-	    bitmap_set_bit (inv_exprs, inv_expr->id);
+	    /* Uses in a group can share setup code,
+	       so only add setup cost once.  */
+	    if (bitmap_bit_p (inv_exprs, inv_expr->id))
+	      cost -= cost.scratch;
+	    else
+	      bitmap_set_bit (inv_exprs, inv_expr->id);
 	  }
       sum_cost += cost;
     }
@@ -7211,12 +7228,7 @@ create_new_iv (struct ivopts_data *data, struct iv_cand *cand)
     case IP_END:
       incr_pos = gsi_last_bb (ip_end_pos (data->current_loop));
       after = true;
-      if (!gsi_end_p (incr_pos) && stmt_ends_bb_p (gsi_stmt (incr_pos)))
-	{
-	  edge e = find_edge (gsi_bb (incr_pos), data->current_loop->header);
-	  incr_pos = gsi_after_labels (split_edge (e));
-	  after = false;
-	}
+      gcc_assert (gsi_end_p (incr_pos) || !stmt_ends_bb_p (*incr_pos));
       break;
 
     case IP_AFTER_USE:
@@ -7242,7 +7254,24 @@ create_new_iv (struct ivopts_data *data, struct iv_cand *cand)
 
   base = unshare_expr (cand->iv->base);
 
-  create_iv (base, PLUS_EXPR, unshare_expr (cand->iv->step),
+  /* The step computation could invoke UB when the loop does not iterate.
+     Avoid inserting it on the preheader in its native form but rewrite
+     it to a well-defined form.  This also helps masking SCEV issues
+     which freely re-associates the IV computations when building up
+     CHRECs without much regard for signed overflow invoking UB.  */
+  gimple_seq stmts = NULL;
+  tree step = force_gimple_operand (unshare_expr (cand->iv->step), &stmts,
+				    true, NULL_TREE);
+  if (stmts)
+    {
+      for (auto gsi = gsi_start (stmts); !gsi_end_p (gsi); gsi_next (&gsi))
+	if (gimple_needing_rewrite_undefined (gsi_stmt (gsi)))
+	  rewrite_to_defined_unconditional (&gsi);
+      gsi_insert_seq_on_edge_immediate
+	(loop_preheader_edge (data->current_loop), stmts);
+    }
+
+  create_iv (base, PLUS_EXPR, step,
 	     cand->var_before, data->current_loop,
 	     &incr_pos, after, &cand->var_before, &cand->var_after);
 }
@@ -7269,7 +7298,7 @@ create_new_ivs (struct ivopts_data *data, class iv_ca *set)
       if (data->loop_loc != UNKNOWN_LOCATION)
 	fprintf (dump_file, " at %s:%d", LOCATION_FILE (data->loop_loc),
 		 LOCATION_LINE (data->loop_loc));
-      fprintf (dump_file, ", " HOST_WIDE_INT_PRINT_DEC " avg niters",
+      fprintf (dump_file, ", " HOST_WIDE_INT_PRINT_UNSIGNED " avg niters",
 	       avg_loop_niter (data->current_loop));
       fprintf (dump_file, ", %lu IVs:\n", bitmap_count_bits (set->cands));
       EXECUTE_IF_SET_IN_BITMAP (set->cands, 0, i, bi)
@@ -7356,8 +7385,7 @@ rewrite_use_nonlinear_expr (struct ivopts_data *data,
     }
 
   aff_tree aff_inv, aff_var;
-  if (!get_computation_aff_1 (data->current_loop, use->stmt,
-			      use, cand, &aff_inv, &aff_var))
+  if (!get_computation_aff_1 (data, use->stmt, use, cand, &aff_inv, &aff_var))
     gcc_unreachable ();
 
   unshare_aff_combination (&aff_inv);
@@ -7554,7 +7582,7 @@ rewrite_use_address (struct ivopts_data *data,
   bool ok;
 
   adjust_iv_update_pos (cand, use);
-  ok = get_computation_aff (data->current_loop, use->stmt, use, cand, &aff);
+  ok = get_computation_aff (data, use->stmt, use, cand, &aff);
   gcc_assert (ok);
   unshare_aff_combination (&aff);
 
@@ -7657,7 +7685,7 @@ rewrite_use_compare (struct ivopts_data *data,
 
   /* The induction variable elimination failed; just express the original
      giv.  */
-  comp = get_computation_at (data->current_loop, use->stmt, use, cand);
+  comp = get_computation_at (data, use->stmt, use, cand);
   gcc_assert (comp != NULL_TREE);
   gcc_assert (use->op_p != NULL);
   *use->op_p = force_gimple_operand_gsi (&bsi, comp, true,
@@ -7788,7 +7816,7 @@ remove_unused_ivs (struct ivopts_data *data, bitmap toremove)
 		  if (best_cand == NULL || best_pref < cand_pref)
 		    {
 		      tree this_comp
-			= get_debug_computation_at (data->current_loop,
+			= get_debug_computation_at (data,
 						    SSA_NAME_DEF_STMT (def),
 						    &dummy_use, cand);
 		      if (this_comp)

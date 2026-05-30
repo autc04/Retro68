@@ -1,5 +1,5 @@
 /* Symbolic values.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -112,37 +112,37 @@ public:
 		    const char *prefix = nullptr) const;
 
   virtual const region_svalue *
-  dyn_cast_region_svalue () const { return NULL; }
+  dyn_cast_region_svalue () const { return nullptr; }
   virtual const constant_svalue *
-  dyn_cast_constant_svalue () const { return NULL; }
+  dyn_cast_constant_svalue () const { return nullptr; }
   virtual const poisoned_svalue *
-  dyn_cast_poisoned_svalue () const { return NULL; }
+  dyn_cast_poisoned_svalue () const { return nullptr; }
   virtual const setjmp_svalue *
-  dyn_cast_setjmp_svalue () const { return NULL; }
+  dyn_cast_setjmp_svalue () const { return nullptr; }
   virtual const initial_svalue *
-  dyn_cast_initial_svalue () const { return NULL; }
+  dyn_cast_initial_svalue () const { return nullptr; }
   virtual const unaryop_svalue *
-  dyn_cast_unaryop_svalue () const { return NULL; }
+  dyn_cast_unaryop_svalue () const { return nullptr; }
   virtual const binop_svalue *
-  dyn_cast_binop_svalue () const { return NULL; }
+  dyn_cast_binop_svalue () const { return nullptr; }
   virtual const sub_svalue *
-  dyn_cast_sub_svalue () const { return NULL; }
+  dyn_cast_sub_svalue () const { return nullptr; }
   virtual const repeated_svalue *
-  dyn_cast_repeated_svalue () const { return NULL; }
+  dyn_cast_repeated_svalue () const { return nullptr; }
   virtual const bits_within_svalue *
-  dyn_cast_bits_within_svalue () const { return NULL; }
+  dyn_cast_bits_within_svalue () const { return nullptr; }
   virtual const unmergeable_svalue *
-  dyn_cast_unmergeable_svalue () const { return NULL; }
+  dyn_cast_unmergeable_svalue () const { return nullptr; }
   virtual const widening_svalue *
-  dyn_cast_widening_svalue () const { return NULL; }
+  dyn_cast_widening_svalue () const { return nullptr; }
   virtual const compound_svalue *
-  dyn_cast_compound_svalue () const { return NULL; }
+  dyn_cast_compound_svalue () const { return nullptr; }
   virtual const conjured_svalue *
-  dyn_cast_conjured_svalue () const { return NULL; }
+  dyn_cast_conjured_svalue () const { return nullptr; }
   virtual const asm_output_svalue *
-  dyn_cast_asm_output_svalue () const { return NULL; }
+  dyn_cast_asm_output_svalue () const { return nullptr; }
   virtual const const_fn_result_svalue *
-  dyn_cast_const_fn_result_svalue () const { return NULL; }
+  dyn_cast_const_fn_result_svalue () const { return nullptr; }
 
   tree maybe_get_constant () const;
   const region *maybe_get_region () const;
@@ -188,6 +188,21 @@ public:
 			     const region_model &model,
 			     const svalue *outer_sval = nullptr) const;
 
+  tree maybe_get_type_from_typeinfo () const;
+
+  /* If we can get a value_range for this svalue, write it to OUT
+     and return true.  Otherwise return false.  */
+  bool
+  maybe_get_value_range (value_range &out) const
+  {
+    if (maybe_get_value_range_1 (out))
+      {
+	gcc_assert (!out.undefined_p ());
+	return true;
+      }
+    return false;
+  }
+
  protected:
   svalue (complexity c, symbol::id_t id, tree type)
   : symbol (c, id), m_type (type)
@@ -201,6 +216,8 @@ public:
   virtual void
   add_dump_widget_children (text_art::tree_widget &,
 			    const dump_widget_info &dwi) const = 0;
+  virtual bool
+  maybe_get_value_range_1 (value_range &out) const;
 
   tree m_type;
 };
@@ -244,7 +261,7 @@ public:
   : svalue (complexity (reg), id, type),
     m_reg (reg)
   {
-    gcc_assert (m_reg != NULL);
+    gcc_assert (m_reg != nullptr);
   }
 
   enum svalue_kind get_kind () const final override { return SK_REGION; }
@@ -364,6 +381,8 @@ public:
 
   bool all_zeroes_p () const final override;
 
+  bool maybe_get_value_range_1 (value_range &out) const final override;
+
  private:
   tree m_cst_expr;
 };
@@ -415,25 +434,27 @@ public:
 			  const bit_range &subrange,
 			  region_model_manager *mgr) const final override;
 
+  bool maybe_get_value_range_1 (value_range &out) const final override;
+
   /* Unknown values are singletons per-type, so can't have state.  */
   bool can_have_associated_state_p () const final override { return false; }
 };
 
 /* An enum describing a particular kind of "poisoned" value.  */
 
-enum poison_kind
+enum class poison_kind
 {
   /* For use to describe uninitialized memory.  */
-  POISON_KIND_UNINIT,
+  uninit,
 
   /* For use to describe freed memory.  */
-  POISON_KIND_FREED,
+  freed,
 
   /* For use to describe deleted memory.  */
-  POISON_KIND_DELETED,
+  deleted,
 
   /* For use on pointers to regions within popped stack frames.  */
-  POISON_KIND_POPPED_STACK
+  popped_stack
 };
 
 extern const char *poison_kind_to_str (enum poison_kind);
@@ -454,7 +475,7 @@ public:
     hashval_t hash () const
     {
       inchash::hash hstate;
-      hstate.add_int (m_kind);
+      hstate.add_int (static_cast<int> (m_kind));
       hstate.add_ptr (m_type);
       return hstate.end ();
     }
@@ -528,27 +549,32 @@ namespace ana {
 struct setjmp_record
 {
   setjmp_record (const exploded_node *enode,
-		 const gcall *setjmp_call)
-  : m_enode (enode), m_setjmp_call (setjmp_call)
+		 const superedge *sedge,
+		 const gcall &setjmp_call)
+  : m_enode (enode), m_sedge (sedge), m_setjmp_call (&setjmp_call)
   {
   }
 
   bool operator== (const setjmp_record &other) const
   {
     return (m_enode == other.m_enode
+	    && m_sedge == other.m_sedge
 	    && m_setjmp_call == other.m_setjmp_call);
   }
 
   void add_to_hash (inchash::hash *hstate) const
   {
     hstate->add_ptr (m_enode);
+    hstate->add_ptr (m_sedge);
     hstate->add_ptr (m_setjmp_call);
   }
 
   static int cmp (const setjmp_record &rec1, const setjmp_record &rec2);
 
   const exploded_node *m_enode;
+  const superedge *m_sedge;
   const gcall *m_setjmp_call;
+  // non-null, but we can't use a reference since we're putting these in a hash_map
 };
 
 /* Concrete subclass of svalue representing buffers for setjmp/sigsetjmp,
@@ -647,7 +673,7 @@ public:
   initial_svalue (symbol::id_t id, tree type, const region *reg)
   : svalue (complexity (reg), id, type), m_reg (reg)
   {
-    gcc_assert (m_reg != NULL);
+    gcc_assert (m_reg != nullptr);
   }
 
   enum svalue_kind get_kind () const final override { return SK_INITIAL; }
@@ -756,6 +782,8 @@ public:
 			  const bit_range &subrange,
 			  region_model_manager *mgr) const final override;
 
+  bool maybe_get_value_range_1 (value_range &out) const final override;
+
  private:
   enum tree_code m_op;
   const svalue *m_arg;
@@ -851,6 +879,8 @@ public:
   void accept (visitor *v) const final override;
   bool implicitly_live_p (const svalue_set *,
 			  const region_model *) const final override;
+
+  bool maybe_get_value_range_1 (value_range &out) const final override;
 
   enum tree_code get_op () const { return m_op; }
   const svalue *get_arg0 () const { return m_arg0; }
@@ -1269,9 +1299,9 @@ public:
   /* A support class for uniquifying instances of widening_svalue.  */
   struct key_t
   {
-    key_t (tree type, const function_point &point,
+    key_t (tree type, const supernode *snode,
 	   const svalue *base_sval, const svalue *iter_sval)
-    : m_type (type), m_point (point),
+    : m_type (type), m_snode (snode),
       m_base_sval (base_sval), m_iter_sval (iter_sval)
     {}
 
@@ -1286,7 +1316,7 @@ public:
     bool operator== (const key_t &other) const
     {
       return (m_type == other.m_type
-	      && m_point == other.m_point
+	      && m_snode == other.m_snode
 	      && m_base_sval == other.m_base_sval
 	      && m_iter_sval == other.m_iter_sval);
     }
@@ -1297,7 +1327,7 @@ public:
     bool is_empty () const { return m_type == reinterpret_cast<tree> (2); }
 
     tree m_type;
-    function_point m_point;
+    const supernode *m_snode;
     const svalue *m_base_sval;
     const svalue *m_iter_sval;
   };
@@ -1309,13 +1339,13 @@ public:
      DIR_UNKNOWN
     };
 
-  widening_svalue (symbol::id_t id, tree type, const function_point &point,
+  widening_svalue (symbol::id_t id, tree type, const supernode *snode,
 		   const svalue *base_sval, const svalue *iter_sval)
   : svalue (complexity::from_pair (base_sval->get_complexity (),
 				   iter_sval->get_complexity ()),
 	    id,
 	    type),
-    m_point (point),
+    m_snode (snode),
     m_base_sval (base_sval), m_iter_sval (iter_sval)
   {
     gcc_assert (base_sval->can_have_associated_state_p ());
@@ -1338,7 +1368,7 @@ public:
 
   void accept (visitor *v) const final override;
 
-  const function_point &get_point () const { return m_point; }
+  const supernode *get_snode () const { return m_snode; }
   const svalue *get_base_svalue () const { return m_base_sval; }
   const svalue *get_iter_svalue () const { return m_iter_sval; }
 
@@ -1348,7 +1378,7 @@ public:
 				      tree rhs_cst) const;
 
  private:
-  function_point m_point;
+  const supernode *m_snode;
   const svalue *m_base_sval;
   const svalue *m_iter_sval;
 };
@@ -1388,6 +1418,7 @@ namespace ana {
 class compound_svalue : public svalue
 {
 public:
+  typedef binding_map::const_iterator_t const_iterator_t;
   typedef binding_map::iterator_t iterator_t;
 
   /* A support class for uniquifying instances of compound_svalue.
@@ -1442,8 +1473,10 @@ public:
 
   const binding_map &get_map () const { return m_map; }
 
-  iterator_t begin () const { return m_map.begin (); }
-  iterator_t end () const { return m_map.end (); }
+  const_iterator_t begin () const { return m_map.begin (); }
+  const_iterator_t end () const { return m_map.end (); }
+  iterator_t begin () { return m_map.begin (); }
+  iterator_t end () { return m_map.end (); }
 
   struct key_t make_key () const
   {
@@ -1544,15 +1577,15 @@ public:
 	      && m_idx == other.m_idx);
     }
 
-    /* Use m_stmt to mark empty/deleted, as m_type can be NULL for
+    /* Use m_stmt to mark empty/deleted, as m_type can be NULL_TREE for
        legitimate instances.  */
     void mark_deleted () { m_stmt = reinterpret_cast<const gimple *> (1); }
-    void mark_empty () { m_stmt = NULL; }
+    void mark_empty () { m_stmt = nullptr; }
     bool is_deleted () const
     {
       return m_stmt == reinterpret_cast<const gimple *> (1);
     }
-    bool is_empty () const { return m_stmt == NULL; }
+    bool is_empty () const { return m_stmt == nullptr; }
 
     tree m_type;
     const gimple *m_stmt;
@@ -1565,7 +1598,7 @@ public:
   : svalue (complexity (id_reg), id, type),
     m_stmt (stmt), m_id_reg (id_reg), m_idx (idx)
   {
-    gcc_assert (m_stmt != NULL);
+    gcc_assert (m_stmt != nullptr);
   }
 
   enum svalue_kind get_kind () const final override { return SK_CONJURED; }
@@ -1665,15 +1698,15 @@ public:
       return true;
     }
 
-    /* Use m_asm_string to mark empty/deleted, as m_type can be NULL for
+    /* Use m_asm_string to mark empty/deleted, as m_type can be NULL_TREE for
        legitimate instances.  */
     void mark_deleted () { m_asm_string = reinterpret_cast<const char *> (1); }
-    void mark_empty () { m_asm_string = NULL; }
+    void mark_empty () { m_asm_string = nullptr; }
     bool is_deleted () const
     {
       return m_asm_string == reinterpret_cast<const char *> (1);
     }
-    bool is_empty () const { return m_asm_string == NULL; }
+    bool is_empty () const { return m_asm_string == nullptr; }
 
     tree m_type;
     const char *m_asm_string;
@@ -1810,12 +1843,12 @@ public:
 
     /* Use m_fndecl to mark empty/deleted.  */
     void mark_deleted () { m_fndecl = reinterpret_cast<tree> (1); }
-    void mark_empty () { m_fndecl = NULL; }
+    void mark_empty () { m_fndecl = NULL_TREE; }
     bool is_deleted () const
     {
       return m_fndecl == reinterpret_cast<tree> (1);
     }
-    bool is_empty () const { return m_fndecl == NULL; }
+    bool is_empty () const { return m_fndecl == NULL_TREE; }
 
     tree m_type;
     tree m_fndecl;

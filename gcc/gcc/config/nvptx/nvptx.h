@@ -1,5 +1,5 @@
 /* Target Definitions for NVPTX.
-   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
    Contributed by Bernd Schmidt <bernds@codesourcery.com>
 
    This file is part of GCC.
@@ -99,8 +99,10 @@
 
 /* There are no 'TARGET_PTX_3_1' and smaller conditionals: our baseline is
    PTX ISA Version 3.1.  */
+#define TARGET_PTX_4_0 (ptx_version_option >= PTX_VERSION_4_0)
 #define TARGET_PTX_4_1 (ptx_version_option >= PTX_VERSION_4_1)
 #define TARGET_PTX_4_2 (ptx_version_option >= PTX_VERSION_4_2)
+#define TARGET_PTX_5_0 (ptx_version_option >= PTX_VERSION_5_0)
 #define TARGET_PTX_6_0 (ptx_version_option >= PTX_VERSION_6_0)
 #define TARGET_PTX_6_3 (ptx_version_option >= PTX_VERSION_6_3)
 #define TARGET_PTX_7_0 (ptx_version_option >= PTX_VERSION_7_0)

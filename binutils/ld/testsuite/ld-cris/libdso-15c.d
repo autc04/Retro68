@@ -1,5 +1,5 @@
 #source: expdref2.s
-#as: --pic --no-underscore --em=criself
+#as: --pic --no-underscore --emulation=criself
 #ld: --shared -m crislinux --hash-style=sysv
 #ld_after_inputfiles: tmpdir/libdso-15.so
 #readelf: -d

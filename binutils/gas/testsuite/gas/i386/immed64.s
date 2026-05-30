@@ -19,6 +19,12 @@ _start:
 	movabsq	$early, %rax
 	movabsq	$late, %rax
 	movabsq	$xtrn, %rax
+	pushq	$early
+	pushq	$late
+	pushw	$early
+	pushw	$late
+	push	$early
+	push	$late
 	addb	$early, %al
 	addb	$late, %al
 	addb	$xtrn, %al

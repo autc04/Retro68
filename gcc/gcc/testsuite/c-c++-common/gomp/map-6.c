@@ -1,6 +1,6 @@
 /* { dg-do compile } */
 /* { dg-additional-options "-fdump-tree-original" } */
-
+// { dg-additional-options "-Wno-deprecated-openmp" }
 void
 foo (void)
 {
@@ -13,29 +13,29 @@ foo (void)
   #pragma omp target map (to:a)
   ;
 
-  #pragma omp target map (a to: b) /* { dg-error "'map' clause with map-type modifier other than 'always', 'close' or 'present'" } */
-  ;
+  #pragma omp target map (a to: b) /* { dg-error "'map' clause with map-type modifier other than 'always', 'close', 'iterator', 'mapper' or 'present'" "" { target c++ } } */
+  ; /* { dg-error "'map' clause with map-type modifier other than 'always', 'close', 'iterator', 'mapper' or 'present' before 'a'" "" { target c } .-1 }  */
 
-  #pragma omp target map (close, a to: b) /* { dg-error "'map' clause with map-type modifier other than 'always', 'close' or 'present'" } */
-  ;
+  #pragma omp target map (close, a to: b) /* { dg-error "'map' clause with map-type modifier other than 'always', 'close', 'iterator', 'mapper' or 'present'" "" { target c++ } } */
+  ; /* { dg-error "'map' clause with map-type modifier other than 'always', 'close', 'iterator', 'mapper' or 'present' before 'a'" "" { target c } .-1 }  */
 
-  #pragma omp target enter data map(b7) map (close, a to: b) /* { dg-error "'map' clause with map-type modifier other than 'always', 'close' or 'present'" } */
-  ;
+  #pragma omp target enter data map(b7) map (close, a to: b) /* { dg-error "'map' clause with map-type modifier other than 'always', 'close', 'iterator', 'mapper' or 'present'" "" { target c++ } } */
+  ; /* { dg-error "'map' clause with map-type modifier other than 'always', 'close', 'iterator', 'mapper' or 'present' before 'a'" "" { target c } .-1 }  */
 
-  #pragma omp target exit data map(b7) map (close, a from: b) /* { dg-error "'map' clause with map-type modifier other than 'always', 'close' or 'present'" } */
-  ;
+  #pragma omp target exit data map(b7) map (close, a from: b) /* { dg-error "'map' clause with map-type modifier other than 'always', 'close', 'iterator', 'mapper' or 'present'" "" { target c++ } } */
+  ; /* { dg-error "'map' clause with map-type modifier other than 'always', 'close', 'iterator', 'mapper' or 'present' before 'a'" "" { target c } .-1 }  */
 
-  #pragma omp target data map(b7) map (close, a from: b) /* { dg-error "'map' clause with map-type modifier other than 'always', 'close' or 'present'" } */
-  ;
+  #pragma omp target data map(b7) map (close, a from: b) /* { dg-error "'map' clause with map-type modifier other than 'always', 'close', 'iterator', 'mapper' or 'present'" "" { target c++ } } */
+  ; /* { dg-error "'map' clause with map-type modifier other than 'always', 'close', 'iterator', 'mapper' or 'present' before 'a'" "" { target c } .-1 }  */
 
 
-  #pragma omp target map (close a) /* { dg-error "'close' undeclared" "" { target c } } */ 
-  /* { dg-error "'close' was not declared in this scope" "" { target c++ } .-1 } */ 
+  #pragma omp target map (close a) /* { dg-error "'close' undeclared" "" { target c } } */
+  /* { dg-error "'close' was not declared in this scope" "" { target c++ } .-1 } */
   /* { dg-error "expected '\\)' before 'a'" "" { target *-*-* } .-2 } */
   ;
 
   #pragma omp target map (always a) /* { dg-error "'always' undeclared" "" { target c } } */
-  /* { dg-error "'always' was not declared in this scope" "" { target c++ } .-1 } */ 
+  /* { dg-error "'always' was not declared in this scope" "" { target c++ } .-1 } */
   /* { dg-error "expected '\\)' before 'a'" "" { target *-*-* } .-2 } */
   ;
 
@@ -141,10 +141,10 @@ foo (void)
   #pragma omp target exit data map(present,always,close,delete: a) map(close,present,always,release:b) map(always close present,from:b1)
 
   int close = 0;
-  #pragma omp target map (close) 
+  #pragma omp target map (close)
   ;
 
-  #pragma omp target map (close a) /* { dg-error "expected '\\)' before 'a'" } */ 
+  #pragma omp target map (close a) /* { dg-error "expected '\\)' before 'a'" } */
   ;
 
   int always = 0;

@@ -1,5 +1,5 @@
 /* Gimple range phi analysis.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
    Contributed by Andrew MacLeod <amacleod@redhat.com>.
 
 This file is part of GCC.
@@ -37,41 +37,14 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimple-walk.h"
 #include "cfganal.h"
 
-// There can be only one running at a time.
-static phi_analyzer *phi_analysis_object = NULL;
-
-// Initialize a PHI analyzer with range query Q.
-
-void
-phi_analysis_initialize (range_query &q)
-{
-  gcc_checking_assert (!phi_analysis_object);
-  phi_analysis_object = new phi_analyzer (q);
-}
-
-// Terminate the current PHI analyzer.  if F is non-null, dump the tables
+// Invoke a phi analyzer.  It will process all the current PHI groups
+// and export any ranges found to set_range_info.
+// When finished, it will simply dispose of itself.
 
 void
-phi_analysis_finalize ()
+phi_analysis (range_query &q)
 {
-  gcc_checking_assert (phi_analysis_object);
-  delete phi_analysis_object;
-  phi_analysis_object = NULL;
-}
-
-// Return TRUE is there is a PHI analyzer operating.
-bool
-phi_analysis_available_p ()
-{
-  return phi_analysis_object != NULL;
-}
-
-// Return the phi analyzer object.
-
-phi_analyzer &phi_analysis ()
-{
-  gcc_checking_assert (phi_analysis_object);
-  return *phi_analysis_object;
+  phi_analyzer analyze (q);
 }
 
 // Initialize a phi_group from another group G.
@@ -96,7 +69,8 @@ phi_group::phi_group (bitmap bm, irange &init_range, gimple *mod,
   gcc_checking_assert (!init_range.undefined_p ());
   gcc_checking_assert (!init_range.varying_p ());
 
-  m_modifier_op = is_modifier_p (mod, bm);
+  m_modifier_name = NULL_TREE;
+  m_modifier_op = is_modifier_p (mod, bm, &m_modifier_name);
   m_group = bm;
   m_vr = init_range;
   m_modifier = mod;
@@ -108,11 +82,11 @@ phi_group::phi_group (bitmap bm, irange &init_range, gimple *mod,
   m_vr.set_varying (init_range.type ());
 }
 
-// Return 0 if S is not a modifier statment for group members BM.
+// Return 0 if S is not a modifier statement for group members BM.
 // If it could be a modifier, return which operand position (1 or 2)
 // the phi member occurs in.
 unsigned
-phi_group::is_modifier_p (gimple *s, const bitmap bm)
+phi_group::is_modifier_p (gimple *s, const bitmap bm, tree *op)
 {
   if (!s)
     return 0;
@@ -123,9 +97,17 @@ phi_group::is_modifier_p (gimple *s, const bitmap bm)
       tree op2 = gimple_range_ssa_p (handler.operand2 ());
       // Also disallow modifiers that have 2 ssa-names.
       if (op1 && !op2 && bitmap_bit_p (bm, SSA_NAME_VERSION (op1)))
-	return 1;
+	{
+	  if (op)
+	    *op = op1;
+	  return 1;
+	}
       else if (op2 && !op1 && bitmap_bit_p (bm, SSA_NAME_VERSION (op2)))
-	return 2;
+	{
+	  if (op)
+	    *op = op2;
+	  return 2;
+	}
     }
   return 0;
 }
@@ -145,28 +127,65 @@ phi_group::calculate_using_modifier (range_query *q)
   else
     return false;
 
-  // Examine modifier and run 10 iterations to see if it convergences.
+  // If we can resolve the range using relations, use that range.
+  if (refine_using_relation (k))
+    return true;
+
+  // Examine modifier and run iteration evaluations  to see if it convergences.
   // The constructor initilaized m_vr to the initial value already.
-  const unsigned num_iter = 10;
   int_range_max nv;
   int_range_max iter_value = m_vr;
+  int_range_max iter_reach;
+
+  // Determine the maximum range of the var reaching here.  The back edge
+  // usually has a guard restircting the range. Default to VARYING.
+  if (!m_modifier_name
+      || !q->range_of_expr (iter_reach, m_modifier_name, m_modifier))
+    iter_reach.set_varying (m_vr.type ());
+
+  // Iterative evaluation can be expensive, so heuristically :
+  //  - PLUS and MINUS are 98% of the cases, and usually handled well enough
+  //    by loop analysis, The exception is if the reaching range has multiple
+  //    subranges, those are often worth examining.
+  //  - All other operations (2%) are worth checking.
+  bool do_iterative = false;
+  if (gimple_code (m_modifier) == GIMPLE_ASSIGN)
+    switch (gimple_assign_rhs_code (m_modifier))
+      {
+	case PLUS_EXPR:
+	case MINUS_EXPR:
+	  if (iter_reach.num_pairs () > 1)
+	    do_iterative = true;
+	  break;
+	default:
+	  do_iterative = true;
+      }
+
+  // Limit iterations to 1 more than the number of bits.
+  unsigned num_iter;
+  if (do_iterative)
+    num_iter = TYPE_PRECISION (m_vr.type ()) + 1;
+  else
+    num_iter = 0;
+
   for (unsigned x = 0; x < num_iter; x++)
     {
       if (!fold_range (nv, m_modifier, iter_value, q))
 	break;
+      // Ensure nothing calculated is outside outside the reaching range.
+      nv.intersect (iter_reach);
       // If union does nothing, then we have convergence.
       if (!iter_value.union_ (nv))
 	{
 	  if (iter_value.varying_p ())
 	    break;
+	  // The last iteration Will also reach the PHI node, add it in.
+	  fold_range (nv, m_modifier, iter_value, q);
+	  iter_value.union_ (nv);
 	  m_vr = iter_value;
 	  return true;
 	}
     }
-
-  // If we can resolve the range using relations, use that range.
-  if (refine_using_relation (k))
-    return true;
 
   // Never converged, so bail for now. we could examine the pattern
   // from m_initial to m_vr as an extension  Especially if we had a way
@@ -174,7 +193,7 @@ phi_group::calculate_using_modifier (range_query *q)
   //
   //  We can also try to identify "parallel" phis to get loop counts and
   //  determine the number of iterations of these parallel PHIs.
-  //
+
   return false;
 }
 
@@ -254,16 +273,35 @@ phi_group::dump (FILE *f)
 
 // Construct a phi analyzer which uses range_query G to pick up values.
 
-phi_analyzer::phi_analyzer (range_query &g) : m_global (g), m_phi_groups (vNULL)
+phi_analyzer::phi_analyzer (range_query &query) : m_phi_groups (vNULL)
 {
   m_work.create (0);
   m_work.safe_grow (20);
 
   m_tab.create (0);
-//   m_tab.safe_grow_cleared (num_ssa_names + 100);
+  m_tab.safe_grow_cleared (num_ssa_names + 10);
+
   bitmap_obstack_initialize (&m_bitmaps);
   m_simple = BITMAP_ALLOC (&m_bitmaps);
   m_current = BITMAP_ALLOC (&m_bitmaps);
+
+  basic_block bb;
+  gphi_iterator gphi;
+
+  if (dump_file && (dump_flags & TDF_DETAILS))
+    fprintf (dump_file, "PHI ANALYZER : processing PHIS.\n");
+
+  // Process each PHI node to see if it belongs in a group with others.
+  // Then calculate an initial value for the group.
+  FOR_EACH_BB_FN (bb, cfun)
+    {
+      for (gphi = gsi_start_nonvirtual_phis (bb);
+	   !gsi_end_p (gphi);
+	   gsi_next_nonvirtual_phi (&gphi))
+	process_phi (gphi.phi (), query);
+    }
+  if (dump_file && (dump_flags & TDF_DETAILS))
+    fprintf (dump_file, "PHI ANALYZER : Finished processing PHIS.\n");
 }
 
 // Destruct a PHI analyzer.
@@ -308,35 +346,33 @@ phi_analyzer::operator[] (tree name)
     return NULL;
 
   unsigned v = SSA_NAME_VERSION (name);
-  // Already been processed and not part of a group.
-  if (bitmap_bit_p (m_simple, v))
+  if (v >= m_tab.length ())
     return NULL;
-
-  if (v >= m_tab.length () || !m_tab[v])
-    {
-      process_phi (as_a<gphi *> (SSA_NAME_DEF_STMT (name)));
-      if (bitmap_bit_p (m_simple, v))
-	return  NULL;
-     // If m_simple bit isn't set, and process_phi didn't allocated the table
-     // no group was created, so return NULL.
-     if (v >= m_tab.length ())
-      return NULL;
-    }
   return m_tab[v];
 }
 
-// Process phi node PHI to see if it is part of a group.
+// Process phi node PHI to see if it is part of a group.  Use QUERY
+// to deteremine ranges.
 
 void
-phi_analyzer::process_phi (gphi *phi)
+phi_analyzer::process_phi (gphi *phi, range_query &query)
 {
-  gcc_checking_assert (!group (gimple_phi_result (phi)));
+  tree def = gimple_phi_result (phi);
+  unsigned v = SSA_NAME_VERSION (def);
+
+  gcc_checking_assert (v < m_tab.length ());
+  // If this is already on a group, or identified as a simple phi, or
+  // not an irange, do not process it.
+  if (m_tab[v] || bitmap_bit_p (m_simple, v)
+      || !irange::supports_p (TREE_TYPE (def)))
+    return;
+
   bool cycle_p = true;
 
   // Start with the LHS of the PHI in the worklist.
   unsigned x;
   m_work.truncate (0);
-  m_work.safe_push (gimple_phi_result (phi));
+  m_work.safe_push (def);
   unsigned phi_count = 1;
   bitmap_clear (m_current);
 
@@ -411,19 +447,19 @@ phi_analyzer::process_phi (gphi *phi)
 	}
     }
 
-  // If there are less than 2 names, just return.  This PHI may be included
-  // by another PHI, making it simple or a group of one will prevent a larger
-  // group from being formed.
-  if (phi_count < 2)
+  if (phi_count < 1)
     return;
+
   gcc_checking_assert (!bitmap_empty_p (m_current));
 
   phi_group *g = NULL;
+  gimple *mod = NULL;
+  bool valid = false;
+  signed init_idx = -1;
+  int_range_max init_sym;
   if (cycle_p)
     {
-      bool valid = true;
-      gimple *mod = NULL;
-      signed init_idx = -1;
+      valid = true;
       // At this point all the PHIs have been added to the bitmap.
       // the external list needs to be checked for initial values and modifiers.
       for (x = 0; x < m_num_extern; x++)
@@ -443,43 +479,51 @@ phi_analyzer::process_phi (gphi *phi)
 	    valid = false;
 	  init_idx = x;
 	}
-      int_range_max init_sym;
       // If there is an symbolic initializer as well, include it here.
       if (valid && init_idx != -1)
 	{
-	  if (m_global.range_on_edge (init_sym, m_ext_edge[init_idx],
+	  if (query.range_on_edge (init_sym, m_ext_edge[init_idx],
 				      m_external[init_idx]))
 	    init_range.union_ (init_sym);
 	  else
 	    valid = false;
 	}
-      if (valid && !init_range.varying_p () && !init_range.undefined_p ())
+    }
+  // If there are less than 2 names, .  This PHI may be included
+  // by another PHI, making it simple or a group of one will prevent a larger
+  // group from being formed.
+  // The exception will be pattern matching:
+  //   a_1 = a_2 OP X
+  //   a_2 = PHI <const, a_1>
+  if (phi_count == 1
+      && (m_num_extern != 1 || init_range.undefined_p () || !mod))
+    valid = false;
+  if (valid && !init_range.varying_p () && !init_range.undefined_p ())
+    {
+      // Try to create a group based on m_current. If a result comes back
+      // with a range that isn't varying, create the group.
+      phi_group cyc (m_current, init_range, mod, &query);
+      if (!cyc.range ().varying_p ())
 	{
-	  // Try to create a group based on m_current. If a result comes back
-	  // with a range that isn't varying, create the group.
-	  phi_group cyc (m_current, init_range, mod, &m_global);
-	  if (!cyc.range ().varying_p ())
+	  g = new phi_group (cyc);
+	  m_phi_groups.safe_push (g);
+	  if (dump_file && (dump_flags & TDF_DETAILS))
 	    {
-	      g = new phi_group (cyc);
-	      m_phi_groups.safe_push (g);
-	      if (dump_file && (dump_flags & TDF_DETAILS))
+	      fprintf (dump_file, "PHI ANALYZER : New ");
+	      g->dump (dump_file);
+	      fprintf (dump_file,"  Initial range was ");
+	      init_range.dump (dump_file);
+	      if (init_idx != -1)
 		{
-		  fprintf (dump_file, "PHI ANALYZER : New ");
-		  g->dump (dump_file);
-		  fprintf (dump_file,"  Initial range was ");
-		  init_range.dump (dump_file);
-		  if (init_idx != -1)
-		    {
-		      fprintf (dump_file, " including symbolic ");
-		      print_generic_expr (dump_file, m_external[init_idx],
-					  TDF_SLIM);
-		      fprintf (dump_file, " on edge %d->%d with range ",
-			       m_ext_edge[init_idx]->src->index,
-			       m_ext_edge[init_idx]->dest->index);
-		      init_sym.dump (dump_file);
-		    }
-		  fputc ('\n',dump_file);
+		  fprintf (dump_file, " including symbolic ");
+		  print_generic_expr (dump_file, m_external[init_idx],
+				      TDF_SLIM);
+		  fprintf (dump_file, " on edge %d->%d with range ",
+			   m_ext_edge[init_idx]->src->index,
+			   m_ext_edge[init_idx]->dest->index);
+		  init_sym.dump (dump_file);
 		}
+	      fputc ('\n',dump_file);
 	    }
 	}
     }
@@ -490,9 +534,6 @@ phi_analyzer::process_phi (gphi *phi)
       return;
     }
 
-  if (num_ssa_names >= m_tab.length ())
-    m_tab.safe_grow_cleared (num_ssa_names + 100);
-
   // Now set all entries in the group to this record.
   unsigned i;
   bitmap_iterator bi;
@@ -501,6 +542,8 @@ phi_analyzer::process_phi (gphi *phi)
       // Can't be in more than one group.
       gcc_checking_assert (m_tab[i] == NULL);
       m_tab[i] = g;
+      // Set the new range in the range query.
+      query.update_range_info (ssa_name (i), g->range ());
     }
   // Allocate a new bitmap for the next time as the original one is now part
   // of the new phi group.

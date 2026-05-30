@@ -1,5 +1,5 @@
 /* RTL-based forward propagation pass for GNU compiler.
-   Copyright (C) 2005-2025 Free Software Foundation, Inc.
+   Copyright (C) 2005-2026 Free Software Foundation, Inc.
    Contributed by Paolo Bonzini and Steven Bosscher.
 
 This file is part of GCC.
@@ -834,6 +834,20 @@ forward_propagate_into (use_info *use, bool reg_prop_only = false)
   /* Only consider uses whose definition comes from a real instruction.  */
   insn_info *def_insn = def->insn ();
   if (def_insn->is_artificial ())
+    return false;
+
+  /* Do not propagate asms.  The only kind of propagation that would
+     succeed is propagation into a register move.  Such a propagation
+     is neutral if the destination of the move is a pseudo and unnecessarily
+     restricts the register allocator if the destination of the move is
+     a hard register.
+
+     Furthermore, unlike for a normal instruction, we cannot take a SET from an
+     asm and try dropping the CLOBBERs.  The recog process does not (and should
+     not try to) second-guess whether what the user wrote can be changed and
+     so it has to assume that any asm given to it is a fair reflection of
+     what the user wrote.  */
+  if (def_insn->is_asm ())
     return false;
 
   rtx_insn *def_rtl = def_insn->rtl ();

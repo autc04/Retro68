@@ -1,4 +1,4 @@
-#ld: -Tdefined5.t
+#ld: -Tdefined5.t --no-error-rwx-segments
 #warning: .*multiple definition of `defined'.*
 #nm: -B
 

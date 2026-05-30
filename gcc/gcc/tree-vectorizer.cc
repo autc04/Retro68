@@ -1,5 +1,5 @@
 /* Vectorizer
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Dorit Naishlos <dorit@il.ibm.com>
 
 This file is part of GCC.
@@ -83,6 +83,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "internal-fn.h"
 #include "tree-ssa-sccvn.h"
 #include "tree-into-ssa.h"
+#include "gimple-range.h"
 
 /* Loop or bb location, with hotness information.  */
 dump_user_location_t vect_location;
@@ -715,18 +716,14 @@ vec_info::new_stmt_vec_info (gimple *stmt)
   stmt_vec_info res = XCNEW (class _stmt_vec_info);
   res->stmt = stmt;
 
-  STMT_VINFO_TYPE (res) = undef_vec_info_type;
   STMT_VINFO_RELEVANT (res) = vect_unused_in_scope;
   STMT_VINFO_VECTORIZABLE (res) = true;
   STMT_VINFO_REDUC_TYPE (res) = TREE_CODE_REDUCTION;
   STMT_VINFO_REDUC_CODE (res) = ERROR_MARK;
-  STMT_VINFO_REDUC_FN (res) = IFN_LAST;
   STMT_VINFO_REDUC_IDX (res) = -1;
+  STMT_VINFO_REDUC_DEF (res) = NULL;
   STMT_VINFO_SLP_VECT_ONLY (res) = false;
   STMT_VINFO_SLP_VECT_ONLY_PATTERN (res) = false;
-  STMT_VINFO_VEC_STMTS (res) = vNULL;
-  res->reduc_initial_values = vNULL;
-  res->reduc_scalar_results = vNULL;
 
   if (is_a <loop_vec_info> (this)
       && gimple_code (stmt) == GIMPLE_PHI
@@ -735,7 +732,7 @@ vec_info::new_stmt_vec_info (gimple *stmt)
   else
     STMT_VINFO_DEF_TYPE (res) = vect_internal_def;
 
-  STMT_SLP_TYPE (res) = loop_vect;
+  STMT_SLP_TYPE (res) = not_vect;
 
   /* This is really "uninitialized" until vect_compute_data_ref_alignment.  */
   res->dr_aux.misalignment = DR_MISALIGNMENT_UNINITIALIZED;
@@ -788,10 +785,6 @@ vec_info::free_stmt_vec_info (stmt_vec_info stmt_info)
 	release_ssa_name (lhs);
     }
 
-  stmt_info->reduc_initial_values.release ();
-  stmt_info->reduc_scalar_results.release ();
-  STMT_VINFO_SIMD_CLONE_INFO (stmt_info).release ();
-  STMT_VINFO_VEC_STMTS (stmt_info).release ();
   free (stmt_info);
 }
 
@@ -972,7 +965,7 @@ set_uid_loop_bbs (loop_vec_info loop_vinfo, gimple *loop_vectorized_call,
   class loop *scalar_loop = get_loop (fun, tree_to_shwi (arg));
 
   LOOP_VINFO_SCALAR_LOOP (loop_vinfo) = scalar_loop;
-  LOOP_VINFO_SCALAR_IV_EXIT (loop_vinfo)
+  LOOP_VINFO_SCALAR_MAIN_EXIT (loop_vinfo)
     = vec_init_loop_exit_info (scalar_loop);
   gcc_checking_assert (vect_loop_vectorized_call (scalar_loop)
 		       == loop_vectorized_call);
@@ -1026,10 +1019,19 @@ vect_transform_loops (hash_table<simduid_to_vf> *&simduid_to_vf_htab,
     {
       if (GET_MODE_SIZE (loop_vinfo->vector_mode).is_constant (&bytes))
 	dump_printf_loc (MSG_OPTIMIZED_LOCATIONS, vect_location,
-			 "loop vectorized using %wu byte vectors\n", bytes);
+			 "%sloop vectorized using %s%wu byte vectors and"
+			 " unroll factor %u\n",
+			 LOOP_VINFO_EPILOGUE_P (loop_vinfo)
+			 ? "epilogue " : "",
+			 LOOP_VINFO_USING_PARTIAL_VECTORS_P (loop_vinfo)
+			 ? "masked " : "", bytes,
+			 (unsigned int) LOOP_VINFO_VECT_FACTOR
+						 (loop_vinfo).to_constant ());
       else
 	dump_printf_loc (MSG_OPTIMIZED_LOCATIONS, vect_location,
-			 "loop vectorized using variable length vectors\n");
+			 "%sloop vectorized using variable length vectors\n",
+			 LOOP_VINFO_EPILOGUE_P (loop_vinfo)
+			 ? "epilogue " : "");
     }
 
   loop_p new_loop = vect_transform_loop (loop_vinfo,
@@ -1136,7 +1138,7 @@ try_vectorize_loop_1 (hash_table<simduid_to_vf> *&simduid_to_vf_htab,
 		      || ifn == IFN_MASK_STORE
 		      || ifn == IFN_MASK_CALL
 		      /* Don't keep the if-converted parts when the ifn with
-			 specifc type is not supported by the backend.  */
+			 specific type is not supported by the backend.  */
 		      || (direct_internal_fn_p (ifn)
 			  && !direct_internal_fn_supported_p
 			  (call, OPTIMIZE_FOR_SPEED)))
@@ -1278,6 +1280,7 @@ pass_vectorize::execute (function *fun)
     note_simd_array_uses (&simd_array_to_simduid_htab, fun);
 
   /*  ----------- Analyze loops. -----------  */
+  enable_ranger (fun);
 
   /* If some loop was duplicated, it gets bigger number
      than all previously defined loops.  This fact allows us to run
@@ -1340,6 +1343,7 @@ pass_vectorize::execute (function *fun)
                      num_vectorized_loops);
 
   /*  ----------- Finalize. -----------  */
+  disable_ranger (fun);
 
   if (any_ifcvt_loops)
     for (i = 1; i < number_of_loops (fun); i++)

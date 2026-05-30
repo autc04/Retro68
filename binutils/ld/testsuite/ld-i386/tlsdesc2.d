@@ -3,8 +3,9 @@
 #ld: -melf_i386 -shared -z now
 #readelf: -d --wide
 
+#failif
 #...
 .*\(PLTRELSZ\).*
 .*\(PLTREL\).*
 .*\(JMPREL\).*
-#pass
+#...

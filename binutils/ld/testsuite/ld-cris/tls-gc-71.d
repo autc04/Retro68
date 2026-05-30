@@ -2,7 +2,7 @@
 #source: init.s
 #source: tls128g.s
 #source: tls-hx.s
-#as: --pic --no-underscore --em=criself -I$srcdir/$subdir
+#as: --pic --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: --shared -m crislinux --gc-sections --hash-style=sysv
 #objdump: -s -t -R -p -T
 

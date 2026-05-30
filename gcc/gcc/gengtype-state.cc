@@ -1,7 +1,7 @@
 /* Gengtype persistent state serialization & de-serialization.
    Useful for gengtype in plugin mode.
 
-   Copyright (C) 2010-2025 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -52,7 +52,7 @@ type_lineloc (const_type_p ty)
     case TYPE_LANG_STRUCT:
     case TYPE_USER_STRUCT:
     case TYPE_UNDEFINED:
-      return CONST_CAST (struct fileloc*, &ty->u.s.line);
+      return const_cast<struct fileloc*> (&ty->u.s.line);
     case TYPE_SCALAR:
     case TYPE_STRING:
     case TYPE_POINTER:

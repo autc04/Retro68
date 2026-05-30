@@ -1,3 +1,6 @@
+#![feature(no_core)]
+#![no_core]
+
 #![allow(unused)]
 fn main() {
     struct StructWithFields {
@@ -6,7 +9,7 @@ fn main() {
 
     let s = StructWithFields { x: 0 };
     s.foo;
-    // { dg-error "no field .foo. on type .StructWithFields.StructWithFields .x.u32... .E0609." "" { target *-*-* } .-1 }
+    // { dg-error "no field .foo. on type .StructWithFields. .E0609." "" { target *-*-* } .-1 }
 
     let numbers = (1, 2, 3);
     numbers.3;

@@ -1,5 +1,5 @@
 /* Implementation of the MAXLOC intrinsic
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -147,7 +147,7 @@ maxloc1_8_m1 (gfc_array_i8 * const restrict retarray,
 #if defined (GFC_UINTEGER_1_INFINITY)
 	maxval = -GFC_UINTEGER_1_INFINITY;
 #else
-	maxval = -GFC_UINTEGER_1_HUGE;
+	maxval = 0;
 #endif
 	result = 1;
 	if (len <= 0)
@@ -366,7 +366,7 @@ mmaxloc1_8_m1 (gfc_array_i8 * const restrict retarray,
 #if defined (GFC_UINTEGER_1_INFINITY)
 	maxval = -GFC_UINTEGER_1_INFINITY;
 #else
-	maxval = -GFC_UINTEGER_1_HUGE;
+	maxval = 0;
 #endif
 #if defined (GFC_UINTEGER_1_QUIET_NAN)
 	GFC_INTEGER_8 result2 = 0;

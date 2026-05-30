@@ -6,7 +6,7 @@
  *                                                                          *
  *                           C Implementation File                          *
  *                                                                          *
- *          Copyright (C) 1992-2025, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2026, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -271,7 +271,7 @@ gnat_post_options (const char **pfilename ATTRIBUTE_UNUSED)
 
   /* No caret by default for Ada.  */
   if (!OPTION_SET_P (flag_diagnostics_show_caret))
-    global_dc->m_source_printing.enabled = false;
+    global_dc->get_source_printing_options ().enabled = false;
 
   /* Copy global settings to local versions.  */
   gnat_encodings = global_options.x_gnat_encodings;
@@ -292,7 +292,7 @@ gnat_post_options (const char **pfilename ATTRIBUTE_UNUSED)
 /* Here is the function to handle the compiler error processing in GCC.  */
 
 static void
-internal_error_function (diagnostic_context *context, const char *msgid,
+internal_error_function (diagnostics::context *context, const char *msgid,
 			 va_list *ap)
 {
   char *buffer, *p, *loc;
@@ -377,7 +377,7 @@ gnat_init (void)
   line_table->default_range_bits = 0;
 
   /* Register our internal error function.  */
-  global_dc->m_internal_error = &internal_error_function;
+  global_dc->set_internal_error_callback (&internal_error_function);
 
   return true;
 }
@@ -531,7 +531,9 @@ gnat_print_type (FILE *file, tree node, int indent)
       break;
 
     case RECORD_TYPE:
-      if (TYPE_FAT_POINTER_P (node) || TYPE_CONTAINS_TEMPLATE_P (node))
+      if (TYPE_EXTENDED_POINTER_P (node)
+	  || TYPE_FAT_POINTER_P (node)
+	  || TYPE_CONTAINS_TEMPLATE_P (node))
 	print_node (file, "unconstrained array",
 		    TYPE_UNCONSTRAINED_ARRAY (node), indent + 4);
       else
@@ -837,6 +839,8 @@ gnat_get_array_descr_info (const_tree const_type,
       if (TYPE_IMPL_PACKED_ARRAY_P (array_type)
           && TYPE_ORIGINAL_PACKED_ARRAY (array_type))
         array_type = TYPE_ORIGINAL_PACKED_ARRAY (array_type);
+      if (TREE_CODE (array_type) != ARRAY_TYPE)
+	return false;
 
       /* Shift back the address to get the address of the template.  */
       tree shift_amount

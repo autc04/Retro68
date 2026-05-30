@@ -1,5 +1,5 @@
 /* AVL propagation pass for RISC-V 'V' Extension for GNU compiler.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
    Contributed by Juzhe Zhong (juzhe.zhong@rivai.ai), RiVAI Technologies Ltd.
 
 This file is part of GCC.
@@ -77,6 +77,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-pass.h"
 #include "df.h"
 #include "rtl-ssa.h"
+#include "rtl-iter.h"
 #include "cfgcleanup.h"
 #include "insn-attr.h"
 #include "tm-constrs.h"
@@ -156,6 +157,7 @@ get_insn_vtype_mode (rtx_insn *rinsn)
   extract_insn_cached (rinsn);
   int mode_idx = get_attr_mode_idx (rinsn);
   gcc_assert (mode_idx != INVALID_ATTRIBUTE);
+  gcc_assert (mode_idx < recog_data.n_operands);
   return GET_MODE (recog_data.operand[mode_idx]);
 }
 
@@ -205,6 +207,7 @@ simplify_replace_vlmax_avl (rtx_insn *rinsn, rtx new_avl)
     {
       int index = get_attr_avl_type_idx (rinsn);
       gcc_assert (index != INVALID_ATTRIBUTE);
+      gcc_assert (index < recog_data.n_operands);
       validate_change_or_fail (rinsn, recog_data.operand_loc[index],
 			       get_avl_type_rtx (avl_type::NONVLMAX), false);
     }
@@ -361,6 +364,8 @@ pass_avlprop::get_vlmax_ta_preferred_avl (insn_info *insn) const
 	     is not depend on.  */
 	  extract_insn_cached (use_insn->rtl ());
 	  int merge_op_idx = get_attr_merge_op_idx (use_insn->rtl ());
+	  gcc_assert (merge_op_idx == INVALID_ATTRIBUTE
+		      || merge_op_idx < recog_data.n_operands);
 	  if (merge_op_idx != INVALID_ATTRIBUTE
 	      && !satisfies_constraint_vu (recog_data.operand[merge_op_idx])
 	      && refers_to_regno_p (set->regno (),
@@ -407,6 +412,46 @@ pass_avlprop::get_vlmax_ta_preferred_avl (insn_info *insn) const
 	      if (def1->insn ()->bb () == insn->bb ()
 		  && def1->insn ()->compare_with (insn) >= 0)
 		return NULL_RTX;
+	    }
+	  else
+	    {
+	      /* If the use is in a subreg e.g. in a store it is possible that
+		 we punned the vector mode with a larger mode like
+		   (subreg:V1SI (reg:V4QI 123)).
+		 For an AVL of 1 that means we actually store one SImode
+		 element and not 1 QImode elements.  But the latter is what we
+		 would propagate if we took the AVL operand literally.
+		 Instead we scale it by the ratio of inner and outer mode
+		 (4 in the example above).  */
+	      int factor = 1;
+	      if (use->includes_subregs ())
+		{
+		  subrtx_iterator::array_type array;
+		  FOR_EACH_SUBRTX (iter, array, use_insn->rtl (), NONCONST)
+		    {
+		      const_rtx x = *iter;
+		      if (x
+			  && SUBREG_P (x)
+			  && REG_P (SUBREG_REG (x))
+			  && REGNO (SUBREG_REG (x)) == use->regno ()
+			  && known_eq (GET_MODE_SIZE (use->mode ()),
+				       GET_MODE_SIZE (GET_MODE (x))))
+			{
+			  if (can_div_trunc_p (GET_MODE_NUNITS (use->mode ()),
+					       GET_MODE_NUNITS (GET_MODE (x)),
+					       &factor))
+			    {
+			      gcc_assert (factor > 0);
+			      break;
+			    }
+			  else
+			    return NULL_RTX;
+			}
+		    }
+		}
+
+	      if (factor > 1)
+		new_use_avl = GEN_INT (INTVAL (new_use_avl) * factor);
 	    }
 
 	  if (!use_avl)
@@ -508,7 +553,7 @@ pass_avlprop::execute (function *fn)
       simplify_replace_vlmax_avl (rinsn, prop.second);
     }
 
-  if (rvv_vector_bits == RVV_VECTOR_BITS_ZVL)
+  if (rvv_vector_bits == RVV_VECTOR_BITS_ZVL && !TARGET_XTHEADVECTOR)
     {
       /* Simplify VLMAX AVL into immediate AVL.
 	 E.g. Simplify this following case:
@@ -531,7 +576,14 @@ pass_avlprop::execute (function *fn)
 	      && !m_avl_propagations->get (candidate.second)
 	      && imm_avl_p (vtype_mode))
 	    {
-	      rtx new_avl = gen_int_mode (GET_MODE_NUNITS (vtype_mode), Pmode);
+	      /* For segmented operations AVL refers to a single register and
+		 not all NF registers.  Therefore divide the mode size by NF
+		 to obtain the proper AVL.  */
+	      int nf = 1;
+	      if (riscv_tuple_mode_p (vtype_mode))
+		nf = get_nf (vtype_mode);
+	      rtx new_avl = gen_int_mode
+	      (GET_MODE_NUNITS (vtype_mode).to_constant () / nf, Pmode);
 	      simplify_replace_vlmax_avl (rinsn, new_avl);
 	    }
 	}

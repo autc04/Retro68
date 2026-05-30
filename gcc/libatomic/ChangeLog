@@ -1,6 +1,123 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-02-21  Jakub Jelinek  <jakub@redhat.com>
+
+	* Makefile.am (all-local): Depend on stmp-libatomic and otherwise
+	do nothing.
+	(stmp-libatomic): New goal, move all commands from all-local here plus
+	touch $@ at the end.
+	* Makefile.in: Regenerate.
+
+2026-01-30  Jakub Jelinek  <jakub@redhat.com>
+
+	* Makefile.am (all-local, install-asneeded): Only create
+	libatomic_asneeded.so script if libatomic.so exist, only
+	create libatomic_asneeded.a symlink if libatomic.a exist.
+	* Makefile.in: Regenerate.
+
+2026-01-19  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libgcc/123650
+	* Makefile.am (toolexeclib_DATA): Remove.
+	(all-local): For LIBAT_BUILD_ASNEEDED_SOLINK instead of installing
+	libatomic_asneeded.{so,a} from top_srcdir cd into the destination
+	directory, use echo to write libatomic_asneeded.so and $(LN_S) to
+	symlink libatomic_asneeded.a to libatomic.a.
+	(install-data-am): For LIBAT_BUILD_ASNEEDED_SOLINK depend on
+	install-asneeded.
+	(install-asneeded): New goal.
+	* libatomic_asneeded.so: Remove.
+	* libatomic_asneeded.a: Remove.
+	* Makefile.in: Regenerate.
+
+2026-01-13  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libstdc++/123396
+	* acinclude.m4 (LIBAT_BUILD_ASNEEDED_SOLINK): New AM_CONDITIONAL.
+	* libatomic_asneeded.so: New file.
+	* libatomic_asneeded.a: New file.
+	* Makefile.am (toolexeclib_DATA): Set if LIBAT_BUILD_ASNEEDED_SOLINK.
+	(all-local): Install those files into gcc subdir.
+	* Makefile.in: Regenerate.
+	* configure: Regenerate.
+
+2025-12-29  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure: Regenerate.
+
+2025-12-11  Mark Wielaard  <mark@klomp.org>
+
+	* Makefile.in: Regenerate.
+	* testsuite/Makefile.in: Regenerate.
+
+2025-12-09  John Ericson  <git@johnericson.me>
+
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* configure.ac: Use GCC_AC_THREAD_MODEL instead of hand-rolled
+	* testsuite/Makefile.in: Regenerate.
+
+2025-11-19  Martin Liska  <martin.liska@hey.com>
+
+	* acinclude.m4: Add detection for wild linker.
+	* configure: Regenerate.
+
+2025-11-13  Xi Ruoyao  <xry111@xry111.site>
+
+	* configure.ac (ARCH_LOONGARCH): New AM_CONDITIONAL.
+	* Makefile.am (IFUNC_OPT): Separate the item from IFUNC_OPTIONS
+	to allow using multiple options for an ISA variant.
+	(libatomic_la_LIBADD): Add *_16_1_.lo for LoongArch.
+	(IFUNC_OPTIONS): Build *_16_1_.lo for LoongArch with -mlsx and
+	-mscq.
+	* configure: Regenerate.
+	* Makefile.in: Regenerate.
+	* configure.tgt (try_ifunc): Set to yes for LoongArch if the
+	compiler can produce lock-free 16B atomic with -mlsx -mscq.
+	* config/loongarch/host-config.h: Implement ifunc selector.
+
+2025-11-03  Sam James  <sam@gentoo.org>
+
+	* configure: Regenerate.
+
+2025-10-09  Prathamesh Kulkarni  <prathameshk@nvidia.com>
+	    Matthew Malcolmson  <mmalcolmson@nvidia.com>
+
+	PR driver/81358
+	* Makefile.am: Pass -fno-link-libatomic.
+	New rule all-local.
+	* configure.ac: Assert that CFLAGS is set and pass -fno-link-libatomic.
+	Use __libatomic_save_CFLAGS__ instead of save_CFLAGS.
+	* Makefile.in: Regenerate.
+	* configure: Regenerate.
+
+2025-10-05  Sam James  <sam@gentoo.org>
+
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* testsuite/Makefile.in: Regenerate.
+
+2025-07-31  Yury Khrustalev  <yury.khrustalev@arm.com>
+
+	* config/linux/aarch64/host-config.h (__ifunc_arg_t):
+	Remove sys/ifunc.h and add new fields _hwcap3 and _hwcap4.
+
+2025-05-22  Alexandre Oliva  <oliva@adacore.com>
+
+	* configure.tgt: Set partial_libatomic on *-*-vxworks*.
+	* configure.ac (PARTIAL_VXWORKS): New AM_CONDITIONAL.
+	* Makefile.am (libatomic_la_SOURCES): Select few sources for
+	PARTIAL_VXWORKS.
+	* configure, Makefile.in: Rebuilt.
+
+2025-05-09  David Malcolm  <dmalcolm@redhat.com>
+
+	PR other/116792
+	* testsuite/lib/libatomic.exp: Add load_lib of scanhtml.exp.
 
 2025-04-16  Jakub Jelinek  <jakub@redhat.com>
 
@@ -1037,7 +1154,7 @@
 
 	* Initial commit.
 
-Copyright (C) 2012-2025 Free Software Foundation, Inc.
+Copyright (C) 2012-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

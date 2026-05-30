@@ -123,3 +123,8 @@ bstrpick.d  $r4,$r5,0,0
 bstrpick.d  $r4,$r5,31,1
 bstrpick.d  $r4,$r5,32,0
 bstrpick.d  $r4,$r5,63,0
+
+# LA32R aliases
+rdcntvl.w  $r4
+rdcntid.w  $r5
+rdcntvh.w  $r4

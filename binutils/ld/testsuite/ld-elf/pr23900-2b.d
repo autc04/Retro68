@@ -1,7 +1,7 @@
 #source: pr23900-2.s
 #ld:
 #readelf: -l --wide
-#target: *-*-linux* *-*-gnu* *-*-nacl*
+#target: *-*-linux* *-*-gnu*
 
 #failif
 #...

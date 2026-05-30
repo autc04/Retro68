@@ -1,5 +1,5 @@
 /* Combine stack adjustments.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -828,10 +828,7 @@ public:
       rest_of_handle_stack_adjustments ();
       return 0;
     }
-  virtual opt_pass *clone ()
-    {
-      return new pass_stack_adjustments(m_ctxt);
-    }
+
 }; // class pass_stack_adjustments
 
 bool

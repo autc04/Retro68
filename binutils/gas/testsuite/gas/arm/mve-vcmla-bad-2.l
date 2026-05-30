@@ -1,15 +1,15 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: immediate out of range -- `vcmla.f16 q0,q1,q2,#20'
-[^:]*:11: Warning: 32-bit element size and same destination and source operands makes instruction UNPREDICTABLE
-[^:]*:12: Warning: 32-bit element size and same destination and source operands makes instruction UNPREDICTABLE
-[^:]*:13: Error: bad type in SIMD instruction -- `vcmla.f64 q0,q1,q2,#0'
-[^:]*:14: Error: bad type in SIMD instruction -- `vcmla.i16 q0,q1,q2,#0'
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:3: Error: immediate out of range -- `vcmla.f16 q0,q1,q2,#20'
+[^:]*:4: Warning: 32-bit element size and same destination and source operands makes instruction UNPREDICTABLE
+[^:]*:5: Warning: 32-bit element size and same destination and source operands makes instruction UNPREDICTABLE
+[^:]*:6: Error: bad type in SIMD instruction -- `vcmla.f64 q0,q1,q2,#0'
+[^:]*:7: Error: bad type in SIMD instruction -- `vcmla.i16 q0,q1,q2,#0'
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:17: Error: syntax error -- `vcmlaeq.f16 q0,q1,q2,#0'
 [^:]*:18: Error: syntax error -- `vcmlaeq.f16 q0,q1,q2,#0'
 [^:]*:20: Error: syntax error -- `vcmlaeq.f16 q0,q1,q2,#0'

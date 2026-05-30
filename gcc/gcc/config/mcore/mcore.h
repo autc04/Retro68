@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for Motorola M*CORE Processor.
-   Copyright (C) 1993-2025 Free Software Foundation, Inc.
+   Copyright (C) 1993-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -653,11 +653,6 @@ extern long mcore_current_compilation_timestamp;
 #undef  ASM_OUTPUT_CASE_LABEL
 #define ASM_OUTPUT_CASE_LABEL(STREAM,PREFIX,NUM,TABLE) \
   fprintf (STREAM, "\t.align 2\n.%s%d:\n", PREFIX, NUM);
-
-/* Output a relative address. Not needed since jump tables are absolute
-   but we must define it anyway.  */
-#define ASM_OUTPUT_ADDR_DIFF_ELT(STREAM,BODY,VALUE,REL)  \
-  fputs ("- - - ASM_OUTPUT_ADDR_DIFF_ELT called!\n", STREAM)
 
 /* Output an element of a dispatch table.  */
 #define ASM_OUTPUT_ADDR_VEC_ELT(STREAM,VALUE)  \

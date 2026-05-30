@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Msuffix
 #name: i386 AVX512BW/VL opts insns
 #source: avx512bw_vl-opts.s

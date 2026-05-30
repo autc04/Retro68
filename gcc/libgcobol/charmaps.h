@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025 Symas Corporation
+ * Copyright (c) 2021-2026 Symas Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +31,12 @@
 #ifndef CHARMAPS_H
 #define CHARMAPS_H
 
+#include <string>
+#include <vector>
+
 #include <unistd.h>
+#include <limits.h>
+#include <iconv.h>
 
 /*  There are four distinct codeset domains in the COBOL compiler.
  *
@@ -103,16 +108,76 @@
 
     Stay alert!    */
 
+typedef uint32_t cbl_char_t;
+#define NOT_A_CHARACTER (0xbadbeef)
 
-extern bool __gg__ebcdic_codeset_in_use;
-#define internal_is_ebcdic (__gg__ebcdic_codeset_in_use)
+extern int    __gg__decimal_point        ;
+extern int    __gg__decimal_separator    ;
+extern int    __gg__quote_character      ;
+extern int    __gg__low_value_character  ;
+extern int    __gg__high_value_character ;
+extern std::vector<std::string> __gg__currency_signs       ;
+extern int    __gg__default_currency_sign;
+extern cbl_encoding_t __gg__display_encoding ;
+extern cbl_encoding_t __gg__national_encoding ;
+extern cbl_char_t __gg__working_init;
+extern cbl_char_t __gg__local_init;
+extern uint32_t __gg__wsclear;
 
-extern unsigned short const *__gg__internal_codeset_map;
+enum
+  {
+  /* HIGH-VALUE is an endless source of irritation.
+  
+     0xFF is the default value for COBOL since time immemorial.  Its use that
+     way long predates the existence of code pages.  0xFF is a valid character
+     in many code pages, which make a muddle of the original intent of a
+     default value of 0xFF for high-value.
+
+     We want older programs to continue to work.  And we want to use 0xFF for
+     ascii and ebcdic, and it turns out that 0xFFFF works for UTF-16; it is
+     specifically designed in UNICODE as a well-formed non-character.
+     
+     0xFFFFFFFF, however, is not readily usable in UTF-32.  It is not well-
+     formed, and it is not a character.  Technically, the largest value in
+     UTF-32 is the largest UNICODE code point, which is 0x10FFFF.  It's
+     tempting to use that value as the UTF32 HIGH-VALUE, except that it doesn't
+     map into a single 16-bit value in UTF-16 (it takes a pair of 16-bit
+     values), and it doesn't map into anything sensible in ASCII or EBCDIC, and
+     it takes multiple bytes in UTF-8.
+     
+     So, we are going to work with the following observations:
+     
+     0xFF   in CP1252 <==> 0x000000FF in UTF32
+     0xFF   in CP1140 <==> 0x0000009F in UTF32
+     0xFFFF in UTF-16 <==> 0x0000FFFF in UTF32
+
+     Be it hereby acknowledged that not all possibilities for encoding inter-
+     conversion have been explored, and we anticipate finding and eliminating
+     HIGH-VALUE problems will be Whac-A-Mole territory for some time to come.
+     
+     Please use these constants for that kind of work, because otherwise
+     finding anomalies will be even more frustrating than I currently
+     anticipate.  Dubner, 2025-11-24  */
+  DEFAULT_HIGH_VALUE_8  =       0xFF,
+  DEFAULT_HIGH_VALUE_16 =     0x00FF,
+  DEFAULT_HIGH_VALUE_32 = 0x000000FF,
+  
+  /* These values are used as figurative constants when interconverting from
+     and encoding to UTF32.  Examine, for example, the implementation for
+     the INSPECT statement: */
+  ASCII_HIGH_VALUE_32   = 0x000000FF,
+  EBCDIC_HIGH_VALUE_32  = 0x000000FF,
+  UTF16_HIGH_VALUE_32   = 0x000000FF,
+  UTF32_HIGH_VALUE_32   = 0x000000FF,
+
+  REPLACEMENT_CHARACTER = 0xFFFD,
+  };
 
 #define NULLCH ('\0')
 #define DEGENERATE_HIGH_VALUE 0xFF
 #define DEGENERATE_LOW_VALUE 0x00
 
+#define ascii_nul              ((uint8_t)('\0'))
 #define ascii_A                ((uint8_t)('A'))
 #define ascii_B                ((uint8_t)('B'))
 #define ascii_C                ((uint8_t)('C'))
@@ -182,6 +247,7 @@ extern unsigned short const *__gg__internal_codeset_map;
 #define ascii_colon            ((uint8_t)(':'))
 #define ascii_comma            ((uint8_t)(','))
 #define ascii_dollar_sign      ((uint8_t)('$'))
+#define ascii_bang             ((uint8_t)('!'))
 #define ascii_dquote           ((uint8_t)('"'))
 #define ascii_oparen           ((uint8_t)('('))
 #define ascii_caret            ((uint8_t)('^'))
@@ -197,107 +263,12 @@ extern unsigned short const *__gg__internal_codeset_map;
 #define ascii_newline          ((uint8_t)('\n'))
 #define ascii_return           ((uint8_t)('\r'))
 
-#define internal_space     ((uint8_t)__gg__internal_codeset_map[ascii_space])
-#define internal_zero      ((uint8_t)__gg__internal_codeset_map[ascii_zero])
-#define internal_period    ((uint8_t)__gg__internal_codeset_map[ascii_period])
-#define internal_comma     ((uint8_t)__gg__internal_codeset_map[ascii_comma])
-#define internal_dquote    ((uint8_t)__gg__internal_codeset_map[ascii_dquote])
-#define internal_asterisk  ((uint8_t)__gg__internal_codeset_map[ascii_asterisk])
-#define internal_plus      ((uint8_t)__gg__internal_codeset_map[ascii_plus])
-#define internal_minus     ((uint8_t)__gg__internal_codeset_map[ascii_minus])
-#define internal_cr        ((uint8_t)__gg__internal_codeset_map[ascii_cr])
-#define internal_ff        ((uint8_t)__gg__internal_codeset_map[ascii_ff])
-#define internal_newline   ((uint8_t)__gg__internal_codeset_map[ascii_newline])
-#define internal_return    ((uint8_t)__gg__internal_codeset_map[ascii_return])
-#define internal_0         ((uint8_t)__gg__internal_codeset_map[ascii_0])
-#define internal_1         ((uint8_t)__gg__internal_codeset_map[ascii_1])
-#define internal_2         ((uint8_t)__gg__internal_codeset_map[ascii_2])
-#define internal_3         ((uint8_t)__gg__internal_codeset_map[ascii_3])
-#define internal_4         ((uint8_t)__gg__internal_codeset_map[ascii_4])
-#define internal_5         ((uint8_t)__gg__internal_codeset_map[ascii_5])
-#define internal_6         ((uint8_t)__gg__internal_codeset_map[ascii_6])
-#define internal_7         ((uint8_t)__gg__internal_codeset_map[ascii_7])
-#define internal_8         ((uint8_t)__gg__internal_codeset_map[ascii_8])
-#define internal_9         ((uint8_t)__gg__internal_codeset_map[ascii_9])
-#define internal_colon     ((uint8_t)__gg__internal_codeset_map[ascii_colon])
-#define internal_query     ((uint8_t)__gg__internal_codeset_map[ascii_query])
-#define internal_A         ((uint8_t)__gg__internal_codeset_map[ascii_A])
-#define internal_B         ((uint8_t)__gg__internal_codeset_map[ascii_B])
-#define internal_C         ((uint8_t)__gg__internal_codeset_map[ascii_C])
-#define internal_D         ((uint8_t)__gg__internal_codeset_map[ascii_D])
-#define internal_E         ((uint8_t)__gg__internal_codeset_map[ascii_E])
-#define internal_F         ((uint8_t)__gg__internal_codeset_map[ascii_F])
-#define internal_G         ((uint8_t)__gg__internal_codeset_map[ascii_G])
-#define internal_H         ((uint8_t)__gg__internal_codeset_map[ascii_H])
-#define internal_I         ((uint8_t)__gg__internal_codeset_map[ascii_I])
-#define internal_J         ((uint8_t)__gg__internal_codeset_map[ascii_J])
-#define internal_K         ((uint8_t)__gg__internal_codeset_map[ascii_K])
-#define internal_L         ((uint8_t)__gg__internal_codeset_map[ascii_L])
-#define internal_M         ((uint8_t)__gg__internal_codeset_map[ascii_M])
-#define internal_N         ((uint8_t)__gg__internal_codeset_map[ascii_N])
-#define internal_O         ((uint8_t)__gg__internal_codeset_map[ascii_O])
-#define internal_P         ((uint8_t)__gg__internal_codeset_map[ascii_P])
-#define internal_Q         ((uint8_t)__gg__internal_codeset_map[ascii_Q])
-#define internal_R         ((uint8_t)__gg__internal_codeset_map[ascii_R])
-#define internal_S         ((uint8_t)__gg__internal_codeset_map[ascii_S])
-#define internal_T         ((uint8_t)__gg__internal_codeset_map[ascii_T])
-#define internal_U         ((uint8_t)__gg__internal_codeset_map[ascii_U])
-#define internal_V         ((uint8_t)__gg__internal_codeset_map[ascii_V])
-#define internal_W         ((uint8_t)__gg__internal_codeset_map[ascii_W])
-#define internal_X         ((uint8_t)__gg__internal_codeset_map[ascii_X])
-#define internal_Y         ((uint8_t)__gg__internal_codeset_map[ascii_Y])
-#define internal_Z         ((uint8_t)__gg__internal_codeset_map[ascii_Z])
-#define internal_a         ((uint8_t)__gg__internal_codeset_map[ascii_a])
-#define internal_b         ((uint8_t)__gg__internal_codeset_map[ascii_b])
-#define internal_c         ((uint8_t)__gg__internal_codeset_map[ascii_c])
-#define internal_d         ((uint8_t)__gg__internal_codeset_map[ascii_d])
-#define internal_e         ((uint8_t)__gg__internal_codeset_map[ascii_e])
-#define internal_f         ((uint8_t)__gg__internal_codeset_map[ascii_f])
-#define internal_g         ((uint8_t)__gg__internal_codeset_map[ascii_g])
-#define internal_h         ((uint8_t)__gg__internal_codeset_map[ascii_h])
-#define internal_i         ((uint8_t)__gg__internal_codeset_map[ascii_i])
-#define internal_j         ((uint8_t)__gg__internal_codeset_map[ascii_j])
-#define internal_k         ((uint8_t)__gg__internal_codeset_map[ascii_k])
-#define internal_l         ((uint8_t)__gg__internal_codeset_map[ascii_l])
-#define internal_m         ((uint8_t)__gg__internal_codeset_map[ascii_m])
-#define internal_n         ((uint8_t)__gg__internal_codeset_map[ascii_n])
-#define internal_o         ((uint8_t)__gg__internal_codeset_map[ascii_o])
-#define internal_p         ((uint8_t)__gg__internal_codeset_map[ascii_p])
-#define internal_q         ((uint8_t)__gg__internal_codeset_map[ascii_q])
-#define internal_r         ((uint8_t)__gg__internal_codeset_map[ascii_r])
-#define internal_s         ((uint8_t)__gg__internal_codeset_map[ascii_s])
-#define internal_t         ((uint8_t)__gg__internal_codeset_map[ascii_t])
-#define internal_u         ((uint8_t)__gg__internal_codeset_map[ascii_u])
-#define internal_v         ((uint8_t)__gg__internal_codeset_map[ascii_v])
-#define internal_w         ((uint8_t)__gg__internal_codeset_map[ascii_w])
-#define internal_x         ((uint8_t)__gg__internal_codeset_map[ascii_x])
-#define internal_y         ((uint8_t)__gg__internal_codeset_map[ascii_y])
-#define internal_z         ((uint8_t)__gg__internal_codeset_map[ascii_z])
-
-
-enum text_device_t
-    {
-    td_default_e,
-    td_sourcecode_e,
-    td_console_e,
-    };
-
-enum text_codeset_t
-    {
-    cs_default_e,
-    cs_utf8_e,
-    cs_cp1252_e,
-    cs_cp1140_e
-    };
-
-
 extern unsigned char __gg__data_space[1]       ;
 extern unsigned char __gg__data_low_values[1]  ;
 extern unsigned char __gg__data_zeros[1]       ;
 extern unsigned char __gg__data_high_values[1] ;
 extern unsigned char __gg__data_quotes[1]      ;
 extern unsigned char __gg__data_upsi_0[2]      ;
-extern short         __gg__data_return_code    ;
 
 // These are the various hardcoded tables used for conversions.
 extern const unsigned short __gg__one_to_one_values[256];
@@ -308,63 +279,641 @@ extern const unsigned short __gg__cp1140_to_cp1252_values[256];
 extern const unsigned short __gg__cp1252_to_ebcdic_collation[256];
 extern const unsigned short __gg__ebcdic_to_cp1252_collation[256];
 
-// As described above, we have a number of operations we need to accomplish. But
-// the actual routines are dependent on whether EBCDIC or ASCII is in use. We
-// implement that by having a function pointer for each function; those pointers
-// are established when the __gg__ebcdic_codeset_in_use variable is established.
+const char * __gg__encoding_iconv_name( cbl_encoding_t encoding );
+cbl_encoding_t __gg__encoding_iconv_type( const char *name );
+extern cbl_encoding_t __gg__console_encoding;
 
-// These routines convert a single ASCII character to either ASCII or EBCDIC
+// returns a pointer to a static buffer.  Beware!
+char * __gg__iconverter(cbl_encoding_t from,
+                        cbl_encoding_t to,
+                  const void *str,
+                        size_t length,
+                        size_t *outlength = nullptr,     // Bytes produced
+                        size_t *iconv_retval = nullptr);
 
-extern "C"
-char __gg__ascii_to_ascii_chr(char ch);
-extern "C"
-char __gg__ascii_to_ebcdic_chr(char ch);
-extern "C"
-char (*__gg__ascii_to_internal_chr)(char);
-#define ascii_to_internal(a) ((*__gg__ascii_to_internal_chr)(a))
+// returns a malloced buffer.  Remember to free it.
+char * __gg__miconverter(cbl_encoding_t from,
+                         cbl_encoding_t to,
+                   const void *str,
+                         size_t length,
+                         size_t *outlength = nullptr,     // Bytes produced
+                         size_t *iconv_retval = nullptr);
 
-extern "C"
-void __gg__ascii_to_ascii(char *str, size_t length);
-extern "C"
-void __gg__ascii_to_ebcdic(char *str, size_t length);
-extern "C"
-void (*__gg__ascii_to_internal_str)(char *str, size_t length);
-#define ascii_to_internal_str(a, b) ((*__gg__ascii_to_internal_str)((a), (b)))
 
-extern "C"
-char *__gg__raw_to_ascii(char **dest, size_t *dest_size, const char *str, size_t length);
-extern "C"
-char *__gg__raw_to_ebcdic(char **dest, size_t *dest_size, const char *in, size_t length);
-extern "C"
-char *(*__gg__raw_to_internal)(char **dest, size_t *dest_length, const char *in, size_t length);
-#define raw_to_internal(a, b, c, d) ((*__gg__raw_to_internal)((a), (b), (c), (d)))
+#define DEFAULT_SOURCE_ENCODING (iconv_CP1252_e)
+#define DEFAULT_32_ENCODING (iconv_UTF32LE_e)
 
-extern "C"
-char *__gg__ascii_to_console(char **dest, size_t *dest_size, char const * const str, const size_t length);
-extern "C"
-char *__gg__ebcdic_to_console(char **dest, size_t *dest_size, char const * const str, const size_t length);
-extern "C"
-char *(*__gg__internal_to_console_cm)(char **dest, size_t *dest_size, const char *in, size_t length);
-#define internal_to_console(a, b, c, d) ((*__gg__internal_to_console_cm)((a), (b), (c), (d)))
+class charmap_t;
 
-extern "C"
-void __gg__console_to_ascii(char * const str, size_t length);
-extern "C"
-void __gg__console_to_ebcdic(char * const str, size_t length);
-extern "C"
-void (*__gg__console_to_internal_cm)(char * const str, size_t length);
-#define console_to_internal(a, b) ((*__gg__console_to_internal_cm)((a), (b)))
+charmap_t *__gg__get_charmap(cbl_encoding_t encoding);
 
-extern "C"
-void __gg__ebcdic_to_ascii(char *str, const size_t length);
-extern "C"
-void (*__gg__internal_to_ascii)(char *str, size_t length);
-#define internal_to_ascii(a, b) ((*__gg__internal_to_ascii)((a), (b)))
+class charmap_t
+  {
+  private:
+    // This is the encoding of this character map
+    cbl_encoding_t m_encoding;
+    bool m_is_valid;
+    bool m_is_big_endian;
+    bool m_has_bom = false;
+    bool m_is_like_utf8;
+    uint8_t  m_stride; // Number of bytes between one character and the next
 
-extern "C" void __gg__set_internal_codeset(int use_ebcdic);
+    enum
+      {
+      sign_type_ascii,
+      sign_type_ebcdic,
+      } m_numeric_sign_type;
 
-extern "C"
-void __gg__text_conversion_override(text_device_t device,
-                                    text_codeset_t codeset);
+    // This map retains the ASCII-to-encoded value in m_encoding, so that iconv
+    // need be called but once for each ASCII value.
+    std::unordered_map<cbl_char_t, cbl_char_t>m_map_of_encodings;
+
+  public:
+    explicit charmap_t(cbl_encoding_t e) : m_encoding(e)
+      {
+      // We are constructing a new charmap_t from an arbitrary encoding.  We
+      // need to figure out how wide it is, its endianness, whether or not
+      // it is EBCDIC-based, and so on.
+
+      // We do that by converting "0" to the target encoding, and we analyze
+      // what we get back.
+      
+      size_t outlength = 0;
+      char challenge[] = "0";
+      char response_[8];
+
+      iconv_t cd = iconv_open(
+                          __gg__encoding_iconv_name(m_encoding),
+                          __gg__encoding_iconv_name(DEFAULT_SOURCE_ENCODING));
+      char *inbuf  = challenge;
+      char *outbuf = response_;
+      size_t inbytesleft = 1;
+      size_t outbytesleft = sizeof(response_);
+      /*size_t nret = */ iconv( cd,
+                            &inbuf,  &inbytesleft,
+                            &outbuf, &outbytesleft);
+      outlength = sizeof(response_) - outbytesleft;
+      iconv_close(cd);
+      
+      const unsigned char *response = 
+                                  reinterpret_cast<unsigned char *>(response_);
+      
+      unsigned char char_0 = 0x00;
+
+      m_is_valid = false;
+      m_has_bom  = false;
+      m_is_big_endian = false;
+      m_is_like_utf8 = false;
+
+      if( outlength == 1 )
+        {
+        m_stride = 1;
+        // This is our happy place:  A single-byte encoded character set.
+        char_0 = response[0];
+        }
+      else if( outlength == 2 )
+        {
+        m_stride = 2;
+        if( response[0] )
+          {
+          char_0 = response[0];
+          }
+        else if( response[1] )
+          {
+          m_is_big_endian = true;
+          char_0 = response[1];
+          }
+        }
+      else if( outlength == 4 )
+        {
+        // Check for the Byte Order Mark (BOM)
+        if( response[0] == 0xFF && response[1] == 0xFE )
+          {
+          m_stride = 2;
+          m_has_bom = true;
+          char_0 = response[2];
+          }
+        else if( response[0] == 0xFE && response[1] == 0xFF )
+          {
+          m_stride = 2;
+          m_has_bom = true;
+          m_is_big_endian = true;
+          char_0 = response[3];
+          }
+        else if( response[0] )
+          {
+          m_stride = 4;
+          char_0 = response[0];
+          }
+        else
+          {
+          m_stride = 4;
+          m_is_big_endian = true;
+          char_0 = response[3];
+          }
+        }
+      else if( outlength == 8 )
+        {
+        m_stride = 4;
+        if( response[0] == 0xFF && response[1] == 0xFE )
+          {
+          char_0 = response[4];
+          }
+        else if( response[0] == 0xFE && response[1] == 0xFF )
+          {
+          m_is_big_endian = true;
+          char_0 = response[7];
+          }
+        }
+
+      // With everything else established, we now check the zero character.
+      // We know about only 0x30 for ASCII and 0xF0 for EBCDIC.
+      if( char_0 == 0x30 )
+        {
+        m_is_valid = true;
+        m_numeric_sign_type = sign_type_ascii;
+        }
+      else if( char_0 == 0xF0 )
+        {
+        m_is_valid = true;
+        m_numeric_sign_type = sign_type_ebcdic;
+        }
+
+      // Let's see if this encoding is UTF-8.  We will do that by converting
+      // the single-byte CP1252 code for the Euro symbol to our encoding.
+      cd = iconv_open(
+                    __gg__encoding_iconv_name(iconv_CP1252_e),
+                    __gg__encoding_iconv_name(m_encoding));
+      challenge[0] = static_cast<char>(0x80);// This is the CP1252 Euro symbol.
+      inbuf  = challenge;
+      outbuf = response_;
+      inbytesleft = 1;
+      outbytesleft = sizeof(response_);
+      iconv(cd,
+            &inbuf,  &inbytesleft,
+            &outbuf, &outbytesleft);
+      outlength = sizeof(response_) - outbytesleft;
+      iconv_close(cd);
+      m_is_like_utf8 = (outlength == 3);
+      }
+
+    bool is_valid()      const { return m_is_valid     ; }
+    bool is_big_endian() const { return m_is_big_endian; }
+    bool has_bom()       const { return m_has_bom      ; }
+    uint8_t stride()     const { return m_stride       ; }
+
+    cbl_char_t mapped_character(cbl_char_t ch) 
+      {
+      // The assumption is that anybody calling this routine is providing
+      // a single-byte character in the DEFAULT_SOURCE_ENCODING encoding.  We
+      // return the equivalent character in the m_encoding
+      cbl_char_t retval;
+      std::unordered_map<cbl_char_t, cbl_char_t>::const_iterator it =
+                                                   m_map_of_encodings.find(ch);
+      if( it != m_map_of_encodings.end() )
+        {
+        retval = it->second;
+        }
+      else
+        {
+        retval = 0;
+        size_t outlength = 0;
+        const char *mapped = __gg__iconverter(DEFAULT_SOURCE_ENCODING,
+                                              m_encoding,
+                                              PTRCAST(char, &ch),
+                                              1,
+                                              &outlength);
+        memcpy(&retval, mapped, outlength);
+        m_map_of_encodings[ch] = retval;
+        }
+      return retval;
+      }
+
+    int decimal_point()
+      {
+      return mapped_character(__gg__decimal_point);
+      }
+    int decimal_separator()
+      {
+      return mapped_character(__gg__decimal_separator);
+      }
+    int quote_character()
+      {
+      return mapped_character(__gg__quote_character);
+      }
+    int low_value_character()
+      {
+      return mapped_character(__gg__low_value_character);
+      }
+    cbl_char_t high_value_character()
+      {
+      cbl_char_t retval = 0;
+      if( __gg__high_value_character == DEFAULT_HIGH_VALUE_8 )
+        {
+        switch(m_stride)
+          {
+          case 1:
+            retval = DEFAULT_HIGH_VALUE_8;
+            break;
+          case 2:
+            retval = DEFAULT_HIGH_VALUE_16;
+            break;
+          case 4:
+            retval = DEFAULT_HIGH_VALUE_32 ;
+            break;
+          }
+        }
+      else
+        {
+        retval = mapped_character(__gg__high_value_character);
+        }
+      return retval;
+      }
+
+    cbl_char_t figconst_character(cbl_figconst_t figconst)
+      {
+      cbl_char_t const_char = 0;  // Head off a compiler warning
+      switch(figconst)
+        {
+        case normal_value_e :
+          abort();
+          break;
+        case low_value_e    :
+          const_char = low_value_character();
+          break;
+        case zero_value_e   :
+          const_char = mapped_character(ascii_0);
+          break;
+        case space_value_e  :
+          const_char = mapped_character(ascii_space);
+          break;
+        case quote_value_e  :
+          const_char = quote_character();
+          break;
+        case high_value_e   :
+          const_char = high_value_character();
+          break;
+        case null_value_e:
+          const_char = '\0';
+          break;
+        default:
+          abort();
+          break;
+        }
+      return const_char;
+      }
+
+  bool
+  is_digit_negative(int digit)
+    {
+    bool retval;
+    switch(m_numeric_sign_type)
+      {
+      case sign_type_ascii:
+        retval = !!(digit & NUMERIC_DISPLAY_SIGN_BIT_ASCII);
+        break;
+
+      case sign_type_ebcdic:
+        retval = !!((~digit) & NUMERIC_DISPLAY_SIGN_BIT_EBCDIC);
+        break;
+      }
+    return retval;
+    }
+
+  cbl_char_t
+  set_digit_negative(cbl_char_t digit, bool is_negative)
+    {
+    // Returns a 0-9 digit with the internal sign bit altered for ascii or
+    // ebcdic.
+    switch(m_numeric_sign_type)
+      {
+      case sign_type_ascii:
+        if( is_negative )
+          {
+          digit |= NUMERIC_DISPLAY_SIGN_BIT_ASCII;
+          }
+        else
+          {
+          digit &= ~NUMERIC_DISPLAY_SIGN_BIT_ASCII;
+          }
+        break;
+
+      case sign_type_ebcdic:
+        if( is_negative )
+          {
+          digit &= ~NUMERIC_DISPLAY_SIGN_BIT_EBCDIC;
+          }
+        else
+          {
+          digit |= NUMERIC_DISPLAY_SIGN_BIT_EBCDIC;
+          }
+        break;
+      }
+    return digit;
+    }
+
+  bool
+  is_like_ebcdic() const
+    {
+    return m_numeric_sign_type == sign_type_ebcdic;
+    }
+
+  bool
+  is_like_utf8() const
+    {
+    return m_is_like_utf8;
+    }
+
+  void
+  memset(void *dest_, cbl_char_t ch, size_t bytelength)
+    {
+    uint8_t *dest = static_cast<uint8_t *>(dest_);
+    switch(m_stride)
+      {
+      case 1:
+        {
+        if( (ch & 0xFFFFFF00) == 0x00000000 )
+          {
+          // This is the normal case of filling a buffer with a single byte
+          ::memset(dest, ch & 0xff, bytelength);
+          }
+        else
+          {
+          // We are being asked to fill a byte-wide buffer with a multi-byte
+          // character.
+          uint8_t byte3 = ch >> 24;
+          uint8_t byte2 = ch >> 16;
+          uint8_t byte1 = ch >>  8;
+          uint8_t byte0 = ch;
+          size_t fill;
+          size_t i=0;
+          if( byte3 )
+            {
+            fill = bytelength / 4;
+            while( i<fill )
+              {
+              dest[i++] = byte0;
+              dest[i++] = byte1;
+              dest[i++] = byte2;
+              dest[i++] = byte3;
+              }
+            }
+          else if( byte2 )
+            {
+            fill = bytelength / 3;
+            while( i<fill )
+              {
+              dest[i++] = byte0;
+              dest[i++] = byte1;
+              dest[i++] = byte2;
+              }
+            }
+          else
+            {
+            fill = bytelength / 2;
+            while( i<fill )
+              {
+              dest[i++] = byte0;
+              dest[i++] = byte1;
+              }
+            }
+          while( i < bytelength )
+            {
+            dest[i++] = mapped_character(ascii_space);
+            }
+          }
+        break;
+        }
+
+      case 2:
+        {
+        assert( !(bytelength&1) );
+        // We know the target has an even number of bytes available.  We also
+        // know that each codepoint is usually one, but sometimes two, pairs
+        // of bytes
+        uint16_t top_half    = ch>>16;
+        uint16_t bottom_half = ch;
+        size_t fill = bytelength;
+        size_t i = 0;
+        uint16_t *p = PTRCAST(uint16_t, dest);
+        while( i<fill )
+          {
+          p[i/2] = bottom_half;
+          i += 2;
+          if( i>= fill )
+            {
+            break;
+            }
+          if( top_half )
+            {
+            p[i/2] = bottom_half;
+            i += 2;
+            }
+          }
+        if( i < bytelength )
+          {
+          // We were trying to put two-pair values into the destination, but
+          // there were an odd number of pairs available.
+          p[i] = mapped_character(ascii_space);
+          i += 2; // cppcheck-suppress unreadVariable
+          }
+        break;
+        }
+
+      case 4:
+        {
+        assert( !(bytelength&3) );
+        // We know the target has multiple of four bytes available.
+        uint32_t *p = PTRCAST(uint32_t, dest);
+        size_t i = 0;
+        while( i<bytelength )
+          {
+          p[i/4] = ch;
+          i += 4;
+          }
+        break;
+        }
+      }
+    }
+
+  void putch(cbl_char_t ch, void *base_, size_t location)
+    {
+    // This routine puts a character at a byte location.  It's up to the
+    // user to provide the correct byte location, and update it by the stride
+    // when necessary.
+    uint8_t *base = static_cast<uint8_t *>(base_);
+    memcpy(base+location, &ch, m_stride);
+    if( m_stride < 4 )
+      {
+      location += m_stride;
+      ch >>= (8 * m_stride);
+      while(ch)
+        {
+        memcpy(base+location, &ch, m_stride);
+        location += m_stride;
+        ch >>= (8 * m_stride);
+        }
+      }
+    }
+
+  void putch(cbl_char_t ch, void *base_, size_t *location)
+    {
+    // This routine puts a character at a location, and updates the location
+    uint8_t *base = static_cast<uint8_t *>(base_);
+    memcpy(base+*location, &ch, m_stride);
+    *location += m_stride;
+    if( m_stride < 4 )
+      {
+      ch >>= 8 * m_stride;
+      while(ch)
+        {
+        memcpy(base+*location, &ch, m_stride);
+        *location += m_stride;
+        ch >>= 8 * m_stride;
+        }
+      }
+    }
+
+  cbl_char_t getch(const void *base_, size_t location) const
+    {
+    // This routine gets a character at a location, and updates the location
+    cbl_char_t retval = 0;
+    const uint8_t *base = static_cast<const uint8_t *>(base_);
+
+    memcpy(&retval, base+location, m_stride);
+////    location += m_stride;
+////  We need to do something about UTF-8 snd UTF-16
+////    while(ch)
+////      {
+////      memcpy(base+*location, &ch, m_stride);
+////      *location += m_stride;
+////      ch >>= 8 * m_stride;
+////      }
+    return retval;
+    }
+
+  cbl_char_t getch(const void *base_, size_t *location) const
+    {
+    // This routine gets a character at a location, and updates the location
+    cbl_char_t retval = 0;
+    const uint8_t *base = static_cast<const uint8_t *>(base_);
+
+    memcpy(&retval, base+*location, m_stride);
+    *location += m_stride;
+////  We need to do something about UTF-8 snd UTF-16
+////    while(ch)
+////      {
+////      memcpy(base+*location, &ch, m_stride);
+////      *location += m_stride;
+////      ch >>= 8 * m_stride;
+////      }
+    return retval;
+    }
+
+  unsigned long long strtoull(char *in, char **end, int /*base*/)
+    {
+    // This is like strtoull(3), but the base is restricted to 10.
+    size_t index = 0;
+    unsigned long long retval = 0;
+    cbl_char_t mapped_0 = mapped_character(ascii_0);
+    cbl_char_t mapped_9 = mapped_character(ascii_9);
+    for(;;)
+      {
+      cbl_char_t ch = getch(in, &index);
+      if( ch < mapped_0 || ch > mapped_9 )
+        {
+        break;
+        }
+      retval *= 10;
+      retval += ch & 0x0F;
+      }
+    *end = in + index-m_stride ;
+    return retval;
+    }
+
+    template <typename T>
+    size_t
+    Strlen( T *input, ssize_t limit = SSIZE_MAX ) {
+      size_t i;
+      for( i = 0; i < (limit / sizeof(T)) && input[i] != 0; i++ )
+        ;
+      return i;
+    }
+    size_t strlen2( const void *converted, ssize_t limit = SSIZE_MAX ) {
+      switch(m_stride) {
+      case 1:
+        return Strlen( reinterpret_cast<const char*>(converted), limit );
+      case 2:
+        return Strlen( reinterpret_cast<const uint16_t*>(converted), limit );
+      case 4:
+        return Strlen( reinterpret_cast<const uint16_t*>(converted), limit );
+      }
+      //// gcc_unreachable();
+      return -1; // Mollify cppcheck.
+    }
+    
+  size_t
+  strlen( const void *converted,
+          ssize_t limit = SSIZE_MAX)
+    {
+    size_t retval;
+
+    union
+      {
+      const uint8_t  *p8 ;
+      const uint16_t *p16;
+      const uint32_t *p32;
+      } ;
+    const uint8_t *p_start = reinterpret_cast<const uint8_t *>(converted);
+    p8 = p_start;
+    switch(m_stride)
+      {
+      case 1:
+        {
+        // Loop until the pointer is past the limit, or until we hit
+        // a character that is all zeroes
+        while(*p8)
+          {
+          if( p8 - p_start > limit )
+            {
+            break;
+            }
+          p8 += 1;
+          }
+        break;
+        }
+      case 2:
+        {
+        // Loop until the pointer is past the limit, or until we hit
+        // a character that is all zeroes
+        while(*p16)
+          {
+          if( p8 - p_start > limit )
+            {
+            break;
+            }
+          p8 += 2;
+          }
+        break;
+        }
+      case 4:
+        {
+        // Loop until the pointer is past the limit, or until we hit
+        // a character that is all zeroes
+        while(*p32)
+          {
+          if( p8 - p_start > limit )
+            {
+            break;
+            }
+          p8 += 4;
+          }
+        break;
+        }
+      }
+    retval = p8 - p_start;
+    return retval;
+    }
+  };
 
 #endif

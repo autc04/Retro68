@@ -1,6 +1,5 @@
 # Check 32bit AVX512{BW,VL} swap instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vmovdqu8	%xmm5, %xmm6{%k7}	 # AVX512{BW,VL}

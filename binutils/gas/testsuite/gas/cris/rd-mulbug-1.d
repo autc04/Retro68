@@ -1,6 +1,6 @@
 #objdump: -s
 #source: mulbug-err-1.s
-#as: --em=criself --no-mul-bug-abort
+#as: --emulation=criself --no-mul-bug-abort
 
 # Check that we don't get any errors or messages with
 # "--no-mul-bug-abort".  No checking for "--mul-bug-abort",

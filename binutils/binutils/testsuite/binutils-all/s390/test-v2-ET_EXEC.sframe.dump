@@ -1,0 +1,51 @@
+#...
+Contents of the SFrame section .sframe:
+  Header :
+
+    Version: SFRAME_VERSION_2
+    Flags: SFRAME_F_FDE_SORTED,
+           SFRAME_F_FDE_FUNC_START_PCREL
+    Num FDEs: 6
+    Num FREs: 22
+
+  Function Index :
+
+    func idx \[0\]: pc = 0x10002b0, size = 32 bytes
+    STARTPC +CFA +FP +RA +
+    00000000010002b0 +sp\+160 +u +u +
+
+    func idx \[1\]: pc = 0x10002d0, size = 32 bytes
+    STARTPC\[m\] +CFA +FP +RA +
+    0000000000000000 +sp\+160 +u +u +
+
+    func idx \[2\]: pc = 0x10002f0, size = 56 bytes
+    STARTPC +CFA +FP +RA +
+    00000000010002f0 +sp\+160 +u +u +
+    00000000010002f6 +sp\+160 +c-72 +c-48 +
+    00000000010002fa +sp\+336 +c-72 +c-48 +
+    00000000010002fe +fp\+336 +c-72 +c-48 +
+    0000000001000326 +sp\+160 +u +u +
+
+    func idx \[3\]: pc = 0x1000328, size = 92 bytes
+    STARTPC +CFA +FP +RA +
+    0000000001000328 +sp\+160 +u +u +
+    000000000100032e +sp\+160 +c-72 +c-48 +
+    0000000001000332 +sp\+336 +c-72 +c-48 +
+    0000000001000336 +fp\+336 +c-72 +c-48 +
+    0000000001000382 +sp\+160 +u +u +
+
+    func idx \[4\]: pc = 0x1000388, size = 52 bytes
+    STARTPC +CFA +FP +RA +
+    0000000001000388 +sp\+160 +u +u +
+    000000000100038e +sp\+160 +c-72 +c-48 +
+    0000000001000392 +sp\+832 +c-72 +c-48 +
+    0000000001000396 +fp\+832 +c-72 +c-48 +
+    00000000010003ba +sp\+160 +u +u +
+
+    func idx \[5\]: pc = 0x10003c0, size = 58 bytes
+    STARTPC +CFA +FP +RA +
+    00000000010003c0 +sp\+160 +u +u +
+    00000000010003c6 +sp\+160 +c-72 +c-48 +
+    00000000010003ca +sp\+320 +c-72 +c-48 +
+    00000000010003ce +fp\+320 +c-72 +c-48 +
+    00000000010003f8 +sp\+160 +u +u +

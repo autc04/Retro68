@@ -16,9 +16,9 @@ Disassembly of section .text:
 [^<]*<one\+0x1c> f000 f804 	bl	00000028 <fooundefthumb>
 [^<]*<foo> e7ee      	b.n	00000000 <one>
 [^<]*<foo\+0x2> e003      	b.n	0000002c <foo2>
-[^<]*<foo\+0x4> 46c0      	nop			; \(mov r8, r8\)
-[^<]*<foo\+0x6> 46c0      	nop			; \(mov r8, r8\)
-[^<]*<fooundefthumb> 46c0      	nop			; \(mov r8, r8\)
+[^<]*<foo\+0x4> 46c0      	nop			@ \(mov r8, r8\)
+[^<]*<foo\+0x6> 46c0      	nop			@ \(mov r8, r8\)
+[^<]*<fooundefthumb> 46c0      	nop			@ \(mov r8, r8\)
 	...
-[^<]*<foo2> e1a00000 	nop			; \(mov r0, r0\)
-[^<]*<fooundefarm> e1a00000 	nop			; \(mov r0, r0\)
+[^<]*<foo2> e1a00000 	nop			@ \(mov r0, r0\)
+[^<]*<fooundefarm> e1a00000 	nop			@ \(mov r0, r0\)

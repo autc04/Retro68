@@ -10,11 +10,11 @@ Contents of the .debug_aranges section:
 
 [ 	]+Length:[ 	]+(16|28|44)
 [ 	]+Version:.*
-[ 	]+Offset into .debug_info:[ 	]+0x0
+[ 	]+Offset into .debug_info:[ 	]+(0x)?0
 [ 	]+Pointer Size:[ 	]+(2|4|8)
 [ 	]+Segment Size:[ 	]+0
 
 [ 	]+Address[ 	]+Length
-[ 	]+0+000 0+010 
-[ 	]+0+000 0+000 
+[ 	]+0+000 0+010 ?
+[ 	]+0+000 0+000 ?
 #pass

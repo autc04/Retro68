@@ -1,5 +1,5 @@
 /* Handle #pragma, system V.4 style.  Supports #pragma weak and #pragma pack.
-   Copyright (C) 1992-2025 Free Software Foundation, Inc.
+   Copyright (C) 1992-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -781,7 +781,7 @@ public:
       PK_IGNORED_ATTRIBUTES,
       PK_DIAGNOSTIC,
     } pd_kind;
-  diagnostic_t diagnostic_kind;
+  enum diagnostics::kind diagnostic_kind;
   const char *kind_str;
   const char *option_str;
   bool own_option_str;
@@ -792,7 +792,7 @@ public:
     valid = false;
     loc_kind = loc_option = UNKNOWN_LOCATION;
     pd_kind = PK_INVALID;
-    diagnostic_kind = DK_UNSPECIFIED;
+    diagnostic_kind = diagnostics::kind::unspecified;
     kind_str = option_str = nullptr;
     own_option_str = false;
   }
@@ -808,7 +808,7 @@ public:
     kind_str = kind_string;
 
     pd_kind = PK_INVALID;
-    diagnostic_kind = DK_UNSPECIFIED;
+    diagnostic_kind = diagnostics::kind::unspecified;
     if (strcmp (kind_str, "push") == 0)
       pd_kind = PK_PUSH;
     else if (strcmp (kind_str, "pop") == 0)
@@ -818,17 +818,17 @@ public:
     else if (strcmp (kind_str, "error") == 0)
       {
 	pd_kind = PK_DIAGNOSTIC;
-	diagnostic_kind = DK_ERROR;
+	diagnostic_kind = diagnostics::kind::error;
       }
     else if (strcmp (kind_str, "warning") == 0)
       {
 	pd_kind = PK_DIAGNOSTIC;
-	diagnostic_kind = DK_WARNING;
+	diagnostic_kind = diagnostics::kind::warning;
       }
     else if (strcmp (kind_str, "ignored") == 0)
       {
 	pd_kind = PK_DIAGNOSTIC;
-	diagnostic_kind = DK_IGNORED;
+	diagnostic_kind = diagnostics::kind::ignored;
       }
   }
 
@@ -1016,7 +1016,8 @@ handle_pragma_diagnostic_impl ()
      what we used to do here before and changing it breaks e.g.
      PR69543 and PR69558.  */
   control_warning_option (option_index, (int) data.diagnostic_kind,
-			  arg, data.diagnostic_kind != DK_IGNORED,
+			  arg,
+			  data.diagnostic_kind != diagnostics::kind::ignored,
 			  input_location, lang_mask, &handlers,
 			  &global_options, &global_options_set,
 			  global_dc);
@@ -1528,6 +1529,7 @@ static const struct omp_pragma_def omp_pragmas[] = {
   { "error", PRAGMA_OMP_ERROR },
   { "end", PRAGMA_OMP_END },
   { "flush", PRAGMA_OMP_FLUSH },
+  { "groupprivate", PRAGMA_OMP_GROUPPRIVATE },
   { "interop", PRAGMA_OMP_INTEROP },
   { "metadirective", PRAGMA_OMP_METADIRECTIVE },
   { "nothing", PRAGMA_OMP_NOTHING },
@@ -1847,7 +1849,9 @@ init_pragma (void)
   c_register_pragma_with_early_handler ("GCC", "target",
 					handle_pragma_target,
 					handle_pragma_target);
-  c_register_pragma ("GCC", "optimize", handle_pragma_optimize);
+  c_register_pragma_with_early_handler ("GCC", "optimize",
+					handle_pragma_optimize,
+					handle_pragma_optimize);
   c_register_pragma_with_early_handler ("GCC", "push_options",
 					handle_pragma_push_options,
 					handle_pragma_push_options);

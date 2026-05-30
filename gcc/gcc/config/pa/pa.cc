@@ -1,5 +1,5 @@
 /* Subroutines for insn-output.cc for HPPA.
-   Copyright (C) 1992-2025 Free Software Foundation, Inc.
+   Copyright (C) 1992-2026 Free Software Foundation, Inc.
    Contributed by Tim Moore (moore@cs.utah.edu), based on sparc.cc
 
 This file is part of GCC.
@@ -1123,8 +1123,7 @@ legitimize_tls_address (rtx addr)
 	else
 	  emit_insn (gen_tld_load (tmp, addr));
 	t1 = hppa_tls_call (tmp);
-	insn = get_insns ();
-	end_sequence ();
+	insn = end_sequence ();
 	t2 = gen_reg_rtx (Pmode);
 	emit_libcall_block (insn, t2, t1,
 			    gen_rtx_UNSPEC (Pmode, gen_rtvec (1, const0_rtx),
@@ -1933,31 +1932,36 @@ pa_emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 
   /* We can only handle indexed addresses in the destination operand
      of floating point stores.  Thus, we need to break out indexed
-     addresses from the destination operand.  */
-  if (GET_CODE (operand0) == MEM && IS_INDEX_ADDR_P (XEXP (operand0, 0)))
+     addresses from the destination operand.  We also need to break
+     out REG+D addresses with large offsets.  */
+  if (MEM_P (operand0)
+      && (IS_INDEX_ADDR_P (XEXP (operand0, 0))
+	  || (GET_CODE (XEXP (operand0, 0)) == PLUS
+	      && REG_P (XEXP (XEXP (operand0, 0), 0))
+	      && CONST_INT_P (XEXP (XEXP (operand0, 0), 1))
+	      && !INT_14_BITS (XEXP (XEXP (operand0, 0), 1)))))
     {
-      gcc_assert (can_create_pseudo_p ());
-
       tem = copy_to_mode_reg (Pmode, XEXP (operand0, 0));
       operand0 = replace_equiv_address (operand0, tem);
     }
 
   /* On targets with non-equivalent space registers, break out unscaled
-     indexed addresses from the source operand before the final CSE.
+     indexed addresses from the source operand before reload is completed.
      We have to do this because the REG_POINTER flag is not correctly
-     carried through various optimization passes and CSE may substitute
-     a pseudo without the pointer set for one with the pointer set.  As
-     a result, we loose various opportunities to create insns with
-     unscaled indexed addresses.  */
-  if (!TARGET_NO_SPACE_REGS
-      && !cse_not_expected
-      && GET_CODE (operand1) == MEM
+     carried through various optimization passes.  We also need to break
+     out REG+D addresses with large offsets.  */
+  if (MEM_P (operand1)
       && GET_CODE (XEXP (operand1, 0)) == PLUS
       && REG_P (XEXP (XEXP (operand1, 0), 0))
-      && REG_P (XEXP (XEXP (operand1, 0), 1)))
-    operand1
-      = replace_equiv_address (operand1,
-			       copy_to_mode_reg (Pmode, XEXP (operand1, 0)));
+      && ((!TARGET_NO_SPACE_REGS
+	   && !reload_completed
+	   && REG_P (XEXP (XEXP (operand1, 0), 1)))
+	  || (CONST_INT_P (XEXP (XEXP (operand1, 0), 1))
+	      && !INT_14_BITS (XEXP (XEXP (operand1, 0), 1)))))
+    {
+      tem = copy_to_mode_reg (Pmode, XEXP (operand1, 0));
+      operand1 = replace_equiv_address (operand1, tem);
+    }
 
   if (scratch_reg
       && reload_in_progress
@@ -5765,10 +5769,21 @@ pa_print_operand (FILE *file, rtx x, int code)
 		   && GET_CODE (XEXP (XEXP (x, 0), 1)) == REG)
 	    {
 	      /* Because the REG_POINTER flag can get lost during reload,
-		 pa_legitimate_address_p canonicalizes the order of the
-		 index and base registers in the combined move patterns.  */
+		 we now defer creation of instructions with scaled and
+		 unscaled index addresses until after reload.  We require
+		 that the flag be set in the base register on targets
+		 that use space registers.  */
 	      rtx base = XEXP (XEXP (x, 0), 1);
 	      rtx index = XEXP (XEXP (x, 0), 0);
+
+	      /* Accept non-canonical register order.  */
+	      if (!TARGET_NO_SPACE_REGS && !REG_POINTER (base))
+		{
+		  rtx tmp = base;
+		  base = index;
+		  index = tmp;
+		  gcc_assert (REG_POINTER (base));
+		}
 
 	      fprintf (file, "%s(%s)",
 		       reg_names [REGNO (index)], reg_names [REGNO (base)]);
@@ -11002,12 +11017,15 @@ pa_legitimate_address_p (machine_mode mode, rtx x, bool strict, code_helper)
 
       if (!TARGET_DISABLE_INDEXING
 	  /* Currently, the REG_POINTER flag is not set in a variety
-	     of situations (e.g., call arguments and pointer arithmetic).
-	     As a result, we can't reliably determine when unscaled
-	     addresses are legitimate on targets that need space register
-	     selection.  */
-	  && TARGET_NO_SPACE_REGS
+	     of situations (e.g., call arguments and pointer arithmetic)
+	     and the flag can be lost during reload.  So, we only allow
+	     unscaled index addresses after reload.  We can accept either
+	     register order.  */
 	  && REG_P (index)
+	  && (TARGET_NO_SPACE_REGS
+	      || (reload_completed
+		  && ((REG_POINTER (base) && !REG_POINTER (index))
+		      || (!REG_POINTER (base) && REG_POINTER (index)))))
 	  && MODE_OK_FOR_UNSCALED_INDEXING_P (mode)
 	  && (strict ? STRICT_REG_OK_FOR_INDEX_P (index)
 		     : REG_OK_FOR_INDEX_P (index))
@@ -11016,13 +11034,10 @@ pa_legitimate_address_p (machine_mode mode, rtx x, bool strict, code_helper)
 	return true;
 
       if (!TARGET_DISABLE_INDEXING
-	  /* Only accept base operands with the REG_POINTER flag prior to
+	  /* Only accept base operands with the REG_POINTER flag after
 	     reload on targets with non-equivalent space registers.  */
 	  && (TARGET_NO_SPACE_REGS
-	      || reload_completed
-	      || ((lra_in_progress || reload_in_progress)
-		   && HARD_REGISTER_P (base))
-	      || REG_POINTER (base))
+	      || (reload_completed && REG_POINTER (base)))
 	  && GET_CODE (index) == MULT
 	  && REG_P (XEXP (index, 0))
 	  && GET_MODE (XEXP (index, 0)) == Pmode

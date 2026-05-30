@@ -1,6 +1,6 @@
 /* AArch64 Non-NEON ACLE intrinsics include file.
 
-   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -78,36 +78,6 @@ _GCC_ARM_ACLE_DATA_FN (revll, bswap64, uint64_t, uint64_t)
 
 #undef _GCC_ARM_ACLE_DATA_FN
 
-__extension__ extern __inline void
-__attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
-__pld (void const volatile *__addr)
-{
-  return __builtin_aarch64_pld (__addr);
-}
-
-__extension__ extern __inline void
-__attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
-__pli (void const volatile *__addr)
-{
-  return __builtin_aarch64_pli (__addr);
-}
-
-__extension__ extern __inline void
-__attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
-__plix (unsigned int __cache, unsigned int __rettn,
-	void const volatile *__addr)
-{
-  return __builtin_aarch64_plix (__cache, __rettn, __addr);
-}
-
-__extension__ extern __inline void
-__attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
-__pldx (unsigned int __access, unsigned int __cache, unsigned int __rettn,
-	void const volatile *__addr)
-{
-  return __builtin_aarch64_pldx (__access, __cache, __rettn, __addr);
-}
-
 __extension__ extern __inline unsigned long
 __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
 __revl (unsigned long __value)
@@ -117,6 +87,24 @@ __revl (unsigned long __value)
   else
     return __rev (__value);
 }
+
+__extension__ extern __inline double
+__attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+__sqrt (double __x)
+{
+  return __builtin_aarch64_sqrtdf (__x);
+}
+
+__extension__ extern __inline float
+__attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+__sqrtf (float __x)
+{
+  return __builtin_aarch64_sqrtsf (__x);
+}
+
+#define __atomic_store_with_stshh(__addr, __value, __memory_order, __ret) \
+  __builtin_aarch64_stshh ((__addr), (__value), \
+					     (__memory_order), (__ret))
 
 #pragma GCC push_options
 #pragma GCC target ("+nothing+jscvt")

@@ -1,5 +1,5 @@
 # Expect script for i386 no-PLT tests.
-#   Copyright (C) 2016-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2016-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -64,7 +64,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"Build libno-plt-1b.so" \
-	"-shared tmpdir/no-plt-extern1a.o" \
+	"-shared -Wl,-z,lazy tmpdir/no-plt-extern1a.o" \
 	"-Wa,-mx86-used-note=yes" \
 	{dummy.s} \
 	{{readelf -Wr libno-plt-1b.rd} \
@@ -72,17 +72,17 @@ run_cc_link_tests [list \
 	"libno-plt-1b.so" \
     ] \
     [list \
-	"No PLT (dynamic 1a)" \
+	"Build no PLT (dynamic 1a)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
-	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
+	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o -Wl,-z,lazy" \
 	"-Wa,-mx86-used-note=yes" \
 	{dummy.s} \
 	{{readelf -Wr no-plt-1a.rd} {objdump -dwrj.text no-plt-1a.dd}} \
 	"no-plt-1a" \
     ] \
     [list \
-	"No PLT (dynamic 1b)" \
-	"tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
+	"Build no PLT (dynamic 1b)" \
+	"-Wl,-z,lazy tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
 	{dummy.s} \
@@ -90,16 +90,16 @@ run_cc_link_tests [list \
 	"no-plt-1b" \
     ] \
     [list \
-	"No PLT (dynamic 1c)" \
+	"Build no PLT (dynamic 1c)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
-	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
+	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so -Wl,-z,lazy" \
 	"-Wa,-mx86-used-note=yes" \
 	{dummy.s} \
 	{{readelf -Wr no-plt-1c.rd} {objdump -dwrj.text no-plt-1c.dd}} \
 	"no-plt-1c" \
     ] \
     [list \
-	"No PLT (static 1d)" \
+	"Build no PLT (static 1d)" \
 	"-static tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -108,8 +108,8 @@ run_cc_link_tests [list \
 	"no-plt-1d" \
     ] \
     [list \
-	"No PLT (PIE 1e)" \
-	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
+	"Build no PLT (PIE 1e)" \
+	"-pie -Wl,-z,lazy tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
 	"-Wa,-mx86-used-note=yes" \
 	{dummy.s} \
@@ -117,8 +117,8 @@ run_cc_link_tests [list \
 	"no-plt-1e" \
     ] \
     [list \
-	"No PLT (PIE 1f)" \
-	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
+	"Build no PLT (PIE 1f)" \
+	"-pie -Wl,-z,lazy tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
 	{ dummy.s } \
@@ -126,8 +126,8 @@ run_cc_link_tests [list \
 	"no-plt-1f" \
     ] \
     [list \
-	"No PLT (PIE 1g)" \
-	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
+	"Build no PLT (PIE 1g)" \
+	"-pie -Wl,-z,lazy tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
 	{ dummy.s } \
@@ -135,7 +135,7 @@ run_cc_link_tests [list \
 	"no-plt-1g" \
     ] \
     [list \
-	"No PLT (dynamic 1h)" \
+	"Build no PLT (dynamic 1h)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1b.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -144,7 +144,7 @@ run_cc_link_tests [list \
 	"no-plt-1h" \
     ] \
     [list \
-	"No PLT (dynamic 1i)" \
+	"Build no PLT (dynamic 1i)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-extern1b.o tmpdir/libno-plt-1a.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -153,7 +153,7 @@ run_cc_link_tests [list \
 	"no-plt-1i" \
     ] \
     [list \
-	"No PLT (static 1j)" \
+	"Build no PLT (static 1j)" \
 	"-static tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1b.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -165,7 +165,7 @@ run_cc_link_tests [list \
 
 run_ld_link_exec_tests [list \
     [list \
-	"No PLT (dynamic 1a)" \
+	"Run no PLT (dynamic 1a)" \
 	"tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -174,7 +174,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (dynamic 1b)" \
+	"Run no PLT (dynamic 1b)" \
 	"tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -183,7 +183,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (dynamic 1c)" \
+	"Run no PLT (dynamic 1c)" \
 	"tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -192,7 +192,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (static 1d)" \
+	"Run no PLT (static 1d)" \
 	"-static tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -201,7 +201,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (PIE 1e)" \
+	"Run no PLT (PIE 1e)" \
 	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -210,7 +210,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (PIE 1f)" \
+	"Run no PLT (PIE 1f)" \
 	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -219,7 +219,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (PIE 1g)" \
+	"Run no PLT (PIE 1g)" \
 	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -228,7 +228,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (dynamic 1h)" \
+	"Run no PLT (dynamic 1h)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1b.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -237,7 +237,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (dynamic 1i)" \
+	"Run no PLT (dynamic 1i)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-extern1b.o tmpdir/libno-plt-1a.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -246,7 +246,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (static 1j)" \
+	"Run no PLT (static 1j)" \
 	"-static tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1b.o" \
 	"-Wa,-mx86-used-note=yes" \

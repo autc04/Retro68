@@ -1,6 +1,5 @@
 # Check 64bit AVX512BW instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpabsb	%zmm29, %zmm30	 # AVX512BW

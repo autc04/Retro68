@@ -1,5 +1,5 @@
 # GCC host-specific configuration file.
-# Copyright (C) 1997-2025 Free Software Foundation, Inc.
+# Copyright (C) 1997-2026 Free Software Foundation, Inc.
 
 #This file is part of GCC.
 
@@ -260,10 +260,6 @@ case ${host} in
     out_host_hook_obj="${out_host_hook_obj} host-ppc64-darwin.o"
     host_xmake_file="${host_xmake_file} rs6000/x-darwin64"
     ;;
-  aarch64-*-darwin*)
-    out_host_hook_obj="${out_host_hook_obj} host-aarch64-darwin.o"
-    host_xmake_file="${host_xmake_file} aarch64/x-darwin"
-    ;;
   rs6000-ibm-aix* | powerpc-ibm-aix*)
     host_xmake_file="${host_xmake_file} rs6000/x-aix"
     ;;
@@ -274,6 +270,10 @@ case ${host} in
   *-*-linux*)
     out_host_hook_obj=host-linux.o
     host_xmake_file="${host_xmake_file} x-linux"
+    ;;
+  *-*-freebsd*)
+    out_host_hook_obj=host-freebsd.o
+    host_xmake_file="${host_xmake_file} x-freebsd"
     ;;
   *-*-openbsd*)
     out_host_hook_obj=host-openbsd.o

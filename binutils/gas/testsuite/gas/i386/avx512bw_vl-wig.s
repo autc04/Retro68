@@ -1,6 +1,5 @@
 # Check 32bit AVX512{BW,VL} WIG instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpabsb	%xmm5, %xmm6{%k7}	 # AVX512{BW,VL}

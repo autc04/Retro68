@@ -1,12 +1,13 @@
 #source: tls-relax-all.s
 #as: -mabi=ilp32
 #ld: -m [aarch64_choose_ilp32_emul] -T relocs-ilp32.ld -e0
+#notarget: *-*-nto*
 #objdump: -dr
 #...
  +10000:	a9bf7bfd 	stp	x29, x30, \[sp, #-16\]!
  +10004:	910003fd 	mov	x29, sp
- +10008:	90000080 	adrp	x0, 20000 <_GLOBAL_OFFSET_TABLE_>
- +1000c:	b9400400 	ldr	w0, \[x0, #4\]
+ +10008:	52a00000 	movz	w0, #0x0, lsl #16
+ +1000c:	72800100 	movk	w0, #0x8
  +10010:	d503201f 	nop
  +10014:	d503201f 	nop
  +10018:	d53bd041 	mrs	x1, tpidr_el0
@@ -20,8 +21,8 @@
  +10038:	8b000040 	add	x0, x2, x0
  +1003c:	b9400000 	ldr	w0, \[x0\]
  +10040:	0b000021 	add	w1, w1, w0
- +10044:	90000080 	adrp	x0, 20000 <_GLOBAL_OFFSET_TABLE_>
- +10048:	b9400800 	ldr	w0, \[x0, #8\]
+ +10044:	52a00000 	movz	w0, #0x0, lsl #16
+ +10048:	72800200 	movk	w0, #0x10
  +1004c:	d53bd041 	mrs	x1, tpidr_el0
  +10050:	0b000020 	add	w0, w1, w0
  +10054:	b9400000 	ldr	w0, \[x0\]

@@ -1,5 +1,5 @@
 /* Array bounds checking.
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -33,7 +33,7 @@ public:
 private:
   static tree check_array_bounds (tree *tp, int *walk_subtree, void *data);
   bool check_array_ref (location_t, tree, gimple *, bool ignore_off_by_one);
-  bool check_mem_ref (location_t, tree, bool ignore_off_by_one);
+  bool check_mem_ref (location_t, tree, gimple *, bool ignore_off_by_one);
   void check_addr_expr (location_t, tree, gimple *);
   void get_value_range (irange &r, const_tree op, gimple *);
 

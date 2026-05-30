@@ -4,7 +4,7 @@
 #source: tls-ie-10.s
 #source: tls-gd-1.s
 #source: tls-ie-8.s
-#as: --pic --no-underscore --em=criself -I$srcdir/$subdir
+#as: --pic --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: -m crislinux
 #objdump: -s -t -r -p
 

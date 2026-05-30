@@ -5,7 +5,7 @@
 
 .macro offset_sequence size, offset
 	.p2align 5
-sequence_\size\()_offset_\offset\():
+sequence_\size\()_offset_\offset:
 	.if \offset
 	.space \offset, 0xf4
 	.endif

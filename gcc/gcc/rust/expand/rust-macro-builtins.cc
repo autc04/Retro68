@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -29,7 +29,6 @@
 #include "rust-ast.h"
 #include "rust-cfg-strip.h"
 #include "rust-diagnostics.h"
-#include "rust-early-name-resolver.h"
 #include "rust-expr.h"
 #include "rust-lex.h"
 #include "rust-macro-invoc-lexer.h"
@@ -103,6 +102,15 @@ inline_asm_maker (AST::AsmKind global_asm)
   };
 }
 
+AST::MacroTranscriberFunc
+inline_llvm_asm_maker (AST::AsmKind global_asm)
+{
+  return [global_asm] (location_t loc, AST::MacroInvocData &invoc,
+		       AST::InvocKind semicolon) {
+    return MacroBuiltin::llvm_asm_handler (loc, invoc, semicolon, global_asm);
+  };
+}
+
 std::unordered_map<std::string, AST::MacroTranscriberFunc>
   MacroBuiltin::builtin_transcribers = {
     {"assert", MacroBuiltin::assert_handler},
@@ -121,7 +129,7 @@ std::unordered_map<std::string, AST::MacroTranscriberFunc>
     {"format_args_nl", format_args_maker (AST::FormatArgs::Newline::Yes)},
     {"asm", inline_asm_maker (AST::AsmKind::Inline)},
     // FIXME: Is that okay?
-    {"llvm_asm", inline_asm_maker (AST::AsmKind::Inline)},
+    {"llvm_asm", inline_llvm_asm_maker (AST::AsmKind::Inline)},
     {"global_asm", inline_asm_maker (AST::AsmKind::Global)},
     {"option_env", MacroBuiltin::option_env_handler},
     /* Unimplemented macro builtins */
@@ -153,6 +161,9 @@ std::unordered_map<std::string, AST::MacroTranscriberFunc>
     {"Ord", MacroBuiltin::proc_macro_builtin},
     {"PartialOrd", MacroBuiltin::proc_macro_builtin},
     {"Hash", MacroBuiltin::proc_macro_builtin},
+    /* offset_of is not declared in Rust 1.49 but still needed for
+       Rust-for-Linux, so we still create a transcriber and warn the user */
+    {"offset_of", MacroBuiltin::offset_of_handler},
 };
 
 tl::optional<BuiltinMacro>

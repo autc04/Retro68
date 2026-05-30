@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2025 Free Software Foundation, Inc.
+// Copyright (C) 2015-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -28,8 +28,6 @@ using std::experimental::net::io_context;
 void
 test01()
 {
-  bool test __attribute__((unused)) = false;
-
   std::error_code ec;
 
   io_context ctx;

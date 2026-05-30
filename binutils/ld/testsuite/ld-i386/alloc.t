@@ -8,5 +8,5 @@ SECTIONS
   .bar : AT(ADDR(.bar) - 0xC0000000) { *(.bar) } :text
   .bss : AT(ADDR(.bss) - 0xC0000000) { *(.bss) }
   .foo 0 : AT(ADDR(.bss) + SIZEOF(.bss) - 0xC0000000) { *(.foo) } :text
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

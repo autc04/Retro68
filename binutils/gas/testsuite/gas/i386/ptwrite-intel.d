@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 PTWRITE insns (Intel disassembly)
 #source: ptwrite.s

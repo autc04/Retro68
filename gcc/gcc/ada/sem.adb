@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,7 +26,6 @@
 with Atree;          use Atree;
 with Debug;          use Debug;
 with Debug_A;        use Debug_A;
-with Einfo;          use Einfo;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
 with Exp_SPARK;      use Exp_SPARK;
@@ -52,7 +51,6 @@ with Sem_Ch12;       use Sem_Ch12;
 with Sem_Ch13;       use Sem_Ch13;
 with Sem_Prag;       use Sem_Prag;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Stand;          use Stand;
@@ -104,8 +102,7 @@ package body Sem is
    --  Ghost mode.
 
    procedure Analyze (N : Node_Id) is
-      Saved_GM  : constant Ghost_Mode_Type := Ghost_Mode;
-      Saved_IGR : constant Node_Id         := Ignored_Ghost_Region;
+      Saved_Ghost_Config : constant Ghost_Config_Type := Ghost_Config;
       --  Save the Ghost-related attributes to restore on exit
 
    begin
@@ -191,6 +188,9 @@ package body Sem is
 
          when N_Conditional_Entry_Call =>
             Analyze_Conditional_Entry_Call (N);
+
+         when N_Continue_Statement =>
+            Analyze_Continue_Statement (N);
 
          when N_Delay_Alternative =>
             Analyze_Delay_Alternative (N);
@@ -765,12 +765,11 @@ package body Sem is
          E : constant Entity_Id := Defining_Entity_Or_Empty (N);
       begin
          if Present (E) then
-            if Ekind (E) = E_Void
-              and then Nkind (N) = N_Component_Declaration
+            if Nkind (N) = N_Component_Declaration
               and then Present (Scope (E))
               and then Ekind (Scope (E)) = E_Record_Type
             then
-               null; -- Set it later, in Analyze_Component_Declaration
+               null; -- Set it later, in Record_Type_Definition
             elsif not Is_Not_Self_Hidden (E) then
                Set_Is_Not_Self_Hidden (E);
             end if;
@@ -840,7 +839,7 @@ package body Sem is
          Expand_SPARK_Potential_Renaming (N);
       end if;
 
-      Restore_Ghost_Region (Saved_GM, Saved_IGR);
+      Restore_Ghost_Region (Saved_Ghost_Config);
    end Analyze;
 
    --  Version with check(s) suppressed
@@ -1399,7 +1398,6 @@ package body Sem is
            Prev     => Global_Suppress_Stack_Top,
            Next     => Suppress_Stack_Entries);
       Suppress_Stack_Entries := Global_Suppress_Stack_Top;
-      return;
    end Push_Global_Suppress_Stack_Entry;
 
    -------------------------------------
@@ -1420,8 +1418,6 @@ package body Sem is
            Prev     => Local_Suppress_Stack_Top,
            Next     => Suppress_Stack_Entries);
       Suppress_Stack_Entries := Local_Suppress_Stack_Top;
-
-      return;
    end Push_Local_Suppress_Stack_Entry;
 
    ---------------
@@ -1441,8 +1437,7 @@ package body Sem is
       --  the Ghost mode.
 
       procedure Do_Analyze is
-         Saved_GM  : constant Ghost_Mode_Type := Ghost_Mode;
-         Saved_IGR : constant Node_Id         := Ignored_Ghost_Region;
+         Saved_Ghost_Config : constant Ghost_Config_Type := Ghost_Config;
          Saved_ISMP : constant Boolean        :=
                         Ignore_SPARK_Mode_Pragmas_In_Instance;
          --  Save Ghost and SPARK mode-related data to restore on exit
@@ -1463,7 +1458,7 @@ package body Sem is
 
          --  Set up a clean environment before analyzing
 
-         Install_Ghost_Region (None, Empty);
+         Install_Ghost_Region (None, Empty, Empty);
          Ignore_SPARK_Mode_Pragmas_In_Instance := False;
 
          Outer_Generic_Scope := Empty;
@@ -1490,7 +1485,7 @@ package body Sem is
          Style_Max_Line_Length := Saved_ML;
          Style_Check_Max_Line_Length := Saved_CML;
 
-         Restore_Ghost_Region (Saved_GM, Saved_IGR);
+         Restore_Ghost_Region (Saved_Ghost_Config);
          Ignore_SPARK_Mode_Pragmas_In_Instance := Saved_ISMP;
       end Do_Analyze;
 
@@ -1565,7 +1560,7 @@ package body Sem is
 
       --  Compile predefined units with GNAT_Mode set to True, to properly
       --  process the categorization stuff. However, do not set GNAT_Mode
-      --  to True for the renamings units (Text_IO, IO_Exceptions, Direct_IO,
+      --  to True for the renaming units (Text_IO, IO_Exceptions, Direct_IO,
       --  Sequential_IO) as this would prevent pragma Extend_System from being
       --  taken into account, for example when Text_IO is renaming DEC.Text_IO.
 

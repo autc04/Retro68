@@ -1,4 +1,4 @@
-#as: --underscore --em=criself --march=v32
+#as: --underscore --emulation=criself --march=v32
 #objdump: -dr
 
 # Check expansion of "ba" into dword operands for different segment.

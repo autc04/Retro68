@@ -1,5 +1,5 @@
 /* Simplify intrinsic functions at compile-time.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Katherine Holcomb
 
 This file is part of GCC.
@@ -885,7 +885,8 @@ gfc_simplify_acos (gfc_expr *x)
 	if (mpfr_cmp_si (x->value.real, 1) > 0
 	    || mpfr_cmp_si (x->value.real, -1) < 0)
 	  {
-	    gfc_error ("Argument of ACOS at %L must be between -1 and 1",
+	    gfc_error ("Argument of ACOS at %L must be within the closed "
+		       "interval [-1, 1]",
 		       &x->where);
 	    return &gfc_bad_expr;
 	  }
@@ -1162,7 +1163,8 @@ gfc_simplify_asin (gfc_expr *x)
 	if (mpfr_cmp_si (x->value.real, 1) > 0
 	    || mpfr_cmp_si (x->value.real, -1) < 0)
 	  {
-	    gfc_error ("Argument of ASIN at %L must be between -1 and 1",
+	    gfc_error ("Argument of ASIN at %L must be within the closed "
+		       "interval [-1, 1]",
 		       &x->where);
 	    return &gfc_bad_expr;
 	  }
@@ -1183,6 +1185,7 @@ gfc_simplify_asin (gfc_expr *x)
 }
 
 
+#if MPFR_VERSION < MPFR_VERSION_NUM(4,2,0)
 /* Convert radians to degrees, i.e., x * 180 / pi.  */
 
 static void
@@ -1196,6 +1199,7 @@ rad2deg (mpfr_t x)
   mpfr_div (x, x, tmp, GFC_RND_MODE);
   mpfr_clear (tmp);
 }
+#endif
 
 
 /* Simplify ACOSD(X) where the returned value has units of degree.  */
@@ -1211,14 +1215,19 @@ gfc_simplify_acosd (gfc_expr *x)
   if (mpfr_cmp_si (x->value.real, 1) > 0
       || mpfr_cmp_si (x->value.real, -1) < 0)
     {
-      gfc_error ("Argument of ACOSD at %L must be between -1 and 1",
-		 &x->where);
+      gfc_error (
+	"Argument of ACOSD at %L must be within the closed interval [-1, 1]",
+	&x->where);
       return &gfc_bad_expr;
     }
 
   result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4,2,0)
+  mpfr_acosu (result->value.real, x->value.real, 360, GFC_RND_MODE);
+#else
   mpfr_acos (result->value.real, x->value.real, GFC_RND_MODE);
   rad2deg (result->value.real);
+#endif
 
   return range_check (result, "ACOSD");
 }
@@ -1237,14 +1246,19 @@ gfc_simplify_asind (gfc_expr *x)
   if (mpfr_cmp_si (x->value.real, 1) > 0
       || mpfr_cmp_si (x->value.real, -1) < 0)
     {
-      gfc_error ("Argument of ASIND at %L must be between -1 and 1",
-		 &x->where);
+      gfc_error (
+	"Argument of ASIND at %L must be within the closed interval [-1, 1]",
+	&x->where);
       return &gfc_bad_expr;
     }
 
   result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4,2,0)
+  mpfr_asinu (result->value.real, x->value.real, 360, GFC_RND_MODE);
+#else
   mpfr_asin (result->value.real, x->value.real, GFC_RND_MODE);
   rad2deg (result->value.real);
+#endif
 
   return range_check (result, "ASIND");
 }
@@ -1261,8 +1275,12 @@ gfc_simplify_atand (gfc_expr *x)
     return NULL;
 
   result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4,2,0)
+  mpfr_atanu (result->value.real, x->value.real, 360, GFC_RND_MODE);
+#else
   mpfr_atan (result->value.real, x->value.real, GFC_RND_MODE);
   rad2deg (result->value.real);
+#endif
 
   return range_check (result, "ATAND");
 }
@@ -1369,7 +1387,7 @@ gfc_simplify_atan2 (gfc_expr *y, gfc_expr *x)
 
   if (mpfr_zero_p (y->value.real) && mpfr_zero_p (x->value.real))
     {
-      gfc_error ("If first argument of ATAN2 at %L is zero, then the "
+      gfc_error ("If the first argument of ATAN2 at %L is zero, then the "
 		 "second argument must not be zero", &y->where);
       return &gfc_bad_expr;
     }
@@ -1948,14 +1966,19 @@ gfc_simplify_atan2d (gfc_expr *y, gfc_expr *x)
 
   if (mpfr_zero_p (y->value.real) && mpfr_zero_p (x->value.real))
     {
-      gfc_error ("If first argument of ATAN2D at %L is zero, then the "
+      gfc_error ("If the first argument of ATAN2D at %L is zero, then the "
 		 "second argument must not be zero", &y->where);
       return &gfc_bad_expr;
     }
 
   result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4,2,0)
+  mpfr_atan2u (result->value.real, y->value.real, x->value.real, 360,
+	       GFC_RND_MODE);
+#else
   mpfr_atan2 (result->value.real, y->value.real, x->value.real, GFC_RND_MODE);
   rad2deg (result->value.real);
+#endif
 
   return range_check (result, "ATAN2D");
 }
@@ -1990,6 +2013,8 @@ gfc_simplify_cos (gfc_expr *x)
 }
 
 
+#if MPFR_VERSION < MPFR_VERSION_NUM(4,2,0)
+/* Used by trigd_fe.inc.  */
 static void
 deg2rad (mpfr_t x)
 {
@@ -2001,11 +2026,13 @@ deg2rad (mpfr_t x)
   mpfr_mul (x, x, d2r, GFC_RND_MODE);
   mpfr_clear (d2r);
 }
+#endif
 
 
+#if MPFR_VERSION < MPFR_VERSION_NUM(4,2,0)
 /* Simplification routines for SIND, COSD, TAND.  */
 #include "trigd_fe.inc"
-
+#endif
 
 /* Simplify COSD(X) where X has the unit of degree.  */
 
@@ -2018,8 +2045,12 @@ gfc_simplify_cosd (gfc_expr *x)
     return NULL;
 
   result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4,2,0)
+  mpfr_cosu (result->value.real, x->value.real, 360, GFC_RND_MODE);
+#else
   mpfr_set (result->value.real, x->value.real, GFC_RND_MODE);
   simplify_cosd (result->value.real);
+#endif
 
   return range_check (result, "COSD");
 }
@@ -2036,8 +2067,12 @@ gfc_simplify_sind (gfc_expr *x)
     return NULL;
 
   result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4,2,0)
+  mpfr_sinu (result->value.real, x->value.real, 360, GFC_RND_MODE);
+#else
   mpfr_set (result->value.real, x->value.real, GFC_RND_MODE);
   simplify_sind (result->value.real);
+#endif
 
   return range_check (result, "SIND");
 }
@@ -2054,8 +2089,12 @@ gfc_simplify_tand (gfc_expr *x)
     return NULL;
 
   result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4,2,0)
+  mpfr_tanu (result->value.real, x->value.real, 360, GFC_RND_MODE);
+#else
   mpfr_set (result->value.real, x->value.real, GFC_RND_MODE);
   simplify_tand (result->value.real);
+#endif
 
   return range_check (result, "TAND");
 }
@@ -2078,7 +2117,11 @@ gfc_simplify_cotand (gfc_expr *x)
   result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
   mpfr_set (result->value.real, x->value.real, GFC_RND_MODE);
   mpfr_add_ui (result->value.real, result->value.real, 90, GFC_RND_MODE);
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4,2,0)
+  mpfr_tanu (result->value.real, result->value.real, 360, GFC_RND_MODE);
+#else
   simplify_tand (result->value.real);
+#endif
   mpfr_neg (result->value.real, result->value.real, GFC_RND_MODE);
 
   return range_check (result, "COTAND");
@@ -2112,6 +2155,250 @@ gfc_simplify_cosh (gfc_expr *x)
   return range_check (result, "COSH");
 }
 
+gfc_expr *
+gfc_simplify_acospi (gfc_expr *x)
+{
+  gfc_expr *result;
+
+  if (x->expr_type != EXPR_CONSTANT)
+    return NULL;
+
+  if (mpfr_cmp_si (x->value.real, 1) > 0 || mpfr_cmp_si (x->value.real, -1) < 0)
+    {
+      gfc_error (
+	"Argument of ACOSPI at %L must be within the closed interval [-1, 1]",
+	&x->where);
+      return &gfc_bad_expr;
+    }
+
+  result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4, 2, 0)
+  mpfr_acospi (result->value.real, x->value.real, GFC_RND_MODE);
+#else
+  mpfr_t pi, tmp;
+  mpfr_inits2 (2 * mpfr_get_prec (x->value.real), pi, tmp, NULL);
+  mpfr_const_pi (pi, GFC_RND_MODE);
+  mpfr_acos (tmp, x->value.real, GFC_RND_MODE);
+  mpfr_div (result->value.real, tmp, pi, GFC_RND_MODE);
+  mpfr_clears (pi, tmp, NULL);
+#endif
+
+  return result;
+}
+
+gfc_expr *
+gfc_simplify_asinpi (gfc_expr *x)
+{
+  gfc_expr *result;
+
+  if (x->expr_type != EXPR_CONSTANT)
+    return NULL;
+
+  if (mpfr_cmp_si (x->value.real, 1) > 0 || mpfr_cmp_si (x->value.real, -1) < 0)
+    {
+      gfc_error (
+	"Argument of ASINPI at %L must be within the closed interval [-1, 1]",
+	&x->where);
+      return &gfc_bad_expr;
+    }
+
+  result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4, 2, 0)
+  mpfr_asinpi (result->value.real, x->value.real, GFC_RND_MODE);
+#else
+  mpfr_t pi, tmp;
+  mpfr_inits2 (2 * mpfr_get_prec (x->value.real), pi, tmp, NULL);
+  mpfr_const_pi (pi, GFC_RND_MODE);
+  mpfr_asin (tmp, x->value.real, GFC_RND_MODE);
+  mpfr_div (result->value.real, tmp, pi, GFC_RND_MODE);
+  mpfr_clears (pi, tmp, NULL);
+#endif
+
+  return result;
+}
+
+gfc_expr *
+gfc_simplify_atanpi (gfc_expr *x)
+{
+  gfc_expr *result;
+
+  if (x->expr_type != EXPR_CONSTANT)
+    return NULL;
+
+  result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4, 2, 0)
+  mpfr_atanpi (result->value.real, x->value.real, GFC_RND_MODE);
+#else
+  mpfr_t pi, tmp;
+  mpfr_inits2 (2 * mpfr_get_prec (x->value.real), pi, tmp, NULL);
+  mpfr_const_pi (pi, GFC_RND_MODE);
+  mpfr_atan (tmp, x->value.real, GFC_RND_MODE);
+  mpfr_div (result->value.real, tmp, pi, GFC_RND_MODE);
+  mpfr_clears (pi, tmp, NULL);
+#endif
+
+  return range_check (result, "ATANPI");
+}
+
+gfc_expr *
+gfc_simplify_atan2pi (gfc_expr *y, gfc_expr *x)
+{
+  gfc_expr *result;
+
+  if (x->expr_type != EXPR_CONSTANT || y->expr_type != EXPR_CONSTANT)
+    return NULL;
+
+  if (mpfr_zero_p (y->value.real) && mpfr_zero_p (x->value.real))
+    {
+      gfc_error ("If the first argument of ATAN2PI at %L is zero, then the "
+		 "second argument must not be zero",
+		 &y->where);
+      return &gfc_bad_expr;
+    }
+
+  result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4, 2, 0)
+  mpfr_atan2pi (result->value.real, y->value.real, x->value.real, GFC_RND_MODE);
+#else
+  mpfr_t pi, tmp;
+  mpfr_inits2 (2 * mpfr_get_prec (x->value.real), pi, tmp, NULL);
+  mpfr_const_pi (pi, GFC_RND_MODE);
+  mpfr_atan2 (tmp, y->value.real, x->value.real, GFC_RND_MODE);
+  mpfr_div (result->value.real, tmp, pi, GFC_RND_MODE);
+  mpfr_clears (pi, tmp, NULL);
+#endif
+
+  return range_check (result, "ATAN2PI");
+}
+
+gfc_expr *
+gfc_simplify_cospi (gfc_expr *x)
+{
+  gfc_expr *result;
+
+  if (x->expr_type != EXPR_CONSTANT)
+    return NULL;
+
+  result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4, 2, 0)
+  mpfr_cospi (result->value.real, x->value.real, GFC_RND_MODE);
+#else
+  mpfr_t cs, n, r, two;
+  int s;
+
+  mpfr_inits2 (2 * mpfr_get_prec (x->value.real), cs, n, r, two, NULL);
+
+  mpfr_abs (r, x->value.real, GFC_RND_MODE);
+  mpfr_modf (n, r, r, GFC_RND_MODE);
+
+  if (mpfr_cmp_d (r, 0.5) == 0)
+    {
+      mpfr_set_ui (result->value.real, 0, GFC_RND_MODE);
+      return result;
+    }
+
+  mpfr_set_ui (two, 2, GFC_RND_MODE);
+  mpfr_fmod (cs, n, two, GFC_RND_MODE);
+  s = mpfr_cmp_ui (cs, 0) == 0 ? 1 : -1;
+
+  mpfr_const_pi (cs, GFC_RND_MODE);
+  mpfr_mul (cs, cs, r, GFC_RND_MODE);
+  mpfr_cos (cs, cs, GFC_RND_MODE);
+  mpfr_mul_si (result->value.real, cs, s, GFC_RND_MODE);
+
+  mpfr_clears (cs, n, r, two, NULL);
+#endif
+
+  return range_check (result, "COSPI");
+}
+
+gfc_expr *
+gfc_simplify_sinpi (gfc_expr *x)
+{
+  gfc_expr *result;
+
+  if (x->expr_type != EXPR_CONSTANT)
+    return NULL;
+
+  result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4, 2, 0)
+  mpfr_sinpi (result->value.real, x->value.real, GFC_RND_MODE);
+#else
+  mpfr_t sn, n, r, two;
+  int s;
+
+  mpfr_inits2 (2 * mpfr_get_prec (x->value.real), sn, n, r, two, NULL);
+
+  mpfr_abs (r, x->value.real, GFC_RND_MODE);
+  mpfr_modf (n, r, r, GFC_RND_MODE);
+
+  if (mpfr_cmp_d (r, 0.0) == 0)
+    {
+      mpfr_set_ui (result->value.real, 0, GFC_RND_MODE);
+      return result;
+    }
+
+  mpfr_set_ui (two, 2, GFC_RND_MODE);
+  mpfr_fmod (sn, n, two, GFC_RND_MODE);
+  s = mpfr_cmp_si (x->value.real, 0) < 0 ? -1 : 1;
+  s *= mpfr_cmp_ui (sn, 0) == 0 ? 1 : -1;
+
+  mpfr_const_pi (sn, GFC_RND_MODE);
+  mpfr_mul (sn, sn, r, GFC_RND_MODE);
+  mpfr_sin (sn, sn, GFC_RND_MODE);
+  mpfr_mul_si (result->value.real, sn, s, GFC_RND_MODE);
+
+  mpfr_clears (sn, n, r, two, NULL);
+#endif
+
+  return range_check (result, "SINPI");
+}
+
+gfc_expr *
+gfc_simplify_tanpi (gfc_expr *x)
+{
+  gfc_expr *result;
+
+  if (x->expr_type != EXPR_CONSTANT)
+    return NULL;
+
+  result = gfc_get_constant_expr (x->ts.type, x->ts.kind, &x->where);
+
+#if MPFR_VERSION >= MPFR_VERSION_NUM(4, 2, 0)
+  mpfr_tanpi (result->value.real, x->value.real, GFC_RND_MODE);
+#else
+  mpfr_t tn, n, r;
+  int s;
+
+  mpfr_inits2 (2 * mpfr_get_prec (x->value.real), tn, n, r, NULL);
+
+  mpfr_abs (r, x->value.real, GFC_RND_MODE);
+  mpfr_modf (n, r, r, GFC_RND_MODE);
+
+  if (mpfr_cmp_d (r, 0.0) == 0)
+    {
+      mpfr_set_ui (result->value.real, 0, GFC_RND_MODE);
+      return result;
+    }
+
+  s = mpfr_cmp_si (x->value.real, 0) < 0 ? -1 : 1;
+
+  mpfr_const_pi (tn, GFC_RND_MODE);
+  mpfr_mul (tn, tn, r, GFC_RND_MODE);
+  mpfr_tan (tn, tn, GFC_RND_MODE);
+  mpfr_mul_si (result->value.real, tn, s, GFC_RND_MODE);
+
+  mpfr_clears (tn, n, r, NULL);
+#endif
+
+  return range_check (result, "TANPI");
+}
 
 gfc_expr *
 gfc_simplify_count (gfc_expr *mask, gfc_expr *dim, gfc_expr *kind)
@@ -2717,6 +3004,7 @@ gfc_simplify_eoshift (gfc_expr *array, gfc_expr *shift, gfc_expr *boundary,
   /* Shut up compiler */
   len = 1;
   rsoffset = 1;
+  sstride[0] = 0;
 
   n = 0;
   for (d=0; d < array->rank; d++)
@@ -2786,7 +3074,7 @@ gfc_simplify_eoshift (gfc_expr *array, gfc_expr *shift, gfc_expr *boundary,
 	{
 	  while (n--)
 	    {
-	      *dest = gfc_copy_expr (bnd_ctor->expr);
+	      *dest = bnd_ctor->expr;
 	      dest += rsoffset;
 	    }
 	}
@@ -2794,7 +3082,7 @@ gfc_simplify_eoshift (gfc_expr *array, gfc_expr *shift, gfc_expr *boundary,
 	{
 	  while (n--)
 	    {
-	      *dest = gfc_copy_expr (bnd);
+	      *dest = bnd;
 	      dest += rsoffset;
 	    }
 	}
@@ -2834,6 +3122,9 @@ gfc_simplify_eoshift (gfc_expr *array, gfc_expr *shift, gfc_expr *boundary,
 				   gfc_copy_expr (resultvec[i]),
 				   NULL);
     }
+
+  free (arrayvec);
+  free (resultvec);
 
  final:
   if (temp_boundary)
@@ -3133,8 +3424,10 @@ gfc_simplify_get_team (gfc_expr *level ATTRIBUTE_UNUSED)
   if (flag_coarray == GFC_FCOARRAY_SINGLE)
     {
       gfc_expr *result;
-      result = gfc_get_array_expr (BT_INTEGER, gfc_default_integer_kind, &gfc_current_locus);
-      result->rank = 0;
+      result = gfc_get_null_expr (&gfc_current_locus);
+      result->ts.type = BT_DERIVED;
+      gfc_find_symbol ("team_type", gfc_current_ns, 1, &result->ts.u.derived);
+
       return result;
     }
 
@@ -4794,6 +5087,21 @@ gfc_simplify_len (gfc_expr *e, gfc_expr *kind)
 	    }
 	}
     }
+  else if (e->expr_type == EXPR_ARRAY && e->ts.type == BT_CHARACTER
+	   && e->ts.u.cl
+	   && e->ts.u.cl->length_from_typespec
+	   && e->ts.u.cl->length
+	   && e->ts.u.cl->length->ts.type == BT_INTEGER)
+    {
+      gfc_typespec ts;
+      gfc_clear_ts (&ts);
+      ts.type = BT_INTEGER;
+      ts.kind = k;
+      result = gfc_copy_expr (e->ts.u.cl->length);
+      gfc_convert_type_warn (result, &ts, 2, 0);
+      return result;
+    }
+
   return NULL;
 }
 
@@ -6727,7 +7035,7 @@ gfc_simplify_null (gfc_expr *mold)
 
 
 gfc_expr *
-gfc_simplify_num_images (gfc_expr *distance ATTRIBUTE_UNUSED, gfc_expr *failed)
+gfc_simplify_num_images (gfc_expr *team_or_team_number ATTRIBUTE_UNUSED)
 {
   gfc_expr *result;
 
@@ -6740,16 +7048,9 @@ gfc_simplify_num_images (gfc_expr *distance ATTRIBUTE_UNUSED, gfc_expr *failed)
   if (flag_coarray != GFC_FCOARRAY_SINGLE)
     return NULL;
 
-  if (failed && failed->expr_type != EXPR_CONSTANT)
-    return NULL;
-
   /* FIXME: gfc_current_locus is wrong.  */
   result = gfc_get_constant_expr (BT_INTEGER, gfc_default_integer_kind,
 				  &gfc_current_locus);
-
-  if (failed && failed->value.logical != 0)
-    mpz_set_si (result->value.integer, 0);
-  else
     mpz_set_si (result->value.integer, 1);
 
   return result;
@@ -8925,7 +9226,8 @@ gfc_simplify_trim (gfc_expr *e)
 
 
 gfc_expr *
-gfc_simplify_image_index (gfc_expr *coarray, gfc_expr *sub)
+gfc_simplify_image_index (gfc_expr *coarray, gfc_expr *sub,
+			  gfc_expr *team_or_team_number ATTRIBUTE_UNUSED)
 {
   gfc_expr *result;
   gfc_ref *ref;
@@ -9067,14 +9369,13 @@ gfc_simplify_image_status (gfc_expr *image, gfc_expr *team ATTRIBUTE_UNUSED)
 
 gfc_expr *
 gfc_simplify_this_image (gfc_expr *coarray, gfc_expr *dim,
-			 gfc_expr *distance ATTRIBUTE_UNUSED)
+			 gfc_expr *team ATTRIBUTE_UNUSED)
 {
   if (flag_coarray != GFC_FCOARRAY_SINGLE)
     return NULL;
 
-  /* If no coarray argument has been passed or when the first argument
-     is actually a distance argument.  */
-  if (coarray == NULL || !gfc_is_coarray (coarray))
+  /* If no coarray argument has been passed.  */
+  if (coarray == NULL)
     {
       gfc_expr *result;
       /* FIXME: gfc_current_locus is wrong.  */

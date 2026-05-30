@@ -1,4 +1,4 @@
-#as: --pic --no-underscore --em=criself -I$srcdir/$subdir
+#as: --pic --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: --shared -m crislinux --hash-style=sysv
 #source: tls128g.s
 #source: tls-ld-6.s

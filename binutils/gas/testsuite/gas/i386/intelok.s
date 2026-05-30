@@ -1,4 +1,6 @@
+	.ifdef USE_DIRECTIVE
 	.intel_syntax noprefix
+	.endif
 	.text
 start:
 

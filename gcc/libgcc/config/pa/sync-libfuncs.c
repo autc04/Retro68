@@ -1,5 +1,5 @@
 /* PA-RISC sync libfunc support.
-   Copyright (C) 2008-2025 Free Software Foundation, Inc.
+   Copyright (C) 2008-2026 Free Software Foundation, Inc.
    Based on code contributed by CodeSourcery for ARM EABI Linux.
    Modifications for PA Linux by Helge Deller <deller@gmx.de>
    Revised for general use by John David Anglin <danglin@gcc.gnu.org>
@@ -133,11 +133,11 @@ atomic_store_8 (volatile void *ptr, u64 value)
 {
   double tmp;
 
-  asm volatile ("stws|stw} %2,-16(%%sp)\n\t"
-		"{stws|stw} %R2,-12(%%sp)\n\t"
-		"{fldds|fldd} -16(%%sp),%1\n\t"
-		"{fstds|fstd} %1,0(%0)"
-		: "=m" (ptr), "=&f" (tmp) : "r" (value): "memory");
+  asm volatile ("{stws|stw} %1,-16(%%sp)\n\t"
+		"{stws|stw} %R1,-12(%%sp)\n\t"
+		"{fldds|fldd} -16(%%sp),%0\n\t"
+		: "=f" (tmp) : "r" (value): "memory");
+  *(volatile double *)ptr = tmp;
 }
 #endif
 

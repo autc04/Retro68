@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /* Subroutines used for code generation on IBM RS/6000.
-   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   Copyright (C) 1991-2026 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
    This file is part of GCC.
@@ -55,7 +55,6 @@
 #include "output.h"
 #include "common/common-target.h"
 #include "langhooks.h"
-#include "reload.h"
 #include "sched-int.h"
 #include "gimplify.h"
 #include "gimple-iterator.h"
@@ -88,6 +87,7 @@
 extern tree rs6000_builtin_mask_for_load (void);
 extern tree rs6000_builtin_md_vectorized_function (tree, tree, tree);
 extern tree rs6000_builtin_reciprocal (tree);
+static tree rs6000_mangle_decl_assembler_name (tree, tree);
 
   /* Set -mabi=ieeelongdouble on some old targets.  In the future, power server
      systems will also set long double to be IEEE 128-bit.  AIX and Darwin
@@ -1271,9 +1271,6 @@ static const attribute_spec rs6000_gnu_attributes[] =
     rs6000_handle_struct_attribute, NULL },
   { "gcc_struct", 0, 0, false, false, false, false,
     rs6000_handle_struct_attribute, NULL },
-  { "pascal", 0, 0, false, true, true, false/*don't be strict about function pointers*/,
-    NULL, NULL },
-
 #ifdef SUBTARGET_ATTRIBUTE_TABLE
   SUBTARGET_ATTRIBUTE_TABLE,
 #endif
@@ -1732,9 +1729,6 @@ static const scoped_attribute_specs *const rs6000_attribute_table[] =
 #undef TARGET_GET_FUNCTION_VERSIONS_DISPATCHER
 #define TARGET_GET_FUNCTION_VERSIONS_DISPATCHER				\
   rs6000_get_function_versions_dispatcher
-
-#undef TARGET_OPTION_FUNCTION_VERSIONS
-#define TARGET_OPTION_FUNCTION_VERSIONS common_function_versions
 
 #undef TARGET_HARD_REGNO_NREGS
 #define TARGET_HARD_REGNO_NREGS rs6000_hard_regno_nregs_hook
@@ -4953,12 +4947,20 @@ rs6000_vector_alignment_reachable (const_tree type ATTRIBUTE_UNUSED, bool is_pac
    target.  */
 static bool
 rs6000_builtin_support_vector_misalignment (machine_mode mode,
-					    const_tree type,
 					    int misalignment,
-					    bool is_packed)
+					    bool is_packed,
+					    bool is_gather_scatter)
 {
   if (TARGET_VSX)
     {
+      if (is_gather_scatter)
+	{
+	  if (TARGET_ALTIVEC && is_packed)
+	    return false;
+	  else
+	    return true;
+	}
+
       if (TARGET_EFFICIENT_UNALIGNED_VSX)
 	return true;
 
@@ -4970,13 +4972,13 @@ rs6000_builtin_support_vector_misalignment (machine_mode mode,
 	{
 	  /* Misalignment factor is unknown at compile time but we know
 	     it's word aligned.  */
-	  if (rs6000_vector_alignment_reachable (type, is_packed))
-            {
-              int element_size = TREE_INT_CST_LOW (TYPE_SIZE (type));
+	  if (rs6000_vector_alignment_reachable (NULL_TREE, is_packed))
+	    {
+	      int element_size = GET_MODE_UNIT_BITSIZE (mode);
 
-              if (element_size == 64 || element_size == 32)
-               return true;
-            }
+	      if (element_size == 64 || element_size == 32)
+		return true;
+	    }
 
 	  return false;
 	}
@@ -5169,6 +5171,7 @@ public:
 
 protected:
   void update_target_cost_per_stmt (vect_cost_for_stmt, stmt_vec_info,
+				    slp_tree node,
 				    vect_cost_model_location, unsigned int);
   void density_test (loop_vec_info);
   void adjust_vect_cost_per_loop (loop_vec_info);
@@ -5316,6 +5319,7 @@ rs6000_adjust_vect_cost_per_stmt (enum vect_cost_for_stmt kind,
 void
 rs6000_cost_data::update_target_cost_per_stmt (vect_cost_for_stmt kind,
 					       stmt_vec_info stmt_info,
+					       slp_tree node,
 					       vect_cost_model_location where,
 					       unsigned int orig_count)
 {
@@ -5376,12 +5380,12 @@ rs6000_cost_data::update_target_cost_per_stmt (vect_cost_for_stmt kind,
 	 or may not need to apply.  When finalizing the cost of the loop,
 	 the extra penalty is applied when the load density heuristics
 	 are satisfied.  */
-      if (kind == vec_construct && stmt_info
-	  && STMT_VINFO_TYPE (stmt_info) == load_vec_info_type
-	  && (STMT_VINFO_MEMORY_ACCESS_TYPE (stmt_info) == VMAT_ELEMENTWISE
-	      || STMT_VINFO_MEMORY_ACCESS_TYPE (stmt_info) == VMAT_STRIDED_SLP))
+      if (kind == vec_construct && node
+	  && SLP_TREE_TYPE (node) == load_vec_info_type
+	  && (SLP_TREE_MEMORY_ACCESS_TYPE (node) == VMAT_ELEMENTWISE
+	      || SLP_TREE_MEMORY_ACCESS_TYPE (node) == VMAT_STRIDED_SLP))
 	{
-	  tree vectype = STMT_VINFO_VECTYPE (stmt_info);
+	  tree vectype = SLP_TREE_VECTYPE (node);
 	  unsigned int nunits = vect_nunits_for_cost (vectype);
 	  /* As PR103702 shows, it's possible that vectorizer wants to do
 	     costings for only one unit here, it's no need to do any
@@ -5410,7 +5414,7 @@ rs6000_cost_data::update_target_cost_per_stmt (vect_cost_for_stmt kind,
 
 unsigned
 rs6000_cost_data::add_stmt_cost (int count, vect_cost_for_stmt kind,
-				 stmt_vec_info stmt_info, slp_tree,
+				 stmt_vec_info stmt_info, slp_tree node,
 				 tree vectype, int misalign,
 				 vect_cost_model_location where)
 {
@@ -5428,7 +5432,7 @@ rs6000_cost_data::add_stmt_cost (int count, vect_cost_for_stmt kind,
       retval = adjust_cost_for_freq (stmt_info, where, count * stmt_cost);
       m_costs[where] += retval;
 
-      update_target_cost_per_stmt (kind, stmt_info, where, orig_count);
+      update_target_cost_per_stmt (kind, stmt_info, node, where, orig_count);
     }
 
   return retval;
@@ -9262,8 +9266,7 @@ rs6000_debug_legitimize_address (rtx x, rtx oldx, machine_mode mode)
 
   start_sequence ();
   ret = rs6000_legitimize_address (x, oldx, mode);
-  insns = get_insns ();
-  end_sequence ();
+  insns = end_sequence ();
 
   if (ret != x)
     {
@@ -10314,15 +10317,18 @@ can_be_rotated_to_negative_lis (HOST_WIDE_INT c, int *rot)
 
   /* case b. xx0..01..1xx: some of 15 x's (and some of 16 0's) are
      rotated over the highest bit.  */
-  int pos_one = clz_hwi ((c << 16) >> 16);
-  middle_zeros = ctz_hwi (c >> (HOST_BITS_PER_WIDE_INT - pos_one));
-  int middle_ones = clz_hwi (~(c << pos_one));
-  if (middle_zeros >= 16 && middle_ones >= 33)
+  unsigned HOST_WIDE_INT uc = c;
+  int pos_one = clz_hwi ((HOST_WIDE_INT) (uc << 16) >> 16);
+  if (pos_one > 0 && pos_one < HOST_BITS_PER_WIDE_INT)
     {
-      *rot = pos_one;
-      return true;
+      middle_zeros = ctz_hwi (c >> (HOST_BITS_PER_WIDE_INT - pos_one));
+      int middle_ones = clz_hwi (~(uc << pos_one));
+      if (middle_zeros >= 16 && middle_ones >= 33)
+	{
+	  *rot = pos_one;
+	  return true;
+	}
     }
-
   return false;
 }
 
@@ -10439,7 +10445,8 @@ can_be_built_by_li_and_rldic (HOST_WIDE_INT c, int *shift, HOST_WIDE_INT *mask)
   if (lz >= HOST_BITS_PER_WIDE_INT)
     return false;
 
-  int middle_ones = clz_hwi (~(c << lz));
+  unsigned HOST_WIDE_INT uc = c;
+  int middle_ones = clz_hwi (~(uc << lz));
   if (tz + lz + middle_ones >= ones
       && (tz - lz) < HOST_BITS_PER_WIDE_INT
       && tz < HOST_BITS_PER_WIDE_INT)
@@ -10473,7 +10480,7 @@ can_be_built_by_li_and_rldic (HOST_WIDE_INT c, int *shift, HOST_WIDE_INT *mask)
   if (!IN_RANGE (pos_first_1, 1, HOST_BITS_PER_WIDE_INT-1))
     return false;
 
-  middle_ones = clz_hwi (~c << pos_first_1);
+  middle_ones = clz_hwi ((~(unsigned HOST_WIDE_INT) c) << pos_first_1);
   middle_zeros = ctz_hwi (c >> (HOST_BITS_PER_WIDE_INT - pos_first_1));
   if (pos_first_1 < HOST_BITS_PER_WIDE_INT
       && middle_ones + middle_zeros < HOST_BITS_PER_WIDE_INT
@@ -10575,7 +10582,8 @@ rs6000_emit_set_long_const (rtx dest, HOST_WIDE_INT c, int *num_insns)
     {
       /* li/lis; rldicX */
       unsigned HOST_WIDE_INT imm = (c | ~mask);
-      imm = (imm >> shift) | (imm << (HOST_BITS_PER_WIDE_INT - shift));
+      if (shift > 0 && shift < HOST_BITS_PER_WIDE_INT)
+	imm = (imm >> shift) | (imm << (HOST_BITS_PER_WIDE_INT - shift));
 
       count_or_emit_insn (temp, GEN_INT (imm));
       if (shift != 0)
@@ -14661,7 +14669,7 @@ print_operand (FILE *file, rtx x, int code)
 	   (plus (unspec [(symbol_ref ("x")) (reg 2)] tocrel) 4)
 	   without this hack would be output as "x@toc+4".  We
 	   want "x+4@toc".  */
-	output_addr_const (file, CONST_CAST_RTX (tocrel_base_oac));
+	output_addr_const (file, const_cast<rtx> (tocrel_base_oac));
       else if (GET_CODE (x) == UNSPEC && XINT (x, 1) == UNSPEC_TLSGD)
 	output_addr_const (file, XVECEXP (x, 0, 0));
       else if (GET_CODE (x) == UNSPEC && XINT (x, 1) == UNSPEC_PLTSEQ)
@@ -14772,7 +14780,7 @@ print_operand_address (FILE *file, rtx x)
 	 .       (plus (unspec [(symbol_ref ("x")) (reg 2)] tocrel) 8))
 	 without this hack would be output as "x@toc+8@l(9)".  We
 	 want "x+8@toc@l(9)".  */
-      output_addr_const (file, CONST_CAST_RTX (tocrel_base_oac));
+      output_addr_const (file, const_cast<rtx> (tocrel_base_oac));
       if (GET_CODE (x) == LO_SUM)
 	fprintf (file, "@l(%s)", reg_names[REGNO (XEXP (x, 0))]);
       else
@@ -14799,7 +14807,7 @@ rs6000_output_addr_const_extra (FILE *file, rtx x)
 	  {
 	    if (INTVAL (tocrel_offset_oac) >= 0)
 	      fprintf (file, "+");
-	    output_addr_const (file, CONST_CAST_RTX (tocrel_offset_oac));
+	    output_addr_const (file, const_cast<rtx> (tocrel_offset_oac));
 	  }
 	if (!TARGET_AIX || (TARGET_ELF && TARGET_MINIMAL_TOC))
 	  {
@@ -22071,9 +22079,8 @@ rs6000_xcoff_declare_object_name (FILE *file, const char *name, tree decl)
 {
   struct declare_alias_data data = {file, false};
   ASM_OUTPUT_LABEL (file, name);
-  if (symtab_node::get (decl))
-    symtab_node::get (decl)->call_for_symbol_and_aliases (rs6000_declare_alias,
-							  &data, true);
+  symtab_node::get_create (decl)->call_for_symbol_and_aliases (rs6000_declare_alias,
+							       &data, true);
 }
 
 /* Overide the default 'SYMBOL-.' syntax with AIX compatible 'SYMBOL-$'. */
@@ -25318,7 +25325,6 @@ rs6000_get_function_versions_dispatcher (void *decl)
   struct cgraph_node *node = NULL;
   struct cgraph_node *default_node = NULL;
   struct cgraph_function_version_info *node_v = NULL;
-  struct cgraph_function_version_info *first_v = NULL;
 
   tree dispatch_decl = NULL;
 
@@ -25338,37 +25344,15 @@ rs6000_get_function_versions_dispatcher (void *decl)
   if (node_v->dispatcher_resolver != NULL)
     return node_v->dispatcher_resolver;
 
-  /* Find the default version and make it the first node.  */
-  first_v = node_v;
-  /* Go to the beginning of the chain.  */
-  while (first_v->prev != NULL)
-    first_v = first_v->prev;
-
-  default_version_info = first_v;
-  while (default_version_info != NULL)
-    {
-      const tree decl2 = default_version_info->this_node->decl;
-      if (is_function_default_version (decl2))
-        break;
-      default_version_info = default_version_info->next;
-    }
+  /* The default node is always the beginning of the chain.  */
+  default_version_info = node_v;
+  while (default_version_info->prev)
+    default_version_info = default_version_info->prev;
+  default_node = default_version_info->this_node;
 
   /* If there is no default node, just return NULL.  */
-  if (default_version_info == NULL)
+  if (!is_function_default_version (default_node->decl))
     return NULL;
-
-  /* Make default info the first node.  */
-  if (first_v != default_version_info)
-    {
-      default_version_info->prev->next = default_version_info->next;
-      if (default_version_info->next)
-        default_version_info->next->prev = default_version_info->prev;
-      first_v->prev = default_version_info;
-      default_version_info->next = first_v;
-      default_version_info->prev = NULL;
-    }
-
-  default_node = default_version_info->this_node;
 
 #ifndef TARGET_LIBC_PROVIDES_HWCAP_IN_TCB
   error_at (DECL_SOURCE_LOCATION (default_node->decl),
@@ -25379,20 +25363,9 @@ rs6000_get_function_versions_dispatcher (void *decl)
   if (targetm.has_ifunc_p ())
     {
       struct cgraph_function_version_info *it_v = NULL;
-      struct cgraph_node *dispatcher_node = NULL;
-      struct cgraph_function_version_info *dispatcher_version_info = NULL;
 
       /* Right now, the dispatching is done via ifunc.  */
       dispatch_decl = make_dispatcher_decl (default_node->decl);
-      TREE_NOTHROW (dispatch_decl) = TREE_NOTHROW (fn);
-
-      dispatcher_node = cgraph_node::get_create (dispatch_decl);
-      gcc_assert (dispatcher_node != NULL);
-      dispatcher_node->dispatcher_function = 1;
-      dispatcher_version_info
-	= dispatcher_node->insert_new_function_version ();
-      dispatcher_version_info->next = default_version_info;
-      dispatcher_node->definition = 1;
 
       /* Set the dispatcher for all the versions.  */
       it_v = default_version_info;
@@ -25425,13 +25398,24 @@ make_resolver_func (const tree default_decl,
 {
   /* Make the resolver function static.  The resolver function returns
      void *.  */
-  tree decl_name = clone_function_name (default_decl, "resolver");
-  const char *resolver_name = IDENTIFIER_POINTER (decl_name);
   tree type = build_function_type_list (ptr_type_node, NULL_TREE);
-  tree decl = build_fn_decl (resolver_name, type);
-  SET_DECL_ASSEMBLER_NAME (decl, decl_name);
+  tree decl = build_fn_decl (IDENTIFIER_POINTER (DECL_NAME (default_decl)),
+			     type);
 
-  DECL_NAME (decl) = decl_name;
+  cgraph_node *node = cgraph_node::get (default_decl);
+  gcc_assert (node && node->function_version ());
+
+  /* Set the assembler name to prevent cgraph_node attempting to mangle.  */
+  SET_DECL_ASSEMBLER_NAME (decl, DECL_ASSEMBLER_NAME (default_decl));
+
+  cgraph_node *resolver_node = cgraph_node::get_create (decl);
+  resolver_node->dispatcher_resolver_function = true;
+
+  tree id = rs6000_mangle_decl_assembler_name
+    (decl, node->function_version ()->assembler_name);
+  symtab->change_decl_assembler_name (decl, id);
+
+  DECL_NAME (decl) = DECL_NAME (default_decl);
   TREE_USED (decl) = 1;
   DECL_ARTIFICIAL (decl) = 1;
   DECL_IGNORED_P (decl) = 0;
@@ -25477,7 +25461,8 @@ make_resolver_func (const tree default_decl,
 
   /* Mark dispatch_decl as "ifunc" with resolver as resolver_name.  */
   DECL_ATTRIBUTES (dispatch_decl)
-    = make_attribute ("ifunc", resolver_name, DECL_ATTRIBUTES (dispatch_decl));
+    = make_attribute ("ifunc", IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl)),
+		      DECL_ATTRIBUTES (dispatch_decl));
 
   cgraph_node::create_same_body_alias (dispatch_decl, decl);
 
@@ -25660,7 +25645,7 @@ rs6000_generate_version_dispatcher_body (void *node_p)
 	 not.  This happens for methods in derived classes that override
 	 virtual methods in base classes but are not explicitly marked as
 	 virtual.  */
-      if (DECL_VINDEX (version->decl))
+      if (DECL_VIRTUAL_P (version->decl))
 	sorry ("Virtual function multiversioning not supported");
 
       fn_ver_vec.safe_push (version->decl);
@@ -25769,10 +25754,13 @@ rs6000_can_inline_p (tree caller, tree callee)
 	}
     }
 
-  /* Ignore -mpower8-fusion and -mpower10-fusion options for inlining
-     purposes.  */
-  callee_isa &= ~(OPTION_MASK_P8_FUSION | OPTION_MASK_P10_FUSION);
-  explicit_isa &= ~(OPTION_MASK_P8_FUSION | OPTION_MASK_P10_FUSION);
+  /* Ignore -mpower8-fusion, -mpower10-fusion and -msave-toc-indirect options
+     for inlining purposes.  */
+  HOST_WIDE_INT ignored_isas = (OPTION_MASK_P8_FUSION
+				| OPTION_MASK_P10_FUSION
+				| OPTION_MASK_SAVE_TOC_INDIRECT);
+  callee_isa &= ~ignored_isas;
+  explicit_isa &= ~ignored_isas;
 
   /* The callee's options must be a subset of the caller's options, i.e.
      a vsx function may inline an altivec function, but a no-vsx function
@@ -28502,7 +28490,7 @@ static inline built_in_function
 complex_multiply_builtin_code (machine_mode mode)
 {
   gcc_assert (IN_RANGE (mode, MIN_MODE_COMPLEX_FLOAT, MAX_MODE_COMPLEX_FLOAT));
-  int func = BUILT_IN_COMPLEX_MUL_MIN + mode - MIN_MODE_COMPLEX_FLOAT;
+  int func = BUILT_IN_COMPLEX_MUL_MIN + (mode - MIN_MODE_COMPLEX_FLOAT);
   return (built_in_function) func;
 }
 
@@ -28513,8 +28501,46 @@ static inline built_in_function
 complex_divide_builtin_code (machine_mode mode)
 {
   gcc_assert (IN_RANGE (mode, MIN_MODE_COMPLEX_FLOAT, MAX_MODE_COMPLEX_FLOAT));
-  int func = BUILT_IN_COMPLEX_DIV_MIN + mode - MIN_MODE_COMPLEX_FLOAT;
+  int func = BUILT_IN_COMPLEX_DIV_MIN + (mode - MIN_MODE_COMPLEX_FLOAT);
   return (built_in_function) func;
+}
+
+/* This function changes the assembler name for functions that are
+   versions.  If DECL is a function version and has a "target"
+   attribute, it appends the attribute string to its assembler name.  */
+
+static tree
+rs6000_mangle_function_version_assembler_name (tree decl, tree id)
+{
+  tree version_attr;
+  const char *version_string;
+  char *attr_str;
+
+  if (DECL_DECLARED_INLINE_P (decl)
+      && lookup_attribute ("gnu_inline", DECL_ATTRIBUTES (decl)))
+    error_at (DECL_SOURCE_LOCATION (decl),
+	      "function versions cannot be marked as %<gnu_inline%>,"
+	      " bodies have to be generated");
+
+  if (DECL_VIRTUAL_P (decl) || DECL_VINDEX (decl))
+    sorry ("virtual function multiversioning not supported");
+
+  version_attr = lookup_attribute ("target", DECL_ATTRIBUTES (decl));
+
+  /* target attribute string cannot be NULL.  */
+  gcc_assert (version_attr != NULL_TREE);
+
+  version_string = TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (version_attr)));
+
+  if (strcmp (version_string, "default") == 0)
+    return clone_identifier (id, "default");
+
+  attr_str = sorted_attr_string (TREE_VALUE (version_attr));
+
+  tree ret = clone_identifier (id, attr_str, true);
+
+  XDELETEVEC (attr_str);
+  return ret;
 }
 
 /* On 64-bit Linux and Freebsd systems, possibly switch the long double library
@@ -28702,6 +28728,14 @@ rs6000_mangle_decl_assembler_name (tree decl, tree id)
 	}
     }
 
+  if (TREE_CODE (decl) == FUNCTION_DECL)
+    {
+      cgraph_node *node = cgraph_node::get (decl);
+      if (node && node->dispatcher_resolver_function)
+	id = clone_identifier (id, "resolver");
+      else if (DECL_FUNCTION_VERSIONED (decl))
+	id = rs6000_mangle_function_version_assembler_name (decl, id);
+    }
   return id;
 }
 

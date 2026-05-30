@@ -4,7 +4,7 @@
 #source: expdyn1.s
 #source: tls-hx.s
 #source: dso-1.s
-#as: --pic --no-underscore --em=criself --march=v32
+#as: --pic --no-underscore --emulation=criself --march=v32
 #ld: --shared -m crislinux --hash-style=sysv
 #readelf: -a
 

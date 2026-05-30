@@ -1,5 +1,5 @@
 /* Subroutines for loongarch-specific option handling.
-   Copyright (C) 2021-2025 Free Software Foundation, Inc.
+   Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by Loongson Ltd.
 
 This file is part of GCC.
@@ -46,6 +46,9 @@ abi_priority_list[] = {
     {ABI_BASE_LP64D, ABI_EXT_BASE},
     {ABI_BASE_LP64F, ABI_EXT_BASE},
     {ABI_BASE_LP64S, ABI_EXT_BASE},
+    {ABI_BASE_ILP32D, ABI_EXT_BASE},
+    {ABI_BASE_ILP32F, ABI_EXT_BASE},
+    {ABI_BASE_ILP32S, ABI_EXT_BASE},
 };
 
 /* Initialize enabled_abi_types from TM_MULTILIB_LIST.  */
@@ -355,6 +358,12 @@ config_target_isa:
 	  }
       }
 
+  /* TARGET_32BIT and TARGET_64BIT init at the end of this function,
+     can't use here.  */
+  if ((t.isa.base == ISA_BASE_LA32 || t.isa.base == ISA_BASE_LA32R)
+      && (t.isa.simd == ISA_EXT_SIMD_LSX || t.isa.simd == ISA_EXT_SIMD_LASX))
+    fatal_error (UNKNOWN_LOCATION, "SIMD is not supported on LA32");
+
   /* All SIMD extensions imply a 64-bit FPU:
      - silently adjust t.isa.fpu to "fpu64" if it is unconstrained.
      - warn if -msingle-float / -msoft-float is on,
@@ -540,7 +549,7 @@ fallback:
 
 
   /* 5.  Target code model */
-  t.cmodel = constrained.cmodel ? target->cmodel : CMODEL_NORMAL;
+  t.cmodel = constrained.cmodel ? target->cmodel : TARGET_DEFAULT_CMODEL;
 
   switch (t.cmodel)
     {
@@ -554,7 +563,15 @@ fallback:
 
     case CMODEL_NORMAL:
     case CMODEL_MEDIUM:
+      break;
+
     case CMODEL_EXTREME:
+      if (t.isa.base == ISA_BASE_LA32 || t.isa.base == ISA_BASE_LA32R)
+	{
+	  warning (0, "%qs is not supported, now cmodel is set to %qs",
+		   loongarch_cmodel_strings[t.cmodel], "normal");
+	  t.cmodel = CMODEL_NORMAL;
+	}
       break;
 
     default:
@@ -567,6 +584,10 @@ fallback:
   /* Cleanup and return.  */
   obstack_free (&msg_obstack, NULL);
   *target = t;
+
+  /* TODO: mexplicit-relocs support for LA32.  */
+  if (TARGET_32BIT)
+    la_opt_explicit_relocs = EXPLICIT_RELOCS_NONE;
 }
 
 /* Returns the default ABI for the given instruction set.  */
@@ -578,18 +599,24 @@ isa_default_abi (const struct loongarch_isa *isa)
   switch (isa->fpu)
     {
       case ISA_EXT_FPU64:
-	if (isa->base >= ISA_BASE_LA64)
+	if (isa->base == ISA_BASE_LA64)
 	  abi.base = ABI_BASE_LP64D;
+	else if (isa->base == ISA_BASE_LA32 || isa->base == ISA_BASE_LA32R)
+	  abi.base = ABI_BASE_ILP32D;
 	break;
 
       case ISA_EXT_FPU32:
-	if (isa->base >= ISA_BASE_LA64)
+	if (isa->base == ISA_BASE_LA64)
 	  abi.base = ABI_BASE_LP64F;
+	else if (isa->base == ISA_BASE_LA32 || isa->base == ISA_BASE_LA32R)
+	  abi.base = ABI_BASE_ILP32F;
 	break;
 
       case ISA_EXT_NONE:
-	if (isa->base >= ISA_BASE_LA64)
+	if (isa->base == ISA_BASE_LA64)
 	  abi.base = ABI_BASE_LP64S;
+	else if (isa->base == ISA_BASE_LA32 || isa->base == ISA_BASE_LA32R)
+	  abi.base = ABI_BASE_ILP32S;
 	break;
 
       default:
@@ -608,7 +635,13 @@ isa_base_compat_p (const struct loongarch_isa *set1,
   switch (set2->base)
     {
       case ISA_BASE_LA64:
-	return (set1->base >= ISA_BASE_LA64);
+	return (set1->base == ISA_BASE_LA64);
+
+      case ISA_BASE_LA32:
+	return (set1->base == ISA_BASE_LA32);
+
+      case ISA_BASE_LA32R:
+	return (set1->base == ISA_BASE_LA32R || set1->base == ISA_BASE_LA32);
 
       default:
 	gcc_unreachable ();
@@ -661,6 +694,12 @@ abi_default_cpu_arch (struct loongarch_abi abi,
   if (abi.ext == ABI_EXT_BASE)
     switch (abi.base)
       {
+	case ABI_BASE_ILP32D:
+	case ABI_BASE_ILP32F:
+	case ABI_BASE_ILP32S:
+	  *isa = isa_required (abi);
+	  return ARCH_LA32V1_0;
+
 	case ABI_BASE_LP64D:
 	case ABI_BASE_LP64F:
 	case ABI_BASE_LP64S:
@@ -692,6 +731,8 @@ default_tune_for_arch (int arch, int fallback)
     case ARCH_ABI_DEFAULT:
     case ARCH_LA64V1_0:
     case ARCH_LA64V1_1:
+    case ARCH_LA32V1_0:
+    case ARCH_LA32RV1_0:
       ret = fallback;
     }
 
@@ -1016,9 +1057,9 @@ loongarch_target_option_override (struct loongarch_target *target,
   if (!opts_set->x_la_addr_reg_reg_cost)
     opts->x_la_addr_reg_reg_cost = loongarch_cost->addr_reg_reg_cost;
 
-  /* other stuff */
-  if (ABI_LP64_P (target->abi.base))
-    opts->x_flag_pcc_struct_return = 0;
+  /* Enable -mstrict-align by default on LA32.  */
+  if (TARGET_32BIT && !(opts_set->x_target_flags & MASK_STRICT_ALIGN))
+    opts->x_target_flags |= MASK_STRICT_ALIGN;
 
   switch (target->cmodel)
     {

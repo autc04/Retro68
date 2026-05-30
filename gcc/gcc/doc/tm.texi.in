@@ -1,4 +1,4 @@
-@c Copyright (C) 1988-2025 Free Software Foundation, Inc.
+@c Copyright (C) 1988-2026 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -37,6 +37,8 @@ through the macros defined in the @file{.h} file.
 * Trampolines::         Code set up at run time to enter a nested function.
 * Library Calls::       Controlling how library routines are implicitly called.
 * Addressing Modes::    Defining addressing modes valid for memory operands.
+* Vectorization::       Controlling how the vectorizer operates.
+* OpenMP and OpenACC::  Defining how OpenMP and OpenACC features should work.
 * Anchored Addresses::  Defining how @option{-fsection-anchors} should work.
 * Condition Code::      Defining how insns update the condition code.
 * Costs::               Defining relative costs of different operations.
@@ -54,6 +56,7 @@ through the macros defined in the @file{.h} file.
 * C++ ABI::             Controlling C++ ABI changes.
 * D Language and ABI::  Controlling D ABI changes.
 * Rust Language and ABI:: Controlling Rust ABI changes.
+* JIT Language and ABI:: JIT ABI parameters
 * Named Address Spaces:: Adding support for named address spaces
 * Misc::                Everything else.
 @end menu
@@ -124,6 +127,14 @@ If targets initialize @code{targetrustm} themselves, they should set
 @code{target_has_targetrustm=yes} in @file{config.gcc}; otherwise a
 default definition is used.
 
+Similarly, there is a @code{targetjitm} variable for hooks that are
+specific to the jit front end, documented as ``JIT Target Hook''.
+This is declared in @file{jit/jit-target.h}, the initializer
+@code{TARGETJITM_INITIALIZER} in @file{jit/jit-target-def.h}.  If targets
+initialize @code{targetjitm} themselves, they should set
+@code{target_has_targetjitm=yes} in @file{config.gcc}; otherwise a default
+definition is used.
+
 @node Driver
 @section Controlling the Compilation Driver, @file{gcc}
 @cindex driver
@@ -173,6 +184,14 @@ Do not define this macro if it does not need to do anything.
 A C string constant that tells the GCC driver program options to
 pass to CPP@.  It can also specify how to translate options you
 give to GCC into options for GCC to pass to the CPP@.
+
+Do not define this macro if it does not need to do anything.
+@end defmac
+
+@defmac LIBC_CPP_SPEC
+A C string constant which is appended to the value of
+@code{CPP_SPEC}. @code{LIBC_CPP_SPEC} is intended to depend upon the
+C library in use.
 
 Do not define this macro if it does not need to do anything.
 @end defmac
@@ -239,6 +258,14 @@ see @file{mips.h} for instance.
 A C string constant that tells the GCC driver program options to
 pass to the linker.  It can also specify how to translate options you
 give to GCC into options for GCC to pass to the linker.
+
+Do not define this macro if it does not need to do anything.
+@end defmac
+
+@defmac LIBC_LINK_SPEC
+A C string constant which is appended to the value of
+@code{LINK_SPEC}. @code{LIBC_LINK_SPEC} is intended to depend upon the
+C library in use.
 
 Do not define this macro if it does not need to do anything.
 @end defmac
@@ -1251,10 +1278,10 @@ the smaller of @var{computed} and @code{BIGGEST_ALIGNMENT}
 
 @defmac MAX_FIXED_MODE_SIZE
 An integer expression for the size in bits of the largest integer
-machine mode that should actually be used.  All integer machine modes of
-this size or smaller can be used for structures and unions with the
-appropriate sizes.  If this macro is undefined, @code{GET_MODE_BITSIZE
-(DImode)} is assumed.
+machine mode that should actually be used by GCC internally.
+All integer machine modes of this size or smaller can be used for
+structures and unions with the appropriate sizes.  If this macro is
+undefined, @code{MAX (BITS_PER_WORD * 2, 64)} is assumed.
 @end defmac
 
 @defmac STACK_SAVEAREA_MODE (@var{save_level})
@@ -1542,6 +1569,7 @@ int}.
 @defmacx UINT_FAST64_TYPE
 @defmacx INTPTR_TYPE
 @defmacx UINTPTR_TYPE
+@defmacx PID_TYPE
 C expressions for the standard types @code{sig_atomic_t},
 @code{int8_t}, @code{int16_t}, @code{int32_t}, @code{int64_t},
 @code{uint8_t}, @code{uint16_t}, @code{uint32_t}, @code{uint64_t},
@@ -1550,8 +1578,8 @@ C expressions for the standard types @code{sig_atomic_t},
 @code{uint_least32_t}, @code{uint_least64_t}, @code{int_fast8_t},
 @code{int_fast16_t}, @code{int_fast32_t}, @code{int_fast64_t},
 @code{uint_fast8_t}, @code{uint_fast16_t}, @code{uint_fast32_t},
-@code{uint_fast64_t}, @code{intptr_t}, and @code{uintptr_t}.  See
-@code{SIZE_TYPE} above for more information.
+@code{uint_fast64_t}, @code{intptr_t}, and @code{uintptr_t} and the
+built-in type @code{pid_t}.  See @code{SIZE_TYPE} above for more information.
 
 If any of these macros evaluates to a null pointer, the corresponding
 type is not supported; if GCC is configured to provide
@@ -4273,6 +4301,10 @@ address;  but often a machine-dependent strategy can generate better code.
 
 @hook TARGET_BUILTIN_RECIPROCAL
 
+@node Vectorization
+@section Vectorization
+@cindex Vectorization
+
 @hook TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD
 
 @hook TARGET_VECTORIZE_BUILTIN_VECTORIZATION_COST
@@ -4311,6 +4343,12 @@ address;  but often a machine-dependent strategy can generate better code.
 
 @hook TARGET_VECTORIZE_BUILTIN_SCATTER
 
+@hook TARGET_VECTORIZE_PREFER_GATHER_SCATTER
+
+@node OpenMP and OpenACC
+@section OpenMP and OpenACC
+@cindex OpenMP and OpenACC
+
 @hook TARGET_SIMD_CLONE_COMPUTE_VECSIZE_AND_SIMDLEN
 
 @hook TARGET_SIMD_CLONE_ADJUST
@@ -4330,6 +4368,8 @@ address;  but often a machine-dependent strategy can generate better code.
 @hook TARGET_GOACC_REDUCTION
 
 @hook TARGET_PREFERRED_ELSE_VALUE
+
+@hook TARGET_INSTRUCTION_SELECTION
 
 @hook TARGET_GOACC_ADJUST_PRIVATE_DECL
 
@@ -7109,6 +7149,16 @@ on this implementation detail.
 
 @hook TARGET_OPTION_VALID_VERSION_ATTRIBUTE_P
 
+@defmac TARGET_HAS_FMV_TARGET_ATTRIBUTE
+Define this macro to zero to use @code{target_version} attributes for function
+multiversioning (FMV) rather than @code{target} attributes.
+
+Targets using @code{target_version} attributes will also have
+"target_version" FMV semantics, which allow for FMV sets defined across TU's
+and using a combination of @code{target_version} and @code{target_clones}
+attributed declarations in the definition of a FMV function set.
+@end defmac
+
 @defmac TARGET_CLONES_ATTR_SEPARATOR
 Define this char-typed macro to select a character that separates each
 target specific attributes from the @code{attribute(target_clones("..."))}
@@ -7128,7 +7178,9 @@ with the target specific attributes.  The default value is @code{','}.
 
 @hook TARGET_OPTION_OVERRIDE
 
-@hook TARGET_OPTION_FUNCTION_VERSIONS
+@hook TARGET_OPTION_SAME_FUNCTION_VERSIONS
+
+@hook TARGET_OPTION_FUNCTIONS_B_RESOLVABLE_FROM_A
 
 @hook TARGET_CAN_INLINE_P
 
@@ -7278,6 +7330,12 @@ floating-point support; they are not included in this mechanism.
 
 @hook TARGET_RUST_OS_INFO
 
+@node JIT Language and ABI
+@section JIT ABI parameters
+@cindex parameters, jit abi
+
+@hook TARGET_JIT_REGISTER_CPU_TARGET_INFO
+
 @node Named Address Spaces
 @section Adding support for named address spaces
 @cindex named address spaces
@@ -7335,6 +7393,8 @@ c_register_addr_space ("__ea", ADDR_SPACE_EA);
 @hook TARGET_ADDR_SPACE_DEBUG
 
 @hook TARGET_ADDR_SPACE_DIAGNOSE_USAGE
+
+@hook TARGET_ADDR_SPACE_FOR_ARTIFICIAL_RODATA
 
 @node Misc
 @section Miscellaneous Parameters
@@ -7885,6 +7945,8 @@ to by @var{ce_info}.
 
 @hook TARGET_GENERATE_VERSION_DISPATCHER_BODY
 
+@hook TARGET_CHECK_TARGET_CLONE_VERSION
+
 @hook TARGET_PREDICT_DOLOOP_P
 
 @hook TARGET_HAVE_COUNT_REG_DECR_P
@@ -8124,7 +8186,7 @@ maintainer is familiar with.
 
 @hook TARGET_MEMTAG_CAN_TAG_ADDRESSES
 
-@hook TARGET_MEMTAG_TAG_SIZE
+@hook TARGET_MEMTAG_TAG_BITSIZE
 
 @hook TARGET_MEMTAG_GRANULE_SIZE
 

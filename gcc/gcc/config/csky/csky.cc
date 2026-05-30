@@ -1,5 +1,5 @@
 /* GCC backend functions for C-SKY targets.
-   Copyright (C) 2018-2025 Free Software Foundation, Inc.
+   Copyright (C) 2018-2026 Free Software Foundation, Inc.
    Contributed by C-SKY Microsystems and Mentor Graphics.
 
    This file is part of GCC.
@@ -2899,8 +2899,7 @@ csky_call_tls_get_addr (rtx x, rtx reg, rtx *valuep, int reloc)
   *valuep = emit_library_call_value (get_tls_get_addr (),
 				     NULL_RTX, LCT_PURE, /* LCT_CONST?	*/
 				     Pmode, reg, Pmode);
-  insns = get_insns ();
-  end_sequence ();
+  insns = end_sequence ();
   return insns;
 }
 

@@ -3,6 +3,7 @@ RISCV_BUILTINS_H = $(srcdir)/config/riscv/riscv-vector-builtins.h \
 		   $(srcdir)/config/riscv/riscv-vector-builtins-functions.def \
        $(srcdir)/config/riscv/thead-vector-builtins-functions.def \
        $(srcdir)/config/riscv/sifive-vector-builtins-functions.def \
+       $(srcdir)/config/riscv/andes-vector-builtins-functions.def \
 		   riscv-vector-type-indexer.gen.def
 
 riscv-builtins.o: $(srcdir)/config/riscv/riscv-builtins.cc $(CONFIG_H) \
@@ -26,6 +27,7 @@ riscv-vector-builtins.o: $(srcdir)/config/riscv/riscv-vector-builtins.cc \
   $(srcdir)/config/riscv/riscv-vector-builtins-shapes.h \
   $(srcdir)/config/riscv/riscv-vector-builtins-bases.h \
   $(srcdir)/config/riscv/sifive-vector-builtins-bases.h \
+  $(srcdir)/config/riscv/andes-vector-builtins-bases.h \
   $(srcdir)/config/riscv/riscv-vector-builtins-types.def \
   $(srcdir)/config/riscv/sifive-vector-builtins-functions.def \
   $(RISCV_BUILTINS_H)
@@ -69,10 +71,29 @@ sifive-vector-builtins-bases.o: \
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
 		$(srcdir)/config/riscv/sifive-vector-builtins-bases.cc
 
+andes-vector-builtins-bases.o: \
+  $(srcdir)/config/riscv/andes-vector-builtins-bases.cc \
+  $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) $(TREE_H) $(RTL_H) \
+  $(TM_P_H) memmodel.h insn-codes.h $(OPTABS_H) $(RECOG_H) \
+  $(EXPR_H) $(BASIC_BLOCK_H) $(FUNCTION_H) fold-const.h $(GIMPLE_H) \
+  gimple-iterator.h gimplify.h explow.h $(EMIT_RTL_H) tree-vector-builder.h \
+  rtx-vector-builder.h \
+  $(srcdir)/config/riscv/riscv-vector-builtins-shapes.h \
+  $(srcdir)/config/riscv/andes-vector-builtins-bases.h \
+  $(RISCV_BUILTINS_H)
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+		$(srcdir)/config/riscv/andes-vector-builtins-bases.cc
+
 riscv-sr.o: $(srcdir)/config/riscv/riscv-sr.cc $(CONFIG_H) \
   $(SYSTEM_H) $(TM_H)
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
 		$(srcdir)/config/riscv/riscv-sr.cc
+
+riscv-opt-popretz.o: $(srcdir)/config/riscv/riscv-opt-popretz.cc $(CONFIG_H) \
+  $(SYSTEM_H) coretypes.h $(TM_H) $(TREE_H) $(TARGET_H) recog.h insn-opinit.h \
+  tree-pass.h emit-rtl.h insn-config.h
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+		$(srcdir)/config/riscv/riscv-opt-popretz.cc
 
 riscv-c.o: $(srcdir)/config/riscv/riscv-c.cc $(CONFIG_H) $(SYSTEM_H) \
     coretypes.h $(TM_H) $(TREE_H) output.h $(C_COMMON_H) $(TARGET_H)
@@ -104,8 +125,20 @@ riscv-avlprop.o: $(srcdir)/config/riscv/riscv-avlprop.cc \
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
 		$(srcdir)/config/riscv/riscv-avlprop.cc
 
+riscv-vect-permconst.o: $(srcdir)/config/riscv/riscv-vect-permconst.cc \
+  $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) $(RTL_H) $(REGS_H) \
+  $(TARGET_H) tree-pass.h df.h rtl-ssa.h cfgcleanup.h insn-attr.h \
+  tm-constrs.h insn-opinit.h cfgrtl.h
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+		$(srcdir)/config/riscv/riscv-vect-permconst.cc
+
 riscv-d.o: $(srcdir)/config/riscv/riscv-d.cc \
   $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H)
+	$(COMPILE) $<
+	$(POSTCOMPILE)
+
+riscv-bclr-lowest-set-bit.o: $(srcdir)/config/riscv/riscv-bclr-lowest-set-bit.cc \
+  $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) $(TARGET_H)
 	$(COMPILE) $<
 	$(POSTCOMPILE)
 
@@ -180,3 +213,85 @@ s-riscv-vector-type-indexer.gen.defs: build/genrvv-type-indexer$(build_exeext)
 	$(STAMP) s-riscv-vector-type-indexer.gen.defs
 
 genprog+=rvv-type-indexer
+
+RISCV_EXT_DEFS = \
+  $(srcdir)/config/riscv/riscv-ext.def \
+  $(srcdir)/config/riscv/riscv-ext-corev.def \
+  $(srcdir)/config/riscv/riscv-ext.def \
+  $(srcdir)/config/riscv/riscv-ext-sifive.def \
+  $(srcdir)/config/riscv/riscv-ext-thead.def \
+  $(srcdir)/config/riscv/riscv-ext-ventana.def \
+  $(srcdir)/config/riscv/riscv-ext-mips.def \
+  $(srcdir)/config/riscv/riscv-ext-andes.def \
+  $(srcdir)/config/riscv/riscv-ext-spacemit.def
+
+$(srcdir)/config/riscv/riscv-ext.opt: $(RISCV_EXT_DEFS)
+
+build/gen-riscv-ext-opt.o: $(srcdir)/config/riscv/gen-riscv-ext-opt.cc \
+	$(RISCV_EXT_DEFS)
+	$(CXX_FOR_BUILD) $(CXXFLAGS_FOR_BUILD) -c $< -o $@
+
+build/gen-riscv-ext-opt$(build_exeext): build/gen-riscv-ext-opt.o
+	$(LINKER_FOR_BUILD) $(BUILD_LINKERFLAGS) $(BUILD_LDFLAGS) -o $@ $<
+
+s-riscv-ext.opt: build/gen-riscv-ext-opt$(build_exeext)
+	$(RUN_GEN) build/gen-riscv-ext-opt$(build_exeext) > tmp-riscv-ext.opt
+	$(SHELL) $(srcdir)/../move-if-change tmp-riscv-ext.opt $(srcdir)/config/riscv/riscv-ext.opt
+	$(STAMP) s-riscv-ext.opt
+
+build/gen-riscv-ext-texi.o: $(srcdir)/config/riscv/gen-riscv-ext-texi.cc \
+	$(RISCV_EXT_DEFS)
+	$(CXX_FOR_BUILD) $(CXXFLAGS_FOR_BUILD) -c $< -o $@
+
+build/gen-riscv-ext-texi$(build_exeext): build/gen-riscv-ext-texi.o
+	$(LINKER_FOR_BUILD) $(BUILD_LINKERFLAGS) $(BUILD_LDFLAGS) -o $@ $<
+
+$(srcdir)/doc/riscv-ext.texi: $(RISCV_EXT_DEFS)
+$(srcdir)/doc/riscv-ext.texi: s-riscv-ext.texi ; @true
+
+# Generate the doc when generating option file.
+$(srcdir)/config/riscv/riscv-ext.opt: s-riscv-ext.texi ; @true
+
+s-riscv-ext.texi: build/gen-riscv-ext-texi$(build_exeext)
+	$(RUN_GEN) build/gen-riscv-ext-texi$(build_exeext) > tmp-riscv-ext.texi
+	$(SHELL) $(srcdir)/../move-if-change tmp-riscv-ext.texi $(srcdir)/doc/riscv-ext.texi
+	$(STAMP) s-riscv-ext.texi
+
+RISCV_CORES_DEFS = \
+  $(srcdir)/config/riscv/riscv-cores.def
+
+build/gen-riscv-mtune-texi.o: $(srcdir)/config/riscv/gen-riscv-mtune-texi.cc \
+	$(RISCV_CORES_DEFS)
+	$(CXX_FOR_BUILD) $(CXXFLAGS_FOR_BUILD) -c $< -o $@
+
+build/gen-riscv-mcpu-texi.o: $(srcdir)/config/riscv/gen-riscv-mcpu-texi.cc \
+	$(RISCV_CORES_DEFS)
+	$(CXX_FOR_BUILD) $(CXXFLAGS_FOR_BUILD) -c $< -o $@
+
+build/gen-riscv-mtune-texi$(build_exeext): build/gen-riscv-mtune-texi.o
+	$(LINKER_FOR_BUILD) $(BUILD_LINKERFLAGS) $(BUILD_LDFLAGS) -o $@ $<
+
+build/gen-riscv-mcpu-texi$(build_exeext): build/gen-riscv-mcpu-texi.o
+	$(LINKER_FOR_BUILD) $(BUILD_LINKERFLAGS) $(BUILD_LDFLAGS) -o $@ $<
+
+$(srcdir)/doc/riscv-mtune.texi: $(RISCV_CORES_DEFS)
+$(srcdir)/doc/riscv-mtune.texi: s-riscv-mtune.texi ; @true
+
+$(srcdir)/doc/riscv-mcpu.texi: $(RISCV_CORES_DEFS)
+$(srcdir)/doc/riscv-mcpu.texi: s-riscv-mcpu.texi ; @true
+
+s-riscv-mtune.texi: build/gen-riscv-mtune-texi$(build_exeext)
+	$(RUN_GEN) build/gen-riscv-mtune-texi$(build_exeext) > tmp-riscv-mtune.texi
+	$(SHELL) $(srcdir)/../move-if-change tmp-riscv-mtune.texi $(srcdir)/doc/riscv-mtune.texi
+	$(STAMP) s-riscv-mtune.texi
+
+s-riscv-mcpu.texi: build/gen-riscv-mcpu-texi$(build_exeext)
+	$(RUN_GEN) build/gen-riscv-mcpu-texi$(build_exeext) > tmp-riscv-mcpu.texi
+	$(SHELL) $(srcdir)/../move-if-change tmp-riscv-mcpu.texi $(srcdir)/doc/riscv-mcpu.texi
+	$(STAMP) s-riscv-mcpu.texi
+
+# Run `riscv-regen' after you changed or added anything from riscv-ext*.def and riscv-cores*.def
+
+.PHONY: riscv-regen
+
+riscv-regen: s-riscv-ext.texi s-riscv-ext.opt s-riscv-mtune.texi s-riscv-mcpu.texi

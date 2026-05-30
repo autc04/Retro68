@@ -1,7 +1,7 @@
 #as: -mevexwig=1
 #objdump: -dw
 #name: x86_64 AVX512F/VAES wig insns
-#source: x86-64-avx512f_vaes-wig.s
+#source: x86-64-avx512f_vaes.s
 
 .*: +file format .*
 

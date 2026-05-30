@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -154,8 +154,9 @@ is
    --  designated by the cursor.
 
    type Constant_Reference_Type
-     (Element : not null access constant Element_Type) is private
-        with Implicit_Dereference => Element;
+     (Element : not null access constant Element_Type) is limited private
+   with
+      Implicit_Dereference => Element;
 
    function Constant_Reference
      (Container : aliased Set;
@@ -459,8 +460,10 @@ is
       --  completes. Otherwise, the node is removed from the map and
       --  Program_Error is raised.
 
-      type Reference_Type (Element : not null access Element_Type) is private
-        with Implicit_Dereference => Element;
+      type Reference_Type
+        (Element : not null access Element_Type) is limited private
+      with
+         Implicit_Dereference => Element;
 
       function Reference_Preserving_Key
         (Container : aliased in out Set;

@@ -1,5 +1,5 @@
 /* Local Register Allocator (LRA) intercommunication header file.
-   Copyright (C) 2010-2025 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -328,8 +328,9 @@ extern void lra_asm_insn_error (rtx_insn *insn);
 extern void lra_dump_insns (FILE *f);
 extern void lra_dump_insns_if_possible (const char *title);
 
-extern void lra_process_new_insns (rtx_insn *, rtx_insn *, rtx_insn *,
-				   const char *);
+extern void lra_process_new_insns (rtx_insn *insn, rtx_insn *before,
+				   rtx_insn *after, const char *title,
+				   bool fixup_reg_args_size = false);
 
 extern bool lra_substitute_pseudo (rtx *, int, rtx, bool, bool);
 extern bool lra_substitute_pseudo_within_insn (rtx_insn *, int, rtx, bool);
@@ -355,10 +356,14 @@ extern bitmap_head lra_inheritance_pseudos;
 extern bitmap_head lra_split_regs;
 extern bitmap_head lra_subreg_reload_pseudos;
 extern bitmap_head lra_optional_reload_pseudos;
+extern bitmap_head lra_postponed_insns;
 
 /* lra-constraints.cc: */
 
 extern void lra_init_equiv (void);
+extern void lra_pointer_equiv_set_add (rtx);
+extern bool lra_pointer_equiv_set_in (rtx);
+extern void lra_finish_equiv (void);
 extern int lra_constraint_offset (int, machine_mode);
 
 extern int lra_constraint_iter;
@@ -381,7 +386,9 @@ extern int *lra_point_freq;
 extern int lra_hard_reg_usage[FIRST_PSEUDO_REGISTER];
 
 extern int lra_live_range_iter;
+extern void lra_reset_live_range_list (lra_live_range_t &);
 extern void lra_create_live_ranges (bool, bool);
+extern bool lra_complete_live_ranges (void);
 extern lra_live_range_t lra_copy_live_range_list (lra_live_range_t);
 extern lra_live_range_t lra_merge_live_ranges (lra_live_range_t,
 					       lra_live_range_t);
@@ -417,6 +424,7 @@ extern bool lra_need_for_scratch_reg_p (void);
 extern bool lra_need_for_spills_p (void);
 extern void lra_spill (void);
 extern void lra_final_code_change (void);
+extern void lra_recompute_slots_live_ranges (void);
 
 /* lra-remat.cc:  */
 

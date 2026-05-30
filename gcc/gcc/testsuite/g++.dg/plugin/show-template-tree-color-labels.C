@@ -1,4 +1,4 @@
-/* Verify colorization of the labels in diagnostic-show-locus.c
+/* Verify colorization of the labels in diagnostics/source-printing.cc
    for template comparisons.
    Doing so requires a plugin; see the comments in the plugin for the
    rationale.  */
@@ -16,8 +16,8 @@ void test_1 (vector<double> vec)
   fn_1 (vec);
   /* { dg-begin-multiline-output "" }
 could not convert '[01m[Kvec[m[K' from '[01m[Kvector<[01;32m[Kdouble[m[K>[m[K' to '[01m[Kvector<[01;34m[Kint[m[K>[m[K'
-   fn_1 ([01;32m[Kv[m[K[01;32m[Ke[m[K[01;32m[Kc[m[K);
-         [01;32m[K^[m[K[01;32m[K~[m[K[01;32m[K~[m[K
+   fn_1 ([01;32m[Kvec[m[K);
+         [01;32m[K^~~[m[K
          [01;32m[K|[m[K
          [01;32m[Kvector<double>[m[K
      { dg-end-multiline-output "" } */

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 CLWB insns (Intel disassembly)
 #source: clwb.s

@@ -1,6 +1,6 @@
 #source: ovl.s
 #ld: -N -T ovl1.lnk -T ovl.lnk --emit-relocs
-#objdump: -D -r
+#objdump: -D -r -j.text -j.ov_a1 -j.ov_a2 -j.data -j.toe -j.note.spu_name
 
 .*elf32-spu
 

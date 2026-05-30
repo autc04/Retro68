@@ -1,5 +1,5 @@
 /* ELF core file support for BFD.
-   Copyright (C) 1995-2022 Free Software Foundation, Inc.
+   Copyright (C) 1995-2026 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -90,12 +90,11 @@ elf_core_file_p (bfd *abfd)
   Elf_Internal_Ehdr *i_ehdrp;	/* Elf file header, internal form.  */
   Elf_Internal_Phdr *i_phdrp;	/* Elf program header, internal form.  */
   unsigned int phindex;
-  const struct elf_backend_data *ebd;
   bfd_size_type amt;
   ufile_ptr filesize;
 
   /* Read in the ELF header in external format.  */
-  if (bfd_bread (&x_ehdr, sizeof (x_ehdr), abfd) != sizeof (x_ehdr))
+  if (bfd_read (&x_ehdr, sizeof (x_ehdr), abfd) != sizeof (x_ehdr))
     {
       if (bfd_get_error () != bfd_error_system_call)
 	goto wrong;
@@ -140,7 +139,7 @@ elf_core_file_p (bfd *abfd)
   elf_debug_file (i_ehdrp);
 #endif
 
-  ebd = get_elf_backend_data (abfd);
+  elf_backend_data *ebd = get_elf_backend_data (abfd);
 
   /* Check that the ELF e_machine field matches what this particular
      BFD format expects.  */
@@ -153,9 +152,7 @@ elf_core_file_p (bfd *abfd)
       && ebd->elf_machine_code != EM_NONE)
     goto wrong;
 
-  if (ebd->elf_machine_code != EM_NONE
-      && i_ehdrp->e_ident[EI_OSABI] != ebd->elf_osabi
-      && ebd->elf_osabi != ELFOSABI_NONE)
+  if (ebd->osabi_exact && i_ehdrp->e_ident[EI_OSABI] != ebd->elf_osabi)
     goto wrong;
 
   /* If there is no program header, or the type is not a core file, then
@@ -185,7 +182,7 @@ elf_core_file_p (bfd *abfd)
 
       /* Read the first section header at index 0, and convert to internal
 	 form.  */
-      if (bfd_bread (&x_shdr, sizeof (x_shdr), abfd) != sizeof (x_shdr))
+      if (bfd_read (&x_shdr, sizeof (x_shdr), abfd) != sizeof (x_shdr))
 	goto fail;
       elf_swap_shdr_in (abfd, &x_shdr, &i_shdr);
 
@@ -217,12 +214,12 @@ elf_core_file_p (bfd *abfd)
 
       if (bfd_seek (abfd, where, SEEK_SET) != 0)
 	goto fail;
-      if (bfd_bread (&x_phdr, sizeof (x_phdr), abfd) != sizeof (x_phdr))
+      if (bfd_read (&x_phdr, sizeof (x_phdr), abfd) != sizeof (x_phdr))
 	goto fail;
     }
 
   /* Move to the start of the program headers.  */
-  if (bfd_seek (abfd, (file_ptr) i_ehdrp->e_phoff, SEEK_SET) != 0)
+  if (bfd_seek (abfd, i_ehdrp->e_phoff, SEEK_SET) != 0)
     goto wrong;
 
   /* Allocate space for the program headers.  */
@@ -238,7 +235,7 @@ elf_core_file_p (bfd *abfd)
     {
       Elf_External_Phdr x_phdr;
 
-      if (bfd_bread (&x_phdr, sizeof (x_phdr), abfd) != sizeof (x_phdr))
+      if (bfd_read (&x_phdr, sizeof (x_phdr), abfd) != sizeof (x_phdr))
 	goto fail;
 
       elf_swap_phdr_in (abfd, &x_phdr, i_phdrp + phindex);
@@ -315,7 +312,7 @@ NAME(_bfd_elf, core_find_build_id)
     goto fail;
 
   /* Read in the ELF header in external format.  */
-  if (bfd_bread (&x_ehdr, sizeof (x_ehdr), abfd) != sizeof (x_ehdr))
+  if (bfd_read (&x_ehdr, sizeof (x_ehdr), abfd) != sizeof (x_ehdr))
     {
       if (bfd_get_error () != bfd_error_system_call)
 	goto wrong;
@@ -350,7 +347,7 @@ NAME(_bfd_elf, core_find_build_id)
     }
 
   elf_swap_ehdr_in (abfd, &x_ehdr, &i_ehdr);
-#if DEBUG
+#if DEBUG & 1
   elf_debug_file (&i_ehdr);
 #endif
 
@@ -367,7 +364,7 @@ NAME(_bfd_elf, core_find_build_id)
   if (i_phdr == NULL)
     goto fail;
 
-  if (bfd_seek (abfd, (file_ptr) (offset + i_ehdr.e_phoff), SEEK_SET) != 0)
+  if (bfd_seek (abfd, offset + i_ehdr.e_phoff, SEEK_SET) != 0)
     goto fail;
 
   /* Read in program headers and parse notes.  */
@@ -375,18 +372,18 @@ NAME(_bfd_elf, core_find_build_id)
     {
       Elf_External_Phdr x_phdr;
 
-      if (bfd_bread (&x_phdr, sizeof (x_phdr), abfd) != sizeof (x_phdr))
+      if (bfd_read (&x_phdr, sizeof (x_phdr), abfd) != sizeof (x_phdr))
 	goto fail;
       elf_swap_phdr_in (abfd, &x_phdr, i_phdr);
 
       if (i_phdr->p_type == PT_NOTE && i_phdr->p_filesz > 0)
 	{
-	  elf_read_notes (abfd, offset + i_phdr->p_offset,
-			  i_phdr->p_filesz, i_phdr->p_align);
+	  _bfd_elf_read_notes (abfd, offset + i_phdr->p_offset,
+			       i_phdr->p_filesz, i_phdr->p_align);
 
 	  /* Make sure ABFD returns to processing the program headers.  */
-	  if (bfd_seek (abfd, (file_ptr) (offset + i_ehdr.e_phoff
-					  + (i + 1) * sizeof (x_phdr)),
+	  if (bfd_seek (abfd,
+			offset + i_ehdr.e_phoff + (i + 1) * sizeof (x_phdr),
 			SEEK_SET) != 0)
 	    goto fail;
 

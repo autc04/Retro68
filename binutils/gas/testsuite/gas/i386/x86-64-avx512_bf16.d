@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86-64 BF16 insns
 #source: x86-64-avx512_bf16.s

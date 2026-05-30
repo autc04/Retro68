@@ -12,6 +12,8 @@ foo:
 	.quad	test_R_390_PLTOFF64@PLTOFF
 	.quad	test_R_390_GOTPLT64@GOTPLT
 	larl	%r1,test_R_390_GOTPLTENT@GOTPLT
+	lgfi	%r1,test_R_390_32
+	lgfi	%r1,test_R_390_PC32-foo
 
 bar:
 	brasl	%r14,foo@PLT

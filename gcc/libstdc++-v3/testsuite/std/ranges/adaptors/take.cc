@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -118,6 +118,20 @@ test06()
   static_assert(!requires { views::all | take; });
 }
 
+void
+test07()
+{
+  // PR libstdc++/111550
+  struct Five {
+    operator int() & { return 5; }
+    operator int() && = delete;
+  };
+  auto take_five = views::take(Five{});
+  auto r = take_five(views::iota(0));
+  auto take_five_piped = views::take(Five{}) | views::transform(std::identity{});
+  auto s = take_five_piped(views::iota(0));
+}
+
 int
 main()
 {
@@ -127,4 +141,5 @@ main()
   test04();
   test05();
   test06();
+  test07();
 }

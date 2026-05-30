@@ -1,7 +1,7 @@
 /* shifted.s Test file for AArch64 add-substract (extended reg.) and
    add-substract (shifted reg.) instructions.
 
-   Copyright (C) 2011-2022 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.
@@ -161,6 +161,9 @@ func:
 	logical	bic
 	logical	orn
 	logical	eon
+
+	logical ands
+	logical bics
 	
 	arith3	add	
 	arith3	sub

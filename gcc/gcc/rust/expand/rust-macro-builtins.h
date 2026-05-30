@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -19,6 +19,7 @@
 #ifndef RUST_MACRO_BUILTINS_H
 #define RUST_MACRO_BUILTINS_H
 
+#include "optional.h"
 #include "rust-ast.h"
 #include "rust-builtin-ast-nodes.h"
 #include "rust-ast-fragment.h"
@@ -181,8 +182,15 @@ public:
 						  AST::AsmKind is_global_asm);
 
   static tl::optional<AST::Fragment>
+  llvm_asm_handler (location_t invoc_locus, AST::MacroInvocData &invoc,
+		    AST::InvocKind semicolon, AST::AsmKind is_global_asm);
+
+  static tl::optional<AST::Fragment>
   format_args_handler (location_t invoc_locus, AST::MacroInvocData &invoc,
 		       AST::InvocKind semicolon, AST::FormatArgs::Newline nl);
+
+  static tl::optional<AST::Fragment>
+  offset_of_handler (location_t, AST::MacroInvocData &, AST::InvocKind);
 
   static tl::optional<AST::Fragment> sorry (location_t invoc_locus,
 					    AST::MacroInvocData &invoc,

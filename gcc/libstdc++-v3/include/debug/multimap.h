@@ -1,6 +1,6 @@
 // Debugging multimap implementation -*- C++ -*-
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -340,7 +340,7 @@ namespace __debug
 	    _Base::insert(__first, __last);
 	}
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17 && HOSTED
       using node_type = typename _Base::node_type;
 
       node_type
@@ -359,6 +359,18 @@ namespace __debug
 	  return extract(__position);
 	return {};
       }
+
+# ifdef __glibcxx_associative_heterogeneous_erasure
+      template <__heterogeneous_tree_key<multimap> _Kt>
+	node_type
+	extract(_Kt&& __key)
+	{
+	  const auto __position = find(__key);
+	  if (__position != end())
+	    return extract(__position);
+	  return {};
+	}
+# endif
 
       iterator
       insert(node_type&& __nh)
@@ -419,6 +431,23 @@ namespace __debug
 	  }
 	return __count;
       }
+
+# ifdef __glibcxx_associative_heterogeneous_erasure
+      template <__heterogeneous_tree_key<multimap> _Kt>
+	size_type
+	erase(_Kt&& __x)
+	{
+	  auto __victims = _Base::equal_range(__x);
+	  size_type __count = 0;
+	  for (auto __victim = __victims.first; __victim != __victims.second;)
+	    {
+	      this->_M_invalidate_if(_Equal(__victim));
+	      _Base::erase(__victim++);
+	      ++__count;
+	    }
+	  return __count;
+	}
+# endif
 
 #if __cplusplus >= 201103L
       iterator
@@ -483,7 +512,7 @@ namespace __debug
       find(const key_type& __x)
       { return iterator(_Base::find(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -496,7 +525,7 @@ namespace __debug
       find(const key_type& __x) const
       { return const_iterator(_Base::find(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -511,7 +540,7 @@ namespace __debug
       lower_bound(const key_type& __x)
       { return iterator(_Base::lower_bound(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -524,7 +553,7 @@ namespace __debug
       lower_bound(const key_type& __x) const
       { return const_iterator(_Base::lower_bound(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -537,7 +566,7 @@ namespace __debug
       upper_bound(const key_type& __x)
       { return iterator(_Base::upper_bound(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -550,7 +579,7 @@ namespace __debug
       upper_bound(const key_type& __x) const
       { return const_iterator(_Base::upper_bound(__x), this); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -568,7 +597,7 @@ namespace __debug
 			      iterator(__res.second, this));
       }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>
@@ -589,7 +618,7 @@ namespace __debug
 			      const_iterator(__res.second, this));
       }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt,
 	       typename _Req =
 		 typename __has_is_transparent<_Compare, _Kt>::type>

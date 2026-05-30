@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -64,18 +64,8 @@ package Sem_Ch6 is
    --  respective counterparts.
 
    procedure Check_Delayed_Subprogram (Designator : Entity_Id);
-   --  Designator can be a E_Subprogram_Type, E_Procedure or E_Function. If a
-   --  type in its profile depends on a private type without a full
-   --  declaration, indicate that the subprogram or type is delayed.
-
-   procedure Check_Discriminant_Conformance
-     (N        : Node_Id;
-      Prev     : Entity_Id;
-      Prev_Loc : Node_Id);
-   --  Check that the discriminants of a full type N fully conform to the
-   --  discriminants of the corresponding partial view Prev. Prev_Loc indicates
-   --  the source location of the partial view, which may be different than
-   --  Prev in the case of private types.
+   --  Designator can be a E_Subprogram_Type, E_Procedure or E_Function. Set
+   --  Has_Delayed_Freeze on Designator if its freezing needs to be delayed.
 
    procedure Check_Formal_Subprogram_Conformance
      (New_Id  : Entity_Id;
@@ -170,13 +160,23 @@ package Sem_Ch6 is
    --  True when this is a check against a formal access-to-subprogram type,
    --  indicating that mapping of types is needed.
 
-   procedure Create_Extra_Formals (E : Entity_Id);
+   procedure Create_Extra_Formals
+     (E           : Entity_Id;
+      Related_Nod : Node_Id := Empty);
    --  For each parameter of a subprogram or entry that requires an additional
    --  formal (such as for access parameters and indefinite discriminated
    --  parameters), creates the appropriate formal and attach it to its
    --  associated parameter. Each extra formal will also be appended to
    --  the end of Subp's parameter list (with each subsequent extra formal
    --  being attached to the preceding extra formal).
+   --
+   --  Related_Nod is the node motivating the frontend call to create the
+   --  extra formals; it is not passed when the node causing the call is E
+   --  (for example, as part of freezing E). Related_Nod provides the context
+   --  where the extra formals are created, and it is used to determine if
+   --  the creation of the extra formals can be deferred when the underlying
+   --  type of some formal (or its return type) is not available, and thus
+   --  improve the support for AI05-0151-1/08.
 
    function Extra_Formals_Match_OK
      (E     : Entity_Id;
@@ -199,6 +199,14 @@ package Sem_Ch6 is
       Post_Error : Boolean := True) return Entity_Id;
    --  Use the subprogram specification in the body to retrieve the previous
    --  subprogram declaration, if any.
+
+   procedure Freeze_Extra_Formals (E : Entity_Id);
+   --  Given a subprogram, subprogram type, or entry, flag E to indicate that
+   --  its extra formals (if any) are known (by setting Extra_Formals_Known).
+   --  This subprogram serves three purposes: (1) Document the places where
+   --  the extra formals are known, (2) Ensure that extra formals are added
+   --  only once, and (3) Provide a convenient place for setting a debugger
+   --  breakpoint to locate when extra formals are known.
 
    function Fully_Conformant (New_Id, Old_Id : Entity_Id) return Boolean;
    --  Determine whether two callable entities (subprograms, entries,
@@ -308,5 +316,160 @@ package Sem_Ch6 is
 
    procedure Valid_Operator_Definition (Designator : Entity_Id);
    --  Verify that an operator definition has the proper number of formals
+
+   ------------------------------------
+   -- Deferred_Extra_Formals_Support --
+   ------------------------------------
+
+   --  This package provides support for deferring the addition of extra
+   --  formals to subprograms, entries, and subprogram types; it also provides
+   --  support for deferring the addition of extra actuals to direct calls to
+   --  subprograms and entries, and indirect calls through subprogram types.
+   --  The addition of the extra formals and actuals is deferred until the
+   --  underlying type of all the parameters and result types of registered
+   --  subprograms, entries, and subprogram types is known.
+
+   --  Functional Description
+   --  ----------------------
+   --
+   --  When Create_Extra_Formals identifies that the underlying type of
+   --  some parameter or result type of an entity E is not available, E is
+   --  registered by this package, and the addition of its extra formals is
+   --  deferred. As part of this registration, the types of all the params
+   --  and result types of E with no underlying type are also registered.
+   --
+   --  When Expand_Call_Helper identifies that the underlying type of some
+   --  parameter or result type of a called entity is not available, the call
+   --  is registered by Register_Deferred_Extra_Formals_Call, and the addition
+   --  of its extra actuals is deferred.
+   --
+   --  When the full type declaration of some registered type T is analyzed,
+   --  the subprogram Add_Deferred_Extra_Params is invoked; this subprogram
+   --  does the following actions:
+   --    1) Check all the registered entities (subprograms, entries, and
+   --       subprogram types); for each registered entity that has all its
+   --       underlying types available, call Create_Extra_Formals, and
+   --       unregister the entity.
+   --    2) Check all the registered calls; for each registered call that
+   --       has available the underlying type of all the parameters and result
+   --       types of the called entity, call Create_Extra_Actuals, and
+   --       unregister the call.
+   --    3) Unregister T.
+   --
+   --  Example 1
+   --  ---------
+   --  A package spec has a private type declaration T, and declarations of
+   --  expression functions and/or primitives with class-wide conditions
+   --  invoking primitives of type T before the full view of T is defined.
+   --
+   --  As part of processing the early freezing of the called subprograms
+   --  (and as part of processing the calls) the functions are registered as
+   --  subprograms with deferred extra formals, and the calls are registered
+   --  as calls with deferred extra actuals.
+   --
+   --  When the full type declaration of T is analyzed, extra formals are
+   --  added to all the registered subprograms, and extra actuals are added
+   --  to all the registered calls with deferred extra actuals.
+   --
+   --  Example 2
+   --  ---------
+   --  The specification of package P has a limited_with_clause on package Q,
+   --  and the type of the formals of subprograms defined in P are types
+   --  defined in Q.
+   --
+   --  When compiling the spec of P, similarly to the previous example,
+   --  subprograms with incomplete formals are registered as subprograms
+   --  with deferred extra formals; if the spec of P has calls to these
+   --  subprograms, then these calls are registered as calls with deferred
+   --  extra actuals. That is, when the analysis of package P completes,
+   --  deferred extra formals and actuals have not been added.
+   --
+   --  When another compilation unit is analyzed (including the body of
+   --  package P), and a regular with-clause on Q is processed, when the
+   --  full type declaration of deferred entities is analyzed, deferred
+   --  extra formals and deferred extra actuals are added.
+   --
+   --  This machinery relies on the GNAT Compilation Model; that is, when
+   --  we analyze the spec of P (for which we generally don't generate code),
+   --  it is safe to complete the compilation and still have entities with
+   --  deferred extra formals, and calls with deferred extra actuals.
+   --
+   --  The body package P generally has a regular with-clause on package Q.
+   --  Hence, when we compile the body of package P, the implicit dependence
+   --  on its package spec causes the analysis of the spec of P (thus
+   --  registering deferred entities), followed by the analysis of context
+   --  clauses in the body of P. When the regular with-clause on package Q
+   --  is analyzed, we add the extra formals and extra actuals to deferred
+   --  entities. Thus, the generated code will have all the needed formals.
+   --
+   --  The (still) unsupported case is when the body of package P does not
+   --  have a regular with-clause on package Q (AI05-0151-1/08). This case
+   --  is left documented in the front-end sources by means of calls to
+   --  the following subprograms: Is_Unsupported_Extra_Formals_Entity, and
+   --  Is_Unsupported_Extra_Actuals_Call.
+
+   package Deferred_Extra_Formals_Support is
+
+      procedure Add_Deferred_Extra_Params (Typ : Entity_Id);
+      --  Check all the registered subprograms, entries, and subprogram types
+      --  with deferred addition of their extra formals; if the underlying
+      --  types of all their formals is available then add their extra formals.
+      --  Check also all the registered calls with deferred addition of their
+      --  extra actuals; add their extra actuals if the underlying types of all
+      --  their parameters and result types are available. Finally unregister
+      --  Typ from the list of types used for the deferral of extra formals/
+      --  actuals.
+
+      procedure Register_Deferred_Extra_Formals_Entity (Id : Entity_Id);
+      --  Register the given subprogram, entry, or subprogram type to defer the
+      --  addition of its extra formals.
+
+      procedure Register_Deferred_Extra_Formals_Call
+        (Call_Node : Node_Id;
+         Scope_Id  : Entity_Id);
+      --  Register the given call, performed from the given scope, to defer the
+      --  addition of its extra actuals.
+
+      function Has_Deferred_Extra_Formals (Typ : Entity_Id) return Boolean;
+      --  Return True if there some registered subprogram, subprogram type, or
+      --  entry with deferred extra formals that has some formal type or
+      --  result type of type Typ (i.e. which depends on the given type to
+      --  add its extra formals).
+
+      function Is_Deferred_Extra_Formals_Entity
+        (Id : Entity_Id) return Boolean;
+      --  Return True if Id is a subprogram, subprogram type, or entry that has
+      --  been registered to defer the addition of its extra formals.
+
+      function Is_Unsupported_Extra_Formals_Entity
+        (Id          : Entity_Id;
+         Related_Nod : Node_Id := Empty) return Boolean;
+      --  Id is a subprogram, subprogram type, or entry. Return True if Id is
+      --  unsupported for deferring the addition of its extra formals; that is,
+      --  it is defined in a compilation unit that is a package body or a
+      --  subprogram body, and the underlying type of some of its parameters
+      --  or result type is not available. Related_Nod is the node where this
+      --  check is performed (it is generally a subprogram call); if it is not
+      --  available then the location of entity Id is used as its related node.
+      --
+      --  The context for this case is an unsupported case of AI05-0151-1/08
+      --  that allows incomplete tagged types as parameter and result types.
+      --  More concretely, a type T is visible in a package spec through a
+      --  limited_with_clause, and the body of the package has no regular
+      --  with_clause. In such a case, the machinery for deferring the
+      --  addition of extra formals does not work because the underlying
+      --  type of the type is not seen during the compilation of the
+      --  package body.
+      --
+      --  The purpose of this function is to facilitate locating in the sources
+      --  the places where the front end performs the current (incomplete)
+      --  management of such case (to facilitate further work) ???
+
+      function Is_Unsupported_Extra_Actuals_Call
+        (Call_Node : Node_Id; Id : Entity_Id) return Boolean;
+      --  Same as previous function but applicable to a call to the given
+      --  entity Id.
+
+   end Deferred_Extra_Formals_Support;
 
 end Sem_Ch6;

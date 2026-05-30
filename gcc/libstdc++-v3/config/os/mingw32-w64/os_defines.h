@@ -1,6 +1,6 @@
 // Specific definitions for generic platforms  -*- C++ -*-
 
-// Copyright (C) 2000-2025 Free Software Foundation, Inc.
+// Copyright (C) 2000-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -95,5 +95,9 @@
 
 // See libstdc++/94268
 #define _GLIBCXX_BUFSIZ 4096
+
+// Use functions to access thread-local variables from a different module.
+// Windows does not support exporting thread-local data.
+#define _GLIBCXX_NO_EXTERN_THREAD_LOCAL 1
 
 #endif

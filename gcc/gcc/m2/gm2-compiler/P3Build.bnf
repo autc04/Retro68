@@ -1,7 +1,7 @@
 --
 -- m2-3.bnf grammar and associated actions for pass 3.
 --
--- Copyright (C) 2001-2025 Free Software Foundation, Inc.
+-- Copyright (C) 2001-2026 Free Software Foundation, Inc.
 -- Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 --
 -- This file is part of GNU Modula-2.
@@ -23,7 +23,7 @@
 (* output from m2-3.bnf, automatically generated do not edit if these
    are the top two lines in the file.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -56,6 +56,7 @@ FROM M2Debug IMPORT Assert ;
 FROM P2SymBuild IMPORT BuildString, BuildNumber ;
 FROM M2MetaError IMPORT MetaErrorT0, MetaErrorT2 ;
 FROM M2CaseList IMPORT ElseCase ;
+FROM M2StackSpell IMPORT GetRecordField ;
 
 FROM M2Reserved IMPORT tokToTok, toktype,
                        NulTok, ImportTok, ExportTok, QualifiedTok, UnQualifiedTok,
@@ -166,14 +167,14 @@ FROM SymbolTable IMPORT MakeGnuAsm, PutGnuAsmVolatile, PutGnuAsm, PutGnuAsmInput
                         MakeRegInterface,
                         PutRegInterface,
                         IsRegInterface, IsGnuAsmVolatile, IsGnuAsm,
-                        GetCurrentModule,
+                        GetCurrentModule, IsInnerModule,
                         GetSymName, GetType, SkipType,
                         NulSym,
                         StartScope, EndScope,
                         PutIncluded,
                         IsVarParam, IsProcedure, IsDefImp, IsModule, IsProcType,
                         IsRecord,
-                        RequestSym, IsExported,
+                        RequestSym, IsExported, IsImported,
                         GetSym, GetLocalSym ;
 
 FROM M2Batch IMPORT IsModuleKnown ;
@@ -468,6 +469,69 @@ BEGIN
    Expect(realtok, stopset0, stopset1, stopset2)
 END Real ;
 
+
+(*
+   PushTFQualident - push the result of the Qualident
+                     to the stack.  It checks to see if init
+		     is a procedure or proc type and if so
+		     it does not push the return type.
+*)
+
+PROCEDURE PushTFQualident (tok, tokstart: CARDINAL;
+                           init: CARDINAL) ;
+BEGIN
+   IF tok#tokstart
+   THEN
+      tok := MakeVirtualTok (tokstart, tokstart, tok)
+   END ;
+   IF IsProcedure (init) OR IsProcType (init) OR IsModule (init) OR IsDefImp (init)
+   THEN
+      PushTtok (init, tok) ;
+      Annotate ("%1s(%1d)||qualident procedure/proctype") ;
+   ELSE
+      Annotate ("%1s(%1d)|%1s(%1d)||qualident|type") ;
+      PushTFtok (init, GetType (init), tok) ;
+   END
+END PushTFQualident ;
+
+
+(*
+   CheckModuleQualident - check to see if the beginning ident of the qualident is an
+                          imported module.
+*)
+
+PROCEDURE CheckModuleQualident (stopset0: SetOfStop0;
+                                stopset1: SetOfStop1;
+				stopset2: SetOfStop2) ;
+VAR
+   name         : Name ;
+   init,
+   nextLevel,
+   tok, tokstart: CARDINAL ;
+BEGIN
+   PopTtok (name, tokstart) ;
+   tok := tokstart ;
+   init := RequestSym (tok, name) ;
+   IF (IsImported (GetCurrentModule (), init) AND IsDefImp (init)) OR
+      IsModule (init)
+   THEN
+      WHILE IsDefImp (init) OR IsModule (init) DO
+         Expect (periodtok, stopset0, stopset1, stopset2 + SetOfStop2{identtok}) ;
+         StartScope (init) ;
+         Ident (stopset0, stopset1, stopset2) ;
+	 PopTtok (name, tok) ;
+         nextLevel := RequestSym (tok, name) ;
+         EndScope ;
+	 CheckCanBeImported (init, nextLevel) ;
+	 init := nextLevel
+      END ;
+      PushTFQualident (tok, tokstart, init) ;
+      PutIncluded (init)
+   ELSE
+      PushTFQualident (tok, tokstart, init)
+   END
+END CheckModuleQualident ;
+
 % module P3Build end
 BEGIN
    BlockState := InitState ()
@@ -591,7 +655,7 @@ FileUnit :=                                                                % Pus
               ImplementationOrProgramModule )                              % PopAuto %
          =:
 
-ProgramModule :=                                                           % VAR modulet, endt: CARDINAL ; %
+ProgramModule :=                                                           % VAR modulet, endt, namet: CARDINAL ; %
                                                                            % modulet := GetTokenNo () %
                  "MODULE"                                                  % M2Error.DefaultProgramModule %
                                                                            % PushAutoOn %
@@ -606,12 +670,13 @@ ProgramModule :=                                                           % VAR
                   { Import }
                   Block                                                    % PushAutoOn %
                                                                            % endt := GetTokenNo () -1 %
+                                                                           % namet := GetTokenNo () %
                   Ident                                                    % EndBuildFile (endt) %
-                                                                           % P3EndBuildProgModule %
+                                                                           % P3EndBuildProgModule (namet) %
                   "."                                                      % PopAuto ; PopAuto %
                   =:
 
-ImplementationModule :=                                                    % VAR modulet, endt: CARDINAL ; %
+ImplementationModule :=                                                    % VAR modulet, endt, namet: CARDINAL ; %
                                                                            % modulet := GetTokenNo () %
                         "IMPLEMENTATION"                                   % M2Error.DefaultImplementationModule %
                                          "MODULE"                          % PushAutoOn %
@@ -625,8 +690,9 @@ ImplementationModule :=                                                    % VAR
                          { Import }
                          Block                                             % PushAutoOn %
                                                                            % endt := GetTokenNo () -1 %
+                                                                           % namet := GetTokenNo () %
                          Ident                                             % EndBuildFile (endt) %
-                                                                           % P3EndBuildImpModule %
+                                                                           % P3EndBuildImpModule (namet) %
                          "."                                               % PopAuto ; PopAuto ; PopAuto %
                       =:
 
@@ -643,37 +709,11 @@ Number := Integer | Real =:
 --  IsAutoPushOff then we just consume tokens.
 --
 
-Qualident :=                                                               % VAR name          : Name ;
-                                                                                 init, ip1,
-                                                                                 tokstart, tok : CARDINAL ; %
-             Ident
+Qualident := Ident
                                                                            % IF IsAutoPushOn()
                                                                              THEN
-                                                                                PopTtok(name, tokstart) ;
-										tok := tokstart ;
-                                                                                init := RequestSym (tok, name) ;
-                                                                                WHILE IsDefImp (init) OR IsModule (init) DO
-                                                                                   Expect (periodtok, stopset0, stopset1, stopset2 + SetOfStop2{identtok}) ;
-                                                                                   StartScope (init) ;
-                                                                                   Ident (stopset0, stopset1, stopset2) ;
-                                                                                   PopTtok (name, tok) ;
-                                                                                   ip1 := RequestSym (tok, name) ;
-                                                                                   PutIncluded(ip1) ;
-                                                                                   EndScope ;
-                                                                                   CheckCanBeImported(init, ip1) ;
-                                                                                   init := ip1
-                                                                                END ;
-										IF tok#tokstart
-										THEN
-										   tok := MakeVirtualTok (tokstart, tokstart, tok)
-										END ;
-                                                                                IF IsProcedure(init) OR IsProcType(init)
-                                                                                THEN
-                                                                                   PushTtok(init, tok)
-                                                                                ELSE
-                                                                                   PushTFtok(init, GetType(init), tok) ;
-                                                                                END
-                                                                             ELSE %
+     										CheckModuleQualident (stopset0, stopset1, stopset2)
+                                                                             ELSE (* just parse qualident *) %
              { "." Ident }                                                 % END %
            =:
 
@@ -1004,7 +1044,8 @@ SilentExpList := SilentConstExpression { "," SilentConstExpression } =:
 
 -- end of the Silent constant rules
 
-SetType := ( "SET" | "PACKEDSET" ) "OF" SimpleType =:
+SetType := ( "SET" | "PACKEDSET" ) "OF" SimpleType
+         =:
 
 PointerType := "POINTER" "TO"
                               Type
@@ -1097,16 +1138,11 @@ SubDesignator := "."                                                       % VAR
                                                                              StartScope(Type) %
                  Ident
                                                                            % PopTtok (name, tok) ;
-                                                                             Sym := GetLocalSym(Type, name) ;
-                                                                             IF Sym=NulSym
-                                                                             THEN
-                                                                                n1 := GetSymName(Type) ;
-                                                                                WriteFormat2('field %a does not exist within record %a', name, n1)
-                                                                             END ;
-                                                                             Type := GetType(Sym) ;
+									     Sym := GetRecordField (GetTokenNo () -1, Type, name) ;
+                                                                             Type := GetType (Sym) ;
                                                                              PushTFtok (Sym, Type, tok) ;
                                                                              EndScope ;
-                                                                             PushT(1) ;
+                                                                             PushT (1) ;
                                                                              BuildDesignatorRecord (dotpostok) %
                  | "[" ArrayExpList
                    "]"
@@ -1469,7 +1505,7 @@ DefOptArg := "[" Ident ":" FormalType "=" ConstExpression                  % Bui
 
 FormalType := { "ARRAY" "OF" } QualidentCheck =:
 
-ModuleDeclaration :=                                                       % VAR modulet: CARDINAL ; %
+ModuleDeclaration :=                                                       % VAR modulet, namet: CARDINAL ; %
                                                                            % modulet := GetTokenNo () %
                      "MODULE"                                              % M2Error.DefaultInnerModule %
                                                                            % PushAutoOn %
@@ -1479,7 +1515,8 @@ ModuleDeclaration :=                                                       % VAR
                      [ Priority ] ";"
                      { Import } [ Export ]
                        Block                                               % PushAutoOn %
-                       Ident                                               % EndBuildInnerModule %
+		                                                           % namet := GetTokenNo () %
+                       Ident                                               % EndBuildInnerModule (namet) %
                                                                            % PopAuto ; PopAuto ; PopAuto %
                      =:
 
@@ -1506,7 +1543,7 @@ WithoutFromImport :=                                                       % Pus
 
 Import :=  FromImport | WithoutFromImport =:
 
-DefinitionModule :=                                                        % VAR deft, endt: CARDINAL ; %
+DefinitionModule :=                                                        % VAR deft, endt, namet: CARDINAL ; %
                                                                            % deft := GetTokenNo () %
                     "DEFINITION"                                           % M2Error.DefaultDefinitionModule %
                                  "MODULE"                                  % PushAutoOn %
@@ -1519,8 +1556,9 @@ DefinitionModule :=                                                        % VAR
                                         ]
                     { Definition }                                         % endt := GetTokenNo () %
                                    "END"                                   % PushAutoOn %
+                                                                           % namet := GetTokenNo () %
                                          Ident                             % EndBuildFile (endt) ;
-                                                                             P3EndBuildDefModule %
+                                                                             P3EndBuildDefModule (namet) %
                                                "."                         % PopAuto ; PopAuto ; PopAuto %
                   =:
 

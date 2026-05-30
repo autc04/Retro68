@@ -1,7 +1,7 @@
 #source: pr23900-2.s
 #ld:
 #readelf: --notes --wide
-#target: *-*-linux* *-*-gnu* *-*-nacl*
+#target: *-*-linux* *-*-gnu*
 
 #...
 Displaying notes found in: \.note

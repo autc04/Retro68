@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2014-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2014-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -25,7 +25,6 @@
 
 with Atree;          use Atree;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
@@ -42,7 +41,6 @@ with Sem_Ch8;        use Sem_Ch8;
 with Sem_Mech;       use Sem_Mech;
 with Sem_Res;        use Sem_Res;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
@@ -220,6 +218,8 @@ package body Exp_Unst is
          else
             Lev := Lev + 1;
             S   := Enclosing_Subprogram (S);
+
+            pragma Assert (Present (S));
          end if;
       end loop;
    end Get_Level;
@@ -2305,8 +2305,6 @@ package body Exp_Unst is
             end if;
          end Adjust_One_Call;
       end loop Adjust_Calls;
-
-      return;
    end Unnest_Subprogram;
 
    ------------------------

@@ -187,13 +187,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f2 0f c2 38 10       	cmpsd  \$0x10,\(%eax\),%xmm7
 [ 	]*[a-f0-9]+:	f3 0f 2a c8          	cvtsi2ss %eax,%xmm1
 [ 	]*[a-f0-9]+:	f2 0f 2a c8          	cvtsi2sd %eax,%xmm1
-[ 	]*[a-f0-9]+:	f3 0f 2a c8          	cvtsi2ss %eax,%xmm1
-[ 	]*[a-f0-9]+:	f2 0f 2a c8          	cvtsi2sd %eax,%xmm1
 [ 	]*[a-f0-9]+:	f3 0f 2a 08          	cvtsi2ss \(%eax\),%xmm1
 [ 	]*[a-f0-9]+:	f3 0f 2a 08          	cvtsi2ss \(%eax\),%xmm1
 [ 	]*[a-f0-9]+:	f2 0f 2a 08          	cvtsi2sd \(%eax\),%xmm1
-[ 	]*[a-f0-9]+:	f2 0f 2a 08          	cvtsi2sd \(%eax\),%xmm1
-[ 	]*[a-f0-9]+:	f3 0f 2a 08          	cvtsi2ss \(%eax\),%xmm1
 [ 	]*[a-f0-9]+:	f2 0f 2a 08          	cvtsi2sd \(%eax\),%xmm1
 [ 	]*[a-f0-9]+:	0f 2c 00             	cvttps2pi \(%eax\),%mm0
 #pass

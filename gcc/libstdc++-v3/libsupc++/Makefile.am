@@ -1,6 +1,6 @@
 ## Makefile for the GNU C++ Support library.
 ##
-## Copyright (C) 2000-2025 Free Software Foundation, Inc.
+## Copyright (C) 2000-2026 Free Software Foundation, Inc.
 ##
 ## Process this file with automake to produce Makefile.in.
 ##
@@ -131,6 +131,11 @@ cp-demangle.o: cp-demangle.c
 atomicity_file = ${glibcxx_srcdir}/$(ATOMICITY_SRCDIR)/atomicity.h
 atomicity.cc: ${atomicity_file}
 	$(LN_S) ${atomicity_file} ./atomicity.cc || true
+
+atomicity.lo: atomicity.cc
+	$(LTCOMPILE) -fwrapv -c $<
+atomicity.o: atomicity.cc
+	$(CXXCOMPILE) -fwrapv -c $<
 
 if OS_IS_DARWIN
 # See PR 112397

@@ -14,3 +14,11 @@ Disassembly of section \.text:
 .*:	d503363f 	dsb	nshnxs
 .*:	d5033a3f 	dsb	ishnxs
 .*:	d5033e3f 	dsb	synxs
+.*:	d503323f 	dsb	oshnxs
+.*:	d503363f 	dsb	nshnxs
+.*:	d5033a3f 	dsb	ishnxs
+.*:	d5033e3f 	dsb	synxs
+.*:	d503323f 	dsb	oshnxs
+.*:	d503363f 	dsb	nshnxs
+.*:	d5033a3f 	dsb	ishnxs
+.*:	d5033e3f 	dsb	synxs

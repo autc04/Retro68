@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1005,61 +1005,49 @@ package body Atree is
 
       Old_Kind : constant Entity_Kind := Ekind (Old_N);
 
-      function Same_Node_To_Fetch_From
-        (N : Node_Or_Entity_Id; Field : Node_Or_Entity_Field)
-        return Boolean;
-      --  True if the field should be fetched from N. For most fields, this is
-      --  true. However, if the field is a "root type only" field, then this is
-      --  true only if N is the root type. If this is false, then we should not
-      --  do Reinit_Field_To_Zero, and we should not fail below, because the
-      --  field is not vanishing from the root type. Similar comments apply to
-      --  "base type only" and "implementation base type only" fields.
-      --
-      --  We need to ignore exceptions here, because in some cases,
-      --  Node_To_Fetch_From is being called before the relevant (root, base)
-      --  type has been set, so we fail some assertions.
-
-      function Same_Node_To_Fetch_From
-        (N : Node_Or_Entity_Id; Field : Node_Or_Entity_Field)
-        return Boolean is
-      begin
-         return N = Node_To_Fetch_From (N, Field);
-      exception
-         when others => return False; -- ignore the exception
-      end Same_Node_To_Fetch_From;
-
    --  Start of processing for Check_Vanishing_Fields
 
    begin
       for J in Entity_Field_Table (Old_Kind)'Range loop
          declare
             F : constant Entity_Field := Entity_Field_Table (Old_Kind) (J);
+            Same_Node_To_Fetch_From : constant Boolean :=
+              Old_N = Node_To_Fetch_From_If_Set (Old_N, F);
+            --  True if the field F should be fetched from Old_N. For most
+            --  fields, this is True. However, if F is a "root type only"
+            --  field, then it should be fetched from the root type, so this is
+            --  true only if Old_N is the root type. If this is False, then we
+            --  should not have done Reinit_Field_To_Zero, and we should not
+            --  fail below, because the field is not vanishing from this node.
+            --  We use the ..._If_Set function to avoid failing when the root
+            --  type has not yet been set. Similar comments apply to "base type
+            --  only" and "implementation base type only" fields.
+
          begin
-            if not Same_Node_To_Fetch_From (Old_N, F) then
-               null; -- no check in this case
-            elsif not Field_Checking.Field_Present (New_Kind, F) then
-               if not Field_Is_Initial_Zero (Old_N, F) then
-                  Write_Str ("# ");
-                  Write_Str (Osint.Get_First_Main_File_Name);
-                  Write_Str (": ");
-                  Write_Str (Old_Kind'Img);
-                  Write_Str (" --> ");
-                  Write_Str (New_Kind'Img);
-                  Write_Str (" Nonzero field ");
-                  Write_Str (F'Img);
-                  Write_Str (" is vanishing ");
+            if Same_Node_To_Fetch_From
+              and then not Field_Checking.Field_Present (New_Kind, F)
+              and then not Field_Is_Initial_Zero (Old_N, F)
+            then
+               Write_Str ("# ");
+               Write_Str (Osint.Get_First_Main_File_Name);
+               Write_Str (": ");
+               Write_Str (Old_Kind'Img);
+               Write_Str (" --> ");
+               Write_Str (New_Kind'Img);
+               Write_Str (" Nonzero field ");
+               Write_Str (F'Img);
+               Write_Str (" is vanishing ");
 
-                  if New_Kind = E_Void or else Old_Kind = E_Void then
-                     Write_Line ("(E_Void case)");
-                  else
-                     Write_Line ("(non-E_Void case)");
-                  end if;
-
-                  Write_Str ("    ...mutating node ");
-                  Write_Int (Nat (Old_N));
-                  Write_Line ("");
-                  raise Program_Error;
+               if New_Kind = E_Void or else Old_Kind = E_Void then
+                  Write_Line ("(E_Void case)");
+               else
+                  Write_Line ("(non-E_Void case)");
                end if;
+
+               Write_Str ("    ...mutating node ");
+               Write_Int (Nat (Old_N));
+               Write_Line ("");
+               raise Program_Error;
             end if;
          end;
       end loop;
@@ -1296,8 +1284,7 @@ package body Atree is
         Node_Offsets.Table (Node_Offsets.First .. Node_Offsets.Last);
 
    begin
-      --  Empty_Or_Error use as described in types.ads
-      if Destination <= Empty_Or_Error or No (Source) then
+      if Destination in Empty | Error or else No (Source) then
          pragma Assert (Serious_Errors_Detected > 0);
          return;
       end if;
@@ -1458,7 +1445,7 @@ package body Atree is
    --  Start of processing for Copy_Separate_Tree
 
    begin
-      if Source <= Empty_Or_Error then
+      if Source in Empty | Error then
          return Source;
 
       elsif Is_Entity (Source) then
@@ -1803,14 +1790,20 @@ package body Atree is
 
       --  The Ghost node is created within a Ghost region
 
-      if Ghost_Mode = Check then
+      if Ghost_Config.Ghost_Mode = Check then
          if Nkind (N) in N_Entity then
             Set_Is_Checked_Ghost_Entity (N);
+            Set_Ghost_Assertion_Level
+              (N, Ghost_Config.Ghost_Mode_Assertion_Level);
+            Set_Is_Implicit_Ghost (N);
          end if;
 
-      elsif Ghost_Mode = Ignore then
+      elsif Ghost_Config.Ghost_Mode = Ignore then
          if Nkind (N) in N_Entity then
             Set_Is_Ignored_Ghost_Entity (N);
+            Set_Ghost_Assertion_Level
+              (N, Ghost_Config.Ghost_Mode_Assertion_Level);
+            Set_Is_Implicit_Ghost (N);
          end if;
 
          Set_Is_Ignored_Ghost_Node (N);
@@ -1841,7 +1834,7 @@ package body Atree is
       pragma Debug (Validate_Node (Source));
       S_Size : constant Slot_Count := Size_In_Slots_To_Alloc (Source);
    begin
-      if Source <= Empty_Or_Error then
+      if Source in Empty | Error then
          return Source;
       end if;
 
@@ -2271,10 +2264,10 @@ package body Atree is
       --  Copy substitute node into place, preserving old fields as required
 
       Copy_Node (Source => New_Node, Destination => Old_Node);
-      Set_Error_Posted (Old_Node, Old_Error_Posted);
 
       Set_Check_Actuals (Old_Node, Old_CA);
       Set_Is_Ignored_Ghost_Node (Old_Node, Old_Is_IGN);
+      Set_Error_Posted (Old_Node, Old_Error_Posted);
 
       if Nkind (New_Node) in N_Subexpr then
          Set_Paren_Count     (Old_Node, Old_Paren_Count);
@@ -2702,9 +2695,9 @@ package body Atree is
       --  tail recursive step won't go past the end.
 
       declare
-         Cur_Field : Offset_Array_Index := Traversed_Offset_Array'First;
          Offsets : Traversed_Offset_Array renames
            Traversed_Fields (Nkind (Cur_Node));
+         Cur_Field : Offset_Array_Index := Traversed_Offset_Array'First;
 
       begin
          if Offsets (Traversed_Offset_Array'First) /= No_Field_Offset then
@@ -2761,14 +2754,14 @@ package body Atree is
       --  it is global and hence a tree traversal with parents must be finished
       --  before the next tree traversal with parents starts.
 
-      pragma Assert (Parents_Stack.Last = 0);
-      Parents_Stack.Set_Last (0);
+      pragma Assert (Parents_Stack.Is_Empty);
+      Parents_Stack.Clear;
 
       Parents_Stack.Append (Parent (Node));
       Result := Traverse (Node);
       Parents_Stack.Decrement_Last;
 
-      pragma Assert (Parents_Stack.Last = 0);
+      pragma Assert (Parents_Stack.Is_Empty);
 
       return Result;
    end Traverse_Func_With_Parent;

@@ -1,5 +1,5 @@
 # Expect script for ld-powerpc tests
-#   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -522,5 +522,6 @@ run_dump_test "non-contiguous-powerpc"
 
 run_dump_test "tprel32"
 run_dump_test "tprelbad"
+run_dump_test tls32ldgd
 
 run_dump_test "undefweak"

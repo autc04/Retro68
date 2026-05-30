@@ -1,4 +1,5 @@
-// { dg-additional-options "-frust-name-resolution-2.0" }
+#![feature(no_core)]
+#![no_core]
 
 pub mod foo {
     pub macro bar() {}

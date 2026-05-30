@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    hosting on Windows32, using a Unix style C library and tools.
-   Copyright (C) 1995-2025 Free Software Foundation, Inc.
+   Copyright (C) 1995-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -28,15 +28,14 @@ along with GCC; see the file COPYING3.  If not see
 #undef TARGET_SEH
 #define TARGET_SEH  (TARGET_64BIT_MS_ABI && flag_unwind_tables)
 
+#undef PREFERRED_STACK_BOUNDARY_DEFAULT
+#define PREFERRED_STACK_BOUNDARY_DEFAULT \
+  (TARGET_64BIT ? 128 : MIN_STACK_BOUNDARY)
+
 /* Win64 with SEH cannot represent DRAP stack frames.  Disable its use.
    Force the use of different mechanisms to allocate aligned local data.  */
 #undef MAX_STACK_ALIGNMENT
 #define MAX_STACK_ALIGNMENT  (TARGET_SEH ? 128 : MAX_OFILE_ALIGNMENT)
-
-/* 32-bit Windows aligns the stack on a 4-byte boundary but SSE instructions
-   may require 16-byte alignment.  */
-#undef STACK_REALIGN_DEFAULT
-#define STACK_REALIGN_DEFAULT TARGET_SSE
 
 /* Support hooks for SEH.  */
 #undef  TARGET_ASM_UNWIND_EMIT
@@ -247,9 +246,10 @@ do {							\
 #undef ASM_OUTPUT_LABELREF
 #define  ASM_OUTPUT_LABELREF(STREAM, NAME)	\
 do {						\
+  const char *prefix = "";			\
   if ((NAME)[0] != FASTCALL_PREFIX)		\
-    fputs (user_label_prefix, (STREAM));	\
-  fputs ((NAME), (STREAM));			\
+    prefix = user_label_prefix;			\
+  ix86_asm_output_labelref ((STREAM), prefix, (NAME));	\
 } while (0)
 
 /* This does much the same in memory rather than to a stream.  */
@@ -474,3 +474,31 @@ do {						\
   (ix86_cmodel == CM_LARGE_PIC || ix86_cmodel == CM_MEDIUM_PIC)
 
 #define HAVE_64BIT_POINTERS TARGET_64BIT_DEFAULT
+
+/* Support for Windows resource files.  */
+#if TARGET_64BIT_DEFAULT
+#define WINDRES_FORMAT_SPEC \
+      "%{m32:-F pe-i386;m64|!m32:-F pe-x86-64} "
+#else
+#define WINDRES_FORMAT_SPEC \
+      "%{m64:-F pe-x86-64;m32|!m64:-F pe-i386} "
+#endif
+
+#define EXTRA_DEFAULT_COMPILERS \
+  {".rc", "@windres-rc", 0, 0, 0}, \
+  {"@windres-rc", \
+   "%{!E:%{!M:%{!MM:windres -J rc -O coff " \
+      WINDRES_FORMAT_SPEC \
+      "%{I*:-I%*} %{D*:-D%*} %{U*:-U%*} \
+      %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O} %i}}}", \
+   0, 0, 0}, /* \
+  {".res", "@windres-res", 0, 0, 0}, \
+  {"@windres-res", \
+   "%{!E:%{!M:%{!MM:windres -J res -O coff " \
+      WINDRES_FORMAT_SPEC \
+      "%{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O} %i}}}", \
+   0, 0, 0}, */
+
+/* For now, do not handle .res because some packages pass
+COFF files named .res to gcc directly, expecting them to
+be passed to the linker, not windres. See PR123504.  */

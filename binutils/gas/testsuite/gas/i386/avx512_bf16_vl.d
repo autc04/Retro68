@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 BF16 VL insns
 #source: avx512_bf16_vl.s
@@ -8,7 +7,7 @@
 
 Disassembly of section .text:
 
-0+ <_start>:
+0+ <bf16>:
 [ 	]*[a-f0-9]+:	62 f2 57 28 72 f4    	vcvtne2ps2bf16 %ymm4,%ymm5,%ymm6
 [ 	]*[a-f0-9]+:	62 f2 57 08 72 f4    	vcvtne2ps2bf16 %xmm4,%xmm5,%xmm6
 [ 	]*[a-f0-9]+:	62 f2 57 2f 72 b4 f4 00 00 00 10 	vcvtne2ps2bf16 0x10000000\(%esp,%esi,8\),%ymm5,%ymm6\{%k7\}

@@ -1,3 +1,4 @@
+#as: --divide
 #objdump: -dw
 #name: i386 katmai
 

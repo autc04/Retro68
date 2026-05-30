@@ -1,4 +1,4 @@
-#as: --underscore --em=criself --march=v10
+#as: --underscore --emulation=criself --march=v10
 #source: bound-err-1.s
 #objdump: -dr
 

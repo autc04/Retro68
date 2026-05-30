@@ -1,6 +1,5 @@
 # Check VAES instructions
 
-	.allow_index_reg
 	.text
 _start:
 # Tests for op ymm/mem256, ymm, ymm

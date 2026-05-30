@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2014-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2014-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,6 +32,16 @@ with Types; use Types;
 
 package Ghost is
 
+   function Assertion_Level_From_Arg (Arg : Node_Id) return Entity_Id;
+   --  Returns the assertion level for the given pragma or aspect based on
+   --  the argument Arg. Which is either
+   --
+   --  * Standard_Level_Default if there was no argument or the argument
+   --    evaluated to True.
+   --  * Assertion_Level if the argument was referencing a user defined
+   --    Assertion_Level.
+   --  * Empty othrwise since we are not dealing with a ghost entity.
+
    procedure Check_Ghost_Completion
      (Prev_Id  : Entity_Id;
       Compl_Id : Entity_Id);
@@ -49,7 +59,7 @@ package Ghost is
      (Actual : Node_Id;
       Formal : Entity_Id);
    --  Check that if Actual contains references to ghost entities, generic
-   --  formal parameter Formal is ghost (SPARK RM 6.9(10)).
+   --  formal parameter Formal is ghost (SPARK RM 6.9(13)).
 
    procedure Check_Ghost_Formal_Procedure_Or_Package
      (N          : Node_Id;
@@ -58,7 +68,7 @@ package Ghost is
       Is_Default : Boolean := False);
    --  Verify that if generic formal procedure (resp. package) Formal is ghost,
    --  then Actual is not Empty and also a ghost procedure (resp. package)
-   --  (SPARK RM 6.9(13-14)). The error if any is located on N. If
+   --  (SPARK RM 6.9(16-17)). The error if any is located on N. If
    --  Is_Default is False, N and Actual represent the actual parameter in an
    --  instantiation. Otherwise, they represent the default subprogram of a
    --  formal subprogram declaration.
@@ -69,7 +79,7 @@ package Ghost is
       Is_Default : Boolean := False);
    --  Verify that if Formal (either an IN OUT generic formal parameter, or an
    --  IN generic formal parameter of access-to-variable type) is ghost, then
-   --  Actual is a ghost object (SPARK RM 6.9(13-14)). Is_Default is True when
+   --  Actual is a ghost object (SPARK RM 6.9(16-17)). Is_Default is True when
    --  Actual is the default expression of the formal object declaration.
 
    procedure Check_Ghost_Overriding
@@ -90,7 +100,9 @@ package Ghost is
       Constit    : Node_Id;
       Constit_Id : Entity_Id);
    --  Verify that the Ghost policy of constituent Constit_Id is compatible
-   --  with the Ghost policy of abstract state State_I.
+   --  with the Ghost policy of abstract state State_Id.
+   --
+   --  Additionally verify that the Ghost_Assertion_Levels are compatible.
 
    procedure Check_Ghost_Type (Typ : Entity_Id);
    --  Verify that Ghost type Typ is neither concurrent, nor effectively
@@ -102,10 +114,22 @@ package Ghost is
    procedure Initialize;
    --  Initialize internal tables
 
-   procedure Install_Ghost_Region (Mode : Ghost_Mode_Type; N : Node_Id);
+   procedure Install_Ghost_Region
+     (Mode  : Ghost_Mode_Type;
+      N     : Node_Id;
+      Level : Entity_Id);
    pragma Inline (Install_Ghost_Region);
    --  Install a Ghost region described by mode Mode and ignored region start
    --  node N.
+
+   function Is_Assertion_Level_Dependent
+      (Self : Entity_Id; Other : Entity_Id) return Boolean;
+   --  Check that assertion level Self is assertion-level-dependent with Other.
+   --
+   --  According to SPARK RM 6.9(6) this means that
+   --  * Either Self or Other has the default assertion level.
+   --  * Self either is or depends on Other
+   --  * Self either is or depends on Static
 
    function Is_Ghost_Assignment (N : Node_Id) return Boolean;
    --  Determine whether arbitrary node N denotes an assignment statement whose
@@ -197,6 +221,11 @@ package Ghost is
    --  Install the Ghost mode of the instantiation. This routine starts a Ghost
    --  region and must be used with routine Restore_Ghost_Region.
 
+   procedure Check_Procedure_Call_Argument_Levels (N : Node_Id);
+   --  Check that the variable being modified by a call argument inside a ghost
+   --  region is assertion-level-dependent on the ghost region (SPARK RM
+   --  6.9(18)).
+
    procedure Mark_And_Set_Ghost_Procedure_Call (N : Node_Id);
    --  Mark procedure call N as Ghost when:
    --
@@ -238,12 +267,12 @@ package Ghost is
 
    procedure Remove_Ignored_Ghost_Code;
    --  Remove all code marked as ignored Ghost from the trees of all qualifying
-   --  units (SPARK RM 6.9(4)).
+   --  units (SPARK RM 6.9(5)).
    --
    --  WARNING: this is a separate front end pass, care should be taken to keep
    --  it optimized.
 
-   procedure Restore_Ghost_Region (Mode : Ghost_Mode_Type; N : Node_Id);
+   procedure Restore_Ghost_Region (Config : Ghost_Config_Type);
    pragma Inline (Restore_Ghost_Region);
    --  Restore a Ghost region to a previous state described by mode Mode and
    --  ignored region start node N. This routine must be used in conjunction

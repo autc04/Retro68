@@ -1,5 +1,5 @@
 /* Avoid store forwarding optimization pass.
-   Copyright (C) 2024-2025 Free Software Foundation, Inc.
+   Copyright (C) 2024-2026 Free Software Foundation, Inc.
    Contributed by VRULL GmbH.
 
    This file is part of GCC.
@@ -20,12 +20,6 @@
 
 #ifndef GCC_AVOID_STORE_FORWARDING_H
 #define GCC_AVOID_STORE_FORWARDING_H
-
-#include "config.h"
-#include "system.h"
-#include "coretypes.h"
-#include "backend.h"
-#include "rtl.h"
 
 struct store_fwd_info
 {

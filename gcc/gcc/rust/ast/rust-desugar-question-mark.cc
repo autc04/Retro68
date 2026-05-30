@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Free Software Foundation, Inc.
+// Copyright (C) 2025-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -18,7 +18,6 @@
 
 #include "rust-desugar-question-mark.h"
 #include "rust-ast-builder.h"
-#include "rust-ast-visitor.h"
 
 namespace Rust {
 namespace AST {
@@ -26,53 +25,21 @@ namespace AST {
 DesugarQuestionMark::DesugarQuestionMark () {}
 
 void
-DesugarQuestionMark::go (AST::Crate &crate)
+DesugarQuestionMark::go (std::unique_ptr<Expr> &ptr)
 {
-  DesugarQuestionMark::visit (crate);
-}
+  rust_assert (ptr->get_expr_kind () == Expr::Kind::ErrorPropagation);
 
-void
-DesugarQuestionMark::visit (ExprStmt &stmt)
-{
-  if (stmt.get_expr ().get_expr_kind () == Expr::Kind::ErrorPropagation)
-    desugar_and_replace (stmt.get_expr_ptr ());
+  auto original = static_cast<ErrorPropagationExpr &> (*ptr);
+  auto desugared = DesugarQuestionMark ().desugar (original);
 
-  DefaultASTVisitor::visit (stmt);
-}
-
-void
-DesugarQuestionMark::visit (CallExpr &call)
-{
-  if (call.get_function_expr ().get_expr_kind ()
-      == Expr::Kind::ErrorPropagation)
-    desugar_and_replace (call.get_function_expr_ptr ());
-
-  for (auto &arg : call.get_params ())
-    if (arg->get_expr_kind () == Expr::Kind::ErrorPropagation)
-      desugar_and_replace (arg);
-
-  DefaultASTVisitor::visit (call);
-}
-
-void
-DesugarQuestionMark::visit (LetStmt &stmt)
-{
-  if (stmt.has_init_expr ()
-      && stmt.get_init_expr ().get_expr_kind () == Expr::Kind::ErrorPropagation)
-    desugar_and_replace (stmt.get_init_expr_ptr ());
-
-  DefaultASTVisitor::visit (stmt);
+  ptr = std::move (desugared);
 }
 
 MatchArm
 make_match_arm (std::unique_ptr<Pattern> &&pattern)
 {
   auto loc = pattern->get_locus ();
-
-  auto patterns = std::vector<std::unique_ptr<Pattern>> ();
-  patterns.emplace_back (std::move (pattern));
-
-  return MatchArm (std::move (patterns), loc);
+  return MatchArm (std::move (pattern), loc);
 }
 
 MatchCase
@@ -84,7 +51,7 @@ ok_case (Builder &builder)
   patterns.emplace_back (std::move (val));
 
   auto pattern_item = std::unique_ptr<TupleStructItems> (
-    new TupleStructItemsNoRange (std::move (patterns)));
+    new TupleStructItemsNoRest (std::move (patterns)));
   auto pattern = std::unique_ptr<Pattern> (new TupleStructPattern (
     builder.path_in_expression (LangItem::Kind::RESULT_OK),
     std::move (pattern_item)));
@@ -99,13 +66,19 @@ ok_case (Builder &builder)
 MatchCase
 err_case (Builder &builder)
 {
+  // TODO: We need to handle the case where there is an enclosing `try {}`
+  // block, as that will create an additional block label that we can break to.
+  // This allows try blocks to use the question mark operator without having the
+  // offending statement early return from the enclosing function
+  // FIXME: How to mark that there is an enclosing block label?
+
   auto val = builder.identifier_pattern ("err");
 
   auto patterns = std::vector<std::unique_ptr<Pattern>> ();
   patterns.emplace_back (std::move (val));
 
   auto pattern_item = std::unique_ptr<TupleStructItems> (
-    new TupleStructItemsNoRange (std::move (patterns)));
+    new TupleStructItemsNoRest (std::move (patterns)));
   auto pattern = std::unique_ptr<Pattern> (new TupleStructPattern (
     builder.path_in_expression (LangItem::Kind::RESULT_ERR),
     std::move (pattern_item)));
@@ -152,15 +125,6 @@ DesugarQuestionMark::desugar (ErrorPropagationExpr &expr)
   return std::unique_ptr<MatchExpr> (new MatchExpr (std::move (call),
 						    std::move (cases), {}, {},
 						    expr.get_locus ()));
-}
-
-void
-DesugarQuestionMark::desugar_and_replace (std::unique_ptr<Expr> &ptr)
-{
-  auto original = static_cast<ErrorPropagationExpr &> (*ptr);
-  auto desugared = desugar (original);
-
-  ptr = std::move (desugared);
 }
 
 } // namespace AST

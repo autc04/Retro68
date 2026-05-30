@@ -1,5 +1,5 @@
 /* Alias analysis for trees.
-   Copyright (C) 2004-2025 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
    Contributed by Diego Novillo <dnovillo@redhat.com>
 
 This file is part of GCC.
@@ -423,7 +423,7 @@ bool
 ptrs_compare_unequal (tree ptr1, tree ptr2)
 {
   /* First resolve the pointers down to a SSA name pointer base or
-     a VAR_DECL, PARM_DECL or RESULT_DECL.  This explicitely does
+     a VAR_DECL, PARM_DECL or RESULT_DECL.  This explicitly does
      not yet try to handle LABEL_DECLs, FUNCTION_DECLs, CONST_DECLs
      or STRING_CSTs which needs points-to adjustments to track them
      in the points-to sets.  */
@@ -901,7 +901,9 @@ ao_ref_init_from_ptr_and_range (ao_ref *ref, tree ptr,
   if (TREE_CODE (ptr) == ADDR_EXPR)
     {
       ref->base = get_addr_base_and_unit_offset (TREE_OPERAND (ptr, 0), &t);
-      if (ref->base)
+      if (ref->base
+	  && coeffs_in_range_p (t, -HOST_WIDE_INT_MAX / BITS_PER_UNIT,
+				HOST_WIDE_INT_MAX / BITS_PER_UNIT))
 	ref->offset = BITS_PER_UNIT * t;
       else
 	{
@@ -2786,7 +2788,6 @@ check_fnspec (gcall *call, ao_ref *ref, bool clobber)
 	      }
 	  if (clobber
 	      && fnspec.errno_maybe_written_p ()
-	      && flag_errno_math
 	      && targetm.ref_may_alias_errno (ref))
 	    return 1;
 	  return 0;
@@ -3734,6 +3735,7 @@ maybe_skip_until (gimple *phi, tree &target, basic_block target_bb,
 		  ao_ref *ref, tree vuse, bool tbaa_p, unsigned int &limit,
 		  bitmap *visited, bool abort_on_visited,
 		  void *(*translate)(ao_ref *, tree, void *, translate_flags *),
+		  bool (*is_backedge)(edge, void *),
 		  translate_flags disambiguate_only,
 		  void *data)
 {
@@ -3765,14 +3767,15 @@ maybe_skip_until (gimple *phi, tree &target, basic_block target_bb,
 	}
 
       /* Recurse for PHI nodes.  */
-      if (gimple_code (def_stmt) == GIMPLE_PHI)
+      if (gphi *phi = dyn_cast <gphi *> (def_stmt))
 	{
 	  /* An already visited PHI node ends the walk successfully.  */
-	  if (bitmap_bit_p (*visited, SSA_NAME_VERSION (PHI_RESULT (def_stmt))))
+	  if (bitmap_bit_p (*visited, SSA_NAME_VERSION (PHI_RESULT (phi))))
 	    return !abort_on_visited;
-	  vuse = get_continuation_for_phi (def_stmt, ref, tbaa_p, limit,
+	  vuse = get_continuation_for_phi (phi, ref, tbaa_p, limit,
 					   visited, abort_on_visited,
-					   translate, data, disambiguate_only);
+					   translate, data, is_backedge,
+					   disambiguate_only);
 	  if (!vuse)
 	    return false;
 	  continue;
@@ -3817,12 +3820,13 @@ maybe_skip_until (gimple *phi, tree &target, basic_block target_bb,
    Returns NULL_TREE if no suitable virtual operand can be found.  */
 
 tree
-get_continuation_for_phi (gimple *phi, ao_ref *ref, bool tbaa_p,
+get_continuation_for_phi (gphi *phi, ao_ref *ref, bool tbaa_p,
 			  unsigned int &limit, bitmap *visited,
 			  bool abort_on_visited,
 			  void *(*translate)(ao_ref *, tree, void *,
 					     translate_flags *),
 			  void *data,
+			  bool (*is_backedge)(edge, void *),
 			  translate_flags disambiguate_only)
 {
   unsigned nargs = gimple_phi_num_args (phi);
@@ -3865,15 +3869,14 @@ get_continuation_for_phi (gimple *phi, ao_ref *ref, bool tbaa_p,
       else if (! maybe_skip_until (phi, arg0, dom, ref, arg1, tbaa_p,
 				   limit, visited,
 				   abort_on_visited,
-				   translate,
+				   translate, is_backedge,
 				   /* Do not valueize when walking over
 				      backedges.  */
-				   dominated_by_p
-				     (CDI_DOMINATORS,
-				      gimple_bb (SSA_NAME_DEF_STMT (arg1)),
-				      phi_bb)
-				   ? TR_DISAMBIGUATE
-				   : disambiguate_only, data))
+				   (is_backedge
+				    && !is_backedge
+					  (gimple_phi_arg_edge (phi, i), data))
+				   ? disambiguate_only : TR_DISAMBIGUATE,
+				   data))
 	return NULL_TREE;
     }
 
@@ -3913,6 +3916,7 @@ walk_non_aliased_vuses (ao_ref *ref, tree vuse, bool tbaa_p,
 			void *(*walker)(ao_ref *, tree, void *),
 			void *(*translate)(ao_ref *, tree, void *,
 					   translate_flags *),
+			bool (*is_backedge)(edge, void *),
 			tree (*valueize)(tree),
 			unsigned &limit, void *data)
 {
@@ -3950,9 +3954,10 @@ walk_non_aliased_vuses (ao_ref *ref, tree vuse, bool tbaa_p,
       def_stmt = SSA_NAME_DEF_STMT (vuse);
       if (gimple_nop_p (def_stmt))
 	break;
-      else if (gimple_code (def_stmt) == GIMPLE_PHI)
-	vuse = get_continuation_for_phi (def_stmt, ref, tbaa_p, limit,
-					 &visited, translated, translate, data);
+      else if (gphi *phi = dyn_cast <gphi *> (def_stmt))
+	vuse = get_continuation_for_phi (phi, ref, tbaa_p, limit,
+					 &visited, translated, translate, data,
+					 is_backedge);
       else
 	{
 	  if ((int)limit <= 0)
@@ -4165,7 +4170,7 @@ attr_fnspec::verify ()
     }
 }
 
-/* Return ture if TYPE1 and TYPE2 will always give the same answer
+/* Return true if TYPE1 and TYPE2 will always give the same answer
    when compared with other types using same_type_for_tbaa.  */
 
 static bool
@@ -4189,7 +4194,7 @@ types_equal_for_same_type_for_tbaa_p (tree type1, tree type2,
     return TYPE_CANONICAL (type1) == TYPE_CANONICAL (type2);
 }
 
-/* Return ture if TYPE1 and TYPE2 will always give the same answer
+/* Return true if TYPE1 and TYPE2 will always give the same answer
    when compared with other types using same_type_for_tbaa.  */
 
 bool
@@ -4376,7 +4381,7 @@ ao_compare::compare_ao_refs (ao_ref *ref1, ao_ref *ref2,
       i++;
     }
 
-  /* For variable accesses we can not rely on offset match bellow.
+  /* For variable accesses we can not rely on offset match below.
      We know that paths are struturally same, so only check that
      starts of TBAA paths did not diverge.  */
   if (!known_eq (ref1->size, ref1->max_size)

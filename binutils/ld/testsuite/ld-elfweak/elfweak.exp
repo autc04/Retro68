@@ -1,5 +1,5 @@
 # Expect script for ld-weak tests
-#   Copyright (C) 2001-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -27,15 +27,19 @@ if { ![check_compiler_available] } {
     return
 }
 
+# Skip targets where -shared is not supported
+if { ![check_shared_lib_support] } {
+    return
+}
+
 # This test can only be run on a couple of ELF platforms.
 # Square bracket expressions seem to confuse istarget.
 # This is similar to the test that is used in ld-shared, BTW.
-if {    ![istarget alpha*-*-linux*]
+if {    ![istarget *-*-solaris2*]
+     && ![istarget alpha*-*-linux*]
      && ![istarget arm*-*-linux*]
      && ![istarget hppa*64*-*-hpux*]
      && ![istarget hppa*-*-linux*]
-     && ![istarget i?86-*-sysv4*]
-     && ![istarget i?86-*-unixware]
      && ![istarget i?86-*-elf*]
      && ![istarget i?86-*-linux*]
      && ![istarget i?86-*-gnu*]
@@ -49,10 +53,8 @@ if {    ![istarget alpha*-*-linux*]
      && ![istarget powerpc*-*-sysv4*]
      && ![istarget sh\[34\]*-*-linux*]
      && ![istarget sparc*-*-elf]
-     && ![istarget sparc*-*-solaris2*]
      && ![istarget sparc*-*-linux*]
-     && ![istarget x86_64-*-linux*]
-     && ![istarget *-*-nacl*] } {
+     && ![istarget x86_64-*-linux*] } {
     return
 }
 

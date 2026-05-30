@@ -5,6 +5,7 @@ Hello from testplugin.
 .*: LDPT_LINKER_OUTPUT value        0x1 \(1\)
 .*: LDPT_OUTPUT_NAME 'tmpdir/main.x'
 .*: LDPT_REGISTER_CLAIM_FILE_HOOK func@0x.*
+.*: LDPT_REGISTER_CLAIM_FILE_HOOK_V2 func@0x.*
 .*: LDPT_REGISTER_ALL_SYMBOLS_READ_HOOK func@0x.*
 .*: LDPT_REGISTER_CLEANUP_HOOK func@0x.*
 .*: LDPT_ADD_SYMBOLS func@0x.*

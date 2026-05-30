@@ -1,5 +1,5 @@
 /* coverage.h - Defines data exported from coverage.cc
-   Copyright (C) 1998-2025 Free Software Foundation, Inc.
+   Copyright (C) 1998-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -24,6 +24,8 @@ along with GCC; see the file COPYING3.  If not see
 
 extern void coverage_init (const char *);
 extern void coverage_finish (void);
+extern void coverage_init_file (void);
+extern void coverage_finish_file (void);
 extern void coverage_remove_note_file (void);
 
 /* Start outputting coverage information for the current

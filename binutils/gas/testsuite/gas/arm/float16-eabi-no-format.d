@@ -2,6 +2,7 @@
 # readelf: -A
 # notarget: *-*pe *-*-wince
 # source: float16-eabi.s
+# as: -mfpu=softvfp
 Attribute Section: aeabi
 File Attributes
   Tag_ARM_ISA_use: Yes

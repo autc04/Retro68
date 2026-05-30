@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 1999-2025, AdaCore                     --
+--                     Copyright (C) 1999-2026, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -515,7 +515,7 @@ package body GNAT.Calendar.Time_IO is
                   Result := Result &
                     Image (Month_Name'Image (Month_Name'Val (Month - 1)));
 
-               --  Locale's date and time (Sat Nov 04 12:02:33 EST 1989)
+               --  Locale's date and time (Sat Nov 04 12:02:33 1989)
 
                when 'c' =>
                   case Padding is

@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2007-2025 Free Software Foundation, Inc.
+// Copyright (C) 2007-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -48,7 +48,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   // or is_signed, digits10, max_digits10, or max_exponent10 for floats.
 
   // Unlike __is_integer (and std::is_integral) this trait is true for
-  // non-standard built-in integer types such as __int128 and __int20.
+  // non-standard built-in integer types such as __int20.
   template<typename _Tp>
     struct __is_integer_nonstrict
     : public std::__is_integer<_Tp>
@@ -124,12 +124,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
 #if defined __GLIBCXX_TYPE_INT_N_3 && __GLIBCXX_BITSIZE_INT_N_3 % __CHAR_BIT__
   _GLIBCXX_INT_N_TRAITS(__GLIBCXX_TYPE_INT_N_3, __GLIBCXX_BITSIZE_INT_N_3)
-#endif
-
-#if defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
-  // In strict modes __is_integer<__int128> is false,
-  // but we still want to define __numeric_traits_integer<__int128>.
-  _GLIBCXX_INT_N_TRAITS(__int128, 128)
 #endif
 
 #undef _GLIBCXX_INT_N_TRAITS

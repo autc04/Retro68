@@ -1,6 +1,345 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-04-15  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc-changelog/git_update_version.py: Add
+	9df40f1f4bec855da864f535e242308ceb1cd5ad and
+	d5fb79718b22207253d62c92dcf8b1c16e1ea370 to ignored_commits.
+
+2026-04-15  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc-changelog/git_update_version.py: Add
+	eec8da328cf1f91db302ab4cee803e269e68ad33 to ignored_commits.
+
+2026-04-15  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc-changelog/git_update_version.py: Add
+	69a2c243dd2cf9f77150c0eb86dfbc0931876bc1 to ignored_commits.
+
+2026-03-14  Jakub Jelinek  <jakub@redhat.com>
+
+	PR other/124508
+	* update-copyright.py: Add James Bohl. as another copyright.
+
+2026-03-09  Martin Jambor  <mjambor@suse.cz>
+
+	* filter-clang-warnings.py (skip_warning): Also ingore
+	-Wimplicit-int-enum-cast in libiberty.
+
+2026-03-02  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc-changelog/git_update_version.py (ignored_commits): Add
+	9a7da540b63e7d77e747b5cdd6fdbbd3954e28c8.
+
+2026-02-24  Piyush Raj  <piyushraj92739@gmail.com>
+
+	* bpf-vmtest-tool/README: New file.
+	* bpf-vmtest-tool/bpf.py: New file.
+	* bpf-vmtest-tool/config.py: New file.
+	* bpf-vmtest-tool/kernel.py: New file.
+	* bpf-vmtest-tool/main.py: New file.
+	* bpf-vmtest-tool/pyproject.toml: New file.
+	* bpf-vmtest-tool/tests/test_cli.py: New file.
+	* bpf-vmtest-tool/utils.py: New file.
+	* bpf-vmtest-tool/vm.py: New file.
+
+2026-02-24  Martin Jambor  <mjambor@suse.cz>
+
+	* filter-clang-warnings.py (skip_warning): Skip warning
+	-Wreturn-type-c-linkage in rust/ast/rust-fmt.h.  Fix indentation of
+	the entry for libiberty/sha1.c.
+
+2026-02-19  Filip Kastl  <fkastl@suse.cz>
+
+	* filter-clang-warnings.py: Filter out all warnings comming from
+	files with ".texi" in their name.
+
+2026-02-05  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
+
+	* download_prerequisites: Switch gcc.gnu.org link to https
+
+2026-02-05  Filip Kastl  <fkastl@suse.cz>
+
+	* check-params-in-docs.py: Extend architecture-specific options
+	filtering.  Remove the mechanism for seeking to the param
+	section.
+
+2026-01-31  Pietro Monteiro  <pietro@sociotechnical.xyz>
+
+	* compare_tests: Use egrep if 'grep -E' is not supported.
+
+2026-01-09  Jakub Jelinek  <jakub@redhat.com>
+
+	* update-copyright.py (GCCFilter): Don't filter out
+	gen-evolution.awk and gen-cxxapi-file.py.
+
+2026-01-08  Pietro Monteiro  <pietro@sociotechnical.xyz>
+
+	* ci-containers/README: New file.
+	* ci-containers/autoregen/Containerfile: New file.
+	* ci-containers/autoregen/autoregen.py: New file.
+	* ci-containers/build-image.sh: New file.
+
+2026-01-02  Jakub Jelinek  <jakub@redhat.com>
+
+	* update-copyright.py (LibPhobosFilter): Ignore also
+	__importc_builtins.di.
+	(LibGRustFilter): New filter.
+	(GCCCopyright): Add several external authors.
+	(GCCCmdLine): Use LibGRustFilter for libgrust.  Add libga68
+	directory, both to list of directories and default directories.
+
+2025-12-26  Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* test_installed: Use target to select default gcc/g++ etc.
+	under test.
+
+2025-12-15  Joseph Myers  <josmyers@redhat.com>
+
+	* test_installed (--enable-plugin, --with-plugincc=)
+	(--with-plugincflags=, --with-gmpinc=): New options.
+
+2025-12-12  mengqinggang  <mengqinggang@loongson.cn>
+	    Jiajie Chen  <c@jia.je>
+
+	* config-list.mk: Add loongarch32-linux-gnu*.
+
+2025-12-11  Joseph Myers  <josmyers@redhat.com>
+
+	* test_installed: Use config.sub to determine canonical target.
+
+2025-12-08  Joseph Myers  <josmyers@redhat.com>
+
+	* test_installed (--with-alt-cc=, --with-alt-cxx=)
+	(--with-compat-options=, --with-libiconv=): New options.
+
+2025-12-08  Jonathan Wakely  <jwakely@redhat.com>
+
+	* check_GNU_style_lib.py (check_GNU_style_file): Do not check
+	libstdc++ files.
+
+2025-12-06  Mark Zhuang  <mark.zhuang@spacemit.com>
+
+	* prepare-commit-msg: check --default-prefix
+
+2025-12-04  Jonathan Wakely  <jwakely@redhat.com>
+
+	* check_GNU_style_lib.py (TrailinigOperatorCheck): Rename to
+	TrailingOperatorCheck.
+
+2025-12-02  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc-changelog/git_update_version.py (ignored_commits): Add
+	e69bea9b4ccfe79efeec6e87d7d24e6350f31375.
+
+2025-12-01  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* gcc-changelog/git_commit.py: Add gcc/algol68 and libga68 to
+	default_changelog_locations.
+
+2025-11-22  Andrew Pinski  <andrew.pinski@oss.qualcomm.com>
+
+	* gcc-changelog/git_commit.py: Add algol68.
+
+2025-11-16  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* make_sunver.pl ($elfdump): Remove ccs from path.
+
+2025-11-13  Filip Kastl  <fkastl@suse.cz>
+
+	* check-params-in-docs.py: Start parsing from
+	@itemx --param=@var{name}=@var{value} instead of
+	@item --param @var{name}=@var{value}.
+
+2025-11-12  Owen Avery  <powerboat9.gamer@gmail.com>
+
+	* gcc-changelog/git_commit.py (ignored_prefixes): Add
+	'libgrust/rustc-lib/stdarch/'.
+
+2025-11-11  David Malcolm  <dmalcolm@redhat.com>
+
+	PR diagnostics/115970
+	* sarif-listener.py: New file.
+
+2025-10-30  Owen Avery  <powerboat9.gamer@gmail.com>
+
+	* gcc-changelog/git_commit.py (ignored_prefixes): Add
+	'libgrust/rustc-lib/core/'.
+
+2025-10-16  David Malcolm  <dmalcolm@redhat.com>
+
+	* gcc.doxy (INPUT): Add gcc/custom-sarif-properties
+
+2025-10-08  Jakub Jelinek  <jakub@redhat.com>
+
+	* unicode/README: Add HangulSyllableType.txt file to the
+	list as newest utf8_gen.py from glibc now needs it.  Adjust
+	git commit hash and change unicode 16 version to 17.
+	* unicode/from_glibc/utf8_gen.py: Updated from glibc.
+	* unicode/DerivedCoreProperties.txt: Updated from Unicode 17.0.0.
+	* unicode/emoji-data.txt: Likewise.
+	* unicode/PropList.txt: Likewise.
+	* unicode/GraphemeBreakProperty.txt: Likewise.
+	* unicode/DerivedNormalizationProps.txt: Likewise.
+	* unicode/NameAliases.txt: Likewise.
+	* unicode/UnicodeData.txt: Likewise.
+	* unicode/EastAsianWidth.txt: Likewise.
+	* unicode/DerivedGeneralCategory.txt: Likewise.
+	* unicode/HangulSyllableType.txt: New file.
+
+2025-10-05  Mark Wielaard  <mark@klomp.org>
+
+	* gcc-changelog/git_update_version.py (ignored_commits): Add
+	commit b40ef6e9dc096c8c19399e94947a1965258a6942.
+
+2025-10-03  David Malcolm  <dmalcolm@redhat.com>
+
+	Revert:
+	2025-10-02  David Malcolm  <dmalcolm@redhat.com>
+
+	* gcc.doxy (INPUT): Add gcc/custom-sarif-properties
+
+2025-10-02  David Malcolm  <dmalcolm@redhat.com>
+
+	* gcc.doxy (INPUT): Add gcc/custom-sarif-properties
+
+2025-09-23  Jonathan Wakely  <jwakely@redhat.com>
+
+	* unicode/gen_libstdcxx_unicode_data.py: Fix comment type.
+
+2025-09-22  Jonathan Wakely  <jwakely@redhat.com>
+
+	* unicode/gen_libstdcxx_unicode_data.py: Update comment at the
+	top of the file to mention DerivedGeneralCategory.txt
+	prerequisite.
+
+2025-09-17  Andrew Pinski  <andrew.pinski@oss.qualcomm.com>
+
+	* uninclude: Add `lib/gcc/<anything>/include`.
+
+2025-09-10  Christophe Lyon  <christophe.lyon@linaro.org>
+
+	* compare_tests: Improve non-unique tests report when testing
+	several configurations.
+
+2025-09-08  Christophe Lyon  <christophe.lyon@linaro.org>
+
+	* compare_tests: Report non-unique test names.
+
+2025-08-17  Filip Kastl  <fkastl@suse.cz>
+
+	* check-MAINTAINERS.py: Document the way the script sorts
+	entries.
+
+2025-08-07  Tobias Burnus  <tburnus@baylibre.com>
+
+	PR other/120237
+	* download_prerequisites: Update to download GMP 6.3.0 (before 6.2.1),
+	MPFR 4.2.2 (before 4.1.0), and MPC 1.3.1 (before 1.2.1).
+	* prerequisites.md5: Update hash.
+	* prerequisites.sha512: Likewise.
+
+2025-07-28  David Malcolm  <dmalcolm@redhat.com>
+
+	* gcc-changelog/git_commit.py: Add "diagnostics" to bug
+	components.
+
+2025-07-25  David Malcolm  <dmalcolm@redhat.com>
+
+	* filter-clang-warnings.py: Update for move of
+	diagnostic-path-output.cc to diagnostics/paths-output.cc.
+
+2025-07-25  David Malcolm  <dmalcolm@redhat.com>
+
+	* gcc.doxy (INPUT): Add gcc/diagnostics subdir.
+
+2025-07-23  Sam James  <sam@gentoo.org>
+
+	PR other/105404
+	* gcc-changelog/git_commit.py (ignored_prefixes): Add zlib/.
+
+2025-07-16  David Malcolm  <dmalcolm@redhat.com>
+
+	* gcc.doxy (INPUT): Add directory "gcc/text-art".
+
+2025-07-11  Richard Biener  <rguenther@suse.de>
+
+	* gcc-changelog/git_update_version.py: Stop updating gcc-12
+	branch.
+
+2025-07-08  Pierre-Emmanuel Patry  <pierre-emmanuel.patry@embecosm.com>
+
+	* prepare-commit-msg: Force default git prefixes.
+
+2025-07-07  Martin Jambor  <mjambor@suse.cz>
+
+	* filter-clang-warnings.py (skip_warning): Also ignore
+	-Woverloaded-shift-op-parentheses, -Wunused-function,
+	-Wunneeded-internal-declaration, -Wvla-cxx-extension', and
+	-Wunused-command-line-argument everywhere and a warning about
+	m_logical_loc_mgr in diagnostic-path-output.cc.  Adjust gimple-match
+	and generic-match "filenames."  Ignore -Wnontrivial-memcall warnings
+	in wide-int.h, all warnings about unused stuff in files under
+	m2/gm2-compiler-boot, all -Wunused-private-field in rust FE, in
+	analyzer/ana-state-to-diagnostic-state.h and c-family/c-format.cc, all
+	Warnings in avr-mmcu.texi, install.texi and libgccjit.texi and all
+	-Wc23-extensions warnings in libiberty/sha1.c. Ignore
+	-Wunused-parameter in analyzer/sm.cc.  Reorder entries.
+
+2025-06-29  Filip Kastl  <fkastl@suse.cz>
+
+	* mklog.py: In 'main()', specify variable 'root' as global.
+
+2025-06-26  Alex Coplan  <alex.coplan@arm.com>
+
+	* mklog.py (main): New.
+
+2025-06-23  David Malcolm  <dmalcolm@redhat.com>
+
+	PR other/116792
+	PR testsuite/116163
+	PR sarif-replay/120792
+	* dg-lint/dg-lint: Add -fdiagnostics-add-output.
+	* dg-lint/libgdiagnostics.py: Add
+	diagnostic_manager_add_sink_from_spec.
+	(Manager.add_sink_from_spec): New.
+
+2025-06-23  Andrew Burgess  <aburgess@redhat.com>
+
+	* dg-extract-results.py: Handle GDB's unexpected core file count.
+	* dg-extract-results.sh: Likewise.
+
+2025-05-27  Jan Hubicka  <hubicka@ucw.cz>
+
+	* gen_autofdo_event.py: Add support for AMD Zen 3 and
+	later CPUs.
+
+2025-05-23  Andi Kleen  <ak@gcc.gnu.org>
+
+	* diffsummary.py: New file.
+
+2025-05-09  Torbjörn SVENSSON  <torbjorn.svensson@foss.st.com>
+
+	* check_GNU_style_lib.py: Remove literal prefix.
+
+2025-05-01  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* config-list.mk: Update FreeBSD targets to version 13.
+
+2025-04-26  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	* config-list.mk: Add m32c*-*-* to the list of obsoleted targets.
+
+2025-04-25  Jakub Jelinek  <jakub@redhat.com>
+
+	* gennews (files): Add files for GCC 15.
+
+2025-04-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc-changelog/git_update_version.py (active_refs): Add
+	releases/gcc-15.
 
 2025-04-11  Tomasz Kamiński  <tkaminsk@redhat.com>
 

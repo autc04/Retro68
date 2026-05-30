@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /* Definitions of target machine for GNU compiler,
    for IBM RS/6000 POWER running AIX.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -281,4 +281,6 @@
 #undef SUBTARGET_DRIVER_SELF_SPECS
 #define SUBTARGET_DRIVER_SELF_SPECS	\
 "%{m64:-maix64} %<m64",			\
-"%{m32:-maix32} %<m32"
+"%{m32:-maix32} %<m32",			\
+"%{fstack-protector*: %<fstack-protector* \
+   %estack-protector not supported on AIX}"

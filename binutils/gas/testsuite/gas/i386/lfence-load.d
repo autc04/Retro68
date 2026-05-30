@@ -1,4 +1,4 @@
-#as: -mlfence-after-load=yes
+#as: -mlfence-after-load=yes -march=+mpx
 #objdump: -dw
 #warning_output: lfence-load.e
 #name: -mlfence-after-load=yes
@@ -33,6 +33,7 @@ Disassembly of section .text:
  +[a-f0-9]+:	0f 18 55 00          	prefetcht1 0x0\(%ebp\)
  +[a-f0-9]+:	0f 18 5d 00          	prefetcht2 0x0\(%ebp\)
  +[a-f0-9]+:	0f 0d 4d 00          	prefetchw 0x0\(%ebp\)
+ +[a-f0-9]+:	0f 18 65 00          	prefetchrst2 0x0\(%ebp\)
  +[a-f0-9]+:	1f                   	pop    %ds
  +[a-f0-9]+:	0f ae e8             	lfence
  +[a-f0-9]+:	9d                   	popf
@@ -83,7 +84,7 @@ Disassembly of section .text:
  +[a-f0-9]+:	0f ae e8             	lfence
  +[a-f0-9]+:	58                   	pop    %eax
  +[a-f0-9]+:	0f ae e8             	lfence
- +[a-f0-9]+:	66 d1 11             	rclw   \(%ecx\)
+ +[a-f0-9]+:	66 d1 11             	rclw   \$1,\(%ecx\)
  +[a-f0-9]+:	0f ae e8             	lfence
  +[a-f0-9]+:	f7 01 01 00 00 00    	testl  \$0x1,\(%ecx\)
  +[a-f0-9]+:	0f ae e8             	lfence

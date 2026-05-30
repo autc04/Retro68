@@ -1,6 +1,6 @@
 #source: tls-ld-4.s
 #source: tls-x.s
-#as: --no-underscore --em=criself --pic
+#as: --no-underscore --emulation=criself --pic
 #ld: --shared -m crislinux
 #error: \A[^\n]*\.o,[^\n]*mixup[^\n]*\n[^\n]*bad value\Z
 

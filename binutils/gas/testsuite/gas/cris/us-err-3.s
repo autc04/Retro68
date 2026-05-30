@@ -3,7 +3,7 @@
 ; a.out.
 
 ; { dg-do assemble }
-; { dg-options "--no-underscore --em=criself" }
+; { dg-options "--no-underscore --emulation=criself" }
 
 	.syntax leading_underscore ; { dg-error ".* \.syntax leading_underscore requires .* `--underscore'" }
 start:

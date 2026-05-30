@@ -1,5 +1,5 @@
 /* Gimple ranger SSA cache implementation.
-   Copyright (C) 2017-2025 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
    Contributed by Andrew MacLeod <amacleod@redhat.com>.
 
 This file is part of GCC.
@@ -1108,6 +1108,15 @@ ranger_cache::get_global_range (vrange &r, tree name, bool &current_p)
   return had_global;
 }
 
+// Consumers of NAME that have already calculated values should recalculate.
+// Accomplished by updating the timestamp.
+
+void
+ranger_cache::update_consumers (tree name)
+{
+  m_temporal->set_timestamp (name);
+}
+
 //  Set the global range of NAME to R and give it a timestamp.
 
 void
@@ -1861,7 +1870,7 @@ ranger_cache::apply_inferred_ranges (gimple *s)
   bool update = true;
 
   basic_block bb = gimple_bb (s);
-  gimple_infer_range infer(s);
+  gimple_infer_range infer(s, this);
   if (infer.num () == 0)
     return;
 

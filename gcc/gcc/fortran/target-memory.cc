@@ -1,5 +1,5 @@
 /* Simulate storage of variables into target memory.
-   Copyright (C) 2007-2025 Free Software Foundation, Inc.
+   Copyright (C) 2007-2026 Free Software Foundation, Inc.
    Contributed by Paul Thomas and Brooks Moses
 
 This file is part of GCC.
@@ -737,7 +737,7 @@ expr_to_char (gfc_expr *e, locus *loc,
    the union declaration.  */
 
 size_t
-gfc_merge_initializers (gfc_typespec ts, gfc_expr *e, locus *loc,
+gfc_merge_initializers (const gfc_typespec &ts, gfc_expr *e, locus *loc,
 			unsigned char *data,
 			unsigned char *chk, size_t length)
 {

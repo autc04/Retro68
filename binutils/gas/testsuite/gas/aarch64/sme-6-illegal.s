@@ -44,3 +44,12 @@ st1q {za15v.q[w15, 1]}, p7, [x17]
 st1q {za15h.q[w15, 1]}, p7, [sp]
 st1q {za15v.q[w15, 1]}, p7, [x0, x17, lsl #4]
 st1q {za15h.q[w15, 1]}, p7, [sp, x17, lsl #4]
+
+st1b {za0h.b[w12, 0, vgx2]}, p0, [x0]
+st1b {za0h.b[w12, 0, vgx4]}, p0, [x0]
+st1b {za0h.b[w12, 0, vgx8]}, p0, [x0]
+
+st1b {za0h.b[w12, 0, vgx2]}, p0/z, [x0]
+
+st1b {za0h.b[w12, 0:1, vgx2]}, p0, [x0]
+st1b {za0h.b[w12, 0:1, vgx2]}, p0/m, [x0]

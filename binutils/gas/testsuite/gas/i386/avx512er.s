@@ -1,6 +1,5 @@
 # Check 32bit AVX512ER instructions
 
-	.allow_index_reg
 	.text
 _start:
 

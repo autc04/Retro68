@@ -1,3 +1,4 @@
+#as: --divide
 #objdump: -dw -Mintel
 #name: x86-64 prefetch (Intel disassembly)
 #source: prefetch.s
@@ -21,7 +22,7 @@ Disassembly of section .text:
 \s*[a-f0-9]+:	0f 18 08             	prefetcht0 BYTE PTR \[rax\]
 \s*[a-f0-9]+:	0f 18 10             	prefetcht1 BYTE PTR \[rax\]
 \s*[a-f0-9]+:	0f 18 18             	prefetcht2 BYTE PTR \[rax\]
-\s*[a-f0-9]+:	0f 18 20             	nop    DWORD PTR \[rax\]
+\s*[a-f0-9]+:	0f 18 20             	prefetchrst2 BYTE PTR \[rax\]
 \s*[a-f0-9]+:	0f 18 28             	nop    DWORD PTR \[rax\]
 \s*[a-f0-9]+:	0f 18 30             	nop    DWORD PTR \[rax\]
 \s*[a-f0-9]+:	0f 18 38             	nop    DWORD PTR \[rax\]

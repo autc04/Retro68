@@ -1,7 +1,7 @@
 #source: expdyn1.s
 #source: expdref1.s --pic
 #source: euwref1.s --pic
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux --export-dynamic tmpdir/libdso-1.so --hash-style=sysv
 #objdump: -s -j .got
 

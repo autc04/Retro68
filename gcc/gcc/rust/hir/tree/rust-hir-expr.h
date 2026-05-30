@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -19,12 +19,15 @@
 #ifndef RUST_HIR_EXPR_H
 #define RUST_HIR_EXPR_H
 
+#include "rust-ast.h"
 #include "rust-hir-expr-abstract.h"
 #include "rust-hir-literal.h"
 #include "rust-common.h"
 #include "rust-hir-bound.h"
 #include "rust-hir-attrs.h"
 #include "rust-expr.h"
+#include "rust-hir-map.h"
+#include "rust-mapping-common.h"
 
 namespace Rust {
 namespace HIR {
@@ -40,7 +43,7 @@ class LoopLabel /*: public Node*/
   Analysis::NodeMapping mappings;
 
 public:
-  std::string as_string () const;
+  std::string to_string () const;
 
   LoopLabel (Analysis::NodeMapping mapping, Lifetime loop_label,
 	     location_t locus);
@@ -90,11 +93,7 @@ class LiteralExpr : public ExprWithoutBlock
   bool negative_number = false;
 
 public:
-  std::string as_string () const override
-  {
-    return "( " + literal.as_string () + " (" + get_mappings ().as_string ()
-	   + "))";
-  }
+  std::string to_string () const override { return literal.as_string (); }
 
   Literal::LitType get_lit_type () const { return literal.get_lit_type (); }
 
@@ -199,7 +198,7 @@ class BorrowExpr : public OperatorExpr
   bool raw;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   BorrowExpr (Analysis::NodeMapping mappings,
 	      std::unique_ptr<Expr> borrow_lvalue, Mutability mut, bool raw,
@@ -232,7 +231,7 @@ protected:
 class DereferenceExpr : public OperatorExpr
 {
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Constructor calls OperatorExpr's protected constructor
   DereferenceExpr (Analysis::NodeMapping mappings,
@@ -262,7 +261,7 @@ protected:
 class ErrorPropagationExpr : public OperatorExpr
 {
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Constructor calls OperatorExpr's protected constructor
   ErrorPropagationExpr (Analysis::NodeMapping mappings,
@@ -301,7 +300,7 @@ private:
   ExprType expr_type;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   ExprType get_expr_type () const { return expr_type; }
 
@@ -342,7 +341,7 @@ private:
   std::unique_ptr<Expr> right_expr;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   ExprType get_expr_type () const { return expr_type; }
 
@@ -404,7 +403,7 @@ private:
   std::unique_ptr<Expr> right_expr;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   ExprType get_expr_type () const { return expr_type; }
 
@@ -480,7 +479,7 @@ public:
   LazyBooleanExpr (LazyBooleanExpr &&other) = default;
   LazyBooleanExpr &operator= (LazyBooleanExpr &&other) = default;
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   ExprType get_expr_type () const { return expr_type; }
 
@@ -513,7 +512,7 @@ class TypeCastExpr : public OperatorExpr
 
   // Note: only certain type casts allowed, outlined in reference
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Constructor requires calling protected constructor of OperatorExpr
   TypeCastExpr (Analysis::NodeMapping mappings,
@@ -561,7 +560,7 @@ class AssignmentExpr : public OperatorExpr
   std::unique_ptr<Expr> right_expr;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Call OperatorExpr constructor to initialise left_expr
   AssignmentExpr (Analysis::NodeMapping mappings,
@@ -615,7 +614,7 @@ private:
   std::unique_ptr<Expr> right_expr;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   ExprType get_expr_type () const { return expr_type; }
 
@@ -665,7 +664,7 @@ class GroupedExpr : public ExprWithoutBlock, public WithInnerAttrs
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   GroupedExpr (Analysis::NodeMapping mappings,
 	       std::unique_ptr<Expr> parenthesised_expr,
@@ -731,7 +730,7 @@ public:
     return std::unique_ptr<ArrayElems> (clone_array_elems_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string to_string () const = 0;
 
   virtual void accept_vis (HIRFullVisitor &vis) = 0;
 
@@ -767,7 +766,7 @@ public:
   ArrayElemsValues (ArrayElemsValues &&other) = default;
   ArrayElemsValues &operator= (ArrayElemsValues &&other) = default;
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   void accept_vis (HIRFullVisitor &vis) override;
 
@@ -809,7 +808,7 @@ public:
   ArrayElemsCopied (ArrayElemsCopied &&other) = default;
   ArrayElemsCopied &operator= (ArrayElemsCopied &&other) = default;
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   void accept_vis (HIRFullVisitor &vis) override;
 
@@ -837,7 +836,7 @@ class ArrayExpr : public ExprWithoutBlock, public WithInnerAttrs
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Returns whether array expr has array elems or if it is just empty.
   bool has_array_elems () const { return internal_elements != nullptr; }
@@ -891,7 +890,7 @@ class ArrayIndexExpr : public ExprWithoutBlock
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   ArrayIndexExpr (Analysis::NodeMapping mappings,
 		  std::unique_ptr<Expr> array_expr,
@@ -946,7 +945,7 @@ class TupleExpr : public ExprWithoutBlock, public WithInnerAttrs
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   TupleExpr (Analysis::NodeMapping mappings,
 	     std::vector<std::unique_ptr<Expr>> tuple_elements,
@@ -1004,7 +1003,7 @@ class TupleIndexExpr : public ExprWithoutBlock
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   TupleIndex get_tuple_index () const { return tuple_index; }
 
@@ -1063,7 +1062,7 @@ protected:
 public:
   PathInExpression &get_struct_name () { return struct_name; }
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   ExprType get_expression_type () const override final
   {
@@ -1077,7 +1076,7 @@ class StructExprStruct : public StructExpr, public WithInnerAttrs
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Constructor has to call protected constructor of base class
   StructExprStruct (Analysis::NodeMapping mappings,
@@ -1135,7 +1134,7 @@ public:
   // Returns whether StructBase is in error state
   bool is_invalid () const { return base_struct == nullptr; }
 
-  std::string as_string () const;
+  std::string to_string () const;
 
   Expr &get_base () { return *base_struct; }
 };
@@ -1160,7 +1159,7 @@ public:
     return std::unique_ptr<StructExprField> (clone_struct_expr_field_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string to_string () const = 0;
 
   virtual void accept_vis (HIRFullVisitor &vis) = 0;
   virtual void accept_vis (HIRExpressionVisitor &vis) = 0;
@@ -1192,7 +1191,7 @@ public:
   StructExprFieldIdentifier (Analysis::NodeMapping mapping,
 			     Identifier field_identifier, location_t locus);
 
-  std::string as_string () const override { return field_name.as_string (); }
+  std::string to_string () const override { return field_name.as_string (); }
 
   void accept_vis (HIRFullVisitor &vis) override;
   void accept_vis (HIRExpressionVisitor &vis) override;
@@ -1234,7 +1233,7 @@ protected:
   StructExprFieldWithVal &operator= (StructExprFieldWithVal &&other) = default;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   Expr &get_value () { return *value; }
 };
@@ -1252,7 +1251,7 @@ public:
 				  std::unique_ptr<Expr> field_value,
 				  location_t locus);
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   void accept_vis (HIRFullVisitor &vis) override;
   void accept_vis (HIRExpressionVisitor &vis) override;
@@ -1286,7 +1285,7 @@ public:
 			     std::unique_ptr<Expr> field_value,
 			     location_t locus);
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   TupleIndex get_tuple_index () const { return index; };
 
@@ -1319,7 +1318,7 @@ public:
   // is set when type checking
   int union_index = -1;
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   bool has_struct_base () const { return struct_base.has_value (); }
 
@@ -1417,7 +1416,7 @@ class CallExpr : public ExprWithoutBlock
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   CallExpr (Analysis::NodeMapping mappings, std::unique_ptr<Expr> function_expr,
 	    std::vector<std::unique_ptr<Expr>> function_params,
@@ -1480,7 +1479,7 @@ class MethodCallExpr : public ExprWithoutBlock
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   MethodCallExpr (Analysis::NodeMapping mappings,
 		  std::unique_ptr<Expr> call_receiver,
@@ -1549,7 +1548,7 @@ class FieldAccessExpr : public ExprWithoutBlock
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   FieldAccessExpr (Analysis::NodeMapping mappings,
 		   std::unique_ptr<Expr> field_access_receiver,
@@ -1626,7 +1625,7 @@ public:
   ClosureParam (ClosureParam &&other) = default;
   ClosureParam &operator= (ClosureParam &&other) = default;
 
-  std::string as_string () const;
+  std::string to_string () const;
 
   const std::vector<AST::Attribute> &get_outer_attrs () const
   {
@@ -1668,7 +1667,7 @@ public:
   ClosureExpr (ClosureExpr &&other) = default;
   ClosureExpr &operator= (ClosureExpr &&other) = default;
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   location_t get_locus () const override final { return locus; }
 
@@ -1718,7 +1717,7 @@ public:
   location_t start_locus;
   location_t end_locus;
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   AST::AttrVec get_inner_attrs () const { return inner_attrs; }
 
@@ -1800,6 +1799,92 @@ protected:
   }
 };
 
+class AnonConst : public ExprWithBlock
+{
+public:
+  enum class Kind
+  {
+    Explicit,
+    DeferredInference
+  };
+
+  AnonConst (Analysis::NodeMapping mappings, std::unique_ptr<Expr> &&expr,
+	     location_t locus = UNKNOWN_LOCATION);
+  AnonConst (Analysis::NodeMapping mappings,
+	     location_t locus = UNKNOWN_LOCATION);
+  AnonConst (const AnonConst &other);
+  AnonConst operator= (const AnonConst &other);
+
+  std::string to_string () const override;
+
+  void accept_vis (HIRFullVisitor &vis) override;
+  void accept_vis (HIRExpressionVisitor &vis) override;
+
+  ExprType get_expression_type () const final override
+  {
+    return ExprType::AnonConst;
+  }
+
+  location_t get_locus () const override { return locus; }
+
+  Expr &get_inner_expr ()
+  {
+    rust_assert (kind == Kind::Explicit);
+    return *expr.value ();
+  }
+
+  const Expr &get_inner_expr () const
+  {
+    rust_assert (kind == Kind::Explicit);
+    return *expr.value ();
+  }
+
+  bool is_deferred () const { return kind == Kind::DeferredInference; }
+
+private:
+  location_t locus;
+  Kind kind;
+  tl::optional<std::unique_ptr<Expr>> expr;
+
+  AnonConst *clone_expr_with_block_impl () const override
+  {
+    return new AnonConst (*this);
+  }
+};
+
+class ConstBlock : public ExprWithBlock
+{
+public:
+  ConstBlock (Analysis::NodeMapping mappings, AnonConst &&expr,
+	      location_t locus = UNKNOWN_LOCATION,
+	      AST::AttrVec outer_attrs = {});
+  ConstBlock (const ConstBlock &other);
+  ConstBlock operator= (const ConstBlock &other);
+
+  void accept_vis (HIRFullVisitor &vis) override;
+  void accept_vis (HIRExpressionVisitor &vis) override;
+
+  std::string to_string () const override;
+
+  ExprType get_expression_type () const final override
+  {
+    return ExprType::ConstBlock;
+  }
+
+  location_t get_locus () const override { return locus; }
+  AnonConst &get_const_expr () { return expr; }
+  const AnonConst &get_const_expr () const { return expr; }
+
+private:
+  AnonConst expr;
+  location_t locus;
+
+  ConstBlock *clone_expr_with_block_impl () const override
+  {
+    return new ConstBlock (*this);
+  }
+};
+
 // HIR node representing continue expression within loops
 class ContinueExpr : public ExprWithoutBlock
 {
@@ -1807,7 +1892,7 @@ class ContinueExpr : public ExprWithoutBlock
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Returns true if the continue expr has a label.
   bool has_label () const { return label.has_value (); }
@@ -1858,7 +1943,7 @@ class BreakExpr : public ExprWithoutBlock
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Returns whether the break expression has a label or not.
   bool has_label () const { return label.has_value (); }
@@ -1937,7 +2022,7 @@ class RangeFromToExpr : public RangeExpr
   std::unique_ptr<Expr> to;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   RangeFromToExpr (Analysis::NodeMapping mappings,
 		   std::unique_ptr<Expr> range_from,
@@ -1982,7 +2067,7 @@ class RangeFromExpr : public RangeExpr
   std::unique_ptr<Expr> from;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   RangeFromExpr (Analysis::NodeMapping mappings,
 		 std::unique_ptr<Expr> range_from, location_t locus);
@@ -2025,7 +2110,7 @@ class RangeToExpr : public RangeExpr
   std::unique_ptr<Expr> to;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // outer attributes not allowed
   RangeToExpr (Analysis::NodeMapping mappings, std::unique_ptr<Expr> range_to,
@@ -2067,7 +2152,7 @@ protected:
 class RangeFullExpr : public RangeExpr
 {
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   RangeFullExpr (Analysis::NodeMapping mappings, location_t locus);
   // outer attributes not allowed
@@ -2099,7 +2184,7 @@ class RangeFromToInclExpr : public RangeExpr
   std::unique_ptr<Expr> to;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   RangeFromToInclExpr (Analysis::NodeMapping mappings,
 		       std::unique_ptr<Expr> range_from,
@@ -2145,7 +2230,7 @@ class RangeToInclExpr : public RangeExpr
   std::unique_ptr<Expr> to;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   RangeToInclExpr (Analysis::NodeMapping mappings,
 		   std::unique_ptr<Expr> range_to, location_t locus);
@@ -2190,7 +2275,7 @@ public:
 
   location_t locus;
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   /* Returns whether the object has an expression returned (i.e. not void return
    * type). */
@@ -2248,7 +2333,7 @@ class UnsafeBlockExpr : public ExprWithBlock
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   UnsafeBlockExpr (Analysis::NodeMapping mappings,
 		   std::unique_ptr<BlockExpr> block_expr,
@@ -2339,7 +2424,7 @@ public:
 class LoopExpr : public BaseLoopExpr
 {
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Constructor for LoopExpr
   LoopExpr (Analysis::NodeMapping mappings,
@@ -2369,7 +2454,7 @@ class WhileLoopExpr : public BaseLoopExpr
   std::unique_ptr<Expr> condition;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Constructor for while loop with loop label
   WhileLoopExpr (Analysis::NodeMapping mappings,
@@ -2413,15 +2498,15 @@ protected:
 class WhileLetLoopExpr : public BaseLoopExpr
 {
   // MatchArmPatterns patterns;
-  std::vector<std::unique_ptr<Pattern>> match_arm_patterns; // inlined
+  std::unique_ptr<Pattern> match_arm_pattern; // inlined
   std::unique_ptr<Expr> condition;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   // Constructor with a loop label
   WhileLetLoopExpr (Analysis::NodeMapping mappings,
-		    std::vector<std::unique_ptr<Pattern>> match_arm_patterns,
+		    std::unique_ptr<Pattern> match_arm_pattern,
 		    std::unique_ptr<Expr> condition,
 		    std::unique_ptr<BlockExpr> loop_block, location_t locus,
 		    tl::optional<LoopLabel> loop_label,
@@ -2441,10 +2526,7 @@ public:
   void accept_vis (HIRExpressionVisitor &vis) override;
 
   Expr &get_cond () { return *condition; }
-  std::vector<std::unique_ptr<Pattern>> &get_patterns ()
-  {
-    return match_arm_patterns;
-  }
+  std::unique_ptr<Pattern> &get_pattern () { return match_arm_pattern; }
 
 protected:
   /* Use covariance to implement clone function as returning this object rather
@@ -2471,7 +2553,7 @@ class IfExpr : public ExprWithBlock
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   IfExpr (Analysis::NodeMapping mappings, std::unique_ptr<Expr> condition,
 	  std::unique_ptr<BlockExpr> if_block, location_t locus);
@@ -2532,7 +2614,7 @@ class IfExprConseqElse : public IfExpr
   std::unique_ptr<ExprWithBlock> else_block;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   IfExprConseqElse (Analysis::NodeMapping mappings,
 		    std::unique_ptr<Expr> condition,
@@ -2586,7 +2668,7 @@ struct MatchArm
 {
 private:
   AST::AttrVec outer_attrs;
-  std::vector<std::unique_ptr<Pattern>> match_arm_patterns;
+  std::unique_ptr<Pattern> match_arm_pattern;
   std::unique_ptr<Expr> guard_expr;
   location_t locus;
 
@@ -2595,8 +2677,8 @@ public:
   bool has_match_arm_guard () const { return guard_expr != nullptr; }
 
   // Constructor for match arm with a guard expression
-  MatchArm (std::vector<std::unique_ptr<Pattern>> match_arm_patterns,
-	    location_t locus, std::unique_ptr<Expr> guard_expr = nullptr,
+  MatchArm (std::unique_ptr<Pattern> match_arm_pattern, location_t locus,
+	    std::unique_ptr<Expr> guard_expr = nullptr,
 	    AST::AttrVec outer_attrs = AST::AttrVec ());
 
   // Copy constructor with clone
@@ -2612,25 +2694,24 @@ public:
   MatchArm &operator= (MatchArm &&other) = default;
 
   // Returns whether match arm is in an error state.
-  bool is_error () const { return match_arm_patterns.empty (); }
+  bool is_error () const { return match_arm_pattern == nullptr; }
 
   // Creates a match arm in an error state.
   static MatchArm create_error ()
   {
     location_t locus = UNDEF_LOCATION;
-    return MatchArm (std::vector<std::unique_ptr<Pattern>> (), locus);
+    return MatchArm (nullptr, locus);
   }
 
-  std::string as_string () const;
+  std::string to_string () const;
 
-  std::vector<std::unique_ptr<Pattern>> &get_patterns ()
-  {
-    return match_arm_patterns;
-  }
+  std::unique_ptr<Pattern> &get_pattern () { return match_arm_pattern; }
 
   Expr &get_guard_expr () { return *guard_expr; }
 
   location_t get_locus () const { return locus; }
+
+  AST::AttrVec &get_outer_attrs () { return outer_attrs; }
 };
 
 /* A "match case" - a correlated match arm and resulting expression. Not
@@ -2655,7 +2736,8 @@ public:
 
   ~MatchCase () = default;
 
-  std::string as_string () const;
+  std::string to_string () const;
+  std::string to_debug_string () const;
 
   Analysis::NodeMapping get_mappings () const { return mappings; }
 
@@ -2671,7 +2753,7 @@ class MatchExpr : public ExprWithBlock, public WithInnerAttrs
   location_t locus;
 
 public:
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   bool has_match_arms () const { return !match_arms.empty (); }
 
@@ -2738,7 +2820,7 @@ public:
   AwaitExpr (AwaitExpr &&other) = default;
   AwaitExpr &operator= (AwaitExpr &&other) = default;
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   location_t get_locus () const override final { return locus; }
 
@@ -2783,7 +2865,7 @@ public:
   AsyncBlockExpr (AsyncBlockExpr &&other) = default;
   AsyncBlockExpr &operator= (AsyncBlockExpr &&other) = default;
 
-  std::string as_string () const override;
+  std::string to_string () const override;
 
   location_t get_locus () const override final { return locus; }
 
@@ -2823,6 +2905,22 @@ public:
 
   OperatorExprMeta (HIR::ComparisonExpr &expr);
 
+  OperatorExprMeta (const OperatorExprMeta &other)
+    : node_mappings (other.node_mappings),
+      lvalue_mappings (other.lvalue_mappings),
+      rvalue_mappings (other.rvalue_mappings), locus (other.locus)
+  {}
+
+  OperatorExprMeta &operator= (const OperatorExprMeta &other)
+  {
+    node_mappings = other.node_mappings;
+    lvalue_mappings = other.lvalue_mappings;
+    rvalue_mappings = other.rvalue_mappings;
+    locus = other.locus;
+
+    return *this;
+  }
+
   const Analysis::NodeMapping &get_mappings () const { return node_mappings; }
 
   const Analysis::NodeMapping &get_lvalue_mappings () const
@@ -2830,11 +2928,22 @@ public:
     return lvalue_mappings;
   }
 
+  const Analysis::NodeMapping &get_rvalue_mappings () const
+  {
+    return rvalue_mappings;
+  }
+
+  bool has_rvalue_mappings () const
+  {
+    return rvalue_mappings.get_hirid () != UNKNOWN_HIRID;
+  }
+
   location_t get_locus () const { return locus; }
 
 private:
-  const Analysis::NodeMapping node_mappings;
-  const Analysis::NodeMapping lvalue_mappings;
+  Analysis::NodeMapping node_mappings;
+  Analysis::NodeMapping lvalue_mappings;
+  Analysis::NodeMapping rvalue_mappings;
   location_t locus;
 };
 
@@ -2890,18 +2999,6 @@ class InlineAsmRegClass
   // this placeholder is to be removed when the definations
   // of the above enums are made in a later PR/patch.
   std::string placeholder;
-};
-
-struct AnonConst
-{
-  NodeId id;
-  std::unique_ptr<Expr> expr;
-
-  AnonConst (NodeId id, std::unique_ptr<Expr> expr);
-
-  AnonConst (const AnonConst &other);
-
-  AnonConst operator= (const AnonConst &other);
 };
 
 class InlineAsmOperand
@@ -2992,8 +3089,9 @@ public:
     Label operator= (const struct Label &other);
   };
 
-private:
   using RegisterType = AST::InlineAsmOperand::RegisterType;
+
+private:
   AST::InlineAsmOperand::RegisterType register_type;
 
   tl::optional<struct In> in;
@@ -3037,13 +3135,24 @@ public:
   RegisterType get_register_type () const { return register_type; }
 
   // Potentially unsafe without get_register_type() check
-  struct In get_in () const { return in.value (); }
-  struct Out get_out () const { return out.value (); }
-  struct InOut get_in_out () const { return in_out.value (); }
-  struct SplitInOut get_split_in_out () const { return split_in_out.value (); }
-  struct Const get_const () const { return cnst.value (); }
-  struct Sym get_sym () const { return sym.value (); }
-  struct Label get_label () const { return label.value (); }
+  const struct In &get_in () const { return in.value (); }
+  const struct Out &get_out () const { return out.value (); }
+  const struct InOut &get_in_out () const { return in_out.value (); }
+  const struct SplitInOut &get_split_in_out () const
+  {
+    return split_in_out.value ();
+  }
+  const struct Const &get_const () const { return cnst.value (); }
+  const struct Sym &get_sym () const { return sym.value (); }
+  const struct Label &get_label () const { return label.value (); }
+
+  struct In &get_in () { return in.value (); }
+  struct Out &get_out () { return out.value (); }
+  struct InOut &get_in_out () { return in_out.value (); }
+  struct SplitInOut &get_split_in_out () { return split_in_out.value (); }
+  struct Const &get_const () { return cnst.value (); }
+  struct Sym &get_sym () { return sym.value (); }
+  struct Label &get_label () { return label.value (); }
 };
 
 // Inline Assembly Node
@@ -3059,7 +3168,7 @@ public:
   std::vector<AST::TupleTemplateStr> template_strs;
   std::vector<HIR::InlineAsmOperand> operands;
   std::vector<AST::TupleClobber> clobber_abi;
-  std::set<AST::InlineAsmOption> options;
+  std::set<AST::InlineAsm::Option> options;
 
   std::vector<location_t> line_spans;
 
@@ -3067,7 +3176,7 @@ public:
 
   void accept_vis (HIRFullVisitor &vis) override;
 
-  std::string as_string () const override { return "InlineAsm HIR Node"; }
+  std::string to_string () const override { return "InlineAsm HIR Node"; }
 
   location_t get_locus () const override { return locus; }
 
@@ -3090,11 +3199,11 @@ public:
     return template_strs;
   }
 
-  std::vector<HIR::InlineAsmOperand> get_operands () { return operands; }
+  std::vector<HIR::InlineAsmOperand> &get_operands () { return operands; }
 
   std::vector<AST::TupleClobber> get_clobber_abi () { return clobber_abi; }
 
-  std::set<AST::InlineAsmOption> get_options () { return options; }
+  std::set<AST::InlineAsm::Option> get_options () { return options; }
 
   bool is_simple_asm ()
   {
@@ -3113,9 +3222,119 @@ public:
 	     std::vector<AST::TupleTemplateStr> template_strs,
 	     std::vector<HIR::InlineAsmOperand> operands,
 	     std::vector<AST::TupleClobber> clobber_abi,
-	     std::set<AST::InlineAsmOption> options,
+	     std::set<AST::InlineAsm::Option> options,
 	     Analysis::NodeMapping mappings,
 	     AST::AttrVec outer_attribs = AST::AttrVec ());
+};
+
+class OffsetOf : public ExprWithoutBlock
+{
+public:
+  OffsetOf (std::unique_ptr<Type> &&type, Identifier field,
+	    Analysis::NodeMapping mappings, location_t loc)
+    : ExprWithoutBlock (mappings), type (std::move (type)), field (field),
+      loc (loc)
+  {}
+
+  OffsetOf (const OffsetOf &other)
+    : ExprWithoutBlock (other), type (other.type->clone_type ()),
+      field (other.field), loc (other.loc)
+  {}
+
+  OffsetOf &operator= (const OffsetOf &other);
+
+  ExprWithoutBlock *clone_expr_without_block_impl () const override;
+  std::string to_string () const override;
+
+  void accept_vis (HIRExpressionVisitor &vis) override;
+  void accept_vis (HIRFullVisitor &vis) override;
+
+  ExprType get_expression_type () const override { return ExprType::OffsetOf; }
+
+  location_t get_locus () const override { return loc; }
+
+  Type &get_type () { return *type; }
+  const Type &get_type () const { return *type; }
+  const Identifier &get_field () const { return field; }
+
+private:
+  std::unique_ptr<Type> type;
+  Identifier field;
+  location_t loc;
+};
+
+struct LlvmOperand
+{
+  std::string constraint;
+  std::unique_ptr<Expr> expr;
+
+  LlvmOperand (std::string constraint, std::unique_ptr<Expr> &&expr)
+    : constraint (constraint), expr (std::move (expr))
+  {}
+
+  LlvmOperand (const LlvmOperand &other)
+    : constraint (other.constraint), expr (other.expr->clone_expr ())
+  {}
+  LlvmOperand &operator= (const LlvmOperand &other)
+  {
+    constraint = other.constraint;
+    expr = other.expr->clone_expr ();
+
+    return *this;
+  }
+};
+
+class LlvmInlineAsm : public ExprWithoutBlock
+{
+public:
+  struct Options
+  {
+    bool is_volatile;
+    bool align_stack;
+    AST::LlvmInlineAsm::Dialect dialect;
+  };
+
+  location_t locus;
+  AST::AttrVec outer_attrs;
+  std::vector<LlvmOperand> inputs;
+  std::vector<LlvmOperand> outputs;
+  std::vector<AST::TupleTemplateStr> templates;
+  std::vector<AST::TupleClobber> clobbers;
+  Options options;
+
+  LlvmInlineAsm (location_t locus, std::vector<LlvmOperand> inputs,
+		 std::vector<LlvmOperand> outputs,
+		 std::vector<AST::TupleTemplateStr> templates,
+		 std::vector<AST::TupleClobber> clobbers, Options options,
+		 AST::AttrVec outer_attrs, Analysis::NodeMapping mappings)
+    : ExprWithoutBlock (mappings, std::move (outer_attrs)), locus (locus),
+      inputs (std::move (inputs)), outputs (std::move (outputs)),
+      templates (std::move (templates)), clobbers (std::move (clobbers)),
+      options (options)
+  {}
+
+  AST::LlvmInlineAsm::Dialect get_dialect () { return options.dialect; }
+
+  location_t get_locus () const override { return locus; }
+
+  std::vector<AST::Attribute> &get_outer_attrs () { return outer_attrs; }
+
+  void accept_vis (HIRFullVisitor &vis) override;
+  void accept_vis (HIRExpressionVisitor &vis) override;
+
+  LlvmInlineAsm *clone_expr_without_block_impl () const override
+  {
+    return new LlvmInlineAsm (*this);
+  }
+
+  std::vector<AST::TupleTemplateStr> &get_templates () { return templates; }
+
+  Expr::ExprType get_expression_type () const override
+  {
+    return Expr::ExprType::LlvmInlineAsm;
+  }
+
+  std::vector<AST::TupleClobber> get_clobbers () { return clobbers; }
 };
 
 } // namespace HIR

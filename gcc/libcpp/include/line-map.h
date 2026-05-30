@@ -1,5 +1,5 @@
 /* Map (unsigned int) keys to (source file, line, column) triples.
-   Copyright (C) 2001-2025 Free Software Foundation, Inc.
+   Copyright (C) 2001-2026 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -878,6 +878,12 @@ public:
      built-in tokens.  */
   location_t builtin_location;
 
+  /* The special location value to be used for tokens originating on the
+     command line.  This is currently only needed by the C-family front ends
+     for PCH support; if it would be used for another purpose in the future,
+     then other libcpp-using front ends may need to set it as well.  */
+  location_t cmdline_location;
+
   /* The default value of range_bits in ordinary line maps.  */
   unsigned int default_range_bits;
 
@@ -1111,6 +1117,10 @@ extern location_t linemap_module_loc
 extern void linemap_module_reparent
   (line_maps *, location_t loc, location_t new_parent);
 
+/* TRUE iff the location comes from a module import.  */
+extern bool linemap_location_from_module_p
+  (const line_maps *, location_t);
+
 /* Restore the linemap state such that the map at LWM-1 continues.
    Return start location of the new map.  */
 extern location_t linemap_module_restore
@@ -1280,7 +1290,7 @@ linemap_location_before_p (const line_maps *set,
   return linemap_compare_locations (set, loc_a, loc_b) >= 0;
 }
 
-typedef struct
+struct expanded_location
 {
   /* The name of the source file involved.  */
   const char *file;
@@ -1294,7 +1304,18 @@ typedef struct
 
   /* In a system header?. */
   bool sysp;
-} expanded_location;
+};
+
+extern bool
+operator== (const expanded_location &a,
+	    const expanded_location &b);
+inline bool
+operator!= (const expanded_location &a,
+	    const expanded_location &b)
+{
+  return !(a == b);
+}
+
 
 /* This is enum is used by the function linemap_resolve_location
    below.  The meaning of the values is explained in the comment of
@@ -1444,11 +1465,11 @@ void line_table_dump (FILE *, const line_maps *,
 
 /* An enum for distinguishing the various parts within a location_t.  */
 
-enum location_aspect
+enum class location_aspect
 {
-  LOCATION_ASPECT_CARET,
-  LOCATION_ASPECT_START,
-  LOCATION_ASPECT_FINISH
+  caret,
+  start,
+  finish
 };
 
 /* The rich_location class requires a way to expand location_t instances.

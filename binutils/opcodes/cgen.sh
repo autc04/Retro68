@@ -1,7 +1,7 @@
 #! /bin/sh
 # CGEN generic assembler support code.
 #
-#   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 #
 #   This file is part of the GNU opcodes library.
 #
@@ -99,7 +99,6 @@ opcodes)
 
 	# Run CGEN.
 	${cgen} ${cgendir}/cgen-opc.scm \
-		-s ${cgendir} \
 		${cgenflags} \
 		-f "${options}" \
 		-m all \
@@ -182,7 +181,6 @@ desc)
 	rm -f ${tmp}-opc.h1 ${tmp}-opc.h
 
 	${cgen} ${cgendir}/cgen-opc.scm \
-		-s ${cgendir} \
 		${cgenflags} \
 		-OPC ${opcfile} \
 		-f "${archflags}" \
@@ -194,15 +192,15 @@ desc)
 		-O ${tmp}-opc.h1
 
 	sed -e "s/@ARCH@/${ARCH}/g" -e "s/@arch@/${arch}/g" \
-		-e "s/@prefix@/${prefix}/g" \
+		-e "s/@prefix@/${prefix}/g" -e 's/[ 	][ 	]*$//' \
 		< ${tmp}-desc.h1 > ${tmp}-desc.h
 	${rootdir}/move-if-change ${tmp}-desc.h ${srcdir}/${arch}-desc.h
 	sed -e "s/@ARCH@/${ARCH}/g" -e "s/@arch@/${arch}/g" \
-		-e "s/@prefix@/${prefix}/g" \
+		-e "s/@prefix@/${prefix}/g" -e 's/[ 	][ 	]*$//' \
 		< ${tmp}-desc.c1 > ${tmp}-desc.c
 	${rootdir}/move-if-change ${tmp}-desc.c ${srcdir}/${arch}-desc.c
 	sed -e "s/@ARCH@/${ARCH}/g" -e "s/@arch@/${arch}/g" \
-		-e "s/@prefix@/${prefix}/g" \
+		-e "s/@prefix@/${prefix}/g" -e 's/[ 	][ 	]*$//' \
 		< ${tmp}-opc.h1 > ${tmp}-opc.h
 	${rootdir}/move-if-change ${tmp}-opc.h ${srcdir}/${arch}-opc.h
 

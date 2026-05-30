@@ -1,5 +1,5 @@
 #...
-[a-f0-9]+ +[0-9a-f]+ +R_.*_JUMP_SLO(T|) +[a-f0-9]+ +indirect_extern_access( \+ 0|)
+[a-f0-9]+ +[0-9a-f]+ +R_.*_JUMP_SLO(T|) +[a-f0-9]+ +indirect_extern_access( \+ [a-f0-9]+|)
 #...
 Displaying notes found in: .note.gnu.property
 [ 	]+Owner[ 	]+Data size[ 	]+Description

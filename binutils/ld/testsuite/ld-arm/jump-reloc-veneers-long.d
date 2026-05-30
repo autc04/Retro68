@@ -17,6 +17,6 @@ Disassembly of section .text:
 000080.. <[^>]*>:
     80..:	4778      	bx	pc
     80..:	e7fd      	b.n	.+ <.+>
-    80..:	e59fc000 	ldr	ip, \[pc\]	; 80.. <__dest_veneer\+0xc>
+    80..:	e59fc000 	ldr	ip, \[pc\]	@ 80.. <__dest_veneer\+0xc>
     80..:	e12fff1c 	bx	ip
     80..:	09000001 	.word	0x09000001

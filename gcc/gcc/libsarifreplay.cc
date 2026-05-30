@@ -1,6 +1,6 @@
 /* A library for re-emitting diagnostics saved in SARIF form
    via libgdiagnostics.
-   Copyright (C) 2022-2025 Free Software Foundation, Inc.
+   Copyright (C) 2022-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -25,13 +25,14 @@ along with GCC; see the file COPYING3.  If not see
 #define INCLUDE_STRING
 #include "system.h"
 #include "coretypes.h"
-#include "make-unique.h"
 #include "libgdiagnostics++.h"
+#include "libgdiagnostics-private.h"
 #include "json-parsing.h"
 #include "intl.h"
 #include "sarif-spec-urls.def"
 #include "libsarifreplay.h"
 #include "label-text.h"
+#include "pretty-print.h"
 
 namespace {
 
@@ -51,7 +52,7 @@ read_file (const char *path, libgdiagnostics::manager &mgr)
     }
 
   /* Read content, allocating a buffer for it.  */
-  auto result = ::make_unique<std::vector<char>> ();
+  auto result = std::make_unique<std::vector<char>> ();
   char buf[4096];
   size_t iter_sz_in;
 
@@ -106,6 +107,81 @@ make_physical_location (libgdiagnostics::manager &mgr,
     = make_physical_location (mgr, f, range.m_end);
   return mgr.new_location_from_range (start, start, end);
 }
+
+static enum diagnostic_logical_location_kind_t
+get_logical_location_kind_for_json_kind (enum json::kind json_kind)
+{
+  switch (json_kind)
+    {
+    default:
+      gcc_unreachable ();
+
+    case json::JSON_OBJECT:
+      return DIAGNOSTIC_LOGICAL_LOCATION_KIND_OBJECT;
+
+    case json::JSON_ARRAY:
+      return DIAGNOSTIC_LOGICAL_LOCATION_KIND_ARRAY;
+
+    case json::JSON_INTEGER:
+    case json::JSON_FLOAT:
+    case json::JSON_STRING:
+    case json::JSON_TRUE:
+    case json::JSON_FALSE:
+    case json::JSON_NULL:
+      return DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROPERTY;
+      /* Perhaps this should be DIAGNOSTIC_LOGICAL_LOCATION_KIND_VALUE,
+	 but then we need to more carefully track context.  */
+    }
+}
+
+static libgdiagnostics::logical_location
+make_logical_location_from_jv (libgdiagnostics::manager &mgr,
+			       const json::value &jv)
+{
+  libgdiagnostics::logical_location parent;
+  const json::pointer::token &pointer_token = jv.get_pointer_token ();
+
+  if (pointer_token.m_parent)
+    /* Recursively ensure that we have ancestor locations.  */
+    parent = make_logical_location_from_jv (mgr,
+					    *jv.m_pointer_token.m_parent);
+
+  pretty_printer pp;
+  pointer_token.print (&pp);
+  std::string short_name = pp_formatted_text (&pp);
+  std::string fully_qualified_name;
+  switch (pointer_token.m_kind)
+    {
+    default:
+      gcc_unreachable ();
+
+    case json::pointer::token::kind::root_value:
+      fully_qualified_name = "";
+      break;
+
+    case json::pointer::token::kind::object_member:
+      gcc_assert (parent.m_inner);
+      fully_qualified_name
+	= std::string (parent.get_fully_qualified_name ()) + "/" + short_name;
+      break;
+
+    case json::pointer::token::kind::array_index:
+      gcc_assert (parent.m_inner);
+      fully_qualified_name
+	= std::string (parent.get_fully_qualified_name ()) + "/" + short_name;
+      break;
+    }
+
+  enum diagnostic_logical_location_kind_t kind
+    = get_logical_location_kind_for_json_kind (jv.get_kind ());
+
+  return mgr.new_logical_location (kind,
+				   parent,
+				   short_name.c_str (),
+				   fully_qualified_name.c_str (),
+				   nullptr);
+}
+
 
 enum class status
 {
@@ -206,15 +282,23 @@ class annotation
 {
 public:
   annotation (libgdiagnostics::physical_location phys_loc,
-	      label_text label)
+	      libgdiagnostics::message_buffer label)
   : m_phys_loc (phys_loc),
     m_label (std::move (label))
   {
   }
 
   libgdiagnostics::physical_location m_phys_loc;
-  label_text m_label;
+  libgdiagnostics::message_buffer m_label;
 };
+
+struct embedded_link
+{
+  std::string text;
+  std::string destination;
+};
+
+using id_map = std::map<std::string, const json::string *>;
 
 class sarif_replayer
 {
@@ -232,30 +316,9 @@ public:
 			   const replay_options &replay_opts);
 
 private:
-  class replayer_location_map : public json::location_map
-  {
-  public:
-    void record_range_for_value (json::value *jv,
-				 const range &r) final override
-    {
-      m_map_jv_to_range[jv] = r;
-    }
-
-    const json::location_map::range &
-    get_range_for_value (const json::value &jv) const
-    {
-      auto iter = m_map_jv_to_range.find (&jv);
-      gcc_assert (iter != m_map_jv_to_range.end ());
-      return iter->second;
-    }
-
-  private:
-    std::map<const json::value *, range> m_map_jv_to_range;
-  };
-
   enum status emit_sarif_as_diagnostics (const json::value &jv);
 
-  label_text
+  libgdiagnostics::message_buffer
   make_plain_text_within_result_message (const json::object *tool_component_obj,
 					 const json::object &message_obj,
 					 const json::object *rule_obj);
@@ -338,6 +401,30 @@ private:
 				      const json::object &run_obj,
 				      libgdiagnostics::execution_path &out);
 
+  // "graph" object (§3.39)
+  enum status
+  handle_graph_object (const json::object &graph_obj,
+		       const json::object &run_obj,
+		       libgdiagnostics::graph &out);
+  // "node" object (§3.40)
+  libgdiagnostics::node
+  handle_node_object (const json::object &node_obj,
+		      const json::object &run_obj,
+		      libgdiagnostics::graph &graph,
+		      libgdiagnostics::node parent_node,
+		      id_map &node_id_map);
+
+  // "edge" object (§3.41)
+  libgdiagnostics::edge
+  handle_edge_object (const json::object &edge_obj,
+		      libgdiagnostics::graph &graph,
+		      id_map &edge_id_map);
+
+  libgdiagnostics::node
+  get_graph_node_by_id_property (const json::object &edge_json_object,
+				 const property_spec_ref &id_prop,
+				 libgdiagnostics::graph &graph);
+
   // reportingDescriptor lookup (§3.52.3)
   const json::object *
   lookup_rule_by_id_in_tool (const char *rule_id,
@@ -371,7 +458,7 @@ private:
   {
     va_list ap;
     va_start (ap, gmsgid);
-    report_problem (jv, ref, gmsgid, &ap, DIAGNOSTIC_LEVEL_ERROR);
+    report_problem (jv, &ref, gmsgid, &ap, DIAGNOSTIC_LEVEL_ERROR);
     va_end (ap);
     return status::err_invalid_sarif;
   }
@@ -387,14 +474,25 @@ private:
   {
     va_list ap;
     va_start (ap, gmsgid);
-    report_problem (jv, ref, gmsgid, &ap, DIAGNOSTIC_LEVEL_SORRY);
+    report_problem (jv, &ref, gmsgid, &ap, DIAGNOSTIC_LEVEL_SORRY);
     va_end (ap);
     return status::err_unhandled_sarif;
   }
 
   void
+  report_note (const json::value &jv,
+	       const char *gmsgid, ...)
+    LIBGDIAGNOSTICS_PARAM_GCC_FORMAT_STRING (3, 4)
+  {
+    va_list ap;
+    va_start (ap, gmsgid);
+    report_problem (jv, nullptr, gmsgid, &ap, DIAGNOSTIC_LEVEL_NOTE);
+    va_end (ap);
+  }
+
+  void
   report_problem (const json::value &jv,
-		  const spec_ref &ref,
+		  const spec_ref *ref,
 		  const char *gmsgid,
 		  va_list *args,
 		  enum diagnostic_level level)
@@ -406,17 +504,23 @@ private:
        There doesn't seem to be a systematic mapping from spec sections to
        HTML anchors, so we can't provide URLs
        (filed as https://github.com/oasis-tcs/sarif-spec/issues/533 ).  */
-    char *ref_desc = ref.make_description ();
-    char *ref_url = ref.make_url ();
-    diag.add_rule (ref_desc, ref_url);
-    free (ref_desc);
-    free (ref_url);
+    if (ref)
+      {
+	char *ref_desc = ref->make_description ();
+	char *ref_url = ref->make_url ();
+	diag.add_rule (ref_desc, ref_url);
+	free (ref_desc);
+	free (ref_url);
+      }
 
     auto loc_range
       = make_physical_location (m_control_mgr,
 				m_loaded_file,
 				m_json_location_map.get_range_for_value (jv));
     diag.set_location (loc_range);
+
+    diag.set_logical_location (make_logical_location_from_jv (m_control_mgr,
+							      jv));
 
     diag.finish_va (gmsgid, args);
   }
@@ -573,6 +677,42 @@ private:
 			      const string_property_value<ValueType> *value_arr,
 			      size_t num_values);
 
+  const json::object *
+  maybe_get_property_bag (const json::object &obj)
+  {
+    const property_spec_ref properties
+      ("object", "properties", "3.8.1");
+    return get_optional_property<json::object> (obj, properties);
+  }
+
+  /* Look for a property bag within OBJ.
+     If found, look for a property within it named PROPERTY_NAME
+     of the given type.
+     If successful, return the property's value.
+     Otherwise, return nullptr without complaining (unless the property bag
+     is itself not an object).  */
+  template <typename JsonType>
+  const JsonType *
+  maybe_get_property_bag_value (const json::object &obj,
+				const char *property_name)
+  {
+    auto property_bag_obj = maybe_get_property_bag (obj);
+    if (!property_bag_obj)
+      return nullptr;
+    const json::value *property_val = property_bag_obj->get (property_name);
+    if (!property_val)
+      return nullptr;
+    const JsonType *sub = dyn_cast<const JsonType *> (property_val);
+    if (!sub)
+      /* Property is wrong kind of value.  Don't treat this as an error.  */
+      return nullptr;
+    return sub;
+  }
+
+  void
+  append_embeddded_link (libgdiagnostics::message_buffer &result,
+			 const embedded_link &link);
+
   /* The manager to replay the SARIF files to.  */
   libgdiagnostics::manager m_output_mgr;
 
@@ -582,7 +722,7 @@ private:
   /* The file within m_control_mgr representing the .sarif file.  */
   libgdiagnostics::file m_loaded_file;
 
-  replayer_location_map m_json_location_map;
+  json::simple_location_map m_json_location_map;
 
   const json::object *m_driver_obj;
   const json::array *m_artifacts_arr;
@@ -851,6 +991,31 @@ sarif_replayer::handle_run_obj (const json::object &run_obj)
 	break;
       }
 
+  // §3.14.20 "graphs"
+  const property_spec_ref prop_graphs ("run", "graphs", "3.14.20");
+  if (const json::array *graphs
+      = get_optional_property<json::array> (run_obj,
+					    prop_graphs))
+    {
+      for (auto element : *graphs)
+	{
+	  if (const json::object *graph_json_obj
+	      = require_object_for_element (*element, prop_graphs))
+	    {
+	      libgdiagnostics::graph graph;
+	      enum status s = handle_graph_object (*graph_json_obj,
+						   run_obj,
+						   graph);
+	      if (s != status::ok)
+		return s;
+
+	      m_output_mgr.take_global_graph (std::move (graph));
+	    }
+	  else
+	    return status::err_invalid_sarif;
+      }
+    }
+
   return status::ok;
 }
 
@@ -887,6 +1052,17 @@ sarif_replayer::handle_artifact_obj (const json::object &artifact_obj)
   /* Create the libgdiagnostics::file.  */
   auto file = m_output_mgr.new_file (artifact_loc_uri->get_string (),
 				     sarif_source_language);
+
+  // 3.24.6 "roles" property
+  const property_spec_ref prop_roles
+    ("artifact", "roles", "3.24.6");
+  if (auto roles_obj
+      = get_optional_property<json::array> (artifact_obj,
+					    prop_roles))
+    for (auto iter : *roles_obj)
+      if (auto str = require_string (*iter, prop_roles))
+	if (!strcmp (str->get_string (), "analysisTarget"))
+	  m_output_mgr.set_analysis_target (file);
 
   // Set contents, if available
   const property_spec_ref prop_contents
@@ -994,12 +1170,12 @@ sarif_replayer::get_level_from_level_str (const json::string &level_str)
 
 static void
 add_any_annotations (libgdiagnostics::diagnostic &diag,
-		     const std::vector<annotation> &annotations)
+		     std::vector<annotation> &annotations)
 {
   for (auto &annotation : annotations)
-    if (annotation.m_label.get ())
+    if (annotation.m_label.m_inner)
       diag.add_location_with_label (annotation.m_phys_loc,
-				    annotation.m_label.get ());
+				    std::move (annotation.m_label));
     else
       diag.add_location (annotation.m_phys_loc);
 }
@@ -1062,13 +1238,13 @@ sarif_replayer::handle_result_obj (const json::object &result_obj,
     }
 
   // §3.27.11 "message" property
-  label_text text;
+  libgdiagnostics::message_buffer msg_buf;
   if (auto message_obj
 	= get_optional_property<json::object> (result_obj, PROP_result_message))
-    text = make_plain_text_within_result_message (nullptr, // TODO: tool_component_obj,
-						  *message_obj,
-						  rule_obj);
-  if (!text.get ())
+    msg_buf = make_plain_text_within_result_message (nullptr, // TODO: tool_component_obj,
+						     *message_obj,
+						     rule_obj);
+  if (!msg_buf.m_inner)
     return status::err_invalid_sarif;
 
   // §3.27.12 "locations" property
@@ -1155,8 +1331,34 @@ sarif_replayer::handle_result_obj (const json::object &result_obj,
   if (path.m_inner)
     err.take_execution_path (std::move (path));
 
+  // §3.27.19 "graphs" property
+  const property_spec_ref prop_graphs ("result", "graphs", "3.27.19");
+  if (const json::array *graphs
+      = get_optional_property<json::array> (result_obj,
+					    prop_graphs))
+    {
+      for (auto element : *graphs)
+	{
+	  if (const json::object *graph_json_obj
+	      = require_object_for_element (*element, prop_graphs))
+	    {
+	      libgdiagnostics::graph graph;
+	      enum status s = handle_graph_object (*graph_json_obj,
+						   run_obj,
+						   graph);
+	      if (s != status::ok)
+		return s;
+
+	      err.take_graph (std::move (graph));
+	    }
+	  else
+	    return status::err_invalid_sarif;
+      }
+    }
+
   // §3.27.22 relatedLocations property
-  std::vector<std::pair<libgdiagnostics::diagnostic, label_text>> notes;
+  std::vector<std::pair<libgdiagnostics::diagnostic,
+			libgdiagnostics::message_buffer>> notes;
   const property_spec_ref prop_related_locations
     ("result", "relatedLocations", "3.27.22");
   if (auto related_locations_arr
@@ -1188,18 +1390,30 @@ sarif_replayer::handle_result_obj (const json::object &result_obj,
 						     prop_message))
 	    {
 	      /* Treat related locations with a message as a "note".  */
-	      label_text text
+	      libgdiagnostics::message_buffer msg_buf
 		(make_plain_text_within_result_message
 		 (tool_component_obj,
 		  *message_obj,
 		  rule_obj));
-	      if (!text.get ())
+	      if (!msg_buf.m_inner)
 		return status::err_invalid_sarif;
+
 	      auto note (m_output_mgr.begin_diagnostic (DIAGNOSTIC_LEVEL_NOTE));
 	      note.set_location (physical_loc);
 	      note.set_logical_location (logical_loc);
 	      add_any_annotations (note, annotations);
-	      notes.push_back ({std::move (note), std::move (text)});
+
+	      /* Look for "nestingLevel" property, as per
+		 "P3358R0 SARIF for Structured Diagnostics"
+		 https://wg21.link/P3358R0  */
+	      if (auto nesting_level
+		  = maybe_get_property_bag_value<json::integer_number>
+		  (*location_obj,
+		   "nestingLevel"))
+		private_diagnostic_set_nesting_level (note.m_inner,
+						      nesting_level->get ());
+
+	      notes.push_back ({std::move (note), std::move (msg_buf)});
 	    }
 	  else
 	    {
@@ -1222,14 +1436,14 @@ sarif_replayer::handle_result_obj (const json::object &result_obj,
 	  handle_fix_object (err, *fix_obj);
     }
 
-  err.finish ("%s", text.get ());
+  err.finish_via_msg_buf (std::move (msg_buf));
 
   // Flush any notes
   for (auto &iter : notes)
     {
       auto &note = iter.first;
-      auto &text = iter.second;
-      note.finish ("%s", text.get ());
+      auto &msg_buf = iter.second;
+      note.finish_via_msg_buf (std::move (msg_buf));
     }
 
   return status::ok;
@@ -1273,12 +1487,6 @@ maybe_consume_placeholder (const char *&iter_src, unsigned *out_arg_idx)
     }
   return false;
 }
-
-struct embedded_link
-{
-  std::string text;
-  std::string destination;
-};
 
 /*  If ITER_SRC starts with an embedded link as per §3.11.6, advance ITER_SRC
     to immediately beyond the link, and return the link.
@@ -1350,20 +1558,32 @@ maybe_consume_embedded_link (const char *&iter_src)
     }
 
   iter_src = iter;
-  return ::make_unique<embedded_link> (std::move (result));
+  return std::make_unique<embedded_link> (std::move (result));
+}
+
+void
+sarif_replayer::append_embeddded_link (libgdiagnostics::message_buffer &result,
+				       const embedded_link &link)
+{
+  /* We can't yet decode intra-sarif links, so simply use their text.  */
+  if (!strncmp (link.destination.c_str (), "sarif:/", strlen ("sarif:/")))
+    {
+      result += link.text.c_str ();
+      return;
+    }
+  result.begin_url (link.destination.c_str ());
+  result += link.text.c_str ();
+  result.end_url ();
 }
 
 /* Lookup the plain text string within a result.message (§3.27.11),
    and substitute for any placeholders (§3.11.5) and handle any
    embedded links (§3.11.6).
 
-   Limitations:
-   - we don't preserve destinations within embedded links
-
    MESSAGE_OBJ is "theMessage"
    RULE_OBJ is "theRule".  */
 
-label_text
+libgdiagnostics::message_buffer
 sarif_replayer::
 make_plain_text_within_result_message (const json::object *tool_component_obj,
 				       const json::object &message_obj,
@@ -1376,7 +1596,7 @@ make_plain_text_within_result_message (const json::object *tool_component_obj,
 					       rule_obj,
 					       js_str);
   if (!original_text)
-    return label_text::borrow (nullptr);
+    return libgdiagnostics::message_buffer ();
 
   gcc_assert (js_str);
 
@@ -1386,7 +1606,7 @@ make_plain_text_within_result_message (const json::object *tool_component_obj,
     = get_optional_property<json::array> (message_obj, arguments_prop);
 
   /* Duplicate original_text, substituting any placeholders.  */
-  std::string accum;
+  libgdiagnostics::message_buffer result (diagnostic_message_buffer_new ());
 
   const char *iter_src = original_text;
   while (char ch = *iter_src)
@@ -1402,7 +1622,7 @@ make_plain_text_within_result_message (const json::object *tool_component_obj,
 		 " but message object has no %qs property",
 		 (int)arg_idx,
 		 arguments_prop.get_property_name ());
-	      return label_text::borrow (nullptr);
+	      return libgdiagnostics::message_buffer ();
 	    }
 	  if (arg_idx >= arguments->length ())
 	    {
@@ -1413,20 +1633,20 @@ make_plain_text_within_result_message (const json::object *tool_component_obj,
 		 arguments_prop.get_property_name (),
 		 (int)arg_idx);
 	      // TODO: might be nice to add a note showing the args
-	      return label_text::borrow (nullptr);
+	      return libgdiagnostics::message_buffer ();
 	    }
 	  auto replacement_jstr
 	    = require_string (*arguments->get (arg_idx), arguments_prop);
 	  if (!replacement_jstr)
-	    return label_text::borrow (nullptr);
-	  accum += replacement_jstr->get_string ();
+	    return libgdiagnostics::message_buffer ();
+	  result += replacement_jstr->get_string ();
 	}
       else if (ch == '{' || ch == '}')
 	{
 	  /* '{' and '}' are escaped by repeating them.  */
 	  if (iter_src[1] == ch)
 	    {
-	      accum += ch;
+	      result += ch;
 	      iter_src += 2;
 	    }
 	  else
@@ -1436,24 +1656,19 @@ make_plain_text_within_result_message (const json::object *tool_component_obj,
 	      report_invalid_sarif (*js_str, msgs_with_placeholders,
 				    "unescaped '%c' within message string",
 				    ch);
-	      return label_text::borrow (nullptr);
+	      return libgdiagnostics::message_buffer ();
 	    }
 	}
       else if (auto link = maybe_consume_embedded_link (iter_src))
-	{
-	  accum += link->text;
-	  /* TODO: use the destination.  */
-	  /* TODO: potentially could try to convert
-	     intra-sarif links into event ids.  */
-	}
+	append_embeddded_link (result, *link);
       else
 	{
-	  accum += ch;
+	  result += ch;
 	  iter_src++;
 	}
     }
 
-  return label_text::take (xstrdup (accum.c_str ()));
+  return result;
 }
 
 /* Handle a value that should be a multiformatMessageString object (§3.12).
@@ -1587,7 +1802,7 @@ handle_thread_flow_location_object (const json::object &tflow_loc_obj,
 {
   libgdiagnostics::physical_location physical_loc;
   libgdiagnostics::logical_location logical_loc;
-  label_text message;
+  libgdiagnostics::message_buffer msg_buf;
   int stack_depth = 0;
 
   const property_spec_ref location_prop
@@ -1609,7 +1824,7 @@ handle_thread_flow_location_object (const json::object &tflow_loc_obj,
 	  = get_optional_property<json::object> (*location_obj,
 						 location_message))
 	{
-	  message = make_plain_text_within_result_message
+	  msg_buf = make_plain_text_within_result_message
 	    (nullptr,
 	     *message_obj,
 	     nullptr/* TODO.  */);
@@ -1651,16 +1866,29 @@ handle_thread_flow_location_object (const json::object &tflow_loc_obj,
 	}
     }
 
-  if (message.get ())
-    path.add_event (physical_loc,
-		    logical_loc,
-		    stack_depth,
-		    "%s", message.get ());
-  else
-    path.add_event (physical_loc,
-		    logical_loc,
-		    stack_depth,
-		    "");
+  libgdiagnostics::graph state_graph;
+  if (auto sarif_state_graph
+	= maybe_get_property_bag_value<json::object> (tflow_loc_obj,
+						      "gcc/diagnostics/paths/event/state_graph"))
+    {
+      enum status s
+	= handle_graph_object (*sarif_state_graph, run_obj, state_graph);
+      if (s != status::ok)
+	return s;
+    }
+
+  if (!msg_buf.m_inner)
+    msg_buf.m_inner = diagnostic_message_buffer_new ();
+
+  private_diagnostic_execution_path_add_event_3 (path.m_inner,
+						 physical_loc.m_inner,
+						 logical_loc.m_inner,
+						 stack_depth,
+						 state_graph.m_inner,
+						 msg_buf.m_inner);
+
+  state_graph.m_owned = false;
+  msg_buf.m_inner = nullptr;
 
   return status::ok;
 }
@@ -1739,7 +1967,7 @@ handle_location_object (const json::object &location_obj,
 	  if (s != status::ok)
 	    return s;
 
-	  label_text label;
+	  libgdiagnostics::message_buffer label;
 
 	  // §3.30.14 message property
 	  {
@@ -2009,7 +2237,32 @@ handle_logical_location_object (const json::object &logical_loc_obj,
 	    { "parameter",
 	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_PARAMETER },
 	    { "variable",
-	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_VARIABLE } };
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_VARIABLE },
+
+	    { "element",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_ELEMENT },
+	    { "attribute",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_ATTRIBUTE },
+	    { "text",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_TEXT },
+	    { "comment",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_COMMENT },
+	    { "processingInstruction",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROCESSING_INSTRUCTION },
+	    { "dtd",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_DTD },
+	    { "declaration",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_DECLARATION },
+
+	    { "object",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_OBJECT },
+	    { "array",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_ARRAY },
+	    { "property",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_PROPERTY },
+	    { "value",
+	      DIAGNOSTIC_LOGICAL_LOCATION_KIND_VALUE },
+      };
       auto result
 	= get_value_from_json_string<enum diagnostic_logical_location_kind_t>
 	    (*kind_str, kind_prop, kind_values, ARRAY_SIZE (kind_values));
@@ -2026,6 +2279,271 @@ handle_logical_location_object (const json::object &logical_loc_obj,
 					   decorated_name);
 
   return status::ok;
+}
+
+// "graph" object (§3.39)
+
+enum status
+sarif_replayer::handle_graph_object (const json::object &graph_json_obj,
+				     const json::object &run_obj,
+				     libgdiagnostics::graph &out_graph)
+{
+  out_graph = libgdiagnostics::graph
+		(diagnostic_manager_new_graph (m_output_mgr.m_inner));
+
+  id_map node_id_map;
+  id_map edge_id_map;
+
+  if (auto properties = maybe_get_property_bag (graph_json_obj))
+    private_diagnostic_graph_set_property_bag
+      (*out_graph.m_inner,
+       properties->clone_as_object ());
+
+  // §3.39.2: MAY contain a "description" property
+  const property_spec_ref description_prop
+    ("graph", "description", "3.39.2");
+  if (auto description_obj
+      = get_optional_property<json::object> (graph_json_obj, description_prop))
+    {
+      auto msg_buf
+	= make_plain_text_within_result_message (&run_obj,
+						 *description_obj,
+						 nullptr);
+      if (!msg_buf.m_inner)
+	return status::err_invalid_sarif;
+      out_graph.set_description (std::move (msg_buf));
+    }
+
+  // §3.39.3: MAY contain a "nodes" property
+  const property_spec_ref nodes_prop
+    ("graph", "nodes", "3.39.3");
+  if (auto nodes_arr
+      = get_optional_property<json::array> (graph_json_obj, nodes_prop))
+    {
+      for (auto element : *nodes_arr)
+	{
+	  const json::object *node_json_obj
+	    = require_object_for_element (*element, nodes_prop);
+	  if (!node_json_obj)
+	    return status::err_invalid_sarif;
+	  libgdiagnostics::node node
+	    = handle_node_object (*node_json_obj, run_obj, out_graph,
+				  nullptr, node_id_map);
+	  if (node.m_inner == nullptr)
+	    return status::err_invalid_sarif;
+	}
+    }
+  else
+    // If we have no nodes, we can't handle the edges.
+    return status::ok;
+
+  // §3.39.4 edges property
+  const property_spec_ref edges_prop
+    ("graph", "edges", "3.39.4");
+  if (auto edges_arr
+      = get_optional_property<json::array> (graph_json_obj, edges_prop))
+    {
+      for (auto element : *edges_arr)
+	{
+	  const json::object *edge_json_obj
+	    = require_object_for_element (*element, edges_prop);
+	  if (!edge_json_obj)
+	    return status::err_invalid_sarif;
+	  libgdiagnostics::edge edge
+	    = handle_edge_object (*edge_json_obj, out_graph, edge_id_map);
+	  if (edge.m_inner == nullptr)
+	    return status::err_invalid_sarif;
+	}
+    }
+
+  return status::ok;
+}
+
+// "node" object (§3.40)
+
+libgdiagnostics::node
+sarif_replayer::handle_node_object (const json::object &node_json_obj,
+				    const json::object &run_obj,
+				    libgdiagnostics::graph &graph,
+				    libgdiagnostics::node parent_node,
+				    id_map &node_id_map)
+{
+  // §3.40.2 "id" property
+  const property_spec_ref id_prop ("node", "id", "3.40.2");
+  auto id_str = get_required_property<json::string> (node_json_obj, id_prop);
+  if (!id_str)
+    return nullptr;
+  const char *id = id_str->get_string ();
+  if (diagnostic_graph_get_node_by_id (graph.m_inner, id))
+    {
+      // Duplicate id; fail:
+      libgdiagnostics::group g (m_control_mgr);
+      report_invalid_sarif (*id_str,
+			    id_prop,
+			    "duplicate node id %qs within graph",
+			    id);
+      gcc_assert (node_id_map[id]);
+      report_note (*node_id_map[id],
+		   "%qs already used as node id within graph here",
+		   id);
+      return nullptr;
+    }
+  node_id_map[id] = id_str;
+
+  libgdiagnostics::node new_node
+    = libgdiagnostics::node (diagnostic_graph_add_node (graph.m_inner,
+							id,
+							parent_node.m_inner));
+  if (auto properties = maybe_get_property_bag (node_json_obj))
+    private_diagnostic_node_set_property_bag (*new_node.m_inner,
+					      properties->clone_as_object ());
+
+  // §3.40.3 "label" property
+  const property_spec_ref label_prop
+    ("node", "label", "3.40.3");
+  if (auto label_obj
+      = get_optional_property<json::object> (node_json_obj, label_prop))
+    {
+      auto msg_buf
+	= make_plain_text_within_result_message (&run_obj,
+						 *label_obj,
+						 nullptr);
+      if (!msg_buf.m_inner)
+	return nullptr;
+      new_node.set_label (std::move (msg_buf));
+    }
+
+  // §3.40.4 "location" property
+  const property_spec_ref location_prop ("node", "location", "3.40.4");
+  if (auto location_json_obj
+      = get_optional_property<json::object> (node_json_obj, location_prop))
+    {
+      libgdiagnostics::physical_location physical_loc;
+      libgdiagnostics::logical_location logical_loc;
+      enum status s = handle_location_object (*location_json_obj,
+					      run_obj,
+					      physical_loc,
+					      logical_loc,
+					      nullptr); // annotations
+      if (s != status::ok)
+	return nullptr;
+
+      new_node.set_location (physical_loc);
+      new_node.set_logical_location (logical_loc);
+    }
+
+  // §3.40.5: MAY contain a "children" property
+  const property_spec_ref children_prop
+    ("graph", "children", "3.40.5");
+  if (auto children_json_arr
+      = get_optional_property<json::array> (node_json_obj, children_prop))
+    {
+      for (auto json_element : *children_json_arr)
+	{
+	  const json::object *child_json_obj
+	    = require_object_for_element (*json_element, children_prop);
+	  if (!child_json_obj)
+	    return nullptr;
+	  libgdiagnostics::node child_node
+	    = handle_node_object (*child_json_obj, run_obj, graph,
+				  new_node, node_id_map);
+	  if (child_node.m_inner == nullptr)
+	    return nullptr;
+	}
+    }
+
+  return new_node;
+}
+
+// "edge" object (§3.41)
+
+libgdiagnostics::edge
+sarif_replayer::handle_edge_object (const json::object &edge_json_obj,
+				    libgdiagnostics::graph &graph,
+				    id_map &edge_id_map)
+{
+  // §3.41.2 "id" property
+  const property_spec_ref id_prop ("edge", "id", "3.41.2");
+  auto id_str = get_required_property<json::string> (edge_json_obj, id_prop);
+  if (!id_str)
+    return nullptr;
+  const char *id = id_str->get_string ();
+  if (diagnostic_graph_get_edge_by_id (graph.m_inner, id))
+    {
+      // Duplicate id; fail:
+      libgdiagnostics::group g (m_control_mgr);
+      report_invalid_sarif (*id_str,
+			    id_prop,
+			    "duplicate edge id %qs within graph",
+			    id);
+      gcc_assert (edge_id_map[id]);
+      report_note (*edge_id_map[id],
+		   "%qs already used as edge id within graph here",
+		   id);
+      return nullptr;
+    }
+  edge_id_map[id] = id_str;
+
+  // §3.41.3 "label" property
+  libgdiagnostics::message_buffer label;
+  const property_spec_ref label_prop
+    ("edge", "label", "3.41.3");
+  if (auto label_obj
+      = get_optional_property<json::object> (edge_json_obj, label_prop))
+    {
+      label = make_plain_text_within_result_message (nullptr,
+						     *label_obj,
+						     nullptr);
+      if (!label.m_inner)
+	return nullptr;
+    }
+
+  // §3.41.4 "sourceNodeId" property
+  const property_spec_ref src_id_prop ("edge", "sourceNodeId", "3.41.4");
+  auto src_node = get_graph_node_by_id_property (edge_json_obj,
+						 src_id_prop,
+						 graph);
+  if (!src_node.m_inner)
+    return nullptr;
+
+  // §3.41.5 "targetNodeId" property
+  const property_spec_ref dst_id_prop ("edge", "targetNodeId", "3.41.5");
+  auto dst_node = get_graph_node_by_id_property (edge_json_obj,
+						 dst_id_prop,
+						 graph);
+  if (!dst_node.m_inner)
+    return nullptr;
+
+  auto result = graph.add_edge (id, src_node, dst_node, std::move (label));
+
+  if (auto properties = maybe_get_property_bag (edge_json_obj))
+    private_diagnostic_edge_set_property_bag (*result.m_inner,
+					      properties->clone_as_object ());
+
+  return result;
+}
+
+libgdiagnostics::node
+sarif_replayer::
+get_graph_node_by_id_property (const json::object &edge_json_obj,
+			       const property_spec_ref &id_prop,
+			       libgdiagnostics::graph &graph)
+{
+  auto id_str = get_required_property<json::string> (edge_json_obj, id_prop);
+  if (!id_str)
+    return nullptr;
+  const char *id = id_str->get_string ();
+  auto node = graph.get_node_by_id (id);
+  if (!node.m_inner)
+    {
+      // id not found; complain:
+      report_invalid_sarif (*id_str,
+			    id_prop,
+			    "no node with id %qs in graph",
+			    id);
+      return nullptr;
+    }
+  return node;
 }
 
 // 3.52.3 reportingDescriptor lookup

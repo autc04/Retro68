@@ -18,4 +18,14 @@
  lea	ax, [di][bx]
  lea	ax, [di][bp]
 
- .p2align 4,0
+ notw	[ebx]
+ notd	[bx]
+
+ nopw	[ebx]
+ nopd	[bx]
+
+ addw	[ebx], 5
+ addd	[bx], 5
+
+ movw	[ebx], 5
+ movd	[bx], 5

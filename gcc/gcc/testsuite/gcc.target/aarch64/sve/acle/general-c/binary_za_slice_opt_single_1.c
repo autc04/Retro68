@@ -2,7 +2,7 @@
 
 #include <arm_sme.h>
 
-#pragma GCC target ("+sve2+sme2")
+#pragma GCC target ("+sme2")
 
 void
 f1 (svbool_t pg, svint16_t s16, svint32_t s32, svuint32_t u32,
@@ -73,4 +73,20 @@ f4 (svint32x2_t s32x2, svuint32x2_t u32x2,
   svadd_write_za64_vg1x2 (1, u32x2, u32x2); /* { dg-error {'svadd_write_za64_vg1x2' has no form that takes 'svuint32x2_t' arguments} } */
   svadd_write_za64_vg1x2 (1, s64x2, s64x2);
   svadd_write_za64_vg1x2 (1, u64x2, u64x2);
+}
+
+#pragma GCC target ("+sme-f8f16")
+
+void
+f5 (svmfloat8x2_t mf8x2, svmfloat8_t mf8,
+    svfloat16x2_t f16x2, svfloat16_t f16,
+    fpm_t fpm)
+  __arm_streaming __arm_inout("za")
+{
+  svmla_single_za16_mf8_vg2x2_fpm (1, mf8x2, mf8); /* { dg-error {too few arguments to function 'svmla_single_za16_mf8_vg2x2_fpm'} } */
+  svmla_single_za16_mf8_vg2x2_fpm (1, mf8x2, mf8, fpm);
+  svmla_single_za16_mf8_vg2x2_fpm (1, mf8x2, mf8, fpm, fpm); /* { dg-error {too many arguments to function 'svmla_single_za16_mf8_vg2x2_fpm'} } */
+  svmla_single_za16_mf8_vg2x2_fpm (1, mf8x2, f16, fpm);  /* { dg-error {incompatible type for argument 3 of 'svmla_single_za16_mf8_vg2x2_fpm'} } */
+  svmla_single_za16_mf8_vg2x2_fpm (1, f16x2, mf8, fpm);  /* { dg-error {incompatible type for argument 2 of 'svmla_single_za16_mf8_vg2x2_fpm'} } */
+  svmla_single_za16_mf8_vg2x2_fpm (1, mf8x2, f16, fpm);  /* { dg-error {incompatible type for argument 3 of 'svmla_single_za16_mf8_vg2x2_fpm'} } */
 }

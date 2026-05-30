@@ -1,5 +1,5 @@
 /* Support for suggestions about missing #include directives.
-   Copyright (C) 2017-2025 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -48,12 +48,25 @@ class suggest_missing_option : public deferred_diagnostic
 {
  public:
   suggest_missing_option (location_t loc, const char *name,
-			  diagnostic_option_id option_id);
+			  diagnostics::option_id option_id);
   ~suggest_missing_option ();
 
  private:
   const char *m_name_str;
-  diagnostic_option_id m_option_id;
+  diagnostics::option_id m_option_id;
+};
+
+/* Subclass of deferred_diagnostic for suggesting to the user
+   that they have misused a function like macro.  */
+class macro_like_function_used : public deferred_diagnostic
+{
+ public:
+  macro_like_function_used (location_t loc, const char *name);
+
+  ~macro_like_function_used ();
+
+ private:
+  const char *m_name_str;
 };
 
 #endif /* GCC_KNOWN_HEADERS_H */

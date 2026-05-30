@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2025 Free Software Foundation, Inc.
+// Copyright (C) 2019-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,6 +25,7 @@ main()
 {
   std::deque<int> d{};
   std::span<int, std::dynamic_extent> myspan(d); // { dg-error "no match" }
+  (void) myspan;
 }
 
 // { dg-prune-output "data" }

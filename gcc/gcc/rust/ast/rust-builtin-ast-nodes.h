@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Free Software Foundation, Inc.
+// Copyright (C) 2024-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -134,6 +134,7 @@ public:
 
   FormatArgumentKind get_kind () const { return kind; }
   const Expr &get_expr () const { return *expr; }
+  Expr &get_expr () { return *expr; }
 
 private:
   FormatArgument (FormatArgumentKind::Kind kind, tl::optional<Identifier> ident,
@@ -163,6 +164,11 @@ public:
 
   void push (FormatArgument &&elt) { args.emplace_back (std::move (elt)); }
   const FormatArgument at (size_t idx) const { return args.at (idx); }
+
+  const std::vector<FormatArgument> &get_args () const { return args; }
+  std::vector<FormatArgument> &get_args () { return args; }
+  size_t size () const { return args.size (); }
+  bool empty () const { return args.empty (); }
 
 private:
   std::vector<FormatArgument> args;
@@ -200,6 +206,7 @@ public:
 
   const Fmt::Pieces &get_template () const { return template_pieces; }
   const FormatArguments &get_arguments () const { return arguments; }
+  FormatArguments &get_arguments () { return arguments; }
   virtual location_t get_locus () const override;
 
   Expr::Kind get_expr_kind () const override { return Expr::Kind::FormatArgs; }
@@ -223,6 +230,60 @@ protected:
   virtual std::vector<Attribute> &get_outer_attrs () override;
   virtual void set_outer_attrs (std::vector<Attribute>) override;
   virtual Expr *clone_expr_impl () const override;
+};
+
+/**
+ * The node associated with the builtin offset_of!() macro
+ */
+class OffsetOf : public Expr
+{
+public:
+  OffsetOf (std::unique_ptr<Type> &&type, Identifier field, location_t loc)
+    : type (std::move (type)), field (field), loc (loc)
+  {}
+
+  OffsetOf (const OffsetOf &other)
+    : type (other.type->clone_type ()), field (other.field), loc (other.loc),
+      marked_for_strip (other.marked_for_strip)
+  {}
+
+  OffsetOf &operator= (const OffsetOf &other)
+  {
+    type = other.type->clone_type ();
+    field = other.field;
+    loc = other.loc;
+    marked_for_strip = other.marked_for_strip;
+
+    return *this;
+  }
+
+  void accept_vis (AST::ASTVisitor &vis) override;
+
+  virtual location_t get_locus () const override { return loc; }
+  const Type &get_type () const { return *type; }
+  Type &get_type () { return *type; }
+  std::unique_ptr<Type> &get_type_ptr () { return type; }
+  const Identifier &get_field () const { return field; }
+
+  bool is_expr_without_block () const override { return false; }
+
+  void mark_for_strip () override { marked_for_strip = true; }
+  bool is_marked_for_strip () const override { return marked_for_strip; }
+
+  std::string as_string () const override;
+
+  std::vector<Attribute> &get_outer_attrs () override;
+  void set_outer_attrs (std::vector<Attribute>) override;
+  Expr *clone_expr_impl () const override;
+
+  Expr::Kind get_expr_kind () const override { return Expr::Kind::OffsetOf; }
+
+private:
+  std::unique_ptr<Type> type;
+  Identifier field;
+
+  location_t loc;
+  bool marked_for_strip = false;
 };
 
 } // namespace AST

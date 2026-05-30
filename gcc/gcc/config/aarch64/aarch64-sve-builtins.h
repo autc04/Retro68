@@ -1,5 +1,5 @@
 /* ACLE support for AArch64 SVE
-   Copyright (C) 2018-2025 Free Software Foundation, Inc.
+   Copyright (C) 2018-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -38,7 +38,7 @@
    - mode_suffix_index represents the mode suffix
 
    - type_suffix_index represents individual type suffixes, while
-     type_suffix_pair represents a pair of them
+     type_suffix_triple represents a tuple of them
 
    - prediction_index extends the predication suffix with an additional
      alternative: PRED_implicit for implicitly-predicated operations
@@ -57,9 +57,10 @@
    function_shape describes how that instruction has been presented at
    the language level.
 
-   The static list of functions uses function_group to describe a group
-   of related functions.  The function_builder class is responsible for
-   expanding this static description into a list of individual functions
+   The static arrays of function_group_info (function_groups,
+   neon_sve_function_groups, sme_function_groups) use function_group to describe
+   a group of related functions.  The function_builder class is responsible for
+   expanding these static description into a list of individual functions
    and registering the associated built-in functions.  function_instance
    describes one of these individual functions in terms of the properties
    described above.
@@ -226,8 +227,8 @@ enum group_suffix_index
   NUM_GROUP_SUFFIXES
 };
 
-/* Combines two type suffixes.  */
-typedef enum type_suffix_index type_suffix_pair[2];
+/* Combines three type suffixes.  */
+typedef enum type_suffix_index type_suffix_triple[3];
 
 class function_base;
 class function_shape;
@@ -366,12 +367,12 @@ struct function_group_info
   /* A list of the available type suffixes, group suffixes, and predication
      types.  The function supports every combination of the three.
 
-     The list of type suffixes is terminated by two NUM_TYPE_SUFFIXES.
+     The list of type suffixes is terminated by three NUM_TYPE_SUFFIXES.
      It is lexicographically ordered based on the index value.
 
      The list of group suffixes is terminated by NUM_GROUP_SUFFIXES
      and the list of predication types is terminated by NUM_PREDS.  */
-  const type_suffix_pair *types;
+  const type_suffix_triple *types;
   const group_suffix_index *groups;
   const predication_index *preds;
 
@@ -389,7 +390,7 @@ class GTY((user)) function_instance
 public:
   function_instance (const char *, const function_base *,
 		     const function_shape *, mode_suffix_index,
-		     const type_suffix_pair &, group_suffix_index,
+		     const type_suffix_triple &, group_suffix_index,
 		     predication_index, fpm_mode_index);
 
   bool operator== (const function_instance &) const;
@@ -402,6 +403,8 @@ public:
   bool could_trap_p () const;
 
   vector_type_index gp_type_index () const;
+  tree gp_value (gcall *) const;
+  tree inactive_values (gcall *) const;
   tree gp_type () const;
 
   unsigned int vectors_per_tuple () const;
@@ -431,10 +434,11 @@ public:
   const function_base *base;
   const function_shape *shape;
   mode_suffix_index mode_suffix_id;
-  type_suffix_pair type_suffix_ids;
+  type_suffix_triple type_suffix_ids;
   group_suffix_index group_suffix_id;
   predication_index pred;
   fpm_mode_index fpm_mode;
+  int gp_index;
 };
 
 class registered_function;
@@ -523,9 +527,11 @@ public:
   tree lookup_form (mode_suffix_index,
 		    type_suffix_index = NUM_TYPE_SUFFIXES,
 		    type_suffix_index = NUM_TYPE_SUFFIXES,
+		    type_suffix_index = NUM_TYPE_SUFFIXES,
 		    group_suffix_index = GROUP_none);
   tree lookup_form (mode_suffix_index, sve_type);
   tree resolve_to (mode_suffix_index,
+		   type_suffix_index = NUM_TYPE_SUFFIXES,
 		   type_suffix_index = NUM_TYPE_SUFFIXES,
 		   type_suffix_index = NUM_TYPE_SUFFIXES,
 		   group_suffix_index = GROUP_none);
@@ -800,6 +806,8 @@ public:
   virtual bool has_merge_argument_p (const function_instance &,
 				     unsigned int) const;
 
+  virtual bool has_gp_argument_p (const function_instance &) const;
+
   virtual bool explicit_type_suffix_p (unsigned int) const = 0;
 
   /* True if the group suffix is present in overloaded names.
@@ -901,7 +909,7 @@ inline function_instance::
 function_instance (const char *base_name_in, const function_base *base_in,
 		   const function_shape *shape_in,
 		   mode_suffix_index mode_suffix_id_in,
-		   const type_suffix_pair &type_suffix_ids_in,
+		   const type_suffix_triple &type_suffix_ids_in,
 		   group_suffix_index group_suffix_id_in,
 		   predication_index pred_in, fpm_mode_index fpm_mode_in)
   : base_name (base_name_in), base (base_in), shape (shape_in),
@@ -919,6 +927,7 @@ function_instance::operator== (const function_instance &other) const
 	  && mode_suffix_id == other.mode_suffix_id
 	  && type_suffix_ids[0] == other.type_suffix_ids[0]
 	  && type_suffix_ids[1] == other.type_suffix_ids[1]
+	  && type_suffix_ids[2] == other.type_suffix_ids[2]
 	  && group_suffix_id == other.group_suffix_id
 	  && pred == other.pred
 	  && fpm_mode == other.fpm_mode);
@@ -946,6 +955,33 @@ inline tree
 function_instance::gp_type () const
 {
   return acle_vector_types[0][gp_type_index ()];
+}
+
+/* Return the tree value that should be used as the governing predicate of
+   this function.  If none then return NULL_TREE.  */
+inline tree
+function_instance::gp_value (gcall *call) const
+{
+  if (gp_index < 0)
+    return NULL_TREE;
+
+  return gimple_call_arg (call, gp_index);
+}
+
+/* Return the tree value that should be used for the inactive lanes should this
+   function be a predicated function with a gp.  Otherwise return NULL_TREE.  */
+inline tree
+function_instance::inactive_values (gcall *call) const
+{
+  if (gp_index < 0)
+    return NULL_TREE;
+
+  /* Function is unary with m predicate.  */
+  if (gp_index == 1)
+    return gimple_call_arg (call, 0);
+
+  /* Else the inactive values are the next element.  */
+  return gimple_call_arg (call, 1);
 }
 
 /* If the function operates on tuples of vectors, return the number
@@ -1120,6 +1156,14 @@ function_shape::has_merge_argument_p (const function_instance &instance,
 				      unsigned int nargs) const
 {
   return nargs == 1 && instance.pred == PRED_m;
+}
+
+/* Return true if INSTANCE has an predicate argument that can be used as the global
+   predicate.  */
+inline bool
+function_shape::has_gp_argument_p (const function_instance &instance) const
+{
+  return instance.pred != PRED_none;
 }
 
 /* Return the mode of the result of a call.  */

@@ -22,4 +22,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 0f 38 cf d1       	gf2p8mulb %xmm1,%xmm2
 [ 	]*[a-f0-9]+:	62 f2 7d 09 cf c0    	vgf2p8mulb %xmm0,%xmm0,%xmm0\{%k1\}
 [ 	]*[a-f0-9]+:	62 f2 7d 48 cf c0    	vgf2p8mulb %zmm0,%zmm0,%zmm0
+[ 	]*[a-f0-9]+:	(67 )?f3 0f 38 dd 00 +	aesdec128kl \(%eax\),%xmm0
+[ 	]*[a-f0-9]+:	f3 0f 38 fa f8       	encodekey128 %eax,%edi
+[ 	]*[a-f0-9]+:	(67 )?f3 0f 38 d8 10 +	aesencwide256kl \(%eax\)
 #pass

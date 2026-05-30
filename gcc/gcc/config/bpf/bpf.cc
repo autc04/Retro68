@@ -1,5 +1,5 @@
 /* Subroutines used for code generation for eBPF.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -444,7 +444,7 @@ bpf_expand_cbranch (machine_mode mode, rtx *operands)
   if ((code == LT || code == LE || code == LTU || code == LEU))
     {
       /* Reverse the condition.  */
-      PUT_CODE (operands[0], reverse_condition (code));
+      PUT_CODE (operands[0], swap_condition (code));
 
       /* Swap the operands, and ensure that the first is a register.  */
       if (!register_operand (operands[2], mode))
@@ -745,14 +745,12 @@ bpf_output_destructor (rtx symbol, int priority ATTRIBUTE_UNUSED)
    bpf.md.  */
 
 const char *
-bpf_output_call (rtx target)
+bpf_output_call (const char *templ, rtx *operands, int target_index)
 {
-  rtx xops[1];
-
+  rtx target = operands[target_index];
   switch (GET_CODE (target))
     {
     case CONST_INT:
-      output_asm_insn ("call\t%0", &target);
       break;
     case SYMBOL_REF:
       {
@@ -765,26 +763,21 @@ bpf_output_call (rtx target)
 	  {
 	    tree attr_args = TREE_VALUE (attr);
 
-	    xops[0] = GEN_INT (TREE_INT_CST_LOW (TREE_VALUE (attr_args)));
-	    output_asm_insn ("call\t%0", xops);
+	    operands[target_index] =
+	      GEN_INT (TREE_INT_CST_LOW (TREE_VALUE (attr_args)));
 	  }
-	else
-	  output_asm_insn ("call\t%0", &target);
-
 	break;
       }
     default:
-      if (TARGET_XBPF)
-	output_asm_insn ("call\t%0", &target);
-      else
+      if (!TARGET_XBPF)
 	{
 	  error ("indirect call in function, which are not supported by eBPF");
-	  output_asm_insn ("call 0", NULL);
+	  operands[target_index] = GEN_INT (0);
 	}
       break;
     }
 
-  return "";
+  return templ;
 }
 
 const char *
@@ -1145,6 +1138,90 @@ bpf_debug_unwind_info ()
 #undef TARGET_DEBUG_UNWIND_INFO
 #define TARGET_DEBUG_UNWIND_INFO bpf_debug_unwind_info
 
+/* Create a BTF.ext line_info entry.  */
+
+static void
+bpf_output_line_info (FILE *asm_out_file, rtx_insn *insn)
+{
+  static unsigned int line_info_label = 1;
+  static tree cfun_decl = NULL_TREE;
+  static bool func_start_added = false;
+  const char *label = NULL;
+  unsigned int loc = 0;
+  expanded_location exploc = {NULL, 0, 0, NULL, false};
+  static expanded_location prev_exploc = {NULL, 0, 0, NULL, false};
+
+  if(!btf_debuginfo_p () || flag_building_libgcc)
+    return;
+
+  gcc_assert (insn != NULL_RTX);
+
+  if (current_function_decl != cfun_decl
+      && GET_CODE (insn) == NOTE)
+    {
+      label = current_function_func_begin_label;
+      loc = DECL_SOURCE_LOCATION (current_function_decl);
+      exploc = expand_location (loc);
+      func_start_added = true;
+      prev_exploc = exploc;
+    }
+  else
+    {
+      if (GET_CODE (insn) == NOTE)
+	return;
+
+      /* Already added a label for this location.  This might not be fully
+	 accurate but it is better then adding 2 entries on the same location,
+	 which is incompatible with the verifier expectations.  */
+      if (func_start_added == true)
+	{
+	  func_start_added = false;
+	  return;
+	}
+
+
+      if (!INSN_HAS_LOCATION (insn))
+	return;
+
+      exploc = insn_location (insn);
+
+      if (exploc.file == NULL || exploc.line == 0
+	  || (exploc.line == prev_exploc.line
+	      && exploc.column == prev_exploc.column))
+	return;
+
+      prev_exploc = exploc;
+
+      char tmp_label[25];
+      sprintf (tmp_label, "LI%u", line_info_label);
+      ASM_OUTPUT_LABEL (asm_out_file, tmp_label);
+      line_info_label += 1;
+      label = const_cast<char *> (ggc_strdup (tmp_label));
+    }
+
+  cfun_decl = current_function_decl;
+
+  if (exploc.file != NULL && exploc.line != 0)
+    btf_add_line_info_for (label, exploc.file, exploc.line, exploc.column);
+}
+
+
+/* This hook is defined as a way for BPF target to create a label before each
+   emitted instruction and emit line_info information.  This data is later
+   output in .BTF.ext section.
+   This approach expects TARGET_EMIT_BEFORE_INSN to be returning TRUE as
+   this function needs to be called before the instruction is emitted.  Current
+   default behaviour returns TRUE and the hook is left undefined.  */
+
+static void
+bpf_asm_out_unwind_emit (FILE *asm_out_file, rtx_insn *insn)
+{
+  bpf_output_line_info (asm_out_file, insn);
+}
+
+#undef TARGET_ASM_UNWIND_EMIT
+#define TARGET_ASM_UNWIND_EMIT bpf_asm_out_unwind_emit
+
 /* Output assembly directives to assemble data of various sized and
    alignments.  */
 
@@ -1252,13 +1329,11 @@ static void
 emit_move_loop (rtx src, rtx dst, machine_mode mode, int offset, int inc,
 		unsigned iters, unsigned remainder)
 {
-  rtx reg = gen_reg_rtx (mode);
-
   /* First copy in chunks as large as alignment permits.  */
   for (unsigned int i = 0; i < iters; i++)
     {
-      emit_move_insn (reg, adjust_address (src, mode, offset));
-      emit_move_insn (adjust_address (dst, mode, offset), reg);
+      emit_insn (gen_rtx_SET (adjust_address (dst, mode, offset),
+			      adjust_address (src, mode, offset)));
       offset += inc;
     }
 
@@ -1266,22 +1341,22 @@ emit_move_loop (rtx src, rtx dst, machine_mode mode, int offset, int inc,
      used above.  */
   if (remainder & 4)
     {
-      emit_move_insn (reg, adjust_address (src, SImode, offset));
-      emit_move_insn (adjust_address (dst, SImode, offset), reg);
+      emit_insn (gen_rtx_SET (adjust_address (dst, SImode, offset),
+			      adjust_address (src, SImode, offset)));
       offset += (inc < 0 ? -4 : 4);
       remainder -= 4;
     }
   if (remainder & 2)
     {
-      emit_move_insn (reg, adjust_address (src, HImode, offset));
-      emit_move_insn (adjust_address (dst, HImode, offset), reg);
+      emit_insn (gen_rtx_SET (adjust_address (dst, HImode, offset),
+			      adjust_address (src, HImode, offset)));
       offset += (inc < 0 ? -2 : 2);
       remainder -= 2;
     }
   if (remainder & 1)
     {
-      emit_move_insn (reg, adjust_address (src, QImode, offset));
-      emit_move_insn (adjust_address (dst, QImode, offset), reg);
+      emit_insn (gen_rtx_SET (adjust_address (dst, QImode, offset),
+			      adjust_address (src, QImode, offset)));
     }
 }
 
@@ -1351,13 +1426,13 @@ bpf_expand_cpymem (rtx *operands, bool is_move)
       fwd_label = gen_label_rtx ();
       done_label = gen_label_rtx ();
 
-      rtx dst_addr = copy_to_mode_reg (Pmode, XEXP (dst, 0));
-      rtx src_addr = copy_to_mode_reg (Pmode, XEXP (src, 0));
+      rtx src_addr = force_operand (XEXP (src, 0), NULL_RTX);
+      rtx dst_addr = force_operand (XEXP (dst, 0), NULL_RTX);
       emit_cmp_and_jump_insns (src_addr, dst_addr, GEU, NULL_RTX, Pmode,
 			       true, fwd_label, profile_probability::even ());
 
       /* Emit the "backwards" unrolled loop.  */
-      emit_move_loop (src, dst, mode, size_bytes, -inc, iters, remainder);
+      emit_move_loop (src, dst, mode, (size_bytes - 1), -inc, iters, remainder);
       emit_jump_insn (gen_jump (done_label));
       emit_barrier ();
 
@@ -1427,25 +1502,82 @@ bpf_expand_setmem (rtx *operands)
   unsigned inc = GET_MODE_SIZE (mode);
   unsigned offset = 0;
 
+  /* If val is a constant, then build a new constant value duplicating
+     the byte across to the size of stores we might do.
+       e.g. if val is 0xab and we can store in 4-byte chunks, build
+       0xabababab and use that to do the memset.
+     If val is not a constant, then by constraint it is a QImode register
+     and we similarly duplicate the byte across.  */
+  rtx src;
+  if (CONST_INT_P (val))
+    {
+      unsigned HOST_WIDE_INT tmp = UINTVAL (val) & 0xff;
+      /* Need src in the proper mode.  */
+      switch (mode)
+	{
+	case DImode:
+	  src = gen_rtx_CONST_INT (DImode, tmp * 0x0101010101010101);
+	  break;
+	case SImode:
+	  src = gen_rtx_CONST_INT (SImode, tmp * 0x01010101);
+	  break;
+	case HImode:
+	  src = gen_rtx_CONST_INT (HImode, tmp * 0x0101);
+	  break;
+	default:
+	  src = val;
+	  break;
+	}
+    }
+  else
+    {
+      /* VAL is a subreg:QI (reg:DI N).
+	 Copy that byte to fill the whole register.  */
+      src = gen_reg_rtx (mode);
+      emit_move_insn (src, gen_rtx_ZERO_EXTEND (mode, val));
+
+      /* We can fill the whole register with copies of the byte by multiplying
+	 by 0x010101...
+	 For DImode this requires a tmp reg with lldw, but only if we will
+	 actually do nonzero iterations of stxdw.  */
+      if (mode < DImode || iters == 0)
+	emit_move_insn (src, gen_rtx_MULT (mode, src, GEN_INT (0x01010101)));
+      else
+	{
+	  rtx tmp = gen_reg_rtx (mode);
+	  emit_move_insn (tmp, GEN_INT (0x0101010101010101));
+	  emit_move_insn (src, gen_rtx_MULT (mode, src, tmp));
+	}
+    }
+
   for (unsigned int i = 0; i < iters; i++)
     {
-      emit_move_insn (adjust_address (dst, mode, offset), val);
+      emit_move_insn (adjust_address (dst, mode, offset), src);
       offset += inc;
     }
   if (remainder & 4)
     {
-      emit_move_insn (adjust_address (dst, SImode, offset), val);
+      emit_move_insn (adjust_address (dst, SImode, offset),
+		      REG_P (src)
+		      ? simplify_gen_subreg (SImode, src, mode, 0)
+		      : src);
       offset += 4;
       remainder -= 4;
     }
   if (remainder & 2)
     {
-      emit_move_insn (adjust_address (dst, HImode, offset), val);
+      emit_move_insn (adjust_address (dst, HImode, offset),
+		      REG_P (src)
+		      ? simplify_gen_subreg (HImode, src, mode, 0)
+		      : src);
       offset += 2;
       remainder -= 2;
     }
   if (remainder & 1)
-    emit_move_insn (adjust_address (dst, QImode, offset), val);
+    emit_move_insn (adjust_address (dst, QImode, offset),
+		    REG_P (src)
+		    ? simplify_gen_subreg (QImode, src, mode, 0)
+		    : src);
 
   return true;
 }

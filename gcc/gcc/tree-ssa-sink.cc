@@ -1,5 +1,5 @@
 /* Code sinking for trees
-   Copyright (C) 2001-2025 Free Software Foundation, Inc.
+   Copyright (C) 2001-2026 Free Software Foundation, Inc.
    Contributed by Daniel Berlin <dan@dberlin.org>
 
 This file is part of GCC.
@@ -245,6 +245,12 @@ select_best_block (basic_block early_bb,
       else if (bb_loop_depth (temp_bb) > bb_loop_depth (best_bb))
 	;
 
+      /* Likewise an irreducible region inside an otherwise same loop
+	 depth.  */
+      else if ((temp_bb->flags & BB_IRREDUCIBLE_LOOP)
+	       && !(best_bb->flags & BB_IRREDUCIBLE_LOOP))
+	;
+
       /* But sink the least distance, if the new candidate on the same
 	 loop depth is post-dominated by the current best block pick
 	 the new candidate.  */
@@ -265,11 +271,7 @@ select_best_block (basic_block early_bb,
     }
 
   gcc_checking_assert (best_bb == early_bb
-		       || (!do_not_sink (stmt, early_bb, best_bb)
-			   && ((bb_loop_depth (best_bb)
-				< bb_loop_depth (early_bb))
-			       || !dominated_by_p (CDI_POST_DOMINATORS,
-						   early_bb, best_bb))));
+		       || !do_not_sink (stmt, early_bb, best_bb));
 
   return best_bb;
 }
@@ -356,37 +358,54 @@ statement_sink_location (gimple *stmt, basic_block frombb,
 
   use = NULL;
 
-  /* If stmt is a store the one and only use needs to be the VOP
-     merging PHI node.  */
+  /* If stmt is a store the one and only use needs to be a VUSE on
+     the live path.  */
   if (virtual_operand_p (DEF_FROM_PTR (def_p)))
     {
+      tree lhs = gimple_get_lhs (stmt);
+      ao_ref ref;
+      ao_ref_init (&ref, lhs);
       FOR_EACH_IMM_USE_FAST (use_p, imm_iter, DEF_FROM_PTR (def_p))
 	{
 	  gimple *use_stmt = USE_STMT (use_p);
 
 	  /* A killing definition is not a use.  */
-	  if ((gimple_has_lhs (use_stmt)
-	       && operand_equal_p (gimple_get_lhs (stmt),
-				   gimple_get_lhs (use_stmt), 0))
-	      || stmt_kills_ref_p (use_stmt, gimple_get_lhs (stmt)))
+	  if (gimple_vdef (use_stmt)
+	      && ((gimple_has_lhs (use_stmt)
+		   && operand_equal_p (lhs,
+				       gimple_get_lhs (use_stmt), 0))
+		  || stmt_kills_ref_p (use_stmt, &ref)))
 	    {
 	      /* If use_stmt is or might be a nop assignment then USE_STMT
 	         acts as a use as well as definition.  */
 	      if (stmt != use_stmt
-		  && ref_maybe_used_by_stmt_p (use_stmt,
-					       gimple_get_lhs (stmt)))
-		return false;
+		  && ref_maybe_used_by_stmt_p (use_stmt, &ref))
+		{
+		  if (use && use != use_stmt)
+		    return false;
+		  use = use_stmt;
+		}
 	      continue;
 	    }
 
-	  if (gimple_code (use_stmt) != GIMPLE_PHI)
-	    return false;
+	  if (is_a <gphi *> (use_stmt)
+	      || ref_maybe_used_by_stmt_p (use_stmt, &ref))
+	    {
+	      if (use && use != use_stmt)
+		return false;
+	      use = use_stmt;
+	      continue;
+	    }
 
-	  if (use
-	      && use != use_stmt)
-	    return false;
-
-	  use = use_stmt;
+	  if (gimple_vdef (use_stmt))
+	    {
+	      if (stmt_may_clobber_ref_p_1 (use_stmt, &ref, false))
+		return false;
+	      /* We do not look past VDEFs, so treat them as sink location.  */
+	      if (use && use != use_stmt)
+		return false;
+	      use = use_stmt;
+	    }
 	}
       if (!use)
 	return false;
@@ -448,18 +467,26 @@ statement_sink_location (gimple *stmt, basic_block frombb,
 	  break;
 	}
       use = USE_STMT (one_use);
+    }
 
-      if (gimple_code (use) != GIMPLE_PHI)
-	{
-	  sinkbb = select_best_block (frombb, gimple_bb (use), stmt);
+  if (gimple_code (use) != GIMPLE_PHI)
+    {
+      sinkbb = select_best_block (frombb, gimple_bb (use), stmt);
 
-	  if (sinkbb == frombb)
-	    return false;
+      if (sinkbb == frombb)
+	return false;
 
-	  *togsi = gsi_after_labels (sinkbb);
+      /* The SSA update for sinking of stores cannot insert PHIs, the
+	 sink location has to lead to exit without crossing any CFG
+	 merge points to paths not dominated by the sink location.  */
+      if (gimple_vdef (stmt)
+	  && (!single_succ_p (sinkbb)
+	      || single_succ (sinkbb)->index != EXIT_BLOCK))
+	return false;
 
-	  return true;
-	}
+      *togsi = gsi_after_labels (sinkbb);
+
+      return true;
     }
 
   sinkbb = find_bb_for_arg (as_a <gphi *> (use), DEF_FROM_PTR (def_p));
@@ -475,7 +502,10 @@ statement_sink_location (gimple *stmt, basic_block frombb,
 	 operand update, requiring inserting of a PHI node.  */
       || (gimple_vdef (stmt)
 	  && bestbb != sinkbb
-	  && !dominated_by_p (CDI_POST_DOMINATORS, bestbb, sinkbb)))
+	  && !dominated_by_p (CDI_POST_DOMINATORS, bestbb, sinkbb))
+      /* Likewise avoid placing VDEFs into an irreducible region.  */
+      || (gimple_vdef (stmt)
+	  && (bestbb->flags & BB_IRREDUCIBLE_LOOP)))
     return false;
 
   *togsi = gsi_after_labels (bestbb);

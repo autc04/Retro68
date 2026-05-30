@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,9 +26,9 @@
 with Accessibility;  use Accessibility;
 with Atree;          use Atree;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
+with Errid;          use Errid;
 with Errout;         use Errout;
 with Exp_Code;       use Exp_Code;
 with Lib;            use Lib;
@@ -43,13 +43,13 @@ with Sem_Aux;        use Sem_Aux;
 with Sem_Eval;       use Sem_Eval;
 with Sem_Prag;       use Sem_Prag;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
 with Snames;         use Snames;
 with Stand;          use Stand;
 with Stringt;        use Stringt;
+with System.Case_Util;
 with Tbuild;         use Tbuild;
 with Uintp;          use Uintp;
 with Warnsw;         use Warnsw;
@@ -825,6 +825,13 @@ package body Sem_Warn is
       --  For an entry formal entity from an entry declaration, find the
       --  corresponding body formal from the given accept statement.
 
+      function Create_Add_Constant_Fix (E : Entity_Id) return Fix_Array;
+      --  Creates a fix for adding the constant modifier in the declaration for
+      --  E.
+      --
+      --  No fix is generated when the declaration was using multiple
+      --  identifiers.
+
       function Generic_Body_Formal (E : Entity_Id) return Entity_Id;
       --  Warnings on unused formals of subprograms are placed on the entity
       --  in the subprogram body, which seems preferable because it suggests
@@ -1202,14 +1209,47 @@ package body Sem_Warn is
            or else Warnings_Off_Check_Spec (E1);
       end Warnings_Off_E1;
 
+      -----------------------------
+      -- Create_Add_Constant_Fix --
+      -----------------------------
+
+      function Create_Add_Constant_Fix (E : Entity_Id) return Fix_Array is
+         Decl : constant Node_Id := Parent (E);
+      begin
+         if Nkind (Decl) not in N_Object_Declaration  then
+            return No_Fixes;
+         end if;
+
+         --  Only generate a fix in the simplest scenario where a declaration
+         --  is used to define one entity.
+
+         if Prev_Ids (Decl) or else More_Ids (Decl) then
+            return No_Fixes;
+         end if;
+
+         return
+           (1 =>
+              (Fix
+                 (Description => "Add constant",
+                  Edits       =>
+                    (1 =>
+                       Insertion
+                         ("constant ", Sloc (Object_Definition (Decl)))))));
+      end Create_Add_Constant_Fix;
+
    --  Start of processing for Check_References
 
    begin
       --  No messages if warnings are suppressed, or if we have detected any
       --  real errors so far (this last check avoids junk messages resulting
-      --  from errors, e.g. a subunit that is not loaded).
+      --  from errors, e.g. a subunit that is not loaded). No messages if
+      --  we are in preanalysis (warnings will be detected properly later,
+      --  during analysis).
 
-      if Warning_Mode = Suppress or else Serious_Errors_Detected /= 0 then
+      if Warning_Mode = Suppress
+        or else Serious_Errors_Detected /= 0
+        or else not Full_Analysis
+      then
          return;
       end if;
 
@@ -1307,7 +1347,9 @@ package body Sem_Warn is
                   then
                      Error_Msg_N
                        ("?k?& is not modified, consider pragma Export for "
-                        & "volatile variable!", E1);
+                        & "volatile variable!",
+                        E1,
+                        GNAT0007);
 
                   --  Another special case, Exception_Occurrence, this catches
                   --  the case of exception choice (and a bit more too, but not
@@ -1327,7 +1369,10 @@ package body Sem_Warn is
                   then
                      Error_Msg_N -- CODEFIX
                        ("?k?& is not modified, could be declared constant!",
-                        E1);
+                        E1,
+                        GNAT0008,
+                        Fixes => Create_Add_Constant_Fix (E1));
+
                   end if;
 
                --  Other cases of a variable or parameter never set in source
@@ -1712,17 +1757,11 @@ package body Sem_Warn is
 
               and then Ekind (E1) /= E_Class_Wide_Type
 
-              --  Objects other than parameters of task types are allowed to
-              --  be non-referenced, since they start up tasks.
+              --  Objects that are not parameters and whose types have tasks
+              --  are allowed to be non-referenced since they start up tasks.
 
-              and then ((Ekind (E1) /= E_Variable
-                          and then Ekind (E1) /= E_Constant
-                          and then Ekind (E1) /= E_Component)
-
-                         --  Check that E1T is not a task or a composite type
-                         --  with a task component.
-
-                         or else not Has_Task (E1T))
+              and then not (Ekind (E1) in E_Variable | E_Constant | E_Component
+                            and then Has_Task (E1T))
 
               --  For subunits, only place warnings on the main unit itself,
               --  since parent units are not completely compiled.
@@ -3049,6 +3088,140 @@ package body Sem_Warn is
       --  context may force use of IN OUT, even if the parameter is not
       --  modified for this particular case).
 
+      function Change_In_Out_To_In_Fix (Body_E : Entity_Id) return Fix_Array;
+      --  Scan the location of the IN OUT token in the parameter
+      --  specification of Body_E and create:
+      --  *  A fix for removing the IN OUT modifier
+      --  *  A fix for replacing the IN OUT modifier with the IN modifier
+      --
+      --  If multiple identifiers were used in the specification then no fix is
+      --  generated.
+
+      -----------------------------
+      -- Change_In_Out_To_In_Fix --
+      -----------------------------
+
+      function Change_In_Out_To_In_Fix (Body_E : Entity_Id) return Fix_Array is
+         Spec_E         : constant Entity_Id := Spec_Entity (Body_E);
+         Body_E_Param   : constant Node_Id := Parent (Body_E);
+         Spec_E_Param   : Node_Id;
+         Body_In_Out_Span : Source_Span;
+         Spec_In_Out_Span : Source_Span;
+         Found       : Boolean;
+
+         procedure Location_Of_In_Out
+           (Param_Spec  : Node_Id;
+            In_Out_Span : out Source_Span;
+            Found       : out Boolean);
+         --  Scan the location of the IN OUT token in the parameter
+         --  specfication.
+
+         ------------------------
+         -- Location_Of_In_Out --
+         ------------------------
+
+         procedure Location_Of_In_Out
+           (Param_Spec  : Node_Id;
+            In_Out_Span : out Source_Span;
+            Found       : out Boolean)
+         is
+            SI  : constant Source_File_Index :=
+              Get_Source_File_Index (Sloc (Param_Spec));
+            Src : constant Source_Buffer_Ptr := Source_Text (SI);
+
+            F : constant Source_Ptr :=
+              Last_Sloc (Defining_Identifier (Param_Spec));
+            L : constant Source_Ptr :=
+              First_Sloc (Parameter_Type (Param_Spec));
+
+            Tok : constant String := "in out ";
+
+            S : Source_Ptr;
+         begin
+            S := F;
+            while S + Tok'Length <= L loop
+               declare
+                  SS : String := String (Src (S .. S + Tok'Length - 1));
+
+               begin
+                  --  Note that the instance of System.Case_Util.To_Lower that
+                  --  has signature
+                  --
+                  --     function To_Lower (A : String) return String
+                  --
+                  --  cannot be used here because it is not present in the
+                  --  run-time library used by the bootstrap compiler at the
+                  --  time of writing.
+
+                  System.Case_Util.To_Lower (SS);
+
+                  if SS = Tok then
+                     Found := True;
+                     In_Out_Span := To_Span (S, S, S + Tok'Length - 1);
+                     return;
+                  end if;
+               end;
+
+               S := S + 1;
+            end loop;
+
+            Found := False;
+            In_Out_Span := To_Span (No_Location);
+         end Location_Of_In_Out;
+      begin
+         if Nkind (Body_E_Param) not in N_Parameter_Specification then
+            return No_Fixes;
+         end if;
+
+         if Prev_Ids (Body_E_Param) or else More_Ids (Body_E_Param) then
+            return No_Fixes;
+         end if;
+
+         Location_Of_In_Out (Body_E_Param, Body_In_Out_Span, Found);
+
+         --  This probably indicates a problem in the scanner, but we should
+         --  not crash when producing an error message.
+
+         if not Found then
+            return No_Fixes;
+         end if;
+
+         --  Just update the body if no spec available
+
+         if No (Spec_E) then
+            return
+              (1 =>
+                 (Fix
+                    (Description => "Remove IN OUT",
+                     Edits       => (1 => Deletion (Body_In_Out_Span)))),
+               2 =>
+                 Fix
+                   (Description => "Replace IN OUT with IN",
+                    Edits       => (1 => Edit ("in ", Body_In_Out_Span))));
+         end if;
+
+         Spec_E_Param := Parent (Spec_E);
+         Location_Of_In_Out (Spec_E_Param, Spec_In_Out_Span, Found);
+
+         if not Found then
+            return No_Fixes;
+         end if;
+
+         return
+           (1 =>
+              (Fix
+                 (Description => "Remove IN OUT",
+                  Edits       =>
+                    (1 => Deletion (Spec_In_Out_Span),
+                     2 => Deletion (Body_In_Out_Span)))),
+            2 =>
+              Fix
+                (Description => "Replace IN OUT with IN",
+                 Edits       =>
+                   (1 => Edit ("in ", Spec_In_Out_Span),
+                    2 => Edit ("in ", Body_In_Out_Span))));
+      end Change_In_Out_To_In_Fix;
+
       --------------------
       -- Warn_On_In_Out --
       --------------------
@@ -3105,7 +3278,10 @@ package body Sem_Warn is
                if not Is_Trivial_Subprogram (Scope (E1)) then
                   if Warn_On_Constant then
                      Error_Msg_N
-                       ("?k?formal parameter & is not modified!", E1);
+                       ("?k?formal parameter & is not modified!",
+                        E1,
+                        GNAT0009,
+                        Fixes => Change_In_Out_To_In_Fix (E1));
                      Error_Msg_N
                        ("\?k?mode could be IN instead of `IN OUT`!", E1);
 
@@ -3469,6 +3645,24 @@ package body Sem_Warn is
          end if;
       end if;
    end Warn_On_Constant_Valid_Condition;
+
+   ---------------------------------------
+   -- Warn_On_Ignored_Equality_Operator --
+   ---------------------------------------
+
+   procedure Warn_On_Ignored_Equality_Operator
+     (Typ      : Entity_Id;
+      Comp_Typ : Entity_Id;
+      Loc      : Source_Ptr) is
+   begin
+      if Warn_On_Ignored_Equality then
+         Error_Msg_Node_2 := Comp_Typ;
+         Error_Msg_N ("?_q?""="" for type & uses predefined ""="" for }", Typ);
+
+         Error_Msg_Sloc := Loc;
+         Error_Msg_N ("\?_q?""="" # is ignored here", Typ);
+      end if;
+   end Warn_On_Ignored_Equality_Operator;
 
    -----------------------------
    -- Warn_On_Known_Condition --
@@ -4670,9 +4864,11 @@ package body Sem_Warn is
                      if Nkind (Parent (LA)) in N_Procedure_Call_Statement
                                              | N_Parameter_Association
                      then
-                        Error_Msg_NE
-                          ("?m?& modified by call, but value overwritten #!",
-                           LA, Ent);
+                        if Warn_On_All_Unread_Out_Parameters then
+                           Error_Msg_NE
+                            ("?m?& modified by call, but value overwritten #!",
+                             LA, Ent);
+                        end if;
                      else
                         Error_Msg_NE -- CODEFIX
                           ("?m?useless assignment to&, value overwritten #!",
@@ -4747,7 +4943,7 @@ package body Sem_Warn is
       Ent : Entity_Id;
 
    begin
-      if Warn_On_Modified_Unread
+      if (Warn_On_Modified_Unread or Warn_On_All_Unread_Out_Parameters)
         and then In_Extended_Main_Source_Unit (E)
       then
          Ent := First_Entity (E);

@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2025, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2026, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -56,6 +56,9 @@ typedef Int Pos;
 
 /* 8-bit unsigned integer */
 typedef unsigned char Byte;
+
+/* 16-bit unsigned integer */
+typedef unsigned short Word;
 
 /* 8-Bit Character and String Types:  */
 
@@ -431,7 +434,8 @@ enum RT_Exception_Code
   SE_Object_Too_Large               = 35,
   PE_Stream_Operation_Not_Allowed   = 36,
   PE_Build_In_Place_Mismatch        = 37,
-  PE_Raise_Check_Failed             = 38
+  PE_Raise_Check_Failed             = 38,
+  PE_Abstract_Type_Component        = 39
 };
 
-#define LAST_REASON_CODE 38
+#define LAST_REASON_CODE 39

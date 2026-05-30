@@ -1,6 +1,6 @@
 // MT-optimized allocator -*- C++ -*-
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,7 +33,7 @@
 
 #include <new>
 #include <cstdlib>
-#include <bits/functexcept.h>
+#include <bits/new_throw.h>
 #include <ext/atomicity.h>
 #include <bits/move.h>
 #if __cplusplus >= 201103L

@@ -6,7 +6,7 @@
 
 Disassembly of section .text:
 
-00000000 <loongson2f_nop_insn>:
+0+000000 <loongson2f_nop_insn>:
    0:	00200825 	move	\$1,\$1
    4:	00200825 	move	\$1,\$1
    8:	00200825 	move	\$1,\$1

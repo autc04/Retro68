@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -121,7 +121,6 @@ package Rtsfind is
       --  Children of Ada.Numerics.Big_Numbers
 
       Ada_Numerics_Big_Numbers_Big_Integers,
-      Ada_Numerics_Big_Numbers_Big_Integers_Ghost,
 
       --  Children of Ada.Real_Time
 
@@ -582,7 +581,6 @@ package Rtsfind is
      RE_Reference,                       -- Ada.Interrupts
 
      RE_Big_Integer,             -- Ada.Numerics.Big_Numbers.Big_Integers
-     RO_GH_Big_Integer,          -- Ada.Numerics.Big_Numbers.Big_Integers_Ghost
      RO_SP_Big_Integer,          -- SPARK.Big_Integers
 
      RE_Names,                           -- Ada.Interrupts.Names
@@ -775,11 +773,19 @@ package Rtsfind is
      RE_Scaled_Divide64,                 -- System.Arith_64
      RE_Subtract_With_Ovflo_Check64,     -- System.Arith_64
 
+     RE_Uns_Add_With_Ovflo_Check64,      -- System.Arith_64
+     RE_Uns_Multiply_With_Ovflo_Check64, -- System.Arith_64
+     RE_Uns_Subtract_With_Ovflo_Check64, -- System.Arith_64
+
      RE_Add_With_Ovflo_Check128,         -- System.Arith_128
      RE_Double_Divide128,                -- System.Arith_128
      RE_Multiply_With_Ovflo_Check128,    -- System.Arith_128
      RE_Subtract_With_Ovflo_Check128,    -- System.Arith_128
      RE_Scaled_Divide128,                -- System.Arith_128
+
+     RE_Uns_Add_With_Ovflo_Check128,      -- System.Arith_128
+     RE_Uns_Multiply_With_Ovflo_Check128, -- System.Arith_128
+     RE_Uns_Subtract_With_Ovflo_Check128, -- System.Arith_128
 
      RE_Assert_Failure,                  -- System.Assertions
      RE_Raise_Assert_Failure,            -- System.Assertions
@@ -833,6 +839,8 @@ package Rtsfind is
      RE_Bignum_In_LLI_Range,             -- System.Bignums
      RE_To_Bignum,                       -- System.Bignums
      RE_From_Bignum,                     -- System.Bignums
+     RE_LLU_To_Bignum,                   -- System.Bignums
+     RE_LLU_From_Bignum,                 -- System.Bignums
 
      RE_Val_2,                           -- System.Bitfields
      RE_Copy_Bitfield,                   -- System.Bitfields
@@ -1654,6 +1662,7 @@ package Rtsfind is
      RE_Put_Image_Long_Long_Long_Unsigned, -- System.Put_Images
      RE_Put_Image_Thin_Pointer,          -- System.Put_Images
      RE_Put_Image_Fat_Pointer,           -- System.Put_Images
+     RE_Put_Image_Extended_Access_Pointer, -- System.Put_Images
      RE_Put_Image_Access_Subp,           -- System.Put_Images
      RE_Put_Image_Access_Prot_Subp,      -- System.Put_Images
      RE_Put_Image_String,                -- System.Put_Images
@@ -1893,6 +1902,7 @@ package Rtsfind is
      RE_W_U24,                           -- System.Stream_Attributes
      RE_W_WC,                            -- System.Stream_Attributes
      RE_W_WWC,                           -- System.Stream_Attributes
+     RE_W_80IEEE,                        -- System.Stream_Attributes
 
      RE_Storage_Array_Input,             -- System.Strings.Stream_Ops
      RE_Storage_Array_Input_Blk_IO,      -- System.Strings.Stream_Ops
@@ -2231,7 +2241,6 @@ package Rtsfind is
      RE_Reference                        => Ada_Interrupts,
 
      RE_Big_Integer             => Ada_Numerics_Big_Numbers_Big_Integers,
-     RO_GH_Big_Integer          => Ada_Numerics_Big_Numbers_Big_Integers_Ghost,
      RO_SP_Big_Integer          => SPARK_Big_Integers,
 
      RE_Names                            => Ada_Interrupts_Names,
@@ -2424,11 +2433,19 @@ package Rtsfind is
      RE_Scaled_Divide64                  => System_Arith_64,
      RE_Subtract_With_Ovflo_Check64      => System_Arith_64,
 
+     RE_Uns_Add_With_Ovflo_Check64       => System_Arith_64,
+     RE_Uns_Multiply_With_Ovflo_Check64  => System_Arith_64,
+     RE_Uns_Subtract_With_Ovflo_Check64  => System_Arith_64,
+
      RE_Add_With_Ovflo_Check128          => System_Arith_128,
      RE_Double_Divide128                 => System_Arith_128,
      RE_Multiply_With_Ovflo_Check128     => System_Arith_128,
      RE_Subtract_With_Ovflo_Check128     => System_Arith_128,
      RE_Scaled_Divide128                 => System_Arith_128,
+
+     RE_Uns_Add_With_Ovflo_Check128      => System_Arith_128,
+     RE_Uns_Multiply_With_Ovflo_Check128 => System_Arith_128,
+     RE_Uns_Subtract_With_Ovflo_Check128 => System_Arith_128,
 
      RE_Assert_Failure                   => System_Assertions,
      RE_Raise_Assert_Failure             => System_Assertions,
@@ -2482,6 +2499,8 @@ package Rtsfind is
      RE_Bignum_In_LLI_Range              => System_Bignums,
      RE_To_Bignum                        => System_Bignums,
      RE_From_Bignum                      => System_Bignums,
+     RE_LLU_To_Bignum                    => System_Bignums,
+     RE_LLU_From_Bignum                  => System_Bignums,
 
      RE_Val_2                            => System_Bitfields,
      RE_Copy_Bitfield                    => System_Bitfields,
@@ -3428,6 +3447,7 @@ package Rtsfind is
      RE_Put_Image_Long_Long_Long_Unsigned => System_Put_Images,
      RE_Put_Image_Thin_Pointer           => System_Put_Images,
      RE_Put_Image_Fat_Pointer            => System_Put_Images,
+     RE_Put_Image_Extended_Access_Pointer => System_Put_Images,
      RE_Put_Image_Access_Subp            => System_Put_Images,
      RE_Put_Image_Access_Prot_Subp       => System_Put_Images,
      RE_Put_Image_String                 => System_Put_Images,
@@ -3550,6 +3570,7 @@ package Rtsfind is
      RE_W_U24                            => System_Stream_Attributes,
      RE_W_WC                             => System_Stream_Attributes,
      RE_W_WWC                            => System_Stream_Attributes,
+     RE_W_80IEEE                         => System_Stream_Attributes,
 
      RE_Storage_Array_Input              => System_Strings_Stream_Ops,
      RE_Storage_Array_Input_Blk_IO       => System_Strings_Stream_Ops,

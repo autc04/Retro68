@@ -10,7 +10,7 @@ Section Headers:
 # MIPS targets put .rela.text here.
 #...
  +\[ .\] .* +PROGBITS +00000000 0000(3c|40|44|48|50) 0000(04|10) 00 +WA +0 +0 +(.|..)
- +\[ .\] .* +NOBITS +00000000 0000(40|44|48|4c|60) 000000 00 +WA +0 +0 +(.|..)
+ +\[ .\] .* +NOBITS +00000000 0+[0-9a-f]+ 000000 00 +WA +0 +0 +(.|..)
 # ARM targets put .ARM.attributes here.
 # MIPS targets put .reginfo, .mdebug, .MIPS.abiflags and .gnu.attributes here.
 # v850 targets put .call_table_data and .call_table_text here.

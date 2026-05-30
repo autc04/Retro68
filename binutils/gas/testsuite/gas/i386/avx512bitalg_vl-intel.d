@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 AVX512BITALG/VL insns (Intel disassembly)
 #source: avx512bitalg_vl.s
@@ -8,7 +7,7 @@
 
 Disassembly of section \.text:
 
-00000000 <_start>:
+00000000 <bitalg>:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 55 0f 8f ec[ 	]*vpshufbitqmb k5\{k7\},xmm5,xmm4
 [ 	]*[a-f0-9]+:[ 	]*62 f2 55 0f 8f ac f4 c0 1d fe ff[ 	]*vpshufbitqmb k5\{k7\},xmm5,XMMWORD PTR \[esp\+esi\*8-0x1e240\]
 [ 	]*[a-f0-9]+:[ 	]*62 f2 55 0f 8f 6a 7f[ 	]*vpshufbitqmb k5\{k7\},xmm5,XMMWORD PTR \[edx\+0x7f0\]

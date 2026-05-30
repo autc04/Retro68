@@ -1,4 +1,4 @@
-@c Copyright (C) 2004-2025 Free Software Foundation, Inc.
+@c Copyright (C) 2004-2026 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -355,7 +355,7 @@ FOR_EACH_PHI_OR_STMT_DEF (def_operand_p, phi, iter, flags)
 
 Immediate use information is now always available.  Using the immediate use
 iterators, you may examine every use of any @code{SSA_NAME}. For instance,
-to change each use of @code{ssa_var} to @code{ssa_var2} and call fold_stmt on
+to change each use of @code{ssa_var} to @code{val} and call fold_stmt on
 each stmt after that is done:
 
 @smallexample
@@ -367,8 +367,9 @@ each stmt after that is done:
   FOR_EACH_IMM_USE_STMT (stmt, iterator, ssa_var)
     @{
       FOR_EACH_IMM_USE_ON_STMT (imm_use_p, iterator)
-        SET_USE (imm_use_p, ssa_var_2);
+        SET_USE (imm_use_p, val);
       fold_stmt (stmt);
+      update_stmt (stmt);
     @}
 @end smallexample
 
@@ -382,16 +383,37 @@ under the iterators, so use the @code{FOR_EACH_IMM_USE_STMT} and
 sanity of the use list by moving all the uses for a statement into
 a controlled position, and then iterating over those uses.  Then the
 optimization can manipulate the stmt when all the uses have been
-processed.  This is a little slower than the FAST version since it adds a
-placeholder element and must sort through the list a bit for each statement.
-This placeholder element must be also be removed if the loop is
-terminated early; a destructor takes care of that when leaving the
-@code{FOR_EACH_IMM_USE_STMT} scope.
+processed.  Only the current active @code{imm_use_p} may be altered
+when using an inner @code{FOR_EACH_IMM_USE_ON_STMT} iteration.
+You have to be careful to not inadvertedly modify the immediate
+use list by working on another stmt than the the current @code{stmt} during
+the iteration.  In particular calling @code{update_stmt} is destructive
+on all SSA uses immediate use lists related to the updated stmt.
+This slower than the FAST version since it sorts through the list for each
+statement.
+
+@code{FOR_EACH_IMM_USE_ON_STMT} iteration may not be nested inside
+another @code{FOR_EACH_IMM_USE_ON_STMT} or @code{FOR_EACH_IMM_USE_FAST}
+iteration of the same immediate use list.
+
+There is the @code{gather_imm_use_stmts} helper that trades memory for
+removing the need to care about the immediate use list consistency and
+which also avoids duplicate visiting of stmts that can occur with
+@code{FOR_EACH_IMM_USE_FAST} when there are multiple uses of an SSA name
+on a stmt.  This can be used to iterate safely over all use stmts like
+this:
+
+@smallexample
+  tree ssa_var;
+
+  for (gimple *use_stmt : gather_imm_use_stmts (ssa_var))
+    @{
+       // do something with use_stmt
+    @}
+@end smallexample
 
 There are checks in @code{verify_ssa} which verify that the immediate use list
-is up to date, as well as checking that an optimization didn't break from the
-loop without using this macro.  It is safe to simply 'break'; from a
-@code{FOR_EACH_IMM_USE_FAST} traverse.
+is up to date.
 
 Some useful functions and macros:
 @enumerate
@@ -412,7 +434,9 @@ isn't located in a @code{PHI} node.
 @end enumerate
 
 Note that uses are not put into an immediate use list until their statement is
-actually inserted into the instruction stream via a @code{bsi_*} routine.
+actually inserted into the instruction stream via a @code{gsi_*} routine
+which calls @code{update_stmt} to re-scan SSA operands and update the
+immediate use lists.
 
 It is also still possible to utilize lazy updating of statements, but this
 should be used only when absolutely required.  Both alias analysis and the

@@ -8,22 +8,22 @@
 Disassembly of section .text:
 
 .* <_start>:
-    1000:	1400000a 	b	1028 <___veneer>
-    1004:	14000005 	b	1018 <___veneer>
+    1000:	14000006 	b	1018 <__bar_veneer>
+    1004:	14000009 	b	1028 <__bar2_veneer>
     1008:	d65f03c0 	ret
     100c:	d503201f 	nop
-    1010:	1400000e 	b	1048 <___veneer\+0x20>
+    1010:	1400000e 	b	1048 <__bar2_veneer\+0x20>
     1014:	d503201f 	nop
 
-.* <___veneer>:
+.* <__bar_veneer>:
     1018:	90040010 	adrp	x16, 8001000 <bar>
-    101c:	91001210 	add	x16, x16, #0x4
+    101c:	91000210 	add	x16, x16, #0x0
     1020:	d61f0200 	br	x16
     1024:	00000000 	udf	#0
 
-.* <___veneer>:
+.* <__bar2_veneer>:
     1028:	90040010 	adrp	x16, 8001000 <bar>
-    102c:	91000210 	add	x16, x16, #0x0
+    102c:	91001210 	add	x16, x16, #0x4
     1030:	d61f0200 	br	x16
 	...
 

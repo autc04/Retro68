@@ -14,6 +14,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	df 88 90 90 90 00[ 	]+fisttp WORD PTR \[rax\+0x909090\]
 [ 	]*[a-f0-9]+:	db 88 90 90 90 00[ 	]+fisttp DWORD PTR \[rax\+0x909090\]
 [ 	]*[a-f0-9]+:	dd 88 90 90 90 00[ 	]+fisttp QWORD PTR \[rax\+0x909090\]
+[ 	]*[a-f0-9]+:	dd 88 90 90 90 00[ 	]+fisttp QWORD PTR \[rax\+0x909090\]
 [ 	]*[a-f0-9]+:	66 0f 7c 65 00[ 	]+haddpd xmm4,(XMMWORD PTR )?\[rbp(\+0x0)\]
 [ 	]*[a-f0-9]+:	66 0f 7c ee[ 	]+haddpd xmm5,xmm6
 [ 	]*[a-f0-9]+:	f2 0f 7c 37[ 	]+haddps xmm6,(XMMWORD PTR )?\[rdi\]

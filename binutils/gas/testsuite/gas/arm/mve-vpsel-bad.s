@@ -1,13 +1,13 @@
-.macro cond
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vpsel.i16 q0, q1, q2
-.endr
-.endm
-
 .syntax unified
 .thumb
-cond
+
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+vpsel.i16 q0, q1, q2
+
+.endr
+
 it eq
 vpseleq.i16 q0, q1, q2
 vpseleq.i16 q0, q1, q2

@@ -1,5 +1,5 @@
 /* Functions related to building -*- C++ -*- classes and their related objects.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GCC.
@@ -37,6 +37,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimplify.h"
 #include "intl.h"
 #include "asan.h"
+#include "contracts.h"
 
 /* Id for dumping the class hierarchy.  */
 int class_dump_id;
@@ -347,9 +348,21 @@ build_base_path (enum tree_code code,
 		 || processing_template_decl
 		 || in_template_context);
 
+  if (!uneval)
+    fixed_type_p = resolves_to_fixed_type_p (expr, &nonnull);
+  else
+    fixed_type_p = 0;
+
+  /* Do we need to look in the vtable for the real offset?  */
+  virtual_access = (v_binfo && fixed_type_p <= 0);
+
   /* For a non-pointer simple base reference, express it as a COMPONENT_REF
      without taking its address (and so causing lambda capture, 91933).  */
-  if (code == PLUS_EXPR && !v_binfo && !want_pointer && !has_empty && !uneval)
+  if (code == PLUS_EXPR
+      && !want_pointer
+      && !has_empty
+      && !uneval
+      && !virtual_access)
     return build_simple_base_path (expr, binfo);
 
   if (!want_pointer)
@@ -362,7 +375,6 @@ build_base_path (enum tree_code code,
     expr = mark_rvalue_use (expr);
 
   offset = BINFO_OFFSET (binfo);
-  fixed_type_p = resolves_to_fixed_type_p (expr, &nonnull);
   target_type = code == PLUS_EXPR ? BINFO_TYPE (binfo) : BINFO_TYPE (d_binfo);
   /* TARGET_TYPE has been extracted from BINFO, and, is therefore always
      cv-unqualified.  Extract the cv-qualifiers from EXPR so that the
@@ -370,9 +382,6 @@ build_base_path (enum tree_code code,
   target_type = cp_build_qualified_type
     (target_type, cp_type_quals (TREE_TYPE (TREE_TYPE (expr))));
   ptr_target_type = build_pointer_type (target_type);
-
-  /* Do we need to look in the vtable for the real offset?  */
-  virtual_access = (v_binfo && fixed_type_p <= 0);
 
   /* Don't bother with the calculations inside sizeof; they'll ICE if the
      source type is incomplete and the pointer value doesn't matter.  In a
@@ -1214,9 +1223,10 @@ object_parms_correspond (tree fn, tree method, tree context)
       && DECL_IOBJ_MEMBER_FUNCTION_P (method))
     {
       /* Either both or neither need to be ref-qualified for
-	 differing quals to allow overloading.  */
-      if ((FUNCTION_REF_QUALIFIED (fn_type)
-	   == FUNCTION_REF_QUALIFIED (method_type))
+	 differing quals to allow overloading before C++20 (P1787R6).  */
+      if ((cxx_dialect >= cxx20
+	   || (FUNCTION_REF_QUALIFIED (fn_type)
+	       == FUNCTION_REF_QUALIFIED (method_type)))
 	  && (type_memfn_quals (fn_type) != type_memfn_quals (method_type)
 	      || type_memfn_rqual (fn_type) != type_memfn_rqual (method_type)))
 	return false;
@@ -1351,7 +1361,30 @@ add_method (tree type, tree method, bool via_using)
       if (!compparms (parms1, parms2))
 	continue;
 
-      if (!equivalently_constrained (fn, method))
+      tree fn_constraints = get_constraints (fn);
+      tree method_constraints = get_constraints (method);
+
+      if (fn_constraints && method_constraints
+	  && DECL_CONTEXT (fn) != type
+	  && !processing_template_decl)
+	{
+	  if (TREE_CODE (fn) == TEMPLATE_DECL)
+	    ++processing_template_decl;
+	  if (tree outer_args = outer_template_args (fn))
+	    fn_constraints = tsubst_constraint_info (fn_constraints,
+						     outer_args,
+						     tf_warning_or_error,
+						     fn);
+	  if (tree outer_args = outer_template_args (method))
+	    method_constraints = tsubst_constraint_info (method_constraints,
+							 outer_args,
+							 tf_warning_or_error,
+							 method);
+	  if (TREE_CODE (fn) == TEMPLATE_DECL)
+	    --processing_template_decl;
+	}
+
+      if (!equivalent_constraints (fn_constraints, method_constraints))
 	{
 	  if (processing_template_decl)
 	    /* We can't check satisfaction in dependent context, wait until
@@ -1402,7 +1435,7 @@ add_method (tree type, tree method, bool via_using)
       /* If these are versions of the same function, process and
 	 move on.  */
       if (TREE_CODE (fn) == FUNCTION_DECL
-	  && maybe_version_functions (method, fn, true))
+	  && maybe_version_functions (method, fn))
 	continue;
 
       if (DECL_INHERITED_CTOR (method))
@@ -3223,6 +3256,10 @@ check_for_override (tree decl, tree ctype)
 
       if (DECL_DESTRUCTOR_P (decl))
 	TYPE_HAS_NONTRIVIAL_DESTRUCTOR (ctype) = true;
+
+      if (DECL_HAS_CONTRACTS_P (decl))
+	error_at (DECL_SOURCE_LOCATION (decl),
+		  "contracts cannot be added to virtual functions");
     }
   else if (DECL_FINAL_P (decl))
     error ("%q+#D marked %<final%>, but is not virtual", decl);
@@ -5110,7 +5147,7 @@ check_methods (tree t)
 	    error_at (location_of (t), "no viable destructor for %qT", t);
 	  else
 	    error_at (location_of (t), "destructor for %qT is ambiguous", t);
-	  print_candidates (dtor);
+	  print_candidates (location_of (t), dtor);
 
 	  /* Arbitrarily prune the overload set to a single function for
 	     sake of error recovery.  */
@@ -5695,7 +5732,7 @@ in_class_defaulted_default_constructor (tree t)
 }
 
 /* Returns true iff FN is a user-provided function, i.e. user-declared
-   and not defaulted at its first declaration.  */
+   and not explicitly defaulted or deleted on its first declaration.  */
 
 bool
 user_provided_p (tree fn)
@@ -5703,7 +5740,12 @@ user_provided_p (tree fn)
   fn = STRIP_TEMPLATE (fn);
   return (!DECL_ARTIFICIAL (fn)
 	  && !(DECL_INITIALIZED_IN_CLASS_P (fn)
-	       && (DECL_DEFAULTED_FN (fn) || DECL_DELETED_FN (fn))));
+	       && (DECL_DEFAULTED_FN (fn) || DECL_DELETED_FN (fn)))
+	  /* At namespace scope,
+	      void f () = delete;
+	    is *not* user-provided (and any function deleted after its first
+	    declaration is ill-formed).  */
+	  && !(DECL_NAMESPACE_SCOPE_P (fn) && DECL_DELETED_FN (fn)));
 }
 
 /* Returns true iff class T has a user-provided constructor.  */
@@ -5720,6 +5762,50 @@ type_has_user_provided_constructor (tree t)
   for (ovl_iterator iter (CLASSTYPE_CONSTRUCTORS (t)); iter; ++iter)
     if (user_provided_p (*iter))
       return true;
+
+  return false;
+}
+
+/* Returns true iff class T has a constructor that accepts a single argument
+   and does not have a single parameter of type reference to T.
+
+   This does not exclude explicit constructors because they are still
+   considered for conversions within { } even though choosing one is
+   ill-formed.  */
+
+bool
+type_has_converting_constructor (tree t)
+{
+  if (!CLASS_TYPE_P (t))
+    return false;
+
+  if (!TYPE_HAS_USER_CONSTRUCTOR (t))
+    return false;
+
+  for (ovl_iterator iter (CLASSTYPE_CONSTRUCTORS (t)); iter; ++iter)
+    {
+      tree fn = *iter;
+      tree parm = FUNCTION_FIRST_USER_PARMTYPE (fn);
+      if (parm == NULL_TREE)
+	/* Varargs.  */
+	return true;
+      if (parm == void_list_node
+	  || !sufficient_parms_p (TREE_CHAIN (parm)))
+	/* Can't accept a single argument, so won't be considered for
+	   conversion.  */
+	continue;
+      if (TREE_CODE (fn) == TEMPLATE_DECL
+	  || TREE_CHAIN (parm) != void_list_node)
+	/* Not a simple single parameter.  */
+	return true;
+      if (TYPE_MAIN_VARIANT (non_reference (TREE_VALUE (parm)))
+	  != DECL_CONTEXT (fn))
+	/* The single parameter has the wrong type.  */
+	return true;
+      if (get_constraints (fn))
+	/* Constrained.  */
+	return true;
+    }
 
   return false;
 }
@@ -6413,9 +6499,7 @@ check_bases_and_members (tree t)
      Again, other conditions for being an aggregate are checked
      elsewhere.  */
   CLASSTYPE_NON_AGGREGATE (t)
-    |= ((cxx_dialect < cxx20
-	 ? type_has_user_provided_or_explicit_constructor (t)
-	 : TYPE_HAS_USER_CONSTRUCTOR (t))
+    |= (type_has_user_provided_or_explicit_constructor (t)
 	|| TYPE_POLYMORPHIC_P (t));
   /* This is the C++98/03 definition of POD; it changed in C++0x, but we
      retain the old definition internally for ABI reasons.  */
@@ -6435,6 +6519,20 @@ check_bases_and_members (tree t)
 	CLASSTYPE_NON_POD_AGGREGATE (t) = false;
       else if (abi_version_at_least (17))
 	CLASSTYPE_NON_LAYOUT_POD_P (t) = true;
+    }
+
+  /* P1008: Prohibit aggregates with user-declared constructors.  */
+  if (cxx_dialect >= cxx20 && TYPE_HAS_USER_CONSTRUCTOR (t))
+    {
+      CLASSTYPE_NON_AGGREGATE (t) = true;
+      if (!CLASSTYPE_NON_LAYOUT_POD_P (t))
+	{
+	  /* c++/120012: The C++20 aggregate change affected layout.  */
+	  if (!abi_version_at_least (21))
+	    CLASSTYPE_NON_LAYOUT_POD_P (t) = true;
+	  if (abi_version_crosses (21))
+	    CLASSTYPE_NON_AGGREGATE_POD (t) = true;
+	}
     }
 
   /* If the only explicitly declared default constructor is user-provided,
@@ -6698,9 +6796,11 @@ layout_virtual_bases (record_layout_info rli, splay_tree offsets)
 	{
 	  /* This virtual base is not a primary base of any class in the
 	     hierarchy, so we have to add space for it.  */
-	  next_field = build_base_field (rli, vbase,
-					 access_private_node,
-					 offsets, next_field);
+	  tree access = access_private_node;
+	  if (publicly_virtually_derived_p (BINFO_TYPE (vbase), t))
+	    access = access_public_node;
+	  next_field = build_base_field (rli, vbase, access, offsets,
+					 next_field);
 	}
     }
 }
@@ -6809,7 +6909,8 @@ end_of_class (tree t, eoc_mode mode)
 static void
 check_non_pod_aggregate (tree field)
 {
-  if (!abi_version_crosses (17) || cxx_dialect < cxx14)
+  if ((!abi_version_crosses (17) || cxx_dialect < cxx14)
+      && (!abi_version_crosses (21) || cxx_dialect < cxx20))
     return;
   if (TREE_CODE (field) != FIELD_DECL
       || (!DECL_FIELD_IS_BASE (field)
@@ -6822,7 +6923,10 @@ check_non_pod_aggregate (tree field)
   tree type = TREE_TYPE (field);
   if (TYPE_IDENTIFIER (type) == as_base_identifier)
     type = TYPE_CONTEXT (type);
-  if (!CLASS_TYPE_P (type) || !CLASSTYPE_NON_POD_AGGREGATE (type))
+  if (!CLASS_TYPE_P (type)
+      || is_empty_class (type)
+      || (!CLASSTYPE_NON_POD_AGGREGATE (type)
+	  && !CLASSTYPE_NON_AGGREGATE_POD (type)))
     return;
   tree size = end_of_class (type, (DECL_FIELD_IS_BASE (field)
 				   ? eoc_nvsize : eoc_nv_or_dsize));
@@ -6831,13 +6935,31 @@ check_non_pod_aggregate (tree field)
     {
       location_t loc = DECL_SOURCE_LOCATION (next);
       if (DECL_FIELD_IS_BASE (next))
-	warning_at (loc, OPT_Wabi,"offset of %qT base class for "
-		    "%<-std=c++14%> and up changes in "
-		    "%<-fabi-version=17%> (GCC 12)", TREE_TYPE (next));
+	{
+	  if (abi_version_crosses (17)
+	      && CLASSTYPE_NON_POD_AGGREGATE (type))
+	    warning_at (loc, OPT_Wabi,"offset of %qT base class for "
+			"%<-std=c++14%> and up changes in "
+			"%<-fabi-version=17%> (GCC 12)", TREE_TYPE (next));
+	  else if (abi_version_crosses (21)
+		   && CLASSTYPE_NON_AGGREGATE_POD (type))
+	    warning_at (loc, OPT_Wabi,"offset of %qT base class for "
+			"%<-std=c++20%> and up changes in "
+			"%<-fabi-version=21%> (GCC 16)", TREE_TYPE (next));
+	}
       else
-	warning_at (loc, OPT_Wabi, "offset of %qD for "
-		    "%<-std=c++14%> and up changes in "
-		    "%<-fabi-version=17%> (GCC 12)", next);
+	{
+	  if (abi_version_crosses (17)
+	      && CLASSTYPE_NON_POD_AGGREGATE (type))
+	    warning_at (loc, OPT_Wabi, "offset of %qD for "
+			"%<-std=c++14%> and up changes in "
+			"%<-fabi-version=17%> (GCC 12)", next);
+	  else if (abi_version_crosses (21)
+		   && CLASSTYPE_NON_AGGREGATE_POD (type))
+	    warning_at (loc, OPT_Wabi, "offset of %qD for "
+			"%<-std=c++20%> and up changes in "
+			"%<-fabi-version=21%> (GCC 16)", next);
+	}
     }
 }
 
@@ -7364,10 +7486,14 @@ determine_key_method (tree type)
   for (method = TYPE_FIELDS (type); method; method = DECL_CHAIN (method))
     if (TREE_CODE (method) == FUNCTION_DECL
 	&& DECL_VINDEX (method) != NULL_TREE
-	&& ! DECL_DECLARED_INLINE_P (method)
+	/* [[gnu::gnu_inline]] virtual inline/constexpr methods will
+	   have out of line bodies emitted in some other TU and so
+	   those can be key methods and vtable emitted in the TU with
+	   the actual out of line definition.  */
+	&& ! DECL_NONGNU_INLINE_P (method)
 	&& ! DECL_PURE_VIRTUAL_P (method))
       {
-	CLASSTYPE_KEY_METHOD (type) = method;
+	SET_CLASSTYPE_KEY_METHOD (type, method);
 	break;
       }
 
@@ -7482,7 +7608,8 @@ find_flexarrays (tree t, flexmems_t *fmem, bool base_p,
       if (TREE_CODE (fld) == TYPE_DECL
 	  && DECL_IMPLICIT_TYPEDEF_P (fld)
 	  && CLASS_TYPE_P (TREE_TYPE (fld))
-	  && IDENTIFIER_ANON_P (DECL_NAME (fld)))
+	  && (IDENTIFIER_ANON_P (DECL_NAME (fld))
+	      || TYPE_DECL_WAS_UNNAMED (fld)))
 	{
 	  /* Check the nested unnamed type referenced via a typedef
 	     independently of FMEM (since it's not a data member of
@@ -7840,6 +7967,17 @@ finish_struct_1 (tree t)
       error ("redefinition of %q#T", t);
       popclass ();
       return;
+    }
+
+  if (location_t fcloc = failed_completion_location (t))
+    {
+      auto_diagnostic_group adg;
+      if (warning (OPT_Wsfinae_incomplete_,
+		   "defining %qT, which previously failed to be complete "
+		   "in a SFINAE context", t)
+	  && warn_sfinae_incomplete == 1)
+	inform (fcloc, "here.  Use %qs for a diagnostic at that point",
+		"-Wsfinae-incomplete=2");
     }
 
   /* If this type was previously laid out as a forward reference,
@@ -8225,6 +8363,11 @@ finish_struct (tree t, tree attributes)
       && !LAMBDA_TYPE_P (t))
     add_stmt (build_min (TAG_DEFN, t));
 
+  /* Lambdas will be keyed by their LAMBDA_TYPE_EXTRA_SCOPE when that
+     gets set; other local types might need keying anyway though.  */
+  if (at_function_scope_p () && !LAMBDA_TYPE_P (t))
+    maybe_key_decl (current_scope (), TYPE_NAME (t));
+
   return t;
 }
 
@@ -8257,6 +8400,15 @@ fixed_type_or_null (tree instance, int *nonnull, int *cdtorp)
       if (CALL_EXPR_FN (instance)
 	  && TREE_HAS_CONSTRUCTOR (instance))
 	{
+	  if (nonnull)
+	    *nonnull = 1;
+	  return TREE_TYPE (instance);
+	}
+      if (CLASS_TYPE_P (TREE_TYPE (instance)))
+	{
+	  /* We missed a build_cplus_new somewhere, likely due to tf_decltype
+	     mishandling.  */
+	  gcc_checking_assert (false);
 	  if (nonnull)
 	    *nonnull = 1;
 	  return TREE_TYPE (instance);
@@ -8846,6 +8998,13 @@ resolve_address_of_overloaded_function (tree target_type,
 	if (!constraints_satisfied_p (fn))
 	  continue;
 
+	/* For target_version semantics, never resolve a non-default
+	   version.  */
+	if (!TARGET_HAS_FMV_TARGET_ATTRIBUTE
+	    && TREE_CODE (fn) == FUNCTION_DECL
+	    && !is_function_default_version (fn))
+	  continue;
+
 	if (undeduced_auto_decl (fn))
 	  {
 	    /* Force instantiation to do return type deduction.  */
@@ -8976,7 +9135,7 @@ resolve_address_of_overloaded_function (tree target_type,
 	  error ("no matches converting function %qD to type %q#T",
 		 OVL_NAME (overload), target_type);
 
-	  print_candidates (overload);
+	  print_candidates (input_location, overload);
 	}
       return error_mark_node;
     }
@@ -8992,8 +9151,7 @@ resolve_address_of_overloaded_function (tree target_type,
 	 decls_match will return false as they are different.  */
       for (match = TREE_CHAIN (matches); match; match = TREE_CHAIN (match))
 	if (!decls_match (fn, TREE_PURPOSE (match))
-	    && !targetm.target_option.function_versions
-	       (fn, TREE_PURPOSE (match)))
+	    && !disjoint_version_decls (fn, TREE_PURPOSE (match)))
           break;
 
       if (match)
@@ -9009,7 +9167,7 @@ resolve_address_of_overloaded_function (tree target_type,
 	      for (match = matches; match; match = TREE_CHAIN (match))
 		TREE_VALUE (match) = TREE_PURPOSE (match);
 
-	      print_candidates (matches);
+	      print_candidates (input_location, matches);
 	    }
 
 	  return error_mark_node;
@@ -9071,8 +9229,10 @@ resolve_address_of_overloaded_function (tree target_type,
   /* If a pointer to a function that is multi-versioned is requested, the
      pointer to the dispatcher function is returned instead.  This works
      well because indirectly calling the function will dispatch the right
-     function version at run-time.  */
-  if (DECL_FUNCTION_VERSIONED (fn))
+     function version at run-time.
+     This is done at multiple_target.cc for target_version semantics.  */
+
+  if (DECL_FUNCTION_VERSIONED (fn) && TARGET_HAS_FMV_TARGET_ATTRIBUTE)
     {
       fn = get_function_version_dispatcher (fn);
       if (fn == NULL)
@@ -10531,7 +10691,7 @@ build_vtbl_initializer (tree binfo,
 	  int i;
 	  if (init == size_zero_node)
 	    for (i = 0; i < TARGET_VTABLE_USES_DESCRIPTORS; ++i)
-	      CONSTRUCTOR_APPEND_ELT (*inits, size_int (jx++), init);
+	      CONSTRUCTOR_APPEND_ELT (*inits, NULL_TREE, init);
 	  else
 	    for (i = 0; i < TARGET_VTABLE_USES_DESCRIPTORS; ++i)
 	      {
@@ -10539,11 +10699,11 @@ build_vtbl_initializer (tree binfo,
 				     fn, build_int_cst (NULL_TREE, i));
 		TREE_CONSTANT (fdesc) = 1;
 
-		CONSTRUCTOR_APPEND_ELT (*inits, size_int (jx++), fdesc);
+		CONSTRUCTOR_APPEND_ELT (*inits, NULL_TREE, fdesc);
 	      }
 	}
       else
-	CONSTRUCTOR_APPEND_ELT (*inits, size_int (jx++), init);
+	CONSTRUCTOR_APPEND_ELT (*inits, NULL_TREE, init);
     }
 }
 
@@ -10878,6 +11038,17 @@ bool
 publicly_uniquely_derived_p (tree parent, tree type)
 {
   tree base = lookup_base (type, parent, ba_ignore_scope | ba_check,
+			   NULL, tf_none);
+  return base && base != error_mark_node;
+}
+
+/* TRUE iff TYPE is publicly & virtually derived from PARENT.  */
+
+bool
+publicly_virtually_derived_p (tree parent, tree type)
+{
+  tree base = lookup_base (type, parent,
+			   ba_ignore_scope | ba_check | ba_require_virtual,
 			   NULL, tf_none);
   return base && base != error_mark_node;
 }

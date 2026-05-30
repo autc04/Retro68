@@ -3,7 +3,7 @@
 # as: -march=armv6k+sec
 # readelf: -A
 # This test is only valid on EABI based ports.
-# target: *-*-*eabi* *-*-nacl*
+# target: *-*-*eabi*
 
 Attribute Section: aeabi
 File Attributes

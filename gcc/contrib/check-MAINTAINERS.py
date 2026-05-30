@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2022-2025 Free Software Foundation, Inc.
+# Copyright (C) 2022-2026 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -19,8 +19,8 @@
 # the Free Software Foundation, 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301, USA.
 
-# Check that names in the file are sorted
-# alphabetically by surname.
+# Check that names in the file are sorted alphabetically by surname, name
+# bugzilla handle and email (in this order).
 
 import locale
 import sys

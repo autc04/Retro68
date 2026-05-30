@@ -1,7 +1,7 @@
 // -*- C++ -*-
 // Error handling utils for the C++ library testsuite.
 //
-// Copyright (C) 2007-2025 Free Software Foundation, Inc.
+// Copyright (C) 2007-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,11 +19,12 @@
 // <http://www.gnu.org/licenses/>.
 //
 
-#include <string>
-#include <testsuite_hooks.h>
-
 #ifndef _TESTSUITE_ERROR_H
 #define _TESTSUITE_ERROR_H 1
+
+#include <string>
+#include <system_error>
+#include <testsuite_hooks.h>
 
 namespace __gnu_test
 {

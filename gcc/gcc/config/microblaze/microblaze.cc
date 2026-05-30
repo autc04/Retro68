@@ -1,5 +1,5 @@
 /* Subroutines used for code generation on Xilinx MicroBlaze.
-   Copyright (C) 2009-2025 Free Software Foundation, Inc.
+   Copyright (C) 2009-2026 Free Software Foundation, Inc.
 
    Contributed by Michael Eager <eager@eagercon.com>.
 
@@ -238,6 +238,10 @@ section *sdata2_section;
 #undef TARGET_HAVE_TLS
 #define TARGET_HAVE_TLS true
 #endif
+
+/* MicroBlaze does not do speculative execution.  */
+#undef  TARGET_HAVE_SPECULATION_SAFE_VALUE
+#define TARGET_HAVE_SPECULATION_SAFE_VALUE speculation_safe_value_not_needed
 
 /* Return truth value if a CONST_DOUBLE is ok to be a legitimate constant.  */
 static bool
@@ -585,8 +589,7 @@ microblaze_call_tls_get_addr (rtx x, rtx reg, rtx *valuep, int reloc)
                                      LCT_PURE, /* LCT_CONST?  */
                                      Pmode, reg, Pmode);
 
-  insns = get_insns ();
-  end_sequence ();
+  insns = end_sequence ();
 
   return insns;
 }
@@ -1294,6 +1297,34 @@ microblaze_expand_block_move (rtx dest, rtx src, rtx length, rtx align_rtx)
 	}
     }
   return false;
+}
+
+/* Compute memory address *aligned_mem and corresponding shift value (*shift)
+   from a QImode memory reference MEM */
+void
+microblaze_subword_address (rtx mem, rtx *aligned_mem, rtx *shift)
+{
+  /* Align the memory address to a word.  */
+  rtx addr = force_reg (Pmode, XEXP (mem, 0));
+
+  rtx addr_mask = gen_int_mode (-4, Pmode);
+
+  rtx aligned_addr = gen_reg_rtx (Pmode);
+
+  emit_move_insn (aligned_addr,  gen_rtx_AND (Pmode, addr, addr_mask));
+
+  *aligned_mem = change_address (mem, SImode, aligned_addr);
+
+  /* Calculate the shift amount.  */
+  emit_move_insn (*shift, gen_rtx_AND (SImode, addr, gen_int_mode (3, SImode)));
+
+  if (TARGET_LITTLE_ENDIAN == 0) {
+    emit_move_insn (*shift,
+		    gen_rtx_MINUS (SImode, gen_int_mode (3, SImode), *shift));
+  }
+
+  emit_move_insn (*shift, gen_rtx_ASHIFT (SImode, *shift,
+					  gen_int_mode (3, SImode)));
 }
 
 static bool

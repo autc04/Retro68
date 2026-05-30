@@ -1,5 +1,5 @@
 /* Functions dealing with attribute handling, used by most front ends.
-   Copyright (C) 1992-2025 Free Software Foundation, Inc.
+   Copyright (C) 1992-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -39,6 +39,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-pretty-print.h"
 #include "intl.h"
 #include "gcc-urlifier.h"
+#include "cgraph.h"
 
 /* Table of the tables of attributes (common, language, format, machine)
    searched.  */
@@ -370,7 +371,7 @@ register_scoped_attribute (const struct attribute_spec *attr,
 	 ->find_slot_with_hash (&str, substring_hash (str.str, str.length),
 				INSERT);
   gcc_assert (!*slot || attr->name[0] == '*');
-  *slot = CONST_CAST (struct attribute_spec *, attr);
+  *slot = const_cast<struct attribute_spec *> (attr);
 }
 
 /* Return the spec for the scoped attribute with namespace NS and
@@ -966,10 +967,8 @@ decl_attributes (tree *node, tree attributes, int flags,
 	  for (a = find_same_attribute (attr, old_attrs);
 	       a != NULL_TREE;
 	       a = find_same_attribute (attr, TREE_CHAIN (a)))
-	    {
-	      if (simple_cst_equal (TREE_VALUE (a), args) == 1)
-		break;
-	    }
+	    if (attribute_value_equal (a, attr))
+	      break;
 
 	  if (a == NULL_TREE)
 	    {
@@ -1076,22 +1075,36 @@ apply_tm_attr (tree fndecl, tree attr)
    it to CHAIN.  */
 
 tree
-make_attribute (const char *name, const char *arg_name, tree chain)
+make_attribute (string_slice name, string_slice arg_name, tree chain)
 {
-  tree attr_name;
-  tree attr_arg_name;
-  tree attr_args;
-  tree attr;
-
-  attr_name = get_identifier (name);
-  attr_arg_name = build_string (strlen (arg_name), arg_name);
-  attr_args = tree_cons (NULL_TREE, attr_arg_name, NULL_TREE);
-  attr = tree_cons (attr_name, attr_args, chain);
+  tree attr_name = get_identifier_with_length (name.begin (), name.size ());
+  tree attr_arg_name = build_string (arg_name.size (), arg_name.begin ());
+  tree attr_args = tree_cons (NULL_TREE, attr_arg_name, NULL_TREE);
+  tree attr = tree_cons (attr_name, attr_args, chain);
   return attr;
 }
 
-
-/* Common functions used for target clone support.  */
+/* Default implementation of TARGET_OPTION_FUNCTIONS_B_RESOLVABLE_FROM_A.
+   Used to check very basically if DECL_B is callable from DECL_A.
+   For now this checks if the version strings are the same.  */
+
+bool
+functions_b_resolvable_from_a (tree decl_a, tree decl_b,
+			       tree base ATTRIBUTE_UNUSED)
+{
+  const char *attr_name = TARGET_HAS_FMV_TARGET_ATTRIBUTE
+			  ? "target"
+			  : "target_version";
+
+  tree attr_a = lookup_attribute (attr_name, DECL_ATTRIBUTES (decl_a));
+  tree attr_b = lookup_attribute (attr_name, DECL_ATTRIBUTES (decl_b));
+
+  gcc_assert (attr_b);
+  if (!attr_a)
+    return false;
+
+  return attribute_value_equal (attr_a, attr_b);
+}
 
 /* Comparator function to be used in qsort routine to sort attribute
    specification strings to "target".  */
@@ -1182,71 +1195,6 @@ sorted_attr_string (tree arglist)
   return ret_str;
 }
 
-
-/* This function returns true if FN1 and FN2 are versions of the same function,
-   that is, the target strings of the function decls are different.  This assumes
-   that FN1 and FN2 have the same signature.  */
-
-bool
-common_function_versions (tree fn1, tree fn2)
-{
-  tree attr1, attr2;
-  char *target1, *target2;
-  bool result;
-
-  if (TREE_CODE (fn1) != FUNCTION_DECL
-      || TREE_CODE (fn2) != FUNCTION_DECL)
-    return false;
-
-  attr1 = lookup_attribute ("target", DECL_ATTRIBUTES (fn1));
-  attr2 = lookup_attribute ("target", DECL_ATTRIBUTES (fn2));
-
-  /* At least one function decl should have the target attribute specified.  */
-  if (attr1 == NULL_TREE && attr2 == NULL_TREE)
-    return false;
-
-  /* Diagnose missing target attribute if one of the decls is already
-     multi-versioned.  */
-  if (attr1 == NULL_TREE || attr2 == NULL_TREE)
-    {
-      if (DECL_FUNCTION_VERSIONED (fn1) || DECL_FUNCTION_VERSIONED (fn2))
-	{
-	  if (attr2 != NULL_TREE)
-	    {
-	      std::swap (fn1, fn2);
-	      attr1 = attr2;
-	    }
-	  auto_diagnostic_group d;
-	  error_at (DECL_SOURCE_LOCATION (fn2),
-		    "missing %<target%> attribute for multi-versioned %qD",
-		    fn2);
-	  inform (DECL_SOURCE_LOCATION (fn1),
-		  "previous declaration of %qD", fn1);
-	  /* Prevent diagnosing of the same error multiple times.  */
-	  DECL_ATTRIBUTES (fn2)
-	    = tree_cons (get_identifier ("target"),
-			 copy_node (TREE_VALUE (attr1)),
-			 DECL_ATTRIBUTES (fn2));
-	}
-      return false;
-    }
-
-  target1 = sorted_attr_string (TREE_VALUE (attr1));
-  target2 = sorted_attr_string (TREE_VALUE (attr2));
-
-  /* The sorted target strings must be different for fn1 and fn2
-     to be versions.  */
-  if (strcmp (target1, target2) == 0)
-    result = false;
-  else
-    result = true;
-
-  XDELETEVEC (target1);
-  XDELETEVEC (target2);
-
-  return result;
-}
-
 /* Make a dispatcher declaration for the multi-versioned function DECL.
    Calls to DECL function will be replaced with calls to the dispatcher
    by the front-end.  Return the decl created.  */
@@ -1254,18 +1202,12 @@ common_function_versions (tree fn1, tree fn2)
 tree
 make_dispatcher_decl (const tree decl)
 {
-  tree func_decl;
-  char *func_name;
-  tree fn_type, func_type;
+  tree fn_type = TREE_TYPE (decl);
+  tree func_type = build_function_type (TREE_TYPE (fn_type),
+					TYPE_ARG_TYPES (fn_type));
+  tree func_decl = build_fn_decl (IDENTIFIER_POINTER (DECL_NAME (decl)),
+				  func_type);
 
-  func_name = xstrdup (IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl)));
-
-  fn_type = TREE_TYPE (decl);
-  func_type = build_function_type (TREE_TYPE (fn_type),
-				   TYPE_ARG_TYPES (fn_type));
-
-  func_decl = build_fn_decl (func_name, func_type);
-  XDELETEVEC (func_name);
   TREE_USED (func_decl) = 1;
   DECL_CONTEXT (func_decl) = NULL_TREE;
   DECL_INITIAL (func_decl) = error_mark_node;
@@ -1275,22 +1217,75 @@ make_dispatcher_decl (const tree decl)
   DECL_EXTERNAL (func_decl) = 1;
   /* This will be of type IFUNCs have to be externally visible.  */
   TREE_PUBLIC (func_decl) = 1;
+  TREE_NOTHROW (func_decl) = TREE_NOTHROW (decl);
+
+  /* Set the decl name to avoid graph_node re-mangling it.  */
+  SET_DECL_ASSEMBLER_NAME (func_decl, DECL_ASSEMBLER_NAME (decl));
+
+  cgraph_node *node = cgraph_node::get (decl);
+  gcc_assert (node);
+  cgraph_function_version_info *node_v = node->function_version ();
+  gcc_assert (node_v);
+
+  /* Set flags on the cgraph_node for the new decl.  */
+  cgraph_node *func_node = cgraph_node::get_create (func_decl);
+  func_node->dispatcher_function = true;
+  /* For targets with TARGET_HAS_FMV_TARGET_ATTRIBUTE, the resolver is created
+     unconditionally if any versioned nodes are present.
+     For !TARGET_HAS_FMV_TARGET_ATTRIBUTE, the dispatcher is only defined when
+     the default node is defined.  */
+  func_node->definition = node->definition || TARGET_HAS_FMV_TARGET_ATTRIBUTE;
+
+  cgraph_function_version_info *func_v
+    = func_node->insert_new_function_version ();
+  func_v->next = node_v;
+  func_v->assembler_name = node_v->assembler_name;
+
+  /* If the default node is from a target_clone, mark the dispatcher as from
+     target_clone.  */
+  func_node->is_target_clone = node->is_target_clone;
+
+  /* Get the assembler name by mangling with the base assembler name.  */
+  tree id = targetm.mangle_decl_assembler_name
+    (func_decl, func_v->assembler_name);
+  symtab->change_decl_assembler_name (func_decl, id);
 
   return func_decl;
 }
 
-/* Returns true if DECL is multi-versioned using the target attribute, and this
-   is the default version.  This function can only be used for targets that do
-   not support the "target_version" attribute.  */
+/* Returns true if DECL a multiversioned default.
+   With the target attribute semantics, returns true if the function is marked
+   as default with the target version.
+   With the target_version attribute semantics, returns true if the function
+   is either not annotated, annotated as default, or is a target_clone
+   containing the default declaration.  */
 
 bool
 is_function_default_version (const tree decl)
 {
-  if (TREE_CODE (decl) != FUNCTION_DECL
-      || !DECL_FUNCTION_VERSIONED (decl))
+  tree attr;
+  if (TREE_CODE (decl) != FUNCTION_DECL)
     return false;
-  tree attr = lookup_attribute ("target", DECL_ATTRIBUTES (decl));
-  gcc_assert (attr);
+  if (TARGET_HAS_FMV_TARGET_ATTRIBUTE)
+    {
+      if (!DECL_FUNCTION_VERSIONED (decl))
+	return false;
+      attr = lookup_attribute ("target", DECL_ATTRIBUTES (decl));
+      gcc_assert (attr);
+    }
+  else
+    {
+      if (lookup_attribute ("target_clones", DECL_ATTRIBUTES (decl)))
+	{
+	  int num_defaults = 0;
+	  get_clone_versions (decl, &num_defaults);
+	  return num_defaults > 0;
+	}
+
+      attr = lookup_attribute ("target_version", DECL_ATTRIBUTES (decl));
+      if (!attr)
+	return true;
+    }
   attr = TREE_VALUE (TREE_VALUE (attr));
   return (TREE_CODE (attr) == STRING_CST
 	  && strcmp (TREE_STRING_POINTER (attr), "default") == 0);
@@ -1467,6 +1462,10 @@ attribute_value_equal (const_tree attr1, const_tree attr2)
       && TREE_VALUE (attr2) != NULL_TREE
       && TREE_CODE (TREE_VALUE (attr2)) == TREE_LIST)
     {
+      if (ATTR_UNIQUE_VALUE_P (TREE_VALUE (attr1))
+	  || ATTR_UNIQUE_VALUE_P (TREE_VALUE (attr2)))
+	return false;
+
       /* Handle attribute format.  */
       if (is_attribute_p ("format", get_attribute_name (attr1)))
 	{
@@ -1514,7 +1513,7 @@ comp_type_attributes (const_tree type1, const_tree type2)
       if (!as || as->affects_type_identity == false)
 	continue;
 
-      attr = find_same_attribute (a, CONST_CAST_TREE (a2));
+      attr = find_same_attribute (a, const_cast<tree> (a2));
       if (!attr || !attribute_value_equal (a, attr))
 	break;
     }
@@ -1528,7 +1527,7 @@ comp_type_attributes (const_tree type1, const_tree type2)
 	  if (!as || as->affects_type_identity == false)
 	    continue;
 
-	  if (!find_same_attribute (a, CONST_CAST_TREE (a1)))
+	  if (!find_same_attribute (a, const_cast<tree> (a1)))
 	    break;
 	  /* We don't need to compare trees again, as we did this
 	     already in first loop.  */
@@ -1538,13 +1537,13 @@ comp_type_attributes (const_tree type1, const_tree type2)
       if (!a)
 	return 1;
     }
-  if (lookup_attribute ("transaction_safe", CONST_CAST_TREE (a)))
+  if (lookup_attribute ("transaction_safe", const_cast<tree> (a)))
     return 0;
   if ((lookup_attribute ("nocf_check", TYPE_ATTRIBUTES (type1)) != NULL)
       ^ (lookup_attribute ("nocf_check", TYPE_ATTRIBUTES (type2)) != NULL))
     return 0;
-  int strub_ret = strub_comptypes (CONST_CAST_TREE (type1),
-				   CONST_CAST_TREE (type2));
+  int strub_ret = strub_comptypes (const_cast<tree> (type1),
+				   const_cast<tree> (type2));
   if (strub_ret == 0)
     return strub_ret;
   /* As some type combinations - like default calling-convention - might
@@ -1748,11 +1747,34 @@ merge_attributes (tree a1, tree a2)
 	attributes = a2;
       else
 	{
-	  /* Pick the longest list, and hang on the other list.  */
+	  /* Pick the longest list, and hang on the other list,
+	     unless both lists contain ATTR_UNIQUE_VALUE_P values.
+	     In that case a1 list needs to go after the a2 list
+	     because attributes from a single declaration are stored
+	     in reverse order of their declarations.  */
+	  bool a1_unique_value_p = false, a2_unique_value_p = false;
+	  tree aa1 = a1, aa2 = a2;
+	  for (; aa1 && aa2; aa1 = TREE_CHAIN (aa1), aa2 = TREE_CHAIN (aa2))
+	    {
+	      if (!a1_unique_value_p
+		  && TREE_VALUE (aa1)
+		  && TREE_CODE (TREE_VALUE (aa1)) == TREE_LIST
+		  && ATTR_UNIQUE_VALUE_P (TREE_VALUE (aa1)))
+		a1_unique_value_p = true;
+	      if (!a2_unique_value_p
+		  && TREE_VALUE (aa2)
+		  && TREE_CODE (TREE_VALUE (aa2)) == TREE_LIST
+		  && ATTR_UNIQUE_VALUE_P (TREE_VALUE (aa2)))
+		a2_unique_value_p = true;
+	    }
 
-	  if (list_length (a1) < list_length (a2))
-	    attributes = a2, a2 = a1;
+	  if (aa2 && (!a1_unique_value_p || !a2_unique_value_p))
+	    {
+	      attributes = a2;
+	      a2 = a1;
+	    }
 
+	  tree a3 = NULL_TREE, *pa = &a3;
 	  for (; a2 != 0; a2 = TREE_CHAIN (a2))
 	    {
 	      tree a;
@@ -1765,9 +1787,14 @@ merge_attributes (tree a1, tree a2)
 	      if (a == NULL_TREE)
 		{
 		  a1 = copy_node (a2);
-		  TREE_CHAIN (a1) = attributes;
-		  attributes = a1;
+		  *pa = a1;
+		  pa = &TREE_CHAIN (a1);
 		}
+	    }
+	  if (a3)
+	    {
+	      *pa = attributes;
+	      attributes = a3;
 	    }
 	}
     }
@@ -1984,10 +2011,16 @@ handle_dll_attribute (tree * pnode, tree name, tree args, int flags,
 	{
 	  if (DECL_INITIAL (node))
 	    {
-	      error ("variable %q+D definition is marked dllimport",
-		     node);
+	      error ("variable %q+D definition is marked dllimport", node);
 	      *no_add_attrs = true;
 	    }
+#if TARGET_WIN32_TLS
+	  else if (DECL_THREAD_LOCAL_P (node))
+	    {
+	      error ("thread-local variable %q+D declared as dllimport", node);
+	      *no_add_attrs = true;
+	    }
+#endif
 
 	  /* `extern' needn't be specified with dllimport.
 	     Specify `extern' now and hope for the best.  Sigh.  */
@@ -2011,6 +2044,13 @@ handle_dll_attribute (tree * pnode, tree name, tree args, int flags,
 	   && flag_keep_inline_dllexport)
     /* An exported function, even if inline, must be emitted.  */
     DECL_EXTERNAL (node) = 0;
+#if TARGET_WIN32_TLS
+  else if (VAR_P (node) && DECL_THREAD_LOCAL_P (node))
+    {
+      error ("thread-local variable %q+D declared as dllexport", node);
+      *no_add_attrs = true;
+    }
+#endif
 
   /*  Report error if symbol is not accessible at global scope.  */
   if (!TREE_PUBLIC (node) && VAR_OR_FUNCTION_DECL_P (node))
@@ -2090,7 +2130,7 @@ attribute_list_contained (const_tree l1, const_tree l2)
 	 modify its argument and the return value is assigned to a
 	 const_tree.  */
       for (attr = lookup_ident_attribute (get_attribute_name (t2),
-					  CONST_CAST_TREE (l1));
+					  const_cast<tree> (l1));
 	   attr != NULL_TREE && !attribute_value_equal (t2, attr);
 	   attr = lookup_ident_attribute (get_attribute_name (t2),
 					  TREE_CHAIN (attr)))
@@ -2669,7 +2709,7 @@ attr_access::array_as_string (tree type) const
 	     [*] is represented the same as [0] this hack only works for
 	     the most significant bound like static and the others are
 	     rendered as [0].  */
-	  arat = build_tree_list (get_identifier ("array"), flag);
+	  arat = build_tree_list (get_identifier ("array "), flag);
 	}
 
       const int quals = TYPE_QUALS (type);

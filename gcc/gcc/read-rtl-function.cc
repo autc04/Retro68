@@ -1,5 +1,5 @@
 /* read-rtl-function.cc - Reader for RTL function dumps
-   Copyright (C) 2016-2025 Free Software Foundation, Inc.
+   Copyright (C) 2016-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -1065,7 +1065,10 @@ function_reader::read_rtx_operand_r (rtx x)
   if (regno == -1)
     fatal_at (loc, "unrecognized register: '%s'", name.string);
 
-  set_regno_raw (x, regno, 1);
+  int nregs = 1;
+  if (HARD_REGISTER_NUM_P (regno))
+    nregs = hard_regno_nregs (regno, GET_MODE (x));
+  set_regno_raw (x, regno, nregs);
 
   /* Consolidate singletons.  */
   x = consolidate_singletons (x);

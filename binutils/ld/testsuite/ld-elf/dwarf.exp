@@ -1,5 +1,5 @@
 # Expect script for various DWARF tests.
-#   Copyright (C) 2006-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -50,7 +50,7 @@ set build_tests {
    "-s -shared" "-fPIC -g -feliminate-dwarf2-dups"
    {dwarf1.c} {} "libdwarf1.so"}
   {"DWARF parse during linker error"
-   "" "-fno-toplevel-reorder"
+   "" "-g -fno-toplevel-reorder"
    {dwarf2a.c dwarf2b.c} {{error_output "dwarf2.err"}} "dwarf2.x"}
   {"Handle no DWARF information"
    "" "-g0"
@@ -69,11 +69,11 @@ set run_tests {
 }
 
 # Disable all sanitizers.
-set old_CFLAGS "$CFLAGS_FOR_TARGET"
-append CFLAGS_FOR_TARGET " $NOSANITIZE_CFLAGS"
+set old_CFLAGS "$CFLAGS_FOR_TARGET_TEST"
+append CFLAGS_FOR_TARGET_TEST " $NOSANITIZE_CFLAGS"
 run_cc_link_tests $build_tests
 run_ld_link_exec_tests $run_tests
-set CFLAGS_FOR_TARGET "$old_CFLAGS"
+set CFLAGS_FOR_TARGET_TEST "$old_CFLAGS"
 
 proc strip_test {} {
     global ld

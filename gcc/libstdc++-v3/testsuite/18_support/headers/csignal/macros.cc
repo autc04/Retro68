@@ -1,6 +1,6 @@
 // { dg-do compile }
 
-// Copyright (C) 2007-2025 Free Software Foundation, Inc.
+// Copyright (C) 2007-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,6 +35,10 @@ namespace gnu
 
 #ifndef SIG_DFL
     #error "SIG_DFL_must_be_a_macro"
+#endif
+
+#ifndef SIG_IGN
+    #error "SIG_IGN_must_be_a_macro"
 #endif
 
 #ifndef SIGFPE

@@ -1,6 +1,6 @@
 // Safe sequence implementation  -*- C++ -*-
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -46,6 +46,7 @@ namespace __gnu_debug
       _Type __value;
 
     public:
+      _GLIBCXX20_CONSTEXPR
       explicit _Not_equal_to(const _Type& __v) : __value(__v) { }
 
       bool
@@ -61,6 +62,7 @@ namespace __gnu_debug
       _Type __value;
 
     public:
+      _GLIBCXX20_CONSTEXPR
       explicit _Equal_to(const _Type& __v) : __value(__v) { }
 
       bool
@@ -80,6 +82,7 @@ namespace __gnu_debug
       difference_type _M_n;
 
     public:
+      _GLIBCXX20_CONSTEXPR
       _After_nth_from(const difference_type& __n, const _Iterator& __base)
       : _M_base(__base), _M_n(__n) { }
 
@@ -107,14 +110,24 @@ namespace __gnu_debug
   template<typename _Sequence>
     class _Safe_sequence : public _Safe_sequence_base
     {
+      template<typename _Predicate>
+	void
+	_M_invalidate_if_impl(_Predicate __pred) const;
+
     public:
       /** Invalidates all iterators @c x that reference this sequence,
 	  are not singular, and for which @c __pred(x) returns @c
 	  true. @c __pred will be invoked with the normal iterators nested
 	  in the safe ones. */
       template<typename _Predicate>
-	void
-	_M_invalidate_if(_Predicate __pred);
+	_GLIBCXX20_CONSTEXPR void
+	_M_invalidate_if(_Predicate __pred) const
+	{
+	  if (std::__is_constant_evaluated())
+	    return;
+
+	  _M_invalidate_if_impl(__pred);
+	}
 
       /** Transfers all iterators @c x that reference @c from sequence,
 	  are not singular, and for which @c __pred(x) returns @c
@@ -122,7 +135,8 @@ namespace __gnu_debug
 	  in the safe ones. */
       template<typename _Predicate>
 	void
-	_M_transfer_from_if(_Safe_sequence& __from, _Predicate __pred);
+	_M_transfer_from_if(const _Safe_sequence& __from,
+			    _Predicate __pred) const;
     };
 
   /// Like _Safe_sequence but with a special _M_invalidate_all implementation
@@ -131,14 +145,39 @@ namespace __gnu_debug
     class _Safe_node_sequence
     : public _Safe_sequence<_Sequence>
     {
+    public:
+#if __cplusplus >= 201103L
+    _Safe_node_sequence() = default;
+    _Safe_node_sequence(_Safe_node_sequence&&) = default;
+    _Safe_node_sequence(_Safe_node_sequence const&) = default;
+
+    _GLIBCXX20_CONSTEXPR _Safe_node_sequence&
+    operator=(_Safe_node_sequence&& __x) noexcept
+    {
+      _M_invalidate_all();
+      __x._M_invalidate_all();
+      return *this;
+    }
+#endif
+
+    _GLIBCXX20_CONSTEXPR _Safe_node_sequence&
+    operator=(const _Safe_node_sequence&) _GLIBCXX_NOEXCEPT
+    {
+      _M_invalidate_all();
+      return *this;
+    }
+
     protected:
-      void
-      _M_invalidate_all()
+      _GLIBCXX20_CONSTEXPR void
+      _M_invalidate_all() const
       {
+	if (std::__is_constant_evaluated())
+	  return;
+
 	typedef typename _Sequence::const_iterator _Const_iterator;
 	typedef typename _Const_iterator::iterator_type _Base_const_iterator;
 	typedef __gnu_debug::_Not_equal_to<_Base_const_iterator> _Not_equal;
-	const _Sequence& __seq = *static_cast<_Sequence*>(this);
+	const _Sequence& __seq = *static_cast<const _Sequence*>(this);
 	this->_M_invalidate_if(_Not_equal(__seq._M_base().end()));
       }
     };

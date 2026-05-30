@@ -1,6 +1,7 @@
 // { dg-options "-fexec-charset=UTF-8" }
 // { dg-do run { target c++20 } }
 // { dg-add-options no_pch }
+// { dg-additional-options "-DUNICODE" { target 4byte_wchar_t } }
 
 #include <format>
 
@@ -260,6 +261,16 @@ test_locale()
   s = std::format(eloc, "{0:Le} {0:Lf} {0:Lg}", -nan);
   VERIFY( s == "-nan -nan -nan" );
 
+  // PR libstdc++/120548 format confuses a negative sign for a thousands digit
+  s = std::format(bloc, "{:L}", -123.45);
+  VERIFY( s == "-123.45" );
+  s = std::format(bloc, "{:-L}", -876543.21);
+  VERIFY( s == "-876,543.21" );
+  s = std::format(bloc, "{:+L}", 333.22);
+  VERIFY( s == "+333.22" );
+  s = std::format(bloc, "{: L}", 999.44);
+  VERIFY( s == " 999.44" );
+
   // Restore
   std::locale::global(cloc);
 }
@@ -511,6 +522,7 @@ test_bool()
 void
 test_unicode()
 {
+#ifdef UNICODE
   // Similar to sC example in test_std_examples, but not from the standard.
   // Verify that the character "🤡" has estimated field width 2,
   // rather than estimated field width equal to strlen("🤡"), which would be 4,
@@ -564,6 +576,7 @@ test_unicode()
     std::string sA = std::format("{:>5}", input[0]);
     VERIFY( sA == input[1] );
   }
+#endif
 }
 
 int main()

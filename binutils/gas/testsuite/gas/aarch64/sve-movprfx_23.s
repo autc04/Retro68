@@ -9,7 +9,7 @@
    .macro test_sametwo inst
    .irp sz, h,s,d
    movprfx z1.\sz, p1/m, z3.\sz
-   \inst z1.\sz, p1
+   \inst z1.\sz, p1.\sz
    .endr
    .endm
 

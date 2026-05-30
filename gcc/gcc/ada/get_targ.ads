@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -113,7 +113,7 @@ package Get_Targ is
    type C_String is array (0 .. 255) of aliased Character;
    pragma Convention (C, C_String);
 
-   type Register_Type_Proc is access procedure
+   type Register_Type_Proc is not null access procedure
      (C_Name    : C_String;       -- Nul-terminated string with name of type
       Digs      : Natural;        -- Digits for floating point, 0 otherwise
       Complex   : Boolean;        -- True iff type has real and imaginary parts

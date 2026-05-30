@@ -1,4 +1,4 @@
-#as: -march=armv8.5-a+memtag
+#as: -march=armv8-a+memtag
 # objdump: -d
 
 .*: .*

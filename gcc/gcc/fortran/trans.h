@@ -1,5 +1,5 @@
 /* Header for code translation functions
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Paul Brook
 
 This file is part of GCC.
@@ -105,10 +105,6 @@ typedef struct gfc_se
   /* If set, will pass subref descriptors without a temporary.  */
   unsigned force_no_tmp:1;
 
-  /* Unconditionally calculate offset for array segments and constant
-     arrays in gfc_conv_expr_descriptor.  */
-  unsigned use_offset:1;
-
   unsigned want_coarray:1;
 
   /* Scalarization parameters.  */
@@ -139,9 +135,9 @@ enum gfc_coarray_regtype
   GFC_CAF_EVENT_STATIC,
   GFC_CAF_EVENT_ALLOC,
   GFC_CAF_COARRAY_ALLOC_REGISTER_ONLY,
-  GFC_CAF_COARRAY_ALLOC_ALLOCATE_ONLY
+  GFC_CAF_COARRAY_ALLOC_ALLOCATE_ONLY,
+  GFC_CAF_COARRAY_MAP_EXISTING
 };
-
 
 /* Describes the action to take on _caf_deregister.  Keep in sync with
    gcc/fortran/trans.h.  The negative values are not valid for the library and
@@ -461,7 +457,8 @@ tree gfc_get_vptr_from_expr (tree);
 tree gfc_copy_class_to_class (tree, tree, tree, bool);
 bool gfc_add_finalizer_call (stmtblock_t *, gfc_expr *, tree = NULL_TREE);
 bool gfc_add_comp_finalizer_call (stmtblock_t *, tree, gfc_component *, bool);
-void gfc_finalize_tree_expr (gfc_se *, gfc_symbol *, symbol_attribute, int);
+void gfc_finalize_tree_expr (gfc_se *, gfc_symbol *, const symbol_attribute &,
+			     int);
 bool gfc_assignment_finalizer_call (gfc_se *, gfc_expr *, bool);
 
 void gfc_class_array_data_assign (stmtblock_t *, tree, tree, bool);
@@ -670,7 +667,8 @@ tree gfc_get_symbol_decl (gfc_symbol *);
 tree gfc_conv_initializer (gfc_expr *, gfc_typespec *, tree, bool, bool, bool);
 
 /* Assign a default initializer to a derived type.  */
-void gfc_init_default_dt (gfc_symbol *, stmtblock_t *, bool);
+void gfc_init_default_dt (gfc_symbol *, stmtblock_t *, bool,
+			  bool pdt_ok = false);
 
 /* Substitute a temporary variable in place of the real one.  */
 void gfc_shadow_sym (gfc_symbol *, tree, gfc_saved_var *);
@@ -774,12 +772,13 @@ void gfc_allocate_using_malloc (stmtblock_t *, tree, tree, tree,
 				tree = NULL_TREE);
 
 /* Generate code to deallocate an array.  */
-tree gfc_deallocate_with_status (tree, tree, tree, tree, tree, bool,
-				 gfc_expr *, int, tree = NULL_TREE,
-				 tree a = NULL_TREE, tree c = NULL_TREE);
-tree gfc_deallocate_scalar_with_status (tree, tree, tree, bool, gfc_expr*,
+tree gfc_deallocate_with_status (tree, tree, tree, tree, tree, bool, gfc_expr *,
+				 int, tree = NULL_TREE, tree a = NULL_TREE,
+				 tree c = NULL_TREE, bool u = false);
+tree gfc_deallocate_scalar_with_status (tree, tree, tree, bool, gfc_expr *,
 					gfc_typespec, tree = NULL_TREE,
-					bool c = false);
+					bool c = false, bool u = false,
+					tree = NULL_TREE, tree = NULL_TREE);
 
 /* Generate code to call realloc().  */
 tree gfc_call_realloc (stmtblock_t *, tree, tree);
@@ -960,6 +959,7 @@ extern GTY(()) tree gfor_fndecl_string_scan;
 extern GTY(()) tree gfor_fndecl_string_verify;
 extern GTY(()) tree gfor_fndecl_string_trim;
 extern GTY(()) tree gfor_fndecl_string_minmax;
+extern GTY(()) tree gfor_fndecl_string_split;
 extern GTY(()) tree gfor_fndecl_adjustl;
 extern GTY(()) tree gfor_fndecl_adjustr;
 extern GTY(()) tree gfor_fndecl_select_string;
@@ -971,6 +971,7 @@ extern GTY(()) tree gfor_fndecl_string_scan_char4;
 extern GTY(()) tree gfor_fndecl_string_verify_char4;
 extern GTY(()) tree gfor_fndecl_string_trim_char4;
 extern GTY(()) tree gfor_fndecl_string_minmax_char4;
+extern GTY(()) tree gfor_fndecl_string_split_char4;
 extern GTY(()) tree gfor_fndecl_adjustl_char4;
 extern GTY(()) tree gfor_fndecl_adjustr_char4;
 extern GTY(()) tree gfor_fndecl_select_string_char4;
@@ -984,6 +985,12 @@ extern GTY(()) tree gfor_fndecl_iargc;
 extern GTY(()) tree gfor_fndecl_kill;
 extern GTY(()) tree gfor_fndecl_kill_sub;
 extern GTY(()) tree gfor_fndecl_is_contiguous0;
+extern GTY(()) tree gfor_fndecl_fstat_i4_sub;
+extern GTY(()) tree gfor_fndecl_fstat_i8_sub;
+extern GTY(()) tree gfor_fndecl_lstat_i4_sub;
+extern GTY(()) tree gfor_fndecl_lstat_i8_sub;
+extern GTY(()) tree gfor_fndecl_stat_i4_sub;
+extern GTY(()) tree gfor_fndecl_stat_i8_sub;
 
 /* Implemented in Fortran.  */
 extern GTY(()) tree gfor_fndecl_sc_kind;
@@ -998,6 +1005,9 @@ extern GTY(()) tree gfor_fndecl_ieee_procedure_exit;
 /* RANDOM_INIT.  */
 extern GTY(()) tree gfor_fndecl_random_init;
 extern GTY(()) tree gfor_fndecl_caf_random_init;
+
+/* Deep copy helper for recursive allocatable array components.  */
+extern GTY(()) tree gfor_fndecl_cfi_deep_copy_array;
 
 /* True if node is an integer constant.  */
 #define INTEGER_CST_P(node) (TREE_CODE(node) == INTEGER_CST)

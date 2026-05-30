@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1991-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1991-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -25,6 +25,7 @@
 
 with Atree;    use Atree;
 with Err_Vars; use Err_Vars;
+with Errid;    use Errid;
 with Erroutc;  use Erroutc;
 with Namet;    use Namet;
 with Opt;      use Opt;
@@ -206,12 +207,18 @@ package body Errutil is
             Line                => Get_Physical_Line_Number (Sptr),
             Col                 => Get_Column_Number (Sptr),
             Compile_Time_Pragma => Is_Compile_Time_Msg,
-            Warn_Err            => Warning_Mode = Treat_As_Error,
+            Warn_Err            => (if Warning_Mode = Treat_As_Error
+                                    then From_Warn_As_Err
+                                    else None),
             Warn_Chr            => Warning_Msg_Char,
             Uncond              => Is_Unconditional_Msg,
             Msg_Cont            => Continuation,
             Deleted             => False,
-            Kind                => Error_Msg_Kind));
+            Kind                => Error_Msg_Kind,
+            Id                  => No_Diagnostic_Id,
+            Switch              => No_Switch_Id,
+            Locations           => No_Labeled_Span,
+            Fixes               => No_Fix));
 
       Cur_Msg := Errors.Last;
       Prev_Msg := No_Error_Msg;

@@ -1,6 +1,6 @@
 #source: dso-1.s
 #source: dsov32-3.s
-#as: --pic --no-underscore --march=v32 --em=criself
+#as: --pic --no-underscore --march=v32 --emulation=criself
 #ld: --shared -m crislinux --version-script $srcdir/$subdir/hidedsofns2468 --hash-style=sysv
 #readelf: -d -r
 

@@ -4,7 +4,7 @@
 Disassembly of section .far:
 
 12340000 <[^>]*>:
-12340000:	e1a00000 	nop			; \(mov r0, r0\)
+12340000:	e1a00000 	nop			@ \(mov r0, r0\)
 12340004:	01a00000 	moveq	r0, r0
 
 12340008 <[^>]*>:

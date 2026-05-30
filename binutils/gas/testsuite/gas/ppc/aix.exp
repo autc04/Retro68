@@ -1,4 +1,4 @@
-# Copyright (C) 2001-2022 Free Software Foundation, Inc.
+# Copyright (C) 2001-2026 Free Software Foundation, Inc.
 # Contributed by Red Hat
 
 # This program is free software; you can redistribute it and/or modify
@@ -88,8 +88,15 @@ if { [istarget "powerpc*-*-aix*"] || [istarget "rs6000-*-aix*"] } then {
     run_dump_test "xcoff-file-32"
     run_dump_test "xcoff-file-64"
 
-    run_dump_test "xcoff-visibility-1-32"
-    run_dump_test "xcoff-visibility-1-64"
+    if { [istarget {*-*-aix[6-9]*}]
+	 || [istarget {*-*-aix5.[2-9]*}] } {
+	# The expected output of these tests depends on AIX_WEAK_SUPPORT.
+	# Without that weak syms do not have an aux entry and thus
+	# BFD_NOT_AT_END is not set.  I don't know if any of this is
+	# correct..
+	run_dump_test "xcoff-visibility-1-32"
+	run_dump_test "xcoff-visibility-1-64"
+    }
     run_dump_test "xcoff-visibility-2-32"
     run_dump_test "xcoff-visibility-2-64"
 }

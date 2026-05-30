@@ -1,6 +1,6 @@
 // Versatile string utility -*- C++ -*-
 
-// Copyright (C) 2005-2025 Free Software Foundation, Inc.
+// Copyright (C) 2005-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,7 +39,7 @@
 #include <ext/vstring_fwd.h>
 #include <debug/debug.h>
 #include <bits/stl_function.h>  // For less
-#include <bits/functexcept.h>
+#include <bits/stdexcept_throw.h>
 #include <bits/localefwd.h>
 #include <bits/ostream_insert.h>
 #include <bits/stl_iterator.h>

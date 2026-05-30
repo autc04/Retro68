@@ -15,5 +15,5 @@ Disassembly of section .text:
 	...
 
 000080.. <[^>]*>:
-    80..:	f85f f000 	ldr.w	pc, \[pc\]	; 800c <__dest_veneer\+0x4>
+    80..:	f85f f000 	ldr.w	pc, \[pc\]	@ 800c <__dest_veneer\+0x4>
     80..:	00108005 	.word	0x00108005

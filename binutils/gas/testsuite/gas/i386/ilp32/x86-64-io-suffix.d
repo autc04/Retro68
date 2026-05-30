@@ -1,6 +1,7 @@
 #source: ../x86-64-io.s
 #objdump: -dwMsuffix
 #name: x86-64 (ILP32) rex.W in/out w/ suffix
+#dump: ../x86-64-io-suffix.d
 
 .*: +file format .*
 

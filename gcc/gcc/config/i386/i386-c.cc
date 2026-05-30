@@ -1,5 +1,5 @@
 /* Subroutines used for macro/preprocessor support on the ia-32.
-   Copyright (C) 2008-2025 Free Software Foundation, Inc.
+   Copyright (C) 2008-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -139,6 +139,10 @@ ix86_target_macros_internal (HOST_WIDE_INT isa_flag,
     case PROCESSOR_ZNVER5:
       def_or_undef (parse_in, "__znver5");
       def_or_undef (parse_in, "__znver5__");
+      break;
+    case PROCESSOR_ZNVER6:
+      def_or_undef (parse_in, "__znver6");
+      def_or_undef (parse_in, "__znver6__");
       break;
     case PROCESSOR_BTVER1:
       def_or_undef (parse_in, "__btver1");
@@ -295,6 +299,10 @@ ix86_target_macros_internal (HOST_WIDE_INT isa_flag,
       def_or_undef (parse_in, "__diamondrapids");
       def_or_undef (parse_in, "__diamondrapids__");
       break;
+    case PROCESSOR_NOVALAKE:
+      def_or_undef (parse_in, "__novalake");
+      def_or_undef (parse_in, "__novalake__");
+      break;
 
     /* use PROCESSOR_max to not set/unset the arch macro.  */
     case PROCESSOR_max:
@@ -381,6 +389,9 @@ ix86_target_macros_internal (HOST_WIDE_INT isa_flag,
       break;
     case PROCESSOR_ZNVER5:
       def_or_undef (parse_in, "__tune_znver5__");
+      break;
+    case PROCESSOR_ZNVER6:
+      def_or_undef (parse_in, "__tune_znver6__");
       break;
     case PROCESSOR_BTVER1:
       def_or_undef (parse_in, "__tune_btver1__");
@@ -497,6 +508,9 @@ ix86_target_macros_internal (HOST_WIDE_INT isa_flag,
       break;
     case PROCESSOR_DIAMONDRAPIDS:
       def_or_undef (parse_in, "__tune_diamondrapids__");
+      break;
+    case PROCESSOR_NOVALAKE:
+      def_or_undef (parse_in, "__tune_novalake__");
       break;
     case PROCESSOR_INTEL:
     case PROCESSOR_GENERIC:
@@ -729,12 +743,8 @@ ix86_target_macros_internal (HOST_WIDE_INT isa_flag,
     def_or_undef (parse_in, "__SHA512__");
   if (isa_flag2 & OPTION_MASK_ISA2_SM4)
     def_or_undef (parse_in, "__SM4__");
-  if (isa_flag2 & OPTION_MASK_ISA2_EVEX512)
-    def_or_undef (parse_in, "__EVEX512__");
   if (isa_flag2 & OPTION_MASK_ISA2_USER_MSR)
     def_or_undef (parse_in, "__USER_MSR__");
-  if (isa_flag2 & OPTION_MASK_ISA2_AVX10_1_256)
-    def_or_undef (parse_in, "__AVX10_1_256__");
   if (isa_flag2 & OPTION_MASK_ISA2_AVX10_1)
     def_or_undef (parse_in, "__AVX10_1__");
   if (isa_flag2 & OPTION_MASK_ISA2_APX_F)
@@ -747,14 +757,14 @@ ix86_target_macros_internal (HOST_WIDE_INT isa_flag,
     def_or_undef (parse_in, "__AMX_AVX512__");
   if (isa_flag2 & OPTION_MASK_ISA2_AMX_TF32)
     def_or_undef (parse_in, "__AMX_TF32__");
-  if (isa_flag2 & OPTION_MASK_ISA2_AMX_TRANSPOSE)
-    def_or_undef (parse_in, "__AMX_TRANSPOSE__");
   if (isa_flag2 & OPTION_MASK_ISA2_AMX_FP8)
     def_or_undef (parse_in, "__AMX_FP8__");
   if (isa_flag2 & OPTION_MASK_ISA2_MOVRS)
     def_or_undef (parse_in, "__MOVRS__");
   if (isa_flag2 & OPTION_MASK_ISA2_AMX_MOVRS)
     def_or_undef (parse_in, "__AMX_MOVRS__");
+  if (isa_flag2 & OPTION_MASK_ISA2_AVX512BMM)
+    def_or_undef (parse_in, "__AVX512BMM__");
   if (TARGET_IAMCU)
     {
       def_or_undef (parse_in, "__iamcu");

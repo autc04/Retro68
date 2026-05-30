@@ -77,19 +77,19 @@ Disassembly of section \.text:
     80ae:	de00      	udf	#0
 
 000080b0 <__stm32l4xx_veneer_b>:
-    80b0:	f1a9 0928 	sub\.w	r9, r9, #40	; 0x28
+    80b0:	f1a9 0928 	sub\.w	r9, r9, #40	@ 0x28
     80b4:	e8b9 007e 	ldmia\.w	r9!, {r1, r2, r3, r4, r5, r6}
     80b8:	e899 8380 	ldmia\.w	r9, {r7, r8, r9, pc}
     80bc:	f7f0 a000 	udf\.w	#0
 
 000080c0 <__stm32l4xx_veneer_c>:
-    80c0:	f1a1 0728 	sub\.w	r7, r1, #40	; 0x28
+    80c0:	f1a1 0728 	sub\.w	r7, r1, #40	@ 0x28
     80c4:	e8b7 007e 	ldmia\.w	r7!, {r1, r2, r3, r4, r5, r6}
     80c8:	e897 8380 	ldmia\.w	r7, {r7, r8, r9, pc}
     80cc:	f7f0 a000 	udf\.w	#0
 
 000080d0 <__stm32l4xx_veneer_d>:
-    80d0:	f1a0 0728 	sub\.w	r7, r0, #40	; 0x28
+    80d0:	f1a0 0728 	sub\.w	r7, r0, #40	@ 0x28
     80d4:	e8b7 007e 	ldmia\.w	r7!, {r1, r2, r3, r4, r5, r6}
     80d8:	e897 8380 	ldmia\.w	r7, {r7, r8, r9, pc}
     80dc:	f7f0 a000 	udf\.w	#0
@@ -101,7 +101,7 @@ Disassembly of section \.text:
     80ec:	f7f0 a000 	udf\.w	#0
 
 000080f0 <__stm32l4xx_veneer_f>:
-    80f0:	f1a0 0028 	sub\.w	r0, r0, #40	; 0x28
+    80f0:	f1a0 0028 	sub\.w	r0, r0, #40	@ 0x28
     80f4:	4607      	mov	r7, r0
     80f6:	e8b7 007e 	ldmia\.w	r7!, {r1, r2, r3, r4, r5, r6}
     80fa:	e897 8380 	ldmia\.w	r7, {r7, r8, r9, pc}

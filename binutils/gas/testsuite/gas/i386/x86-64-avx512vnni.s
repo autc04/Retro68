@@ -1,6 +1,5 @@
 # Check 64bit AVX512VNNI instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpdpwssd	%zmm17, %zmm18, %zmm18	 # AVX512VNNI

@@ -1,0 +1,13 @@
+.*: Assembler messages:
+.*: Error: selected processor does not support system register name 'vmalle1'
+.*: Error: selected processor does not support `mlbi vmalle1'
+.*: Error: selected processor does not support system register name 'alle1'
+.*: Error: selected processor does not support `mlbi alle1'
+.*: Error: selected processor does not support system register name 'vpide1'
+.*: Error: selected processor does not support `mlbi vpide1,x0'
+.*: Error: selected processor does not support system register name 'vpide1'
+.*: Error: selected processor does not support `mlbi vpide1,xzr'
+.*: Error: selected processor does not support system register name 'vpmge1'
+.*: Error: selected processor does not support `mlbi vpmge1,x0'
+.*: Error: selected processor does not support system register name 'vpmge1'
+.*: Error: selected processor does not support `mlbi vpmge1,xzr'

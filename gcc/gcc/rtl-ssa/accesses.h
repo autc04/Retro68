@@ -1,5 +1,5 @@
 // Access-related classes for RTL SSA                               -*- C++ -*-
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -944,6 +944,8 @@ private:
   void set_first_clobber (clobber_info *c) { m_clobber_or_set = c; }
   void set_last_clobber (clobber_info *c) { m_last_clobber = c; }
 
+  int lookup_clobber (insn_info *) const;
+
   // The value returned by last_clobber ().
   clobber_info *m_last_clobber;
 
@@ -1041,6 +1043,42 @@ public:
   def_info *next_def (insn_info *insn) const;
 
   def_mux mux;
+  int comparison;
+};
+
+// This class represents the result of looking for a use of a particular
+// definition at a particular point, here referred to as point P.
+// There are four states:
+//
+// - USE is null if the definition has no uses.
+//
+// - Otherwise, COMPARISON is 0 if we found a definition at P.  USE then
+//   contains this use.
+//
+// - Otherwise, COMPARISON is greater than 0 if we found a use that precedes P.
+//   USE then contains this use.
+//
+// - Otherwise, COMPARISON is less than zero and we found a use that follows P.
+//   USE then contains this use.
+class use_lookup
+{
+public:
+  // If we found a use at P, return that use, otherwise return null.
+  use_info *matching_use () const;
+
+  // If we found a use at P, return that use, otherwise return prev_use ().
+  use_info *matching_or_prev_use () const;
+
+  // If we found a use at P, return that use, otherwise return next_use ().
+  use_info *matching_or_next_use () const;
+
+  // Return the last use that occurs before P, or null if none.
+  use_info *prev_use () const;
+
+  // Return the first use that occurs after P, or null if none.
+  use_info *next_use () const;
+
+  use_info *use;
   int comparison;
 };
 

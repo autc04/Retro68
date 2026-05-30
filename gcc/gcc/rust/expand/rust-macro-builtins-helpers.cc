@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -68,6 +68,7 @@ make_eager_builtin_invocation (
 {
   auto path_str = make_macro_path_str (kind);
 
+  auto token_stream = arguments.to_token_stream ();
   std::unique_ptr<AST::Expr> node = AST::MacroInvocation::Builtin (
     kind,
     AST::MacroInvocData (AST::SimplePath (
@@ -76,7 +77,7 @@ make_eager_builtin_invocation (
     {}, locus, std::move (pending_invocations));
 
   return AST::Fragment ({AST::SingleASTNode (std::move (node))},
-			arguments.to_token_stream ());
+			std::move (token_stream));
 }
 
 /* Match the end token of a macro given the start delimiter of the macro */
@@ -110,9 +111,9 @@ std::unique_ptr<AST::LiteralExpr>
 try_extract_string_literal_from_fragment (const location_t &parent_locus,
 					  std::unique_ptr<AST::Expr> &node)
 {
-  auto maybe_lit = static_cast<AST::LiteralExpr *> (node.get ());
   if (!node || !node->is_literal ()
-      || maybe_lit->get_lit_type () != AST::Literal::STRING)
+      || static_cast<AST::LiteralExpr &> (*node).get_lit_type ()
+	   != AST::Literal::STRING)
     {
       rust_error_at (parent_locus, "argument must be a string literal");
       if (node)
@@ -150,7 +151,7 @@ try_expand_many_expr (Parser<MacroInvocLexer> &parser,
       auto expr = parser.parse_expr (AST::AttrVec (), restrictions);
       // something must be so wrong that the expression could not be parsed
       rust_assert (expr);
-      result.push_back (std::move (expr));
+      result.push_back (std::move (expr.value ()));
 
       auto next_token = parser.peek_current_token ();
       if (!parser.skip_token (COMMA) && next_token->get_id () != last_token_id)
@@ -187,7 +188,7 @@ parse_single_string_literal (BuiltinMacro kind,
 
   if (parser.peek_current_token ()->get_id () == STRING_LITERAL)
     {
-      lit_expr = parser.parse_literal_expr ();
+      lit_expr = parser.parse_literal_expr ().value ();
       parser.maybe_skip_token (COMMA);
       if (parser.peek_current_token ()->get_id () != last_token_id)
 	{

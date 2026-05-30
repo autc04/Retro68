@@ -1,6 +1,7 @@
-// { dg-additional-options "-frust-name-resolution-2.0" }
+#![feature(no_core)]
+#![no_core]
 
-#![feature(optin_builtin_traits)]
+#![feature(optin_builtin_traits, lang_items)]
 
 pub unsafe auto trait Send {}
 #[lang = "sync"]

@@ -1,6 +1,6 @@
 // Debugging deque implementation -*- C++ -*-
 
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -650,7 +650,8 @@ namespace __debug
 	else if (__first.base() == _Base::begin()
 		 || __last.base() == _Base::end())
 	  {
-	    this->_M_detach_singular();
+	    const deque* __this = this;
+	    __this->_M_detach_singular();
 	    for (_Base_const_iterator __position = __first.base();
 		 __position != __last.base(); ++__position)
 	      {
@@ -663,7 +664,7 @@ namespace __debug
 	      }
 	    __catch(...)
 	      {
-		this->_M_revalidate_singular();
+		__this->_M_revalidate_singular();
 		__throw_exception_again;
 	      }
 	  }
@@ -770,6 +771,22 @@ namespace __debug
     { __lhs.swap(__rhs); }
 
 } // namespace __debug
+
+#ifdef __glibcxx_erase_if // C++ >= 20 && HOSTED
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+  template<typename _Tp, typename _Alloc, typename _Predicate>
+    inline typename __debug::deque<_Tp, _Alloc>::size_type
+    erase_if(__debug::deque<_Tp, _Alloc>& __cont, _Predicate __pred)
+    {
+      return __detail::__erase_if(__cont, __cont._M_base(), std::move(__pred));
+    }
+
+  template<typename _Tp, typename _Alloc, typename _Up = _Tp>
+    inline typename __debug::deque<_Tp, _Alloc>::size_type
+    erase(__debug::deque<_Tp, _Alloc>& __cont, const _Up& __value)
+    { return std::erase_if(__cont, __gnu_cxx::__ops::__equal_to(__value)); }
+_GLIBCXX_END_NAMESPACE_VERSION
+#endif // __glibcxx_erase_if
 } // namespace std
 
 #endif

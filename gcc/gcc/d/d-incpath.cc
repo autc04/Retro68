@@ -1,5 +1,5 @@
 /* d-incpath.cc -- Set up combined import paths for the D frontend.
-   Copyright (C) 2006-2025 Free Software Foundation, Inc.
+   Copyright (C) 2006-2026 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -77,7 +77,7 @@ add_globalpaths (Strings &paths)
       if (target == NULL || !FileName::exists (target))
 	{
 	  if (target)
-	    free (CONST_CAST (char *, target));
+	    free (const_cast<char *> (target));
 	  continue;
 	}
 
@@ -97,7 +97,7 @@ add_filepaths (Strings &paths)
 
       if (!FileName::exists (target))
 	{
-	  free (CONST_CAST (char *, target));
+	  free (const_cast<char *> (target));
 	  continue;
 	}
 

@@ -4,6 +4,10 @@
 # because symbol values are not known until after linker relaxation has been
 # performed.
 #notarget : riscv*-*-*
+# LoongArch doesn't resolve .uleb operands that are the difference of two
+# symbols because gas write zero to object file and generate add_uleb128 and
+# sub_uleb128 reloc pair.
+#xfail: loongarch*-*-*
 
 .*: .*
 

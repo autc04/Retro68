@@ -1,5 +1,5 @@
 /* ACLE support for AArch64 SVE
-   Copyright (C) 2018-2025 Free Software Foundation, Inc.
+   Copyright (C) 2018-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -47,6 +47,8 @@
 #include "langhooks.h"
 #include "stringpool.h"
 #include "attribs.h"
+#include "value-range.h"
+#include "tree-ssanames.h"
 #include "aarch64-sve-builtins.h"
 #include "aarch64-sve-builtins-base.h"
 #include "aarch64-sve-builtins-sve2.h"
@@ -92,7 +94,7 @@ public:
 };
 
 /* Hash traits for registered_function.  */
-struct registered_function_hasher : nofree_ptr_hash <registered_function>
+struct registered_function_hasher : ggc_ptr_hash <registered_function>
 {
   typedef function_instance compare_type;
 
@@ -190,255 +192,255 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
    class ("b", "f", etc.) and a numerical bit count.  */
 
 /* _b8 _b16 _b32 _b64.  */
-#define TYPES_all_pred(S, D) \
+#define TYPES_all_pred(S, D, T) \
   S (b8), S (b16), S (b32), S (b64)
 
 /* _c8 _c16 _c32 _c64.  */
-#define TYPES_all_count(S, D) \
+#define TYPES_all_count(S, D, T) \
   S (c8), S (c16), S (c32), S (c64)
 
 /* _b8 _b16 _b32 _b64
    _c8 _c16 _c32 _c64.  */
-#define TYPES_all_pred_count(S, D) \
-  TYPES_all_pred (S, D), \
-  TYPES_all_count (S, D)
+#define TYPES_all_pred_count(S, D, T) \
+  TYPES_all_pred (S, D, T), \
+  TYPES_all_count (S, D, T)
 
 /* _f16 _f32 _f64.  */
-#define TYPES_all_float(S, D) \
+#define TYPES_all_float(S, D, T) \
   S (f16), S (f32), S (f64)
 
 /* _s8 _s16 _s32 _s64.  */
-#define TYPES_all_signed(S, D) \
+#define TYPES_all_signed(S, D, T) \
   S (s8), S (s16), S (s32), S (s64)
 
 /*     _f16 _f32 _f64
    _s8 _s16 _s32 _s64.  */
-#define TYPES_all_float_and_signed(S, D) \
-  TYPES_all_float (S, D), TYPES_all_signed (S, D)
+#define TYPES_all_float_and_signed(S, D, T) \
+  TYPES_all_float (S, D, T), TYPES_all_signed (S, D, T)
 
 /* _u8 _u16 _u32 _u64.  */
-#define TYPES_all_unsigned(S, D) \
+#define TYPES_all_unsigned(S, D, T) \
   S (u8), S (u16), S (u32), S (u64)
 
 /* _s8 _s16 _s32 _s64
    _u8 _u16 _u32 _u64.  */
-#define TYPES_all_integer(S, D) \
-  TYPES_all_signed (S, D), TYPES_all_unsigned (S, D)
+#define TYPES_all_integer(S, D, T) \
+  TYPES_all_signed (S, D, T), TYPES_all_unsigned (S, D, T)
 
 /*     _f16 _f32 _f64
    _s8 _s16 _s32 _s64
    _u8 _u16 _u32 _u64.  */
-#define TYPES_all_arith(S, D) \
-  TYPES_all_float (S, D), TYPES_all_integer (S, D)
+#define TYPES_all_arith(S, D, T) \
+  TYPES_all_float (S, D, T), TYPES_all_integer (S, D, T)
 
-#define TYPES_all_data(S, D) \
-  TYPES_b_data (S, D), \
-  TYPES_h_data (S, D), \
-  TYPES_s_data (S, D), \
-  TYPES_d_data (S, D)
+#define TYPES_all_data(S, D, T) \
+  TYPES_b_data (S, D, T), \
+  TYPES_h_data (S, D, T), \
+  TYPES_s_data (S, D, T), \
+  TYPES_d_data (S, D, T)
 
 /* _b only.  */
-#define TYPES_b(S, D) \
+#define TYPES_b(S, D, T) \
   S (b)
 
 /* _c only.  */
-#define TYPES_c(S, D) \
+#define TYPES_c(S, D, T) \
   S (c)
 
 /* _u8.  */
-#define TYPES_b_unsigned(S, D) \
+#define TYPES_b_unsigned(S, D, T) \
   S (u8)
 
 /* _s8
    _u8.  */
-#define TYPES_b_integer(S, D) \
-  S (s8), TYPES_b_unsigned (S, D)
+#define TYPES_b_integer(S, D, T) \
+  S (s8), TYPES_b_unsigned (S, D, T)
 
 /* _mf8
    _s8
    _u8.  */
-#define TYPES_b_data(S, D) \
-  S (mf8), TYPES_b_integer (S, D)
+#define TYPES_b_data(S, D, T) \
+  S (mf8), TYPES_b_integer (S, D, T)
 
 /* _s8 _s16
    _u8 _u16.  */
-#define TYPES_bh_integer(S, D) \
+#define TYPES_bh_integer(S, D, T) \
   S (s8), S (s16), S (u8), S (u16)
 
 /* _u8 _u32.  */
-#define TYPES_bs_unsigned(S, D) \
+#define TYPES_bs_unsigned(S, D, T) \
   S (u8), S (u32)
 
 /* _s8 _s16 _s32.  */
-#define TYPES_bhs_signed(S, D) \
+#define TYPES_bhs_signed(S, D, T) \
   S (s8), S (s16), S (s32)
 
 /* _u8 _u16 _u32.  */
-#define TYPES_bhs_unsigned(S, D) \
+#define TYPES_bhs_unsigned(S, D, T) \
   S (u8), S (u16), S (u32)
 
 /* _s8 _s16 _s32
    _u8 _u16 _u32.  */
-#define TYPES_bhs_integer(S, D) \
-  TYPES_bhs_signed (S, D), TYPES_bhs_unsigned (S, D)
+#define TYPES_bhs_integer(S, D, T) \
+  TYPES_bhs_signed (S, D, T), TYPES_bhs_unsigned (S, D, T)
 
-#define TYPES_bh_data(S, D)			\
-  TYPES_b_data (S, D), \
-  TYPES_h_data (S, D)
+#define TYPES_bh_data(S, D, T)			\
+  TYPES_b_data (S, D, T), \
+  TYPES_h_data (S, D, T)
 
-#define TYPES_bhs_data(S, D)			\
-  TYPES_b_data (S, D), \
-  TYPES_h_data (S, D), \
-  TYPES_s_data (S, D)
+#define TYPES_bhs_data(S, D, T)			\
+  TYPES_b_data (S, D, T), \
+  TYPES_h_data (S, D, T), \
+  TYPES_s_data (S, D, T)
 
 /* _s16_s8  _s32_s16  _s64_s32
    _u16_u8  _u32_u16  _u64_u32.  */
-#define TYPES_bhs_widen(S, D) \
+#define TYPES_bhs_widen(S, D, T) \
   D (s16, s8), D (s32, s16), D (s64, s32), \
   D (u16, u8), D (u32, u16), D (u64, u32)
 
 /* _bf16.  */
-#define TYPES_h_bfloat(S, D) \
+#define TYPES_h_bfloat(S, D, T) \
   S (bf16)
 
 /* _f16.  */
-#define TYPES_h_float(S, D) \
+#define TYPES_h_float(S, D, T) \
   S (f16)
 
 /* _s16
    _u16.  */
-#define TYPES_h_integer(S, D) \
+#define TYPES_h_integer(S, D, T) \
   S (s16), S (u16)
 
 /* _bf16
    _f16
    _s16
    _u16.  */
-#define TYPES_h_data(S, D) \
-  S (bf16), S (f16), TYPES_h_integer (S, D)
+#define TYPES_h_data(S, D, T) \
+  S (bf16), S (f16), TYPES_h_integer (S, D, T)
 
 /* _s16 _s32.  */
-#define TYPES_hs_signed(S, D) \
+#define TYPES_hs_signed(S, D, T) \
   S (s16), S (s32)
 
 /* _s16 _s32
    _u16 _u32.  */
-#define TYPES_hs_integer(S, D) \
-  TYPES_hs_signed (S, D), S (u16), S (u32)
+#define TYPES_hs_integer(S, D, T) \
+  TYPES_hs_signed (S, D, T), S (u16), S (u32)
 
 /* _f16 _f32.  */
-#define TYPES_hs_float(S, D) \
+#define TYPES_hs_float(S, D, T) \
   S (f16), S (f32)
 
-#define TYPES_hs_data(S, D) \
-  TYPES_h_data (S, D), \
-  TYPES_s_data (S, D)
+#define TYPES_hs_data(S, D, T) \
+  TYPES_h_data (S, D, T), \
+  TYPES_s_data (S, D, T)
 
 /* _u16 _u64.  */
-#define TYPES_hd_unsigned(S, D) \
+#define TYPES_hd_unsigned(S, D, T) \
   S (u16), S (u64)
 
 /* _s16 _s32 _s64.  */
-#define TYPES_hsd_signed(S, D) \
+#define TYPES_hsd_signed(S, D, T) \
   S (s16), S (s32), S (s64)
 
 /* _s16 _s32 _s64
    _u16 _u32 _u64.  */
-#define TYPES_hsd_integer(S, D) \
-  TYPES_hsd_signed (S, D), S (u16), S (u32), S (u64)
+#define TYPES_hsd_integer(S, D, T) \
+  TYPES_hsd_signed (S, D, T), S (u16), S (u32), S (u64)
 
-#define TYPES_hsd_data(S, D) \
-  TYPES_h_data (S, D), \
-  TYPES_s_data (S, D), \
-  TYPES_d_data (S, D)
+#define TYPES_hsd_data(S, D, T) \
+  TYPES_h_data (S, D, T), \
+  TYPES_s_data (S, D, T), \
+  TYPES_d_data (S, D, T)
 
 /* _f16_mf8.  */
-#define TYPES_h_float_mf8(S, D) \
+#define TYPES_h_float_mf8(S, D, T) \
   D (f16, mf8)
 
 /* _f32.  */
-#define TYPES_s_float(S, D) \
+#define TYPES_s_float(S, D, T) \
   S (f32)
 
 /* _f32_mf8.  */
-#define TYPES_s_float_mf8(S, D) \
+#define TYPES_s_float_mf8(S, D, T) \
   D (f32, mf8)
 
 /*      _f32
    _s16 _s32 _s64
    _u16 _u32 _u64.  */
-#define TYPES_s_float_hsd_integer(S, D) \
-  TYPES_s_float (S, D), TYPES_hsd_integer (S, D)
+#define TYPES_s_float_hsd_integer(S, D, T) \
+  TYPES_s_float (S, D, T), TYPES_hsd_integer (S, D, T)
 
 /* _f32
    _s32 _s64
    _u32 _u64.  */
-#define TYPES_s_float_sd_integer(S, D) \
-  TYPES_s_float (S, D), TYPES_sd_integer (S, D)
+#define TYPES_s_float_sd_integer(S, D, T) \
+  TYPES_s_float (S, D, T), TYPES_sd_integer (S, D, T)
 
 /* _s32.  */
-#define TYPES_s_signed(S, D) \
+#define TYPES_s_signed(S, D, T) \
   S (s32)
 
 /* _u32.  */
-#define TYPES_s_unsigned(S, D) \
+#define TYPES_s_unsigned(S, D, T) \
   S (u32)
 
 /* _s32
    _u32.  */
-#define TYPES_s_integer(S, D) \
-  TYPES_s_signed (S, D), TYPES_s_unsigned (S, D)
+#define TYPES_s_integer(S, D, T) \
+  TYPES_s_signed (S, D, T), TYPES_s_unsigned (S, D, T)
 
 /* _f32
    _s32
    _u32.  */
-#define TYPES_s_data(S, D) \
-  TYPES_s_float (S, D), TYPES_s_integer (S, D)
+#define TYPES_s_data(S, D, T) \
+  TYPES_s_float (S, D, T), TYPES_s_integer (S, D, T)
 
 /* _s32 _s64.  */
-#define TYPES_sd_signed(S, D) \
+#define TYPES_sd_signed(S, D, T) \
   S (s32), S (s64)
 
 /* _u32 _u64.  */
-#define TYPES_sd_unsigned(S, D) \
+#define TYPES_sd_unsigned(S, D, T) \
   S (u32), S (u64)
 
 /* _s32 _s64
    _u32 _u64.  */
-#define TYPES_sd_integer(S, D) \
-  TYPES_sd_signed (S, D), TYPES_sd_unsigned (S, D)
+#define TYPES_sd_integer(S, D, T) \
+  TYPES_sd_signed (S, D, T), TYPES_sd_unsigned (S, D, T)
 
-#define TYPES_sd_data(S, D) \
-  TYPES_s_data (S, D), \
-  TYPES_d_data (S, D)
+#define TYPES_sd_data(S, D, T) \
+  TYPES_s_data (S, D, T), \
+  TYPES_d_data (S, D, T)
 
 /* _f16 _f32 _f64
 	_s32 _s64
 	_u32 _u64.  */
-#define TYPES_all_float_and_sd_integer(S, D) \
-  TYPES_all_float (S, D), TYPES_sd_integer (S, D)
+#define TYPES_all_float_and_sd_integer(S, D, T) \
+  TYPES_all_float (S, D, T), TYPES_sd_integer (S, D, T)
 
 /* _f64.  */
-#define TYPES_d_float(S, D) \
+#define TYPES_d_float(S, D, T) \
   S (f64)
 
 /* _u64.  */
-#define TYPES_d_unsigned(S, D) \
+#define TYPES_d_unsigned(S, D, T) \
   S (u64)
 
 /* _s64
    _u64.  */
-#define TYPES_d_integer(S, D) \
-  S (s64), TYPES_d_unsigned (S, D)
+#define TYPES_d_integer(S, D, T) \
+  S (s64), TYPES_d_unsigned (S, D, T)
 
 /* _f64
    _s64
    _u64.  */
-#define TYPES_d_data(S, D) \
-  TYPES_d_float (S, D), TYPES_d_integer (S, D)
+#define TYPES_d_data(S, D, T) \
+  TYPES_d_float (S, D, T), TYPES_d_integer (S, D, T)
 
 /* All the type combinations allowed by svcvt.  */
-#define TYPES_cvt(S, D) \
+#define TYPES_cvt(S, D, T) \
   D (f16, f32), D (f16, f64), \
   D (f16, s16), D (f16, s32), D (f16, s64), \
   D (f16, u16), D (f16, u32), D (f16, u64), \
@@ -460,35 +462,35 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
   D (u64, f16), D (u64, f32), D (u64, f64)
 
 /* _bf16_f32.  */
-#define TYPES_cvt_bfloat(S, D) \
+#define TYPES_cvt_bfloat(S, D, T) \
   D (bf16, f32)
 
 /* { _bf16 _f16 } x _f32.  */
-#define TYPES_cvt_h_s_float(S, D) \
+#define TYPES_cvt_h_s_float(S, D, T) \
   D (bf16, f32), D (f16, f32)
 
 /* _f32_f16.  */
-#define TYPES_cvt_f32_f16(S, D) \
+#define TYPES_cvt_f32_f16(S, D, T) \
   D (f32, f16)
 
 /* _f32_f16
    _f64_f32.  */
-#define TYPES_cvt_long(S, D) \
+#define TYPES_cvt_long(S, D, T) \
   D (f32, f16), D (f64, f32)
 
-/* _f16_f32.  */
-#define TYPES_cvt_narrow_s(S, D) \
+/* _f32_f64.  */
+#define TYPES_cvt_narrow_s(S, D, T) \
   D (f32, f64)
 
 /* _f16_f32
    _f32_f64.  */
-#define TYPES_cvt_narrow(S, D) \
-  D (f16, f32), TYPES_cvt_narrow_s (S, D)
+#define TYPES_cvt_narrow(S, D, T) \
+  D (f16, f32), TYPES_cvt_narrow_s (S, D, T)
 
 /* { _s32 _u32 } x _f32
 
    _f32 x { _s32 _u32 }.  */
-#define TYPES_cvt_s_s(S, D) \
+#define TYPES_cvt_s_s(S, D, T) \
   D (s32, f32), \
   D (u32, f32), \
   D (f32, s32), \
@@ -496,23 +498,23 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
 
 /* _f16_mf8
    _bf16_mf8.  */
-#define TYPES_cvt_mf8(S, D) \
+#define TYPES_cvt_mf8(S, D, T) \
   D (f16, mf8), D (bf16, mf8)
 
 /* _mf8_f16
    _mf8_bf16.  */
-#define TYPES_cvtn_mf8(S, D) \
+#define TYPES_cvtn_mf8(S, D, T) \
   D (mf8, f16), D (mf8, bf16)
 
 /* _mf8_f32.  */
-#define TYPES_cvtnx_mf8(S, D) \
+#define TYPES_cvtnx_mf8(S, D, T) \
   D (mf8, f32)
 
 /* { _s32 _s64 } x { _b8 _b16 _b32 _b64 }
    { _u32 _u64 }.  */
 #define TYPES_inc_dec_n1(D, A) \
   D (A, b8), D (A, b16), D (A, b32), D (A, b64)
-#define TYPES_inc_dec_n(S, D) \
+#define TYPES_inc_dec_n(S, D, T) \
   TYPES_inc_dec_n1 (D, s32), \
   TYPES_inc_dec_n1 (D, s64), \
   TYPES_inc_dec_n1 (D, u32), \
@@ -521,7 +523,7 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
 /* { _s16 _u16 } x _s32
 
    {      _u16 } x _u32.  */
-#define TYPES_qcvt_x2(S, D) \
+#define TYPES_qcvt_x2(S, D, T) \
   D (s16, s32), \
   D (u16, u32), \
   D (u16, s32)
@@ -533,7 +535,7 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
    { _s16 _u16 } x _s64
 
    {      _u16 } x _u64.  */
-#define TYPES_qcvt_x4(S, D) \
+#define TYPES_qcvt_x4(S, D, T) \
   D (s8, s32), \
   D (u8, u32), \
   D (u8, s32), \
@@ -543,19 +545,19 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
 
 /* _s16_s32
    _u16_u32.  */
-#define TYPES_qrshr_x2(S, D) \
+#define TYPES_qrshr_x2(S, D, T) \
   D (s16, s32), \
   D (u16, u32)
 
 /* _u16_s32.  */
-#define TYPES_qrshru_x2(S, D) \
+#define TYPES_qrshru_x2(S, D, T) \
   D (u16, s32)
 
 /* _s8_s32
    _s16_s64
    _u8_u32
    _u16_u64.  */
-#define TYPES_qrshr_x4(S, D) \
+#define TYPES_qrshr_x4(S, D, T) \
   D (s8, s32), \
   D (s16, s64), \
   D (u8, u32), \
@@ -563,7 +565,7 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
 
 /* _u8_s32
    _u16_s64.  */
-#define TYPES_qrshru_x4(S, D) \
+#define TYPES_qrshru_x4(S, D, T) \
   D (u8, s32), \
   D (u16, s64)
 
@@ -577,7 +579,7 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
   D (A, f16), D (A, f32), D (A, f64), \
   D (A, s8), D (A, s16), D (A, s32), D (A, s64), \
   D (A, u8), D (A, u16), D (A, u32), D (A, u64)
-#define TYPES_reinterpret(S, D) \
+#define TYPES_reinterpret(S, D, T) \
   TYPES_reinterpret1 (D, mf8), \
   TYPES_reinterpret1 (D, bf16), \
   TYPES_reinterpret1 (D, f16), \
@@ -594,7 +596,7 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
 
 /* _b_c
    _c_b.  */
-#define TYPES_reinterpret_b(S, D) \
+#define TYPES_reinterpret_b(S, D, T) \
   D (b, c), \
   D (c, b)
 
@@ -602,7 +604,7 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
 			    { _u32 _u64 } */
 #define TYPES_while1(D, bn) \
   D (bn, s32), D (bn, s64), D (bn, u32), D (bn, u64)
-#define TYPES_while(S, D) \
+#define TYPES_while(S, D, T) \
   TYPES_while1 (D, b8), \
   TYPES_while1 (D, b16), \
   TYPES_while1 (D, b32), \
@@ -610,7 +612,7 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
 
 /* { _b8 _b16 _b32 _b64 } x { _s64 }
 			    { _u64 } */
-#define TYPES_while_x(S, D) \
+#define TYPES_while_x(S, D, T) \
   D (b8, s64), D (b8, u64), \
   D (b16, s64), D (b16, u64), \
   D (b32, s64), D (b32, u64), \
@@ -618,7 +620,7 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
 
 /* { _c8 _c16 _c32 _c64 } x { _s64 }
 			    { _u64 } */
-#define TYPES_while_x_c(S, D) \
+#define TYPES_while_x_c(S, D, T) \
   D (c8, s64), D (c8, u64), \
   D (c16, s64), D (c16, u64), \
   D (c32, s64), D (c32, u64), \
@@ -627,26 +629,26 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
 /* _f32_f16
    _s32_s16
    _u32_u16.  */
-#define TYPES_s_narrow_fsu(S, D) \
+#define TYPES_s_narrow_fsu(S, D, T) \
   D (f32, f16), D (s32, s16), D (u32, u16)
 
 /* _za8 _za16 _za32 _za64 _za128.  */
-#define TYPES_all_za(S, D) \
+#define TYPES_all_za(S, D, T) \
   S (za8), S (za16), S (za32), S (za64), S (za128)
 
 /* _za64.  */
-#define TYPES_d_za(S, D) \
+#define TYPES_d_za(S, D, T) \
   S (za64)
 
-/* {   _za8 } x {             _s8  _u8 }
+/* {   _za8 } x {  _mf8       _s8  _u8 }
 
    {  _za16 } x { _bf16 _f16 _s16 _u16 }
 
    {  _za32 } x {       _f32 _s32 _u32 }
 
    {  _za64 } x {       _f64 _s64 _u64 }.  */
-#define TYPES_za_bhsd_data(S, D) \
-  D (za8, s8), D (za8, u8), \
+#define TYPES_za_bhsd_data(S, D, T) \
+  D (za8, mf8), D (za8, s8), D (za8, u8), \
   D (za16, bf16), D (za16, f16), D (za16, s16), D (za16, u16), \
   D (za32, f32), D (za32, s32), D (za32, u32), \
   D (za64, f64), D (za64, s64), D (za64, u64)
@@ -658,112 +660,130 @@ CONSTEXPR const group_suffix_info group_suffixes[] = {
 		{ _s8   _s16 _s32 _s64 }
 		{ _u8   _u16 _u32 _u64 }.  */
 
-#define TYPES_za_all_data(S, D) \
-  TYPES_za_bhsd_data (S, D), \
+#define TYPES_za_all_data(S, D, T) \
+  TYPES_za_bhsd_data (S, D, T), \
   TYPES_reinterpret1 (D, za128)
 
+/* _za16_mf8.  */
+#define TYPES_za_h_mf8(S, D, T) \
+  D (za16, mf8)
+
+/* { _za_16 _za_32 } x _mf8.  */
+#define TYPES_za_hs_mf8(S, D, T) \
+  D (za16, mf8), D (za32, mf8)
+
 /* _za16_bf16.  */
-#define TYPES_za_h_bfloat(S, D) \
+#define TYPES_za_h_bfloat(S, D, T) \
   D (za16, bf16)
 
 /* _za16_f16.  */
-#define TYPES_za_h_float(S, D) \
+#define TYPES_za_h_float(S, D, T) \
   D (za16, f16)
 
 /* _za32_s8.  */
-#define TYPES_za_s_b_signed(S, D) \
+#define TYPES_za_s_b_signed(S, D, T) \
    D (za32, s8)
 
 /* _za32_u8.  */
-#define TYPES_za_s_b_unsigned(S, D) \
+#define TYPES_za_s_b_unsigned(S, D, T) \
    D (za32, u8)
 
 /* _za32 x { _s8 _u8 }.  */
-#define TYPES_za_s_b_integer(S, D) \
+#define TYPES_za_s_b_integer(S, D, T) \
   D (za32, s8), D (za32, u8)
 
 /* _za32 x { _s16 _u16 }.  */
-#define TYPES_za_s_h_integer(S, D) \
+#define TYPES_za_s_h_integer(S, D, T) \
   D (za32, s16), D (za32, u16)
 
 /* _za32 x { _bf16 _f16 _s16 _u16 }.  */
-#define TYPES_za_s_h_data(S, D) \
+#define TYPES_za_s_h_data(S, D, T) \
   D (za32, bf16), D (za32, f16), D (za32, s16), D (za32, u16)
 
 /* _za32_u32.  */
-#define TYPES_za_s_unsigned(S, D) \
+#define TYPES_za_s_unsigned(S, D, T) \
   D (za32, u32)
 
 /* _za32 x { _s32 _u32 }.  */
-#define TYPES_za_s_integer(S, D) \
+#define TYPES_za_s_integer(S, D, T) \
   D (za32, s32), D (za32, u32)
 
+/* _za32_mf8.  */
+#define TYPES_za_s_mf8(S, D, T) \
+  D (za32, mf8)
+
 /* _za32_f32.  */
-#define TYPES_za_s_float(S, D) \
+#define TYPES_za_s_float(S, D, T) \
   D (za32, f32)
 
 /* _za32 x { _f32 _s32 _u32 }.  */
-#define TYPES_za_s_data(S, D) \
+#define TYPES_za_s_data(S, D, T) \
   D (za32, f32), D (za32, s32), D (za32, u32)
 
 /* _za64 x { _s16 _u16 }.  */
-#define TYPES_za_d_h_integer(S, D) \
+#define TYPES_za_d_h_integer(S, D, T) \
   D (za64, s16), D (za64, u16)
 
 /* _za64_f64.  */
-#define TYPES_za_d_float(S, D) \
+#define TYPES_za_d_float(S, D, T) \
   D (za64, f64)
 
 /* _za64 x { _s64 _u64 }.  */
-#define TYPES_za_d_integer(S, D) \
+#define TYPES_za_d_integer(S, D, T) \
   D (za64, s64), D (za64, u64)
 
 /* _za32 x { _s8 _u8 _bf16 _f16 _f32 }.  */
-#define TYPES_mop_base(S, D) \
+#define TYPES_mop_base(S, D, T) \
   D (za32, s8), D (za32, u8), D (za32, bf16), D (za32, f16), D (za32, f32)
 
 /* _za32_s8.  */
-#define TYPES_mop_base_signed(S, D) \
+#define TYPES_mop_base_signed(S, D, T) \
   D (za32, s8)
 
 /* _za32_u8.  */
-#define TYPES_mop_base_unsigned(S, D) \
+#define TYPES_mop_base_unsigned(S, D, T) \
   D (za32, u8)
 
 /* _za64 x { _s16 _u16 }.  */
-#define TYPES_mop_i16i64(S, D) \
+#define TYPES_mop_i16i64(S, D, T) \
   D (za64, s16), D (za64, u16)
 
 /* _za64_s16.  */
-#define TYPES_mop_i16i64_signed(S, D) \
+#define TYPES_mop_i16i64_signed(S, D, T) \
   D (za64, s16)
 
 /* _za64_u16.  */
-#define TYPES_mop_i16i64_unsigned(S, D) \
+#define TYPES_mop_i16i64_unsigned(S, D, T) \
   D (za64, u16)
 
 /* _za.  */
-#define TYPES_za(S, D) \
+#define TYPES_za(S, D, T) \
   S (za)
 
-/* Describe a pair of type suffixes in which only the first is used.  */
-#define DEF_VECTOR_TYPE(X) { TYPE_SUFFIX_ ## X, NUM_TYPE_SUFFIXES }
+/* Describe a tuple of type suffixes in which only the first is used.  */
+#define DEF_VECTOR_TYPE(X) \
+  { TYPE_SUFFIX_ ## X, NUM_TYPE_SUFFIXES, NUM_TYPE_SUFFIXES }
 
-/* Describe a pair of type suffixes in which both are used.  */
-#define DEF_DOUBLE_TYPE(X, Y) { TYPE_SUFFIX_ ## X, TYPE_SUFFIX_ ## Y }
+/* Describe a tuple of type suffixes in which only the first two are used.  */
+#define DEF_DOUBLE_TYPE(X, Y) \
+  { TYPE_SUFFIX_ ## X, TYPE_SUFFIX_ ## Y, NUM_TYPE_SUFFIXES }
+
+/* Describe a tuple of type suffixes in which three elements are used.  */
+#define DEF_TRIPLE_TYPE(X, Y, Z) \
+  { TYPE_SUFFIX_ ## X, TYPE_SUFFIX_ ## Y, TYPE_SUFFIX_ ## Z }
 
 /* Create an array that can be used in aarch64-sve-builtins.def to
    select the type suffixes in TYPES_<NAME>.  */
 #define DEF_SVE_TYPES_ARRAY(NAME) \
-  static const type_suffix_pair types_##NAME[] = { \
-    TYPES_##NAME (DEF_VECTOR_TYPE, DEF_DOUBLE_TYPE), \
-    { NUM_TYPE_SUFFIXES, NUM_TYPE_SUFFIXES } \
+  static const type_suffix_triple types_##NAME[] = { \
+    TYPES_##NAME (DEF_VECTOR_TYPE, DEF_DOUBLE_TYPE, DEF_TRIPLE_TYPE), \
+    { NUM_TYPE_SUFFIXES, NUM_TYPE_SUFFIXES, NUM_TYPE_SUFFIXES } \
   }
 
 /* For functions that don't take any type suffixes.  */
-static const type_suffix_pair types_none[] = {
-  { NUM_TYPE_SUFFIXES, NUM_TYPE_SUFFIXES },
-  { NUM_TYPE_SUFFIXES, NUM_TYPE_SUFFIXES }
+static const type_suffix_triple types_none[] = {
+  { NUM_TYPE_SUFFIXES, NUM_TYPE_SUFFIXES, NUM_TYPE_SUFFIXES },
+  { NUM_TYPE_SUFFIXES, NUM_TYPE_SUFFIXES, NUM_TYPE_SUFFIXES }
 };
 
 /* Create an array for each TYPES_<combination> macro above.  */
@@ -847,6 +867,7 @@ DEF_SVE_TYPES_ARRAY (all_za);
 DEF_SVE_TYPES_ARRAY (d_za);
 DEF_SVE_TYPES_ARRAY (za_bhsd_data);
 DEF_SVE_TYPES_ARRAY (za_all_data);
+DEF_SVE_TYPES_ARRAY (za_h_mf8);
 DEF_SVE_TYPES_ARRAY (za_h_bfloat);
 DEF_SVE_TYPES_ARRAY (za_h_float);
 DEF_SVE_TYPES_ARRAY (za_s_b_signed);
@@ -856,6 +877,8 @@ DEF_SVE_TYPES_ARRAY (za_s_h_integer);
 DEF_SVE_TYPES_ARRAY (za_s_h_data);
 DEF_SVE_TYPES_ARRAY (za_s_unsigned);
 DEF_SVE_TYPES_ARRAY (za_s_integer);
+DEF_SVE_TYPES_ARRAY (za_s_mf8);
+DEF_SVE_TYPES_ARRAY (za_hs_mf8);
 DEF_SVE_TYPES_ARRAY (za_s_float);
 DEF_SVE_TYPES_ARRAY (za_s_data);
 DEF_SVE_TYPES_ARRAY (za_d_h_integer);
@@ -985,15 +1008,15 @@ static CONSTEXPR const function_group_info neon_sve_function_groups[] = {
 
 /* A list of all arm_sme.h functions.  */
 static CONSTEXPR const function_group_info sme_function_groups[] = {
-#define DEF_SME_FUNCTION_GS(NAME, SHAPE, TYPES, GROUPS, PREDS) \
+#define DEF_SME_FUNCTION_GS_FPM(NAME, SHAPE, TYPES, GROUPS, PREDS, FPM_MODE) \
   { #NAME, &functions::NAME, &shapes::SHAPE, types_##TYPES, groups_##GROUPS, \
     preds_##PREDS, aarch64_required_extensions::REQUIRED_EXTENSIONS, \
-    FPM_unused },
-#define DEF_SME_ZA_FUNCTION_GS(NAME, SHAPE, TYPES, GROUPS, PREDS) \
+    FPM_##FPM_MODE },
+#define DEF_SME_ZA_FUNCTION_GS_FPM(NAME, SHAPE, TYPES, GROUPS, PREDS, FPM_MODE) \
   { #NAME, &functions::NAME##_za, &shapes::SHAPE, types_##TYPES, \
     groups_##GROUPS, preds_##PREDS, \
     aarch64_required_extensions::REQUIRED_EXTENSIONS \
-      .and_also (AARCH64_FL_ZA_ON), FPM_unused },
+      .and_also (AARCH64_FL_ZA_ON), FPM_##FPM_MODE },
 #include "aarch64-sve-builtins-sme.def"
 };
 
@@ -1022,12 +1045,12 @@ tree acle_svprfop;
 static GTY(()) vec<registered_function *, va_gc> *registered_functions;
 
 /* Stores the starting function index for each pragma handler.  */
-static unsigned int initial_indexes[NUM_PRAGMA_HANDLERS];
+static  GTY(()) unsigned int initial_indexes[NUM_PRAGMA_HANDLERS];
 
 /* All registered function decls, hashed on the function_instance
    that they implement.  This is used for looking up implementations of
    overloaded functions.  */
-static hash_table<registered_function_hasher> *function_table;
+static GTY(()) hash_table<registered_function_hasher> *function_table;
 
 /* Index 0 maps all overloaded function names that we've registered so far to
    their associated function_instances.  Index 1 does the same for functions
@@ -1205,6 +1228,7 @@ function_instance::hash () const
   h.add_int (mode_suffix_id);
   h.add_int (type_suffix_ids[0]);
   h.add_int (type_suffix_ids[1]);
+  h.add_int (type_suffix_ids[2]);
   h.add_int (group_suffix_id);
   h.add_int (pred);
   h.add_int (fpm_mode);
@@ -1376,7 +1400,7 @@ function_builder::get_name (const function_instance &instance,
       }
   else
     append_name (instance.mode_suffix ().string);
-  for (unsigned int i = 0; i < 2; ++i)
+  for (unsigned int i = 0; i < 3; ++i)
     if (!overloaded_p || instance.shape->explicit_type_suffix_p (i))
       append_name (instance.type_suffix (i).string);
   if (!overloaded_p || instance.shape->explicit_group_suffix_p ())
@@ -1621,8 +1645,9 @@ function_builder::add_overloaded_functions (const function_group_info &group,
 {
   bool explicit_type0 = (*group.shape)->explicit_type_suffix_p (0);
   bool explicit_type1 = (*group.shape)->explicit_type_suffix_p (1);
+  bool explicit_type2 = (*group.shape)->explicit_type_suffix_p (2);
   bool explicit_group = (*group.shape)->explicit_group_suffix_p ();
-  auto add_function = [&](const type_suffix_pair &types,
+  auto add_function = [&](const type_suffix_triple &types,
 			  group_suffix_index group_suffix_id,
 			  unsigned int pi)
     {
@@ -1650,9 +1675,10 @@ function_builder::add_overloaded_functions (const function_group_info &group,
 	  {
 	    /* Stub out the types that are determined by overload
 	       resolution.  */
-	    type_suffix_pair types = {
+	    type_suffix_triple types = {
 	      explicit_type0 ? group.types[ti][0] : NUM_TYPE_SUFFIXES,
-	      explicit_type1 ? group.types[ti][1] : NUM_TYPE_SUFFIXES
+	      explicit_type1 ? group.types[ti][1] : NUM_TYPE_SUFFIXES,
+	      explicit_type2 ? group.types[ti][2] : NUM_TYPE_SUFFIXES
 	    };
 	    add_function (types, group_suffix_id, pi);
 	  }
@@ -1803,9 +1829,10 @@ tree
 function_resolver::lookup_form (mode_suffix_index mode,
 				type_suffix_index type0,
 				type_suffix_index type1,
+				type_suffix_index type2,
 				group_suffix_index group)
 {
-  type_suffix_pair types = { type0, type1 };
+  type_suffix_triple types = { type0, type1, type2 };
   function_instance instance (base_name, base, shape, mode, types, group, pred,
 			      fpm_mode);
   registered_function *rfn
@@ -1825,13 +1852,14 @@ function_resolver::lookup_form (mode_suffix_index mode, sve_type type)
 {
   type_suffix_index type0 = type_suffix_ids[0];
   type_suffix_index type1 = type_suffix_ids[1];
+  type_suffix_index type2 = type_suffix_ids[2];
   (type0 == NUM_TYPE_SUFFIXES ? type0 : type1) = type.type;
 
   group_suffix_index group = group_suffix_id;
   if (group == GROUP_none && type.num_vectors != vectors_per_tuple ())
     group = num_vectors_to_group (type.num_vectors);
 
-  return lookup_form (mode, type0, type1, group);
+  return lookup_form (mode, type0, type1, type2, group);
 }
 
 /* Resolve the function to one with the mode suffix given by MODE, the
@@ -1842,9 +1870,10 @@ tree
 function_resolver::resolve_to (mode_suffix_index mode,
 			       type_suffix_index type0,
 			       type_suffix_index type1,
+			       type_suffix_index type2,
 			       group_suffix_index group)
 {
-  tree res = lookup_form (mode, type0, type1, group);
+  tree res = lookup_form (mode, type0, type1, type2, group);
   if (!res)
     {
       if (type1 == NUM_TYPE_SUFFIXES)
@@ -3205,7 +3234,8 @@ function_resolver::resolve_unary (type_class_index merge_tclass,
   /* Handle convert-like functions in which the first type suffix is
      explicit.  */
   if (type_suffix_ids[0] != NUM_TYPE_SUFFIXES)
-    return resolve_to (mode_suffix_id, type_suffix_ids[0], type);
+    return resolve_to (mode_suffix_id, type_suffix_ids[0], type,
+		       NUM_TYPE_SUFFIXES, group_suffix_id);
 
   return resolve_to (mode_suffix_id, type);
 }
@@ -3630,24 +3660,22 @@ gimple_folder::redirect_pred_x ()
 gimple *
 gimple_folder::fold_pfalse ()
 {
-  if (pred == PRED_none)
+  tree gp = gp_value (call);
+  /* If there isn't a GP then we can't do any folding as the instruction isn't
+     predicated.  */
+  if (!gp)
     return nullptr;
-  tree arg0 = gimple_call_arg (call, 0);
+
   if (pred == PRED_m)
     {
-      /* Unary function shapes with _m predication are folded to the
-	 inactive vector (arg0), while other function shapes are folded
-	 to op1 (arg1).  */
-      tree arg1 = gimple_call_arg (call, 1);
-      if (is_pfalse (arg1))
-	return fold_call_to (arg0);
-      if (is_pfalse (arg0))
-	return fold_call_to (arg1);
+      tree val = inactive_values (call);
+      if (is_pfalse (gp))
+	return fold_call_to (val);
       return nullptr;
     }
-  if ((pred == PRED_x || pred == PRED_z) && is_pfalse (arg0))
+  if ((pred == PRED_x || pred == PRED_z) && is_pfalse (gp))
     return fold_call_to (build_zero_cst (TREE_TYPE (lhs)));
-  if (pred == PRED_implicit && is_pfalse (arg0))
+  if (pred == PRED_implicit && is_pfalse (gp))
     {
       unsigned int flags = call_properties ();
       /* Folding to lhs = {0, ...} is not appropriate for intrinsics with
@@ -3664,7 +3692,8 @@ gimple_folder::fold_pfalse ()
 /* Convert the lhs and all non-boolean vector-type operands to TYPE.
    Pass the converted variables to the callback FP, and finally convert the
    result back to the original type. Add the necessary conversion statements.
-   Return the new call.  */
+   Return the new call. Note the tree argument to the callback FP, can only
+   be set once; it will always be a SSA_NAME.  */
 gimple *
 gimple_folder::convert_and_fold (tree type,
 				 gimple *(*fp) (gimple_folder &,
@@ -3675,7 +3704,7 @@ gimple_folder::convert_and_fold (tree type,
   tree old_ty = TREE_TYPE (lhs);
   gimple_seq stmts = NULL;
   bool convert_lhs_p = !useless_type_conversion_p (type, old_ty);
-  tree lhs_conv = convert_lhs_p ? create_tmp_var (type) : lhs;
+  tree lhs_conv = convert_lhs_p ? make_ssa_name (type) : lhs;
   unsigned int num_args = gimple_call_num_args (call);
   auto_vec<tree, 16> args_conv;
   args_conv.safe_grow (num_args);
@@ -3799,6 +3828,7 @@ gimple_folder::fold_active_lanes_to (tree x)
 
   gimple_seq stmts = NULL;
   tree pred = convert_pred (stmts, vector_type (0), 0);
+  x = force_vector (stmts, TREE_TYPE (lhs), x);
   gsi_insert_seq_before (gsi, stmts, GSI_SAME_STMT);
   return gimple_build_assign (lhs, VEC_COND_EXPR, pred, x, vec_inactive);
 }
@@ -4001,7 +4031,8 @@ rtx
 function_expander::get_reg_target ()
 {
   machine_mode target_mode = result_mode ();
-  if (!possible_target || GET_MODE (possible_target) != target_mode)
+  if (!possible_target
+      || !register_operand (possible_target, target_mode))
     possible_target = gen_reg_rtx (target_mode);
   return possible_target;
 }
@@ -4351,7 +4382,11 @@ function_expander::use_cond_insn (insn_code icode, unsigned int merge_argno)
   add_input_operand (icode, pred);
   for (unsigned int i = 0; i < nops; ++i)
     add_input_operand (icode, args[opno + i]);
-  add_input_operand (icode, fallback_arg);
+  if (fallback_arg == CONST0_RTX (mode)
+      && insn_operand_matches (icode, m_ops.length (), fallback_arg))
+    add_fixed_operand (fallback_arg);
+  else
+    add_input_operand (icode, fallback_arg);
   return generate_insn (icode);
 }
 
@@ -4586,10 +4621,31 @@ function_expander::expand ()
     {
       /* The last element of these functions is always an fpm_t that must be
          written to FPMR before the call to the instruction itself. */
-      gcc_assert (args.last ()->mode == DImode);
-      emit_move_insn (gen_rtx_REG (DImode, FPM_REGNUM), args.last ());
+      rtx fpm = args.last ();
+      gcc_assert (CONST_INT_P (fpm) || GET_MODE (fpm) == DImode);
+      emit_move_insn (gen_rtx_REG (DImode, FPM_REGNUM), fpm);
     }
-  return base->expand (*this);
+  rtx result = base->expand (*this);
+  if (function_returns_void_p ())
+    gcc_assert (result == const0_rtx);
+  else
+    {
+      auto expected_mode = result_mode ();
+      if (GET_MODE_CLASS (expected_mode) == MODE_INT)
+	/* Scalar integer constants don't store a mode.
+
+	   It's OK for a variable result to have a different mode from the
+	   function return type.  In particular, some functions that return int
+	   expand into instructions that have a DImode result, with all 64 bits
+	   of the DImode being well-defined (usually zero).  */
+	gcc_assert (CONST_SCALAR_INT_P (result)
+		    || GET_MODE_CLASS (GET_MODE (result)) == MODE_INT);
+      else
+	/* In other cases, the return value should have the same mode
+	   as the return type.  */
+	gcc_assert (GET_MODE (result) == expected_mode);
+    }
+  return result;
 }
 
 /* Return a structure type that contains a single field of type FIELD_TYPE.
@@ -4663,9 +4719,6 @@ register_builtin_types ()
 	      vectype = build_truth_vector_type_for_mode (BYTES_PER_SVE_VECTOR,
 							  VNx16BImode);
 	      num_pr = 1;
-	      /* Leave svbool_t as indivisible for now.  We don't yet support
-		 C/C++ operators on predicates.  */
-	      TYPE_INDIVISIBLE_P (vectype) = 1;
 	    }
 	  else
 	    {
@@ -4682,12 +4735,12 @@ register_builtin_types ()
 			  && TYPE_ALIGN (vectype) == 128
 			  && known_eq (size, BITS_PER_SVE_VECTOR));
 	      num_zr = 1;
-	      TYPE_INDIVISIBLE_P (vectype) = 0;
 	    }
 	  vectype = build_distinct_type_copy (vectype);
 	  gcc_assert (vectype == TYPE_MAIN_VARIANT (vectype));
 	  SET_TYPE_STRUCTURAL_EQUALITY (vectype);
 	  TYPE_ARTIFICIAL (vectype) = 1;
+	  TYPE_INDIVISIBLE_P (vectype) = 0;
 	  make_type_sizeless (vectype);
 	}
       if (num_pr)
@@ -4850,7 +4903,7 @@ handle_arm_sve_h (bool function_nulls_p)
   register_svprfop ();
 
   /* Define the functions.  */
-  function_table = new hash_table<registered_function_hasher> (1023);
+  function_table = hash_table<registered_function_hasher>::create_ggc (1023);
   function_builder builder (arm_sve_handle, function_nulls_p);
   for (unsigned int i = 0; i < ARRAY_SIZE (function_groups); ++i)
     builder.register_function_group (function_groups[i]);

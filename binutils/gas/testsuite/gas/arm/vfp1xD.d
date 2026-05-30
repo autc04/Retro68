@@ -33,24 +33,24 @@ Disassembly of section .text:
 0+05c <[^>]*> ecb00a01 	(vldmia|fldmias)	r0!, {s0}
 0+060 <[^>]*> ed300a01 	(vldmdb|fldmdbs)	r0!, {s0}
 0+064 <[^>]*> ed300a01 	(vldmdb|fldmdbs)	r0!, {s0}
-0+068 <[^>]*> ec900b03 	fldmiax	r0, {d0}(	;@ Deprecated|)
-0+06c <[^>]*> ec900b03 	fldmiax	r0, {d0}(	;@ Deprecated|)
-0+070 <[^>]*> ecb00b03 	fldmiax	r0!, {d0}(	;@ Deprecated|)
-0+074 <[^>]*> ecb00b03 	fldmiax	r0!, {d0}(	;@ Deprecated|)
-0+078 <[^>]*> ed300b03 	fldmdbx	r0!, {d0}(	;@ Deprecated|)
-0+07c <[^>]*> ed300b03 	fldmdbx	r0!, {d0}(	;@ Deprecated|)
+0+068 <[^>]*> ec900b03 	fldmiax	r0, {d0}(	@ Deprecated|)
+0+06c <[^>]*> ec900b03 	fldmiax	r0, {d0}(	@ Deprecated|)
+0+070 <[^>]*> ecb00b03 	fldmiax	r0!, {d0}(	@ Deprecated|)
+0+074 <[^>]*> ecb00b03 	fldmiax	r0!, {d0}(	@ Deprecated|)
+0+078 <[^>]*> ed300b03 	fldmdbx	r0!, {d0}(	@ Deprecated|)
+0+07c <[^>]*> ed300b03 	fldmdbx	r0!, {d0}(	@ Deprecated|)
 0+080 <[^>]*> ec800a01 	(vstmia|fstmias)	r0, {s0}
 0+084 <[^>]*> ec800a01 	(vstmia|fstmias)	r0, {s0}
 0+088 <[^>]*> eca00a01 	(vstmia|fstmias)	r0!, {s0}
 0+08c <[^>]*> eca00a01 	(vstmia|fstmias)	r0!, {s0}
 0+090 <[^>]*> ed200a01 	(vstmdb|fstmdbs)	r0!, {s0}
 0+094 <[^>]*> ed200a01 	(vstmdb|fstmdbs)	r0!, {s0}
-0+098 <[^>]*> ec800b03 	fstmiax	r0, {d0}(	;@ Deprecated|)
-0+09c <[^>]*> ec800b03 	fstmiax	r0, {d0}(	;@ Deprecated|)
-0+0a0 <[^>]*> eca00b03 	fstmiax	r0!, {d0}(	;@ Deprecated|)
-0+0a4 <[^>]*> eca00b03 	fstmiax	r0!, {d0}(	;@ Deprecated|)
-0+0a8 <[^>]*> ed200b03 	fstmdbx	r0!, {d0}(	;@ Deprecated|)
-0+0ac <[^>]*> ed200b03 	fstmdbx	r0!, {d0}(	;@ Deprecated|)
+0+098 <[^>]*> ec800b03 	fstmiax	r0, {d0}(	@ Deprecated|)
+0+09c <[^>]*> ec800b03 	fstmiax	r0, {d0}(	@ Deprecated|)
+0+0a0 <[^>]*> eca00b03 	fstmiax	r0!, {d0}(	@ Deprecated|)
+0+0a4 <[^>]*> eca00b03 	fstmiax	r0!, {d0}(	@ Deprecated|)
+0+0a8 <[^>]*> ed200b03 	fstmdbx	r0!, {d0}(	@ Deprecated|)
+0+0ac <[^>]*> ed200b03 	fstmdbx	r0!, {d0}(	@ Deprecated|)
 0+0b0 <[^>]*> eeb80ac0 	(vcvt\.f32\.s32|fsitos)	s0, s0
 0+0b4 <[^>]*> eeb80a40 	(vcvt\.f32\.u32|fuitos)	s0, s0
 0+0b8 <[^>]*> eebd0a40 	(vcvtr\.s32\.f32|ftosis)	s0, s0
@@ -142,17 +142,17 @@ Disassembly of section .text:
 0+210 <[^>]*> ec90fa02 	(vldmia|fldmias)	r0, {s30-s31}
 0+214 <[^>]*> ec910a01 	(vldmia|fldmias)	r1, {s0}
 0+218 <[^>]*> ec9e0a01 	(vldmia|fldmias)	lr, {s0}
-0+21c <[^>]*> ec801b03 	fstmiax	r0, {d1}(	;@ Deprecated|)
-0+220 <[^>]*> ec802b03 	fstmiax	r0, {d2}(	;@ Deprecated|)
-0+224 <[^>]*> ec80fb03 	fstmiax	r0, {d15}(	;@ Deprecated|)
-0+228 <[^>]*> ec800b05 	fstmiax	r0, {d0-d1}(	;@ Deprecated|)
-0+22c <[^>]*> ec800b07 	fstmiax	r0, {d0-d2}(	;@ Deprecated|)
-0+230 <[^>]*> ec800b21 	fstmiax	r0, {d0-d15}(	;@ Deprecated|)
-0+234 <[^>]*> ec801b1f 	fstmiax	r0, {d1-d15}(	;@ Deprecated|)
-0+238 <[^>]*> ec802b1d 	fstmiax	r0, {d2-d15}(	;@ Deprecated|)
-0+23c <[^>]*> ec80eb05 	fstmiax	r0, {d14-d15}(	;@ Deprecated|)
-0+240 <[^>]*> ec810b03 	fstmiax	r1, {d0}(	;@ Deprecated|)
-0+244 <[^>]*> ec8e0b03 	fstmiax	lr, {d0}(	;@ Deprecated|)
+0+21c <[^>]*> ec801b03 	fstmiax	r0, {d1}(	@ Deprecated|)
+0+220 <[^>]*> ec802b03 	fstmiax	r0, {d2}(	@ Deprecated|)
+0+224 <[^>]*> ec80fb03 	fstmiax	r0, {d15}(	@ Deprecated|)
+0+228 <[^>]*> ec800b05 	fstmiax	r0, {d0-d1}(	@ Deprecated|)
+0+22c <[^>]*> ec800b07 	fstmiax	r0, {d0-d2}(	@ Deprecated|)
+0+230 <[^>]*> ec800b21 	fstmiax	r0, {d0-d15}(	@ Deprecated|)
+0+234 <[^>]*> ec801b1f 	fstmiax	r0, {d1-d15}(	@ Deprecated|)
+0+238 <[^>]*> ec802b1d 	fstmiax	r0, {d2-d15}(	@ Deprecated|)
+0+23c <[^>]*> ec80eb05 	fstmiax	r0, {d14-d15}(	@ Deprecated|)
+0+240 <[^>]*> ec810b03 	fstmiax	r1, {d0}(	@ Deprecated|)
+0+244 <[^>]*> ec8e0b03 	fstmiax	lr, {d0}(	@ Deprecated|)
 0+248 <[^>]*> eeb50a40 	(vcmp\.f32	s0, #0.0|fcmpzs	s0)
 0+24c <[^>]*> eef50a40 	(vcmp\.f32	s1, #0.0|fcmpzs	s1)
 0+250 <[^>]*> eeb51a40 	(vcmp\.f32	s2, #0.0|fcmpzs	s2)
@@ -211,24 +211,24 @@ Disassembly of section .text:
 0+324 <[^>]*> 0cf42a01 	(vldmiaeq|fldmiaseq)	r4!, {s5}
 0+328 <[^>]*> 0d352a01 	(vldmdbeq|fldmdbseq)	r5!, {s4}
 0+32c <[^>]*> 0d761a01 	(vldmdbeq|fldmdbseq)	r6!, {s3}
-0+330 <[^>]*> 0c971b03 	fldmiaxeq	r7, {d1}(	;@ Deprecated|)
-0+334 <[^>]*> 0c982b03 	fldmiaxeq	r8, {d2}(	;@ Deprecated|)
-0+338 <[^>]*> 0cb93b03 	fldmiaxeq	r9!, {d3}(	;@ Deprecated|)
-0+33c <[^>]*> 0cba4b03 	fldmiaxeq	sl!, {d4}(	;@ Deprecated|)
-0+340 <[^>]*> 0d3b5b03 	fldmdbxeq	fp!, {d5}(	;@ Deprecated|)
-0+344 <[^>]*> 0d3c6b03 	fldmdbxeq	ip!, {d6}(	;@ Deprecated|)
+0+330 <[^>]*> 0c971b03 	fldmiaxeq	r7, {d1}(	@ Deprecated|)
+0+334 <[^>]*> 0c982b03 	fldmiaxeq	r8, {d2}(	@ Deprecated|)
+0+338 <[^>]*> 0cb93b03 	fldmiaxeq	r9!, {d3}(	@ Deprecated|)
+0+33c <[^>]*> 0cba4b03 	fldmiaxeq	sl!, {d4}(	@ Deprecated|)
+0+340 <[^>]*> 0d3b5b03 	fldmdbxeq	fp!, {d5}(	@ Deprecated|)
+0+344 <[^>]*> 0d3c6b03 	fldmdbxeq	ip!, {d6}(	@ Deprecated|)
 0+348 <[^>]*> 0c8d1a01 	(vstmiaeq|fstmiaseq)	sp, {s2}
 0+34c <[^>]*> 0cce0a01 	(vstmiaeq|fstmiaseq)	lr, {s1}
 0+350 <[^>]*> 0ce1fa01 	(vstmiaeq|fstmiaseq)	r1!, {s31}
 0+354 <[^>]*> 0ca2fa01 	(vstmiaeq|fstmiaseq)	r2!, {s30}
 0+358 <[^>]*> 0d63ea01 	(vstmdbeq|fstmdbseq)	r3!, {s29}
 0+35c <[^>]*> 0d24ea01 	(vstmdbeq|fstmdbseq)	r4!, {s28}
-0+360 <[^>]*> 0c857b03 	fstmiaxeq	r5, {d7}(	;@ Deprecated|)
-0+364 <[^>]*> 0c868b03 	fstmiaxeq	r6, {d8}(	;@ Deprecated|)
-0+368 <[^>]*> 0ca79b03 	fstmiaxeq	r7!, {d9}(	;@ Deprecated|)
-0+36c <[^>]*> 0ca8ab03 	fstmiaxeq	r8!, {d10}(	;@ Deprecated|)
-0+370 <[^>]*> 0d29bb03 	fstmdbxeq	r9!, {d11}(	;@ Deprecated|)
-0+374 <[^>]*> 0d2acb03 	fstmdbxeq	sl!, {d12}(	;@ Deprecated|)
+0+360 <[^>]*> 0c857b03 	fstmiaxeq	r5, {d7}(	@ Deprecated|)
+0+364 <[^>]*> 0c868b03 	fstmiaxeq	r6, {d8}(	@ Deprecated|)
+0+368 <[^>]*> 0ca79b03 	fstmiaxeq	r7!, {d9}(	@ Deprecated|)
+0+36c <[^>]*> 0ca8ab03 	fstmiaxeq	r8!, {d10}(	@ Deprecated|)
+0+370 <[^>]*> 0d29bb03 	fstmdbxeq	r9!, {d11}(	@ Deprecated|)
+0+374 <[^>]*> 0d2acb03 	fstmdbxeq	sl!, {d12}(	@ Deprecated|)
 0+378 <[^>]*> 0ef8dac3 	(vcvteq\.f32\.s32|fsitoseq)	s27, s6
 0+37c <[^>]*> 0efdca62 	(vcvtreq\.s32\.f32|ftosiseq)	s25, s5
 0+380 <[^>]*> 0efdbac2 	(vcvteq\.s32\.f32|ftosizseq)	s23, s4
@@ -290,6 +290,6 @@ Disassembly of section .text:
 0+460 <[^>]*> eef97a10 	vmrs	r7, fpinst	@ Impl def
 0+464 <[^>]*> eefa8a10 	vmrs	r8, fpinst2	@ Impl def
 0+468 <[^>]*> eeff9a10 	vmrs	r9, (c15|<impl def 0xf>|fpcxt_s)
-0+46c <[^>]*> e1a00000 	nop			; \(mov r0, r0\)
-0+470 <[^>]*> e1a00000 	nop			; \(mov r0, r0\)
-0+474 <[^>]*> e1a00000 	nop			; \(mov r0, r0\)
+0+46c <[^>]*> e1a00000 	nop			@ \(mov r0, r0\)
+0+470 <[^>]*> e1a00000 	nop			@ \(mov r0, r0\)
+0+474 <[^>]*> e1a00000 	nop			@ \(mov r0, r0\)

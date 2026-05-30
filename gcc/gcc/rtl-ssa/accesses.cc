@@ -1,5 +1,5 @@
 // Implementation of access-related functions for RTL SSA           -*- C++ -*-
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -398,22 +398,20 @@ set_node::print (pretty_printer *pp) const
 clobber_info *
 clobber_group::prev_clobber (insn_info *insn) const
 {
-  auto &tree = const_cast<clobber_tree &> (m_clobber_tree);
-  int comparison = lookup_clobber (tree, insn);
+  int comparison = lookup_clobber (insn);
   if (comparison <= 0)
-    return dyn_cast<clobber_info *> (tree.root ()->prev_def ());
-  return tree.root ();
+    return dyn_cast<clobber_info *> (m_clobber_tree.root ()->prev_def ());
+  return m_clobber_tree.root ();
 }
 
 // See the comment above the declaration.
 clobber_info *
 clobber_group::next_clobber (insn_info *insn) const
 {
-  auto &tree = const_cast<clobber_tree &> (m_clobber_tree);
-  int comparison = lookup_clobber (tree, insn);
+  int comparison = lookup_clobber (insn);
   if (comparison >= 0)
-    return dyn_cast<clobber_info *> (tree.root ()->next_def ());
-  return tree.root ();
+    return dyn_cast<clobber_info *> (m_clobber_tree.root ()->next_def ());
+  return m_clobber_tree.root ();
 }
 
 // See the comment above the declaration.
@@ -436,6 +434,17 @@ clobber_group::print (pretty_printer *pp) const
   pp_newline_and_indent (pp, 2);
   m_clobber_tree.print (pp, print_clobber);
   pp_indentation (pp) -= 4;
+}
+
+// A wrapper around rtl_ssa::lookup_clobber that ensures that the root
+// of the splay tree always has the correct group.
+int
+clobber_group::lookup_clobber (insn_info *insn) const
+{
+  auto &tree = const_cast<clobber_tree &> (m_clobber_tree);
+  int result = rtl_ssa::lookup_clobber (tree, insn);
+  tree->update_group (const_cast<clobber_group *> (this));
+  return result;
 }
 
 // See the comment above the declaration.
@@ -659,13 +668,9 @@ function_info::add_clobber (clobber_info *clobber, clobber_group *group)
   // Search for either the previous or next clobber in the group.
   // The result is less than zero if CLOBBER should come before NEIGHBOR
   // or greater than zero if CLOBBER should come after NEIGHBOR.
-  int comparison = lookup_clobber (group->m_clobber_tree, clobber->insn ());
+  int comparison = group->lookup_clobber (clobber->insn ());
   gcc_checking_assert (comparison != 0);
   clobber_info *neighbor = group->m_clobber_tree.root ();
-
-  // Since HEIGHBOR is now the root of the splay tree, its group needs
-  // to be up-to-date.
-  neighbor->update_group (group);
 
   // If CLOBBER comes before NEIGHBOR, insert CLOBBER to NEIGHBOR's left,
   // otherwise insert CLOBBER to NEIGHBOR's right.
@@ -1085,6 +1090,38 @@ rtl_ssa::lookup_use (splay_tree<use_info *> &tree, insn_info *insn)
       return compare_use_insns (insn, node->value ()->insn ());
     };
   return tree.lookup (compare);
+}
+
+// See the comment above the declaration.
+use_lookup
+function_info::find_use (set_info *def, insn_info *insn)
+{
+  gcc_assert (!insn->is_debug_insn ());
+  use_info *first = def->first_nondebug_insn_use ();
+  if (!first)
+    // There are no uses.  The comparison result is pretty meaningless
+    // in this case.
+    return { nullptr, -1 };
+
+  // See whether the first use matches.
+  if (*insn <= *first->insn ())
+    {
+      int comparison = (insn == first->insn () ? 0 : -1);
+      return { first, comparison };
+    }
+
+  // See whether the last use matches.
+  use_info *last = def->last_nondebug_insn_use ();
+  if (*insn >= *last->insn ())
+    {
+      int comparison = (insn == last->insn () ? 0 : 1);
+      return { last, comparison };
+    }
+
+  // Resort to using a splay tree to search for the result.
+  need_use_splay_tree (def);
+  int comparison = lookup_use (def->m_use_tree, insn);
+  return { def->m_use_tree.root ()->value (), comparison };
 }
 
 // Add USE to USE->def ()'s list of uses. inserting USE immediately before

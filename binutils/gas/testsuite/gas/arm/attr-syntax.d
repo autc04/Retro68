@@ -1,4 +1,8 @@
 #source: attr-syntax.s
 #notarget: *-*-pe
 #as:
-#error: :1: Error: Attribute name not recognised: made_up_tag.*:3: Error: expected <tag> , <value>.*:5: Error: expected <tag> , <value>
+#error: \A[^\n]+: Assembler messages:
+#error: \n[^\n]+: Error: unknown identifier 'made_up_tag' in this context
+#error: \n[^\n]+: Error: could not parse attribute tag
+#error: \n[^\n]+: Error: syntax error, comma not expected here
+#error: \n[^\n]+: Error: syntax error, comma missing here\Z

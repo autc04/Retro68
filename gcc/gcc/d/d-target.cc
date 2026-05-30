@@ -1,5 +1,5 @@
 /* d-target.cc -- Target interface for the D front end.
-   Copyright (C) 2013-2025 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -220,7 +220,7 @@ unsigned
 Target::fieldalign (Type *type)
 {
   /* Work out the correct alignment for the field decl.  */
-  unsigned int align = type->alignsize () * BITS_PER_UNIT;
+  unsigned int align = dmd::alignsize (type) * BITS_PER_UNIT;
 
 #ifdef BIGGEST_FIELD_ALIGNMENT
   align = MIN (align, (unsigned) BIGGEST_FIELD_ALIGNMENT);
@@ -274,7 +274,7 @@ Target::isVectorTypeSupported (int sz, Type *type)
     type = Type::tuns8;
 
   /* No support for non-trivial types, complex types, or booleans.  */
-  if (!type->isTypeBasic () || type->isComplex () || type->ty == TY::Tbool)
+  if (!type->isTypeBasic () || dmd::isComplex (type) || type->ty == TY::Tbool)
     return 2;
 
   /* In [simd/vector extensions], which vector types are supported depends on
@@ -300,7 +300,7 @@ Target::isVectorOpSupported (Type *type, EXP op, Type *)
     return true;
 
   /* Don't support if type is non-scalar, such as __vector(void[]).  */
-  if (!type->isScalar ())
+  if (!dmd::isScalar (type))
     return false;
 
   /* Don't support if expression cannot be represented.  */
@@ -314,7 +314,7 @@ Target::isVectorOpSupported (Type *type, EXP op, Type *)
     case EXP::mod:
     case EXP::modAssign:
       /* fmod() is lowered as a function call.  */
-      if (type->isFloating ())
+      if (dmd::isFloating (type))
 	return false;
       break;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -17,6 +17,8 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-hir-expr.h"
+#include "rust-hir-map.h"
+#include "optional.h"
 #include "rust-operators.h"
 #include "rust-hir-stmt.h"
 
@@ -74,7 +76,6 @@ OperatorExpr::operator= (OperatorExpr const &other)
   ExprWithoutBlock::operator= (other);
   main_or_left_expr = other.main_or_left_expr->clone_expr ();
   locus = other.locus;
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -128,7 +129,6 @@ ArithmeticOrLogicalExpr &
 ArithmeticOrLogicalExpr::operator= (ArithmeticOrLogicalExpr const &other)
 {
   OperatorExpr::operator= (other);
-  // main_or_left_expr = other.main_or_left_expr->clone_expr();
   right_expr = other.right_expr->clone_expr ();
   expr_type = other.expr_type;
 
@@ -153,10 +153,8 @@ ComparisonExpr &
 ComparisonExpr::operator= (ComparisonExpr const &other)
 {
   OperatorExpr::operator= (other);
-  // main_or_left_expr = other.main_or_left_expr->clone_expr();
   right_expr = other.right_expr->clone_expr ();
   expr_type = other.expr_type;
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -179,7 +177,6 @@ LazyBooleanExpr &
 LazyBooleanExpr::operator= (LazyBooleanExpr const &other)
 {
   OperatorExpr::operator= (other);
-  // main_or_left_expr = other.main_or_left_expr->clone_expr();
   right_expr = other.right_expr->clone_expr ();
   expr_type = other.expr_type;
 
@@ -204,7 +201,6 @@ TypeCastExpr &
 TypeCastExpr::operator= (TypeCastExpr const &other)
 {
   OperatorExpr::operator= (other);
-  // main_or_left_expr = other.main_or_left_expr->clone_expr();
   type_to_convert_to = other.type_to_convert_to->clone_type ();
 
   return *this;
@@ -227,9 +223,7 @@ AssignmentExpr &
 AssignmentExpr::operator= (AssignmentExpr const &other)
 {
   OperatorExpr::operator= (other);
-  // main_or_left_expr = other.main_or_left_expr->clone_expr();
   right_expr = other.right_expr->clone_expr ();
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -252,10 +246,8 @@ CompoundAssignmentExpr &
 CompoundAssignmentExpr::operator= (CompoundAssignmentExpr const &other)
 {
   OperatorExpr::operator= (other);
-  // main_or_left_expr = other.main_or_left_expr->clone_expr();
   right_expr = other.right_expr->clone_expr ();
   expr_type = other.expr_type;
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -281,7 +273,6 @@ GroupedExpr::operator= (GroupedExpr const &other)
   inner_attrs = other.inner_attrs;
   expr_in_parens = other.expr_in_parens->clone_expr ();
   locus = other.locus;
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -355,7 +346,6 @@ ArrayExpr::operator= (ArrayExpr const &other)
   if (other.has_array_elems ())
     internal_elements = other.internal_elements->clone_array_elems ();
   locus = other.locus;
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -380,7 +370,6 @@ ArrayIndexExpr::operator= (ArrayIndexExpr const &other)
   ExprWithoutBlock::operator= (other);
   array_expr = other.array_expr->clone_expr ();
   index_expr = other.index_expr->clone_expr ();
-  // outer_attrs = other.outer_attrs;
   locus = other.locus;
 
   return *this;
@@ -605,8 +594,6 @@ CallExpr::operator= (CallExpr const &other)
   ExprWithoutBlock::operator= (other);
   function = other.function->clone_expr ();
   locus = other.locus;
-  // params = other.params;
-  // outer_attrs = other.outer_attrs;
 
   params.reserve (other.params.size ());
   for (const auto &e : other.params)
@@ -640,8 +627,6 @@ MethodCallExpr::operator= (MethodCallExpr const &other)
   receiver = other.receiver->clone_expr ();
   method_name = other.method_name;
   locus = other.locus;
-  // params = other.params;
-  // outer_attrs = other.outer_attrs;
 
   params.reserve (other.params.size ());
   for (const auto &e : other.params)
@@ -671,7 +656,6 @@ FieldAccessExpr::operator= (FieldAccessExpr const &other)
   receiver = other.receiver->clone_expr ();
   field = other.field;
   locus = other.locus;
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -776,16 +760,69 @@ BlockExpr &
 BlockExpr::operator= (BlockExpr const &other)
 {
   ExprWithBlock::operator= (other);
-  // statements = other.statements;
   expr = other.expr->clone_expr ();
   inner_attrs = other.inner_attrs;
   start_locus = other.end_locus;
   end_locus = other.end_locus;
-  // outer_attrs = other.outer_attrs;
-
   statements.reserve (other.statements.size ());
+
   for (const auto &e : other.statements)
     statements.push_back (e->clone_stmt ());
+
+  return *this;
+}
+
+AnonConst::AnonConst (Analysis::NodeMapping mappings,
+		      std::unique_ptr<Expr> &&expr, location_t locus)
+  : ExprWithBlock (std::move (mappings), {}), locus (locus),
+    kind (Kind::Explicit), expr (std::move (expr))
+{
+  rust_assert (this->expr.value ());
+}
+
+AnonConst::AnonConst (Analysis::NodeMapping mappings, location_t locus)
+  : ExprWithBlock (std::move (mappings), {}), locus (locus),
+    kind (Kind::DeferredInference), expr (tl::nullopt)
+{}
+
+AnonConst::AnonConst (const AnonConst &other)
+  : ExprWithBlock (other), locus (other.locus), kind (other.kind)
+{
+  if (other.expr)
+    expr = other.expr.value ()->clone_expr ();
+}
+
+AnonConst
+AnonConst::operator= (const AnonConst &other)
+{
+  ExprWithBlock::operator= (other);
+
+  locus = other.locus;
+  kind = other.kind;
+
+  if (other.expr)
+    expr = other.expr.value ()->clone_expr ();
+
+  return *this;
+}
+
+ConstBlock::ConstBlock (Analysis::NodeMapping mappings, AnonConst &&expr,
+			location_t locus, AST::AttrVec outer_attrs)
+  : ExprWithBlock (std::move (mappings), std::move (outer_attrs)),
+    expr (std::move (expr)), locus (locus)
+{}
+
+ConstBlock::ConstBlock (const ConstBlock &other)
+  : ExprWithBlock (other), expr (other.expr), locus (other.locus)
+{}
+
+ConstBlock
+ConstBlock::operator= (const ConstBlock &other)
+{
+  ExprWithBlock::operator= (other);
+
+  expr = other.expr;
+  locus = other.locus;
 
   return *this;
 }
@@ -821,7 +858,6 @@ BreakExpr::operator= (BreakExpr const &other)
   label = other.label;
   break_expr = other.break_expr->clone_expr ();
   locus = other.locus;
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -957,7 +993,6 @@ ReturnExpr::operator= (ReturnExpr const &other)
   ExprWithoutBlock::operator= (other);
   return_expr = other.return_expr->clone_expr ();
   locus = other.locus;
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -980,7 +1015,6 @@ UnsafeBlockExpr::operator= (UnsafeBlockExpr const &other)
   ExprWithBlock::operator= (other);
   expr = other.expr->clone_block_expr ();
   locus = other.locus;
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -1007,7 +1041,6 @@ BaseLoopExpr::operator= (BaseLoopExpr const &other)
   loop_block = other.loop_block->clone_block_expr ();
   loop_label = other.loop_label;
   locus = other.locus;
-  // outer_attrs = other.outer_attrs;
 
   return *this;
 }
@@ -1040,48 +1073,34 @@ WhileLoopExpr::operator= (WhileLoopExpr const &other)
 {
   BaseLoopExpr::operator= (other);
   condition = other.condition->clone_expr ();
-  // loop_block = other.loop_block->clone_block_expr();
-  // loop_label = other.loop_label;
-  // outer_attrs = other.outer_attrs;
-
   return *this;
 }
 
-WhileLetLoopExpr::WhileLetLoopExpr (
-  Analysis::NodeMapping mappings,
-  std::vector<std::unique_ptr<Pattern>> match_arm_patterns,
-  std::unique_ptr<Expr> condition, std::unique_ptr<BlockExpr> loop_block,
-  location_t locus, tl::optional<LoopLabel> loop_label,
-  AST::AttrVec outer_attribs)
+WhileLetLoopExpr::WhileLetLoopExpr (Analysis::NodeMapping mappings,
+				    std::unique_ptr<Pattern> match_arm_pattern,
+				    std::unique_ptr<Expr> condition,
+				    std::unique_ptr<BlockExpr> loop_block,
+				    location_t locus,
+				    tl::optional<LoopLabel> loop_label,
+				    AST::AttrVec outer_attribs)
   : BaseLoopExpr (std::move (mappings), std::move (loop_block), locus,
 		  std::move (loop_label), std::move (outer_attribs)),
-    match_arm_patterns (std::move (match_arm_patterns)),
+    match_arm_pattern (std::move (match_arm_pattern)),
     condition (std::move (condition))
 {}
 
 WhileLetLoopExpr::WhileLetLoopExpr (WhileLetLoopExpr const &other)
   : BaseLoopExpr (other),
-    /*match_arm_patterns(other.match_arm_patterns),*/ condition (
-      other.condition->clone_expr ())
-{
-  match_arm_patterns.reserve (other.match_arm_patterns.size ());
-  for (const auto &e : other.match_arm_patterns)
-    match_arm_patterns.push_back (e->clone_pattern ());
-}
+    match_arm_pattern (other.match_arm_pattern->clone_pattern ()),
+    condition (other.condition->clone_expr ())
+{}
 
 WhileLetLoopExpr &
 WhileLetLoopExpr::operator= (WhileLetLoopExpr const &other)
 {
   BaseLoopExpr::operator= (other);
-  // match_arm_patterns = other.match_arm_patterns;
   condition = other.condition->clone_expr ();
-  // loop_block = other.loop_block->clone_block_expr();
-  // loop_label = other.loop_label;
-  // outer_attrs = other.outer_attrs;
-
-  match_arm_patterns.reserve (other.match_arm_patterns.size ());
-  for (const auto &e : other.match_arm_patterns)
-    match_arm_patterns.push_back (e->clone_pattern ());
+  match_arm_pattern = other.match_arm_pattern->clone_pattern ();
 
   return *this;
 }
@@ -1134,11 +1153,11 @@ IfExprConseqElse::operator= (IfExprConseqElse const &other)
   return *this;
 }
 
-MatchArm::MatchArm (std::vector<std::unique_ptr<Pattern>> match_arm_patterns,
+MatchArm::MatchArm (std::unique_ptr<Pattern> match_arm_pattern,
 		    location_t locus, std::unique_ptr<Expr> guard_expr,
 		    AST::AttrVec outer_attrs)
   : outer_attrs (std::move (outer_attrs)),
-    match_arm_patterns (std::move (match_arm_patterns)),
+    match_arm_pattern (std::move (match_arm_pattern)),
     guard_expr (std::move (guard_expr)), locus (locus)
 {}
 
@@ -1148,9 +1167,7 @@ MatchArm::MatchArm (MatchArm const &other) : outer_attrs (other.outer_attrs)
   if (other.guard_expr != nullptr)
     guard_expr = other.guard_expr->clone_expr ();
 
-  match_arm_patterns.reserve (other.match_arm_patterns.size ());
-  for (const auto &e : other.match_arm_patterns)
-    match_arm_patterns.push_back (e->clone_pattern ());
+  match_arm_pattern = other.match_arm_pattern->clone_pattern ();
 
   locus = other.locus;
 }
@@ -1163,10 +1180,7 @@ MatchArm::operator= (MatchArm const &other)
   if (other.guard_expr != nullptr)
     guard_expr = other.guard_expr->clone_expr ();
 
-  match_arm_patterns.clear ();
-  match_arm_patterns.reserve (other.match_arm_patterns.size ());
-  for (const auto &e : other.match_arm_patterns)
-    match_arm_patterns.push_back (e->clone_pattern ());
+  match_arm_pattern = other.match_arm_pattern->clone_pattern ();
 
   return *this;
 }
@@ -1218,7 +1232,6 @@ MatchExpr::operator= (MatchExpr const &other)
   branch_value = other.branch_value->clone_expr ();
   inner_attrs = other.inner_attrs;
   match_arms = other.match_arms;
-  // outer_attrs = other.outer_attrs;
   locus = other.locus;
 
   /*match_arms.reserve (other.match_arms.size ());
@@ -1277,58 +1290,41 @@ AsyncBlockExpr::operator= (AsyncBlockExpr const &other)
 OperatorExprMeta::OperatorExprMeta (HIR::CompoundAssignmentExpr &expr)
   : node_mappings (expr.get_mappings ()),
     lvalue_mappings (expr.get_expr ().get_mappings ()),
-    locus (expr.get_locus ())
+    rvalue_mappings (expr.get_rhs ().get_mappings ()), locus (expr.get_locus ())
 {}
 
 OperatorExprMeta::OperatorExprMeta (HIR::ArithmeticOrLogicalExpr &expr)
   : node_mappings (expr.get_mappings ()),
     lvalue_mappings (expr.get_expr ().get_mappings ()),
-    locus (expr.get_locus ())
+    rvalue_mappings (expr.get_rhs ().get_mappings ()), locus (expr.get_locus ())
 {}
 
 OperatorExprMeta::OperatorExprMeta (HIR::NegationExpr &expr)
   : node_mappings (expr.get_mappings ()),
     lvalue_mappings (expr.get_expr ().get_mappings ()),
+    rvalue_mappings (Analysis::NodeMapping::get_error ()),
     locus (expr.get_locus ())
 {}
 
 OperatorExprMeta::OperatorExprMeta (HIR::DereferenceExpr &expr)
   : node_mappings (expr.get_mappings ()),
     lvalue_mappings (expr.get_expr ().get_mappings ()),
+    rvalue_mappings (Analysis::NodeMapping::get_error ()),
     locus (expr.get_locus ())
 {}
 
 OperatorExprMeta::OperatorExprMeta (HIR::ArrayIndexExpr &expr)
   : node_mappings (expr.get_mappings ()),
     lvalue_mappings (expr.get_array_expr ().get_mappings ()),
+    rvalue_mappings (expr.get_index_expr ().get_mappings ()),
     locus (expr.get_locus ())
 {}
 
 OperatorExprMeta::OperatorExprMeta (HIR::ComparisonExpr &expr)
   : node_mappings (expr.get_mappings ()),
     lvalue_mappings (expr.get_expr ().get_mappings ()),
-    locus (expr.get_locus ())
+    rvalue_mappings (expr.get_rhs ().get_mappings ()), locus (expr.get_locus ())
 {}
-
-AnonConst::AnonConst (NodeId id, std::unique_ptr<Expr> expr)
-  : id (id), expr (std::move (expr))
-{
-  rust_assert (this->expr != nullptr);
-}
-
-AnonConst::AnonConst (const AnonConst &other)
-{
-  id = other.id;
-  expr = other.expr->clone_expr ();
-}
-
-AnonConst
-AnonConst::operator= (const AnonConst &other)
-{
-  id = other.id;
-  expr = other.expr->clone_expr ();
-  return *this;
-}
 
 InlineAsmOperand::In::In (
   const tl::optional<struct AST::InlineAsmRegOrRegClass> &reg,
@@ -1476,7 +1472,7 @@ InlineAsm::InlineAsm (location_t locus, bool is_global_asm,
 		      std::vector<AST::TupleTemplateStr> template_strs,
 		      std::vector<HIR::InlineAsmOperand> operands,
 		      std::vector<AST::TupleClobber> clobber_abi,
-		      std::set<AST::InlineAsmOption> options,
+		      std::set<AST::InlineAsm::Option> options,
 		      Analysis::NodeMapping mappings,
 		      AST::AttrVec outer_attribs)
   : ExprWithoutBlock (std::move (mappings), std::move (outer_attribs)),
@@ -1485,6 +1481,42 @@ InlineAsm::InlineAsm (location_t locus, bool is_global_asm,
     template_strs (std::move (template_strs)), operands (std::move (operands)),
     clobber_abi (std::move (clobber_abi)), options (std::move (options))
 {}
+
+OffsetOf &
+OffsetOf::operator= (const OffsetOf &other)
+{
+  ExprWithoutBlock::operator= (other);
+
+  type = other.type->clone_type ();
+  field = other.field;
+  loc = other.loc;
+
+  return *this;
+}
+
+ExprWithoutBlock *
+OffsetOf::clone_expr_without_block_impl () const
+{
+  return new OffsetOf (*this);
+}
+
+std::string
+OffsetOf::to_string () const
+{
+  return "OffsetOf(" + type->to_string () + ", " + field.as_string () + ")";
+}
+
+void
+OffsetOf::accept_vis (HIRExpressionVisitor &vis)
+{
+  vis.visit (*this);
+}
+
+void
+OffsetOf::accept_vis (HIRFullVisitor &vis)
+{
+  vis.visit (*this);
+}
 
 } // namespace HIR
 } // namespace Rust

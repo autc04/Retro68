@@ -8,4 +8,4 @@
 .*:     file format.*
 
 Contents of section .ARM.extab:
- 0000 (00840281 b40084b4 b0a8b4a3|81028400 b48400b4 a3b4a8b0) 00000000  .*
+ 0000 (84b40281 84b4a300 b0a8b400|8102b484 00a3b484 00b4a8b0) 00000000  .*

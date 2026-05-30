@@ -199,9 +199,7 @@ GenericTyPerCrateCtx::debug_print_solutions ()
 	    {
 	      if (i > solution_index)
 		result += ", ";
-	      result += param.get_generic_param ()
-			  .get_type_representation ()
-			  .as_string ();
+	      result += param.get_type_representation ().as_string ();
 	      result += "=";
 	      result += solutions[i].as_string ();
 	      i++;
@@ -239,12 +237,12 @@ GenericTyVisitorCtx::process_type (ADTType &ty)
   first_type = first_lifetime + ty.get_used_arguments ().get_regions ().size ();
 
   for (auto &param : ty.get_substs ())
-    param_names.push_back (
-      param.get_generic_param ().get_type_representation ().as_string ());
+    param_names.push_back (param.get_type_representation ().as_string ());
 
   for (const auto &variant : ty.get_variants ())
     {
-      if (variant->get_variant_type () != VariantDef::NUM)
+      if (variant->get_variant_type () != VariantDef::NUM
+	  && variant->get_variant_type () != VariantDef::UNIT)
 	{
 	  for (const auto &field : variant->get_fields ())
 	    add_constraints_from_ty (field->get_field_type (),
@@ -324,6 +322,8 @@ GenericTyPerCrateCtx::query_generic_variance (const ADTType &type)
   auto num_types = type.get_num_type_params ();
 
   std::vector<Variance> result;
+  result.reserve (num_lifetimes + num_types);
+
   for (size_t i = 0; i < num_lifetimes + num_types; ++i)
     {
       result.push_back (solutions[solution_index.value () + i]);
@@ -413,7 +413,7 @@ GenericTyVisitorCtx::add_constraint (SolutionIndex index, Term term)
     }
   else
     {
-      ctx.constraints.push_back ({index, new Term (term)});
+      ctx.constraints.emplace_back (index, new Term (term));
     }
 }
 

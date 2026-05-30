@@ -1,5 +1,5 @@
 /* Automatic generation of links into GCC's documentation.
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -28,7 +28,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "options.h"
 #include "diagnostic.h"
 #include "selftest.h"
-#include "make-unique.h"
 
 char *
 make_doc_url (const char *doc_url_suffix)
@@ -215,7 +214,7 @@ gcc_urlifier::get_url_suffix_for_option (const char *p, size_t sz) const
 std::unique_ptr<urlifier>
 make_gcc_urlifier (unsigned int lang_mask)
 {
-  return ::make_unique<gcc_urlifier> (lang_mask);
+  return std::make_unique<gcc_urlifier> (lang_mask);
 }
 
 /* class auto_override_urlifier.  */
@@ -263,12 +262,18 @@ test_gcc_urlifier ()
        doc_urls[idx].url_suffix);
 
   /* Check an option.  */
-  ASSERT_STREQ (u.get_url_suffix_for_quoted_text ("-fpack-struct").get (),
-		"gcc/Code-Gen-Options.html#index-fpack-struct");
+  const char *s1 = u.get_url_suffix_for_quoted_text ("-fpack-struct").get ();
+  ASSERT_TRUE (!strcmp (s1,
+			"gcc/Code-Gen-Options.html#index-fno-pack-struct")
+	       || !strcmp (s1,
+			   "gcc/Code-Gen-Options.html#index-fpack-struct"));
 
   /* Check a "-fno-" variant of an option.  */
-  ASSERT_STREQ (u.get_url_suffix_for_quoted_text ("-fno-inline").get (),
-		"gcc/Optimize-Options.html#index-finline");
+  const char *s2 = u.get_url_suffix_for_quoted_text ("-fno-inline").get ();
+  ASSERT_TRUE (!strcmp (s2,
+			"gcc/Optimize-Options.html#index-fno-inline")
+	       || !strcmp (s2,
+			   "gcc/Optimize-Options.html#index-finline"));
 }
 
 /* Run all of the selftests within this file.  */

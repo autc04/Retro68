@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -38,8 +38,6 @@ translate_visibility (const AST::Visibility &vis)
   // the AST vis is an error?
   // FIXME: We need to add a `create_private()` static function to the
   // AST::Visibility class and use it when the vis is empty in the parser...
-  if (vis.is_error ())
-    return Visibility::create_error ();
 
   switch (vis.get_vis_type ())
     {
@@ -57,7 +55,7 @@ translate_visibility (const AST::Visibility &vis)
       break;
     }
 
-  return Visibility::create_error ();
+  rust_unreachable ();
 }
 
 ASTLowering::ASTLowering (AST::Crate &astCrate) : astCrate (astCrate) {}
@@ -80,7 +78,7 @@ ASTLowering::go ()
     {
       auto translated = ASTLoweringItem::translate (*item);
       if (translated != nullptr)
-	items.push_back (std::unique_ptr<HIR::Item> (translated));
+	items.emplace_back (translated);
     }
 
   auto &mappings = Analysis::Mappings::get ();
@@ -127,7 +125,7 @@ ASTLoweringBlock::visit (AST::BlockExpr &expr)
       block_did_terminate |= terminated;
 
       if (translated_stmt)
-	block_stmts.push_back (std::unique_ptr<HIR::Stmt> (translated_stmt));
+	block_stmts.emplace_back (translated_stmt);
     }
 
   if (expr.has_tail_expr () && block_did_terminate)
@@ -230,7 +228,7 @@ ASTLoweringIfLetBlock::desugar_iflet (AST::IfLetExpr &expr,
 				      std::vector<HIR::MatchCase> &match_arms)
 {
   HIR::Expr *kase_expr;
-  std::vector<std::unique_ptr<HIR::Pattern>> match_arm_patterns;
+  std::unique_ptr<HIR::Pattern> match_arm_pattern;
 
   *branch_value = ASTLoweringExpr::translate (expr.get_value_expr ());
   kase_expr = ASTLoweringExpr::translate (expr.get_if_block ());
@@ -238,16 +236,13 @@ ASTLoweringIfLetBlock::desugar_iflet (AST::IfLetExpr &expr,
   // (stable) if let only accepts a single pattern, but (unstable) if let chains
   // need more than one pattern.
   // We don't support if let chains, so only support a single pattern.
-  rust_assert (expr.get_patterns ().size () == 1);
+  rust_assert (expr.get_pattern () != nullptr);
 
-  for (auto &pattern : expr.get_patterns ())
-    {
-      HIR::Pattern *ptrn = ASTLoweringPattern::translate (*pattern);
-      match_arm_patterns.push_back (std::unique_ptr<HIR::Pattern> (ptrn));
-    }
+  match_arm_pattern
+    = ASTLoweringPattern::translate (*expr.get_pattern ())->clone_pattern ();
 
   // The match arm corresponding to the if let pattern when it matches.
-  HIR::MatchArm arm (std::move (match_arm_patterns), expr.get_locus (), nullptr,
+  HIR::MatchArm arm (std::move (match_arm_pattern), expr.get_locus (), nullptr,
 		     {});
 
   auto crate_num = mappings.get_current_crate ();
@@ -255,29 +250,22 @@ ASTLoweringIfLetBlock::desugar_iflet (AST::IfLetExpr &expr,
 				 mappings.get_next_hir_id (crate_num),
 				 UNKNOWN_LOCAL_DEFID);
 
-  HIR::MatchCase kase (std::move (mapping), std::move (arm),
-		       std::unique_ptr<HIR::Expr> (kase_expr));
-  match_arms.push_back (std::move (kase));
+  match_arms.emplace_back (std::move (mapping), std::move (arm),
+			   std::unique_ptr<HIR::Expr> (kase_expr));
 
   // The default match arm when the if let pattern does not match
-  std::vector<std::unique_ptr<HIR::Pattern>> match_arm_patterns_wildcard;
   Analysis::NodeMapping mapping_default (crate_num, expr.get_node_id (),
 					 mappings.get_next_hir_id (crate_num),
 					 UNKNOWN_LOCAL_DEFID);
 
-  std::unique_ptr<HIR::WildcardPattern> wc
-    = std::unique_ptr<HIR::WildcardPattern> (
-      new HIR::WildcardPattern (mapping_default, expr.get_locus ()));
+  auto match_arm_pattern_wildcard = std::unique_ptr<HIR::WildcardPattern> (
+    new HIR::WildcardPattern (mapping_default, expr.get_locus ()));
 
-  match_arm_patterns_wildcard.push_back (std::move (wc));
-
-  HIR::MatchArm arm_default (std::move (match_arm_patterns_wildcard),
+  HIR::MatchArm arm_default (std::move (match_arm_pattern_wildcard),
 			     expr.get_locus (), nullptr, {});
 
-  HIR::MatchCase kase_else (std::move (mapping_default),
-			    std::move (arm_default),
-			    std::unique_ptr<HIR::Expr> (kase_else_expr));
-  match_arms.push_back (std::move (kase_else));
+  match_arms.emplace_back (std::move (mapping_default), std::move (arm_default),
+			   std::unique_ptr<HIR::Expr> (kase_else_expr));
 }
 
 void
@@ -423,12 +411,6 @@ ASTLoweringExprWithBlock::visit (AST::WhileLoopExpr &expr)
 }
 
 void
-ASTLoweringExprWithBlock::visit (AST::ForLoopExpr &expr)
-{
-  rust_unreachable ();
-}
-
-void
 ASTLoweringExprWithBlock::visit (AST::MatchExpr &expr)
 {
   HIR::Expr *branch_value
@@ -447,14 +429,13 @@ ASTLoweringExprWithBlock::visit (AST::MatchExpr &expr)
 	    match_case.get_arm ().get_guard_expr ());
 	}
 
-      std::vector<std::unique_ptr<HIR::Pattern>> match_arm_patterns;
-      for (auto &pattern : match_case.get_arm ().get_patterns ())
-	{
-	  HIR::Pattern *ptrn = ASTLoweringPattern::translate (*pattern);
-	  match_arm_patterns.push_back (std::unique_ptr<HIR::Pattern> (ptrn));
-	}
+      std::unique_ptr<HIR::Pattern> match_arm_pattern;
 
-      HIR::MatchArm arm (std::move (match_arm_patterns), expr.get_locus (),
+      match_arm_pattern
+	= ASTLoweringPattern::translate (*match_case.get_arm ().get_pattern ())
+	    ->clone_pattern ();
+
+      HIR::MatchArm arm (std::move (match_arm_pattern), expr.get_locus (),
 			 std::unique_ptr<HIR::Expr> (kase_guard_expr),
 			 match_case.get_arm ().get_outer_attrs ());
 
@@ -463,9 +444,8 @@ ASTLoweringExprWithBlock::visit (AST::MatchExpr &expr)
 				     mappings.get_next_hir_id (crate_num),
 				     UNKNOWN_LOCAL_DEFID);
 
-      HIR::MatchCase kase (std::move (mapping), std::move (arm),
-			   std::unique_ptr<HIR::Expr> (kase_expr));
-      match_arms.push_back (std::move (kase));
+      match_arms.emplace_back (std::move (mapping), std::move (arm),
+			       std::unique_ptr<HIR::Expr> (kase_expr));
     }
 
   auto crate_num = mappings.get_current_crate ();
@@ -496,8 +476,11 @@ ASTLowerPathInExpression::visit (AST::PathInExpression &expr)
       return;
     }
 
-  std::vector<HIR::PathExprSegment> path_segments;
   auto &segments = expr.get_segments ();
+
+  std::vector<HIR::PathExprSegment> path_segments;
+  path_segments.reserve (segments.size ());
+
   for (auto &s : segments)
     {
       path_segments.push_back (lower_path_expr_seg ((s)));
@@ -537,8 +520,11 @@ ASTLowerQualPathInExpression::visit (AST::QualifiedPathInExpression &expr)
   HIR::QualifiedPathType qual_path_type
     = lower_qual_path_type (expr.get_qualified_path_type ());
 
-  std::vector<HIR::PathExprSegment> path_segments;
   auto &segments = expr.get_segments ();
+
+  std::vector<HIR::PathExprSegment> path_segments;
+  path_segments.reserve (segments.size ());
+
   for (auto &s : segments)
     {
       path_segments.push_back (lower_path_expr_seg ((s)));

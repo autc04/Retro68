@@ -1,6 +1,7 @@
 #source: emit-relocs-559.s
 #as: -mabi=ilp32
 #ld: -m [aarch64_choose_ilp32_emul] -T relocs-ilp32.ld -e0 --emit-relocs
+#notarget: *-*-nto*
 #objdump: -dr
 #...
 00010000 <.text>:

@@ -1,5 +1,5 @@
 #source: opcode.s
-#as: -J
+#as: -J --divide
 #objdump: -dwMsuffix
 #name: i386 opcodes (w/ suffix)
 
@@ -102,7 +102,7 @@ Disassembly of section .text:
  *[0-9a-f]+:	60[ 	]+pushal
  *[0-9a-f]+:	61[ 	]+popal
  *[0-9a-f]+:	62 90 90 90 90 90[ 	]+boundl %edx,-0x6f6f6f70\(%eax\)
- *[0-9a-f]+:	63 90 90 90 90 90[ 	]+arpl[ 	]+%dx,-0x6f6f6f70\(%eax\)
+ *[0-9a-f]+:	63 90 90 90 90 90[ 	]+arpll[ 	]+%edx,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	68 90 90 90 90[ 	]+pushl[ 	]+\$0x90909090
  *[0-9a-f]+:	69 90 90 90 90 90 90 90 90 90[ 	]+imull[ 	]+\$0x90909090,-0x6f6f6f70\(%eax\),%edx
  *[0-9a-f]+:	6a 90[ 	]+pushl[ 	]+\$0xffffff90
@@ -206,8 +206,8 @@ Disassembly of section .text:
  *[0-9a-f]+:	cd 90[ 	]+int[ 	]+\$0x90
  *[0-9a-f]+:	ce[ 	]+into
  *[0-9a-f]+:	cf[ 	]+iretl
- *[0-9a-f]+:	d0 90 90 90 90 90[ 	]+rclb[ 	]+-0x6f6f6f70\(%eax\)
- *[0-9a-f]+:	d1 90 90 90 90 90[ 	]+rcll[ 	]+-0x6f6f6f70\(%eax\)
+ *[0-9a-f]+:	d0 90 90 90 90 90[ 	]+rclb[ 	]+\$1,-0x6f6f6f70\(%eax\)
+ *[0-9a-f]+:	d1 90 90 90 90 90[ 	]+rcll[ 	]+\$1,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	d2 90 90 90 90 90[ 	]+rclb[ 	]+%cl,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	d3 90 90 90 90 90[ 	]+rcll[ 	]+%cl,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	d4 90[ 	]+aam[ 	]+\$0x90
@@ -248,7 +248,7 @@ Disassembly of section .text:
  *[0-9a-f]+:	fc[ 	]+cld
  *[0-9a-f]+:	fd[ 	]+std
  *[0-9a-f]+:	ff 90 90 90 90 90[ 	]+calll[ 	]+\*-0x6f6f6f70\(%eax\)
- *[0-9a-f]+:	0f 00 90 90 90 90 90[ 	]+lldt[ 	]+-0x6f6f6f70\(%eax\)
+ *[0-9a-f]+:	0f 00 90 90 90 90 90[ 	]+lldtw[ 	]+-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	0f 01 90 90 90 90 90[ 	]+lgdtl[ 	]+-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	0f 02 90 90 90 90 90[ 	]+larl[ 	]+-0x6f6f6f70\(%eax\),%edx
  *[0-9a-f]+:	0f 03 90 90 90 90 90[ 	]+lsll[ 	]+-0x6f6f6f70\(%eax\),%edx
@@ -523,7 +523,7 @@ Disassembly of section .text:
  *[0-9a-f]+:	66 ca 90 90[ 	]+lretw[ 	]+\$0x9090
  *[0-9a-f]+:	66 cb[ 	]+lretw
  *[0-9a-f]+:	66 cf[ 	]+iretw
- *[0-9a-f]+:	66 d1 90 90 90 90 90[ 	]+rclw[ 	]+-0x6f6f6f70\(%eax\)
+ *[0-9a-f]+:	66 d1 90 90 90 90 90[ 	]+rclw[ 	]+\$1,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	66 d3 90 90 90 90 90[ 	]+rclw[ 	]+%cl,-0x6f6f6f70\(%eax\)
  *[0-9a-f]+:	66 e5 90[ 	]+inw[ 	]+\$0x90,%ax
  *[0-9a-f]+:	66 e7 90[ 	]+outw[ 	]+%ax,\$0x90
@@ -588,18 +588,23 @@ Disassembly of section .text:
  *[0-9a-f]+:	85 c3 [ 	]*testl[ 	]+%eax,%ebx
  *[0-9a-f]+:	85 d8 [ 	]*testl[ 	]+%ebx,%eax
  *[0-9a-f]+:	85 18 [ 	]*testl[ 	]+%ebx,\(%eax\)
- *[0-9a-f]+:	f1[ 	]+int1
+[ 	]*[a-f0-9]+:	f1[ 	]*int1
+[ 	]*[a-f0-9]+:	d6[ 	]*salc
 [ 	]*[a-f0-9]+:	0f 4a 90 90 90 90 90 	cmovpl -0x6f6f6f70\(%eax\),%edx
 [ 	]*[a-f0-9]+:	0f 4b 90 90 90 90 90 	cmovnpl -0x6f6f6f70\(%eax\),%edx
 [ 	]*[a-f0-9]+:	66 0f 4a 90 90 90 90 90 	cmovpw -0x6f6f6f70\(%eax\),%dx
 [ 	]*[a-f0-9]+:	66 0f 4b 90 90 90 90 90 	cmovnpw -0x6f6f6f70\(%eax\),%dx
+[ 	]*[a-f0-9]+:	df 28                	fildll \(%eax\)
+[ 	]*[a-f0-9]+:	df 28                	fildll \(%eax\)
+[ 	]*[a-f0-9]+:	df 38                	fistpll \(%eax\)
+[ 	]*[a-f0-9]+:	df 38                	fistpll \(%eax\)
  +[a-f0-9]+:	82 c3 01             	addb   \$0x1,%bl
- +[a-f0-9]+:	82 f3 01             	xorb   \$0x1,%bl
+ +[a-f0-9]+:	82 cb 01             	orb    \$0x1,%bl
  +[a-f0-9]+:	82 d3 01             	adcb   \$0x1,%bl
  +[a-f0-9]+:	82 db 01             	sbbb   \$0x1,%bl
  +[a-f0-9]+:	82 e3 01             	andb   \$0x1,%bl
  +[a-f0-9]+:	82 eb 01             	subb   \$0x1,%bl
  +[a-f0-9]+:	82 f3 01             	xorb   \$0x1,%bl
  +[a-f0-9]+:	82 fb 01             	cmpb   \$0x1,%bl
- +[a-f0-9]+:	62 f3 7d 08 15 e8 ab 	vpextrw \$0xab,%xmm5,%eax
+ +[a-f0-9]+:	62 f3 7d 08 15 e8 ab 	\{evex\} vpextrw \$0xab,%xmm5,%eax
 #pass

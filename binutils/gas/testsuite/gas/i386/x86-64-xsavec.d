@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 XSAVEC insns
 #source: x86-64-xsavec.s

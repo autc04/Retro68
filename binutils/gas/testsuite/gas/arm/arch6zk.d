@@ -1,4 +1,4 @@
-#name: ARM V6 instructions
+#name: ARM V6zk instructions
 #as: -march=armv6zk
 #objdump: -dr --prefix-addresses --show-raw-insn
 

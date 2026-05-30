@@ -1,5 +1,5 @@
 /* Prints out tree in human readable form - GCC
-   Copyright (C) 1990-2025 Free Software Foundation, Inc.
+   Copyright (C) 1990-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -747,6 +747,14 @@ print_node (FILE *file, const char *prefix, tree node, int indent,
     case tcc_reference:
     case tcc_statement:
     case tcc_vl_exp:
+      if ((code == MEM_REF || code == TARGET_MEM_REF)
+	  && MR_DEPENDENCE_CLIQUE (node) != 0)
+	{
+	  indent_to (file, indent + 4);
+	  fprintf (file, "clique: %d base: %d",
+		   MR_DEPENDENCE_CLIQUE (node),
+		   MR_DEPENDENCE_BASE (node));
+	}
       if (code == BIND_EXPR)
 	{
 	  print_node (file, "vars", TREE_OPERAND (node, 0), indent + 4);
@@ -1149,6 +1157,12 @@ debug_tree (tree node)
 }
 
 DEBUG_FUNCTION void
+debug (tree node)
+{
+  debug_tree (node);
+}
+
+DEBUG_FUNCTION void
 debug_raw (const tree_node &ref)
 {
   debug_tree (const_cast <tree> (&ref));
@@ -1187,7 +1201,7 @@ DEBUG_FUNCTION void
 debug (const tree_node *ptr)
 {
   if (ptr)
-    debug (*ptr);
+    debug_tree (const_cast <tree> (ptr));
   else
     fprintf (stderr, "<nil>\n");
 }

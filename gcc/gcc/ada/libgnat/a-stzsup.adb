@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2003-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2003-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -754,7 +754,7 @@ package body Ada.Strings.Wide_Wide_Superbounded is
       if Num_Delete <= 0 then
          return Source;
 
-      elsif From > Slen + 1 then
+      elsif From > Slen then
          raise Ada.Strings.Index_Error;
 
       elsif Through >= Slen then
@@ -783,7 +783,7 @@ package body Ada.Strings.Wide_Wide_Superbounded is
       if Num_Delete <= 0 then
          return;
 
-      elsif From > Slen + 1 then
+      elsif From > Slen then
          raise Ada.Strings.Index_Error;
 
       elsif Through >= Slen then

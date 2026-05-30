@@ -1,4 +1,6 @@
 // { dg-do run { target c++23 } }
+// { dg-options "-fexec-charset=UTF-8" }
+// { dg-timeout-factor 2 }
 
 #include <format>
 #include <string>
@@ -37,7 +39,7 @@ is_format_string_for(const wchar_t* str, Args&&... args)
 }
 
 #define WIDEN_(C, S) ::std::__format::_Widen<C>(S, L##S)
-#define WIDEN(S) WIDEN_(_CharT, S)
+#define WIDEN(S) WIDEN_(CharT, S)
 
 void
 test_format_string()
@@ -60,13 +62,13 @@ test_format_string()
   VERIFY( !is_format_string_for("{:{}}", std::tuple<>(), 1.0f) );
 }
 
-template<typename _CharT>
+template<typename CharT>
 void test_multi()
 {
-  using Sv = std::basic_string_view<_CharT>;
-  using Str = std::basic_string<_CharT>;
+  using Sv = std::basic_string_view<CharT>;
+  using Str = std::basic_string<CharT>;
 
-  std::basic_string<_CharT> res;
+  std::basic_string<CharT> res;
   std::size_t size = 0;
   std::tuple<int, Str, float> t1(1, WIDEN("test"), 2.1);
 
@@ -120,10 +122,10 @@ void test_multi()
 
 }
 
-template<typename _CharT, typename Tuple>
+template<typename CharT, typename Tuple>
 void test_empty()
 {
-  std::basic_string<_CharT> res;
+  std::basic_string<CharT> res;
 
   Tuple e1;
   res = std::format(WIDEN("{}"), e1);
@@ -139,13 +141,13 @@ void test_empty()
   VERIFY( res == WIDEN(R"(^^^^())") );
 }
 
-template<typename _CharT, typename Pair>
+template<typename CharT, typename Pair>
 void test_pair()
 {
   using Ft = std::remove_cvref_t<std::tuple_element_t<0, Pair>>;
   using St = std::remove_cvref_t<std::tuple_element_t<1, Pair>>;
 
-  std::basic_string<_CharT> res;
+  std::basic_string<CharT> res;
 
   Ft f1 = 1;
   St s1 = WIDEN("abc");
@@ -185,7 +187,6 @@ struct std::formatter<MyPair<Pair>, CharT>
 {
   constexpr formatter() noexcept
   {
-    using _CharT = CharT;
     _formatter.set_brackets(WIDEN("<"), WIDEN(">"));
     _formatter.set_separator(WIDEN("; "));
   }
@@ -204,11 +205,11 @@ private:
   std::formatter<Pair, CharT> _formatter;
 };
 
-template<typename _CharT, template<typename, typename> class PairT>
+template<typename CharT, template<typename, typename> class PairT>
 void test_custom()
 {
-  std::basic_string<_CharT> res;
-  MyPair<PairT<int, const _CharT*>> c1(1, WIDEN("abc"));
+  std::basic_string<CharT> res;
+  MyPair<PairT<int, const CharT*>> c1(1, WIDEN("abc"));
 
   res = std::format(WIDEN("{}"), c1);
   VERIFY( res == WIDEN(R"(<1; "abc">)") );
@@ -250,10 +251,137 @@ void test_nested()
   VERIFY( res == R"((): (1, "abc"))" );
 }
 
+bool strip_quote(std::string_view& v)
+{
+  if (!v.starts_with('"'))
+    return false;
+  v.remove_prefix(1);
+  return true;
+}
+
+bool strip_prefix(std::string_view& v, std::string_view expected, bool quoted = false)
+{
+  if (quoted && !strip_quote(v))
+    return false;
+  if (!v.starts_with(expected))
+    return false;
+  v.remove_prefix(expected.size());
+  if (quoted && !strip_quote(v))
+    return false;
+  return true;
+}
+
+bool strip_parens(std::string_view& v)
+{
+  if (!v.starts_with('(') || !v.ends_with(')'))
+    return false;
+  v.remove_prefix(1);
+  v.remove_suffix(1);
+  return true;
+}
+
+bool strip_prefix(std::string_view& v, size_t n, char c)
+{
+  size_t pos = v.find_first_not_of(c);
+  if (pos == std::string_view::npos)
+    pos = v.size();
+  if (pos != n)
+    return false;
+  v.remove_prefix(n);
+  return true;
+}
+
+void test_padding()
+{
+  std::string res;
+  std::string_view resv;
+
+  // width is 3, size is 15
+  std::string in = "o\u0302\u0323i\u0302\u0323u\u0302\u0323";
+  in += in; // width is 6, size is 30
+  in += in; // width is 12, size is 60
+  in += in; // width is 24, size is 120
+  in += in; // width is 48, size is 240
+  // width is 192, size is 960
+  auto const ts = std::make_tuple(in, in, in, in);
+
+  auto const check_elems = [=](std::string_view& v)
+  {
+    VERIFY( strip_prefix(v, in, true) );
+    VERIFY( strip_prefix(v, ", ", false) );
+    VERIFY( strip_prefix(v, in, true) );
+    VERIFY( strip_prefix(v, ", ", false) );
+    VERIFY( strip_prefix(v, in, true) );
+    VERIFY( strip_prefix(v, ", ", false) );
+    VERIFY( strip_prefix(v, in, true) );
+    return v.empty();
+  };
+
+  resv = res = std::format("{}", ts);
+  VERIFY( strip_parens(resv) );
+  VERIFY( check_elems(resv) );
+
+  resv = res = std::format("{:n}", ts);
+  VERIFY( check_elems(resv) );
+
+  resv = res = std::format("{:*>10}", ts);
+  VERIFY( strip_parens(resv) );
+  VERIFY( check_elems(resv) );
+
+  resv = res = std::format("{:*>10n}", ts);
+  VERIFY( check_elems(resv) );
+
+  resv = res = std::format("{:*>240}", ts);
+  VERIFY( strip_prefix(resv, 32, '*') );
+  VERIFY( strip_parens(resv) );
+  VERIFY( check_elems(resv) );
+
+  resv = res = std::format("{:*>240n}", ts);
+  VERIFY( strip_prefix(resv, 34, '*') );
+  VERIFY( check_elems(resv) );
+}
+
+struct Custom {};
+
+template<typename CharT>
+struct std::formatter<Custom, CharT>
+{
+  constexpr std::basic_format_parse_context<CharT>::iterator
+  parse(const std::basic_format_parse_context<CharT>& pc)
+  { return pc.begin();  }
+
+  template<typename Out>
+  typename std::basic_format_context<Out, CharT>::iterator
+  format(Custom, const std::basic_format_context<Out, CharT>& fc) const
+  { return fc.out(); }
+};
+
+template<template<typename...> typename Tuple>
+void test_nonblocking()
+{
+  static_assert(std::enable_nonlocking_formatter_optimization<
+		  Tuple<int, float>>);
+  static_assert(std::enable_nonlocking_formatter_optimization<
+		  Tuple<const int, const float>>);
+  static_assert(std::enable_nonlocking_formatter_optimization<
+		  Tuple<int&, float&>>);
+
+  static_assert(!std::enable_nonlocking_formatter_optimization<
+		  Tuple<Custom, float>>);
+  static_assert(!std::enable_nonlocking_formatter_optimization<
+		  Tuple<const Custom, const float>>);
+  static_assert(!std::enable_nonlocking_formatter_optimization<
+		  Tuple<Custom&, float&>>);
+}
+
 int main()
 {
   test_format_string();
   test_outputs<char>();
   test_outputs<wchar_t>();
   test_nested();
+  test_padding();
+
+  test_nonblocking<std::pair>();
+  test_nonblocking<std::tuple>();
 }

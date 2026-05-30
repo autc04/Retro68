@@ -1,4 +1,4 @@
-;; Copyright (C) 2016-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2026 Free Software Foundation, Inc.
 
 ;; This file is free software; you can redistribute it and/or modify it under
 ;; the terms of the GNU General Public License as published by the Free
@@ -219,7 +219,7 @@
 ;	 flags: offen, idxen, glc, lds, slc, tfe
 ;
 ; flat - flat or global memory operations
-;	 flags: glc, slc
+;	 flags: {CDNA3: sc0, nt, sc1 | otherwise: glc, slc, scc}
 ;	 addr: vgpr0-255
 ;	 data: vgpr0-255
 ;	 vdst: vgpr0-255
@@ -312,17 +312,32 @@
 ; We need to be able to identify v_readlane and v_writelane with
 ; SGPR lane selection in order to handle "Manually Inserted Wait States".
 
-(define_attr "laneselect" "yes,no" (const_string "no"))
+(define_attr "laneselect" "write,read,no" (const_string "no"))
 
-; Identify instructions that require a "Manually Inserted Wait State" if
-; their inputs are overwritten by subsequent instructions.
+; Global or flat memory access using store or load followed by waitcnt
+; and using flat/global atomic access, possibly followed by a waitcnt.
+; 'storex34' denotes FLAT_STORE_X{3,4}.
+; 'cmpswapx2' denotes FLAT_ATOMIC_{F}CMPSWAP_X2
+; Used to handle "Manually Inserted Wait State".
 
-(define_attr "delayeduse" "yes,no" (const_string "no"))
+(define_attr "flatmemaccess"
+             "store,storex34,load,atomic,atomicwait,cmpswapx2,no"
+             (const_string "no"))
+
+; Identify v_cmp and v_cmpx instructions for "Manually Inserted Wait State"
+; handling.
+
+(define_attr "vcmp" "vcmp,vcmpx,no" (const_string "no"))
 
 ; Identify instructions that require "Manually Inserted Wait State" if
 ; a previous instruction writes to VCC.  The number gives the number of NOPs.
 
 (define_attr "vccwait" "" (const_int 0))
+
+; Mark trans ops such as v_{exp,rsq,sqrt,sin,cos,log,...}_F{16,32,64}
+; for later conditional s_nop insertion.
+
+(define_attr "transop" "yes,no" (const_string "no"))
 
 ;; }}}
 ;; {{{ Iterators useful across the wole machine description
@@ -412,6 +427,15 @@
   [(const_int 0)]
   ""
   "s_nop\t0x0"
+  [(set_attr "type" "sopp")])
+
+; Variant of 'nop' that accepts a count argument.
+; s_nop accepts 0x0 to 0xf for 1 to 16 nops; however,
+; as %0 prints decimals, only 0 to 9 (= 1 to 10 nops) can be used.
+(define_insn "nops"
+  [(match_operand 0 "const_int_operand")]
+  ""
+  "s_nop\t0x%0"
   [(set_attr "type" "sopp")])
 
 ; FIXME: What should the value of the immediate be? Zero is disallowed, so
@@ -505,59 +529,26 @@
 ; We need BImode move so we can reload flags registers.
 
 (define_insn "*movbi"
-  [(set (match_operand:BI 0 "nonimmediate_operand"
-			  "=Sg,   v,Sg,cs,cV,cV,Sm,&Sm,RS, v,&v,RF, v,&v,RM")
-	(match_operand:BI 1 "gcn_load_operand"
-			  "SSA,vSvA, v,SS, v,SS,RS, RS,Sm,RF,RF, v,RM,RM, v"))]
-  ""
-  {
-    /* SCC as an operand is currently not accepted by the LLVM assembler, so
-       we emit bytes directly as a workaround.  */
-    switch (which_alternative) {
-    case 0:
-      return "s_mov_b32\t%0, %1";
-    case 1:
-      if (REG_P (operands[1]) && REGNO (operands[1]) == SCC_REG)
-	return "; v_mov_b32\t%0, %1\;"
-	       ".byte\t0xfd\;"
-	       ".byte\t0x2\;"
-	       ".byte\t((%V0<<1)&0xff)\;"
-	       ".byte\t0x7e|(%V0>>7)";
-      else
-	return "v_mov_b32\t%0, %1";
-    case 2:
-      return "v_readlane_b32\t%0, %1, 0";
-    case 3:
-      return "s_cmpk_lg_u32\t%1, 0";
-    case 4:
-      return "v_cmp_ne_u32\tvcc, 0, %1";
-    case 5:
-      return "s_mov_b32\tvcc_lo, %1\;"
-	     "s_mov_b32\tvcc_hi, 0";
-    case 6:
-    case 7:
-      return "s_load_dword\t%0, %A1\;s_waitcnt\tlgkmcnt(0)";
-    case 8:
-      return "s_store_dword\t%1, %A0";
-    case 9:
-    case 10:
-      return "flat_load_dword\t%0, %A1%O1%g1\;s_waitcnt\t0";
-    case 11:
-      return "flat_store_dword\t%A0, %1%O0%g0";
-    case 12:
-    case 13:
-      return "global_load_dword\t%0, %A1%O1%g1\;s_waitcnt\tvmcnt(0)";
-    case 14:
-      return "global_store_dword\t%A0, %1%O0%g0";
-    default:
-      gcc_unreachable ();
-    }
-  }
-  [(set_attr "type" "sop1,vop1,vop3a,sopk,vopc,mult,smem,smem,smem,flat,flat,
-		     flat,flat,flat,flat")
-   (set_attr "exec" "*,*,none,*,*,*,*,*,*,*,*,*,*,*,*")
-   (set_attr "length" "4,4,4,4,4,8,12,12,12,12,12,12,12,12,12")
-   (set_attr "xnack" "*,*,*,*,*,*,off,on,*,off,on,*,off,on,*")])
+  [(set (match_operand:BI 0 "nonimmediate_operand")
+	(match_operand:BI 1 "gcn_load_operand"))]
+  "gcn_valid_move_p (BImode, operands[0], operands[1])"
+  {@ [cons: =0,1   ;attrs: type,exec,length,vcmp,xnack,laneselect,flatmemaccess]
+  [Sg ,SSA ;sop1 ,*   ,4 ,*   ,*  ,*   ,*    ] s_mov_b32\t%0 ,%1
+  [v  ,vSvA;vop1 ,*   ,4 ,*   ,*  ,*   ,*    ] v_mov_b32\t%0 ,%1
+  [Sg ,v   ;vop3a,none,4 ,*   ,*  ,read,*    ] v_readlane_b32\t%0 ,%1 ,0
+  [cs ,SS  ;sopk ,*   ,4 ,*   ,*  ,*   ,*    ] s_cmpk_lg_u32\t%1 ,0
+  [cV ,v   ;vopc ,*   ,4 ,vcmp,*  ,*   ,*    ] v_cmp_ne_u32\tvcc ,0 ,%1
+  [cV ,SS  ;mult ,*   ,8 ,*   ,*  ,*   ,*    ] s_mov_b32\tvcc_lo ,%1\;s_mov_b32\tvcc_hi ,0
+  [Sm ,RS  ;smem ,*   ,12,*   ,off,*   ,*    ] s_load_dword\t%0 ,%A1\;s_waitcnt\tlgkmcnt(0)
+  [&Sm,RS  ;smem ,*   ,12,*   ,on ,*   ,*    ] ^
+  [RS ,Sm  ;smem ,*   ,12,*   ,*  ,*   ,*    ] s_store_dword\t%1 ,%A0
+  [v  ,RF  ;flat ,*   ,12,*   ,off,*   ,load ] flat_load_dword\t%0 ,%A1%O1%g1\;s_waitcnt\t0
+  [&v ,RF  ;flat ,*   ,12,*   ,on ,*   ,load ] ^
+  [RF ,v   ;flat ,*   ,12,*   ,*  ,*   ,store] flat_store_dword\t%A0 ,%1%O0%g0
+  [v  ,RM  ;flat ,*   ,12,*   ,off,*   ,load ] global_load_dword\t%0 ,%A1%O1%g1\;s_waitcnt\tvmcnt(0)
+  [&v ,RM  ;flat ,*   ,12,*   ,on ,*   ,load ] ^
+  [RM ,v   ;flat ,*   ,12,*   ,*  ,*   ,store] global_store_dword\t%A0,%1%O0%g0
+  })
 
 ; 32bit move pattern
 
@@ -565,38 +556,38 @@
   [(set (match_operand:SISF 0 "nonimmediate_operand")
 	(match_operand:SISF 1 "gcn_load_operand"))]
   ""
-  {@ [cons: =0, 1; attrs: type, exec, length, cdna, xnack]
-   [SD  ,SSA ;sop1 ,*   ,4 ,*    ,*  ] s_mov_b32\t%0, %1
-   [SD  ,J   ;sopk ,*   ,4 ,*    ,*  ] s_movk_i32\t%0, %1
-   [SD  ,B   ;sop1 ,*   ,8 ,*    ,*  ] s_mov_b32\t%0, %1
-   [SD  ,RB  ;smem ,*   ,12,*    ,off] s_buffer_load%s0\t%0, s[0:3], %1\;s_waitcnt\tlgkmcnt(0)
-   [&SD ,RB  ;smem ,*   ,12,*    ,on ] ^
-   [RB  ,Sm  ;smem ,*   ,12,*    ,*  ] s_buffer_store%s1\t%1, s[0:3], %0
-   [Sm  ,RS  ;smem ,*   ,12,*    ,off] s_load_dword\t%0, %A1\;s_waitcnt\tlgkmcnt(0)
-   [&Sm ,RS  ;smem ,*   ,12,*    ,on ] ^
-   [RS  ,Sm  ;smem ,*   ,12,*    ,*  ] s_store_dword\t%1, %A0
-   [v   ,v   ;vop1 ,*   ,4 ,*    ,*  ] v_mov_b32\t%0, %1
-   [Sg  ,v   ;vop3a,none,8 ,*    ,*  ] v_readlane_b32\t%0, %1, 0
-   [v   ,Sv  ;vop3a,none,8 ,*    ,*  ] v_writelane_b32\t%0, %1, 0
-   [v   ,^a  ;vop3p_mai,*,8,*    ,*  ] v_accvgpr_read_b32\t%0, %1
-   [a   ,v   ;vop3p_mai,*,8,*    ,*  ] v_accvgpr_write_b32\t%0, %1
-   [a   ,a   ;vop1 ,*    ,4,cdna2,*  ] v_accvgpr_mov_b32\t%0, %1
-   [v   ,RF  ;flat ,*   ,12,*    ,off] flat_load_dword\t%0, %A1%O1%g1\;s_waitcnt\t0
-   [&v  ,RF  ;flat ,*   ,12,*    ,on ] ^
-   [^a  ,RF  ;flat ,*   ,12,cdna2,off] ^
-   [&^a ,RF  ;flat ,*   ,12,cdna2,on ] ^
-   [RF  ,v   ;flat ,*   ,12,*    ,*  ] flat_store_dword\t%A0, %1%O0%g0
-   [RF  ,a   ;flat ,*   ,12,cdna2,*  ] ^
-   [v   ,B   ;vop1 ,*   ,8 ,*    ,*  ] v_mov_b32\t%0, %1
-   [RLRG,v   ;ds   ,*   ,12,*    ,*  ] ds_write_b32\t%A0, %1%O0\;s_waitcnt\tlgkmcnt(0)
-   [v   ,RLRG;ds   ,*   ,12,*    ,*  ] ds_read_b32\t%0, %A1%O1\;s_waitcnt\tlgkmcnt(0)
-   [SD  ,Y   ;sop1 ,*   ,8 ,*    ,*  ] s_mov_b32\t%0, %1
-   [v   ,RM  ;flat ,*   ,12,*    ,off] global_load_dword\t%0, %A1%O1%g1\;s_waitcnt\tvmcnt(0)
-   [&v  ,RM  ;flat ,*   ,12,*    ,on ] ^
-   [^a  ,RM  ;flat ,*   ,12,cdna2,off] ^
-   [&^a ,RM  ;flat ,*   ,12,cdna2,on ] ^
-   [RM  ,v   ;flat ,*   ,12,*    ,*  ] global_store_dword\t%A0, %1%O0%g0
-   [RM  ,a   ;flat ,*   ,12,cdna2,*  ] ^
+  {@ [cons: =0, 1; attrs: type, exec, length, cdna, xnack, laneselect, flatmemaccess]
+   [SD  ,SSA ;sop1 ,*   ,4 ,*    ,*  ,*    ,*    ] s_mov_b32\t%0, %1
+   [SD  ,J   ;sopk ,*   ,4 ,*    ,*  ,*    ,*    ] s_movk_i32\t%0, %1
+   [SD  ,B   ;sop1 ,*   ,8 ,*    ,*  ,*    ,*    ] s_mov_b32\t%0, %1
+   [SD  ,RB  ;smem ,*   ,12,*    ,off,*    ,*    ] s_buffer_load%s0\t%0, s[0:3], %1\;s_waitcnt\tlgkmcnt(0)
+   [&SD ,RB  ;smem ,*   ,12,*    ,on ,*    ,*    ] ^
+   [RB  ,Sm  ;smem ,*   ,12,*    ,*  ,*    ,*    ] s_buffer_store%s1\t%1, s[0:3], %0
+   [Sm  ,RS  ;smem ,*   ,12,*    ,off,*    ,*    ] s_load_dword\t%0, %A1\;s_waitcnt\tlgkmcnt(0)
+   [&Sm ,RS  ;smem ,*   ,12,*    ,on ,*    ,*    ] ^
+   [RS  ,Sm  ;smem ,*   ,12,*    ,*  ,*    ,*    ] s_store_dword\t%1, %A0
+   [v   ,v   ;vop1 ,*   ,4 ,*    ,*  ,*    ,*    ] v_mov_b32\t%0, %1
+   [Sg  ,v   ;vop3a,none,8 ,*    ,*  ,read ,*    ] v_readlane_b32\t%0, %1, 0
+   [v   ,Sv  ;vop3a,none,8 ,*    ,*  ,write,*    ] v_writelane_b32\t%0, %1, 0
+   [v   ,^a  ;vop3p_mai,*,8,*    ,*  ,*    ,*    ] v_accvgpr_read_b32\t%0, %1
+   [a   ,v   ;vop3p_mai,*,8,*    ,*  ,*    ,*    ] v_accvgpr_write_b32\t%0, %1
+   [a   ,a   ;vop1 ,*    ,4,cdna2,*  ,*    ,*    ] v_accvgpr_mov_b32\t%0, %1
+   [v   ,RF  ;flat ,*   ,12,*    ,off,*    ,load ] flat_load_dword\t%0, %A1%O1%g1\;s_waitcnt\t0
+   [&v  ,RF  ;flat ,*   ,12,*    ,on ,*    ,load ] ^
+   [^a  ,RF  ;flat ,*   ,12,cdna2,off,*    ,load ] ^
+   [&^a ,RF  ;flat ,*   ,12,cdna2,on ,*    ,load ] ^
+   [RF  ,v   ;flat ,*   ,12,*    ,*  ,*    ,store] flat_store_dword\t%A0, %1%O0%g0
+   [RF  ,a   ;flat ,*   ,12,cdna2,*  ,*    ,store] ^
+   [v   ,B   ;vop1 ,*   ,8 ,*    ,*  ,*    ,*    ] v_mov_b32\t%0, %1
+   [RLRG,v   ;ds   ,*   ,12,*    ,*  ,*    ,*    ] ds_write_b32\t%A0, %1%O0\;s_waitcnt\tlgkmcnt(0)
+   [v   ,RLRG;ds   ,*   ,12,*    ,*  ,*    ,*    ] ds_read_b32\t%0, %A1%O1\;s_waitcnt\tlgkmcnt(0)
+   [SD  ,Y   ;sop1 ,*   ,8 ,*    ,*  ,*    ,*    ] s_mov_b32\t%0, %1
+   [v   ,RM  ;flat ,*   ,12,*    ,off,*    ,load ] global_load_dword\t%0, %A1%O1%g1\;s_waitcnt\tvmcnt(0)
+   [&v  ,RM  ;flat ,*   ,12,*    ,on ,*    ,load ] ^
+   [^a  ,RM  ;flat ,*   ,12,cdna2,off,*    ,load ] ^
+   [&^a ,RM  ;flat ,*   ,12,cdna2,on ,*    ,load ] ^
+   [RM  ,v   ;flat ,*   ,12,*    ,*  ,*    ,store] global_store_dword\t%A0, %1%O0%g0
+   [RM  ,a   ;flat ,*   ,12,cdna2,*  ,*    ,store] ^
   })
 
 ; 8/16bit move pattern
@@ -606,31 +597,31 @@
   [(set (match_operand:QIHI 0 "nonimmediate_operand")
 	(match_operand:QIHI 1 "gcn_load_operand"))]
   "gcn_valid_move_p (<MODE>mode, operands[0], operands[1])"
-  {@ [cons: =0, 1; attrs: type, exec, length, cdna, xnack]
-  [SD  ,SSA ;sop1 ,*   ,4 ,*    ,*  ] s_mov_b32\t%0, %1
-  [SD  ,J   ;sopk ,*   ,4 ,*    ,*  ] s_movk_i32\t%0, %1
-  [SD  ,B   ;sop1 ,*   ,8 ,*    ,*  ] s_mov_b32\t%0, %1
-  [v   ,v   ;vop1 ,*   ,4 ,*    ,*  ] v_mov_b32\t%0, %1
-  [Sg  ,v   ;vop3a,none,4 ,*    ,*  ] v_readlane_b32\t%0, %1, 0
-  [v   ,Sv  ;vop3a,none,4 ,*    ,*  ] v_writelane_b32\t%0, %1, 0
-  [v   ,^a  ;vop3p_mai,*,8,*    ,*  ] v_accvgpr_read_b32\t%0, %1
-  [a   ,v   ;vop3p_mai,*,8,*    ,*  ] v_accvgpr_write_b32\t%0, %1
-  [a   ,a   ;vop1 ,*    ,8,cdna2,*  ] v_accvgpr_mov_b32\t%0, %1
-  [v   ,RF  ;flat ,*   ,12,*    ,off] flat_load%o1\t%0, %A1%O1%g1\;s_waitcnt\t0
-  [&v  ,RF  ;flat ,*   ,12,*    ,on ] ^
-  [^a  ,RF  ;flat ,*   ,12,cdna2,off] ^
-  [&^a ,RF  ;flat ,*   ,12,cdna2,on ] ^
-  [RF  ,v   ;flat ,*   ,12,*    ,*  ] flat_store%s0\t%A0, %1%O0%g0
-  [RF  ,a   ;flat ,*   ,12,cdna2,*  ] ^
-  [v   ,B   ;vop1 ,*   ,8 ,*    ,*  ] v_mov_b32\t%0, %1
-  [RLRG,v   ;ds   ,*   ,12,*    ,*  ] ds_write%b0\t%A0, %1%O0\;s_waitcnt\tlgkmcnt(0)
-  [v   ,RLRG;ds   ,*   ,12,*    ,*  ] ds_read%u1\t%0, %A1%O1\;s_waitcnt\tlgkmcnt(0)
-  [v   ,RM  ;flat ,*   ,12,*    ,off] global_load%o1\t%0, %A1%O1%g1\;s_waitcnt\tvmcnt(0)
-  [&v  ,RM  ;flat ,*   ,12,*    ,on ] ^
-  [^a  ,RM  ;flat ,*   ,12,cdna2,off] ^
-  [&^a ,RM  ;flat ,*   ,12,cdna2,on ] ^
-  [RM  ,v   ;flat ,*   ,12,*    ,*  ] global_store%s0\t%A0, %1%O0%g0
-  [RM  ,a   ;flat ,*   ,12,cdna2,*  ] ^
+  {@ [cons: =0, 1; attrs: type, exec, length, cdna, xnack, laneselect, flatmemaccess]
+  [SD  ,SSA ;sop1 ,*   ,4 ,*    ,*  ,*    ,*    ] s_mov_b32\t%0, %1
+  [SD  ,J   ;sopk ,*   ,4 ,*    ,*  ,*    ,*    ] s_movk_i32\t%0, %1
+  [SD  ,B   ;sop1 ,*   ,8 ,*    ,*  ,*    ,*    ] s_mov_b32\t%0, %1
+  [v   ,v   ;vop1 ,*   ,4 ,*    ,*  ,*    ,*    ] v_mov_b32\t%0, %1
+  [Sg  ,v   ;vop3a,none,4 ,*    ,*  ,read ,*    ] v_readlane_b32\t%0, %1, 0
+  [v   ,Sv  ;vop3a,none,4 ,*    ,*  ,write,*    ] v_writelane_b32\t%0, %1, 0
+  [v   ,^a  ;vop3p_mai,*,8,*    ,*  ,*    ,*    ] v_accvgpr_read_b32\t%0, %1
+  [a   ,v   ;vop3p_mai,*,8,*    ,*  ,*    ,*    ] v_accvgpr_write_b32\t%0, %1
+  [a   ,a   ;vop1 ,*    ,8,cdna2,*  ,*    ,*    ] v_accvgpr_mov_b32\t%0, %1
+  [v   ,RF  ;flat ,*   ,12,*    ,off,*    ,load ] flat_load%o1\t%0, %A1%O1%g1\;s_waitcnt\t0
+  [&v  ,RF  ;flat ,*   ,12,*    ,on ,*    ,load ] ^
+  [^a  ,RF  ;flat ,*   ,12,cdna2,off,*    ,load ] ^
+  [&^a ,RF  ;flat ,*   ,12,cdna2,on ,*    ,load ] ^
+  [RF  ,v   ;flat ,*   ,12,*    ,*  ,*    ,store] flat_store%s0\t%A0, %1%O0%g0
+  [RF  ,a   ;flat ,*   ,12,cdna2,*  ,*    ,store] ^
+  [v   ,B   ;vop1 ,*   ,8 ,*    ,*  ,*    ,*    ] v_mov_b32\t%0, %1
+  [RLRG,v   ;ds   ,*   ,12,*    ,*  ,*    ,*    ] ds_write%b0\t%A0, %1%O0\;s_waitcnt\tlgkmcnt(0)
+  [v   ,RLRG;ds   ,*   ,12,*    ,*  ,*    ,*    ] ds_read%u1\t%0, %A1%O1\;s_waitcnt\tlgkmcnt(0)
+  [v   ,RM  ;flat ,*   ,12,*    ,off,*    ,load ] global_load%o1\t%0, %A1%O1%g1\;s_waitcnt\tvmcnt(0)
+  [&v  ,RM  ;flat ,*   ,12,*    ,on ,*    ,load ] ^
+  [^a  ,RM  ;flat ,*   ,12,cdna2,off,*    ,load ] ^
+  [&^a ,RM  ;flat ,*   ,12,cdna2,on ,*    ,load ] ^
+  [RM  ,v   ;flat ,*   ,12,*    ,*  ,*    ,store] global_store%s0\t%A0, %1%O0%g0
+  [RM  ,a   ;flat ,*   ,12,cdna2,*  ,*    ,store] ^
   })
 
 ; 64bit move pattern
@@ -639,34 +630,34 @@
   [(set (match_operand:DIDF 0 "nonimmediate_operand")
 	(match_operand:DIDF 1 "general_operand"))]
   "GET_CODE(operands[1]) != SYMBOL_REF"
-  {@ [cons: =0, 1; attrs: type, length, cdna, xnack]
-  [SD  ,SSA ;sop1 ,4 ,*    ,*  ] s_mov_b64\t%0, %1
-  [SD  ,C   ;sop1 ,8 ,*    ,*  ] ^
-  [SD  ,DB  ;mult ,* ,*    ,*  ] #
-  [RS  ,Sm  ;smem ,12,*    ,*  ] s_store_dwordx2\t%1, %A0
-  [Sm  ,RS  ;smem ,12,*    ,off] s_load_dwordx2\t%0, %A1\;s_waitcnt\tlgkmcnt(0)
-  [&Sm ,RS  ;smem ,12,*    ,on ] ^
-  [v   ,v   ;vmult,* ,*    ,*  ] #
-  [v   ,DB  ;vmult,* ,*    ,*  ] #
-  [Sg  ,v   ;vmult,* ,*    ,*  ] #
-  [v   ,Sv  ;vmult,* ,*    ,*  ] #
-  [v   ,^a  ;vmult,* ,*    ,*  ] #
-  [a   ,v   ;vmult,* ,*    ,*  ] #
-  [a   ,a   ;vmult,* ,cdna2,*  ] #
-  [v   ,RF  ;flat ,12,*    ,off] flat_load_dwordx2\t%0, %A1%O1%g1\;s_waitcnt\t0
-  [&v  ,RF  ;flat ,12,*    ,on ] ^
-  [^a  ,RF  ;flat ,12,cdna2,off] ^
-  [&^a ,RF  ;flat ,12,cdna2,on ] ^
-  [RF  ,v   ;flat ,12,*    ,*  ] flat_store_dwordx2\t%A0, %1%O0%g0
-  [RF  ,a   ;flat ,12,cdna2,*  ] ^
-  [RLRG,v   ;ds   ,12,*    ,*  ] ds_write_b64\t%A0, %1%O0\;s_waitcnt\tlgkmcnt(0)
-  [v   ,RLRG;ds   ,12,*    ,*  ] ds_read_b64\t%0, %A1%O1\;s_waitcnt\tlgkmcnt(0)
-  [v   ,RM  ;flat ,12,*    ,off] global_load_dwordx2\t%0, %A1%O1%g1\;s_waitcnt\tvmcnt(0)
-  [&v  ,RM  ;flat ,12,*    ,on ] ^
-  [^a  ,RM  ;flat ,12,cdna2,off] ^
-  [&^a ,RM  ;flat ,12,cdna2,on ] ^
-  [RM  ,v   ;flat ,12,*    ,*  ] global_store_dwordx2\t%A0, %1%O0%g0
-  [RM  ,a   ;flat ,12,cdna2,*  ] ^
+  {@ [cons: =0, 1; attrs: type, length, cdna, xnack, flatmemaccess]
+  [SD  ,SSA ;sop1 ,4 ,*    ,*  ,*    ] s_mov_b64\t%0, %1
+  [SD  ,C   ;sop1 ,8 ,*    ,*  ,*    ] ^
+  [SD  ,DB  ;mult ,* ,*    ,*  ,*    ] #
+  [RS  ,Sm  ;smem ,12,*    ,*  ,*    ] s_store_dwordx2\t%1, %A0
+  [Sm  ,RS  ;smem ,12,*    ,off,*    ] s_load_dwordx2\t%0, %A1\;s_waitcnt\tlgkmcnt(0)
+  [&Sm ,RS  ;smem ,12,*    ,on ,*    ] ^
+  [v   ,v   ;vmult,* ,*    ,*  ,*    ] #
+  [v   ,DB  ;vmult,* ,*    ,*  ,*    ] #
+  [Sg  ,v   ;vmult,* ,*    ,*  ,*    ] #
+  [v   ,Sv  ;vmult,* ,*    ,*  ,*    ] #
+  [v   ,^a  ;vmult,* ,*    ,*  ,*    ] #
+  [a   ,v   ;vmult,* ,*    ,*  ,*    ] #
+  [a   ,a   ;vmult,* ,cdna2,*  ,*    ] #
+  [v   ,RF  ;flat ,12,*    ,off,load ] flat_load_dwordx2\t%0, %A1%O1%g1\;s_waitcnt\t0
+  [&v  ,RF  ;flat ,12,*    ,on ,load ] ^
+  [^a  ,RF  ;flat ,12,cdna2,off,load ] ^
+  [&^a ,RF  ;flat ,12,cdna2,on ,load ] ^
+  [RF  ,v   ;flat ,12,*    ,*  ,store] flat_store_dwordx2\t%A0, %1%O0%g0
+  [RF  ,a   ;flat ,12,cdna2,*  ,store] ^
+  [RLRG,v   ;ds   ,12,*    ,*  ,*    ] ds_write_b64\t%A0, %1%O0\;s_waitcnt\tlgkmcnt(0)
+  [v   ,RLRG;ds   ,12,*    ,*  ,*    ] ds_read_b64\t%0, %A1%O1\;s_waitcnt\tlgkmcnt(0)
+  [v   ,RM  ;flat ,12,*    ,off,load ] global_load_dwordx2\t%0, %A1%O1%g1\;s_waitcnt\tvmcnt(0)
+  [&v  ,RM  ;flat ,12,*    ,on ,load ] ^
+  [^a  ,RM  ;flat ,12,cdna2,off,load ] ^
+  [&^a ,RM  ;flat ,12,cdna2,on ,load ] ^
+  [RM  ,v   ;flat ,12,*    ,*  ,store] global_store_dwordx2\t%A0, %1%O0%g0
+  [RM  ,a   ;flat ,12,cdna2,*  ,store] ^
   }
   "reload_completed
    && ((!MEM_P (operands[0]) && !MEM_P (operands[1])
@@ -704,31 +695,31 @@
   [(set (match_operand:TI 0 "nonimmediate_operand")
 	(match_operand:TI 1 "general_operand"  ))]
   ""
-  {@ [cons: =0, 1; attrs: type, delayeduse, length, cdna, xnack]
-  [SD ,SSB;mult ,*  ,* ,*    ,*  ] #
-  [RS ,Sm ;smem ,*  ,12,*    ,*  ] s_store_dwordx4\t%1, %A0
-  [Sm ,RS ;smem ,yes,12,*    ,off] s_load_dwordx4\t%0, %A1\;s_waitcnt\tlgkmcnt(0)
-  [&Sm,RS ;smem ,yes,12,*    ,on ] ^
-  [RF ,v  ;flat ,*  ,12,*    ,*  ] flat_store_dwordx4\t%A0, %1%O0%g0
-  [RF ,a  ;flat ,*  ,12,cdna2,*  ] ^
-  [v  ,RF ;flat ,*  ,12,*    ,off] flat_load_dwordx4\t%0, %A1%O1%g1\;s_waitcnt\t0
-  [&v ,RF ;flat ,*  ,12,*    ,on ] ^
-  [^a ,RF ;flat ,*  ,12,cdna2,off] ^
-  [&^a,RF ;flat ,*  ,12,cdna2,on ] ^
-  [v  ,v  ;vmult,*  ,* ,*    ,*  ] #
-  [v  ,Sv ;vmult,*  ,* ,*    ,*  ] #
-  [SD ,v  ;vmult,*  ,* ,*    ,*  ] #
-  [RM ,v  ;flat ,yes,12,*    ,*  ] global_store_dwordx4\t%A0, %1%O0%g0
-  [RM ,a  ;flat ,yes,12,cdna2,*  ] ^
-  [v  ,RM ;flat ,*  ,12,*    ,off] global_load_dwordx4\t%0, %A1%O1%g1\;s_waitcnt\tvmcnt(0)
-  [&v ,RM ;flat ,*  ,12,*    ,on ] ^
-  [^a ,RM ;flat ,*  ,12,cdna2,off] ^
-  [&^a,RM ;flat ,*  ,12,cdna2,on ] ^
-  [RL ,v  ;ds   ,*  ,12,*    ,*  ] ds_write_b128\t%A0, %1%O0\;s_waitcnt\tlgkmcnt(0)
-  [v  ,RL ;ds   ,*  ,12,*    ,*  ] ds_read_b128\t%0, %A1%O1\;s_waitcnt\tlgkmcnt(0)
-  [v  ,^a ;vmult,*  ,* ,*    ,*  ] #
-  [a  ,v  ;vmult,*  ,* ,*    ,*  ] #
-  [a  ,a  ;vmult,*  ,* ,cdna2,*  ] #
+  {@ [cons: =0, 1; attrs: type, length, cdna, xnack, flatmemaccess]
+  [SD ,SSB;mult ,* ,*    ,*  ,*       ] #
+  [RS ,Sm ;smem ,12,*    ,*  ,*       ] s_store_dwordx4\t%1, %A0
+  [Sm ,RS ;smem ,12,*    ,off,*       ] s_load_dwordx4\t%0, %A1\;s_waitcnt\tlgkmcnt(0)
+  [&Sm,RS ;smem ,12,*    ,on ,*       ] ^
+  [RF ,v  ;flat ,12,*    ,*  ,storex34] flat_store_dwordx4\t%A0, %1%O0%g0
+  [RF ,a  ;flat ,12,cdna2,*  ,storex34] ^
+  [v  ,RF ;flat ,12,*    ,off,load    ] flat_load_dwordx4\t%0, %A1%O1%g1\;s_waitcnt\t0
+  [&v ,RF ;flat ,12,*    ,on ,load    ] ^
+  [^a ,RF ;flat ,12,cdna2,off,load    ] ^
+  [&^a,RF ;flat ,12,cdna2,on ,load    ] ^
+  [v  ,v  ;vmult,* ,*    ,*  ,*       ] #
+  [v  ,Sv ;vmult,* ,*    ,*  ,*       ] #
+  [SD ,v  ;vmult,* ,*    ,*  ,*       ] #
+  [RM ,v  ;flat ,12,*    ,*  ,storex34] global_store_dwordx4\t%A0, %1%O0%g0
+  [RM ,a  ;flat ,12,cdna2,*  ,storex34] ^
+  [v  ,RM ;flat ,12,*    ,off,load    ] global_load_dwordx4\t%0, %A1%O1%g1\;s_waitcnt\tvmcnt(0)
+  [&v ,RM ;flat ,12,*    ,on ,load    ] ^
+  [^a ,RM ;flat ,12,cdna2,off,load    ] ^
+  [&^a,RM ;flat ,12,cdna2,on ,load    ] ^
+  [RL ,v  ;ds   ,12,*    ,*  ,*       ] ds_write_b128\t%A0, %1%O0\;s_waitcnt\tlgkmcnt(0)
+  [v  ,RL ;ds   ,12,*    ,*  ,*       ] ds_read_b128\t%0, %A1%O1\;s_waitcnt\tlgkmcnt(0)
+  [v  ,^a ;vmult,* ,*    ,*  ,*       ] #
+  [a  ,v  ;vmult,* ,*    ,*  ,*       ] #
+  [a  ,a  ;vmult,* ,cdna2,*  ,*       ] #
   }
   "reload_completed
    && REG_P (operands[0])
@@ -1077,6 +1068,7 @@
    s_cmp%D1\t%2, %3
    v_cmp%E1\tvcc, %2, %3"
   [(set_attr "type" "sopc,vopc")
+   (set_attr "vcmp" "vcmp")
    (set_attr "length" "8")])
 
 (define_insn "cstoredi4_vector"
@@ -1087,6 +1079,7 @@
   ""
   "v_cmp%E1\tvcc, %2, %3"
   [(set_attr "type" "vopc")
+   (set_attr "vcmp" "vcmp")
    (set_attr "length" "8")])
 
 (define_expand "cbranchdi4"
@@ -1113,6 +1106,7 @@
   ""
   "v_cmp%E1\tvcc, %2, %3"
   [(set_attr "type" "vopc")
+   (set_attr "vcmp" "vcmp")
    (set_attr "length" "8")])
 
 (define_expand "cbranch<mode>4"
@@ -1133,17 +1127,16 @@
 ;; {{{ ALU special cases: Plus
 
 (define_insn "addsi3"
-  [(set (match_operand:SI 0 "register_operand"         "= Sg, Sg, Sg,   v")
+  [(set (match_operand:SI 0 "register_operand"         "= Sg, Sg, Sg,  ?v")
         (plus:SI (match_operand:SI 1 "gcn_alu_operand" "%SgA,  0,SgA,   v")
 		 (match_operand:SI 2 "gcn_alu_operand" " SgA,SgJ,  B,vBSv")))
-   (clobber (match_scratch:BI 3			       "= cs, cs, cs,   X"))
-   (clobber (match_scratch:DI 4			       "=  X,  X,  X,  cV"))]
+   (clobber (match_scratch:BI 3			       "= cs, cs, cs,   X"))]
   ""
   "@
    s_add_i32\t%0, %1, %2
    s_addk_i32\t%0, %2
    s_add_i32\t%0, %1, %2
-   v_add_co_u32\t%0, vcc, %2, %1"
+   {v_add_u32|v_add_nc_u32}\t%0, %2, %1"
   [(set_attr "type" "sop2,sopk,sop2,vop2")
    (set_attr "length" "4,4,8,8")])
 
@@ -1151,8 +1144,7 @@
   [(parallel [(set (match_operand:SI 0 "register_operand")
 		   (plus:SI (match_operand:SI 1 "gcn_alu_operand")
 			    (match_operand:SI 2 "gcn_alu_operand")))
-	      (clobber (reg:BI SCC_REG))
-	      (clobber (scratch:DI))])]
+	      (clobber (reg:BI SCC_REG))])]
   ""
   {})
 
@@ -1293,23 +1285,14 @@
 ; The SGPR alternative is preferred as it is typically used with mov_sgprbase.
 
 (define_insn "addptrdi3"
-  [(set (match_operand:DI 0 "register_operand"		 "= v, Sg")
+  [(set (match_operand:DI 0 "register_operand"		 "= Sg, v")
     (unspec:DI [
-	(plus:DI (match_operand:DI 1 "register_operand"	 "^v0,Sg0")
-		 (match_operand:DI 2 "nonmemory_operand" "vDA,SgDB"))]
+	(plus:DI (match_operand:DI 1 "register_operand"	 " Sg0,^v0")
+		 (match_operand:DI 2 "nonmemory_operand" "SgDB,vDA"))]
 	UNSPEC_ADDPTR))]
   ""
   {
     if (which_alternative == 0)
-      {
-	rtx new_operands[4] = { operands[0], operands[1], operands[2],
-				gen_rtx_REG (DImode, CC_SAVE_REG) };
-
-	output_asm_insn ("v_add_co_u32\t%L0, %3, %L2, %L1", new_operands);
-	output_asm_insn ("{v_addc_co_u32|v_add_co_ci_u32}\t%H0, %3, %H2, %H1, %3",
-			 new_operands);
-      }
-    else
       {
 	rtx new_operands[4] = { operands[0], operands[1], operands[2],
 				gen_rtx_REG (BImode, CC_SAVE_REG) };
@@ -1319,27 +1302,35 @@
 	output_asm_insn ("s_addc_u32\t%H0, %H1, %H2", new_operands);
 	output_asm_insn ("s_cmpk_lg_u32\t%3, 0", new_operands);
       }
+    else
+      {
+	rtx new_operands[4] = { operands[0], operands[1], operands[2],
+				gen_rtx_REG (DImode, CC_SAVE_REG) };
+
+	output_asm_insn ("v_add_co_u32\t%L0, %3, %L2, %L1", new_operands);
+	output_asm_insn ("{v_addc_co_u32|v_add_co_ci_u32}\t%H0, %3, %H2, %H1, %3",
+			 new_operands);
+      }
 
     return "";
   }
-  [(set_attr "type" "vmult,mult")
-   (set_attr "length" "16,24")])
+  [(set_attr "type" "mult,vmult")
+   (set_attr "length" "24,16")])
 
 ;; }}}
 ;; {{{ ALU special cases: Minus
 
 (define_insn "subsi3"
-  [(set (match_operand:SI 0 "register_operand"          "=Sg, Sg,    v,   v")
+  [(set (match_operand:SI 0 "register_operand"          "=Sg, Sg,   ?v,  ?v")
 	(minus:SI (match_operand:SI 1 "gcn_alu_operand" "SgA,SgA,    v,vBSv")
 		  (match_operand:SI 2 "gcn_alu_operand" "SgA,  B, vBSv,   v")))
-   (clobber (match_scratch:BI 3				"=cs, cs,    X,   X"))
-   (clobber (match_scratch:DI 4				"= X,  X,   cV,  cV"))]
+   (clobber (match_scratch:BI 3				"=cs, cs,    X,   X"))]
   ""
   "@
    s_sub_i32\t%0, %1, %2
    s_sub_i32\t%0, %1, %2
-   v_subrev_co_u32\t%0, vcc, %2, %1
-   v_sub_co_u32\t%0, vcc, %1, %2"
+   {v_subrev_u32|v_subrev_nc_u32}\t%0, %2, %1
+   {v_sub_u32|v_sub_nc_u32}\t%0, %1, %2"
   [(set_attr "type" "sop2,sop2,vop2,vop2")
    (set_attr "length" "4,8,8,8")])
 
@@ -1436,7 +1427,7 @@
 ; The "s_mulk_i32" variant sets SCC to indicate overflow (which we don't care
 ; about here, but we need to indicate the clobbering).
 (define_insn "mulsi3"
-  [(set (match_operand:SI 0 "register_operand"	       "= Sg,Sg, Sg,   v")
+  [(set (match_operand:SI 0 "register_operand"	       "= Sg,Sg, Sg,  ?v")
         (mult:SI (match_operand:SI 1 "gcn_alu_operand" "%SgA, 0,SgA,   v")
 		 (match_operand:SI 2 "gcn_alu_operand" " SgA, J,  B,vASv")))
    (clobber (match_scratch:BI 3				 "=X,cs,  X,   X"))]
@@ -1565,12 +1556,11 @@
   })
 
 (define_insn_and_split "muldi3"
-  [(set (match_operand:DI 0 "register_operand"         "=&Sg,&Sg, &v,&v")
-	(mult:DI (match_operand:DI 1 "register_operand" "%Sg, Sg,  v, v")
-		 (match_operand:DI 2 "nonmemory_operand" "Sg,  i,vSv, A")))
+  [(set (match_operand:DI 0 "register_operand"         "=&Sg,&Sg,?&v,?&v")
+	(mult:DI (match_operand:DI 1 "register_operand" "%Sg, Sg,  v,  v")
+		 (match_operand:DI 2 "nonmemory_operand" "Sg,  i,vSv,  A")))
    (clobber (match_scratch:SI 3 "=&Sg,&Sg,&v,&v"))
-   (clobber (match_scratch:BI 4  "=cs, cs, X, X"))
-   (clobber (match_scratch:DI 5   "=X,  X,cV,cV"))]
+   (clobber (match_scratch:BI 4  "=cs, cs, X, X"))]
   ""
   "#"
   "reload_completed"
@@ -1585,15 +1575,13 @@
     emit_insn (gen_umulsidi3 (operands[0], op1lo, op2lo));
     emit_insn (gen_mulsi3 (tmp, op1lo, op2hi));
     rtx add = gen_rtx_SET (dsthi, gen_rtx_PLUS (SImode, dsthi, tmp));
-    rtx clob1 = gen_rtx_CLOBBER (VOIDmode, operands[4]);
-    rtx clob2 = gen_rtx_CLOBBER (VOIDmode, operands[5]);
-    add = gen_rtx_PARALLEL (VOIDmode, gen_rtvec (3, add, clob1, clob2));
+    rtx clob = gen_rtx_CLOBBER (VOIDmode, operands[4]);
+    add = gen_rtx_PARALLEL (VOIDmode, gen_rtvec (2, add, clob));
     emit_insn (add);
     emit_insn (gen_mulsi3 (tmp, op1hi, op2lo));
     add = gen_rtx_SET (dsthi, gen_rtx_PLUS (SImode, dsthi, tmp));
-    clob1 = gen_rtx_CLOBBER (VOIDmode, operands[4]);
-    clob2 = gen_rtx_CLOBBER (VOIDmode, operands[5]);
-    add = gen_rtx_PARALLEL (VOIDmode, gen_rtvec (3, add, clob1, clob2));
+    clob = gen_rtx_CLOBBER (VOIDmode, operands[4]);
+    add = gen_rtx_PARALLEL (VOIDmode, gen_rtvec (2, add, clob));
     emit_insn (add);
     DONE;
   })
@@ -1625,7 +1613,7 @@
 (define_code_attr popcount_extra_op [(not "") (popcount ", 0")])
 
 (define_insn "<expander>si2"
-  [(set (match_operand:SI 0 "register_operand"  "=Sg,   v")
+  [(set (match_operand:SI 0 "register_operand"  "=Sg,  ?v")
         (bitunop:SI
 	  (match_operand:SI 1 "gcn_alu_operand" "SgB,vSvB")))
    (clobber (match_scratch:BI 2			"=cs,   X"))]
@@ -1703,7 +1691,7 @@
 (define_code_iterator vec_and_scalar_nocom [ashift lshiftrt ashiftrt])
 
 (define_insn "<expander>si3"
-  [(set (match_operand:SI 0 "gcn_valu_dst_operand"    "= Sg,   v,RD")
+  [(set (match_operand:SI 0 "gcn_valu_dst_operand"    "= Sg,  ?v,?RD")
         (vec_and_scalar_com:SI
 	  (match_operand:SI 1 "gcn_valu_src0_operand" "%SgA,vSvB, 0")
 	  (match_operand:SI 2 "gcn_alu_operand"	      " SgB,   v, v")))
@@ -1717,7 +1705,7 @@
    (set_attr "length" "8")])
 
 (define_insn "<expander>si3"
-  [(set (match_operand:SI 0 "register_operand"  "=Sg, Sg,   v")
+  [(set (match_operand:SI 0 "register_operand"  "=Sg, Sg,  ?v")
         (vec_and_scalar_nocom:SI
 	  (match_operand:SI 1 "gcn_alu_operand" "SgB,SgA,   v")
 	  (match_operand:SI 2 "gcn_alu_operand" "SgA,SgB,vSvB")))
@@ -1743,7 +1731,7 @@
 ;; {{{ ALU: generic 64-bit
 
 (define_insn_and_split "one_cmpldi2"
-  [(set (match_operand:DI 0 "register_operand"        "=Sg,    v")
+  [(set (match_operand:DI 0 "register_operand"        "=Sg,   ?v")
 	(not:DI (match_operand:DI 1 "gcn_alu_operand" "SgA,vSvDB")))
    (clobber (match_scratch:BI 2			      "=cs,    X"))]
   ""
@@ -1765,7 +1753,7 @@
 (define_code_iterator vec_and_scalar64_com [and ior xor])
 
 (define_insn_and_split "<expander>di3"
-   [(set (match_operand:DI 0 "register_operand"  "= Sg,    v")
+   [(set (match_operand:DI 0 "register_operand"  "= Sg,   ?v")
 	 (vec_and_scalar64_com:DI
 	  (match_operand:DI 1 "gcn_alu_operand"  "%SgA,vSvDB")
 	   (match_operand:DI 2 "gcn_alu_operand" " SgC,    v")))
@@ -1793,7 +1781,7 @@
    (set_attr "length" "8")])
 
 (define_insn "<expander>di3"
-  [(set (match_operand:DI 0 "register_operand"   "=Sg, Sg,   v")
+  [(set (match_operand:DI 0 "register_operand"   "=Sg, Sg,  ?v")
 	(vec_and_scalar_nocom:DI
 	  (match_operand:DI 1 "gcn_alu_operand"  "SgC,SgA,   v")
 	  (match_operand:SI 2 "gcn_alu_operand"  "SgA,SgC,vSvC")))
@@ -1964,6 +1952,14 @@
   [(set_attr "type" "mult")
    (set_attr "length" "8")])
 
+(define_insn "*memory_barrier"
+  [(set (match_operand:BLK 0)
+	(unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))]
+  "TARGET_TARGET_SC_CACHE"
+  "buffer_inv sc1"
+  [(set_attr "type" "mubuf")
+   (set_attr "length" "4")])
+
 ; FIXME: These patterns have been disabled as they do not seem to work
 ; reliably - they can cause hangs or incorrect results.
 ; TODO: flush caches according to memory model
@@ -1980,9 +1976,10 @@
   "0 /* Disabled.  */"
   "@
    s_atomic_<bare_mnemonic><X>\t%0, %1, %2 glc\;s_waitcnt\tlgkmcnt(0)
-   flat_atomic_<bare_mnemonic><X>\t%0, %1, %2 glc\;s_waitcnt\t0
-   global_atomic_<bare_mnemonic><X>\t%0, %A1, %2%O1 glc\;s_waitcnt\tvmcnt(0)"
+   flat_atomic_<bare_mnemonic><X>\t%0, %1, %2 %G2\;s_waitcnt\t0
+   global_atomic_<bare_mnemonic><X>\t%0, %A1, %2%O1 %G2\;s_waitcnt\tvmcnt(0)"
   [(set_attr "type" "smem,flat,flat")
+   (set_attr "flatmemaccess" "*,atomicwait,atomicwait")
    (set_attr "length" "12")])
 
 ; FIXME: These patterns are disabled because the instructions don't
@@ -2004,6 +2001,7 @@
    flat_atomic_<bare_mnemonic><X>\t%0, %1\;s_waitcnt\t0
    global_atomic_<bare_mnemonic><X>\t%A0, %1%O0\;s_waitcnt\tvmcnt(0)"
   [(set_attr "type" "smem,flat,flat")
+   (set_attr "flatmemaccess" "*,atomicwait,atomicwait")
    (set_attr "length" "12")])
 
 (define_mode_attr x2 [(SI "DI") (DI "TI")])
@@ -2047,11 +2045,11 @@
   ""
   "@
    s_atomic_cmpswap<X>\t%0, %1, %2 glc\;s_waitcnt\tlgkmcnt(0)
-   flat_atomic_cmpswap<X>\t%0, %1, %2 glc\;s_waitcnt\t0
-   global_atomic_cmpswap<X>\t%0, %A1, %2%O1 glc\;s_waitcnt\tvmcnt(0)"
+   flat_atomic_cmpswap<X>\t%0, %1, %2 %G2\;s_waitcnt\t0
+   global_atomic_cmpswap<X>\t%0, %A1, %2%O1 %G2\;s_waitcnt\tvmcnt(0)"
   [(set_attr "type" "smem,flat,flat")
    (set_attr "length" "12")
-   (set_attr "delayeduse" "*,yes,yes")])
+   (set_attr "flatmemaccess" "*,cmpswapx2,cmpswapx2")])
 
 (define_insn "sync_compare_and_swap<mode>_lds_insn"
   [(set (match_operand:SIDI 0 "register_operand"    "= v")
@@ -2091,12 +2089,12 @@
 	    return "s_load%o0\t%0, %A1 glc\;s_waitcnt\tlgkmcnt(0)";
 	  case 1:
 	    return (TARGET_RDNA2 /* Not GFX11.  */
-		    ? "flat_load%o0\t%0, %A1%O1 glc dlc\;s_waitcnt\t0"
-		    : "flat_load%o0\t%0, %A1%O1 glc\;s_waitcnt\t0");
+		    ? "flat_load%o0\t%0, %A1%O1 %G1 dlc\;s_waitcnt\t0"
+		    : "flat_load%o0\t%0, %A1%O1 %G1\;s_waitcnt\t0");
 	  case 2:
 	    return (TARGET_RDNA2 /* Not GFX11.  */
-		    ? "global_load%o0\t%0, %A1%O1 glc dlc\;s_waitcnt\tvmcnt(0)"
-		    : "global_load%o0\t%0, %A1%O1 glc\;s_waitcnt\tvmcnt(0)");
+		    ? "global_load%o0\t%0, %A1%O1 %G1 dlc\;s_waitcnt\tvmcnt(0)"
+		    : "global_load%o0\t%0, %A1%O1 %G1\;s_waitcnt\tvmcnt(0)");
 	  }
 	break;
       case MEMMODEL_CONSUME:
@@ -2109,21 +2107,27 @@
 		   "s_dcache_wb_vol";
 	  case 1:
 	    return (TARGET_RDNA2
-		    ? "flat_load%o0\t%0, %A1%O1 glc dlc\;s_waitcnt\t0\;"
+		    ? "flat_load%o0\t%0, %A1%O1 %G1 dlc\;s_waitcnt\t0\;"
 		      "buffer_gl1_inv\;buffer_gl0_inv"
 		    : TARGET_RDNA3
-		    ? "flat_load%o0\t%0, %A1%O1 glc\;s_waitcnt\t0\;"
+		    ? "flat_load%o0\t%0, %A1%O1 %G1\;s_waitcnt\t0\;"
 		      "buffer_gl1_inv\;buffer_gl0_inv"
-		    : "flat_load%o0\t%0, %A1%O1 glc\;s_waitcnt\t0\;"
+		    : TARGET_TARGET_SC_CACHE
+		    ? "flat_load%o0\t%0, %A1%O1 %G1\;s_waitcnt\t0\;"
+		      "buffer_inv sc1"
+		    : "flat_load%o0\t%0, %A1%O1 %G1\;s_waitcnt\t0\;"
 		      "buffer_wbinvl1_vol");
 	  case 2:
 	    return (TARGET_RDNA2
-		    ? "global_load%o0\t%0, %A1%O1 glc dlc\;s_waitcnt\tvmcnt(0)\;"
+		    ? "global_load%o0\t%0, %A1%O1 %G1 dlc\;s_waitcnt\tvmcnt(0)\;"
 		      "buffer_gl1_inv\;buffer_gl0_inv"
 		    : TARGET_RDNA3
-		    ? "global_load%o0\t%0, %A1%O1 glc\;s_waitcnt\tvmcnt(0)\;"
+		    ? "global_load%o0\t%0, %A1%O1 %G1\;s_waitcnt\tvmcnt(0)\;"
 		      "buffer_gl1_inv\;buffer_gl0_inv"
-		    : "global_load%o0\t%0, %A1%O1 glc\;s_waitcnt\tvmcnt(0)\;"
+		    : TARGET_TARGET_SC_CACHE
+		    ? "global_load%o0\t%0, %A1%O1 %G1\;s_waitcnt\tvmcnt(0)\;"
+		      "buffer_inv sc1"
+		    : "global_load%o0\t%0, %A1%O1 %G1\;s_waitcnt\tvmcnt(0)\;"
 		      "buffer_wbinvl1_vol");
 	  }
 	break;
@@ -2137,21 +2141,27 @@
 		   "s_waitcnt\tlgkmcnt(0)\;s_dcache_inv_vol";
 	  case 1:
 	    return (TARGET_RDNA2
-		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_load%o0\t%0, %A1%O1 glc dlc\;"
+		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_load%o0\t%0, %A1%O1 %G1 dlc\;"
 		      "s_waitcnt\t0\;buffer_gl1_inv\;buffer_gl0_inv"
 		    : TARGET_RDNA3
-		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_load%o0\t%0, %A1%O1 glc\;"
+		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_load%o0\t%0, %A1%O1 %G1\;"
 		      "s_waitcnt\t0\;buffer_gl1_inv\;buffer_gl0_inv"
-		    : "buffer_wbinvl1_vol\;flat_load%o0\t%0, %A1%O1 glc\;"
+		    : TARGET_TARGET_SC_CACHE
+		    ? "buffer_wbl2\tsc0\;s_waitcnt\t0\;flat_load%o0\t%0, %A1%O1 %G1\;"
+		      "s_waitcnt\t0\;buffer_inv sc1"
+		    : "buffer_wbinvl1_vol\;flat_load%o0\t%0, %A1%O1 %G1\;"
 		      "s_waitcnt\t0\;buffer_wbinvl1_vol");
 	  case 2:
 	    return (TARGET_RDNA2
-		    ? "buffer_gl1_inv\;buffer_gl0_inv\;global_load%o0\t%0, %A1%O1 glc dlc\;"
+		    ? "buffer_gl1_inv\;buffer_gl0_inv\;global_load%o0\t%0, %A1%O1 %G1 dlc\;"
 		      "s_waitcnt\tvmcnt(0)\;buffer_gl1_inv\;buffer_gl0_inv"
 		    : TARGET_RDNA3
-		    ? "buffer_gl1_inv\;buffer_gl0_inv\;global_load%o0\t%0, %A1%O1 glc\;"
+		    ? "buffer_gl1_inv\;buffer_gl0_inv\;global_load%o0\t%0, %A1%O1 %G1\;"
 		      "s_waitcnt\tvmcnt(0)\;buffer_gl1_inv\;buffer_gl0_inv"
-		    : "buffer_wbinvl1_vol\;global_load%o0\t%0, %A1%O1 glc\;"
+		    : TARGET_TARGET_SC_CACHE
+		    ? "buffer_wbl2\tsc0\;s_waitcnt\tvmcnt(0)\;global_load%o0\t%0, %A1%O1 %G1\;"
+		      "s_waitcnt\tvmcnt(0)\;buffer_inv sc1"
+		    : "buffer_wbinvl1_vol\;global_load%o0\t%0, %A1%O1 %G1\;"
 		      "s_waitcnt\tvmcnt(0)\;buffer_wbinvl1_vol");
 	  }
 	break;
@@ -2159,6 +2169,7 @@
     gcc_unreachable ();
   }
   [(set_attr "type" "smem,flat,flat")
+   (set_attr "flatmemaccess" "*,load,load")
    (set_attr "length" "28")
    (set_attr "rdna" "no,*,*")])
 
@@ -2178,9 +2189,9 @@
 	  case 0:
 	    return "s_store%o1\t%1, %A0 glc\;s_waitcnt\tlgkmcnt(0)";
 	  case 1:
-	    return "flat_store%o1\t%A0, %1%O0 glc\;s_waitcnt\t0";
+	    return "flat_store%o1\t%A0, %1%O0 %G1\;s_waitcnt\t0";
 	  case 2:
-	    return "global_store%o1\t%A0, %1%O0 glc\;s_waitcnt\tvmcnt(0)";
+	    return "global_store%o1\t%A0, %1%O0 %G1\;s_waitcnt\tvmcnt(0)";
 	  }
 	break;
       case MEMMODEL_RELEASE:
@@ -2191,15 +2202,19 @@
 	    return "s_dcache_wb_vol\;s_store%o1\t%1, %A0 glc";
 	  case 1:
 	    return (TARGET_GLn_CACHE
-		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_store%o1\t%A0, %1%O0 glc"
+		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_store%o1\t%A0, %1%O0 %G1"
 		    : TARGET_WBINVL1_CACHE
-		    ? "buffer_wbinvl1_vol\;flat_store%o1\t%A0, %1%O0 glc"
+		    ? "buffer_wbinvl1_vol\;flat_store%o1\t%A0, %1%O0 %G1"
+		    : TARGET_TARGET_SC_CACHE
+		    ? "buffer_wbl2\tsc0\;s_waitcnt\t0\;flat_store%o1\t%A0, %1%O0 %G1"
 		    : "error: cache architectire unspecified");
 	  case 2:
 	    return (TARGET_GLn_CACHE
-		    ? "buffer_gl1_inv\;buffer_gl0_inv\;global_store%o1\t%A0, %1%O0 glc"
+		    ? "buffer_gl1_inv\;buffer_gl0_inv\;global_store%o1\t%A0, %1%O0 %G1"
 		    : TARGET_WBINVL1_CACHE
-		    ? "buffer_wbinvl1_vol\;global_store%o1\t%A0, %1%O0 glc"
+		    ? "buffer_wbinvl1_vol\;global_store%o1\t%A0, %1%O0 %G1"
+		    : TARGET_TARGET_SC_CACHE
+		    ? "buffer_wbl2\tsc0\;s_waitcnt\tvmcnt(0)\;global_store%o1\t%A0, %1%O0 %G1"
 		    : "error: cache architecture unspecified");
 	  }
 	break;
@@ -2213,19 +2228,27 @@
 		   "s_waitcnt\tlgkmcnt(0)\;s_dcache_inv_vol";
 	  case 1:
 	    return (TARGET_GLn_CACHE
-		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_store%o1\t%A0, %1%O0 glc\;"
+		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_store%o1\t%A0, %1%O0 %G1\;"
 		      "s_waitcnt\t0\;buffer_gl1_inv\;buffer_gl0_inv"
 		    : TARGET_WBINVL1_CACHE
-		    ? "buffer_wbinvl1_vol\;flat_store%o1\t%A0, %1%O0 glc\;"
+		    ? "buffer_wbinvl1_vol\;flat_store%o1\t%A0, %1%O0 %G1\;"
 		      "s_waitcnt\t0\;buffer_wbinvl1_vol"
+		    : TARGET_TARGET_SC_CACHE
+		    ? "buffer_wbl2\tsc0\;s_waitcnt\t0\;"
+		      "flat_store%o1\t%A0, %1%O0 %G1\;"
+		      "s_waitcnt\t0\;buffer_inv sc1"
 		    : "error: cache architecture unspecified");
 	  case 2:
 	    return (TARGET_GLn_CACHE
-		    ? "buffer_gl1_inv\;buffer_gl0_inv\;global_store%o1\t%A0, %1%O0 glc\;"
+		    ? "buffer_gl1_inv\;buffer_gl0_inv\;global_store%o1\t%A0, %1%O0 %G1\;"
 		      "s_waitcnt\tvmcnt(0)\;buffer_gl1_inv\;buffer_gl0_inv"
 		    : TARGET_WBINVL1_CACHE
-		    ? "buffer_wbinvl1_vol\;global_store%o1\t%A0, %1%O0 glc\;"
+		    ? "buffer_wbinvl1_vol\;global_store%o1\t%A0, %1%O0 %G1\;"
 		      "s_waitcnt\tvmcnt(0)\;buffer_wbinvl1_vol"
+		    : TARGET_TARGET_SC_CACHE
+		    ? "buffer_wbl2\tsc0\;s_waitcnt\tvmcnt(0)\;"
+		      "global_store%o1\t%A0, %1%O0 %G1\;"
+		      "s_waitcnt\tvmcnt(0)\;buffer_inv sc1"
 		    : "error: cache architecture unspecified");
 	  }
 	break;
@@ -2233,6 +2256,7 @@
     gcc_unreachable ();
   }
   [(set_attr "type" "smem,flat,flat")
+   (set_attr "flatmemaccess" "*,store,store")
    (set_attr "length" "28")
    (set_attr "rdna" "no,*,*")])
 
@@ -2254,9 +2278,9 @@
 	  case 0:
 	    return "s_atomic_swap<X>\t%0, %1, %2 glc\;s_waitcnt\tlgkmcnt(0)";
 	  case 1:
-	    return "flat_atomic_swap<X>\t%0, %1, %2 glc\;s_waitcnt\t0";
+	    return "flat_atomic_swap<X>\t%0, %1, %2 %G1\;s_waitcnt\t0";
 	  case 2:
-	    return "global_atomic_swap<X>\t%0, %A1, %2%O1 glc\;"
+	    return "global_atomic_swap<X>\t%0, %A1, %2%O1 %G1\;"
 		   "s_waitcnt\tvmcnt(0)";
 	  }
 	break;
@@ -2270,19 +2294,25 @@
 		   "s_dcache_wb_vol\;s_dcache_inv_vol";
 	  case 1:
 	    return (TARGET_GLn_CACHE
-		    ? "flat_atomic_swap<X>\t%0, %1, %2 glc\;s_waitcnt\t0\;"
+		    ? "flat_atomic_swap<X>\t%0, %1, %2 %G1\;s_waitcnt\t0\;"
 		      "buffer_gl1_inv\;buffer_gl0_inv"
 		    : TARGET_WBINVL1_CACHE
-            ? "flat_atomic_swap<X>\t%0, %1, %2 glc\;s_waitcnt\t0\;"
+            ? "flat_atomic_swap<X>\t%0, %1, %2 %G1\;s_waitcnt\t0\;"
 		      "buffer_wbinvl1_vol"
+	    : TARGET_TARGET_SC_CACHE
+            ? "flat_atomic_swap<X>\t%0, %1, %2 %G1\;s_waitcnt\t0\;"
+		      "buffer_inv sc1"
             : "error: cache architecture unspecified");
 	  case 2:
 	    return (TARGET_GLn_CACHE
-		    ? "global_atomic_swap<X>\t%0, %A1, %2%O1 glc\;"
+		    ? "global_atomic_swap<X>\t%0, %A1, %2%O1 %G1\;"
 		      "s_waitcnt\tvmcnt(0)\;buffer_gl1_inv\;buffer_gl0_inv"
 		    : TARGET_WBINVL1_CACHE
-            ? "global_atomic_swap<X>\t%0, %A1, %2%O1 glc\;"
+            ? "global_atomic_swap<X>\t%0, %A1, %2%O1 %G1\;"
 		      "s_waitcnt\tvmcnt(0)\;buffer_wbinvl1_vol"
+	    : TARGET_TARGET_SC_CACHE
+            ? "global_atomic_swap<X>\t%0, %A1, %2%O1 %G1\;"
+		      "s_waitcnt\tvmcnt(0)\;buffer_inv sc1"
             : "error: cache architecture unspecified");
 	  }
 	break;
@@ -2295,20 +2325,27 @@
 		   "s_waitcnt\tlgkmcnt(0)";
 	  case 1:
 	    return (TARGET_GLn_CACHE
-		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_atomic_swap<X>\t%0, %1, %2 glc\;"
+		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_atomic_swap<X>\t%0, %1, %2 %G1\;"
 		      "s_waitcnt\t0"
 		    : TARGET_WBINVL1_CACHE
-            ? "buffer_wbinvl1_vol\;flat_atomic_swap<X>\t%0, %1, %2 glc\;"
+            ? "buffer_wbinvl1_vol\;flat_atomic_swap<X>\t%0, %1, %2 %G1\;"
+		      "s_waitcnt\t0"
+	    : TARGET_TARGET_SC_CACHE
+            ? "buffer_wbl2\tsc0\;s_waitcnt\t0\;flat_atomic_swap<X>\t%0, %1, %2 %G1\;"
 		      "s_waitcnt\t0"
             : "error: cache architecture unspecified");
 	  case 2:
 	    return (TARGET_GLn_CACHE
 		    ? "buffer_gl1_inv\;buffer_gl0_inv\;"
-		      "global_atomic_swap<X>\t%0, %A1, %2%O1 glc\;"
+		      "global_atomic_swap<X>\t%0, %A1, %2%O1 %G1\;"
 		      "s_waitcnt\tvmcnt(0)"
 		    : TARGET_WBINVL1_CACHE
             ? "buffer_wbinvl1_vol\;"
-		      "global_atomic_swap<X>\t%0, %A1, %2%O1 glc\;"
+		      "global_atomic_swap<X>\t%0, %A1, %2%O1 %G1\;"
+		      "s_waitcnt\tvmcnt(0)"
+	    : TARGET_TARGET_SC_CACHE
+            ? "buffer_wbl2\tsc0\;s_waitcnt\tvmcnt(0)\;"
+		      "global_atomic_swap<X>\t%0, %A1, %2%O1 %G1\;"
 		      "s_waitcnt\tvmcnt(0)"
             : "error: cache architecture unspecified");
 	  }
@@ -2323,21 +2360,28 @@
 		   "s_waitcnt\tlgkmcnt(0)\;s_dcache_inv_vol";
 	  case 1:
 	    return (TARGET_GLn_CACHE
-		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_atomic_swap<X>\t%0, %1, %2 glc\;"
+		    ? "buffer_gl1_inv\;buffer_gl0_inv\;flat_atomic_swap<X>\t%0, %1, %2 %G1\;"
 		      "s_waitcnt\t0\;buffer_gl1_inv\;buffer_gl0_inv"
 		    : TARGET_WBINVL1_CACHE
-            ? "buffer_wbinvl1_vol\;flat_atomic_swap<X>\t%0, %1, %2 glc\;"
+            ? "buffer_wbinvl1_vol\;flat_atomic_swap<X>\t%0, %1, %2 %G1\;"
 		      "s_waitcnt\t0\;buffer_wbinvl1_vol"
+	    : TARGET_TARGET_SC_CACHE
+            ? "buffer_wbl2\tsc0\;s_waitcnt\t0\;flat_atomic_swap<X>\t%0, %1, %2 %G1\;"
+		      "s_waitcnt\t0\;buffer_inv sc1"
             : "error: cache architecture unspecified");
 	  case 2:
 	    return (TARGET_GLn_CACHE
 		    ? "buffer_gl1_inv\;buffer_gl0_inv\;"
-		      "global_atomic_swap<X>\t%0, %A1, %2%O1 glc\;"
+		      "global_atomic_swap<X>\t%0, %A1, %2%O1 %G1\;"
 		      "s_waitcnt\tvmcnt(0)\;buffer_gl1_inv\;buffer_gl0_inv"
 		    : TARGET_WBINVL1_CACHE
             ? "buffer_wbinvl1_vol\;"
-		      "global_atomic_swap<X>\t%0, %A1, %2%O1 glc\;"
+		      "global_atomic_swap<X>\t%0, %A1, %2%O1 %G1\;"
 		      "s_waitcnt\tvmcnt(0)\;buffer_wbinvl1_vol"
+	    : TARGET_TARGET_SC_CACHE
+            ? "buffer_wbl2\tsc0\;s_waitcnt\tvmcnt(0)\;"
+		      "global_atomic_swap<X>\t%0, %A1, %2%O1 %G1\;"
+		      "s_waitcnt\tvmcnt(0)\;buffer_inv sc1"
             : "error: cache architecture unspecified");
 	  }
 	break;
@@ -2345,6 +2389,7 @@
     gcc_unreachable ();
   }
   [(set_attr "type" "smem,flat,flat")
+   (set_attr "flatmemaccess" "*,atomicwait,atomicwait")
    (set_attr "length" "28")
    (set_attr "rdna" "no,*,*")])
 

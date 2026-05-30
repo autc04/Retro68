@@ -139,42 +139,78 @@
 [^:]*:140: Error: selected processor does not support `vld4.8 {q0,q1},\[r0\]' in Thumb mode
 [^:]*:141: Error: bad instruction `vld23.32 {q0,q1},\[r0\]'
 [^:]*:142: Error: bad instruction `vld44.32 {q0,q1,q2,q3},\[r0\]'
-[^:]*:160: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:160: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:160: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:160: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:160: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:160: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:161: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:161: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:161: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:161: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:161: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:161: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:162: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:162: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:162: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:162: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:162: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:162: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:163: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:163: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:163: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:163: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:163: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:163: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:164: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:164: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:164: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:164: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:164: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:164: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:165: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:165: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:165: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:165: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:165: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:165: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:160: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:160: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:160: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:160: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:160: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:160: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:161: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:161: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:161: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:161: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:161: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:161: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:162: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:162: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:162: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:162: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:162: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:162: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:163: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:163: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:163: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:163: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:163: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:163: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:164: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:164: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:164: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:164: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:164: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:164: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:165: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:165: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:165: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:165: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:165: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:165: *Info: macro .*
 [^:]*:167: Error: syntax error -- `vst20t.32 {q0,q1},\[r0\]'
 [^:]*:168: Error: syntax error -- `vst20e.32 {q0,q1},\[r0\]'
 [^:]*:170: Error: syntax error -- `vst21t.32 {q0,q1},\[r0\]'
@@ -193,42 +229,78 @@
 [^:]*:192: Warning: instruction is UNPREDICTABLE in a VPT block
 [^:]*:194: Warning: instruction is UNPREDICTABLE in a VPT block
 [^:]*:196: Warning: instruction is UNPREDICTABLE in a VPT block
-[^:]*:198: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:198: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:198: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:198: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:198: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:198: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:199: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:199: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:199: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:199: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:199: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:199: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:200: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:200: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:200: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:200: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:200: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:200: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:201: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:201: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:201: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:201: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:201: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:201: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:202: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:202: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:202: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:202: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:202: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:202: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:203: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:203: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:203: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:203: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:203: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:203: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:198: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:198: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:198: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:198: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:198: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:198: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:199: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:199: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:199: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:199: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:199: *Info: macro .*
+[^:]*:147: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:199: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:200: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:200: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:200: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:200: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:200: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:200: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:201: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:201: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:201: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:201: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:201: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:201: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:202: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:202: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:202: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:202: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:202: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:202: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:203: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:203: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:203: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:203: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:203: *Info: macro .*
+[^:]*:156: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:203: *Info: macro .*
 [^:]*:205: Error: syntax error -- `vld20t.32 {q0,q1},\[r0\]'
 [^:]*:206: Error: syntax error -- `vld20e.32 {q0,q1},\[r0\]'
 [^:]*:208: Error: syntax error -- `vld21t.32 {q0,q1},\[r0\]'

@@ -1,5 +1,5 @@
 /* Implementation of the RANDOM intrinsics
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Lars Segerlund <seger@linuxmail.org>,
    Steve Kargl and Janne Blomqvist.
 
@@ -1215,7 +1215,7 @@ arandom_m8 (gfc_array_m8 *x)
     }
 }
 
-#ifdef GFC_HAVE_GFC_UINTEGER_16
+#ifdef HAVE_GFC_UINTEGER_16
 
 /* Fill an unsigned array with random bytes.  */
 

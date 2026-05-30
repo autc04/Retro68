@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 CLDEMOTE insns
 #source: cldemote.s

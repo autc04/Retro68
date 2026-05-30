@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,7 +34,6 @@ with Err_Vars;       use Err_Vars;
 with Errout;
 with Opt;            use Opt;
 with Scans;          use Scans;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinput;         use Sinput;
 with Stylesw;        use Stylesw;
@@ -330,7 +329,7 @@ package body Styleg is
          --  Do we need to worry about UTF_32 line terminators here ???
 
          S := Scan_Ptr + 3;
-         while Source (S) not in Line_Terminator loop
+         while Source (S) not in EOF | Line_Terminator loop
             S := S + 1;
          end loop;
 
@@ -499,7 +498,8 @@ package body Styleg is
                   if Is_Box_Comment
                     or else Style_Check_Comments_Spacing = 1
                   then
-                     Error_Space_Required (Scan_Ptr + 2);
+                     Error_Msg -- CODEFIX
+                       ("(style) space required?c?", Scan_Ptr + 2);
                   else
                      Error_Msg -- CODEFIX
                        ("(style) two spaces required?c?", Scan_Ptr + 2);
@@ -526,7 +526,8 @@ package body Styleg is
          --  box comment.
 
          elsif not Is_Box_Comment then
-            Error_Space_Required (Scan_Ptr + 3);
+            Error_Msg -- CODEFIX
+              ("(style) space required?c?", Scan_Ptr + 3);
          end if;
       end if;
    end Check_Comment;

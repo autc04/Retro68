@@ -60,3 +60,6 @@ _start:
 	.att_syntax prefix
 	vdpbf16ps 8(%rax){1to8}, %zmm2, %zmm2
 	vcvtne2ps2bf16 8(%rax){1to8}, %zmm2, %zmm2
+
+	vcvtusi2sdq %eax, %xmm0, %xmm0
+	vcvtusi2sdl %rax, {rn-sae}, %xmm0, %xmm0

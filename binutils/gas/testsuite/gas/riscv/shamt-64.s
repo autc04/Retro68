@@ -1,4 +1,4 @@
-	.option arch, -c
+	.option norvc
 	slli	a0, a0, 0
 	slli	a0, a0, 31
 	slli	a0, a0, 32

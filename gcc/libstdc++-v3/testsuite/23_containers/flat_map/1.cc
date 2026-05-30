@@ -1,4 +1,5 @@
 // { dg-do run { target c++23 } }
+// { dg-timeout-factor 2 }
 
 #include <flat_map>
 
@@ -16,7 +17,7 @@
 
 struct Gt {
   template<typename T, typename U>
-  bool operator()(T const& l, U const & r) const
+  constexpr bool operator()(T const& l, U const & r) const
   { return l > r; }
 };
 
@@ -55,16 +56,17 @@ test_deduction_guide()
 		   std::vector<long, __gnu_test::SimpleAllocator<long>>,
 		   std::vector<float, __gnu_test::SimpleAllocator<float>>>>);
 
-  // LWG4223: deduces flat_map<long, float const>, which in turn instantiates
-  // std::vector<cosnt float> that is ill-formed.
-  // __gnu_test::test_input_range<std::pair<const long, const float>> r2(0, 0);
-  // std::flat_map it5(r2.begin(), r2.begin());
-  // std::flat_map fr5(std::from_range, r2);
+  __gnu_test::test_input_range<std::pair<const long, const float>> r2(0, 0);
+  std::flat_map it5(r2.begin(), r2.begin());
+  static_assert(std::is_same_v<decltype(it5), std::flat_map<long, float>>);
+  std::flat_map fr5(std::from_range, r2);
+  static_assert(std::is_same_v<decltype(fr5), std::flat_map<long, float>>);
 
-  // LWG4223: deduces flat_map<const long&, float&>
-  //__gnu_test::test_input_range<std::pair<const long&, float&>> r3(0, 0);
-  // std::flat_map it6(r3.begin(), r3.begin());
-  // std::flat_map fr6(std::from_range, r3);
+  __gnu_test::test_input_range<std::pair<const long&, float&>> r3(0, 0);
+  std::flat_map it6(r3.begin(), r3.begin());
+  static_assert(std::is_same_v<decltype(it6), std::flat_map<long, float>>);
+  std::flat_map fr6(std::from_range, r3);
+  static_assert(std::is_same_v<decltype(fr6), std::flat_map<long, float>>);
 
   __gnu_test::test_input_range<std::tuple<long, float>> r4(0, 0);
   std::flat_map it7(r4.begin(), r4.begin());
@@ -74,6 +76,7 @@ test_deduction_guide()
 }
 
 template<template<typename> class KeyContainer, template<typename> class MappedContainer>
+constexpr
 void
 test01()
 {
@@ -125,6 +128,7 @@ test01()
   VERIFY( m.end()[-1] == std::pair(20,42) );
 }
 
+constexpr
 void
 test02()
 {
@@ -156,6 +160,7 @@ test02()
   VERIFY( m.count(3) == 1 );
 }
 
+constexpr
 void
 test03()
 {
@@ -184,6 +189,7 @@ test03()
   VERIFY( std::ranges::equal(m, (std::pair<int, int>[]){{5, 6}}) );
 }
 
+constexpr
 void
 test04()
 {
@@ -216,6 +222,7 @@ test04()
   VERIFY( m5.values().get_allocator().get_personality() == 44 );
 }
 
+constexpr
 void
 test05()
 {
@@ -225,6 +232,7 @@ test05()
   VERIFY( std::ranges::equal(m | std::views::values, (int[]){-1, -2, -3, -4, -5}) );
 }
 
+constexpr
 void
 test06()
 {
@@ -241,8 +249,42 @@ test06()
   VERIFY( std::ranges::equal(m | std::views::values, (int[]){2, 3, 4, 5, 6}) );
 }
 
-int
-main()
+constexpr
+void
+test07()
+{
+  // PR libstdc++/119427 - std::erase_if(std::flat_foo) does not work
+  // PR libstdc++/120465 - erase_if for flat_map calls predicate with incorrect type
+  std::flat_map<int, int> m = {std::pair{1, 2}, {3, 4}, {5, 6}};
+  auto n = std::erase_if(m, [](auto x) { return x.first == 1 || x.second == 6; });
+  VERIFY( n == 2 );
+  VERIFY( std::ranges::equal(m, (std::pair<int,int>[]){{3,4}}) );
+}
+
+constexpr
+void
+test08()
+{
+  // PR libstdc++/120432 - flat_map operator[] is broken for const lvalue keys
+  std::flat_map<int, int> m;
+  const int k = 42;
+  m[k] = 0;
+}
+
+constexpr
+void
+test09()
+{
+  // PR libstdc++/122921 - The value_type of flat_map's iterator should be
+  // pair<Key, T> instead of pair<const Key, T>
+  using type = std::flat_map<int, int>;
+  using value_type = std::ranges::range_value_t<type>;
+  using value_type = type::value_type;
+  using value_type = std::pair<int, int>;
+}
+
+void
+test()
 {
   test01<std::vector, std::vector>();
   test01<std::deque, std::deque>();
@@ -253,4 +295,35 @@ main()
   test04();
   test05();
   test06();
+  test07();
+  test08();
+  test09();
+}
+
+constexpr
+bool
+test_constexpr()
+{
+  test01<std::vector, std::vector>();
+  test02();
+  test03();
+  test04();
+  test05();
+  test06();
+  test07();
+  test08();
+  test09();
+  return true;
+}
+
+int
+main()
+{
+  test();
+#if __cplusplus > 202302L
+  static_assert(test_constexpr());
+#if __cpp_lib_constexpr_flat_map != 202502L
+#error "Feature-test macro __cpp_lib_constexpr_flat_map has wrong value in <flat_map>"
+#endif
+#endif
 }

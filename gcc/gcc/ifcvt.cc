@@ -1,5 +1,5 @@
 /* If-conversion support.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -101,7 +101,7 @@ static rtx_insn *block_has_only_trap (basic_block);
 static void init_noce_multiple_sets_info (basic_block,
   auto_delete_vec<noce_multiple_sets_info> &);
 static bool noce_convert_multiple_sets_1 (struct noce_if_info *,
-  auto_delete_vec<noce_multiple_sets_info> &, int *);
+  auto_delete_vec<noce_multiple_sets_info> &, int *, bool *);
 
 /* Count the number of non-jump active insns in BB.  */
 
@@ -790,7 +790,6 @@ static rtx noce_get_alt_condition (struct noce_if_info *, rtx, rtx_insn **);
 static bool noce_try_minmax (struct noce_if_info *);
 static bool noce_try_abs (struct noce_if_info *);
 static bool noce_try_sign_mask (struct noce_if_info *);
-static int noce_try_cond_zero_arith (struct noce_if_info *);
 
 /* Return the comparison code for reversed condition for IF_INFO,
    or UNKNOWN if reversing the condition is not possible.  */
@@ -877,8 +876,7 @@ noce_emit_store_flag (struct noce_if_info *if_info, rtx x, bool reversep,
 
       if (recog_memoized (insn) >= 0)
 	{
-	  rtx_insn *seq = get_insns ();
-	  end_sequence ();
+	  rtx_insn *seq = end_sequence ();
 	  emit_insn (seq);
 
 	  if_info->cond_earliest = if_info->jump;
@@ -891,6 +889,10 @@ noce_emit_store_flag (struct noce_if_info *if_info, rtx x, bool reversep,
 
   /* Don't even try if the comparison operands or the mode of X are weird.  */
   if (cond_complex || !SCALAR_INT_MODE_P (GET_MODE (x)))
+    return NULL_RTX;
+
+  /* Don't try if mode of X is more than the max fixed mode size.  */
+  if (known_le (MAX_FIXED_MODE_SIZE, GET_MODE_BITSIZE (GET_MODE (x))))
     return NULL_RTX;
 
   return emit_store_flag (x, code, XEXP (cond, 0),
@@ -921,13 +923,19 @@ noce_can_force_operand (rtx x)
       switch (GET_CODE (x))
 	{
 	case MULT:
-	case DIV:
 	case MOD:
 	case UDIV:
 	case UMOD:
 	  return true;
+	case DIV:
+	  if (INTEGRAL_MODE_P (GET_MODE (x)))
+	    return true;
+	  /* FALLTHRU */
 	default:
-	  return code_to_optab (GET_CODE (x));
+	  auto optab = code_to_optab (GET_CODE (x));
+	  if (!optab)
+	    return false;
+	  return optab_handler (optab, GET_MODE (x));
 	}
     }
   if (UNARY_P (x))
@@ -947,7 +955,10 @@ noce_can_force_operand (rtx x)
 	case UNSIGNED_FLOAT:
 	  return true;
 	default:
-	  return code_to_optab (GET_CODE (x));
+	  auto optab = code_to_optab (GET_CODE (x));
+	  if (!optab)
+	    return false;
+	  return optab_handler (optab, GET_MODE (x));
 	}
     }
   return false;
@@ -975,8 +986,7 @@ noce_emit_move_insn (rtx x, rtx y)
       insn = (OBJECT_P (y) || CONSTANT_P (y) || GET_CODE (y) == SUBREG)
 	     ? emit_move_insn (x, y)
 	     : emit_insn (gen_rtx_SET (x, y));
-      seq = get_insns ();
-      end_sequence ();
+      seq = end_sequence ();
 
       if (recog_memoized (insn) <= 0)
 	{
@@ -1180,6 +1190,211 @@ noce_try_move (struct noce_if_info *if_info)
     }
   return false;
 }
+
+/* If a sign bit test is selecting across constants, we may be able
+   to generate efficient code utilizing the -1/0 result of a sign
+   bit splat idiom. 
+
+   Do this before trying the generalized conditional move as these
+   (when applicable) are hopefully faster than a conditional move.  */
+
+static bool
+noce_try_sign_bit_splat (struct noce_if_info *if_info)
+{
+  rtx cond = if_info->cond;
+  enum rtx_code code = GET_CODE (cond);
+
+  /* We're looking for sign bit tests, so only a few cases are
+     interesting.  LT/GE 0 LE/GT -1.  */
+  if (((code == LT || code == GE)
+       && XEXP (cond, 1) == CONST0_RTX (GET_MODE (cond)))
+      || ((code == LE || code == GT)
+	  && XEXP (cond, 1) == CONSTM1_RTX (GET_MODE (cond))))
+    ;
+  else
+    return false;
+
+  /* It would be good if this could be extended since constant synthesis
+     on some platforms will result in blocks which fail this test.  */
+  if (!noce_simple_bbs (if_info))
+    return false;
+
+  /* Only try this for constants in the true/false arms and a REG
+     destination.   We could select between 0 and a REG pretty
+     easily with a logical AND.  */
+  if (!CONST_INT_P (if_info->a)
+      || !CONST_INT_P (if_info->b)
+      || !REG_P (if_info->x))
+    return false;
+
+  machine_mode mode = GET_MODE (if_info->x);
+
+  /* If the mode of the destination does not match the mode of
+     the value we're testing, then this optimization is not valid.  */
+  if (mode != GET_MODE (XEXP (cond, 0)))
+    return false;
+
+  HOST_WIDE_INT val_a = INTVAL (if_info->a);
+  HOST_WIDE_INT val_b = INTVAL (if_info->b);
+
+  rtx_insn *seq;
+  start_sequence ();
+
+  /* We're testing the sign bit of this operand.  */
+  rtx condop = XEXP (cond, 0);
+
+  /* To splat the sign bit we arithmetically shift the
+     input value right by the size of the object - 1 bits. 
+
+     Note some targets do not have strong shifters, but do have
+     alternative ways to generate the sign bit splat.  The
+     profitability test when we end the sequence should reject
+     cases when the branchy sequence is better.  */
+  int splat_count = GET_MODE_BITSIZE (GET_MODE (condop)).to_constant () - 1;
+  rtx splat = GEN_INT (splat_count);
+
+  rtx temp;
+  temp = expand_simple_binop (GET_MODE (XEXP (cond, 0)), ASHIFTRT,
+			      XEXP (cond, 0), splat, NULL_RTX,
+			      false, OPTAB_WIDEN);
+  if (!temp)
+    goto fail;
+
+  /* IOR of anything with -1 still results in -1.  So we can
+     IOR the other operand to generate a select between -1 and
+     an arbitrary constant.  */
+  if (val_a == -1)
+    {
+      if (code == LT || code == LE)
+	{
+	  temp = expand_simple_unop (mode, NOT, temp, NULL_RTX, true);
+	  if (!temp)
+	    goto fail;
+	}
+
+      temp = expand_simple_binop (mode, IOR, temp, GEN_INT (val_b),
+				  if_info->x, false, OPTAB_WIDEN);
+    }
+  /* AND of anything with 0 is still zero.  So we can AND
+     with the -1 operand with the a constant to select
+     between the constant and zero.  */
+  else if (val_b == 0)
+    {
+      if (code == LT || code == LE)
+	{
+	  temp = expand_simple_unop (mode, NOT, temp, NULL_RTX, true);
+	  if (!temp)
+	    goto fail;
+	}
+
+      /* Since we know the value is currenly -1 or 0, some constants may
+	 be more easily handled by shifting the value again.  A right
+	 logical shift constructs 2^n-1 constants a left shift constructs
+	 ~(2^n-1) constants.  Given some targets don't have efficient
+	 shifts, generate the obvious RTL for both forms and select the
+	 one with smaller cost.  */
+      rtx and_form = gen_rtx_AND (mode, temp, GEN_INT (val_a));
+      rtx shift_left = gen_rtx_ASHIFT (mode, temp, GEN_INT (ctz_hwi (val_a)));
+      HOST_WIDE_INT rshift_count
+	= (clz_hwi (val_a) & (GET_MODE_PRECISION (mode).to_constant() - 1));
+      rtx shift_right = gen_rtx_LSHIFTRT (mode, temp, GEN_INT (rshift_count));
+      bool speed_p = optimize_insn_for_speed_p ();
+      if (exact_log2 (val_a + 1) >= 0
+	  && (rtx_cost (shift_right, mode, SET, 1, speed_p)
+	      < rtx_cost (and_form, mode, SET, 1, speed_p)))
+	temp = expand_simple_binop (mode, LSHIFTRT, temp,
+				    GEN_INT (rshift_count),
+				    if_info->x, false, OPTAB_WIDEN);
+      else if (exact_log2 (~val_a + 1) >= 0
+	       && (rtx_cost (shift_left, mode, SET, 1, speed_p)
+		   < rtx_cost (and_form, mode, SET, 1, speed_p)))
+	temp = expand_simple_binop (mode, ASHIFT, temp,
+				    GEN_INT (ctz_hwi (val_a)),
+				    if_info->x, false, OPTAB_WIDEN);
+      else
+	temp = expand_simple_binop (mode, AND, temp, GEN_INT (val_a),
+				    if_info->x, false, OPTAB_WIDEN);
+    }
+  /* Same cases, but with the test or arms swapped.  These
+     can be realized as well, though it typically costs
+     an extra instruction.  */
+  else if (val_b == -1)
+    {
+      if (code != LT && code != LE)
+	{
+	  temp = expand_simple_unop (mode, NOT, temp, NULL_RTX, true);
+	  if (!temp)
+	    goto fail;
+	}
+
+      temp = expand_simple_binop (mode, IOR, temp, GEN_INT (val_a),
+				  if_info->x, false, OPTAB_WIDEN);
+    }
+  else if (val_a == 0)
+    {
+      if (code != LT && code != LE)
+	{
+	  temp = expand_simple_unop (mode, NOT, temp, NULL_RTX, true);
+	  if (!temp)
+	    goto fail;
+	}
+
+      /* Since we know the value is currenly -1 or 0, some constants may
+	 be more easily handled by shifting the value again.  A right
+	 logical shift constructs 2^n-1 constants a left shift constructs
+	 ~(2^n-1) constants.  Given some targets don't have efficient
+	 shifts, generate the obvious RTL for both forms and select the
+	 one with smaller cost.  */
+      rtx and_form = gen_rtx_AND (mode, temp, GEN_INT (val_b));
+      rtx shift_left = gen_rtx_ASHIFT (mode, temp, GEN_INT (ctz_hwi (val_b)));
+      HOST_WIDE_INT rshift_count
+	= (clz_hwi (val_b) & (GET_MODE_PRECISION (mode).to_constant() - 1));
+      rtx shift_right = gen_rtx_LSHIFTRT (mode, temp, GEN_INT (rshift_count));
+      bool speed_p = optimize_insn_for_speed_p ();
+      if (exact_log2 (val_b + 1) >= 0
+	  && (rtx_cost (shift_right, mode, SET, 1, speed_p)
+	      < rtx_cost (and_form, mode, SET, 1, speed_p)))
+	temp = expand_simple_binop (mode, LSHIFTRT, temp,
+				    GEN_INT (rshift_count),
+				    if_info->x, false, OPTAB_WIDEN);
+      else if (exact_log2 (~val_b + 1) >= 0
+	       && (rtx_cost (shift_left, mode, SET, 1, speed_p)
+		   < rtx_cost (and_form, mode, SET, 1, speed_p)))
+	temp = expand_simple_binop (mode, ASHIFT, temp,
+				    GEN_INT (ctz_hwi (val_b)),
+				    if_info->x, false, OPTAB_WIDEN);
+      else
+        temp = expand_simple_binop (mode, AND, temp, GEN_INT (val_b),
+				    if_info->x, false, OPTAB_WIDEN);
+    }
+  /* Nothing worked.  */
+  else
+    temp = NULL_RTX;
+
+  if (!temp)
+    goto fail;
+
+  /* Move into the final destination if the value wasn't
+     constructed there.  */
+  if (if_info->x != temp)
+    emit_move_insn (if_info->x, temp);
+
+  /* This ends the sequence and tests the cost model.  */
+  seq = end_ifcvt_sequence (if_info);
+  if (!seq || !targetm.noce_conversion_profitable_p (seq, if_info))
+    return false;
+
+  /* Everything looks good.  Install the if-converted sequence.  */
+  emit_insn_before_setloc (seq, if_info->jump,
+			   INSN_LOCATION (if_info->insn_a));
+  if_info->transform_name = "splat_sign_bit_trivial";
+  return true;
+
+ fail:
+  end_ifcvt_sequence (if_info);
+  return false;
+}
+
 
 /* Try forming an IF_THEN_ELSE (cond, b, a) and collapsing that
    through simplify_rtx.  Sometimes that can eliminate the IF_THEN_ELSE.
@@ -1748,8 +1963,7 @@ noce_emit_cmove (struct noce_if_info *if_info, rtx x, enum rtx_code code,
 
       if (recog_memoized (insn) >= 0)
 	{
-	  rtx_insn *seq = get_insns ();
-	  end_sequence ();
+	  rtx_insn *seq = end_sequence ();
 	  emit_insn (seq);
 
 	  return x;
@@ -1833,35 +2047,6 @@ noce_emit_cmove (struct noce_if_info *if_info, rtx x, enum rtx_code code,
     }
   else
     return NULL_RTX;
-}
-
-/*  Emit a conditional zero, returning TARGET or NULL_RTX upon failure.
-    IF_INFO describes the if-conversion scenario under consideration.
-    CZERO_CODE selects the condition (EQ/NE).
-    NON_ZERO_OP is the nonzero operand of the conditional move
-    TARGET is the desired output register.  */
-
-static rtx
-noce_emit_czero (struct noce_if_info *if_info, enum rtx_code czero_code,
-		 rtx non_zero_op, rtx target)
-{
-  machine_mode mode = GET_MODE (target);
-  rtx cond_op0 = XEXP (if_info->cond, 0);
-  rtx czero_cond
-    = gen_rtx_fmt_ee (czero_code, GET_MODE (cond_op0), cond_op0, const0_rtx);
-  rtx if_then_else
-    = gen_rtx_IF_THEN_ELSE (mode, czero_cond, const0_rtx, non_zero_op);
-  rtx set = gen_rtx_SET (target, if_then_else);
-
-  rtx_insn *insn = make_insn_raw (set);
-
-  if (recog_memoized (insn) >= 0)
-    {
-      add_insn (insn);
-      return target;
-    }
-
-  return NULL_RTX;
 }
 
 /* Try only simple constants and registers here.  More complex cases
@@ -2939,166 +3124,212 @@ get_base_reg (rtx exp)
 {
   if (REG_P (exp))
     return exp;
+  else if (SUBREG_P (exp))
+    return SUBREG_REG (exp);
 
   return NULL_RTX;
 }
 
-/*  Check if IF-BB and THEN-BB satisfy the condition for conditional zero
-    based if conversion, returning TRUE if satisfied otherwise FALSE.
-
+/*  Try to covert if-then-else with conditional zero,
+    returning TURE on success or FALSE on failure.
     IF_INFO describes the if-conversion scenario under consideration.
-    COMMON_PTR points to the common REG of canonicalized IF_INFO->A and
-    IF_INFO->B.
-    CZERO_CODE_PTR points to the comparison code to use in czero RTX.
-    A_PTR points to the A expression of canonicalized IF_INFO->A.
-    TO_REPLACE points to the RTX to be replaced by czero RTX destnation.  */
 
-static bool
-noce_bbs_ok_for_cond_zero_arith (struct noce_if_info *if_info, rtx *common_ptr,
-				 rtx *bin_exp_ptr,
-				 enum rtx_code *czero_code_ptr, rtx *a_ptr,
-				 rtx **to_replace)
+    It verifies the branch structure on left and transforms it into branchless
+    sequence on the right, with a backend provided conditional zero or orig for
+    operand z. If true, tmp is z, 0 otherwise (y op 0 is same as y for most op).
+
+      if (cond)		|  tmp = cond ? z : 0
+	x = y op z	|    x = y op tmp
+      else		|
+	x = y		|
+
+    AND is special as it needs to be handled differently.
+
+      tmp = !cond ? y : 0
+	x = (y & z) | tmp
+    Also for AND try:
+      tmp = cond ? z : -1
+	x = y op tmp
+    To see if it is cheaper to produce `!cond ? y : 0`
+    or `cond ? z : -1`.
+  */
+
+static int
+noce_try_cond_arith (struct noce_if_info *if_info)
 {
-  rtx common = NULL_RTX;
+  rtx target, a, b, a_op0, a_op1;
   rtx cond = if_info->cond;
-  rtx a = copy_rtx (if_info->a);
-  rtx b = copy_rtx (if_info->b);
-  rtx bin_op1 = NULL_RTX;
-  enum rtx_code czero_code = UNKNOWN;
-  bool reverse = false;
-  rtx op0, op1, bin_exp;
+  rtx_code code = GET_CODE (cond);
+  rtx_insn *seq;
+  rtx_code op;
+  machine_mode mode = GET_MODE (if_info->x);
+
+  /* Scalar integral modes are only supported here.
+     Could support scalar floating point but that
+     would be only with -ffast-math and might
+     be worse than a branch.  */
+  if (!SCALAR_INT_MODE_P (mode))
+    return false;
 
   if (!noce_simple_bbs (if_info))
     return false;
 
-  /* COND must be EQ or NE comparision of a reg and 0.  */
-  if (GET_CODE (cond) != NE && GET_CODE (cond) != EQ)
-    return false;
-  if (!REG_P (XEXP (cond, 0)) || !rtx_equal_p (XEXP (cond, 1), const0_rtx))
-    return false;
+  a = copy_rtx (if_info->a);
+  b = copy_rtx (if_info->b);
 
   /* Canonicalize x = y : (y op z) to x = (y op z) : y.  */
   if (REG_P (a) && noce_cond_zero_binary_op_supported (b))
     {
+      if (if_info->rev_cond)
+	{
+	  cond = if_info->rev_cond;
+	  code = GET_CODE (cond);
+	}
+      else
+	code = reversed_comparison_code (cond, if_info->jump);
       std::swap (a, b);
-      reverse = !reverse;
     }
 
   /* Check if x = (y op z) : y is supported by czero based ifcvt.  */
-  if (!(noce_cond_zero_binary_op_supported (a) && REG_P (b)))
-    return false;
+  else if (!(noce_cond_zero_binary_op_supported (a) && REG_P (b)))
+    goto fail;
 
-  bin_exp = a;
+  if (code == UNKNOWN)
+    goto fail;
+
+  op = GET_CODE (a);
 
   /* Canonicalize x = (z op y) : y to x = (y op z) : y */
-  op1 = get_base_reg (XEXP (bin_exp, 1));
-  if (op1 && rtx_equal_p (op1, b) && COMMUTATIVE_ARITH_P (bin_exp))
-    std::swap (XEXP (bin_exp, 0), XEXP (bin_exp, 1));
-
-  op0 = get_base_reg (XEXP (bin_exp, 0));
-  if (op0 && rtx_equal_p (op0, b))
+  a_op1 = get_base_reg (XEXP (a, 1));
+  if (a_op1 && rtx_equal_p (a_op1, b) && COMMUTATIVE_ARITH_P (a))
     {
-      common = b;
-      bin_op1 = XEXP (bin_exp, 1);
-      czero_code = (reverse ^ (GET_CODE (bin_exp) == AND))
-		     ? noce_reversed_cond_code (if_info)
-		     : GET_CODE (cond);
+      std::swap (XEXP (a, 0), XEXP (a, 1));
+      a_op1 = get_base_reg (XEXP (a, 1));
     }
-  else
-    return false;
 
-  if (czero_code == UNKNOWN)
-    return false;
+  if (a_op1 == NULL_RTX)
+    goto fail;
 
-  if (REG_P (bin_op1))
-    *to_replace = &XEXP (bin_exp, 1);
-  else
-    return false;
-
-  *common_ptr = common;
-  *bin_exp_ptr = bin_exp;
-  *czero_code_ptr = czero_code;
-  *a_ptr = a;
-
-  return true;
-}
-
-/*  Try to covert if-then-else with conditional zero,
-    returning TURE on success or FALSE on failure.
-    IF_INFO describes the if-conversion scenario under consideration.  */
-
-static int
-noce_try_cond_zero_arith (struct noce_if_info *if_info)
-{
-  rtx target, rtmp, a;
-  rtx_insn *seq;
-  machine_mode mode = GET_MODE (if_info->x);
-  rtx common = NULL_RTX;
-  enum rtx_code czero_code = UNKNOWN;
-  rtx bin_exp = NULL_RTX;
-  enum rtx_code bin_code = UNKNOWN;
-  rtx non_zero_op = NULL_RTX;
-  rtx *to_replace = NULL;
-
-  if (!noce_bbs_ok_for_cond_zero_arith (if_info, &common, &bin_exp, &czero_code,
-					&a, &to_replace))
-    return false;
+  /* Ensure the cond is of form: x = (y op z) : y */
+  a_op0 = get_base_reg (XEXP (a, 0));
+  if (!(a_op0 && rtx_equal_p (a_op0, b)))
+    goto fail;
 
   start_sequence ();
 
-  bin_code = GET_CODE (bin_exp);
+  target = gen_reg_rtx (GET_MODE (XEXP (a, op != AND)));
 
-  if (bin_code == AND)
+  /* AND requires !cond, instead we swap ops around.  */
+  target = noce_emit_cmove (if_info, target, code,
+			    XEXP (cond, 0), XEXP (cond, 1),
+			    op != AND ? XEXP (a, 1) : const0_rtx,
+			    op != AND ? const0_rtx : XEXP (a, 0));
+  if (!target)
     {
-      rtmp = gen_reg_rtx (mode);
-      noce_emit_move_insn (rtmp, a);
+      end_sequence ();
+      rtx tmp = XEXP (a, op != AND);
+      /* If the cmove fails and this was a lowpart subreg,
+	 then try the reg part and then putting back the lowpart
+	 afterwards.  */
+      if (GET_CODE (tmp) != SUBREG  || !subreg_lowpart_p (tmp))
+	return false;
+      tmp = SUBREG_REG (tmp);
+      /* Only handle integer scalar modes for the inner mode of
+	 the subreg.  */
+      if (!SCALAR_INT_MODE_P (GET_MODE (tmp)))
+	return false;
 
-      target = noce_emit_czero (if_info, czero_code, common, if_info->x);
+      start_sequence ();
+      target = gen_reg_rtx (GET_MODE (tmp));
+      target = noce_emit_cmove (if_info, target, code,
+				XEXP (cond, 0), XEXP (cond, 1),
+				op != AND ? tmp : const0_rtx,
+				op != AND ? const0_rtx : tmp);
       if (!target)
-	{
-	  end_sequence ();
-	  return false;
-	}
+	goto end_seq_n_fail;
+      target = rtl_hooks.gen_lowpart_no_emit (GET_MODE (XEXP (a, op != AND)), target);
+      gcc_assert (target);
+    }
 
-      target = expand_simple_binop (mode, IOR, rtmp, target, if_info->x, 0,
+  /* For AND, try `cond ? z : -1` to see if that is cheaper or the same cost.
+     In some cases it will be cheaper to produce the -1 rather than the 0 case.  */
+  if (op == AND)
+    {
+      rtx_insn *seq0 = end_sequence ();
+      unsigned cost0 = seq_cost (seq0, if_info->speed_p);
+      if (!target)
+	cost0 = -1u;
+
+      /* Produce `cond ? z : -1`. */
+      rtx targetm1;
+      start_sequence ();
+      targetm1 = gen_reg_rtx (GET_MODE (XEXP (a, 1)));
+      targetm1 = noce_emit_cmove (if_info, targetm1, code,
+				  XEXP (cond, 0), XEXP (cond, 1),
+				  XEXP (a, 1), constm1_rtx);
+      rtx_insn *seqm1 = end_sequence ();
+      unsigned costm1 = seq_cost (seqm1, if_info->speed_p);
+      if (!targetm1)
+	costm1 = -1u;
+      /* If both fails, then there is no costing to be done. */
+      if (!targetm1 && !target)
+	return false;
+
+      /* If -1 is cheaper or the same cost to producing 0, then use that.  */
+      if (costm1 <= cost0)
+	{
+	  push_to_sequence (seqm1);
+	  targetm1 = expand_simple_binop (mode, op, a_op0, targetm1,
+					  if_info->x, 0, OPTAB_WIDEN);
+	  if (targetm1)
+	    {
+	      target = targetm1;
+	      goto success;
+	    }
+	  end_sequence ();
+	}
+      if (!target)
+	return false;
+      /* For 0 the produce sequence is:
+	 tmp = !cond ? y : 0
+	 x = (y & z) | tmp  */
+      push_to_sequence (seq0);
+      rtx a_bin = gen_reg_rtx (mode);
+      noce_emit_move_insn (a_bin, a);
+
+      target = expand_simple_binop (mode, IOR, a_bin, target, if_info->x, 0,
 				    OPTAB_WIDEN);
       if (!target)
-	{
-	  end_sequence ();
-	  return false;
-	}
-
-      if (target != if_info->x)
-	noce_emit_move_insn (if_info->x, target);
+	goto end_seq_n_fail;
+      goto success;
     }
-  else
-    {
-      non_zero_op = *to_replace;
-      /* If x is used in both input and out like x = c ? x + z : x,
-	 use a new reg to avoid modifying x  */
-      if (common && rtx_equal_p (common, if_info->x))
-	target = gen_reg_rtx (mode);
-      else
-	target = if_info->x;
+  if (!target)
+    goto end_seq_n_fail;
 
-      target = noce_emit_czero (if_info, czero_code, non_zero_op, target);
-      if (!target || !to_replace)
-	{
-	  end_sequence ();
-	  return false;
-	}
+  target = expand_simple_binop (mode, op, a_op0, target, if_info->x, 0,
+				OPTAB_WIDEN);
 
-      *to_replace = target;
-      noce_emit_move_insn (if_info->x, a);
-    }
+  if (!target)
+    goto end_seq_n_fail;
+
+success:
+  if (target != if_info->x)
+    noce_emit_move_insn (if_info->x, target);
 
   seq = end_ifcvt_sequence (if_info);
   if (!seq || !targetm.noce_conversion_profitable_p (seq, if_info))
-    return false;
+    goto fail;
 
   emit_insn_before_setloc (seq, if_info->jump, INSN_LOCATION (if_info->insn_a));
-  if_info->transform_name = "noce_try_cond_zero_arith";
+  if_info->transform_name = "noce_try_cond_arith";
   return true;
+
+end_seq_n_fail:
+  end_sequence ();
+
+fail:
+
+  return false;
 }
 
 /* Optimize away "if (x & C) x |= C" and similar bit manipulation
@@ -3495,28 +3726,27 @@ noce_convert_multiple_sets (struct noce_if_info *if_info)
 
   int last_needs_comparison = -1;
 
+  bool use_cond_earliest = false;
+
   bool ok = noce_convert_multiple_sets_1
-    (if_info, insn_info, &last_needs_comparison);
+    (if_info, insn_info, &last_needs_comparison, &use_cond_earliest);
   if (!ok)
       return false;
 
-  /* If there are insns that overwrite part of the initial
-     comparison, we can still omit creating temporaries for
-     the last of them.
-     As the second try will always create a less expensive,
-     valid sequence, we do not need to compare and can discard
-     the first one.  */
-  if (last_needs_comparison != -1)
-    {
-      end_sequence ();
-      start_sequence ();
-      ok = noce_convert_multiple_sets_1
-	(if_info, insn_info, &last_needs_comparison);
-      /* Actually we should not fail anymore if we reached here,
-	 but better still check.  */
-      if (!ok)
-	  return false;
-    }
+  /* Always perform a second attempt that uses information gathered in the
+     first.  At least we can omit creating temporaries until we definitely
+     need them.  The sequence created in the second attempt is never worse
+     than the first.  */
+
+  end_sequence ();
+  start_sequence ();
+  ok = noce_convert_multiple_sets_1
+    (if_info, insn_info, &last_needs_comparison, &use_cond_earliest);
+
+  /* Actually we should not fail anymore if we reached here,
+     but better still check.  */
+  if (!ok)
+    return false;
 
   /* We must have seen some sort of insn to insert, otherwise we were
      given an empty BB to convert, and we can't handle that.  */
@@ -3544,11 +3774,21 @@ noce_convert_multiple_sets (struct noce_if_info *if_info)
   /* Actually emit the sequence if it isn't too expensive.  */
   rtx_insn *seq = get_insns ();
 
+  /* If the created sequence does not use cond_earliest (but the jump
+     does) add its cost to the original_cost before comparing costs.  */
+  unsigned int original_cost = if_info->original_cost;
+  if (if_info->jump != if_info->cond_earliest && !use_cond_earliest)
+    if_info->original_cost += insn_cost (if_info->cond_earliest,
+					 if_info->speed_p);
+
   if (!targetm.noce_conversion_profitable_p (seq, if_info))
     {
       end_sequence ();
       return false;
     }
+
+  /* Restore the original cost in case we do not succeed below.  */
+  if_info->original_cost = original_cost;
 
   for (insn = seq; insn; insn = NEXT_INSN (insn))
     set_used_flags (insn);
@@ -3603,7 +3843,8 @@ noce_convert_multiple_sets (struct noce_if_info *if_info)
 static bool
 noce_convert_multiple_sets_1 (struct noce_if_info *if_info,
 			      auto_delete_vec<noce_multiple_sets_info> &insn_info,
-			      int *last_needs_comparison)
+			      int *last_needs_comparison,
+			      bool *use_cond_earliest)
 {
   basic_block then_bb = if_info->then_bb;
   rtx_insn *jump = if_info->jump;
@@ -3622,6 +3863,7 @@ noce_convert_multiple_sets_1 (struct noce_if_info *if_info,
   rtx_insn *insn;
   int count = 0;
   bool second_try = *last_needs_comparison != -1;
+  *use_cond_earliest = false;
 
   FOR_BB_INSNS (then_bb, insn)
     {
@@ -3798,6 +4040,7 @@ noce_convert_multiple_sets_1 (struct noce_if_info *if_info,
 	  temp_dest = temp_dest2;
 	  if (!second_try && read_comparison)
 	    *last_needs_comparison = count;
+	  *use_cond_earliest = true;
 	}
       else
 	{
@@ -4027,16 +4270,13 @@ noce_process_if_block (struct noce_if_info *if_info)
      to calculate a value for x.
      ??? For future expansion, further expand the "multiple X" rules.  */
 
-  /* First look for multiple SETS.  The original costs already include
-     a base cost of COSTS_N_INSNS (2): one instruction for the compare
-     (which we will be needing either way) and one instruction for the
-     branch.  When comparing costs we want to use the branch instruction
-     cost and the sets vs. the cmovs generated here.  Therefore subtract
-     the costs of the compare before checking.
-     ??? Actually, instead of the branch instruction costs we might want
-     to use COSTS_N_INSNS (BRANCH_COST ()) as in other places.  */
+  /* First look for multiple SETS.
+     The original costs already include costs for the jump insn as well
+     as for a CC comparison if there is any.
+     If a target re-uses the existing CC comparison we keep track of that
+     and add the costs before default noce_conversion_profitable_p.  */
 
-  unsigned potential_cost = if_info->original_cost - COSTS_N_INSNS (1);
+  unsigned potential_cost = if_info->original_cost;
   unsigned old_cost = if_info->original_cost;
   if (!else_bb
       && HAVE_conditional_move
@@ -4241,6 +4481,8 @@ noce_process_if_block (struct noce_if_info *if_info)
   if (!targetm.have_conditional_execution ()
       && noce_try_store_flag_constants (if_info))
     goto success;
+  if (noce_try_sign_bit_splat (if_info))
+    goto success;
   if (HAVE_conditional_move
       && noce_try_cmove (if_info))
     goto success;
@@ -4251,7 +4493,7 @@ noce_process_if_block (struct noce_if_info *if_info)
       if (noce_try_store_flag_mask (if_info))
 	goto success;
       if (HAVE_conditional_move
-          && noce_try_cond_zero_arith (if_info))
+          && noce_try_cond_arith (if_info))
 	goto success;
       if (HAVE_conditional_move
 	  && noce_try_cmove_arith (if_info))
@@ -4716,11 +4958,10 @@ noce_find_if_block (basic_block test_bb, edge then_edge, edge else_edge,
     = targetm.max_noce_ifcvt_seq_cost (then_edge);
   /* We'll add in the cost of THEN_BB and ELSE_BB later, when we check
      that they are valid to transform.  We can't easily get back to the insn
-     for COND (and it may not exist if we had to canonicalize to get COND),
-     and jump_insns are always given a cost of 1 by seq_cost, so treat
-     both instructions as having cost COSTS_N_INSNS (1).  */
-  if_info.original_cost = COSTS_N_INSNS (2);
-
+     for COND (and it may not exist if we had to canonicalize to get COND).
+     It is assumed that the costs of a jump insn are dependent on the
+     branch costs.  */
+  if_info.original_cost += insn_cost (if_info.jump, if_info.speed_p);
 
   /* Do the real work.  */
 
@@ -4939,7 +5180,7 @@ find_if_header (basic_block test_bb, int pass)
       && cond_exec_find_if_block (&ce_info))
     goto success;
 
-  if (targetm.have_trap ()
+  if (!reload_completed && targetm.have_trap ()
       && optab_handler (ctrap_optab, word_mode) != CODE_FOR_nothing
       && find_cond_trap (test_bb, then_edge, else_edge))
     goto success;

@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: --underscore --march=v32 --em=criself
+#as: --underscore --march=v32 --emulation=criself
 #source: v32-err-8.s
 
 # Check that USP gets the right number for V32.

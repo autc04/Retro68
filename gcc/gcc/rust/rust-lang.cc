@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -34,7 +34,6 @@
 #include "selftest.h"
 #include "rust-cfg-parser.h"
 #include "rust-privacy-ctx.h"
-#include "rust-ast-resolve-item.h"
 #include "rust-lex.h"
 #include "optional.h"
 #include "rust-unicode.h"
@@ -51,10 +50,10 @@
 // FIXME: test saving intellisense
 #include "options.h"
 
-// version check to stop compiling if c++ isn't c++11 or higher
-#if __cplusplus < 201103
+// version check to stop compiling if c++ isn't c++14 or higher
+#if __cplusplus < 201402
 #error                                                                         \
-  "GCC Rust frontend requires C++11 or higher. You can compile the g++ frontend first and then compile the Rust frontend using that."
+  "GCC Rust frontend requires C++14 or higher. You can compile the g++ frontend first and then compile the Rust frontend using that."
 #endif
 // TODO: is this best way to do it? Is it allowed? (should be)
 
@@ -270,8 +269,7 @@ grs_langhook_getdecls (void)
 static bool
 grs_langhook_handle_option (
   size_t scode, const char *arg, HOST_WIDE_INT value, int kind ATTRIBUTE_UNUSED,
-  location_t loc ATTRIBUTE_UNUSED,
-  const struct cl_option_handlers *handlers ATTRIBUTE_UNUSED)
+  location_t loc, const struct cl_option_handlers *handlers ATTRIBUTE_UNUSED)
 {
   // Convert integer code to lang.opt enum codes with names.
   enum opt_code code = (enum opt_code) scode;
@@ -373,7 +371,13 @@ rust_localize_identifier (const char *ident)
   return identifier_to_locale (ident);
 }
 
-extern const attribute_spec grs_langhook_common_attribute_table[];
+extern const struct scoped_attribute_specs grs_langhook_gnu_attribute_table;
+extern const struct scoped_attribute_specs grs_langhook_common_attribute_table;
+
+const scoped_attribute_specs *const grs_langhook_attribute_table[] = {
+  &grs_langhook_gnu_attribute_table,
+  &grs_langhook_common_attribute_table,
+};
 
 /* The language hooks data structure. This is the main interface between the GCC
  * front-end and the GCC middle-end/back-end. A list of language hooks could be
@@ -394,8 +398,7 @@ extern const attribute_spec grs_langhook_common_attribute_table[];
 #undef LANG_HOOKS_WRITE_GLOBALS
 #undef LANG_HOOKS_GIMPLIFY_EXPR
 #undef LANG_HOOKS_EH_PERSONALITY
-
-#undef LANG_HOOKS_COMMON_ATTRIBUTE_TABLE
+#undef LANG_HOOKS_ATTRIBUTE_TABLE
 
 #define LANG_HOOKS_NAME "GNU Rust"
 #define LANG_HOOKS_INIT grs_langhook_init
@@ -417,7 +420,7 @@ extern const attribute_spec grs_langhook_common_attribute_table[];
 #define LANG_HOOKS_GIMPLIFY_EXPR grs_langhook_gimplify_expr
 #define LANG_HOOKS_EH_PERSONALITY grs_langhook_eh_personality
 
-#define LANG_HOOKS_COMMON_ATTRIBUTE_TABLE grs_langhook_common_attribute_table
+#define LANG_HOOKS_ATTRIBUTE_TABLE grs_langhook_attribute_table
 
 #if CHECKING_P
 
@@ -437,7 +440,6 @@ run_rust_tests ()
   rust_cfg_parser_test ();
   rust_privacy_ctx_test ();
   rust_crate_name_validation_test ();
-  rust_simple_path_resolve_test ();
 }
 } // namespace selftest
 

@@ -1,24 +1,3 @@
-.macro cond1
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vfma.f32 q0, q1, q2
-.endr
-.endm
-
-.macro cond2
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vfma.f32 q0, q1, r2
-.endr
-.endm
-
-.macro cond3
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vfms.f32 q0, q1, q2
-.endr
-.endm
-
 .syntax unified
 .thumb
 vfma.f32 q0, q1, sp
@@ -28,9 +7,22 @@ vfma.32 q0, q1, q2
 vfms.f64 q0, q1, q2
 vfms.32 q0, q1, q2
 vfma.f64 d0, d1, d2
-cond1
-cond2
-cond3
+
+.irp cond, eq, ne, gt, ge, lt, le
+it \cond
+vfma.f32 q0, q1, q2
+.endr
+
+.irp cond, eq, ne, gt, ge, lt, le
+it \cond
+vfma.f32 q0, q1, r2
+.endr
+
+.irp cond, eq, ne, gt, ge, lt, le
+it \cond
+vfms.f32 q0, q1, q2
+.endr
+
 it eq
 vfmaeq.f16 q0, q1, q2
 vfmaeq.f16 q0, q1, q2

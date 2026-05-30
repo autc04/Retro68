@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,7 +29,6 @@ with Einfo.Utils;    use Einfo.Utils;
 with Exp_Tss;        use Exp_Tss;
 with Namet;          use Namet;
 with Rtsfind;        use Rtsfind;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Snames;         use Snames;
 with Types;          use Types;
@@ -479,8 +478,9 @@ package Exp_Util is
 
    function Duplicate_Subexpr
      (Exp          : Node_Id;
-      Name_Req     : Boolean := False;
-      Renaming_Req : Boolean := False) return Node_Id;
+      New_Scope    : Entity_Id := Empty;
+      Name_Req     : Boolean   := False;
+      Renaming_Req : Boolean   := False) return Node_Id;
    --  Given the node for a subexpression, this function makes a logical copy
    --  of the subexpression, and returns it. This is intended for use when the
    --  expansion of an expression needs to repeat part of it. For example,
@@ -493,6 +493,9 @@ package Exp_Util is
    --  value. Exp must be analyzed on entry. On return, Exp is analyzed, but
    --  the caller is responsible for analyzing the returned copy after it is
    --  attached to the tree.
+   --
+   --  The New_Scope entity may be used to specify a new scope for all copied
+   --  entities and itypes.
    --
    --  The Name_Req flag is set to ensure that the result is suitable for use
    --  in a context requiring a name (for example, the prefix of an attribute
@@ -509,8 +512,9 @@ package Exp_Util is
 
    function Duplicate_Subexpr_No_Checks
      (Exp          : Node_Id;
-      Name_Req     : Boolean := False;
-      Renaming_Req : Boolean := False) return Node_Id;
+      New_Scope    : Entity_Id := Empty;
+      Name_Req     : Boolean   := False;
+      Renaming_Req : Boolean   := False) return Node_Id;
    --  Identical in effect to Duplicate_Subexpr, except that Remove_Checks is
    --  called on the result, so that the duplicated expression does not include
    --  checks. This is appropriate for use when Exp, the original expression is
@@ -519,8 +523,9 @@ package Exp_Util is
 
    function Duplicate_Subexpr_Move_Checks
      (Exp          : Node_Id;
-      Name_Req     : Boolean := False;
-      Renaming_Req : Boolean := False) return Node_Id;
+      New_Scope    : Entity_Id := Empty;
+      Name_Req     : Boolean   := False;
+      Renaming_Req : Boolean   := False) return Node_Id;
    --  Identical in effect to Duplicate_Subexpr, except that Remove_Checks is
    --  called on Exp after the duplication is complete, so that the original
    --  expression does not include checks. In this case the result returned
@@ -638,6 +643,13 @@ package Exp_Util is
    --  Same as Find_Prim_Op but for the three controlled primitive operations,
    --  and returns Empty if not found.
 
+   function Find_Master_Context (N : Node_Id) return Node_Id;
+   --  Determine a suitable node on which to attach actions related to N that
+   --  need to be performed immediately after the execution of N is complete.
+   --  In general this is the topmost expression or statement of which N is a
+   --  subexpression, but note that object declarations may be returned here,
+   --  although they are not master constructs in the language.
+
    function Find_Optional_Prim_Op
      (T : Entity_Id; Name : Name_Id) return Entity_Id;
    function Find_Optional_Prim_Op
@@ -667,12 +679,11 @@ package Exp_Util is
    --  indicating that the operation is defaulted in the aspect (can occur in
    --  the case where the storage-model address type is System.Address).
 
-   function Find_Hook_Context (N : Node_Id) return Node_Id;
-   --  Determine a suitable node on which to attach actions related to N that
-   --  need to be elaborated unconditionally. In general this is the topmost
-   --  expression of which N is a subexpression, which in turn may or may not
-   --  be evaluated, for example if N is the right operand of a short circuit
-   --  operator.
+   procedure Flag_Interface_Pointer_Displacement (N : Node_Id);
+   --  If N is an N_Type_Conversion node then flag N to indicate that this
+   --  type conversion was internally added to force the displacement of the
+   --  pointer to the object (pointer named "this" in the C++ terminology)
+   --  from a dispatch table to another dispatch table.
 
    function Following_Address_Clause (D : Node_Id) return Node_Id;
    --  D is the node for an object declaration. This function searches the
@@ -810,6 +821,11 @@ package Exp_Util is
    --    Rnn : constant Ann := Func (...)'reference;
    --    Rnn.all
 
+   function Is_Constr_Array_Subt_Of_Unc_With_Controlled (Typ : Entity_Id)
+     return Boolean;
+   --  Return True if Typ is a constrained subtype of an array type with an
+   --  unconstrained first subtype and a controlled component type.
+
    function Is_Conversion_Or_Reference_To_Formal (N : Node_Id) return Boolean;
    --  Return True if N is a type conversion, or a dereference thereof, or a
    --  reference to a formal parameter.
@@ -818,6 +834,14 @@ package Exp_Util is
       (N : Node_Id) return Boolean;
    --  Determine if N is the expanded code for a class-wide interface type
    --  object declaration.
+
+   function Is_Finalizable_Access (Decl : Node_Id) return Boolean;
+   --  Determine whether declaration Decl denotes an access-to-controlled
+   --  object that must be finalized, i.e. both that the designated object
+   --  is controlled and that it must be finalized through this access, in
+   --  particular that it will not be also finalized directly. That is the
+   --  case only for objects initialized by a reference to a function call
+   --  that meet specific conditions.
 
    function Is_Finalizable_Transient
      (Decl : Node_Id;
@@ -844,9 +868,6 @@ package Exp_Util is
    --  Return True if E is a wrapper built when a subprogram has class-wide
    --  preconditions or postconditions affected by overriding (AI12-0195).
    --  LSP stands for Liskov Substitution Principle.
-
-   function Is_Non_BIP_Func_Call (Expr : Node_Id) return Boolean;
-   --  Determine whether node Expr denotes a non build-in-place function call
 
    function Is_Possibly_Unaligned_Object (N : Node_Id) return Boolean;
    --  Node N is an object reference. This function returns True if it is
@@ -891,10 +912,6 @@ package Exp_Util is
    --
    --  We consider that a (1 .. 2) is a renamed object since it is the prefix
    --  of the name in the renaming declaration.
-
-   function Is_Secondary_Stack_BIP_Func_Call (Expr : Node_Id) return Boolean;
-   --  Determine whether Expr denotes a build-in-place function which returns
-   --  its result on the secondary stack.
 
    function Is_Secondary_Stack_Thunk (Id : Entity_Id) return Boolean;
    --  Determine whether Id denotes a secondary stack thunk
@@ -1051,16 +1068,6 @@ package Exp_Util is
    --  has the same object size value. For example, a 16 bit signed type will
    --  typically return Standard_Short_Integer. For fixed-point types, this
    --  will return integer types of the corresponding size.
-
-   function May_Generate_Large_Temp (Typ : Entity_Id) return Boolean;
-   --  Determines if the given type, Typ, may require a large temporary of the
-   --  kind that causes back-end trouble if stack checking is enabled. The
-   --  result is True only the size of the type is known at compile time and
-   --  large, where large is defined heuristically by the body of this routine.
-   --  The purpose of this routine is to help avoid generating troublesome
-   --  temporaries that interfere with stack checking mechanism. Note that the
-   --  caller has to check whether stack checking is actually enabled in order
-   --  to guide the expansion (typically of a function call).
 
    procedure Move_To_Initialization_Statements (Decl, Stop : Node_Id);
    --  Decl is an N_Object_Declaration node and Stop is a node past Decl in
@@ -1342,6 +1349,10 @@ package Exp_Util is
 
    function Unconditional_Parent (N : Node_Id) return Node_Id;
    --  Return the first parent of arbitrary node N that is not a conditional
+   --  expression, one of whose dependent expressions is N, recursively.
+
+   function Unqualified_Unconditional_Parent (N : Node_Id) return Node_Id;
+   --  Return the first parent of arbitrary node N that is not a conditional
    --  expression, one of whose dependent expressions is N, and that is not
    --  a qualified expression, whose expression is N, recursively.
 
@@ -1364,6 +1375,7 @@ private
    pragma Inline (Duplicate_Subexpr);
    pragma Inline (Find_Controlled_Prim_Op);
    pragma Inline (Find_Prim_Op);
+   pragma Inline (Flag_Interface_Pointer_Displacement);
    pragma Inline (Force_Evaluation);
    pragma Inline (Get_Mapped_Entity);
    pragma Inline (Is_Library_Level_Tagged_Type);

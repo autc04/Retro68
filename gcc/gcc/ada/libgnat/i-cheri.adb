@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  S p e c                                 --
 --                                                                          --
---                     Copyright (C) 2023-2025, AdaCore                     --
+--                     Copyright (C) 2023-2026, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,6 +30,30 @@
 ------------------------------------------------------------------------------
 
 package body Interfaces.CHERI is
+
+   ----------------
+   -- Set_Bounds --
+   ----------------
+
+   procedure Set_Bounds
+     (Cap    : in out Capability;
+      Length :        Bounds_Length)
+   is
+   begin
+      Cap := Capability_With_Bounds (Cap, Length);
+   end Set_Bounds;
+
+   ----------------------
+   -- Set_Exact_Bounds --
+   ----------------------
+
+   procedure Set_Exact_Bounds
+     (Cap    : in out Capability;
+      Length :        Bounds_Length)
+   is
+   begin
+      Cap := Capability_With_Exact_Bounds (Cap, Length);
+   end Set_Exact_Bounds;
 
    ----------------------------
    -- Set_Address_And_Bounds --

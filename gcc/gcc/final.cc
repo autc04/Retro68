@@ -1,5 +1,5 @@
 /* Convert RTL to assembler code and output it, for GNU compiler.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -83,6 +83,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "function-abi.h"
 #include "common/common-target.h"
 #include "diagnostic.h"
+#include "diagnostics/file-cache.h"
 
 #include "dwarf2out.h"
 
@@ -2072,7 +2073,7 @@ output_alternate_entry_point (FILE *file, rtx_insn *insn)
 
 /* Given a CALL_INSN, find and return the nested CALL. */
 static rtx
-call_from_call_insn (rtx_call_insn *insn)
+call_from_call_insn (const rtx_call_insn *insn)
 {
   rtx x;
   gcc_assert (CALL_P (insn));
@@ -2098,6 +2099,15 @@ call_from_call_insn (rtx_call_insn *insn)
   return x;
 }
 
+/* Return the CALL in X if there is one.  */
+
+rtx
+get_call_rtx_from (const rtx_insn *insn)
+{
+  const rtx_call_insn *call_insn = as_a<const rtx_call_insn *> (insn);
+  return call_from_call_insn (call_insn);
+}
+
 /* Print a comment into the asm showing FILENAME, LINENUM, and the
    corresponding source line, if available.  */
 
@@ -2107,7 +2117,7 @@ asm_show_source (const char *filename, int linenum)
   if (!filename)
     return;
 
-  char_span line
+  diagnostics::char_span line
     = global_dc->get_file_cache ().get_source_line (filename, linenum);
   if (!line)
     return;
@@ -3285,7 +3295,11 @@ output_asm_operand_names (rtx *operands, int *oporder, int nops)
   for (i = 0; i < nops; i++)
     {
       int addressp;
-      rtx op = operands[oporder[i]];
+      int opnum = oporder[i];
+      /* Skip invalid ops. */
+      if (opnum == MAX_RECOG_OPERANDS)
+	continue;
+      rtx op = operands[opnum];
       tree expr = get_mem_expr_from_op (op, &addressp);
 
       fprintf (asm_out_file, "%c%s",
@@ -3410,8 +3424,6 @@ do_assembler_dialects (const char *p, int *dialect)
       and print a constant expression for minus the value
       of the operand, with no other punctuation.  */
 
-int retro68_hack_asm_rts_counter = 0;
-
 void
 output_asm_insn (const char *templ, rtx *operands)
 {
@@ -3420,21 +3432,14 @@ output_asm_insn (const char *templ, rtx *operands)
 #ifdef ASSEMBLER_DIALECT
   int dialect = 0;
 #endif
-  int oporder[MAX_RECOG_OPERANDS];
-  char opoutput[MAX_RECOG_OPERANDS];
+  int oporder[MAX_RECOG_OPERANDS+1];
+  char opoutput[MAX_RECOG_OPERANDS+1];
   int ops = 0;
 
   /* An insn may return a null string template
      in a case where no assembler code is needed.  */
   if (*templ == 0)
     return;
-
-  /* Hack: in Retro68, we want to know whether the last
-           instruction we output was an rts, so we know
-           whether we have to output an extra one as part
-           of the MacsBug name. */
-  if(retro68_hack_asm_rts_counter)
-    retro68_hack_asm_rts_counter--;
 
   memset (opoutput, 0, sizeof opoutput);
   p = templ;
@@ -3516,7 +3521,11 @@ output_asm_insn (const char *templ, rtx *operands)
 	      output_operand_lossage ("operand number missing "
 				      "after %%-letter");
 	    else if (this_is_asm_operands && opnum >= insn_noperands)
-	      output_operand_lossage ("operand number out of range");
+	      {
+		/* Force the opnum in bounds to a bogus location. */
+		opnum = MAX_RECOG_OPERANDS;
+		output_operand_lossage ("operand number out of range");
+	      }
 	    else if (letter == 'l')
 	      output_asm_label (operands[opnum]);
 	    else if (letter == 'a')
@@ -3557,7 +3566,11 @@ output_asm_insn (const char *templ, rtx *operands)
 
 	    opnum = strtoul (p, &endptr, 10);
 	    if (this_is_asm_operands && opnum >= insn_noperands)
-	      output_operand_lossage ("operand number out of range");
+	      {
+		/* Force the opnum in bounds to a bogus location. */
+		opnum = MAX_RECOG_OPERANDS;
+		output_operand_lossage ("operand number out of range");
+	      }
 	    else
 	      output_operand (operands[opnum], 0);
 

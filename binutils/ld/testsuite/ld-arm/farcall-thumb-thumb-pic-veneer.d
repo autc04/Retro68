@@ -10,7 +10,7 @@ Disassembly of section .text:
 00001008 <__bar_veneer>:
     1008:	4778      	bx	pc
     100a:	e7fd      	b.n	.+ <.+>
-    100c:	e59fc004 	ldr	ip, \[pc, #4\]	; 1018 <__bar_veneer\+0x10>
+    100c:	e59fc004 	ldr	ip, \[pc, #4\]	@ 1018 <__bar_veneer\+0x10>
     1010:	e08fc00c 	add	ip, pc, ip
     1014:	e12fff1c 	bx	ip
     1018:	01fffffd 	.word	0x01fffffd

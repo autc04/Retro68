@@ -47,10 +47,10 @@ fmops za2.s, p5/m, p2/m, z3.s, z2.s
 fmops za3.s, p4/m, p3/m, z4.s, z1.s
 
 /* FMOPS (widening)  */
-fmops za0.s, p0/m, p1/m, z1.s, z4.s
-fmops za1.s, p2/m, p3/m, z2.s, z3.s
-fmops za2.s, p4/m, p5/m, z3.s, z2.s
-fmops za3.s, p6/m, p7/m, z4.s, z1.s
+fmops za0.s, p0/m, p1/m, z1.h, z4.h
+fmops za1.s, p2/m, p3/m, z2.h, z3.h
+fmops za2.s, p4/m, p5/m, z3.h, z2.h
+fmops za3.s, p6/m, p7/m, z4.h, z1.h
 
 /* SMOPA 32-bit variant.  */
 smopa za0.s, p0/m, p1/m, z1.b, z4.b

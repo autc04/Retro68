@@ -1,5 +1,5 @@
 /* Handling for the known behavior of various specific functions.
-   Copyright (C) 2020-2025 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,23 +18,14 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "diagnostic-core.h"
-#include "diagnostic-metadata.h"
-#include "analyzer/analyzer.h"
-#include "analyzer/analyzer-logging.h"
+#include "analyzer/common.h"
+
 #include "diagnostic.h"
+
+#include "analyzer/analyzer-logging.h"
 #include "analyzer/region-model.h"
 #include "analyzer/call-details.h"
 #include "analyzer/call-info.h"
-#include "make-unique.h"
 
 #if ENABLE_ANALYZER
 
@@ -50,7 +41,6 @@ public:
   : m_call_stmt (cd.get_call_stmt ()),
     m_callee_fndecl (cd.get_fndecl_for_call ())
   {
-    gcc_assert (m_call_stmt);
     gcc_assert (m_callee_fndecl);
   }
 
@@ -61,7 +51,7 @@ public:
 
   bool operator== (const undefined_function_behavior &other) const
   {
-    return (m_call_stmt == other.m_call_stmt
+    return (&m_call_stmt == &other.m_call_stmt
 	    && m_callee_fndecl == other.m_callee_fndecl);
   }
 
@@ -70,7 +60,7 @@ public:
   tree get_callee_fndecl () const { return m_callee_fndecl; }
 
 private:
-  const gimple *m_call_stmt;
+  const gimple &m_call_stmt;
   tree m_callee_fndecl;
 };
 
@@ -596,7 +586,7 @@ kf_free::impl_call_post (const call_details &cd) const
       /* If the ptr points to an underlying heap region, delete it,
 	 poisoning pointers.  */
       region_model *model = cd.get_model ();
-      model->unbind_region_and_descendents (freed_reg, POISON_KIND_FREED);
+      model->unbind_region_and_descendents (freed_reg, poison_kind::freed);
       model->unset_dynamic_extents (freed_reg);
     }
 }
@@ -793,7 +783,7 @@ public:
 
     /* SEI CERT C Coding Standard: "POS34-C. Do not call putenv() with a
        pointer to an automatic variable as the argument".  */
-    diagnostic_metadata::precanned_rule
+    diagnostics::metadata::precanned_rule
       rule ("POS34-C", "https://wiki.sei.cmu.edu/confluence/x/6NYxBQ");
     ctxt.add_rule (rule);
 
@@ -867,7 +857,8 @@ public:
     const svalue *ptr_sval = cd.get_arg_svalue (0);
     const region *reg
       = model->deref_rvalue (ptr_sval, cd.get_arg_tree (0), ctxt);
-    model->get_store ()->mark_as_escaped (reg);
+    store_manager *store_mgr = model->get_manager ()->get_store_manager ();
+    model->get_store ()->mark_as_escaped (*store_mgr, reg->get_base_region ());
     enum memory_space mem_space = reg->get_memory_space ();
     switch (mem_space)
       {
@@ -881,7 +872,7 @@ public:
 	break;
       case MEMSPACE_STACK:
 	if (ctxt)
-	  ctxt->warn (make_unique<putenv_of_auto_var> (fndecl, reg));
+	  ctxt->warn (std::make_unique<putenv_of_auto_var> (fndecl, reg));
 	break;
       }
     cd.set_any_lhs_with_defaults ();
@@ -1063,11 +1054,11 @@ kf_realloc::impl_call_post (const call_details &cd) const
 	      const svalue *copied_size_sval
 		= get_copied_size (model, old_size_sval, new_size_sval);
 	      const region *copied_old_reg
-		= mgr->get_sized_region (freed_reg, NULL, copied_size_sval);
+		= mgr->get_sized_region (freed_reg, nullptr, copied_size_sval);
 	      const svalue *buffer_content_sval
 		= model->get_store_value (copied_old_reg, cd.get_ctxt ());
 	      const region *copied_new_reg
-		= mgr->get_sized_region (new_reg, NULL, copied_size_sval);
+		= mgr->get_sized_region (new_reg, nullptr, copied_size_sval);
 	      model->set_value (copied_new_reg, buffer_content_sval,
 				cd.get_ctxt ());
 	    }
@@ -1084,7 +1075,7 @@ kf_realloc::impl_call_post (const call_details &cd) const
 
 	  /* If the ptr points to an underlying heap region, delete it,
 	     poisoning pointers.  */
-	  model->unbind_region_and_descendents (freed_reg, POISON_KIND_FREED);
+	  model->unbind_region_and_descendents (freed_reg, poison_kind::freed);
 	  model->unset_dynamic_extents (freed_reg);
 	}
 
@@ -1129,9 +1120,9 @@ kf_realloc::impl_call_post (const call_details &cd) const
 
   if (cd.get_ctxt ())
     {
-      cd.get_ctxt ()->bifurcate (make_unique<failure> (cd));
-      cd.get_ctxt ()->bifurcate (make_unique<success_no_move> (cd));
-      cd.get_ctxt ()->bifurcate (make_unique<success_with_move> (cd));
+      cd.get_ctxt ()->bifurcate (std::make_unique<failure> (cd));
+      cd.get_ctxt ()->bifurcate (std::make_unique<success_no_move> (cd));
+      cd.get_ctxt ()->bifurcate (std::make_unique<success_with_move> (cd));
       cd.get_ctxt ()->terminate_path ();
     }
 }
@@ -1200,7 +1191,7 @@ kf_strchr::impl_call_post (const call_details &cd) const
 		 using the str_reg as the id of the conjured_svalue.  */
 	      const svalue *offset
 		= mgr->get_or_create_conjured_svalue (size_type_node,
-						      cd.get_call_stmt (),
+						      &cd.get_call_stmt (),
 						      str_reg,
 						      conjured_purge (model,
 								      ctxt));
@@ -1220,8 +1211,8 @@ kf_strchr::impl_call_post (const call_details &cd) const
   /* Body of kf_strchr::impl_call_post.  */
   if (cd.get_ctxt ())
     {
-      cd.get_ctxt ()->bifurcate (make_unique<strchr_call_info> (cd, false));
-      cd.get_ctxt ()->bifurcate (make_unique<strchr_call_info> (cd, true));
+      cd.get_ctxt ()->bifurcate (std::make_unique<strchr_call_info> (cd, false));
+      cd.get_ctxt ()->bifurcate (std::make_unique<strchr_call_info> (cd, true));
       cd.get_ctxt ()->terminate_path ();
     }
 }
@@ -1254,6 +1245,12 @@ public:
     const svalue *dst_ptr = cd.get_arg_svalue (0);
     const region *dst_reg
       = model->deref_rvalue (dst_ptr, cd.get_arg_tree (0), ctxt);
+    /* Restrict the region we consider to be affected to the valid capacity
+       so that we don't trigger buffer overflow false positives.  */
+    const svalue *capacity = model->get_capacity (dst_reg);
+    dst_reg = model->get_manager ()->get_sized_region (dst_reg,
+						       NULL_TREE,
+						       capacity);
     const svalue *content = cd.get_or_create_conjured_svalue (dst_reg);
     model->set_value (dst_reg, content, ctxt);
     cd.set_any_lhs_with_defaults ();
@@ -1284,6 +1281,27 @@ public:
   }
 
   /* Currently a no-op.  */
+};
+
+/* Handler for "__builtin_eh_pointer".  */
+
+class kf_eh_pointer : public builtin_known_function
+{
+public:
+  bool matches_call_types_p (const call_details &) const final override
+  {
+    return true;
+  }
+
+  enum built_in_function builtin_code () const final override
+  {
+    return BUILT_IN_EH_POINTER;
+  }
+
+  void impl_call_pre (const call_details &cd) const final override
+  {
+    cd.set_any_lhs_with_defaults ();
+  }
 };
 
 /* Handler for "strcat" and "__builtin_strcat_chk".  */
@@ -1387,10 +1405,11 @@ kf_strcpy::impl_call_pre (const call_details &cd) const
   /* strcpy returns the initial param.  */
   cd.maybe_set_lhs (dest_sval);
 
-  const svalue *bytes_to_copy;
+  const svalue *bytes_to_copy = nullptr;
   if (const svalue *num_bytes_read_sval
       = cd.check_for_null_terminated_string_arg (1, true, &bytes_to_copy))
     {
+      gcc_assert (bytes_to_copy);
       cd.complain_about_overlap (0, 1, num_bytes_read_sval);
       model->write_bytes (dest_reg, num_bytes_read_sval, bytes_to_copy, ctxt);
     }
@@ -1476,7 +1495,7 @@ public:
 std::unique_ptr<known_function>
 make_kf_strlen ()
 {
-  return make_unique<kf_strlen> ();
+  return std::make_unique<kf_strlen> ();
 }
 
 /* Handler for "strncpy" and "__builtin_strncpy".
@@ -1625,7 +1644,7 @@ kf_strncpy::impl_call_post (const call_details &cd) const
     }
   private:
     /* (strlen + 1) of the source string if it has a terminator,
-       or NULL for the case where UB would happen before
+       or nullptr for the case where UB would happen before
        finding any terminator.  */
     const svalue *m_num_bytes_with_terminator_sval;
 
@@ -1650,11 +1669,13 @@ kf_strncpy::impl_call_post (const call_details &cd) const
 					   nullptr,
 					   nullptr);
       cd.get_ctxt ()->bifurcate
-	(make_unique<strncpy_call_info> (cd, num_bytes_with_terminator_sval,
-					 false));
+	(std::make_unique<strncpy_call_info>
+	   (cd, num_bytes_with_terminator_sval,
+	    false));
       cd.get_ctxt ()->bifurcate
-	(make_unique<strncpy_call_info> (cd, num_bytes_with_terminator_sval,
-					 true));
+	(std::make_unique<strncpy_call_info>
+	   (cd, num_bytes_with_terminator_sval,
+	    true));
       cd.get_ctxt ()->terminate_path ();
     }
 };
@@ -1678,8 +1699,8 @@ public:
     region_model_manager *mgr = cd.get_manager ();
     /* Ideally we'd get the size here, and simulate copying the bytes.  */
     const region *new_reg
-      = model->get_or_create_region_for_heap_alloc (NULL, cd.get_ctxt ());
-    model->mark_region_as_unknown (new_reg, NULL);
+      = model->get_or_create_region_for_heap_alloc (nullptr, cd.get_ctxt ());
+    model->mark_region_as_unknown (new_reg, nullptr);
     if (cd.get_lhs_type ())
       {
 	const svalue *ptr_sval
@@ -1757,7 +1778,7 @@ kf_strstr::impl_call_post (const call_details &cd) const
 		 using the str_reg as the id of the conjured_svalue.  */
 	      const svalue *offset
 		= mgr->get_or_create_conjured_svalue (size_type_node,
-						      cd.get_call_stmt (),
+						      &cd.get_call_stmt (),
 						      str_reg,
 						      conjured_purge (model,
 								      ctxt));
@@ -1777,8 +1798,8 @@ kf_strstr::impl_call_post (const call_details &cd) const
   /* Body of kf_strstr::impl_call_post.  */
   if (cd.get_ctxt ())
     {
-      cd.get_ctxt ()->bifurcate (make_unique<strstr_call_info> (cd, false));
-      cd.get_ctxt ()->bifurcate (make_unique<strstr_call_info> (cd, true));
+      cd.get_ctxt ()->bifurcate (std::make_unique<strstr_call_info> (cd, false));
+      cd.get_ctxt ()->bifurcate (std::make_unique<strstr_call_info> (cd, true));
       cd.get_ctxt ()->terminate_path ();
     }
 }
@@ -1924,7 +1945,7 @@ public:
 		if (cd.get_arg_svalue (0)->all_zeroes_p ())
 		  {
 		    if (ctxt)
-		      ctxt->warn (::make_unique<undefined_behavior> (cd));
+		      ctxt->warn (::std::make_unique<undefined_behavior> (cd));
 		  }
 
 		/* Assume that "str" was actually non-null; terminate
@@ -1958,14 +1979,14 @@ public:
 	     using the str_reg as the id of the conjured_svalue.  */
 	  const svalue *start_offset
 	    = mgr->get_or_create_conjured_svalue (size_type_node,
-						  cd.get_call_stmt (),
+						  &cd.get_call_stmt (),
 						  str_reg,
 						  conjured_purge (model,
 								  ctxt),
 						  0);
 	  const svalue *nul_offset
 	    = mgr->get_or_create_conjured_svalue (size_type_node,
-						  cd.get_call_stmt (),
+						  &cd.get_call_stmt (),
 						  str_reg,
 						  conjured_purge (model,
 								  ctxt),
@@ -2042,13 +2063,13 @@ public:
 	   Typically the str is either null or non-null at a particular site,
 	   so hopefully this will generally just lead to two out-edges.  */
 	cd.get_ctxt ()->bifurcate
-	  (make_unique<strtok_call_info> (cd, m_private_reg, false, false));
+	  (std::make_unique<strtok_call_info> (cd, m_private_reg, false, false));
 	cd.get_ctxt ()->bifurcate
-	  (make_unique<strtok_call_info> (cd, m_private_reg, false, true));
+	  (std::make_unique<strtok_call_info> (cd, m_private_reg, false, true));
 	cd.get_ctxt ()->bifurcate
-	  (make_unique<strtok_call_info> (cd, m_private_reg, true, false));
+	  (std::make_unique<strtok_call_info> (cd, m_private_reg, true, false));
 	cd.get_ctxt ()->bifurcate
-	  (make_unique<strtok_call_info> (cd, m_private_reg, true, true));
+	  (std::make_unique<strtok_call_info> (cd, m_private_reg, true, true));
 	cd.get_ctxt ()->terminate_path ();
       }
   }
@@ -2074,127 +2095,127 @@ region_model::impl_deallocation_call (const call_details &cd)
 static void
 register_atomic_builtins (known_function_manager &kfm)
 {
-  kfm.add (BUILT_IN_ATOMIC_EXCHANGE, make_unique<kf_atomic_exchange> ());
-  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_N, make_unique<kf_atomic_exchange_n> ());
-  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_1, make_unique<kf_atomic_exchange_n> ());
-  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_2, make_unique<kf_atomic_exchange_n> ());
-  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_4, make_unique<kf_atomic_exchange_n> ());
-  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_8, make_unique<kf_atomic_exchange_n> ());
-  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_16, make_unique<kf_atomic_exchange_n> ());
-  kfm.add (BUILT_IN_ATOMIC_LOAD, make_unique<kf_atomic_load> ());
-  kfm.add (BUILT_IN_ATOMIC_LOAD_N, make_unique<kf_atomic_load_n> ());
-  kfm.add (BUILT_IN_ATOMIC_LOAD_1, make_unique<kf_atomic_load_n> ());
-  kfm.add (BUILT_IN_ATOMIC_LOAD_2, make_unique<kf_atomic_load_n> ());
-  kfm.add (BUILT_IN_ATOMIC_LOAD_4, make_unique<kf_atomic_load_n> ());
-  kfm.add (BUILT_IN_ATOMIC_LOAD_8, make_unique<kf_atomic_load_n> ());
-  kfm.add (BUILT_IN_ATOMIC_LOAD_16, make_unique<kf_atomic_load_n> ());
-  kfm.add (BUILT_IN_ATOMIC_STORE, make_unique<kf_atomic_store> ());
-  kfm.add (BUILT_IN_ATOMIC_STORE_N, make_unique<kf_atomic_store_n> ());
-  kfm.add (BUILT_IN_ATOMIC_STORE_1, make_unique<kf_atomic_store_n> ());
-  kfm.add (BUILT_IN_ATOMIC_STORE_2, make_unique<kf_atomic_store_n> ());
-  kfm.add (BUILT_IN_ATOMIC_STORE_4, make_unique<kf_atomic_store_n> ());
-  kfm.add (BUILT_IN_ATOMIC_STORE_8, make_unique<kf_atomic_store_n> ());
-  kfm.add (BUILT_IN_ATOMIC_STORE_16, make_unique<kf_atomic_store_n> ());
+  kfm.add (BUILT_IN_ATOMIC_EXCHANGE, std::make_unique<kf_atomic_exchange> ());
+  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_N, std::make_unique<kf_atomic_exchange_n> ());
+  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_1, std::make_unique<kf_atomic_exchange_n> ());
+  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_2, std::make_unique<kf_atomic_exchange_n> ());
+  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_4, std::make_unique<kf_atomic_exchange_n> ());
+  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_8, std::make_unique<kf_atomic_exchange_n> ());
+  kfm.add (BUILT_IN_ATOMIC_EXCHANGE_16, std::make_unique<kf_atomic_exchange_n> ());
+  kfm.add (BUILT_IN_ATOMIC_LOAD, std::make_unique<kf_atomic_load> ());
+  kfm.add (BUILT_IN_ATOMIC_LOAD_N, std::make_unique<kf_atomic_load_n> ());
+  kfm.add (BUILT_IN_ATOMIC_LOAD_1, std::make_unique<kf_atomic_load_n> ());
+  kfm.add (BUILT_IN_ATOMIC_LOAD_2, std::make_unique<kf_atomic_load_n> ());
+  kfm.add (BUILT_IN_ATOMIC_LOAD_4, std::make_unique<kf_atomic_load_n> ());
+  kfm.add (BUILT_IN_ATOMIC_LOAD_8, std::make_unique<kf_atomic_load_n> ());
+  kfm.add (BUILT_IN_ATOMIC_LOAD_16, std::make_unique<kf_atomic_load_n> ());
+  kfm.add (BUILT_IN_ATOMIC_STORE, std::make_unique<kf_atomic_store> ());
+  kfm.add (BUILT_IN_ATOMIC_STORE_N, std::make_unique<kf_atomic_store_n> ());
+  kfm.add (BUILT_IN_ATOMIC_STORE_1, std::make_unique<kf_atomic_store_n> ());
+  kfm.add (BUILT_IN_ATOMIC_STORE_2, std::make_unique<kf_atomic_store_n> ());
+  kfm.add (BUILT_IN_ATOMIC_STORE_4, std::make_unique<kf_atomic_store_n> ());
+  kfm.add (BUILT_IN_ATOMIC_STORE_8, std::make_unique<kf_atomic_store_n> ());
+  kfm.add (BUILT_IN_ATOMIC_STORE_16, std::make_unique<kf_atomic_store_n> ());
   kfm.add (BUILT_IN_ATOMIC_ADD_FETCH_1,
-	   make_unique<kf_atomic_op_fetch> (PLUS_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (PLUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_ADD_FETCH_2,
-	   make_unique<kf_atomic_op_fetch> (PLUS_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (PLUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_ADD_FETCH_4,
-	   make_unique<kf_atomic_op_fetch> (PLUS_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (PLUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_ADD_FETCH_8,
-	   make_unique<kf_atomic_op_fetch> (PLUS_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (PLUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_ADD_FETCH_16,
-	   make_unique<kf_atomic_op_fetch> (PLUS_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (PLUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_SUB_FETCH_1,
-	   make_unique<kf_atomic_op_fetch> (MINUS_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (MINUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_SUB_FETCH_2,
-	   make_unique<kf_atomic_op_fetch> (MINUS_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (MINUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_SUB_FETCH_4,
-	   make_unique<kf_atomic_op_fetch> (MINUS_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (MINUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_SUB_FETCH_8,
-	   make_unique<kf_atomic_op_fetch> (MINUS_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (MINUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_SUB_FETCH_16,
-	   make_unique<kf_atomic_op_fetch> (MINUS_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (MINUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_AND_FETCH_1,
-	   make_unique<kf_atomic_op_fetch> (BIT_AND_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_AND_EXPR));
   kfm.add (BUILT_IN_ATOMIC_AND_FETCH_2,
-	   make_unique<kf_atomic_op_fetch> (BIT_AND_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_AND_EXPR));
   kfm.add (BUILT_IN_ATOMIC_AND_FETCH_4,
-	   make_unique<kf_atomic_op_fetch> (BIT_AND_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_AND_EXPR));
   kfm.add (BUILT_IN_ATOMIC_AND_FETCH_8,
-	   make_unique<kf_atomic_op_fetch> (BIT_AND_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_AND_EXPR));
   kfm.add (BUILT_IN_ATOMIC_AND_FETCH_16,
-	   make_unique<kf_atomic_op_fetch> (BIT_AND_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_AND_EXPR));
   kfm.add (BUILT_IN_ATOMIC_XOR_FETCH_1,
-	   make_unique<kf_atomic_op_fetch> (BIT_XOR_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_XOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_XOR_FETCH_2,
-	   make_unique<kf_atomic_op_fetch> (BIT_XOR_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_XOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_XOR_FETCH_4,
-	   make_unique<kf_atomic_op_fetch> (BIT_XOR_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_XOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_XOR_FETCH_8,
-	   make_unique<kf_atomic_op_fetch> (BIT_XOR_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_XOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_XOR_FETCH_16,
-	   make_unique<kf_atomic_op_fetch> (BIT_XOR_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_XOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_OR_FETCH_1,
-	   make_unique<kf_atomic_op_fetch> (BIT_IOR_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_IOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_OR_FETCH_2,
-	   make_unique<kf_atomic_op_fetch> (BIT_IOR_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_IOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_OR_FETCH_4,
-	   make_unique<kf_atomic_op_fetch> (BIT_IOR_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_IOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_OR_FETCH_8,
-	   make_unique<kf_atomic_op_fetch> (BIT_IOR_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_IOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_OR_FETCH_16,
-	   make_unique<kf_atomic_op_fetch> (BIT_IOR_EXPR));
+	   std::make_unique<kf_atomic_op_fetch> (BIT_IOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_ADD_1,
-	   make_unique<kf_atomic_fetch_op> (PLUS_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (PLUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_ADD_2,
-	   make_unique<kf_atomic_fetch_op> (PLUS_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (PLUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_ADD_4,
-	   make_unique<kf_atomic_fetch_op> (PLUS_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (PLUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_ADD_8,
-	   make_unique<kf_atomic_fetch_op> (PLUS_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (PLUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_ADD_16,
-	   make_unique<kf_atomic_fetch_op> (PLUS_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (PLUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_SUB_1,
-	   make_unique<kf_atomic_fetch_op> (MINUS_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (MINUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_SUB_2,
-	   make_unique<kf_atomic_fetch_op> (MINUS_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (MINUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_SUB_4,
-	   make_unique<kf_atomic_fetch_op> (MINUS_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (MINUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_SUB_8,
-	   make_unique<kf_atomic_fetch_op> (MINUS_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (MINUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_SUB_16,
-	   make_unique<kf_atomic_fetch_op> (MINUS_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (MINUS_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_AND_1,
-	   make_unique<kf_atomic_fetch_op> (BIT_AND_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_AND_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_AND_2,
-	   make_unique<kf_atomic_fetch_op> (BIT_AND_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_AND_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_AND_4,
-	   make_unique<kf_atomic_fetch_op> (BIT_AND_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_AND_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_AND_8,
-	   make_unique<kf_atomic_fetch_op> (BIT_AND_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_AND_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_AND_16,
-	   make_unique<kf_atomic_fetch_op> (BIT_AND_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_AND_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_XOR_1,
-	   make_unique<kf_atomic_fetch_op> (BIT_XOR_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_XOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_XOR_2,
-	   make_unique<kf_atomic_fetch_op> (BIT_XOR_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_XOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_XOR_4,
-	   make_unique<kf_atomic_fetch_op> (BIT_XOR_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_XOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_XOR_8,
-	   make_unique<kf_atomic_fetch_op> (BIT_XOR_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_XOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_XOR_16,
-	   make_unique<kf_atomic_fetch_op> (BIT_XOR_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_XOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_OR_1,
-	   make_unique<kf_atomic_fetch_op> (BIT_IOR_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_IOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_OR_2,
-	   make_unique<kf_atomic_fetch_op> (BIT_IOR_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_IOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_OR_4,
-	   make_unique<kf_atomic_fetch_op> (BIT_IOR_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_IOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_OR_8,
-	   make_unique<kf_atomic_fetch_op> (BIT_IOR_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_IOR_EXPR));
   kfm.add (BUILT_IN_ATOMIC_FETCH_OR_16,
-	   make_unique<kf_atomic_fetch_op> (BIT_IOR_EXPR));
+	   std::make_unique<kf_atomic_fetch_op> (BIT_IOR_EXPR));
 }
 
 /* Handle calls to the various IFN_UBSAN_* with no return value.
@@ -2224,14 +2245,14 @@ register_sanitizer_builtins (known_function_manager &kfm)
   /* Handle calls to the various IFN_UBSAN_* with no return value.
      For now, treat these as no-ops.  */
   kfm.add (IFN_UBSAN_NULL,
-	   make_unique<kf_ubsan_noop> ());
+	   std::make_unique<kf_ubsan_noop> ());
   kfm.add (IFN_UBSAN_BOUNDS,
-	   make_unique<kf_ubsan_noop> ());
+	   std::make_unique<kf_ubsan_noop> ());
   kfm.add (IFN_UBSAN_PTR,
-	   make_unique<kf_ubsan_noop> ());
+	   std::make_unique<kf_ubsan_noop> ());
 
   kfm.add (BUILT_IN_UBSAN_HANDLE_NONNULL_ARG,
-	   make_unique<kf_ubsan_handler> ());
+	   std::make_unique<kf_ubsan_handler> ());
 }
 
 /* Populate KFM with instances of known functions supported by the core of the
@@ -2246,17 +2267,19 @@ register_known_functions (known_function_manager &kfm,
 
   /* Internal fns the analyzer has known_functions for.  */
   {
-    kfm.add (IFN_BUILTIN_EXPECT, make_unique<kf_expect> ());
+    kfm.add (IFN_BUILTIN_EXPECT, std::make_unique<kf_expect> ());
   }
 
   /* GCC built-ins that do not correspond to a function
      in the standard library.  */
   {
-    kfm.add (BUILT_IN_EXPECT, make_unique<kf_expect> ());
-    kfm.add (BUILT_IN_EXPECT_WITH_PROBABILITY, make_unique<kf_expect> ());
-    kfm.add (BUILT_IN_ALLOCA_WITH_ALIGN, make_unique<kf_alloca> ());
-    kfm.add (BUILT_IN_STACK_RESTORE, make_unique<kf_stack_restore> ());
-    kfm.add (BUILT_IN_STACK_SAVE, make_unique<kf_stack_save> ());
+    kfm.add (BUILT_IN_EXPECT, std::make_unique<kf_expect> ());
+    kfm.add (BUILT_IN_EXPECT_WITH_PROBABILITY, std::make_unique<kf_expect> ());
+    kfm.add (BUILT_IN_ALLOCA_WITH_ALIGN, std::make_unique<kf_alloca> ());
+    kfm.add (BUILT_IN_STACK_RESTORE, std::make_unique<kf_stack_restore> ());
+    kfm.add (BUILT_IN_STACK_SAVE, std::make_unique<kf_stack_save> ());
+
+    kfm.add (BUILT_IN_EH_POINTER, std::make_unique<kf_eh_pointer> ());
 
     register_atomic_builtins (kfm);
     register_sanitizer_builtins (kfm);
@@ -2266,68 +2289,65 @@ register_known_functions (known_function_manager &kfm,
   /* Known builtins and C standard library functions
      the analyzer has known functions for.  */
   {
-    kfm.add ("alloca", make_unique<kf_alloca> ());
-    kfm.add ("__builtin_alloca", make_unique<kf_alloca> ());
-    kfm.add ("calloc", make_unique<kf_calloc> ());
-    kfm.add ("__builtin_calloc", make_unique<kf_calloc> ());
-    kfm.add ("free", make_unique<kf_free> ());
-    kfm.add ("__builtin_free", make_unique<kf_free> ());
-    kfm.add ("malloc", make_unique<kf_malloc> ());
-    kfm.add ("__builtin_malloc", make_unique<kf_malloc> ());
+    kfm.add ("alloca", std::make_unique<kf_alloca> ());
+    kfm.add ("__builtin_alloca", std::make_unique<kf_alloca> ());
+    kfm.add ("calloc", std::make_unique<kf_calloc> ());
+    kfm.add ("__builtin_calloc", std::make_unique<kf_calloc> ());
+    kfm.add ("free", std::make_unique<kf_free> ());
+    kfm.add ("__builtin_free", std::make_unique<kf_free> ());
+    kfm.add ("malloc", std::make_unique<kf_malloc> ());
+    kfm.add ("__builtin_malloc", std::make_unique<kf_malloc> ());
     kfm.add ("memcpy",
-	      make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMCPY));
+	      std::make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMCPY));
     kfm.add ("__builtin_memcpy",
-	      make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMCPY));
-    kfm.add ("__memcpy_chk", make_unique<kf_memcpy_memmove>
+	      std::make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMCPY));
+    kfm.add ("__memcpy_chk", std::make_unique<kf_memcpy_memmove>
 			      (kf_memcpy_memmove::KF_MEMCPY_CHK));
-    kfm.add ("__builtin___memcpy_chk", make_unique<kf_memcpy_memmove>
+    kfm.add ("__builtin___memcpy_chk", std::make_unique<kf_memcpy_memmove>
 			      (kf_memcpy_memmove::KF_MEMCPY_CHK));
     kfm.add ("memmove",
-	      make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMMOVE));
+	      std::make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMMOVE));
     kfm.add ("__builtin_memmove",
-	      make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMMOVE));
-    kfm.add ("__memmove_chk", make_unique<kf_memcpy_memmove>
+	      std::make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMMOVE));
+    kfm.add ("__memmove_chk", std::make_unique<kf_memcpy_memmove>
 			      (kf_memcpy_memmove::KF_MEMMOVE_CHK));
-    kfm.add ("__builtin___memmove_chk", make_unique<kf_memcpy_memmove>
+    kfm.add ("__builtin___memmove_chk", std::make_unique<kf_memcpy_memmove>
 			      (kf_memcpy_memmove::KF_MEMMOVE_CHK));
-    kfm.add ("memset", make_unique<kf_memset> (false));
-    kfm.add ("__builtin_memset", make_unique<kf_memset> (false));
-    kfm.add ("__memset_chk", make_unique<kf_memset> (true));
-    kfm.add ("__builtin___memset_chk", make_unique<kf_memset> (true));
-    kfm.add ("realloc", make_unique<kf_realloc> ());
-    kfm.add ("__builtin_realloc", make_unique<kf_realloc> ());
-    kfm.add ("sprintf", make_unique<kf_sprintf> ());
-    kfm.add ("__builtin_sprintf", make_unique<kf_sprintf> ());
-    kfm.add ("strchr", make_unique<kf_strchr> ());
-    kfm.add ("__builtin_strchr", make_unique<kf_strchr> ());
-    kfm.add ("strcpy", make_unique<kf_strcpy> (2, false));
-    kfm.add ("__builtin_strcpy", make_unique<kf_strcpy> (2, false));
-    kfm.add ("__strcpy_chk", make_unique<kf_strcpy> (3, true));
-    kfm.add ("__builtin___strcpy_chk", make_unique<kf_strcpy> (3, true));
-    kfm.add ("strcat", make_unique<kf_strcat> (2, false));
-    kfm.add ("__builtin_strcat", make_unique<kf_strcat> (2, false));
-    kfm.add ("__strcat_chk", make_unique<kf_strcat> (3, true));
-    kfm.add ("__builtin___strcat_chk", make_unique<kf_strcat> (3, true));
-    kfm.add ("strdup", make_unique<kf_strdup> ());
-    kfm.add ("__builtin_strdup", make_unique<kf_strdup> ());
-    kfm.add ("strncpy", make_unique<kf_strncpy> ());
-    kfm.add ("__builtin_strncpy", make_unique<kf_strncpy> ());
-    kfm.add ("strndup", make_unique<kf_strndup> ());
-    kfm.add ("__builtin_strndup", make_unique<kf_strndup> ());
-    kfm.add ("strlen", make_unique<kf_strlen> ());
-    kfm.add ("__builtin_strlen", make_unique<kf_strlen> ());
-    kfm.add ("strstr", make_unique<kf_strstr> ());
-    kfm.add ("__builtin_strstr", make_unique<kf_strstr> ());
-
-    register_atomic_builtins (kfm);
-    register_varargs_builtins (kfm);
+    kfm.add ("memset", std::make_unique<kf_memset> (false));
+    kfm.add ("__builtin_memset", std::make_unique<kf_memset> (false));
+    kfm.add ("__memset_chk", std::make_unique<kf_memset> (true));
+    kfm.add ("__builtin___memset_chk", std::make_unique<kf_memset> (true));
+    kfm.add ("realloc", std::make_unique<kf_realloc> ());
+    kfm.add ("__builtin_realloc", std::make_unique<kf_realloc> ());
+    kfm.add ("sprintf", std::make_unique<kf_sprintf> ());
+    kfm.add ("__builtin_sprintf", std::make_unique<kf_sprintf> ());
+    kfm.add ("strchr", std::make_unique<kf_strchr> ());
+    kfm.add ("__builtin_strchr", std::make_unique<kf_strchr> ());
+    kfm.add ("strcpy", std::make_unique<kf_strcpy> (2, false));
+    kfm.add ("__builtin_strcpy", std::make_unique<kf_strcpy> (2, false));
+    kfm.add ("__strcpy_chk", std::make_unique<kf_strcpy> (3, true));
+    kfm.add ("__builtin___strcpy_chk", std::make_unique<kf_strcpy> (3, true));
+    kfm.add ("strcat", std::make_unique<kf_strcat> (2, false));
+    kfm.add ("__builtin_strcat", std::make_unique<kf_strcat> (2, false));
+    kfm.add ("__strcat_chk", std::make_unique<kf_strcat> (3, true));
+    kfm.add ("__builtin___strcat_chk", std::make_unique<kf_strcat> (3, true));
+    kfm.add ("strdup", std::make_unique<kf_strdup> ());
+    kfm.add ("__builtin_strdup", std::make_unique<kf_strdup> ());
+    kfm.add ("strncpy", std::make_unique<kf_strncpy> ());
+    kfm.add ("__builtin_strncpy", std::make_unique<kf_strncpy> ());
+    kfm.add ("strndup", std::make_unique<kf_strndup> ());
+    kfm.add ("__builtin_strndup", std::make_unique<kf_strndup> ());
+    kfm.add ("strlen", std::make_unique<kf_strlen> ());
+    kfm.add ("__builtin_strlen", std::make_unique<kf_strlen> ());
+    kfm.add ("strstr", std::make_unique<kf_strstr> ());
+    kfm.add ("__builtin_strstr", std::make_unique<kf_strstr> ());
   }
 
   /* Known POSIX functions, and some non-standard extensions.  */
   {
-    kfm.add ("fopen", make_unique<kf_fopen> ());
-    kfm.add ("putenv", make_unique<kf_putenv> ());
-    kfm.add ("strtok", make_unique<kf_strtok> (rmm));
+    kfm.add ("fopen", std::make_unique<kf_fopen> ());
+    kfm.add ("putenv", std::make_unique<kf_putenv> ());
+    kfm.add ("strtok", std::make_unique<kf_strtok> (rmm));
 
     register_known_fd_functions (kfm);
     register_known_file_functions (kfm);
@@ -2335,13 +2355,13 @@ register_known_functions (known_function_manager &kfm,
 
   /* glibc functions.  */
   {
-    kfm.add ("__errno_location", make_unique<kf_errno_location> ());
-    kfm.add ("error", make_unique<kf_error> (3));
-    kfm.add ("error_at_line", make_unique<kf_error> (5));
+    kfm.add ("__errno_location", std::make_unique<kf_errno_location> ());
+    kfm.add ("error", std::make_unique<kf_error> (3));
+    kfm.add ("error_at_line", std::make_unique<kf_error> (5));
     /* Variants of "error" and "error_at_line" seen by the
        analyzer at -O0 (PR analyzer/115724).  */
-    kfm.add ("__error_alias", make_unique<kf_error> (3));
-    kfm.add ("__error_at_line_alias", make_unique<kf_error> (5));
+    kfm.add ("__error_alias", std::make_unique<kf_error> (3));
+    kfm.add ("__error_at_line_alias", std::make_unique<kf_error> (5));
   }
 
   /* Other implementations of C standard library.  */
@@ -2355,9 +2375,10 @@ register_known_functions (known_function_manager &kfm,
 	 #define errno (*__error())
        and similarly __errno for newlib.
        Add these as synonyms for "__errno_location".  */
-    kfm.add ("___errno", make_unique<kf_errno_location> ());
-    kfm.add ("__error", make_unique<kf_errno_location> ());
-    kfm.add ("__errno", make_unique<kf_errno_location> ());
+    kfm.add ("___errno", std::make_unique<kf_errno_location> ());
+    kfm.add ("__error", std::make_unique<kf_errno_location> ());
+    kfm.add ("__errno", std::make_unique<kf_errno_location> ());
+    kfm.add ("__get_errno_ptr", std::make_unique<kf_errno_location> ());
   }
 
   /* Language-specific support functions.  */
@@ -2367,22 +2388,22 @@ register_known_functions (known_function_manager &kfm,
      from <cstdlib> etc for the C spellings of these headers (e.g. <stdlib.h>),
      so we must match against these too.  */
   {
-    kfm.add_std_ns ("malloc", make_unique<kf_malloc> ());
-    kfm.add_std_ns ("free", make_unique<kf_free> ());
-    kfm.add_std_ns ("realloc", make_unique<kf_realloc> ());
-    kfm.add_std_ns ("calloc", make_unique<kf_calloc> ());
+    kfm.add_std_ns ("malloc", std::make_unique<kf_malloc> ());
+    kfm.add_std_ns ("free", std::make_unique<kf_free> ());
+    kfm.add_std_ns ("realloc", std::make_unique<kf_realloc> ());
+    kfm.add_std_ns ("calloc", std::make_unique<kf_calloc> ());
     kfm.add_std_ns
       ("memcpy",
-       make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMCPY));
+       std::make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMCPY));
     kfm.add_std_ns
       ("memmove",
-       make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMMOVE));
-    kfm.add_std_ns ("memset", make_unique<kf_memset> (false));
-    kfm.add_std_ns ("strcat", make_unique<kf_strcat> (2, false));
-    kfm.add_std_ns ("strcpy", make_unique<kf_strcpy> (2, false));
-    kfm.add_std_ns ("strlen", make_unique<kf_strlen> ());
-    kfm.add_std_ns ("strncpy", make_unique<kf_strncpy> ());
-    kfm.add_std_ns ("strtok", make_unique<kf_strtok> (rmm));
+       std::make_unique<kf_memcpy_memmove> (kf_memcpy_memmove::KF_MEMMOVE));
+    kfm.add_std_ns ("memset", std::make_unique<kf_memset> (false));
+    kfm.add_std_ns ("strcat", std::make_unique<kf_strcat> (2, false));
+    kfm.add_std_ns ("strcpy", std::make_unique<kf_strcpy> (2, false));
+    kfm.add_std_ns ("strlen", std::make_unique<kf_strlen> ());
+    kfm.add_std_ns ("strncpy", std::make_unique<kf_strncpy> ());
+    kfm.add_std_ns ("strtok", std::make_unique<kf_strtok> (rmm));
   }
 }
 

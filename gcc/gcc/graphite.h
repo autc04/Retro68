@@ -1,5 +1,5 @@
 /* Graphite polyhedral representation.
-   Copyright (C) 2009-2025 Free Software Foundation, Inc.
+   Copyright (C) 2009-2026 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <sebastian.pop@amd.com> and
    Tobias Grosser <grosser@fim.uni-passau.de>.
 
@@ -155,7 +155,7 @@ struct poly_dr
      The OpenScop access function is printed as follows:
 
      | 1  # The number of disjunct components in a union of access functions.
-     | R C O I L P  # Described bellow.
+     | R C O I L P  # Described below.
      | a  s0  s1   i   j   k   1
      | 1   0   0   0   0   0  -5     =  0
      | 0   1   0  -1   0   0   0     =  0

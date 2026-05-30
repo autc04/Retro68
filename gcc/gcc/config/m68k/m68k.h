@@ -1,5 +1,5 @@
 /* Definitions of target machine for GCC for Motorola 680x0/ColdFire.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -53,7 +53,6 @@ along with GCC; see the file COPYING3.  If not see
   SUBTARGET_EXTRA_SPECS
 
 #define SUBTARGET_EXTRA_SPECS
-
 
 /* Note that some other tm.h files include this one and then override
    many of the definitions that relate to assembler syntax.  */
@@ -194,15 +193,8 @@ along with GCC; see the file COPYING3.  If not see
 									\
       builtin_assert ("cpu=m68k");					\
       builtin_assert ("machine=m68k");					\
-      \
-      builtin_define("pascal=__attribute__((__pascal__))");	\
     }									\
   while (0)
-
-
-extern void m68k_register_pragmas(void);
-  /* Target Pragmas.  */
-#define REGISTER_TARGET_PRAGMAS() m68k_register_pragmas ()
 
 /* Classify the groups of pseudo-ops used to assemble QI, HI and SI
    quantities.  */
@@ -295,7 +287,7 @@ extern void m68k_register_pragmas(void);
 
 #define UNITS_PER_WORD 4
 
-#define PARM_BOUNDARY 16 /* (TARGET_SHORT ? 16 : 32) */
+#define PARM_BOUNDARY (TARGET_SHORT ? 16 : 32)
 #define STACK_BOUNDARY 16
 #define FUNCTION_BOUNDARY 16
 #define EMPTY_FIELD_BOUNDARY 16
@@ -348,7 +340,7 @@ extern void m68k_register_pragmas(void);
   0, 0, 0, 0, 0, 0, 0, 0,      \
                                \
   /* Address registers.  */    \
-  0, 0, 0, 0, 0, 1, 0, 1,      \
+  0, 0, 0, 0, 0, 0, 0, 1,      \
                                \
   /* Floating point registers  \
      (if available).  */       \
@@ -365,10 +357,10 @@ extern void m68k_register_pragmas(void);
    Aside from that, you can include as many other registers as you like.  */
 #define CALL_USED_REGISTERS     \
  {/* Data registers.  */        \
-  1, 1, 1, 0, 0, 0, 0, 0,       \
+  1, 1, 0, 0, 0, 0, 0, 0,       \
                                 \
   /* Address registers.  */     \
-  1, 1, 0, 0, 0, 1, 0, 1,       \
+  1, 1, 0, 0, 0, 0, 0, 1,       \
                                 \
   /* Floating point registers   \
      (if available).  */        \
@@ -481,7 +473,8 @@ extern enum reg_class regno_reg_class[];
 #define FIRST_PARM_OFFSET(FNDECL) 8
 
 /* On the m68k the return value defaults to D0.  */
-//  gen_rtx_REG (TYPE_MODE (VALTYPE), D0_REG)
+#define FUNCTION_VALUE(VALTYPE, FUNC)  \
+  gen_rtx_REG (TYPE_MODE (VALTYPE), D0_REG)
 
 /* On the m68k the return value defaults to D0.  */
 #define LIBCALL_VALUE(MODE)  gen_rtx_REG (MODE, D0_REG)
@@ -497,21 +490,13 @@ extern enum reg_class regno_reg_class[];
 /* On the m68k, all arguments are usually pushed on the stack.  */
 #define FUNCTION_ARG_REGNO_P(N) 0
 
-
-typedef struct {
-	int bytes; /* number of bytes  of arguments scanned so far.  */
-	int total_count;
-	int index;
-	int regparam;
-    int arg_regs[32];
-    
-} CUMULATIVE_ARGS;
-
-extern void m68k_init_cumulative_args (CUMULATIVE_ARGS *cum, const_tree fntype, rtx libname, const_tree fundecl, int n_named_args);
+/* On the m68k, this is a single integer, which is a number of bytes
+   of arguments scanned so far.  */
+#define CUMULATIVE_ARGS int
 
 /* On the m68k, the offset starts at 0.  */
 #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT, N_NAMED_ARGS) \
-  m68k_init_cumulative_args(&(CUM), (FNTYPE), (LIBNAME), (INDIRECT), (N_NAMED_ARGS));
+ ((CUM) = 0)
 
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
   asm_fprintf (FILE, "\tlea %LLP%d,%Ra0\n\tjsr mcount\n", (LABELNO))
@@ -916,8 +901,7 @@ extern const char *m68k_symbolic_call;
 extern const char *m68k_symbolic_jump;
 
 enum M68K_SYMBOLIC_CALL { M68K_SYMBOLIC_CALL_NONE, M68K_SYMBOLIC_CALL_JSR,
-			  M68K_SYMBOLIC_CALL_BSR_C, M68K_SYMBOLIC_CALL_BSR_P,
-			  M68K_SYMBOLIC_CALL_BSRW_C };
+			  M68K_SYMBOLIC_CALL_BSR_C, M68K_SYMBOLIC_CALL_BSR_P };
 
 extern enum M68K_SYMBOLIC_CALL m68k_symbolic_call_var;
 
@@ -936,15 +920,3 @@ extern int m68k_sched_address_bypass_p (rtx_insn *, rtx_insn *);
 extern int m68k_sched_indexed_address_bypass_p (rtx_insn *, rtx_insn *);
 
 #define CPU_UNITS_QUERY 1
-
-#define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)		\
-  do								\
-    {								\
-      if (!flag_inhibit_size_directive)				\
-	ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
-      m68k_write_macsbug_name(FILE, FNAME, DECL);			\
-    }								\
-  while (0)
-
-extern int m68k_is_pascal_func(tree, tree);
-#define IS_PASCAL_FUNC(fntype, fndecl) m68k_is_pascal_func(fntype, fndecl)

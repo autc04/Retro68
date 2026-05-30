@@ -1,5 +1,5 @@
 /* Definitions for LM32 running Linux-based GNU systems using ELF
-   Copyright (C) 1993-2025 Free Software Foundation, Inc.
+   Copyright (C) 1993-2026 Free Software Foundation, Inc.
    Contributed by Philip Blundell <philb@gnu.org>
 
    This file is part of GCC.
@@ -69,7 +69,7 @@
 
 #undef LINK_GCC_C_SEQUENCE_SPEC
 #define LINK_GCC_C_SEQUENCE_SPEC \
-  "%{static|static-pie:--start-group} %G %{!nolibc:%L} \
+  "%{static|static-pie:--start-group} %G %{!nolibc:" LINK_LIBATOMIC_SPEC "%L} \
    %{static|static-pie:--end-group}%{!static:%{!static-pie:%G}}"
 
 #undef  CC1_SPEC

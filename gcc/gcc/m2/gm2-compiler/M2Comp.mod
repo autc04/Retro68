@@ -1,6 +1,6 @@
 (* M2Comp.mod continually calls the compiler for every source file.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -48,6 +48,7 @@ FROM P0SymBuild IMPORT P0Init, P1Init ;
 FROM M2Debug IMPORT Assert ;
 
 IMPORT m2flex ;
+IMPORT m2block ;
 IMPORT P0SyntaxCheck ;
 IMPORT P1Build ;
 IMPORT P2Build ;
@@ -56,6 +57,7 @@ IMPORT P3Build ;
 IMPORT PHBuild ;
 IMPORT PCSymBuild ;
 IMPORT DynamicStrings ;
+IMPORT M2Diagnostic ;
 
 FROM M2Batch IMPORT GetSource, GetModuleNo, GetDefinitionModuleFile, GetModuleFile,
                     AssociateModule, AssociateDefinition, MakeImplementationSource,
@@ -70,6 +72,7 @@ FROM SymbolTable IMPORT GetSymName, IsDefImp, NulSym,
                         GetImportStatementList ;
 
 FROM M2Search IMPORT FindSourceDefFile ;
+FROM M2Diagnostic IMPORT Diagnostic, InitMemDiagnostic, MemIncr, MemSet ;
 
 FROM FIO IMPORT File, StdErr, StdOut, Close, EOF, IsNoError, WriteLine,
                 WriteChar, FlushOutErr ;
@@ -80,8 +83,8 @@ FROM M2Printf IMPORT fprintf0, fprintf1 ;
 FROM M2Quiet IMPORT qprintf0, qprintf1, qprintf2 ;
 
 FROM M2Options IMPORT Verbose, GetM2Prefix, GetM, GetMM, GetDepTarget, GetMF, GetMP,
-                      GetObj, PPonly, Statistics, Quiet, WholeProgram, GetMD, GetMMD,
-                      ExtendedOpaque, GenModuleList ;
+                      GetObj, PPonly, Quiet, WholeProgram, GetMD, GetMMD,
+                      ExtendedOpaque, GenModuleList, TimeReport, MemReport ;
 
 FROM PathName IMPORT DumpPathName ;
 FROM Lists IMPORT List, NoOfItemsInList, GetItemFromList ;
@@ -90,6 +93,7 @@ FROM Indexing IMPORT Index, InitIndex, KillIndex, GetIndice, PutIndice, HighIndi
 FROM DynamicStrings IMPORT String, InitString, KillString, InitStringCharStar,
                            Dup, Mark, EqualArray, string, Length, ConCat, ConCatChar,
                            InitStringChar, RIndex, Slice, Equal, RemoveWhitePrefix ;
+
 
 
 CONST
@@ -281,12 +285,41 @@ END Compile ;
 
 PROCEDURE compile (filename: ADDRESS) ;
 VAR
-   f: String ;
+   f, s: String ;
 BEGIN
+   M2Diagnostic.Configure (TimeReport, MemReport) ;
    f := InitStringCharStar (filename) ;
    Compile (f) ;
-   f := KillString (f)
+   f := KillString (f) ;
+   PopulateResource ;
+   IF TimeReport OR MemReport
+   THEN
+      s := WriteS (StdOut, M2Diagnostic.Generate (FALSE)) ;
+      FlushOutErr ;
+      s := KillString (s)
+   END
 END compile ;
+
+
+(*
+   PopulateResource -
+*)
+
+PROCEDURE PopulateResource ;
+VAR
+   StatsMemDiag: Diagnostic ;
+BEGIN
+   IF MemReport
+   THEN
+      StatsMemDiag
+         := InitMemDiagnostic
+            ('M2Comp:statistics',
+            'total source lines {1d} total constants {2d} total types {3d}') ;
+      MemSet (StatsMemDiag, 1, m2flex.GetTotalLines ()) ;
+      MemSet (StatsMemDiag, 2, m2block.GetTotalConstants ()) ;
+      MemSet (StatsMemDiag, 3, m2block.GetGlobalTypes ())
+   END
+END PopulateResource ;
 
 
 (*
@@ -818,12 +851,11 @@ BEGIN
             MergeDeps (DepContent, ChildDep, LibName)
          ELSE
             (* Unrecoverable error.  *)
-            MetaErrorString1 (Sprintf1 (InitString ('file {%%1EUAF%s} containing module {%%1a} cannot be found'),
+            MetaErrorString1 (Sprintf1 (InitString ('file {%%1EUAF%s} containing module {%%1a} cannot be found {%%1&Ds}'),
                                         FileName), sym)
          END
       ELSE
-         (* Unrecoverable error.  *)
-         MetaError1 ('the file containing the definition module {%1EMAa} cannot be found', sym)
+         MetaError1 ('the file containing the definition module {%1EMAa} cannot be found {%1&Ds}', sym)
       END ;
       ModuleType := Implementation
    ELSE
@@ -895,15 +927,15 @@ BEGIN
             qprintf0 ('\n') ;
             CloseSource
          ELSE
-            (* It is quite legitimate to implement a module in C (and pretend it was a M2
+            (* It is legitimate to implement a module in C (and pretend it was a M2
                implementation) providing that it is not the main program module and the
                definition module does not declare a hidden type when -fextended-opaque
                is used.  *)
             IF (NOT WholeProgram) OR (sym = Main) OR IsHiddenTypeDeclared (sym)
             THEN
                (* Unrecoverable error.  *)
-               MetaErrorString1 (Sprintf1 (InitString ('file {%%1EUAF%s} containing module {%%1a} cannot be found'),
-                                           FileName), sym) ;
+               MetaErrorString1 (Sprintf1 (InitString ('file {%%1EUAF%s} containing module {%%1a} cannot be found {%%1&Ds}'),
+                                           FileName), sym)
             END
          END
       END

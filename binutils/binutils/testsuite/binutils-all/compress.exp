@@ -1,4 +1,4 @@
-#   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -163,24 +163,24 @@ if ![string match "" $got] then {
 }
 
 set testname "objdump compress debug sections"
-set got [remote_exec host "$OBJDUMP -W ${compressedfile}.o" "" "/dev/null" "objdump.out"]
+set got [remote_exec host "$OBJDUMP -W ${compressedfile}.o" "" "/dev/null" "tmpdir/objdump.out"]
 if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
     fail "$testname"
     send_log "$got\n"
 }
-if { [regexp_diff objdump.out $srcdir/$subdir/dw2-1.W] } then {
+if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/dw2-1.W] } then {
     fail "$testname"
 } else {
     pass "$testname"
 }
 
 set testname "objdump compress debug sections 3"
-set got [remote_exec host "$OBJDUMP -W ${compressedfile3}.o" "" "/dev/null" "objdump.out"]
+set got [remote_exec host "$OBJDUMP -W ${compressedfile3}.o" "" "/dev/null" "tmpdir/objdump.out"]
 if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
     fail "$testname"
     send_log "$got\n"
 }
-if { [regexp_diff objdump.out $srcdir/$subdir/dw2-3.W] } then {
+if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/dw2-3.W] } then {
     fail "$testname"
 } else {
     pass "$testname"
@@ -565,15 +565,59 @@ if ![string match "" $got] then {
 }
 
 set testname "objdump compress debug sections 3 with zlib-gabi"
-set got [remote_exec host "$OBJDUMP -W ${compressedfile3}gabi.o" "" "/dev/null" "objdump.out"]
+set got [remote_exec host "$OBJDUMP -W ${compressedfile3}gabi.o" "" "/dev/null" "tmpdir/objdump.out"]
 if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
     fail "$testname"
     send_log "$got\n"
 }
-if { [regexp_diff objdump.out $srcdir/$subdir/dw2-3gabi.W] } then {
+if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/dw2-3gabi.W] } then {
     fail "$testname"
 } else {
     pass "$testname"
+}
+
+if { [binutils_assemble_flags $srcdir/$subdir/dw2-1.S ${compressedfile}zstd.o --compress-debug-sections=zstd] } then {
+    set testname "objcopy compress debug sections with zstd"
+    set got [binutils_run $OBJCOPY "--compress-debug-sections=zstd ${testfile}.o ${copyfile}zstd.o"]
+    if ![string match "" $got] then {
+	fail "objcopy ($testname)"
+	return
+    }
+    send_log "cmp ${compressedfile}zstd.o ${copyfile}zstd.o\n"
+    verbose "cmp ${compressedfile}zstd.o ${copyfile}zstd.o"
+    set src1 ${compressedfile}zstd.o
+    set src2 ${copyfile}zstd.o
+    set status [remote_exec build cmp "${src1} ${src2}"]
+    set exec_output [lindex $status 1]
+    set exec_output [prune_warnings $exec_output]
+    if ![string match "" $exec_output] then {
+	send_log "$exec_output\n"
+	verbose "$exec_output" 1
+	fail "objcopy ($testname)"
+    } else {
+	pass "objcopy ($testname)"
+    }
+
+    set testname "objcopy decompress compressed debug sections with zstd"
+    set got [binutils_run $OBJCOPY "--decompress-debug-sections ${compressedfile}zstd.o ${copyfile}zstd.o"]
+    if ![string match "" $got] then {
+	fail "objcopy ($testname)"
+	return
+    }
+    send_log "cmp ${testfile}.o ${copyfile}zstd.o\n"
+    verbose "cmp ${testfile}.o ${copyfile}zstd.o"
+    set src1 ${testfile}.o
+    set src2 ${copyfile}zstd.o
+    set status [remote_exec build cmp "${src1} ${src2}"]
+    set exec_output [lindex $status 1]
+    set exec_output [prune_warnings $exec_output]
+    if ![string match "" $exec_output] then {
+	send_log "$exec_output\n"
+	verbose "$exec_output" 1
+	fail "objcopy ($testname)"
+    } else {
+	pass "objcopy ($testname)"
+    }
 }
 
 proc convert_test { testname  as_flags  objcop_flags } {
@@ -595,7 +639,7 @@ proc convert_test { testname  as_flags  objcop_flags } {
 	return
     }
 
-    set got [remote_exec host "$OBJDUMP -W ${copyfile}.o" "" "/dev/null" "objdump.out"]
+    set got [remote_exec host "$OBJDUMP -W ${copyfile}.o" "" "/dev/null" "tmpdir/objdump.out"]
 
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	fail "$testname (reason: unexpected output)"
@@ -604,7 +648,7 @@ proc convert_test { testname  as_flags  objcop_flags } {
 	return
     }
 
-    if { [regexp_diff objdump.out $srcdir/$subdir/dw2-3.W] } then {
+    if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/dw2-3.W] } then {
 	fail "$testname"
     } else {
 	pass "$testname"
@@ -736,6 +780,7 @@ proc test_gnu_debuglink {} {
     set status [remote_exec build diff "${src1} ${src2}"]
     set exec_output [lindex $status 1]
     set exec_output [prune_warnings $exec_output]
+    setup_xfail "x86_64-*-solaris2*" "PR binutils/33243"
     if ![string match "" $exec_output] then {
 	send_log "$exec_output\n"
 	verbose "$exec_output" 1

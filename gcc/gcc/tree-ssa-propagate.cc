@@ -1,5 +1,5 @@
 /* Generic SSA value propagation engine.
-   Copyright (C) 2004-2025 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
    Contributed by Diego Novillo <dnovillo@redhat.com>
 
    This file is part of GCC.
@@ -578,10 +578,6 @@ substitute_and_fold_engine::replace_uses_in (gimple *stmt)
       if (val == tuse || val == NULL_TREE)
 	continue;
 
-      if (gimple_code (stmt) == GIMPLE_ASM
-	  && !may_propagate_copy_into_asm (tuse))
-	continue;
-
       if (!may_propagate_copy (tuse, val))
 	continue;
 
@@ -864,6 +860,7 @@ substitute_and_fold_dom_walker::before_dom_children (basic_block bb)
       /* If we made a replacement, fold the statement.  */
       if (did_replace)
 	{
+	  update_stmt (stmt);
 	  fold_stmt (&i, follow_single_use_edges);
 	  stmt = gsi_stmt (i);
 	  gimple_set_modified (stmt, true);
@@ -1019,6 +1016,8 @@ substitute_and_fold_engine::substitute_and_fold (basic_block block)
   while (!walker.stmts_to_fixup.is_empty ())
     {
       gimple *stmt = walker.stmts_to_fixup.pop ();
+      if (!gimple_bb (stmt))
+	continue;
       if (dump_file && dump_flags & TDF_DETAILS)
 	{
 	  fprintf (dump_file, "Fixing up noreturn call ");
@@ -1139,15 +1138,6 @@ may_propagate_copy_into_stmt (gimple *dest, tree orig)
 
   return true;
 }
-
-/* Similarly, but we know that we're propagating into an ASM_EXPR.  */
-
-bool
-may_propagate_copy_into_asm (tree dest ATTRIBUTE_UNUSED)
-{
-  return true;
-}
-
 
 /* Replace *OP_P with value VAL (assumed to be a constant or another SSA_NAME).
 

@@ -1,5 +1,5 @@
 /* Support routines for value ranges.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Major hacks by Aldy Hernandez <aldyh@redhat.com> and
    Andrew MacLeod <amacleod@redhat.com>.
 
@@ -31,26 +31,116 @@ along with GCC; see the file COPYING3.  If not see
 #include "fold-const.h"
 #include "gimple-range.h"
 
-// Return the bitmask inherent in a range.
+// Return the bitmask inherent in a range :   TYPE [MIN, MAX].
+// This used to be get_bitmask_from_range ().
 
-static irange_bitmask
-get_bitmask_from_range (tree type,
-			const wide_int &min, const wide_int &max)
+irange_bitmask::irange_bitmask (tree type,
+				const wide_int &min, const wide_int &max)
 {
   unsigned prec = TYPE_PRECISION (type);
-
   // All the bits of a singleton are known.
   if (min == max)
     {
-      wide_int mask = wi::zero (prec);
-      wide_int value = min;
-      return irange_bitmask (value, mask);
+      m_mask = wi::zero (prec);
+      m_value = min;
+    }
+  else
+    {
+      wide_int xorv = min ^ max;
+      // Mask will have leading zeros for all leading bits that are
+      // common, both zeros and ones.
+      m_mask = wi::mask (prec - wi::clz (xorv), false, prec);
+      // Now set value to those bits which are known, and zero the rest.
+      m_value = ~m_mask & min;
+    }
+}
+
+// Return a range in R of TYPE for this bitmask which encompasses
+// a set of valid values which are allowable for this bitmask/value
+// combination.  If false is returned, no range was set.
+
+bool
+irange_bitmask::range_from_mask (irange &r, tree type) const
+{
+  if (unknown_p ())
+    return false;
+
+  gcc_checking_assert ((value () & mask ()) == 0);
+  unsigned popcount = wi::popcount (mask ());
+
+  // For 0, 1 or 2 bits set, create a range with only the allowed values.
+  if (popcount <= 2)
+    {
+      // VALUE is always a valid range.
+      r.set (type, value (), value ());
+      // If there are bits in mask, (VALUE | MASK) is also valid.
+      if (popcount >= 1)
+	r.union_ (int_range<1> (type, value () | mask (), value () | mask ()));
+      // If there are 2 bits set, add the other 2 possible values.
+      if (popcount == 2)
+	{
+	  // Extract the two 1-bit masks into lb and ub.
+	  wide_int lb = mask () & -mask ();		// Lowest set bit.
+	  wide_int ub = mask () & (mask () - 1);	// The other bit.
+	  r.union_ (int_range<1> (type, value () | lb, value () | lb));
+	  r.union_ (int_range<1> (type, value () | ub, value () | ub));
+	}
+      return true;
     }
 
-  wide_int xorv = min ^ max;
-  xorv = wi::mask (prec - wi::clz (xorv), false, prec);
-  return irange_bitmask (wi::zero (prec), min | xorv);
+  // Otherwise, calculate the valid range allowed by the bitmask.
+  int prec = TYPE_PRECISION (type);
+  wide_int ub = mask () | value ();
+  wide_int sign_bit = wi::one (prec) << (prec - 1);
+  wide_int sign_mask = mask () & sign_bit;
+  wide_int sign_value = value () & sign_bit;
+  // Create a lower and upper bound.
+  // If unsigned, or the sign is known to be positive, create [lb, ub]
+  if (TYPE_SIGN (type) == UNSIGNED || (sign_mask == 0 && sign_value == 0))
+    r.set (type, value (), mask () | value ());
+  // If the sign bit is KNOWN to be 1, we have a completely negative range.
+  else if (sign_mask == 0 && sign_value != 0)
+    r.set (type, value (), value () | (mask () & ~sign_bit));
+  else
+    {
+      // Otherwise there are 2 ranges, a negative and positive interval.
+      wide_int neg_base = value () | sign_bit;
+      wide_int pos_mask = mask () & ~sign_bit;
+      r.set  (type, neg_base , neg_base | pos_mask);
+      r.union_ (int_range<1> (type, value (), value () | pos_mask));
+    }
+
+  // If the mask doesn't have a trailing zero, there is nothing else to filter.
+  int z = wi::ctz (mask ());
+  if (z == 0)
+    return true;
+
+  // Remove the [0, X] values which the trailing-zero mask rules out.
+  // For example, if z == 4, the mask is 0xFFF0, and the lowest 4 bits
+  // define the range [0, 15]. Only (value & low_mask) is allowed.
+  ub = (wi::one (prec) << z) - 1;  // Upper bound of range.
+  int_range<4> mask_range (type, wi::zero (prec), ub);
+  // Remove the valid value from the excluded range and form an anti-range.
+  wide_int allow = value () & ub;
+  mask_range.intersect (int_range<2> (type, allow, allow, VR_ANTI_RANGE));
+  mask_range.invert ();
+  r.intersect (mask_range);
+
+  if (TYPE_SIGN (type) == SIGNED)
+    {
+      // For signed negative values, find the lowest value with trailing zeros.
+      // This forms a range such as [-512, -1] for z=9.
+      wide_int lb = -(wi::one (prec) << z);
+      int_range<4> mask_range (type, lb, wi::minus_one (prec));
+      // Remove the one allowed value from that set.
+      wide_int allow = value () | lb;
+      mask_range.intersect (int_range<2> (type, allow, allow, VR_ANTI_RANGE));
+      mask_range.invert ();
+      r.intersect (mask_range);
+    }
+  return true;
 }
+
 
 void
 irange::accept (const vrange_visitor &v) const
@@ -469,7 +559,7 @@ prange::set (tree type, const wide_int &min, const wide_int &max,
     }
 
   m_kind = VR_RANGE;
-  m_bitmask = get_bitmask_from_range (type, min, max);
+  m_bitmask = irange_bitmask (type, min, max);
   if (flag_checking)
     verify_range ();
 }
@@ -583,9 +673,11 @@ prange::intersect (const vrange &v)
     }
 
   // Intersect all bitmasks: the old one, the new one, and the other operand's.
-  irange_bitmask new_bitmask = get_bitmask_from_range (m_type, m_min, m_max);
-  m_bitmask.intersect (new_bitmask);
-  m_bitmask.intersect (r.m_bitmask);
+  irange_bitmask new_bitmask (m_type, m_min, m_max);
+  if (!m_bitmask.intersect (new_bitmask))
+    set_undefined ();
+  else if (!m_bitmask.intersect (r.m_bitmask))
+    set_undefined ();
   if (varying_compatible_p ())
     {
       set_varying (type ());
@@ -1202,7 +1294,7 @@ frange::supports_type_p (const_tree type) const
 }
 
 void
-frange::verify_range ()
+frange::verify_range () const
 {
   if (!undefined_p ())
     gcc_checking_assert (HONOR_NANS (m_type) || !maybe_isnan ());
@@ -1512,7 +1604,7 @@ irange::set (tree min, tree max, value_range_kind kind)
 // Check the validity of the range.
 
 void
-irange::verify_range ()
+irange::verify_range () const
 {
   gcc_checking_assert (m_discriminator == VR_IRANGE);
   if (m_kind == VR_UNDEFINED)
@@ -1549,6 +1641,11 @@ irange::verify_range ()
       gcc_checking_assert (ub.get_precision () == prec);
       int c = wi::cmp (lb, ub, TYPE_SIGN (m_type));
       gcc_checking_assert (c == 0 || c == -1);
+      // Previous UB should be lower than LB
+      if (i > 0)
+	gcc_checking_assert (wi::lt_p (upper_bound (i - 1),
+				       lb,
+				       TYPE_SIGN (m_type)));
     }
   m_bitmask.verify_mask ();
 }
@@ -1625,10 +1722,8 @@ irange::contains_p (const wide_int &cst) const
   if (undefined_p ())
     return false;
 
-  // See if we can exclude CST based on the known 0 bits.
-  if (!m_bitmask.unknown_p ()
-      && cst != 0
-      && wi::bit_and (m_bitmask.get_nonzero_bits (), cst) == 0)
+  // Check if the known bits in bitmask exclude CST.
+  if (!m_bitmask.member_p (cst))
     return false;
 
   signop sign = TYPE_SIGN (type ());
@@ -1896,12 +1991,17 @@ irange::irange_contains_p (const irange &r) const
   gcc_checking_assert (!undefined_p () && !varying_p ());
   gcc_checking_assert (!r.undefined_p () && !varying_p ());
 
+  // Check singletons directly which will include any bitmasks.
+  wide_int rl;
+  if (r.singleton_p (rl))
+    return contains_p (rl);
+
   // In order for THIS to fully contain R, all of the pairs within R must
   // be fully contained by the pairs in this object.
   signop sign = TYPE_SIGN (m_type);
   unsigned ri = 0;
   unsigned i = 0;
-  wide_int rl = r.m_base[0];
+  rl = r.m_base[0];
   wide_int ru = r.m_base[1];
   wide_int l = m_base[0];
   wide_int u = m_base[1];
@@ -1968,6 +2068,16 @@ irange::intersect (const vrange &v)
       if (res)
 	normalize_kind ();
       return res;
+    }
+
+  // If either range is a singleton and the other range does not contain
+  // it, the result is undefined.
+  wide_int val;
+  if ((singleton_p (val) && !r.contains_p (val))
+      || (r.singleton_p (val) && !contains_p (val)))
+    {
+      set_undefined ();
+      return true;
     }
 
   // If R fully contains this, then intersection will change nothing.
@@ -2053,6 +2163,13 @@ irange::intersect (const vrange &v)
     }
 
   m_kind = VR_RANGE;
+  // Snap subranges if there is a bitmask.  See PR 123319.
+  if (!m_bitmask.unknown_p ())
+    {
+      snap_subranges ();
+      if (undefined_p ())
+	return true;
+    }
   // The range has been altered, so normalize it even if nothing
   // changed in the mask.
   if (!intersect_bitmask (r))
@@ -2251,88 +2368,133 @@ irange::invert ()
     verify_range ();
 }
 
-// Remove trailing ranges that this bitmask indicates can't exist.
+// This routine will take the bounds [LB, UB], and apply the bitmask to those
+// values such that both bounds satisfy the bitmask.  TRUE is returned
+// if either bound changes, and they are returned as [NEW_LB, NEW_UB].
+// If there is an overflow, or if (NEW_UB < NEW_LB), then the entire bound is
+// to be removed as none of the values are valid.   This is indicated by
+// teturning TRUE in OVF.   False indicates the bounds are fine.
+//   ie,   [4, 14] MASK 0xFFFE  VALUE 0x1
+// means all values must be odd, the new bounds returned will be [5, 13] with
+// OVF set to FALSE.
+//   ie,   [4, 4] MASK 0xFFFE  VALUE 0x1
+// would return TRUE and OVF == TRUE.  The entire subrange should be removed.
 
-void
-irange_bitmask::adjust_range (irange &r) const
+bool
+irange::snap (const wide_int &lb, const wide_int &ub,
+	      wide_int &new_lb, wide_int &new_ub, bool &ovf)
 {
-  if (unknown_p () || r.undefined_p ())
-    return;
+  ovf = false;
+  int z = wi::ctz (m_bitmask.mask ());
+  if (z == 0)
+    return false;
 
-  int_range_max range;
-  tree type = r.type ();
-  int prec = TYPE_PRECISION (type);
-  // If there are trailing zeros, create a range representing those bits.
-  gcc_checking_assert (m_mask != 0);
-  int z = wi::ctz (m_mask);
-  if (z)
+  // Shortcircuit check for values that are already good.
+  if ((((lb ^ m_bitmask.value ()) | (ub ^ m_bitmask.value ()))
+       & ~m_bitmask.mask ()) == 0)
+    return false;
+
+  const wide_int step = (wi::one (TYPE_PRECISION (type ())) << z);
+  const wide_int match_mask = step - 1;
+  const wide_int value = m_bitmask.value () & match_mask;
+
+  wide_int rem_lb = lb & match_mask;
+  wide_int offset = (value - rem_lb) & match_mask;
+  new_lb = lb + offset;
+  // Check for overflows at +INF
+  if (wi::lt_p (new_lb, lb, TYPE_SIGN (type ())))
     {
-      wide_int ub = (wi::one (prec) << z) - 1;
-      range = int_range<5> (type, wi::zero (prec), ub);
-      // Then remove the specific value these bits contain from the range.
-      wide_int value = m_value & ub;
-      range.intersect (int_range<2> (type, value, value, VR_ANTI_RANGE));
-      // Inverting produces a list of ranges which can be valid.
-      range.invert ();
-      // And finally select R from only those valid values.
-      r.intersect (range);
-      return;
+      ovf = true;
+      return true;
     }
+
+  wide_int rem_ub = ub & match_mask;
+  wide_int offset_ub = (rem_ub - value) & match_mask;
+  new_ub = ub - offset_ub;
+  // Check for underflows at -INF
+  if (wi::gt_p (new_ub, ub, TYPE_SIGN (type ())))
+    {
+      ovf = true;
+      return true;
+    }
+
+  // If inverted range is invalid, set overflow to TRUE.
+  if (wi::lt_p (new_ub, new_lb, TYPE_SIGN (type ())))
+    {
+      ovf = true;
+      return true;
+    }
+  return (new_lb != lb) || (new_ub != ub);
 }
 
-// If the mask can be trivially converted to a range, do so and
-// return TRUE.
+// This method loops through the subranges in THIS, and adjusts any bounds
+// to satisfy the contraints of the BITMASK.  If a subrange is invalid,
+// it is removed.   TRUE is returned if there were any changes.
+
+bool
+irange::snap_subranges ()
+{
+  bool changed = false;
+  int_range_max invalid;
+  unsigned x;
+  wide_int lb, ub;
+  for (x = 0; x < m_num_ranges; x++)
+    {
+      bool ovf;
+      if (snap (lower_bound (x), upper_bound (x), lb, ub, ovf))
+	{
+	  changed = true;
+	  // Check if this subrange is to be completely removed.
+	  if (ovf)
+	    {
+	      int_range<1> tmp (type (), lower_bound (x), upper_bound (x));
+	      invalid.union_ (tmp);
+	      continue;
+	    }
+	  if (lower_bound (x) != lb)
+	    m_base[x * 2] = lb;
+	  if (upper_bound (x) != ub)
+	    m_base[x * 2 + 1] = ub;
+	}
+    }
+  // Remove any subranges which are no invalid.
+  if (!invalid.undefined_p ())
+    {
+      invalid.invert ();
+      intersect (invalid);
+    }
+  return changed;
+}
+
+// If the bitmask has a range representation, intersect this range with
+// the bitmasks range.  Then ensure all enpoints match the bitmask.
+// Return TRUE if the range changes at all.
 
 bool
 irange::set_range_from_bitmask ()
 {
   gcc_checking_assert (!undefined_p ());
-  if (m_bitmask.unknown_p ())
+  // Snap subranmges when bitmask is first set.
+  snap_subranges ();
+  if (undefined_p ())
+    return true;
+
+  // Calculate the set of ranges valid for the bitmask.
+  int_range_max allow;
+  if (!m_bitmask.range_from_mask (allow, m_type))
     return false;
-
-  // If all the bits are known, this is a singleton.
-  if (m_bitmask.mask () == 0)
-    {
-      set (m_type, m_bitmask.value (), m_bitmask.value ());
-      return true;
-    }
-
-  unsigned popcount = wi::popcount (m_bitmask.get_nonzero_bits ());
-
-  // If we have only one bit set in the mask, we can figure out the
-  // range immediately.
-  if (popcount == 1)
-    {
-      // Make sure we don't pessimize the range.
-      if (!contains_p (m_bitmask.get_nonzero_bits ()))
-	return false;
-
-      bool has_zero = contains_zero_p (*this);
-      wide_int nz = m_bitmask.get_nonzero_bits ();
-      set (m_type, nz, nz);
-      m_bitmask.set_nonzero_bits (nz);
-      if (has_zero)
-	{
-	  int_range<2> zero;
-	  zero.set_zero (type ());
-	  union_ (zero);
-	}
-      if (flag_checking)
-	verify_range ();
-      return true;
-    }
-  else if (popcount == 0)
-    {
-      set_zero (type ());
-      return true;
-    }
-  return false;
+  // And intersect that set of ranges with the current set.
+  return intersect (allow);
 }
 
 void
 irange::update_bitmask (const irange_bitmask &bm)
 {
   gcc_checking_assert (!undefined_p ());
+
+  // If masks are the same, there is no change.
+  if (m_bitmask == bm)
+    return;
 
   // Drop VARYINGs with known bits to a plain range.
   if (m_kind == VR_VARYING && !bm.unknown_p ())
@@ -2372,10 +2534,14 @@ irange::get_bitmask () const
   // in the mask.
   //
   // See also the note in irange_bitmask::intersect.
-  irange_bitmask bm
-    = get_bitmask_from_range (type (), lower_bound (), upper_bound ());
+  irange_bitmask bm (type (), lower_bound (), upper_bound ());
   if (!m_bitmask.unknown_p ())
-    bm.intersect (m_bitmask);
+    {
+      // If the new intersection is unknown, it means there are inconstent
+      // bits, so simply return the original bitmask.
+      if (!bm.intersect (m_bitmask))
+	return m_bitmask;
+    }
   return bm;
 }
 
@@ -2408,26 +2574,25 @@ irange::intersect_bitmask (const irange &r)
 {
   gcc_checking_assert (!undefined_p () && !r.undefined_p ());
 
+  // If the bitmasks are the same, do nothing.
   if (m_bitmask == r.m_bitmask)
     return false;
 
   irange_bitmask bm = get_bitmask ();
   irange_bitmask save = bm;
-  bm.intersect (r.get_bitmask ());
-  if (save == bm)
+  if (!bm.intersect (r.get_bitmask ()))
+    {
+      set_undefined ();
+      return true;
+    }
+
+  // If the new mask is the same, there is no change.
+  if (m_bitmask == bm)
     return false;
 
   m_bitmask = bm;
-
-  // Updating m_bitmask may still yield a semantic bitmask (as
-  // returned by get_bitmask) which is functionally equivalent to what
-  // we originally had.  In which case, there's still no change.
-  if (save == get_bitmask ())
-    return false;
-
   if (!set_range_from_bitmask ())
     normalize_kind ();
-  m_bitmask.adjust_range (*this);
   if (flag_checking)
     verify_range ();
   return true;
@@ -2743,6 +2908,112 @@ range_tests_strict_enum ()
   ASSERT_FALSE (ir1.varying_p ());
 }
 
+// Test that range bounds are "snapped" to where they are expected to be.
+
+static void
+assert_snap_result (int lb_val, int ub_val,
+		    int expected_lb, int expected_ub,
+		    unsigned mask_val, unsigned value_val,
+		    tree type)
+{
+  wide_int lb = wi::shwi (lb_val, TYPE_PRECISION (type));
+  wide_int ub = wi::shwi (ub_val, TYPE_PRECISION (type));
+  wide_int new_lb, new_ub;
+
+  irange_bitmask bm (wi::uhwi (value_val, TYPE_PRECISION (type)),
+		     wi::uhwi (mask_val, TYPE_PRECISION (type)));
+
+  int_range_max r (type);
+  r.set (type, lb, ub);
+  r.update_bitmask (bm);
+
+  if (TYPE_SIGN (type) == SIGNED && expected_ub < expected_lb)
+    gcc_checking_assert (r.undefined_p ());
+  else if (TYPE_SIGN (type) == UNSIGNED
+	   && ((unsigned)expected_ub < (unsigned)expected_lb))
+    gcc_checking_assert (r.undefined_p ());
+  else
+    {
+      gcc_checking_assert (wi::eq_p (r.lower_bound (),
+				     wi::shwi (expected_lb,
+					       TYPE_PRECISION (type))));
+      gcc_checking_assert (wi::eq_p (r.upper_bound (),
+				     wi::shwi (expected_ub,
+					       TYPE_PRECISION (type))));
+    }
+}
+
+
+// Run a selection of tests that confirm, bounds are snapped as expected.
+// We only test individual pairs, multiple pairs use the same snapping
+// routine as single pairs.
+
+static void
+test_irange_snap_bounds ()
+{
+  tree u32 = unsigned_type_node;
+  tree s32 = integer_type_node;
+  tree s8 = build_nonstandard_integer_type (8, /*unsigned=*/ 0);
+  tree s1 = build_nonstandard_integer_type (1, /*unsigned=*/ 0);
+  tree u1 = build_nonstandard_integer_type (1, /*unsigned=*/ 1);
+
+  // Basic aligned range: even-only
+  assert_snap_result (5, 15, 6, 14, 0xE, 0x0, u32);
+  // Singleton that doesn't match mask: undefined.
+  assert_snap_result (7, 7, 1, 0, 0xFFFFFFFE, 0x0, u32);
+  // 8-bit signed char, mask 0xF0 (i.e. step of 16).
+  assert_snap_result (-100, 100, -96, 96, 0xF0, 0x00, s8);
+  // Already aligned range: no change.
+  assert_snap_result (0, 240, 0, 240, 0xF0, 0x00, u32);
+  // Negative range, step 16 alignment (s32).
+  assert_snap_result (-123, -17, -112, -32, 0xFFFFFFF0, 0x00, s32);
+  // Negative range, step 16 alignment (trailing-zero aligned mask).
+  assert_snap_result (-123, -17, -112, -32, 0xFFFFFFF0, 0x00, s32);
+  // s8, 16-alignment mask, value = 0 (valid).
+  assert_snap_result (-50, 10, -48, 0, 0xF0, 0x00, s8);
+  // No values in range [-3,2] match alignment except 0.
+  assert_snap_result (-3, 2, 0, 0, 0xF8, 0x00, s8);
+  // No values in range [-3,2] match alignment — undefined.
+  assert_snap_result (-3, 2, 1, 0, 0xF8, 0x04, s8);
+  // Already aligned range: no change.
+  assert_snap_result (0, 240, 0, 240, 0xF0, 0x00, s32);
+  // 1-bit signed: only -1 allowed (0b1).
+  assert_snap_result (-1, 0, -1, -1, 0x00, 0x01, s1);
+  // 1-bit signed: only 0 allowed (0b0).
+  assert_snap_result (-1, 0, 0, 0, 0x00, 0x00, s1);
+  // 1-bit signed: no match (invalid case).
+  assert_snap_result (-1, -1, 1, 0, 0x00, 0x00, s1);
+  // 1-bit signed: no match (invalid case).
+  assert_snap_result (0, 0, 1, 0, 0x00, 0x01, s1);
+  // 1-bit unsigned: only 1 allowed.
+  assert_snap_result (0, 1, 1, 1, 0x00, 0x01, u1);
+  // 1-bit unsigned: only 0 allowed.
+  assert_snap_result (0, 1, 0, 0, 0x00, 0x00, u1);
+  // 1-bit unsigned: no match (invalid case).
+  assert_snap_result (1, 1, 1, 0, 0x00, 0x00, u1);
+  // 1-bit unsigned: no match (invalid case).
+  assert_snap_result (0, 0, 1, 0, 0x00, 0x01, u1);
+  // Unsigned: Near overflow, even alignment.
+  assert_snap_result (UINT_MAX - 6, UINT_MAX, UINT_MAX - 5, UINT_MAX - 1,
+		      0xFFFFFFFE, 0x00, u32);
+  // Unsigned: Wraparound-like range — no valid snapped values.
+  assert_snap_result (UINT_MAX - 5, UINT_MAX, 1, 0, 0xFFFFFFF0, 0x00, u32);
+  // Signed: Near INT_MAX, 8-aligned.
+  assert_snap_result (INT_MAX - 18, INT_MAX, INT_MAX - 15, INT_MAX - 7,
+		      0xFFFFFFF8, 0x00, s32);
+  // Signed: Near INT_MIN, 16-aligned.
+  assert_snap_result (INT_MIN, INT_MIN + 30, INT_MIN, INT_MIN + 16,
+		      0xFFFFFFF0, 0x00, s32);
+  // Signed: Full domain, 4-aligned.
+  assert_snap_result (-128, 127, -128, 124, 0xFC, 0x00, s8);
+  // Singleton at INT_MIN that doesn’t match alignment — undefined
+  assert_snap_result (INT_MIN, INT_MIN, 1, 0, 0xFFFFFFFE, 0x01, s32);
+  // Range at INT_MIN that doesn’t match alignment — undefined.
+  assert_snap_result (INT_MIN, INT_MIN + 10, 1, 0, 0xFFFFFFF0, 0x0F, s32);
+  // Unsigned: Full domain, 256-aligned.
+  assert_snap_result (0, UINT_MAX, 0, UINT_MAX & ~255, 0xFFFFFF00, 0x00, u32);
+}
+
 static void
 range_tests_misc ()
 {
@@ -2959,15 +3230,12 @@ range_tests_misc ()
 static void
 range_tests_nonzero_bits ()
 {
-  int_range<2> r0, r1;
+  int_range<8> r0, r1;
 
   // Adding nonzero bits to a varying drops the varying.
   r0.set_varying (integer_type_node);
   r0.set_nonzero_bits (INT (255));
   ASSERT_TRUE (!r0.varying_p ());
-  // Dropping the nonzero bits brings us back to varying.
-  r0.set_nonzero_bits (INT (-1));
-  ASSERT_TRUE (r0.varying_p ());
 
   // Test contains_p with nonzero bits.
   r0.set_zero (integer_type_node);
@@ -2999,21 +3267,13 @@ range_tests_nonzero_bits ()
   r0.intersect (r1);
   ASSERT_TRUE (r0.get_nonzero_bits () == 0xff);
 
-  // The union of a mask of 0xff..ffff00 with a mask of 0xff spans the
-  // entire domain, and makes the range a varying.
-  r0.set_varying (integer_type_node);
-  wide_int x = wi::shwi (0xff, TYPE_PRECISION (integer_type_node));
-  x = wi::bit_not (x);
-  r0.set_nonzero_bits (x); 	// 0xff..ff00
-  r1.set_varying (integer_type_node);
-  r1.set_nonzero_bits (INT (0xff));
-  r0.union_ (r1);
-  ASSERT_TRUE (r0.varying_p ());
-
   // Test that setting a nonzero bit of 1 does not pessimize the range.
   r0.set_zero (integer_type_node);
   r0.set_nonzero_bits (INT (1));
   ASSERT_TRUE (r0.zero_p ());
+
+  // Now test that range bounds are snapped to match bitmask alignments.
+  test_irange_snap_bounds ();
 }
 
 // Build an frange from string endpoints.

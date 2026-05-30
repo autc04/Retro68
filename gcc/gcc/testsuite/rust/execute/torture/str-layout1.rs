@@ -1,7 +1,11 @@
 // { dg-additional-options "-w" }
 // { dg-output "t1sz=5 t2sz=10\r*" }
+#![feature(no_core)]
+#![no_core]
+
 #![feature(intrinsics)]
 
+#![feature(lang_items)]
 #[lang = "sized"]
 pub trait Sized {}
 

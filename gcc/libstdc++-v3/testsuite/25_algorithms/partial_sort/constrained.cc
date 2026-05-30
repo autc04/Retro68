@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -47,7 +47,8 @@ test01()
       ranges::shuffle(c, g1);
       ranges::shuffle(ranges::begin(r), ranges::end(r), g2);
 
-      for (unsigned middle = 0; middle < std::min(size, 10U); ++middle)
+      for (std::ptrdiff_t middle = 0, end = std::min(size, 10U);
+	   middle < end; ++middle)
 	{
 	  auto res1 = ranges::partial_sort(c.begin(), c.begin()+middle, c.end(),
 					   {}, std::negate<>{});

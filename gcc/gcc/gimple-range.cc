@@ -1,5 +1,5 @@
 /* Code for GIMPLE range related routines.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by Andrew MacLeod <amacleod@redhat.com>
    and Aldy Hernandez <aldyh@redhat.com>.
 
@@ -171,7 +171,7 @@ gimple_ranger::range_on_entry (vrange &r, basic_block bb, tree name)
   range_of_stmt (r, SSA_NAME_DEF_STMT (name), name);
 
   // Now see if there is any on_entry value which may refine it.
-  if (m_cache.block_range (entry_range, bb, name))
+  if (bb && m_cache.block_range (entry_range, bb, name))
     r.intersect (entry_range);
 
   if (idx)
@@ -200,7 +200,12 @@ gimple_ranger::range_on_exit (vrange &r, basic_block bb, tree name)
   // If this is not the definition block, get the range on the last stmt in
   // the block... if there is one.
   if (def_bb != bb)
-    s = last_nondebug_stmt (bb);
+    {
+      if (bb->flags & BB_RTL)
+	s = NULL;
+      else
+	s = last_nondebug_stmt (bb);
+    }
   // If there is no statement provided, get the range_on_entry for this block.
   if (s)
     range_of_expr (r, name, s);
@@ -247,7 +252,7 @@ gimple_ranger::range_on_edge (vrange &r, edge e, tree name)
 
   bool res = true;
   if (!gimple_range_ssa_p (name))
-    res = get_tree_range (r, name, NULL);
+    res = get_tree_range (r, name, NULL, NULL, NULL, e);
   else
     {
       range_on_exit (r, e->src, name);
@@ -273,7 +278,7 @@ bool
 gimple_ranger::fold_range_internal (vrange &r, gimple *s, tree name)
 {
   fold_using_range f;
-  fur_depend src (s, this);
+  fur_depend src (s, this, &m_cache);
   return f.fold_stmt (r, s, src, name);
 }
 
@@ -384,7 +389,9 @@ gimple_ranger::prefill_stmt_dependencies (tree ssa)
 
   unsigned idx;
   gimple *stmt = SSA_NAME_DEF_STMT (ssa);
-  gcc_checking_assert (stmt && gimple_bb (stmt));
+  gcc_checking_assert (stmt);
+  if (!gimple_bb (stmt))
+    return;
 
   // Only pre-process range-ops and phis.
   if (!gimple_range_op_handler::supported_p (stmt) && !is_a<gphi *> (stmt))
@@ -547,6 +554,18 @@ gimple_ranger::register_transitive_inferred_ranges (basic_block bb)
 	    }
 	}
     }
+}
+
+// This is called to update ranger's concept of a global value for NAME
+// with range R by an outside entity.
+
+void
+gimple_ranger::update_range_info (tree name, const vrange &r)
+{
+  value_range current (TREE_TYPE (name));
+  m_cache.get_global_range (current, name);
+  if (current.intersect (r))
+    m_cache.set_global_range (name, current, true);
 }
 
 // This routine will export whatever global ranges are known to GCC
@@ -778,7 +797,7 @@ bool
 dom_ranger::range_on_edge (vrange &r, edge e, tree expr)
 {
   if (!gimple_range_ssa_p (expr))
-    return get_tree_range (r, expr, NULL);
+    return get_tree_range (r, expr, NULL, NULL, NULL, e);
 
   basic_block bb = e->src;
   unsigned idx;

@@ -1,6 +1,6 @@
 ; Options for the rs6000 port of the compiler
 ;
-; Copyright (C) 2005-2025 Free Software Foundation, Inc.
+; Copyright (C) 2005-2026 Free Software Foundation, Inc.
 ; Contributed by Aldy Hernandez <aldy@quesejoda.com>.
 ;
 ; This file is part of GCC.
@@ -309,11 +309,11 @@ Target Var(TARGET_ALTIVEC_VRSAVE) Save
 Generate VRSAVE instructions when generating AltiVec code.
 
 mvrsave=no
-Target RejectNegative Alias(mvrsave) NegativeAlias Warn(%<-mvrsave=no%> is deprecated; use %<-mno-vrsave%> instead)
+Target Undocumented RejectNegative Alias(mvrsave) NegativeAlias Warn(%<-mvrsave=no%> is deprecated; use %<-mno-vrsave%> instead)
 Deprecated option.  Use -mno-vrsave instead.
 
 mvrsave=yes
-Target RejectNegative Alias(mvrsave) Warn(%<-mvrsave=yes%> is deprecated; use %<-mvrsave%> instead)
+Target Undocumented RejectNegative Alias(mvrsave) Warn(%<-mvrsave=yes%> is deprecated; use %<-mvrsave%> instead)
 Deprecated option.  Use -mvrsave instead.
 
 mblock-move-inline-limit=
@@ -580,9 +580,6 @@ Use the given offset for addressing the stack-protector guard.
 
 TargetVariable
 long rs6000_stack_protector_guard_offset = 0
-
-carbon
-Target RejectNegative
 
 ;; -mno-speculate-indirect-jumps adds deliberate misprediction to indirect
 ;; branches via the CTR.

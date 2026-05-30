@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -20,13 +20,12 @@
 #include "rust-reachability.h"
 #include "rust-hir-type-check.h"
 #include "rust-hir-map.h"
-#include "rust-name-resolver.h"
+#include "rust-immutable-name-resolution-context.h"
 #include "rust-visibility-resolver.h"
 #include "rust-pub-restricted-visitor.h"
 #include "rust-privacy-reporter.h"
 
-extern bool
-saw_errors (void);
+extern bool saw_errors (void);
 
 namespace Rust {
 namespace Privacy {
@@ -36,12 +35,13 @@ Resolver::resolve (HIR::Crate &crate)
 {
   PrivacyContext ctx;
   auto &mappings = Analysis::Mappings::get ();
-  auto resolver = Rust::Resolver::Resolver::get ();
+  auto &resolver
+    = Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
   auto ty_ctx = ::Rust::Resolver::TypeCheckContext::get ();
 
-  VisibilityResolver (mappings, *resolver).go (crate);
+  VisibilityResolver (mappings, resolver).go (crate);
   PubRestrictedVisitor (mappings).go (crate);
-  PrivacyReporter (mappings, *resolver, *ty_ctx).go (crate);
+  PrivacyReporter (mappings, resolver, *ty_ctx).go (crate);
 
   auto visitor = ReachabilityVisitor (ctx, *ty_ctx);
 

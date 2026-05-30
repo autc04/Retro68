@@ -1,4 +1,3 @@
-#as:
 #objdump: -dwMintel
 #name: x86_64 PREFETCHWT1 insns (Intel disassembly)
 #source: x86-64-prefetchwt1.s

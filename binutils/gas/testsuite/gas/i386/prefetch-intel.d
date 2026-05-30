@@ -1,3 +1,4 @@
+#as: --divide
 #objdump: -dw -Mintel
 #name: i386 prefetch (Intel disassembly)
 #source: prefetch.s
@@ -21,7 +22,7 @@ Disassembly of section .text:
 \s*[a-f0-9]+:	0f 18 08             	prefetcht0 BYTE PTR \[eax\]
 \s*[a-f0-9]+:	0f 18 10             	prefetcht1 BYTE PTR \[eax\]
 \s*[a-f0-9]+:	0f 18 18             	prefetcht2 BYTE PTR \[eax\]
-\s*[a-f0-9]+:	0f 18 20             	nop    DWORD PTR \[eax\]
+\s*[a-f0-9]+:	0f 18 20             	prefetchrst2 BYTE PTR \[eax\]
 \s*[a-f0-9]+:	0f 18 28             	nop    DWORD PTR \[eax\]
 \s*[a-f0-9]+:	0f 18 30             	nop    DWORD PTR \[eax\]
 \s*[a-f0-9]+:	0f 18 38             	nop    DWORD PTR \[eax\]

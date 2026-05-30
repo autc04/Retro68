@@ -1,5 +1,5 @@
 /* Scalar evolution detector.
-   Copyright (C) 2003-2025 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <s.pop@laposte.net>
 
 This file is part of GCC.
@@ -670,6 +670,17 @@ scev_dfs::add_to_evolution_1 (tree chrec_before, tree to_add, gimple *at_stmt)
 	  to_add = chrec_convert (type, to_add, at_stmt);
 	  right = chrec_convert_rhs (type, right, at_stmt);
 	  right = chrec_fold_plus (chrec_type (right), right, to_add);
+	  /* When we have an evolution in a non-wrapping type and
+	     in the process of accumulating CHREC_RIGHT there was
+	     overflow this indicates in the association that happened
+	     in building the CHREC clearly involved UB.  Avoid this.
+	     In building a CHREC we basically turn (a + INCR1) + INCR2
+	     into a + (INCR1 + INCR2) which is not always valid.
+	     Note this check only catches few invalid cases.  */
+	  if ((INTEGRAL_TYPE_P (type) && ! TYPE_OVERFLOW_WRAPS (type))
+	      && TREE_CODE (right) == INTEGER_CST
+	      && TREE_OVERFLOW (right))
+	    return chrec_dont_know;
 	  return build_polynomial_chrec (var, left, right);
 	}
       else
@@ -869,9 +880,23 @@ scev_dfs::add_to_evolution (tree chrec_before, enum tree_code code,
     }
 
   if (code == MINUS_EXPR)
-    to_add = chrec_fold_multiply (type, to_add, SCALAR_FLOAT_TYPE_P (type)
-				  ? build_real (type, dconstm1)
-				  : build_int_cst_type (type, -1));
+    {
+      if (INTEGRAL_TYPE_P (type)
+	  && TYPE_OVERFLOW_UNDEFINED (type)
+	  && !expr_not_equal_to (to_add,
+				 wi::to_wide (TYPE_MIN_VALUE (type))))
+	{
+	  tree utype = unsigned_type_for (type);
+	  to_add = chrec_convert_rhs (utype, to_add);
+	  to_add = chrec_fold_multiply (utype, to_add,
+					build_int_cst_type (utype, -1));
+	  to_add = chrec_convert_rhs (type, to_add);
+	}
+      else
+	to_add = chrec_fold_multiply (type, to_add, SCALAR_FLOAT_TYPE_P (type)
+				      ? build_real (type, dconstm1)
+				      : build_int_cst_type (type, -1));
+    }
 
   res = add_to_evolution_1 (chrec_before, to_add, at_stmt);
 
@@ -1343,7 +1368,37 @@ simplify_peeled_chrec (class loop *loop, tree arg, tree init_cond)
   hash_map<tree, name_expansion *> *peeled_chrec_map = NULL;
 
   ev = instantiate_parameters (loop, analyze_scalar_evolution (loop, arg));
-  if (ev == NULL_TREE || TREE_CODE (ev) != POLYNOMIAL_CHREC)
+  if (ev == NULL_TREE)
+    return chrec_dont_know;
+
+  /* Support the case where we can derive the original CHREC from the
+     peeled one if that's a converted other IV.  This can be done
+     when the original unpeeled converted IV does not overflow and
+     has the same initial value.  */
+  if (CONVERT_EXPR_P (ev)
+      && TREE_CODE (init_cond) == INTEGER_CST
+      && TREE_CODE (TREE_OPERAND (ev, 0)) == POLYNOMIAL_CHREC
+      && (TYPE_PRECISION (TREE_TYPE (ev))
+	  > TYPE_PRECISION (TREE_TYPE (TREE_OPERAND (ev, 0))))
+      && (!TYPE_UNSIGNED (TREE_TYPE (ev))
+	  || TYPE_UNSIGNED (TREE_TYPE (TREE_OPERAND (ev, 0)))))
+    {
+      left = CHREC_LEFT (TREE_OPERAND (ev, 0));
+      right = CHREC_RIGHT (TREE_OPERAND (ev, 0));
+      tree left_before = chrec_fold_minus (TREE_TYPE (TREE_OPERAND (ev, 0)),
+					   left, right);
+      if (TREE_CODE (left_before) == INTEGER_CST
+	  && wi::to_widest (init_cond) == wi::to_widest (left_before)
+	  && !scev_probably_wraps_p (NULL_TREE, left_before, right, NULL,
+				     loop, false))
+	return build_polynomial_chrec (loop->num, init_cond,
+				       chrec_convert (TREE_TYPE (ev),
+						      right, NULL,
+						      false, NULL_TREE));
+      return chrec_dont_know;
+    }
+
+  if (TREE_CODE (ev) != POLYNOMIAL_CHREC)
     return chrec_dont_know;
 
   left = CHREC_LEFT (ev);
@@ -1711,6 +1766,20 @@ interpret_rhs_expr (class loop *loop, gimple *at_stmt,
       chrec2 = instantiate_parameters (loop, chrec2);
       res = chrec_fold_plus (type, chrec1, chrec2);
       break;
+
+    case POINTER_DIFF_EXPR:
+      {
+	tree utype = unsigned_type_for (type);
+	chrec1 = analyze_scalar_evolution (loop, rhs1);
+	chrec2 = analyze_scalar_evolution (loop, rhs2);
+	chrec1 = chrec_convert (utype, chrec1, at_stmt);
+	chrec2 = chrec_convert (utype, chrec2, at_stmt);
+	chrec1 = instantiate_parameters (loop, chrec1);
+	chrec2 = instantiate_parameters (loop, chrec2);
+	res = chrec_fold_minus (utype, chrec1, chrec2);
+	res = chrec_convert (type, res, at_stmt);
+	break;
+      }
 
     case PLUS_EXPR:
       chrec1 = analyze_scalar_evolution (loop, rhs1);
@@ -3088,7 +3157,7 @@ iv_can_overflow_p (class loop *loop, tree type, tree base, tree step)
   type_max = wi::max_value (type);
 
   /* Just sanity check that we don't see values out of the range of the type.
-     In this case the arithmetics bellow would overflow.  */
+     In this case the arithmetics below would overflow.  */
   gcc_checking_assert (wi::ge_p (base_min, type_min, sgn)
 		       && wi::le_p (base_max, type_max, sgn));
 
@@ -3906,16 +3975,20 @@ final_value_replacement_loop (class loop *loop)
 	 GENERIC interface).  */
       def = unshare_expr (def);
       auto loc = gimple_phi_arg_location (phi, exit->dest_idx);
-      remove_phi_node (&psi, false);
+
+      /* Create the replacement statements.  */
+      gimple_seq stmts;
+      def = force_gimple_operand (def, &stmts, false, NULL_TREE);
 
       /* Propagate constants immediately, but leave an unused initialization
 	 around to avoid invalidating the SCEV cache.  */
       if (CONSTANT_CLASS_P (def) && !SSA_NAME_OCCURS_IN_ABNORMAL_PHI (rslt))
 	replace_uses_by (rslt, def);
 
-      /* Create the replacement statements.  */
-      gimple_seq stmts;
-      def = force_gimple_operand (def, &stmts, false, NULL_TREE);
+      /* Remove the old phi after the gimplification to make sure the
+	 SSA name is defined by a statement so that fold_stmt during
+	 the gimplification does not crash. */
+      remove_phi_node (&psi, false);
       gassign *ass = gimple_build_assign (rslt, def);
       gimple_set_location (ass, loc);
       gimple_seq_add_stmt (&stmts, ass);
@@ -3932,11 +4005,8 @@ final_value_replacement_loop (class loop *loop)
 	  gsi2 = gsi_start (stmts);
 	  while (!gsi_end_p (gsi2))
 	    {
-	      gimple *stmt = gsi_stmt (gsi2);
-	      if (is_gimple_assign (stmt)
-		  && arith_code_with_undefined_signed_overflow
-		       (gimple_assign_rhs_code (stmt)))
-		rewrite_to_defined_overflow (&gsi2);
+	      if (gimple_needing_rewrite_undefined (gsi_stmt (gsi2)))
+		rewrite_to_defined_unconditional (&gsi2);
 	      gsi_next (&gsi2);
 	    }
 	}
@@ -3957,11 +4027,17 @@ final_value_replacement_loop (class loop *loop)
 	{
 	  gimple *use_stmt;
 	  imm_use_iterator imm_iter;
+	  auto_vec<gimple *, 4> to_fold;
 	  FOR_EACH_IMM_USE_STMT (use_stmt, imm_iter, rslt)
+	    if (!stmt_can_throw_internal (cfun, use_stmt))
+	      to_fold.safe_push (use_stmt);
+	  /* Delay folding until after the immediate use walk is completed
+	     as we have an active ranger and that might walk immediate
+	     uses of rslt again.  See PR122502.  */
+	  for (gimple *use_stmt : to_fold)
 	    {
 	      gimple_stmt_iterator gsi = gsi_for_stmt (use_stmt);
-	      if (!stmt_can_throw_internal (cfun, use_stmt)
-		  && fold_stmt (&gsi, follow_all_ssa_edges))
+	      if (fold_stmt (&gsi, follow_all_ssa_edges))
 		update_stmt (gsi_stmt (gsi));
 	    }
 	}

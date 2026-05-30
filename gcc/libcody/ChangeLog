@@ -1,6 +1,25 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2025-11-21  Jakub Jelinek  <jakub@redhat.com>
+
+	* cody.hh (S2C): For __cpp_char8_t >= 201811 use char8_t instead of
+	char in argument type.
+	(MessageBuffer::Space): Revert 2025-11-15 change.
+	(MessageBuffer::Append): For __cpp_char8_t >= 201811 add overload
+	with char8_t const * type of first argument.
+	(Packet::Packet): Similarly for first argument.
+	* client.cc (CommunicationError, Client::ProcessResponse,
+	Client::Connect, ConnectResponse, PathnameResponse, OKResponse,
+	IncludeTranslateResponse): Cast u8 string literals to (const char *)
+	where needed.
+	* server.cc (Server::ProcessRequests, ConnectRequest): Likewise.
+
+2025-11-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* cody.hh (MessageBuffer::Space): For C++14 or newer use
+	(char) u8' ' instead of Detail::S2C(u8" ").
 
 2023-06-15  Marek Polacek  <polacek@redhat.com>
 
@@ -217,7 +236,7 @@
 	* tests/Makesub.in: New.
 	* tests/jouster: New.
 
-Copyright (C) 2020-2025 Free Software Foundation, Inc.
+Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

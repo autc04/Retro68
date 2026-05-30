@@ -8,6 +8,8 @@ prefix:
 	repe vaddss	%xmm0, %xmm0, %xmm0
 	repne vaddss	%xmm0, %xmm0, %xmm0
 
+	{disp16} nop
+
 .Lrep_ret:
 	bnd ret
 	rep ret

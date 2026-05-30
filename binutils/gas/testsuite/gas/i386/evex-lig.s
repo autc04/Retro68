@@ -1,6 +1,5 @@
 # Check EVEX LIG instructions
 
-	.allow_index_reg
 	.text
 _start:
 

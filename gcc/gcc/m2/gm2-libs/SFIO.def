@@ -1,6 +1,6 @@
 (* SFIO.def provides a String interface to the opening routines of FIO.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -28,8 +28,6 @@ DEFINITION MODULE SFIO ;
 
 FROM DynamicStrings IMPORT String ;
 FROM FIO IMPORT File ;
-
-EXPORT QUALIFIED OpenToRead, OpenToWrite, OpenForRandom, Exists, WriteS, ReadS ;
 
 
 (*
@@ -89,6 +87,14 @@ PROCEDURE WriteS (file: File; s: String) : String ;
 *)
 
 PROCEDURE ReadS (file: File) : String ;
+
+
+(*
+   GetFileName - return a new string containing the name of the file.
+                 The string should be killed by the caller.
+*)
+
+PROCEDURE GetFileName (file: File) : String ;
 
 
 END SFIO.

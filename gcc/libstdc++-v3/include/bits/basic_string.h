@@ -1,6 +1,6 @@
 // Components for manipulating sequences of characters -*- C++ -*-
 
-// Copyright (C) 1997-2025 Free Software Foundation, Inc.
+// Copyright (C) 1997-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -56,10 +56,9 @@
 # include <bits/ranges_util.h>          // ranges::subrange
 #endif
 
-#if __cplusplus > 202302L
+#if __glibcxx_to_string >= 202306L // C++ >= 26
 # include <charconv>
 #endif
-
 
 #if ! _GLIBCXX_USE_CXX11_ABI
 # include "cow_string.h"
@@ -269,8 +268,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       void
       _M_set_length(size_type __n)
       {
-	_M_length(__n);
 	traits_type::assign(_M_data()[__n], _CharT());
+	_M_length(__n);
       }
 
       _GLIBCXX20_CONSTEXPR
@@ -354,6 +353,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	void
 	_M_construct(const _CharT *__c, size_type __n);
 
+#if __cplusplus >= 202302L
+      constexpr void
+      _M_construct(basic_string&& __str, size_type __pos,  size_type __n);
+#endif
+
       _GLIBCXX20_CONSTEXPR
       allocator_type&
       _M_get_allocator()
@@ -411,7 +415,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	if (__pos > this->size())
 	  __throw_out_of_range_fmt(__N("%s: __pos (which is %zu) > "
 				       "this->size() (which is %zu)"),
-				   __s, __pos, this->size());
+				   __s, (size_t)__pos, (size_t)this->size());
 	return __pos;
       }
 
@@ -670,6 +674,26 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	_M_construct(__start, __start + __str._M_limit(__pos, __n),
 		     std::forward_iterator_tag());
       }
+
+#if __cplusplus >= 202302L
+      _GLIBCXX20_CONSTEXPR
+      basic_string(basic_string&& __str, size_type __pos,
+		   const _Alloc& __a = _Alloc())
+      : _M_dataplus(_M_local_data(), __a)
+      {
+	__pos = __str._M_check(__pos, "string::string");
+	_M_construct(std::move(__str), __pos, __str.length() - __pos);
+      }
+
+      _GLIBCXX20_CONSTEXPR
+      basic_string(basic_string&& __str, size_type __pos, size_type __n,
+		   const _Alloc& __a = _Alloc())
+      : _M_dataplus(_M_local_data(), __a)
+      {
+	__pos = __str._M_check(__pos, "string::string");
+	_M_construct(std::move(__str), __pos, __str._M_limit(__pos, __n));
+      }
+#endif // C++23
 
       /**
        *  @brief  Construct string initialized by a character %array.
@@ -1164,7 +1188,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       {
 	size_type __sz = _M_string_length;
 	if (__sz > max_size ())
-	  __builtin_unreachable ();
+	  __builtin_unreachable();
 	return __sz;
       }
 
@@ -1279,7 +1303,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	size_t __sz = _M_is_local() ? size_type(_S_local_capacity)
 				     : _M_allocated_capacity;
 	if (__sz < _S_local_capacity || __sz > max_size ())
-	  __builtin_unreachable ();
+	  __builtin_unreachable();
 	return __sz;
       }
 
@@ -1307,7 +1331,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       /**
        *  Equivalent to shrink_to_fit().
        */
-#if __cplusplus > 201703L
+#if __cplusplus >= 202002L
       [[deprecated("use shrink_to_fit() instead")]]
 #endif
       _GLIBCXX20_CONSTEXPR
@@ -3442,6 +3466,37 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       { return basic_string(*this,
 			    _M_check(__pos, "basic_string::substr"), __n); }
 
+#if __cplusplus >= 202302L
+      _GLIBCXX_NODISCARD
+      constexpr basic_string
+      substr(size_type __pos = 0) &&
+      { return basic_string(std::move(*this), __pos); }
+
+      _GLIBCXX_NODISCARD
+      constexpr basic_string
+      substr(size_type __pos, size_type __n) &&
+      { return basic_string(std::move(*this), __pos, __n); }
+#endif // C++23
+
+#ifdef __glibcxx_string_subview // >= C++26
+      /**
+       *  @brief  Get a subview.
+       *  @param __pos  Index of first character (default 0).
+       *  @param __n  Number of characters in subview (default remainder).
+       *  @return  The subview.
+       *  @throw  std::out_of_range  If __pos > size().
+       *
+       *  Construct and return a subview using the `__n` characters starting at
+       *  `__pos`.  If the string is too short, use the remainder of the
+       *  characters.  If `__pos` is beyond the end of the string, out_of_range
+       *  is thrown.
+      */
+      [[nodiscard]]
+      constexpr basic_string_view<_CharT, _Traits>
+      subview(size_type __pos = 0, size_type __n = npos) const
+      { return __sv_type(*this).subview(__pos, __n); }
+#endif
+
       /**
        *  @brief  Compare to a string.
        *  @param __str  String to compare against.
@@ -3505,7 +3560,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	_GLIBCXX_NODISCARD _GLIBCXX20_CONSTEXPR
 	_If_sv<_Tp, int>
 	compare(size_type __pos, size_type __n, const _Tp& __svt) const
-	noexcept(is_same<_Tp, __sv_type>::value)
 	{
 	  __sv_type __sv = __svt;
 	  return __sv_type(*this).substr(__pos, __n).compare(__sv);
@@ -3526,7 +3580,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 	_If_sv<_Tp, int>
 	compare(size_type __pos1, size_type __n1, const _Tp& __svt,
 		size_type __pos2, size_type __n2 = npos) const
-	noexcept(is_same<_Tp, __sv_type>::value)
 	{
 	  __sv_type __sv = __svt;
 	  return __sv_type(*this)
@@ -3938,21 +3991,23 @@ _GLIBCXX_END_NAMESPACE_CXX11
     operator+(basic_string<_CharT, _Traits, _Alloc>&& __lhs,
 	      basic_string<_CharT, _Traits, _Alloc>&& __rhs)
     {
-#if _GLIBCXX_USE_CXX11_ABI
-      using _Alloc_traits = allocator_traits<_Alloc>;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions" // if constexpr
+      // Return value must use __lhs.get_allocator(), but if __rhs has equal
+      // allocator then we can choose which parameter to modify in-place.
       bool __use_rhs = false;
-      if _GLIBCXX17_CONSTEXPR (typename _Alloc_traits::is_always_equal{})
+      if constexpr (allocator_traits<_Alloc>::is_always_equal::value)
 	__use_rhs = true;
       else if (__lhs.get_allocator() == __rhs.get_allocator())
 	__use_rhs = true;
       if (__use_rhs)
-#endif
 	{
 	  const auto __size = __lhs.size() + __rhs.size();
 	  if (__size > __lhs.capacity() && __size <= __rhs.capacity())
 	    return std::move(__rhs.insert(0, __lhs));
 	}
       return std::move(__lhs.append(__rhs));
+#pragma GCC diagnostic pop
     }
 
   template<typename _CharT, typename _Traits, typename _Alloc>

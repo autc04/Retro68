@@ -1,6 +1,6 @@
 // Primitive numeric conversions (to_chars and from_chars) -*- C++ -*-
 
-// Copyright (C) 2017-2025 Free Software Foundation, Inc.
+// Copyright (C) 2017-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,6 +35,7 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic" // __int128
+#pragma GCC diagnostic ignored "-Wc++17-extensions" // if constexpr
 
 #include <bits/requires_hosted.h> // for error codes
 
@@ -239,7 +240,7 @@ namespace __detail
       to_chars_result __res;
       unsigned __len = 0;
 
-      if _GLIBCXX17_CONSTEXPR (__gnu_cxx::__int_traits<_Tp>::__digits <= 16)
+      if constexpr (__gnu_cxx::__int_traits<_Tp>::__digits <= 16)
 	{
 	  __len = __val > 077777u ? 6u
 	    : __val > 07777u ? 5u
@@ -336,7 +337,7 @@ namespace __detail
 	  *__first = '0';
 	  return { __first + 1, errc{} };
 	}
-      else if _GLIBCXX17_CONSTEXPR (std::is_signed<_Tp>::value)
+      else if constexpr (std::is_signed<_Tp>::value)
 	if (__value < 0)
 	  {
 	    *__first++ = '-';
@@ -388,6 +389,10 @@ _GLIBCXX_TO_CHARS(unsigned __GLIBCXX_TYPE_INT_N_2)
 #if defined(__GLIBCXX_TYPE_INT_N_3)
 _GLIBCXX_TO_CHARS(signed __GLIBCXX_TYPE_INT_N_3)
 _GLIBCXX_TO_CHARS(unsigned __GLIBCXX_TYPE_INT_N_3)
+#endif
+#if defined __SIZEOF_INT128__ && defined __STRICT_ANSI__
+_GLIBCXX_TO_CHARS(signed __int128)
+_GLIBCXX_TO_CHARS(unsigned __int128)
 #endif
 #undef _GLIBCXX_TO_CHARS
 
@@ -452,7 +457,7 @@ namespace __detail
     _GLIBCXX20_CONSTEXPR unsigned char
     __from_chars_alnum_to_val(unsigned char __c)
     {
-      if _GLIBCXX17_CONSTEXPR (_DecOnly)
+      if constexpr (_DecOnly)
 	return static_cast<unsigned char>(__c - '0');
       else
 	return __from_chars_alnum_to_val_table<_DecOnly>::value.__data[__c];
@@ -549,10 +554,10 @@ namespace __detail
 
 } // namespace __detail
 
-  /// std::from_chars for integral types.
+  /// std::from_chars for integer types.
   template<typename _Tp,
-	   enable_if_t<__or_<__is_standard_integer<_Tp>,
-			     is_same<char, remove_cv_t<_Tp>>>::value, int> = 0>
+	   enable_if_t<__or_<__is_signed_or_unsigned_integer<_Tp>,
+			     is_same<char, _Tp>>::value, int> = 0>
     _GLIBCXX23_CONSTEXPR from_chars_result
     from_chars(const char* __first, const char* __last, _Tp& __value,
 	       int __base = 10)
@@ -562,7 +567,7 @@ namespace __detail
       from_chars_result __res{__first, {}};
 
       int __sign = 1;
-      if _GLIBCXX17_CONSTEXPR (std::is_signed<_Tp>::value)
+      if constexpr (std::is_signed<_Tp>::value)
 	if (__first != __last && *__first == '-')
 	  {
 	    __sign = -1;
@@ -595,7 +600,7 @@ namespace __detail
 	    __res.ec = errc::result_out_of_range;
 	  else
 	    {
-	      if _GLIBCXX17_CONSTEXPR (std::is_signed<_Tp>::value)
+	      if constexpr (std::is_signed<_Tp>::value)
 		{
 		  _Tp __tmp;
 		  if (__builtin_mul_overflow(__val, __sign, &__tmp))
@@ -605,8 +610,8 @@ namespace __detail
 		}
 	      else
 		{
-		  if _GLIBCXX17_CONSTEXPR (__gnu_cxx::__int_traits<_Up>::__max
-		      > __gnu_cxx::__int_traits<_Tp>::__max)
+		  if constexpr (__gnu_cxx::__int_traits<_Up>::__max
+				 > __gnu_cxx::__int_traits<_Tp>::__max)
 		    {
 		      if (__val > __gnu_cxx::__int_traits<_Tp>::__max)
 			__res.ec = errc::result_out_of_range;

@@ -30,6 +30,7 @@ load_gcc_lib scandump.exp
 load_gcc_lib scanlang.exp
 load_gcc_lib scanrtl.exp
 load_gcc_lib scansarif.exp
+load_gcc_lib scanhtml.exp
 load_gcc_lib scantree.exp
 load_gcc_lib scanltrans.exp
 load_gcc_lib scanoffload.exp
@@ -294,7 +295,9 @@ proc libgomp_target_compile { source dest type options } {
 	set options [concat "$ALWAYS_CFLAGS" $options]
     }
 
-    set options [dg-additional-files-options $options $source $dest $type]
+    if { $source != "" } {
+        set options [dg-additional-files-options $options $source $dest $type]
+    }
 
     set result [target_compile $source $dest $type $options]
 
@@ -553,7 +556,23 @@ int main() {
 } } "-lcuda" ]
 }
 
-# Return 1 if cublas_v2.h and -lcublas are available.
+# Return 1 if -lcuda is available (header not required).
+
+proc check_effective_target_openacc_libcuda { } {
+    return [check_no_compiler_messages openacc_libcuda executable {
+typedef enum { CUDA_SUCCESS } CUresult;
+typedef int CUdevice;
+CUresult cuDeviceGet (CUdevice *, int);
+int main() {
+    CUdevice dev;
+    CUresult r = cuDeviceGet (&dev, 0);
+    if (r != CUDA_SUCCESS)
+	return 1;
+    return 0;
+} } "-lcuda" ]
+}
+
+# Return 1 if cublas_v2.h, cuda.h, -lcublas and -lcuda are available.
 
 proc check_effective_target_openacc_cublas { } {
     return [check_no_compiler_messages openacc_cublas executable {
@@ -573,7 +592,25 @@ int main() {
 } } "-lcuda -lcublas" ]
 }
 
-# Return 1 if cuda_runtime_api.h and -lcudart are available.
+# Return 1 if -lcublas is available header not required).
+
+proc check_effective_target_openacc_libcublas { } {
+    return [check_no_compiler_messages openacc_libcublas executable {
+typedef enum { CUBLAS_STATUS_SUCCESS } cublasStatus_t;
+typedef struct cublasContext* cublasHandle_t;
+#define cublasCreate cublasCreate_v2
+cublasStatus_t cublasCreate_v2 (cublasHandle_t *);
+int main() {
+    cublasStatus_t s;
+    cublasHandle_t h;
+    s = cublasCreate (&h);
+    if (s != CUBLAS_STATUS_SUCCESS)
+	return 1;
+    return 0;
+} } "-lcublas" ]
+}
+
+# Return 1 if cuda_runtime_api.h, cuda.h, -lcuda and -lcudart are available.
 
 proc check_effective_target_openacc_cudart { } {
     return [check_no_compiler_messages openacc_cudart executable {
@@ -591,4 +628,175 @@ int main() {
 	return 1;
     return 0;
 } } "-lcuda -lcudart" ]
+}
+
+# Return 1 if -lcudart is available (no header required).
+
+proc check_effective_target_openacc_libcudart { } {
+    return [check_no_compiler_messages openacc_libcudart executable {
+typedef int cudaError_t;
+cudaError_t cudaGetDevice(int *);
+enum { cudaSuccess };
+int main() {
+    cudaError_t e;
+    int devn;
+    e = cudaGetDevice (&devn);
+    if (e != cudaSuccess)
+	return 1;
+    return 0;
+} } "-lcudart" ]
+}
+
+# Return 1 if hip.h is available (no link check; AMD platform).
+
+proc check_effective_target_gomp_hip_header_amd { } {
+    return [check_no_compiler_messages gomp_hip_header_amd assembly {
+#define __HIP_PLATFORM_AMD__
+#include <hip/hip_runtime_api.h>
+int main() {
+    hipDevice_t dev;
+    hipError_t r = hipDeviceGet (&dev, 0);
+    if (r != hipSuccess)
+	return 1;
+    return 0;
+} }]
+}
+
+# Return 1 if hip.h is available (no link check; Nvidia/CUDA platform).
+
+proc check_effective_target_gomp_hip_header_nvidia { } {
+    return [check_no_compiler_messages gomp_hip_header_nvidia assembly {
+#define __HIP_PLATFORM_NVIDIA__
+#include <hip/hip_runtime_api.h>
+int main() {
+    hipDevice_t dev;
+    hipError_t r = hipDeviceGet (&dev, 0);
+    if (r != hipSuccess)
+	return 1;
+    return 0;
+} } "-Wno-deprecated-declarations"]
+}
+
+# Return 1 if the Fortran hipfort module is available (no link check)
+
+proc check_effective_target_gomp_hipfort_module { } {
+    return [check_no_compiler_messages gomp_hipfort_module assembly {
+! Fortran
+use hipfort
+implicit none
+integer(kind(hipSuccess)) :: r
+integer(c_int) :: dev
+r = hipDeviceGet (dev, 0)
+if (r /= hipSuccess) error stop
+end
+}]
+}
+
+# Return 1 if AMD HIP's -lamdhip64 is available (no header required).
+
+proc check_effective_target_gomp_libamdhip64 { } {
+    return [check_no_compiler_messages gomp_libamdhip64 executable {
+typedef int hipError_t;
+typedef int hipDevice_t;
+enum { hipSuccess = 0 };
+hipError_t hipDeviceGet(hipDevice_t*, int);
+int main() {
+    hipDevice_t dev;
+    hipError_t r = hipDeviceGet (&dev, 0);
+    if (r != hipSuccess)
+	return 1;
+    return 0;
+} } "-lamdhip64" ]
+}
+
+# Return 1 if AMD HIP's -lamdhip64 is available (no header required).
+
+proc check_effective_target_gomp_libhipblas { } {
+    return [check_no_compiler_messages gomp_libhipblas executable {
+typedef enum { HIPBLAS_STATUS_SUCCESS = 0 } hipblasStatus_t;
+typedef void* hipblasHandle_t;
+hipblasStatus_t hipblasCreate (hipblasHandle_t*);
+int main() {
+    hipblasHandle_t handle;
+    hipblasStatus_t stat = hipblasCreate (&handle);
+    if (stat != HIPBLAS_STATUS_SUCCESS)
+	return 1;
+    return 0;
+} } "-lhipblas" ]
+}
+
+# return 1 if OpenMP Unified Shared Memory is supported by offload devices
+
+proc check_effective_target_omp_usm { } {
+    set flags ""
+    if { [check_effective_target_offload_target_amdgcn] } {
+	# Specify '-mxnack=any' to inhibit GCN offloading compilation
+	# 'warning: Unified Shared Memory is required, but XNACK is disabled'.
+	# This run-time effective-target check shouldn't fail in case there's
+	# actually no AMD GPU, but there's an USM-capable NVIDIA GPU.
+	lappend flags "-foffload-options=amdgcn-amdhsa=-mxnack=any"
+    }
+    if { $flags != ""
+	 || [check_effective_target_offload_device_nvptx] } {
+	if [check_runtime usm_available_ {
+	    #include <omp.h>
+	    #pragma omp requires unified_shared_memory
+	    int main ()
+	    {
+	      int a;
+	      #pragma omp target map(from: a)
+		a = omp_is_initial_device ();
+	      return a;
+	    }
+	} "$flags" ] {
+	  return 1
+	}
+    }
+
+    return 0
+}
+
+# return 1 if OpenMP Device Managed Memory is supported
+
+proc check_effective_target_omp_managedmem { } {
+    if { [check_effective_target_offload_device_nvptx] } {
+	return 1
+    }
+
+    if { [libgomp_check_effective_target_offload_target "amdgcn"] } {
+	if [check_runtime_nocache managed_available_ {
+	    #include <omp.h>
+	    #include <stdlib.h>
+	    int main ()
+	    {
+	      const omp_alloctrait_t traits[] = {
+		  { omp_atk_fallback, omp_atv_null_fb }
+	      };
+	      omp_allocator_handle_t managed_no_fallback
+	         = omp_init_allocator (ompx_gnu_managed_mem_space, 1, traits);
+	      void *a = omp_alloc (16, managed_no_fallback);
+	      return a == NULL;
+	    }
+	} ] {
+	  return 1
+	}
+    }
+
+    return 0
+}
+
+# return 1 if -mxnack=on is accepted
+
+proc check_effective_target_offload_target_amdgcn_with_xnack { } {
+    if { [libgomp_check_effective_target_offload_target "amdgcn"] } {
+	return [check_runtime amd_xnack_ {
+	   int main () {
+	     #pragma omp target
+	       ;
+	     return 0;
+	   }
+	} "-foffload-options=amdgcn-amdhsa=-mxnack=on" ]
+    }
+
+    return 0
 }

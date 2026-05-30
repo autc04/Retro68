@@ -1,4 +1,4 @@
-#as: -march=armv8.2-a+profile
+#as: -menable-sysreg-checking -march=armv8.2-a+profile
 #objdump: -dr
 
 .*:     file format .*

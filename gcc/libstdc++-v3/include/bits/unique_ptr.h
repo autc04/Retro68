@@ -1,7 +1,6 @@
-
 // unique_ptr implementation -*- C++ -*-
 
-// Copyright (C) 2008-2025 Free Software Foundation, Inc.
+// Copyright (C) 2008-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -832,6 +831,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     { __x.swap(__y); }
 
 #if __cplusplus > 201402L || !defined(__STRICT_ANSI__) // c++1z or gnu++11
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 2766. Swapping non-swappable types
   template<typename _Tp, typename _Dp>
     typename enable_if<!__is_swappable<_Dp>::value>::type
     swap(unique_ptr<_Tp, _Dp>&,

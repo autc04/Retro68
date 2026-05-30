@@ -1,5 +1,5 @@
 /* GIMPLE store merging and byte swapping passes.
-   Copyright (C) 2009-2025 Free Software Foundation, Inc.
+   Copyright (C) 2009-2026 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -644,9 +644,7 @@ find_bswap_or_nop_1 (gimple *stmt, struct symbolic_number *n, int limit)
 
 	  /* Mask.  */
 	  uint64_t mask = 0;
-	  uint64_t tmp = (1 << BITS_PER_UNIT) - 1;
-	  for (unsigned i = 0; i < bitsize / BITS_PER_UNIT;
-	       i++, tmp <<= BITS_PER_UNIT)
+	  for (unsigned i = 0; i < bitsize / BITS_PER_UNIT; i++)
 	    mask |= (uint64_t) MARKER_MASK << (i * BITS_PER_MARKER);
 	  n->n &= mask;
 
@@ -816,6 +814,145 @@ find_bswap_or_nop_1 (gimple *stmt, struct symbolic_number *n, int limit)
   return NULL;
 }
 
+/* Like find_bswap_or_nop_1, but also handles CONSTRUCTOR and
+   VEC_PACK_TRUNC_EXPR.  */
+
+gimple *
+find_bswap_or_nop_2 (gimple *stmt, struct symbolic_number *n, int limit)
+{
+  if (gimple *ret = find_bswap_or_nop_1 (stmt, n, limit))
+    return ret;
+
+  if (!limit
+      || !is_gimple_assign (stmt)
+      || BYTES_BIG_ENDIAN != WORDS_BIG_ENDIAN
+      || stmt_can_throw_internal (cfun, stmt))
+    return NULL;
+
+  tree rhs1 = gimple_assign_rhs1 (stmt);
+  if (gimple_assign_rhs_code (stmt) == VEC_PACK_TRUNC_EXPR
+      && TREE_CODE (rhs1) == SSA_NAME)
+    {
+      if (BYTES_BIG_ENDIAN)
+	return NULL; /* For now... */
+      gimple *rhs1_stmt = SSA_NAME_DEF_STMT (rhs1);
+      tree rhs2 = gimple_assign_rhs2 (stmt);
+      if (TREE_CODE (rhs2) != SSA_NAME)
+	return NULL;
+      gimple *rhs2_stmt = SSA_NAME_DEF_STMT (rhs2);
+      struct symbolic_number n1, n2;
+
+      gimple *source_stmt1 = find_bswap_or_nop_2 (rhs1_stmt, &n1, limit - 1);
+      if (!source_stmt1)
+	return NULL;
+      gimple *source_stmt2 = find_bswap_or_nop_2 (rhs2_stmt, &n2, limit - 1);
+      if (!source_stmt2)
+	return NULL;
+
+      if (TYPE_PRECISION (n1.type) != TYPE_PRECISION (n2.type))
+	return NULL;
+      if (n1.vuse != n2.vuse)
+	return NULL;
+      auto nn2 = n2.n;
+      n2.n = 0;
+      /* We need to take into account number of elements of each vector,
+	 which perform_symbolic_merge doesn't know.  So, handle it as
+	 two separate BIT_IOR_EXPR merges, each time with one operand
+	 with changed mastk to all 0s, and then merge here.  */
+      gimple *source_stmt
+	= perform_symbolic_merge (source_stmt1, &n1, source_stmt2, &n2, n,
+				  BIT_IOR_EXPR);
+      if (!source_stmt)
+	return NULL;
+      n2.n = nn2;
+      auto nn1 = n->n;
+      n1.n = 0;
+      gimple *source_stmt3
+	= perform_symbolic_merge (source_stmt1, &n1, source_stmt2, &n2, n,
+				  BIT_IOR_EXPR);
+      gcc_assert (source_stmt == source_stmt3);
+      nn2 = n->n;
+      tree lhs = gimple_assign_lhs (stmt);
+      int eltsize
+	= TYPE_PRECISION (TREE_TYPE (TREE_TYPE (lhs))) / BITS_PER_UNIT;
+      int nelts = TYPE_VECTOR_SUBPARTS (TREE_TYPE (lhs)).to_constant ();
+      int size = eltsize * nelts;
+      int hsize = size / 2;
+      n->n = 0;
+      if (!BYTES_BIG_ENDIAN)
+	for (int i = 0; i < size; i++)
+	  n->n |= ((((i < hsize ? nn1 : nn2)
+		     >> (((i % hsize) / eltsize * 2 * eltsize
+			  + (i % eltsize))) * BITS_PER_MARKER) & MARKER_MASK)
+		   << (i * BITS_PER_MARKER));
+      else
+	gcc_unreachable ();
+      return source_stmt;
+    }
+
+  if (gimple_assign_rhs_code (stmt) != CONSTRUCTOR)
+    return NULL;
+
+  tree type_size = TYPE_SIZE_UNIT (TREE_TYPE (gimple_get_lhs (stmt)));
+  unsigned HOST_WIDE_INT sz = tree_to_uhwi (type_size) * BITS_PER_UNIT;
+  if (sz != 16 && sz != 32 && sz != 64)
+    return NULL;
+  if (CONSTRUCTOR_NELTS (rhs1) == 0)
+    return NULL;
+  tree eltype = TREE_TYPE (TREE_TYPE (rhs1));
+  unsigned HOST_WIDE_INT eltsz = int_size_in_bytes (eltype) * BITS_PER_UNIT;
+  if (TYPE_PRECISION (eltype) != eltsz)
+    return NULL;
+  constructor_elt *elt;
+  unsigned int i;
+  tree type = build_nonstandard_integer_type (sz, 1);
+  gimple *ins_stmt = NULL;
+  FOR_EACH_VEC_SAFE_ELT (CONSTRUCTOR_ELTS (rhs1), i, elt)
+    {
+      if (TREE_CODE (elt->value) != SSA_NAME
+	  || !INTEGRAL_TYPE_P (TREE_TYPE (elt->value)))
+	return NULL;
+      struct symbolic_number n1;
+      gimple *source_stmt
+	= find_bswap_or_nop_1 (SSA_NAME_DEF_STMT (elt->value), &n1, limit - 1);
+
+      if (!source_stmt)
+	return NULL;
+
+      n1.type = type;
+      if (!n1.base_addr)
+	n1.range = sz / BITS_PER_UNIT;
+
+      if (i == 0)
+	{
+	  ins_stmt = source_stmt;
+	  *n = n1;
+	}
+      else
+	{
+	  if (n->vuse != n1.vuse)
+	    return NULL;
+
+	  struct symbolic_number n0 = *n;
+
+	  if (!BYTES_BIG_ENDIAN)
+	    {
+	      if (!do_shift_rotate (LSHIFT_EXPR, &n1, i * eltsz))
+		return NULL;
+	    }
+	  else if (!do_shift_rotate (LSHIFT_EXPR, &n0, eltsz))
+	    return NULL;
+	  ins_stmt
+	    = perform_symbolic_merge (ins_stmt, &n0, source_stmt,
+				      &n1, n, BIT_IOR_EXPR);
+
+	  if (!ins_stmt)
+	    return NULL;
+	}
+    }
+  return ins_stmt;
+}
+
 /* Helper for find_bswap_or_nop and try_coalesce_bswap to compute
    *CMPXCHG, *CMPNOP and adjust *N.  */
 
@@ -952,72 +1089,9 @@ find_bswap_or_nop (gimple *stmt, struct symbolic_number *n, bool *bswap,
      in libgcc, and for initial shift/and operation of the src operand.  */
   int limit = tree_to_uhwi (type_size);
   limit += 2 * (1 + (int) ceil_log2 ((unsigned HOST_WIDE_INT) limit));
-  gimple *ins_stmt = find_bswap_or_nop_1 (stmt, n, limit);
-
+  gimple *ins_stmt = find_bswap_or_nop_2 (stmt, n, limit);
   if (!ins_stmt)
-    {
-      if (gimple_assign_rhs_code (stmt) != CONSTRUCTOR
-	  || BYTES_BIG_ENDIAN != WORDS_BIG_ENDIAN)
-	return NULL;
-      unsigned HOST_WIDE_INT sz = tree_to_uhwi (type_size) * BITS_PER_UNIT;
-      if (sz != 16 && sz != 32 && sz != 64)
-	return NULL;
-      tree rhs = gimple_assign_rhs1 (stmt);
-      if (CONSTRUCTOR_NELTS (rhs) == 0)
-	return NULL;
-      tree eltype = TREE_TYPE (TREE_TYPE (rhs));
-      unsigned HOST_WIDE_INT eltsz
-	= int_size_in_bytes (eltype) * BITS_PER_UNIT;
-      if (TYPE_PRECISION (eltype) != eltsz)
-	return NULL;
-      constructor_elt *elt;
-      unsigned int i;
-      tree type = build_nonstandard_integer_type (sz, 1);
-      FOR_EACH_VEC_SAFE_ELT (CONSTRUCTOR_ELTS (rhs), i, elt)
-	{
-	  if (TREE_CODE (elt->value) != SSA_NAME
-	      || !INTEGRAL_TYPE_P (TREE_TYPE (elt->value)))
-	    return NULL;
-	  struct symbolic_number n1;
-	  gimple *source_stmt
-	    = find_bswap_or_nop_1 (SSA_NAME_DEF_STMT (elt->value), &n1,
-				   limit - 1);
-
-	  if (!source_stmt)
-	    return NULL;
-
-	  n1.type = type;
-	  if (!n1.base_addr)
-	    n1.range = sz / BITS_PER_UNIT;
-
-	  if (i == 0)
-	    {
-	      ins_stmt = source_stmt;
-	      *n = n1;
-	    }
-	  else
-	    {
-	      if (n->vuse != n1.vuse)
-		return NULL;
-
-	      struct symbolic_number n0 = *n;
-
-	      if (!BYTES_BIG_ENDIAN)
-		{
-		  if (!do_shift_rotate (LSHIFT_EXPR, &n1, i * eltsz))
-		    return NULL;
-		}
-	      else if (!do_shift_rotate (LSHIFT_EXPR, &n0, eltsz))
-		return NULL;
-	      ins_stmt
-		= perform_symbolic_merge (ins_stmt, &n0, source_stmt, &n1, n,
-					  BIT_IOR_EXPR);
-
-	      if (!ins_stmt)
-		return NULL;
-	    }
-	}
-    }
+    return NULL;
 
   uint64_t cmpxchg, cmpnop;
   uint64_t orig_range = n->range * BITS_PER_UNIT;
@@ -1035,7 +1109,7 @@ find_bswap_or_nop (gimple *stmt, struct symbolic_number *n, bool *bswap,
 	 source when rsize < range.  */
       if (n->range == orig_range
 	  /* There're case like 0x300000200 for uint32->uint64 cast,
-	     Don't hanlde this.  */
+	     Don't handle this.  */
 	  && n->range == TYPE_PRECISION (n->type)
 	  && ((orig_range == 32
 	       && optab_handler (rotl_optab, SImode) != CODE_FOR_nothing)
@@ -1045,7 +1119,7 @@ find_bswap_or_nop (gimple *stmt, struct symbolic_number *n, bool *bswap,
 	{
 	  uint64_t range = (orig_range / BITS_PER_UNIT) * BITS_PER_MARKER;
 	  uint64_t count = (tmp_n & MARKER_MASK) * BITS_PER_MARKER;
-	  /* .i.e. hanlde 0x203040506070800 when lower byte is zero.  */
+	  /* .i.e. handle 0x203040506070800 when lower byte is zero.  */
 	  if (!count)
 	    {
 	      for (uint64_t i = 1; i != range / BITS_PER_MARKER; i++)
@@ -1057,6 +1131,8 @@ find_bswap_or_nop (gimple *stmt, struct symbolic_number *n, bool *bswap,
 		      if (count <= range / BITS_PER_MARKER)
 			{
 			  count = (count + i) * BITS_PER_MARKER % range;
+			  if (!count)
+			    return NULL;
 			  break;
 			}
 		      else
@@ -1177,7 +1253,8 @@ bswap_replace (gimple_stmt_iterator gsi, gimple *ins_stmt, tree fndecl,
   if (cur_stmt)
     {
       tgt = gimple_assign_lhs (cur_stmt);
-      if (gimple_assign_rhs_code (cur_stmt) == CONSTRUCTOR
+      if ((gimple_assign_rhs_code (cur_stmt) == CONSTRUCTOR
+	   || gimple_assign_rhs_code (cur_stmt) == VEC_PACK_TRUNC_EXPR)
 	  && tgt
 	  && VECTOR_TYPE_P (TREE_TYPE (tgt)))
 	conv_code = VIEW_CONVERT_EXPR;
@@ -1457,8 +1534,8 @@ bswap_replace (gimple_stmt_iterator gsi, gimple *ins_stmt, tree fndecl,
   return tgt;
 }
 
-/* Try to optimize an assignment CUR_STMT with CONSTRUCTOR on the rhs
-   using bswap optimizations.  CDI_DOMINATORS need to be
+/* Try to optimize an assignment CUR_STMT with CONSTRUCTOR/VEC_PACK_TRUNC_EXPR
+   on the rhs using bswap optimizations.  CDI_DOMINATORS need to be
    computed on entry.  Return true if it has been optimized and
    TODO_update_ssa is needed.  */
 
@@ -1469,8 +1546,15 @@ maybe_optimize_vector_constructor (gimple *cur_stmt)
   struct symbolic_number n;
   bool bswap;
 
-  gcc_assert (is_gimple_assign (cur_stmt)
-	      && gimple_assign_rhs_code (cur_stmt) == CONSTRUCTOR);
+  gcc_assert (is_gimple_assign (cur_stmt));
+  switch (gimple_assign_rhs_code (cur_stmt))
+    {
+    case CONSTRUCTOR:
+    case VEC_PACK_TRUNC_EXPR:
+      break;
+    default:
+      gcc_unreachable ();
+    }
 
   tree rhs = gimple_assign_rhs1 (cur_stmt);
   if (!VECTOR_TYPE_P (TREE_TYPE (rhs))
@@ -1534,8 +1618,8 @@ maybe_optimize_vector_constructor (gimple *cur_stmt)
 }
 
 /* Find manual byte swap implementations as well as load in a given
-   endianness. Byte swaps are turned into a bswap builtin invokation
-   while endian loads are converted to bswap builtin invokation or
+   endianness.  Byte swaps are turned into a bswap builtin invocation
+   while endian loads are converted to bswap builtin invocation or
    simple load according to the target endianness.  */
 
 unsigned int
@@ -1613,6 +1697,7 @@ pass_optimize_bswap::execute (function *fun)
 	    case PLUS_EXPR:
 	      break;
 	    case CONSTRUCTOR:
+	    case VEC_PACK_TRUNC_EXPR:
 	      {
 		tree rhs = gimple_assign_rhs1 (cur_stmt);
 		if (VECTOR_TYPE_P (TREE_TYPE (rhs))
@@ -5491,7 +5576,8 @@ get_status_for_store_merging (basic_block bb)
 	break;
 
       if (is_gimple_assign (stmt)
-	  && gimple_assign_rhs_code (stmt) == CONSTRUCTOR)
+	  && (gimple_assign_rhs_code (stmt) == CONSTRUCTOR
+	      || gimple_assign_rhs_code (stmt) == VEC_PACK_TRUNC_EXPR))
 	{
 	  tree rhs = gimple_assign_rhs1 (stmt);
 	  if (VECTOR_TYPE_P (TREE_TYPE (rhs))
@@ -5578,7 +5664,8 @@ pass_store_merging::execute (function *fun)
 	    }
 
 	  if (is_gimple_assign (stmt)
-	      && gimple_assign_rhs_code (stmt) == CONSTRUCTOR
+	      && (gimple_assign_rhs_code (stmt) == CONSTRUCTOR
+		  || gimple_assign_rhs_code (stmt) == VEC_PACK_TRUNC_EXPR)
 	      && maybe_optimize_vector_constructor (stmt))
 	    continue;
 

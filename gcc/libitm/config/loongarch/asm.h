@@ -1,4 +1,4 @@
-/* Copyright (C) 2022-2025 Free Software Foundation, Inc.
+/* Copyright (C) 2022-2026 Free Software Foundation, Inc.
    Contributed by Loongson Co. Ltd.
 
    This file is part of the GNU Transactional Memory Library (libitm).
@@ -30,7 +30,7 @@
 #  define GPR_S st.d
 #  define SZ_GPR 8
 #  define ADDSP(si)   addi.d  $sp, $sp, si
-#elif defined(__loongarch64_ilp32)
+#elif defined(__loongarch_ilp32)
 #  define GPR_L ld.w
 #  define GPR_S st.w
 #  define SZ_GPR 4

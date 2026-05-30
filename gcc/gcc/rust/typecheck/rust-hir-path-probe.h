@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -108,9 +108,8 @@ class PathProbeType : public TypeCheckBase, public HIR::HIRImplVisitor
 {
 public:
   static std::set<PathProbeCandidate>
-  Probe (const TyTy::BaseType *receiver,
-	 const HIR::PathIdentSegment &segment_name, bool probe_impls,
-	 bool probe_bounds, bool ignore_mandatory_trait_items,
+  Probe (TyTy::BaseType *receiver, const HIR::PathIdentSegment &segment_name,
+	 bool probe_impls, bool probe_bounds, bool ignore_mandatory_trait_items,
 	 DefId specific_trait_id = UNKNOWN_DEFID);
 
   void visit (HIR::TypeAlias &alias) override;
@@ -135,8 +134,8 @@ protected:
 				    bool ignore_mandatory_trait_items);
 
 protected:
-  PathProbeType (const TyTy::BaseType *receiver,
-		 const HIR::PathIdentSegment &query, DefId specific_trait_id);
+  PathProbeType (TyTy::BaseType *receiver, const HIR::PathIdentSegment &query,
+		 DefId specific_trait_id);
 
   std::vector<std::pair<const TraitReference *, HIR::ImplBlock *>>
   union_bounds (
@@ -147,7 +146,7 @@ protected:
 
   bool is_receiver_generic () const;
 
-  const TyTy::BaseType *receiver;
+  TyTy::BaseType *receiver;
   const HIR::PathIdentSegment &search;
   std::set<PathProbeCandidate> candidates;
   HIR::ImplBlock *current_impl;
@@ -165,12 +164,12 @@ public:
     for (auto &c : candidates)
       r.add_range (c.locus);
 
-    std::string rich_msg = "multiple " + query.as_string () + " found";
+    std::string rich_msg = "multiple " + query.to_string () + " found";
     r.add_fixit_replace (rich_msg.c_str ());
 
     rust_error_at (r, ErrorCode::E0034,
 		   "multiple applicable items in scope for: %qs",
-		   query.as_string ().c_str ());
+		   query.to_string ().c_str ());
   }
 };
 
@@ -178,12 +177,11 @@ class PathProbeImplTrait : public PathProbeType
 {
 public:
   static std::set<PathProbeCandidate>
-  Probe (const TyTy::BaseType *receiver,
-	 const HIR::PathIdentSegment &segment_name,
+  Probe (TyTy::BaseType *receiver, const HIR::PathIdentSegment &segment_name,
 	 const TraitReference *trait_reference);
 
 private:
-  PathProbeImplTrait (const TyTy::BaseType *receiver,
+  PathProbeImplTrait (TyTy::BaseType *receiver,
 		      const HIR::PathIdentSegment &query,
 		      const TraitReference *trait_reference);
 

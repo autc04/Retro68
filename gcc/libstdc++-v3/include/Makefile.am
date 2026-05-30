@@ -1,6 +1,6 @@
 ## Makefile for the include subdirectory of the GNU C++ Standard library.
 ##
-## Copyright (C) 2001-2025 Free Software Foundation, Inc.
+## Copyright (C) 2001-2026 Free Software Foundation, Inc.
 ##
 ## This file is part of the libstdc++ version 3 distribution.
 ## Process this file with automake to produce Makefile.in.
@@ -32,12 +32,14 @@ std_freestanding = \
 	${std_srcdir}/bit \
 	${std_srcdir}/bitset \
 	${std_srcdir}/concepts \
+	${std_srcdir}/contracts \
 	${std_srcdir}/coroutine \
 	${std_srcdir}/expected \
 	${std_srcdir}/functional \
 	${std_srcdir}/generator \
 	${std_srcdir}/iterator \
 	${std_srcdir}/limits \
+	${std_srcdir}/mdspan \
 	${std_srcdir}/memory \
 	${std_srcdir}/numbers \
 	${std_srcdir}/numeric \
@@ -67,6 +69,7 @@ std_headers = \
 	${std_srcdir}/codecvt \
 	${std_srcdir}/complex \
 	${std_srcdir}/condition_variable \
+	${std_srcdir}/debugging \
 	${std_srcdir}/deque \
 	${std_srcdir}/execution \
 	${std_srcdir}/filesystem \
@@ -76,6 +79,7 @@ std_headers = \
 	${std_srcdir}/forward_list \
 	${std_srcdir}/fstream \
 	${std_srcdir}/future \
+	${std_srcdir}/inplace_vector \
 	${std_srcdir}/iomanip \
 	${std_srcdir}/ios \
 	${std_srcdir}/iosfwd \
@@ -86,6 +90,7 @@ std_headers = \
 	${std_srcdir}/locale \
 	${std_srcdir}/map \
 	${std_srcdir}/memory_resource \
+	${std_srcdir}/meta \
 	${std_srcdir}/mutex \
 	${std_srcdir}/ostream \
 	${std_srcdir}/print \
@@ -95,6 +100,7 @@ std_headers = \
 	${std_srcdir}/semaphore \
 	${std_srcdir}/set \
 	${std_srcdir}/shared_mutex \
+	${std_srcdir}/simd \
 	${std_srcdir}/spanstream \
 	${std_srcdir}/sstream \
 	${std_srcdir}/syncstream \
@@ -131,8 +137,11 @@ bits_freestanding = \
 	${bits_srcdir}/enable_special_members.h \
 	${bits_srcdir}/functexcept.h \
 	${bits_srcdir}/functional_hash.h \
+	${bits_srcdir}/intcmp.h \
 	${bits_srcdir}/invoke.h \
 	${bits_srcdir}/iterator_concepts.h \
+	${bits_srcdir}/new_except.h \
+	${bits_srcdir}/new_throw.h \
 	${bits_srcdir}/max_size_type.h \
 	${bits_srcdir}/memoryfwd.h \
 	${bits_srcdir}/monostate.h \
@@ -151,6 +160,10 @@ bits_freestanding = \
 	${bits_srcdir}/ranges_util.h \
 	${bits_srcdir}/refwrap.h \
 	${bits_srcdir}/sat_arith.h \
+	${bits_srcdir}/stdexcept_except.h \
+	${bits_srcdir}/stdexcept_throw.h \
+	${bits_srcdir}/stdexcept_throwdef.h \
+	${bits_srcdir}/stdexcept_throwfwd.h \
 	${bits_srcdir}/stl_algo.h \
 	${bits_srcdir}/stl_algobase.h \
 	${bits_srcdir}/stl_construct.h \
@@ -188,11 +201,13 @@ bits_headers = \
 	${bits_srcdir}/basic_ios.tcc \
 	${bits_srcdir}/basic_string.h \
 	${bits_srcdir}/basic_string.tcc \
+	${bits_srcdir}/binders.h \
 	${bits_srcdir}/charconv.h \
 	${bits_srcdir}/chrono.h \
 	${bits_srcdir}/chrono_io.h \
 	${bits_srcdir}/codecvt.h \
 	${bits_srcdir}/cow_string.h \
+	${bits_srcdir}/cpyfunc_impl.h \
 	${bits_srcdir}/deque.tcc \
 	${bits_srcdir}/erase_if.h \
 	${bits_srcdir}/formatfwd.h \
@@ -203,10 +218,13 @@ bits_headers = \
 	${bits_srcdir}/fs_ops.h \
 	${bits_srcdir}/fs_path.h \
 	${bits_srcdir}/fstream.tcc \
+	${bits_srcdir}/funcref_impl.h \
+	${bits_srcdir}/funcwrap.h \
 	${bits_srcdir}/gslice.h \
 	${bits_srcdir}/gslice_array.h \
 	${bits_srcdir}/hashtable.h \
 	${bits_srcdir}/hashtable_policy.h \
+	${bits_srcdir}/indirect.h \
 	${bits_srcdir}/indirect_array.h \
 	${bits_srcdir}/ios_base.h \
 	${bits_srcdir}/istream.tcc \
@@ -222,12 +240,13 @@ bits_headers = \
 	${bits_srcdir}/mask_array.h \
 	${bits_srcdir}/memory_resource.h \
 	${bits_srcdir}/mofunc_impl.h \
-	${bits_srcdir}/move_only_function.h \
 	${bits_srcdir}/new_allocator.h \
 	${bits_srcdir}/node_handle.h \
 	${bits_srcdir}/ostream.tcc \
 	${bits_srcdir}/ostream_insert.h \
+	${bits_srcdir}/ostream_print.h \
 	${bits_srcdir}/postypes.h \
+	${bits_srcdir}/print.h \
 	${bits_srcdir}/quoted_string.h \
 	${bits_srcdir}/random.h \
 	${bits_srcdir}/random.tcc \
@@ -248,6 +267,16 @@ bits_headers = \
 	${bits_srcdir}/shared_ptr.h \
 	${bits_srcdir}/shared_ptr_atomic.h \
 	${bits_srcdir}/shared_ptr_base.h \
+	${bits_srcdir}/simd_alg.h \
+	${bits_srcdir}/simd_details.h \
+	${bits_srcdir}/simd_flags.h \
+	${bits_srcdir}/simd_iterator.h \
+	${bits_srcdir}/simd_loadstore.h \
+	${bits_srcdir}/simd_mask.h \
+	${bits_srcdir}/simd_mask_reductions.h \
+	${bits_srcdir}/simd_reductions.h \
+	${bits_srcdir}/simd_vec.h \
+	${bits_srcdir}/simd_x86.h \
 	${bits_srcdir}/slice_array.h \
 	${bits_srcdir}/specfun.h \
 	${bits_srcdir}/sstream.tcc \
@@ -280,6 +309,7 @@ bits_headers = \
 	${bits_srcdir}/valarray_array.tcc \
 	${bits_srcdir}/valarray_before.h \
 	${bits_srcdir}/valarray_after.h \
+	${bits_srcdir}/vec_ops.h \
 	${bits_srcdir}/vector.tcc
 endif GLIBCXX_HOSTED
 
@@ -786,7 +816,6 @@ experimental_headers = \
 	${experimental_srcdir}/array \
 	${experimental_srcdir}/buffer \
 	${experimental_srcdir}/chrono \
-	${experimental_srcdir}/contract \
 	${experimental_srcdir}/deque \
 	${experimental_srcdir}/executor \
 	${experimental_srcdir}/forward_list \
@@ -964,6 +993,7 @@ debug_headers = \
 	${debug_srcdir}/forward_list \
 	${debug_srcdir}/functions.h \
 	${debug_srcdir}/helper_functions.h \
+	${debug_srcdir}/inplace_vector \
 	${debug_srcdir}/list \
 	${debug_srcdir}/map \
 	${debug_srcdir}/macros.h \
@@ -1413,11 +1443,11 @@ ${host_builddir}/c++config.h: ${CONFIG_HEADER} \
 	-e "$$verbose_assert" \
 	    < ${glibcxx_srcdir}/include/bits/c++config > $@ ;\
 	sed -e 's/HAVE_/_GLIBCXX_HAVE_/g' \
-	    -e 's/PACKAGE/_GLIBCXX_PACKAGE/g' \
-	    -e 's/VERSION/_GLIBCXX_VERSION/g' \
+	    -e '/PACKAGE/s,^,// ,' \
+	    -e '/PACKAGE/!s/VERSION/_GLIBCXX_VERSION/g' \
 	    -e 's/WORDS_/_GLIBCXX_WORDS_/g' \
 	    -e 's/LT_OBJDIR/_GLIBCXX_LT_OBJDIR/g' \
-	    -e 's/STDC_HEADERS/_GLIBCXX_STDC_HEADERS/g' \
+	    -e 's,^#.*STDC_HEADERS,// &,' \
 	    -e 's/_DARWIN_USE_64_BIT_INODE/_GLIBCXX_DARWIN_USE_64_BIT_INODE/g' \
 	    -e 's/_FILE_OFFSET_BITS/_GLIBCXX_FILE_OFFSET_BITS/g' \
 	    -e 's/_LARGE_FILES/_GLIBCXX_LARGE_FILES/g' \

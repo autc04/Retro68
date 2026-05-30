@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2022 Free Software Foundation, Inc.
+# Copyright (C) 2012-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,6 +50,14 @@ if ![info exists NM] then {
 
 if ![info exists NMFLAGS] then {
     set NMFLAGS {}
+}
+
+if ![info exists SIZE] then {
+    set SIZE [findfile $base_dir/../../binutils/size]
+}
+
+if ![info exists SIZEFLAGS] then {
+    set SIZEFLAGS ""
 }
 
 if ![info exists OBJCOPY] then {

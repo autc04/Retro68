@@ -1,5 +1,5 @@
 /* gcobol backend interface
-   Copyright (C) 2021-2025 Free Software Foundation, Inc.
+   Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by Robert J. Dubner and James K. Lowden
 
 This file is part of GCC.
@@ -20,15 +20,15 @@ along with GCC; see the file COPYING3.  If not see
 
 
 #include "cobol-system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "diagnostic.h"
-#include "opts.h"
-#include "debug.h"
-#include "langhooks.h"
-#include "langhooks-def.h"
-#include "target.h"
-#include "stringpool.h"
+#include <coretypes.h>
+#include <tree.h>
+#include <diagnostic.h>
+#include <opts.h>
+#include <debug.h>
+#include <langhooks.h>
+#include <langhooks-def.h>
+#include <target.h>
+#include <stringpool.h>
 #include "../../libgcobol/ec.h"
 #include "../../libgcobol/common-defs.h"
 #include "util.h"
@@ -39,7 +39,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "genapi.h"
 #include "../../libgcobol/exceptl.h"
 #include "exceptg.h"
-#include "util.h"
 #include "gengen.h"   // This has some GTY(()) markers
 #include "structs.h"  // This has some GTY(()) markers
 
@@ -318,7 +317,7 @@ enable_exceptions( bool enable ) {
        NULL != (name = strtok(name, ",")); name = NULL ) {
     ec_type_t type = ec_type_of(name);
     if( type == ec_none_e ) {
-      yywarn("unrecognized exception '%s' was ignored", name);
+      cbl_message(EcUnknownW, "unrecognized exception '%s'", name);
       continue;
     }
     ec_disposition_t disposition = ec_type_disposition(type);
@@ -329,17 +328,22 @@ enable_exceptions( bool enable ) {
   }
 }
 
+void cobol_warning( cbl_diag_id_t id, int yn, bool );
+void cobol_warning_suppress( cbl_dialect_t dialect );
+
 static bool
 cobol_langhook_handle_option (size_t scode,
-                              const char *arg ATTRIBUTE_UNUSED,
+                              const char *arg,
                               HOST_WIDE_INT value,
-                              int kind ATTRIBUTE_UNUSED,
+                              int kind,
                               location_t loc ATTRIBUTE_UNUSED,
                               const struct
                               cl_option_handlers *handlers ATTRIBUTE_UNUSED)
     {
     // process_command (decoded_options_count, decoded_options);
     enum opt_code code = (enum opt_code) scode;
+    auto super_kind = diagnostics::kind(kind);
+    bool warning_as_error = super_kind == diagnostics::kind::error;
 
     switch(code)
         {
@@ -357,24 +361,43 @@ cobol_langhook_handle_option (size_t scode,
             copybook_extension_add(cobol_copyext);
             return true;
 
+        case OPT_fexec_charset_:
+            if( ! cobol_alpha_encoding( arg ) ) {
+              cbl_errx( "no such charset %qs", arg);
+            }
+            return true;
+
+        case OPT_fexec_national_charset_:
+          if( ! cobol_national_encoding( arg ) ) {
+              cbl_errx( "no such national charset %qs", arg);
+            }
+            return true;
+
+        case OPT_M:
+            cobol_set_pp_option('M');
+            return true;
+
         case OPT_fstatic_call:
             use_static_call( arg? true : false );
             return true;
 
         case OPT_fdefaultbyte:
+            // cobol_default_byte is an unsigned int
             wsclear(cobol_default_byte);
             return true;
 
-        case OPT_fflex_debug:
+        case OPT_fflex_debug: // cppcheck-suppress syntaxError // The need for this is a mystery
             yy_flex_debug = 1;
             cobol_set_debugging( true, yy_debug == 1, cobol_trace_debug == 1 );
             return true;
+
         case OPT_fyacc_debug:
             yy_debug = 1;
             cobol_set_debugging(yy_flex_debug == 1,
                                 true,
                                 cobol_trace_debug == 1 );
             return true;
+
         case OPT_ftrace_debug:
             cobol_set_debugging( yy_flex_debug == 1, yy_debug == 1, true );
             return true;
@@ -397,17 +420,22 @@ cobol_langhook_handle_option (size_t scode,
             return true;
 
         case OPT_dialect:
+            // gcc disallows 0 as an enumerated value, so we used 0x10 for iso.
+            if( cobol_dialect == 0x100 ) cobol_dialect = 0; 
             cobol_dialect_set(cbl_dialect_t(cobol_dialect));
+            cobol_warning_suppress(cbl_dialect_t(cobol_dialect));
             return true;
 
         case OPT_fsyntax_only:
           mode_syntax_only(identification_div_e);
           break;
+
         case OPT_preprocess:
           if( ! preprocess_filter_add(arg) ) {
             cbl_errx( "could not execute preprocessor %s", arg);
           }
           return true;
+
         case OPT_include:
           if( ! include_file_add(arg) ) {
             cbl_errx( "could not include %s", arg);
@@ -427,9 +455,209 @@ cobol_langhook_handle_option (size_t scode,
         case OPT_nomain:
             return true;
 
-        case OPT_finternal_ebcdic:
-            cobol_gcobol_feature_set(feature_internal_ebcdic_e);
-            return true;
+        // Warnings and errors
+
+        case OPT_Wbinary_long_long:
+          cobol_warning(MfBinaryLongLong, binary_long_long, warning_as_error);
+          return true;
+
+        case OPT_Wcall_giving:
+          cobol_warning(MfCallGiving, call_giving, warning_as_error);
+          return true;
+
+        case OPT_Wcall_literal:
+          cobol_warning(MfCallLiteral, call_literal, warning_as_error);
+          return true;
+
+        case OPT_Wcdf_dollar:
+          cobol_warning(MfCdfDollar, cdf_dollar, warning_as_error);
+          return true;
+
+        case OPT_Wcomp_6:
+          cobol_warning(MfComp6, comp_6, warning_as_error);
+          return true;
+
+        case OPT_Wcomp_x:
+          cobol_warning(MfCompX, comp_x, warning_as_error);
+          return true;
+
+        case OPT_Winspect_trailing:
+          cobol_warning(MfTrailing, inspect_trailing, warning_as_error);
+          return true;
+
+        case OPT_Wlevel_1_occurs:
+          cobol_warning(MfLevel_1_Occurs, level_1_occurs, warning_as_error);
+          return true;
+
+        case OPT_Wlevel_78_defined:
+          cobol_warning(Par78CdfDefinedW, level_78_defined, warning_as_error);
+          return true;
+
+        case OPT_Wmove_index:
+          cobol_warning(MfMoveIndex, move_index, warning_as_error);
+          return true;
+
+        case OPT_Wmove_pointer:
+          cobol_warning(MfMovePointer, move_pointer, warning_as_error);
+          return true;
+
+        case OPT_Wlevel_78:
+          cobol_warning(MfLevel78, level_78, warning_as_error);
+          return true;
+
+        case OPT_Wany_length:
+          cobol_warning(MfAnyLength, cobol_any_length, warning_as_error);
+          return true;
+
+        case OPT_Wreturning_number:
+          cobol_warning(MfReturningNum, returning_number, warning_as_error);
+          return true;
+
+        case OPT_Wusage_typename:
+          cobol_warning(MfUsageTypename, usage_typename, warning_as_error);
+          return true;
+
+        case OPT_Wbad_line_directive:
+          cobol_warning(LexLineE, bad_line_directive, warning_as_error);
+          return true;
+
+        case OPT_Wequal_assign:
+          cobol_warning(IbmEqualAssignE, equal_assign, warning_as_error);
+          return true;
+
+        case OPT_Wbad_numeric:
+          cobol_warning(ParNumstrW, bad_numeric, warning_as_error);
+          return true;
+
+        case OPT_Wcdf_invalid_parameter:
+          cobol_warning(CdfParameterW, cdf_invalid_parameter, warning_as_error);
+          return true;
+
+        case OPT_Wcdf_name_not_found:
+          cobol_warning(CdfNotFoundW, cdf_name_not_found, warning_as_error);
+          return true;
+
+        case OPT_Wcopybook_found:
+          cobol_warning(LexInputN, copybook_found, warning_as_error);
+          return true;
+
+        case OPT_Wec_unknown:
+          cobol_warning(EcUnknownW, ec_unknown, warning_as_error);
+          return true;
+
+        case OPT_Wentry_convention:
+          cobol_warning(ParInfoI, entry_convention, warning_as_error);
+          return true;
+
+        case OPT_Wiconv_error:
+          cobol_warning(ParIconvE, iconv_error, warning_as_error);
+          return true;
+
+        case OPT_Winclude_file_found:
+          cobol_warning(LexIncludeOkN, include_file_found, warning_as_error);
+          return true;
+
+        case OPT_Winclude_file_not_found:
+          cobol_warning(LexIncludeE, include_file_not_found, warning_as_error);
+          return true;
+
+        case OPT_Wliteral_concat:
+          cobol_warning(ParLiteral2W, literal_concat, warning_as_error);
+          return true;
+
+        case OPT_Wlocale_error:
+          cobol_warning(ParLocaleW, locale_error, warning_as_error);
+          return true;
+
+        case OPT_Wmove_corresponding:
+          cobol_warning(ParNoCorrespondingW, warn_corresponding, warning_as_error);
+          return true;
+
+        case OPT_Wnllanginfo_error:
+          cobol_warning(ParLangInfoW, nllanginfo_error, warning_as_error);
+          return true;
+
+        case OPT_Wlength_of:
+          cobol_warning(IbmLengthOf, cobol_length_of, warning_as_error);
+          return true;
+
+        case OPT_Wpreprocessor_error:
+          cobol_warning(ParLangInfoW, preprocessor_error, warning_as_error);
+          return true;
+
+        case OPT_Wprocedure_pointer:
+          cobol_warning(IbmProcedurePointer, procedure_pointer, warning_as_error);
+          return true;
+
+        case OPT_Wprocedure_not_found:
+          cobol_warning(ParUnresolvedProcE, procedure_not_found, warning_as_error);
+          return true;
+
+        case OPT_Wreplace_error:
+          cobol_warning(LexReplaceE, replace_error, warning_as_error);
+          return true;
+
+        case OPT_Wsegment_error:
+          cobol_warning(IbmSectionRangeE, segment_error, warning_as_error);
+          return true;
+
+        case OPT_Wsegment_negative:
+          cobol_warning(IbmSectionNegE, segment_negative, warning_as_error);
+          return true;
+
+        case OPT_Wsegment:
+          cobol_warning(IbmSectionSegmentW, cobol_segment, warning_as_error);
+          return true;
+
+        case OPT_Wcobol_eject:
+          cobol_warning(IbmEjectE, cobol_eject, warning_as_error);
+          return true;
+
+        case OPT_Woperator_space:
+          cobol_warning(LexSeparatorE, operator_space, warning_as_error);
+          return true;
+
+        case OPT_Wstop_number:
+          cobol_warning(IbmStopNumber, stop_number, warning_as_error);
+          return true;
+
+        case OPT_Wstray_indicator:
+          cobol_warning(LexIndicatorE, stray_indicator, warning_as_error);
+          return true;
+
+        case OPT_Wcobol_volatile:
+          // If arg is true, the error becoomes a warning
+          cobol_warning(IbmVolatileE, cobol_volatile, warning_as_error);
+          cobol_warning(IbmVolatileW, cobol_volatile, warning_as_error);
+          return true;
+
+        case OPT_Wcobol_resume:
+          cobol_warning(IsoResume, cobol_resume, warning_as_error);
+          return true;
+
+        case OPT_Wapply_commit:
+          cobol_warning(SynApplyCommit, apply_commit, warning_as_error);
+          return true;
+
+        case OPT_Whigh_order_bit:
+          cobol_warning(SynHighOrderBit, high_order_bit, warning_as_error);
+          return true;
+
+        case OPT_Wfile_code_set:
+          cobol_warning(SynFileCodeSet, file_code_set, warning_as_error);
+          return true;
+
+        case OPT_Wrecording_mode:
+          cobol_warning(SynRecordingMode, recording_mode, warning_as_error);
+          return true;
+
+        case OPT_Wset_locale_to:
+          cobol_warning(SynSetLocaleTo, set_locale_to, warning_as_error);
+          return true;
+
+        case OPT_Wset_to_locale:
+          cobol_warning(SynSetToLocale, set_to_locale, warning_as_error);
+          return true;
 
         default:
             break;
@@ -506,14 +734,6 @@ cobol_langhook_type_for_mode (enum machine_mode mode, int unsignedp)
     return NULL;
     }
 
-////static tree
-////cobol_langhook_type_for_size (unsigned int bits ATTRIBUTE_UNUSED,
-////                              int unsignedp ATTRIBUTE_UNUSED)
-////    {
-////    gcc_unreachable ();
-////    return NULL;
-////    }
-
 /* Record a builtin function.  We just ignore builtin functions.  */
 
 static tree
@@ -568,7 +788,7 @@ cobol_name_mangler(const char *cobol_name_)
       }
 
     // Allocate enough space for a prepended underscore and a final '\0'
-    char *cobol_name = (char *)xmalloc(strlen(cobol_name_)+2);
+    char *cobol_name = static_cast<char *>(xmalloc(strlen(cobol_name_)+2));
     size_t n = 0;
     if( cobol_name_[0] >= '0' && cobol_name_[0] <= '9' )
       {

@@ -1,6 +1,6 @@
 /* Offload image generation tool for AMD GCN.
 
-   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -37,6 +37,9 @@
 #include "elf.h"
 #include "configargs.h"  /* For configure_default_options.  */
 #include "multilib.h"  /* For multilib_options.  */
+
+#include "tree.h"	 /* Dependency of omp-general.h.  */
+#include "omp-general.h" /* For enum omp_requires.  */
 
 /* These probably won't (all) be in elf.h for a while.  */
 #undef  EM_AMDGPU
@@ -179,7 +182,7 @@ xputenv (const char *string)
 {
   if (verbose)
     fprintf (stderr, "%s\n", string);
-  putenv (CONST_CAST (char *, string));
+  putenv (const_cast<char *> (string));
 }
 
 /* Parse STR, saving found tokens into PVALUES and return their number.
@@ -441,10 +444,12 @@ copy_early_debug_info (const char *infile, const char *outfile)
    encoded as structured data.  */
 
 static void
-process_asm (FILE *in, FILE *out, FILE *cfile)
+process_asm (FILE *in, FILE *out, FILE *cfile, uint32_t omp_requires)
 {
   int fn_count = 0, var_count = 0, ind_fn_count = 0;
   int dims_count = 0, regcount_count = 0;
+  bool xnack_required = (omp_requires & (OMP_REQUIRES_UNIFIED_SHARED_MEMORY
+					 | OMP_REQUIRES_SELF_MAPS));
   struct obstack fns_os, dims_os, regcounts_os;
   obstack_init (&fns_os);
   obstack_init (&dims_os);
@@ -469,6 +474,7 @@ process_asm (FILE *in, FILE *out, FILE *cfile)
   fn_count += 2;
 
   char buf[1000];
+  char dummy;
   enum
     { IN_CODE,
       IN_METADATA,
@@ -549,7 +555,6 @@ process_asm (FILE *in, FILE *out, FILE *cfile)
 	  }
 	}
 
-      char dummy;
       if (sscanf (buf, " .section .gnu.offload_vars%c", &dummy) > 0)
 	{
 	  state = IN_VARS;
@@ -615,11 +620,27 @@ process_asm (FILE *in, FILE *out, FILE *cfile)
   struct oaccdims *dims = XOBFINISH (&dims_os, struct oaccdims *);
   struct regcount *regcounts = XOBFINISH (&regcounts_os, struct regcount *);
 
-  if (gcn_stack_size)
+  /* If the -mxnack setting has a definite value (not "any" or undefined), or
+     the program "requires unified_shared_memory" (in which case -mxnack might
+     be "any"), then we emit code to check the mode at runtime.  */
+  bool check_xnack = (TEST_XNACK_OFF (elf_flags)
+		      || TEST_XNACK_ON (elf_flags)
+		      || xnack_required);
+  if (TEST_XNACK_OFF (elf_flags) && xnack_required)
     {
-      fprintf (cfile, "#include <stdlib.h>\n");
-      fprintf (cfile, "#include <stdbool.h>\n\n");
+      warning (input_location,
+	       "conflicting settings; XNACK is forced off but Unified "
+	       "Shared Memory is required");
+      xnack_required = 0;
     }
+
+  /* Start generating the C code.  */
+  if (gcn_stack_size)
+    fprintf (cfile, "#include <stdbool.h>\n");
+  if (check_xnack)
+    fprintf (cfile, "#include <stdio.h>\n");
+  if (gcn_stack_size || check_xnack)
+    fprintf (cfile, "#include <stdlib.h>\n\n");
 
   fprintf (cfile, "static const int gcn_num_vars = %d;\n\n", var_count);
   fprintf (cfile, "static const int gcn_num_ind_funcs = %d;\n\n", ind_fn_count);
@@ -661,17 +682,43 @@ process_asm (FILE *in, FILE *out, FILE *cfile)
     }
   fprintf (cfile, "\n};\n\n");
 
+  /* Start a mkoffload_setup function to hold zero-or-more setup actions.  */
+  fprintf (cfile,
+	   "static void\n"
+	   "mkoffload_setup (void)\n"
+	   "{");
+
   /* Set the stack size if the user configured a value.  */
   if (gcn_stack_size)
     fprintf (cfile,
-	     "static __attribute__((constructor))\n"
-	     "void configure_stack_size (void)\n"
-	     "{\n"
+	     "\n"
+	     "  /* Pass through the -mstack-size compile-time option.  */\n"
 	     "  const char *val = getenv (\"GCN_STACK_SIZE\");\n"
 	     "  if (!val || val[0] == '\\0')\n"
-	     "    setenv (\"GCN_STACK_SIZE\", \"%d\", true);\n"
-	     "}\n\n",
+	     "    setenv (\"GCN_STACK_SIZE\", \"%d\", true);\n",
 	     gcn_stack_size);
+
+  /* Emit a constructor function to set the HSA_XNACK environment variable.
+     This must be done before the ROCr runtime library is loaded.
+     We never override a user value (except empty string), but we do emit a
+     useful diagnostic in the wrong mode (the ROCr message is not good.  */
+  if (check_xnack)
+    fprintf (cfile,
+	     "\n"
+	     "  const char *xn_var = getenv (\"HSA_XNACK\");\n"
+	     "  if (!xn_var || xn_var[0] == '\\0')\n"
+	     "    setenv (\"HSA_XNACK\", \"%d\", true);\n"
+	     "  else if (%s)\n"
+	     "    fprintf (stderr, \"warning: HSA_XNACK=%%s is incompatible; "
+			   "the GPU kernel may revert to host fallback\\n\", "
+			   "xn_var);\n",
+	     xnack_required || TEST_XNACK_ON (elf_flags),
+	     (xnack_required || TEST_XNACK_ON (elf_flags)
+	      ? "xn_var[0] != '1' || xn_var[1] != '\\0'"
+	      : "xn_var[0] != '0' || xn_var[1] != '\\0'"));
+
+  /* End of mkoffload_setup function.  */
+  fprintf (cfile, "}\n\n");
 
   obstack_free (&fns_os, NULL);
   for (i = 0; i < dims_count; i++)
@@ -737,6 +784,7 @@ process_obj (const char *fname_in, FILE *cfile, uint32_t omp_requires)
 
   fprintf (cfile, "static __attribute__((constructor)) void init (void)\n"
 	   "{\n"
+	   "  mkoffload_setup ();\n"
 	   "  GOMP_offload_register_ver (%#x, __OFFLOAD_TABLE__,"
 	   " %d/*GCN*/, &gcn_data);\n"
 	   "};\n",
@@ -791,7 +839,7 @@ compile_native (const char *infile, const char *outfile, const char *compiler,
   obstack_ptr_grow (&argv_obstack, NULL);
 
   const char **new_argv = XOBFINISH (&argv_obstack, const char **);
-  fork_execute (new_argv[0], CONST_CAST (char **, new_argv), true,
+  fork_execute (new_argv[0], const_cast<char **> (new_argv), true,
 		".gccnative_args");
   obstack_free (&argv_obstack, NULL);
 }
@@ -1108,7 +1156,8 @@ main (int argc, char **argv)
 #define GCN_DEVICE(name, NAME, ELF, ISA, XNACK, SRAM, ...) \
     case ELF: XNACK; break;
 #define HSACO_ATTR_UNSUPPORTED SET_XNACK_UNSET (elf_flags)
-#define HSACO_ATTR_OFF SET_XNACK_OFF (elf_flags)
+#define HSACO_ATTR_OFF \
+      if (TEST_XNACK_UNSET (elf_flags)) SET_XNACK_OFF (elf_flags)
 #define HSACO_ATTR_ANY \
       if (TEST_XNACK_UNSET (elf_flags)) SET_XNACK_ANY (elf_flags)
 #include "gcn-devices.def"
@@ -1317,8 +1366,10 @@ main (int argc, char **argv)
       obstack_ptr_grow (&files_to_cleanup, omp_requires_file);
 
       /* Run the compiler pass.  */
-      xputenv (concat ("GCC_OFFLOAD_OMP_REQUIRES_FILE=", omp_requires_file, NULL));
-      fork_execute (cc_argv[0], CONST_CAST (char **, cc_argv), true, ".gcc_args");
+      xputenv (concat ("GCC_OFFLOAD_OMP_REQUIRES_FILE=", omp_requires_file,
+		       NULL));
+      fork_execute (cc_argv[0], const_cast<char **> (cc_argv), true,
+		    ".gcc_args");
       obstack_free (&cc_argv_obstack, NULL);
       unsetenv("GCC_OFFLOAD_OMP_REQUIRES_FILE");
 
@@ -1340,13 +1391,14 @@ main (int argc, char **argv)
       if (!out)
 	fatal_error (input_location, "cannot open %qs", gcn_s2_name);
 
-      process_asm (in, out, cfile);
+      process_asm (in, out, cfile, omp_requires);
 
       fclose (in);
       fclose (out);
 
       /* Run the assemble/link pass.  */
-      fork_execute (ld_argv[0], CONST_CAST (char **, ld_argv), true, ".ld_args");
+      fork_execute (ld_argv[0], const_cast<char **> (ld_argv), true,
+		    ".ld_args");
       obstack_free (&ld_argv_obstack, NULL);
 
       process_obj (gcn_o_name, cfile, omp_requires);

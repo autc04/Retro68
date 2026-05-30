@@ -1,5 +1,5 @@
 /* Dead code elimination pass for the GNU compiler.
-   Copyright (C) 2002-2025 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Ben Elliston <bje@redhat.com>
    and Andrew MacLeod <amacleod@redhat.com>
    Adapted to use control dependence by Steven Bosscher, SUSE Labs.
@@ -1457,6 +1457,70 @@ control_parents_preserved_p (basic_block bb)
   return true;
 }
 
+/* If basic block is empty, we can remove conditionals that controls
+   its execution.  However in some cases the empty BB can stay live
+   (such as when it was a header of empty loop).  In this case we
+   need to update its count.  Since regions of dead BBs are acyclic
+   we simply propagate counts forward from live BBs to dead ones.  */
+
+static void
+propagate_counts ()
+{
+  basic_block bb;
+  auto_vec<basic_block, 16> queue;
+  hash_map <basic_block, int> cnt;
+
+  FOR_EACH_BB_FN (bb, cfun)
+    if (!bitmap_bit_p (bb_contains_live_stmts, bb->index))
+      {
+	int n = 0;
+	for (edge e : bb->preds)
+	  if (e->src != ENTRY_BLOCK_PTR_FOR_FN (cfun)
+	      && !bitmap_bit_p (bb_contains_live_stmts, e->src->index))
+	    n++;
+	if (!n)
+	  queue.safe_push (bb);
+	cnt.put (bb, n);
+      }
+  while (!queue.is_empty ())
+    {
+      basic_block bb = queue.pop ();
+      profile_count sum = profile_count::zero ();
+
+      for (edge e : bb->preds)
+	{
+	  sum += e->count ();
+	  gcc_checking_assert (!cnt.get (e->src));
+	}
+      /* If we have partial profile and some counts of incomming edges are
+	 unknown, it is probably better to keep the existing count.
+	 We could also propagate bi-directionally.  */
+      if (sum.initialized_p () && !(sum == bb->count))
+	{
+	  if (dump_file && (dump_flags & TDF_DETAILS))
+	    {
+	      fprintf (dump_file, "Updating count of empty bb %i from ",
+		       bb->index);
+	      bb->count.dump (dump_file);
+	      fprintf (dump_file, " to ");
+	      sum.dump (dump_file);
+	      fprintf (dump_file, "\n");
+	    }
+	  bb->count = sum;
+	}
+      cnt.remove (bb);
+      for (edge e : bb->succs)
+	if (int *n = cnt.get (e->dest))
+	  {
+	    (*n)--;
+	    if (!*n)
+	      queue.safe_push (e->dest);
+	  }
+    }
+  /* Do not check that all blocks has been processed, since for
+     empty infinite loops this is not the case.  */
+}
+
 /* Eliminate unnecessary statements. Any instruction not marked as necessary
    contributes nothing to the program, and can be deleted.  */
 
@@ -1618,9 +1682,12 @@ eliminate_unnecessary_stmts (bool aggressive)
 		  update_stmt (call_stmt);
 		  release_ssa_name (name);
 
+		  /* __builtin_stack_save without lhs is not needed.  */
+		  if (gimple_call_builtin_p (call_stmt, BUILT_IN_STACK_SAVE))
+		    remove_dead_stmt (&gsi, bb, to_remove_edges);
 		  /* GOMP_SIMD_LANE (unless three argument) or ASAN_POISON
 		     without lhs is not needed.  */
-		  if (gimple_call_internal_p (call_stmt))
+		  else if (gimple_call_internal_p (call_stmt))
 		    switch (gimple_call_internal_fn (call_stmt))
 		      {
 		      case IFN_GOMP_SIMD_LANE:
@@ -1800,6 +1867,8 @@ eliminate_unnecessary_stmts (bool aggressive)
 		}
 	    }
 	}
+      if (bb_contains_live_stmts)
+	propagate_counts ();
     }
 
   if (bb_postorder)
@@ -1871,214 +1940,6 @@ tree_dce_done (bool aggressive)
   worklist.release ();
 }
 
-/* Sort PHI argument values for make_forwarders_with_degenerate_phis.  */
-
-static int
-sort_phi_args (const void *a_, const void *b_)
-{
-  auto *a = (const std::pair<edge, hashval_t> *) a_;
-  auto *b = (const std::pair<edge, hashval_t> *) b_;
-  hashval_t ha = a->second;
-  hashval_t hb = b->second;
-  if (ha < hb)
-    return -1;
-  else if (ha > hb)
-    return 1;
-  else if (a->first->dest_idx < b->first->dest_idx)
-    return -1;
-  else if (a->first->dest_idx > b->first->dest_idx)
-    return 1;
-  else
-    return 0;
-}
-
-/* Look for a non-virtual PHIs and make a forwarder block when all PHIs
-   have the same argument on a set of edges.  This is to not consider
-   control dependences of individual edges for same values but only for
-   the common set.  */
-
-static unsigned
-make_forwarders_with_degenerate_phis (function *fn)
-{
-  unsigned todo = 0;
-
-  basic_block bb;
-  FOR_EACH_BB_FN (bb, fn)
-    {
-      /* Only PHIs with three or more arguments have opportunities.  */
-      if (EDGE_COUNT (bb->preds) < 3)
-	continue;
-      /* Do not touch loop headers or blocks with abnormal predecessors.
-	 ???  This is to avoid creating valid loops here, see PR103458.
-	 We might want to improve things to either explicitely add those
-	 loops or at least consider blocks with no backedges.  */
-      if (bb->loop_father->header == bb
-	  || bb_has_abnormal_pred (bb))
-	continue;
-
-      /* Take one PHI node as template to look for identical
-	 arguments.  Build a vector of candidates forming sets
-	 of argument edges with equal values.  Note optimality
-	 depends on the particular choice of the template PHI
-	 since equal arguments are unordered leaving other PHIs
-	 with more than one set of equal arguments within this
-	 argument range unsorted.  We'd have to break ties by
-	 looking at other PHI nodes.  */
-      gphi_iterator gsi = gsi_start_nonvirtual_phis (bb);
-      if (gsi_end_p (gsi))
-	continue;
-      gphi *phi = gsi.phi ();
-      auto_vec<std::pair<edge, hashval_t>, 8> args;
-      bool need_resort = false;
-      for (unsigned i = 0; i < gimple_phi_num_args (phi); ++i)
-	{
-	  edge e = gimple_phi_arg_edge (phi, i);
-	  /* Skip abnormal edges since we cannot redirect them.  */
-	  if (e->flags & EDGE_ABNORMAL)
-	    continue;
-	  /* Skip loop exit edges when we are in loop-closed SSA form
-	     since the forwarder we'd create does not have a PHI node.  */
-	  if (loops_state_satisfies_p (LOOP_CLOSED_SSA)
-	      && loop_exit_edge_p (e->src->loop_father, e))
-	    continue;
-
-	  tree arg = gimple_phi_arg_def (phi, i);
-	  if (!CONSTANT_CLASS_P (arg) && TREE_CODE (arg) != SSA_NAME)
-	    need_resort = true;
-	  args.safe_push (std::make_pair (e, iterative_hash_expr (arg, 0)));
-	}
-      if (args.length () < 2)
-	continue;
-      args.qsort (sort_phi_args);
-      /* The above sorting can be different between -g and -g0, as e.g. decls
-	 can have different uids (-g could have bigger gaps in between them).
-	 So, only use that to determine which args are equal, then change
-	 second from hash value to smallest dest_idx of the edges which have
-	 equal argument and sort again.  If all the phi arguments are
-	 constants or SSA_NAME, there is no need for the second sort, the hash
-	 values are stable in that case.  */
-      hashval_t hash = args[0].second;
-      args[0].second = args[0].first->dest_idx;
-      bool any_equal = false;
-      for (unsigned i = 1; i < args.length (); ++i)
-	if (hash == args[i].second
-	    && operand_equal_p (PHI_ARG_DEF_FROM_EDGE (phi, args[i - 1].first),
-				PHI_ARG_DEF_FROM_EDGE (phi, args[i].first)))
-	  {
-	    args[i].second = args[i - 1].second;
-	    any_equal = true;
-	  }
-	else
-	  {
-	    hash = args[i].second;
-	    args[i].second = args[i].first->dest_idx;
-	  }
-      if (!any_equal)
-	continue;
-      if (need_resort)
-	args.qsort (sort_phi_args);
-
-      /* From the candidates vector now verify true candidates for
-	 forwarders and create them.  */
-      gphi *vphi = get_virtual_phi (bb);
-      unsigned start = 0;
-      while (start < args.length () - 1)
-	{
-	  unsigned i;
-	  for (i = start + 1; i < args.length (); ++i)
-	    if (args[start].second != args[i].second)
-	      break;
-	  /* args[start]..args[i-1] are equal.  */
-	  if (start != i - 1)
-	    {
-	      /* Check all PHI nodes for argument equality.  */
-	      bool equal = true;
-	      gphi_iterator gsi2 = gsi;
-	      gsi_next (&gsi2);
-	      for (; !gsi_end_p (gsi2); gsi_next (&gsi2))
-		{
-		  gphi *phi2 = gsi2.phi ();
-		  if (virtual_operand_p (gimple_phi_result (phi2)))
-		    continue;
-		  tree start_arg
-		    = PHI_ARG_DEF_FROM_EDGE (phi2, args[start].first);
-		  for (unsigned j = start + 1; j < i; ++j)
-		    {
-		      if (!operand_equal_p (start_arg,
-					    PHI_ARG_DEF_FROM_EDGE
-					      (phi2, args[j].first)))
-			{
-			  /* Another PHI might have a shorter set of
-			     equivalent args.  Go for that.  */
-			  i = j;
-			  if (j == start + 1)
-			    equal = false;
-			  break;
-			}
-		    }
-		  if (!equal)
-		    break;
-		}
-	      if (equal)
-		{
-		  /* If we are asked to forward all edges the block
-		     has all degenerate PHIs.  Do nothing in that case.  */
-		  if (start == 0
-		      && i == args.length ()
-		      && args.length () == gimple_phi_num_args (phi))
-		    break;
-		  /* Instead of using make_forwarder_block we are
-		     rolling our own variant knowing that the forwarder
-		     does not need PHI nodes apart from eventually
-		     a virtual one.  */
-		  auto_vec<tree, 8> vphi_args;
-		  if (vphi)
-		    {
-		      vphi_args.reserve_exact (i - start);
-		      for (unsigned j = start; j < i; ++j)
-			vphi_args.quick_push
-			  (PHI_ARG_DEF_FROM_EDGE (vphi, args[j].first));
-		    }
-		  free_dominance_info (fn, CDI_DOMINATORS);
-		  basic_block forwarder = split_edge (args[start].first);
-		  profile_count count = profile_count::zero ();
-		  bool irr = false;
-		  for (unsigned j = start + 1; j < i; ++j)
-		    {
-		      edge e = args[j].first;
-		      if (e->flags & EDGE_IRREDUCIBLE_LOOP)
-			irr = true;
-		      redirect_edge_and_branch_force (e, forwarder);
-		      redirect_edge_var_map_clear (e);
-		      count += e->count ();
-		    }
-		  forwarder->count = count;
-		  if (irr)
-		    {
-		      forwarder->flags |= BB_IRREDUCIBLE_LOOP;
-		      single_succ_edge (forwarder)->flags
-			|= EDGE_IRREDUCIBLE_LOOP;
-		    }
-
-		  if (vphi)
-		    {
-		      tree def = copy_ssa_name (vphi_args[0]);
-		      gphi *vphi_copy = create_phi_node (def, forwarder);
-		      for (unsigned j = start; j < i; ++j)
-			add_phi_arg (vphi_copy, vphi_args[j - start],
-				     args[j].first, UNKNOWN_LOCATION);
-		      SET_PHI_ARG_DEF
-			(vphi, single_succ_edge (forwarder)->dest_idx, def);
-		    }
-		  todo |= TODO_cleanup_cfg;
-		}
-	    }
-	  /* Continue searching for more opportunities.  */
-	  start = i;
-	}
-    }
-  return todo;
-}
 
 /* Main routine to eliminate dead code.
 
@@ -2105,8 +1966,8 @@ perform_tree_ssa_dce (bool aggressive)
       scev_initialize ();
     }
 
-  if (aggressive)
-    todo |= make_forwarders_with_degenerate_phis (cfun);
+  if (aggressive && make_forwarders_with_degenerate_phis (cfun))
+    todo |= TODO_cleanup_cfg;
 
   calculate_dominance_info (CDI_DOMINATORS);
 
@@ -2309,12 +2170,13 @@ simple_dce_from_worklist (bitmap worklist, bitmap need_eh_cleanup)
 	  if (gimple_code (def_stmt) != GIMPLE_PHI)
 	    continue;
 
-	  gimple *use_stmt;
 	  imm_use_iterator use_iter;
+	  use_operand_p use_p;
 	  bool canremove = true;
 
-	  FOR_EACH_IMM_USE_STMT (use_stmt, use_iter, def)
+	  FOR_EACH_IMM_USE_FAST (use_p, use_iter, def)
 	    {
+	      gimple *use_stmt = USE_STMT (use_p);
 	      /* Ignore debug statements. */
 	      if (is_gimple_debug (use_stmt))
 		continue;
@@ -2330,7 +2192,15 @@ simple_dce_from_worklist (bitmap worklist, bitmap need_eh_cleanup)
 
       gimple *t = SSA_NAME_DEF_STMT (def);
       if (gimple_has_side_effects (t))
-	continue;
+	{
+	  if (gcall *call = dyn_cast <gcall *> (t))
+	    {
+	      gimple_call_set_lhs (call, NULL_TREE);
+	      update_stmt (call);
+	      release_ssa_name (def);
+	    }
+	  continue;
+	}
 
       /* The defining statement needs to be defining only this name.
 	 ASM is the only statement that can define more than one

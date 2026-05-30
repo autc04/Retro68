@@ -1,4 +1,4 @@
-/* Copyright (C) 2019-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2019-2026 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -25,7 +25,6 @@
    See:
    https://www.ecma-international.org/publications/files/ECMA-ST/ECMA-335.pdf  */
 
-#include <memory.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

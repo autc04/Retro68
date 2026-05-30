@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,10 +26,10 @@
 with Atree;          use Atree;
 with Casing;         use Casing;
 with Checks;         use Checks;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Debug;          use Debug;
+with Exp_Ch7;        use Exp_Ch7;
 with Exp_Put_Image;
 with Exp_Util;       use Exp_Util;
 with Lib;            use Lib;
@@ -43,7 +43,6 @@ with Rtsfind;        use Rtsfind;
 with Sem_Aux;        use Sem_Aux;
 with Sem_Res;        use Sem_Res;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Snames;         use Snames;
@@ -112,13 +111,18 @@ package body Exp_Imgv is
       --  exactly spent on all possible paths from this point.
 
       Threshold : constant Nat :=
-        (if Is_Library_Level_Entity (E)
+        (if Restriction_Active (No_Dynamic_Sized_Objects)
+         then Nat'Last
+         elsif Is_Library_Level_Entity (E)
            or else not Always_Compatible_Rep_On_Target
          then 3
          else Nat'Last);
       --  Threshold above which we want to generate the hash function in the
       --  default case. We avoid doing it if this would cause a trampoline to
       --  be generated because the type is local and descriptors are not used.
+      --  We also avoid doing it if a No_Dynamic_Sized_Objects restriction is
+      --  in effect because the hash function will violate the restriction
+      --  by declaring an array subtype with dynamic bounds.
 
       Threshold_For_Size : constant Nat := Nat'Max (Threshold, 9);
       --  But the function and its tables take a bit of space so the threshold
@@ -1038,7 +1042,7 @@ package body Exp_Imgv is
    --  Start of processing for Expand_Image_Attribute
 
    begin
-      if Is_Object_Image (Pref) then
+      if Is_Object_Prefix (Pref) then
          Rewrite_Object_Image (N, Pref, Name_Image, Standard_String);
          return;
       end if;
@@ -1047,6 +1051,7 @@ package body Exp_Imgv is
       --  Exp_Put_Image for details.
 
       if Exp_Put_Image.Image_Should_Call_Put_Image (N) then
+         Establish_Transient_Scope (N, Manage_Sec_Stack => True);
          Rewrite (N, Exp_Put_Image.Build_Image_Call (N));
          Analyze_And_Resolve (N, Standard_String, Suppress => All_Checks);
          return;
@@ -1631,7 +1636,6 @@ package body Exp_Imgv is
                Name => New_Occurrence_Of (RTE (Vid), Loc),
                Parameter_Associations => Args)));
 
-         Set_Etype (N, Btyp);
          Analyze_And_Resolve (N, Btyp);
          return;
 
@@ -1640,23 +1644,22 @@ package body Exp_Imgv is
             Num : constant Uint := Norm_Num (Small_Value (Rtyp));
             Den : constant Uint := Norm_Den (Small_Value (Rtyp));
             Max : constant Uint := UI_Max (Num, Den);
-            Min : constant Uint := UI_Min (Num, Den);
             Siz : constant Uint := Esize (Rtyp);
 
          begin
             if Siz <= 32
               and then Max <= Uint_2 ** 31
-              and then (Min = Uint_1 or else Max <= Uint_2 ** 27)
+              and then (Num = Uint_1 or else Max <= Uint_2 ** 27)
             then
                Vid := RE_Value_Fixed32;
             elsif Siz <= 64
               and then Max <= Uint_2 ** 63
-              and then (Min = Uint_1 or else Max <= Uint_2 ** 59)
+              and then (Num = Uint_1 or else Max <= Uint_2 ** 59)
             then
                Vid := RE_Value_Fixed64;
             elsif System_Max_Integer_Size = 128
               and then Max <= Uint_2 ** 127
-              and then (Min = Uint_1 or else Max <= Uint_2 ** 123)
+              and then (Num = Uint_1 or else Max <= Uint_2 ** 123)
             then
                Vid := RE_Value_Fixed128;
             else
@@ -1676,7 +1679,6 @@ package body Exp_Imgv is
                      Name => New_Occurrence_Of (RTE (Vid), Loc),
                      Parameter_Associations => Args)));
 
-               Set_Etype (N, Btyp);
                Analyze_And_Resolve (N, Btyp);
                return;
             end if;
@@ -1854,7 +1856,7 @@ package body Exp_Imgv is
       Rtyp : Entity_Id;
 
    begin
-      if Is_Object_Image (Pref) then
+      if Is_Object_Prefix (Pref) then
          Rewrite_Object_Image (N, Pref, Name_Wide_Image, Standard_Wide_String);
          return;
       end if;
@@ -1863,6 +1865,7 @@ package body Exp_Imgv is
       --  Exp_Put_Image for details.
 
       if Exp_Put_Image.Image_Should_Call_Put_Image (N) then
+         Establish_Transient_Scope (N, Manage_Sec_Stack => True);
          Rewrite (N, Exp_Put_Image.Build_Image_Call (N));
          Analyze_And_Resolve (N, Standard_Wide_String, Suppress => All_Checks);
          return;
@@ -1962,7 +1965,7 @@ package body Exp_Imgv is
       Rtyp : Entity_Id;
 
    begin
-      if Is_Object_Image (Pref) then
+      if Is_Object_Prefix (Pref) then
          Rewrite_Object_Image
            (N, Pref, Name_Wide_Wide_Image, Standard_Wide_Wide_String);
          return;
@@ -1972,6 +1975,7 @@ package body Exp_Imgv is
       --  Exp_Put_Image for details.
 
       if Exp_Put_Image.Image_Should_Call_Put_Image (N) then
+         Establish_Transient_Scope (N, Manage_Sec_Stack => True);
          Rewrite (N, Exp_Put_Image.Build_Image_Call (N));
          Analyze_And_Resolve
            (N, Standard_Wide_Wide_String, Suppress => All_Checks);

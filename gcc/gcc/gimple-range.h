@@ -1,5 +1,5 @@
 /* Header file for the GIMPLE range interface.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by Andrew MacLeod <amacleod@redhat.com>
    and Aldy Hernandez <aldyh@redhat.com>.
 
@@ -54,6 +54,7 @@ public:
   virtual bool range_on_edge (vrange &r, edge e, tree name) override;
   virtual bool range_on_entry (vrange &r, basic_block bb, tree name) override;
   virtual bool range_on_exit (vrange &r, basic_block bb, tree name) override;
+  virtual void update_range_info (tree, const vrange &) override;
   void export_global_ranges ();
   virtual void dump (FILE *f) override;
   void debug ();

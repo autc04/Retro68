@@ -8,5 +8,5 @@ SECTIONS
 {
   . = 0x1000;
   .text : { *(.text) *(.rodata.brlt) } :image :header
-  /DISCARD/ : { *(.dropme) *(.reginfo) *(.MIPS.abiflags) }
+  /DISCARD/ : { *(.dropme) *(.reginfo) *(.MIPS.abiflags) *(.MIPS.options) }
 }

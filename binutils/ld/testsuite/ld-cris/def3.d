@@ -2,7 +2,7 @@
 #source: stabs1.s
 #source: globsymw1.s
 #target: cris-*-*elf* cris-*-*aout*
-#as: --em=criself
+#as: --emulation=criself
 #ld: -mcriself
 #objdump: -p
 # Just checking that undef3 links correctly when given a symbol.

@@ -3,12 +3,10 @@
 	.asciz	"abc"
 .LC1:
 	.asciz	"c"
+.LC2:
 
-	.text
-	.global _start
-_start:
+	.data
 	.long	.LC0
-.LT0:
 	.long	.LC1
-	.long	.LC0-.LT0
-	.long	.LC1-.LT0
+	.long	.LC1-.LC0
+	.long	.LC2-.LC1

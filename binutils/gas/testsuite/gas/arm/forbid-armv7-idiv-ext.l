@@ -1,3 +1,3 @@
 Assembler messages:
 [^:]*: extension does not apply to the base architecture
-[^:]*: unrecognized option -march=armv7\+idiv
+[^:]*: unrecognized option .*-march=armv7\+idiv.*

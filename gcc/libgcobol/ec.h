@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025 Symas Corporation
+ * Copyright (c) 2021-2026 Symas Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,6 @@
 #define _CBL_EC_H_
 
 #include <set>
-#include <assert.h>
 
 #define  EC_ALL_E 0xFFFFFF00
 

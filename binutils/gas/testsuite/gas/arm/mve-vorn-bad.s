@@ -1,20 +1,13 @@
-.macro cond1
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vorn q0, q1, q2
-.endr
-.endm
-
-.macro cond2
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vorn.i16 q0, #255
-.endr
-.endm
-
 .syntax unified
 .thumb
-cond1
+
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+vorn q0, q1, q2
+
+.endr
+
 it eq
 vorneq q0, q1, q2
 vorneq q0, q1, q2
@@ -23,7 +16,14 @@ vorneq q0, q1, q2
 vpst
 vorn q0, q1, q2
 vornt q0, q1, q2
-cond2
+
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+vorn.i16 q0, #255
+
+.endr
+
 it eq
 vorneq.i16 q0, #255
 vorneq.i16 q0, #255

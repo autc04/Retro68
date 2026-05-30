@@ -1,6 +1,5 @@
 # Check 64bit AVX512F,VPCLMULQDQ instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpclmulqdq	$0xab, %zmm24, %zmm23, %zmm26	 # AVX512F,VPCLMULQDQ

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2009-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2009-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -27,9 +27,6 @@
 --  is used by Par_SCO to build the SCO information before writing it out to
 --  the ALI file, and by Get_SCO/Put_SCO to read and write the text form that
 --  is used in the ALI file.
-
---  WARNING: There is a C version of this package. Any changes to this
---  source file must be properly reflected in the C header file scos.h
 
 with Namet; use Namet;
 with Table;

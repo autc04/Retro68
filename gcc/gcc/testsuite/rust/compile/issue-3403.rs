@@ -1,3 +1,7 @@
+#![feature(no_core)]
+#![feature(lang_items)]
+#![no_core]
+
 pub struct Foo {
     a: i32,
     // { dg-warning "field is never read" "" { target *-*-* } .-1 }
@@ -5,10 +9,12 @@ pub struct Foo {
 pub struct Bar(i32);
 
 #[lang = "sized"]
-trait Sized {}
+pub trait Sized {}
 
 pub mod core {
     pub mod default {
+        use crate::Sized;
+
         pub trait Default: Sized {
             fn default() -> Self;
         }

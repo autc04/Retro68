@@ -1,6 +1,7 @@
-// { dg-options "-frust-name-resolution-2.0" }
-
 // check that macros by example get exported to the crate's root with #[macro_export]
+#![feature(no_core)]
+#![no_core]
+
 pub mod foo {
     pub mod bar {
         pub mod baz {

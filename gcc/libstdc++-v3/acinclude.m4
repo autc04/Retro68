@@ -81,6 +81,10 @@ AC_DEFUN([GLIBCXX_CONFIGURE], [
     AC_HELP_STRING([--with-newlib],
 		   [assume newlib as a system C library]))
 
+  AC_ARG_WITH([picolibc],
+    AC_HELP_STRING([--with-picolibc],
+		   [assume picolibc as a system C library]))
+
   # Will set LN_S to either 'ln -s', 'ln', or 'cp -p' (if linking isn't
   # available).  Uncomment the next line to force a particular method.
   AC_PROG_LN_S
@@ -173,6 +177,7 @@ dnl Sets:
 dnl  with_gnu_ld
 dnl  glibcxx_ld_is_gold (set to "no" or "yes")
 dnl  glibcxx_ld_is_mold (set to "no" or "yes")
+dnl  glibcxx_ld_is_wild (set to "no" or "yes")
 dnl  glibcxx_gnu_ld_version (possibly)
 dnl
 dnl The last will be a single integer, e.g., version 1.23.45.0.67.89 will
@@ -206,6 +211,7 @@ AC_DEFUN([GLIBCXX_CHECK_LINKER_FEATURES], [
   # does some of this, but throws away the result.
   glibcxx_ld_is_gold=no
   glibcxx_ld_is_mold=no
+  glibcxx_ld_is_wild=no
   if test x"$with_gnu_ld" = x"yes"; then
     AC_MSG_CHECKING([for ld version])
     changequote(,)
@@ -213,6 +219,8 @@ AC_DEFUN([GLIBCXX_CHECK_LINKER_FEATURES], [
       glibcxx_ld_is_gold=yes
     elif $LD --version 2>/dev/null | grep 'mold' >/dev/null 2>&1; then
       glibcxx_ld_is_mold=yes
+    elif $LD --version 2>/dev/null | grep 'Wild' >/dev/null 2>&1; then
+      glibcxx_ld_is_wild=yes
     fi
     ldver=`$LD --version 2>/dev/null |
 	   sed -e 's/[. ][0-9]\{8\}$//;s/.* \([^ ]\{1,\}\)$/\1/; q'`
@@ -224,7 +232,7 @@ AC_DEFUN([GLIBCXX_CHECK_LINKER_FEATURES], [
 
   # Set --gc-sections.
   glibcxx_have_gc_sections=no
-  if test "$glibcxx_ld_is_gold" = "yes" || test "$glibcxx_ld_is_mold" = "yes" ; then
+  if test "$glibcxx_ld_is_gold" = "yes" || test "$glibcxx_ld_is_mold" = "yes" || test "$glibcxx_ld_is_wild" = "yes" ; then
     if $LD --help 2>/dev/null | grep gc-sections >/dev/null 2>&1; then
       glibcxx_have_gc_sections=yes
     fi
@@ -3709,16 +3717,22 @@ AC_DEFUN([GLIBCXX_ENABLE_PCH], [
   AC_SUBST(glibcxx_PCHFLAGS)
 ])
 
-
 dnl
 dnl Check for atomic builtins.
 dnl See:
 dnl http://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html
 dnl
-dnl This checks to see if the host supports the compiler-generated
-dnl builtins for atomic operations for various integral sizes. Note, this
-dnl is intended to be an all-or-nothing switch, so all the atomic operations
-dnl that are used should be checked.
+dnl This checks to see if the host supports __atomic_fetch_add on _Atomic_word.
+dnl
+dnl We don't want libstdc++.so to depend on libatomic.so for basic
+dnl functionality like library-internal reference counting. This means we
+dnl should not use atomics for reference counting unless it can be done
+dnl using native instructions and not by calling into libatomic.
+dnl This policy could change if linking to libatomic.so becomes implicit.
+dnl
+dnl Defines:
+dnl  GLIBCXX_ATOMIC_WORD_BUILTINS - if atomic builtins should be used for
+dnl                                 increments and decrements of _Atomic_word.
 dnl
 dnl Note:
 dnl libgomp and libgfortran use a link test, see CHECK_SYNC_FETCH_AND_ADD.
@@ -3728,7 +3742,7 @@ AC_DEFUN([GLIBCXX_ENABLE_ATOMIC_BUILTINS], [
   AC_LANG_CPLUSPLUS
   old_CXXFLAGS="$CXXFLAGS"
 
-  # Do link tests if possible, instead asm tests, limited to some platforms
+  # Do link tests if possible, otherwise asm tests. Limited to some platforms
   # see discussion in PR target/40134, PR libstdc++/40133 and the thread
   # starting at http://gcc.gnu.org/ml/gcc-patches/2009-07/msg00322.html
   atomic_builtins_link_tests=no
@@ -3741,223 +3755,59 @@ AC_DEFUN([GLIBCXX_ENABLE_ATOMIC_BUILTINS], [
     esac
   fi
 
-  if test x$atomic_builtins_link_tests = xyes; then
+  if test "$atomic_builtins_link_tests" = yes; then
 
-  # Do link tests.
+    # Do link tests.
 
-  CXXFLAGS="$CXXFLAGS -fno-exceptions"
+    CXXFLAGS="$CXXFLAGS -fno-exceptions"
 
-  AC_CACHE_CHECK([for atomic builtins for bool],
-    glibcxx_cv_atomic_bool, [
-    AC_TRY_LINK(
-      [ ],
-      [typedef bool atomic_type;
-       atomic_type c1;
-       atomic_type c2;
-       atomic_type c3(0);
-       // N.B. __atomic_fetch_add is not supported for bool.
-       __atomic_compare_exchange_n(&c1, &c2, c3, true, __ATOMIC_ACQ_REL,
-				   __ATOMIC_RELAXED);
-       __atomic_test_and_set(&c1, __ATOMIC_RELAXED);
-       __atomic_load_n(&c1, __ATOMIC_RELAXED);
-      ],
-      [glibcxx_cv_atomic_bool=yes],
-      [glibcxx_cv_atomic_bool=no])
-  ])
-
-  AC_CACHE_CHECK([for atomic builtins for short],
-    glibcxx_cv_atomic_short, [
-    AC_TRY_LINK(
-      [ ],
-      [typedef short atomic_type;
-       atomic_type c1;
-       atomic_type c2;
-       atomic_type c3(0);
-       __atomic_fetch_add(&c1, c2, __ATOMIC_RELAXED);
-       __atomic_compare_exchange_n(&c1, &c2, c3, true, __ATOMIC_ACQ_REL,
-				   __ATOMIC_RELAXED);
-       __atomic_test_and_set(&c1, __ATOMIC_RELAXED);
-       __atomic_load_n(&c1, __ATOMIC_RELAXED);
-      ],
-      [glibcxx_cv_atomic_short=yes],
-      [glibcxx_cv_atomic_short=no])
-  ])
-
-  AC_CACHE_CHECK([for atomic builtins for int],
-    glibcxx_cv_atomic_int, [
-    AC_TRY_LINK(
-      [ ],
-      [typedef int atomic_type;
-       atomic_type c1;
-       atomic_type c2;
-       atomic_type c3(0);
-       __atomic_fetch_add(&c1, c2, __ATOMIC_RELAXED);
-       __atomic_compare_exchange_n(&c1, &c2, c3, true, __ATOMIC_ACQ_REL,
-				   __ATOMIC_RELAXED);
-       __atomic_test_and_set(&c1, __ATOMIC_RELAXED);
-       __atomic_load_n(&c1, __ATOMIC_RELAXED);
-      ],
-      [glibcxx_cv_atomic_int=yes],
-      [glibcxx_cv_atomic_int=no])
-  ])
-
-  AC_CACHE_CHECK([for atomic builtins for long long],
-    glibcxx_cv_atomic_long_long, [
-    AC_TRY_LINK(
-      [ ],
-      [typedef long long atomic_type;
-       atomic_type c1;
-       atomic_type c2;
-       atomic_type c3(0);
-       __atomic_fetch_add(&c1, c2, __ATOMIC_RELAXED);
-       __atomic_compare_exchange_n(&c1, &c2, c3, true, __ATOMIC_ACQ_REL,
-				   __ATOMIC_RELAXED);
-       __atomic_test_and_set(&c1, __ATOMIC_RELAXED);
-       __atomic_load_n(&c1, __ATOMIC_RELAXED);
-      ],
-      [glibcxx_cv_atomic_long_long=yes],
-      [glibcxx_cv_atomic_long_long=no])
-  ])
+    AC_CACHE_CHECK([for atomic builtins for _Atomic_word],
+	glibcxx_cv_atomic_word,
+	[AC_TRY_LINK([#include "${glibcxx_srcdir}/config/$atomic_word_dir/atomic_word.h"],
+		     [_Atomic_word a = 0, b;
+		      b = __atomic_fetch_add(&a, 1, __ATOMIC_ACQ_REL);],
+		     [glibcxx_cv_atomic_word=yes],
+		     [glibcxx_cv_atomic_word=no])])
 
   else
+    # Do asm tests.
 
-  # Do asm tests.
+    # Compile unoptimized.
+    CXXFLAGS='-O0 -S'
 
-  # Compile unoptimized.
-  CXXFLAGS='-O0 -S'
-
-  # Fake what AC_TRY_COMPILE does.
-
-    cat > conftest.$ac_ext << EOF
-[#]line __oline__ "configure"
-int main()
-{
-  typedef bool atomic_type;
-  atomic_type c1;
-  atomic_type c2;
-  atomic_type c3(0);
-  // N.B. __atomic_fetch_add is not supported for bool.
-  __atomic_compare_exchange_n(&c1, &c2, c3, true, __ATOMIC_ACQ_REL,
-			      __ATOMIC_RELAXED);
-  __atomic_test_and_set(&c1, __ATOMIC_RELAXED);
-  __atomic_load_n(&c1, __ATOMIC_RELAXED);
-
-  return 0;
-}
-EOF
-
-    AC_MSG_CHECKING([for atomic builtins for bool])
-    if AC_TRY_EVAL(ac_compile); then
-      if grep __atomic_ conftest.s >/dev/null 2>&1 ; then
-	glibcxx_cv_atomic_bool=no
-      else
-	glibcxx_cv_atomic_bool=yes
-      fi
-    fi
-    AC_MSG_RESULT($glibcxx_cv_atomic_bool)
-    rm -f conftest*
+    # Fake what AC_TRY_COMPILE does.
 
     cat > conftest.$ac_ext << EOF
 [#]line __oline__ "configure"
+[#]include "${glibcxx_srcdir}/config/$atomic_word_dir/atomic_word.h"
 int main()
 {
-  typedef short atomic_type;
-  atomic_type c1;
-  atomic_type c2;
-  atomic_type c3(0);
-  __atomic_fetch_add(&c1, c2, __ATOMIC_RELAXED);
-  __atomic_compare_exchange_n(&c1, &c2, c3, true, __ATOMIC_ACQ_REL,
-			      __ATOMIC_RELAXED);
-  __atomic_test_and_set(&c1, __ATOMIC_RELAXED);
-  __atomic_load_n(&c1, __ATOMIC_RELAXED);
-
-  return 0;
+  _Atomic_word a = 0, b;
+  b = __atomic_fetch_add(&a, 1, __ATOMIC_ACQ_REL);
 }
 EOF
 
-    AC_MSG_CHECKING([for atomic builtins for short])
+    AC_MSG_CHECKING([for atomic builtins for _Atomic_word])
     if AC_TRY_EVAL(ac_compile); then
       if grep __atomic_ conftest.s >/dev/null 2>&1 ; then
-	glibcxx_cv_atomic_short=no
+	glibcxx_cv_atomic_word=no
       else
-	glibcxx_cv_atomic_short=yes
+	glibcxx_cv_atomic_word=yes
       fi
     fi
-    AC_MSG_RESULT($glibcxx_cv_atomic_short)
+    AC_MSG_RESULT($glibcxx_cv_atomic_word)
     rm -f conftest*
-
-    cat > conftest.$ac_ext << EOF
-[#]line __oline__ "configure"
-int main()
-{
-  // NB: _Atomic_word not necessarily int.
-  typedef int atomic_type;
-  atomic_type c1;
-  atomic_type c2;
-  atomic_type c3(0);
-  __atomic_fetch_add(&c1, c2, __ATOMIC_RELAXED);
-  __atomic_compare_exchange_n(&c1, &c2, c3, true, __ATOMIC_ACQ_REL,
-			      __ATOMIC_RELAXED);
-  __atomic_test_and_set(&c1, __ATOMIC_RELAXED);
-  __atomic_load_n(&c1, __ATOMIC_RELAXED);
-
-  return 0;
-}
-EOF
-
-    AC_MSG_CHECKING([for atomic builtins for int])
-    if AC_TRY_EVAL(ac_compile); then
-      if grep __atomic_ conftest.s >/dev/null 2>&1 ; then
-	glibcxx_cv_atomic_int=no
-      else
-	glibcxx_cv_atomic_int=yes
-      fi
-    fi
-    AC_MSG_RESULT($glibcxx_cv_atomic_int)
-    rm -f conftest*
-
-    cat > conftest.$ac_ext << EOF
-[#]line __oline__ "configure"
-int main()
-{
-  typedef long long atomic_type;
-  atomic_type c1;
-  atomic_type c2;
-  atomic_type c3(0);
-  __atomic_fetch_add(&c1, c2, __ATOMIC_RELAXED);
-  __atomic_compare_exchange_n(&c1, &c2, c3, true, __ATOMIC_ACQ_REL,
-			      __ATOMIC_RELAXED);
-  __atomic_test_and_set(&c1, __ATOMIC_RELAXED);
-  __atomic_load_n(&c1, __ATOMIC_RELAXED);
-
-  return 0;
-}
-EOF
-
-    AC_MSG_CHECKING([for atomic builtins for long long])
-    if AC_TRY_EVAL(ac_compile); then
-      if grep __atomic_ conftest.s >/dev/null 2>&1 ; then
-	glibcxx_cv_atomic_long_long=no
-      else
-	glibcxx_cv_atomic_long_long=yes
-      fi
-    fi
-    AC_MSG_RESULT($glibcxx_cv_atomic_long_long)
-    rm -f conftest*
-
   fi
 
   CXXFLAGS="$old_CXXFLAGS"
   AC_LANG_RESTORE
 
-  # Set atomicity_dir to builtins if all but the long long test above passes,
+  # Set atomicity_dir to builtins if the test above passes,
   # or if the builtins were already chosen (e.g. by configure.host).
-  if { test "$glibcxx_cv_atomic_bool" = yes \
-     && test "$glibcxx_cv_atomic_short" = yes \
-     && test "$glibcxx_cv_atomic_int" = yes; } \
+  if test "$glibcxx_cv_atomic_word" = yes \
      || test "$atomicity_dir" = "cpu/generic/atomicity_builtins"; then
-    AC_DEFINE(_GLIBCXX_ATOMIC_BUILTINS, 1,
-    [Define if the compiler supports C++11 atomics.])
+    AC_DEFINE(_GLIBCXX_ATOMIC_WORD_BUILTINS, 1,
+    [Define if the compiler supports native atomics for _Atomic_word.])
     atomicity_dir=cpu/generic/atomicity_builtins
   fi
 
@@ -4221,6 +4071,8 @@ changequote([,])dnl
     : All versions of gold support symbol versioning.
   elif test $glibcxx_ld_is_mold = yes ; then
     : All versions of mold support symbol versioning.
+  elif test $glibcxx_ld_is_wild = yes ; then
+    : All versions of Wild support symbol versioning.
   elif test $glibcxx_gnu_ld_version -lt $glibcxx_min_gnu_ld_version ; then
     # The right tools, the right setup, but too old.  Fallbacks?
     AC_MSG_WARN(=== Linker version $glibcxx_gnu_ld_version is too old for)
@@ -4233,7 +4085,7 @@ changequote([,])dnl
 fi
 
 # For libtool versioning info, format is CURRENT:REVISION:AGE
-libtool_VERSION=6:34:0
+libtool_VERSION=6:35:0
 
 # Everything parsed; figure out what files and settings to use.
 case $enable_symvers in
@@ -4345,9 +4197,7 @@ dnl Substs:
 dnl  thread_header
 dnl
 AC_DEFUN([GLIBCXX_ENABLE_THREADS], [
-  AC_MSG_CHECKING([for thread model used by GCC])
-  target_thread_file=`$CXX -v 2>&1 | sed -n 's/^Thread model: //p'`
-  AC_MSG_RESULT([$target_thread_file])
+  AC_REQUIRE([GCC_AC_THREAD_MODEL])
   GCC_AC_THREAD_HEADER([$target_thread_file])
 ])
 
@@ -4360,6 +4210,7 @@ dnl
 dnl GLIBCXX_ENABLE_SYMVERS must be done before this.
 dnl
 AC_DEFUN([GLIBCXX_CHECK_GTHREADS], [
+  AC_REQUIRE([GCC_AC_THREAD_MODEL])
   GLIBCXX_ENABLE(libstdcxx-threads,auto,,[enable C++11 threads support])
 
   if test x$enable_libstdcxx_threads = xauto ||
@@ -4372,7 +4223,6 @@ AC_DEFUN([GLIBCXX_CHECK_GTHREADS], [
   CXXFLAGS="$CXXFLAGS -fno-exceptions \
 	-I${toplevel_srcdir}/libgcc -I${toplevel_builddir}/libgcc"
 
-  target_thread_file=`$CXX -v 2>&1 | sed -n 's/^Thread model: //p'`
   case $target_thread_file in
     posix)
       CXXFLAGS="$CXXFLAGS -DSUPPORTS_WEAK -DGTHREAD_USE_WEAK -D_PTHREADS"
@@ -4450,43 +4300,6 @@ AC_DEFUN([GLIBCXX_CHECK_GTHREADS], [
       CPPFLAGS="$CPPFLAGS -D_WIN32_WINNT=0x0600"
     fi
   fi
-
-  AC_CHECK_HEADER(semaphore.h, [
-    AC_MSG_CHECKING([for POSIX Semaphores and sem_timedwait])
-    AC_TRY_COMPILE([
-	#include <unistd.h>
-	#include <semaphore.h>
-	#include <limits.h>
-      ],
-      [
-	#if !defined _POSIX_TIMEOUTS || _POSIX_TIMEOUTS <= 0
-	# error "POSIX Timeouts option not supported"
-	#elif !defined _POSIX_SEMAPHORES || _POSIX_SEMAPHORES <= 0
-	# error "POSIX Semaphores option not supported"
-	#else
-	#if defined SEM_VALUE_MAX
-	constexpr int sem_value_max = SEM_VALUE_MAX;
-	#elif defined _POSIX_SEM_VALUE_MAX
-	constexpr int sem_value_max = _POSIX_SEM_VALUE_MAX;
-	#else
-	# error "SEM_VALUE_MAX not available"
-	#endif
-	sem_t sem;
-	sem_init(&sem, 0, sem_value_max);
-	struct timespec ts = { 0 };
-	sem_timedwait(&sem, &ts);
-	#endif
-      ],
-      [ac_have_posix_semaphore=yes],
-      [ac_have_posix_semaphore=no])],
-      [ac_have_posix_semaphore=no])
-
-  if test $ac_have_posix_semaphore = yes ; then
-    AC_DEFINE(HAVE_POSIX_SEMAPHORE,
-	      1,
-	      [Define to 1 if POSIX Semaphores with sem_timedwait are available in <semaphore.h>.])
-  fi
-  AC_MSG_RESULT([$ac_have_posix_semaphore])
 
   CXXFLAGS="$ac_save_CXXFLAGS"
   AC_LANG_RESTORE
@@ -4706,7 +4519,7 @@ AC_DEFUN([GLIBCXX_CHECK_PTHREAD_MUTEX_CLOCKLOCK], [
       [glibcxx_cv_PTHREAD_MUTEX_CLOCKLOCK=no])
   ])
   if test $glibcxx_cv_PTHREAD_MUTEX_CLOCKLOCK = yes; then
-    AC_DEFINE(_GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK, (_GLIBCXX_TSAN==0), [Define if pthread_mutex_clocklock is available in <pthread.h>.])
+    AC_DEFINE(_GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK, 1, [Define if pthread_mutex_clocklock is available in <pthread.h>.])
   fi
 
   CXXFLAGS="$ac_save_CXXFLAGS"
@@ -5448,8 +5261,77 @@ AC_DEFUN([GLIBCXX_ENABLE_BACKTRACE], [
 
   BACKTRACE_CPPFLAGS="-D_GNU_SOURCE"
 
-  # libbacktrace only needs atomics for int, which we've already tested
-  if test "$glibcxx_cv_atomic_int" = "yes"; then
+  AC_LANG_CPLUSPLUS
+  old_CXXFLAGS="$CXXFLAGS"
+
+  # libbacktrace's own configure.ac only tests atomics for int,
+  # but the code actually uses atomics for size_t and pointers as well.
+  if test "$atomic_builtins_link_tests" = yes; then
+
+    CXXFLAGS='-O0'
+
+    AC_CACHE_CHECK([for atomic builtins for libbacktrace],
+	glibcxx_cv_libbacktrace_atomics,
+	[AC_TRY_LINK([], [
+	    int i = 0;
+	    int* p = &i;
+	    __SIZE_TYPE__ s = 0;
+	    // backtrace_atomic_load_pointer
+	    void* vp = __atomic_load_n(&p, __ATOMIC_ACQUIRE);
+	    // backtrace_atomic_load_int
+	    int i2 = __atomic_load_n(&i, __ATOMIC_ACQUIRE);
+	    // backtrace_atomic_store_pointer
+	    __atomic_store_n(&p, &i, __ATOMIC_RELEASE);
+	    // backtrace_atomic_store_size_t
+	    __atomic_store_n(&s, s, __ATOMIC_RELEASE);
+	    // backtrace_atomic_store_int
+	    __atomic_store_n(&i, i, __ATOMIC_RELEASE);
+			 ],
+		     [glibcxx_cv_libbacktrace_atomics=yes],
+		     [glibcxx_cv_libbacktrace_atomics=no])])
+
+  else
+    # Do asm tests.
+
+    CXXFLAGS='-O0 -S'
+
+    cat > conftest.$ac_ext << EOF
+[#]line __oline__ "configure"
+[#]include <stddef.h>
+int main()
+{
+  int i = 0;
+  int* p = &i;
+  __SIZE_TYPE__ s = 0;
+  // backtrace_atomic_load_pointer
+  void* vp = __atomic_load_n(&p, __ATOMIC_ACQUIRE);
+  // backtrace_atomic_load_int
+  int i2 = __atomic_load_n(&i, __ATOMIC_ACQUIRE);
+  // backtrace_atomic_store_pointer
+  __atomic_store_n(&p, &i, __ATOMIC_RELEASE);
+  // backtrace_atomic_store_size_t
+  __atomic_store_n(&s, s, __ATOMIC_RELEASE);
+  // backtrace_atomic_store_int
+  __atomic_store_n(&i, i, __ATOMIC_RELEASE);
+}
+EOF
+
+    AC_MSG_CHECKING([for atomic builtins for libbacktrace])
+    if AC_TRY_EVAL(ac_compile); then
+      if grep -E '__atomic_|__sync_' conftest.s >/dev/null 2>&1 ; then
+	glibcxx_cv_libbacktrace_atomics=no
+      else
+	glibcxx_cv_libbacktrace_atomics=yes
+      fi
+    fi
+    AC_MSG_RESULT($glibcxx_cv_libbacktrace_atomics)
+    rm -f conftest*
+  fi
+
+  CXXFLAGS="$old_CXXFLAGS"
+  AC_LANG_RESTORE
+
+  if test "$glibcxx_cv_libbacktrace_atomics" = yes; then
     BACKTRACE_CPPFLAGS="$BACKTRACE_CPPFLAGS -DHAVE_ATOMIC_FUNCTIONS=1"
   fi
 
@@ -5894,6 +5776,132 @@ AC_LANG_SAVE
 
   AC_LANG_RESTORE
 ])
+
+dnl
+dnl Check whether the dependencies for std::is_debugger_present are available.
+dnl
+dnl Defines:
+dnl   _GLIBCXX_USE_PTRACE if ptrace(int, pid_t, int, int) is in <sys/ptrace.h>.
+dnl   _GLIBCXX_USE_PROC_SELF_STATUS if /proc/self/status should be used.
+dnl
+AC_DEFUN([GLIBCXX_CHECK_DEBUGGING], [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+
+  AC_CHECK_HEADERS([sys/ptrace.h debugapi.h])
+
+  case "$target_os" in
+    linux*)
+      AC_DEFINE([_GLIBCXX_USE_PROC_SELF_STATUS],1,
+		[Define if /proc/self/status should be used for <debugging>.])
+      ;;
+  esac
+
+  AC_MSG_CHECKING([whether ptrace(int, pid_t, int, int) is in <sys/ptrace.h>])
+  AC_TRY_COMPILE([
+  #include <sys/ptrace.h>
+  ],[
+    int i = ptrace(PTRACE_TRACEME, (pid_t)0, 1, 0);
+  ], [ac_ptrace=yes], [ac_ptrace=no])
+  AC_MSG_RESULT($ac_ptrace)
+  if test "$ac_ptrace" = yes; then
+    AC_DEFINE_UNQUOTED(_GLIBCXX_USE_PTRACE, 1,
+      [Define if ptrace should be used for std::is_debugger_present.])
+  fi
+
+  AC_LANG_RESTORE
+])
+
+dnl
+dnl Check whether the dependencies for optimized std::print are available.
+dnl
+dnl Defines:
+dnl   _GLIBCXX_USE_STDIO_LOCKING if flockfile, putc_unlocked etc. are present.
+dnl   _GLIBCXX_USE_GLIBC_STDIO_EXT if FILE::_IO_write_ptr etc. are also present.
+dnl
+AC_DEFUN([GLIBCXX_CHECK_STDIO_LOCKING], [
+AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+
+  AC_MSG_CHECKING([whether flockfile and putc_unlocked are defined in <stdio.h>])
+  AC_TRY_COMPILE([
+  #include <stdio.h>
+  #if __has_include(<newlib.h>)
+  # ifdef __CYGWIN__
+    // Cygwin has working flockfile
+  # else
+  #  error No usable flockfile on most newlib targets
+  # endif
+  #endif
+  ],[
+    FILE* f = ::fopen("", "");
+    ::flockfile(f);
+    ::putc_unlocked(' ', f);
+    ::funlockfile(f);
+    ::fclose(f);
+  ],[ac_stdio_locking=yes],[ac_stdio_locking=no])
+  AC_MSG_RESULT($ac_stdio_locking)
+
+  if test "$ac_stdio_locking" = yes; then
+    AC_DEFINE_UNQUOTED(_GLIBCXX_USE_STDIO_LOCKING, 1,
+      [Define if flockfile and putc_unlocked should be used for std::print.])
+
+    # This is not defined in POSIX, but is present in glibc, musl, and Solaris.
+    AC_MSG_CHECKING([whether fwrite_unlocked is defined in <stdio.h>])
+    AC_TRY_COMPILE([
+    #include <stdio.h>
+    ],[
+      FILE* f = ::fopen("", "");
+      ::flockfile(f);
+      ::fwrite_unlocked("", 1, 1, f);
+      ::funlockfile(f);
+      ::fclose(f);
+    ], [ac_fwrite_unlocked=yes], [ac_fwrite_unlocked=no])
+    AC_MSG_RESULT($ac_fwrite_unlocked)
+    if test "$ac_fwrite_unlocked" = yes; then
+      AC_DEFINE(HAVE_FWRITE_UNLOCKED, 1,
+	[Define if fwrite_unlocked can be used for std::print.])
+
+      # Check for Glibc-specific FILE members and <stdio_ext.h> extensions.
+      case "${target_os}" in
+	gnu* | linux* | kfreebsd*-gnu | knetbsd*-gnu)
+	  AC_MSG_CHECKING([for FILE::_IO_write_ptr and <stdio_ext.h>])
+	  AC_TRY_COMPILE([
+	  #include <stdio.h>
+	  #include <stdio_ext.h>
+	  extern "C" {
+	   using f1_type = int (*)(FILE*) noexcept;
+	   using f2_type = size_t (*)(FILE*) noexcept;
+	  }
+	  ],[
+	  f1_type twritable = &::__fwritable;
+	  f1_type tblk = &::__flbf; 
+	  f2_type pbufsize = &::__fbufsize;
+	  FILE* f = ::fopen("", "");
+	  int i = ::__overflow(f, EOF);
+	  bool writeable = ::__fwritable(f);
+	  bool line_buffered = ::__flbf(f);
+	  size_t bufsz = ::__fbufsize(f);
+	  char*& pptr = f->_IO_write_ptr;
+	  char*& epptr = f->_IO_buf_end;
+	  ::fflush_unlocked(f);
+	  ::fclose(f);
+	  ], [ac_glibc_stdio=yes], [ac_glibc_stdio=no])
+	  AC_MSG_RESULT($ac_glibc_stdio)
+	  if test "$ac_glibc_stdio" = yes; then
+	    AC_DEFINE_UNQUOTED(_GLIBCXX_USE_GLIBC_STDIO_EXT, 1,
+	      [Define if Glibc FILE internals should be used for std::print.])
+	  fi
+	  ;;
+	*)
+	  ;;
+      esac
+    fi
+  fi
+
+  AC_LANG_RESTORE
+])
+
 
 # Macros from the top-level gcc directory.
 m4_include([../config/gc++filt.m4])

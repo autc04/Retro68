@@ -70,11 +70,34 @@ PatternBindingBuilder::visit (HIR::SlicePattern &pattern)
     return ty->as<TyTy::SliceType> ()->get_element_type ();
   });
 
-  // Regions are unchnaged.
+  // Regions are unchanged.
 
-  for (auto &item : pattern.get_items ())
+  switch (pattern.get_items ().get_item_type ())
     {
-      item->accept_vis (*this);
+    case HIR::SlicePatternItems::NO_REST:
+      {
+	auto &items
+	  = static_cast<HIR::SlicePatternItemsNoRest &> (pattern.get_items ());
+	for (auto &member : items.get_patterns ())
+	  {
+	    member->accept_vis (*this);
+	  }
+	break;
+      }
+    case HIR::SlicePatternItems::HAS_REST:
+      {
+	auto &items
+	  = static_cast<HIR::SlicePatternItemsHasRest &> (pattern.get_items ());
+	for (auto &member : items.get_lower_patterns ())
+	  {
+	    member->accept_vis (*this);
+	  }
+	for (auto &member : items.get_upper_patterns ())
+	  {
+	    member->accept_vis (*this);
+	  }
+	break;
+      }
     }
 }
 
@@ -101,7 +124,8 @@ PatternBindingBuilder::visit (HIR::StructPattern &pattern)
     {
       switch (field->get_item_type ())
 	{
-	  case HIR::StructPatternField::TUPLE_PAT: {
+	case HIR::StructPatternField::TUPLE_PAT:
+	  {
 	    auto tuple
 	      = static_cast<HIR::StructPatternFieldTuplePat *> (field.get ());
 
@@ -123,7 +147,8 @@ PatternBindingBuilder::visit (HIR::StructPattern &pattern)
 	    tuple->get_tuple_pattern ().accept_vis (*this);
 	    break;
 	  }
-	  case HIR::StructPatternField::IDENT_PAT: {
+	case HIR::StructPatternField::IDENT_PAT:
+	  {
 	    auto ident_field
 	      = static_cast<HIR::StructPatternFieldIdentPat *> (field.get ());
 	    TyTy::StructFieldType *field_ty = nullptr;
@@ -139,7 +164,8 @@ PatternBindingBuilder::visit (HIR::StructPattern &pattern)
 	    ident_field->get_pattern ().accept_vis (*this);
 	    break;
 	  }
-	  case HIR::StructPatternField::IDENT: {
+	case HIR::StructPatternField::IDENT:
+	  {
 	    auto ident_field
 	      = static_cast<HIR::StructPatternFieldIdent *> (field.get ());
 	    TyTy::StructFieldType *field_ty = nullptr;
@@ -199,15 +225,17 @@ PatternBindingBuilder::visit (HIR::TuplePattern &pattern)
   size_t index = 0;
   switch (pattern.get_items ().get_item_type ())
     {
-      case HIR::TuplePatternItems::MULTIPLE: {
-	auto &items = static_cast<HIR::TuplePatternItemsMultiple &> (
-	  pattern.get_items ());
+    case HIR::TuplePatternItems::NO_REST:
+      {
+	auto &items
+	  = static_cast<HIR::TuplePatternItemsNoRest &> (pattern.get_items ());
 	visit_tuple_fields (items.get_patterns (), saved, index);
 	break;
       }
-      case HIR::TuplePatternItems::RANGED: {
+    case HIR::TuplePatternItems::HAS_REST:
+      {
 	auto &items
-	  = static_cast<HIR::TuplePatternItemsRanged &> (pattern.get_items ());
+	  = static_cast<HIR::TuplePatternItemsHasRest &> (pattern.get_items ());
 
 	auto tyty = ctx.place_db[init.value ()].tyty;
 	rust_assert (tyty->get_kind () == TyTy::TUPLE);
@@ -244,9 +272,10 @@ PatternBindingBuilder::visit (HIR::TupleStructPattern &pattern)
   size_t index = 0;
   switch (pattern.get_items ().get_item_type ())
     {
-      case HIR::TupleStructItems::RANGED: {
+    case HIR::TupleStructItems::HAS_REST:
+      {
 	auto &items
-	  = static_cast<HIR::TupleStructItemsRange &> (pattern.get_items ());
+	  = static_cast<HIR::TupleStructItemsHasRest &> (pattern.get_items ());
 
 	rust_assert (type->get_kind () == TyTy::ADT);
 	auto adt_ty = static_cast<TyTy::ADTType *> (type);
@@ -261,9 +290,10 @@ PatternBindingBuilder::visit (HIR::TupleStructPattern &pattern)
 	visit_tuple_fields (items.get_upper_patterns (), saved, index);
 	break;
       }
-      case HIR::TupleStructItems::MULTIPLE: {
+    case HIR::TupleStructItems::NO_REST:
+      {
 	auto &items
-	  = static_cast<HIR::TupleStructItemsNoRange &> (pattern.get_items ());
+	  = static_cast<HIR::TupleStructItemsNoRest &> (pattern.get_items ());
 	visit_tuple_fields (items.get_patterns (), saved, index);
 	break;
       }

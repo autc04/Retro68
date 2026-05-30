@@ -1,7 +1,7 @@
 #as: -mevexwig=1
 #objdump: -dw
 #name: i386 AVX512F/VAES wig insns
-#source: avx512f_vaes-wig.s
+#source: avx512f_vaes.s
 
 .*: +file format .*
 

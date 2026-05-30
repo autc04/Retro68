@@ -9,7 +9,7 @@
 Disassembly of section .text:
 
 0+ <_start>:
- +[a-f0-9]+:	f3 aa                	rep stos %al,%es:\(%rdi\)
+ +[a-f0-9]+:	f3 aa                	rep stos %al,\(%rdi\)
  +[a-f0-9]+:	48 83 0c 24 00       	orq    \$0x0,\(%rsp\)
  +[a-f0-9]+:	0f ae e8             	lfence
  +[a-f0-9]+:	f3 c3                	repz ret

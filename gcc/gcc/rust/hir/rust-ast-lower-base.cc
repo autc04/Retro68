@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -44,6 +44,38 @@ ASTLoweringBase::visit (AST::ErrorPropagationExpr &expr)
   rust_fatal_error (expr.get_locus (),
 		    "missing desugar for question mark operator");
   rust_unreachable ();
+}
+
+void
+ASTLoweringBase::visit (AST::TryExpr &expr)
+{
+  rust_fatal_error (expr.get_locus (), "missing desugar for try-blocks");
+  rust_unreachable ();
+}
+
+void
+ASTLoweringBase::visit (AST::ForLoopExpr &expr)
+{
+  rust_fatal_error (expr.get_locus (), "missing desugar for for-loops");
+  rust_unreachable ();
+}
+
+void
+ASTLoweringBase::visit (AST::WhileLetLoopExpr &expr)
+{
+  rust_fatal_error (expr.get_locus (), "missing desugar for while-let loops");
+  rust_unreachable ();
+}
+
+void
+ASTLoweringBase::visit (AST::Attribute &attribute)
+{
+  auto &path = attribute.get_path ();
+  if (path.as_string () == "derive")
+    {
+      rust_fatal_error (attribute.get_locus (),
+			"missing desugar for attribute");
+    }
 }
 
 void
@@ -108,14 +140,15 @@ ASTLoweringBase::visit (AST::LiteralExpr &)
 void
 ASTLoweringBase::visit (AST::AttrInputLiteral &)
 {}
+
 void
-ASTLoweringBase::visit (AST::AttrInputMacro &)
+ASTLoweringBase::visit (AST::AttrInputExpr &)
 {}
 void
 ASTLoweringBase::visit (AST::MetaItemLitExpr &)
 {}
 void
-ASTLoweringBase::visit (AST::MetaItemPathLit &)
+ASTLoweringBase::visit (AST::MetaItemPathExpr &)
 {}
 void
 ASTLoweringBase::visit (AST::BorrowExpr &)
@@ -201,6 +234,12 @@ void
 ASTLoweringBase::visit (AST::BlockExpr &)
 {}
 void
+ASTLoweringBase::visit (AST::AnonConst &)
+{}
+void
+ASTLoweringBase::visit (AST::ConstBlock &)
+{}
+void
 ASTLoweringBase::visit (AST::ClosureExprInnerTyped &)
 {}
 void
@@ -245,12 +284,6 @@ void
 ASTLoweringBase::visit (AST::WhileLoopExpr &)
 {}
 void
-ASTLoweringBase::visit (AST::WhileLetLoopExpr &)
-{}
-void
-ASTLoweringBase::visit (AST::ForLoopExpr &)
-{}
-void
 ASTLoweringBase::visit (AST::IfExpr &)
 {}
 void
@@ -265,6 +298,10 @@ ASTLoweringBase::visit (AST::IfLetExprConseqElse &)
 
 void
 ASTLoweringBase::visit (AST::InlineAsm &)
+{}
+
+void
+ASTLoweringBase::visit (AST::LlvmInlineAsm &)
 {}
 
 //  void ASTLoweringBase::visit(MatchCasematch_case) {}
@@ -345,9 +382,6 @@ ASTLoweringBase::visit (AST::ConstantItem &)
 {}
 void
 ASTLoweringBase::visit (AST::StaticItem &)
-{}
-void
-ASTLoweringBase::visit (AST::TraitItemConst &)
 {}
 void
 ASTLoweringBase::visit (AST::TraitItemType &)
@@ -448,26 +482,32 @@ ASTLoweringBase::visit (AST::StructPattern &)
 {}
 //  void ASTLoweringBase::visit(TupleStructItemstuple_items) {}
 void
-ASTLoweringBase::visit (AST::TupleStructItemsNoRange &)
+ASTLoweringBase::visit (AST::TupleStructItemsNoRest &)
 {}
 void
-ASTLoweringBase::visit (AST::TupleStructItemsRange &)
+ASTLoweringBase::visit (AST::TupleStructItemsHasRest &)
 {}
 void
 ASTLoweringBase::visit (AST::TupleStructPattern &)
 {}
 //  void ASTLoweringBase::visit(TuplePatternItemstuple_items) {}
 void
-ASTLoweringBase::visit (AST::TuplePatternItemsMultiple &)
+ASTLoweringBase::visit (AST::TuplePatternItemsNoRest &)
 {}
 void
-ASTLoweringBase::visit (AST::TuplePatternItemsRanged &)
+ASTLoweringBase::visit (AST::TuplePatternItemsHasRest &)
 {}
 void
 ASTLoweringBase::visit (AST::TuplePattern &)
 {}
 void
 ASTLoweringBase::visit (AST::GroupedPattern &)
+{}
+void
+ASTLoweringBase::visit (AST::SlicePatternItemsNoRest &)
+{}
+void
+ASTLoweringBase::visit (AST::SlicePatternItemsHasRest &)
 {}
 void
 ASTLoweringBase::visit (AST::SlicePattern &)
@@ -547,6 +587,10 @@ void
 ASTLoweringBase::visit (AST::FormatArgs &fmt)
 {}
 
+void
+ASTLoweringBase::visit (AST::OffsetOf &offset_of)
+{}
+
 HIR::Lifetime
 ASTLoweringBase::lower_lifetime (AST::Lifetime &lifetime,
 				 bool default_to_static_lifetime)
@@ -587,11 +631,10 @@ ASTLoweringBase::lower_generic_params (
   std::vector<std::unique_ptr<AST::GenericParam>> &params)
 {
   std::vector<std::unique_ptr<HIR::GenericParam>> lowered;
+  lowered.reserve (params.size ());
+
   for (auto &ast_param : params)
-    {
-      auto hir_param = ASTLowerGenericParam::translate (*ast_param);
-      lowered.push_back (std::unique_ptr<HIR::GenericParam> (hir_param));
-    }
+    lowered.emplace_back (ASTLowerGenericParam::translate (*ast_param));
 
   return lowered;
 }
@@ -624,18 +667,16 @@ HIR::GenericArgs
 ASTLoweringBase::lower_generic_args (AST::GenericArgs &args)
 {
   std::vector<HIR::GenericArgsBinding> binding_args;
+  binding_args.reserve (args.get_binding_args ().size ());
+
   for (auto &binding : args.get_binding_args ())
-    {
-      HIR::GenericArgsBinding b = lower_binding (binding);
-      binding_args.push_back (std::move (b));
-    }
+    binding_args.emplace_back (lower_binding (binding));
 
   std::vector<HIR::Lifetime> lifetime_args;
+  lifetime_args.reserve (args.get_lifetime_args ().size ());
+
   for (auto &lifetime : args.get_lifetime_args ())
-    {
-      HIR::Lifetime l = lower_lifetime (lifetime);
-      lifetime_args.push_back (std::move (l));
-    }
+    lifetime_args.emplace_back (lower_lifetime (lifetime));
 
   std::vector<std::unique_ptr<HIR::Type>> type_args;
   std::vector<HIR::ConstGenericArg> const_args;
@@ -644,16 +685,17 @@ ASTLoweringBase::lower_generic_args (AST::GenericArgs &args)
     {
       switch (arg.get_kind ())
 	{
-	  case AST::GenericArg::Kind::Type: {
-	    auto type = ASTLoweringType::translate (arg.get_type ());
-	    type_args.emplace_back (std::unique_ptr<HIR::Type> (type));
+	case AST::GenericArg::Kind::Type:
+	  {
+	    type_args.emplace_back (
+	      ASTLoweringType::translate (arg.get_type ()));
 	    break;
 	  }
-	  case AST::GenericArg::Kind::Const: {
+	case AST::GenericArg::Kind::Const:
+	  {
 	    auto expr = ASTLoweringExpr::translate (arg.get_expression ());
-	    const_args.emplace_back (
-	      HIR::ConstGenericArg (std::unique_ptr<HIR::Expr> (expr),
-				    expr->get_locus ()));
+	    const_args.emplace_back (std::unique_ptr<HIR::Expr> (expr),
+				     expr->get_locus ());
 	    break;
 	  }
 	default:
@@ -790,9 +832,11 @@ void
 ASTLoweringBase::handle_doc_item_attribute (const ItemWrapper &,
 					    const AST::Attribute &attr)
 {
-  auto simple_doc_comment = attr.has_attr_input ()
-			    && attr.get_attr_input ().get_attr_input_type ()
-				 == AST::AttrInput::AttrInputType::LITERAL;
+  rust_assert (attr.has_attr_input ());
+
+  auto simple_doc_comment = attr.get_attr_input ().get_attr_input_type ()
+			    == AST::AttrInput::AttrInputType::LITERAL;
+
   if (simple_doc_comment)
     return;
 
@@ -813,9 +857,10 @@ void
 ASTLoweringBase::handle_lang_item_attribute (const ItemWrapper &item,
 					     const AST::Attribute &attr)
 {
-  auto &literal = static_cast<AST::AttrInputLiteral &> (attr.get_attr_input ());
-  const auto &lang_item_type_str = literal.get_literal ().as_string ();
-  auto lang_item_type = LangItem::Parse (lang_item_type_str);
+  auto lang_item_type_str = Analysis::Attributes::extract_string_literal (attr);
+  rust_assert (lang_item_type_str.has_value ());
+
+  auto lang_item_type = LangItem::Parse (*lang_item_type_str);
 
   if (lang_item_type)
     mappings.insert_lang_item (*lang_item_type,
@@ -840,41 +885,71 @@ ASTLoweringBase::attribute_handled_in_another_pass (
 
 std::unique_ptr<HIR::TuplePatternItems>
 ASTLoweringBase::lower_tuple_pattern_multiple (
-  AST::TuplePatternItemsMultiple &pattern)
+  AST::TuplePatternItemsNoRest &pattern)
 {
   std::vector<std::unique_ptr<HIR::Pattern>> patterns;
+  patterns.reserve (pattern.get_patterns ().size ());
+
   for (auto &p : pattern.get_patterns ())
-    {
-      HIR::Pattern *translated = ASTLoweringPattern::translate (*p);
-      patterns.push_back (std::unique_ptr<HIR::Pattern> (translated));
-    }
+    patterns.emplace_back (ASTLoweringPattern::translate (*p));
 
   return std::unique_ptr<HIR::TuplePatternItems> (
-    new HIR::TuplePatternItemsMultiple (std::move (patterns)));
+    new HIR::TuplePatternItemsNoRest (std::move (patterns)));
 }
 
 std::unique_ptr<TuplePatternItems>
 ASTLoweringBase::lower_tuple_pattern_ranged (
-  AST::TuplePatternItemsRanged &pattern)
+  AST::TuplePatternItemsHasRest &pattern)
 {
   std::vector<std::unique_ptr<HIR::Pattern>> lower_patterns;
+  lower_patterns.reserve (pattern.get_lower_patterns ().size ());
   std::vector<std::unique_ptr<HIR::Pattern>> upper_patterns;
+  upper_patterns.reserve (pattern.get_upper_patterns ().size ());
 
   for (auto &p : pattern.get_lower_patterns ())
-    {
-      HIR::Pattern *translated = ASTLoweringPattern::translate (*p);
-      lower_patterns.push_back (std::unique_ptr<HIR::Pattern> (translated));
-    }
+    lower_patterns.emplace_back (ASTLoweringPattern::translate (*p));
 
   for (auto &p : pattern.get_upper_patterns ())
-    {
-      HIR::Pattern *translated = ASTLoweringPattern::translate (*p);
-      upper_patterns.push_back (std::unique_ptr<HIR::Pattern> (translated));
-    }
+    upper_patterns.emplace_back (ASTLoweringPattern::translate (*p));
 
   return std::unique_ptr<HIR::TuplePatternItems> (
-    new HIR::TuplePatternItemsRanged (std::move (lower_patterns),
-				      std::move (upper_patterns)));
+    new HIR::TuplePatternItemsHasRest (std::move (lower_patterns),
+				       std::move (upper_patterns)));
+}
+
+std::unique_ptr<HIR::SlicePatternItems>
+ASTLoweringBase::lower_slice_pattern_no_rest (
+  AST::SlicePatternItemsNoRest &pattern)
+{
+  std::vector<std::unique_ptr<HIR::Pattern>> patterns;
+  patterns.reserve (pattern.get_patterns ().size ());
+  for (auto &p : pattern.get_patterns ())
+    patterns.emplace_back (ASTLoweringPattern::translate (*p));
+
+  return std::unique_ptr<HIR::SlicePatternItems> (
+    new HIR::SlicePatternItemsNoRest (std::move (patterns)));
+}
+
+std::unique_ptr<HIR::SlicePatternItems>
+ASTLoweringBase::lower_slice_pattern_has_rest (
+  AST::SlicePatternItemsHasRest &pattern)
+{
+  std::vector<std::unique_ptr<HIR::Pattern>> lower_patterns;
+  lower_patterns.reserve (pattern.get_lower_patterns ().size ());
+  std::vector<std::unique_ptr<HIR::Pattern>> upper_patterns;
+  upper_patterns.reserve (pattern.get_upper_patterns ().size ());
+
+  for (auto &p : pattern.get_lower_patterns ())
+    lower_patterns.emplace_back (
+      std::unique_ptr<HIR::Pattern> (ASTLoweringPattern::translate (*p)));
+
+  for (auto &p : pattern.get_upper_patterns ())
+    upper_patterns.emplace_back (
+      std::unique_ptr<HIR::Pattern> (ASTLoweringPattern::translate (*p)));
+
+  return std::unique_ptr<HIR::SlicePatternItems> (
+    new HIR::SlicePatternItemsHasRest (std::move (lower_patterns),
+				       std::move (upper_patterns)));
 }
 
 std::unique_ptr<HIR::RangePatternBound>
@@ -883,7 +958,8 @@ ASTLoweringBase::lower_range_pattern_bound (AST::RangePatternBound &bound)
   std::unique_ptr<HIR::RangePatternBound> hir_bound = nullptr;
   switch (bound.get_bound_type ())
     {
-      case AST::RangePatternBound::RangePatternBoundType::LITERAL: {
+    case AST::RangePatternBound::RangePatternBoundType::LITERAL:
+      {
 	AST::RangePatternBoundLiteral &ref
 	  = static_cast<AST::RangePatternBoundLiteral &> (bound);
 
@@ -894,7 +970,8 @@ ASTLoweringBase::lower_range_pattern_bound (AST::RangePatternBound &bound)
 					     ref.get_has_minus ()));
       }
       break;
-      case AST::RangePatternBound::RangePatternBoundType::PATH: {
+    case AST::RangePatternBound::RangePatternBoundType::PATH:
+      {
 	auto &ref = static_cast<AST::RangePatternBoundPath &> (bound);
 
 	HIR::PathInExpression *path
@@ -904,7 +981,8 @@ ASTLoweringBase::lower_range_pattern_bound (AST::RangePatternBound &bound)
 	  new HIR::RangePatternBoundPath (*path));
       }
       break;
-      case AST::RangePatternBound::RangePatternBoundType::QUALPATH: {
+    case AST::RangePatternBound::RangePatternBoundType::QUALPATH:
+      {
 	auto &ref = static_cast<AST::RangePatternBoundQualPath &> (bound);
 
 	HIR::QualifiedPathInExpression *qualpath
@@ -968,14 +1046,15 @@ ASTLoweringBase::lower_extern_block (AST::ExternBlock &extern_block)
 				 mappings.get_next_localdef_id (crate_num));
 
   std::vector<std::unique_ptr<HIR::ExternalItem>> extern_items;
+  extern_items.reserve (extern_block.get_extern_items ().size ());
+
   for (auto &item : extern_block.get_extern_items ())
     {
       if (item->is_marked_for_strip ())
 	continue;
 
-      HIR::ExternalItem *lowered
-	= ASTLoweringExternItem::translate (item.get (), mapping.get_hirid ());
-      extern_items.push_back (std::unique_ptr<HIR::ExternalItem> (lowered));
+      extern_items.emplace_back (
+	ASTLoweringExternItem::translate (item.get (), mapping.get_hirid ()));
     }
 
   ABI abi = ABI::C;

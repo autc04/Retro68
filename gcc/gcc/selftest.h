@@ -1,5 +1,5 @@
 /* A self-testing framework, for use by -fself-test.
-   Copyright (C) 2015-2025 Free Software Foundation, Inc.
+   Copyright (C) 2015-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -25,7 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #if CHECKING_P
 
-class file_cache;
+namespace diagnostics { class file_cache; }
 
 namespace selftest {
 
@@ -100,13 +100,13 @@ extern void assert_str_startswith (const location &loc,
 class named_temp_file
 {
  public:
-  named_temp_file (const char *suffix, file_cache *fc = nullptr);
+  named_temp_file (const char *suffix, diagnostics::file_cache *fc = nullptr);
   ~named_temp_file ();
   const char *get_filename () const { return m_filename; }
 
  private:
   char *m_filename;
-  file_cache *m_file_cache;
+  diagnostics::file_cache *m_file_cache;
 };
 
 /* A class for writing out a temporary sourcefile for use in selftests
@@ -116,7 +116,7 @@ class temp_source_file : public named_temp_file
 {
  public:
   temp_source_file (const location &loc, const char *suffix,
-		    const char *content, file_cache *fc = nullptr);
+		    const char *content, diagnostics::file_cache *fc = nullptr);
   temp_source_file (const location &loc, const char *suffix,
 		    const char *content, size_t sz);
 };
@@ -220,14 +220,9 @@ extern void attribs_cc_tests ();
 extern void bitmap_cc_tests ();
 extern void cgraph_cc_tests ();
 extern void convert_cc_tests ();
-extern void diagnostic_color_cc_tests ();
-extern void diagnostic_format_json_cc_tests ();
-extern void diagnostic_format_sarif_cc_tests ();
-extern void diagnostic_path_cc_tests ();
-extern void diagnostic_show_locus_cc_tests ();
+extern void dbgcnt_cc_tests ();
 extern void digraph_cc_tests ();
 extern void dumpfile_cc_tests ();
-extern void edit_context_cc_tests ();
 extern void et_forest_cc_tests ();
 extern void fibonacci_heap_cc_tests ();
 extern void fold_const_cc_tests ();
@@ -236,24 +231,26 @@ extern void gcc_attribute_urlifier_cc_tests ();
 extern void gcc_urlifier_cc_tests ();
 extern void ggc_tests_cc_tests ();
 extern void gimple_cc_tests ();
+extern void gimple_range_tests ();
+extern void graphviz_cc_tests ();
 extern void hash_map_tests_cc_tests ();
 extern void hash_set_tests_cc_tests ();
 extern void input_cc_tests ();
+extern void ipa_modref_tree_cc_tests ();
 extern void json_cc_tests ();
-extern void lazy_diagnostic_path_cc_tests ();
 extern void json_parser_cc_tests ();
+extern void opt_suggestions_cc_tests ();
 extern void optinfo_emit_json_cc_tests ();
 extern void opts_cc_tests ();
-extern void opts_diagnostic_cc_tests ();
 extern void ordered_hash_map_tests_cc_tests ();
 extern void path_coverage_cc_tests ();
 extern void predict_cc_tests ();
 extern void pretty_print_cc_tests ();
-extern void range_tests ();
+extern void pub_sub_cc_tests ();
 extern void range_op_tests ();
-extern void relation_tests ();
-extern void gimple_range_tests ();
+extern void range_tests ();
 extern void read_rtl_function_cc_tests ();
+extern void relation_tests ();
 extern void rtl_tests_cc_tests ();
 extern void sbitmap_cc_tests ();
 extern void selftest_cc_tests ();
@@ -271,9 +268,7 @@ extern void typed_splay_tree_cc_tests ();
 extern void vec_cc_tests ();
 extern void vec_perm_indices_cc_tests ();
 extern void wide_int_cc_tests ();
-extern void opt_suggestions_cc_tests ();
-extern void dbgcnt_cc_tests ();
-extern void ipa_modref_tree_cc_tests ();
+extern void xml_cc_tests ();
 
 extern int num_passes;
 

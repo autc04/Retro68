@@ -1,6 +1,6 @@
 # Test linking directly to S-records.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -226,11 +226,14 @@ proc run_srec_test { test objs } {
     global objcopy
     global sizeof_headers
     global host_triplet
+    global extra_flags
 
     # Tell the ELF linker to not do anything clever with .eh_frame,
     # not to put anything in small data, and define various symbols.
     set flags "--traditional-format -G 0 -e 0 "
     append flags [ld_link_defsyms]
+
+    append flags " $extra_flags"
 
     # If the linker script uses SIZEOF_HEADERS, use a -Ttext argument
     # to force both the normal link and the S-record link to be put in
@@ -345,6 +348,7 @@ set test2 "S-records with constructors"
 # See whether the default linker script uses SIZEOF_HEADERS.
 set exec_output [run_host_cmd "$ld" "--verbose"]
 set sizeof_headers [string match "*SIZEOF_HEADERS*" $exec_output]
+set extra_flags " $NO_MEMORY_SEAL_LDFLAGS"
 
 # First test linking a C program.  We don't require any libraries.  We
 # link it normally, and objcopy to the S-record format, and then link
@@ -360,25 +364,26 @@ if { ![check_compiler_available] } {
 # Pass -fplt to CC and CXX since -fno-plt doesn't work with S-records
 # tests. Also add $NOPIE_CFLAGS and $NOPIE_LDFLAGS if PIE doesn't work
 # with S-records.  Also add $NOCF_PROTECTION_CFLAGS for S-records.
-# Also add $NOSANITIZE_CFLAGS for S-records.
-set old_CFLAGS "$CFLAGS_FOR_TARGET"
-append CFLAGS_FOR_TARGET " $PLT_CFLAGS $NOPIE_CFLAGS $NOPIE_LDFLAGS $NOCF_PROTECTION_CFLAGS $NOSANITIZE_CFLAGS $NOLTO_CFLAGS"
-set old_CXXFLAGS "$CXXFLAGS_FOR_TARGET"
-append CXXFLAGS_FOR_TARGET " $PLT_CFLAGS $NOPIE_CFLAGS $NOPIE_LDFLAGS $NOCF_PROTECTION_CFLAGS $NOSANITIZE_CFLAGS $NOLTO_CFLAGS"
+# Also add $NOSANITIZE_CFLAGS for S-records.  Also add
+# $DIRECT_EXTERN_ACCESS_CFLAGS.
+set old_CFLAGS "$CFLAGS_FOR_TARGET_TEST"
+append CFLAGS_FOR_TARGET_TEST " $PLT_CFLAGS $NOPIE_CFLAGS $NOPIE_LDFLAGS $NOCF_PROTECTION_CFLAGS $NOSANITIZE_CFLAGS $NOLTO_CFLAGS $DIRECT_EXTERN_ACCESS_CFLAGS"
+set old_CXXFLAGS "$CXXFLAGS_FOR_TARGET_TEST"
+append CXXFLAGS_FOR_TARGET_TEST " $PLT_CFLAGS $NOPIE_CFLAGS $NOPIE_LDFLAGS $NOCF_PROTECTION_CFLAGS $NOSANITIZE_CFLAGS $NOLTO_CFLAGS $DIRECT_EXTERN_ACCESS_CFLAGS"
 
 # S-records can't handle .note.gnu.property sections.
 if { [is_elf_format] \
      && ([istarget "i?86-*-*"] || [istarget "x86_64-*-*"]) } {
-    append CFLAGS_FOR_TARGET " -Wa,-mx86-used-note=no"
-    append CXXFLAGS_FOR_TARGET " -Wa,-mx86-used-note=no"
+    append CFLAGS_FOR_TARGET_TEST " -Wa,-mx86-used-note=no"
+    append CXXFLAGS_FOR_TARGET_TEST " -Wa,-mx86-used-note=no"
 }
 
 if { ![ld_compile $CC_FOR_TARGET $srcdir/$subdir/sr1.c tmpdir/sr1.o] \
      || ![ld_compile $CC_FOR_TARGET $srcdir/$subdir/sr2.c tmpdir/sr2.o] } {
     unsupported $test1
     unsupported $test2
-    set CFLAGS_FOR_TARGET "$old_CFLAGS"
-    set CXXFLAGS_FOR_TARGET "$old_CXXFLAGS"
+    set CFLAGS_FOR_TARGET_TEST "$old_CFLAGS"
+    set CXXFLAGS_FOR_TARGET_TEST "$old_CXXFLAGS"
     return
 }
 
@@ -450,15 +455,15 @@ run_srec_test $test1 "tmpdir/sr1.o tmpdir/sr2.o"
 
 if { ![is_remote host] && [which $CXX_FOR_TARGET] == 0 } {
     untested $test2
-    set CFLAGS_FOR_TARGET "$old_CFLAGS"
-    set CXXFLAGS_FOR_TARGET "$old_CXXFLAGS"
+    set CFLAGS_FOR_TARGET_TEST "$old_CFLAGS"
+    set CXXFLAGS_FOR_TARGET_TEST "$old_CXXFLAGS"
     return
 }
 
 if ![ld_compile "$CXX_FOR_TARGET -fno-exceptions" $srcdir/$subdir/sr3.cc tmpdir/sr3.o] {
     unsupported $test2
-    set CFLAGS_FOR_TARGET "$old_CFLAGS"
-    set CXXFLAGS_FOR_TARGET "$old_CXXFLAGS"
+    set CFLAGS_FOR_TARGET_TEST "$old_CFLAGS"
+    set CXXFLAGS_FOR_TARGET_TEST "$old_CXXFLAGS"
     return
 }
 
@@ -484,5 +489,5 @@ setup_xfail "bpf-*-*"
 
 run_srec_test $test2 "tmpdir/sr3.o"
 
-set CFLAGS_FOR_TARGET "$old_CFLAGS"
-set CXXFLAGS_FOR_TARGET "$old_CXXFLAGS"
+set CFLAGS_FOR_TARGET_TEST "$old_CFLAGS"
+set CXXFLAGS_FOR_TARGET_TEST "$old_CXXFLAGS"

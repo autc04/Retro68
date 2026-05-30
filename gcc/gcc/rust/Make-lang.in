@@ -1,6 +1,6 @@
 # Make-lang.in -- Top level -*- makefile -*- fragment for GCC Rust frontend.
 
-# Copyright (C) 2009-2025 Free Software Foundation, Inc.
+# Copyright (C) 2009-2026 Free Software Foundation, Inc.
 
 # This file is part of GCC.
 
@@ -73,6 +73,8 @@ GRS_OBJS = \
     rust/rust-lex.o \
     rust/rust-cfg-parser.o \
     rust/rust-parse.o \
+    rust/rust-parse-impl-macro.o \
+    rust/rust-parse-impl-lexer.o \
     rust/rust-ast.o \
     rust/rust-ast-formatting.o \
     rust/rust-path.o \
@@ -81,6 +83,8 @@ GRS_OBJS = \
     rust/rust-ast-dump.o \
     rust/rust-ast-collector.o \
     rust/rust-ast-visitor.o \
+    rust/rust-ast-pointer-visitor.o \
+    rust/rust-hir-visitor.o \
     rust/rust-hir-dump.o \
     rust/rust-session-manager.o \
     rust/rust-compile.o \
@@ -90,20 +94,21 @@ GRS_OBJS = \
     rust/rust-compile-resolve-path.o \
     rust/rust-macro-expand.o \
     rust/rust-cfg-strip.o \
+    rust/rust-early-cfg-strip.o \
     rust/rust-expand-visitor.o \
     rust/rust-ast-builder.o \
-    rust/rust-ast-builder-type.o \
     rust/rust-derive.o \
+    rust/rust-derive-cmp-common.o \
     rust/rust-derive-clone.o \
     rust/rust-derive-copy.o \
     rust/rust-derive-debug.o \
     rust/rust-derive-default.o \
     rust/rust-derive-partial-eq.o \
     rust/rust-derive-eq.o \
+    rust/rust-derive-ord.o \
     rust/rust-derive-hash.o \
     rust/rust-proc-macro.o \
     rust/rust-macro-invoc-lexer.o \
-    rust/rust-proc-macro-invoc-lexer.o \
     rust/rust-macro-substitute-ctx.o \
     rust/rust-macro-builtins.o \
     rust/rust-macro-builtins-helpers.o \
@@ -113,6 +118,7 @@ GRS_OBJS = \
     rust/rust-macro-builtins-log-debug.o \
     rust/rust-macro-builtins-test-bench.o \
     rust/rust-macro-builtins-format-args.o \
+    rust/rust-macro-builtins-offset-of.o \
     rust/rust-macro-builtins-location.o \
     rust/rust-macro-builtins-include.o \
     rust/rust-token-tree-desugar.o \
@@ -120,10 +126,11 @@ GRS_OBJS = \
     rust/rust-hir.o \
     rust/rust-hir-map.o \
     rust/rust-attributes.o \
+    rust/rust-attribute-checker.o \
+    rust/rust-builtin-attribute-checker.o \
     rust/rust-keyword-values.o \
     rust/rust-abi.o \
     rust/rust-token-converter.o \
-    rust/rust-macro.o \
     rust/rust-ast-lower.o \
     rust/rust-ast-lower-base.o \
     rust/rust-ast-lower-pattern.o \
@@ -141,18 +148,10 @@ GRS_OBJS = \
 	rust/rust-finalize-imports-2.0.o \
 	rust/rust-ice-finalizer.o \
     rust/rust-late-name-resolver-2.0.o \
+    rust/rust-identifier-path.o \
 	rust/rust-immutable-name-resolution-context.o \
-    rust/rust-early-name-resolver.o \
     rust/rust-name-resolver.o \
-    rust/rust-ast-resolve.o \
-    rust/rust-ast-resolve-base.o \
-    rust/rust-ast-resolve-item.o \
-    rust/rust-ast-resolve-pattern.o \
-    rust/rust-ast-resolve-expr.o \
-    rust/rust-ast-resolve-type.o \
-    rust/rust-ast-resolve-path.o \
-    rust/rust-ast-resolve-stmt.o \
-    rust/rust-ast-resolve-struct-expr-field.o \
+    rust/rust-resolve-builtins.o \
     rust/rust-forever-stack.o \
     rust/rust-hir-type-check.o \
     rust/rust-privacy-check.o \
@@ -203,10 +202,14 @@ GRS_OBJS = \
     rust/rust-const-checker.o \
     rust/rust-lint-marklive.o \
     rust/rust-lint-unused-var.o \
+    rust/rust-unused-checker.o \
+    rust/rust-unused-collector.o \
+    rust/rust-unused-context.o \
     rust/rust-readonly-check.o \
     rust/rust-hir-type-check-path.o \
     rust/rust-unsafe-checker.o \
     rust/rust-hir-pattern-analysis.o \
+    rust/rust-intrinsic-handlers.o \
     rust/rust-compile-intrinsic.o \
     rust/rust-compile-pattern.o \
     rust/rust-compile-fnparam.o \
@@ -231,17 +234,24 @@ GRS_OBJS = \
     rust/rust-builtins.o \
     rust/rust-feature.o \
     rust/rust-feature-gate.o \
+    rust/rust-feature-store.o \
+    rust/rust-feature-collector.o \
     rust/rust-ast-validation.o \
     rust/rust-dir-owner.o \
     rust/rust-unicode.o \
     rust/rust-punycode.o \
     rust/rust-unwrap-segment.o \
     rust/rust-edition.o \
+    rust/rust-ggc.o \
 	rust/rust-expand-format-args.o \
 	rust/rust-lang-item.o \
 	rust/rust-collect-lang-items.o \
+	rust/rust-expression-yeast.o \
 	rust/rust-desugar-for-loops.o \
+	rust/rust-desugar-while-let.o \
 	rust/rust-desugar-question-mark.o \
+	rust/rust-desugar-apit.o \
+	rust/rust-desugar-try-block.o \
     $(END)
 # removed object files from here
 
@@ -430,8 +440,10 @@ RUST_INCLUDES = -I $(srcdir)/rust \
 	-I $(srcdir)/rust/typecheck \
 	-I $(srcdir)/rust/checks/lints \
 	-I $(srcdir)/rust/checks/errors \
+    -I $(srcdir)/rust/checks/lints/unused \
 	-I $(srcdir)/rust/checks/errors/privacy \
 	-I $(srcdir)/rust/checks/errors/borrowck \
+	-I $(srcdir)/rust/checks/errors/feature \
 	-I $(srcdir)/rust/util \
         -I $(srcdir)/rust/metadata \
 		-I $(srcdir)/../libgrust
@@ -499,8 +511,18 @@ rust/%.o: rust/checks/lints/%.cc
 	$(COMPILE) $(RUST_CXXFLAGS) $(RUST_INCLUDES) $<
 	$(POSTCOMPILE)
 
+# build unused checking pass files in rust folder
+rust/%.o: rust/checks/lints/unused/%.cc
+	$(COMPILE) $(RUST_CXXFLAGS) $(RUST_INCLUDES) $<
+	$(POSTCOMPILE)
+
 # build rust/checks/errors files in rust folder
 rust/%.o: rust/checks/errors/%.cc
+	$(COMPILE) $(RUST_CXXFLAGS) $(RUST_INCLUDES) $<
+	$(POSTCOMPILE)
+
+# build feature related files in rust folder
+rust/%.o: rust/checks/errors/feature/%.cc
 	$(COMPILE) $(RUST_CXXFLAGS) $(RUST_INCLUDES) $<
 	$(POSTCOMPILE)
 

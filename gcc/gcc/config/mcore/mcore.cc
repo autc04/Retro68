@@ -1,5 +1,5 @@
 /* Output routines for Motorola MCore processor
-   Copyright (C) 1993-2025 Free Software Foundation, Inc.
+   Copyright (C) 1993-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -202,10 +202,8 @@ TARGET_GNU_ATTRIBUTES (mcore_attribute_table,
 #define TARGET_MACHINE_DEPENDENT_REORG	mcore_reorg
 
 #undef  TARGET_PROMOTE_FUNCTION_MODE
-#define TARGET_PROMOTE_FUNCTION_MODE	default_promote_function_mode_always_promote
-#undef  TARGET_PROMOTE_PROTOTYPES
-#define TARGET_PROMOTE_PROTOTYPES	hook_bool_const_tree_true
-
+#define TARGET_PROMOTE_FUNCTION_MODE \
+  default_promote_function_mode_sign_extend
 #undef  TARGET_RETURN_IN_MEMORY
 #define TARGET_RETURN_IN_MEMORY		mcore_return_in_memory
 #undef  TARGET_MUST_PASS_IN_STACK
@@ -2984,9 +2982,7 @@ mcore_mark_dllimport (tree decl)
   /* ??? At least I think that's why we do this.  */
   idp = get_identifier (newname);
 
-  newrtl = gen_rtx_MEM (Pmode,
-		    gen_rtx_SYMBOL_REF (Pmode,
-			     IDENTIFIER_POINTER (idp)));
+  newrtl = gen_rtx_SYMBOL_REF (Pmode, IDENTIFIER_POINTER (idp));
   XEXP (DECL_RTL (decl), 0) = newrtl;
 }
 

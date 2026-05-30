@@ -1,6 +1,6 @@
 /* More subroutines needed by GCC output code on some machines.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1989-2025 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -1333,7 +1333,7 @@ bitint_reduce_prec (const UBILtype **p, SItype prec)
 		  if (prec >= -1)
 		    return -2;
 #if __LIBGCC_BITINT_ORDER__ == __ORDER_BIG_ENDIAN__
-		  ++p;
+		  ++*p;
 #else
 		  --i;
 #endif
@@ -1347,7 +1347,7 @@ bitint_reduce_prec (const UBILtype **p, SItype prec)
 	      if (prec >= -1)
 		return -2;
 #if __LIBGCC_BITINT_ORDER__ == __ORDER_BIG_ENDIAN__
-	      ++p;
+	      ++*p;
 #else
 	      --i;
 #endif
@@ -1358,7 +1358,7 @@ bitint_reduce_prec (const UBILtype **p, SItype prec)
 	      if ((Wtype) mslimb >= 0)
 		{
 #if __LIBGCC_BITINT_ORDER__ == __ORDER_BIG_ENDIAN__
-		  --p;
+		  --*p;
 #endif
 		  return prec - 1;
 		}
@@ -1387,7 +1387,7 @@ bitint_reduce_prec (const UBILtype **p, SItype prec)
 	  if (prec == 0)
 	    return 1;
 #if __LIBGCC_BITINT_ORDER__ == __ORDER_BIG_ENDIAN__
-	  ++p;
+	  ++*p;
 #else
 	  --i;
 #endif
@@ -1400,7 +1400,7 @@ bitint_reduce_prec (const UBILtype **p, SItype prec)
       if (prec == 0)
 	return 1;
 #if __LIBGCC_BITINT_ORDER__ == __ORDER_BIG_ENDIAN__
-      ++p;
+      ++*p;
 #else
       --i;
 #endif
@@ -2187,36 +2187,21 @@ __fixunssfDI (SFtype a)
   if (a < 1)
     return 0;
   if (a < Wtype_MAXp1_F)
-    return (UWtype)a;
+    return (UWtype) a;
   if (a < Wtype_MAXp1_F * Wtype_MAXp1_F)
     {
-      /* Since we know that there are fewer significant bits in the SFmode
-	 quantity than in a word, we know that we can convert out all the
-	 significant bits in one step, and thus avoid losing bits.  */
+      /* We assume that SFtype -> UWtype and UWtype -> UDWtype casts work
+         properly. Obviously, we *cannot* assume that SFtype -> UDWtype
+         works as expected.  */
+      SFtype a_hi, a_lo;
 
-      /* ??? This following loop essentially performs frexpf.  If we could
-	 use the real libm function, or poke at the actual bits of the fp
-	 format, it would be significantly faster.  */
+      a_hi = a / Wtype_MAXp1_F;
+      a_lo = a - a_hi * Wtype_MAXp1_F;
 
-      UWtype shift = 0, counter;
-      SFtype msb;
-
-      a /= Wtype_MAXp1_F;
-      for (counter = W_TYPE_SIZE / 2; counter != 0; counter >>= 1)
-	{
-	  SFtype counterf = (UWtype)1 << counter;
-	  if (a >= counterf)
-	    {
-	      shift |= counter;
-	      a /= counterf;
-	    }
-	}
-
-      /* Rescale into the range of one word, extract the bits of that
-	 one word, and shift the result into position.  */
-      a *= Wtype_MAXp1_F;
-      counter = a;
-      return (DWtype)counter << shift;
+      /* A lot of parentheses. This is to make it very clear what is
+         the sequence of operations.  */
+      return ((UDWtype) ((UWtype) a_hi)) << W_TYPE_SIZE
+            | (UDWtype) ((UWtype) a_lo);
     }
   return -1;
 #else

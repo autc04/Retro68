@@ -1,5 +1,5 @@
 /* Data structures and function exported by the C++ Parser.
-   Copyright (C) 2010-2025 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -181,7 +181,7 @@ struct GTY(()) cp_unparsed_functions_entry {
   vec<tree, va_gc> *nsdmis;
 
   /* Functions with noexcept-specifiers that require post-processing.  */
-  vec<tree, va_gc> *noexcepts;
+  vec<cp_default_arg_entry, va_gc> *noexcepts;
 
   /* Functions with contract attributes that require post-processing.  */
   vec<tree, va_gc> *contracts;
@@ -231,6 +231,13 @@ struct cp_omp_declare_simd_data {
 /* Helper data structure for parsing #pragma acc routine.  */
 struct cp_oacc_routine_data : cp_omp_declare_simd_data {
   tree clauses;
+};
+
+/* Helper data structure for parsing #pragma omp begin declare variant.  */
+struct GTY(()) omp_begin_declare_variant_map_entry {
+  tree variant;		/* The variant decl.  */
+  tree id;		/* Name of base function.  */
+  tree ctx;		/* The context selector associated with the variant.  */
 };
 
 /* The cp_parser structure represents the C++ parser.  */
@@ -328,14 +335,16 @@ struct GTY(()) cp_parser {
 
   /* Set to IN_ITERATION_STMT if parsing an iteration-statement,
      to IN_OMP_BLOCK if parsing OpenMP structured block and
-     IN_OMP_FOR if parsing OpenMP loop.  If parsing a switch statement,
+     IN_OMP_FOR if parsing OpenMP loop, IN_EXPANSION_STMT if parsing an
+     expansion-statement.  If parsing a switch statement,
      this is bitwise ORed with IN_SWITCH_STMT, unless parsing an
      iteration-statement, OpenMP block or loop within that switch.  */
 #define IN_SWITCH_STMT		1
 #define IN_ITERATION_STMT	2
 #define IN_OMP_BLOCK		4
 #define IN_OMP_FOR		8
-#define IN_IF_STMT             16
+#define IN_IF_STMT	       16
+#define IN_EXPANSION_STMT      32
   unsigned char in_statement;
 
   /* TRUE if we are presently parsing the body of a switch statement.
@@ -456,6 +465,11 @@ struct GTY(()) cp_parser {
      outside that file.  */
   struct omp_metadirective_parse_data * GTY((skip))
     omp_metadirective_state;
+
+  /* Recorded information about functions in OpenMP "begin declare variant"
+     constructs that still need to be registered with their base functions.  */
+  vec<omp_begin_declare_variant_map_entry, va_gc> *
+    omp_begin_declare_variant_map;
 };
 
 /* In parser.cc  */

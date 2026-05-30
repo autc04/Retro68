@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Free Software Foundation, Inc.
+// Copyright (C) 2024-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -43,18 +43,16 @@ get_lang_item_attr (const T &maybe_lang_item)
 	  continue;
 	}
 
-      bool is_lang_item = str_path == Values::Attributes::LANG
-			  && attr.has_attr_input ()
-			  && attr.get_attr_input ().get_attr_input_type ()
-			       == AST::AttrInput::AttrInputType::LITERAL;
+      bool is_lang_item = str_path == Values::Attributes::LANG;
 
       if (is_lang_item)
 	{
-	  auto &literal
-	    = static_cast<AST::AttrInputLiteral &> (attr.get_attr_input ());
-	  const auto &lang_item_type_str = literal.get_literal ().as_string ();
+	  auto lang_item_type_str
+	    = Analysis::Attributes::extract_string_literal (attr);
 
-	  return LangItem::Parse (lang_item_type_str);
+	  rust_assert (lang_item_type_str.has_value ());
+
+	  return LangItem::Parse (*lang_item_type_str);
 	}
     }
 
@@ -103,6 +101,30 @@ CollectLangItems::visit (AST::StructStruct &item)
 
 void
 CollectLangItems::visit (AST::EnumItem &item)
+{
+  maybe_add_lang_item (item);
+
+  DefaultASTVisitor::visit (item);
+}
+
+void
+CollectLangItems::visit (AST::EnumItemTuple &item)
+{
+  maybe_add_lang_item (item);
+
+  DefaultASTVisitor::visit (item);
+}
+
+void
+CollectLangItems::visit (AST::EnumItemStruct &item)
+{
+  maybe_add_lang_item (item);
+
+  DefaultASTVisitor::visit (item);
+}
+
+void
+CollectLangItems::visit (AST::EnumItemDiscriminant &item)
 {
   maybe_add_lang_item (item);
 

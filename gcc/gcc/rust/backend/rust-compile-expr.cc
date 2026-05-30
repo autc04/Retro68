@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -17,6 +17,8 @@
 // <http://www.gnu.org/licenses/>.
 
 #include "rust-compile-expr.h"
+#include "rust-backend.h"
+#include "rust-compile-type.h"
 #include "rust-compile-struct-field-expr.h"
 #include "rust-compile-pattern.h"
 #include "rust-compile-resolve-path.h"
@@ -30,8 +32,11 @@
 #include "realmpfr.h"
 #include "convert.h"
 #include "print-tree.h"
+#include "rust-hir-expr.h"
 #include "rust-system.h"
+#include "rust-tree.h"
 #include "rust-tyty.h"
+#include "tree-core.h"
 
 namespace Rust {
 namespace Compile {
@@ -170,7 +175,7 @@ CompileExpr::visit (HIR::ArithmeticOrLogicalExpr &expr)
     }
 
   auto receiver_tmp = NULL_TREE;
-  auto receiver
+  Bvariable *receiver
     = Backend::temporary_variable (ctx->peek_fn ().fndecl, NULL_TREE,
 				   TREE_TYPE (lhs), lhs, true,
 				   expr.get_locus (), &receiver_tmp);
@@ -209,7 +214,7 @@ CompileExpr::visit (HIR::CompoundAssignmentExpr &expr)
   if (ctx->in_fn () && !ctx->const_context_p ())
     {
       auto tmp = NULL_TREE;
-      auto receiver
+      Bvariable *receiver
 	= Backend::temporary_variable (ctx->peek_fn ().fndecl, NULL_TREE,
 				       TREE_TYPE (lhs), lhs, true,
 				       expr.get_locus (), &tmp);
@@ -355,6 +360,7 @@ CompileExpr::visit (HIR::IfExpr &expr)
 {
   auto stmt = CompileConditionalBlocks::compile (&expr, ctx, nullptr);
   ctx->add_statement (stmt);
+  translated = unit_expression (expr.get_locus ());
 }
 
 void
@@ -362,9 +368,40 @@ CompileExpr::visit (HIR::InlineAsm &expr)
 {
   CompileAsm asm_codegen (ctx);
   ctx->add_statement (asm_codegen.tree_codegen_asm (expr));
-  // translated = build_asm_expr (0, NULL_TREE, NULL_TREE, NULL_TREE, NULL_TREE,
-  //		       NULL_TREE, true, true);
-  // CompileAsm::asm_build_expr (expr);
+  translated = unit_expression (expr.get_locus ());
+}
+
+void
+CompileExpr::visit (HIR::LlvmInlineAsm &expr)
+{
+  CompileLlvmAsm asm_codegen (ctx);
+  ctx->add_statement (asm_codegen.tree_codegen_asm (expr));
+  translated = unit_expression (expr.get_locus ());
+}
+
+void
+CompileExpr::visit (HIR::OffsetOf &expr)
+{
+  TyTy::BaseType *type = nullptr;
+  if (!ctx->get_tyctx ()->lookup_type (
+	expr.get_type ().get_mappings ().get_hirid (), &type))
+    {
+      translated = error_mark_node;
+      return;
+    }
+
+  auto compiled_ty = TyTyResolveCompile::compile (ctx, type);
+
+  rust_assert (TREE_CODE (compiled_ty) == RECORD_TYPE);
+
+  // Create an identifier node for the field
+  auto field_id = Backend::get_identifier_node (expr.get_field ().as_string ());
+
+  // And now look it up and get its value for `byte_position`
+  auto field = Backend::lookup_field (compiled_ty, field_id);
+  auto field_value = TREE_VALUE (field);
+
+  translated = byte_position (field_value);
 }
 
 void
@@ -434,6 +471,18 @@ CompileExpr::visit (HIR::BlockExpr &expr)
 }
 
 void
+CompileExpr::visit (HIR::AnonConst &expr)
+{
+  expr.get_inner_expr ().accept_vis (*this);
+}
+
+void
+CompileExpr::visit (HIR::ConstBlock &expr)
+{
+  expr.get_const_expr ().accept_vis (*this);
+}
+
+void
 CompileExpr::visit (HIR::UnsafeBlockExpr &expr)
 {
   expr.get_block_expr ().accept_vis (*this);
@@ -450,7 +499,25 @@ CompileExpr::visit (HIR::StructExprStruct &struct_expr)
       return;
     }
 
-  rust_assert (tyty->is_unit ());
+  TyTy::ADTType *adt = static_cast<TyTy::ADTType *> (tyty);
+  TyTy::VariantDef *variant = nullptr;
+  if (adt->is_enum ())
+    {
+      // unwrap variant and ensure that it can be resolved
+      HirId variant_id;
+      bool ok = ctx->get_tyctx ()->lookup_variant_definition (
+	struct_expr.get_struct_name ().get_mappings ().get_hirid (),
+	&variant_id);
+      rust_assert (ok);
+
+      ok = adt->lookup_variant_by_id (variant_id, &variant);
+      rust_assert (ok);
+    }
+  else
+    {
+      rust_assert (tyty->is_unit ());
+    }
+
   translated = unit_expression (struct_expr.get_locus ());
 }
 
@@ -464,6 +531,8 @@ CompileExpr::visit (HIR::StructExprStructFields &struct_expr)
       rust_error_at (struct_expr.get_locus (), "unknown type");
       return;
     }
+  if (!tyty->is<TyTy::ADTType> ())
+    return;
 
   // it must be an ADT
   rust_assert (tyty->get_kind () == TyTy::TypeKind::ADT);
@@ -662,6 +731,15 @@ void
 CompileExpr::visit (HIR::LoopExpr &expr)
 {
   TyTy::BaseType *block_tyty = nullptr;
+  fncontext fnctx = ctx->peek_fn ();
+  if (ctx->const_context_p () && !DECL_DECLARED_CONSTEXPR_P (fnctx.fndecl))
+    {
+      rich_location r (line_table, expr.get_locus ());
+      rust_error_at (r, ErrorCode::E0658,
+		     "%<loop%> is not allowed in const context");
+      return;
+    }
+
   if (!ctx->get_tyctx ()->lookup_type (expr.get_mappings ().get_hirid (),
 				       &block_tyty))
     {
@@ -669,7 +747,6 @@ CompileExpr::visit (HIR::LoopExpr &expr)
       return;
     }
 
-  fncontext fnctx = ctx->peek_fn ();
   tree enclosing_scope = ctx->peek_enclosing_scope ();
   tree block_type = TyTyResolveCompile::compile (ctx, block_tyty);
 
@@ -694,7 +771,8 @@ CompileExpr::visit (HIR::LoopExpr &expr)
 	loop_label.get_lifetime ().get_mappings ().get_hirid (), label);
     }
 
-  tree loop_begin_label = Backend::label (fnctx.fndecl, "", expr.get_locus ());
+  tree loop_begin_label
+    = Backend::label (fnctx.fndecl, tl::nullopt, expr.get_locus ());
   tree loop_begin_label_decl
     = Backend::label_definition_statement (loop_begin_label);
   ctx->add_statement (loop_begin_label_decl);
@@ -736,13 +814,25 @@ CompileExpr::visit (HIR::WhileLoopExpr &expr)
 				    start_location, end_location);
   ctx->push_block (loop_block);
 
-  tree loop_begin_label = Backend::label (fnctx.fndecl, "", expr.get_locus ());
+  tree loop_begin_label
+    = Backend::label (fnctx.fndecl, tl::nullopt, expr.get_locus ());
   tree loop_begin_label_decl
     = Backend::label_definition_statement (loop_begin_label);
   ctx->add_statement (loop_begin_label_decl);
   ctx->push_loop_begin_label (loop_begin_label);
 
-  tree condition = CompileExpr::Compile (expr.get_predicate_expr (), ctx);
+  HIR::Expr &predicate = expr.get_predicate_expr ();
+  TyTy::BaseType *predicate_type = nullptr;
+  bool ok
+    = ctx->get_tyctx ()->lookup_type (predicate.get_mappings ().get_hirid (),
+				      &predicate_type);
+  rust_assert (ok && predicate_type != nullptr);
+  tree condition = CompileExpr::Compile (predicate, ctx);
+  if (predicate_type->get_kind () == TyTy::TypeKind::NEVER)
+    {
+      ctx->add_statement (condition);
+      condition = boolean_true_node;
+    }
   tree exit_condition = fold_build1_loc (expr.get_locus (), TRUTH_NOT_EXPR,
 					 boolean_type_node, condition);
   tree exit_expr = Backend::exit_expression (exit_condition, expr.get_locus ());
@@ -758,6 +848,7 @@ CompileExpr::visit (HIR::WhileLoopExpr &expr)
 
   tree loop_expr = Backend::loop_expression (loop_block, expr.get_locus ());
   ctx->add_statement (loop_expr);
+  translated = unit_expression (expr.get_locus ());
 }
 
 void
@@ -766,6 +857,10 @@ CompileExpr::visit (HIR::BreakExpr &expr)
   if (expr.has_break_expr ())
     {
       tree compiled_expr = CompileExpr::Compile (expr.get_expr (), ctx);
+
+      translated = error_mark_node;
+      if (!ctx->have_loop_context ())
+	return;
 
       Bvariable *loop_result_holder = ctx->peek_loop_context ();
       tree result_reference
@@ -780,25 +875,16 @@ CompileExpr::visit (HIR::BreakExpr &expr)
 
   if (expr.has_label ())
     {
-      NodeId resolved_node_id = UNKNOWN_NODEID;
-      if (flag_name_resolution_2_0)
-	{
-	  auto &nr_ctx
-	    = Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
+      auto &nr_ctx
+	= Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
 
-	  if (auto id
-	      = nr_ctx.lookup (expr.get_label ().get_mappings ().get_nodeid ()))
-	    resolved_node_id = *id;
+      NodeId resolved_node_id;
+      if (auto id
+	  = nr_ctx.lookup (expr.get_label ().get_mappings ().get_nodeid ()))
+	{
+	  resolved_node_id = *id;
 	}
       else
-	{
-	  NodeId tmp = UNKNOWN_NODEID;
-	  if (ctx->get_resolver ()->lookup_resolved_label (
-		expr.get_label ().get_mappings ().get_nodeid (), &tmp))
-	    resolved_node_id = tmp;
-	}
-
-      if (resolved_node_id == UNKNOWN_NODEID)
 	{
 	  rust_error_at (
 	    expr.get_label ().get_locus (),
@@ -839,29 +925,23 @@ CompileExpr::visit (HIR::BreakExpr &expr)
 void
 CompileExpr::visit (HIR::ContinueExpr &expr)
 {
+  translated = error_mark_node;
+  if (!ctx->have_loop_context ())
+    return;
+
   tree label = ctx->peek_loop_begin_label ();
   if (expr.has_label ())
     {
-      NodeId resolved_node_id = UNKNOWN_NODEID;
-      if (flag_name_resolution_2_0)
-	{
-	  auto &nr_ctx
-	    = Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
+      auto &nr_ctx
+	= Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
 
-	  if (auto id
-	      = nr_ctx.lookup (expr.get_label ().get_mappings ().get_nodeid ()))
-	    resolved_node_id = *id;
+      NodeId resolved_node_id;
+      if (auto id
+	  = nr_ctx.lookup (expr.get_label ().get_mappings ().get_nodeid ()))
+	{
+	  resolved_node_id = *id;
 	}
       else
-	{
-	  NodeId tmp = UNKNOWN_NODEID;
-
-	  if (ctx->get_resolver ()->lookup_resolved_label (
-		expr.get_label ().get_mappings ().get_nodeid (), &tmp))
-	    resolved_node_id = tmp;
-	}
-
-      if (resolved_node_id == UNKNOWN_NODEID)
 	{
 	  rust_error_at (
 	    expr.get_label ().get_locus (),
@@ -1020,6 +1100,7 @@ CompileExpr::visit (HIR::AssignmentExpr &expr)
     = Backend::assignment_statement (lvalue, rvalue, expr.get_locus ());
 
   ctx->add_statement (assignment);
+  translated = unit_expression (expr.get_locus ());
 }
 
 // Helper for CompileExpr::visit (HIR::MatchExpr).
@@ -1123,9 +1204,8 @@ CompileExpr::visit (HIR::MatchExpr &expr)
   // setup the end label so the cases can exit properly
   tree fndecl = fnctx.fndecl;
   location_t end_label_locus = expr.get_locus (); // FIXME
-  tree end_label
-    = Backend::label (fndecl, "" /* empty creates an artificial label */,
-		      end_label_locus);
+  // tl::nullopt creates an artificial label
+  tree end_label = Backend::label (fndecl, tl::nullopt, end_label_locus);
   tree end_label_decl_statement
     = Backend::label_definition_statement (end_label);
 
@@ -1133,60 +1213,58 @@ CompileExpr::visit (HIR::MatchExpr &expr)
     {
       // for now lets just get single pattern's working
       HIR::MatchArm &kase_arm = kase.get_arm ();
-      rust_assert (kase_arm.get_patterns ().size () > 0);
+      rust_assert (kase_arm.get_pattern () != nullptr);
 
-      for (auto &kase_pattern : kase_arm.get_patterns ())
-	{
-	  // setup the match-arm-body-block
-	  location_t start_location = UNKNOWN_LOCATION; // FIXME
-	  location_t end_location = UNKNOWN_LOCATION;	// FIXME
-	  tree arm_body_block = Backend::block (fndecl, enclosing_scope, {},
-						start_location, end_location);
+      auto &kase_pattern = kase_arm.get_pattern ();
+      // setup the match-arm-body-block
+      location_t start_location = UNKNOWN_LOCATION; // FIXME
+      location_t end_location = UNKNOWN_LOCATION;   // FIXME
+      tree arm_body_block = Backend::block (fndecl, enclosing_scope, {},
+					    start_location, end_location);
 
-	  ctx->push_block (arm_body_block);
+      ctx->push_block (arm_body_block);
 
-	  // setup the bindings for the block
-	  CompilePatternBindings::Compile (*kase_pattern, match_scrutinee_expr,
-					   ctx);
+      // setup the bindings for the block
+      CompilePatternBindings::Compile (*kase_pattern, match_scrutinee_expr,
+				       ctx);
 
-	  // compile the expr and setup the assignment if required when tmp !=
-	  // NULL
-	  location_t arm_locus = kase_arm.get_locus ();
-	  tree kase_expr_tree = CompileExpr::Compile (kase.get_expr (), ctx);
-	  tree result_reference = Backend::var_expression (tmp, arm_locus);
+      // compile the expr and setup the assignment if required when tmp !=
+      // NULL
+      location_t arm_locus = kase_arm.get_locus ();
+      tree kase_expr_tree = CompileExpr::Compile (kase.get_expr (), ctx);
+      tree result_reference = Backend::var_expression (tmp, arm_locus);
 
-	  TyTy::BaseType *actual = nullptr;
-	  bool ok = ctx->get_tyctx ()->lookup_type (
-	    kase.get_expr ().get_mappings ().get_hirid (), &actual);
-	  rust_assert (ok);
+      TyTy::BaseType *actual = nullptr;
+      bool ok = ctx->get_tyctx ()->lookup_type (
+	kase.get_expr ().get_mappings ().get_hirid (), &actual);
+      rust_assert (ok);
 
-	  tree coerced_result
-	    = coercion_site (kase.get_expr ().get_mappings ().get_hirid (),
-			     kase_expr_tree, actual, expr_tyty,
-			     expr.get_locus (), arm_locus);
+      tree coerced_result
+	= coercion_site (kase.get_expr ().get_mappings ().get_hirid (),
+			 kase_expr_tree, actual, expr_tyty, expr.get_locus (),
+			 arm_locus);
 
-	  tree assignment
-	    = Backend::assignment_statement (result_reference, coerced_result,
-					     arm_locus);
-	  ctx->add_statement (assignment);
+      tree assignment
+	= Backend::assignment_statement (result_reference, coerced_result,
+					 arm_locus);
+      ctx->add_statement (assignment);
 
-	  // go to end label
-	  tree goto_end_label
-	    = build1_loc (arm_locus, GOTO_EXPR, void_type_node, end_label);
-	  ctx->add_statement (goto_end_label);
+      // go to end label
+      tree goto_end_label
+	= build1_loc (arm_locus, GOTO_EXPR, void_type_node, end_label);
+      ctx->add_statement (goto_end_label);
 
-	  ctx->pop_block ();
+      ctx->pop_block ();
 
-	  tree check_expr
-	    = CompilePatternCheckExpr::Compile (*kase_pattern,
-						match_scrutinee_expr, ctx);
+      tree check_expr
+	= CompilePatternCheckExpr::Compile (*kase_pattern, match_scrutinee_expr,
+					    ctx);
 
-	  tree check_stmt
-	    = Backend::if_statement (NULL_TREE, check_expr, arm_body_block,
-				     NULL_TREE, kase_pattern->get_locus ());
+      tree check_stmt
+	= Backend::if_statement (NULL_TREE, check_expr, arm_body_block,
+				 NULL_TREE, kase_pattern->get_locus ());
 
-	  ctx->add_statement (check_stmt);
-	}
+      ctx->add_statement (check_stmt);
     }
 
   // setup the switch expression
@@ -1318,6 +1396,28 @@ CompileExpr::visit (HIR::CallExpr &expr)
   };
 
   auto fn_address = CompileExpr::Compile (expr.get_fnexpr (), ctx);
+  if (ctx->const_context_p ())
+    {
+      if (!FUNCTION_POINTER_TYPE_P (TREE_TYPE (fn_address)))
+	{
+	  rust_error_at (expr.get_locus (),
+			 "calls in constants are limited to constant "
+			 "functions, tuple structs and tuple variants");
+	  return;
+	}
+
+      if (TREE_CODE (fn_address) == ADDR_EXPR)
+	{
+	  tree fndecl = TREE_OPERAND (fn_address, 0);
+	  if (!DECL_DECLARED_CONSTEXPR_P (fndecl))
+	    {
+	      rust_error_at (expr.get_locus (),
+			     "calls in constants are limited to constant "
+			     "functions, tuple structs and tuple variants");
+	      return;
+	    }
+	}
+    }
 
   // is this a closure call?
   bool possible_trait_call
@@ -1584,37 +1684,39 @@ CompileExpr::compile_integer_literal (const HIR::LiteralExpr &expr,
 				      const TyTy::BaseType *tyty)
 {
   rust_assert (expr.get_lit_type () == HIR::Literal::INT);
-  const auto literal_value = expr.get_literal ();
-
+  const auto &literal_value = expr.get_literal ();
   tree type = TyTyResolveCompile::compile (ctx, tyty);
 
+  std::string s = literal_value.as_string ();
+  s.erase (std::remove (s.begin (), s.end (), '_'), s.end ());
+
+  int base = 0;
   mpz_t ival;
-  if (mpz_init_set_str (ival, literal_value.as_string ().c_str (), 10) != 0)
+  if (mpz_init_set_str (ival, s.c_str (), base) != 0)
     {
-      rust_error_at (expr.get_locus (), "bad number in literal");
+      rust_error_at (expr.get_locus (), "failed to load number literal");
       return error_mark_node;
     }
+  if (expr.is_negative ())
+    mpz_neg (ival, ival);
 
-  mpz_t type_min;
-  mpz_t type_max;
+  mpz_t type_min, type_max;
   mpz_init (type_min);
   mpz_init (type_max);
   get_type_static_bounds (type, type_min, type_max);
 
-  if (expr.is_negative ())
-    {
-      mpz_neg (ival, ival);
-    }
   if (mpz_cmp (ival, type_min) < 0 || mpz_cmp (ival, type_max) > 0)
     {
       rust_error_at (expr.get_locus (),
 		     "integer overflows the respective type %qs",
 		     tyty->get_name ().c_str ());
+      mpz_clear (type_min);
+      mpz_clear (type_max);
+      mpz_clear (ival);
       return error_mark_node;
     }
 
   tree result = wide_int_to_tree (type, wi::from_mpz (type, ival, true));
-
   mpz_clear (type_min);
   mpz_clear (type_max);
   mpz_clear (ival);
@@ -1639,6 +1741,8 @@ CompileExpr::compile_float_literal (const HIR::LiteralExpr &expr,
       rust_error_at (expr.get_locus (), "bad number in literal");
       return error_mark_node;
     }
+  if (expr.is_negative ())
+    mpfr_neg (fval, fval, MPFR_RNDN);
 
   // taken from:
   // see go/gofrontend/expressions.cc:check_float_type
@@ -1876,7 +1980,8 @@ CompileExpr::visit (HIR::ArrayExpr &expr)
   HIR::ArrayElems &elements = expr.get_internal_elements ();
   switch (elements.get_array_expr_type ())
     {
-      case HIR::ArrayElems::ArrayExprType::VALUES: {
+    case HIR::ArrayElems::ArrayExprType::VALUES:
+      {
 	HIR::ArrayElemsValues &elems
 	  = static_cast<HIR::ArrayElemsValues &> (elements);
 	translated
@@ -1936,13 +2041,25 @@ CompileExpr::array_copied_expr (location_t expr_locus,
       return error_mark_node;
     }
 
-  ctx->push_const_context ();
-  tree capacity_expr = CompileExpr::Compile (elems.get_num_copies_expr (), ctx);
-  ctx->pop_const_context ();
+  auto capacity_ty = array_tyty.get_capacity ();
 
-  if (!TREE_CONSTANT (capacity_expr))
+  // Check if capacity is a const type
+  if (capacity_ty->get_kind () != TyTy::TypeKind::CONST)
     {
-      rust_error_at (expr_locus, "non const num copies %qT", array_type);
+      rust_error_at (array_tyty.get_locus (),
+		     "array capacity is not a const type");
+      return error_mark_node;
+    }
+
+  auto *capacity_const = capacity_ty->as_const_type ();
+
+  rust_assert (capacity_const->const_kind ()
+	       == TyTy::BaseConstType::ConstKind::Value);
+  auto &capacity_value = *static_cast<TyTy::ConstValueType *> (capacity_const);
+  auto cap_tree = capacity_value.get_value ();
+  if (error_operand_p (cap_tree) || !TREE_CONSTANT (cap_tree))
+    {
+      rust_error_at (expr_locus, "non const num copies %qT", cap_tree);
       return error_mark_node;
     }
 
@@ -1965,8 +2082,12 @@ CompileExpr::array_copied_expr (location_t expr_locus,
   if (ctx->const_context_p ())
     {
       size_t idx = 0;
+
       std::vector<unsigned long> indexes;
       std::vector<tree> constructor;
+
+      indexes.reserve (len);
+      constructor.reserve (len);
       for (unsigned HOST_WIDE_INT i = 0; i < len; i++)
 	{
 	  constructor.push_back (translated_expr);
@@ -1991,9 +2112,9 @@ CompileExpr::array_copied_expr (location_t expr_locus,
       ctx->push_block (init_block);
 
       tree tmp;
-      tree stmts = Backend::array_initializer (fndecl, init_block, array_type,
-					       capacity_expr, translated_expr,
-					       &tmp, expr_locus);
+      tree stmts
+	= Backend::array_initializer (fndecl, init_block, array_type, cap_tree,
+				      translated_expr, &tmp, expr_locus);
       ctx->add_statement (stmts);
 
       tree block = ctx->pop_block ();
@@ -2021,7 +2142,8 @@ HIRCompileBase::resolve_adjustements (
 	  return error_mark_node;
 
 	case Resolver::Adjustment::AdjustmentType::IMM_REF:
-	  case Resolver::Adjustment::AdjustmentType::MUT_REF: {
+	case Resolver::Adjustment::AdjustmentType::MUT_REF:
+	  {
 	    if (!RS_DST_FLAG (TREE_TYPE (e)))
 	      {
 		e = address_expression (e, locus);
@@ -2140,11 +2262,10 @@ HIRCompileBase::resolve_unsized_dyn_adjustment (
   tree rvalue = expression;
   location_t rvalue_locus = locus;
 
-  const TyTy::BaseType *actual = adjustment.get_actual ();
-  const TyTy::BaseType *expected = adjustment.get_expected ();
+  auto actual = adjustment.get_actual ();
+  auto expected = adjustment.get_expected ();
 
-  const TyTy::DynamicObjectType *dyn
-    = static_cast<const TyTy::DynamicObjectType *> (expected);
+  const auto dyn = static_cast<const TyTy::DynamicObjectType *> (expected);
 
   rust_debug ("resolve_unsized_dyn_adjustment actual={%s} dyn={%s}",
 	      actual->debug_str ().c_str (), dyn->debug_str ().c_str ());
@@ -2463,23 +2584,12 @@ CompileExpr::generate_closure_function (HIR::ClosureExpr &expr,
   if (is_block_expr)
     {
       auto body_mappings = function_body.get_mappings ();
-      if (flag_name_resolution_2_0)
-	{
-	  auto &nr_ctx
-	    = Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
+      auto &nr_ctx
+	= Resolver2_0::ImmutableNameResolutionContext::get ().resolver ();
 
-	  auto candidate = nr_ctx.values.to_rib (body_mappings.get_nodeid ());
+      auto candidate = nr_ctx.values.to_rib (body_mappings.get_nodeid ());
 
-	  rust_assert (candidate.has_value ());
-	}
-      else
-	{
-	  Resolver::Rib *rib = nullptr;
-	  bool ok
-	    = ctx->get_resolver ()->find_name_rib (body_mappings.get_nodeid (),
-						   &rib);
-	  rust_assert (ok);
-	}
+      rust_assert (candidate.has_value ());
     }
 
   tree enclosing_scope = NULL_TREE;
@@ -2559,15 +2669,15 @@ CompileExpr::generate_closure_fntype (HIR::ClosureExpr &expr,
   TyTy::TypeBoundPredicateItem item = TyTy::TypeBoundPredicateItem::error ();
   if (predicate.get_name ().compare ("FnOnce") == 0)
     {
-      item = predicate.lookup_associated_item ("call_once");
+      item = predicate.lookup_associated_item ("call_once").value ();
     }
   else if (predicate.get_name ().compare ("FnMut") == 0)
     {
-      item = predicate.lookup_associated_item ("call_mut");
+      item = predicate.lookup_associated_item ("call_mut").value ();
     }
   else if (predicate.get_name ().compare ("Fn") == 0)
     {
-      item = predicate.lookup_associated_item ("call");
+      item = predicate.lookup_associated_item ("call").value ();
     }
   else
     {

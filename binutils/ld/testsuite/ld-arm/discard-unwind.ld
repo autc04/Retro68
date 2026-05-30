@@ -15,5 +15,5 @@ SECTIONS
     *(.v4_bx)
   } =0
   /DISCARD/ : { *(.ARM.exidx*) }
-  .ARM.attribues 0 : { *(.ARM.atttributes) }
+  .ARM.attributes 0 : { *(.ARM.attributes) }
 }

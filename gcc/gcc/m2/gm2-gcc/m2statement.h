@@ -1,6 +1,6 @@
 /* m2statement.h header file for m2statement.cc.
 
-Copyright (C) 2012-2025 Free Software Foundation, Inc.
+Copyright (C) 2012-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius@glam.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -52,10 +52,6 @@ EXTERN void m2statement_BuildExcludeVarVar (location_t location, tree type,
 EXTERN void m2statement_BuildExcludeVarConst (location_t location, tree type,
                                               tree op1, tree op2,
                                               bool is_lvalue, int fieldno);
-EXTERN void m2statement_BuildUnaryForeachWordDo (
-    location_t location, tree type, tree op1, tree op2,
-    tree (*unop) (location_t, tree, bool), bool is_op1lvalue, bool is_op2lvalue,
-    bool is_op1const, bool is_op2const);
 EXTERN void m2statement_BuildAsm (location_t location, tree instr,
                                   bool isVolatile, bool isSimple, tree inputs,
                                   tree outputs, tree trash, tree labels);
@@ -75,7 +71,7 @@ EXTERN tree m2statement_BuildIfThenDoEnd (tree condition, tree then_block);
 
 EXTERN void m2statement_DeclareLabel (location_t location, char *name);
 EXTERN void m2statement_BuildGoto (location_t location, char *name);
-EXTERN tree m2statement_BuildAssignmentTree (location_t location, tree des,
+EXTERN void m2statement_BuildAssignmentTree (location_t location, tree des,
                                              tree expr);
 EXTERN void m2statement_BuildAssignmentStatement (location_t location, tree des,
 						  tree expr);
@@ -88,8 +84,7 @@ EXTERN void m2statement_BuildEndFunctionCode (location_t location, tree fndecl,
 EXTERN void m2statement_BuildStartFunctionCode (location_t location,
                                                 tree fndecl, bool isexported,
                                                 bool isinline);
-EXTERN void m2statement_DoJump (location_t location, tree exp,
-                                char *falselabel, char *truelabel);
+EXTERN void m2statement_IfExprJump (location_t location, tree exp, char *label);
 EXTERN tree m2statement_BuildCall2 (location_t location, tree function,
                                     tree rettype, tree arg1, tree arg2);
 EXTERN tree m2statement_BuildCall3 (location_t location, tree function,
@@ -108,7 +103,10 @@ EXTERN tree m2statement_BuildBuiltinCallTree (tree func);
 EXTERN tree m2statement_BuildTryFinally (location_t location, tree call,
                                          tree cleanups);
 EXTERN tree m2statement_BuildCleanUp (tree param);
+EXTERN void m2statement_IfBitInSetJump (location_t location, bool invertCondition,
+					tree setvalue, tree bit, char *label);
 EXTERN void m2statement_CopyByField (location_t location, tree des, tree expr);
+EXTERN void m2statement_CopyMemcpy (location_t location, tree dest, tree src, tree bytes);
 
 #undef EXTERN
 #endif /* m2statement_h.  */

@@ -1,6 +1,6 @@
 /* Gimple folding definitions.
 
-   Copyright (C) 2011-2025 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
    Contributed by Richard Guenther <rguenther@suse.de>
 
 This file is part of GCC.
@@ -22,16 +22,20 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_GIMPLE_FOLD_H
 #define GCC_GIMPLE_FOLD_H
 
-extern tree create_tmp_reg_or_ssa_name (tree, gimple *stmt = NULL);
+#include "tree-pass.h"
+
 extern tree canonicalize_constructor_val (tree, tree);
 extern tree get_symbol_constant_value (tree);
 struct c_strlen_data;
 extern bool get_range_strlen (tree, c_strlen_data *, unsigned eltsize);
 extern void gimplify_and_update_call_from_tree (gimple_stmt_iterator *, tree);
 extern bool update_gimple_call (gimple_stmt_iterator *, tree, int, ...);
+extern tree no_follow_ssa_edges (tree);
+extern tree follow_single_use_edges (tree);
+extern tree follow_all_ssa_edges (tree);
 extern bool fold_stmt (gimple_stmt_iterator *, bitmap = nullptr);
 extern bool fold_stmt (gimple_stmt_iterator *, tree (*) (tree), bitmap = nullptr);
-extern bool fold_stmt_inplace (gimple_stmt_iterator *);
+extern bool fold_stmt_inplace (gimple_stmt_iterator *, tree (*) (tree) = no_follow_ssa_edges);
 extern tree maybe_fold_and_comparisons (tree, enum tree_code, tree, tree,
 					enum tree_code, tree, tree,
 					basic_block = nullptr);
@@ -40,9 +44,6 @@ extern tree maybe_fold_or_comparisons (tree, enum tree_code, tree, tree,
 				       basic_block = nullptr);
 extern bool optimize_atomic_compare_exchange_p (gimple *);
 extern void fold_builtin_atomic_compare_exchange (gimple_stmt_iterator *);
-extern tree no_follow_ssa_edges (tree);
-extern tree follow_single_use_edges (tree);
-extern tree follow_all_ssa_edges (tree);
 extern tree gimple_fold_stmt_to_constant_1 (gimple *, tree (*) (tree),
 					    tree (*) (tree) = no_follow_ssa_edges);
 extern tree gimple_fold_stmt_to_constant (gimple *, tree (*) (tree));
@@ -60,8 +61,9 @@ extern tree gimple_fold_indirect_ref (tree);
 extern bool gimple_fold_builtin_sprintf (gimple_stmt_iterator *);
 extern bool gimple_fold_builtin_snprintf (gimple_stmt_iterator *);
 extern bool arith_code_with_undefined_signed_overflow (tree_code);
-extern void rewrite_to_defined_overflow (gimple_stmt_iterator *);
-extern gimple_seq rewrite_to_defined_overflow (gimple *);
+extern bool gimple_needing_rewrite_undefined (gimple *);
+extern void rewrite_to_defined_unconditional (gimple_stmt_iterator *);
+extern gimple_seq rewrite_to_defined_unconditional (gimple *);
 extern void replace_call_with_value (gimple_stmt_iterator *, tree);
 extern tree tree_vec_extract (gimple_stmt_iterator *, tree, tree, tree, tree);
 extern void gsi_replace_with_seq_vops (gimple_stmt_iterator *, gimple_seq);
@@ -264,6 +266,7 @@ gimple_build_round_up (gimple_seq *seq, tree type, tree old_size,
 
 extern bool gimple_stmt_nonnegative_warnv_p (gimple *, bool *, int = 0);
 extern bool gimple_stmt_integer_valued_real_p (gimple *, int = 0);
+extern void mark_lhs_in_seq_for_dce (bitmap, gimple_seq);
 
 /* In gimple-match.cc.  */
 extern tree gimple_simplify (enum tree_code, tree, tree,
@@ -278,5 +281,14 @@ extern tree gimple_simplify (combined_fn, tree, tree, tree,
 			     gimple_seq *, tree (*)(tree));
 extern tree gimple_simplify (combined_fn, tree, tree, tree, tree,
 			     gimple_seq *, tree (*)(tree));
+
+/* Returns true if we are doing the fold before expansion to rtl.   */
+inline bool
+fold_before_rtl_expansion_p ()
+{
+  if (!cfun)
+    return false;
+  return (cfun->curr_properties & PROP_last_full_fold) != 0;
+}
 
 #endif  /* GCC_GIMPLE_FOLD_H */

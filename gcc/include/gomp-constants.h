@@ -1,6 +1,6 @@
 /* Communication between GCC and libgomp.
 
-   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
 
    Contributed by Mentor Embedded.
 
@@ -209,7 +209,13 @@ enum gomp_map_kind
     GOMP_MAP_PRESENT_ALLOC =		(GOMP_MAP_LAST | 4),
     GOMP_MAP_PRESENT_TO =		(GOMP_MAP_LAST | 5),
     GOMP_MAP_PRESENT_FROM =		(GOMP_MAP_LAST | 6),
-    GOMP_MAP_PRESENT_TOFROM =		(GOMP_MAP_LAST | 7)
+    GOMP_MAP_PRESENT_TOFROM =		(GOMP_MAP_LAST | 7),
+    /* Unset, used for "declare mapper" maps with no explicit data movement
+       specified.  These use the movement specified at the invocation site.  */
+    GOMP_MAP_UNSET =			(GOMP_MAP_LAST | 8),
+    /* Used to record the name of a named mapper.  */
+    GOMP_MAP_PUSH_MAPPER_NAME =		(GOMP_MAP_LAST | 9),
+    GOMP_MAP_POP_MAPPER_NAME =		(GOMP_MAP_LAST | 10)
   };
 
 #define GOMP_MAP_COPY_TO_P(X) \
@@ -389,7 +395,12 @@ enum gomp_map_kind
 /* Predefined allocator value ranges.  */
 #define GOMP_OMP_PREDEF_ALLOC_MAX	8
 #define GOMP_OMPX_PREDEF_ALLOC_MIN	200
-#define GOMP_OMPX_PREDEF_ALLOC_MAX	200
+#define GOMP_OMPX_PREDEF_ALLOC_MAX	201
+
+/* Predefined memspace value ranges.  */
+#define GOMP_OMP_PREDEF_MEMSPACE_MAX	4
+#define GOMP_OMPX_PREDEF_MEMSPACE_MIN	200
+#define GOMP_OMPX_PREDEF_MEMSPACE_MAX	200
 
 /* Predefined allocator with access == thread.  */
 #define GOMP_OMP_PREDEF_ALLOC_THREADS	8

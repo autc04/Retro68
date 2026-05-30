@@ -1,6 +1,6 @@
 /* Call-backs for C++ error reporting.
    This code is non-reentrant.
-   Copyright (C) 1993-2025 Free Software Foundation, Inc.
+   Copyright (C) 1993-2026 Free Software Foundation, Inc.
    This file is part of GCC.
 
 GCC is free software; you can redistribute it and/or modify
@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#define INCLUDE_VECTOR
 #include "config.h"
 /* For use with name_hint.  */
 #include "system.h"
@@ -24,7 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "cp-tree.h"
 #include "stringpool.h"
 #include "tree-diagnostic.h"
-#include "diagnostic-color.h"
+#include "diagnostics/color.h"
 #include "langhooks-def.h"
 #include "intl.h"
 #include "cxx-pretty-print.h"
@@ -38,8 +39,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "cp-name-hint.h"
 #include "attribs.h"
 #include "pretty-print-format-impl.h"
-#include "make-unique.h"
-#include "diagnostic-format-text.h"
+#include "diagnostics/text-sink.h"
 
 #define pp_separate_with_comma(PP) pp_cxx_separate_with (PP, ',')
 #define pp_separate_with_semicolon(PP) pp_cxx_separate_with (PP, ';')
@@ -97,17 +97,17 @@ static void dump_scope (cxx_pretty_printer *, tree, int);
 static void dump_template_parms (cxx_pretty_printer *, tree, int, int);
 static int get_non_default_template_args_count (tree, int);
 static const char *function_category (tree);
-static void maybe_print_constexpr_context (diagnostic_text_output_format &);
-static void maybe_print_instantiation_context (diagnostic_text_output_format &);
-static void print_instantiation_full_context (diagnostic_text_output_format &);
-static void print_instantiation_partial_context (diagnostic_text_output_format &,
+static void maybe_print_constexpr_context (diagnostics::text_sink &);
+static void maybe_print_instantiation_context (diagnostics::text_sink &);
+static void print_instantiation_full_context (diagnostics::text_sink &);
+static void print_instantiation_partial_context (diagnostics::text_sink &,
 						 struct tinst_level *,
 						 location_t);
-static void maybe_print_constraint_context (diagnostic_text_output_format &);
-static void cp_diagnostic_text_starter (diagnostic_text_output_format &,
-					const diagnostic_info *);
-static void cp_print_error_function (diagnostic_text_output_format &,
-				     const diagnostic_info *);
+static void maybe_print_constraint_context (diagnostics::text_sink &);
+static void cp_diagnostic_text_starter (diagnostics::text_sink &,
+					const diagnostics::diagnostic_info *);
+static void cp_print_error_function (diagnostics::text_sink &,
+				     const diagnostics::diagnostic_info *);
 
 static bool cp_printer (pretty_printer *, text_info *, const char *,
 			int, bool, bool, bool, bool *, pp_token_list &);
@@ -183,9 +183,10 @@ class cxx_format_postprocessor : public format_postprocessor
   : m_type_a (), m_type_b ()
   {}
 
-  format_postprocessor *clone() const final override
+  std::unique_ptr<format_postprocessor>
+  clone() const final override
   {
-    return new cxx_format_postprocessor ();
+    return std::make_unique<cxx_format_postprocessor> ();
   }
 
   void handle (pretty_printer *pp) final override;
@@ -193,6 +194,32 @@ class cxx_format_postprocessor : public format_postprocessor
   deferred_printed_type m_type_a;
   deferred_printed_type m_type_b;
 };
+
+/* Constructor and destructor for cxx_dump_pretty_printer, defined here to
+   avoid needing to move cxx_format_postprocessor into the header as well.  */
+
+cxx_dump_pretty_printer::
+cxx_dump_pretty_printer (int phase)
+  : phase (phase)
+{
+  outf = dump_begin (phase, &flags);
+  if (outf)
+    {
+      pp_format_decoder (this) = cp_printer;
+      set_format_postprocessor (std::make_unique<cxx_format_postprocessor> ());
+      set_output_stream (outf);
+    }
+}
+
+cxx_dump_pretty_printer::
+~cxx_dump_pretty_printer ()
+{
+  if (outf)
+    {
+      pp_flush (this);
+      dump_end (phase, outf);
+    }
+}
 
 /* Return the in-scope template that's currently being parsed, or
    NULL_TREE otherwise.  */
@@ -216,7 +243,7 @@ get_current_template ()
 
 erroneous_templates_t *erroneous_templates;
 
-/* Callback function diagnostic_context::m_adjust_diagnostic_info.
+/* Callback function diagnostics::context::m_adjust_diagnostic_info.
 
    Errors issued when parsing a template are automatically treated like
    permerrors associated with the -Wtemplate-body flag and can be
@@ -224,16 +251,16 @@ erroneous_templates_t *erroneous_templates;
    issue an error if we later need to instantiate the template.  */
 
 static void
-cp_adjust_diagnostic_info (diagnostic_context *context,
-			   diagnostic_info *diagnostic)
+cp_adjust_diagnostic_info (const diagnostics::context &context,
+			   diagnostics::diagnostic_info *diagnostic)
 {
-  if (diagnostic->kind == DK_ERROR)
+  if (diagnostic->m_kind == diagnostics::kind::error)
     if (tree tmpl = get_current_template ())
       {
-	diagnostic->option_id = OPT_Wtemplate_body;
+	diagnostic->m_option_id = OPT_Wtemplate_body;
 
-	if (context->m_permissive)
-	  diagnostic->kind = DK_WARNING;
+	if (context.m_permissive)
+	  diagnostic->m_kind = diagnostics::kind::warning;
 
 	bool existed;
 	location_t &error_loc
@@ -243,7 +270,7 @@ cp_adjust_diagnostic_info (diagnostic_context *context,
 	  /* Remember that this template had a parse-time error so
 	     that we'll ensure a hard error has been issued upon
 	     its instantiation.  */
-	  error_loc = diagnostic->richloc->get_loc ();
+	  error_loc = diagnostic->m_richloc->get_loc ();
       }
 }
 
@@ -272,17 +299,17 @@ cp_seen_error ()
    capacities.  */
 
 void
-cxx_initialize_diagnostics (diagnostic_context *context)
+cxx_initialize_diagnostics (diagnostics::context *context)
 {
   cxx_pretty_printer *pp = new cxx_pretty_printer ();
-  pp_format_postprocessor (pp) = new cxx_format_postprocessor ();
+  pp->set_format_postprocessor (std::make_unique<cxx_format_postprocessor> ());
   context->set_pretty_printer (std::unique_ptr<pretty_printer> (pp));
 
   c_common_diagnostics_set_defaults (context);
-  diagnostic_text_starter (context) = cp_diagnostic_text_starter;
+  diagnostics::text_starter (context) = cp_diagnostic_text_starter;
   /* diagnostic_finalizer is already c_diagnostic_text_finalizer.  */
   context->set_format_decoder (cp_printer);
-  context->m_adjust_diagnostic_info = cp_adjust_diagnostic_info;
+  context->set_adjust_diagnostic_info_callback (cp_adjust_diagnostic_info);
 }
 
 /* Dump an '@module' name suffix for DECL, if it's attached to an import.  */
@@ -542,12 +569,13 @@ dump_template_bindings (cxx_pretty_printer *pp, tree parms, tree args,
 	  /* If the template argument repeats the template parameter (T = T),
 	     skip the parameter.*/
 	  if (arg && TREE_CODE (arg) == TEMPLATE_TYPE_PARM
-		&& TREE_CODE (parm_i) == TREE_LIST
-		&& TREE_CODE (TREE_VALUE (parm_i)) == TYPE_DECL
-		&& TREE_CODE (TREE_TYPE (TREE_VALUE (parm_i)))
-		     == TEMPLATE_TYPE_PARM
-		&& DECL_NAME (TREE_VALUE (parm_i))
-		     == DECL_NAME (TREE_CHAIN (arg)))
+	      && arg == TYPE_MAIN_VARIANT (arg)
+	      && TREE_CODE (parm_i) == TREE_LIST
+	      && TREE_CODE (TREE_VALUE (parm_i)) == TYPE_DECL
+	      && (TREE_CODE (TREE_TYPE (TREE_VALUE (parm_i)))
+		  == TEMPLATE_TYPE_PARM)
+	      && (DECL_NAME (TREE_VALUE (parm_i))
+		  == DECL_NAME (TYPE_STUB_DECL (arg))))
 	    continue;
 
 	  semicolon_or_introducer ();
@@ -677,6 +705,20 @@ dump_type (cxx_pretty_printer *pp, tree t, int flags)
 	}
       break;
 
+    case TREE_VEC:
+      {
+	/* A list of types used for a trait.  */
+	bool need_comma = false;
+	for (tree arg : tree_vec_range (t))
+	  {
+	    if (need_comma)
+	      pp_separate_with_comma (pp);
+	    dump_type (pp, arg, flags);
+	    need_comma = true;
+	  }
+      }
+      break;
+
     case TREE_LIST:
       /* A list of function parms.  */
       dump_parameters (pp, t, flags);
@@ -707,6 +749,7 @@ dump_type (cxx_pretty_printer *pp, tree t, int flags)
 
     case TEMPLATE_DECL:
     case NAMESPACE_DECL:
+    case CONST_DECL:
       dump_decl (pp, t, flags & ~TFF_DECL_SPECIFIERS);
       break;
 
@@ -780,10 +823,8 @@ dump_type (cxx_pretty_printer *pp, tree t, int flags)
 	  break;
 	}
       pp_cxx_cv_qualifier_seq (pp, t);
-      pp_cxx_ws_string (pp,
-			 TYPENAME_IS_ENUM_P (t) ? "enum"
-			 : TYPENAME_IS_CLASS_P (t) ? "class"
-			 : "typename");
+      if (const char *tag = tag_name (get_typename_tag (t)))
+	pp_cxx_ws_string (pp, tag);
       dump_typename (pp, t, flags);
       break;
 
@@ -834,7 +875,15 @@ dump_type (cxx_pretty_printer *pp, tree t, int flags)
       break;
 
     case NULLPTR_TYPE:
-      pp_string (pp, "std::nullptr_t");
+      pp_cxx_ws_string (pp, "std::nullptr_t");
+      break;
+
+    case META_TYPE:
+      pp_cxx_ws_string (pp, "std::meta::info");
+      break;
+
+    case SPLICE_SCOPE:
+      dump_expr (pp, SPLICE_SCOPE_EXPR (t), flags & ~TFF_EXPR_IN_PARENS);
       break;
 
     default:
@@ -1096,6 +1145,8 @@ dump_type_prefix (cxx_pretty_printer *pp, tree t, int flags)
     case FIXED_POINT_TYPE:
     case NULLPTR_TYPE:
     case PACK_INDEX_TYPE:
+    case META_TYPE:
+    case SPLICE_SCOPE:
       dump_type (pp, t, flags);
       pp->set_padding (pp_before);
       break;
@@ -1229,6 +1280,8 @@ dump_type_suffix (cxx_pretty_printer *pp, tree t, int flags)
     case FIXED_POINT_TYPE:
     case NULLPTR_TYPE:
     case PACK_INDEX_TYPE:
+    case META_TYPE:
+    case SPLICE_SCOPE:
       break;
 
     default:
@@ -1255,11 +1308,36 @@ dump_global_iord (cxx_pretty_printer *pp, tree t)
   pp_printf (pp, p, DECL_SOURCE_FILE (t));
 }
 
+/* Write a representation of OpenMP "declare mapper" T to PP in a manner
+   suitable for error messages.  */
+
+static void
+dump_omp_declare_mapper (cxx_pretty_printer *pp, tree t, int flags)
+{
+  pp_string (pp, "#pragma omp declare mapper");
+  if (t == NULL_TREE || t == error_mark_node)
+    return;
+  pp_space (pp);
+  pp_cxx_left_paren (pp);
+  if (OMP_DECLARE_MAPPER_ID (t))
+    {
+      pp_cxx_tree_identifier (pp, OMP_DECLARE_MAPPER_ID (t));
+      pp_colon (pp);
+    }
+  dump_type (pp, TREE_TYPE (t), flags);
+  pp_cxx_right_paren (pp);
+}
+
 static void
 dump_simple_decl (cxx_pretty_printer *pp, tree t, tree type, int flags)
 {
   if (VAR_P (t) && DECL_NTTP_OBJECT_P (t))
     return dump_expr (pp, DECL_INITIAL (t), flags);
+
+  if (TREE_CODE (t) == VAR_DECL
+      && DECL_LANG_SPECIFIC (t)
+      && DECL_OMP_DECLARE_MAPPER_P (t))
+    return dump_omp_declare_mapper (pp, DECL_INITIAL (t), flags);
 
   if (flags & TFF_DECL_SPECIFIERS)
     {
@@ -1550,9 +1628,14 @@ dump_decl (cxx_pretty_printer *pp, tree t, int flags)
 	tree name = TREE_OPERAND (t, 0);
 	tree args = TREE_OPERAND (t, 1);
 
-	if (!identifier_p (name))
-	  name = OVL_NAME (name);
-	dump_decl (pp, name, flags);
+	if (TREE_CODE (name) == SPLICE_EXPR)
+	  dump_expr (pp, name, flags);
+	else
+	  {
+	    if (!identifier_p (name))
+	      name = OVL_NAME (name);
+	    dump_decl (pp, name, flags);
+	  }
 	pp_cxx_begin_template_argument_list (pp);
 	if (args == error_mark_node)
 	  pp_string (pp, M_("<template arguments error>"));
@@ -1940,6 +2023,14 @@ dump_function_decl (cxx_pretty_printer *pp, tree t, int flags)
   auto cds = make_temp_override (current_dump_scope, CP_DECL_CONTEXT (t));
 
   dump_function_name (pp, t, dump_function_name_flags);
+
+  /* By default we need no padding here, but if we emit target_version or
+     target_clones then we need some.  */
+  pp->set_padding (pp_none);
+  pp_cxx_function_target_version (pp, t);
+  pp_cxx_maybe_whitespace (pp);
+  pp_cxx_function_target_clones (pp, t);
+  pp_cxx_maybe_whitespace (pp);
 
   if (!(flags & TFF_NO_FUNCTION_ARGUMENTS))
     {
@@ -3217,6 +3308,55 @@ dump_expr (cxx_pretty_printer *pp, tree t, int flags)
 	break;
       }
 
+    case CO_AWAIT_EXPR:
+      pp_cxx_ws_string (pp, "co_await");
+      pp_cxx_whitespace (pp);
+      dump_expr (pp, TREE_OPERAND (t, 0), flags);
+      break;
+
+    case CO_YIELD_EXPR:
+      pp_cxx_ws_string (pp, "co_yield");
+      pp_cxx_whitespace (pp);
+      dump_expr (pp, TREE_OPERAND (t, 0), flags);
+      break;
+
+    case CO_RETURN_EXPR:
+      pp_cxx_ws_string (pp, "co_return");
+      if (TREE_OPERAND (t, 0))
+	{
+	  pp_cxx_whitespace (pp);
+	  dump_expr (pp, TREE_OPERAND (t, 0), flags);
+	}
+      break;
+
+    case REFLECT_EXPR:
+      {
+	pp_string (pp, "^^");
+	tree h = REFLECT_EXPR_HANDLE (t);
+	if (DECL_P (h))
+	  dump_decl (pp, h, flags);
+	else if (TYPE_P (h))
+	  dump_type (pp, h, flags);
+	else if (TREE_CODE (h) == TREE_VEC)
+	  {
+	    pp_format_decoder (pp) = cp_printer;
+	    pp->set_format_postprocessor
+	      (std::make_unique<cxx_format_postprocessor> ());
+	    dump_data_member_spec (pp, h);
+	  }
+	else
+	  dump_expr (pp, h, flags);
+	break;
+      }
+
+    case SPLICE_EXPR:
+      pp_cxx_ws_string (pp, "[:");
+      pp_cxx_whitespace (pp);
+      dump_expr (pp, TREE_OPERAND (t, 0), flags);
+      pp_cxx_whitespace (pp);
+      pp_cxx_ws_string (pp, ":]");
+      break;
+
       /*  This list is incomplete, but should suffice for now.
 	  It is very important that `sorry' does not call
 	  `report_error_function'.  That could cause an infinite loop.  */
@@ -3673,9 +3813,9 @@ eh_spec_to_string (tree p, int /*v*/)
 
 /* Langhook for print_error_function.  */
 void
-cxx_print_error_function (diagnostic_text_output_format &text_output,
+cxx_print_error_function (diagnostics::text_sink &text_output,
 			  const char *file,
-			  const diagnostic_info *diagnostic)
+			  const diagnostics::diagnostic_info *diagnostic)
 {
   char *prefix;
   if (file)
@@ -3689,8 +3829,8 @@ cxx_print_error_function (diagnostic_text_output_format &text_output,
 }
 
 static void
-cp_diagnostic_text_starter (diagnostic_text_output_format &text_output,
-			    const diagnostic_info *diagnostic)
+cp_diagnostic_text_starter (diagnostics::text_sink &text_output,
+			    const diagnostics::diagnostic_info *diagnostic)
 {
   pp_set_prefix (text_output.get_printer (),
 		 text_output.build_indent_prefix (true));
@@ -3706,8 +3846,8 @@ cp_diagnostic_text_starter (diagnostic_text_output_format &text_output,
 /* Print current function onto BUFFER, in the process of reporting
    a diagnostic message.  Called from cp_diagnostic_starter.  */
 static void
-cp_print_error_function (diagnostic_text_output_format &text_output,
-			 const diagnostic_info *diagnostic)
+cp_print_error_function (diagnostics::text_sink &text_output,
+			 const diagnostics::diagnostic_info *diagnostic)
 {
   /* If we are in an instantiation context, current_function_decl is likely
      to be wrong, so just rely on print_instantiation_full_context.  */
@@ -3716,7 +3856,7 @@ cp_print_error_function (diagnostic_text_output_format &text_output,
   /* The above is true for constraint satisfaction also.  */
   if (current_failed_constraint)
     return;
-  diagnostic_context *const context = &text_output.get_context ();
+  diagnostics::context *const context = &text_output.get_context ();
   if (diagnostic_last_function_changed (context, diagnostic))
     {
       pretty_printer *const pp = text_output.get_printer ();
@@ -3843,6 +3983,44 @@ function_category (tree fn)
     return G_("In function %qD");
 }
 
+/* We expected some kind of tree but instead got T and emitted a diagnostic.
+   Print the category of T (type, expression, ...) if possible.  */
+
+void
+inform_tree_category (tree t)
+{
+  const location_t loc = location_of (t);
+
+  t = maybe_get_first_fn (t);
+  if (TREE_CODE (t) == TYPE_DECL)
+    t = TREE_TYPE (t);
+
+  if (TYPE_P (t))
+    inform (loc, "but %qE is a type", t);
+  else if (EXPR_P (t))
+    inform (loc, "but %qE is an expression", t);
+  else if (DECL_DECOMPOSITION_P (t) && !DECL_DECOMP_IS_BASE (t))
+    inform (loc, "but %qE is a structured binding", t);
+  else if (VAR_P (t))
+    inform (loc, "but %qE is a variable", t);
+  else if (TREE_CODE (t) == PARM_DECL)
+    inform (loc, "but %qE is a parameter", t);
+  else if (TREE_CODE (t) == FUNCTION_DECL)
+    inform (loc, "but %qE is a function", t);
+  else if (TREE_CODE (t) == FIELD_DECL)
+    inform (loc, "but %qE is a data member", t);
+  else if (DECL_FUNCTION_TEMPLATE_P (t))
+    inform (loc, "but %qE is a function template", t);
+  else if (DECL_CLASS_TEMPLATE_P (t))
+    inform (loc, "but %qE is a class template", t);
+  else if (variable_template_p (t))
+    inform (loc, "but %qE is a variable template", t);
+  else if (TREE_CODE (t) == NAMESPACE_DECL)
+    inform (loc, "but %qE is a namespace", t);
+  else if (TREE_CODE (t) == CONST_DECL && !DECL_TEMPLATE_PARM_P (t))
+    inform (loc, "but %qE is an enumerator", t);
+}
+
 /* Disable warnings about missing quoting in GCC diagnostics for
    the pp_verbatim calls.  Their format strings deliberately don't
    follow GCC diagnostic conventions.  */
@@ -3854,7 +4032,7 @@ function_category (tree fn)
 /* Report the full context of a current template instantiation,
    onto BUFFER.  */
 static void
-print_instantiation_full_context (diagnostic_text_output_format &text_output)
+print_instantiation_full_context (diagnostics::text_sink &text_output)
 {
   struct tinst_level *p = current_instantiation ();
   location_t location = input_location;
@@ -3865,14 +4043,20 @@ print_instantiation_full_context (diagnostic_text_output_format &text_output)
 	= ((!text_output.show_nesting_p ())
 	   || text_output.show_locations_in_nesting_p ());
       char *indent = text_output.build_indent_prefix (true);
+      bool expansion_stmt_p = TREE_CODE (p->tldcl) == TEMPLATE_FOR_STMT;
       pp_verbatim (text_output.get_printer (),
-		   p->list_p ()
+		   expansion_stmt_p
+		   ? G_("%s%s%sIn instantiation of %<template for%> "
+			"iteration %E:\n")
+		   : p->list_p ()
 		   ? G_("%s%s%sIn substitution of %qS:\n")
 		   : G_("%s%s%sIn instantiation of %q#D:\n"),
 		   indent,
 		   show_file ? LOCATION_FILE (location) : "",
 		   show_file ? ": " : "",
-		   p->get_node ());
+		   expansion_stmt_p
+		   ? TREE_VEC_ELT (p->targs, 0)
+		   : p->get_node ());
       free (indent);
       location = p->locus;
       p = p->next;
@@ -3882,7 +4066,7 @@ print_instantiation_full_context (diagnostic_text_output_format &text_output)
 }
 
 static void
-print_location (diagnostic_text_output_format &text_output,
+print_location (diagnostics::text_sink &text_output,
 		location_t loc)
 {
   expanded_location xloc = expand_location (loc);
@@ -3896,7 +4080,7 @@ print_location (diagnostic_text_output_format &text_output,
 }
 
 /* A RAII class for use when emitting a line of contextual information
-   via pp_verbatim to a diagnostic_text_output_format to add before/after
+   via pp_verbatim to a diagnostics::text_sink to add before/after
    behaviors to the pp_verbatim calls.
 
    If the text output has show_nesting_p (), then the ctor prints
@@ -3911,18 +4095,23 @@ print_location (diagnostic_text_output_format &text_output,
 class auto_context_line
 {
 public:
-  auto_context_line (diagnostic_text_output_format &text_output,
+  auto_context_line (diagnostics::text_sink &text_output,
 		     location_t loc,
 		     bool show_locus = false)
   : m_text_output (text_output),
     m_loc (loc),
-    m_show_locus (show_locus)
+    m_show_locus (show_locus),
+    m_nesting_level (text_output.get_context ().get_diagnostic_nesting_level ()),
+    m_location_printed (false)
   {
     char *indent = m_text_output.build_indent_prefix (true);
     pp_verbatim (m_text_output.get_printer (), indent);
     free (indent);
-    if (!m_text_output.show_nesting_p ())
-      print_location (m_text_output, m_loc);
+    if (m_nesting_level == 0 || !m_text_output.show_nesting_p ())
+      {
+	print_location (m_text_output, m_loc);
+	m_location_printed = true;
+      }
   }
   ~auto_context_line ()
   {
@@ -3932,9 +4121,13 @@ public:
 	if (m_text_output.show_locations_in_nesting_p ())
 	  {
 	    char *indent = m_text_output.build_indent_prefix (false);
-	    pp_verbatim (pp, indent);
-	    print_location (m_text_output, m_loc);
-	    pp_newline (pp);
+	    if (!m_location_printed)
+	      {
+		pp_verbatim (pp, indent);
+		print_location (m_text_output, m_loc);
+		pp_newline (pp);
+		m_location_printed = true;
+	      }
 
 	    char *saved_prefix = pp_take_prefix (pp);
 	    pp_set_prefix (pp, indent);
@@ -3942,7 +4135,7 @@ public:
 	    diagnostic_show_locus (&m_text_output.get_context (),
 				   m_text_output.get_source_printing_options (),
 				   &rich_loc,
-				   DK_NOTE, pp);
+				   diagnostics::kind::note, pp);
 	    pp_set_prefix (pp, saved_prefix);
 	  }
       }
@@ -3954,21 +4147,23 @@ public:
 	diagnostic_show_locus (&m_text_output.get_context (),
 			       m_text_output.get_source_printing_options (),
 			       &rich_loc,
-			       DK_NOTE, pp);
+			       diagnostics::kind::note, pp);
 	pp_set_prefix (pp, saved_prefix);
       }
   }
 private:
-  diagnostic_text_output_format &m_text_output;
+  diagnostics::text_sink &m_text_output;
   location_t m_loc;
   bool m_show_locus;
+  int m_nesting_level;
+  bool m_location_printed;
 };
 
 /* Helper function of print_instantiation_partial_context() that
    prints a single line of instantiation context.  */
 
 static void
-print_instantiation_partial_context_line (diagnostic_text_output_format &text_output,
+print_instantiation_partial_context_line (diagnostics::text_sink &text_output,
 					  struct tinst_level *t,
 					  location_t loc, bool recursive_p)
 {
@@ -3981,7 +4176,14 @@ print_instantiation_partial_context_line (diagnostic_text_output_format &text_ou
 
   if (t != NULL)
     {
-      if (t->list_p ())
+      if (TREE_CODE (t->tldcl) == TEMPLATE_FOR_STMT)
+	pp_verbatim (pp,
+		     recursive_p
+		     ? G_("recursively required from %<template for%> "
+			  "iteration %E\n")
+		     : G_("required from %<template for%> iteration %E\n"),
+		     TREE_VEC_ELT (t->targs, 0));
+      else if (t->list_p ())
 	pp_verbatim (pp,
 		     recursive_p
 		     ? G_("recursively required by substitution of %qS\n")
@@ -4006,7 +4208,7 @@ print_instantiation_partial_context_line (diagnostic_text_output_format &text_ou
 /* Same as print_instantiation_full_context but less verbose.  */
 
 static void
-print_instantiation_partial_context (diagnostic_text_output_format &text_output,
+print_instantiation_partial_context (diagnostics::text_sink &text_output,
 				     struct tinst_level *t0, location_t loc)
 {
   struct tinst_level *t;
@@ -4077,7 +4279,7 @@ print_instantiation_partial_context (diagnostic_text_output_format &text_output,
 
 /* Called from cp_thing to print the template context for an error.  */
 static void
-maybe_print_instantiation_context (diagnostic_text_output_format &text_output)
+maybe_print_instantiation_context (diagnostics::text_sink &text_output)
 {
   if (!problematic_instantiation_changed () || current_instantiation () == 0)
     return;
@@ -4089,7 +4291,7 @@ maybe_print_instantiation_context (diagnostic_text_output_format &text_output)
 /* Report what constexpr call(s) we're trying to expand, if any.  */
 
 void
-maybe_print_constexpr_context (diagnostic_text_output_format &text_output)
+maybe_print_constexpr_context (diagnostics::text_sink &text_output)
 {
   vec<tree> call_stack = cx_error_context ();
   unsigned ix;
@@ -4109,7 +4311,7 @@ maybe_print_constexpr_context (diagnostic_text_output_format &text_output)
 
 
 static void
-print_constrained_decl_info (diagnostic_text_output_format &text_output,
+print_constrained_decl_info (diagnostics::text_sink &text_output,
 			     tree decl)
 {
   auto_context_line sentinel (text_output, DECL_SOURCE_LOCATION (decl));
@@ -4118,7 +4320,7 @@ print_constrained_decl_info (diagnostic_text_output_format &text_output,
 }
 
 static void
-print_concept_check_info (diagnostic_text_output_format &text_output,
+print_concept_check_info (diagnostics::text_sink &text_output,
 			  tree expr, tree map, tree args)
 {
   gcc_assert (concept_check_p (expr));
@@ -4143,7 +4345,7 @@ print_concept_check_info (diagnostic_text_output_format &text_output,
    context, if any.  */
 
 static tree
-print_constraint_context_head (diagnostic_text_output_format &text_output,
+print_constraint_context_head (diagnostics::text_sink &text_output,
 			       tree cxt, tree args)
 {
   tree src = TREE_VALUE (cxt);
@@ -4167,7 +4369,7 @@ print_constraint_context_head (diagnostic_text_output_format &text_output,
 }
 
 static void
-print_requires_expression_info (diagnostic_text_output_format &text_output,
+print_requires_expression_info (diagnostics::text_sink &text_output,
 				tree constr, tree args)
 {
 
@@ -4197,7 +4399,7 @@ print_requires_expression_info (diagnostic_text_output_format &text_output,
 }
 
 void
-maybe_print_single_constraint_context (diagnostic_text_output_format &text_output,
+maybe_print_single_constraint_context (diagnostics::text_sink &text_output,
 				       tree failed)
 {
   if (!failed)
@@ -4228,7 +4430,7 @@ maybe_print_single_constraint_context (diagnostic_text_output_format &text_outpu
 }
 
 void
-maybe_print_constraint_context (diagnostic_text_output_format &text_output)
+maybe_print_constraint_context (diagnostics::text_sink &text_output)
 {
   if (!current_failed_constraint)
     return;
@@ -4841,18 +5043,20 @@ maybe_warn_variadic_templates (void)
    C++0x.  */
 bool
 pedwarn_cxx98 (location_t location,
-	       diagnostic_option_id option_id,
+	       diagnostics::option_id option_id,
 	       const char *gmsgid, ...)
 {
-  diagnostic_info diagnostic;
+  diagnostics::diagnostic_info diagnostic;
   va_list ap;
   bool ret;
   rich_location richloc (line_table, location);
 
   va_start (ap, gmsgid);
   diagnostic_set_info (&diagnostic, gmsgid, &ap, &richloc,
-		       (cxx_dialect == cxx98) ? DK_PEDWARN : DK_WARNING);
-  diagnostic.option_id = option_id;
+		       (cxx_dialect == cxx98
+			? diagnostics::kind::pedwarn
+			: diagnostics::kind::warning));
+  diagnostic.m_option_id = option_id;
   ret = diagnostic_report_diagnostic (global_dc, &diagnostic);
   va_end (ap);
   return ret;
@@ -4879,7 +5083,7 @@ qualified_name_lookup_error (tree scope, tree name,
 	  auto_diagnostic_group d;
 	  error_at (location, "reference to %<%T::%D%> is ambiguous",
 		    scope, name);
-	  print_candidates (decl);
+	  print_candidates (location, decl);
 	}
       else
 	{

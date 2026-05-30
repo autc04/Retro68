@@ -1,5 +1,5 @@
 /* AddressSanitizer, a fast memory error detector.
-   Copyright (C) 2011-2025 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
    Contributed by Kostya Serebryany <kcc@google.com>
 
 This file is part of GCC.
@@ -57,6 +57,14 @@ extern bool hwasan_expand_check_ifn (gimple_stmt_iterator *, bool);
 extern bool hwasan_expand_mark_ifn (gimple_stmt_iterator *);
 extern bool gate_hwasan (void);
 
+extern bool memtag_sanitize_p (void);
+extern bool memtag_sanitize_stack_p (void);
+extern bool memtag_sanitize_allocas_p (void);
+extern bool gate_memtag (void);
+
+bool hwassist_sanitize_p (void);
+bool hwassist_sanitize_stack_p (void);
+
 extern gimple_stmt_iterator create_cond_insert_point
      (gimple_stmt_iterator *, bool, bool, bool, basic_block *, basic_block *);
 
@@ -103,7 +111,7 @@ extern hash_set <tree> *asan_used_labels;
    independently here.  */
 /* How many bits are used to store a tag in a pointer.
    The default version uses the entire top byte of a pointer (i.e. 8 bits).  */
-#define HWASAN_TAG_SIZE targetm.memtag.tag_size ()
+#define HWASAN_TAG_SIZE targetm.memtag.tag_bitsize ()
 /* Tag Granule of HWASAN shadow stack.
    This is the size in real memory that each byte in the shadow memory refers
    to.  I.e. if a variable is X bytes long in memory then its tag in shadow
@@ -225,7 +233,7 @@ inline bool
 asan_sanitize_use_after_scope (void)
 {
   return (flag_sanitize_address_use_after_scope
-	  && (asan_sanitize_stack_p () || hwasan_sanitize_stack_p ()));
+	  && (asan_sanitize_stack_p () || hwassist_sanitize_stack_p ()));
 }
 
 /* Return true if DECL should be guarded on the stack.  */
@@ -242,9 +250,10 @@ asan_protect_stack_decl (tree decl)
    remove all flags mentioned in "no_sanitize" of DECL_ATTRIBUTES.  */
 
 inline bool
-sanitize_flags_p (unsigned int flag, const_tree fn = current_function_decl)
+sanitize_flags_p (sanitize_code_type flag,
+		  const_tree fn = current_function_decl)
 {
-  unsigned int result_flags = flag_sanitize & flag;
+  sanitize_code_type result_flags = flag_sanitize & flag;
   if (result_flags == 0)
     return false;
 

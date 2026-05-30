@@ -258,7 +258,7 @@ run_const_vector_selftests (void)
 
   FOR_EACH_MODE_IN_CLASS (mode, MODE_VECTOR_INT)
     {
-      if (riscv_v_ext_vector_mode_p (mode))
+      if (riscv_vla_mode_p (mode))
 	{
 	  for (const HOST_WIDE_INT &val : worklist)
 	    {
@@ -282,7 +282,7 @@ run_const_vector_selftests (void)
 
   FOR_EACH_MODE_IN_CLASS (mode, MODE_VECTOR_FLOAT)
     {
-      if (riscv_v_ext_vector_mode_p (mode))
+      if (riscv_vla_mode_p (mode))
 	{
 	  scalar_mode inner_mode = GET_MODE_INNER (mode);
 	  REAL_VALUE_TYPE f = REAL_VALUE_ATOF ("0.2928932", inner_mode);
@@ -303,7 +303,7 @@ run_const_vector_selftests (void)
   FOR_EACH_MODE_IN_CLASS (mode, MODE_VECTOR_BOOL)
     {
       /* Test vmset.m.  */
-      if (riscv_v_ext_vector_mode_p (mode))
+      if (riscv_vla_mode_p (mode))
 	{
 	  start_sequence ();
 	  rtx dest = gen_reg_rtx (mode);
@@ -330,7 +330,7 @@ run_broadcast_selftests (void)
 #define BROADCAST_TEST(MODE_CLASS)                                             \
   FOR_EACH_MODE_IN_CLASS (mode, MODE_VECTOR_INT)                               \
     {                                                                          \
-      if (riscv_v_ext_vector_mode_p (mode))                                    \
+      if (riscv_vla_mode_p (mode))					       \
 	{                                                                      \
 	  rtx_insn *insn;                                                      \
 	  rtx src;                                                             \
@@ -342,9 +342,13 @@ run_broadcast_selftests (void)
 	  expand_vector_broadcast (mode, mem);                                 \
 	  insn = get_last_insn ();                                             \
 	  src = SET_SRC (PATTERN (insn));                                      \
-	  ASSERT_TRUE (MEM_P (XEXP (src, 0)));                                 \
-	  ASSERT_TRUE (                                                        \
-	    rtx_equal_p (src, gen_rtx_VEC_DUPLICATE (mode, XEXP (src, 0))));   \
+	  if (strided_load_broadcast_p ())                                     \
+	    {                                                                  \
+	      ASSERT_TRUE (MEM_P (XEXP (src, 0)));                             \
+	      ASSERT_TRUE (                                                    \
+		rtx_equal_p (src,                                              \
+			     gen_rtx_VEC_DUPLICATE (mode, XEXP (src, 0))));    \
+	    }                                                                  \
 	  end_sequence ();                                                     \
 	  /* Test vmv.v.x or vfmv.v.f.  */                                     \
 	  start_sequence ();                                                   \
@@ -361,6 +365,162 @@ run_broadcast_selftests (void)
 
   BROADCAST_TEST (MODE_VECTOR_INT)
   BROADCAST_TEST (MODE_VECTOR_FLOAT)
+}
+
+static void
+test_vectorize_related_mode (machine_mode vec_mode, scalar_mode ele_mode,
+			     machine_mode expected)
+{
+  opt_machine_mode result = riscv_vector::vectorize_related_mode (vec_mode,
+								  ele_mode, 0);
+  machine_mode result_mode = result.else_void ();
+  ASSERT_TRUE (result_mode == expected);
+}
+
+static void
+run_vectorize_related_mode_vla_selftests (void)
+{
+  riscv_selftest_arch_abi_setter rv ("rv64imafdcv", ABI_LP64D);
+  enum rvv_max_lmul_enum backup_rvv_max_lmul = rvv_max_lmul;
+  rvv_max_lmul = RVV_M1;
+
+  test_vectorize_related_mode (RVVM1QImode, SImode, RVVM1SImode);
+  test_vectorize_related_mode (RVVM2QImode, SImode, RVVM1SImode);
+  test_vectorize_related_mode (RVVM4QImode, SImode, RVVM1SImode);
+  test_vectorize_related_mode (RVVM8QImode, SImode, RVVM1SImode);
+  test_vectorize_related_mode (RVVM8QImode, DImode, RVVM1DImode);
+  test_vectorize_related_mode (RVVM8QImode, QImode, RVVM1QImode);
+  test_vectorize_related_mode (RVVM8QImode, HImode, RVVM1HImode);
+
+  rvv_max_lmul = RVV_M2;
+
+  test_vectorize_related_mode (RVVM1QImode, SImode, RVVM2SImode);
+  test_vectorize_related_mode (RVVM2QImode, SImode, RVVM2SImode);
+  test_vectorize_related_mode (RVVM4QImode, SImode, RVVM2SImode);
+  test_vectorize_related_mode (RVVM8QImode, SImode, RVVM2SImode);
+  test_vectorize_related_mode (RVVM8QImode, DImode, RVVM2DImode);
+  test_vectorize_related_mode (RVVM8QImode, QImode, RVVM2QImode);
+  test_vectorize_related_mode (RVVM8QImode, HImode, RVVM2HImode);
+
+  rvv_max_lmul = RVV_M4;
+
+  test_vectorize_related_mode (RVVM1QImode, SImode, RVVM4SImode);
+  test_vectorize_related_mode (RVVM2QImode, SImode, RVVM4SImode);
+  test_vectorize_related_mode (RVVM4QImode, SImode, RVVM4SImode);
+  test_vectorize_related_mode (RVVM8QImode, SImode, RVVM4SImode);
+  test_vectorize_related_mode (RVVM8QImode, DImode, RVVM4DImode);
+  test_vectorize_related_mode (RVVM8QImode, QImode, RVVM4QImode);
+  test_vectorize_related_mode (RVVM8QImode, HImode, RVVM4HImode);
+
+  rvv_max_lmul = RVV_M8;
+
+  test_vectorize_related_mode (RVVM1QImode, SImode, RVVM4SImode);
+  test_vectorize_related_mode (RVVM2QImode, SImode, RVVM8SImode);
+  test_vectorize_related_mode (RVVM4QImode, SImode, RVVM8SImode);
+  test_vectorize_related_mode (RVVM8QImode, SImode, RVVM8SImode);
+  test_vectorize_related_mode (RVVM8QImode, DImode, RVVM8DImode);
+  test_vectorize_related_mode (RVVM8QImode, QImode, RVVM8QImode);
+  test_vectorize_related_mode (RVVM8QImode, HImode, RVVM8HImode);
+
+  rvv_max_lmul = backup_rvv_max_lmul;
+}
+
+static void
+run_vectorize_related_mode_vls_rv64gcv_selftests ()
+{
+  enum rvv_vector_bits_enum backup_rvv_vector_bits = rvv_vector_bits;
+  rvv_vector_bits = RVV_VECTOR_BITS_SCALABLE;
+  riscv_selftest_arch_abi_setter rv ("rv64imafdcv", ABI_LP64D);
+  enum rvv_max_lmul_enum backup_rvv_max_lmul = rvv_max_lmul;
+  rvv_max_lmul = RVV_M1;
+
+  test_vectorize_related_mode (  V16QImode, QImode,   V16QImode);
+  test_vectorize_related_mode (  V16QImode, HImode,    V8HImode);
+  test_vectorize_related_mode (  V16QImode, SImode,    V4SImode);
+  test_vectorize_related_mode (  V16QImode, DImode,    V2DImode);
+
+  rvv_max_lmul = RVV_M2;
+
+  test_vectorize_related_mode (  V32QImode, QImode,   V32QImode);
+  test_vectorize_related_mode (  V32QImode, HImode,   V16HImode);
+  test_vectorize_related_mode (  V32QImode, SImode,    V8SImode);
+  test_vectorize_related_mode (  V32QImode, DImode,    V4DImode);
+
+  rvv_max_lmul = RVV_M4;
+
+  test_vectorize_related_mode (  V64QImode, QImode,   V64QImode);
+  test_vectorize_related_mode (  V64QImode, HImode,   V32HImode);
+  test_vectorize_related_mode (  V64QImode, SImode,   V16SImode);
+  test_vectorize_related_mode (  V64QImode, DImode,    V8DImode);
+
+  rvv_max_lmul = RVV_M8;
+
+  test_vectorize_related_mode ( V128QImode, QImode,  V128QImode);
+  test_vectorize_related_mode ( V128QImode, HImode,   V64HImode);
+  test_vectorize_related_mode ( V128QImode, SImode,   V32SImode);
+  test_vectorize_related_mode ( V128QImode, DImode,   V16DImode);
+
+  rvv_vector_bits = backup_rvv_vector_bits;
+  rvv_max_lmul = backup_rvv_max_lmul;
+}
+
+static void
+run_vectorize_related_mode_vls_rv32gc_zve32x_zvl256b_selftests ()
+{
+  enum rvv_vector_bits_enum backup_rvv_vector_bits = rvv_vector_bits;
+  rvv_vector_bits = RVV_VECTOR_BITS_SCALABLE;
+  riscv_selftest_arch_abi_setter rv ("rv32gc_zve32x_zvl256b", ABI_ILP32D);
+  enum rvv_max_lmul_enum backup_rvv_max_lmul = rvv_max_lmul;
+  rvv_max_lmul = RVV_M1;
+
+  test_vectorize_related_mode (  V32QImode, QImode,   V32QImode);
+  test_vectorize_related_mode (  V32QImode, HImode,   V16HImode);
+  test_vectorize_related_mode (  V32QImode, SImode,    V8SImode);
+  test_vectorize_related_mode (  V32QImode, DImode,    VOIDmode);
+
+  test_vectorize_related_mode (  V16QImode, QImode,   V16QImode);
+  test_vectorize_related_mode (  V16QImode, HImode,   V16HImode);
+  test_vectorize_related_mode (  V16QImode, SImode,    V8SImode);
+  test_vectorize_related_mode (  V16QImode, DImode,    VOIDmode);
+
+  rvv_max_lmul = RVV_M2;
+
+  test_vectorize_related_mode (  V32QImode, QImode,   V32QImode);
+  test_vectorize_related_mode (  V32QImode, HImode,   V32HImode);
+  test_vectorize_related_mode (  V32QImode, SImode,   V16SImode);
+  test_vectorize_related_mode (  V32QImode, DImode,    VOIDmode);
+
+  rvv_max_lmul = RVV_M4;
+
+  test_vectorize_related_mode ( V128QImode, QImode,  V128QImode);
+  test_vectorize_related_mode ( V128QImode, HImode,   V64HImode);
+  test_vectorize_related_mode ( V128QImode, SImode,   V32SImode);
+  test_vectorize_related_mode ( V128QImode, DImode,    VOIDmode);
+
+  rvv_max_lmul = RVV_M8;
+
+  test_vectorize_related_mode ( V128QImode, QImode,  V128QImode);
+  test_vectorize_related_mode ( V128QImode, HImode,  V128HImode);
+  test_vectorize_related_mode ( V128QImode, SImode,   V64SImode);
+  test_vectorize_related_mode ( V128QImode, DImode,    VOIDmode);
+
+  rvv_vector_bits = backup_rvv_vector_bits;
+  rvv_max_lmul = backup_rvv_max_lmul;
+
+}
+
+static void
+run_vectorize_related_mode_vls_selftests (void)
+{
+  run_vectorize_related_mode_vls_rv64gcv_selftests ();
+  run_vectorize_related_mode_vls_rv32gc_zve32x_zvl256b_selftests ();
+}
+
+static void
+run_vectorize_related_mode_selftests (void)
+{
+  run_vectorize_related_mode_vla_selftests ();
+  run_vectorize_related_mode_vls_selftests ();
 }
 
 namespace selftest {
@@ -383,6 +543,7 @@ riscv_run_selftests (void)
     run_poly_int_selftests ();
   run_const_vector_selftests ();
   run_broadcast_selftests ();
+  run_vectorize_related_mode_selftests ();
 }
 } // namespace selftest
 #endif /* #if CHECKING_P */

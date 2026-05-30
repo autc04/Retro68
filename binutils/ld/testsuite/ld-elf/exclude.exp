@@ -1,5 +1,5 @@
 # Expect script for --exclude-libs tests
-#   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -26,8 +26,8 @@ if ![is_elf_format] {
     return
 }
 
-# No shared lib support on this target.
-if { [istarget "mcore-*-*"] } {
+# Skip targets where -shared is not supported
+if { ![check_shared_lib_support] } {
     return
 }
 

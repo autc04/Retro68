@@ -1,6 +1,6 @@
 (* M2SymInit.mod records initialization state for variables.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -155,11 +155,16 @@ BEGIN
    printf (" initialized\n") ;
    IF (desc^.type # NulSym) AND IsRecord (desc^.type)
    THEN
-      i := 1 ;
-      n := Indexing.HighIndice (desc^.rec.fieldDesc) ;
-      WHILE i <= n DO
-         PrintSymInit (Indexing.GetIndice (desc^.rec.fieldDesc, i)) ;
-         INC (i)
+      IF desc^.rec.fieldDesc = NIL
+      THEN
+         printf (" record field descriptor has not been initialized yet\n") ;
+      ELSE
+         i := 1 ;
+         n := Indexing.HighIndice (desc^.rec.fieldDesc) ;
+         WHILE i <= n DO
+            PrintSymInit (Indexing.GetIndice (desc^.rec.fieldDesc, i)) ;
+            INC (i)
+         END
       END
    END
 END PrintSymInit ;

@@ -1,3 +1,3 @@
 #...
-Disassembly of section .upper.bss:
+.* \.upper\.bss +0+14 .*
 #pass

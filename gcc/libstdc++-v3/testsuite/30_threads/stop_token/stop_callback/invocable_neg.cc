@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -32,3 +32,4 @@ test01(std::stop_token& tok, F& f)
 }
 
 // { dg-error "static assertion failed" "" { target *-*-* } 0 }
+// { dg-error "no match for call" "" { target *-*-* } 0 }

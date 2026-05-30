@@ -1,4 +1,5 @@
 #objdump: -dr
+#as: -32
 #name: Paired LL/SC for mips64r6
 
 .*: +file format .*

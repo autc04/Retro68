@@ -1,5 +1,5 @@
 /* Combining of if-expressions on trees.
-   Copyright (C) 2007-2025 Free Software Foundation, Inc.
+   Copyright (C) 2007-2026 Free Software Foundation, Inc.
    Contributed by Richard Guenther <rguenther@suse.de>
 
 This file is part of GCC.
@@ -43,6 +43,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "attribs.h"
 #include "asan.h"
 #include "bitmap.h"
+#include "cfgloop.h"
 
 #ifndef LOGICAL_OP_NON_SHORT_CIRCUIT
 #define LOGICAL_OP_NON_SHORT_CIRCUIT \
@@ -514,15 +515,9 @@ ifcombine_mark_ssa_name_walk (tree *t, int *, void *data_)
 static inline void
 ifcombine_rewrite_to_defined_overflow (gimple_stmt_iterator gsi)
 {
-  gassign *ass = dyn_cast <gassign *> (gsi_stmt (gsi));
-  if (!ass)
+  if (!gimple_needing_rewrite_undefined (gsi_stmt (gsi)))
     return;
-  tree lhs = gimple_assign_lhs (ass);
-  if ((INTEGRAL_TYPE_P (TREE_TYPE (lhs))
-       || POINTER_TYPE_P (TREE_TYPE (lhs)))
-      && arith_code_with_undefined_signed_overflow
-      (gimple_assign_rhs_code (ass)))
-    rewrite_to_defined_overflow (&gsi);
+  rewrite_to_defined_unconditional (&gsi);
 }
 
 
@@ -824,6 +819,21 @@ ifcombine_ifandif (basic_block inner_cond_bb, bool inner_inv,
   if (!outer_cond)
     return false;
 
+  /* niter analysis does not cope with boolean typed loop exit conditions.
+     Avoid turning an analyzable exit into an unanalyzable one.  */
+  if (inner_cond_bb->loop_father == outer_cond_bb->loop_father
+      && loop_exits_from_bb_p (inner_cond_bb->loop_father, inner_cond_bb)
+      && loop_exits_from_bb_p (outer_cond_bb->loop_father, outer_cond_bb))
+    {
+      tree outer_type = TREE_TYPE (gimple_cond_lhs (outer_cond));
+      tree inner_type = TREE_TYPE (gimple_cond_lhs (inner_cond));
+      if (TREE_CODE (outer_type) == INTEGER_TYPE
+	  || POINTER_TYPE_P (outer_type)
+	  || TREE_CODE (inner_type) == INTEGER_TYPE
+	  || POINTER_TYPE_P (inner_type))
+	return false;
+    }
+
   /* See if we test a single bit of the same name in both tests.  In
      that case remove the outer test, merging both else edges,
      and change the inner one to test for
@@ -840,16 +850,18 @@ ifcombine_ifandif (basic_block inner_cond_bb, bool inner_inv,
 
       /* Do it.  */
       gsi = gsi_for_stmt (inner_cond);
-      t = fold_build2 (LSHIFT_EXPR, TREE_TYPE (name1),
-		       build_int_cst (TREE_TYPE (name1), 1), bit1);
-      t2 = fold_build2 (LSHIFT_EXPR, TREE_TYPE (name1),
-		        build_int_cst (TREE_TYPE (name1), 1), bit2);
-      t = fold_build2 (BIT_IOR_EXPR, TREE_TYPE (name1), t, t2);
-      t = force_gimple_operand_gsi (&gsi, t, true, NULL_TREE,
-				    true, GSI_SAME_STMT);
-      t2 = fold_build2 (BIT_AND_EXPR, TREE_TYPE (name1), name1, t);
-      t2 = force_gimple_operand_gsi (&gsi, t2, true, NULL_TREE,
-				     true, GSI_SAME_STMT);
+      location_t loc1 = gimple_location (inner_cond);
+      location_t loc2 = gimple_location (outer_cond);
+      t = gimple_build (&gsi, true, GSI_SAME_STMT, loc1, LSHIFT_EXPR,
+			TREE_TYPE (name1),
+			build_int_cst (TREE_TYPE (name1), 1), bit1);
+      t2 = gimple_build (&gsi, true, GSI_SAME_STMT, loc2, LSHIFT_EXPR,
+			 TREE_TYPE (name1),
+			 build_int_cst (TREE_TYPE (name1), 1), bit2);
+      t = gimple_build (&gsi, true, GSI_SAME_STMT, loc1, BIT_IOR_EXPR,
+			TREE_TYPE (name1), t, t2);
+      t2 = gimple_build (&gsi, true, GSI_SAME_STMT, loc1, BIT_AND_EXPR,
+			 TREE_TYPE (name1), name1, t);
 
       t = fold_build2 (EQ_EXPR, boolean_type_node, t2, t);
 

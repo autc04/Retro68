@@ -23,7 +23,7 @@
 .*:48: Warning: extended operand requested but not required
 .*:49: Warning: extended operand requested but not required
 .*:50: Warning: extended operand requested but not required
-.*:53: Error: unrecognized extended version of MIPS16 opcode `nop\.e '
+.*:53: Error: unrecognized extended version of MIPS16 opcode `nop\.e'
 .*:54: Error: unrecognized extended version of MIPS16 opcode `move\.e \$0,\$16'
 .*:55: Error: unrecognized extended version of MIPS16 opcode `move\.e \$16,\$0'
 .*:57: Warning: extended operand requested but not required
@@ -69,7 +69,7 @@
 .*:123: Error: unrecognized extended version of MIPS16 opcode `srav\.e \$16,\$16'
 .*:124: Error: operand 2 must be an immediate expression `sra\.e \$16,\$16'
 .*:125: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `dsrl\.e \$16,8'
-.*:126: Error: unrecognized extended version of MIPS16 opcode `entry\.e '
+.*:126: Error: unrecognized extended version of MIPS16 opcode `entry\.e'
 .*:127: Error: unrecognized extended version of MIPS16 opcode `entry\.e \$31'
 .*:128: Error: unrecognized extended version of MIPS16 opcode `exit\.e \$f0'
 .*:129: Error: unrecognized extended version of MIPS16 opcode `exit\.e'
@@ -115,12 +115,12 @@
 .*:171: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `daddu\.e \$29,0'
 .*:172: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `daddu\.e \$29,\$29,0'
 .*:174: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `ld\.e \$16,0\(\$pc\)'
-.*:175: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `ld\.e \$16,\.-3'
+.*:175: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `ld\.e \$16,\. ?- ?3'
 .*:176: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `daddiu\.e \$16,0'
 .*:177: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `daddu\.e \$16,0'
 .*:179: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `daddiu\.e \$16,\$pc,0'
 .*:180: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `daddu\.e \$16,\$pc,0'
-.*:181: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `dla\.e \$16,\.-1'
+.*:181: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `dla\.e \$16,\. ?- ?1'
 .*:182: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `daddiu\.e \$16,\$sp,0'
 .*:183: Error: opcode not supported on this processor: mips32r2 \(mips32r2\) `daddu\.e \$16,\$sp,0'
 .*:10: Warning: extended operand requested but not required

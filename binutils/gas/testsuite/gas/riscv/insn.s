@@ -54,11 +54,30 @@ target:
 	.insn r  0x33,  0,  0, a0, fa1, fa2
 	.insn r  0x33,  0,  0, fa0, fa1, fa2
 
+	.insn r  OP_V, 0, 1, x1, x3, x2
+
 	.insn 0x0001
 	.insn 0x00000013
 	.insn 0x0000001f
 	.insn 0x0000003f
+	.insn 0x007f
+	.insn 0x107f
+	.insn 0x607f
 	.insn 0x2, 0x0001
 	.insn 0x4, 0x00000013
 	.insn 6, 0x0000001f
 	.insn 8, 0x0000003f
+	.insn 10, 0x007f
+	.insn 12, 0x107f
+	.insn 22, 0x607f
+
+	.insn 0x8000000000000000007f
+	.insn 10, 0x8000000000000000007f
+	.insn 0x000000000000fedcba98765432100123456789ab607f
+	.insn 22, 0x000000000000fedcba98765432100123456789ab607f
+	.insn 0x00dcba98765432100123456789abcdef55aa33cc607f
+	.insn 22, 0x00dcba98765432100123456789abcdef55aa33cc607f
+	.insn 0xfedcba98765432100123456789abcdef55aa33cc607f
+	.insn 22, 0xfedcba98765432100123456789abcdef55aa33cc607f
+
+	.insn r  OP_VE, 0b010, 0b1011101, x4, x12, x8

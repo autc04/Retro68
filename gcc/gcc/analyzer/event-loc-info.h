@@ -1,5 +1,5 @@
 /* A bundle of location information for a checker_event.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -30,6 +30,9 @@ struct event_loc_info
   event_loc_info (location_t loc, tree fndecl, int depth)
   : m_loc (loc), m_fndecl (fndecl), m_depth (depth)
   {}
+
+  event_loc_info (const exploded_node *enode);
+  event_loc_info (const program_point &point);
 
   location_t m_loc;
   tree m_fndecl;

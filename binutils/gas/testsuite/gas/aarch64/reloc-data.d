@@ -1,6 +1,8 @@
 #as: -mabi=lp64
 #objdump: -dr
 #skip: aarch64_be-*-*
+# This test is only valid on ELF based ports.
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 .*:     file format .*
 

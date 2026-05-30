@@ -58,14 +58,16 @@ do_test(Alloc alloc)
 }
 
 template<typename Range>
-void
+constexpr void
 do_test_a()
 {
   do_test<Range>(std::allocator<int>());
-  do_test<Range>(__gnu_test::uneq_allocator<int>(42));
+  if not consteval {
+    do_test<Range>(__gnu_test::uneq_allocator<int>(42));
+  }
 }
 
-bool
+constexpr bool
 test_ranges()
 {
   using namespace __gnu_test;
@@ -87,9 +89,9 @@ test_ranges()
 
   // Not lvalue-convertible to int
   struct C {
-    C(int v) : val(v) { }
-    operator int() && { return val; }
-    bool operator==(int b) const { return b == val; }
+    constexpr C(int v) : val(v) { }
+    constexpr operator int() && { return val; }
+    constexpr bool operator==(int b) const { return b == val; }
     int val;
   };
   using rvalue_input_range = test_range<C, input_iterator_wrapper_rval>;
@@ -98,16 +100,30 @@ test_ranges()
   return true;
 }
 
-constexpr bool
-test_constexpr()
+void
+test_pr120367()
 {
-  // XXX: this doesn't test the non-forward_range code paths are constexpr.
-  do_test<std::span<short>>(std::allocator<int>());
-  return true;
+#ifdef __cpp_exceptions
+  struct X
+  {
+    X(int) { throw 1; }     // Cannot successfully construct an X.
+    ~X() { VERIFY(false); } // So should never need to destroy one.
+  };
+
+  try
+  {
+    int i[1]{};
+    std::vector<X> v(std::from_range, i);
+  }
+  catch (int)
+  {
+  }
+#endif
 }
 
 int main()
 {
   test_ranges();
-  static_assert( test_constexpr() );
+  static_assert( test_ranges() );
+  test_pr120367();
 }

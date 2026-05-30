@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -60,6 +60,9 @@ private:
   TyTy::BaseType *resolved_field_value_expr;
   std::set<std::string> fields_assigned;
   std::map<size_t, HIR::StructExprField *> adtFieldIndexToField;
+
+  // parent
+  HIR::Expr &parent;
 };
 
 } // namespace Resolver

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2000-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2000-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -261,8 +261,6 @@ package body SFN_Scan is
       if At_EOF then
          Error ("unexpected end of file");
       end if;
-
-      return;
    end Check_Not_At_EOF;
 
    -----------------

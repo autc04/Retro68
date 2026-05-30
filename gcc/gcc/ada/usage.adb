@@ -6,7 +6,7 @@
 --                                                                          --
 --                                B o d y                                   --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -92,17 +92,17 @@ begin
 
    --  Common switches available everywhere
 
-   Write_Switch_Char ("g            ", "");
+   Write_Switch_Char ("g        ", "");
    Write_Line ("Generate debugging information");
 
-   Write_Switch_Char ("Idir         ", "");
+   Write_Switch_Char ("Idir     ", "");
    Write_Line ("Specify source files search path");
 
-   Write_Switch_Char ("I-           ", "");
+   Write_Switch_Char ("I-       ", "");
    Write_Line ("Do not look for sources in current directory");
 
-   Write_Switch_Char ("O[0123]      ", "");
-   Write_Line ("Control the optimization level");
+   Write_Switch_Char ("O[?]     ", "");
+   Write_Line ("Control the optimization level (?=0/1/2/3/s/z/g)");
 
    Write_Eol;
 
@@ -196,8 +196,8 @@ begin
 
    --  Line for -gnateG switch
 
-   Write_Switch_Char ("eG");
-   Write_Line ("Generate preprocessed source");
+   Write_Switch_Char ("eG[?]");
+   Write_Line ("Generate preprocessed source (?=b/c/e)");
 
    --  Line for -gnateH switch
 
@@ -402,7 +402,7 @@ begin
 
    Write_Switch_Char ("R?");
    Write_Line
-     ("List rep info (?=0/1/2/3/4/e/m for none/types/all/sym/cg/ext/mech)");
+     ("List rep info (?=1/2/3/4/e/h/m for types/all/sym/cg/ext/holes/mech)");
    Write_Switch_Char ("R?j");
    Write_Line ("List rep info in the JSON data interchange format");
    Write_Switch_Char ("R?s");
@@ -562,9 +562,9 @@ begin
    Write_Line ("        .O*  turn off warnings for out parameters assigned " &
                                                   "but not read");
    Write_Line ("        p+   turn on warnings for ineffective pragma " &
-                                                  "Inline in frontend");
+                                                  "Inline");
    Write_Line ("        P*   turn off warnings for ineffective pragma " &
-                                                  "Inline in frontend");
+                                                  "Inline");
    Write_Line ("        .p+  turn on warnings for suspicious parameter " &
                                                   "order");
    Write_Line ("        .P*  turn off warnings for suspicious parameter " &
@@ -674,7 +674,7 @@ begin
    Write_Line ("        D    check declared identifiers in mixed case");
    Write_Line ("        e    check end/exit labels present");
    Write_Line ("        f    check no form feeds/vertical tabs in source");
-   Write_Line ("        g    check standard GNAT style rules, same as ydISux");
+   Write_Line ("        g    check GNAT style rules, same as ydISuxz");
    Write_Line ("        h    check no horizontal tabs in source");
    Write_Line ("        i    check if-then layout");
    Write_Line ("        I    check mode in");

@@ -5,3 +5,5 @@
 
 #...
 0+ .*(NONE|NULL|UNUSED0) +\*ABS\*
+#?.*R_MIPS_NONE.*
+#?.*R_MIPS_NONE.*

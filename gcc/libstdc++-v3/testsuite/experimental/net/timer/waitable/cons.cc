@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2025 Free Software Foundation, Inc.
+// Copyright (C) 2015-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,8 +27,6 @@ using std::experimental::net::io_context;
 void
 test01()
 {
-  bool test __attribute__((unused)) = false;
-
   io_context ctx1, ctx2;
 
   system_timer timer1(ctx1);
@@ -54,8 +52,6 @@ test01()
 void
 test02()
 {
-  bool test __attribute__((unused)) = false;
-
   io_context ctx1, ctx2;
   auto t1 = system_timer::clock_type::now();
   auto t2 = t1 + system_timer::duration(10);
@@ -83,8 +79,6 @@ test02()
 void
 test03()
 {
-  bool test __attribute__((unused)) = false;
-
   io_context ctx1, ctx2;
   auto now = system_timer::clock_type::now();
   auto d1 = system_timer::duration(10);

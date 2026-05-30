@@ -4,7 +4,7 @@
 
 Raw dump of debug contents of section .z?debug_line:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Length:                      62
   DWARF Version:               .
   Prologue Length:             35
@@ -38,11 +38,11 @@ Raw dump of debug contents of section .z?debug_line:
   1	0	0	0	file1.txt
 
  Line Number Statements:
-  \[0x.*\]  Extended opcode 2: set Address to 0x0
+  \[0x.*\]  Extended opcode 2: set Address to (0x)?0
   \[0x.*\]  Advance Line by 3 to 4
   \[0x.*\]  Copy
   \[0x.*\]  Copy \(view 1\)
-  \[0x.*\]  Extended opcode 2: set Address to 0x0
+  \[0x.*\]  Extended opcode 2: set Address to (0x)?0
   \[0x.*\]  Extended opcode 1: End of Sequence
 
 

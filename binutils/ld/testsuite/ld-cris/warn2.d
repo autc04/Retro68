@@ -2,7 +2,7 @@
 #source: globsym1ref.s
 #source: globsymw1.s
 #target: cris-*-*elf* cris-*-*aout*
-#as: --em=criself
+#as: --emulation=criself
 #ld: -mcriself
 #objdump: -p
 # There should be no warning, since the symbol warned about is

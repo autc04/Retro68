@@ -9,4 +9,4 @@ Relocation section '.rel(a|).dyn' at offset 0x[0-9a-f]+ contains 1 entry:
 
 Relocation section '.rel(a|).plt' at offset 0x[0-9a-f]+ contains 1 entry:
  +Offset +Info +Type +Sym.* Value +Symbol's Name.*
-[0-9a-f]+[ ]+[0-9a-f]+[ ]+R_(386|X86_64)_JUMP_SLOT +foo\(\) +foo( \+ 0|)
+[0-9a-f]+[ ]+[0-9a-f]+[ ]+R_(386|X86_64)_JUMP_SLOT +foo\(\) +foo( \+ [0-9a-f]+|)

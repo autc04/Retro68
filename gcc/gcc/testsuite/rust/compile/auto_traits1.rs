@@ -1,6 +1,9 @@
 // { dg-additional-options "-frust-compile-until=typecheck" }
+#![feature(no_core)]
+#![no_core]
 
-#![feature(optin_builtin_traits)]
+
+#![feature(optin_builtin_traits, lang_items)]
 
 pub unsafe auto trait Send {}
 #[lang = "sync"]

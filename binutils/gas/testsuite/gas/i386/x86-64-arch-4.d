@@ -25,7 +25,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e2 4d df 39[ 	]+vaesdeclast \(%rcx\),%ymm6,%ymm7
 [ 	]*[a-f0-9]+:	f3 0f 01 ff[ 	]+psmash
 [ 	]*[a-f0-9]+:	f2 0f 01 ff[ 	]+pvalidate
-[ 	]*[a-f0-9]+:	f2 0f 01 fe[ 	]+rmpupdate
+[ 	]*[a-f0-9]+:	f2 0f 01 fe[ 	]+rmpupdate \(%rcx\),%rax
 [ 	]*[a-f0-9]+:	f3 0f 01 fe[ 	]+rmpadjust
 [ 	]*[a-f0-9]+:	66 0f 38 82 10[ 	]+invpcid \(%rax\),%rdx
 [ 	]*[a-f0-9]+:	0f 01 ee[ 	]+rdpkru

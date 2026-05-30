@@ -1,6 +1,6 @@
 # Makefile.in
 
-# Copyright (C) 2005-2025 Free Software Foundation, Inc.
+# Copyright (C) 2005-2026 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -87,6 +87,7 @@ CC = @CC@
 CFLAGS = @CFLAGS@
 RANLIB = @RANLIB@
 LN_S = @LN_S@
+WERROR = @WERROR@
 
 PWD_COMMAND = $${PWDCMD-pwd}
 
@@ -193,7 +194,6 @@ AWK = @AWK@
 GCC_FOR_TARGET = $(CC)
 LIPO = @LIPO@
 LIPO_FOR_TARGET = $(LIPO)
-MACHMODE_H = machmode.h mode-classes.def insn-modes.h
 NM = @NM@
 NM_FOR_TARGET = $(NM)
 RANLIB_FOR_TARGET = $(RANLIB)
@@ -220,7 +220,6 @@ export INSTALL_DATA
 export LIB1ASMSRC
 export LIBGCC2_CFLAGS
 export LIPO_FOR_TARGET
-export MACHMODE_H
 export NM_FOR_TARGET
 export STRIP_FOR_TARGET
 export RANLIB_FOR_TARGET
@@ -233,7 +232,8 @@ version := $(shell @get_gcc_base_ver@ $(srcdir)/../gcc/BASE-VER)
 
 ifeq ($(decimal_float),yes)
 ifeq ($(enable_decimal_float),bid)
-DECNUMINC = -I$(srcdir)/config/libbid -DENABLE_DECIMAL_BID_FORMAT
+DECNUMINC = -I$(srcdir)/config/$(cpu_type) -I$(srcdir)/config/libbid \
+	    -DENABLE_DECIMAL_BID_FORMAT
 else
 DECNUMINC = -I$(srcdir)/../libdecnumber/$(enable_decimal_float) \
 	    -I$(srcdir)/../libdecnumber
@@ -248,7 +248,6 @@ LIBGCC2_DEBUG_CFLAGS = -g
 LIBGCC2_CFLAGS = -O2 $(LIBGCC2_INCLUDES) $(GCC_CFLAGS) $(HOST_LIBGCC2_CFLAGS) \
 		 $(LIBGCC2_DEBUG_CFLAGS) -DIN_LIBGCC2 \
 		 -fbuilding-libgcc -fno-stack-protector \
-		 -ffunction-sections \
 		 $(INHIBIT_LIBC_CFLAGS)
 
 # Additional options to use when compiling libgcc2.a.
@@ -298,6 +297,8 @@ override CFLAGS := $(filter-out -fprofile-generate -fprofile-use,$(CFLAGS))
 # include CFLAGS - that's where multilib options live.
 INTERNAL_CFLAGS = $(CFLAGS) $(LIBGCC2_CFLAGS) $(HOST_LIBGCC2_CFLAGS) \
 		  $(INCLUDES) @set_have_cc_tls@ @set_use_emutls@
+
+NO_PIE_CFLAGS = @NO_PIE_CFLAGS@
 
 # Options to use when compiling crtbegin/end.
 CRTSTUFF_CFLAGS = -O2 $(GCC_CFLAGS) $(INCLUDES) $(MULTILIB_CFLAGS) -g0 \

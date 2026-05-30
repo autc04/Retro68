@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,4 +35,4 @@ test()
 
 static_assert(test()); // { dg-error "non-constant condition" }
 
-// { dg-prune-output "_Error_formatter::_M_error()" }
+// { dg-prune-output "_Error_formatter::(_M_error|_S_at)" }

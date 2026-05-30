@@ -27,7 +27,7 @@ lu12i.w  $r4,0x7ffff
 lu32i.d  $r4,-0x7ffff
 pcaddi  $r4,0
 pcaddi  $r4,0x7ffff
-pcaddi  $r4,-0x7ffff
+pcaddi  $r4,-0x80000
 pcalau12i  $r4,0
 pcalau12i  $r4,0x7ffff
 pcalau12i  $r4,-0x7ffff

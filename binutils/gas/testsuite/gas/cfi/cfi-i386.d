@@ -58,7 +58,7 @@ Contents of the .eh_frame section:
   DW_CFA_undefined: r8 \(eip\)
   DW_CFA_nop
 
-0+00a0 0+00ac 0+0018 FDE cie=0+008c pc=0+0044..0+0079
+0+00a0 0+[0-9a-f]+ 0+0018 FDE cie=0+008c pc=0+0044\..*
   DW_CFA_advance_loc: 1 to 0+0045
   DW_CFA_undefined: r0 \(eax\)
   DW_CFA_advance_loc: 1 to 0+0046
@@ -147,23 +147,52 @@ Contents of the .eh_frame section:
   DW_CFA_undefined: r35 \(mm6\)
   DW_CFA_advance_loc: 1 to 0+0070
   DW_CFA_undefined: r36 \(mm7\)
-  DW_CFA_advance_loc: 1 to 0+0071
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r21 \([xy]mm0\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r22 \([xy]mm1\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r23 \([xy]mm2\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r24 \([xy]mm3\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r25 \([xy]mm4\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r26 \([xy]mm5\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r27 \([xy]mm6\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r28 \([xy]mm7\)
+  DW_CFA_advance_loc: 1 to .*
   DW_CFA_undefined: r93 \(k0\)
-  DW_CFA_advance_loc: 1 to 0+0072
+  DW_CFA_advance_loc: 1 to .*
   DW_CFA_undefined: r94 \(k1\)
-  DW_CFA_advance_loc: 1 to 0+0073
+  DW_CFA_advance_loc: 1 to .*
   DW_CFA_undefined: r95 \(k2\)
-  DW_CFA_advance_loc: 1 to 0+0074
+  DW_CFA_advance_loc: 1 to .*
   DW_CFA_undefined: r96 \(k3\)
-  DW_CFA_advance_loc: 1 to 0+0075
+  DW_CFA_advance_loc: 1 to .*
   DW_CFA_undefined: r97 \(k4\)
-  DW_CFA_advance_loc: 1 to 0+0076
+  DW_CFA_advance_loc: 1 to .*
   DW_CFA_undefined: r98 \(k5\)
-  DW_CFA_advance_loc: 1 to 0+0077
+  DW_CFA_advance_loc: 1 to .*
   DW_CFA_undefined: r99 \(k6\)
-  DW_CFA_advance_loc: 1 to 0+0078
+  DW_CFA_advance_loc: 1 to .*
   DW_CFA_undefined: r100 \(k7\)
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r21 \([xyz]mm0\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r22 \([xyz]mm1\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r23 \([xyz]mm2\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r24 \([xyz]mm3\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r25 \([xyz]mm4\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r26 \([xyz]mm5\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r27 \([xyz]mm6\)
+  DW_CFA_advance_loc: 1 to .*
+  DW_CFA_undefined: r28 \([xyz]mm7\)
+#pass

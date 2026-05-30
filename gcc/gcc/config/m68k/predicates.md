@@ -1,5 +1,5 @@
 ;; Predicate definitions for Motorola 68000.
-;; Copyright (C) 2005-2025 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2026 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -158,18 +158,9 @@
     }
 })
 
-
-(define_predicate "rawinline_operand"
-  (match_code "symbol_ref")
-{
-  return m68k_rawinline_p(op);
-})
-
-
 ;; A constant that can be used the address in a call insn
 (define_predicate "const_call_operand"
   (ior (match_operand 0 "const_int_operand")
-       (match_operand 0 "rawinline_operand")
        (and (match_test "m68k_symbolic_call != NULL")
 	    (match_operand 0 "symbolic_operand"))))
 

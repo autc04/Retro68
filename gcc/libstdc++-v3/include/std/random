@@ -1,6 +1,6 @@
 // <random> -*- C++ -*-
 
-// Copyright (C) 2007-2025 Free Software Foundation, Inc.
+// Copyright (C) 2007-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -38,6 +38,9 @@
 #if __cplusplus < 201103L
 # include <bits/c++0x_warning.h>
 #else
+
+#define __glibcxx_want_philox_engine
+#include <bits/version.h>
 
 #include <cmath>
 #include <cstdint> // For uint_fast32_t, uint_fast64_t, uint_least32_t

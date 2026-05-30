@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -67,7 +67,7 @@
 
 // BSD adds:
 #define __used		__used is a BADNAME
-#define __unused	__unused is a BADNAME
+        // __unused	(glibc uses this so can't test here)
         // __inline	(glibc uses this so can't test here)
         // _Complex	(glibc uses this so can't test here)
 #define __istype	__istype is a BADNAME

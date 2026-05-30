@@ -258,6 +258,20 @@ AC_CACHE_CHECK([whether fixed-point is supported], [libgcc_cv_fixed_point],
 fixed_point=$libgcc_cv_fixed_point
 AC_SUBST(fixed_point)
 
+# Check whether the compiler defines __PIE__ by default, so -fno-PIE is needed.
+AC_CACHE_CHECK([whether the compiler defines __PIE__], [libgcc_cv_no_pie_cflags],
+  [AC_COMPILE_IFELSE(
+     [AC_LANG_PROGRAM([[
+#ifdef __PIE__
+#error __PIE__ defined
+#endif
+     ]], [[]])],
+     [libgcc_cv_no_pie_cflags=''],
+     [libgcc_cv_no_pie_cflags='-fno-PIE'])])
+
+NO_PIE_CFLAGS=$libgcc_cv_no_pie_cflags
+AC_SUBST([NO_PIE_CFLAGS])
+
 # For platforms with the unwind ABI which includes an unwind library,
 # libunwind, we can choose to use the system libunwind.
 # config.gcc also contains tests of with_system_libunwind.
@@ -305,9 +319,7 @@ AC_SUBST([use_tm_clone_registry])
 
 AC_LIB_PROG_LD_GNU
 
-AC_MSG_CHECKING([for thread model used by GCC])
-target_thread_file=`$CC -v 2>&1 | sed -n 's/^Thread model: //p'`
-AC_MSG_RESULT([$target_thread_file]) 
+GCC_AC_THREAD_MODEL
 
 # Check for assembler CFI support.
 AC_CACHE_CHECK([whether assembler supports CFI directives], [libgcc_cv_cfi],
@@ -467,6 +479,20 @@ powerpc*-*-linux*)
   CFLAGS="$saved_CFLAGS"
 esac
 
+case ${host} in
+s390*-*-linux*)
+  AC_CACHE_CHECK([Support float16 on s390],
+		 [libgcc_cv_s390_float16],
+		 [AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE([#if ! __s390x__ || __ARCH__ < 8
+     # error "HF not supported"
+     #endif
+     ])],
+    [libgcc_cv_s390_float16=yes],
+    [libgcc_cv_s390_float16=no])])
+  ;;
+esac
+
 # Collect host-machine-specific information.
 . ${srcdir}/config.host
 
@@ -517,6 +543,18 @@ case ${host} in
   ;;
 esac
 AC_SUBST(solaris_ld_v2_maps)
+
+case ${host} in
+loongarch32*-*-*)
+  tmake_file="${tmake_file} loongarch/t-crtstuff-la32"
+  ;;
+esac
+
+case ${host} in
+loongarch64*-*-*)
+  tmake_file="${tmake_file} loongarch/t-crtstuff-la64"
+  ;;
+esac
 
 # Check if xtensa target is configured for windowed ABI and thus needs to use
 # custom unwind code.
@@ -732,6 +770,20 @@ AC_SUBST(md_unwind_def_header)
 AC_SUBST(md_unwind_header)
 AC_SUBST(sfp_machine_header)
 AC_SUBST(thread_header)
+
+AC_ARG_ENABLE(werror,
+[AS_HELP_STRING([--enable-werror],
+		[build with -Werror for selected targets])],
+[
+case ${enable_werror} in
+  no) WERROR="" ;;
+  *) WERROR="-Werror" ;;
+esac
+],
+[
+WERROR="-Werror"
+])
+AC_SUBST(WERROR)
 
 # We need multilib support.
 AC_CONFIG_FILES([Makefile])

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -59,8 +59,8 @@ is
    -- Character Set Declarations --
    --------------------------------
 
-   type Character_Set is private;
-   pragma Preelaborable_Initialization (Character_Set);
+   type Character_Set is private
+   with Preelaborable_Initialization;
    --  An object of type Character_Set represents a set of characters.
 
    Null_Set : constant Character_Set;
@@ -256,8 +256,8 @@ is
    -- Character Mapping Declarations --
    ------------------------------------
 
-   type Character_Mapping is private;
-   pragma Preelaborable_Initialization (Character_Mapping);
+   type Character_Mapping is private
+   with Preelaborable_Initialization;
    --  An object of type Character_Mapping represents a Character-to-Character
    --  mapping.
 

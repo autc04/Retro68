@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2025 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -154,8 +154,7 @@ private:
 
   template <typename IsDigitFunc>
   TokenPtr parse_non_decimal_int_literal (location_t loc,
-					  IsDigitFunc is_digit_func,
-					  std::string existent_str, int base);
+					  IsDigitFunc is_digit_func, int base);
 
 public:
   // Construct lexer with input file and filename provided
@@ -263,8 +262,7 @@ private:
 #if CHECKING_P
 
 namespace selftest {
-void
-rust_input_source_test ();
+void rust_input_source_test ();
 
 } // namespace selftest
 

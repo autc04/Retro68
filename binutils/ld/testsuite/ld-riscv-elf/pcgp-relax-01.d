@@ -1,5 +1,6 @@
 #source: pcgp-relax-01.s
-#ld: --relax
+#as: -march=rv64i
+#ld: --relax -m[riscv_choose_lp64_emul]
 #objdump: -d -Mno-aliases
 
 .*:[ 	]+file format .*

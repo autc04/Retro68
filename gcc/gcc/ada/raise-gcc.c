@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *             Copyright (C) 1992-2025, Free Software Foundation, Inc.      *
+ *             Copyright (C) 1992-2026, Free Software Foundation, Inc.      *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -273,6 +273,12 @@ db_indent (int requests)
   if (requests & DB_INDENT_OUTPUT)
     fprintf (stderr, "%*s", current_indentation_level * DB_INDENT_UNIT, " ");
 }
+
+/* If ATTRIBUTE_PRINTF_2 is not available, assume a printf format
+   attribute a-la gcc such as:  */
+#ifndef ATTRIBUTE_PRINTF_2
+#define ATTRIBUTE_PRINTF_2 __attribute((format(printf, 2, 3)))
+#endif
 
 static void ATTRIBUTE_PRINTF_2
 db (int db_code, const char * msg_format, ...)

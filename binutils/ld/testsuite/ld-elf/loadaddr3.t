@@ -12,5 +12,5 @@ SECTIONS
   .data : {data_load = LOADADDR (.data);
 	   data_start = ADDR (.data);
 	   *(.data .data.*)} >ram AT>rom
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

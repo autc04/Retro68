@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1998-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,6 +23,7 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Ada.Unchecked_Deallocation;
 with Atree;          use Atree;
 with Csets;          use Csets;
 with Einfo;          use Einfo;
@@ -1729,7 +1730,7 @@ package body Lib.Xref is
             --  entity because neither the entity nor its references will
             --  appear in the final tree.
 
-            if Is_Ignored_Ghost_Entity (Ent) then
+            if Is_Ignored_Ghost_Entity_In_Codegen (Ent) then
                goto Orphan_Continue;
             end if;
 
@@ -1827,7 +1828,16 @@ package body Lib.Xref is
          Nrefs : constant Nat := Xrefs.Last;
          --  Number of references in table
 
-         Rnums : array (0 .. Nrefs) of Nat;
+         type Refs_Numbers is array (0 .. Nrefs) of Nat;
+         type Refs_Numbers_Ptr is access Refs_Numbers;
+         --  Since the number of references can be large, we need to allocate
+         --  the sorting array on the heap.
+
+         procedure Free is
+           new Ada.Unchecked_Deallocation (Refs_Numbers, Refs_Numbers_Ptr);
+         --  Release memory allocated for the sorting array
+
+         Rnums : Refs_Numbers_Ptr := new Refs_Numbers;
          --  This array contains numbers of references in the Xrefs table.
          --  This list is sorted in output order. The extra 0'th entry is
          --  convenient for the call to sort. When we sort the table, we
@@ -2190,7 +2200,7 @@ package body Lib.Xref is
                --  entity because neither the entity nor its references will
                --  appear in the final tree.
 
-               if Is_Ignored_Ghost_Entity (Ent) then
+               if Is_Ignored_Ghost_Entity_In_Codegen (Ent) then
                   goto Continue;
                end if;
 
@@ -2708,6 +2718,8 @@ package body Lib.Xref is
          <<Continue>>
             null;
          end loop;
+
+         Free (Rnums);
 
          Write_Info_EOL;
       end Output_Refs;

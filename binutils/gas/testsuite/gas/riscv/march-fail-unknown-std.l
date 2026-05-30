@@ -1,2 +1,2 @@
 .*Assembler messages:
-.*Error: .*unknown standard ISA extension `y'
+.*Error: .*unknown standard ISA extension or prefix class `y'

@@ -12,8 +12,3 @@
 .ifdef priv_insn_d
 	sfence.vma
 .endif
-
-	# Obselete priv instruction.
-.ifdef priv_insn_e
-	sfence.vm
-.endif

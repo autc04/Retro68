@@ -1,6 +1,40 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-03-01  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* gospec.cc (lang_specific_driver): Switch to HAVE_SOLARIS_LD.
+
+2026-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* gccgo.texi: Bump @copyrights-go year.
+
+2025-12-12  Pietro Monteiro  <pietro@sociotechnical.xyz>
+
+	* lang.opt.urls: Regenerate.
+
+2025-11-30  Andrew Pinski  <andrew.pinski@oss.qualcomm.com>
+
+	* lang.opt.urls: Regenerate.
+
+2025-11-20  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* gospec.cc (lang_specific_driver) [TARGET_SOLARIS]: Replace
+	USE_GLD by HAVE_GNU_LD.
+
+2025-10-27  Richard Biener  <rguenther@suse.de>
+
+	PR middle-end/122325
+	* go-lang.cc (go_langhook_init_options_struct): Remove set of
+	flag_default_complex_method.
+
+2025-07-15  Jakub Jelinek  <jakub@redhat.com>
+	    Jason Merrill  <jason@redhat.com>
+
+	PR c/44677
+	* gofrontend/gogo.cc (Function::export_func_with_type): Remove
+	unused but set variable i.
 
 2025-02-05  Ian Lance Taylor  <iant@golang.org>
 
@@ -2156,7 +2190,7 @@
 
 	Go frontend added to gcc repository.
 
-Copyright (C) 2010-2025 Free Software Foundation, Inc.
+Copyright (C) 2010-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

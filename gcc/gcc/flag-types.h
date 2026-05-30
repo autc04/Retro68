@@ -1,5 +1,5 @@
 /* Compilation switch flag type definitions for GCC.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -288,7 +288,8 @@ enum vect_cost_model {
 enum auto_init_type {
   AUTO_INIT_UNINITIALIZED = 0,
   AUTO_INIT_PATTERN = 1,
-  AUTO_INIT_ZERO = 2
+  AUTO_INIT_ZERO = 2,
+  AUTO_INIT_CXX26 = 3
 };
 
 /* Initialization of padding bits with zeros.  */
@@ -337,6 +338,10 @@ enum sanitize_code {
   SANITIZE_KERNEL_HWADDRESS = 1UL << 30,
   /* Shadow Call Stack.  */
   SANITIZE_SHADOW_CALL_STACK = 1UL << 31,
+  /* Memory Tagging for Stack.  */
+  SANITIZE_MEMTAG_STACK = 1ULL << 32,
+  /* Memory Tagging.  */
+  SANITIZE_MEMTAG = SANITIZE_MEMTAG_STACK,
   SANITIZE_SHIFT = SANITIZE_SHIFT_BASE | SANITIZE_SHIFT_EXPONENT,
   SANITIZE_UNDEFINED = SANITIZE_SHIFT | SANITIZE_DIVIDE | SANITIZE_UNREACHABLE
 		       | SANITIZE_VLA | SANITIZE_NULL | SANITIZE_RETURN
@@ -349,6 +354,9 @@ enum sanitize_code {
   SANITIZE_UNDEFINED_NONDEFAULT = SANITIZE_FLOAT_DIVIDE | SANITIZE_FLOAT_CAST
 				  | SANITIZE_BOUNDS_STRICT
 };
+
+/* Sanitizer flag type.  */
+typedef uint64_t sanitize_code_type;
 
 /* Different settings for zeroing subset of registers.  */
 namespace zero_regs_flags {
@@ -412,6 +420,12 @@ enum lto_locality_cloning_model {
   LTO_LOCALITY_NO_CLONING = 0,
   LTO_LOCALITY_NON_INTERPOSABLE_CLONING = 1,
   LTO_LOCALITY_MAXIMAL_CLONING = 2,
+};
+
+/* flag_lto_locality_heuristics initialization values.  */
+enum lto_locality_heuristics {
+  LTO_LOCALITY_DEFAULT_HEURISTIC = 0,
+  LTO_LOCALITY_CPP_TEMPLATE = 1,
 };
 
 /* flag_lto_linker_output initialization values.  */

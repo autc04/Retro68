@@ -1,5 +1,5 @@
 # Makefile fragment for building LIBGCC for the TI PRU processor.
-# Copyright (C) 2014-2025 Free Software Foundation, Inc.
+# Copyright (C) 2014-2026 Free Software Foundation, Inc.
 # Contributed by Dimitar Dimitrov <dimitar@dinux.eu>
 #
 # This file is part of GCC.
@@ -28,6 +28,8 @@ LIB2ADD += \
 	$(srcdir)/config/pru/lib2divSI.c \
 	$(srcdir)/config/pru/lib2bitcountHI.c \
 	$(srcdir)/config/pru/mpyll.S \
+	$(srcdir)/config/pru/softmpyll.c \
+	$(srcdir)/config/pru/softmpyi.c \
 	$(srcdir)/config/pru/gef.c \
 	$(srcdir)/config/pru/gtf.c \
 	$(srcdir)/config/pru/lef.c \

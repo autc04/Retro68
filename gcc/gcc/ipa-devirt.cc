@@ -1,6 +1,6 @@
 /* Basic IPA utilities for type inheritance graph construction and
    devirtualization.
-   Copyright (C) 2013-2025 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -227,7 +227,16 @@ struct GTY(()) odr_type_d
   bool rtti_broken;
   /* Set when the canonical type is determined using the type name.  */
   bool tbaa_enabled;
+  /* Set when we determined there are no derived construction vtables.  */
+  bool no_derived_construction_vtables;
 };
+
+/* ODR types also stored into ODR_TYPE vector to allow consistent
+   walking.  Bases appear before derived types.  Vector is garbage collected
+   so we won't end up visiting empty types.  */
+
+static GTY(()) vec <odr_type, va_gc> *odr_types_ptr;
+#define odr_types (*odr_types_ptr)
 
 /* Return TRUE if all derived types of T are known and thus
    we may consider the walk of derived type complete.
@@ -268,6 +277,46 @@ type_all_ctors_visible_p (tree t)
 	 && type_in_anonymous_namespace_p (t);
 }
 
+/* Return true if VTABLE is is a virtual table of an anonymous namespace
+   type and it is not the main virtual table for its type.  */
+
+static bool
+anonymous_construction_vtable_p (tree vtable)
+{
+  if (!DECL_VIRTUAL_P (vtable)
+      || !type_in_anonymous_namespace_p (DECL_CONTEXT (vtable)))
+    return false;
+  tree vtable2 = BINFO_VTABLE (TYPE_BINFO (DECL_CONTEXT (vtable)));
+  if (TREE_CODE (vtable2) == POINTER_PLUS_EXPR)
+    vtable2 = TREE_OPERAND (TREE_OPERAND (vtable2, 0), 0);
+  return vtable2 != vtable;
+}
+
+/* Set if construction vtables are computed.  */
+static bool construction_vtables_detected = false;
+
+/* Mark all bases of T as having derived construction vtables.  */
+
+static void
+mark_derived_construction_vtables (odr_type t)
+{
+  for (odr_type b: t->bases)
+    {
+      b->no_derived_construction_vtables = false;
+      mark_derived_construction_vtables (b);
+    }
+}
+
+/* Watch removal of construction vtables so we recompute their
+   existence.  */
+
+void
+construction_vtable_hook (varpool_node *v, void *)
+{
+  if (anonymous_construction_vtable_p (v->decl))
+    construction_vtables_detected = false;
+}
+
 /* Return TRUE if type may have instance.  */
 
 static bool
@@ -284,7 +333,34 @@ type_possibly_instantiated_p (tree t)
   if (TREE_CODE (vtable) == POINTER_PLUS_EXPR)
     vtable = TREE_OPERAND (TREE_OPERAND (vtable, 0), 0);
   vnode = varpool_node::get (vtable);
-  return vnode && vnode->definition;
+  if (vnode && vnode->definition)
+    return true;
+
+  /* If T is derived, we may see only the construction vtable.
+     To find them, we need to walk symbol table. Cache the result
+     and only recompute when some vtables are removed.  This only
+     happens in unreachable node removal, which is only called
+     constant number of times during computation.  */
+  odr_type odr_t = get_odr_type (t);
+  if (odr_t->derived_types.length () && !construction_vtables_detected)
+    {
+      static bool hook_registered = false;
+      if (!hook_registered)
+	{
+	  symtab->add_varpool_removal_hook (construction_vtable_hook, NULL);
+	  hook_registered = true;
+	}
+      for (odr_type t: odr_types)
+	if (t)
+	  t->no_derived_construction_vtables = true;
+      FOR_EACH_VARIABLE (vnode)
+	if (vnode->definition
+	    && anonymous_construction_vtable_p (vnode->decl))
+	  mark_derived_construction_vtables
+	    (get_odr_type (DECL_CONTEXT (vnode->decl)));
+      construction_vtables_detected = true;
+    }
+  return !odr_t->no_derived_construction_vtables;
 }
 
 /* Return true if T or type derived from T may have instance.  */
@@ -506,13 +582,6 @@ odr_name_hasher::remove (odr_type_d *v)
 
 typedef hash_table<odr_name_hasher> odr_hash_type;
 static odr_hash_type *odr_hash;
-
-/* ODR types are also stored into ODR_TYPE vector to allow consistent
-   walking.  Bases appear before derived types.  Vector is garbage collected
-   so we won't end up visiting empty types.  */
-
-static GTY(()) vec <odr_type, va_gc> *odr_types_ptr;
-#define odr_types (*odr_types_ptr)
 
 /* All enums defined and accessible for the unit.  */
 static GTY(()) vec <tree, va_gc> *odr_enums;
@@ -1763,7 +1832,7 @@ add_type_duplicate (odr_type val, tree type)
 	      }
 	    /* One base is polymorphic and the other not.
 	       This ought to be diagnosed earlier, but do not ICE in the
-	       checking bellow.  */
+	       checking below.  */
 	    else if (TYPE_BINFO (type1)
 		     && polymorphic_type_binfo_p (TYPE_BINFO (type1))
 		        != polymorphic_type_binfo_p (TYPE_BINFO (type2)))
@@ -1801,7 +1870,7 @@ add_type_duplicate (odr_type val, tree type)
      before we can pass them to odr_types_equivalent_p (PR lto/83121).  */
   if (lto_location_cache::current_cache)
     lto_location_cache::current_cache->apply_location_cache ();
-  /* As a special case we stream mangles names of integer types so we can see
+  /* As a special case we stream mangled names of integer types so we can see
      if they are believed to be same even though they have different
      representation.  Avoid bogus warning on mismatches in these.  */
   if (TREE_CODE (type) != INTEGER_TYPE
@@ -1979,6 +2048,7 @@ get_odr_type (tree type, bool insert)
       val->type = type;
       val->bases = vNULL;
       val->derived_types = vNULL;
+      val->no_derived_construction_vtables = false;
       if (type_with_linkage_p (type))
         val->anonymous_namespace = type_in_anonymous_namespace_p (type);
       else
@@ -3648,6 +3718,62 @@ try_speculative_devirtualization (tree otr_type, HOST_WIDE_INT otr_token,
   return likely_target;
 }
 
+/* Various statistics counters collected during devirtualization.  */
+
+struct devirt_stats
+{
+  int npolymorphic, nspeculated, nconverted, ncold;
+  int nmultiple, noverwritable, ndevirtualized, nnotdefined;
+  int nwrong, nok, nexternal, nartificial;
+  int ndropped;
+};
+
+/* Check LIKELY_TARGET and return true if it a suitable target for
+   devirtualization or speculative devirtualization.  Increase the respective
+   counter in STATS if any check fails.  */
+
+static bool
+devirt_target_ok_p (cgraph_node *likely_target, struct devirt_stats *stats)
+{
+  if (!likely_target->definition)
+    {
+      if (dump_file)
+	fprintf (dump_file, "Target is not a definition\n\n");
+      stats->nnotdefined++;
+      return false;
+    }
+  /* Do not introduce new references to external symbols.  While we
+     can handle these just well, it is common for programs to
+     incorrectly with headers defining methods they are linked
+     with.  */
+  if (DECL_EXTERNAL (likely_target->decl))
+    {
+      if (dump_file)
+	fprintf (dump_file, "Target is external\n\n");
+      stats->nexternal++;
+      return false;
+    }
+  /* Don't use an implicitly-declared destructor (c++/58678).  */
+  struct cgraph_node *non_thunk_target
+    = likely_target->function_symbol ();
+  if (DECL_ARTIFICIAL (non_thunk_target->decl))
+    {
+      if (dump_file)
+	fprintf (dump_file, "Target is artificial\n\n");
+      stats->nartificial++;
+      return false;
+    }
+  if (likely_target->get_availability () <= AVAIL_INTERPOSABLE
+      && likely_target->can_be_discarded_p ())
+    {
+      if (dump_file)
+	fprintf (dump_file, "Target is overwritable\n\n");
+      stats->noverwritable++;
+      return false;
+    }
+  return true;
+}
+
 /* The ipa-devirt pass.
    When polymorphic call has only one likely target in the unit,
    turn it into a speculative call.  */
@@ -3658,24 +3784,21 @@ ipa_devirt (void)
   struct cgraph_node *n;
   hash_set<void *> bad_call_targets;
   struct cgraph_edge *e;
-
-  int npolymorphic = 0, nspeculated = 0, nconverted = 0, ncold = 0;
-  int nmultiple = 0, noverwritable = 0, ndevirtualized = 0, nnotdefined = 0;
-  int nwrong = 0, nok = 0, nexternal = 0, nartificial = 0;
-  int ndropped = 0;
-
-  if (!odr_types_ptr)
-    return 0;
+  struct devirt_stats stats;
+  memset (&stats, 0, sizeof (stats));
 
   if (dump_file)
-    dump_type_inheritance_graph (dump_file);
+    {
+      dump_type_inheritance_graph (dump_file);
+      ipa_dump_noted_record_fnptrs (dump_file);
+    }
 
   /* We can output -Wsuggest-final-methods and -Wsuggest-final-types warnings.
      This is implemented by setting up final_warning_records that are updated
      by get_polymorphic_call_targets.
      We need to clear cache in this case to trigger recomputation of all
      entries.  */
-  if (warn_suggest_final_methods || warn_suggest_final_types)
+  if (odr_types_ptr && (warn_suggest_final_methods || warn_suggest_final_types))
     {
       final_warning_records = new (final_warning_record);
       final_warning_records->dyn_count = profile_count::zero ();
@@ -3692,9 +3815,19 @@ ipa_devirt (void)
 	fprintf (dump_file, "\n\nProcesing function %s\n",
 		 n->dump_name ());
       for (e = n->indirect_calls; e; e = e->next_callee)
-	if (e->indirect_info->polymorphic)
+	if (!e->maybe_hot_p ())
 	  {
-	    struct cgraph_node *likely_target = NULL;
+	    if (dump_file)
+	      fprintf (dump_file, "Call is cold\n\n");
+	    stats.ncold++;
+	    continue;
+	  }
+	else if (cgraph_polymorphic_indirect_info *pii
+	    = dyn_cast <cgraph_polymorphic_indirect_info *> (e->indirect_info))
+	  {
+	    if (!pii->usable_p () || !odr_types_ptr)
+	      continue;
+
 	    void *cache_token;
 	    bool final;
 
@@ -3714,7 +3847,7 @@ ipa_devirt (void)
 	      dump_possible_polymorphic_call_targets
 		(dump_file, e, (dump_flags & TDF_DETAILS));
 
-	    npolymorphic++;
+	    stats.npolymorphic++;
 
 	    /* See if the call can be devirtualized by means of ipa-prop's
 	       polymorphic call context propagation.  If not, we can just
@@ -3726,13 +3859,13 @@ ipa_devirt (void)
 	       This may need to be revisited once we add further ways to use
 	       the may edges, but it is a reasonable thing to do right now.  */
 
-	    if ((e->indirect_info->param_index == -1
+	    if ((pii->param_index == -1
 		|| (!opt_for_fn (n->decl, flag_devirtualize_speculatively)
-		    && e->indirect_info->vptr_changed))
+		    && pii->vptr_changed))
 		&& !flag_ltrans_devirtualize)
 	      {
-		e->indirect_info->polymorphic = false;
-		ndropped++;
+		pii->mark_unusable ();
+		stats.ndropped++;
 	        if (dump_file)
 		  fprintf (dump_file, "Dropping polymorphic call info;"
 			   " it cannot be used by ipa-prop\n");
@@ -3741,18 +3874,11 @@ ipa_devirt (void)
 	    if (!opt_for_fn (n->decl, flag_devirtualize_speculatively))
 	      continue;
 
-	    if (!e->maybe_hot_p ())
-	      {
-		if (dump_file)
-		  fprintf (dump_file, "Call is cold\n\n");
-		ncold++;
-		continue;
-	      }
 	    if (e->speculative)
 	      {
 		if (dump_file)
 		  fprintf (dump_file, "Call is already speculated\n\n");
-		nspeculated++;
+		stats.nspeculated++;
 
 		/* When dumping see if we agree with speculation.  */
 		if (!dump_file)
@@ -3762,23 +3888,25 @@ ipa_devirt (void)
 	      {
 		if (dump_file)
 		  fprintf (dump_file, "Target list is known to be useless\n\n");
-		nmultiple++;
+		stats.nmultiple++;
 		continue;
 	      }
+	    auto_vec <cgraph_node *, 20> likely_targets;
 	    for (i = 0; i < targets.length (); i++)
 	      if (likely_target_p (targets[i]))
 		{
-		  if (likely_target)
+		  if ((int)likely_targets.length () >= param_max_devirt_targets)
 		    {
-		      likely_target = NULL;
+		      likely_targets.truncate (0);
 		      if (dump_file)
-			fprintf (dump_file, "More than one likely target\n\n");
-		      nmultiple++;
+			fprintf (dump_file, "More than %i likely targets\n\n",
+				 param_max_devirt_targets);
+		      stats.nmultiple++;
 		      break;
 		    }
-		  likely_target = targets[i];
+		  likely_targets.safe_push (targets[i]);
 		}
-	    if (!likely_target)
+	    if (!likely_targets.length ())
 	      {
 		bad_call_targets.add (cache_token);
 	        continue;
@@ -3787,82 +3915,132 @@ ipa_devirt (void)
  	       with the speculation.  */
 	    if (e->speculative)
 	      {
-		bool found = e->speculative_call_for_target (likely_target);
-		if (found)
+		for (cgraph_node * likely_target: likely_targets)
+		  if (e->speculative_call_for_target (likely_target))
+		    {
+		      fprintf (dump_file,
+			       "We agree with speculation on target %s\n\n",
+			       likely_target->dump_name ());
+		      stats.nok++;
+		    }
+		  else
+		    {
+		      fprintf (dump_file,
+			       "We disagree with speculation on target %s\n\n",
+			       likely_target->dump_name ());
+		      stats.nwrong++;
+		    }
+		continue;
+	      }
+	    bool first = true;
+	    unsigned speculative_id = e->get_next_speculative_id ();
+	    for (cgraph_node * likely_target: likely_targets)
+	      {
+		if (!devirt_target_ok_p (likely_target, &stats))
+		  continue;
+		else if (dbg_cnt (devirt))
 		  {
-		    fprintf (dump_file, "We agree with speculation\n\n");
-		    nok++;
+		    if (dump_enabled_p ())
+		      {
+			dump_printf_loc (MSG_OPTIMIZED_LOCATIONS, e->call_stmt,
+					 "speculatively devirtualizing call "
+					 "in %s to %s\n",
+					 n->dump_name (),
+					 likely_target->dump_name ());
+		      }
+		    if (!likely_target->can_be_discarded_p ())
+		      {
+			cgraph_node *alias;
+			alias = dyn_cast<cgraph_node *> (likely_target->noninterposable_alias ());
+			if (alias)
+			  likely_target = alias;
+		      }
+		    if (first)
+		      stats.nconverted++;
+		    first = false;
+		    update = true;
+		    e->make_speculative
+		      (likely_target,
+		       e->count.apply_scale (8, 10 * likely_targets.length ()),
+		       speculative_id++);
 		  }
-		else
-		  {
-		    fprintf (dump_file, "We disagree with speculation\n\n");
-		    nwrong++;
-		  }
-		continue;
 	      }
-	    if (!likely_target->definition)
+	    if (speculative_id > 1 && dump_enabled_p ())
+	      {
+		dump_printf_loc (MSG_OPTIMIZED_LOCATIONS, e->call_stmt,
+				 "devirtualized call in %s to %i targets\n",
+				 n->dump_name (),
+				 speculative_id);
+	      }
+	  }
+	else if (cgraph_simple_indirect_info *sii
+		 = dyn_cast <cgraph_simple_indirect_info *> (e->indirect_info))
+	  {
+	    if (e->speculative)
 	      {
 		if (dump_file)
-		  fprintf (dump_file, "Target is not a definition\n\n");
-		nnotdefined++;
-		continue;
+		  fprintf (dump_file, "Call is already speculated\n\n");
+		stats.nspeculated++;
+
+		/* When dumping see if we agree with speculation.  */
+		if (!dump_file)
+		  continue;
 	      }
-	    /* Do not introduce new references to external symbols.  While we
-	       can handle these just well, it is common for programs to
-	       incorrectly with headers defining methods they are linked
-	       with.  */
-	    if (DECL_EXTERNAL (likely_target->decl))
+	    if (!sii->fnptr_loaded_from_record
+		|| !opt_for_fn (n->decl,
+				flag_speculatively_call_stored_functions))
+	      continue;
+
+	    tree rec_type = sii->rec_type;
+	    unsigned fld_off = sii->fld_offset;
+	    tree likely_tgt_decl = ipa_single_noted_fnptr_in_record (rec_type,
+								     fld_off);
+	    cgraph_node *likely_tgt_node;
+	    if (likely_tgt_decl
+		&& (likely_tgt_node = cgraph_node::get (likely_tgt_decl))
+		&& devirt_target_ok_p (likely_tgt_node, &stats))
 	      {
-		if (dump_file)
-		  fprintf (dump_file, "Target is external\n\n");
-		nexternal++;
-		continue;
-	      }
-	    /* Don't use an implicitly-declared destructor (c++/58678).  */
-	    struct cgraph_node *non_thunk_target
-	      = likely_target->function_symbol ();
-	    if (DECL_ARTIFICIAL (non_thunk_target->decl))
-	      {
-		if (dump_file)
-		  fprintf (dump_file, "Target is artificial\n\n");
-		nartificial++;
-		continue;
-	      }
-	    if (likely_target->get_availability () <= AVAIL_INTERPOSABLE
-		&& likely_target->can_be_discarded_p ())
-	      {
-		if (dump_file)
-		  fprintf (dump_file, "Target is overwritable\n\n");
-		noverwritable++;
-		continue;
-	      }
-	    else if (dbg_cnt (devirt))
-	      {
-		if (dump_enabled_p ())
-                  {
-                    dump_printf_loc (MSG_OPTIMIZED_LOCATIONS, e->call_stmt,
-				     "speculatively devirtualizing call "
-				     "in %s to %s\n",
-				     n->dump_name (),
-				     likely_target->dump_name ());
-                  }
-		if (!likely_target->can_be_discarded_p ())
+		if (!likely_tgt_node->can_be_discarded_p ())
 		  {
 		    cgraph_node *alias;
-		    alias = dyn_cast<cgraph_node *> (likely_target->noninterposable_alias ());
+		    alias = dyn_cast<cgraph_node *> (likely_tgt_node
+						    ->noninterposable_alias ());
 		    if (alias)
-		      likely_target = alias;
+		      likely_tgt_node = alias;
 		  }
-		nconverted++;
+		if (e->speculative)
+		  {
+		    if (e->speculative_call_for_target (likely_tgt_node))
+		      {
+			fprintf (dump_file, "Simple call agree with speculation\n\n");
+			stats.nok++;
+		      }
+		    else
+		      {
+			fprintf (dump_file, "Simple call disagree with speculation\n\n");
+			stats.nwrong++;
+		      }
+		    continue;
+		  }
+
+		if (dump_enabled_p ())
+		  dump_printf_loc (MSG_OPTIMIZED_LOCATIONS, e->call_stmt,
+				   "speculatively turning an indirect call "
+				   "in %s to a direct one to %s\n",
+				   n->dump_name (),
+				   likely_tgt_node->dump_name ());
+
 		update = true;
-		e->make_speculative
-		  (likely_target, e->count.apply_scale (8, 10));
+		e->make_speculative (likely_tgt_node,
+				     e->count.apply_scale (8, 10),
+				     e->get_next_speculative_id ());
 	      }
 	  }
       if (update)
 	ipa_update_overall_fn_summary (n);
     }
-  if (warn_suggest_final_methods || warn_suggest_final_types)
+  ipa_free_noted_fnptr_calls ();
+  if (odr_types_ptr && (warn_suggest_final_methods || warn_suggest_final_types))
     {
       if (warn_suggest_final_types)
 	{
@@ -3967,10 +4145,12 @@ ipa_devirt (void)
 	     "%i have multiple targets, %i overwritable,"
 	     " %i already speculated (%i agree, %i disagree),"
 	     " %i external, %i not defined, %i artificial, %i infos dropped\n",
-	     npolymorphic, ndevirtualized, nconverted, ncold,
-	     nmultiple, noverwritable, nspeculated, nok, nwrong,
-	     nexternal, nnotdefined, nartificial, ndropped);
-  return ndevirtualized || ndropped ? TODO_remove_functions : 0;
+	     stats.npolymorphic, stats.ndevirtualized, stats.nconverted,
+	     stats.ncold, stats.nmultiple, stats.noverwritable,
+	     stats.nspeculated, stats.nok, stats.nwrong,
+	     stats.nexternal, stats.nnotdefined, stats.nartificial,
+	     stats.ndropped);
+  return stats.ndevirtualized || stats.ndropped ? TODO_remove_functions : 0;
 }
 
 namespace {
@@ -4011,11 +4191,12 @@ public:
 	 pass is enabled.  */
       if (in_lto_p)
 	return true;
-      return (flag_devirtualize
-	      && (flag_devirtualize_speculatively
-		  || (warn_suggest_final_methods
-		      || warn_suggest_final_types))
-	      && optimize);
+      return (optimize
+	      && ((flag_devirtualize
+		   && (flag_devirtualize_speculatively
+		       || (warn_suggest_final_methods
+			   || warn_suggest_final_types)))
+		  || flag_speculatively_call_stored_functions));
     }
 
   unsigned int execute (function *) final override { return ipa_devirt (); }

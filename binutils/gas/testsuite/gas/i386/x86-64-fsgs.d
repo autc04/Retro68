@@ -1,3 +1,4 @@
+#as: --divide
 #objdump: -dw
 #name: x86-64 FSGSBase
 
@@ -23,6 +24,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f3 48 0f ae db       	wrgsbase %rbx
 [ 	]*[a-f0-9]+:	f3 41 0f ae d8       	wrgsbase %r8d
 [ 	]*[a-f0-9]+:	f3 49 0f ae d8       	wrgsbase %r8
+[ 	]*[a-f0-9]+:	66 f3 0f ae c1       	data16 rdfsbase %ecx
+[ 	]*[a-f0-9]+:	f3 66 0f ae d9       	data16 wrgsbase %ecx
 [ 	]*[a-f0-9]+:	f3 0f ae c3          	rdfsbase %ebx
 [ 	]*[a-f0-9]+:	f3 48 0f ae c3       	rdfsbase %rbx
 [ 	]*[a-f0-9]+:	f3 41 0f ae c0       	rdfsbase %r8d

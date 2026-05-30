@@ -1,5 +1,5 @@
 /* Subroutines shared by all languages that are variants of C.
-   Copyright (C) 1992-2025 Free Software Foundation, Inc.
+   Copyright (C) 1992-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -56,6 +56,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-pretty-print-markup.h"
 #include "gcc-rich-location.h"
 #include "gcc-urlifier.h"
+#include "diagnostics/diagnostics-selftests.h"
 
 cpp_reader *parse_in;		/* Declared in c-pragma.h.  */
 
@@ -102,7 +103,7 @@ machine_mode c_default_pointer_mode = VOIDmode;
 	tree dfloat32_type_node;
 	tree dfloat64_type_node;
 	tree dfloat128_type_node;
-	tree dfloat64x_type_node; 
+	tree dfloat64x_type_node;
 
 	tree intQI_type_node;
 	tree intHI_type_node;
@@ -261,7 +262,7 @@ const char *constant_string_class_name;
 
 int warn_abi_version = -1;
 
-/* The C++ dialect being used.  Default set in c_common_post_options.  */
+/* The C++ dialect being used.  Default set in c_common_init_options.  */
 
 enum cxx_dialect cxx_dialect = cxx_unset;
 
@@ -375,9 +376,10 @@ static bool nonnull_check_p (tree, unsigned HOST_WIDE_INT);
    C --std=c17: D_C23 | D_CXXONLY | D_OBJC
    C --std=c23: D_CXXONLY | D_OBJC
    ObjC is like C except that D_OBJC and D_CXX_OBJC are not set
-   C++ --std=c++98: D_CONLY | D_CXX11 | D_CXX20 | D_OBJC
-   C++ --std=c++11: D_CONLY | D_CXX20 | D_OBJC
-   C++ --std=c++20: D_CONLY | D_OBJC
+   C++ --std=c++98: D_CONLY | D_CXX11 | D_CXX20 | D_CXX26 | D_OBJC
+   C++ --std=c++11: D_CONLY | D_CXX20 | D_CXX26 | D_OBJC
+   C++ --std=c++20: D_CONLY | D_CXX26 | D_OBJC
+   C++ --std=c++26: D_CONLY | D_OBJC
    ObjC++ is like C++ except that D_OBJC is not set
 
    If -fno-asm is used, D_ASM is added to the mask.  If
@@ -394,6 +396,9 @@ const struct c_common_resword c_common_reswords[] =
 {
   { "_Alignas",		RID_ALIGNAS,   D_CONLY },
   { "_Alignof",		RID_ALIGNOF,   D_CONLY },
+  { "_Countof",		RID_COUNTOF,   D_CONLY },
+  { "_Maxof",		RID_MAXOF,     D_CONLY },
+  { "_Minof",		RID_MINOF,     D_CONLY },
   { "_Atomic",		RID_ATOMIC,    D_CONLY },
   { "_BitInt",		RID_BITINT,    D_CONLY },
   { "_Bool",		RID_BOOL,      D_CONLY },
@@ -460,13 +465,14 @@ const struct c_common_resword c_common_reswords[] =
   { "__builtin_tgmath", RID_BUILTIN_TGMATH, D_CONLY },
   { "__builtin_offsetof", RID_OFFSETOF, 0 },
   { "__builtin_types_compatible_p", RID_TYPES_COMPATIBLE_P, D_CONLY },
-  { "__builtin_c23_va_start", RID_C23_VA_START,	D_C23 },
+  { "__builtin_c23_va_start", RID_C23_VA_START,	D_C23 | D_CXX26 },
   { "__builtin_va_arg",	RID_VA_ARG,	0 },
   { "__complex",	RID_COMPLEX,	0 },
   { "__complex__",	RID_COMPLEX,	0 },
   { "__const",		RID_CONST,	0 },
   { "__const__",	RID_CONST,	0 },
   { "__constinit",	RID_CONSTINIT,	D_CXXONLY },
+  { "__contract_assert", RID_CONTASSERT, D_CXXONLY | D_CXXWARN  },
   { "__decltype",       RID_DECLTYPE,   D_CXXONLY },
   { "__extension__",	RID_EXTENSION,	0 },
   { "__func__",		RID_C99_FUNCTION_NAME, 0 },
@@ -514,6 +520,7 @@ const struct c_common_resword c_common_reswords[] =
   { "constinit",	RID_CONSTINIT,	D_CXXONLY | D_CXX20 | D_CXXWARN },
   { "const_cast",	RID_CONSTCAST,	D_CXXONLY | D_CXXWARN },
   { "continue",		RID_CONTINUE,	0 },
+  { "contract_assert",	RID_CONTASSERT,	D_CXXONLY | D_CXXWARN | D_CXX26 },
   { "decltype",         RID_DECLTYPE,   D_CXXONLY | D_CXX11 | D_CXXWARN },
   { "default",		RID_DEFAULT,	0 },
   { "delete",		RID_DELETE,	D_CXXONLY | D_CXXWARN },
@@ -819,11 +826,6 @@ fix_string_type (tree value)
       charsz = 1;
       e_type = char_type_node;
     }
-  else if (TREE_TYPE (value) == uchar_array_type_node)
-    {
-      charsz = 1;
-      e_type = unsigned_char_type_node;
-    }
   else if (flag_char8_t && TREE_TYPE (value) == char8_array_type_node)
     {
       charsz = TYPE_PRECISION (char8_type_node) / BITS_PER_UNIT;
@@ -851,7 +853,7 @@ fix_string_type (tree value)
     {
       error ("size of string literal is too large");
       length = tree_to_shwi (TYPE_MAX_VALUE (ssizetype)) / charsz * charsz;
-      char *str = CONST_CAST (char *, TREE_STRING_POINTER (value));
+      char *str = const_cast<char *> (TREE_STRING_POINTER (value));
       memset (str + length, '\0',
 	      MIN (TREE_STRING_LENGTH (value) - length, charsz));
       TREE_STRING_LENGTH (value) = length;
@@ -1260,9 +1262,7 @@ c_build_shufflevector (location_t loc, tree v0, tree v1,
   vec_perm_indices indices (sel, 2, maskl);
 
   tree ret_type = build_vector_type (TREE_TYPE (TREE_TYPE (v0)), maskl);
-  tree mask_type = build_vector_type (build_nonstandard_integer_type
-		(TREE_INT_CST_LOW (TYPE_SIZE (TREE_TYPE (ret_type))), 1),
-		maskl);
+  tree mask_type = build_vector_type (ssizetype, maskl);
   /* Pad out arguments to the common vector size.  */
   if (v0n < maskl)
     {
@@ -1314,6 +1314,7 @@ c_build_vec_convert (location_t loc1, tree expr, location_t loc2, tree type,
 
   if (!gnu_vector_type_p (TREE_TYPE (expr))
       || (!VECTOR_INTEGER_TYPE_P (TREE_TYPE (expr))
+	  && !VECTOR_BOOLEAN_TYPE_P (TREE_TYPE (expr))
 	  && !VECTOR_FLOAT_TYPE_P (TREE_TYPE (expr))))
     {
       if (complain)
@@ -1323,7 +1324,8 @@ c_build_vec_convert (location_t loc1, tree expr, location_t loc2, tree type,
     }
 
   if (!gnu_vector_type_p (type)
-      || (!VECTOR_INTEGER_TYPE_P (type) && !VECTOR_FLOAT_TYPE_P (type)))
+      || (!VECTOR_INTEGER_TYPE_P (type) && !VECTOR_FLOAT_TYPE_P (type)
+	  && !VECTOR_BOOLEAN_TYPE_P (type)))
     {
       if (complain)
 	error_at (loc2, "%<__builtin_convertvector%> second argument must "
@@ -3442,20 +3444,41 @@ pointer_int_sum (location_t loc, enum tree_code resultcode,
 	 an overflow error if the constant is negative but INTOP is not.  */
       && (TYPE_OVERFLOW_UNDEFINED (TREE_TYPE (intop))
 	  || (TYPE_PRECISION (TREE_TYPE (intop))
-	      == TYPE_PRECISION (TREE_TYPE (ptrop)))))
+	      == TYPE_PRECISION (TREE_TYPE (ptrop))))
+      && TYPE_PRECISION (TREE_TYPE (intop)) <= TYPE_PRECISION (sizetype))
     {
-      enum tree_code subcode = resultcode;
-      tree int_type = TREE_TYPE (intop);
-      if (TREE_CODE (intop) == MINUS_EXPR)
-	subcode = (subcode == PLUS_EXPR ? MINUS_EXPR : PLUS_EXPR);
-      /* Convert both subexpression types to the type of intop,
-	 because weird cases involving pointer arithmetic
-	 can result in a sum or difference with different type args.  */
-      ptrop = build_binary_op (EXPR_LOCATION (TREE_OPERAND (intop, 1)),
-			       subcode, ptrop,
-			       convert (int_type, TREE_OPERAND (intop, 1)),
-			       true);
-      intop = convert (int_type, TREE_OPERAND (intop, 0));
+      tree intop0 = TREE_OPERAND (intop, 0);
+      tree intop1 = TREE_OPERAND (intop, 1);
+      if (TYPE_PRECISION (TREE_TYPE (intop)) != TYPE_PRECISION (sizetype)
+	  || TYPE_UNSIGNED (TREE_TYPE (intop)) != TYPE_UNSIGNED (sizetype))
+	{
+	  tree optype = c_common_type_for_size (TYPE_PRECISION (sizetype),
+						TYPE_UNSIGNED (sizetype));
+	  intop0 = convert (optype, intop0);
+	  intop1 = convert (optype, intop1);
+	}
+      tree t = fold_build2_loc (loc, MULT_EXPR, TREE_TYPE (intop0), intop0,
+				convert (TREE_TYPE (intop0), size_exp));
+      intop0 = convert (sizetype, t);
+      if (TREE_OVERFLOW_P (intop0) && !TREE_OVERFLOW (t))
+	intop0 = wide_int_to_tree (TREE_TYPE (intop0), wi::to_wide (intop0));
+      t = fold_build2_loc (loc, MULT_EXPR, TREE_TYPE (intop1), intop1,
+			   convert (TREE_TYPE (intop1), size_exp));
+      intop1 = convert (sizetype, t);
+      if (TREE_OVERFLOW_P (intop1) && !TREE_OVERFLOW (t))
+	intop1 = wide_int_to_tree (TREE_TYPE (intop1), wi::to_wide (intop1));
+      intop = build_binary_op (EXPR_LOCATION (intop), TREE_CODE (intop),
+			       intop0, intop1, true);
+
+      /* Create the sum or difference.  */
+      if (resultcode == MINUS_EXPR)
+	intop = fold_build1_loc (loc, NEGATE_EXPR, sizetype, intop);
+
+      ret = fold_build_pointer_plus_loc (loc, ptrop, intop);
+
+      fold_undefer_and_ignore_overflow_warnings ();
+
+      return ret;
     }
 
   /* Convert the integer argument to a type the same size as sizetype
@@ -3922,14 +3945,40 @@ c_common_get_alias_set (tree t)
   /* The C standard specifically allows aliasing between signed and
      unsigned variants of the same type.  We treat the signed
      variant as canonical.  */
-  if ((TREE_CODE (t) == INTEGER_TYPE || TREE_CODE (t) == BITINT_TYPE)
-      && TYPE_UNSIGNED (t))
+  if (TREE_CODE (t) == INTEGER_TYPE || TREE_CODE (t) == BITINT_TYPE)
     {
-      tree t1 = c_common_signed_type (t);
-
-      /* t1 == t can happen for boolean nodes which are always unsigned.  */
-      if (t1 != t)
-	return get_alias_set (t1);
+      /* For normal INTEGER_TYPEs (except ones built by
+	 build_nonstandard_integer_type), both signed and unsigned variants
+	 of the type are always reachable from GTY roots, so just calling
+	 get_alias_set on the signed type is ok.  For BITINT_TYPE and
+	 non-standard INTEGER_TYPEs, only unsigned could be used and the
+	 corresponding signed type could be created on demand and garbage
+	 collected as unused, so the alias set of unsigned type could keep
+	 changing.
+	 Avoid that by remembering the signed type alias set in
+	 TYPE_ALIAS_SET and also when being asked about !TYPE_UNSIGNED
+	 check if there isn't a corresponding unsigned type with
+	 TYPE_ALIAS_SET_KNOWN_P.  */
+      if (TYPE_UNSIGNED (t))
+	{
+	  /* There is no signed _BitInt(1).  */
+	  if (TREE_CODE (t) == BITINT_TYPE && TYPE_PRECISION (t) == 1)
+	    return -1;
+	  tree t1 = c_common_signed_type (t);
+	  gcc_checking_assert (t != t1);
+	  TYPE_ALIAS_SET (t) = get_alias_set (t1);
+	  return TYPE_ALIAS_SET (t);
+	}
+      else
+	{
+	  tree t1 = c_common_unsigned_type (t);
+	  gcc_checking_assert (t != t1);
+	  if (TYPE_ALIAS_SET_KNOWN_P (t1))
+	    {
+	      TYPE_ALIAS_SET (t) = TYPE_ALIAS_SET (t1);
+	      return TYPE_ALIAS_SET (t);
+	    }
+	}
     }
 
   return -1;
@@ -4084,6 +4133,79 @@ c_alignof_expr (location_t loc, tree expr)
     return c_alignof (loc, TREE_TYPE (expr));
 
   return fold_convert_loc (loc, size_type_node, t);
+}
+
+/* Implement the _Countof keyword:
+   Return the number of elements of an array.  */
+
+tree
+c_countof_type (location_t loc, tree type)
+{
+  enum tree_code type_code;
+  tree value;
+
+  type_code = TREE_CODE (type);
+  if (type_code != ARRAY_TYPE)
+    {
+      error_at (loc, "invalid application of %<_Countof%> to type %qT", type);
+      return error_mark_node;
+    }
+  if (!COMPLETE_TYPE_P (type))
+    {
+      error_at (loc,
+		"invalid application of %<_Countof%> to incomplete type %qT",
+		type);
+      return error_mark_node;
+    }
+
+  value = array_type_nelts_top (type);
+  /* VALUE will have the middle-end integer type sizetype.
+     However, we should really return a value of type `size_t',
+     which is just a typedef for an ordinary integer type.  */
+  value = fold_convert_loc (loc, size_type_node, value);
+  return value;
+}
+
+/* Implement the _Maxof operator:
+   Return the maximum representable value of an integer type.  */
+
+tree
+c_maxof_type (location_t loc, tree type)
+{
+  if (!INTEGRAL_TYPE_P (type))
+    {
+      error_at (loc, "invalid application of %<_Maxof%> to type %qT", type);
+      return error_mark_node;
+    }
+  if (!COMPLETE_TYPE_P (type))
+    {
+      error_at (loc, "invalid application of %<_Maxof%> to incomplete type %qT",
+		type);
+      return error_mark_node;
+    }
+
+  return TYPE_MAX_VALUE (type);
+}
+
+/* Implement the _Minof operator:
+   Return the minimum representable value of an integer type.  */
+
+tree
+c_minof_type (location_t loc, tree type)
+{
+  if (!INTEGRAL_TYPE_P (type))
+    {
+      error_at (loc, "invalid application of %<_Minof%> to type %qT", type);
+      return error_mark_node;
+    }
+  if (!COMPLETE_TYPE_P (type))
+    {
+      error_at (loc, "invalid application of %<_Minof%> to incomplete type %qT",
+		type);
+      return error_mark_node;
+    }
+
+  return TYPE_MIN_VALUE (type);
 }
 
 /* Handle C and C++ default attributes.  */
@@ -4614,12 +4736,6 @@ c_common_nodes_and_builtins (void)
      array type.  */
   char_array_type_node
     = build_array_type (char_type_node, array_domain_type);
-
-  /* Make a type for arrays of unsigned characters.
-     Needed for "\ppascal string" support.  */
-  uchar_array_type_node
-    = build_array_type (unsigned_char_type_node, array_domain_type);
-
 
   string_type_node = build_pointer_type (char_type_node);
   const_string_type_node
@@ -5734,8 +5850,8 @@ struct nonnull_arg_ctx
   /* The function whose arguments are being checked and its type (used
      for calls through function pointers).  */
   const_tree fndecl, fntype;
-  /* For nonnull_if_nonzero, index of the other argument.  */
-  unsigned HOST_WIDE_INT other;
+  /* For nonnull_if_nonzero, index of the other arguments.  */
+  unsigned HOST_WIDE_INT other1, other2;
   /* True if a warning has been issued.  */
   bool warned_p;
 };
@@ -5803,6 +5919,7 @@ check_function_nonnull (nonnull_arg_ctx &ctx, int nargs, tree *argarray)
 	    check_function_arguments_recurse (check_nonnull_arg, &ctx,
 					      argarray[i], i + 1,
 					      OPT_Wnonnull);
+	  a = NULL_TREE;
 	}
     }
   if (a == NULL_TREE)
@@ -5814,17 +5931,25 @@ check_function_nonnull (nonnull_arg_ctx &ctx, int nargs, tree *argarray)
 	unsigned int idx = TREE_INT_CST_LOW (TREE_VALUE (args)) - 1;
 	unsigned int idx2
 	  = TREE_INT_CST_LOW (TREE_VALUE (TREE_CHAIN (args))) - 1;
+	unsigned int idx3 = idx2;
+	if (tree chain2 = TREE_CHAIN (TREE_CHAIN (args)))
+	  idx3 = TREE_INT_CST_LOW (TREE_VALUE (chain2)) - 1;
 	if (idx < (unsigned) nargs - firstarg
 	    && idx2 < (unsigned) nargs - firstarg
+	    && idx3 < (unsigned) nargs - firstarg
 	    && INTEGRAL_TYPE_P (TREE_TYPE (argarray[firstarg + idx2]))
-	    && integer_nonzerop (argarray[firstarg + idx2]))
+	    && integer_nonzerop (argarray[firstarg + idx2])
+	    && INTEGRAL_TYPE_P (TREE_TYPE (argarray[firstarg + idx3]))
+	    && integer_nonzerop (argarray[firstarg + idx3]))
 	  {
-	    ctx.other = firstarg + idx2 + 1;
+	    ctx.other1 = firstarg + idx2 + 1;
+	    ctx.other2 = firstarg + idx3 + 1;
 	    check_function_arguments_recurse (check_nonnull_arg, &ctx,
 					      argarray[firstarg + idx],
 					      firstarg + idx + 1,
 					      OPT_Wnonnull);
-	    ctx.other = 0;
+	    ctx.other1 = 0;
+	    ctx.other2 = 0;
 	  }
       }
   return ctx.warned_p;
@@ -6008,14 +6133,25 @@ check_nonnull_arg (void *ctx, tree param, unsigned HOST_WIDE_INT param_num)
     }
   else
     {
-      if (pctx->other)
+      if (pctx->other1 && pctx->other2 != pctx->other1)
+	warned = warning_at (loc, OPT_Wnonnull,
+			     "argument %u null where non-null expected "
+			     "because arguments %u and %u are nonzero",
+			     (unsigned) param_num,
+			     TREE_CODE (pctx->fntype) == METHOD_TYPE
+			     ? (unsigned) pctx->other1 - 1
+			     : (unsigned) pctx->other1,
+			     TREE_CODE (pctx->fntype) == METHOD_TYPE
+			     ? (unsigned) pctx->other2 - 1
+			     : (unsigned) pctx->other2);
+      else if (pctx->other1)
 	warned = warning_at (loc, OPT_Wnonnull,
 			     "argument %u null where non-null expected "
 			     "because argument %u is nonzero",
 			     (unsigned) param_num,
 			     TREE_CODE (pctx->fntype) == METHOD_TYPE
-			     ? (unsigned) pctx->other - 1
-			     : (unsigned) pctx->other);
+			     ? (unsigned) pctx->other1 - 1
+			     : (unsigned) pctx->other1);
       else
 	warned = warning_at (loc, OPT_Wnonnull,
 			     "argument %u null where non-null expected",
@@ -6024,7 +6160,7 @@ check_nonnull_arg (void *ctx, tree param, unsigned HOST_WIDE_INT param_num)
 	inform (DECL_SOURCE_LOCATION (pctx->fndecl),
 		"in a call to function %qD declared %qs",
 		pctx->fndecl,
-		pctx->other ? "nonnull_if_nonzero" : "nonnull");
+		pctx->other1 ? "nonnull_if_nonzero" : "nonnull");
     }
 
   if (warned)
@@ -6280,7 +6416,7 @@ check_function_arguments (location_t loc, const_tree fndecl, const_tree fntype,
      to do this if format checking is enabled.  */
   if (warn_nonnull)
     {
-      nonnull_arg_ctx ctx = { loc, fndecl, fntype, 0, false };
+      nonnull_arg_ctx ctx = { loc, fndecl, fntype, 0, 0, false };
       warned_p = check_function_nonnull (ctx, nargs, argarray);
     }
 
@@ -6969,7 +7105,7 @@ c_parse_error (const char *gmsgid, enum cpp_ttype token_type,
 /* Return the gcc option code associated with the reason for a cpp
    message, or 0 if none.  */
 
-static diagnostic_option_id
+static diagnostics::option_id
 c_option_controlling_cpp_diagnostic (enum cpp_warning_reason reason)
 {
   const struct cpp_reason_option_codes_t *entry;
@@ -7011,8 +7147,8 @@ c_cpp_diagnostic (cpp_reader *pfile ATTRIBUTE_UNUSED,
 		  rich_location *richloc,
 		  const char *msg, va_list *ap)
 {
-  diagnostic_info diagnostic;
-  diagnostic_t dlevel;
+  diagnostics::diagnostic_info diagnostic;
+  enum diagnostics::kind dlevel;
   bool save_warn_system_headers = global_dc->m_warn_system_headers;
   bool ret;
 
@@ -7026,24 +7162,24 @@ c_cpp_diagnostic (cpp_reader *pfile ATTRIBUTE_UNUSED,
     case CPP_DL_WARNING:
       if (flag_no_output)
 	return false;
-      dlevel = DK_WARNING;
+      dlevel = diagnostics::kind::warning;
       break;
     case CPP_DL_PEDWARN:
       if (flag_no_output && !flag_pedantic_errors)
 	return false;
-      dlevel = DK_PEDWARN;
+      dlevel = diagnostics::kind::pedwarn;
       break;
     case CPP_DL_ERROR:
-      dlevel = DK_ERROR;
+      dlevel = diagnostics::kind::error;
       break;
     case CPP_DL_ICE:
-      dlevel = DK_ICE;
+      dlevel = diagnostics::kind::ice;
       break;
     case CPP_DL_NOTE:
-      dlevel = DK_NOTE;
+      dlevel = diagnostics::kind::note;
       break;
     case CPP_DL_FATAL:
-      dlevel = DK_FATAL;
+      dlevel = diagnostics::kind::fatal;
       break;
     default:
       gcc_unreachable ();
@@ -7095,6 +7231,16 @@ fold_offsetof (tree expr, tree type, enum tree_code ctx)
     {
     case ERROR_MARK:
       return expr;
+
+    case REALPART_EXPR:
+     return fold_offsetof (TREE_OPERAND (expr, 0), type, code);
+
+    case IMAGPART_EXPR:
+     base = fold_offsetof (TREE_OPERAND (expr, 0), type, code);
+     if (base == error_mark_node)
+	return base;
+     off = TYPE_SIZE_UNIT (TREE_TYPE (TREE_TYPE (TREE_OPERAND (expr, 0))));
+     break;
 
     case VAR_DECL:
       error ("cannot apply %<offsetof%> to static data member %qD", expr);
@@ -9907,8 +10053,11 @@ c_family_tests (void)
   c_indentation_cc_tests ();
   c_pretty_print_cc_tests ();
   c_spellcheck_cc_tests ();
-  c_diagnostic_cc_tests ();
   c_opt_problem_cc_tests ();
+
+  /* According to https://gcc.gnu.org/pipermail/gcc/2021-November/237703.html
+     this has some language-specific assumptions, so we run it here.  */
+  diagnostics::selftest::context_cc_tests ();
 }
 
 } // namespace selftest
@@ -9990,7 +10139,7 @@ try_to_locate_new_include_insertion_point (const char *file, location_t loc)
     return UNKNOWN_LOCATION;
 
   /* The "start_location" is column 0, meaning "the whole line".
-     rich_location and edit_context can't cope with this, so use
+     rich_location and diagnostics::changes can't cope with this, so use
      column 1 instead.  */
   location_t col_0 = ord_map_for_insertion->start_location;
   return linemap_position_for_loc_and_offset (line_table, col_0, 1);
@@ -10054,7 +10203,7 @@ maybe_add_include_fixit (rich_location *richloc, const char *header,
   richloc->add_fixit_insert_before (include_insert_loc, text);
   free (text);
 
-  if (override_location && global_dc->m_source_printing.enabled)
+  if (override_location && global_dc->get_source_printing_options ().enabled)
     {
       /* Replace the primary location with that of the insertion point for the
 	 fix-it hint.
@@ -10235,6 +10384,7 @@ braced_list_to_string (tree type, tree ctor, bool member)
 		    j = i - start;
 		  else
 		    j -= start;
+		  value = copy_node (value);
 		  RAW_DATA_POINTER (value) -= start;
 		  RAW_DATA_LENGTH (value) += start + end;
 		  i += end;

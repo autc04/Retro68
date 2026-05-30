@@ -1,4 +1,5 @@
-// { dg-options "-frust-name-resolution-2.0" }
+#![feature(no_core)]
+#![no_core]
 
 struct Test; // { dg-warning "struct is never constructed: .Test." }
 

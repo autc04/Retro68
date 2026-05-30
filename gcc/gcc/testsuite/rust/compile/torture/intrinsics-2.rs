@@ -1,7 +1,11 @@
 // { dg-additional-options -fdump-tree-original }
+#![feature(no_core)]
+#![no_core]
+
 
 #![feature(intrinsics)]
 
+#![feature(lang_items)]
 #[lang = "sized"]
 pub trait Sized {}
 

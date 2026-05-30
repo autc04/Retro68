@@ -1,5 +1,5 @@
 /* IRA processing allocno lives to build allocno live ranges.
-   Copyright (C) 2006-2025 Free Software Foundation, Inc.
+   Copyright (C) 2006-2026 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -24,6 +24,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "backend.h"
 #include "target.h"
 #include "rtl.h"
+#include "stmt.h"
 #include "predict.h"
 #include "df.h"
 #include "memmodel.h"
@@ -970,6 +971,12 @@ ira_implicitly_set_insn_hard_regs (HARD_REG_SET *set,
 		    int regno = ira_class_singleton[cl][mode];
 		    if (regno >= 0)
 		      add_to_hard_reg_set (set, mode, regno);
+		  }
+		else if (c == '{')
+		  {
+		    int regno = decode_hard_reg_constraint (p);
+		    gcc_assert (regno >= 0 && regno < FIRST_PSEUDO_REGISTER);
+		    add_to_hard_reg_set (set, mode, regno);
 		  }
 	      }
 	}

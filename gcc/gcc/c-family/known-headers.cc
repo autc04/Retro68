@@ -1,5 +1,5 @@
 /* Support for suggestions about missing #include directives.
-   Copyright (C) 2017-2025 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -329,9 +329,10 @@ suggest_missing_header::~suggest_missing_header ()
 
 /* suggest_missing_option's ctor.  */
 
-suggest_missing_option::suggest_missing_option (location_t loc,
-						const char *macro_name,
-						diagnostic_option_id option_id)
+suggest_missing_option::
+suggest_missing_option (location_t loc,
+			const char *macro_name,
+			diagnostics::option_id option_id)
 : deferred_diagnostic (loc), m_name_str (macro_name), m_option_id (option_id)
 {
   gcc_assert (macro_name);
@@ -350,4 +351,24 @@ suggest_missing_option::~suggest_missing_option ()
 	  "%qs is defined when using option %qs;"
 	  " this is probably fixable by adding %qs to the command-line options",
 	  m_name_str, option_name, option_name);
+}
+
+/* macro_like_function_used's ctor.  */
+
+macro_like_function_used::macro_like_function_used (location_t loc, const char *name)
+: deferred_diagnostic (loc), m_name_str (name)
+{
+  gcc_assert (name);
+}
+
+/* macro_like_function_used's dtor.  */
+
+macro_like_function_used::~macro_like_function_used ()
+{
+  if (is_suppressed_p ())
+    return;
+
+  inform (get_location (),
+	  "%qs is a function-like macro and might be used incorrectly",
+	  m_name_str);
 }

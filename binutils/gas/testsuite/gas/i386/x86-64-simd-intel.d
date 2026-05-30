@@ -132,18 +132,10 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f3 0f 5b 0d 78 56 34 12 	cvttps2dq xmm1,XMMWORD PTR \[rip\+0x12345678\]        # [0-9a-f]+ <_start\+0x[0-9a-f]+>
 [ 	]*[a-f0-9]+:	f3 0f 2a c8          	cvtsi2ss xmm1,eax
 [ 	]*[a-f0-9]+:	f2 0f 2a c8          	cvtsi2sd xmm1,eax
-[ 	]*[a-f0-9]+:	f3 0f 2a c8          	cvtsi2ss xmm1,eax
-[ 	]*[a-f0-9]+:	f2 0f 2a c8          	cvtsi2sd xmm1,eax
-[ 	]*[a-f0-9]+:	f3 48 0f 2a c8       	cvtsi2ss xmm1,rax
-[ 	]*[a-f0-9]+:	f2 48 0f 2a c8       	cvtsi2sd xmm1,rax
 [ 	]*[a-f0-9]+:	f3 48 0f 2a c8       	cvtsi2ss xmm1,rax
 [ 	]*[a-f0-9]+:	f2 48 0f 2a c8       	cvtsi2sd xmm1,rax
 [ 	]*[a-f0-9]+:	f3 0f 2a 08          	cvtsi2ss xmm1,DWORD PTR \[rax\]
 [ 	]*[a-f0-9]+:	f2 0f 2a 08          	cvtsi2sd xmm1,DWORD PTR \[rax\]
-[ 	]*[a-f0-9]+:	f3 0f 2a 08          	cvtsi2ss xmm1,DWORD PTR \[rax\]
-[ 	]*[a-f0-9]+:	f2 0f 2a 08          	cvtsi2sd xmm1,DWORD PTR \[rax\]
-[ 	]*[a-f0-9]+:	f3 48 0f 2a 08       	cvtsi2ss xmm1,QWORD PTR \[rax\]
-[ 	]*[a-f0-9]+:	f2 48 0f 2a 08       	cvtsi2sd xmm1,QWORD PTR \[rax\]
 [ 	]*[a-f0-9]+:	f3 48 0f 2a 08       	cvtsi2ss xmm1,QWORD PTR \[rax\]
 [ 	]*[a-f0-9]+:	f2 48 0f 2a 08       	cvtsi2sd xmm1,QWORD PTR \[rax\]
 [ 	]*[a-f0-9]+:	f2 0f 7c 0d 78 56 34 12 	haddps xmm1,XMMWORD PTR \[rip\+0x12345678\]        # [0-9a-f]+ <_start\+0x[0-9a-f]+>

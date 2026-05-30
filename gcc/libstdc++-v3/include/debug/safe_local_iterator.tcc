@@ -1,6 +1,6 @@
 // Debugging iterator implementation (out of line) -*- C++ -*-
 
-// Copyright (C) 2011-2025 Free Software Foundation, Inc.
+// Copyright (C) 2011-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -44,7 +44,7 @@ namespace __gnu_debug
 	  if (__rhs._M_is_end())
 	    return
 	      {
-		_M_get_sequence()->bucket_size(bucket()),
+		_M_get_ucontainer()->bucket_size(bucket()),
 		__dp_exact
 	      };
 
@@ -56,7 +56,7 @@ namespace __gnu_debug
 	  if (__rhs._M_is_begin())
 	    return
 	      {
-		-_M_get_sequence()->bucket_size(bucket()),
+		-_M_get_ucontainer()->bucket_size(bucket()),
 		__dp_exact
 	      };
 

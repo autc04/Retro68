@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1992-2025, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2026, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -529,6 +529,7 @@ package body System.Tasking.Initialization is
                | Interrupt_Server_Blocked_Interrupt_Sleep
                | Interrupt_Server_Idle_Sleep
                | Timer_Server_Sleep
+               | Suspension_Object_Sleep
             =>
                Wakeup (T, T.Common.State);
 

@@ -1,8 +1,8 @@
 .text
 foo:
 	lcbb	%r6,4000(%r9,%r11),13
-	vgef	%v15,4000(%r6,%r9),13
-	vgeg	%v15,4000(%r6,%r9),13
+	vgef	%v15,4000(%v6,%r9),13
+	vgeg	%v15,4000(%v6,%r9),13
 	vgbm	%v15,65533
 	vzero	%v15
 	vone	%v15
@@ -83,8 +83,8 @@ foo:
 	vrepih	%v15,-32765
 	vrepif	%v15,-32765
 	vrepig	%v15,-32765
-	vscef	%v15,4000(%r6,%r9),13
-	vsceg	%v15,4000(%r6,%r9),13
+	vscef	%v15,4000(%v6,%r9),13
+	vsceg	%v15,4000(%v6,%r9),13
 	vsel	%v15,%v17,%v20,%v24
 	vseg	%v15,%v17,13
 	vsegb	%v15,%v17

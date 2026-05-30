@@ -1,5 +1,5 @@
 /* A state machine for detecting misuses of <stdio.h>'s FILE * API.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,28 +18,19 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#define INCLUDE_VECTOR
-#include "system.h"
-#include "coretypes.h"
-#include "make-unique.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "options.h"
-#include "diagnostic-core.h"
-#include "diagnostic-path.h"
-#include "analyzer/analyzer.h"
-#include "diagnostic-event-id.h"
+#include "analyzer/common.h"
+
+#include "diagnostics/event-id.h"
+#include "selftest.h"
+
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/sm.h"
 #include "analyzer/pending-diagnostic.h"
 #include "analyzer/function-set.h"
 #include "analyzer/analyzer-selftests.h"
-#include "selftest.h"
 #include "analyzer/call-string.h"
 #include "analyzer/program-point.h"
+#include "analyzer/program-state.h"
 #include "analyzer/store.h"
 #include "analyzer/region-model.h"
 #include "analyzer/call-details.h"
@@ -71,18 +62,19 @@ public:
   }
 
   bool on_stmt (sm_context &sm_ctxt,
-		const supernode *node,
 		const gimple *stmt) const final override;
 
   void on_condition (sm_context &sm_ctxt,
-		     const supernode *node,
-		     const gimple *stmt,
 		     const svalue *lhs,
 		     enum tree_code op,
 		     const svalue *rhs) const final override;
 
   bool can_purge_p (state_t s) const final override;
-  std::unique_ptr<pending_diagnostic> on_leak (tree var) const final override;
+
+  std::unique_ptr<pending_diagnostic>
+  on_leak (tree var,
+	   const program_state *old_state,
+	   const program_state *new_state) const final override;
 
   /* State for a FILE * returned from fopen that hasn't been checked for
      NULL.
@@ -160,18 +152,20 @@ public:
     return false;
   }
 
-  diagnostic_event::meaning
+  diagnostics::paths::event::meaning
   get_meaning_for_state_change (const evdesc::state_change &change)
     const final override
   {
+    using event = diagnostics::paths::event;
+
     if (change.m_old_state == m_sm.get_start_state ()
 	&& change.m_new_state == m_sm.m_unchecked)
-      return diagnostic_event::meaning (diagnostic_event::VERB_acquire,
-					diagnostic_event::NOUN_resource);
+      return event::meaning (event::verb::acquire,
+			     event::noun::resource);
     if (change.m_new_state == m_sm.m_closed)
-      return diagnostic_event::meaning (diagnostic_event::VERB_release,
-					diagnostic_event::NOUN_resource);
-    return diagnostic_event::meaning ();
+      return event::meaning (event::verb::release,
+			     event::noun::resource);
+    return event::meaning ();
   }
 
 protected:
@@ -230,15 +224,20 @@ public:
   }
 
 private:
-  diagnostic_event_id_t m_first_fclose_event;
+  diagnostics::paths::event_id_t m_first_fclose_event;
 };
 
 class file_leak : public file_diagnostic
 {
 public:
-  file_leak (const fileptr_state_machine &sm, tree arg)
-    : file_diagnostic (sm, arg)
-  {}
+  file_leak (const fileptr_state_machine &sm, tree arg,
+	     const program_state *final_state)
+  : file_diagnostic (sm, arg),
+    m_final_state ()
+  {
+    if (final_state)
+      m_final_state = std::make_unique<program_state> (*final_state);
+  }
 
   const char *get_kind () const final override { return "file_leak"; }
 
@@ -296,8 +295,15 @@ public:
     return true;
   }
 
+  const program_state *
+  get_final_state () const final override
+  {
+    return m_final_state.get ();
+  }
+
 private:
-  diagnostic_event_id_t m_fopen_event;
+  diagnostics::paths::event_id_t m_fopen_event;
+  std::unique_ptr<program_state> m_final_state;
 };
 
 /* fileptr_state_machine's ctor.  */
@@ -399,17 +405,16 @@ is_file_using_fn_p (tree fndecl)
 
 bool
 fileptr_state_machine::on_stmt (sm_context &sm_ctxt,
-				const supernode *node,
 				const gimple *stmt) const
 {
   if (const gcall *call = dyn_cast <const gcall *> (stmt))
-    if (tree callee_fndecl = sm_ctxt.get_fndecl_for_call (call))
+    if (tree callee_fndecl = sm_ctxt.get_fndecl_for_call (*call))
       {
-	if (is_named_call_p (callee_fndecl, "fopen", call, 2))
+	if (is_named_call_p (callee_fndecl, "fopen", *call, 2))
 	  {
 	    tree lhs = gimple_call_lhs (call);
 	    if (lhs)
-	      sm_ctxt.on_transition (node, stmt, lhs, m_start, m_unchecked);
+	      sm_ctxt.on_transition (lhs, m_start, m_unchecked);
 	    else
 	      {
 		/* TODO: report leak.  */
@@ -417,24 +422,25 @@ fileptr_state_machine::on_stmt (sm_context &sm_ctxt,
 	    return true;
 	  }
 
-	if (is_named_call_p (callee_fndecl, "fclose", call, 1))
+	if (is_named_call_p (callee_fndecl, "fclose", *call, 1))
 	  {
 	    tree arg = gimple_call_arg (call, 0);
 
-	    sm_ctxt.on_transition (node, stmt, arg, m_start, m_closed);
+	    sm_ctxt.on_transition (arg, m_start, m_closed);
 
 	    // TODO: is it safe to call fclose (NULL) ?
-	    sm_ctxt.on_transition (node, stmt, arg, m_unchecked, m_closed);
-	    sm_ctxt.on_transition (node, stmt, arg, m_null, m_closed);
+	    sm_ctxt.on_transition (arg, m_unchecked, m_closed);
+	    sm_ctxt.on_transition (arg, m_null, m_closed);
 
-	    sm_ctxt.on_transition (node, stmt , arg, m_nonnull, m_closed);
+	    sm_ctxt.on_transition (arg, m_nonnull, m_closed);
 
-	    if (sm_ctxt.get_state (stmt, arg) == m_closed)
+	    if (sm_ctxt.get_state (arg) == m_closed)
 	      {
 		tree diag_arg = sm_ctxt.get_diagnostic_tree (arg);
-		sm_ctxt.warn (node, stmt, arg,
-			      make_unique<double_fclose> (*this, diag_arg));
-		sm_ctxt.set_next_state (stmt, arg, m_stop);
+		sm_ctxt.warn (arg,
+			      std::make_unique<double_fclose> (*this,
+							       diag_arg));
+		sm_ctxt.set_next_state (arg, m_stop);
 	      }
 	    return true;
 	  }
@@ -456,8 +462,6 @@ fileptr_state_machine::on_stmt (sm_context &sm_ctxt,
 
 void
 fileptr_state_machine::on_condition (sm_context &sm_ctxt,
-				     const supernode *node,
-				     const gimple *stmt,
 				     const svalue *lhs,
 				     enum tree_code op,
 				     const svalue *rhs) const
@@ -475,14 +479,12 @@ fileptr_state_machine::on_condition (sm_context &sm_ctxt,
   if (op == NE_EXPR)
     {
       log ("got 'ARG != 0' match");
-      sm_ctxt.on_transition (node, stmt,
-			     lhs, m_unchecked, m_nonnull);
+      sm_ctxt.on_transition (lhs, m_unchecked, m_nonnull);
     }
   else if (op == EQ_EXPR)
     {
       log ("got 'ARG == 0' match");
-      sm_ctxt.on_transition (node, stmt,
-			     lhs, m_unchecked, m_null);
+      sm_ctxt.on_transition (lhs, m_unchecked, m_null);
     }
 }
 
@@ -501,19 +503,21 @@ fileptr_state_machine::can_purge_p (state_t s) const
    state 'unchecked' and 'nonnull'.  */
 
 std::unique_ptr<pending_diagnostic>
-fileptr_state_machine::on_leak (tree var) const
+fileptr_state_machine::on_leak (tree var,
+				const program_state *,
+				const program_state *new_state) const
 {
-  return make_unique<file_leak> (*this, var);
+  return std::make_unique<file_leak> (*this, var, new_state);
 }
 
 } // anonymous namespace
 
 /* Internal interface to this file. */
 
-state_machine *
+std::unique_ptr<state_machine>
 make_fileptr_state_machine (logger *logger)
 {
-  return new fileptr_state_machine (logger);
+  return std::make_unique<fileptr_state_machine> (logger);
 }
 
 /* Handler for various stdio-related builtins that merely have external
@@ -655,40 +659,45 @@ public:
 void
 register_known_file_functions (known_function_manager &kfm)
 {
-  kfm.add (BUILT_IN_FPRINTF, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_FPRINTF_UNLOCKED, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_FPUTC, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_FPUTC_UNLOCKED, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_FPUTS, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_FPUTS_UNLOCKED, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_FWRITE, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_FWRITE_UNLOCKED, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_PRINTF, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_PRINTF_UNLOCKED, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_PUTC, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_PUTCHAR, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_PUTCHAR_UNLOCKED, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_PUTC_UNLOCKED, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_PUTS, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_PUTS_UNLOCKED, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_VFPRINTF, make_unique<kf_stdio_output_fn> ());
-  kfm.add (BUILT_IN_VPRINTF, make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPRINTF, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPRINTF_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPUTC, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPUTC_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPUTS, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPUTS_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FWRITE, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FWRITE_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PRINTF, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PRINTF_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTC, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTCHAR, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTCHAR_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTC_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTS, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTS_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_VFPRINTF, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_VPRINTF, std::make_unique<kf_stdio_output_fn> ());
 
-  kfm.add ("ferror", make_unique<kf_ferror> ());
-  kfm.add ("fgets", make_unique<kf_fgets> ());
-  kfm.add ("fgets_unlocked", make_unique<kf_fgets> ()); // non-standard
-  kfm.add ("fileno", make_unique<kf_fileno> ());
-  kfm.add ("fread", make_unique<kf_fread> ());
-  kfm.add ("getc", make_unique<kf_getc> ());
-  kfm.add ("getchar", make_unique<kf_getchar> ());
+  kfm.add ("ferror", std::make_unique<kf_ferror> ());
+  kfm.add ("ferror_unlocked", std::make_unique<kf_ferror> ());
+  kfm.add ("fgets", std::make_unique<kf_fgets> ());
+  kfm.add ("fgets_unlocked", std::make_unique<kf_fgets> ()); // non-standard
+  kfm.add ("fileno", std::make_unique<kf_fileno> ());
+  kfm.add ("fileno_unlocked", std::make_unique<kf_fileno> ());
+  kfm.add ("fread", std::make_unique<kf_fread> ());
+  kfm.add ("fread_unlocked", std::make_unique<kf_fread> ());
+  kfm.add ("getc", std::make_unique<kf_getc> ());
+  kfm.add ("getc_unlocked", std::make_unique<kf_getc> ());
+  kfm.add ("getchar", std::make_unique<kf_getchar> ());
+  kfm.add ("getchar_unlocked", std::make_unique<kf_getchar> ());
 
   /* Some C++ implementations use the std:: copies of these functions
      from <cstdio> for <stdio.h>, so we must match against these too.  */
-  kfm.add_std_ns ("ferror", make_unique<kf_ferror> ());
-  kfm.add_std_ns ("fgets", make_unique<kf_fgets> ());
-  kfm.add_std_ns ("fread", make_unique<kf_fread> ());
-  kfm.add_std_ns ("getc", make_unique<kf_getc> ());
-  kfm.add_std_ns ("getchar", make_unique<kf_getchar> ());
+  kfm.add_std_ns ("ferror", std::make_unique<kf_ferror> ());
+  kfm.add_std_ns ("fgets", std::make_unique<kf_fgets> ());
+  kfm.add_std_ns ("fread", std::make_unique<kf_fread> ());
+  kfm.add_std_ns ("getc", std::make_unique<kf_getc> ());
+  kfm.add_std_ns ("getchar", std::make_unique<kf_getchar> ());
 }
 
 #if CHECKING_P

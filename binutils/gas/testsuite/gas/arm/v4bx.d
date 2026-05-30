@@ -6,5 +6,5 @@
 .*: +file format .*arm.*
 
 Disassembly of section .text:
-0+00 <[^>]+> e12fff1e 	bx	lr
+0+00 <[^>]+> e12fff1e 	bx	lr	@ from Armv4T onwards
 			0: R_ARM_V4BX	\*ABS\*

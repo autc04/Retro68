@@ -1,7 +1,7 @@
 #ld: -shared -z defs --gc-sections
 #readelf: -s -S --wide
 #target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
-#xfail: [is_generic] hppa64-*-* mep-*-* mn10200-*-* ![check_shared_lib_support] 
+#xfail: [is_generic] mep-*-* mn10200-*-* ![check_shared_lib_support] 
 # generic linker targets don't support --gc-sections, nor do a bunch of others
 
 #...

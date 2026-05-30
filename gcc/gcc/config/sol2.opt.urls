@@ -3,6 +3,9 @@
 G
 UrlSuffix(gcc/System-V-Options.html#index-G-5)
 
+gsctf
+UrlSuffix(gcc/Solaris-2-Options.html#index-gsctf)
+
 mclear-hwcap
 UrlSuffix(gcc/Solaris-2-Options.html#index-mclear-hwcap)
 
@@ -12,9 +15,6 @@ UrlSuffix(gcc/Solaris-2-Options.html#index-mimpure-text)
 ; skipping UrlSuffix for 'pthread' due to multiple URLs:
 ;   duplicate: 'gcc/Link-Options.html#index-pthread-1'
 ;   duplicate: 'gcc/Preprocessor-Options.html#index-pthread'
-
-pthreads
-UrlSuffix(gcc/Solaris-2-Options.html#index-pthreads)
 
 rdynamic
 UrlSuffix(gcc/Link-Options.html#index-rdynamic)

@@ -3,7 +3,7 @@
 #source: tls-gd-1.s
 #source: tls128.s
 #source: tls-x.s
-#as: --no-underscore --em=criself --pic -I$srcdir/$subdir
+#as: --no-underscore --emulation=criself --pic -I$srcdir/$subdir
 #ld: -m crislinux --shared --hash-style=sysv --hash-style=sysv
 #objdump: -d -s -t -r -p
 

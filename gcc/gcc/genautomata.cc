@@ -1,5 +1,5 @@
 /* Pipeline hazard description translator.
-   Copyright (C) 2000-2025 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 
    Written by Vladimir Makarov <vmakarov@redhat.com>
 
@@ -8143,7 +8143,7 @@ static void\n\
 dfa_insn_code_enlarge (int uid)\n\
 {\n\
   int i = %s;\n\
-  %s = 2 * uid;\n\
+  %s = MIN (INT_MAX, 2U * uid);\n\
   %s = XRESIZEVEC (int, %s,\n\
                  %s);\n\
   for (; i < %s; i++)\n\

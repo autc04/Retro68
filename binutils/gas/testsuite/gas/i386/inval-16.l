@@ -10,7 +10,7 @@ GAS LISTING .*
 
 
 [ 	]*1[ 	]+\.text
-[ 	]*2[ 	]+\.arch i186; \.code16
+[ 	]*2[ 	]+\.code16; \.arch i186
 [ 	]*3[ 	]+vmovapd	%xmm0,%xmm1
 [ 	]*4[ 	]+vaddsd	%xmm4, %xmm5, %xmm6\{%k7\}
 [ 	]*5[ 	]+vfrczpd	%xmm7,%xmm7

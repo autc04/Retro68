@@ -219,7 +219,7 @@ Disassembly of section .text:
 0+34c <[^>]*> e6ef2475 ?	uxtb	r2, r5, ror #8
 0+350 <[^>]*> 16ef2075 ?	uxtbne	r2, r5
 0+354 <[^>]*> 16ef2475 ?	uxtbne	r2, r5, ror #8
-0+358 <[^>]*> f10a00ca ?	cpsie	if,#10
-0+35c <[^>]*> f10a00d5 ?	cpsie	if,#21
+0+358 <[^>]*> f10a00ca ?	cpsie	if, #10
+0+35c <[^>]*> f10a00d5 ?	cpsie	if, #21
 0+360 <[^>]*> f8cd0510 ?	srsia	sp, #16
 0+364 <[^>]*> f9ed0510 ?	srsib	sp!, #16

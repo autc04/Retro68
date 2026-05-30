@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2002-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1209,6 +1209,13 @@ package body Prep is
                   Put_Char (' ');
                   Output (From, To);
                end if;
+
+               New_EOL.all;
+
+            elsif Empty_Comment_Deleted_Lines then
+               Put_Char ('-');
+               Put_Char ('-');
+               Put_Char ('!');
 
                New_EOL.all;
             end if;

@@ -1,5 +1,5 @@
 /* CTF format description.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
 
    This file is part of libctf.
 
@@ -423,6 +423,10 @@ union
 #define CTF_K_CONST	12	/* ctt_type is base type.  */
 #define CTF_K_RESTRICT	13	/* ctt_type is base type.  */
 #define CTF_K_SLICE	14	/* Variant data is a ctf_slice_t.  */
+#define CTF_K_DECL_TAG	15	/* Declaration tag.  Internal use only.
+				   Not valid externally until CTF V4.  */
+#define CTF_K_TYPE_TAG	16	/* Type tag.  Internal use only.
+				   Not valid externally until CTF V4.  */
 
 #define CTF_K_MAX	63	/* Maximum possible (V2) CTF_K_* value.  */
 

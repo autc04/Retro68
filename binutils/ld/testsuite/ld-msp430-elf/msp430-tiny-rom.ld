@@ -26,13 +26,19 @@ SECTIONS
   .data :
   {
     . = ALIGN(2);
+    *(.lower.data.* .lower.data)
     *(.data.* .data)
+    *(.either.data.* .either.data)
+    *(.upper.data.* .upper.data)
   } > RAM AT> ROM
 
   .bss :
   {
     . = ALIGN(2);
+    *(.lower.bss.* .lower.bss)
     *(.bss.* .bss)
+    *(.either.bss.* .either.bss)
+    *(.upper.bss.* .upper.bss)
   } > RAM
 
   .upper.text :

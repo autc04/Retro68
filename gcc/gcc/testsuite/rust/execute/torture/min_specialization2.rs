@@ -1,4 +1,7 @@
-#![feature(min_specialization)]
+#![feature(no_core)]
+#![no_core]
+
+#![feature(min_specialization, lang_items)]
 
 #[lang = "sized"]
 trait Sized {}
@@ -8,7 +11,7 @@ trait Foo {
 }
 
 impl<T> Foo for T {
-    default fn foo(&self) -> i32 { // { dg-warning "unused" }
+    default fn foo(&self) -> i32 {
         15
     }
 }

@@ -1,5 +1,5 @@
 /* Sets (bit vectors) of hard registers, and operations on them.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC
 
@@ -197,6 +197,28 @@ hard_reg_set_popcount (const_hard_reg_set x)
   return popcount_hwi (x);
 }
 
+/* Return 0 if there aren't any differences between X and Y after the first
+   SKIP registers, or 1 + the register number of the lowest-numbered
+   difference, negated if it's set in Y.  The return value is suitable for
+   qsort.  */
+inline int
+hard_reg_set_first_diff (const_hard_reg_set x, const_hard_reg_set y,
+			 unsigned skip)
+{
+  if (skip >= UHOST_BITS_PER_WIDE_INT)
+    return 0;
+  const HARD_REG_ELT_TYPE full_mask = -1;
+  HARD_REG_ELT_TYPE mask = full_mask << skip;
+  HARD_REG_ELT_TYPE dif = (x ^ y) & mask;
+  if (dif == 0)
+    return 0;
+  int bit = ctz_hwi (dif);
+  int regp1 = bit + 1;
+  if (y & (HARD_CONST (1) << bit))
+    return -regp1;
+  return regp1;
+}
+
 #else
 
 inline void
@@ -269,6 +291,34 @@ hard_reg_set_popcount (const_hard_reg_set x)
     count += popcount_hwi (x.elts[i]);
   return count;
 }
+
+/* Return 0 if there aren't any differences between X and Y after the first
+   SKIP registers, or 1 + the register number of the lowest-numbered
+   difference, negated if it's set in Y.  The return value is suitable for
+   qsort.  */
+inline int
+hard_reg_set_first_diff (const_hard_reg_set x, const_hard_reg_set y,
+			 unsigned skip)
+{
+  const HARD_REG_ELT_TYPE full_mask = -1;
+  HARD_REG_ELT_TYPE mask = full_mask << (skip % UHOST_BITS_PER_WIDE_INT);
+  for (unsigned int i = skip / UHOST_BITS_PER_WIDE_INT;
+       i < ARRAY_SIZE (x.elts); ++i)
+    {
+      HARD_REG_ELT_TYPE dif = (x.elts[i] ^ y.elts[i]) & mask;
+      if (dif == 0)
+	{
+	  mask = full_mask;
+	  continue;
+	}
+      int bit = ctz_hwi (dif);
+      int regp1 = bit + 1 + i * UHOST_BITS_PER_WIDE_INT;
+      if (y.elts[i] & (HARD_CONST (1) << bit))
+	return -regp1;
+      return regp1;
+    }
+  return 0;
+}
 #endif
 
 /* Iterator for hard register sets.  */
@@ -292,8 +342,8 @@ struct hard_reg_set_iterator
 
 #define HARD_REG_ELT_BITS UHOST_BITS_PER_WIDE_INT
 
-/* The implementation of the iterator functions is fully analogous to
-   the bitmap iterators.  */
+/* The implementation of the iterator functions is a simplified version of
+   those of bitmap iterators.  */
 inline void
 hard_reg_set_iter_init (hard_reg_set_iterator *iter, const_hard_reg_set set,
                         unsigned min, unsigned *regno)
@@ -310,11 +360,8 @@ hard_reg_set_iter_init (hard_reg_set_iterator *iter, const_hard_reg_set set,
     {
       iter->bits = iter->pelt[iter->word_no];
       iter->bits >>= min % HARD_REG_ELT_BITS;
-
-      /* This is required for correct search of the next bit.  */
-      min += !iter->bits;
+      *regno = min;
     }
-  *regno = min;
 }
 
 inline bool
@@ -328,37 +375,34 @@ hard_reg_set_iter_set (hard_reg_set_iterator *iter, unsigned *regno)
 
       if (iter->bits)
         {
-          /* Find the correct bit and return it.  */
-          while (!(iter->bits & 1))
-            {
-              iter->bits >>= 1;
-              *regno += 1;
-            }
+	  unsigned skip = ctz_hwi (iter->bits);
+	  iter->bits >>= skip;
+	  *regno += skip;
           return (*regno < FIRST_PSEUDO_REGISTER);
         }
-
-      /* Round to the beginning of the next word.  */
-      *regno = (*regno + HARD_REG_ELT_BITS - 1);
-      *regno -= *regno % HARD_REG_ELT_BITS;
 
       /* Find the next non-zero word.  */
       while (++iter->word_no < iter->length)
         {
           iter->bits = iter->pelt[iter->word_no];
           if (iter->bits)
-            break;
-          *regno += HARD_REG_ELT_BITS;
+	    {
+	      *regno = iter->word_no * HARD_REG_ELT_BITS;
+	      break;
+	    }
         }
     }
 }
 
 inline void
-hard_reg_set_iter_next (hard_reg_set_iterator *iter, unsigned *regno)
+hard_reg_set_iter_next (hard_reg_set_iterator *iter, unsigned *)
 {
-  iter->bits >>= 1;
-  *regno += 1;
+  /* Only clear the bit, so that we skip it in iter_set.  */
+  iter->bits &= ~ HARD_CONST (1);
 }
 
+/* SET must not change throughout the iteration.
+   REGNUM (and ITER) may only be changed by the iteration functions.  */
 #define EXECUTE_IF_SET_IN_HARD_REG_SET(SET, MIN, REGNUM, ITER)          \
   for (hard_reg_set_iter_init (&(ITER), (SET), (MIN), &(REGNUM));       \
        hard_reg_set_iter_set (&(ITER), &(REGNUM));                      \

@@ -1,7 +1,7 @@
 #source: pr16498a.s
 #ld: -shared -T pr16498b.t
 #readelf: -l --wide
-#target: *-*-linux* *-*-gnu* *-*-nacl* arm*-*-uclinuxfdpiceabi
+#target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 #xfail: ![check_shared_lib_support] 
 
 #...

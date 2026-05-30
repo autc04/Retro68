@@ -1,8 +1,7 @@
 # Check 32bit AVX512{BITALG,VL} instructions
 
-	.allow_index_reg
 	.text
-_start:
+bitalg:
 	vpshufbitqmb	%xmm4, %xmm5, %k5{%k7}	 # AVX512{BITALG,VL}
 	vpshufbitqmb	-123456(%esp,%esi,8), %xmm5, %k5{%k7}	 # AVX512{BITALG,VL}
 	vpshufbitqmb	2032(%edx), %xmm5, %k5{%k7}	 # AVX512{BITALG,VL} Disp8

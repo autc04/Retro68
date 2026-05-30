@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -204,6 +204,13 @@ package Table is
       --  to Index. Item will replace any value already present in the table
       --  at this position.
 
+      procedure Clear;
+      --  Resets Last to its initial value, making the table have no elements.
+      --  No memory deallocation is performed.
+
+      function Is_Empty return Boolean;
+      --  Returns whether the table is empty
+
       type Saved_Table is private;
       --  Type used for Save/Restore subprograms
 
@@ -222,9 +229,6 @@ package Table is
       --  because we don't want the client to modify Last except through one of
       --  the official interfaces (since a modification to Last may require a
       --  reallocation of the table).
-
-      Max : Int;
-      --  Subscript of the maximum entry in the currently allocated table
 
       type Saved_Table is record
          Last_Val : Int;

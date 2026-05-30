@@ -1,5 +1,5 @@
 #source: mbind1.s
-#ld: -pie -z common-page-size=0x1000 -z max-page-size=0x200000
+#ld: -pie -z common-page-size=0x1000 -z max-page-size=0x200000 --no-rosegment
 #readelf: -S -l --wide
 #target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 #xfail: ![check_pie_support] 

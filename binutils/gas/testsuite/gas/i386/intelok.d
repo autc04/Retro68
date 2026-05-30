@@ -1,6 +1,6 @@
-#as: -J --divide
+#as: -J --divide --defsym USE_DIRECTIVE=1
 #objdump: -dwMintel
-#name: i386 intel-ok
+#name: i386 intel-ok (directive)
 #warning_output: intelok.e
 
 .*: +file format .*

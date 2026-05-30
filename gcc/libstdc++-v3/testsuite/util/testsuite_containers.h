@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2009-2025 Free Software Foundation, Inc.
+// Copyright (C) 2009-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -20,10 +20,10 @@
 #ifndef _GLIBCXX_TESTSUITE_CONTAINERS_H
 #define _GLIBCXX_TESTSUITE_CONTAINERS_H
 
-#include <bits/boost_concept_check.h>
 #include <cassert>
-#include <testsuite_container_traits.h>
 #include <utility> // for rel_ops.
+#include <bits/boost_concept_check.h>
+#include <testsuite_container_traits.h>
 
 // Container requirement testing.
 namespace __gnu_test
@@ -210,6 +210,9 @@ namespace __gnu_test
 	clit = container.cbegin(bn);
 	assert( ++clit == container.cend(bn) );
 
+	clit = container.begin(bn);
+	assert( ++clit == container.cend(bn) );
+
 	assert( container.begin(bn) != container.cend(bn) );
       }
     };
@@ -304,6 +307,9 @@ namespace __gnu_test
 	assert( container.cbegin() != container.cend() );
 	assert( container.cbegin() != container.end() );
 	assert( container.begin() != container.cend() );
+
+	auto cit = container.begin();
+	assert( cit == container.cbegin() );
       }
   };
 

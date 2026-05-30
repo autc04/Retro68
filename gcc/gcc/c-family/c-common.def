@@ -1,7 +1,7 @@
 /* This file contains the definitions and documentation for the
    additional tree codes used in the GNU C compiler (see tree.def
    for the standard codes).
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
    Written by Benjamin Chelf <chelf@codesourcery.com>
 
 This file is part of GCC.
@@ -49,6 +49,15 @@ DEFTREECODE (EXCESS_PRECISION_EXPR, "excess_precision_expr", tcc_expression, 1)
    and for numeric literals the original string representation of the
    number.  */
 DEFTREECODE (USERDEF_LITERAL, "userdef_literal", tcc_exceptional, 3)
+
+/* Represents a 'countof' expression.  */
+DEFTREECODE (COUNTOF_EXPR, "countof_expr", tcc_expression, 1)
+
+/* Represents a 'maxof' expression.  */
+DEFTREECODE (MAXOF_EXPR, "maxof_expr", tcc_expression, 1)
+
+/* Represents a 'minof' expression.  */
+DEFTREECODE (MINOF_EXPR, "minof_expr", tcc_expression, 1)
 
 /* Represents a 'sizeof' expression during C++ template expansion,
    or for the purpose of -Wsizeof-pointer-memaccess warning.  */

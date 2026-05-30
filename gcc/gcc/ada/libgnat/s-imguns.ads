@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,30 +33,15 @@
 --  and ``Ada.Text_IO.Modular_IO`` conversions routines for modular integer
 --  types up to size ``Unsigned'Size``.
 
---  Preconditions in this unit are meant for analysis only, not for run-time
---  checking, so that the expected exceptions are raised. This is enforced by
---  setting the corresponding assertion policy to Ignore. Postconditions and
---  contract cases should not be executed at runtime as well, in order not to
---  slow down the execution of these functions.
-
-pragma Assertion_Policy (Pre                => Ignore,
-                         Post               => Ignore,
-                         Contract_Cases     => Ignore,
-                         Ghost              => Ignore,
-                         Subprogram_Variant => Ignore);
-
 with System.Image_U;
 with System.Unsigned_Types;
-with System.Vs_Uns;
 
 package System.Img_Uns
   with SPARK_Mode
 is
    subtype Unsigned is Unsigned_Types.Unsigned;
 
-   package Impl is new Image_U
-     (Uns    => Unsigned,
-      U_Spec => System.Vs_Uns.Spec);
+   package Impl is new Image_U (Uns => Unsigned);
 
    procedure Image_Unsigned
      (V : Unsigned;

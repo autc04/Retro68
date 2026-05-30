@@ -1,4 +1,4 @@
-dnl   Copyright (C) 2014-2025 Free Software Foundation, Inc.
+dnl   Copyright (C) 2014-2026 Free Software Foundation, Inc.
 dnl
 dnl This file is part of GCC.
 dnl
@@ -48,6 +48,7 @@ AC_SUBST(visibility)
 GCC_CET_HOST_FLAGS(CET_HOST_FLAGS)
 AC_SUBST(CET_HOST_FLAGS)
 
+AC_CHECK_HEADERS(libgen.h)
 AC_CHECK_DECLS([basename])
 
 GCC_BASE_VER

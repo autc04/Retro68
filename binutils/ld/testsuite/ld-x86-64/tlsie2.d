@@ -1,4 +1,4 @@
 #name: TLS IE->LE transition check
-#as: --64
+#as: --64 -mtls-check=no
 #ld: -melf_x86_64
-#error: .*TLS transition from R_X86_64_GOTTPOFF to R_X86_64_TPOFF32 against `foo'.*failed.*
+#error: .*: relocation R_X86_64_GOTTPOFF against `foo' must be used in ADD or MOV only

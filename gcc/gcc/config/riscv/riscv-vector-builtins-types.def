@@ -1,5 +1,5 @@
 /* Intrinsic type iterators for RISC-V 'V' Extension for GNU compiler.
-   Copyright (C) 2022-2025 Free Software Foundation, Inc.
+   Copyright (C) 2022-2026 Free Software Foundation, Inc.
    Contributed by Juzhe Zhong (juzhe.zhong@rivai.ai), RiVAI Technologies Ltd.
 
 This file is part of GCC.
@@ -367,6 +367,36 @@ along with GCC; see the file COPYING3. If not see
    be iterated and registered as intrinsic functions.  */
 #ifndef DEF_RVV_XFQF_OPS
 #define DEF_RVV_XFQF_OPS(TYPE, REQUIRE)
+#endif
+
+/* Use "DEF_RVV_X2_U_OPS" macro include unsigned integer which will
+   be iterated and registered as intrinsic functions.  */
+#ifndef DEF_RVV_X2_U_OPS
+#define DEF_RVV_X2_U_OPS(TYPE, REQUIRE)
+#endif
+
+/* Use "DEF_RVV_X2_WU_OPS" macro include widen unsigned integer which will
+   be iterated and registered as intrinsic functions.  */
+#ifndef DEF_RVV_X2_WU_OPS
+#define DEF_RVV_X2_WU_OPS(TYPE, REQUIRE)
+#endif
+
+/* Use "DEF_RVV_Q_OPS" macro include all quad signed integer which will be
+   iterated and registered as intrinsic functions.  */
+#ifndef DEF_RVV_Q_OPS
+#define DEF_RVV_Q_OPS(TYPE, REQUIRE)
+#endif
+
+/* Use "DEF_RVV_QU_OPS" macro include all quad unsigned integer which will be
+   iterated and registered as intrinsic functions.  */
+#ifndef DEF_RVV_QU_OPS
+#define DEF_RVV_QU_OPS(TYPE, REQUIRE)
+#endif
+
+/* Use "DEF_RVV_F16_OPS" macro include all types for vfloat16
+   which will be iterated and registered as intrinsic functions.  */
+#ifndef DEF_RVV_F16_OPS
+#define DEF_RVV_F16_OPS(TYPE, REQUIRE)
 #endif
 
 DEF_RVV_I_OPS (vint8mf8_t, RVV_REQUIRE_ELEN_64)
@@ -1463,6 +1493,55 @@ DEF_RVV_XFQF_OPS (vint8mf2_t, 0)
 DEF_RVV_XFQF_OPS (vint8m1_t, 0)
 DEF_RVV_XFQF_OPS (vint8m2_t, 0)
 
+DEF_RVV_X2_U_OPS (vuint8mf8_t, RVV_REQUIRE_ELEN_64)
+DEF_RVV_X2_U_OPS (vuint8mf4_t, 0)
+DEF_RVV_X2_U_OPS (vuint8mf2_t, 0)
+DEF_RVV_X2_U_OPS (vuint8m1_t, 0)
+DEF_RVV_X2_U_OPS (vuint8m2_t, 0)
+DEF_RVV_X2_U_OPS (vuint8m4_t, 0)
+DEF_RVV_X2_U_OPS (vuint16mf4_t, RVV_REQUIRE_ELEN_64)
+DEF_RVV_X2_U_OPS (vuint16mf2_t, 0)
+DEF_RVV_X2_U_OPS (vuint16m1_t, 0)
+DEF_RVV_X2_U_OPS (vuint16m2_t, 0)
+DEF_RVV_X2_U_OPS (vuint16m4_t, 0)
+DEF_RVV_X2_U_OPS (vuint32mf2_t, RVV_REQUIRE_ELEN_64)
+DEF_RVV_X2_U_OPS (vuint32m1_t, 0)
+DEF_RVV_X2_U_OPS (vuint32m2_t, 0)
+DEF_RVV_X2_U_OPS (vuint32m4_t, 0)
+
+DEF_RVV_X2_WU_OPS (vuint16mf4_t, RVV_REQUIRE_ELEN_64)
+DEF_RVV_X2_WU_OPS (vuint16mf2_t, 0)
+DEF_RVV_X2_WU_OPS (vuint16m1_t, 0)
+DEF_RVV_X2_WU_OPS (vuint16m2_t, 0)
+DEF_RVV_X2_WU_OPS (vuint16m4_t, 0)
+DEF_RVV_X2_WU_OPS (vuint32mf2_t, RVV_REQUIRE_ELEN_64)
+DEF_RVV_X2_WU_OPS (vuint32m1_t, 0)
+DEF_RVV_X2_WU_OPS (vuint32m2_t, 0)
+DEF_RVV_X2_WU_OPS (vuint32m4_t, 0)
+
+DEF_RVV_Q_OPS (vint8mf8_t, RVV_REQUIRE_ELEN_64)
+DEF_RVV_Q_OPS (vint8mf4_t, 0)
+DEF_RVV_Q_OPS (vint8mf2_t, 0)
+DEF_RVV_Q_OPS (vint8m1_t, 0)
+DEF_RVV_Q_OPS (vint8m2_t, 0)
+DEF_RVV_Q_OPS (vint8m4_t, 0)
+DEF_RVV_Q_OPS (vint8m8_t, 0)
+
+DEF_RVV_QU_OPS (vuint8mf8_t, RVV_REQUIRE_ELEN_64)
+DEF_RVV_QU_OPS (vuint8mf4_t, 0)
+DEF_RVV_QU_OPS (vuint8mf2_t, 0)
+DEF_RVV_QU_OPS (vuint8m1_t, 0)
+DEF_RVV_QU_OPS (vuint8m2_t, 0)
+DEF_RVV_QU_OPS (vuint8m4_t, 0)
+DEF_RVV_QU_OPS (vuint8m8_t, 0)
+
+DEF_RVV_F16_OPS (vfloat16mf4_t, RVV_REQUIRE_ELEN_FP_16 | RVV_REQUIRE_ELEN_64)
+DEF_RVV_F16_OPS (vfloat16mf2_t, RVV_REQUIRE_ELEN_FP_16)
+DEF_RVV_F16_OPS (vfloat16m1_t, RVV_REQUIRE_ELEN_FP_16)
+DEF_RVV_F16_OPS (vfloat16m2_t, RVV_REQUIRE_ELEN_FP_16)
+DEF_RVV_F16_OPS (vfloat16m4_t, RVV_REQUIRE_ELEN_FP_16)
+DEF_RVV_F16_OPS (vfloat16m8_t, RVV_REQUIRE_ELEN_FP_16)
+
 #undef DEF_RVV_I_OPS
 #undef DEF_RVV_U_OPS
 #undef DEF_RVV_F_OPS
@@ -1519,3 +1598,8 @@ DEF_RVV_XFQF_OPS (vint8m2_t, 0)
 #undef DEF_RVV_F32_OPS
 #undef DEF_RVV_QMACC_OPS
 #undef DEF_RVV_XFQF_OPS
+#undef DEF_RVV_X2_U_OPS
+#undef DEF_RVV_X2_WU_OPS
+#undef DEF_RVV_Q_OPS
+#undef DEF_RVV_QU_OPS
+#undef DEF_RVV_F16_OPS

@@ -1,5 +1,7 @@
 #readelf: -s --debug-dump=aranges
 #as: -g --generate-missing-build-notes=no
+# This test is only valid on ELF based ports.
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 Symbol table '.symtab' contains 11 entries:
    Num:[ ]+Value[ ]+Size[ ]+Type[ ]+Bind[ ]+Vis[ ]+Ndx[ ]+Name
@@ -18,11 +20,10 @@ Contents of the .debug_aranges section:
 
   Length:                   (44|28)
   Version:                  2
-  Offset into .debug_info:  0x0
+  Offset into .debug_info:  (0x)?0
   Pointer Size:             (8|4)
   Segment Size:             0
 
     Address[ ]+Length
-    0+ 0+8[ ]+
-    0+ 0+[ ]+
-
+    0+ 0+8 ?
+    0+ 0+ ?

@@ -1,5 +1,5 @@
 /* Support routines for value ranges.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldyh@redhat.com> and
    Andrew Macleod <amacleod@redhat.com>.
 
@@ -55,7 +55,17 @@ enum value_range_discriminator
   VR_UNKNOWN
 };
 
-// Abstract class for ranges of any of the supported types.
+// Abstract class for representing subsets of values for various
+// supported types, such as the possible values of a variable.
+//
+// There are subclasses for each of integer, floating point, and pointer
+// types, each with their own strategies for efficiently representing
+// subsets of values.
+//
+// For efficiency, we can't precisely represent any arbitrary subset
+// of values of a type (which could require 2^N bits for a type of size N)
+// Hence operations on the subclasses may introduce imprecision
+// due to over-approximating the possible subsets.
 //
 // To query what types ranger and the entire ecosystem can support,
 // use value_range::supports_type_p(tree type).  This is a static
@@ -111,6 +121,7 @@ public:
   bool operator== (const vrange &) const;
   bool operator!= (const vrange &r) const { return !(*this == r); }
   void dump (FILE *) const;
+  virtual void verify_range () const { }
 protected:
   vrange (enum value_range_discriminator d) : m_discriminator (d) { }
   ENUM_BITFIELD(value_range_kind) m_kind : 8;
@@ -122,13 +133,18 @@ namespace inchash
   extern void add_vrange (const vrange &, hash &, unsigned flags = 0);
 }
 
-// A pair of values representing the known bits in a range.  Zero bits
+// A pair of values representing the known bits of a value.  Zero bits
 // in MASK cover constant values.  Set bits in MASK cover unknown
-// values.  VALUE are the known bits.
-//
-// Set bits in MASK (no meaningful information) must have their
-// corresponding bits in VALUE cleared, as this speeds up union and
-// intersect.
+// values.  VALUE are the known bits for the bits where MASK is zero,
+// and must be zero for the unknown bits where MASK is set (needed as an
+// optimization of union and intersect)
+// For example:
+// VALUE: [..., 0, 1, 0]
+// MASK:  [..., 1, 0, 0]
+//              ^  ^  ^
+//              |  |  known bit: {0}
+//              |  known bit: {1}
+//              unknown bit: {0, 1}
 
 class irange_bitmask
 {
@@ -136,20 +152,22 @@ public:
   irange_bitmask () { /* uninitialized */ }
   irange_bitmask (unsigned prec) { set_unknown (prec); }
   irange_bitmask (const wide_int &value, const wide_int &mask);
+  irange_bitmask (tree type, const wide_int &min, const wide_int &max);
+
   wide_int value () const { return m_value; }
   wide_int mask () const { return m_mask; }
   void set_unknown (unsigned prec);
   bool unknown_p () const;
   unsigned get_precision () const;
   void union_ (const irange_bitmask &src);
-  void intersect (const irange_bitmask &src);
+  bool intersect (const irange_bitmask &src);
   bool operator== (const irange_bitmask &src) const;
   bool operator!= (const irange_bitmask &src) const { return !(*this == src); }
   void verify_mask () const;
   void dump (FILE *) const;
+  bool range_from_mask (irange &r, tree type) const;
 
   bool member_p (const wide_int &val) const;
-  void adjust_range (irange &r) const;
 
   // Convenience functions for nonzero bitmask compatibility.
   wide_int get_nonzero_bits () const;
@@ -244,20 +262,16 @@ irange_bitmask::union_ (const irange_bitmask &src)
     verify_mask ();
 }
 
-inline void
+// Return FALSE if the bitmask intersection is undefined.
+
+inline bool
 irange_bitmask::intersect (const irange_bitmask &src)
 {
   // If we have two known bits that are incompatible, the resulting
-  // bit is undefined.  It is unclear whether we should set the entire
-  // range to UNDEFINED, or just a subset of it.  For now, set the
-  // entire bitmask to unknown (VARYING).
+  // bit and therefore entire range is undefined.  Return FALSE.
   if (wi::bit_and (~(m_mask | src.m_mask),
 		   m_value ^ src.m_value) != 0)
-    {
-      unsigned prec = m_mask.get_precision ();
-      m_mask = wi::minus_one (prec);
-      m_value = wi::zero (prec);
-    }
+    return false;
   else
     {
       m_mask = m_mask & src.m_mask;
@@ -265,9 +279,11 @@ irange_bitmask::intersect (const irange_bitmask &src)
     }
   if (flag_checking)
     verify_mask ();
+  return true;
 }
 
-// An integer range without any storage.
+// A subset of possible values for an integer type, leaving
+// allocation of storage to subclasses.
 
 class irange : public vrange
 {
@@ -322,6 +338,7 @@ public:
   virtual void update_bitmask (const class irange_bitmask &) override;
   virtual irange_bitmask get_bitmask () const override;
 
+  virtual void verify_range () const override;
 protected:
   void maybe_resize (int needed);
   virtual void set (tree, tree, value_range_kind = VR_RANGE) override;
@@ -334,7 +351,6 @@ protected:
 
   void normalize_kind ();
 
-  void verify_range ();
 
   // Hard limit on max ranges allowed.
   static const int HARD_MAX_RANGES = 255;
@@ -343,6 +359,9 @@ private:
   bool intersect_bitmask (const irange &r);
   bool union_bitmask (const irange &r);
   bool set_range_from_bitmask ();
+  bool snap_subranges ();
+  bool snap (const wide_int &, const wide_int &, wide_int &, wide_int &,
+	     bool &);
 
   bool intersect (const wide_int& lb, const wide_int& ub);
   bool union_append (const irange &r);
@@ -418,7 +437,7 @@ public:
   bool contains_p (const wide_int &) const;
   wide_int lower_bound () const;
   wide_int upper_bound () const;
-  void verify_range () const;
+  virtual void verify_range () const final override;
   irange_bitmask get_bitmask () const final override;
   void update_bitmask (const irange_bitmask &) final override;
 protected:
@@ -467,7 +486,9 @@ public:
   tree ubound () const final override;
 };
 
-// The NAN state as an opaque object.
+// The possible NAN state of a floating point value as an opaque object.
+// This represents one of the four subsets of { -NaN, +NaN },
+// i.e. one of {}, { -NaN }, { +NaN}, or { -NaN, +NaN }.
 
 class nan_state
 {
@@ -518,10 +539,10 @@ nan_state::neg_p () const
   return m_neg_nan;
 }
 
-// A floating point range.
+// A subset of possible values for a floating point type.
 //
 // The representation is a type with a couple of endpoints, unioned
-// with the set of { -NAN, +Nan }.
+// with a subset of { -NaN, +NaN }.
 
 class frange final : public vrange
 {
@@ -590,14 +611,13 @@ public:
   bool nan_signbit_p (bool &signbit) const;
   bool known_isnormal () const;
   bool known_isdenormal_or_zero () const;
-
+  virtual void verify_range () const override;
 protected:
   virtual bool contains_p (tree cst) const override;
   virtual void set (tree, tree, value_range_kind = VR_RANGE) override;
 
 private:
   bool internal_singleton_p (REAL_VALUE_TYPE * = NULL) const;
-  void verify_range ();
   bool normalize_kind ();
   bool union_nans (const frange &);
   bool intersect_nans (const frange &);
@@ -795,6 +815,7 @@ public:
   void update_bitmask (const class irange_bitmask &bm)
   { return m_vrange->update_bitmask (bm); }
   void accept (const vrange_visitor &v) const { m_vrange->accept (v); }
+  void verify_range () const { m_vrange->verify_range (); }
 private:
   void init (tree type);
   void init (const vrange &);

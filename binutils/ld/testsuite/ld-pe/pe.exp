@@ -1,5 +1,5 @@
 # Expect script for simple PE tests that require the just-built binutils only.
-#   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,6 +29,7 @@ if {[istarget i*86-*-cygwin*]
     || [istarget i*86-*-pe]
     || [istarget i*86-*-mingw*]
     || [istarget x86_64-*-mingw*]
+    || [istarget x86_64-*-cygwin*]
     || [istarget arm-wince-pe] } {
 
     if {[istarget x86_64-*-mingw*] } {
@@ -37,6 +38,25 @@ if {[istarget i*86-*-cygwin*]
 	 {{objdump -s secrel_64.d}} "secrel.x"}
 	{".secidx" "--disable-reloc-section" "" "" {secidx1.s secidx2.s}
 	 {{objdump -s secidx_64.d}} "secidx.x"}
+	{".secrel32 w/ relocs" "--enable-reloc-section" "" "" {secrel1.s secrel2.s}
+	 {{objdump -p secrel-reloc.d}} "secrel.x"}
+	{".secidx w/ relocs" "--enable-reloc-section" "" "" {secidx1.s secidx2.s}
+	 {{objdump -p secidx-reloc.d}} "secidx.x"}
+	{"Empty export table" "" "" "" "exports.s"
+	 {{objdump -p exports64.d}} "exports.dll"}
+	{"TLS directory entry" "" "" "" "tlssec.s"
+	 {{objdump -p tlssec64.d}} "tlssec.dll"}
+      }
+    } elseif {[istarget x86_64-*-cygwin*]} {
+      set pe_tests {
+	{".secrel32" "--disable-auto-import --disable-reloc-section" "" "" {secrel1.s secrel2.s}
+	 {{objdump -s secrel_64.d}} "secrel.x"}
+	{".secidx" "--disable-auto-import --disable-reloc-section" "" "" {secidx1.s secidx2.s}
+	 {{objdump -s secidx_64.d}} "secidx.x"}
+	{".secrel32 w/ relocs" "--disable-auto-import --enable-reloc-section" "" "" {secrel1.s secrel2.s}
+	 {{objdump -p secrel-reloc.d}} "secrel.x"}
+	{".secidx w/ relocs" "--disable-auto-import --enable-reloc-section" "" "" {secidx1.s secidx2.s}
+	 {{objdump -p secidx-reloc.d}} "secidx.x"}
 	{"Empty export table" "" "" "" "exports.s"
 	 {{objdump -p exports64.d}} "exports.dll"}
 	{"TLS directory entry" "" "" "" "tlssec.s"
@@ -48,6 +68,10 @@ if {[istarget i*86-*-cygwin*]
 	 {{objdump -s secrel.d}} "secrel.x"}
 	{".secidx" "--disable-auto-import --disable-reloc-section" "" "" {secidx1.s secidx2.s}
 	 {{objdump -s secidx.d}} "secidx.x"}
+	{".secrel32 w/ relocs" "--disable-auto-import --enable-reloc-section" "" "" {secrel1.s secrel2.s}
+	 {{objdump -p secrel-reloc.d}} "secrel-reloc.x"}
+	{".secidx w/ relocs" "--disable-auto-import --enable-reloc-section" "" "" {secidx1.s secidx2.s}
+	 {{objdump -p secidx-reloc.d}} "secidx-reloc.x"}
 	{"Empty export table" "" "" "" "exports.s"
 	 {{objdump -p exports.d}} "exports.dll"}
 	{"TLS directory entry" "" "" "" "tlssec.s"
@@ -57,6 +81,8 @@ if {[istarget i*86-*-cygwin*]
       set pe_tests {
 	{".secrel32" "--disable-reloc-section" "" "" {secrel1.s secrel2.s}
 	 {{objdump -s secrel.d}} "secrel.x"}
+	{".secrel32 w/ relocs" "" "" "" {secrel1.s secrel2.s}
+	 {{objdump -p secrel-reloc.d}} "secrel-reloc.x"}
 	{"Empty export table" "" "" "" "exports.s"
 	 {{objdump -p exports.d}} "exports.dll"}
 	{"TLS directory entry" "" "" "" "tlssec.s"
@@ -68,11 +94,30 @@ if {[istarget i*86-*-cygwin*]
 	 {{objdump -s secrel.d}} "secrel.x"}
 	{".secidx" "--disable-reloc-section" "" "" {secidx1.s secidx2.s}
 	 {{objdump -s secidx.d}} "secidx.x"}
+	{".secrel32 w/ relocs" " --enable-reloc-section" "" "" {secrel1.s secrel2.s}
+	 {{objdump -p secrel-reloc.d}} "secrel-reloc.x"}
+	{".secidx w/ relocs" " --enable-reloc-section" "" "" {secidx1.s secidx2.s}
+	 {{objdump -p secidx-reloc.d}} "secidx-reloc.x"}
 	{"Empty export table" "" "" "" "exports.s"
 	 {{objdump -p exports.d}} "exports.dll"}
 	{"TLS directory entry" "" "" "" "tlssec.s"
 	 {{objdump -p tlssec32.d}} "tlssec.dll"}
       }
+    }
+
+    run_ld_link_tests $pe_tests
+}
+
+if {[istarget "aarch64-*-pe*"] || [istarget "aarch64-*-mingw*"]} {
+    run_dump_test "pe-aarch64"
+
+    set pe_tests {
+      {"aarch64" "--image-base 0x1000" "" "" {aarch64a.s aarch64b.s}
+	{{objdump -dr aarch64.d}} "aarch64.x"}
+      {".secrel32" "--disable-reloc-section" "" "" {secrel1.s secrel2.s}
+	{{objdump -s secrel_64.d}} "secrel.x"}
+      {".secidx" "--disable-reloc-section" "" "" {secidx1.s secidx2.s}
+	{{objdump -s secidx_aarch64.d}} "secidx.x"}
     }
 
     run_ld_link_tests $pe_tests
@@ -92,6 +137,9 @@ run_dump_test "orphan"
 run_dump_test "orphan_nu"
 
 run_dump_test "reloc"
+run_dump_test "reloc2a"
+run_dump_test "reloc2b"
+run_dump_test "reloc2c"
 
 run_dump_test "weakdef-1"
 
@@ -124,3 +172,27 @@ set foreign_sym_test {
 # MCore rearranges symbol order.
 setup_xfail mcore-*-pe
 run_ld_link_tests $foreign_sym_test
+
+run_dump_test "exclude-symbols-embedded-i386"
+run_dump_test "exclude-symbols-embedded-x86_64"
+run_dump_test "exclude-symbols-def-i386"
+run_dump_test "exclude-symbols-def-x86_64"
+
+if [check_shared_lib_support] {
+    set old_ASFLAGS $ASFLAGS
+    if [is_underscore_target] {
+	append ASFLAGS " --defsym UNDERSCORE=1"
+    }
+    run_dump_test "symbols-ordinals-hints-exports-ld"
+    # no dlltool for these two
+    setup_xfail aarch64-*-* sh-*-*
+    run_dump_test "symbols-ordinals-hints-exports-dlltool"
+    run_dump_test "symbols-ordinals-hints-imports-ld"
+    setup_xfail aarch64-*-* sh-*-*
+    run_dump_test "symbols-ordinals-hints-imports-dlltool"
+    set ASFLAGS $old_ASFLAGS
+}
+
+run_dump_test "image-fixup-16"
+run_dump_test "image-fixup-32"
+run_dump_test "image-fixup-64"

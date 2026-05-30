@@ -1,5 +1,5 @@
 /* Reload pseudo regs into hard regs for insns that require hard regs.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -3036,8 +3036,6 @@ elimination_effects (rtx x, machine_mode mem_mode)
 		else
 		  ep->can_eliminate = 0;
 	      }
-            if (code == POST_DEC || code == POST_INC)
-              ep->can_eliminate = 0;
 	  }
 
       /* These two aren't unary operators.  */
@@ -7542,8 +7540,7 @@ emit_input_reload_insns (class insn_chain *chain, struct reload *rl,
     copy_reg_eh_region_note_forward (insn, get_insns (), NULL);
 
   /* End this sequence.  */
-  *where = get_insns ();
-  end_sequence ();
+  *where = end_sequence ();
 
   /* Update reload_override_in so that delete_address_reloads_1
      can see the actual register usage.  */

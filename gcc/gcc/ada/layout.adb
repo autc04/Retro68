@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -25,7 +25,6 @@
 
 with Atree;          use Atree;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Errout;         use Errout;
@@ -34,7 +33,6 @@ with Sem_Aux;        use Sem_Aux;
 with Sem_Ch13;       use Sem_Ch13;
 with Sem_Eval;       use Sem_Eval;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Snames;         use Snames;
@@ -227,9 +225,7 @@ package body Layout is
    procedure Layout_Object (E : Entity_Id) is
       pragma Unreferenced (E);
    begin
-      --  Nothing to do for now, assume backend does the layout
-
-      return;
+      null; -- Nothing to do for now, assume backend does the layout
    end Layout_Object;
 
    -----------------
@@ -250,13 +246,21 @@ package body Layout is
       end if;
 
       --  For access types, set size/alignment. This is system address size,
-      --  except for fat pointers (unconstrained array access types), where the
-      --  size is two times the address size, to accommodate the two pointers
-      --  that are required for a fat pointer (data and template). Note that
-      --  E_Access_Protected_Subprogram_Type is not an access type for this
-      --  purpose since it is not a pointer but is equivalent to a record. For
-      --  access subtypes, copy the size from the base type since Gigi
-      --  represents them the same way.
+      --  except for unconstrained array access types:
+      --
+      --   - fat pointers where the size is two times the address size, to
+      --     accommodate the two pointers that are required for a fat pointer
+      --     (data and template).
+      --
+      --   - extended access where the size is the size of an address (data
+      --     pointer) plus the size of the template. The template size can't be
+      --     computed yet (will be done in the code generator), leave it empty
+      --     for now.
+      --
+      --  Note that E_Access_Protected_Subprogram_Type is not an access type
+      --  for this purpose since it is not a pointer but is equivalent to a
+      --  record. For access subtypes, copy the size from the base type since
+      --  the code generator represents them the same way.
 
       if Is_Access_Type (E) then
          Desig_Type := Underlying_Type (Designated_Type (E));
@@ -303,7 +307,9 @@ package body Layout is
 
            and then not Debug_Flag_6
          then
-            Init_Size (E, 2 * System_Address_Size);
+            if not Is_Extended_Access_Type (E) then
+               Init_Size (E, 2 * System_Address_Size);
+            end if;
 
             --  Check for bad convention set
 
@@ -328,7 +334,9 @@ package body Layout is
                                              N_Unconstrained_Array_Definition
            and then not Debug_Flag_6
          then
-            Init_Size (E, 2 * System_Address_Size);
+            if not Is_Extended_Access_Type (E) then
+               Init_Size (E, 2 * System_Address_Size);
+            end if;
 
          --  If unnesting subprograms, subprogram access types contain the
          --  address of both the subprogram and an activation record. But if we
@@ -658,8 +666,8 @@ package body Layout is
    -----------------------------
 
    procedure Set_Composite_Alignment (E : Entity_Id) is
-      Siz   : Uint;
       Align : Nat;
+      Siz   : Uint;
 
    begin
       --  If alignment is already set, then nothing to do
@@ -672,7 +680,7 @@ package body Layout is
       --  the setting of the Optimize_Alignment mode.
 
       --  If Optimize_Alignment is set to Space, then we try to give packed
-      --  records an aligmment of 1, unless there is some reason we can't.
+      --  records an alignment of 1, unless there is some reason we can't.
 
       if Optimize_Alignment_Space (E)
         and then Is_Record_Type (E)
@@ -688,13 +696,13 @@ package body Layout is
                  ("\pragma ignored for atomic record??", E);
             else
                Error_Msg_N
-                 ("\pragma ignored for bolatile full access record??", E);
+                 ("\pragma ignored for volatile full access record??", E);
             end if;
 
             return;
          end if;
 
-         --  No effect if independent components
+         --  No effect for record with independent components
 
          if Has_Independent_Components (E) then
             Error_Msg_N ("Optimize_Alignment has no effect for &??", E);
@@ -734,7 +742,7 @@ package body Layout is
             end loop;
          end;
 
-         --  Optimize_Alignment has no effect on variable length record
+         --  No effect on variable length record
 
          if not Size_Known_At_Compile_Time (E) then
             Error_Msg_N ("Optimize_Alignment has no effect for &??", E);
@@ -745,8 +753,6 @@ package body Layout is
          --  All tests passed, we can set alignment to 1
 
          Align := 1;
-
-      --  Not a record, or not packed
 
       else
          --  The only other cases we worry about here are where the size is
@@ -772,9 +778,9 @@ package body Layout is
          elsif Siz = 8 * SSU then
             Align := 8;
 
-            --  If Optimize_Alignment is set to Space, then make sure the
-            --  alignment matches the size, for example, if the size is 17
-            --  bytes then we want an alignment of 1 for the type.
+         --  If Optimize_Alignment is set to Space, then make sure the
+         --  alignment matches the size, for example, if the size is 17
+         --  bytes then we want an alignment of 1 for the type.
 
          elsif Optimize_Alignment_Space (E) then
             if Siz mod (8 * SSU) = 0 then
@@ -787,9 +793,9 @@ package body Layout is
                Align := 1;
             end if;
 
-            --  If Optimize_Alignment is set to Time, then we reset for odd
-            --  "in between sizes", for example a 17 bit record is given an
-            --  alignment of 4.
+         --  If Optimize_Alignment is set to Time, then we reset for odd
+         --  "in between sizes", for example a 17 bit record is given an
+         --  alignment of 4.
 
          elsif Optimize_Alignment_Time (E)
            and then Siz > SSU
@@ -803,14 +809,14 @@ package body Layout is
                Align := 8;
             end if;
 
-            --  No special alignment fiddling needed
+         --  No special alignment fiddling needed
 
          else
             return;
          end if;
       end if;
 
-      --  Here we have Set Align to the proposed improved value. Make sure the
+      --  Here we have set Align to the proposed improved value. Make sure the
       --  value set does not exceed Maximum_Alignment for the target.
 
       if Align > Maximum_Alignment then
@@ -818,8 +824,8 @@ package body Layout is
       end if;
 
       --  Further processing for record types only to reduce the alignment
-      --  set by the above processing in some specific cases. We do not
-      --  do this for full access records, since we need max alignment there,
+      --  set by the above processing in some specific cases. We do not do
+      --  this for full access records, since we need max alignment there.
 
       if Is_Record_Type (E) and then not Is_Full_Access (E) then
 

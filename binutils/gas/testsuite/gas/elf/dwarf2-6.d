@@ -2,11 +2,11 @@
 #readelf: -wlL
 #name: DWARF2 6
 # These targets either do not support or do not evaluate the subtraction of symbols at assembly time.
-#xfail: cr16-* crx-* riscv*-*
+#xfail: cr16-* crx-*
 
 Raw dump of debug contents of section .debug_line:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Length:                      84
   DWARF Version:               2
   Prologue Length:             36
@@ -41,7 +41,7 @@ Raw dump of debug contents of section .debug_line:
 
 
  Line Number Statements:
-  \[0x.*\]  Extended opcode 2: set Address to 0x0
+  \[0x.*\]  Extended opcode 2: set Address to (0x)?0
   \[0x.*\]  Copy
   \[0x.*\]  Copy \(view 1\)
   \[0x.*\]  Extended opcode 2: set Address to 0x1

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 TDX insns
 #source: x86-64-tdx.s

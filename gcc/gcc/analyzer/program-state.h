@@ -1,5 +1,5 @@
 /* Classes for representing the state of interest at a given path of analysis.
-   Copyright (C) 2019-2025 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -22,6 +22,9 @@ along with GCC; see the file COPYING3.  If not see
 #define GCC_ANALYZER_PROGRAM_STATE_H
 
 #include "text-art/widget.h"
+#include "text-art/tree-widget.h"
+
+#include "analyzer/store.h"
 
 namespace ana {
 
@@ -30,11 +33,23 @@ namespace ana {
 class extrinsic_state
 {
 public:
-  extrinsic_state (auto_delete_vec <state_machine> &checkers,
+  extrinsic_state (std::vector<std::unique_ptr<state_machine>> &&checkers,
 		   engine *eng,
-		   logger *logger = NULL)
-  : m_checkers (checkers), m_logger (logger), m_engine (eng)
+		   logger *logger = nullptr)
+  : m_checkers (std::move (checkers)),
+    m_logger (logger),
+    m_engine (eng)
   {
+  }
+
+  // For use in selftests that use just one state machine
+  extrinsic_state (std::unique_ptr<state_machine> sm,
+		   engine *eng,
+		   logger *logger = nullptr)
+  : m_logger (logger),
+    m_engine (eng)
+  {
+    m_checkers.push_back (std::move (sm));
   }
 
   const state_machine &get_sm (int idx) const
@@ -47,7 +62,7 @@ public:
     return m_checkers[idx]->get_name ();
   }
 
-  unsigned get_num_checkers () const { return m_checkers.length (); }
+  unsigned get_num_checkers () const { return m_checkers.size (); }
 
   logger *get_logger () const { return m_logger; }
 
@@ -64,7 +79,7 @@ public:
 
 private:
   /* The state machines.  */
-  auto_delete_vec <state_machine> &m_checkers;
+  std::vector<std::unique_ptr<state_machine>> m_checkers;
 
   logger *m_logger;
   engine *m_engine;
@@ -81,7 +96,7 @@ public:
   {
     /* Default ctor needed by hash_map::empty.  */
     entry_t ()
-    : m_state (0), m_origin (NULL)
+    : m_state (0), m_origin (nullptr)
     {
     }
 
@@ -231,6 +246,15 @@ public:
   void dump (const extrinsic_state &ext_state, bool simple) const;
   void dump () const;
 
+  std::unique_ptr<diagnostics::digraphs::digraph>
+  make_diagnostic_state_graph (const extrinsic_state &ext_state) const;
+
+  void
+  dump_sarif (const extrinsic_state &ext_state) const;
+
+  void
+  dump_dot (const extrinsic_state &ext_state) const;
+
   std::unique_ptr<json::object>
   to_json (const extrinsic_state &ext_state) const;
 
@@ -239,22 +263,6 @@ public:
 
   void push_frame (const extrinsic_state &ext_state, const function &fun);
   const function * get_current_function () const;
-
-  void push_call (exploded_graph &eg,
-		  exploded_node *enode,
-		  const gcall *call_stmt,
-		  uncertainty_t *uncertainty);
-
-  void returning_call (exploded_graph &eg,
-		       exploded_node *enode,
-		       const gcall *call_stmt,
-		       uncertainty_t *uncertainty);
-
-
-  bool on_edge (exploded_graph &eg,
-		exploded_node *enode,
-		const superedge *succ,
-		uncertainty_t *uncertainty);
 
   program_state prune_for_point (exploded_graph &eg,
 				 const program_point &point,
@@ -298,7 +306,7 @@ public:
   bool replay_call_summary (call_summary_replay &r,
 			    const program_state &summary);
 
-  void impl_call_analyzer_dump_state (const gcall *call,
+  void impl_call_analyzer_dump_state (const gcall &call,
 				      const extrinsic_state &ext_state,
 				      region_model_context *ctxt);
 

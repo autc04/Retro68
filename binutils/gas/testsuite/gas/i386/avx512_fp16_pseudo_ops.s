@@ -1,6 +1,5 @@
 # Check 32bit VCM.*{PH,SH} instructions
 
-        .allow_index_reg
         .text
 _start:
 	vcmpeq_oqph	%zmm5, %zmm6, %k5

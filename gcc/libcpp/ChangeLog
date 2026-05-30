@@ -1,6 +1,280 @@
-2025-04-25  Release Manager
+2026-04-30  Release Manager
 
-	* GCC 15.1.0 released.
+	* GCC 16.1.0 released.
+
+2026-04-21  Marek Polacek  <polacek@redhat.com>
+
+	PR preprocessor/124930
+	* charset.cc (_cpp_destroy_iconv): Correct two calls to
+	iconv_close.
+
+2026-03-19  Nathaniel Shead  <nathanieloshead@gmail.com>
+
+	PR c++/124466
+	* line-map.cc (linemap_location_from_module_p): Resolve loc in
+	case it's a macro location.
+
+2026-03-13  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/105412
+	* files.cc (_cpp_stack_file): Call deps_add_dep even on
+	empty file path.
+	* mkdeps.cc (class mkdeps): Add first_phony_dep member.
+	(mkdeps::mkdeps ()): Initialize it to 1.
+	(deps_add_dep): When called first with "" argument, decrease
+	d->first_phony_dep to 0.
+	(make_write): For -MP iterate from d->first_phony_dep
+	rather than 1.
+
+2026-02-22  Nathaniel Shead  <nathanieloshead@gmail.com>
+
+	PR c++/124153
+	* lex.cc (cpp_maybe_module_directive): Set in_deferred_pragma
+	and eol when we see an unexpected CPP_PRAGMA_EOL.
+
+2026-02-22  Nathaniel Shead  <nathanieloshead@gmail.com>
+
+	PR c++/119756
+	* files.cc (search_path_head): Also treat empty string (stdin)
+	as an absolute path.
+
+2026-01-30  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/123273
+	* lex.cc (cpp_directive_only_process): Only go to done_comment
+	for '/' if star is true and esc is false.  When seeing '\\' with
+	esc set to true, clear esc as well as star instead of keeping esc
+	set.
+
+2026-01-15  Marek Polacek  <polacek@redhat.com>
+	    Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/120775
+	PR c++/123081
+	PR c++/122634
+	* charset.cc (_cpp_destroy_iconv): Destroy narrow_cset_desc and
+	utf8_cset_desc.
+	(cpp_translate_string): New.
+	(cpp_valid_identifier): New.
+	* include/cpplib.h: Add OPEN_SPLICE, CLOSE_SPLICE, and REFLECT_OP to
+	TTYPE_TABLE.
+	(cpp_translate_string): Declare.
+	(cpp_valid_identifier): Declare.
+	* internal.h (struct cpp_reader): Add reverse_narrow_cset_desc and
+	reverse_utf8_cset_desc fields.
+	* lex.cc (_cpp_lex_direct): Emit CPP_CLOSE_SPLICE, CPP_REFLECT_OP,
+	and CPP_OPEN_SPLICE tokens.
+
+2026-01-09  Ben Boeckel  <ben.boeckel@kitware.com>
+
+	* configure: Regenerate.
+	* configure.ac: Replace gcc-bugs@ with bug reporting link.
+
+2025-12-10  Jason Merrill  <jason@redhat.com>
+
+	* include/cpplib.h (struct cpp_callbacks): Replace 'path' parameter
+	with file, angle_brackets, and alternate name.
+	(cpp_get_name): Declare.
+	* files.cc (cpp_get_name): New.
+	(_cpp_stack_include, _cpp_post_stack_file, _cpp_stack_file)
+	(_cpp_stack_translated_file): Refactor, try alternate file.
+
+2025-12-07  Jason Merrill  <jason@redhat.com>
+
+	* include/cpplib.h (cpp_get_path, cpp_get_dir): Remove.
+	(_cpp_get_file_path, _cpp_get_file_name, _cpp_get_file_stat)
+	(_cpp_get_file_dir): Move prototypes from...
+	* internal.h: ...here.
+	* files.cc (_cpp_get_file_path): Rename from...
+	(cpp_get_path): ...this.
+	(cpp_get_dir): Remove.
+
+2025-11-10  Jakub Jelinek  <jakub@redhat.com>
+
+	* directives.cc: Implement CWG3053.
+	(do_undef): Don't pedwarn or warn about #undef likely or #undef
+	unlikely.
+
+2025-11-10  Lewis Hyatt  <lhyatt@gmail.com>
+
+	PR preprocessor/105608
+	* include/line-map.h: Add new member CMDLINE_LOCATION.
+	* lex.cc (get_location_for_byte_range_in_cur_line): Do not expand
+	the token location to include range information if token location
+	override was requested.
+	(warn_about_normalization): Likewise.
+	(_cpp_lex_direct): Likewise.
+	* pch.cc (struct saved_macro): New local struct.
+	(struct save_macro_data): Change DEFNS vector to hold saved_macro
+	rather than uchar*.
+	(save_macros): Adapt to remember the location information for each
+	saved macro in addition to the definition.
+	(cpp_prepare_state): Likewise.
+	(cpp_read_state): Use the saved location information to generate
+	proper locations for the restored macros.
+
+2025-10-13  Pierre Marie de Rodat  <derodat@adacore.com>
+
+	* init.cc (read_original_directory): Attempt to decode escape
+	sequences with cpp_interpret_string_notranslate.
+
+2025-10-08  Jakub Jelinek  <jakub@redhat.com>
+
+	* makeucnid.cc (write_copyright): Adjust copyright year.
+	* makeuname2c.cc (generated_ranges): Adjust end points for a couple
+	of ranges based on UnicodeData.txt Last changes and add a whole new
+	CJK UNIFIED IDEOGRAPH- entry.  None of these changes are in the 4-8
+	table, but clearly it has just been forgotten.
+	(write_copyright): Adjust copyright year.
+	(write_dict): Fix up condition when to print semicolon.
+	* generated_cpp_wcwidth.h: Regenerate.
+	* ucnid.h: Regenerate.
+	* uname2c.h: Regenerate.
+
+2025-09-23  David Malcolm  <dmalcolm@redhat.com>
+
+	PR diagnostics/121986
+	* include/rich-location.h (fixit_hint::deletion_p): New accessor.
+	(fixit_hint::replacement_p): New accessor.
+
+2025-09-18  David Malcolm  <dmalcolm@redhat.com>
+
+	* include/line-map.h (enum location_aspect): Convert to...
+	(enum class location_aspect): ...this.
+	* line-map.cc: Update for conversion of location_aspect to enum
+	class.
+
+2025-09-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* macro.cc: Implement C2Y N3457 - The __COUNTER__ predefined macro.
+	(_cpp_builtin_macro_text): Diagnose if __COUNTER__ reaches
+	2147483648 value.
+
+2025-08-15  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/120778
+	PR target/121520
+	* include/cpplib.h (struct cpp_options): Add
+	suppress_builtin_macro_warnings member.
+	(cpp_warn): New inline functions.
+	* init.cc (cpp_create_reader): Clear suppress_builtin_macro_warnings.
+	(cpp_init_builtins): Call cpp_warn on __cplusplus, __STDC__,
+	__STDC_VERSION__, __STDC_MB_MIGHT_NEQ_WC__ and
+	__STDCPP_STRICT_POINTER_SAFETY__ when appropriate.
+	* directives.cc (do_undef): Warn on undefining NODE_WARN macros if
+	not cpp_keyword_p.  Don't emit any NODE_WARN related diagnostics
+	if CPP_OPTION (pfile, suppress_builtin_macro_warnings).
+	(cpp_define, _cpp_define_builtin, cpp_undef): Temporarily set
+	CPP_OPTION (pfile, suppress_builtin_macro_warnings) around
+	run_directive calls.
+	* macro.cc (_cpp_create_definition): Warn on defining NODE_WARN
+	macros if they weren't previously defined and not cpp_keyword_p.
+	Ignore NODE_WARN for diagnostics if
+	CPP_OPTION (pfile, suppress_builtin_macro_warnings).
+
+2025-08-10  H.J. Lu  <hjl.tools@gmail.com>
+
+	* configure: Regenerated.
+
+2025-08-07  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/120778
+	* include/cpplib.h (struct cpp_options): Add cpp_warn_keyword_macro.
+	(enum cpp_warning_reason): Add CPP_W_KEYWORD_MACRO enumerator.
+	(cpp_keyword_p): New inline function.
+	* directives.cc (do_undef): Support -Wkeyword-macro diagnostics.
+	* macro.cc (warn_of_redefinition): Ignore NODE_WARN flag on nodes
+	registered for -Wkeyword-macro.
+	(_cpp_create_definition): Support -Wkeyword-macro diagnostics.
+	Formatting fixes.
+
+2025-08-05  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/120778
+	* macro.cc (paste_tokens): Use %< and %> instead of \" in
+	diagnostics around %.*s.
+
+2025-08-04  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/120778
+	* macro.cc (stringify_arg): For C++26 emit a pedarn instead of warning
+	for \ at the end of stringification.
+
+2025-08-03  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/120845
+	* lex.cc (cpp_maybe_module_directive): Move eol variable declaration
+	to the start of the function, initialize to false and only set it to
+	peek->type == CPP_PRAGMA_EOL in the not_module case.  Formatting fix.
+
+2025-07-30  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/120778
+	* internal.h (struct lexer_state): Add comma_ok member.
+	* expr.cc (_cpp_parse_expr): Initialize it to 0, increment on
+	CPP_OPEN_PAREN and CPP_QUERY, decrement on CPP_CLOSE_PAREN
+	and CPP_COLON.
+	(num_binary_op): For C++ pedwarn on comma operator if
+	pfile->state.comma_ok is 0 instead of !c99 or skip_eval.
+
+2025-07-25  David Malcolm  <dmalcolm@redhat.com>
+
+	* charset.cc: Update comment for file rename.
+
+2025-07-25  David Malcolm  <dmalcolm@redhat.com>
+
+	* internal.h: Update comment for diagnostic_t becoming
+	enum class diagnostics::kind.
+
+2025-07-25  David Malcolm  <dmalcolm@redhat.com>
+
+	* include/cpplib.h: Update for moves to "source-printing".
+	* include/rich-location.h (class label_effects): Move to...
+	(class diagnostics::label_effects): ...here.
+
+2025-07-25  David Malcolm  <dmalcolm@redhat.com>
+
+	* include/rich-location.h: Replace diagnostic_path with
+	diagnostics::paths::path.
+
+2025-06-17  Jason Merrill  <jason@redhat.com>
+
+	* line-map.cc (linemap_location_from_module_p): Add.
+	* include/line-map.h: Declare it.
+
+2025-06-11  David Malcolm  <dmalcolm@redhat.com>
+
+	PR other/116792
+	* include/line-map.h (typedef expanded_location): Convert to...
+	(struct expanded_location): ...this.
+	(operator==): New decl, for expanded_location.
+	(operator!=): Likewise.
+	* line-map.cc (operator==): New decl, for expanded_location.
+
+2025-05-07  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/108900
+	PR preprocessor/116047
+	PR preprocessor/120061
+	* files.cc (_cpp_stack_file): Revert 2025-03-28 change.
+	* line-map.cc (linemap_add): Use
+	SOURCE_LINE (from, linemap_included_from (map - 1)) + 1; instead of
+	SOURCE_LINE (from, from[1].start_location); to compute to_line
+	for LC_LEAVE.  For LC_ENTER included_from computation, look at
+	map[-2] or even lower if map[-1] has the same start_location as
+	map[0].
+
+2025-04-28  Lewis Hyatt  <lhyatt@gmail.com>
+
+	PR c/118838
+	* errors.cc (cpp_get_diagnostic_override_loc): New function.
+	* include/cpplib.h (cpp_get_diagnostic_override_loc): Declare.
+
+2025-04-24  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/110343
+	* lex.cc (lex_raw_string): For C allow $@` in raw string delimiters
+	if CPP_OPTION (pfile, low_ucns) i.e. for C23 and later.
 
 2025-04-09  Jakub Jelinek  <jakub@redhat.com>
 
@@ -8723,7 +8997,7 @@
 	* include/symtab.h: Moved from gcc/hashtable.h.  Change header
 	guard name.
 
-Copyright (C) 2004-2025 Free Software Foundation, Inc.
+Copyright (C) 2004-2026 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

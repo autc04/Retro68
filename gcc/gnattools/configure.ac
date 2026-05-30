@@ -45,7 +45,7 @@ AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 
-ACX_NONCANONICAL_HOST
+ACX_PROG_GNAT
 ACX_NONCANONICAL_TARGET
 
 # Need to pass this down for now :-P
@@ -125,6 +125,16 @@ AC_SUBST(LD_PICFLAG)
 # ../gcc/ada/gcc-interface/config-lang.in as well.
 if test "x$cross_compiling/$build/$host" = "xno/$host/$target" ; then
   default_gnattools_target="gnattools-native"
+  # When natively-building x86_64-*abi32 tools without bootstrap,
+  # use the native toolchain to build gnattools, expecting its
+  # libraries to be compatible with whichever multilib was used to
+  # build other tools.  This requires the compiler being built to be
+  # gnatbind-compatible with the one used for the build.
+  case $enable_bootstrap/$target in
+    no/x86_64-*abi32)
+      default_gnattools_target="gnattools-cross"
+      ;;
+  esac
 else
   default_gnattools_target="gnattools-cross"
 fi

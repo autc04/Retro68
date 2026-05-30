@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 AVX512F/VPCLMULQDQ insns
 #source: avx512f_vpclmulqdq.s

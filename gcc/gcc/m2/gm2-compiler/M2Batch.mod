@@ -1,6 +1,6 @@
 (* M2Batch.mod implements a queue for modules pending compilation.
 
-Copyright (C) 2001-2025 Free Software Foundation, Inc.
+Copyright (C) 2001-2026 Free Software Foundation, Inc.
 Contributed by Gaius Mulley <gaius.mulley@southwales.ac.uk>.
 
 This file is part of GNU Modula-2.
@@ -461,7 +461,7 @@ BEGIN
       END ;
       IF sym = NulSym
       THEN
-         (* not a local module, so it must be refering to a definition module.  *)
+         (* not a local module, so it must be referring to a definition module.  *)
          sym := MakeDefinitionSource (tok, n)
       END
    END ;

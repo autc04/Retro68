@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -43,7 +43,7 @@ public:
     WITHOUT_BLOCK,
   };
 
-  enum ExprType
+  enum class ExprType
   {
     Lit,
     Operator,
@@ -58,6 +58,8 @@ public:
     FieldAccess,
     Closure,
     Block,
+    AnonConst,
+    ConstBlock,
     Continue,
     Break,
     Range,
@@ -71,6 +73,8 @@ public:
     AsyncBlock,
     Path,
     InlineAsm,
+    LlvmInlineAsm,
+    OffsetOf,
   };
 
   BaseKind get_hir_kind () override final { return Node::BaseKind::EXPR; }
@@ -84,7 +88,12 @@ public:
   }
 
   // TODO: make pure virtual if move out outer attributes to derived classes
-  virtual std::string as_string () const;
+  virtual std::string to_string () const;
+
+  std::string to_debug_string () const
+  {
+    return to_string () + mappings.as_string ();
+  }
 
   virtual ~Expr () {}
 

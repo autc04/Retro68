@@ -182,3 +182,49 @@ start:
 
 	fild	far ptr [ebx]
 	fist	near ptr [ebx]
+
+
+	lar	ax, eax
+	lar	eax, dword ptr [eax]
+	lar	ax, dword ptr [eax]
+
+
+	lsl	ax, eax
+	lsl	eax, dword ptr [eax]
+	lsl	ax, dword ptr [eax]
+
+	mov	eax, word ptr [eax]
+	mov	eax, qword ptr [eax]
+
+	mov	eax, word ptr [0x12345678]
+	mov	eax, qword ptr [0x12345678]
+
+	xchg	eax, word ptr [eax]
+	xchg	eax, qword ptr [eax]
+
+	add	eax, word ptr [eax]
+	add	eax, qword ptr [eax]
+
+	test	eax, word ptr [eax]
+	test	eax, qword ptr [eax]
+
+	test	word ptr [eax], eax
+	test	qword ptr [eax], eax
+
+	movnti	word ptr [eax], eax
+	movnti	qword ptr [eax], eax
+
+	movbe	eax, word ptr [eax]
+	movbe	eax, qword ptr [eax]
+
+	vmovntdq xmmword ptr [eax], ymm0
+	vmovntdq zmmword ptr [eax], ymm0
+
+	vmovntdqa ymm0, xmmword ptr [eax]
+	vmovntdqa ymm0, zmmword ptr [eax]
+
+	movdiri	word ptr [eax], eax
+	movdiri	qword ptr [eax], eax
+
+	aadd	word ptr [eax], eax
+	aadd	qword ptr [eax], eax

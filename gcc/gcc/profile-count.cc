@@ -1,5 +1,5 @@
 /* Profile counter container type.
-   Copyright (C) 2017-2025 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -32,6 +32,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "cgraph.h"
 #include "wide-int.h"
 #include "sreal.h"
+#include "profile.h"
 
 /* Names from profile_quality enum values.  */
 
@@ -39,8 +40,9 @@ const char *profile_quality_names[] =
 {
   "uninitialized",
   "guessed_local",
-  "guessed_global0",
+  "guessed_global0afdo",
   "guessed_global0adjusted",
+  "guessed_global0",
   "guessed",
   "afdo",
   "adjusted",
@@ -76,8 +78,9 @@ const char *profile_quality_display_names[] =
 {
   NULL,
   "estimated locally",
-  "estimated locally, globally 0",
+  "estimated locally, globally 0 auto FDO",
   "estimated locally, globally 0 adjusted",
+  "estimated locally, globally 0",
   "guessed",
   "auto FDO",
   "adjusted",
@@ -94,9 +97,16 @@ profile_count::dump (FILE *f, struct function *fun) const
   else if (fun && initialized_p ()
 	   && fun->cfg
 	   && ENTRY_BLOCK_PTR_FOR_FN (fun)->count.initialized_p ())
-    fprintf (f, "%" PRId64 " (%s, freq %.4f)", m_val,
-	     profile_quality_display_names[m_quality],
-	     to_sreal_scale (ENTRY_BLOCK_PTR_FOR_FN (fun)->count).to_double ());
+    {
+      if (compatible_p (ENTRY_BLOCK_PTR_FOR_FN (fun)->count))
+	fprintf (f, "%" PRId64 " (%s, freq %.4f)", m_val,
+		 profile_quality_display_names[m_quality],
+		 to_sreal_scale
+		   (ENTRY_BLOCK_PTR_FOR_FN (fun)->count).to_double ());
+      else
+	fprintf (f, "%" PRId64 " (%s, incompatible with entry block count)",
+		 m_val, profile_quality_display_names[m_quality]);
+    }
   else
     fprintf (f, "%" PRId64 " (%s)", m_val,
 	     profile_quality_display_names[m_quality]);
@@ -177,11 +187,11 @@ profile_probability::dump (char *buffer) const
       else
 	buffer += sprintf (buffer, "%3.1f%%", (double)m_val * 100 / max_probability);
 
-      if (m_quality == ADJUSTED)
+      if (quality () == ADJUSTED)
 	sprintf (buffer, " (adjusted)");
-      else if (m_quality == AFDO)
+      else if (quality () == AFDO)
 	sprintf (buffer, " (auto FDO)");
-      else if (m_quality == GUESSED)
+      else if (quality () == GUESSED)
 	sprintf (buffer, " (guessed)");
     }
 }
@@ -239,7 +249,7 @@ profile_probability::stream_in (class lto_input_block *ib)
 {
   profile_probability ret;
   ret.m_val = streamer_read_uhwi (ib);
-  ret.m_quality = (profile_quality) streamer_read_uhwi (ib);
+  ret.m_adjusted_quality = streamer_read_uhwi (ib);
   return ret;
 }
 
@@ -249,7 +259,7 @@ void
 profile_probability::stream_out (struct output_block *ob)
 {
   streamer_write_uhwi (ob, m_val);
-  streamer_write_uhwi (ob, m_quality);
+  streamer_write_uhwi (ob, m_adjusted_quality);
 }
 
 /* Stream THIS to OB.  */
@@ -258,7 +268,7 @@ void
 profile_probability::stream_out (struct lto_output_stream *ob)
 {
   streamer_write_uhwi_stream (ob, m_val);
-  streamer_write_uhwi_stream (ob, m_quality);
+  streamer_write_uhwi_stream (ob, m_adjusted_quality);
 }
 
 /* Compute RES=(a*b + c/2)/c capping and return false if overflow happened.  */
@@ -344,6 +354,10 @@ profile_count::to_sreal_scale (profile_count in, bool *known) const
     return 1;
   if (!in.m_val)
     return m_val * 4;
+  /* Auto-FDO 0 really just means that we have no samples.
+     Treat it as small non-zero frequency.  */
+  if (!m_val && quality () == AFDO)
+    return (sreal)1 / (sreal)in.m_val;
   return (sreal)m_val / (sreal)in.m_val;
 }
 
@@ -364,8 +378,12 @@ profile_count::adjust_for_ipa_scaling (profile_count *num,
   /* Scaling to zero is always zero.  */
   if (*num == zero ())
     return;
-  /* If den is non-zero we are safe.  */
-  if (den->force_nonzero () == *den)
+  /* If den is non-zero we are safe.
+     However take care of zeros in AFDO profiles since
+     they simply means that no useful samples were collected.
+     Called function still may contain important loop.  */
+  if (den->force_nonzero () == *den
+      && num->quality () != AFDO)
     return;
   /* Force both to non-zero so we do not push profiles to 0 when
      both num == 0 and den == 0.  */
@@ -391,10 +409,12 @@ profile_count::combine_with_ipa_count (profile_count ipa)
     return *this;
   if (ipa == zero ())
     return this->global0 ();
+  if (ipa == afdo_zero ())
+    return this->global0afdo ();
   return this->global0adjusted ();
 }
 
-/* Sae as profile_count::combine_with_ipa_count but within function with count
+/* Same as profile_count::combine_with_ipa_count but within function with count
    IPA2.  */
 profile_count
 profile_count::combine_with_ipa_count_within (profile_count ipa,
@@ -406,7 +426,16 @@ profile_count::combine_with_ipa_count_within (profile_count ipa,
   if (ipa2.ipa () == ipa2 && ipa.initialized_p ())
     ret = ipa;
   else
-    ret = combine_with_ipa_count (ipa);
+    {
+      /* For inconsistent profiles we may end up having ipa2 of GLOBAL0
+	 while ipa is non-zero (i.e. non-zero IPA counters within function
+	 executed 0 times).  Be sure we produce GLOBAL0 as well
+	 so counters remain compatible.  */
+      if (ipa.nonzero_p ()
+	  && ipa2.ipa ().initialized_p ())
+	ipa = ipa2.ipa ();
+      ret = combine_with_ipa_count (ipa);
+    }
   gcc_checking_assert (ret.compatible_p (ipa2));
   return ret;
 }
@@ -417,17 +446,17 @@ profile_count::combine_with_ipa_count_within (profile_count ipa,
 
 profile_count
 profile_count::from_gcov_type (gcov_type v, profile_quality quality)
-  {
-    profile_count ret;
-    gcc_checking_assert (v >= 0);
-    if (dump_file && v >= (gcov_type)max_count)
-      fprintf (dump_file,
-	       "Capping gcov count %" PRId64 " to max_count %" PRId64 "\n",
-	       (int64_t) v, (int64_t) max_count);
-    ret.m_val = MIN (v, (gcov_type)max_count);
-    ret.m_quality = quality;
-    return ret;
-  }
+{
+  profile_count ret;
+  gcc_checking_assert (v >= 0);
+  if (dump_file && v >= (gcov_type)max_count)
+    fprintf (dump_file,
+	     "Capping gcov count %" PRId64 " to max_count %" PRId64 "\n",
+	     (int64_t) v, (int64_t) max_count);
+  ret.m_val = MIN (v, (gcov_type)max_count);
+  ret.m_quality = quality;
+  return ret;
+}
 
 /* COUNT1 times event happens with *THIS probability, COUNT2 times OTHER
    happens with COUNT2 probability.  Return probability that either *THIS or
@@ -471,7 +500,7 @@ profile_probability::sqrt () const
   if (!initialized_p () || *this == never () || *this == always ())
     return *this;
   profile_probability ret = *this;
-  ret.m_quality = MIN (ret.m_quality, ADJUSTED);
+  ret.set_quality (MIN (ret.quality (), ADJUSTED));
   uint32_t min_range = m_val;
   uint32_t max_range = max_probability;
   if (!m_val)
@@ -516,6 +545,53 @@ profile_probability::pow (int n) const
       if (p > n)
 	break;
       v = v * v;
+    }
+  return ret;
+}
+profile_count
+profile_count::operator* (const sreal &num) const
+{
+  if (m_val == 0)
+    return *this;
+  if (!initialized_p ())
+    return uninitialized ();
+  sreal scaled = num * m_val;
+  gcc_checking_assert (scaled >= 0);
+  profile_count ret;
+  if (scaled > max_count)
+    ret.m_val = max_count;
+  else
+    ret.m_val = scaled.to_nearest_int ();
+  ret.m_quality = MIN (m_quality, ADJUSTED);
+  return ret;
+}
+
+profile_count
+profile_count::operator*= (const sreal &num)
+{
+  return *this * num;
+}
+
+/* Make counter forcibly nonzero.  */
+profile_count
+profile_count::force_nonzero () const
+{
+  if (!initialized_p ())
+    return *this;
+  profile_count ret = *this;
+  /* Generally values are forced non-zero to handle inconsistent profile 
+     where count 0 needs to be scaled up to non-zero.
+
+     Use cutoff value here to avoid situation where profile has large
+     cutoff and we perform count = count * num / den where num is non-zero
+     and den is 0.   If profile was scaled by large factor, forcing value
+     to 1 would lead to large scale factor.  */
+  gcov_unsigned_t small = profile_info ? profile_info->cutoff / 2 + 1
+			  : 1;
+  if (ret.m_val < small)
+    {
+      ret.m_val = small;
+      ret.m_quality = MIN (m_quality, ADJUSTED);
     }
   return ret;
 }

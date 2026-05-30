@@ -1,6 +1,6 @@
 // Pair implementation -*- C++ -*-
 
-// Copyright (C) 2001-2025 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -101,9 +101,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<size_t...>
     struct _Index_tuple;
 
-  template<typename _Tp>
-    class complex;
-
   template<size_t _Int, class _Tp1, class _Tp2>
     constexpr typename tuple_element<_Int, pair<_Tp1, _Tp2>>::type&
     get(pair<_Tp1, _Tp2>& __in) noexcept;
@@ -153,6 +150,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     get(const array<_Tp, _Nm>&&) noexcept;
 
 #if __glibcxx_tuple_like >= 202311 // >= C++26
+  template<typename _Tp>
+    class complex;
+
   template<size_t _Int, typename _Tp>
     constexpr _Tp&
     get(complex<_Tp>&) noexcept;
@@ -233,7 +233,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       }
     };
 #endif // lib concepts
+  /// @endcond
 #endif // C++11
+
+  /// @cond undocumented
 
 #if __glibcxx_tuple_like // >= C++23
   template<typename _Tp>
@@ -289,10 +292,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /// @endcond
 
  /**
-   *  @brief Struct holding two objects of arbitrary type.
+  *  @brief Struct holding two objects (or references) of arbitrary type.
    *
-   *  @tparam _T1  Type of first object.
-   *  @tparam _T2  Type of second object.
+   *  @tparam _T1  Type of the `first` member.
+   *  @tparam _T2  Type of the `second` member.
    *
    *  <https://gcc.gnu.org/onlinedocs/libstdc++/manual/utilities.html>
    *
@@ -445,7 +448,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       /// Constructor accepting lvalues of `first_type` and `second_type`
       constexpr explicit(!_S_convertible<const _T1&, const _T2&>())
-      pair(const _T1& __x, const _T2& __y)
+      pair(const type_identity_t<_T1>& __x, const _T2& __y)
       noexcept(_S_nothrow_constructible<const _T1&, const _T2&>())
       requires (_S_constructible<const _T1&, const _T2&>())
       : first(__x), second(__y)
@@ -1132,6 +1135,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif // C++23
 
 #if __cplusplus > 201402L || !defined(__STRICT_ANSI__) // c++1z or gnu++11
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 2766. Swapping non-swappable types
   template<typename _T1, typename _T2>
     typename enable_if<!__and_<__is_swappable<_T1>,
 			       __is_swappable<_T2>>::value>::type
@@ -1313,12 +1318,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template <typename _Tp, typename _Up>
     constexpr _Tp&&
     get(pair<_Tp, _Up>&& __p) noexcept
-    { return std::move(__p.first); }
+    { return std::forward<_Tp>(__p.first); }
 
   template <typename _Tp, typename _Up>
     constexpr const _Tp&&
     get(const pair<_Tp, _Up>&& __p) noexcept
-    { return std::move(__p.first); }
+    { return std::forward<const _Tp>(__p.first); }
 
   template <typename _Tp, typename _Up>
     constexpr _Tp&
@@ -1333,12 +1338,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template <typename _Tp, typename _Up>
     constexpr _Tp&&
     get(pair<_Up, _Tp>&& __p) noexcept
-    { return std::move(__p.second); }
+    { return std::forward<_Tp>(__p.second); }
 
   template <typename _Tp, typename _Up>
     constexpr const _Tp&&
     get(const pair<_Up, _Tp>&& __p) noexcept
-    { return std::move(__p.second); }
+    { return std::forward<const _Tp>(__p.second); }
 #endif // __glibcxx_tuples_by_type
 
 

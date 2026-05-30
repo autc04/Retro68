@@ -1,6 +1,6 @@
 // <memory_resource> -*- C++ -*-
 
-// Copyright (C) 2018-2025 Free Software Foundation, Inc.
+// Copyright (C) 2018-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -38,7 +38,7 @@
 
 #include <new>				// operator new(size_t, void*)
 #include <cstddef>			// size_t, max_align_t, byte
-#include <bits/functexcept.h>		// __throw_bad_array_new_length
+#include <bits/new_throw.h>		// __throw_bad_array_new_length
 #include <bits/uses_allocator.h>	// allocator_arg_t, __use_alloc
 #include <bits/uses_allocator_args.h>	// uninitialized_construct_using_alloc
 #include <ext/numeric_traits.h>		// __int_traits

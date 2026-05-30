@@ -1,4 +1,4 @@
-#   Copyright (C) 2021 Free Software Foundation, Inc.
+#   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -97,7 +97,21 @@ sub set_retVal
     if ( $retVal == 0 ) {
         $retVal = $_[0];
         if ($retVal != 0 ) {
-          warn sprintf("DEBUG: retVal=%d\n", $retVal);
+          my $s = "";
+          if ($retVal == $ERROR_DIFF_RANGE) {
+            $s = "Difference out of range";
+          } elsif ($retVal == $ERROR_HIGH_UNKNOWN) {
+            $s = "High unknown detected";
+          } elsif ($retVal == $ERROR_ACCT_MISMATCH) {
+            $s = "Accounting file mismatch";
+          } elsif ($retVal == $ERROR_CALLER_VERIF) {
+            $s = "Caller/caller verification failed";
+          } elsif ($retVal == $ERROR_ZERO_METRIC) {
+            $s = "Unexpected zero metric";
+          } elsif ($retVal == $ERROR_NEGATIVE_TIME) {
+            $s = "Negative CPU time";
+          }
+          warn sprintf("DEBUG: retVal=%d %s\n", $retVal, $s);
         }
     }
     return $retVal;
@@ -450,7 +464,9 @@ sub doComp
                     if ( $r2 > 0 ) {
                         $err_diff_range = $ERROR_DIFF_RANGE;
                     } else {
-                        $err_zero_metric = $ERROR_ZERO_METRIC;
+                    	if (! exists $ENV{ACCT_FILTER}) {
+                            $err_zero_metric = $ERROR_ZERO_METRIC;
+                        }
                     }
                 } else {
                     $err_acct_mismatch = $ERROR_ACCT_MISMATCH;
@@ -544,7 +560,9 @@ sub doComp2AVG
                 if ( $r2 > 0 ) {
                     $err_diff_range = $ERROR_DIFF_RANGE;
                 } else {
-                    $err_zero_metric = $ERROR_ZERO_METRIC;
+                    if (! exists $ENV{ACCT_FILTER}) {
+                        $err_zero_metric = $ERROR_ZERO_METRIC;
+                    }
                 }
             } else {
                 $err_acct_mismatch = $ERROR_ACCT_MISMATCH;
@@ -592,7 +610,8 @@ sub checkUnknown()
         $val = sprintf($R->{FMT}, $val);
         $rate = sprintf($R->{FMT},($val / $total) * 100);
 
-	if (($val > $R->{'P_RANGE'}) && ($rate > $R->{'P_RATE'})) {
+	if ((! exists $ENV{ACCT_FILTER}) &&
+	    ($val > $R->{'P_RANGE'}) && ($rate > $R->{'P_RATE'})) {
 	    &set_retVal($ERROR_HIGH_UNKNOWN);
 	    &openFsingleScr();
 	    $fmt = "#%-8s %10s %10s %s\n";

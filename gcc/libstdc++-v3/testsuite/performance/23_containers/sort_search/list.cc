@@ -1,4 +1,4 @@
-// Copyright (C) 2003-2025 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,7 @@ template<typename Container, int Iter>
 
 	//Search for random values that may or may not belong to the list.
 	for (int i = 0; i < 50; ++i)
-	  std::find(obj.begin(), obj.end(), rand() % 100001);
+	  (void) std::find(obj.begin(), obj.end(), rand() % 100001);
       
 	obj.sort();
       

@@ -1,5 +1,5 @@
 /* ACLE support for Arm MVE (__ARM_FEATURE_MVE intrinsics)
-   Copyright (C) 2023-2025 Free Software Foundation, Inc.
+   Copyright (C) 2023-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -23,6 +23,22 @@
 namespace arm_mve {
 namespace functions {
 
+extern const function_base *const asrl;
+extern const function_base *const lsll;
+extern const function_base *const sqrshr;
+extern const function_base *const sqrshrl;
+extern const function_base *const sqrshrl_sat48;
+extern const function_base *const sqshl;
+extern const function_base *const sqshll;
+extern const function_base *const srshr;
+extern const function_base *const srshrl;
+extern const function_base *const uqrshl;
+extern const function_base *const uqrshll;
+extern const function_base *const uqrshll_sat48;
+extern const function_base *const uqshl;
+extern const function_base *const uqshll;
+extern const function_base *const urshr;
+extern const function_base *const urshrl;
 extern const function_base *const vabavq;
 extern const function_base *const vabdq;
 extern const function_base *const vabsq;
@@ -75,6 +91,7 @@ extern const function_base *const veorq;
 extern const function_base *const vfmaq;
 extern const function_base *const vfmasq;
 extern const function_base *const vfmsq;
+extern const function_base *const vgetq_lane;
 extern const function_base *const vhaddq;
 extern const function_base *const vhcaddq_rot270;
 extern const function_base *const vhcaddq_rot90;
@@ -144,6 +161,7 @@ extern const function_base *const vmvnq;
 extern const function_base *const vnegq;
 extern const function_base *const vornq;
 extern const function_base *const vorrq;
+extern const function_base *const vpnot;
 extern const function_base *const vpselq;
 extern const function_base *const vqabsq;
 extern const function_base *const vqaddq;
@@ -206,6 +224,7 @@ extern const function_base *const vrshrntq;
 extern const function_base *const vrshrq;
 extern const function_base *const vsbciq;
 extern const function_base *const vsbcq;
+extern const function_base *const vsetq_lane;
 extern const function_base *const vshlcq;
 extern const function_base *const vshllbq;
 extern const function_base *const vshlltq;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025 Symas Corporation
+ * Copyright (c) 2021-2026 Symas Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,13 +30,6 @@
 #ifndef _GENUTIL_H_
 #define _GENUTIL_H_
 
-#define EBCDIC_MINUS (0x60)
-#define EBCDIC_PLUS  (0x4E)
-#define EBCDIC_ZERO  (0xF0)
-#define EBCDIC_NINE  (0xF9)
-
-bool internal_codeset_is_ebcdic();
-
 extern bool exception_location_active;
 extern bool skip_exception_processing;
 
@@ -45,8 +38,6 @@ extern bool suppress_dest_depends;
 extern std::vector<std::string>current_filename;
 
 extern tree var_decl_exception_code;         // int         __gg__exception_code;
-extern tree var_decl_exception_handled;      // int         __gg__exception_handled;
-extern tree var_decl_exception_file_number;  // int         __gg__exception_file_number;
 extern tree var_decl_exception_file_status;  // int         __gg__exception_file_status;
 extern tree var_decl_exception_file_name;    // const char *__gg__exception_file_name;
 extern tree var_decl_exception_statement;    // const char *__gg__exception_statement;
@@ -58,17 +49,13 @@ extern tree var_decl_exception_paragraph;    // const char *__gg__exception_para
 
 extern tree var_decl_default_compute_error;  // int         __gg__default_compute_error;
 extern tree var_decl_rdigits;                // int         __gg__rdigits;
-extern tree var_decl_odo_violation;          // int         __gg__odo_violation;
 extern tree var_decl_unique_prog_id;         // size_t      __gg__unique_prog_id;
 
-extern tree var_decl_entry_location;         // This is for managing ENTRY statements
 extern tree var_decl_exit_address;           // This is for implementing pseudo_return_pop
 
 extern tree var_decl_call_parameter_signature; // char   *__gg__call_parameter_signature
 extern tree var_decl_call_parameter_count;     // int __gg__call_parameter_count
 extern tree var_decl_call_parameter_lengths;   // size_t *var_decl_call_parameter_lengths
-
-extern tree var_decl_return_code;            // short __gg__data_return_code
 
 extern tree var_decl_arithmetic_rounds_size;  // size_t __gg__arithmetic_rounds_size;
 extern tree var_decl_arithmetic_rounds;       // int*   __gg__arithmetic_rounds;
@@ -87,20 +74,29 @@ extern tree var_decl_treeplet_3s; // SIZE_T_P                , "__gg__treeplet_3
 extern tree var_decl_treeplet_4f; // cblc_field_pp_type_node , "__gg__treeplet_4f"
 extern tree var_decl_treeplet_4o; // SIZE_T_P                , "__gg__treeplet_4o"
 extern tree var_decl_treeplet_4s; // SIZE_T_P                , "__gg__treeplet_4s"
-
 extern tree var_decl_nop;         // int __gg__nop
 extern tree var_decl_main_called; // int __gg__main_called
+extern tree var_decl_entry_index; // void* __gg__entry_index
 
 int       get_scaled_rdigits(cbl_field_t *field);
 int       get_scaled_digits(cbl_field_t *field);
 tree      tree_type_from_digits(size_t digits, int signable);
 tree      tree_type_from_size(size_t bytes, int signable);
-tree      tree_type_from_field(cbl_field_t *field);
+
 void      get_binary_value( tree value,
                             tree rdigits,
                             cbl_field_t *field,
                             tree         field_offset,
                             tree         hilo = NULL);
+tree      get_binary_value_tree(tree return_type,
+                                tree rdigits,
+                                cbl_field_t *field,
+                                tree         field_offset,
+                                tree         hilo = NULL);
+tree      get_binary_value_tree(tree return_type,
+                                tree rdigits,
+                                const cbl_refer_t &refer,
+                                tree         hilo = NULL);
 tree      get_data_address( cbl_field_t *field,
                             tree         offset);
 
@@ -121,9 +117,9 @@ void      set_exception_code_func(ec_type_t ec,
                                   int line,
                                   int from_raise_statement=0);
 #define set_exception_code(ec) set_exception_code_func(ec, __LINE__)
-bool      process_this_exception(ec_type_t ec);
+bool      process_this_exception(const ec_type_t ec);
 #define   CHECK_FOR_FRACTIONAL_DIGITS true
-void      get_integer_value(tree value,
+void      get_integer_value(tree value,  // This is always a LONG
                             cbl_field_t *field,
                             tree         offset=NULL,  // size_t
                             bool check_for_fractional_digits=false);
@@ -133,7 +129,7 @@ void      copy_little_endian_into_place(cbl_field_t *dest,
                                         tree value,
                                         int rhs_rdigits,
                                         bool check_for_error,
-                                        tree &size_error);
+                                  const tree &size_error);
 tree      build_array_of_size_t( size_t  N,
                                  const size_t *values);
 void      parser_display_internal_field(tree file_descriptor,
@@ -141,23 +137,14 @@ void      parser_display_internal_field(tree file_descriptor,
                                         bool advance=DISPLAY_NO_ADVANCE);
 char     *get_literal_string(cbl_field_t *field);
 
-bool      refer_is_clean(cbl_refer_t &refer);
+bool      refer_is_clean(const cbl_refer_t &refer);
 
-tree      refer_offset_source(cbl_refer_t &refer,
-                              int *pflags=NULL);
-tree      refer_size_source(cbl_refer_t &refer);
-tree      refer_offset_dest(cbl_refer_t &refer);
-tree      refer_size_dest(cbl_refer_t &refer);
+tree      refer_offset(const cbl_refer_t &refer,
+                       int *pflags=NULL);
+tree      refer_size_source(const cbl_refer_t &refer);
+tree      refer_size_dest(const cbl_refer_t &refer);
 
-void     REFER_CHECK( const char *func,
-                      int         line,
-                      cbl_refer_t &refer
-                      );
-#define refer_check(a) REFER_CHECK(__func__, __LINE__, a)
-
-tree      qualified_data_source(cbl_refer_t &refer);
-
-tree      qualified_data_dest(cbl_refer_t &refer);
+tree      qualified_data_location(const cbl_refer_t &refer);
 
 void      build_array_of_treeplets( int ngroup,
                                     size_t N,
@@ -166,4 +153,9 @@ void      build_array_of_treeplets( int ngroup,
 void      build_array_of_fourplets( int ngroup,
                                     size_t N,
                                     cbl_refer_t *refers);
+void      get_depending_on_value_from_odo(tree retval, cbl_field_t *odo);
+uint64_t  get_time_nanoseconds();
+
+bool      is_pure_integer(const cbl_field_t *field);
+
 #endif

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 AVX512BITALG insns
 #source: avx512bitalg.s
@@ -8,7 +7,7 @@
 
 Disassembly of section \.text:
 
-00000000 <_start>:
+00000000 <bitalg>:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 55 48 8f ec[ 	]*vpshufbitqmb %zmm4,%zmm5,%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f2 55 4f 8f ec[ 	]*vpshufbitqmb %zmm4,%zmm5,%k5\{%k7\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 55 48 8f ac f4 c0 1d fe ff[ 	]*vpshufbitqmb -0x1e240\(%esp,%esi,8\),%zmm5,%k5

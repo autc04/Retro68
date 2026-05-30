@@ -1,5 +1,5 @@
 
-// Copyright (C) 2020-2024 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 // This file is part of GCC.
 
@@ -51,7 +51,9 @@ public:
     return std::unique_ptr<GenericParam> (clone_generic_param_impl ());
   }
 
-  virtual std::string as_string () const = 0;
+  virtual std::string to_debug_string () const = 0;
+
+  virtual std::string to_string () const = 0;
 
   virtual location_t get_locus () const = 0;
 
@@ -116,7 +118,9 @@ public:
   LifetimeParam (LifetimeParam &&other) = default;
   LifetimeParam &operator= (LifetimeParam &&other) = default;
 
-  std::string as_string () const override;
+  std::string to_debug_string () const override;
+
+  std::string to_string () const override;
 
   void accept_vis (HIRFullVisitor &vis) override;
 
@@ -144,13 +148,15 @@ public:
 
   AST::AttrVec &get_outer_attrs () override { return outer_attrs; }
 
-  std::string as_string () const override final;
+  std::string to_debug_string () const override final;
+
+  std::string to_string () const override final;
 
   void accept_vis (HIRFullVisitor &vis) override final;
 
   location_t get_locus () const override final { return locus; };
 
-  bool has_default_expression () { return default_expression != nullptr; }
+  bool has_default_expression () const { return default_expression != nullptr; }
 
   std::string get_name () { return name; }
   Type &get_type ()
@@ -159,6 +165,8 @@ public:
     return *type;
   }
   Expr &get_default_expression () { return *default_expression; }
+
+  const Expr &get_default_expression () const { return *default_expression; }
 
 protected:
   /* Use covariance to implement clone function as returning this object rather

@@ -6,7 +6,7 @@
 #source: tls-ie-10.s
 #source: tls-hx.s
 #source: tls-hx1x2.s
-#as: --no-underscore --em=criself -I$srcdir/$subdir --pic
+#as: --no-underscore --emulation=criself -I$srcdir/$subdir --pic
 #ld: -m crislinux
 #objdump: -d -s -h -t -r -p
 

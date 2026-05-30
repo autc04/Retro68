@@ -12,5 +12,5 @@
 
 Disassembly of section .text:
 
-0+8000 \<_start\>:
-    8000:	d503201f 	nop
+0+10000 \<_start\>:
+   10000:	d503201f 	nop

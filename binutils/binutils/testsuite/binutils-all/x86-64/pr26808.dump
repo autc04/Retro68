@@ -1,15 +1,15 @@
 Contents of the .debug_info.dwo section:
 
-  Compilation Unit @ offset 0x0:
+  Compilation Unit @ offset 0:
    Length:        0x178 (32-bit)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: 0
    Pointer Size:  8
    Section contributions:
-    .debug_abbrev.dwo:       0x0  0x154
-    .debug_line.dwo:         0x0  0x40
-    .debug_loc.dwo:          0x0  0x0
-    .debug_str_offsets.dwo:  0x0  0x14
+    .debug_abbrev.dwo:       0  0x154
+    .debug_line.dwo:         0  0x40
+    .debug_loc.dwo:          0  0
+    .debug_str_offsets.dwo:  0  0x14
  <0><b>: Abbrev Number: 12 (DW_TAG_compile_unit)
     <c>   DW_AT_producer    : GNU C++ 4.7.x-google 20120720 (prerelease)
     <37>   DW_AT_language    : 4	(C++)
@@ -30,7 +30,7 @@ Contents of the .debug_info.dwo section:
     <a5>   DW_AT_decl_file   : 1
     <a6>   DW_AT_decl_line   : 30
     <a7>   DW_AT_type        : <0x90>
-    <ab>   DW_AT_low_pc      : (index: 0x0): 0
+    <ab>   DW_AT_low_pc      : (index: 0): 0
     <ac>   DW_AT_high_pc     : 0x304
     <b4>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
     <b6>   DW_AT_GNU_all_tail_call_sites: 1
@@ -121,12 +121,12 @@ Contents of the .debug_info.dwo section:
   Compilation Unit @ offset 0x17c:
    Length:        0x5af (32-bit)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: 0
    Pointer Size:  8
    Section contributions:
     .debug_abbrev.dwo:       0x154  0x21d
     .debug_line.dwo:         0x40  0x3d
-    .debug_loc.dwo:          0x0  0x0
+    .debug_loc.dwo:          0  0
     .debug_str_offsets.dwo:  0x14  0x44
  <0><187>: Abbrev Number: 12 (DW_TAG_compile_unit)
     <188>   DW_AT_producer    : GNU C++ 4.7.x-google 20120720 (prerelease)
@@ -141,7 +141,7 @@ Contents of the .debug_info.dwo section:
     <215>   DW_AT_sibling     : <0x242>
  <2><219>: Abbrev Number: 14 (DW_TAG_subprogram)
     <21a>   DW_AT_external    : 1
-    <21a>   DW_AT_name        : (indexed string: 0x0): testcase1
+    <21a>   DW_AT_name        : (indexed string: 0): testcase1
     <21b>   DW_AT_decl_file   : 1
     <21c>   DW_AT_decl_line   : 28
     <21d>   DW_AT_linkage_name: (indexed string: 0xc): _ZN2C19testcase1Ev
@@ -194,7 +194,7 @@ Contents of the .debug_info.dwo section:
     <267>   DW_AT_sibling     : <0x294>
  <2><26b>: Abbrev Number: 14 (DW_TAG_subprogram)
     <26c>   DW_AT_external    : 1
-    <26c>   DW_AT_name        : (indexed string: 0x0): testcase1
+    <26c>   DW_AT_name        : (indexed string: 0): testcase1
     <26d>   DW_AT_decl_file   : 1
     <26e>   DW_AT_decl_line   : 40
     <26f>   DW_AT_linkage_name: (indexed string: 0x7): _ZN2C29testcase1Ev
@@ -239,7 +239,7 @@ Contents of the .debug_info.dwo section:
     <2aa>   DW_AT_sibling     : <0x2cd>
  <2><2ae>: Abbrev Number: 14 (DW_TAG_subprogram)
     <2af>   DW_AT_external    : 1
-    <2af>   DW_AT_name        : (indexed string: 0x0): testcase1
+    <2af>   DW_AT_name        : (indexed string: 0): testcase1
     <2b0>   DW_AT_decl_file   : 1
     <2b1>   DW_AT_decl_line   : 50
     <2b2>   DW_AT_linkage_name: (indexed string: 0x2): _ZN2C39testcase1Ev
@@ -274,7 +274,7 @@ Contents of the .debug_info.dwo section:
     <2dd>   DW_AT_decl_file   : 1
     <2de>   DW_AT_decl_line   : 70
     <2df>   DW_AT_linkage_name: _Z4f13iv
-    <2e8>   DW_AT_low_pc      : (index: 0x0): 0
+    <2e8>   DW_AT_low_pc      : (index: 0): 0
     <2e9>   DW_AT_high_pc     : 0x6
     <2f1>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
     <2f3>   DW_AT_GNU_all_call_sites: 1
@@ -758,13 +758,13 @@ Contents of the .debug_info.dwo section:
   Compilation Unit @ offset 0x72f:
    Length:        0xcb (32-bit)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: 0
    Pointer Size:  8
    Section contributions:
     .debug_abbrev.dwo:       0x371  0xbd
     .debug_line.dwo:         0x7d  0x3e
-    .debug_loc.dwo:          0x0  0x0
-    .debug_str_offsets.dwo:  0x0  0x0
+    .debug_loc.dwo:          0  0
+    .debug_str_offsets.dwo:  0  0
  <0><73a>: Abbrev Number: 10 (DW_TAG_compile_unit)
     <73b>   DW_AT_producer    : GNU C++ 4.7.x-google 20120720 (prerelease)
     <766>   DW_AT_language    : 4	(C++)
@@ -786,7 +786,7 @@ Contents of the .debug_info.dwo section:
     <7d3>   DW_AT_decl_line   : 32
     <7d4>   DW_AT_linkage_name: _Z4t16av
     <7dd>   DW_AT_type        : <0x7c4>
-    <7e1>   DW_AT_low_pc      : (index: 0x0): 0
+    <7e1>   DW_AT_low_pc      : (index: 0): 0
     <7e2>   DW_AT_high_pc     : 0x13
     <7ea>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
     <7ec>   DW_AT_GNU_all_tail_call_sites: 1
@@ -801,12 +801,12 @@ Contents of the .debug_info.dwo section:
   Compilation Unit @ offset 0x7fe:
    Length:        0x329 (32-bit)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: 0
    Pointer Size:  8
    Section contributions:
     .debug_abbrev.dwo:       0x42e  0x1f2
     .debug_line.dwo:         0xbb  0x3d
-    .debug_loc.dwo:          0x0  0x0
+    .debug_loc.dwo:          0  0
     .debug_str_offsets.dwo:  0x58  0x18
  <0><809>: Abbrev Number: 12 (DW_TAG_compile_unit)
     <80a>   DW_AT_producer    : GNU C++ 4.7.x-google 20120720 (prerelease)
@@ -878,7 +878,7 @@ Contents of the .debug_info.dwo section:
     <908>   DW_AT_decl_file   : 1
     <909>   DW_AT_decl_line   : 70
     <90a>   DW_AT_linkage_name: _Z4f13iv
-    <913>   DW_AT_low_pc      : (index: 0x0): 0
+    <913>   DW_AT_low_pc      : (index: 0): 0
     <914>   DW_AT_high_pc     : 0x6
     <91c>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
     <91e>   DW_AT_GNU_all_call_sites: 1
@@ -1099,22 +1099,22 @@ Contents of the .debug_info.dwo section:
 
 Contents of the .debug_types.dwo section:
 
-  Compilation Unit @ offset 0x0:
+  Compilation Unit @ offset 0:
    Length:        0xf7 (32-bit)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: 0
    Pointer Size:  8
    Signature:     0xb534bdc1f01629bb
    Type Offset:   0x25
    Section contributions:
-    .debug_abbrev.dwo:       0x0  0x154
-    .debug_line.dwo:         0x0  0x40
-    .debug_loc.dwo:          0x0  0x0
-    .debug_str_offsets.dwo:  0x0  0x14
+    .debug_abbrev.dwo:       0  0x154
+    .debug_line.dwo:         0  0x40
+    .debug_loc.dwo:          0  0
+    .debug_str_offsets.dwo:  0  0x14
  <0><17>: Abbrev Number: 1 (DW_TAG_type_unit)
     <18>   DW_AT_language    : 4	(C++)
     <19>   DW_AT_GNU_odr_signature: 0x880a5c4d6e59da8a
-    <21>   DW_AT_stmt_list   : 0x0
+    <21>   DW_AT_stmt_list   : 0
  <1><25>: Abbrev Number: 2 (DW_TAG_class_type)
     <26>   DW_AT_name        : C3
     <29>   DW_AT_byte_size   : 4
@@ -1130,7 +1130,7 @@ Contents of the .debug_types.dwo section:
     <39>   DW_AT_accessibility: 1	(public)
  <2><3a>: Abbrev Number: 4 (DW_TAG_subprogram)
     <3b>   DW_AT_external    : 1
-    <3b>   DW_AT_name        : (indexed string: 0x0): testcase1
+    <3b>   DW_AT_name        : (indexed string: 0): testcase1
     <3c>   DW_AT_decl_file   : 2
     <3d>   DW_AT_decl_line   : 50
     <3e>   DW_AT_linkage_name: _ZN2C39testcase1Ev
@@ -1208,19 +1208,19 @@ Contents of the .debug_types.dwo section:
   Compilation Unit @ offset 0xfb:
    Length:        0xf1 (32-bit)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: 0
    Pointer Size:  8
    Signature:     0xab98c7bc886f5266
    Type Offset:   0x25
    Section contributions:
-    .debug_abbrev.dwo:       0x0  0x154
-    .debug_line.dwo:         0x0  0x40
-    .debug_loc.dwo:          0x0  0x0
-    .debug_str_offsets.dwo:  0x0  0x14
+    .debug_abbrev.dwo:       0  0x154
+    .debug_line.dwo:         0  0x40
+    .debug_loc.dwo:          0  0
+    .debug_str_offsets.dwo:  0  0x14
  <0><112>: Abbrev Number: 1 (DW_TAG_type_unit)
     <113>   DW_AT_language    : 4	(C++)
     <114>   DW_AT_GNU_odr_signature: 0xae4af0d8bfcef94b
-    <11c>   DW_AT_stmt_list   : 0x0
+    <11c>   DW_AT_stmt_list   : 0
  <1><120>: Abbrev Number: 2 (DW_TAG_class_type)
     <121>   DW_AT_name        : C2
     <124>   DW_AT_byte_size   : 4
@@ -1236,7 +1236,7 @@ Contents of the .debug_types.dwo section:
     <134>   DW_AT_accessibility: 1	(public)
  <2><135>: Abbrev Number: 4 (DW_TAG_subprogram)
     <136>   DW_AT_external    : 1
-    <136>   DW_AT_name        : (indexed string: 0x0): testcase1
+    <136>   DW_AT_name        : (indexed string: 0): testcase1
     <137>   DW_AT_decl_file   : 2
     <138>   DW_AT_decl_line   : 40
     <139>   DW_AT_linkage_name: _ZN2C29testcase1Ev
@@ -1309,19 +1309,19 @@ Contents of the .debug_types.dwo section:
   Compilation Unit @ offset 0x1f0:
    Length:        0x141 (32-bit)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: 0
    Pointer Size:  8
    Signature:     0xb5faa2a4b7a919c4
    Type Offset:   0x25
    Section contributions:
-    .debug_abbrev.dwo:       0x0  0x154
-    .debug_line.dwo:         0x0  0x40
-    .debug_loc.dwo:          0x0  0x0
-    .debug_str_offsets.dwo:  0x0  0x14
+    .debug_abbrev.dwo:       0  0x154
+    .debug_line.dwo:         0  0x40
+    .debug_loc.dwo:          0  0
+    .debug_str_offsets.dwo:  0  0x14
  <0><207>: Abbrev Number: 1 (DW_TAG_type_unit)
     <208>   DW_AT_language    : 4	(C++)
     <209>   DW_AT_GNU_odr_signature: 0xc7fbeb753b05ade3
-    <211>   DW_AT_stmt_list   : 0x0
+    <211>   DW_AT_stmt_list   : 0
  <1><215>: Abbrev Number: 2 (DW_TAG_class_type)
     <216>   DW_AT_name        : C1
     <219>   DW_AT_byte_size   : 4
@@ -1337,7 +1337,7 @@ Contents of the .debug_types.dwo section:
     <229>   DW_AT_accessibility: 1	(public)
  <2><22a>: Abbrev Number: 4 (DW_TAG_subprogram)
     <22b>   DW_AT_external    : 1
-    <22b>   DW_AT_name        : (indexed string: 0x0): testcase1
+    <22b>   DW_AT_name        : (indexed string: 0): testcase1
     <22c>   DW_AT_decl_file   : 2
     <22d>   DW_AT_decl_line   : 28
     <22e>   DW_AT_linkage_name: _ZN2C19testcase1Ev

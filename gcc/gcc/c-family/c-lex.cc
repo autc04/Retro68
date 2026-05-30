@@ -1,5 +1,5 @@
 /* Mainly the interface between cpplib and the C front ends.
-   Copyright (C) 1987-2025 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -174,7 +174,7 @@ cb_ident (cpp_reader * ARG_UNUSED (pfile),
       if (cpp_interpret_string (pfile, str, 1, &cstr, CPP_STRING))
 	{
 	  targetm.asm_out.output_ident ((const char *) cstr.text);
-	  free (CONST_CAST (unsigned char *, cstr.text));
+	  free (const_cast<unsigned char *> (cstr.text));
 	}
     }
 }
@@ -248,7 +248,12 @@ cb_def_pragma (cpp_reader *pfile, location_t loc)
     {
       const unsigned char *space, *name;
       const cpp_token *s;
-      location_t fe_loc = loc;
+
+      /* If we are processing a _Pragma, LOC is not a valid location, but libcpp
+	 will provide a good location via this function instead.  */
+      location_t fe_loc = cpp_get_diagnostic_override_loc (pfile);
+      if (fe_loc == UNKNOWN_LOCATION)
+	fe_loc = loc;
 
       space = name = (const unsigned char *) "";
 
@@ -628,7 +633,7 @@ c_lex_with_flags (tree *value, location_t *loc, unsigned char *cpp_flags,
 					    (const char *) tok->val.str.text);
 	    TREE_TYPE (num_string) = char_array_type_node;
 	    num_string = fix_string_type (num_string);
-	    str = CONST_CAST (char *, TREE_STRING_POINTER (num_string));
+	    str = const_cast<char *> (TREE_STRING_POINTER (num_string));
 	    str[len] = '\0';
 	    literal = build_userdef_literal (suffix_id, *value, overflow,
 					     num_string);
@@ -1171,7 +1176,7 @@ interpret_integer (const cpp_token *token, unsigned int flags,
 	  && (flags & CPP_N_WIDTH) != CPP_N_LARGE)
 	emit_diagnostic
 	  ((c_dialect_cxx () ? cxx_dialect == cxx98 : !flag_isoc99)
-	   ? DK_PEDWARN : DK_WARNING,
+	   ? diagnostics::kind::pedwarn : diagnostics::kind::warning,
 	   input_location, OPT_Wlong_long,
 	   (flags & CPP_N_UNSIGNED)
 	   ? "integer constant is too large for %<unsigned long%> type"
@@ -1623,8 +1628,6 @@ lex_string (const cpp_token *tok, tree *valp, bool objc_string, bool translate)
      zero '@' before each string.  */
   bool objc_at_sign_was_seen = false;
 
-  bool pascal_string = false;
-
  retry:
   tok = get_token (parse_in);
   switch (tok->type)
@@ -1692,24 +1695,12 @@ lex_string (const cpp_token *tok, tree *valp, bool objc_string, bool translate)
     warning (OPT_Wtraditional,
 	     "traditional C rejects string constant concatenation");
 
-  if (!strncmp((const char*)strs[0].text, "\"\\p", 3))
-    {
-       pascal_string = true;
-       /* replace \p by a valid escape sequence */
-       ((unsigned char*)strs[0].text)[2] = 'n';
-    }
-
   if ((translate
        ? cpp_interpret_string : cpp_interpret_string_notranslate)
       (parse_in, strs, concats + 1, &istr, type))
     {
-      if (pascal_string)
-        {
-          /* put the real string length in */
-          ((unsigned char*)istr.text)[0] = (unsigned char) (istr.len - 2);
-        }
       value = build_string (istr.len, (const char *) istr.text);
-      free (CONST_CAST (unsigned char *, istr.text));
+      free (const_cast<unsigned char *> (istr.text));
       if (concats)
 	{
 	  gcc_assert (locs);
@@ -1759,10 +1750,7 @@ lex_string (const cpp_token *tok, tree *valp, bool objc_string, bool translate)
     {
     default:
     case CPP_STRING:
-      if (pascal_string)
-        TREE_TYPE (value) = uchar_array_type_node;
-      else
-        TREE_TYPE (value) = char_array_type_node;
+      TREE_TYPE (value) = char_array_type_node;
       break;
     case CPP_UTF8STRING:
       if (flag_char8_t)

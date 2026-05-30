@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2020-2025, Free Software Foundation, Inc.         --
+--          Copyright (C) 2020-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -277,6 +277,8 @@ package body Gen_IL.Internals is
             return "DT_Offset_To_Top_Func";
          when DT_Position =>
             return "DT_Position";
+         when Extra_Formals_Known =>
+            return "Extra_Formals_Known";
          when Forwards_OK =>
             return "Forwards_OK";
          when Has_First_Controlling_Parameter_Aspect =>
@@ -289,10 +291,14 @@ package body Gen_IL.Internals is
             return "Has_RACW";
          when Has_SP_Choice =>
             return "Has_SP_Choice";
+         when Has_Unsigned_Base_Range_Aspect =>
+            return "Has_Unsigned_Base_Range_Aspect";
          when Ignore_SPARK_Mode_Pragmas =>
             return "Ignore_SPARK_Mode_Pragmas";
          when Is_CPP_Class =>
             return "Is_CPP_Class";
+         when Is_CPP_Constructor =>
+            return "Is_CPP_Constructor";
          when Is_CUDA_Kernel =>
             return "Is_CUDA_Kernel";
          when Is_DIC_Procedure =>
@@ -307,6 +313,10 @@ package body Gen_IL.Internals is
             return "Is_Elaboration_Warnings_OK_Id";
          when Is_Elaboration_Warnings_OK_Node =>
             return "Is_Elaboration_Warnings_OK_Node";
+         when Is_IEEE_Extended_Precision =>
+            return "Is_IEEE_Extended_Precision";
+         when Is_Interface_Pointer_Displacement =>
+            return "Is_Interface_Pointer_Displacement";
          when Is_Known_Guaranteed_ABE =>
             return "Is_Known_Guaranteed_ABE";
          when Is_RACW_Stub_Type =>

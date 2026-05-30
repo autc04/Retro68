@@ -1,5 +1,5 @@
 /* Definitions for AVR 8-bit microcontrollers if configured for AVR-LibC.
-   Copyright (C) 2012-2025 Free Software Foundation, Inc.
+   Copyright (C) 2012-2026 Free Software Foundation, Inc.
    Contributed by Georg-Johann Lay (avr@gjlay.de)
 
 This file is part of GCC.
@@ -36,4 +36,4 @@ along with GCC; see the file COPYING3.  If not see
 
 #undef  LINK_GCC_C_SEQUENCE_SPEC
 #define LINK_GCC_C_SEQUENCE_SPEC \
-  "--start-group %G %{!nolibc:%L} --end-group"
+  "--start-group %G %{!nolibc:" LINK_LIBATOMIC_SPEC "%L} --end-group"

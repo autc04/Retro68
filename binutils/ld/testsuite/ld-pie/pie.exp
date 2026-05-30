@@ -1,5 +1,5 @@
 # Expect script for various PIE tests.
-#   Copyright (C) 2006-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,9 +19,7 @@
 # MA 02110-1301, USA.
 #
 
-if { ![istarget *-*-linux*]
-     && ![istarget *-*-nacl*]
-     && ![istarget *-*-gnu*] } {
+if { ![istarget *-*-linux*] && ![istarget *-*-gnu*] } {
     return
 }
 
