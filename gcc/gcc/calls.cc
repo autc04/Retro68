@@ -1395,12 +1395,12 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 	  {
 	    tree subtype = TREE_TYPE (argtype);
 	    args[j].tree_value = build1 (REALPART_EXPR, subtype, arg);
-	    j--;
+	    j += inc;
 	    args[j].tree_value = build1 (IMAGPART_EXPR, subtype, arg);
 	  }
 	else
 	  args[j].tree_value = arg;
-	j--;
+	j += inc;
 	argpos++;
       }
   }
@@ -1411,7 +1411,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 					: fntype);
 
   /* I counts args in order (to be) pushed; ARGPOS counts in order written.  */
-  for (argpos = 0; argpos < num_actuals; i--, argpos++)
+  for (argpos = 0; argpos < num_actuals; i += inc, argpos++)
     {
       tree type = TREE_TYPE (args[i].tree_value);
       int unsignedp;
@@ -3816,6 +3816,25 @@ expand_call (tree exp, rtx target, int ignore)
 	}
       last = last_call_insn ();
       add_reg_note (last, REG_CALL_DECL, datum);
+
+      if (is_pascal)
+	{
+	  if (TYPE_MODE (rettype) != VOIDmode
+	      && ! structure_value_addr)
+	    {
+	      valreg = gen_reg_rtx (TYPE_MODE (rettype));
+
+	      poly_uint16 modesize = GET_MODE_SIZE (GET_MODE (valreg));
+#ifdef PUSH_ROUNDING
+	      modesize = PUSH_ROUNDING (modesize);
+#endif
+	      emit_move_insn (valreg,
+			      gen_rtx_MEM (GET_MODE (valreg),
+					   stack_pointer_rtx));
+
+	      adjust_stack (gen_int_mode (modesize, Pmode));
+	    }
+	}
 
       /* If the call setup or the call itself overlaps with anything
 	 of the argument setup we probably clobbered our call address.

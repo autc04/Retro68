@@ -3012,30 +3012,37 @@ c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok,
 		      && !omp_dsimd_idattr_clauses.is_empty ())
 		    c_finish_omp_declare_simd (parser, d, NULL_TREE,
 					       &omp_dsimd_idattr_clauses);
-		  start_init (d, asm_name,
-			      TREE_STATIC (d) || specs->constexpr_p,
-			      specs->constexpr_p, &richloc);
-		  /* A parameter is initialized, which is invalid.  Don't
-		     attempt to instrument the initializer.  */
-		  sanitize_code_type flag_sanitize_save = flag_sanitize;
-		  if (TREE_CODE (d) == PARM_DECL)
-		    flag_sanitize = 0;
-		  init = c_parser_initializer (parser, d);
-		  flag_sanitize = flag_sanitize_save;
-		  if (specs->constexpr_p)
+		  if (d && TREE_CODE (d) == FUNCTION_DECL)
 		    {
-		      finish_underspecified_init (underspec_name,
-						  underspec_state);
-		      d = pushdecl (d);
-		      if (omp_declare_simd_clauses)
-			c_finish_omp_declare_simd (parser, d, NULL_TREE,
-						   omp_declare_simd_clauses);
-		  if (!specs->constexpr_p
-		      && !omp_dsimd_idattr_clauses.is_empty ())
-		    c_finish_omp_declare_simd (parser, d, NULL_TREE,
-					       &omp_dsimd_idattr_clauses);
+		      tree rawinline_attr = c_parser_inline_opcodes (parser);
+		      decl_attributes (&d, rawinline_attr, 0);
 		    }
-		  finish_init ();
+		  else
+		    {
+		      start_init (d, asm_name,
+				  TREE_STATIC (d) || specs->constexpr_p,
+				  specs->constexpr_p, &richloc);
+		      /* A parameter is initialized, which is invalid.  Don't
+			 attempt to instrument the initializer.  */
+		      sanitize_code_type flag_sanitize_save = flag_sanitize;
+		      if (TREE_CODE (d) == PARM_DECL)
+			flag_sanitize = 0;
+		      init = c_parser_initializer (parser, d);
+		      flag_sanitize = flag_sanitize_save;
+		      if (specs->constexpr_p)
+			{
+			  finish_underspecified_init (underspec_name,
+						      underspec_state);
+			  d = pushdecl (d);
+			  if (omp_declare_simd_clauses)
+			    c_finish_omp_declare_simd (parser, d, NULL_TREE,
+						       omp_declare_simd_clauses);
+			  if (!omp_dsimd_idattr_clauses.is_empty ())
+			    c_finish_omp_declare_simd (parser, d, NULL_TREE,
+						       &omp_dsimd_idattr_clauses);
+			}
+		      finish_init ();
+		    }
 		}
 	      if (oacc_routine_data)
 		c_finish_oacc_routine (oacc_routine_data, d, false);
